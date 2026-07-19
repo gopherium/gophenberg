@@ -1,0 +1,10 @@
+/gophenberg
+cover.out
+.covdata/
+node_modules/
+.env
+/pluginwire
+go.work
+go.work.sum
+/deploy/
+/.spec/
