@@ -1,5 +1,7 @@
 /gophenberg
 cover.out
+frontend/dist/
+frontend/coverage/
 .covdata/
 node_modules/
 .env
