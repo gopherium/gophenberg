@@ -1,6 +1,9 @@
-.PHONY: test test-race cover cover-html lint fmt generate outdated db-up db-down
+.PHONY: dev test test-race cover cover-html lint fmt generate outdated db-up db-down
 
 COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/testdb)
+
+dev: db-up
+	go run ./cmd/gophenberg
 
 test:
 	go test ./...
