@@ -1,4 +1,6 @@
-.PHONY: test test-race lint fmt outdated db-up db-down
+.PHONY: test test-race cover cover-html lint fmt generate outdated db-up db-down
+
+COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/testdb)
 
 test:
 	go test ./...
@@ -11,6 +13,26 @@ lint:
 
 fmt:
 	golangci-lint fmt
+
+generate:
+	go run ./cmd/pluginwire
+
+COVERDATA = .covdata
+
+cover:
+	rm -rf $(COVERDATA)
+	mkdir -p $(COVERDATA)/bin $(COVERDATA)/counters
+	go build -cover -coverpkg=./cmd/... -o $(COVERDATA)/bin ./cmd/gophenberg ./cmd/pluginwire
+	GOPHENBERG_COVER_BINDIR=$(CURDIR)/$(COVERDATA)/bin \
+	GOPHENBERG_COVER_GOCOVERDIR=$(CURDIR)/$(COVERDATA)/counters \
+	go test -cover $(COVERPKGS) -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
+	@echo "=== merged unit + binary coverage ==="
+	go tool covdata percent -i=$(COVERDATA)/counters
+	@go tool covdata textfmt -i=$(COVERDATA)/counters -o $(COVERDATA)/cover.out
+	@go tool cover -func=$(COVERDATA)/cover.out | tail -1
+
+cover-html: cover
+	go tool cover -html=$(COVERDATA)/cover.out
 
 outdated:
 	@echo "=== direct Go modules with updates ==="
