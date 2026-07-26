@@ -5,6 +5,8 @@ go 1.26.5
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
 require (
+	github.com/google/go-cmp v0.7.0
+	github.com/google/uuid v1.6.0
 	github.com/gopherium/gouncer/authkit/postgres v0.1.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/peterldowns/pgtestdb v0.1.1
@@ -21,7 +23,6 @@ require (
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/go-sql-driver/mysql v1.10.0 // indirect
 	github.com/google/cel-go v0.28.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gopherium/gouncer v0.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

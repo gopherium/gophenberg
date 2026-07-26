@@ -30,9 +30,8 @@ func Config() pgtestdb.Config {
 	}
 }
 
-// Migrator returns a pgtestdb migrator that applies the authkit migrations
-// before the core ones, matching the application's boot order so core
-// migrations may reference the auth schema.
+// Migrator returns a pgtestdb migrator applying the authkit migrations
+// before the core ones, matching the application's boot order.
 func Migrator() pgtestdb.Migrator {
 	return migrator{}
 }

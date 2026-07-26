@@ -12,5 +12,5 @@ Gophenberg is free and open-source software under the
 `SPDX-License-Identifier: Apache-2.0` header.
 
 Built frontend artifacts bundle `@wordpress/*` packages licensed under
-GPL-2.0-or-later; those combined bundles are conveyed under the terms of the
+GPL-2.0-or-later. Those combined bundles are conveyed under the terms of the
 GPLv3, while all original source files in this repository remain Apache-2.0.
