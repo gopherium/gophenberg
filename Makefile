@@ -10,6 +10,7 @@ test-race:
 
 lint:
 	golangci-lint run
+	go run ./cmd/doclint
 
 fmt:
 	golangci-lint fmt
@@ -22,7 +23,7 @@ COVERDATA = .covdata
 cover:
 	rm -rf $(COVERDATA)
 	mkdir -p $(COVERDATA)/bin $(COVERDATA)/counters
-	go build -cover -coverpkg=./cmd/... -o $(COVERDATA)/bin ./cmd/gophenberg ./cmd/pluginwire
+	go build -cover -coverpkg=./cmd/... -o $(COVERDATA)/bin ./cmd/gophenberg ./cmd/doclint ./cmd/pluginwire
 	GOPHENBERG_COVER_BINDIR=$(CURDIR)/$(COVERDATA)/bin \
 	GOPHENBERG_COVER_GOCOVERDIR=$(CURDIR)/$(COVERDATA)/counters \
 	go test -cover $(COVERPKGS) -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
