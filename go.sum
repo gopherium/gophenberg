@@ -40,6 +40,8 @@ github.com/gopherium/gouncer/authkit v0.1.0 h1:AfA66LppXjiNRkC4syOrV09DHVPbAWkWG
 github.com/gopherium/gouncer/authkit v0.1.0/go.mod h1:UlshoX6DGkXf5hdlUmHNg5rtCmO9VYqCo5kt+Iy8R6Y=
 github.com/gopherium/gouncer/authkit/postgres v0.1.0 h1:SVYaYD3NS3ccNl8VVn0Z000OsilV1kFUYV0vj5Z4w38=
 github.com/gopherium/gouncer/authkit/postgres v0.1.0/go.mod h1:c2pqWGX6L0hjIjq7+1NrGzXI7yE/AP07TYU9QcQlrmY=
+github.com/gopherium/pluginkit v0.1.0 h1:pvQAzXr65SBZsTFCJLRWzdXUiPxGuR3A2xLPA++tSVE=
+github.com/gopherium/pluginkit v0.1.0/go.mod h1:7/KK/KzRVYkF0cLXJ8uBEJzMJwmf/xcePjrx/zRl0Qk=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
