@@ -1,0 +1,15 @@
+.git
+.github
+.spec
+**/node_modules
+frontend/dist
+frontend/coverage
+**/*_test.go
+.env
+.env.*
+.covdata
+cover.out
+/gophenberg
+go.work
+go.work.sum
+*.md

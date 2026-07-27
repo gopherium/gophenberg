@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /frontend
+      - /sdk/frontend
+      - /plugins/*/frontend
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 2
+      semver-major-days: 30
+      semver-minor-days: 7
+    groups:
+      frontend:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "@wordpress/*"
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
