@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// ErrInvalidType reports that a post type is empty or not registered.
+// ErrInvalidType reports that a post type is not registered.
 var ErrInvalidType = errors.New("post: invalid type")
 
 // ErrInvalidAuthor reports that a post carries no author.
@@ -49,7 +49,7 @@ type Post struct {
 // New returns a draft [Post] of the given type, slugged after its title.
 func New(postType, title string, authorID uuid.UUID) (Post, error) {
 	trimmedType := strings.TrimSpace(postType)
-	if trimmedType == "" {
+	if _, ok := TypeByName(trimmedType); !ok {
 		return Post{}, ErrInvalidType
 	}
 	if authorID == uuid.Nil {

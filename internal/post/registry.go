@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package post
+
+import (
+	"fmt"
+	"sync"
+)
+
+// TypePost is the name of the built-in post type.
+const TypePost = "post"
+
+// Type describes a kind of content the CMS stores.
+type Type struct {
+	Name         string
+	Label        string
+	Hierarchical bool
+	Revisions    bool
+	// RevisionCap bounds the revisions kept per post. Zero keeps every revision.
+	RevisionCap int
+}
+
+var registry = struct {
+	mu    sync.RWMutex
+	types map[string]Type
+}{types: make(map[string]Type)}
+
+// init registers the built-in post type.
+func init() {
+	Register(Type{Name: TypePost, Label: "Posts", Revisions: true, RevisionCap: 100})
+}
+
+// Register adds a post type to the registry. It panics on an empty or
+// already registered name.
+func Register(t Type) {
+	if t.Name == "" {
+		panic("post: register type without a name")
+	}
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+	if _, ok := registry.types[t.Name]; ok {
+		panic(fmt.Sprintf("post: duplicate type %q", t.Name))
+	}
+	registry.types[t.Name] = t
+}
+
+// TypeByName returns the registered type of the given name.
+func TypeByName(name string) (Type, bool) {
+	registry.mu.RLock()
+	defer registry.mu.RUnlock()
+	t, ok := registry.types[name]
+	return t, ok
+}
