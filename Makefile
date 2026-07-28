@@ -21,6 +21,7 @@ fmt:
 
 generate:
 	go run ./cmd/pluginwire
+	go tool sqlc generate
 
 COVERDATA = .covdata
 

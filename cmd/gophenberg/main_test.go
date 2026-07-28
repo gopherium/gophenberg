@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/peterldowns/pgtestdb"
 
@@ -118,6 +119,9 @@ func TestRunReportsCoreMigrationFailure(t *testing.T) {
 	t.Parallel()
 
 	databaseURL := emptyDatabaseURL(t)
+	if err := authkitpg.Migrate(t.Context(), databaseURL); err != nil {
+		t.Fatalf("pre-migrating auth: %v", err)
+	}
 	if err := postgres.Migrate(t.Context(), databaseURL); err != nil {
 		t.Fatalf("pre-migrating core: %v", err)
 	}

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"testing"
 
+	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/peterldowns/pgtestdb"
 
 	"github.com/gopherium/gophenberg/internal/postgres"
@@ -19,6 +20,9 @@ func TestMigrateCreatesCoreSchema(t *testing.T) {
 	}
 
 	cfg := pgtestdb.Custom(t, testdb.Config(), pgtestdb.NoopMigrator{})
+	if err := authkitpg.Migrate(t.Context(), cfg.URL()); err != nil {
+		t.Fatalf("auth Migrate() error = %v, want nil", err)
+	}
 
 	if err := postgres.Migrate(t.Context(), cfg.URL()); err != nil {
 		t.Fatalf("Migrate() error = %v, want nil", err)
