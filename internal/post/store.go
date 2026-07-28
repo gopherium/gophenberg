@@ -45,7 +45,7 @@ type Store interface {
 	ByID(ctx context.Context, id uuid.UUID) (Post, error)
 	List(ctx context.Context, f Filter) ([]Post, int, error)
 	Update(ctx context.Context, p Post, snapshot *Revision, revisionCap int) (Post, error)
-	Trash(ctx context.Context, id uuid.UUID) (Post, error)
-	Restore(ctx context.Context, id uuid.UUID) (Post, error)
+	Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Post, error)
+	Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Post, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 }
