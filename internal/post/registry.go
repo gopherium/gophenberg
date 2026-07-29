@@ -4,6 +4,7 @@ package post
 
 import (
 	"fmt"
+	"math"
 	"sync"
 )
 
@@ -30,11 +31,13 @@ func init() {
 	Register(Type{Name: TypePost, Label: "Posts", Revisions: true, RevisionCap: 100})
 }
 
-// Register adds a post type to the registry. It panics on an empty or
-// already registered name.
+// Register adds a post type to the registry and panics on an invalid one.
 func Register(t Type) {
 	if t.Name == "" {
 		panic("post: register type without a name")
+	}
+	if t.RevisionCap > math.MaxInt32 {
+		panic(fmt.Sprintf("post: type %q revision cap beyond the row limit", t.Name))
 	}
 	registry.mu.Lock()
 	defer registry.mu.Unlock()

@@ -4,6 +4,7 @@ package post_test
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/google/uuid"
@@ -84,6 +85,20 @@ func TestRegisterPanicsOnAnEmptyName(t *testing.T) {
 	}()
 
 	post.Register(post.Type{Label: "Nameless"})
+}
+
+func TestRegisterPanicsOnAnOversizedRevisionCap(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if recover() == nil {
+			t.Error("Register() did not panic, want an oversized cap panic")
+		}
+	}()
+
+	post.Register(post.Type{
+		Name: "p8-oversized", Label: "Oversized", Revisions: true, RevisionCap: math.MaxInt32 + 1,
+	})
 }
 
 func TestNewRejectsUnregisteredTypes(t *testing.T) {
