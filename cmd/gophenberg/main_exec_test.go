@@ -133,3 +133,44 @@ func TestMainBinaryCreateAdminFailsWithoutDatabaseURL(t *testing.T) {
 		t.Errorf("stderr = %q, want it to name the missing variable", stderr.String())
 	}
 }
+
+func TestMainBinarySeedsTheDemoData(t *testing.T) {
+	t.Parallel()
+
+	binary, env := coverBinary(t)
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command(binary, "seed")
+	cmd.Dir = t.TempDir()
+	cmd.Env = append(env, "GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t))
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("seed: %v, stderr: %s", err, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "seeded demo data") {
+		t.Errorf("stdout = %q, want the seeding confirmation", stdout.String())
+	}
+}
+
+func TestMainBinarySeedFailsWithoutDatabaseURL(t *testing.T) {
+	t.Parallel()
+
+	binary, env := coverBinary(t)
+	var stderr bytes.Buffer
+	cmd := exec.Command(binary, "seed")
+	cmd.Dir = t.TempDir()
+	cmd.Env = env
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("seed without a database url: %v, want exit code 1", err)
+	}
+	if !strings.Contains(stderr.String(), "GOPHENBERG_DATABASE_URL") {
+		t.Errorf("stderr = %q, want it to name the missing variable", stderr.String())
+	}
+}
