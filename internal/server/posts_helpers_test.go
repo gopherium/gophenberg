@@ -3,6 +3,7 @@
 package server_test
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"slices"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gopherium/gouncer"
+	"github.com/gopherium/gouncer/authkit"
 	"github.com/gopherium/gouncer/authkit/testkit"
 
 	"github.com/gopherium/gophenberg/internal/post"
@@ -31,6 +33,13 @@ type fakePostStore struct {
 	restoreErr error
 	deleteErr  error
 	countsErr  error
+
+	revisions         []post.Revision
+	revisionsErr      error
+	revisionErr       error
+	deleteRevisionErr error
+	lastSnapshot      *post.Revision
+	lastRevisionCap   int
 }
 
 // newFakePostStore returns an empty in-memory post store double.
@@ -97,13 +106,19 @@ func (s *fakePostStore) List(_ context.Context, f post.Filter) ([]post.Post, int
 	return matched[start:min(start+f.PerPage, total)], total, nil
 }
 
-// Update stores the post's fields unless an update error is injected.
-func (s *fakePostStore) Update(_ context.Context, p post.Post, _ *post.Revision, _ int) (post.Post, error) {
+// Update stores the post's fields and any snapshot unless an update error is injected.
+func (s *fakePostStore) Update(
+	_ context.Context, p post.Post, snapshot *post.Revision, revisionCap int,
+) (post.Post, error) {
 	if s.updateErr != nil {
 		return post.Post{}, s.updateErr
 	}
 	if _, ok := s.posts[p.ID]; !ok {
 		return post.Post{}, post.ErrNotFound
+	}
+	s.lastSnapshot, s.lastRevisionCap = snapshot, revisionCap
+	if snapshot != nil {
+		s.revisions = append(s.revisions, *snapshot)
 	}
 	return s.add(p), nil
 }
@@ -150,6 +165,55 @@ func (s *fakePostStore) Delete(_ context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// Revisions returns the post's stored revisions newest first, without content.
+func (s *fakePostStore) Revisions(_ context.Context, postID uuid.UUID) ([]post.Revision, error) {
+	if s.revisionsErr != nil {
+		return nil, s.revisionsErr
+	}
+	stored := make([]post.Revision, 0, len(s.revisions))
+	for _, r := range s.revisions {
+		if r.PostID != postID {
+			continue
+		}
+		r.Content = ""
+		stored = append(stored, r)
+	}
+	slices.SortFunc(stored, func(a, b post.Revision) int {
+		if c := b.CreatedAt.Compare(a.CreatedAt); c != 0 {
+			return c
+		}
+		return bytes.Compare(b.ID[:], a.ID[:])
+	})
+	return stored, nil
+}
+
+// RevisionByID returns the stored revision, or [post.ErrRevisionNotFound].
+func (s *fakePostStore) RevisionByID(_ context.Context, postID, revisionID uuid.UUID) (post.Revision, error) {
+	if s.revisionErr != nil {
+		return post.Revision{}, s.revisionErr
+	}
+	for _, r := range s.revisions {
+		if r.ID == revisionID && r.PostID == postID {
+			return r, nil
+		}
+	}
+	return post.Revision{}, post.ErrRevisionNotFound
+}
+
+// DeleteRevision removes the stored revision, or reports [post.ErrRevisionNotFound].
+func (s *fakePostStore) DeleteRevision(_ context.Context, postID, revisionID uuid.UUID) error {
+	if s.deleteRevisionErr != nil {
+		return s.deleteRevisionErr
+	}
+	for i, r := range s.revisions {
+		if r.ID == revisionID && r.PostID == postID {
+			s.revisions = append(s.revisions[:i], s.revisions[i+1:]...)
+			return nil
+		}
+	}
+	return post.ErrRevisionNotFound
+}
+
 // Counts returns the number of stored posts in each status.
 func (s *fakePostStore) Counts(_ context.Context, _ string) (map[post.Status]int, error) {
 	if s.countsErr != nil {
@@ -178,13 +242,23 @@ func authedPostServer(t *testing.T) (http.Handler, *fakePostStore, gouncer.User)
 	users := newFakeUserStore()
 	ada := addAda(t, users)
 	posts := newFakePostStore()
-	handler := server.NewServer(server.Config{Users: users, Posts: posts})
+	handler := server.NewServer(serverConfig(users, posts))
 	cookie := loginCookie(t, handler)
 	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.AddCookie(cookie)
 		handler.ServeHTTP(w, r)
 	})
 	return authed, posts, ada
+}
+
+// serverConfig returns a server config over the given stores.
+func serverConfig(users authkit.AdminStore, posts post.Store) server.Config {
+	return server.Config{Users: users, Posts: posts}
+}
+
+// serverWithStores returns an unauthenticated handler over the given stores.
+func serverWithStores(users authkit.AdminStore, posts post.Store) http.Handler {
+	return server.NewServer(serverConfig(users, posts))
 }
 
 // failingUserStore is a user store whose listing always fails.

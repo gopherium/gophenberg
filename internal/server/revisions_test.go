@@ -160,6 +160,30 @@ func TestRevisionListReturnsNewestFirstWithoutContent(t *testing.T) {
 	}
 }
 
+func TestRevisionListBreaksTimestampTiesByID(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(newPost(t, "Revised", ada.ID))
+	first := mustRevision(t, stored, "First", ada.ID)
+	second := mustRevision(t, stored, "Second", ada.ID)
+	second.CreatedAt = first.CreatedAt
+	posts.revisions = append(posts.revisions, first, second)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/posts/"+stored.ID.String()+"/revisions", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := decodeBody[revisionListBody](t, recorder)
+	if len(body.Items) != 2 {
+		t.Fatalf("items = %d, want 2", len(body.Items))
+	}
+	if body.Items[0].ID != second.ID {
+		t.Errorf("first item = %q, want the higher id first on tied timestamps", body.Items[0].Title)
+	}
+}
+
 func TestRevisionGetReturnsTheContent(t *testing.T) {
 	t.Parallel()
 

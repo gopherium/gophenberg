@@ -5,12 +5,23 @@ package post_test
 import (
 	"errors"
 	"math"
+	"strconv"
 	"testing"
 
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/post"
 )
+
+// overflowCap returns a revision cap too large for the row limit of a query.
+func overflowCap(t *testing.T) int {
+	t.Helper()
+	if strconv.IntSize == 32 {
+		t.Skip("skipping the oversized cap on 32-bit platforms")
+	}
+	oversized := int64(math.MaxInt32) + 1
+	return int(oversized)
+}
 
 func TestTypeByNameReturnsTheBuiltinPostType(t *testing.T) {
 	t.Parallel()
@@ -97,7 +108,7 @@ func TestRegisterPanicsOnAnOversizedRevisionCap(t *testing.T) {
 	}()
 
 	post.Register(post.Type{
-		Name: "p8-oversized", Label: "Oversized", Revisions: true, RevisionCap: math.MaxInt32 + 1,
+		Name: "p8-oversized", Label: "Oversized", Revisions: true, RevisionCap: overflowCap(t),
 	})
 }
 

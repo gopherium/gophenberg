@@ -5,6 +5,7 @@ package postgres_test
 import (
 	"errors"
 	"math"
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,8 +14,15 @@ import (
 	"github.com/gopherium/gophenberg/internal/post"
 )
 
-// overflowCap is a revision cap too large for the row limit of a query.
-const overflowCap = math.MaxInt32 + 1
+// overflowCap returns a revision cap too large for the row limit of a query.
+func overflowCap(t *testing.T) int {
+	t.Helper()
+	if strconv.IntSize == 32 {
+		t.Skip("skipping the oversized cap on 32-bit platforms")
+	}
+	oversized := int64(math.MaxInt32) + 1
+	return int(oversized)
+}
 
 // mustSnapshot returns a revision of the post credited to author.
 func mustSnapshot(t *testing.T, p post.Post, author uuid.UUID) *post.Revision {
@@ -321,7 +329,7 @@ func TestPostStoreUpdateReportsAnUnusableCap(t *testing.T) {
 	store, author := newPostStore(t)
 	created := mustCreate(t, store, "Revised", author)
 
-	_, err := store.Update(t.Context(), editTitle(created, "Second"), mustSnapshot(t, created, author), overflowCap)
+	_, err := store.Update(t.Context(), editTitle(created, "Second"), mustSnapshot(t, created, author), overflowCap(t))
 
 	if err == nil {
 		t.Error("Update() with a cap beyond the row limit error = nil, want a failure")

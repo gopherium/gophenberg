@@ -239,6 +239,26 @@ func TestPostStoreUpdateReportsMissingPosts(t *testing.T) {
 	}
 }
 
+func TestPostStoreUpdateWithASnapshotReportsMissingPosts(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	missing := mustPost(t, "Missing", author)
+
+	_, err := store.Update(t.Context(), missing, mustSnapshot(t, missing, author), 0)
+
+	if !errors.Is(err, post.ErrNotFound) {
+		t.Errorf("Update() error = %v, want %v", err, post.ErrNotFound)
+	}
+	revisions, revErr := store.Revisions(t.Context(), missing.ID)
+	if revErr != nil {
+		t.Fatalf("Revisions() error = %v, want nil", revErr)
+	}
+	if len(revisions) != 0 {
+		t.Errorf("revisions = %d, want none stored for the missing post", len(revisions))
+	}
+}
+
 func TestPostStoreUpdateWrapsDatabaseFailures(t *testing.T) {
 	t.Parallel()
 
