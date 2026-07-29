@@ -7,6 +7,7 @@ tool github.com/sqlc-dev/sqlc/cmd/sqlc
 require (
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/google/uuid v1.6.0
+	github.com/gopherium/gouncer v0.1.0
 	github.com/gopherium/gouncer/authkit v0.1.0
 	github.com/gopherium/gouncer/authkit/postgres v0.2.0
 	github.com/gopherium/gouncer/authkit/ratelimit v0.1.0
@@ -28,7 +29,6 @@ require (
 	github.com/go-chi/httprate v0.16.0 // indirect
 	github.com/go-sql-driver/mysql v1.10.0 // indirect
 	github.com/google/cel-go v0.28.0 // indirect
-	github.com/gopherium/gouncer v0.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
