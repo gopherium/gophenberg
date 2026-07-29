@@ -199,6 +199,31 @@ func TestPostStoreRevisionByIDReturnsTheContent(t *testing.T) {
 	}
 }
 
+func TestPostStoreRevisionsScopeToTheirPost(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	owner := mustCreate(t, store, "Owner Post", author)
+	other := mustCreate(t, store, "Other Post", author)
+	snapshot := mustSnapshot(t, owner, author)
+	if _, err := store.Update(t.Context(), editTitle(owner, "Edited"), snapshot, 0); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+
+	_, byIDErr := store.RevisionByID(t.Context(), other.ID, snapshot.ID)
+	deleteErr := store.DeleteRevision(t.Context(), other.ID, snapshot.ID)
+
+	if !errors.Is(byIDErr, post.ErrRevisionNotFound) {
+		t.Errorf("RevisionByID() through the wrong post error = %v, want %v", byIDErr, post.ErrRevisionNotFound)
+	}
+	if !errors.Is(deleteErr, post.ErrRevisionNotFound) {
+		t.Errorf("DeleteRevision() through the wrong post error = %v, want %v", deleteErr, post.ErrRevisionNotFound)
+	}
+	if _, err := store.RevisionByID(t.Context(), owner.ID, snapshot.ID); err != nil {
+		t.Errorf("RevisionByID() through the owner error = %v, want the revision kept", err)
+	}
+}
+
 func TestPostStoreRevisionByIDReportsMissingRevisions(t *testing.T) {
 	t.Parallel()
 

@@ -233,6 +233,30 @@ func TestRevisionRoutesRejectUnknownAndMalformedIDs(t *testing.T) {
 	}
 }
 
+func TestRevisionRoutesScopeToThePost(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	owner := posts.add(newPost(t, "Owner Post", ada.ID))
+	other := posts.add(newPost(t, "Other Post", ada.ID))
+	revision := mustRevision(t, owner, "Scoped", ada.ID)
+	posts.revisions = append(posts.revisions, revision)
+
+	get := doRequest(
+		t, handler, http.MethodGet, "/api/posts/"+other.ID.String()+"/revisions/"+revision.ID.String(), "",
+	)
+	remove := doRequest(
+		t, handler, http.MethodDelete, "/api/posts/"+other.ID.String()+"/revisions/"+revision.ID.String(), "",
+	)
+
+	if get.Code != http.StatusNotFound || remove.Code != http.StatusNotFound {
+		t.Errorf("statuses = %d and %d, want %d for the wrong post", get.Code, remove.Code, http.StatusNotFound)
+	}
+	if len(posts.revisions) != 1 {
+		t.Errorf("revisions = %d, want the delete through the wrong post to remove none", len(posts.revisions))
+	}
+}
+
 func TestRevisionRoutesReportStoreFailures(t *testing.T) {
 	t.Parallel()
 
