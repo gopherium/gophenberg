@@ -61,10 +61,16 @@ func TestPostPatchWithoutContentChangesSkipsTheSnapshot(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Only Status", ada.ID))
 
-	doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"status":"published"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"status":"published"}`)
 
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
 	if posts.lastSnapshot != nil {
 		t.Errorf("snapshot = %+v, want a status change to store none", posts.lastSnapshot)
+	}
+	if body := decodeBody[postBody](t, recorder); !body.UpdatedAt.After(stored.UpdatedAt) {
+		t.Errorf("UpdatedAt = %v, want it stamped after %v", body.UpdatedAt, stored.UpdatedAt)
 	}
 }
 
@@ -74,10 +80,16 @@ func TestPostPatchSlugChangeSkipsTheSnapshot(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Slug Only", ada.ID))
 
-	doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"slug":"new-slug"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"slug":"new-slug"}`)
 
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
 	if posts.lastSnapshot != nil {
 		t.Errorf("snapshot = %+v, want a slug change to store none", posts.lastSnapshot)
+	}
+	if body := decodeBody[postBody](t, recorder); !body.UpdatedAt.After(stored.UpdatedAt) {
+		t.Errorf("UpdatedAt = %v, want it stamped after %v", body.UpdatedAt, stored.UpdatedAt)
 	}
 }
 
