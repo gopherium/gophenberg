@@ -72,6 +72,26 @@ func TestRevisionMigrationsAllowOneAutosavePerAuthor(t *testing.T) {
 	}
 }
 
+func TestRevisionMigrationsIndexRevisionsForListingAndAuthorship(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+
+	for _, name := range []string{"post_revisions_post_id_created_at_idx", "post_revisions_author_id_idx"} {
+		var count int
+		err := db.QueryRow(
+			`SELECT count(*) FROM pg_indexes
+			WHERE schemaname = 'core' AND tablename = 'post_revisions' AND indexname = $1`, name,
+		).Scan(&count)
+		if err != nil {
+			t.Fatalf("querying pg_indexes: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("index %s count = %d, want 1", name, count)
+		}
+	}
+}
+
 func TestRevisionMigrationsRejectOrphans(t *testing.T) {
 	t.Parallel()
 

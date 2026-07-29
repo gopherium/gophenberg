@@ -15,6 +15,8 @@ CREATE TABLE core.post_revisions (
 CREATE INDEX post_revisions_post_id_created_at_idx
     ON core.post_revisions (post_id, created_at DESC);
 
+CREATE INDEX post_revisions_author_id_idx ON core.post_revisions (author_id);
+
 CREATE UNIQUE INDEX post_revisions_one_autosave_per_author_idx
     ON core.post_revisions (post_id, author_id) WHERE kind = 'autosave';
 
