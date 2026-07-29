@@ -28,7 +28,7 @@ func TestPostStoreReportsDatabaseFailures(t *testing.T) {
 	if _, _, err := store.List(t.Context(), post.Filter{Type: post.TypePost, Page: 1, PerPage: 10}); err == nil {
 		t.Error("List() on a closed pool error = nil, want a failure")
 	}
-	if _, err := store.Update(t.Context(), stored, nil, 0); err == nil {
+	if _, err := store.Update(t.Context(), stored, stored.UpdatedAt, nil, 0); err == nil {
 		t.Error("Update() on a closed pool error = nil, want a failure")
 	}
 	if _, err := store.Trash(t.Context(), stored.ID, now); err == nil {
@@ -66,7 +66,7 @@ func TestPostStoreReportsExhaustedSlugSuffixes(t *testing.T) {
 	_, createErr := store.Create(t.Context(), mustPost(t, "Crowded", author))
 	edited := spare
 	edited.Slug = "crowded"
-	_, updateErr := store.Update(t.Context(), edited, nil, 0)
+	_, updateErr := store.Update(t.Context(), edited, spare.UpdatedAt, nil, 0)
 
 	if !errors.Is(createErr, post.ErrSlugTaken) {
 		t.Errorf("Create() error = %v, want %v", createErr, post.ErrSlugTaken)

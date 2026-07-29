@@ -138,10 +138,10 @@ func (s *PostStore) List(ctx context.Context, f post.Filter) ([]post.Post, int, 
 
 // Update stores the post's editable fields and any snapshot, suffixing its slug until the type accepts it.
 func (s *PostStore) Update(
-	ctx context.Context, p post.Post, snapshot *post.Revision, revisionCap int,
+	ctx context.Context, p post.Post, expectedUpdatedAt time.Time, snapshot *post.Revision, revisionCap int,
 ) (post.Post, error) {
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
-		rows, err := s.update(ctx, p, numberedSlug(p.Slug, attempt), snapshot, revisionCap)
+		rows, err := s.update(ctx, p, numberedSlug(p.Slug, attempt), expectedUpdatedAt, snapshot, revisionCap)
 		if isSlugTaken(err) {
 			continue
 		}
@@ -149,7 +149,10 @@ func (s *PostStore) Update(
 			return post.Post{}, err
 		}
 		if rows == 0 {
-			return post.Post{}, post.ErrNotFound
+			if _, err := s.ByID(ctx, p.ID); err != nil {
+				return post.Post{}, err
+			}
+			return post.Post{}, post.ErrConflict
 		}
 		return s.ByID(ctx, p.ID)
 	}
@@ -158,20 +161,22 @@ func (s *PostStore) Update(
 
 // update writes the post and any snapshot under slug.
 func (s *PostStore) update(
-	ctx context.Context, p post.Post, slug string, snapshot *post.Revision, revisionCap int,
+	ctx context.Context, p post.Post, slug string, expectedUpdatedAt time.Time, snapshot *post.Revision,
+	revisionCap int,
 ) (int64, error) {
 	var rows int64
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
 		updated, err := queries.UpdatePost(ctx, db.UpdatePostParams{
-			ID:          p.ID,
-			Status:      string(p.Status),
-			Slug:        slug,
-			Title:       p.Title,
-			Content:     p.Content,
-			Excerpt:     p.Excerpt,
-			PublishedAt: p.PublishedAt,
-			UpdatedAt:   p.UpdatedAt,
+			ID:                p.ID,
+			Status:            string(p.Status),
+			Slug:              slug,
+			Title:             p.Title,
+			Content:           p.Content,
+			Excerpt:           p.Excerpt,
+			PublishedAt:       p.PublishedAt,
+			UpdatedAt:         p.UpdatedAt,
+			ExpectedUpdatedAt: expectedUpdatedAt,
 		})
 		if err != nil {
 			return err

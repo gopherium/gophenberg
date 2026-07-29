@@ -433,18 +433,19 @@ const updatePost = `-- name: UpdatePost :execrows
 UPDATE core.posts AS p
 SET status = $1, slug = $2, title = $3, content = $4,
     excerpt = $5, published_at = $6, updated_at = $7
-WHERE p.id = $8
+WHERE p.id = $8 AND p.updated_at = $9
 `
 
 type UpdatePostParams struct {
-	Status      string
-	Slug        string
-	Title       string
-	Content     string
-	Excerpt     string
-	PublishedAt *time.Time
-	UpdatedAt   time.Time
-	ID          uuid.UUID
+	Status            string
+	Slug              string
+	Title             string
+	Content           string
+	Excerpt           string
+	PublishedAt       *time.Time
+	UpdatedAt         time.Time
+	ID                uuid.UUID
+	ExpectedUpdatedAt time.Time
 }
 
 func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (int64, error) {
@@ -457,6 +458,7 @@ func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (int64, 
 		arg.PublishedAt,
 		arg.UpdatedAt,
 		arg.ID,
+		arg.ExpectedUpdatedAt,
 	)
 	if err != nil {
 		return 0, err

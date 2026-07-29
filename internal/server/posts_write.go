@@ -130,7 +130,7 @@ func (s *server) handlePostPatch() http.HandlerFunc {
 			snapshot = &revision
 			revisionCap = postType.RevisionCap
 		}
-		updated, err := s.posts.Update(r.Context(), stored, snapshot, revisionCap)
+		updated, err := s.posts.Update(r.Context(), stored, previous.UpdatedAt, snapshot, revisionCap)
 		if err != nil {
 			respondDomainError(w, err)
 			return

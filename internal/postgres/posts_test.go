@@ -191,7 +191,7 @@ func TestPostStoreUpdateChangesEditableFields(t *testing.T) {
 	edited.PublishedAt = &published
 	edited.UpdatedAt = published
 
-	updated, err := store.Update(t.Context(), edited, nil, 0)
+	updated, err := store.Update(t.Context(), edited, created.UpdatedAt, nil, 0)
 
 	if err != nil {
 		t.Fatalf("Update() error = %v, want nil", err)
@@ -216,7 +216,7 @@ func TestPostStoreUpdateSuffixesTakenSlugs(t *testing.T) {
 	edited := other
 	edited.Slug = "taken-slug"
 
-	updated, err := store.Update(t.Context(), edited, nil, 0)
+	updated, err := store.Update(t.Context(), edited, other.UpdatedAt, nil, 0)
 
 	if err != nil {
 		t.Fatalf("Update() error = %v, want nil", err)
@@ -232,10 +232,34 @@ func TestPostStoreUpdateReportsMissingPosts(t *testing.T) {
 	store, author := newPostStore(t)
 	missing := mustPost(t, "Missing", author)
 
-	_, err := store.Update(t.Context(), missing, nil, 0)
+	_, err := store.Update(t.Context(), missing, missing.UpdatedAt, nil, 0)
 
 	if !errors.Is(err, post.ErrNotFound) {
 		t.Errorf("Update() error = %v, want %v", err, post.ErrNotFound)
+	}
+}
+
+func TestPostStoreUpdateReportsConflictingUpdates(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	created := mustCreate(t, store, "Contended", author)
+	_, err := store.Update(t.Context(), editTitle(created, "First Writer"), created.UpdatedAt, nil, 0)
+	if err != nil {
+		t.Fatalf("first Update() error = %v, want nil", err)
+	}
+
+	_, err = store.Update(t.Context(), editTitle(created, "Second Writer"), created.UpdatedAt, nil, 0)
+
+	if !errors.Is(err, post.ErrConflict) {
+		t.Errorf("Update() with a stale token error = %v, want %v", err, post.ErrConflict)
+	}
+	current, byIDErr := store.ByID(t.Context(), created.ID)
+	if byIDErr != nil {
+		t.Fatalf("ByID() error = %v, want nil", byIDErr)
+	}
+	if current.Title != "First Writer" {
+		t.Errorf("Title = %q, want the first write kept", current.Title)
 	}
 }
 
@@ -245,7 +269,7 @@ func TestPostStoreUpdateWithASnapshotReportsMissingPosts(t *testing.T) {
 	store, author := newPostStore(t)
 	missing := mustPost(t, "Missing", author)
 
-	_, err := store.Update(t.Context(), missing, mustSnapshot(t, missing, author), 0)
+	_, err := store.Update(t.Context(), missing, missing.UpdatedAt, mustSnapshot(t, missing, author), 0)
 
 	if !errors.Is(err, post.ErrNotFound) {
 		t.Errorf("Update() error = %v, want %v", err, post.ErrNotFound)
@@ -266,7 +290,7 @@ func TestPostStoreUpdateWrapsDatabaseFailures(t *testing.T) {
 	created := mustCreate(t, store, "Wrapped", author)
 	pool.Close()
 
-	_, err := store.Update(t.Context(), created, nil, 0)
+	_, err := store.Update(t.Context(), created, created.UpdatedAt, nil, 0)
 
 	if err == nil {
 		t.Fatal("Update() on a closed pool error = nil, want a failure")

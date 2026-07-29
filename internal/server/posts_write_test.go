@@ -88,6 +88,20 @@ func TestPostPatchEditsFieldsAndStampsUpdatedAt(t *testing.T) {
 	}
 }
 
+func TestPostPatchReportsConflictingEdits(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(newPost(t, "Contended", ada.ID))
+	posts.updateErr = post.ErrConflict
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"title":"Edited"}`)
+
+	if recorder.Code != http.StatusConflict {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusConflict)
+	}
+}
+
 func TestPostPatchPublishesAndKeepsTheOriginalDate(t *testing.T) {
 	t.Parallel()
 

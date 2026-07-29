@@ -22,8 +22,10 @@ func respondDomainError(w http.ResponseWriter, err error) {
 // given domain error, masking unrecognized errors as internal ones.
 func statusFor(err error) (int, string) {
 	switch {
-	case errors.Is(err, post.ErrNotFound):
+	case errors.Is(err, post.ErrNotFound), errors.Is(err, post.ErrRevisionNotFound):
 		return http.StatusNotFound, err.Error()
+	case errors.Is(err, post.ErrConflict):
+		return http.StatusConflict, err.Error()
 	case errors.Is(err, post.ErrInvalidType),
 		errors.Is(err, post.ErrInvalidAuthor),
 		errors.Is(err, post.ErrInvalidStatus),

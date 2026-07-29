@@ -45,7 +45,7 @@ WHERE p.type = @type
 UPDATE core.posts AS p
 SET status = @status, slug = @slug, title = @title, content = @content,
     excerpt = @excerpt, published_at = @published_at, updated_at = @updated_at
-WHERE p.id = @id;
+WHERE p.id = @id AND p.updated_at = @expected_updated_at;
 
 -- name: TrashPost :execrows
 UPDATE core.posts AS p

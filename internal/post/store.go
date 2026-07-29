@@ -23,6 +23,9 @@ const (
 // ErrRevisionNotFound reports that no revision exists for the requested ID.
 var ErrRevisionNotFound = errors.New("post: revision not found")
 
+// ErrConflict reports that the post changed after the update was prepared.
+var ErrConflict = errors.New("post: conflicting update")
+
 // Revision is a snapshot of a post's editable content.
 type Revision struct {
 	ID        uuid.UUID
@@ -67,7 +70,7 @@ type Store interface {
 	Create(ctx context.Context, p Post) (Post, error)
 	ByID(ctx context.Context, id uuid.UUID) (Post, error)
 	List(ctx context.Context, f Filter) ([]Post, int, error)
-	Update(ctx context.Context, p Post, snapshot *Revision, revisionCap int) (Post, error)
+	Update(ctx context.Context, p Post, expectedUpdatedAt time.Time, snapshot *Revision, revisionCap int) (Post, error)
 	Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Post, error)
 	Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Post, error)
 	Delete(ctx context.Context, id uuid.UUID) error

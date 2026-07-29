@@ -108,13 +108,17 @@ func (s *fakePostStore) List(_ context.Context, f post.Filter) ([]post.Post, int
 
 // Update stores the post's fields and any snapshot unless an update error is injected.
 func (s *fakePostStore) Update(
-	_ context.Context, p post.Post, snapshot *post.Revision, revisionCap int,
+	_ context.Context, p post.Post, expectedUpdatedAt time.Time, snapshot *post.Revision, revisionCap int,
 ) (post.Post, error) {
 	if s.updateErr != nil {
 		return post.Post{}, s.updateErr
 	}
-	if _, ok := s.posts[p.ID]; !ok {
+	existing, ok := s.posts[p.ID]
+	if !ok {
 		return post.Post{}, post.ErrNotFound
+	}
+	if !existing.UpdatedAt.Equal(expectedUpdatedAt) {
+		return post.Post{}, post.ErrConflict
 	}
 	s.lastSnapshot, s.lastRevisionCap = snapshot, revisionCap
 	if snapshot != nil {

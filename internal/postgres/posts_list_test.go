@@ -20,7 +20,7 @@ func publish(t *testing.T, store *postgres.PostStore, title string, author uuid.
 	edited.Status = post.StatusPublished
 	edited.PublishedAt = &at
 	edited.UpdatedAt = at
-	updated, err := store.Update(t.Context(), edited, nil, 0)
+	updated, err := store.Update(t.Context(), edited, created.UpdatedAt, nil, 0)
 	if err != nil {
 		t.Fatalf("publishing %q: %v", title, err)
 	}
@@ -69,7 +69,7 @@ func TestPostStoreListOmitsContent(t *testing.T) {
 	created := mustCreate(t, store, "With Body", author)
 	edited := created
 	edited.Content = "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->"
-	if _, err := store.Update(t.Context(), edited, nil, 0); err != nil {
+	if _, err := store.Update(t.Context(), edited, created.UpdatedAt, nil, 0); err != nil {
 		t.Fatalf("Update() error = %v, want nil", err)
 	}
 
@@ -111,7 +111,7 @@ func TestPostStoreListSearchesTitleAndContent(t *testing.T) {
 	withBody := mustCreate(t, store, "Unrelated Title", author)
 	edited := withBody
 	edited.Content = "a paragraph mentioning gutenberg inside"
-	if _, err := store.Update(t.Context(), edited, nil, 0); err != nil {
+	if _, err := store.Update(t.Context(), edited, withBody.UpdatedAt, nil, 0); err != nil {
 		t.Fatalf("Update() error = %v, want nil", err)
 	}
 	mustCreate(t, store, "Something Else", author)

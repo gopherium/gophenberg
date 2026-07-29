@@ -48,7 +48,9 @@ func TestPostStoreUpdateStoresTheSnapshot(t *testing.T) {
 	store, author := newPostStore(t)
 	created := mustCreate(t, store, "First Title", author)
 
-	_, err := store.Update(t.Context(), editTitle(created, "Second Title"), mustSnapshot(t, created, author), 0)
+	_, err := store.Update(
+		t.Context(), editTitle(created, "Second Title"), created.UpdatedAt, mustSnapshot(t, created, author), 0,
+	)
 
 	if err != nil {
 		t.Fatalf("Update() error = %v, want nil", err)
@@ -77,7 +79,7 @@ func TestPostStoreUpdateWithoutASnapshotStoresNoRevision(t *testing.T) {
 	store, author := newPostStore(t)
 	created := mustCreate(t, store, "Only Title", author)
 
-	if _, err := store.Update(t.Context(), editTitle(created, "Edited"), nil, 0); err != nil {
+	if _, err := store.Update(t.Context(), editTitle(created, "Edited"), created.UpdatedAt, nil, 0); err != nil {
 		t.Fatalf("Update() error = %v, want nil", err)
 	}
 
@@ -98,7 +100,7 @@ func TestPostStoreUpdatePrunesBeyondTheCap(t *testing.T) {
 
 	for i := 1; i <= 5; i++ {
 		edited := editTitle(current, "Title "+string(rune('0'+i)))
-		updated, err := store.Update(t.Context(), edited, mustSnapshot(t, current, author), 2)
+		updated, err := store.Update(t.Context(), edited, current.UpdatedAt, mustSnapshot(t, current, author), 2)
 		if err != nil {
 			t.Fatalf("Update(%d) error = %v, want nil", i, err)
 		}
@@ -117,6 +119,34 @@ func TestPostStoreUpdatePrunesBeyondTheCap(t *testing.T) {
 	}
 }
 
+func TestPostStoreUpdateKeepsHistoryWhenSnapshotsConflict(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	created := mustCreate(t, store, "Version One", author)
+	_, err := store.Update(
+		t.Context(), editTitle(created, "Writer A"), created.UpdatedAt, mustSnapshot(t, created, author), 0,
+	)
+	if err != nil {
+		t.Fatalf("first Update() error = %v, want nil", err)
+	}
+
+	_, err = store.Update(
+		t.Context(), editTitle(created, "Writer B"), created.UpdatedAt, mustSnapshot(t, created, author), 0,
+	)
+
+	if !errors.Is(err, post.ErrConflict) {
+		t.Fatalf("Update() with a stale token error = %v, want %v", err, post.ErrConflict)
+	}
+	revisions, err := store.Revisions(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("Revisions() error = %v, want nil", err)
+	}
+	if len(revisions) != 1 {
+		t.Errorf("revisions = %d, want only the applied write snapshotted", len(revisions))
+	}
+}
+
 func TestPostStoreUpdatePruneSparesAutosaves(t *testing.T) {
 	t.Parallel()
 
@@ -128,7 +158,7 @@ func TestPostStoreUpdatePruneSparesAutosaves(t *testing.T) {
 
 	for i := 1; i <= 3; i++ {
 		edited := editTitle(current, "Title "+string(rune('0'+i)))
-		updated, err := store.Update(t.Context(), edited, mustSnapshot(t, current, author), 1)
+		updated, err := store.Update(t.Context(), edited, current.UpdatedAt, mustSnapshot(t, current, author), 1)
 		if err != nil {
 			t.Fatalf("Update(%d) error = %v, want nil", i, err)
 		}
@@ -159,7 +189,7 @@ func TestPostStoreUpdateKeepsEveryRevisionWithoutACap(t *testing.T) {
 
 	for i := 1; i <= 3; i++ {
 		edited := editTitle(current, "Title "+string(rune('0'+i)))
-		updated, err := store.Update(t.Context(), edited, mustSnapshot(t, current, author), 0)
+		updated, err := store.Update(t.Context(), edited, current.UpdatedAt, mustSnapshot(t, current, author), 0)
 		if err != nil {
 			t.Fatalf("Update(%d) error = %v, want nil", i, err)
 		}
@@ -182,14 +212,17 @@ func TestPostStoreRevisionByIDReturnsTheContent(t *testing.T) {
 	created := mustCreate(t, store, "With Body", author)
 	withBody := created
 	withBody.Content = "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->"
-	if _, err := store.Update(t.Context(), withBody, nil, 0); err != nil {
+	if _, err := store.Update(t.Context(), withBody, created.UpdatedAt, nil, 0); err != nil {
 		t.Fatalf("Update() error = %v, want nil", err)
 	}
 	stored, err := store.ByID(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("ByID() error = %v, want nil", err)
 	}
-	if _, err := store.Update(t.Context(), editTitle(stored, "Edited"), mustSnapshot(t, stored, author), 0); err != nil {
+	_, err = store.Update(
+		t.Context(), editTitle(stored, "Edited"), stored.UpdatedAt, mustSnapshot(t, stored, author), 0,
+	)
+	if err != nil {
 		t.Fatalf("second Update() error = %v, want nil", err)
 	}
 	revisions, err := store.Revisions(t.Context(), created.ID)
@@ -214,7 +247,7 @@ func TestPostStoreRevisionsScopeToTheirPost(t *testing.T) {
 	owner := mustCreate(t, store, "Owner Post", author)
 	other := mustCreate(t, store, "Other Post", author)
 	snapshot := mustSnapshot(t, owner, author)
-	if _, err := store.Update(t.Context(), editTitle(owner, "Edited"), snapshot, 0); err != nil {
+	if _, err := store.Update(t.Context(), editTitle(owner, "Edited"), owner.UpdatedAt, snapshot, 0); err != nil {
 		t.Fatalf("Update() error = %v, want nil", err)
 	}
 
@@ -250,8 +283,11 @@ func TestPostStoreDeleteRevision(t *testing.T) {
 
 	store, author := newPostStore(t)
 	created := mustCreate(t, store, "Revised", author)
-	if _, err := store.Update(t.Context(), editTitle(created, "Edited"), mustSnapshot(t, created, author), 0); err != nil {
-		t.Fatalf("Update() error = %v, want nil", err)
+	_, updateErr := store.Update(
+		t.Context(), editTitle(created, "Edited"), created.UpdatedAt, mustSnapshot(t, created, author), 0,
+	)
+	if updateErr != nil {
+		t.Fatalf("Update() error = %v, want nil", updateErr)
 	}
 	revisions, err := store.Revisions(t.Context(), created.ID)
 	if err != nil {
@@ -301,7 +337,7 @@ func TestPostStoreRevisionsReportDatabaseFailures(t *testing.T) {
 	if err := store.DeleteRevision(t.Context(), created.ID, snapshot.ID); err == nil {
 		t.Error("DeleteRevision() on a closed pool error = nil, want a failure")
 	}
-	if _, err := store.Update(t.Context(), created, snapshot, 2); err == nil {
+	if _, err := store.Update(t.Context(), created, created.UpdatedAt, snapshot, 2); err == nil {
 		t.Error("Update() with a snapshot on a closed pool error = nil, want a failure")
 	}
 }
@@ -312,11 +348,12 @@ func TestPostStoreUpdateReportsADuplicateSnapshot(t *testing.T) {
 	store, author := newPostStore(t)
 	created := mustCreate(t, store, "Revised", author)
 	snapshot := mustSnapshot(t, created, author)
-	if _, err := store.Update(t.Context(), editTitle(created, "Second"), snapshot, 0); err != nil {
+	second, err := store.Update(t.Context(), editTitle(created, "Second"), created.UpdatedAt, snapshot, 0)
+	if err != nil {
 		t.Fatalf("first Update() error = %v, want nil", err)
 	}
 
-	_, err := store.Update(t.Context(), editTitle(created, "Third"), snapshot, 0)
+	_, err = store.Update(t.Context(), editTitle(second, "Third"), second.UpdatedAt, snapshot, 0)
 
 	if err == nil {
 		t.Error("Update() reusing a revision id error = nil, want a failure")
@@ -329,7 +366,9 @@ func TestPostStoreUpdateReportsAnUnusableCap(t *testing.T) {
 	store, author := newPostStore(t)
 	created := mustCreate(t, store, "Revised", author)
 
-	_, err := store.Update(t.Context(), editTitle(created, "Second"), mustSnapshot(t, created, author), overflowCap(t))
+	_, err := store.Update(
+		t.Context(), editTitle(created, "Second"), created.UpdatedAt, mustSnapshot(t, created, author), overflowCap(t),
+	)
 
 	if err == nil {
 		t.Error("Update() with a cap beyond the row limit error = nil, want a failure")
