@@ -1,6 +1,6 @@
 -- SPDX-License-Identifier: Apache-2.0
 
--- name: CreatePost :exec
+-- name: CreatePost :one
 INSERT INTO core.posts (
     id, type, status, slug, title, content, excerpt,
     author_id, published_at, created_at, updated_at
@@ -8,7 +8,9 @@ INSERT INTO core.posts (
 VALUES (
     @id, @type, @status, @slug, @title, @content, @excerpt,
     @author_id, @published_at, @created_at, @updated_at
-);
+)
+RETURNING id, type, status, slug, title, content, excerpt,
+    author_id, published_at, created_at, updated_at;
 
 -- name: GetPost :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
@@ -41,28 +43,36 @@ WHERE p.type = @type
         OR p.content ILIKE '%' || @search || '%'
     );
 
--- name: UpdatePost :execrows
+-- name: UpdatePost :one
 UPDATE core.posts AS p
 SET status = @status, slug = @slug, title = @title, content = @content,
     excerpt = @excerpt, published_at = @published_at, updated_at = @updated_at
-WHERE p.id = @id AND p.updated_at = @expected_updated_at;
+WHERE p.id = @id AND p.updated_at = @expected_updated_at
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at;
 
--- name: TrashPost :execrows
+-- name: TrashPost :one
 UPDATE core.posts AS p
 SET status = 'trash', slug = p.slug || @suffix::text, updated_at = @updated_at
-WHERE p.id = @id;
+WHERE p.id = @id
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at;
 
--- name: RestorePost :execrows
+-- name: RestorePost :one
 UPDATE core.posts AS p
 SET status = 'draft',
     slug = regexp_replace(p.slug, '-trashed-[a-z0-9]{8}$', ''),
     updated_at = @updated_at
-WHERE p.id = @id;
+WHERE p.id = @id
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at;
 
--- name: RestorePostKeepingSlug :execrows
+-- name: RestorePostKeepingSlug :one
 UPDATE core.posts AS p
 SET status = 'draft', updated_at = @updated_at
-WHERE p.id = @id;
+WHERE p.id = @id
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at;
 
 -- name: DeletePost :execrows
 DELETE FROM core.posts AS p WHERE p.id = @id;

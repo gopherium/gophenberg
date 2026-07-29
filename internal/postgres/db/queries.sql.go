@@ -69,7 +69,7 @@ func (q *Queries) CountPostsByStatus(ctx context.Context, type_ string) ([]Count
 	return items, nil
 }
 
-const createPost = `-- name: CreatePost :exec
+const createPost = `-- name: CreatePost :one
 
 INSERT INTO core.posts (
     id, type, status, slug, title, content, excerpt,
@@ -79,6 +79,8 @@ VALUES (
     $1, $2, $3, $4, $5, $6, $7,
     $8, $9, $10, $11
 )
+RETURNING id, type, status, slug, title, content, excerpt,
+    author_id, published_at, created_at, updated_at
 `
 
 type CreatePostParams struct {
@@ -96,8 +98,8 @@ type CreatePostParams struct {
 }
 
 // SPDX-License-Identifier: Apache-2.0
-func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) error {
-	_, err := q.db.Exec(ctx, createPost,
+func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (CorePost, error) {
+	row := q.db.QueryRow(ctx, createPost,
 		arg.ID,
 		arg.Type,
 		arg.Status,
@@ -110,7 +112,21 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) error {
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
-	return err
+	var i CorePost
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const createRevision = `-- name: CreateRevision :exec
@@ -369,12 +385,14 @@ func (q *Queries) PruneRevisions(ctx context.Context, arg PruneRevisionsParams) 
 	return err
 }
 
-const restorePost = `-- name: RestorePost :execrows
+const restorePost = `-- name: RestorePost :one
 UPDATE core.posts AS p
 SET status = 'draft',
     slug = regexp_replace(p.slug, '-trashed-[a-z0-9]{8}$', ''),
     updated_at = $1
 WHERE p.id = $2
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at
 `
 
 type RestorePostParams struct {
@@ -382,18 +400,31 @@ type RestorePostParams struct {
 	ID        uuid.UUID
 }
 
-func (q *Queries) RestorePost(ctx context.Context, arg RestorePostParams) (int64, error) {
-	result, err := q.db.Exec(ctx, restorePost, arg.UpdatedAt, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) RestorePost(ctx context.Context, arg RestorePostParams) (CorePost, error) {
+	row := q.db.QueryRow(ctx, restorePost, arg.UpdatedAt, arg.ID)
+	var i CorePost
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
-const restorePostKeepingSlug = `-- name: RestorePostKeepingSlug :execrows
+const restorePostKeepingSlug = `-- name: RestorePostKeepingSlug :one
 UPDATE core.posts AS p
 SET status = 'draft', updated_at = $1
 WHERE p.id = $2
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at
 `
 
 type RestorePostKeepingSlugParams struct {
@@ -401,18 +432,31 @@ type RestorePostKeepingSlugParams struct {
 	ID        uuid.UUID
 }
 
-func (q *Queries) RestorePostKeepingSlug(ctx context.Context, arg RestorePostKeepingSlugParams) (int64, error) {
-	result, err := q.db.Exec(ctx, restorePostKeepingSlug, arg.UpdatedAt, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) RestorePostKeepingSlug(ctx context.Context, arg RestorePostKeepingSlugParams) (CorePost, error) {
+	row := q.db.QueryRow(ctx, restorePostKeepingSlug, arg.UpdatedAt, arg.ID)
+	var i CorePost
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
-const trashPost = `-- name: TrashPost :execrows
+const trashPost = `-- name: TrashPost :one
 UPDATE core.posts AS p
 SET status = 'trash', slug = p.slug || $1::text, updated_at = $2
 WHERE p.id = $3
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at
 `
 
 type TrashPostParams struct {
@@ -421,19 +465,32 @@ type TrashPostParams struct {
 	ID        uuid.UUID
 }
 
-func (q *Queries) TrashPost(ctx context.Context, arg TrashPostParams) (int64, error) {
-	result, err := q.db.Exec(ctx, trashPost, arg.Suffix, arg.UpdatedAt, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) TrashPost(ctx context.Context, arg TrashPostParams) (CorePost, error) {
+	row := q.db.QueryRow(ctx, trashPost, arg.Suffix, arg.UpdatedAt, arg.ID)
+	var i CorePost
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
-const updatePost = `-- name: UpdatePost :execrows
+const updatePost = `-- name: UpdatePost :one
 UPDATE core.posts AS p
 SET status = $1, slug = $2, title = $3, content = $4,
     excerpt = $5, published_at = $6, updated_at = $7
 WHERE p.id = $8 AND p.updated_at = $9
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at
 `
 
 type UpdatePostParams struct {
@@ -448,8 +505,8 @@ type UpdatePostParams struct {
 	ExpectedUpdatedAt time.Time
 }
 
-func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updatePost,
+func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (CorePost, error) {
+	row := q.db.QueryRow(ctx, updatePost,
 		arg.Status,
 		arg.Slug,
 		arg.Title,
@@ -460,8 +517,19 @@ func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (int64, 
 		arg.ID,
 		arg.ExpectedUpdatedAt,
 	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+	var i CorePost
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

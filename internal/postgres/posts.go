@@ -48,7 +48,7 @@ func NewPostStore(pool *pgxpool.Pool) *PostStore {
 // Create stores a new post, suffixing its slug until the type accepts it.
 func (s *PostStore) Create(ctx context.Context, p post.Post) (post.Post, error) {
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
-		err := s.queries.CreatePost(ctx, db.CreatePostParams{
+		row, err := s.queries.CreatePost(ctx, db.CreatePostParams{
 			ID:          p.ID,
 			Type:        p.Type,
 			Status:      string(p.Status),
@@ -67,20 +67,30 @@ func (s *PostStore) Create(ctx context.Context, p post.Post) (post.Post, error) 
 		if err != nil {
 			return post.Post{}, fmt.Errorf("postgres: create post: %w", err)
 		}
-		return s.ByID(ctx, p.ID)
+		return toPost(row), nil
 	}
 	return post.Post{}, post.ErrSlugTaken
 }
 
 // ByID returns the post with the given id, or [post.ErrNotFound].
 func (s *PostStore) ByID(ctx context.Context, id uuid.UUID) (post.Post, error) {
-	row, err := s.queries.GetPost(ctx, id)
+	return byID(ctx, s.queries, id)
+}
+
+// byID returns the post with the given id through queries, or [post.ErrNotFound].
+func byID(ctx context.Context, queries *db.Queries, id uuid.UUID) (post.Post, error) {
+	row, err := queries.GetPost(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return post.Post{}, post.ErrNotFound
 	}
 	if err != nil {
 		return post.Post{}, fmt.Errorf("postgres: get post: %w", err)
 	}
+	return toPost(row), nil
+}
+
+// toPost maps a stored row to a domain post with UTC timestamps.
+func toPost(row db.CorePost) post.Post {
 	return post.Post{
 		ID:          row.ID,
 		Type:        row.Type,
@@ -93,7 +103,7 @@ func (s *PostStore) ByID(ctx context.Context, id uuid.UUID) (post.Post, error) {
 		PublishedAt: utcOrNil(row.PublishedAt),
 		CreatedAt:   row.CreatedAt.UTC(),
 		UpdatedAt:   row.UpdatedAt.UTC(),
-	}, nil
+	}
 }
 
 // List returns the posts matching the filter without their content, and the
@@ -141,20 +151,14 @@ func (s *PostStore) Update(
 	ctx context.Context, p post.Post, expectedUpdatedAt time.Time, snapshot *post.Revision, revisionCap int,
 ) (post.Post, error) {
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
-		rows, err := s.update(ctx, p, numberedSlug(p.Slug, attempt), expectedUpdatedAt, snapshot, revisionCap)
+		updated, err := s.update(ctx, p, numberedSlug(p.Slug, attempt), expectedUpdatedAt, snapshot, revisionCap)
 		if isSlugTaken(err) {
 			continue
 		}
 		if err != nil {
 			return post.Post{}, err
 		}
-		if rows == 0 {
-			if _, err := s.ByID(ctx, p.ID); err != nil {
-				return post.Post{}, err
-			}
-			return post.Post{}, post.ErrConflict
-		}
-		return s.ByID(ctx, p.ID)
+		return updated, nil
 	}
 	return post.Post{}, post.ErrSlugTaken
 }
@@ -163,11 +167,11 @@ func (s *PostStore) Update(
 func (s *PostStore) update(
 	ctx context.Context, p post.Post, slug string, expectedUpdatedAt time.Time, snapshot *post.Revision,
 	revisionCap int,
-) (int64, error) {
-	var rows int64
+) (post.Post, error) {
+	var updated post.Post
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		updated, err := queries.UpdatePost(ctx, db.UpdatePostParams{
+		row, err := queries.UpdatePost(ctx, db.UpdatePostParams{
 			ID:                p.ID,
 			Status:            string(p.Status),
 			Slug:              slug,
@@ -178,53 +182,62 @@ func (s *PostStore) update(
 			UpdatedAt:         p.UpdatedAt,
 			ExpectedUpdatedAt: expectedUpdatedAt,
 		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			if _, err := byID(ctx, queries, p.ID); err != nil {
+				return err
+			}
+			return post.ErrConflict
+		}
 		if err != nil {
 			return err
 		}
-		rows = updated
-		if rows == 0 || snapshot == nil {
+		updated = toPost(row)
+		if snapshot == nil {
 			return nil
 		}
 		return snapshotRevision(ctx, queries, *snapshot, revisionCap)
 	})
 	if err != nil {
-		return 0, fmt.Errorf("postgres: update post: %w", err)
+		if errors.Is(err, post.ErrNotFound) || errors.Is(err, post.ErrConflict) {
+			return post.Post{}, err
+		}
+		return post.Post{}, fmt.Errorf("postgres: update post: %w", err)
 	}
-	return rows, nil
+	return updated, nil
 }
 
 // Trash marks the post trashed and frees its slug for reuse.
 func (s *PostStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (post.Post, error) {
-	rows, err := s.queries.TrashPost(ctx, db.TrashPostParams{
+	row, err := s.queries.TrashPost(ctx, db.TrashPostParams{
 		ID:        id,
 		Suffix:    trashSuffix(),
 		UpdatedAt: updatedAt,
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return post.Post{}, post.ErrNotFound
+	}
 	if err != nil {
 		return post.Post{}, fmt.Errorf("postgres: trash post: %w", err)
 	}
-	if rows == 0 {
-		return post.Post{}, post.ErrNotFound
-	}
-	return s.ByID(ctx, id)
+	return toPost(row), nil
 }
 
 // Restore returns a trashed post to draft. It recovers the original slug, or
 // leaves the trashed one in place when the original is taken.
 func (s *PostStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (post.Post, error) {
-	rows, err := s.queries.RestorePost(ctx, db.RestorePostParams{ID: id, UpdatedAt: updatedAt})
+	row, err := s.queries.RestorePost(ctx, db.RestorePostParams{ID: id, UpdatedAt: updatedAt})
 	if isSlugTaken(err) {
-		rows, err = s.queries.RestorePostKeepingSlug(
+		row, err = s.queries.RestorePostKeepingSlug(
 			ctx, db.RestorePostKeepingSlugParams{ID: id, UpdatedAt: updatedAt},
 		)
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return post.Post{}, post.ErrNotFound
 	}
 	if err != nil {
 		return post.Post{}, fmt.Errorf("postgres: restore post: %w", err)
 	}
-	if rows == 0 {
-		return post.Post{}, post.ErrNotFound
-	}
-	return s.ByID(ctx, id)
+	return toPost(row), nil
 }
 
 // Counts returns the number of posts of the type in each status.
