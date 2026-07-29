@@ -98,6 +98,25 @@ func TestAutosaveParksAPublishedPostOfTheRequester(t *testing.T) {
 	}
 }
 
+func TestAutosaveOverwritesTheWholeBuffer(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := newPost(t, "Own Draft", ada.ID)
+	stored.Excerpt = "Summary"
+	posts.add(stored)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/autosave",
+		`{"title":"Own Draft","content":"<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->"}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if got := posts.posts[stored.ID].Excerpt; got != "" {
+		t.Errorf("Excerpt = %q, want the omitted key to blank the field", got)
+	}
+}
+
 func TestAutosaveSkipsAnUnchangedBuffer(t *testing.T) {
 	t.Parallel()
 
@@ -194,6 +213,22 @@ func TestAutosaveKeepsOneBufferPerAuthor(t *testing.T) {
 	}
 }
 
+func TestAutosaveKeepsTheRowIDAcrossReplacements(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+	stored := posts.add(newPost(t, "Shared", uuid.Must(uuid.NewV7())))
+
+	doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/autosave", autosavePayload)
+	first := posts.revisions[0].ID
+	doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/autosave",
+		`{"title":"Newer Buffer","content":"body","excerpt":""}`)
+
+	if posts.revisions[0].ID != first {
+		t.Errorf("ID = %s, want the replaced buffer to keep row id %s", posts.revisions[0].ID, first)
+	}
+}
+
 func TestAutosaveGetReturnsTheRequestersBuffer(t *testing.T) {
 	t.Parallel()
 
@@ -212,6 +247,30 @@ func TestAutosaveGetReturnsTheRequestersBuffer(t *testing.T) {
 	}
 	if body.Content == "" {
 		t.Error("Content is empty, want the buffered body")
+	}
+}
+
+func TestRevisionEndpointsExposeTheParkedAutosave(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+	stored := posts.add(newPost(t, "Shared", uuid.Must(uuid.NewV7())))
+	doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/autosave", autosavePayload)
+
+	listed := decodeBody[revisionListBody](t, doRequest(t, handler, http.MethodGet,
+		"/api/posts/"+stored.ID.String()+"/revisions", ""))
+
+	if len(listed.Items) != 1 || listed.Items[0].Kind != "autosave" {
+		t.Fatalf("items = %+v, want the parked autosave listed", listed.Items)
+	}
+	deleted := doRequest(t, handler, http.MethodDelete,
+		"/api/posts/"+stored.ID.String()+"/revisions/"+listed.Items[0].ID.String(), "")
+	if deleted.Code != http.StatusNoContent {
+		t.Fatalf("delete status = %d, want %d", deleted.Code, http.StatusNoContent)
+	}
+	read := doRequest(t, handler, http.MethodGet, "/api/posts/"+stored.ID.String()+"/autosave", "")
+	if read.Code != http.StatusNotFound {
+		t.Errorf("GET autosave after revision delete = %d, want %d", read.Code, http.StatusNotFound)
 	}
 }
 

@@ -10,10 +10,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/gopherium/gophenberg/internal/post"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
+
+// postConstraint is the revision foreign key onto its post.
+const postConstraint = "post_revisions_post_id_fkey"
+
+// isPostGone reports whether err is a violation of the revision's post foreign key.
+func isPostGone(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.ConstraintName == postConstraint
+}
 
 // Revisions returns the post's revisions newest first, without their content.
 func (s *PostStore) Revisions(ctx context.Context, postID uuid.UUID) ([]post.Revision, error) {
@@ -80,6 +90,9 @@ func (s *PostStore) SaveAutosave(ctx context.Context, autosave post.Revision) (p
 		Excerpt:   autosave.Excerpt,
 		CreatedAt: autosave.CreatedAt,
 	})
+	if isPostGone(err) {
+		return post.Revision{}, post.ErrNotFound
+	}
 	if err != nil {
 		return post.Revision{}, fmt.Errorf("postgres: save autosave: %w", err)
 	}

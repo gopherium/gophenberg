@@ -67,7 +67,8 @@ func TestPostStoreSaveAutosaveReplacesTheAuthorsAutosave(t *testing.T) {
 	created := mustCreate(t, store, "Autosaved", author)
 	first := created
 	first.Title = "First Buffer"
-	if _, err := store.SaveAutosave(t.Context(), mustAutosave(t, first, author)); err != nil {
+	parked, err := store.SaveAutosave(t.Context(), mustAutosave(t, first, author))
+	if err != nil {
 		t.Fatalf("first SaveAutosave() error = %v, want nil", err)
 	}
 	second := created
@@ -80,6 +81,9 @@ func TestPostStoreSaveAutosaveReplacesTheAuthorsAutosave(t *testing.T) {
 	}
 	if saved.Title != "Second Buffer" {
 		t.Errorf("Title = %q, want the newer buffer", saved.Title)
+	}
+	if saved.ID != parked.ID {
+		t.Errorf("ID = %s, want the replaced buffer to keep row id %s", saved.ID, parked.ID)
 	}
 	revisions, err := store.Revisions(t.Context(), created.ID)
 	if err != nil {
@@ -148,6 +152,21 @@ func TestPostStoreAutosaveReportsMissingBuffers(t *testing.T) {
 
 	if !errors.Is(err, post.ErrRevisionNotFound) {
 		t.Errorf("Autosave() error = %v, want %v", err, post.ErrRevisionNotFound)
+	}
+}
+
+func TestPostStoreSaveAutosaveReportsAVanishedPost(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	created := mustCreate(t, store, "Vanishing", author)
+	autosave := mustAutosave(t, created, author)
+	if err := store.Delete(t.Context(), created.ID); err != nil {
+		t.Fatalf("Delete() error = %v, want nil", err)
+	}
+
+	if _, err := store.SaveAutosave(t.Context(), autosave); !errors.Is(err, post.ErrNotFound) {
+		t.Errorf("SaveAutosave() error = %v, want %v", err, post.ErrNotFound)
 	}
 }
 

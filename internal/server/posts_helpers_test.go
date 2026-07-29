@@ -228,6 +228,7 @@ func (s *fakePostStore) SaveAutosave(_ context.Context, autosave post.Revision) 
 	}
 	for i, r := range s.revisions {
 		if r.Kind == post.RevisionKindAutosave && r.PostID == autosave.PostID && r.AuthorID == autosave.AuthorID {
+			autosave.ID = r.ID
 			s.revisions[i] = autosave
 			return autosave, nil
 		}
