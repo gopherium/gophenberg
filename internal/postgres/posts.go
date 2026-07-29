@@ -200,6 +200,19 @@ func (s *PostStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time.Ti
 	return s.ByID(ctx, id)
 }
 
+// Counts returns the number of posts of the type in each status.
+func (s *PostStore) Counts(ctx context.Context, postType string) (map[post.Status]int, error) {
+	rows, err := s.queries.CountPostsByStatus(ctx, postType)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: count posts by status: %w", err)
+	}
+	counts := make(map[post.Status]int, len(rows))
+	for _, row := range rows {
+		counts[post.Status(row.Status)] = int(row.Total)
+	}
+	return counts, nil
+}
+
 // Delete removes the post, or reports [post.ErrNotFound].
 func (s *PostStore) Delete(ctx context.Context, id uuid.UUID) error {
 	rows, err := s.queries.DeletePost(ctx, id)

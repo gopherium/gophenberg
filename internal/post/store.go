@@ -48,4 +48,5 @@ type Store interface {
 	Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Post, error)
 	Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Post, error)
 	Delete(ctx context.Context, id uuid.UUID) error
+	Counts(ctx context.Context, postType string) (map[Status]int, error)
 }

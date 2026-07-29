@@ -66,3 +66,9 @@ WHERE p.id = @id;
 
 -- name: DeletePost :execrows
 DELETE FROM core.posts AS p WHERE p.id = @id;
+
+-- name: CountPostsByStatus :many
+SELECT p.status, count(*) AS total
+FROM core.posts p
+WHERE p.type = @type
+GROUP BY p.status;

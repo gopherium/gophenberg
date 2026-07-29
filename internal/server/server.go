@@ -12,6 +12,8 @@ import (
 	"github.com/gopherium/gouncer/authkit"
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 	"github.com/gopherium/pluginkit"
+
+	"github.com/gopherium/gophenberg/internal/post"
 )
 
 // sessionCookieName scopes the login cookie to this product.
@@ -20,6 +22,8 @@ const sessionCookieName = "__Host-gophenberg_session"
 // Config carries the stores and plugin surfaces the server serves.
 type Config struct {
 	Users authkit.AdminStore
+	// Posts persists the content the CMS serves.
+	Posts post.Store
 	// Plugins maps a plugin id to its HTTP handler.
 	Plugins map[string]http.Handler
 	// PluginPublicPaths maps a plugin id to its session-exempt paths.
@@ -38,7 +42,7 @@ type Config struct {
 func NewServer(cfg Config) http.Handler {
 	auth := authkit.New(authkit.Config{Store: cfg.Users, CookieName: sessionCookieName})
 	admin := authkit.NewAdmin(cfg.Users)
-	s := &server{auth: auth, version: cfg.Version}
+	s := &server{auth: auth, users: cfg.Users, posts: cfg.Posts, version: cfg.Version}
 	router := chi.NewRouter()
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
 		Post("/api/auth/login", auth.Login)
@@ -49,6 +53,13 @@ func NewServer(cfg Config) http.Handler {
 		protected.Get("/api/users", admin.List)
 		protected.Post("/api/users", admin.Create)
 		protected.Patch("/api/users/{id}", admin.SetDisabled)
+		protected.Get("/api/posts", s.handlePostList())
+		protected.Post("/api/posts", s.handlePostCreate())
+		protected.Get("/api/posts/counts", s.handlePostCounts())
+		protected.Get("/api/posts/{id}", s.handlePostGet())
+		protected.Patch("/api/posts/{id}", s.handlePostPatch())
+		protected.Delete("/api/posts/{id}", s.handlePostDelete())
+		protected.Post("/api/posts/{id}/restore", s.handlePostRestore())
 		protected.Get("/api/version", s.handleVersion())
 	})
 	for id, handler := range cfg.Plugins {
@@ -64,5 +75,7 @@ func NewServer(cfg Config) http.Handler {
 
 type server struct {
 	auth    *authkit.Handlers
+	users   authkit.AdminStore
+	posts   post.Store
 	version string
 }

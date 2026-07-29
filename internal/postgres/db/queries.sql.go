@@ -37,6 +37,38 @@ func (q *Queries) CountPosts(ctx context.Context, arg CountPostsParams) (int64, 
 	return count, err
 }
 
+const countPostsByStatus = `-- name: CountPostsByStatus :many
+SELECT p.status, count(*) AS total
+FROM core.posts p
+WHERE p.type = $1
+GROUP BY p.status
+`
+
+type CountPostsByStatusRow struct {
+	Status string
+	Total  int64
+}
+
+func (q *Queries) CountPostsByStatus(ctx context.Context, type_ string) ([]CountPostsByStatusRow, error) {
+	rows, err := q.db.Query(ctx, countPostsByStatus, type_)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountPostsByStatusRow
+	for rows.Next() {
+		var i CountPostsByStatusRow
+		if err := rows.Scan(&i.Status, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createPost = `-- name: CreatePost :exec
 
 INSERT INTO core.posts (

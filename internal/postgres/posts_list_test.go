@@ -189,3 +189,37 @@ func TestPostStoreListReturnsAnEmptyPagePastTheEnd(t *testing.T) {
 		t.Errorf("posts = %v, want an empty non-nil slice", posts)
 	}
 }
+
+func TestPostStoreCountsPerStatus(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	publish(t, store, "Published One", author, time.Now().UTC().Truncate(time.Microsecond))
+	mustCreate(t, store, "Draft One", author)
+	mustCreate(t, store, "Draft Two", author)
+
+	counts, err := store.Counts(t.Context(), post.TypePost)
+
+	if err != nil {
+		t.Fatalf("Counts() error = %v, want nil", err)
+	}
+	if counts[post.StatusDraft] != 2 || counts[post.StatusPublished] != 1 {
+		t.Errorf("counts = %v, want two drafts and one published", counts)
+	}
+	if _, ok := counts[post.StatusTrash]; ok {
+		t.Errorf("counts = %v, want absent statuses omitted by the store", counts)
+	}
+}
+
+func TestPostStoreCountsReportsDatabaseFailures(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := newPostStoreWithPool(t)
+	pool.Close()
+
+	_, err := store.Counts(t.Context(), post.TypePost)
+
+	if err == nil {
+		t.Error("Counts() on a closed pool error = nil, want a failure")
+	}
+}
