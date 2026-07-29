@@ -23,9 +23,8 @@ type postPatchRequest struct {
 	Status  *string `json:"status"`
 }
 
-// applyTo edits the post, reporting whether anything changed.
-func (req postPatchRequest) applyTo(p *post.Post) (bool, error) {
-	changed := false
+// applyTo edits the post, reporting whether anything changed and whether the snapshotted fields did.
+func (req postPatchRequest) applyTo(p *post.Post) (changed, contentChanged bool, err error) {
 	for field, value := range map[*string]*string{
 		&p.Title:   req.Title,
 		&p.Content: req.Content,
@@ -33,7 +32,7 @@ func (req postPatchRequest) applyTo(p *post.Post) (bool, error) {
 	} {
 		if value != nil && *field != *value {
 			*field = *value
-			changed = true
+			changed, contentChanged = true, true
 		}
 	}
 	if req.Slug != nil {
@@ -43,21 +42,21 @@ func (req postPatchRequest) applyTo(p *post.Post) (bool, error) {
 		}
 	}
 	if req.Status != nil {
-		status, err := post.ParseStatus(*req.Status)
-		if err != nil {
-			return false, err
+		status, parseErr := post.ParseStatus(*req.Status)
+		if parseErr != nil {
+			return false, false, parseErr
 		}
 		if status != p.Status {
-			if err := p.Transition(status); err != nil {
-				return false, err
+			if transitionErr := p.Transition(status); transitionErr != nil {
+				return false, false, transitionErr
 			}
-			return true, nil
+			return true, contentChanged, nil
 		}
 	}
 	if changed {
 		p.UpdatedAt = time.Now().UTC()
 	}
-	return changed, nil
+	return changed, contentChanged, nil
 }
 
 // handlePostCreate returns an http.HandlerFunc storing a draft authored by the requester.
@@ -109,7 +108,8 @@ func (s *server) handlePostPatch() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		changed, err := req.applyTo(&stored)
+		previous := stored
+		changed, contentChanged, err := req.applyTo(&stored)
 		if err != nil {
 			respondDomainError(w, err)
 			return
@@ -118,11 +118,19 @@ func (s *server) handlePostPatch() http.HandlerFunc {
 			s.respondPost(w, r, http.StatusOK, stored)
 			return
 		}
+		var snapshot *post.Revision
 		revisionCap := 0
-		if postType, ok := post.TypeByName(stored.Type); ok {
+		if postType, ok := post.TypeByName(stored.Type); contentChanged && ok && postType.Revisions {
+			identity := authkit.IdentityFromContext(r.Context())
+			revision, revisionErr := post.NewRevision(previous, post.RevisionKindRevision, identity.ID)
+			if revisionErr != nil {
+				respondDomainError(w, revisionErr)
+				return
+			}
+			snapshot = &revision
 			revisionCap = postType.RevisionCap
 		}
-		updated, err := s.posts.Update(r.Context(), stored, nil, revisionCap)
+		updated, err := s.posts.Update(r.Context(), stored, snapshot, revisionCap)
 		if err != nil {
 			respondDomainError(w, err)
 			return
