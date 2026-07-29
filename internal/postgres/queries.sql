@@ -72,3 +72,36 @@ SELECT p.status, count(*) AS total
 FROM core.posts p
 WHERE p.type = @type
 GROUP BY p.status;
+
+-- name: CreateRevision :exec
+INSERT INTO core.post_revisions (
+    id, post_id, kind, author_id, title, content, excerpt, created_at
+)
+VALUES (
+    @id, @post_id, @kind, @author_id, @title, @content, @excerpt, @created_at
+);
+
+-- name: ListRevisions :many
+SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.excerpt, r.created_at
+FROM core.post_revisions r
+WHERE r.post_id = @post_id
+ORDER BY r.created_at DESC, r.id DESC;
+
+-- name: GetRevision :one
+SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+FROM core.post_revisions r
+WHERE r.post_id = @post_id AND r.id = @id;
+
+-- name: DeleteRevision :execrows
+DELETE FROM core.post_revisions AS r
+WHERE r.post_id = @post_id AND r.id = @id;
+
+-- name: PruneRevisions :exec
+DELETE FROM core.post_revisions AS r
+WHERE r.id IN (
+    SELECT p.id
+    FROM core.post_revisions p
+    WHERE p.post_id = @post_id AND p.kind = 'revision'
+    ORDER BY p.created_at DESC, p.id DESC
+    OFFSET @keep::int
+);

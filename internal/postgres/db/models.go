@@ -23,3 +23,14 @@ type CorePost struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
+
+type CorePostRevision struct {
+	ID        uuid.UUID
+	PostID    uuid.UUID
+	Kind      string
+	AuthorID  uuid.UUID
+	Title     string
+	Content   string
+	Excerpt   string
+	CreatedAt time.Time
+}

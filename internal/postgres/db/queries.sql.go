@@ -113,12 +113,64 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) error {
 	return err
 }
 
+const createRevision = `-- name: CreateRevision :exec
+INSERT INTO core.post_revisions (
+    id, post_id, kind, author_id, title, content, excerpt, created_at
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8
+)
+`
+
+type CreateRevisionParams struct {
+	ID        uuid.UUID
+	PostID    uuid.UUID
+	Kind      string
+	AuthorID  uuid.UUID
+	Title     string
+	Content   string
+	Excerpt   string
+	CreatedAt time.Time
+}
+
+func (q *Queries) CreateRevision(ctx context.Context, arg CreateRevisionParams) error {
+	_, err := q.db.Exec(ctx, createRevision,
+		arg.ID,
+		arg.PostID,
+		arg.Kind,
+		arg.AuthorID,
+		arg.Title,
+		arg.Content,
+		arg.Excerpt,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const deletePost = `-- name: DeletePost :execrows
 DELETE FROM core.posts AS p WHERE p.id = $1
 `
 
 func (q *Queries) DeletePost(ctx context.Context, id uuid.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deletePost, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteRevision = `-- name: DeleteRevision :execrows
+DELETE FROM core.post_revisions AS r
+WHERE r.post_id = $1 AND r.id = $2
+`
+
+type DeleteRevisionParams struct {
+	PostID uuid.UUID
+	ID     uuid.UUID
+}
+
+func (q *Queries) DeleteRevision(ctx context.Context, arg DeleteRevisionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRevision, arg.PostID, arg.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -147,6 +199,33 @@ func (q *Queries) GetPost(ctx context.Context, id uuid.UUID) (CorePost, error) {
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getRevision = `-- name: GetRevision :one
+SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+FROM core.post_revisions r
+WHERE r.post_id = $1 AND r.id = $2
+`
+
+type GetRevisionParams struct {
+	PostID uuid.UUID
+	ID     uuid.UUID
+}
+
+func (q *Queries) GetRevision(ctx context.Context, arg GetRevisionParams) (CorePostRevision, error) {
+	row := q.db.QueryRow(ctx, getRevision, arg.PostID, arg.ID)
+	var i CorePostRevision
+	err := row.Scan(
+		&i.ID,
+		&i.PostID,
+		&i.Kind,
+		&i.AuthorID,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -222,6 +301,72 @@ func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPos
 		return nil, err
 	}
 	return items, nil
+}
+
+const listRevisions = `-- name: ListRevisions :many
+SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.excerpt, r.created_at
+FROM core.post_revisions r
+WHERE r.post_id = $1
+ORDER BY r.created_at DESC, r.id DESC
+`
+
+type ListRevisionsRow struct {
+	ID        uuid.UUID
+	PostID    uuid.UUID
+	Kind      string
+	AuthorID  uuid.UUID
+	Title     string
+	Excerpt   string
+	CreatedAt time.Time
+}
+
+func (q *Queries) ListRevisions(ctx context.Context, postID uuid.UUID) ([]ListRevisionsRow, error) {
+	rows, err := q.db.Query(ctx, listRevisions, postID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRevisionsRow
+	for rows.Next() {
+		var i ListRevisionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PostID,
+			&i.Kind,
+			&i.AuthorID,
+			&i.Title,
+			&i.Excerpt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pruneRevisions = `-- name: PruneRevisions :exec
+DELETE FROM core.post_revisions AS r
+WHERE r.id IN (
+    SELECT p.id
+    FROM core.post_revisions p
+    WHERE p.post_id = $1 AND p.kind = 'revision'
+    ORDER BY p.created_at DESC, p.id DESC
+    OFFSET $2::int
+)
+`
+
+type PruneRevisionsParams struct {
+	PostID uuid.UUID
+	Keep   int32
+}
+
+func (q *Queries) PruneRevisions(ctx context.Context, arg PruneRevisionsParams) error {
+	_, err := q.db.Exec(ctx, pruneRevisions, arg.PostID, arg.Keep)
+	return err
 }
 
 const restorePost = `-- name: RestorePost :execrows

@@ -136,27 +136,17 @@ func (s *PostStore) List(ctx context.Context, f post.Filter) ([]post.Post, int, 
 	return posts, int(total), nil
 }
 
-// Update stores the post's editable fields, suffixing its slug until the type
-// accepts it.
+// Update stores the post's editable fields and any snapshot, suffixing its slug until the type accepts it.
 func (s *PostStore) Update(
-	ctx context.Context, p post.Post, _ *post.Revision, _ int,
+	ctx context.Context, p post.Post, snapshot *post.Revision, revisionCap int,
 ) (post.Post, error) {
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
-		rows, err := s.queries.UpdatePost(ctx, db.UpdatePostParams{
-			ID:          p.ID,
-			Status:      string(p.Status),
-			Slug:        numberedSlug(p.Slug, attempt),
-			Title:       p.Title,
-			Content:     p.Content,
-			Excerpt:     p.Excerpt,
-			PublishedAt: p.PublishedAt,
-			UpdatedAt:   p.UpdatedAt,
-		})
+		rows, err := s.update(ctx, p, numberedSlug(p.Slug, attempt), snapshot, revisionCap)
 		if isSlugTaken(err) {
 			continue
 		}
 		if err != nil {
-			return post.Post{}, fmt.Errorf("postgres: update post: %w", err)
+			return post.Post{}, err
 		}
 		if rows == 0 {
 			return post.Post{}, post.ErrNotFound
@@ -164,6 +154,38 @@ func (s *PostStore) Update(
 		return s.ByID(ctx, p.ID)
 	}
 	return post.Post{}, post.ErrSlugTaken
+}
+
+// update writes the post and any snapshot under slug.
+func (s *PostStore) update(
+	ctx context.Context, p post.Post, slug string, snapshot *post.Revision, revisionCap int,
+) (int64, error) {
+	var rows int64
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		updated, err := queries.UpdatePost(ctx, db.UpdatePostParams{
+			ID:          p.ID,
+			Status:      string(p.Status),
+			Slug:        slug,
+			Title:       p.Title,
+			Content:     p.Content,
+			Excerpt:     p.Excerpt,
+			PublishedAt: p.PublishedAt,
+			UpdatedAt:   p.UpdatedAt,
+		})
+		if err != nil {
+			return err
+		}
+		rows = updated
+		if rows == 0 || snapshot == nil {
+			return nil
+		}
+		return snapshotRevision(ctx, queries, *snapshot, revisionCap)
+	})
+	if err != nil {
+		return 0, err
+	}
+	return rows, nil
 }
 
 // Trash marks the post trashed and frees its slug for reuse.
