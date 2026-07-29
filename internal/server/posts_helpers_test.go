@@ -40,6 +40,7 @@ type fakePostStore struct {
 	deleteRevisionErr error
 	saveAutosaveErr   error
 	autosaveErr       error
+	deleteAutosaveErr error
 	lastSnapshot      *post.Revision
 	lastRevisionCap   int
 }
@@ -233,6 +234,20 @@ func (s *fakePostStore) SaveAutosave(_ context.Context, autosave post.Revision) 
 	}
 	s.revisions = append(s.revisions, autosave)
 	return autosave, nil
+}
+
+// DeleteAutosave removes the author's autosave of the post.
+func (s *fakePostStore) DeleteAutosave(_ context.Context, postID, authorID uuid.UUID) error {
+	if s.deleteAutosaveErr != nil {
+		return s.deleteAutosaveErr
+	}
+	for i, r := range s.revisions {
+		if r.Kind == post.RevisionKindAutosave && r.PostID == postID && r.AuthorID == authorID {
+			s.revisions = append(s.revisions[:i], s.revisions[i+1:]...)
+			return nil
+		}
+	}
+	return nil
 }
 
 // Autosave returns the author's autosave, or [post.ErrRevisionNotFound].

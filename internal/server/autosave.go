@@ -52,14 +52,18 @@ func (s *server) handleAutosaveSave() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
+		identity := authkit.IdentityFromContext(r.Context())
 		if stored.Title == req.Title && stored.Content == req.Content && stored.Excerpt == req.Excerpt {
+			if err := s.posts.DeleteAutosave(r.Context(), stored.ID, identity.ID); err != nil {
+				respondDomainError(w, err)
+				return
+			}
 			authkit.Respond(w, http.StatusOK, newAutosaveResponse(autosaveTargetPost, stored.ID,
 				stored.Title, stored.Content, stored.Excerpt, stored.UpdatedAt))
 			return
 		}
 		buffer := stored
 		buffer.Title, buffer.Content, buffer.Excerpt = req.Title, req.Content, req.Excerpt
-		identity := authkit.IdentityFromContext(r.Context())
 		if stored.Status == post.StatusDraft && stored.AuthorID == identity.ID {
 			s.saveBufferToPost(w, r, buffer, stored.UpdatedAt)
 			return

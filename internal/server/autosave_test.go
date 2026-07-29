@@ -122,6 +122,46 @@ func TestAutosaveSkipsAnUnchangedBuffer(t *testing.T) {
 	}
 }
 
+func TestAutosaveClearsTheParkedBufferOnceTheEditorMatchesThePost(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+	stored := posts.add(newPost(t, "Shared", uuid.Must(uuid.NewV7())))
+	doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/autosave", autosavePayload)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/autosave",
+		`{"title":"Shared","content":"","excerpt":""}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if body := decodeBody[autosaveBody](t, recorder); body.Target != "post" {
+		t.Errorf("target = %q, want the converged buffer reported as the post", body.Target)
+	}
+	if len(posts.revisions) != 0 {
+		t.Errorf("revisions = %d, want the parked buffer cleared", len(posts.revisions))
+	}
+	read := doRequest(t, handler, http.MethodGet, "/api/posts/"+stored.ID.String()+"/autosave", "")
+	if read.Code != http.StatusNotFound {
+		t.Errorf("GET autosave after converging = %d, want %d", read.Code, http.StatusNotFound)
+	}
+}
+
+func TestAutosaveReportsBufferCleanupFailures(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(newPost(t, "Unchanged", ada.ID))
+	posts.deleteAutosaveErr = context.DeadlineExceeded
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/autosave",
+		`{"title":"Unchanged","content":"","excerpt":""}`)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+}
+
 func TestAutosaveKeepsOneBufferPerAuthor(t *testing.T) {
 	t.Parallel()
 

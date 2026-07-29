@@ -135,3 +135,7 @@ RETURNING id, post_id, kind, author_id, title, content, excerpt, created_at;
 SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
 FROM core.post_revisions r
 WHERE r.post_id = @post_id AND r.author_id = @author_id AND r.kind = 'autosave';
+
+-- name: DeleteAutosave :exec
+DELETE FROM core.post_revisions AS r
+WHERE r.post_id = @post_id AND r.author_id = @author_id AND r.kind = 'autosave';

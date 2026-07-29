@@ -151,6 +151,42 @@ func TestPostStoreAutosaveReportsMissingBuffers(t *testing.T) {
 	}
 }
 
+func TestPostStoreDeleteAutosaveRemovesOnlyTheAuthorsBuffer(t *testing.T) {
+	t.Parallel()
+
+	store, ada, pool := newPostStoreWithPool(t)
+	grace := addAuthor(t, pool, "Grace Hopper")
+	created := mustCreate(t, store, "Shared", ada)
+	if _, err := store.SaveAutosave(t.Context(), mustAutosave(t, created, ada)); err != nil {
+		t.Fatalf("SaveAutosave(ada) error = %v, want nil", err)
+	}
+	if _, err := store.SaveAutosave(t.Context(), mustAutosave(t, created, grace)); err != nil {
+		t.Fatalf("SaveAutosave(grace) error = %v, want nil", err)
+	}
+
+	if err := store.DeleteAutosave(t.Context(), created.ID, ada); err != nil {
+		t.Fatalf("DeleteAutosave() error = %v, want nil", err)
+	}
+
+	if _, err := store.Autosave(t.Context(), created.ID, ada); !errors.Is(err, post.ErrRevisionNotFound) {
+		t.Errorf("Autosave(ada) error = %v, want %v", err, post.ErrRevisionNotFound)
+	}
+	if _, err := store.Autosave(t.Context(), created.ID, grace); err != nil {
+		t.Errorf("Autosave(grace) error = %v, want the other author's buffer kept", err)
+	}
+}
+
+func TestPostStoreDeleteAutosaveToleratesAMissingBuffer(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	created := mustCreate(t, store, "Unsaved", author)
+
+	if err := store.DeleteAutosave(t.Context(), created.ID, author); err != nil {
+		t.Errorf("DeleteAutosave() error = %v, want nil", err)
+	}
+}
+
 func TestPostStoreAutosavesReportDatabaseFailures(t *testing.T) {
 	t.Parallel()
 
@@ -164,5 +200,8 @@ func TestPostStoreAutosavesReportDatabaseFailures(t *testing.T) {
 	}
 	if _, err := store.Autosave(t.Context(), created.ID, author); err == nil {
 		t.Error("Autosave() on a closed pool error = nil, want a failure")
+	}
+	if err := store.DeleteAutosave(t.Context(), created.ID, author); err == nil {
+		t.Error("DeleteAutosave() on a closed pool error = nil, want a failure")
 	}
 }

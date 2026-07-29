@@ -163,6 +163,21 @@ func (q *Queries) CreateRevision(ctx context.Context, arg CreateRevisionParams) 
 	return err
 }
 
+const deleteAutosave = `-- name: DeleteAutosave :exec
+DELETE FROM core.post_revisions AS r
+WHERE r.post_id = $1 AND r.author_id = $2 AND r.kind = 'autosave'
+`
+
+type DeleteAutosaveParams struct {
+	PostID   uuid.UUID
+	AuthorID uuid.UUID
+}
+
+func (q *Queries) DeleteAutosave(ctx context.Context, arg DeleteAutosaveParams) error {
+	_, err := q.db.Exec(ctx, deleteAutosave, arg.PostID, arg.AuthorID)
+	return err
+}
+
 const deletePost = `-- name: DeletePost :execrows
 DELETE FROM core.posts AS p WHERE p.id = $1
 `

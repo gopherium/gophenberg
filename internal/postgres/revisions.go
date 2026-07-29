@@ -98,6 +98,15 @@ func (s *PostStore) Autosave(ctx context.Context, postID, authorID uuid.UUID) (p
 	return toRevision(row.ID, row.PostID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt), nil
 }
 
+// DeleteAutosave removes the author's autosave of the post.
+func (s *PostStore) DeleteAutosave(ctx context.Context, postID, authorID uuid.UUID) error {
+	err := s.queries.DeleteAutosave(ctx, db.DeleteAutosaveParams{PostID: postID, AuthorID: authorID})
+	if err != nil {
+		return fmt.Errorf("postgres: delete autosave: %w", err)
+	}
+	return nil
+}
+
 // toRevision builds a revision from its stored columns.
 func toRevision(
 	id, postID uuid.UUID, kind string, authorID uuid.UUID, title, content, excerpt string, createdAt time.Time,

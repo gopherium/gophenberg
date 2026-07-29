@@ -80,4 +80,5 @@ type Store interface {
 	DeleteRevision(ctx context.Context, postID, revisionID uuid.UUID) error
 	SaveAutosave(ctx context.Context, autosave Revision) (Revision, error)
 	Autosave(ctx context.Context, postID, authorID uuid.UUID) (Revision, error)
+	DeleteAutosave(ctx context.Context, postID, authorID uuid.UUID) error
 }
