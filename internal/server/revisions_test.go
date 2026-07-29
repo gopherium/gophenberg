@@ -202,6 +202,9 @@ func TestRevisionRoutesRejectUnknownAndMalformedIDs(t *testing.T) {
 		path   string
 		want   int
 	}{
+		"missing post on list": {
+			http.MethodGet, "/api/posts/" + missing + "/revisions", http.StatusNotFound,
+		},
 		"missing revision": {
 			http.MethodGet, "/api/posts/" + stored.ID.String() + "/revisions/" + missing, http.StatusNotFound,
 		},
