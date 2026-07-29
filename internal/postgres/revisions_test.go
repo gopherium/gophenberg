@@ -109,6 +109,40 @@ func TestPostStoreUpdatePrunesBeyondTheCap(t *testing.T) {
 	}
 }
 
+func TestPostStoreUpdatePruneSparesAutosaves(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newPostStoreWithPool(t)
+	current := mustCreate(t, store, "Title 0", author)
+	if err := insertRevision(t, pool, current.ID, author, post.RevisionKindAutosave); err != nil {
+		t.Fatalf("inserting the autosave: %v, want nil", err)
+	}
+
+	for i := 1; i <= 3; i++ {
+		edited := editTitle(current, "Title "+string(rune('0'+i)))
+		updated, err := store.Update(t.Context(), edited, mustSnapshot(t, current, author), 1)
+		if err != nil {
+			t.Fatalf("Update(%d) error = %v, want nil", i, err)
+		}
+		current = updated
+	}
+
+	revisions, err := store.Revisions(t.Context(), current.ID)
+	if err != nil {
+		t.Fatalf("Revisions() error = %v, want nil", err)
+	}
+	kinds := map[post.RevisionKind]int{}
+	for _, revision := range revisions {
+		kinds[revision.Kind]++
+	}
+	if kinds[post.RevisionKindAutosave] != 1 {
+		t.Errorf("autosaves = %d, want pruning to spare the autosave", kinds[post.RevisionKindAutosave])
+	}
+	if kinds[post.RevisionKindRevision] != 1 {
+		t.Errorf("revisions = %d, want the cap of 1 spent on revisions only", kinds[post.RevisionKindRevision])
+	}
+}
+
 func TestPostStoreUpdateKeepsEveryRevisionWithoutACap(t *testing.T) {
 	t.Parallel()
 
