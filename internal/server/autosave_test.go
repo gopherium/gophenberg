@@ -147,6 +147,20 @@ func TestAutosaveClearsTheParkedBufferOnceTheEditorMatchesThePost(t *testing.T) 
 	}
 }
 
+func TestAutosaveReportsConflictingEdits(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(newPost(t, "Contended", ada.ID))
+	posts.updateErr = post.ErrConflict
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/autosave", autosavePayload)
+
+	if recorder.Code != http.StatusConflict {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusConflict)
+	}
+}
+
 func TestAutosaveReportsBufferCleanupFailures(t *testing.T) {
 	t.Parallel()
 
