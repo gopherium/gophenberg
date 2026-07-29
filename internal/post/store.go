@@ -75,8 +75,9 @@ type Store interface {
 	Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Post, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	Counts(ctx context.Context, postType string) (map[Status]int, error)
-	// Revisions returns the post's revisions newest first, without their content.
 	Revisions(ctx context.Context, postID uuid.UUID) ([]Revision, error)
 	RevisionByID(ctx context.Context, postID, revisionID uuid.UUID) (Revision, error)
 	DeleteRevision(ctx context.Context, postID, revisionID uuid.UUID) error
+	SaveAutosave(ctx context.Context, autosave Revision) (Revision, error)
+	Autosave(ctx context.Context, postID, authorID uuid.UUID) (Revision, error)
 }

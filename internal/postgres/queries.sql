@@ -115,3 +115,23 @@ WHERE r.id IN (
     ORDER BY p.created_at DESC, p.id DESC
     OFFSET @keep::int
 );
+
+-- name: UpsertAutosave :one
+INSERT INTO core.post_revisions (
+    id, post_id, kind, author_id, title, content, excerpt, created_at
+)
+VALUES (
+    @id, @post_id, 'autosave', @author_id, @title, @content, @excerpt, @created_at
+)
+ON CONFLICT (post_id, author_id) WHERE kind = 'autosave'
+DO UPDATE SET
+    title = EXCLUDED.title,
+    content = EXCLUDED.content,
+    excerpt = EXCLUDED.excerpt,
+    created_at = EXCLUDED.created_at
+RETURNING id, post_id, kind, author_id, title, content, excerpt, created_at;
+
+-- name: GetAutosave :one
+SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+FROM core.post_revisions r
+WHERE r.post_id = @post_id AND r.author_id = @author_id AND r.kind = 'autosave';

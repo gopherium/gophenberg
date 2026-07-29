@@ -38,6 +38,8 @@ type fakePostStore struct {
 	revisionsErr      error
 	revisionErr       error
 	deleteRevisionErr error
+	saveAutosaveErr   error
+	autosaveErr       error
 	lastSnapshot      *post.Revision
 	lastRevisionCap   int
 }
@@ -216,6 +218,34 @@ func (s *fakePostStore) DeleteRevision(_ context.Context, postID, revisionID uui
 		}
 	}
 	return post.ErrRevisionNotFound
+}
+
+// SaveAutosave stores the author's autosave, replacing any earlier one.
+func (s *fakePostStore) SaveAutosave(_ context.Context, autosave post.Revision) (post.Revision, error) {
+	if s.saveAutosaveErr != nil {
+		return post.Revision{}, s.saveAutosaveErr
+	}
+	for i, r := range s.revisions {
+		if r.Kind == post.RevisionKindAutosave && r.PostID == autosave.PostID && r.AuthorID == autosave.AuthorID {
+			s.revisions[i] = autosave
+			return autosave, nil
+		}
+	}
+	s.revisions = append(s.revisions, autosave)
+	return autosave, nil
+}
+
+// Autosave returns the author's autosave, or [post.ErrRevisionNotFound].
+func (s *fakePostStore) Autosave(_ context.Context, postID, authorID uuid.UUID) (post.Revision, error) {
+	if s.autosaveErr != nil {
+		return post.Revision{}, s.autosaveErr
+	}
+	for _, r := range s.revisions {
+		if r.Kind == post.RevisionKindAutosave && r.PostID == postID && r.AuthorID == authorID {
+			return r, nil
+		}
+	}
+	return post.Revision{}, post.ErrRevisionNotFound
 }
 
 // Counts returns the number of stored posts in each status.

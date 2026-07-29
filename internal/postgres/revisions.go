@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -66,6 +67,51 @@ func (s *PostStore) DeleteRevision(ctx context.Context, postID, revisionID uuid.
 		return post.ErrRevisionNotFound
 	}
 	return nil
+}
+
+// SaveAutosave stores the author's autosave of the post, replacing any earlier one.
+func (s *PostStore) SaveAutosave(ctx context.Context, autosave post.Revision) (post.Revision, error) {
+	row, err := s.queries.UpsertAutosave(ctx, db.UpsertAutosaveParams{
+		ID:        autosave.ID,
+		PostID:    autosave.PostID,
+		AuthorID:  autosave.AuthorID,
+		Title:     autosave.Title,
+		Content:   autosave.Content,
+		Excerpt:   autosave.Excerpt,
+		CreatedAt: autosave.CreatedAt,
+	})
+	if err != nil {
+		return post.Revision{}, fmt.Errorf("postgres: save autosave: %w", err)
+	}
+	return toRevision(row.ID, row.PostID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt), nil
+}
+
+// Autosave returns the author's autosave of the post, or [post.ErrRevisionNotFound].
+func (s *PostStore) Autosave(ctx context.Context, postID, authorID uuid.UUID) (post.Revision, error) {
+	row, err := s.queries.GetAutosave(ctx, db.GetAutosaveParams{PostID: postID, AuthorID: authorID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return post.Revision{}, post.ErrRevisionNotFound
+	}
+	if err != nil {
+		return post.Revision{}, fmt.Errorf("postgres: get autosave: %w", err)
+	}
+	return toRevision(row.ID, row.PostID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt), nil
+}
+
+// toRevision builds a revision from its stored columns.
+func toRevision(
+	id, postID uuid.UUID, kind string, authorID uuid.UUID, title, content, excerpt string, createdAt time.Time,
+) post.Revision {
+	return post.Revision{
+		ID:        id,
+		PostID:    postID,
+		Kind:      post.RevisionKind(kind),
+		AuthorID:  authorID,
+		Title:     title,
+		Content:   content,
+		Excerpt:   excerpt,
+		CreatedAt: createdAt.UTC(),
+	}
 }
 
 // snapshotRevision stores the snapshot and prunes revisions beyond the cap, sparing autosaves.

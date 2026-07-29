@@ -60,6 +60,8 @@ func NewServer(cfg Config) http.Handler {
 		protected.Patch("/api/posts/{id}", s.handlePostPatch())
 		protected.Delete("/api/posts/{id}", s.handlePostDelete())
 		protected.Post("/api/posts/{id}/restore", s.handlePostRestore())
+		protected.Post("/api/posts/{id}/autosave", s.handleAutosaveSave())
+		protected.Get("/api/posts/{id}/autosave", s.handleAutosaveGet())
 		protected.Get("/api/posts/{id}/revisions", s.handleRevisionList())
 		protected.Get("/api/posts/{id}/revisions/{revisionID}", s.handleRevisionGet())
 		protected.Delete("/api/posts/{id}/revisions/{revisionID}", s.handleRevisionDelete())

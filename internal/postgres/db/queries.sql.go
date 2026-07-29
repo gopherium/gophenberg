@@ -193,6 +193,33 @@ func (q *Queries) DeleteRevision(ctx context.Context, arg DeleteRevisionParams) 
 	return result.RowsAffected(), nil
 }
 
+const getAutosave = `-- name: GetAutosave :one
+SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+FROM core.post_revisions r
+WHERE r.post_id = $1 AND r.author_id = $2 AND r.kind = 'autosave'
+`
+
+type GetAutosaveParams struct {
+	PostID   uuid.UUID
+	AuthorID uuid.UUID
+}
+
+func (q *Queries) GetAutosave(ctx context.Context, arg GetAutosaveParams) (CorePostRevision, error) {
+	row := q.db.QueryRow(ctx, getAutosave, arg.PostID, arg.AuthorID)
+	var i CorePostRevision
+	err := row.Scan(
+		&i.ID,
+		&i.PostID,
+		&i.Kind,
+		&i.AuthorID,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getPost = `-- name: GetPost :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at
@@ -530,6 +557,56 @@ func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (CorePos
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertAutosave = `-- name: UpsertAutosave :one
+INSERT INTO core.post_revisions (
+    id, post_id, kind, author_id, title, content, excerpt, created_at
+)
+VALUES (
+    $1, $2, 'autosave', $3, $4, $5, $6, $7
+)
+ON CONFLICT (post_id, author_id) WHERE kind = 'autosave'
+DO UPDATE SET
+    title = EXCLUDED.title,
+    content = EXCLUDED.content,
+    excerpt = EXCLUDED.excerpt,
+    created_at = EXCLUDED.created_at
+RETURNING id, post_id, kind, author_id, title, content, excerpt, created_at
+`
+
+type UpsertAutosaveParams struct {
+	ID        uuid.UUID
+	PostID    uuid.UUID
+	AuthorID  uuid.UUID
+	Title     string
+	Content   string
+	Excerpt   string
+	CreatedAt time.Time
+}
+
+func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) (CorePostRevision, error) {
+	row := q.db.QueryRow(ctx, upsertAutosave,
+		arg.ID,
+		arg.PostID,
+		arg.AuthorID,
+		arg.Title,
+		arg.Content,
+		arg.Excerpt,
+		arg.CreatedAt,
+	)
+	var i CorePostRevision
+	err := row.Scan(
+		&i.ID,
+		&i.PostID,
+		&i.Kind,
+		&i.AuthorID,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
