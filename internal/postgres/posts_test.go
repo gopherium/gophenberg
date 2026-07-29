@@ -5,6 +5,7 @@ package postgres_test
 import (
 	"errors"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -235,6 +236,23 @@ func TestPostStoreUpdateReportsMissingPosts(t *testing.T) {
 
 	if !errors.Is(err, post.ErrNotFound) {
 		t.Errorf("Update() error = %v, want %v", err, post.ErrNotFound)
+	}
+}
+
+func TestPostStoreUpdateWrapsDatabaseFailures(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newPostStoreWithPool(t)
+	created := mustCreate(t, store, "Wrapped", author)
+	pool.Close()
+
+	_, err := store.Update(t.Context(), created, nil, 0)
+
+	if err == nil {
+		t.Fatal("Update() on a closed pool error = nil, want a failure")
+	}
+	if !strings.Contains(err.Error(), "postgres: update post") {
+		t.Errorf("Update() error = %q, want the update post prefix", err)
 	}
 }
 

@@ -183,7 +183,7 @@ func (s *PostStore) update(
 		return snapshotRevision(ctx, queries, *snapshot, revisionCap)
 	})
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("postgres: update post: %w", err)
 	}
 	return rows, nil
 }
