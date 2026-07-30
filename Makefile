@@ -1,4 +1,4 @@
-.PHONY: dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down \
+.PHONY: peers dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down \
 	e2e e2e-build e2e-serve e2e-db-reset e2e-seed e2e-reset
 
 COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/testdb)
@@ -14,6 +14,9 @@ test:
 
 test-race:
 	go test -race ./...
+
+peers:
+	pnpm peers check
 
 lint:
 	golangci-lint run
