@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import '@testing-library/jest-dom/vitest'
+import { installTestEnvironment as installGodminTestEnvironment } from '@gopherium/godmin/testing'
 import { installTestEnvironment as installAuthTestEnvironment } from '@gopherium/react-auth/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
@@ -13,8 +14,7 @@ import {
 	createRouter,
 	useRouterState,
 } from '@tanstack/react-router'
-import { configure, render } from '@testing-library/react'
-import { vi } from 'vitest'
+import { render } from '@testing-library/react'
 
 import type { FrontendPlugin } from './index'
 
@@ -24,8 +24,7 @@ export { HttpResponse, http, server } from '@gopherium/react-auth/testing'
  * Installs global stubs and vitest lifecycle hooks for the test environment.
  */
 export function installTestEnvironment() {
-	vi.stubGlobal('scrollTo', () => {})
-	configure({ defaultIgnore: 'script, style, [id^="a11y-speak"]' })
+	installGodminTestEnvironment()
 	installAuthTestEnvironment()
 }
 

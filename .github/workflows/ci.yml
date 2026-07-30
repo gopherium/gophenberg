@@ -45,6 +45,7 @@ jobs:
       - run: pnpm peers check
         working-directory: ${{ github.workspace }}
       - run: pnpm lint
+      - run: pnpm run lint:css
       - run: pnpm exec eslint .
         working-directory: ${{ github.workspace }}
       - run: pnpm cover

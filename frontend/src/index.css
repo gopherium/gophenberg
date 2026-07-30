@@ -1,17 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
-#root {
-	isolation: isolate;
-}
-
-body {
-	position: relative;
-	margin: 0;
-	font-family: var(--wpds-typography-font-family-body);
-	color: var(--wpds-color-foreground-content-neutral);
-	background: var(--wpds-color-background-surface-neutral);
-}
-
 .gophenberg-layout {
 	display: flex;
 	height: 100vh;
