@@ -13,7 +13,7 @@ import {
 	createRouter,
 	useRouterState,
 } from '@tanstack/react-router'
-import { render } from '@testing-library/react'
+import { configure, render } from '@testing-library/react'
 import { vi } from 'vitest'
 
 import type { FrontendPlugin } from './index'
@@ -25,6 +25,7 @@ export { HttpResponse, http, server } from '@gopherium/react-auth/testing'
  */
 export function installTestEnvironment() {
 	vi.stubGlobal('scrollTo', () => {})
+	configure({ defaultIgnore: 'script, style, .a11y-speak-region' })
 	installAuthTestEnvironment()
 }
 
