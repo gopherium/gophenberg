@@ -10,7 +10,6 @@ import type { RouterHistory } from '@tanstack/react-router'
 import { Home } from './Home'
 import { Layout } from './Layout'
 import { plugins } from './plugins'
-import { NewUserRoute, UsersRoute } from './userRoutes'
 
 const rootRoute = createRootRoute({
 	component: Layout,
@@ -25,14 +24,12 @@ const homeRoute = createRoute({
 const usersRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/users',
-	component: UsersRoute,
-})
+}).lazy(() => import('./userRoutes.lazy').then((module) => module.UsersLazyRoute))
 
 const newUserRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/users/new',
-	component: NewUserRoute,
-})
+}).lazy(() => import('./userRoutes.lazy').then((module) => module.NewUserLazyRoute))
 
 const routeTree = rootRoute.addChildren([
 	homeRoute,

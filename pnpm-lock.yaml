@@ -48,9 +48,6 @@ importers:
       '@tanstack/react-router':
         specifier: ^1.170.17
         version: 1.170.18(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@wordpress/dataviews':
-        specifier: 17.3.0
-        version: 17.3.0(@date-fns/tz@1.5.0)(@emotion/is-prop-valid@1.4.0)(@types/react@19.2.17)(postcss@8.5.23)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.1.5(@types/node@26.1.1)(jiti@2.7.0)(yaml@2.9.0))
       '@wordpress/theme':
         specifier: 1.1.0
         version: 1.1.0(@types/react@19.2.17)(postcss@8.5.23)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.1.5(@types/node@26.1.1)(jiti@2.7.0)(yaml@2.9.0))
