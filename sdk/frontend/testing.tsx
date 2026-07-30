@@ -25,7 +25,7 @@ export { HttpResponse, http, server } from '@gopherium/react-auth/testing'
  */
 export function installTestEnvironment() {
 	vi.stubGlobal('scrollTo', () => {})
-	configure({ defaultIgnore: 'script, style, .a11y-speak-region' })
+	configure({ defaultIgnore: 'script, style, [id^="a11y-speak"]' })
 	installAuthTestEnvironment()
 }
 
