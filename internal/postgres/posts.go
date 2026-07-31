@@ -122,6 +122,8 @@ func (s *PostStore) List(ctx context.Context, f post.Filter) ([]post.Post, int, 
 		Type:      f.Type,
 		Status:    string(f.Status),
 		Search:    search,
+		OrderBy:   string(f.OrderBy),
+		OrderDir:  string(f.Order),
 		RowLimit:  int32(f.PerPage),
 		RowOffset: int32((f.Page - 1) * f.PerPage),
 	})

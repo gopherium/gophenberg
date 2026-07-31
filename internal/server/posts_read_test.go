@@ -271,3 +271,68 @@ func TestPostCountsReportsStoreFailures(t *testing.T) {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
 	}
 }
+
+func TestPostListRejectsInvalidSortParameters(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _ := authedPostServer(t)
+
+	for _, query := range []string{
+		"?orderby=author",
+		"?orderby=",
+		"?order=sideways",
+		"?order=",
+		"?orderby=title&order=random",
+	} {
+		recorder := doRequest(t, handler, http.MethodGet, "/api/posts"+query, "")
+
+		if recorder.Code != http.StatusBadRequest {
+			t.Errorf("GET /api/posts%s = %d, want %d", query, recorder.Code, http.StatusBadRequest)
+		}
+	}
+}
+
+func TestPostListAcceptsEverySortPair(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	posts.add(newPost(t, "Alpha", ada.ID))
+	posts.add(newPost(t, "Beta", ada.ID))
+
+	for _, query := range []string{
+		"?orderby=title&order=asc",
+		"?orderby=title&order=desc",
+		"?orderby=date&order=asc",
+		"?orderby=date&order=desc",
+	} {
+		recorder := doRequest(t, handler, http.MethodGet, "/api/posts"+query, "")
+
+		if recorder.Code != http.StatusOK {
+			t.Errorf("GET /api/posts%s = %d, want %d", query, recorder.Code, http.StatusOK)
+		}
+	}
+}
+
+func TestPostListPassesTheSortToTheStore(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+
+	doRequest(t, handler, http.MethodGet, "/api/posts?orderby=title&order=asc", "")
+
+	if posts.lastFilter.OrderBy != post.OrderByTitle || posts.lastFilter.Order != post.OrderAsc {
+		t.Errorf("filter = %+v, want title ascending", posts.lastFilter)
+	}
+}
+
+func TestPostListDefaultsToNewestFirst(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+
+	doRequest(t, handler, http.MethodGet, "/api/posts", "")
+
+	if posts.lastFilter.OrderBy != post.OrderByDate || posts.lastFilter.Order != post.OrderDesc {
+		t.Errorf("default filter = %+v, want date descending", posts.lastFilter)
+	}
+}

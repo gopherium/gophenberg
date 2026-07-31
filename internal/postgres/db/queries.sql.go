@@ -299,14 +299,23 @@ WHERE p.type = $1
         OR p.title ILIKE '%' || $3 || '%'
         OR p.content ILIKE '%' || $3 || '%'
     )
-ORDER BY COALESCE(p.published_at, p.created_at) DESC, p.id DESC
-LIMIT $5 OFFSET $4
+ORDER BY
+    CASE WHEN $4::text = 'title' AND $5::text = 'asc' THEN p.title END ASC,
+    CASE WHEN $4::text = 'title' AND $5::text = 'desc' THEN p.title END DESC,
+    CASE WHEN $4::text <> 'title' AND $5::text = 'asc'
+        THEN COALESCE(p.published_at, p.created_at) END ASC,
+    CASE WHEN $4::text <> 'title' AND $5::text <> 'asc'
+        THEN COALESCE(p.published_at, p.created_at) END DESC,
+    p.id DESC
+LIMIT $7 OFFSET $6
 `
 
 type ListPostsParams struct {
 	Type      string
 	Status    string
 	Search    string
+	OrderBy   string
+	OrderDir  string
 	RowOffset int32
 	RowLimit  int32
 }
@@ -329,6 +338,8 @@ func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPos
 		arg.Type,
 		arg.Status,
 		arg.Search,
+		arg.OrderBy,
+		arg.OrderDir,
 		arg.RowOffset,
 		arg.RowLimit,
 	)

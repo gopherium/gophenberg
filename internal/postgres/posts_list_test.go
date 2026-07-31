@@ -223,3 +223,94 @@ func TestPostStoreCountsReportsDatabaseFailures(t *testing.T) {
 		t.Error("Counts() on a closed pool error = nil, want a failure")
 	}
 }
+
+func TestPostStoreListSortsByTitle(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	mustCreate(t, store, "Beta", author)
+	mustCreate(t, store, "Alpha", author)
+	mustCreate(t, store, "Gamma", author)
+
+	ascending, _, err := store.List(t.Context(), post.Filter{
+		Type: post.TypePost, OrderBy: post.OrderByTitle, Order: post.OrderAsc, Page: 1, PerPage: 10,
+	})
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	if got := titlesOf(ascending); got[0] != "Alpha" || got[2] != "Gamma" {
+		t.Errorf("ascending = %v, want Alpha first and Gamma last", got)
+	}
+
+	descending, _, err := store.List(t.Context(), post.Filter{
+		Type: post.TypePost, OrderBy: post.OrderByTitle, Order: post.OrderDesc, Page: 1, PerPage: 10,
+	})
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	if got := titlesOf(descending); got[0] != "Gamma" || got[2] != "Alpha" {
+		t.Errorf("descending = %v, want Gamma first and Alpha last", got)
+	}
+}
+
+func TestPostStoreListSortsByDateIndependentlyOfCreationOrder(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	publish(t, store, "Published Long Ago", author, now.Add(-72*time.Hour))
+	publish(t, store, "Published Recently", author, now.Add(-1*time.Hour))
+
+	oldestFirst, _, err := store.List(t.Context(), post.Filter{
+		Type: post.TypePost, OrderBy: post.OrderByDate, Order: post.OrderAsc, Page: 1, PerPage: 10,
+	})
+
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	if got := titlesOf(oldestFirst); got[0] != "Published Long Ago" {
+		t.Errorf("ascending by date = %v, want the oldest publication first", got)
+	}
+}
+
+func TestPostStoreListDefaultsToNewestPublicationFirst(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	publish(t, store, "Published Recently", author, now.Add(-1*time.Hour))
+	publish(t, store, "Published Long Ago", author, now.Add(-72*time.Hour))
+
+	posts, _, err := store.List(t.Context(), post.Filter{Type: post.TypePost, Page: 1, PerPage: 10})
+
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	if got := titlesOf(posts); got[0] != "Published Recently" {
+		t.Errorf("default order = %v, want the newest publication first", got)
+	}
+}
+
+func TestPostStoreListSortsTitlesCaseInsensitively(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	mustCreate(t, store, "banana", author)
+	mustCreate(t, store, "Apricot", author)
+	mustCreate(t, store, "cherry", author)
+
+	posts, _, err := store.List(t.Context(), post.Filter{
+		Type: post.TypePost, OrderBy: post.OrderByTitle, Order: post.OrderAsc, Page: 1, PerPage: 10,
+	})
+
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	want := []string{"Apricot", "banana", "cherry"}
+	got := titlesOf(posts)
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("titles = %v, want %v, so the database collation is not case insensitive", got, want)
+		}
+	}
+}

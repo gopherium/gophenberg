@@ -56,11 +56,57 @@ func NewRevision(p Post, kind RevisionKind, authorID uuid.UUID) (Revision, error
 	}, nil
 }
 
+// ErrInvalidOrderBy reports that a sort column is not one the CMS sorts by.
+var ErrInvalidOrderBy = errors.New("post: invalid orderby")
+
+// ErrInvalidOrder reports that a sort direction is not one the CMS sorts in.
+var ErrInvalidOrder = errors.New("post: invalid order")
+
+// OrderBy names a column a listing can be sorted by.
+type OrderBy string
+
+// The columns a listing can be sorted by.
+const (
+	OrderByDate  OrderBy = "date"
+	OrderByTitle OrderBy = "title"
+)
+
+// Order names a sort direction.
+type Order string
+
+// The directions a listing can be sorted in.
+const (
+	OrderAsc  Order = "asc"
+	OrderDesc Order = "desc"
+)
+
+// ParseOrderBy returns the column named by raw, or [ErrInvalidOrderBy].
+func ParseOrderBy(raw string) (OrderBy, error) {
+	switch OrderBy(raw) {
+	case OrderByDate, OrderByTitle:
+		return OrderBy(raw), nil
+	default:
+		return "", ErrInvalidOrderBy
+	}
+}
+
+// ParseOrder returns the direction named by raw, or [ErrInvalidOrder].
+func ParseOrder(raw string) (Order, error) {
+	switch Order(raw) {
+	case OrderAsc, OrderDesc:
+		return Order(raw), nil
+	default:
+		return "", ErrInvalidOrder
+	}
+}
+
 // Filter narrows a post listing.
 type Filter struct {
 	Type    string
 	Status  Status
 	Search  string
+	OrderBy OrderBy
+	Order   Order
 	Page    int
 	PerPage int
 }

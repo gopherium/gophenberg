@@ -25,6 +25,7 @@ var _ post.Store = (*fakePostStore)(nil)
 // fakePostStore is an in-memory post store double with per-method error injection.
 type fakePostStore struct {
 	posts      map[uuid.UUID]post.Post
+	lastFilter post.Filter
 	createErr  error
 	byIDErr    error
 	listErr    error
@@ -90,6 +91,7 @@ func (s *fakePostStore) ByID(_ context.Context, id uuid.UUID) (post.Post, error)
 
 // List returns the stored posts matching the filter's status and search.
 func (s *fakePostStore) List(_ context.Context, f post.Filter) ([]post.Post, int, error) {
+	s.lastFilter = f
 	if s.listErr != nil {
 		return nil, 0, s.listErr
 	}

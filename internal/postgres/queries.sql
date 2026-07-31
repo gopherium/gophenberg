@@ -29,7 +29,14 @@ WHERE p.type = @type
         OR p.title ILIKE '%' || @search || '%'
         OR p.content ILIKE '%' || @search || '%'
     )
-ORDER BY COALESCE(p.published_at, p.created_at) DESC, p.id DESC
+ORDER BY
+    CASE WHEN @order_by::text = 'title' AND @order_dir::text = 'asc' THEN p.title END ASC,
+    CASE WHEN @order_by::text = 'title' AND @order_dir::text = 'desc' THEN p.title END DESC,
+    CASE WHEN @order_by::text <> 'title' AND @order_dir::text = 'asc'
+        THEN COALESCE(p.published_at, p.created_at) END ASC,
+    CASE WHEN @order_by::text <> 'title' AND @order_dir::text <> 'asc'
+        THEN COALESCE(p.published_at, p.created_at) END DESC,
+    p.id DESC
 LIMIT @row_limit OFFSET @row_offset;
 
 -- name: CountPosts :one

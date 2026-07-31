@@ -97,8 +97,24 @@ func parsePostFilter(query url.Values) (post.Filter, error) {
 	filter := post.Filter{
 		Type:    post.TypePost,
 		Search:  query.Get("search"),
+		OrderBy: post.OrderByDate,
+		Order:   post.OrderDesc,
 		Page:    1,
 		PerPage: defaultPostsPerPage,
+	}
+	if raw, ok := query["orderby"]; ok {
+		orderBy, err := post.ParseOrderBy(raw[0])
+		if err != nil {
+			return post.Filter{}, err
+		}
+		filter.OrderBy = orderBy
+	}
+	if raw, ok := query["order"]; ok {
+		order, err := post.ParseOrder(raw[0])
+		if err != nil {
+			return post.Filter{}, err
+		}
+		filter.Order = order
 	}
 	if raw := query.Get("type"); raw != "" {
 		filter.Type = raw
