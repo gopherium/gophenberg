@@ -14,6 +14,7 @@ test('the editor route carries none of the admin chrome', async () => {
 	expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
 	expect(screen.queryByRole('link', { name: 'Gophenberg' })).not.toBeInTheDocument()
 	expect(document.querySelector('.gophenberg-layout')).toBeNull()
+	expect(document.querySelector('.gophenberg-layout__canvas')).toBeNull()
 })
 
 test('the editor route names the post it will edit', async () => {

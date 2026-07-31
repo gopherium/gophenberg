@@ -3,9 +3,12 @@
 import type { AnyRoute } from '@tanstack/react-router'
 import type { ComponentProps, ComponentType, ReactElement } from 'react'
 
+export type CanvasMode = 'padded' | 'bleed'
+
 declare module '@tanstack/react-router' {
 	interface StaticDataRouteOption {
 		Sidebar?: ComponentType
+		canvas?: CanvasMode
 	}
 }
 

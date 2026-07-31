@@ -18,10 +18,9 @@ const CANVAS_COLOR = { background: '#ffffff' }
  */
 export function Layout() {
 	const matches = useRouterState({ select: (state) => state.matches })
-	const sidebarMatch = [...matches]
-		.reverse()
-		.find((match) => match.staticData.Sidebar)
-	const Sidebar = sidebarMatch?.staticData.Sidebar
+	const nearest = [...matches].reverse()
+	const Sidebar = nearest.find((match) => match.staticData.Sidebar)?.staticData.Sidebar
+	const canvas = nearest.find((match) => match.staticData.canvas)?.staticData.canvas ?? 'padded'
 	const version = useAppVersion().data
 	return (
 		<ThemeProvider color={CHROME_COLOR}>
@@ -43,7 +42,13 @@ export function Layout() {
 					) : null}
 				</div>
 				<ThemeProvider color={CANVAS_COLOR}>
-					<main className="gophenberg-layout__canvas">
+					<main
+						className={
+							canvas === 'bleed'
+								? 'gophenberg-layout__canvas gophenberg-layout__canvas--bleed'
+								: 'gophenberg-layout__canvas'
+						}
+					>
 						<Outlet />
 					</main>
 				</ThemeProvider>
