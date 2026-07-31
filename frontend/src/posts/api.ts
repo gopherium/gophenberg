@@ -87,6 +87,19 @@ export async function createPost(type = 'post'): Promise<Post> {
 }
 
 /**
+ * Moves a post to the trash.
+ * @param id - The post to trash.
+ * @returns The trashed post.
+ */
+export async function trashPost(id: string): Promise<Post> {
+	const response = await fetch(`/api/posts/${id}`, { method: 'DELETE' })
+	if (!response.ok) {
+		throw new Error(`trashing a post failed with status ${response.status}`)
+	}
+	return toPost(postSchema.parse(await response.json()))
+}
+
+/**
  * Returns one page of posts matching the query.
  * @param query - The filters, sort and page to ask for.
  * @returns The page and the total number of matches.
