@@ -27,6 +27,7 @@ export {
 	Card,
 	Icon,
 	InputControl,
+	Notice,
 	Stack,
 	Text,
 	VisuallyHidden,

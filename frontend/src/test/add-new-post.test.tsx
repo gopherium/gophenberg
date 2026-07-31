@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: Apache-2.0
+
+import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { expect, test, vi } from 'vitest'
+
+import { renderAt } from './render'
+
+const NEW_POST_ID = '019fb000-0000-7000-8000-0000000000aa'
+
+/**
+ * Serves a created draft and records the request body.
+ * @returns The recorded bodies, filled as requests arrive.
+ */
+function captureCreate(): { bodies: unknown[] } {
+	const bodies: unknown[] = []
+	server.use(
+		http.post('/api/posts', async ({ request }) => {
+			bodies.push(await request.json())
+			return HttpResponse.json(
+				{ id: NEW_POST_ID, type: 'post', slug: 'untitled', title: '', status: 'draft' },
+				{ status: 201 },
+			)
+		}),
+	)
+	return { bodies }
+}
+
+test('add new creates a draft and opens it in the editor', async () => {
+	captureCreate()
+	renderAt('/posts')
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
+
+	expect(await screen.findByRole('heading', { name: /editor/i })).toBeInTheDocument()
+	expect(await screen.findByText(new RegExp(NEW_POST_ID))).toBeInTheDocument()
+})
+
+test('add new asks for a post of the default type', async () => {
+	const recorded = captureCreate()
+	renderAt('/posts')
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
+	await screen.findByRole('heading', { name: /editor/i })
+
+	expect(recorded.bodies).toEqual([{ type: 'post', title: '' }])
+})
+
+test('add new reports a failure without navigating away', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(
+		http.post('/api/posts', () =>
+			HttpResponse.json({ error: 'nope' }, { status: 500 }),
+		),
+	)
+	renderAt('/posts')
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
+
+	expect(await screen.findByRole('alert')).toHaveTextContent(/could not/i)
+	expect(screen.queryByRole('heading', { name: /editor/i })).not.toBeInTheDocument()
+})
