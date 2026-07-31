@@ -8,19 +8,26 @@ import type { PostNotice, ReportNotice } from './actions'
 import { restorePost } from './api'
 
 /**
- * Renders the control taking back the trashing of a post.
- * @param props - The post to restore and the handler replacing the notice.
+ * Renders the control taking back a trashing.
+ * @param props - The posts to restore and the handler replacing the notice.
  * @returns The undo control.
  */
-function Undo({ undoId, report }: { undoId: string, report: ReportNotice }) {
+function Undo({ undoIds, report }: { undoIds: string[], report: ReportNotice }) {
 	const refresh = useRefresh()
 	const undo = useMutation({
-		mutationFn: () => restorePost(undoId),
+		mutationFn: () => Promise.all(undoIds.map((id) => restorePost(id))),
 		onSuccess: async () => {
 			report(null)
 			await refresh()
 		},
-		onError: () => report({ intent: 'error', message: 'Could not restore that post.' }),
+		onError: () =>
+			report({
+				intent: 'error',
+				message:
+					undoIds.length === 1
+						? 'Could not restore that post.'
+						: 'Could not restore those posts.',
+			}),
 	})
 	return (
 		<Notice.Actions>
@@ -40,7 +47,7 @@ export function PostsNotice({ notice, report }: { notice: PostNotice, report: Re
 	return (
 		<Notice.Root intent={notice.intent} spokenMessage={notice.message}>
 			<Notice.Description>{notice.message}</Notice.Description>
-			{notice.undoId !== undefined && <Undo undoId={notice.undoId} report={report} />}
+			{notice.undoIds !== undefined && <Undo undoIds={notice.undoIds} report={report} />}
 		</Notice.Root>
 	)
 }

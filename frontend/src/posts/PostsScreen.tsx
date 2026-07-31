@@ -4,7 +4,7 @@ import { Notice, Stack } from '@gophenberg/frontend-sdk'
 import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { usePostActions, useRefresh } from './actions'
 import type { PostNotice } from './actions'
@@ -34,7 +34,14 @@ export function PostsScreen() {
 	const [view, setView] = useState<View>(INITIAL_VIEW)
 	const [status, setStatus] = useState('')
 	const [notice, setNotice] = useState<PostNotice | null>(null)
-	const actions = usePostActions(status, setNotice)
+	const [selection, setSelection] = useState<string[]>([])
+	const report = useCallback((next: PostNotice | null) => {
+		setNotice(next)
+		if (next?.intent === 'success') {
+			setSelection([])
+		}
+	}, [])
+	const actions = usePostActions(status, report)
 	const refresh = useRefresh()
 	const counts = useQuery({ queryKey: ['post-counts'], queryFn: fetchPostCounts })
 	const posts = useQuery({
@@ -55,6 +62,7 @@ export function PostsScreen() {
 	function chooseStatus(chosen: string) {
 		setStatus(chosen)
 		setNotice(null)
+		setSelection([])
 		setView((current) => ({ ...current, page: 1 }))
 	}
 	if (posts.isError) {
@@ -79,6 +87,8 @@ export function PostsScreen() {
 				actions={actions}
 				view={view}
 				onChangeView={setView}
+				selection={selection}
+				onChangeSelection={setSelection}
 				isLoading={posts.isPending}
 				getItemId={(post) => post.id}
 				searchLabel="Search posts"

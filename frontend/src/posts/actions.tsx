@@ -12,7 +12,7 @@ import type { Post } from './api'
 export interface PostNotice {
 	intent: 'error' | 'success'
 	message: string
-	undoId?: string
+	undoIds?: string[]
 }
 
 export type ReportNotice = (notice: PostNotice | null) => void
@@ -70,6 +70,9 @@ function Confirm({
 			await refresh()
 			closeModal?.()
 		},
+		onError: () => {
+			void refresh()
+		},
 	})
 	return (
 		<Stack direction="column" gap="md">
@@ -101,16 +104,33 @@ function TrashConfirm({
 	closeModal,
 	report,
 }: RenderModalProps<Post> & { report: ReportNotice }) {
-	const target = items[0]
+	const single = items.length === 1
 	return (
 		<Confirm
-			question={`Move ${nameOf(target)} to the trash?`}
-			failure="Could not move that post to trash."
+			question={
+				single
+					? `Move ${nameOf(items[0])} to the trash?`
+					: `Move these ${items.length} posts to the trash?`
+			}
+			failure={
+				single ? 'Could not move that post to trash.' : 'Could not move every post to trash.'
+			}
 			confirmLabel="Move to Trash"
-			run={() => trashPost(target.id)}
+			run={async () => {
+				const settled = await Promise.allSettled(items.map((post) => trashPost(post.id)))
+				if (settled.some((outcome) => outcome.status === 'rejected')) {
+					throw new Error('trashing did not finish')
+				}
+			}}
 			closeModal={closeModal}
 			done={() =>
-				report({ intent: 'success', message: 'Moved to the trash.', undoId: target.id })
+				report({
+					intent: 'success',
+					message: single
+						? 'Moved to the trash.'
+						: `${items.length} posts moved to the trash.`,
+					undoIds: items.map((post) => post.id),
+				})
 			}
 		/>
 	)
@@ -178,6 +198,7 @@ export function usePostActions(status: string, report: ReportNotice): Action<Pos
 			{
 				id: 'trash',
 				label: 'Move to Trash',
+				supportsBulk: true,
 				RenderModal: (props: RenderModalProps<Post>) => (
 					<TrashConfirm {...props} report={report} />
 				),
