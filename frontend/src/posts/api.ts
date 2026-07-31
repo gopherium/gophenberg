@@ -4,6 +4,8 @@ import { z } from 'zod'
 
 const POSTS_PER_PAGE = 20
 
+const MAX_EMPTY_ROUNDS = 50
+
 const postSchema = z.object({
 	id: z.string(),
 	type: z.string(),
@@ -151,6 +153,20 @@ export async function listPosts(query: PostQuery): Promise<PostPage> {
 	}
 	const page = pageSchema.parse(await response.json())
 	return { items: page.items.map(toPost), total: page.total }
+}
+
+/**
+ * Removes every trashed post for good.
+ */
+export async function emptyTrash(): Promise<void> {
+	for (let round = 0; round < MAX_EMPTY_ROUNDS; round += 1) {
+		const page = await listPosts({ status: 'trash' })
+		if (page.items.length === 0) {
+			return
+		}
+		await Promise.all(page.items.map((post) => deletePost(post.id)))
+	}
+	throw new Error('emptying the trash did not finish')
 }
 
 /**

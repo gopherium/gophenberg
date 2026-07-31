@@ -130,6 +130,49 @@ test('refreshes the listing and the counts after trashing', async () => {
 	await waitFor(() => expect(counted.length).toBeGreaterThan(countedBefore))
 })
 
+test('offers to undo a post just trashed', async () => {
+	renderAt('/posts')
+	await openRowActions()
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Move to Trash' }))
+
+	expect(await screen.findByText(/moved to the trash/i)).toBeInTheDocument()
+	expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+})
+
+test('restores the post when the undo is taken', async () => {
+	const restored: string[] = []
+	server.use(
+		http.post('/api/posts/:id/restore', ({ params }) => {
+			restored.push(String(params.id))
+			return HttpResponse.json({ ...PUBLISHED, status: 'draft' })
+		}),
+	)
+	renderAt('/posts')
+	await openRowActions()
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
+	await userEvent.click(await screen.findByRole('button', { name: 'Move to Trash' }))
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+
+	await waitFor(() => expect(restored).toEqual([PUBLISHED.id]))
+	await waitFor(() => expect(screen.queryByText(/moved to the trash/i)).not.toBeInTheDocument())
+})
+
+test('reports an undo the server refused', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(http.post('/api/posts/:id/restore', () => HttpResponse.json({}, { status: 500 })))
+	renderAt('/posts')
+	await openRowActions()
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
+	await userEvent.click(await screen.findByRole('button', { name: 'Move to Trash' }))
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+
+	expect(await screen.findByText(/could not restore that post/i)).toBeInTheDocument()
+})
+
 test('reports a trash the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.delete('/api/posts/:id', () => HttpResponse.json({}, { status: 500 })))

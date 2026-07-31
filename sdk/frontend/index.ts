@@ -22,6 +22,7 @@ export interface FrontendPlugin {
 }
 
 export {
+	AlertDialog,
 	Badge,
 	Button,
 	Card,

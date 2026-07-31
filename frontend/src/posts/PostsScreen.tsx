@@ -6,9 +6,12 @@ import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { usePostActions } from './actions'
+import { usePostActions, useRefresh } from './actions'
+import type { PostNotice } from './actions'
 import { fetchPostCounts, listPosts } from './api'
+import { EmptyTrash } from './EmptyTrash'
 import { postFields } from './fields'
+import { PostsNotice } from './PostsNotice'
 import { StatusViews } from './StatusViews'
 
 const PER_PAGE = 20
@@ -30,8 +33,9 @@ const INITIAL_VIEW: View = {
 export function PostsScreen() {
 	const [view, setView] = useState<View>(INITIAL_VIEW)
 	const [status, setStatus] = useState('')
-	const [failure, setFailure] = useState<string | null>(null)
-	const actions = usePostActions(status, setFailure)
+	const [notice, setNotice] = useState<PostNotice | null>(null)
+	const actions = usePostActions(status, setNotice)
+	const refresh = useRefresh()
 	const counts = useQuery({ queryKey: ['post-counts'], queryFn: fetchPostCounts })
 	const posts = useQuery({
 		queryKey: ['posts', status, view.search, view.page, view.sort],
@@ -50,6 +54,7 @@ export function PostsScreen() {
 	 */
 	function chooseStatus(chosen: string) {
 		setStatus(chosen)
+		setNotice(null)
 		setView((current) => ({ ...current, page: 1 }))
 	}
 	if (posts.isError) {
@@ -61,14 +66,13 @@ export function PostsScreen() {
 	}
 	return (
 		<Stack direction="column" gap="md">
-			{counts.data !== undefined && (
-				<StatusViews counts={counts.data} current={status} onSelect={chooseStatus} />
-			)}
-			{failure !== null && (
-				<Notice.Root intent="error" role="alert">
-					<Notice.Description>{failure}</Notice.Description>
-				</Notice.Root>
-			)}
+			<Stack direction="row" gap="md" align="center" justify="space-between">
+				{counts.data !== undefined && (
+					<StatusViews counts={counts.data} current={status} onSelect={chooseStatus} />
+				)}
+				{status === 'trash' && <EmptyTrash onEmptied={refresh} />}
+			</Stack>
+			{notice !== null && <PostsNotice notice={notice} report={setNotice} />}
 			<DataViews
 				data={posts.data?.items ?? []}
 				fields={postFields}

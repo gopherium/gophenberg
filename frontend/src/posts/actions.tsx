@@ -9,6 +9,14 @@ import { useCallback, useMemo } from 'react'
 import { deletePost, restorePost, trashPost } from './api'
 import type { Post } from './api'
 
+export interface PostNotice {
+	intent: 'error' | 'success'
+	message: string
+	undoId?: string
+}
+
+export type ReportNotice = (notice: PostNotice | null) => void
+
 /**
  * Returns the name a post is listed under.
  * @param post - The post to name.
@@ -22,7 +30,7 @@ function nameOf(post: Post): string {
  * Returns the handler that reloads the listing and the status counts.
  * @returns The reload handler.
  */
-function useRefresh(): () => Promise<unknown> {
+export function useRefresh(): () => Promise<unknown> {
 	const client = useQueryClient()
 	return useCallback(
 		() =>
@@ -45,17 +53,20 @@ function Confirm({
 	confirmLabel,
 	run,
 	closeModal,
+	done,
 }: {
 	question: string
 	failure: string
 	confirmLabel: string
 	run: () => Promise<unknown>
 	closeModal?: () => void
+	done?: () => void
 }) {
 	const refresh = useRefresh()
 	const action = useMutation({
 		mutationFn: run,
 		onSuccess: async () => {
+			done?.()
 			await refresh()
 			closeModal?.()
 		},
@@ -85,7 +96,11 @@ function Confirm({
  * @param props - The posts acted on and the handler closing the modal.
  * @returns The confirmation body.
  */
-function TrashConfirm({ items, closeModal }: RenderModalProps<Post>) {
+function TrashConfirm({
+	items,
+	closeModal,
+	report,
+}: RenderModalProps<Post> & { report: ReportNotice }) {
 	const target = items[0]
 	return (
 		<Confirm
@@ -94,6 +109,9 @@ function TrashConfirm({ items, closeModal }: RenderModalProps<Post>) {
 			confirmLabel="Move to Trash"
 			run={() => trashPost(target.id)}
 			closeModal={closeModal}
+			done={() =>
+				report({ intent: 'success', message: 'Moved to the trash.', undoId: target.id })
+			}
 		/>
 	)
 }
@@ -122,10 +140,7 @@ function DeleteConfirm({ items, closeModal }: RenderModalProps<Post>) {
  * @param report - The handler carrying a failure to the screen.
  * @returns The row actions.
  */
-export function usePostActions(
-	status: string,
-	report: (failure: string | null) => void,
-): Action<Post>[] {
+export function usePostActions(status: string, report: ReportNotice): Action<Post>[] {
 	const navigate = useNavigate()
 	const refresh = useRefresh()
 	return useMemo(() => {
@@ -140,7 +155,9 @@ export function usePostActions(
 								report(null)
 								return refresh()
 							})
-							.catch(() => report('Could not restore that post.'))
+							.catch(() =>
+							report({ intent: 'error', message: 'Could not restore that post.' }),
+						)
 					},
 				},
 				{
@@ -161,7 +178,9 @@ export function usePostActions(
 			{
 				id: 'trash',
 				label: 'Move to Trash',
-				RenderModal: TrashConfirm,
+				RenderModal: (props: RenderModalProps<Post>) => (
+					<TrashConfirm {...props} report={report} />
+				),
 			},
 		]
 	}, [navigate, refresh, report, status])
