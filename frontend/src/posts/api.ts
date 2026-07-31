@@ -100,6 +100,30 @@ export async function trashPost(id: string): Promise<Post> {
 }
 
 /**
+ * Returns a trashed post to draft.
+ * @param id - The post to restore.
+ * @returns The restored post.
+ */
+export async function restorePost(id: string): Promise<Post> {
+	const response = await fetch(`/api/posts/${id}/restore`, { method: 'POST' })
+	if (!response.ok) {
+		throw new Error(`restoring a post failed with status ${response.status}`)
+	}
+	return toPost(postSchema.parse(await response.json()))
+}
+
+/**
+ * Removes a post for good.
+ * @param id - The post to delete.
+ */
+export async function deletePost(id: string): Promise<void> {
+	const response = await fetch(`/api/posts/${id}?force=true`, { method: 'DELETE' })
+	if (!response.ok) {
+		throw new Error(`deleting a post failed with status ${response.status}`)
+	}
+}
+
+/**
  * Returns one page of posts matching the query.
  * @param query - The filters, sort and page to ask for.
  * @returns The page and the total number of matches.

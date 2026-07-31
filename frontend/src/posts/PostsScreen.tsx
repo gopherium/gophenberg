@@ -30,7 +30,8 @@ const INITIAL_VIEW: View = {
 export function PostsScreen() {
 	const [view, setView] = useState<View>(INITIAL_VIEW)
 	const [status, setStatus] = useState('')
-	const actions = usePostActions()
+	const [failure, setFailure] = useState<string | null>(null)
+	const actions = usePostActions(status, setFailure)
 	const counts = useQuery({ queryKey: ['post-counts'], queryFn: fetchPostCounts })
 	const posts = useQuery({
 		queryKey: ['posts', status, view.search, view.page, view.sort],
@@ -62,6 +63,11 @@ export function PostsScreen() {
 		<Stack direction="column" gap="md">
 			{counts.data !== undefined && (
 				<StatusViews counts={counts.data} current={status} onSelect={chooseStatus} />
+			)}
+			{failure !== null && (
+				<Notice.Root intent="error" role="alert">
+					<Notice.Description>{failure}</Notice.Description>
+				</Notice.Root>
 			)}
 			<DataViews
 				data={posts.data?.items ?? []}
