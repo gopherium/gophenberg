@@ -3,4 +3,6 @@
 import type { NavItem } from '@gophenberg/frontend-sdk'
 import { usersNavItem } from '@gopherium/react-auth/wpds'
 
-export const coreNav: NavItem[] = [usersNavItem]
+import { postsNavItem } from '../posts/nav'
+
+export const coreNav: NavItem[] = [postsNavItem, usersNavItem]

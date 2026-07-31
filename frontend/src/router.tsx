@@ -10,6 +10,7 @@ import type { RouterHistory } from '@tanstack/react-router'
 import { Home } from './Home'
 import { Layout } from './Layout'
 import { plugins } from './plugins'
+import { PostsSidebar } from './posts/PostsSidebar'
 
 const rootRoute = createRootRoute({
 	component: Layout,
@@ -20,6 +21,12 @@ const homeRoute = createRoute({
 	path: '/',
 	component: Home,
 })
+
+const postsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/posts',
+	staticData: { Sidebar: PostsSidebar },
+}).lazy(() => import('./posts/postsRoutes.lazy').then((module) => module.PostsLazyRoute))
 
 const usersRoute = createRoute({
 	getParentRoute: () => rootRoute,
@@ -33,6 +40,7 @@ const newUserRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
 	homeRoute,
+	postsRoute,
 	usersRoute,
 	newUserRoute,
 	...plugins.flatMap((plugin) => plugin.routes(rootRoute)),
