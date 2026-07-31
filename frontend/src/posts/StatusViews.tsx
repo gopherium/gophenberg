@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0
+
+import { Button, Stack } from '@gophenberg/frontend-sdk'
+
+import type { PostCounts } from './api'
+
+interface StatusView {
+	status: string
+	label: string
+}
+
+const LEADING: StatusView[] = [
+	{ status: '', label: 'All' },
+	{ status: 'published', label: 'Published' },
+	{ status: 'draft', label: 'Draft' },
+	{ status: 'pending', label: 'Pending' },
+]
+
+const TRASH: StatusView = { status: 'trash', label: 'Trash' }
+
+const PRIVATE: StatusView = { status: 'private', label: 'Private' }
+
+/**
+ * Returns how many posts a status view covers.
+ * @param counts - The number of posts holding each status.
+ * @param status - The status the view filters by, empty for every status.
+ * @returns The number the view reports.
+ */
+function countFor(counts: PostCounts, status: string): number {
+	if (status !== '') {
+		return counts[status] ?? 0
+	}
+	return Object.values(counts).reduce((total, count) => total + count, 0)
+}
+
+/**
+ * Returns the status views offered for the given counts.
+ * @param counts - The number of posts holding each status.
+ * @returns The views in the order they are shown.
+ */
+function viewsFor(counts: PostCounts): StatusView[] {
+	const optional = countFor(counts, 'private') > 0 ? [PRIVATE] : []
+	return [...LEADING, ...optional, TRASH]
+}
+
+/**
+ * Renders the row of status filters above the posts list.
+ * @param props - The counts, the status in force and the handler for a change.
+ * @returns The status views row.
+ */
+export function StatusViews({
+	counts,
+	current,
+	onSelect,
+}: {
+	counts: PostCounts
+	current: string
+	onSelect: (status: string) => void
+}) {
+	return (
+		<Stack direction="row" gap="xs" align="center" role="group" aria-label="Filter by status">
+			{viewsFor(counts).map((view) => (
+				<Button
+					key={view.status}
+					variant="minimal"
+					tone="neutral"
+					size="compact"
+					aria-pressed={view.status === current}
+					onClick={() => onSelect(view.status)}
+				>
+					{view.label} ({countFor(counts, view.status)})
+				</Button>
+			))}
+		</Stack>
+	)
+}

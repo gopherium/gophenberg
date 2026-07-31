@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Notice } from '@gophenberg/frontend-sdk'
+import { Notice, Stack } from '@gophenberg/frontend-sdk'
 import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { listPosts } from './api'
+import { fetchPostCounts, listPosts } from './api'
 import { postFields } from './fields'
+import { StatusViews } from './StatusViews'
 
 const PER_PAGE = 20
 
@@ -15,6 +16,7 @@ const INITIAL_VIEW: View = {
 	type: 'table',
 	fields: ['author', 'date'],
 	titleField: 'title',
+	search: '',
 	page: 1,
 	perPage: PER_PAGE,
 	sort: { field: 'date', direction: 'desc' },
@@ -26,15 +28,27 @@ const INITIAL_VIEW: View = {
  */
 export function PostsScreen() {
 	const [view, setView] = useState<View>(INITIAL_VIEW)
+	const [status, setStatus] = useState('')
+	const counts = useQuery({ queryKey: ['post-counts'], queryFn: fetchPostCounts })
 	const posts = useQuery({
-		queryKey: ['posts', view.page, view.sort],
+		queryKey: ['posts', status, view.search, view.page, view.sort],
 		queryFn: () =>
 			listPosts({
+				status,
+				search: view.search,
 				page: view.page,
 				orderBy: view.sort?.field,
 				order: view.sort?.direction,
 			}),
 	})
+	/**
+	 * Filters the list by the given status and returns to the first page.
+	 * @param chosen - The status to filter by, empty for every status.
+	 */
+	function chooseStatus(chosen: string) {
+		setStatus(chosen)
+		setView((current) => ({ ...current, page: 1 }))
+	}
 	if (posts.isError) {
 		return (
 			<Notice.Root intent="error" role="alert">
@@ -43,18 +57,25 @@ export function PostsScreen() {
 		)
 	}
 	return (
-		<DataViews
-			data={posts.data?.items ?? []}
-			fields={postFields}
-			view={view}
-			onChangeView={setView}
-			isLoading={posts.isPending}
-			getItemId={(post) => post.id}
-			paginationInfo={{
-				totalItems: posts.data?.total ?? 0,
-				totalPages: Math.max(1, Math.ceil((posts.data?.total ?? 0) / PER_PAGE)),
-			}}
-			defaultLayouts={{ table: {} }}
-		/>
+		<Stack direction="column" gap="md">
+			{counts.data !== undefined && (
+				<StatusViews counts={counts.data} current={status} onSelect={chooseStatus} />
+			)}
+			<DataViews
+				data={posts.data?.items ?? []}
+				fields={postFields}
+				view={view}
+				onChangeView={setView}
+				isLoading={posts.isPending}
+				getItemId={(post) => post.id}
+				searchLabel="Search posts"
+				config={{ perPageSizes: [PER_PAGE] }}
+				paginationInfo={{
+					totalItems: posts.data?.total ?? 0,
+					totalPages: Math.max(1, Math.ceil((posts.data?.total ?? 0) / PER_PAGE)),
+				}}
+				defaultLayouts={{ table: {} }}
+			/>
+		</Stack>
 	)
 }
