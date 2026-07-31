@@ -45,7 +45,7 @@ const newUserRoute = createRoute({
 const editorRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/posts/$postId/edit',
-}).lazy(() => import('./posts/postsRoutes.lazy').then((module) => module.EditorLazyRoute))
+}).lazy(() => import('./posts/editorRoute.lazy').then((module) => module.EditorLazyRoute))
 
 const routeTree = rootRoute.addChildren([
 	framedRoute.addChildren([

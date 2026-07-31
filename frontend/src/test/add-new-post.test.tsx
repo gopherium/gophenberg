@@ -50,6 +50,7 @@ test('add new asks for a post of the default type', async () => {
 test('add new reports a failure without navigating away', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
+		http.get('/api/posts', () => HttpResponse.json({ items: [], total: 0 })),
 		http.post('/api/posts', () =>
 			HttpResponse.json({ error: 'nope' }, { status: 500 }),
 		),
@@ -58,6 +59,6 @@ test('add new reports a failure without navigating away', async () => {
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/could not/i)
+	expect(await screen.findByText(/could not create a draft/i)).toBeInTheDocument()
 	expect(screen.queryByRole('heading', { name: /editor/i })).not.toBeInTheDocument()
 })
