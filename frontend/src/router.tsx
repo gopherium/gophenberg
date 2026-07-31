@@ -12,38 +12,50 @@ import { Layout } from './Layout'
 import { plugins } from './plugins'
 import { PostsSidebar } from './posts/PostsSidebar'
 
-const rootRoute = createRootRoute({
+const rootRoute = createRootRoute()
+
+const framedRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	id: 'framed',
 	component: Layout,
 })
 
 const homeRoute = createRoute({
-	getParentRoute: () => rootRoute,
+	getParentRoute: () => framedRoute,
 	path: '/',
 	component: Home,
 })
 
 const postsRoute = createRoute({
-	getParentRoute: () => rootRoute,
+	getParentRoute: () => framedRoute,
 	path: '/posts',
 	staticData: { Sidebar: PostsSidebar },
 }).lazy(() => import('./posts/postsRoutes.lazy').then((module) => module.PostsLazyRoute))
 
 const usersRoute = createRoute({
-	getParentRoute: () => rootRoute,
+	getParentRoute: () => framedRoute,
 	path: '/users',
 }).lazy(() => import('./userRoutes.lazy').then((module) => module.UsersLazyRoute))
 
 const newUserRoute = createRoute({
-	getParentRoute: () => rootRoute,
+	getParentRoute: () => framedRoute,
 	path: '/users/new',
 }).lazy(() => import('./userRoutes.lazy').then((module) => module.NewUserLazyRoute))
 
+const editorRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/posts/$postId/edit',
+}).lazy(() => import('./posts/postsRoutes.lazy').then((module) => module.EditorLazyRoute))
+
 const routeTree = rootRoute.addChildren([
-	homeRoute,
-	postsRoute,
-	usersRoute,
-	newUserRoute,
-	...plugins.flatMap((plugin) => plugin.routes(rootRoute)),
+	framedRoute.addChildren([
+		homeRoute,
+		postsRoute,
+		usersRoute,
+		newUserRoute,
+		...plugins.flatMap((plugin) => plugin.routes(framedRoute)),
+	]),
+	editorRoute,
 ])
 
 /**
