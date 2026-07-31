@@ -2,15 +2,72 @@
 
 import { z } from 'zod'
 
+const POSTS_PER_PAGE = 20
+
 const postSchema = z.object({
 	id: z.string(),
 	type: z.string(),
 	slug: z.string(),
 	title: z.string(),
 	status: z.string(),
+	excerpt: z.string().optional(),
+	author_name: z.string().optional(),
+	published_at: z.string().nullable().optional(),
+	created_at: z.string().optional(),
+	updated_at: z.string().optional(),
 })
 
-export type Post = z.infer<typeof postSchema>
+const pageSchema = z.object({ items: z.array(postSchema), total: z.number() })
+
+const countsSchema = z.record(z.string(), z.number())
+
+export interface Post {
+	id: string
+	type: string
+	slug: string
+	title: string
+	status: string
+	excerpt: string
+	authorName: string
+	publishedAt: string | null
+	createdAt: string
+	updatedAt: string
+}
+
+export interface PostPage {
+	items: Post[]
+	total: number
+}
+
+export interface PostQuery {
+	status?: string
+	search?: string
+	page?: number
+	orderBy?: string
+	order?: string
+}
+
+export type PostCounts = Record<string, number>
+
+/**
+ * Returns the post carried by an API row.
+ * @param row - The row as the API sent it.
+ * @returns The post in the shape screens use.
+ */
+function toPost(row: z.infer<typeof postSchema>): Post {
+	return {
+		id: row.id,
+		type: row.type,
+		slug: row.slug,
+		title: row.title,
+		status: row.status,
+		excerpt: row.excerpt ?? '',
+		authorName: row.author_name ?? '',
+		publishedAt: row.published_at ?? null,
+		createdAt: row.created_at ?? '',
+		updatedAt: row.updated_at ?? '',
+	}
+}
 
 /**
  * Creates a draft of the given type.
@@ -26,5 +83,47 @@ export async function createPost(type = 'post'): Promise<Post> {
 	if (!response.ok) {
 		throw new Error(`creating a post failed with status ${response.status}`)
 	}
-	return postSchema.parse(await response.json())
+	return toPost(postSchema.parse(await response.json()))
+}
+
+/**
+ * Returns one page of posts matching the query.
+ * @param query - The filters, sort and page to ask for.
+ * @returns The page and the total number of matches.
+ */
+export async function listPosts(query: PostQuery): Promise<PostPage> {
+	const params = new URLSearchParams({ per_page: String(POSTS_PER_PAGE) })
+	if (query.status) {
+		params.set('status', query.status)
+	}
+	if (query.search) {
+		params.set('search', query.search)
+	}
+	if (query.page && query.page > 1) {
+		params.set('page', String(query.page))
+	}
+	if (query.orderBy) {
+		params.set('orderby', query.orderBy)
+	}
+	if (query.order) {
+		params.set('order', query.order)
+	}
+	const response = await fetch(`/api/posts?${params}`)
+	if (!response.ok) {
+		throw new Error(`listing posts failed with status ${response.status}`)
+	}
+	const page = pageSchema.parse(await response.json())
+	return { items: page.items.map(toPost), total: page.total }
+}
+
+/**
+ * Returns how many posts hold each status.
+ * @returns The count of posts per status.
+ */
+export async function fetchPostCounts(): Promise<PostCounts> {
+	const response = await fetch('/api/posts/counts')
+	if (!response.ok) {
+		throw new Error(`counting posts failed with status ${response.status}`)
+	}
+	return countsSchema.parse(await response.json())
 }
