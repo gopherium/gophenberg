@@ -9,7 +9,8 @@
 		"dev": "vite",
 		"lint": "oxlint",
 		"lint:css": "stylelint 'src/**/*.css'",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"typecheck": "tsc -b --force"
 	},
 	"dependencies": {
 		"@gophenberg/frontend-sdk": "workspace:*",

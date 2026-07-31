@@ -44,6 +44,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm peers check
         working-directory: ${{ github.workspace }}
+      - run: pnpm run typecheck
       - run: pnpm lint
       - run: pnpm run lint:css
       - run: pnpm exec eslint .
