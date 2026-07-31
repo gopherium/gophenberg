@@ -28,14 +28,10 @@ export {
 	AlertDialog,
 	Badge,
 	Button,
-	Card,
 	Icon,
-	InputControl,
 	Notice,
 	Stack,
 	Text,
-	VisuallyHidden,
 } from '@wordpress/ui'
 export { ThemeProvider } from '@wordpress/theme'
-export { sessionQueryKey } from '@gopherium/react-auth'
 export { SidebarNavigationScreen } from './SidebarNavigationScreen'
