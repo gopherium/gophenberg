@@ -20,9 +20,9 @@ declare module '@wordpress/block-editor' {
 		__experimentalBlockPatterns?: unknown[]
 	}
 	export const BlockEditorProvider: ComponentType<{
-		value?: unknown[]
-		onInput?: (blocks: unknown[]) => void
-		onChange?: (blocks: unknown[]) => void
+		value?: import('@wordpress/blocks').Block[]
+		onInput?: (blocks: import('@wordpress/blocks').Block[]) => void
+		onChange?: (blocks: import('@wordpress/blocks').Block[]) => void
 		settings?: BlockEditorSettings
 		children?: ReactNode
 	}>

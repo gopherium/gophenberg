@@ -3,13 +3,22 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeAll, expect, test, vi } from 'vitest'
+import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { renderAt } from './render'
+import { storedPostWithId } from './postFixture'
 
 beforeAll(async () => {
 	await import('../posts/editorRoute.lazy')
 }, 120000)
+
+beforeEach(() => {
+	server.use(
+		http.get('/api/posts/:id', ({ params }) =>
+			HttpResponse.json(storedPostWithId(String(params.id))),
+		),
+	)
+})
 
 const NEW_POST_ID = '019fb000-0000-7000-8000-0000000000aa'
 

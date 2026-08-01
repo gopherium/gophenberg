@@ -19,7 +19,11 @@ const postSchema = z.object({
 	updated_at: z.string().optional(),
 })
 
+const detailSchema = postSchema.extend({ content: z.string() })
+
 const pageSchema = z.object({ items: z.array(postSchema), total: z.number() })
+
+const errorSchema = z.object({ error: z.string() })
 
 const countsSchema = z.record(z.string(), z.number())
 
@@ -86,6 +90,76 @@ export async function createPost(type = 'post'): Promise<Post> {
 		throw new Error(`creating a post failed with status ${response.status}`)
 	}
 	return toPost(postSchema.parse(await response.json()))
+}
+
+export interface PostDetail extends Post {
+	content: string
+}
+
+export interface PostChanges {
+	title?: string
+	content?: string
+	excerpt?: string
+	slug?: string
+	status?: string
+}
+
+export type SaveOutcome =
+	| { kind: 'saved', post: PostDetail }
+	| { kind: 'conflict', current: PostDetail }
+	| { kind: 'rejected', message: string }
+
+/**
+ * Returns the post carried by an API detail row.
+ * @param row - The row as the API sent it.
+ * @returns The post with its content.
+ */
+function toDetail(row: z.infer<typeof detailSchema>): PostDetail {
+	return { ...toPost(row), content: row.content }
+}
+
+/**
+ * Returns the message an error response carried.
+ * @param response - The response the API refused with.
+ * @returns The message, or a stand in when the body carries none.
+ */
+async function messageFrom(response: Response): Promise<string> {
+	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
+	return parsed.success ? parsed.data.error : `the server answered ${response.status}`
+}
+
+/**
+ * Returns one post with its content.
+ * @param id - The post to read.
+ * @returns The stored post.
+ */
+export async function fetchPost(id: string): Promise<PostDetail> {
+	const response = await fetch(`/api/posts/${id}`)
+	if (!response.ok) {
+		throw new Error(`reading a post failed with status ${response.status}`)
+	}
+	return toDetail(detailSchema.parse(await response.json()))
+}
+
+/**
+ * Writes the given changes to a post.
+ * @param id - The post to write to.
+ * @param changes - The fields to change.
+ * @returns What the server made of the write.
+ */
+export async function savePost(id: string, changes: PostChanges): Promise<SaveOutcome> {
+	const response = await fetch(`/api/posts/${id}`, {
+		method: 'PATCH',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(changes),
+	})
+	if (response.ok) {
+		return { kind: 'saved', post: toDetail(detailSchema.parse(await response.json())) }
+	}
+	if (response.status === 409) {
+		return { kind: 'conflict', current: await fetchPost(id) }
+	}
+	return { kind: 'rejected', message: await messageFrom(response) }
 }
 
 /**

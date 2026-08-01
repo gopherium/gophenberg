@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { InputControl, Notice, Stack, Text } from '@gophenberg/frontend-sdk'
 import {
 	BlockCanvas,
 	BlockEditorProvider,
@@ -9,9 +10,14 @@ import {
 	SlotFillProvider,
 	registerCuratedBlocks,
 } from '@gophenberg/frontend-sdk/editor'
-import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useParams } from '@tanstack/react-router'
 
-import { EDITOR_SETTINGS, SPIKE_BLOCKS } from './editorSetup'
+import { fetchPost } from './api'
+import type { PostDetail } from './api'
+import { EDITOR_SETTINGS } from './editorSetup'
+import { EditorHeader } from './EditorHeader'
+import { useEditorBuffer } from './useEditorBuffer'
 
 registerCuratedBlocks()
 
@@ -20,20 +26,54 @@ registerCuratedBlocks()
  * @returns The editor screen element.
  */
 export function EditorScreen() {
-	const [blocks, setBlocks] = useState<unknown[]>(SPIKE_BLOCKS)
+	const { postId } = useParams({ from: '/posts/$postId/edit' })
+	const post = useQuery({ queryKey: ['post', postId], queryFn: () => fetchPost(postId) })
+	if (post.isError) {
+		return (
+			<Notice.Root intent="error" role="alert">
+				<Notice.Description>Could not load that post.</Notice.Description>
+			</Notice.Root>
+		)
+	}
+	if (post.data === undefined) {
+		return <Text>Loading the post.</Text>
+	}
+	return <Editor postId={postId} stored={post.data} />
+}
+
+/**
+ * Renders the editor over a post that has loaded.
+ * @param props - The post to edit and its id.
+ * @returns The editor element.
+ */
+function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
+	const buffer = useEditorBuffer(postId, stored)
 	return (
 		<SlotFillProvider>
 			<ShortcutProvider>
-				<BlockEditorProvider
-					value={blocks}
-					onInput={setBlocks}
-					onChange={setBlocks}
-					settings={EDITOR_SETTINGS}
-				>
-					<BlockCanvas height="100vh" styles={CANVAS_STYLES}>
-						<BlockList />
-					</BlockCanvas>
-				</BlockEditorProvider>
+				<Stack direction="column" gap="sm">
+					<EditorHeader
+						dirty={buffer.dirty}
+						saving={buffer.saving}
+						failure={buffer.failure}
+						onSave={buffer.save}
+					/>
+					<InputControl
+						label="Title"
+						value={buffer.title}
+						onValueChange={buffer.setTitle}
+					/>
+					<BlockEditorProvider
+						value={buffer.blocks}
+						onInput={buffer.setBlocks}
+						onChange={buffer.setBlocks}
+						settings={EDITOR_SETTINGS}
+					>
+						<BlockCanvas height="70vh" styles={CANVAS_STYLES}>
+							<BlockList />
+						</BlockCanvas>
+					</BlockEditorProvider>
+				</Stack>
 			</ShortcutProvider>
 		</SlotFillProvider>
 	)

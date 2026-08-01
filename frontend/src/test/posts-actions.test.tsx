@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { renderAt } from './render'
+import { storedPostWithId } from './postFixture'
 
 beforeAll(async () => {
 	await import('../posts/editorRoute.lazy')
@@ -42,6 +43,9 @@ beforeEach(() => {
 			counted.push('asked')
 			return HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 1, trash: 0 })
 		}),
+		http.get('/api/posts/:id', ({ params }) =>
+			HttpResponse.json(storedPostWithId(String(params.id))),
+		),
 		http.delete('/api/posts/:id', ({ params }) => {
 			trashed.push(String(params.id))
 			return HttpResponse.json({ ...PUBLISHED, status: 'trash' })

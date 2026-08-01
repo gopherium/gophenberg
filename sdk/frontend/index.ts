@@ -29,6 +29,7 @@ export {
 	Badge,
 	Button,
 	Icon,
+	InputControl,
 	Notice,
 	Stack,
 	Text,

@@ -7,15 +7,3 @@ export const EDITOR_SETTINGS = {
 	__experimentalBlockPatterns: [],
 }
 
-export const SPIKE_BLOCKS = [
-	{
-		name: 'core/heading',
-		attributes: { content: 'Gophenberg writes with blocks', level: 2 },
-		innerBlocks: [],
-	},
-	{
-		name: 'core/paragraph',
-		attributes: { content: 'The canvas is live. Part E fills in the rest.' },
-		innerBlocks: [],
-	},
-]

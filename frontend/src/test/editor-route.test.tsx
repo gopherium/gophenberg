@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen } from '@testing-library/react'
-import { beforeAll, expect, test } from 'vitest'
+import { beforeAll, beforeEach, expect, test } from 'vitest'
 
 import { renderAt } from './render'
+import { storedPost } from './postFixture'
 
-const EDITOR_PATH = '/posts/019fb000-0000-7000-8000-000000000001/edit'
+const EDITOR_PATH = `/posts/${storedPost.id}/edit`
 
 beforeAll(async () => {
 	await import('../posts/editorRoute.lazy')
 }, 120000)
+
+beforeEach(() => {
+	server.use(http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)))
+})
 
 test('the editor route carries none of the admin chrome', async () => {
 	renderAt(EDITOR_PATH)
