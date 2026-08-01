@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Notice, Stack, Text } from '@gophenberg/frontend-sdk'
+import { Button, Stack, Text } from '@gophenberg/frontend-sdk'
 
 /**
  * Returns the word the header shows for the state of the buffer.
@@ -23,27 +23,18 @@ function stateOf(dirty: boolean, saving: boolean): string {
 export function EditorHeader({
 	dirty,
 	saving,
-	failure,
 	onSave,
 }: {
 	dirty: boolean
 	saving: boolean
-	failure: string | null
 	onSave: () => void
 }) {
 	return (
-		<Stack direction="column" gap="xs">
-			<Stack direction="row" gap="md" align="center" justify="space-between">
-				<Text>{stateOf(dirty, saving)}</Text>
-				<Button disabled={!dirty || saving} onClick={onSave}>
-					Save draft
-				</Button>
-			</Stack>
-			{failure !== null && (
-				<Notice.Root intent="error" role="alert" spokenMessage={failure}>
-					<Notice.Description>{failure}</Notice.Description>
-				</Notice.Root>
-			)}
+		<Stack direction="row" gap="md" align="center" justify="space-between">
+			<Text>{stateOf(dirty, saving)}</Text>
+			<Button disabled={!dirty || saving} onClick={onSave}>
+				Save draft
+			</Button>
 		</Stack>
 	)
 }

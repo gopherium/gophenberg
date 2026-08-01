@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { SnackbarProvider } from '@gophenberg/frontend-sdk'
 import { createAuthQueryClient } from '@gopherium/react-auth'
 import type { User } from '@gopherium/react-auth'
 import { defaultUser, seedSession } from '@gopherium/react-auth/testing'
@@ -27,7 +28,9 @@ export function renderAt(
 	)
 	render(
 		<QueryClientProvider client={client}>
-			<RouterProvider router={router} />
+			<SnackbarProvider>
+				<RouterProvider router={router} />
+			</SnackbarProvider>
 		</QueryClientProvider>,
 	)
 	return client

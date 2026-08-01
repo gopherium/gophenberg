@@ -55,7 +55,6 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 					<EditorHeader
 						dirty={buffer.dirty}
 						saving={buffer.saving}
-						failure={buffer.failure}
 						onSave={buffer.save}
 					/>
 					<InputControl

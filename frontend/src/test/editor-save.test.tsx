@@ -87,8 +87,20 @@ test('reports the post saved and holds the next save back', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
-	expect(await screen.findByText(/saved/i)).toBeInTheDocument()
-	await waitFor(() => expect(screen.getByRole('button', { name: /save/i })).toHaveAttribute('aria-disabled', 'true'))
+	expect(await screen.findByText('Saved')).toBeInTheDocument()
+	await waitFor(() =>
+		expect(screen.getByRole('button', { name: /save/i })).toHaveAttribute('aria-disabled', 'true'),
+	)
+})
+
+test('announces a post that saved', async () => {
+	renderAt(EDITOR_PATH)
+	const title = await screen.findByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, '!')
+
+	await userEvent.click(screen.getByRole('button', { name: /save/i }))
+
+	expect(await screen.findByText('Draft saved.')).toBeInTheDocument()
 })
 
 test('reports a post that changed under the editor', async () => {
@@ -104,7 +116,7 @@ test('reports a post that changed under the editor', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/changed/i)
+	expect(await screen.findByText(/changed elsewhere/i)).toBeInTheDocument()
 })
 
 test('reports a save the server rejected', async () => {
@@ -120,7 +132,7 @@ test('reports a save the server rejected', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/invalid status/i)
+	expect(await screen.findByText(/invalid status/i)).toBeInTheDocument()
 })
 
 test('says it is saving while the write is in flight', async () => {
@@ -150,7 +162,7 @@ test('reports a refusal that named no reason', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/answered 422/i)
+	expect(await screen.findByText(/answered 422/i)).toBeInTheDocument()
 })
 
 test('reports a refusal whose body was not json at all', async () => {
@@ -164,7 +176,7 @@ test('reports a refusal whose body was not json at all', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/answered 502/i)
+	expect(await screen.findByText(/answered 502/i)).toBeInTheDocument()
 })
 
 test('reports a save that never reached the server', async () => {
@@ -176,7 +188,7 @@ test('reports a save that never reached the server', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/could not save/i)
+	expect(await screen.findByText(/could not save/i)).toBeInTheDocument()
 })
 
 test('reports a post it could not load', async () => {

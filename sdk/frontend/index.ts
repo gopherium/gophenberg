@@ -35,4 +35,5 @@ export {
 	Text,
 } from '@wordpress/ui'
 export { ThemeProvider } from '@wordpress/theme'
+export { SnackbarProvider, useSnackbar } from './snackbar'
 export { SidebarNavigationScreen } from './SidebarNavigationScreen'
