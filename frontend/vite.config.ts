@@ -25,6 +25,7 @@ export default defineConfig({
 		environment: 'jsdom',
 		env: { TZ: 'UTC' },
 		css: { include: [/index\.css$/] },
+		server: { deps: { inline: [/@wordpress\//] } },
 		setupFiles: ['./src/test/setup.ts'],
 		include: [
 			'src/**/*.test.{ts,tsx}',

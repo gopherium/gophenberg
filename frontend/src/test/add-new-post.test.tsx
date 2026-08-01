@@ -3,9 +3,13 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, test, vi } from 'vitest'
+import { beforeAll, expect, test, vi } from 'vitest'
 
 import { renderAt } from './render'
+
+beforeAll(async () => {
+	await import('../posts/editorRoute.lazy')
+}, 120000)
 
 const NEW_POST_ID = '019fb000-0000-7000-8000-0000000000aa'
 
@@ -33,8 +37,7 @@ test('add new creates a draft and opens it in the editor', async () => {
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
 
-	expect(await screen.findByRole('heading', { name: /editor/i })).toBeInTheDocument()
-	expect(await screen.findByText(new RegExp(NEW_POST_ID))).toBeInTheDocument()
+	expect(await screen.findByTitle('Editor canvas')).toBeInTheDocument()
 })
 
 test('add new asks for a post of the default type', async () => {
@@ -42,7 +45,7 @@ test('add new asks for a post of the default type', async () => {
 	renderAt('/posts')
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
-	await screen.findByRole('heading', { name: /editor/i })
+	await screen.findByTitle('Editor canvas')
 
 	expect(recorded.bodies).toEqual([{ type: 'post', title: '' }])
 })
@@ -60,5 +63,5 @@ test('add new reports a failure without navigating away', async () => {
 	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
 
 	expect(await screen.findByText(/could not create a draft/i)).toBeInTheDocument()
-	expect(screen.queryByRole('heading', { name: /editor/i })).not.toBeInTheDocument()
+	expect(screen.queryByTitle('Editor canvas')).not.toBeInTheDocument()
 })

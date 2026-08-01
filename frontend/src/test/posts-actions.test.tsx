@@ -3,9 +3,13 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { renderAt } from './render'
+
+beforeAll(async () => {
+	await import('../posts/editorRoute.lazy')
+}, 120000)
 
 const PUBLISHED = {
 	id: '019fb000-0000-7000-8000-000000000001',
@@ -68,7 +72,7 @@ test('opens the editor from the row actions', async () => {
 
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }))
 
-	expect(await screen.findByRole('heading', { name: /editor/i })).toBeInTheDocument()
+	expect(await screen.findByTitle('Editor canvas')).toBeInTheDocument()
 })
 
 test('asks to confirm before trashing', async () => {
