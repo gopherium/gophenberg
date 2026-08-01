@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import './ambient'
+
 export {
 	BlockCanvas,
 	BlockEditorProvider,
