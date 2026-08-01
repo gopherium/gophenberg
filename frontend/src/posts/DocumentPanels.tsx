@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { InputControl, SelectControl, Stack, TextareaControl } from '@gophenberg/frontend-sdk'
+import { useMemo } from 'react'
 
 import { TrashPost } from './TrashPost'
 import type { EditorBuffer } from './useEditorBuffer'
@@ -19,25 +20,36 @@ const LABELS: Record<string, string> = {
 	trash: 'Trash',
 }
 
-/**
- * Returns the statuses the select offers for a post.
- * @param status - The status the post holds.
- * @returns The statuses to offer.
- */
-function statusesFor(status: string): { label: string, value: string }[] {
-	if (AUTHORED_STATUSES.some((item) => item.value === status)) {
-		return AUTHORED_STATUSES
-	}
-	return [...AUTHORED_STATUSES, itemFor(status)]
+interface StatusItem {
+	label: string
+	value: string
 }
 
 /**
- * Returns the status item shown for the given value.
+ * Returns the statuses the select offers and the item holding the current one.
  * @param status - The status the post holds.
- * @returns The item naming that status.
+ * @returns The items to offer and the selected item, which is one of them.
  */
-function itemFor(status: string): { label: string, value: string } {
-	return { label: LABELS[status] ?? status, value: status }
+function statusItems(status: string): { items: StatusItem[], selected: StatusItem } {
+	const authored = AUTHORED_STATUSES.find((item) => item.value === status)
+	if (authored !== undefined) {
+		return { items: AUTHORED_STATUSES, selected: authored }
+	}
+	const held = { label: LABELS[status] ?? status, value: status }
+	return { items: [...AUTHORED_STATUSES, held], selected: held }
+}
+
+/**
+ * Returns the status a select change asks for.
+ * @param item - The item the select reported, or nothing.
+ * @param current - The status the post holds.
+ * @returns The status to hold.
+ */
+export function chosenStatus(item: { value: string | null } | null, current: string): string {
+	if (item === null || item.value === null) {
+		return current
+	}
+	return item.value
 }
 
 /**
@@ -46,13 +58,14 @@ function itemFor(status: string): { label: string, value: string } {
  * @returns The panels element.
  */
 export function DocumentPanels({ postId, buffer }: { postId: string, buffer: EditorBuffer }) {
+	const { items, selected } = useMemo(() => statusItems(buffer.status), [buffer.status])
 	return (
 		<Stack direction="column" gap="md">
 			<SelectControl
 				label="Status"
-				items={statusesFor(buffer.status)}
-				value={itemFor(buffer.status)}
-				onValueChange={(item) => buffer.setStatus((item as { value: string }).value)}
+				items={items}
+				value={selected}
+				onValueChange={(item) => buffer.setStatus(chosenStatus(item, buffer.status))}
 			/>
 			<InputControl label="Slug" value={buffer.slug} onValueChange={buffer.setSlug} />
 			<TextareaControl

@@ -5,6 +5,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
+import { chosenStatus } from '../posts/DocumentPanels'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
@@ -26,6 +27,15 @@ beforeEach(() => {
 			return HttpResponse.json({ ...storedPost, ...body })
 		}),
 	)
+})
+
+test('keeps the current status when the select reports nothing', () => {
+	expect(chosenStatus(null, 'published')).toBe('published')
+	expect(chosenStatus({ value: null }, 'published')).toBe('published')
+})
+
+test('takes the status the select reports', () => {
+	expect(chosenStatus({ value: 'pending' }, 'draft')).toBe('pending')
 })
 
 test('offers the slug and the excerpt in the document tab', async () => {
