@@ -18,6 +18,7 @@ import { fetchPost } from './api'
 import type { PostDetail } from './api'
 import { EDITOR_SETTINGS } from './editorSetup'
 import { EditorHeader } from './EditorHeader'
+import { EditorSidebar } from './EditorSidebar'
 import { useEditorBuffer } from './useEditorBuffer'
 
 registerCuratedBlocks()
@@ -52,25 +53,28 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 	return (
 		<SlotFillProvider>
 			<ShortcutProvider>
-				<Stack direction="column" gap="sm">
-					<EditorHeader buffer={buffer} />
-					<InputControl
-						label="Title"
-						value={buffer.title}
-						onValueChange={buffer.setTitle}
-					/>
-					<BlockEditorProvider
-						value={buffer.blocks}
-						onInput={buffer.onInput}
-						onChange={buffer.onChange}
-						settings={EDITOR_SETTINGS}
-					>
+				<BlockEditorProvider
+					value={buffer.blocks}
+					onInput={buffer.onInput}
+					onChange={buffer.onChange}
+					settings={EDITOR_SETTINGS}
+				>
+					<Stack direction="column" gap="sm">
+						<EditorHeader buffer={buffer} />
+						<InputControl
+							label="Title"
+							value={buffer.title}
+							onValueChange={buffer.setTitle}
+						/>
 						<BlockToolbar />
-						<BlockCanvas height="70vh" styles={CANVAS_STYLES}>
-							<BlockList />
-						</BlockCanvas>
-					</BlockEditorProvider>
-				</Stack>
+						<Stack direction="row" gap="md" align="start">
+							<BlockCanvas height="70vh" styles={CANVAS_STYLES}>
+								<BlockList />
+							</BlockCanvas>
+							<EditorSidebar status={buffer.status} />
+						</Stack>
+					</Stack>
+				</BlockEditorProvider>
 			</ShortcutProvider>
 		</SlotFillProvider>
 	)

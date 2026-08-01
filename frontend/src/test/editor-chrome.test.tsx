@@ -83,7 +83,7 @@ test('announces the publication', async () => {
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Publish' }))
 
-	expect(await screen.findByText(/published/i)).toBeInTheDocument()
+	expect(await screen.findByText('Post published.')).toBeInTheDocument()
 })
 
 test('offers to update a post that is already published', async () => {

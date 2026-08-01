@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-export { BlockCanvas, BlockEditorProvider, BlockList, BlockToolbar } from '@wordpress/block-editor'
+export {
+	BlockCanvas,
+	BlockEditorProvider,
+	BlockInspector,
+	BlockList,
+	BlockToolbar,
+} from '@wordpress/block-editor'
 export { getBlockTypes, parse, serialize } from '@wordpress/blocks'
 export type { Block } from '@wordpress/blocks'
 export { SlotFillProvider } from '@wordpress/components'

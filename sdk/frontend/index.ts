@@ -33,6 +33,7 @@ export {
 	InputControl,
 	Notice,
 	Stack,
+	Tabs,
 	Text,
 } from '@wordpress/ui'
 export { ThemeProvider } from '@wordpress/theme'
