@@ -8,10 +8,10 @@ import type { EditorBuffer } from './useEditorBuffer'
 
 /**
  * Renders the editor sidebar holding the document and block panels.
- * @param props - The buffer the document panels drive.
+ * @param props - The post being edited and the buffer its panels drive.
  * @returns The sidebar element.
  */
-export function EditorSidebar({ buffer }: { buffer: EditorBuffer }) {
+export function EditorSidebar({ postId, buffer }: { postId: string, buffer: EditorBuffer }) {
 	return (
 		<Tabs.Root defaultValue="document">
 			<Tabs.List>
@@ -19,7 +19,7 @@ export function EditorSidebar({ buffer }: { buffer: EditorBuffer }) {
 				<Tabs.Tab value="block">Block</Tabs.Tab>
 			</Tabs.List>
 			<Tabs.Panel value="document">
-				<DocumentPanels buffer={buffer} />
+				<DocumentPanels postId={postId} buffer={buffer} />
 			</Tabs.Panel>
 			<Tabs.Panel value="block">
 				<BlockInspector />

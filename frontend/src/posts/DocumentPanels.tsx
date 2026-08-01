@@ -2,6 +2,7 @@
 
 import { InputControl, SelectControl, Stack, TextareaControl } from '@gophenberg/frontend-sdk'
 
+import { TrashPost } from './TrashPost'
 import type { EditorBuffer } from './useEditorBuffer'
 
 const AUTHORED_STATUSES = [
@@ -44,7 +45,7 @@ function itemFor(status: string): { label: string, value: string } {
  * @param props - The buffer the panels drive.
  * @returns The panels element.
  */
-export function DocumentPanels({ buffer }: { buffer: EditorBuffer }) {
+export function DocumentPanels({ postId, buffer }: { postId: string, buffer: EditorBuffer }) {
 	return (
 		<Stack direction="column" gap="md">
 			<SelectControl
@@ -59,6 +60,7 @@ export function DocumentPanels({ buffer }: { buffer: EditorBuffer }) {
 				value={buffer.excerpt}
 				onValueChange={buffer.setExcerpt}
 			/>
+			<TrashPost postId={postId} title={buffer.title} />
 		</Stack>
 	)
 }
