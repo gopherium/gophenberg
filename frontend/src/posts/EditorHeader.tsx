@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, IconButton, Stack, Text, redoIcon, undoIcon } from '@gophenberg/frontend-sdk'
+import {
+	Button,
+	IconButton,
+	Stack,
+	Text,
+	backIcon,
+	redoIcon,
+	undoIcon,
+} from '@gophenberg/frontend-sdk'
 import { BlockToolbar, Inserter } from '@gophenberg/frontend-sdk/editor'
 import { Link } from '@tanstack/react-router'
 
@@ -28,7 +36,11 @@ export function EditorHeader({ buffer }: { buffer: EditorBuffer }) {
 	const published = buffer.status === 'published'
 	return (
 		<div className="gophenberg-editor__header">
-			<Link to="/posts">Back to posts</Link>
+			<IconButton
+				label="Back to posts"
+				icon={backIcon}
+				render={<Link to="/posts" />}
+			/>
 			<Inserter position="bottom right" toggleProps={{ label: 'Add block' }} />
 			<IconButton label="Undo" icon={undoIcon} disabled={!buffer.hasUndo} onClick={buffer.undo} />
 			<IconButton label="Redo" icon={redoIcon} disabled={!buffer.hasRedo} onClick={buffer.redo} />

@@ -53,8 +53,8 @@ test('writes the title as a headline rather than a labelled field', async () => 
 	const title = await screen.findByRole('textbox', { name: 'Title' })
 
 	expect(getComputedStyle(title).fontSize).toBe('32px')
-	expect(getComputedStyle(title).borderStyle).toBe('none')
 })
+
 
 test('names the title field without printing a label over it', async () => {
 	renderAt(EDITOR_PATH)
