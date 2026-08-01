@@ -8,6 +8,7 @@ export {
 	BlockInspector,
 	BlockList,
 	BlockToolbar,
+	Inserter,
 } from '@wordpress/block-editor'
 export { getBlockTypes, parse, serialize } from '@wordpress/blocks'
 export type { Block } from '@wordpress/blocks'

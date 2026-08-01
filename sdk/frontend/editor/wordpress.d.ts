@@ -32,6 +32,10 @@ declare module '@wordpress/block-editor' {
 		children?: ReactNode
 	}>
 	export const BlockList: ComponentType<Record<string, never>>
+	export const Inserter: ComponentType<{
+		position?: string
+		toggleProps?: { label?: string }
+	}>
 	export const BlockToolbar: ComponentType<{ hideDragHandle?: boolean }>
 	export const BlockInspector: ComponentType<Record<string, never>>
 	export const WritingFlow: ComponentType<{ children?: ReactNode }>

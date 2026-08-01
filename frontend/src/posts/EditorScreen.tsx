@@ -74,6 +74,7 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 								<div className="gophenberg-editor__title">
 									<InputControl
 										label="Title"
+										placeholder="Add title"
 										value={buffer.title}
 										onValueChange={buffer.setTitle}
 									/>

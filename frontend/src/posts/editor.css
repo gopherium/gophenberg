@@ -50,6 +50,28 @@
 	box-sizing: border-box;
 }
 
+.gophenberg-editor__title label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.gophenberg-editor__title input {
+	font-size: 32px;
+	font-weight: 600;
+	line-height: 1.2;
+	border-style: none;
+	background: none;
+	box-shadow: none;
+	outline: none;
+	padding: 0;
+	width: 100%;
+	color: inherit;
+}
+
 .gophenberg-editor__canvas {
 	flex: 1;
 	min-height: 0;
