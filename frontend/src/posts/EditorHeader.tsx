@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, IconButton, Stack, Text, redoIcon, undoIcon } from '@gophenberg/frontend-sdk'
+import { BlockToolbar } from '@gophenberg/frontend-sdk/editor'
 import { Link } from '@tanstack/react-router'
 
 import type { EditorBuffer } from './useEditorBuffer'
@@ -26,22 +27,13 @@ function stateOf(dirty: boolean, saving: boolean): string {
 export function EditorHeader({ buffer }: { buffer: EditorBuffer }) {
 	const published = buffer.status === 'published'
 	return (
-		<Stack direction="row" gap="md" align="center" justify="space-between">
-			<Stack direction="row" gap="xs" align="center">
-				<Link to="/posts">Back to posts</Link>
-				<IconButton
-					label="Undo"
-					icon={undoIcon}
-					disabled={!buffer.hasUndo}
-					onClick={buffer.undo}
-				/>
-				<IconButton
-					label="Redo"
-					icon={redoIcon}
-					disabled={!buffer.hasRedo}
-					onClick={buffer.redo}
-				/>
-			</Stack>
+		<div className="gophenberg-editor__header">
+			<Link to="/posts">Back to posts</Link>
+			<IconButton label="Undo" icon={undoIcon} disabled={!buffer.hasUndo} onClick={buffer.undo} />
+			<IconButton label="Redo" icon={redoIcon} disabled={!buffer.hasRedo} onClick={buffer.redo} />
+			<div className="gophenberg-editor__toolbar">
+				<BlockToolbar hideDragHandle />
+			</div>
 			<Stack direction="row" gap="sm" align="center">
 				<Text>{stateOf(buffer.dirty, buffer.saving)}</Text>
 				<Button variant="outline" disabled={!buffer.dirty || buffer.saving} onClick={buffer.save}>
@@ -51,6 +43,6 @@ export function EditorHeader({ buffer }: { buffer: EditorBuffer }) {
 					{published ? 'Update' : 'Publish'}
 				</Button>
 			</Stack>
-		</Stack>
+		</div>
 	)
 }

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { InputControl, Notice, Stack, Text } from '@gophenberg/frontend-sdk'
+import { InputControl, Notice, Text } from '@gophenberg/frontend-sdk'
 import {
 	BlockCanvas,
 	BlockEditorProvider,
 	BlockList,
-	BlockToolbar,
 	CANVAS_STYLES,
 	ShortcutProvider,
 	SlotFillProvider,
@@ -14,6 +13,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
+import './editor.css'
 import { fetchPost } from './api'
 import type { PostDetail } from './api'
 import { EDITOR_SETTINGS } from './editorSetup'
@@ -62,22 +62,33 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 					onChange={buffer.onChange}
 					settings={EDITOR_SETTINGS}
 				>
-					<Stack direction="column" gap="sm">
+					<div className="gophenberg-editor">
 						<EditorHeader buffer={buffer} />
-						<RestoreBanner postId={postId} stored={stored} onRestore={buffer.restore} />
-						<InputControl
-							label="Title"
-							value={buffer.title}
-							onValueChange={buffer.setTitle}
-						/>
-						<BlockToolbar />
-						<Stack direction="row" gap="md" align="start">
-							<BlockCanvas height="70vh" styles={CANVAS_STYLES}>
-								<BlockList />
-							</BlockCanvas>
-							<EditorSidebar postId={postId} buffer={buffer} />
-						</Stack>
-					</Stack>
+						<div className="gophenberg-editor__main">
+							<div className="gophenberg-editor__content">
+								<RestoreBanner
+									postId={postId}
+									stored={stored}
+									onRestore={buffer.restore}
+								/>
+								<div className="gophenberg-editor__title">
+									<InputControl
+										label="Title"
+										value={buffer.title}
+										onValueChange={buffer.setTitle}
+									/>
+								</div>
+								<div className="gophenberg-editor__canvas">
+									<BlockCanvas height="100%" styles={CANVAS_STYLES}>
+										<BlockList />
+									</BlockCanvas>
+								</div>
+							</div>
+							<div className="gophenberg-editor__sidebar">
+								<EditorSidebar postId={postId} buffer={buffer} />
+							</div>
+						</div>
+					</div>
 				</BlockEditorProvider>
 			</ShortcutProvider>
 		</SlotFillProvider>
