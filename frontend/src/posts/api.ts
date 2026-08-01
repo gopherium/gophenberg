@@ -162,6 +162,59 @@ export async function savePost(id: string, changes: PostChanges): Promise<SaveOu
 	return { kind: 'rejected', message: await messageFrom(response) }
 }
 
+export interface AutosaveBuffer {
+	title: string
+	content: string
+	excerpt: string
+}
+
+export interface Autosave extends AutosaveBuffer {
+	savedAt: string
+}
+
+const autosaveSchema = z.object({
+	title: z.string(),
+	content: z.string(),
+	excerpt: z.string(),
+	saved_at: z.string(),
+})
+
+/**
+ * Returns the autosave the server holds for a post.
+ * @param id - The post to read the autosave of.
+ * @returns The autosave, or nothing when the server holds none.
+ */
+export async function fetchAutosave(id: string): Promise<Autosave | null> {
+	const response = await fetch(`/api/posts/${id}/autosave`)
+	if (!response.ok) {
+		return null
+	}
+	const row = autosaveSchema.parse(await response.json())
+	return { title: row.title, content: row.content, excerpt: row.excerpt, savedAt: row.saved_at }
+}
+
+/**
+ * Parks the given buffer as the caller's autosave of a post.
+ * @param id - The post the buffer belongs to.
+ * @param buffer - The words to park.
+ * @param keepalive - Whether the request should outlive the page.
+ */
+export async function autosavePost(
+	id: string,
+	buffer: AutosaveBuffer,
+	keepalive = false,
+): Promise<void> {
+	const response = await fetch(`/api/posts/${id}/autosave`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(buffer),
+		keepalive,
+	})
+	if (!response.ok) {
+		throw new Error(`autosaving a post failed with status ${response.status}`)
+	}
+}
+
 /**
  * Moves a post to the trash.
  * @param id - The post to trash.

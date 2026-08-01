@@ -12,6 +12,7 @@ import type { PostChanges, PostDetail, SaveOutcome } from './api'
 export interface EditorBuffer {
 	title: string
 	blocks: Block[]
+	content: string
 	status: string
 	slug: string
 	excerpt: string
@@ -23,6 +24,7 @@ export interface EditorBuffer {
 	setStatus: (status: string) => void
 	setSlug: (slug: string) => void
 	setExcerpt: (excerpt: string) => void
+	restore: (kept: { title: string, content: string, excerpt: string }) => void
 	onInput: (blocks: Block[]) => void
 	onChange: (blocks: Block[]) => void
 	undo: () => void
@@ -84,6 +86,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 	return {
 		title,
 		blocks,
+		content,
 		status,
 		slug,
 		excerpt,
@@ -100,6 +103,11 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		setStatus,
 		setSlug,
 		setExcerpt,
+		restore: (kept: { title: string, content: string, excerpt: string }) => {
+			setTitle(kept.title)
+			setExcerpt(kept.excerpt)
+			history.setValue(parse(kept.content), false)
+		},
 		onInput: (next: Block[]) => history.setValue(next, true),
 		onChange: (next: Block[]) => history.setValue(next, false),
 		undo: history.undo,

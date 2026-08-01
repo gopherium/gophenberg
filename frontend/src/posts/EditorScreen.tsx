@@ -19,6 +19,8 @@ import type { PostDetail } from './api'
 import { EDITOR_SETTINGS } from './editorSetup'
 import { EditorHeader } from './EditorHeader'
 import { EditorSidebar } from './EditorSidebar'
+import { RestoreBanner } from './RestoreBanner'
+import { useAutosave } from './useAutosave'
 import { useEditorBuffer } from './useEditorBuffer'
 
 registerCuratedBlocks()
@@ -50,6 +52,7 @@ export function EditorScreen() {
  */
 function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 	const buffer = useEditorBuffer(postId, stored)
+	useAutosave(postId, buffer)
 	return (
 		<SlotFillProvider>
 			<ShortcutProvider>
@@ -61,6 +64,7 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 				>
 					<Stack direction="column" gap="sm">
 						<EditorHeader buffer={buffer} />
+						<RestoreBanner postId={postId} stored={stored} onRestore={buffer.restore} />
 						<InputControl
 							label="Title"
 							value={buffer.title}
