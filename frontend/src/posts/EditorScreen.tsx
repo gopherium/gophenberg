@@ -71,7 +71,7 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 							<BlockCanvas height="70vh" styles={CANVAS_STYLES}>
 								<BlockList />
 							</BlockCanvas>
-							<EditorSidebar status={buffer.status} />
+							<EditorSidebar buffer={buffer} />
 						</Stack>
 					</Stack>
 				</BlockEditorProvider>

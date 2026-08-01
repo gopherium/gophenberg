@@ -32,6 +32,7 @@ export {
 	IconButton,
 	InputControl,
 	Notice,
+	SelectControl,
 	Stack,
 	Tabs,
 	Text,
@@ -40,3 +41,4 @@ export { ThemeProvider } from '@wordpress/theme'
 export { redo as redoIcon, undo as undoIcon } from '@wordpress/icons'
 export { SnackbarProvider, useSnackbar } from './snackbar'
 export { SidebarNavigationScreen } from './SidebarNavigationScreen'
+export { TextareaControl } from './TextareaControl'

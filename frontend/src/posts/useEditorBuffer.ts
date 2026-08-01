@@ -13,11 +13,16 @@ export interface EditorBuffer {
 	title: string
 	blocks: Block[]
 	status: string
+	slug: string
+	excerpt: string
 	dirty: boolean
 	saving: boolean
 	hasUndo: boolean
 	hasRedo: boolean
 	setTitle: (title: string) => void
+	setStatus: (status: string) => void
+	setSlug: (slug: string) => void
+	setExcerpt: (excerpt: string) => void
 	onInput: (blocks: Block[]) => void
 	onChange: (blocks: Block[]) => void
 	undo: () => void
@@ -37,7 +42,15 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 	const snackbar = useSnackbar()
 	const [title, setTitle] = useState(stored.title)
 	const [status, setStatus] = useState(stored.status)
-	const [saved, setSaved] = useState({ title: stored.title, content: stored.content })
+	const [slug, setSlug] = useState(stored.slug)
+	const [excerpt, setExcerpt] = useState(stored.excerpt)
+	const [saved, setSaved] = useState({
+		title: stored.title,
+		content: stored.content,
+		slug: stored.slug,
+		excerpt: stored.excerpt,
+		status: stored.status,
+	})
 	const history = useStateWithHistory<Block[]>(parse(stored.content))
 	const blocks = history.value as Block[]
 	const content = useMemo(() => serialize(blocks), [blocks])
@@ -46,27 +59,52 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		onSuccess: async (outcome, changes) => {
 			snackbar.show(reportOf(outcome, changes))
 			if (outcome.kind === 'saved') {
-				setSaved({ title: outcome.post.title, content: outcome.post.content })
-				setStatus(outcome.post.status)
+				adopt(outcome.post)
 				await client.invalidateQueries({ queryKey: ['posts'] })
 			}
 		},
 		onError: () => snackbar.show('Could not save that post.'),
 	})
+	/**
+	 * Takes the post the server wrote as the new settled buffer.
+	 * @param written - The post the server reported after the write.
+	 */
+	function adopt(written: PostDetail) {
+		setSaved({
+			title: written.title,
+			content: written.content,
+			slug: written.slug,
+			excerpt: written.excerpt,
+			status: written.status,
+		})
+		setStatus(written.status)
+		setSlug(written.slug)
+		setExcerpt(written.excerpt)
+	}
 	return {
 		title,
 		blocks,
 		status,
-		dirty: title !== saved.title || content !== saved.content,
+		slug,
+		excerpt,
+		dirty:
+			title !== saved.title ||
+			content !== saved.content ||
+			slug !== saved.slug ||
+			excerpt !== saved.excerpt ||
+			status !== saved.status,
 		saving: write.isPending,
 		hasUndo: history.hasUndo,
 		hasRedo: history.hasRedo,
 		setTitle,
+		setStatus,
+		setSlug,
+		setExcerpt,
 		onInput: (next: Block[]) => history.setValue(next, true),
 		onChange: (next: Block[]) => history.setValue(next, false),
 		undo: history.undo,
 		redo: history.redo,
-		save: () => write.mutate({ title, content }),
+		save: () => write.mutate({ title, content, slug, excerpt, status }),
 		publish: () => write.mutate({ status: 'published' }),
 	}
 }

@@ -38,7 +38,7 @@ test('tells the document tab what the post is', async () => {
 	renderAt(EDITOR_PATH)
 	await screen.findByRole('tab', { name: 'Document' })
 
-	expect(screen.getByText('Draft')).toBeInTheDocument()
+	expect(screen.getByRole('combobox', { name: 'Status' })).toHaveTextContent('Draft')
 })
 
 test('turns to the block tab when asked', async () => {
@@ -66,7 +66,7 @@ test('shows a status it holds no label for as the server named it', async () => 
 	)
 	renderAt(EDITOR_PATH)
 
-	expect(await screen.findByText('scheduled')).toBeInTheDocument()
+	expect(await screen.findByRole('combobox', { name: 'Status' })).toHaveTextContent('scheduled')
 })
 
 test('shows a published post as published in the document tab', async () => {
@@ -81,5 +81,5 @@ test('shows a published post as published in the document tab', async () => {
 	)
 	renderAt(EDITOR_PATH)
 
-	expect(await screen.findByText('Published')).toBeInTheDocument()
+	expect(await screen.findByRole('combobox', { name: 'Status' })).toHaveTextContent('Published')
 })
