@@ -9,6 +9,7 @@ import { useCallback, useState } from 'react'
 import { usePostActions, useRefresh } from './actions'
 import type { PostNotice } from './actions'
 import { fetchPostCounts, listPosts } from './api'
+import type { PostCounts } from './api'
 import { EmptyTrash } from './EmptyTrash'
 import { postFields } from './fields'
 import { PostsNotice } from './PostsNotice'
@@ -72,17 +73,19 @@ export function PostsScreen() {
 			</Notice.Root>
 		)
 	}
+	const items = posts.data?.items ?? []
+	const total = posts.data?.total ?? 0
 	return (
 		<Stack direction="column" gap="md">
-			<Stack direction="row" gap="md" align="center" justify="space-between">
-				{counts.data !== undefined && (
-					<StatusViews counts={counts.data} current={status} onSelect={chooseStatus} />
-				)}
-				{status === 'trash' && <EmptyTrash onEmptied={refresh} />}
-			</Stack>
+			<PostsHeader
+				counts={counts.data}
+				status={status}
+				onChoose={chooseStatus}
+				onEmptied={refresh}
+			/>
 			{notice !== null && <PostsNotice notice={notice} report={setNotice} />}
 			<DataViews
-				data={posts.data?.items ?? []}
+				data={items}
 				fields={postFields}
 				actions={actions}
 				view={view}
@@ -94,11 +97,37 @@ export function PostsScreen() {
 				searchLabel="Search posts"
 				config={{ perPageSizes: [PER_PAGE] }}
 				paginationInfo={{
-					totalItems: posts.data?.total ?? 0,
-					totalPages: Math.max(1, Math.ceil((posts.data?.total ?? 0) / PER_PAGE)),
+					totalItems: total,
+					totalPages: Math.max(1, Math.ceil(total / PER_PAGE)),
 				}}
 				defaultLayouts={{ table: {} }}
 			/>
+		</Stack>
+	)
+}
+
+/**
+ * Renders the status filter row above the list.
+ * @param props - The counts, the current status, and the row handlers.
+ * @returns The header row element.
+ */
+function PostsHeader({
+	counts,
+	status,
+	onChoose,
+	onEmptied,
+}: {
+	counts: PostCounts | undefined
+	status: string
+	onChoose: (chosen: string) => void
+	onEmptied: () => Promise<unknown>
+}) {
+	return (
+		<Stack direction="row" gap="md" align="center" justify="space-between">
+			{counts !== undefined && (
+				<StatusViews counts={counts} current={status} onSelect={onChoose} />
+			)}
+			{status === 'trash' && <EmptyTrash onEmptied={onEmptied} />}
 		</Stack>
 	)
 }

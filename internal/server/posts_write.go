@@ -25,6 +25,30 @@ type postPatchRequest struct {
 
 // applyTo edits the post, reporting whether anything changed and whether the snapshotted fields did.
 func (req postPatchRequest) applyTo(p *post.Post) (changed, contentChanged bool, err error) {
+	contentChanged = req.applySnapshotted(p)
+	changed = contentChanged
+	if req.Slug != nil {
+		if slug := post.Slugify(*req.Slug); slug != p.Slug {
+			p.Slug = slug
+			changed = true
+		}
+	}
+	transitioned, err := applyPostStatus(p, req.Status)
+	if err != nil {
+		return false, false, err
+	}
+	if transitioned {
+		return true, contentChanged, nil
+	}
+	if changed {
+		p.UpdatedAt = time.Now().UTC()
+	}
+	return changed, contentChanged, nil
+}
+
+// applySnapshotted edits the revisioned fields, reporting whether any moved.
+func (req postPatchRequest) applySnapshotted(p *post.Post) bool {
+	changed := false
 	for field, value := range map[*string]*string{
 		&p.Title:   req.Title,
 		&p.Content: req.Content,
@@ -32,31 +56,29 @@ func (req postPatchRequest) applyTo(p *post.Post) (changed, contentChanged bool,
 	} {
 		if value != nil && *field != *value {
 			*field = *value
-			changed, contentChanged = true, true
-		}
-	}
-	if req.Slug != nil {
-		if slug := post.Slugify(*req.Slug); slug != p.Slug {
-			p.Slug = slug
 			changed = true
 		}
 	}
-	if req.Status != nil {
-		status, parseErr := post.ParseStatus(*req.Status)
-		if parseErr != nil {
-			return false, false, parseErr
-		}
-		if status != p.Status {
-			if transitionErr := p.Transition(status); transitionErr != nil {
-				return false, false, transitionErr
-			}
-			return true, contentChanged, nil
-		}
+	return changed
+}
+
+// applyPostStatus transitions the post to the requested status, reporting
+// whether the status moved.
+func applyPostStatus(p *post.Post, raw *string) (bool, error) {
+	if raw == nil {
+		return false, nil
 	}
-	if changed {
-		p.UpdatedAt = time.Now().UTC()
+	status, err := post.ParseStatus(*raw)
+	if err != nil {
+		return false, err
 	}
-	return changed, contentChanged, nil
+	if status == p.Status {
+		return false, nil
+	}
+	if err := p.Transition(status); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // handlePostCreate returns an http.HandlerFunc storing a draft authored by the requester.
@@ -103,40 +125,50 @@ func (s *server) handlePostPatch() http.HandlerFunc {
 			authkit.RespondError(w, http.StatusBadRequest, "malformed json")
 			return
 		}
-		stored, err := s.posts.ByID(r.Context(), id)
-		if err != nil {
-			respondDomainError(w, err)
-			return
-		}
-		previous := stored
-		changed, contentChanged, err := req.applyTo(&stored)
-		if err != nil {
-			respondDomainError(w, err)
-			return
-		}
-		if !changed {
-			s.respondPost(w, r, http.StatusOK, stored)
-			return
-		}
-		var snapshot *post.Revision
-		revisionCap := 0
-		if postType, ok := post.TypeByName(stored.Type); contentChanged && ok && postType.Revisions {
-			identity := authkit.IdentityFromContext(r.Context())
-			revision, revisionErr := post.NewRevision(previous, post.RevisionKindRevision, identity.ID)
-			if revisionErr != nil {
-				respondDomainError(w, revisionErr)
-				return
-			}
-			snapshot = &revision
-			revisionCap = postType.RevisionCap
-		}
-		updated, err := s.posts.Update(r.Context(), stored, previous.UpdatedAt, snapshot, revisionCap)
+		updated, err := s.patchPost(r, id, req)
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
 		s.respondPost(w, r, http.StatusOK, updated)
 	}
+}
+
+// patchPost applies the edit to the stored post, snapshotting a revision when
+// the type keeps them.
+func (s *server) patchPost(r *http.Request, id uuid.UUID, req postPatchRequest) (post.Post, error) {
+	stored, err := s.posts.ByID(r.Context(), id)
+	if err != nil {
+		return post.Post{}, err
+	}
+	previous := stored
+	changed, contentChanged, err := req.applyTo(&stored)
+	if err != nil {
+		return post.Post{}, err
+	}
+	if !changed {
+		return stored, nil
+	}
+	snapshot, revisionCap, err := revisionFor(r, previous, contentChanged)
+	if err != nil {
+		return post.Post{}, err
+	}
+	return s.posts.Update(r.Context(), stored, previous.UpdatedAt, snapshot, revisionCap)
+}
+
+// revisionFor snapshots the previous post when its type keeps revisions and
+// the snapshotted fields changed.
+func revisionFor(r *http.Request, previous post.Post, contentChanged bool) (*post.Revision, int, error) {
+	postType, ok := post.TypeByName(previous.Type)
+	if !contentChanged || !ok || !postType.Revisions {
+		return nil, 0, nil
+	}
+	identity := authkit.IdentityFromContext(r.Context())
+	revision, err := post.NewRevision(previous, post.RevisionKindRevision, identity.ID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return &revision, postType.RevisionCap, nil
 }
 
 // handlePostDelete returns an http.HandlerFunc trashing a post, or removing it

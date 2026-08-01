@@ -102,19 +102,8 @@ func parsePostFilter(query url.Values) (post.Filter, error) {
 		Page:    1,
 		PerPage: defaultPostsPerPage,
 	}
-	if raw, ok := query["orderby"]; ok {
-		orderBy, err := post.ParseOrderBy(raw[0])
-		if err != nil {
-			return post.Filter{}, err
-		}
-		filter.OrderBy = orderBy
-	}
-	if raw, ok := query["order"]; ok {
-		order, err := post.ParseOrder(raw[0])
-		if err != nil {
-			return post.Filter{}, err
-		}
-		filter.Order = order
+	if err := applyPostOrdering(query, &filter); err != nil {
+		return post.Filter{}, err
 	}
 	if raw := query.Get("type"); raw != "" {
 		filter.Type = raw
@@ -126,21 +115,48 @@ func parsePostFilter(query url.Values) (post.Filter, error) {
 		}
 		filter.Status = status
 	}
+	if err := applyPostPaging(query, &filter); err != nil {
+		return post.Filter{}, err
+	}
+	return filter, nil
+}
+
+// applyPostOrdering reads the orderby and order query parameters into filter.
+func applyPostOrdering(query url.Values, filter *post.Filter) error {
+	if raw, ok := query["orderby"]; ok {
+		orderBy, err := post.ParseOrderBy(raw[0])
+		if err != nil {
+			return err
+		}
+		filter.OrderBy = orderBy
+	}
+	if raw, ok := query["order"]; ok {
+		order, err := post.ParseOrder(raw[0])
+		if err != nil {
+			return err
+		}
+		filter.Order = order
+	}
+	return nil
+}
+
+// applyPostPaging reads the page and per_page query parameters into filter.
+func applyPostPaging(query url.Values, filter *post.Filter) error {
 	if raw := query.Get("page"); raw != "" {
 		page, err := strconv.Atoi(raw)
 		if err != nil || page < 1 {
-			return post.Filter{}, fmt.Errorf("server: invalid page %q", raw)
+			return fmt.Errorf("server: invalid page %q", raw)
 		}
 		filter.Page = page
 	}
 	if raw := query.Get("per_page"); raw != "" {
 		perPage, err := strconv.Atoi(raw)
 		if err != nil || perPage < 1 || perPage > maxPostsPerPage {
-			return post.Filter{}, fmt.Errorf("server: invalid per_page %q", raw)
+			return fmt.Errorf("server: invalid per_page %q", raw)
 		}
 		filter.PerPage = perPage
 	}
-	return filter, nil
+	return nil
 }
 
 // handlePostList returns an http.HandlerFunc listing posts as a page with its total.
