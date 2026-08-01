@@ -5,6 +5,7 @@ import {
 	BlockCanvas,
 	BlockEditorProvider,
 	BlockList,
+	BlockToolbar,
 	CANVAS_STYLES,
 	ShortcutProvider,
 	SlotFillProvider,
@@ -52,11 +53,7 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 		<SlotFillProvider>
 			<ShortcutProvider>
 				<Stack direction="column" gap="sm">
-					<EditorHeader
-						dirty={buffer.dirty}
-						saving={buffer.saving}
-						onSave={buffer.save}
-					/>
+					<EditorHeader buffer={buffer} />
 					<InputControl
 						label="Title"
 						value={buffer.title}
@@ -64,10 +61,11 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 					/>
 					<BlockEditorProvider
 						value={buffer.blocks}
-						onInput={buffer.setBlocks}
-						onChange={buffer.setBlocks}
+						onInput={buffer.onInput}
+						onChange={buffer.onChange}
 						settings={EDITOR_SETTINGS}
 					>
+						<BlockToolbar />
 						<BlockCanvas height="70vh" styles={CANVAS_STYLES}>
 							<BlockList />
 						</BlockCanvas>

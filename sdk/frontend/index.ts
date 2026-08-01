@@ -29,11 +29,13 @@ export {
 	Badge,
 	Button,
 	Icon,
+	IconButton,
 	InputControl,
 	Notice,
 	Stack,
 	Text,
 } from '@wordpress/ui'
 export { ThemeProvider } from '@wordpress/theme'
+export { redo as redoIcon, undo as undoIcon } from '@wordpress/icons'
 export { SnackbarProvider, useSnackbar } from './snackbar'
 export { SidebarNavigationScreen } from './SidebarNavigationScreen'
