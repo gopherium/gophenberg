@@ -21,11 +21,14 @@ export function PostsSidebar() {
 		<NavScreen title="Posts" back={<Link to="/" />}>
 			<Stack direction="column" gap="xs" render={<ul />}>
 				<li>
-					<Link to="/posts">All Posts</Link>
+					<Link to="/posts" className="gophenberg-menu__item">
+						All Posts
+					</Link>
 				</li>
 				<li>
 					<Button
-						variant="minimal"
+						variant="unstyled"
+						className="gophenberg-menu__item"
 						disabled={addNew.isPending}
 						onClick={() => addNew.mutate()}
 					>

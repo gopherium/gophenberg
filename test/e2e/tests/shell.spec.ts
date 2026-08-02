@@ -15,6 +15,28 @@ test('pads the canvas and keeps the rail beside it on a desktop', async ({ page 
 	expect(padding).toBe('24px')
 })
 
+test('reads every rail row clearly against the chrome', async ({ page }) => {
+	await page.goto('/posts')
+	await expect(page.getByRole('link', { name: 'All Posts' })).toBeVisible()
+
+	const rows = await page.locator('.gophenberg-menu__item').evaluateAll((found) =>
+		found.map((row) => {
+			const rgb = getComputedStyle(row).color.match(/\d+/g) ?? []
+			const channel = (raw: string) => {
+				const value = Number(raw) / 255
+				return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+			}
+			const [r = 0, g = 0, b = 0] = rgb.map(channel)
+			return { text: row.textContent, luminance: 0.2126 * r + 0.7152 * g + 0.0722 * b }
+		}),
+	)
+
+	expect(rows.length).toBeGreaterThan(1)
+	for (const row of rows) {
+		expect(row.luminance, `${row.text} is too dark for the chrome`).toBeGreaterThan(0.5)
+	}
+})
+
 test('spans the posts listing across the canvas', async ({ page }) => {
 	await page.goto('/posts')
 	await expect(page.getByRole('heading', { level: 1, name: 'Posts' })).toBeVisible()
