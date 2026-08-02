@@ -284,6 +284,32 @@ func TestPostStoreUpdateReportsConflictingUpdates(t *testing.T) {
 	}
 }
 
+func TestPostStoreUpdateReturnsAVersionTheNextUpdateAccepts(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	created := mustCreate(t, store, "Chained Writes", author)
+	first := created
+	first.Title, first.UpdatedAt = "First Edit", time.Now().UTC()
+	written, err := store.Update(t.Context(), first, created.UpdatedAt, nil, 0)
+	if err != nil {
+		t.Fatalf("first Update() error = %v, want nil", err)
+	}
+	stored, err := store.ByID(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	if !written.UpdatedAt.Equal(stored.UpdatedAt) {
+		t.Fatalf("Update() version = %v, want the stored %v", written.UpdatedAt, stored.UpdatedAt)
+	}
+
+	second := written
+	second.Title, second.UpdatedAt = "Second Edit", time.Now().UTC()
+	if _, err := store.Update(t.Context(), second, written.UpdatedAt, nil, 0); err != nil {
+		t.Errorf("second Update() error = %v, want the reported version accepted", err)
+	}
+}
+
 func TestPostStoreUpdateWithASnapshotReportsMissingPosts(t *testing.T) {
 	t.Parallel()
 

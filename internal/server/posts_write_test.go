@@ -6,6 +6,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -71,7 +72,11 @@ func TestPostPatchEditsFieldsAndStampsUpdatedAt(t *testing.T) {
 	stored := posts.add(newPost(t, "Original", ada.ID))
 
 	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
-		`{"title":"Edited","content":"<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->","excerpt":"Sum"}`)
+		versionedBody(t, stored.UpdatedAt, map[string]any{
+			"title":   "Edited",
+			"content": "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->",
+			"excerpt": "Sum",
+		}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -95,10 +100,67 @@ func TestPostPatchReportsConflictingEdits(t *testing.T) {
 	stored := posts.add(newPost(t, "Contended", ada.ID))
 	posts.updateErr = post.ErrConflict
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"title":"Edited"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"}))
 
 	if recorder.Code != http.StatusConflict {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusConflict)
+	}
+}
+
+func TestPostPatchRejectsAnEditCarryingNoVersion(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(newPost(t, "Guarded", ada.ID))
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"title":"Edited"}`)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if posts.posts[stored.ID].Title != "Guarded" {
+		t.Errorf("stored title = %q, want the edit refused", posts.posts[stored.ID].Title)
+	}
+}
+
+func TestPostPatchRejectsAnEditPreparedAgainstAnOlderVersion(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(newPost(t, "Contended", ada.ID))
+	held := stored.UpdatedAt
+	elsewhere := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, held, map[string]any{"title": "Written elsewhere"}))
+	if elsewhere.Code != http.StatusOK {
+		t.Fatalf("first write status = %d, want %d: %s", elsewhere.Code, http.StatusOK, elsewhere.Body.String())
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, held, map[string]any{"title": "Written from a stale view"}))
+
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusConflict, recorder.Body.String())
+	}
+	if title := posts.posts[stored.ID].Title; title != "Written elsewhere" {
+		t.Errorf("stored title = %q, want the earlier write kept", title)
+	}
+}
+
+func TestPostPatchRejectsAnEditStatingAVersionThePostNeverHeld(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(newPost(t, "Guarded", ada.ID))
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt.Add(time.Minute), map[string]any{"title": "Edited"}))
+
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusConflict, recorder.Body.String())
+	}
+	if posts.posts[stored.ID].Title != "Guarded" {
+		t.Errorf("stored title = %q, want the edit refused", posts.posts[stored.ID].Title)
 	}
 }
 
@@ -109,20 +171,43 @@ func TestPostPatchPublishesAndKeepsTheOriginalDate(t *testing.T) {
 	stored := posts.add(newPost(t, "To Publish", ada.ID))
 
 	published := decodeBody[postBody](t, doRequest(
-		t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"status":"published"}`,
+		t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"status": "published"}),
 	))
 	if published.PublishedAt == nil {
 		t.Fatalf("PublishedAt = nil, want it stamped on publication")
 	}
 	first := *published.PublishedAt
 
-	doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"status":"draft"}`)
+	drafted := decodeBody[postBody](t, doRequest(
+		t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, published.UpdatedAt, map[string]any{"status": "draft"}),
+	))
 	republished := decodeBody[postBody](t, doRequest(
-		t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"status":"published"}`,
+		t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, drafted.UpdatedAt, map[string]any{"status": "published"}),
 	))
 
 	if republished.PublishedAt == nil || !republished.PublishedAt.Equal(first) {
 		t.Errorf("PublishedAt = %v, want the original %v kept", republished.PublishedAt, first)
+	}
+}
+
+func TestPostPatchRestatingTheHeldStatusChangesNothing(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(newPost(t, "Already A Draft", ada.ID))
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"status": "draft"}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := decodeBody[postBody](t, recorder)
+	if !body.UpdatedAt.Equal(stored.UpdatedAt) {
+		t.Errorf("UpdatedAt = %v, want the post left at %v", body.UpdatedAt, stored.UpdatedAt)
 	}
 }
 
@@ -132,8 +217,10 @@ func TestPostPatchRejectsUnreachableAndUnknownStatuses(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Draft", ada.ID))
 
-	scheduled := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"status":"scheduled"}`)
-	unknown := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"status":"publsh"}`)
+	scheduled := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"status": "scheduled"}))
+	unknown := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"status": "publsh"}))
 
 	if scheduled.Code != http.StatusUnprocessableEntity {
 		t.Errorf("scheduled status = %d, want %d", scheduled.Code, http.StatusUnprocessableEntity)
@@ -152,7 +239,8 @@ func TestPostPatchWithoutFieldsReturnsThePostUnchanged(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Untouched", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -169,7 +257,8 @@ func TestPostPatchNormalizesAnEditedSlug(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Original", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"slug":"A New Slug!"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"slug": "A New Slug!"}))
 
 	body := decodeBody[postBody](t, recorder)
 	if body.Slug != "a-new-slug" {
@@ -182,9 +271,10 @@ func TestPostPatchRejectsUnknownAndMalformedRequests(t *testing.T) {
 
 	handler, _, _ := authedPostServer(t)
 	missing := uuid.Must(uuid.NewV7()).String()
+	edit := versionedBody(t, time.Now().UTC(), map[string]any{"title": "Edited"})
 
-	notFound := doRequest(t, handler, http.MethodPatch, "/api/posts/"+missing, `{"title":"Edited"}`)
-	malformedID := doRequest(t, handler, http.MethodPatch, "/api/posts/not-a-uuid", `{"title":"Edited"}`)
+	notFound := doRequest(t, handler, http.MethodPatch, "/api/posts/"+missing, edit)
+	malformedID := doRequest(t, handler, http.MethodPatch, "/api/posts/not-a-uuid", edit)
 	malformedBody := doRequest(t, handler, http.MethodPatch, "/api/posts/"+missing, `{`)
 
 	if notFound.Code != http.StatusNotFound {
@@ -205,7 +295,8 @@ func TestPostPatchReportsStoreFailures(t *testing.T) {
 	stored := posts.add(newPost(t, "Doomed", ada.ID))
 	posts.updateErr = context.DeadlineExceeded
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"title":"Edited"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"}))
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)

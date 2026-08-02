@@ -18,6 +18,7 @@ export interface EditorBuffer {
 	excerpt: string
 	dirty: boolean
 	saving: boolean
+	version: string
 	hasUndo: boolean
 	hasRedo: boolean
 	setTitle: (title: string) => void
@@ -31,6 +32,7 @@ export interface EditorBuffer {
 	redo: () => void
 	save: () => void
 	publish: () => void
+	adoptVersion: (version: string) => void
 }
 
 /**
@@ -46,6 +48,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 	const [status, setStatus] = useState(stored.status)
 	const [slug, setSlug] = useState(stored.slug)
 	const [excerpt, setExcerpt] = useState(stored.excerpt)
+	const [version, setVersion] = useState(stored.updatedAt)
 	const [saved, setSaved] = useState({
 		title: stored.title,
 		content: stored.content,
@@ -57,7 +60,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 	const blocks = history.value as Block[]
 	const content = useMemo(() => serialize(blocks), [blocks])
 	const write = useMutation({
-		mutationFn: (changes: PostChanges) => savePost(postId, changes),
+		mutationFn: (changes: PostChanges) => savePost(postId, changes, version),
 		onSuccess: async (outcome, changes) => {
 			snackbar.show(reportOf(outcome, changes))
 			if (outcome.kind === 'saved') {
@@ -82,6 +85,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		setStatus(written.status)
 		setSlug(written.slug)
 		setExcerpt(written.excerpt)
+		setVersion(written.updatedAt)
 	}
 	return {
 		title,
@@ -97,6 +101,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 			excerpt !== saved.excerpt ||
 			status !== saved.status,
 		saving: write.isPending,
+		version,
 		hasUndo: history.hasUndo,
 		hasRedo: history.hasRedo,
 		setTitle,
@@ -114,6 +119,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		redo: history.redo,
 		save: () => write.mutate({ title, content, slug, excerpt, status }),
 		publish: () => write.mutate({ status: 'published' }),
+		adoptVersion: setVersion,
 	}
 }
 

@@ -5,6 +5,8 @@ package server_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -276,6 +278,18 @@ func (s *fakePostStore) Counts(_ context.Context, _ string) (map[post.Status]int
 		counts[p.Status]++
 	}
 	return counts, nil
+}
+
+// versionedBody returns a write request body carrying the version and the given fields.
+func versionedBody(t *testing.T, version time.Time, fields map[string]any) string {
+	t.Helper()
+	body := map[string]any{"updated_at": version}
+	maps.Copy(body, fields)
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("Marshal(%v) error = %v, want nil", body, err)
+	}
+	return string(encoded)
 }
 
 // newPost returns a draft post authored by author.

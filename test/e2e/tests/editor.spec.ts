@@ -94,6 +94,26 @@ test('writes, saves, publishes, trashes and restores a post', async ({ page }) =
 	await expect(page.getByRole('link', { name: TITLE })).toBeVisible()
 })
 
+test('saves twice over without reloading in between', async ({ page }) => {
+	const statuses: number[] = []
+	page.on('response', (response) => {
+		if (response.request().method() === 'PATCH') {
+			statuses.push(response.status())
+		}
+	})
+	await openNewDraft(page)
+	await page.getByRole('textbox', { name: 'Title' }).fill(`${TITLE} once`)
+	await page.getByRole('button', { name: 'Save draft' }).click()
+	await expect(shown(page, 'Draft saved.')).toBeVisible()
+
+	await page.getByRole('textbox', { name: 'Title' }).fill(`${TITLE} twice`)
+	await page.getByRole('button', { name: 'Save draft' }).click()
+
+	await expect.poll(() => statuses).toEqual([200, 200])
+	await page.reload()
+	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(`${TITLE} twice`)
+})
+
 test('takes a post back out of the trash from the editor', async ({ page }) => {
 	await openNewDraft(page)
 	await page.getByRole('textbox', { name: 'Title' }).fill(TRASH_TITLE)

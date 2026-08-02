@@ -7,6 +7,8 @@ import type { AutosaveBuffer } from './api'
 
 const AUTOSAVE_INTERVAL = 60000
 
+const AUTOSAVE_TARGET_POST = 'post'
+
 /**
  * Parks the editing buffer on the server while it holds unsaved words.
  * @param postId - The post being edited.
@@ -14,7 +16,12 @@ const AUTOSAVE_INTERVAL = 60000
  */
 export function useAutosave(
 	postId: string,
-	buffer: AutosaveBuffer & { dirty: boolean, saving: boolean },
+	buffer: AutosaveBuffer & {
+		dirty: boolean
+		saving: boolean
+		version: string
+		adoptVersion: (version: string) => void
+	},
 ): void {
 	const latest = useRef(buffer)
 	latest.current = buffer
@@ -31,8 +38,15 @@ export function useAutosave(
 			void autosavePost(
 				postId,
 				{ title: held.title, content: held.content, excerpt: held.excerpt },
+				held.version,
 				keepalive,
-			).catch(() => {})
+			)
+				.then((outcome) => {
+					if (outcome.target === AUTOSAVE_TARGET_POST) {
+						held.adoptVersion(outcome.savedAt)
+					}
+				})
+				.catch(() => {})
 		}
 		const timer = setInterval(() => park(false), AUTOSAVE_INTERVAL)
 		const flush = () => park(true)

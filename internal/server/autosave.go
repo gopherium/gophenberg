@@ -29,22 +29,48 @@ type autosaveResponse struct {
 	SavedAt time.Time `json:"saved_at"`
 }
 
+// autosaveRequest carries the version the buffer was prepared against and the words it holds.
+type autosaveRequest struct {
+	UpdatedAt *time.Time `json:"updated_at"`
+	Title     string     `json:"title"`
+	Content   string     `json:"content"`
+	Excerpt   string     `json:"excerpt"`
+}
+
+// decodeAutosaveRequest reads an autosave request, reporting whether it may be used.
+func decodeAutosaveRequest(w http.ResponseWriter, r *http.Request) (autosaveRequest, bool) {
+	req, err := authkit.Decode[autosaveRequest](w, r)
+	if err != nil {
+		authkit.RespondError(w, http.StatusBadRequest, "malformed json")
+		return autosaveRequest{}, false
+	}
+	if req.UpdatedAt == nil {
+		authkit.RespondError(w, http.StatusBadRequest, "missing updated_at")
+		return autosaveRequest{}, false
+	}
+	return req, true
+}
+
+// holdsBuffer reports whether the post already holds the words the buffer carries.
+func holdsBuffer(p post.Post, req autosaveRequest) bool {
+	return p.Title == req.Title && p.Content == req.Content && p.Excerpt == req.Excerpt
+}
+
+// writesInPlace reports whether the buffer may be written straight to the post.
+func writesInPlace(p post.Post, authorID uuid.UUID, version time.Time) bool {
+	return p.Status == post.StatusDraft && p.AuthorID == authorID && version.Equal(p.UpdatedAt)
+}
+
 // handleAutosaveSave returns an http.HandlerFunc storing the editor's buffer.
 func (s *server) handleAutosaveSave() http.HandlerFunc {
-	type request struct {
-		Title   string `json:"title"`
-		Content string `json:"content"`
-		Excerpt string `json:"excerpt"`
-	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(chi.URLParam(r, "id"))
 		if err != nil {
 			authkit.RespondError(w, http.StatusBadRequest, "malformed post id")
 			return
 		}
-		req, err := authkit.Decode[request](w, r)
-		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "malformed json")
+		req, ok := decodeAutosaveRequest(w, r)
+		if !ok {
 			return
 		}
 		stored, err := s.posts.ByID(r.Context(), id)
@@ -52,24 +78,42 @@ func (s *server) handleAutosaveSave() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		identity := authkit.IdentityFromContext(r.Context())
-		if stored.Title == req.Title && stored.Content == req.Content && stored.Excerpt == req.Excerpt {
-			if err := s.posts.DeleteAutosave(r.Context(), stored.ID, identity.ID); err != nil {
-				respondDomainError(w, err)
-				return
-			}
-			authkit.Respond(w, http.StatusOK, newAutosaveResponse(autosaveTargetPost, stored.ID,
-				stored.Title, stored.Content, stored.Excerpt, stored.UpdatedAt))
-			return
-		}
-		buffer := stored
-		buffer.Title, buffer.Content, buffer.Excerpt = req.Title, req.Content, req.Excerpt
-		if stored.Status == post.StatusDraft && stored.AuthorID == identity.ID {
-			s.saveBufferToPost(w, r, buffer, stored.UpdatedAt)
-			return
-		}
-		s.parkBufferAsAutosave(w, r, buffer, identity.ID)
+		s.storeBuffer(w, r, stored, req, authkit.IdentityFromContext(r.Context()).ID)
 	}
+}
+
+// storeBuffer writes the buffer to the post, parks it, or leaves words the post already holds.
+func (s *server) storeBuffer(
+	w http.ResponseWriter, r *http.Request, stored post.Post, req autosaveRequest, authorID uuid.UUID,
+) {
+	if holdsBuffer(stored, req) {
+		if req.UpdatedAt.Equal(stored.UpdatedAt) {
+			s.clearParkedBuffer(w, r, stored, authorID)
+			return
+		}
+		authkit.Respond(w, http.StatusOK, newAutosaveResponse(autosaveTargetAutosave, stored.ID,
+			req.Title, req.Content, req.Excerpt, stored.UpdatedAt))
+		return
+	}
+	buffer := stored
+	buffer.Title, buffer.Content, buffer.Excerpt = req.Title, req.Content, req.Excerpt
+	if writesInPlace(stored, authorID, *req.UpdatedAt) {
+		s.saveBufferToPost(w, r, buffer, stored.UpdatedAt)
+		return
+	}
+	s.parkBufferAsAutosave(w, r, buffer, authorID)
+}
+
+// clearParkedBuffer removes the author's parked buffer and reports the post as it stands.
+func (s *server) clearParkedBuffer(
+	w http.ResponseWriter, r *http.Request, p post.Post, authorID uuid.UUID,
+) {
+	if err := s.posts.DeleteAutosave(r.Context(), p.ID, authorID); err != nil {
+		respondDomainError(w, err)
+		return
+	}
+	authkit.Respond(w, http.StatusOK, newAutosaveResponse(autosaveTargetPost, p.ID,
+		p.Title, p.Content, p.Excerpt, p.UpdatedAt))
 }
 
 // saveBufferToPost writes the buffer to the post itself.

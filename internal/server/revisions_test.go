@@ -36,7 +36,8 @@ func TestPostPatchSnapshotsThePreviousContent(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "First Title", ada.ID))
 
-	doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"title":"Second Title"}`)
+	doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Second Title"}))
 
 	if posts.lastSnapshot == nil {
 		t.Fatal("no snapshot passed to the store, want the previous state captured")
@@ -61,7 +62,8 @@ func TestPostPatchWithoutContentChangesSkipsTheSnapshot(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Only Status", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"status":"published"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"status": "published"}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -80,7 +82,8 @@ func TestPostPatchSlugChangeSkipsTheSnapshot(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Slug Only", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"slug":"new-slug"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"slug": "new-slug"}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -102,7 +105,8 @@ func TestPostPatchSkipsTheSnapshotForTypesWithoutRevisions(t *testing.T) {
 	stored.Type = "briefing"
 	stored = posts.add(stored)
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"title":"Edited"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -120,7 +124,8 @@ func TestPostPatchSkipsTheSnapshotForUnregisteredTypes(t *testing.T) {
 	stored.Type = "vanished-plugin"
 	stored = posts.add(stored)
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"title":"Edited"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -406,10 +411,11 @@ func TestRevisionRoutesRejectAMalformedPostID(t *testing.T) {
 func TestPostPatchReportsSnapshotFailures(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Doomed", ada.ID))
+	body := versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"})
 	uuid.SetRand(failingReader{})
 	defer uuid.SetRand(nil)
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"title":"Edited"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), body)
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)

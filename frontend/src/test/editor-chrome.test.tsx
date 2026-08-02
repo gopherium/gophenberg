@@ -67,7 +67,7 @@ test('publishes a draft and asks the server for the transition', async () => {
 	await userEvent.click(await screen.findByRole('button', { name: 'Publish' }))
 
 	await waitFor(() => expect(patched).toHaveLength(1))
-	expect(patched[0]).toEqual({ status: 'published' })
+	expect(patched[0]).toEqual({ status: 'published', updated_at: storedPost.updated_at })
 })
 
 test('swaps the control to update once the post is published', async () => {

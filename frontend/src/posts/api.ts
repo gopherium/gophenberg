@@ -145,13 +145,18 @@ export async function fetchPost(id: string): Promise<PostDetail> {
  * Writes the given changes to a post.
  * @param id - The post to write to.
  * @param changes - The fields to change.
+ * @param version - The updatedAt the changes were prepared against.
  * @returns What the server made of the write.
  */
-export async function savePost(id: string, changes: PostChanges): Promise<SaveOutcome> {
+export async function savePost(
+	id: string,
+	changes: PostChanges,
+	version: string,
+): Promise<SaveOutcome> {
 	const response = await fetch(`/api/posts/${id}`, {
 		method: 'PATCH',
 		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify(changes),
+		body: JSON.stringify({ ...changes, updated_at: version }),
 	})
 	if (response.ok) {
 		return { kind: 'saved', post: toDetail(detailSchema.parse(await response.json())) }
@@ -172,7 +177,13 @@ export interface Autosave extends AutosaveBuffer {
 	savedAt: string
 }
 
+export interface AutosaveOutcome {
+	target: string
+	savedAt: string
+}
+
 const autosaveSchema = z.object({
+	target: z.string(),
 	title: z.string(),
 	content: z.string(),
 	excerpt: z.string(),
@@ -197,22 +208,27 @@ export async function fetchAutosave(id: string): Promise<Autosave | null> {
  * Parks the given buffer as the caller's autosave of a post.
  * @param id - The post the buffer belongs to.
  * @param buffer - The words to park.
+ * @param version - The updatedAt the buffer was prepared against.
  * @param keepalive - Whether the request should outlive the page.
+ * @returns Where the buffer landed and the time the server stamped it.
  */
 export async function autosavePost(
 	id: string,
 	buffer: AutosaveBuffer,
+	version: string,
 	keepalive = false,
-): Promise<void> {
+): Promise<AutosaveOutcome> {
 	const response = await fetch(`/api/posts/${id}/autosave`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify(buffer),
+		body: JSON.stringify({ ...buffer, updated_at: version }),
 		keepalive,
 	})
 	if (!response.ok) {
 		throw new Error(`autosaving a post failed with status ${response.status}`)
 	}
+	const row = autosaveSchema.parse(await response.json())
+	return { target: row.target, savedAt: row.saved_at }
 }
 
 /**

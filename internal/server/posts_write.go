@@ -14,13 +14,15 @@ import (
 	"github.com/gopherium/gophenberg/internal/post"
 )
 
-// postPatchRequest carries the editable fields, where a nil field is unchanged.
+// postPatchRequest carries the version the edit was prepared against and the
+// editable fields, where a nil field is unchanged.
 type postPatchRequest struct {
-	Title   *string `json:"title"`
-	Content *string `json:"content"`
-	Excerpt *string `json:"excerpt"`
-	Slug    *string `json:"slug"`
-	Status  *string `json:"status"`
+	UpdatedAt *time.Time `json:"updated_at"`
+	Title     *string    `json:"title"`
+	Content   *string    `json:"content"`
+	Excerpt   *string    `json:"excerpt"`
+	Slug      *string    `json:"slug"`
+	Status    *string    `json:"status"`
 }
 
 // applyTo edits the post, reporting whether anything changed and whether the snapshotted fields did.
@@ -125,7 +127,11 @@ func (s *server) handlePostPatch() http.HandlerFunc {
 			authkit.RespondError(w, http.StatusBadRequest, "malformed json")
 			return
 		}
-		updated, err := s.patchPost(r, id, req)
+		if req.UpdatedAt == nil {
+			authkit.RespondError(w, http.StatusBadRequest, "missing updated_at")
+			return
+		}
+		updated, err := s.patchPost(r, id, *req.UpdatedAt, req)
 		if err != nil {
 			respondDomainError(w, err)
 			return
@@ -134,10 +140,24 @@ func (s *server) handlePostPatch() http.HandlerFunc {
 	}
 }
 
+// versionedPost returns the stored post when it still holds version, or [post.ErrConflict].
+func (s *server) versionedPost(r *http.Request, id uuid.UUID, version time.Time) (post.Post, error) {
+	stored, err := s.posts.ByID(r.Context(), id)
+	if err != nil {
+		return post.Post{}, err
+	}
+	if !version.Equal(stored.UpdatedAt) {
+		return post.Post{}, post.ErrConflict
+	}
+	return stored, nil
+}
+
 // patchPost applies the edit to the stored post, snapshotting a revision when
 // the type keeps them.
-func (s *server) patchPost(r *http.Request, id uuid.UUID, req postPatchRequest) (post.Post, error) {
-	stored, err := s.posts.ByID(r.Context(), id)
+func (s *server) patchPost(
+	r *http.Request, id uuid.UUID, version time.Time, req postPatchRequest,
+) (post.Post, error) {
+	stored, err := s.versionedPost(r, id, version)
 	if err != nil {
 		return post.Post{}, err
 	}
