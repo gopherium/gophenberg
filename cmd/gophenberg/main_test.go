@@ -196,13 +196,3 @@ func (p failingPlugin) Start(_ context.Context) error {
 func (failingPlugin) Stop(_ context.Context) error {
 	return nil
 }
-
-func TestEmptyPostReaderListsNothing(t *testing.T) {
-	t.Parallel()
-
-	posts, err := emptyPostReader{}.ListPublished(t.Context(), "post", 10)
-
-	if err != nil || posts != nil {
-		t.Errorf("ListPublished() = %v, %v, want nil, nil", posts, err)
-	}
-}

@@ -19,6 +19,7 @@ import (
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 	"github.com/gopherium/pluginkit"
 
+	"github.com/gopherium/gophenberg/internal/postbridge"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/internal/version"
@@ -57,9 +58,10 @@ func run(
 	reaper.Start()
 	defer reaper.Stop()
 
+	postStore := postgres.NewPostStore(pool)
 	registered, err := plugins(sdk.Deps{
 		DatabaseURL: settings.databaseURL,
-		Posts:       emptyPostReader{},
+		Posts:       postbridge.New(postStore),
 		Getenv:      getenv,
 	})
 	if err != nil {
@@ -73,7 +75,7 @@ func run(
 
 	cfg := server.Config{
 		Users:             userStore,
-		Posts:             postgres.NewPostStore(pool),
+		Posts:             postStore,
 		Plugins:           host.Routes(),
 		PluginPublicPaths: host.PublicPaths(),
 		Version:           version.Version(),
