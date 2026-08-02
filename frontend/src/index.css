@@ -31,6 +31,12 @@
 	background-color: var(--wpds-color-stroke-surface-neutral-strong);
 }
 
+.godmin-nav-screen ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
 .gophenberg-rail__brand {
 	color: inherit;
 	text-decoration: none;

@@ -1,0 +1,7 @@
+{
+  "extends": "../../frontend/tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.sdk.tsbuildinfo"
+  },
+  "include": ["."]
+}
