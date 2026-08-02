@@ -5,7 +5,7 @@ Gophenberg is an open-source plugin-first CMS. The backend is a Go service expos
 ## Architecture
 
 - **Plugin-first.** The core contains only the HTTP server, the plugin host, authentication, and the post domain (posts, revisions, post types). Every other feature is a plugin. Anything that can be a plugin must be a plugin.
-- **Plugins live in one folder each.** A plugin is a directory under `plugins/` holding a `plugin.json` manifest, an ordinary Go package (compiled in), and an optional `frontend/` npm package for its React screens. The Go package exports `Register(sdk.Deps) (*Plugin, error)`. The frontend package exports a `FrontendPlugin` object named `plugin`. `make generate` reads every manifest and regenerates both wiring files, and CI fails if they are stale. Each plugin gets a mounted route namespace under `/api/plugins/{name}/` (and `/{name}` in the SPA) and its own Postgres schema with its own migrations. Plugins never import each other and reach the core only through the SDK.
+- **Plugins live in one folder each.** A plugin is a directory under `plugins/` holding a `plugin.json` manifest, an ordinary Go package (compiled in), and an optional `frontend/` npm package for its React screens. The Go package exports `Register(sdk.Deps) (sdk.Plugin, error)`. The frontend package exports a `FrontendPlugin` object named `plugin`. `make generate` reads every manifest and regenerates both wiring files, and CI fails if they are stale. Each plugin gets a mounted route namespace under `/api/plugins/{name}/` (and `/{name}` in the SPA), may declare session-exempt public paths, and may own a Postgres schema with its own migrations. Plugins never import each other and reach the core only through the SDK.
 
 ```text
 cmd/gophenberg/       main: config, db pool, auth wiring, plugin registration
@@ -13,6 +13,7 @@ cmd/pluginwire/       generator: plugins/*/plugin.json -> wiring files
 internal/server       http.Handler, routes, middleware
 internal/post         post domain package
 internal/postgres     data access (pgx + sqlc)
+internal/postbridge   published posts as the sdk PostReader seam
 plugins/feed          reference plugin: RSS feed
 sdk/                  public plugin contract (Go), the only Gophenberg import allowed in a plugin
 sdk/frontend/         frontend plugin contract, UI facade, and test harness (@gophenberg/frontend-sdk)
