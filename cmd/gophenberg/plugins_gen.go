@@ -5,9 +5,17 @@
 package main
 
 import (
+	feed "github.com/gopherium/gophenberg/plugins/feed"
+
 	"github.com/gopherium/gophenberg/sdk"
 )
 
-func registerPlugins(_ sdk.Deps) ([]sdk.Plugin, error) {
-	return []sdk.Plugin{}, nil
+func registerPlugins(deps sdk.Deps) ([]sdk.Plugin, error) {
+	plugins := make([]sdk.Plugin, 0, 1)
+	feedPlugin, err := feed.Register(deps)
+	if err != nil {
+		return nil, err
+	}
+	plugins = append(plugins, feedPlugin)
+	return plugins, nil
 }
