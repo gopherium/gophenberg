@@ -40,6 +40,7 @@ export {
 export { ThemeProvider } from '@wordpress/theme'
 export {
 	chevronLeft as backIcon,
+	listView as listViewIcon,
 	redo as redoIcon,
 	undo as undoIcon,
 } from '@wordpress/icons'

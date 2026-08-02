@@ -33,6 +33,7 @@ declare module '@wordpress/block-editor' {
 	}>
 	export const BlockList: ComponentType<Record<string, never>>
 	export const BlockBreadcrumb: ComponentType<{ rootLabelText?: string }>
+	export const __experimentalListView: ComponentType<{ isExpanded?: boolean }>
 	export const Inserter: ComponentType<{
 		position?: string
 		toggleProps?: { label?: string }

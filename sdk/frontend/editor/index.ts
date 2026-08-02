@@ -9,6 +9,7 @@ export {
 	BlockBreadcrumb,
 	BlockList,
 	Inserter,
+	__experimentalListView as ListView,
 } from '@wordpress/block-editor'
 export { getBlockTypes, parse, serialize } from '@wordpress/blocks'
 export type { Block } from '@wordpress/blocks'

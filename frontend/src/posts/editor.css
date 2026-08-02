@@ -107,6 +107,29 @@
 .gophenberg-editor__canvas {
 	flex: 1;
 	min-height: 0;
+	width: 100%;
+	margin-left: auto;
+	margin-right: auto;
+	transition: max-width 200ms ease-out;
+}
+
+.gophenberg-editor__canvas--tablet {
+	max-width: 780px;
+}
+
+.gophenberg-editor__canvas--mobile {
+	max-width: 360px;
+}
+
+.gophenberg-editor__outline {
+	flex: 0 0 280px;
+	min-width: 0;
+	overflow-y: auto;
+	box-sizing: border-box;
+	padding: 12px;
+	border-right-width: 1px;
+	border-right-style: solid;
+	border-right-color: var(--wpds-color-stroke-surface-neutral);
 }
 
 .gophenberg-editor__sidebar {

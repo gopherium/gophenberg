@@ -7,6 +7,7 @@ import {
 	BlockEditorProvider,
 	BlockList,
 	CANVAS_STYLES,
+	ListView,
 	ShortcutProvider,
 	SlotFillProvider,
 	registerCuratedBlocks,
@@ -17,12 +18,13 @@ import { useParams } from '@tanstack/react-router'
 import './editor.css'
 import { fetchPost } from './api'
 import type { PostDetail } from './api'
-import { EDITOR_SETTINGS } from './editorSetup'
+import { EDITOR_SETTINGS, canvasClass } from './editorSetup'
 import { EditorHeader } from './EditorHeader'
 import { EditorSidebar } from './EditorSidebar'
 import { RestoreBanner } from './RestoreBanner'
 import { useAutosave } from './useAutosave'
 import { useEditorBuffer } from './useEditorBuffer'
+import { useEditorViews } from './useEditorViews'
 
 registerCuratedBlocks()
 
@@ -53,6 +55,7 @@ export function EditorScreen() {
  */
 function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 	const buffer = useEditorBuffer(postId, stored)
+	const views = useEditorViews()
 	useAutosave(postId, buffer)
 	return (
 		<SlotFillProvider>
@@ -64,8 +67,13 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 					settings={EDITOR_SETTINGS}
 				>
 					<div className="gophenberg-editor">
-						<EditorHeader buffer={buffer} type={stored.type} />
+						<EditorHeader buffer={buffer} type={stored.type} views={views} />
 						<div className="gophenberg-editor__main">
+							{views.listOpen ? (
+								<div className="gophenberg-editor__outline">
+									<ListView />
+								</div>
+							) : null}
 							<div className="gophenberg-editor__content">
 								<RestoreBanner
 									postId={postId}
@@ -80,7 +88,7 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 										onValueChange={buffer.setTitle}
 									/>
 								</div>
-								<div className="gophenberg-editor__canvas">
+								<div className={canvasClass(views.preview)}>
 									<BlockCanvas height="100%" styles={CANVAS_STYLES}>
 										<BlockList />
 									</BlockCanvas>
