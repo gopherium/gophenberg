@@ -42,5 +42,4 @@ export {
 	redo as redoIcon,
 	undo as undoIcon,
 } from '@wordpress/icons'
-export { SnackbarProvider, useSnackbar } from './snackbar'
 export { TextareaControl } from './TextareaControl'

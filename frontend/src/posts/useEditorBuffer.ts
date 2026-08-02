@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { useSnackbar } from '@gophenberg/frontend-sdk'
+import { useToaster } from '@gopherium/godmin'
 import { parse, serialize, useStateWithHistory } from '@gophenberg/frontend-sdk/editor'
 import type { Block } from '@gophenberg/frontend-sdk/editor'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -43,7 +43,7 @@ export interface EditorBuffer {
  */
 export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffer {
 	const client = useQueryClient()
-	const snackbar = useSnackbar()
+	const toaster = useToaster()
 	const [title, setTitle] = useState(stored.title)
 	const [status, setStatus] = useState(stored.status)
 	const [slug, setSlug] = useState(stored.slug)
@@ -62,13 +62,13 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 	const write = useMutation({
 		mutationFn: (changes: PostChanges) => savePost(postId, changes, version),
 		onSuccess: async (outcome, changes) => {
-			snackbar.show(reportOf(outcome, changes))
+			toaster.show(reportOf(outcome, changes))
 			if (outcome.kind === 'saved') {
 				adopt(outcome.post)
 				await client.invalidateQueries({ queryKey: ['posts'] })
 			}
 		},
-		onError: () => snackbar.show('Could not save that post.'),
+		onError: () => toaster.show('Could not save that post.'),
 	})
 	/**
 	 * Takes the post the server wrote as the new settled buffer.

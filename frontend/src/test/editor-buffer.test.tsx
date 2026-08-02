@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { SnackbarProvider } from '@gophenberg/frontend-sdk'
 import { parse, registerCuratedBlocks } from '@gophenberg/frontend-sdk/editor'
+import { Toaster } from '@gopherium/godmin'
 import type { Block } from '@gophenberg/frontend-sdk/editor'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
@@ -23,7 +23,7 @@ function renderBuffer() {
 	return renderHook(() => useEditorBuffer(storedPost.id, { ...storedPost, publishedAt: null } as never), {
 		wrapper: ({ children }) => (
 			<QueryClientProvider client={client}>
-				<SnackbarProvider>{children}</SnackbarProvider>
+				<Toaster>{children}</Toaster>
 			</QueryClientProvider>
 		),
 	})

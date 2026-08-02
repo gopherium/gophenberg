@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { AlertDialog, useSnackbar } from '@gophenberg/frontend-sdk'
+import { AlertDialog } from '@gophenberg/frontend-sdk'
+import { useToaster } from '@gopherium/godmin'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
@@ -14,7 +15,7 @@ import { restorePost, trashPost } from './api'
 export function TrashPost({ postId, title }: { postId: string, title: string }) {
 	const navigate = useNavigate()
 	const client = useQueryClient()
-	const snackbar = useSnackbar()
+	const toaster = useToaster()
 	/**
 	 * Reloads the listing and the status counts.
 	 */
@@ -36,12 +37,12 @@ export function TrashPost({ postId, title }: { postId: string, title: string }) 
 		}
 		await navigate({ to: '/posts' })
 		await reload()
-		snackbar.show('Moved to the trash.', {
+		toaster.show('Moved to the trash.', {
 			label: 'Undo',
 			onAct: () => {
 				restorePost(postId)
 					.then(reload)
-					.catch(() => snackbar.show('Could not restore that post.'))
+					.catch(() => toaster.show('Could not restore that post.'))
 			},
 		})
 	}

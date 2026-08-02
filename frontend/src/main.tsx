@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { AdminRoot } from '@gopherium/godmin'
-import { SnackbarProvider, Text } from '@gophenberg/frontend-sdk'
+import { AdminRoot, Toaster } from '@gopherium/godmin'
+import { Text } from '@gophenberg/frontend-sdk'
 import { AuthGate, createAuthQueryClient } from '@gopherium/react-auth'
 import { LoginScreen } from '@gopherium/react-auth/wpds'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -28,9 +28,9 @@ createRoot(document.getElementById('root')!).render(
 					loading={<Text role="status">Loading…</Text>}
 					error={<Text role="alert">Something went wrong.</Text>}
 				>
-					<SnackbarProvider>
+					<Toaster>
 						<RouterProvider router={router} />
-					</SnackbarProvider>
+					</Toaster>
 				</AuthGate>
 			</AdminRoot>
 		</QueryClientProvider>
