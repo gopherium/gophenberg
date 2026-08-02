@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { InputControl, Notice, Text, VisuallyHidden } from '@gophenberg/frontend-sdk'
-import { PageTitle } from '@gopherium/godmin'
+import { InputControl, Notice, Text } from '@gophenberg/frontend-sdk'
 import {
 	BlockBreadcrumb,
 	BlockCanvas,
@@ -19,7 +18,6 @@ import { useParams } from '@tanstack/react-router'
 import './editor.css'
 import { fetchPost } from './api'
 import type { PostDetail } from './api'
-import { documentName } from './DocumentBar'
 import { EDITOR_SETTINGS, canvasClass } from './editorSetup'
 import { EditorHeader } from './EditorHeader'
 import { EditorSidebar } from './EditorSidebar'
@@ -69,7 +67,6 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 					settings={EDITOR_SETTINGS}
 				>
 					<div className="gophenberg-editor">
-						<VisuallyHidden render={<PageTitle>{documentName(buffer.title)}</PageTitle>} />
 						<EditorHeader buffer={buffer} type={stored.type} views={views} />
 						<div className="gophenberg-editor__main">
 							{views.listOpen ? (

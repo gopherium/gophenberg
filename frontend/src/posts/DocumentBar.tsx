@@ -12,7 +12,7 @@ const TYPE_LABELS: Record<string, string> = {
  * @param title - The title the post holds.
  * @returns The name to show.
  */
-export function documentName(title: string): string {
+function documentName(title: string): string {
 	return title === '' ? 'No title' : title
 }
 

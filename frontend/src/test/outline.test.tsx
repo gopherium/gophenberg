@@ -49,10 +49,10 @@ test.each(FRAMED)('gives %s exactly one first level heading', async (path) => {
 	expect(within(main).getAllByRole('heading', { level: 1 })).toHaveLength(1)
 })
 
-test('gives the editor exactly one first level heading', async () => {
+test('leaves the design canvas without a page heading', async () => {
 	renderAt(EDITOR_URL)
 
 	await screen.findByRole('textbox', { name: 'Title' })
 
-	expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+	expect(screen.queryAllByRole('heading', { level: 1 })).toHaveLength(0)
 })
