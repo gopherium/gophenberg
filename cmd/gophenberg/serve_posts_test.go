@@ -12,6 +12,8 @@ import (
 	"net/http/cookiejar"
 	"testing"
 	"time"
+
+	"github.com/gopherium/gophenberg/internal/seed"
 )
 
 func TestServedPostsAnswerAnAuthenticatedCaller(t *testing.T) {
@@ -23,7 +25,7 @@ func TestServedPostsAnswerAnAuthenticatedCaller(t *testing.T) {
 		"GOPHENBERG_ADDR":         address,
 		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 	}
-	if err := seed(t.Context(), testGetenv(env), new(bytes.Buffer)); err != nil {
+	if err := seedDemoData(t.Context(), testGetenv(env), new(bytes.Buffer)); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -80,8 +82,8 @@ func loggedInClient(t *testing.T, base string) *http.Client {
 	}
 	client := &http.Client{Jar: jar, Timeout: 30 * time.Second}
 	body, err := json.Marshal(map[string]string{
-		"email":    seedAdminEmail,
-		"password": seedAdminPassword,
+		"email":    seed.AdminEmail,
+		"password": seed.AdminPassword,
 	})
 	if err != nil {
 		t.Fatalf("encoding credentials: %v", err)

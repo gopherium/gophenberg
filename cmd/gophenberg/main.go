@@ -28,7 +28,7 @@ func main() {
 		return
 	}
 	if len(os.Args) > 1 && os.Args[1] == "seed" {
-		if err := seed(ctx, os.Getenv, os.Stdout); err != nil {
+		if err := seedDemoData(ctx, os.Getenv, os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, "gophenberg:", err)
 			os.Exit(1)
 		}

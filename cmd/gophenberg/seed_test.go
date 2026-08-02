@@ -3,19 +3,15 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"io"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/google/uuid"
-	"github.com/gopherium/gouncer"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/post"
 	"github.com/gopherium/gophenberg/internal/postgres"
+	"github.com/gopherium/gophenberg/internal/seed"
 )
 
 // execSQL runs statement against the database at databaseURL.
@@ -53,8 +49,8 @@ func TestSeedStoresTheDemoPosts(t *testing.T) {
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
 	var stdout strings.Builder
 
-	if err := seed(t.Context(), testGetenv(env), &stdout); err != nil {
-		t.Fatalf("seed() error = %v, want nil", err)
+	if err := seedDemoData(t.Context(), testGetenv(env), &stdout); err != nil {
+		t.Fatalf("seedDemoData() error = %v, want nil", err)
 	}
 
 	counts := seededCounts(t, databaseURL)
@@ -69,7 +65,7 @@ func TestSeedStoresTheDemoPosts(t *testing.T) {
 			t.Errorf("counts[%q] = %d, want %d", status, counts[status], total)
 		}
 	}
-	if !strings.Contains(stdout.String(), seedAdminEmail) {
+	if !strings.Contains(stdout.String(), seed.AdminEmail) {
 		t.Errorf("output = %q, want the admin credentials", stdout.String())
 	}
 	if !strings.Contains(stdout.String(), "development only") {
@@ -82,14 +78,14 @@ func TestSeedIsIdempotent(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seed(t.Context(), testGetenv(env), io.Discard); err != nil {
-		t.Fatalf("first seed() error = %v, want nil", err)
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedDemoData() error = %v, want nil", err)
 	}
 	first := seededCounts(t, databaseURL)
 	var stdout strings.Builder
 
-	if err := seed(t.Context(), testGetenv(env), &stdout); err != nil {
-		t.Fatalf("second seed() error = %v, want nil", err)
+	if err := seedDemoData(t.Context(), testGetenv(env), &stdout); err != nil {
+		t.Fatalf("second seedDemoData() error = %v, want nil", err)
 	}
 
 	second := seededCounts(t, databaseURL)
@@ -108,8 +104,8 @@ func TestSeedStoresBlockContent(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seed(t.Context(), testGetenv(env), io.Discard); err != nil {
-		t.Fatalf("seed() error = %v, want nil", err)
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("seedDemoData() error = %v, want nil", err)
 	}
 	pool, err := pgxpool.New(t.Context(), databaseURL)
 	if err != nil {
@@ -156,8 +152,8 @@ func TestSeedValidatesItsEnvironment(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			t.Parallel()
 
-			if err := seed(t.Context(), testGetenv(env), io.Discard); err == nil {
-				t.Fatal("seed() error = nil, want a failure")
+			if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err == nil {
+				t.Fatal("seedDemoData() error = nil, want a failure")
 			}
 		})
 	}
@@ -171,7 +167,7 @@ func TestSeedReportsMigrationFailures(t *testing.T) {
 
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
 
-	if err := seed(t.Context(), testGetenv(env), io.Discard); err == nil {
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err == nil {
 		t.Error("seed() over a conflicting schema error = nil, want a failure")
 	}
 }
@@ -181,12 +177,12 @@ func TestSeedReportsAdminFailures(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seed(t.Context(), testGetenv(env), io.Discard); err != nil {
-		t.Fatalf("first seed() error = %v, want nil", err)
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedDemoData() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DROP TABLE auth.users CASCADE")
 
-	if err := seed(t.Context(), testGetenv(env), io.Discard); err == nil {
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err == nil {
 		t.Error("seed() without the users table error = nil, want a failure")
 	}
 }
@@ -196,93 +192,12 @@ func TestSeedReportsPostFailures(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seed(t.Context(), testGetenv(env), io.Discard); err != nil {
-		t.Fatalf("first seed() error = %v, want nil", err)
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedDemoData() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DROP TABLE core.posts CASCADE")
 
-	if err := seed(t.Context(), testGetenv(env), io.Discard); err == nil {
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err == nil {
 		t.Error("seed() without the posts table error = nil, want a failure")
 	}
-}
-
-func TestSeedPostsReportsStoreFailures(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]struct {
-		store post.Store
-		users gouncer.Store
-	}{
-		"admin lookup": {store: stubPostStore{}, users: stubUserStore{err: errStub}},
-		"post lookup":  {store: stubPostStore{byIDErr: errStub}, users: stubUserStore{}},
-		"build":        {store: stubPostStore{byIDErr: post.ErrNotFound}, users: stubUserStore{id: uuid.Nil}},
-		"create": {
-			store: stubPostStore{byIDErr: post.ErrNotFound, createErr: errStub},
-			users: stubUserStore{id: uuid.New()},
-		},
-		"trash": {
-			store: stubPostStore{byIDErr: post.ErrNotFound, trashErr: errStub},
-			users: stubUserStore{id: uuid.New()},
-		},
-	}
-
-	for testName, test := range tests {
-		t.Run(testName, func(t *testing.T) {
-			t.Parallel()
-
-			if err := seedPosts(t.Context(), test.store, test.users); err == nil {
-				t.Error("seedPosts() error = nil, want a failure")
-			}
-		})
-	}
-}
-
-func TestStoreDemoPostRejectsAnUnknownStatus(t *testing.T) {
-	t.Parallel()
-
-	scripted := demoPost{title: "Unknown", status: post.Status("nonsense")}
-
-	err := storeDemoPost(t.Context(), stubPostStore{}, scripted, uuid.New(), uuid.New())
-
-	if err == nil {
-		t.Error("storeDemoPost() with an unknown status error = nil, want a failure")
-	}
-}
-
-// errStub is the failure reported by the seeding stubs.
-var errStub = errors.New("stub failure")
-
-// stubUserStore is a user store returning a scripted admin.
-type stubUserStore struct {
-	gouncer.Store
-	id  uuid.UUID
-	err error
-}
-
-// UserByEmail returns the scripted admin.
-func (s stubUserStore) UserByEmail(_ context.Context, _ string) (gouncer.User, error) {
-	return gouncer.User{ID: s.id}, s.err
-}
-
-// stubPostStore is a post store reporting scripted failures.
-type stubPostStore struct {
-	post.Store
-	byIDErr   error
-	createErr error
-	trashErr  error
-}
-
-// ByID reports the scripted lookup failure.
-func (s stubPostStore) ByID(_ context.Context, _ uuid.UUID) (post.Post, error) {
-	return post.Post{}, s.byIDErr
-}
-
-// Create reports the scripted storage failure.
-func (s stubPostStore) Create(_ context.Context, p post.Post) (post.Post, error) {
-	return p, s.createErr
-}
-
-// Trash reports the scripted trashing failure.
-func (s stubPostStore) Trash(_ context.Context, _ uuid.UUID, _ time.Time) (post.Post, error) {
-	return post.Post{}, s.trashErr
 }
