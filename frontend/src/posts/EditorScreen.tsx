@@ -2,6 +2,7 @@
 
 import { InputControl, Notice, Text } from '@gophenberg/frontend-sdk'
 import {
+	BlockBreadcrumb,
 	BlockCanvas,
 	BlockEditorProvider,
 	BlockList,
@@ -63,7 +64,7 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 					settings={EDITOR_SETTINGS}
 				>
 					<div className="gophenberg-editor">
-						<EditorHeader buffer={buffer} />
+						<EditorHeader buffer={buffer} type={stored.type} />
 						<div className="gophenberg-editor__main">
 							<div className="gophenberg-editor__content">
 								<RestoreBanner
@@ -88,6 +89,9 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 							<div className="gophenberg-editor__sidebar">
 								<EditorSidebar postId={postId} buffer={buffer} />
 							</div>
+						</div>
+						<div className="gophenberg-editor__foot">
+							<BlockBreadcrumb rootLabelText="Post" />
 						</div>
 					</div>
 				</BlockEditorProvider>

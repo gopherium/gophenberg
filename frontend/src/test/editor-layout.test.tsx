@@ -88,12 +88,10 @@ test('writes the title over the column the blocks sit in', async () => {
 	expect(getComputedStyle(title).marginLeft).toBe('auto')
 })
 
-test('keeps the block toolbar in the header, sharing its row', async () => {
+test('leaves the block toolbar to float by its block', async () => {
 	renderAt(EDITOR_PATH)
 	await screen.findByRole('textbox', { name: 'Title' })
 
-	const toolbar = chrome('toolbar')
-
-	expect(chrome('header').contains(toolbar)).toBe(true)
-	expect(getComputedStyle(toolbar).flexGrow).toBe('1')
+	expect(chrome('toolbar')).toBeNull()
+	expect(chrome('header').querySelector('.block-editor-block-toolbar')).toBeNull()
 })

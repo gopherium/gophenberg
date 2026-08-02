@@ -9,8 +9,10 @@
 }
 
 .gophenberg-editor__header {
+	position: relative;
 	display: flex;
 	align-items: center;
+	justify-content: space-between;
 	gap: 8px;
 	height: 46px;
 	flex: 0 0 46px;
@@ -21,10 +23,32 @@
 	border-bottom-color: var(--wpds-color-stroke-surface-neutral);
 }
 
-.gophenberg-editor__toolbar {
-	flex: 1;
-	min-width: 0;
-	overflow-x: auto;
+.gophenberg-editor__document {
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	max-width: 40%;
+}
+
+.gophenberg-editor__document-name {
+	display: inline-block;
+	max-width: 320px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	vertical-align: middle;
+	padding: 4px 12px;
+	border-radius: 4px;
+	background: var(--wpds-color-background-surface-neutral-weak);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.gophenberg-editor__foot {
+	flex: 0 0 auto;
+	padding: 4px 12px;
+	border-top-width: 1px;
+	border-top-style: solid;
+	border-top-color: var(--wpds-color-stroke-surface-neutral);
 }
 
 .gophenberg-editor__main {
