@@ -278,6 +278,26 @@ func TestFeedTakesTheCapFromTheEnvironment(t *testing.T) {
 	}
 }
 
+func TestRegisterRejectsAMalformedItemsCap(t *testing.T) {
+	t.Parallel()
+
+	for _, raw := range []string{"banana", "0", "-3", "2.5"} {
+		values := map[string]string{"GOPHENBERG_FEED_ITEMS": raw}
+
+		plugin, err := feed.Register(sdk.Deps{Posts: &stubPosts{}, Getenv: testEnv(values)})
+
+		if err == nil {
+			t.Errorf("Register() with cap %q error = nil, want a loud refusal", raw)
+		}
+		if plugin != nil {
+			t.Errorf("Register() with cap %q = %v, want nil on failure", raw, plugin)
+		}
+		if err != nil && !strings.Contains(err.Error(), "GOPHENBERG_FEED_ITEMS") {
+			t.Errorf("Register() with cap %q error = %v, want it naming the variable", raw, err)
+		}
+	}
+}
+
 func TestFeedReportsPostsItCouldNotRead(t *testing.T) {
 	t.Parallel()
 

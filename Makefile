@@ -40,6 +40,7 @@ cover:
 	go test -cover $(COVERPKGS) -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
 	@echo "=== merged unit + binary coverage ==="
 	go tool covdata percent -i=$(COVERDATA)/counters
+	@echo
 	@go tool covdata textfmt -i=$(COVERDATA)/counters -o $(COVERDATA)/cover.out
 	@go tool cover -func=$(COVERDATA)/cover.out | tail -1
 

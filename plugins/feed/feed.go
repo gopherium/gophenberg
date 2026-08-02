@@ -6,6 +6,7 @@ package feed
 import (
 	"context"
 	"encoding/xml"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -46,20 +47,27 @@ func Register(deps sdk.Deps) (sdk.Plugin, error) {
 	if title == "" {
 		title = defaultTitle
 	}
+	items, err := itemsFrom(deps.Getenv("GOPHENBERG_FEED_ITEMS"))
+	if err != nil {
+		return nil, err
+	}
 	return &plugin{
 		posts: deps.Posts,
 		title: title,
-		items: itemsFrom(deps.Getenv("GOPHENBERG_FEED_ITEMS")),
+		items: items,
 	}, nil
 }
 
-// itemsFrom returns the cap the given value asks for, or the default.
-func itemsFrom(raw string) int {
+// itemsFrom returns the cap the given value asks for, or the default when it is empty.
+func itemsFrom(raw string) (int, error) {
+	if raw == "" {
+		return defaultItems, nil
+	}
 	items, err := strconv.Atoi(raw)
 	if err != nil || items < 1 {
-		return defaultItems
+		return 0, fmt.Errorf("feed: GOPHENBERG_FEED_ITEMS must be a positive integer, got %q", raw)
 	}
-	return items
+	return items, nil
 }
 
 // ID returns the plugin's identifier.

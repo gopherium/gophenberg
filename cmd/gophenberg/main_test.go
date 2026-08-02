@@ -84,6 +84,34 @@ func TestRunReportsPluginRegistrationFailure(t *testing.T) {
 	}
 }
 
+func TestRegisterPluginsReportsAPluginThatRefusesItsEnvironment(t *testing.T) {
+	t.Parallel()
+
+	env := map[string]string{"GOPHENBERG_FEED_ITEMS": "banana"}
+
+	plugins, err := registerPlugins(sdk.Deps{Getenv: testGetenv(env)})
+
+	if err == nil {
+		t.Fatal("registerPlugins() error = nil, want the feed cap refused")
+	}
+	if plugins != nil {
+		t.Errorf("registerPlugins() = %v, want nil on failure", plugins)
+	}
+}
+
+func TestRegisterPluginsWiresEveryManifestedPlugin(t *testing.T) {
+	t.Parallel()
+
+	plugins, err := registerPlugins(sdk.Deps{Getenv: testGetenv(nil)})
+
+	if err != nil {
+		t.Fatalf("registerPlugins() error = %v, want nil", err)
+	}
+	if len(plugins) != 1 || plugins[0].ID() != "feed" {
+		t.Errorf("registerPlugins() = %v, want the feed plugin alone", plugins)
+	}
+}
+
 func TestRunReportsPluginStartFailure(t *testing.T) {
 	t.Parallel()
 
