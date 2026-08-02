@@ -136,9 +136,13 @@ test('reports a save the server rejected', async () => {
 })
 
 test('says it is saving while the write is in flight', async () => {
+	let release: () => void = () => {}
+	const held = new Promise<void>((resolve) => {
+		release = resolve
+	})
 	server.use(
 		http.patch(`/api/posts/${POST_ID}`, async () => {
-			await new Promise((resolve) => setTimeout(resolve, 300))
+			await held
 			return HttpResponse.json(STORED)
 		}),
 	)
@@ -149,6 +153,8 @@ test('says it is saving while the write is in flight', async () => {
 	await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
 	expect(await screen.findByText('Saving')).toBeInTheDocument()
+	release()
+	await waitFor(() => expect(screen.queryByText('Saving')).not.toBeInTheDocument())
 })
 
 test('reports a refusal that named no reason', async () => {
