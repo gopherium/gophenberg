@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vitest'
 
 import { renderAt } from './render'
 
@@ -22,6 +22,38 @@ beforeEach(() =>
 		),
 	),
 )
+
+test('keeps the users heading while the accounts are on their way', async () => {
+	server.use(http.get('/api/users', () => new Promise(() => {})))
+	renderAt('/users')
+
+	const main = await screen.findByRole('main')
+
+	expect(await within(main).findByRole('heading', { level: 1 })).toHaveTextContent('Users')
+	expect(within(main).getByRole('status')).toBeInTheDocument()
+})
+
+test('keeps the users heading when the accounts cannot be loaded', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(http.get('/api/users', () => HttpResponse.json({}, { status: 500 })))
+	renderAt('/users')
+
+	const alert = await screen.findByRole('alert')
+
+	expect(alert).toHaveTextContent(/could not be loaded/i)
+	const main = screen.getByRole('main')
+	expect(within(main).getByRole('heading', { level: 1 })).toHaveTextContent('Users')
+	expect(within(main).getAllByRole('heading', { level: 1 })).toHaveLength(1)
+})
+
+test('names the new user screen with its only first level heading', async () => {
+	renderAt('/users/new')
+
+	const main = await screen.findByRole('main')
+
+	expect(within(main).getByRole('heading', { level: 1 })).toHaveTextContent('New user')
+	expect(within(main).getAllByRole('heading', { level: 1 })).toHaveLength(1)
+})
 
 test('serves the users screen at /users', async () => {
 	renderAt('/users')

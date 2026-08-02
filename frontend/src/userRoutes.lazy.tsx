@@ -2,12 +2,13 @@
 
 import { createLazyRoute } from '@tanstack/react-router'
 
-import { NewUserRoute, UsersRoute } from './userRoutes'
+import { NewUserScreen } from './users/NewUserScreen'
+import { UsersScreen } from './users/UsersScreen'
 
 export const UsersLazyRoute = createLazyRoute('/users')({
-	component: UsersRoute,
+	component: UsersScreen,
 })
 
 export const NewUserLazyRoute = createLazyRoute('/users/new')({
-	component: NewUserRoute,
+	component: NewUserScreen,
 })
