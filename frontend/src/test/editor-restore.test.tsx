@@ -48,7 +48,7 @@ test('says nothing when the server kept no words', async () => {
 	renderAt(EDITOR_PATH)
 	await screen.findByRole('textbox', { name: 'Title' })
 
-	expect(screen.queryByText(/newer version/i)).not.toBeInTheDocument()
+	expect(screen.queryByText(/unsaved version/i)).not.toBeInTheDocument()
 })
 
 test('says nothing when the kept words are older than the post', async () => {
@@ -64,21 +64,61 @@ test('says nothing when the kept words are older than the post', async () => {
 
 	await waitFor(() => expect(asked).toHaveLength(1))
 
-	expect(screen.queryByText(/newer version/i)).not.toBeInTheDocument()
+	expect(screen.queryByText(/unsaved version/i)).not.toBeInTheDocument()
+})
+
+test('says nothing when the post already holds the kept words', async () => {
+	const asked: string[] = []
+	server.use(
+		http.get(`/api/posts/${storedPost.id}/autosave`, () => {
+			asked.push('read')
+			return HttpResponse.json({
+				...NEWER,
+				title: storedPost.title,
+				content: storedPost.content,
+				excerpt: storedPost.excerpt,
+			})
+		}),
+	)
+	renderAt(EDITOR_PATH)
+	await screen.findByRole('textbox', { name: 'Title' })
+
+	await waitFor(() => expect(asked).toHaveLength(1))
+
+	expect(screen.queryByRole('button', { name: 'Restore' })).not.toBeInTheDocument()
+})
+
+test('says nothing when the kept words trail the post inside one second', async () => {
+	const asked: string[] = []
+	server.use(
+		http.get(`/api/posts/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, updated_at: '2026-07-28T09:00:00.1045Z' }),
+		),
+		http.get(`/api/posts/${storedPost.id}/autosave`, () => {
+			asked.push('read')
+			return HttpResponse.json({ ...NEWER, saved_at: '2026-07-28T09:00:00.104Z' })
+		}),
+	)
+	renderAt(EDITOR_PATH)
+	await screen.findByRole('textbox', { name: 'Title' })
+
+	await waitFor(() => expect(asked).toHaveLength(1))
+
+	expect(screen.queryByRole('button', { name: 'Restore' })).not.toBeInTheDocument()
 })
 
 test('offers the kept words when they are newer than the post', async () => {
 	serveAutosave(NEWER)
 	renderAt(EDITOR_PATH)
 
-	expect(await screen.findByText(/newer version/i)).toBeInTheDocument()
+	expect(await screen.findByText(/unsaved version/i)).toBeInTheDocument()
 	expect(screen.getByRole('button', { name: 'Restore' })).toBeInTheDocument()
 })
 
 test('takes the kept words into the editor when restored', async () => {
 	serveAutosave(NEWER)
 	renderAt(EDITOR_PATH)
-	await screen.findByText(/newer version/i)
+	await screen.findByText(/unsaved version/i)
 
 	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
 
@@ -90,7 +130,7 @@ test('takes the kept words into the editor when restored', async () => {
 test('leaves the post unsaved after a restore so the author can keep it', async () => {
 	serveAutosave(NEWER)
 	renderAt(EDITOR_PATH)
-	await screen.findByText(/newer version/i)
+	await screen.findByText(/unsaved version/i)
 
 	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
 
@@ -105,9 +145,9 @@ test('leaves the post unsaved after a restore so the author can keep it', async 
 test('drops the offer once it is taken', async () => {
 	serveAutosave(NEWER)
 	renderAt(EDITOR_PATH)
-	await screen.findByText(/newer version/i)
+	await screen.findByText(/unsaved version/i)
 
 	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
 
-	await waitFor(() => expect(screen.queryByText(/newer version/i)).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByText(/unsaved version/i)).not.toBeInTheDocument())
 })

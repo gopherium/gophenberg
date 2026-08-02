@@ -7,7 +7,21 @@ import { useState } from 'react'
 import { fetchAutosave } from './api'
 import type { Autosave, PostDetail } from './api'
 
-const MESSAGE = 'The browser kept a newer version of this post.'
+const MESSAGE = 'The browser kept an unsaved version of this post.'
+
+/**
+ * Reports whether the post already holds the kept words.
+ * @param kept - The autosave the server holds.
+ * @param stored - The post as the server last reported it.
+ * @returns Whether the words match.
+ */
+function holdsKeptWords(kept: Autosave, stored: PostDetail): boolean {
+	return (
+		kept.title === stored.title &&
+		kept.content === stored.content &&
+		kept.excerpt === stored.excerpt
+	)
+}
 
 /**
  * Returns the autosave worth offering over a stored post.
@@ -16,10 +30,10 @@ const MESSAGE = 'The browser kept a newer version of this post.'
  * @returns The autosave to offer, or nothing.
  */
 function offerable(kept: Autosave | null | undefined, stored: PostDetail): Autosave | null {
-	if (kept === null || kept === undefined) {
+	if (kept === null || kept === undefined || holdsKeptWords(kept, stored)) {
 		return null
 	}
-	return kept.savedAt > stored.updatedAt ? kept : null
+	return Date.parse(kept.savedAt) > Date.parse(stored.updatedAt) ? kept : null
 }
 
 /**
