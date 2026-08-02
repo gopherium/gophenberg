@@ -43,5 +43,4 @@ export {
 	undo as undoIcon,
 } from '@wordpress/icons'
 export { SnackbarProvider, useSnackbar } from './snackbar'
-export { SidebarNavigationScreen } from './SidebarNavigationScreen'
 export { TextareaControl } from './TextareaControl'

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Notice, SidebarNavigationScreen, Stack } from '@gophenberg/frontend-sdk'
+import { Button, Notice, Stack } from '@gophenberg/frontend-sdk'
+import { NavScreen } from '@gopherium/godmin'
 import { useMutation } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 
@@ -17,12 +18,10 @@ export function PostsSidebar() {
 		onSuccess: (post) => navigate({ to: '/posts/$postId/edit', params: { postId: post.id } }),
 	})
 	return (
-		<SidebarNavigationScreen title="Posts" backTo="/">
+		<NavScreen title="Posts" back={<Link to="/" />}>
 			<Stack direction="column" gap="xs" render={<ul />}>
 				<li>
-					<Link to="/posts" className="gophenberg-nav-screen__entry">
-						All Posts
-					</Link>
+					<Link to="/posts">All Posts</Link>
 				</li>
 				<li>
 					<Button
@@ -39,6 +38,6 @@ export function PostsSidebar() {
 					<Notice.Description>Could not create a draft.</Notice.Description>
 				</Notice.Root>
 			)}
-		</SidebarNavigationScreen>
+		</NavScreen>
 	)
 }

@@ -79,26 +79,3 @@
 	opacity: 0.5;
 }
 
-.gophenberg-nav-screen__title {
-	flex: 1;
-	min-width: 0;
-}
-
-.gophenberg-nav-screen__title:focus {
-	outline: none;
-}
-
-.gophenberg-nav-screen__back {
-	display: inline-flex;
-	color: inherit;
-	border-radius: var(--wpds-border-radius-md);
-}
-
-.gophenberg-nav-screen__back:focus-visible {
-	outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
-	outline-offset: 2px;
-}
-
-.gophenberg-nav-screen__description {
-	color: var(--wpds-color-foreground-content-neutral-weak);
-}

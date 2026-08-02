@@ -22,7 +22,13 @@ test('the posts section replaces the menu with its own drill-down screen', async
 test('the drill-down screen returns to the main menu', async () => {
 	renderAt('/posts')
 
-	expect(await screen.findByRole('link', { name: 'Back' })).toBeInTheDocument()
+	expect(await screen.findByRole('link', { name: 'Back' })).toHaveAttribute('href', '/')
+})
+
+test('the drill-down screen takes the reader to its title on arrival', async () => {
+	renderAt('/posts')
+
+	expect(await screen.findByRole('heading', { name: 'Posts' })).toHaveFocus()
 })
 
 test('the main menu is hidden while the posts section is open', async () => {
