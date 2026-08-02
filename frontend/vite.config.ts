@@ -5,10 +5,20 @@ import { godminDedupe, godminSingleCopy } from '@gopherium/godmin/vite'
 import react from '@vitejs/plugin-react'
 import dsTokenFallbacks from '@wordpress/theme/vite-plugins/vite-ds-token-fallbacks'
 import { defineConfig } from 'vite'
+import { fileURLToPath } from 'node:url'
+
+// The workers @wordpress/upload-media reaches for, stubbed out until the media cycle ships.
+const mediaWorkerStubs = {
+	'@wordpress/vips/worker': fileURLToPath(new URL('./stubs/vips-worker.ts', import.meta.url)),
+	'@wordpress/video-conversion/worker': fileURLToPath(
+		new URL('./stubs/video-conversion-worker.ts', import.meta.url),
+	),
+}
 
 export default defineConfig({
 	plugins: [react(), dsTokenFallbacks(), godminSingleCopy()],
 	resolve: {
+		alias: mediaWorkerStubs,
 		dedupe: [
 			...godminDedupe,
 			'@tanstack/react-query',
