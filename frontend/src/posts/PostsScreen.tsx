@@ -79,24 +79,31 @@ export function PostsScreen() {
 			{posts.isError ? (
 				<ErrorNotice>Could not load posts.</ErrorNotice>
 			) : (
-				<DataViews
-					data={page.items}
-					fields={postFields}
-					actions={actions}
-					view={view}
-					onChangeView={setView}
-					selection={selection}
-					onChangeSelection={setSelection}
-					isLoading={posts.isPending}
-					getItemId={(post) => post.id}
-					searchLabel="Search posts"
-					config={{ perPageSizes: [PER_PAGE] }}
-					paginationInfo={{
-						totalItems: page.total,
-						totalPages: Math.max(1, Math.ceil(page.total / PER_PAGE)),
-					}}
-					defaultLayouts={{ table: {} }}
-				/>
+				<div
+					className="godmin-table-scroll"
+					role="region"
+					aria-label="Posts"
+					tabIndex={0}
+				>
+					<DataViews
+						data={page.items}
+						fields={postFields}
+						actions={actions}
+						view={view}
+						onChangeView={setView}
+						selection={selection}
+						onChangeSelection={setSelection}
+						isLoading={posts.isPending}
+						getItemId={(post) => post.id}
+						searchLabel="Search posts"
+						config={{ perPageSizes: [PER_PAGE] }}
+						paginationInfo={{
+							totalItems: page.total,
+							totalPages: Math.max(1, Math.ceil(page.total / PER_PAGE)),
+						}}
+						defaultLayouts={{ table: {} }}
+					/>
+				</div>
 			)}
 		</Page>
 	)

@@ -35,6 +35,7 @@ export {
 	Stack,
 	Tabs,
 	Text,
+	VisuallyHidden,
 } from '@wordpress/ui'
 export {
 	chevronLeft as backIcon,
