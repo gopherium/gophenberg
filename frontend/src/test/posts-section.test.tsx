@@ -14,7 +14,7 @@ test('the main menu offers the posts section', async () => {
 test('the posts section replaces the menu with its own drill-down screen', async () => {
 	renderAt('/posts')
 
-	expect(await screen.findByRole('heading', { name: 'Posts' })).toBeInTheDocument()
+	expect(await screen.findByRole('heading', { name: 'Posts', level: 2 })).toBeInTheDocument()
 	expect(screen.getByRole('link', { name: 'All Posts' })).toBeInTheDocument()
 	expect(screen.getByRole('button', { name: 'Add New' })).toBeInTheDocument()
 })
@@ -28,13 +28,13 @@ test('the drill-down screen returns to the main menu', async () => {
 test('the drill-down screen takes the reader to its title on arrival', async () => {
 	renderAt('/posts')
 
-	expect(await screen.findByRole('heading', { name: 'Posts' })).toHaveFocus()
+	expect(await screen.findByRole('heading', { name: 'Posts', level: 2 })).toHaveFocus()
 })
 
 test('the main menu is hidden while the posts section is open', async () => {
 	renderAt('/posts')
 
-	await screen.findByRole('heading', { name: 'Posts' })
+	await screen.findByRole('heading', { name: 'Posts', level: 2 })
 
 	expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
 })

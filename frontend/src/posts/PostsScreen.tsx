@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Notice, Stack } from '@gophenberg/frontend-sdk'
 import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 import type { View } from '@gophenberg/frontend-sdk/dataviews'
+import { ErrorNotice, Page } from '@gopherium/godmin'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 
 import { usePostActions, useRefresh } from './actions'
 import type { PostNotice } from './actions'
 import { fetchPostCounts, listPosts } from './api'
-import type { PostCounts } from './api'
+import type { PostCounts, PostPage } from './api'
 import { EmptyTrash } from './EmptyTrash'
 import { postFields } from './fields'
 import { PostsNotice } from './PostsNotice'
 import { StatusViews } from './StatusViews'
 
 const PER_PAGE = 20
+
+const EMPTY_PAGE: PostPage = { items: [], total: 0 }
 
 const INITIAL_VIEW: View = {
 	type: 'table',
@@ -66,68 +68,56 @@ export function PostsScreen() {
 		setSelection([])
 		setView((current) => ({ ...current, page: 1 }))
 	}
-	if (posts.isError) {
-		return (
-			<Notice.Root intent="error" role="alert">
-				<Notice.Description>Could not load posts.</Notice.Description>
-			</Notice.Root>
-		)
-	}
-	const items = posts.data?.items ?? []
-	const total = posts.data?.total ?? 0
+	const page = posts.data ?? EMPTY_PAGE
 	return (
-		<Stack direction="column" gap="md">
-			<PostsHeader
-				counts={counts.data}
-				status={status}
-				onChoose={chooseStatus}
-				onEmptied={refresh}
-			/>
+		<Page
+			title="Posts"
+			actions={status === 'trash' ? <EmptyTrash onEmptied={refresh} /> : undefined}
+		>
+			<StatusRow counts={counts.data} current={status} onSelect={chooseStatus} />
 			{notice !== null && <PostsNotice notice={notice} report={setNotice} />}
-			<DataViews
-				data={items}
-				fields={postFields}
-				actions={actions}
-				view={view}
-				onChangeView={setView}
-				selection={selection}
-				onChangeSelection={setSelection}
-				isLoading={posts.isPending}
-				getItemId={(post) => post.id}
-				searchLabel="Search posts"
-				config={{ perPageSizes: [PER_PAGE] }}
-				paginationInfo={{
-					totalItems: total,
-					totalPages: Math.max(1, Math.ceil(total / PER_PAGE)),
-				}}
-				defaultLayouts={{ table: {} }}
-			/>
-		</Stack>
+			{posts.isError ? (
+				<ErrorNotice>Could not load posts.</ErrorNotice>
+			) : (
+				<DataViews
+					data={page.items}
+					fields={postFields}
+					actions={actions}
+					view={view}
+					onChangeView={setView}
+					selection={selection}
+					onChangeSelection={setSelection}
+					isLoading={posts.isPending}
+					getItemId={(post) => post.id}
+					searchLabel="Search posts"
+					config={{ perPageSizes: [PER_PAGE] }}
+					paginationInfo={{
+						totalItems: page.total,
+						totalPages: Math.max(1, Math.ceil(page.total / PER_PAGE)),
+					}}
+					defaultLayouts={{ table: {} }}
+				/>
+			)}
+		</Page>
 	)
 }
 
 /**
- * Renders the status filter row above the list.
- * @param props - The counts, the current status, and the row handlers.
- * @returns The header row element.
+ * Renders the status filter row, or nothing until the counts arrive.
+ * @param props - The counts, the current status, and the choice handler.
+ * @returns The status row element, or null.
  */
-function PostsHeader({
+function StatusRow({
 	counts,
-	status,
-	onChoose,
-	onEmptied,
+	current,
+	onSelect,
 }: {
 	counts: PostCounts | undefined
-	status: string
-	onChoose: (chosen: string) => void
-	onEmptied: () => Promise<unknown>
+	current: string
+	onSelect: (chosen: string) => void
 }) {
-	return (
-		<Stack direction="row" gap="md" align="center" justify="space-between">
-			{counts !== undefined && (
-				<StatusViews counts={counts} current={status} onSelect={onChoose} />
-			)}
-			{status === 'trash' && <EmptyTrash onEmptied={onEmptied} />}
-		</Stack>
-	)
+	if (counts === undefined) {
+		return null
+	}
+	return <StatusViews counts={counts} current={current} onSelect={onSelect} />
 }

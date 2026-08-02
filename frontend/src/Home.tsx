@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Text } from '@gophenberg/frontend-sdk'
+import { Page } from '@gopherium/godmin'
 
 /**
  * Renders the application's home screen.
- * @returns A Text element displaying the Gophenberg welcome message.
+ * @returns The home screen element.
  */
 export function Home() {
-	return <Text>Welcome to Gophenberg.</Text>
+	return (
+		<Page title="Home">
+			<Text>Welcome to Gophenberg.</Text>
+		</Page>
+	)
 }
