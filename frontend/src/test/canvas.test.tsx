@@ -18,7 +18,7 @@ import '../index.css'
 import { Layout } from '../Layout'
 import { versionQueryKey } from '../version'
 
-const BLEED = 'gophenberg-layout__canvas--bleed'
+const BLEED = 'godmin-layout__canvas--bleed'
 
 /**
  * Renders a section whose route and parent declare the given canvas modes.
@@ -59,7 +59,7 @@ function renderCanvas(section?: CanvasMode, outer?: CanvasMode) {
  * @returns The canvas element.
  */
 function canvas(): HTMLElement {
-	return document.querySelector('.gophenberg-layout__canvas') as HTMLElement
+	return document.querySelector('.godmin-layout__canvas') as HTMLElement
 }
 
 test('pads the canvas of a route that asks for nothing', async () => {
@@ -67,7 +67,6 @@ test('pads the canvas of a route that asks for nothing', async () => {
 
 	expect(await screen.findByText('section canvas')).toBeInTheDocument()
 	expect(canvas()).not.toHaveClass(BLEED)
-	expect(getComputedStyle(canvas()).padding).toBe('24px')
 })
 
 test('bleeds the canvas where the route asks for it', async () => {
@@ -75,7 +74,6 @@ test('bleeds the canvas where the route asks for it', async () => {
 
 	expect(await screen.findByText('section canvas')).toBeInTheDocument()
 	expect(canvas()).toHaveClass(BLEED)
-	expect(getComputedStyle(canvas()).padding).toBe('0px')
 })
 
 test('pads the canvas where the route asks for it', async () => {

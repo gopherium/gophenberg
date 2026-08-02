@@ -13,12 +13,11 @@ test('serves the home screen at the root path', async () => {
 	expect(await screen.findByText(/welcome to gophenberg/i)).toBeInTheDocument()
 })
 
-test('shows the Gophenberg masthead as a heading', async () => {
+test('leaves the heading rank to the screen, not the masthead', async () => {
 	renderAt('/')
 
-	expect(
-		await screen.findByRole('heading', { name: 'Gophenberg' }),
-	).toBeInTheDocument()
+	expect(await screen.findByRole('link', { name: 'Gophenberg' })).toBeInTheDocument()
+	expect(screen.queryByRole('heading', { name: 'Gophenberg' })).toBeNull()
 })
 
 test('renders a navigation entry for every core and plugin section', async () => {

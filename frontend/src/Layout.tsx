@@ -1,58 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Stack, Text, ThemeProvider } from '@gophenberg/frontend-sdk'
-import { AccountPanel } from '@gopherium/react-auth/wpds'
-import { Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { Frame } from '@gopherium/godmin'
+import { useCanvas, useFrameLocation } from '@gopherium/godmin/router'
+import { Outlet } from '@tanstack/react-router'
 
-import { MainMenu } from './menu/MainMenu'
-import { useAppVersion } from './version'
+import { RailContent } from './RailContent'
 
 const CHROME_COLOR = { background: '#1e1e1e' }
 const CANVAS_COLOR = { background: '#ffffff' }
 
 /**
- * Renders the admin layout: a dark navigation chrome holding the branding and
- * either the main menu or the active section's sidebar screen, wrapped around a
- * light canvas showing the active route.
- * @returns The layout element framing the current route.
+ * Renders the admin layout framing the active route.
+ * @returns The layout element.
  */
 export function Layout() {
-	const matches = useRouterState({ select: (state) => state.matches })
-	const nearest = [...matches].reverse()
-	const Sidebar = nearest.find((match) => match.staticData.Sidebar)?.staticData.Sidebar
-	const canvas = nearest.find((match) => match.staticData.canvas)?.staticData.canvas ?? 'padded'
-	const version = useAppVersion().data
 	return (
-		<ThemeProvider color={CHROME_COLOR}>
-			<div className="gophenberg-layout">
-				<div className="gophenberg-layout__sidebar">
-					<Stack direction="column" gap="lg">
-						<Link to="/" className="gophenberg-layout__brand">
-							<Text variant="heading-lg" render={<h1 />}>
-								Gophenberg
-							</Text>
-						</Link>
-						<nav aria-label="Navigation">
-							{Sidebar ? <Sidebar /> : <MainMenu />}
-						</nav>
-					</Stack>
-					<AccountPanel className="gophenberg-layout__account" />
-					{version ? (
-						<Text className="gophenberg-layout__version">v{version}</Text>
-					) : null}
-				</div>
-				<ThemeProvider color={CANVAS_COLOR}>
-					<main
-						className={
-							canvas === 'bleed'
-								? 'gophenberg-layout__canvas gophenberg-layout__canvas--bleed'
-								: 'gophenberg-layout__canvas'
-						}
-					>
-						<Outlet />
-					</main>
-				</ThemeProvider>
-			</div>
-		</ThemeProvider>
+		<Frame.Root
+			location={useFrameLocation()}
+			chromeColor={CHROME_COLOR}
+			canvasColor={CANVAS_COLOR}
+		>
+			<Frame.Rail>
+				<RailContent />
+			</Frame.Rail>
+			<Frame.Canvas canvas={useCanvas()}>
+				<Outlet />
+			</Frame.Canvas>
+		</Frame.Root>
 	)
 }

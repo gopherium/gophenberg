@@ -46,6 +46,6 @@ test('carries none of the admin chrome', async () => {
 	renderAt(EDITOR_PATH)
 	await screen.findByTitle('Editor canvas')
 
-	expect(document.querySelector('.gophenberg-layout')).toBeNull()
-	expect(document.querySelector('.gophenberg-layout__canvas')).toBeNull()
+	expect(document.querySelector('.godmin-layout')).toBeNull()
+	expect(document.querySelector('.godmin-layout__canvas')).toBeNull()
 })

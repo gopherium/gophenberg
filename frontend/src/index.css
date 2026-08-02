@@ -1,84 +1,51 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
-.gophenberg-layout {
-	display: flex;
-	height: 100vh;
-	background: var(--wpds-color-background-surface-neutral-weak);
-	color: var(--wpds-color-foreground-content-neutral);
-}
-
-.gophenberg-layout__sidebar {
-	display: flex;
-	flex-direction: column;
-	flex-shrink: 0;
-	width: 300px;
-	padding: 16px;
-	box-sizing: border-box;
-	overflow-y: auto;
+.godmin-layout__rail {
 	scrollbar-width: thin;
 	scrollbar-color: transparent transparent;
 }
 
-.gophenberg-layout__account {
-	margin-top: auto;
-	padding-top: 16px;
-	border-top: 1px solid var(--wpds-color-stroke-surface-neutral);
-}
-
-.gophenberg-layout__version {
-	padding-top: 8px;
-	color: var(--wpds-color-foreground-content-neutral-weak);
-	font-size: var(--wpds-typography-font-size-sm);
-}
-
-.gophenberg-layout__sidebar:hover,
-.gophenberg-layout__sidebar:focus-within {
+.godmin-layout__rail:hover,
+.godmin-layout__rail:focus-within {
 	scrollbar-color: var(--wpds-color-stroke-surface-neutral-strong) transparent;
 }
 
-.gophenberg-layout__sidebar::-webkit-scrollbar {
+.godmin-layout__rail::-webkit-scrollbar {
 	width: 12px;
 	height: 12px;
 }
 
-.gophenberg-layout__sidebar::-webkit-scrollbar-track {
+.godmin-layout__rail::-webkit-scrollbar-track {
 	background-color: transparent;
 }
 
-.gophenberg-layout__sidebar::-webkit-scrollbar-thumb {
+.godmin-layout__rail::-webkit-scrollbar-thumb {
 	background-color: transparent;
 	border-radius: 8px;
 	border: 3px solid transparent;
 	background-clip: padding-box;
 }
 
-.gophenberg-layout__sidebar:hover::-webkit-scrollbar-thumb,
-.gophenberg-layout__sidebar:focus-within::-webkit-scrollbar-thumb {
+.godmin-layout__rail:hover::-webkit-scrollbar-thumb,
+.godmin-layout__rail:focus-within::-webkit-scrollbar-thumb {
 	background-color: var(--wpds-color-stroke-surface-neutral-strong);
 }
 
-.gophenberg-layout__canvas {
-	display: flex;
-	flex-direction: column;
-	flex: 1;
-	min-width: 0;
-	margin: 16px;
-	padding: 24px;
-	box-sizing: border-box;
-	border-radius: var(--wpds-border-radius-xl);
-	background: var(--wpds-color-background-surface-neutral);
-	color: var(--wpds-color-foreground-content-neutral);
-	box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
-	overflow: hidden;
-}
-
-.gophenberg-layout__canvas--bleed {
-	padding: 0;
-}
-
-.gophenberg-layout__brand {
+.gophenberg-rail__brand {
 	color: inherit;
 	text-decoration: none;
+}
+
+.gophenberg-rail__account {
+	margin-top: auto;
+	padding-top: 16px;
+	border-top: 1px solid var(--wpds-color-stroke-surface-neutral);
+}
+
+.gophenberg-rail__version {
+	padding-top: 8px;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
 }
 
 .gophenberg-menu__item {

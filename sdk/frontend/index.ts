@@ -3,12 +3,11 @@
 import type { AnyRoute } from '@tanstack/react-router'
 import type { ComponentProps, ComponentType, ReactElement } from 'react'
 
-export type CanvasMode = 'padded' | 'bleed'
+export type { CanvasMode } from '@gopherium/godmin'
 
 declare module '@tanstack/react-router' {
 	interface StaticDataRouteOption {
 		Sidebar?: ComponentType
-		canvas?: CanvasMode
 	}
 }
 
@@ -37,7 +36,6 @@ export {
 	Tabs,
 	Text,
 } from '@wordpress/ui'
-export { ThemeProvider } from '@wordpress/theme'
 export {
 	chevronLeft as backIcon,
 	listView as listViewIcon,

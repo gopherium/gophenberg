@@ -49,8 +49,6 @@ test('shows an error when logging out fails', async () => {
 test('omits the account section when no user is present', async () => {
 	renderAt('/', null)
 
-	expect(
-		await screen.findByRole('heading', { name: 'Gophenberg' }),
-	).toBeInTheDocument()
+	expect(await screen.findByRole('link', { name: 'Gophenberg' })).toBeInTheDocument()
 	expect(screen.queryByRole('button', { name: 'Log out' })).toBeNull()
 })
