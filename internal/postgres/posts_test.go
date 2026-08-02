@@ -123,6 +123,27 @@ func TestPostStoreCreateSuffixesTakenSlugs(t *testing.T) {
 	}
 }
 
+func TestPostStoreCreatesPastTheSuffixesItTries(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	slugs := make(map[string]bool)
+
+	const past = 25
+
+	for range past {
+		created := mustCreate(t, store, "", author)
+		if slugs[created.Slug] {
+			t.Fatalf("Slug = %q, want one no other post holds", created.Slug)
+		}
+		slugs[created.Slug] = true
+	}
+
+	if len(slugs) != past {
+		t.Errorf("distinct slugs = %d, want %d", len(slugs), past)
+	}
+}
+
 func TestPostStoreCreateSuffixesUnderConcurrency(t *testing.T) {
 	t.Parallel()
 

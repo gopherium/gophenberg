@@ -48,28 +48,38 @@ func NewPostStore(pool *pgxpool.Pool) *PostStore {
 // Create stores a new post, suffixing its slug until the type accepts it.
 func (s *PostStore) Create(ctx context.Context, p post.Post) (post.Post, error) {
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
-		row, err := s.queries.CreatePost(ctx, db.CreatePostParams{
-			ID:          p.ID,
-			Type:        p.Type,
-			Status:      string(p.Status),
-			Slug:        numberedSlug(p.Slug, attempt),
-			Title:       p.Title,
-			Content:     p.Content,
-			Excerpt:     p.Excerpt,
-			AuthorID:    p.AuthorID,
-			PublishedAt: p.PublishedAt,
-			CreatedAt:   p.CreatedAt,
-			UpdatedAt:   p.UpdatedAt,
-		})
+		created, err := s.create(ctx, p, numberedSlug(p.Slug, attempt))
 		if isSlugTaken(err) {
 			continue
 		}
-		if err != nil {
-			return post.Post{}, fmt.Errorf("postgres: create post: %w", err)
-		}
-		return toPost(row), nil
+		return created, err
 	}
-	return post.Post{}, post.ErrSlugTaken
+	created, err := s.create(ctx, p, identifiedSlug(p.Slug, p.ID))
+	if isSlugTaken(err) {
+		return post.Post{}, post.ErrSlugTaken
+	}
+	return created, err
+}
+
+// create stores the post under slug.
+func (s *PostStore) create(ctx context.Context, p post.Post, slug string) (post.Post, error) {
+	row, err := s.queries.CreatePost(ctx, db.CreatePostParams{
+		ID:          p.ID,
+		Type:        p.Type,
+		Status:      string(p.Status),
+		Slug:        slug,
+		Title:       p.Title,
+		Content:     p.Content,
+		Excerpt:     p.Excerpt,
+		AuthorID:    p.AuthorID,
+		PublishedAt: p.PublishedAt,
+		CreatedAt:   p.CreatedAt,
+		UpdatedAt:   p.UpdatedAt,
+	})
+	if err != nil {
+		return post.Post{}, fmt.Errorf("postgres: create post: %w", err)
+	}
+	return toPost(row), nil
 }
 
 // ByID returns the post with the given id, or [post.ErrNotFound].
@@ -283,6 +293,11 @@ func numberedSlug(slug string, attempt int) string {
 		return slug
 	}
 	return slug + "-" + strconv.Itoa(attempt)
+}
+
+// identifiedSlug returns slug carrying the id of the post holding it.
+func identifiedSlug(slug string, id uuid.UUID) string {
+	return slug + "-" + strings.ReplaceAll(id.String(), "-", "")
 }
 
 // trashSuffix returns the marker appended to a trashed post's slug.
