@@ -32,7 +32,7 @@ const defaultItems = 20
 const postType = "post"
 
 // blockComment matches the delimiters the editor wraps blocks in.
-var blockComment = regexp.MustCompile(`<!-- /?wp:[^>]*-->`)
+var blockComment = regexp.MustCompile(`<!-- /?wp:[\s\S]*?-->`)
 
 // plugin serves published posts as an RSS channel.
 type plugin struct {

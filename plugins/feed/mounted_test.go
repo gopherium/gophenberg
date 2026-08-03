@@ -36,6 +36,53 @@ func TestFeedAnswersThroughTheServerWithoutASession(t *testing.T) {
 	}
 }
 
+// mountedFeedLink returns the channel link the mounted feed serves a peer claiming HTTPS.
+func mountedFeedLink(t *testing.T, trusted []string, peer string) string {
+	t.Helper()
+	posts := &stubPosts{posts: []sdk.Post{samplePost("A Published Post", "<p>Body</p>")}}
+	host := pluginkit.NewHost(mustRegister(t, posts, map[string]string{}))
+	handler := server.NewServer(server.Config{
+		Plugins:           host.Routes(),
+		PluginPublicPaths: host.PublicPaths(),
+		TrustedProxies:    trusted,
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/plugins/feed/rss.xml", nil)
+	request.Host = "example.com"
+	request.RemoteAddr = peer
+	request.Header.Set("X-Forwarded-Proto", "https")
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	return recorder.Body.String()
+}
+
+func TestFeedIgnoresAForwardedProtocolFromAnUntrustedPeer(t *testing.T) {
+	t.Parallel()
+
+	body := mountedFeedLink(t, nil, "203.0.113.5:9999")
+
+	if strings.Contains(body, "https://example.com") {
+		t.Errorf("body = %q, want the spoofed protocol ignored", body)
+	}
+	if !strings.Contains(body, "http://example.com") {
+		t.Errorf("body = %q, want the dialed protocol kept", body)
+	}
+}
+
+func TestFeedHonorsAForwardedProtocolFromATrustedProxy(t *testing.T) {
+	t.Parallel()
+
+	body := mountedFeedLink(t, []string{"10.0.0.0/8"}, "10.1.2.3:9999")
+
+	if !strings.Contains(body, "https://example.com") {
+		t.Errorf("body = %q, want the trusted proxy's protocol honored", body)
+	}
+}
+
 func TestFeedStartsAndStopsWithItsHost(t *testing.T) {
 	t.Parallel()
 

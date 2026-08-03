@@ -5,6 +5,7 @@ package postbridge_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,28 +18,38 @@ import (
 // recordingPostStore serves posts and records the filter it was asked for.
 type recordingPostStore struct {
 	post.Store
-	posts   []post.Post
-	filter  post.Filter
-	listErr error
-	byIDErr error
+	posts        []post.Post
+	current      []post.Post
+	filter       post.Filter
+	listErr      error
+	publishedErr error
 }
 
-// List records the filter and returns the stored posts.
+// List records the filter and returns the stored posts without their content.
 func (s *recordingPostStore) List(_ context.Context, f post.Filter) ([]post.Post, int, error) {
 	s.filter = f
 	if s.listErr != nil {
 		return nil, 0, s.listErr
 	}
-	return s.posts, len(s.posts), nil
+	listed := make([]post.Post, len(s.posts))
+	for i, p := range s.posts {
+		p.Content = ""
+		listed[i] = p
+	}
+	return listed, len(listed), nil
 }
 
-// ByID returns the stored post carrying the given id.
-func (s *recordingPostStore) ByID(_ context.Context, id uuid.UUID) (post.Post, error) {
-	if s.byIDErr != nil {
-		return post.Post{}, s.byIDErr
+// PublishedBySlug returns the stored published post of the given type and slug.
+func (s *recordingPostStore) PublishedBySlug(_ context.Context, postType, slug string) (post.Post, error) {
+	if s.publishedErr != nil {
+		return post.Post{}, s.publishedErr
 	}
-	for _, p := range s.posts {
-		if p.ID == id {
+	serving := s.current
+	if serving == nil {
+		serving = s.posts
+	}
+	for _, p := range serving {
+		if p.Type == postType && p.Slug == slug && p.Status == post.StatusPublished {
 			return p, nil
 		}
 	}
@@ -47,12 +58,17 @@ func (s *recordingPostStore) ByID(_ context.Context, id uuid.UUID) (post.Post, e
 
 // publishedPost returns a published post carrying the given title and content.
 func publishedPost(title, content string) post.Post {
+	return publishedPostAt(title, content, "a-slug")
+}
+
+// publishedPostAt returns a published post carrying the given title, content, and slug.
+func publishedPostAt(title, content, slug string) post.Post {
 	at := time.Now().UTC()
 	return post.Post{
 		ID:          uuid.Must(uuid.NewV7()),
 		Type:        post.TypePost,
 		Status:      post.StatusPublished,
-		Slug:        "a-slug",
+		Slug:        slug,
 		Title:       title,
 		Excerpt:     "An excerpt.",
 		Content:     content,
@@ -148,13 +164,70 @@ func TestReaderReportsContentItCouldNotRead(t *testing.T) {
 	t.Parallel()
 
 	store := &recordingPostStore{
-		posts:   []post.Post{publishedPost("A Post", "")},
-		byIDErr: errors.New("database down"),
+		posts:        []post.Post{publishedPost("A Post", "")},
+		publishedErr: errors.New("database down"),
 	}
 
 	_, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 5)
 
 	if err == nil {
 		t.Fatal("ListPublished() error = nil, want the content failure")
+	}
+}
+
+func TestReaderSanitizesContentBeforeTheSeam(t *testing.T) {
+	t.Parallel()
+
+	stored := publishedPost("A Post",
+		`<!-- wp:paragraph --><p onclick="steal()">Body</p><script>alert(1)</script><!-- /wp:paragraph -->`)
+	store := &recordingPostStore{posts: []post.Post{stored}}
+
+	got, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 5)
+
+	if err != nil {
+		t.Fatalf("ListPublished() error = %v, want nil", err)
+	}
+	if strings.Contains(got[0].Content, "onclick") || strings.Contains(got[0].Content, "alert(1)") {
+		t.Errorf("Content = %q, want the scriptable markup stripped", got[0].Content)
+	}
+	if !strings.Contains(got[0].Content, "<!-- wp:paragraph -->") {
+		t.Errorf("Content = %q, want the block delimiters kept", got[0].Content)
+	}
+}
+
+func TestReaderSkipsAPostUnpublishedWhileItWasReading(t *testing.T) {
+	t.Parallel()
+
+	staying := publishedPostAt("Staying", "<!-- wp:paragraph --><p>Here</p><!-- /wp:paragraph -->", "staying")
+	leaving := publishedPostAt("Leaving", "<!-- wp:paragraph --><p>Gone</p><!-- /wp:paragraph -->", "leaving")
+	store := &recordingPostStore{posts: []post.Post{staying, leaving}, current: []post.Post{staying}}
+
+	got, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 5)
+
+	if err != nil {
+		t.Fatalf("ListPublished() error = %v, want nil", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("ListPublished() returned %d posts, want only the one still published", len(got))
+	}
+	if got[0].ID != staying.ID {
+		t.Errorf("ListPublished()[0] = %q, want %q", got[0].Title, staying.Title)
+	}
+}
+
+func TestReaderSkipsAPostWhoseSlugAnotherPostTook(t *testing.T) {
+	t.Parallel()
+
+	listed := publishedPostAt("Listed", "<!-- wp:paragraph --><p>Old</p><!-- /wp:paragraph -->", "hello")
+	claimed := publishedPostAt("Claimed", "<!-- wp:paragraph --><p>New</p><!-- /wp:paragraph -->", "hello")
+	store := &recordingPostStore{posts: []post.Post{listed}, current: []post.Post{claimed}}
+
+	got, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 5)
+
+	if err != nil {
+		t.Fatalf("ListPublished() error = %v, want nil", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("ListPublished() returned %d posts, want none, since the slug now serves %q", len(got), claimed.Title)
 	}
 }

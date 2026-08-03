@@ -44,6 +44,7 @@ func NewServer(cfg Config) http.Handler {
 	admin := authkit.NewAdmin(cfg.Users)
 	s := &server{auth: auth, users: cfg.Users, posts: cfg.Posts, version: cfg.Version}
 	router := chi.NewRouter()
+	router.Use(trustForwarded(cfg.TrustedProxies))
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
 		Post("/api/auth/login", auth.Login)
 	router.Post("/api/auth/logout", auth.Logout)

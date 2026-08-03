@@ -5,9 +5,11 @@ package postbridge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/publichtml"
 	"github.com/gopherium/gophenberg/sdk"
 )
 
@@ -36,15 +38,29 @@ func (r reader) ListPublished(ctx context.Context, postType string, limit int) (
 	if err != nil {
 		return nil, fmt.Errorf("postbridge: list published posts: %w", err)
 	}
-	published := make([]sdk.Post, len(found))
-	for i, p := range found {
-		withContent, err := r.posts.ByID(ctx, p.ID)
+	published := make([]sdk.Post, 0, len(found))
+	for _, p := range found {
+		withContent, serving, err := r.stillPublished(ctx, p)
 		if err != nil {
 			return nil, fmt.Errorf("postbridge: read published post %s: %w", p.ID, err)
 		}
-		published[i] = toSDKPost(withContent)
+		if serving {
+			published = append(published, toSDKPost(withContent))
+		}
 	}
 	return published, nil
+}
+
+// stillPublished returns the listed post carrying its content, and whether it is still the published one.
+func (r reader) stillPublished(ctx context.Context, listed post.Post) (post.Post, bool, error) {
+	current, err := r.posts.PublishedBySlug(ctx, listed.Type, listed.Slug)
+	if errors.Is(err, post.ErrNotFound) {
+		return post.Post{}, false, nil
+	}
+	if err != nil {
+		return post.Post{}, false, err
+	}
+	return current, current.ID == listed.ID, nil
 }
 
 // toSDKPost maps a stored post to the shape plugins read.
@@ -59,7 +75,7 @@ func toSDKPost(p post.Post) sdk.Post {
 		Slug:        p.Slug,
 		Title:       p.Title,
 		Excerpt:     p.Excerpt,
-		Content:     p.Content,
+		Content:     publichtml.Sanitize(p.Content),
 		PublishedAt: published,
 		UpdatedAt:   p.UpdatedAt,
 	}

@@ -251,6 +251,19 @@ func TestFeedStripsBlockCommentsFromTheContent(t *testing.T) {
 	}
 }
 
+func TestFeedStripsDelimitersCarryingAnAngleBracket(t *testing.T) {
+	t.Parallel()
+
+	content := `<!-- wp:heading {"citation":"a > b"} --><h3>Heading</h3><!-- /wp:heading -->`
+	posts := &stubPosts{posts: []sdk.Post{samplePost("A Post", content)}}
+
+	response := serve(t, mustRegister(t, posts, map[string]string{}))
+
+	if body := response.Body.String(); strings.Contains(body, "wp:") {
+		t.Errorf("feed carries block comments, want them stripped: %s", body)
+	}
+}
+
 func TestFeedAsksOnlyForPublishedPostsUpToItsCap(t *testing.T) {
 	t.Parallel()
 

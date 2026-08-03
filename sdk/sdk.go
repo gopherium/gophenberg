@@ -35,7 +35,7 @@ type Deps struct {
 }
 
 // Post is a published content object as plugins see it: the Content
-// field holds Gutenberg-serialized block HTML.
+// field holds Gutenberg-serialized block HTML, sanitized for public delivery.
 type Post struct {
 	ID          uuid.UUID
 	Type        string
