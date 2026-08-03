@@ -48,6 +48,12 @@ func NewServer(cfg Config) http.Handler {
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
 		Post("/api/auth/login", auth.Login)
 	router.Post("/api/auth/logout", auth.Logout)
+	router.Group(func(content chi.Router) {
+		content.Use(contentHeaders)
+		content.Get("/api/content/v1", s.handleContentHandshake())
+		content.Get("/api/content/v1/posts", s.handleContentList())
+		content.Get("/api/content/v1/posts/{type}/{slug}", s.handleContentPost())
+	})
 	router.Group(func(protected chi.Router) {
 		protected.Use(auth.RequireSession)
 		protected.Get("/api/auth/session", auth.Session)

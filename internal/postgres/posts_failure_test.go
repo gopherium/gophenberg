@@ -60,6 +60,31 @@ func TestPostStoreListReportsARejectedQuery(t *testing.T) {
 	}
 }
 
+func TestPostStoreListServesAPageBeyondWhatAnOffsetHolds(t *testing.T) {
+	t.Parallel()
+
+	store, author := newPostStore(t)
+	mustCreate(t, store, "Only Post", author)
+
+	rows, total, err := store.List(t.Context(), post.Filter{
+		Type:    post.TypePost,
+		OrderBy: post.OrderByDate,
+		Order:   post.OrderDesc,
+		Page:    30000000,
+		PerPage: 100,
+	})
+
+	if err != nil {
+		t.Fatalf("List() on a page past the offset range error = %v, want nil", err)
+	}
+	if len(rows) != 0 {
+		t.Errorf("List() returned %d rows, want none that far out", len(rows))
+	}
+	if total != 1 {
+		t.Errorf("total = %d, want the count of matching posts", total)
+	}
+}
+
 func TestPostStoreReportsExhaustedSlugSuffixes(t *testing.T) {
 	t.Parallel()
 
