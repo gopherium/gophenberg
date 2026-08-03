@@ -26,16 +26,17 @@ var _ post.Store = (*fakePostStore)(nil)
 
 // fakePostStore is an in-memory post store double with per-method error injection.
 type fakePostStore struct {
-	posts      map[uuid.UUID]post.Post
-	lastFilter post.Filter
-	createErr  error
-	byIDErr    error
-	listErr    error
-	updateErr  error
-	trashErr   error
-	restoreErr error
-	deleteErr  error
-	countsErr  error
+	posts        map[uuid.UUID]post.Post
+	lastFilter   post.Filter
+	createErr    error
+	byIDErr      error
+	publishedErr error
+	listErr      error
+	updateErr    error
+	trashErr     error
+	restoreErr   error
+	deleteErr    error
+	countsErr    error
 
 	revisions         []post.Revision
 	revisionsErr      error
@@ -91,6 +92,19 @@ func (s *fakePostStore) ByID(_ context.Context, id uuid.UUID) (post.Post, error)
 	return p, nil
 }
 
+// PublishedBySlug returns the published post of the given type and slug.
+func (s *fakePostStore) PublishedBySlug(_ context.Context, postType, slug string) (post.Post, error) {
+	if s.publishedErr != nil {
+		return post.Post{}, s.publishedErr
+	}
+	for _, p := range s.ordered() {
+		if p.Type == postType && p.Slug == slug && p.Status == post.StatusPublished {
+			return p, nil
+		}
+	}
+	return post.Post{}, post.ErrNotFound
+}
+
 // List returns the stored posts matching the filter's status and search.
 func (s *fakePostStore) List(_ context.Context, f post.Filter) ([]post.Post, int, error) {
 	s.lastFilter = f
@@ -99,6 +113,9 @@ func (s *fakePostStore) List(_ context.Context, f post.Filter) ([]post.Post, int
 	}
 	matched := make([]post.Post, 0, len(s.posts))
 	for _, p := range s.ordered() {
+		if p.Type != f.Type {
+			continue
+		}
 		if f.Status != "" && p.Status != f.Status {
 			continue
 		}

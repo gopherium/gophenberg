@@ -28,6 +28,9 @@ func TestPostStoreReportsDatabaseFailures(t *testing.T) {
 	if _, err := store.ByID(t.Context(), stored.ID); err == nil {
 		t.Error("ByID() on a closed pool error = nil, want a failure")
 	}
+	if _, err := store.PublishedBySlug(t.Context(), post.TypePost, stored.Slug); err == nil {
+		t.Error("PublishedBySlug() on a closed pool error = nil, want a failure")
+	}
 	if _, _, err := store.List(t.Context(), post.Filter{Type: post.TypePost, Page: 1, PerPage: 10}); err == nil {
 		t.Error("List() on a closed pool error = nil, want a failure")
 	}

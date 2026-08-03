@@ -261,6 +261,37 @@ func (q *Queries) GetPost(ctx context.Context, id uuid.UUID) (CorePost, error) {
 	return i, err
 }
 
+const getPublishedPost = `-- name: GetPublishedPost :one
+SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at
+FROM core.posts p
+WHERE p.type = $1 AND p.slug = $2 AND p.status = 'published'
+`
+
+type GetPublishedPostParams struct {
+	Type string
+	Slug string
+}
+
+func (q *Queries) GetPublishedPost(ctx context.Context, arg GetPublishedPostParams) (CorePost, error) {
+	row := q.db.QueryRow(ctx, getPublishedPost, arg.Type, arg.Slug)
+	var i CorePost
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getRevision = `-- name: GetRevision :one
 SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
 FROM core.post_revisions r

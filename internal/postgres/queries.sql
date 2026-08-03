@@ -18,6 +18,12 @@ SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
 FROM core.posts p
 WHERE p.id = @id;
 
+-- name: GetPublishedPost :one
+SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at
+FROM core.posts p
+WHERE p.type = @type AND p.slug = @slug AND p.status = 'published';
+
 -- name: ListPosts :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at

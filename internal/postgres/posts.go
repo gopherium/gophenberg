@@ -99,6 +99,18 @@ func byID(ctx context.Context, queries *db.Queries, id uuid.UUID) (post.Post, er
 	return toPost(row), nil
 }
 
+// PublishedBySlug returns the published post of the given type and slug, or [post.ErrNotFound].
+func (s *PostStore) PublishedBySlug(ctx context.Context, postType, slug string) (post.Post, error) {
+	row, err := s.queries.GetPublishedPost(ctx, db.GetPublishedPostParams{Type: postType, Slug: slug})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return post.Post{}, post.ErrNotFound
+	}
+	if err != nil {
+		return post.Post{}, fmt.Errorf("postgres: get published post: %w", err)
+	}
+	return toPost(row), nil
+}
+
 // toPost maps a stored row to a domain post with UTC timestamps.
 func toPost(row db.CorePost) post.Post {
 	return post.Post{

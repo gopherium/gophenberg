@@ -115,6 +115,7 @@ type Filter struct {
 type Store interface {
 	Create(ctx context.Context, p Post) (Post, error)
 	ByID(ctx context.Context, id uuid.UUID) (Post, error)
+	PublishedBySlug(ctx context.Context, postType, slug string) (Post, error)
 	List(ctx context.Context, f Filter) ([]Post, int, error)
 	Update(ctx context.Context, p Post, expectedUpdatedAt time.Time, snapshot *Revision, revisionCap int) (Post, error)
 	Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Post, error)
