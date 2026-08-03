@@ -48,8 +48,8 @@ github.com/gopherium/gouncer/authkit/postgres v0.2.0 h1:WqILZfoA0Fwf6aaAcN/zURDT
 github.com/gopherium/gouncer/authkit/postgres v0.2.0/go.mod h1:c2pqWGX6L0hjIjq7+1NrGzXI7yE/AP07TYU9QcQlrmY=
 github.com/gopherium/gouncer/authkit/ratelimit v0.1.0 h1:dIx1G4kBMxMJXvnZwJb6iTIRFbZ0+q2tpzWhJYmvCBI=
 github.com/gopherium/gouncer/authkit/ratelimit v0.1.0/go.mod h1:Nezx00JuDgpuM62iF09HIfYD6nE4X22VvciY8wu3W3E=
-github.com/gopherium/pluginkit v0.1.0 h1:pvQAzXr65SBZsTFCJLRWzdXUiPxGuR3A2xLPA++tSVE=
-github.com/gopherium/pluginkit v0.1.0/go.mod h1:7/KK/KzRVYkF0cLXJ8uBEJzMJwmf/xcePjrx/zRl0Qk=
+github.com/gopherium/pluginkit v0.2.0 h1:sb4o77UJGzS3Xtca+tVlR/c4b9Tklqiee3InG2H14gg=
+github.com/gopherium/pluginkit v0.2.0/go.mod h1:7/KK/KzRVYkF0cLXJ8uBEJzMJwmf/xcePjrx/zRl0Qk=
 github.com/gorilla/css v1.0.1 h1:ntNaBIghp6JmvWnxbZKANoLyuXTPZ4cAMlo6RyhlbO8=
 github.com/gorilla/css v1.0.1/go.mod h1:BvnYkspnSzMmwRK+b8/xgNPLiIuNZr6vbZBTPQ2A3b0=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
