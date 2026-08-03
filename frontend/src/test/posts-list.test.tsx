@@ -51,7 +51,7 @@ test('links each title to its editor', async () => {
 
 	const title = await screen.findByRole('link', { name: /Welcome to Gophenberg/ })
 
-	expect(title).toHaveAttribute('href', `/posts/${PUBLISHED.id}/edit`)
+	expect(title).toHaveAttribute('href', `/admin/posts/${PUBLISHED.id}/edit`)
 })
 
 test('marks a post that is not published with its status', async () => {

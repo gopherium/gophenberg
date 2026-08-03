@@ -41,7 +41,7 @@ test('offers a way back to the list', async () => {
 
 	const back = await screen.findByRole('link', { name: 'Back to posts' })
 
-	expect(back).toHaveAttribute('href', '/posts')
+	expect(back).toHaveAttribute('href', '/admin/posts')
 })
 
 test('offers undo and redo, both idle over an untouched post', async () => {

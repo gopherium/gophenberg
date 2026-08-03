@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router'
 import type { RouterHistory } from '@tanstack/react-router'
 
+import { adminBasepath } from './basepath'
 import { Home } from './Home'
 import { Layout } from './Layout'
 import { plugins } from './plugins'
@@ -64,7 +65,7 @@ const routeTree = rootRoute.addChildren([
  * @returns The configured TanStack router bound to the route tree.
  */
 export function createAppRouter(history?: RouterHistory) {
-	return createRouter({ routeTree, history })
+	return createRouter({ routeTree, history, basepath: adminBasepath })
 }
 
 declare module '@tanstack/react-router' {

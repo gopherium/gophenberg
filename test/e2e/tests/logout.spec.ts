@@ -7,7 +7,7 @@ import { credentials } from '../env'
 test.use({ storageState: { cookies: [], origins: [] } })
 
 test('logs out and cannot be restored by reloading', async ({ page }) => {
-	await page.goto('/')
+	await page.goto('/admin/')
 	await page.getByLabel('Email').fill(credentials.email)
 	await page.getByLabel('Password').fill(credentials.password)
 	await page.getByRole('button', { name: 'Log in' }).click()

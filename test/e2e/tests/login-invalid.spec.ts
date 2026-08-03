@@ -7,7 +7,7 @@ import { credentials } from '../env'
 test.use({ storageState: { cookies: [], origins: [] } })
 
 test('rejects a wrong password without starting a session', async ({ page }) => {
-	await page.goto('/')
+	await page.goto('/admin/')
 	await page.getByLabel('Email').fill(credentials.email)
 	await page.getByLabel('Password').fill('not the right password')
 

@@ -8,9 +8,11 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router'
 import { render } from '@testing-library/react'
 
+import { adminBasepath } from '../basepath'
 import { createAppRouter } from '../router'
 import { versionQueryKey } from '../version'
 
+/** Renders the application at an app-relative path with a seeded session. */
 export function renderAt(
 	path: string,
 	user: User | null = defaultUser,
@@ -24,7 +26,7 @@ export function renderAt(
 		client.setQueryData(versionQueryKey, version)
 	}
 	const router = createAppRouter(
-		createMemoryHistory({ initialEntries: [path] }),
+		createMemoryHistory({ initialEntries: [adminBasepath + path] }),
 	)
 	render(
 		<QueryClientProvider client={client}>

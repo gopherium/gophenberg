@@ -5,7 +5,7 @@ import { expect, test as setup } from '@playwright/test'
 import { authFile, credentials } from '../env'
 
 setup('logs in and stores the session', async ({ page }) => {
-	await page.goto('/')
+	await page.goto('/admin/')
 
 	await page.getByLabel('Email').fill(credentials.email)
 	await page.getByLabel('Password').fill(credentials.password)

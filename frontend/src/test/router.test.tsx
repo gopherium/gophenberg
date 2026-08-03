@@ -5,7 +5,12 @@ import { expect, test } from 'vitest'
 
 import { coreNav } from '../menu/coreNav'
 import { plugins } from '../plugins'
+import { createAppRouter } from '../router'
 import { renderAt } from './render'
+
+test('mounts the application under the admin basepath', () => {
+	expect(createAppRouter().options.basepath).toBe('/admin')
+})
 
 test('serves the home screen at the root path', async () => {
 	renderAt('/')

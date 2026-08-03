@@ -22,7 +22,7 @@ test('the posts section replaces the menu with its own drill-down screen', async
 test('the drill-down screen returns to the main menu', async () => {
 	renderAt('/posts')
 
-	expect(await screen.findByRole('link', { name: 'Back' })).toHaveAttribute('href', '/')
+	expect(await screen.findByRole('link', { name: 'Back' })).toHaveAttribute('href', '/admin/')
 })
 
 test('the drill-down screen takes the reader to its title on arrival', async () => {

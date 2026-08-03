@@ -43,7 +43,7 @@ const created: string[] = []
  * @param page - The page to drive.
  */
 async function openNewDraft(page: Page) {
-	await page.goto('/posts')
+	await page.goto('/admin/posts')
 	await page.getByRole('button', { name: 'Add New' }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
 	const id = page.url().match(/posts\/([0-9a-f-]+)\/edit/)?.[1]

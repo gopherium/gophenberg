@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test'
 import { credentials } from '../env'
 
 test('serves the admin shell to a stored session', async ({ page }) => {
-	await page.goto('/')
+	await page.goto('/admin/')
 
 	await expect(page.getByRole('link', { name: 'Gophenberg' })).toBeVisible()
 	await expect(page.getByText('Welcome to Gophenberg.')).toBeVisible()

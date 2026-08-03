@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test'
 const PHONE = { width: 390, height: 844 }
 
 test('pads the canvas and keeps the rail beside it on a desktop', async ({ page }) => {
-	await page.goto('/')
+	await page.goto('/admin/')
 
 	await expect(page.getByRole('navigation')).toBeVisible()
 	await expect(page.getByRole('button', { name: 'Open navigation' })).toBeHidden()
@@ -16,7 +16,7 @@ test('pads the canvas and keeps the rail beside it on a desktop', async ({ page 
 })
 
 test('reads every rail row clearly against the chrome', async ({ page }) => {
-	await page.goto('/posts')
+	await page.goto('/admin/posts')
 	await expect(page.getByRole('link', { name: 'All Posts' })).toBeVisible()
 
 	const rows = await page.locator('.gophenberg-menu__item').evaluateAll((found) =>
@@ -38,7 +38,7 @@ test('reads every rail row clearly against the chrome', async ({ page }) => {
 })
 
 test('spans the posts listing across the canvas', async ({ page }) => {
-	await page.goto('/posts')
+	await page.goto('/admin/posts')
 	await expect(page.getByRole('heading', { level: 1, name: 'Posts' })).toBeVisible()
 
 	const fit = await page.evaluate(() => {
@@ -59,7 +59,7 @@ test('spans the posts listing across the canvas', async ({ page }) => {
 test('folds the rail into a drawer on a phone', async ({ page }) => {
 	await page.setViewportSize(PHONE)
 
-	await page.goto('/')
+	await page.goto('/admin/')
 
 	await expect(page.locator('.godmin-layout__rail')).toHaveCount(0)
 	await page.getByRole('button', { name: 'Open navigation' }).click()
@@ -70,7 +70,7 @@ test('folds the rail into a drawer on a phone', async ({ page }) => {
 test('meets the screen edges on a phone without spilling it', async ({ page }) => {
 	await page.setViewportSize(PHONE)
 
-	await page.goto('/')
+	await page.goto('/admin/')
 
 	const canvas = page.locator('.godmin-layout__canvas')
 	await expect(canvas).toBeVisible()

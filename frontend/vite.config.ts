@@ -7,6 +7,8 @@ import dsTokenFallbacks from '@wordpress/theme/vite-plugins/vite-ds-token-fallba
 import { defineConfig } from 'vite'
 import { fileURLToPath } from 'node:url'
 
+import { adminBasepath } from './src/basepath.js'
+
 // The workers @wordpress/upload-media reaches for, stubbed out until the media cycle ships.
 const mediaWorkerStubs = {
 	'@wordpress/vips/worker': fileURLToPath(new URL('./stubs/vips-worker.ts', import.meta.url)),
@@ -16,6 +18,7 @@ const mediaWorkerStubs = {
 }
 
 export default defineConfig({
+	base: adminBasepath + '/',
 	plugins: [react(), dsTokenFallbacks(), godminSingleCopy()],
 	resolve: {
 		alias: mediaWorkerStubs,

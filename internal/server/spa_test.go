@@ -22,10 +22,23 @@ func spaServer(t *testing.T) http.Handler {
 	})
 }
 
-func TestServesTheSPAAtTheRoot(t *testing.T) {
+func TestAdminWithoutSlashRedirectsToTheSPA(t *testing.T) {
 	t.Parallel()
 
-	recorder := doRequest(t, spaServer(t), http.MethodGet, "/", "")
+	recorder := doRequest(t, spaServer(t), http.MethodGet, "/admin", "")
+
+	if recorder.Code != http.StatusMovedPermanently {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusMovedPermanently)
+	}
+	if got := recorder.Header().Get("Location"); got != "/admin/" {
+		t.Errorf("Location = %q, want %q", got, "/admin/")
+	}
+}
+
+func TestServesTheSPAUnderAdmin(t *testing.T) {
+	t.Parallel()
+
+	recorder := doRequest(t, spaServer(t), http.MethodGet, "/admin/", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -35,10 +48,10 @@ func TestServesTheSPAAtTheRoot(t *testing.T) {
 	}
 }
 
-func TestServesSPAAssets(t *testing.T) {
+func TestServesSPAAssetsUnderAdmin(t *testing.T) {
 	t.Parallel()
 
-	recorder := doRequest(t, spaServer(t), http.MethodGet, "/assets/app.js", "")
+	recorder := doRequest(t, spaServer(t), http.MethodGet, "/admin/assets/app.js", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -48,16 +61,42 @@ func TestServesSPAAssets(t *testing.T) {
 	}
 }
 
-func TestFallsBackToIndexForClientRoutes(t *testing.T) {
+func TestFallsBackToIndexForAdminClientRoutes(t *testing.T) {
 	t.Parallel()
 
-	recorder := doRequest(t, spaServer(t), http.MethodGet, "/posts", "")
+	recorder := doRequest(t, spaServer(t), http.MethodGet, "/admin/posts", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 	if !strings.Contains(recorder.Body.String(), "Gophenberg") {
 		t.Errorf("client route body = %q, want the SPA index.html fallback", recorder.Body.String())
+	}
+}
+
+func TestRootRedirectsToTheAdminSPA(t *testing.T) {
+	t.Parallel()
+
+	recorder := doRequest(t, spaServer(t), http.MethodGet, "/", "")
+
+	if recorder.Code != http.StatusFound {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusFound)
+	}
+	if got := recorder.Header().Get("Location"); got != "/admin/" {
+		t.Errorf("Location = %q, want %q", got, "/admin/")
+	}
+}
+
+func TestUnknownPathRedirectsToTheAdminSPA(t *testing.T) {
+	t.Parallel()
+
+	recorder := doRequest(t, spaServer(t), http.MethodGet, "/some/page", "")
+
+	if recorder.Code != http.StatusFound {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusFound)
+	}
+	if got := recorder.Header().Get("Location"); got != "/admin/" {
+		t.Errorf("Location = %q, want %q", got, "/admin/")
 	}
 }
 

@@ -28,7 +28,7 @@ type Config struct {
 	Plugins map[string]http.Handler
 	// PluginPublicPaths maps a plugin id to its session-exempt paths.
 	PluginPublicPaths map[string][]string
-	// Web serves the single-page app. Nil leaves non-API paths unhandled.
+	// Web serves the single-page app under the admin base path. Nil leaves non-API paths unhandled.
 	Web fs.FS
 	// TrustedProxies lists the CIDR ranges trusted to set X-Forwarded-For.
 	TrustedProxies []string
@@ -73,7 +73,7 @@ func NewServer(cfg Config) http.Handler {
 		router.Mount(prefix, http.StripPrefix(prefix, guarded))
 	}
 	if cfg.Web != nil {
-		router.NotFound(spaHandler(cfg.Web))
+		router.NotFound(fallbackHandler(cfg.Web))
 	}
 	return router
 }
