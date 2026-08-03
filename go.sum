@@ -42,8 +42,8 @@ github.com/gopherium/gouncer v0.1.0 h1:R5y0kmal9+dLmG+tv3PLF2Ya8LFmWzQqUsiOl7bVE
 github.com/gopherium/gouncer v0.1.0/go.mod h1:EZhUDgECayxwut/wq0ITyPTH4bYe7SB8EZMW3s9hpCM=
 github.com/gopherium/gouncer/authkit v0.2.0 h1:JTvWNjGMVjuNkLomK+nkJyRNba4mmjkARAkEy7lJ6MA=
 github.com/gopherium/gouncer/authkit v0.2.0/go.mod h1:UlshoX6DGkXf5hdlUmHNg5rtCmO9VYqCo5kt+Iy8R6Y=
-github.com/gopherium/gouncer/authkit/postgres v0.2.0 h1:WqILZfoA0Fwf6aaAcN/zURDTIVThbK+DFE6l25NWpEc=
-github.com/gopherium/gouncer/authkit/postgres v0.2.0/go.mod h1:c2pqWGX6L0hjIjq7+1NrGzXI7yE/AP07TYU9QcQlrmY=
+github.com/gopherium/gouncer/authkit/postgres v0.3.0 h1:4PURjXtqCLj819AiHljt1E8q+JAfDoUC0ohm7hgRdk4=
+github.com/gopherium/gouncer/authkit/postgres v0.3.0/go.mod h1:c2pqWGX6L0hjIjq7+1NrGzXI7yE/AP07TYU9QcQlrmY=
 github.com/gopherium/gouncer/authkit/ratelimit v0.1.0 h1:dIx1G4kBMxMJXvnZwJb6iTIRFbZ0+q2tpzWhJYmvCBI=
 github.com/gopherium/gouncer/authkit/ratelimit v0.1.0/go.mod h1:Nezx00JuDgpuM62iF09HIfYD6nE4X22VvciY8wu3W3E=
 github.com/gopherium/pluginkit v0.1.0 h1:pvQAzXr65SBZsTFCJLRWzdXUiPxGuR3A2xLPA++tSVE=
@@ -193,8 +193,6 @@ golang.org/x/tools v0.0.0-20191108193012-7d206e10da11/go.mod h1:b+2E5dAYhXwXZwtn
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
 gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
-google.golang.org/genproto v0.0.0-20260729162451-8efbd57d26e0 h1:xJf8e9ReUqiexuIT3OWJkvA4RdgR8K4Hfheq8gaKxIM=
-google.golang.org/genproto v0.0.0-20260729162451-8efbd57d26e0/go.mod h1:0MNk3ibJAyOwDZVlp18knQe3jRyFxpcU06xjxhgjx0M=
 google.golang.org/genproto/googleapis/api v0.0.0-20260727163830-6c54dddc4772 h1:4namukbyF7JY83aWHQwi9J5ugNTnDReLJ9ZcpqOpRB4=
 google.golang.org/genproto/googleapis/api v0.0.0-20260727163830-6c54dddc4772/go.mod h1:1brfde68Npq6+WA75c1EHWPijZEG1kMus61ygPZfn4A=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20260727163830-6c54dddc4772 h1:zuslGE3FGxH0hC6veLvSLME3TZzun9MQzjYwo1CBN+k=
