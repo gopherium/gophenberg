@@ -40,16 +40,18 @@ func adminApp(cfg Config) http.Handler {
 	return spaHandler(cfg.Web)
 }
 
-// publicSite returns the built-in public site, or the JSON 404 when no post store is configured.
+// publicSite returns the built-in public site under the identification headers, or the JSON 404
+// when no post store is configured.
 func publicSite(cfg Config) http.Handler {
-	if cfg.Posts == nil {
-		return http.HandlerFunc(respondNotFound)
+	var site http.Handler = http.HandlerFunc(respondNotFound)
+	if cfg.Posts != nil {
+		site = publicsite.New(publicsite.Config{
+			Posts:   cfg.Posts,
+			Title:   cfg.SiteTitle,
+			Version: cfg.Version,
+		})
 	}
-	return publicsite.New(publicsite.Config{
-		Posts:   cfg.Posts,
-		Title:   cfg.SiteTitle,
-		Version: cfg.Version,
-	})
+	return identify(cfg.Version)(site)
 }
 
 // respondNotFound reports that nothing lives at the address.

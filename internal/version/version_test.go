@@ -19,6 +19,24 @@ func TestVersionIsCleanSemver(t *testing.T) {
 	}
 }
 
+func TestGeneratorNamesTheProductAndItsFeatureVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{in: "1.2.3", want: "Gophenberg 1.2"},
+		{in: "0.0.0", want: "Gophenberg 0.0"},
+		{in: "10.20.30", want: "Gophenberg 10.20"},
+	}
+	for _, tc := range cases {
+		if got := version.Generator(tc.in); got != tc.want {
+			t.Errorf("Generator(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
 func TestMajorMinorDropsThePatch(t *testing.T) {
 	t.Parallel()
 

@@ -16,6 +16,14 @@ func Version() string {
 	return strings.TrimSpace(raw)
 }
 
+// product names the application wherever it identifies itself.
+const product = "Gophenberg"
+
+// Generator returns how the application names itself and its feature version to a reader.
+func Generator(v string) string {
+	return product + " " + MajorMinor(v)
+}
+
 // MajorMinor returns the major and minor parts of a version.
 func MajorMinor(v string) string {
 	parts := strings.SplitN(v, ".", 3)

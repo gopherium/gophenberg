@@ -108,7 +108,7 @@ func New(cfg Config) http.Handler {
 	if title == "" {
 		title = defaultTitle
 	}
-	return &site{posts: cfg.Posts, title: title, generator: version.MajorMinor(cfg.Version)}
+	return &site{posts: cfg.Posts, title: title, generator: version.Generator(cfg.Version)}
 }
 
 // ServeHTTP renders the page the request addresses.
