@@ -3,14 +3,18 @@ import { theme } from 'virtual:gophenberg/theme'
 
 import { GophenbergClient } from '../client.ts'
 import { defaultPostType } from '../kit.ts'
+import { pageNumber } from '../routing.ts'
 
 export const prerender = false
 
 const type = Astro.params.type ?? defaultPostType
-const page = Number.parseInt(Astro.params.page ?? '1', 10)
+const page = pageNumber(Astro.params.page)
+if (page === undefined) {
+	return Astro.rewrite('/404')
+}
 const listing = await new GophenbergClient().listPosts({
 	type,
-	page: Number.isNaN(page) ? 1 : Math.max(page, 1),
+	page,
 	perPage: theme.pagination?.perPage,
 })
 const Archive = theme.layouts.Archive
