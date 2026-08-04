@@ -5,7 +5,7 @@ import { env } from 'node:process'
 /** Where the instance serves its own stylesheets and icon. */
 const assetPath = '/gophenberg'
 
-/** Where the instance serves the feed a page links.  */
+/** Where the instance serves the feed a page links. */
 const feedPath = '/api/plugins/feed/rss.xml'
 
 /**
@@ -13,7 +13,7 @@ const feedPath = '/api/plugins/feed/rss.xml'
  * @returns The origin, empty when the theme shares it.
  */
 function assetOrigin(): string {
-	return (env.GOPHENBERG_ASSET_ORIGIN ?? '').replace(/\/$/, '')
+	return (env.GOPHENBERG_ASSET_ORIGIN ?? '').replace(/\/+$/, '')
 }
 
 /** The addresses a themed page loads the instance's own files from. */

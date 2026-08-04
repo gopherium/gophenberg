@@ -88,6 +88,6 @@ export class GophenbergClient {
 		if (!configured) {
 			throw new Error('gophenberg: no baseUrl was given and GOPHENBERG_API_URL is unset')
 		}
-		return configured.replace(/\/$/, '')
+		return configured.replace(/\/+$/, '')
 	}
 }
