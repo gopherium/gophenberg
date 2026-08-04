@@ -3,7 +3,7 @@
 export { parseBlocks, toBlockNode, verbatimSegments } from './blocks.ts'
 export { GophenbergClient } from './client.ts'
 export { siteAssetUrls } from './assets.ts'
-export { gophenberg, themeModuleId } from './integration.ts'
+export { gophenberg } from './integration.ts'
 export {
 	contentApiPath,
 	defaultPostType,
@@ -13,7 +13,6 @@ export {
 	kitName,
 	kitVersion,
 } from './kit.ts'
-export { buildProfile, profileIssue } from './profile.ts'
 export { defineTheme } from './theme.ts'
 export { gophenbergLoader } from './loader.ts'
 
@@ -23,5 +22,4 @@ export type { Page, Post, PostSummary } from './content.ts'
 export type { SiteAssetUrls } from './assets.ts'
 export type { GophenbergOptions } from './integration.ts'
 export type { LivePost, LoaderOptions, PostCollectionFilter, PostEntryFilter } from './loader.ts'
-export type { ProfileConfig } from './profile.ts'
 export type { GophenbergTheme, ThemeLayouts, ThemeSeo } from './theme.ts'

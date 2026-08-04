@@ -7,8 +7,10 @@
 	"exports": {
 		".": "./index.ts",
 		"./components": "./components/index.ts",
-		"./routes/*": "./routes/*",
-		"./package.json": "./package.json"
+		"./routes/archive.astro": "./routes/archive.astro",
+		"./routes/health.ts": "./routes/health.ts",
+		"./routes/not-found.astro": "./routes/not-found.astro",
+		"./routes/post.astro": "./routes/post.astro"
 	},
 	"scripts": {
 		"cover": "vitest run --coverage",

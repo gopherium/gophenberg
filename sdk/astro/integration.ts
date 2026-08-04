@@ -10,7 +10,7 @@ import { kitName } from './kit.ts'
 import { buildProfile, profileIssue } from './profile.ts'
 
 /** The module the injected routes read the active theme through. */
-export const themeModuleId = 'virtual:gophenberg/theme'
+const themeModuleId = 'virtual:gophenberg/theme'
 
 /** The path a theme lives at when it names none. */
 const defaultThemePath = './src/theme.ts'
