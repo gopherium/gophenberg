@@ -100,8 +100,13 @@ describe('the build profile it pins', () => {
 
 	test('accepts a config that kept it', () => {
 		const done = gophenberg().hooks['astro:config:done']
+		const kept = {
+			output: 'server',
+			image: { service: { entrypoint: 'astro/assets/services/noop' } },
+			vite: { ssr: { noExternal: true } },
+		}
 
-		expect(() => done?.({ config: { output: 'server' } } as never)).not.toThrow()
+		expect(() => done?.({ config: kept } as never)).not.toThrow()
 	})
 })
 

@@ -2,7 +2,20 @@
 
 import { describe, expect, test } from 'vitest'
 
-import { buildProfile, profileComplaint } from '../profile.ts'
+import { buildProfile, profileIssue } from '../profile.ts'
+import type { ProfileConfig } from '../profile.ts'
+
+/**
+ * Returns a config holding every pinned setting.
+ * @returns The config a compliant build resolves to.
+ */
+function heldConfig(): ProfileConfig {
+	return {
+		output: 'server',
+		image: { service: { entrypoint: 'astro/assets/services/noop' } },
+		vite: { ssr: { noExternal: true } },
+	}
+}
 
 describe('buildProfile', () => {
 	test('asks for a server that renders on demand', () => {
@@ -14,30 +27,54 @@ describe('buildProfile', () => {
 	})
 })
 
-describe('profileComplaint', () => {
+describe('profileIssue', () => {
 	test('passes a config that keeps the profile', () => {
-		expect(profileComplaint({ output: 'server', image: { service: { entrypoint: 'astro/assets/services/noop' } } }))
-			.toBeUndefined()
+		expect(profileIssue(heldConfig())).toBeUndefined()
+	})
+
+	test('passes the profile the integration itself applies', () => {
+		expect(profileIssue(buildProfile())).toBeUndefined()
 	})
 
 	test('names the setting when a theme renders statically', () => {
-		const complaint = profileComplaint({ output: 'static' })
+		const issue = profileIssue({ ...heldConfig(), output: 'static' })
 
-		expect(complaint).toContain('output')
-		expect(complaint).toContain('server')
+		expect(issue).toContain('output')
+		expect(issue).toContain('server')
 	})
 
 	test('names the setting when a theme keeps an image service needing native code', () => {
-		const complaint = profileComplaint({
-			output: 'server',
+		const issue = profileIssue({
+			...heldConfig(),
 			image: { service: { entrypoint: 'astro/assets/services/sharp' } },
 		})
 
-		expect(complaint).toContain('image')
-		expect(complaint).toContain('sharp')
+		expect(issue).toContain('image')
+		expect(issue).toContain('sharp')
 	})
 
-	test('accepts a config that names no image service', () => {
-		expect(profileComplaint({ output: 'server' })).toBeUndefined()
+	test('names the setting when a theme names no image service', () => {
+		const issue = profileIssue({ ...heldConfig(), image: undefined })
+
+		expect(issue).toContain('image')
+		expect(issue).toContain('astro/assets/services/noop')
+	})
+
+	test('names the setting when a theme lost the bundling pin', () => {
+		const issue = profileIssue({ ...heldConfig(), vite: { ssr: { noExternal: false } } })
+
+		expect(issue).toContain('noExternal')
+		expect(issue).toContain('true')
+	})
+
+	test('names the adapter when a theme swapped it', () => {
+		const issue = profileIssue({ ...heldConfig(), adapter: { name: '@astrojs/vercel' } })
+
+		expect(issue).toContain('adapter')
+		expect(issue).toContain('@astrojs/node')
+	})
+
+	test('accepts the adapter the kit itself injects', () => {
+		expect(profileIssue({ ...heldConfig(), adapter: { name: '@astrojs/node' } })).toBeUndefined()
 	})
 })

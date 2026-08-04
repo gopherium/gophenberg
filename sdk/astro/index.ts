@@ -13,7 +13,7 @@ export {
 	kitName,
 	kitVersion,
 } from './kit.ts'
-export { buildProfile, profileComplaint } from './profile.ts'
+export { buildProfile, profileIssue } from './profile.ts'
 export { gophenbergLoader } from './loader.ts'
 
 export type { BlockComponentMap, BlockNode, BlockProps, BlockSegment, ParsedBlock } from './blocks.ts'

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import type { AstroIntegration } from 'astro'
 
 import { kitName } from './kit.ts'
-import { buildProfile, profileComplaint } from './profile.ts'
+import { buildProfile, profileIssue } from './profile.ts'
 
 /** The module the injected routes read the active theme through. */
 export const themeModuleId = 'virtual:gophenberg/theme'
@@ -59,9 +59,9 @@ export function gophenberg(options: GophenbergOptions = {}): AstroIntegration {
 				}
 			},
 			'astro:config:done': ({ config }) => {
-				const complaint = profileComplaint(config)
-				if (complaint) {
-					throw new Error(complaint)
+				const issue = profileIssue(config)
+				if (issue) {
+					throw new Error(issue)
 				}
 			},
 		},
