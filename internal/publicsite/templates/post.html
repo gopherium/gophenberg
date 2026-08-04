@@ -1,0 +1,9 @@
+{{define "main"}}
+<article class="gophenberg-site__post">
+<h1 class="gophenberg-site__post-title">{{.Post.Title}}</h1>
+<p class="gophenberg-site__date"><time datetime="{{.Post.DateAttr}}">{{.Post.DateText}}</time></p>
+<div class="gophenberg-site__content">
+{{.Post.Content}}
+</div>
+</article>
+{{end}}

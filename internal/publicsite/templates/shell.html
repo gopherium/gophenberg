@@ -1,0 +1,22 @@
+{{define "shell"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Gophenberg {{.Generator}}">
+<title>{{.Title}}</title>
+<link rel="icon" href="/gophenberg/favicon.svg">
+<link rel="stylesheet" href="/gophenberg/blocks.css">
+<link rel="stylesheet" href="/gophenberg/presets.css">
+<link rel="alternate" type="application/rss+xml" title="{{.SiteTitle}}" href="/api/plugins/feed/rss.xml">
+</head>
+<body class="gophenberg-site">
+<header class="gophenberg-site__masthead">
+<p class="gophenberg-site__brand"><a href="/">{{.SiteTitle}}</a></p>
+</header>
+<main class="gophenberg-site__main">
+{{template "main" .}}
+</main>
+</body>
+</html>
+{{end}}
