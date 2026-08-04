@@ -15,7 +15,6 @@ export interface ThemeLayouts {
 /** How a theme names itself to a reader and a search engine. */
 export interface ThemeSeo {
 	siteName: string
-	titleTemplate?: string
 }
 
 /** What a theme declares to the kit. */
