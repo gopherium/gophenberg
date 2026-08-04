@@ -1,0 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+:root {
+	--wp--preset--color--primary: #2b6cb0;
+	--wp--preset--font-size--large: 1.5rem;
+}
+
+body {
+	font-family: system-ui, sans-serif;
+	margin: 0 auto;
+	max-width: 42rem;
+	padding: 1rem;
+}
+
+.starter-quote {
+	border-left: 4px solid var(--wp--preset--color--primary);
+	margin: 0;
+	padding-left: 1rem;
+}

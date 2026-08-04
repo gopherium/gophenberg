@@ -11,6 +11,7 @@ COPY sdk/frontend ./sdk/frontend
 COPY sdk/astro/package.json ./sdk/astro/package.json
 COPY plugins ./plugins
 COPY test/e2e/package.json ./test/e2e/package.json
+COPY test/theme/package.json ./test/theme/package.json
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @gophenberg/frontend build
 

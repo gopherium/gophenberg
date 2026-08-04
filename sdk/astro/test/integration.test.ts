@@ -97,6 +97,19 @@ describe('the build profile it pins', () => {
 		expect(integrations.map((added) => added.name)).toContain('@astrojs/node')
 	})
 
+	test('names the adapter in the config the build reads, not only in the hooks', () => {
+		const [applied] = runSetup().updates
+
+		expect((applied.adapter as { name: string } | undefined)?.name).toBe('@astrojs/node')
+	})
+
+	test('registers one adapter object, so its hooks run for the config it names', () => {
+		const [applied] = runSetup().updates
+		const integrations = (applied.integrations ?? []) as unknown[]
+
+		expect(integrations).toContain(applied.adapter)
+	})
+
 	test('refuses a config that dropped the profile', () => {
 		const done = gophenberg().hooks['astro:config:done']
 

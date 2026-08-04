@@ -1,0 +1,37 @@
+---
+// SPDX-License-Identifier: Apache-2.0
+
+import type { PostSummary } from '@gophenberg/astro'
+
+import Base from './Base.astro'
+
+interface Props {
+	type: string
+	posts: PostSummary[]
+	total: number
+	page: number
+	perPage: number
+	seo: { siteName: string }
+}
+
+const { posts, page, perPage, total, type, seo } = Astro.props
+const older = page * perPage < total ? `/${type}/page/${page + 1}` : undefined
+const newer = page > 1 ? `/${type}/page/${page - 1}` : undefined
+---
+
+<Base seo={seo} title={page > 1 ? `Page ${page}` : undefined}>
+	<ul>
+		{
+			posts.map((post) => (
+				<li>
+					<a href={`/${post.type}/${post.slug}`}>{post.title}</a>
+					<p>{post.excerpt}</p>
+				</li>
+			))
+		}
+	</ul>
+	<nav>
+		{newer && <a rel="prev" href={newer}>Newer</a>}
+		{older && <a rel="next" href={older}>Older</a>}
+	</nav>
+</Base>

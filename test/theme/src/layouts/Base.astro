@@ -1,0 +1,27 @@
+---
+// SPDX-License-Identifier: Apache-2.0
+
+import { GophenbergHead } from '@gophenberg/astro/components'
+
+interface Props {
+	seo: { siteName: string }
+	title?: string
+}
+
+const { seo, title } = Astro.props
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<GophenbergHead title={title ? `${title} | ${seo.siteName}` : seo.siteName} />
+		<link rel="stylesheet" href="/tokens.css" />
+	</head>
+	<body>
+		<header><a href="/">{seo.siteName}</a></header>
+		<main>
+			<slot />
+		</main>
+	</body>
+</html>

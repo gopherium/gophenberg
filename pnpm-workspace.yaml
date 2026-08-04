@@ -4,6 +4,7 @@ packages:
   - sdk/frontend
   - plugins/*/frontend
   - test/e2e
+  - test/theme
 
 overrides:
   react: ^19.2.8

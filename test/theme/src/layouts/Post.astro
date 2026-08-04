@@ -1,0 +1,25 @@
+---
+// SPDX-License-Identifier: Apache-2.0
+
+import { Blocks } from '@gophenberg/astro/components'
+
+import type { BlockComponentMap, Post } from '@gophenberg/astro'
+
+import Base from './Base.astro'
+
+interface Props {
+	post: Post
+	blocks?: BlockComponentMap
+	seo: { siteName: string }
+}
+
+const { post, blocks, seo } = Astro.props
+---
+
+<Base seo={seo} title={post.title}>
+	<article>
+		<h1>{post.title}</h1>
+		<time datetime={post.published_at}>{post.published_at.slice(0, 10)}</time>
+		<Blocks html={post.content} components={blocks} post={post} />
+	</article>
+</Base>

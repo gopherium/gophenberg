@@ -45,9 +45,11 @@ export function gophenberg(options: GophenbergOptions = {}): AstroIntegration {
 					throw new Error(`gophenberg: no theme at ${themeFile}, name one with gophenberg({ theme })`)
 				}
 				const profile = buildProfile()
+				const adapter = node({ mode: 'standalone' })
 				updateConfig({
 					...profile,
-					integrations: [node({ mode: 'standalone' })],
+					adapter,
+					integrations: [adapter],
 					vite: { ...profile.vite, plugins: [themePlugin(themeFile)] },
 				})
 				for (const route of injectedRoutes) {

@@ -1,0 +1,16 @@
+---
+// SPDX-License-Identifier: Apache-2.0
+
+import { InnerBlocks } from '@gophenberg/astro/components'
+
+import type { BlockProps } from '@gophenberg/astro'
+
+const { block, components, post } = Astro.props as BlockProps
+---
+
+<figure class="starter-quote">
+	<blockquote>
+		<InnerBlocks block={block} components={components} post={post} />
+	</blockquote>
+	{block.attrs?.citation && <figcaption>{block.attrs.citation}</figcaption>}
+</figure>

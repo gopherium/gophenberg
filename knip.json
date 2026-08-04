@@ -4,6 +4,10 @@
 	"workspaces": {
 		"sdk/frontend": {
 			"includeEntryExports": true
+		},
+		"test/theme": {
+			"entry": ["src/theme.ts", "src/pages/**/*.astro"],
+			"ignoreDependencies": ["@astrojs/node"]
 		}
 	}
 }

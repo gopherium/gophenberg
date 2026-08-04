@@ -1,0 +1,20 @@
+{
+	"name": "@gophenberg/theme-starter",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"license": "Apache-2.0",
+	"scripts": {
+		"build": "astro build",
+		"typecheck": "astro check"
+	},
+	"dependencies": {
+		"@astrojs/node": "^11.0.3",
+		"@gophenberg/astro": "workspace:*"
+	},
+	"devDependencies": {
+		"@astrojs/check": "^0.9.10",
+		"astro": "^7.1.6",
+		"typescript": "~6.0.2"
+	}
+}
