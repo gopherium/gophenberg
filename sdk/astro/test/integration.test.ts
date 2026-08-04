@@ -181,7 +181,7 @@ describe('the theme it resolves', () => {
 
 		const code = plugin.load(resolved) as string
 
-		expect(code).toBe(`export { default as theme } from ${JSON.stringify(`${starterRoot}/src/theme.ts`)}`)
+		expect(code).toBe(`export { default as theme } from ${JSON.stringify(join(starterRoot, 'src', 'theme.ts'))}`)
 	})
 
 	test('emits the module the ambient declaration promises the routes', () => {
@@ -200,7 +200,7 @@ describe('the theme it resolves', () => {
 		const [plugin] = runSetup({ theme: './src/custom-theme.ts' }).plugins
 		const resolved = plugin.resolveId('virtual:gophenberg/theme') as string
 
-		expect(plugin.load(resolved)).toContain(`${starterRoot}/src/custom-theme.ts`)
+		expect(plugin.load(resolved)).toContain(join(starterRoot, 'src', 'custom-theme.ts'))
 	})
 
 	test('refuses a theme path that resolves to nothing, naming it', () => {
@@ -209,13 +209,13 @@ describe('the theme it resolves', () => {
 
 	test('decodes a root the file URL had to encode', () => {
 		const root = mkdtempSync(join(tmpdir(), 'maría pérez '))
-		mkdirSync(join(root, 'src'))
-		writeFileSync(join(root, 'src', 'theme.ts'), 'export default {}\n')
 		try {
+			mkdirSync(join(root, 'src'))
+			writeFileSync(join(root, 'src', 'theme.ts'), 'export default {}\n')
 			const [plugin] = runSetup(undefined, root).plugins
 			const resolved = plugin.resolveId('virtual:gophenberg/theme') as string
 
-			expect(plugin.load(resolved)).toContain(`${root}/src/theme.ts`)
+			expect(plugin.load(resolved)).toContain(join(root, 'src', 'theme.ts'))
 		} finally {
 			rmSync(root, { recursive: true, force: true })
 		}

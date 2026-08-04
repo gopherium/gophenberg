@@ -171,4 +171,12 @@ describe('the address the client reads through', () => {
 
 		expect(urls[0]).toBe('https://example.com/api/content/v1/posts?type=post&page=1&per_page=20')
 	})
+
+	test('drops every trailing slash, however many were written', async () => {
+		const { fetch, urls } = fetchReturning(page)
+
+		await new GophenbergClient({ baseUrl: 'https://example.com///', fetch }).listPosts()
+
+		expect(urls[0]).toBe('https://example.com/api/content/v1/posts?type=post&page=1&per_page=20')
+	})
 })

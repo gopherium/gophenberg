@@ -82,4 +82,12 @@ describe('where it points during development', () => {
 		expect(got).toContain('href="http://127.0.0.1:8081/gophenberg/blocks.css"')
 		expect(got).toContain('href="http://127.0.0.1:8081/api/plugins/feed/rss.xml"')
 	})
+
+	test('reaches it however many trailing slashes were written', async () => {
+		vi.stubEnv('GOPHENBERG_ASSET_ORIGIN', 'http://127.0.0.1:8081///')
+
+		const got = await renderHead()
+
+		expect(got).toContain('href="http://127.0.0.1:8081/gophenberg/blocks.css"')
+	})
 })

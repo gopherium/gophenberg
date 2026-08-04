@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import type { AstroComponentFactory } from 'astro/runtime/server/index.js'
 import { describe, expect, expectTypeOf, test } from 'vitest'
 
 import { defineTheme } from '../index.ts'
-
 import type { BlockComponentMap, GophenbergTheme, ThemeLayouts, ThemeSeo } from '../index.ts'
-import type { AstroComponentFactory } from 'astro/runtime/server/index.js'
 
 /** A stand-in for the layout components a real theme compiles. */
 const layout = (() => undefined) as unknown as AstroComponentFactory
