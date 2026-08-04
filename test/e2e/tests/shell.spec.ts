@@ -40,6 +40,7 @@ test('reads every rail row clearly against the chrome', async ({ page }) => {
 test('spans the posts listing across the canvas', async ({ page }) => {
 	await page.goto('/admin/posts')
 	await expect(page.getByRole('heading', { level: 1, name: 'Posts' })).toBeVisible()
+	await expect(page.locator('.dataviews-view-table')).toBeVisible()
 
 	const fit = await page.evaluate(() => {
 		const page = document.querySelector('.godmin-page') as HTMLElement

@@ -9,6 +9,15 @@ export const contentApiPath = '/api/content/v1'
 /** The post type a theme reads when it names none. */
 export const defaultPostType = 'post'
 
+/** The version this kit ships at, tracking the product it is released with. */
+export const kitVersion = '0.0.0'
+
+/** The feature version a themed page reports, the major and minor of [kitVersion]. */
+export const kitFeatureVersion = kitVersion.split('.').slice(0, 2).join('.')
+
+/** How a themed page names what served it. */
+export const generator = `Gophenberg ${kitFeatureVersion}`
+
 /** A block name is a lowercase slug, optionally namespaced by a vendor. */
 const blockName = /^[a-z][a-z0-9-]*(\/[a-z][a-z0-9-]*)?$/
 

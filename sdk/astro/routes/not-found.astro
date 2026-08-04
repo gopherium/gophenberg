@@ -1,0 +1,18 @@
+---
+import { theme } from 'virtual:gophenberg/theme'
+
+export const prerender = false
+
+const NotFound = theme.layouts.NotFound
+---
+
+{
+	NotFound ? (
+		<NotFound seo={theme.seo} />
+	) : (
+		<theme.layouts.Base seo={theme.seo}>
+			<h1>Not found</h1>
+			<p>No page lives at this address.</p>
+		</theme.layouts.Base>
+	)
+}

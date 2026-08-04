@@ -1,0 +1,18 @@
+---
+import { siteAssetUrls } from '../assets.ts'
+import { generator } from '../kit.ts'
+
+interface Props {
+	title?: string
+}
+
+const { title } = Astro.props
+const assets = siteAssetUrls()
+---
+
+<meta name="generator" content={generator} />
+{title && <title>{title}</title>}
+<link rel="icon" href={assets.favicon} />
+<link rel="stylesheet" href={assets.blocks} />
+<link rel="stylesheet" href={assets.presets} />
+<link rel="alternate" type="application/rss+xml" href={assets.feed} />

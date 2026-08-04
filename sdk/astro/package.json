@@ -6,7 +6,9 @@
 	"license": "Apache-2.0",
 	"exports": {
 		".": "./index.ts",
-		"./components": "./components/index.ts"
+		"./components": "./components/index.ts",
+		"./routes/*": "./routes/*",
+		"./package.json": "./package.json"
 	},
 	"scripts": {
 		"cover": "vitest run --coverage",

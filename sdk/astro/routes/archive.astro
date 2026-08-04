@@ -1,0 +1,26 @@
+---
+import { theme } from 'virtual:gophenberg/theme'
+
+import { GophenbergClient } from '../client.ts'
+import { defaultPostType } from '../kit.ts'
+
+export const prerender = false
+
+const type = Astro.params.type ?? defaultPostType
+const page = Number.parseInt(Astro.params.page ?? '1', 10)
+const listing = await new GophenbergClient().listPosts({
+	type,
+	page: Number.isNaN(page) ? 1 : Math.max(page, 1),
+	perPage: theme.pagination?.perPage,
+})
+const Archive = theme.layouts.Archive
+---
+
+<Archive
+	type={type}
+	posts={listing.items}
+	total={listing.total}
+	page={listing.page}
+	perPage={listing.per_page}
+	seo={theme.seo}
+/>
