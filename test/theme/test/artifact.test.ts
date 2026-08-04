@@ -52,6 +52,17 @@ function namedModules(files: string[]): string[] {
 
 const built = existsSync(join(artifact, 'server', 'entry.mjs'))
 
+describe('what a theme directory declares about itself', () => {
+	test('names itself, its version, and the kit it was built against', () => {
+		const manifest = JSON.parse(readFileSync(new URL('../theme.json', import.meta.url), 'utf8')) as Record<
+			string,
+			string
+		>
+
+		expect(manifest).toEqual({ name: 'starter', version: '0.1.0', kit: '^0.1.0' })
+	})
+})
+
 describe.skipIf(!built)('the artifact a theme directory ships', () => {
 	test('holds the server entry the supervisor spawns', () => {
 		expect(existsSync(join(artifact, 'server', 'entry.mjs'))).toBe(true)
