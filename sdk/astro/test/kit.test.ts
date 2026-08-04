@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from 'vitest'
 
-import { contentApiPath, isBlockName, kitName } from '../index.ts'
+import { contentApiPath, isBlockName, kitName } from '../kit.ts'
 
 describe('kit identity', () => {
 	test('names the package a theme depends on', () => {
