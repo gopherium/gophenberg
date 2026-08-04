@@ -8,6 +8,7 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY patches ./patches
 COPY frontend ./frontend
 COPY sdk/frontend ./sdk/frontend
+COPY sdk/astro/package.json ./sdk/astro/package.json
 COPY plugins ./plugins
 COPY test/e2e/package.json ./test/e2e/package.json
 RUN pnpm install --frozen-lockfile

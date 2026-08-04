@@ -1,5 +1,6 @@
 packages:
   - frontend
+  - sdk/astro
   - sdk/frontend
   - plugins/*/frontend
   - test/e2e

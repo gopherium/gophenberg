@@ -1,0 +1,24 @@
+{
+	"name": "@gophenberg/astro",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"license": "Apache-2.0",
+	"exports": {
+		".": "./index.ts",
+		"./components": "./components/index.ts"
+	},
+	"scripts": {
+		"cover": "vitest run --coverage",
+		"typecheck": "tsc -b --force"
+	},
+	"peerDependencies": {
+		"astro": "^7.1.6"
+	},
+	"devDependencies": {
+		"@types/node": "^26.1.1",
+		"@vitest/coverage-v8": "^4.1.10",
+		"typescript": "~6.0.2",
+		"vitest": "^4.1.10"
+	}
+}

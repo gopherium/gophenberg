@@ -52,6 +52,10 @@ jobs:
       - run: pnpm exec knip
         working-directory: ${{ github.workspace }}
       - run: pnpm cover
+      - run: pnpm --filter @gophenberg/astro run typecheck
+        working-directory: ${{ github.workspace }}
+      - run: pnpm --filter @gophenberg/astro cover
+        working-directory: ${{ github.workspace }}
 
   e2e:
     runs-on: ubuntu-latest
