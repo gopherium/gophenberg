@@ -74,32 +74,6 @@ func TestFallsBackToIndexForAdminClientRoutes(t *testing.T) {
 	}
 }
 
-func TestRootRedirectsToTheAdminSPA(t *testing.T) {
-	t.Parallel()
-
-	recorder := doRequest(t, spaServer(t), http.MethodGet, "/", "")
-
-	if recorder.Code != http.StatusFound {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusFound)
-	}
-	if got := recorder.Header().Get("Location"); got != "/admin/" {
-		t.Errorf("Location = %q, want %q", got, "/admin/")
-	}
-}
-
-func TestUnknownPathRedirectsToTheAdminSPA(t *testing.T) {
-	t.Parallel()
-
-	recorder := doRequest(t, spaServer(t), http.MethodGet, "/some/page", "")
-
-	if recorder.Code != http.StatusFound {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusFound)
-	}
-	if got := recorder.Header().Get("Location"); got != "/admin/" {
-		t.Errorf("Location = %q, want %q", got, "/admin/")
-	}
-}
-
 func TestUnknownAPIPathIsNotServedTheSPA(t *testing.T) {
 	t.Parallel()
 

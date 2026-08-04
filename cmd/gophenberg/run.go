@@ -80,6 +80,7 @@ func run(
 		PluginPublicPaths: host.PublicPaths(),
 		Version:           version.Version(),
 		TrustedProxies:    settings.trustedProxies,
+		SiteTitle:         settings.siteTitle,
 	}
 	if settings.webDir != "" {
 		cfg.Web = os.DirFS(settings.webDir)
@@ -100,6 +101,7 @@ type runConfig struct {
 	databaseURL    string
 	addr           string
 	webDir         string
+	siteTitle      string
 	trustedProxies []string
 }
 
@@ -121,6 +123,7 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 		databaseURL:    databaseURL,
 		addr:           addr,
 		webDir:         getenv("GOPHENBERG_WEB_DIR"),
+		siteTitle:      getenv("GOPHENBERG_SITE_TITLE"),
 		trustedProxies: trustedProxies,
 	}, nil
 }

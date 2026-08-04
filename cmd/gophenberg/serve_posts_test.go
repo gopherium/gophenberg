@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,6 +43,57 @@ func TestServedPostsAnswerAnAuthenticatedCaller(t *testing.T) {
 
 	cancel()
 	<-done
+}
+
+func TestServedPublicSiteAnswersWithoutASession(t *testing.T) {
+	t.Parallel()
+
+	address := freeAddress(t)
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
+		"GOPHENBERG_ADDR":         address,
+		"GOPHENBERG_WEB_DIR":      t.TempDir(),
+		"GOPHENBERG_SITE_TITLE":   "Maria's Journal",
+	}
+	if err := seedDemoData(t.Context(), testGetenv(env), new(bytes.Buffer)); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- run(ctx, testGetenv(env), io.Discard, noPlugins) }()
+	base := "http://" + address
+	awaitServer(t, base)
+
+	body := getBody(t, base+"/")
+
+	if !strings.Contains(body, "Maria&#39;s Journal") {
+		t.Errorf("body = %q, want the configured site title", body)
+	}
+	if !strings.Contains(body, "Welcome to Gophenberg") {
+		t.Errorf("body = %q, want the seeded published post", body)
+	}
+
+	cancel()
+	<-done
+}
+
+// getBody returns the body the URL answers a caller holding no session.
+func getBody(t *testing.T, url string) string {
+	t.Helper()
+	response, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("getting %s: %v", url, err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("%s status = %d, want %d", url, response.StatusCode, http.StatusOK)
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("reading %s: %v", url, err)
+	}
+	return string(body)
 }
 
 // freeAddress returns a loopback address nothing is listening on.
