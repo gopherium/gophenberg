@@ -1,21 +1,16 @@
 {
+	"extends": "astro/tsconfigs/base",
 	"compilerOptions": {
 		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.astro.tsbuildinfo",
-		"target": "es2023",
 		"lib": ["ES2023"],
-		"module": "esnext",
 		"types": ["node"],
-		"moduleResolution": "bundler",
-		"allowImportingTsExtensions": true,
-		"verbatimModuleSyntax": true,
+		"allowJs": false,
 		"moduleDetection": "force",
-		"noEmit": true,
 		"strict": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"erasableSyntaxOnly": true,
-		"noFallthroughCasesInSwitch": true,
-		"skipLibCheck": true
+		"noFallthroughCasesInSwitch": true
 	},
 	"include": ["."]
 }

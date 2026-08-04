@@ -1,0 +1,15 @@
+---
+import Block from './Block.astro'
+import type { BlockComponentMap, BlockNode } from '../blocks.ts'
+import type { PostSummary } from '../content.ts'
+
+interface Props {
+	block: BlockNode
+	components?: BlockComponentMap
+	post?: PostSummary
+}
+
+const { block, components = {}, post } = Astro.props
+---
+
+{block.innerBlocks.map((child) => <Block block={child} components={components} post={post} />)}

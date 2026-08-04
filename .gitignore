@@ -2,6 +2,7 @@
 cover.out
 frontend/dist/
 frontend/coverage/
+sdk/astro/.astro/
 .covdata/
 node_modules/
 .env

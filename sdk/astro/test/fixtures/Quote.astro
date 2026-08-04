@@ -1,0 +1,10 @@
+---
+import type { BlockProps } from '../../blocks.ts'
+
+const { block } = Astro.props as BlockProps
+const citation = typeof block.attrs.citation === 'string' ? block.attrs.citation : ''
+---
+
+<figure class="pulled">
+	<figcaption>{citation}</figcaption>
+</figure>

@@ -1,0 +1,28 @@
+---
+import { verbatimSegments } from '../blocks.ts'
+import type { BlockComponentMap, BlockNode } from '../blocks.ts'
+import type { PostSummary } from '../content.ts'
+
+interface Props {
+	block: BlockNode
+	components?: BlockComponentMap
+	post?: PostSummary
+}
+
+const { block, components = {}, post } = Astro.props
+const Override = block.name ? components[block.name] : undefined
+---
+
+{
+	Override ? (
+		<Override block={block} components={components} post={post} />
+	) : (
+		verbatimSegments(block).map((segment) =>
+			'html' in segment ? (
+				<Fragment set:html={segment.html} />
+			) : (
+				<Astro.self block={segment.child} components={components} post={post} />
+			),
+		)
+	)
+}

@@ -10,16 +10,20 @@
 	},
 	"scripts": {
 		"cover": "vitest run --coverage",
-		"typecheck": "tsc -b --force"
+		"typecheck": "tsc -b --force && astro check"
 	},
 	"peerDependencies": {
 		"astro": "^7.1.6"
 	},
 	"devDependencies": {
+		"@astrojs/check": "^0.9.10",
 		"@types/node": "^26.1.1",
 		"@vitest/coverage-v8": "^4.1.10",
 		"astro": "^7.1.6",
 		"typescript": "~6.0.2",
 		"vitest": "^4.1.10"
+	},
+	"dependencies": {
+		"@wordpress/block-serialization-default-parser": "5.52.0"
 	}
 }

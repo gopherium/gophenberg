@@ -1,0 +1,16 @@
+---
+import Block from './Block.astro'
+import { parseBlocks } from '../blocks.ts'
+import type { BlockComponentMap } from '../blocks.ts'
+import type { PostSummary } from '../content.ts'
+
+interface Props {
+	html: string
+	components?: BlockComponentMap
+	post?: PostSummary
+}
+
+const { html, components = {}, post } = Astro.props
+---
+
+{parseBlocks(html).map((block) => <Block block={block} components={components} post={post} />)}

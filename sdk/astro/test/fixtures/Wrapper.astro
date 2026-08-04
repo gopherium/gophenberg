@@ -1,0 +1,10 @@
+---
+import InnerBlocks from '../../components/InnerBlocks.astro'
+import type { BlockProps } from '../../blocks.ts'
+
+const { block, components } = Astro.props as BlockProps
+---
+
+<section class="wrapped">
+	<InnerBlocks block={block} components={components} />
+</section>
