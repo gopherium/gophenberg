@@ -1,0 +1,16 @@
+---
+// SPDX-License-Identifier: Apache-2.0
+
+import Base from './Base.astro'
+
+interface Props {
+	seo: { siteName: string }
+}
+
+const { seo } = Astro.props
+---
+
+<Base seo={seo} title="Not found">
+	<h1>Not found</h1>
+	<p>No page lives at this address. Try the <a href="/">front page</a>.</p>
+</Base>

@@ -1,6 +1,10 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
 	"ignoreBinaries": ["cover", "lint"],
+	"ignoreIssues": {
+		"**/dist/**": ["files"],
+		"**/coverage/**": ["files"]
+	},
 	"workspaces": {
 		"sdk/frontend": {
 			"includeEntryExports": true

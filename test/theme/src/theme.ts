@@ -5,10 +5,11 @@ import { defineTheme } from '@gophenberg/astro'
 import Quote from './blocks/Quote.astro'
 import Archive from './layouts/Archive.astro'
 import Base from './layouts/Base.astro'
+import NotFound from './layouts/NotFound.astro'
 import Post from './layouts/Post.astro'
 
 export default defineTheme({
-	layouts: { Base, Post, Archive },
+	layouts: { Base, Post, Archive, NotFound },
 	blocks: { 'core/quote': Quote },
 	pagination: { perPage: 10 },
 	seo: { siteName: 'Gophenberg Starter' },

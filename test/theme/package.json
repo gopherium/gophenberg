@@ -6,6 +6,7 @@
 	"license": "Apache-2.0",
 	"scripts": {
 		"build": "astro build",
+		"test": "vitest run",
 		"typecheck": "astro check"
 	},
 	"dependencies": {
@@ -15,6 +16,7 @@
 	"devDependencies": {
 		"@astrojs/check": "^0.9.10",
 		"astro": "^7.1.6",
-		"typescript": "~6.0.2"
+		"typescript": "~6.0.2",
+		"vitest": "^4.1.10"
 	}
 }
