@@ -53,7 +53,7 @@ export function gophenberg(options: GophenbergOptions = {}): AstroIntegration {
 				for (const route of injectedRoutes) {
 					injectRoute({
 						pattern: route.pattern,
-						entrypoint: `@gophenberg/astro/routes/${route.entrypoint}`,
+						entrypoint: `${kitName}/routes/${route.entrypoint}`,
 						prerender: false,
 					})
 				}

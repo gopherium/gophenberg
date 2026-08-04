@@ -66,12 +66,20 @@ describe('where it points during development', () => {
 	})
 
 	test('reaches the instance when a theme is served from another origin', async () => {
-		vi.stubEnv('GOPHENBERG_API_URL', 'http://127.0.0.1:8081')
 		vi.stubEnv('GOPHENBERG_ASSET_ORIGIN', 'http://127.0.0.1:8081')
 
 		const got = await renderHead()
 
 		expect(got).toContain('href="http://127.0.0.1:8081/gophenberg/blocks.css"')
 		expect(got).toContain('href="http://127.0.0.1:8081/gophenberg/favicon.svg"')
+	})
+
+	test('reaches it just the same when the origin was written with a trailing slash', async () => {
+		vi.stubEnv('GOPHENBERG_ASSET_ORIGIN', 'http://127.0.0.1:8081/')
+
+		const got = await renderHead()
+
+		expect(got).toContain('href="http://127.0.0.1:8081/gophenberg/blocks.css"')
+		expect(got).toContain('href="http://127.0.0.1:8081/api/plugins/feed/rss.xml"')
 	})
 })

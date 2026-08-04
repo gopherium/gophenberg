@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -9,6 +9,11 @@ import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 
 import { gophenberg } from '../integration.ts'
 import { kitName } from '../kit.ts'
+
+/** The manifest the package ships. */
+const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+	exports: Record<string, string>
+}
 
 /** The root of the fixture theme the setup runs against. */
 let starterRoot: string
@@ -132,9 +137,32 @@ describe('the routes it injects', () => {
 		}
 	})
 
+	test('renders each address through the file that answers it', () => {
+		const served = runSetup().routes.map((route) => [route.pattern, route.entrypoint])
+
+		expect(Object.fromEntries(served)).toEqual({
+			'/': `${kitName}/routes/archive.astro`,
+			'/[type]/page/[page]': `${kitName}/routes/archive.astro`,
+			'/[type]/[slug]': `${kitName}/routes/post.astro`,
+			'/404': `${kitName}/routes/not-found.astro`,
+			'/_gophenberg/health': `${kitName}/routes/health.ts`,
+		})
+	})
+
 	test('points each route at a file the kit ships', () => {
+		const shipped = readdirSync(new URL('../routes', import.meta.url))
+
 		for (const route of runSetup().routes) {
-			expect(route.entrypoint).toContain('@gophenberg/astro/routes/')
+			expect(route.entrypoint.startsWith(`${kitName}/routes/`)).toBe(true)
+			expect(shipped).toContain(route.entrypoint.slice(`${kitName}/routes/`.length))
+		}
+	})
+
+	test('points each route at a file the package exports under the same address', () => {
+		for (const route of runSetup().routes) {
+			const subpath = `.${route.entrypoint.slice(kitName.length)}`
+
+			expect(manifest.exports[subpath]).toBe(subpath)
 		}
 	})
 })
@@ -153,8 +181,19 @@ describe('the theme it resolves', () => {
 
 		const code = plugin.load(resolved) as string
 
-		expect(code).toContain(`${starterRoot}/src/theme.ts`)
-		expect(code).toContain('export')
+		expect(code).toBe(`export { default as theme } from ${JSON.stringify(`${starterRoot}/src/theme.ts`)}`)
+	})
+
+	test('emits the module the ambient declaration promises the routes', () => {
+		const declaration = readFileSync(new URL('../virtual.d.ts', import.meta.url), 'utf8')
+		const [, declaredModule] = declaration.match(/declare module '([^']+)'/) as RegExpMatchArray
+		const [, declaredBinding] = declaration.match(/export const (\w+):/) as RegExpMatchArray
+		const [plugin] = runSetup().plugins
+
+		const resolved = plugin.resolveId(declaredModule) as string
+
+		expect(resolved).toBeTruthy()
+		expect(plugin.load(resolved)).toContain(`default as ${declaredBinding}`)
 	})
 
 	test('reads the path a theme named instead', () => {

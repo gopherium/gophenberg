@@ -6,7 +6,7 @@ export default getViteConfig({
 		environment: 'node',
 		include: ['test/*.test.ts'],
 		coverage: {
-			include: ['*.ts', 'components/**/*.ts'],
+			include: ['**/*.ts'],
 			exclude: ['**/*.d.ts', '**/test/**', '**/node_modules/**'],
 			reporter: ['text'],
 			thresholds: {

@@ -7,7 +7,10 @@ import { describe, expect, test } from 'vitest'
 import { contentApiPath, generator, isBlockName, kitFeatureVersion, kitName, kitVersion } from '../kit.ts'
 
 /** The manifest the package ships. */
-const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
+const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+	name: string
+	version: string
+}
 
 /** The version the product embeds. */
 const productVersion = readFileSync(new URL('../../../internal/version/VERSION', import.meta.url), 'utf8').trim()
@@ -15,6 +18,10 @@ const productVersion = readFileSync(new URL('../../../internal/version/VERSION',
 describe('kit identity', () => {
 	test('names the package a theme depends on', () => {
 		expect(kitName).toBe('@gophenberg/astro')
+	})
+
+	test('names the package the manifest publishes', () => {
+		expect(kitName).toBe(manifest.name)
 	})
 
 	test('addresses the content API a theme reads through', () => {
