@@ -14,6 +14,7 @@ export {
 	kitVersion,
 } from './kit.ts'
 export { buildProfile, profileIssue } from './profile.ts'
+export { defineTheme } from './theme.ts'
 export { gophenbergLoader } from './loader.ts'
 
 export type { BlockComponentMap, BlockNode, BlockProps, BlockSegment, ParsedBlock } from './blocks.ts'

@@ -24,3 +24,12 @@ export interface GophenbergTheme {
 	pagination?: { perPage: number }
 	seo: ThemeSeo
 }
+
+/**
+ * Returns the theme a src/theme.ts default-exports to the kit.
+ * @param theme - What the theme declares.
+ * @returns The declared theme.
+ */
+export function defineTheme(theme: GophenbergTheme): GophenbergTheme {
+	return theme
+}
