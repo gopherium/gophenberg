@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { readFileSync } from 'node:fs'
+
 import { describe, expect, test } from 'vitest'
 
-import { contentApiPath, generator, isBlockName, kitFeatureVersion, kitName } from '../kit.ts'
+import { contentApiPath, generator, isBlockName, kitFeatureVersion, kitName, kitVersion } from '../kit.ts'
+
+/** The manifest the package ships. */
+const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
+
+/** The version the product embeds. */
+const productVersion = readFileSync(new URL('../../../internal/version/VERSION', import.meta.url), 'utf8').trim()
 
 describe('kit identity', () => {
 	test('names the package a theme depends on', () => {
@@ -21,6 +29,16 @@ describe('what a themed page reports', () => {
 
 	test('reports the feature version the readiness probe answers with', () => {
 		expect(kitFeatureVersion).toBe('0.0')
+	})
+})
+
+describe('the version the kit ships at', () => {
+	test('matches the version the package manifest ships', () => {
+		expect(kitVersion).toBe(manifest.version)
+	})
+
+	test('matches the version the product embeds', () => {
+		expect(kitVersion).toBe(productVersion)
 	})
 })
 
