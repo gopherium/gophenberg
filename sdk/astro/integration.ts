@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import node from '@astrojs/node'
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import type { AstroIntegration } from 'astro'
 
 import { kitName } from './kit.ts'
@@ -37,11 +40,15 @@ export function gophenberg(options: GophenbergOptions = {}): AstroIntegration {
 		name: kitName,
 		hooks: {
 			'astro:config:setup': ({ config, updateConfig, injectRoute }) => {
+				const themeFile = fileURLToPath(new URL(themePath, config.root))
+				if (!existsSync(themeFile)) {
+					throw new Error(`gophenberg: no theme at ${themeFile}, name one with gophenberg({ theme })`)
+				}
 				const profile = buildProfile()
 				updateConfig({
 					...profile,
 					integrations: [node({ mode: 'standalone' })],
-					vite: { ...profile.vite, plugins: [themePlugin(config.root, themePath)] },
+					vite: { ...profile.vite, plugins: [themePlugin(themeFile)] },
 				})
 				for (const route of injectedRoutes) {
 					injectRoute({
@@ -63,13 +70,11 @@ export function gophenberg(options: GophenbergOptions = {}): AstroIntegration {
 
 /**
  * Returns the plugin serving the active theme to the injected routes.
- * @param root - The project root the theme path is relative to.
- * @param themePath - Where the theme lives.
+ * @param themeFile - The file the theme lives at.
  * @returns The vite plugin.
  */
-function themePlugin(root: URL, themePath: string) {
+function themePlugin(themeFile: string) {
 	const resolvedId = `\0${themeModuleId}`
-	const themeFile = new URL(themePath, root).pathname
 	return {
 		name: 'gophenberg:theme',
 		resolveId: (id: string) => (id === themeModuleId ? resolvedId : undefined),

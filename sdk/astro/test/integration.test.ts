@@ -1,9 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, test, vi } from 'vitest'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 
 import { gophenberg } from '../integration.ts'
 import { kitName } from '../kit.ts'
+
+/** The root of the fixture theme the setup runs against. */
+let starterRoot: string
+
+beforeAll(() => {
+	starterRoot = mkdtempSync(join(tmpdir(), 'gophenberg-starter-'))
+	mkdirSync(join(starterRoot, 'src'))
+	writeFileSync(join(starterRoot, 'src', 'theme.ts'), 'export default {}\n')
+	writeFileSync(join(starterRoot, 'src', 'custom-theme.ts'), 'export default {}\n')
+})
+
+afterAll(() => {
+	rmSync(starterRoot, { recursive: true, force: true })
+})
 
 /** The theme plugin as the recorder captured it. */
 interface RecordedPlugin {
@@ -25,7 +44,7 @@ interface SetupRecord {
  * @param root - The project root the config reports.
  * @returns What the hook asked the build to do.
  */
-function runSetup(options?: { theme?: string }, root = '/themes/starter'): SetupRecord {
+function runSetup(options?: { theme?: string }, root = starterRoot): SetupRecord {
 	const record: SetupRecord = { updates: [], routes: [], plugins: [] }
 	const updateConfig = vi.fn((update: Record<string, unknown>) => {
 		record.updates.push(update)
@@ -38,7 +57,7 @@ function runSetup(options?: { theme?: string }, root = '/themes/starter'): Setup
 	})
 	const setup = gophenberg(options).hooks['astro:config:setup']
 	setup?.({
-		config: { root: new URL(`file://${root}/`) },
+		config: { root: pathToFileURL(`${root}/`) },
 		updateConfig,
 		injectRoute,
 	} as never)
@@ -129,7 +148,7 @@ describe('the theme it resolves', () => {
 
 		const code = plugin.load(resolved) as string
 
-		expect(code).toContain('/themes/starter/src/theme.ts')
+		expect(code).toContain(`${starterRoot}/src/theme.ts`)
 		expect(code).toContain('export')
 	})
 
@@ -137,7 +156,25 @@ describe('the theme it resolves', () => {
 		const [plugin] = runSetup({ theme: './src/custom-theme.ts' }).plugins
 		const resolved = plugin.resolveId('virtual:gophenberg/theme') as string
 
-		expect(plugin.load(resolved)).toContain('/themes/starter/src/custom-theme.ts')
+		expect(plugin.load(resolved)).toContain(`${starterRoot}/src/custom-theme.ts`)
+	})
+
+	test('refuses a theme path that resolves to nothing, naming it', () => {
+		expect(() => runSetup(undefined, '/themes/vanished')).toThrow('/themes/vanished/src/theme.ts')
+	})
+
+	test('decodes a root the file URL had to encode', () => {
+		const root = mkdtempSync(join(tmpdir(), 'maría pérez '))
+		mkdirSync(join(root, 'src'))
+		writeFileSync(join(root, 'src', 'theme.ts'), 'export default {}\n')
+		try {
+			const [plugin] = runSetup(undefined, root).plugins
+			const resolved = plugin.resolveId('virtual:gophenberg/theme') as string
+
+			expect(plugin.load(resolved)).toContain(`${root}/src/theme.ts`)
+		} finally {
+			rmSync(root, { recursive: true, force: true })
+		}
 	})
 
 	test('leaves every other module alone', () => {
