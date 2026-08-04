@@ -16,12 +16,14 @@ import (
 // adminPrefix is the URL prefix the admin single-page app is served under.
 const adminPrefix = "/admin"
 
-// fallbackHandler routes unhandled paths to the JSON 404, the admin app, or the public site.
-func fallbackHandler(admin, public http.Handler) http.HandlerFunc {
+// fallbackHandler routes unhandled paths to the JSON 404, the admin app, the renderer, or the theme.
+func fallbackHandler(admin, renderer, public http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if handler := reservedHandler(r.URL.Path, renderer); handler != nil {
+			handler.ServeHTTP(w, r)
+			return
+		}
 		switch {
-		case reserved(r.URL.Path, "/api"), reserved(r.URL.Path, assetPrefix):
-			respondNotFound(w, r)
 		case r.URL.Path == adminPrefix:
 			http.Redirect(w, r, adminPrefix+"/", http.StatusMovedPermanently)
 		case strings.HasPrefix(r.URL.Path, adminPrefix+"/"):
@@ -30,6 +32,17 @@ func fallbackHandler(admin, public http.Handler) http.HandlerFunc {
 			public.ServeHTTP(w, r)
 		}
 	}
+}
+
+// reservedHandler returns what answers a path a theme may never serve, or nothing when it may.
+func reservedHandler(path string, renderer http.Handler) http.Handler {
+	switch {
+	case reserved(path, "/api"), reserved(path, assetPrefix):
+		return http.HandlerFunc(respondNotFound)
+	case reserved(path, themePrefix):
+		return renderer
+	}
+	return nil
 }
 
 // servesAFile reports whether name is a file the web root holds.
@@ -51,18 +64,17 @@ func adminApp(cfg Config) http.Handler {
 	return spaHandler(cfg.Web)
 }
 
-// publicSite returns the built-in public site under the identification headers, or the JSON 404
-// when no post store is configured.
-func publicSite(cfg Config) http.Handler {
-	var site http.Handler = http.HandlerFunc(respondNotFound)
-	if cfg.Posts != nil {
-		site = publicsite.New(publicsite.Config{
-			Posts:   cfg.Posts,
-			Title:   cfg.SiteTitle,
-			Version: cfg.Version,
-		})
+// builtInSite returns the renderer serving the public site, or the JSON 404 when no store is
+// configured.
+func builtInSite(cfg Config) http.Handler {
+	if cfg.Posts == nil {
+		return http.HandlerFunc(respondNotFound)
 	}
-	return identify(cfg.Version)(site)
+	return publicsite.New(publicsite.Config{
+		Posts:   cfg.Posts,
+		Title:   cfg.SiteTitle,
+		Version: cfg.Version,
+	})
 }
 
 // respondNotFound reports that nothing lives at the address.

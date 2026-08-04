@@ -6,6 +6,7 @@ package server
 import (
 	"io/fs"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -34,6 +35,10 @@ type Config struct {
 	SiteTitle string
 	// TrustedProxies lists the CIDR ranges trusted to set X-Forwarded-For.
 	TrustedProxies []string
+	// Theme serves the public site while it is healthy. Nil leaves the built-in renderer serving.
+	Theme Theme
+	// ThemeTimeout is how long a theme has to begin answering. Zero applies the default.
+	ThemeTimeout time.Duration
 	// Version is the application version reported at /api/version.
 	Version string
 }
@@ -82,7 +87,10 @@ func NewServer(cfg Config) http.Handler {
 		router.Mount(prefix, http.StripPrefix(prefix, guarded))
 	}
 	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web))
-	router.NotFound(fallbackHandler(adminApp(cfg), publicSite(cfg)))
+	site := builtInSite(cfg)
+	renderer := identify(cfg.Version)(site)
+	public := identify(cfg.Version)(themedSite(cfg.Theme, site, cfg.ThemeTimeout))
+	router.NotFound(fallbackHandler(adminApp(cfg), renderer, public))
 	return router
 }
 

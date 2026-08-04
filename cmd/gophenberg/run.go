@@ -40,18 +40,11 @@ func run(
 		return err
 	}
 
-	pool, err := pgxpool.New(ctx, settings.databaseURL)
+	pool, err := openDatabase(ctx, settings.databaseURL)
 	if err != nil {
-		return fmt.Errorf("parse database url: %w", err)
+		return err
 	}
 	defer pool.Close()
-
-	if err := authkitpg.Migrate(ctx, settings.databaseURL); err != nil {
-		return err
-	}
-	if err := postgres.Migrate(ctx, settings.databaseURL); err != nil {
-		return err
-	}
 
 	userStore := authkitpg.NewUserStore(pool)
 	reaper := authkit.NewReaper(userStore, authkit.ReaperConfig{Logger: logger})
@@ -73,6 +66,12 @@ func run(
 		return fmt.Errorf("start plugins: %w", err)
 	}
 
+	theme, stopTheme, err := startTheme(settings, logger)
+	if err != nil {
+		return err
+	}
+	defer stopTheme()
+
 	cfg := server.Config{
 		Users:             userStore,
 		Posts:             postStore,
@@ -81,6 +80,7 @@ func run(
 		Version:           version.Version(),
 		TrustedProxies:    settings.trustedProxies,
 		SiteTitle:         settings.siteTitle,
+		Theme:             theme,
 	}
 	if settings.webDir != "" {
 		cfg.Web = os.DirFS(settings.webDir)
@@ -96,6 +96,23 @@ func run(
 	return serveUntilDone(ctx, httpServer, host, logger)
 }
 
+// openDatabase returns a migrated connection pool for the database at url.
+func openDatabase(ctx context.Context, url string) (*pgxpool.Pool, error) {
+	pool, err := pgxpool.New(ctx, url)
+	if err != nil {
+		return nil, fmt.Errorf("parse database url: %w", err)
+	}
+	if err := authkitpg.Migrate(ctx, url); err != nil {
+		pool.Close()
+		return nil, err
+	}
+	if err := postgres.Migrate(ctx, url); err != nil {
+		pool.Close()
+		return nil, err
+	}
+	return pool, nil
+}
+
 // runConfig carries the environment-derived settings of the server.
 type runConfig struct {
 	databaseURL    string
@@ -103,6 +120,9 @@ type runConfig struct {
 	webDir         string
 	siteTitle      string
 	trustedProxies []string
+	themesDir      string
+	theme          string
+	nodeBin        string
 }
 
 // loadRunConfig reads the server settings from the environment.
@@ -119,12 +139,19 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	if err != nil {
 		return runConfig{}, err
 	}
+	nodeBin := getenv("GOPHENBERG_NODE_BIN")
+	if nodeBin == "" {
+		nodeBin = "node"
+	}
 	return runConfig{
 		databaseURL:    databaseURL,
 		addr:           addr,
 		webDir:         getenv("GOPHENBERG_WEB_DIR"),
 		siteTitle:      getenv("GOPHENBERG_SITE_TITLE"),
 		trustedProxies: trustedProxies,
+		themesDir:      getenv("GOPHENBERG_THEMES_DIR"),
+		theme:          getenv("GOPHENBERG_THEME"),
+		nodeBin:        nodeBin,
 	}, nil
 }
 
