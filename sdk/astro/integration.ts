@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import node from '@astrojs/node'
 import type { AstroIntegration } from 'astro'
 
 import { kitName } from './kit.ts'
@@ -39,6 +40,7 @@ export function gophenberg(options: GophenbergOptions = {}): AstroIntegration {
 				const profile = buildProfile()
 				updateConfig({
 					...profile,
+					integrations: [node({ mode: 'standalone' })],
 					vite: { ...profile.vite, plugins: [themePlugin(config.root, themePath)] },
 				})
 				for (const route of injectedRoutes) {

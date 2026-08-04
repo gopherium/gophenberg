@@ -66,6 +66,13 @@ describe('the build profile it pins', () => {
 		expect((applied.vite as { ssr: { noExternal: boolean } }).ssr.noExternal).toBe(true)
 	})
 
+	test('brings the node adapter the artifact runs on', () => {
+		const [applied] = runSetup().updates
+		const integrations = (applied.integrations ?? []) as { name: string }[]
+
+		expect(integrations.map((added) => added.name)).toContain('@astrojs/node')
+	})
+
 	test('refuses a config that dropped the profile', () => {
 		const done = gophenberg().hooks['astro:config:done']
 
