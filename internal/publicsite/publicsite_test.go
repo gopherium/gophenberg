@@ -264,6 +264,19 @@ func TestSiteServesAPageBeyondTheLastAsEmpty(t *testing.T) {
 	}
 }
 
+func TestSiteOffersNoOlderPageBeyondTheLast(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := siteWith(publishedPost("A Post", "a-post", blockMarkup, time.Now().UTC()))
+
+	for _, path := range []string{"/post/page/2", "/post/page/99", "/post/page/461168601842738791"} {
+		body := get(t, handler, path).Body.String()
+		if strings.Contains(body, "Older posts") {
+			t.Errorf("GET %s body = %q, want no older page past the last", path, body)
+		}
+	}
+}
+
 func TestSiteEscapesWhatAnAuthorTyped(t *testing.T) {
 	t.Parallel()
 

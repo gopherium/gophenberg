@@ -81,6 +81,7 @@ func NewServer(cfg Config) http.Handler {
 		guarded := pluginkit.Protect(handler, cfg.PluginPublicPaths[id], auth.RequireSession)
 		router.Mount(prefix, http.StripPrefix(prefix, guarded))
 	}
+	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web))
 	router.NotFound(fallbackHandler(adminApp(cfg), publicSite(cfg)))
 	return router
 }

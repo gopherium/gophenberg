@@ -85,6 +85,8 @@ func TestServerKeepsEachRouteClassToItself(t *testing.T) {
 		{path: "/", status: http.StatusOK, want: "A Test Site"},
 		{path: "/post/hello-world", status: http.StatusOK, want: "A Published Post"},
 		{path: "/api/unknown", status: http.StatusNotFound, want: `"error"`, absent: "A Test Site"},
+		{path: "/api", status: http.StatusNotFound, want: `"error"`, absent: "A Test Site"},
+		{path: "/gophenberg", status: http.StatusNotFound, want: "", absent: "A Test Site"},
 		{path: "/api/content/v1", status: http.StatusOK, want: `"api":1`, absent: "A Test Site"},
 		{path: "/admin/", status: http.StatusOK, want: "<title>Admin</title>"},
 		{path: "/admin/posts", status: http.StatusOK, want: "<title>Admin</title>"},

@@ -248,7 +248,7 @@ func publishedAt(p post.Post) time.Time {
 
 // olderLink returns the address of the page after this one, empty at the last.
 func olderLink(postType string, page, total int) string {
-	if page*postsPerPage >= total {
+	if page >= (total+postsPerPage-1)/postsPerPage {
 		return ""
 	}
 	return "/" + postType + "/page/" + strconv.Itoa(page+1)

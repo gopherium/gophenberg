@@ -59,6 +59,7 @@ func TestTheAPIAndTheAdminStayUnbranded(t *testing.T) {
 		"/api/content/v1/posts/post/hello-world",
 		"/api/version",
 		"/api/unknown",
+		"/api",
 		"/admin/",
 		"/admin/posts",
 		"/admin/assets/app.js",

@@ -74,6 +74,22 @@ func TestFallsBackToIndexForAdminClientRoutes(t *testing.T) {
 	}
 }
 
+func TestADirectoryUnderTheSPAFallsBackToTheApp(t *testing.T) {
+	t.Parallel()
+
+	recorder := doRequest(t, spaServer(t), http.MethodGet, "/admin/assets/", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d rather than a redirect", recorder.Code, http.StatusOK)
+	}
+	if !strings.Contains(recorder.Body.String(), "Gophenberg") {
+		t.Errorf("body = %q, want the app rather than a directory listing", recorder.Body.String())
+	}
+	if strings.Contains(recorder.Body.String(), "app.js</a>") {
+		t.Errorf("body = %q, want no directory listing", recorder.Body.String())
+	}
+}
+
 func TestUnknownAPIPathIsNotServedTheSPA(t *testing.T) {
 	t.Parallel()
 

@@ -20,7 +20,7 @@ const adminPrefix = "/admin"
 func fallbackHandler(admin, public http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case strings.HasPrefix(r.URL.Path, "/api/"):
+		case reserved(r.URL.Path, "/api"), reserved(r.URL.Path, assetPrefix):
 			respondNotFound(w, r)
 		case r.URL.Path == adminPrefix:
 			http.Redirect(w, r, adminPrefix+"/", http.StatusMovedPermanently)
@@ -30,6 +30,17 @@ func fallbackHandler(admin, public http.Handler) http.HandlerFunc {
 			public.ServeHTTP(w, r)
 		}
 	}
+}
+
+// servesAFile reports whether name is a file the web root holds.
+func servesAFile(webFS fs.FS, name string) bool {
+	info, err := fs.Stat(webFS, name)
+	return err == nil && !info.IsDir()
+}
+
+// reserved reports whether path is prefix itself or sits under it.
+func reserved(path, prefix string) bool {
+	return path == prefix || strings.HasPrefix(path, prefix+"/")
 }
 
 // adminApp returns the single-page app, or the JSON 404 when none is configured.
@@ -67,10 +78,8 @@ func spaHandler(webFS fs.FS) http.HandlerFunc {
 		name := strings.TrimPrefix(strings.TrimPrefix(path.Clean(r.URL.Path), adminPrefix), "/")
 		r = r.Clone(r.Context())
 		r.URL.Path = "/" + name
-		if name != "" {
-			if _, err := fs.Stat(webFS, name); err != nil {
-				r.URL.Path = "/"
-			}
+		if name != "" && !servesAFile(webFS, name) {
+			r.URL.Path = "/"
 		}
 		fileServer.ServeHTTP(w, r)
 	}
