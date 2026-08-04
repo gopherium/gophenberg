@@ -22,7 +22,6 @@ export interface ThemeSeo {
 export interface GophenbergTheme {
 	layouts: ThemeLayouts
 	blocks?: BlockComponentMap
-	postTypes?: string[]
 	pagination?: { perPage: number }
 	seo: ThemeSeo
 }
