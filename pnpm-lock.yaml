@@ -238,6 +238,9 @@ importers:
       '@astrojs/check':
         specifier: ^0.9.10
         version: 0.9.10(prettier@3.9.6)(typescript@6.0.3)
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.1.1
       astro:
         specifier: ^7.1.6
         version: 7.1.6(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@26.1.1)(jiti@2.7.0)(yaml@2.9.0)
