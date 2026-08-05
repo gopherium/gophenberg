@@ -23,12 +23,13 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /gophenberg ./cmd/gophenberg
 
-# Assemble the runtime image: the binary plus the built SPA.
-FROM gcr.io/distroless/static-debian12:nonroot
+# Assemble the runtime image: the binary, the built SPA, and the node a theme is served with.
+FROM gcr.io/distroless/nodejs24-debian12:nonroot
 COPY --from=backend /gophenberg /gophenberg
 COPY --from=frontend /app/frontend/dist /web
 ENV GOPHENBERG_WEB_DIR=/web
 ENV GOPHENBERG_ADDR=0.0.0.0:8081
+ENV GOPHENBERG_NODE_BIN=/nodejs/bin/node
 EXPOSE 8081
 USER nonroot:nonroot
 ENTRYPOINT ["/gophenberg"]
