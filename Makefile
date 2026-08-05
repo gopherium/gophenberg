@@ -1,7 +1,45 @@
 .PHONY: peers dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down \
-	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump
+	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump \
+	brick-link brick-sync brick-pack brick-unlink
 
 COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/testdb)
+
+# Where a linked package's restore point is kept while it is linked.
+BRICK_HELD = .brick-held
+
+brick-link:
+	@test -n "$(BRICK)" || { echo "usage: make brick-link BRICK=../some-package"; exit 1; }
+	@test -f "$(BRICK)/package.json" || { echo "$(BRICK) holds no package.json"; exit 1; }
+	@test ! -d $(BRICK_HELD) || { echo "a package is already linked, run make brick-unlink first"; exit 1; }
+	mkdir -p $(BRICK_HELD)
+	cp frontend/package.json pnpm-lock.yaml $(BRICK_HELD)/
+	printf '%s\n' "$(abspath $(BRICK))" > $(BRICK_HELD)/path
+	cd "$(BRICK)" && pnpm run build
+	cd frontend && pnpm add "link:$(abspath $(BRICK))"
+	@echo "linked $(abspath $(BRICK)), run make brick-sync after editing it"
+
+brick-sync:
+	@test -d $(BRICK_HELD) || { echo "no package is linked"; exit 1; }
+	cd "$$(cat $(BRICK_HELD)/path)" && pnpm run build
+	@echo "rebuilt, the consumer reads it without reinstalling"
+
+brick-pack:
+	@test -n "$(BRICK)" || { echo "usage: make brick-pack BRICK=../some-package"; exit 1; }
+	@test ! -d $(BRICK_HELD) || { echo "a package is already linked, run make brick-unlink first"; exit 1; }
+	mkdir -p $(BRICK_HELD)
+	cp frontend/package.json pnpm-lock.yaml $(BRICK_HELD)/
+	printf '%s\n' "$(abspath $(BRICK))" > $(BRICK_HELD)/path
+	cd "$(BRICK)" && pnpm run build && npm pack --pack-destination "$(CURDIR)/$(BRICK_HELD)"
+	cd frontend && pnpm add "file:$$(ls $(CURDIR)/$(BRICK_HELD)/*.tgz | head -1)"
+	@echo "installed the packed package, which is what a publish would ship"
+
+brick-unlink:
+	@test -d $(BRICK_HELD) || { echo "no package is linked"; exit 1; }
+	cp $(BRICK_HELD)/package.json frontend/package.json
+	cp $(BRICK_HELD)/pnpm-lock.yaml pnpm-lock.yaml
+	rm -rf $(BRICK_HELD)
+	pnpm install
+	@echo "restored the published package"
 
 bump:
 	@test -n "$(V)" || (echo "usage: make bump V=0.2.0" && exit 1)
