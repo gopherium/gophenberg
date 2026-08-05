@@ -55,7 +55,7 @@ func TestSeedStoresTheDemoPosts(t *testing.T) {
 
 	counts := seededCounts(t, databaseURL)
 	want := map[post.Status]int{
-		post.StatusPublished: 2,
+		post.StatusPublished: 3,
 		post.StatusDraft:     1,
 		post.StatusPending:   1,
 		post.StatusTrash:     1,
@@ -120,8 +120,8 @@ func TestSeedStoresBlockContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
 	}
-	if len(posts) != 2 {
-		t.Fatalf("published posts = %d, want 2", len(posts))
+	if len(posts) != 3 {
+		t.Fatalf("published posts = %d, want 3", len(posts))
 	}
 	stored, err := postgres.NewPostStore(pool).ByID(t.Context(), posts[0].ID)
 	if err != nil {

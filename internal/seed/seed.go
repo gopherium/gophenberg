@@ -39,10 +39,17 @@ func demoPosts() []demoPost {
 			id:      "019fb000-0000-7000-8000-000000000001",
 			title:   "Welcome to Gophenberg",
 			excerpt: "A short tour of the editor and where your posts live.",
-			content: "<!-- wp:heading -->\n<h2>Everything starts with a block</h2>\n<!-- /wp:heading -->\n\n" +
+			content: "<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Everything starts with a block</h2>\n" +
+				"<!-- /wp:heading -->\n\n" +
 				"<!-- wp:paragraph -->\n<p>Each paragraph, heading, and list you add is stored as a block. " +
 				"The editor writes them as HTML with comment delimiters, and the server keeps that markup " +
-				"exactly as it arrives.</p>\n<!-- /wp:paragraph -->",
+				"exactly as it arrives.</p>\n<!-- /wp:paragraph -->\n\n" +
+				"<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\">" +
+				"<!-- wp:paragraph -->\n<p>A post you can still edit years from now is worth more than a " +
+				"post that renders quickly once.</p>\n<!-- /wp:paragraph -->" +
+				"<cite>Maria Perez</cite></blockquote>\n<!-- /wp:quote -->\n\n" +
+				"<!-- wp:paragraph -->\n<p>A theme may draw any of these blocks its own way, and the ones it " +
+				"leaves alone are served exactly as they were saved.</p>\n<!-- /wp:paragraph -->",
 			status: post.StatusPublished,
 		},
 		{
@@ -50,11 +57,37 @@ func demoPosts() []demoPost {
 			title:   "Writing with Blocks",
 			excerpt: "Headings, lists, and quotes without touching HTML by hand.",
 			content: "<!-- wp:paragraph -->\n<p>Blocks cover the shapes a post usually needs.</p>\n" +
-				"<!-- /wp:paragraph -->\n\n<!-- wp:list -->\n<ul>" +
+				"<!-- /wp:paragraph -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\">" +
 				"<!-- wp:list-item --><li>Headings for structure</li><!-- /wp:list-item -->" +
 				"<!-- wp:list-item --><li>Lists for steps</li><!-- /wp:list-item -->" +
 				"<!-- wp:list-item --><li>Quotes for citations</li><!-- /wp:list-item -->" +
-				"</ul>\n<!-- /wp:list -->",
+				"</ul>\n<!-- /wp:list -->\n\n" +
+				"<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Two columns, side by side</h2>\n" +
+				"<!-- /wp:heading -->\n\n" +
+				"<!-- wp:group -->\n<div class=\"wp-block-group\">" +
+				"<!-- wp:columns -->\n<div class=\"wp-block-columns\">" +
+				"<!-- wp:column -->\n<div class=\"wp-block-column\">" +
+				"<!-- wp:paragraph -->\n<p>A column holds whatever blocks you put in it.</p>\n" +
+				"<!-- /wp:paragraph --></div>\n<!-- /wp:column -->" +
+				"<!-- wp:column -->\n<div class=\"wp-block-column\">" +
+				"<!-- wp:paragraph -->\n<p>The one beside it holds its own.</p>\n" +
+				"<!-- /wp:paragraph --></div>\n<!-- /wp:column -->" +
+				"</div>\n<!-- /wp:columns --></div>\n<!-- /wp:group -->",
+			status: post.StatusPublished,
+		},
+		{
+			id:      "019fb000-0000-7000-8000-000000000006",
+			title:   "Pictures from Elsewhere",
+			excerpt: "An image the post points at rather than one the server stores.",
+			content: "<!-- wp:paragraph -->\n<p>A post can show a picture that lives at an address, which is " +
+				"how this demo carries one without an upload behind it.</p>\n<!-- /wp:paragraph -->\n\n" +
+				"<!-- wp:image {\"sizeSlug\":\"large\"} -->\n" +
+				"<figure class=\"wp-block-image size-large\">" +
+				"<img src=\"https://example.com/media/a-quiet-desk.jpg\" alt=\"A desk with a notebook and a pen\"/>" +
+				"<figcaption class=\"wp-element-caption\">Photographed by Maria Perez</figcaption>" +
+				"</figure>\n<!-- /wp:image -->\n\n" +
+				"<!-- wp:paragraph -->\n<p>The address is what travels, so the picture is served by whoever " +
+				"hosts it rather than by this site.</p>\n<!-- /wp:paragraph -->",
 			status: post.StatusPublished,
 		},
 		{
