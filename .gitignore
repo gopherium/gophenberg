@@ -5,6 +5,7 @@ frontend/coverage/
 sdk/astro/.astro/
 test/theme/.astro/
 test/theme/dist/
+.e2e-themes/
 .covdata/
 node_modules/
 .env
