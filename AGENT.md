@@ -10,23 +10,31 @@ Gophenberg is an open-source plugin-first CMS. The backend is a Go service expos
 ```text
 cmd/gophenberg/       main: config, db pool, auth wiring, plugin registration
 cmd/pluginwire/       generator: plugins/*/plugin.json -> wiring files
-internal/server       http.Handler, routes, middleware
+internal/server       http.Handler, routes, middleware, theme reverse proxy
 internal/post         post domain package
 internal/postgres     data access (pgx + sqlc)
 internal/postbridge   published posts as the sdk PostReader seam
+internal/publichtml   sanitizer for stored block markup on public surfaces
+internal/publicsite   built-in Go renderer for the public site
+internal/themehost    theme artifact validation and the node process supervisor
 plugins/feed          reference plugin: RSS feed
 sdk/                  public plugin contract (Go), the only Gophenberg import allowed in a plugin
 sdk/frontend/         frontend plugin contract, UI facade, and test harness (@gophenberg/frontend-sdk)
+sdk/astro/            theme kit (@gophenberg/astro): client, block walker, integration, routes
 frontend/             React SPA host (Vite), plugins import UI only via @gophenberg/frontend-sdk
+test/theme/           reference Astro theme, the e2e fixture and the starter source
 ```
 
 The plugin lifecycle host and wiring generator come from
 [gopherium/pluginkit](https://github.com/gopherium/pluginkit).
 
+- **The public site is two interchangeable renderers.** The root serves published posts through the built-in Go renderer, or through an Astro theme when one is active. A theme is a prebuilt artifact (`theme.json`, `server/entry.mjs`, `client/`) validated by `internal/themehost`, run as a supervised node process bound to loopback, and reached through a reverse proxy that falls back to the Go renderer whenever the theme is not answering. The theme process receives exactly three environment variables and reads content over `/api/content/v1` like any other client. `/api`, `/admin`, `/gophenberg`, and `/_gophenberg` are never proxied.
+
 ## Stack
 
 - Backend: Go, `net/http` + chi v5, PostgreSQL (pgx/v5, sqlc, goose migrations), gouncer/authkit authentication
 - Frontend: React + TypeScript, Vite, TanStack Router + Query, `@wordpress/ui` + `@wordpress/theme` (WordPress Design System), `@wordpress/block-editor` (Gutenberg)
+- Themes: Astro with the `@astrojs/node` standalone adapter, built to a self-contained artifact that runs without `node_modules`
 - Testing: stdlib table-driven tests, httptest, pgtestdb (backend), Vitest, Testing Library, MSW (frontend), Playwright (e2e)
 
 ## Contributing
