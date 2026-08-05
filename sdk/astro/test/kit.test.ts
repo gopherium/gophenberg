@@ -29,21 +29,21 @@ describe('kit identity', () => {
 	})
 })
 
+/** The major and minor of the manifest version, taken by a mechanism the kit does not share. */
+const majorMinor = (/^(\d+\.\d+)\./.exec(manifest.version) as RegExpExecArray)[1]
+
 describe('what a themed page reports', () => {
 	test('names the product and drops the patch version', () => {
-		expect(generator).toBe('Gophenberg 0.0')
+		expect(generator).toBe(`Gophenberg ${majorMinor}`)
+		expect(generator).toMatch(/^Gophenberg \d+\.\d+$/)
 	})
 
 	test('reports the feature version the readiness probe answers with', () => {
-		expect(kitFeatureVersion).toBe('0.0')
+		expect(kitFeatureVersion).toBe(majorMinor)
 	})
 })
 
 describe('the version the kit ships at', () => {
-	test('matches the version the package manifest ships', () => {
-		expect(kitVersion).toBe(manifest.version)
-	})
-
 	test('matches the version the product embeds', () => {
 		expect(kitVersion).toBe(productVersion)
 	})

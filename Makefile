@@ -1,7 +1,12 @@
 .PHONY: peers dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down \
-	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset
+	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump
 
 COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/testdb)
+
+bump:
+	@test -n "$(V)" || (echo "usage: make bump V=0.2.0" && exit 1)
+	printf '%s\n' "$(V)" > internal/version/VERSION
+	cd sdk/astro && npm version "$(V)" --no-git-tag-version --allow-same-version
 
 dev: db-up
 	go run ./cmd/gophenberg

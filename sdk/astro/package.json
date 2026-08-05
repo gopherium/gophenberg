@@ -1,9 +1,33 @@
 {
 	"name": "@gophenberg/astro",
-	"private": true,
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"type": "module",
 	"license": "Apache-2.0",
+	"description": "Build a Gophenberg theme in Astro: routes, block rendering, and the theme contract.",
+	"keywords": [
+		"astro",
+		"astro-integration",
+		"astro-component",
+		"gophenberg",
+		"cms",
+		"gutenberg"
+	],
+	"homepage": "https://gophenberg.org",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/gopherium/gophenberg.git",
+		"directory": "sdk/astro"
+	},
+	"bugs": "https://github.com/gopherium/gophenberg/issues",
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"components",
+		"routes",
+		"*.ts",
+		"!vitest.config.ts"
+	],
 	"exports": {
 		".": "./index.ts",
 		"./components": "./components/index.ts",

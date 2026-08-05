@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { version } from './package.json'
+
 /** The package a theme depends on. */
 export const kitName = '@gophenberg/astro'
 
@@ -10,7 +12,7 @@ export const contentApiPath = '/api/content/v1'
 export const defaultPostType = 'post'
 
 /** The version this kit ships at. */
-export const kitVersion = '0.0.0'
+export const kitVersion = version
 
 /** The feature version a themed page reports, the major and minor of kitVersion. */
 export const kitFeatureVersion = kitVersion.split('.').slice(0, 2).join('.')

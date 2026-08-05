@@ -2,6 +2,7 @@
 
 import { describe, expect, test } from 'vitest'
 
+import { kitFeatureVersion } from '../kit.ts'
 import { GET, prerender } from '../routes/health.ts'
 
 describe('the readiness probe', () => {
@@ -9,7 +10,10 @@ describe('the readiness probe', () => {
 		const response = await GET({} as never)
 
 		expect(response.status).toBe(200)
-		expect(await response.json()).toEqual({ gophenberg: '0.0', ready: true })
+		const answered = (await response.json()) as { gophenberg: string; ready: boolean }
+
+		expect(answered).toEqual({ gophenberg: kitFeatureVersion, ready: true })
+		expect(answered.gophenberg).toMatch(/^\d+\.\d+$/)
 	})
 
 	test('answers as JSON, since a supervisor reads it rather than a reader', async () => {
