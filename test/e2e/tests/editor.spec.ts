@@ -125,7 +125,13 @@ test('keeps an edit made to an already published post', async ({ page }) => {
 	await expect(canvas(page).getByText(added)).toBeVisible()
 })
 
-test('unpublishes back to a draft and shows it without a full reload', async ({ page }) => {
+test('round-trips every field of the editor without a full reload', async ({ page }) => {
+	const edited = {
+		title: `A post edited everywhere ${RUN}`,
+		slug: `edited-everywhere-${RUN}`,
+		excerpt: 'The excerpt the field sweep wrote.',
+		paragraph: `The paragraph the field sweep added ${RUN}.`,
+	}
 	await openNewDraft(page)
 	await writeThePost(page)
 	await page.getByRole('button', { name: 'Publish' }).click()
@@ -136,19 +142,37 @@ test('unpublishes back to a draft and shows it without a full reload', async ({ 
 	await page.getByRole('link', { name: TITLE }).click()
 	await expect(page.getByRole('combobox', { name: 'Status' })).toHaveText('Published')
 
+	await page.getByRole('textbox', { name: 'Title' }).fill(edited.title)
+	await canvas(page).getByText(PARAGRAPH).click()
+	await page.keyboard.press('End')
+	await page.keyboard.press('Enter')
+	await page.keyboard.type(edited.paragraph)
+	await page.getByRole('textbox', { name: 'Slug' }).fill(edited.slug)
+	await page.getByRole('textbox', { name: 'Excerpt' }).fill(edited.excerpt)
 	await page.getByRole('combobox', { name: 'Status' }).click()
-	await page.getByRole('option', { name: 'Draft' }).click()
+	await page.getByRole('option', { name: 'Pending' }).click()
 	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
 	expect(await page.getByRole('button', { name: 'Publish' }).count()).toBe(0)
 	await page.getByRole('button', { name: 'Update' }).click()
 	await expect(shown(page, 'Draft saved.')).toBeVisible()
 
 	await page.getByRole('link', { name: 'Back to posts' }).click()
-	await page.getByRole('button', { name: /^Draft/ }).click()
-	await page.getByRole('link', { name: TITLE }).click()
+	await page.getByRole('button', { name: /^Pending/ }).click()
+	await page.getByRole('link', { name: edited.title }).click()
 
-	await expect(page.getByRole('combobox', { name: 'Status' })).toHaveText('Draft')
+	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(edited.title)
+	await expect(page.getByRole('textbox', { name: 'Slug' })).toHaveValue(edited.slug)
+	await expect(page.getByRole('textbox', { name: 'Excerpt' })).toHaveValue(edited.excerpt)
+	await expect(page.getByRole('combobox', { name: 'Status' })).toHaveText('Pending')
 	await expect(page.getByRole('button', { name: 'Publish' })).toBeVisible()
+	await expect(canvas(page).getByText(edited.paragraph)).toBeVisible()
+
+	await page.reload()
+	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(edited.title)
+	await expect(page.getByRole('textbox', { name: 'Slug' })).toHaveValue(edited.slug)
+	await expect(page.getByRole('textbox', { name: 'Excerpt' })).toHaveValue(edited.excerpt)
+	await expect(page.getByRole('combobox', { name: 'Status' })).toHaveText('Pending')
+	await expect(canvas(page).getByText(edited.paragraph)).toBeVisible()
 })
 
 test('saves twice over without reloading in between', async ({ page }) => {
