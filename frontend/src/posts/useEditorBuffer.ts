@@ -118,7 +118,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		undo: history.undo,
 		redo: history.redo,
 		save: () => write.mutate({ title, content, slug, excerpt, status }),
-		publish: () => write.mutate({ status: 'published' }),
+		publish: () => write.mutate({ title, content, slug, excerpt, status: 'published' }),
 		adoptVersion: setVersion,
 	}
 }

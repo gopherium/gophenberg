@@ -94,6 +94,37 @@ test('writes, saves, publishes, trashes and restores a post', async ({ page }) =
 	await expect(page.getByRole('link', { name: TITLE })).toBeVisible()
 })
 
+test('publishes what was written without a draft save first', async ({ page }) => {
+	await openNewDraft(page)
+	await writeThePost(page)
+
+	await page.getByRole('button', { name: 'Publish' }).click()
+	await expect(shown(page, 'Post published.')).toBeVisible()
+
+	await page.reload()
+	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(TITLE)
+	await expect(canvas(page).getByText(PARAGRAPH)).toBeVisible()
+})
+
+test('keeps an edit made to an already published post', async ({ page }) => {
+	const added = `The words the update added ${RUN}.`
+	await openNewDraft(page)
+	await writeThePost(page)
+	await page.getByRole('button', { name: 'Publish' }).click()
+	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
+
+	await canvas(page).getByText(PARAGRAPH).click()
+	await page.keyboard.press('End')
+	await page.keyboard.press('Enter')
+	await page.keyboard.type(added)
+	await expect(canvas(page).getByText(added)).toBeVisible()
+	await page.getByRole('button', { name: 'Update' }).click()
+	await expect(shown(page, 'Post published.')).toBeVisible()
+
+	await page.reload()
+	await expect(canvas(page).getByText(added)).toBeVisible()
+})
+
 test('saves twice over without reloading in between', async ({ page }) => {
 	const statuses: number[] = []
 	page.on('response', (response) => {

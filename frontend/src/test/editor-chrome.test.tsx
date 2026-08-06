@@ -61,13 +61,18 @@ test('offers to publish a draft', async () => {
 	expect(screen.queryByRole('button', { name: 'Update' })).not.toBeInTheDocument()
 })
 
-test('publishes a draft and asks the server for the transition', async () => {
+test('publishes a draft carrying what was written with the transition', async () => {
 	renderAt(EDITOR_PATH)
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Publish' }))
 
 	await waitFor(() => expect(patched).toHaveLength(1))
-	expect(patched[0]).toEqual({ status: 'published', updated_at: storedPost.updated_at })
+	expect(patched[0]).toMatchObject({
+		status: 'published',
+		updated_at: storedPost.updated_at,
+		title: storedPost.title,
+	})
+	expect(patched[0]).toHaveProperty('content')
 })
 
 test('swaps the control to update once the post is published', async () => {

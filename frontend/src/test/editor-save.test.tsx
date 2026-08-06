@@ -80,6 +80,38 @@ test('sends the edited title and the serialized content', async () => {
 	expect((patched[0] as { content: string }).content).toContain('Stored words.')
 })
 
+test('publishes what was written, not only the status', async () => {
+	renderAt(EDITOR_PATH)
+	const title = await screen.findByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, '!')
+
+	await userEvent.click(screen.getByRole('button', { name: 'Publish' }))
+
+	await waitFor(() => expect(patched).toHaveLength(1))
+	expect(patched[0]).toMatchObject({ status: 'published', title: 'Welcome to Gophenberg!' })
+	expect((patched[0] as { content: string }).content).toContain('Stored words.')
+})
+
+test('updates a published post with what was written', async () => {
+	server.use(
+		http.get(`/api/posts/${POST_ID}`, () => HttpResponse.json({ ...STORED, status: 'published' })),
+		http.patch(`/api/posts/${POST_ID}`, async ({ request }) => {
+			const body = await request.json()
+			patched.push(body)
+			return HttpResponse.json({ ...STORED, status: 'published', ...(body as object) })
+		}),
+	)
+	renderAt(EDITOR_PATH)
+	const title = await screen.findByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, '!')
+
+	await userEvent.click(screen.getByRole('button', { name: 'Update' }))
+
+	await waitFor(() => expect(patched).toHaveLength(1))
+	expect(patched[0]).toMatchObject({ title: 'Welcome to Gophenberg!' })
+	expect((patched[0] as { content: string }).content).toContain('Stored words.')
+})
+
 test('reports the post saved and holds the next save back', async () => {
 	renderAt(EDITOR_PATH)
 	const title = await screen.findByRole('textbox', { name: 'Title' })
