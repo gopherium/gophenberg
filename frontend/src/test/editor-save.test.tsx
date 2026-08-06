@@ -112,6 +112,20 @@ test('updates a published post with what was written', async () => {
 	expect((patched[0] as { content: string }).content).toContain('Stored words.')
 })
 
+test('refreshes the post the editor reopens without a full reload', async () => {
+	const client = renderAt(EDITOR_PATH)
+	const title = await screen.findByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, '!')
+
+	await userEvent.click(screen.getByRole('button', { name: /save/i }))
+	await waitFor(() => expect(patched).toHaveLength(1))
+
+	await waitFor(() => {
+		const held = client.getQueryData(['post', POST_ID]) as { title: string } | undefined
+		expect(held?.title).toBe('Welcome to Gophenberg!')
+	})
+})
+
 test('reports the post saved and holds the next save back', async () => {
 	renderAt(EDITOR_PATH)
 	const title = await screen.findByRole('textbox', { name: 'Title' })

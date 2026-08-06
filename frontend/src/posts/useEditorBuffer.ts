@@ -14,6 +14,7 @@ export interface EditorBuffer {
 	blocks: Block[]
 	content: string
 	status: string
+	savedStatus: string
 	slug: string
 	excerpt: string
 	dirty: boolean
@@ -65,7 +66,11 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 			toaster.show(reportOf(outcome, changes))
 			if (outcome.kind === 'saved') {
 				adopt(outcome.post)
-				await client.invalidateQueries({ queryKey: ['posts'] })
+				client.setQueryData(['post', postId], outcome.post)
+				await Promise.all([
+					client.invalidateQueries({ queryKey: ['posts'] }),
+					client.invalidateQueries({ queryKey: ['post-counts'] }),
+				])
 			}
 		},
 		onError: () => toaster.show('Could not save that post.'),
@@ -92,6 +97,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		blocks,
 		content,
 		status,
+		savedStatus: saved.status,
 		slug,
 		excerpt,
 		dirty:

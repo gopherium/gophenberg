@@ -125,6 +125,32 @@ test('keeps an edit made to an already published post', async ({ page }) => {
 	await expect(canvas(page).getByText(added)).toBeVisible()
 })
 
+test('unpublishes back to a draft and shows it without a full reload', async ({ page }) => {
+	await openNewDraft(page)
+	await writeThePost(page)
+	await page.getByRole('button', { name: 'Publish' }).click()
+	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
+
+	await page.getByRole('link', { name: 'Back to posts' }).click()
+	await page.getByRole('button', { name: /^Published/ }).click()
+	await page.getByRole('link', { name: TITLE }).click()
+	await expect(page.getByRole('combobox', { name: 'Status' })).toHaveText('Published')
+
+	await page.getByRole('combobox', { name: 'Status' }).click()
+	await page.getByRole('option', { name: 'Draft' }).click()
+	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
+	expect(await page.getByRole('button', { name: 'Publish' }).count()).toBe(0)
+	await page.getByRole('button', { name: 'Update' }).click()
+	await expect(shown(page, 'Draft saved.')).toBeVisible()
+
+	await page.getByRole('link', { name: 'Back to posts' }).click()
+	await page.getByRole('button', { name: /^Draft/ }).click()
+	await page.getByRole('link', { name: TITLE }).click()
+
+	await expect(page.getByRole('combobox', { name: 'Status' })).toHaveText('Draft')
+	await expect(page.getByRole('button', { name: 'Publish' })).toBeVisible()
+})
+
 test('saves twice over without reloading in between', async ({ page }) => {
 	const statuses: number[] = []
 	page.on('response', (response) => {

@@ -83,6 +83,37 @@ test('swaps the control to update once the post is published', async () => {
 	expect(await screen.findByRole('button', { name: 'Update' })).toBeInTheDocument()
 })
 
+test('keeps saying update while a published post is being unpublished', async () => {
+	serve({ ...storedPost, status: 'published' })
+	renderAt(EDITOR_PATH)
+	await userEvent.click(await screen.findByRole('combobox', { name: 'Status' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Draft' }))
+
+	expect(screen.getByRole('button', { name: 'Update' })).toBeInTheDocument()
+	expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+})
+
+test('unpublishes a published post with the status the author chose', async () => {
+	serve({ ...storedPost, status: 'published' })
+	renderAt(EDITOR_PATH)
+	await userEvent.click(await screen.findByRole('combobox', { name: 'Status' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Draft' }))
+
+	await userEvent.click(screen.getByRole('button', { name: 'Update' }))
+
+	await waitFor(() => expect(patched).toHaveLength(1))
+	expect(patched[0]).toMatchObject({ status: 'draft' })
+})
+
+test('offers no draft save on a post that is already published', async () => {
+	serve({ ...storedPost, status: 'published' })
+	renderAt(EDITOR_PATH)
+
+	await screen.findByRole('button', { name: 'Update' })
+
+	expect(screen.queryByRole('button', { name: 'Save draft' })).not.toBeInTheDocument()
+})
+
 test('announces the publication', async () => {
 	renderAt(EDITOR_PATH)
 

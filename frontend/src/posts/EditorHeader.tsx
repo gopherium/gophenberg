@@ -50,6 +50,18 @@ export function chosenPreview(
 }
 
 /**
+ * Returns the primary write control the buffer's state calls for.
+ * @param buffer - The buffer the header drives.
+ * @returns The label of the control and the write it runs.
+ */
+export function primaryControl(buffer: EditorBuffer): { label: string, write: () => void } {
+	if (buffer.savedStatus === 'published') {
+		return { label: 'Update', write: buffer.save }
+	}
+	return { label: 'Publish', write: buffer.publish }
+}
+
+/**
  * Renders the editor header with its navigation, history and write controls.
  * @param props - The buffer and views the header drives and the type of post it holds.
  * @returns The header element.
@@ -57,7 +69,8 @@ export function chosenPreview(
 export function EditorHeader(
 	{ buffer, type, views }: { buffer: EditorBuffer, type: string, views: EditorViews },
 ) {
-	const published = buffer.status === 'published'
+	const primary = primaryControl(buffer)
+	const draftable = buffer.savedStatus !== 'published'
 	return (
 		<div className="gophenberg-editor__header">
 			<Stack direction="row" gap="xs" align="center">
@@ -105,11 +118,17 @@ export function EditorHeader(
 					value={previewItem(views.preview)}
 					onValueChange={(item) => views.setPreview(chosenPreview(item, views.preview))}
 				/>
-				<Button variant="outline" disabled={!buffer.dirty || buffer.saving} onClick={buffer.save}>
-					Save draft
-				</Button>
-				<Button disabled={buffer.saving} onClick={buffer.publish}>
-					{published ? 'Update' : 'Publish'}
+				{draftable && (
+					<Button
+						variant="outline"
+						disabled={!buffer.dirty || buffer.saving}
+						onClick={buffer.save}
+					>
+						Save draft
+					</Button>
+				)}
+				<Button disabled={buffer.saving} onClick={primary.write}>
+					{primary.label}
 				</Button>
 			</Stack>
 		</div>
