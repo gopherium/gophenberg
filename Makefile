@@ -127,7 +127,7 @@ e2e-seed: db-up e2e-build
 
 e2e-reset: e2e-db-reset e2e-seed
 
-e2e:
+e2e: e2e-reset
 	pnpm --filter @gophenberg/e2e exec playwright test
 
 outdated:

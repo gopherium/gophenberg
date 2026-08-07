@@ -6,6 +6,7 @@ test('spreads the block inspector across the sidebar without sideways overflow',
 	page,
 }) => {
 	await page.goto('/admin/posts')
+	await page.getByRole('button', { name: /^Published/ }).click()
 	await page.getByRole('link', { name: 'Pictures from Elsewhere' }).click()
 	await page.frameLocator('iframe[name="editor-canvas"]').getByRole('img').click()
 	await page.getByRole('tab', { name: 'Block' }).click()
