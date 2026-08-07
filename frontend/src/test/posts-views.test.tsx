@@ -73,13 +73,27 @@ test('reserves the filter row without painting the chips right away', async () =
 	renderAt('/posts')
 	await screen.findByRole('heading', { level: 1 })
 
-	await waitFor(() => expect(document.querySelector('.gophenberg-status-ghost')).not.toBeNull())
-	const chip = document.querySelector('.gophenberg-status-ghost') as Element
-	const style = getComputedStyle(chip)
+	await waitFor(() => expect(document.querySelector('.gophenberg-status-row')).not.toBeNull())
+	const row = document.querySelector('.gophenberg-status-row') as Element
+	const style = getComputedStyle(row)
 	expect(style.opacity).toBe('0')
 	expect(style.animation).toContain('gophenberg-status-appear')
 	expect(style.animation).toContain('200ms')
 	expect(style.animation).toContain('forwards')
+})
+
+test('leaves the chips their own pulse and delays the row instead', async () => {
+	serveList()
+	server.use(http.get('/api/posts/counts', () => new Promise(() => {})))
+	renderAt('/posts')
+	await screen.findByRole('heading', { level: 1 })
+
+	await waitFor(() => expect(document.querySelector('.gophenberg-status-ghost')).not.toBeNull())
+	const chip = document.querySelector('.gophenberg-status-ghost') as Element
+	expect(getComputedStyle(chip).animation).toBe('')
+	const row = chip.parentElement as Element
+	expect(getComputedStyle(row).opacity).toBe('0')
+	expect(getComputedStyle(row).animation).toContain('gophenberg-status-appear')
 })
 
 test('lands the chip animation at full opacity', () => {
@@ -93,7 +107,7 @@ test('lands the chip animation at full opacity', () => {
 	}
 
 	expect(keyframes).toHaveLength(1)
-	expect(keyframes[0]).toMatch(/opacity:\s*1/)
+	expect(keyframes[0]).toMatch(/(?:100%|to)\s*\{\s*opacity:\s*1\s*;?\s*\}/)
 })
 
 test('counts the posts each status view covers', async () => {
@@ -210,4 +224,15 @@ test('lists posts even when the counts cannot be read', async () => {
 
 	expect(await screen.findByText('Welcome to Gophenberg')).toBeInTheDocument()
 	expect(screen.queryByRole('button', { name: /^All/ })).not.toBeInTheDocument()
+})
+
+test('drops the filter row when the counts cannot be read', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(http.get('/api/posts/counts', () => HttpResponse.json({}, { status: 500 })))
+	renderAt('/posts')
+	await screen.findByText('Welcome to Gophenberg')
+
+	await waitFor(() =>
+		expect(document.querySelectorAll('.gophenberg-status-ghost')).toHaveLength(0),
+	)
 })

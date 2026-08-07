@@ -74,7 +74,12 @@ export function PostsScreen() {
 			title="Posts"
 			actions={status === 'trash' ? <EmptyTrash onEmptied={refresh} /> : undefined}
 		>
-			<StatusRow counts={counts.data} current={status} onSelect={chooseStatus} />
+			<StatusRow
+				counts={counts.data}
+				failed={counts.isError}
+				current={status}
+				onSelect={chooseStatus}
+			/>
 			{notice !== null && <PostsNotice notice={notice} report={setNotice} />}
 			{posts.isError ? (
 				<ErrorNotice>Could not load posts.</ErrorNotice>
@@ -110,19 +115,24 @@ export function PostsScreen() {
 }
 
 /**
- * Renders the status filter row, or its ghost until the counts arrive.
- * @param props - The counts, the current status, and the choice handler.
- * @returns The status row element, or its ghost.
+ * Renders the status filter row, its ghost until the counts arrive, or nothing.
+ * @param props - The counts, whether the read failed, the status and the handler.
+ * @returns The status row element, its ghost, or null.
  */
 function StatusRow({
 	counts,
+	failed,
 	current,
 	onSelect,
 }: {
 	counts: PostCounts | undefined
+	failed: boolean
 	current: string
 	onSelect: (chosen: string) => void
 }) {
+	if (failed) {
+		return null
+	}
 	if (counts === undefined) {
 		return <StatusGhost />
 	}

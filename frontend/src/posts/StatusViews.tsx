@@ -12,7 +12,13 @@ const GHOST_CHIPS = 5
  */
 export function StatusGhost() {
 	return (
-		<Stack direction="row" gap="xs" align="center" aria-hidden="true">
+		<Stack
+			direction="row"
+			gap="xs"
+			align="center"
+			aria-hidden="true"
+			className="gophenberg-status-row"
+		>
 			{Array.from({ length: GHOST_CHIPS }, (_, chip) => (
 				<Skeleton key={chip} className="gophenberg-status-ghost" />
 			))}
