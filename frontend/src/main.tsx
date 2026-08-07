@@ -12,6 +12,7 @@ import { createRoot } from 'react-dom/client'
 import '@gopherium/godmin/base.css'
 import '@gopherium/react-auth/wpds/style.css'
 import './index.css'
+import { BootLoading } from './boot'
 import { createAppRouter } from './router'
 
 const queryClient = createAuthQueryClient()
@@ -25,7 +26,7 @@ createRoot(document.getElementById('root')!).render(
 					loginScreen={(onLogin) => (
 						<LoginScreen brand="Gophenberg" onLogin={onLogin} />
 					)}
-					loading={<Text role="status">Loading…</Text>}
+					loading={<BootLoading />}
 					error={<Text role="alert">Something went wrong.</Text>}
 				>
 					<Toaster>
