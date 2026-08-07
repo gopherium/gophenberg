@@ -52,9 +52,9 @@ test('holds a loading ghost for routes whose chunk is still arriving', () => {
 	expect(status.closest('.godmin-loading-screen')).not.toBeNull()
 })
 
-test('lets the ghost own the anti flash delay instead of router timers', () => {
+test('holds the previous screen briefly and never holds the ghost', () => {
 	const options = createAppRouter().options
 
-	expect(options.defaultPendingMs).toBe(0)
+	expect(options.defaultPendingMs).toBe(200)
 	expect(options.defaultPendingMinMs).toBe(0)
 })

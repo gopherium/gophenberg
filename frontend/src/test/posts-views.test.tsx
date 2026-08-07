@@ -67,22 +67,14 @@ test('holds the filter row space with chip ghosts until the counts arrive', asyn
 	expect(chip.closest('[aria-hidden="true"]')).not.toBeNull()
 })
 
-test('reserves the filter row without painting the chips right away', async () => {
-	serveList()
-	server.use(http.get('/api/posts/counts', () => new Promise(() => {})))
+test('fades the filter row in when it replaces the chips', async () => {
 	renderAt('/posts')
-	await screen.findByRole('heading', { level: 1 })
 
-	await waitFor(() => expect(document.querySelector('.gophenberg-status-row')).not.toBeNull())
-	const row = document.querySelector('.gophenberg-status-row') as Element
-	const style = getComputedStyle(row)
-	expect(style.opacity).toBe('0')
-	expect(style.animation).toContain('gophenberg-status-appear')
-	expect(style.animation).toContain('200ms')
-	expect(style.animation).toContain('forwards')
+	const row = await screen.findByRole('group', { name: 'Filter by status' })
+	expect([...row.classList]).toContain('godmin-arrival')
 })
 
-test('leaves the chips their own pulse and delays the row instead', async () => {
+test('leaves the chips their own pulse without a delay of the row', async () => {
 	serveList()
 	server.use(http.get('/api/posts/counts', () => new Promise(() => {})))
 	renderAt('/posts')
@@ -92,22 +84,8 @@ test('leaves the chips their own pulse and delays the row instead', async () => 
 	const chip = document.querySelector('.gophenberg-status-ghost') as Element
 	expect(getComputedStyle(chip).animation).toBe('')
 	const row = chip.parentElement as Element
-	expect(getComputedStyle(row).opacity).toBe('0')
-	expect(getComputedStyle(row).animation).toContain('gophenberg-status-appear')
-})
-
-test('lands the chip animation at full opacity', () => {
-	const keyframes: string[] = []
-	for (const sheet of document.styleSheets) {
-		for (const rule of sheet.cssRules) {
-			if (/@keyframes\s+gophenberg-status-appear\s*\{/.test(rule.cssText)) {
-				keyframes.push(rule.cssText)
-			}
-		}
-	}
-
-	expect(keyframes).toHaveLength(1)
-	expect(keyframes[0]).toMatch(/(?:100%|to)\s*\{\s*opacity:\s*1\s*;?\s*\}/)
+	expect(getComputedStyle(row).animation).toBe('')
+	expect(getComputedStyle(row).opacity).not.toBe('0')
 })
 
 test('counts the posts each status view covers', async () => {

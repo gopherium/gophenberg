@@ -30,9 +30,16 @@ test('keeps the users heading while the accounts are on their way', async () => 
 	const main = await screen.findByRole('main')
 
 	expect(await within(main).findByRole('heading', { level: 1 })).toHaveTextContent('Users')
-	const status = within(main).getByRole('status')
+	const status = await within(main).findByRole('status')
 	expect(status).toHaveTextContent('Loading users.')
 	expect(status.closest('.godmin-loading-rows')).not.toBeNull()
+})
+
+test('fades the account table in when it replaces the ghost', async () => {
+	renderAt('/users')
+
+	const region = await screen.findByRole('region', { name: 'Users' })
+	expect([...region.classList]).toContain('godmin-arrival')
 })
 
 test('keeps the users heading when the accounts cannot be loaded', async () => {

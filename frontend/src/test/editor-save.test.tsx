@@ -63,13 +63,27 @@ beforeEach(() => {
 	)
 })
 
-test('ghosts the post while it loads', async () => {
-	server.use(http.get(`/api/posts/${POST_ID}`, () => new Promise(() => {})))
+test('ghosts the post and fades the editor in over it', async () => {
+	let release: () => void = () => {}
+	const held = new Promise<void>((resolve) => {
+		release = resolve
+	})
+	server.use(
+		http.get(`/api/posts/${POST_ID}`, async () => {
+			await held
+			return HttpResponse.json(STORED)
+		}),
+	)
 	renderAt(EDITOR_PATH)
 
 	const status = await screen.findByRole('status')
 	expect(status).toHaveTextContent('Loading the post.')
 	expect(status.closest('.godmin-loading-screen')).not.toBeNull()
+
+	release()
+	await screen.findByRole('textbox', { name: 'Title' })
+	const editor = document.querySelector('.gophenberg-editor') as Element
+	expect([...editor.classList]).toContain('godmin-arrival')
 })
 
 test('shows the stored title in its own field', async () => {
