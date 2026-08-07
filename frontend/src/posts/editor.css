@@ -142,7 +142,7 @@
 	border-left-color: var(--wpds-color-stroke-surface-neutral);
 }
 
-.gophenberg-editor__sidebar [role="tablist"] {
+.gophenberg-editor__sidebar-tabs {
 	position: sticky;
 	top: 0;
 	z-index: 1;
@@ -153,6 +153,6 @@
 	border-bottom-color: var(--wpds-color-stroke-surface-neutral);
 }
 
-.gophenberg-editor__sidebar [role="tabpanel"] {
+.gophenberg-editor__sidebar-panel {
 	padding: 16px;
 }

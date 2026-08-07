@@ -14,11 +14,11 @@ import type { EditorBuffer } from './useEditorBuffer'
 export function EditorSidebar({ postId, buffer }: { postId: string, buffer: EditorBuffer }) {
 	return (
 		<Tabs.Root defaultValue="document">
-			<Tabs.List>
+			<Tabs.List className="gophenberg-editor__sidebar-tabs">
 				<Tabs.Tab value="document">Document</Tabs.Tab>
 				<Tabs.Tab value="block">Block</Tabs.Tab>
 			</Tabs.List>
-			<Tabs.Panel value="document">
+			<Tabs.Panel value="document" className="gophenberg-editor__sidebar-panel">
 				<DocumentPanels postId={postId} buffer={buffer} />
 			</Tabs.Panel>
 			<Tabs.Panel value="block">
