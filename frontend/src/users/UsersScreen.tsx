@@ -4,7 +4,7 @@ import { Badge, Button, Stack, Text } from '@gophenberg/frontend-sdk'
 import { fetchUsers, setUserDisabled, usersQueryKey } from '@gopherium/react-auth/admin'
 import type { User } from '@gopherium/react-auth/admin'
 import { useSession } from '@gopherium/react-auth'
-import { ErrorNotice, Page } from '@gopherium/godmin'
+import { ErrorNotice, LoadingRows, Page } from '@gopherium/godmin'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
@@ -47,7 +47,7 @@ function UsersBody({
 		return <ErrorNotice>Users could not be loaded.</ErrorNotice>
 	}
 	if (users === undefined) {
-		return <Text role="status">Loading users.</Text>
+		return <LoadingRows label="Loading users." />
 	}
 	return (
 		<div className="godmin-table-scroll" role="region" aria-label="Users" tabIndex={0}>

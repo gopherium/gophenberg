@@ -30,7 +30,9 @@ test('keeps the users heading while the accounts are on their way', async () => 
 	const main = await screen.findByRole('main')
 
 	expect(await within(main).findByRole('heading', { level: 1 })).toHaveTextContent('Users')
-	expect(within(main).getByRole('status')).toBeInTheDocument()
+	const status = within(main).getByRole('status')
+	expect(status).toHaveTextContent('Loading users.')
+	expect(status.closest('.godmin-loading-rows')).not.toBeNull()
 })
 
 test('keeps the users heading when the accounts cannot be loaded', async () => {
