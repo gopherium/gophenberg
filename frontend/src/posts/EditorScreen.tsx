@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { InputControl, Notice, Text } from '@gophenberg/frontend-sdk'
+import { LoadingScreen } from '@gopherium/godmin'
+import { InputControl, Notice } from '@gophenberg/frontend-sdk'
 import {
 	BlockBreadcrumb,
 	BlockCanvas,
@@ -43,7 +44,7 @@ export function EditorScreen() {
 		)
 	}
 	if (post.data === undefined) {
-		return <Text>Loading the post.</Text>
+		return <LoadingScreen label="Loading the post." />
 	}
 	return <Editor postId={postId} stored={post.data} />
 }

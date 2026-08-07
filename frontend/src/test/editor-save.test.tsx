@@ -43,6 +43,15 @@ beforeEach(() => {
 	)
 })
 
+test('ghosts the post while it loads', async () => {
+	server.use(http.get(`/api/posts/${POST_ID}`, () => new Promise(() => {})))
+	renderAt(EDITOR_PATH)
+
+	const status = await screen.findByRole('status')
+	expect(status).toHaveTextContent('Loading the post.')
+	expect(status.closest('.godmin-loading-screen')).not.toBeNull()
+})
+
 test('shows the stored title in its own field', async () => {
 	renderAt(EDITOR_PATH)
 
