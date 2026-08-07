@@ -5,6 +5,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
+import '../index.css'
 import { renderAt } from './render'
 
 const PUBLISHED = {
@@ -51,6 +52,48 @@ beforeEach(() => {
 	asked.length = 0
 	serveList()
 	server.use(http.get('/api/posts/counts', () => HttpResponse.json(COUNTS)))
+})
+
+test('holds the filter row space with chip ghosts until the counts arrive', async () => {
+	serveList()
+	server.use(http.get('/api/posts/counts', () => new Promise(() => {})))
+	renderAt('/posts')
+	await screen.findByRole('heading', { level: 1 })
+
+	await waitFor(() =>
+		expect(document.querySelectorAll('.gophenberg-status-ghost').length).toBe(5),
+	)
+	const chip = document.querySelector('.gophenberg-status-ghost') as Element
+	expect(chip.closest('[aria-hidden="true"]')).not.toBeNull()
+})
+
+test('reserves the filter row without painting the chips right away', async () => {
+	serveList()
+	server.use(http.get('/api/posts/counts', () => new Promise(() => {})))
+	renderAt('/posts')
+	await screen.findByRole('heading', { level: 1 })
+
+	await waitFor(() => expect(document.querySelector('.gophenberg-status-ghost')).not.toBeNull())
+	const chip = document.querySelector('.gophenberg-status-ghost') as Element
+	const style = getComputedStyle(chip)
+	expect(style.opacity).toBe('0')
+	expect(style.animation).toContain('gophenberg-status-appear')
+	expect(style.animation).toContain('200ms')
+	expect(style.animation).toContain('forwards')
+})
+
+test('lands the chip animation at full opacity', () => {
+	const keyframes: string[] = []
+	for (const sheet of document.styleSheets) {
+		for (const rule of sheet.cssRules) {
+			if (/@keyframes\s+gophenberg-status-appear\s*\{/.test(rule.cssText)) {
+				keyframes.push(rule.cssText)
+			}
+		}
+	}
+
+	expect(keyframes).toHaveLength(1)
+	expect(keyframes[0]).toMatch(/opacity:\s*1/)
 })
 
 test('counts the posts each status view covers', async () => {

@@ -32,6 +32,7 @@ export {
 	InputControl,
 	Notice,
 	SelectControl,
+	Skeleton,
 	Stack,
 	Tabs,
 	Text,

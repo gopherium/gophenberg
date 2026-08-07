@@ -1,8 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Stack } from '@gophenberg/frontend-sdk'
+import { Button, Skeleton, Stack } from '@gophenberg/frontend-sdk'
 
 import type { PostCounts } from './api'
+
+const GHOST_CHIPS = 5
+
+/**
+ * Renders chip ghosts holding the filter row's place until the counts arrive.
+ * @returns The ghost row element.
+ */
+export function StatusGhost() {
+	return (
+		<Stack direction="row" gap="xs" align="center" aria-hidden="true">
+			{Array.from({ length: GHOST_CHIPS }, (_, chip) => (
+				<Skeleton key={chip} className="gophenberg-status-ghost" />
+			))}
+		</Stack>
+	)
+}
 
 interface StatusView {
 	status: string

@@ -13,7 +13,7 @@ import type { PostCounts, PostPage } from './api'
 import { EmptyTrash } from './EmptyTrash'
 import { postFields } from './fields'
 import { PostsNotice } from './PostsNotice'
-import { StatusViews } from './StatusViews'
+import { StatusGhost, StatusViews } from './StatusViews'
 
 const PER_PAGE = 20
 
@@ -110,9 +110,9 @@ export function PostsScreen() {
 }
 
 /**
- * Renders the status filter row, or nothing until the counts arrive.
+ * Renders the status filter row, or its ghost until the counts arrive.
  * @param props - The counts, the current status, and the choice handler.
- * @returns The status row element, or null.
+ * @returns The status row element, or its ghost.
  */
 function StatusRow({
 	counts,
@@ -124,7 +124,7 @@ function StatusRow({
 	onSelect: (chosen: string) => void
 }) {
 	if (counts === undefined) {
-		return null
+		return <StatusGhost />
 	}
 	return <StatusViews counts={counts} current={current} onSelect={onSelect} />
 }
