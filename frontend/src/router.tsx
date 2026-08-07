@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { LoadingScreen } from '@gopherium/godmin'
 import {
 	createRootRoute,
 	createRoute,
@@ -60,12 +61,27 @@ const routeTree = rootRoute.addChildren([
 ])
 
 /**
+ * Renders the ghost a route shows while its chunk or data arrives.
+ * @returns The pending element.
+ */
+function RoutePending() {
+	return <LoadingScreen label="Loading the screen." />
+}
+
+/**
  * Creates the application router with the assembled route tree.
  * @param history - Optional router history instance for controlling navigation state.
  * @returns The configured TanStack router bound to the route tree.
  */
 export function createAppRouter(history?: RouterHistory) {
-	return createRouter({ routeTree, history, basepath: adminBasepath })
+	return createRouter({
+		routeTree,
+		history,
+		basepath: adminBasepath,
+		defaultPendingComponent: RoutePending,
+		defaultPendingMs: 0,
+		defaultPendingMinMs: 0,
+	})
 }
 
 declare module '@tanstack/react-router' {
