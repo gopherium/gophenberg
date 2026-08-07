@@ -5,6 +5,7 @@ import {
 	createRootRoute,
 	createRoute,
 	createRouter,
+	lazyRouteComponent,
 } from '@tanstack/react-router'
 import type { RouterHistory } from '@tanstack/react-router'
 
@@ -32,22 +33,26 @@ const postsRoute = createRoute({
 	getParentRoute: () => framedRoute,
 	path: '/posts',
 	staticData: { Sidebar: PostsSidebar },
-}).lazy(() => import('./posts/postsRoutes.lazy').then((module) => module.PostsLazyRoute))
+	component: lazyRouteComponent(() => import('./posts/PostsScreen'), 'PostsScreen'),
+})
 
 const usersRoute = createRoute({
 	getParentRoute: () => framedRoute,
 	path: '/users',
-}).lazy(() => import('./userRoutes.lazy').then((module) => module.UsersLazyRoute))
+	component: lazyRouteComponent(() => import('./users/UsersScreen'), 'UsersScreen'),
+})
 
 const newUserRoute = createRoute({
 	getParentRoute: () => framedRoute,
 	path: '/users/new',
-}).lazy(() => import('./userRoutes.lazy').then((module) => module.NewUserLazyRoute))
+	component: lazyRouteComponent(() => import('./users/NewUserScreen'), 'NewUserScreen'),
+})
 
 const editorRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/posts/$postId/edit',
-}).lazy(() => import('./posts/editorRoute.lazy').then((module) => module.EditorLazyRoute))
+	component: lazyRouteComponent(() => import('./posts/EditorScreen'), 'EditorScreen'),
+})
 
 const routeTree = rootRoute.addChildren([
 	framedRoute.addChildren([
