@@ -67,7 +67,7 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 					onChange={buffer.onChange}
 					settings={EDITOR_SETTINGS}
 				>
-					<div className="gophenberg-editor">
+					<div className="gophenberg-editor godmin-arrival">
 						<EditorHeader buffer={buffer} type={stored.type} views={views} />
 						<div className="gophenberg-editor__main">
 							{views.listOpen ? (

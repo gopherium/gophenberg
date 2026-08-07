@@ -84,7 +84,7 @@ export function createAppRouter(history?: RouterHistory) {
 		history,
 		basepath: adminBasepath,
 		defaultPendingComponent: RoutePending,
-		defaultPendingMs: 0,
+		defaultPendingMs: 200,
 		defaultPendingMinMs: 0,
 	})
 }

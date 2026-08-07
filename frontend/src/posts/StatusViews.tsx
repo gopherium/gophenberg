@@ -12,13 +12,7 @@ const GHOST_CHIPS = 5
  */
 export function StatusGhost() {
 	return (
-		<Stack
-			direction="row"
-			gap="xs"
-			align="center"
-			aria-hidden="true"
-			className="gophenberg-status-row"
-		>
+		<Stack direction="row" gap="xs" align="center" aria-hidden="true">
 			{Array.from({ length: GHOST_CHIPS }, (_, chip) => (
 				<Skeleton key={chip} className="gophenberg-status-ghost" />
 			))}
@@ -80,7 +74,14 @@ export function StatusViews({
 	onSelect: (status: string) => void
 }) {
 	return (
-		<Stack direction="row" gap="xs" align="center" role="group" aria-label="Filter by status">
+		<Stack
+			direction="row"
+			gap="xs"
+			align="center"
+			role="group"
+			aria-label="Filter by status"
+			className="godmin-arrival"
+		>
 			{viewsFor(counts).map((view) => (
 				<Button
 					key={view.status}

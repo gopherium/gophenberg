@@ -50,7 +50,12 @@ function UsersBody({
 		return <LoadingRows label="Loading users." />
 	}
 	return (
-		<div className="godmin-table-scroll" role="region" aria-label="Users" tabIndex={0}>
+		<div
+			className="godmin-table-scroll godmin-arrival"
+			role="region"
+			aria-label="Users"
+			tabIndex={0}
+		>
 			<table className="godmin-table">
 				<thead>
 					<tr>
