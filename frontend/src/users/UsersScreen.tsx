@@ -118,7 +118,7 @@ function UserToggle({ user }: { user: User }) {
 			<Button
 				variant="outline"
 				aria-label={`${verb} ${user.name}`}
-				disabled={toggle.isPending}
+				loading={toggle.isPending}
 				onClick={() => toggle.mutate()}
 			>
 				{verb}

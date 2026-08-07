@@ -86,7 +86,7 @@ function Confirm({
 				<Button variant="outline" onClick={closeModal}>
 					Cancel
 				</Button>
-				<Button disabled={action.isPending} onClick={() => action.mutate()}>
+				<Button loading={action.isPending} onClick={() => action.mutate()}>
 					{confirmLabel}
 				</Button>
 			</Stack>

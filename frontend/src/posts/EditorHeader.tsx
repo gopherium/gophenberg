@@ -122,12 +122,13 @@ export function EditorHeader(
 					<Button
 						variant="outline"
 						disabled={!buffer.dirty || buffer.saving}
+						loading={buffer.saving}
 						onClick={buffer.save}
 					>
 						Save draft
 					</Button>
 				)}
-				<Button disabled={buffer.saving} onClick={primary.write}>
+				<Button loading={buffer.saving} onClick={primary.write}>
 					{primary.label}
 				</Button>
 			</Stack>

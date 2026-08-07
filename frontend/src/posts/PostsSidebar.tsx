@@ -29,7 +29,7 @@ export function PostsSidebar() {
 					<Button
 						variant="unstyled"
 						className="gophenberg-menu__item"
-						disabled={addNew.isPending}
+						loading={addNew.isPending}
 						onClick={() => addNew.mutate()}
 					>
 						Add New

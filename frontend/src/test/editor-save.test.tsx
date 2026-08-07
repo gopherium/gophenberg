@@ -1,11 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { Button } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { renderAt } from './render'
+
+/**
+ * Returns the class tokens the design system adds to a loading button.
+ * @returns The tokens a busy button carries and an idle one does not.
+ */
+function busyClasses(): string[] {
+	const { container, unmount } = render(
+		<>
+			<Button id="idle">idle</Button>
+			<Button id="busy" loading>
+				busy
+			</Button>
+		</>,
+	)
+	const idle = new Set((container.querySelector('#idle') as Element).classList)
+	const busy = [...(container.querySelector('#busy') as Element).classList]
+	unmount()
+	return busy.filter((token) => !idle.has(token))
+}
 
 const POST_ID = '019fb000-0000-7000-8000-000000000001'
 const EDITOR_PATH = `/posts/${POST_ID}/edit`
@@ -188,6 +208,34 @@ test('reports a save the server rejected', async () => {
 	await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
 	expect(await screen.findByText(/invalid status/i)).toBeInTheDocument()
+})
+
+test('shows the write button busy while the write is in flight', async () => {
+	const busy = busyClasses()
+	expect(busy.length).toBeGreaterThan(0)
+	let release: () => void = () => {}
+	const held = new Promise<void>((resolve) => {
+		release = resolve
+	})
+	server.use(
+		http.patch(`/api/posts/${POST_ID}`, async () => {
+			await held
+			return HttpResponse.json(STORED)
+		}),
+	)
+	renderAt(EDITOR_PATH)
+	const title = await screen.findByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, '!')
+
+	await userEvent.click(screen.getByRole('button', { name: 'Publish' }))
+
+	const publish = screen.getByRole('button', { name: 'Publish' })
+	await waitFor(() => {
+		for (const token of busy) {
+			expect([...publish.classList]).toContain(token)
+		}
+	})
+	release()
 })
 
 test('says it is saving while the write is in flight', async () => {

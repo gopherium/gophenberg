@@ -31,7 +31,7 @@ function Undo({ undoIds, report }: { undoIds: string[], report: ReportNotice }) 
 	})
 	return (
 		<Notice.Actions>
-			<Notice.ActionButton disabled={undo.isPending} onClick={() => undo.mutate()}>
+			<Notice.ActionButton loading={undo.isPending} onClick={() => undo.mutate()}>
 				Undo
 			</Notice.ActionButton>
 		</Notice.Actions>

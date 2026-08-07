@@ -69,7 +69,11 @@ export function NewUserScreen() {
 						value={password}
 						onValueChange={setPassword}
 					/>
-					<Button type="submit" disabled={incomplete || create.isPending}>
+					<Button
+						type="submit"
+						disabled={incomplete || create.isPending}
+						loading={create.isPending}
+					>
 						Create user
 					</Button>
 					{create.isError && <ErrorNotice>{createFailureMessage(create.error)}</ErrorNotice>}
