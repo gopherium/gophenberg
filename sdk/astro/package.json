@@ -1,6 +1,6 @@
 {
 	"name": "@gophenberg/astro",
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"type": "module",
 	"license": "Apache-2.0",
 	"description": "Build a Gophenberg theme in Astro: routes, block rendering, and the theme contract.",
