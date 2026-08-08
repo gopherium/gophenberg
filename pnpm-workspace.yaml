@@ -20,7 +20,7 @@ peerDependencyRules:
 minimumReleaseAgeExclude:
   - '@gopherium/godmin@0.5.0'
   - '@wordpress/dataviews@17.3.0'
-  - '@gopherium/react-auth@0.1.2'
+  - '@gopherium/react-auth@0.3.0'
 
 allowBuilds:
   esbuild: false
