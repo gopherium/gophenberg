@@ -17,7 +17,7 @@ const patched: Record<string, unknown>[] = []
 const parked: Record<string, unknown>[] = []
 
 beforeAll(async () => {
-	await import('../posts/editorRoute.lazy')
+	await import('../posts/EditorScreen')
 }, 120000)
 
 beforeEach(() => {

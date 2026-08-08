@@ -9,7 +9,7 @@ import { renderAt } from './render'
 import { storedPostWithId } from './postFixture'
 
 beforeAll(async () => {
-	await import('../posts/editorRoute.lazy')
+	await import('../posts/EditorScreen')
 }, 120000)
 
 const PUBLISHED = {

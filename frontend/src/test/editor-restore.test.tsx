@@ -22,7 +22,7 @@ const NEWER = {
 const OLDER = { ...NEWER, saved_at: '2026-07-20T09:00:00Z' }
 
 beforeAll(async () => {
-	await import('../posts/editorRoute.lazy')
+	await import('../posts/EditorScreen')
 }, 120000)
 
 beforeEach(() => {

@@ -8,5 +8,9 @@ installTestEnvironment()
 configure({ asyncUtilTimeout: 2000 })
 
 beforeAll(async () => {
-	await Promise.all([import('../posts/postsRoutes.lazy'), import('../userRoutes.lazy')])
+	await Promise.all([
+		import('../posts/PostsScreen'),
+		import('../users/UsersScreen'),
+		import('../users/NewUserScreen'),
+	])
 })

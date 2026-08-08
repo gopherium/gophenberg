@@ -48,7 +48,7 @@ const STORED = {
 const patched: unknown[] = []
 
 beforeAll(async () => {
-	await import('../posts/editorRoute.lazy')
+	await import('../posts/EditorScreen')
 }, 120000)
 
 beforeEach(() => {

@@ -13,7 +13,7 @@ const EDITOR_PATH = `/posts/${storedPost.id}/edit`
 const autosaved: Record<string, unknown>[] = []
 
 beforeAll(async () => {
-	await import('../posts/editorRoute.lazy')
+	await import('../posts/EditorScreen')
 }, 120000)
 
 beforeEach(() => {

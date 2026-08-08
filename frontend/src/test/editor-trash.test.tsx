@@ -15,8 +15,8 @@ const restored: string[] = []
 
 beforeAll(async () => {
 	await Promise.all([
-		import('../posts/editorRoute.lazy'),
-		import('../posts/postsRoutes.lazy'),
+		import('../posts/EditorScreen'),
+		import('../posts/PostsScreen'),
 	])
 }, 120000)
 

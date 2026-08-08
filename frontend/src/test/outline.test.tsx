@@ -15,7 +15,7 @@ const CHROMELESS = ['/posts/$postId/edit']
 const EDITOR_URL = `/posts/${storedPost.id}/edit`
 
 beforeAll(async () => {
-	await import('../posts/editorRoute.lazy')
+	await import('../posts/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
