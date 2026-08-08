@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /// <reference types="vitest/config" />
-import { godminDedupe, godminSingleCopy } from '@gopherium/godmin/vite'
+import { godminDedupe, godminSingleCopy, godminStylesheetFirst } from '@gopherium/godmin/vite'
 import react from '@vitejs/plugin-react'
 import dsTokenFallbacks from '@wordpress/theme/vite-plugins/vite-ds-token-fallbacks'
 import { defineConfig } from 'vite'
 import { fileURLToPath } from 'node:url'
 
 import { adminBasepath } from './src/basepath.js'
-import { stylesheetFirst } from './stylesheetFirst.js'
 
 // The workers @wordpress/upload-media reaches for, stubbed out until the media cycle ships.
 const mediaWorkerStubs = {
@@ -20,7 +19,7 @@ const mediaWorkerStubs = {
 
 export default defineConfig({
 	base: adminBasepath + '/',
-	plugins: [react(), dsTokenFallbacks(), godminSingleCopy(), stylesheetFirst()],
+	plugins: [react(), dsTokenFallbacks(), godminSingleCopy(), godminStylesheetFirst()],
 	resolve: {
 		alias: mediaWorkerStubs,
 		dedupe: [
