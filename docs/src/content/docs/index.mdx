@@ -1,0 +1,40 @@
+---
+title: Gophenberg
+description: A plugin-first CMS. Go backend, React admin, Gutenberg editor. Self-hosted on your server.
+template: splash
+hero:
+  tagline: A plugin-first CMS with the Gutenberg editor, a Go backend, and themes that cannot take your site down. One container, one database, your server.
+  actions:
+    - text: Get started
+      link: /start/local-development/
+      icon: right-arrow
+    - text: GitHub
+      link: https://github.com/gopherium/gophenberg
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Pick your path
+
+<CardGrid stagger>
+	<Card title="Self-host it" icon="seti:docker">
+		One container and a PostgreSQL database. Start with the
+		[install guide](/self-hosting/install/).
+	</Card>
+	<Card title="Write with blocks" icon="pencil">
+		The Gutenberg block editor, with autosave and a trash you can undo.
+		Start with [the editor](/guides/editor/).
+	</Card>
+	<Card title="Theme it" icon="seti:css">
+		A theme is an Astro project reading a JSON API. If it breaks, the
+		built-in renderer takes over. Start with
+		[how theming works](/themes/how-theming-works/).
+	</Card>
+	<Card title="Extend it" icon="puzzle">
+		Plugins are Go packages compiled in, with their own routes and
+		database schema. Start with
+		[your first plugin](/extending/write-a-plugin/).
+	</Card>
+</CardGrid>

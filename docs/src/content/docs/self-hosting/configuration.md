@@ -1,0 +1,70 @@
+---
+title: Configuration
+description: Every environment variable, what the binary serves where, and what stops startup.
+---
+
+Gophenberg is configured entirely through environment variables. A
+`.env` file in the working directory is read at startup, and real
+environment variables win over it.
+
+## The variables
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `GOPHENBERG_DATABASE_URL` | Yes | | The PostgreSQL connection string |
+| `GOPHENBERG_ADDR` | No | `localhost:8081` | Address the server listens on. The container image sets `0.0.0.0:8081` |
+| `GOPHENBERG_WEB_DIR` | No | | Where the built admin and the public stylesheets live. The image sets `/web` |
+| `GOPHENBERG_SITE_TITLE` | No | `Gophenberg` | The site name shown by the built-in renderer |
+| `GOPHENBERG_TRUSTED_PROXIES` | No | | Comma-separated CIDR ranges allowed to set forwarded headers |
+| `GOPHENBERG_THEMES_DIR` | No | | The directory themes are installed in |
+| `GOPHENBERG_THEME` | No | | The active theme's name. Empty serves the built-in renderer |
+| `GOPHENBERG_NODE_BIN` | No | `node` | The Node binary themes run on. The image sets its own |
+| `GOPHENBERG_FEED_TITLE` | No | `Gophenberg` | The RSS channel title |
+| `GOPHENBERG_FEED_ITEMS` | No | `20` | How many posts the RSS feed carries |
+
+Two rows deserve a warning:
+
+- `GOPHENBERG_WEB_DIR` also holds the stylesheets every public
+  page loads. Unset, the public site loses its block styling,
+  theme or not.
+- `GOPHENBERG_SITE_TITLE` only affects the built-in renderer. A
+  theme names the site in its own source.
+
+## Trusted proxies
+
+Behind a proxy, requests reach Gophenberg from the proxy's
+address, and the headers naming the real visitor and the real
+`https` address can be written by anyone. Gophenberg believes them
+only from addresses inside `GOPHENBERG_TRUSTED_PROXIES`.
+
+Leaving it unset behind a proxy causes two quiet problems: any
+absolute address a theme builds comes out as `http`, and the login
+rate limiter sees all visitors as one client, so a few failed
+logins by anyone can lock out everyone.
+
+## What stops startup
+
+The server refuses to start, and says why, when:
+
+- `GOPHENBERG_DATABASE_URL` is missing.
+- `GOPHENBERG_TRUSTED_PROXIES` is not valid CIDR notation.
+- `GOPHENBERG_FEED_ITEMS` is not a positive whole number.
+- `GOPHENBERG_THEME` names a theme that fails to load, see
+  [installing a theme](/themes/installing-a-theme/).
+
+## What the binary serves where
+
+| Path | What | Login needed |
+| --- | --- | --- |
+| `/` | The public site, newest posts | No |
+| `/{type}/{slug}` | One published post | No |
+| `/{type}/page/{n}` | Older posts, 20 per page | No |
+| `/admin/` | The admin | The screens ask for one |
+| `/api/...` | The admin's JSON API | Yes, apart from signing in and out |
+| `/api/content/v1/...` | The [public content API](/reference/content-api/) | No |
+| `/api/plugins/feed/rss.xml` | The [RSS feed](/reference/rss-feed/) | No |
+| `/gophenberg/...` | Site assets, cached for an hour | No |
+| `/_gophenberg/...` | Reserved for internal use | Answers 404 |
+
+The last row answering 404 from outside is correct behavior, not
+an outage.

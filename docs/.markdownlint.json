@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint/v0.40.0/schema/markdownlint-config-schema.json",
+  "MD010": {
+    "ignore_code_languages": ["go", "make", "ts", "tsx", "js", "astro"]
+  },
+  "MD013": {
+    "tables": false,
+    "code_blocks": false
+  }
+}
