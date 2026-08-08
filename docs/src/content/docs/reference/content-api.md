@@ -25,7 +25,7 @@ curl https://example.com/api/content/v1
 ```
 
 ```json
-{ "gophenberg": "0.0.5", "api": 1 }
+{ "gophenberg": "%VERSION%", "api": 1 }
 ```
 
 One request tells you the site runs Gophenberg, which version, and

@@ -33,7 +33,7 @@ themes/
 `theme.json` is one line you write once:
 
 ```json
-{ "name": "mytheme", "version": "1.0.0", "kit": "0.0.5" }
+{ "name": "mytheme", "version": "1.0.0", "kit": "%VERSION%" }
 ```
 
 Gophenberg validates the install at startup and **refuses to

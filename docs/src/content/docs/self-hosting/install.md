@@ -33,7 +33,7 @@ services:
       retries: 15
 
   gophenberg:
-    image: ghcr.io/gopherium/gophenberg:0.0.5
+    image: ghcr.io/gopherium/gophenberg:%VERSION%
     restart: unless-stopped
     environment:
       GOPHENBERG_DATABASE_URL: postgres://postgres:change-me@db:5432/gophenberg?sslmode=disable
@@ -88,8 +88,8 @@ example.com {
 
 - Your domain shows the public site.
 - `curl -sI https://example.com | grep -i x-generator` answers
-  with `Gophenberg 0.0`. The `-i` matters, HTTP/2 lowercases
-  header names.
+  with `Gophenberg %FEATURE_VERSION%`. The `-i` matters, HTTP/2
+  lowercases header names.
 - `/admin/` loads and your login works.
 
 From here: [configuration](/self-hosting/configuration/) lists

@@ -3,8 +3,13 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
+import { remarkVersion } from './version.mjs';
+
 export default defineConfig({
 	site: 'https://docs.gophenberg.org',
+	markdown: {
+		remarkPlugins: [remarkVersion],
+	},
 	integrations: [
 		starlight({
 			title: 'Gophenberg',

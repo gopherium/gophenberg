@@ -34,10 +34,10 @@ undo.
 
 ## What ships today
 
-Gophenberg is at version 0.0.x and honest about it. Working today:
-posts with statuses, slugs, and excerpts, autosave and recovery,
-trash and restore, user accounts, themes, plugins, a public
-content API, and an RSS feed.
+Gophenberg is below 1.0 and honest about it. Working today: posts
+with statuses, slugs, and excerpts, autosave and recovery, trash
+and restore, user accounts, themes, plugins, a public content API,
+and an RSS feed.
 
 Images are added by web address. Gophenberg stores no files, so
 there is no upload.

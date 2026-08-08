@@ -17,9 +17,9 @@ docker compose pull
 docker compose up -d
 ```
 
-Migrations run automatically when the new version starts. While at
-0.0.x, read the release notes first, since early versions can
-change behavior between releases.
+Migrations run automatically when the new version starts. While
+Gophenberg is below 1.0, read the release notes first, since a
+release can change behavior.
 
 ## What to back up
 

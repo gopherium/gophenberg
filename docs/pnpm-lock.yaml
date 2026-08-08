@@ -17,6 +17,10 @@ importers:
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
+    devDependencies:
+      unist-util-visit:
+        specifier: ^5.1.0
+        version: 5.1.0
 
 packages:
 
