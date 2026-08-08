@@ -8,6 +8,7 @@ import { defineConfig } from 'vite'
 import { fileURLToPath } from 'node:url'
 
 import { adminBasepath } from './src/basepath.js'
+import { stylesheetFirst } from './stylesheetFirst.js'
 
 // The workers @wordpress/upload-media reaches for, stubbed out until the media cycle ships.
 const mediaWorkerStubs = {
@@ -19,7 +20,7 @@ const mediaWorkerStubs = {
 
 export default defineConfig({
 	base: adminBasepath + '/',
-	plugins: [react(), dsTokenFallbacks(), godminSingleCopy()],
+	plugins: [react(), dsTokenFallbacks(), godminSingleCopy(), stylesheetFirst()],
 	resolve: {
 		alias: mediaWorkerStubs,
 		dedupe: [
