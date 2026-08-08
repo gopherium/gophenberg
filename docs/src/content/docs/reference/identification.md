@@ -12,14 +12,14 @@ what is disclosed so you are not surprised by it.
 **Response headers.** Every public page answers with:
 
 ```text
-X-Generator: Gophenberg 0.0
+X-Generator: Gophenberg %FEATURE_VERSION%
 Link: </api/content/v1>; rel="https://gophenberg.org/api"
 ```
 
 **A generator tag** in the page's head:
 
 ```html
-<meta name="generator" content="Gophenberg 0.0">
+<meta name="generator" content="Gophenberg %FEATURE_VERSION%">
 ```
 
 **Asset addresses.** Pages load their block styles from
