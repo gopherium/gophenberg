@@ -120,18 +120,18 @@ func TestTheLibraryIgnoresLooseFilesAndStagingDirectories(t *testing.T) {
 	}
 }
 
-func TestTheLibraryReportsAMissingDirectoryAsEmpty(t *testing.T) {
+func TestTheLibraryReportsADirectoryItDoesNotHaveAsEmpty(t *testing.T) {
 	t.Parallel()
 
-	library := themehost.NewLibrary(filepath.Join(t.TempDir(), "absent"))
+	for _, dir := range []string{filepath.Join(t.TempDir(), "absent"), ""} {
+		installed, err := themehost.NewLibrary(dir).List()
 
-	installed, err := library.List()
-
-	if err != nil {
-		t.Fatalf("List() = %v, want a missing directory read as empty", err)
-	}
-	if len(installed) != 0 {
-		t.Errorf("List() = %v, want nothing installed", installed)
+		if err != nil {
+			t.Fatalf("List() on %q = %v, want it read as empty", dir, err)
+		}
+		if len(installed) != 0 {
+			t.Errorf("List() on %q = %v, want nothing installed", dir, installed)
+		}
 	}
 }
 
