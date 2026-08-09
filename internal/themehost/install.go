@@ -13,14 +13,11 @@ import (
 	"strings"
 )
 
-// ErrUnsafeArchive reports an archive whose entries a theme may not carry.
-var ErrUnsafeArchive = errors.New("themehost: the archive is unsafe")
-
 // Install unpacks archive as the named theme, replacing it only once it validates.
 func Install(themesDir, name string, archive io.ReaderAt, size int64) (*Theme, error) {
 	reader, err := zip.NewReader(archive, size)
 	if err != nil {
-		return nil, fmt.Errorf("themehost: reading the archive: %w", err)
+		return nil, refuse("the archive could not be read", "themehost: reading the archive: %w", err)
 	}
 	staging, err := os.MkdirTemp(themesDir, "."+name+"-staging-")
 	if err != nil {
@@ -42,40 +39,47 @@ func Install(themesDir, name string, archive io.ReaderAt, size int64) (*Theme, e
 	return theme, nil
 }
 
-// unpack writes every archive entry under dir, refusing what a theme may not carry.
+// unpack writes every archive entry under dir, refusing an archive that unpacks past the cap.
 func unpack(reader *zip.Reader, dir string) error {
 	var total int64
 	for _, file := range reader.File {
-		target, err := safeTarget(dir, file.Name)
-		if err != nil {
-			return err
-		}
-		if file.FileInfo().Mode()&fs.ModeSymlink != 0 {
-			return fmt.Errorf("%w: it holds a symlink at %s", ErrUnsafeArchive, file.Name)
-		}
-		if strings.HasSuffix(file.Name, "/") {
-			if err := os.MkdirAll(target, 0o755); err != nil {
-				return fmt.Errorf("themehost: unpacking %s: %w", file.Name, err)
-			}
-			continue
-		}
-		written, err := extract(file, target)
+		written, err := unpackOne(file, dir)
 		if err != nil {
 			return err
 		}
 		total += written
 		if total > MaxSize {
-			return fmt.Errorf("themehost: the archive unpacks to more than the %d byte cap", int64(MaxSize))
+			return refuse("the theme is too large",
+				"themehost: the archive unpacks to more than the %d byte cap", int64(MaxSize))
 		}
 	}
 	return nil
+}
+
+// unpackOne writes one archive entry under dir, refusing what a theme may not carry.
+func unpackOne(file *zip.File, dir string) (int64, error) {
+	target, err := safeTarget(dir, file.Name)
+	if err != nil {
+		return 0, err
+	}
+	if file.FileInfo().Mode()&fs.ModeSymlink != 0 {
+		return 0, refuse("symlinks are not allowed",
+			"themehost: the archive holds a symlink at %s", file.Name)
+	}
+	if strings.HasSuffix(file.Name, "/") {
+		if err := os.MkdirAll(target, 0o755); err != nil {
+			return 0, fmt.Errorf("themehost: unpacking %s: %w", file.Name, err)
+		}
+		return 0, nil
+	}
+	return extract(file, target)
 }
 
 // safeTarget returns the path an entry unpacks to, refusing one that escapes dir.
 func safeTarget(dir, entry string) (string, error) {
 	target := filepath.Join(dir, filepath.FromSlash(entry))
 	if target != dir && !strings.HasPrefix(target, dir+string(os.PathSeparator)) {
-		return "", fmt.Errorf("%w: %s escapes the theme directory", ErrUnsafeArchive, entry)
+		return "", refuse("the archive is unsafe", "themehost: %s escapes the theme directory", entry)
 	}
 	return target, nil
 }
