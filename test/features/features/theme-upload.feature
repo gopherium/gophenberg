@@ -1,4 +1,3 @@
-@wip
 Feature: Installing a theme from the admin
   A signed in administrator installs themes by uploading a packaged
   theme archive. Installing never changes what the public site

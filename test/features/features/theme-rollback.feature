@@ -1,4 +1,3 @@
-@wip
 Feature: Rolling back a theme
   Activation remembers what served before, so one action returns the
   site to it.

@@ -1,4 +1,3 @@
-@wip
 Feature: Activating a theme
   Activation switches the public site to an installed theme without a
   restart and without a moment where the site stops answering.
