@@ -1,7 +1,12 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
 	"ignoreBinaries": ["cover", "lint"],
-	"ignore": [".e2e-themes/**", "internal/themehost/testdata/**", "docs/**"],
+	"ignore": [
+		".e2e-themes/**",
+		".e2e-archive/**",
+		"internal/themehost/testdata/**",
+		"docs/**"
+	],
 	"ignoreIssues": {
 		"**/dist/**": ["files"],
 		"**/coverage/**": ["files"]

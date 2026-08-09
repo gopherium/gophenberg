@@ -6,6 +6,7 @@ sdk/astro/.astro/
 test/theme/.astro/
 test/theme/dist/
 .e2e-themes/
+.e2e-archive/
 .brick-held/
 .covdata/
 node_modules/
