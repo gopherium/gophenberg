@@ -319,6 +319,17 @@ func (q *Queries) GetRevision(ctx context.Context, arg GetRevisionParams) (CoreP
 	return i, err
 }
 
+const getSetting = `-- name: GetSetting :one
+SELECT s.value FROM core.settings s WHERE s.key = $1
+`
+
+func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
+	row := q.db.QueryRow(ctx, getSetting, key)
+	var value string
+	err := row.Scan(&value)
+	return value, err
+}
+
 const listPosts = `-- name: ListPosts :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at
@@ -533,6 +544,22 @@ func (q *Queries) RestorePostKeepingSlug(ctx context.Context, arg RestorePostKee
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const setSetting = `-- name: SetSetting :exec
+INSERT INTO core.settings (key, value)
+VALUES ($1, $2)
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+`
+
+type SetSettingParams struct {
+	Key   string
+	Value string
+}
+
+func (q *Queries) SetSetting(ctx context.Context, arg SetSettingParams) error {
+	_, err := q.db.Exec(ctx, setSetting, arg.Key, arg.Value)
+	return err
 }
 
 const trashPost = `-- name: TrashPost :one

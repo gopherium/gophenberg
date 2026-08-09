@@ -34,3 +34,8 @@ type CorePostRevision struct {
 	Excerpt   string
 	CreatedAt time.Time
 }
+
+type CoreSetting struct {
+	Key   string
+	Value string
+}

@@ -152,3 +152,11 @@ WHERE r.post_id = @post_id AND r.author_id = @author_id AND r.kind = 'autosave';
 -- name: DeleteAutosave :exec
 DELETE FROM core.post_revisions AS r
 WHERE r.post_id = @post_id AND r.author_id = @author_id AND r.kind = 'autosave';
+
+-- name: GetSetting :one
+SELECT s.value FROM core.settings s WHERE s.key = @key;
+
+-- name: SetSetting :exec
+INSERT INTO core.settings (key, value)
+VALUES (@key, @value)
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
