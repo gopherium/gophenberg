@@ -12,5 +12,6 @@ beforeAll(async () => {
 		import('../posts/PostsScreen'),
 		import('../users/UsersScreen'),
 		import('../users/NewUserScreen'),
+		import('../themes/ThemesScreen'),
 	])
 })
