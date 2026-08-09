@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
 
 	"github.com/gopherium/gophenberg/internal/server"
+	"github.com/gopherium/gophenberg/internal/themehost"
 )
 
 // stubTheme stands in for a supervised theme the public site is served through.
@@ -228,3 +230,61 @@ func TestTheRendererServesWhenTheThemeWithholdsItsHeaders(t *testing.T) {
 		t.Errorf("body = %q, want the built-in renderer", recorder.Body.String())
 	}
 }
+
+// swappableTheme is a theme whose health and target change while it is serving.
+type swappableTheme struct {
+	mu      sync.RWMutex
+	target  string
+	healthy bool
+}
+
+// Healthy reports whether the theme is serving.
+func (s *swappableTheme) Healthy() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.healthy
+}
+
+// Target returns the address the theme serves on.
+func (s *swappableTheme) Target() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.target
+}
+
+// serve points the theme at an address and marks it serving.
+func (s *swappableTheme) serve(target string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.target, s.healthy = target, true
+}
+
+func TestPublicSiteKeepsAnsweringWhileAThemeStarts(t *testing.T) {
+	t.Parallel()
+
+	upstream := themeUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("served by the theme"))
+	})
+	theme := &swappableTheme{}
+	handler := themedServer(t, theme, nil)
+
+	before := httptest.NewRecorder()
+	handler.ServeHTTP(before, httptest.NewRequest(http.MethodGet, "/", nil))
+	if strings.Contains(before.Body.String(), "served by the theme") {
+		t.Error("want the built-in renderer while the theme is starting")
+	}
+	if before.Code != http.StatusOK {
+		t.Errorf("status = %d, want the site answering while the theme starts", before.Code)
+	}
+
+	theme.serve(upstream.URL)
+
+	after := httptest.NewRecorder()
+	handler.ServeHTTP(after, httptest.NewRequest(http.MethodGet, "/", nil))
+	if !strings.Contains(after.Body.String(), "served by the theme") {
+		t.Errorf("body = %q, want the theme serving once it reports ready", after.Body.String())
+	}
+}
+
+// The swappable holder is a theme the server can serve the public site through.
+var _ server.Theme = themehost.NewHolder()
