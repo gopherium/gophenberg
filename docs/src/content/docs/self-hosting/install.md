@@ -39,6 +39,8 @@ services:
       GOPHENBERG_DATABASE_URL: postgres://postgres:change-me@db:5432/gophenberg?sslmode=disable
       GOPHENBERG_SITE_TITLE: My Site
       GOPHENBERG_TRUSTED_PROXIES: 172.16.0.0/12
+    volumes:
+      - themes:/themes
     ports:
       - "127.0.0.1:8081:8081"
     depends_on:
@@ -47,6 +49,7 @@ services:
 
 volumes:
   db-data:
+  themes:
 ```
 
 Three values to change:
@@ -56,11 +59,14 @@ Three values to change:
   [tags page](https://github.com/gopherium/gophenberg/tags), never
   `latest`.
 - **`GOPHENBERG_TRUSTED_PROXIES`**, the network your proxy
-  connects from, in CIDR notation. The value above fits a proxy
-  running in Docker. For a proxy on the host, use `127.0.0.1/32`.
+  connects from, in CIDR notation. The value above fits a proxy in
+  Docker and a proxy on the host, which reaches the container
+  through the same Docker bridge.
 
 The healthcheck and the `condition` keep Gophenberg from starting
-before the database is ready on first boot.
+before the database is ready on first boot. The `themes` volume is
+where themes you upload in the admin are kept, so it has to stay
+writable.
 
 ## 2. Start it and create your login
 

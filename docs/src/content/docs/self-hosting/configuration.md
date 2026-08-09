@@ -16,8 +16,8 @@ environment variables win over it.
 | `GOPHENBERG_WEB_DIR` | No | | Where the built admin and the public stylesheets live. The image sets `/web` |
 | `GOPHENBERG_SITE_TITLE` | No | `Gophenberg` | The site name shown by the built-in renderer |
 | `GOPHENBERG_TRUSTED_PROXIES` | No | | Comma-separated CIDR ranges allowed to set forwarded headers |
-| `GOPHENBERG_THEMES_DIR` | No | | The directory themes are installed in |
-| `GOPHENBERG_THEME` | No | | The active theme's name. Empty serves the built-in renderer |
+| `GOPHENBERG_THEMES_DIR` | No | | The directory themes are installed in, which uploads write to. The image sets `/themes` |
+| `GOPHENBERG_THEME` | No | | Pins one theme, overriding the admin. Empty lets the admin choose |
 | `GOPHENBERG_NODE_BIN` | No | `node` | The Node binary themes run on. The image sets its own |
 | `GOPHENBERG_FEED_TITLE` | No | `Gophenberg` | The RSS channel title |
 | `GOPHENBERG_FEED_ITEMS` | No | `20` | How many posts the RSS feed carries |
@@ -29,6 +29,22 @@ Two rows deserve a warning:
   theme or not.
 - `GOPHENBERG_SITE_TITLE` only affects the built-in renderer. A
   theme names the site in its own source.
+
+## Which theme serves
+
+Two things can name a theme, and they do not carry equal weight:
+
+- **`GOPHENBERG_THEME`**, when set, wins. The admin refuses to
+  activate, deactivate or roll back while it is set, and a pinned
+  theme that fails to load stops the server from starting.
+- **The theme chosen in the admin**, stored in the database, governs
+  when no pin is set. If it fails to load, the server still starts,
+  the built-in renderer serves, and the admin shows the theme as
+  broken.
+
+Leaving `GOPHENBERG_THEME` unset is the normal way to run. Pin it
+when you want the theme fixed by deployment rather than by whoever
+is logged in.
 
 ## Trusted proxies
 
@@ -49,8 +65,9 @@ The server refuses to start, and says why, when:
 - `GOPHENBERG_DATABASE_URL` is missing.
 - `GOPHENBERG_TRUSTED_PROXIES` is not valid CIDR notation.
 - `GOPHENBERG_FEED_ITEMS` is not a positive whole number.
-- `GOPHENBERG_THEME` names a theme that fails to load, see
-  [installing a theme](/themes/installing-a-theme/).
+- `GOPHENBERG_THEME` pins a theme that fails to load, see
+  [installing a theme](/themes/installing-a-theme/). A theme chosen
+  in the admin does not stop startup.
 
 ## What the binary serves where
 
