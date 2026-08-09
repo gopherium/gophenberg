@@ -41,25 +41,50 @@ func TestSettingReadsWhatItWrote(t *testing.T) {
 		t.Fatalf("set: %v", err)
 	}
 
-	got, err := store.Get(t.Context(), "theme.active")
+	got, found, err := store.Lookup(t.Context(), "theme.active")
 	if err != nil {
-		t.Fatalf("get: %v", err)
+		t.Fatalf("lookup: %v", err)
+	}
+	if !found {
+		t.Error("the key reads as unset, want it found")
 	}
 	if got != "aurora" {
 		t.Errorf("got %q, want the stored value", got)
 	}
 }
 
-func TestSettingReadsAnUnsetKeyAsEmpty(t *testing.T) {
+func TestSettingReportsAnUnsetKeyAsUnset(t *testing.T) {
 	store := newSettingStore(t)
 
-	got, err := store.Get(t.Context(), "theme.active")
+	got, found, err := store.Lookup(t.Context(), "theme.active")
 
 	if err != nil {
-		t.Fatalf("want an unset key to read as empty, got %v", err)
+		t.Fatalf("want an unset key to read cleanly, got %v", err)
+	}
+	if found {
+		t.Error("the key reads as found, want it unset")
 	}
 	if got != "" {
 		t.Errorf("got %q, want empty", got)
+	}
+}
+
+func TestSettingTellsAnEmptyValueFromAnUnsetKey(t *testing.T) {
+	store := newSettingStore(t)
+	if err := store.Set(t.Context(), "theme.previous", ""); err != nil {
+		t.Fatalf("set: %v", err)
+	}
+
+	got, found, err := store.Lookup(t.Context(), "theme.previous")
+
+	if err != nil {
+		t.Fatalf("lookup: %v", err)
+	}
+	if !found {
+		t.Error("a key stored as empty reads as unset, want it found")
+	}
+	if got != "" {
+		t.Errorf("got %q, want the empty value it was set to", got)
 	}
 }
 
@@ -73,9 +98,9 @@ func TestSettingOverwritesAnExistingKey(t *testing.T) {
 		t.Fatalf("set the second value: %v", err)
 	}
 
-	got, err := store.Get(t.Context(), "theme.active")
+	got, _, err := store.Lookup(t.Context(), "theme.active")
 	if err != nil {
-		t.Fatalf("get: %v", err)
+		t.Fatalf("lookup: %v", err)
 	}
 	if got != "aurora" {
 		t.Errorf("got %q, want the newer value", got)
@@ -92,9 +117,9 @@ func TestSettingKeepsKeysApart(t *testing.T) {
 		t.Fatalf("set the previous theme: %v", err)
 	}
 
-	active, err := store.Get(t.Context(), "theme.active")
+	active, _, err := store.Lookup(t.Context(), "theme.active")
 	if err != nil {
-		t.Fatalf("get the active theme: %v", err)
+		t.Fatalf("looking up the active theme: %v", err)
 	}
 	if active != "aurora" {
 		t.Errorf("got %q, want the other key untouched", active)
@@ -105,8 +130,8 @@ func TestSettingReportsDatabaseFailures(t *testing.T) {
 	store, pool := newSettingStoreWithPool(t)
 	pool.Close()
 
-	if _, err := store.Get(t.Context(), "theme.active"); err == nil {
-		t.Error("Get() on a closed pool error = nil, want a failure")
+	if _, _, err := store.Lookup(t.Context(), "theme.active"); err == nil {
+		t.Error("Lookup() on a closed pool error = nil, want a failure")
 	}
 	if err := store.Set(t.Context(), "theme.active", "aurora"); err == nil {
 		t.Error("Set() on a closed pool error = nil, want a failure")
@@ -123,9 +148,9 @@ func TestSettingClearsAKey(t *testing.T) {
 		t.Fatalf("clear: %v", err)
 	}
 
-	got, err := store.Get(t.Context(), "theme.active")
+	got, _, err := store.Lookup(t.Context(), "theme.active")
 	if err != nil {
-		t.Fatalf("get: %v", err)
+		t.Fatalf("lookup: %v", err)
 	}
 	if got != "" {
 		t.Errorf("got %q, want the key cleared", got)

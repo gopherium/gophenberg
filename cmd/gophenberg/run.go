@@ -66,7 +66,7 @@ func run(
 		return fmt.Errorf("start plugins: %w", err)
 	}
 
-	theme, stopTheme, err := startTheme(settings, logger)
+	themes, stopTheme, err := startTheme(ctx, settings, postgres.NewSettingStore(pool), logger)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,8 @@ func run(
 		Version:           version.Version(),
 		TrustedProxies:    settings.trustedProxies,
 		SiteTitle:         settings.siteTitle,
-		Theme:             theme,
+		Theme:             themes.Holder(),
+		Themes:            themes,
 	}
 	if settings.webDir != "" {
 		cfg.Web = os.DirFS(settings.webDir)

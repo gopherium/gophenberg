@@ -23,16 +23,16 @@ func NewSettingStore(pool *pgxpool.Pool) *SettingStore {
 	return &SettingStore{queries: db.New(pool)}
 }
 
-// Get returns the value stored under key, empty when the key is unset.
-func (s *SettingStore) Get(ctx context.Context, key string) (string, error) {
+// Lookup returns the value stored under key and whether the key is set at all.
+func (s *SettingStore) Lookup(ctx context.Context, key string) (string, bool, error) {
 	value, err := s.queries.GetSetting(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil
+		return "", false, nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("postgres: reading setting %q: %w", key, err)
+		return "", false, fmt.Errorf("postgres: reading setting %q: %w", key, err)
 	}
-	return value, nil
+	return value, true, nil
 }
 
 // Set stores value under key, replacing what the key held.
