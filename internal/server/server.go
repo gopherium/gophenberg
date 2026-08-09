@@ -37,6 +37,8 @@ type Config struct {
 	TrustedProxies []string
 	// Theme serves the public site while it is healthy. Nil leaves the built-in renderer serving.
 	Theme Theme
+	// Themes is the managed themes directory. Nil leaves the theme routes unhandled.
+	Themes Themes
 	// ThemeTimeout is how long a theme has to begin answering. Zero applies the default.
 	ThemeTimeout time.Duration
 	// Version is the application version reported at /api/version.
@@ -49,7 +51,7 @@ type Config struct {
 func NewServer(cfg Config) http.Handler {
 	auth := authkit.New(authkit.Config{Store: cfg.Users, CookieName: sessionCookieName})
 	admin := authkit.NewAdmin(cfg.Users)
-	s := &server{auth: auth, users: cfg.Users, posts: cfg.Posts, version: cfg.Version}
+	s := &server{auth: auth, users: cfg.Users, posts: cfg.Posts, themes: cfg.Themes, version: cfg.Version}
 	router := chi.NewRouter()
 	router.Use(trustForwarded(cfg.TrustedProxies))
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
@@ -80,6 +82,13 @@ func NewServer(cfg Config) http.Handler {
 		protected.Get("/api/posts/{id}/revisions/{revisionID}", s.handleRevisionGet())
 		protected.Delete("/api/posts/{id}/revisions/{revisionID}", s.handleRevisionDelete())
 		protected.Get("/api/version", s.handleVersion())
+		if cfg.Themes != nil {
+			protected.Get("/api/themes", s.handleThemeList())
+			protected.Post("/api/themes", s.handleThemeUpload())
+			protected.Post("/api/themes/active", s.handleThemeActivate())
+			protected.Delete("/api/themes/active", s.handleThemeDeactivate())
+			protected.Post("/api/themes/rollback", s.handleThemeRollback())
+		}
 	})
 	for id, handler := range cfg.Plugins {
 		prefix := "/api/plugins/" + id
@@ -98,5 +107,6 @@ type server struct {
 	auth    *authkit.Handlers
 	users   authkit.AdminStore
 	posts   post.Store
+	themes  Themes
 	version string
 }
