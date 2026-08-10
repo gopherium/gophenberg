@@ -136,6 +136,9 @@ func (m *Manager) Activate(ctx context.Context, name string) error {
 	if err := m.operatorAllows(); err != nil {
 		return err
 	}
+	if err := validName(name); err != nil {
+		return err
+	}
 	started, err := m.start(ctx, name)
 	if err != nil {
 		return err

@@ -6,6 +6,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -165,6 +168,71 @@ func TestTheManagerTellsTheChosenThemeFromTheServingOne(t *testing.T) {
 	}
 	if byName["riverbed"].Active || byName["riverbed"].Serving {
 		t.Error("riverbed reports active or serving, want neither")
+	}
+}
+
+func TestTheManagerRefusesActivatingANameThatIsNotAThemeName(t *testing.T) {
+	t.Parallel()
+
+	manager := managerOver(t, newSettings(), "", "aurora")
+
+	for _, name := range []string{"", ".", "..", "../outside", "themes/aurora", ".hidden"} {
+		err := manager.Activate(t.Context(), name)
+
+		var refusal *themehost.Refusal
+		if !errors.As(err, &refusal) {
+			t.Errorf("Activate(%q) = %v, want a refusal", name, err)
+			continue
+		}
+		if refusal.Reason != "the theme name is not allowed" {
+			t.Errorf("Activate(%q) reason = %q, want the name refused", name, refusal.Reason)
+		}
+	}
+}
+
+func TestActivatingIsRefusedBeforeItCanReachOutsideTheThemesDirectory(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	themesDir := filepath.Join(root, "themes")
+	outside := filepath.Join(root, "outside")
+	plantTheme(t, outside, "../outside")
+	manager := themehost.NewManager(themehost.ManagerConfig{
+		Library:  themehost.NewLibrary(themesDir),
+		Settings: newSettings(),
+	})
+	t.Cleanup(manager.Close)
+
+	err := manager.Activate(t.Context(), "../outside")
+
+	var refusal *themehost.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("Activate() = %v, want a theme outside the managed directory refused", err)
+	}
+	if refusal.Reason != "the theme name is not allowed" {
+		t.Errorf("Reason = %q, want the name refused before the theme is ever loaded", refusal.Reason)
+	}
+	if manager.Holder().Healthy() {
+		t.Error("a theme outside the managed directory is serving")
+	}
+}
+
+// plantTheme lays out a valid theme at dir declaring the given name.
+func plantTheme(t *testing.T, dir, name string) {
+	t.Helper()
+
+	for _, part := range []string{"server", "client"} {
+		if err := os.MkdirAll(filepath.Join(dir, part), 0o755); err != nil {
+			t.Fatalf("making %s: %v", part, err)
+		}
+	}
+	manifest := fmt.Sprintf(`{"name":%q,"version":"1.0.0","kit":"0.1.0"}`, name)
+	if err := os.WriteFile(filepath.Join(dir, "theme.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatalf("writing the manifest: %v", err)
+	}
+	entry := filepath.Join(dir, "server", "entry.mjs")
+	if err := os.WriteFile(entry, []byte("export default {}\n"), 0o644); err != nil {
+		t.Fatalf("writing the entry: %v", err)
 	}
 }
 
