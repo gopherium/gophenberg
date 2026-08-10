@@ -61,6 +61,10 @@ func (l *Library) Install(name string, archive io.ReaderAt, size int64) error {
 	if err := validName(name); err != nil {
 		return err
 	}
+	if l.dir == "" {
+		return refuse("no themes directory is configured, set GOPHENBERG_THEMES_DIR",
+			"themehost: installing %s with no themes directory", name)
+	}
 	if err := os.MkdirAll(l.dir, 0o755); err != nil {
 		return fmt.Errorf("themehost: creating the themes directory: %w", err)
 	}

@@ -4,6 +4,7 @@ package themehost_test
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -145,6 +146,23 @@ func TestTheLibraryRefusesAThemeNameThatIsNotOne(t *testing.T) {
 		if err := library.Install(name, bytes.NewReader(archive), int64(len(archive))); err == nil {
 			t.Errorf("Install(%q) = nil, want a name that is not a theme name refused", name)
 		}
+	}
+}
+
+func TestTheLibraryRefusesAnUploadWithNoDirectoryToInstallInto(t *testing.T) {
+	t.Parallel()
+
+	library := themehost.NewLibrary("")
+	archive := validArchive(t, "aurora")
+
+	err := library.Install("aurora", bytes.NewReader(archive), int64(len(archive)))
+
+	var refusal *themehost.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("Install() = %v, want a refusal the admin can read", err)
+	}
+	if refusal.Reason != "no themes directory is configured, set GOPHENBERG_THEMES_DIR" {
+		t.Errorf("Reason = %q, want it to name the missing setting", refusal.Reason)
 	}
 }
 
