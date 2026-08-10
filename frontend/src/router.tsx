@@ -48,6 +48,12 @@ const newUserRoute = createRoute({
 	component: lazyRouteComponent(() => import('./users/NewUserScreen'), 'NewUserScreen'),
 })
 
+const themesRoute = createRoute({
+	getParentRoute: () => framedRoute,
+	path: '/themes',
+	component: lazyRouteComponent(() => import('./themes/ThemesScreen'), 'ThemesScreen'),
+})
+
 const editorRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/posts/$postId/edit',
@@ -60,6 +66,7 @@ const routeTree = rootRoute.addChildren([
 		postsRoute,
 		usersRoute,
 		newUserRoute,
+		themesRoute,
 		...plugins.flatMap((plugin) => plugin.routes(framedRoute)),
 	]),
 	editorRoute,

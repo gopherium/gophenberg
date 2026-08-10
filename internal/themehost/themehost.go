@@ -16,6 +16,12 @@ import (
 // MaxSize is the largest a theme directory may be.
 const MaxSize = 64 << 20
 
+// MaxEntries is how many files an archive may carry.
+const MaxEntries = 10_000
+
+// dirSize is what one directory is charged against the size cap.
+const dirSize = 4096
+
 // ErrNotInstalled reports that no theme is installed under the name.
 var ErrNotInstalled = errors.New("themehost: theme not installed")
 
@@ -70,7 +76,8 @@ func inspect(dir, name string) (manifest, error) {
 		return declared, err
 	}
 	if declared.Name != name {
-		return declared, fmt.Errorf("themehost: %s names theme %q, but it is installed as %q",
+		return declared, refuse("the name does not match",
+			"themehost: %s names theme %q, but it is installed as %q",
 			filepath.Join(name, manifestPath), declared.Name, name)
 	}
 	if err := requireParts(dir, name); err != nil {
@@ -84,13 +91,15 @@ func readManifest(dir, name string) (manifest, error) {
 	var declared manifest
 	raw, err := os.ReadFile(filepath.Join(dir, manifestPath))
 	if errors.Is(err, fs.ErrNotExist) {
-		return declared, fmt.Errorf("%w: %s declares no %s", ErrNotInstalled, name, manifestPath)
+		return declared, refuse("the manifest is missing",
+			"%w: %s declares no %s", ErrNotInstalled, name, manifestPath)
 	}
 	if err != nil {
 		return declared, fmt.Errorf("themehost: reading %s: %w", filepath.Join(name, manifestPath), err)
 	}
 	if err := json.Unmarshal(raw, &declared); err != nil {
-		return declared, fmt.Errorf("themehost: %s is not valid JSON: %w", filepath.Join(name, manifestPath), err)
+		return declared, refuse("the manifest is not valid JSON",
+			"themehost: %s is not valid JSON: %w", filepath.Join(name, manifestPath), err)
 	}
 	return declared, nil
 }
@@ -98,18 +107,20 @@ func readManifest(dir, name string) (manifest, error) {
 // requireParts reports whether a theme directory holds the server and the assets it is served from.
 func requireParts(dir, name string) error {
 	for _, part := range []struct {
-		path  string
-		isDir bool
+		path   string
+		isDir  bool
+		reason string
 	}{
-		{path: entryPath, isDir: false},
-		{path: clientPath, isDir: true},
+		{path: entryPath, isDir: false, reason: "the server entry is missing"},
+		{path: clientPath, isDir: true, reason: "the client assets are missing"},
 	} {
 		info, err := os.Stat(filepath.Join(dir, part.path))
 		if err != nil {
-			return fmt.Errorf("themehost: %s holds no %s", name, filepath.ToSlash(part.path))
+			return refuse(part.reason, "themehost: %s holds no %s", name, filepath.ToSlash(part.path))
 		}
 		if info.IsDir() != part.isDir {
-			return fmt.Errorf("themehost: %s is the wrong kind of file in %s", filepath.ToSlash(part.path), name)
+			return refuse(part.reason, "themehost: %s is the wrong kind of file in %s",
+				filepath.ToSlash(part.path), name)
 		}
 	}
 	return nil
@@ -123,7 +134,8 @@ func walk(dir, name string) error {
 			return fmt.Errorf("themehost: reading %s: %w", name, err)
 		}
 		if entry.Type()&fs.ModeSymlink != 0 {
-			return fmt.Errorf("themehost: %s holds a symlink at %s, which a theme may not do",
+			return refuse("symlinks are not allowed",
+				"themehost: %s holds a symlink at %s, which a theme may not do",
 				name, relative(dir, path))
 		}
 		size, err := sizeOf(entry)
@@ -132,7 +144,8 @@ func walk(dir, name string) error {
 		}
 		total += size
 		if total > MaxSize {
-			return fmt.Errorf("themehost: %s is larger than the %d byte cap", name, int64(MaxSize))
+			return refuse("the theme is too large",
+				"themehost: %s is larger than the %d byte cap", name, int64(MaxSize))
 		}
 		return nil
 	})
@@ -141,7 +154,7 @@ func walk(dir, name string) error {
 // sizeOf returns the bytes a directory entry occupies.
 func sizeOf(entry fs.DirEntry) (int64, error) {
 	if entry.IsDir() {
-		return 0, nil
+		return dirSize, nil
 	}
 	info, err := entry.Info()
 	if err != nil {

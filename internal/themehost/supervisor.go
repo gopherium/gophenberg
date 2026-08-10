@@ -97,6 +97,9 @@ func (s *Supervisor) Stop() {
 	})
 }
 
+// Name returns the theme the supervisor runs.
+func (s *Supervisor) Name() string { return s.config.Theme.Name }
+
 // Healthy reports whether the theme is serving.
 func (s *Supervisor) Healthy() bool {
 	s.mu.RLock()

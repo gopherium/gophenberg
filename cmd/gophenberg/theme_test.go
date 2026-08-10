@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"os"
@@ -80,18 +81,27 @@ func TestLoadRunConfigServesTheRendererWhenNoThemeIsNamed(t *testing.T) {
 	}
 }
 
+// noSettings is a settings store holding nothing, so only the operator pin governs.
+type noSettings struct{}
+
+// Lookup reports that no choice is stored.
+func (noSettings) Lookup(context.Context, string) (string, bool, error) { return "", false, nil }
+
+// Save stores nothing.
+func (noSettings) Save(context.Context, map[string]string) error { return nil }
+
 func TestStartThemeServesTheRendererWhenNoThemeIsNamed(t *testing.T) {
 	t.Parallel()
 
 	logs := &strings.Builder{}
 
-	theme, stop, err := startTheme(runConfig{}, testLogger(logs))
+	themes, stop, err := startTheme(t.Context(), runConfig{}, noSettings{}, testLogger(logs))
 
 	if err != nil {
 		t.Fatalf("startTheme() error = %v, want nil", err)
 	}
-	if theme != nil {
-		t.Errorf("theme = %v, want nil so the renderer serves", theme)
+	if themes.Holder().Healthy() {
+		t.Error("a theme is serving, want the built-in renderer")
 	}
 	stop()
 	if !strings.Contains(logs.String(), "renderer") {
@@ -99,16 +109,16 @@ func TestStartThemeServesTheRendererWhenNoThemeIsNamed(t *testing.T) {
 	}
 }
 
-func TestStartThemeReportsAThemeThatIsNotInstalled(t *testing.T) {
+func TestStartThemeReportsAPinnedThemeThatIsNotInstalled(t *testing.T) {
 	t.Parallel()
 
 	logs := &strings.Builder{}
 	settings := runConfig{themesDir: t.TempDir(), theme: "missing", nodeBin: "node"}
 
-	_, _, err := startTheme(settings, testLogger(logs))
+	_, _, err := startTheme(t.Context(), settings, noSettings{}, testLogger(logs))
 
 	if err == nil {
-		t.Fatal("startTheme() error = nil, want the boot to refuse a theme it cannot load")
+		t.Fatal("startTheme() error = nil, want the boot to refuse a pinned theme it cannot load")
 	}
 	if !strings.Contains(err.Error(), "missing") {
 		t.Errorf("error = %v, want it to name the theme", err)
@@ -121,13 +131,10 @@ func TestStartThemeNamesTheThemeItBootsWith(t *testing.T) {
 	logs := &strings.Builder{}
 	settings := runConfig{themesDir: writeThemeDir(t, "starter"), theme: "starter", nodeBin: "node"}
 
-	theme, stop, err := startTheme(settings, testLogger(logs))
+	_, stop, err := startTheme(t.Context(), settings, noSettings{}, testLogger(logs))
 
 	if err != nil {
 		t.Fatalf("startTheme() error = %v, want nil", err)
-	}
-	if theme == nil {
-		t.Fatal("theme = nil, want the supervised theme")
 	}
 	stop()
 	if !strings.Contains(logs.String(), "starter") {

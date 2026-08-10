@@ -35,8 +35,18 @@ corrupts the binary dump, and you find out when the restore fails.
 **Your compose file and any `.env` beside it**, the only place
 your configuration and passwords exist.
 
-Themes need no backup, they are rebuilt from their source
-projects.
+**The themes volume**, if you upload themes in the admin. An
+uploaded theme exists only there, so a lost volume means
+re-uploading every theme:
+
+```sh
+docker compose cp gophenberg:/themes ./themes-backup
+```
+
+Which theme is active is stored in the database, not in the
+volume, so both have to come back for the site to look the same.
+Themes you install by hand need no backup, they are rebuilt from
+their source projects.
 
 ## Restoring
 

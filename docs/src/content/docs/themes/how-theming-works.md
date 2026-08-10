@@ -23,9 +23,10 @@ supervised Node process and forwards public requests to it.
 
 Two failures, with very different outcomes:
 
-- **Fails to load at startup.** The server prints the reason and
-  exits, admin included. A missing theme directory or any broken
-  [install rule](/themes/installing-a-theme/) does this.
+- **Fails to load.** A theme you chose in the admin shows as broken
+  in the list, and the built-in renderer serves. A theme pinned with
+  `GOPHENBERG_THEME` is stricter: the server prints the reason and
+  exits, admin included.
 - **Crashes while running.** The built-in renderer takes over,
   per request, and readers keep getting pages.
 
@@ -34,8 +35,8 @@ request up to 10 seconds before the renderer steps in, and a theme
 that answers an error page is not covered at all, because it did
 answer. The safety net catches silence, not mistakes.
 
-So install and switch themes deliberately, and check the site
-after.
+Switching in the admin is the safe way round. Pin a theme only
+when you want it fixed by deployment, and check the site after.
 
 ## How the theme process runs
 
@@ -51,7 +52,10 @@ after.
 
 In the logs, `mode=theme` at startup means a theme is configured,
 not yet that it serves. `theme ready` means it serves.
-`theme exited` and `theme gave up` mean the renderer is serving.
+`theme gave up` means the renderer is serving. `theme exited` also
+appears for the theme you just replaced. The Themes screen says the
+same thing without the logs: it marks the theme answering the site
+as serving, and a chosen theme that is not answering as not serving.
 
 ## Where to go next
 

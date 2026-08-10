@@ -97,6 +97,9 @@ E2E_NAME ?= Grace Hopper
 E2E_PASSWORD ?= correct horse battery
 E2E_THEMES_DIR ?= $(CURDIR)/.e2e-themes
 E2E_THEME ?= starter
+E2E_ARCHIVE_DIR ?= $(CURDIR)/.e2e-archive
+E2E_UPLOAD_THEME ?= driftwood
+E2E_UPLOAD_VERSION ?= 9.9.9
 
 e2e-build:
 	pnpm --filter @gophenberg/frontend build
@@ -109,9 +112,20 @@ e2e-theme: e2e-build
 	cp -R test/theme/dist/server test/theme/dist/client test/theme/theme.json \
 		$(E2E_THEMES_DIR)/$(E2E_THEME)/
 
+e2e-archive: e2e-build
+	rm -rf $(E2E_ARCHIVE_DIR)
+	mkdir -p $(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME)
+	cp -R test/theme/dist/server test/theme/dist/client \
+		$(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME)/
+	printf '{"name":"%s","version":"%s","kit":"^0.1.0"}\n' \
+		"$(E2E_UPLOAD_THEME)" "$(E2E_UPLOAD_VERSION)" \
+		> $(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME)/theme.json
+	cd $(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME) && \
+		zip -qr ../$(E2E_UPLOAD_THEME).zip theme.json server client
+
 e2e-serve: db-up e2e-theme
 	GOPHENBERG_WEB_DIR=frontend/dist GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" \
-		GOPHENBERG_THEMES_DIR="$(E2E_THEMES_DIR)" GOPHENBERG_THEME="$(E2E_THEME)" \
+		GOPHENBERG_THEMES_DIR="$(E2E_THEMES_DIR)" \
 		./gophenberg
 
 e2e-db-reset: db-up
@@ -127,7 +141,7 @@ e2e-seed: db-up e2e-build
 
 e2e-reset: e2e-db-reset e2e-seed
 
-e2e: e2e-reset
+e2e: e2e-reset e2e-archive
 	pnpm --filter @gophenberg/e2e exec playwright test
 
 outdated:
