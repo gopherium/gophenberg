@@ -25,14 +25,15 @@ Feature: Installing a theme from the admin
     And the managed themes directory holds no trace of the upload
 
     Examples:
-      | flaw                                     | reason                        |
-      | carries no theme.json                    | the manifest is missing       |
-      | declares the name "other" in theme.json  | the name does not match       |
-      | holds no server entry                    | the server entry is missing   |
-      | holds no client directory                | the client assets are missing |
-      | contains a symbolic link                 | symlinks are not allowed      |
-      | unpacks to more than the size cap        | the theme is too large        |
-      | contains an entry escaping its directory | the archive is unsafe         |
+      | flaw                                     | reason                           |
+      | carries no theme.json                    | the manifest is missing          |
+      | declares the name "other" in theme.json  | the name does not match          |
+      | holds no server entry                    | the server entry is missing      |
+      | holds no client directory                | the client assets are missing    |
+      | contains a symbolic link                 | symlinks are not allowed         |
+      | unpacks to more than the size cap        | the theme is too large           |
+      | nests directories past the size cap      | the theme is too large           |
+      | contains an entry escaping its directory | the archive is unsafe            |
       | carries more files than the cap          | the archive holds too many files |
 
   Scenario: Replacing the active theme is refused
