@@ -6,6 +6,14 @@ import { starterTheme, uploadArchive, uploadedTheme } from '../env'
 
 const READY = { timeout: 60_000 }
 
+test.beforeEach(async ({ request }) => {
+	const restored = await request.post('/api/themes/active', {
+		data: { name: starterTheme.name },
+		timeout: 60_000,
+	})
+	expect(restored.ok()).toBe(true)
+})
+
 test('installs a theme, serves the site through it, and rolls back', async ({ page }) => {
 	await page.goto('/admin/themes')
 	await expect(page.getByRole('heading', { level: 1, name: 'Themes' })).toBeVisible()
