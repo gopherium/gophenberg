@@ -120,8 +120,8 @@ func theThemeListShowsInstalled(ctx context.Context, name string) error {
 	return fmt.Errorf("the theme list shows %v, want %q installed", themes, name)
 }
 
-// theThemeListShowsInstalledOnce asserts exactly one entry carries the name.
-func theThemeListShowsInstalledOnce(ctx context.Context, name string) error {
+// theThemeListShowsInstalledOnce asserts one entry carries the name at the given version.
+func theThemeListShowsInstalledOnce(ctx context.Context, name, version string) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
@@ -130,16 +130,23 @@ func theThemeListShowsInstalledOnce(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	found := 0
+	matched := make([]listedTheme, 0, 1)
 	for _, theme := range themes {
 		if theme.Name == name {
-			found++
+			matched = append(matched, theme)
 		}
 	}
-	if found != 1 {
-		return fmt.Errorf("the theme list shows %q %d times, want it installed once", name, found)
+	if len(matched) != 1 {
+		return fmt.Errorf("the theme list shows %q %d times, want it installed once", name, len(matched))
 	}
-	return theThemeListShowsInstalled(ctx, name)
+	if matched[0].Broken != "" {
+		return fmt.Errorf("the theme list shows %q as broken: %s", name, matched[0].Broken)
+	}
+	if matched[0].Version != version {
+		return fmt.Errorf("the theme list shows %q at version %q, want the replacement at %q",
+			name, matched[0].Version, version)
+	}
+	return nil
 }
 
 // theThemeListDoesNotShow asserts the list carries no entry for the name.
@@ -184,7 +191,8 @@ func initializeUpload(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator uploads a theme archive named "([^"]*)" that (.+)$`, uploadsAFlawedArchive)
 	sc.Then(`^the upload is refused explaining (.+)$`, theUploadIsRefused)
 	sc.Then(`^the theme list shows "([^"]*)" as installed$`, theThemeListShowsInstalled)
-	sc.Then(`^the theme list shows "([^"]*)" as installed once$`, theThemeListShowsInstalledOnce)
+	sc.Then(`^the theme list shows "([^"]*)" as installed once at version "([^"]*)"$`,
+		theThemeListShowsInstalledOnce)
 	sc.Then(`^the theme list does not show "([^"]*)"$`, theThemeListDoesNotShow)
 	sc.Then(`^the managed themes directory holds no trace of the upload$`, theDirectoryHoldsNoTrace)
 }

@@ -43,4 +43,4 @@ Feature: Installing a theme from the admin
   Scenario: Replacing an inactive theme updates it
     Given "aurora" is installed and not active
     When the administrator uploads a newer valid theme archive named "aurora"
-    Then the theme list shows "aurora" as installed once
+    Then the theme list shows "aurora" as installed once at version "2.0.0"

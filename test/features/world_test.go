@@ -245,6 +245,17 @@ func (w *world) put(name string, archive []byte) error {
 	return nil
 }
 
+// needNode skips the scenario without Node, except on CI where green must mean executed.
+func (w *world) needNode() error {
+	if w.node != "" {
+		return nil
+	}
+	if os.Getenv("CI") != "" {
+		return errors.New("node is not on PATH, so on CI this scenario may not skip")
+	}
+	return godog.ErrSkip
+}
+
 // running returns the error that the scenario never started a Gophenberg.
 func (w *world) running() error {
 	if w.site == nil {

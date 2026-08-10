@@ -148,8 +148,8 @@ func theServerWasPinned(ctx context.Context, name string) error {
 	if err := w.installRunnable(name); err != nil {
 		return err
 	}
-	if w.node == "" {
-		return godog.ErrSkip
+	if err := w.needNode(); err != nil {
+		return err
 	}
 	if err := w.openGate(name); err != nil {
 		return err

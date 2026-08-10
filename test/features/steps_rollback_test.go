@@ -36,8 +36,8 @@ func theAdministratorRollsBack(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if w.node == "" {
-		return godog.ErrSkip
+	if err := w.needNode(); err != nil {
+		return err
 	}
 	return w.beginActivation(http.MethodPost, rollbackPath, "")
 }

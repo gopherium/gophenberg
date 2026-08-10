@@ -63,8 +63,8 @@ func themeIsInstalledAndActive(ctx context.Context, name string) error {
 	if err := w.installRunnable(name); err != nil {
 		return err
 	}
-	if w.node == "" {
-		return godog.ErrSkip
+	if err := w.needNode(); err != nil {
+		return err
 	}
 	if err := w.openGate(name); err != nil {
 		return err
@@ -209,8 +209,8 @@ func theAdministratorActivates(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	if w.node == "" {
-		return godog.ErrSkip
+	if err := w.needNode(); err != nil {
+		return err
 	}
 	return w.beginActivation(http.MethodPost, activePath, fmt.Sprintf(`{"name":%q}`, name))
 }
