@@ -159,6 +159,19 @@ func TestUploadingOverTheCapIsRefused(t *testing.T) {
 	}
 }
 
+func TestAnArchiveAtTheCapIsNotRefusedForTheFramingAroundIt(t *testing.T) {
+	t.Parallel()
+
+	handler := themeServer(t, errThemes{})
+	contentType, body := uploadBody(t, "aurora.zip", bytes.Repeat([]byte("a"), int(themehost.MaxSize)))
+
+	recorder := sendUpload(t, handler, contentType, body)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want an archive at the cap accepted, got %s", recorder.Code, recorder.Body)
+	}
+}
+
 func TestUploadingMasksAFailingInstall(t *testing.T) {
 	t.Parallel()
 

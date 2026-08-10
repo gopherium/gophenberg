@@ -21,6 +21,9 @@ const uploadField = "theme"
 // uploadDeadline is how long an upload has to arrive, past the server's read timeout.
 const uploadDeadline = 5 * time.Minute
 
+// uploadEnvelope is how much multipart framing an upload may carry around the archive.
+const uploadEnvelope = 64 << 10
+
 // Themes is the managed themes directory the admin lists and installs into.
 type Themes interface {
 	// List returns the installed themes, marking the one that is active.
@@ -89,7 +92,7 @@ func (s *server) handleThemeUpload() http.HandlerFunc {
 			authkit.RespondError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, themehost.MaxSize)
+		r.Body = http.MaxBytesReader(w, r.Body, themehost.MaxSize+uploadEnvelope)
 		file, header, err := r.FormFile(uploadField)
 		if err != nil {
 			respondUploadError(w, err)
@@ -97,6 +100,10 @@ func (s *server) handleThemeUpload() http.HandlerFunc {
 		}
 		defer func() { _ = file.Close() }()
 
+		if header.Size > themehost.MaxSize {
+			authkit.RespondError(w, http.StatusRequestEntityTooLarge, "the theme is too large")
+			return
+		}
 		name := themeNameOf(header.Filename)
 		if err := s.themes.Install(r.Context(), name, file, header.Size); err != nil {
 			respondThemeError(w, err)
