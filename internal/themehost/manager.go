@@ -74,9 +74,18 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 		return nil, err
 	}
 	serving := m.holder.Healthy()
+	found := false
 	for i := range installed {
 		installed[i].Active = installed[i].Name == active
 		installed[i].Serving = installed[i].Active && serving
+		found = found || installed[i].Active
+	}
+	if active != "" && !found {
+		installed = append(installed, Installed{
+			Name:   active,
+			Broken: "the theme is not installed",
+			Active: true,
+		})
 	}
 	return installed, nil
 }
@@ -143,8 +152,17 @@ func (m *Manager) Activate(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
+	return m.commit(ctx, name, started)
+}
+
+// commit stores the choice and puts the ready theme in front of the site, or changes neither.
+func (m *Manager) commit(ctx context.Context, name string, started *Supervisor) error {
+	if err := m.remember(ctx, name); err != nil {
+		m.retire(started)
+		return err
+	}
 	m.retire(m.holder.Swap(started))
-	return m.remember(ctx, name)
+	return nil
 }
 
 // Deactivate returns the public site to the built-in renderer.
@@ -155,8 +173,7 @@ func (m *Manager) Deactivate(ctx context.Context) error {
 	if err := m.operatorAllows(); err != nil {
 		return err
 	}
-	m.retire(m.holder.Swap(nil))
-	return m.remember(ctx, "")
+	return m.commit(ctx, "", nil)
 }
 
 // Rollback returns the public site to the choice before the current one, naming it.
@@ -179,8 +196,7 @@ func (m *Manager) Rollback(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	m.retire(m.holder.Swap(started))
-	return previous, m.remember(ctx, previous)
+	return previous, m.commit(ctx, previous, started)
 }
 
 // Previous returns the choice a rollback would return to, and whether one is offered.

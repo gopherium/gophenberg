@@ -236,6 +236,77 @@ func plantTheme(t *testing.T, dir, name string) {
 	}
 }
 
+func TestTheManagerListsAStoredChoiceWhoseFilesAreGone(t *testing.T) {
+	t.Parallel()
+
+	settings := newSettings()
+	settings.values[themehost.ActiveKey] = "aurora"
+	manager := managerOver(t, settings, "")
+
+	listed, err := manager.List(t.Context())
+
+	if err != nil {
+		t.Fatalf("List() = %v, want the stored choice listed", err)
+	}
+	if len(listed) != 1 {
+		t.Fatalf("List() = %v, want the stored choice listed so it can be deactivated", listed)
+	}
+	if !listed[0].Active || listed[0].Name != "aurora" {
+		t.Errorf("List() = %v, want aurora listed as the active choice", listed)
+	}
+	if listed[0].Broken == "" {
+		t.Errorf("Broken = %q, want the reason its files cannot be found", listed[0].Broken)
+	}
+	if listed[0].Serving {
+		t.Error("a theme with no files reports serving")
+	}
+}
+
+// brittleSettings stores choices until it is told to start failing every write.
+type brittleSettings struct {
+	fakeSettings
+	failWrites bool
+}
+
+// Set stores value under key, or fails once the store has been told to.
+func (b *brittleSettings) Set(ctx context.Context, key, value string) error {
+	if b.failWrites {
+		return errors.New("the database is gone")
+	}
+	return b.fakeSettings.Set(ctx, key, value)
+}
+
+func TestAChoiceThatCannotBeStoredLeavesTheSiteAsItWas(t *testing.T) {
+	t.Parallel()
+
+	node := nodeBin(t)
+	serving := installStub(t, "healthy")
+	settings := &brittleSettings{}
+	settings.values = map[string]string{}
+	manager := themehost.NewManager(themehost.ManagerConfig{
+		Library:     themehost.NewLibrary(filepath.Dir(serving.Dir)),
+		Settings:    settings,
+		Supervision: themehost.SupervisorConfig{NodeBin: node},
+	})
+	t.Cleanup(manager.Close)
+	if err := manager.Activate(t.Context(), "starter"); err != nil {
+		t.Fatalf("activating the stub: %v", err)
+	}
+
+	settings.failWrites = true
+	err := manager.Deactivate(t.Context())
+
+	if err == nil {
+		t.Fatal("Deactivate() = nil, want the storage failure reported")
+	}
+	if !manager.Holder().Healthy() {
+		t.Error("the public site was taken off the theme even though the choice was never stored")
+	}
+	if stored, _, _ := settings.Lookup(t.Context(), themehost.ActiveKey); stored != "starter" {
+		t.Errorf("the stored choice is %q, want it untouched at starter", stored)
+	}
+}
+
 func TestTheManagerRefusesAnEmptyUploadNameForWhatItIs(t *testing.T) {
 	t.Parallel()
 
