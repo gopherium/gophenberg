@@ -53,7 +53,9 @@ when you want it fixed by deployment, and check the site after.
 In the logs, `mode=theme` at startup means a theme is configured,
 not yet that it serves. `theme ready` means it serves.
 `theme gave up` means the renderer is serving. `theme exited` also
-appears for the theme you just replaced.
+appears for the theme you just replaced. The Themes screen says the
+same thing without the logs: it marks the theme answering the site
+as serving, and a chosen theme that is not answering as not serving.
 
 ## Where to go next
 
