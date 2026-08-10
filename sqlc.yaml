@@ -8,7 +8,13 @@ sql:
         package: "db"
         out: "internal/postgres/db"
         sql_package: "pgx/v5"
+        rename:
+          core_medium: "CoreMedia"
         overrides:
+          - column: "core.media.sizes"
+            go_type:
+              import: "github.com/gopherium/gophenberg/internal/media"
+              type: "RenditionMap"
           - db_type: "uuid"
             go_type:
               import: "github.com/google/uuid"

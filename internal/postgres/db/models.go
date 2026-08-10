@@ -8,7 +8,26 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/gophenberg/internal/media"
 )
+
+type CoreMedia struct {
+	ID          int64
+	MediaType   string
+	File        string
+	Title       string
+	AltText     string
+	Caption     string
+	Description string
+	MimeType    string
+	Width       int32
+	Height      int32
+	Filesize    int64
+	Sizes       media.RenditionMap
+	AuthorID    uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
 
 type CorePost struct {
 	ID          uuid.UUID
