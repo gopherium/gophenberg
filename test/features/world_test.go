@@ -20,6 +20,7 @@ import (
 
 	"github.com/cucumber/godog"
 
+	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/post"
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/internal/themehost"
@@ -29,6 +30,9 @@ type worldKey struct{}
 
 // siteTitle names the public site the scenarios run against.
 const siteTitle = "A Test Site"
+
+// mediaTestCap bounds an upload small enough for a scenario to exceed it.
+const mediaTestCap = 2 << 20
 
 // emptyPosts is a content store holding nothing, enough for the public site to answer.
 type emptyPosts struct{ post.Store }
@@ -67,19 +71,23 @@ func (m *memorySettings) Save(_ context.Context, values map[string]string) error
 
 // world carries one scenario's server, directories and last answer.
 type world struct {
-	themesDir string
-	gateDir   string
-	library   *themehost.Library
-	settings  *memorySettings
-	users     *memoryStore
-	manager   *themehost.Manager
-	node      string
-	pinned    string
-	installed []string
-	site      *httptest.Server
-	client    *http.Client
-	answer    *answer
-	pending   *activation
+	themesDir  string
+	gateDir    string
+	mediaDir   string
+	library    *themehost.Library
+	settings   *memorySettings
+	users      *memoryStore
+	mediaStore *memoryMedia
+	lastUpload []byte
+	visitor    *http.Client
+	manager    *themehost.Manager
+	node       string
+	pinned     string
+	installed  []string
+	site       *httptest.Server
+	client     *http.Client
+	answer     *answer
+	pending    *activation
 }
 
 // provisionWorld gives a scenario its own themes directory.
@@ -92,12 +100,18 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 	if err != nil {
 		return ctx, errors.Join(err, os.RemoveAll(themes))
 	}
+	uploads, err := os.MkdirTemp("", "gophenberg-media-")
+	if err != nil {
+		return ctx, errors.Join(err, os.RemoveAll(themes), os.RemoveAll(gates))
+	}
 	return context.WithValue(ctx, worldKey{}, &world{
-		themesDir: themes,
-		gateDir:   gates,
-		library:   themehost.NewLibrary(themes),
-		settings:  &memorySettings{values: make(map[string]string)},
-		users:     newMemoryStore(),
+		themesDir:  themes,
+		gateDir:    gates,
+		mediaDir:   uploads,
+		library:    themehost.NewLibrary(themes),
+		settings:   &memorySettings{values: make(map[string]string)},
+		users:      newMemoryStore(),
+		mediaStore: newMemoryMedia(),
 	}), nil
 }
 
@@ -117,7 +131,7 @@ func retireWorld(ctx context.Context, _ *godog.Scenario, err error) (context.Con
 	if w.site != nil {
 		w.site.Close()
 	}
-	return ctx, errors.Join(err, os.RemoveAll(w.themesDir), os.RemoveAll(w.gateDir))
+	return ctx, errors.Join(err, os.RemoveAll(w.themesDir), os.RemoveAll(w.gateDir), os.RemoveAll(w.mediaDir))
 }
 
 // worldOf returns the scenario's world, or the error that no step provisioned one.
@@ -176,13 +190,15 @@ func (w *world) start(ctx context.Context) error {
 		return nil
 	}
 	w.site = httptest.NewTLSServer(server.NewServer(server.Config{
-		Users:     w.users,
-		Posts:     emptyPosts{},
-		Themes:    currentManager{w},
-		Theme:     currentManager{w},
-		SiteTitle: siteTitle,
-		Version:   "0.0.0-test",
-		Web:       fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Admin</title>")}},
+		Users:      w.users,
+		Posts:      emptyPosts{},
+		Themes:     currentManager{w},
+		Theme:      currentManager{w},
+		Media:      mediahost.New(mediahost.Config{Dir: w.mediaDir, MaxSize: mediaTestCap}),
+		MediaStore: w.mediaStore,
+		SiteTitle:  siteTitle,
+		Version:    "0.0.0-test",
+		Web:        fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Admin</title>")}},
 	}))
 	jar, err := cookiejar.New(nil)
 	if err != nil {

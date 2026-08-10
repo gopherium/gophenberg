@@ -38,6 +38,10 @@ func TestThemeUpload(t *testing.T) {
 	runFeature(t, "features/theme-upload.feature", initializeUpload)
 }
 
+func TestMediaUpload(t *testing.T) {
+	runFeature(t, "features/media-upload.feature", initializeMediaUpload)
+}
+
 func TestThemeActivation(t *testing.T) {
 	runFeature(t, "features/theme-activation.feature", initializeActivation)
 }
