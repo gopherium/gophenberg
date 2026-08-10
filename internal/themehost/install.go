@@ -95,7 +95,7 @@ func dirsCost(path, root string, made map[string]bool) int64 {
 	var cost int64
 	for len(path) > len(root) && !made[path] {
 		made[path] = true
-		cost += DirSize
+		cost += dirSize
 		path = filepath.Dir(path)
 	}
 	return cost
