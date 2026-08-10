@@ -84,12 +84,22 @@ test('says the built-in renderer is serving when no theme is active', async () =
 })
 
 test('says the renderer is serving when the active theme will not load', async () => {
-	listing([row('aurora', true, { broken: 'the manifest is missing' })])
+	listing([theme('aurora', true, 'the manifest is missing', '1.0.0', false)])
 	renderAt('/themes')
 
 	expect(
 		await screen.findByText('aurora will not load, so the built-in renderer is serving.'),
 	).toBeTruthy()
+})
+
+test('still offers to deactivate a chosen theme whose files are gone', async () => {
+	listing([theme('aurora', true, 'the theme is not installed', '', false)])
+	renderAt('/themes')
+
+	const listed = await screen.findByRole('row', { name: /aurora/ })
+
+	expect(within(listed).getByText('the theme is not installed')).toBeTruthy()
+	expect(screen.getByRole('button', { name: 'Deactivate aurora' })).toBeTruthy()
 })
 
 test('claims nothing about what is serving until the themes have been read', async () => {
