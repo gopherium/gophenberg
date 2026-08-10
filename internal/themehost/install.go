@@ -15,9 +15,9 @@ import (
 
 // Install unpacks archive as the named theme, replacing it only once it validates.
 func Install(themesDir, name string, archive io.ReaderAt, size int64) (*Theme, error) {
-	reader, err := zip.NewReader(archive, size)
+	reader, err := openArchive(archive, size)
 	if err != nil {
-		return nil, refuse("the archive could not be read", "themehost: reading the archive: %w", err)
+		return nil, err
 	}
 	staging, err := os.MkdirTemp(themesDir, "."+name+"-staging-")
 	if err != nil {
@@ -37,6 +37,19 @@ func Install(themesDir, name string, archive io.ReaderAt, size int64) (*Theme, e
 	}
 	theme.Dir = filepath.Join(themesDir, name)
 	return theme, nil
+}
+
+// openArchive returns the entries an archive carries, refusing one carrying more than the cap.
+func openArchive(archive io.ReaderAt, size int64) (*zip.Reader, error) {
+	reader, err := zip.NewReader(archive, size)
+	if err != nil {
+		return nil, refuse("the archive could not be read", "themehost: reading the archive: %w", err)
+	}
+	if len(reader.File) > MaxEntries {
+		return nil, refuse("the archive holds too many files",
+			"themehost: the archive holds %d entries, more than the %d cap", len(reader.File), MaxEntries)
+	}
+	return reader, nil
 }
 
 // unpack writes every archive entry under dir, refusing an archive that unpacks past the cap.

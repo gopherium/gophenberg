@@ -5,6 +5,8 @@ package themehost_test
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -197,6 +199,29 @@ func TestInstallAcceptsAnArchiveCarryingDirectoryEntries(t *testing.T) {
 	}
 	if _, err := themehost.Load(themesDir, "aurora"); err != nil {
 		t.Errorf("the installed theme does not load: %v", err)
+	}
+}
+
+func TestInstallRefusesAnArchiveCarryingMoreFilesThanTheCap(t *testing.T) {
+	t.Parallel()
+
+	entries := []entry{
+		{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`},
+		{path: "server/entry.mjs", body: "export default {}\n"},
+		{path: "client/app.css", body: "body{}\n"},
+	}
+	for i := range themehost.MaxEntries {
+		entries = append(entries, entry{path: fmt.Sprintf("client/%d", i)})
+	}
+
+	_, err := install(t, archiveOf(t, entries...))
+
+	var refusal *themehost.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("Install() = %v, want an archive of too many files refused", err)
+	}
+	if refusal.Reason != "the archive holds too many files" {
+		t.Errorf("Reason = %q, want the file count refused", refusal.Reason)
 	}
 }
 

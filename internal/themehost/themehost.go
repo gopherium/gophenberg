@@ -16,6 +16,9 @@ import (
 // MaxSize is the largest a theme directory may be.
 const MaxSize = 64 << 20
 
+// MaxEntries is how many files an archive may carry.
+const MaxEntries = 10_000
+
 // ErrNotInstalled reports that no theme is installed under the name.
 var ErrNotInstalled = errors.New("themehost: theme not installed")
 
