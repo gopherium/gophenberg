@@ -37,7 +37,7 @@ func newSettingStoreWithPool(t *testing.T) (*postgres.SettingStore, *pgxpool.Poo
 func TestSettingReadsWhatItWrote(t *testing.T) {
 	store := newSettingStore(t)
 
-	if err := store.Set(t.Context(), "theme.active", "aurora"); err != nil {
+	if err := store.Save(t.Context(), map[string]string{"theme.active": "aurora"}); err != nil {
 		t.Fatalf("set: %v", err)
 	}
 
@@ -71,7 +71,7 @@ func TestSettingReportsAnUnsetKeyAsUnset(t *testing.T) {
 
 func TestSettingTellsAnEmptyValueFromAnUnsetKey(t *testing.T) {
 	store := newSettingStore(t)
-	if err := store.Set(t.Context(), "theme.previous", ""); err != nil {
+	if err := store.Save(t.Context(), map[string]string{"theme.previous": ""}); err != nil {
 		t.Fatalf("set: %v", err)
 	}
 
@@ -90,11 +90,11 @@ func TestSettingTellsAnEmptyValueFromAnUnsetKey(t *testing.T) {
 
 func TestSettingOverwritesAnExistingKey(t *testing.T) {
 	store := newSettingStore(t)
-	if err := store.Set(t.Context(), "theme.active", "driftwood"); err != nil {
+	if err := store.Save(t.Context(), map[string]string{"theme.active": "driftwood"}); err != nil {
 		t.Fatalf("set the first value: %v", err)
 	}
 
-	if err := store.Set(t.Context(), "theme.active", "aurora"); err != nil {
+	if err := store.Save(t.Context(), map[string]string{"theme.active": "aurora"}); err != nil {
 		t.Fatalf("set the second value: %v", err)
 	}
 
@@ -109,11 +109,11 @@ func TestSettingOverwritesAnExistingKey(t *testing.T) {
 
 func TestSettingKeepsKeysApart(t *testing.T) {
 	store := newSettingStore(t)
-	if err := store.Set(t.Context(), "theme.active", "aurora"); err != nil {
+	if err := store.Save(t.Context(), map[string]string{"theme.active": "aurora"}); err != nil {
 		t.Fatalf("set the active theme: %v", err)
 	}
 
-	if err := store.Set(t.Context(), "theme.previous", "driftwood"); err != nil {
+	if err := store.Save(t.Context(), map[string]string{"theme.previous": "driftwood"}); err != nil {
 		t.Fatalf("set the previous theme: %v", err)
 	}
 
@@ -126,6 +126,45 @@ func TestSettingKeepsKeysApart(t *testing.T) {
 	}
 }
 
+func TestSettingStoresSeveralKeysAsOneWrite(t *testing.T) {
+	store := newSettingStore(t)
+
+	err := store.Save(t.Context(), map[string]string{
+		"theme.active":   "aurora",
+		"theme.previous": "driftwood",
+	})
+
+	if err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	for key, want := range map[string]string{"theme.active": "aurora", "theme.previous": "driftwood"} {
+		got, found, err := store.Lookup(t.Context(), key)
+		if err != nil {
+			t.Fatalf("looking up %s: %v", key, err)
+		}
+		if !found || got != want {
+			t.Errorf("%s = %q (found %v), want %q", key, got, found, want)
+		}
+	}
+}
+
+func TestSettingWritesNothingWhenTheWriteCannotStart(t *testing.T) {
+	store, pool := newSettingStoreWithPool(t)
+	if err := store.Save(t.Context(), map[string]string{"theme.active": "aurora"}); err != nil {
+		t.Fatalf("seeding the active theme: %v", err)
+	}
+	pool.Close()
+
+	err := store.Save(t.Context(), map[string]string{
+		"theme.active":   "riverbed",
+		"theme.previous": "aurora",
+	})
+
+	if err == nil {
+		t.Fatal("Save() on a closed pool error = nil, want a failure")
+	}
+}
+
 func TestSettingReportsDatabaseFailures(t *testing.T) {
 	store, pool := newSettingStoreWithPool(t)
 	pool.Close()
@@ -133,18 +172,18 @@ func TestSettingReportsDatabaseFailures(t *testing.T) {
 	if _, _, err := store.Lookup(t.Context(), "theme.active"); err == nil {
 		t.Error("Lookup() on a closed pool error = nil, want a failure")
 	}
-	if err := store.Set(t.Context(), "theme.active", "aurora"); err == nil {
-		t.Error("Set() on a closed pool error = nil, want a failure")
+	if err := store.Save(t.Context(), map[string]string{"theme.active": "aurora"}); err == nil {
+		t.Error("Save() on a closed pool error = nil, want a failure")
 	}
 }
 
 func TestSettingClearsAKey(t *testing.T) {
 	store := newSettingStore(t)
-	if err := store.Set(t.Context(), "theme.active", "aurora"); err != nil {
+	if err := store.Save(t.Context(), map[string]string{"theme.active": "aurora"}); err != nil {
 		t.Fatalf("set: %v", err)
 	}
 
-	if err := store.Set(t.Context(), "theme.active", ""); err != nil {
+	if err := store.Save(t.Context(), map[string]string{"theme.active": ""}); err != nil {
 		t.Fatalf("clear: %v", err)
 	}
 

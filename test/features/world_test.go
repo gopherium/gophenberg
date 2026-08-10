@@ -55,11 +55,13 @@ func (m *memorySettings) Lookup(_ context.Context, key string) (string, bool, er
 	return value, found, nil
 }
 
-// Set stores value under key, replacing what the key held.
-func (m *memorySettings) Set(_ context.Context, key, value string) error {
+// Save stores every given value, or stores none of them.
+func (m *memorySettings) Save(_ context.Context, values map[string]string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.values[key] = value
+	for key, value := range values {
+		m.values[key] = value
+	}
 	return nil
 }
 

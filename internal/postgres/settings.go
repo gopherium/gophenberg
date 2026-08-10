@@ -15,12 +15,13 @@ import (
 
 // SettingStore persists named values in the core schema.
 type SettingStore struct {
+	pool    *pgxpool.Pool
 	queries *db.Queries
 }
 
 // NewSettingStore returns a [SettingStore] backed by pool.
 func NewSettingStore(pool *pgxpool.Pool) *SettingStore {
-	return &SettingStore{queries: db.New(pool)}
+	return &SettingStore{pool: pool, queries: db.New(pool)}
 }
 
 // Lookup returns the value stored under key and whether the key is set at all.
@@ -35,10 +36,22 @@ func (s *SettingStore) Lookup(ctx context.Context, key string) (string, bool, er
 	return value, true, nil
 }
 
-// Set stores value under key, replacing what the key held.
-func (s *SettingStore) Set(ctx context.Context, key, value string) error {
-	if err := s.queries.SetSetting(ctx, db.SetSettingParams{Key: key, Value: value}); err != nil {
-		return fmt.Errorf("postgres: writing setting %q: %w", key, err)
+// Save stores every given value, or stores none of them.
+func (s *SettingStore) Save(ctx context.Context, values map[string]string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("postgres: writing settings: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	queries := s.queries.WithTx(tx)
+	for key, value := range values {
+		if err := queries.SetSetting(ctx, db.SetSettingParams{Key: key, Value: value}); err != nil {
+			return fmt.Errorf("postgres: writing setting %q: %w", key, err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("postgres: writing settings: %w", err)
 	}
 	return nil
 }

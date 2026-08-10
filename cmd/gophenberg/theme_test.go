@@ -87,8 +87,8 @@ type noSettings struct{}
 // Lookup reports that no choice is stored.
 func (noSettings) Lookup(context.Context, string) (string, bool, error) { return "", false, nil }
 
-// Set stores nothing.
-func (noSettings) Set(context.Context, string, string) error { return nil }
+// Save stores nothing.
+func (noSettings) Save(context.Context, map[string]string) error { return nil }
 
 func TestStartThemeServesTheRendererWhenNoThemeIsNamed(t *testing.T) {
 	t.Parallel()
