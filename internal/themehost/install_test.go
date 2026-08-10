@@ -225,6 +225,37 @@ func TestInstallRefusesAnArchiveCarryingMoreFilesThanTheCap(t *testing.T) {
 	}
 }
 
+func TestInstallRefusesAnArchiveOfDirectoriesThatUnpacksPastTheCap(t *testing.T) {
+	t.Parallel()
+
+	deep := strings.Repeat("d/", 400)
+	entries := []entry{
+		{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`},
+		{path: "server/entry.mjs", body: "export default {}\n"},
+		{path: "client/app.css", body: "body{}\n"},
+	}
+	for i := range 50 {
+		entries = append(entries, entry{path: fmt.Sprintf("client/x%d/%s", i, deep)})
+	}
+
+	themesDir, err := install(t, archiveOf(t, entries...))
+
+	var refusal *themehost.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("Install() = %v, want an archive of directories refused", err)
+	}
+	if refusal.Reason != "the theme is too large" {
+		t.Errorf("Reason = %q, want the size cap to catch the directories", refusal.Reason)
+	}
+	if !strings.Contains(err.Error(), "unpacks to more than") {
+		t.Errorf("error = %v, want it refused while unpacking rather than after the tree exists", err)
+	}
+	left, _ := os.ReadDir(themesDir)
+	if len(left) != 0 {
+		t.Errorf("the themes directory holds %d entries, want the refused bomb to leave nothing", len(left))
+	}
+}
+
 func TestInstallRefusesSomethingThatIsNotAnArchive(t *testing.T) {
 	t.Parallel()
 

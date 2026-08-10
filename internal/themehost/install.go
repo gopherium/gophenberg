@@ -55,8 +55,9 @@ func openArchive(archive io.ReaderAt, size int64) (*zip.Reader, error) {
 // unpack writes every archive entry under dir, refusing an archive that unpacks past the cap.
 func unpack(reader *zip.Reader, dir string) error {
 	var total int64
+	made := make(map[string]bool)
 	for _, file := range reader.File {
-		written, err := unpackOne(file, dir)
+		written, err := unpackOne(file, dir, made)
 		if err != nil {
 			return err
 		}
@@ -70,7 +71,7 @@ func unpack(reader *zip.Reader, dir string) error {
 }
 
 // unpackOne writes one archive entry under dir, refusing what a theme may not carry.
-func unpackOne(file *zip.File, dir string) (int64, error) {
+func unpackOne(file *zip.File, dir string, made map[string]bool) (int64, error) {
 	target, err := safeTarget(dir, file.Name)
 	if err != nil {
 		return 0, err
@@ -83,9 +84,21 @@ func unpackOne(file *zip.File, dir string) (int64, error) {
 		if err := os.MkdirAll(target, 0o755); err != nil {
 			return 0, fmt.Errorf("themehost: unpacking %s: %w", file.Name, err)
 		}
-		return 0, nil
+		return dirsCost(target, dir, made), nil
 	}
-	return extract(file, target)
+	written, err := extract(file, target)
+	return written + dirsCost(filepath.Dir(target), dir, made), err
+}
+
+// dirsCost returns what the directories up to root cost, charging each one once.
+func dirsCost(path, root string, made map[string]bool) int64 {
+	var cost int64
+	for len(path) > len(root) && !made[path] {
+		made[path] = true
+		cost += DirSize
+		path = filepath.Dir(path)
+	}
+	return cost
 }
 
 // safeTarget returns the path an entry unpacks to, refusing one that escapes dir.
