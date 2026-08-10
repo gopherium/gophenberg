@@ -48,6 +48,7 @@ type themeView struct {
 	Version string `json:"version,omitempty"`
 	Broken  string `json:"broken,omitempty"`
 	Active  bool   `json:"active"`
+	Serving bool   `json:"serving"`
 }
 
 // handleThemeList returns the handler listing the installed themes.
@@ -70,6 +71,7 @@ func (s *server) handleThemeList() http.HandlerFunc {
 				Version: theme.Version,
 				Broken:  theme.Broken,
 				Active:  theme.Active,
+				Serving: theme.Serving,
 			})
 		}
 		listed := map[string]any{"themes": views}

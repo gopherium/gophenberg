@@ -141,6 +141,33 @@ func TestTheManagerReportsSettingsFailures(t *testing.T) {
 	}
 }
 
+func TestTheManagerTellsTheChosenThemeFromTheServingOne(t *testing.T) {
+	t.Parallel()
+
+	settings := newSettings()
+	settings.values[themehost.ActiveKey] = "aurora"
+	manager := managerOver(t, settings, "", "aurora", "riverbed")
+
+	listed, err := manager.List(t.Context())
+
+	if err != nil {
+		t.Fatalf("List() = %v, want the themes listed", err)
+	}
+	byName := map[string]themehost.Installed{}
+	for _, theme := range listed {
+		byName[theme.Name] = theme
+	}
+	if !byName["aurora"].Active {
+		t.Error("aurora is not active, want the stored choice marked")
+	}
+	if byName["aurora"].Serving {
+		t.Error("aurora reports serving, want it reported as not serving while nothing runs it")
+	}
+	if byName["riverbed"].Active || byName["riverbed"].Serving {
+		t.Error("riverbed reports active or serving, want neither")
+	}
+}
+
 func TestTheManagerRefusesAnEmptyUploadNameForWhatItIs(t *testing.T) {
 	t.Parallel()
 

@@ -63,7 +63,7 @@ func (m *Manager) Close() {
 	}
 }
 
-// List returns the installed themes, marking the one that is active.
+// List returns the installed themes, marking the chosen one and the one serving.
 func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 	installed, err := m.cfg.Library.List()
 	if err != nil {
@@ -73,8 +73,10 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 	if err != nil {
 		return nil, err
 	}
+	serving := m.holder.Healthy()
 	for i := range installed {
 		installed[i].Active = installed[i].Name == active
+		installed[i].Serving = installed[i].Active && serving
 	}
 	return installed, nil
 }

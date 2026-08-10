@@ -21,8 +21,10 @@ type Installed struct {
 	Version string
 	// Broken is why the theme will not load, empty when it loads.
 	Broken string
-	// Active reports whether the public site is served through this theme.
+	// Active reports whether this theme is the operator's current choice.
 	Active bool
+	// Serving reports whether the public site is answered by this theme right now.
+	Serving bool
 }
 
 // Library is the managed themes directory the admin lists and installs into.
