@@ -31,12 +31,14 @@ func (f *fakeSettings) Lookup(_ context.Context, key string) (string, bool, erro
 	return value, found, nil
 }
 
-// Set stores value under key, replacing what the key held.
-func (f *fakeSettings) Set(_ context.Context, key, value string) error {
+// Save stores every given value, or stores none of them.
+func (f *fakeSettings) Save(_ context.Context, values map[string]string) error {
 	if f.err != nil {
 		return f.err
 	}
-	f.values[key] = value
+	for key, value := range values {
+		f.values[key] = value
+	}
 	return nil
 }
 
@@ -268,12 +270,12 @@ type brittleSettings struct {
 	failWrites bool
 }
 
-// Set stores value under key, or fails once the store has been told to.
-func (b *brittleSettings) Set(ctx context.Context, key, value string) error {
+// Save stores the given values, or fails once the store has been told to.
+func (b *brittleSettings) Save(ctx context.Context, values map[string]string) error {
 	if b.failWrites {
 		return errors.New("the database is gone")
 	}
-	return b.fakeSettings.Set(ctx, key, value)
+	return b.fakeSettings.Save(ctx, values)
 }
 
 func TestAChoiceThatCannotBeStoredLeavesTheSiteAsItWas(t *testing.T) {
@@ -304,6 +306,80 @@ func TestAChoiceThatCannotBeStoredLeavesTheSiteAsItWas(t *testing.T) {
 	}
 	if stored, _, _ := settings.Lookup(t.Context(), themehost.ActiveKey); stored != "starter" {
 		t.Errorf("the stored choice is %q, want it untouched at starter", stored)
+	}
+}
+
+func TestOnlyTheThemeActuallyRunningIsReportedAsServing(t *testing.T) {
+	t.Parallel()
+
+	node := nodeBin(t)
+	running := installStub(t, "healthy")
+	themesDir := filepath.Dir(running.Dir)
+	plantTheme(t, filepath.Join(themesDir, "riverbed"), "riverbed")
+	settings := newSettings()
+	manager := themehost.NewManager(themehost.ManagerConfig{
+		Library:     themehost.NewLibrary(themesDir),
+		Settings:    settings,
+		Supervision: themehost.SupervisorConfig{NodeBin: node},
+	})
+	t.Cleanup(manager.Close)
+	if err := manager.Activate(t.Context(), "starter"); err != nil {
+		t.Fatalf("activating the stub: %v", err)
+	}
+
+	settings.values[themehost.ActiveKey] = "riverbed"
+	listed, err := manager.List(t.Context())
+
+	if err != nil {
+		t.Fatalf("List() = %v, want the themes listed", err)
+	}
+	byName := map[string]themehost.Installed{}
+	for _, theme := range listed {
+		byName[theme.Name] = theme
+	}
+	if byName["riverbed"].Serving {
+		t.Error("riverbed reports serving while starter is the process answering the site")
+	}
+	if !byName["starter"].Serving {
+		t.Error("starter is answering the site but does not report serving")
+	}
+}
+
+// halfWritingSettings stores every choice except the one key it is told to fail.
+type halfWritingSettings struct {
+	fakeSettings
+	failKey string
+}
+
+// Save stores the given values unless one of them is the key it fails.
+func (h *halfWritingSettings) Save(ctx context.Context, values map[string]string) error {
+	if _, failing := values[h.failKey]; failing {
+		return errors.New("the database is gone")
+	}
+	return h.fakeSettings.Save(ctx, values)
+}
+
+func TestASwitchThatCannotBeStoredLeavesTheRollbackHistoryAlone(t *testing.T) {
+	t.Parallel()
+
+	node := nodeBin(t)
+	running := installStub(t, "healthy")
+	settings := &halfWritingSettings{failKey: themehost.ActiveKey}
+	settings.values = map[string]string{}
+	manager := themehost.NewManager(themehost.ManagerConfig{
+		Library:     themehost.NewLibrary(filepath.Dir(running.Dir)),
+		Settings:    settings,
+		Supervision: themehost.SupervisorConfig{NodeBin: node},
+	})
+	t.Cleanup(manager.Close)
+
+	err := manager.Activate(t.Context(), "starter")
+
+	if err == nil {
+		t.Fatal("Activate() = nil, want the storage failure reported")
+	}
+	if _, known, _ := settings.Lookup(t.Context(), themehost.PreviousKey); known {
+		t.Error("a switch that was never stored still wrote rollback history")
 	}
 }
 

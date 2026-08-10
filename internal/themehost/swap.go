@@ -58,6 +58,16 @@ func (h *Holder) Target() string {
 	return h.current.Target()
 }
 
+// Serving returns the theme answering the public site, and whether it is answering.
+func (h *Holder) Serving() (string, bool) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if h.current == nil {
+		return "", false
+	}
+	return h.current.Name(), h.current.Healthy()
+}
+
 // Swap holds next instead, returning the supervisor it held.
 func (h *Holder) Swap(next *Supervisor) *Supervisor {
 	h.mu.Lock()

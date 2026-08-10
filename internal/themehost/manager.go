@@ -19,8 +19,8 @@ const PreviousKey = "theme.previous"
 type Settings interface {
 	// Lookup returns the value stored under key and whether the key is set at all.
 	Lookup(ctx context.Context, key string) (string, bool, error)
-	// Set stores value under key, replacing what the key held.
-	Set(ctx context.Context, key, value string) error
+	// Save stores every given value, or stores none of them.
+	Save(ctx context.Context, values map[string]string) error
 }
 
 // ManagerConfig carries what a manager needs to run the themes it installs.
@@ -73,11 +73,11 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 	if err != nil {
 		return nil, err
 	}
-	serving := m.holder.Healthy()
+	answering, healthy := m.holder.Serving()
 	found := false
 	for i := range installed {
 		installed[i].Active = installed[i].Name == active
-		installed[i].Serving = installed[i].Active && serving
+		installed[i].Serving = healthy && installed[i].Name == answering
 		found = found || installed[i].Active
 	}
 	if active != "" && !found {
@@ -239,12 +239,11 @@ func (m *Manager) remember(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
+	values := map[string]string{ActiveKey: name}
 	if previous != name {
-		if err := m.cfg.Settings.Set(ctx, PreviousKey, previous); err != nil {
-			return err
-		}
+		values[PreviousKey] = previous
 	}
-	return m.cfg.Settings.Set(ctx, ActiveKey, name)
+	return m.cfg.Settings.Save(ctx, values)
 }
 
 // retire stops a replaced supervisor away from the request that replaced it.
