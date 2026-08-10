@@ -19,6 +19,7 @@ import (
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 	"github.com/gopherium/pluginkit"
 
+	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/postbridge"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/server"
@@ -86,6 +87,10 @@ func run(
 	if settings.webDir != "" {
 		cfg.Web = os.DirFS(settings.webDir)
 	}
+	if settings.mediaDir != "" {
+		cfg.Media = mediahost.New(mediahost.Config{Dir: settings.mediaDir})
+		cfg.MediaStore = postgres.NewMediaStore(pool)
+	}
 
 	httpServer := &http.Server{
 		Addr:              settings.addr,
@@ -124,6 +129,7 @@ type runConfig struct {
 	themesDir      string
 	theme          string
 	nodeBin        string
+	mediaDir       string
 }
 
 // loadRunConfig reads the server settings from the environment.
@@ -153,6 +159,7 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 		themesDir:      getenv("GOPHENBERG_THEMES_DIR"),
 		theme:          getenv("GOPHENBERG_THEME"),
 		nodeBin:        nodeBin,
+		mediaDir:       getenv("GOPHENBERG_MEDIA_DIR"),
 	}, nil
 }
 
