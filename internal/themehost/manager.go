@@ -81,6 +81,12 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 
 // Install unpacks the archive as the named theme, refusing to replace the active one.
 func (m *Manager) Install(ctx context.Context, name string, archive io.ReaderAt, size int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if err := validName(name); err != nil {
+		return err
+	}
 	active, err := m.active(ctx)
 	if err != nil {
 		return err

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -137,6 +138,68 @@ func TestTheManagerReportsSettingsFailures(t *testing.T) {
 				t.Errorf("%s() = nil, want the settings failure reported", name)
 			}
 		})
+	}
+}
+
+func TestTheManagerRefusesAnEmptyUploadNameForWhatItIs(t *testing.T) {
+	t.Parallel()
+
+	manager := managerOver(t, newSettings(), "")
+	archive := validArchive(t, "aurora")
+
+	err := manager.Install(t.Context(), "", bytes.NewReader(archive), int64(len(archive)))
+
+	var refusal *themehost.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("Install() = %v, want a refusal", err)
+	}
+	if refusal.Reason != "the theme name is not allowed" {
+		t.Errorf("Reason = %q, want the name refused rather than a claim about the active theme", refusal.Reason)
+	}
+}
+
+// overlapSettings counts how many callers are inside it at once.
+type overlapSettings struct {
+	fakeSettings
+	inside atomic.Int32
+	widest atomic.Int32
+	linger time.Duration
+}
+
+// Lookup returns the stored value after lingering long enough for overlap to show.
+func (o *overlapSettings) Lookup(ctx context.Context, key string) (string, bool, error) {
+	depth := o.inside.Add(1)
+	defer o.inside.Add(-1)
+	for {
+		widest := o.widest.Load()
+		if depth <= widest || o.widest.CompareAndSwap(widest, depth) {
+			break
+		}
+	}
+	time.Sleep(o.linger)
+	return o.fakeSettings.Lookup(ctx, key)
+}
+
+func TestInstallWaitsItsTurnBehindAnotherThemeChange(t *testing.T) {
+	t.Parallel()
+
+	settings := &overlapSettings{linger: 50 * time.Millisecond}
+	settings.values = map[string]string{themehost.ActiveKey: "aurora"}
+	manager := managerOver(t, settings, "", "aurora")
+	archive := validArchive(t, "riverbed")
+
+	deactivated := make(chan error, 1)
+	go func() { deactivated <- manager.Deactivate(t.Context()) }()
+	time.Sleep(10 * time.Millisecond)
+	if err := manager.Install(t.Context(), "riverbed", bytes.NewReader(archive), int64(len(archive))); err != nil {
+		t.Fatalf("Install() = %v, want the install done after the change", err)
+	}
+	if err := <-deactivated; err != nil {
+		t.Fatalf("Deactivate() = %v, want it done", err)
+	}
+
+	if widest := settings.widest.Load(); widest != 1 {
+		t.Errorf("settings saw %d callers at once, want theme changes serialized", widest)
 	}
 }
 
