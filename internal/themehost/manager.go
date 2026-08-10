@@ -37,9 +37,10 @@ type ManagerConfig struct {
 
 // Manager installs, lists and activates the themes the public site is served through.
 type Manager struct {
-	cfg    ManagerConfig
-	holder *Holder
-	mu     sync.Mutex
+	cfg      ManagerConfig
+	holder   *Holder
+	mu       sync.Mutex
+	retiring sync.WaitGroup
 }
 
 // NewManager returns a manager over a library, holding no theme until one is activated.
@@ -53,14 +54,14 @@ func NewManager(cfg ManagerConfig) *Manager {
 // Holder returns the theme the public site is served through.
 func (m *Manager) Holder() *Holder { return m.holder }
 
-// Close stops the theme the manager is serving through.
+// Close stops the theme the manager is serving through and every theme it retired.
 func (m *Manager) Close() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if previous := m.holder.Swap(nil); previous != nil {
 		previous.Stop()
 	}
+	m.mu.Unlock()
+	m.retiring.Wait()
 }
 
 // List returns the installed themes, marking the chosen one and the one serving.
@@ -74,13 +75,7 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 		return nil, err
 	}
 	answering, healthy := m.holder.Serving()
-	found := false
-	for i := range installed {
-		installed[i].Active = installed[i].Name == active
-		installed[i].Serving = healthy && installed[i].Name == answering
-		found = found || installed[i].Active
-	}
-	if active != "" && !found {
+	if !mark(installed, active, answering, healthy) && active != "" {
 		installed = append(installed, Installed{
 			Name:   active,
 			Broken: "the theme is not installed",
@@ -88,6 +83,17 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 		})
 	}
 	return installed, nil
+}
+
+// mark labels each theme with the operator's choice and the one answering, reporting the choice found.
+func mark(installed []Installed, active, answering string, healthy bool) bool {
+	found := false
+	for i := range installed {
+		installed[i].Active = installed[i].Name == active
+		installed[i].Serving = healthy && installed[i].Name == answering
+		found = found || installed[i].Active
+	}
+	return found
 }
 
 // Install unpacks the archive as the named theme, refusing to replace the active one.
@@ -251,7 +257,11 @@ func (m *Manager) retire(supervisor *Supervisor) {
 	if supervisor == nil {
 		return
 	}
-	go supervisor.Stop()
+	m.retiring.Add(1)
+	go func() {
+		defer m.retiring.Done()
+		supervisor.Stop()
+	}()
 }
 
 // operatorAllows returns the refusal that an operator pinned the theme by environment.

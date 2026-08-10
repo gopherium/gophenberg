@@ -7,8 +7,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -380,6 +382,52 @@ func TestASwitchThatCannotBeStoredLeavesTheRollbackHistoryAlone(t *testing.T) {
 	}
 	if _, known, _ := settings.Lookup(t.Context(), themehost.PreviousKey); known {
 		t.Error("a switch that was never stored still wrote rollback history")
+	}
+}
+
+// plantStub lays out a theme under themesDir running the named stub.
+func plantStub(t *testing.T, themesDir, name, stub string) {
+	t.Helper()
+
+	plantTheme(t, filepath.Join(themesDir, name), name)
+	source, err := os.ReadFile(filepath.Join("testdata", stub+".mjs"))
+	if err != nil {
+		t.Fatalf("reading stub %s: %v", stub, err)
+	}
+	entry := filepath.Join(themesDir, name, "server", "entry.mjs")
+	if err := os.WriteFile(entry, source, 0o644); err != nil {
+		t.Fatalf("writing the entry of %s: %v", name, err)
+	}
+}
+
+func TestClosingWaitsForTheThemeItRetired(t *testing.T) {
+	t.Parallel()
+
+	node := nodeBin(t)
+	themesDir := t.TempDir()
+	plantStub(t, themesDir, "aurora", "stubborn")
+	plantStub(t, themesDir, "riverbed", "healthy")
+	logs := &logBuffer{}
+	manager := themehost.NewManager(themehost.ManagerConfig{
+		Library:  themehost.NewLibrary(themesDir),
+		Settings: newSettings(),
+		Supervision: themehost.SupervisorConfig{
+			NodeBin:   node,
+			StopGrace: 250 * time.Millisecond,
+			Logger:    slog.New(slog.NewTextHandler(logs, nil)),
+		},
+	})
+	if err := manager.Activate(t.Context(), "aurora"); err != nil {
+		t.Fatalf("activating the theme that ignores SIGTERM: %v", err)
+	}
+	if err := manager.Activate(t.Context(), "riverbed"); err != nil {
+		t.Fatalf("activating over it: %v", err)
+	}
+
+	manager.Close()
+
+	if !strings.Contains(logs.String(), `msg="theme exited" theme=aurora`) {
+		t.Error("Close returned while the retired theme was still being stopped")
 	}
 }
 
