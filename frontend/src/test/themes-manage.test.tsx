@@ -18,7 +18,16 @@ const ARCHIVE = new File(['a packaged theme'], 'aurora.zip', { type: 'applicatio
  * @returns The row the server would list.
  */
 function row(name: string, active: boolean, extra: Record<string, string> = { version: '1.0.0' }) {
-	return { name, active, ...extra }
+	return { name, active, serving: active, ...extra }
+}
+
+/**
+ * Returns a listed theme that is the stored choice but is not answering the site.
+ * @param name - The theme name.
+ * @returns The row the server would list.
+ */
+function chosenButDown(name: string) {
+	return { name, version: '1.0.0', active: true, serving: false }
 }
 
 /**
@@ -46,14 +55,25 @@ beforeEach(() =>
  * @param version - The version its manifest declares.
  * @returns The theme.
  */
-function theme(name: string, active: boolean, broken = '', version = '1.0.0') {
-	return { name, version, broken, active }
+function theme(name: string, active: boolean, broken = '', version = '1.0.0', serving = active) {
+	return { name, version, broken, active, serving }
 }
 
-test('names the active theme', async () => {
+test('names the theme serving the public site', async () => {
 	renderAt('/themes')
 
-	expect(await screen.findByText('aurora 1.0.0 is the active theme.')).toBeTruthy()
+	expect(await screen.findByText('aurora 1.0.0 is serving the public site.')).toBeTruthy()
+})
+
+test('says the renderer took over when the chosen theme stopped answering', async () => {
+	listing([chosenButDown('aurora')])
+	renderAt('/themes')
+
+	expect(
+		await screen.findByText('aurora is not answering, so the built-in renderer is serving.'),
+	).toBeTruthy()
+	const listed = await screen.findByRole('row', { name: /aurora/ })
+	expect(within(listed).getByText('Not serving')).toBeTruthy()
 })
 
 test('says the built-in renderer is serving when no theme is active', async () => {
@@ -89,10 +109,10 @@ test('phrases what is serving from the themes alone', () => {
 		'The built-in renderer is serving the public site.',
 	)
 	expect(servingLine({ themes: [theme('aurora', true)], rollback: null })).toBe(
-		'aurora 1.0.0 is the active theme.',
+		'aurora 1.0.0 is serving the public site.',
 	)
 	expect(servingLine({ themes: [theme('aurora', true, '', '')], rollback: null })).toBe(
-		'aurora is the active theme.',
+		'aurora is serving the public site.',
 	)
 	expect(
 		servingLine({
@@ -100,6 +120,9 @@ test('phrases what is serving from the themes alone', () => {
 			rollback: null,
 		}),
 	).toBe('aurora will not load, so the built-in renderer is serving.')
+	expect(
+		servingLine({ themes: [theme('aurora', true, '', '1.0.0', false)], rollback: null }),
+	).toBe('aurora is not answering, so the built-in renderer is serving.')
 })
 
 test('reads the archive out of a file field that may hold none', () => {
@@ -120,7 +143,7 @@ test('lists each installed theme with its own version and state', async () => {
 	const idle = await screen.findByRole('row', { name: /riverbed/ })
 
 	expect(within(serving).getByText('1.0.0')).toBeTruthy()
-	expect(within(serving).getByText('Active')).toBeTruthy()
+	expect(within(serving).getByText('Serving')).toBeTruthy()
 	expect(within(idle).getByText('0.9.0')).toBeTruthy()
 	expect(within(idle).getByText('Installed')).toBeTruthy()
 })
@@ -222,9 +245,9 @@ test('re-reads the themes once an action has changed which one is active', async
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Activate riverbed' }))
 
-	expect(await screen.findByText('riverbed 0.9.0 is the active theme.')).toBeTruthy()
+	expect(await screen.findByText('riverbed 0.9.0 is serving the public site.')).toBeTruthy()
 	const listed = await screen.findByRole('row', { name: /riverbed/ })
-	expect(within(listed).getByText('Active')).toBeTruthy()
+	expect(within(listed).getByText('Serving')).toBeTruthy()
 })
 
 test('says so when an action never reached the server', async () => {

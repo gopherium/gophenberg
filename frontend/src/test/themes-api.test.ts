@@ -18,8 +18,8 @@ test('lists the installed themes and what a rollback would return to', async () 
 		http.get('/api/themes', () =>
 			HttpResponse.json({
 				themes: [
-					{ name: 'aurora', version: '1.2.0', active: true },
-					{ name: 'riverbed', version: '0.9.0', active: false },
+					{ name: 'aurora', version: '1.2.0', active: true, serving: true },
+					{ name: 'riverbed', version: '0.9.0', active: false, serving: false },
 				],
 				rollback: { theme: 'riverbed' },
 			}),
@@ -29,8 +29,8 @@ test('lists the installed themes and what a rollback would return to', async () 
 	const listed = await listThemes()
 
 	expect(listed.themes).toEqual([
-		{ name: 'aurora', version: '1.2.0', broken: '', active: true },
-		{ name: 'riverbed', version: '0.9.0', broken: '', active: false },
+		{ name: 'aurora', version: '1.2.0', broken: '', active: true, serving: true },
+		{ name: 'riverbed', version: '0.9.0', broken: '', active: false, serving: false },
 	])
 	expect(listed.rollback).toBe('riverbed')
 })
@@ -51,7 +51,7 @@ test('lists a theme that will not load with the reason and no version', async ()
 	server.use(
 		http.get('/api/themes', () =>
 			HttpResponse.json({
-				themes: [{ name: 'driftwood', broken: 'the manifest is missing', active: false }],
+				themes: [{ name: 'driftwood', broken: 'the manifest is missing', active: false, serving: false }],
 			}),
 		),
 	)
@@ -63,6 +63,7 @@ test('lists a theme that will not load with the reason and no version', async ()
 		version: '',
 		broken: 'the manifest is missing',
 		active: false,
+		serving: false,
 	})
 })
 

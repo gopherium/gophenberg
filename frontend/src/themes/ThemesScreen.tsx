@@ -31,12 +31,25 @@ export function servingLine(listed: ThemeList | undefined): string | undefined {
 	if (!active) {
 		return 'The built-in renderer is serving the public site.'
 	}
-	if (active.broken !== '') {
-		return `${active.name} will not load, so the built-in renderer is serving.`
+	const fallen = fallbackReason(active)
+	if (fallen !== '') {
+		return `${active.name} ${fallen}, so the built-in renderer is serving.`
 	}
 	return active.version
-		? `${active.name} ${active.version} is the active theme.`
-		: `${active.name} is the active theme.`
+		? `${active.name} ${active.version} is serving the public site.`
+		: `${active.name} is serving the public site.`
+}
+
+/**
+ * Returns why the built-in renderer answers instead of the chosen theme.
+ * @param active - The chosen theme.
+ * @returns The reason, empty when the theme is answering.
+ */
+function fallbackReason(active: Theme): string {
+	if (active.broken !== '') {
+		return 'will not load'
+	}
+	return active.serving ? '' : 'is not answering'
 }
 
 /**
@@ -210,14 +223,17 @@ function ThemeRow(props: { theme: Theme; onOutcome: Reporter }) {
  * @returns The badge element.
  */
 function ThemeBadge(props: { theme: Theme }) {
-	if (props.theme.broken !== '') {
+	const { theme } = props
+	if (theme.broken !== '') {
 		return <Badge intent="high">Broken</Badge>
 	}
-	return (
-		<Badge intent={props.theme.active ? 'stable' : 'draft'}>
-			{props.theme.active ? 'Active' : 'Installed'}
-		</Badge>
-	)
+	if (theme.serving) {
+		return <Badge intent="stable">Serving</Badge>
+	}
+	if (theme.active) {
+		return <Badge intent="high">Not serving</Badge>
+	}
+	return <Badge intent="draft">Installed</Badge>
 }
 
 /**

@@ -7,6 +7,7 @@ const themeSchema = z.object({
 	version: z.string().optional(),
 	broken: z.string().optional(),
 	active: z.boolean(),
+	serving: z.boolean(),
 })
 
 const listSchema = z.object({
@@ -25,6 +26,7 @@ export interface Theme {
 	version: string
 	broken: string
 	active: boolean
+	serving: boolean
 }
 
 export interface ThemeList {
@@ -49,6 +51,7 @@ function toTheme(row: z.infer<typeof themeSchema>): Theme {
 		version: row.version ?? '',
 		broken: row.broken ?? '',
 		active: row.active,
+		serving: row.serving,
 	}
 }
 
