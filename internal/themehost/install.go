@@ -111,7 +111,7 @@ func extract(file *zip.File, target string) (int64, error) {
 
 // swapIn moves the staged theme into place, replacing what the name held.
 func swapIn(staged, installed string) error {
-	retired := installed + ".retired"
+	retired := filepath.Join(filepath.Dir(installed), "."+filepath.Base(installed)+".retired")
 	if err := os.RemoveAll(retired); err != nil {
 		return fmt.Errorf("themehost: clearing %s: %w", retired, err)
 	}
@@ -124,5 +124,6 @@ func swapIn(staged, installed string) error {
 		_ = os.Rename(retired, installed)
 		return fmt.Errorf("themehost: installing the theme: %w", err)
 	}
-	return os.RemoveAll(retired)
+	_ = os.RemoveAll(retired)
+	return nil
 }

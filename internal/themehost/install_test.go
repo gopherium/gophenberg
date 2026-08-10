@@ -230,6 +230,29 @@ func TestInstallLeavesNothingBehindWhenItRefuses(t *testing.T) {
 	}
 }
 
+func TestInstallLeavesAThemeNamedLikeTheScratchPathAlone(t *testing.T) {
+	t.Parallel()
+
+	themesDir := t.TempDir()
+	scratchLikeName := "driftwood.retired"
+	first := validArchive(t, scratchLikeName)
+	if _, err := themehost.Install(themesDir, scratchLikeName, bytes.NewReader(first), int64(len(first))); err != nil {
+		t.Fatalf("installing the scratch-like name: %v", err)
+	}
+	second := validArchive(t, "driftwood")
+
+	if _, err := themehost.Install(themesDir, "driftwood", bytes.NewReader(second), int64(len(second))); err != nil {
+		t.Fatalf("installing the plain name: %v", err)
+	}
+
+	if _, err := themehost.Load(themesDir, scratchLikeName); err != nil {
+		t.Errorf("the scratch-like theme was destroyed: %v", err)
+	}
+	if _, err := themehost.Load(themesDir, "driftwood"); err != nil {
+		t.Errorf("the plain theme does not load: %v", err)
+	}
+}
+
 func TestInstallReplacesAnInstalledTheme(t *testing.T) {
 	t.Parallel()
 
