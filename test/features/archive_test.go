@@ -133,6 +133,12 @@ func flawedArchive(name, flaw string) ([]byte, error) {
 			part{path: "client/app.css", body: strings.Repeat("a", int(themehost.MaxSize)+1)})
 	case "contains an entry escaping its directory":
 		return archiveOf(manifest, serverEntry, clientAsset, part{path: "../escaped.txt", body: "owned"})
+	case "carries more files than the cap":
+		parts := []part{manifest, serverEntry, clientAsset}
+		for i := range themehost.MaxEntries {
+			parts = append(parts, part{path: fmt.Sprintf("client/%d", i)})
+		}
+		return archiveOf(parts...)
 	}
 	return nil, fmt.Errorf("no archive is built for the flaw %q", flaw)
 }

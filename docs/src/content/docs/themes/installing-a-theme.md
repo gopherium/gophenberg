@@ -54,6 +54,7 @@ An upload is refused whole, and the admin shows the reason:
 - `theme.json` present and valid, its `name` matching the zip name
 - `server/entry.mjs` present as a file, `client/` as a directory
 - no symlinks anywhere, and nothing over 64 MiB packed or unpacked
+- at most 10000 files, which is far more than a theme needs
 
 A refused upload leaves nothing behind. You cannot replace the
 theme that is active, so deactivate it first or upload it under

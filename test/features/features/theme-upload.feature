@@ -33,6 +33,7 @@ Feature: Installing a theme from the admin
       | contains a symbolic link                 | symlinks are not allowed      |
       | unpacks to more than the size cap        | the theme is too large        |
       | contains an entry escaping its directory | the archive is unsafe         |
+      | carries more files than the cap          | the archive holds too many files |
 
   Scenario: Replacing the active theme is refused
     Given "aurora" is installed and active
