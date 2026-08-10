@@ -25,6 +25,7 @@ type listedTheme struct {
 	Version string `json:"version"`
 	Broken  string `json:"broken"`
 	Active  bool   `json:"active"`
+	Serving bool   `json:"serving"`
 }
 
 // installedThemes returns the themes the list reports, once any switch in flight has finished.

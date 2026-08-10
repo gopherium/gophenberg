@@ -116,6 +116,62 @@ func theFilesBecomeInvalid(ctx context.Context, name string) error {
 	return nil
 }
 
+// theFilesNeverStart replaces an installed theme with one that validates and dies.
+func theFilesNeverStart(ctx context.Context, name string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	entry := filepath.Join(w.themesDir, name, "server", "entry.mjs")
+	if err := os.WriteFile(entry, []byte("process.exit(1)\n"), 0o644); err != nil {
+		return fmt.Errorf("replacing the server entry of %q: %w", name, err)
+	}
+	return nil
+}
+
+// theThemeListShowsActiveNotServing asserts the list separates the choice from what serves.
+func theThemeListShowsActiveNotServing(ctx context.Context, name string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	themes, err := installedThemes(w)
+	if err != nil {
+		return err
+	}
+	for _, theme := range themes {
+		if theme.Name != name {
+			continue
+		}
+		if !theme.Active {
+			return fmt.Errorf("the theme list shows %q as not active, want the stored choice kept", name)
+		}
+		if theme.Serving {
+			return fmt.Errorf("the theme list shows %q as serving, want the renderer reported instead", name)
+		}
+		return nil
+	}
+	return fmt.Errorf("the theme list shows %v, want %q listed", themes, name)
+}
+
+// theThemeListShowsServing asserts the list reports the named theme as answering the public site.
+func theThemeListShowsServing(ctx context.Context, name string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	themes, err := installedThemes(w)
+	if err != nil {
+		return err
+	}
+	for _, theme := range themes {
+		if theme.Name == name && theme.Serving {
+			return nil
+		}
+	}
+	return fmt.Errorf("the theme list shows %v, want %q serving", themes, name)
+}
+
 // theServerStartsOnTheRenderer asserts a broken stored theme still leaves a serving site.
 func theServerStartsOnTheRenderer(ctx context.Context) error {
 	return theBuiltInRendererServes(ctx)
@@ -180,6 +236,9 @@ func initializeActivation(sc *godog.ScenarioContext) {
 	registerSharedSteps(sc)
 	sc.Given(`^the server was started with an operator pinned theme "([^"]*)"$`, theServerWasPinned)
 	sc.Given(`^the files of "([^"]*)" become invalid while the server is stopped$`, theFilesBecomeInvalid)
+	sc.Given(`^the files of "([^"]*)" are replaced by a theme that never starts$`, theFilesNeverStart)
+	sc.Then(`^the theme list shows "([^"]*)" as active but not serving$`, theThemeListShowsActiveNotServing)
+	sc.Then(`^the theme list shows "([^"]*)" as serving$`, theThemeListShowsServing)
 	sc.When(`^the administrator deactivates the theme$`, theAdministratorDeactivates)
 	sc.When(`^the server restarts$`, theServerRestarts)
 	sc.When(`^the administrator tries to activate "([^"]*)"$`, theAdministratorTriesToActivate)

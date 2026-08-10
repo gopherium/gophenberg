@@ -11,6 +11,7 @@ Feature: Activating a theme
     When the administrator activates "aurora"
     Then the public site is served through "aurora" once it reports ready
     And the theme list shows "aurora" as active
+    And the theme list shows "aurora" as serving
 
   Scenario: The site keeps answering while a theme starts
     Given a valid theme "aurora" is installed
@@ -49,6 +50,13 @@ Feature: Activating a theme
     When the server restarts
     Then the server starts and the public site is served by the built-in renderer
     And the theme list shows "aurora" as broken
+
+  Scenario: A theme that dies after starting is not reported as serving
+    Given "aurora" is installed and active
+    And the files of "aurora" are replaced by a theme that never starts
+    When the server restarts
+    Then the server starts and the public site is served by the built-in renderer
+    And the theme list shows "aurora" as active but not serving
 
   Scenario: An operator pinned theme disables admin activation
     Given the server was started with an operator pinned theme "driftwood"
