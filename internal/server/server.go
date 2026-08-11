@@ -91,7 +91,11 @@ func NewServer(cfg Config) http.Handler {
 		protected.Delete("/api/posts/{id}/revisions/{revisionID}", s.handleRevisionDelete())
 		protected.Get("/api/version", s.handleVersion())
 		if cfg.Media != nil && cfg.MediaStore != nil {
+			protected.Get("/api/media", s.handleMediaList())
 			protected.Post("/api/media", s.handleMediaUpload())
+			protected.Get("/api/media/{id}", s.handleMediaGet())
+			protected.Patch("/api/media/{id}", s.handleMediaPatch())
+			protected.Delete("/api/media/{id}", s.handleMediaDelete())
 		}
 		if cfg.Themes != nil {
 			protected.Get("/api/themes", s.handleThemeList())

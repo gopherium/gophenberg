@@ -4,10 +4,14 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gouncer/authkit"
@@ -18,6 +22,12 @@ import (
 
 // mediaUploadField is the multipart field an uploaded file arrives in.
 const mediaUploadField = "file"
+
+// defaultMediaPerPage and maxMediaPerPage bound the media page size.
+const (
+	defaultMediaPerPage = 20
+	maxMediaPerPage     = 100
+)
 
 // MediaLibrary validates uploads and owns the media directory.
 type MediaLibrary interface {
@@ -124,6 +134,182 @@ func (s *server) handleMediaUpload() http.HandlerFunc {
 			return
 		}
 		authkit.Respond(w, http.StatusCreated, newMediaView(created))
+	}
+}
+
+// mediaListResponse is a page of media items with the total matching the filter.
+type mediaListResponse struct {
+	Items []mediaView `json:"items"`
+	Total int         `json:"total"`
+}
+
+// parseMediaFilter reads the list query parameters into a filter.
+func parseMediaFilter(query url.Values) (media.Filter, error) {
+	filter := media.Filter{Search: query.Get("search"), Page: 1, PerPage: defaultMediaPerPage}
+	if raw := query.Get("type"); raw != "" {
+		kind, err := media.ParseType(raw)
+		if err != nil {
+			return media.Filter{}, err
+		}
+		filter.Type = kind
+	}
+	if err := applyMediaPaging(query, &filter); err != nil {
+		return media.Filter{}, err
+	}
+	return filter, nil
+}
+
+// applyMediaPaging reads the page and per_page query parameters into filter.
+func applyMediaPaging(query url.Values, filter *media.Filter) error {
+	if raw := query.Get("page"); raw != "" {
+		page, err := strconv.Atoi(raw)
+		if err != nil || page < 1 {
+			return fmt.Errorf("server: invalid page %q", raw)
+		}
+		filter.Page = page
+	}
+	if raw := query.Get("per_page"); raw != "" {
+		perPage, err := strconv.Atoi(raw)
+		if err != nil || perPage < 1 || perPage > maxMediaPerPage {
+			return fmt.Errorf("server: invalid per_page %q", raw)
+		}
+		filter.PerPage = perPage
+	}
+	return nil
+}
+
+// mediaID reads the id path parameter of a media route.
+func mediaID(r *http.Request) (int64, error) {
+	return strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+}
+
+// handleMediaList returns the handler listing media as a page with its total.
+func (s *server) handleMediaList() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		filter, err := parseMediaFilter(r.URL.Query())
+		if err != nil {
+			authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
+			return
+		}
+		rows, total, err := s.mediaStore.List(r.Context(), filter)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		items := make([]mediaView, len(rows))
+		for i, m := range rows {
+			items[i] = newMediaView(m)
+		}
+		authkit.Respond(w, http.StatusOK, mediaListResponse{Items: items, Total: total})
+	}
+}
+
+// handleMediaGet returns the handler answering one media item.
+func (s *server) handleMediaGet() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := mediaID(r)
+		if err != nil {
+			authkit.RespondError(w, http.StatusBadRequest, "malformed media id")
+			return
+		}
+		m, err := s.mediaStore.ByID(r.Context(), id)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		authkit.Respond(w, http.StatusOK, newMediaView(m))
+	}
+}
+
+// mediaPatchRequest carries the version the edit was prepared against and the
+// editable fields, where a nil field is unchanged.
+type mediaPatchRequest struct {
+	UpdatedAt   *time.Time `json:"updated_at"`
+	Title       *string    `json:"title"`
+	AltText     *string    `json:"alt_text"`
+	Caption     *string    `json:"caption"`
+	Description *string    `json:"description"`
+}
+
+// applyTo edits the item's descriptions, reporting whether anything changed.
+func (req mediaPatchRequest) applyTo(m *media.Media) bool {
+	changed := false
+	for field, value := range map[*string]*string{
+		&m.Title:       req.Title,
+		&m.AltText:     req.AltText,
+		&m.Caption:     req.Caption,
+		&m.Description: req.Description,
+	} {
+		if value != nil && *field != *value {
+			*field = *value
+			changed = true
+		}
+	}
+	if changed {
+		m.UpdatedAt = time.Now().UTC()
+	}
+	return changed
+}
+
+// handleMediaPatch returns the handler applying a partial edit to a media item.
+func (s *server) handleMediaPatch() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := mediaID(r)
+		if err != nil {
+			authkit.RespondError(w, http.StatusBadRequest, "malformed media id")
+			return
+		}
+		req, err := authkit.Decode[mediaPatchRequest](w, r)
+		if err != nil {
+			authkit.RespondError(w, http.StatusBadRequest, "malformed json")
+			return
+		}
+		if req.UpdatedAt == nil {
+			authkit.RespondError(w, http.StatusBadRequest, "missing updated_at")
+			return
+		}
+		updated, err := s.patchMedia(r, id, *req.UpdatedAt, req)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		authkit.Respond(w, http.StatusOK, newMediaView(updated))
+	}
+}
+
+// patchMedia applies the edit to the stored item when it still holds version.
+func (s *server) patchMedia(
+	r *http.Request, id int64, version time.Time, req mediaPatchRequest,
+) (media.Media, error) {
+	stored, err := s.mediaStore.ByID(r.Context(), id)
+	if err != nil {
+		return media.Media{}, err
+	}
+	if !version.Equal(stored.UpdatedAt) {
+		return media.Media{}, media.ErrConflict
+	}
+	previous := stored.UpdatedAt
+	if !req.applyTo(&stored) {
+		return stored, nil
+	}
+	return s.mediaStore.Update(r.Context(), stored, previous)
+}
+
+// handleMediaDelete returns the handler removing a media item and its files.
+func (s *server) handleMediaDelete() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := mediaID(r)
+		if err != nil {
+			authkit.RespondError(w, http.StatusBadRequest, "malformed media id")
+			return
+		}
+		deleted, err := s.mediaStore.Delete(r.Context(), id)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		_ = s.media.Remove(deleted)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 

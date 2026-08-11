@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -15,6 +16,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -27,10 +29,13 @@ import (
 
 // fakeMediaStore holds media items in memory and can be told to fail.
 type fakeMediaStore struct {
-	mu        sync.Mutex
-	next      int64
-	items     map[int64]media.Media
-	createErr error
+	mu          sync.Mutex
+	next        int64
+	items       map[int64]media.Media
+	updateCalls int
+	createErr   error
+	listErr     error
+	updateErr   error
 }
 
 // newFakeMediaStore returns an empty in-memory media store double.
@@ -62,25 +67,62 @@ func (s *fakeMediaStore) ByID(_ context.Context, id int64) (media.Media, error) 
 	return m, nil
 }
 
-// List returns every stored item and their count.
-func (s *fakeMediaStore) List(context.Context, media.Filter) ([]media.Media, int, error) {
+// List returns every stored item newest first with their count, or fails as told.
+func (s *fakeMediaStore) List(_ context.Context, f media.Filter) ([]media.Media, int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.listErr != nil {
+		return nil, 0, s.listErr
+	}
 	items := make([]media.Media, 0, len(s.items))
 	for _, m := range s.items {
-		items = append(items, m)
+		if f.Type == "" || m.Type == f.Type {
+			items = append(items, m)
+		}
 	}
+	sort.Slice(items, func(i, j int) bool { return items[i].ID > items[j].ID })
 	return items, len(items), nil
 }
 
-// Update reports the item missing.
-func (s *fakeMediaStore) Update(context.Context, media.Media, time.Time) (media.Media, error) {
-	return media.Media{}, media.ErrNotFound
+// Update stores the item's descriptions, or reports a missing item or a stale edit.
+func (s *fakeMediaStore) Update(_ context.Context, m media.Media, expectedUpdatedAt time.Time) (media.Media, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.updateCalls++
+	if s.updateErr != nil {
+		return media.Media{}, s.updateErr
+	}
+	stored, found := s.items[m.ID]
+	if !found {
+		return media.Media{}, media.ErrNotFound
+	}
+	if !stored.UpdatedAt.Equal(expectedUpdatedAt) {
+		return media.Media{}, media.ErrConflict
+	}
+	stored.Title, stored.AltText = m.Title, m.AltText
+	stored.Caption, stored.Description = m.Caption, m.Description
+	stored.UpdatedAt = m.UpdatedAt
+	s.items[m.ID] = stored
+	return stored, nil
 }
 
-// Delete reports the item missing.
-func (s *fakeMediaStore) Delete(context.Context, int64) (media.Media, error) {
-	return media.Media{}, media.ErrNotFound
+// Delete removes the media item and returns it, or reports [media.ErrNotFound].
+func (s *fakeMediaStore) Delete(_ context.Context, id int64) (media.Media, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m, found := s.items[id]
+	if !found {
+		return media.Media{}, media.ErrNotFound
+	}
+	delete(s.items, id)
+	return m, nil
+}
+
+// updated returns how many edits the store was asked to write.
+func (s *fakeMediaStore) updated() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.updateCalls
 }
 
 // count returns how many items the store holds.
@@ -148,15 +190,17 @@ func sendMediaUpload(t *testing.T, handler http.Handler, filename string, data [
 
 // mediaBody is the media item shape the admin API answers.
 type mediaBody struct {
-	ID       int64  `json:"id"`
-	Type     string `json:"type"`
-	File     string `json:"file"`
-	Title    string `json:"title"`
-	MimeType string `json:"mime_type"`
-	Width    int    `json:"width"`
-	Height   int    `json:"height"`
-	AuthorID string `json:"author_id"`
-	Sizes    map[string]struct {
+	ID        int64     `json:"id"`
+	Type      string    `json:"type"`
+	File      string    `json:"file"`
+	Title     string    `json:"title"`
+	AltText   string    `json:"alt_text"`
+	MimeType  string    `json:"mime_type"`
+	Width     int       `json:"width"`
+	Height    int       `json:"height"`
+	AuthorID  string    `json:"author_id"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Sizes     map[string]struct {
 		File  string `json:"file"`
 		Width int    `json:"width"`
 	} `json:"sizes"`
@@ -256,6 +300,26 @@ func TestUploadingMediaWithoutAFileIsRefused(t *testing.T) {
 	}
 }
 
+func TestUploadingMediaMasksAFailingLibrary(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatalf("locking the directory: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: dir}), newFakeMediaStore())
+
+	recorder := sendMediaUpload(t, handler, "harbor.jpg", smallJPEG(t))
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+	if !strings.Contains(recorder.Body.String(), "internal error") {
+		t.Errorf("body = %q, want the failure masked", recorder.Body.String())
+	}
+}
+
 func TestUploadingMediaCleansUpWhenTheStoreFails(t *testing.T) {
 	t.Parallel()
 
@@ -287,6 +351,255 @@ func TestUploadingMediaCleansUpWhenTheStoreFails(t *testing.T) {
 	}
 	if left != 0 {
 		t.Errorf("the media directory holds %d files, want the failed upload cleaned up", left)
+	}
+}
+
+// storedMediaItem uploads a small photo and returns the answered item.
+func storedMediaItem(t *testing.T, handler http.Handler) mediaBody {
+	t.Helper()
+	recorder := sendMediaUpload(t, handler, "harbor.jpg", smallJPEG(t))
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("upload status = %d (%s), want %d", recorder.Code, recorder.Body.String(), http.StatusCreated)
+	}
+	return decodeBody[mediaBody](t, recorder)
+}
+
+// patchBody builds the JSON of a partial media edit.
+func patchBody(updatedAt string, fields map[string]string) string {
+	body := fmt.Sprintf(`{"updated_at":%q`, updatedAt)
+	for field, value := range fields {
+		body += fmt.Sprintf(`,%q:%q`, field, value)
+	}
+	return body + "}"
+}
+
+func TestListingMediaAnswersItemsWithTheirTotal(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeMediaStore()
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
+	storedMediaItem(t, handler)
+	storedMediaItem(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/media?type=image&search=harbor&page=1&per_page=20", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	body := decodeBody[struct {
+		Items []mediaBody `json:"items"`
+		Total int         `json:"total"`
+	}](t, recorder)
+	if body.Total != 2 || len(body.Items) != 2 {
+		t.Fatalf("listing = %d items with total %d, want both uploads", len(body.Items), body.Total)
+	}
+	if body.Items[0].ID <= body.Items[1].ID {
+		t.Errorf("listing leads with id %d, want newest first", body.Items[0].ID)
+	}
+}
+
+func TestListingMediaRefusesParametersItCannotMakeSenseOf(t *testing.T) {
+	t.Parallel()
+
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), newFakeMediaStore())
+
+	badQueries := []string{
+		"?type=audio", "?page=0", "?page=x", "?per_page=500", "?per_page=x", "?per_page=0",
+	}
+	for _, badQuery := range badQueries {
+		recorder := doRequest(t, handler, http.MethodGet, "/api/media"+badQuery, "")
+		if recorder.Code != http.StatusBadRequest {
+			t.Errorf("listing with %q status = %d, want %d", badQuery, recorder.Code, http.StatusBadRequest)
+		}
+	}
+}
+
+func TestListingMediaMasksAFailingStore(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeMediaStore()
+	store.listErr = errors.New("the database is gone")
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/media", "")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+	if strings.Contains(recorder.Body.String(), "database") {
+		t.Errorf("body = %q, want the failure masked", recorder.Body.String())
+	}
+}
+
+func TestGettingMediaAnswersOneItem(t *testing.T) {
+	t.Parallel()
+
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), newFakeMediaStore())
+	created := storedMediaItem(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodGet, fmt.Sprintf("/api/media/%d", created.ID), "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	body := decodeBody[mediaBody](t, recorder)
+	if body.ID != created.ID || body.Title != "harbor" {
+		t.Errorf("body = %+v, want the stored item", body)
+	}
+}
+
+func TestGettingMediaReportsWhatDoesNotExist(t *testing.T) {
+	t.Parallel()
+
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), newFakeMediaStore())
+
+	missing := doRequest(t, handler, http.MethodGet, "/api/media/12345", "")
+	if missing.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d for a missing id", missing.Code, http.StatusNotFound)
+	}
+
+	malformed := doRequest(t, handler, http.MethodGet, "/api/media/abc", "")
+	if malformed.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d for a malformed id", malformed.Code, http.StatusBadRequest)
+	}
+}
+
+func TestPatchingMediaEditsTheDescriptions(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeMediaStore()
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
+	created := storedMediaItem(t, handler)
+	version := created.UpdatedAt.Format(time.RFC3339Nano)
+
+	recorder := doRequest(t, handler, http.MethodPatch, fmt.Sprintf("/api/media/%d", created.ID),
+		patchBody(version, map[string]string{"title": "Harbor at dawn", "alt_text": "Boats at sunrise"}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d (%s), want %d", recorder.Code, recorder.Body.String(), http.StatusOK)
+	}
+	body := decodeBody[mediaBody](t, recorder)
+	if body.Title != "Harbor at dawn" || body.AltText != "Boats at sunrise" {
+		t.Errorf("body = %+v, want the edited descriptions", body)
+	}
+	if !body.UpdatedAt.After(created.UpdatedAt) {
+		t.Errorf("UpdatedAt = %v, want it moved past %v", body.UpdatedAt, created.UpdatedAt)
+	}
+}
+
+func TestPatchingMediaWithoutChangesWritesNothing(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeMediaStore()
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
+	created := storedMediaItem(t, handler)
+	version := created.UpdatedAt.Format(time.RFC3339Nano)
+
+	unchanged := doRequest(t, handler, http.MethodPatch, fmt.Sprintf("/api/media/%d", created.ID),
+		patchBody(version, map[string]string{"title": "harbor"}))
+
+	if unchanged.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", unchanged.Code, http.StatusOK)
+	}
+	if store.updated() != 0 {
+		t.Errorf("the store wrote %d edits, want a no-op to write nothing", store.updated())
+	}
+}
+
+func TestPatchingMediaRefusesWhatItCannotApply(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeMediaStore()
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
+	created := storedMediaItem(t, handler)
+	version := created.UpdatedAt.Format(time.RFC3339Nano)
+
+	refused := []struct {
+		name   string
+		path   string
+		body   string
+		status int
+	}{
+		{"malformed id", "/api/media/abc", patchBody(version, nil), http.StatusBadRequest},
+		{"malformed json", fmt.Sprintf("/api/media/%d", created.ID), "{", http.StatusBadRequest},
+		{"missing version", fmt.Sprintf("/api/media/%d", created.ID), `{"title":"x"}`, http.StatusBadRequest},
+		{"missing item", "/api/media/12345", patchBody(version, nil), http.StatusNotFound},
+		{
+			"stale version", fmt.Sprintf("/api/media/%d", created.ID),
+			patchBody("2020-01-01T00:00:00Z", map[string]string{"title": "stale"}), http.StatusConflict,
+		},
+	}
+	for _, tc := range refused {
+		recorder := doRequest(t, handler, http.MethodPatch, tc.path, tc.body)
+		if recorder.Code != tc.status {
+			t.Errorf("%s status = %d, want %d", tc.name, recorder.Code, tc.status)
+		}
+	}
+}
+
+func TestPatchingMediaMasksAFailingStore(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeMediaStore()
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
+	created := storedMediaItem(t, handler)
+	store.updateErr = errors.New("the database is gone")
+
+	recorder := doRequest(t, handler, http.MethodPatch, fmt.Sprintf("/api/media/%d", created.ID),
+		patchBody(created.UpdatedAt.Format(time.RFC3339Nano), map[string]string{"title": "Harbor at dawn"}))
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+	if strings.Contains(recorder.Body.String(), "database") {
+		t.Errorf("body = %q, want the failure masked", recorder.Body.String())
+	}
+}
+
+func TestDeletingMediaRemovesTheRowAndTheFiles(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	store := newFakeMediaStore()
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: dir}), store)
+	created := storedMediaItem(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodDelete, fmt.Sprintf("/api/media/%d", created.ID), "")
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNoContent)
+	}
+	left := 0
+	err := filepath.WalkDir(dir, func(_ string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			left++
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking the media directory: %v", err)
+	}
+	if left != 0 {
+		t.Errorf("the media directory holds %d files, want the delete to remove them all", left)
+	}
+}
+
+func TestDeletingMediaReportsWhatDoesNotExist(t *testing.T) {
+	t.Parallel()
+
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), newFakeMediaStore())
+
+	missing := doRequest(t, handler, http.MethodDelete, "/api/media/12345", "")
+	if missing.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d for a missing id", missing.Code, http.StatusNotFound)
+	}
+
+	malformed := doRequest(t, handler, http.MethodDelete, "/api/media/abc", "")
+	if malformed.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d for a malformed id", malformed.Code, http.StatusBadRequest)
 	}
 }
 
