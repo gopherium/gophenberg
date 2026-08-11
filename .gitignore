@@ -9,6 +9,7 @@ test/theme/dist/
 .e2e-archive/
 .brick-held/
 .covdata/
+.dev-media/
 node_modules/
 .env
 /pluginwire
