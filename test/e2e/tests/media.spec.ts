@@ -67,6 +67,35 @@ test('uploads a picture to the library and serves it publicly', async ({ page })
 	expect(served.headers()['content-type']).toContain('image/jpeg')
 })
 
+test('places a picture already in the library through the media library picker', async ({
+	page,
+}) => {
+	const uploaded = await page.request.post('/api/media', {
+		multipart: { file: photo(`${PICTURE}-stored.jpg`) },
+	})
+	expect(uploaded.status()).toBe(201)
+
+	await page.goto('/admin/posts')
+	await page.getByRole('button', { name: 'Add New' }).click()
+	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
+	const postId = page.url().match(/posts\/([0-9a-f-]+)\/edit/)?.[1]
+	if (postId !== undefined) {
+		createdPosts.push(postId)
+	}
+
+	await canvas(page).getByRole('button', { name: 'Add default block' }).click()
+	await page.keyboard.type('/image')
+	await page.keyboard.press('Enter')
+	await canvas(page).getByRole('button', { name: 'Media Library' }).click()
+
+	const library = page.getByRole('dialog')
+	await expect(library.getByText(`${PICTURE}-stored`)).toBeVisible()
+	await library.getByText(`${PICTURE}-stored`).click()
+	await library.getByRole('button', { name: 'Select' }).click()
+
+	await expect(canvas(page).locator('img[src^="/media/"]')).toBeVisible()
+})
+
 test('places an uploaded picture in a post and publishes it', async ({ page }) => {
 	await page.goto('/admin/posts')
 	await page.getByRole('button', { name: 'Add New' }).click()
