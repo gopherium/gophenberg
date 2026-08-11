@@ -26,10 +26,10 @@ test('registers every curated block and nothing else', () => {
 	expect(registered.toSorted()).toEqual([...CURATED_BLOCKS].toSorted())
 })
 
-test('curates blocks that need a server, a media library or post meta away', () => {
+test('curates blocks that need a server or post meta away', () => {
 	const registered = new Set(getBlockTypes().map((type) => type.name))
 
-	for (const excluded of ['core/embed', 'core/cover', 'core/footnotes', 'core/rss', 'core/query']) {
+	for (const excluded of ['core/embed', 'core/footnotes', 'core/rss', 'core/query']) {
 		expect(registered.has(excluded)).toBe(false)
 	}
 })
@@ -38,6 +38,22 @@ test('offers the blocks a daily driver writes with', () => {
 	const registered = new Set(getBlockTypes().map((type) => type.name))
 
 	for (const wanted of ['core/paragraph', 'core/heading', 'core/list', 'core/image']) {
+		expect(registered.has(wanted)).toBe(true)
+	}
+})
+
+test('offers every block the media library feeds', () => {
+	const registered = new Set(getBlockTypes().map((type) => type.name))
+
+	const fed = [
+		'core/gallery',
+		'core/video',
+		'core/audio',
+		'core/file',
+		'core/cover',
+		'core/media-text',
+	]
+	for (const wanted of fed) {
 		expect(registered.has(wanted)).toBe(true)
 	}
 })

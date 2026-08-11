@@ -21,6 +21,7 @@
 		"@wordpress/compose": "8.5.0",
 		"@wordpress/dataviews": "17.3.0",
 		"@wordpress/format-library": "5.52.0",
+		"@wordpress/hooks": "4.52.0",
 		"@wordpress/icons": "15.3.0",
 		"@wordpress/keyboard-shortcuts": "5.52.0",
 		"@wordpress/theme": "1.1.0",

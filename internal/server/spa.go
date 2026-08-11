@@ -37,7 +37,7 @@ func fallbackHandler(admin, renderer, public http.Handler) http.HandlerFunc {
 // reservedHandler returns what answers a path a theme may never serve, or nothing when it may.
 func reservedHandler(path string, renderer http.Handler) http.Handler {
 	switch {
-	case reserved(path, "/api"), reserved(path, assetPrefix):
+	case reserved(path, "/api"), reserved(path, assetPrefix), reserved(path, mediaPrefix):
 		return http.HandlerFunc(respondNotFound)
 	case reserved(path, themePrefix):
 		return renderer

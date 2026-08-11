@@ -148,7 +148,7 @@ func (s *PostStore) List(ctx context.Context, f post.Filter) ([]post.Post, int, 
 		OrderBy:   string(f.OrderBy),
 		OrderDir:  string(f.Order),
 		RowLimit:  int32(f.PerPage),
-		RowOffset: pageOffset(f),
+		RowOffset: pageOffset(f.Page, f.PerPage),
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("postgres: list posts: %w", err)
@@ -290,12 +290,12 @@ func (s *PostStore) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// pageOffset returns the row offset of the filter's page, bounded to what the query accepts.
-func pageOffset(f post.Filter) int32 {
-	if f.PerPage > 0 && f.Page-1 > math.MaxInt32/f.PerPage {
+// pageOffset returns the row offset of a page, bounded to what the query accepts.
+func pageOffset(page, perPage int) int32 {
+	if perPage > 0 && page-1 > math.MaxInt32/perPage {
 		return math.MaxInt32
 	}
-	return int32((f.Page - 1) * f.PerPage)
+	return int32((page - 1) * perPage)
 }
 
 // utcOrNil returns the instant in UTC, or nil when it is unset.

@@ -34,6 +34,7 @@ export default defineConfig({
 					items: [
 						{ slug: 'guides/posts' },
 						{ slug: 'guides/editor' },
+						{ slug: 'guides/media' },
 						{ slug: 'guides/publishing' },
 						{ slug: 'guides/users' },
 					],

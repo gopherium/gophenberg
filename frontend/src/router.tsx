@@ -48,6 +48,12 @@ const newUserRoute = createRoute({
 	component: lazyRouteComponent(() => import('./users/NewUserScreen'), 'NewUserScreen'),
 })
 
+const mediaRoute = createRoute({
+	getParentRoute: () => framedRoute,
+	path: '/media',
+	component: lazyRouteComponent(() => import('./media/MediaScreen'), 'MediaScreen'),
+})
+
 const themesRoute = createRoute({
 	getParentRoute: () => framedRoute,
 	path: '/themes',
@@ -64,6 +70,7 @@ const routeTree = rootRoute.addChildren([
 	framedRoute.addChildren([
 		homeRoute,
 		postsRoute,
+		mediaRoute,
 		usersRoute,
 		newUserRoute,
 		themesRoute,

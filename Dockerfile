@@ -22,15 +22,17 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /gophenberg ./cmd/gophenberg
-RUN mkdir -p /themes
+RUN mkdir -p /themes /media
 
 # Assemble the runtime image: the binary, the built SPA, and the node a theme is served with.
 FROM gcr.io/distroless/nodejs24-debian12:nonroot
 COPY --from=backend /gophenberg /gophenberg
 COPY --from=frontend /app/frontend/dist /web
 COPY --from=backend --chown=65532:65532 /themes /themes
+COPY --from=backend --chown=65532:65532 /media /media
 ENV GOPHENBERG_WEB_DIR=/web
 ENV GOPHENBERG_THEMES_DIR=/themes
+ENV GOPHENBERG_MEDIA_DIR=/media
 ENV GOPHENBERG_ADDR=0.0.0.0:8081
 ENV GOPHENBERG_NODE_BIN=/nodejs/bin/node
 EXPOSE 8081

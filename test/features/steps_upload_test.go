@@ -60,7 +60,7 @@ func uploadVersion(ctx context.Context, name, version string) error {
 	if err != nil {
 		return err
 	}
-	return w.upload(themesPath, name+".zip", archive)
+	return w.upload(themesPath, "theme", name+".zip", archive)
 }
 
 // uploadsANewerValidArchive uploads a second valid archive under the same name.
@@ -78,7 +78,7 @@ func uploadsAFlawedArchive(ctx context.Context, name, flaw string) error {
 	if err != nil {
 		return err
 	}
-	return w.upload(themesPath, name+".zip", archive)
+	return w.upload(themesPath, "theme", name+".zip", archive)
 }
 
 // theUploadIsRefused asserts the upload failed for the stated reason.

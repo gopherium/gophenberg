@@ -10,7 +10,39 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/gophenberg/internal/media"
 )
+
+const countMedia = `-- name: CountMedia :one
+SELECT count(*)
+FROM core.media m
+WHERE ($1::text = '' OR m.media_type = $1)
+    AND (
+        cardinality($2::text[]) = 0
+        OR EXISTS (
+            SELECT 1 FROM unnest($2::text[]) AS prefix
+            WHERE m.mime_type LIKE prefix || '%'
+        )
+    )
+    AND (
+        $3::text = ''
+        OR m.title ILIKE '%' || $3 || '%'
+        OR m.file ILIKE '%' || $3 || '%'
+    )
+`
+
+type CountMediaParams struct {
+	MediaType string
+	Mimes     []string
+	Search    string
+}
+
+func (q *Queries) CountMedia(ctx context.Context, arg CountMediaParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countMedia, arg.MediaType, arg.Mimes, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const countPosts = `-- name: CountPosts :one
 SELECT count(*)
@@ -67,6 +99,74 @@ func (q *Queries) CountPostsByStatus(ctx context.Context, type_ string) ([]Count
 		return nil, err
 	}
 	return items, nil
+}
+
+const createMedia = `-- name: CreateMedia :one
+INSERT INTO core.media (
+    media_type, file, title, alt_text, caption, description,
+    mime_type, width, height, filesize, sizes, author_id, created_at, updated_at
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6,
+    $7, $8, $9, $10, $11, $12, $13, $14
+)
+RETURNING id, media_type, file, title, alt_text, caption, description,
+    mime_type, width, height, filesize, sizes, author_id, created_at, updated_at
+`
+
+type CreateMediaParams struct {
+	MediaType   string
+	File        string
+	Title       string
+	AltText     string
+	Caption     string
+	Description string
+	MimeType    string
+	Width       int32
+	Height      int32
+	Filesize    int64
+	Sizes       media.RenditionMap
+	AuthorID    uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+func (q *Queries) CreateMedia(ctx context.Context, arg CreateMediaParams) (CoreMedia, error) {
+	row := q.db.QueryRow(ctx, createMedia,
+		arg.MediaType,
+		arg.File,
+		arg.Title,
+		arg.AltText,
+		arg.Caption,
+		arg.Description,
+		arg.MimeType,
+		arg.Width,
+		arg.Height,
+		arg.Filesize,
+		arg.Sizes,
+		arg.AuthorID,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i CoreMedia
+	err := row.Scan(
+		&i.ID,
+		&i.MediaType,
+		&i.File,
+		&i.Title,
+		&i.AltText,
+		&i.Caption,
+		&i.Description,
+		&i.MimeType,
+		&i.Width,
+		&i.Height,
+		&i.Filesize,
+		&i.Sizes,
+		&i.AuthorID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const createPost = `-- name: CreatePost :one
@@ -178,6 +278,36 @@ func (q *Queries) DeleteAutosave(ctx context.Context, arg DeleteAutosaveParams) 
 	return err
 }
 
+const deleteMedia = `-- name: DeleteMedia :one
+DELETE FROM core.media AS m
+WHERE m.id = $1
+RETURNING m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description,
+    m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at
+`
+
+func (q *Queries) DeleteMedia(ctx context.Context, id int64) (CoreMedia, error) {
+	row := q.db.QueryRow(ctx, deleteMedia, id)
+	var i CoreMedia
+	err := row.Scan(
+		&i.ID,
+		&i.MediaType,
+		&i.File,
+		&i.Title,
+		&i.AltText,
+		&i.Caption,
+		&i.Description,
+		&i.MimeType,
+		&i.Width,
+		&i.Height,
+		&i.Filesize,
+		&i.Sizes,
+		&i.AuthorID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deletePost = `-- name: DeletePost :execrows
 DELETE FROM core.posts AS p WHERE p.id = $1
 `
@@ -231,6 +361,36 @@ func (q *Queries) GetAutosave(ctx context.Context, arg GetAutosaveParams) (CoreP
 		&i.Content,
 		&i.Excerpt,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getMedia = `-- name: GetMedia :one
+SELECT m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description,
+    m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at
+FROM core.media m
+WHERE m.id = $1
+`
+
+func (q *Queries) GetMedia(ctx context.Context, id int64) (CoreMedia, error) {
+	row := q.db.QueryRow(ctx, getMedia, id)
+	var i CoreMedia
+	err := row.Scan(
+		&i.ID,
+		&i.MediaType,
+		&i.File,
+		&i.Title,
+		&i.AltText,
+		&i.Caption,
+		&i.Description,
+		&i.MimeType,
+		&i.Width,
+		&i.Height,
+		&i.Filesize,
+		&i.Sizes,
+		&i.AuthorID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -328,6 +488,77 @@ func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
 	var value string
 	err := row.Scan(&value)
 	return value, err
+}
+
+const listMedia = `-- name: ListMedia :many
+SELECT m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description,
+    m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at
+FROM core.media m
+WHERE ($1::text = '' OR m.media_type = $1)
+    AND (
+        cardinality($2::text[]) = 0
+        OR EXISTS (
+            SELECT 1 FROM unnest($2::text[]) AS prefix
+            WHERE m.mime_type LIKE prefix || '%'
+        )
+    )
+    AND (
+        $3::text = ''
+        OR m.title ILIKE '%' || $3 || '%'
+        OR m.file ILIKE '%' || $3 || '%'
+    )
+ORDER BY m.created_at DESC, m.id DESC
+LIMIT $5 OFFSET $4
+`
+
+type ListMediaParams struct {
+	MediaType string
+	Mimes     []string
+	Search    string
+	RowOffset int32
+	RowLimit  int32
+}
+
+func (q *Queries) ListMedia(ctx context.Context, arg ListMediaParams) ([]CoreMedia, error) {
+	rows, err := q.db.Query(ctx, listMedia,
+		arg.MediaType,
+		arg.Mimes,
+		arg.Search,
+		arg.RowOffset,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CoreMedia
+	for rows.Next() {
+		var i CoreMedia
+		if err := rows.Scan(
+			&i.ID,
+			&i.MediaType,
+			&i.File,
+			&i.Title,
+			&i.AltText,
+			&i.Caption,
+			&i.Description,
+			&i.MimeType,
+			&i.Width,
+			&i.Height,
+			&i.Filesize,
+			&i.Sizes,
+			&i.AuthorID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listPosts = `-- name: ListPosts :many
@@ -589,6 +820,56 @@ func (q *Queries) TrashPost(ctx context.Context, arg TrashPostParams) (CorePost,
 		&i.Excerpt,
 		&i.AuthorID,
 		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateMedia = `-- name: UpdateMedia :one
+UPDATE core.media AS m
+SET title = $1, alt_text = $2, caption = $3,
+    description = $4, updated_at = $5
+WHERE m.id = $6 AND m.updated_at = $7
+RETURNING m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description,
+    m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at
+`
+
+type UpdateMediaParams struct {
+	Title             string
+	AltText           string
+	Caption           string
+	Description       string
+	UpdatedAt         time.Time
+	ID                int64
+	ExpectedUpdatedAt time.Time
+}
+
+func (q *Queries) UpdateMedia(ctx context.Context, arg UpdateMediaParams) (CoreMedia, error) {
+	row := q.db.QueryRow(ctx, updateMedia,
+		arg.Title,
+		arg.AltText,
+		arg.Caption,
+		arg.Description,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedUpdatedAt,
+	)
+	var i CoreMedia
+	err := row.Scan(
+		&i.ID,
+		&i.MediaType,
+		&i.File,
+		&i.Title,
+		&i.AltText,
+		&i.Caption,
+		&i.Description,
+		&i.MimeType,
+		&i.Width,
+		&i.Height,
+		&i.Filesize,
+		&i.Sizes,
+		&i.AuthorID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

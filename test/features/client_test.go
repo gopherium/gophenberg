@@ -16,6 +16,7 @@ import (
 type answer struct {
 	status int
 	body   []byte
+	header http.Header
 }
 
 // errorMessage returns the message a JSON error response carries.
@@ -57,7 +58,7 @@ func (w *world) send(method, path, contentType string, body io.Reader) (*answer,
 	if err != nil {
 		return nil, fmt.Errorf("reading the answer to %s %s: %w", method, path, err)
 	}
-	return &answer{status: response.StatusCode, body: read}, nil
+	return &answer{status: response.StatusCode, body: read, header: response.Header}, nil
 }
 
 // do sends a request to the running server and records what came back.
@@ -80,15 +81,15 @@ func (w *world) get(path string) error {
 	return w.do(http.MethodGet, path, "", nil)
 }
 
-// upload posts an archive as a theme file named filename.
-func (w *world) upload(path, filename string, archive []byte) error {
+// upload posts a payload as a multipart file under the given field.
+func (w *world) upload(path, field, filename string, payload []byte) error {
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	part, err := writer.CreateFormFile("theme", filename)
+	part, err := writer.CreateFormFile(field, filename)
 	if err != nil {
 		return fmt.Errorf("building the upload: %w", err)
 	}
-	if _, err := part.Write(archive); err != nil {
+	if _, err := part.Write(payload); err != nil {
 		return fmt.Errorf("writing the upload: %w", err)
 	}
 	if err := writer.Close(); err != nil {

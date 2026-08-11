@@ -27,6 +27,7 @@ export {
 	AlertDialog,
 	Badge,
 	Button,
+	Dialog,
 	Icon,
 	IconButton,
 	InputControl,

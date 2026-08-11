@@ -35,6 +35,18 @@ corrupts the binary dump, and you find out when the restore fails.
 **Your compose file and any `.env` beside it**, the only place
 your configuration and passwords exist.
 
+**The media volume**, which holds every file you uploaded. The
+database records what each file is called and where it lives, but
+never the file itself, so a lost volume leaves a library of broken
+pictures no dump can repair:
+
+```sh
+docker compose cp gophenberg:/media ./media-backup
+```
+
+Back it up whenever you back up the database. The two have to come
+back together, or the library and the files disagree.
+
 **The themes volume**, if you upload themes in the admin. An
 uploaded theme exists only there, so a lost volume means
 re-uploading every theme:

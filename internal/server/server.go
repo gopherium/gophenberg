@@ -14,6 +14,7 @@ import (
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 	"github.com/gopherium/pluginkit"
 
+	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/post"
 )
 
@@ -39,6 +40,12 @@ type Config struct {
 	Theme Theme
 	// Themes is the managed themes directory. Nil leaves the theme routes unhandled.
 	Themes Themes
+	// Media is the media library uploads land in. Nil leaves the media routes unhandled.
+	Media MediaLibrary
+	// MediaStore persists the media library. Nil leaves the media routes unhandled.
+	MediaStore media.Store
+	// MediaFiles serves the stored uploads publicly. Nil leaves the media prefix reserved but empty.
+	MediaFiles fs.FS
 	// ThemeTimeout is how long a theme has to begin answering. Zero applies the default.
 	ThemeTimeout time.Duration
 	// Version is the application version reported at /api/version.
@@ -51,7 +58,10 @@ type Config struct {
 func NewServer(cfg Config) http.Handler {
 	auth := authkit.New(authkit.Config{Store: cfg.Users, CookieName: sessionCookieName})
 	admin := authkit.NewAdmin(cfg.Users)
-	s := &server{auth: auth, users: cfg.Users, posts: cfg.Posts, themes: cfg.Themes, version: cfg.Version}
+	s := &server{
+		auth: auth, users: cfg.Users, posts: cfg.Posts, themes: cfg.Themes,
+		media: cfg.Media, mediaStore: cfg.MediaStore, version: cfg.Version,
+	}
 	router := chi.NewRouter()
 	router.Use(trustForwarded(cfg.TrustedProxies))
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
@@ -82,6 +92,13 @@ func NewServer(cfg Config) http.Handler {
 		protected.Get("/api/posts/{id}/revisions/{revisionID}", s.handleRevisionGet())
 		protected.Delete("/api/posts/{id}/revisions/{revisionID}", s.handleRevisionDelete())
 		protected.Get("/api/version", s.handleVersion())
+		if cfg.Media != nil && cfg.MediaStore != nil {
+			protected.Get("/api/media", s.handleMediaList())
+			protected.Post("/api/media", s.handleMediaUpload())
+			protected.Get("/api/media/{id}", s.handleMediaGet())
+			protected.Patch("/api/media/{id}", s.handleMediaPatch())
+			protected.Delete("/api/media/{id}", s.handleMediaDelete())
+		}
 		if cfg.Themes != nil {
 			protected.Get("/api/themes", s.handleThemeList())
 			protected.Post("/api/themes", s.handleThemeUpload())
@@ -96,6 +113,9 @@ func NewServer(cfg Config) http.Handler {
 		router.Mount(prefix, http.StripPrefix(prefix, guarded))
 	}
 	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web))
+	if cfg.MediaFiles != nil {
+		router.With(identify(cfg.Version)).Handle(mediaPrefix+"/*", mediaAssets(cfg.MediaFiles))
+	}
 	site := builtInSite(cfg)
 	renderer := identify(cfg.Version)(site)
 	public := identify(cfg.Version)(themedSite(cfg.Theme, site, cfg.ThemeTimeout))
@@ -104,9 +124,11 @@ func NewServer(cfg Config) http.Handler {
 }
 
 type server struct {
-	auth    *authkit.Handlers
-	users   authkit.AdminStore
-	posts   post.Store
-	themes  Themes
-	version string
+	auth       *authkit.Handlers
+	users      authkit.AdminStore
+	posts      post.Store
+	themes     Themes
+	media      MediaLibrary
+	mediaStore media.Store
+	version    string
 }
