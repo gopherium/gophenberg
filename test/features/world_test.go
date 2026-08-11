@@ -71,23 +71,27 @@ func (m *memorySettings) Save(_ context.Context, values map[string]string) error
 
 // world carries one scenario's server, directories and last answer.
 type world struct {
-	themesDir  string
-	gateDir    string
-	mediaDir   string
-	library    *themehost.Library
-	settings   *memorySettings
-	users      *memoryStore
-	mediaStore *memoryMedia
-	lastUpload []byte
-	visitor    *http.Client
-	manager    *themehost.Manager
-	node       string
-	pinned     string
-	installed  []string
-	site       *httptest.Server
-	client     *http.Client
-	answer     *answer
-	pending    *activation
+	themesDir      string
+	gateDir        string
+	mediaDir       string
+	library        *themehost.Library
+	settings       *memorySettings
+	users          *memoryStore
+	mediaStore     *memoryMedia
+	mediaFiles     *mediahost.Library
+	mediaSubject   int64
+	mediaVersion   time.Time
+	mediaFilesGone []string
+	lastUpload     []byte
+	visitor        *http.Client
+	manager        *themehost.Manager
+	node           string
+	pinned         string
+	installed      []string
+	site           *httptest.Server
+	client         *http.Client
+	answer         *answer
+	pending        *activation
 }
 
 // provisionWorld gives a scenario its own themes directory.
@@ -112,6 +116,7 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 		settings:   &memorySettings{values: make(map[string]string)},
 		users:      newMemoryStore(),
 		mediaStore: newMemoryMedia(),
+		mediaFiles: mediahost.New(mediahost.Config{Dir: uploads, MaxSize: mediaTestCap}),
 	}), nil
 }
 
@@ -194,7 +199,7 @@ func (w *world) start(ctx context.Context) error {
 		Posts:      emptyPosts{},
 		Themes:     currentManager{w},
 		Theme:      currentManager{w},
-		Media:      mediahost.New(mediahost.Config{Dir: w.mediaDir, MaxSize: mediaTestCap}),
+		Media:      w.mediaFiles,
 		MediaStore: w.mediaStore,
 		SiteTitle:  siteTitle,
 		Version:    "0.0.0-test",
