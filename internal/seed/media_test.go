@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,9 +16,10 @@ import (
 	"github.com/gopherium/gophenberg/internal/media"
 )
 
-// recordingLibrary remembers what it was asked to ingest.
+// recordingLibrary remembers what it was asked to ingest and remove.
 type recordingLibrary struct {
 	ingested []string
+	removed  []string
 	err      error
 }
 
@@ -33,6 +35,12 @@ func (l *recordingLibrary) Ingest(name string, data []byte, authorID uuid.UUID) 
 	}
 	m.Filesize = int64(len(data))
 	return m, nil
+}
+
+// Remove records the files handed back for cleanup.
+func (l *recordingLibrary) Remove(m media.Media) error {
+	l.removed = append(l.removed, m.File)
+	return nil
 }
 
 // countingMediaStore counts what a seeding stored.
@@ -59,12 +67,21 @@ func (s *countingMediaStore) ByID(context.Context, int64) (media.Media, error) {
 	return media.Media{}, media.ErrNotFound
 }
 
-// List returns what the store holds.
-func (s *countingMediaStore) List(context.Context, media.Filter) ([]media.Media, int, error) {
+// List returns what the store holds matching the search, one page at a time.
+func (s *countingMediaStore) List(_ context.Context, f media.Filter) ([]media.Media, int, error) {
 	if s.listErr != nil {
 		return nil, 0, s.listErr
 	}
-	return s.stored, len(s.stored), nil
+	matched := make([]media.Media, 0, len(s.stored))
+	for i := len(s.stored) - 1; i >= 0; i-- {
+		item := s.stored[i]
+		if f.Search == "" || strings.Contains(strings.ToLower(item.Title), strings.ToLower(f.Search)) {
+			matched = append(matched, item)
+		}
+	}
+	start := min((f.Page-1)*f.PerPage, len(matched))
+	end := min(start+f.PerPage, len(matched))
+	return matched[start:end], len(matched), nil
 }
 
 // Update reports the item missing.
@@ -112,6 +129,50 @@ func TestMediaSkipsWhatItAlreadyStored(t *testing.T) {
 
 	if store.created != stored {
 		t.Errorf("created %d items over two runs, want %d", store.created, stored)
+	}
+}
+
+func TestMediaSkipsWhatItStoredHoweverDeepTheLibraryIs(t *testing.T) {
+	t.Parallel()
+
+	library := &recordingLibrary{}
+	store := &countingMediaStore{}
+	users := stubUserStore{id: uuid.New()}
+	if err := Media(t.Context(), library, store, users); err != nil {
+		t.Fatalf("first Media() error = %v, want nil", err)
+	}
+	for range 150 {
+		filler, err := media.New("2026/08/filler.jpg", "Filler upload", "image/jpeg", uuid.New())
+		if err != nil {
+			t.Fatalf("building filler: %v", err)
+		}
+		if _, err := store.Create(t.Context(), filler); err != nil {
+			t.Fatalf("storing filler: %v", err)
+		}
+	}
+	seeded := len(library.ingested)
+
+	if err := Media(t.Context(), library, store, users); err != nil {
+		t.Fatalf("second Media() error = %v, want nil", err)
+	}
+
+	if len(library.ingested) != seeded {
+		t.Errorf("ingested %d uploads after a deep reseed, want %d", len(library.ingested), seeded)
+	}
+}
+
+func TestMediaRemovesTheFilesOfAStoreThatRefused(t *testing.T) {
+	t.Parallel()
+
+	library := &recordingLibrary{}
+	store := &countingMediaStore{createErr: errStub}
+
+	if err := Media(t.Context(), library, store, stubUserStore{id: uuid.New()}); err == nil {
+		t.Fatal("Media() error = nil, want the store failure reported")
+	}
+
+	if len(library.removed) != 1 {
+		t.Errorf("removed %d uploads, want the orphaned files cleaned up", len(library.removed))
 	}
 }
 

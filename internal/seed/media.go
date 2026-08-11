@@ -5,6 +5,7 @@ package seed
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -21,12 +22,13 @@ import (
 // demoMediaQuality is the JPEG quality the scripted pictures encode at.
 const demoMediaQuality = 82
 
-// seedListSize bounds the listing a seeding reads to tell what it already stored.
+// seedListSize bounds the listing one title probe reads.
 const seedListSize = 100
 
-// MediaLibrary stores an upload and returns the media item it makes.
+// MediaLibrary stores an upload's files and takes them back.
 type MediaLibrary interface {
 	Ingest(name string, data []byte, authorID uuid.UUID) (media.Media, error)
+	Remove(m media.Media) error
 }
 
 // demoUpload is one scripted picture of the demo data set.
@@ -130,12 +132,12 @@ func Media(ctx context.Context, library MediaLibrary, store media.Store, users g
 	if err != nil {
 		return fmt.Errorf("seed admin lookup: %w", err)
 	}
-	held, err := storedTitles(ctx, store)
-	if err != nil {
-		return err
-	}
 	for _, scripted := range demoMedia() {
-		if held[scripted.title] {
+		held, err := libraryHolds(ctx, store, scripted.title)
+		if err != nil {
+			return err
+		}
+		if held {
 			continue
 		}
 		if err := storeDemoUpload(ctx, library, store, scripted, admin.ID); err != nil {
@@ -145,17 +147,18 @@ func Media(ctx context.Context, library MediaLibrary, store media.Store, users g
 	return nil
 }
 
-// storedTitles returns the titles the library already holds.
-func storedTitles(ctx context.Context, store media.Store) (map[string]bool, error) {
-	stored, _, err := store.List(ctx, media.Filter{Page: 1, PerPage: seedListSize})
+// libraryHolds reports whether the library already holds an item titled title.
+func libraryHolds(ctx context.Context, store media.Store, title string) (bool, error) {
+	stored, _, err := store.List(ctx, media.Filter{Search: title, Page: 1, PerPage: seedListSize})
 	if err != nil {
-		return nil, fmt.Errorf("seed media lookup: %w", err)
+		return false, fmt.Errorf("seed media lookup: %w", err)
 	}
-	held := make(map[string]bool, len(stored))
 	for _, item := range stored {
-		held[item.Title] = true
+		if item.Title == title {
+			return true, nil
+		}
 	}
-	return held, nil
+	return false, nil
 }
 
 // storeDemoUpload paints one scripted picture and stores it with its descriptions.
@@ -175,7 +178,7 @@ func storeDemoUpload(
 	item.Caption = scripted.caption
 	item.Description = scripted.description
 	if _, err := store.Create(ctx, item); err != nil {
-		return fmt.Errorf("seed media: %w", err)
+		return errors.Join(fmt.Errorf("seed media: %w", err), library.Remove(item))
 	}
 	return nil
 }
