@@ -8,7 +8,7 @@ import { createAppRouter } from '../router'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
-const FRAMED = ['/', '/posts', '/users', '/users/new', '/themes']
+const FRAMED = ['/', '/posts', '/media', '/users', '/users/new', '/themes']
 
 const CHROMELESS = ['/posts/$postId/edit']
 
@@ -24,6 +24,7 @@ beforeEach(() => {
 		http.get('/api/posts/counts', () => HttpResponse.json({})),
 		http.get('/api/users', () => HttpResponse.json([])),
 		http.get('/api/themes', () => HttpResponse.json({ themes: [] })),
+		http.get('/api/media', () => HttpResponse.json({ items: [], total: 0 })),
 		http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)),
 		http.get(`/api/posts/${storedPost.id}/autosave`, () =>
 			HttpResponse.json({}, { status: 404 }),

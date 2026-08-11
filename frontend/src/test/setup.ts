@@ -10,6 +10,7 @@ configure({ asyncUtilTimeout: 2000 })
 beforeAll(async () => {
 	await Promise.all([
 		import('../posts/PostsScreen'),
+		import('../media/MediaScreen'),
 		import('../users/UsersScreen'),
 		import('../users/NewUserScreen'),
 		import('../themes/ThemesScreen'),
