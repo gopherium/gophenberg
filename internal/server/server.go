@@ -44,6 +44,8 @@ type Config struct {
 	Media MediaLibrary
 	// MediaStore persists the media library. Nil leaves the media routes unhandled.
 	MediaStore media.Store
+	// MediaFiles serves the stored uploads publicly. Nil leaves the media prefix reserved but empty.
+	MediaFiles fs.FS
 	// ThemeTimeout is how long a theme has to begin answering. Zero applies the default.
 	ThemeTimeout time.Duration
 	// Version is the application version reported at /api/version.
@@ -111,6 +113,9 @@ func NewServer(cfg Config) http.Handler {
 		router.Mount(prefix, http.StripPrefix(prefix, guarded))
 	}
 	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web))
+	if cfg.MediaFiles != nil {
+		router.With(identify(cfg.Version)).Handle(mediaPrefix+"/*", mediaAssets(cfg.MediaFiles))
+	}
 	site := builtInSite(cfg)
 	renderer := identify(cfg.Version)(site)
 	public := identify(cfg.Version)(themedSite(cfg.Theme, site, cfg.ThemeTimeout))

@@ -6,9 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -22,6 +25,12 @@ import (
 
 // mediaUploadField is the multipart field an uploaded file arrives in.
 const mediaUploadField = "file"
+
+// mediaPrefix is the URL prefix uploads are served under.
+const mediaPrefix = "/media"
+
+// mediaCacheControl is how long a client may keep a served upload.
+const mediaCacheControl = "public, max-age=3600"
 
 // defaultMediaPerPage and maxMediaPerPage bound the media page size.
 const (
@@ -311,6 +320,44 @@ func (s *server) handleMediaDelete() http.HandlerFunc {
 		_ = s.media.Remove(deleted)
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+// mediaAssets returns the handler serving stored uploads to every visitor.
+func mediaAssets(files fs.FS) http.Handler {
+	fileServer := http.FileServerFS(files)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name, ok := mediaFileName(r.URL.Path)
+		if !ok {
+			respondNotFound(w, r)
+			return
+		}
+		info, err := fs.Stat(files, name)
+		if err != nil || info.IsDir() {
+			respondNotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", mediaCacheControl)
+		r = r.Clone(r.Context())
+		r.URL.Path = "/" + name
+		fileServer.ServeHTTP(w, r)
+	})
+}
+
+// mediaFileName returns the library relative file a URL path asks for.
+func mediaFileName(urlPath string) (string, bool) {
+	name := strings.TrimPrefix(urlPath, mediaPrefix+"/")
+	if name == urlPath || name == "" {
+		return "", false
+	}
+	if name != path.Clean(name) || strings.HasPrefix(name, "/") {
+		return "", false
+	}
+	for segment := range strings.SplitSeq(name, "/") {
+		if strings.HasPrefix(segment, ".") {
+			return "", false
+		}
+	}
+	return name, true
 }
 
 // respondMediaUploadError writes an upload that never arrived whole as what went wrong with it.

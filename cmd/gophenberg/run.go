@@ -90,6 +90,7 @@ func run(
 	if settings.mediaDir != "" {
 		cfg.Media = mediahost.New(mediahost.Config{Dir: settings.mediaDir})
 		cfg.MediaStore = postgres.NewMediaStore(pool)
+		cfg.MediaFiles = os.DirFS(settings.mediaDir)
 	}
 
 	httpServer := &http.Server{

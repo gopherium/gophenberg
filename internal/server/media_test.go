@@ -603,6 +603,93 @@ func TestDeletingMediaReportsWhatDoesNotExist(t *testing.T) {
 	}
 }
 
+// mediaServerPair returns the raw handler and a signed in wrapper over one config.
+func mediaServerPair(t *testing.T, library *mediahost.Library, store media.Store) (http.Handler, http.Handler) {
+	t.Helper()
+	users := newFakeUserStore()
+	addAda(t, users)
+	raw := server.NewServer(server.Config{
+		Users:      users,
+		Posts:      newFakePostStore(),
+		Media:      library,
+		MediaStore: store,
+		MediaFiles: os.DirFS(library.Dir()),
+	})
+	cookie := loginCookie(t, raw)
+	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.AddCookie(cookie)
+		raw.ServeHTTP(w, r)
+	})
+	return raw, authed
+}
+
+func TestServingMediaAnswersTheFileToEveryVisitor(t *testing.T) {
+	t.Parallel()
+
+	raw, authed := mediaServerPair(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), newFakeMediaStore())
+	created := storedMediaItem(t, authed)
+
+	recorder := doRequest(t, raw, http.MethodGet, "/media/"+created.File, "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want the file served without a session", recorder.Code)
+	}
+	if got := recorder.Header().Get("Content-Type"); !strings.HasPrefix(got, "image/jpeg") {
+		t.Errorf("Content-Type = %q, want image/jpeg", got)
+	}
+	if got := recorder.Header().Get("Cache-Control"); !strings.Contains(got, "public") {
+		t.Errorf("Cache-Control = %q, want public caching allowed", got)
+	}
+	if recorder.Body.Len() == 0 {
+		t.Error("the served file is empty, want its bytes")
+	}
+}
+
+func TestServingMediaHidesWhatIsNotAStoredFile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	raw, authed := mediaServerPair(t, mediahost.New(mediahost.Config{Dir: dir}), newFakeMediaStore())
+	created := storedMediaItem(t, authed)
+	if err := os.WriteFile(filepath.Join(dir, ".secret"), []byte("keep out"), 0o644); err != nil {
+		t.Fatalf("planting the hidden file: %v", err)
+	}
+
+	hidden := []string{
+		"/media/2030/01/nothing.jpg",
+		"/media/" + filepath.ToSlash(filepath.Dir(created.File)),
+		"/media/" + filepath.ToSlash(filepath.Dir(created.File)) + "/",
+		"/media/",
+		"/media",
+		"/media/.secret",
+		"/media/../secret",
+		"/media//etc/passwd",
+	}
+	for _, target := range hidden {
+		recorder := doRequest(t, raw, http.MethodGet, target, "")
+		if recorder.Code != http.StatusNotFound {
+			t.Errorf("GET %s status = %d, want %d", target, recorder.Code, http.StatusNotFound)
+		}
+	}
+}
+
+func TestTheMediaPrefixStaysReservedWithoutALibrary(t *testing.T) {
+	t.Parallel()
+
+	users := newFakeUserStore()
+	addAda(t, users)
+	handler := server.NewServer(server.Config{Users: users, Posts: newFakePostStore()})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/media/2030/01/nothing.jpg", "")
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+	if got := recorder.Header().Get("Content-Type"); !strings.HasPrefix(got, "application/json") {
+		t.Errorf("Content-Type = %q, want the JSON 404 rather than a page", got)
+	}
+}
+
 func TestUploadingMediaNeedsASession(t *testing.T) {
 	t.Parallel()
 
