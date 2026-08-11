@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url'
 
 import { adminBasepath } from './src/basepath.js'
 
+const backend = process.env.GOPHENBERG_API || 'http://localhost:8081'
+
 // The workers @wordpress/upload-media reaches for, stubbed out until the media cycle ships.
 const mediaWorkerStubs = {
 	'@wordpress/vips/worker': fileURLToPath(new URL('./stubs/vips-worker.ts', import.meta.url)),
@@ -31,7 +33,8 @@ export default defineConfig({
 	server: {
 		port: 5174,
 		proxy: {
-			'/api': process.env.GOPHENBERG_API || 'http://localhost:8081',
+			'/api': backend,
+			'/media': backend,
 		},
 	},
 	test: {
