@@ -36,7 +36,7 @@ export function toInserterItem(item: MediaItem): InserterMediaItem {
  */
 function storedMediaOf(kind: string) {
 	return async (query: InserterMediaRequest): Promise<InserterMediaItem[]> => {
-		const page = await listMedia({ mime: kind, search: query.search, page: query.page })
+		const page = await listMedia({ mimes: [`${kind}/`], search: query.search, page: query.page })
 		return page.items.map(toInserterItem)
 	}
 }

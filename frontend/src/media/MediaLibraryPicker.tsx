@@ -32,19 +32,13 @@ const INITIAL_VIEW = {
 } as unknown as View
 
 /**
- * Returns the content type prefix a block's allowed types narrow the library to.
+ * Returns the content type prefixes a block's allowed types narrow the library to.
  * @param allowedTypes - The types the block accepts, undefined for any.
- * @returns The prefix to ask for, empty for every kind.
+ * @returns One prefix per accepted type, empty for every kind.
  */
-export function narrowedMime(allowedTypes: string[] | undefined): string {
-	if (allowedTypes === undefined || allowedTypes.length === 0) {
-		return ''
-	}
-	if (allowedTypes.length === 1) {
-		return allowedTypes[0]
-	}
-	const families = new Set(allowedTypes.map((entry) => entry.split('/')[0]))
-	return families.size === 1 ? [...families][0] : ''
+export function allowedMimes(allowedTypes: string[] | undefined): string[] {
+	const prefixes = (allowedTypes ?? []).map((entry) => (entry.includes('/') ? entry : `${entry}/`))
+	return [...new Set(prefixes)]
 }
 
 /**
@@ -77,10 +71,10 @@ export function MediaLibraryPicker({
 	const [view, setView] = useState<View>(INITIAL_VIEW)
 	const [selection, setSelection] = useState<string[]>([])
 	const takesMany = multiple === true || multiple === 'add'
-	const mime = narrowedMime(allowedTypes)
+	const mimes = allowedMimes(allowedTypes)
 	const media = useQuery({
-		queryKey: [...mediaQueryKey, 'picker', mime, view.search, view.page],
-		queryFn: () => listMedia({ mime, search: view.search, page: view.page }),
+		queryKey: [...mediaQueryKey, 'picker', mimes.join(','), view.search, view.page],
+		queryFn: () => listMedia({ mimes, search: view.search, page: view.page }),
 		enabled: open,
 	})
 	const page = media.data ?? EMPTY_PAGE

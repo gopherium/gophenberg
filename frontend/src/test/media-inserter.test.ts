@@ -48,16 +48,17 @@ test('asks the library for the kind and page the inserter wants', async () => {
 	let asked = ''
 	server.use(
 		http.get('/api/media', ({ request }) => {
-			asked = new URL(request.url).search
+			asked = request.url
 			return HttpResponse.json({ items: [HARBOR], total: 1 })
 		}),
 	)
 
 	const found = await MEDIA_CATEGORIES[0].fetch({ per_page: 20, page: 2, search: 'harbor' })
 
-	expect(asked).toContain('mime=image')
-	expect(asked).toContain('search=harbor')
-	expect(asked).toContain('page=2')
+	const params = new URL(asked).searchParams
+	expect(params.get('mime')).toBe('image/')
+	expect(params.get('search')).toBe('harbor')
+	expect(params.get('page')).toBe('2')
 	expect(found).toHaveLength(1)
 })
 
@@ -65,15 +66,16 @@ test('asks the first page when the inserter names none', async () => {
 	let asked = ''
 	server.use(
 		http.get('/api/media', ({ request }) => {
-			asked = new URL(request.url).search
+			asked = request.url
 			return HttpResponse.json({ items: [], total: 0 })
 		}),
 	)
 
 	await MEDIA_CATEGORIES[1].fetch({})
 
-	expect(asked).toContain('mime=video')
-	expect(asked).not.toContain('search=')
+	const params = new URL(asked).searchParams
+	expect(params.get('mime')).toBe('video/')
+	expect(params.get('search')).toBeNull()
 })
 
 test('shapes a stored item the way the inserter reads it', () => {

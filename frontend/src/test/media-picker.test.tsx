@@ -6,7 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
-import { MediaLibraryPicker, narrowedMime, selectionFrom } from '../media/MediaLibraryPicker'
+import { allowedMimes, MediaLibraryPicker, selectionFrom } from '../media/MediaLibraryPicker'
 
 const HARBOR = {
 	id: 7,
@@ -100,14 +100,28 @@ test('asks only for the kinds the block accepts', async () => {
 	let asked = ''
 	server.use(
 		http.get('/api/media', ({ request }) => {
-			asked = new URL(request.url).search
+			asked = new URL(request.url).searchParams.get('mime') ?? ''
 			return HttpResponse.json({ items: [HARBOR], total: 1 })
 		}),
 	)
 
 	await openPicker({ allowedTypes: ['video'] })
 
-	await waitFor(() => expect(asked).toContain('mime=video'))
+	await waitFor(() => expect(asked).toBe('video/'))
+})
+
+test('asks for each kind a mixed block accepts', async () => {
+	let asked = ''
+	server.use(
+		http.get('/api/media', ({ request }) => {
+			asked = new URL(request.url).searchParams.get('mime') ?? ''
+			return HttpResponse.json({ items: [HARBOR], total: 1 })
+		}),
+	)
+
+	await openPicker({ allowedTypes: ['image', 'video'] })
+
+	await waitFor(() => expect(asked).toBe('image/,video/'))
 })
 
 test('asks for every kind when the block accepts anything', async () => {
@@ -195,15 +209,15 @@ test('says the library is empty when nothing was uploaded', async () => {
 })
 
 test('narrows the library to what the block accepts', () => {
-	expect(narrowedMime(['image'])).toBe('image')
-	expect(narrowedMime(['video'])).toBe('video')
-	expect(narrowedMime(['audio'])).toBe('audio')
-	expect(narrowedMime(['image/jpeg'])).toBe('image/jpeg')
-	expect(narrowedMime(['text/vtt'])).toBe('text/vtt')
-	expect(narrowedMime(['image/jpeg', 'image/png'])).toBe('image')
-	expect(narrowedMime(['image', 'video'])).toBe('')
-	expect(narrowedMime([])).toBe('')
-	expect(narrowedMime(undefined)).toBe('')
+	expect(allowedMimes(['image'])).toEqual(['image/'])
+	expect(allowedMimes(['video'])).toEqual(['video/'])
+	expect(allowedMimes(['image/jpeg'])).toEqual(['image/jpeg'])
+	expect(allowedMimes(['text/vtt'])).toEqual(['text/vtt'])
+	expect(allowedMimes(['image/jpeg', 'image/png'])).toEqual(['image/jpeg', 'image/png'])
+	expect(allowedMimes(['image', 'video'])).toEqual(['image/', 'video/'])
+	expect(allowedMimes(['image', 'image'])).toEqual(['image/'])
+	expect(allowedMimes([])).toEqual([])
+	expect(allowedMimes(undefined)).toEqual([])
 })
 
 test('picks the selection a block value stands for', () => {
