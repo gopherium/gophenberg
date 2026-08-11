@@ -11,13 +11,16 @@ import (
 
 // kind describes one allowed upload type.
 type kind struct {
-	mime  string
-	ext   string
-	image bool
-	extra []string
+	mime   string
+	ext    string
+	image  bool
+	strict bool
+	extra  []string
 }
 
-// allowedKinds maps a file extension to the upload type it stands for.
+// allowedKinds maps a file extension to the upload type it stands for. A kind
+// whose signature the sniffer knows is strict, the rest tolerate unknown
+// content because their container zoo defeats sniffing.
 var allowedKinds = map[string]kind{
 	"jpg":  {mime: "image/jpeg", ext: "jpg", image: true},
 	"jpeg": {mime: "image/jpeg", ext: "jpg", image: true},
@@ -31,8 +34,8 @@ var allowedKinds = map[string]kind{
 	"wav":  {mime: "audio/wav", ext: "wav", extra: []string{"audio/wave"}},
 	"ogg":  {mime: "audio/ogg", ext: "ogg", extra: []string{"application/ogg"}},
 	"flac": {mime: "audio/flac", ext: "flac"},
-	"pdf":  {mime: "application/pdf", ext: "pdf"},
-	"zip":  {mime: "application/zip", ext: "zip"},
+	"pdf":  {mime: "application/pdf", ext: "pdf", strict: true},
+	"zip":  {mime: "application/zip", ext: "zip", strict: true},
 }
 
 // detect returns the upload type name and data agree on, or the refusal they earn.
@@ -54,7 +57,7 @@ func (k kind) accepts(sniffed string) bool {
 	if sniffed == k.mime {
 		return true
 	}
-	if k.image {
+	if k.image || k.strict {
 		return false
 	}
 	return sniffed == "application/octet-stream" || slices.Contains(k.extra, sniffed)

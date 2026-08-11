@@ -3,6 +3,7 @@
 package mediahost_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/binary"
 	"hash/crc32"
@@ -99,6 +100,39 @@ func webpImage() []byte {
 // pdfDocument returns the bytes of a minimal PDF file.
 func pdfDocument() []byte {
 	return []byte("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n")
+}
+
+// zipArchive returns the bytes of a small ZIP archive holding one file.
+func zipArchive(t *testing.T) []byte {
+	t.Helper()
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	entry, err := writer.Create("notes.txt")
+	if err != nil {
+		t.Fatalf("creating the archive entry: %v", err)
+	}
+	if _, err := entry.Write([]byte("packed notes")); err != nil {
+		t.Fatalf("writing the archive entry: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("closing the archive: %v", err)
+	}
+	return buffer.Bytes()
+}
+
+// withHugeSecondFrame appends a frame declaring absurd dimensions before the trailer.
+func withHugeSecondFrame(t *testing.T, animation []byte) []byte {
+	t.Helper()
+	if animation[len(animation)-1] != 0x3B {
+		t.Fatal("the animation does not end with a trailer")
+	}
+	descriptor := []byte{
+		0x2C, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
+		8, 1, 0, 0,
+	}
+	swollen := append([]byte{}, animation[:len(animation)-1]...)
+	swollen = append(swollen, descriptor...)
+	return append(swollen, 0x3B)
 }
 
 // pixelBombPNG returns a PNG header declaring far more pixels than the budget.

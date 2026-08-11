@@ -364,6 +364,65 @@ func TestIngestRefusesWhatItCannotTrust(t *testing.T) {
 	}
 }
 
+func TestIngestRefusesDimensionsBeyondAnyBudget(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+	astronomical := []struct {
+		name   string
+		width  int
+		height int
+	}{
+		{"a square past the budget", 60_000_000, 60_000_000},
+		{"a ribbon past the budget", 60_000_000, 3},
+	}
+	for _, tc := range astronomical {
+		_, err := library.Ingest("bomb.png", pixelSizedPNG(tc.width, tc.height), uuid.Must(uuid.NewV7()))
+
+		wantRefusal(t, err, "the image is too large")
+	}
+	wantEmptyDir(t, library)
+}
+
+func TestIngestRefusesExecutableContentInDocuments(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+	executable := append([]byte("MZ\x90\x00"), make([]byte, 64)...)
+
+	_, pdfErr := library.Ingest("manual.pdf", executable, uuid.Must(uuid.NewV7()))
+	_, zipErr := library.Ingest("bundle.zip", executable, uuid.Must(uuid.NewV7()))
+
+	wantRefusal(t, pdfErr, "the content does not match")
+	wantRefusal(t, zipErr, "the content does not match")
+	wantEmptyDir(t, library)
+}
+
+func TestIngestAcceptsARealZip(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+
+	m := mustIngest(t, library, "bundle.zip", zipArchive(t))
+
+	if m.MimeType != "application/zip" || m.Type != media.TypeFile {
+		t.Errorf("stored as %q %q, want an application/zip file", m.Type, m.MimeType)
+	}
+}
+
+func TestIngestKeepsAHugeSecondFrameOutOfMemory(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+	animation := withHugeSecondFrame(t, animatedGIF(t))
+
+	m := mustIngest(t, library, "loader.gif", animation)
+
+	if len(m.Sizes) != 0 {
+		t.Errorf("Sizes = %v, want the animation stored untouched", m.Sizes)
+	}
+}
+
 func TestIngestRefusesAnUploadOverTheCap(t *testing.T) {
 	t.Parallel()
 
@@ -532,6 +591,24 @@ func TestRefusalNamesTheReasonAndUnwraps(t *testing.T) {
 	}
 	if errors.Unwrap(refusal) == nil {
 		t.Error("Unwrap() = nil, want the detail behind the refusal")
+	}
+}
+
+func TestRemoveReportsWhatItCannotDelete(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 40, 30))
+	target := filepath.Join(library.Dir(), filepath.FromSlash(m.File))
+	if err := os.Remove(target); err != nil {
+		t.Fatalf("clearing the stored file: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(target, "held"), 0o755); err != nil {
+		t.Fatalf("planting the undeletable directory: %v", err)
+	}
+
+	if err := library.Remove(m); err == nil {
+		t.Error("Remove() of an undeletable file error = nil, want a failure")
 	}
 }
 

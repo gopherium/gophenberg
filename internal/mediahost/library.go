@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/gif"
 	"os"
 	"path"
 	"path/filepath"
@@ -138,7 +137,7 @@ func decodeBudget(data []byte) (image.Config, error) {
 	if err != nil {
 		return image.Config{}, refuse("the image cannot be read", "reading the header: %w", err)
 	}
-	if cfg.Width*cfg.Height > maxPixels {
+	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width > maxPixels/cfg.Height {
 		return image.Config{}, refuse("the image is too large",
 			"%dx%d exceeds the %d pixel budget", cfg.Width, cfg.Height, maxPixels)
 	}
@@ -147,11 +146,11 @@ func decodeBudget(data []byte) (image.Config, error) {
 
 // isAnimated reports whether a GIF holds more than one frame.
 func isAnimated(data []byte) (bool, error) {
-	frames, err := gif.DecodeAll(bytes.NewReader(data))
+	frames, err := gifFrames(data)
 	if err != nil {
 		return false, refuse("the image cannot be read", "reading the animation: %w", err)
 	}
-	return len(frames.Image) > 1, nil
+	return frames > 1, nil
 }
 
 // uprightJPEG applies a JPEG's orientation tag, re-encoding when the pixels moved.
@@ -346,8 +345,13 @@ func (l *Library) Remove(m media.Media) error {
 			files = append(files, r.File)
 		}
 	}
-	l.removeFiles(files...)
-	return nil
+	var failures []error
+	for _, file := range files {
+		if err := os.Remove(l.abs(file)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			failures = append(failures, err)
+		}
+	}
+	return errors.Join(failures...)
 }
 
 // removeFiles deletes library relative files, ignoring what is already gone.
