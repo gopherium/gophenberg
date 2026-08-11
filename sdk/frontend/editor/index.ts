@@ -19,3 +19,10 @@ export { useStateWithHistory } from '@wordpress/compose'
 export { CURATED_BLOCKS, registerCuratedBlocks } from './blocks'
 export { CANVAS_STYLES } from './styles'
 export { apiFetchAttempts, clearApiFetchAttempts, installApiFetchGuard } from './guard'
+export { BLOCK_EDITOR_STORE, registerMediaCategories, registerMediaLibrary } from './media'
+export type {
+	InserterMediaCategory,
+	InserterMediaItem,
+	InserterMediaRequest,
+	MediaLibraryProps,
+} from './media'
