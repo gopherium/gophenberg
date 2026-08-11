@@ -69,6 +69,7 @@ func (s *MediaStore) List(ctx context.Context, f media.Filter) ([]media.Media, i
 	search := escapeLike(f.Search)
 	total, err := s.queries.CountMedia(ctx, db.CountMediaParams{
 		MediaType: string(f.Type),
+		Mime:      escapeLike(f.Mime),
 		Search:    search,
 	})
 	if err != nil {
@@ -76,6 +77,7 @@ func (s *MediaStore) List(ctx context.Context, f media.Filter) ([]media.Media, i
 	}
 	rows, err := s.queries.ListMedia(ctx, db.ListMediaParams{
 		MediaType: string(f.Type),
+		Mime:      escapeLike(f.Mime),
 		Search:    search,
 		RowLimit:  int32(f.PerPage),
 		RowOffset: pageOffset(f.Page, f.PerPage),

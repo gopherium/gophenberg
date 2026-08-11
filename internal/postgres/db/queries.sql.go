@@ -17,20 +17,22 @@ const countMedia = `-- name: CountMedia :one
 SELECT count(*)
 FROM core.media m
 WHERE ($1::text = '' OR m.media_type = $1)
+    AND ($2::text = '' OR m.mime_type LIKE $2 || '%')
     AND (
-        $2::text = ''
-        OR m.title ILIKE '%' || $2 || '%'
-        OR m.file ILIKE '%' || $2 || '%'
+        $3::text = ''
+        OR m.title ILIKE '%' || $3 || '%'
+        OR m.file ILIKE '%' || $3 || '%'
     )
 `
 
 type CountMediaParams struct {
 	MediaType string
+	Mime      string
 	Search    string
 }
 
 func (q *Queries) CountMedia(ctx context.Context, arg CountMediaParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countMedia, arg.MediaType, arg.Search)
+	row := q.db.QueryRow(ctx, countMedia, arg.MediaType, arg.Mime, arg.Search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -487,17 +489,19 @@ SELECT m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description
     m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at
 FROM core.media m
 WHERE ($1::text = '' OR m.media_type = $1)
+    AND ($2::text = '' OR m.mime_type LIKE $2 || '%')
     AND (
-        $2::text = ''
-        OR m.title ILIKE '%' || $2 || '%'
-        OR m.file ILIKE '%' || $2 || '%'
+        $3::text = ''
+        OR m.title ILIKE '%' || $3 || '%'
+        OR m.file ILIKE '%' || $3 || '%'
     )
 ORDER BY m.created_at DESC, m.id DESC
-LIMIT $4 OFFSET $3
+LIMIT $5 OFFSET $4
 `
 
 type ListMediaParams struct {
 	MediaType string
+	Mime      string
 	Search    string
 	RowOffset int32
 	RowLimit  int32
@@ -506,6 +510,7 @@ type ListMediaParams struct {
 func (q *Queries) ListMedia(ctx context.Context, arg ListMediaParams) ([]CoreMedia, error) {
 	rows, err := q.db.Query(ctx, listMedia,
 		arg.MediaType,
+		arg.Mime,
 		arg.Search,
 		arg.RowOffset,
 		arg.RowLimit,

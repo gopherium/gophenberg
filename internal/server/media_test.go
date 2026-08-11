@@ -33,6 +33,7 @@ type fakeMediaStore struct {
 	next        int64
 	items       map[int64]media.Media
 	updateCalls int
+	lastFilter  media.Filter
 	createErr   error
 	listErr     error
 	updateErr   error
@@ -71,6 +72,7 @@ func (s *fakeMediaStore) ByID(_ context.Context, id int64) (media.Media, error) 
 func (s *fakeMediaStore) List(_ context.Context, f media.Filter) ([]media.Media, int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.lastFilter = f
 	if s.listErr != nil {
 		return nil, 0, s.listErr
 	}
@@ -395,6 +397,22 @@ func TestListingMediaAnswersItemsWithTheirTotal(t *testing.T) {
 	}
 	if body.Items[0].ID <= body.Items[1].ID {
 		t.Errorf("listing leads with id %d, want newest first", body.Items[0].ID)
+	}
+}
+
+func TestListingMediaNarrowsByContentType(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeMediaStore()
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/media?mime=video", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if store.lastFilter.Mime != "video" {
+		t.Errorf("the store was asked for mime %q, want video", store.lastFilter.Mime)
 	}
 }
 

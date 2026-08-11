@@ -176,6 +176,7 @@ SELECT m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description
     m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at
 FROM core.media m
 WHERE (@media_type::text = '' OR m.media_type = @media_type)
+    AND (@mime::text = '' OR m.mime_type LIKE @mime || '%')
     AND (
         @search::text = ''
         OR m.title ILIKE '%' || @search || '%'
@@ -188,6 +189,7 @@ LIMIT @row_limit OFFSET @row_offset;
 SELECT count(*)
 FROM core.media m
 WHERE (@media_type::text = '' OR m.media_type = @media_type)
+    AND (@mime::text = '' OR m.mime_type LIKE @mime || '%')
     AND (
         @search::text = ''
         OR m.title ILIKE '%' || @search || '%'

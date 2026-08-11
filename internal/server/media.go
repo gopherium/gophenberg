@@ -154,7 +154,12 @@ type mediaListResponse struct {
 
 // parseMediaFilter reads the list query parameters into a filter.
 func parseMediaFilter(query url.Values) (media.Filter, error) {
-	filter := media.Filter{Search: query.Get("search"), Page: 1, PerPage: defaultMediaPerPage}
+	filter := media.Filter{
+		Mime:    query.Get("mime"),
+		Search:  query.Get("search"),
+		Page:    1,
+		PerPage: defaultMediaPerPage,
+	}
 	if raw := query.Get("type"); raw != "" {
 		kind, err := media.ParseType(raw)
 		if err != nil {

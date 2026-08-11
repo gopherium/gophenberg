@@ -14,6 +14,7 @@ var ErrConflict = errors.New("media: conflicting update")
 // Filter narrows a media listing.
 type Filter struct {
 	Type    Type
+	Mime    string
 	Search  string
 	Page    int
 	PerPage int

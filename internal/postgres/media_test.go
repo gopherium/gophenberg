@@ -196,6 +196,41 @@ func TestMediaStoreListFiltersByType(t *testing.T) {
 	}
 }
 
+func TestMediaStoreListFiltersByContentTypePrefix(t *testing.T) {
+	t.Parallel()
+
+	store, author := newMediaStore(t)
+	mustCreateMedia(t, store, mustImage(t, "2026/08/harbor.jpg", "harbor", author))
+	launch, err := media.New("2026/08/launch.mp4", "launch", "video/mp4", author)
+	if err != nil {
+		t.Fatalf("New(launch) error = %v, want nil", err)
+	}
+	mustCreateMedia(t, store, launch)
+	chime, err := media.New("2026/08/chime.mp3", "chime", "audio/mpeg", author)
+	if err != nil {
+		t.Fatalf("New(chime) error = %v, want nil", err)
+	}
+	mustCreateMedia(t, store, chime)
+
+	videos, total, err := store.List(t.Context(), media.Filter{Mime: "video", Page: 1, PerPage: 10})
+
+	if err != nil {
+		t.Fatalf("List(video) error = %v, want nil", err)
+	}
+	if total != 1 || len(videos) != 1 || videos[0].Title != "launch" {
+		t.Errorf("List(video) = %d items with total %d, want the video alone", len(videos), total)
+	}
+
+	exact, _, err := store.List(t.Context(), media.Filter{Mime: "audio/mpeg", Page: 1, PerPage: 10})
+
+	if err != nil {
+		t.Fatalf("List(audio/mpeg) error = %v, want nil", err)
+	}
+	if len(exact) != 1 || exact[0].Title != "chime" {
+		t.Errorf("List(audio/mpeg) = %d items, want the audio alone", len(exact))
+	}
+}
+
 func TestMediaStoreListSearchesTitleAndFile(t *testing.T) {
 	t.Parallel()
 
