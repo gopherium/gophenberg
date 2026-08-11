@@ -430,17 +430,28 @@ func TestIngestAcceptsARealZip(t *testing.T) {
 	}
 }
 
-func TestIngestKeepsAHugeSecondFrameOutOfMemory(t *testing.T) {
+func TestIngestRefusesAFrameBeyondTheBudget(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
-	animation := withHugeSecondFrame(t, animatedGIF(t))
+	animation := withFrameBeyondTheBudget(t, animatedGIF(t))
 
-	m := mustIngest(t, library, "loader.gif", animation)
+	_, err := library.Ingest("loader.gif", animation, uuid.Must(uuid.NewV7()))
 
-	if len(m.Sizes) != 0 {
-		t.Errorf("Sizes = %v, want the animation stored untouched", m.Sizes)
-	}
+	wantRefusal(t, err, "the image is too large")
+	wantEmptyDir(t, library)
+}
+
+func TestIngestRefusesAnAnimationMissingItsTrailer(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+	animation := animatedGIF(t)
+
+	_, err := library.Ingest("loader.gif", animation[:len(animation)-1], uuid.Must(uuid.NewV7()))
+
+	wantRefusal(t, err, "the image cannot be read")
+	wantEmptyDir(t, library)
 }
 
 func TestIngestRefusesAnUploadOverTheCap(t *testing.T) {

@@ -34,6 +34,9 @@ func TestGIFFramesRefusesWhatItCannotWalk(t *testing.T) {
 		"a torn image descriptor": bareGIF(0x2C, 0, 0),
 		"torn sub blocks":         bareGIF(0x21, 0xF9, 4, 0, 0),
 		"a missing trailer":       bareGIF(0x21, 0xFE, 0),
+		"a frame with no width":   bareGIF(0x2C, 0, 0, 0, 0, 0, 0, 1, 0, 0x00, 2, 1, 0, 0, 0x3B),
+		"a frame with no height":  bareGIF(0x2C, 0, 0, 0, 0, 1, 0, 0, 0, 0x00, 2, 1, 0, 0, 0x3B),
+		"a frame cut at its data": bareGIF(0x2C, 0, 0, 0, 0, 1, 0, 1, 0, 0x00),
 	}
 	for name, data := range unwalkable {
 		if _, err := gifFrames(data); err == nil {

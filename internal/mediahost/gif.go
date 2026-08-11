@@ -13,7 +13,10 @@ const gifHeaderLen = 13
 // errGIFTruncated reports a GIF that ends before its trailer.
 var errGIFTruncated = errors.New("the gif ends before its trailer")
 
-// gifFrames returns how many image blocks a GIF declares, without decoding any.
+// errGIFFrameTooLarge reports a frame declaring more pixels than the budget.
+var errGIFFrameTooLarge = errors.New("a frame declares more pixels than the budget")
+
+// gifFrames returns how many image blocks a GIF declares, refusing one beyond the budget.
 func gifFrames(data []byte) (int, error) {
 	pos, err := gifHeaderEnd(data)
 	if err != nil {
@@ -25,10 +28,10 @@ func gifFrames(data []byte) (int, error) {
 			return frames, nil
 		}
 		if data[pos] == 0x2C {
-			frames++
-			if frames > 1 {
-				return frames, nil
+			if err := gifFrameWithinBudget(data, pos); err != nil {
+				return 0, err
 			}
+			frames++
 		}
 		pos, err = skipGIFBlock(data, pos)
 		if err != nil {
@@ -36,6 +39,22 @@ func gifFrames(data []byte) (int, error) {
 		}
 	}
 	return 0, errGIFTruncated
+}
+
+// gifFrameWithinBudget refuses an image block declaring more pixels than the budget.
+func gifFrameWithinBudget(data []byte, pos int) error {
+	if len(data) < pos+10 {
+		return errGIFTruncated
+	}
+	width := int(data[pos+5]) | int(data[pos+6])<<8
+	height := int(data[pos+7]) | int(data[pos+8])<<8
+	if width == 0 || height == 0 {
+		return fmt.Errorf("a frame declares %dx%d pixels", width, height)
+	}
+	if width > maxPixels/height {
+		return errGIFFrameTooLarge
+	}
+	return nil
 }
 
 // gifHeaderEnd returns where the blocks after the header and global palette start.

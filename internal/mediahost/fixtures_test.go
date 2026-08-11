@@ -137,8 +137,8 @@ func zipArchive(t *testing.T) []byte {
 	return buffer.Bytes()
 }
 
-// withHugeSecondFrame appends a frame declaring absurd dimensions before the trailer.
-func withHugeSecondFrame(t *testing.T, animation []byte) []byte {
+// withFrameBeyondTheBudget appends a frame declaring absurd dimensions after the last one.
+func withFrameBeyondTheBudget(t *testing.T, animation []byte) []byte {
 	t.Helper()
 	if animation[len(animation)-1] != 0x3B {
 		t.Fatal("the animation does not end with a trailer")

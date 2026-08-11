@@ -147,6 +147,9 @@ func decodeBudget(data []byte) (image.Config, error) {
 // isAnimated reports whether a GIF holds more than one frame.
 func isAnimated(data []byte) (bool, error) {
 	frames, err := gifFrames(data)
+	if errors.Is(err, errGIFFrameTooLarge) {
+		return false, refuse("the image is too large", "walking the animation: %w", err)
+	}
 	if err != nil {
 		return false, refuse("the image cannot be read", "reading the animation: %w", err)
 	}
