@@ -100,6 +100,7 @@ E2E_THEME ?= starter
 E2E_ARCHIVE_DIR ?= $(CURDIR)/.e2e-archive
 E2E_UPLOAD_THEME ?= driftwood
 E2E_UPLOAD_VERSION ?= 9.9.9
+E2E_MEDIA_DIR ?= $(CURDIR)/.e2e-media
 
 e2e-build:
 	pnpm --filter @gophenberg/frontend build
@@ -123,9 +124,14 @@ e2e-archive: e2e-build
 	cd $(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME) && \
 		zip -qr ../$(E2E_UPLOAD_THEME).zip theme.json server client
 
-e2e-serve: db-up e2e-theme
+e2e-media:
+	rm -rf $(E2E_MEDIA_DIR)
+	mkdir -p $(E2E_MEDIA_DIR)
+
+e2e-serve: db-up e2e-theme e2e-media
 	GOPHENBERG_WEB_DIR=frontend/dist GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" \
 		GOPHENBERG_THEMES_DIR="$(E2E_THEMES_DIR)" \
+		GOPHENBERG_MEDIA_DIR="$(E2E_MEDIA_DIR)" \
 		./gophenberg
 
 e2e-db-reset: db-up
