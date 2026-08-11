@@ -7,11 +7,11 @@
 		"dev": "pnpm --filter @gophenberg/frontend dev"
 	},
 	"devDependencies": {
-		"eslint": "^10.6.0",
-		"eslint-plugin-jsdoc": "^63.0.13",
+		"eslint": "^10.8.1",
+		"eslint-plugin-jsdoc": "^63.3.3",
 		"eslint-plugin-sonarjs": "^4.2.0",
 		"eslint-plugin-tsdoc": "^0.5.2",
-		"knip": "^6.25.0",
-		"typescript-eslint": "^8.63.0"
+		"knip": "^6.31.0",
+		"typescript-eslint": "^8.66.0"
 	}
 }

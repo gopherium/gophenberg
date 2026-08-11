@@ -17,7 +17,7 @@
 		"@gopherium/godmin": "0.7.0",
 		"@gopherium/react-auth": "0.3.0",
 		"@tanstack/react-query": "^5.101.2",
-		"@tanstack/react-router": "^1.170.17",
+		"@tanstack/react-router": "^1.170.24",
 		"@wordpress/theme": "1.1.0",
 		"@wordpress/ui": "0.19.0",
 		"react": "^19.2.8",
@@ -26,17 +26,17 @@
 	},
 	"devDependencies": {
 		"@testing-library/react": "^16.3.2",
-		"@testing-library/user-event": "^14.6.1",
-		"@types/node": "^26.1.1",
-		"@types/react": "^19.2.17",
-		"@types/react-dom": "^19.2.3",
-		"@vitejs/plugin-react": "^6.0.3",
+		"@testing-library/user-event": "^14.6.3",
+		"@types/node": "^26.1.2",
+		"@types/react": "^19.2.18",
+		"@types/react-dom": "^19.2.4",
+		"@vitejs/plugin-react": "^6.0.5",
 		"@vitest/coverage-v8": "^4.1.10",
 		"jsdom": "^29.1.1",
-		"oxlint": "^1.71.0",
+		"oxlint": "^1.77.0",
 		"stylelint": "^17.0.0",
 		"typescript": "~6.0.2",
-		"vite": "^8.1.4",
+		"vite": "^8.2.0",
 		"vitest": "^4.1.10"
 	}
 }
