@@ -13,11 +13,15 @@ import {
 	SlotFillProvider,
 	installApiFetchGuard,
 	registerCuratedBlocks,
+	registerMediaCategories,
+	registerMediaLibrary,
 } from '@gophenberg/frontend-sdk/editor'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
 import './editor.css'
+import { MEDIA_CATEGORIES } from '../media/inserterCategories'
+import { MediaLibraryPicker } from '../media/MediaLibraryPicker'
 import { fetchPost } from './api'
 import type { PostDetail } from './api'
 import { EDITOR_SETTINGS, canvasClass } from './editorSetup'
@@ -30,6 +34,8 @@ import { useEditorViews } from './useEditorViews'
 
 registerCuratedBlocks()
 installApiFetchGuard()
+registerMediaLibrary(MediaLibraryPicker)
+registerMediaCategories(MEDIA_CATEGORIES)
 
 /**
  * Renders the post editor.

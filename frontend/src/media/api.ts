@@ -67,6 +67,7 @@ export interface MediaPage {
 
 export interface MediaQuery {
 	type?: string
+	mime?: string
 	search?: string
 	page?: number
 }
@@ -183,6 +184,9 @@ export async function listMedia(query: MediaQuery): Promise<MediaPage> {
 	const params = new URLSearchParams({ per_page: String(MEDIA_PER_PAGE) })
 	if (query.type) {
 		params.set('type', query.type)
+	}
+	if (query.mime) {
+		params.set('mime', query.mime)
 	}
 	if (query.search) {
 		params.set('search', query.search)
