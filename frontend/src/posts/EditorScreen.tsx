@@ -11,6 +11,7 @@ import {
 	ListView,
 	ShortcutProvider,
 	SlotFillProvider,
+	installApiFetchGuard,
 	registerCuratedBlocks,
 } from '@gophenberg/frontend-sdk/editor'
 import { useQuery } from '@tanstack/react-query'
@@ -28,6 +29,7 @@ import { useEditorBuffer } from './useEditorBuffer'
 import { useEditorViews } from './useEditorViews'
 
 registerCuratedBlocks()
+installApiFetchGuard()
 
 /**
  * Renders the post editor.

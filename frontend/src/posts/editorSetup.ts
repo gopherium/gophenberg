@@ -1,8 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {
+	ALLOWED_MIME_TYPES,
+	IMAGE_SIZES,
+	MAX_UPLOAD_BYTES,
+	editorMediaUpload,
+} from '../media/editorMedia'
+
 export const EDITOR_SETTINGS = {
 	bodyPlaceholder: 'Start writing.',
 	__experimentalBlockPatterns: [],
+	mediaUpload: editorMediaUpload,
+	allowedMimeTypes: ALLOWED_MIME_TYPES,
+	imageSizes: IMAGE_SIZES,
+	imageDefaultSize: 'large',
+	imageEditing: false,
+	maxUploadFileSize: MAX_UPLOAD_BYTES,
 }
 
 const PREVIEW_ITEMS = {
