@@ -155,7 +155,7 @@ type mediaListResponse struct {
 // parseMediaFilter reads the list query parameters into a filter.
 func parseMediaFilter(query url.Values) (media.Filter, error) {
 	filter := media.Filter{
-		Mime:    query.Get("mime"),
+		Mimes:   mimePrefixes(query.Get("mime")),
 		Search:  query.Get("search"),
 		Page:    1,
 		PerPage: defaultMediaPerPage,
@@ -171,6 +171,17 @@ func parseMediaFilter(query url.Values) (media.Filter, error) {
 		return media.Filter{}, err
 	}
 	return filter, nil
+}
+
+// mimePrefixes splits the mime query parameter into content type prefixes.
+func mimePrefixes(raw string) []string {
+	var prefixes []string
+	for _, prefix := range strings.Split(raw, ",") {
+		if trimmed := strings.TrimSpace(prefix); trimmed != "" {
+			prefixes = append(prefixes, trimmed)
+		}
+	}
+	return prefixes
 }
 
 // applyMediaPaging reads the page and per_page query parameters into filter.

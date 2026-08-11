@@ -67,9 +67,10 @@ func (s *MediaStore) ByID(ctx context.Context, id int64) (media.Media, error) {
 // total number matching it.
 func (s *MediaStore) List(ctx context.Context, f media.Filter) ([]media.Media, int, error) {
 	search := escapeLike(f.Search)
+	mimes := escapedPrefixes(f.Mimes)
 	total, err := s.queries.CountMedia(ctx, db.CountMediaParams{
 		MediaType: string(f.Type),
-		Mime:      escapeLike(f.Mime),
+		Mimes:     mimes,
 		Search:    search,
 	})
 	if err != nil {
@@ -77,7 +78,7 @@ func (s *MediaStore) List(ctx context.Context, f media.Filter) ([]media.Media, i
 	}
 	rows, err := s.queries.ListMedia(ctx, db.ListMediaParams{
 		MediaType: string(f.Type),
-		Mime:      escapeLike(f.Mime),
+		Mimes:     mimes,
 		Search:    search,
 		RowLimit:  int32(f.PerPage),
 		RowOffset: pageOffset(f.Page, f.PerPage),
@@ -125,6 +126,15 @@ func (s *MediaStore) Delete(ctx context.Context, id int64) (media.Media, error) 
 		return media.Media{}, fmt.Errorf("postgres: delete media: %w", err)
 	}
 	return toMedia(row), nil
+}
+
+// escapedPrefixes returns the prefixes with the pattern characters of LIKE escaped.
+func escapedPrefixes(prefixes []string) []string {
+	escaped := make([]string, len(prefixes))
+	for i, prefix := range prefixes {
+		escaped[i] = escapeLike(prefix)
+	}
+	return escaped
 }
 
 // toMedia maps a stored row to a domain media item with UTC timestamps.

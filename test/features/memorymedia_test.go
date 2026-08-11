@@ -65,12 +65,28 @@ func matches(m media.Media, f media.Filter) bool {
 	if f.Type != "" && m.Type != f.Type {
 		return false
 	}
+	if !matchesMime(m, f.Mimes) {
+		return false
+	}
 	if f.Search == "" {
 		return true
 	}
 	search := strings.ToLower(f.Search)
 	return strings.Contains(strings.ToLower(m.Title), search) ||
 		strings.Contains(strings.ToLower(m.File), search)
+}
+
+// matchesMime reports whether the item's content type starts with any prefix.
+func matchesMime(m media.Media, prefixes []string) bool {
+	if len(prefixes) == 0 {
+		return true
+	}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(m.MimeType, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // page returns the slice of items the filter's page holds.

@@ -11,10 +11,10 @@ import (
 // ErrConflict reports that the media item changed after the update was prepared.
 var ErrConflict = errors.New("media: conflicting update")
 
-// Filter narrows a media listing.
+// Filter narrows a media listing to the type, content type prefixes and search it carries.
 type Filter struct {
 	Type    Type
-	Mime    string
+	Mimes   []string
 	Search  string
 	Page    int
 	PerPage int

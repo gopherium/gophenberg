@@ -196,6 +196,15 @@ func filtersTheLibraryToImages(ctx context.Context) error {
 	return w.get(mediaPath + "?type=image")
 }
 
+// filtersTheLibraryToImagesAndVideo lists the library narrowed to two content types.
+func filtersTheLibraryToImagesAndVideo(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.get(mediaPath + "?mime=image/,video/")
+}
+
 // theLibraryListsNoPlainFiles asserts no listed item is a plain file.
 func theLibraryListsNoPlainFiles(ctx context.Context) error {
 	w, err := worldOf(ctx)
@@ -528,6 +537,7 @@ func initializeMediaLibrary(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator uploads a new image named "([^"]*)"$`, uploadsANewImageNamed)
 	sc.When(`^the administrator searches the library for "([^"]*)"$`, searchesTheLibraryFor)
 	sc.When(`^the administrator filters the library to images$`, filtersTheLibraryToImages)
+	sc.When(`^the administrator filters the library to images and video$`, filtersTheLibraryToImagesAndVideo)
 	sc.When(`^the administrator opens the second page of two per page$`, opensTheSecondPage)
 	sc.When(`^the administrator describes the image "([^"]*)"$`, describesTheImage)
 	sc.When(`^the administrator saves the image "([^"]*)" unchanged$`, savesTheImageUnchanged)

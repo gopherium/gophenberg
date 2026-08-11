@@ -212,7 +212,7 @@ func TestMediaStoreListFiltersByContentTypePrefix(t *testing.T) {
 	}
 	mustCreateMedia(t, store, chime)
 
-	videos, total, err := store.List(t.Context(), media.Filter{Mime: "video", Page: 1, PerPage: 10})
+	videos, total, err := store.List(t.Context(), media.Filter{Mimes: []string{"video"}, Page: 1, PerPage: 10})
 
 	if err != nil {
 		t.Fatalf("List(video) error = %v, want nil", err)
@@ -221,13 +221,41 @@ func TestMediaStoreListFiltersByContentTypePrefix(t *testing.T) {
 		t.Errorf("List(video) = %d items with total %d, want the video alone", len(videos), total)
 	}
 
-	exact, _, err := store.List(t.Context(), media.Filter{Mime: "audio/mpeg", Page: 1, PerPage: 10})
+	exact, _, err := store.List(t.Context(), media.Filter{Mimes: []string{"audio/mpeg"}, Page: 1, PerPage: 10})
 
 	if err != nil {
 		t.Fatalf("List(audio/mpeg) error = %v, want nil", err)
 	}
 	if len(exact) != 1 || exact[0].Title != "chime" {
 		t.Errorf("List(audio/mpeg) = %d items, want the audio alone", len(exact))
+	}
+
+	pair, pairTotal, err := store.List(
+		t.Context(), media.Filter{Mimes: []string{"video", "audio"}, Page: 1, PerPage: 10},
+	)
+
+	if err != nil {
+		t.Fatalf("List(video, audio) error = %v, want nil", err)
+	}
+	if pairTotal != 2 || len(pair) != 2 {
+		t.Errorf("List(video, audio) = %d items with total %d, want both named kinds", len(pair), pairTotal)
+	}
+	for _, item := range pair {
+		if item.Type == media.TypeImage {
+			t.Errorf("List(video, audio) carries %q, want no image", item.Title)
+		}
+	}
+
+	overlapping, overlappingTotal, err := store.List(
+		t.Context(), media.Filter{Mimes: []string{"video", "video/mp4"}, Page: 1, PerPage: 10},
+	)
+
+	if err != nil {
+		t.Fatalf("List(video, video/mp4) error = %v, want nil", err)
+	}
+	if overlappingTotal != 1 || len(overlapping) != 1 {
+		t.Errorf("List(video, video/mp4) = %d items with total %d, want the video counted once",
+			len(overlapping), overlappingTotal)
 	}
 }
 
@@ -268,6 +296,18 @@ func TestMediaStoreListTreatsPatternCharactersAsText(t *testing.T) {
 	}
 	if total != 0 || len(items) != 0 {
 		t.Errorf("List(h%%r) = %d items with total %d, want the wildcard read as text", len(items), total)
+	}
+
+	wildcard, wildcardTotal, err := store.List(
+		t.Context(), media.Filter{Mimes: []string{"%"}, Page: 1, PerPage: 10},
+	)
+
+	if err != nil {
+		t.Fatalf("List(mime %%) error = %v, want nil", err)
+	}
+	if wildcardTotal != 0 || len(wildcard) != 0 {
+		t.Errorf("List(mime %%) = %d items with total %d, want the wildcard read as text",
+			len(wildcard), wildcardTotal)
 	}
 }
 

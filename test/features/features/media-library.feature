@@ -20,6 +20,11 @@ Feature: Managing the media library
     Then the library lists no plain files
     And the library still lists every image
 
+  Scenario: Filtering the library to the kinds a block accepts
+    When the administrator filters the library to images and video
+    Then the library lists no plain files
+    And the library still lists every image
+
   Scenario: Paging through the library
     When the administrator opens the second page of two per page
     Then the library reports the total while listing the remainder

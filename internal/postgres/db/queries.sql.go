@@ -17,7 +17,13 @@ const countMedia = `-- name: CountMedia :one
 SELECT count(*)
 FROM core.media m
 WHERE ($1::text = '' OR m.media_type = $1)
-    AND ($2::text = '' OR m.mime_type LIKE $2 || '%')
+    AND (
+        cardinality($2::text[]) = 0
+        OR EXISTS (
+            SELECT 1 FROM unnest($2::text[]) AS prefix
+            WHERE m.mime_type LIKE prefix || '%'
+        )
+    )
     AND (
         $3::text = ''
         OR m.title ILIKE '%' || $3 || '%'
@@ -27,12 +33,12 @@ WHERE ($1::text = '' OR m.media_type = $1)
 
 type CountMediaParams struct {
 	MediaType string
-	Mime      string
+	Mimes     []string
 	Search    string
 }
 
 func (q *Queries) CountMedia(ctx context.Context, arg CountMediaParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countMedia, arg.MediaType, arg.Mime, arg.Search)
+	row := q.db.QueryRow(ctx, countMedia, arg.MediaType, arg.Mimes, arg.Search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -489,7 +495,13 @@ SELECT m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description
     m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at
 FROM core.media m
 WHERE ($1::text = '' OR m.media_type = $1)
-    AND ($2::text = '' OR m.mime_type LIKE $2 || '%')
+    AND (
+        cardinality($2::text[]) = 0
+        OR EXISTS (
+            SELECT 1 FROM unnest($2::text[]) AS prefix
+            WHERE m.mime_type LIKE prefix || '%'
+        )
+    )
     AND (
         $3::text = ''
         OR m.title ILIKE '%' || $3 || '%'
@@ -501,7 +513,7 @@ LIMIT $5 OFFSET $4
 
 type ListMediaParams struct {
 	MediaType string
-	Mime      string
+	Mimes     []string
 	Search    string
 	RowOffset int32
 	RowLimit  int32
@@ -510,7 +522,7 @@ type ListMediaParams struct {
 func (q *Queries) ListMedia(ctx context.Context, arg ListMediaParams) ([]CoreMedia, error) {
 	rows, err := q.db.Query(ctx, listMedia,
 		arg.MediaType,
-		arg.Mime,
+		arg.Mimes,
 		arg.Search,
 		arg.RowOffset,
 		arg.RowLimit,

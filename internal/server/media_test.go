@@ -16,6 +16,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -411,8 +412,20 @@ func TestListingMediaNarrowsByContentType(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
-	if store.lastFilter.Mime != "video" {
-		t.Errorf("the store was asked for mime %q, want video", store.lastFilter.Mime)
+	if !slices.Equal(store.lastFilter.Mimes, []string{"video"}) {
+		t.Errorf("the store was asked for mimes %q, want video", store.lastFilter.Mimes)
+	}
+
+	doRequest(t, handler, http.MethodGet, "/api/media?mime=video,audio", "")
+
+	if !slices.Equal(store.lastFilter.Mimes, []string{"video", "audio"}) {
+		t.Errorf("the store was asked for mimes %q, want video and audio", store.lastFilter.Mimes)
+	}
+
+	doRequest(t, handler, http.MethodGet, "/api/media?mime=video,%20,", "")
+
+	if !slices.Equal(store.lastFilter.Mimes, []string{"video"}) {
+		t.Errorf("the store was asked for mimes %q, want the blanks dropped", store.lastFilter.Mimes)
 	}
 }
 
