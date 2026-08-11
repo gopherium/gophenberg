@@ -317,12 +317,19 @@ func (s *server) handleMediaDelete() http.HandlerFunc {
 			authkit.RespondError(w, http.StatusBadRequest, "malformed media id")
 			return
 		}
-		deleted, err := s.mediaStore.Delete(r.Context(), id)
+		item, err := s.mediaStore.ByID(r.Context(), id)
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
-		_ = s.media.Remove(deleted)
+		if err := s.media.Remove(item); err != nil {
+			authkit.RespondError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		if _, err := s.mediaStore.Delete(r.Context(), id); err != nil {
+			respondDomainError(w, err)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

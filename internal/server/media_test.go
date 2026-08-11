@@ -605,6 +605,32 @@ func TestDeletingMediaRemovesTheRowAndTheFiles(t *testing.T) {
 	}
 }
 
+func TestDeletingMediaKeepsTheRowWhenItsFilesCannotBeRemoved(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	store := newFakeMediaStore()
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: dir}), store)
+	created := storedMediaItem(t, handler)
+	target := filepath.Join(dir, filepath.FromSlash(created.File))
+	if err := os.Remove(target); err != nil {
+		t.Fatalf("clearing the stored file: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(target, "held"), 0o755); err != nil {
+		t.Fatalf("planting the undeletable directory: %v", err)
+	}
+
+	recorder := doRequest(t, handler, http.MethodDelete, fmt.Sprintf("/api/media/%d", created.ID), "")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want the delete refused while files remain", recorder.Code)
+	}
+	after := doRequest(t, handler, http.MethodGet, fmt.Sprintf("/api/media/%d", created.ID), "")
+	if after.Code != http.StatusOK {
+		t.Errorf("status after the failed delete = %d, want the row kept for a retry", after.Code)
+	}
+}
+
 func TestDeletingMediaReportsWhatDoesNotExist(t *testing.T) {
 	t.Parallel()
 
