@@ -302,6 +302,26 @@ func TestIngestUniquifiesTakenNames(t *testing.T) {
 	}
 }
 
+func TestIngestKeepsRenditionsApartAcrossSourceFormats(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+
+	fromPNG := mustIngest(t, library, "chart.png", pngImage(t, 400, 300))
+	fromGIF := mustIngest(t, library, "chart.gif", staticGIF(t, 400, 300))
+
+	if fromPNG.Sizes["thumbnail"].File == fromGIF.Sizes["thumbnail"].File {
+		t.Fatalf("both charts share the thumbnail %q, want each its own file", fromPNG.Sizes["thumbnail"].File)
+	}
+
+	if err := library.Remove(fromPNG); err != nil {
+		t.Fatalf("Remove() error = %v, want nil", err)
+	}
+	for _, rendition := range fromGIF.Sizes {
+		storedBytes(t, library, rendition.File)
+	}
+}
+
 func TestIngestGuardsRenditionLookalikeNames(t *testing.T) {
 	t.Parallel()
 

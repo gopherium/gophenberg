@@ -266,7 +266,7 @@ func (l *Library) store(
 	return m, nil
 }
 
-// writeRenditions writes each rendition beside the original and maps them by slug.
+// writeRenditions claims a file for each rendition beside the original and maps them by slug.
 func (l *Library) writeRenditions(
 	rel string, k kind, original []byte, width, height int, renditions []rendition,
 ) (media.RenditionMap, []string, error) {
@@ -274,8 +274,8 @@ func (l *Library) writeRenditions(
 	stem := strings.TrimSuffix(path.Base(rel), path.Ext(rel))
 	written := make([]string, 0, len(renditions))
 	for _, r := range renditions {
-		target := path.Join(path.Dir(rel), renditionName(stem, r))
-		if err := os.WriteFile(l.abs(target), r.data, 0o644); err != nil {
+		target, err := l.claim(path.Dir(rel), renditionStem(stem, r), formatExt(r.format), r.data)
+		if err != nil {
 			return nil, written, err
 		}
 		written = append(written, target)
@@ -295,12 +295,12 @@ func (l *Library) writeRenditions(
 	return sizes, written, nil
 }
 
-// renditionName returns the file name a rendition of the stem stores under.
-func renditionName(stem string, r rendition) string {
+// renditionStem returns the stem a rendition of the given stem stores under.
+func renditionStem(stem string, r rendition) string {
 	if r.slug == "full" {
-		return fmt.Sprintf("%s-scaled.%s", stem, formatExt(r.format))
+		return stem + "-scaled"
 	}
-	return fmt.Sprintf("%s-%dx%d.%s", stem, r.width, r.height, formatExt(r.format))
+	return fmt.Sprintf("%s-%dx%d", stem, r.width, r.height)
 }
 
 // claim writes the upload under the first free name derived from stem.
@@ -325,6 +325,12 @@ func (l *Library) claim(subdir, stem, ext string, data []byte) (string, error) {
 // writeExclusive writes data to a path no file holds yet.
 func writeExclusive(target string, data []byte) error {
 	f, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if errors.Is(err, os.ErrExist) {
+		if info, statErr := os.Stat(target); statErr == nil && info.IsDir() {
+			return fmt.Errorf("%s is held by a directory", target)
+		}
+		return err
+	}
 	if err != nil {
 		return err
 	}

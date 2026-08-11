@@ -11,6 +11,7 @@ import (
 	"image/color"
 	"image/gif"
 	"image/jpeg"
+	"image/png"
 	"testing"
 )
 
@@ -26,6 +27,22 @@ func jpegImage(t *testing.T, width, height int) []byte {
 	var buffer bytes.Buffer
 	if err := jpeg.Encode(&buffer, canvas, &jpeg.Options{Quality: 80}); err != nil {
 		t.Fatalf("encoding the photo: %v", err)
+	}
+	return buffer.Bytes()
+}
+
+// pngImage returns a PNG of the given size.
+func pngImage(t *testing.T, width, height int) []byte {
+	t.Helper()
+	canvas := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			canvas.Set(x, y, color.RGBA{R: uint8(x), G: uint8(y), B: 200, A: 255})
+		}
+	}
+	var buffer bytes.Buffer
+	if err := png.Encode(&buffer, canvas); err != nil {
+		t.Fatalf("encoding the png: %v", err)
 	}
 	return buffer.Bytes()
 }
