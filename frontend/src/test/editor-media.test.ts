@@ -209,6 +209,37 @@ test('uploads several files where more than one may land', async () => {
 	expect(batches.at(-1)).toHaveLength(2)
 })
 
+test('places the scaled display copy of an oversized picture', () => {
+	const shaped = toAttachment({
+		id: 9,
+		type: 'image',
+		file: '2026/08/cliff.jpg',
+		title: 'Cliff',
+		altText: '',
+		caption: '',
+		description: '',
+		mimeType: 'image/jpeg',
+		width: 3000,
+		height: 2000,
+		filesize: 900000,
+		sizes: {
+			full: {
+				file: '2026/08/cliff-scaled.jpg',
+				width: 2560,
+				height: 1707,
+				mimeType: 'image/jpeg',
+				filesize: 400000,
+			},
+		},
+		authorId: '',
+		createdAt: '',
+		updatedAt: '',
+	})
+
+	expect(shaped.url).toBe('/media/2026/08/cliff-scaled.jpg')
+	expect(shaped.link).toBe('/media/2026/08/cliff-scaled.jpg')
+})
+
 test('shapes a plain file without measurements', () => {
 	const shaped = toAttachment({
 		id: 8,

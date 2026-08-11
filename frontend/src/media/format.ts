@@ -50,6 +50,15 @@ export function mediaName(item: MediaItem): string {
 }
 
 /**
+ * Returns the file a placed media item displays, preferring the display copy.
+ * @param item - The media item to place.
+ * @returns The full rendition's file, or the stored file without one.
+ */
+export function displayFile(item: MediaItem): string {
+	return item.sizes.full?.file ?? item.file
+}
+
+/**
  * Returns the file of the smallest rendition at least as wide as target.
  * @param item - The media item to draw.
  * @param target - The width the caller draws at.

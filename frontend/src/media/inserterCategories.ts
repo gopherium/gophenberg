@@ -8,7 +8,7 @@ import type {
 
 import { listMedia, mediaSrc } from './api'
 import type { MediaItem } from './api'
-import { bestRendition } from './format'
+import { bestRendition, displayFile } from './format'
 
 // previewWidth is the width the inserter draws a media preview at.
 const previewWidth = 300
@@ -21,7 +21,7 @@ const previewWidth = 300
 export function toInserterItem(item: MediaItem): InserterMediaItem {
 	return {
 		id: item.id,
-		url: mediaSrc(item.file),
+		url: mediaSrc(displayFile(item)),
 		alt: item.altText,
 		caption: item.caption,
 		title: item.title,

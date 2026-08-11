@@ -32,17 +32,32 @@ const INITIAL_VIEW = {
 } as unknown as View
 
 /**
- * Returns the kind a block's allowed types narrow the library to.
+ * Returns the content type prefix a block's allowed types narrow the library to.
  * @param allowedTypes - The types the block accepts, undefined for any.
- * @returns The kind to ask for, empty for every kind.
+ * @returns The prefix to ask for, empty for every kind.
  */
-export function narrowedKind(allowedTypes: string[] | undefined): string {
+export function narrowedMime(allowedTypes: string[] | undefined): string {
 	if (allowedTypes === undefined || allowedTypes.length === 0) {
 		return ''
 	}
-	return allowedTypes.every((entry) => entry === 'image' || entry.startsWith('image/'))
-		? 'image'
-		: ''
+	if (allowedTypes.length === 1) {
+		return allowedTypes[0]
+	}
+	const families = new Set(allowedTypes.map((entry) => entry.split('/')[0]))
+	return families.size === 1 ? [...families][0] : ''
+}
+
+/**
+ * Returns the selection a block's current value stands for.
+ * @param value - The ids the block holds, undefined for none.
+ * @returns One selected id string per held item.
+ */
+export function selectionFrom(value: number | number[] | undefined): string[] {
+	if (value === undefined) {
+		return []
+	}
+	const held = Array.isArray(value) ? value : [value]
+	return held.filter((id) => typeof id === 'number').map(String)
 }
 
 /**
@@ -53,6 +68,7 @@ export function narrowedKind(allowedTypes: string[] | undefined): string {
 export function MediaLibraryPicker({
 	allowedTypes,
 	multiple,
+	value,
 	onSelect,
 	onClose,
 	render,
@@ -61,10 +77,10 @@ export function MediaLibraryPicker({
 	const [view, setView] = useState<View>(INITIAL_VIEW)
 	const [selection, setSelection] = useState<string[]>([])
 	const takesMany = multiple === true || multiple === 'add'
-	const kind = narrowedKind(allowedTypes)
+	const mime = narrowedMime(allowedTypes)
 	const media = useQuery({
-		queryKey: [...mediaQueryKey, 'picker', kind, view.search, view.page],
-		queryFn: () => listMedia({ type: kind, search: view.search, page: view.page }),
+		queryKey: [...mediaQueryKey, 'picker', mime, view.search, view.page],
+		queryFn: () => listMedia({ mime, search: view.search, page: view.page }),
 		enabled: open,
 	})
 	const page = media.data ?? EMPTY_PAGE
@@ -96,7 +112,12 @@ export function MediaLibraryPicker({
 	]
 	return (
 		<>
-			{render({ open: () => setOpen(true) })}
+			{render({
+				open: () => {
+					setSelection(selectionFrom(value))
+					setOpen(true)
+				},
+			})}
 			<Dialog.Root open={open} onOpenChange={() => close()}>
 				<Dialog.Popup size="large" className="gophenberg-media-picker">
 					<Dialog.Header>

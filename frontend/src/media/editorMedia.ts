@@ -2,6 +2,7 @@
 
 import { mediaSrc, uploadMedia } from './api'
 import type { MediaItem } from './api'
+import { displayFile } from './format'
 
 // MAX_UPLOAD_BYTES mirrors the cap the server enforces on one upload.
 export const MAX_UPLOAD_BYTES = 128 * 1024 * 1024
@@ -73,11 +74,11 @@ export function toAttachment(item: MediaItem): EditorAttachment {
 	}
 	return {
 		id: item.id,
-		url: mediaSrc(item.file),
+		url: mediaSrc(displayFile(item)),
 		alt: item.altText,
 		caption: item.caption,
 		title: item.title,
-		link: mediaSrc(item.file),
+		link: mediaSrc(displayFile(item)),
 		mime_type: item.mimeType,
 		media_type: item.type,
 		media_details: { width: item.width, height: item.height, sizes },

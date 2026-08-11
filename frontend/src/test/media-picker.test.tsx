@@ -6,7 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
-import { MediaLibraryPicker, narrowedKind } from '../media/MediaLibraryPicker'
+import { MediaLibraryPicker, narrowedMime, selectionFrom } from '../media/MediaLibraryPicker'
 
 const HARBOR = {
 	id: 7,
@@ -105,9 +105,9 @@ test('asks only for the kinds the block accepts', async () => {
 		}),
 	)
 
-	await openPicker({ allowedTypes: ['image'] })
+	await openPicker({ allowedTypes: ['video'] })
 
-	await waitFor(() => expect(asked).toContain('type=image'))
+	await waitFor(() => expect(asked).toContain('mime=video'))
 })
 
 test('asks for every kind when the block accepts anything', async () => {
@@ -121,7 +121,17 @@ test('asks for every kind when the block accepts anything', async () => {
 
 	await openPicker()
 
-	await waitFor(() => expect(asked).not.toContain('type='))
+	await waitFor(() => expect(asked).not.toContain('mime='))
+})
+
+test('offers what the block already holds as the selection', async () => {
+	const chosen = await openPicker({ value: 7 })
+	await screen.findByText('Harbor at dawn')
+
+	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+
+	await waitFor(() => expect(chosen).toHaveLength(1))
+	expect(chosen[0]).toMatchObject({ id: 7 })
 })
 
 test('hands one chosen item back as an object', async () => {
@@ -184,10 +194,21 @@ test('says the library is empty when nothing was uploaded', async () => {
 	expect(await screen.findByText(/no media/i)).toBeInTheDocument()
 })
 
-test('narrows the library only when the block takes images alone', () => {
-	expect(narrowedKind(['image'])).toBe('image')
-	expect(narrowedKind(['image/jpeg', 'image/png'])).toBe('image')
-	expect(narrowedKind(['image', 'video'])).toBe('')
-	expect(narrowedKind([])).toBe('')
-	expect(narrowedKind(undefined)).toBe('')
+test('narrows the library to what the block accepts', () => {
+	expect(narrowedMime(['image'])).toBe('image')
+	expect(narrowedMime(['video'])).toBe('video')
+	expect(narrowedMime(['audio'])).toBe('audio')
+	expect(narrowedMime(['image/jpeg'])).toBe('image/jpeg')
+	expect(narrowedMime(['text/vtt'])).toBe('text/vtt')
+	expect(narrowedMime(['image/jpeg', 'image/png'])).toBe('image')
+	expect(narrowedMime(['image', 'video'])).toBe('')
+	expect(narrowedMime([])).toBe('')
+	expect(narrowedMime(undefined)).toBe('')
+})
+
+test('picks the selection a block value stands for', () => {
+	expect(selectionFrom(undefined)).toEqual([])
+	expect(selectionFrom(7)).toEqual(['7'])
+	expect(selectionFrom([7, 9])).toEqual(['7', '9'])
+	expect(selectionFrom([7, undefined as unknown as number])).toEqual(['7'])
 })

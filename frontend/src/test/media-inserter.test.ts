@@ -113,6 +113,36 @@ test('shapes a stored item the way the inserter reads it', () => {
 	})
 })
 
+test('places the scaled display copy of an oversized picture', () => {
+	const shaped = toInserterItem({
+		id: 9,
+		type: 'image',
+		file: '2026/08/cliff.jpg',
+		title: 'Cliff',
+		altText: '',
+		caption: '',
+		description: '',
+		mimeType: 'image/jpeg',
+		width: 3000,
+		height: 2000,
+		filesize: 900000,
+		sizes: {
+			full: {
+				file: '2026/08/cliff-scaled.jpg',
+				width: 2560,
+				height: 1707,
+				mimeType: 'image/jpeg',
+				filesize: 400000,
+			},
+		},
+		authorId: '',
+		createdAt: '',
+		updatedAt: '',
+	})
+
+	expect(shaped.url).toBe('/media/2026/08/cliff-scaled.jpg')
+})
+
 test('previews a stored item that carries no rendition from its own file', () => {
 	const shaped = toInserterItem({
 		id: 8,
