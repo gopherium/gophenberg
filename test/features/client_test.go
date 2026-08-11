@@ -16,6 +16,7 @@ import (
 type answer struct {
 	status int
 	body   []byte
+	header http.Header
 }
 
 // errorMessage returns the message a JSON error response carries.
@@ -57,7 +58,7 @@ func (w *world) send(method, path, contentType string, body io.Reader) (*answer,
 	if err != nil {
 		return nil, fmt.Errorf("reading the answer to %s %s: %w", method, path, err)
 	}
-	return &answer{status: response.StatusCode, body: read}, nil
+	return &answer{status: response.StatusCode, body: read, header: response.Header}, nil
 }
 
 // do sends a request to the running server and records what came back.

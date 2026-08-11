@@ -201,6 +201,7 @@ func (w *world) start(ctx context.Context) error {
 		Theme:      currentManager{w},
 		Media:      w.mediaFiles,
 		MediaStore: w.mediaStore,
+		MediaFiles: os.DirFS(w.mediaDir),
 		SiteTitle:  siteTitle,
 		Version:    "0.0.0-test",
 		Web:        fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Admin</title>")}},

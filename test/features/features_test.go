@@ -46,6 +46,10 @@ func TestMediaLibrary(t *testing.T) {
 	runFeature(t, "features/media-library.feature", initializeMediaLibrary)
 }
 
+func TestMediaServing(t *testing.T) {
+	runFeature(t, "features/media-serving.feature", initializeMediaServing)
+}
+
 func TestThemeActivation(t *testing.T) {
 	runFeature(t, "features/theme-activation.feature", initializeActivation)
 }
