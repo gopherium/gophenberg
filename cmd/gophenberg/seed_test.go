@@ -4,11 +4,14 @@ package main
 
 import (
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/post"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/seed"
@@ -96,6 +99,59 @@ func TestSeedIsIdempotent(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "already exists") {
 		t.Errorf("output = %q, want it to report the existing admin", stdout.String())
+	}
+}
+
+func TestSeedStoresTheDemoMediaWhenADirectoryIsConfigured(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	dir := t.TempDir()
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL, "GOPHENBERG_MEDIA_DIR": dir}
+
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	}
+
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("connecting pool: %v", err)
+	}
+	defer pool.Close()
+	items, total, err := postgres.NewMediaStore(pool).List(t.Context(), media.Filter{Page: 1, PerPage: 10})
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	if total != 3 {
+		t.Fatalf("stored media = %d, want the three demo pictures", total)
+	}
+	for _, item := range items {
+		if item.AltText == "" {
+			t.Errorf("%q carries no alt text, want every demo picture described", item.Title)
+		}
+		if len(item.Sizes) == 0 {
+			t.Errorf("%q carries no renditions, want them derived by the pipeline", item.Title)
+		}
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(item.File))); err != nil {
+			t.Errorf("the file of %q is missing: %v", item.Title, err)
+		}
+	}
+}
+
+func TestSeedReportsAFailingMediaDirectory(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	blocked := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blocked, []byte("in the way"), 0o644); err != nil {
+		t.Fatalf("planting the blocking file: %v", err)
+	}
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL, "GOPHENBERG_MEDIA_DIR": blocked}
+
+	err := seedDemoData(t.Context(), testGetenv(env), io.Discard)
+
+	if err == nil {
+		t.Error("seedDemoData() into a blocked media directory error = nil, want a failure")
 	}
 }
 

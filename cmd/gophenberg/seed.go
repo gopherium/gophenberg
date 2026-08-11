@@ -10,9 +10,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/gouncer"
 	"github.com/gopherium/gouncer/authkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 
+	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/seed"
 )
@@ -42,8 +44,23 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	if err := seed.Posts(ctx, postgres.NewPostStore(pool), users); err != nil {
 		return err
 	}
+	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {
+		return err
+	}
 	reportSeeded(stdout, created)
 	return nil
+}
+
+// seedDemoMedia stores the demo pictures when a media directory is configured.
+func seedDemoMedia(
+	ctx context.Context, getenv func(string) string, pool *pgxpool.Pool, users gouncer.Store,
+) error {
+	dir := getenv("GOPHENBERG_MEDIA_DIR")
+	if dir == "" {
+		return nil
+	}
+	library := mediahost.New(mediahost.Config{Dir: dir})
+	return seed.Media(ctx, library, postgres.NewMediaStore(pool), users)
 }
 
 // reportSeeded writes what the seeding stored and how to log in.
