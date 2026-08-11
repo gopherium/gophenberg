@@ -17,18 +17,23 @@ environment variables win over it.
 | `GOPHENBERG_SITE_TITLE` | No | `Gophenberg` | The site name shown by the built-in renderer |
 | `GOPHENBERG_TRUSTED_PROXIES` | No | | Comma-separated CIDR ranges allowed to set forwarded headers |
 | `GOPHENBERG_THEMES_DIR` | No | | The directory themes are installed in, which uploads write to. The image sets `/themes` |
+| `GOPHENBERG_MEDIA_DIR` | No | | The directory uploaded media is stored in and served from. The image sets `/media` |
 | `GOPHENBERG_THEME` | No | | Pins one theme, overriding the admin. Empty lets the admin choose |
 | `GOPHENBERG_NODE_BIN` | No | `node` | The Node binary themes run on. The image sets its own |
 | `GOPHENBERG_FEED_TITLE` | No | `Gophenberg` | The RSS channel title |
 | `GOPHENBERG_FEED_ITEMS` | No | `20` | How many posts the RSS feed carries |
 
-Two rows deserve a warning:
+Three rows deserve a warning:
 
 - `GOPHENBERG_WEB_DIR` also holds the stylesheets every public
   page loads. Unset, the public site loses its block styling,
   theme or not.
 - `GOPHENBERG_SITE_TITLE` only affects the built-in renderer. A
   theme names the site in its own source.
+- `GOPHENBERG_MEDIA_DIR` holds files no database backup carries.
+  Leave it unset and the media library refuses every upload. Point
+  it at a volume that survives a restart, and back it up alongside
+  the database.
 
 ## Which theme serves
 

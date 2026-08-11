@@ -41,6 +41,7 @@ services:
       GOPHENBERG_TRUSTED_PROXIES: 172.16.0.0/12
     volumes:
       - themes:/themes
+      - media:/media
     ports:
       - "127.0.0.1:8081:8081"
     depends_on:
@@ -50,6 +51,7 @@ services:
 volumes:
   db-data:
   themes:
+  media:
 ```
 
 Three values to change:
