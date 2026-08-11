@@ -1,0 +1,25 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.gophenberg-media__thumbnail {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.gophenberg-media__stand-in {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	padding: var(--wpds-dimension-gap-sm);
+	overflow: hidden;
+	background: var(--wpds-color-background-surface-neutral-weak);
+	text-align: center;
+	word-break: break-all;
+}
+
+.gophenberg-media__drop {
+	border-radius: var(--wpds-border-radius-md);
+}
+
