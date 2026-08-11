@@ -23,6 +23,9 @@ var ErrInvalidAuthor = errors.New("media: invalid author")
 // ErrNotFound reports that no media item exists for the requested ID.
 var ErrNotFound = errors.New("media: not found")
 
+// ErrInvalidType reports that a media kind is not one the library tells apart.
+var ErrInvalidType = errors.New("media: invalid type")
+
 // Type sorts a media item into the kinds the library tells apart.
 type Type string
 
@@ -31,6 +34,16 @@ const (
 	TypeImage Type = "image"
 	TypeFile  Type = "file"
 )
+
+// ParseType returns the kind named by raw, or [ErrInvalidType].
+func ParseType(raw string) (Type, error) {
+	switch Type(raw) {
+	case TypeImage, TypeFile:
+		return Type(raw), nil
+	default:
+		return "", ErrInvalidType
+	}
+}
 
 // Rendition is one derived copy of an image bounded to a size.
 type Rendition struct {

@@ -127,6 +127,31 @@ func TestNewRefusesABlankMimeType(t *testing.T) {
 	}
 }
 
+func TestParseTypeAcceptsTheKnownKinds(t *testing.T) {
+	t.Parallel()
+
+	for raw, want := range map[string]media.Type{"image": media.TypeImage, "file": media.TypeFile} {
+		got, err := media.ParseType(raw)
+		if err != nil {
+			t.Fatalf("ParseType(%q) error = %v, want nil", raw, err)
+		}
+		if got != want {
+			t.Errorf("ParseType(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+func TestParseTypeRefusesAnUnknownKind(t *testing.T) {
+	t.Parallel()
+
+	unknownKinds := []string{"audio", "", "IMAGE"}
+	for _, unknownKind := range unknownKinds {
+		if _, err := media.ParseType(unknownKind); !errors.Is(err, media.ErrInvalidType) {
+			t.Errorf("ParseType(%q) error = %v, want ErrInvalidType", unknownKind, err)
+		}
+	}
+}
+
 func TestNewRefusesAMissingAuthor(t *testing.T) {
 	t.Parallel()
 
