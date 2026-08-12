@@ -68,15 +68,20 @@ func (s *memoryTypes) Create(_ context.Context, t content.Type) (content.Type, e
 	return t, nil
 }
 
-// Update stores the edited type, or reports it missing.
+// Update stores the edited type and carries its content to the route word, or
+// reports it missing.
 func (s *memoryTypes) Update(_ context.Context, t content.Type) (content.Type, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, stored := range s.types {
-		if stored.Key == t.Key {
-			s.types[i] = t
-			return t, nil
+		if stored.Key != t.Key {
+			continue
 		}
+		s.types[i] = t
+		if stored.RouteWord != t.RouteWord && s.content != nil {
+			s.content.carryType(t.Key, stored.RouteWord, t.RouteWord)
+		}
+		return t, nil
 	}
 	return content.Type{}, content.ErrTypeNotFound
 }

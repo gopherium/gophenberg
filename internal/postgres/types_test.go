@@ -256,3 +256,74 @@ func TestTypeStoreKeepsATypeHoldingContent(t *testing.T) {
 		t.Errorf("Delete() error = %v, want %v", err, content.ErrTypeInUse)
 	}
 }
+
+func TestUpdateCarriesContentToTheNewRouteWord(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	types := postgres.NewTypeStore(pool)
+	if _, err := types.Create(t.Context(), pageType()); err != nil {
+		t.Fatalf("registering the page type: %v", err)
+	}
+	about := mustNest(t, store, nil, "About", author)
+	team := mustNest(t, store, &about, "Team", author)
+
+	moved := pageType()
+	moved.RouteWord, moved.UpdatedAt = "sections", time.Now().UTC()
+	if _, err := types.Update(t.Context(), moved); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+
+	if got := addressOf(t, store, about.ID); got != "sections/about" {
+		t.Errorf("root path = %q, want it under the new route word", got)
+	}
+	if got := addressOf(t, store, team.ID); got != "sections/about/team" {
+		t.Errorf("nested path = %q, want the whole tree carried", got)
+	}
+}
+
+func TestUpdateCarriesContentDownFromTheRoot(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	types := postgres.NewTypeStore(pool)
+	built, err := content.New(postType(), nil, "Hello World", author)
+	if err != nil {
+		t.Fatalf("New() error = %v, want nil", err)
+	}
+	post, err := store.Create(t.Context(), built)
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+
+	moved := postType()
+	moved.RouteWord, moved.UpdatedAt = "blog", time.Now().UTC()
+	if _, err := types.Update(t.Context(), moved); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+
+	if got := addressOf(t, store, post.ID); got != "blog/hello-world" {
+		t.Errorf("path = %q, want the root content carried under the new word", got)
+	}
+}
+
+func TestUpdateLeavesContentAloneWhenTheRouteWordStays(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	types := postgres.NewTypeStore(pool)
+	if _, err := types.Create(t.Context(), pageType()); err != nil {
+		t.Fatalf("registering the page type: %v", err)
+	}
+	about := mustNest(t, store, nil, "About", author)
+
+	relabeled := pageType()
+	relabeled.PluralLabel, relabeled.UpdatedAt = "Sections", time.Now().UTC()
+	if _, err := types.Update(t.Context(), relabeled); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+
+	if got := addressOf(t, store, about.ID); got != "pages/about" {
+		t.Errorf("path = %q, want it left where it answers", got)
+	}
+}

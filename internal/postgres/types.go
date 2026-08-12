@@ -29,11 +29,12 @@ const restrictViolationCode = "23001"
 // TypeStore persists the content type registry in the core schema.
 type TypeStore struct {
 	queries *db.Queries
+	pool    *pgxpool.Pool
 }
 
 // NewTypeStore returns a [TypeStore] backed by pool.
 func NewTypeStore(pool *pgxpool.Pool) *TypeStore {
-	return &TypeStore{queries: db.New(pool)}
+	return &TypeStore{queries: db.New(pool), pool: pool}
 }
 
 // List returns every registered type in registration order.
@@ -86,9 +87,47 @@ func (s *TypeStore) Create(ctx context.Context, t content.Type) (content.Type, e
 	return toType(row), nil
 }
 
-// Update stores the type's editable fields, or reports [content.ErrTypeNotFound].
+// Update stores the type's editable fields and carries its content to the route
+// word, or reports [content.ErrTypeNotFound].
 func (s *TypeStore) Update(ctx context.Context, t content.Type) (content.Type, error) {
-	row, err := s.queries.UpdateContentType(ctx, db.UpdateContentTypeParams{
+	var updated content.Type
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		was, err := queries.LockContentType(ctx, t.Key)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return content.ErrTypeNotFound
+		}
+		if err != nil {
+			return err
+		}
+		row, err := queries.UpdateContentType(ctx, updateParams(t))
+		if err != nil {
+			return err
+		}
+		updated = toType(row)
+		if was.RouteWord == t.RouteWord {
+			return nil
+		}
+		return carryContent(ctx, tx, queries, t, was.RouteWord)
+	})
+	if err != nil {
+		if errors.Is(err, content.ErrTypeNotFound) {
+			return content.Type{}, err
+		}
+		if taken := takenBy(err); taken != nil {
+			return content.Type{}, taken
+		}
+		if isSlugTaken(err) {
+			return content.Type{}, content.ErrSlugTaken
+		}
+		return content.Type{}, fmt.Errorf("postgres: update content type: %w", err)
+	}
+	return updated, nil
+}
+
+// updateParams returns the row the type writes over its stored one.
+func updateParams(t content.Type) db.UpdateContentTypeParams {
+	return db.UpdateContentTypeParams{
 		Key:           t.Key,
 		SingularLabel: t.SingularLabel,
 		PluralLabel:   t.PluralLabel,
@@ -100,17 +139,20 @@ func (s *TypeStore) Update(ctx context.Context, t content.Type) (content.Type, e
 		IsDefault:     t.Default,
 		Active:        t.Active,
 		UpdatedAt:     t.UpdatedAt,
+	}
+}
+
+// carryContent moves every address of the type from the route word it answered under.
+func carryContent(ctx context.Context, tx pgx.Tx, queries *db.Queries, t content.Type, was string) error {
+	if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
+		return err
+	}
+	return queries.RetypeContentPaths(ctx, db.RetypeContentPathsParams{
+		RouteWord: t.RouteWord,
+		Was:       was,
+		UpdatedAt: t.UpdatedAt,
+		Key:       t.Key,
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return content.Type{}, content.ErrTypeNotFound
-	}
-	if taken := takenBy(err); taken != nil {
-		return content.Type{}, taken
-	}
-	if err != nil {
-		return content.Type{}, fmt.Errorf("postgres: update content type: %w", err)
-	}
-	return toType(row), nil
 }
 
 // Delete removes the type, or reports it missing or still in use.

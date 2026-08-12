@@ -60,3 +60,26 @@ Feature: Content hierarchy
   Scenario: An address another type answers under is refused
     When the administrator creates the post "Pages"
     Then the request is refused
+
+  Scenario: A parent on its way out takes no new children
+    Given the page "About"
+    And the page "Team"
+    When the administrator deletes "About"
+    And the administrator files "Team" under "About"
+    Then the request is refused
+
+  Scenario: Renaming into an address the CMS keeps is refused
+    Given the post "Hello World"
+    When the administrator renames "Hello World" to "admin"
+    Then the request is refused
+
+  Scenario: The trash is reached by deleting, never by editing
+    Given the page "About"
+    When the administrator marks "About" as trashed
+    Then the request is refused
+
+  Scenario: Renaming the route word of a type carries its content
+    Given the page "About"
+    And the page "Team" filed under "About"
+    When the administrator files the type "page" under "sections"
+    Then the page "Team" answers at "sections/about/team"

@@ -161,7 +161,46 @@ func theAdministratorRenames(ctx context.Context, title, slug string) error {
 		return fmt.Errorf("the scenario stored no page titled %q", title)
 	}
 	body := fmt.Sprintf(`{"updated_at":%q,"slug":%q}`, moving.UpdatedAt, slug)
-	if err := w.patchJSON(contentPath+"/"+moving.ID, body); err != nil {
+	return w.patchJSON(contentPath+"/"+moving.ID, body)
+}
+
+// theAdministratorDeletes sends stored content to the trash.
+func theAdministratorDeletes(ctx context.Context, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held, found := w.nested[title]
+	if !found {
+		return fmt.Errorf("the scenario stored nothing titled %q", title)
+	}
+	if err := w.deleteAt(contentPath + "/" + held.ID); err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// theAdministratorMarksTrashed asks for the trash through an edit.
+func theAdministratorMarksTrashed(ctx context.Context, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held, found := w.nested[title]
+	if !found {
+		return fmt.Errorf("the scenario stored nothing titled %q", title)
+	}
+	body := fmt.Sprintf(`{"updated_at":%q,"status":"trash"}`, held.UpdatedAt)
+	return w.patchJSON(contentPath+"/"+held.ID, body)
+}
+
+// theAdministratorFilesTheTypeUnder moves a type to a new route word.
+func theAdministratorFilesTheTypeUnder(ctx context.Context, key, routeWord string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.patchJSON(typesPath+"/"+key, fmt.Sprintf(`{"route_word":%q}`, routeWord)); err != nil {
 		return err
 	}
 	return w.expect(http.StatusOK)
@@ -258,6 +297,9 @@ func initializeContentHierarchy(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator renames "([^"]*)" to "([^"]*)"$`, theAdministratorRenames)
 	sc.When(`^the administrator files a page under the deepest one$`, theAdministratorFilesAPageUnderTheDeepestOne)
 	sc.When(`^the administrator creates the post "([^"]*)"$`, theAdministratorCreatesThePost)
+	sc.When(`^the administrator deletes "([^"]*)"$`, theAdministratorDeletes)
+	sc.When(`^the administrator marks "([^"]*)" as trashed$`, theAdministratorMarksTrashed)
+	sc.When(`^the administrator files the type "([^"]*)" under "([^"]*)"$`, theAdministratorFilesTheTypeUnder)
 	sc.Then(`^the page "([^"]*)" answers at "([^"]*)"$`, thePageAnswersAt)
 	sc.Then(`^the page answers at "([^"]*)"$`, thePageAnswersAtAddress)
 	sc.Then(`^the request is refused$`, theRequestIsRefused)
