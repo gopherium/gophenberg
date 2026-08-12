@@ -81,6 +81,16 @@ func (w *world) get(path string) error {
 	return w.do(http.MethodGet, path, "", nil)
 }
 
+// patchJSON sends a JSON edit to the running server.
+func (w *world) patchJSON(path, body string) error {
+	return w.do(http.MethodPatch, path, "application/json", strings.NewReader(body))
+}
+
+// deleteAt asks the running server to remove what a path holds.
+func (w *world) deleteAt(path string) error {
+	return w.do(http.MethodDelete, path, "", nil)
+}
+
 // upload posts a payload as a multipart file under the given field.
 func (w *world) upload(path, field, filename string, payload []byte) error {
 	var body bytes.Buffer

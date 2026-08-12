@@ -47,6 +47,14 @@ func (emptyPosts) PublishedBySlug(context.Context, string, string) (content.Cont
 	return content.Content{}, content.ErrNotFound
 }
 
+// contentStore returns the store the scenario's content lives in.
+func (w *world) contentStore() content.Store {
+	if w.contentItems != nil {
+		return w.contentItems
+	}
+	return emptyPosts{}
+}
+
 // memorySettings holds one scenario's stored choices in memory, surviving a restart.
 type memorySettings struct {
 	mu     sync.Mutex
@@ -79,6 +87,9 @@ type world struct {
 	library        *themehost.Library
 	settings       *memorySettings
 	users          *memoryStore
+	contentItems   *memoryContent
+	contentTypes   *memoryTypes
+	car            listedContent
 	mediaStore     *memoryMedia
 	mediaFiles     *mediahost.Library
 	mediaSubject   int64
@@ -110,15 +121,18 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 	if err != nil {
 		return ctx, errors.Join(err, os.RemoveAll(themes), os.RemoveAll(gates))
 	}
+	items := newMemoryContent()
 	return context.WithValue(ctx, worldKey{}, &world{
-		themesDir:  themes,
-		gateDir:    gates,
-		mediaDir:   uploads,
-		library:    themehost.NewLibrary(themes),
-		settings:   &memorySettings{values: make(map[string]string)},
-		users:      newMemoryStore(),
-		mediaStore: newMemoryMedia(),
-		mediaFiles: mediahost.New(mediahost.Config{Dir: uploads, MaxSize: mediaTestCap}),
+		themesDir:    themes,
+		gateDir:      gates,
+		mediaDir:     uploads,
+		library:      themehost.NewLibrary(themes),
+		settings:     &memorySettings{values: make(map[string]string)},
+		users:        newMemoryStore(),
+		contentItems: items,
+		contentTypes: newMemoryTypes(items),
+		mediaStore:   newMemoryMedia(),
+		mediaFiles:   mediahost.New(mediahost.Config{Dir: uploads, MaxSize: mediaTestCap}),
 	}), nil
 }
 
@@ -198,7 +212,8 @@ func (w *world) start(ctx context.Context) error {
 	}
 	w.site = httptest.NewTLSServer(server.NewServer(server.Config{
 		Users:      w.users,
-		Content:    emptyPosts{},
+		Content:    w.contentStore(),
+		Types:      w.contentTypes,
 		Themes:     currentManager{w},
 		Theme:      currentManager{w},
 		Media:      w.mediaFiles,

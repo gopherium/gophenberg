@@ -34,6 +34,10 @@ func runFeature(t *testing.T, path string, initialize func(*godog.ScenarioContex
 	}
 }
 
+func TestContentTypes(t *testing.T) {
+	runFeature(t, "features/content-types.feature", initializeContentTypes)
+}
+
 func TestThemeUpload(t *testing.T) {
 	runFeature(t, "features/theme-upload.feature", initializeUpload)
 }
