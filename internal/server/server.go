@@ -63,6 +63,7 @@ func NewServer(cfg Config) http.Handler {
 	s := &server{
 		auth: auth, users: cfg.Users, content: cfg.Content, themes: cfg.Themes,
 		media: cfg.Media, mediaStore: cfg.MediaStore, version: cfg.Version,
+		types: content.NewRegistry(cfg.Types),
 	}
 	router := chi.NewRouter()
 	router.Use(trustForwarded(cfg.TrustedProxies))
