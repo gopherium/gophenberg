@@ -15,6 +15,45 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
+// testRegistry returns a registry holding the built-in post type.
+func testRegistry() *content.Registry {
+	return content.NewRegistry(stubTypeStore{})
+}
+
+// stubTypeStore answers with the built-in post type alone.
+type stubTypeStore struct{}
+
+// List returns the built-in post type.
+func (stubTypeStore) List(context.Context) ([]content.Type, error) {
+	return []content.Type{{
+		Key: content.TypePost, SingularLabel: "Post", PluralLabel: "Posts",
+		Revisions: true, RevisionCap: 100, PageKind: content.PageKindSingle,
+		Default: true, Active: true,
+	}}, nil
+}
+
+// ByKey returns the built-in post type, or reports the key missing.
+func (s stubTypeStore) ByKey(ctx context.Context, key string) (content.Type, error) {
+	types, _ := s.List(ctx)
+	if key == content.TypePost {
+		return types[0], nil
+	}
+	return content.Type{}, content.ErrTypeNotFound
+}
+
+// Create refuses to register a type in a seeding run.
+func (stubTypeStore) Create(context.Context, content.Type) (content.Type, error) {
+	return content.Type{}, content.ErrTypeTaken
+}
+
+// Update refuses to edit a type in a seeding run.
+func (stubTypeStore) Update(context.Context, content.Type) (content.Type, error) {
+	return content.Type{}, content.ErrTypeNotFound
+}
+
+// Delete refuses to remove a type in a seeding run.
+func (stubTypeStore) Delete(context.Context, string) error { return content.ErrTypeNotFound }
+
 func TestPostsReportsStoreFailures(t *testing.T) {
 	t.Parallel()
 
@@ -39,7 +78,7 @@ func TestPostsReportsStoreFailures(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			t.Parallel()
 
-			if err := Posts(t.Context(), test.store, test.users); err == nil {
+			if err := Posts(t.Context(), test.store, testRegistry(), test.users); err == nil {
 				t.Error("Posts() error = nil, want a failure")
 			}
 		})
@@ -51,7 +90,7 @@ func TestPostsStoresEveryScriptedPost(t *testing.T) {
 
 	store := &countingPostStore{}
 
-	if err := Posts(t.Context(), store, stubUserStore{id: uuid.New()}); err != nil {
+	if err := Posts(t.Context(), store, testRegistry(), stubUserStore{id: uuid.New()}); err != nil {
 		t.Fatalf("Posts() error = %v, want nil", err)
 	}
 
@@ -68,7 +107,7 @@ func TestPostsLeavesPostsItAlreadyStored(t *testing.T) {
 
 	store := &countingPostStore{found: true}
 
-	if err := Posts(t.Context(), store, stubUserStore{id: uuid.New()}); err != nil {
+	if err := Posts(t.Context(), store, testRegistry(), stubUserStore{id: uuid.New()}); err != nil {
 		t.Fatalf("Posts() error = %v, want nil", err)
 	}
 
@@ -82,7 +121,12 @@ func TestStoreDemoPostRejectsAnUnknownStatus(t *testing.T) {
 
 	scripted := demoPost{title: "Unknown", status: content.Status("nonsense")}
 
-	err := storeDemoPost(t.Context(), stubPostStore{}, scripted, uuid.New(), uuid.New())
+	postType, err := testRegistry().ByKey(t.Context(), content.TypePost)
+	if err != nil {
+		t.Fatalf("ByKey() error = %v, want nil", err)
+	}
+
+	err = storeDemoPost(t.Context(), stubPostStore{}, postType, scripted, uuid.New(), uuid.New())
 
 	if err == nil {
 		t.Error("storeDemoPost() with an unknown status error = nil, want a failure")

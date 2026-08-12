@@ -181,7 +181,9 @@ func TestPostListReportsAuthorLookupFailures(t *testing.T) {
 
 	users := newFakeUserStore()
 	addAda(t, users)
-	handler := server.NewServer(server.Config{Users: failingUserStore{Store: users}, Content: newFakePostStore()})
+	handler := server.NewServer(server.Config{
+		Users: failingUserStore{Store: users}, Content: newFakePostStore(), Types: newFakeTypeStore(),
+	})
 	cookie := loginCookie(t, handler)
 	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.AddCookie(cookie)

@@ -3,136 +3,448 @@
 package content_test
 
 import (
+	"context"
 	"errors"
-	"math"
-	"strconv"
 	"testing"
-
-	"github.com/google/uuid"
+	"time"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// overflowCap returns a revision cap too large for the row limit of a query.
-func overflowCap(t *testing.T) int {
+// errStoreDown stands for a registry the database cannot answer for.
+var errStoreDown = errors.New("the registry is unreachable")
+
+// fakeTypeStore holds content types in memory and counts what it was asked to read.
+type fakeTypeStore struct {
+	types     []content.Type
+	listCalls int
+	listErr   error
+	createErr error
+	updateErr error
+	deleteErr error
+}
+
+// newFakeTypeStore returns a store holding the built-in post type.
+func newFakeTypeStore() *fakeTypeStore {
+	return &fakeTypeStore{types: []content.Type{postType()}}
+}
+
+// List returns every stored type in registration order.
+func (s *fakeTypeStore) List(context.Context) ([]content.Type, error) {
+	s.listCalls++
+	if s.listErr != nil {
+		return nil, s.listErr
+	}
+	stored := make([]content.Type, len(s.types))
+	copy(stored, s.types)
+	return stored, nil
+}
+
+// ByKey returns the stored type carrying the key.
+func (s *fakeTypeStore) ByKey(_ context.Context, key string) (content.Type, error) {
+	for _, t := range s.types {
+		if t.Key == key {
+			return t, nil
+		}
+	}
+	return content.Type{}, content.ErrTypeNotFound
+}
+
+// Create stores a new type.
+func (s *fakeTypeStore) Create(_ context.Context, t content.Type) (content.Type, error) {
+	if s.createErr != nil {
+		return content.Type{}, s.createErr
+	}
+	s.types = append(s.types, t)
+	return t, nil
+}
+
+// Update stores the edited type.
+func (s *fakeTypeStore) Update(_ context.Context, t content.Type) (content.Type, error) {
+	if s.updateErr != nil {
+		return content.Type{}, s.updateErr
+	}
+	for i, stored := range s.types {
+		if stored.Key == t.Key {
+			s.types[i] = t
+			return t, nil
+		}
+	}
+	return content.Type{}, content.ErrTypeNotFound
+}
+
+// Delete removes the type carrying the key.
+func (s *fakeTypeStore) Delete(_ context.Context, key string) error {
+	if s.deleteErr != nil {
+		return s.deleteErr
+	}
+	for i, stored := range s.types {
+		if stored.Key == key {
+			s.types = append(s.types[:i], s.types[i+1:]...)
+			return nil
+		}
+	}
+	return content.ErrTypeNotFound
+}
+
+// carType returns a car content type ready to register.
+func carType(t *testing.T) content.Type {
 	t.Helper()
-	if strconv.IntSize == 32 {
-		t.Skip("skipping the oversized cap on 32-bit platforms")
+	built, err := content.NewType("car", "Car", "Cars", "cars")
+	if err != nil {
+		t.Fatalf("NewType() error = %v, want nil", err)
 	}
-	oversized := int64(math.MaxInt32) + 1
-	return int(oversized)
+	return built
 }
 
-func TestTypeByNameReturnsTheBuiltinPostType(t *testing.T) {
+func TestRegistryReadsThroughOnceAndCaches(t *testing.T) {
 	t.Parallel()
 
-	got, ok := content.TypeByName(content.TypePost)
+	store := newFakeTypeStore()
+	registry := content.NewRegistry(store)
 
-	if !ok {
-		t.Fatalf("TypeByName(%q) reported the built-in type missing", content.TypePost)
-	}
-	if got.Name != content.TypePost {
-		t.Errorf("Name = %q, want %q", got.Name, content.TypePost)
-	}
-	if got.Label == "" {
-		t.Error("Label is empty, want a display label")
-	}
-	if !got.Revisions {
-		t.Error("Revisions = false, want the built-in type to keep revisions")
-	}
-	if got.RevisionCap != 100 {
-		t.Errorf("RevisionCap = %d, want 100", got.RevisionCap)
-	}
-	if got.Hierarchical {
-		t.Error("Hierarchical = true, want posts to be flat")
-	}
-}
-
-func TestTypeByNameReportsUnknownTypes(t *testing.T) {
-	t.Parallel()
-
-	if _, ok := content.TypeByName("never-registered"); ok {
-		t.Error("TypeByName() found an unregistered type, want it reported missing")
-	}
-}
-
-func TestRegisterMakesATypeLookupable(t *testing.T) {
-	t.Parallel()
-
-	want := content.Type{Name: "p2-lookup", Label: "Lookups", Hierarchical: true, Revisions: true, RevisionCap: 5}
-	content.Register(want)
-
-	got, ok := content.TypeByName("p2-lookup")
-
-	if !ok {
-		t.Fatal("TypeByName() reported the registered type missing")
-	}
-	if got != want {
-		t.Errorf("TypeByName() = %+v, want %+v", got, want)
-	}
-}
-
-func TestRegisterPanicsOnADuplicateName(t *testing.T) {
-	t.Parallel()
-
-	content.Register(content.Type{Name: "p2-duplicate", Label: "Duplicates"})
-
-	defer func() {
-		if recover() == nil {
-			t.Error("Register() did not panic, want a duplicate type panic")
+	for range 3 {
+		if _, err := registry.ByKey(t.Context(), content.TypePost); err != nil {
+			t.Fatalf("ByKey() error = %v, want nil", err)
 		}
-	}()
+	}
 
-	content.Register(content.Type{Name: "p2-duplicate", Label: "Duplicates"})
-}
-
-func TestRegisterPanicsOnAnEmptyName(t *testing.T) {
-	t.Parallel()
-
-	defer func() {
-		if recover() == nil {
-			t.Error("Register() did not panic, want an empty name panic")
-		}
-	}()
-
-	content.Register(content.Type{Label: "Nameless"})
-}
-
-func TestRegisterPanicsOnAnOversizedRevisionCap(t *testing.T) {
-	t.Parallel()
-
-	defer func() {
-		if recover() == nil {
-			t.Error("Register() did not panic, want an oversized cap panic")
-		}
-	}()
-
-	content.Register(content.Type{
-		Name: "p8-oversized", Label: "Oversized", Revisions: true, RevisionCap: overflowCap(t),
-	})
-}
-
-func TestNewRejectsUnregisteredTypes(t *testing.T) {
-	t.Parallel()
-
-	_, err := content.New("not-a-registered-type", "Hello", uuid.Must(uuid.NewV7()))
-
-	if !errors.Is(err, content.ErrInvalidType) {
-		t.Errorf("New() error = %v, want %v", err, content.ErrInvalidType)
+	if store.listCalls != 1 {
+		t.Errorf("the store was read %d times, want the registry cached after the first", store.listCalls)
 	}
 }
 
-func TestNewAcceptsATypeRegisteredAtRuntime(t *testing.T) {
+func TestRegistryRereadsAfterAWrite(t *testing.T) {
 	t.Parallel()
 
-	content.Register(content.Type{Name: "p2-new", Label: "Runtime"})
+	store := newFakeTypeStore()
+	registry := content.NewRegistry(store)
+	if _, err := registry.All(t.Context()); err != nil {
+		t.Fatalf("All() error = %v, want nil", err)
+	}
 
-	p, err := content.New("p2-new", "Hello", uuid.Must(uuid.NewV7()))
+	if _, err := registry.Create(t.Context(), carType(t)); err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+
+	found, err := registry.ByKey(t.Context(), "car")
+	if err != nil {
+		t.Fatalf("ByKey() after Create error = %v, want nil", err)
+	}
+	if found.Key != "car" || store.listCalls != 2 {
+		t.Errorf("ByKey() = %+v after %d reads, want the write to have refreshed the cache",
+			found, store.listCalls)
+	}
+}
+
+func TestRegistryReportsAMissingType(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+
+	_, err := registry.ByKey(t.Context(), "never-registered")
+
+	if !errors.Is(err, content.ErrTypeNotFound) {
+		t.Errorf("ByKey() error = %v, want %v", err, content.ErrTypeNotFound)
+	}
+}
+
+func TestRegistryAnswersTheDefaultType(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+
+	found, err := registry.Default(t.Context())
 
 	if err != nil {
-		t.Fatalf("New() error = %v, want nil", err)
+		t.Fatalf("Default() error = %v, want nil", err)
 	}
-	if p.Type != "p2-new" {
-		t.Errorf("Type = %q, want %q", p.Type, "p2-new")
+	if found.Key != content.TypePost || found.RouteWord != "" {
+		t.Errorf("Default() = %+v, want the post type at the root", found)
+	}
+}
+
+func TestRegistryHidesAnInactiveType(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeTypeStore()
+	registry := content.NewRegistry(store)
+	car := carType(t)
+	car.Active = false
+	store.types = append(store.types, car)
+
+	_, active := registry.Active(t.Context(), "car")
+	found, err := registry.ByKey(t.Context(), "car")
+
+	if !errors.Is(active, content.ErrTypeInactive) {
+		t.Errorf("Active() error = %v, want %v", active, content.ErrTypeInactive)
+	}
+	if err != nil || found.Key != "car" {
+		t.Errorf("ByKey() = %+v, %v, want the inactive type still readable", found, err)
+	}
+}
+
+func TestRegistryRefusesATakenKeyOrRouteWord(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+	if _, err := registry.Create(t.Context(), carType(t)); err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	sameWord, err := content.NewType("van", "Van", "Vans", "cars")
+	if err != nil {
+		t.Fatalf("NewType() error = %v, want nil", err)
+	}
+
+	_, takenKey := registry.Create(t.Context(), carType(t))
+	_, takenWord := registry.Create(t.Context(), sameWord)
+
+	if !errors.Is(takenKey, content.ErrTypeTaken) {
+		t.Errorf("Create() error = %v, want %v", takenKey, content.ErrTypeTaken)
+	}
+	if !errors.Is(takenWord, content.ErrRouteWordTaken) {
+		t.Errorf("Create() error = %v, want %v", takenWord, content.ErrRouteWordTaken)
+	}
+}
+
+func TestRegistryRefusesAMisshapenRouteWordOrPageKind(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+	shouted := carType(t)
+	shouted.RouteWord = "Cars"
+	unknownKind := carType(t)
+	unknownKind.PageKind = content.PageKind("gallery")
+
+	_, word := registry.Create(t.Context(), shouted)
+	_, kind := registry.Create(t.Context(), unknownKind)
+
+	if !errors.Is(word, content.ErrInvalidRouteWord) {
+		t.Errorf("Create() error = %v, want %v", word, content.ErrInvalidRouteWord)
+	}
+	if !errors.Is(kind, content.ErrInvalidPageKind) {
+		t.Errorf("Create() error = %v, want %v", kind, content.ErrInvalidPageKind)
+	}
+}
+
+func TestRegistryReportsAnEmptyRegistryHasNoDefault(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeTypeStore()
+	store.types = nil
+	registry := content.NewRegistry(store)
+
+	_, err := registry.Default(t.Context())
+
+	if !errors.Is(err, content.ErrTypeNotFound) {
+		t.Errorf("Default() error = %v, want %v", err, content.ErrTypeNotFound)
+	}
+}
+
+func TestRegistryActiveSurfacesAMissingType(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+
+	_, err := registry.Active(t.Context(), "never-registered")
+
+	if !errors.Is(err, content.ErrTypeNotFound) {
+		t.Errorf("Active() error = %v, want %v", err, content.ErrTypeNotFound)
+	}
+}
+
+func TestRegistryDeleteReportsAMissingType(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+
+	err := registry.Delete(t.Context(), "never-registered")
+
+	if !errors.Is(err, content.ErrTypeNotFound) {
+		t.Errorf("Delete() error = %v, want %v", err, content.ErrTypeNotFound)
+	}
+}
+
+func TestRegistryUpdateReportsAMissingType(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+
+	_, err := registry.Update(t.Context(), carType(t))
+
+	if !errors.Is(err, content.ErrTypeNotFound) {
+		t.Errorf("Update() error = %v, want %v", err, content.ErrTypeNotFound)
+	}
+}
+
+func TestRegistryRefusesAReservedRouteWord(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+
+	for _, reserved := range content.ReservedRouteWords {
+		_, err := content.NewType("car", "Car", "Cars", reserved)
+
+		if !errors.Is(err, content.ErrRouteWordReserved) {
+			t.Errorf("NewType(%q) error = %v, want %v", reserved, err, content.ErrRouteWordReserved)
+		}
+	}
+	if _, err := registry.All(t.Context()); err != nil {
+		t.Fatalf("All() error = %v, want nil", err)
+	}
+}
+
+func TestRegistryKeepsTheRootForOneType(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeTypeStore()
+	registry := content.NewRegistry(store)
+	car := carType(t)
+	if _, err := registry.Create(t.Context(), car); err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	claimed := car
+	claimed.Default = true
+	claimed.RouteWord = ""
+
+	_, err := registry.Update(t.Context(), claimed)
+
+	if !errors.Is(err, content.ErrRootTaken) {
+		t.Errorf("Update() error = %v, want %v", err, content.ErrRootTaken)
+	}
+}
+
+func TestRegistryKeepsTheDefaultTypeServing(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+	post, err := registry.ByKey(t.Context(), content.TypePost)
+	if err != nil {
+		t.Fatalf("ByKey() error = %v, want nil", err)
+	}
+	deactivated := post
+	deactivated.Active = false
+	demoted := post
+	demoted.Default, demoted.RouteWord = false, "blog"
+
+	_, off := registry.Update(t.Context(), deactivated)
+	_, down := registry.Update(t.Context(), demoted)
+	removal := registry.Delete(t.Context(), content.TypePost)
+
+	for name, err := range map[string]error{"deactivate": off, "demote": down, "delete": removal} {
+		if !errors.Is(err, content.ErrDefaultRequired) {
+			t.Errorf("%s the default type error = %v, want %v", name, err, content.ErrDefaultRequired)
+		}
+	}
+}
+
+func TestRegistryLetsTheDefaultLeaveTheRootWhileStayingDefault(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+	post, err := registry.ByKey(t.Context(), content.TypePost)
+	if err != nil {
+		t.Fatalf("ByKey() error = %v, want nil", err)
+	}
+	moved := post
+	moved.RouteWord = "blog"
+
+	updated, err := registry.Update(t.Context(), moved)
+
+	if err != nil {
+		t.Fatalf("Update() error = %v, want the first act of a transfer allowed", err)
+	}
+	if !updated.Default || updated.RouteWord != "blog" {
+		t.Errorf("Update() = %+v, want the default type answering under blog", updated)
+	}
+}
+
+func TestRegistryRefusesAnArchivePageKind(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+	car := carType(t)
+	car.PageKind = content.PageKindArchive
+
+	_, err := registry.Create(t.Context(), car)
+
+	if !errors.Is(err, content.ErrPageKindUnavailable) {
+		t.Errorf("Create() error = %v, want %v", err, content.ErrPageKindUnavailable)
+	}
+}
+
+func TestRegistryRefusesAnUnstorableType(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+	nameless := carType(t)
+	nameless.Key = "Not A Key"
+	unlabeled := carType(t)
+	unlabeled.PluralLabel = ""
+	uncapped := carType(t)
+	uncapped.RevisionCap = -1
+
+	_, key := registry.Create(t.Context(), nameless)
+	_, label := registry.Create(t.Context(), unlabeled)
+	_, cap := registry.Update(t.Context(), uncapped)
+
+	for want, err := range map[error]error{
+		content.ErrInvalidKey:         key,
+		content.ErrInvalidLabel:       label,
+		content.ErrInvalidRevisionCap: cap,
+	} {
+		if !errors.Is(err, want) {
+			t.Errorf("registry error = %v, want %v", err, want)
+		}
+	}
+}
+
+func TestRegistrySurfacesStoreFailures(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeTypeStore()
+	store.listErr = errStoreDown
+	registry := content.NewRegistry(store)
+
+	_, all := registry.All(t.Context())
+	_, byKey := registry.ByKey(t.Context(), content.TypePost)
+	_, byDefault := registry.Default(t.Context())
+	_, created := registry.Create(t.Context(), carType(t))
+	_, updated := registry.Update(t.Context(), carType(t))
+	deleted := registry.Delete(t.Context(), content.TypePost)
+
+	for name, err := range map[string]error{
+		"All": all, "ByKey": byKey, "Default": byDefault,
+		"Create": created, "Update": updated, "Delete": deleted,
+	} {
+		if !errors.Is(err, errStoreDown) {
+			t.Errorf("%s() error = %v, want %v", name, err, errStoreDown)
+		}
+	}
+}
+
+func TestRegistrySurfacesWriteFailures(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeTypeStore()
+	store.createErr, store.updateErr, store.deleteErr = errStoreDown, errStoreDown, errStoreDown
+	registry := content.NewRegistry(store)
+	car := carType(t)
+	if _, err := content.NewType("van", "Van", "Vans", "vans"); err != nil {
+		t.Fatalf("NewType() error = %v, want nil", err)
+	}
+	store.types = append(store.types, car)
+
+	_, created := registry.Create(t.Context(), content.Type{
+		Key: "van", SingularLabel: "Van", PluralLabel: "Vans", RouteWord: "vans",
+		PageKind: content.PageKindSingle, Active: true, CreatedAt: time.Now().UTC(),
+	})
+	_, updated := registry.Update(t.Context(), car)
+	deleted := registry.Delete(t.Context(), "car")
+
+	for name, err := range map[string]error{"Create": created, "Update": updated, "Delete": deleted} {
+		if !errors.Is(err, errStoreDown) {
+			t.Errorf("%s() error = %v, want %v", name, err, errStoreDown)
+		}
 	}
 }

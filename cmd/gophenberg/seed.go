@@ -14,6 +14,7 @@ import (
 	"github.com/gopherium/gouncer/authkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/seed"
@@ -41,7 +42,8 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	if err != nil {
 		return err
 	}
-	if err := seed.Posts(ctx, postgres.NewContentStore(pool), users); err != nil {
+	types := content.NewRegistry(postgres.NewTypeStore(pool))
+	if err := seed.Posts(ctx, postgres.NewContentStore(pool), types, users); err != nil {
 		return err
 	}
 	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {

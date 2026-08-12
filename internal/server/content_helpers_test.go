@@ -6,10 +6,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"maps"
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -312,7 +314,7 @@ func versionedBody(t *testing.T, version time.Time, fields map[string]any) strin
 // newPost returns a draft post authored by author.
 func newPost(t *testing.T, title string, author uuid.UUID) content.Content {
 	t.Helper()
-	p, err := content.New(content.TypePost, title, author)
+	p, err := content.New(postType(), title, author)
 	if err != nil {
 		t.Fatalf("New(%q) error = %v, want nil", title, err)
 	}
@@ -336,7 +338,94 @@ func authedPostServer(t *testing.T) (http.Handler, *fakePostStore, gouncer.User)
 
 // serverConfig returns a server config over the given stores.
 func serverConfig(users authkit.AdminStore, posts content.Store) server.Config {
-	return server.Config{Users: users, Content: posts}
+	return server.Config{Users: users, Content: posts, Types: newFakeTypeStore()}
+}
+
+// postType returns the built-in post type as the registry holds it.
+func postType() content.Type {
+	return content.Type{
+		Key: content.TypePost, SingularLabel: "Post", PluralLabel: "Posts",
+		Revisions: true, RevisionCap: 100, PageKind: content.PageKindSingle,
+		Default: true, Active: true,
+	}
+}
+
+// errRegistryDown stands for a registry the database cannot answer for.
+var errRegistryDown = errors.New("the registry is unreachable")
+
+// fakeTypeStore holds the content type registry in memory.
+type fakeTypeStore struct {
+	mu      sync.Mutex
+	types   []content.Type
+	listErr error
+}
+
+// newFakeTypeStore returns a registry holding the built-in post type.
+func newFakeTypeStore() *fakeTypeStore {
+	return &fakeTypeStore{types: []content.Type{postType()}}
+}
+
+// register stores a type directly.
+func (s *fakeTypeStore) register(t content.Type) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.types = append(s.types, t)
+}
+
+// List returns every stored type in registration order.
+func (s *fakeTypeStore) List(context.Context) ([]content.Type, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.listErr != nil {
+		return nil, s.listErr
+	}
+	stored := make([]content.Type, len(s.types))
+	copy(stored, s.types)
+	return stored, nil
+}
+
+// ByKey returns the stored type carrying the key.
+func (s *fakeTypeStore) ByKey(_ context.Context, key string) (content.Type, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, t := range s.types {
+		if t.Key == key {
+			return t, nil
+		}
+	}
+	return content.Type{}, content.ErrTypeNotFound
+}
+
+// Create stores a new type.
+func (s *fakeTypeStore) Create(_ context.Context, t content.Type) (content.Type, error) {
+	s.register(t)
+	return t, nil
+}
+
+// Update stores the edited type.
+func (s *fakeTypeStore) Update(_ context.Context, t content.Type) (content.Type, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, stored := range s.types {
+		if stored.Key == t.Key {
+			s.types[i] = t
+			return t, nil
+		}
+	}
+	return content.Type{}, content.ErrTypeNotFound
+}
+
+// Delete removes the type carrying the key.
+func (s *fakeTypeStore) Delete(_ context.Context, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, stored := range s.types {
+		if stored.Key == key {
+			s.types = append(s.types[:i], s.types[i+1:]...)
+			return nil
+		}
+	}
+	return content.ErrTypeNotFound
 }
 
 // serverWithStores returns an unauthenticated handler over the given stores.

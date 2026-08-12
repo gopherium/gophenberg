@@ -15,7 +15,7 @@ import (
 // newDraft returns a draft post for transition tests.
 func newDraft(t *testing.T) content.Content {
 	t.Helper()
-	p, err := content.New("post", "Hello World", uuid.Must(uuid.NewV7()))
+	p, err := content.New(postType(), "Hello World", uuid.Must(uuid.NewV7()))
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
 	}

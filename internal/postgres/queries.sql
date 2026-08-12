@@ -222,6 +222,42 @@ WHERE m.id = @id
 RETURNING m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description,
     m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at;
 
+-- name: ListContentTypes :many
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+ORDER BY t.created_at, t.key;
+
+-- name: GetContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.key = @key;
+
+-- name: CreateContentType :one
+INSERT INTO core.content_types (
+    key, singular_label, plural_label, route_word, hierarchical, revisions,
+    revision_cap, page_kind, is_default, active, created_at, updated_at
+)
+VALUES (
+    @key, @singular_label, @plural_label, @route_word, @hierarchical, @revisions,
+    @revision_cap, @page_kind, @is_default, @active, @created_at, @updated_at
+)
+RETURNING key, singular_label, plural_label, route_word, hierarchical, revisions,
+    revision_cap, page_kind, is_default, active, created_at, updated_at;
+
+-- name: UpdateContentType :one
+UPDATE core.content_types AS t
+SET singular_label = @singular_label, plural_label = @plural_label, route_word = @route_word,
+    hierarchical = @hierarchical, revisions = @revisions, revision_cap = @revision_cap,
+    page_kind = @page_kind, is_default = @is_default, active = @active, updated_at = @updated_at
+WHERE t.key = @key
+RETURNING t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at;
+
+-- name: DeleteContentType :execrows
+DELETE FROM core.content_types AS t WHERE t.key = @key;
+
 -- name: GetSetting :one
 SELECT s.value FROM core.settings s WHERE s.key = @key;
 

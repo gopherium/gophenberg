@@ -3,6 +3,7 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -95,9 +96,10 @@ func (s *server) handleContentCreate() http.HandlerFunc {
 			authkit.RespondError(w, http.StatusBadRequest, "malformed json")
 			return
 		}
-		contentType := req.Type
-		if contentType == "" {
-			contentType = content.TypePost
+		contentType, err := s.typeAsked(r, req.Type)
+		if err != nil {
+			respondDomainError(w, err)
+			return
 		}
 		identity := authkit.IdentityFromContext(r.Context())
 		c, err := content.New(contentType, req.Title, identity.ID)
@@ -169,7 +171,7 @@ func (s *server) patchContent(
 	if !changed {
 		return stored, nil
 	}
-	snapshot, revisionCap, err := revisionFor(r, previous, contentChanged)
+	snapshot, revisionCap, err := s.revisionFor(r, previous, contentChanged)
 	if err != nil {
 		return content.Content{}, err
 	}
@@ -178,9 +180,14 @@ func (s *server) patchContent(
 
 // revisionFor snapshots the previous item when its type keeps revisions and
 // the snapshotted fields changed.
-func revisionFor(r *http.Request, previous content.Content, contentChanged bool) (*content.Revision, int, error) {
-	contentType, ok := content.TypeByName(previous.Type)
-	if !contentChanged || !ok || !contentType.Revisions {
+func (s *server) revisionFor(
+	r *http.Request, previous content.Content, contentChanged bool,
+) (*content.Revision, int, error) {
+	contentType, err := s.types.Active(r.Context(), previous.Type)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !contentChanged || !contentType.Revisions {
 		return nil, 0, nil
 	}
 	identity := authkit.IdentityFromContext(r.Context())
@@ -189,6 +196,18 @@ func revisionFor(r *http.Request, previous content.Content, contentChanged bool)
 		return nil, 0, err
 	}
 	return &revision, contentType.RevisionCap, nil
+}
+
+// typeAsked returns the active type the request names, or the registry's default when it names none.
+func (s *server) typeAsked(r *http.Request, key string) (content.Type, error) {
+	if key == "" {
+		return s.types.Default(r.Context())
+	}
+	asked, err := s.types.Active(r.Context(), key)
+	if errors.Is(err, content.ErrTypeNotFound) {
+		return content.Type{}, content.ErrInvalidType
+	}
+	return asked, err
 }
 
 // handleContentDelete returns an http.HandlerFunc trashing an item, or removing it

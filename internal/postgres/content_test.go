@@ -52,10 +52,19 @@ func newContentStoreWithPool(t *testing.T) (*postgres.ContentStore, uuid.UUID, *
 	return postgres.NewContentStore(pool), author, pool
 }
 
+// postType returns the built-in post type as the migration registers it.
+func postType() content.Type {
+	return content.Type{
+		Key: content.TypePost, SingularLabel: "Post", PluralLabel: "Posts",
+		Revisions: true, RevisionCap: 100, PageKind: content.PageKindSingle,
+		Default: true, Active: true,
+	}
+}
+
 // mustPost returns a draft post with the given title.
 func mustPost(t *testing.T, title string, author uuid.UUID) content.Content {
 	t.Helper()
-	p, err := content.New(content.TypePost, title, author)
+	p, err := content.New(postType(), title, author)
 	if err != nil {
 		t.Fatalf("New(%q) error = %v, want nil", title, err)
 	}

@@ -39,19 +39,29 @@ func TestPostDetailReportsAuthorLookupFailures(t *testing.T) {
 	}
 }
 
-func TestPostListAcceptsAnUnregisteredType(t *testing.T) {
+func TestPostListRefusesTypesTheRegistryDoesNotServe(t *testing.T) {
 	t.Parallel()
 
-	handler, _, _ := authedPostServer(t)
+	users := newFakeUserStore()
+	addAda(t, users)
+	types := newFakeTypeStore()
+	retired := postType()
+	retired.Key, retired.Active, retired.Default = "briefing", false, false
+	retired.RouteWord = "briefings"
+	types.register(retired)
+	handler := authedServerWithStores(t,
+		server.Config{Users: users, Content: newFakePostStore(), Types: types})
 
-	list := doRequest(t, handler, http.MethodGet, "/api/content?type=page", "")
-	counts := doRequest(t, handler, http.MethodGet, "/api/content/counts?type=page", "")
+	for _, contentType := range []string{"page", "briefing"} {
+		list := doRequest(t, handler, http.MethodGet, "/api/content?type="+contentType, "")
+		counts := doRequest(t, handler, http.MethodGet, "/api/content/counts?type="+contentType, "")
 
-	if list.Code != http.StatusOK {
-		t.Errorf("list status = %d, want an unregistered type to list rather than fail", list.Code)
-	}
-	if counts.Code != http.StatusOK {
-		t.Errorf("counts status = %d, want %d", counts.Code, http.StatusOK)
+		if list.Code != http.StatusUnprocessableEntity {
+			t.Errorf("listing %q = %d, want %d", contentType, list.Code, http.StatusUnprocessableEntity)
+		}
+		if counts.Code != http.StatusUnprocessableEntity {
+			t.Errorf("counting %q = %d, want %d", contentType, counts.Code, http.StatusUnprocessableEntity)
+		}
 	}
 }
 
@@ -62,7 +72,7 @@ func TestPostErrorsFallBackToTheAuthMapping(t *testing.T) {
 	addAda(t, users)
 	posts := newFakePostStore()
 	posts.createErr = gouncer.ErrUserNotFound
-	handler := authedServerWithStores(t, server.Config{Users: users, Content: posts})
+	handler := authedServerWithStores(t, server.Config{Users: users, Content: posts, Types: newFakeTypeStore()})
 
 	recorder := doRequest(t, handler, http.MethodPost, "/api/content", `{"title":"Hi"}`)
 

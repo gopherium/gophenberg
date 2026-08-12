@@ -24,7 +24,7 @@ func respondDomainError(w http.ResponseWriter, err error) {
 func statusFor(err error) (int, string) {
 	switch {
 	case errors.Is(err, content.ErrNotFound), errors.Is(err, content.ErrRevisionNotFound),
-		errors.Is(err, media.ErrNotFound):
+		errors.Is(err, content.ErrTypeNotFound), errors.Is(err, media.ErrNotFound):
 		return http.StatusNotFound, err.Error()
 	case errors.Is(err, content.ErrConflict), errors.Is(err, media.ErrConflict):
 		return http.StatusConflict, err.Error()
@@ -35,9 +35,38 @@ func statusFor(err error) (int, string) {
 		errors.Is(err, content.ErrSlugTaken),
 		errors.Is(err, media.ErrInvalidAuthor):
 		return http.StatusUnprocessableEntity, err.Error()
+	case isRegistryRefusal(err):
+		return http.StatusUnprocessableEntity, err.Error()
 	}
 	if status, message, ok := authkit.StatusForAuthError(err); ok {
 		return status, message
 	}
 	return http.StatusInternalServerError, "internal error"
+}
+
+// registryRefusals are the reasons the content type registry turns an edit away.
+var registryRefusals = []error{
+	content.ErrTypeTaken,
+	content.ErrRouteWordTaken,
+	content.ErrRouteWordReserved,
+	content.ErrRootTaken,
+	content.ErrDefaultRequired,
+	content.ErrTypeInUse,
+	content.ErrTypeInactive,
+	content.ErrInvalidKey,
+	content.ErrInvalidRouteWord,
+	content.ErrInvalidLabel,
+	content.ErrInvalidPageKind,
+	content.ErrPageKindUnavailable,
+	content.ErrInvalidRevisionCap,
+}
+
+// isRegistryRefusal reports whether err is the registry turning an edit away.
+func isRegistryRefusal(err error) bool {
+	for _, refusal := range registryRefusals {
+		if errors.Is(err, refusal) {
+			return true
+		}
+	}
+	return false
 }

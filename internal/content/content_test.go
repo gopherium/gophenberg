@@ -15,6 +15,23 @@ import (
 
 var errEntropy = errors.New("entropy source failed")
 
+// postType returns the built-in post type as the registry holds it.
+func postType() content.Type {
+	now := time.Now().UTC()
+	return content.Type{
+		Key:           content.TypePost,
+		SingularLabel: "Post",
+		PluralLabel:   "Posts",
+		Revisions:     true,
+		RevisionCap:   100,
+		PageKind:      content.PageKindSingle,
+		Default:       true,
+		Active:        true,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+}
+
 type failingReader struct{}
 
 func (failingReader) Read([]byte) (int, error) {
@@ -26,7 +43,7 @@ func TestNewReportsIDGenerationFailure(t *testing.T) {
 	uuid.SetRand(failingReader{})
 	defer uuid.SetRand(nil)
 
-	_, err := content.New("post", "Hello World", author)
+	_, err := content.New(postType(), "Hello World", author)
 
 	if !errors.Is(err, errEntropy) {
 		t.Fatalf("New() error = %v, want the entropy failure in its chain", err)
@@ -39,7 +56,7 @@ func TestNewReturnsADraftWithGeneratedFields(t *testing.T) {
 	author := uuid.Must(uuid.NewV7())
 	before := time.Now().UTC()
 
-	p, err := content.New("post", "Hello World", author)
+	p, err := content.New(postType(), "Hello World", author)
 
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
@@ -79,7 +96,7 @@ func TestNewReturnsADraftWithGeneratedFields(t *testing.T) {
 func TestNewTitlesWithoutSlugCharactersFallBackToUntitled(t *testing.T) {
 	t.Parallel()
 
-	p, err := content.New("post", "   ", uuid.Must(uuid.NewV7()))
+	p, err := content.New(postType(), "   ", uuid.Must(uuid.NewV7()))
 
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
@@ -92,14 +109,16 @@ func TestNewTitlesWithoutSlugCharactersFallBackToUntitled(t *testing.T) {
 func TestNewRejectsInvalidInput(t *testing.T) {
 	t.Parallel()
 
+	inactive := postType()
+	inactive.Active = false
 	tests := map[string]struct {
-		contentType string
+		contentType content.Type
 		author      uuid.UUID
 		want        error
 	}{
-		"empty type":      {contentType: "", author: uuid.Must(uuid.NewV7()), want: content.ErrInvalidType},
-		"whitespace type": {contentType: "  ", author: uuid.Must(uuid.NewV7()), want: content.ErrInvalidType},
-		"missing author":  {contentType: "post", author: uuid.Nil, want: content.ErrInvalidAuthor},
+		"unregistered type": {contentType: content.Type{}, author: uuid.Must(uuid.NewV7()), want: content.ErrInvalidType},
+		"inactive type":     {contentType: inactive, author: uuid.Must(uuid.NewV7()), want: content.ErrTypeInactive},
+		"missing author":    {contentType: postType(), author: uuid.Nil, want: content.ErrInvalidAuthor},
 	}
 
 	for testName, tc := range tests {

@@ -47,10 +47,12 @@ type Content struct {
 }
 
 // New returns a draft [Content] of the given type, slugged after its title.
-func New(contentType, title string, authorID uuid.UUID) (Content, error) {
-	trimmedType := strings.TrimSpace(contentType)
-	if _, ok := TypeByName(trimmedType); !ok {
+func New(t Type, title string, authorID uuid.UUID) (Content, error) {
+	if t.Key == "" {
 		return Content{}, ErrInvalidType
+	}
+	if !t.Active {
+		return Content{}, ErrTypeInactive
 	}
 	if authorID == uuid.Nil {
 		return Content{}, ErrInvalidAuthor
@@ -62,7 +64,7 @@ func New(contentType, title string, authorID uuid.UUID) (Content, error) {
 	now := time.Now().UTC()
 	return Content{
 		ID:        id,
-		Type:      trimmedType,
+		Type:      t.Key,
 		Slug:      Slugify(title),
 		Title:     title,
 		Status:    StatusDraft,

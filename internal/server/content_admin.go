@@ -92,10 +92,10 @@ func (s *server) authorNames(ctx context.Context) (map[uuid.UUID]string, error) 
 	return names, nil
 }
 
-// parseAdminContentFilter reads the list query parameters into a filter.
-func parseAdminContentFilter(query url.Values) (content.Filter, error) {
+// parseAdminContentFilter reads the list query parameters into a filter over the given type.
+func parseAdminContentFilter(query url.Values, contentType content.Type) (content.Filter, error) {
 	filter := content.Filter{
-		Type:    content.TypePost,
+		Type:    contentType.Key,
 		Search:  query.Get("search"),
 		OrderBy: content.OrderByDate,
 		Order:   content.OrderDesc,
@@ -104,9 +104,6 @@ func parseAdminContentFilter(query url.Values) (content.Filter, error) {
 	}
 	if err := applyContentOrdering(query, &filter); err != nil {
 		return content.Filter{}, err
-	}
-	if raw := query.Get("type"); raw != "" {
-		filter.Type = raw
 	}
 	if raw := query.Get("status"); raw != "" {
 		status, err := content.ParseStatus(raw)
@@ -162,7 +159,12 @@ func applyContentPaging(query url.Values, filter *content.Filter) error {
 // handleContentList returns an http.HandlerFunc listing content as a page with its total.
 func (s *server) handleContentList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		filter, err := parseAdminContentFilter(r.URL.Query())
+		contentType, err := s.typeAsked(r, r.URL.Query().Get("type"))
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		filter, err := parseAdminContentFilter(r.URL.Query(), contentType)
 		if err != nil {
 			authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
 			return
@@ -205,11 +207,12 @@ func (s *server) handleContentGet() http.HandlerFunc {
 // handleContentCounts returns an http.HandlerFunc reporting how many items hold each status.
 func (s *server) handleContentCounts() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		contentType := content.TypePost
-		if raw := r.URL.Query().Get("type"); raw != "" {
-			contentType = raw
+		contentType, err := s.typeAsked(r, r.URL.Query().Get("type"))
+		if err != nil {
+			respondDomainError(w, err)
+			return
 		}
-		stored, err := s.content.Counts(r.Context(), contentType)
+		stored, err := s.content.Counts(r.Context(), contentType.Key)
 		if err != nil {
 			respondDomainError(w, err)
 			return

@@ -26,6 +26,8 @@ type Config struct {
 	Users authkit.AdminStore
 	// Content persists the content the CMS serves.
 	Content content.Store
+	// Types persists the content type registry. Nil leaves the registry routes unhandled.
+	Types content.TypeStore
 	// Plugins maps a plugin id to its HTTP handler.
 	Plugins map[string]http.Handler
 	// PluginPublicPaths maps a plugin id to its session-exempt paths.
@@ -79,6 +81,12 @@ func NewServer(cfg Config) http.Handler {
 		protected.Get("/api/users", admin.List)
 		protected.Post("/api/users", admin.Create)
 		protected.Patch("/api/users/{id}", admin.SetDisabled)
+		if cfg.Types != nil {
+			protected.Get("/api/types", s.handleTypeList())
+			protected.Post("/api/types", s.handleTypeCreate())
+			protected.Patch("/api/types/{key}", s.handleTypePatch())
+			protected.Delete("/api/types/{key}", s.handleTypeDelete())
+		}
 		protected.Get("/api/content", s.handleContentList())
 		protected.Post("/api/content", s.handleContentCreate())
 		protected.Get("/api/content/counts", s.handleContentCounts())
@@ -127,6 +135,7 @@ type server struct {
 	auth       *authkit.Handlers
 	users      authkit.AdminStore
 	content    content.Store
+	types      *content.Registry
 	themes     Themes
 	media      MediaLibrary
 	mediaStore media.Store

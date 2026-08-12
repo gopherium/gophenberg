@@ -76,6 +76,7 @@ func run(
 	cfg := server.Config{
 		Users:             userStore,
 		Content:           contentStore,
+		Types:             postgres.NewTypeStore(pool),
 		Plugins:           host.Routes(),
 		PluginPublicPaths: host.PublicPaths(),
 		Version:           version.Version(),

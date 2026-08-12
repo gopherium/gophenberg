@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/server"
 )
 
 type revisionBody struct {
@@ -99,8 +100,15 @@ func TestPostPatchSlugChangeSkipsTheSnapshot(t *testing.T) {
 func TestPostPatchSkipsTheSnapshotForTypesWithoutRevisions(t *testing.T) {
 	t.Parallel()
 
-	content.Register(content.Type{Name: "briefing", Label: "Briefings"})
-	handler, posts, ada := authedPostServer(t)
+	users := newFakeUserStore()
+	ada := addAda(t, users)
+	posts := newFakePostStore()
+	types := newFakeTypeStore()
+	briefing := postType()
+	briefing.Key, briefing.Revisions, briefing.Default = "briefing", false, false
+	briefing.RouteWord = "briefings"
+	types.register(briefing)
+	handler := authedServerWithStores(t, server.Config{Users: users, Content: posts, Types: types})
 	stored := newPost(t, "No History", ada.ID)
 	stored.Type = "briefing"
 	stored = posts.add(stored)
@@ -116,22 +124,33 @@ func TestPostPatchSkipsTheSnapshotForTypesWithoutRevisions(t *testing.T) {
 	}
 }
 
-func TestPostPatchSkipsTheSnapshotForUnregisteredTypes(t *testing.T) {
+func TestPostPatchRefusesAnEditWhenTheTypeStoppedServing(t *testing.T) {
 	t.Parallel()
 
-	handler, posts, ada := authedPostServer(t)
-	stored := newPost(t, "Ghost Type", ada.ID)
-	stored.Type = "vanished-plugin"
-	stored = posts.add(stored)
+	users := newFakeUserStore()
+	ada := addAda(t, users)
+	posts := newFakePostStore()
+	types := newFakeTypeStore()
+	retired := postType()
+	retired.Key, retired.Active, retired.Default = "briefing", false, false
+	retired.RouteWord = "briefings"
+	types.register(retired)
+	handler := authedServerWithStores(t, server.Config{Users: users, Content: posts, Types: types})
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
-		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"}))
+	for _, contentType := range []string{"briefing", "vanished-plugin"} {
+		stored := newPost(t, "No Longer Served", ada.ID)
+		stored.Type = contentType
+		stored = posts.add(stored)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
-	}
-	if posts.lastSnapshot != nil {
-		t.Errorf("snapshot = %+v, want an unregistered type to store none", posts.lastSnapshot)
+		recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
+			versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"}))
+
+		if recorder.Code == http.StatusOK {
+			t.Errorf("patching a %q item = %d, want the edit refused", contentType, recorder.Code)
+		}
+		if posts.lastSnapshot != nil {
+			t.Errorf("snapshot = %+v, want no snapshot from a refused edit", posts.lastSnapshot)
+		}
 	}
 }
 

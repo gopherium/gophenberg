@@ -118,10 +118,14 @@ func demoPosts() []demoPost {
 }
 
 // Posts stores the demo posts the admin account does not already own.
-func Posts(ctx context.Context, store content.Store, users gouncer.Store) error {
+func Posts(ctx context.Context, store content.Store, types *content.Registry, users gouncer.Store) error {
 	admin, err := users.UserByEmail(ctx, AdminEmail)
 	if err != nil {
 		return fmt.Errorf("seed admin lookup: %w", err)
+	}
+	postType, err := types.ByKey(ctx, content.TypePost)
+	if err != nil {
+		return fmt.Errorf("seed post type lookup: %w", err)
 	}
 	for _, scripted := range demoPosts() {
 		id := uuid.MustParse(scripted.id)
@@ -130,7 +134,7 @@ func Posts(ctx context.Context, store content.Store, users gouncer.Store) error 
 		} else if !errors.Is(err, content.ErrNotFound) {
 			return fmt.Errorf("seed post lookup: %w", err)
 		}
-		if err := storeDemoPost(ctx, store, scripted, id, admin.ID); err != nil {
+		if err := storeDemoPost(ctx, store, postType, scripted, id, admin.ID); err != nil {
 			return err
 		}
 	}
@@ -139,9 +143,9 @@ func Posts(ctx context.Context, store content.Store, users gouncer.Store) error 
 
 // storeDemoPost stores one scripted post in its scripted status.
 func storeDemoPost(
-	ctx context.Context, store content.Store, scripted demoPost, id, authorID uuid.UUID,
+	ctx context.Context, store content.Store, postType content.Type, scripted demoPost, id, authorID uuid.UUID,
 ) error {
-	built, err := content.New(content.TypePost, scripted.title, authorID)
+	built, err := content.New(postType, scripted.title, authorID)
 	if err != nil {
 		return fmt.Errorf("build post: %w", err)
 	}

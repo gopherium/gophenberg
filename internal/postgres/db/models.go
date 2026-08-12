@@ -36,6 +36,21 @@ type CoreContentRevision struct {
 	CreatedAt time.Time
 }
 
+type CoreContentType struct {
+	Key           string
+	SingularLabel string
+	PluralLabel   string
+	RouteWord     string
+	Hierarchical  bool
+	Revisions     bool
+	RevisionCap   int32
+	PageKind      string
+	IsDefault     bool
+	Active        bool
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 type CoreMedia struct {
 	ID          int64
 	MediaType   string

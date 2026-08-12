@@ -161,6 +161,67 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 	return i, err
 }
 
+const createContentType = `-- name: CreateContentType :one
+INSERT INTO core.content_types (
+    key, singular_label, plural_label, route_word, hierarchical, revisions,
+    revision_cap, page_kind, is_default, active, created_at, updated_at
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6,
+    $7, $8, $9, $10, $11, $12
+)
+RETURNING key, singular_label, plural_label, route_word, hierarchical, revisions,
+    revision_cap, page_kind, is_default, active, created_at, updated_at
+`
+
+type CreateContentTypeParams struct {
+	Key           string
+	SingularLabel string
+	PluralLabel   string
+	RouteWord     string
+	Hierarchical  bool
+	Revisions     bool
+	RevisionCap   int32
+	PageKind      string
+	IsDefault     bool
+	Active        bool
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+func (q *Queries) CreateContentType(ctx context.Context, arg CreateContentTypeParams) (CoreContentType, error) {
+	row := q.db.QueryRow(ctx, createContentType,
+		arg.Key,
+		arg.SingularLabel,
+		arg.PluralLabel,
+		arg.RouteWord,
+		arg.Hierarchical,
+		arg.Revisions,
+		arg.RevisionCap,
+		arg.PageKind,
+		arg.IsDefault,
+		arg.Active,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i CoreContentType
+	err := row.Scan(
+		&i.Key,
+		&i.SingularLabel,
+		&i.PluralLabel,
+		&i.RouteWord,
+		&i.Hierarchical,
+		&i.Revisions,
+		&i.RevisionCap,
+		&i.PageKind,
+		&i.IsDefault,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createMedia = `-- name: CreateMedia :one
 INSERT INTO core.media (
     media_type, file, title, alt_text, caption, description,
@@ -290,6 +351,18 @@ func (q *Queries) DeleteContent(ctx context.Context, id uuid.UUID) (int64, error
 	return result.RowsAffected(), nil
 }
 
+const deleteContentType = `-- name: DeleteContentType :execrows
+DELETE FROM core.content_types AS t WHERE t.key = $1
+`
+
+func (q *Queries) DeleteContentType(ctx context.Context, key string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteContentType, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteMedia = `-- name: DeleteMedia :one
 DELETE FROM core.media AS m
 WHERE m.id = $1
@@ -385,6 +458,33 @@ func (q *Queries) GetContent(ctx context.Context, id uuid.UUID) (CoreContent, er
 		&i.Excerpt,
 		&i.AuthorID,
 		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getContentType = `-- name: GetContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.key = $1
+`
+
+func (q *Queries) GetContentType(ctx context.Context, key string) (CoreContentType, error) {
+	row := q.db.QueryRow(ctx, getContentType, key)
+	var i CoreContentType
+	err := row.Scan(
+		&i.Key,
+		&i.SingularLabel,
+		&i.PluralLabel,
+		&i.RouteWord,
+		&i.Hierarchical,
+		&i.Revisions,
+		&i.RevisionCap,
+		&i.PageKind,
+		&i.IsDefault,
+		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -561,6 +661,46 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 			&i.Excerpt,
 			&i.AuthorID,
 			&i.PublishedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listContentTypes = `-- name: ListContentTypes :many
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+ORDER BY t.created_at, t.key
+`
+
+func (q *Queries) ListContentTypes(ctx context.Context) ([]CoreContentType, error) {
+	rows, err := q.db.Query(ctx, listContentTypes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CoreContentType
+	for rows.Next() {
+		var i CoreContentType
+		if err := rows.Scan(
+			&i.Key,
+			&i.SingularLabel,
+			&i.PluralLabel,
+			&i.RouteWord,
+			&i.Hierarchical,
+			&i.Revisions,
+			&i.RevisionCap,
+			&i.PageKind,
+			&i.IsDefault,
+			&i.Active,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -870,6 +1010,62 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (C
 		&i.Excerpt,
 		&i.AuthorID,
 		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateContentType = `-- name: UpdateContentType :one
+UPDATE core.content_types AS t
+SET singular_label = $1, plural_label = $2, route_word = $3,
+    hierarchical = $4, revisions = $5, revision_cap = $6,
+    page_kind = $7, is_default = $8, active = $9, updated_at = $10
+WHERE t.key = $11
+RETURNING t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+`
+
+type UpdateContentTypeParams struct {
+	SingularLabel string
+	PluralLabel   string
+	RouteWord     string
+	Hierarchical  bool
+	Revisions     bool
+	RevisionCap   int32
+	PageKind      string
+	IsDefault     bool
+	Active        bool
+	UpdatedAt     time.Time
+	Key           string
+}
+
+func (q *Queries) UpdateContentType(ctx context.Context, arg UpdateContentTypeParams) (CoreContentType, error) {
+	row := q.db.QueryRow(ctx, updateContentType,
+		arg.SingularLabel,
+		arg.PluralLabel,
+		arg.RouteWord,
+		arg.Hierarchical,
+		arg.Revisions,
+		arg.RevisionCap,
+		arg.PageKind,
+		arg.IsDefault,
+		arg.Active,
+		arg.UpdatedAt,
+		arg.Key,
+	)
+	var i CoreContentType
+	err := row.Scan(
+		&i.Key,
+		&i.SingularLabel,
+		&i.PluralLabel,
+		&i.RouteWord,
+		&i.Hierarchical,
+		&i.Revisions,
+		&i.RevisionCap,
+		&i.PageKind,
+		&i.IsDefault,
+		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
