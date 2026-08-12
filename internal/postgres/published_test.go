@@ -37,6 +37,21 @@ func insertContentWithStatus(
 	}
 }
 
+// registerType stores a content type row the content table can reference.
+func registerType(t *testing.T, pool *pgxpool.Pool, key, routeWord string) {
+	t.Helper()
+	now := time.Now().UTC()
+	_, err := pool.Exec(t.Context(),
+		`INSERT INTO core.content_types (key, singular_label, plural_label, route_word, hierarchical,
+			revisions, revision_cap, page_kind, is_default, active, created_at, updated_at)
+		VALUES ($1, 'Thing', 'Things', $2, false, true, 100, 'single', false, true, $3, $3)`,
+		key, routeWord, now,
+	)
+	if err != nil {
+		t.Fatalf("registering the type %q: %v", key, err)
+	}
+}
+
 // publishWithContent stores a published post titled [fixtureTitle] carrying [blockMarkup].
 func publishWithContent(t *testing.T, store *postgres.ContentStore, author uuid.UUID) content.Content {
 	t.Helper()
@@ -107,6 +122,7 @@ func TestContentStoreScopesTheLookupToThePostType(t *testing.T) {
 	t.Parallel()
 
 	store, author, pool := newContentStoreWithPool(t)
+	registerType(t, pool, "page", "pages")
 	insertContentWithStatus(t, pool, author, "page", content.StatusPublished, "about-us")
 
 	found, err := store.PublishedBySlug(t.Context(), "page", "about-us")

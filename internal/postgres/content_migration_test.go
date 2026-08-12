@@ -20,6 +20,7 @@ const (
 	uniqueViolation     = "23505"
 	checkViolation      = "23514"
 	foreignKeyViolation = "23503"
+	restrictViolation   = "23001"
 )
 
 // newTestDB returns a database migrated with the auth and core schemas.
