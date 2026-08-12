@@ -4,18 +4,18 @@ import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen } from '@testing-library/react'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
-import '../posts/editor.css'
+import '../content/editor.css'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
 const EDITOR_PATH = `/posts/${storedPost.id}/edit`
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
-	server.use(http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)))
+	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)))
 })
 
 /**

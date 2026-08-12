@@ -37,21 +37,21 @@ type item struct {
 
 // stubPosts serves scripted posts and records what was asked of it.
 type stubPosts struct {
-	posts    []sdk.Post
+	posts    []sdk.Item
 	postType string
 	limit    int
 	listErr  error
 }
 
 // ListPublished records the request and returns the scripted posts.
-func (s *stubPosts) ListPublished(_ context.Context, postType string, limit int) ([]sdk.Post, error) {
+func (s *stubPosts) ListPublished(_ context.Context, postType string, limit int) ([]sdk.Item, error) {
 	s.postType, s.limit = postType, limit
 	return s.posts, s.listErr
 }
 
 // samplePost returns a published post carrying the given title and content.
-func samplePost(title, content string) sdk.Post {
-	return sdk.Post{
+func samplePost(title, content string) sdk.Item {
+	return sdk.Item{
 		ID:          uuid.MustParse("019fb000-0000-7000-8000-000000000001"),
 		Type:        "post",
 		Slug:        "a-slug",
@@ -69,9 +69,9 @@ func testEnv(values map[string]string) func(string) string {
 }
 
 // mustRegister registers the feed plugin over the given posts and environment.
-func mustRegister(t *testing.T, posts sdk.PostReader, values map[string]string) sdk.Plugin {
+func mustRegister(t *testing.T, posts sdk.ContentReader, values map[string]string) sdk.Plugin {
 	t.Helper()
-	plugin, err := feed.Register(sdk.Deps{Posts: posts, Getenv: testEnv(values)})
+	plugin, err := feed.Register(sdk.Deps{Content: posts, Getenv: testEnv(values)})
 	if err != nil {
 		t.Fatalf("Register() error = %v, want nil", err)
 	}
@@ -109,7 +109,7 @@ func TestFeedRegistersUnderItsOwnID(t *testing.T) {
 func TestFeedServesRSSAReaderCanParse(t *testing.T) {
 	t.Parallel()
 
-	posts := &stubPosts{posts: []sdk.Post{samplePost("A Published Post", "<p>Body</p>")}}
+	posts := &stubPosts{posts: []sdk.Item{samplePost("A Published Post", "<p>Body</p>")}}
 	response := serve(t, mustRegister(t, posts, map[string]string{}))
 
 	if response.Code != http.StatusOK {
@@ -148,7 +148,7 @@ func TestFeedNamesItsChannelAndLinksTheSite(t *testing.T) {
 func TestFeedLinksEachItemAtItsFutureAddress(t *testing.T) {
 	t.Parallel()
 
-	posts := &stubPosts{posts: []sdk.Post{samplePost("A Post", "<p>Body</p>")}}
+	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", "<p>Body</p>")}}
 	response := serve(t, mustRegister(t, posts, map[string]string{}))
 
 	var parsed channel
@@ -169,7 +169,7 @@ func TestFeedLinksEachItemAtItsFutureAddress(t *testing.T) {
 func TestFeedLinksCarryTheHostTheReaderDialed(t *testing.T) {
 	t.Parallel()
 
-	posts := &stubPosts{posts: []sdk.Post{samplePost("A Post", "<p>Body</p>")}}
+	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", "<p>Body</p>")}}
 	request := httptest.NewRequest(http.MethodGet, "/rss.xml", nil)
 	request.Host = "localhost:8081"
 
@@ -190,7 +190,7 @@ func TestFeedLinksCarryTheHostTheReaderDialed(t *testing.T) {
 func TestFeedInfersHTTPSFromATLSConnection(t *testing.T) {
 	t.Parallel()
 
-	posts := &stubPosts{posts: []sdk.Post{samplePost("A Post", "<p>Body</p>")}}
+	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", "<p>Body</p>")}}
 	request := httptest.NewRequest(http.MethodGet, "https://example.com/rss.xml", nil)
 
 	response := serveRequest(t, mustRegister(t, posts, map[string]string{}), request)
@@ -207,7 +207,7 @@ func TestFeedInfersHTTPSFromATLSConnection(t *testing.T) {
 func TestFeedHonorsTheForwardedProtocol(t *testing.T) {
 	t.Parallel()
 
-	posts := &stubPosts{posts: []sdk.Post{samplePost("A Post", "<p>Body</p>")}}
+	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", "<p>Body</p>")}}
 	request := httptest.NewRequest(http.MethodGet, "/rss.xml", nil)
 	request.Host = "example.com"
 	request.Header.Set("X-Forwarded-Proto", "https")
@@ -231,7 +231,7 @@ func TestFeedStripsBlockCommentsFromTheContent(t *testing.T) {
 
 	content := "<!-- wp:paragraph -->\n<p>Body</p>\n<!-- /wp:paragraph -->\n\n" +
 		"<!-- wp:heading {\"level\":3} -->\n<h3>Heading</h3>\n<!-- /wp:heading -->"
-	posts := &stubPosts{posts: []sdk.Post{samplePost("A Post", content)}}
+	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", content)}}
 
 	response := serve(t, mustRegister(t, posts, map[string]string{}))
 
@@ -255,7 +255,7 @@ func TestFeedStripsDelimitersCarryingAnAngleBracket(t *testing.T) {
 	t.Parallel()
 
 	content := `<!-- wp:heading {"citation":"a > b"} --><h3>Heading</h3><!-- /wp:heading -->`
-	posts := &stubPosts{posts: []sdk.Post{samplePost("A Post", content)}}
+	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", content)}}
 
 	response := serve(t, mustRegister(t, posts, map[string]string{}))
 
@@ -297,7 +297,7 @@ func TestRegisterRejectsAMalformedItemsCap(t *testing.T) {
 	for _, raw := range []string{"banana", "0", "-3", "2.5"} {
 		values := map[string]string{"GOPHENBERG_FEED_ITEMS": raw}
 
-		plugin, err := feed.Register(sdk.Deps{Posts: &stubPosts{}, Getenv: testEnv(values)})
+		plugin, err := feed.Register(sdk.Deps{Content: &stubPosts{}, Getenv: testEnv(values)})
 
 		if err == nil {
 			t.Errorf("Register() with cap %q error = nil, want a loud refusal", raw)
@@ -347,7 +347,7 @@ func (w *breakingWriter) WriteHeader(_ int) {}
 func TestFeedGivesUpOnAReaderThatWentAway(t *testing.T) {
 	t.Parallel()
 
-	posts := &stubPosts{posts: []sdk.Post{samplePost("A Post", "<p>Body</p>")}}
+	posts := &stubPosts{posts: []sdk.Item{samplePost("A Post", "<p>Body</p>")}}
 	plugin := mustRegister(t, posts, map[string]string{})
 	routes, ok := plugin.(interface{ Routes() http.Handler })
 	if !ok {

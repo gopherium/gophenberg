@@ -5,19 +5,19 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
-import '../posts/editor.css'
-import { chosenPreview } from '../posts/EditorHeader'
+import '../content/editor.css'
+import { chosenPreview } from '../content/EditorHeader'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
 const EDITOR_PATH = `/posts/${storedPost.id}/edit`
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
-	server.use(http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)))
+	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)))
 })
 
 test('keeps the block list out of the way until it is asked for', async () => {

@@ -19,7 +19,7 @@ func publicServer(t *testing.T) http.Handler {
 	posts.add(publishedFixture(t, "hello-world", blockMarkup, time.Now().UTC()))
 	return server.NewServer(server.Config{
 		Users:     newFakeUserStore(),
-		Posts:     posts,
+		Content:   posts,
 		SiteTitle: "A Test Site",
 		Version:   "1.2.3",
 		Web: fstest.MapFS{

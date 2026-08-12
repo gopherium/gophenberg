@@ -5,18 +5,18 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
-import '../posts/editor.css'
+import '../content/editor.css'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
 const EDITOR_PATH = `/posts/${storedPost.id}/edit`
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
-	server.use(http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)))
+	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)))
 })
 
 test('offers a way to add a block from the header', async () => {

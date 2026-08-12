@@ -11,11 +11,11 @@ import { storedPost } from './postFixture'
 const EDITOR_PATH = `/posts/${storedPost.id}/edit`
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
-	server.use(http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)))
+	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)))
 })
 
 test('mounts the block canvas in an iframe', async () => {

@@ -11,6 +11,31 @@ import (
 	"github.com/gopherium/gophenberg/internal/media"
 )
 
+type CoreContent struct {
+	ID          uuid.UUID
+	Type        string
+	Status      string
+	Slug        string
+	Title       string
+	Content     string
+	Excerpt     string
+	AuthorID    uuid.UUID
+	PublishedAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type CoreContentRevision struct {
+	ID        uuid.UUID
+	ContentID uuid.UUID
+	Kind      string
+	AuthorID  uuid.UUID
+	Title     string
+	Content   string
+	Excerpt   string
+	CreatedAt time.Time
+}
+
 type CoreMedia struct {
 	ID          int64
 	MediaType   string
@@ -27,31 +52,6 @@ type CoreMedia struct {
 	AuthorID    uuid.UUID
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-}
-
-type CorePost struct {
-	ID          uuid.UUID
-	Type        string
-	Status      string
-	Slug        string
-	Title       string
-	Content     string
-	Excerpt     string
-	AuthorID    uuid.UUID
-	PublishedAt *time.Time
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
-type CorePostRevision struct {
-	ID        uuid.UUID
-	PostID    uuid.UUID
-	Kind      string
-	AuthorID  uuid.UUID
-	Title     string
-	Content   string
-	Excerpt   string
-	CreatedAt time.Time
 }
 
 type CoreSetting struct {

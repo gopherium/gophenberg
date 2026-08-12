@@ -67,11 +67,11 @@ func adminApp(cfg Config) http.Handler {
 // builtInSite returns the renderer serving the public site, or the JSON 404 when no store is
 // configured.
 func builtInSite(cfg Config) http.Handler {
-	if cfg.Posts == nil {
+	if cfg.Content == nil {
 		return http.HandlerFunc(respondNotFound)
 	}
 	return publicsite.New(publicsite.Config{
-		Posts:   cfg.Posts,
+		Content: cfg.Content,
 		Title:   cfg.SiteTitle,
 		Version: cfg.Version,
 	})

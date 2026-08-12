@@ -14,22 +14,22 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/peterldowns/pgtestdb"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/testdb"
 )
 
 var trashedSlug = regexp.MustCompile(`^hello-world-trashed-[a-z0-9]{8}$`)
 
-// newPostStore returns a store over a migrated database and the id of a stored author.
-func newPostStore(t *testing.T) (*postgres.PostStore, uuid.UUID) {
+// newContentStore returns a store over a migrated database and the id of a stored author.
+func newContentStore(t *testing.T) (*postgres.ContentStore, uuid.UUID) {
 	t.Helper()
-	store, author, _ := newPostStoreWithPool(t)
+	store, author, _ := newContentStoreWithPool(t)
 	return store, author
 }
 
-// newPostStoreWithPool returns a store, the id of a stored author, and the pool behind them.
-func newPostStoreWithPool(t *testing.T) (*postgres.PostStore, uuid.UUID, *pgxpool.Pool) {
+// newContentStoreWithPool returns a store, the id of a stored author, and the pool behind them.
+func newContentStoreWithPool(t *testing.T) (*postgres.ContentStore, uuid.UUID, *pgxpool.Pool) {
 	t.Helper()
 	if testing.Short() {
 		t.Skip("skipping database test in short mode")
@@ -49,13 +49,13 @@ func newPostStoreWithPool(t *testing.T) (*postgres.PostStore, uuid.UUID, *pgxpoo
 	if err != nil {
 		t.Fatalf("inserting author: %v", err)
 	}
-	return postgres.NewPostStore(pool), author, pool
+	return postgres.NewContentStore(pool), author, pool
 }
 
 // mustPost returns a draft post with the given title.
-func mustPost(t *testing.T, title string, author uuid.UUID) post.Post {
+func mustPost(t *testing.T, title string, author uuid.UUID) content.Content {
 	t.Helper()
-	p, err := post.New(post.TypePost, title, author)
+	p, err := content.New(content.TypePost, title, author)
 	if err != nil {
 		t.Fatalf("New(%q) error = %v, want nil", title, err)
 	}
@@ -63,7 +63,7 @@ func mustPost(t *testing.T, title string, author uuid.UUID) post.Post {
 }
 
 // mustCreate stores a draft post with the given title.
-func mustCreate(t *testing.T, store *postgres.PostStore, title string, author uuid.UUID) post.Post {
+func mustCreate(t *testing.T, store *postgres.ContentStore, title string, author uuid.UUID) content.Content {
 	t.Helper()
 	created, err := store.Create(t.Context(), mustPost(t, title, author))
 	if err != nil {
@@ -72,10 +72,10 @@ func mustCreate(t *testing.T, store *postgres.PostStore, title string, author uu
 	return created
 }
 
-func TestPostStoreCreateAndReadBack(t *testing.T) {
+func TestContentStoreCreateAndReadBack(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	p := mustPost(t, "Hello World", author)
 
 	created, err := store.Create(t.Context(), p)
@@ -86,8 +86,8 @@ func TestPostStoreCreateAndReadBack(t *testing.T) {
 	if created.Slug != "hello-world" {
 		t.Errorf("Slug = %q, want %q", created.Slug, "hello-world")
 	}
-	if created.Status != post.StatusDraft {
-		t.Errorf("Status = %q, want %q", created.Status, post.StatusDraft)
+	if created.Status != content.StatusDraft {
+		t.Errorf("Status = %q, want %q", created.Status, content.StatusDraft)
 	}
 
 	got, err := store.ByID(t.Context(), p.ID)
@@ -106,10 +106,10 @@ func TestPostStoreCreateAndReadBack(t *testing.T) {
 	}
 }
 
-func TestPostStoreCreateSuffixesTakenSlugs(t *testing.T) {
+func TestContentStoreCreateSuffixesTakenSlugs(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	mustCreate(t, store, "Hello World", author)
 
 	second := mustCreate(t, store, "Hello World", author)
@@ -123,10 +123,10 @@ func TestPostStoreCreateSuffixesTakenSlugs(t *testing.T) {
 	}
 }
 
-func TestPostStoreCreatesPastTheSuffixesItTries(t *testing.T) {
+func TestContentStoreCreatesPastTheSuffixesItTries(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	slugs := make(map[string]bool)
 
 	const past = 25
@@ -144,11 +144,11 @@ func TestPostStoreCreatesPastTheSuffixesItTries(t *testing.T) {
 	}
 }
 
-func TestPostStoreCreateSuffixesUnderConcurrency(t *testing.T) {
+func TestContentStoreCreateSuffixesUnderConcurrency(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
-	posts := []post.Post{mustPost(t, "Race", author), mustPost(t, "Race", author)}
+	store, author := newContentStore(t)
+	posts := []content.Content{mustPost(t, "Race", author), mustPost(t, "Race", author)}
 	slugs := make([]string, len(posts))
 	errs := make([]error, len(posts))
 
@@ -173,10 +173,10 @@ func TestPostStoreCreateSuffixesUnderConcurrency(t *testing.T) {
 	}
 }
 
-func TestPostStoreCreateRejectsAnUnknownAuthor(t *testing.T) {
+func TestContentStoreCreateRejectsAnUnknownAuthor(t *testing.T) {
 	t.Parallel()
 
-	store, _ := newPostStore(t)
+	store, _ := newContentStore(t)
 	orphan := mustPost(t, "Orphan", uuid.Must(uuid.NewV7()))
 
 	_, err := store.Create(t.Context(), orphan)
@@ -186,29 +186,29 @@ func TestPostStoreCreateRejectsAnUnknownAuthor(t *testing.T) {
 	}
 }
 
-func TestPostStoreByIDReportsMissingPosts(t *testing.T) {
+func TestContentStoreByIDReportsMissingPosts(t *testing.T) {
 	t.Parallel()
 
-	store, _ := newPostStore(t)
+	store, _ := newContentStore(t)
 
 	_, err := store.ByID(t.Context(), uuid.Must(uuid.NewV7()))
 
-	if !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("ByID() error = %v, want %v", err, post.ErrNotFound)
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("ByID() error = %v, want %v", err, content.ErrNotFound)
 	}
 }
 
-func TestPostStoreUpdateChangesEditableFields(t *testing.T) {
+func TestContentStoreUpdateChangesEditableFields(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Draft Title", author)
 	edited := created
 	edited.Title = "Published Title"
 	edited.Content = "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->"
 	edited.Excerpt = "Summary"
 	published := time.Now().UTC().Truncate(time.Microsecond)
-	edited.Status = post.StatusPublished
+	edited.Status = content.StatusPublished
 	edited.PublishedAt = &published
 	edited.UpdatedAt = published
 
@@ -220,18 +220,18 @@ func TestPostStoreUpdateChangesEditableFields(t *testing.T) {
 	if updated.Title != "Published Title" || updated.Excerpt != "Summary" {
 		t.Errorf("Update() = %+v, want the edited title and excerpt", updated)
 	}
-	if updated.Status != post.StatusPublished {
-		t.Errorf("Status = %q, want %q", updated.Status, post.StatusPublished)
+	if updated.Status != content.StatusPublished {
+		t.Errorf("Status = %q, want %q", updated.Status, content.StatusPublished)
 	}
 	if updated.PublishedAt == nil || !updated.PublishedAt.Equal(published) {
 		t.Errorf("PublishedAt = %v, want %v", updated.PublishedAt, published)
 	}
 }
 
-func TestPostStoreUpdateSuffixesTakenSlugs(t *testing.T) {
+func TestContentStoreUpdateSuffixesTakenSlugs(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	mustCreate(t, store, "Taken Slug", author)
 	other := mustCreate(t, store, "Other Slug", author)
 	edited := other
@@ -247,23 +247,23 @@ func TestPostStoreUpdateSuffixesTakenSlugs(t *testing.T) {
 	}
 }
 
-func TestPostStoreUpdateReportsMissingPosts(t *testing.T) {
+func TestContentStoreUpdateReportsMissingPosts(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	missing := mustPost(t, "Missing", author)
 
 	_, err := store.Update(t.Context(), missing, missing.UpdatedAt, nil, 0)
 
-	if !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("Update() error = %v, want %v", err, post.ErrNotFound)
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("Update() error = %v, want %v", err, content.ErrNotFound)
 	}
 }
 
-func TestPostStoreUpdateReportsConflictingUpdates(t *testing.T) {
+func TestContentStoreUpdateReportsConflictingUpdates(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Contended", author)
 	_, err := store.Update(t.Context(), editTitle(created, "First Writer"), created.UpdatedAt, nil, 0)
 	if err != nil {
@@ -272,8 +272,8 @@ func TestPostStoreUpdateReportsConflictingUpdates(t *testing.T) {
 
 	_, err = store.Update(t.Context(), editTitle(created, "Second Writer"), created.UpdatedAt, nil, 0)
 
-	if !errors.Is(err, post.ErrConflict) {
-		t.Errorf("Update() with a stale token error = %v, want %v", err, post.ErrConflict)
+	if !errors.Is(err, content.ErrConflict) {
+		t.Errorf("Update() with a stale token error = %v, want %v", err, content.ErrConflict)
 	}
 	current, byIDErr := store.ByID(t.Context(), created.ID)
 	if byIDErr != nil {
@@ -284,10 +284,10 @@ func TestPostStoreUpdateReportsConflictingUpdates(t *testing.T) {
 	}
 }
 
-func TestPostStoreUpdateReturnsAVersionTheNextUpdateAccepts(t *testing.T) {
+func TestContentStoreUpdateReturnsAVersionTheNextUpdateAccepts(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Chained Writes", author)
 	first := created
 	first.Title, first.UpdatedAt = "First Edit", time.Now().UTC()
@@ -310,16 +310,16 @@ func TestPostStoreUpdateReturnsAVersionTheNextUpdateAccepts(t *testing.T) {
 	}
 }
 
-func TestPostStoreUpdateWithASnapshotReportsMissingPosts(t *testing.T) {
+func TestContentStoreUpdateWithASnapshotReportsMissingPosts(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	missing := mustPost(t, "Missing", author)
 
 	_, err := store.Update(t.Context(), missing, missing.UpdatedAt, mustSnapshot(t, missing, author), 0)
 
-	if !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("Update() error = %v, want %v", err, post.ErrNotFound)
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("Update() error = %v, want %v", err, content.ErrNotFound)
 	}
 	revisions, revErr := store.Revisions(t.Context(), missing.ID)
 	if revErr != nil {
@@ -330,10 +330,10 @@ func TestPostStoreUpdateWithASnapshotReportsMissingPosts(t *testing.T) {
 	}
 }
 
-func TestPostStoreUpdateWrapsDatabaseFailures(t *testing.T) {
+func TestContentStoreUpdateWrapsDatabaseFailures(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
+	store, author, pool := newContentStoreWithPool(t)
 	created := mustCreate(t, store, "Wrapped", author)
 	pool.Close()
 
@@ -342,15 +342,15 @@ func TestPostStoreUpdateWrapsDatabaseFailures(t *testing.T) {
 	if err == nil {
 		t.Fatal("Update() on a closed pool error = nil, want a failure")
 	}
-	if !strings.Contains(err.Error(), "postgres: update post") {
-		t.Errorf("Update() error = %q, want the update post prefix", err)
+	if !strings.Contains(err.Error(), "postgres: update content") {
+		t.Errorf("Update() error = %q, want the update content prefix", err)
 	}
 }
 
-func TestPostStoreTrashRenamesTheSlug(t *testing.T) {
+func TestContentStoreTrashRenamesTheSlug(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Hello World", author)
 
 	trashed, err := store.Trash(t.Context(), created.ID, time.Now().UTC())
@@ -358,30 +358,30 @@ func TestPostStoreTrashRenamesTheSlug(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Trash() error = %v, want nil", err)
 	}
-	if trashed.Status != post.StatusTrash {
-		t.Errorf("Status = %q, want %q", trashed.Status, post.StatusTrash)
+	if trashed.Status != content.StatusTrash {
+		t.Errorf("Status = %q, want %q", trashed.Status, content.StatusTrash)
 	}
 	if !trashedSlug.MatchString(trashed.Slug) {
 		t.Errorf("Slug = %q, want it to match %v", trashed.Slug, trashedSlug)
 	}
 }
 
-func TestPostStoreTrashReportsMissingPosts(t *testing.T) {
+func TestContentStoreTrashReportsMissingPosts(t *testing.T) {
 	t.Parallel()
 
-	store, _ := newPostStore(t)
+	store, _ := newContentStore(t)
 
 	_, err := store.Trash(t.Context(), uuid.Must(uuid.NewV7()), time.Now().UTC())
 
-	if !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("Trash() error = %v, want %v", err, post.ErrNotFound)
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("Trash() error = %v, want %v", err, content.ErrNotFound)
 	}
 }
 
-func TestPostStoreRestoreRecoversTheOriginalSlug(t *testing.T) {
+func TestContentStoreRestoreRecoversTheOriginalSlug(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Hello World", author)
 	if _, err := store.Trash(t.Context(), created.ID, time.Now().UTC()); err != nil {
 		t.Fatalf("Trash() error = %v, want nil", err)
@@ -392,18 +392,18 @@ func TestPostStoreRestoreRecoversTheOriginalSlug(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Restore() error = %v, want nil", err)
 	}
-	if restored.Status != post.StatusDraft {
-		t.Errorf("Status = %q, want %q", restored.Status, post.StatusDraft)
+	if restored.Status != content.StatusDraft {
+		t.Errorf("Status = %q, want %q", restored.Status, content.StatusDraft)
 	}
 	if restored.Slug != "hello-world" {
 		t.Errorf("Slug = %q, want the original %q", restored.Slug, "hello-world")
 	}
 }
 
-func TestPostStoreRestoreKeepsTheRenamedSlugWhenTheOriginalIsTaken(t *testing.T) {
+func TestContentStoreRestoreKeepsTheRenamedSlugWhenTheOriginalIsTaken(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Hello World", author)
 	trashed, err := store.Trash(t.Context(), created.ID, time.Now().UTC())
 	if err != nil {
@@ -424,41 +424,41 @@ func TestPostStoreRestoreKeepsTheRenamedSlugWhenTheOriginalIsTaken(t *testing.T)
 	}
 }
 
-func TestPostStoreRestoreReportsMissingPosts(t *testing.T) {
+func TestContentStoreRestoreReportsMissingPosts(t *testing.T) {
 	t.Parallel()
 
-	store, _ := newPostStore(t)
+	store, _ := newContentStore(t)
 
 	_, err := store.Restore(t.Context(), uuid.Must(uuid.NewV7()), time.Now().UTC())
 
-	if !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("Restore() error = %v, want %v", err, post.ErrNotFound)
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("Restore() error = %v, want %v", err, content.ErrNotFound)
 	}
 }
 
-func TestPostStoreDeleteRemovesThePost(t *testing.T) {
+func TestContentStoreDeleteRemovesThePost(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Doomed", author)
 
 	if err := store.Delete(t.Context(), created.ID); err != nil {
 		t.Fatalf("Delete() error = %v, want nil", err)
 	}
 
-	if _, err := store.ByID(t.Context(), created.ID); !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("ByID() after delete error = %v, want %v", err, post.ErrNotFound)
+	if _, err := store.ByID(t.Context(), created.ID); !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("ByID() after delete error = %v, want %v", err, content.ErrNotFound)
 	}
 }
 
-func TestPostStoreDeleteReportsMissingPosts(t *testing.T) {
+func TestContentStoreDeleteReportsMissingPosts(t *testing.T) {
 	t.Parallel()
 
-	store, _ := newPostStore(t)
+	store, _ := newContentStore(t)
 
 	err := store.Delete(t.Context(), uuid.Must(uuid.NewV7()))
 
-	if !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("Delete() error = %v, want %v", err, post.ErrNotFound)
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("Delete() error = %v, want %v", err, content.ErrNotFound)
 	}
 }

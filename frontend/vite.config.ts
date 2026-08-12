@@ -40,7 +40,7 @@ export default defineConfig({
 	test: {
 		environment: 'jsdom',
 		env: { TZ: 'UTC' },
-		css: { include: [/index\.css$/, /src\/posts\/editor\.css$/, /src\/media\/media\.css$/] },
+		css: { include: [/index\.css$/, /src\/content\/editor\.css$/, /src\/media\/media\.css$/] },
 		hookTimeout: 120000,
 		server: { deps: { inline: [/@wordpress\//] } },
 		setupFiles: ['./src/test/setup.ts'],

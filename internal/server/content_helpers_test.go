@@ -18,16 +18,16 @@ import (
 	"github.com/gopherium/gouncer/authkit"
 	"github.com/gopherium/gouncer/authkit/testkit"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
-var _ post.Store = (*fakePostStore)(nil)
+var _ content.Store = (*fakePostStore)(nil)
 
 // fakePostStore is an in-memory post store double with per-method error injection.
 type fakePostStore struct {
-	posts        map[uuid.UUID]post.Post
-	lastFilter   post.Filter
+	posts        map[uuid.UUID]content.Content
+	lastFilter   content.Filter
 	createErr    error
 	byIDErr      error
 	publishedErr error
@@ -38,80 +38,80 @@ type fakePostStore struct {
 	deleteErr    error
 	countsErr    error
 
-	revisions         []post.Revision
+	revisions         []content.Revision
 	revisionsErr      error
 	revisionErr       error
 	deleteRevisionErr error
 	saveAutosaveErr   error
 	autosaveErr       error
 	deleteAutosaveErr error
-	lastSnapshot      *post.Revision
+	lastSnapshot      *content.Revision
 	lastRevisionCap   int
 }
 
 // newFakePostStore returns an empty in-memory post store double.
 func newFakePostStore() *fakePostStore {
-	return &fakePostStore{posts: map[uuid.UUID]post.Post{}}
+	return &fakePostStore{posts: map[uuid.UUID]content.Content{}}
 }
 
 // add stores p directly.
-func (s *fakePostStore) add(p post.Post) post.Post {
+func (s *fakePostStore) add(p content.Content) content.Content {
 	s.posts[p.ID] = p
 	return p
 }
 
 // ordered returns the stored posts newest first.
-func (s *fakePostStore) ordered() []post.Post {
-	posts := make([]post.Post, 0, len(s.posts))
+func (s *fakePostStore) ordered() []content.Content {
+	posts := make([]content.Content, 0, len(s.posts))
 	for _, p := range s.posts {
 		posts = append(posts, p)
 	}
-	slices.SortFunc(posts, func(a, b post.Post) int {
+	slices.SortFunc(posts, func(a, b content.Content) int {
 		return strings.Compare(b.ID.String(), a.ID.String())
 	})
 	return posts
 }
 
 // Create stores p unless a create error is injected.
-func (s *fakePostStore) Create(_ context.Context, p post.Post) (post.Post, error) {
+func (s *fakePostStore) Create(_ context.Context, p content.Content) (content.Content, error) {
 	if s.createErr != nil {
-		return post.Post{}, s.createErr
+		return content.Content{}, s.createErr
 	}
 	return s.add(p), nil
 }
 
-// ByID returns the stored post, or [post.ErrNotFound].
-func (s *fakePostStore) ByID(_ context.Context, id uuid.UUID) (post.Post, error) {
+// ByID returns the stored post, or [content.ErrNotFound].
+func (s *fakePostStore) ByID(_ context.Context, id uuid.UUID) (content.Content, error) {
 	if s.byIDErr != nil {
-		return post.Post{}, s.byIDErr
+		return content.Content{}, s.byIDErr
 	}
 	p, ok := s.posts[id]
 	if !ok {
-		return post.Post{}, post.ErrNotFound
+		return content.Content{}, content.ErrNotFound
 	}
 	return p, nil
 }
 
 // PublishedBySlug returns the published post of the given type and slug.
-func (s *fakePostStore) PublishedBySlug(_ context.Context, postType, slug string) (post.Post, error) {
+func (s *fakePostStore) PublishedBySlug(_ context.Context, postType, slug string) (content.Content, error) {
 	if s.publishedErr != nil {
-		return post.Post{}, s.publishedErr
+		return content.Content{}, s.publishedErr
 	}
 	for _, p := range s.ordered() {
-		if p.Type == postType && p.Slug == slug && p.Status == post.StatusPublished {
+		if p.Type == postType && p.Slug == slug && p.Status == content.StatusPublished {
 			return p, nil
 		}
 	}
-	return post.Post{}, post.ErrNotFound
+	return content.Content{}, content.ErrNotFound
 }
 
 // List returns the stored posts matching the filter's status and search.
-func (s *fakePostStore) List(_ context.Context, f post.Filter) ([]post.Post, int, error) {
+func (s *fakePostStore) List(_ context.Context, f content.Filter) ([]content.Content, int, error) {
 	s.lastFilter = f
 	if s.listErr != nil {
 		return nil, 0, s.listErr
 	}
-	matched := make([]post.Post, 0, len(s.posts))
+	matched := make([]content.Content, 0, len(s.posts))
 	for _, p := range s.ordered() {
 		if p.Type != f.Type {
 			continue
@@ -132,17 +132,17 @@ func (s *fakePostStore) List(_ context.Context, f post.Filter) ([]post.Post, int
 
 // Update stores the post's fields and any snapshot unless an update error is injected.
 func (s *fakePostStore) Update(
-	_ context.Context, p post.Post, expectedUpdatedAt time.Time, snapshot *post.Revision, revisionCap int,
-) (post.Post, error) {
+	_ context.Context, p content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision, revisionCap int,
+) (content.Content, error) {
 	if s.updateErr != nil {
-		return post.Post{}, s.updateErr
+		return content.Content{}, s.updateErr
 	}
 	existing, ok := s.posts[p.ID]
 	if !ok {
-		return post.Post{}, post.ErrNotFound
+		return content.Content{}, content.ErrNotFound
 	}
 	if !existing.UpdatedAt.Equal(expectedUpdatedAt) {
-		return post.Post{}, post.ErrConflict
+		return content.Content{}, content.ErrConflict
 	}
 	s.lastSnapshot, s.lastRevisionCap = snapshot, revisionCap
 	if snapshot != nil {
@@ -152,61 +152,61 @@ func (s *fakePostStore) Update(
 }
 
 // Trash marks the stored post trashed.
-func (s *fakePostStore) Trash(_ context.Context, id uuid.UUID, updatedAt time.Time) (post.Post, error) {
+func (s *fakePostStore) Trash(_ context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	if s.trashErr != nil {
-		return post.Post{}, s.trashErr
+		return content.Content{}, s.trashErr
 	}
 	p, ok := s.posts[id]
 	if !ok {
-		return post.Post{}, post.ErrNotFound
+		return content.Content{}, content.ErrNotFound
 	}
-	p.Status = post.StatusTrash
+	p.Status = content.StatusTrash
 	p.Slug += "-trashed-abcd1234"
 	p.UpdatedAt = updatedAt
 	return s.add(p), nil
 }
 
 // Restore returns the stored post to draft.
-func (s *fakePostStore) Restore(_ context.Context, id uuid.UUID, updatedAt time.Time) (post.Post, error) {
+func (s *fakePostStore) Restore(_ context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	if s.restoreErr != nil {
-		return post.Post{}, s.restoreErr
+		return content.Content{}, s.restoreErr
 	}
 	p, ok := s.posts[id]
 	if !ok {
-		return post.Post{}, post.ErrNotFound
+		return content.Content{}, content.ErrNotFound
 	}
-	p.Status = post.StatusDraft
+	p.Status = content.StatusDraft
 	p.Slug = strings.TrimSuffix(p.Slug, "-trashed-abcd1234")
 	p.UpdatedAt = updatedAt
 	return s.add(p), nil
 }
 
-// Delete removes the stored post.
+// Delete removes the stored content.
 func (s *fakePostStore) Delete(_ context.Context, id uuid.UUID) error {
 	if s.deleteErr != nil {
 		return s.deleteErr
 	}
 	if _, ok := s.posts[id]; !ok {
-		return post.ErrNotFound
+		return content.ErrNotFound
 	}
 	delete(s.posts, id)
 	return nil
 }
 
 // Revisions returns the post's stored revisions newest first, without content.
-func (s *fakePostStore) Revisions(_ context.Context, postID uuid.UUID) ([]post.Revision, error) {
+func (s *fakePostStore) Revisions(_ context.Context, postID uuid.UUID) ([]content.Revision, error) {
 	if s.revisionsErr != nil {
 		return nil, s.revisionsErr
 	}
-	stored := make([]post.Revision, 0, len(s.revisions))
+	stored := make([]content.Revision, 0, len(s.revisions))
 	for _, r := range s.revisions {
-		if r.PostID != postID {
+		if r.ContentID != postID {
 			continue
 		}
 		r.Content = ""
 		stored = append(stored, r)
 	}
-	slices.SortFunc(stored, func(a, b post.Revision) int {
+	slices.SortFunc(stored, func(a, b content.Revision) int {
 		if c := b.CreatedAt.Compare(a.CreatedAt); c != 0 {
 			return c
 		}
@@ -215,40 +215,40 @@ func (s *fakePostStore) Revisions(_ context.Context, postID uuid.UUID) ([]post.R
 	return stored, nil
 }
 
-// RevisionByID returns the stored revision, or [post.ErrRevisionNotFound].
-func (s *fakePostStore) RevisionByID(_ context.Context, postID, revisionID uuid.UUID) (post.Revision, error) {
+// RevisionByID returns the stored revision, or [content.ErrRevisionNotFound].
+func (s *fakePostStore) RevisionByID(_ context.Context, postID, revisionID uuid.UUID) (content.Revision, error) {
 	if s.revisionErr != nil {
-		return post.Revision{}, s.revisionErr
+		return content.Revision{}, s.revisionErr
 	}
 	for _, r := range s.revisions {
-		if r.ID == revisionID && r.PostID == postID {
+		if r.ID == revisionID && r.ContentID == postID {
 			return r, nil
 		}
 	}
-	return post.Revision{}, post.ErrRevisionNotFound
+	return content.Revision{}, content.ErrRevisionNotFound
 }
 
-// DeleteRevision removes the stored revision, or reports [post.ErrRevisionNotFound].
+// DeleteRevision removes the stored revision, or reports [content.ErrRevisionNotFound].
 func (s *fakePostStore) DeleteRevision(_ context.Context, postID, revisionID uuid.UUID) error {
 	if s.deleteRevisionErr != nil {
 		return s.deleteRevisionErr
 	}
 	for i, r := range s.revisions {
-		if r.ID == revisionID && r.PostID == postID {
+		if r.ID == revisionID && r.ContentID == postID {
 			s.revisions = append(s.revisions[:i], s.revisions[i+1:]...)
 			return nil
 		}
 	}
-	return post.ErrRevisionNotFound
+	return content.ErrRevisionNotFound
 }
 
 // SaveAutosave stores the author's autosave, replacing any earlier one.
-func (s *fakePostStore) SaveAutosave(_ context.Context, autosave post.Revision) (post.Revision, error) {
+func (s *fakePostStore) SaveAutosave(_ context.Context, autosave content.Revision) (content.Revision, error) {
 	if s.saveAutosaveErr != nil {
-		return post.Revision{}, s.saveAutosaveErr
+		return content.Revision{}, s.saveAutosaveErr
 	}
 	for i, r := range s.revisions {
-		if r.Kind == post.RevisionKindAutosave && r.PostID == autosave.PostID && r.AuthorID == autosave.AuthorID {
+		if r.Kind == content.RevisionKindAutosave && r.ContentID == autosave.ContentID && r.AuthorID == autosave.AuthorID {
 			autosave.ID = r.ID
 			s.revisions[i] = autosave
 			return autosave, nil
@@ -258,13 +258,13 @@ func (s *fakePostStore) SaveAutosave(_ context.Context, autosave post.Revision) 
 	return autosave, nil
 }
 
-// DeleteAutosave removes the author's autosave of the post.
+// DeleteAutosave removes the author's autosave of the content.
 func (s *fakePostStore) DeleteAutosave(_ context.Context, postID, authorID uuid.UUID) error {
 	if s.deleteAutosaveErr != nil {
 		return s.deleteAutosaveErr
 	}
 	for i, r := range s.revisions {
-		if r.Kind == post.RevisionKindAutosave && r.PostID == postID && r.AuthorID == authorID {
+		if r.Kind == content.RevisionKindAutosave && r.ContentID == postID && r.AuthorID == authorID {
 			s.revisions = append(s.revisions[:i], s.revisions[i+1:]...)
 			return nil
 		}
@@ -272,25 +272,25 @@ func (s *fakePostStore) DeleteAutosave(_ context.Context, postID, authorID uuid.
 	return nil
 }
 
-// Autosave returns the author's autosave, or [post.ErrRevisionNotFound].
-func (s *fakePostStore) Autosave(_ context.Context, postID, authorID uuid.UUID) (post.Revision, error) {
+// Autosave returns the author's autosave, or [content.ErrRevisionNotFound].
+func (s *fakePostStore) Autosave(_ context.Context, postID, authorID uuid.UUID) (content.Revision, error) {
 	if s.autosaveErr != nil {
-		return post.Revision{}, s.autosaveErr
+		return content.Revision{}, s.autosaveErr
 	}
 	for _, r := range s.revisions {
-		if r.Kind == post.RevisionKindAutosave && r.PostID == postID && r.AuthorID == authorID {
+		if r.Kind == content.RevisionKindAutosave && r.ContentID == postID && r.AuthorID == authorID {
 			return r, nil
 		}
 	}
-	return post.Revision{}, post.ErrRevisionNotFound
+	return content.Revision{}, content.ErrRevisionNotFound
 }
 
 // Counts returns the number of stored posts in each status.
-func (s *fakePostStore) Counts(_ context.Context, _ string) (map[post.Status]int, error) {
+func (s *fakePostStore) Counts(_ context.Context, _ string) (map[content.Status]int, error) {
 	if s.countsErr != nil {
 		return nil, s.countsErr
 	}
-	counts := map[post.Status]int{}
+	counts := map[content.Status]int{}
 	for _, p := range s.posts {
 		counts[p.Status]++
 	}
@@ -310,9 +310,9 @@ func versionedBody(t *testing.T, version time.Time, fields map[string]any) strin
 }
 
 // newPost returns a draft post authored by author.
-func newPost(t *testing.T, title string, author uuid.UUID) post.Post {
+func newPost(t *testing.T, title string, author uuid.UUID) content.Content {
 	t.Helper()
-	p, err := post.New(post.TypePost, title, author)
+	p, err := content.New(content.TypePost, title, author)
 	if err != nil {
 		t.Fatalf("New(%q) error = %v, want nil", title, err)
 	}
@@ -335,12 +335,12 @@ func authedPostServer(t *testing.T) (http.Handler, *fakePostStore, gouncer.User)
 }
 
 // serverConfig returns a server config over the given stores.
-func serverConfig(users authkit.AdminStore, posts post.Store) server.Config {
-	return server.Config{Users: users, Posts: posts}
+func serverConfig(users authkit.AdminStore, posts content.Store) server.Config {
+	return server.Config{Users: users, Content: posts}
 }
 
 // serverWithStores returns an unauthenticated handler over the given stores.
-func serverWithStores(users authkit.AdminStore, posts post.Store) http.Handler {
+func serverWithStores(users authkit.AdminStore, posts content.Store) http.Handler {
 	return server.NewServer(serverConfig(users, posts))
 }
 

@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
-import { fetchPostCounts, listPosts } from '../posts/api'
+import { fetchPostCounts, listPosts } from '../content/api'
 
 const ROW = {
 	id: '019fb000-0000-7000-8000-000000000001',
@@ -26,7 +26,7 @@ const ROW = {
 function captureList(): string[] {
 	const queries: string[] = []
 	server.use(
-		http.get('/api/posts', ({ request }) => {
+		http.get('/api/content', ({ request }) => {
 			queries.push(new URL(request.url).search)
 			return HttpResponse.json({ items: [ROW], total: 1 })
 		}),
@@ -69,14 +69,14 @@ test('omits filters that were not asked for', async () => {
 })
 
 test('reports a failed listing', async () => {
-	server.use(http.get('/api/posts', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.get('/api/content', () => HttpResponse.json({}, { status: 500 })))
 
 	await expect(listPosts({})).rejects.toThrow(/500/)
 })
 
 test('reads the count of every status', async () => {
 	server.use(
-		http.get('/api/posts/counts', () =>
+		http.get('/api/content/counts', () =>
 			HttpResponse.json({ draft: 3, published: 2, pending: 0, private: 0, trash: 1 }),
 		),
 	)
@@ -88,7 +88,7 @@ test('reads the count of every status', async () => {
 })
 
 test('reports a failed count', async () => {
-	server.use(http.get('/api/posts/counts', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.get('/api/content/counts', () => HttpResponse.json({}, { status: 500 })))
 
 	await expect(fetchPostCounts()).rejects.toThrow(/500/)
 })

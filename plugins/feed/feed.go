@@ -36,7 +36,7 @@ var blockComment = regexp.MustCompile(`<!-- /?wp:[\s\S]*?-->`)
 
 // plugin serves published posts as an RSS channel.
 type plugin struct {
-	posts sdk.PostReader
+	posts sdk.ContentReader
 	title string
 	items int
 }
@@ -52,7 +52,7 @@ func Register(deps sdk.Deps) (sdk.Plugin, error) {
 		return nil, err
 	}
 	return &plugin{
-		posts: deps.Posts,
+		posts: deps.Content,
 		title: title,
 		items: items,
 	}, nil
@@ -154,7 +154,7 @@ type rssGUID struct {
 }
 
 // channelOf returns the channel carrying the given posts under the given origin.
-func (p *plugin) channelOf(origin string, posts []sdk.Post) rss {
+func (p *plugin) channelOf(origin string, posts []sdk.Item) rss {
 	items := make([]rssItem, len(posts))
 	for i, published := range posts {
 		items[i] = rssItem{

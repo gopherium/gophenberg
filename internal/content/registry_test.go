@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package post_test
+package content_test
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // overflowCap returns a revision cap too large for the row limit of a query.
@@ -26,13 +26,13 @@ func overflowCap(t *testing.T) int {
 func TestTypeByNameReturnsTheBuiltinPostType(t *testing.T) {
 	t.Parallel()
 
-	got, ok := post.TypeByName(post.TypePost)
+	got, ok := content.TypeByName(content.TypePost)
 
 	if !ok {
-		t.Fatalf("TypeByName(%q) reported the built-in type missing", post.TypePost)
+		t.Fatalf("TypeByName(%q) reported the built-in type missing", content.TypePost)
 	}
-	if got.Name != post.TypePost {
-		t.Errorf("Name = %q, want %q", got.Name, post.TypePost)
+	if got.Name != content.TypePost {
+		t.Errorf("Name = %q, want %q", got.Name, content.TypePost)
 	}
 	if got.Label == "" {
 		t.Error("Label is empty, want a display label")
@@ -51,7 +51,7 @@ func TestTypeByNameReturnsTheBuiltinPostType(t *testing.T) {
 func TestTypeByNameReportsUnknownTypes(t *testing.T) {
 	t.Parallel()
 
-	if _, ok := post.TypeByName("never-registered"); ok {
+	if _, ok := content.TypeByName("never-registered"); ok {
 		t.Error("TypeByName() found an unregistered type, want it reported missing")
 	}
 }
@@ -59,10 +59,10 @@ func TestTypeByNameReportsUnknownTypes(t *testing.T) {
 func TestRegisterMakesATypeLookupable(t *testing.T) {
 	t.Parallel()
 
-	want := post.Type{Name: "p2-lookup", Label: "Lookups", Hierarchical: true, Revisions: true, RevisionCap: 5}
-	post.Register(want)
+	want := content.Type{Name: "p2-lookup", Label: "Lookups", Hierarchical: true, Revisions: true, RevisionCap: 5}
+	content.Register(want)
 
-	got, ok := post.TypeByName("p2-lookup")
+	got, ok := content.TypeByName("p2-lookup")
 
 	if !ok {
 		t.Fatal("TypeByName() reported the registered type missing")
@@ -75,7 +75,7 @@ func TestRegisterMakesATypeLookupable(t *testing.T) {
 func TestRegisterPanicsOnADuplicateName(t *testing.T) {
 	t.Parallel()
 
-	post.Register(post.Type{Name: "p2-duplicate", Label: "Duplicates"})
+	content.Register(content.Type{Name: "p2-duplicate", Label: "Duplicates"})
 
 	defer func() {
 		if recover() == nil {
@@ -83,7 +83,7 @@ func TestRegisterPanicsOnADuplicateName(t *testing.T) {
 		}
 	}()
 
-	post.Register(post.Type{Name: "p2-duplicate", Label: "Duplicates"})
+	content.Register(content.Type{Name: "p2-duplicate", Label: "Duplicates"})
 }
 
 func TestRegisterPanicsOnAnEmptyName(t *testing.T) {
@@ -95,7 +95,7 @@ func TestRegisterPanicsOnAnEmptyName(t *testing.T) {
 		}
 	}()
 
-	post.Register(post.Type{Label: "Nameless"})
+	content.Register(content.Type{Label: "Nameless"})
 }
 
 func TestRegisterPanicsOnAnOversizedRevisionCap(t *testing.T) {
@@ -107,7 +107,7 @@ func TestRegisterPanicsOnAnOversizedRevisionCap(t *testing.T) {
 		}
 	}()
 
-	post.Register(post.Type{
+	content.Register(content.Type{
 		Name: "p8-oversized", Label: "Oversized", Revisions: true, RevisionCap: overflowCap(t),
 	})
 }
@@ -115,19 +115,19 @@ func TestRegisterPanicsOnAnOversizedRevisionCap(t *testing.T) {
 func TestNewRejectsUnregisteredTypes(t *testing.T) {
 	t.Parallel()
 
-	_, err := post.New("not-a-registered-type", "Hello", uuid.Must(uuid.NewV7()))
+	_, err := content.New("not-a-registered-type", "Hello", uuid.Must(uuid.NewV7()))
 
-	if !errors.Is(err, post.ErrInvalidType) {
-		t.Errorf("New() error = %v, want %v", err, post.ErrInvalidType)
+	if !errors.Is(err, content.ErrInvalidType) {
+		t.Errorf("New() error = %v, want %v", err, content.ErrInvalidType)
 	}
 }
 
 func TestNewAcceptsATypeRegisteredAtRuntime(t *testing.T) {
 	t.Parallel()
 
-	post.Register(post.Type{Name: "p2-new", Label: "Runtime"})
+	content.Register(content.Type{Name: "p2-new", Label: "Runtime"})
 
-	p, err := post.New("p2-new", "Hello", uuid.Must(uuid.NewV7()))
+	p, err := content.New("p2-new", "Hello", uuid.Must(uuid.NewV7()))
 
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)

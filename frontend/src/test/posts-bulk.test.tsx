@@ -32,16 +32,16 @@ beforeEach(() => {
 	trashed.length = 0
 	restored.length = 0
 	server.use(
-		http.get('/api/posts', () => HttpResponse.json({ items: listed, total: listed.length })),
-		http.get('/api/posts/counts', () =>
+		http.get('/api/content', () => HttpResponse.json({ items: listed, total: listed.length })),
+		http.get('/api/content/counts', () =>
 			HttpResponse.json({ draft: 0, pending: 0, private: 0, published: listed.length, trash: 0 }),
 		),
-		http.delete('/api/posts/:id', ({ params }) => {
+		http.delete('/api/content/:id', ({ params }) => {
 			trashed.push(String(params.id))
 			listed = listed.filter((post) => post.id !== String(params.id))
 			return HttpResponse.json({ ...FIRST, id: String(params.id), status: 'trash' })
 		}),
-		http.post('/api/posts/:id/restore', ({ params }) => {
+		http.post('/api/content/:id/restore', ({ params }) => {
 			restored.push(String(params.id))
 			return HttpResponse.json({ ...FIRST, id: String(params.id), status: 'draft' })
 		}),
@@ -103,7 +103,7 @@ test('offers one undo covering the whole batch', async () => {
 
 test('reports a batch undo the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.post('/api/posts/:id/restore', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.post('/api/content/:id/restore', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/posts')
 	await selectBoth()
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
@@ -119,7 +119,7 @@ test('reports a batch undo the server refused', async () => {
 test('reports a batch the server partly refused and reloads the list', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.delete('/api/posts/:id', ({ params }) => {
+		http.delete('/api/content/:id', ({ params }) => {
 			if (String(params.id) === SECOND.id) {
 				return HttpResponse.json({}, { status: 500 })
 			}

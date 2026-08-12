@@ -12,7 +12,7 @@ const EDITOR_PATH = `/posts/${storedPost.id}/edit`
 
 const NEWER = {
 	target: 'autosave',
-	post_id: storedPost.id,
+	content_id: storedPost.id,
 	title: 'Words the browser kept',
 	content: '<!-- wp:paragraph -->\n<p>Kept words.</p>\n<!-- /wp:paragraph -->',
 	excerpt: '',
@@ -22,11 +22,11 @@ const NEWER = {
 const OLDER = { ...NEWER, saved_at: '2026-07-20T09:00:00Z' }
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
-	server.use(http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)))
+	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)))
 })
 
 /**
@@ -35,7 +35,7 @@ beforeEach(() => {
  */
 function serveAutosave(autosave: object | null) {
 	server.use(
-		http.get(`/api/posts/${storedPost.id}/autosave`, () =>
+		http.get(`/api/content/${storedPost.id}/autosave`, () =>
 			autosave === null
 				? HttpResponse.json({}, { status: 404 })
 				: HttpResponse.json(autosave),
@@ -54,7 +54,7 @@ test('says nothing when the server kept no words', async () => {
 test('says nothing when the kept words are older than the post', async () => {
 	const asked: string[] = []
 	server.use(
-		http.get(`/api/posts/${storedPost.id}/autosave`, () => {
+		http.get(`/api/content/${storedPost.id}/autosave`, () => {
 			asked.push('read')
 			return HttpResponse.json(OLDER)
 		}),
@@ -70,7 +70,7 @@ test('says nothing when the kept words are older than the post', async () => {
 test('says nothing when the post already holds the kept words', async () => {
 	const asked: string[] = []
 	server.use(
-		http.get(`/api/posts/${storedPost.id}/autosave`, () => {
+		http.get(`/api/content/${storedPost.id}/autosave`, () => {
 			asked.push('read')
 			return HttpResponse.json({
 				...NEWER,
@@ -91,10 +91,10 @@ test('says nothing when the post already holds the kept words', async () => {
 test('says nothing when the kept words trail the post inside one second', async () => {
 	const asked: string[] = []
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () =>
+		http.get(`/api/content/${storedPost.id}`, () =>
 			HttpResponse.json({ ...storedPost, updated_at: '2026-07-28T09:00:00.1045Z' }),
 		),
-		http.get(`/api/posts/${storedPost.id}/autosave`, () => {
+		http.get(`/api/content/${storedPost.id}/autosave`, () => {
 			asked.push('read')
 			return HttpResponse.json({ ...NEWER, saved_at: '2026-07-28T09:00:00.104Z' })
 		}),

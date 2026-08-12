@@ -11,7 +11,7 @@ import {
 	toAttachment,
 } from '../media/editorMedia'
 import type { EditorAttachment } from '../media/editorMedia'
-import { EDITOR_SETTINGS } from '../posts/editorSetup'
+import { EDITOR_SETTINGS } from '../content/editorSetup'
 
 const HARBOR = {
 	id: 7,

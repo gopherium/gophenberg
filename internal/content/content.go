@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-// Package post defines the content object at the center of the CMS.
-package post
+// Package content defines the content object at the center of the CMS.
+package content
 
 import (
 	"errors"
@@ -13,26 +13,26 @@ import (
 	"github.com/google/uuid"
 )
 
-// ErrInvalidType reports that a post type is not registered.
-var ErrInvalidType = errors.New("post: invalid type")
+// ErrInvalidType reports that a content type is not registered.
+var ErrInvalidType = errors.New("content: invalid type")
 
-// ErrInvalidAuthor reports that a post carries no author.
-var ErrInvalidAuthor = errors.New("post: invalid author")
+// ErrInvalidAuthor reports that a content item carries no author.
+var ErrInvalidAuthor = errors.New("content: invalid author")
 
-// ErrNotFound reports that no post exists for the requested ID.
-var ErrNotFound = errors.New("post: not found")
+// ErrNotFound reports that no content item exists for the requested ID.
+var ErrNotFound = errors.New("content: not found")
 
-// ErrSlugTaken reports that a post type already holds the requested slug.
-var ErrSlugTaken = errors.New("post: slug taken")
+// ErrSlugTaken reports that a content type already holds the requested slug.
+var ErrSlugTaken = errors.New("content: slug taken")
 
 // slugMaxLength bounds a generated slug in characters.
 const slugMaxLength = 200
 
-// untitledSlug is the slug of a post whose title yields no slug characters.
+// untitledSlug is the slug of a content item whose title yields no slug characters.
 const untitledSlug = "untitled"
 
-// Post is a content object holding Gutenberg-serialized block HTML.
-type Post struct {
+// Content is a content item holding Gutenberg-serialized block HTML.
+type Content struct {
 	ID          uuid.UUID
 	Type        string
 	Slug        string
@@ -46,21 +46,21 @@ type Post struct {
 	UpdatedAt   time.Time
 }
 
-// New returns a draft [Post] of the given type, slugged after its title.
-func New(postType, title string, authorID uuid.UUID) (Post, error) {
-	trimmedType := strings.TrimSpace(postType)
+// New returns a draft [Content] of the given type, slugged after its title.
+func New(contentType, title string, authorID uuid.UUID) (Content, error) {
+	trimmedType := strings.TrimSpace(contentType)
 	if _, ok := TypeByName(trimmedType); !ok {
-		return Post{}, ErrInvalidType
+		return Content{}, ErrInvalidType
 	}
 	if authorID == uuid.Nil {
-		return Post{}, ErrInvalidAuthor
+		return Content{}, ErrInvalidAuthor
 	}
 	id, err := uuid.NewV7()
 	if err != nil {
-		return Post{}, fmt.Errorf("post: generate id: %w", err)
+		return Content{}, fmt.Errorf("content: generate id: %w", err)
 	}
 	now := time.Now().UTC()
-	return Post{
+	return Content{
 		ID:        id,
 		Type:      trimmedType,
 		Slug:      Slugify(title),

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package post_test
+package content_test
 
 import (
 	"errors"
@@ -9,13 +9,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // newDraft returns a draft post for transition tests.
-func newDraft(t *testing.T) post.Post {
+func newDraft(t *testing.T) content.Content {
 	t.Helper()
-	p, err := post.New("post", "Hello World", uuid.Must(uuid.NewV7()))
+	p, err := content.New("post", "Hello World", uuid.Must(uuid.NewV7()))
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
 	}
@@ -25,15 +25,15 @@ func newDraft(t *testing.T) post.Post {
 func TestParseStatusAcceptsEveryStoredStatus(t *testing.T) {
 	t.Parallel()
 
-	for _, want := range []post.Status{
-		post.StatusDraft,
-		post.StatusPending,
-		post.StatusPrivate,
-		post.StatusScheduled,
-		post.StatusPublished,
-		post.StatusTrash,
+	for _, want := range []content.Status{
+		content.StatusDraft,
+		content.StatusPending,
+		content.StatusPrivate,
+		content.StatusScheduled,
+		content.StatusPublished,
+		content.StatusTrash,
 	} {
-		got, err := post.ParseStatus(string(want))
+		got, err := content.ParseStatus(string(want))
 
 		if err != nil {
 			t.Errorf("ParseStatus(%q) error = %v, want nil", want, err)
@@ -48,8 +48,8 @@ func TestParseStatusRejectsUnknownValues(t *testing.T) {
 	t.Parallel()
 
 	for _, in := range []string{"", "publsh", "DRAFT", "deleted"} {
-		if _, err := post.ParseStatus(in); !errors.Is(err, post.ErrInvalidStatus) {
-			t.Errorf("ParseStatus(%q) error = %v, want %v", in, err, post.ErrInvalidStatus)
+		if _, err := content.ParseStatus(in); !errors.Is(err, content.ErrInvalidStatus) {
+			t.Errorf("ParseStatus(%q) error = %v, want %v", in, err, content.ErrInvalidStatus)
 		}
 	}
 }
@@ -57,8 +57,10 @@ func TestParseStatusRejectsUnknownValues(t *testing.T) {
 func TestTransitionMatrix(t *testing.T) {
 	t.Parallel()
 
-	editable := []post.Status{post.StatusDraft, post.StatusPending, post.StatusPrivate, post.StatusPublished}
-	all := append(append([]post.Status{}, editable...), post.StatusScheduled, post.StatusTrash)
+	editable := []content.Status{
+		content.StatusDraft, content.StatusPending, content.StatusPrivate, content.StatusPublished,
+	}
+	all := append(append([]content.Status{}, editable...), content.StatusScheduled, content.StatusTrash)
 
 	for _, from := range all {
 		for _, to := range all {
@@ -73,8 +75,8 @@ func TestTransitionMatrix(t *testing.T) {
 
 				if want := wantsTransition(from, to); want && err != nil {
 					t.Errorf("Transition(%q from %q) error = %v, want nil", to, from, err)
-				} else if !want && !errors.Is(err, post.ErrInvalidTransition) {
-					t.Errorf("Transition(%q from %q) error = %v, want %v", to, from, err, post.ErrInvalidTransition)
+				} else if !want && !errors.Is(err, content.ErrInvalidTransition) {
+					t.Errorf("Transition(%q from %q) error = %v, want %v", to, from, err, content.ErrInvalidTransition)
 				}
 			})
 		}
@@ -82,11 +84,11 @@ func TestTransitionMatrix(t *testing.T) {
 }
 
 // wantsTransition reports whether the cycle allows moving from one status to another.
-func wantsTransition(from, to post.Status) bool {
+func wantsTransition(from, to content.Status) bool {
 	if from == to {
 		return true
 	}
-	if to == post.StatusScheduled || from == post.StatusTrash {
+	if to == content.StatusScheduled || from == content.StatusTrash {
 		return false
 	}
 	return true
@@ -97,7 +99,7 @@ func TestTransitionStampsPublishedAtOnce(t *testing.T) {
 
 	p := newDraft(t)
 
-	if err := p.Transition(post.StatusPublished); err != nil {
+	if err := p.Transition(content.StatusPublished); err != nil {
 		t.Fatalf("publishing: %v", err)
 	}
 	if p.PublishedAt == nil {
@@ -105,14 +107,14 @@ func TestTransitionStampsPublishedAtOnce(t *testing.T) {
 	}
 	first := *p.PublishedAt
 
-	if err := p.Transition(post.StatusDraft); err != nil {
+	if err := p.Transition(content.StatusDraft); err != nil {
 		t.Fatalf("unpublishing: %v", err)
 	}
 	if p.PublishedAt == nil || !p.PublishedAt.Equal(first) {
 		t.Errorf("PublishedAt = %v after unpublishing, want it preserved as %v", p.PublishedAt, first)
 	}
 
-	if err := p.Transition(post.StatusPublished); err != nil {
+	if err := p.Transition(content.StatusPublished); err != nil {
 		t.Fatalf("republishing: %v", err)
 	}
 	if !p.PublishedAt.Equal(first) {
@@ -127,7 +129,7 @@ func TestTransitionBumpsUpdatedAt(t *testing.T) {
 	p.UpdatedAt = p.UpdatedAt.Add(-time.Hour)
 	before := p.UpdatedAt
 
-	if err := p.Transition(post.StatusPending); err != nil {
+	if err := p.Transition(content.StatusPending); err != nil {
 		t.Fatalf("Transition() error = %v, want nil", err)
 	}
 
@@ -144,8 +146,8 @@ func TestTransitionToAnUnknownStatusFails(t *testing.T) {
 
 	p := newDraft(t)
 
-	if err := p.Transition(post.Status("bogus")); !errors.Is(err, post.ErrInvalidStatus) {
-		t.Errorf("Transition() error = %v, want %v", err, post.ErrInvalidStatus)
+	if err := p.Transition(content.Status("bogus")); !errors.Is(err, content.ErrInvalidStatus) {
+		t.Errorf("Transition() error = %v, want %v", err, content.ErrInvalidStatus)
 	}
 }
 
@@ -153,11 +155,11 @@ func TestRestoreReturnsATrashedPostToDraft(t *testing.T) {
 	t.Parallel()
 
 	p := newDraft(t)
-	if err := p.Transition(post.StatusPublished); err != nil {
+	if err := p.Transition(content.StatusPublished); err != nil {
 		t.Fatalf("publishing: %v", err)
 	}
 	published := *p.PublishedAt
-	if err := p.Transition(post.StatusTrash); err != nil {
+	if err := p.Transition(content.StatusTrash); err != nil {
 		t.Fatalf("trashing: %v", err)
 	}
 	p.UpdatedAt = p.UpdatedAt.Add(-time.Hour)
@@ -166,8 +168,8 @@ func TestRestoreReturnsATrashedPostToDraft(t *testing.T) {
 		t.Fatalf("Restore() error = %v, want nil", err)
 	}
 
-	if p.Status != post.StatusDraft {
-		t.Errorf("Status = %q, want %q", p.Status, post.StatusDraft)
+	if p.Status != content.StatusDraft {
+		t.Errorf("Status = %q, want %q", p.Status, content.StatusDraft)
 	}
 	if p.PublishedAt == nil || !p.PublishedAt.Equal(published) {
 		t.Errorf("PublishedAt = %v, want it preserved as %v", p.PublishedAt, published)
@@ -182,7 +184,7 @@ func TestRestoreRejectsPostsThatAreNotTrashed(t *testing.T) {
 
 	p := newDraft(t)
 
-	if err := p.Restore(); !errors.Is(err, post.ErrInvalidTransition) {
-		t.Errorf("Restore() error = %v, want %v", err, post.ErrInvalidTransition)
+	if err := p.Restore(); !errors.Is(err, content.ErrInvalidTransition) {
+		t.Errorf("Restore() error = %v, want %v", err, content.ErrInvalidTransition)
 	}
 }

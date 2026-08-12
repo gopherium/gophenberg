@@ -32,19 +32,19 @@ beforeEach(() => {
 	restored.length = 0
 	deleted.length = 0
 	server.use(
-		http.get('/api/posts', ({ request }) => {
+		http.get('/api/content', ({ request }) => {
 			listed.push(new URL(request.url).searchParams.get('status') ?? '')
 			return HttpResponse.json({ items: [TRASHED], total: 1 })
 		}),
-		http.get('/api/posts/counts', () => {
+		http.get('/api/content/counts', () => {
 			counted.push('asked')
 			return HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 0, trash: 1 })
 		}),
-		http.post('/api/posts/:id/restore', ({ params }) => {
+		http.post('/api/content/:id/restore', ({ params }) => {
 			restored.push(String(params.id))
 			return HttpResponse.json({ ...TRASHED, status: 'draft' })
 		}),
-		http.delete('/api/posts/:id', ({ request }) => {
+		http.delete('/api/content/:id', ({ request }) => {
 			deleted.push(new URL(request.url))
 			return new HttpResponse(null, { status: 204 })
 		}),
@@ -111,7 +111,7 @@ test('deletes for good once confirmed', async () => {
 	await userEvent.click(await screen.findByRole('button', { name: 'Delete Permanently' }))
 
 	await waitFor(() => expect(deleted).toHaveLength(1))
-	expect(deleted[0].pathname).toBe(`/api/posts/${TRASHED.id}`)
+	expect(deleted[0].pathname).toBe(`/api/content/${TRASHED.id}`)
 	expect(deleted[0].searchParams.get('force')).toBe('true')
 })
 
@@ -128,7 +128,7 @@ test('keeps the post when the permanent delete is dismissed', async () => {
 
 test('reports a restore the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.post('/api/posts/:id/restore', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.post('/api/content/:id/restore', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/posts')
 	await openTrashedRowActions()
 
@@ -139,7 +139,7 @@ test('reports a restore the server refused', async () => {
 
 test('reports a permanent delete the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.delete('/api/posts/:id', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.delete('/api/content/:id', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/posts')
 	await openTrashedRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete Permanently' }))

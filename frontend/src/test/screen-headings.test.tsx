@@ -11,8 +11,8 @@ import { renderAt } from './render'
  */
 function servePosts() {
 	server.use(
-		http.get('/api/posts', () => HttpResponse.json({ items: [], total: 0 })),
-		http.get('/api/posts/counts', () => HttpResponse.json({})),
+		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
+		http.get('/api/content/counts', () => HttpResponse.json({})),
 	)
 }
 
@@ -44,8 +44,8 @@ test('leaves the rail out of the heading outline', async () => {
 test('announces a posts listing it could not load', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.get('/api/posts', () => HttpResponse.json({}, { status: 500 })),
-		http.get('/api/posts/counts', () => HttpResponse.json({})),
+		http.get('/api/content', () => HttpResponse.json({}, { status: 500 })),
+		http.get('/api/content/counts', () => HttpResponse.json({})),
 	)
 
 	renderAt('/posts')
@@ -56,8 +56,8 @@ test('announces a posts listing it could not load', async () => {
 test('keeps the posts heading when the listing fails', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.get('/api/posts', () => HttpResponse.json({}, { status: 500 })),
-		http.get('/api/posts/counts', () => HttpResponse.json({})),
+		http.get('/api/content', () => HttpResponse.json({}, { status: 500 })),
+		http.get('/api/content/counts', () => HttpResponse.json({})),
 	)
 
 	renderAt('/posts')

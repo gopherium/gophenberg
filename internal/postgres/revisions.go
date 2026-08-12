@@ -12,31 +12,31 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
-// postConstraint is the revision foreign key onto its post.
-const postConstraint = "post_revisions_post_id_fkey"
+// contentConstraint is the revision foreign key onto its content item.
+const contentConstraint = "content_revisions_content_id_fkey"
 
-// isPostGone reports whether err is a violation of the revision's post foreign key.
-func isPostGone(err error) bool {
+// isContentGone reports whether err is a violation of the revision's content foreign key.
+func isContentGone(err error) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.ConstraintName == postConstraint
+	return errors.As(err, &pgErr) && pgErr.ConstraintName == contentConstraint
 }
 
-// Revisions returns the post's revisions newest first, without their content.
-func (s *PostStore) Revisions(ctx context.Context, postID uuid.UUID) ([]post.Revision, error) {
-	rows, err := s.queries.ListRevisions(ctx, postID)
+// Revisions returns the item's revisions newest first, without their content.
+func (s *ContentStore) Revisions(ctx context.Context, contentID uuid.UUID) ([]content.Revision, error) {
+	rows, err := s.queries.ListRevisions(ctx, contentID)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: list revisions: %w", err)
 	}
-	revisions := make([]post.Revision, len(rows))
+	revisions := make([]content.Revision, len(rows))
 	for i, row := range rows {
-		revisions[i] = post.Revision{
+		revisions[i] = content.Revision{
 			ID:        row.ID,
-			PostID:    row.PostID,
-			Kind:      post.RevisionKind(row.Kind),
+			ContentID: row.ContentID,
+			Kind:      content.RevisionKind(row.Kind),
 			AuthorID:  row.AuthorID,
 			Title:     row.Title,
 			Excerpt:   row.Excerpt,
@@ -46,19 +46,19 @@ func (s *PostStore) Revisions(ctx context.Context, postID uuid.UUID) ([]post.Rev
 	return revisions, nil
 }
 
-// RevisionByID returns the post's revision, or [post.ErrRevisionNotFound].
-func (s *PostStore) RevisionByID(ctx context.Context, postID, revisionID uuid.UUID) (post.Revision, error) {
-	row, err := s.queries.GetRevision(ctx, db.GetRevisionParams{PostID: postID, ID: revisionID})
+// RevisionByID returns the item's revision, or [content.ErrRevisionNotFound].
+func (s *ContentStore) RevisionByID(ctx context.Context, contentID, revisionID uuid.UUID) (content.Revision, error) {
+	row, err := s.queries.GetRevision(ctx, db.GetRevisionParams{ContentID: contentID, ID: revisionID})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return post.Revision{}, post.ErrRevisionNotFound
+		return content.Revision{}, content.ErrRevisionNotFound
 	}
 	if err != nil {
-		return post.Revision{}, fmt.Errorf("postgres: get revision: %w", err)
+		return content.Revision{}, fmt.Errorf("postgres: get revision: %w", err)
 	}
-	return post.Revision{
+	return content.Revision{
 		ID:        row.ID,
-		PostID:    row.PostID,
-		Kind:      post.RevisionKind(row.Kind),
+		ContentID: row.ContentID,
+		Kind:      content.RevisionKind(row.Kind),
 		AuthorID:  row.AuthorID,
 		Title:     row.Title,
 		Content:   row.Content,
@@ -67,53 +67,57 @@ func (s *PostStore) RevisionByID(ctx context.Context, postID, revisionID uuid.UU
 	}, nil
 }
 
-// DeleteRevision removes the post's revision, or reports [post.ErrRevisionNotFound].
-func (s *PostStore) DeleteRevision(ctx context.Context, postID, revisionID uuid.UUID) error {
-	rows, err := s.queries.DeleteRevision(ctx, db.DeleteRevisionParams{PostID: postID, ID: revisionID})
+// DeleteRevision removes the item's revision, or reports [content.ErrRevisionNotFound].
+func (s *ContentStore) DeleteRevision(ctx context.Context, contentID, revisionID uuid.UUID) error {
+	rows, err := s.queries.DeleteRevision(ctx, db.DeleteRevisionParams{ContentID: contentID, ID: revisionID})
 	if err != nil {
 		return fmt.Errorf("postgres: delete revision: %w", err)
 	}
 	if rows == 0 {
-		return post.ErrRevisionNotFound
+		return content.ErrRevisionNotFound
 	}
 	return nil
 }
 
-// SaveAutosave stores the author's autosave of the post, replacing any earlier one.
-func (s *PostStore) SaveAutosave(ctx context.Context, autosave post.Revision) (post.Revision, error) {
+// SaveAutosave stores the author's autosave of the item, replacing any earlier one.
+func (s *ContentStore) SaveAutosave(ctx context.Context, autosave content.Revision) (content.Revision, error) {
 	row, err := s.queries.UpsertAutosave(ctx, db.UpsertAutosaveParams{
 		ID:        autosave.ID,
-		PostID:    autosave.PostID,
+		ContentID: autosave.ContentID,
 		AuthorID:  autosave.AuthorID,
 		Title:     autosave.Title,
 		Content:   autosave.Content,
 		Excerpt:   autosave.Excerpt,
 		CreatedAt: autosave.CreatedAt,
 	})
-	if isPostGone(err) {
-		return post.Revision{}, post.ErrNotFound
+	if isContentGone(err) {
+		return content.Revision{}, content.ErrNotFound
 	}
 	if err != nil {
-		return post.Revision{}, fmt.Errorf("postgres: save autosave: %w", err)
+		return content.Revision{}, fmt.Errorf("postgres: save autosave: %w", err)
 	}
-	return toRevision(row.ID, row.PostID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt), nil
+	return toRevision(
+		row.ID, row.ContentID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt,
+	), nil
 }
 
-// Autosave returns the author's autosave of the post, or [post.ErrRevisionNotFound].
-func (s *PostStore) Autosave(ctx context.Context, postID, authorID uuid.UUID) (post.Revision, error) {
-	row, err := s.queries.GetAutosave(ctx, db.GetAutosaveParams{PostID: postID, AuthorID: authorID})
+// Autosave returns the author's autosave of the item, or [content.ErrRevisionNotFound].
+func (s *ContentStore) Autosave(ctx context.Context, contentID, authorID uuid.UUID) (content.Revision, error) {
+	row, err := s.queries.GetAutosave(ctx, db.GetAutosaveParams{ContentID: contentID, AuthorID: authorID})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return post.Revision{}, post.ErrRevisionNotFound
+		return content.Revision{}, content.ErrRevisionNotFound
 	}
 	if err != nil {
-		return post.Revision{}, fmt.Errorf("postgres: get autosave: %w", err)
+		return content.Revision{}, fmt.Errorf("postgres: get autosave: %w", err)
 	}
-	return toRevision(row.ID, row.PostID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt), nil
+	return toRevision(
+		row.ID, row.ContentID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt,
+	), nil
 }
 
-// DeleteAutosave removes the author's autosave of the post.
-func (s *PostStore) DeleteAutosave(ctx context.Context, postID, authorID uuid.UUID) error {
-	err := s.queries.DeleteAutosave(ctx, db.DeleteAutosaveParams{PostID: postID, AuthorID: authorID})
+// DeleteAutosave removes the author's autosave of the item.
+func (s *ContentStore) DeleteAutosave(ctx context.Context, contentID, authorID uuid.UUID) error {
+	err := s.queries.DeleteAutosave(ctx, db.DeleteAutosaveParams{ContentID: contentID, AuthorID: authorID})
 	if err != nil {
 		return fmt.Errorf("postgres: delete autosave: %w", err)
 	}
@@ -122,25 +126,25 @@ func (s *PostStore) DeleteAutosave(ctx context.Context, postID, authorID uuid.UU
 
 // toRevision builds a revision from its stored columns.
 func toRevision(
-	id, postID uuid.UUID, kind string, authorID uuid.UUID, title, content, excerpt string, createdAt time.Time,
-) post.Revision {
-	return post.Revision{
+	id, contentID uuid.UUID, kind string, authorID uuid.UUID, title, body, excerpt string, createdAt time.Time,
+) content.Revision {
+	return content.Revision{
 		ID:        id,
-		PostID:    postID,
-		Kind:      post.RevisionKind(kind),
+		ContentID: contentID,
+		Kind:      content.RevisionKind(kind),
 		AuthorID:  authorID,
 		Title:     title,
-		Content:   content,
+		Content:   body,
 		Excerpt:   excerpt,
 		CreatedAt: createdAt.UTC(),
 	}
 }
 
 // snapshotRevision stores the snapshot and prunes revisions beyond the cap, sparing autosaves.
-func snapshotRevision(ctx context.Context, queries *db.Queries, snapshot post.Revision, revisionCap int) error {
+func snapshotRevision(ctx context.Context, queries *db.Queries, snapshot content.Revision, revisionCap int) error {
 	err := queries.CreateRevision(ctx, db.CreateRevisionParams{
 		ID:        snapshot.ID,
-		PostID:    snapshot.PostID,
+		ContentID: snapshot.ContentID,
 		Kind:      string(snapshot.Kind),
 		AuthorID:  snapshot.AuthorID,
 		Title:     snapshot.Title,
@@ -154,7 +158,7 @@ func snapshotRevision(ctx context.Context, queries *db.Queries, snapshot post.Re
 	if revisionCap <= 0 {
 		return nil
 	}
-	err = queries.PruneRevisions(ctx, db.PruneRevisionsParams{PostID: snapshot.PostID, Keep: int32(revisionCap)})
+	err = queries.PruneRevisions(ctx, db.PruneRevisionsParams{ContentID: snapshot.ContentID, Keep: int32(revisionCap)})
 	if err != nil {
 		return fmt.Errorf("postgres: prune revisions: %w", err)
 	}

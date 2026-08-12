@@ -11,12 +11,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 type revisionBody struct {
 	ID         uuid.UUID `json:"id"`
-	PostID     uuid.UUID `json:"post_id"`
+	ContentID  uuid.UUID `json:"content_id"`
 	Kind       string    `json:"kind"`
 	AuthorID   uuid.UUID `json:"author_id"`
 	AuthorName string    `json:"author_name"`
@@ -36,7 +36,7 @@ func TestPostPatchSnapshotsThePreviousContent(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "First Title", ada.ID))
 
-	doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Second Title"}))
 
 	if posts.lastSnapshot == nil {
@@ -45,10 +45,10 @@ func TestPostPatchSnapshotsThePreviousContent(t *testing.T) {
 	if posts.lastSnapshot.Title != "First Title" {
 		t.Errorf("snapshot title = %q, want the state before the edit", posts.lastSnapshot.Title)
 	}
-	if posts.lastSnapshot.Kind != post.RevisionKindRevision {
-		t.Errorf("snapshot kind = %q, want %q", posts.lastSnapshot.Kind, post.RevisionKindRevision)
+	if posts.lastSnapshot.Kind != content.RevisionKindRevision {
+		t.Errorf("snapshot kind = %q, want %q", posts.lastSnapshot.Kind, content.RevisionKindRevision)
 	}
-	if posts.lastSnapshot.AuthorID != ada.ID || posts.lastSnapshot.PostID != stored.ID {
+	if posts.lastSnapshot.AuthorID != ada.ID || posts.lastSnapshot.ContentID != stored.ID {
 		t.Errorf("snapshot = %+v, want it credited to the editor and bound to the post", posts.lastSnapshot)
 	}
 	if posts.lastRevisionCap != 100 {
@@ -62,7 +62,7 @@ func TestPostPatchWithoutContentChangesSkipsTheSnapshot(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Only Status", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"status": "published"}))
 
 	if recorder.Code != http.StatusOK {
@@ -82,7 +82,7 @@ func TestPostPatchSlugChangeSkipsTheSnapshot(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Slug Only", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"slug": "new-slug"}))
 
 	if recorder.Code != http.StatusOK {
@@ -99,13 +99,13 @@ func TestPostPatchSlugChangeSkipsTheSnapshot(t *testing.T) {
 func TestPostPatchSkipsTheSnapshotForTypesWithoutRevisions(t *testing.T) {
 	t.Parallel()
 
-	post.Register(post.Type{Name: "briefing", Label: "Briefings"})
+	content.Register(content.Type{Name: "briefing", Label: "Briefings"})
 	handler, posts, ada := authedPostServer(t)
 	stored := newPost(t, "No History", ada.ID)
 	stored.Type = "briefing"
 	stored = posts.add(stored)
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"}))
 
 	if recorder.Code != http.StatusOK {
@@ -124,7 +124,7 @@ func TestPostPatchSkipsTheSnapshotForUnregisteredTypes(t *testing.T) {
 	stored.Type = "vanished-plugin"
 	stored = posts.add(stored)
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"}))
 
 	if recorder.Code != http.StatusOK {
@@ -145,7 +145,7 @@ func TestRevisionListReturnsNewestFirstWithoutContent(t *testing.T) {
 	newer.CreatedAt = older.CreatedAt.Add(time.Minute)
 	posts.revisions = append(posts.revisions, older, newer)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts/"+stored.ID.String()+"/revisions", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/"+stored.ID.String()+"/revisions", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -175,7 +175,7 @@ func TestRevisionListBreaksTimestampTiesByID(t *testing.T) {
 	second.CreatedAt = first.CreatedAt
 	posts.revisions = append(posts.revisions, first, second)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts/"+stored.ID.String()+"/revisions", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/"+stored.ID.String()+"/revisions", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -199,7 +199,7 @@ func TestRevisionGetReturnsTheContent(t *testing.T) {
 	posts.revisions = append(posts.revisions, revision)
 
 	recorder := doRequest(
-		t, handler, http.MethodGet, "/api/posts/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
+		t, handler, http.MethodGet, "/api/content/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
 	)
 
 	if recorder.Code != http.StatusOK {
@@ -220,7 +220,7 @@ func TestRevisionDeleteRemovesIt(t *testing.T) {
 	posts.revisions = append(posts.revisions, revision)
 
 	recorder := doRequest(
-		t, handler, http.MethodDelete, "/api/posts/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
+		t, handler, http.MethodDelete, "/api/content/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
 	)
 
 	if recorder.Code != http.StatusNoContent {
@@ -244,22 +244,22 @@ func TestRevisionRoutesRejectUnknownAndMalformedIDs(t *testing.T) {
 		want   int
 	}{
 		"missing post on list": {
-			http.MethodGet, "/api/posts/" + missing + "/revisions", http.StatusNotFound,
+			http.MethodGet, "/api/content/" + missing + "/revisions", http.StatusNotFound,
 		},
 		"missing revision": {
-			http.MethodGet, "/api/posts/" + stored.ID.String() + "/revisions/" + missing, http.StatusNotFound,
+			http.MethodGet, "/api/content/" + stored.ID.String() + "/revisions/" + missing, http.StatusNotFound,
 		},
 		"missing revision on delete": {
-			http.MethodDelete, "/api/posts/" + stored.ID.String() + "/revisions/" + missing, http.StatusNotFound,
+			http.MethodDelete, "/api/content/" + stored.ID.String() + "/revisions/" + missing, http.StatusNotFound,
 		},
 		"malformed post id": {
-			http.MethodGet, "/api/posts/not-a-uuid/revisions", http.StatusBadRequest,
+			http.MethodGet, "/api/content/not-a-uuid/revisions", http.StatusBadRequest,
 		},
 		"malformed revision id": {
-			http.MethodGet, "/api/posts/" + stored.ID.String() + "/revisions/not-a-uuid", http.StatusBadRequest,
+			http.MethodGet, "/api/content/" + stored.ID.String() + "/revisions/not-a-uuid", http.StatusBadRequest,
 		},
 		"malformed revision id on delete": {
-			http.MethodDelete, "/api/posts/" + stored.ID.String() + "/revisions/not-a-uuid", http.StatusBadRequest,
+			http.MethodDelete, "/api/content/" + stored.ID.String() + "/revisions/not-a-uuid", http.StatusBadRequest,
 		},
 	}
 
@@ -284,10 +284,10 @@ func TestRevisionRoutesScopeToThePost(t *testing.T) {
 	posts.revisions = append(posts.revisions, revision)
 
 	get := doRequest(
-		t, handler, http.MethodGet, "/api/posts/"+other.ID.String()+"/revisions/"+revision.ID.String(), "",
+		t, handler, http.MethodGet, "/api/content/"+other.ID.String()+"/revisions/"+revision.ID.String(), "",
 	)
 	remove := doRequest(
-		t, handler, http.MethodDelete, "/api/posts/"+other.ID.String()+"/revisions/"+revision.ID.String(), "",
+		t, handler, http.MethodDelete, "/api/content/"+other.ID.String()+"/revisions/"+revision.ID.String(), "",
 	)
 
 	if get.Code != http.StatusNotFound || remove.Code != http.StatusNotFound {
@@ -309,12 +309,12 @@ func TestRevisionRoutesReportStoreFailures(t *testing.T) {
 	posts.revisionErr = context.DeadlineExceeded
 	posts.deleteRevisionErr = context.DeadlineExceeded
 
-	list := doRequest(t, handler, http.MethodGet, "/api/posts/"+stored.ID.String()+"/revisions", "")
+	list := doRequest(t, handler, http.MethodGet, "/api/content/"+stored.ID.String()+"/revisions", "")
 	get := doRequest(
-		t, handler, http.MethodGet, "/api/posts/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
+		t, handler, http.MethodGet, "/api/content/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
 	)
 	remove := doRequest(
-		t, handler, http.MethodDelete, "/api/posts/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
+		t, handler, http.MethodDelete, "/api/content/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
 	)
 
 	for name, recorder := range map[string]int{"list": list.Code, "get": get.Code, "delete": remove.Code} {
@@ -336,9 +336,9 @@ func TestRevisionRoutesRequireASession(t *testing.T) {
 		method string
 		path   string
 	}{
-		{http.MethodGet, "/api/posts/" + id + "/revisions"},
-		{http.MethodGet, "/api/posts/" + id + "/revisions/" + id},
-		{http.MethodDelete, "/api/posts/" + id + "/revisions/" + id},
+		{http.MethodGet, "/api/content/" + id + "/revisions"},
+		{http.MethodGet, "/api/content/" + id + "/revisions/" + id},
+		{http.MethodDelete, "/api/content/" + id + "/revisions/" + id},
 	} {
 		if code := doRequest(t, unauthed, target.method, target.path, "").Code; code != http.StatusUnauthorized {
 			t.Errorf("%s %s = %d, want %d", target.method, target.path, code, http.StatusUnauthorized)
@@ -355,7 +355,7 @@ func TestRevisionListReportsAuthorLookupFailures(t *testing.T) {
 	stored := posts.add(newPost(t, "Revised", ada.ID))
 	handler := authedServerWithStores(t, serverConfig(failingUserStore{Store: users}, posts))
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts/"+stored.ID.String()+"/revisions", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/"+stored.ID.String()+"/revisions", "")
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
@@ -363,11 +363,11 @@ func TestRevisionListReportsAuthorLookupFailures(t *testing.T) {
 }
 
 // mustRevision returns a revision of the post credited to author.
-func mustRevision(t *testing.T, p post.Post, title string, author uuid.UUID) post.Revision {
+func mustRevision(t *testing.T, p content.Content, title string, author uuid.UUID) content.Revision {
 	t.Helper()
 	snapshot := p
 	snapshot.Title = title
-	revision, err := post.NewRevision(snapshot, post.RevisionKindRevision, author)
+	revision, err := content.NewRevision(snapshot, content.RevisionKindRevision, author)
 	if err != nil {
 		t.Fatalf("NewRevision() error = %v, want nil", err)
 	}
@@ -386,7 +386,7 @@ func TestRevisionGetReportsAuthorLookupFailures(t *testing.T) {
 	handler := authedServerWithStores(t, serverConfig(failingUserStore{Store: users}, posts))
 
 	recorder := doRequest(
-		t, handler, http.MethodGet, "/api/posts/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
+		t, handler, http.MethodGet, "/api/content/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
 	)
 
 	if recorder.Code != http.StatusInternalServerError {
@@ -400,8 +400,8 @@ func TestRevisionRoutesRejectAMalformedPostID(t *testing.T) {
 	handler, _, _ := authedPostServer(t)
 	id := uuid.Must(uuid.NewV7()).String()
 
-	get := doRequest(t, handler, http.MethodGet, "/api/posts/not-a-uuid/revisions/"+id, "")
-	remove := doRequest(t, handler, http.MethodDelete, "/api/posts/not-a-uuid/revisions/"+id, "")
+	get := doRequest(t, handler, http.MethodGet, "/api/content/not-a-uuid/revisions/"+id, "")
+	remove := doRequest(t, handler, http.MethodDelete, "/api/content/not-a-uuid/revisions/"+id, "")
 
 	if get.Code != http.StatusBadRequest || remove.Code != http.StatusBadRequest {
 		t.Errorf("statuses = %d and %d, want %d", get.Code, remove.Code, http.StatusBadRequest)
@@ -415,7 +415,7 @@ func TestPostPatchReportsSnapshotFailures(t *testing.T) {
 	uuid.SetRand(failingReader{})
 	defer uuid.SetRand(nil)
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), body)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(), body)
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)

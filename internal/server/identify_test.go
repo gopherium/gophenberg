@@ -79,7 +79,7 @@ func TestIdentificationReportsTheBuildVersionAtMajorMinor(t *testing.T) {
 
 	handler := server.NewServer(server.Config{
 		Users:   newFakeUserStore(),
-		Posts:   newFakePostStore(),
+		Content: newFakePostStore(),
 		Version: "0.0.0",
 		Web:     fstest.MapFS{"index.html": {Data: []byte("<!doctype html>")}},
 	})
@@ -111,7 +111,7 @@ func TestIdentificationLeavesRoomForHeadersAPageAddsItself(t *testing.T) {
 
 	posts := newFakePostStore()
 	posts.add(publishedFixture(t, "hello-world", blockMarkup, time.Now().UTC()))
-	handler := server.NewServer(server.Config{Users: newFakeUserStore(), Posts: posts, Version: "1.2.3"})
+	handler := server.NewServer(server.Config{Users: newFakeUserStore(), Content: posts, Version: "1.2.3"})
 
 	recorder := doRequest(t, handler, http.MethodGet, "/", "")
 

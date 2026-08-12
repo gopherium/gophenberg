@@ -32,7 +32,7 @@ const asked: URL[] = []
  */
 function serveList(total = 1) {
 	server.use(
-		http.get('/api/posts', ({ request }) => {
+		http.get('/api/content', ({ request }) => {
 			asked.push(new URL(request.url))
 			return HttpResponse.json({ items: [PUBLISHED], total })
 		}),
@@ -51,12 +51,12 @@ function askedFor(name: string): string[] {
 beforeEach(() => {
 	asked.length = 0
 	serveList()
-	server.use(http.get('/api/posts/counts', () => HttpResponse.json(COUNTS)))
+	server.use(http.get('/api/content/counts', () => HttpResponse.json(COUNTS)))
 })
 
 test('holds the filter row space with chip ghosts until the counts arrive', async () => {
 	serveList()
-	server.use(http.get('/api/posts/counts', () => new Promise(() => {})))
+	server.use(http.get('/api/content/counts', () => new Promise(() => {})))
 	renderAt('/posts')
 	await screen.findByRole('heading', { level: 1 })
 
@@ -76,7 +76,7 @@ test('fades the filter row in when it replaces the chips', async () => {
 
 test('leaves the chips their own pulse without a delay of the row', async () => {
 	serveList()
-	server.use(http.get('/api/posts/counts', () => new Promise(() => {})))
+	server.use(http.get('/api/content/counts', () => new Promise(() => {})))
 	renderAt('/posts')
 	await screen.findByRole('heading', { level: 1 })
 
@@ -107,7 +107,7 @@ test('hides the private view while no post is private', async () => {
 
 test('shows the private view once a post is private', async () => {
 	server.use(
-		http.get('/api/posts/counts', () => HttpResponse.json({ ...COUNTS, private: 4 })),
+		http.get('/api/content/counts', () => HttpResponse.json({ ...COUNTS, private: 4 })),
 	)
 	renderAt('/posts')
 
@@ -187,7 +187,7 @@ test('holds the page size fixed', async () => {
 })
 
 test('reads a status the counts left out as none', async () => {
-	server.use(http.get('/api/posts/counts', () => HttpResponse.json({ draft: 2 })))
+	server.use(http.get('/api/content/counts', () => HttpResponse.json({ draft: 2 })))
 	renderAt('/posts')
 
 	expect(await screen.findByRole('button', { name: 'All (2)' })).toBeInTheDocument()
@@ -197,7 +197,7 @@ test('reads a status the counts left out as none', async () => {
 
 test('lists posts even when the counts cannot be read', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.get('/api/posts/counts', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.get('/api/content/counts', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/posts')
 
 	expect(await screen.findByText('Welcome to Gophenberg')).toBeInTheDocument()
@@ -206,7 +206,7 @@ test('lists posts even when the counts cannot be read', async () => {
 
 test('drops the filter row when the counts cannot be read', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.get('/api/posts/counts', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.get('/api/content/counts', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/posts')
 	await screen.findByText('Welcome to Gophenberg')
 

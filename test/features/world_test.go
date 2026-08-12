@@ -20,8 +20,8 @@ import (
 
 	"github.com/cucumber/godog"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/mediahost"
-	"github.com/gopherium/gophenberg/internal/post"
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/internal/themehost"
 )
@@ -35,14 +35,16 @@ const siteTitle = "A Test Site"
 const mediaTestCap = 2 << 20
 
 // emptyPosts is a content store holding nothing, enough for the public site to answer.
-type emptyPosts struct{ post.Store }
+type emptyPosts struct{ content.Store }
 
 // List returns no posts.
-func (emptyPosts) List(context.Context, post.Filter) ([]post.Post, int, error) { return nil, 0, nil }
+func (emptyPosts) List(context.Context, content.Filter) ([]content.Content, int, error) {
+	return nil, 0, nil
+}
 
 // PublishedBySlug reports that no post is published under the slug.
-func (emptyPosts) PublishedBySlug(context.Context, string, string) (post.Post, error) {
-	return post.Post{}, post.ErrNotFound
+func (emptyPosts) PublishedBySlug(context.Context, string, string) (content.Content, error) {
+	return content.Content{}, content.ErrNotFound
 }
 
 // memorySettings holds one scenario's stored choices in memory, surviving a restart.
@@ -196,7 +198,7 @@ func (w *world) start(ctx context.Context) error {
 	}
 	w.site = httptest.NewTLSServer(server.NewServer(server.Config{
 		Users:      w.users,
-		Posts:      emptyPosts{},
+		Content:    emptyPosts{},
 		Themes:     currentManager{w},
 		Theme:      currentManager{w},
 		Media:      w.mediaFiles,

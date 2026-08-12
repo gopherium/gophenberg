@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package post_test
+package content_test
 
 import (
 	"errors"
 	"testing"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 func TestParseOrderByAcceptsEverySortableColumn(t *testing.T) {
 	t.Parallel()
 
-	for _, want := range []post.OrderBy{post.OrderByDate, post.OrderByTitle} {
-		got, err := post.ParseOrderBy(string(want))
+	for _, want := range []content.OrderBy{content.OrderByDate, content.OrderByTitle} {
+		got, err := content.ParseOrderBy(string(want))
 
 		if err != nil {
 			t.Errorf("ParseOrderBy(%q) error = %v, want nil", want, err)
@@ -28,8 +28,8 @@ func TestParseOrderByRejectsUnknownColumns(t *testing.T) {
 	t.Parallel()
 
 	for _, in := range []string{"", "author", "Title", "status", "id"} {
-		if _, err := post.ParseOrderBy(in); !errors.Is(err, post.ErrInvalidOrderBy) {
-			t.Errorf("ParseOrderBy(%q) error = %v, want %v", in, err, post.ErrInvalidOrderBy)
+		if _, err := content.ParseOrderBy(in); !errors.Is(err, content.ErrInvalidOrderBy) {
+			t.Errorf("ParseOrderBy(%q) error = %v, want %v", in, err, content.ErrInvalidOrderBy)
 		}
 	}
 }
@@ -37,8 +37,8 @@ func TestParseOrderByRejectsUnknownColumns(t *testing.T) {
 func TestParseOrderAcceptsEveryDirection(t *testing.T) {
 	t.Parallel()
 
-	for _, want := range []post.Order{post.OrderAsc, post.OrderDesc} {
-		got, err := post.ParseOrder(string(want))
+	for _, want := range []content.Order{content.OrderAsc, content.OrderDesc} {
+		got, err := content.ParseOrder(string(want))
 
 		if err != nil {
 			t.Errorf("ParseOrder(%q) error = %v, want nil", want, err)
@@ -53,8 +53,8 @@ func TestParseOrderRejectsUnknownDirections(t *testing.T) {
 	t.Parallel()
 
 	for _, in := range []string{"", "ASC", "ascending", "sideways", "1"} {
-		if _, err := post.ParseOrder(in); !errors.Is(err, post.ErrInvalidOrder) {
-			t.Errorf("ParseOrder(%q) error = %v, want %v", in, err, post.ErrInvalidOrder)
+		if _, err := content.ParseOrder(in); !errors.Is(err, content.ErrInvalidOrder) {
+			t.Errorf("ParseOrder(%q) error = %v, want %v", in, err, content.ErrInvalidOrder)
 		}
 	}
 }

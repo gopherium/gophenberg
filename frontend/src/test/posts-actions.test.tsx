@@ -9,7 +9,7 @@ import { renderAt } from './render'
 import { storedPostWithId } from './postFixture'
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 const PUBLISHED = {
@@ -35,18 +35,18 @@ beforeEach(() => {
 	counted.length = 0
 	trashed.length = 0
 	server.use(
-		http.get('/api/posts', () => {
+		http.get('/api/content', () => {
 			listed.push('asked')
 			return HttpResponse.json({ items: [PUBLISHED], total: 1 })
 		}),
-		http.get('/api/posts/counts', () => {
+		http.get('/api/content/counts', () => {
 			counted.push('asked')
 			return HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 1, trash: 0 })
 		}),
-		http.get('/api/posts/:id', ({ params }) =>
+		http.get('/api/content/:id', ({ params }) =>
 			HttpResponse.json(storedPostWithId(String(params.id))),
 		),
-		http.delete('/api/posts/:id', ({ params }) => {
+		http.delete('/api/content/:id', ({ params }) => {
 			trashed.push(String(params.id))
 			return HttpResponse.json({ ...PUBLISHED, status: 'trash' })
 		}),
@@ -91,7 +91,7 @@ test('asks to confirm before trashing', async () => {
 
 test('names a post that has no title yet in the confirm', async () => {
 	server.use(
-		http.get('/api/posts', () =>
+		http.get('/api/content', () =>
 			HttpResponse.json({ items: [{ ...PUBLISHED, title: '' }], total: 1 }),
 		),
 	)
@@ -152,7 +152,7 @@ test('offers to undo a post just trashed', async () => {
 test('restores the post when the undo is taken', async () => {
 	const restored: string[] = []
 	server.use(
-		http.post('/api/posts/:id/restore', ({ params }) => {
+		http.post('/api/content/:id/restore', ({ params }) => {
 			restored.push(String(params.id))
 			return HttpResponse.json({ ...PUBLISHED, status: 'draft' })
 		}),
@@ -170,7 +170,7 @@ test('restores the post when the undo is taken', async () => {
 
 test('reports an undo the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.post('/api/posts/:id/restore', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.post('/api/content/:id/restore', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/posts')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
@@ -183,7 +183,7 @@ test('reports an undo the server refused', async () => {
 
 test('reports a trash the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.delete('/api/posts/:id', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.delete('/api/content/:id', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/posts')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))

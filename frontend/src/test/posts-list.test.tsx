@@ -32,8 +32,8 @@ const DRAFT = {
 
 beforeEach(() => {
 	server.use(
-		http.get('/api/posts', () => HttpResponse.json({ items: [PUBLISHED, DRAFT], total: 2 })),
-		http.get('/api/posts/counts', () =>
+		http.get('/api/content', () => HttpResponse.json({ items: [PUBLISHED, DRAFT], total: 2 })),
+		http.get('/api/content/counts', () =>
 			HttpResponse.json({ draft: 1, published: 1, pending: 0, private: 0, trash: 0 }),
 		),
 	)
@@ -89,7 +89,7 @@ test('dates an unpublished post by its last change', async () => {
 })
 
 test('reports a listing that could not be read', async () => {
-	server.use(http.get('/api/posts', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.get('/api/content', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/posts')
 
 	expect(await screen.findByRole('alert')).toHaveTextContent(/could not/i)
@@ -97,7 +97,7 @@ test('reports a listing that could not be read', async () => {
 
 test('marks every status that is not published', async () => {
 	server.use(
-		http.get('/api/posts', () =>
+		http.get('/api/content', () =>
 			HttpResponse.json({
 				items: [
 					{ ...DRAFT, id: 'a1', title: 'Pending One', status: 'pending' },
@@ -119,7 +119,7 @@ test('marks every status that is not published', async () => {
 
 test('names a post that has no title yet', async () => {
 	server.use(
-		http.get('/api/posts', () =>
+		http.get('/api/content', () =>
 			HttpResponse.json({ items: [{ ...DRAFT, title: '' }], total: 1 }),
 		),
 	)
@@ -130,7 +130,7 @@ test('names a post that has no title yet', async () => {
 
 test('dates a post that carries no timestamps', async () => {
 	server.use(
-		http.get('/api/posts', () =>
+		http.get('/api/content', () =>
 			HttpResponse.json({
 				items: [{ ...DRAFT, published_at: null, updated_at: undefined }],
 				total: 1,

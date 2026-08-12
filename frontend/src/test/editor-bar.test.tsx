@@ -4,18 +4,18 @@ import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen } from '@testing-library/react'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
-import '../posts/editor.css'
+import '../content/editor.css'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
 const EDITOR_PATH = `/posts/${storedPost.id}/edit`
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
-	server.use(http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)))
+	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)))
 })
 
 test('names the post and its type in the header', async () => {
@@ -29,7 +29,7 @@ test('names the post and its type in the header', async () => {
 
 test('calls an untitled post untitled in the bar', async () => {
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () =>
+		http.get(`/api/content/${storedPost.id}`, () =>
 			HttpResponse.json({ ...storedPost, title: '' }),
 		),
 	)
@@ -40,7 +40,7 @@ test('calls an untitled post untitled in the bar', async () => {
 
 test('shows a type it holds no label for as the server named it', async () => {
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () =>
+		http.get(`/api/content/${storedPost.id}`, () =>
 			HttpResponse.json({ ...storedPost, type: 'briefing' }),
 		),
 	)

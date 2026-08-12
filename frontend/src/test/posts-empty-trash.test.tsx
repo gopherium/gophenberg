@@ -30,13 +30,13 @@ beforeEach(() => {
 	bin = [TRASHED, SECOND]
 	deleted.length = 0
 	server.use(
-		http.get('/api/posts', ({ request }) => {
+		http.get('/api/content', ({ request }) => {
 			const query = new URL(request.url).searchParams
 			const matching = query.get('status') === 'trash' ? bin : []
 			const perPage = Number(query.get('per_page') ?? '20')
 			return HttpResponse.json({ items: matching.slice(0, perPage), total: matching.length })
 		}),
-		http.get('/api/posts/counts', () =>
+		http.get('/api/content/counts', () =>
 			HttpResponse.json({
 				draft: 0,
 				pending: 0,
@@ -45,7 +45,7 @@ beforeEach(() => {
 				trash: bin.length,
 			}),
 		),
-		http.delete('/api/posts/:id', ({ request, params }) => {
+		http.delete('/api/content/:id', ({ request, params }) => {
 			deleted.push(new URL(request.url))
 			bin = bin.filter((post) => post.id !== String(params.id))
 			return new HttpResponse(null, { status: 204 })
@@ -123,7 +123,7 @@ test('keeps the trash when the confirm is dismissed', async () => {
 
 test('reports an empty trash the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.delete('/api/posts/:id', () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.delete('/api/content/:id', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/posts')
 	await openTrashView()
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))

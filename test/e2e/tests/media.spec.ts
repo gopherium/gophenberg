@@ -42,7 +42,7 @@ const createdPosts: string[] = []
 
 test.afterEach(async ({ page }) => {
 	for (const id of createdPosts.splice(0)) {
-		await page.request.delete(`/api/posts/${id}?force=true`)
+		await page.request.delete(`/api/content/${id}?force=true`)
 	}
 	const listed = await page.request.get(`/api/media?search=e2e-${RUN}`)
 	const body = (await listed.json()) as { items: { id: number }[] }
@@ -127,7 +127,7 @@ test('places an uploaded picture in a post and publishes it', async ({ page }) =
 	await page.getByRole('button', { name: 'Publish' }).click()
 	await expect(page.locator('#root').getByText('Post published.')).toBeVisible()
 
-	const slugged = await page.request.get(`/api/posts/${postId}`)
+	const slugged = await page.request.get(`/api/content/${postId}`)
 	const post = (await slugged.json()) as { slug: string }
 	await page.goto(`/post/${post.slug}`)
 	const published = page.locator(`img[src^="/media/"]`)

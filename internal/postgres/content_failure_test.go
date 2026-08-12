@@ -10,13 +10,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
-func TestPostStoreReportsDatabaseFailures(t *testing.T) {
+func TestContentStoreReportsDatabaseFailures(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
+	store, author, pool := newContentStoreWithPool(t)
 	stored := mustCreate(t, store, "Doomed", author)
 	pending := mustPost(t, "Never Stored", author)
 	now := time.Now().UTC()
@@ -28,10 +28,10 @@ func TestPostStoreReportsDatabaseFailures(t *testing.T) {
 	if _, err := store.ByID(t.Context(), stored.ID); err == nil {
 		t.Error("ByID() on a closed pool error = nil, want a failure")
 	}
-	if _, err := store.PublishedBySlug(t.Context(), post.TypePost, stored.Slug); err == nil {
+	if _, err := store.PublishedBySlug(t.Context(), content.TypePost, stored.Slug); err == nil {
 		t.Error("PublishedBySlug() on a closed pool error = nil, want a failure")
 	}
-	if _, _, err := store.List(t.Context(), post.Filter{Type: post.TypePost, Page: 1, PerPage: 10}); err == nil {
+	if _, _, err := store.List(t.Context(), content.Filter{Type: content.TypePost, Page: 1, PerPage: 10}); err == nil {
 		t.Error("List() on a closed pool error = nil, want a failure")
 	}
 	if _, err := store.Update(t.Context(), stored, stored.UpdatedAt, nil, 0); err == nil {
@@ -48,28 +48,28 @@ func TestPostStoreReportsDatabaseFailures(t *testing.T) {
 	}
 }
 
-func TestPostStoreListReportsARejectedQuery(t *testing.T) {
+func TestContentStoreListReportsARejectedQuery(t *testing.T) {
 	t.Parallel()
 
-	store, _ := newPostStore(t)
+	store, _ := newContentStore(t)
 
-	_, _, err := store.List(t.Context(), post.Filter{Type: post.TypePost, Page: 1, PerPage: -1})
+	_, _, err := store.List(t.Context(), content.Filter{Type: content.TypePost, Page: 1, PerPage: -1})
 
 	if err == nil {
 		t.Error("List() with a negative page size error = nil, want a failure")
 	}
 }
 
-func TestPostStoreListServesAPageBeyondWhatAnOffsetHolds(t *testing.T) {
+func TestContentStoreListServesAPageBeyondWhatAnOffsetHolds(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	mustCreate(t, store, "Only Post", author)
 
-	rows, total, err := store.List(t.Context(), post.Filter{
-		Type:    post.TypePost,
-		OrderBy: post.OrderByDate,
-		Order:   post.OrderDesc,
+	rows, total, err := store.List(t.Context(), content.Filter{
+		Type:    content.TypePost,
+		OrderBy: content.OrderByDate,
+		Order:   content.OrderDesc,
 		Page:    30000000,
 		PerPage: 100,
 	})
@@ -85,10 +85,10 @@ func TestPostStoreListServesAPageBeyondWhatAnOffsetHolds(t *testing.T) {
 	}
 }
 
-func TestPostStoreReportsExhaustedSlugSuffixes(t *testing.T) {
+func TestContentStoreReportsExhaustedSlugSuffixes(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	for range 20 {
 		mustCreate(t, store, "Crowded", author)
 	}
@@ -98,22 +98,22 @@ func TestPostStoreReportsExhaustedSlugSuffixes(t *testing.T) {
 
 	_, updateErr := store.Update(t.Context(), edited, spare.UpdatedAt, nil, 0)
 
-	if !errors.Is(updateErr, post.ErrSlugTaken) {
-		t.Errorf("Update() error = %v, want %v", updateErr, post.ErrSlugTaken)
+	if !errors.Is(updateErr, content.ErrSlugTaken) {
+		t.Errorf("Update() error = %v, want %v", updateErr, content.ErrSlugTaken)
 	}
 }
 
-func TestPostStoreReportsASlugTakenEvenUnderTheIdentifiedOne(t *testing.T) {
+func TestContentStoreReportsASlugTakenEvenUnderTheIdentifiedOne(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
+	store, author, pool := newContentStoreWithPool(t)
 	for range 20 {
 		mustCreate(t, store, "Crowded", author)
 	}
 	crowded := mustPost(t, "Crowded", author)
 	decoy := "crowded-" + strings.ReplaceAll(crowded.ID.String(), "-", "")
 	_, err := pool.Exec(t.Context(),
-		`INSERT INTO core.posts (id, type, status, slug, title, content, excerpt, author_id, created_at, updated_at)
+		`INSERT INTO core.content (id, type, status, slug, title, content, excerpt, author_id, created_at, updated_at)
 		VALUES ($1, 'post', 'draft', $2, 'Decoy', '', '', $3, now(), now())`,
 		uuid.Must(uuid.NewV7()), decoy, author,
 	)
@@ -123,15 +123,15 @@ func TestPostStoreReportsASlugTakenEvenUnderTheIdentifiedOne(t *testing.T) {
 
 	_, createErr := store.Create(t.Context(), crowded)
 
-	if !errors.Is(createErr, post.ErrSlugTaken) {
-		t.Errorf("Create() error = %v, want %v", createErr, post.ErrSlugTaken)
+	if !errors.Is(createErr, content.ErrSlugTaken) {
+		t.Errorf("Create() error = %v, want %v", createErr, content.ErrSlugTaken)
 	}
 }
 
-func TestPostStoreCreatesUnderACrowdedSlugAnyway(t *testing.T) {
+func TestContentStoreCreatesUnderACrowdedSlugAnyway(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	for range 20 {
 		mustCreate(t, store, "Crowded", author)
 	}

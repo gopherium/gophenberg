@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
@@ -40,12 +40,12 @@ func TestPostRoutesRequireASession(t *testing.T) {
 
 	users := newFakeUserStore()
 	addAda(t, users)
-	handler := server.NewServer(server.Config{Users: users, Posts: newFakePostStore()})
+	handler := server.NewServer(server.Config{Users: users, Content: newFakePostStore()})
 
 	for _, path := range []string{
-		"/api/posts",
-		"/api/posts/counts",
-		"/api/posts/019f4a00-0000-7000-8000-000000000001",
+		"/api/content",
+		"/api/content/counts",
+		"/api/content/019f4a00-0000-7000-8000-000000000001",
 	} {
 		if code := doRequest(t, handler, http.MethodGet, path, "").Code; code != http.StatusUnauthorized {
 			t.Errorf("GET %s = %d, want %d", path, code, http.StatusUnauthorized)
@@ -61,7 +61,7 @@ func TestPostListReturnsItemsWithAuthorNames(t *testing.T) {
 	stored.Content = "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->"
 	posts.add(stored)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -77,7 +77,7 @@ func TestPostListReturnsItemsWithAuthorNames(t *testing.T) {
 	if item.Content != "" {
 		t.Errorf("Content = %q, want listings to omit it", item.Content)
 	}
-	if item.Status != string(post.StatusDraft) || item.Slug != "hello-world" {
+	if item.Status != string(content.StatusDraft) || item.Slug != "hello-world" {
 		t.Errorf("item = %+v, want a draft slugged hello-world", item)
 	}
 	if item.PublishedAt != nil {
@@ -90,7 +90,7 @@ func TestPostListReturnsAnEmptyArrayWithoutPosts(t *testing.T) {
 
 	handler, _, _ := authedPostServer(t)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -106,17 +106,17 @@ func TestPostListFiltersAndPaginates(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	draft := posts.add(newPost(t, "Draft One", ada.ID))
 	published := newPost(t, "Published One", ada.ID)
-	published.Status = post.StatusPublished
+	published.Status = content.StatusPublished
 	posts.add(published)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts?status=published", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content?status=published", "")
 
 	body := decodeBody[postListBody](t, recorder)
 	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].Title != "Published One" {
 		t.Errorf("filtered body = %+v, want only the published post", body)
 	}
 
-	page := decodeBody[postListBody](t, doRequest(t, handler, http.MethodGet, "/api/posts?per_page=1&page=2", ""))
+	page := decodeBody[postListBody](t, doRequest(t, handler, http.MethodGet, "/api/content?per_page=1&page=2", ""))
 
 	if page.Total != 2 || len(page.Items) != 1 {
 		t.Errorf("page two = %+v, want one of two items", page)
@@ -133,7 +133,7 @@ func TestPostListSearchesTitles(t *testing.T) {
 	posts.add(newPost(t, "Gutenberg Editor", ada.ID))
 	posts.add(newPost(t, "Something Else", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts?search=gutenberg", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content?search=gutenberg", "")
 
 	body := decodeBody[postListBody](t, recorder)
 	if body.Total != 1 || body.Items[0].Title != "Gutenberg Editor" {
@@ -155,10 +155,10 @@ func TestPostListRejectsInvalidParameters(t *testing.T) {
 		"?per_page=lots",
 		"?status=publsh",
 	} {
-		recorder := doRequest(t, handler, http.MethodGet, "/api/posts"+query, "")
+		recorder := doRequest(t, handler, http.MethodGet, "/api/content"+query, "")
 
 		if recorder.Code != http.StatusBadRequest {
-			t.Errorf("GET /api/posts%s = %d, want %d", query, recorder.Code, http.StatusBadRequest)
+			t.Errorf("GET /api/content%s = %d, want %d", query, recorder.Code, http.StatusBadRequest)
 		}
 	}
 }
@@ -169,7 +169,7 @@ func TestPostListReportsStoreFailures(t *testing.T) {
 	handler, posts, _ := authedPostServer(t)
 	posts.listErr = context.DeadlineExceeded
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content", "")
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
@@ -181,14 +181,14 @@ func TestPostListReportsAuthorLookupFailures(t *testing.T) {
 
 	users := newFakeUserStore()
 	addAda(t, users)
-	handler := server.NewServer(server.Config{Users: failingUserStore{Store: users}, Posts: newFakePostStore()})
+	handler := server.NewServer(server.Config{Users: failingUserStore{Store: users}, Content: newFakePostStore()})
 	cookie := loginCookie(t, handler)
 	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.AddCookie(cookie)
 		handler.ServeHTTP(w, r)
 	})
 
-	recorder := doRequest(t, authed, http.MethodGet, "/api/posts", "")
+	recorder := doRequest(t, authed, http.MethodGet, "/api/content", "")
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
@@ -203,7 +203,7 @@ func TestPostGetReturnsTheContent(t *testing.T) {
 	stored.Content = "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->"
 	posts.add(stored)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts/"+stored.ID.String(), "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/"+stored.ID.String(), "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -222,8 +222,8 @@ func TestPostGetRejectsUnknownAndMalformedIDs(t *testing.T) {
 
 	handler, _, _ := authedPostServer(t)
 
-	missing := doRequest(t, handler, http.MethodGet, "/api/posts/"+uuid.Must(uuid.NewV7()).String(), "")
-	malformed := doRequest(t, handler, http.MethodGet, "/api/posts/not-a-uuid", "")
+	missing := doRequest(t, handler, http.MethodGet, "/api/content/"+uuid.Must(uuid.NewV7()).String(), "")
+	malformed := doRequest(t, handler, http.MethodGet, "/api/content/not-a-uuid", "")
 
 	if missing.Code != http.StatusNotFound {
 		t.Errorf("missing post status = %d, want %d", missing.Code, http.StatusNotFound)
@@ -239,10 +239,10 @@ func TestPostCountsReportsEveryStatus(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	posts.add(newPost(t, "Draft One", ada.ID))
 	published := newPost(t, "Published One", ada.ID)
-	published.Status = post.StatusPublished
+	published.Status = content.StatusPublished
 	posts.add(published)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts/counts", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/counts", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -265,7 +265,7 @@ func TestPostCountsReportsStoreFailures(t *testing.T) {
 	handler, posts, _ := authedPostServer(t)
 	posts.countsErr = context.DeadlineExceeded
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/posts/counts", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/counts", "")
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
@@ -284,10 +284,10 @@ func TestPostListRejectsInvalidSortParameters(t *testing.T) {
 		"?order=",
 		"?orderby=title&order=random",
 	} {
-		recorder := doRequest(t, handler, http.MethodGet, "/api/posts"+query, "")
+		recorder := doRequest(t, handler, http.MethodGet, "/api/content"+query, "")
 
 		if recorder.Code != http.StatusBadRequest {
-			t.Errorf("GET /api/posts%s = %d, want %d", query, recorder.Code, http.StatusBadRequest)
+			t.Errorf("GET /api/content%s = %d, want %d", query, recorder.Code, http.StatusBadRequest)
 		}
 	}
 }
@@ -305,10 +305,10 @@ func TestPostListAcceptsEverySortPair(t *testing.T) {
 		"?orderby=date&order=asc",
 		"?orderby=date&order=desc",
 	} {
-		recorder := doRequest(t, handler, http.MethodGet, "/api/posts"+query, "")
+		recorder := doRequest(t, handler, http.MethodGet, "/api/content"+query, "")
 
 		if recorder.Code != http.StatusOK {
-			t.Errorf("GET /api/posts%s = %d, want %d", query, recorder.Code, http.StatusOK)
+			t.Errorf("GET /api/content%s = %d, want %d", query, recorder.Code, http.StatusOK)
 		}
 	}
 }
@@ -318,9 +318,9 @@ func TestPostListPassesTheSortToTheStore(t *testing.T) {
 
 	handler, posts, _ := authedPostServer(t)
 
-	doRequest(t, handler, http.MethodGet, "/api/posts?orderby=title&order=asc", "")
+	doRequest(t, handler, http.MethodGet, "/api/content?orderby=title&order=asc", "")
 
-	if posts.lastFilter.OrderBy != post.OrderByTitle || posts.lastFilter.Order != post.OrderAsc {
+	if posts.lastFilter.OrderBy != content.OrderByTitle || posts.lastFilter.Order != content.OrderAsc {
 		t.Errorf("filter = %+v, want title ascending", posts.lastFilter)
 	}
 }
@@ -330,9 +330,9 @@ func TestPostListDefaultsToNewestFirst(t *testing.T) {
 
 	handler, posts, _ := authedPostServer(t)
 
-	doRequest(t, handler, http.MethodGet, "/api/posts", "")
+	doRequest(t, handler, http.MethodGet, "/api/content", "")
 
-	if posts.lastFilter.OrderBy != post.OrderByDate || posts.lastFilter.Order != post.OrderDesc {
+	if posts.lastFilter.OrderBy != content.OrderByDate || posts.lastFilter.Order != content.OrderDesc {
 		t.Errorf("default filter = %+v, want date descending", posts.lastFilter)
 	}
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package post
+package content
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ type Type struct {
 	Label        string
 	Hierarchical bool
 	Revisions    bool
-	// RevisionCap bounds the revisions kept per post. Zero keeps every revision.
+	// RevisionCap bounds the revisions kept per content item. Zero keeps every revision.
 	RevisionCap int
 }
 
@@ -31,18 +31,18 @@ func init() {
 	Register(Type{Name: TypePost, Label: "Posts", Revisions: true, RevisionCap: 100})
 }
 
-// Register adds a post type to the registry and panics on an invalid one.
+// Register adds a content type to the registry and panics on an invalid one.
 func Register(t Type) {
 	if t.Name == "" {
-		panic("post: register type without a name")
+		panic("content: register type without a name")
 	}
 	if t.RevisionCap > math.MaxInt32 {
-		panic(fmt.Sprintf("post: type %q revision cap beyond the row limit", t.Name))
+		panic(fmt.Sprintf("content: type %q revision cap beyond the row limit", t.Name))
 	}
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
 	if _, ok := registry.types[t.Name]; ok {
-		panic(fmt.Sprintf("post: duplicate type %q", t.Name))
+		panic(fmt.Sprintf("content: duplicate type %q", t.Name))
 	}
 	registry.types[t.Name] = t
 }

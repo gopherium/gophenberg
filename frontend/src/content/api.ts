@@ -81,7 +81,7 @@ function toPost(row: z.infer<typeof postSchema>): Post {
  * @returns The stored draft.
  */
 export async function createPost(type = 'post'): Promise<Post> {
-	const response = await fetch('/api/posts', {
+	const response = await fetch('/api/content', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ type, title: '' }),
@@ -134,7 +134,7 @@ async function messageFrom(response: Response): Promise<string> {
  * @returns The stored post.
  */
 export async function fetchPost(id: string): Promise<PostDetail> {
-	const response = await fetch(`/api/posts/${id}`)
+	const response = await fetch(`/api/content/${id}`)
 	if (!response.ok) {
 		throw new Error(`reading a post failed with status ${response.status}`)
 	}
@@ -153,7 +153,7 @@ export async function savePost(
 	changes: PostChanges,
 	version: string,
 ): Promise<SaveOutcome> {
-	const response = await fetch(`/api/posts/${id}`, {
+	const response = await fetch(`/api/content/${id}`, {
 		method: 'PATCH',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ ...changes, updated_at: version }),
@@ -196,7 +196,7 @@ const autosaveSchema = z.object({
  * @returns The autosave, or nothing when the server holds none.
  */
 export async function fetchAutosave(id: string): Promise<Autosave | null> {
-	const response = await fetch(`/api/posts/${id}/autosave`)
+	const response = await fetch(`/api/content/${id}/autosave`)
 	if (!response.ok) {
 		return null
 	}
@@ -218,7 +218,7 @@ export async function autosavePost(
 	version: string,
 	keepalive = false,
 ): Promise<AutosaveOutcome> {
-	const response = await fetch(`/api/posts/${id}/autosave`, {
+	const response = await fetch(`/api/content/${id}/autosave`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ ...buffer, updated_at: version }),
@@ -237,7 +237,7 @@ export async function autosavePost(
  * @returns The trashed post.
  */
 export async function trashPost(id: string): Promise<Post> {
-	const response = await fetch(`/api/posts/${id}`, { method: 'DELETE' })
+	const response = await fetch(`/api/content/${id}`, { method: 'DELETE' })
 	if (!response.ok) {
 		throw new Error(`trashing a post failed with status ${response.status}`)
 	}
@@ -250,7 +250,7 @@ export async function trashPost(id: string): Promise<Post> {
  * @returns The restored post.
  */
 export async function restorePost(id: string): Promise<Post> {
-	const response = await fetch(`/api/posts/${id}/restore`, { method: 'POST' })
+	const response = await fetch(`/api/content/${id}/restore`, { method: 'POST' })
 	if (!response.ok) {
 		throw new Error(`restoring a post failed with status ${response.status}`)
 	}
@@ -262,7 +262,7 @@ export async function restorePost(id: string): Promise<Post> {
  * @param id - The post to delete.
  */
 export async function deletePost(id: string): Promise<void> {
-	const response = await fetch(`/api/posts/${id}?force=true`, { method: 'DELETE' })
+	const response = await fetch(`/api/content/${id}?force=true`, { method: 'DELETE' })
 	if (!response.ok) {
 		throw new Error(`deleting a post failed with status ${response.status}`)
 	}
@@ -290,7 +290,7 @@ export async function listPosts(query: PostQuery): Promise<PostPage> {
 	if (query.order) {
 		params.set('order', query.order)
 	}
-	const response = await fetch(`/api/posts?${params}`)
+	const response = await fetch(`/api/content?${params}`)
 	if (!response.ok) {
 		throw new Error(`listing posts failed with status ${response.status}`)
 	}
@@ -317,7 +317,7 @@ export async function emptyTrash(): Promise<void> {
  * @returns The count of posts per status.
  */
 export async function fetchPostCounts(): Promise<PostCounts> {
-	const response = await fetch('/api/posts/counts')
+	const response = await fetch('/api/content/counts')
 	if (!response.ok) {
 		throw new Error(`counting posts failed with status ${response.status}`)
 	}

@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
@@ -19,13 +19,13 @@ func TestPostCreateStoresADraftAuthoredByTheRequester(t *testing.T) {
 
 	handler, posts, ada := authedPostServer(t)
 
-	recorder := doRequest(t, handler, http.MethodPost, "/api/posts", `{"title":"Hello World"}`)
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content", `{"title":"Hello World"}`)
 
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusCreated, recorder.Body.String())
 	}
 	body := decodeBody[postBody](t, recorder)
-	if body.Status != string(post.StatusDraft) || body.Slug != "hello-world" {
+	if body.Status != string(content.StatusDraft) || body.Slug != "hello-world" {
 		t.Errorf("body = %+v, want a draft slugged hello-world", body)
 	}
 	if body.AuthorID != ada.ID || body.AuthorName != "Ada Lovelace" {
@@ -41,8 +41,8 @@ func TestPostCreateRejectsUnknownTypesAndMalformedBodies(t *testing.T) {
 
 	handler, _, _ := authedPostServer(t)
 
-	unknownType := doRequest(t, handler, http.MethodPost, "/api/posts", `{"title":"Hi","type":"ghost"}`)
-	malformed := doRequest(t, handler, http.MethodPost, "/api/posts", `{`)
+	unknownType := doRequest(t, handler, http.MethodPost, "/api/content", `{"title":"Hi","type":"ghost"}`)
+	malformed := doRequest(t, handler, http.MethodPost, "/api/content", `{`)
 
 	if unknownType.Code != http.StatusUnprocessableEntity {
 		t.Errorf("unknown type status = %d, want %d", unknownType.Code, http.StatusUnprocessableEntity)
@@ -58,7 +58,7 @@ func TestPostCreateReportsStoreFailures(t *testing.T) {
 	handler, posts, _ := authedPostServer(t)
 	posts.createErr = context.DeadlineExceeded
 
-	recorder := doRequest(t, handler, http.MethodPost, "/api/posts", `{"title":"Hello"}`)
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content", `{"title":"Hello"}`)
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
@@ -71,7 +71,7 @@ func TestPostPatchEditsFieldsAndStampsUpdatedAt(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Original", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{
 			"title":   "Edited",
 			"content": "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->",
@@ -98,9 +98,9 @@ func TestPostPatchReportsConflictingEdits(t *testing.T) {
 
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Contended", ada.ID))
-	posts.updateErr = post.ErrConflict
+	posts.updateErr = content.ErrConflict
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"}))
 
 	if recorder.Code != http.StatusConflict {
@@ -114,7 +114,7 @@ func TestPostPatchRejectsAnEditCarryingNoVersion(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Guarded", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(), `{"title":"Edited"}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(), `{"title":"Edited"}`)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
@@ -130,13 +130,13 @@ func TestPostPatchRejectsAnEditPreparedAgainstAnOlderVersion(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Contended", ada.ID))
 	held := stored.UpdatedAt
-	elsewhere := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	elsewhere := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, held, map[string]any{"title": "Written elsewhere"}))
 	if elsewhere.Code != http.StatusOK {
 		t.Fatalf("first write status = %d, want %d: %s", elsewhere.Code, http.StatusOK, elsewhere.Body.String())
 	}
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, held, map[string]any{"title": "Written from a stale view"}))
 
 	if recorder.Code != http.StatusConflict {
@@ -153,7 +153,7 @@ func TestPostPatchRejectsAnEditStatingAVersionThePostNeverHeld(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Guarded", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt.Add(time.Minute), map[string]any{"title": "Edited"}))
 
 	if recorder.Code != http.StatusConflict {
@@ -171,7 +171,7 @@ func TestPostPatchPublishesAndKeepsTheOriginalDate(t *testing.T) {
 	stored := posts.add(newPost(t, "To Publish", ada.ID))
 
 	published := decodeBody[postBody](t, doRequest(
-		t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"status": "published"}),
 	))
 	if published.PublishedAt == nil {
@@ -180,11 +180,11 @@ func TestPostPatchPublishesAndKeepsTheOriginalDate(t *testing.T) {
 	first := *published.PublishedAt
 
 	drafted := decodeBody[postBody](t, doRequest(
-		t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, published.UpdatedAt, map[string]any{"status": "draft"}),
 	))
 	republished := decodeBody[postBody](t, doRequest(
-		t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+		t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, drafted.UpdatedAt, map[string]any{"status": "published"}),
 	))
 
@@ -199,7 +199,7 @@ func TestPostPatchRestatingTheHeldStatusChangesNothing(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Already A Draft", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"status": "draft"}))
 
 	if recorder.Code != http.StatusOK {
@@ -217,9 +217,9 @@ func TestPostPatchRejectsUnreachableAndUnknownStatuses(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Draft", ada.ID))
 
-	scheduled := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	scheduled := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"status": "scheduled"}))
-	unknown := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	unknown := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"status": "publsh"}))
 
 	if scheduled.Code != http.StatusUnprocessableEntity {
@@ -228,7 +228,7 @@ func TestPostPatchRejectsUnreachableAndUnknownStatuses(t *testing.T) {
 	if unknown.Code != http.StatusUnprocessableEntity {
 		t.Errorf("unknown status = %d, want %d", unknown.Code, http.StatusUnprocessableEntity)
 	}
-	if posts.posts[stored.ID].Status != post.StatusDraft {
+	if posts.posts[stored.ID].Status != content.StatusDraft {
 		t.Errorf("stored status = %q, want it unchanged", posts.posts[stored.ID].Status)
 	}
 }
@@ -239,7 +239,7 @@ func TestPostPatchWithoutFieldsReturnsThePostUnchanged(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Untouched", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{}))
 
 	if recorder.Code != http.StatusOK {
@@ -257,7 +257,7 @@ func TestPostPatchNormalizesAnEditedSlug(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Original", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"slug": "A New Slug!"}))
 
 	body := decodeBody[postBody](t, recorder)
@@ -273,9 +273,9 @@ func TestPostPatchRejectsUnknownAndMalformedRequests(t *testing.T) {
 	missing := uuid.Must(uuid.NewV7()).String()
 	edit := versionedBody(t, time.Now().UTC(), map[string]any{"title": "Edited"})
 
-	notFound := doRequest(t, handler, http.MethodPatch, "/api/posts/"+missing, edit)
-	malformedID := doRequest(t, handler, http.MethodPatch, "/api/posts/not-a-uuid", edit)
-	malformedBody := doRequest(t, handler, http.MethodPatch, "/api/posts/"+missing, `{`)
+	notFound := doRequest(t, handler, http.MethodPatch, "/api/content/"+missing, edit)
+	malformedID := doRequest(t, handler, http.MethodPatch, "/api/content/not-a-uuid", edit)
+	malformedBody := doRequest(t, handler, http.MethodPatch, "/api/content/"+missing, `{`)
 
 	if notFound.Code != http.StatusNotFound {
 		t.Errorf("missing post status = %d, want %d", notFound.Code, http.StatusNotFound)
@@ -295,7 +295,7 @@ func TestPostPatchReportsStoreFailures(t *testing.T) {
 	stored := posts.add(newPost(t, "Doomed", ada.ID))
 	posts.updateErr = context.DeadlineExceeded
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/posts/"+stored.ID.String(),
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
 		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Edited"}))
 
 	if recorder.Code != http.StatusInternalServerError {
@@ -310,14 +310,14 @@ func TestPostDeleteTrashesAndForceDeletes(t *testing.T) {
 	trashed := posts.add(newPost(t, "To Trash", ada.ID))
 	doomed := posts.add(newPost(t, "To Delete", ada.ID))
 
-	trashRecorder := doRequest(t, handler, http.MethodDelete, "/api/posts/"+trashed.ID.String(), "")
-	forceRecorder := doRequest(t, handler, http.MethodDelete, "/api/posts/"+doomed.ID.String()+"?force=true", "")
+	trashRecorder := doRequest(t, handler, http.MethodDelete, "/api/content/"+trashed.ID.String(), "")
+	forceRecorder := doRequest(t, handler, http.MethodDelete, "/api/content/"+doomed.ID.String()+"?force=true", "")
 
 	if trashRecorder.Code != http.StatusOK {
 		t.Fatalf("trash status = %d, want %d: %s", trashRecorder.Code, http.StatusOK, trashRecorder.Body.String())
 	}
-	if body := decodeBody[postBody](t, trashRecorder); body.Status != string(post.StatusTrash) {
-		t.Errorf("trashed status = %q, want %q", body.Status, post.StatusTrash)
+	if body := decodeBody[postBody](t, trashRecorder); body.Status != string(content.StatusTrash) {
+		t.Errorf("trashed status = %q, want %q", body.Status, content.StatusTrash)
 	}
 	if _, ok := posts.posts[trashed.ID]; !ok {
 		t.Error("trashing removed the post, want it recoverable")
@@ -335,11 +335,11 @@ func TestPostDeleteRejectsUnknownAndMalformedIDs(t *testing.T) {
 
 	handler, _, _ := authedPostServer(t)
 
-	missing := doRequest(t, handler, http.MethodDelete, "/api/posts/"+uuid.Must(uuid.NewV7()).String(), "")
+	missing := doRequest(t, handler, http.MethodDelete, "/api/content/"+uuid.Must(uuid.NewV7()).String(), "")
 	forceMissing := doRequest(
-		t, handler, http.MethodDelete, "/api/posts/"+uuid.Must(uuid.NewV7()).String()+"?force=true", "",
+		t, handler, http.MethodDelete, "/api/content/"+uuid.Must(uuid.NewV7()).String()+"?force=true", "",
 	)
-	malformed := doRequest(t, handler, http.MethodDelete, "/api/posts/not-a-uuid", "")
+	malformed := doRequest(t, handler, http.MethodDelete, "/api/content/not-a-uuid", "")
 
 	if missing.Code != http.StatusNotFound || forceMissing.Code != http.StatusNotFound {
 		t.Errorf("missing statuses = %d and %d, want %d", missing.Code, forceMissing.Code, http.StatusNotFound)
@@ -354,17 +354,17 @@ func TestPostRestoreReturnsATrashedPostToDraft(t *testing.T) {
 
 	handler, posts, ada := authedPostServer(t)
 	stored := newPost(t, "Trashed", ada.ID)
-	stored.Status = post.StatusTrash
+	stored.Status = content.StatusTrash
 	stored.Slug += "-trashed-abcd1234"
 	posts.add(stored)
 
-	recorder := doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/restore", "")
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content/"+stored.ID.String()+"/restore", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
 	body := decodeBody[postBody](t, recorder)
-	if body.Status != string(post.StatusDraft) || body.Slug != "trashed" {
+	if body.Status != string(content.StatusDraft) || body.Slug != "trashed" {
 		t.Errorf("body = %+v, want a draft under the original slug", body)
 	}
 }
@@ -375,7 +375,7 @@ func TestPostRestoreRejectsPostsThatAreNotTrashed(t *testing.T) {
 	handler, posts, ada := authedPostServer(t)
 	stored := posts.add(newPost(t, "Live Draft", ada.ID))
 
-	recorder := doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/restore", "")
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content/"+stored.ID.String()+"/restore", "")
 
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusUnprocessableEntity)
@@ -388,9 +388,9 @@ func TestPostRestoreRejectsUnknownAndMalformedIDs(t *testing.T) {
 	handler, _, _ := authedPostServer(t)
 
 	missing := doRequest(
-		t, handler, http.MethodPost, "/api/posts/"+uuid.Must(uuid.NewV7()).String()+"/restore", "",
+		t, handler, http.MethodPost, "/api/content/"+uuid.Must(uuid.NewV7()).String()+"/restore", "",
 	)
-	malformed := doRequest(t, handler, http.MethodPost, "/api/posts/not-a-uuid/restore", "")
+	malformed := doRequest(t, handler, http.MethodPost, "/api/content/not-a-uuid/restore", "")
 
 	if missing.Code != http.StatusNotFound {
 		t.Errorf("missing post status = %d, want %d", missing.Code, http.StatusNotFound)
@@ -405,11 +405,11 @@ func TestPostRestoreReportsStoreFailures(t *testing.T) {
 
 	handler, posts, ada := authedPostServer(t)
 	stored := newPost(t, "Trashed", ada.ID)
-	stored.Status = post.StatusTrash
+	stored.Status = content.StatusTrash
 	posts.add(stored)
 	posts.restoreErr = context.DeadlineExceeded
 
-	recorder := doRequest(t, handler, http.MethodPost, "/api/posts/"+stored.ID.String()+"/restore", "")
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content/"+stored.ID.String()+"/restore", "")
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
@@ -421,7 +421,7 @@ func TestPostWriteRoutesRequireASession(t *testing.T) {
 
 	users := newFakeUserStore()
 	addAda(t, users)
-	unauthed := server.NewServer(server.Config{Users: users, Posts: newFakePostStore()})
+	unauthed := server.NewServer(server.Config{Users: users, Content: newFakePostStore()})
 	id := uuid.Must(uuid.NewV7()).String()
 
 	for _, target := range []struct {
@@ -429,10 +429,10 @@ func TestPostWriteRoutesRequireASession(t *testing.T) {
 		path   string
 		body   string
 	}{
-		{http.MethodPost, "/api/posts", `{"title":"Hi"}`},
-		{http.MethodPatch, "/api/posts/" + id, `{"title":"Hi"}`},
-		{http.MethodDelete, "/api/posts/" + id, ""},
-		{http.MethodPost, "/api/posts/" + id + "/restore", ""},
+		{http.MethodPost, "/api/content", `{"title":"Hi"}`},
+		{http.MethodPatch, "/api/content/" + id, `{"title":"Hi"}`},
+		{http.MethodDelete, "/api/content/" + id, ""},
+		{http.MethodPost, "/api/content/" + id + "/restore", ""},
 	} {
 		recorder := doRequest(t, unauthed, target.method, target.path, target.body)
 
@@ -450,8 +450,8 @@ func TestPostTrashReportsStoreFailures(t *testing.T) {
 	posts.trashErr = context.DeadlineExceeded
 	posts.deleteErr = context.DeadlineExceeded
 
-	trash := doRequest(t, handler, http.MethodDelete, "/api/posts/"+stored.ID.String(), "")
-	force := doRequest(t, handler, http.MethodDelete, "/api/posts/"+stored.ID.String()+"?force=true", "")
+	trash := doRequest(t, handler, http.MethodDelete, "/api/content/"+stored.ID.String(), "")
+	force := doRequest(t, handler, http.MethodDelete, "/api/content/"+stored.ID.String()+"?force=true", "")
 
 	if trash.Code != http.StatusInternalServerError || force.Code != http.StatusInternalServerError {
 		t.Errorf("statuses = %d and %d, want %d", trash.Code, force.Code, http.StatusInternalServerError)

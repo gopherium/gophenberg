@@ -12,25 +12,25 @@ import (
 
 	"github.com/gopherium/gouncer"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 func TestPostsReportsStoreFailures(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
-		store post.Store
+		store content.Store
 		users gouncer.Store
 	}{
 		"admin lookup": {store: stubPostStore{}, users: stubUserStore{err: errStub}},
 		"post lookup":  {store: stubPostStore{byIDErr: errStub}, users: stubUserStore{}},
-		"build":        {store: stubPostStore{byIDErr: post.ErrNotFound}, users: stubUserStore{id: uuid.Nil}},
+		"build":        {store: stubPostStore{byIDErr: content.ErrNotFound}, users: stubUserStore{id: uuid.Nil}},
 		"create": {
-			store: stubPostStore{byIDErr: post.ErrNotFound, createErr: errStub},
+			store: stubPostStore{byIDErr: content.ErrNotFound, createErr: errStub},
 			users: stubUserStore{id: uuid.New()},
 		},
 		"trash": {
-			store: stubPostStore{byIDErr: post.ErrNotFound, trashErr: errStub},
+			store: stubPostStore{byIDErr: content.ErrNotFound, trashErr: errStub},
 			users: stubUserStore{id: uuid.New()},
 		},
 	}
@@ -80,7 +80,7 @@ func TestPostsLeavesPostsItAlreadyStored(t *testing.T) {
 func TestStoreDemoPostRejectsAnUnknownStatus(t *testing.T) {
 	t.Parallel()
 
-	scripted := demoPost{title: "Unknown", status: post.Status("nonsense")}
+	scripted := demoPost{title: "Unknown", status: content.Status("nonsense")}
 
 	err := storeDemoPost(t.Context(), stubPostStore{}, scripted, uuid.New(), uuid.New())
 
@@ -94,30 +94,30 @@ var errStub = errors.New("stub failure")
 
 // countingPostStore is a post store counting what the seeding stored.
 type countingPostStore struct {
-	post.Store
+	content.Store
 	found   bool
 	created int
 	trashed int
 }
 
 // ByID reports whether the post was already stored.
-func (s *countingPostStore) ByID(_ context.Context, _ uuid.UUID) (post.Post, error) {
+func (s *countingPostStore) ByID(_ context.Context, _ uuid.UUID) (content.Content, error) {
 	if s.found {
-		return post.Post{}, nil
+		return content.Content{}, nil
 	}
-	return post.Post{}, post.ErrNotFound
+	return content.Content{}, content.ErrNotFound
 }
 
 // Create counts the post as stored.
-func (s *countingPostStore) Create(_ context.Context, p post.Post) (post.Post, error) {
+func (s *countingPostStore) Create(_ context.Context, p content.Content) (content.Content, error) {
 	s.created++
 	return p, nil
 }
 
 // Trash counts the post as trashed.
-func (s *countingPostStore) Trash(_ context.Context, _ uuid.UUID, _ time.Time) (post.Post, error) {
+func (s *countingPostStore) Trash(_ context.Context, _ uuid.UUID, _ time.Time) (content.Content, error) {
 	s.trashed++
-	return post.Post{}, nil
+	return content.Content{}, nil
 }
 
 // stubUserStore is a user store returning a scripted admin.
@@ -134,23 +134,23 @@ func (s stubUserStore) UserByEmail(_ context.Context, _ string) (gouncer.User, e
 
 // stubPostStore is a post store reporting scripted failures.
 type stubPostStore struct {
-	post.Store
+	content.Store
 	byIDErr   error
 	createErr error
 	trashErr  error
 }
 
 // ByID reports the scripted lookup failure.
-func (s stubPostStore) ByID(_ context.Context, _ uuid.UUID) (post.Post, error) {
-	return post.Post{}, s.byIDErr
+func (s stubPostStore) ByID(_ context.Context, _ uuid.UUID) (content.Content, error) {
+	return content.Content{}, s.byIDErr
 }
 
 // Create reports the scripted storage failure.
-func (s stubPostStore) Create(_ context.Context, p post.Post) (post.Post, error) {
+func (s stubPostStore) Create(_ context.Context, p content.Content) (content.Content, error) {
 	return p, s.createErr
 }
 
 // Trash reports the scripted trashing failure.
-func (s stubPostStore) Trash(_ context.Context, _ uuid.UUID, _ time.Time) (post.Post, error) {
-	return post.Post{}, s.trashErr
+func (s stubPostStore) Trash(_ context.Context, _ uuid.UUID, _ time.Time) (content.Content, error) {
+	return content.Content{}, s.trashErr
 }

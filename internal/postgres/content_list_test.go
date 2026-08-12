@@ -8,16 +8,16 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
 // publish stores a post already published at the given time.
-func publish(t *testing.T, store *postgres.PostStore, title string, author uuid.UUID, at time.Time) post.Post {
+func publish(t *testing.T, store *postgres.ContentStore, title string, author uuid.UUID, at time.Time) content.Content {
 	t.Helper()
 	created := mustCreate(t, store, title, author)
 	edited := created
-	edited.Status = post.StatusPublished
+	edited.Status = content.StatusPublished
 	edited.PublishedAt = &at
 	edited.UpdatedAt = at
 	updated, err := store.Update(t.Context(), edited, created.UpdatedAt, nil, 0)
@@ -28,7 +28,7 @@ func publish(t *testing.T, store *postgres.PostStore, title string, author uuid.
 }
 
 // titlesOf returns the titles of the listed posts in order.
-func titlesOf(posts []post.Post) []string {
+func titlesOf(posts []content.Content) []string {
 	titles := make([]string, len(posts))
 	for i, p := range posts {
 		titles[i] = p.Title
@@ -36,16 +36,16 @@ func titlesOf(posts []post.Post) []string {
 	return titles
 }
 
-func TestPostStoreListOrdersByPublicationThenCreation(t *testing.T) {
+func TestContentStoreListOrdersByPublicationThenCreation(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	publish(t, store, "Older Published", author, now.Add(-48*time.Hour))
 	publish(t, store, "Newer Published", author, now.Add(-1*time.Hour))
 	mustCreate(t, store, "Fresh Draft", author)
 
-	posts, total, err := store.List(t.Context(), post.Filter{Type: post.TypePost, Page: 1, PerPage: 10})
+	posts, total, err := store.List(t.Context(), content.Filter{Type: content.TypePost, Page: 1, PerPage: 10})
 
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
@@ -62,10 +62,10 @@ func TestPostStoreListOrdersByPublicationThenCreation(t *testing.T) {
 	}
 }
 
-func TestPostStoreListOmitsContent(t *testing.T) {
+func TestContentStoreListOmitsContent(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "With Body", author)
 	edited := created
 	edited.Content = "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->"
@@ -73,7 +73,7 @@ func TestPostStoreListOmitsContent(t *testing.T) {
 		t.Fatalf("Update() error = %v, want nil", err)
 	}
 
-	posts, _, err := store.List(t.Context(), post.Filter{Type: post.TypePost, Page: 1, PerPage: 10})
+	posts, _, err := store.List(t.Context(), content.Filter{Type: content.TypePost, Page: 1, PerPage: 10})
 
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
@@ -83,16 +83,16 @@ func TestPostStoreListOmitsContent(t *testing.T) {
 	}
 }
 
-func TestPostStoreListFiltersByStatus(t *testing.T) {
+func TestContentStoreListFiltersByStatus(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	publish(t, store, "Published One", author, time.Now().UTC().Truncate(time.Microsecond))
 	mustCreate(t, store, "Draft One", author)
 
 	posts, total, err := store.List(
 		t.Context(),
-		post.Filter{Type: post.TypePost, Status: post.StatusPublished, Page: 1, PerPage: 10},
+		content.Filter{Type: content.TypePost, Status: content.StatusPublished, Page: 1, PerPage: 10},
 	)
 
 	if err != nil {
@@ -103,10 +103,10 @@ func TestPostStoreListFiltersByStatus(t *testing.T) {
 	}
 }
 
-func TestPostStoreListSearchesTitleAndContent(t *testing.T) {
+func TestContentStoreListSearchesTitleAndContent(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	mustCreate(t, store, "Gutenberg Editor", author)
 	withBody := mustCreate(t, store, "Unrelated Title", author)
 	edited := withBody
@@ -118,7 +118,7 @@ func TestPostStoreListSearchesTitleAndContent(t *testing.T) {
 
 	posts, total, err := store.List(
 		t.Context(),
-		post.Filter{Type: post.TypePost, Search: "gutenberg", Page: 1, PerPage: 10},
+		content.Filter{Type: content.TypePost, Search: "gutenberg", Page: 1, PerPage: 10},
 	)
 
 	if err != nil {
@@ -129,16 +129,16 @@ func TestPostStoreListSearchesTitleAndContent(t *testing.T) {
 	}
 }
 
-func TestPostStoreListTreatsWildcardsAsLiterals(t *testing.T) {
+func TestContentStoreListTreatsWildcardsAsLiterals(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	mustCreate(t, store, "100% Coverage", author)
 	mustCreate(t, store, "Plain Title", author)
 
 	posts, total, err := store.List(
 		t.Context(),
-		post.Filter{Type: post.TypePost, Search: "100%", Page: 1, PerPage: 10},
+		content.Filter{Type: content.TypePost, Search: "100%", Page: 1, PerPage: 10},
 	)
 
 	if err != nil {
@@ -149,16 +149,16 @@ func TestPostStoreListTreatsWildcardsAsLiterals(t *testing.T) {
 	}
 }
 
-func TestPostStoreListPaginates(t *testing.T) {
+func TestContentStoreListPaginates(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	publish(t, store, "First", author, now.Add(-3*time.Hour))
 	publish(t, store, "Second", author, now.Add(-2*time.Hour))
 	publish(t, store, "Third", author, now.Add(-1*time.Hour))
 
-	second, total, err := store.List(t.Context(), post.Filter{Type: post.TypePost, Page: 2, PerPage: 2})
+	second, total, err := store.List(t.Context(), content.Filter{Type: content.TypePost, Page: 2, PerPage: 2})
 
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
@@ -171,13 +171,13 @@ func TestPostStoreListPaginates(t *testing.T) {
 	}
 }
 
-func TestPostStoreListReturnsAnEmptyPagePastTheEnd(t *testing.T) {
+func TestContentStoreListReturnsAnEmptyPagePastTheEnd(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	mustCreate(t, store, "Only One", author)
 
-	posts, total, err := store.List(t.Context(), post.Filter{Type: post.TypePost, Page: 5, PerPage: 10})
+	posts, total, err := store.List(t.Context(), content.Filter{Type: content.TypePost, Page: 5, PerPage: 10})
 
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
@@ -190,50 +190,50 @@ func TestPostStoreListReturnsAnEmptyPagePastTheEnd(t *testing.T) {
 	}
 }
 
-func TestPostStoreCountsPerStatus(t *testing.T) {
+func TestContentStoreCountsPerStatus(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	publish(t, store, "Published One", author, time.Now().UTC().Truncate(time.Microsecond))
 	mustCreate(t, store, "Draft One", author)
 	mustCreate(t, store, "Draft Two", author)
 
-	counts, err := store.Counts(t.Context(), post.TypePost)
+	counts, err := store.Counts(t.Context(), content.TypePost)
 
 	if err != nil {
 		t.Fatalf("Counts() error = %v, want nil", err)
 	}
-	if counts[post.StatusDraft] != 2 || counts[post.StatusPublished] != 1 {
+	if counts[content.StatusDraft] != 2 || counts[content.StatusPublished] != 1 {
 		t.Errorf("counts = %v, want two drafts and one published", counts)
 	}
-	if _, ok := counts[post.StatusTrash]; ok {
+	if _, ok := counts[content.StatusTrash]; ok {
 		t.Errorf("counts = %v, want absent statuses omitted by the store", counts)
 	}
 }
 
-func TestPostStoreCountsReportsDatabaseFailures(t *testing.T) {
+func TestContentStoreCountsReportsDatabaseFailures(t *testing.T) {
 	t.Parallel()
 
-	store, _, pool := newPostStoreWithPool(t)
+	store, _, pool := newContentStoreWithPool(t)
 	pool.Close()
 
-	_, err := store.Counts(t.Context(), post.TypePost)
+	_, err := store.Counts(t.Context(), content.TypePost)
 
 	if err == nil {
 		t.Error("Counts() on a closed pool error = nil, want a failure")
 	}
 }
 
-func TestPostStoreListSortsByTitle(t *testing.T) {
+func TestContentStoreListSortsByTitle(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	mustCreate(t, store, "Beta", author)
 	mustCreate(t, store, "Alpha", author)
 	mustCreate(t, store, "Gamma", author)
 
-	ascending, _, err := store.List(t.Context(), post.Filter{
-		Type: post.TypePost, OrderBy: post.OrderByTitle, Order: post.OrderAsc, Page: 1, PerPage: 10,
+	ascending, _, err := store.List(t.Context(), content.Filter{
+		Type: content.TypePost, OrderBy: content.OrderByTitle, Order: content.OrderAsc, Page: 1, PerPage: 10,
 	})
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
@@ -242,8 +242,8 @@ func TestPostStoreListSortsByTitle(t *testing.T) {
 		t.Errorf("ascending = %v, want Alpha first and Gamma last", got)
 	}
 
-	descending, _, err := store.List(t.Context(), post.Filter{
-		Type: post.TypePost, OrderBy: post.OrderByTitle, Order: post.OrderDesc, Page: 1, PerPage: 10,
+	descending, _, err := store.List(t.Context(), content.Filter{
+		Type: content.TypePost, OrderBy: content.OrderByTitle, Order: content.OrderDesc, Page: 1, PerPage: 10,
 	})
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
@@ -253,16 +253,16 @@ func TestPostStoreListSortsByTitle(t *testing.T) {
 	}
 }
 
-func TestPostStoreListSortsByDateIndependentlyOfCreationOrder(t *testing.T) {
+func TestContentStoreListSortsByDateIndependentlyOfCreationOrder(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	publish(t, store, "Published Long Ago", author, now.Add(-72*time.Hour))
 	publish(t, store, "Published Recently", author, now.Add(-1*time.Hour))
 
-	oldestFirst, _, err := store.List(t.Context(), post.Filter{
-		Type: post.TypePost, OrderBy: post.OrderByDate, Order: post.OrderAsc, Page: 1, PerPage: 10,
+	oldestFirst, _, err := store.List(t.Context(), content.Filter{
+		Type: content.TypePost, OrderBy: content.OrderByDate, Order: content.OrderAsc, Page: 1, PerPage: 10,
 	})
 
 	if err != nil {
@@ -273,15 +273,15 @@ func TestPostStoreListSortsByDateIndependentlyOfCreationOrder(t *testing.T) {
 	}
 }
 
-func TestPostStoreListDefaultsToNewestPublicationFirst(t *testing.T) {
+func TestContentStoreListDefaultsToNewestPublicationFirst(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	publish(t, store, "Published Recently", author, now.Add(-1*time.Hour))
 	publish(t, store, "Published Long Ago", author, now.Add(-72*time.Hour))
 
-	posts, _, err := store.List(t.Context(), post.Filter{Type: post.TypePost, Page: 1, PerPage: 10})
+	posts, _, err := store.List(t.Context(), content.Filter{Type: content.TypePost, Page: 1, PerPage: 10})
 
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
@@ -291,16 +291,16 @@ func TestPostStoreListDefaultsToNewestPublicationFirst(t *testing.T) {
 	}
 }
 
-func TestPostStoreListSortsTitlesCaseInsensitively(t *testing.T) {
+func TestContentStoreListSortsTitlesCaseInsensitively(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	mustCreate(t, store, "banana", author)
 	mustCreate(t, store, "Apricot", author)
 	mustCreate(t, store, "cherry", author)
 
-	posts, _, err := store.List(t.Context(), post.Filter{
-		Type: post.TypePost, OrderBy: post.OrderByTitle, Order: post.OrderAsc, Page: 1, PerPage: 10,
+	posts, _, err := store.List(t.Context(), content.Filter{
+		Type: content.TypePost, OrderBy: content.OrderByTitle, Order: content.OrderAsc, Page: 1, PerPage: 10,
 	})
 
 	if err != nil {

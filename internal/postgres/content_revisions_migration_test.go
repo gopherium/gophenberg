@@ -9,18 +9,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // insertRevision stores a revision row directly.
 func insertRevision(
-	t *testing.T, pool *pgxpool.Pool, postID, author uuid.UUID, kind post.RevisionKind,
+	t *testing.T, pool *pgxpool.Pool, contentID, author uuid.UUID, kind content.RevisionKind,
 ) error {
 	t.Helper()
 	_, err := pool.Exec(t.Context(),
-		`INSERT INTO core.post_revisions (id, post_id, kind, author_id, title, content, excerpt, created_at)
+		`INSERT INTO core.content_revisions (id, content_id, kind, author_id, title, content, excerpt, created_at)
 		VALUES ($1, $2, $3, $4, 'Title', 'Content', 'Excerpt', $5)`,
-		uuid.Must(uuid.NewV7()), postID, string(kind), author, time.Now().UTC(),
+		uuid.Must(uuid.NewV7()), contentID, string(kind), author, time.Now().UTC(),
 	)
 	return err
 }
@@ -28,10 +28,10 @@ func insertRevision(
 func TestRevisionMigrationsStoreBothKinds(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
+	store, author, pool := newContentStoreWithPool(t)
 	stored := mustCreate(t, store, "Revised", author)
 
-	for _, kind := range []post.RevisionKind{post.RevisionKindRevision, post.RevisionKindAutosave} {
+	for _, kind := range []content.RevisionKind{content.RevisionKindRevision, content.RevisionKindAutosave} {
 		if err := insertRevision(t, pool, stored.ID, author, kind); err != nil {
 			t.Errorf("inserting a %q revision: %v, want nil", kind, err)
 		}
@@ -41,7 +41,7 @@ func TestRevisionMigrationsStoreBothKinds(t *testing.T) {
 func TestRevisionMigrationsRejectUnknownKinds(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
+	store, author, pool := newContentStoreWithPool(t)
 	stored := mustCreate(t, store, "Revised", author)
 
 	err := insertRevision(t, pool, stored.ID, author, "sketch")
@@ -54,15 +54,15 @@ func TestRevisionMigrationsRejectUnknownKinds(t *testing.T) {
 func TestRevisionMigrationsAllowOneAutosavePerAuthor(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
+	store, author, pool := newContentStoreWithPool(t)
 	stored := mustCreate(t, store, "Revised", author)
-	if err := insertRevision(t, pool, stored.ID, author, post.RevisionKindAutosave); err != nil {
+	if err := insertRevision(t, pool, stored.ID, author, content.RevisionKindAutosave); err != nil {
 		t.Fatalf("inserting the first autosave: %v, want nil", err)
 	}
 
-	autosaveErr := insertRevision(t, pool, stored.ID, author, post.RevisionKindAutosave)
-	revisionErr := insertRevision(t, pool, stored.ID, author, post.RevisionKindRevision)
-	secondRevisionErr := insertRevision(t, pool, stored.ID, author, post.RevisionKindRevision)
+	autosaveErr := insertRevision(t, pool, stored.ID, author, content.RevisionKindAutosave)
+	revisionErr := insertRevision(t, pool, stored.ID, author, content.RevisionKindRevision)
+	secondRevisionErr := insertRevision(t, pool, stored.ID, author, content.RevisionKindRevision)
 
 	if code := pgErrorCode(autosaveErr); code != uniqueViolation {
 		t.Errorf("second autosave: %v, want unique violation %s", autosaveErr, uniqueViolation)
@@ -77,11 +77,16 @@ func TestRevisionMigrationsIndexRevisionsForListingAndAuthorship(t *testing.T) {
 
 	db := newTestDB(t)
 
-	for _, name := range []string{"post_revisions_post_id_created_at_idx", "post_revisions_author_id_idx"} {
+	names := []string{
+		"content_revisions_content_id_created_at_idx",
+		"content_revisions_author_id_idx",
+		"content_revisions_one_autosave_per_author_idx",
+	}
+	for _, name := range names {
 		var count int
 		err := db.QueryRow(
 			`SELECT count(*) FROM pg_indexes
-			WHERE schemaname = 'core' AND tablename = 'post_revisions' AND indexname = $1`, name,
+			WHERE schemaname = 'core' AND tablename = 'content_revisions' AND indexname = $1`, name,
 		).Scan(&count)
 		if err != nil {
 			t.Fatalf("querying pg_indexes: %v", err)
@@ -95,11 +100,11 @@ func TestRevisionMigrationsIndexRevisionsForListingAndAuthorship(t *testing.T) {
 func TestRevisionMigrationsRejectOrphans(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
+	store, author, pool := newContentStoreWithPool(t)
 	stored := mustCreate(t, store, "Revised", author)
 
-	orphanPost := insertRevision(t, pool, uuid.Must(uuid.NewV7()), author, post.RevisionKindRevision)
-	orphanAuthor := insertRevision(t, pool, stored.ID, uuid.Must(uuid.NewV7()), post.RevisionKindRevision)
+	orphanPost := insertRevision(t, pool, uuid.Must(uuid.NewV7()), author, content.RevisionKindRevision)
+	orphanAuthor := insertRevision(t, pool, stored.ID, uuid.Must(uuid.NewV7()), content.RevisionKindRevision)
 
 	if code := pgErrorCode(orphanPost); code != foreignKeyViolation {
 		t.Errorf("revision without a post: %v, want foreign key violation", orphanPost)
@@ -112,9 +117,9 @@ func TestRevisionMigrationsRejectOrphans(t *testing.T) {
 func TestRevisionMigrationsCascadeWithThePost(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
+	store, author, pool := newContentStoreWithPool(t)
 	stored := mustCreate(t, store, "Doomed", author)
-	if err := insertRevision(t, pool, stored.ID, author, post.RevisionKindRevision); err != nil {
+	if err := insertRevision(t, pool, stored.ID, author, content.RevisionKindRevision); err != nil {
 		t.Fatalf("inserting a revision: %v, want nil", err)
 	}
 
@@ -124,12 +129,12 @@ func TestRevisionMigrationsCascadeWithThePost(t *testing.T) {
 
 	var remaining int
 	err := pool.QueryRow(t.Context(),
-		"SELECT count(*) FROM core.post_revisions WHERE post_id = $1", stored.ID,
+		"SELECT count(*) FROM core.content_revisions WHERE content_id = $1", stored.ID,
 	).Scan(&remaining)
 	if err != nil {
 		t.Fatalf("counting revisions: %v", err)
 	}
 	if remaining != 0 {
-		t.Errorf("revisions remaining = %d, want them removed with the post", remaining)
+		t.Errorf("revisions remaining = %d, want them removed with the content", remaining)
 	}
 }

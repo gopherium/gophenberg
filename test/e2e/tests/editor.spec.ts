@@ -54,7 +54,7 @@ async function openNewDraft(page: Page) {
 
 test.afterEach(async ({ page }) => {
 	for (const id of created.splice(0)) {
-		await page.request.delete(`/api/posts/${id}?force=true`)
+		await page.request.delete(`/api/content/${id}?force=true`)
 	}
 })
 

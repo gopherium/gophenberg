@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/publichtml"
 )
 
@@ -14,7 +14,7 @@ import (
 func publishedDemoPosts() []demoPost {
 	published := make([]demoPost, 0, len(demoPosts()))
 	for _, scripted := range demoPosts() {
-		if scripted.status == post.StatusPublished {
+		if scripted.status == content.StatusPublished {
 			published = append(published, scripted)
 		}
 	}

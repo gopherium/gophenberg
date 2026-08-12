@@ -11,9 +11,9 @@ Gophenberg is an open-source plugin-first CMS. The backend is a Go service expos
 cmd/gophenberg/       main: config, db pool, auth wiring, plugin registration
 cmd/pluginwire/       generator: plugins/*/plugin.json -> wiring files
 internal/server       http.Handler, routes, middleware, theme reverse proxy
-internal/post         post domain package
+internal/content      content domain package
 internal/postgres     data access (pgx + sqlc)
-internal/postbridge   published posts as the sdk PostReader seam
+internal/contentbridge published content as the sdk ContentReader seam
 internal/publichtml   sanitizer for stored block markup on public surfaces
 internal/publicsite   built-in Go renderer for the public site
 internal/themehost    theme artifact validation and the node process supervisor

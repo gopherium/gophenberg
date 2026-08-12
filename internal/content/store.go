@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package post
+package content
 
 import (
 	"context"
@@ -14,22 +14,22 @@ import (
 // RevisionKind distinguishes an update snapshot from a per-author autosave.
 type RevisionKind string
 
-// The kinds of revision a post carries.
+// The kinds of revision a content item carries.
 const (
 	RevisionKindRevision RevisionKind = "revision"
 	RevisionKindAutosave RevisionKind = "autosave"
 )
 
 // ErrRevisionNotFound reports that no revision exists for the requested ID.
-var ErrRevisionNotFound = errors.New("post: revision not found")
+var ErrRevisionNotFound = errors.New("content: revision not found")
 
-// ErrConflict reports that the post changed after the update was prepared.
-var ErrConflict = errors.New("post: conflicting update")
+// ErrConflict reports that the content item changed after the update was prepared.
+var ErrConflict = errors.New("content: conflicting update")
 
-// Revision is a snapshot of a post's editable content.
+// Revision is a snapshot of a content item's editable content.
 type Revision struct {
 	ID        uuid.UUID
-	PostID    uuid.UUID
+	ContentID uuid.UUID
 	Kind      RevisionKind
 	AuthorID  uuid.UUID
 	Title     string
@@ -38,29 +38,29 @@ type Revision struct {
 	CreatedAt time.Time
 }
 
-// NewRevision returns a snapshot of the post's editable content, credited to the given author.
-func NewRevision(p Post, kind RevisionKind, authorID uuid.UUID) (Revision, error) {
+// NewRevision returns a snapshot of the item's editable content, credited to the given author.
+func NewRevision(c Content, kind RevisionKind, authorID uuid.UUID) (Revision, error) {
 	id, err := uuid.NewV7()
 	if err != nil {
-		return Revision{}, fmt.Errorf("post: generate revision id: %w", err)
+		return Revision{}, fmt.Errorf("content: generate revision id: %w", err)
 	}
 	return Revision{
 		ID:        id,
-		PostID:    p.ID,
+		ContentID: c.ID,
 		Kind:      kind,
 		AuthorID:  authorID,
-		Title:     p.Title,
-		Content:   p.Content,
-		Excerpt:   p.Excerpt,
+		Title:     c.Title,
+		Content:   c.Content,
+		Excerpt:   c.Excerpt,
 		CreatedAt: time.Now().UTC(),
 	}, nil
 }
 
 // ErrInvalidOrderBy reports that a sort column is not one the CMS sorts by.
-var ErrInvalidOrderBy = errors.New("post: invalid orderby")
+var ErrInvalidOrderBy = errors.New("content: invalid orderby")
 
 // ErrInvalidOrder reports that a sort direction is not one the CMS sorts in.
-var ErrInvalidOrder = errors.New("post: invalid order")
+var ErrInvalidOrder = errors.New("content: invalid order")
 
 // OrderBy names a column a listing can be sorted by.
 type OrderBy string
@@ -100,7 +100,7 @@ func ParseOrder(raw string) (Order, error) {
 	}
 }
 
-// Filter narrows a post listing.
+// Filter narrows a content listing.
 type Filter struct {
 	Type    string
 	Status  Status
@@ -111,21 +111,23 @@ type Filter struct {
 	PerPage int
 }
 
-// Store persists posts and their revisions.
+// Store persists content items and their revisions.
 type Store interface {
-	Create(ctx context.Context, p Post) (Post, error)
-	ByID(ctx context.Context, id uuid.UUID) (Post, error)
-	PublishedBySlug(ctx context.Context, postType, slug string) (Post, error)
-	List(ctx context.Context, f Filter) ([]Post, int, error)
-	Update(ctx context.Context, p Post, expectedUpdatedAt time.Time, snapshot *Revision, revisionCap int) (Post, error)
-	Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Post, error)
-	Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Post, error)
+	Create(ctx context.Context, c Content) (Content, error)
+	ByID(ctx context.Context, id uuid.UUID) (Content, error)
+	PublishedBySlug(ctx context.Context, contentType, slug string) (Content, error)
+	List(ctx context.Context, f Filter) ([]Content, int, error)
+	Update(
+		ctx context.Context, c Content, expectedUpdatedAt time.Time, snapshot *Revision, revisionCap int,
+	) (Content, error)
+	Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Content, error)
+	Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Content, error)
 	Delete(ctx context.Context, id uuid.UUID) error
-	Counts(ctx context.Context, postType string) (map[Status]int, error)
-	Revisions(ctx context.Context, postID uuid.UUID) ([]Revision, error)
-	RevisionByID(ctx context.Context, postID, revisionID uuid.UUID) (Revision, error)
-	DeleteRevision(ctx context.Context, postID, revisionID uuid.UUID) error
+	Counts(ctx context.Context, contentType string) (map[Status]int, error)
+	Revisions(ctx context.Context, contentID uuid.UUID) ([]Revision, error)
+	RevisionByID(ctx context.Context, contentID, revisionID uuid.UUID) (Revision, error)
+	DeleteRevision(ctx context.Context, contentID, revisionID uuid.UUID) error
 	SaveAutosave(ctx context.Context, autosave Revision) (Revision, error)
-	Autosave(ctx context.Context, postID, authorID uuid.UUID) (Revision, error)
-	DeleteAutosave(ctx context.Context, postID, authorID uuid.UUID) error
+	Autosave(ctx context.Context, contentID, authorID uuid.UUID) (Revision, error)
+	DeleteAutosave(ctx context.Context, contentID, authorID uuid.UUID) error
 }

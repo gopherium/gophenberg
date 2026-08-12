@@ -64,11 +64,11 @@ test('keeps the readiness probe off the public site', async ({ page }) => {
 test('shows a post published in the admin without rebuilding the theme', async ({ page }) => {
 	const title = 'Published While the Theme Was Running'
 
-	const created = await page.request.post('/api/posts', { data: { title } })
+	const created = await page.request.post('/api/content', { data: { title } })
 	expect(created.status()).toBe(201)
 	const { id, updated_at: updatedAt } = await created.json()
 
-	const published = await page.request.patch(`/api/posts/${id}`, {
+	const published = await page.request.patch(`/api/content/${id}`, {
 		data: { status: 'published', updated_at: updatedAt },
 	})
 	expect(published.status()).toBe(200)
@@ -77,6 +77,6 @@ test('shows a post published in the admin without rebuilding the theme', async (
 		await page.goto('/')
 		await expect(page.getByRole('link', { name: title })).toBeVisible()
 	} finally {
-		await page.request.delete(`/api/posts/${id}?force=true`)
+		await page.request.delete(`/api/content/${id}?force=true`)
 	}
 })

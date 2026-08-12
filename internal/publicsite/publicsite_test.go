@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/publicsite"
 )
 
@@ -22,19 +22,19 @@ const blockMarkup = "<!-- wp:paragraph --><p>Body text.</p><!-- /wp:paragraph --
 
 // fakeReader serves posts from memory and records the filter it was asked for.
 type fakeReader struct {
-	posts   []post.Post
-	filter  post.Filter
+	posts   []content.Content
+	filter  content.Filter
 	listErr error
 	readErr error
 }
 
 // List records the filter and returns the matching page without content.
-func (r *fakeReader) List(_ context.Context, f post.Filter) ([]post.Post, int, error) {
+func (r *fakeReader) List(_ context.Context, f content.Filter) ([]content.Content, int, error) {
 	r.filter = f
 	if r.listErr != nil {
 		return nil, 0, r.listErr
 	}
-	matched := make([]post.Post, 0, len(r.posts))
+	matched := make([]content.Content, 0, len(r.posts))
 	for _, p := range r.posts {
 		if p.Type != f.Type || p.Status != f.Status {
 			continue
@@ -48,28 +48,28 @@ func (r *fakeReader) List(_ context.Context, f post.Filter) ([]post.Post, int, e
 }
 
 // PublishedBySlug returns the stored published post of the given type and slug.
-func (r *fakeReader) PublishedBySlug(_ context.Context, postType, slug string) (post.Post, error) {
+func (r *fakeReader) PublishedBySlug(_ context.Context, postType, slug string) (content.Content, error) {
 	if r.readErr != nil {
-		return post.Post{}, r.readErr
+		return content.Content{}, r.readErr
 	}
 	for _, p := range r.posts {
-		if p.Type == postType && p.Slug == slug && p.Status == post.StatusPublished {
+		if p.Type == postType && p.Slug == slug && p.Status == content.StatusPublished {
 			return p, nil
 		}
 	}
-	return post.Post{}, post.ErrNotFound
+	return content.Content{}, content.ErrNotFound
 }
 
-// publishedPost returns a published post carrying the given title, slug, and content.
-func publishedPost(title, slug, content string, at time.Time) post.Post {
-	return post.Post{
+// publishedPost returns a published post carrying the given title, slug, and body.
+func publishedPost(title, slug, body string, at time.Time) content.Content {
+	return content.Content{
 		ID:          uuid.Must(uuid.NewV7()),
-		Type:        post.TypePost,
+		Type:        content.TypePost,
 		Slug:        slug,
 		Title:       title,
 		Excerpt:     "An excerpt.",
-		Content:     content,
-		Status:      post.StatusPublished,
+		Content:     body,
+		Status:      content.StatusPublished,
 		PublishedAt: &at,
 		CreatedAt:   at,
 		UpdatedAt:   at,
@@ -77,10 +77,10 @@ func publishedPost(title, slug, content string, at time.Time) post.Post {
 }
 
 // siteWith returns a handler serving the given posts, and the reader behind it.
-func siteWith(posts ...post.Post) (http.Handler, *fakeReader) {
+func siteWith(posts ...content.Content) (http.Handler, *fakeReader) {
 	reader := &fakeReader{posts: posts}
 	return publicsite.New(publicsite.Config{
-		Posts:   reader,
+		Content: reader,
 		Title:   "A Test Site",
 		Version: "1.2.3",
 	}), reader
@@ -101,7 +101,7 @@ func TestSiteListsPublishedPostsNewestFirst(t *testing.T) {
 	newer := publishedPost("A Newer Post", "newer", blockMarkup, now)
 	older := publishedPost("An Older Post", "older", blockMarkup, now.Add(-time.Hour))
 	draft := publishedPost("A Draft", "a-draft", blockMarkup, now)
-	draft.Status = post.StatusDraft
+	draft.Status = content.StatusDraft
 	handler, reader := siteWith(newer, older, draft)
 
 	recorder := get(t, handler, "/")
@@ -119,15 +119,15 @@ func TestSiteListsPublishedPostsNewestFirst(t *testing.T) {
 	if !strings.Contains(body, `href="/post/newer"`) {
 		t.Errorf("body = %q, want each post linked at its address", body)
 	}
-	if reader.filter.Status != post.StatusPublished {
-		t.Errorf("filter status = %q, want %q", reader.filter.Status, post.StatusPublished)
+	if reader.filter.Status != content.StatusPublished {
+		t.Errorf("filter status = %q, want %q", reader.filter.Status, content.StatusPublished)
 	}
-	if reader.filter.OrderBy != post.OrderByDate || reader.filter.Order != post.OrderDesc {
+	if reader.filter.OrderBy != content.OrderByDate || reader.filter.Order != content.OrderDesc {
 		t.Errorf("filter ordering = %q %q, want the newest published first",
 			reader.filter.OrderBy, reader.filter.Order)
 	}
-	if reader.filter.Type != post.TypePost {
-		t.Errorf("filter type = %q, want %q", reader.filter.Type, post.TypePost)
+	if reader.filter.Type != content.TypePost {
+		t.Errorf("filter type = %q, want %q", reader.filter.Type, content.TypePost)
 	}
 }
 
@@ -186,7 +186,7 @@ func TestSiteAnswersUnservedAddressesWithARenderedNotFound(t *testing.T) {
 	t.Parallel()
 
 	draft := publishedPost("A Draft", "a-draft", blockMarkup, time.Now().UTC())
-	draft.Status = post.StatusDraft
+	draft.Status = content.StatusDraft
 	handler, _ := siteWith(draft)
 
 	for _, path := range []string{
@@ -210,7 +210,7 @@ func TestSiteWalksOlderPages(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().UTC()
-	posts := make([]post.Post, 0, 25)
+	posts := make([]content.Content, 0, 25)
 	for i := range 25 {
 		posts = append(posts, publishedPost("Post", "slug", blockMarkup, now.Add(-time.Duration(i)*time.Minute)))
 	}
@@ -297,7 +297,7 @@ func TestSiteEscapesWhatAnAuthorTyped(t *testing.T) {
 func TestSiteNamesItselfWhenTheConfigurationDoesNot(t *testing.T) {
 	t.Parallel()
 
-	handler := publicsite.New(publicsite.Config{Posts: &fakeReader{}, Version: "1.2.3"})
+	handler := publicsite.New(publicsite.Config{Content: &fakeReader{}, Version: "1.2.3"})
 
 	body := get(t, handler, "/").Body.String()
 

@@ -30,13 +30,13 @@ type PublicPathProvider = pluginkit.PublicPathProvider
 // Deps carries the host-provided dependencies a plugin's Register function receives at registration.
 type Deps struct {
 	DatabaseURL string
-	Posts       PostReader
+	Content     ContentReader
 	Getenv      func(string) string
 }
 
-// Post is a published content object as plugins see it: the Content
+// Item is a published content item as plugins see it: the Content
 // field holds Gutenberg-serialized block HTML, sanitized for public delivery.
-type Post struct {
+type Item struct {
 	ID          uuid.UUID
 	Type        string
 	Slug        string
@@ -47,7 +47,7 @@ type Post struct {
 	UpdatedAt   time.Time
 }
 
-// PostReader gives plugins read access to published content.
-type PostReader interface {
-	ListPublished(ctx context.Context, postType string, limit int) ([]Post, error)
+// ContentReader gives plugins read access to published content.
+type ContentReader interface {
+	ListPublished(ctx context.Context, contentType string, limit int) ([]Item, error)
 }

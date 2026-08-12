@@ -14,7 +14,7 @@ import (
 
 	"github.com/gopherium/gouncer/authkit"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/publichtml"
 )
 
@@ -30,8 +30,8 @@ type contentHandshake struct {
 	API        int    `json:"api"`
 }
 
-// contentSummary is a published post as a listing carries it.
-type contentSummary struct {
+// publishedSummary is a published item as a listing carries it.
+type publishedSummary struct {
 	ID          uuid.UUID `json:"id"`
 	Type        string    `json:"type"`
 	Slug        string    `json:"slug"`
@@ -41,34 +41,34 @@ type contentSummary struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// contentDetail adds the sanitized block markup to a summary.
-type contentDetail struct {
-	contentSummary
+// publishedDetail adds the sanitized block markup to a summary.
+type publishedDetail struct {
+	publishedSummary
 	Content string `json:"content"`
 }
 
-// contentPage is one page of published summaries with the total behind it.
-type contentPage struct {
-	Items   []contentSummary `json:"items"`
-	Total   int              `json:"total"`
-	Page    int              `json:"page"`
-	PerPage int              `json:"per_page"`
+// publishedPage is one page of published summaries with the total behind it.
+type publishedPage struct {
+	Items   []publishedSummary `json:"items"`
+	Total   int                `json:"total"`
+	Page    int                `json:"page"`
+	PerPage int                `json:"per_page"`
 }
 
-// newContentSummary returns the summary of a published post with UTC timestamps.
-func newContentSummary(p post.Post) contentSummary {
-	published := p.UpdatedAt
-	if p.PublishedAt != nil {
-		published = *p.PublishedAt
+// newPublishedSummary returns the summary of a published item with UTC timestamps.
+func newPublishedSummary(c content.Content) publishedSummary {
+	published := c.UpdatedAt
+	if c.PublishedAt != nil {
+		published = *c.PublishedAt
 	}
-	return contentSummary{
-		ID:          p.ID,
-		Type:        p.Type,
-		Slug:        p.Slug,
-		Title:       p.Title,
-		Excerpt:     p.Excerpt,
+	return publishedSummary{
+		ID:          c.ID,
+		Type:        c.Type,
+		Slug:        c.Slug,
+		Title:       c.Title,
+		Excerpt:     c.Excerpt,
 		PublishedAt: published.UTC(),
-		UpdatedAt:   p.UpdatedAt.UTC(),
+		UpdatedAt:   c.UpdatedAt.UTC(),
 	}
 }
 
@@ -81,27 +81,27 @@ func contentHeaders(next http.Handler) http.Handler {
 	})
 }
 
-// parseContentFilter returns the published listing the query asks for.
-func parseContentFilter(query url.Values) (post.Filter, error) {
-	filter := post.Filter{
-		Type:    post.TypePost,
-		Status:  post.StatusPublished,
-		OrderBy: post.OrderByDate,
-		Order:   post.OrderDesc,
+// parsePublishedFilter returns the published listing the query asks for.
+func parsePublishedFilter(query url.Values) (content.Filter, error) {
+	filter := content.Filter{
+		Type:    content.TypePost,
+		Status:  content.StatusPublished,
+		OrderBy: content.OrderByDate,
+		Order:   content.OrderDesc,
 		Page:    1,
-		PerPage: defaultPostsPerPage,
+		PerPage: defaultContentPerPage,
 	}
 	if raw := query.Get("type"); raw != "" {
 		filter.Type = raw
 	}
-	if err := applyContentPaging(query, &filter); err != nil {
-		return post.Filter{}, err
+	if err := applyPublishedPaging(query, &filter); err != nil {
+		return content.Filter{}, err
 	}
 	return filter, nil
 }
 
-// applyContentPaging reads the page and per_page query parameters into filter, capping the page size.
-func applyContentPaging(query url.Values, filter *post.Filter) error {
+// applyPublishedPaging reads the page and per_page query parameters into filter, capping the page size.
+func applyPublishedPaging(query url.Values, filter *content.Filter) error {
 	if raw := query.Get("page"); raw != "" {
 		page, err := strconv.Atoi(raw)
 		if err != nil || page < 1 {
@@ -114,7 +114,7 @@ func applyContentPaging(query url.Values, filter *post.Filter) error {
 		if err != nil || perPage < 1 {
 			return fmt.Errorf("server: invalid per_page %q", raw)
 		}
-		filter.PerPage = min(perPage, maxPostsPerPage)
+		filter.PerPage = min(perPage, maxContentPerPage)
 	}
 	return nil
 }
@@ -126,24 +126,24 @@ func (s *server) handleContentHandshake() http.HandlerFunc {
 	}
 }
 
-// handleContentList returns an http.HandlerFunc listing published posts without their content.
-func (s *server) handleContentList() http.HandlerFunc {
+// handlePublishedList returns an http.HandlerFunc listing published items without their content.
+func (s *server) handlePublishedList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		filter, err := parseContentFilter(r.URL.Query())
+		filter, err := parsePublishedFilter(r.URL.Query())
 		if err != nil {
 			authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
 			return
 		}
-		rows, total, err := s.posts.List(r.Context(), filter)
+		rows, total, err := s.content.List(r.Context(), filter)
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
-		items := make([]contentSummary, len(rows))
-		for i, p := range rows {
-			items[i] = newContentSummary(p)
+		items := make([]publishedSummary, len(rows))
+		for i, c := range rows {
+			items[i] = newPublishedSummary(c)
 		}
-		authkit.Respond(w, http.StatusOK, contentPage{
+		authkit.Respond(w, http.StatusOK, publishedPage{
 			Items:   items,
 			Total:   total,
 			Page:    filter.Page,
@@ -152,28 +152,28 @@ func (s *server) handleContentList() http.HandlerFunc {
 	}
 }
 
-// handleContentPost returns an http.HandlerFunc serving one published post with its content.
-func (s *server) handleContentPost() http.HandlerFunc {
+// handlePublishedItem returns an http.HandlerFunc serving one published item with its content.
+func (s *server) handlePublishedItem() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		p, err := s.posts.PublishedBySlug(r.Context(), chi.URLParam(r, "type"), chi.URLParam(r, "slug"))
+		c, err := s.content.PublishedBySlug(r.Context(), chi.URLParam(r, "type"), chi.URLParam(r, "slug"))
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
-		etag := contentETag(p)
+		etag := contentETag(c)
 		w.Header().Set("ETag", etag)
 		if r.Header.Get("If-None-Match") == etag {
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		authkit.Respond(w, http.StatusOK, contentDetail{
-			contentSummary: newContentSummary(p),
-			Content:        publichtml.Sanitize(p.Content),
+		authkit.Respond(w, http.StatusOK, publishedDetail{
+			publishedSummary: newPublishedSummary(c),
+			Content:          publichtml.Sanitize(c.Content),
 		})
 	}
 }
 
-// contentETag returns the validator standing for the post's current revision.
-func contentETag(p post.Post) string {
-	return `"` + strconv.FormatInt(p.UpdatedAt.UTC().UnixNano(), 36) + `"`
+// contentETag returns the validator standing for the item's current revision.
+func contentETag(c content.Content) string {
+	return `"` + strconv.FormatInt(c.UpdatedAt.UTC().UnixNano(), 36) + `"`
 }

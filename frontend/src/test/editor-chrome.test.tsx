@@ -13,7 +13,7 @@ const EDITOR_PATH = `/posts/${storedPost.id}/edit`
 const patched: Record<string, unknown>[] = []
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 /**
@@ -22,8 +22,8 @@ beforeAll(async () => {
  */
 function serve(post: Record<string, unknown>) {
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(post)),
-		http.patch(`/api/posts/${storedPost.id}`, async ({ request }) => {
+		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(post)),
+		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
 			const body = (await request.json()) as Record<string, unknown>
 			patched.push(body)
 			return HttpResponse.json({ ...post, ...body, published_at: '2026-08-01T10:00:00Z' })
@@ -133,7 +133,7 @@ test('offers to update a post that is already published', async () => {
 test('reports a publication the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.patch(`/api/posts/${storedPost.id}`, () =>
+		http.patch(`/api/content/${storedPost.id}`, () =>
 			HttpResponse.json({ error: 'post: invalid transition' }, { status: 422 }),
 		),
 	)

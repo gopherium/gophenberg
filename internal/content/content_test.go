@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package post_test
+package content_test
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 var errEntropy = errors.New("entropy source failed")
@@ -26,7 +26,7 @@ func TestNewReportsIDGenerationFailure(t *testing.T) {
 	uuid.SetRand(failingReader{})
 	defer uuid.SetRand(nil)
 
-	_, err := post.New("post", "Hello World", author)
+	_, err := content.New("post", "Hello World", author)
 
 	if !errors.Is(err, errEntropy) {
 		t.Fatalf("New() error = %v, want the entropy failure in its chain", err)
@@ -39,7 +39,7 @@ func TestNewReturnsADraftWithGeneratedFields(t *testing.T) {
 	author := uuid.Must(uuid.NewV7())
 	before := time.Now().UTC()
 
-	p, err := post.New("post", "Hello World", author)
+	p, err := content.New("post", "Hello World", author)
 
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
@@ -47,8 +47,8 @@ func TestNewReturnsADraftWithGeneratedFields(t *testing.T) {
 	if p.ID == uuid.Nil {
 		t.Error("ID is nil, want a generated identifier")
 	}
-	if p.Status != post.StatusDraft {
-		t.Errorf("Status = %q, want %q", p.Status, post.StatusDraft)
+	if p.Status != content.StatusDraft {
+		t.Errorf("Status = %q, want %q", p.Status, content.StatusDraft)
 	}
 	if p.Slug != "hello-world" {
 		t.Errorf("Slug = %q, want %q", p.Slug, "hello-world")
@@ -79,7 +79,7 @@ func TestNewReturnsADraftWithGeneratedFields(t *testing.T) {
 func TestNewTitlesWithoutSlugCharactersFallBackToUntitled(t *testing.T) {
 	t.Parallel()
 
-	p, err := post.New("post", "   ", uuid.Must(uuid.NewV7()))
+	p, err := content.New("post", "   ", uuid.Must(uuid.NewV7()))
 
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
@@ -93,20 +93,20 @@ func TestNewRejectsInvalidInput(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
-		postType string
-		author   uuid.UUID
-		want     error
+		contentType string
+		author      uuid.UUID
+		want        error
 	}{
-		"empty type":      {postType: "", author: uuid.Must(uuid.NewV7()), want: post.ErrInvalidType},
-		"whitespace type": {postType: "  ", author: uuid.Must(uuid.NewV7()), want: post.ErrInvalidType},
-		"missing author":  {postType: "post", author: uuid.Nil, want: post.ErrInvalidAuthor},
+		"empty type":      {contentType: "", author: uuid.Must(uuid.NewV7()), want: content.ErrInvalidType},
+		"whitespace type": {contentType: "  ", author: uuid.Must(uuid.NewV7()), want: content.ErrInvalidType},
+		"missing author":  {contentType: "post", author: uuid.Nil, want: content.ErrInvalidAuthor},
 	}
 
 	for testName, tc := range tests {
 		t.Run(testName, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := post.New(tc.postType, "Hello", tc.author)
+			_, err := content.New(tc.contentType, "Hello", tc.author)
 
 			if !errors.Is(err, tc.want) {
 				t.Errorf("New() error = %v, want %v", err, tc.want)
@@ -138,7 +138,7 @@ func TestSlugify(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			t.Parallel()
 
-			if got := post.Slugify(tc.in); got != tc.want {
+			if got := content.Slugify(tc.in); got != tc.want {
 				t.Errorf("Slugify(%q) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
@@ -148,7 +148,7 @@ func TestSlugify(t *testing.T) {
 func TestSlugifyTruncatesLongTitlesWithoutTrailingSeparator(t *testing.T) {
 	t.Parallel()
 
-	got := post.Slugify(strings.Repeat("a", 199) + " b")
+	got := content.Slugify(strings.Repeat("a", 199) + " b")
 
 	if want := strings.Repeat("a", 199); got != want {
 		t.Errorf("Slugify() = %q with length %d, want %d characters and no trailing hyphen", got, len(got), len(want))

@@ -17,7 +17,7 @@ const patched: Record<string, unknown>[] = []
 const parked: Record<string, unknown>[] = []
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
@@ -25,9 +25,9 @@ beforeEach(() => {
 	parked.length = 0
 	vi.useFakeTimers({ shouldAdvanceTime: true })
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)),
-		http.get(`/api/posts/${storedPost.id}/autosave`, () => HttpResponse.json({}, { status: 404 })),
-		http.patch(`/api/posts/${storedPost.id}`, async ({ request }) => {
+		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)),
+		http.get(`/api/content/${storedPost.id}/autosave`, () => HttpResponse.json({}, { status: 404 })),
+		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
 			const body = (await request.json()) as Record<string, unknown>
 			patched.push(body)
 			return HttpResponse.json({ ...storedPost, ...body, updated_at: WRITTEN_AT })
@@ -56,11 +56,11 @@ async function tick(ms: number) {
  */
 function autosaveLands(target: string, savedAt: string) {
 	server.use(
-		http.post(`/api/posts/${storedPost.id}/autosave`, async ({ request }) => {
+		http.post(`/api/content/${storedPost.id}/autosave`, async ({ request }) => {
 			parked.push((await request.json()) as Record<string, unknown>)
 			return HttpResponse.json({
 				target,
-				post_id: storedPost.id,
+				content_id: storedPost.id,
 				title: 'Welcome to Gophenberg!',
 				content: storedPost.content,
 				excerpt: '',

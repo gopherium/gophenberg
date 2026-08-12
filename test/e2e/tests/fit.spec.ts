@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('seeds a hostile post and fits every screen to a phone', async ({ page }) => {
-	const created = await page.request.post('/api/posts', {
+	const created = await page.request.post('/api/content', {
 		data: { type: 'post', title: `${LONG_TITLE} ${UNBREAKABLE}` },
 	})
 	expect(created.status()).toBe(201)

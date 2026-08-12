@@ -31,7 +31,7 @@ func newTestDB(t *testing.T) *sql.DB {
 	return pgtestdb.New(t, testdb.Config(), testdb.Migrator())
 }
 
-// insertAuthor stores a user the posts table can reference.
+// insertAuthor stores a user the content table can reference.
 func insertAuthor(t *testing.T, db *sql.DB) uuid.UUID {
 	t.Helper()
 	id := uuid.Must(uuid.NewV7())
@@ -46,11 +46,11 @@ func insertAuthor(t *testing.T, db *sql.DB) uuid.UUID {
 	return id
 }
 
-// insertPost stores a post row with the given status, slug, and publication time.
-func insertPost(db *sql.DB, author uuid.UUID, status, slug string, publishedAt *time.Time) error {
+// insertContent stores a content row with the given status, slug, and publication time.
+func insertContent(db *sql.DB, author uuid.UUID, status, slug string, publishedAt *time.Time) error {
 	now := time.Now().UTC()
 	_, err := db.Exec(
-		`INSERT INTO core.posts
+		`INSERT INTO core.content
 		(id, type, status, slug, title, content, excerpt, author_id, published_at, created_at, updated_at)
 		VALUES ($1, 'post', $2, $3, 'Title', '', '', $4, $5, $6, $6)`,
 		uuid.Must(uuid.NewV7()), status, slug, author, publishedAt, now,
@@ -67,13 +67,13 @@ func pgErrorCode(err error) string {
 	return ""
 }
 
-func TestMigrationsStoreADraftPost(t *testing.T) {
+func TestMigrationsStoreDraftContent(t *testing.T) {
 	t.Parallel()
 
 	db := newTestDB(t)
 	author := insertAuthor(t, db)
 
-	if err := insertPost(db, author, "draft", "hello-world", nil); err != nil {
+	if err := insertContent(db, author, "draft", "hello-world", nil); err != nil {
 		t.Fatalf("inserting draft: %v, want nil", err)
 	}
 }
@@ -84,7 +84,7 @@ func TestMigrationsRejectAnUnknownStatus(t *testing.T) {
 	db := newTestDB(t)
 	author := insertAuthor(t, db)
 
-	err := insertPost(db, author, "publsh", "typo-status", nil)
+	err := insertContent(db, author, "publsh", "typo-status", nil)
 
 	if code := pgErrorCode(err); code != checkViolation {
 		t.Fatalf("inserting an unknown status: %v with code %q, want %q", err, code, checkViolation)
@@ -97,21 +97,21 @@ func TestMigrationsRequireAPublicationDateWhenPublished(t *testing.T) {
 	db := newTestDB(t)
 	author := insertAuthor(t, db)
 
-	err := insertPost(db, author, "published", "published-without-date", nil)
+	err := insertContent(db, author, "published", "published-without-date", nil)
 
 	if code := pgErrorCode(err); code != checkViolation {
 		t.Fatalf("publishing without a date: %v with code %q, want %q", err, code, checkViolation)
 	}
 }
 
-func TestMigrationsKeepThePublicationDateOnUnpublishedPosts(t *testing.T) {
+func TestMigrationsKeepThePublicationDateOnUnpublishedContent(t *testing.T) {
 	t.Parallel()
 
 	db := newTestDB(t)
 	author := insertAuthor(t, db)
 	published := time.Now().UTC()
 
-	if err := insertPost(db, author, "draft", "unpublished-keeps-date", &published); err != nil {
+	if err := insertContent(db, author, "draft", "unpublished-keeps-date", &published); err != nil {
 		t.Fatalf("unpublishing a dated post: %v, want nil", err)
 	}
 }
@@ -121,39 +121,39 @@ func TestMigrationsEnforceSlugUniquenessWithinAType(t *testing.T) {
 
 	db := newTestDB(t)
 	author := insertAuthor(t, db)
-	if err := insertPost(db, author, "draft", "shared-slug", nil); err != nil {
+	if err := insertContent(db, author, "draft", "shared-slug", nil); err != nil {
 		t.Fatalf("inserting the first post: %v, want nil", err)
 	}
 
-	err := insertPost(db, author, "draft", "shared-slug", nil)
+	err := insertContent(db, author, "draft", "shared-slug", nil)
 
 	if code := pgErrorCode(err); code != uniqueViolation {
 		t.Fatalf("reusing a slug: %v with code %q, want %q", err, code, uniqueViolation)
 	}
 }
 
-func TestMigrationsRejectAPostWithoutAnAuthor(t *testing.T) {
+func TestMigrationsRejectContentWithoutAnAuthor(t *testing.T) {
 	t.Parallel()
 
 	db := newTestDB(t)
 
-	err := insertPost(db, uuid.Must(uuid.NewV7()), "draft", "orphan-post", nil)
+	err := insertContent(db, uuid.Must(uuid.NewV7()), "draft", "orphan-content", nil)
 
 	if code := pgErrorCode(err); code != foreignKeyViolation {
-		t.Fatalf("inserting an orphan post: %v with code %q, want %q", err, code, foreignKeyViolation)
+		t.Fatalf("inserting orphan content: %v with code %q, want %q", err, code, foreignKeyViolation)
 	}
 }
 
-func TestMigrationsIndexPostsForListingAndAuthorship(t *testing.T) {
+func TestMigrationsIndexContentForListingAndAuthorship(t *testing.T) {
 	t.Parallel()
 
 	db := newTestDB(t)
 
-	for _, name := range []string{"posts_type_status_published_at_idx", "posts_author_id_idx"} {
+	for _, name := range []string{"content_type_status_published_at_idx", "content_author_id_idx"} {
 		var count int
 		err := db.QueryRow(
 			`SELECT count(*) FROM pg_indexes
-			WHERE schemaname = 'core' AND tablename = 'posts' AND indexname = $1`, name,
+			WHERE schemaname = 'core' AND tablename = 'content' AND indexname = $1`, name,
 		).Scan(&count)
 		if err != nil {
 			t.Fatalf("querying pg_indexes: %v", err)
@@ -161,5 +161,23 @@ func TestMigrationsIndexPostsForListingAndAuthorship(t *testing.T) {
 		if count != 1 {
 			t.Errorf("index %s count = %d, want 1", name, count)
 		}
+	}
+}
+
+func TestMigrationsRenameKeepsTheSlugConstraint(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+
+	var count int
+	err := db.QueryRow(
+		`SELECT count(*) FROM pg_constraint
+		WHERE conname = 'content_type_slug_unique' AND conrelid = 'core.content'::regclass`,
+	).Scan(&count)
+	if err != nil {
+		t.Fatalf("querying pg_constraint: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("constraint content_type_slug_unique count = %d, want 1", count)
 	}
 }

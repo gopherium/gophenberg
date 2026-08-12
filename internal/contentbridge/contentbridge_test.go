@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package postbridge_test
+package contentbridge_test
 
 import (
 	"context"
@@ -11,27 +11,27 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
-	"github.com/gopherium/gophenberg/internal/postbridge"
+	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/contentbridge"
 )
 
 // recordingPostStore serves posts and records the filter it was asked for.
 type recordingPostStore struct {
-	post.Store
-	posts        []post.Post
-	current      []post.Post
-	filter       post.Filter
+	content.Store
+	posts        []content.Content
+	current      []content.Content
+	filter       content.Filter
 	listErr      error
 	publishedErr error
 }
 
 // List records the filter and returns the stored posts without their content.
-func (s *recordingPostStore) List(_ context.Context, f post.Filter) ([]post.Post, int, error) {
+func (s *recordingPostStore) List(_ context.Context, f content.Filter) ([]content.Content, int, error) {
 	s.filter = f
 	if s.listErr != nil {
 		return nil, 0, s.listErr
 	}
-	listed := make([]post.Post, len(s.posts))
+	listed := make([]content.Content, len(s.posts))
 	for i, p := range s.posts {
 		p.Content = ""
 		listed[i] = p
@@ -40,38 +40,38 @@ func (s *recordingPostStore) List(_ context.Context, f post.Filter) ([]post.Post
 }
 
 // PublishedBySlug returns the stored published post of the given type and slug.
-func (s *recordingPostStore) PublishedBySlug(_ context.Context, postType, slug string) (post.Post, error) {
+func (s *recordingPostStore) PublishedBySlug(_ context.Context, postType, slug string) (content.Content, error) {
 	if s.publishedErr != nil {
-		return post.Post{}, s.publishedErr
+		return content.Content{}, s.publishedErr
 	}
 	serving := s.current
 	if serving == nil {
 		serving = s.posts
 	}
 	for _, p := range serving {
-		if p.Type == postType && p.Slug == slug && p.Status == post.StatusPublished {
+		if p.Type == postType && p.Slug == slug && p.Status == content.StatusPublished {
 			return p, nil
 		}
 	}
-	return post.Post{}, post.ErrNotFound
+	return content.Content{}, content.ErrNotFound
 }
 
-// publishedPost returns a published post carrying the given title and content.
-func publishedPost(title, content string) post.Post {
-	return publishedPostAt(title, content, "a-slug")
+// publishedPost returns a published post carrying the given title and body.
+func publishedPost(title, body string) content.Content {
+	return publishedPostAt(title, body, "a-slug")
 }
 
-// publishedPostAt returns a published post carrying the given title, content, and slug.
-func publishedPostAt(title, content, slug string) post.Post {
+// publishedPostAt returns a published post carrying the given title, body, and slug.
+func publishedPostAt(title, body, slug string) content.Content {
 	at := time.Now().UTC()
-	return post.Post{
+	return content.Content{
 		ID:          uuid.Must(uuid.NewV7()),
-		Type:        post.TypePost,
-		Status:      post.StatusPublished,
+		Type:        content.TypePost,
+		Status:      content.StatusPublished,
 		Slug:        slug,
 		Title:       title,
 		Excerpt:     "An excerpt.",
-		Content:     content,
+		Content:     body,
 		PublishedAt: &at,
 		UpdatedAt:   at,
 	}
@@ -81,9 +81,9 @@ func TestReaderMapsPostsForPlugins(t *testing.T) {
 	t.Parallel()
 
 	stored := publishedPost("A Published Post", "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->")
-	store := &recordingPostStore{posts: []post.Post{stored}}
+	store := &recordingPostStore{posts: []content.Content{stored}}
 
-	got, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 20)
+	got, err := contentbridge.New(store).ListPublished(t.Context(), content.TypePost, 20)
 
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
@@ -107,12 +107,12 @@ func TestReaderAsksOnlyForPublishedPosts(t *testing.T) {
 
 	store := &recordingPostStore{}
 
-	if _, err := postbridge.New(store).ListPublished(t.Context(), "page", 5); err != nil {
+	if _, err := contentbridge.New(store).ListPublished(t.Context(), "page", 5); err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
 	}
 
-	if store.filter.Status != post.StatusPublished {
-		t.Errorf("Status = %q, want %q", store.filter.Status, post.StatusPublished)
+	if store.filter.Status != content.StatusPublished {
+		t.Errorf("Status = %q, want %q", store.filter.Status, content.StatusPublished)
 	}
 	if store.filter.Type != "page" {
 		t.Errorf("Type = %q, want %q", store.filter.Type, "page")
@@ -124,13 +124,13 @@ func TestReaderAsksForTheNewestFirst(t *testing.T) {
 
 	store := &recordingPostStore{}
 
-	if _, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 5); err != nil {
+	if _, err := contentbridge.New(store).ListPublished(t.Context(), content.TypePost, 5); err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
 	}
 
-	if store.filter.OrderBy != post.OrderByDate || store.filter.Order != post.OrderDesc {
+	if store.filter.OrderBy != content.OrderByDate || store.filter.Order != content.OrderDesc {
 		t.Errorf("ordering = %q %q, want %q %q",
-			store.filter.OrderBy, store.filter.Order, post.OrderByDate, post.OrderDesc)
+			store.filter.OrderBy, store.filter.Order, content.OrderByDate, content.OrderDesc)
 	}
 }
 
@@ -139,7 +139,7 @@ func TestReaderCapsWhatItAsksFor(t *testing.T) {
 
 	store := &recordingPostStore{}
 
-	if _, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 7); err != nil {
+	if _, err := contentbridge.New(store).ListPublished(t.Context(), content.TypePost, 7); err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
 	}
 
@@ -153,7 +153,7 @@ func TestReaderReportsAListingItCouldNotRead(t *testing.T) {
 
 	store := &recordingPostStore{listErr: errors.New("database down")}
 
-	_, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 5)
+	_, err := contentbridge.New(store).ListPublished(t.Context(), content.TypePost, 5)
 
 	if err == nil {
 		t.Fatal("ListPublished() error = nil, want the listing failure")
@@ -164,11 +164,11 @@ func TestReaderReportsContentItCouldNotRead(t *testing.T) {
 	t.Parallel()
 
 	store := &recordingPostStore{
-		posts:        []post.Post{publishedPost("A Post", "")},
+		posts:        []content.Content{publishedPost("A Post", "")},
 		publishedErr: errors.New("database down"),
 	}
 
-	_, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 5)
+	_, err := contentbridge.New(store).ListPublished(t.Context(), content.TypePost, 5)
 
 	if err == nil {
 		t.Fatal("ListPublished() error = nil, want the content failure")
@@ -180,9 +180,9 @@ func TestReaderSanitizesContentBeforeTheSeam(t *testing.T) {
 
 	stored := publishedPost("A Post",
 		`<!-- wp:paragraph --><p onclick="steal()">Body</p><script>alert(1)</script><!-- /wp:paragraph -->`)
-	store := &recordingPostStore{posts: []post.Post{stored}}
+	store := &recordingPostStore{posts: []content.Content{stored}}
 
-	got, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 5)
+	got, err := contentbridge.New(store).ListPublished(t.Context(), content.TypePost, 5)
 
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
@@ -200,9 +200,9 @@ func TestReaderSkipsAPostUnpublishedWhileItWasReading(t *testing.T) {
 
 	staying := publishedPostAt("Staying", "<!-- wp:paragraph --><p>Here</p><!-- /wp:paragraph -->", "staying")
 	leaving := publishedPostAt("Leaving", "<!-- wp:paragraph --><p>Gone</p><!-- /wp:paragraph -->", "leaving")
-	store := &recordingPostStore{posts: []post.Post{staying, leaving}, current: []post.Post{staying}}
+	store := &recordingPostStore{posts: []content.Content{staying, leaving}, current: []content.Content{staying}}
 
-	got, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 5)
+	got, err := contentbridge.New(store).ListPublished(t.Context(), content.TypePost, 5)
 
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
@@ -220,9 +220,9 @@ func TestReaderSkipsAPostWhoseSlugAnotherPostTook(t *testing.T) {
 
 	listed := publishedPostAt("Listed", "<!-- wp:paragraph --><p>Old</p><!-- /wp:paragraph -->", "hello")
 	claimed := publishedPostAt("Claimed", "<!-- wp:paragraph --><p>New</p><!-- /wp:paragraph -->", "hello")
-	store := &recordingPostStore{posts: []post.Post{listed}, current: []post.Post{claimed}}
+	store := &recordingPostStore{posts: []content.Content{listed}, current: []content.Content{claimed}}
 
-	got, err := postbridge.New(store).ListPublished(t.Context(), post.TypePost, 5)
+	got, err := contentbridge.New(store).ListPublished(t.Context(), content.TypePost, 5)
 
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)

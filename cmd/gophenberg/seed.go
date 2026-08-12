@@ -41,7 +41,7 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	if err != nil {
 		return err
 	}
-	if err := seed.Posts(ctx, postgres.NewPostStore(pool), users); err != nil {
+	if err := seed.Posts(ctx, postgres.NewContentStore(pool), users); err != nil {
 		return err
 	}
 	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {

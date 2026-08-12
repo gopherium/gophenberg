@@ -37,7 +37,7 @@ func TestServedPostsAnswerAnAuthenticatedCaller(t *testing.T) {
 	awaitServer(t, base)
 	client := loggedInClient(t, base)
 
-	for _, path := range []string{"/api/posts?per_page=20&orderby=date&order=desc", "/api/posts/counts"} {
+	for _, path := range []string{"/api/content?per_page=20&orderby=date&order=desc", "/api/content/counts"} {
 		assertOK(t, client, base+path)
 	}
 

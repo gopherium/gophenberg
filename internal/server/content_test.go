@@ -12,23 +12,23 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // blockMarkup is the serialized block content a published fixture carries.
 const blockMarkup = "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->"
 
-// publishedFixture returns a published post carrying the given slug and content.
-func publishedFixture(t *testing.T, slug, content string, published time.Time) post.Post {
+// publishedFixture returns a published post carrying the given slug and body.
+func publishedFixture(t *testing.T, slug, body string, published time.Time) content.Content {
 	t.Helper()
-	return post.Post{
+	return content.Content{
 		ID:          uuid.Must(uuid.NewV7()),
-		Type:        post.TypePost,
+		Type:        content.TypePost,
 		Slug:        slug,
 		Title:       "A Published Post",
 		Excerpt:     "An excerpt.",
-		Content:     content,
-		Status:      post.StatusPublished,
+		Content:     body,
+		Status:      content.StatusPublished,
 		AuthorID:    uuid.Must(uuid.NewV7()),
 		PublishedAt: &published,
 		CreatedAt:   published,
@@ -37,7 +37,7 @@ func publishedFixture(t *testing.T, slug, content string, published time.Time) p
 }
 
 // contentServer returns an unauthenticated handler over a store carrying the given posts.
-func contentServer(t *testing.T, posts ...post.Post) http.Handler {
+func contentServer(t *testing.T, posts ...content.Content) http.Handler {
 	t.Helper()
 	store := newFakePostStore()
 	for _, p := range posts {
@@ -80,7 +80,7 @@ func TestContentAPIListsPublishedSummariesNewestFirst(t *testing.T) {
 	older := publishedFixture(t, "older", blockMarkup, now.Add(-time.Hour))
 	newer := publishedFixture(t, "newer", blockMarkup, now)
 	draft := publishedFixture(t, "a-draft", blockMarkup, now)
-	draft.Status = post.StatusDraft
+	draft.Status = content.StatusDraft
 	handler := contentServer(t, older, newer, draft)
 
 	recorder := getContent(t, handler, "/api/content/v1/posts")
@@ -199,7 +199,7 @@ func TestContentAPIHidesPostsThatAreNotPublished(t *testing.T) {
 
 	now := time.Now().UTC()
 	draft := publishedFixture(t, "a-draft", blockMarkup, now)
-	draft.Status = post.StatusDraft
+	draft.Status = content.StatusDraft
 	handler := contentServer(t, draft)
 
 	for _, path := range []string{
