@@ -88,7 +88,7 @@ func wantsTransition(from, to content.Status) bool {
 	if from == to {
 		return true
 	}
-	if to == content.StatusScheduled || from == content.StatusTrash {
+	if to == content.StatusScheduled || to == content.StatusTrash || from == content.StatusTrash {
 		return false
 	}
 	return true
@@ -159,9 +159,7 @@ func TestRestoreReturnsATrashedPostToDraft(t *testing.T) {
 		t.Fatalf("publishing: %v", err)
 	}
 	published := *p.PublishedAt
-	if err := p.Transition(content.StatusTrash); err != nil {
-		t.Fatalf("trashing: %v", err)
-	}
+	p.Status = content.StatusTrash
 	p.UpdatedAt = p.UpdatedAt.Add(-time.Hour)
 
 	if err := p.Restore(); err != nil {

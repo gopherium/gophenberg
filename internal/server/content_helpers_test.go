@@ -40,6 +40,7 @@ type fakePostStore struct {
 	deleteErr    error
 	countsErr    error
 	childrenErr  error
+	depthErr     error
 
 	revisions         []content.Revision
 	revisionsErr      error
@@ -50,6 +51,25 @@ type fakePostStore struct {
 	deleteAutosaveErr error
 	lastSnapshot      *content.Revision
 	lastRevisionCap   int
+}
+
+// Depth returns how many levels of content nest below the item.
+func (s *fakePostStore) Depth(ctx context.Context, id uuid.UUID) (int, error) {
+	if s.depthErr != nil {
+		return 0, s.depthErr
+	}
+	below := 0
+	for _, stored := range s.posts {
+		if stored.ParentID == nil || *stored.ParentID != id {
+			continue
+		}
+		under, err := s.Depth(ctx, stored.ID)
+		if err != nil {
+			return 0, err
+		}
+		below = max(below, under+1)
+	}
+	return below, nil
 }
 
 // Children returns how many items nest under the item.

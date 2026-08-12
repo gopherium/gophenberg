@@ -118,7 +118,10 @@ func TestContentStoreCarriesDescendantsWhenAParentIsRenamed(t *testing.T) {
 	about := mustNest(t, store, nil, "About", author)
 	team := mustNest(t, store, &about, "Team", author)
 	deep := mustNest(t, store, &team, "Maria Perez", author)
-	renamed := about.Rename("company")
+	renamed, err := about.Rename("company")
+	if err != nil {
+		t.Fatalf("Rename error = %v, want nil", err)
+	}
 	renamed.UpdatedAt = about.UpdatedAt.Add(time.Second)
 
 	moved, err := store.Update(t.Context(), renamed, about.UpdatedAt, nil, 0)
@@ -144,7 +147,7 @@ func TestContentStoreCarriesDescendantsWhenAParentMoves(t *testing.T) {
 	about := mustNest(t, store, nil, "About", author)
 	team := mustNest(t, store, &about, "Team", author)
 	company := mustNest(t, store, nil, "Company", author)
-	moved, err := content.Reparent(pageType(), about, &company)
+	moved, err := content.Reparent(pageType(), about, &company, 0)
 	if err != nil {
 		t.Fatalf("Reparent() error = %v, want nil", err)
 	}
@@ -168,10 +171,13 @@ func TestContentStoreSwapsTwoAddressesInOneTransaction(t *testing.T) {
 	store, author := newNestingStore(t)
 	first := mustNest(t, store, nil, "First", author)
 	second := mustNest(t, store, nil, "Second", author)
-	taking := first.Rename(second.Slug)
+	taking, err := first.Rename(second.Slug)
+	if err != nil {
+		t.Fatalf("Rename error = %v, want nil", err)
+	}
 	taking.UpdatedAt = first.UpdatedAt.Add(time.Second)
 
-	_, err := store.Update(t.Context(), taking, first.UpdatedAt, nil, 0)
+	_, err = store.Update(t.Context(), taking, first.UpdatedAt, nil, 0)
 
 	if err != nil {
 		t.Fatalf("Update() error = %v, want the suffix to settle the clash", err)
@@ -275,5 +281,72 @@ func TestContentStoreCountsChildren(t *testing.T) {
 	}
 	if held != 2 {
 		t.Errorf("Children() = %d, want 2", held)
+	}
+}
+
+func TestDepthMeasuresHowFarContentNestsBelow(t *testing.T) {
+	t.Parallel()
+
+	store, author := newNestingStore(t)
+	about := mustNest(t, store, nil, "About", author)
+	team := mustNest(t, store, &about, "Team", author)
+	mustNest(t, store, &team, "Crew", author)
+	alone := mustNest(t, store, nil, "Careers", author)
+
+	deep, err := store.Depth(t.Context(), about.ID)
+	if err != nil {
+		t.Fatalf("Depth error = %v, want nil", err)
+	}
+	flat, err := store.Depth(t.Context(), alone.ID)
+	if err != nil {
+		t.Fatalf("Depth error = %v, want nil", err)
+	}
+
+	if deep != 2 {
+		t.Errorf("depth below About = %d, want 2", deep)
+	}
+	if flat != 0 {
+		t.Errorf("depth below a leaf = %d, want 0", flat)
+	}
+}
+
+func TestTrashRefusesContentAlreadyOnItsWayOut(t *testing.T) {
+	t.Parallel()
+
+	store, author := newNestingStore(t)
+	about := mustNest(t, store, nil, "About", author)
+
+	trashed, err := store.Trash(t.Context(), about.ID, about.UpdatedAt)
+	if err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+
+	_, err = store.Trash(t.Context(), about.ID, trashed.UpdatedAt)
+
+	if !errors.Is(err, content.ErrInvalidTransition) {
+		t.Fatalf("trashing twice error = %v, want %v", err, content.ErrInvalidTransition)
+	}
+	if got := addressOf(t, store, about.ID); got != trashed.Path {
+		t.Errorf("path = %q, want the first suffix left alone at %q", got, trashed.Path)
+	}
+}
+
+func TestRestoreReturnsAnItemToTheAddressItLeft(t *testing.T) {
+	t.Parallel()
+
+	store, author := newNestingStore(t)
+	about := mustNest(t, store, nil, "About", author)
+
+	trashed, err := store.Trash(t.Context(), about.ID, about.UpdatedAt)
+	if err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+	restored, err := store.Restore(t.Context(), about.ID, trashed.UpdatedAt)
+	if err != nil {
+		t.Fatalf("Restore() error = %v, want nil", err)
+	}
+
+	if restored.Path != "pages/about" || restored.Slug != "about" {
+		t.Errorf("restored to path %q slug %q, want the address it left", restored.Path, restored.Slug)
 	}
 }

@@ -118,6 +118,7 @@ type Store interface {
 	PublishedBySlug(ctx context.Context, contentType, slug string) (Content, error)
 	PublishedByPath(ctx context.Context, path string) (Content, error)
 	Children(ctx context.Context, id uuid.UUID) (int, error)
+	Depth(ctx context.Context, id uuid.UUID) (int, error)
 	List(ctx context.Context, f Filter) ([]Content, int, error)
 	Update(
 		ctx context.Context, c Content, expectedUpdatedAt time.Time, snapshot *Revision, revisionCap int,

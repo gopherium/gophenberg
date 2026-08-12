@@ -60,7 +60,7 @@ func New(t Type, parent *Content, title string, authorID uuid.UUID) (Content, er
 		return Content{}, ErrInvalidAuthor
 	}
 	slug := Slugify(title)
-	path, parentID, err := placeUnder(t, parent, slug)
+	path, parentID, err := placeUnder(t, parent, slug, 0)
 	if err != nil {
 		return Content{}, err
 	}

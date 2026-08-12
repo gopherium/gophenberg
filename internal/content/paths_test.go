@@ -184,3 +184,154 @@ func TestNewRefusesContentDeeperThanTheAddressLimit(t *testing.T) {
 		t.Errorf("path length = %d, want the slug cap to bound one segment", len(long.Path))
 	}
 }
+
+func TestRenameRefusesAReservedAddress(t *testing.T) {
+	t.Parallel()
+
+	post := mustNew(t, postType(), nil, "Innocent")
+
+	renamed, err := post.Rename("admin")
+
+	if !errors.Is(err, content.ErrReservedAddress) {
+		t.Fatalf("Rename(%q) error = %v, want %v", "admin", err, content.ErrReservedAddress)
+	}
+	if renamed.Path != "" {
+		t.Errorf("path = %q, want nothing when the rename is refused", renamed.Path)
+	}
+}
+
+func TestRenameCarriesTheItemToItsNewAddress(t *testing.T) {
+	t.Parallel()
+
+	about := mustNew(t, pageType(), nil, "About")
+	team := mustNew(t, pageType(), &about, "Team")
+
+	renamed, err := team.Rename("crew")
+	if err != nil {
+		t.Fatalf("Rename(%q) error = %v, want nil", "crew", err)
+	}
+
+	if renamed.Path != "pages/about/crew" {
+		t.Errorf("path = %q, want the new name under the same parent", renamed.Path)
+	}
+	if renamed.Slug != "crew" {
+		t.Errorf("slug = %q, want %q", renamed.Slug, "crew")
+	}
+}
+
+func TestRenameLeavesAReservedWordAloneBelowTheRoot(t *testing.T) {
+	t.Parallel()
+
+	about := mustNew(t, pageType(), nil, "About")
+
+	renamed, err := about.Rename("admin")
+	if err != nil {
+		t.Fatalf("Rename(%q) error = %v, want nil below the root", "admin", err)
+	}
+
+	if renamed.Path != "pages/admin" {
+		t.Errorf("path = %q, want the reserved word to be free below the root", renamed.Path)
+	}
+}
+
+func TestNewRefusesAParentOnItsWayOut(t *testing.T) {
+	t.Parallel()
+
+	about := mustNew(t, pageType(), nil, "About")
+	about.Status = content.StatusTrash
+
+	_, err := content.New(pageType(), &about, "Team", uuid.Must(uuid.NewV7()))
+
+	if !errors.Is(err, content.ErrParentTrashed) {
+		t.Fatalf("New under a trashed parent error = %v, want %v", err, content.ErrParentTrashed)
+	}
+}
+
+func TestReparentRefusesAParentOnItsWayOut(t *testing.T) {
+	t.Parallel()
+
+	about := mustNew(t, pageType(), nil, "About")
+	team := mustNew(t, pageType(), nil, "Team")
+	about.Status = content.StatusTrash
+
+	_, err := content.Reparent(pageType(), team, &about, 0)
+
+	if !errors.Is(err, content.ErrParentTrashed) {
+		t.Fatalf("Reparent under a trashed parent error = %v, want %v", err, content.ErrParentTrashed)
+	}
+}
+
+func TestReparentCarriesTheItemUnderItsNewParent(t *testing.T) {
+	t.Parallel()
+
+	about := mustNew(t, pageType(), nil, "About")
+	team := mustNew(t, pageType(), nil, "Team")
+
+	moved, err := content.Reparent(pageType(), team, &about, 0)
+	if err != nil {
+		t.Fatalf("Reparent error = %v, want nil", err)
+	}
+
+	if moved.Path != "pages/about/team" {
+		t.Errorf("path = %q, want it under the new parent", moved.Path)
+	}
+	if moved.ParentID == nil || *moved.ParentID != about.ID {
+		t.Errorf("ParentID = %v, want %v", moved.ParentID, about.ID)
+	}
+}
+
+func TestReparentToTheRootLiftsTheItemBack(t *testing.T) {
+	t.Parallel()
+
+	about := mustNew(t, pageType(), nil, "About")
+	team := mustNew(t, pageType(), &about, "Team")
+
+	lifted, err := content.Reparent(pageType(), team, nil, 0)
+	if err != nil {
+		t.Fatalf("Reparent to the root error = %v, want nil", err)
+	}
+
+	if lifted.Path != "pages/team" {
+		t.Errorf("path = %q, want it back under the route word", lifted.Path)
+	}
+	if lifted.ParentID != nil {
+		t.Errorf("ParentID = %v, want none at the root", lifted.ParentID)
+	}
+}
+
+func TestReparentRefusesNestingInsideItself(t *testing.T) {
+	t.Parallel()
+
+	about := mustNew(t, pageType(), nil, "About")
+	team := mustNew(t, pageType(), &about, "Team")
+
+	_, selfErr := content.Reparent(pageType(), about, &about, 0)
+	_, descendantErr := content.Reparent(pageType(), about, &team, 0)
+
+	if !errors.Is(selfErr, content.ErrCycle) {
+		t.Errorf("Reparent under itself error = %v, want %v", selfErr, content.ErrCycle)
+	}
+	if !errors.Is(descendantErr, content.ErrCycle) {
+		t.Errorf("Reparent under its own child error = %v, want %v", descendantErr, content.ErrCycle)
+	}
+}
+
+func TestReparentRefusesCarryingAChainPastTheLimit(t *testing.T) {
+	t.Parallel()
+
+	deep := mustNew(t, pageType(), nil, "Level 1")
+	for level := 2; level <= 9; level++ {
+		deep = mustNew(t, pageType(), &deep, "Level")
+	}
+	branch := mustNew(t, pageType(), nil, "Branch")
+
+	_, fits := content.Reparent(pageType(), branch, &deep, 0)
+	_, tooTall := content.Reparent(pageType(), branch, &deep, 2)
+
+	if fits != nil {
+		t.Errorf("moving a leaf under level 9 error = %v, want nil", fits)
+	}
+	if !errors.Is(tooTall, content.ErrTooDeep) {
+		t.Errorf("moving a branch two levels tall error = %v, want %v", tooTall, content.ErrTooDeep)
+	}
+}

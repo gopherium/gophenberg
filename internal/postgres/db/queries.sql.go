@@ -13,6 +13,26 @@ import (
 	"github.com/gopherium/gophenberg/internal/media"
 )
 
+const contentDepth = `-- name: ContentDepth :one
+WITH RECURSIVE below AS (
+    SELECT c.id, 0 AS level
+    FROM core.content c
+    WHERE c.id = $1
+    UNION ALL
+    SELECT child.id, below.level + 1
+    FROM core.content child
+    JOIN below ON child.parent_id = below.id
+)
+SELECT coalesce(max(level), 0)::int FROM below
+`
+
+func (q *Queries) ContentDepth(ctx context.Context, id uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, contentDepth, id)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countChildren = `-- name: CountChildren :one
 SELECT count(*) FROM core.content p WHERE p.parent_id = $1
 `
@@ -883,6 +903,63 @@ func (q *Queries) ListRevisions(ctx context.Context, contentID uuid.UUID) ([]Lis
 	return items, nil
 }
 
+const lockContent = `-- name: LockContent :one
+SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
+WHERE p.id = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockContent(ctx context.Context, id uuid.UUID) (CoreContent, error) {
+	row := q.db.QueryRow(ctx, lockContent, id)
+	var i CoreContent
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
+	)
+	return i, err
+}
+
+const lockContentType = `-- name: LockContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.key = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockContentType(ctx context.Context, key string) (CoreContentType, error) {
+	row := q.db.QueryRow(ctx, lockContentType, key)
+	var i CoreContentType
+	err := row.Scan(
+		&i.Key,
+		&i.SingularLabel,
+		&i.PluralLabel,
+		&i.RouteWord,
+		&i.Hierarchical,
+		&i.Revisions,
+		&i.RevisionCap,
+		&i.PageKind,
+		&i.IsDefault,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const moveDescendants = `-- name: MoveDescendants :exec
 WITH RECURSIVE moved AS (
     SELECT c.id, $3::text AS path
@@ -1000,6 +1077,32 @@ func (q *Queries) RestoreContentKeepingSlug(ctx context.Context, arg RestoreCont
 		&i.Path,
 	)
 	return i, err
+}
+
+const retypeContentPaths = `-- name: RetypeContentPaths :exec
+UPDATE core.content c
+SET path = trim(leading '/' from $1::text || '/' ||
+        CASE WHEN $2::text = '' THEN c.path
+            ELSE substring(c.path from length($2::text) + 2) END),
+    updated_at = $3
+WHERE c.type = $4
+`
+
+type RetypeContentPathsParams struct {
+	RouteWord string
+	Was       string
+	UpdatedAt time.Time
+	Key       string
+}
+
+func (q *Queries) RetypeContentPaths(ctx context.Context, arg RetypeContentPathsParams) error {
+	_, err := q.db.Exec(ctx, retypeContentPaths,
+		arg.RouteWord,
+		arg.Was,
+		arg.UpdatedAt,
+		arg.Key,
+	)
+	return err
 }
 
 const setSetting = `-- name: SetSetting :exec

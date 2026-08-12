@@ -307,27 +307,68 @@ func updateFailure(err error) error {
 	return fmt.Errorf("postgres: update content: %w", err)
 }
 
+// Depth returns how many levels of content nest below the item.
+func (s *ContentStore) Depth(ctx context.Context, id uuid.UUID) (int, error) {
+	levels, err := s.queries.ContentDepth(ctx, id)
+	if err != nil {
+		return 0, fmt.Errorf("postgres: content depth: %w", err)
+	}
+	return int(levels), nil
+}
+
 // Trash marks the content item trashed and frees its address for reuse.
 func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
-	held, err := s.Children(ctx, id)
-	if err != nil {
-		return content.Content{}, err
-	}
-	if held > 0 {
-		return content.Content{}, content.ErrHoldsChildren
-	}
-	row, err := s.queries.TrashContent(ctx, db.TrashContentParams{
-		ID:        id,
-		Suffix:    trashSuffix(),
-		UpdatedAt: updatedAt,
+	var trashed content.Content
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := leavable(ctx, queries, id); err != nil {
+			return err
+		}
+		row, err := queries.TrashContent(ctx, db.TrashContentParams{
+			ID:        id,
+			Suffix:    trashSuffix(),
+			UpdatedAt: updatedAt,
+		})
+		if err != nil {
+			return err
+		}
+		trashed = toContent(row)
+		return nil
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return content.Content{}, content.ErrNotFound
-	}
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return content.Content{}, content.ErrNotFound
+		}
+		if errors.Is(err, content.ErrNotFound) ||
+			errors.Is(err, content.ErrHoldsChildren) ||
+			errors.Is(err, content.ErrInvalidTransition) {
+			return content.Content{}, err
+		}
 		return content.Content{}, fmt.Errorf("postgres: trash content: %w", err)
 	}
-	return toContent(row), nil
+	return trashed, nil
+}
+
+// leavable returns the reason the locked item may not go to the trash, if there is one.
+func leavable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
+	row, err := queries.LockContent(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return content.ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if content.Status(row.Status) == content.StatusTrash {
+		return content.ErrInvalidTransition
+	}
+	held, err := queries.CountChildren(ctx, &id)
+	if err != nil {
+		return err
+	}
+	if held > 0 {
+		return content.ErrHoldsChildren
+	}
+	return nil
 }
 
 // Restore returns a trashed content item to draft. It recovers the original

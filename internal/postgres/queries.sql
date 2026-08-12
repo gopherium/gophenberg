@@ -300,3 +300,37 @@ SELECT s.value FROM core.settings s WHERE s.key = @key;
 INSERT INTO core.settings (key, value)
 VALUES (@key, @value)
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+-- name: ContentDepth :one
+WITH RECURSIVE below AS (
+    SELECT c.id, 0 AS level
+    FROM core.content c
+    WHERE c.id = @id
+    UNION ALL
+    SELECT child.id, below.level + 1
+    FROM core.content child
+    JOIN below ON child.parent_id = below.id
+)
+SELECT coalesce(max(level), 0)::int FROM below;
+
+-- name: LockContent :one
+SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
+WHERE p.id = @id
+FOR UPDATE;
+
+-- name: LockContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.key = @key
+FOR UPDATE;
+
+-- name: RetypeContentPaths :exec
+UPDATE core.content c
+SET path = trim(leading '/' from @route_word::text || '/' ||
+        CASE WHEN @was::text = '' THEN c.path
+            ELSE substring(c.path from length(@was::text) + 2) END),
+    updated_at = @updated_at
+WHERE c.type = @key;

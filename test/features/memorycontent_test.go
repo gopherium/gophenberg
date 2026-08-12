@@ -78,6 +78,19 @@ func (s *memoryContent) carryDescendants(moved content.Content, was string) {
 	}
 }
 
+// carryType moves every address of the type from the route word it answered under.
+func (s *memoryContent) carryType(key, was, now string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, stored := range s.items {
+		if stored.Type != key {
+			continue
+		}
+		stored.Path = content.AddressUnder(now, strings.TrimPrefix(strings.TrimPrefix(stored.Path, was), "/"))
+		s.items[id] = stored
+	}
+}
+
 // ByID returns the item carrying the id, or [content.ErrNotFound].
 func (s *memoryContent) ByID(_ context.Context, id uuid.UUID) (content.Content, error) {
 	s.mu.Lock()
@@ -97,6 +110,27 @@ func (s *memoryContent) PublishedBySlug(context.Context, string, string) (conten
 // PublishedByPath reports that the scenario publishes nothing publicly.
 func (s *memoryContent) PublishedByPath(context.Context, string) (content.Content, error) {
 	return content.Content{}, content.ErrNotFound
+}
+
+// Depth returns how many levels of content nest below the item.
+func (s *memoryContent) Depth(ctx context.Context, id uuid.UUID) (int, error) {
+	s.mu.Lock()
+	held := make([]content.Content, 0, len(s.items))
+	for _, stored := range s.items {
+		if stored.ParentID != nil && *stored.ParentID == id {
+			held = append(held, stored)
+		}
+	}
+	s.mu.Unlock()
+	below := 0
+	for _, child := range held {
+		under, err := s.Depth(ctx, child.ID)
+		if err != nil {
+			return 0, err
+		}
+		below = max(below, under+1)
+	}
+	return below, nil
 }
 
 // Children returns how many items nest directly under the item.
@@ -150,6 +184,30 @@ func (s *memoryContent) Update(
 		return settled, nil
 	}
 	return content.Content{}, content.ErrSlugTaken
+}
+
+// Trash marks the item trashed and frees its address, or refuses while it holds children.
+func (s *memoryContent) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
+	held, err := s.Children(ctx, id)
+	if err != nil {
+		return content.Content{}, err
+	}
+	if held > 0 {
+		return content.Content{}, content.ErrHoldsChildren
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stored, found := s.items[id]
+	if !found {
+		return content.Content{}, content.ErrNotFound
+	}
+	if stored.Status == content.StatusTrash {
+		return content.Content{}, content.ErrInvalidTransition
+	}
+	stored.Status, stored.UpdatedAt = content.StatusTrash, updatedAt
+	stored = stored.Place(content.AddressPrefix(stored.Path, stored.Slug), stored.Slug+"-trashed")
+	s.items[id] = stored
+	return stored, nil
 }
 
 // Counts returns how many items of the type hold each status.

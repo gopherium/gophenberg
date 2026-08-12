@@ -27,6 +27,9 @@ var ErrReservedAddress = errors.New("content: the address is reserved")
 // ErrHoldsChildren reports that content still holds content nested under it.
 var ErrHoldsChildren = errors.New("content: the item still holds children")
 
+// ErrParentTrashed reports that a parent is on its way out of the site.
+var ErrParentTrashed = errors.New("content: the parent is in the trash")
+
 // AddressUnder returns the address of a child carrying slug beneath prefix.
 func AddressUnder(prefix, slug string) string {
 	if prefix == "" {
@@ -65,22 +68,35 @@ func (c Content) Place(prefix, slug string) Content {
 	return c
 }
 
-// Rename returns the item carrying slug where it already answers.
-func (c Content) Rename(slug string) Content {
-	return c.Place(AddressPrefix(c.Path, c.Slug), slug)
+// Rename returns the item carrying slug where it already answers, or the reason it may not.
+func (c Content) Rename(slug string) (Content, error) {
+	renamed := c.Place(AddressPrefix(c.Path, c.Slug), slug)
+	if err := guardAddress(renamed.Path); err != nil {
+		return Content{}, err
+	}
+	return renamed, nil
 }
 
-// Reparent returns the item nested under parent, or the reason it may not sit there.
-func Reparent(t Type, c Content, parent *Content) (Content, error) {
+// Reparent returns the item and the height it carries nested under parent, or
+// the reason they may not sit there.
+func Reparent(t Type, c Content, parent *Content, height int) (Content, error) {
 	if parent != nil && (parent.ID == c.ID || holds(c, *parent)) {
 		return Content{}, ErrCycle
 	}
-	path, parentID, err := placeUnder(t, parent, c.Slug)
+	path, parentID, err := placeUnder(t, parent, c.Slug, height)
 	if err != nil {
 		return Content{}, err
 	}
 	c.Path, c.ParentID = path, parentID
 	return c, nil
+}
+
+// guardAddress returns the reason an address names a place the CMS keeps, if it does.
+func guardAddress(path string) error {
+	if ReservedRoot(FirstSegment(path)) {
+		return ErrReservedAddress
+	}
+	return nil
 }
 
 // holds reports whether the item already answers above the other one.
@@ -97,26 +113,38 @@ func depthOf(path, routeWord string) int {
 	return levels
 }
 
-// placeUnder returns where content of the type sits beneath parent, or the reason it has no place.
-func placeUnder(t Type, parent *Content, slug string) (string, *uuid.UUID, error) {
+// placeUnder returns where content of the type carrying height sits beneath
+// parent, or the reason it has no place.
+func placeUnder(t Type, parent *Content, slug string, height int) (string, *uuid.UUID, error) {
 	prefix := t.RouteWord
 	var held *uuid.UUID
 	if parent != nil {
-		if !t.Hierarchical {
-			return "", nil, ErrNotHierarchical
-		}
-		if parent.Type != t.Key {
-			return "", nil, ErrParentType
-		}
-		if depthOf(parent.Path, t.RouteWord) >= MaxDepth {
-			return "", nil, ErrTooDeep
+		if err := admits(t, *parent, height); err != nil {
+			return "", nil, err
 		}
 		prefix = parent.Path
 		held = &parent.ID
 	}
 	path := AddressUnder(prefix, slug)
-	if ReservedRoot(FirstSegment(path)) {
-		return "", nil, ErrReservedAddress
+	if err := guardAddress(path); err != nil {
+		return "", nil, err
 	}
 	return path, held, nil
+}
+
+// admits returns the reason the parent cannot hold content of the type carrying height.
+func admits(t Type, parent Content, height int) error {
+	if !t.Hierarchical {
+		return ErrNotHierarchical
+	}
+	if parent.Type != t.Key {
+		return ErrParentType
+	}
+	if parent.Status == StatusTrash {
+		return ErrParentTrashed
+	}
+	if depthOf(parent.Path, t.RouteWord)+height >= MaxDepth {
+		return ErrTooDeep
+	}
+	return nil
 }

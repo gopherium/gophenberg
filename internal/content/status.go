@@ -60,7 +60,7 @@ func (c *Content) canTransition(to Status) bool {
 	if c.Status == to {
 		return true
 	}
-	if to == StatusScheduled || c.Status == StatusTrash {
+	if to == StatusScheduled || to == StatusTrash || c.Status == StatusTrash {
 		return false
 	}
 	return true

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/server"
@@ -215,5 +216,74 @@ func TestContentPatchRefusesAMalformedParent(t *testing.T) {
 
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestContentPatchRefusesRenamingIntoAReservedAddress(t *testing.T) {
+	t.Parallel()
+
+	handler := authedNestingServer(t)
+	created := doRequest(t, handler, http.MethodPost, "/api/content", `{"type":"post","title":"Innocent"}`)
+	post := decodeBody[postBody](t, created)
+
+	body := `{"updated_at":"` + post.UpdatedAt.Format(time.RFC3339Nano) + `","slug":"admin"}`
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+post.ID.String(), body)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestContentPatchRefusesAParentOnItsWayOut(t *testing.T) {
+	t.Parallel()
+
+	handler := authedNestingServer(t)
+	about := createPage(t, handler, "About", "")
+	team := createPage(t, handler, "Team", "")
+
+	doRequest(t, handler, http.MethodDelete, "/api/content/"+about.body.ID.String(), "")
+
+	body := `{"updated_at":"` + team.body.UpdatedAt.Format(time.RFC3339Nano) +
+		`","parent_id":"` + about.body.ID.String() + `"}`
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+team.body.ID.String(), body)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestContentPatchRefusesCarryingAChainPastTheLimit(t *testing.T) {
+	t.Parallel()
+
+	handler := authedNestingServer(t)
+	deep := createPage(t, handler, "Level 1", "")
+	for level := 2; level <= 9; level++ {
+		deep = createPage(t, handler, "Level", deep.body.ID.String())
+	}
+	branch := createPage(t, handler, "Branch", "")
+	leaf := createPage(t, handler, "Leaf", branch.body.ID.String())
+	createPage(t, handler, "Deeper", leaf.body.ID.String())
+
+	body := `{"updated_at":"` + branch.body.UpdatedAt.Format(time.RFC3339Nano) +
+		`","parent_id":"` + deep.body.ID.String() + `"}`
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+branch.body.ID.String(), body)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d, the branch is three levels tall", recorder.Code, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestContentPatchCannotReachTheTrash(t *testing.T) {
+	t.Parallel()
+
+	handler := authedNestingServer(t)
+	about := createPage(t, handler, "About", "")
+	createPage(t, handler, "Team", about.body.ID.String())
+
+	body := `{"updated_at":"` + about.body.UpdatedAt.Format(time.RFC3339Nano) + `","status":"trash"}`
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+about.body.ID.String(), body)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d, the trash is reached by deleting", recorder.Code, http.StatusUnprocessableEntity)
 	}
 }

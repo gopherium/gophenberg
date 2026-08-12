@@ -51,8 +51,11 @@ func (req contentPatchRequest) applyTo(c *content.Content) (changed, contentChan
 	changed = contentChanged
 	if req.Slug != nil {
 		if slug := content.Slugify(*req.Slug); slug != c.Slug {
-			*c = c.Rename(slug)
-			changed = true
+			renamed, err := c.Rename(slug)
+			if err != nil {
+				return false, false, err
+			}
+			*c, changed = renamed, true
 		}
 	}
 	transitioned, err := applyContentStatus(c, req.Status)
@@ -261,7 +264,11 @@ func (s *server) nestAsked(r *http.Request, stored *content.Content, req content
 	if err != nil {
 		return false, err
 	}
-	moved, err := content.Reparent(contentType, *stored, parent)
+	height, err := s.content.Depth(r.Context(), stored.ID)
+	if err != nil {
+		return false, err
+	}
+	moved, err := content.Reparent(contentType, *stored, parent, height)
 	if err != nil {
 		return false, err
 	}

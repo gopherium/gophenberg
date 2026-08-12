@@ -17,3 +17,5 @@ go.work
 go.work.sum
 /deploy/
 /.spec/
+.claude/
+.mcp.json

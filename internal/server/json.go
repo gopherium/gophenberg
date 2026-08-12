@@ -51,6 +51,7 @@ var refusals = []error{
 	content.ErrTooDeep,
 	content.ErrReservedAddress,
 	content.ErrHoldsChildren,
+	content.ErrParentTrashed,
 	content.ErrCycle,
 	content.ErrTypeTaken,
 	content.ErrRouteWordTaken,
