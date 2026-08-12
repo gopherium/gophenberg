@@ -3,8 +3,11 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -18,12 +21,28 @@ import (
 // contentPatchRequest carries the version the edit was prepared against and the
 // editable fields, where a nil field is unchanged.
 type contentPatchRequest struct {
-	UpdatedAt *time.Time `json:"updated_at"`
-	Title     *string    `json:"title"`
-	Content   *string    `json:"content"`
-	Excerpt   *string    `json:"excerpt"`
-	Slug      *string    `json:"slug"`
-	Status    *string    `json:"status"`
+	UpdatedAt *time.Time      `json:"updated_at"`
+	Title     *string         `json:"title"`
+	Content   *string         `json:"content"`
+	Excerpt   *string         `json:"excerpt"`
+	Slug      *string         `json:"slug"`
+	Status    *string         `json:"status"`
+	ParentID  json.RawMessage `json:"parent_id"`
+}
+
+// nesting returns the parent the request names and whether it names one at all.
+func (req contentPatchRequest) nesting() (*uuid.UUID, bool, error) {
+	if len(req.ParentID) == 0 {
+		return nil, false, nil
+	}
+	if strings.TrimSpace(string(req.ParentID)) == "null" {
+		return nil, true, nil
+	}
+	var asked uuid.UUID
+	if err := json.Unmarshal(req.ParentID, &asked); err != nil {
+		return nil, false, content.ErrParentType
+	}
+	return &asked, true, nil
 }
 
 // applyTo edits the item, reporting whether anything changed and whether the snapshotted fields did.
@@ -32,7 +51,7 @@ func (req contentPatchRequest) applyTo(c *content.Content) (changed, contentChan
 	changed = contentChanged
 	if req.Slug != nil {
 		if slug := content.Slugify(*req.Slug); slug != c.Slug {
-			c.Slug = slug
+			*c = c.Rename(slug)
 			changed = true
 		}
 	}
@@ -87,8 +106,9 @@ func applyContentStatus(c *content.Content, raw *string) (bool, error) {
 // handleContentCreate returns an http.HandlerFunc storing a draft authored by the requester.
 func (s *server) handleContentCreate() http.HandlerFunc {
 	type request struct {
-		Type  string `json:"type"`
-		Title string `json:"title"`
+		Type     string     `json:"type"`
+		Title    string     `json:"title"`
+		ParentID *uuid.UUID `json:"parent_id"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := authkit.Decode[request](w, r)
@@ -101,9 +121,18 @@ func (s *server) handleContentCreate() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		identity := authkit.IdentityFromContext(r.Context())
-		c, err := content.New(contentType, req.Title, identity.ID)
+		parent, err := s.parentAsked(r, req.ParentID)
 		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		identity := authkit.IdentityFromContext(r.Context())
+		c, err := content.New(contentType, parent, req.Title, identity.ID)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		if err := s.addressFree(r, c.Path, contentType.Key); err != nil {
 			respondDomainError(w, err)
 			return
 		}
@@ -114,6 +143,36 @@ func (s *server) handleContentCreate() http.HandlerFunc {
 		}
 		s.respondContent(w, r, http.StatusCreated, created)
 	}
+}
+
+// parentAsked returns the stored item the request nests under, or nothing when it names none.
+func (s *server) parentAsked(r *http.Request, id *uuid.UUID) (*content.Content, error) {
+	if id == nil {
+		return nil, nil
+	}
+	stored, err := s.content.ByID(r.Context(), *id)
+	if errors.Is(err, content.ErrNotFound) {
+		return nil, content.ErrParentType
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &stored, nil
+}
+
+// addressFree reports whether an address stays clear of the places other content types answer under.
+func (s *server) addressFree(r *http.Request, path, ownKey string) error {
+	types, err := s.types.All(r.Context())
+	if err != nil {
+		return err
+	}
+	root := content.FirstSegment(path)
+	for _, t := range types {
+		if t.Key != ownKey && t.RouteWord == root {
+			return fmt.Errorf("%w: %s answers under %q", content.ErrReservedAddress, t.PluralLabel, root)
+		}
+	}
+	return nil
 }
 
 // handleContentPatch returns an http.HandlerFunc applying a partial edit to an item.
@@ -168,14 +227,55 @@ func (s *server) patchContent(
 	if err != nil {
 		return content.Content{}, err
 	}
+	nested, err := s.nestAsked(r, &stored, req)
+	if err != nil {
+		return content.Content{}, err
+	}
+	if nested {
+		changed = true
+	}
 	if !changed {
 		return stored, nil
+	}
+	if err := s.addressFree(r, stored.Path, stored.Type); err != nil {
+		return content.Content{}, err
 	}
 	snapshot, revisionCap, err := s.revisionFor(r, previous, contentChanged)
 	if err != nil {
 		return content.Content{}, err
 	}
 	return s.content.Update(r.Context(), stored, previous.UpdatedAt, snapshot, revisionCap)
+}
+
+// nestAsked moves the item under the parent the request names, reporting whether it moved.
+func (s *server) nestAsked(r *http.Request, stored *content.Content, req contentPatchRequest) (bool, error) {
+	askedID, names, err := req.nesting()
+	if err != nil || !names || sameParent(stored.ParentID, askedID) {
+		return false, err
+	}
+	parent, err := s.parentAsked(r, askedID)
+	if err != nil {
+		return false, err
+	}
+	contentType, err := s.types.Active(r.Context(), stored.Type)
+	if err != nil {
+		return false, err
+	}
+	moved, err := content.Reparent(contentType, *stored, parent)
+	if err != nil {
+		return false, err
+	}
+	moved.UpdatedAt = time.Now().UTC()
+	*stored = moved
+	return true, nil
+}
+
+// sameParent reports whether two parents name the same item.
+func sameParent(held, asked *uuid.UUID) bool {
+	if held == nil || asked == nil {
+		return held == asked
+	}
+	return *held == *asked
 }
 
 // revisionFor snapshots the previous item when its type keeps revisions and

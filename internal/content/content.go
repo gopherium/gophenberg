@@ -35,6 +35,8 @@ const untitledSlug = "untitled"
 type Content struct {
 	ID          uuid.UUID
 	Type        string
+	ParentID    *uuid.UUID
+	Path        string
 	Slug        string
 	Title       string
 	Content     string
@@ -46,8 +48,8 @@ type Content struct {
 	UpdatedAt   time.Time
 }
 
-// New returns a draft [Content] of the given type, slugged after its title.
-func New(t Type, title string, authorID uuid.UUID) (Content, error) {
+// New returns a draft [Content] of the given type under parent, slugged after its title.
+func New(t Type, parent *Content, title string, authorID uuid.UUID) (Content, error) {
 	if t.Key == "" {
 		return Content{}, ErrInvalidType
 	}
@@ -57,6 +59,11 @@ func New(t Type, title string, authorID uuid.UUID) (Content, error) {
 	if authorID == uuid.Nil {
 		return Content{}, ErrInvalidAuthor
 	}
+	slug := Slugify(title)
+	path, parentID, err := placeUnder(t, parent, slug)
+	if err != nil {
+		return Content{}, err
+	}
 	id, err := uuid.NewV7()
 	if err != nil {
 		return Content{}, fmt.Errorf("content: generate id: %w", err)
@@ -65,7 +72,9 @@ func New(t Type, title string, authorID uuid.UUID) (Content, error) {
 	return Content{
 		ID:        id,
 		Type:      t.Key,
-		Slug:      Slugify(title),
+		ParentID:  parentID,
+		Path:      path,
+		Slug:      slug,
 		Title:     title,
 		Status:    StatusDraft,
 		AuthorID:  authorID,

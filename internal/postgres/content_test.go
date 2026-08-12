@@ -64,7 +64,7 @@ func postType() content.Type {
 // mustPost returns a draft post with the given title.
 func mustPost(t *testing.T, title string, author uuid.UUID) content.Content {
 	t.Helper()
-	p, err := content.New(postType(), title, author)
+	p, err := content.New(postType(), nil, title, author)
 	if err != nil {
 		t.Fatalf("New(%q) error = %v, want nil", title, err)
 	}

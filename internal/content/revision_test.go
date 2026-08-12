@@ -17,7 +17,7 @@ func TestNewRevisionSnapshotsTheEditableContent(t *testing.T) {
 
 	author := uuid.Must(uuid.NewV7())
 	editor := uuid.Must(uuid.NewV7())
-	p, err := content.New(postType(), "Snapshot Me", author)
+	p, err := content.New(postType(), nil, "Snapshot Me", author)
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
 	}
@@ -54,7 +54,7 @@ func TestNewRevisionCarriesTheAutosaveKind(t *testing.T) {
 	t.Parallel()
 
 	author := uuid.Must(uuid.NewV7())
-	p, err := content.New(postType(), "Autosaved", author)
+	p, err := content.New(postType(), nil, "Autosaved", author)
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
 	}
@@ -71,7 +71,7 @@ func TestNewRevisionCarriesTheAutosaveKind(t *testing.T) {
 
 func TestNewRevisionReportsIDGenerationFailure(t *testing.T) {
 	author := uuid.Must(uuid.NewV7())
-	p, err := content.New(postType(), "Doomed", author)
+	p, err := content.New(postType(), nil, "Doomed", author)
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
 	}

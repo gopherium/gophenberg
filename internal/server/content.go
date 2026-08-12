@@ -34,6 +34,7 @@ type contentHandshake struct {
 type publishedSummary struct {
 	ID          uuid.UUID `json:"id"`
 	Type        string    `json:"type"`
+	Path        string    `json:"path"`
 	Slug        string    `json:"slug"`
 	Title       string    `json:"title"`
 	Excerpt     string    `json:"excerpt"`
@@ -64,6 +65,7 @@ func newPublishedSummary(c content.Content) publishedSummary {
 	return publishedSummary{
 		ID:          c.ID,
 		Type:        c.Type,
+		Path:        c.Path,
 		Slug:        c.Slug,
 		Title:       c.Title,
 		Excerpt:     c.Excerpt,

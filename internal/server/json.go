@@ -35,7 +35,7 @@ func statusFor(err error) (int, string) {
 		errors.Is(err, content.ErrSlugTaken),
 		errors.Is(err, media.ErrInvalidAuthor):
 		return http.StatusUnprocessableEntity, err.Error()
-	case isRegistryRefusal(err):
+	case isRefusal(err):
 		return http.StatusUnprocessableEntity, err.Error()
 	}
 	if status, message, ok := authkit.StatusForAuthError(err); ok {
@@ -44,8 +44,14 @@ func statusFor(err error) (int, string) {
 	return http.StatusInternalServerError, "internal error"
 }
 
-// registryRefusals are the reasons the content type registry turns an edit away.
-var registryRefusals = []error{
+// refusals are the reasons the CMS turns an edit away as unprocessable.
+var refusals = []error{
+	content.ErrNotHierarchical,
+	content.ErrParentType,
+	content.ErrTooDeep,
+	content.ErrReservedAddress,
+	content.ErrHoldsChildren,
+	content.ErrCycle,
 	content.ErrTypeTaken,
 	content.ErrRouteWordTaken,
 	content.ErrRouteWordReserved,
@@ -61,9 +67,9 @@ var registryRefusals = []error{
 	content.ErrInvalidRevisionCap,
 }
 
-// isRegistryRefusal reports whether err is the registry turning an edit away.
-func isRegistryRefusal(err error) bool {
-	for _, refusal := range registryRefusals {
+// isRefusal reports whether err is the CMS turning an edit away.
+func isRefusal(err error) bool {
+	for _, refusal := range refusals {
 		if errors.Is(err, refusal) {
 			return true
 		}

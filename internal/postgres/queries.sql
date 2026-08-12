@@ -3,30 +3,36 @@
 -- name: CreateContent :one
 INSERT INTO core.content (
     id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at
+    author_id, published_at, created_at, updated_at, parent_id, path
 )
 VALUES (
     @id, @type, @status, @slug, @title, @content, @excerpt,
-    @author_id, @published_at, @created_at, @updated_at
+    @author_id, @published_at, @created_at, @updated_at, @parent_id, @path
 )
 RETURNING id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at;
+    author_id, published_at, created_at, updated_at, parent_id, path;
 
 -- name: GetContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 FROM core.content p
 WHERE p.id = @id;
 
 -- name: GetPublishedContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 FROM core.content p
 WHERE p.type = @type AND p.slug = @slug AND p.status = 'published';
 
+-- name: GetPublishedContentByPath :one
+SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
+WHERE p.path = @path AND p.status = 'published';
+
 -- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 FROM core.content p
 WHERE p.type = @type
     AND (@status::text = '' OR p.status = @status)
@@ -58,34 +64,63 @@ WHERE p.type = @type
 
 -- name: UpdateContent :one
 UPDATE core.content AS p
-SET status = @status, slug = @slug, title = @title, content = @content,
-    excerpt = @excerpt, published_at = @published_at, updated_at = @updated_at
+SET status = @status, slug = @slug, path = @path, parent_id = @parent_id, title = @title,
+    content = @content, excerpt = @excerpt, published_at = @published_at, updated_at = @updated_at
 WHERE p.id = @id AND p.updated_at = @expected_updated_at
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
+
+-- name: MoveDescendants :exec
+WITH RECURSIVE moved AS (
+    SELECT c.id, @path::text AS path
+    FROM core.content c
+    WHERE c.id = @id
+  UNION ALL
+    SELECT child.id, moved.path || '/' || child.slug
+    FROM core.content child
+    JOIN moved ON child.parent_id = moved.id
+) CYCLE id SET looped USING trail
+UPDATE core.content AS p
+SET path = moved.path, updated_at = @updated_at
+FROM moved
+WHERE p.id = moved.id AND p.id <> @id;
+
+-- name: CountChildren :one
+SELECT count(*) FROM core.content p WHERE p.parent_id = @id;
+
+-- name: SiblingSlugTaken :one
+SELECT EXISTS (
+    SELECT 1 FROM core.content p
+    WHERE p.type = @type
+        AND p.parent_id IS NOT DISTINCT FROM sqlc.narg(parent_id)::uuid
+        AND p.slug = @slug
+        AND p.id <> @id
+);
 
 -- name: TrashContent :one
 UPDATE core.content AS p
-SET status = 'trash', slug = p.slug || @suffix::text, updated_at = @updated_at
+SET status = 'trash', slug = p.slug || @suffix::text, path = p.path || @suffix::text,
+    updated_at = @updated_at
 WHERE p.id = @id
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
 
 -- name: RestoreContent :one
 UPDATE core.content AS p
 SET status = 'draft',
     slug = regexp_replace(p.slug, '-trashed-[a-z0-9]{8}$', ''),
+    path = regexp_replace(p.path, '-trashed-[a-z0-9]{8}$', ''),
     updated_at = @updated_at
 WHERE p.id = @id
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
 
 -- name: RestoreContentKeepingSlug :one
 UPDATE core.content AS p
 SET status = 'draft', updated_at = @updated_at
 WHERE p.id = @id
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
 
 -- name: DeleteContent :execrows
 DELETE FROM core.content AS p WHERE p.id = @id;

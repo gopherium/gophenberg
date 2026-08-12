@@ -27,9 +27,9 @@ func insertContentWithStatus(
 	t.Helper()
 	now := time.Now().UTC()
 	_, err := pool.Exec(t.Context(),
-		`INSERT INTO core.content (id, type, status, slug, title, content, excerpt, author_id,
+		`INSERT INTO core.content (id, type, status, slug, path, title, content, excerpt, author_id,
 			published_at, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, 'Stored Title', $5, '', $6, $7, $7, $7)`,
+		VALUES ($1, $2, $3, $4, $2 || '/' || $4, 'Stored Title', $5, '', $6, $7, $7, $7)`,
 		uuid.Must(uuid.NewV7()), postType, string(status), slug, blockMarkup, author, now,
 	)
 	if err != nil {

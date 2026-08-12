@@ -18,6 +18,8 @@ import (
 type postBody struct {
 	ID          uuid.UUID  `json:"id"`
 	Type        string     `json:"type"`
+	ParentID    *uuid.UUID `json:"parent_id"`
+	Path        string     `json:"path"`
 	Slug        string     `json:"slug"`
 	Title       string     `json:"title"`
 	Excerpt     string     `json:"excerpt"`

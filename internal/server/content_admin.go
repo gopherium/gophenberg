@@ -36,6 +36,8 @@ var countedStatuses = []content.Status{
 type contentResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Type        string     `json:"type"`
+	ParentID    *uuid.UUID `json:"parent_id"`
+	Path        string     `json:"path"`
 	Slug        string     `json:"slug"`
 	Title       string     `json:"title"`
 	Excerpt     string     `json:"excerpt"`
@@ -67,6 +69,8 @@ func newContentResponse(c content.Content, authorName string) contentResponse {
 	return contentResponse{
 		ID:          c.ID,
 		Type:        c.Type,
+		ParentID:    c.ParentID,
+		Path:        c.Path,
 		Slug:        c.Slug,
 		Title:       c.Title,
 		Excerpt:     c.Excerpt,

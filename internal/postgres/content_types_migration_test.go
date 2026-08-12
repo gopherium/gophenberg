@@ -127,8 +127,8 @@ func TestTypeMigrationsTieContentToARegisteredType(t *testing.T) {
 
 	_, err := db.Exec(
 		`INSERT INTO core.content
-		(id, type, status, slug, title, content, excerpt, author_id, published_at, created_at, updated_at)
-		VALUES ($1, 'car', 'draft', 'ford-focus', 'Ford Focus', '', '', $2, NULL, $3, $3)`,
+		(id, type, status, slug, path, title, content, excerpt, author_id, published_at, created_at, updated_at)
+		VALUES ($1, 'car', 'draft', 'ford-focus', 'cars/ford-focus', 'Ford Focus', '', '', $2, NULL, $3, $3)`,
 		uuid.Must(uuid.NewV7()), author, now,
 	)
 

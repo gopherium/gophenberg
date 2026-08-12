@@ -26,8 +26,11 @@ var _ content.Store = (*ContentStore)(nil)
 // slugAttempts bounds the suffixes tried when a slug is taken.
 const slugAttempts = 20
 
-// slugConstraint names the unique constraint over a content type and slug.
-const slugConstraint = "content_type_slug_unique"
+// deferAddressCheck holds the address check until a move has settled.
+const deferAddressCheck = "SET CONSTRAINTS core.content_path_unique DEFERRED"
+
+// slugConstraint names the unique constraint over a content address.
+const slugConstraint = "content_path_unique"
 
 // trashSuffixAlphabet holds the characters a trashed slug suffix draws from.
 const trashSuffixAlphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -46,27 +49,32 @@ func NewContentStore(pool *pgxpool.Pool) *ContentStore {
 	return &ContentStore{pool: pool, queries: db.New(pool)}
 }
 
-// Create stores a new content item, suffixing its slug until the type accepts it.
+// Create stores a new content item, suffixing its slug until its address is free.
 func (s *ContentStore) Create(ctx context.Context, c content.Content) (content.Content, error) {
+	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
-		created, err := s.create(ctx, c, numberedSlug(c.Slug, attempt))
+		created, err := s.create(ctx, c, prefix, numberedSlug(c.Slug, attempt))
 		if isSlugTaken(err) {
 			continue
 		}
 		return created, err
 	}
-	created, err := s.create(ctx, c, identifiedSlug(c.Slug, c.ID))
+	created, err := s.create(ctx, c, prefix, identifiedSlug(c.Slug, c.ID))
 	if isSlugTaken(err) {
 		return content.Content{}, content.ErrSlugTaken
 	}
 	return created, err
 }
 
-// create stores the content item under slug.
-func (s *ContentStore) create(ctx context.Context, c content.Content, slug string) (content.Content, error) {
+// create stores the content item under slug, addressed beneath prefix.
+func (s *ContentStore) create(
+	ctx context.Context, c content.Content, prefix, slug string,
+) (content.Content, error) {
 	row, err := s.queries.CreateContent(ctx, db.CreateContentParams{
 		ID:          c.ID,
 		Type:        c.Type,
+		ParentID:    c.ParentID,
+		Path:        content.AddressUnder(prefix, slug),
 		Status:      string(c.Status),
 		Slug:        slug,
 		Title:       c.Title,
@@ -81,6 +89,27 @@ func (s *ContentStore) create(ctx context.Context, c content.Content, slug strin
 		return content.Content{}, fmt.Errorf("postgres: create content: %w", err)
 	}
 	return toContent(row), nil
+}
+
+// PublishedByPath returns the published item at the address, or [content.ErrNotFound].
+func (s *ContentStore) PublishedByPath(ctx context.Context, path string) (content.Content, error) {
+	row, err := s.queries.GetPublishedContentByPath(ctx, path)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return content.Content{}, content.ErrNotFound
+	}
+	if err != nil {
+		return content.Content{}, fmt.Errorf("postgres: get published content by path: %w", err)
+	}
+	return toContent(row), nil
+}
+
+// Children returns how many items nest directly under the item.
+func (s *ContentStore) Children(ctx context.Context, id uuid.UUID) (int, error) {
+	held, err := s.queries.CountChildren(ctx, &id)
+	if err != nil {
+		return 0, fmt.Errorf("postgres: count children: %w", err)
+	}
+	return int(held), nil
 }
 
 // ByID returns the content item with the given id, or [content.ErrNotFound].
@@ -117,6 +146,8 @@ func toContent(row db.CoreContent) content.Content {
 	return content.Content{
 		ID:          row.ID,
 		Type:        row.Type,
+		ParentID:    row.ParentID,
+		Path:        row.Path,
 		Status:      content.Status(row.Status),
 		Slug:        row.Slug,
 		Title:       row.Title,
@@ -158,6 +189,8 @@ func (s *ContentStore) List(ctx context.Context, f content.Filter) ([]content.Co
 		items[i] = content.Content{
 			ID:          row.ID,
 			Type:        row.Type,
+			ParentID:    row.ParentID,
+			Path:        row.Path,
 			Status:      content.Status(row.Status),
 			Slug:        row.Slug,
 			Title:       row.Title,
@@ -171,34 +204,58 @@ func (s *ContentStore) List(ctx context.Context, f content.Filter) ([]content.Co
 	return items, int(total), nil
 }
 
-// Update stores the item's editable fields and any snapshot, suffixing its slug until the type accepts it.
+// Update stores the item's editable fields and any snapshot, settling its address among its siblings.
 func (s *ContentStore) Update(
 	ctx context.Context, c content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision,
 	revisionCap int,
 ) (content.Content, error) {
-	for attempt := 1; attempt <= slugAttempts; attempt++ {
-		updated, err := s.update(ctx, c, numberedSlug(c.Slug, attempt), expectedUpdatedAt, snapshot, revisionCap)
-		if isSlugTaken(err) {
-			continue
-		}
-		if err != nil {
-			return content.Content{}, err
-		}
-		return updated, nil
+	slug, err := s.freeSiblingSlug(ctx, c)
+	if err != nil {
+		return content.Content{}, fmt.Errorf("postgres: update content: %w", err)
 	}
-	return content.Content{}, content.ErrSlugTaken
+	updated, err := s.update(ctx, c, slug, expectedUpdatedAt, snapshot, revisionCap)
+	if isSlugTaken(err) {
+		return content.Content{}, content.ErrSlugTaken
+	}
+	return updated, err
 }
 
-// update writes the content item and any snapshot under slug.
+// freeSiblingSlug returns the slug the item may carry beside its siblings.
+func (s *ContentStore) freeSiblingSlug(ctx context.Context, c content.Content) (string, error) {
+	for attempt := 1; attempt <= slugAttempts; attempt++ {
+		slug := numberedSlug(c.Slug, attempt)
+		taken, err := s.queries.SiblingSlugTaken(ctx, db.SiblingSlugTakenParams{
+			Type:     c.Type,
+			ParentID: c.ParentID,
+			Slug:     slug,
+			ID:       c.ID,
+		})
+		if err != nil {
+			return "", fmt.Errorf("read sibling slugs: %w", err)
+		}
+		if !taken {
+			return slug, nil
+		}
+	}
+	return "", content.ErrSlugTaken
+}
+
+// update writes the content item, its descendants and any snapshot under slug.
 func (s *ContentStore) update(
 	ctx context.Context, c content.Content, slug string, expectedUpdatedAt time.Time,
 	snapshot *content.Revision, revisionCap int,
 ) (content.Content, error) {
+	path := content.AddressUnder(content.AddressPrefix(c.Path, c.Slug), slug)
 	var updated content.Content
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		row, err := queries.UpdateContent(ctx, db.UpdateContentParams{
+		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
+			return err
+		}
+		row, err := writeContent(ctx, queries, db.UpdateContentParams{
 			ID:                c.ID,
+			ParentID:          c.ParentID,
+			Path:              path,
 			Status:            string(c.Status),
 			Slug:              slug,
 			Title:             c.Title,
@@ -208,32 +265,57 @@ func (s *ContentStore) update(
 			UpdatedAt:         c.UpdatedAt,
 			ExpectedUpdatedAt: expectedUpdatedAt,
 		})
-		if errors.Is(err, pgx.ErrNoRows) {
-			if _, err := byID(ctx, queries, c.ID); err != nil {
-				return err
-			}
-			return content.ErrConflict
-		}
 		if err != nil {
 			return err
 		}
 		updated = toContent(row)
+		if err := queries.MoveDescendants(ctx, db.MoveDescendantsParams{
+			ID:        c.ID,
+			Path:      path,
+			UpdatedAt: c.UpdatedAt,
+		}); err != nil {
+			return err
+		}
 		if snapshot == nil {
 			return nil
 		}
 		return snapshotRevision(ctx, queries, *snapshot, revisionCap)
 	})
 	if err != nil {
-		if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) {
-			return content.Content{}, err
-		}
-		return content.Content{}, fmt.Errorf("postgres: update content: %w", err)
+		return content.Content{}, updateFailure(err)
 	}
 	return updated, nil
 }
 
-// Trash marks the content item trashed and frees its slug for reuse.
+// writeContent applies the edited fields, telling a stale write apart from a missing item.
+func writeContent(ctx context.Context, queries *db.Queries, p db.UpdateContentParams) (db.CoreContent, error) {
+	row, err := queries.UpdateContent(ctx, p)
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return row, err
+	}
+	if _, err := byID(ctx, queries, p.ID); err != nil {
+		return db.CoreContent{}, err
+	}
+	return db.CoreContent{}, content.ErrConflict
+}
+
+// updateFailure returns the refusal the update carries, and wraps anything else.
+func updateFailure(err error) error {
+	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) || isSlugTaken(err) {
+		return err
+	}
+	return fmt.Errorf("postgres: update content: %w", err)
+}
+
+// Trash marks the content item trashed and frees its address for reuse.
 func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
+	held, err := s.Children(ctx, id)
+	if err != nil {
+		return content.Content{}, err
+	}
+	if held > 0 {
+		return content.Content{}, content.ErrHoldsChildren
+	}
 	row, err := s.queries.TrashContent(ctx, db.TrashContentParams{
 		ID:        id,
 		Suffix:    trashSuffix(),

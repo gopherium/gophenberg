@@ -52,8 +52,8 @@ func insertContent(db *sql.DB, author uuid.UUID, status, slug string, publishedA
 	now := time.Now().UTC()
 	_, err := db.Exec(
 		`INSERT INTO core.content
-		(id, type, status, slug, title, content, excerpt, author_id, published_at, created_at, updated_at)
-		VALUES ($1, 'post', $2, $3, 'Title', '', '', $4, $5, $6, $6)`,
+		(id, type, status, slug, path, title, content, excerpt, author_id, published_at, created_at, updated_at)
+		VALUES ($1, 'post', $2, $3, $3, 'Title', '', '', $4, $5, $6, $6)`,
 		uuid.Must(uuid.NewV7()), status, slug, author, publishedAt, now,
 	)
 	return err
@@ -165,7 +165,7 @@ func TestMigrationsIndexContentForListingAndAuthorship(t *testing.T) {
 	}
 }
 
-func TestMigrationsRenameKeepsTheSlugConstraint(t *testing.T) {
+func TestMigrationsNameTheAddressConstraint(t *testing.T) {
 	t.Parallel()
 
 	db := newTestDB(t)
@@ -173,12 +173,12 @@ func TestMigrationsRenameKeepsTheSlugConstraint(t *testing.T) {
 	var count int
 	err := db.QueryRow(
 		`SELECT count(*) FROM pg_constraint
-		WHERE conname = 'content_type_slug_unique' AND conrelid = 'core.content'::regclass`,
+		WHERE conname = 'content_path_unique' AND conrelid = 'core.content'::regclass`,
 	).Scan(&count)
 	if err != nil {
 		t.Fatalf("querying pg_constraint: %v", err)
 	}
 	if count != 1 {
-		t.Errorf("constraint content_type_slug_unique count = %d, want 1", count)
+		t.Errorf("constraint content_path_unique count = %d, want 1", count)
 	}
 }

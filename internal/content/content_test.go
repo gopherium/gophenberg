@@ -43,7 +43,7 @@ func TestNewReportsIDGenerationFailure(t *testing.T) {
 	uuid.SetRand(failingReader{})
 	defer uuid.SetRand(nil)
 
-	_, err := content.New(postType(), "Hello World", author)
+	_, err := content.New(postType(), nil, "Hello World", author)
 
 	if !errors.Is(err, errEntropy) {
 		t.Fatalf("New() error = %v, want the entropy failure in its chain", err)
@@ -56,7 +56,7 @@ func TestNewReturnsADraftWithGeneratedFields(t *testing.T) {
 	author := uuid.Must(uuid.NewV7())
 	before := time.Now().UTC()
 
-	p, err := content.New(postType(), "Hello World", author)
+	p, err := content.New(postType(), nil, "Hello World", author)
 
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
@@ -96,7 +96,7 @@ func TestNewReturnsADraftWithGeneratedFields(t *testing.T) {
 func TestNewTitlesWithoutSlugCharactersFallBackToUntitled(t *testing.T) {
 	t.Parallel()
 
-	p, err := content.New(postType(), "   ", uuid.Must(uuid.NewV7()))
+	p, err := content.New(postType(), nil, "   ", uuid.Must(uuid.NewV7()))
 
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
@@ -125,7 +125,7 @@ func TestNewRejectsInvalidInput(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := content.New(tc.contentType, "Hello", tc.author)
+			_, err := content.New(tc.contentType, nil, "Hello", tc.author)
 
 			if !errors.Is(err, tc.want) {
 				t.Errorf("New() error = %v, want %v", err, tc.want)

@@ -39,6 +39,7 @@ type fakePostStore struct {
 	restoreErr   error
 	deleteErr    error
 	countsErr    error
+	childrenErr  error
 
 	revisions         []content.Revision
 	revisionsErr      error
@@ -49,6 +50,33 @@ type fakePostStore struct {
 	deleteAutosaveErr error
 	lastSnapshot      *content.Revision
 	lastRevisionCap   int
+}
+
+// Children returns how many items nest under the item.
+func (s *fakePostStore) Children(_ context.Context, id uuid.UUID) (int, error) {
+	if s.childrenErr != nil {
+		return 0, s.childrenErr
+	}
+	held := 0
+	for _, stored := range s.posts {
+		if stored.ParentID != nil && *stored.ParentID == id {
+			held++
+		}
+	}
+	return held, nil
+}
+
+// PublishedByPath returns the published item at the address, or [content.ErrNotFound].
+func (s *fakePostStore) PublishedByPath(_ context.Context, path string) (content.Content, error) {
+	if s.publishedErr != nil {
+		return content.Content{}, s.publishedErr
+	}
+	for _, stored := range s.posts {
+		if stored.Path == path && stored.Status == content.StatusPublished {
+			return stored, nil
+		}
+	}
+	return content.Content{}, content.ErrNotFound
 }
 
 // newFakePostStore returns an empty in-memory post store double.
@@ -314,7 +342,7 @@ func versionedBody(t *testing.T, version time.Time, fields map[string]any) strin
 // newPost returns a draft post authored by author.
 func newPost(t *testing.T, title string, author uuid.UUID) content.Content {
 	t.Helper()
-	p, err := content.New(postType(), title, author)
+	p, err := content.New(postType(), nil, title, author)
 	if err != nil {
 		t.Fatalf("New(%q) error = %v, want nil", title, err)
 	}

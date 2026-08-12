@@ -113,8 +113,9 @@ func TestContentStoreReportsASlugTakenEvenUnderTheIdentifiedOne(t *testing.T) {
 	crowded := mustPost(t, "Crowded", author)
 	decoy := "crowded-" + strings.ReplaceAll(crowded.ID.String(), "-", "")
 	_, err := pool.Exec(t.Context(),
-		`INSERT INTO core.content (id, type, status, slug, title, content, excerpt, author_id, created_at, updated_at)
-		VALUES ($1, 'post', 'draft', $2, 'Decoy', '', '', $3, now(), now())`,
+		`INSERT INTO core.content
+		(id, type, status, slug, path, title, content, excerpt, author_id, created_at, updated_at)
+		VALUES ($1, 'post', 'draft', $2, $2, 'Decoy', '', '', $3, now(), now())`,
 		uuid.Must(uuid.NewV7()), decoy, author,
 	)
 	if err != nil {

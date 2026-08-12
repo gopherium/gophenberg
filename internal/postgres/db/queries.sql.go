@@ -13,6 +13,17 @@ import (
 	"github.com/gopherium/gophenberg/internal/media"
 )
 
+const countChildren = `-- name: CountChildren :one
+SELECT count(*) FROM core.content p WHERE p.parent_id = $1
+`
+
+func (q *Queries) CountChildren(ctx context.Context, id *uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countChildren, id)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countContent = `-- name: CountContent :one
 SELECT count(*)
 FROM core.content p
@@ -105,14 +116,14 @@ const createContent = `-- name: CreateContent :one
 
 INSERT INTO core.content (
     id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at
+    author_id, published_at, created_at, updated_at, parent_id, path
 )
 VALUES (
     $1, $2, $3, $4, $5, $6, $7,
-    $8, $9, $10, $11
+    $8, $9, $10, $11, $12, $13
 )
 RETURNING id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at
+    author_id, published_at, created_at, updated_at, parent_id, path
 `
 
 type CreateContentParams struct {
@@ -127,6 +138,8 @@ type CreateContentParams struct {
 	PublishedAt *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	ParentID    *uuid.UUID
+	Path        string
 }
 
 // SPDX-License-Identifier: Apache-2.0
@@ -143,6 +156,8 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 		arg.PublishedAt,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.ParentID,
+		arg.Path,
 	)
 	var i CoreContent
 	err := row.Scan(
@@ -157,6 +172,8 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
 	)
 	return i, err
 }
@@ -440,7 +457,7 @@ func (q *Queries) GetAutosave(ctx context.Context, arg GetAutosaveParams) (CoreC
 
 const getContent = `-- name: GetContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 FROM core.content p
 WHERE p.id = $1
 `
@@ -460,6 +477,8 @@ func (q *Queries) GetContent(ctx context.Context, id uuid.UUID) (CoreContent, er
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
 	)
 	return i, err
 }
@@ -523,7 +542,7 @@ func (q *Queries) GetMedia(ctx context.Context, id int64) (CoreMedia, error) {
 
 const getPublishedContent = `-- name: GetPublishedContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 FROM core.content p
 WHERE p.type = $1 AND p.slug = $2 AND p.status = 'published'
 `
@@ -548,6 +567,36 @@ func (q *Queries) GetPublishedContent(ctx context.Context, arg GetPublishedConte
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
+	)
+	return i, err
+}
+
+const getPublishedContentByPath = `-- name: GetPublishedContentByPath :one
+SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
+WHERE p.path = $1 AND p.status = 'published'
+`
+
+func (q *Queries) GetPublishedContentByPath(ctx context.Context, path string) (CoreContent, error) {
+	row := q.db.QueryRow(ctx, getPublishedContentByPath, path)
+	var i CoreContent
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
 	)
 	return i, err
 }
@@ -592,7 +641,7 @@ func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
 
 const listContent = `-- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 FROM core.content p
 WHERE p.type = $1
     AND ($2::text = '' OR p.status = $2)
@@ -633,6 +682,8 @@ type ListContentRow struct {
 	PublishedAt *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	ParentID    *uuid.UUID
+	Path        string
 }
 
 func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error) {
@@ -663,6 +714,8 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 			&i.PublishedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ParentID,
+			&i.Path,
 		); err != nil {
 			return nil, err
 		}
@@ -830,6 +883,33 @@ func (q *Queries) ListRevisions(ctx context.Context, contentID uuid.UUID) ([]Lis
 	return items, nil
 }
 
+const moveDescendants = `-- name: MoveDescendants :exec
+WITH RECURSIVE moved AS (
+    SELECT c.id, $3::text AS path
+    FROM core.content c
+    WHERE c.id = $2
+  UNION ALL
+    SELECT child.id, moved.path || '/' || child.slug
+    FROM core.content child
+    JOIN moved ON child.parent_id = moved.id
+) CYCLE id SET looped USING trail
+UPDATE core.content AS p
+SET path = moved.path, updated_at = $1
+FROM moved
+WHERE p.id = moved.id AND p.id <> $2
+`
+
+type MoveDescendantsParams struct {
+	UpdatedAt time.Time
+	ID        uuid.UUID
+	Path      string
+}
+
+func (q *Queries) MoveDescendants(ctx context.Context, arg MoveDescendantsParams) error {
+	_, err := q.db.Exec(ctx, moveDescendants, arg.UpdatedAt, arg.ID, arg.Path)
+	return err
+}
+
 const pruneRevisions = `-- name: PruneRevisions :exec
 DELETE FROM core.content_revisions AS r
 WHERE r.id IN (
@@ -855,10 +935,11 @@ const restoreContent = `-- name: RestoreContent :one
 UPDATE core.content AS p
 SET status = 'draft',
     slug = regexp_replace(p.slug, '-trashed-[a-z0-9]{8}$', ''),
+    path = regexp_replace(p.path, '-trashed-[a-z0-9]{8}$', ''),
     updated_at = $1
 WHERE p.id = $2
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 `
 
 type RestoreContentParams struct {
@@ -881,6 +962,8 @@ func (q *Queries) RestoreContent(ctx context.Context, arg RestoreContentParams) 
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
 	)
 	return i, err
 }
@@ -890,7 +973,7 @@ UPDATE core.content AS p
 SET status = 'draft', updated_at = $1
 WHERE p.id = $2
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 `
 
 type RestoreContentKeepingSlugParams struct {
@@ -913,6 +996,8 @@ func (q *Queries) RestoreContentKeepingSlug(ctx context.Context, arg RestoreCont
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
 	)
 	return i, err
 }
@@ -933,12 +1018,42 @@ func (q *Queries) SetSetting(ctx context.Context, arg SetSettingParams) error {
 	return err
 }
 
+const siblingSlugTaken = `-- name: SiblingSlugTaken :one
+SELECT EXISTS (
+    SELECT 1 FROM core.content p
+    WHERE p.type = $1
+        AND p.parent_id IS NOT DISTINCT FROM $2::uuid
+        AND p.slug = $3
+        AND p.id <> $4
+)
+`
+
+type SiblingSlugTakenParams struct {
+	Type     string
+	ParentID *uuid.UUID
+	Slug     string
+	ID       uuid.UUID
+}
+
+func (q *Queries) SiblingSlugTaken(ctx context.Context, arg SiblingSlugTakenParams) (bool, error) {
+	row := q.db.QueryRow(ctx, siblingSlugTaken,
+		arg.Type,
+		arg.ParentID,
+		arg.Slug,
+		arg.ID,
+	)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const trashContent = `-- name: TrashContent :one
 UPDATE core.content AS p
-SET status = 'trash', slug = p.slug || $1::text, updated_at = $2
+SET status = 'trash', slug = p.slug || $1::text, path = p.path || $1::text,
+    updated_at = $2
 WHERE p.id = $3
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 `
 
 type TrashContentParams struct {
@@ -962,22 +1077,26 @@ func (q *Queries) TrashContent(ctx context.Context, arg TrashContentParams) (Cor
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
 	)
 	return i, err
 }
 
 const updateContent = `-- name: UpdateContent :one
 UPDATE core.content AS p
-SET status = $1, slug = $2, title = $3, content = $4,
-    excerpt = $5, published_at = $6, updated_at = $7
-WHERE p.id = $8 AND p.updated_at = $9
+SET status = $1, slug = $2, path = $3, parent_id = $4, title = $5,
+    content = $6, excerpt = $7, published_at = $8, updated_at = $9
+WHERE p.id = $10 AND p.updated_at = $11
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 `
 
 type UpdateContentParams struct {
 	Status            string
 	Slug              string
+	Path              string
+	ParentID          *uuid.UUID
 	Title             string
 	Content           string
 	Excerpt           string
@@ -991,6 +1110,8 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (C
 	row := q.db.QueryRow(ctx, updateContent,
 		arg.Status,
 		arg.Slug,
+		arg.Path,
+		arg.ParentID,
 		arg.Title,
 		arg.Content,
 		arg.Excerpt,
@@ -1012,6 +1133,8 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (C
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
 	)
 	return i, err
 }

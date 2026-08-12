@@ -23,6 +23,8 @@ type CoreContent struct {
 	PublishedAt *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	ParentID    *uuid.UUID
+	Path        string
 }
 
 type CoreContentRevision struct {

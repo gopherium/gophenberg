@@ -145,7 +145,7 @@ func Posts(ctx context.Context, store content.Store, types *content.Registry, us
 func storeDemoPost(
 	ctx context.Context, store content.Store, postType content.Type, scripted demoPost, id, authorID uuid.UUID,
 ) error {
-	built, err := content.New(postType, scripted.title, authorID)
+	built, err := content.New(postType, nil, scripted.title, authorID)
 	if err != nil {
 		return fmt.Errorf("build post: %w", err)
 	}

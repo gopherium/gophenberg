@@ -242,7 +242,7 @@ func TestTypeStoreKeepsATypeHoldingContent(t *testing.T) {
 	if _, err := store.Create(t.Context(), car); err != nil {
 		t.Fatalf("Create() error = %v, want nil", err)
 	}
-	item, err := content.New(car, "Ford Focus", author)
+	item, err := content.New(car, nil, "Ford Focus", author)
 	if err != nil {
 		t.Fatalf("New() error = %v, want nil", err)
 	}
