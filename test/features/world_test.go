@@ -90,6 +90,9 @@ type world struct {
 	contentItems   *memoryContent
 	contentTypes   *memoryTypes
 	car            listedContent
+	nested         map[string]nestedContent
+	lastStored     nestedContent
+	deepest        nestedContent
 	mediaStore     *memoryMedia
 	mediaFiles     *mediahost.Library
 	mediaSubject   int64

@@ -4,6 +4,8 @@ package features_test
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,12 +26,56 @@ func newMemoryContent() *memoryContent {
 	return &memoryContent{items: make(map[uuid.UUID]content.Content)}
 }
 
-// Create stores a new content item.
+// Create stores a new content item, suffixing its slug until its address is free.
 func (s *memoryContent) Create(_ context.Context, c content.Content) (content.Content, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.items[c.ID] = c
-	return c, nil
+	prefix := content.AddressPrefix(c.Path, c.Slug)
+	for attempt := 1; attempt <= slugAttempts; attempt++ {
+		slug := numberedSlug(c.Slug, attempt)
+		if s.addressHeld(content.AddressUnder(prefix, slug), c.ID) {
+			continue
+		}
+		stored := c.Place(prefix, slug)
+		s.items[stored.ID] = stored
+		return stored, nil
+	}
+	return content.Content{}, content.ErrSlugTaken
+}
+
+// slugAttempts bounds the suffixes tried when an address is taken.
+const slugAttempts = 20
+
+// numberedSlug returns slug for the first attempt, and slug with the attempt number after that.
+func numberedSlug(slug string, attempt int) string {
+	if attempt == 1 {
+		return slug
+	}
+	return slug + "-" + strconv.Itoa(attempt)
+}
+
+// addressHeld reports whether another item already answers at the address.
+func (s *memoryContent) addressHeld(path string, except uuid.UUID) bool {
+	for _, stored := range s.items {
+		if stored.Path == path && stored.ID != except {
+			return true
+		}
+	}
+	return false
+}
+
+// carryDescendants moves everything nested under the item to follow its address.
+func (s *memoryContent) carryDescendants(moved content.Content, was string) {
+	if was == moved.Path {
+		return
+	}
+	for id, stored := range s.items {
+		if stored.ID == moved.ID || !strings.HasPrefix(stored.Path, was+"/") {
+			continue
+		}
+		stored.Path = moved.Path + strings.TrimPrefix(stored.Path, was)
+		s.items[id] = stored
+	}
 }
 
 // ByID returns the item carrying the id, or [content.ErrNotFound].
@@ -46,6 +92,24 @@ func (s *memoryContent) ByID(_ context.Context, id uuid.UUID) (content.Content, 
 // PublishedBySlug reports that the scenario publishes nothing publicly.
 func (s *memoryContent) PublishedBySlug(context.Context, string, string) (content.Content, error) {
 	return content.Content{}, content.ErrNotFound
+}
+
+// PublishedByPath reports that the scenario publishes nothing publicly.
+func (s *memoryContent) PublishedByPath(context.Context, string) (content.Content, error) {
+	return content.Content{}, content.ErrNotFound
+}
+
+// Children returns how many items nest directly under the item.
+func (s *memoryContent) Children(_ context.Context, id uuid.UUID) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	held := 0
+	for _, stored := range s.items {
+		if stored.ParentID != nil && *stored.ParentID == id {
+			held++
+		}
+	}
+	return held, nil
 }
 
 // List returns the items of the filtered type, newest first, with their total.
@@ -74,8 +138,18 @@ func (s *memoryContent) Update(
 	if !stored.UpdatedAt.Equal(expectedUpdatedAt) {
 		return content.Content{}, content.ErrConflict
 	}
-	s.items[c.ID] = c
-	return c, nil
+	prefix := content.AddressPrefix(c.Path, c.Slug)
+	for attempt := 1; attempt <= slugAttempts; attempt++ {
+		slug := numberedSlug(c.Slug, attempt)
+		if s.addressHeld(content.AddressUnder(prefix, slug), c.ID) {
+			continue
+		}
+		settled := c.Place(prefix, slug)
+		s.items[settled.ID] = settled
+		s.carryDescendants(settled, stored.Path)
+		return settled, nil
+	}
+	return content.Content{}, content.ErrSlugTaken
 }
 
 // Counts returns how many items of the type hold each status.

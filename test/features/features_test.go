@@ -38,6 +38,10 @@ func TestContentTypes(t *testing.T) {
 	runFeature(t, "features/content-types.feature", initializeContentTypes)
 }
 
+func TestContentHierarchy(t *testing.T) {
+	runFeature(t, "features/content-hierarchy.feature", initializeContentHierarchy)
+}
+
 func TestThemeUpload(t *testing.T) {
 	runFeature(t, "features/theme-upload.feature", initializeUpload)
 }
