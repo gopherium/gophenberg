@@ -5,6 +5,7 @@ import type { NavItem } from '@gophenberg/frontend-sdk'
 import { Link, useRouter } from '@tanstack/react-router'
 import type { AnyRoute } from '@tanstack/react-router'
 
+import { useContentNav } from '../content/nav'
 import { plugins } from '../plugins'
 import { coreNav } from './coreNav'
 
@@ -62,8 +63,12 @@ function MenuItem({ item }: { item: NavItem }) {
  * @returns The navigation landmark containing the menu rows.
  */
 export function MainMenu() {
+	const contentNav = useContentNav()
 	return (
 		<Stack direction="column" gap="xs">
+			{contentNav.map((item) => (
+				<MenuItem key={item.to} item={item} />
+			))}
 			{coreNav.map((item) => (
 				<MenuItem key={item.to} item={item} />
 			))}

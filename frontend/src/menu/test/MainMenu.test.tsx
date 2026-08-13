@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
 	Outlet,
 	RouterProvider,
@@ -50,7 +51,12 @@ function renderMenuAt(path: string, withSections = false) {
 		routeTree: rootRoute.addChildren(routes),
 		history: createMemoryHistory({ initialEntries: [path] }),
 	})
-	render(<RouterProvider router={router} />)
+	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+	render(
+		<QueryClientProvider client={client}>
+			<RouterProvider router={router} />
+		</QueryClientProvider>,
+	)
 }
 
 test('renders a menu link for every core and plugin nav entry', async () => {
