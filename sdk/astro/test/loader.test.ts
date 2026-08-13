@@ -62,7 +62,7 @@ describe('loadCollection', () => {
 
 		const got = await loader.loadCollection({ collection: 'posts' })
 
-		expect(got).toEqual({ entries: [{ id: 'post/hello-world', data: summary }] })
+		expect(got).toEqual({ entries: [{ id: 'hello-world', data: summary }] })
 	})
 
 	test('narrows by the filter a page asked for', async () => {
@@ -93,7 +93,7 @@ describe('loadEntry', () => {
 
 		const got = await loader.loadEntry({ collection: 'posts', filter: { path: 'hello-world' } })
 
-		expect(got).toEqual({ id: 'post/hello-world', data: post })
+		expect(got).toEqual({ id: 'hello-world', data: post })
 	})
 
 	test('asks for the address the page carried', async () => {

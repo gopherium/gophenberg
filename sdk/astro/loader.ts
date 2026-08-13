@@ -58,10 +58,10 @@ export function gophenbergLoader(
 /**
  * Returns the id a post is unique under within its collection.
  * @param post - The post the id stands for.
- * @returns The type and slug joined.
+ * @returns The address the post answers at.
  */
 function entryId(post: PostSummary): string {
-	return `${post.type}/${post.slug}`
+	return post.path
 }
 
 /**
