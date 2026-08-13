@@ -16,6 +16,7 @@ export interface EditorBuffer {
 	status: string
 	savedStatus: string
 	slug: string
+	parentId: string | null
 	excerpt: string
 	dirty: boolean
 	saving: boolean
@@ -25,6 +26,7 @@ export interface EditorBuffer {
 	setTitle: (title: string) => void
 	setStatus: (status: string) => void
 	setSlug: (slug: string) => void
+	setParentId: (parentId: string | null) => void
 	setExcerpt: (excerpt: string) => void
 	restore: (kept: { title: string, content: string, excerpt: string }) => void
 	onInput: (blocks: Block[]) => void
@@ -48,12 +50,14 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 	const [title, setTitle] = useState(stored.title)
 	const [status, setStatus] = useState(stored.status)
 	const [slug, setSlug] = useState(stored.slug)
+	const [parentId, setParentId] = useState(stored.parentId)
 	const [excerpt, setExcerpt] = useState(stored.excerpt)
 	const [version, setVersion] = useState(stored.updatedAt)
 	const [saved, setSaved] = useState({
 		title: stored.title,
 		content: stored.content,
 		slug: stored.slug,
+		parentId: stored.parentId,
 		excerpt: stored.excerpt,
 		status: stored.status,
 	})
@@ -84,11 +88,13 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 			title: written.title,
 			content: written.content,
 			slug: written.slug,
+			parentId: written.parentId,
 			excerpt: written.excerpt,
 			status: written.status,
 		})
 		setStatus(written.status)
 		setSlug(written.slug)
+		setParentId(written.parentId)
 		setExcerpt(written.excerpt)
 		setVersion(written.updatedAt)
 	}
@@ -99,11 +105,13 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		status,
 		savedStatus: saved.status,
 		slug,
+		parentId,
 		excerpt,
 		dirty:
 			title !== saved.title ||
 			content !== saved.content ||
 			slug !== saved.slug ||
+			parentId !== saved.parentId ||
 			excerpt !== saved.excerpt ||
 			status !== saved.status,
 		saving: write.isPending,
@@ -113,6 +121,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		setTitle,
 		setStatus,
 		setSlug,
+		setParentId,
 		setExcerpt,
 		restore: (kept: { title: string, content: string, excerpt: string }) => {
 			setTitle(kept.title)
@@ -123,8 +132,9 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		onChange: (next: Block[]) => history.setValue(next, false),
 		undo: history.undo,
 		redo: history.redo,
-		save: () => write.mutate({ title, content, slug, excerpt, status }),
-		publish: () => write.mutate({ title, content, slug, excerpt, status: 'published' }),
+		save: () => write.mutate({ title, content, slug, excerpt, status, parent_id: parentId }),
+		publish: () =>
+			write.mutate({ title, content, slug, excerpt, status: 'published', parent_id: parentId }),
 		adoptVersion: setVersion,
 	}
 }

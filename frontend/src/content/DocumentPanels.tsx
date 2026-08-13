@@ -3,7 +3,9 @@
 import { InputControl, SelectControl, Stack, TextareaControl } from '@gophenberg/frontend-sdk'
 import { useMemo } from 'react'
 
+import { ParentPicker } from './ParentPicker'
 import { TrashPost } from './TrashPost'
+import { useContentType } from './useContentType'
 import type { EditorBuffer } from './useEditorBuffer'
 
 const AUTHORED_STATUSES = [
@@ -59,6 +61,7 @@ export function chosenStatus(item: { value: string | null } | null, current: str
  */
 export function DocumentPanels({ postId, buffer }: { postId: string, buffer: EditorBuffer }) {
 	const { items, selected } = useMemo(() => statusItems(buffer.status), [buffer.status])
+	const listed = useContentType()
 	return (
 		<Stack direction="column" gap="md">
 			<SelectControl
@@ -68,6 +71,14 @@ export function DocumentPanels({ postId, buffer }: { postId: string, buffer: Edi
 				onValueChange={(item) => buffer.setStatus(chosenStatus(item, buffer.status))}
 			/>
 			<InputControl label="Slug" value={buffer.slug} onValueChange={buffer.setSlug} />
+			{listed.hierarchical && (
+				<ParentPicker
+					postId={postId}
+					type={listed.key}
+					parentId={buffer.parentId}
+					onChange={buffer.setParentId}
+				/>
+			)}
 			<TextareaControl
 				label="Excerpt"
 				value={buffer.excerpt}
