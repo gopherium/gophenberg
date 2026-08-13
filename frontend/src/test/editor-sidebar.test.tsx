@@ -8,7 +8,7 @@ import { beforeAll, beforeEach, expect, test } from 'vitest'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
-const EDITOR_PATH = `/posts/${storedPost.id}/edit`
+const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 beforeAll(async () => {
 	await import('../content/EditorScreen')

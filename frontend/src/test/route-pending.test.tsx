@@ -5,10 +5,11 @@ import { expect, test } from 'vitest'
 import { createAppRouter } from '../router'
 
 const SPLIT_ROUTES = [
-	'/framed/posts',
+	'/framed/content/$typeKey',
+	'/framed/content-types',
 	'/framed/users',
 	'/framed/users/new',
-	'/posts/$postId/edit',
+	'/content/$typeKey/$postId/edit',
 ]
 
 test('splits every heavy route behind a component the pending seam can wait on', () => {

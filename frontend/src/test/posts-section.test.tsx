@@ -12,7 +12,7 @@ test('the main menu offers the posts section', async () => {
 })
 
 test('the posts section replaces the menu with its own drill-down screen', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('heading', { name: 'Posts', level: 2 })).toBeInTheDocument()
 	expect(screen.getByRole('link', { name: 'All Posts' })).toBeInTheDocument()
@@ -20,19 +20,19 @@ test('the posts section replaces the menu with its own drill-down screen', async
 })
 
 test('the drill-down screen returns to the main menu', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('link', { name: 'Back' })).toHaveAttribute('href', '/admin/')
 })
 
 test('the drill-down screen takes the reader to its title on arrival', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('heading', { name: 'Posts', level: 2 })).toHaveFocus()
 })
 
 test('the main menu is hidden while the posts section is open', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	await screen.findByRole('heading', { name: 'Posts', level: 2 })
 

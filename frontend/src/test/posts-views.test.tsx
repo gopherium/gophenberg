@@ -57,7 +57,7 @@ beforeEach(() => {
 test('holds the filter row space with chip ghosts until the counts arrive', async () => {
 	serveList()
 	server.use(http.get('/api/content/counts', () => new Promise(() => {})))
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByRole('heading', { level: 1 })
 
 	await waitFor(() =>
@@ -68,7 +68,7 @@ test('holds the filter row space with chip ghosts until the counts arrive', asyn
 })
 
 test('fades the filter row in when it replaces the chips', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	const row = await screen.findByRole('group', { name: 'Filter by status' })
 	expect([...row.classList]).toContain('godmin-arrival')
@@ -77,7 +77,7 @@ test('fades the filter row in when it replaces the chips', async () => {
 test('leaves the chips their own pulse without a delay of the row', async () => {
 	serveList()
 	server.use(http.get('/api/content/counts', () => new Promise(() => {})))
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByRole('heading', { level: 1 })
 
 	await waitFor(() => expect(document.querySelector('.gophenberg-status-ghost')).not.toBeNull())
@@ -89,7 +89,7 @@ test('leaves the chips their own pulse without a delay of the row', async () => 
 })
 
 test('counts the posts each status view covers', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('button', { name: 'All (7)' })).toBeInTheDocument()
 	expect(screen.getByRole('button', { name: 'Published (3)' })).toBeInTheDocument()
@@ -99,7 +99,7 @@ test('counts the posts each status view covers', async () => {
 })
 
 test('hides the private view while no post is private', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByRole('button', { name: 'All (7)' })
 
 	expect(screen.queryByRole('button', { name: /^Private/ })).not.toBeInTheDocument()
@@ -109,13 +109,13 @@ test('shows the private view once a post is private', async () => {
 	server.use(
 		http.get('/api/content/counts', () => HttpResponse.json({ ...COUNTS, private: 4 })),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('button', { name: 'Private (4)' })).toBeInTheDocument()
 })
 
 test('opens on all posts', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('button', { name: 'All (7)' })).toHaveAttribute(
 		'aria-pressed',
@@ -125,7 +125,7 @@ test('opens on all posts', async () => {
 })
 
 test('filters the list by the status view chosen', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Draft (2)' }))
 
@@ -133,7 +133,7 @@ test('filters the list by the status view chosen', async () => {
 })
 
 test('marks the status view in force', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Draft (2)' }))
 
@@ -143,7 +143,7 @@ test('marks the status view in force', async () => {
 
 test('returns to the first page when the status changes', async () => {
 	serveList(45)
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByText('Welcome to Gophenberg')
 
 	await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
@@ -155,7 +155,7 @@ test('returns to the first page when the status changes', async () => {
 })
 
 test('waits for typing to settle before searching', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByText('Welcome to Gophenberg')
 
 	await userEvent.type(screen.getByRole('searchbox'), 'notes')
@@ -166,7 +166,7 @@ test('waits for typing to settle before searching', async () => {
 
 test('asks for the next page of a long listing', async () => {
 	serveList(45)
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByText('Welcome to Gophenberg')
 
 	await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
@@ -176,7 +176,7 @@ test('asks for the next page of a long listing', async () => {
 
 test('holds the page size fixed', async () => {
 	serveList(45)
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByText('Welcome to Gophenberg')
 
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
@@ -188,7 +188,7 @@ test('holds the page size fixed', async () => {
 
 test('reads a status the counts left out as none', async () => {
 	server.use(http.get('/api/content/counts', () => HttpResponse.json({ draft: 2 })))
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('button', { name: 'All (2)' })).toBeInTheDocument()
 	expect(screen.getByRole('button', { name: 'Published (0)' })).toBeInTheDocument()
@@ -198,7 +198,7 @@ test('reads a status the counts left out as none', async () => {
 test('lists posts even when the counts cannot be read', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.get('/api/content/counts', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByText('Welcome to Gophenberg')).toBeInTheDocument()
 	expect(screen.queryByRole('button', { name: /^All/ })).not.toBeInTheDocument()
@@ -207,7 +207,7 @@ test('lists posts even when the counts cannot be read', async () => {
 test('drops the filter row when the counts cannot be read', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.get('/api/content/counts', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByText('Welcome to Gophenberg')
 
 	await waitFor(() =>

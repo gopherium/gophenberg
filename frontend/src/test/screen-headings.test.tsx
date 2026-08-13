@@ -27,7 +27,7 @@ test('names the home screen with its only first level heading', async () => {
 test('names the posts screen with its only first level heading', async () => {
 	servePosts()
 
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	const main = await screen.findByRole('main')
 	expect(await within(main).findByRole('heading', { level: 1 })).toHaveTextContent('Posts')
@@ -48,7 +48,7 @@ test('announces a posts listing it could not load', async () => {
 		http.get('/api/content/counts', () => HttpResponse.json({})),
 	)
 
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('alert')).toHaveTextContent(/could not load posts/i)
 })
@@ -60,7 +60,7 @@ test('keeps the posts heading when the listing fails', async () => {
 		http.get('/api/content/counts', () => HttpResponse.json({})),
 	)
 
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	await screen.findByRole('alert')
 	const main = screen.getByRole('main')

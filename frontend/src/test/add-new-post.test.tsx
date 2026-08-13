@@ -42,7 +42,7 @@ function captureCreate(): { bodies: unknown[] } {
 
 test('add new creates a draft and opens it in the editor', async () => {
 	captureCreate()
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
 
@@ -51,7 +51,7 @@ test('add new creates a draft and opens it in the editor', async () => {
 
 test('add new asks for a post of the default type', async () => {
 	const recorded = captureCreate()
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
 	await screen.findByTitle('Editor canvas')
@@ -67,7 +67,7 @@ test('add new reports a failure without navigating away', async () => {
 			HttpResponse.json({ error: 'nope' }, { status: 500 }),
 		),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
 

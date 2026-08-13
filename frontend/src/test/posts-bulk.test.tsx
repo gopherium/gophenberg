@@ -58,7 +58,7 @@ async function selectBoth() {
 }
 
 test('trashes every selected post behind one confirm', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await selectBoth()
 
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
@@ -72,7 +72,7 @@ test('trashes every selected post behind one confirm', async () => {
 })
 
 test('does not hold restored posts selected from before their trashing', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await selectBoth()
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 	const dialog = await screen.findByRole('dialog')
@@ -88,7 +88,7 @@ test('does not hold restored posts selected from before their trashing', async (
 })
 
 test('offers one undo covering the whole batch', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await selectBoth()
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 	const dialog = await screen.findByRole('dialog')
@@ -104,7 +104,7 @@ test('offers one undo covering the whole batch', async () => {
 test('reports a batch undo the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.post('/api/content/:id/restore', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	renderAt('/content/post')
 	await selectBoth()
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 	const dialog = await screen.findByRole('dialog')
@@ -128,7 +128,7 @@ test('reports a batch the server partly refused and reloads the list', async () 
 			return HttpResponse.json({ ...FIRST, status: 'trash' })
 		}),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 	await selectBoth()
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 	const dialog = await screen.findByRole('dialog')

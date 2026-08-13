@@ -20,13 +20,13 @@ function stylesheet(): string {
 }
 
 test('dresses a section entry like every other rail row', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('link', { name: 'All Posts' })).toHaveClass(ROW)
 })
 
 test('dresses a section action like every other rail row', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('button', { name: 'Add New' })).toHaveClass(ROW)
 })

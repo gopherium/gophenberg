@@ -48,7 +48,7 @@ function TitleCell({ item }: { item: Post }) {
 	const state = stateLabel(item.status)
 	return (
 		<Stack direction="row" gap="xs" align="center">
-			<Link to="/posts/$postId/edit" params={{ postId: item.id }}>
+			<Link to="/content/$typeKey/$postId/edit" params={{ typeKey: item.type, postId: item.id }}>
 				{item.title === '' ? '(no title)' : item.title}
 			</Link>
 			{state !== null && <Badge>{state}</Badge>}

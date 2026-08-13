@@ -18,6 +18,7 @@ import { DocumentBar } from './DocumentBar'
 import { PREVIEW_WIDTHS, previewItem } from './editorSetup'
 import type { PreviewWidth } from './editorSetup'
 import type { EditorBuffer } from './useEditorBuffer'
+import { useContentType } from './useContentType'
 import type { EditorViews } from './useEditorViews'
 
 /**
@@ -70,16 +71,17 @@ export function EditorHeader(
 	{ buffer, type, views }: { buffer: EditorBuffer, type: string, views: EditorViews },
 ) {
 	const primary = primaryControl(buffer)
+	const listed = useContentType()
 	const draftable = buffer.savedStatus !== 'published'
 	return (
 		<div className="gophenberg-editor__header">
 			<Stack direction="row" gap="xs" align="center">
 				<IconButton
-					label="Back to posts"
+					label={`Back to ${listed.pluralLabel.toLowerCase()}`}
 					icon={backIcon}
 					variant="minimal"
 					tone="neutral"
-					render={<Link to="/posts" />}
+					render={<Link to="/content/$typeKey" params={{ typeKey: type }} />}
 				/>
 				<Inserter position="bottom right" toggleProps={{ label: 'Add block' }} />
 				<IconButton

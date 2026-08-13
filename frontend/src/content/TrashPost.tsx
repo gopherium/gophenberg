@@ -35,7 +35,7 @@ export function TrashPost({ postId, title }: { postId: string, title: string }) 
 		} catch {
 			return { close: false, error: 'Could not move that post to trash.' }
 		}
-		await navigate({ to: '/posts' })
+		await navigate({ to: '/content/$typeKey' })
 		await reload()
 		toaster.show('Moved to the trash.', {
 			label: 'Undo',

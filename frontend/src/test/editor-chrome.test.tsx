@@ -8,7 +8,7 @@ import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
-const EDITOR_PATH = `/posts/${storedPost.id}/edit`
+const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 const patched: Record<string, unknown>[] = []
 
@@ -41,7 +41,7 @@ test('offers a way back to the list', async () => {
 
 	const back = await screen.findByRole('link', { name: 'Back to posts' })
 
-	expect(back).toHaveAttribute('href', '/admin/posts')
+	expect(back).toHaveAttribute('href', '/admin/content/post')
 })
 
 test('offers undo and redo, both idle over an untouched post', async () => {

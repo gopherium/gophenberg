@@ -6,23 +6,33 @@ import { useMutation } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 
 import { createPost } from './api'
+import { useContentType } from './useContentType'
 
 /**
- * Renders the posts section sidebar screen.
+ * Renders the section sidebar screen of a content type.
  * @returns The drill-down screen listing the section's entries.
  */
-export function PostsSidebar() {
+export function ContentSidebar() {
 	const navigate = useNavigate()
+	const listed = useContentType()
 	const addNew = useMutation({
-		mutationFn: () => createPost(),
-		onSuccess: (post) => navigate({ to: '/posts/$postId/edit', params: { postId: post.id } }),
+		mutationFn: () => createPost(listed.key),
+		onSuccess: (post) =>
+			navigate({
+				to: '/content/$typeKey/$postId/edit',
+				params: { typeKey: listed.key, postId: post.id },
+			}),
 	})
 	return (
-		<NavScreen title="Posts" back={<Link to="/" />}>
+		<NavScreen title={listed.pluralLabel} back={<Link to="/" />}>
 			<Stack direction="column" gap="xs" render={<ul />}>
 				<li>
-					<Link to="/posts" className="gophenberg-menu__item">
-						All Posts
+					<Link
+						to="/content/$typeKey"
+						params={{ typeKey: listed.key }}
+						className="gophenberg-menu__item"
+					>
+						All {listed.pluralLabel}
 					</Link>
 				</li>
 				<li>

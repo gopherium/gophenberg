@@ -14,6 +14,7 @@ import { EmptyTrash } from './EmptyTrash'
 import { postFields } from './fields'
 import { PostsNotice } from './PostsNotice'
 import { StatusGhost, StatusViews } from './StatusViews'
+import { useContentType } from './useContentType'
 
 const PER_PAGE = 20
 
@@ -30,10 +31,11 @@ const INITIAL_VIEW: View = {
 }
 
 /**
- * Renders the posts list screen.
+ * Renders the list screen of a content type.
  * @returns The list screen element.
  */
 export function PostsScreen() {
+	const listed = useContentType()
 	const [view, setView] = useState<View>(INITIAL_VIEW)
 	const [status, setStatus] = useState('')
 	const [notice, setNotice] = useState<PostNotice | null>(null)
@@ -46,11 +48,15 @@ export function PostsScreen() {
 	}, [])
 	const actions = usePostActions(status, report)
 	const refresh = useRefresh()
-	const counts = useQuery({ queryKey: ['post-counts'], queryFn: fetchPostCounts })
+	const counts = useQuery({
+		queryKey: ['post-counts', listed.key],
+		queryFn: () => fetchPostCounts(listed.key),
+	})
 	const posts = useQuery({
-		queryKey: ['posts', status, view.search, view.page, view.sort],
+		queryKey: ['posts', listed.key, status, view.search, view.page, view.sort],
 		queryFn: () =>
 			listPosts({
+				type: listed.key,
 				status,
 				search: view.search,
 				page: view.page,
@@ -71,7 +77,7 @@ export function PostsScreen() {
 	const page = posts.data ?? EMPTY_PAGE
 	return (
 		<Page
-			title="Posts"
+			title={listed.pluralLabel}
 			actions={status === 'trash' ? <EmptyTrash onEmptied={refresh} /> : undefined}
 		>
 			<StatusRow
@@ -82,12 +88,12 @@ export function PostsScreen() {
 			/>
 			{notice !== null && <PostsNotice notice={notice} report={setNotice} />}
 			{posts.isError ? (
-				<ErrorNotice>Could not load posts.</ErrorNotice>
+				<ErrorNotice>Could not load {listed.pluralLabel.toLowerCase()}.</ErrorNotice>
 			) : (
 				<div
 					className="godmin-table-scroll"
 					role="region"
-					aria-label="Posts"
+					aria-label={listed.pluralLabel}
 					tabIndex={0}
 				>
 					<DataViews
@@ -100,7 +106,7 @@ export function PostsScreen() {
 						onChangeSelection={setSelection}
 						isLoading={posts.isPending}
 						getItemId={(post) => post.id}
-						searchLabel="Search posts"
+						searchLabel={`Search ${listed.pluralLabel.toLowerCase()}`}
 						config={{ perPageSizes: [PER_PAGE] }}
 						paginationInfo={{
 							totalItems: page.total,

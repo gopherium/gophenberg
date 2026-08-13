@@ -42,7 +42,7 @@ registerMediaCategories(MEDIA_CATEGORIES)
  * @returns The editor screen element.
  */
 export function EditorScreen() {
-	const { postId } = useParams({ from: '/posts/$postId/edit' })
+	const { postId } = useParams({ from: '/content/$typeKey/$postId/edit' })
 	const post = useQuery({ queryKey: ['post', postId], queryFn: () => fetchPost(postId) })
 	if (post.isError) {
 		return (

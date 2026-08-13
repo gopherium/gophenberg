@@ -62,7 +62,7 @@ async function openRowActions() {
 }
 
 test('offers edit and trash on a row', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	await openRowActions()
 
@@ -71,7 +71,7 @@ test('offers edit and trash on a row', async () => {
 })
 
 test('opens the editor from the row actions', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }))
@@ -80,7 +80,7 @@ test('opens the editor from the row actions', async () => {
 })
 
 test('asks to confirm before trashing', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
@@ -95,7 +95,7 @@ test('names a post that has no title yet in the confirm', async () => {
 			HttpResponse.json({ items: [{ ...PUBLISHED, title: '' }], total: 1 }),
 		),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByRole('link', { name: '(no title)' })
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 
@@ -105,7 +105,7 @@ test('names a post that has no title yet in the confirm', async () => {
 })
 
 test('trashes the post once confirmed', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 
@@ -115,7 +115,7 @@ test('trashes the post once confirmed', async () => {
 })
 
 test('leaves the post alone when the confirm is dismissed', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 
@@ -126,7 +126,7 @@ test('leaves the post alone when the confirm is dismissed', async () => {
 })
 
 test('refreshes the listing and the counts after trashing', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 	const listedBefore = listed.length
@@ -139,7 +139,7 @@ test('refreshes the listing and the counts after trashing', async () => {
 })
 
 test('offers to undo a post just trashed', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 
@@ -157,7 +157,7 @@ test('restores the post when the undo is taken', async () => {
 			return HttpResponse.json({ ...PUBLISHED, status: 'draft' })
 		}),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 	await userEvent.click(await screen.findByRole('button', { name: 'Move to Trash' }))
@@ -171,7 +171,7 @@ test('restores the post when the undo is taken', async () => {
 test('reports an undo the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.post('/api/content/:id/restore', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 	await userEvent.click(await screen.findByRole('button', { name: 'Move to Trash' }))
@@ -184,7 +184,7 @@ test('reports an undo the server refused', async () => {
 test('reports a trash the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.delete('/api/content/:id', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 

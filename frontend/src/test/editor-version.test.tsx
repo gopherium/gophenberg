@@ -8,7 +8,7 @@ import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
-const EDITOR_PATH = `/posts/${storedPost.id}/edit`
+const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 const WRITTEN_AT = '2026-07-28T11:00:00Z'
 

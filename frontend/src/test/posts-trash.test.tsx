@@ -62,7 +62,7 @@ async function openTrashedRowActions() {
 }
 
 test('swaps the row actions in the trash view', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	await openTrashedRowActions()
 
@@ -73,7 +73,7 @@ test('swaps the row actions in the trash view', async () => {
 })
 
 test('restores a post out of the trash', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashedRowActions()
 
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Restore' }))
@@ -82,7 +82,7 @@ test('restores a post out of the trash', async () => {
 })
 
 test('refreshes the listing and the counts after a restore', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashedRowActions()
 	const listedBefore = listed.length
 	const countedBefore = counted.length
@@ -94,7 +94,7 @@ test('refreshes the listing and the counts after a restore', async () => {
 })
 
 test('asks to confirm before deleting permanently', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashedRowActions()
 
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete Permanently' }))
@@ -104,7 +104,7 @@ test('asks to confirm before deleting permanently', async () => {
 })
 
 test('deletes for good once confirmed', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashedRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete Permanently' }))
 
@@ -116,7 +116,7 @@ test('deletes for good once confirmed', async () => {
 })
 
 test('keeps the post when the permanent delete is dismissed', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashedRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete Permanently' }))
 
@@ -129,7 +129,7 @@ test('keeps the post when the permanent delete is dismissed', async () => {
 test('reports a restore the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.post('/api/content/:id/restore', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashedRowActions()
 
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Restore' }))
@@ -140,7 +140,7 @@ test('reports a restore the server refused', async () => {
 test('reports a permanent delete the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.delete('/api/content/:id', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashedRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete Permanently' }))
 

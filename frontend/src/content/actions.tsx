@@ -192,7 +192,7 @@ export function usePostActions(status: string, report: ReportNotice): Action<Pos
 				id: 'edit',
 				label: 'Edit',
 				callback: ([post]: Post[]) => {
-					void navigate({ to: '/posts/$postId/edit', params: { postId: post.id } })
+					void navigate({ to: '/content/$typeKey/$postId/edit', params: { typeKey: post.type, postId: post.id } })
 				},
 			},
 			{

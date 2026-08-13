@@ -62,7 +62,7 @@ async function openTrashView() {
 }
 
 test('offers to empty the trash only in the trash view', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByRole('button', { name: 'All (2)' })
 
 	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
@@ -72,7 +72,7 @@ test('offers to empty the trash only in the trash view', async () => {
 })
 
 test('asks to confirm before emptying the trash', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashView()
 
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
@@ -82,7 +82,7 @@ test('asks to confirm before emptying the trash', async () => {
 })
 
 test('deletes every trashed post once confirmed', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashView()
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 
@@ -99,7 +99,7 @@ test('empties a trash holding more than one page', async () => {
 		id: `019fb000-0000-7000-8000-0000000001${String(index).padStart(2, '0')}`,
 		title: `Old Notes ${index}`,
 	}))
-	renderAt('/posts')
+	renderAt('/content/post')
 	await userEvent.click(await screen.findByRole('button', { name: 'Trash (25)' }))
 	await screen.findByText('Old Notes 0')
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
@@ -111,7 +111,7 @@ test('empties a trash holding more than one page', async () => {
 })
 
 test('keeps the trash when the confirm is dismissed', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashView()
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 
@@ -124,7 +124,7 @@ test('keeps the trash when the confirm is dismissed', async () => {
 test('reports an empty trash the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.delete('/api/content/:id', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openTrashView()
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 

@@ -28,7 +28,7 @@ function busyClasses(): string[] {
 }
 
 const POST_ID = '019fb000-0000-7000-8000-000000000001'
-const EDITOR_PATH = `/posts/${POST_ID}/edit`
+const EDITOR_PATH = `/content/post/${POST_ID}/edit`
 
 const STORED = {
 	id: POST_ID,
