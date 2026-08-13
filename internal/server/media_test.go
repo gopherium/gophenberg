@@ -143,6 +143,7 @@ func mediaServer(t *testing.T, library *mediahost.Library, store media.Store) ht
 	return authedServerWithStores(t, server.Config{
 		Users:      users,
 		Content:    newFakePostStore(),
+		Types:      newFakeTypeStore(),
 		Media:      library,
 		MediaStore: store,
 	})
@@ -668,6 +669,7 @@ func mediaServerPair(t *testing.T, library *mediahost.Library, store media.Store
 	raw := server.NewServer(server.Config{
 		Users:      users,
 		Content:    newFakePostStore(),
+		Types:      newFakeTypeStore(),
 		Media:      library,
 		MediaStore: store,
 		MediaFiles: os.DirFS(library.Dir()),
@@ -755,6 +757,7 @@ func TestUploadingMediaNeedsASession(t *testing.T) {
 	handler := server.NewServer(server.Config{
 		Users:      users,
 		Content:    newFakePostStore(),
+		Types:      newFakeTypeStore(),
 		Media:      mediahost.New(mediahost.Config{Dir: t.TempDir()}),
 		MediaStore: newFakeMediaStore(),
 	})

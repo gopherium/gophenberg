@@ -125,7 +125,7 @@ func NewServer(cfg Config) http.Handler {
 	if cfg.MediaFiles != nil {
 		router.With(identify(cfg.Version)).Handle(mediaPrefix+"/*", mediaAssets(cfg.MediaFiles))
 	}
-	site := builtInSite(cfg)
+	site := builtInSite(cfg, s.types)
 	renderer := identify(cfg.Version)(site)
 	public := identify(cfg.Version)(themedSite(cfg.Theme, site, cfg.ThemeTimeout))
 	router.NotFound(fallbackHandler(adminApp(cfg), renderer, public))

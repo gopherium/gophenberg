@@ -36,6 +36,7 @@ func themedServer(t *testing.T, theme server.Theme, trusted []string) http.Handl
 	return server.NewServer(server.Config{
 		Users:          newFakeUserStore(),
 		Content:        posts,
+		Types:          newFakeTypeStore(),
 		SiteTitle:      "A Test Site",
 		Version:        "1.2.3",
 		Theme:          theme,
@@ -66,12 +67,12 @@ func TestThemeServesThePublicPositionWhenItIsHealthy(t *testing.T) {
 	})
 	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/post/hello-world", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/hello-world", "")
 
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want the upstream status %d", recorder.Code, http.StatusCreated)
 	}
-	if !strings.Contains(recorder.Body.String(), "themed answer for /post/hello-world") {
+	if !strings.Contains(recorder.Body.String(), "themed answer for /hello-world") {
 		t.Errorf("body = %q, want the theme's answer", recorder.Body.String())
 	}
 	if strings.Contains(recorder.Body.String(), "A Test Site") {
@@ -182,7 +183,7 @@ func TestTheRendererServesWhileTheThemeIsDown(t *testing.T) {
 
 	handler := themedServer(t, stubTheme{target: "", healthy: false}, nil)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/post/hello-world", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/hello-world", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want the renderer to serve", recorder.Code)
@@ -200,7 +201,7 @@ func TestTheRendererServesWhenTheThemeRefusesTheConnection(t *testing.T) {
 	dead.Close()
 	handler := themedServer(t, stubTheme{target: target, healthy: true}, nil)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/post/hello-world", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/hello-world", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want the renderer to serve when the theme is unreachable", recorder.Code)
@@ -220,7 +221,7 @@ func TestTheRendererServesWhenTheThemeWithholdsItsHeaders(t *testing.T) {
 	})
 	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/post/hello-world", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/hello-world", "")
 	close(release)
 
 	if recorder.Code != http.StatusOK {

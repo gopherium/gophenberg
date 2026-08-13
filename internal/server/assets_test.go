@@ -17,6 +17,7 @@ func assetServer(t *testing.T) http.Handler {
 	return server.NewServer(server.Config{
 		Users:   newFakeUserStore(),
 		Content: newFakePostStore(),
+		Types:   newFakeTypeStore(),
 		Version: "1.2.3",
 		Web: fstest.MapFS{
 			"index.html":             {Data: []byte("<!doctype html><title>Admin</title>")},

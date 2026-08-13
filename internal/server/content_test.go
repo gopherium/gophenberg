@@ -25,6 +25,7 @@ func publishedFixture(t *testing.T, slug, body string, published time.Time) cont
 		ID:          uuid.Must(uuid.NewV7()),
 		Type:        content.TypePost,
 		Slug:        slug,
+		Path:        slug,
 		Title:       "A Published Post",
 		Excerpt:     "An excerpt.",
 		Content:     body,
