@@ -4,6 +4,7 @@ package features_test
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -107,8 +108,15 @@ func (s *memoryContent) PublishedBySlug(context.Context, string, string) (conten
 	return content.Content{}, content.ErrNotFound
 }
 
-// PublishedByPath reports that the scenario publishes nothing publicly.
-func (s *memoryContent) PublishedByPath(context.Context, string) (content.Content, error) {
+// PublishedByPath returns the published item answering at the address, or [content.ErrNotFound].
+func (s *memoryContent) PublishedByPath(_ context.Context, path string) (content.Content, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, stored := range s.items {
+		if stored.Path == path && stored.Status == content.StatusPublished {
+			return stored, nil
+		}
+	}
 	return content.Content{}, content.ErrNotFound
 }
 
@@ -146,17 +154,27 @@ func (s *memoryContent) Children(_ context.Context, id uuid.UUID) (int, error) {
 	return held, nil
 }
 
-// List returns the items of the filtered type, newest first, with their total.
+// List returns the items the filter matches, newest first, with their total.
 func (s *memoryContent) List(_ context.Context, f content.Filter) ([]content.Content, int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	matched := make([]content.Content, 0, len(s.items))
 	for _, stored := range s.items {
-		if stored.Type == f.Type {
+		if stored.Type == f.Type && (f.Status == "" || stored.Status == f.Status) {
 			matched = append(matched, stored)
 		}
 	}
-	return matched, len(matched), nil
+	slices.SortFunc(matched, func(a, b content.Content) int { return b.CreatedAt.Compare(a.CreatedAt) })
+	return paged(matched, f), len(matched), nil
+}
+
+// paged returns the page of items the filter asks for.
+func paged(matched []content.Content, f content.Filter) []content.Content {
+	if f.PerPage <= 0 {
+		return matched
+	}
+	start := min((max(f.Page, 1)-1)*f.PerPage, len(matched))
+	return matched[start:min(start+f.PerPage, len(matched))]
 }
 
 // Update stores the item's editable fields, or reports it missing or stale.
