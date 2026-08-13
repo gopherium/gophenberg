@@ -118,7 +118,6 @@ func contentHeaders(next http.Handler) http.Handler {
 // parsePublishedFilter returns the published listing the query asks for.
 func parsePublishedFilter(query url.Values) (content.Filter, error) {
 	filter := content.Filter{
-		Type:    content.TypePost,
 		Status:  content.StatusPublished,
 		OrderBy: content.OrderByDate,
 		Order:   content.OrderDesc,
@@ -254,6 +253,14 @@ func (s *server) handlePublishedList() http.HandlerFunc {
 		if err != nil {
 			authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
 			return
+		}
+		if filter.Type == "" {
+			listed, err := s.types.Default(r.Context())
+			if err != nil {
+				respondDomainError(w, err)
+				return
+			}
+			filter.Type = listed.Key
 		}
 		page, err := s.publishedPageOf(r, filter)
 		if err != nil {

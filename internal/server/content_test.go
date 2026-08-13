@@ -573,3 +573,30 @@ func TestContentAPIRefusesAnItemOfAnUnregisteredType(t *testing.T) {
 		t.Errorf("status = %d, want the reader refused an item of a type the registry does not hold", recorder.Code)
 	}
 }
+
+func TestContentAPIListsTheRegistryDefaultRatherThanTheBuiltInType(t *testing.T) {
+	t.Parallel()
+
+	types := newFakeTypeStore()
+	moved := postType()
+	moved.Default = false
+	guides := postType()
+	guides.Key, guides.PluralLabel, guides.Default = "guide", "Guides", true
+	types.types = []content.Type{moved, guides}
+	guide := publishedFixture(t, "a-guide", blockMarkup, time.Now().UTC())
+	guide.Type = "guide"
+	posts := newFakePostStore()
+	posts.add(guide)
+	posts.add(publishedFixture(t, "a-post", blockMarkup, time.Now().UTC()))
+	handler := server.NewServer(server.Config{Users: newFakeUserStore(), Content: posts, Types: types})
+
+	recorder := getContent(t, handler, "/api/content/v1/items")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, "a-guide") || strings.Contains(body, "a-post") {
+		t.Errorf("body = %q, want the type the registry marks default", body)
+	}
+}
