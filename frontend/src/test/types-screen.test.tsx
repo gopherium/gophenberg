@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test } from 'vitest'
 
@@ -70,12 +70,14 @@ test('registers a type from the labels it was given', async () => {
 	await userEvent.type(screen.getByLabelText('Plural name'), 'Guides')
 	await userEvent.click(screen.getByRole('button', { name: 'Register' }))
 
-	expect(sent[0]).toEqual({
-		key: 'guide',
-		singular_label: 'Guide',
-		plural_label: 'Guides',
-		route_word: 'guides',
-	})
+	await waitFor(() =>
+		expect(sent[0]).toEqual({
+			key: 'guide',
+			singular_label: 'Guide',
+			plural_label: 'Guides',
+			route_word: 'guides',
+		}),
+	)
 })
 
 test('carries the reason the registry refused a type', async () => {
@@ -116,7 +118,7 @@ test('states that every address moves before changing a route word', async () =>
 	await userEvent.type(within(dialog).getByLabelText('Route word'), 'sections')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Move every address' }))
 
-	expect(sent[0]).toEqual({ route_word: 'sections' })
+	await waitFor(() => expect(sent[0]).toEqual({ route_word: 'sections' }))
 })
 
 test('closes a type without removing it', async () => {
@@ -133,7 +135,7 @@ test('closes a type without removing it', async () => {
 	const pages = within(table).getByRole('row', { name: /Pages/ })
 	await userEvent.click(within(pages).getByRole('button', { name: 'Deactivate' }))
 
-	expect(sent[0]).toEqual({ active: false })
+	await waitFor(() => expect(sent[0]).toEqual({ active: false }))
 })
 
 test('hands the root to another type', async () => {
@@ -150,7 +152,7 @@ test('hands the root to another type', async () => {
 	const pages = within(table).getByRole('row', { name: /Pages/ })
 	await userEvent.click(within(pages).getByRole('button', { name: 'Make default' }))
 
-	expect(sent[0]).toEqual({ default: true })
+	await waitFor(() => expect(sent[0]).toEqual({ default: true }))
 })
 
 test('removes a type the registry lets go', async () => {
@@ -167,7 +169,7 @@ test('removes a type the registry lets go', async () => {
 	const pages = within(table).getByRole('row', { name: /Pages/ })
 	await userEvent.click(within(pages).getByRole('button', { name: 'Delete' }))
 
-	expect(asked).toBe('/api/types/page')
+	await waitFor(() => expect(asked).toBe('/api/types/page'))
 })
 
 test('keeps the default type from being deleted or closed', async () => {
@@ -204,7 +206,7 @@ test('reopens a type that was closed', async () => {
 	const pages = within(table).getByRole('row', { name: /Pages/ })
 	await userEvent.click(within(pages).getByRole('button', { name: 'Activate' }))
 
-	expect(sent[0]).toEqual({ active: true })
+	await waitFor(() => expect(sent[0]).toEqual({ active: true }))
 })
 
 test('carries the reason the registry refused an edit', async () => {

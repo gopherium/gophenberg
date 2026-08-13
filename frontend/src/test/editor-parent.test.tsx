@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
@@ -22,7 +22,14 @@ const NESTING_TYPE = {
 	active: true,
 }
 
-const FLAT_TYPE = { ...NESTING_TYPE, key: 'post', plural_label: 'Posts', hierarchical: false }
+const FLAT_TYPE = {
+	...NESTING_TYPE,
+	key: 'post',
+	singular_label: 'Post',
+	plural_label: 'Posts',
+	route_word: '',
+	hierarchical: false,
+}
 
 const ABOUT = {
 	...storedPost,
@@ -97,7 +104,7 @@ test('files the item under the parent it was given', async () => {
 	await userEvent.click(await screen.findByRole('option', { name: 'About' }))
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
-	expect(patched.at(-1)).toMatchObject({ parent_id: ABOUT.id })
+	await waitFor(() => expect(patched.at(-1)).toMatchObject({ parent_id: ABOUT.id }))
 })
 
 test('lifts the item back to the root when no parent is chosen', async () => {
@@ -117,7 +124,7 @@ test('lifts the item back to the root when no parent is chosen', async () => {
 	await userEvent.click(await screen.findByRole('option', { name: 'No parent' }))
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
-	expect(patched.at(-1)).toMatchObject({ parent_id: null })
+	await waitFor(() => expect(patched.at(-1)).toMatchObject({ parent_id: null }))
 })
 
 test('offers only the root while the items of the type are still arriving', async () => {
