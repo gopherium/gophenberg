@@ -42,7 +42,7 @@ The plugin lifecycle host and wiring generator come from
 1. Keep changes small and focused: one behavior per change.
 2. Every change ships with tests, written before the implementation.
 3. Every function carries a doc comment: Go in canonical form, TypeScript following tsdoc standard. Lines wrap at 120 columns.
-4. Run `make test` and `make lint` before submitting. CI enforces both, plus the race detector and SDK compatibility checks.
+4. Run `make test` and `make lint` before submitting. CI enforces both, plus the race detector. It reports SDK API changes without blocking while the SDK is below 1.0.
 
 ## License
 
