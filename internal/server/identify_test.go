@@ -55,8 +55,8 @@ func TestTheAPIAndTheAdminStayUnbranded(t *testing.T) {
 
 	for _, path := range []string{
 		"/api/content/v1",
-		"/api/content/v1/posts",
-		"/api/content/v1/posts/post/hello-world",
+		"/api/content/v1/items",
+		"/api/content/v1/resolve?path=/hello-world",
 		"/api/version",
 		"/api/unknown",
 		"/api",
