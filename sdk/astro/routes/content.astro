@@ -22,7 +22,7 @@ const Archive = theme.layouts.Archive
 		<Post post={held.item} blocks={theme.blocks} seo={theme.seo} />
 	) : (
 		<Archive
-			type={held.type.key}
+			type={held.type}
 			posts={held.page?.items ?? []}
 			total={held.page?.total ?? 0}
 			page={held.page?.page ?? 1}

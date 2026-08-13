@@ -28,6 +28,13 @@ export interface ContentType {
 	default: boolean
 }
 
+/** The shape an instance speaks and the types it serves. */
+export interface Handshake {
+	gophenberg: string
+	api: number
+	types: ContentType[]
+}
+
 /** What a public address holds. */
 export interface Resolved {
 	kind: 'item' | 'archive'

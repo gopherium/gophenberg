@@ -63,7 +63,7 @@ describe('listPosts', () => {
 		const got = await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).listPosts()
 
 		expect(got).toEqual(page)
-		expect(urls[0]).toBe('https://example.com/api/content/v1/items?type=post&page=1&per_page=20')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=1&per_page=20')
 	})
 
 	test('passes the type and the paging the caller asked for', async () => {
@@ -75,7 +75,7 @@ describe('listPosts', () => {
 			perPage: 5,
 		})
 
-		expect(urls[0]).toBe('https://example.com/api/content/v1/items?type=page&page=3&per_page=5')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=3&per_page=5&type=page')
 	})
 
 	test('reports a listing it could not read', async () => {
@@ -84,6 +84,18 @@ describe('listPosts', () => {
 		const reading = new GophenbergClient({ baseUrl: 'https://example.com', fetch }).listPosts()
 
 		await expect(reading).rejects.toThrow('500')
+	})
+})
+
+describe('handshake', () => {
+	test('reads the shape and the types the instance serves', async () => {
+		const { fetch, urls } = fetchReturning({ gophenberg: '0.4.0', api: 2, types: [postType] })
+
+		const got = await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).handshake()
+
+		expect(got.api).toBe(2)
+		expect(got.types).toEqual([postType])
+		expect(urls[0]).toBe('https://example.com/api/content/v1')
 	})
 })
 
@@ -160,7 +172,7 @@ describe('the address the client reads through', () => {
 
 		await new GophenbergClient({ baseUrl: 'https://example.com/', fetch }).listPosts()
 
-		expect(urls[0]).toBe('https://example.com/api/content/v1/items?type=post&page=1&per_page=20')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=1&per_page=20')
 	})
 
 	test('drops every trailing slash, however many were written', async () => {
@@ -168,6 +180,6 @@ describe('the address the client reads through', () => {
 
 		await new GophenbergClient({ baseUrl: 'https://example.com///', fetch }).listPosts()
 
-		expect(urls[0]).toBe('https://example.com/api/content/v1/items?type=post&page=1&per_page=20')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=1&per_page=20')
 	})
 })

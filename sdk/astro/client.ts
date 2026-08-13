@@ -2,8 +2,8 @@
 
 import { env } from 'node:process'
 
-import { contentApiPath, defaultPostType } from './kit.ts'
-import type { Page, PostSummary, Resolved } from './content.ts'
+import { contentApiPath } from './kit.ts'
+import type { Handshake, Page, PostSummary, Resolved } from './content.ts'
 
 /** The default page size, matching what the content API reports back. */
 const defaultPerPage = 20
@@ -42,12 +42,23 @@ export class GophenbergClient {
 	 */
 	async listPosts(query: ListQuery = {}): Promise<Page<PostSummary>> {
 		const search = new URLSearchParams({
-			type: query.type ?? defaultPostType,
 			page: String(query.page ?? 1),
 			per_page: String(query.perPage ?? defaultPerPage),
 		})
+		if (query.type !== undefined) {
+			search.set('type', query.type)
+		}
 		const response = await this.read(`/items?${search}`)
 		return (await response.json()) as Page<PostSummary>
+	}
+
+	/**
+	 * Returns the shape the instance speaks and the types it serves.
+	 * @returns The handshake the instance answered.
+	 */
+	async handshake(): Promise<Handshake> {
+		const response = await this.read('')
+		return (await response.json()) as Handshake
 	}
 
 	/**
