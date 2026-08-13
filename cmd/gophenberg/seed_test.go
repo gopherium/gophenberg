@@ -257,3 +257,82 @@ func TestSeedReportsPostFailures(t *testing.T) {
 		t.Error("seed() without the posts table error = nil, want a failure")
 	}
 }
+
+// seededTypes returns the registry the seeding left behind.
+func seededTypes(t *testing.T, databaseURL string) []content.Type {
+	t.Helper()
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("connecting pool: %v", err)
+	}
+	defer pool.Close()
+	registered, err := postgres.NewTypeStore(pool).List(t.Context())
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	return registered
+}
+
+// seededAddress returns the address the seeding stored content at.
+func seededAddress(t *testing.T, databaseURL, title string) string {
+	t.Helper()
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("connecting pool: %v", err)
+	}
+	defer pool.Close()
+	var path string
+	row := pool.QueryRow(t.Context(), `SELECT path FROM core.content WHERE title = $1`, title)
+	if err := row.Scan(&path); err != nil {
+		t.Fatalf("reading the address of %q: %v", title, err)
+	}
+	return path
+}
+
+func TestSeedRegistersThePageType(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	var stdout strings.Builder
+
+	if err := seedDemoData(t.Context(), testGetenv(env), &stdout); err != nil {
+		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	}
+
+	registered := seededTypes(t, databaseURL)
+	var page content.Type
+	for _, listed := range registered {
+		if listed.Key == "page" {
+			page = listed
+		}
+	}
+	if page.Key != "page" {
+		t.Fatalf("registry = %v, want a page type beside the built-in post type", registered)
+	}
+	if page.RouteWord != "pages" || !page.Hierarchical {
+		t.Errorf("page = %+v, want it nesting under pages", page)
+	}
+	if page.Default {
+		t.Error("the page type carries the default flag, want the post type to keep the root")
+	}
+}
+
+func TestSeedStoresAPageHoldingAChild(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	var stdout strings.Builder
+
+	if err := seedDemoData(t.Context(), testGetenv(env), &stdout); err != nil {
+		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	}
+
+	if got := seededAddress(t, databaseURL, "About"); got != "pages/about" {
+		t.Errorf("About answers at %q, want %q", got, "pages/about")
+	}
+	if got := seededAddress(t, databaseURL, "Team"); got != "pages/about/team" {
+		t.Errorf("Team answers at %q, want %q", got, "pages/about/team")
+	}
+}

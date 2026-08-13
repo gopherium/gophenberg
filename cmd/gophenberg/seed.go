@@ -43,7 +43,14 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 		return err
 	}
 	types := content.NewRegistry(postgres.NewTypeStore(pool))
-	if err := seed.Posts(ctx, postgres.NewContentStore(pool), types, users); err != nil {
+	if err := seed.Types(ctx, types); err != nil {
+		return err
+	}
+	store := postgres.NewContentStore(pool)
+	if err := seed.Posts(ctx, store, types, users); err != nil {
+		return err
+	}
+	if err := seed.Pages(ctx, store, types, users); err != nil {
 		return err
 	}
 	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {
