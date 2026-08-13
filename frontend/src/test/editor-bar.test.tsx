@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
 import '../content/editor.css'
@@ -24,7 +24,7 @@ test('names the post and its type in the header', async () => {
 	const bar = await screen.findByTestId('document-bar')
 
 	expect(bar).toHaveTextContent('Welcome to Gophenberg')
-	expect(bar).toHaveTextContent('Post')
+	await waitFor(() => expect(bar).toHaveTextContent('Post'))
 })
 
 test('calls an untitled post untitled in the bar', async () => {
@@ -36,6 +36,37 @@ test('calls an untitled post untitled in the bar', async () => {
 	renderAt(EDITOR_PATH)
 
 	expect(await screen.findByTestId('document-bar')).toHaveTextContent('No title')
+})
+
+test('names a registered type by the label the registry carries', async () => {
+	server.use(
+		http.get('/api/types', () =>
+			HttpResponse.json({
+				items: [
+					{
+						key: 'guide',
+						singular_label: 'Guide',
+						plural_label: 'Guides',
+						route_word: 'guides',
+						hierarchical: false,
+						revisions: true,
+						revision_cap: 100,
+						page_kind: 'single',
+						default: false,
+						active: true,
+					},
+				],
+			}),
+		),
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, type: 'guide' }),
+		),
+	)
+	renderAt(`/content/guide/${storedPost.id}/edit`)
+
+	const bar = await screen.findByTestId('document-bar')
+
+	await waitFor(() => expect(bar).toHaveTextContent('Guide'))
 })
 
 test('shows a type it holds no label for as the server named it', async () => {

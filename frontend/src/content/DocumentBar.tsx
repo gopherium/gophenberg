@@ -2,10 +2,7 @@
 
 import { Text } from '@gophenberg/frontend-sdk'
 
-const TYPE_LABELS: Record<string, string> = {
-	post: 'Post',
-	page: 'Page',
-}
+import { useContentType } from './useContentType'
 
 /**
  * Returns the name the editor knows a document by.
@@ -22,11 +19,12 @@ function documentName(title: string): string {
  * @returns The document bar.
  */
 export function DocumentBar({ title, type }: { title: string, type: string }) {
+	const listed = useContentType()
 	return (
 		<div className="gophenberg-editor__document">
 			<Text data-testid="document-bar" className="gophenberg-editor__document-name">
 				{documentName(title)} <span aria-hidden="true">&middot;</span>{' '}
-				{TYPE_LABELS[type] ?? type}
+				{listed.key === type ? listed.singularLabel : type}
 			</Text>
 		</div>
 	)
