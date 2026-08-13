@@ -215,7 +215,7 @@ func TestSiteAnswersUnservedAddressesWithARenderedNotFound(t *testing.T) {
 		"/never-written",
 		"/page/a-draft",
 		"/one/two/three/four",
-		"/post/page/nonsense",
+		"/pages/page/nonsense",
 	} {
 		recorder := get(t, handler, path)
 		if recorder.Code != http.StatusNotFound {
@@ -289,7 +289,7 @@ func TestSiteOffersNoOlderPageBeyondTheLast(t *testing.T) {
 
 	handler, _ := siteWith(publishedPost("A Post", "a-post", blockMarkup, time.Now().UTC()))
 
-	for _, path := range []string{"/page/2", "/post/page/99", "/post/page/461168601842738791"} {
+	for _, path := range []string{"/page/2", "/page/99", "/page/461168601842738791"} {
 		body := get(t, handler, path).Body.String()
 		if strings.Contains(body, "Older posts") {
 			t.Errorf("GET %s body = %q, want no older page past the last", path, body)
