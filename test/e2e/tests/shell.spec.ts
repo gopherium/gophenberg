@@ -16,7 +16,7 @@ test('pads the canvas and keeps the rail beside it on a desktop', async ({ page 
 })
 
 test('reads every rail row clearly against the chrome', async ({ page }) => {
-	await page.goto('/admin/posts')
+	await page.goto('/admin/content/post')
 	await expect(page.getByRole('link', { name: 'All Posts' })).toBeVisible()
 
 	const rows = await page.locator('.gophenberg-menu__item').evaluateAll((found) =>
@@ -38,7 +38,7 @@ test('reads every rail row clearly against the chrome', async ({ page }) => {
 })
 
 test('spans the posts listing across the canvas', async ({ page }) => {
-	await page.goto('/admin/posts')
+	await page.goto('/admin/content/post')
 	await expect(page.getByRole('heading', { level: 1, name: 'Posts' })).toBeVisible()
 	await expect(page.locator('.dataviews-view-table')).toBeVisible()
 

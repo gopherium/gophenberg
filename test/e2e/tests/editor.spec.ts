@@ -43,10 +43,10 @@ const created: string[] = []
  * @param page - The page to drive.
  */
 async function openNewDraft(page: Page) {
-	await page.goto('/admin/posts')
+	await page.goto('/admin/content/post')
 	await page.getByRole('button', { name: 'Add New' }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
-	const id = page.url().match(/posts\/([0-9a-f-]+)\/edit/)?.[1]
+	const id = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
 	if (id !== undefined) {
 		created.push(id)
 	}
@@ -62,8 +62,8 @@ test.afterEach(async ({ page }) => {
  * Writes a title, a paragraph and a heading into the open editor.
  * @param page - The page to drive.
  */
-async function writeThePost(page: Page) {
-	await page.getByRole('textbox', { name: 'Title' }).fill(TITLE)
+async function writeThePost(page: Page, title: string = TITLE) {
+	await page.getByRole('textbox', { name: 'Title' }).fill(title)
 	await startWriting(page)
 	await page.keyboard.type(PARAGRAPH)
 	await page.keyboard.press('Enter')
@@ -126,6 +126,7 @@ test('keeps an edit made to an already published post', async ({ page }) => {
 })
 
 test('round-trips every field of the editor without a full reload', async ({ page }) => {
+	const written = `A post the field sweep wrote ${RUN}`
 	const edited = {
 		title: `A post edited everywhere ${RUN}`,
 		slug: `edited-everywhere-${RUN}`,
@@ -133,13 +134,13 @@ test('round-trips every field of the editor without a full reload', async ({ pag
 		paragraph: `The paragraph the field sweep added ${RUN}.`,
 	}
 	await openNewDraft(page)
-	await writeThePost(page)
+	await writeThePost(page, written)
 	await page.getByRole('button', { name: 'Publish' }).click()
 	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
 
 	await page.getByRole('link', { name: 'Back to posts' }).click()
 	await page.getByRole('button', { name: /^Published/ }).click()
-	await page.getByRole('link', { name: TITLE }).click()
+	await page.getByRole('link', { name: written }).click()
 	await expect(page.getByRole('combobox', { name: 'Status' })).toHaveText('Published')
 
 	await page.getByRole('textbox', { name: 'Title' }).fill(edited.title)

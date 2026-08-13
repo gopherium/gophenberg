@@ -75,10 +75,10 @@ test('places a picture already in the library through the media library picker',
 	})
 	expect(uploaded.status()).toBe(201)
 
-	await page.goto('/admin/posts')
+	await page.goto('/admin/content/post')
 	await page.getByRole('button', { name: 'Add New' }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
-	const postId = page.url().match(/posts\/([0-9a-f-]+)\/edit/)?.[1]
+	const postId = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
 	if (postId !== undefined) {
 		createdPosts.push(postId)
 	}
@@ -97,10 +97,10 @@ test('places a picture already in the library through the media library picker',
 })
 
 test('places an uploaded picture in a post and publishes it', async ({ page }) => {
-	await page.goto('/admin/posts')
+	await page.goto('/admin/content/post')
 	await page.getByRole('button', { name: 'Add New' }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
-	const postId = page.url().match(/posts\/([0-9a-f-]+)\/edit/)?.[1]
+	const postId = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
 	if (postId !== undefined) {
 		createdPosts.push(postId)
 	}
