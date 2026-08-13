@@ -30,8 +30,10 @@ that answer without a login.
 posts, err := deps.Content.ListPublished(ctx, "post", 10)
 ```
 
-Each `sdk.Item` carries `ID`, `Type`, `Slug`, `Title`, `Excerpt`,
-`Content`, `PublishedAt`, and `UpdatedAt`. The `Content` has the
+Each `sdk.Item` carries `ID`, `Type`, `Path`, `Slug`, `Title`,
+`Excerpt`, `Content`, `PublishedAt`, and `UpdatedAt`. `Path` is the
+item's public address, so a plugin building links prefixes it with
+`/` and nothing else. The `Content` has the
 same HTML filter applied that the public API uses, block markers
 intact. `Title` and `Excerpt` arrive as stored, so if your plugin
 serves HTML, escaping everything but `Content` is your job.

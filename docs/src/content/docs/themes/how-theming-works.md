@@ -47,8 +47,8 @@ when you want it fixed by deployment, and check the site after.
 - Gophenberg waits up to 30 seconds for it to report ready, and
   restarts it with growing pauses if it exits. After five starts
   that never served, it logs `theme gave up` and stops trying.
-- `/api`, `/admin`, `/gophenberg`, and `/_gophenberg` never reach
-  a theme.
+- `/api`, `/admin`, `/media`, `/gophenberg`, and `/_gophenberg`
+  never reach a theme.
 
 In the logs, `mode=theme` at startup means a theme is configured,
 not yet that it serves. `theme ready` means it serves.
