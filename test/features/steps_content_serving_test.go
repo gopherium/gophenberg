@@ -135,4 +135,138 @@ func initializeContentServing(sc *godog.ScenarioContext) {
 	sc.Then(`^"([^"]*)" answers with "([^"]*)"$`, theAddressAnswersWith)
 	sc.Then(`^"([^"]*)" lists "([^"]*)"$`, theAddressLists)
 	sc.Then(`^"([^"]*)" answers not found$`, theAddressAnswersNotFound)
+	sc.When(`^a visitor reads the content handshake$`, aVisitorReadsTheContentHandshake)
+	sc.When(`^a visitor resolves "([^"]*)"$`, aVisitorResolves)
+	sc.Then(`^it carries api (\d+)$`, itCarriesAPI)
+	sc.Then(`^it lists "([^"]*)" as the default type at the root$`, itListsTheDefaultTypeAtTheRoot)
+	sc.Then(`^it lists "([^"]*)" under "([^"]*)" as hierarchical$`, itListsTheNestingType)
+	sc.Then(`^the answer is a single "([^"]*)"$`, theAnswerIsASingle)
+	sc.Then(`^the answer is an archive of "([^"]*)"$`, theAnswerIsAnArchiveOf)
+}
+
+// handshake is the versions and types the content API advertises.
+type handshake struct {
+	API   int `json:"api"`
+	Types []struct {
+		Key          string `json:"key"`
+		RouteWord    string `json:"route_word"`
+		Hierarchical bool   `json:"hierarchical"`
+		Default      bool   `json:"default"`
+	} `json:"types"`
+}
+
+// resolved is what the content API says an address holds.
+type resolved struct {
+	Kind string `json:"kind"`
+	Type struct {
+		Key string `json:"key"`
+	} `json:"type"`
+	Item *struct {
+		Path string `json:"path"`
+	} `json:"item"`
+	Page *struct {
+		Total int `json:"total"`
+	} `json:"page"`
+}
+
+// aVisitorReadsTheContentHandshake asks the content API which shape it speaks.
+func aVisitorReadsTheContentHandshake(ctx context.Context) error {
+	w, err := visit(ctx, "/api/content/v1")
+	if err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// itCarriesAPI asserts the handshake reports the given API version.
+func itCarriesAPI(ctx context.Context, version int) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	var advertised handshake
+	if err := w.answer.decode(&advertised); err != nil {
+		return err
+	}
+	if advertised.API != version {
+		return fmt.Errorf("the handshake carries api %d, want %d", advertised.API, version)
+	}
+	return nil
+}
+
+// itListsTheDefaultTypeAtTheRoot asserts the handshake advertises a type as the root default.
+func itListsTheDefaultTypeAtTheRoot(ctx context.Context, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	var advertised handshake
+	if err := w.answer.decode(&advertised); err != nil {
+		return err
+	}
+	for _, listed := range advertised.Types {
+		if listed.Key == key && listed.Default && listed.RouteWord == "" {
+			return nil
+		}
+	}
+	return fmt.Errorf("the handshake does not advertise %q as the default type at the root", key)
+}
+
+// itListsTheNestingType asserts the handshake advertises a hierarchical type under a route word.
+func itListsTheNestingType(ctx context.Context, key, routeWord string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	var advertised handshake
+	if err := w.answer.decode(&advertised); err != nil {
+		return err
+	}
+	for _, listed := range advertised.Types {
+		if listed.Key == key && listed.RouteWord == routeWord && listed.Hierarchical {
+			return nil
+		}
+	}
+	return fmt.Errorf("the handshake does not advertise %q nesting under %q", key, routeWord)
+}
+
+// aVisitorResolves asks the content API what an address holds.
+func aVisitorResolves(ctx context.Context, address string) error {
+	w, err := visit(ctx, "/api/content/v1/resolve?path="+address)
+	if err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// theAnswerIsASingle asserts the resolver named an item of the type.
+func theAnswerIsASingle(ctx context.Context, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	var answer resolved
+	if err := w.answer.decode(&answer); err != nil {
+		return err
+	}
+	if answer.Kind != "item" || answer.Type.Key != key || answer.Item == nil {
+		return fmt.Errorf("the answer is %q of %q, want a single %q", answer.Kind, answer.Type.Key, key)
+	}
+	return nil
+}
+
+// theAnswerIsAnArchiveOf asserts the resolver named a listing of the type.
+func theAnswerIsAnArchiveOf(ctx context.Context, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	var answer resolved
+	if err := w.answer.decode(&answer); err != nil {
+		return err
+	}
+	if answer.Kind != "archive" || answer.Type.Key != key || answer.Page == nil {
+		return fmt.Errorf("the answer is %q of %q, want an archive of %q", answer.Kind, answer.Type.Key, key)
+	}
+	return nil
 }

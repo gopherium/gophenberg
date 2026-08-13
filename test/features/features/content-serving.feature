@@ -46,3 +46,15 @@ Feature: Serving content by address
   Scenario: An archive of an inactive type answers not found
     Given the type "page" is deactivated
     Then "/pages" answers not found
+
+  Scenario: The handshake advertises the types
+    When a visitor reads the content handshake
+    Then it carries api 2
+    And it lists "post" as the default type at the root
+    And it lists "page" under "pages" as hierarchical
+
+  Scenario: The resolver names what an address is
+    When a visitor resolves "/pages/about"
+    Then the answer is a single "page"
+    When a visitor resolves "/pages"
+    Then the answer is an archive of "page"
