@@ -10,6 +10,15 @@ test('lists the demo posts on the public index', async ({ page }) => {
 	await expect(page.getByRole('link', { name: 'Pictures from Elsewhere' })).toBeVisible()
 })
 
+test('walks from the index to a post through the link the theme built', async ({ page }) => {
+	await page.goto('/')
+
+	await page.getByRole('link', { name: 'Welcome to Gophenberg' }).click()
+
+	await expect(page).toHaveURL('/welcome-to-gophenberg')
+	await expect(page.getByRole('heading', { name: 'Welcome to Gophenberg', level: 1 })).toBeVisible()
+})
+
 test('serves the public index from the theme rather than the built-in renderer', async ({ page }) => {
 	await page.goto('/')
 
