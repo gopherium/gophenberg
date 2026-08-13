@@ -34,25 +34,9 @@ const siteTitle = "A Test Site"
 // mediaTestCap bounds an upload small enough for a scenario to exceed it.
 const mediaTestCap = 2 << 20
 
-// emptyPosts is a content store holding nothing, enough for the public site to answer.
-type emptyPosts struct{ content.Store }
-
-// List returns no posts.
-func (emptyPosts) List(context.Context, content.Filter) ([]content.Content, int, error) {
-	return nil, 0, nil
-}
-
-// PublishedBySlug reports that no post is published under the slug.
-func (emptyPosts) PublishedBySlug(context.Context, string, string) (content.Content, error) {
-	return content.Content{}, content.ErrNotFound
-}
-
 // contentStore returns the store the scenario's content lives in.
 func (w *world) contentStore() content.Store {
-	if w.contentItems != nil {
-		return w.contentItems
-	}
-	return emptyPosts{}
+	return w.contentItems
 }
 
 // memorySettings holds one scenario's stored choices in memory, surviving a restart.

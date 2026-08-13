@@ -142,19 +142,6 @@ func (s *fakePostStore) ByID(_ context.Context, id uuid.UUID) (content.Content, 
 	return p, nil
 }
 
-// PublishedBySlug returns the published post of the given type and slug.
-func (s *fakePostStore) PublishedBySlug(_ context.Context, postType, slug string) (content.Content, error) {
-	if s.publishedErr != nil {
-		return content.Content{}, s.publishedErr
-	}
-	for _, p := range s.ordered() {
-		if p.Type == postType && p.Slug == slug && p.Status == content.StatusPublished {
-			return p, nil
-		}
-	}
-	return content.Content{}, content.ErrNotFound
-}
-
 // List returns the stored posts matching the filter's status and search.
 func (s *fakePostStore) List(_ context.Context, f content.Filter) ([]content.Content, int, error) {
 	s.lastFilter = f
@@ -335,14 +322,16 @@ func (s *fakePostStore) Autosave(_ context.Context, postID, authorID uuid.UUID) 
 	return content.Revision{}, content.ErrRevisionNotFound
 }
 
-// Counts returns the number of stored posts in each status.
-func (s *fakePostStore) Counts(_ context.Context, _ string) (map[content.Status]int, error) {
+// Counts returns the number of stored posts of the type in each status.
+func (s *fakePostStore) Counts(_ context.Context, typeKey string) (map[content.Status]int, error) {
 	if s.countsErr != nil {
 		return nil, s.countsErr
 	}
 	counts := map[content.Status]int{}
 	for _, p := range s.posts {
-		counts[p.Status]++
+		if p.Type == typeKey {
+			counts[p.Status]++
+		}
 	}
 	return counts, nil
 }

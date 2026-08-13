@@ -245,6 +245,9 @@ func TestPostCountsReportsEveryStatus(t *testing.T) {
 	published := newPost(t, "Published One", ada.ID)
 	published.Status = content.StatusPublished
 	posts.add(published)
+	other := newPost(t, "A Page", ada.ID)
+	other.Type = "page"
+	posts.add(other)
 
 	recorder := doRequest(t, handler, http.MethodGet, "/api/content/counts", "")
 
