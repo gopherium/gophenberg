@@ -117,6 +117,16 @@ describe('resolve', () => {
 		expect(urls[0]).toBe('https://example.com/api/content/v1/resolve?path=%2Fa+slug%2F..%2Fescape')
 	})
 
+	test('asks for the page size the caller wants', async () => {
+		const { fetch, urls } = fetchReturning({ kind: 'archive', type: postType, page })
+
+		await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).resolve('/', {
+			perPage: 5,
+		})
+
+		expect(urls[0]).toBe('https://example.com/api/content/v1/resolve?path=%2F&per_page=5')
+	})
+
 	test('answers nothing for an address holding nothing', async () => {
 		const { fetch } = fetchReturning({ error: 'not found' }, 404)
 

@@ -15,6 +15,11 @@ export interface ListQuery {
 	perPage?: number
 }
 
+/** What a caller may ask an archive for. */
+export interface ResolveOptions {
+	perPage?: number
+}
+
 /** How a client reaches one Gophenberg instance. */
 export interface ClientOptions {
 	baseUrl?: string
@@ -64,10 +69,14 @@ export class GophenbergClient {
 	/**
 	 * Returns what a public address holds, or nothing when it holds nothing.
 	 * @param path - The public address to resolve.
+	 * @param options - The page size an archive answers with.
 	 * @returns What the address holds, or undefined when the instance serves nothing there.
 	 */
-	async resolve(path: string): Promise<Resolved | undefined> {
+	async resolve(path: string, options: ResolveOptions = {}): Promise<Resolved | undefined> {
 		const search = new URLSearchParams({ path })
+		if (options.perPage !== undefined) {
+			search.set('per_page', String(options.perPage))
+		}
 		const response = await this.read(`/resolve?${search}`, [404])
 		if (response.status === 404) {
 			return undefined

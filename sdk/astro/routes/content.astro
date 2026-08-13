@@ -7,7 +7,9 @@ import { GophenbergClient } from '../client.ts'
 
 export const prerender = false
 
-const held = await new GophenbergClient().resolve(Astro.url.pathname)
+const held = await new GophenbergClient().resolve(Astro.url.pathname, {
+	perPage: theme.pagination?.perPage,
+})
 
 if (!held) {
 	return Astro.rewrite('/404')
