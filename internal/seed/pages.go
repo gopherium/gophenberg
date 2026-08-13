@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -56,7 +57,8 @@ func demoPages() []demoPage {
 
 // PageType returns the content type the demo pages are registered under.
 func PageType() content.Type {
-	registered := content.Type{
+	now := time.Now().UTC()
+	return content.Type{
 		Key:           PageTypeKey,
 		SingularLabel: "Page",
 		PluralLabel:   "Pages",
@@ -66,8 +68,9 @@ func PageType() content.Type {
 		RevisionCap:   100,
 		PageKind:      content.PageKindSingle,
 		Active:        true,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
-	return registered
 }
 
 // Types registers the content types the demo data set needs beside the built-in one.
