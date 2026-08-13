@@ -9,11 +9,12 @@ import (
 
 // Registry answers which content types the CMS holds, caching what it reads.
 type Registry struct {
-	mu     sync.RWMutex
-	store  TypeStore
-	byKey  map[string]Type
-	order  []Type
-	loaded bool
+	mu         sync.RWMutex
+	store      TypeStore
+	byKey      map[string]Type
+	order      []Type
+	loaded     bool
+	generation int
 }
 
 // NewRegistry returns a [Registry] reading through store.
@@ -183,10 +184,10 @@ func (r *Registry) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-// load fills the cache when it is cold.
+// load fills the cache when it is cold, keeping any write that landed while it read.
 func (r *Registry) load(ctx context.Context) error {
 	r.mu.RLock()
-	loaded := r.loaded
+	loaded, read := r.loaded, r.generation
 	r.mu.RUnlock()
 	if loaded {
 		return nil
@@ -201,6 +202,9 @@ func (r *Registry) load(ctx context.Context) error {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.generation != read {
+		return nil
+	}
 	r.byKey, r.order, r.loaded = byKey, types, true
 	return nil
 }
@@ -210,4 +214,5 @@ func (r *Registry) invalidate() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.byKey, r.order, r.loaded = nil, nil, false
+	r.generation++
 }

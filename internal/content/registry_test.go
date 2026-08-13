@@ -485,6 +485,54 @@ func TestRegistryAnswersNoTypeForAnUnusedWord(t *testing.T) {
 	}
 }
 
+// blockingTypeStore holds one read inside List until the test releases it.
+type blockingTypeStore struct {
+	*fakeTypeStore
+	held    chan struct{}
+	blocked chan struct{}
+	once    bool
+}
+
+// List reports the stored types as they were, holding the first read until the test releases it.
+func (s *blockingTypeStore) List(ctx context.Context) ([]content.Type, error) {
+	types, err := s.fakeTypeStore.List(ctx)
+	if !s.once {
+		s.once = true
+		close(s.blocked)
+		<-s.held
+	}
+	return types, err
+}
+
+func TestRegistryKeepsAWriteThatLandsDuringARead(t *testing.T) {
+	t.Parallel()
+
+	store := &blockingTypeStore{
+		fakeTypeStore: newFakeTypeStore(),
+		held:          make(chan struct{}),
+		blocked:       make(chan struct{}),
+	}
+	registry := content.NewRegistry(store)
+	reads := make(chan error, 1)
+	go func() {
+		_, err := registry.All(t.Context())
+		reads <- err
+	}()
+	<-store.blocked
+
+	if _, err := registry.Create(t.Context(), carType(t)); err != nil {
+		t.Fatalf("Create() during a read error = %v, want nil", err)
+	}
+	close(store.held)
+	if err := <-reads; err != nil {
+		t.Fatalf("All() error = %v, want nil", err)
+	}
+
+	if _, err := registry.ByKey(t.Context(), "car"); err != nil {
+		t.Errorf("ByKey() after a write that landed during a read error = %v, want the stored type", err)
+	}
+}
+
 func TestRegistryHidesAnInactiveTypeFromItsRouteWord(t *testing.T) {
 	t.Parallel()
 
