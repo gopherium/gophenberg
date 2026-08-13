@@ -55,6 +55,7 @@ func samplePost(title, content string) sdk.Item {
 		ID:          uuid.MustParse("019fb000-0000-7000-8000-000000000001"),
 		Type:        "post",
 		Slug:        "a-slug",
+		Path:        "pages/nested/a-slug",
 		Title:       title,
 		Excerpt:     "An excerpt.",
 		Content:     content,
@@ -155,8 +156,8 @@ func TestFeedLinksEachItemAtItsFutureAddress(t *testing.T) {
 	if err := xml.Unmarshal(response.Body.Bytes(), &parsed); err != nil {
 		t.Fatalf("parsing the feed: %v", err)
 	}
-	if parsed.Items[0].Link != "http://example.com/post/a-slug" {
-		t.Errorf("item link = %q, want %q", parsed.Items[0].Link, "http://example.com/post/a-slug")
+	if parsed.Items[0].Link != "http://example.com/pages/nested/a-slug" {
+		t.Errorf("item link = %q, want %q", parsed.Items[0].Link, "http://example.com/pages/nested/a-slug")
 	}
 	if parsed.Items[0].GUID != "urn:uuid:019fb000-0000-7000-8000-000000000001" {
 		t.Errorf("item guid = %q, want the urn form", parsed.Items[0].GUID)
@@ -182,8 +183,8 @@ func TestFeedLinksCarryTheHostTheReaderDialed(t *testing.T) {
 	if parsed.Link != "http://localhost:8081" {
 		t.Errorf("channel link = %q, want %q", parsed.Link, "http://localhost:8081")
 	}
-	if parsed.Items[0].Link != "http://localhost:8081/post/a-slug" {
-		t.Errorf("item link = %q, want %q", parsed.Items[0].Link, "http://localhost:8081/post/a-slug")
+	if parsed.Items[0].Link != "http://localhost:8081/pages/nested/a-slug" {
+		t.Errorf("item link = %q, want %q", parsed.Items[0].Link, "http://localhost:8081/pages/nested/a-slug")
 	}
 }
 
@@ -221,8 +222,8 @@ func TestFeedHonorsTheForwardedProtocol(t *testing.T) {
 	if parsed.Link != "https://example.com" {
 		t.Errorf("channel link = %q, want %q", parsed.Link, "https://example.com")
 	}
-	if parsed.Items[0].Link != "https://example.com/post/a-slug" {
-		t.Errorf("item link = %q, want %q", parsed.Items[0].Link, "https://example.com/post/a-slug")
+	if parsed.Items[0].Link != "https://example.com/pages/nested/a-slug" {
+		t.Errorf("item link = %q, want %q", parsed.Items[0].Link, "https://example.com/pages/nested/a-slug")
 	}
 }
 

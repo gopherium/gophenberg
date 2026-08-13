@@ -159,7 +159,7 @@ func (p *plugin) channelOf(origin string, posts []sdk.Item) rss {
 	for i, published := range posts {
 		items[i] = rssItem{
 			Title:       published.Title,
-			Link:        origin + "/" + published.Type + "/" + published.Slug,
+			Link:        origin + "/" + published.Path,
 			Description: stripBlockComments(published.Content),
 			GUID:        rssGUID{IsPermaLink: "false", Value: "urn:uuid:" + published.ID.String()},
 			PubDate:     published.PublishedAt.Format(time.RFC1123Z),
