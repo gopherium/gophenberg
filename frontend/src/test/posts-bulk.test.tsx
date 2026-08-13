@@ -116,6 +116,32 @@ test('reports a batch undo the server refused', async () => {
 	expect(await screen.findByText(/could not restore those posts/i)).toBeInTheDocument()
 })
 
+test('reloads the list when an undo is only partly refused', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(
+		http.post('/api/content/:id/restore', ({ params }) => {
+			if (String(params.id) === SECOND.id) {
+				return HttpResponse.json({}, { status: 500 })
+			}
+			restored.push(String(params.id))
+			listed = [...listed, FIRST]
+			return HttpResponse.json({ ...FIRST, status: 'draft' })
+		}),
+	)
+	renderAt('/content/post')
+	await selectBoth()
+	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+	const dialog = await screen.findByRole('dialog')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }))
+	await screen.findByText(/2 posts moved to the trash/i)
+
+	await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+	expect(await screen.findByText(/could not restore that post/i)).toBeInTheDocument()
+	await waitFor(() => expect(restored).toEqual([FIRST.id]))
+	await waitFor(() => expect(screen.getByText('Welcome to Gophenberg')).toBeInTheDocument())
+})
+
 test('reports a batch the server partly refused and reloads the list', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(

@@ -8,6 +8,18 @@ import type { PostNotice, ReportNotice } from './actions'
 import { restorePost } from './api'
 
 /**
+ * Returns the notice reporting how many restores the server refused.
+ * @param refused - How many posts were not restored.
+ * @returns The notice to show.
+ */
+function refusal(refused: number): PostNotice {
+	return {
+		intent: 'error',
+		message: refused === 1 ? 'Could not restore that post.' : 'Could not restore those posts.',
+	}
+}
+
+/**
  * Renders the control taking back a trashing.
  * @param props - The posts to restore and the handler replacing the notice.
  * @returns The undo control.
@@ -15,19 +27,12 @@ import { restorePost } from './api'
 function Undo({ undoIds, report }: { undoIds: string[], report: ReportNotice }) {
 	const refresh = useRefresh()
 	const undo = useMutation({
-		mutationFn: () => Promise.all(undoIds.map((id) => restorePost(id))),
-		onSuccess: async () => {
-			report(null)
+		mutationFn: () => Promise.allSettled(undoIds.map((id) => restorePost(id))),
+		onSuccess: async (outcomes) => {
+			const refused = outcomes.filter((outcome) => outcome.status === 'rejected')
+			report(refused.length === 0 ? null : refusal(refused.length))
 			await refresh()
 		},
-		onError: () =>
-			report({
-				intent: 'error',
-				message:
-					undoIds.length === 1
-						? 'Could not restore that post.'
-						: 'Could not restore those posts.',
-			}),
 	})
 	return (
 		<Notice.Actions>
