@@ -83,6 +83,15 @@ test('leaves the editor for the list once the post is trashed', async () => {
 	await waitFor(() => expect(screen.queryByTitle('Editor canvas')).not.toBeInTheDocument())
 })
 
+test('lands on the list of the type it left', async () => {
+	renderAt(EDITOR_PATH)
+	await userEvent.click(await screen.findByRole('button', { name: 'Move to trash' }))
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Move to trash' }))
+
+	expect(await screen.findByRole('heading', { name: 'Posts', level: 1 })).toBeInTheDocument()
+})
+
 test('carries the undo across the move to the list', async () => {
 	renderAt(EDITOR_PATH)
 	await userEvent.click(await screen.findByRole('button', { name: 'Move to trash' }))

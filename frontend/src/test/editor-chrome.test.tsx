@@ -143,3 +143,11 @@ test('reports a publication the server refused', async () => {
 
 	expect(await screen.findByText(/invalid transition/i)).toBeInTheDocument()
 })
+
+test('leaves the title its focus ring, which the design system draws around it', async () => {
+	renderAt(EDITOR_PATH)
+
+	const title = await screen.findByRole('textbox', { name: 'Title' })
+
+	expect(title.parentElement?.className).toMatch(/outset-ring--focus-within/)
+})
