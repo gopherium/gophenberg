@@ -205,14 +205,14 @@ func TestPathMigrationsDeferTheAddressCheckInsideATransaction(t *testing.T) {
 	}
 }
 
-func TestPathMigrationsRefuseAnItemOfAnotherTypeAsAParent(t *testing.T) {
+func TestPathMigrationsRefuseAMissingParent(t *testing.T) {
 	t.Parallel()
 
 	db := newTestDB(t)
 	author := insertAuthor(t, db)
-	stranger := uuid.Must(uuid.NewV7())
+	missingParent := uuid.Must(uuid.NewV7())
 
-	_, err := insertNested(db, author, "team", "about/team", &stranger)
+	_, err := insertNested(db, author, "team", "about/team", &missingParent)
 
 	if code := pgErrorCode(err); code != foreignKeyViolation {
 		t.Fatalf("nesting under a missing parent: %v with code %q, want %q", err, code, foreignKeyViolation)

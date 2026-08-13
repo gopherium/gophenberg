@@ -195,7 +195,7 @@ func TestContentStoreCreateRejectsAnUnknownAuthor(t *testing.T) {
 	}
 }
 
-func TestContentStoreByIDReportsMissingPosts(t *testing.T) {
+func TestContentStoreByIDReportsMissingContent(t *testing.T) {
 	t.Parallel()
 
 	store, _ := newContentStore(t)
@@ -256,7 +256,7 @@ func TestContentStoreUpdateSuffixesTakenSlugs(t *testing.T) {
 	}
 }
 
-func TestContentStoreUpdateReportsMissingPosts(t *testing.T) {
+func TestContentStoreUpdateReportsMissingContent(t *testing.T) {
 	t.Parallel()
 
 	store, author := newContentStore(t)
@@ -445,7 +445,7 @@ func TestContentStoreRestoreReportsMissingPosts(t *testing.T) {
 	}
 }
 
-func TestContentStoreDeleteRemovesThePost(t *testing.T) {
+func TestContentStoreDeleteRemovesTheContent(t *testing.T) {
 	t.Parallel()
 
 	store, author := newContentStore(t)

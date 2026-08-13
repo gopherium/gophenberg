@@ -165,7 +165,7 @@ func TestContentStoreCarriesDescendantsWhenAParentMoves(t *testing.T) {
 	}
 }
 
-func TestContentStoreSwapsTwoAddressesInOneTransaction(t *testing.T) {
+func TestContentStoreSuffixesAnAddressARenameCollidesWith(t *testing.T) {
 	t.Parallel()
 
 	store, author := newNestingStore(t)

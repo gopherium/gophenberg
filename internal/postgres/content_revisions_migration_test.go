@@ -103,18 +103,18 @@ func TestRevisionMigrationsRejectOrphans(t *testing.T) {
 	store, author, pool := newContentStoreWithPool(t)
 	stored := mustCreate(t, store, "Revised", author)
 
-	orphanPost := insertRevision(t, pool, uuid.Must(uuid.NewV7()), author, content.RevisionKindRevision)
+	orphanContent := insertRevision(t, pool, uuid.Must(uuid.NewV7()), author, content.RevisionKindRevision)
 	orphanAuthor := insertRevision(t, pool, stored.ID, uuid.Must(uuid.NewV7()), content.RevisionKindRevision)
 
-	if code := pgErrorCode(orphanPost); code != foreignKeyViolation {
-		t.Errorf("revision without a post: %v, want foreign key violation", orphanPost)
+	if code := pgErrorCode(orphanContent); code != foreignKeyViolation {
+		t.Errorf("revision without content: %v, want foreign key violation", orphanContent)
 	}
 	if code := pgErrorCode(orphanAuthor); code != foreignKeyViolation {
 		t.Errorf("revision without an author: %v, want foreign key violation", orphanAuthor)
 	}
 }
 
-func TestRevisionMigrationsCascadeWithThePost(t *testing.T) {
+func TestRevisionMigrationsCascadeWithTheContent(t *testing.T) {
 	t.Parallel()
 
 	store, author, pool := newContentStoreWithPool(t)
