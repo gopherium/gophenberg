@@ -32,6 +32,15 @@ export function slugify(plural: string): string {
 }
 
 /**
+ * Returns the sentence naming why a registry write was turned away.
+ * @param cause - What the write failed with.
+ * @returns The sentence to show.
+ */
+export function refusalMessage(cause: unknown): string {
+	return cause instanceof Error ? cause.message : 'The registry could not be reached.'
+}
+
+/**
  * Renders the content type registry screen.
  * @returns The registry screen element.
  */
@@ -56,7 +65,7 @@ export function TypesScreen() {
 	 * @param cause - What the write failed with.
 	 */
 	function refused(cause: unknown) {
-		setRefusal(cause instanceof Error ? cause.message : 'The registry could not be reached.')
+		setRefusal(refusalMessage(cause))
 	}
 
 	return (

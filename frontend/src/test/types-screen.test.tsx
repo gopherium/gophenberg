@@ -5,6 +5,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test } from 'vitest'
 
+import { refusalMessage } from '../content/TypesScreen'
 import { renderAt } from './render'
 
 const POST_TYPE = {
@@ -245,4 +246,52 @@ test('reports a registry that could not be reached at all', async () => {
 	await userEvent.click(within(pages).getByRole('button', { name: 'Make default' }))
 
 	expect(await screen.findByRole('alert')).toBeInTheDocument()
+})
+
+test('changes no address when the confirmation is dismissed', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(PAGE_TYPE)
+		}),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Change address' }))
+	const dialog = await screen.findByRole('dialog')
+	await userEvent.type(within(dialog).getByLabelText('Route word'), 'x')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Keep it' }))
+
+	expect(sent).toHaveLength(0)
+})
+
+test('registers nothing when the new type is cancelled', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.post('/api/types', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(PAGE_TYPE, { status: 201 })
+		}),
+	)
+	renderAt('/content-types')
+	await screen.findByRole('region', { name: 'Content Types' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
+	await userEvent.type(screen.getByLabelText('Singular name'), 'Guide')
+	await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+	expect(sent).toHaveLength(0)
+})
+
+test('names the refusal a registry write carried', () => {
+	expect(refusalMessage(new Error('content: the route word is taken'))).toBe(
+		'content: the route word is taken',
+	)
+})
+
+test('names an unreachable registry when the failure carries no message', () => {
+	expect(refusalMessage('nonsense')).toBe('The registry could not be reached.')
 })

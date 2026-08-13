@@ -5,6 +5,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
+import { chosenParent } from '../content/ParentPicker'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
@@ -97,4 +98,46 @@ test('files the item under the parent it was given', async () => {
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
 	expect(patched.at(-1)).toMatchObject({ parent_id: ABOUT.id })
+})
+
+test('lifts the item back to the root when no parent is chosen', async () => {
+	const nested = { ...EDITED, parent_id: ABOUT.id, path: 'pages/about/team' }
+	const patched: unknown[] = []
+	server.use(
+		http.get(`/api/content/${nested.id}`, () => HttpResponse.json(nested)),
+		http.patch(`/api/content/${nested.id}`, async ({ request }) => {
+			patched.push(await request.json())
+			return HttpResponse.json(nested)
+		}),
+	)
+	renderAt(`/content/page/${nested.id}/edit`)
+
+	const picker = await screen.findByLabelText('Parent')
+	await userEvent.click(picker)
+	await userEvent.click(await screen.findByRole('option', { name: 'No parent' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+	expect(patched.at(-1)).toMatchObject({ parent_id: null })
+})
+
+test('offers only the root while the items of the type are still arriving', async () => {
+	server.use(http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })))
+	renderAt(`/content/page/${EDITED.id}/edit`)
+
+	const picker = await screen.findByLabelText('Parent')
+	await userEvent.click(picker)
+
+	expect(await screen.findByRole('option', { name: 'No parent' })).toBeInTheDocument()
+})
+
+test('reads the parent a select change asks for', () => {
+	expect(chosenParent({ value: '019fb000-0000-7000-8000-0000000000aa' })).toBe(
+		'019fb000-0000-7000-8000-0000000000aa',
+	)
+})
+
+test('reads the root when the select reports nothing', () => {
+	expect(chosenParent(null)).toBeNull()
+	expect(chosenParent({ value: null })).toBeNull()
+	expect(chosenParent({ value: '' })).toBeNull()
 })

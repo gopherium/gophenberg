@@ -9,6 +9,18 @@ import { listPosts } from './api'
 const rootItem = { label: 'No parent', value: '' }
 
 /**
+ * Returns the parent a select change asks for, or nothing at the root.
+ * @param item - The item the select reported, or nothing.
+ * @returns The parent to file under, or null at the root.
+ */
+export function chosenParent(item: { value: string | null } | null): string | null {
+	if (item === null || item.value === null || item.value === '') {
+		return null
+	}
+	return item.value
+}
+
+/**
  * Renders the control filing an item under another of its type.
  * @param props - The item being edited, its type, and what to do with the choice.
  * @returns The picker element.
@@ -35,7 +47,7 @@ export function ParentPicker(props: {
 			label="Parent"
 			items={items}
 			value={selected}
-			onValueChange={(item) => props.onChange(item?.value === '' ? null : (item?.value ?? null))}
+			onValueChange={(item) => props.onChange(chosenParent(item))}
 		/>
 	)
 }

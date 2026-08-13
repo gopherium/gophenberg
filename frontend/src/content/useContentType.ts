@@ -22,6 +22,15 @@ const unknownType: ContentType = {
 }
 
 /**
+ * Returns the type a screen stands in with until the registry answers.
+ * @param key - The type key the route carries, absent off a content route.
+ * @returns The placeholder type.
+ */
+export function placeholderType(key: string | undefined): ContentType {
+	return { ...unknownType, key: key ?? '' }
+}
+
+/**
  * Returns the content type the current route addresses.
  * @returns The registered type, or a placeholder until the registry answers.
  */
@@ -29,5 +38,5 @@ export function useContentType(): ContentType {
 	const { typeKey } = useParams({ strict: false })
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
 	const found = types.data?.find((registered) => registered.key === typeKey)
-	return found ?? { ...unknownType, key: typeKey ?? '' }
+	return found ?? placeholderType(typeKey)
 }

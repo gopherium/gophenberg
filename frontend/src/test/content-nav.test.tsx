@@ -4,6 +4,7 @@ import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, within } from '@testing-library/react'
 import { beforeEach, expect, test } from 'vitest'
 
+import { placeholderType } from '../content/useContentType'
 import { renderAt } from './render'
 
 const POST_TYPE = {
@@ -76,4 +77,10 @@ test('keeps the sections that do not come from the registry', async () => {
 	expect(within(menu).getByRole('link', { name: 'Media' })).toBeInTheDocument()
 	expect(within(menu).getByRole('link', { name: 'Themes' })).toBeInTheDocument()
 	expect(within(menu).getByRole('link', { name: 'Content Types' })).toBeInTheDocument()
+})
+
+test('stands in with the key the route carries until the registry answers', () => {
+	expect(placeholderType('guide').key).toBe('guide')
+	expect(placeholderType('guide').pluralLabel).toBe('Content')
+	expect(placeholderType(undefined).key).toBe('')
 })
