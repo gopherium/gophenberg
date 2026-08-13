@@ -1,10 +1,10 @@
 # Gophenberg
 
-Gophenberg is an open-source plugin-first CMS. The backend is a Go service exposing a JSON API. The frontend is a React SPA admin consuming that API, with posts edited in the Gutenberg block editor.
+Gophenberg is an open-source plugin-first CMS. The backend is a Go service exposing a JSON API. The frontend is a React SPA admin consuming that API, with content edited in the Gutenberg block editor.
 
 ## Architecture
 
-- **Plugin-first.** The core contains only the HTTP server, the plugin host, authentication, and the post domain (posts, revisions, post types). Every other feature is a plugin. Anything that can be a plugin must be a plugin.
+- **Plugin-first.** The core contains only the HTTP server, the plugin host, authentication, and the content domain (the type registry, content items, revisions). Every other feature is a plugin. Anything that can be a plugin must be a plugin.
 - **Plugins live in one folder each.** A plugin is a directory under `plugins/` holding a `plugin.json` manifest, an ordinary Go package (compiled in), and an optional `frontend/` npm package for its React screens. The Go package exports `Register(sdk.Deps) (sdk.Plugin, error)`. The frontend package exports a `FrontendPlugin` object named `plugin`. `make generate` reads every manifest and regenerates both wiring files, and CI fails if they are stale. Each plugin gets a mounted route namespace under `/api/plugins/{name}/` (and `/{name}` in the SPA), may declare session-exempt public paths, and may own a Postgres schema with its own migrations. Plugins never import each other and reach the core only through the SDK.
 
 ```text
@@ -28,7 +28,7 @@ test/theme/           reference Astro theme, the e2e fixture and the starter sou
 The plugin lifecycle host and wiring generator come from
 [gopherium/pluginkit](https://github.com/gopherium/pluginkit).
 
-- **The public site is two interchangeable renderers.** The root serves published posts through the built-in Go renderer, or through an Astro theme when one is active. A theme is a prebuilt artifact (`theme.json`, `server/entry.mjs`, `client/`) validated by `internal/themehost`, run as a supervised node process bound to loopback, and reached through a reverse proxy that falls back to the Go renderer whenever the theme is not answering. The theme process receives exactly three environment variables and reads content over `/api/content/v1` like any other client. `/api`, `/admin`, `/gophenberg`, and `/_gophenberg` are never proxied.
+- **The public site is two interchangeable renderers.** The root serves published posts through the built-in Go renderer, or through an Astro theme when one is active. A theme is a prebuilt artifact (`theme.json`, `server/entry.mjs`, `client/`) validated by `internal/themehost`, run as a supervised node process bound to loopback, and reached through a reverse proxy that falls back to the Go renderer whenever the theme is not answering. The theme process receives exactly three environment variables and reads content over `/api/content/v1` like any other client. `/api`, `/admin`, `/media`, `/gophenberg`, and `/_gophenberg` are never proxied.
 
 ## Stack
 
