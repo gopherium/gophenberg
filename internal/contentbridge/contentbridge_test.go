@@ -39,8 +39,8 @@ func (s *recordingPostStore) List(_ context.Context, f content.Filter) ([]conten
 	return listed, len(listed), nil
 }
 
-// PublishedBySlug returns the stored published post of the given type and slug.
-func (s *recordingPostStore) PublishedBySlug(_ context.Context, postType, slug string) (content.Content, error) {
+// PublishedByPath returns the stored published item answering at the address.
+func (s *recordingPostStore) PublishedByPath(_ context.Context, path string) (content.Content, error) {
 	if s.publishedErr != nil {
 		return content.Content{}, s.publishedErr
 	}
@@ -49,7 +49,7 @@ func (s *recordingPostStore) PublishedBySlug(_ context.Context, postType, slug s
 		serving = s.posts
 	}
 	for _, p := range serving {
-		if p.Type == postType && p.Slug == slug && p.Status == content.StatusPublished {
+		if p.Path == path && p.Status == content.StatusPublished {
 			return p, nil
 		}
 	}
@@ -69,6 +69,7 @@ func publishedPostAt(title, body, slug string) content.Content {
 		Type:        content.TypePost,
 		Status:      content.StatusPublished,
 		Slug:        slug,
+		Path:        slug,
 		Title:       title,
 		Excerpt:     "An excerpt.",
 		Content:     body,
@@ -229,5 +230,27 @@ func TestReaderSkipsAPostWhoseSlugAnotherPostTook(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("ListPublished() returned %d posts, want none, since the slug now serves %q", len(got), claimed.Title)
+	}
+}
+
+func TestReaderTellsApartTwoItemsSharingASlug(t *testing.T) {
+	t.Parallel()
+
+	under := publishedPostAt("Under About", "<p>About.</p>", "team")
+	under.Path = "pages/about/team"
+	beside := publishedPostAt("Under Careers", "<p>Careers.</p>", "team")
+	beside.Path = "pages/careers/team"
+	store := &recordingPostStore{posts: []content.Content{under, beside}}
+
+	items, err := contentbridge.New(store).ListPublished(t.Context(), content.TypePost, 10)
+	if err != nil {
+		t.Fatalf("Published() error = %v, want nil", err)
+	}
+
+	if len(items) != 2 {
+		t.Fatalf("items = %d, want both siblings that share a slug", len(items))
+	}
+	if items[0].Path == items[1].Path {
+		t.Errorf("both items answer at %q, want their own addresses", items[0].Path)
 	}
 }

@@ -53,7 +53,7 @@ func (r reader) ListPublished(ctx context.Context, contentType string, limit int
 
 // stillPublished returns the listed item carrying its content, and whether it is still the published one.
 func (r reader) stillPublished(ctx context.Context, listed content.Content) (content.Content, bool, error) {
-	current, err := r.store.PublishedBySlug(ctx, listed.Type, listed.Slug)
+	current, err := r.store.PublishedByPath(ctx, listed.Path)
 	if errors.Is(err, content.ErrNotFound) {
 		return content.Content{}, false, nil
 	}
@@ -72,6 +72,7 @@ func toSDKItem(c content.Content) sdk.Item {
 	return sdk.Item{
 		ID:          c.ID,
 		Type:        c.Type,
+		Path:        c.Path,
 		Slug:        c.Slug,
 		Title:       c.Title,
 		Excerpt:     c.Excerpt,

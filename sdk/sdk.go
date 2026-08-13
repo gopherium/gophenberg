@@ -39,6 +39,7 @@ type Deps struct {
 type Item struct {
 	ID          uuid.UUID
 	Type        string
+	Path        string
 	Slug        string
 	Title       string
 	Excerpt     string
