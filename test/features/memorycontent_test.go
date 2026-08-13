@@ -103,11 +103,6 @@ func (s *memoryContent) ByID(_ context.Context, id uuid.UUID) (content.Content, 
 	return stored, nil
 }
 
-// PublishedBySlug reports that the scenario publishes nothing publicly.
-func (s *memoryContent) PublishedBySlug(context.Context, string, string) (content.Content, error) {
-	return content.Content{}, content.ErrNotFound
-}
-
 // PublishedByPath returns the published item answering at the address, or [content.ErrNotFound].
 func (s *memoryContent) PublishedByPath(_ context.Context, path string) (content.Content, error) {
 	s.mu.Lock()

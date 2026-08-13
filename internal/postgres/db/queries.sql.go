@@ -560,39 +560,6 @@ func (q *Queries) GetMedia(ctx context.Context, id int64) (CoreMedia, error) {
 	return i, err
 }
 
-const getPublishedContent = `-- name: GetPublishedContent :one
-SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
-FROM core.content p
-WHERE p.type = $1 AND p.slug = $2 AND p.status = 'published'
-`
-
-type GetPublishedContentParams struct {
-	Type string
-	Slug string
-}
-
-func (q *Queries) GetPublishedContent(ctx context.Context, arg GetPublishedContentParams) (CoreContent, error) {
-	row := q.db.QueryRow(ctx, getPublishedContent, arg.Type, arg.Slug)
-	var i CoreContent
-	err := row.Scan(
-		&i.ID,
-		&i.Type,
-		&i.Status,
-		&i.Slug,
-		&i.Title,
-		&i.Content,
-		&i.Excerpt,
-		&i.AuthorID,
-		&i.PublishedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.ParentID,
-		&i.Path,
-	)
-	return i, err
-}
-
 const getPublishedContentByPath = `-- name: GetPublishedContentByPath :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path

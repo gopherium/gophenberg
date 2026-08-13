@@ -129,18 +129,6 @@ func byID(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Conte
 	return toContent(row), nil
 }
 
-// PublishedBySlug returns the published item of the given type and slug, or [content.ErrNotFound].
-func (s *ContentStore) PublishedBySlug(ctx context.Context, contentType, slug string) (content.Content, error) {
-	row, err := s.queries.GetPublishedContent(ctx, db.GetPublishedContentParams{Type: contentType, Slug: slug})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return content.Content{}, content.ErrNotFound
-	}
-	if err != nil {
-		return content.Content{}, fmt.Errorf("postgres: get published content: %w", err)
-	}
-	return toContent(row), nil
-}
-
 // toContent maps a stored row to a domain content item with UTC timestamps.
 func toContent(row db.CoreContent) content.Content {
 	return content.Content{

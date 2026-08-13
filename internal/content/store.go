@@ -115,7 +115,6 @@ type Filter struct {
 type Store interface {
 	Create(ctx context.Context, c Content) (Content, error)
 	ByID(ctx context.Context, id uuid.UUID) (Content, error)
-	PublishedBySlug(ctx context.Context, contentType, slug string) (Content, error)
 	PublishedByPath(ctx context.Context, path string) (Content, error)
 	Children(ctx context.Context, id uuid.UUID) (int, error)
 	Depth(ctx context.Context, id uuid.UUID) (int, error)
