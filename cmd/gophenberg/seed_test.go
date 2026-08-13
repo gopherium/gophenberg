@@ -243,7 +243,7 @@ func TestSeedReportsAdminFailures(t *testing.T) {
 	}
 }
 
-func TestSeedReportsPostFailures(t *testing.T) {
+func TestSeedReportsContentFailures(t *testing.T) {
 	t.Parallel()
 
 	databaseURL := emptyDatabaseURL(t)
@@ -254,7 +254,7 @@ func TestSeedReportsPostFailures(t *testing.T) {
 	execSQL(t, databaseURL, "DROP TABLE core.content CASCADE")
 
 	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err == nil {
-		t.Error("seed() without the posts table error = nil, want a failure")
+		t.Error("seed() without the content table error = nil, want a failure")
 	}
 }
 
