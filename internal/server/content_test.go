@@ -3,6 +3,7 @@
 package server_test
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/server"
 )
 
 // blockMarkup is the serialized block content a published fixture carries.
@@ -66,7 +68,7 @@ func TestContentAPIAnswersTheHandshakeWithoutASession(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 	body := recorder.Body.String()
-	if !strings.Contains(body, `"api":1`) {
+	if !strings.Contains(body, `"api":2`) {
 		t.Errorf("body = %q, want the api version", body)
 	}
 	if !strings.Contains(body, `"gophenberg"`) {
@@ -84,7 +86,7 @@ func TestContentAPIListsPublishedSummariesNewestFirst(t *testing.T) {
 	draft.Status = content.StatusDraft
 	handler := contentServer(t, older, newer, draft)
 
-	recorder := getContent(t, handler, "/api/content/v1/posts")
+	recorder := getContent(t, handler, "/api/content/v1/items")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -112,7 +114,7 @@ func TestContentAPICapsThePageSize(t *testing.T) {
 
 	handler := contentServer(t)
 
-	recorder := getContent(t, handler, "/api/content/v1/posts?per_page=500")
+	recorder := getContent(t, handler, "/api/content/v1/items?per_page=500")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -128,9 +130,9 @@ func TestContentAPIRejectsMalformedPaging(t *testing.T) {
 	handler := contentServer(t)
 
 	for _, path := range []string{
-		"/api/content/v1/posts?page=nonsense",
-		"/api/content/v1/posts?page=0",
-		"/api/content/v1/posts?per_page=0",
+		"/api/content/v1/items?page=nonsense",
+		"/api/content/v1/items?page=0",
+		"/api/content/v1/items?per_page=0",
 	} {
 		if recorder := getContent(t, handler, path); recorder.Code != http.StatusBadRequest {
 			t.Errorf("GET %s status = %d, want %d", path, recorder.Code, http.StatusBadRequest)
@@ -144,7 +146,7 @@ func TestContentAPIServesAPageBeyondTheLastAsEmpty(t *testing.T) {
 	now := time.Now().UTC()
 	handler := contentServer(t, publishedFixture(t, "only", blockMarkup, now))
 
-	recorder := getContent(t, handler, "/api/content/v1/posts?page=99")
+	recorder := getContent(t, handler, "/api/content/v1/items?page=99")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -164,7 +166,7 @@ func TestContentAPIServesAnUnknownTypeAsAnEmptyPage(t *testing.T) {
 	now := time.Now().UTC()
 	handler := contentServer(t, publishedFixture(t, "only", blockMarkup, now))
 
-	recorder := getContent(t, handler, "/api/content/v1/posts?type=nonexistent")
+	recorder := getContent(t, handler, "/api/content/v1/items?type=nonexistent")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -181,7 +183,7 @@ func TestContentAPIServesOnePostWithSanitizedContent(t *testing.T) {
 	hostile := `<!-- wp:paragraph --><p onclick="steal()">Body</p><script>alert(1)</script><!-- /wp:paragraph -->`
 	handler := contentServer(t, publishedFixture(t, "hello-world", hostile, now))
 
-	recorder := getContent(t, handler, "/api/content/v1/posts/post/hello-world")
+	recorder := getContent(t, handler, "/api/content/v1/resolve?path=/hello-world")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -204,9 +206,9 @@ func TestContentAPIHidesPostsThatAreNotPublished(t *testing.T) {
 	handler := contentServer(t, draft)
 
 	for _, path := range []string{
-		"/api/content/v1/posts/post/a-draft",
-		"/api/content/v1/posts/post/never-written",
-		"/api/content/v1/posts/page/a-draft",
+		"/api/content/v1/resolve?path=/a-draft",
+		"/api/content/v1/resolve?path=/never-written",
+		"/api/content/v1/resolve?path=/pages/a-draft",
 	} {
 		recorder := getContent(t, handler, path)
 		if recorder.Code != http.StatusNotFound {
@@ -224,13 +226,13 @@ func TestContentAPIAnswersARepeatedReadWithNotModified(t *testing.T) {
 	now := time.Now().UTC()
 	handler := contentServer(t, publishedFixture(t, "hello-world", blockMarkup, now))
 
-	first := getContent(t, handler, "/api/content/v1/posts/post/hello-world")
+	first := getContent(t, handler, "/api/content/v1/resolve?path=/hello-world")
 	etag := first.Header().Get("ETag")
 	if etag == "" {
 		t.Fatal("ETag = empty, want a validator derived from the post")
 	}
 
-	request := httptest.NewRequest(http.MethodGet, "/api/content/v1/posts/post/hello-world", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/content/v1/resolve?path=/hello-world", nil)
 	request.Header.Set("If-None-Match", etag)
 	second := httptest.NewRecorder()
 	handler.ServeHTTP(second, request)
@@ -255,8 +257,8 @@ func TestContentAPIMasksAStoreFailure(t *testing.T) {
 	handler := serverWithStores(newFakeUserStore(), store)
 
 	for _, path := range []string{
-		"/api/content/v1/posts",
-		"/api/content/v1/posts/post/hello-world",
+		"/api/content/v1/items",
+		"/api/content/v1/resolve?path=/hello-world",
 	} {
 		recorder := getContent(t, handler, path)
 		if recorder.Code != http.StatusInternalServerError {
@@ -276,8 +278,8 @@ func TestContentAPICarriesTheHeadersAReaderNeeds(t *testing.T) {
 
 	for _, path := range []string{
 		"/api/content/v1",
-		"/api/content/v1/posts",
-		"/api/content/v1/posts/post/hello-world",
+		"/api/content/v1/items",
+		"/api/content/v1/resolve?path=/hello-world",
 	} {
 		recorder := getContent(t, handler, path)
 		if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "*" {
@@ -295,7 +297,7 @@ func TestContentAPICarriesNoFrontEndIdentification(t *testing.T) {
 	now := time.Now().UTC()
 	handler := contentServer(t, publishedFixture(t, "hello-world", blockMarkup, now))
 
-	for _, path := range []string{"/api/content/v1", "/api/content/v1/posts"} {
+	for _, path := range []string{"/api/content/v1", "/api/content/v1/items"} {
 		recorder := getContent(t, handler, path)
 		if got := recorder.Header().Get("X-Generator"); got != "" {
 			t.Errorf("GET %s carries X-Generator %q, want the api scope free of it", path, got)
@@ -303,5 +305,271 @@ func TestContentAPICarriesNoFrontEndIdentification(t *testing.T) {
 		if got := recorder.Header().Get("Link"); got != "" {
 			t.Errorf("GET %s carries Link %q, want the api scope free of it", path, got)
 		}
+	}
+}
+
+func TestContentAPIAdvertisesTheTypesItServes(t *testing.T) {
+	t.Parallel()
+
+	handler := contentServer(t)
+
+	recorder := getContent(t, handler, "/api/content/v1")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var handshake struct {
+		API   int `json:"api"`
+		Types []struct {
+			Key          string `json:"key"`
+			SingularName string `json:"singular_label"`
+			PluralName   string `json:"plural_label"`
+			RouteWord    string `json:"route_word"`
+			Hierarchical bool   `json:"hierarchical"`
+			PageKind     string `json:"page_kind"`
+			Default      bool   `json:"default"`
+		} `json:"types"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &handshake); err != nil {
+		t.Fatalf("reading the handshake: %v", err)
+	}
+	if handshake.API != 2 {
+		t.Errorf("api = %d, want 2", handshake.API)
+	}
+	if len(handshake.Types) != 1 {
+		t.Fatalf("types = %d, want the one registered type", len(handshake.Types))
+	}
+	listed := handshake.Types[0]
+	if listed.Key != content.TypePost || !listed.Default || listed.RouteWord != "" {
+		t.Errorf("type = %+v, want the default post type at the root", listed)
+	}
+	if listed.PluralName != "Posts" || listed.PageKind != string(content.PageKindSingle) {
+		t.Errorf("type = %+v, want its labels and page kind", listed)
+	}
+}
+
+func TestContentAPIListsPublishedItemsUnderItems(t *testing.T) {
+	t.Parallel()
+
+	handler := contentServer(t, publishedFixture(t, "hello-world", blockMarkup, time.Now().UTC()))
+
+	recorder := getContent(t, handler, "/api/content/v1/items")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if !strings.Contains(recorder.Body.String(), "hello-world") {
+		t.Errorf("body = %q, want the published item", recorder.Body.String())
+	}
+}
+
+func TestContentAPIResolvesAnAddressToItsItem(t *testing.T) {
+	t.Parallel()
+
+	handler := contentServer(t, publishedFixture(t, "hello-world", blockMarkup, time.Now().UTC()))
+
+	recorder := getContent(t, handler, "/api/content/v1/resolve?path=/hello-world")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var answer struct {
+		Kind string `json:"kind"`
+		Type struct {
+			Key string `json:"key"`
+		} `json:"type"`
+		Item struct {
+			Path    string `json:"path"`
+			Content string `json:"content"`
+		} `json:"item"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answer); err != nil {
+		t.Fatalf("reading the answer: %v", err)
+	}
+	if answer.Kind != "item" {
+		t.Errorf("kind = %q, want %q", answer.Kind, "item")
+	}
+	if answer.Type.Key != content.TypePost {
+		t.Errorf("type = %q, want the item's own type", answer.Type.Key)
+	}
+	if answer.Item.Path != "hello-world" || !strings.Contains(answer.Item.Content, "Body") {
+		t.Errorf("item = %+v, want the addressed item with its content", answer.Item)
+	}
+}
+
+func TestContentAPIResolvesAnArchiveToItsPage(t *testing.T) {
+	t.Parallel()
+
+	handler := contentServer(t, publishedFixture(t, "hello-world", blockMarkup, time.Now().UTC()))
+
+	recorder := getContent(t, handler, "/api/content/v1/resolve?path=/")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var answer struct {
+		Kind string `json:"kind"`
+		Type struct {
+			Key string `json:"key"`
+		} `json:"type"`
+		Page struct {
+			Items []struct {
+				Path string `json:"path"`
+			} `json:"items"`
+			Total int `json:"total"`
+			Page  int `json:"page"`
+		} `json:"page"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answer); err != nil {
+		t.Fatalf("reading the answer: %v", err)
+	}
+	if answer.Kind != "archive" || answer.Type.Key != content.TypePost {
+		t.Errorf("answer = %q %q, want the default archive", answer.Kind, answer.Type.Key)
+	}
+	if answer.Page.Total != 1 || answer.Page.Page != 1 || len(answer.Page.Items) != 1 {
+		t.Errorf("page = %+v, want the first page of the archive", answer.Page)
+	}
+}
+
+func TestContentAPIResolvesAnUnknownAddressToNotFound(t *testing.T) {
+	t.Parallel()
+
+	handler := contentServer(t)
+
+	recorder := getContent(t, handler, "/api/content/v1/resolve?path=/nowhere")
+
+	if recorder.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestContentAPIResolveCarriesTheItemValidator(t *testing.T) {
+	t.Parallel()
+
+	handler := contentServer(t, publishedFixture(t, "hello-world", blockMarkup, time.Now().UTC()))
+
+	first := getContent(t, handler, "/api/content/v1/resolve?path=/hello-world")
+	etag := first.Header().Get("ETag")
+	request := httptest.NewRequest(http.MethodGet, "/api/content/v1/resolve?path=/hello-world", nil)
+	request.Header.Set("If-None-Match", etag)
+	again := httptest.NewRecorder()
+	handler.ServeHTTP(again, request)
+
+	if etag == "" {
+		t.Fatal("the resolved item carries no ETag")
+	}
+	if again.Code != http.StatusNotModified {
+		t.Errorf("status = %d, want %d for an unchanged item", again.Code, http.StatusNotModified)
+	}
+}
+
+func TestContentAPIResolvesAnArchivePageFromItsAddress(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	handler := contentServer(t,
+		publishedFixture(t, "first", blockMarkup, now),
+		publishedFixture(t, "second", blockMarkup, now.Add(-time.Hour)),
+	)
+
+	behind := resolvedPage(t, handler, "/api/content/v1/resolve?path=/page/2&per_page=1")
+	front := resolvedPage(t, handler, "/api/content/v1/resolve?path=/&per_page=1")
+
+	if behind.Page != 2 {
+		t.Errorf("page = %d, want the number the address carries", behind.Page)
+	}
+	if len(behind.Items) != 1 || len(front.Items) != 1 {
+		t.Fatalf("pages hold %d and %d items, want one each", len(front.Items), len(behind.Items))
+	}
+	if behind.Items[0].Path == front.Items[0].Path {
+		t.Errorf("both pages carry %q, want the address to move the window", behind.Items[0].Path)
+	}
+	if behind.Total != 2 {
+		t.Errorf("total = %d, want every published item counted", behind.Total)
+	}
+}
+
+// resolvedPage returns the archive page the resolver answers with at address.
+func resolvedPage(t *testing.T, handler http.Handler, address string) struct {
+	Items []struct {
+		Path string `json:"path"`
+	} `json:"items"`
+	Total int `json:"total"`
+	Page  int `json:"page"`
+} {
+	t.Helper()
+	recorder := getContent(t, handler, address)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET %s status = %d, want %d", address, recorder.Code, http.StatusOK)
+	}
+	var answer struct {
+		Page struct {
+			Items []struct {
+				Path string `json:"path"`
+			} `json:"items"`
+			Total int `json:"total"`
+			Page  int `json:"page"`
+		} `json:"page"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answer); err != nil {
+		t.Fatalf("reading the answer to %s: %v", address, err)
+	}
+	return answer.Page
+}
+
+func TestContentAPIMasksAFailedRegistryRead(t *testing.T) {
+	t.Parallel()
+
+	users := newFakeUserStore()
+	types := newFakeTypeStore()
+	types.listErr = errors.New("the registry is unreachable")
+	handler := server.NewServer(server.Config{Users: users, Content: newFakePostStore(), Types: types})
+
+	for _, address := range []string{"/api/content/v1", "/api/content/v1/resolve?path=/"} {
+		recorder := getContent(t, handler, address)
+
+		if recorder.Code != http.StatusInternalServerError {
+			t.Errorf("GET %s status = %d, want %d", address, recorder.Code, http.StatusInternalServerError)
+		}
+	}
+}
+
+func TestContentAPIMasksAFailedArchiveRead(t *testing.T) {
+	t.Parallel()
+
+	posts := newFakePostStore()
+	posts.listErr = errors.New("the store is unreachable")
+	handler := serverWithStores(newFakeUserStore(), posts)
+
+	recorder := getContent(t, handler, "/api/content/v1/resolve?path=/")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestContentAPIRefusesMalformedArchivePaging(t *testing.T) {
+	t.Parallel()
+
+	handler := contentServer(t)
+
+	recorder := getContent(t, handler, "/api/content/v1/resolve?path=/&per_page=0")
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
+	}
+}
+
+func TestContentAPIRefusesAnItemOfAnUnregisteredType(t *testing.T) {
+	t.Parallel()
+
+	orphan := publishedFixture(t, "orphan", blockMarkup, time.Now().UTC())
+	orphan.Type = "ghost"
+	handler := contentServer(t, orphan)
+
+	recorder := getContent(t, handler, "/api/content/v1/resolve?path=/orphan")
+
+	if recorder.Code == http.StatusOK {
+		t.Errorf("status = %d, want the reader refused an item of a type the registry does not hold", recorder.Code)
 	}
 }

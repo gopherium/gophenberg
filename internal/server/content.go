@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gouncer/authkit"
@@ -19,15 +18,48 @@ import (
 )
 
 // contentAPIVersion is the shape published readers code against.
-const contentAPIVersion = 1
+const contentAPIVersion = 2
 
 // contentCacheControl is how long a shared cache may serve a public read.
 const contentCacheControl = "public, s-maxage=60, stale-while-revalidate=300"
 
-// contentHandshake reports the versions a reader is talking to.
+// contentHandshake reports the versions a reader is talking to and the types it serves.
 type contentHandshake struct {
-	Gophenberg string `json:"gophenberg"`
-	API        int    `json:"api"`
+	Gophenberg string       `json:"gophenberg"`
+	API        int          `json:"api"`
+	Types      []servedType `json:"types"`
+}
+
+// servedType is a content type as a public reader sees it.
+type servedType struct {
+	Key          string `json:"key"`
+	SingularName string `json:"singular_label"`
+	PluralName   string `json:"plural_label"`
+	RouteWord    string `json:"route_word"`
+	Hierarchical bool   `json:"hierarchical"`
+	PageKind     string `json:"page_kind"`
+	Default      bool   `json:"default"`
+}
+
+// newServedType returns the public view of a content type.
+func newServedType(t content.Type) servedType {
+	return servedType{
+		Key:          t.Key,
+		SingularName: t.SingularLabel,
+		PluralName:   t.PluralLabel,
+		RouteWord:    t.RouteWord,
+		Hierarchical: t.Hierarchical,
+		PageKind:     string(t.PageKind),
+		Default:      t.Default,
+	}
+}
+
+// resolvedAddress is what a public address holds, as a reader sees it.
+type resolvedAddress struct {
+	Kind string           `json:"kind"`
+	Type servedType       `json:"type"`
+	Item *publishedDetail `json:"item,omitempty"`
+	Page *publishedPage   `json:"page,omitempty"`
 }
 
 // publishedSummary is a published item as a listing carries it.
@@ -123,9 +155,96 @@ func applyPublishedPaging(query url.Values, filter *content.Filter) error {
 
 // handleContentHandshake returns an http.HandlerFunc reporting the versions a reader is talking to.
 func (s *server) handleContentHandshake() http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		authkit.Respond(w, http.StatusOK, contentHandshake{Gophenberg: s.version, API: contentAPIVersion})
+	return func(w http.ResponseWriter, r *http.Request) {
+		registered, err := s.types.All(r.Context())
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		served := make([]servedType, 0, len(registered))
+		for _, t := range registered {
+			if t.Active {
+				served = append(served, newServedType(t))
+			}
+		}
+		authkit.Respond(w, http.StatusOK, contentHandshake{
+			Gophenberg: s.version,
+			API:        contentAPIVersion,
+			Types:      served,
+		})
 	}
+}
+
+// handleContentResolve returns an http.HandlerFunc answering what a public address holds.
+func (s *server) handleContentResolve() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		held, err := s.addresses.Resolve(r.Context(), r.URL.Query().Get("path"))
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		if held.Kind == content.KindArchive {
+			s.respondArchive(w, r, held)
+			return
+		}
+		s.respondResolvedItem(w, r, held)
+	}
+}
+
+// respondResolvedItem answers with the addressed item, or reports it unchanged.
+func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, held content.Address) {
+	listed, err := s.types.ByKey(r.Context(), held.Item.Type)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
+	etag := contentETag(held.Item)
+	w.Header().Set("ETag", etag)
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	authkit.Respond(w, http.StatusOK, resolvedAddress{
+		Kind: string(content.KindItem),
+		Type: newServedType(listed),
+		Item: &publishedDetail{
+			publishedSummary: newPublishedSummary(held.Item),
+			Content:          publichtml.Sanitize(held.Item.Content),
+		},
+	})
+}
+
+// respondArchive answers with the page of published items a listing address holds.
+func (s *server) respondArchive(w http.ResponseWriter, r *http.Request, held content.Address) {
+	filter, err := parsePublishedFilter(r.URL.Query())
+	if err != nil {
+		authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
+		return
+	}
+	filter.Type, filter.Page = held.Type.Key, held.Page
+	page, err := s.publishedPageOf(r, filter)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
+	authkit.Respond(w, http.StatusOK, resolvedAddress{
+		Kind: string(content.KindArchive),
+		Type: newServedType(held.Type),
+		Page: &page,
+	})
+}
+
+// publishedPageOf returns the page of published summaries the filter asks for.
+func (s *server) publishedPageOf(r *http.Request, filter content.Filter) (publishedPage, error) {
+	rows, total, err := s.content.List(r.Context(), filter)
+	if err != nil {
+		return publishedPage{}, err
+	}
+	items := make([]publishedSummary, len(rows))
+	for i, c := range rows {
+		items[i] = newPublishedSummary(c)
+	}
+	return publishedPage{Items: items, Total: total, Page: filter.Page, PerPage: filter.PerPage}, nil
 }
 
 // handlePublishedList returns an http.HandlerFunc listing published items without their content.
@@ -136,42 +255,12 @@ func (s *server) handlePublishedList() http.HandlerFunc {
 			authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
 			return
 		}
-		rows, total, err := s.content.List(r.Context(), filter)
+		page, err := s.publishedPageOf(r, filter)
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
-		items := make([]publishedSummary, len(rows))
-		for i, c := range rows {
-			items[i] = newPublishedSummary(c)
-		}
-		authkit.Respond(w, http.StatusOK, publishedPage{
-			Items:   items,
-			Total:   total,
-			Page:    filter.Page,
-			PerPage: filter.PerPage,
-		})
-	}
-}
-
-// handlePublishedItem returns an http.HandlerFunc serving one published item with its content.
-func (s *server) handlePublishedItem() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		c, err := s.content.PublishedBySlug(r.Context(), chi.URLParam(r, "type"), chi.URLParam(r, "slug"))
-		if err != nil {
-			respondDomainError(w, err)
-			return
-		}
-		etag := contentETag(c)
-		w.Header().Set("ETag", etag)
-		if r.Header.Get("If-None-Match") == etag {
-			w.WriteHeader(http.StatusNotModified)
-			return
-		}
-		authkit.Respond(w, http.StatusOK, publishedDetail{
-			publishedSummary: newPublishedSummary(c),
-			Content:          publichtml.Sanitize(c.Content),
-		})
+		authkit.Respond(w, http.StatusOK, page)
 	}
 }
 

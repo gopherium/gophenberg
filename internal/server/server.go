@@ -65,6 +65,7 @@ func NewServer(cfg Config) http.Handler {
 		media: cfg.Media, mediaStore: cfg.MediaStore, version: cfg.Version,
 		types: content.NewRegistry(cfg.Types),
 	}
+	s.addresses = content.NewResolver(cfg.Content, s.types)
 	router := chi.NewRouter()
 	router.Use(trustForwarded(cfg.TrustedProxies))
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
@@ -73,8 +74,8 @@ func NewServer(cfg Config) http.Handler {
 	router.Group(func(public chi.Router) {
 		public.Use(contentHeaders)
 		public.Get("/api/content/v1", s.handleContentHandshake())
-		public.Get("/api/content/v1/posts", s.handlePublishedList())
-		public.Get("/api/content/v1/posts/{type}/{slug}", s.handlePublishedItem())
+		public.Get("/api/content/v1/items", s.handlePublishedList())
+		public.Get("/api/content/v1/resolve", s.handleContentResolve())
 	})
 	router.Group(func(protected chi.Router) {
 		protected.Use(auth.RequireSession)
@@ -137,6 +138,7 @@ type server struct {
 	users      authkit.AdminStore
 	content    content.Store
 	types      *content.Registry
+	addresses  *content.Resolver
 	themes     Themes
 	media      MediaLibrary
 	mediaStore media.Store
