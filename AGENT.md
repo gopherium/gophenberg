@@ -28,7 +28,7 @@ test/theme/           reference Astro theme, the e2e fixture and the starter sou
 The plugin lifecycle host and wiring generator come from
 [gopherium/pluginkit](https://github.com/gopherium/pluginkit).
 
-- **The public site is two interchangeable renderers.** The root serves published posts through the built-in Go renderer, or through an Astro theme when one is active. A theme is a prebuilt artifact (`theme.json`, `server/entry.mjs`, `client/`) validated by `internal/themehost`, run as a supervised node process bound to loopback, and reached through a reverse proxy that falls back to the Go renderer whenever the theme is not answering. The theme process receives exactly three environment variables and reads content over `/api/content/v1` like any other client. `/api`, `/admin`, `/media`, `/gophenberg`, and `/_gophenberg` are never proxied.
+- **The public site is two interchangeable renderers.** The root serves published content through the built-in Go renderer, or through an Astro theme when one is active. A theme is a prebuilt artifact (`theme.json`, `server/entry.mjs`, `client/`) validated by `internal/themehost`, run as a supervised node process bound to loopback, and reached through a reverse proxy that falls back to the Go renderer whenever the theme is not answering. The theme process receives exactly three environment variables and reads content over `/api/content/v1` like any other client. `/api`, `/admin`, `/media`, `/gophenberg`, and `/_gophenberg` are never proxied.
 
 ## Stack
 
