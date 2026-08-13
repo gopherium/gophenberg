@@ -92,3 +92,25 @@ test('reports a failed count', async () => {
 
 	await expect(fetchPostCounts()).rejects.toThrow(/500/)
 })
+
+test('lists the type it was asked for', async () => {
+	const queries = captureList()
+
+	await listPosts({ type: 'page' })
+
+	expect(new URLSearchParams(queries[0]).get('type')).toBe('page')
+})
+
+test('counts the type it was asked for', async () => {
+	const queries: string[] = []
+	server.use(
+		http.get('/api/content/counts', ({ request }) => {
+			queries.push(new URL(request.url).search)
+			return HttpResponse.json({ draft: 1 })
+		}),
+	)
+
+	await fetchPostCounts('page')
+
+	expect(new URLSearchParams(queries[0]).get('type')).toBe('page')
+})

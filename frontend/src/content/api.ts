@@ -9,6 +9,8 @@ const MAX_EMPTY_ROUNDS = 50
 const postSchema = z.object({
 	id: z.string(),
 	type: z.string(),
+	parent_id: z.string().nullable().optional(),
+	path: z.string().optional(),
 	slug: z.string(),
 	title: z.string(),
 	status: z.string(),
@@ -30,6 +32,8 @@ const countsSchema = z.record(z.string(), z.number())
 export interface Post {
 	id: string
 	type: string
+	parentId: string | null
+	path: string
 	slug: string
 	title: string
 	status: string
@@ -46,6 +50,7 @@ export interface PostPage {
 }
 
 export interface PostQuery {
+	type?: string
 	status?: string
 	search?: string
 	page?: number
@@ -64,6 +69,8 @@ function toPost(row: z.infer<typeof postSchema>): Post {
 	return {
 		id: row.id,
 		type: row.type,
+		parentId: row.parent_id ?? null,
+		path: row.path ?? '',
 		slug: row.slug,
 		title: row.title,
 		status: row.status,
@@ -102,6 +109,7 @@ export interface PostChanges {
 	excerpt?: string
 	slug?: string
 	status?: string
+	parent_id?: string | null
 }
 
 export type SaveOutcome =
@@ -275,6 +283,9 @@ export async function deletePost(id: string): Promise<void> {
  */
 export async function listPosts(query: PostQuery): Promise<PostPage> {
 	const params = new URLSearchParams({ per_page: String(POSTS_PER_PAGE) })
+	if (query.type) {
+		params.set('type', query.type)
+	}
 	if (query.status) {
 		params.set('status', query.status)
 	}
@@ -313,11 +324,13 @@ export async function emptyTrash(): Promise<void> {
 }
 
 /**
- * Returns how many posts hold each status.
+ * Returns how many posts of a type hold each status.
+ * @param type - The content type to count, the default type when absent.
  * @returns The count of posts per status.
  */
-export async function fetchPostCounts(): Promise<PostCounts> {
-	const response = await fetch('/api/content/counts')
+export async function fetchPostCounts(type?: string): Promise<PostCounts> {
+	const params = new URLSearchParams(type ? { type } : {})
+	const response = await fetch(`/api/content/counts?${params}`)
 	if (!response.ok) {
 		throw new Error(`counting posts failed with status ${response.status}`)
 	}
