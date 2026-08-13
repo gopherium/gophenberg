@@ -4,12 +4,13 @@ import { describe, expect, test, vi } from 'vitest'
 
 import { GophenbergClient } from '../client.ts'
 import { gophenbergLoader } from '../loader.ts'
-import type { Page, Post, PostSummary } from '../content.ts'
+import type { ContentType, Page, Post, PostSummary, Resolved } from '../content.ts'
 
 /** A published summary as the content API serves it. */
 const summary: PostSummary = {
 	id: '019fb000-0000-7000-8000-000000000001',
 	type: 'post',
+	path: 'hello-world',
 	slug: 'hello-world',
 	title: 'Hello World',
 	excerpt: 'An excerpt.',
@@ -19,6 +20,17 @@ const summary: PostSummary = {
 
 /** The same post carrying its block markup. */
 const post: Post = { ...summary, content: '<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->' }
+
+/** The default content type as the handshake advertises it. */
+const postType: ContentType = {
+	key: 'post',
+	singular_label: 'Post',
+	plural_label: 'Posts',
+	route_word: '',
+	hierarchical: false,
+	page_kind: 'single',
+	default: true,
+}
 
 /** A page holding one summary. */
 const page: Page<PostSummary> = { items: [summary], total: 1, page: 1, per_page: 20 }
@@ -30,12 +42,12 @@ const page: Page<PostSummary> = { items: [summary], total: 1, page: 1, per_page:
  */
 function loaderOver(behaviour: {
 	listPosts?: () => Promise<Page<PostSummary>>
-	getPost?: () => Promise<Post | undefined>
+	resolve?: () => Promise<Resolved | undefined>
 }) {
 	const listPosts = vi.fn(behaviour.listPosts ?? (async () => page))
-	const getPost = vi.fn(behaviour.getPost ?? (async () => post))
-	const client = { listPosts, getPost } as unknown as GophenbergClient
-	return { loader: gophenbergLoader({ client }), listPosts, getPost }
+	const resolve = vi.fn(behaviour.resolve ?? (async () => ({ kind: 'item', type: postType, item: post })))
+	const client = { listPosts, resolve } as unknown as GophenbergClient
+	return { loader: gophenbergLoader({ client }), listPosts, resolve }
 }
 
 describe('the loader itself', () => {
@@ -79,58 +91,58 @@ describe('loadEntry', () => {
 	test('serves the published post as a live entry', async () => {
 		const { loader } = loaderOver({})
 
-		const got = await loader.loadEntry({ collection: 'posts', filter: { type: 'post', slug: 'hello-world' } })
+		const got = await loader.loadEntry({ collection: 'posts', filter: { path: 'hello-world' } })
 
 		expect(got).toEqual({ id: 'post/hello-world', data: post })
 	})
 
-	test('asks for the type and slug the page addressed', async () => {
-		const { loader, getPost } = loaderOver({})
+	test('asks for the address the page carried', async () => {
+		const { loader, resolve } = loaderOver({})
 
-		await loader.loadEntry({ collection: 'posts', filter: { type: 'page', slug: 'about-us' } })
+		await loader.loadEntry({ collection: 'posts', filter: { path: 'pages/about-us' } })
 
-		expect(getPost).toHaveBeenCalledWith('page', 'about-us')
+		expect(resolve).toHaveBeenCalledWith('pages/about-us')
 	})
 
 	test('answers nothing when no post is published there', async () => {
-		const { loader } = loaderOver({ getPost: async () => undefined })
+		const { loader } = loaderOver({ resolve: async () => undefined })
 
-		const got = await loader.loadEntry({ collection: 'posts', filter: { type: 'post', slug: 'missing' } })
+		const got = await loader.loadEntry({ collection: 'posts', filter: { path: 'missing' } })
 
 		expect(got).toBeUndefined()
 	})
 
 	test('reports a post it could not read', async () => {
 		const { loader } = loaderOver({
-			getPost: async () => {
+			resolve: async () => {
 				throw new Error('connection refused')
 			},
 		})
 
-		const got = await loader.loadEntry({ collection: 'posts', filter: { type: 'post', slug: 'hello-world' } })
+		const got = await loader.loadEntry({ collection: 'posts', filter: { path: 'hello-world' } })
 
 		expect(got).toHaveProperty('error')
 	})
 
 	test('reports a failure that was not thrown as an error', async () => {
 		const { loader } = loaderOver({
-			getPost: async () => {
+			resolve: async () => {
 				throw 'connection refused'
 			},
 		})
 
-		const got = await loader.loadEntry({ collection: 'posts', filter: { slug: 'hello-world' } })
+		const got = await loader.loadEntry({ collection: 'posts', filter: { path: 'hello-world' } })
 
 		expect((got as { error: Error }).error).toBeInstanceOf(Error)
 		expect((got as { error: Error }).error.message).toBe('connection refused')
 	})
 
-	test('reads the default type when the page names none', async () => {
-		const { loader, getPost } = loaderOver({})
+	test('reads the address the page carried', async () => {
+		const { loader, resolve } = loaderOver({})
 
-		await loader.loadEntry({ collection: 'posts', filter: { slug: 'hello-world' } })
+		await loader.loadEntry({ collection: 'posts', filter: { path: 'hello-world' } })
 
-		expect(getPost).toHaveBeenCalledWith('post', 'hello-world')
+		expect(resolve).toHaveBeenCalledWith('hello-world')
 	})
 })
 

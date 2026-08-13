@@ -3,12 +3,13 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { GophenbergClient } from '../client.ts'
-import type { Page, Post, PostSummary } from '../content.ts'
+import type { ContentType, Page, Post, PostSummary } from '../content.ts'
 
 /** A published summary as the content API serves it. */
 const summary: PostSummary = {
 	id: '019fb000-0000-7000-8000-000000000001',
 	type: 'post',
+	path: 'hello-world',
 	slug: 'hello-world',
 	title: 'Hello World',
 	excerpt: 'An excerpt.',
@@ -18,6 +19,17 @@ const summary: PostSummary = {
 
 /** The same post carrying its block markup. */
 const post: Post = { ...summary, content: '<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->' }
+
+/** The default content type as the handshake advertises it. */
+const postType: ContentType = {
+	key: 'post',
+	singular_label: 'Post',
+	plural_label: 'Posts',
+	route_word: '',
+	hierarchical: false,
+	page_kind: 'single',
+	default: true,
+}
 
 /** A page holding one summary. */
 const page: Page<PostSummary> = { items: [summary], total: 1, page: 1, per_page: 20 }
@@ -51,7 +63,7 @@ describe('listPosts', () => {
 		const got = await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).listPosts()
 
 		expect(got).toEqual(page)
-		expect(urls[0]).toBe('https://example.com/api/content/v1/posts?type=post&page=1&per_page=20')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?type=post&page=1&per_page=20')
 	})
 
 	test('passes the type and the paging the caller asked for', async () => {
@@ -63,7 +75,7 @@ describe('listPosts', () => {
 			perPage: 5,
 		})
 
-		expect(urls[0]).toBe('https://example.com/api/content/v1/posts?type=page&page=3&per_page=5')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?type=page&page=3&per_page=5')
 	})
 
 	test('reports a listing it could not read', async () => {
@@ -75,51 +87,30 @@ describe('listPosts', () => {
 	})
 })
 
-describe('getPost', () => {
-	test('reads one published post by type and slug', async () => {
-		const { fetch, urls } = fetchReturning(post)
+describe('resolve', () => {
+	test('reads what an address holds', async () => {
+		const { fetch, urls } = fetchReturning({ kind: 'item', type: postType, item: post })
 
-		const got = await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).getPost('post', 'hello-world')
+		const got = await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).resolve('/hello-world')
 
-		expect(got).toEqual(post)
-		expect(urls[0]).toBe('https://example.com/api/content/v1/posts/post/hello-world')
+		expect(got).toEqual({ kind: 'item', type: postType, item: post })
+		expect(urls[0]).toBe('https://example.com/api/content/v1/resolve?path=%2Fhello-world')
 	})
 
 	test('escapes what it puts in the address', async () => {
-		const { fetch, urls } = fetchReturning(post)
+		const { fetch, urls } = fetchReturning({ kind: 'item', type: postType, item: post })
 
-		await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).getPost('post', 'a slug/../escape')
+		await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).resolve('/a slug/../escape')
 
-		expect(urls[0]).toBe('https://example.com/api/content/v1/posts/post/a%20slug%2F..%2Fescape')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/resolve?path=%2Fa+slug%2F..%2Fescape')
 	})
 
-	test('answers nothing for a post that is not published', async () => {
+	test('answers nothing for an address holding nothing', async () => {
 		const { fetch } = fetchReturning({ error: 'not found' }, 404)
 
-		const got = await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).getPost('post', 'missing')
+		const got = await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).resolve('/missing')
 
 		expect(got).toBeUndefined()
-	})
-
-	test('reports a post it could not read', async () => {
-		const { fetch } = fetchReturning({ error: 'boom' }, 503)
-
-		const reading = new GophenbergClient({ baseUrl: 'https://example.com', fetch }).getPost('post', 'hello-world')
-
-		await expect(reading).rejects.toThrow('503')
-	})
-
-	test('reports a transport that failed', async () => {
-		const fetch = vi.fn(async () => {
-			throw new Error('connection refused')
-		})
-
-		const reading = new GophenbergClient({
-			baseUrl: 'https://example.com',
-			fetch: fetch as unknown as typeof globalThis.fetch,
-		}).getPost('post', 'hello-world')
-
-		await expect(reading).rejects.toThrow('connection refused')
 	})
 })
 
@@ -130,7 +121,7 @@ describe('the address the client reads through', () => {
 
 		await new GophenbergClient({ fetch }).listPosts()
 
-		expect(urls[0]).toContain('http://127.0.0.1:8081/api/content/v1/posts')
+		expect(urls[0]).toContain('http://127.0.0.1:8081/api/content/v1/items')
 	})
 
 	test('prefers what the caller named', async () => {
@@ -169,7 +160,7 @@ describe('the address the client reads through', () => {
 
 		await new GophenbergClient({ baseUrl: 'https://example.com/', fetch }).listPosts()
 
-		expect(urls[0]).toBe('https://example.com/api/content/v1/posts?type=post&page=1&per_page=20')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?type=post&page=1&per_page=20')
 	})
 
 	test('drops every trailing slash, however many were written', async () => {
@@ -177,6 +168,6 @@ describe('the address the client reads through', () => {
 
 		await new GophenbergClient({ baseUrl: 'https://example.com///', fetch }).listPosts()
 
-		expect(urls[0]).toBe('https://example.com/api/content/v1/posts?type=post&page=1&per_page=20')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?type=post&page=1&per_page=20')
 	})
 })

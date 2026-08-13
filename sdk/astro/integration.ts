@@ -17,9 +17,8 @@ const defaultThemePath = './src/theme.ts'
 
 /** The addresses the kit serves, and the files it serves them from. */
 const injectedRoutes = [
-	{ pattern: '/', entrypoint: 'archive.astro' },
-	{ pattern: '/[type]/page/[page]', entrypoint: 'archive.astro' },
-	{ pattern: '/[type]/[slug]', entrypoint: 'post.astro' },
+	{ pattern: '/', entrypoint: 'content.astro' },
+	{ pattern: '/[...path]', entrypoint: 'content.astro' },
 	{ pattern: '/404', entrypoint: 'not-found.astro' },
 	{ pattern: '/_gophenberg/health', entrypoint: 'health.ts' },
 ]

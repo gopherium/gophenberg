@@ -32,10 +32,9 @@
 		".": "./index.ts",
 		"./components": "./components/index.ts",
 		"./config": "./config.ts",
-		"./routes/archive.astro": "./routes/archive.astro",
 		"./routes/health.ts": "./routes/health.ts",
-		"./routes/not-found.astro": "./routes/not-found.astro",
-		"./routes/post.astro": "./routes/post.astro"
+		"./routes/content.astro": "./routes/content.astro",
+		"./routes/not-found.astro": "./routes/not-found.astro"
 	},
 	"scripts": {
 		"cover": "vitest run --coverage",

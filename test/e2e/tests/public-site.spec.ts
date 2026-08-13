@@ -17,7 +17,7 @@ test('serves the public index from the theme rather than the built-in renderer',
 })
 
 test('renders a post through the theme quote override', async ({ page }) => {
-	await page.goto('/post/welcome-to-gophenberg')
+	await page.goto('/welcome-to-gophenberg')
 
 	await expect(page.getByRole('heading', { name: 'Welcome to Gophenberg', level: 1 })).toBeVisible()
 	const quote = page.locator('figure.starter-quote')
@@ -26,13 +26,13 @@ test('renders a post through the theme quote override', async ({ page }) => {
 })
 
 test('names what served a themed page', async ({ page }) => {
-	await page.goto('/post/welcome-to-gophenberg')
+	await page.goto('/welcome-to-gophenberg')
 
 	await expect(page.locator('meta[name="generator"]')).toHaveAttribute('content', /^Gophenberg \d+\.\d+$/)
 })
 
 test('carries the identification headers on a themed response', async ({ page }) => {
-	const response = await page.request.get('/post/welcome-to-gophenberg')
+	const response = await page.request.get('/welcome-to-gophenberg')
 
 	expect(response.status()).toBe(200)
 	expect(response.headers()['x-generator']).toMatch(/^Gophenberg \d+\.\d+$/)
@@ -40,7 +40,7 @@ test('carries the identification headers on a themed response', async ({ page })
 })
 
 test('links the block stylesheet the stored markup was written against', async ({ page }) => {
-	await page.goto('/post/welcome-to-gophenberg')
+	await page.goto('/welcome-to-gophenberg')
 
 	const href = await page.locator('link[rel="stylesheet"][href*="blocks.css"]').getAttribute('href')
 	expect(href).toBe('/gophenberg/blocks.css')

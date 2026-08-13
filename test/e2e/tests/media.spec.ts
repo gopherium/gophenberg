@@ -127,9 +127,9 @@ test('places an uploaded picture in a post and publishes it', async ({ page }) =
 	await page.getByRole('button', { name: 'Publish' }).click()
 	await expect(page.locator('#root').getByText('Post published.')).toBeVisible()
 
-	const slugged = await page.request.get(`/api/content/${postId}`)
-	const post = (await slugged.json()) as { slug: string }
-	await page.goto(`/post/${post.slug}`)
+	const addressed = await page.request.get(`/api/content/${postId}`)
+	const post = (await addressed.json()) as { path: string }
+	await page.goto(`/${post.path}`)
 	const published = page.locator(`img[src^="/media/"]`)
 	await expect(published).toBeVisible()
 	const src = await published.getAttribute('src')
