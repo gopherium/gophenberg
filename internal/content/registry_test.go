@@ -448,3 +448,55 @@ func TestRegistrySurfacesWriteFailures(t *testing.T) {
 		}
 	}
 }
+
+func TestRegistryAnswersTheTypeUnderARouteWord(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeTypeStore()
+	store.types = append(store.types, pageType())
+	registry := content.NewRegistry(store)
+
+	page, err := registry.ByRouteWord(t.Context(), "pages")
+	if err != nil {
+		t.Fatalf("ByRouteWord(%q) error = %v, want nil", "pages", err)
+	}
+	root, err := registry.ByRouteWord(t.Context(), "")
+	if err != nil {
+		t.Fatalf("ByRouteWord(%q) error = %v, want the default type", "", err)
+	}
+
+	if page.Key != "page" {
+		t.Errorf("key = %q, want the type answering under the word", page.Key)
+	}
+	if root.Key != content.TypePost || !root.Default {
+		t.Errorf("root key = %q default = %v, want the default type at the root", root.Key, root.Default)
+	}
+}
+
+func TestRegistryAnswersNoTypeForAnUnusedWord(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+
+	_, err := registry.ByRouteWord(t.Context(), "nowhere")
+
+	if !errors.Is(err, content.ErrTypeNotFound) {
+		t.Fatalf("ByRouteWord error = %v, want %v", err, content.ErrTypeNotFound)
+	}
+}
+
+func TestRegistryHidesAnInactiveTypeFromItsRouteWord(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeTypeStore()
+	closed := pageType()
+	closed.Active = false
+	store.types = append(store.types, closed)
+	registry := content.NewRegistry(store)
+
+	_, err := registry.ByRouteWord(t.Context(), "pages")
+
+	if !errors.Is(err, content.ErrTypeNotFound) {
+		t.Fatalf("ByRouteWord on an inactive type error = %v, want %v", err, content.ErrTypeNotFound)
+	}
+}

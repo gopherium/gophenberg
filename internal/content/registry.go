@@ -73,6 +73,20 @@ func (r *Registry) Default(ctx context.Context) (Type, error) {
 	return Type{}, ErrTypeNotFound
 }
 
+// ByRouteWord returns the active type answering under the word, or [ErrTypeNotFound].
+func (r *Registry) ByRouteWord(ctx context.Context, word string) (Type, error) {
+	types, err := r.All(ctx)
+	if err != nil {
+		return Type{}, err
+	}
+	for _, t := range types {
+		if t.Active && t.RouteWord == word {
+			return t, nil
+		}
+	}
+	return Type{}, ErrTypeNotFound
+}
+
 // Create registers the type, or reports why it may not join the registry.
 func (r *Registry) Create(ctx context.Context, t Type) (Type, error) {
 	if err := t.Validate(); err != nil {
