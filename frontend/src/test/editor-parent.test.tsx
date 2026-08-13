@@ -78,7 +78,9 @@ test('offers a parent for a type that nests', async () => {
 
 test('leaves the parent out for a type that does not nest', async () => {
 	serveNesting([FLAT_TYPE])
-	renderAt(`/content/post/${EDITED.id}/edit`)
+	const flat = { ...EDITED, type: 'post', path: 'team' }
+	server.use(http.get(`/api/content/${flat.id}`, () => HttpResponse.json(flat)))
+	renderAt(`/content/post/${flat.id}/edit`)
 
 	await screen.findByRole('textbox', { name: 'Slug' })
 
