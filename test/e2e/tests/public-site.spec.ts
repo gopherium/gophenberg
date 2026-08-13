@@ -2,21 +2,21 @@
 
 import { expect, test } from '@playwright/test'
 
-test('lists the demo posts on the public index', async ({ page }) => {
+test('lists the newest demo posts on the public index', async ({ page }) => {
 	await page.goto('/')
 
-	await expect(page.getByRole('link', { name: 'Welcome to Gophenberg' })).toBeVisible()
-	await expect(page.getByRole('link', { name: 'Writing with Blocks' })).toBeVisible()
 	await expect(page.getByRole('link', { name: 'Pictures from Elsewhere' })).toBeVisible()
+	await expect(page.getByRole('link', { name: 'Writing with Blocks' })).toBeVisible()
+	await expect(page.getByRole('link', { name: 'Welcome to Gophenberg' })).not.toBeVisible()
 })
 
 test('walks from the index to a post through the link the theme built', async ({ page }) => {
 	await page.goto('/')
 
-	await page.getByRole('link', { name: 'Welcome to Gophenberg' }).click()
+	await page.getByRole('link', { name: 'Writing with Blocks' }).click()
 
-	await expect(page).toHaveURL('/welcome-to-gophenberg')
-	await expect(page.getByRole('heading', { name: 'Welcome to Gophenberg', level: 1 })).toBeVisible()
+	await expect(page).toHaveURL('/writing-with-blocks')
+	await expect(page.getByRole('heading', { name: 'Writing with Blocks', level: 1 })).toBeVisible()
 })
 
 test('serves the public index from the theme rather than the built-in renderer', async ({ page }) => {
@@ -88,4 +88,34 @@ test('shows a post published in the admin without rebuilding the theme', async (
 	} finally {
 		await page.request.delete(`/api/content/${id}?force=true`)
 	}
+})
+
+test('walks to the older page through the link the theme built', async ({ page }) => {
+	await page.goto('/')
+
+	await page.getByRole('link', { name: 'Older' }).click()
+
+	await expect(page).toHaveURL('/page/2')
+	await expect(page.getByRole('link', { name: 'Welcome to Gophenberg' })).toBeVisible()
+
+	await page.getByRole('link', { name: 'Newer' }).click()
+
+	await expect(page).toHaveURL('/')
+})
+
+test('lists the seeded pages under their own address', async ({ page }) => {
+	await page.goto('/pages')
+
+	await expect(page.getByRole('link', { name: 'About' })).toBeVisible()
+
+	await page.getByRole('link', { name: 'About' }).click()
+
+	await expect(page).toHaveURL('/pages/about')
+	await expect(page.getByRole('heading', { name: 'About', level: 1 })).toBeVisible()
+})
+
+test('serves a nested page at the chain of its parents', async ({ page }) => {
+	await page.goto('/pages/about/team')
+
+	await expect(page.getByRole('heading', { name: 'Team', level: 1 })).toBeVisible()
 })

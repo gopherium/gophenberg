@@ -11,6 +11,6 @@ import Post from './layouts/Post.astro'
 export default defineTheme({
 	layouts: { Base, Post, Archive, NotFound },
 	blocks: { 'core/quote': Quote },
-	pagination: { perPage: 10 },
+	pagination: { perPage: 2 },
 	seo: { siteName: 'Gophenberg Starter' },
 })
