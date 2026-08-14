@@ -17,9 +17,6 @@ var ErrFieldShape = errors.New("content: wrong kind of value")
 // ErrFieldRequired reports that a field must hold a value before publishing.
 var ErrFieldRequired = errors.New("content: field is required")
 
-// ErrRelationValuesWait reports that relation values wait for the relation table.
-var ErrRelationValuesWait = errors.New("content: relation values wait for the relation table")
-
 // dateLayout is how a date field writes a day.
 const dateLayout = "2006-01-02"
 
@@ -38,7 +35,7 @@ func (v Values) Validate(fields []Field) error {
 			return fmt.Errorf("%w: %s", ErrUnknownField, key)
 		}
 		if f.Kind == FieldKindRelation {
-			return fmt.Errorf("%w: %s", ErrRelationValuesWait, key)
+			return fmt.Errorf("%w: %s holds targets rather than a value", ErrFieldShape, key)
 		}
 		if value == nil {
 			continue
@@ -102,19 +99,6 @@ func (v Values) Merge(patch Values) Values {
 		merged[key] = value
 	}
 	return merged
-}
-
-// Filled reports whether every required field holds a value.
-func (v Values) Filled(fields []Field) error {
-	for _, f := range fields {
-		if !f.Required {
-			continue
-		}
-		if empty(v[f.Key]) {
-			return fmt.Errorf("%w: %s", ErrFieldRequired, f.Key)
-		}
-	}
-	return nil
 }
 
 // empty reports whether a value stands for a field nobody filled in.
