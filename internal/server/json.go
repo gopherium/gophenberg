@@ -75,6 +75,10 @@ var refusals = []error{
 	content.ErrFieldNotRelational,
 	content.ErrTargetUnknown,
 	content.ErrTypeTargeted,
+	content.ErrUnknownField,
+	content.ErrFieldShape,
+	content.ErrFieldRequired,
+	content.ErrRelationValuesWait,
 }
 
 // isRefusal reports whether err is the CMS turning an edit away.

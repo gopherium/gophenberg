@@ -293,3 +293,32 @@ func TestTypeDeleteRefusedWhileAFieldTargetsIt(t *testing.T) {
 		t.Errorf("status = %d, want the targeted type kept", recorder.Code)
 	}
 }
+
+func TestTypeListCarriesFieldDefinitions(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	created := doRequest(t, handler, http.MethodPost, "/api/types/post/fields",
+		`{"key":"color","label":"Color","kind":"text","required":true}`)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("declaring the field: %d", created.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/types", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	body := decodeBody[struct {
+		Items []struct {
+			Key    string      `json:"key"`
+			Fields []fieldBody `json:"fields"`
+		} `json:"items"`
+	}](t, recorder)
+	if len(body.Items) == 0 || len(body.Items[0].Fields) != 1 {
+		t.Fatalf("items = %+v, want the post type carrying its definition", body.Items)
+	}
+	if held := body.Items[0].Fields[0]; held.Key != "color" || !held.Required {
+		t.Errorf("fields[0] = %+v, want the declared field", held)
+	}
+}

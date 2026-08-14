@@ -74,10 +74,11 @@ type publishedSummary struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// publishedDetail adds the sanitized block markup to a summary.
+// publishedDetail adds the sanitized block markup and the field values to a summary.
 type publishedDetail struct {
 	publishedSummary
-	Content string `json:"content"`
+	Content string         `json:"content"`
+	Fields  content.Values `json:"fields"`
 }
 
 // publishedPage is one page of published summaries with the total behind it.
@@ -209,6 +210,7 @@ func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, hel
 		Item: &publishedDetail{
 			publishedSummary: newPublishedSummary(held.Item),
 			Content:          publichtml.Sanitize(held.Item.Content),
+			Fields:           heldValues(held.Item.Fields),
 		},
 	})
 }

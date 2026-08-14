@@ -27,7 +27,8 @@ type revisionResponse struct {
 
 type revisionDetailResponse struct {
 	revisionResponse
-	Content string `json:"content"`
+	Content string         `json:"content"`
+	Fields  content.Values `json:"fields"`
 }
 
 type revisionListResponse struct {
@@ -98,6 +99,7 @@ func (s *server) handleRevisionGet() http.HandlerFunc {
 		authkit.Respond(w, http.StatusOK, revisionDetailResponse{
 			revisionResponse: newRevisionResponse(revision, names[revision.AuthorID]),
 			Content:          revision.Content,
+			Fields:           heldValues(revision.Fields),
 		})
 	}
 }
