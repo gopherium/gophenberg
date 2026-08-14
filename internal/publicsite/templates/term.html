@@ -1,0 +1,21 @@
+{{define "main"}}
+<article class="gophenberg-site__post">
+<h1 class="gophenberg-site__post-title">{{.Post.Title}}</h1>
+<div class="gophenberg-site__content">
+{{.Post.Content}}
+</div>
+</article>
+{{range .Posts}}
+<article class="gophenberg-site__summary">
+<h2 class="gophenberg-site__summary-title"><a href="{{.URL}}">{{.Title}}</a></h2>
+<p class="gophenberg-site__date"><time datetime="{{.DateAttr}}">{{.DateText}}</time></p>
+<p class="gophenberg-site__excerpt">{{.Excerpt}}</p>
+</article>
+{{else}}
+<p class="gophenberg-site__empty">Nothing published here yet.</p>
+{{end}}
+<nav class="gophenberg-site__pagination">
+{{with .Newer}}<a class="gophenberg-site__newer" href="{{.}}">Newer posts</a>{{end}}
+{{with .Older}}<a class="gophenberg-site__older" href="{{.}}">Older posts</a>{{end}}
+</nav>
+{{end}}
