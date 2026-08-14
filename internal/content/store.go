@@ -35,6 +35,7 @@ type Revision struct {
 	Title     string
 	Content   string
 	Excerpt   string
+	Fields    Values
 	CreatedAt time.Time
 }
 
@@ -52,6 +53,7 @@ func NewRevision(c Content, kind RevisionKind, authorID uuid.UUID) (Revision, er
 		Title:     c.Title,
 		Content:   c.Content,
 		Excerpt:   c.Excerpt,
+		Fields:    c.Fields,
 		CreatedAt: time.Now().UTC(),
 	}, nil
 }
