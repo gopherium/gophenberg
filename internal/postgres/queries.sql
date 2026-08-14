@@ -405,3 +405,34 @@ UPDATE core.content_relations r
 SET sort_at = coalesce(c.published_at, c.created_at), visible = (c.status = 'published')
 FROM core.content c
 WHERE r.from_id = c.id AND c.id = @id;
+
+-- name: ListRelatedContent :many
+SELECT c.id, c.type, c.status, c.slug, c.title, c.excerpt,
+    c.author_id, c.published_at, c.created_at, c.updated_at, c.parent_id, c.path, c.fields
+FROM (
+    SELECT DISTINCT r.sort_at, r.from_id
+    FROM core.content_relations r
+    JOIN core.content pointing ON pointing.id = r.from_id
+    JOIN core.content_types pointer ON pointer.key = pointing.type
+    WHERE r.to_id = @target AND r.visible AND pointer.active
+    ORDER BY r.sort_at DESC, r.from_id
+    LIMIT @row_limit OFFSET @row_offset
+) held
+JOIN core.content c ON c.id = held.from_id
+ORDER BY held.sort_at DESC, held.from_id;
+
+-- name: CountRelatedContent :one
+SELECT count(DISTINCT r.from_id)
+FROM core.content_relations r
+JOIN core.content c ON c.id = r.from_id
+JOIN core.content_types t ON t.key = c.type
+WHERE r.to_id = @target AND r.visible AND t.active;
+
+-- name: ListRelationSummaries :many
+SELECT f.key, c.id, c.title, c.path
+FROM core.content_relations r
+JOIN core.content_fields f ON f.id = r.field_id
+JOIN core.content c ON c.id = r.to_id
+JOIN core.content_types t ON t.key = c.type
+WHERE r.from_id = @from_id AND c.status = 'published' AND t.active
+ORDER BY f.key, r.position;

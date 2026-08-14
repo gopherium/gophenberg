@@ -321,3 +321,133 @@ func TestContentStoreRefusesATargetDeletedMidWrite(t *testing.T) {
 		t.Fatalf("Update() error = %v, want %v", err, content.ErrTargetNotFound)
 	}
 }
+
+// publishItem takes stored content public and returns it.
+func publishItem(t *testing.T, store *postgres.ContentStore, c content.Content) content.Content {
+	t.Helper()
+	version := c.UpdatedAt
+	if err := c.Transition(content.StatusPublished); err != nil {
+		t.Fatalf("Transition() error = %v, want nil", err)
+	}
+	published, err := store.Update(t.Context(), c, version, nil, 0)
+	if err != nil {
+		t.Fatalf("publishing %q: %v, want nil", c.Title, err)
+	}
+	return published
+}
+
+func TestContentStoreListsWhatPointsAtATerm(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := relatingStore(t)
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	first := publishItem(t, store, fileUnder(t, store, mustCreate(t, store, "First", author), news.ID))
+	second := publishItem(t, store, fileUnder(t, store, mustCreate(t, store, "Second", author), news.ID))
+
+	items, total, err := store.RelatedTo(t.Context(), news.ID, 1, 20)
+
+	if err != nil {
+		t.Fatalf("RelatedTo() error = %v, want nil", err)
+	}
+	if total != 2 || len(items) != 2 {
+		t.Fatalf("RelatedTo() = %d items of %d, want both pointers", len(items), total)
+	}
+	if items[0].ID != second.ID || items[1].ID != first.ID {
+		t.Errorf("RelatedTo() = %q then %q, want the newest first", items[0].Title, items[1].Title)
+	}
+}
+
+func TestContentStoreLeavesADraftOffATerm(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := relatingStore(t)
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	fileUnder(t, store, mustCreate(t, store, "Not yet", author), news.ID)
+
+	items, total, err := store.RelatedTo(t.Context(), news.ID, 1, 20)
+
+	if err != nil {
+		t.Fatalf("RelatedTo() error = %v, want nil", err)
+	}
+	if total != 0 || len(items) != 0 {
+		t.Errorf("RelatedTo() = %d items of %d, want a draft left off the term page", len(items), total)
+	}
+}
+
+func TestContentStoreListsAnItemFiledTwiceOnce(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := relatingStore(t)
+	types := postgres.NewTypeStore(pool)
+	series, err := content.NewField(content.Field{
+		TypeKey: "post", Key: "series", Label: "Series",
+		Kind: content.FieldKindRelation, RelatesTo: "category",
+	})
+	if err != nil {
+		t.Fatalf("NewField() error = %v, want nil", err)
+	}
+	if _, err := types.CreateField(t.Context(), series); err != nil {
+		t.Fatalf("declaring the second relation: %v, want nil", err)
+	}
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	post := fileUnder(t, store, mustCreate(t, store, "Hello world", author), news.ID)
+	version := post.UpdatedAt
+	post.Relations = content.Relations{"categories": {news.ID}, "series": {news.ID}}
+	post.UpdatedAt = time.Now().UTC()
+	filed, err := store.Update(t.Context(), post, version, nil, 0)
+	if err != nil {
+		t.Fatalf("filing through both fields: %v, want nil", err)
+	}
+	publishItem(t, store, filed)
+
+	items, total, err := store.RelatedTo(t.Context(), news.ID, 1, 20)
+
+	if err != nil {
+		t.Fatalf("RelatedTo() error = %v, want nil", err)
+	}
+	if total != 1 || len(items) != 1 {
+		t.Errorf("RelatedTo() = %d items of %d, want an item filed twice listed once", len(items), total)
+	}
+}
+
+func TestContentStoreLeavesAnInactiveTypeOffATerm(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := relatingStore(t)
+	types := postgres.NewTypeStore(pool)
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	publishItem(t, store, fileUnder(t, store, mustCreate(t, store, "Hello world", author), news.ID))
+	closed := postType()
+	closed.Active, closed.Default, closed.RouteWord = false, false, "posts"
+	closed.UpdatedAt = time.Now().UTC()
+	if _, err := types.Update(t.Context(), closed); err != nil {
+		t.Fatalf("closing the post type: %v, want nil", err)
+	}
+
+	items, total, err := store.RelatedTo(t.Context(), news.ID, 1, 20)
+
+	if err != nil {
+		t.Fatalf("RelatedTo() error = %v, want nil", err)
+	}
+	if total != 0 || len(items) != 0 {
+		t.Errorf("RelatedTo() = %d items of %d, want a closed type off the term page", len(items), total)
+	}
+}
+
+func TestContentStorePagesATerm(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := relatingStore(t)
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	oldest := publishItem(t, store, fileUnder(t, store, mustCreate(t, store, "Oldest", author), news.ID))
+	publishItem(t, store, fileUnder(t, store, mustCreate(t, store, "Newest", author), news.ID))
+
+	items, total, err := store.RelatedTo(t.Context(), news.ID, 2, 1)
+
+	if err != nil {
+		t.Fatalf("RelatedTo() error = %v, want nil", err)
+	}
+	if total != 2 || len(items) != 1 || items[0].ID != oldest.ID {
+		t.Errorf("RelatedTo() page 2 = %d items of %d, want the older pointer alone", len(items), total)
+	}
+}

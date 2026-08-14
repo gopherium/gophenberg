@@ -124,20 +124,19 @@ func TestRelationMigrationsFollowADeletedField(t *testing.T) {
 	}
 }
 
-func TestRelationMigrationsServeTheTargetScanFromAnIndex(t *testing.T) {
+func TestRelationMigrationsServeTheTermPageFromAnIndex(t *testing.T) {
 	t.Parallel()
 
 	db := newTestDB(t)
-	_, toID, _ := relatableContent(t, db)
-
-	if _, err := db.Exec(`SET enable_seqscan = off; SET enable_bitmapscan = off`); err != nil {
-		t.Fatalf("asking the planner for an ordered index scan: %v, want nil", err)
+	fromID, toID, fieldID := relatableContent(t, db)
+	if err := insertRelation(db, fromID, fieldID, toID); err != nil {
+		t.Fatalf("inserting the relation: %v, want nil", err)
 	}
-	rows, err := db.Query(
-		`EXPLAIN (FORMAT TEXT) SELECT from_id FROM core.content_relations
-		WHERE to_id = $1 AND visible ORDER BY sort_at DESC, from_id LIMIT 20`,
-		toID,
-	)
+
+	if _, err := db.Exec(`SET enable_seqscan = off`); err != nil {
+		t.Fatalf("asking the planner for an index: %v, want nil", err)
+	}
+	rows, err := db.Query(`EXPLAIN (FORMAT TEXT) `+termPageQuery, toID, 20, 0)
 	if err != nil {
 		t.Fatalf("planning the term page scan: %v, want nil", err)
 	}
@@ -155,9 +154,24 @@ func TestRelationMigrationsServeTheTargetScanFromAnIndex(t *testing.T) {
 		t.Fatalf("reading the plan: %v, want nil", err)
 	}
 	if !strings.Contains(plan, "content_relations_target_idx") {
-		t.Errorf("the term page plan is %q, want the target index able to serve it", plan)
+		t.Errorf("the term page plan is %q, want the target index to find the pointers", plan)
 	}
-	if strings.Contains(plan, "Sort") {
-		t.Errorf("the term page plan is %q, want a range scan rather than a sort", plan)
+	if strings.Contains(plan, "Seq Scan on content c") {
+		t.Errorf("the term page plan is %q, want the page limited before the rows are read", plan)
 	}
 }
+
+// termPageQuery is the listing a term page runs, as internal/postgres/queries.sql holds it.
+const termPageQuery = `SELECT c.id, c.type, c.status, c.slug, c.title, c.excerpt,
+    c.author_id, c.published_at, c.created_at, c.updated_at, c.parent_id, c.path, c.fields
+FROM (
+    SELECT DISTINCT r.sort_at, r.from_id
+    FROM core.content_relations r
+    JOIN core.content pointing ON pointing.id = r.from_id
+    JOIN core.content_types pointer ON pointer.key = pointing.type
+    WHERE r.to_id = $1 AND r.visible AND pointer.active
+    ORDER BY r.sort_at DESC, r.from_id
+    LIMIT $2 OFFSET $3
+) held
+JOIN core.content c ON c.id = held.from_id
+ORDER BY held.sort_at DESC, held.from_id`

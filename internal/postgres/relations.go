@@ -86,6 +86,61 @@ func targetsAllowed(
 	return nil
 }
 
+// RelatedTo returns the published content of active types pointing at the target, newest first.
+func (s *ContentStore) RelatedTo(
+	ctx context.Context, target uuid.UUID, page, perPage int,
+) ([]content.Content, int, error) {
+	total, err := s.queries.CountRelatedContent(ctx, target)
+	if err != nil {
+		return nil, 0, fmt.Errorf("postgres: count related content: %w", err)
+	}
+	rows, err := s.queries.ListRelatedContent(ctx, db.ListRelatedContentParams{
+		Target:    target,
+		RowLimit:  int32(perPage),
+		RowOffset: pageOffset(page, perPage),
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("postgres: list related content: %w", err)
+	}
+	items := make([]content.Content, len(rows))
+	for i, row := range rows {
+		items[i] = content.Content{
+			ID:          row.ID,
+			Type:        row.Type,
+			ParentID:    row.ParentID,
+			Path:        row.Path,
+			Status:      content.Status(row.Status),
+			Slug:        row.Slug,
+			Title:       row.Title,
+			Excerpt:     row.Excerpt,
+			AuthorID:    row.AuthorID,
+			Fields:      row.Fields,
+			PublishedAt: utcOrNil(row.PublishedAt),
+			CreatedAt:   row.CreatedAt.UTC(),
+			UpdatedAt:   row.UpdatedAt.UTC(),
+		}
+	}
+	return items, int(total), nil
+}
+
+// TargetsOf returns the published targets of active types the item points at, keyed by field key.
+func (s *ContentStore) TargetsOf(ctx context.Context, from uuid.UUID) (content.Targets, error) {
+	rows, err := s.queries.ListRelationSummaries(ctx, from)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list relation summaries: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	targets := make(content.Targets)
+	for _, row := range rows {
+		targets[row.Key] = append(targets[row.Key], content.Target{
+			ID: row.ID, Title: row.Title, Path: row.Path,
+		})
+	}
+	return targets, nil
+}
+
 // isTargetGone reports whether err is a relation pointing at an item that was removed.
 func isTargetGone(err error) bool {
 	var pgErr *pgconn.PgError

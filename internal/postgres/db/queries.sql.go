@@ -203,6 +203,21 @@ func (q *Queries) CountMedia(ctx context.Context, arg CountMediaParams) (int64, 
 	return count, err
 }
 
+const countRelatedContent = `-- name: CountRelatedContent :one
+SELECT count(DISTINCT r.from_id)
+FROM core.content_relations r
+JOIN core.content c ON c.id = r.from_id
+JOIN core.content_types t ON t.key = c.type
+WHERE r.to_id = $1 AND r.visible AND t.active
+`
+
+func (q *Queries) CountRelatedContent(ctx context.Context, target uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countRelatedContent, target)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createContent = `-- name: CreateContent :one
 
 INSERT INTO core.content (
@@ -1066,6 +1081,78 @@ func (q *Queries) ListMedia(ctx context.Context, arg ListMediaParams) ([]CoreMed
 	return items, nil
 }
 
+const listRelatedContent = `-- name: ListRelatedContent :many
+SELECT c.id, c.type, c.status, c.slug, c.title, c.excerpt,
+    c.author_id, c.published_at, c.created_at, c.updated_at, c.parent_id, c.path, c.fields
+FROM (
+    SELECT DISTINCT r.sort_at, r.from_id
+    FROM core.content_relations r
+    JOIN core.content pointing ON pointing.id = r.from_id
+    JOIN core.content_types pointer ON pointer.key = pointing.type
+    WHERE r.to_id = $1 AND r.visible AND pointer.active
+    ORDER BY r.sort_at DESC, r.from_id
+    LIMIT $3 OFFSET $2
+) held
+JOIN core.content c ON c.id = held.from_id
+ORDER BY held.sort_at DESC, held.from_id
+`
+
+type ListRelatedContentParams struct {
+	Target    uuid.UUID
+	RowOffset int32
+	RowLimit  int32
+}
+
+type ListRelatedContentRow struct {
+	ID          uuid.UUID
+	Type        string
+	Status      string
+	Slug        string
+	Title       string
+	Excerpt     string
+	AuthorID    uuid.UUID
+	PublishedAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	ParentID    *uuid.UUID
+	Path        string
+	Fields      content.Values
+}
+
+func (q *Queries) ListRelatedContent(ctx context.Context, arg ListRelatedContentParams) ([]ListRelatedContentRow, error) {
+	rows, err := q.db.Query(ctx, listRelatedContent, arg.Target, arg.RowOffset, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRelatedContentRow
+	for rows.Next() {
+		var i ListRelatedContentRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Status,
+			&i.Slug,
+			&i.Title,
+			&i.Excerpt,
+			&i.AuthorID,
+			&i.PublishedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ParentID,
+			&i.Path,
+			&i.Fields,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRelationFieldsOfType = `-- name: ListRelationFieldsOfType :many
 SELECT id, key, relates_to, many FROM core.content_fields
 WHERE type_key = $1 AND kind = 'relation'
@@ -1093,6 +1180,48 @@ func (q *Queries) ListRelationFieldsOfType(ctx context.Context, typeKey string) 
 			&i.Key,
 			&i.RelatesTo,
 			&i.Many,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRelationSummaries = `-- name: ListRelationSummaries :many
+SELECT f.key, c.id, c.title, c.path
+FROM core.content_relations r
+JOIN core.content_fields f ON f.id = r.field_id
+JOIN core.content c ON c.id = r.to_id
+JOIN core.content_types t ON t.key = c.type
+WHERE r.from_id = $1 AND c.status = 'published' AND t.active
+ORDER BY f.key, r.position
+`
+
+type ListRelationSummariesRow struct {
+	Key   string
+	ID    uuid.UUID
+	Title string
+	Path  string
+}
+
+func (q *Queries) ListRelationSummaries(ctx context.Context, fromID uuid.UUID) ([]ListRelationSummariesRow, error) {
+	rows, err := q.db.Query(ctx, listRelationSummaries, fromID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRelationSummariesRow
+	for rows.Next() {
+		var i ListRelationSummariesRow
+		if err := rows.Scan(
+			&i.Key,
+			&i.ID,
+			&i.Title,
+			&i.Path,
 		); err != nil {
 			return nil, err
 		}
