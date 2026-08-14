@@ -69,10 +69,13 @@ export function TypesScreen() {
 	}
 
 	return (
-		<Page title="Content Types" subtitle="Every kind of content this site holds.">
+		<Page
+			title="Content Types"
+			subtitle="Every kind of content this site holds."
+			actions={<AddType onDone={done} onRefused={refused} />}
+		>
 			<Stack direction="column" gap="md">
 				{refusal !== '' && <ErrorNotice>{refusal}</ErrorNotice>}
-				<AddType onDone={done} onRefused={refused} />
 				<TypesBody
 					types={types.data ?? []}
 					loading={types.isPending}
@@ -124,6 +127,7 @@ function TypesBody(props: Reporter & { types: ContentType[]; loading: boolean; f
 						<TypeRow
 							key={registered.key}
 							registered={registered}
+							holder={props.types.find((listed) => listed.isDefault)}
 							onDone={props.onDone}
 							onRefused={props.onRefused}
 						/>
@@ -139,7 +143,7 @@ function TypesBody(props: Reporter & { types: ContentType[]; loading: boolean; f
  * @param props - The type and the reporter.
  * @returns The row element.
  */
-function TypeRow(props: Reporter & { registered: ContentType }): ReactNode {
+function TypeRow(props: Reporter & { registered: ContentType; holder?: ContentType }): ReactNode {
 	const { registered } = props
 	const edit = useMutation({
 		mutationFn: (asked: TypeEdit) => updateType(registered.key, asked),
@@ -171,9 +175,11 @@ function TypeRow(props: Reporter & { registered: ContentType }): ReactNode {
 				<Stack direction="row" gap="xs">
 					<ChangeAddress registered={registered} onMove={(word) => edit.mutate({ routeWord: word })} />
 					{!registered.isDefault && (
-						<Button variant="outline" onClick={() => edit.mutate({ isDefault: true })}>
-							Make default
-						</Button>
+						<HandOverRoot
+							registered={registered}
+							holder={props.holder}
+							onHandOver={() => edit.mutate({ isDefault: true })}
+						/>
 					)}
 					{!registered.isDefault && registered.active && (
 						<Button variant="outline" onClick={() => edit.mutate({ active: false })}>
@@ -193,6 +199,59 @@ function TypeRow(props: Reporter & { registered: ContentType }): ReactNode {
 				</Stack>
 			</td>
 		</tr>
+	)
+}
+
+/**
+ * Renders the confirmation handing the root from one type to another.
+ * @param props - The type taking the root, the type holding it, and what to do.
+ * @returns The control and its dialog.
+ */
+function HandOverRoot(props: {
+	registered: ContentType
+	holder?: ContentType
+	onHandOver: () => void
+}) {
+	const [open, setOpen] = useState(false)
+	const holder = props.holder
+	return (
+		<>
+			<Button variant="outline" onClick={() => setOpen(true)}>
+				Make default
+			</Button>
+			<Dialog.Root open={open} onOpenChange={setOpen}>
+				<Dialog.Popup>
+					<Dialog.Header>
+						<Dialog.Title>Hand the root to {props.registered.pluralLabel}</Dialog.Title>
+						<Dialog.CloseIcon />
+					</Dialog.Header>
+					<Dialog.Content>
+						<Stack direction="column" gap="md">
+							<Text>{props.registered.pluralLabel} will answer at the root.</Text>
+							{holder !== undefined && (
+								<Text>
+									{holder.pluralLabel} moves to /{slugify(holder.pluralLabel)}. Every address
+									of both types changes.
+								</Text>
+							)}
+						</Stack>
+					</Dialog.Content>
+					<Dialog.Footer>
+						<Button variant="outline" onClick={() => setOpen(false)}>
+							Keep it
+						</Button>
+						<Button
+							onClick={() => {
+								setOpen(false)
+								props.onHandOver()
+							}}
+						>
+							Hand over the root
+						</Button>
+					</Dialog.Footer>
+				</Dialog.Popup>
+			</Dialog.Root>
+		</>
 	)
 }
 
@@ -273,9 +332,7 @@ function AddType(props: Reporter) {
 	})
 	return (
 		<>
-			<Stack direction="row">
-				<Button onClick={() => setOpen(true)}>Add New Type</Button>
-			</Stack>
+			<Button onClick={() => setOpen(true)}>Add New Type</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
