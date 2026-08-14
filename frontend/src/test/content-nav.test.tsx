@@ -59,6 +59,21 @@ test('lists a navigation row for every active type', async () => {
 	expect(await within(menu).findByRole('link', { name: 'Pages' })).toBeInTheDocument()
 })
 
+test('puts the type that answers at the root first', async () => {
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [PAGE_TYPE, POST_TYPE] })),
+	)
+	renderAt('/')
+
+	const menu = await screen.findByRole('navigation', { name: 'Navigation' })
+	await within(menu).findByRole('link', { name: 'Pages' })
+
+	const rows = within(menu)
+		.getAllByRole('link')
+		.map((link) => link.textContent)
+	expect(rows.indexOf('Posts')).toBeLessThan(rows.indexOf('Pages'))
+})
+
 test('leaves an inactive type out of the navigation', async () => {
 	renderAt('/')
 

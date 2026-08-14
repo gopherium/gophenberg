@@ -44,10 +44,13 @@ export function typeNavItem(registered: ContentType): NavItem {
 }
 
 /**
- * Returns one nav entry per active content type, in registration order.
+ * Returns one nav entry per active content type, the root type first.
  * @returns The entries, empty until the registry answers.
  */
 export function useContentNav(): NavItem[] {
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
-	return (types.data ?? []).filter((registered) => registered.active).map(typeNavItem)
+	return (types.data ?? [])
+		.filter((registered) => registered.active)
+		.sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
+		.map(typeNavItem)
 }
