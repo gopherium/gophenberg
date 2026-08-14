@@ -373,3 +373,57 @@ func TestUpdateHandsTheRootToAnotherType(t *testing.T) {
 		t.Errorf("post address = %q, want it under its own word", got)
 	}
 }
+
+func TestUpdateRefusesToHandTheRootToAReservedAddress(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	types := postgres.NewTypeStore(pool)
+	if _, err := types.Create(t.Context(), pageType()); err != nil {
+		t.Fatalf("registering the page type: %v", err)
+	}
+	relabelled := postType()
+	relabelled.SingularLabel, relabelled.PluralLabel = "Medium", "Media"
+	relabelled.UpdatedAt = time.Now().UTC()
+	if _, err := types.Update(t.Context(), relabelled); err != nil {
+		t.Fatalf("relabelling the default type: %v", err)
+	}
+	about := mustNest(t, store, nil, "About", author)
+
+	promoted := pageType()
+	promoted.Default, promoted.UpdatedAt = true, time.Now().UTC()
+
+	_, err := types.Update(t.Context(), promoted)
+
+	if !errors.Is(err, content.ErrRouteWordReserved) {
+		t.Fatalf("Update() error = %v, want %v", err, content.ErrRouteWordReserved)
+	}
+	if got := addressOf(t, store, about.ID); got != "pages/about" {
+		t.Errorf("page address = %q, want the refused hand over to have moved nothing", got)
+	}
+}
+
+func TestUpdateRefusesToHandTheRootToAnUnusableAddress(t *testing.T) {
+	t.Parallel()
+
+	_, _, pool := newContentStoreWithPool(t)
+	types := postgres.NewTypeStore(pool)
+	if _, err := types.Create(t.Context(), pageType()); err != nil {
+		t.Fatalf("registering the page type: %v", err)
+	}
+	relabelled := postType()
+	relabelled.SingularLabel, relabelled.PluralLabel = "3D Model", "3D Models"
+	relabelled.UpdatedAt = time.Now().UTC()
+	if _, err := types.Update(t.Context(), relabelled); err != nil {
+		t.Fatalf("relabelling the default type: %v", err)
+	}
+
+	promoted := pageType()
+	promoted.Default, promoted.UpdatedAt = true, time.Now().UTC()
+
+	_, err := types.Update(t.Context(), promoted)
+
+	if !errors.Is(err, content.ErrInvalidRouteWord) {
+		t.Fatalf("Update() error = %v, want %v", err, content.ErrInvalidRouteWord)
+	}
+}

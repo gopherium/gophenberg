@@ -161,7 +161,9 @@ func (s *TypeStore) writeType(ctx context.Context, tx pgx.Tx, t content.Type) (c
 
 // updateTypeFailure returns the refusal the type update carries, and wraps anything else.
 func updateTypeFailure(err error) error {
-	if errors.Is(err, content.ErrTypeNotFound) {
+	if errors.Is(err, content.ErrTypeNotFound) ||
+		errors.Is(err, content.ErrRouteWordReserved) ||
+		errors.Is(err, content.ErrInvalidRouteWord) {
 		return err
 	}
 	if taken := takenBy(err); taken != nil {
@@ -185,6 +187,9 @@ func handRootOver(ctx context.Context, tx pgx.Tx, queries *db.Queries, at time.T
 	demoted := toType(row)
 	demoted.RouteWord = content.Slugify(demoted.PluralLabel)
 	demoted.Default, demoted.UpdatedAt = false, at
+	if err := demoted.Validate(); err != nil {
+		return err
+	}
 	if _, err := queries.UpdateContentType(ctx, updateParams(demoted)); err != nil {
 		return err
 	}
