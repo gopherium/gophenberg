@@ -34,61 +34,53 @@ Feature: Managing content fields
     When the administrator deletes the type "category"
     Then the request is refused
 
-  @wip
   Scenario: A stored value survives a relabel
     Given the "text" field "color" labeled "Color" on "post"
     And a published post "Hello world" holding "red" in "color"
     When the administrator relabels the field "color" on "post" as "Paint"
     Then the post "Hello world" holds "red" in "color"
 
-  @wip
   Scenario: A value of the wrong shape is refused
     Given the "number" field "doors" labeled "Doors" on "post"
     And the post "Hello world"
     When the administrator saves "many" into "doors" of "Hello world"
     Then the request is refused
 
-  @wip
   Scenario: An unknown field key is refused
     Given the post "Hello world"
     When the administrator saves "red" into "finish" of "Hello world"
     Then the request is refused
 
-  @wip
   Scenario: A draft lives without a required field
     Given the required "text" field "color" labeled "Color" on "post"
     When the administrator creates the post "Hello world"
     Then the post "Hello world" holds no field "color"
 
-  @wip
   Scenario: Publishing without a required field is refused
     Given the required "text" field "color" labeled "Color" on "post"
     And the post "Hello world"
     When the administrator publishes "Hello world"
     Then the request is refused
 
-  @wip
   Scenario: Emptying a required field of a published post is refused
     Given the required "text" field "color" labeled "Color" on "post"
     And a published post "Hello world" holding "red" in "color"
     When the administrator clears "color" of "Hello world"
     Then the request is refused
 
-  @wip
   Scenario: An autosave carries field values
     Given the "text" field "color" labeled "Color" on "post"
     And the post "Hello world"
     When the editor autosaves "Hello world" holding "red" in "color"
-    Then the autosave of "Hello world" holds "red" in "color"
+    Then the buffer it saved holds "red" in "color"
+    And the post "Hello world" holds "red" in "color"
 
-  @wip
   Scenario: Deleting a field removes its values
     Given the "text" field "color" labeled "Color" on "post"
     And a published post "Hello world" holding "red" in "color"
     When the administrator deletes the field "color" on "post"
     Then the post "Hello world" holds no field "color"
 
-  @wip
   Scenario: A restored revision brings its values back
     Given the "text" field "color" labeled "Color" on "post"
     And a published post "Hello world" holding "red" in "color"
@@ -96,7 +88,6 @@ Feature: Managing content fields
     And the administrator restores the previous revision of "Hello world"
     Then the post "Hello world" holds "red" in "color"
 
-  @wip
   Scenario: A restored revision holds no deleted field
     Given the "text" field "color" labeled "Color" on "post"
     And a published post "Hello world" holding "red" in "color"

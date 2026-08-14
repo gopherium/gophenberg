@@ -18,13 +18,105 @@ import (
 // memoryContent holds one scenario's content in memory.
 type memoryContent struct {
 	content.Store
-	mu    sync.Mutex
-	items map[uuid.UUID]content.Content
+	mu        sync.Mutex
+	items     map[uuid.UUID]content.Content
+	revisions map[uuid.UUID][]content.Revision
+	autosaves map[autosaveKey]content.Revision
+}
+
+// autosaveKey names one author's parked buffer over one item.
+type autosaveKey struct {
+	contentID uuid.UUID
+	authorID  uuid.UUID
 }
 
 // newMemoryContent returns an empty in-memory content store.
 func newMemoryContent() *memoryContent {
-	return &memoryContent{items: make(map[uuid.UUID]content.Content)}
+	return &memoryContent{
+		items:     make(map[uuid.UUID]content.Content),
+		revisions: make(map[uuid.UUID][]content.Revision),
+		autosaves: make(map[autosaveKey]content.Revision),
+	}
+}
+
+// clearField sweeps the field's values from the type's items and their snapshots.
+func (s *memoryContent) clearField(typeKey, key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, stored := range s.items {
+		if stored.Type != typeKey {
+			continue
+		}
+		delete(stored.Fields, key)
+		s.items[id] = stored
+		for i := range s.revisions[id] {
+			delete(s.revisions[id][i].Fields, key)
+		}
+		for held, parked := range s.autosaves {
+			if held.contentID == id {
+				delete(parked.Fields, key)
+			}
+		}
+	}
+}
+
+// Revisions returns the item's revisions newest first, without their content.
+func (s *memoryContent) Revisions(_ context.Context, contentID uuid.UUID) ([]content.Revision, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	held := s.revisions[contentID]
+	listed := make([]content.Revision, len(held))
+	for i, stored := range held {
+		listed[len(held)-1-i] = stored
+		listed[len(held)-1-i].Content = ""
+	}
+	return listed, nil
+}
+
+// RevisionByID returns the item's revision, or [content.ErrRevisionNotFound].
+func (s *memoryContent) RevisionByID(
+	_ context.Context, contentID, revisionID uuid.UUID,
+) (content.Revision, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, stored := range s.revisions[contentID] {
+		if stored.ID == revisionID {
+			return stored, nil
+		}
+	}
+	return content.Revision{}, content.ErrRevisionNotFound
+}
+
+// SaveAutosave stores the author's autosave of the item, replacing any earlier one.
+func (s *memoryContent) SaveAutosave(_ context.Context, autosave content.Revision) (content.Revision, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, found := s.items[autosave.ContentID]; !found {
+		return content.Revision{}, content.ErrNotFound
+	}
+	s.autosaves[autosaveKey{autosave.ContentID, autosave.AuthorID}] = autosave
+	return autosave, nil
+}
+
+// Autosave returns the author's autosave of the item, or [content.ErrRevisionNotFound].
+func (s *memoryContent) Autosave(
+	_ context.Context, contentID, authorID uuid.UUID,
+) (content.Revision, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	parked, found := s.autosaves[autosaveKey{contentID, authorID}]
+	if !found {
+		return content.Revision{}, content.ErrRevisionNotFound
+	}
+	return parked, nil
+}
+
+// DeleteAutosave removes the author's autosave of the item.
+func (s *memoryContent) DeleteAutosave(_ context.Context, contentID, authorID uuid.UUID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.autosaves, autosaveKey{contentID, authorID})
+	return nil
 }
 
 // Create stores a new content item, suffixing its slug until its address is free.
@@ -174,7 +266,7 @@ func paged(matched []content.Content, f content.Filter) []content.Content {
 
 // Update stores the item's editable fields, or reports it missing or stale.
 func (s *memoryContent) Update(
-	_ context.Context, c content.Content, expectedUpdatedAt time.Time, _ *content.Revision, _ int,
+	_ context.Context, c content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision, _ int,
 ) (content.Content, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -184,6 +276,9 @@ func (s *memoryContent) Update(
 	}
 	if !stored.UpdatedAt.Equal(expectedUpdatedAt) {
 		return content.Content{}, content.ErrConflict
+	}
+	if snapshot != nil {
+		s.revisions[c.ID] = append(s.revisions[c.ID], *snapshot)
 	}
 	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {

@@ -153,6 +153,9 @@ func (s *memoryTypes) DeleteField(_ context.Context, typeKey, key string) error 
 		for j, held := range stored.Fields {
 			if held.Key == key {
 				s.types[i].Fields = append(stored.Fields[:j], stored.Fields[j+1:]...)
+				if s.content != nil {
+					s.content.clearField(typeKey, key)
+				}
 				return nil
 			}
 		}

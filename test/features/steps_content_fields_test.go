@@ -278,27 +278,20 @@ func theEditorAutosavesHolding(ctx context.Context, title, value, key string) er
 	return w.postJSON(contentPath+"/"+stored.ID+"/autosave", body)
 }
 
-// theAutosaveHolds asserts the parked autosave carries the value.
-func theAutosaveHolds(ctx context.Context, title, value, key string) error {
+// theBufferItSavedHolds asserts the answer to the autosave carries the value.
+func theBufferItSavedHolds(ctx context.Context, value, key string) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
 	}
-	held, found := w.nested[title]
-	if !found {
-		return fmt.Errorf("the scenario stored no post titled %q", title)
-	}
-	if err := w.get(contentPath + "/" + held.ID + "/autosave"); err != nil {
-		return err
-	}
 	if err := w.expect(http.StatusOK); err != nil {
-		return fmt.Errorf("reading the autosave of %q: %w", title, err)
+		return fmt.Errorf("saving the buffer: %w", err)
 	}
-	var parked fieldedContent
-	if err := w.answer.decode(&parked); err != nil {
+	var saved fieldedContent
+	if err := w.answer.decode(&saved); err != nil {
 		return err
 	}
-	return holdsValue(parked.Fields, key, value, "the autosave of "+title)
+	return holdsValue(saved.Fields, key, value, "the buffer")
 }
 
 // theAdministratorRestoresThePreviousRevisionOf writes the newest revision back over the post.
@@ -444,5 +437,5 @@ func initializeContentFields(sc *godog.ScenarioContext) {
 	sc.Then(`^the request is refused$`, theRequestIsRefused)
 	sc.Then(`^the post "([^"]*)" holds "([^"]*)" in "([^"]*)"$`, thePostHolds)
 	sc.Then(`^the post "([^"]*)" holds no field "([^"]*)"$`, thePostHoldsNoField)
-	sc.Then(`^the autosave of "([^"]*)" holds "([^"]*)" in "([^"]*)"$`, theAutosaveHolds)
+	sc.Then(`^the buffer it saved holds "([^"]*)" in "([^"]*)"$`, theBufferItSavedHolds)
 }
