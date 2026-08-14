@@ -32,13 +32,24 @@ type contentHandshake struct {
 
 // servedType is a content type as a public reader sees it.
 type servedType struct {
-	Key          string `json:"key"`
-	SingularName string `json:"singular_label"`
-	PluralName   string `json:"plural_label"`
-	RouteWord    string `json:"route_word"`
-	Hierarchical bool   `json:"hierarchical"`
-	PageKind     string `json:"page_kind"`
-	Default      bool   `json:"default"`
+	Key          string        `json:"key"`
+	SingularName string        `json:"singular_label"`
+	PluralName   string        `json:"plural_label"`
+	RouteWord    string        `json:"route_word"`
+	Hierarchical bool          `json:"hierarchical"`
+	PageKind     string        `json:"page_kind"`
+	Default      bool          `json:"default"`
+	Fields       []servedField `json:"fields"`
+}
+
+// servedField is a field definition as a public reader sees it.
+type servedField struct {
+	Key       string `json:"key"`
+	Label     string `json:"label"`
+	Kind      string `json:"kind"`
+	RelatesTo string `json:"relates_to,omitempty"`
+	Many      bool   `json:"many"`
+	Required  bool   `json:"required"`
 }
 
 // newServedType returns the public view of a content type.
@@ -51,7 +62,24 @@ func newServedType(t content.Type) servedType {
 		Hierarchical: t.Hierarchical,
 		PageKind:     string(t.PageKind),
 		Default:      t.Default,
+		Fields:       servedFields(t),
 	}
+}
+
+// servedFields returns the type's field definitions as a public reader sees them.
+func servedFields(t content.Type) []servedField {
+	fields := make([]servedField, len(t.Fields))
+	for i, f := range t.Fields {
+		fields[i] = servedField{
+			Key:       f.Key,
+			Label:     f.Label,
+			Kind:      string(f.Kind),
+			RelatesTo: f.RelatesTo,
+			Many:      f.Many,
+			Required:  f.Required,
+		}
+	}
+	return fields
 }
 
 // resolvedAddress is what a public address holds, as a reader sees it.

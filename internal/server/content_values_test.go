@@ -669,3 +669,41 @@ func TestResolveLeavesAnUnpublishedTargetOut(t *testing.T) {
 		t.Errorf("the public item names an unpublished target: %s", body)
 	}
 }
+
+func TestHandshakeCarriesFieldDefinitions(t *testing.T) {
+	t.Parallel()
+
+	handler := termTypeServer(t)
+	declaredOn(t, handler, `{"key":"color","label":"Color","kind":"text","required":true}`)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	advertised := decodeBody[struct {
+		Types []struct {
+			Key    string `json:"key"`
+			Fields []struct {
+				Key       string `json:"key"`
+				Label     string `json:"label"`
+				Kind      string `json:"kind"`
+				RelatesTo string `json:"relates_to"`
+				Many      bool   `json:"many"`
+				Required  bool   `json:"required"`
+			} `json:"fields"`
+		} `json:"types"`
+	}](t, recorder)
+	for _, listed := range advertised.Types {
+		if listed.Key != content.TypePost {
+			continue
+		}
+		for _, held := range listed.Fields {
+			if held.Key == "color" && held.Kind == "text" && held.Required {
+				return
+			}
+		}
+		t.Fatalf("the post type advertises %+v, want its declared field", listed.Fields)
+	}
+	t.Fatal("the handshake advertises no post type")
+}
