@@ -24,7 +24,8 @@ func respondDomainError(w http.ResponseWriter, err error) {
 func statusFor(err error) (int, string) {
 	switch {
 	case errors.Is(err, content.ErrNotFound), errors.Is(err, content.ErrRevisionNotFound),
-		errors.Is(err, content.ErrTypeNotFound), errors.Is(err, media.ErrNotFound):
+		errors.Is(err, content.ErrTypeNotFound), errors.Is(err, content.ErrFieldNotFound),
+		errors.Is(err, media.ErrNotFound):
 		return http.StatusNotFound, err.Error()
 	case errors.Is(err, content.ErrConflict), errors.Is(err, media.ErrConflict):
 		return http.StatusConflict, err.Error()
@@ -66,6 +67,14 @@ var refusals = []error{
 	content.ErrInvalidPageKind,
 	content.ErrPageKindUnavailable,
 	content.ErrInvalidRevisionCap,
+	content.ErrFieldTaken,
+	content.ErrInvalidFieldKey,
+	content.ErrInvalidFieldLabel,
+	content.ErrInvalidFieldKind,
+	content.ErrRelationNeedsTarget,
+	content.ErrFieldNotRelational,
+	content.ErrTargetUnknown,
+	content.ErrTypeTargeted,
 }
 
 // isRefusal reports whether err is the CMS turning an edit away.

@@ -88,6 +88,10 @@ func NewServer(cfg Config) http.Handler {
 			protected.Post("/api/types", s.handleTypeCreate())
 			protected.Patch("/api/types/{key}", s.handleTypePatch())
 			protected.Delete("/api/types/{key}", s.handleTypeDelete())
+			protected.Get("/api/types/{key}/fields", s.handleFieldList())
+			protected.Post("/api/types/{key}/fields", s.handleFieldCreate())
+			protected.Patch("/api/types/{key}/fields/{fieldKey}", s.handleFieldPatch())
+			protected.Delete("/api/types/{key}/fields/{fieldKey}", s.handleFieldDelete())
 		}
 		protected.Get("/api/content", s.handleContentList())
 		protected.Post("/api/content", s.handleContentCreate())
