@@ -10,23 +10,23 @@ VALUES (
     @author_id, @published_at, @created_at, @updated_at, @parent_id, @path
 )
 RETURNING id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at, parent_id, path;
+    author_id, published_at, created_at, updated_at, parent_id, path, fields;
 
 -- name: GetContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 FROM core.content p
 WHERE p.id = @id;
 
 -- name: GetPublishedContentByPath :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 FROM core.content p
 WHERE p.path = @path AND p.status = 'published';
 
 -- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 FROM core.content p
 WHERE p.type = @type
     AND (@status::text = '' OR p.status = @status)
@@ -62,7 +62,7 @@ SET status = @status, slug = @slug, path = @path, parent_id = @parent_id, title 
     content = @content, excerpt = @excerpt, published_at = @published_at, updated_at = @updated_at
 WHERE p.id = @id AND p.updated_at = @expected_updated_at
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields;
 
 -- name: MoveDescendants :exec
 WITH RECURSIVE moved AS (
@@ -97,7 +97,7 @@ SET status = 'trash', slug = p.slug || @suffix::text, path = p.path || @suffix::
     updated_at = @updated_at
 WHERE p.id = @id
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields;
 
 -- name: RestoreContent :one
 UPDATE core.content AS p
@@ -107,14 +107,14 @@ SET status = 'draft',
     updated_at = @updated_at
 WHERE p.id = @id
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields;
 
 -- name: RestoreContentKeepingSlug :one
 UPDATE core.content AS p
 SET status = 'draft', updated_at = @updated_at
 WHERE p.id = @id
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields;
 
 -- name: DeleteContent :execrows
 DELETE FROM core.content AS p WHERE p.id = @id;
@@ -309,7 +309,7 @@ SELECT coalesce(max(level), 0)::int FROM below;
 
 -- name: LockContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 FROM core.content p
 WHERE p.id = @id
 FOR UPDATE;
@@ -335,3 +335,40 @@ SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.
 FROM core.content_types t
 WHERE t.is_default
 FOR UPDATE;
+
+-- name: ListContentFields :many
+SELECT * FROM core.content_fields ORDER BY id;
+
+-- name: ListContentFieldsOfType :many
+SELECT * FROM core.content_fields WHERE type_key = @type_key ORDER BY id;
+
+-- name: CreateContentField :one
+INSERT INTO core.content_fields (
+    type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+)
+VALUES (
+    @type_key, @key, @label, @kind, @relates_to, @many, @required, @created_at, @updated_at
+)
+RETURNING *;
+
+-- name: UpdateContentField :one
+UPDATE core.content_fields
+SET label = @label, required = @required, updated_at = @updated_at
+WHERE type_key = @type_key AND key = @key
+RETURNING *;
+
+-- name: DeleteContentField :execrows
+DELETE FROM core.content_fields WHERE type_key = @type_key AND key = @key;
+
+-- name: LockContentOfType :many
+SELECT id FROM core.content WHERE type = @type ORDER BY id
+FOR UPDATE;
+
+-- name: ClearContentFieldValues :exec
+UPDATE core.content SET fields = fields - @key::text WHERE type = @type;
+
+-- name: ClearRevisionFieldValues :exec
+UPDATE core.content_revisions r
+SET fields = r.fields - @key::text
+FROM core.content c
+WHERE r.content_id = c.id AND c.type = @type;

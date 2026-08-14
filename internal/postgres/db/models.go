@@ -25,6 +25,20 @@ type CoreContent struct {
 	UpdatedAt   time.Time
 	ParentID    *uuid.UUID
 	Path        string
+	Fields      []byte
+}
+
+type CoreContentField struct {
+	ID        int32
+	TypeKey   string
+	Key       string
+	Label     string
+	Kind      string
+	RelatesTo *string
+	Many      bool
+	Required  bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type CoreContentRevision struct {
@@ -36,6 +50,7 @@ type CoreContentRevision struct {
 	Content   string
 	Excerpt   string
 	CreatedAt time.Time
+	Fields    []byte
 }
 
 type CoreContentType struct {
