@@ -65,7 +65,6 @@ var refusals = []error{
 	content.ErrInvalidRouteWord,
 	content.ErrInvalidLabel,
 	content.ErrInvalidPageKind,
-	content.ErrPageKindUnavailable,
 	content.ErrInvalidRevisionCap,
 	content.ErrFieldTaken,
 	content.ErrInvalidFieldKey,

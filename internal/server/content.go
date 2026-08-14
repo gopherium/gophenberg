@@ -183,17 +183,25 @@ func (s *server) handleContentResolve() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		if held.Kind == content.KindArchive {
+		switch held.Kind {
+		case content.KindArchive:
 			s.respondArchive(w, r, held)
-			return
+		case content.KindTerm:
+			s.respondTerm(w, r, held)
+		default:
+			s.respondResolvedItem(w, r, held)
 		}
-		s.respondResolvedItem(w, r, held)
 	}
 }
 
 // respondResolvedItem answers with the addressed item, or reports it unchanged.
 func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, held content.Address) {
 	listed, err := s.types.ByKey(r.Context(), held.Item.Type)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
+	detail, err := s.publishedDetailOf(r, held.Item)
 	if err != nil {
 		respondDomainError(w, err)
 		return
@@ -207,11 +215,56 @@ func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, hel
 	authkit.Respond(w, http.StatusOK, resolvedAddress{
 		Kind: string(content.KindItem),
 		Type: newServedType(listed),
+		Item: &detail,
+	})
+}
+
+// publishedDetailOf returns the public view of an item with its targets named and addressed.
+func (s *server) publishedDetailOf(r *http.Request, c content.Content) (publishedDetail, error) {
+	targets, err := s.content.TargetsOf(r.Context(), c.ID)
+	if err != nil {
+		return publishedDetail{}, err
+	}
+	held := heldValues(c.Fields)
+	values := make(content.Values, len(held)+len(targets))
+	for key, value := range held {
+		values[key] = value
+	}
+	for key, listed := range targets {
+		values[key] = listed
+	}
+	return publishedDetail{
+		publishedSummary: newPublishedSummary(c),
+		Content:          publichtml.Sanitize(c.Content),
+		Fields:           values,
+	}, nil
+}
+
+// respondTerm answers with the addressed item and the published content pointing at it.
+func (s *server) respondTerm(w http.ResponseWriter, r *http.Request, held content.Address) {
+	filter, err := parsePublishedFilter(r.URL.Query())
+	if err != nil {
+		authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
+		return
+	}
+	rows, total, err := s.content.RelatedTo(r.Context(), held.Item.ID, held.Page, filter.PerPage)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
+	items := make([]publishedSummary, len(rows))
+	for i, c := range rows {
+		items[i] = newPublishedSummary(c)
+	}
+	authkit.Respond(w, http.StatusOK, resolvedAddress{
+		Kind: string(content.KindTerm),
+		Type: newServedType(held.Type),
 		Item: &publishedDetail{
 			publishedSummary: newPublishedSummary(held.Item),
 			Content:          publichtml.Sanitize(held.Item.Content),
 			Fields:           payloadValues(held.Item),
 		},
+		Page: &publishedPage{Items: items, Total: total, Page: held.Page, PerPage: filter.PerPage},
 	})
 }
 

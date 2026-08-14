@@ -274,7 +274,7 @@ func TestTypePatchRefusesASecondTypeAtTheRoot(t *testing.T) {
 	}
 }
 
-func TestTypePatchRefusesAnArchivePageKind(t *testing.T) {
+func TestTypePatchTakesAnArchivePageKind(t *testing.T) {
 	t.Parallel()
 
 	handler := authedTypeServer(t)
@@ -283,9 +283,11 @@ func TestTypePatchRefusesAnArchivePageKind(t *testing.T) {
 
 	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/car", `{"page_kind":"archive"}`)
 
-	if recorder.Code != http.StatusUnprocessableEntity {
-		t.Errorf("status = %d, want %d: %s",
-			recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if body := decodeBody[typeBody](t, recorder); body.PageKind != string(content.PageKindArchive) {
+		t.Errorf("page kind = %q, want %q", body.PageKind, content.PageKindArchive)
 	}
 }
 
