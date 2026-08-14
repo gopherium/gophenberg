@@ -1,6 +1,6 @@
 module github.com/gopherium/gophenberg
 
-go 1.26.5
+go 1.26.6
 
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
