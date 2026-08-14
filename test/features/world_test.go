@@ -109,6 +109,8 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 		return ctx, errors.Join(err, os.RemoveAll(themes), os.RemoveAll(gates))
 	}
 	items := newMemoryContent()
+	types := newMemoryTypes(items)
+	items.types = types
 	return context.WithValue(ctx, worldKey{}, &world{
 		themesDir:    themes,
 		gateDir:      gates,
@@ -117,7 +119,7 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 		settings:     &memorySettings{values: make(map[string]string)},
 		users:        newMemoryStore(),
 		contentItems: items,
-		contentTypes: newMemoryTypes(items),
+		contentTypes: types,
 		mediaStore:   newMemoryMedia(),
 		mediaFiles:   mediahost.New(mediahost.Config{Dir: uploads, MaxSize: mediaTestCap}),
 	}), nil
