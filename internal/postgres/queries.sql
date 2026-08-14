@@ -1,33 +1,33 @@
 -- SPDX-License-Identifier: Apache-2.0
 
--- name: CreatePost :one
-INSERT INTO core.posts (
+-- name: CreateContent :one
+INSERT INTO core.content (
     id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at
+    author_id, published_at, created_at, updated_at, parent_id, path
 )
 VALUES (
     @id, @type, @status, @slug, @title, @content, @excerpt,
-    @author_id, @published_at, @created_at, @updated_at
+    @author_id, @published_at, @created_at, @updated_at, @parent_id, @path
 )
 RETURNING id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at;
+    author_id, published_at, created_at, updated_at, parent_id, path;
 
--- name: GetPost :one
+-- name: GetContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
-FROM core.posts p
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
 WHERE p.id = @id;
 
--- name: GetPublishedPost :one
+-- name: GetPublishedContentByPath :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
-FROM core.posts p
-WHERE p.type = @type AND p.slug = @slug AND p.status = 'published';
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
+WHERE p.path = @path AND p.status = 'published';
 
--- name: ListPosts :many
+-- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
-FROM core.posts p
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
 WHERE p.type = @type
     AND (@status::text = '' OR p.status = @status)
     AND (
@@ -45,9 +45,9 @@ ORDER BY
     p.id DESC
 LIMIT @row_limit OFFSET @row_offset;
 
--- name: CountPosts :one
+-- name: CountContent :one
 SELECT count(*)
-FROM core.posts p
+FROM core.content p
 WHERE p.type = @type
     AND (@status::text = '' OR p.status = @status)
     AND (
@@ -56,102 +56,131 @@ WHERE p.type = @type
         OR p.content ILIKE '%' || @search || '%'
     );
 
--- name: UpdatePost :one
-UPDATE core.posts AS p
-SET status = @status, slug = @slug, title = @title, content = @content,
-    excerpt = @excerpt, published_at = @published_at, updated_at = @updated_at
+-- name: UpdateContent :one
+UPDATE core.content AS p
+SET status = @status, slug = @slug, path = @path, parent_id = @parent_id, title = @title,
+    content = @content, excerpt = @excerpt, published_at = @published_at, updated_at = @updated_at
 WHERE p.id = @id AND p.updated_at = @expected_updated_at
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
 
--- name: TrashPost :one
-UPDATE core.posts AS p
-SET status = 'trash', slug = p.slug || @suffix::text, updated_at = @updated_at
-WHERE p.id = @id
-RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at;
+-- name: MoveDescendants :exec
+WITH RECURSIVE moved AS (
+    SELECT c.id, @path::text AS path
+    FROM core.content c
+    WHERE c.id = @id
+  UNION ALL
+    SELECT child.id, moved.path || '/' || child.slug
+    FROM core.content child
+    JOIN moved ON child.parent_id = moved.id
+) CYCLE id SET looped USING trail
+UPDATE core.content AS p
+SET path = moved.path, updated_at = @updated_at
+FROM moved
+WHERE p.id = moved.id AND p.id <> @id;
 
--- name: RestorePost :one
-UPDATE core.posts AS p
-SET status = 'draft',
-    slug = regexp_replace(p.slug, '-trashed-[a-z0-9]{8}$', ''),
+-- name: CountChildren :one
+SELECT count(*) FROM core.content p WHERE p.parent_id = @id;
+
+-- name: SiblingSlugTaken :one
+SELECT EXISTS (
+    SELECT 1 FROM core.content p
+    WHERE p.type = @type
+        AND p.parent_id IS NOT DISTINCT FROM sqlc.narg(parent_id)::uuid
+        AND p.slug = @slug
+        AND p.id <> @id
+);
+
+-- name: TrashContent :one
+UPDATE core.content AS p
+SET status = 'trash', slug = p.slug || @suffix::text, path = p.path || @suffix::text,
     updated_at = @updated_at
 WHERE p.id = @id
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
 
--- name: RestorePostKeepingSlug :one
-UPDATE core.posts AS p
+-- name: RestoreContent :one
+UPDATE core.content AS p
+SET status = 'draft',
+    slug = regexp_replace(p.slug, '-trashed-[a-z0-9]{8}$', ''),
+    path = regexp_replace(p.path, '-trashed-[a-z0-9]{8}$', ''),
+    updated_at = @updated_at
+WHERE p.id = @id
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
+
+-- name: RestoreContentKeepingSlug :one
+UPDATE core.content AS p
 SET status = 'draft', updated_at = @updated_at
 WHERE p.id = @id
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at;
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path;
 
--- name: DeletePost :execrows
-DELETE FROM core.posts AS p WHERE p.id = @id;
+-- name: DeleteContent :execrows
+DELETE FROM core.content AS p WHERE p.id = @id;
 
--- name: CountPostsByStatus :many
+-- name: CountContentByStatus :many
 SELECT p.status, count(*) AS total
-FROM core.posts p
+FROM core.content p
 WHERE p.type = @type
 GROUP BY p.status;
 
 -- name: CreateRevision :exec
-INSERT INTO core.post_revisions (
-    id, post_id, kind, author_id, title, content, excerpt, created_at
+INSERT INTO core.content_revisions (
+    id, content_id, kind, author_id, title, content, excerpt, created_at
 )
 VALUES (
-    @id, @post_id, @kind, @author_id, @title, @content, @excerpt, @created_at
+    @id, @content_id, @kind, @author_id, @title, @content, @excerpt, @created_at
 );
 
 -- name: ListRevisions :many
-SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.excerpt, r.created_at
-FROM core.post_revisions r
-WHERE r.post_id = @post_id
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.excerpt, r.created_at
+FROM core.content_revisions r
+WHERE r.content_id = @content_id
 ORDER BY r.created_at DESC, r.id DESC;
 
 -- name: GetRevision :one
-SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
-FROM core.post_revisions r
-WHERE r.post_id = @post_id AND r.id = @id;
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+FROM core.content_revisions r
+WHERE r.content_id = @content_id AND r.id = @id;
 
 -- name: DeleteRevision :execrows
-DELETE FROM core.post_revisions AS r
-WHERE r.post_id = @post_id AND r.id = @id;
+DELETE FROM core.content_revisions AS r
+WHERE r.content_id = @content_id AND r.id = @id;
 
 -- name: PruneRevisions :exec
-DELETE FROM core.post_revisions AS r
+DELETE FROM core.content_revisions AS r
 WHERE r.id IN (
     SELECT p.id
-    FROM core.post_revisions p
-    WHERE p.post_id = @post_id AND p.kind = 'revision'
+    FROM core.content_revisions p
+    WHERE p.content_id = @content_id AND p.kind = 'revision'
     ORDER BY p.created_at DESC, p.id DESC
     OFFSET @keep::int
 );
 
 -- name: UpsertAutosave :one
-INSERT INTO core.post_revisions (
-    id, post_id, kind, author_id, title, content, excerpt, created_at
+INSERT INTO core.content_revisions (
+    id, content_id, kind, author_id, title, content, excerpt, created_at
 )
 VALUES (
-    @id, @post_id, 'autosave', @author_id, @title, @content, @excerpt, @created_at
+    @id, @content_id, 'autosave', @author_id, @title, @content, @excerpt, @created_at
 )
-ON CONFLICT (post_id, author_id) WHERE kind = 'autosave'
+ON CONFLICT (content_id, author_id) WHERE kind = 'autosave'
 DO UPDATE SET
     title = EXCLUDED.title,
     content = EXCLUDED.content,
     excerpt = EXCLUDED.excerpt,
     created_at = EXCLUDED.created_at
-RETURNING id, post_id, kind, author_id, title, content, excerpt, created_at;
+RETURNING id, content_id, kind, author_id, title, content, excerpt, created_at;
 
 -- name: GetAutosave :one
-SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
-FROM core.post_revisions r
-WHERE r.post_id = @post_id AND r.author_id = @author_id AND r.kind = 'autosave';
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+FROM core.content_revisions r
+WHERE r.content_id = @content_id AND r.author_id = @author_id AND r.kind = 'autosave';
 
 -- name: DeleteAutosave :exec
-DELETE FROM core.post_revisions AS r
-WHERE r.post_id = @post_id AND r.author_id = @author_id AND r.kind = 'autosave';
+DELETE FROM core.content_revisions AS r
+WHERE r.content_id = @content_id AND r.author_id = @author_id AND r.kind = 'autosave';
 
 -- name: CreateMedia :one
 INSERT INTO core.media (
@@ -222,6 +251,42 @@ WHERE m.id = @id
 RETURNING m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description,
     m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at;
 
+-- name: ListContentTypes :many
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+ORDER BY t.created_at, t.key;
+
+-- name: GetContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.key = @key;
+
+-- name: CreateContentType :one
+INSERT INTO core.content_types (
+    key, singular_label, plural_label, route_word, hierarchical, revisions,
+    revision_cap, page_kind, is_default, active, created_at, updated_at
+)
+VALUES (
+    @key, @singular_label, @plural_label, @route_word, @hierarchical, @revisions,
+    @revision_cap, @page_kind, @is_default, @active, @created_at, @updated_at
+)
+RETURNING key, singular_label, plural_label, route_word, hierarchical, revisions,
+    revision_cap, page_kind, is_default, active, created_at, updated_at;
+
+-- name: UpdateContentType :one
+UPDATE core.content_types AS t
+SET singular_label = @singular_label, plural_label = @plural_label, route_word = @route_word,
+    hierarchical = @hierarchical, revisions = @revisions, revision_cap = @revision_cap,
+    page_kind = @page_kind, is_default = @is_default, active = @active, updated_at = @updated_at
+WHERE t.key = @key
+RETURNING t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at;
+
+-- name: DeleteContentType :execrows
+DELETE FROM core.content_types AS t WHERE t.key = @key;
+
 -- name: GetSetting :one
 SELECT s.value FROM core.settings s WHERE s.key = @key;
 
@@ -229,3 +294,44 @@ SELECT s.value FROM core.settings s WHERE s.key = @key;
 INSERT INTO core.settings (key, value)
 VALUES (@key, @value)
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+-- name: ContentDepth :one
+WITH RECURSIVE below AS (
+    SELECT c.id, 0 AS level
+    FROM core.content c
+    WHERE c.id = @id
+    UNION ALL
+    SELECT child.id, below.level + 1
+    FROM core.content child
+    JOIN below ON child.parent_id = below.id
+)
+SELECT coalesce(max(level), 0)::int FROM below;
+
+-- name: LockContent :one
+SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
+WHERE p.id = @id
+FOR UPDATE;
+
+-- name: LockContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.key = @key
+FOR UPDATE;
+
+-- name: RetypeContentPaths :exec
+UPDATE core.content c
+SET path = trim(leading '/' from @route_word::text || '/' ||
+        CASE WHEN @was::text = '' THEN c.path
+            ELSE substring(c.path from length(@was::text) + 2) END),
+    updated_at = @updated_at
+WHERE c.type = @key;
+
+-- name: LockDefaultContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.is_default
+FOR UPDATE;

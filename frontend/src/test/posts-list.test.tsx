@@ -32,30 +32,30 @@ const DRAFT = {
 
 beforeEach(() => {
 	server.use(
-		http.get('/api/posts', () => HttpResponse.json({ items: [PUBLISHED, DRAFT], total: 2 })),
-		http.get('/api/posts/counts', () =>
+		http.get('/api/content', () => HttpResponse.json({ items: [PUBLISHED, DRAFT], total: 2 })),
+		http.get('/api/content/counts', () =>
 			HttpResponse.json({ draft: 1, published: 1, pending: 0, private: 0, trash: 0 }),
 		),
 	)
 })
 
 test('lists every post the API returned', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByText('Welcome to Gophenberg')).toBeInTheDocument()
 	expect(screen.getByText('Notes on the Next Release')).toBeInTheDocument()
 })
 
 test('links each title to its editor', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	const title = await screen.findByRole('link', { name: /Welcome to Gophenberg/ })
 
-	expect(title).toHaveAttribute('href', `/admin/posts/${PUBLISHED.id}/edit`)
+	expect(title).toHaveAttribute('href', `/admin/content/post/${PUBLISHED.id}/edit`)
 })
 
 test('marks a post that is not published with its status', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	const row = (await screen.findByText('Notes on the Next Release')).closest('td, div')
 
@@ -63,7 +63,7 @@ test('marks a post that is not published with its status', async () => {
 })
 
 test('leaves a published post unmarked', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	const row = (await screen.findByText('Welcome to Gophenberg')).closest('td, div')
 
@@ -71,33 +71,33 @@ test('leaves a published post unmarked', async () => {
 })
 
 test('shows the author of each post', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findAllByText('Maria Perez')).toHaveLength(2)
 })
 
 test('dates a published post by its publication', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByText(/Published/)).toBeInTheDocument()
 })
 
 test('dates an unpublished post by its last change', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByText(/Last Modified/)).toBeInTheDocument()
 })
 
 test('reports a listing that could not be read', async () => {
-	server.use(http.get('/api/posts', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	server.use(http.get('/api/content', () => HttpResponse.json({}, { status: 500 })))
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('alert')).toHaveTextContent(/could not/i)
 })
 
 test('marks every status that is not published', async () => {
 	server.use(
-		http.get('/api/posts', () =>
+		http.get('/api/content', () =>
 			HttpResponse.json({
 				items: [
 					{ ...DRAFT, id: 'a1', title: 'Pending One', status: 'pending' },
@@ -109,7 +109,7 @@ test('marks every status that is not published', async () => {
 			}),
 		),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByText('Pending')).toBeInTheDocument()
 	expect(screen.getByText('Private')).toBeInTheDocument()
@@ -119,25 +119,25 @@ test('marks every status that is not published', async () => {
 
 test('names a post that has no title yet', async () => {
 	server.use(
-		http.get('/api/posts', () =>
+		http.get('/api/content', () =>
 			HttpResponse.json({ items: [{ ...DRAFT, title: '' }], total: 1 }),
 		),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByRole('link', { name: '(no title)' })).toBeInTheDocument()
 })
 
 test('dates a post that carries no timestamps', async () => {
 	server.use(
-		http.get('/api/posts', () =>
+		http.get('/api/content', () =>
 			HttpResponse.json({
 				items: [{ ...DRAFT, published_at: null, updated_at: undefined }],
 				total: 1,
 			}),
 		),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	expect(await screen.findByText('Last Modified')).toBeInTheDocument()
 })

@@ -142,7 +142,8 @@ func mediaServer(t *testing.T, library *mediahost.Library, store media.Store) ht
 	addAda(t, users)
 	return authedServerWithStores(t, server.Config{
 		Users:      users,
-		Posts:      newFakePostStore(),
+		Content:    newFakePostStore(),
+		Types:      newFakeTypeStore(),
 		Media:      library,
 		MediaStore: store,
 	})
@@ -214,7 +215,7 @@ func TestMediaRoutesAreAbsentWithoutALibrary(t *testing.T) {
 
 	users := newFakeUserStore()
 	addAda(t, users)
-	handler := authedServerWithStores(t, server.Config{Users: users, Posts: newFakePostStore()})
+	handler := authedServerWithStores(t, server.Config{Users: users, Content: newFakePostStore()})
 
 	recorder := sendMediaUpload(t, handler, "harbor.jpg", smallJPEG(t))
 
@@ -667,7 +668,8 @@ func mediaServerPair(t *testing.T, library *mediahost.Library, store media.Store
 	addAda(t, users)
 	raw := server.NewServer(server.Config{
 		Users:      users,
-		Posts:      newFakePostStore(),
+		Content:    newFakePostStore(),
+		Types:      newFakeTypeStore(),
 		Media:      library,
 		MediaStore: store,
 		MediaFiles: os.DirFS(library.Dir()),
@@ -735,7 +737,7 @@ func TestTheMediaPrefixStaysReservedWithoutALibrary(t *testing.T) {
 
 	users := newFakeUserStore()
 	addAda(t, users)
-	handler := server.NewServer(server.Config{Users: users, Posts: newFakePostStore()})
+	handler := server.NewServer(server.Config{Users: users, Content: newFakePostStore()})
 
 	recorder := doRequest(t, handler, http.MethodGet, "/media/2030/01/nothing.jpg", "")
 
@@ -754,7 +756,8 @@ func TestUploadingMediaNeedsASession(t *testing.T) {
 	addAda(t, users)
 	handler := server.NewServer(server.Config{
 		Users:      users,
-		Posts:      newFakePostStore(),
+		Content:    newFakePostStore(),
+		Types:      newFakeTypeStore(),
 		Media:      mediahost.New(mediahost.Config{Dir: t.TempDir()}),
 		MediaStore: newFakeMediaStore(),
 	})

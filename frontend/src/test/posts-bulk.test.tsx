@@ -32,16 +32,16 @@ beforeEach(() => {
 	trashed.length = 0
 	restored.length = 0
 	server.use(
-		http.get('/api/posts', () => HttpResponse.json({ items: listed, total: listed.length })),
-		http.get('/api/posts/counts', () =>
+		http.get('/api/content', () => HttpResponse.json({ items: listed, total: listed.length })),
+		http.get('/api/content/counts', () =>
 			HttpResponse.json({ draft: 0, pending: 0, private: 0, published: listed.length, trash: 0 }),
 		),
-		http.delete('/api/posts/:id', ({ params }) => {
+		http.delete('/api/content/:id', ({ params }) => {
 			trashed.push(String(params.id))
 			listed = listed.filter((post) => post.id !== String(params.id))
 			return HttpResponse.json({ ...FIRST, id: String(params.id), status: 'trash' })
 		}),
-		http.post('/api/posts/:id/restore', ({ params }) => {
+		http.post('/api/content/:id/restore', ({ params }) => {
 			restored.push(String(params.id))
 			return HttpResponse.json({ ...FIRST, id: String(params.id), status: 'draft' })
 		}),
@@ -58,7 +58,7 @@ async function selectBoth() {
 }
 
 test('trashes every selected post behind one confirm', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await selectBoth()
 
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
@@ -72,7 +72,7 @@ test('trashes every selected post behind one confirm', async () => {
 })
 
 test('does not hold restored posts selected from before their trashing', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await selectBoth()
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 	const dialog = await screen.findByRole('dialog')
@@ -88,7 +88,7 @@ test('does not hold restored posts selected from before their trashing', async (
 })
 
 test('offers one undo covering the whole batch', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await selectBoth()
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 	const dialog = await screen.findByRole('dialog')
@@ -103,8 +103,8 @@ test('offers one undo covering the whole batch', async () => {
 
 test('reports a batch undo the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.post('/api/posts/:id/restore', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	server.use(http.post('/api/content/:id/restore', () => HttpResponse.json({}, { status: 500 })))
+	renderAt('/content/post')
 	await selectBoth()
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 	const dialog = await screen.findByRole('dialog')
@@ -116,10 +116,36 @@ test('reports a batch undo the server refused', async () => {
 	expect(await screen.findByText(/could not restore those posts/i)).toBeInTheDocument()
 })
 
+test('reloads the list when an undo is only partly refused', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(
+		http.post('/api/content/:id/restore', ({ params }) => {
+			if (String(params.id) === SECOND.id) {
+				return HttpResponse.json({}, { status: 500 })
+			}
+			restored.push(String(params.id))
+			listed = [...listed, FIRST]
+			return HttpResponse.json({ ...FIRST, status: 'draft' })
+		}),
+	)
+	renderAt('/content/post')
+	await selectBoth()
+	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+	const dialog = await screen.findByRole('dialog')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }))
+	await screen.findByText(/2 posts moved to the trash/i)
+
+	await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+	expect(await screen.findByText(/could not restore that post/i)).toBeInTheDocument()
+	await waitFor(() => expect(restored).toEqual([FIRST.id]))
+	await waitFor(() => expect(screen.getByText('Welcome to Gophenberg')).toBeInTheDocument())
+})
+
 test('reports a batch the server partly refused and reloads the list', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.delete('/api/posts/:id', ({ params }) => {
+		http.delete('/api/content/:id', ({ params }) => {
 			if (String(params.id) === SECOND.id) {
 				return HttpResponse.json({}, { status: 500 })
 			}
@@ -128,7 +154,7 @@ test('reports a batch the server partly refused and reloads the list', async () 
 			return HttpResponse.json({ ...FIRST, status: 'trash' })
 		}),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 	await selectBoth()
 	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 	const dialog = await screen.findByRole('dialog')

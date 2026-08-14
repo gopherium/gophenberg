@@ -13,6 +13,94 @@ import (
 	"github.com/gopherium/gophenberg/internal/media"
 )
 
+const contentDepth = `-- name: ContentDepth :one
+WITH RECURSIVE below AS (
+    SELECT c.id, 0 AS level
+    FROM core.content c
+    WHERE c.id = $1
+    UNION ALL
+    SELECT child.id, below.level + 1
+    FROM core.content child
+    JOIN below ON child.parent_id = below.id
+)
+SELECT coalesce(max(level), 0)::int FROM below
+`
+
+func (q *Queries) ContentDepth(ctx context.Context, id uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, contentDepth, id)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const countChildren = `-- name: CountChildren :one
+SELECT count(*) FROM core.content p WHERE p.parent_id = $1
+`
+
+func (q *Queries) CountChildren(ctx context.Context, id *uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countChildren, id)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countContent = `-- name: CountContent :one
+SELECT count(*)
+FROM core.content p
+WHERE p.type = $1
+    AND ($2::text = '' OR p.status = $2)
+    AND (
+        $3::text = ''
+        OR p.title ILIKE '%' || $3 || '%'
+        OR p.content ILIKE '%' || $3 || '%'
+    )
+`
+
+type CountContentParams struct {
+	Type   string
+	Status string
+	Search string
+}
+
+func (q *Queries) CountContent(ctx context.Context, arg CountContentParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countContent, arg.Type, arg.Status, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countContentByStatus = `-- name: CountContentByStatus :many
+SELECT p.status, count(*) AS total
+FROM core.content p
+WHERE p.type = $1
+GROUP BY p.status
+`
+
+type CountContentByStatusRow struct {
+	Status string
+	Total  int64
+}
+
+func (q *Queries) CountContentByStatus(ctx context.Context, type_ string) ([]CountContentByStatusRow, error) {
+	rows, err := q.db.Query(ctx, countContentByStatus, type_)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountContentByStatusRow
+	for rows.Next() {
+		var i CountContentByStatusRow
+		if err := rows.Scan(&i.Status, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countMedia = `-- name: CountMedia :one
 SELECT count(*)
 FROM core.media m
@@ -44,61 +132,131 @@ func (q *Queries) CountMedia(ctx context.Context, arg CountMediaParams) (int64, 
 	return count, err
 }
 
-const countPosts = `-- name: CountPosts :one
-SELECT count(*)
-FROM core.posts p
-WHERE p.type = $1
-    AND ($2::text = '' OR p.status = $2)
-    AND (
-        $3::text = ''
-        OR p.title ILIKE '%' || $3 || '%'
-        OR p.content ILIKE '%' || $3 || '%'
-    )
+const createContent = `-- name: CreateContent :one
+
+INSERT INTO core.content (
+    id, type, status, slug, title, content, excerpt,
+    author_id, published_at, created_at, updated_at, parent_id, path
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7,
+    $8, $9, $10, $11, $12, $13
+)
+RETURNING id, type, status, slug, title, content, excerpt,
+    author_id, published_at, created_at, updated_at, parent_id, path
 `
 
-type CountPostsParams struct {
-	Type   string
-	Status string
-	Search string
+type CreateContentParams struct {
+	ID          uuid.UUID
+	Type        string
+	Status      string
+	Slug        string
+	Title       string
+	Content     string
+	Excerpt     string
+	AuthorID    uuid.UUID
+	PublishedAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	ParentID    *uuid.UUID
+	Path        string
 }
 
-func (q *Queries) CountPosts(ctx context.Context, arg CountPostsParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countPosts, arg.Type, arg.Status, arg.Search)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+// SPDX-License-Identifier: Apache-2.0
+func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (CoreContent, error) {
+	row := q.db.QueryRow(ctx, createContent,
+		arg.ID,
+		arg.Type,
+		arg.Status,
+		arg.Slug,
+		arg.Title,
+		arg.Content,
+		arg.Excerpt,
+		arg.AuthorID,
+		arg.PublishedAt,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.ParentID,
+		arg.Path,
+	)
+	var i CoreContent
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
+	)
+	return i, err
 }
 
-const countPostsByStatus = `-- name: CountPostsByStatus :many
-SELECT p.status, count(*) AS total
-FROM core.posts p
-WHERE p.type = $1
-GROUP BY p.status
+const createContentType = `-- name: CreateContentType :one
+INSERT INTO core.content_types (
+    key, singular_label, plural_label, route_word, hierarchical, revisions,
+    revision_cap, page_kind, is_default, active, created_at, updated_at
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6,
+    $7, $8, $9, $10, $11, $12
+)
+RETURNING key, singular_label, plural_label, route_word, hierarchical, revisions,
+    revision_cap, page_kind, is_default, active, created_at, updated_at
 `
 
-type CountPostsByStatusRow struct {
-	Status string
-	Total  int64
+type CreateContentTypeParams struct {
+	Key           string
+	SingularLabel string
+	PluralLabel   string
+	RouteWord     string
+	Hierarchical  bool
+	Revisions     bool
+	RevisionCap   int32
+	PageKind      string
+	IsDefault     bool
+	Active        bool
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
-func (q *Queries) CountPostsByStatus(ctx context.Context, type_ string) ([]CountPostsByStatusRow, error) {
-	rows, err := q.db.Query(ctx, countPostsByStatus, type_)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []CountPostsByStatusRow
-	for rows.Next() {
-		var i CountPostsByStatusRow
-		if err := rows.Scan(&i.Status, &i.Total); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) CreateContentType(ctx context.Context, arg CreateContentTypeParams) (CoreContentType, error) {
+	row := q.db.QueryRow(ctx, createContentType,
+		arg.Key,
+		arg.SingularLabel,
+		arg.PluralLabel,
+		arg.RouteWord,
+		arg.Hierarchical,
+		arg.Revisions,
+		arg.RevisionCap,
+		arg.PageKind,
+		arg.IsDefault,
+		arg.Active,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i CoreContentType
+	err := row.Scan(
+		&i.Key,
+		&i.SingularLabel,
+		&i.PluralLabel,
+		&i.RouteWord,
+		&i.Hierarchical,
+		&i.Revisions,
+		&i.RevisionCap,
+		&i.PageKind,
+		&i.IsDefault,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const createMedia = `-- name: CreateMedia :one
@@ -169,69 +327,9 @@ func (q *Queries) CreateMedia(ctx context.Context, arg CreateMediaParams) (CoreM
 	return i, err
 }
 
-const createPost = `-- name: CreatePost :one
-
-INSERT INTO core.posts (
-    id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at
-)
-VALUES (
-    $1, $2, $3, $4, $5, $6, $7,
-    $8, $9, $10, $11
-)
-RETURNING id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at
-`
-
-type CreatePostParams struct {
-	ID          uuid.UUID
-	Type        string
-	Status      string
-	Slug        string
-	Title       string
-	Content     string
-	Excerpt     string
-	AuthorID    uuid.UUID
-	PublishedAt *time.Time
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
-// SPDX-License-Identifier: Apache-2.0
-func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (CorePost, error) {
-	row := q.db.QueryRow(ctx, createPost,
-		arg.ID,
-		arg.Type,
-		arg.Status,
-		arg.Slug,
-		arg.Title,
-		arg.Content,
-		arg.Excerpt,
-		arg.AuthorID,
-		arg.PublishedAt,
-		arg.CreatedAt,
-		arg.UpdatedAt,
-	)
-	var i CorePost
-	err := row.Scan(
-		&i.ID,
-		&i.Type,
-		&i.Status,
-		&i.Slug,
-		&i.Title,
-		&i.Content,
-		&i.Excerpt,
-		&i.AuthorID,
-		&i.PublishedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const createRevision = `-- name: CreateRevision :exec
-INSERT INTO core.post_revisions (
-    id, post_id, kind, author_id, title, content, excerpt, created_at
+INSERT INTO core.content_revisions (
+    id, content_id, kind, author_id, title, content, excerpt, created_at
 )
 VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8
@@ -240,7 +338,7 @@ VALUES (
 
 type CreateRevisionParams struct {
 	ID        uuid.UUID
-	PostID    uuid.UUID
+	ContentID uuid.UUID
 	Kind      string
 	AuthorID  uuid.UUID
 	Title     string
@@ -252,7 +350,7 @@ type CreateRevisionParams struct {
 func (q *Queries) CreateRevision(ctx context.Context, arg CreateRevisionParams) error {
 	_, err := q.db.Exec(ctx, createRevision,
 		arg.ID,
-		arg.PostID,
+		arg.ContentID,
 		arg.Kind,
 		arg.AuthorID,
 		arg.Title,
@@ -264,18 +362,42 @@ func (q *Queries) CreateRevision(ctx context.Context, arg CreateRevisionParams) 
 }
 
 const deleteAutosave = `-- name: DeleteAutosave :exec
-DELETE FROM core.post_revisions AS r
-WHERE r.post_id = $1 AND r.author_id = $2 AND r.kind = 'autosave'
+DELETE FROM core.content_revisions AS r
+WHERE r.content_id = $1 AND r.author_id = $2 AND r.kind = 'autosave'
 `
 
 type DeleteAutosaveParams struct {
-	PostID   uuid.UUID
-	AuthorID uuid.UUID
+	ContentID uuid.UUID
+	AuthorID  uuid.UUID
 }
 
 func (q *Queries) DeleteAutosave(ctx context.Context, arg DeleteAutosaveParams) error {
-	_, err := q.db.Exec(ctx, deleteAutosave, arg.PostID, arg.AuthorID)
+	_, err := q.db.Exec(ctx, deleteAutosave, arg.ContentID, arg.AuthorID)
 	return err
+}
+
+const deleteContent = `-- name: DeleteContent :execrows
+DELETE FROM core.content AS p WHERE p.id = $1
+`
+
+func (q *Queries) DeleteContent(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteContent, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteContentType = `-- name: DeleteContentType :execrows
+DELETE FROM core.content_types AS t WHERE t.key = $1
+`
+
+func (q *Queries) DeleteContentType(ctx context.Context, key string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteContentType, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteMedia = `-- name: DeleteMedia :one
@@ -308,30 +430,18 @@ func (q *Queries) DeleteMedia(ctx context.Context, id int64) (CoreMedia, error) 
 	return i, err
 }
 
-const deletePost = `-- name: DeletePost :execrows
-DELETE FROM core.posts AS p WHERE p.id = $1
-`
-
-func (q *Queries) DeletePost(ctx context.Context, id uuid.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, deletePost, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const deleteRevision = `-- name: DeleteRevision :execrows
-DELETE FROM core.post_revisions AS r
-WHERE r.post_id = $1 AND r.id = $2
+DELETE FROM core.content_revisions AS r
+WHERE r.content_id = $1 AND r.id = $2
 `
 
 type DeleteRevisionParams struct {
-	PostID uuid.UUID
-	ID     uuid.UUID
+	ContentID uuid.UUID
+	ID        uuid.UUID
 }
 
 func (q *Queries) DeleteRevision(ctx context.Context, arg DeleteRevisionParams) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteRevision, arg.PostID, arg.ID)
+	result, err := q.db.Exec(ctx, deleteRevision, arg.ContentID, arg.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -339,28 +449,83 @@ func (q *Queries) DeleteRevision(ctx context.Context, arg DeleteRevisionParams) 
 }
 
 const getAutosave = `-- name: GetAutosave :one
-SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
-FROM core.post_revisions r
-WHERE r.post_id = $1 AND r.author_id = $2 AND r.kind = 'autosave'
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+FROM core.content_revisions r
+WHERE r.content_id = $1 AND r.author_id = $2 AND r.kind = 'autosave'
 `
 
 type GetAutosaveParams struct {
-	PostID   uuid.UUID
-	AuthorID uuid.UUID
+	ContentID uuid.UUID
+	AuthorID  uuid.UUID
 }
 
-func (q *Queries) GetAutosave(ctx context.Context, arg GetAutosaveParams) (CorePostRevision, error) {
-	row := q.db.QueryRow(ctx, getAutosave, arg.PostID, arg.AuthorID)
-	var i CorePostRevision
+func (q *Queries) GetAutosave(ctx context.Context, arg GetAutosaveParams) (CoreContentRevision, error) {
+	row := q.db.QueryRow(ctx, getAutosave, arg.ContentID, arg.AuthorID)
+	var i CoreContentRevision
 	err := row.Scan(
 		&i.ID,
-		&i.PostID,
+		&i.ContentID,
 		&i.Kind,
 		&i.AuthorID,
 		&i.Title,
 		&i.Content,
 		&i.Excerpt,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getContent = `-- name: GetContent :one
+SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
+WHERE p.id = $1
+`
+
+func (q *Queries) GetContent(ctx context.Context, id uuid.UUID) (CoreContent, error) {
+	row := q.db.QueryRow(ctx, getContent, id)
+	var i CoreContent
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
+	)
+	return i, err
+}
+
+const getContentType = `-- name: GetContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.key = $1
+`
+
+func (q *Queries) GetContentType(ctx context.Context, key string) (CoreContentType, error) {
+	row := q.db.QueryRow(ctx, getContentType, key)
+	var i CoreContentType
+	err := row.Scan(
+		&i.Key,
+		&i.SingularLabel,
+		&i.PluralLabel,
+		&i.RouteWord,
+		&i.Hierarchical,
+		&i.Revisions,
+		&i.RevisionCap,
+		&i.PageKind,
+		&i.IsDefault,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -395,16 +560,16 @@ func (q *Queries) GetMedia(ctx context.Context, id int64) (CoreMedia, error) {
 	return i, err
 }
 
-const getPost = `-- name: GetPost :one
+const getPublishedContentByPath = `-- name: GetPublishedContentByPath :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
-FROM core.posts p
-WHERE p.id = $1
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
+WHERE p.path = $1 AND p.status = 'published'
 `
 
-func (q *Queries) GetPost(ctx context.Context, id uuid.UUID) (CorePost, error) {
-	row := q.db.QueryRow(ctx, getPost, id)
-	var i CorePost
+func (q *Queries) GetPublishedContentByPath(ctx context.Context, path string) (CoreContent, error) {
+	row := q.db.QueryRow(ctx, getPublishedContentByPath, path)
+	var i CoreContent
 	err := row.Scan(
 		&i.ID,
 		&i.Type,
@@ -417,58 +582,29 @@ func (q *Queries) GetPost(ctx context.Context, id uuid.UUID) (CorePost, error) {
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getPublishedPost = `-- name: GetPublishedPost :one
-SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
-FROM core.posts p
-WHERE p.type = $1 AND p.slug = $2 AND p.status = 'published'
-`
-
-type GetPublishedPostParams struct {
-	Type string
-	Slug string
-}
-
-func (q *Queries) GetPublishedPost(ctx context.Context, arg GetPublishedPostParams) (CorePost, error) {
-	row := q.db.QueryRow(ctx, getPublishedPost, arg.Type, arg.Slug)
-	var i CorePost
-	err := row.Scan(
-		&i.ID,
-		&i.Type,
-		&i.Status,
-		&i.Slug,
-		&i.Title,
-		&i.Content,
-		&i.Excerpt,
-		&i.AuthorID,
-		&i.PublishedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
 	)
 	return i, err
 }
 
 const getRevision = `-- name: GetRevision :one
-SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
-FROM core.post_revisions r
-WHERE r.post_id = $1 AND r.id = $2
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+FROM core.content_revisions r
+WHERE r.content_id = $1 AND r.id = $2
 `
 
 type GetRevisionParams struct {
-	PostID uuid.UUID
-	ID     uuid.UUID
+	ContentID uuid.UUID
+	ID        uuid.UUID
 }
 
-func (q *Queries) GetRevision(ctx context.Context, arg GetRevisionParams) (CorePostRevision, error) {
-	row := q.db.QueryRow(ctx, getRevision, arg.PostID, arg.ID)
-	var i CorePostRevision
+func (q *Queries) GetRevision(ctx context.Context, arg GetRevisionParams) (CoreContentRevision, error) {
+	row := q.db.QueryRow(ctx, getRevision, arg.ContentID, arg.ID)
+	var i CoreContentRevision
 	err := row.Scan(
 		&i.ID,
-		&i.PostID,
+		&i.ContentID,
 		&i.Kind,
 		&i.AuthorID,
 		&i.Title,
@@ -488,6 +624,134 @@ func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
 	var value string
 	err := row.Scan(&value)
 	return value, err
+}
+
+const listContent = `-- name: ListContent :many
+SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
+WHERE p.type = $1
+    AND ($2::text = '' OR p.status = $2)
+    AND (
+        $3::text = ''
+        OR p.title ILIKE '%' || $3 || '%'
+        OR p.content ILIKE '%' || $3 || '%'
+    )
+ORDER BY
+    CASE WHEN $4::text = 'title' AND $5::text = 'asc' THEN p.title END ASC,
+    CASE WHEN $4::text = 'title' AND $5::text = 'desc' THEN p.title END DESC,
+    CASE WHEN $4::text <> 'title' AND $5::text = 'asc'
+        THEN COALESCE(p.published_at, p.created_at) END ASC,
+    CASE WHEN $4::text <> 'title' AND $5::text <> 'asc'
+        THEN COALESCE(p.published_at, p.created_at) END DESC,
+    p.id DESC
+LIMIT $7 OFFSET $6
+`
+
+type ListContentParams struct {
+	Type      string
+	Status    string
+	Search    string
+	OrderBy   string
+	OrderDir  string
+	RowOffset int32
+	RowLimit  int32
+}
+
+type ListContentRow struct {
+	ID          uuid.UUID
+	Type        string
+	Status      string
+	Slug        string
+	Title       string
+	Excerpt     string
+	AuthorID    uuid.UUID
+	PublishedAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	ParentID    *uuid.UUID
+	Path        string
+}
+
+func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error) {
+	rows, err := q.db.Query(ctx, listContent,
+		arg.Type,
+		arg.Status,
+		arg.Search,
+		arg.OrderBy,
+		arg.OrderDir,
+		arg.RowOffset,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListContentRow
+	for rows.Next() {
+		var i ListContentRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Status,
+			&i.Slug,
+			&i.Title,
+			&i.Excerpt,
+			&i.AuthorID,
+			&i.PublishedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ParentID,
+			&i.Path,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listContentTypes = `-- name: ListContentTypes :many
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+ORDER BY t.created_at, t.key
+`
+
+func (q *Queries) ListContentTypes(ctx context.Context) ([]CoreContentType, error) {
+	rows, err := q.db.Query(ctx, listContentTypes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CoreContentType
+	for rows.Next() {
+		var i CoreContentType
+		if err := rows.Scan(
+			&i.Key,
+			&i.SingularLabel,
+			&i.PluralLabel,
+			&i.RouteWord,
+			&i.Hierarchical,
+			&i.Revisions,
+			&i.RevisionCap,
+			&i.PageKind,
+			&i.IsDefault,
+			&i.Active,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listMedia = `-- name: ListMedia :many
@@ -561,100 +825,16 @@ func (q *Queries) ListMedia(ctx context.Context, arg ListMediaParams) ([]CoreMed
 	return items, nil
 }
 
-const listPosts = `-- name: ListPosts :many
-SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
-FROM core.posts p
-WHERE p.type = $1
-    AND ($2::text = '' OR p.status = $2)
-    AND (
-        $3::text = ''
-        OR p.title ILIKE '%' || $3 || '%'
-        OR p.content ILIKE '%' || $3 || '%'
-    )
-ORDER BY
-    CASE WHEN $4::text = 'title' AND $5::text = 'asc' THEN p.title END ASC,
-    CASE WHEN $4::text = 'title' AND $5::text = 'desc' THEN p.title END DESC,
-    CASE WHEN $4::text <> 'title' AND $5::text = 'asc'
-        THEN COALESCE(p.published_at, p.created_at) END ASC,
-    CASE WHEN $4::text <> 'title' AND $5::text <> 'asc'
-        THEN COALESCE(p.published_at, p.created_at) END DESC,
-    p.id DESC
-LIMIT $7 OFFSET $6
-`
-
-type ListPostsParams struct {
-	Type      string
-	Status    string
-	Search    string
-	OrderBy   string
-	OrderDir  string
-	RowOffset int32
-	RowLimit  int32
-}
-
-type ListPostsRow struct {
-	ID          uuid.UUID
-	Type        string
-	Status      string
-	Slug        string
-	Title       string
-	Excerpt     string
-	AuthorID    uuid.UUID
-	PublishedAt *time.Time
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
-func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPostsRow, error) {
-	rows, err := q.db.Query(ctx, listPosts,
-		arg.Type,
-		arg.Status,
-		arg.Search,
-		arg.OrderBy,
-		arg.OrderDir,
-		arg.RowOffset,
-		arg.RowLimit,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListPostsRow
-	for rows.Next() {
-		var i ListPostsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Type,
-			&i.Status,
-			&i.Slug,
-			&i.Title,
-			&i.Excerpt,
-			&i.AuthorID,
-			&i.PublishedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listRevisions = `-- name: ListRevisions :many
-SELECT r.id, r.post_id, r.kind, r.author_id, r.title, r.excerpt, r.created_at
-FROM core.post_revisions r
-WHERE r.post_id = $1
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.excerpt, r.created_at
+FROM core.content_revisions r
+WHERE r.content_id = $1
 ORDER BY r.created_at DESC, r.id DESC
 `
 
 type ListRevisionsRow struct {
 	ID        uuid.UUID
-	PostID    uuid.UUID
+	ContentID uuid.UUID
 	Kind      string
 	AuthorID  uuid.UUID
 	Title     string
@@ -662,8 +842,8 @@ type ListRevisionsRow struct {
 	CreatedAt time.Time
 }
 
-func (q *Queries) ListRevisions(ctx context.Context, postID uuid.UUID) ([]ListRevisionsRow, error) {
-	rows, err := q.db.Query(ctx, listRevisions, postID)
+func (q *Queries) ListRevisions(ctx context.Context, contentID uuid.UUID) ([]ListRevisionsRow, error) {
+	rows, err := q.db.Query(ctx, listRevisions, contentID)
 	if err != nil {
 		return nil, err
 	}
@@ -673,7 +853,7 @@ func (q *Queries) ListRevisions(ctx context.Context, postID uuid.UUID) ([]ListRe
 		var i ListRevisionsRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.PostID,
+			&i.ContentID,
 			&i.Kind,
 			&i.AuthorID,
 			&i.Title,
@@ -690,45 +870,158 @@ func (q *Queries) ListRevisions(ctx context.Context, postID uuid.UUID) ([]ListRe
 	return items, nil
 }
 
+const lockContent = `-- name: LockContent :one
+SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+FROM core.content p
+WHERE p.id = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockContent(ctx context.Context, id uuid.UUID) (CoreContent, error) {
+	row := q.db.QueryRow(ctx, lockContent, id)
+	var i CoreContent
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
+	)
+	return i, err
+}
+
+const lockContentType = `-- name: LockContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.key = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockContentType(ctx context.Context, key string) (CoreContentType, error) {
+	row := q.db.QueryRow(ctx, lockContentType, key)
+	var i CoreContentType
+	err := row.Scan(
+		&i.Key,
+		&i.SingularLabel,
+		&i.PluralLabel,
+		&i.RouteWord,
+		&i.Hierarchical,
+		&i.Revisions,
+		&i.RevisionCap,
+		&i.PageKind,
+		&i.IsDefault,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const lockDefaultContentType = `-- name: LockDefaultContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.is_default
+FOR UPDATE
+`
+
+func (q *Queries) LockDefaultContentType(ctx context.Context) (CoreContentType, error) {
+	row := q.db.QueryRow(ctx, lockDefaultContentType)
+	var i CoreContentType
+	err := row.Scan(
+		&i.Key,
+		&i.SingularLabel,
+		&i.PluralLabel,
+		&i.RouteWord,
+		&i.Hierarchical,
+		&i.Revisions,
+		&i.RevisionCap,
+		&i.PageKind,
+		&i.IsDefault,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const moveDescendants = `-- name: MoveDescendants :exec
+WITH RECURSIVE moved AS (
+    SELECT c.id, $3::text AS path
+    FROM core.content c
+    WHERE c.id = $2
+  UNION ALL
+    SELECT child.id, moved.path || '/' || child.slug
+    FROM core.content child
+    JOIN moved ON child.parent_id = moved.id
+) CYCLE id SET looped USING trail
+UPDATE core.content AS p
+SET path = moved.path, updated_at = $1
+FROM moved
+WHERE p.id = moved.id AND p.id <> $2
+`
+
+type MoveDescendantsParams struct {
+	UpdatedAt time.Time
+	ID        uuid.UUID
+	Path      string
+}
+
+func (q *Queries) MoveDescendants(ctx context.Context, arg MoveDescendantsParams) error {
+	_, err := q.db.Exec(ctx, moveDescendants, arg.UpdatedAt, arg.ID, arg.Path)
+	return err
+}
+
 const pruneRevisions = `-- name: PruneRevisions :exec
-DELETE FROM core.post_revisions AS r
+DELETE FROM core.content_revisions AS r
 WHERE r.id IN (
     SELECT p.id
-    FROM core.post_revisions p
-    WHERE p.post_id = $1 AND p.kind = 'revision'
+    FROM core.content_revisions p
+    WHERE p.content_id = $1 AND p.kind = 'revision'
     ORDER BY p.created_at DESC, p.id DESC
     OFFSET $2::int
 )
 `
 
 type PruneRevisionsParams struct {
-	PostID uuid.UUID
-	Keep   int32
+	ContentID uuid.UUID
+	Keep      int32
 }
 
 func (q *Queries) PruneRevisions(ctx context.Context, arg PruneRevisionsParams) error {
-	_, err := q.db.Exec(ctx, pruneRevisions, arg.PostID, arg.Keep)
+	_, err := q.db.Exec(ctx, pruneRevisions, arg.ContentID, arg.Keep)
 	return err
 }
 
-const restorePost = `-- name: RestorePost :one
-UPDATE core.posts AS p
+const restoreContent = `-- name: RestoreContent :one
+UPDATE core.content AS p
 SET status = 'draft',
     slug = regexp_replace(p.slug, '-trashed-[a-z0-9]{8}$', ''),
+    path = regexp_replace(p.path, '-trashed-[a-z0-9]{8}$', ''),
     updated_at = $1
 WHERE p.id = $2
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 `
 
-type RestorePostParams struct {
+type RestoreContentParams struct {
 	UpdatedAt time.Time
 	ID        uuid.UUID
 }
 
-func (q *Queries) RestorePost(ctx context.Context, arg RestorePostParams) (CorePost, error) {
-	row := q.db.QueryRow(ctx, restorePost, arg.UpdatedAt, arg.ID)
-	var i CorePost
+func (q *Queries) RestoreContent(ctx context.Context, arg RestoreContentParams) (CoreContent, error) {
+	row := q.db.QueryRow(ctx, restoreContent, arg.UpdatedAt, arg.ID)
+	var i CoreContent
 	err := row.Scan(
 		&i.ID,
 		&i.Type,
@@ -741,26 +1034,28 @@ func (q *Queries) RestorePost(ctx context.Context, arg RestorePostParams) (CoreP
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
 	)
 	return i, err
 }
 
-const restorePostKeepingSlug = `-- name: RestorePostKeepingSlug :one
-UPDATE core.posts AS p
+const restoreContentKeepingSlug = `-- name: RestoreContentKeepingSlug :one
+UPDATE core.content AS p
 SET status = 'draft', updated_at = $1
 WHERE p.id = $2
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
 `
 
-type RestorePostKeepingSlugParams struct {
+type RestoreContentKeepingSlugParams struct {
 	UpdatedAt time.Time
 	ID        uuid.UUID
 }
 
-func (q *Queries) RestorePostKeepingSlug(ctx context.Context, arg RestorePostKeepingSlugParams) (CorePost, error) {
-	row := q.db.QueryRow(ctx, restorePostKeepingSlug, arg.UpdatedAt, arg.ID)
-	var i CorePost
+func (q *Queries) RestoreContentKeepingSlug(ctx context.Context, arg RestoreContentKeepingSlugParams) (CoreContent, error) {
+	row := q.db.QueryRow(ctx, restoreContentKeepingSlug, arg.UpdatedAt, arg.ID)
+	var i CoreContent
 	err := row.Scan(
 		&i.ID,
 		&i.Type,
@@ -773,8 +1068,36 @@ func (q *Queries) RestorePostKeepingSlug(ctx context.Context, arg RestorePostKee
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
 	)
 	return i, err
+}
+
+const retypeContentPaths = `-- name: RetypeContentPaths :exec
+UPDATE core.content c
+SET path = trim(leading '/' from $1::text || '/' ||
+        CASE WHEN $2::text = '' THEN c.path
+            ELSE substring(c.path from length($2::text) + 2) END),
+    updated_at = $3
+WHERE c.type = $4
+`
+
+type RetypeContentPathsParams struct {
+	RouteWord string
+	Was       string
+	UpdatedAt time.Time
+	Key       string
+}
+
+func (q *Queries) RetypeContentPaths(ctx context.Context, arg RetypeContentPathsParams) error {
+	_, err := q.db.Exec(ctx, retypeContentPaths,
+		arg.RouteWord,
+		arg.Was,
+		arg.UpdatedAt,
+		arg.Key,
+	)
+	return err
 }
 
 const setSetting = `-- name: SetSetting :exec
@@ -793,23 +1116,53 @@ func (q *Queries) SetSetting(ctx context.Context, arg SetSettingParams) error {
 	return err
 }
 
-const trashPost = `-- name: TrashPost :one
-UPDATE core.posts AS p
-SET status = 'trash', slug = p.slug || $1::text, updated_at = $2
-WHERE p.id = $3
-RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
+const siblingSlugTaken = `-- name: SiblingSlugTaken :one
+SELECT EXISTS (
+    SELECT 1 FROM core.content p
+    WHERE p.type = $1
+        AND p.parent_id IS NOT DISTINCT FROM $2::uuid
+        AND p.slug = $3
+        AND p.id <> $4
+)
 `
 
-type TrashPostParams struct {
+type SiblingSlugTakenParams struct {
+	Type     string
+	ParentID *uuid.UUID
+	Slug     string
+	ID       uuid.UUID
+}
+
+func (q *Queries) SiblingSlugTaken(ctx context.Context, arg SiblingSlugTakenParams) (bool, error) {
+	row := q.db.QueryRow(ctx, siblingSlugTaken,
+		arg.Type,
+		arg.ParentID,
+		arg.Slug,
+		arg.ID,
+	)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const trashContent = `-- name: TrashContent :one
+UPDATE core.content AS p
+SET status = 'trash', slug = p.slug || $1::text, path = p.path || $1::text,
+    updated_at = $2
+WHERE p.id = $3
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+`
+
+type TrashContentParams struct {
 	Suffix    string
 	UpdatedAt time.Time
 	ID        uuid.UUID
 }
 
-func (q *Queries) TrashPost(ctx context.Context, arg TrashPostParams) (CorePost, error) {
-	row := q.db.QueryRow(ctx, trashPost, arg.Suffix, arg.UpdatedAt, arg.ID)
-	var i CorePost
+func (q *Queries) TrashContent(ctx context.Context, arg TrashContentParams) (CoreContent, error) {
+	row := q.db.QueryRow(ctx, trashContent, arg.Suffix, arg.UpdatedAt, arg.ID)
+	var i CoreContent
 	err := row.Scan(
 		&i.ID,
 		&i.Type,
@@ -820,6 +1173,120 @@ func (q *Queries) TrashPost(ctx context.Context, arg TrashPostParams) (CorePost,
 		&i.Excerpt,
 		&i.AuthorID,
 		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
+	)
+	return i, err
+}
+
+const updateContent = `-- name: UpdateContent :one
+UPDATE core.content AS p
+SET status = $1, slug = $2, path = $3, parent_id = $4, title = $5,
+    content = $6, excerpt = $7, published_at = $8, updated_at = $9
+WHERE p.id = $10 AND p.updated_at = $11
+RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+`
+
+type UpdateContentParams struct {
+	Status            string
+	Slug              string
+	Path              string
+	ParentID          *uuid.UUID
+	Title             string
+	Content           string
+	Excerpt           string
+	PublishedAt       *time.Time
+	UpdatedAt         time.Time
+	ID                uuid.UUID
+	ExpectedUpdatedAt time.Time
+}
+
+func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (CoreContent, error) {
+	row := q.db.QueryRow(ctx, updateContent,
+		arg.Status,
+		arg.Slug,
+		arg.Path,
+		arg.ParentID,
+		arg.Title,
+		arg.Content,
+		arg.Excerpt,
+		arg.PublishedAt,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedUpdatedAt,
+	)
+	var i CoreContent
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Slug,
+		&i.Title,
+		&i.Content,
+		&i.Excerpt,
+		&i.AuthorID,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.Path,
+	)
+	return i, err
+}
+
+const updateContentType = `-- name: UpdateContentType :one
+UPDATE core.content_types AS t
+SET singular_label = $1, plural_label = $2, route_word = $3,
+    hierarchical = $4, revisions = $5, revision_cap = $6,
+    page_kind = $7, is_default = $8, active = $9, updated_at = $10
+WHERE t.key = $11
+RETURNING t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+`
+
+type UpdateContentTypeParams struct {
+	SingularLabel string
+	PluralLabel   string
+	RouteWord     string
+	Hierarchical  bool
+	Revisions     bool
+	RevisionCap   int32
+	PageKind      string
+	IsDefault     bool
+	Active        bool
+	UpdatedAt     time.Time
+	Key           string
+}
+
+func (q *Queries) UpdateContentType(ctx context.Context, arg UpdateContentTypeParams) (CoreContentType, error) {
+	row := q.db.QueryRow(ctx, updateContentType,
+		arg.SingularLabel,
+		arg.PluralLabel,
+		arg.RouteWord,
+		arg.Hierarchical,
+		arg.Revisions,
+		arg.RevisionCap,
+		arg.PageKind,
+		arg.IsDefault,
+		arg.Active,
+		arg.UpdatedAt,
+		arg.Key,
+	)
+	var i CoreContentType
+	err := row.Scan(
+		&i.Key,
+		&i.SingularLabel,
+		&i.PluralLabel,
+		&i.RouteWord,
+		&i.Hierarchical,
+		&i.Revisions,
+		&i.RevisionCap,
+		&i.PageKind,
+		&i.IsDefault,
+		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -876,75 +1343,25 @@ func (q *Queries) UpdateMedia(ctx context.Context, arg UpdateMediaParams) (CoreM
 	return i, err
 }
 
-const updatePost = `-- name: UpdatePost :one
-UPDATE core.posts AS p
-SET status = $1, slug = $2, title = $3, content = $4,
-    excerpt = $5, published_at = $6, updated_at = $7
-WHERE p.id = $8 AND p.updated_at = $9
-RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at
-`
-
-type UpdatePostParams struct {
-	Status            string
-	Slug              string
-	Title             string
-	Content           string
-	Excerpt           string
-	PublishedAt       *time.Time
-	UpdatedAt         time.Time
-	ID                uuid.UUID
-	ExpectedUpdatedAt time.Time
-}
-
-func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (CorePost, error) {
-	row := q.db.QueryRow(ctx, updatePost,
-		arg.Status,
-		arg.Slug,
-		arg.Title,
-		arg.Content,
-		arg.Excerpt,
-		arg.PublishedAt,
-		arg.UpdatedAt,
-		arg.ID,
-		arg.ExpectedUpdatedAt,
-	)
-	var i CorePost
-	err := row.Scan(
-		&i.ID,
-		&i.Type,
-		&i.Status,
-		&i.Slug,
-		&i.Title,
-		&i.Content,
-		&i.Excerpt,
-		&i.AuthorID,
-		&i.PublishedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const upsertAutosave = `-- name: UpsertAutosave :one
-INSERT INTO core.post_revisions (
-    id, post_id, kind, author_id, title, content, excerpt, created_at
+INSERT INTO core.content_revisions (
+    id, content_id, kind, author_id, title, content, excerpt, created_at
 )
 VALUES (
     $1, $2, 'autosave', $3, $4, $5, $6, $7
 )
-ON CONFLICT (post_id, author_id) WHERE kind = 'autosave'
+ON CONFLICT (content_id, author_id) WHERE kind = 'autosave'
 DO UPDATE SET
     title = EXCLUDED.title,
     content = EXCLUDED.content,
     excerpt = EXCLUDED.excerpt,
     created_at = EXCLUDED.created_at
-RETURNING id, post_id, kind, author_id, title, content, excerpt, created_at
+RETURNING id, content_id, kind, author_id, title, content, excerpt, created_at
 `
 
 type UpsertAutosaveParams struct {
 	ID        uuid.UUID
-	PostID    uuid.UUID
+	ContentID uuid.UUID
 	AuthorID  uuid.UUID
 	Title     string
 	Content   string
@@ -952,20 +1369,20 @@ type UpsertAutosaveParams struct {
 	CreatedAt time.Time
 }
 
-func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) (CorePostRevision, error) {
+func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) (CoreContentRevision, error) {
 	row := q.db.QueryRow(ctx, upsertAutosave,
 		arg.ID,
-		arg.PostID,
+		arg.ContentID,
 		arg.AuthorID,
 		arg.Title,
 		arg.Content,
 		arg.Excerpt,
 		arg.CreatedAt,
 	)
-	var i CorePostRevision
+	var i CoreContentRevision
 	err := row.Scan(
 		&i.ID,
-		&i.PostID,
+		&i.ContentID,
 		&i.Kind,
 		&i.AuthorID,
 		&i.Title,

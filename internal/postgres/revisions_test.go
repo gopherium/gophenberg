@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // overflowCap returns a revision cap too large for the row limit of a query.
@@ -25,9 +25,9 @@ func overflowCap(t *testing.T) int {
 }
 
 // mustSnapshot returns a revision of the post credited to author.
-func mustSnapshot(t *testing.T, p post.Post, author uuid.UUID) *post.Revision {
+func mustSnapshot(t *testing.T, p content.Content, author uuid.UUID) *content.Revision {
 	t.Helper()
-	revision, err := post.NewRevision(p, post.RevisionKindRevision, author)
+	revision, err := content.NewRevision(p, content.RevisionKindRevision, author)
 	if err != nil {
 		t.Fatalf("NewRevision() error = %v, want nil", err)
 	}
@@ -35,17 +35,17 @@ func mustSnapshot(t *testing.T, p post.Post, author uuid.UUID) *post.Revision {
 }
 
 // editTitle returns the post with a new title and a later timestamp.
-func editTitle(p post.Post, title string) post.Post {
+func editTitle(p content.Content, title string) content.Content {
 	edited := p
 	edited.Title = title
 	edited.UpdatedAt = p.UpdatedAt.Add(time.Second)
 	return edited
 }
 
-func TestPostStoreUpdateStoresTheSnapshot(t *testing.T) {
+func TestContentStoreUpdateStoresTheSnapshot(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "First Title", author)
 
 	_, err := store.Update(
@@ -65,7 +65,7 @@ func TestPostStoreUpdateStoresTheSnapshot(t *testing.T) {
 	if revisions[0].Title != "First Title" {
 		t.Errorf("revision title = %q, want the state before the edit", revisions[0].Title)
 	}
-	if revisions[0].Kind != post.RevisionKindRevision || revisions[0].AuthorID != author {
+	if revisions[0].Kind != content.RevisionKindRevision || revisions[0].AuthorID != author {
 		t.Errorf("revision = %+v, want a revision credited to the editor", revisions[0])
 	}
 	if revisions[0].Content != "" {
@@ -73,10 +73,10 @@ func TestPostStoreUpdateStoresTheSnapshot(t *testing.T) {
 	}
 }
 
-func TestPostStoreUpdateWithoutASnapshotStoresNoRevision(t *testing.T) {
+func TestContentStoreUpdateWithoutASnapshotStoresNoRevision(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Only Title", author)
 
 	if _, err := store.Update(t.Context(), editTitle(created, "Edited"), created.UpdatedAt, nil, 0); err != nil {
@@ -92,10 +92,10 @@ func TestPostStoreUpdateWithoutASnapshotStoresNoRevision(t *testing.T) {
 	}
 }
 
-func TestPostStoreUpdatePrunesBeyondTheCap(t *testing.T) {
+func TestContentStoreUpdatePrunesBeyondTheCap(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	current := mustCreate(t, store, "Title 0", author)
 
 	for i := 1; i <= 5; i++ {
@@ -119,10 +119,10 @@ func TestPostStoreUpdatePrunesBeyondTheCap(t *testing.T) {
 	}
 }
 
-func TestPostStoreUpdateKeepsHistoryWhenSnapshotsConflict(t *testing.T) {
+func TestContentStoreUpdateKeepsHistoryWhenSnapshotsConflict(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Version One", author)
 	_, err := store.Update(
 		t.Context(), editTitle(created, "Writer A"), created.UpdatedAt, mustSnapshot(t, created, author), 0,
@@ -135,8 +135,8 @@ func TestPostStoreUpdateKeepsHistoryWhenSnapshotsConflict(t *testing.T) {
 		t.Context(), editTitle(created, "Writer B"), created.UpdatedAt, mustSnapshot(t, created, author), 0,
 	)
 
-	if !errors.Is(err, post.ErrConflict) {
-		t.Fatalf("Update() with a stale token error = %v, want %v", err, post.ErrConflict)
+	if !errors.Is(err, content.ErrConflict) {
+		t.Fatalf("Update() with a stale token error = %v, want %v", err, content.ErrConflict)
 	}
 	revisions, err := store.Revisions(t.Context(), created.ID)
 	if err != nil {
@@ -147,12 +147,12 @@ func TestPostStoreUpdateKeepsHistoryWhenSnapshotsConflict(t *testing.T) {
 	}
 }
 
-func TestPostStoreUpdatePruneSparesAutosaves(t *testing.T) {
+func TestContentStoreUpdatePruneSparesAutosaves(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
+	store, author, pool := newContentStoreWithPool(t)
 	current := mustCreate(t, store, "Title 0", author)
-	if err := insertRevision(t, pool, current.ID, author, post.RevisionKindAutosave); err != nil {
+	if err := insertRevision(t, pool, current.ID, author, content.RevisionKindAutosave); err != nil {
 		t.Fatalf("inserting the autosave: %v, want nil", err)
 	}
 
@@ -169,22 +169,22 @@ func TestPostStoreUpdatePruneSparesAutosaves(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Revisions() error = %v, want nil", err)
 	}
-	kinds := map[post.RevisionKind]int{}
+	kinds := map[content.RevisionKind]int{}
 	for _, revision := range revisions {
 		kinds[revision.Kind]++
 	}
-	if kinds[post.RevisionKindAutosave] != 1 {
-		t.Errorf("autosaves = %d, want pruning to spare the autosave", kinds[post.RevisionKindAutosave])
+	if kinds[content.RevisionKindAutosave] != 1 {
+		t.Errorf("autosaves = %d, want pruning to spare the autosave", kinds[content.RevisionKindAutosave])
 	}
-	if kinds[post.RevisionKindRevision] != 1 {
-		t.Errorf("revisions = %d, want the cap of 1 spent on revisions only", kinds[post.RevisionKindRevision])
+	if kinds[content.RevisionKindRevision] != 1 {
+		t.Errorf("revisions = %d, want the cap of 1 spent on revisions only", kinds[content.RevisionKindRevision])
 	}
 }
 
-func TestPostStoreUpdateKeepsEveryRevisionWithoutACap(t *testing.T) {
+func TestContentStoreUpdateKeepsEveryRevisionWithoutACap(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	current := mustCreate(t, store, "Title 0", author)
 
 	for i := 1; i <= 3; i++ {
@@ -205,10 +205,10 @@ func TestPostStoreUpdateKeepsEveryRevisionWithoutACap(t *testing.T) {
 	}
 }
 
-func TestPostStoreRevisionByIDReturnsTheContent(t *testing.T) {
+func TestContentStoreRevisionByIDReturnsTheContent(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "With Body", author)
 	withBody := created
 	withBody.Content = "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->"
@@ -240,10 +240,10 @@ func TestPostStoreRevisionByIDReturnsTheContent(t *testing.T) {
 	}
 }
 
-func TestPostStoreRevisionsScopeToTheirPost(t *testing.T) {
+func TestContentStoreRevisionsScopeToTheirPost(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	owner := mustCreate(t, store, "Owner Post", author)
 	other := mustCreate(t, store, "Other Post", author)
 	snapshot := mustSnapshot(t, owner, author)
@@ -254,34 +254,34 @@ func TestPostStoreRevisionsScopeToTheirPost(t *testing.T) {
 	_, byIDErr := store.RevisionByID(t.Context(), other.ID, snapshot.ID)
 	deleteErr := store.DeleteRevision(t.Context(), other.ID, snapshot.ID)
 
-	if !errors.Is(byIDErr, post.ErrRevisionNotFound) {
-		t.Errorf("RevisionByID() through the wrong post error = %v, want %v", byIDErr, post.ErrRevisionNotFound)
+	if !errors.Is(byIDErr, content.ErrRevisionNotFound) {
+		t.Errorf("RevisionByID() through the wrong post error = %v, want %v", byIDErr, content.ErrRevisionNotFound)
 	}
-	if !errors.Is(deleteErr, post.ErrRevisionNotFound) {
-		t.Errorf("DeleteRevision() through the wrong post error = %v, want %v", deleteErr, post.ErrRevisionNotFound)
+	if !errors.Is(deleteErr, content.ErrRevisionNotFound) {
+		t.Errorf("DeleteRevision() through the wrong post error = %v, want %v", deleteErr, content.ErrRevisionNotFound)
 	}
 	if _, err := store.RevisionByID(t.Context(), owner.ID, snapshot.ID); err != nil {
 		t.Errorf("RevisionByID() through the owner error = %v, want the revision kept", err)
 	}
 }
 
-func TestPostStoreRevisionByIDReportsMissingRevisions(t *testing.T) {
+func TestContentStoreRevisionByIDReportsMissingRevisions(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Revised", author)
 
 	_, err := store.RevisionByID(t.Context(), created.ID, uuid.Must(uuid.NewV7()))
 
-	if !errors.Is(err, post.ErrRevisionNotFound) {
-		t.Errorf("RevisionByID() error = %v, want %v", err, post.ErrRevisionNotFound)
+	if !errors.Is(err, content.ErrRevisionNotFound) {
+		t.Errorf("RevisionByID() error = %v, want %v", err, content.ErrRevisionNotFound)
 	}
 }
 
-func TestPostStoreDeleteRevision(t *testing.T) {
+func TestContentStoreDeleteRevision(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Revised", author)
 	_, updateErr := store.Update(
 		t.Context(), editTitle(created, "Edited"), created.UpdatedAt, mustSnapshot(t, created, author), 0,
@@ -307,23 +307,23 @@ func TestPostStoreDeleteRevision(t *testing.T) {
 	}
 }
 
-func TestPostStoreDeleteRevisionReportsMissingRevisions(t *testing.T) {
+func TestContentStoreDeleteRevisionReportsMissingRevisions(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Revised", author)
 
 	err := store.DeleteRevision(t.Context(), created.ID, uuid.Must(uuid.NewV7()))
 
-	if !errors.Is(err, post.ErrRevisionNotFound) {
-		t.Errorf("DeleteRevision() error = %v, want %v", err, post.ErrRevisionNotFound)
+	if !errors.Is(err, content.ErrRevisionNotFound) {
+		t.Errorf("DeleteRevision() error = %v, want %v", err, content.ErrRevisionNotFound)
 	}
 }
 
-func TestPostStoreRevisionsReportDatabaseFailures(t *testing.T) {
+func TestContentStoreRevisionsReportDatabaseFailures(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
+	store, author, pool := newContentStoreWithPool(t)
 	created := mustCreate(t, store, "Revised", author)
 	snapshot := mustSnapshot(t, created, author)
 	pool.Close()
@@ -342,10 +342,10 @@ func TestPostStoreRevisionsReportDatabaseFailures(t *testing.T) {
 	}
 }
 
-func TestPostStoreUpdateReportsADuplicateSnapshot(t *testing.T) {
+func TestContentStoreUpdateReportsADuplicateSnapshot(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Revised", author)
 	snapshot := mustSnapshot(t, created, author)
 	second, err := store.Update(t.Context(), editTitle(created, "Second"), created.UpdatedAt, snapshot, 0)
@@ -360,10 +360,10 @@ func TestPostStoreUpdateReportsADuplicateSnapshot(t *testing.T) {
 	}
 }
 
-func TestPostStoreUpdateReportsAnUnusableCap(t *testing.T) {
+func TestContentStoreUpdateReportsAnUnusableCap(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	created := mustCreate(t, store, "Revised", author)
 
 	_, err := store.Update(

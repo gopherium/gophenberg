@@ -27,6 +27,6 @@ describe('what the starter declares to the kit', () => {
 
 	test('names the site and its page size', () => {
 		expect(theme.seo.siteName).toBe('Gophenberg Starter')
-		expect(theme.pagination?.perPage).toBe(10)
+		expect(theme.pagination?.perPage).toBe(2)
 	})
 })

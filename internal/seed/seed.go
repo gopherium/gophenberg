@@ -13,7 +13,7 @@ import (
 
 	"github.com/gopherium/gouncer"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // Demo credentials stored by the seed subcommand, for development only.
@@ -29,7 +29,7 @@ type demoPost struct {
 	title   string
 	excerpt string
 	content string
-	status  post.Status
+	status  content.Status
 }
 
 // demoPosts returns the scripted posts stored by [Posts].
@@ -50,7 +50,7 @@ func demoPosts() []demoPost {
 				"<cite>Maria Perez</cite></blockquote>\n<!-- /wp:quote -->\n\n" +
 				"<!-- wp:paragraph -->\n<p>A theme may draw any of these blocks its own way, and the ones it " +
 				"leaves alone are served exactly as they were saved.</p>\n<!-- /wp:paragraph -->",
-			status: post.StatusPublished,
+			status: content.StatusPublished,
 		},
 		{
 			id:      "019fb000-0000-7000-8000-000000000002",
@@ -73,7 +73,7 @@ func demoPosts() []demoPost {
 				"<!-- wp:paragraph -->\n<p>The one beside it holds its own.</p>\n" +
 				"<!-- /wp:paragraph --></div>\n<!-- /wp:column -->" +
 				"</div>\n<!-- /wp:columns --></div>\n<!-- /wp:group -->",
-			status: post.StatusPublished,
+			status: content.StatusPublished,
 		},
 		{
 			id:      "019fb000-0000-7000-8000-000000000006",
@@ -88,7 +88,7 @@ func demoPosts() []demoPost {
 				"</figure>\n<!-- /wp:image -->\n\n" +
 				"<!-- wp:paragraph -->\n<p>The address is what travels, so the picture is served by whoever " +
 				"hosts it rather than by this site.</p>\n<!-- /wp:paragraph -->",
-			status: post.StatusPublished,
+			status: content.StatusPublished,
 		},
 		{
 			id:      "019fb000-0000-7000-8000-000000000003",
@@ -96,7 +96,7 @@ func demoPosts() []demoPost {
 			excerpt: "Rough notes, not ready for anyone else yet.",
 			content: "<!-- wp:paragraph -->\n<p>Collecting the changes worth announcing once they land.</p>\n" +
 				"<!-- /wp:paragraph -->",
-			status: post.StatusDraft,
+			status: content.StatusDraft,
 		},
 		{
 			id:      "019fb000-0000-7000-8000-000000000004",
@@ -104,7 +104,7 @@ func demoPosts() []demoPost {
 			excerpt: "A walkthrough waiting for a second pair of eyes.",
 			content: "<!-- wp:paragraph -->\n<p>The import keeps the block markup, so posts arrive editable " +
 				"rather than frozen as raw HTML.</p>\n<!-- /wp:paragraph -->",
-			status: post.StatusPending,
+			status: content.StatusPending,
 		},
 		{
 			id:      "019fb000-0000-7000-8000-000000000005",
@@ -112,25 +112,29 @@ func demoPosts() []demoPost {
 			excerpt: "Kept in the trash until someone empties it.",
 			content: "<!-- wp:paragraph -->\n<p>Trashed posts keep their content and free their slug for " +
 				"reuse.</p>\n<!-- /wp:paragraph -->",
-			status: post.StatusTrash,
+			status: content.StatusTrash,
 		},
 	}
 }
 
 // Posts stores the demo posts the admin account does not already own.
-func Posts(ctx context.Context, store post.Store, users gouncer.Store) error {
+func Posts(ctx context.Context, store content.Store, types *content.Registry, users gouncer.Store) error {
 	admin, err := users.UserByEmail(ctx, AdminEmail)
 	if err != nil {
 		return fmt.Errorf("seed admin lookup: %w", err)
+	}
+	postType, err := types.ByKey(ctx, content.TypePost)
+	if err != nil {
+		return fmt.Errorf("seed post type lookup: %w", err)
 	}
 	for _, scripted := range demoPosts() {
 		id := uuid.MustParse(scripted.id)
 		if _, err := store.ByID(ctx, id); err == nil {
 			continue
-		} else if !errors.Is(err, post.ErrNotFound) {
+		} else if !errors.Is(err, content.ErrNotFound) {
 			return fmt.Errorf("seed post lookup: %w", err)
 		}
-		if err := storeDemoPost(ctx, store, scripted, id, admin.ID); err != nil {
+		if err := storeDemoPost(ctx, store, postType, scripted, id, admin.ID); err != nil {
 			return err
 		}
 	}
@@ -139,16 +143,16 @@ func Posts(ctx context.Context, store post.Store, users gouncer.Store) error {
 
 // storeDemoPost stores one scripted post in its scripted status.
 func storeDemoPost(
-	ctx context.Context, store post.Store, scripted demoPost, id, authorID uuid.UUID,
+	ctx context.Context, store content.Store, postType content.Type, scripted demoPost, id, authorID uuid.UUID,
 ) error {
-	built, err := post.New(post.TypePost, scripted.title, authorID)
+	built, err := content.New(postType, nil, scripted.title, authorID)
 	if err != nil {
 		return fmt.Errorf("build post: %w", err)
 	}
 	built.ID = id
 	built.Excerpt = scripted.excerpt
 	built.Content = scripted.content
-	if scripted.status != post.StatusDraft && scripted.status != post.StatusTrash {
+	if scripted.status != content.StatusDraft && scripted.status != content.StatusTrash {
 		if err := built.Transition(scripted.status); err != nil {
 			return fmt.Errorf("build post: %w", err)
 		}
@@ -157,7 +161,7 @@ func storeDemoPost(
 	if err != nil {
 		return fmt.Errorf("seed post: %w", err)
 	}
-	if scripted.status != post.StatusTrash {
+	if scripted.status != content.StatusTrash {
 		return nil
 	}
 	if _, err := store.Trash(ctx, stored.ID, time.Now().UTC()); err != nil {

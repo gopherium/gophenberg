@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
@@ -20,25 +20,40 @@ const blockMarkup = "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->"
 // fixtureTitle is the title every published fixture carries.
 const fixtureTitle = "Hello World"
 
-// insertPostWithStatus stores a post of the given type, status, and slug through raw SQL.
-func insertPostWithStatus(
-	t *testing.T, pool *pgxpool.Pool, author uuid.UUID, postType string, status post.Status, slug string,
+// insertContentWithStatus stores a post of the given type, status, and slug through raw SQL.
+func insertContentWithStatus(
+	t *testing.T, pool *pgxpool.Pool, author uuid.UUID, postType string, status content.Status, slug, path string,
 ) {
 	t.Helper()
 	now := time.Now().UTC()
 	_, err := pool.Exec(t.Context(),
-		`INSERT INTO core.posts (id, type, status, slug, title, content, excerpt, author_id,
+		`INSERT INTO core.content (id, type, status, slug, path, title, content, excerpt, author_id,
 			published_at, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, 'Stored Title', $5, '', $6, $7, $7, $7)`,
-		uuid.Must(uuid.NewV7()), postType, string(status), slug, blockMarkup, author, now,
+		VALUES ($1, $2, $3, $4, $5, 'Stored Title', $6, '', $7, $8, $8, $8)`,
+		uuid.Must(uuid.NewV7()), postType, string(status), slug, path, blockMarkup, author, now,
 	)
 	if err != nil {
 		t.Fatalf("inserting a %s post: %v", status, err)
 	}
 }
 
+// registerType stores a content type row the content table can reference.
+func registerType(t *testing.T, pool *pgxpool.Pool, key, routeWord string) {
+	t.Helper()
+	now := time.Now().UTC()
+	_, err := pool.Exec(t.Context(),
+		`INSERT INTO core.content_types (key, singular_label, plural_label, route_word, hierarchical,
+			revisions, revision_cap, page_kind, is_default, active, created_at, updated_at)
+		VALUES ($1, 'Thing', 'Things', $2, false, true, 100, 'single', false, true, $3, $3)`,
+		key, routeWord, now,
+	)
+	if err != nil {
+		t.Fatalf("registering the type %q: %v", key, err)
+	}
+}
+
 // publishWithContent stores a published post titled [fixtureTitle] carrying [blockMarkup].
-func publishWithContent(t *testing.T, store *postgres.PostStore, author uuid.UUID) post.Post {
+func publishWithContent(t *testing.T, store *postgres.ContentStore, author uuid.UUID) content.Content {
 	t.Helper()
 	published := publish(t, store, fixtureTitle, author, time.Now().UTC())
 	edited := published
@@ -50,16 +65,16 @@ func publishWithContent(t *testing.T, store *postgres.PostStore, author uuid.UUI
 	return updated
 }
 
-func TestPostStoreFindsAPublishedPostBySlug(t *testing.T) {
+func TestContentStoreFindsAPublishedPostByAddress(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	published := publishWithContent(t, store, author)
 
-	found, err := store.PublishedBySlug(t.Context(), post.TypePost, published.Slug)
+	found, err := store.PublishedByPath(t.Context(), published.Path)
 
 	if err != nil {
-		t.Fatalf("PublishedBySlug() error = %v, want nil", err)
+		t.Fatalf("PublishedByPath() error = %v, want nil", err)
 	}
 	if found.ID != published.ID {
 		t.Errorf("ID = %v, want %v", found.ID, published.ID)
@@ -75,117 +90,118 @@ func TestPostStoreFindsAPublishedPostBySlug(t *testing.T) {
 	}
 }
 
-func TestPostStoreHidesEveryStatusButPublished(t *testing.T) {
+func TestContentStoreHidesEveryStatusButPublished(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
-	statuses := []post.Status{
-		post.StatusDraft,
-		post.StatusPending,
-		post.StatusPrivate,
-		post.StatusScheduled,
-		post.StatusTrash,
+	store, author, pool := newContentStoreWithPool(t)
+	statuses := []content.Status{
+		content.StatusDraft,
+		content.StatusPending,
+		content.StatusPrivate,
+		content.StatusScheduled,
+		content.StatusTrash,
 	}
 	for _, status := range statuses {
-		insertPostWithStatus(t, pool, author, post.TypePost, status, "hidden-"+string(status))
+		insertContentWithStatus(t, pool, author, content.TypePost, status, "hidden-"+string(status), "hidden-"+string(status))
 	}
 
 	for _, status := range statuses {
 		t.Run(string(status), func(t *testing.T) {
 			t.Parallel()
 
-			_, err := store.PublishedBySlug(t.Context(), post.TypePost, "hidden-"+string(status))
+			_, err := store.PublishedByPath(t.Context(), "hidden-"+string(status))
 
-			if !errors.Is(err, post.ErrNotFound) {
-				t.Errorf("PublishedBySlug() error = %v, want %v", err, post.ErrNotFound)
+			if !errors.Is(err, content.ErrNotFound) {
+				t.Errorf("PublishedByPath() error = %v, want %v", err, content.ErrNotFound)
 			}
 		})
 	}
 }
 
-func TestPostStoreScopesTheLookupToThePostType(t *testing.T) {
+func TestContentStoreScopesTheLookupToTheAddress(t *testing.T) {
 	t.Parallel()
 
-	store, author, pool := newPostStoreWithPool(t)
-	insertPostWithStatus(t, pool, author, "page", post.StatusPublished, "about-us")
+	store, author, pool := newContentStoreWithPool(t)
+	registerType(t, pool, "page", "pages")
+	insertContentWithStatus(t, pool, author, "page", content.StatusPublished, "about-us", "pages/about-us")
 
-	found, err := store.PublishedBySlug(t.Context(), "page", "about-us")
+	found, err := store.PublishedByPath(t.Context(), "pages/about-us")
 	if err != nil {
-		t.Fatalf("PublishedBySlug(page) error = %v, want nil", err)
+		t.Fatalf("PublishedByPath(page) error = %v, want nil", err)
 	}
 	if found.Type != "page" || found.Slug != "about-us" {
 		t.Errorf("found = %q %q, want the page carrying the slug", found.Type, found.Slug)
 	}
 
-	_, err = store.PublishedBySlug(t.Context(), post.TypePost, "about-us")
+	_, err = store.PublishedByPath(t.Context(), "about-us")
 
-	if !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("PublishedBySlug(post) error = %v, want %v", err, post.ErrNotFound)
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("PublishedByPath(post) error = %v, want %v", err, content.ErrNotFound)
 	}
 }
 
-func TestPostStoreReportsAnUnknownSlug(t *testing.T) {
+func TestContentStoreReportsAnUnknownAddress(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	publishWithContent(t, store, author)
 
-	_, err := store.PublishedBySlug(t.Context(), post.TypePost, "never-written")
+	_, err := store.PublishedByPath(t.Context(), "never-written")
 
-	if !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("PublishedBySlug() error = %v, want %v", err, post.ErrNotFound)
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("PublishedByPath() error = %v, want %v", err, content.ErrNotFound)
 	}
 }
 
-func TestPostStoreHidesARestoredPostUntilItIsPublishedAgain(t *testing.T) {
+func TestContentStoreHidesARestoredPostUntilItIsPublishedAgain(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	published := publishWithContent(t, store, author)
-	slug := published.Slug
+	address := published.Path
 
 	trashed, err := store.Trash(t.Context(), published.ID, time.Now().UTC())
 	if err != nil {
 		t.Fatalf("Trash() error = %v, want nil", err)
 	}
-	if _, err := store.PublishedBySlug(t.Context(), post.TypePost, trashed.Slug); !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("PublishedBySlug() at the trashed slug error = %v, want %v", err, post.ErrNotFound)
+	if _, err := store.PublishedByPath(t.Context(), trashed.Path); !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("PublishedByPath() at the trashed address error = %v, want %v", err, content.ErrNotFound)
 	}
-	if _, err := store.PublishedBySlug(t.Context(), post.TypePost, slug); !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("PublishedBySlug() at the freed slug error = %v, want %v", err, post.ErrNotFound)
+	if _, err := store.PublishedByPath(t.Context(), address); !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("PublishedByPath() at the freed address error = %v, want %v", err, content.ErrNotFound)
 	}
 
 	restored, err := store.Restore(t.Context(), trashed.ID, time.Now().UTC())
 	if err != nil {
 		t.Fatalf("Restore() error = %v, want nil", err)
 	}
-	if restored.Status != post.StatusDraft {
-		t.Fatalf("Status after Restore() = %q, want %q", restored.Status, post.StatusDraft)
+	if restored.Status != content.StatusDraft {
+		t.Fatalf("Status after Restore() = %q, want %q", restored.Status, content.StatusDraft)
 	}
-	if _, err := store.PublishedBySlug(t.Context(), post.TypePost, slug); !errors.Is(err, post.ErrNotFound) {
-		t.Errorf("PublishedBySlug() after restoring error = %v, want %v", err, post.ErrNotFound)
+	if _, err := store.PublishedByPath(t.Context(), address); !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("PublishedByPath() after restoring error = %v, want %v", err, content.ErrNotFound)
 	}
 
 	republished := restored
-	republished.Status = post.StatusPublished
+	republished.Status = content.StatusPublished
 	if _, err := store.Update(t.Context(), republished, restored.UpdatedAt, nil, 0); err != nil {
 		t.Fatalf("republishing: %v", err)
 	}
 
-	found, err := store.PublishedBySlug(t.Context(), post.TypePost, slug)
+	found, err := store.PublishedByPath(t.Context(), address)
 
 	if err != nil {
-		t.Fatalf("PublishedBySlug() after republishing error = %v, want nil", err)
+		t.Fatalf("PublishedByPath() after republishing error = %v, want nil", err)
 	}
 	if found.ID != published.ID {
 		t.Errorf("ID = %v, want %v", found.ID, published.ID)
 	}
 }
 
-func TestPostStoreServesARestoredPostAtTheSlugItKept(t *testing.T) {
+func TestContentStoreServesARestoredPostAtTheAddressItKept(t *testing.T) {
 	t.Parallel()
 
-	store, author := newPostStore(t)
+	store, author := newContentStore(t)
 	first := publishWithContent(t, store, author)
 	trashed, err := store.Trash(t.Context(), first.ID, time.Now().UTC())
 	if err != nil {
@@ -201,15 +217,15 @@ func TestPostStoreServesARestoredPostAtTheSlugItKept(t *testing.T) {
 		t.Fatalf("Restore() error = %v, want nil", err)
 	}
 	republished := restored
-	republished.Status = post.StatusPublished
+	republished.Status = content.StatusPublished
 	if _, err := store.Update(t.Context(), republished, restored.UpdatedAt, nil, 0); err != nil {
 		t.Fatalf("republishing: %v", err)
 	}
 
-	found, err := store.PublishedBySlug(t.Context(), post.TypePost, restored.Slug)
+	found, err := store.PublishedByPath(t.Context(), restored.Path)
 
 	if err != nil {
-		t.Fatalf("PublishedBySlug() at the kept slug error = %v, want nil", err)
+		t.Fatalf("PublishedByPath() at the kept address error = %v, want nil", err)
 	}
 	if found.ID != first.ID {
 		t.Errorf("ID = %v, want the restored post %v", found.ID, first.ID)

@@ -5,7 +5,6 @@ export { GophenbergClient } from './client.ts'
 export { siteAssetUrls } from './assets.ts'
 export {
 	contentApiPath,
-	defaultPostType,
 	generator,
 	isBlockName,
 	kitFeatureVersion,
@@ -16,8 +15,8 @@ export { defineTheme } from './theme.ts'
 export { gophenbergLoader } from './loader.ts'
 
 export type { BlockComponentMap, BlockNode, BlockProps, BlockSegment, ParsedBlock } from './blocks.ts'
-export type { ClientOptions, ListQuery } from './client.ts'
-export type { Page, Post, PostSummary } from './content.ts'
+export type { ClientOptions, ListQuery, ResolveOptions } from './client.ts'
+export type { ContentType, Handshake, Page, Post, PostSummary, Resolved } from './content.ts'
 export type { SiteAssetUrls } from './assets.ts'
 export type { LivePost, LoaderOptions, PostCollectionFilter, PostEntryFilter } from './loader.ts'
 export type { GophenbergTheme, ThemeLayouts, ThemeSeo } from './theme.ts'

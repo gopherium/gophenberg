@@ -24,14 +24,16 @@ interfaces add capabilities the host discovers automatically:
 `/api/plugins/{id}`, and `PublicPathProvider` for the exact paths
 that answer without a login.
 
-## Reading posts
+## Reading content
 
 ```go
-posts, err := deps.Posts.ListPublished(ctx, "post", 10)
+posts, err := deps.Content.ListPublished(ctx, "post", 10)
 ```
 
-Each `sdk.Post` carries `ID`, `Type`, `Slug`, `Title`, `Excerpt`,
-`Content`, `PublishedAt`, and `UpdatedAt`. The `Content` has the
+Each `sdk.Item` carries `ID`, `Type`, `Path`, `Slug`, `Title`,
+`Excerpt`, `Content`, `PublishedAt`, and `UpdatedAt`. `Path` is the
+item's public address, so a plugin building links prefixes it with
+`/` and nothing else. The `Content` has the
 same HTML filter applied that the public API uses, block markers
 intact. `Title` and `Excerpt` arrive as stored, so if your plugin
 serves HTML, escaping everything but `Content` is your job.
@@ -40,13 +42,13 @@ serves HTML, escaping everything but `Content` is your job.
 
 The absences are deliberate, so build against them:
 
-- **No post writes.** Plugins read published content, the editor
-  is the one writer.
+- **No content writes.** Plugins read published content, the
+  editor is the one writer.
 - **No user or session API.** The host guards your routes, and
   the SDK gives you nothing to act on accounts with.
 - **No shared database pool.** You get the URL, you own your
   connections and your schema.
-- **No post type registration.** A plugin cannot add its own
+- **No content type registration.** A plugin cannot add its own
   content type.
 
 ## Admin screens for plugins

@@ -129,12 +129,11 @@ describe('the build profile it pins', () => {
 })
 
 describe('the routes it injects', () => {
-	test('serves the addresses the feed already links', () => {
+	test('serves every address the resolver answers for', () => {
 		const patterns = runSetup().routes.map((route) => route.pattern)
 
 		expect(patterns).toContain('/')
-		expect(patterns).toContain('/[type]/[slug]')
-		expect(patterns).toContain('/[type]/page/[page]')
+		expect(patterns).toContain('/[...path]')
 		expect(patterns).toContain('/404')
 	})
 
@@ -154,9 +153,8 @@ describe('the routes it injects', () => {
 		const served = runSetup().routes.map((route) => [route.pattern, route.entrypoint])
 
 		expect(Object.fromEntries(served)).toEqual({
-			'/': `${kitName}/routes/archive.astro`,
-			'/[type]/page/[page]': `${kitName}/routes/archive.astro`,
-			'/[type]/[slug]': `${kitName}/routes/post.astro`,
+			'/': `${kitName}/routes/content.astro`,
+			'/[...path]': `${kitName}/routes/content.astro`,
 			'/404': `${kitName}/routes/not-found.astro`,
 			'/_gophenberg/health': `${kitName}/routes/health.ts`,
 		})

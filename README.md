@@ -10,6 +10,8 @@ the WPDS and Gutenberg block editor.
 - Block content authored in the Gutenberg editor, with autosave, revisions, trash and
   restore
 - A posts list with status filters, counts and sorting, and a trash view
+- Content types registered from the admin, each with its own addresses, archive, and
+  optional nesting
 - A media library storing uploads with derived image sizes, feeding the editor's media
   blocks from a picker and the inserter
 - Session authentication with login rate limiting, and a users screen for administrators

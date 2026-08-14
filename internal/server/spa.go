@@ -10,6 +10,7 @@ import (
 
 	"github.com/gopherium/gouncer/authkit"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/publicsite"
 )
 
@@ -64,14 +65,15 @@ func adminApp(cfg Config) http.Handler {
 	return spaHandler(cfg.Web)
 }
 
-// builtInSite returns the renderer serving the public site, or the JSON 404 when no store is
-// configured.
-func builtInSite(cfg Config) http.Handler {
-	if cfg.Posts == nil {
+// builtInSite returns the renderer serving the public site, or the JSON 404 when no store or no
+// registry is configured.
+func builtInSite(cfg Config, types *content.Registry) http.Handler {
+	if cfg.Content == nil || cfg.Types == nil {
 		return http.HandlerFunc(respondNotFound)
 	}
 	return publicsite.New(publicsite.Config{
-		Posts:   cfg.Posts,
+		Content: cfg.Content,
+		Types:   types,
 		Title:   cfg.SiteTitle,
 		Version: cfg.Version,
 	})

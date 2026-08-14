@@ -2,8 +2,8 @@
 
 import { env } from 'node:process'
 
-import { contentApiPath, defaultPostType } from './kit.ts'
-import type { Page, Post, PostSummary } from './content.ts'
+import { contentApiPath } from './kit.ts'
+import type { Handshake, Page, PostSummary, Resolved } from './content.ts'
 
 /** The default page size, matching what the content API reports back. */
 const defaultPerPage = 20
@@ -12,6 +12,11 @@ const defaultPerPage = 20
 export interface ListQuery {
 	type?: string
 	page?: number
+	perPage?: number
+}
+
+/** What a caller may ask an archive for. */
+export interface ResolveOptions {
 	perPage?: number
 }
 
@@ -42,27 +47,41 @@ export class GophenbergClient {
 	 */
 	async listPosts(query: ListQuery = {}): Promise<Page<PostSummary>> {
 		const search = new URLSearchParams({
-			type: query.type ?? defaultPostType,
 			page: String(query.page ?? 1),
 			per_page: String(query.perPage ?? defaultPerPage),
 		})
-		const response = await this.read(`/posts?${search}`)
+		if (query.type !== undefined) {
+			search.set('type', query.type)
+		}
+		const response = await this.read(`/items?${search}`)
 		return (await response.json()) as Page<PostSummary>
 	}
 
 	/**
-	 * Returns the published post at a type and slug, or nothing when none is published there.
-	 * @param type - The post type.
-	 * @param slug - The slug the post is published under.
-	 * @returns The post, or undefined when the instance serves none.
+	 * Returns the shape the instance speaks and the types it serves.
+	 * @returns The handshake the instance answered.
 	 */
-	async getPost(type: string, slug: string): Promise<Post | undefined> {
-		const address = `/posts/${encodeURIComponent(type)}/${encodeURIComponent(slug)}`
-		const response = await this.read(address, [404])
+	async handshake(): Promise<Handshake> {
+		const response = await this.read('')
+		return (await response.json()) as Handshake
+	}
+
+	/**
+	 * Returns what a public address holds, or nothing when it holds nothing.
+	 * @param path - The public address to resolve.
+	 * @param options - The page size an archive answers with.
+	 * @returns What the address holds, or undefined when the instance serves nothing there.
+	 */
+	async resolve(path: string, options: ResolveOptions = {}): Promise<Resolved | undefined> {
+		const search = new URLSearchParams({ path })
+		if (options.perPage !== undefined) {
+			search.set('per_page', String(options.perPage))
+		}
+		const response = await this.read(`/resolve?${search}`, [404])
 		if (response.status === 404) {
 			return undefined
 		}
-		return (await response.json()) as Post
+		return (await response.json()) as Resolved
 	}
 
 	/**

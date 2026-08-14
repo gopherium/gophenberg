@@ -48,11 +48,12 @@ override single block types, covered in
 
 ## The routes come from the kit
 
-You write no pages for posts. The integration injects the front
-page, `/{type}/page/{n}` listings, `/{type}/{slug}` posts, the 404
-page, and the health route Gophenberg probes at startup. Each page
-route renders one of your layouts with the content already
-fetched.
+You write no pages for content. The integration injects the front
+page, one catch-all route serving every stored address, the 404
+page, and the health route Gophenberg probes at startup. The
+catch-all asks Gophenberg what an address holds and renders your
+Post layout for an item or your Archive layout for a listing, with
+the content already fetched.
 
 Your own pages coexist with them: `src/pages/about.astro` serves
 `/about` as in any Astro site. To put posts on a page of your own,
@@ -115,7 +116,8 @@ const { post, blocks, seo } = Astro.props
 ```
 
 **Archive** receives `posts` (summaries without content), `total`,
-`page`, `perPage`, `type`, and `seo`. **NotFound** receives `seo`.
+`page`, `perPage`, `type` (the content type being listed, carrying
+its labels and route word), and `seo`. **NotFound** receives `seo`.
 
 ## Trying it
 

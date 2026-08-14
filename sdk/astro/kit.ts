@@ -8,9 +8,6 @@ export const kitName = '@gophenberg/astro'
 /** The address a theme reads published content through. */
 export const contentApiPath = '/api/content/v1'
 
-/** The post type a theme reads when it names none. */
-export const defaultPostType = 'post'
-
 /** The version this kit ships at. */
 export const kitVersion = version
 

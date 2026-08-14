@@ -11,12 +11,12 @@ import (
 
 	"github.com/gopherium/gouncer/authkit"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 type revisionResponse struct {
 	ID         uuid.UUID `json:"id"`
-	PostID     uuid.UUID `json:"post_id"`
+	ContentID  uuid.UUID `json:"content_id"`
 	Kind       string    `json:"kind"`
 	AuthorID   uuid.UUID `json:"author_id"`
 	AuthorName string    `json:"author_name"`
@@ -35,10 +35,10 @@ type revisionListResponse struct {
 }
 
 // newRevisionResponse builds a revisionResponse, normalizing the timestamp to UTC.
-func newRevisionResponse(r post.Revision, authorName string) revisionResponse {
+func newRevisionResponse(r content.Revision, authorName string) revisionResponse {
 	return revisionResponse{
 		ID:         r.ID,
-		PostID:     r.PostID,
+		ContentID:  r.ContentID,
 		Kind:       string(r.Kind),
 		AuthorID:   r.AuthorID,
 		AuthorName: authorName,
@@ -48,19 +48,19 @@ func newRevisionResponse(r post.Revision, authorName string) revisionResponse {
 	}
 }
 
-// handleRevisionList returns an http.HandlerFunc listing a post's revisions newest first.
+// handleRevisionList returns an http.HandlerFunc listing an item's revisions newest first.
 func (s *server) handleRevisionList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		postID, err := uuid.Parse(chi.URLParam(r, "id"))
+		contentID, err := uuid.Parse(chi.URLParam(r, "id"))
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "malformed post id")
+			authkit.RespondError(w, http.StatusBadRequest, "malformed content id")
 			return
 		}
-		if _, err := s.posts.ByID(r.Context(), postID); err != nil {
+		if _, err := s.content.ByID(r.Context(), contentID); err != nil {
 			respondDomainError(w, err)
 			return
 		}
-		revisions, err := s.posts.Revisions(r.Context(), postID)
+		revisions, err := s.content.Revisions(r.Context(), contentID)
 		if err != nil {
 			respondDomainError(w, err)
 			return
@@ -81,11 +81,11 @@ func (s *server) handleRevisionList() http.HandlerFunc {
 // handleRevisionGet returns an http.HandlerFunc responding with one revision and its content.
 func (s *server) handleRevisionGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		postID, revisionID, ok := parseRevisionIDs(w, r)
+		contentID, revisionID, ok := parseRevisionIDs(w, r)
 		if !ok {
 			return
 		}
-		revision, err := s.posts.RevisionByID(r.Context(), postID, revisionID)
+		revision, err := s.content.RevisionByID(r.Context(), contentID, revisionID)
 		if err != nil {
 			respondDomainError(w, err)
 			return
@@ -105,11 +105,11 @@ func (s *server) handleRevisionGet() http.HandlerFunc {
 // handleRevisionDelete returns an http.HandlerFunc removing one revision.
 func (s *server) handleRevisionDelete() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		postID, revisionID, ok := parseRevisionIDs(w, r)
+		contentID, revisionID, ok := parseRevisionIDs(w, r)
 		if !ok {
 			return
 		}
-		if err := s.posts.DeleteRevision(r.Context(), postID, revisionID); err != nil {
+		if err := s.content.DeleteRevision(r.Context(), contentID, revisionID); err != nil {
 			respondDomainError(w, err)
 			return
 		}
@@ -117,11 +117,11 @@ func (s *server) handleRevisionDelete() http.HandlerFunc {
 	}
 }
 
-// parseRevisionIDs reads the post and revision ids from the URL, reporting whether both parsed.
+// parseRevisionIDs reads the content and revision ids from the URL, reporting whether both parsed.
 func parseRevisionIDs(w http.ResponseWriter, r *http.Request) (uuid.UUID, uuid.UUID, bool) {
-	postID, err := uuid.Parse(chi.URLParam(r, "id"))
+	contentID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
-		authkit.RespondError(w, http.StatusBadRequest, "malformed post id")
+		authkit.RespondError(w, http.StatusBadRequest, "malformed content id")
 		return uuid.Nil, uuid.Nil, false
 	}
 	revisionID, err := uuid.Parse(chi.URLParam(r, "revisionID"))
@@ -129,5 +129,5 @@ func parseRevisionIDs(w http.ResponseWriter, r *http.Request) (uuid.UUID, uuid.U
 		authkit.RespondError(w, http.StatusBadRequest, "malformed revision id")
 		return uuid.Nil, uuid.Nil, false
 	}
-	return postID, revisionID, true
+	return contentID, revisionID, true
 }

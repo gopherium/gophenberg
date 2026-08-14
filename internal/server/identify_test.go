@@ -23,7 +23,7 @@ func TestPublicResponsesIdentifyWhatServesThem(t *testing.T) {
 
 	handler := publicServer(t)
 
-	for _, path := range []string{"/", "/post/hello-world", "/post/page/2", "/nothing/here"} {
+	for _, path := range []string{"/", "/hello-world", "/page/2", "/nothing/here"} {
 		recorder := doRequest(t, handler, http.MethodGet, path, "")
 		if got := recorder.Header().Get("X-Generator"); got != wantGenerator {
 			t.Errorf("GET %s X-Generator = %q, want %q", path, got, wantGenerator)
@@ -55,8 +55,8 @@ func TestTheAPIAndTheAdminStayUnbranded(t *testing.T) {
 
 	for _, path := range []string{
 		"/api/content/v1",
-		"/api/content/v1/posts",
-		"/api/content/v1/posts/post/hello-world",
+		"/api/content/v1/items",
+		"/api/content/v1/resolve?path=/hello-world",
 		"/api/version",
 		"/api/unknown",
 		"/api",
@@ -79,7 +79,8 @@ func TestIdentificationReportsTheBuildVersionAtMajorMinor(t *testing.T) {
 
 	handler := server.NewServer(server.Config{
 		Users:   newFakeUserStore(),
-		Posts:   newFakePostStore(),
+		Content: newFakePostStore(),
+		Types:   newFakeTypeStore(),
 		Version: "0.0.0",
 		Web:     fstest.MapFS{"index.html": {Data: []byte("<!doctype html>")}},
 	})
@@ -111,7 +112,9 @@ func TestIdentificationLeavesRoomForHeadersAPageAddsItself(t *testing.T) {
 
 	posts := newFakePostStore()
 	posts.add(publishedFixture(t, "hello-world", blockMarkup, time.Now().UTC()))
-	handler := server.NewServer(server.Config{Users: newFakeUserStore(), Posts: posts, Version: "1.2.3"})
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(), Content: posts, Types: newFakeTypeStore(), Version: "1.2.3",
+	})
 
 	recorder := doRequest(t, handler, http.MethodGet, "/", "")
 

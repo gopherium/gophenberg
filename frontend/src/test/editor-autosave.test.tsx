@@ -8,25 +8,25 @@ import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
-const EDITOR_PATH = `/posts/${storedPost.id}/edit`
+const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 const autosaved: Record<string, unknown>[] = []
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
 	autosaved.length = 0
 	vi.useFakeTimers({ shouldAdvanceTime: true })
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)),
-		http.get(`/api/posts/${storedPost.id}/autosave`, () => HttpResponse.json({}, { status: 404 })),
-		http.post(`/api/posts/${storedPost.id}/autosave`, async ({ request }) => {
+		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)),
+		http.get(`/api/content/${storedPost.id}/autosave`, () => HttpResponse.json({}, { status: 404 })),
+		http.post(`/api/content/${storedPost.id}/autosave`, async ({ request }) => {
 			autosaved.push((await request.json()) as Record<string, unknown>)
 			return HttpResponse.json({
 				target: 'autosave',
-				post_id: storedPost.id,
+				content_id: storedPost.id,
 				title: storedPost.title,
 				content: storedPost.content,
 				excerpt: '',
@@ -80,7 +80,7 @@ test('holds off until the interval comes round', async () => {
 
 test('stops saving a post that was written by hand', async () => {
 	server.use(
-		http.patch(`/api/posts/${storedPost.id}`, () =>
+		http.patch(`/api/content/${storedPost.id}`, () =>
 			HttpResponse.json({ ...storedPost, title: 'Welcome to Gophenberg!' }),
 		),
 	)
@@ -110,7 +110,7 @@ test('flushes the words when the page is leaving', async () => {
 test('leaves the editor standing when the server refuses an autosave', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.post(`/api/posts/${storedPost.id}/autosave`, () =>
+		http.post(`/api/content/${storedPost.id}/autosave`, () =>
 			HttpResponse.json({}, { status: 500 }),
 		),
 	)

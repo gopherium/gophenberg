@@ -8,25 +8,35 @@ import { createAppRouter } from '../router'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
-const FRAMED = ['/', '/posts', '/media', '/users', '/users/new', '/themes']
+const FRAMED = [
+	'/',
+	'/content/$typeKey',
+	'/content-types',
+	'/media',
+	'/users',
+	'/users/new',
+	'/themes',
+]
 
-const CHROMELESS = ['/posts/$postId/edit']
+const VISITABLE = FRAMED.map((path) => path.replace('$typeKey', 'post'))
 
-const EDITOR_URL = `/posts/${storedPost.id}/edit`
+const CHROMELESS = ['/content/$typeKey/$postId/edit']
+
+const EDITOR_URL = `/content/post/${storedPost.id}/edit`
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
 	server.use(
-		http.get('/api/posts', () => HttpResponse.json({ items: [], total: 0 })),
-		http.get('/api/posts/counts', () => HttpResponse.json({})),
+		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
+		http.get('/api/content/counts', () => HttpResponse.json({})),
 		http.get('/api/users', () => HttpResponse.json([])),
 		http.get('/api/themes', () => HttpResponse.json({ themes: [] })),
 		http.get('/api/media', () => HttpResponse.json({ items: [], total: 0 })),
-		http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)),
-		http.get(`/api/posts/${storedPost.id}/autosave`, () =>
+		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)),
+		http.get(`/api/content/${storedPost.id}/autosave`, () =>
 			HttpResponse.json({}, { status: 404 }),
 		),
 	)
@@ -42,7 +52,7 @@ test('covers every route the application serves', () => {
 	expect([...served].sort()).toEqual([...FRAMED, ...CHROMELESS].sort())
 })
 
-test.each(FRAMED)('gives %s exactly one first level heading', async (path) => {
+test.each(VISITABLE)('gives %s exactly one first level heading', async (path) => {
 	renderAt(path)
 
 	const main = await screen.findByRole('main')

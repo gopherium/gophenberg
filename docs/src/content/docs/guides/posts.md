@@ -4,7 +4,10 @@ description: Finding, filtering, trashing and restoring posts in the admin.
 ---
 
 The Posts screen is where everything starts: a table of your posts
-with search, filters, and the trash.
+with search, filters, and the trash. Every
+[content type](/guides/content-types/) gets this same screen under
+its own menu entry, so everything here applies to Pages and to any
+type you register too.
 
 ## Reading the list
 

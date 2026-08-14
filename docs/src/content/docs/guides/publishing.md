@@ -53,10 +53,9 @@ press Update.
 
 ## Slugs and excerpts
 
-The slug is the post's address on your site, as in
-`/post/hello-world`, editable in the Document tab. If your choice
-is taken or invalid, the server settles a valid one during the
-save.
+The slug is the last part of the post's address on your site, as in
+`/hello-world`, editable in the Document tab. If your choice is taken
+or invalid, the server settles a valid one during the save.
 
 The excerpt is a short summary shown on listing pages. The RSS
 feed does not use it: feed readers receive the full content.

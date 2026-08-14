@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: Apache-2.0
+
+import { z } from 'zod'
+
+const typeSchema = z.object({
+	key: z.string(),
+	singular_label: z.string(),
+	plural_label: z.string(),
+	route_word: z.string(),
+	hierarchical: z.boolean(),
+	revisions: z.boolean(),
+	revision_cap: z.number(),
+	page_kind: z.string(),
+	default: z.boolean(),
+	active: z.boolean(),
+})
+
+const typeListSchema = z.object({ items: z.array(typeSchema) })
+
+const refusalSchema = z.object({ error: z.string() })
+
+/** A content type as the admin reads it. */
+export interface ContentType {
+	key: string
+	singularLabel: string
+	pluralLabel: string
+	routeWord: string
+	hierarchical: boolean
+	revisions: boolean
+	revisionCap: number
+	pageKind: string
+	isDefault: boolean
+	active: boolean
+}
+
+/** What registering a type needs. */
+export interface NewType {
+	key: string
+	singularLabel: string
+	pluralLabel: string
+	routeWord: string
+}
+
+/** The fields an edit may move, where an absent field is unchanged. */
+export interface TypeEdit {
+	singularLabel?: string
+	pluralLabel?: string
+	routeWord?: string
+	isDefault?: boolean
+	active?: boolean
+}
+
+/**
+ * Returns the admin view of a stored type.
+ * @param row - The type as the API answered it.
+ * @returns The type the admin reads.
+ */
+function toType(row: z.infer<typeof typeSchema>): ContentType {
+	return {
+		key: row.key,
+		singularLabel: row.singular_label,
+		pluralLabel: row.plural_label,
+		routeWord: row.route_word,
+		hierarchical: row.hierarchical,
+		revisions: row.revisions,
+		revisionCap: row.revision_cap,
+		pageKind: row.page_kind,
+		isDefault: row.default,
+		active: row.active,
+	}
+}
+
+/**
+ * Throws the reason the registry refused a write, or the status it failed with.
+ * @param response - The answer the registry gave.
+ * @param act - What the caller was doing.
+ */
+async function refuse(response: Response, act: string): Promise<never> {
+	const refusal = refusalSchema.safeParse(await response.json().catch(() => null))
+	if (refusal.success) {
+		throw new Error(refusal.data.error)
+	}
+	throw new Error(`${act} failed with status ${response.status}`)
+}
+
+/**
+ * Returns every registered content type, active or not.
+ * @returns The registry in registration order.
+ */
+export async function listTypes(): Promise<ContentType[]> {
+	const response = await fetch('/api/types')
+	if (!response.ok) {
+		throw new Error(`reading the content types failed with status ${response.status}`)
+	}
+	return typeListSchema.parse(await response.json()).items.map(toType)
+}
+
+/**
+ * Registers a content type.
+ * @param asked - The key, labels and route word to register.
+ * @returns The stored type.
+ */
+export async function createType(asked: NewType): Promise<ContentType> {
+	const response = await fetch('/api/types', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			key: asked.key,
+			singular_label: asked.singularLabel,
+			plural_label: asked.pluralLabel,
+			route_word: asked.routeWord,
+		}),
+	})
+	if (!response.ok) {
+		await refuse(response, 'registering a content type')
+	}
+	return toType(typeSchema.parse(await response.json()))
+}
+
+/**
+ * Edits the fields the caller named.
+ * @param key - The type to edit.
+ * @param edit - The fields to move.
+ * @returns The stored type.
+ */
+export async function updateType(key: string, edit: TypeEdit): Promise<ContentType> {
+	const body: Record<string, unknown> = {}
+	if (edit.singularLabel !== undefined) {
+		body.singular_label = edit.singularLabel
+	}
+	if (edit.pluralLabel !== undefined) {
+		body.plural_label = edit.pluralLabel
+	}
+	if (edit.routeWord !== undefined) {
+		body.route_word = edit.routeWord
+	}
+	if (edit.isDefault !== undefined) {
+		body.default = edit.isDefault
+	}
+	if (edit.active !== undefined) {
+		body.active = edit.active
+	}
+	const response = await fetch(`/api/types/${encodeURIComponent(key)}`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(body),
+	})
+	if (!response.ok) {
+		await refuse(response, 'editing a content type')
+	}
+	return toType(typeSchema.parse(await response.json()))
+}
+
+/**
+ * Removes a content type that holds nothing.
+ * @param key - The type to remove.
+ */
+export async function deleteType(key: string): Promise<void> {
+	const response = await fetch(`/api/types/${encodeURIComponent(key)}`, { method: 'DELETE' })
+	if (!response.ok) {
+		await refuse(response, 'removing a content type')
+	}
+}

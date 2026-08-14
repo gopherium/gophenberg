@@ -8,14 +8,14 @@ import { beforeAll, beforeEach, expect, test } from 'vitest'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
-const EDITOR_PATH = `/posts/${storedPost.id}/edit`
+const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
-	server.use(http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)))
+	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)))
 })
 
 test('offers a document tab and a block tab', async () => {
@@ -60,7 +60,7 @@ test('says which block is selected when none is', async () => {
 
 test('shows a status it holds no label for as the server named it', async () => {
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () =>
+		http.get(`/api/content/${storedPost.id}`, () =>
 			HttpResponse.json({ ...storedPost, status: 'scheduled' }),
 		),
 	)
@@ -71,7 +71,7 @@ test('shows a status it holds no label for as the server named it', async () => 
 
 test('shows a published post as published in the document tab', async () => {
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () =>
+		http.get(`/api/content/${storedPost.id}`, () =>
 			HttpResponse.json({
 				...storedPost,
 				status: 'published',

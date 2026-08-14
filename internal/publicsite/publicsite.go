@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-// Package publicsite renders published posts as the built-in public site.
+// Package publicsite renders published content as the built-in public site.
 package publicsite
 
 import (
@@ -10,12 +10,10 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
-	"path"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/gopherium/gophenberg/internal/post"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/publichtml"
 	"github.com/gopherium/gophenberg/internal/version"
 )
@@ -37,20 +35,22 @@ const (
 
 var (
 	indexTemplate    = template.Must(template.ParseFS(files, "templates/shell.html", "templates/index.html"))
-	postTemplate     = template.Must(template.ParseFS(files, "templates/shell.html", "templates/post.html"))
+	postTemplate     = template.Must(template.ParseFS(files, "templates/shell.html", "templates/content.html"))
 	notFoundTemplate = template.Must(template.ParseFS(files, "templates/shell.html", "templates/notfound.html"))
 )
 
-// Reader reads the published posts the site serves.
+// Reader reads the published content the site serves.
 type Reader interface {
-	List(ctx context.Context, f post.Filter) ([]post.Post, int, error)
-	PublishedBySlug(ctx context.Context, postType, slug string) (post.Post, error)
+	List(ctx context.Context, f content.Filter) ([]content.Content, int, error)
+	PublishedByPath(ctx context.Context, path string) (content.Content, error)
 }
 
 // Config carries what the site renders with.
 type Config struct {
-	// Posts reads the published content the site shows.
-	Posts Reader
+	// Content reads the published content the site shows.
+	Content Reader
+	// Types answers which content type an address belongs to.
+	Types content.TypeReader
 	// Title names the site in its chrome.
 	Title string
 	// Version is the application version the pages report.
@@ -95,9 +95,10 @@ type detailData struct {
 	Post detail
 }
 
-// site serves published posts as HTML pages.
+// site serves published content as HTML pages.
 type site struct {
 	posts     Reader
+	addresses *content.Resolver
 	title     string
 	generator string
 }
@@ -108,50 +109,39 @@ func New(cfg Config) http.Handler {
 	if title == "" {
 		title = defaultTitle
 	}
-	return &site{posts: cfg.Posts, title: title, generator: version.Generator(cfg.Version)}
+	return &site{
+		posts:     cfg.Content,
+		addresses: content.NewResolver(cfg.Content, cfg.Types),
+		title:     title,
+		generator: version.Generator(cfg.Version),
+	}
 }
 
 // ServeHTTP renders the page the request addresses.
 func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	segments := pathSegments(r.URL.Path)
-	switch {
-	case len(segments) == 0:
-		s.serveList(w, r, post.TypePost, 1)
-	case len(segments) == 2:
-		s.servePost(w, r, segments[0], segments[1])
-	case len(segments) == 3 && segments[1] == "page":
-		s.serveNumbered(w, r, segments[0], segments[2])
-	default:
-		s.serveNotFound(w, r)
-	}
-}
-
-// pathSegments returns the non-empty segments of a URL path.
-func pathSegments(raw string) []string {
-	trimmed := strings.Trim(path.Clean(raw), "/")
-	if trimmed == "" {
-		return nil
-	}
-	return strings.Split(trimmed, "/")
-}
-
-// serveNumbered renders the numbered listing page of a post type.
-func (s *site) serveNumbered(w http.ResponseWriter, r *http.Request, postType, raw string) {
-	page, err := strconv.Atoi(raw)
-	if err != nil {
+	held, err := s.addresses.Resolve(r.Context(), r.URL.Path)
+	if errors.Is(err, content.ErrNotFound) {
 		s.serveNotFound(w, r)
 		return
 	}
-	s.serveList(w, r, postType, max(page, 1))
+	if err != nil {
+		serveError(w)
+		return
+	}
+	if held.Kind == content.KindItem {
+		s.serveItem(w, held.Item)
+		return
+	}
+	s.serveList(w, r, held.Type, held.Page)
 }
 
-// serveList renders one page of published posts of a type.
-func (s *site) serveList(w http.ResponseWriter, r *http.Request, postType string, page int) {
-	rows, total, err := s.posts.List(r.Context(), post.Filter{
-		Type:    postType,
-		Status:  post.StatusPublished,
-		OrderBy: post.OrderByDate,
-		Order:   post.OrderDesc,
+// serveList renders one page of the published content of a type.
+func (s *site) serveList(w http.ResponseWriter, r *http.Request, listed content.Type, page int) {
+	rows, total, err := s.posts.List(r.Context(), content.Filter{
+		Type:    listed.Key,
+		Status:  content.StatusPublished,
+		OrderBy: content.OrderByDate,
+		Order:   content.OrderDesc,
 		Page:    page,
 		PerPage: postsPerPage,
 	})
@@ -164,27 +154,26 @@ func (s *site) serveList(w http.ResponseWriter, r *http.Request, postType string
 		summaries[i] = newSummary(p)
 	}
 	s.render(w, indexTemplate, http.StatusOK, listData{
-		Shell: s.shell(s.title),
+		Shell: s.shell(s.listingTitle(listed)),
 		Posts: summaries,
-		Older: olderLink(postType, page, total),
-		Newer: newerLink(postType, page),
+		Older: olderLink(listed.RouteWord, page, total),
+		Newer: newerLink(listed.RouteWord, page),
 	})
 }
 
-// servePost renders one published post.
-func (s *site) servePost(w http.ResponseWriter, r *http.Request, postType, slug string) {
-	p, err := s.posts.PublishedBySlug(r.Context(), postType, slug)
-	if errors.Is(err, post.ErrNotFound) {
-		s.serveNotFound(w, r)
-		return
+// listingTitle returns the document title a listing carries.
+func (s *site) listingTitle(listed content.Type) string {
+	if listed.RouteWord == "" {
+		return s.title
 	}
-	if err != nil {
-		serveError(w)
-		return
-	}
+	return listed.PluralLabel + " | " + s.title
+}
+
+// serveItem renders one published content item.
+func (s *site) serveItem(w http.ResponseWriter, held content.Content) {
 	s.render(w, postTemplate, http.StatusOK, detailData{
-		Shell: s.shell(p.Title + " | " + s.title),
-		Post:  newDetail(p),
+		Shell: s.shell(held.Title + " | " + s.title),
+		Post:  newDetail(held),
 	})
 }
 
@@ -215,20 +204,20 @@ func (s *site) render(w http.ResponseWriter, tmpl *template.Template, status int
 	_, _ = page.WriteTo(w)
 }
 
-// newSummary returns the listing view of a published post.
-func newSummary(p post.Post) summary {
+// newSummary returns the listing view of a published content.
+func newSummary(p content.Content) summary {
 	at := publishedAt(p)
 	return summary{
 		Title:    p.Title,
-		URL:      "/" + p.Type + "/" + p.Slug,
+		URL:      "/" + p.Path,
 		Excerpt:  p.Excerpt,
 		DateText: at.Format(dateText),
 		DateAttr: at.Format(dateAttr),
 	}
 }
 
-// newDetail returns the page view of a published post.
-func newDetail(p post.Post) detail {
+// newDetail returns the page view of a published content.
+func newDetail(p content.Content) detail {
 	at := publishedAt(p)
 	return detail{
 		Title:    p.Title,
@@ -239,7 +228,7 @@ func newDetail(p post.Post) detail {
 }
 
 // publishedAt returns when the post went public, in UTC.
-func publishedAt(p post.Post) time.Time {
+func publishedAt(p content.Content) time.Time {
 	if p.PublishedAt != nil {
 		return p.PublishedAt.UTC()
 	}
@@ -247,20 +236,25 @@ func publishedAt(p post.Post) time.Time {
 }
 
 // olderLink returns the address of the page after this one, empty at the last.
-func olderLink(postType string, page, total int) string {
+func olderLink(routeWord string, page, total int) string {
 	if page >= (total+postsPerPage-1)/postsPerPage {
 		return ""
 	}
-	return "/" + postType + "/page/" + strconv.Itoa(page+1)
+	return numberedPage(routeWord, page+1)
 }
 
 // newerLink returns the address of the page before this one, empty at the first.
-func newerLink(postType string, page int) string {
+func newerLink(routeWord string, page int) string {
 	if page <= 1 {
 		return ""
 	}
-	if page == 2 && postType == post.TypePost {
-		return "/"
+	if page == 2 {
+		return "/" + routeWord
 	}
-	return "/" + postType + "/page/" + strconv.Itoa(page-1)
+	return numberedPage(routeWord, page-1)
+}
+
+// numberedPage returns the address a numbered listing page answers at.
+func numberedPage(routeWord string, page int) string {
+	return "/" + content.AddressUnder(routeWord, content.PageWord+"/"+strconv.Itoa(page))
 }

@@ -1,12 +1,12 @@
 ---
 // SPDX-License-Identifier: Apache-2.0
 
-import type { PostSummary } from '@gophenberg/astro'
+import type { ContentType, PostSummary } from '@gophenberg/astro'
 
 import Base from './Base.astro'
 
 interface Props {
-	type: string
+	type: ContentType
 	posts: PostSummary[]
 	total: number
 	page: number
@@ -15,8 +15,9 @@ interface Props {
 }
 
 const { posts, page, perPage, total, type, seo } = Astro.props
-const older = page * perPage < total ? `/${type}/page/${page + 1}` : undefined
-const newer = page > 1 ? `/${type}/page/${page - 1}` : undefined
+const root = type.route_word === '' ? '' : `/${type.route_word}`
+const older = page * perPage < total ? `${root}/page/${page + 1}` : undefined
+const newer = page > 1 ? (page === 2 ? root || '/' : `${root}/page/${page - 1}`) : undefined
 ---
 
 <Base seo={seo} title={page > 1 ? `Page ${page}` : undefined}>
@@ -24,7 +25,7 @@ const newer = page > 1 ? `/${type}/page/${page - 1}` : undefined
 		{
 			posts.map((post) => (
 				<li>
-					<a href={`/${post.type}/${post.slug}`}>{post.title}</a>
+					<a href={`/${post.path}`}>{post.title}</a>
 					<p>{post.excerpt}</p>
 				</li>
 			))

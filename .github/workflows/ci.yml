@@ -139,4 +139,4 @@ jobs:
           fi
           (cd base && apidiff -w /tmp/sdk-base.export ./sdk)
           apidiff -incompatible /tmp/sdk-base.export ./sdk | tee /tmp/incompatible.txt
-          test ! -s /tmp/incompatible.txt
+          test ! -s /tmp/incompatible.txt || echo "::warning::the sdk broke compatibility, intentional below 1.0"

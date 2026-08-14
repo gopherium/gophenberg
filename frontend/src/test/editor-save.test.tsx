@@ -28,7 +28,7 @@ function busyClasses(): string[] {
 }
 
 const POST_ID = '019fb000-0000-7000-8000-000000000001'
-const EDITOR_PATH = `/posts/${POST_ID}/edit`
+const EDITOR_PATH = `/content/post/${POST_ID}/edit`
 
 const STORED = {
 	id: POST_ID,
@@ -48,14 +48,14 @@ const STORED = {
 const patched: unknown[] = []
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
 	patched.length = 0
 	server.use(
-		http.get(`/api/posts/${POST_ID}`, () => HttpResponse.json(STORED)),
-		http.patch(`/api/posts/${POST_ID}`, async ({ request }) => {
+		http.get(`/api/content/${POST_ID}`, () => HttpResponse.json(STORED)),
+		http.patch(`/api/content/${POST_ID}`, async ({ request }) => {
 			const body = await request.json()
 			patched.push(body)
 			return HttpResponse.json({ ...STORED, ...(body as object) })
@@ -69,7 +69,7 @@ test('ghosts the post and fades the editor in over it', async () => {
 		release = resolve
 	})
 	server.use(
-		http.get(`/api/posts/${POST_ID}`, async () => {
+		http.get(`/api/content/${POST_ID}`, async () => {
 			await held
 			return HttpResponse.json(STORED)
 		}),
@@ -137,8 +137,8 @@ test('publishes what was written, not only the status', async () => {
 
 test('updates a published post with what was written', async () => {
 	server.use(
-		http.get(`/api/posts/${POST_ID}`, () => HttpResponse.json({ ...STORED, status: 'published' })),
-		http.patch(`/api/posts/${POST_ID}`, async ({ request }) => {
+		http.get(`/api/content/${POST_ID}`, () => HttpResponse.json({ ...STORED, status: 'published' })),
+		http.patch(`/api/content/${POST_ID}`, async ({ request }) => {
 			const body = await request.json()
 			patched.push(body)
 			return HttpResponse.json({ ...STORED, status: 'published', ...(body as object) })
@@ -195,7 +195,7 @@ test('announces a post that saved', async () => {
 test('reports a post that changed under the editor', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.patch(`/api/posts/${POST_ID}`, () =>
+		http.patch(`/api/content/${POST_ID}`, () =>
 			HttpResponse.json({ error: 'post: conflicting update' }, { status: 409 }),
 		),
 	)
@@ -211,7 +211,7 @@ test('reports a post that changed under the editor', async () => {
 test('reports a save the server rejected', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.patch(`/api/posts/${POST_ID}`, () =>
+		http.patch(`/api/content/${POST_ID}`, () =>
 			HttpResponse.json({ error: 'post: invalid status' }, { status: 422 }),
 		),
 	)
@@ -232,7 +232,7 @@ test('shows the write button busy while the write is in flight', async () => {
 		release = resolve
 	})
 	server.use(
-		http.patch(`/api/posts/${POST_ID}`, async () => {
+		http.patch(`/api/content/${POST_ID}`, async () => {
 			await held
 			return HttpResponse.json(STORED)
 		}),
@@ -258,7 +258,7 @@ test('says it is saving while the write is in flight', async () => {
 		release = resolve
 	})
 	server.use(
-		http.patch(`/api/posts/${POST_ID}`, async () => {
+		http.patch(`/api/content/${POST_ID}`, async () => {
 			await held
 			return HttpResponse.json(STORED)
 		}),
@@ -277,7 +277,7 @@ test('says it is saving while the write is in flight', async () => {
 test('reports a refusal that named no reason', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.patch(`/api/posts/${POST_ID}`, () => HttpResponse.json({ nope: true }, { status: 422 })),
+		http.patch(`/api/content/${POST_ID}`, () => HttpResponse.json({ nope: true }, { status: 422 })),
 	)
 	renderAt(EDITOR_PATH)
 	const title = await screen.findByRole('textbox', { name: 'Title' })
@@ -291,7 +291,7 @@ test('reports a refusal that named no reason', async () => {
 test('reports a refusal whose body was not json at all', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.patch(`/api/posts/${POST_ID}`, () => new HttpResponse('gateway down', { status: 502 })),
+		http.patch(`/api/content/${POST_ID}`, () => new HttpResponse('gateway down', { status: 502 })),
 	)
 	renderAt(EDITOR_PATH)
 	const title = await screen.findByRole('textbox', { name: 'Title' })
@@ -304,7 +304,7 @@ test('reports a refusal whose body was not json at all', async () => {
 
 test('reports a save that never reached the server', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.patch(`/api/posts/${POST_ID}`, () => HttpResponse.error()))
+	server.use(http.patch(`/api/content/${POST_ID}`, () => HttpResponse.error()))
 	renderAt(EDITOR_PATH)
 	const title = await screen.findByRole('textbox', { name: 'Title' })
 	await userEvent.type(title, '!')
@@ -316,7 +316,7 @@ test('reports a save that never reached the server', async () => {
 
 test('reports a post it could not load', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.get(`/api/posts/${POST_ID}`, () => HttpResponse.json({}, { status: 404 })))
+	server.use(http.get(`/api/content/${POST_ID}`, () => HttpResponse.json({}, { status: 404 })))
 	renderAt(EDITOR_PATH)
 
 	expect(await screen.findByRole('alert')).toHaveTextContent(/could not load/i)

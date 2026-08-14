@@ -14,8 +14,8 @@ import (
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 	"github.com/gopherium/pluginkit"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
-	"github.com/gopherium/gophenberg/internal/post"
 )
 
 // sessionCookieName scopes the login cookie to this product.
@@ -24,8 +24,10 @@ const sessionCookieName = "__Host-gophenberg_session"
 // Config carries the stores and plugin surfaces the server serves.
 type Config struct {
 	Users authkit.AdminStore
-	// Posts persists the content the CMS serves.
-	Posts post.Store
+	// Content persists the content the CMS serves.
+	Content content.Store
+	// Types persists the content type registry. Nil leaves the registry routes unhandled.
+	Types content.TypeStore
 	// Plugins maps a plugin id to its HTTP handler.
 	Plugins map[string]http.Handler
 	// PluginPublicPaths maps a plugin id to its session-exempt paths.
@@ -59,19 +61,21 @@ func NewServer(cfg Config) http.Handler {
 	auth := authkit.New(authkit.Config{Store: cfg.Users, CookieName: sessionCookieName})
 	admin := authkit.NewAdmin(cfg.Users)
 	s := &server{
-		auth: auth, users: cfg.Users, posts: cfg.Posts, themes: cfg.Themes,
+		auth: auth, users: cfg.Users, content: cfg.Content, themes: cfg.Themes,
 		media: cfg.Media, mediaStore: cfg.MediaStore, version: cfg.Version,
+		types: content.NewRegistry(cfg.Types),
 	}
+	s.addresses = content.NewResolver(cfg.Content, s.types)
 	router := chi.NewRouter()
 	router.Use(trustForwarded(cfg.TrustedProxies))
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
 		Post("/api/auth/login", auth.Login)
 	router.Post("/api/auth/logout", auth.Logout)
-	router.Group(func(content chi.Router) {
-		content.Use(contentHeaders)
-		content.Get("/api/content/v1", s.handleContentHandshake())
-		content.Get("/api/content/v1/posts", s.handleContentList())
-		content.Get("/api/content/v1/posts/{type}/{slug}", s.handleContentPost())
+	router.Group(func(public chi.Router) {
+		public.Use(contentHeaders)
+		public.Get("/api/content/v1", s.handleContentHandshake())
+		public.Get("/api/content/v1/items", s.handlePublishedList())
+		public.Get("/api/content/v1/resolve", s.handleContentResolve())
 	})
 	router.Group(func(protected chi.Router) {
 		protected.Use(auth.RequireSession)
@@ -79,18 +83,24 @@ func NewServer(cfg Config) http.Handler {
 		protected.Get("/api/users", admin.List)
 		protected.Post("/api/users", admin.Create)
 		protected.Patch("/api/users/{id}", admin.SetDisabled)
-		protected.Get("/api/posts", s.handlePostList())
-		protected.Post("/api/posts", s.handlePostCreate())
-		protected.Get("/api/posts/counts", s.handlePostCounts())
-		protected.Get("/api/posts/{id}", s.handlePostGet())
-		protected.Patch("/api/posts/{id}", s.handlePostPatch())
-		protected.Delete("/api/posts/{id}", s.handlePostDelete())
-		protected.Post("/api/posts/{id}/restore", s.handlePostRestore())
-		protected.Post("/api/posts/{id}/autosave", s.handleAutosaveSave())
-		protected.Get("/api/posts/{id}/autosave", s.handleAutosaveGet())
-		protected.Get("/api/posts/{id}/revisions", s.handleRevisionList())
-		protected.Get("/api/posts/{id}/revisions/{revisionID}", s.handleRevisionGet())
-		protected.Delete("/api/posts/{id}/revisions/{revisionID}", s.handleRevisionDelete())
+		if cfg.Types != nil {
+			protected.Get("/api/types", s.handleTypeList())
+			protected.Post("/api/types", s.handleTypeCreate())
+			protected.Patch("/api/types/{key}", s.handleTypePatch())
+			protected.Delete("/api/types/{key}", s.handleTypeDelete())
+		}
+		protected.Get("/api/content", s.handleContentList())
+		protected.Post("/api/content", s.handleContentCreate())
+		protected.Get("/api/content/counts", s.handleContentCounts())
+		protected.Get("/api/content/{id}", s.handleContentGet())
+		protected.Patch("/api/content/{id}", s.handleContentPatch())
+		protected.Delete("/api/content/{id}", s.handleContentDelete())
+		protected.Post("/api/content/{id}/restore", s.handleContentRestore())
+		protected.Post("/api/content/{id}/autosave", s.handleAutosaveSave())
+		protected.Get("/api/content/{id}/autosave", s.handleAutosaveGet())
+		protected.Get("/api/content/{id}/revisions", s.handleRevisionList())
+		protected.Get("/api/content/{id}/revisions/{revisionID}", s.handleRevisionGet())
+		protected.Delete("/api/content/{id}/revisions/{revisionID}", s.handleRevisionDelete())
 		protected.Get("/api/version", s.handleVersion())
 		if cfg.Media != nil && cfg.MediaStore != nil {
 			protected.Get("/api/media", s.handleMediaList())
@@ -116,7 +126,7 @@ func NewServer(cfg Config) http.Handler {
 	if cfg.MediaFiles != nil {
 		router.With(identify(cfg.Version)).Handle(mediaPrefix+"/*", mediaAssets(cfg.MediaFiles))
 	}
-	site := builtInSite(cfg)
+	site := builtInSite(cfg, s.types)
 	renderer := identify(cfg.Version)(site)
 	public := identify(cfg.Version)(themedSite(cfg.Theme, site, cfg.ThemeTimeout))
 	router.NotFound(fallbackHandler(adminApp(cfg), renderer, public))
@@ -126,7 +136,9 @@ func NewServer(cfg Config) http.Handler {
 type server struct {
 	auth       *authkit.Handlers
 	users      authkit.AdminStore
-	posts      post.Store
+	content    content.Store
+	types      *content.Registry
+	addresses  *content.Resolver
 	themes     Themes
 	media      MediaLibrary
 	mediaStore media.Store

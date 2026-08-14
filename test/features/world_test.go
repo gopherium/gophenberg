@@ -20,8 +20,8 @@ import (
 
 	"github.com/cucumber/godog"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/mediahost"
-	"github.com/gopherium/gophenberg/internal/post"
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/internal/themehost"
 )
@@ -34,15 +34,9 @@ const siteTitle = "A Test Site"
 // mediaTestCap bounds an upload small enough for a scenario to exceed it.
 const mediaTestCap = 2 << 20
 
-// emptyPosts is a content store holding nothing, enough for the public site to answer.
-type emptyPosts struct{ post.Store }
-
-// List returns no posts.
-func (emptyPosts) List(context.Context, post.Filter) ([]post.Post, int, error) { return nil, 0, nil }
-
-// PublishedBySlug reports that no post is published under the slug.
-func (emptyPosts) PublishedBySlug(context.Context, string, string) (post.Post, error) {
-	return post.Post{}, post.ErrNotFound
+// contentStore returns the store the scenario's content lives in.
+func (w *world) contentStore() content.Store {
+	return w.contentItems
 }
 
 // memorySettings holds one scenario's stored choices in memory, surviving a restart.
@@ -77,6 +71,12 @@ type world struct {
 	library        *themehost.Library
 	settings       *memorySettings
 	users          *memoryStore
+	contentItems   *memoryContent
+	contentTypes   *memoryTypes
+	car            listedContent
+	nested         map[string]nestedContent
+	lastStored     nestedContent
+	deepest        nestedContent
 	mediaStore     *memoryMedia
 	mediaFiles     *mediahost.Library
 	mediaSubject   int64
@@ -108,15 +108,18 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 	if err != nil {
 		return ctx, errors.Join(err, os.RemoveAll(themes), os.RemoveAll(gates))
 	}
+	items := newMemoryContent()
 	return context.WithValue(ctx, worldKey{}, &world{
-		themesDir:  themes,
-		gateDir:    gates,
-		mediaDir:   uploads,
-		library:    themehost.NewLibrary(themes),
-		settings:   &memorySettings{values: make(map[string]string)},
-		users:      newMemoryStore(),
-		mediaStore: newMemoryMedia(),
-		mediaFiles: mediahost.New(mediahost.Config{Dir: uploads, MaxSize: mediaTestCap}),
+		themesDir:    themes,
+		gateDir:      gates,
+		mediaDir:     uploads,
+		library:      themehost.NewLibrary(themes),
+		settings:     &memorySettings{values: make(map[string]string)},
+		users:        newMemoryStore(),
+		contentItems: items,
+		contentTypes: newMemoryTypes(items),
+		mediaStore:   newMemoryMedia(),
+		mediaFiles:   mediahost.New(mediahost.Config{Dir: uploads, MaxSize: mediaTestCap}),
 	}), nil
 }
 
@@ -196,7 +199,8 @@ func (w *world) start(ctx context.Context) error {
 	}
 	w.site = httptest.NewTLSServer(server.NewServer(server.Config{
 		Users:      w.users,
-		Posts:      emptyPosts{},
+		Content:    w.contentStore(),
+		Types:      w.contentTypes,
 		Themes:     currentManager{w},
 		Theme:      currentManager{w},
 		Media:      w.mediaFiles,

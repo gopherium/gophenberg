@@ -21,6 +21,13 @@ Migrations run automatically when the new version starts. While
 Gophenberg is below 1.0, read the release notes first, since a
 release can change behavior.
 
+Updating to %VERSION% changes every public address once. A post that
+answered at `/post/hello-world` now answers at `/hello-world`, and
+each [content type](/guides/content-types/) serves its own addresses
+under its route word. Links kept outside your site to the old shape
+answer 404 after the update. This is a one-time change: addresses
+are stored now, so they will not change shape again.
+
 ## What to back up
 
 **The database**, which holds everything you wrote:

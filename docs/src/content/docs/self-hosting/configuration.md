@@ -78,9 +78,11 @@ The server refuses to start, and says why, when:
 
 | Path | What | Login needed |
 | --- | --- | --- |
-| `/` | The public site, newest posts | No |
-| `/{type}/{slug}` | One published post | No |
-| `/{type}/page/{n}` | Older posts, 20 per page | No |
+| `/` | The public site, the default type's newest items | No |
+| `/{path}` | One published item at its stored address | No |
+| `/{routeword}` | A [content type](/guides/content-types/)'s archive | No |
+| `/page/{n}`, `/{routeword}/page/{n}` | Older items behind the page word | No |
+| `/media/...` | Uploaded files and their derived sizes | No |
 | `/admin/` | The admin | The screens ask for one |
 | `/api/...` | The admin's JSON API | Yes, apart from signing in and out |
 | `/api/content/v1/...` | The [public content API](/reference/content-api/) | No |

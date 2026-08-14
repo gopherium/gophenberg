@@ -5,23 +5,23 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
-import { chosenStatus } from '../posts/DocumentPanels'
+import { chosenStatus } from '../content/DocumentPanels'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
-const EDITOR_PATH = `/posts/${storedPost.id}/edit`
+const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 const patched: Record<string, unknown>[] = []
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
 	patched.length = 0
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(storedPost)),
-		http.patch(`/api/posts/${storedPost.id}`, async ({ request }) => {
+		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)),
+		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
 			const body = (await request.json()) as Record<string, unknown>
 			patched.push(body)
 			return HttpResponse.json({ ...storedPost, ...body })
@@ -58,7 +58,7 @@ test('offers the statuses a post can be authored into', async () => {
 
 test('keeps published in the select once the post holds it', async () => {
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () =>
+		http.get(`/api/content/${storedPost.id}`, () =>
 			HttpResponse.json({ ...storedPost, status: 'published' }),
 		),
 	)
@@ -107,7 +107,7 @@ test('sends the edited slug and excerpt with the save', async () => {
 
 test('shows the slug the server settled on', async () => {
 	server.use(
-		http.patch(`/api/posts/${storedPost.id}`, async ({ request }) => {
+		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
 			patched.push((await request.json()) as Record<string, unknown>)
 			return HttpResponse.json({ ...storedPost, slug: 'welcome-again-2' })
 		}),

@@ -17,7 +17,7 @@ import (
 func TestFeedAnswersThroughTheServerWithoutASession(t *testing.T) {
 	t.Parallel()
 
-	posts := &stubPosts{posts: []sdk.Post{samplePost("A Published Post", "<p>Body</p>")}}
+	posts := &stubPosts{posts: []sdk.Item{samplePost("A Published Post", "<p>Body</p>")}}
 	plugin := mustRegister(t, posts, map[string]string{})
 	host := pluginkit.NewHost(plugin)
 	handler := server.NewServer(server.Config{
@@ -39,7 +39,7 @@ func TestFeedAnswersThroughTheServerWithoutASession(t *testing.T) {
 // mountedFeedLink returns the channel link the mounted feed serves a peer claiming HTTPS.
 func mountedFeedLink(t *testing.T, trusted []string, peer string) string {
 	t.Helper()
-	posts := &stubPosts{posts: []sdk.Post{samplePost("A Published Post", "<p>Body</p>")}}
+	posts := &stubPosts{posts: []sdk.Item{samplePost("A Published Post", "<p>Body</p>")}}
 	host := pluginkit.NewHost(mustRegister(t, posts, map[string]string{}))
 	handler := server.NewServer(server.Config{
 		Plugins:           host.Routes(),

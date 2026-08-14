@@ -42,7 +42,7 @@ const createdPosts: string[] = []
 
 test.afterEach(async ({ page }) => {
 	for (const id of createdPosts.splice(0)) {
-		await page.request.delete(`/api/posts/${id}?force=true`)
+		await page.request.delete(`/api/content/${id}?force=true`)
 	}
 	const listed = await page.request.get(`/api/media?search=e2e-${RUN}`)
 	const body = (await listed.json()) as { items: { id: number }[] }
@@ -75,10 +75,10 @@ test('places a picture already in the library through the media library picker',
 	})
 	expect(uploaded.status()).toBe(201)
 
-	await page.goto('/admin/posts')
+	await page.goto('/admin/content/post')
 	await page.getByRole('button', { name: 'Add New' }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
-	const postId = page.url().match(/posts\/([0-9a-f-]+)\/edit/)?.[1]
+	const postId = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
 	if (postId !== undefined) {
 		createdPosts.push(postId)
 	}
@@ -97,10 +97,10 @@ test('places a picture already in the library through the media library picker',
 })
 
 test('places an uploaded picture in a post and publishes it', async ({ page }) => {
-	await page.goto('/admin/posts')
+	await page.goto('/admin/content/post')
 	await page.getByRole('button', { name: 'Add New' }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
-	const postId = page.url().match(/posts\/([0-9a-f-]+)\/edit/)?.[1]
+	const postId = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
 	if (postId !== undefined) {
 		createdPosts.push(postId)
 	}
@@ -127,9 +127,9 @@ test('places an uploaded picture in a post and publishes it', async ({ page }) =
 	await page.getByRole('button', { name: 'Publish' }).click()
 	await expect(page.locator('#root').getByText('Post published.')).toBeVisible()
 
-	const slugged = await page.request.get(`/api/posts/${postId}`)
-	const post = (await slugged.json()) as { slug: string }
-	await page.goto(`/post/${post.slug}`)
+	const addressed = await page.request.get(`/api/content/${postId}`)
+	const post = (await addressed.json()) as { path: string }
+	await page.goto(`/${post.path}`)
 	const published = page.locator(`img[src^="/media/"]`)
 	await expect(published).toBeVisible()
 	const src = await published.getAttribute('src')

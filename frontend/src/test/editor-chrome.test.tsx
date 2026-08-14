@@ -8,12 +8,12 @@ import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
-const EDITOR_PATH = `/posts/${storedPost.id}/edit`
+const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 const patched: Record<string, unknown>[] = []
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 /**
@@ -22,8 +22,8 @@ beforeAll(async () => {
  */
 function serve(post: Record<string, unknown>) {
 	server.use(
-		http.get(`/api/posts/${storedPost.id}`, () => HttpResponse.json(post)),
-		http.patch(`/api/posts/${storedPost.id}`, async ({ request }) => {
+		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(post)),
+		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
 			const body = (await request.json()) as Record<string, unknown>
 			patched.push(body)
 			return HttpResponse.json({ ...post, ...body, published_at: '2026-08-01T10:00:00Z' })
@@ -41,7 +41,7 @@ test('offers a way back to the list', async () => {
 
 	const back = await screen.findByRole('link', { name: 'Back to posts' })
 
-	expect(back).toHaveAttribute('href', '/admin/posts')
+	expect(back).toHaveAttribute('href', '/admin/content/post')
 })
 
 test('offers undo and redo, both idle over an untouched post', async () => {
@@ -133,7 +133,7 @@ test('offers to update a post that is already published', async () => {
 test('reports a publication the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
-		http.patch(`/api/posts/${storedPost.id}`, () =>
+		http.patch(`/api/content/${storedPost.id}`, () =>
 			HttpResponse.json({ error: 'post: invalid transition' }, { status: 422 }),
 		),
 	)
@@ -142,4 +142,12 @@ test('reports a publication the server refused', async () => {
 	await userEvent.click(await screen.findByRole('button', { name: 'Publish' }))
 
 	expect(await screen.findByText(/invalid transition/i)).toBeInTheDocument()
+})
+
+test('leaves the title its focus ring, which the design system draws around it', async () => {
+	renderAt(EDITOR_PATH)
+
+	const title = await screen.findByRole('textbox', { name: 'Title' })
+
+	expect(title.parentElement?.className).toMatch(/outset-ring--focus-within/)
 })

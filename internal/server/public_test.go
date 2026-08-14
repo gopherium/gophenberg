@@ -19,7 +19,8 @@ func publicServer(t *testing.T) http.Handler {
 	posts.add(publishedFixture(t, "hello-world", blockMarkup, time.Now().UTC()))
 	return server.NewServer(server.Config{
 		Users:     newFakeUserStore(),
-		Posts:     posts,
+		Content:   posts,
+		Types:     newFakeTypeStore(),
 		SiteTitle: "A Test Site",
 		Version:   "1.2.3",
 		Web: fstest.MapFS{
@@ -49,7 +50,7 @@ func TestPublicSiteTakesTheRoot(t *testing.T) {
 func TestPublicSiteServesAPostAtItsAddress(t *testing.T) {
 	t.Parallel()
 
-	recorder := doRequest(t, publicServer(t), http.MethodGet, "/post/hello-world", "")
+	recorder := doRequest(t, publicServer(t), http.MethodGet, "/hello-world", "")
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -83,11 +84,11 @@ func TestServerKeepsEachRouteClassToItself(t *testing.T) {
 		absent string
 	}{
 		{path: "/", status: http.StatusOK, want: "A Test Site"},
-		{path: "/post/hello-world", status: http.StatusOK, want: "A Published Post"},
+		{path: "/hello-world", status: http.StatusOK, want: "A Published Post"},
 		{path: "/api/unknown", status: http.StatusNotFound, want: `"error"`, absent: "A Test Site"},
 		{path: "/api", status: http.StatusNotFound, want: `"error"`, absent: "A Test Site"},
 		{path: "/gophenberg", status: http.StatusNotFound, want: "", absent: "A Test Site"},
-		{path: "/api/content/v1", status: http.StatusOK, want: `"api":1`, absent: "A Test Site"},
+		{path: "/api/content/v1", status: http.StatusOK, want: `"api":2`, absent: "A Test Site"},
 		{path: "/admin/", status: http.StatusOK, want: "<title>Admin</title>"},
 		{path: "/admin/posts", status: http.StatusOK, want: "<title>Admin</title>"},
 		{path: "/admin/assets/app.js", status: http.StatusOK, want: "console.log"},
@@ -141,7 +142,7 @@ func TestPublicSiteNeedsNoSession(t *testing.T) {
 
 	handler := publicServer(t)
 
-	for _, path := range []string{"/", "/post/hello-world"} {
+	for _, path := range []string{"/", "/hello-world"} {
 		recorder := doRequest(t, handler, http.MethodGet, path, "")
 		if recorder.Code != http.StatusOK {
 			t.Errorf("GET %s status = %d, want %d without a session", path, recorder.Code, http.StatusOK)

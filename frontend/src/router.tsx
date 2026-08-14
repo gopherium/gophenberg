@@ -13,7 +13,7 @@ import { adminBasepath } from './basepath'
 import { Home } from './Home'
 import { Layout } from './Layout'
 import { plugins } from './plugins'
-import { PostsSidebar } from './posts/PostsSidebar'
+import { ContentSidebar } from './content/ContentSidebar'
 
 const rootRoute = createRootRoute()
 
@@ -29,11 +29,17 @@ const homeRoute = createRoute({
 	component: Home,
 })
 
-const postsRoute = createRoute({
+const contentRoute = createRoute({
 	getParentRoute: () => framedRoute,
-	path: '/posts',
-	staticData: { Sidebar: PostsSidebar },
-	component: lazyRouteComponent(() => import('./posts/PostsScreen'), 'PostsScreen'),
+	path: '/content/$typeKey',
+	staticData: { Sidebar: ContentSidebar },
+	component: lazyRouteComponent(() => import('./content/PostsScreen'), 'PostsScreen'),
+})
+
+const contentTypesRoute = createRoute({
+	getParentRoute: () => framedRoute,
+	path: '/content-types',
+	component: lazyRouteComponent(() => import('./content/TypesScreen'), 'TypesScreen'),
 })
 
 const usersRoute = createRoute({
@@ -62,14 +68,15 @@ const themesRoute = createRoute({
 
 const editorRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: '/posts/$postId/edit',
-	component: lazyRouteComponent(() => import('./posts/EditorScreen'), 'EditorScreen'),
+	path: '/content/$typeKey/$postId/edit',
+	component: lazyRouteComponent(() => import('./content/EditorScreen'), 'EditorScreen'),
 })
 
 const routeTree = rootRoute.addChildren([
 	framedRoute.addChildren([
 		homeRoute,
-		postsRoute,
+		contentRoute,
+		contentTypesRoute,
 		mediaRoute,
 		usersRoute,
 		newUserRoute,

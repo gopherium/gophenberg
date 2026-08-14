@@ -1,0 +1,35 @@
+---
+// SPDX-License-Identifier: Apache-2.0
+
+import { theme } from 'virtual:gophenberg/theme'
+
+import { GophenbergClient } from '../client.ts'
+
+export const prerender = false
+
+const held = await new GophenbergClient().resolve(Astro.url.pathname, {
+	perPage: theme.pagination?.perPage,
+})
+
+if (!held) {
+	return Astro.rewrite('/404')
+}
+
+const Post = theme.layouts.Post
+const Archive = theme.layouts.Archive
+---
+
+{
+	held.kind === 'item' && held.item ? (
+		<Post post={held.item} blocks={theme.blocks} seo={theme.seo} />
+	) : (
+		<Archive
+			type={held.type}
+			posts={held.page?.items ?? []}
+			total={held.page?.total ?? 0}
+			page={held.page?.page ?? 1}
+			perPage={held.page?.per_page ?? 0}
+			seo={theme.seo}
+		/>
+	)
+}

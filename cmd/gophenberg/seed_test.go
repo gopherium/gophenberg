@@ -11,8 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
-	"github.com/gopherium/gophenberg/internal/post"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/seed"
 )
@@ -31,14 +31,14 @@ func execSQL(t *testing.T, databaseURL, statement string) {
 }
 
 // seededCounts returns the seeded posts of each status.
-func seededCounts(t *testing.T, databaseURL string) map[post.Status]int {
+func seededCounts(t *testing.T, databaseURL string) map[content.Status]int {
 	t.Helper()
 	pool, err := pgxpool.New(t.Context(), databaseURL)
 	if err != nil {
 		t.Fatalf("connecting pool: %v", err)
 	}
 	defer pool.Close()
-	counts, err := postgres.NewPostStore(pool).Counts(t.Context(), post.TypePost)
+	counts, err := postgres.NewContentStore(pool).Counts(t.Context(), content.TypePost)
 	if err != nil {
 		t.Fatalf("Counts() error = %v, want nil", err)
 	}
@@ -57,11 +57,11 @@ func TestSeedStoresTheDemoPosts(t *testing.T) {
 	}
 
 	counts := seededCounts(t, databaseURL)
-	want := map[post.Status]int{
-		post.StatusPublished: 3,
-		post.StatusDraft:     1,
-		post.StatusPending:   1,
-		post.StatusTrash:     1,
+	want := map[content.Status]int{
+		content.StatusPublished: 3,
+		content.StatusDraft:     1,
+		content.StatusPending:   1,
+		content.StatusTrash:     1,
 	}
 	for status, total := range want {
 		if counts[status] != total {
@@ -169,8 +169,8 @@ func TestSeedStoresBlockContent(t *testing.T) {
 	}
 	defer pool.Close()
 
-	posts, _, err := postgres.NewPostStore(pool).List(
-		t.Context(), post.Filter{Type: post.TypePost, Status: post.StatusPublished, Page: 1, PerPage: 10},
+	posts, _, err := postgres.NewContentStore(pool).List(
+		t.Context(), content.Filter{Type: content.TypePost, Status: content.StatusPublished, Page: 1, PerPage: 10},
 	)
 
 	if err != nil {
@@ -179,7 +179,7 @@ func TestSeedStoresBlockContent(t *testing.T) {
 	if len(posts) != 3 {
 		t.Fatalf("published posts = %d, want 3", len(posts))
 	}
-	stored, err := postgres.NewPostStore(pool).ByID(t.Context(), posts[0].ID)
+	stored, err := postgres.NewContentStore(pool).ByID(t.Context(), posts[0].ID)
 	if err != nil {
 		t.Fatalf("ByID() error = %v, want nil", err)
 	}
@@ -243,7 +243,7 @@ func TestSeedReportsAdminFailures(t *testing.T) {
 	}
 }
 
-func TestSeedReportsPostFailures(t *testing.T) {
+func TestSeedReportsContentFailures(t *testing.T) {
 	t.Parallel()
 
 	databaseURL := emptyDatabaseURL(t)
@@ -251,9 +251,88 @@ func TestSeedReportsPostFailures(t *testing.T) {
 	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
 		t.Fatalf("first seedDemoData() error = %v, want nil", err)
 	}
-	execSQL(t, databaseURL, "DROP TABLE core.posts CASCADE")
+	execSQL(t, databaseURL, "DROP TABLE core.content CASCADE")
 
 	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err == nil {
-		t.Error("seed() without the posts table error = nil, want a failure")
+		t.Error("seed() without the content table error = nil, want a failure")
+	}
+}
+
+// seededTypes returns the registry the seeding left behind.
+func seededTypes(t *testing.T, databaseURL string) []content.Type {
+	t.Helper()
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("connecting pool: %v", err)
+	}
+	defer pool.Close()
+	registered, err := postgres.NewTypeStore(pool).List(t.Context())
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	return registered
+}
+
+// seededAddress returns the address the seeding stored content at.
+func seededAddress(t *testing.T, databaseURL, title string) string {
+	t.Helper()
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("connecting pool: %v", err)
+	}
+	defer pool.Close()
+	var path string
+	row := pool.QueryRow(t.Context(), `SELECT path FROM core.content WHERE title = $1`, title)
+	if err := row.Scan(&path); err != nil {
+		t.Fatalf("reading the address of %q: %v", title, err)
+	}
+	return path
+}
+
+func TestSeedRegistersThePageType(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	var stdout strings.Builder
+
+	if err := seedDemoData(t.Context(), testGetenv(env), &stdout); err != nil {
+		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	}
+
+	registered := seededTypes(t, databaseURL)
+	var page content.Type
+	for _, listed := range registered {
+		if listed.Key == "page" {
+			page = listed
+		}
+	}
+	if page.Key != "page" {
+		t.Fatalf("registry = %v, want a page type beside the built-in post type", registered)
+	}
+	if page.RouteWord != "pages" || !page.Hierarchical {
+		t.Errorf("page = %+v, want it nesting under pages", page)
+	}
+	if page.Default {
+		t.Error("the page type carries the default flag, want the post type to keep the root")
+	}
+}
+
+func TestSeedStoresAPageHoldingAChild(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	var stdout strings.Builder
+
+	if err := seedDemoData(t.Context(), testGetenv(env), &stdout); err != nil {
+		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	}
+
+	if got := seededAddress(t, databaseURL, "About"); got != "pages/about" {
+		t.Errorf("About answers at %q, want %q", got, "pages/about")
+	}
+	if got := seededAddress(t, databaseURL, "Team"); got != "pages/about/team" {
+		t.Errorf("Team answers at %q, want %q", got, "pages/about/team")
 	}
 }

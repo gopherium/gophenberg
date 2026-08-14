@@ -9,7 +9,7 @@ import { renderAt } from './render'
 import { storedPostWithId } from './postFixture'
 
 beforeAll(async () => {
-	await import('../posts/EditorScreen')
+	await import('../content/EditorScreen')
 }, 120000)
 
 const PUBLISHED = {
@@ -35,18 +35,18 @@ beforeEach(() => {
 	counted.length = 0
 	trashed.length = 0
 	server.use(
-		http.get('/api/posts', () => {
+		http.get('/api/content', () => {
 			listed.push('asked')
 			return HttpResponse.json({ items: [PUBLISHED], total: 1 })
 		}),
-		http.get('/api/posts/counts', () => {
+		http.get('/api/content/counts', () => {
 			counted.push('asked')
 			return HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 1, trash: 0 })
 		}),
-		http.get('/api/posts/:id', ({ params }) =>
+		http.get('/api/content/:id', ({ params }) =>
 			HttpResponse.json(storedPostWithId(String(params.id))),
 		),
-		http.delete('/api/posts/:id', ({ params }) => {
+		http.delete('/api/content/:id', ({ params }) => {
 			trashed.push(String(params.id))
 			return HttpResponse.json({ ...PUBLISHED, status: 'trash' })
 		}),
@@ -62,7 +62,7 @@ async function openRowActions() {
 }
 
 test('offers edit and trash on a row', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 
 	await openRowActions()
 
@@ -71,7 +71,7 @@ test('offers edit and trash on a row', async () => {
 })
 
 test('opens the editor from the row actions', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }))
@@ -80,7 +80,7 @@ test('opens the editor from the row actions', async () => {
 })
 
 test('asks to confirm before trashing', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
@@ -91,11 +91,11 @@ test('asks to confirm before trashing', async () => {
 
 test('names a post that has no title yet in the confirm', async () => {
 	server.use(
-		http.get('/api/posts', () =>
+		http.get('/api/content', () =>
 			HttpResponse.json({ items: [{ ...PUBLISHED, title: '' }], total: 1 }),
 		),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 	await screen.findByRole('link', { name: '(no title)' })
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 
@@ -105,7 +105,7 @@ test('names a post that has no title yet in the confirm', async () => {
 })
 
 test('trashes the post once confirmed', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 
@@ -115,7 +115,7 @@ test('trashes the post once confirmed', async () => {
 })
 
 test('leaves the post alone when the confirm is dismissed', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 
@@ -126,7 +126,7 @@ test('leaves the post alone when the confirm is dismissed', async () => {
 })
 
 test('refreshes the listing and the counts after trashing', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 	const listedBefore = listed.length
@@ -139,7 +139,7 @@ test('refreshes the listing and the counts after trashing', async () => {
 })
 
 test('offers to undo a post just trashed', async () => {
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 
@@ -152,12 +152,12 @@ test('offers to undo a post just trashed', async () => {
 test('restores the post when the undo is taken', async () => {
 	const restored: string[] = []
 	server.use(
-		http.post('/api/posts/:id/restore', ({ params }) => {
+		http.post('/api/content/:id/restore', ({ params }) => {
 			restored.push(String(params.id))
 			return HttpResponse.json({ ...PUBLISHED, status: 'draft' })
 		}),
 	)
-	renderAt('/posts')
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 	await userEvent.click(await screen.findByRole('button', { name: 'Move to Trash' }))
@@ -170,8 +170,8 @@ test('restores the post when the undo is taken', async () => {
 
 test('reports an undo the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.post('/api/posts/:id/restore', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	server.use(http.post('/api/content/:id/restore', () => HttpResponse.json({}, { status: 500 })))
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 	await userEvent.click(await screen.findByRole('button', { name: 'Move to Trash' }))
@@ -183,8 +183,8 @@ test('reports an undo the server refused', async () => {
 
 test('reports a trash the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.delete('/api/posts/:id', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/posts')
+	server.use(http.delete('/api/content/:id', () => HttpResponse.json({}, { status: 500 })))
+	renderAt('/content/post')
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Move to Trash' }))
 

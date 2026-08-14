@@ -51,9 +51,9 @@ func themeServer(t *testing.T, themes server.Themes) http.Handler {
 	users := newFakeUserStore()
 	addAda(t, users)
 	return authedServerWithStores(t, server.Config{
-		Users:  users,
-		Posts:  newFakePostStore(),
-		Themes: themes,
+		Users:   users,
+		Content: newFakePostStore(),
+		Themes:  themes,
 	})
 }
 
@@ -92,7 +92,7 @@ func TestTheThemeRoutesAreAbsentWithoutAThemesDirectory(t *testing.T) {
 
 	users := newFakeUserStore()
 	addAda(t, users)
-	handler := authedServerWithStores(t, server.Config{Users: users, Posts: newFakePostStore()})
+	handler := authedServerWithStores(t, server.Config{Users: users, Content: newFakePostStore()})
 
 	recorder := doRequest(t, handler, http.MethodGet, "/api/themes", "")
 

@@ -7,7 +7,7 @@ import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import { beforeAll, expect, test } from 'vitest'
 
-import { useEditorBuffer } from '../posts/useEditorBuffer'
+import { useEditorBuffer } from '../content/useEditorBuffer'
 import { storedPost } from './postFixture'
 
 beforeAll(() => {
