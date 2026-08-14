@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
 )
 
@@ -25,7 +26,7 @@ type CoreContent struct {
 	UpdatedAt   time.Time
 	ParentID    *uuid.UUID
 	Path        string
-	Fields      []byte
+	Fields      content.Values
 }
 
 type CoreContentField struct {
@@ -50,7 +51,7 @@ type CoreContentRevision struct {
 	Content   string
 	Excerpt   string
 	CreatedAt time.Time
-	Fields    []byte
+	Fields    content.Values
 }
 
 type CoreContentType struct {

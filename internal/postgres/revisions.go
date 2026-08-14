@@ -63,6 +63,7 @@ func (s *ContentStore) RevisionByID(ctx context.Context, contentID, revisionID u
 		Title:     row.Title,
 		Content:   row.Content,
 		Excerpt:   row.Excerpt,
+		Fields:    row.Fields,
 		CreatedAt: row.CreatedAt.UTC(),
 	}, nil
 }
@@ -88,6 +89,7 @@ func (s *ContentStore) SaveAutosave(ctx context.Context, autosave content.Revisi
 		Title:     autosave.Title,
 		Content:   autosave.Content,
 		Excerpt:   autosave.Excerpt,
+		Fields:    storedValues(autosave.Fields),
 		CreatedAt: autosave.CreatedAt,
 	})
 	if isContentGone(err) {
@@ -97,7 +99,7 @@ func (s *ContentStore) SaveAutosave(ctx context.Context, autosave content.Revisi
 		return content.Revision{}, fmt.Errorf("postgres: save autosave: %w", err)
 	}
 	return toRevision(
-		row.ID, row.ContentID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt,
+		row.ID, row.ContentID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.Fields, row.CreatedAt,
 	), nil
 }
 
@@ -111,7 +113,7 @@ func (s *ContentStore) Autosave(ctx context.Context, contentID, authorID uuid.UU
 		return content.Revision{}, fmt.Errorf("postgres: get autosave: %w", err)
 	}
 	return toRevision(
-		row.ID, row.ContentID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt,
+		row.ID, row.ContentID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.Fields, row.CreatedAt,
 	), nil
 }
 
@@ -126,7 +128,8 @@ func (s *ContentStore) DeleteAutosave(ctx context.Context, contentID, authorID u
 
 // toRevision builds a revision from its stored columns.
 func toRevision(
-	id, contentID uuid.UUID, kind string, authorID uuid.UUID, title, body, excerpt string, createdAt time.Time,
+	id, contentID uuid.UUID, kind string, authorID uuid.UUID, title, body, excerpt string,
+	fields content.Values, createdAt time.Time,
 ) content.Revision {
 	return content.Revision{
 		ID:        id,
@@ -136,6 +139,7 @@ func toRevision(
 		Title:     title,
 		Content:   body,
 		Excerpt:   excerpt,
+		Fields:    fields,
 		CreatedAt: createdAt.UTC(),
 	}
 }
@@ -150,6 +154,7 @@ func snapshotRevision(ctx context.Context, queries *db.Queries, snapshot content
 		Title:     snapshot.Title,
 		Content:   snapshot.Content,
 		Excerpt:   snapshot.Excerpt,
+		Fields:    storedValues(snapshot.Fields),
 		CreatedAt: snapshot.CreatedAt,
 	})
 	if err != nil {

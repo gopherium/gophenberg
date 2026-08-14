@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
 )
 
@@ -411,10 +412,10 @@ func (q *Queries) CreateMedia(ctx context.Context, arg CreateMediaParams) (CoreM
 
 const createRevision = `-- name: CreateRevision :exec
 INSERT INTO core.content_revisions (
-    id, content_id, kind, author_id, title, content, excerpt, created_at
+    id, content_id, kind, author_id, title, content, excerpt, fields, created_at
 )
 VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 `
 
@@ -426,6 +427,7 @@ type CreateRevisionParams struct {
 	Title     string
 	Content   string
 	Excerpt   string
+	Fields    content.Values
 	CreatedAt time.Time
 }
 
@@ -438,6 +440,7 @@ func (q *Queries) CreateRevision(ctx context.Context, arg CreateRevisionParams) 
 		arg.Title,
 		arg.Content,
 		arg.Excerpt,
+		arg.Fields,
 		arg.CreatedAt,
 	)
 	return err
@@ -548,7 +551,7 @@ func (q *Queries) DeleteRevision(ctx context.Context, arg DeleteRevisionParams) 
 }
 
 const getAutosave = `-- name: GetAutosave :one
-SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.fields, r.created_at
 FROM core.content_revisions r
 WHERE r.content_id = $1 AND r.author_id = $2 AND r.kind = 'autosave'
 `
@@ -566,6 +569,7 @@ type GetAutosaveRow struct {
 	Title     string
 	Content   string
 	Excerpt   string
+	Fields    content.Values
 	CreatedAt time.Time
 }
 
@@ -580,6 +584,7 @@ func (q *Queries) GetAutosave(ctx context.Context, arg GetAutosaveParams) (GetAu
 		&i.Title,
 		&i.Content,
 		&i.Excerpt,
+		&i.Fields,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -701,7 +706,7 @@ func (q *Queries) GetPublishedContentByPath(ctx context.Context, path string) (C
 }
 
 const getRevision = `-- name: GetRevision :one
-SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.fields, r.created_at
 FROM core.content_revisions r
 WHERE r.content_id = $1 AND r.id = $2
 `
@@ -719,6 +724,7 @@ type GetRevisionRow struct {
 	Title     string
 	Content   string
 	Excerpt   string
+	Fields    content.Values
 	CreatedAt time.Time
 }
 
@@ -733,6 +739,7 @@ func (q *Queries) GetRevision(ctx context.Context, arg GetRevisionParams) (GetRe
 		&i.Title,
 		&i.Content,
 		&i.Excerpt,
+		&i.Fields,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -794,7 +801,7 @@ type ListContentRow struct {
 	UpdatedAt   time.Time
 	ParentID    *uuid.UUID
 	Path        string
-	Fields      []byte
+	Fields      content.Values
 }
 
 func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error) {
@@ -1408,8 +1415,9 @@ func (q *Queries) TrashContent(ctx context.Context, arg TrashContentParams) (Cor
 const updateContent = `-- name: UpdateContent :one
 UPDATE core.content AS p
 SET status = $1, slug = $2, path = $3, parent_id = $4, title = $5,
-    content = $6, excerpt = $7, published_at = $8, updated_at = $9
-WHERE p.id = $10 AND p.updated_at = $11
+    content = $6, excerpt = $7, fields = $8, published_at = $9,
+    updated_at = $10
+WHERE p.id = $11 AND p.updated_at = $12
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 `
@@ -1422,6 +1430,7 @@ type UpdateContentParams struct {
 	Title             string
 	Content           string
 	Excerpt           string
+	Fields            content.Values
 	PublishedAt       *time.Time
 	UpdatedAt         time.Time
 	ID                uuid.UUID
@@ -1437,6 +1446,7 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (C
 		arg.Title,
 		arg.Content,
 		arg.Excerpt,
+		arg.Fields,
 		arg.PublishedAt,
 		arg.UpdatedAt,
 		arg.ID,
@@ -1609,18 +1619,19 @@ func (q *Queries) UpdateMedia(ctx context.Context, arg UpdateMediaParams) (CoreM
 
 const upsertAutosave = `-- name: UpsertAutosave :one
 INSERT INTO core.content_revisions (
-    id, content_id, kind, author_id, title, content, excerpt, created_at
+    id, content_id, kind, author_id, title, content, excerpt, fields, created_at
 )
 VALUES (
-    $1, $2, 'autosave', $3, $4, $5, $6, $7
+    $1, $2, 'autosave', $3, $4, $5, $6, $7, $8
 )
 ON CONFLICT (content_id, author_id) WHERE kind = 'autosave'
 DO UPDATE SET
     title = EXCLUDED.title,
     content = EXCLUDED.content,
     excerpt = EXCLUDED.excerpt,
+    fields = EXCLUDED.fields,
     created_at = EXCLUDED.created_at
-RETURNING id, content_id, kind, author_id, title, content, excerpt, created_at
+RETURNING id, content_id, kind, author_id, title, content, excerpt, fields, created_at
 `
 
 type UpsertAutosaveParams struct {
@@ -1630,6 +1641,7 @@ type UpsertAutosaveParams struct {
 	Title     string
 	Content   string
 	Excerpt   string
+	Fields    content.Values
 	CreatedAt time.Time
 }
 
@@ -1641,6 +1653,7 @@ type UpsertAutosaveRow struct {
 	Title     string
 	Content   string
 	Excerpt   string
+	Fields    content.Values
 	CreatedAt time.Time
 }
 
@@ -1652,6 +1665,7 @@ func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) 
 		arg.Title,
 		arg.Content,
 		arg.Excerpt,
+		arg.Fields,
 		arg.CreatedAt,
 	)
 	var i UpsertAutosaveRow
@@ -1663,6 +1677,7 @@ func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) 
 		&i.Title,
 		&i.Content,
 		&i.Excerpt,
+		&i.Fields,
 		&i.CreatedAt,
 	)
 	return i, err

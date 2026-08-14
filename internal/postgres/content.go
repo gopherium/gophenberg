@@ -129,6 +129,14 @@ func byID(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Conte
 	return toContent(row), nil
 }
 
+// storedValues returns the values a write holds, never nil so the column stays an object.
+func storedValues(v content.Values) content.Values {
+	if v == nil {
+		return content.Values{}
+	}
+	return v
+}
+
 // toContent maps a stored row to a domain content item with UTC timestamps.
 func toContent(row db.CoreContent) content.Content {
 	return content.Content{
@@ -142,6 +150,7 @@ func toContent(row db.CoreContent) content.Content {
 		Content:     row.Content,
 		Excerpt:     row.Excerpt,
 		AuthorID:    row.AuthorID,
+		Fields:      row.Fields,
 		PublishedAt: utcOrNil(row.PublishedAt),
 		CreatedAt:   row.CreatedAt.UTC(),
 		UpdatedAt:   row.UpdatedAt.UTC(),
@@ -249,6 +258,7 @@ func (s *ContentStore) update(
 			Title:             c.Title,
 			Content:           c.Content,
 			Excerpt:           c.Excerpt,
+			Fields:            storedValues(c.Fields),
 			PublishedAt:       c.PublishedAt,
 			UpdatedAt:         c.UpdatedAt,
 			ExpectedUpdatedAt: expectedUpdatedAt,

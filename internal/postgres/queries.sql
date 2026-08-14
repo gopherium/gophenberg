@@ -59,7 +59,8 @@ WHERE p.type = @type
 -- name: UpdateContent :one
 UPDATE core.content AS p
 SET status = @status, slug = @slug, path = @path, parent_id = @parent_id, title = @title,
-    content = @content, excerpt = @excerpt, published_at = @published_at, updated_at = @updated_at
+    content = @content, excerpt = @excerpt, fields = @fields, published_at = @published_at,
+    updated_at = @updated_at
 WHERE p.id = @id AND p.updated_at = @expected_updated_at
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields;
@@ -127,10 +128,10 @@ GROUP BY p.status;
 
 -- name: CreateRevision :exec
 INSERT INTO core.content_revisions (
-    id, content_id, kind, author_id, title, content, excerpt, created_at
+    id, content_id, kind, author_id, title, content, excerpt, fields, created_at
 )
 VALUES (
-    @id, @content_id, @kind, @author_id, @title, @content, @excerpt, @created_at
+    @id, @content_id, @kind, @author_id, @title, @content, @excerpt, @fields, @created_at
 );
 
 -- name: ListRevisions :many
@@ -140,7 +141,7 @@ WHERE r.content_id = @content_id
 ORDER BY r.created_at DESC, r.id DESC;
 
 -- name: GetRevision :one
-SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.fields, r.created_at
 FROM core.content_revisions r
 WHERE r.content_id = @content_id AND r.id = @id;
 
@@ -160,21 +161,22 @@ WHERE r.id IN (
 
 -- name: UpsertAutosave :one
 INSERT INTO core.content_revisions (
-    id, content_id, kind, author_id, title, content, excerpt, created_at
+    id, content_id, kind, author_id, title, content, excerpt, fields, created_at
 )
 VALUES (
-    @id, @content_id, 'autosave', @author_id, @title, @content, @excerpt, @created_at
+    @id, @content_id, 'autosave', @author_id, @title, @content, @excerpt, @fields, @created_at
 )
 ON CONFLICT (content_id, author_id) WHERE kind = 'autosave'
 DO UPDATE SET
     title = EXCLUDED.title,
     content = EXCLUDED.content,
     excerpt = EXCLUDED.excerpt,
+    fields = EXCLUDED.fields,
     created_at = EXCLUDED.created_at
-RETURNING id, content_id, kind, author_id, title, content, excerpt, created_at;
+RETURNING id, content_id, kind, author_id, title, content, excerpt, fields, created_at;
 
 -- name: GetAutosave :one
-SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.fields, r.created_at
 FROM core.content_revisions r
 WHERE r.content_id = @content_id AND r.author_id = @author_id AND r.kind = 'autosave';
 
