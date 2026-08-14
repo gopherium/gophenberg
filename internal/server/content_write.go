@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -228,23 +229,9 @@ func (s *server) patchContent(
 		return content.Content{}, err
 	}
 	previous := stored
-	changed, contentChanged, err := req.applyTo(&stored)
+	changed, snapshotted, err := s.applyEdit(r, &stored, req)
 	if err != nil {
 		return content.Content{}, err
-	}
-	filled, err := s.applyValues(r, &stored, req.Fields)
-	if err != nil {
-		return content.Content{}, err
-	}
-	if filled {
-		changed, contentChanged = true, true
-	}
-	nested, err := s.nestAsked(r, &stored, req)
-	if err != nil {
-		return content.Content{}, err
-	}
-	if nested {
-		changed = true
 	}
 	if !changed {
 		return stored, nil
@@ -252,36 +239,73 @@ func (s *server) patchContent(
 	if err := s.addressFree(r, stored.Path, stored.Type); err != nil {
 		return content.Content{}, err
 	}
-	snapshot, revisionCap, err := s.revisionFor(r, previous, contentChanged)
+	snapshot, revisionCap, err := s.revisionFor(r, previous, snapshotted)
 	if err != nil {
 		return content.Content{}, err
 	}
 	return s.content.Update(r.Context(), stored, previous.UpdatedAt, snapshot, revisionCap)
 }
 
-// applyValues merges the values the request carries and gates publishing, reporting whether any moved.
-func (s *server) applyValues(r *http.Request, c *content.Content, patch content.Values) (bool, error) {
+// applyEdit applies the whole edit, reporting whether the item moved and whether a snapshot is due.
+func (s *server) applyEdit(
+	r *http.Request, c *content.Content, req contentPatchRequest,
+) (changed, snapshotted bool, err error) {
+	changed, snapshotted, err = req.applyTo(c)
+	if err != nil {
+		return false, false, err
+	}
+	valued, related, err := s.applyValues(r, c, req.Fields)
+	if err != nil {
+		return false, false, err
+	}
+	nested, err := s.nestAsked(r, c, req)
+	if err != nil {
+		return false, false, err
+	}
+	return changed || valued || related || nested, snapshotted || valued, nil
+}
+
+// applyValues merges what the request carries and gates publishing, reporting which halves moved.
+func (s *server) applyValues(
+	r *http.Request, c *content.Content, patch content.Values,
+) (valued, related bool, err error) {
 	t, err := s.types.Active(r.Context(), c.Type)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
-	if err := patch.Validate(t.Fields); err != nil {
-		return false, err
+	scalars, targets, err := content.SplitValues(patch, t.Fields)
+	if err != nil {
+		return false, false, err
 	}
-	merged := c.Fields.Merge(patch)
+	merged := c.Fields.Merge(scalars)
 	if err := merged.Validate(t.Fields); err != nil {
-		return false, err
+		return false, false, err
 	}
+	held := c.Relations.Merge(targets)
 	if c.Status == content.StatusPublished {
-		if err := merged.Filled(t.Fields); err != nil {
-			return false, err
+		if err := content.Filled(merged, held, t.Fields); err != nil {
+			return false, false, err
 		}
 	}
-	if sameValues(c.Fields, merged) {
-		return false, nil
+	valued, related = !sameValues(c.Fields, merged), !sameRelations(c.Relations, held)
+	if !valued && !related {
+		return false, false, nil
 	}
-	c.Fields, c.UpdatedAt = merged, time.Now().UTC()
-	return true, nil
+	c.Fields, c.Relations, c.UpdatedAt = merged, held, time.Now().UTC()
+	return valued, related, nil
+}
+
+// sameRelations reports whether two sets of targets hold the same items in the same order.
+func sameRelations(held, asked content.Relations) bool {
+	if len(held) != len(asked) {
+		return false
+	}
+	for key, targets := range held {
+		if !slices.Equal(targets, asked[key]) {
+			return false
+		}
+	}
+	return true
 }
 
 // sameValues reports whether two sets of field values hold the same things.
@@ -295,6 +319,22 @@ func heldValues(v content.Values) content.Values {
 		return content.Values{}
 	}
 	return v
+}
+
+// payloadValues returns the item's scalar values with its targets named beside them.
+func payloadValues(c content.Content) content.Values {
+	held := make(content.Values, len(c.Fields)+len(c.Relations))
+	for key, value := range c.Fields {
+		held[key] = value
+	}
+	for key, targets := range c.Relations {
+		named := make([]string, len(targets))
+		for i, target := range targets {
+			named[i] = target.String()
+		}
+		held[key] = named
+	}
+	return held
 }
 
 // nestAsked moves the item under the parent the request names, reporting whether it moved.

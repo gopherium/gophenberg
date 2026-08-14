@@ -240,6 +240,6 @@ func (s *server) respondContent(w http.ResponseWriter, r *http.Request, status i
 	authkit.Respond(w, status, contentDetailResponse{
 		contentResponse: newContentResponse(c, names[c.AuthorID]),
 		Content:         c.Content,
-		Fields:          heldValues(c.Fields),
+		Fields:          payloadValues(c),
 	})
 }

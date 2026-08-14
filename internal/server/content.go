@@ -210,7 +210,7 @@ func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, hel
 		Item: &publishedDetail{
 			publishedSummary: newPublishedSummary(held.Item),
 			Content:          publichtml.Sanitize(held.Item.Content),
-			Fields:           heldValues(held.Item.Fields),
+			Fields:           payloadValues(held.Item),
 		},
 	})
 }

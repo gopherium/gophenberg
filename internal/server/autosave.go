@@ -89,10 +89,12 @@ func (s *server) handleAutosaveSave() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		if err := s.bufferedValues(r, stored, req); err != nil {
+		scalars, err := s.bufferedValues(r, stored, req)
+		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
+		req.Fields = scalars
 		s.storeBuffer(w, r, stored, req, authkit.IdentityFromContext(r.Context()).ID)
 	}
 }
@@ -203,14 +205,18 @@ func newAutosaveResponse(
 	}
 }
 
-// bufferedValues reports whether the buffer's field values are ones the type declares.
-func (s *server) bufferedValues(r *http.Request, c content.Content, req autosaveRequest) error {
+// bufferedValues returns the scalar values the buffer holds, leaving its targets to a save.
+func (s *server) bufferedValues(r *http.Request, c content.Content, req autosaveRequest) (content.Values, error) {
 	if req.Fields == nil {
-		return nil
+		return nil, nil
 	}
 	t, err := s.types.Active(r.Context(), c.Type)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return req.Fields.Validate(t.Fields)
+	scalars, _, err := content.SplitValues(req.Fields, t.Fields)
+	if err != nil {
+		return nil, err
+	}
+	return scalars, scalars.Validate(t.Fields)
 }
