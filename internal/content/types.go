@@ -84,17 +84,21 @@ type Type struct {
 	PageKind      PageKind
 	Default       bool
 	Active        bool
+	Fields        []Field
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
 
-// TypeStore persists the content type registry.
+// TypeStore persists the content type registry and its field definitions.
 type TypeStore interface {
 	List(ctx context.Context) ([]Type, error)
 	ByKey(ctx context.Context, key string) (Type, error)
 	Create(ctx context.Context, t Type) (Type, error)
 	Update(ctx context.Context, t Type) (Type, error)
 	Delete(ctx context.Context, key string) error
+	CreateField(ctx context.Context, f Field) (Field, error)
+	UpdateField(ctx context.Context, f Field) (Field, error)
+	DeleteField(ctx context.Context, typeKey, key string) error
 }
 
 // NewType returns a content type ready to store, or the reason it is not one.

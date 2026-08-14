@@ -17,6 +17,7 @@ var errStoreDown = errors.New("the registry is unreachable")
 // fakeTypeStore holds content types in memory and counts what it was asked to read.
 type fakeTypeStore struct {
 	types     []content.Type
+	fieldIDs  int
 	listCalls int
 	listErr   error
 	createErr error
