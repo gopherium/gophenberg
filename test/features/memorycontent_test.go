@@ -399,3 +399,68 @@ func (s *memoryContent) Counts(_ context.Context, contentType string) (map[conte
 	}
 	return counts, nil
 }
+
+// RelatedTo returns the published items of active types pointing at the target, newest first.
+func (s *memoryContent) RelatedTo(
+	_ context.Context, target uuid.UUID, page, perPage int,
+) ([]content.Content, int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	matched := make([]content.Content, 0, len(s.items))
+	for _, stored := range s.items {
+		if stored.Status != content.StatusPublished || !pointsAt(stored.Relations, target) {
+			continue
+		}
+		if s.types != nil && !s.types.serving(stored.Type) {
+			continue
+		}
+		matched = append(matched, stored)
+	}
+	slices.SortFunc(matched, func(a, b content.Content) int {
+		return sortedAt(b).Compare(sortedAt(a))
+	})
+	total := len(matched)
+	start := min((page-1)*perPage, total)
+	return matched[start:min(start+perPage, total)], total, nil
+}
+
+// pointsAt reports whether any of the item's fields names the target.
+func pointsAt(held content.Relations, target uuid.UUID) bool {
+	for _, targets := range held {
+		for _, listed := range targets {
+			if listed == target {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// sortedAt returns the stamp a term page orders an item by.
+func sortedAt(c content.Content) time.Time {
+	if c.PublishedAt != nil {
+		return *c.PublishedAt
+	}
+	return c.CreatedAt
+}
+
+// TargetsOf returns the published targets of active types the item points at.
+func (s *memoryContent) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
+	held, found := s.items[from]
+	if !found {
+		return nil, nil
+	}
+	targets := make(content.Targets)
+	for key, listed := range held.Relations {
+		for _, id := range listed {
+			pointed, stored := s.items[id]
+			if !stored || pointed.Status != content.StatusPublished {
+				continue
+			}
+			targets[key] = append(targets[key], content.Target{
+				ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
+			})
+		}
+	}
+	return targets, nil
+}

@@ -217,3 +217,15 @@ func (s *memoryTypes) holdsContent(ctx context.Context, key string) bool {
 	items, _, err := s.content.List(ctx, content.Filter{Type: key})
 	return err == nil && len(items) > 0
 }
+
+// serving reports whether the type is active enough to appear on a term page.
+func (s *memoryTypes) serving(key string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, stored := range s.types {
+		if stored.Key == key {
+			return stored.Active
+		}
+	}
+	return false
+}
