@@ -85,7 +85,7 @@ export function DocumentPanels({ postId, buffer }: { postId: string, buffer: Edi
 				value={buffer.excerpt}
 				onValueChange={buffer.setExcerpt}
 			/>
-			<FieldsPanel declared={listed.fields} buffer={buffer} />
+			<FieldsPanel postId={postId} declared={listed.fields} buffer={buffer} />
 			<TrashPost postId={postId} title={buffer.title} />
 		</Stack>
 	)

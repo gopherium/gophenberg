@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { Stack } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type { Field } from '@gophenberg/frontend-sdk/dataviews'
 import { useMemo } from 'react'
 
+import { MediaField, mediaHeld } from './MediaField'
+import { RelationPicker, targetsHeld } from './RelationPicker'
 import type { ContentField } from './types'
 import type { EditorBuffer } from './useEditorBuffer'
 
@@ -25,6 +28,24 @@ const TYPES: Record<string, string> = {
  */
 export function editableFields(declared: ContentField[]): ContentField[] {
 	return declared.filter((field) => TYPES[field.kind] !== undefined)
+}
+
+/**
+ * Returns the fields a relation picker edits.
+ * @param declared - The fields the type declares.
+ * @returns The declared relation fields.
+ */
+export function relationFields(declared: ContentField[]): ContentField[] {
+	return declared.filter((field) => field.kind === 'relation')
+}
+
+/**
+ * Returns the fields the media library edits.
+ * @param declared - The fields the type declares.
+ * @returns The declared media fields.
+ */
+export function mediaFields(declared: ContentField[]): ContentField[] {
+	return declared.filter((field) => field.kind === 'media')
 }
 
 /**
@@ -62,25 +83,50 @@ export function clearedEdits(edits: FieldValues): FieldValues {
  * @returns The panel element, or nothing when the type declares none.
  */
 export function FieldsPanel({
+	postId,
 	declared,
 	buffer,
 }: {
+	postId: string
 	declared: ContentField[]
 	buffer: EditorBuffer
 }) {
 	const rendered = useMemo(() => editableFields(declared), [declared])
+	const related = useMemo(() => relationFields(declared), [declared])
+	const pictured = useMemo(() => mediaFields(declared), [declared])
 	const descriptors = useMemo(() => fieldDescriptors(rendered), [rendered])
-	if (rendered.length === 0) {
+	if (rendered.length === 0 && related.length === 0 && pictured.length === 0) {
 		return null
 	}
 	return (
-		<DataForm
-			data={buffer.fields}
-			fields={descriptors}
-			form={{ fields: rendered.map((field) => field.key) }}
-			onChange={(edits: FieldValues) =>
-				buffer.setFields({ ...buffer.fields, ...clearedEdits(edits) })
-			}
-		/>
+		<Stack direction="column" gap="md">
+			{rendered.length > 0 && (
+				<DataForm
+					data={buffer.fields}
+					fields={descriptors}
+					form={{ fields: rendered.map((field) => field.key) }}
+					onChange={(edits: FieldValues) =>
+						buffer.setFields({ ...buffer.fields, ...clearedEdits(edits) })
+					}
+				/>
+			)}
+			{related.map((field) => (
+				<RelationPicker
+					key={field.key}
+					field={field}
+					postId={postId}
+					targets={targetsHeld(buffer.fields[field.key])}
+					onChange={(targets) => buffer.setFields({ ...buffer.fields, [field.key]: targets })}
+				/>
+			))}
+			{pictured.map((field) => (
+				<MediaField
+					key={field.key}
+					field={field}
+					value={mediaHeld(buffer.fields[field.key])}
+					onChange={(value) => buffer.setFields({ ...buffer.fields, [field.key]: value })}
+				/>
+			))}
+		</Stack>
 	)
 }
