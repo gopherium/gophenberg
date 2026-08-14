@@ -38,6 +38,10 @@ func TestContentTypes(t *testing.T) {
 	runFeature(t, "features/content-types.feature", initializeContentTypes)
 }
 
+func TestContentFields(t *testing.T) {
+	runFeature(t, "features/content-fields.feature", initializeContentFields)
+}
+
 func TestContentHierarchy(t *testing.T) {
 	runFeature(t, "features/content-hierarchy.feature", initializeContentHierarchy)
 }
