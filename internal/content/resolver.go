@@ -20,6 +20,7 @@ type Kind string
 const (
 	KindItem    Kind = "item"
 	KindArchive Kind = "archive"
+	KindTerm    Kind = "term"
 )
 
 // Address is what a public address holds.
@@ -35,9 +36,10 @@ type AddressReader interface {
 	PublishedByPath(ctx context.Context, path string) (Content, error)
 }
 
-// TypeReader answers which type answers under a route word.
+// TypeReader answers which type answers under a route word and which carries a key.
 type TypeReader interface {
 	ByRouteWord(ctx context.Context, word string) (Type, error)
+	ByKey(ctx context.Context, key string) (Type, error)
 }
 
 // Resolver answers what a public address holds.
@@ -56,12 +58,33 @@ func (r *Resolver) Resolve(ctx context.Context, raw string) (Address, error) {
 	address := tidy(raw)
 	item, err := r.content.PublishedByPath(ctx, address)
 	if err == nil {
-		return Address{Kind: KindItem, Item: item}, nil
+		return r.itemAt(ctx, item, 1)
 	}
 	if !errors.Is(err, ErrNotFound) {
 		return Address{}, err
 	}
 	return r.archiveAt(ctx, address)
+}
+
+// itemAt returns what an item answers with, which is a term page when its type lists its pointers.
+func (r *Resolver) itemAt(ctx context.Context, item Content, page int) (Address, error) {
+	listed, err := r.types.ByKey(ctx, item.Type)
+	if errors.Is(err, ErrTypeNotFound) {
+		return Address{}, ErrNotFound
+	}
+	if err != nil {
+		return Address{}, err
+	}
+	if !listed.Active {
+		return Address{}, ErrNotFound
+	}
+	if listed.PageKind == PageKindArchive {
+		return Address{Kind: KindTerm, Type: listed, Item: item, Page: page}, nil
+	}
+	if page > 1 {
+		return Address{}, ErrNotFound
+	}
+	return Address{Kind: KindItem, Type: listed, Item: item}, nil
 }
 
 // tidy returns the address a request carries without its surrounding slashes.
@@ -76,13 +99,35 @@ func (r *Resolver) archiveAt(ctx context.Context, address string) (Address, erro
 		return Address{}, err
 	}
 	listed, err := r.types.ByRouteWord(ctx, word)
-	if errors.Is(err, ErrTypeNotFound) {
+	if err == nil {
+		return Address{Kind: KindArchive, Type: listed, Page: page}, nil
+	}
+	if !errors.Is(err, ErrTypeNotFound) {
+		return Address{}, err
+	}
+	if word == address {
+		return Address{}, ErrNotFound
+	}
+	return r.pagedItemAt(ctx, word, page)
+}
+
+// pagedItemAt returns the term page an address asks for behind the page word.
+func (r *Resolver) pagedItemAt(ctx context.Context, address string, page int) (Address, error) {
+	item, err := r.content.PublishedByPath(ctx, address)
+	if errors.Is(err, ErrNotFound) {
 		return Address{}, ErrNotFound
 	}
 	if err != nil {
 		return Address{}, err
 	}
-	return Address{Kind: KindArchive, Type: listed, Page: page}, nil
+	held, err := r.itemAt(ctx, item, page)
+	if err != nil {
+		return Address{}, err
+	}
+	if held.Kind != KindTerm {
+		return Address{}, ErrNotFound
+	}
+	return held, nil
 }
 
 // listingAt returns the route word an address lists and the page it asks for.

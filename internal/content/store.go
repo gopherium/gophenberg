@@ -121,6 +121,8 @@ type Store interface {
 	Children(ctx context.Context, id uuid.UUID) (int, error)
 	Depth(ctx context.Context, id uuid.UUID) (int, error)
 	List(ctx context.Context, f Filter) ([]Content, int, error)
+	RelatedTo(ctx context.Context, target uuid.UUID, page, perPage int) ([]Content, int, error)
+	TargetsOf(ctx context.Context, from uuid.UUID) (Targets, error)
 	Update(
 		ctx context.Context, c Content, expectedUpdatedAt time.Time, snapshot *Revision, revisionCap int,
 	) (Content, error)

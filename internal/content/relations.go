@@ -24,6 +24,16 @@ var ErrTargetType = errors.New("content: target is not the type the field points
 // Relations holds the items a content item points at, keyed by field key.
 type Relations map[string][]uuid.UUID
 
+// Target names one item a relation field points at, as a public reader sees it.
+type Target struct {
+	ID    uuid.UUID
+	Title string
+	Path  string
+}
+
+// Targets holds the items a content item points at, named and addressed, keyed by field key.
+type Targets map[string][]Target
+
 // SplitValues divides a patch into the scalar values and the targets its type declares.
 func SplitValues(patch Values, fields []Field) (Values, Relations, error) {
 	declared := make(map[string]Field, len(fields))

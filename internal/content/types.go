@@ -50,16 +50,13 @@ var ErrInvalidLabel = errors.New("content: invalid type label")
 // ErrInvalidPageKind reports that a page kind is not one the CMS renders.
 var ErrInvalidPageKind = errors.New("content: invalid page kind")
 
-// ErrPageKindUnavailable reports that a page kind waits for relation fields.
-var ErrPageKindUnavailable = errors.New("content: archive pages wait for relation fields")
-
 // ErrInvalidRevisionCap reports that a revision cap is not a number of rows.
 var ErrInvalidRevisionCap = errors.New("content: invalid revision cap")
 
 // PageKind is what the public page of one content item renders.
 type PageKind string
 
-// The page kinds a content type declares. Archive waits for relation fields.
+// The page kinds a content type declares.
 const (
 	PageKindSingle  PageKind = "single"
 	PageKindArchive PageKind = "archive"
@@ -142,13 +139,11 @@ func (t Type) Validate() error {
 	return t.validateRouteWord()
 }
 
-// validatePageKind reports whether the CMS renders the type's item page today.
+// validatePageKind reports whether the CMS renders the type's item page.
 func (t Type) validatePageKind() error {
 	switch t.PageKind {
-	case PageKindSingle:
+	case PageKindSingle, PageKindArchive:
 		return nil
-	case PageKindArchive:
-		return ErrPageKindUnavailable
 	default:
 		return ErrInvalidPageKind
 	}
