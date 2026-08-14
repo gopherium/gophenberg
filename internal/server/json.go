@@ -81,6 +81,7 @@ var refusals = []error{
 	content.ErrRepeatedTarget,
 	content.ErrTargetNotFound,
 	content.ErrTargetType,
+	content.ErrSelfTarget,
 }
 
 // isRefusal reports whether err is the CMS turning an edit away.

@@ -282,6 +282,11 @@ func (s *server) applyValues(
 		return false, false, err
 	}
 	held := c.Relations.Merge(targets)
+	pointing := *c
+	pointing.Relations = held
+	if err := pointing.SelfTargeted(); err != nil {
+		return false, false, err
+	}
 	if c.Status == content.StatusPublished {
 		if err := content.Filled(merged, held, t.Fields); err != nil {
 			return false, false, err
