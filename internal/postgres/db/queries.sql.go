@@ -14,6 +14,31 @@ import (
 	"github.com/gopherium/gophenberg/internal/media"
 )
 
+const addRelation = `-- name: AddRelation :exec
+INSERT INTO core.content_relations (from_id, field_id, to_id, position, sort_at, visible)
+SELECT $1, $2, $3, $4, coalesce(c.published_at, c.created_at),
+    c.status = 'published'
+FROM core.content c
+WHERE c.id = $1
+`
+
+type AddRelationParams struct {
+	FromID   uuid.UUID
+	FieldID  int32
+	ToID     uuid.UUID
+	Position int32
+}
+
+func (q *Queries) AddRelation(ctx context.Context, arg AddRelationParams) error {
+	_, err := q.db.Exec(ctx, addRelation,
+		arg.FromID,
+		arg.FieldID,
+		arg.ToID,
+		arg.Position,
+	)
+	return err
+}
+
 const clearContentFieldValues = `-- name: ClearContentFieldValues :exec
 UPDATE core.content SET fields = fields - $1::text WHERE type = $2
 `
@@ -25,6 +50,20 @@ type ClearContentFieldValuesParams struct {
 
 func (q *Queries) ClearContentFieldValues(ctx context.Context, arg ClearContentFieldValuesParams) error {
 	_, err := q.db.Exec(ctx, clearContentFieldValues, arg.Key, arg.Type)
+	return err
+}
+
+const clearRelationsOfField = `-- name: ClearRelationsOfField :exec
+DELETE FROM core.content_relations WHERE from_id = $1 AND field_id = $2
+`
+
+type ClearRelationsOfFieldParams struct {
+	FromID  uuid.UUID
+	FieldID int32
+}
+
+func (q *Queries) ClearRelationsOfField(ctx context.Context, arg ClearRelationsOfFieldParams) error {
+	_, err := q.db.Exec(ctx, clearRelationsOfField, arg.FromID, arg.FieldID)
 	return err
 }
 
@@ -1027,6 +1066,77 @@ func (q *Queries) ListMedia(ctx context.Context, arg ListMediaParams) ([]CoreMed
 	return items, nil
 }
 
+const listRelationFieldsOfType = `-- name: ListRelationFieldsOfType :many
+SELECT id, key, relates_to, many FROM core.content_fields
+WHERE type_key = $1 AND kind = 'relation'
+ORDER BY id
+`
+
+type ListRelationFieldsOfTypeRow struct {
+	ID        int32
+	Key       string
+	RelatesTo *string
+	Many      bool
+}
+
+func (q *Queries) ListRelationFieldsOfType(ctx context.Context, typeKey string) ([]ListRelationFieldsOfTypeRow, error) {
+	rows, err := q.db.Query(ctx, listRelationFieldsOfType, typeKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRelationFieldsOfTypeRow
+	for rows.Next() {
+		var i ListRelationFieldsOfTypeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.RelatesTo,
+			&i.Many,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRelationTargets = `-- name: ListRelationTargets :many
+SELECT f.key, r.to_id
+FROM core.content_relations r
+JOIN core.content_fields f ON f.id = r.field_id
+WHERE r.from_id = $1
+ORDER BY f.key, r.position
+`
+
+type ListRelationTargetsRow struct {
+	Key  string
+	ToID uuid.UUID
+}
+
+func (q *Queries) ListRelationTargets(ctx context.Context, fromID uuid.UUID) ([]ListRelationTargetsRow, error) {
+	rows, err := q.db.Query(ctx, listRelationTargets, fromID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRelationTargetsRow
+	for rows.Next() {
+		var i ListRelationTargetsRow
+		if err := rows.Scan(&i.Key, &i.ToID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRevisions = `-- name: ListRevisions :many
 SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.excerpt, r.created_at
 FROM core.content_revisions r
@@ -1231,6 +1341,18 @@ func (q *Queries) PruneRevisions(ctx context.Context, arg PruneRevisionsParams) 
 	return err
 }
 
+const refreshRelationVisibility = `-- name: RefreshRelationVisibility :exec
+UPDATE core.content_relations r
+SET sort_at = coalesce(c.published_at, c.created_at), visible = (c.status = 'published')
+FROM core.content c
+WHERE r.from_id = c.id AND c.id = $1
+`
+
+func (q *Queries) RefreshRelationVisibility(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, refreshRelationVisibility, id)
+	return err
+}
+
 const restoreContent = `-- name: RestoreContent :one
 UPDATE core.content AS p
 SET status = 'draft',
@@ -1410,6 +1532,35 @@ func (q *Queries) TrashContent(ctx context.Context, arg TrashContentParams) (Cor
 		&i.Fields,
 	)
 	return i, err
+}
+
+const typesOfContent = `-- name: TypesOfContent :many
+SELECT id, type FROM core.content WHERE id = ANY($1::uuid[])
+`
+
+type TypesOfContentRow struct {
+	ID   uuid.UUID
+	Type string
+}
+
+func (q *Queries) TypesOfContent(ctx context.Context, ids []uuid.UUID) ([]TypesOfContentRow, error) {
+	rows, err := q.db.Query(ctx, typesOfContent, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TypesOfContentRow
+	for rows.Next() {
+		var i TypesOfContentRow
+		if err := rows.Scan(&i.ID, &i.Type); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateContent = `-- name: UpdateContent :one

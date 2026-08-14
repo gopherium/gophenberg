@@ -126,7 +126,12 @@ func byID(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Conte
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: get content: %w", err)
 	}
-	return toContent(row), nil
+	held := toContent(row)
+	held.Relations, err = readRelations(ctx, queries, id)
+	if err != nil {
+		return content.Content{}, err
+	}
+	return held, nil
 }
 
 // storedValues returns the values a write holds, never nil so the column stays an object.
@@ -267,6 +272,13 @@ func (s *ContentStore) update(
 			return err
 		}
 		updated = toContent(row)
+		if err := writeRelations(ctx, queries, c); err != nil {
+			return err
+		}
+		updated.Relations, err = readRelations(ctx, queries, c.ID)
+		if err != nil {
+			return err
+		}
 		if err := queries.MoveDescendants(ctx, db.MoveDescendantsParams{
 			ID:        c.ID,
 			Path:      path,
@@ -302,6 +314,12 @@ func updateFailure(err error) error {
 	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) || isSlugTaken(err) {
 		return err
 	}
+	if errors.Is(err, content.ErrTargetNotFound) || errors.Is(err, content.ErrTargetType) {
+		return err
+	}
+	if isTargetGone(err) {
+		return content.ErrTargetNotFound
+	}
 	return fmt.Errorf("postgres: update content: %w", err)
 }
 
@@ -331,7 +349,11 @@ func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.T
 			return err
 		}
 		trashed = toContent(row)
-		return nil
+		if err := queries.RefreshRelationVisibility(ctx, id); err != nil {
+			return err
+		}
+		trashed.Relations, err = readRelations(ctx, queries, id)
+		return err
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -384,7 +406,15 @@ func (s *ContentStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: restore content: %w", err)
 	}
-	return toContent(row), nil
+	if err := s.queries.RefreshRelationVisibility(ctx, id); err != nil {
+		return content.Content{}, fmt.Errorf("postgres: refresh relation visibility: %w", err)
+	}
+	restored := toContent(row)
+	restored.Relations, err = readRelations(ctx, s.queries, id)
+	if err != nil {
+		return content.Content{}, err
+	}
+	return restored, nil
 }
 
 // Counts returns the number of items of the type in each status.

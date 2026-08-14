@@ -42,6 +42,15 @@ type CoreContentField struct {
 	UpdatedAt time.Time
 }
 
+type CoreContentRelation struct {
+	FromID   uuid.UUID
+	FieldID  int32
+	ToID     uuid.UUID
+	Position int32
+	SortAt   time.Time
+	Visible  bool
+}
+
 type CoreContentRevision struct {
 	ID        uuid.UUID
 	ContentID uuid.UUID
