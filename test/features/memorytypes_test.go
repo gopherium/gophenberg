@@ -77,6 +77,10 @@ func (s *memoryTypes) Update(_ context.Context, t content.Type) (content.Type, e
 		if stored.Key != t.Key {
 			continue
 		}
+		if t.Default && !stored.Default {
+			s.handRootOver()
+			t.RouteWord = ""
+		}
 		s.types[i] = t
 		if stored.RouteWord != t.RouteWord && s.content != nil {
 			s.content.carryType(t.Key, stored.RouteWord, t.RouteWord)
@@ -84,6 +88,22 @@ func (s *memoryTypes) Update(_ context.Context, t content.Type) (content.Type, e
 		return t, nil
 	}
 	return content.Type{}, content.ErrTypeNotFound
+}
+
+// handRootOver moves the type holding the root under a word of its own.
+func (s *memoryTypes) handRootOver() {
+	for i, stored := range s.types {
+		if !stored.Default {
+			continue
+		}
+		was := stored.RouteWord
+		stored.RouteWord, stored.Default = content.Slugify(stored.PluralLabel), false
+		s.types[i] = stored
+		if s.content != nil {
+			s.content.carryType(stored.Key, was, stored.RouteWord)
+		}
+		return
+	}
 }
 
 // Delete removes the type, or reports it missing or still holding content.

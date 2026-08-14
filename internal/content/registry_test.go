@@ -304,7 +304,6 @@ func TestRegistryKeepsTheRootForOneType(t *testing.T) {
 		t.Fatalf("Create() error = %v, want nil", err)
 	}
 	claimed := car
-	claimed.Default = true
 	claimed.RouteWord = ""
 
 	_, err := registry.Update(t.Context(), claimed)
@@ -546,5 +545,20 @@ func TestRegistryHidesAnInactiveTypeFromItsRouteWord(t *testing.T) {
 
 	if !errors.Is(err, content.ErrTypeNotFound) {
 		t.Fatalf("ByRouteWord on an inactive type error = %v, want %v", err, content.ErrTypeNotFound)
+	}
+}
+
+func TestRegistryHandsTheRootToAnotherType(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeTypeStore()
+	store.types = append(store.types, pageType())
+	registry := content.NewRegistry(store)
+
+	promoted := pageType()
+	promoted.Default = true
+
+	if _, err := registry.Update(t.Context(), promoted); err != nil {
+		t.Fatalf("Update() handing over the root error = %v, want nil", err)
 	}
 }

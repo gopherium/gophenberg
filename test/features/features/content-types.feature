@@ -34,6 +34,13 @@ Feature: Managing content types
     When the administrator sends "page" to the root
     Then the request is refused
 
+  Scenario: The root is handed to another type in one act
+    Given the type "page" labeled "Page" and "Pages" under "pages"
+    When the administrator makes "page" the default type
+    Then "page" is the default type
+    And the type "page" answers under ""
+    And the type "post" answers under "posts"
+
   Scenario: Relabeling a type leaves its key and address alone
     When the administrator relabels "post" as "Story" and "Stories"
     Then the type "post" carries the labels "Story" and "Stories"

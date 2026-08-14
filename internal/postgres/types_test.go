@@ -327,3 +327,49 @@ func TestUpdateLeavesContentAloneWhenTheRouteWordStays(t *testing.T) {
 		t.Errorf("path = %q, want it left where it answers", got)
 	}
 }
+
+func TestUpdateHandsTheRootToAnotherType(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	types := postgres.NewTypeStore(pool)
+	if _, err := types.Create(t.Context(), pageType()); err != nil {
+		t.Fatalf("registering the page type: %v", err)
+	}
+	built, err := content.New(postType(), nil, "Hello World", author)
+	if err != nil {
+		t.Fatalf("New() error = %v, want nil", err)
+	}
+	post, err := store.Create(t.Context(), built)
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	about := mustNest(t, store, nil, "About", author)
+
+	promoted := pageType()
+	promoted.Default, promoted.UpdatedAt = true, time.Now().UTC()
+	if _, err := types.Update(t.Context(), promoted); err != nil {
+		t.Fatalf("Update() handing over the root error = %v, want nil", err)
+	}
+
+	registered, err := types.List(t.Context())
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	held := map[string]content.Type{}
+	for _, listed := range registered {
+		held[listed.Key] = listed
+	}
+	if !held["page"].Default || held["page"].RouteWord != "" {
+		t.Errorf("page = %+v, want it holding the root", held["page"])
+	}
+	if held[content.TypePost].Default || held[content.TypePost].RouteWord != "posts" {
+		t.Errorf("post = %+v, want it moved off the root", held[content.TypePost])
+	}
+	if got := addressOf(t, store, about.ID); got != "about" {
+		t.Errorf("page address = %q, want it lifted to the root", got)
+	}
+	if got := addressOf(t, store, post.ID); got != "posts/hello-world" {
+		t.Errorf("post address = %q, want it under its own word", got)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -92,35 +93,12 @@ func (s *TypeStore) Create(ctx context.Context, t content.Type) (content.Type, e
 func (s *TypeStore) Update(ctx context.Context, t content.Type) (content.Type, error) {
 	var updated content.Type
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
-		was, err := queries.LockContentType(ctx, t.Key)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return content.ErrTypeNotFound
-		}
-		if err != nil {
-			return err
-		}
-		row, err := queries.UpdateContentType(ctx, updateParams(t))
-		if err != nil {
-			return err
-		}
-		updated = toType(row)
-		if was.RouteWord == t.RouteWord {
-			return nil
-		}
-		return carryContent(ctx, tx, queries, t, was.RouteWord)
+		stored, err := s.writeType(ctx, tx, t)
+		updated = stored
+		return err
 	})
 	if err != nil {
-		if errors.Is(err, content.ErrTypeNotFound) {
-			return content.Type{}, err
-		}
-		if taken := takenBy(err); taken != nil {
-			return content.Type{}, taken
-		}
-		if isSlugTaken(err) {
-			return content.Type{}, content.ErrSlugTaken
-		}
-		return content.Type{}, fmt.Errorf("postgres: update content type: %w", err)
+		return content.Type{}, updateTypeFailure(err)
 	}
 	return updated, nil
 }
@@ -153,6 +131,64 @@ func carryContent(ctx context.Context, tx pgx.Tx, queries *db.Queries, t content
 		UpdatedAt: t.UpdatedAt,
 		Key:       t.Key,
 	})
+}
+
+// writeType stores the edited type inside tx, handing the root over when the edit asks for it.
+func (s *TypeStore) writeType(ctx context.Context, tx pgx.Tx, t content.Type) (content.Type, error) {
+	queries := s.queries.WithTx(tx)
+	was, err := queries.LockContentType(ctx, t.Key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return content.Type{}, content.ErrTypeNotFound
+	}
+	if err != nil {
+		return content.Type{}, err
+	}
+	if t.Default && !was.IsDefault {
+		if err := handRootOver(ctx, tx, queries, t.UpdatedAt); err != nil {
+			return content.Type{}, err
+		}
+		t.RouteWord = ""
+	}
+	row, err := queries.UpdateContentType(ctx, updateParams(t))
+	if err != nil {
+		return content.Type{}, err
+	}
+	if was.RouteWord == t.RouteWord {
+		return toType(row), nil
+	}
+	return toType(row), carryContent(ctx, tx, queries, t, was.RouteWord)
+}
+
+// updateTypeFailure returns the refusal the type update carries, and wraps anything else.
+func updateTypeFailure(err error) error {
+	if errors.Is(err, content.ErrTypeNotFound) {
+		return err
+	}
+	if taken := takenBy(err); taken != nil {
+		return taken
+	}
+	if isSlugTaken(err) {
+		return content.ErrSlugTaken
+	}
+	return fmt.Errorf("postgres: update content type: %w", err)
+}
+
+// handRootOver moves the type holding the root under a word of its own so another may take it.
+func handRootOver(ctx context.Context, tx pgx.Tx, queries *db.Queries, at time.Time) error {
+	row, err := queries.LockDefaultContentType(ctx)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	demoted := toType(row)
+	demoted.RouteWord = content.Slugify(demoted.PluralLabel)
+	demoted.Default, demoted.UpdatedAt = false, at
+	if _, err := queries.UpdateContentType(ctx, updateParams(demoted)); err != nil {
+		return err
+	}
+	return carryContent(ctx, tx, queries, demoted, row.RouteWord)
 }
 
 // Delete removes the type, or reports it missing or still in use.

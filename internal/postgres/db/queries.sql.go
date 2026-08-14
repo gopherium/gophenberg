@@ -927,6 +927,34 @@ func (q *Queries) LockContentType(ctx context.Context, key string) (CoreContentT
 	return i, err
 }
 
+const lockDefaultContentType = `-- name: LockDefaultContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.is_default
+FOR UPDATE
+`
+
+func (q *Queries) LockDefaultContentType(ctx context.Context) (CoreContentType, error) {
+	row := q.db.QueryRow(ctx, lockDefaultContentType)
+	var i CoreContentType
+	err := row.Scan(
+		&i.Key,
+		&i.SingularLabel,
+		&i.PluralLabel,
+		&i.RouteWord,
+		&i.Hierarchical,
+		&i.Revisions,
+		&i.RevisionCap,
+		&i.PageKind,
+		&i.IsDefault,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const moveDescendants = `-- name: MoveDescendants :exec
 WITH RECURSIVE moved AS (
     SELECT c.id, $3::text AS path

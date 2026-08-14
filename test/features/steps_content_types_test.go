@@ -202,7 +202,19 @@ func theAdministratorSendsTheTypeToTheRoot(ctx context.Context, key string) erro
 	if err != nil {
 		return err
 	}
-	return w.patchJSON(typesPath+"/"+key, `{"default":true,"route_word":""}`)
+	return w.patchJSON(typesPath+"/"+key, `{"route_word":""}`)
+}
+
+// theAdministratorMakesTheTypeDefault asks the registry to hand the root to a type.
+func theAdministratorMakesTheTypeDefault(ctx context.Context, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.patchJSON(typesPath+"/"+key, `{"default":true}`); err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
 }
 
 // theAdministratorRelabelsTheType asks the registry to carry new labels for a type.
@@ -328,6 +340,7 @@ func initializeContentTypes(sc *godog.ScenarioContext) {
 		theAdministratorCreatesTheType,
 	)
 	sc.When(`^the administrator sends "([^"]*)" to the root$`, theAdministratorSendsTheTypeToTheRoot)
+	sc.When(`^the administrator makes "([^"]*)" the default type$`, theAdministratorMakesTheTypeDefault)
 	sc.When(`^the administrator relabels "([^"]*)" as "([^"]*)" and "([^"]*)"$`, theAdministratorRelabelsTheType)
 	sc.When(`^the administrator deactivates the type "([^"]*)"$`, theAdministratorDeactivatesTheType)
 	sc.When(`^the administrator deletes the type "([^"]*)"$`, theAdministratorDeletesTheType)

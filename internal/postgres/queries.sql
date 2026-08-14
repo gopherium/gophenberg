@@ -328,3 +328,10 @@ SET path = trim(leading '/' from @route_word::text || '/' ||
             ELSE substring(c.path from length(@was::text) + 2) END),
     updated_at = @updated_at
 WHERE c.type = @key;
+
+-- name: LockDefaultContentType :one
+SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+FROM core.content_types t
+WHERE t.is_default
+FOR UPDATE;

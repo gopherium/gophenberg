@@ -263,7 +263,7 @@ func TestTypePatchRefusesASecondTypeAtTheRoot(t *testing.T) {
 	doRequest(t, handler, http.MethodPost, "/api/types",
 		`{"key":"page","singular_label":"Page","plural_label":"Pages","route_word":"pages"}`)
 
-	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/page", `{"default":true,"route_word":""}`)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/page", `{"route_word":""}`)
 
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d: %s",

@@ -158,11 +158,8 @@ func (r *Registry) settled(ctx context.Context, t Type) error {
 			}
 			continue
 		}
-		if stored.RouteWord == t.RouteWord {
+		if stored.RouteWord == t.RouteWord && !t.Default {
 			return wordConflict(t.RouteWord)
-		}
-		if stored.Default && t.Default {
-			return ErrRootTaken
 		}
 	}
 	return nil

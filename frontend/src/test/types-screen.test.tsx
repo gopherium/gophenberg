@@ -138,23 +138,6 @@ test('closes a type without removing it', async () => {
 	await waitFor(() => expect(sent[0]).toEqual({ active: false }))
 })
 
-test('hands the root to another type', async () => {
-	const sent: unknown[] = []
-	server.use(
-		http.patch('/api/types/page', async ({ request }) => {
-			sent.push(await request.json())
-			return HttpResponse.json({ ...PAGE_TYPE, default: true })
-		}),
-	)
-	renderAt('/content-types')
-	const table = await screen.findByRole('region', { name: 'Content Types' })
-
-	const pages = within(table).getByRole('row', { name: /Pages/ })
-	await userEvent.click(within(pages).getByRole('button', { name: 'Make default' }))
-
-	await waitFor(() => expect(sent[0]).toEqual({ default: true }))
-})
-
 test('removes a type the registry lets go', async () => {
 	let asked = ''
 	server.use(
@@ -219,7 +202,7 @@ test('carries the reason the registry refused an edit', async () => {
 	const table = await screen.findByRole('region', { name: 'Content Types' })
 
 	const pages = within(table).getByRole('row', { name: /Pages/ })
-	await userEvent.click(within(pages).getByRole('button', { name: 'Make default' }))
+	await userEvent.click(within(pages).getByRole('button', { name: 'Deactivate' }))
 
 	expect(await screen.findByText(/still holds content/)).toBeInTheDocument()
 })
@@ -245,7 +228,7 @@ test('reports a registry that could not be reached at all', async () => {
 	const table = await screen.findByRole('region', { name: 'Content Types' })
 
 	const pages = within(table).getByRole('row', { name: /Pages/ })
-	await userEvent.click(within(pages).getByRole('button', { name: 'Make default' }))
+	await userEvent.click(within(pages).getByRole('button', { name: 'Deactivate' }))
 
 	expect(await screen.findByRole('alert')).toBeInTheDocument()
 })
@@ -296,4 +279,46 @@ test('names the refusal a registry write carried', () => {
 
 test('names an unreachable registry when the failure carries no message', () => {
 	expect(refusalMessage('nonsense')).toBe('The registry could not be reached.')
+})
+
+test('states what the root hand over moves before moving it', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...PAGE_TYPE, default: true, route_word: '' })
+		}),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Make default' }))
+	const dialog = await screen.findByRole('dialog')
+
+	expect(within(dialog).getByText(/Pages will answer at the root/i)).toBeInTheDocument()
+	expect(within(dialog).getByText(/Posts moves/i)).toBeInTheDocument()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Hand over the root' }))
+
+	await waitFor(() => expect(sent[0]).toEqual({ default: true }))
+})
+
+test('hands over nothing when the root confirmation is dismissed', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...PAGE_TYPE, default: true })
+		}),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Make default' }))
+	const dialog = await screen.findByRole('dialog')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Keep it' }))
+
+	expect(sent).toHaveLength(0)
 })
