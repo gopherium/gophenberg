@@ -12,9 +12,10 @@ import (
 
 // memoryTypes holds one scenario's content type registry in memory.
 type memoryTypes struct {
-	mu      sync.Mutex
-	types   []content.Type
-	content *memoryContent
+	mu       sync.Mutex
+	types    []content.Type
+	fieldIDs int
+	content  *memoryContent
 }
 
 // newMemoryTypes returns a registry holding the built-in post type the migration registers.
@@ -104,6 +105,59 @@ func (s *memoryTypes) handRootOver() {
 		}
 		return
 	}
+}
+
+// CreateField stores a field on its type, mirroring the schema's identity column.
+func (s *memoryTypes) CreateField(_ context.Context, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, stored := range s.types {
+		if stored.Key != f.TypeKey {
+			continue
+		}
+		s.fieldIDs++
+		f.ID = s.fieldIDs
+		s.types[i].Fields = append(s.types[i].Fields, f)
+		return f, nil
+	}
+	return content.Field{}, content.ErrTypeNotFound
+}
+
+// UpdateField stores the edited field on its type, or reports it missing.
+func (s *memoryTypes) UpdateField(_ context.Context, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, stored := range s.types {
+		if stored.Key != f.TypeKey {
+			continue
+		}
+		for j, held := range stored.Fields {
+			if held.Key == f.Key {
+				f.ID = held.ID
+				s.types[i].Fields[j] = f
+				return f, nil
+			}
+		}
+	}
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// DeleteField removes the field from its type, or reports it missing.
+func (s *memoryTypes) DeleteField(_ context.Context, typeKey, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, stored := range s.types {
+		if stored.Key != typeKey {
+			continue
+		}
+		for j, held := range stored.Fields {
+			if held.Key == key {
+				s.types[i].Fields = append(stored.Fields[:j], stored.Fields[j+1:]...)
+				return nil
+			}
+		}
+	}
+	return content.ErrFieldNotFound
 }
 
 // Delete removes the type, or reports it missing or still holding content.
