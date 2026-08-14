@@ -181,18 +181,27 @@ func (r *Registry) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-// load fills the cache when it is cold, keeping any write that landed while it read.
+// load fills the cache when it is cold, reading again when a write lands mid read.
 func (r *Registry) load(ctx context.Context) error {
-	r.mu.RLock()
-	loaded, read := r.loaded, r.generation
-	r.mu.RUnlock()
-	if loaded {
-		return nil
+	for {
+		r.mu.RLock()
+		loaded, read := r.loaded, r.generation
+		r.mu.RUnlock()
+		if loaded {
+			return nil
+		}
+		types, err := r.store.List(ctx)
+		if err != nil {
+			return err
+		}
+		if r.publish(types, read) {
+			return nil
+		}
 	}
-	types, err := r.store.List(ctx)
-	if err != nil {
-		return err
-	}
+}
+
+// publish holds the types the read returned, unless a write landed while it read.
+func (r *Registry) publish(types []Type, read int) bool {
 	byKey := make(map[string]Type, len(types))
 	for _, t := range types {
 		byKey[t.Key] = t
@@ -200,10 +209,10 @@ func (r *Registry) load(ctx context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.generation != read {
-		return nil
+		return false
 	}
 	r.byKey, r.order, r.loaded = byKey, types, true
-	return nil
+	return true
 }
 
 // invalidate drops the cache so the next read sees the registry as stored.

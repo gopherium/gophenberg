@@ -512,10 +512,13 @@ func TestRegistryKeepsAWriteThatLandsDuringARead(t *testing.T) {
 		blocked:       make(chan struct{}),
 	}
 	registry := content.NewRegistry(store)
-	reads := make(chan error, 1)
+	reads := make(chan []content.Type, 1)
 	go func() {
-		_, err := registry.All(t.Context())
-		reads <- err
+		types, err := registry.All(t.Context())
+		if err != nil {
+			t.Errorf("All() error = %v, want nil", err)
+		}
+		reads <- types
 	}()
 	<-store.blocked
 
@@ -523,10 +526,11 @@ func TestRegistryKeepsAWriteThatLandsDuringARead(t *testing.T) {
 		t.Fatalf("Create() during a read error = %v, want nil", err)
 	}
 	close(store.held)
-	if err := <-reads; err != nil {
-		t.Fatalf("All() error = %v, want nil", err)
-	}
+	during := <-reads
 
+	if len(during) == 0 {
+		t.Fatal("All() during a write answered with an empty registry, want the types it holds")
+	}
 	if _, err := registry.ByKey(t.Context(), "car"); err != nil {
 		t.Errorf("ByKey() after a write that landed during a read error = %v, want the stored type", err)
 	}
