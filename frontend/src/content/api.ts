@@ -21,7 +21,10 @@ const postSchema = z.object({
 	updated_at: z.string().optional(),
 })
 
-const detailSchema = postSchema.extend({ content: z.string() })
+const detailSchema = postSchema.extend({
+	content: z.string(),
+	fields: z.record(z.string(), z.unknown()).optional(),
+})
 
 const pageSchema = z.object({ items: z.array(postSchema), total: z.number() })
 
@@ -101,6 +104,7 @@ export async function createPost(type = 'post'): Promise<Post> {
 
 export interface PostDetail extends Post {
 	content: string
+	fields: Record<string, unknown>
 }
 
 export interface PostChanges {
@@ -110,6 +114,7 @@ export interface PostChanges {
 	slug?: string
 	status?: string
 	parent_id?: string | null
+	fields?: Record<string, unknown>
 }
 
 export type SaveOutcome =
@@ -123,7 +128,7 @@ export type SaveOutcome =
  * @returns The post with its content.
  */
 function toDetail(row: z.infer<typeof detailSchema>): PostDetail {
-	return { ...toPost(row), content: row.content }
+	return { ...toPost(row), content: row.content, fields: row.fields ?? {} }
 }
 
 /**
@@ -179,6 +184,7 @@ export interface AutosaveBuffer {
 	title: string
 	content: string
 	excerpt: string
+	fields: Record<string, unknown>
 }
 
 export interface Autosave extends AutosaveBuffer {
@@ -195,6 +201,7 @@ const autosaveSchema = z.object({
 	title: z.string(),
 	content: z.string(),
 	excerpt: z.string(),
+	fields: z.record(z.string(), z.unknown()).optional(),
 	saved_at: z.string(),
 })
 
@@ -209,7 +216,13 @@ export async function fetchAutosave(id: string): Promise<Autosave | null> {
 		return null
 	}
 	const row = autosaveSchema.parse(await response.json())
-	return { title: row.title, content: row.content, excerpt: row.excerpt, savedAt: row.saved_at }
+	return {
+		title: row.title,
+		content: row.content,
+		excerpt: row.excerpt,
+		fields: row.fields ?? {},
+		savedAt: row.saved_at,
+	}
 }
 
 /**

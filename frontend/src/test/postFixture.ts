@@ -8,6 +8,7 @@ export const storedPost = {
 	excerpt: '',
 	content: '<!-- wp:paragraph -->\n<p>Stored words.</p>\n<!-- /wp:paragraph -->',
 	status: 'draft',
+	fields: {},
 	author_id: '019fb000-0000-7000-8000-0000000000ff',
 	author_name: 'Maria Perez',
 	published_at: null,

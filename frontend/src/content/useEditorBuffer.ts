@@ -18,6 +18,7 @@ export interface EditorBuffer {
 	slug: string
 	parentId: string | null
 	excerpt: string
+	fields: Record<string, unknown>
 	dirty: boolean
 	saving: boolean
 	version: string
@@ -28,7 +29,8 @@ export interface EditorBuffer {
 	setSlug: (slug: string) => void
 	setParentId: (parentId: string | null) => void
 	setExcerpt: (excerpt: string) => void
-	restore: (kept: { title: string, content: string, excerpt: string }) => void
+	setFields: (fields: Record<string, unknown>) => void
+	restore: (kept: { title: string, content: string, excerpt: string, fields: Record<string, unknown> }) => void
 	onInput: (blocks: Block[]) => void
 	onChange: (blocks: Block[]) => void
 	undo: () => void
@@ -52,6 +54,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 	const [slug, setSlug] = useState(stored.slug)
 	const [parentId, setParentId] = useState(stored.parentId)
 	const [excerpt, setExcerpt] = useState(stored.excerpt)
+	const [fields, setFields] = useState(stored.fields)
 	const [version, setVersion] = useState(stored.updatedAt)
 	const [saved, setSaved] = useState({
 		title: stored.title,
@@ -60,6 +63,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		parentId: stored.parentId,
 		excerpt: stored.excerpt,
 		status: stored.status,
+		fields: stored.fields,
 	})
 	const history = useStateWithHistory<Block[]>(parse(stored.content))
 	const blocks = history.value as Block[]
@@ -91,11 +95,13 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 			parentId: written.parentId,
 			excerpt: written.excerpt,
 			status: written.status,
+			fields: written.fields,
 		})
 		setStatus(written.status)
 		setSlug(written.slug)
 		setParentId(written.parentId)
 		setExcerpt(written.excerpt)
+		setFields(written.fields)
 		setVersion(written.updatedAt)
 	}
 	return {
@@ -107,13 +113,15 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		slug,
 		parentId,
 		excerpt,
+		fields,
 		dirty:
 			title !== saved.title ||
 			content !== saved.content ||
 			slug !== saved.slug ||
 			parentId !== saved.parentId ||
 			excerpt !== saved.excerpt ||
-			status !== saved.status,
+			status !== saved.status ||
+			!sameFields(fields, saved.fields),
 		saving: write.isPending,
 		version,
 		hasUndo: history.hasUndo,
@@ -123,20 +131,46 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		setSlug,
 		setParentId,
 		setExcerpt,
-		restore: (kept: { title: string, content: string, excerpt: string }) => {
+		setFields,
+		restore: (kept: {
+			title: string
+			content: string
+			excerpt: string
+			fields: Record<string, unknown>
+		}) => {
 			setTitle(kept.title)
 			setExcerpt(kept.excerpt)
+			setFields(kept.fields)
 			history.setValue(parse(kept.content), false)
 		},
 		onInput: (next: Block[]) => history.setValue(next, true),
 		onChange: (next: Block[]) => history.setValue(next, false),
 		undo: history.undo,
 		redo: history.redo,
-		save: () => write.mutate({ title, content, slug, excerpt, status, parent_id: parentId }),
+		save: () => write.mutate({ title, content, slug, excerpt, status, parent_id: parentId, fields }),
 		publish: () =>
-			write.mutate({ title, content, slug, excerpt, status: 'published', parent_id: parentId }),
+			write.mutate({
+				title,
+				content,
+				slug,
+				excerpt,
+				status: 'published',
+				parent_id: parentId,
+				fields,
+			}),
 		adoptVersion: setVersion,
 	}
+}
+
+/**
+ * Reports whether two sets of field values hold the same things.
+ * @param held - The values the buffer holds.
+ * @param saved - The values the server last reported.
+ * @returns True when nothing moved.
+ */
+function sameFields(held: Record<string, unknown>, saved: Record<string, unknown>): boolean {
+	const keys = Object.keys(held)
+	return keys.length === Object.keys(saved).length && keys.every((key) => held[key] === saved[key])
 }
 
 /**

@@ -2,6 +2,15 @@
 
 import { z } from 'zod'
 
+const fieldSchema = z.object({
+	key: z.string(),
+	label: z.string(),
+	kind: z.string(),
+	relates_to: z.string().optional(),
+	many: z.boolean(),
+	required: z.boolean(),
+})
+
 const typeSchema = z.object({
 	key: z.string(),
 	singular_label: z.string(),
@@ -13,11 +22,22 @@ const typeSchema = z.object({
 	page_kind: z.string(),
 	default: z.boolean(),
 	active: z.boolean(),
+	fields: z.array(fieldSchema).optional(),
 })
 
 const typeListSchema = z.object({ items: z.array(typeSchema) })
 
 const refusalSchema = z.object({ error: z.string() })
+
+/** One typed field a content type declares. */
+export interface ContentField {
+	key: string
+	label: string
+	kind: string
+	relatesTo: string
+	many: boolean
+	required: boolean
+}
 
 /** A content type as the admin reads it. */
 export interface ContentType {
@@ -31,6 +51,7 @@ export interface ContentType {
 	pageKind: string
 	isDefault: boolean
 	active: boolean
+	fields: ContentField[]
 }
 
 /** What registering a type needs. */
@@ -67,6 +88,23 @@ function toType(row: z.infer<typeof typeSchema>): ContentType {
 		pageKind: row.page_kind,
 		isDefault: row.default,
 		active: row.active,
+		fields: (row.fields ?? []).map(toField),
+	}
+}
+
+/**
+ * Returns the admin view of one declared field.
+ * @param row - The field as the API answered it.
+ * @returns The field the admin reads.
+ */
+function toField(row: z.infer<typeof fieldSchema>): ContentField {
+	return {
+		key: row.key,
+		label: row.label,
+		kind: row.kind,
+		relatesTo: row.relates_to ?? '',
+		many: row.many,
+		required: row.required,
 	}
 }
 

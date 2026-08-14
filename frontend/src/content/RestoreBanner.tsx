@@ -19,8 +19,20 @@ function holdsKeptWords(kept: Autosave, stored: PostDetail): boolean {
 	return (
 		kept.title === stored.title &&
 		kept.content === stored.content &&
-		kept.excerpt === stored.excerpt
+		kept.excerpt === stored.excerpt &&
+		holdsKeptValues(kept.fields, stored.fields)
 	)
+}
+
+/**
+ * Reports whether the kept values are the ones the post already holds.
+ * @param kept - The values the browser parked.
+ * @param stored - The values the post holds.
+ * @returns True when nothing was kept back.
+ */
+function holdsKeptValues(kept: Record<string, unknown>, stored: Record<string, unknown>): boolean {
+	const keys = Object.keys(kept)
+	return keys.length === Object.keys(stored).length && keys.every((key) => kept[key] === stored[key])
 }
 
 /**
