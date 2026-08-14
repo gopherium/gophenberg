@@ -4,6 +4,7 @@ package features_test
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ type memoryContent struct {
 	items     map[uuid.UUID]content.Content
 	revisions map[uuid.UUID][]content.Revision
 	autosaves map[autosaveKey]content.Revision
+	types     *memoryTypes
 }
 
 // autosaveKey names one author's parked buffer over one item.
@@ -36,6 +38,55 @@ func newMemoryContent() *memoryContent {
 		items:     make(map[uuid.UUID]content.Content),
 		revisions: make(map[uuid.UUID][]content.Revision),
 		autosaves: make(map[autosaveKey]content.Revision),
+	}
+}
+
+// holdTargets reports whether every target exists and is the type its field points at.
+func (s *memoryContent) holdTargets(c content.Content) error {
+	for key, targets := range c.Relations {
+		for _, target := range targets {
+			held, found := s.items[target]
+			if !found {
+				return fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)
+			}
+			if s.types != nil {
+				if err := s.types.targeted(c.Type, key, held.Type); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// clearRelation drops the field's targets from every item of the type.
+func (s *memoryContent) clearRelation(typeKey, key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, stored := range s.items {
+		if stored.Type != typeKey {
+			continue
+		}
+		delete(stored.Relations, key)
+		s.items[id] = stored
+	}
+}
+
+// unfileTarget drops every pointer at the removed item.
+func (s *memoryContent) unfileTarget(gone uuid.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, stored := range s.items {
+		for key, targets := range stored.Relations {
+			kept := make([]uuid.UUID, 0, len(targets))
+			for _, target := range targets {
+				if target != gone {
+					kept = append(kept, target)
+				}
+			}
+			stored.Relations[key] = kept
+		}
+		s.items[id] = stored
 	}
 }
 
@@ -109,6 +160,21 @@ func (s *memoryContent) Autosave(
 		return content.Revision{}, content.ErrRevisionNotFound
 	}
 	return parked, nil
+}
+
+// Delete removes the item outright, unfiling everything that pointed at it.
+func (s *memoryContent) Delete(_ context.Context, id uuid.UUID) error {
+	s.mu.Lock()
+	_, found := s.items[id]
+	if found {
+		delete(s.items, id)
+	}
+	s.mu.Unlock()
+	if !found {
+		return content.ErrNotFound
+	}
+	s.unfileTarget(id)
+	return nil
 }
 
 // DeleteAutosave removes the author's autosave of the item.
@@ -279,6 +345,9 @@ func (s *memoryContent) Update(
 	}
 	if snapshot != nil {
 		s.revisions[c.ID] = append(s.revisions[c.ID], *snapshot)
+	}
+	if err := s.holdTargets(c); err != nil {
+		return content.Content{}, err
 	}
 	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {

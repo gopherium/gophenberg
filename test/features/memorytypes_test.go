@@ -4,6 +4,7 @@ package features_test
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -144,6 +145,18 @@ func (s *memoryTypes) UpdateField(_ context.Context, f content.Field) (content.F
 
 // DeleteField removes the field from its type, or reports it missing.
 func (s *memoryTypes) DeleteField(_ context.Context, typeKey, key string) error {
+	if !s.dropField(typeKey, key) {
+		return content.ErrFieldNotFound
+	}
+	if s.content != nil {
+		s.content.clearField(typeKey, key)
+		s.content.clearRelation(typeKey, key)
+	}
+	return nil
+}
+
+// dropField removes the declaration, reporting whether the type held one.
+func (s *memoryTypes) dropField(typeKey, key string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, stored := range s.types {
@@ -153,14 +166,31 @@ func (s *memoryTypes) DeleteField(_ context.Context, typeKey, key string) error 
 		for j, held := range stored.Fields {
 			if held.Key == key {
 				s.types[i].Fields = append(stored.Fields[:j], stored.Fields[j+1:]...)
-				if s.content != nil {
-					s.content.clearField(typeKey, key)
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// targeted reports whether the field of the type may point at an item of the stored type.
+func (s *memoryTypes) targeted(typeKey, key, stored string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, held := range s.types {
+		if held.Key != typeKey {
+			continue
+		}
+		for _, f := range held.Fields {
+			if f.Key == key {
+				if f.RelatesTo != stored {
+					return fmt.Errorf("%w: %s holds %s", content.ErrTargetType, key, stored)
 				}
 				return nil
 			}
 		}
 	}
-	return content.ErrFieldNotFound
+	return nil
 }
 
 // Delete removes the type, or reports it missing or still holding content.
