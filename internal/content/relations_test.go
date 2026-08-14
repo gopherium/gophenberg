@@ -220,3 +220,30 @@ func TestFilledAcceptsAHeldTarget(t *testing.T) {
 		t.Fatalf("Filled() error = %v, want a held target to count as filled", err)
 	}
 }
+
+func TestSelfTargetedRefusesAnItemPointingAtItself(t *testing.T) {
+	t.Parallel()
+
+	held := content.Content{ID: uuid.Must(uuid.NewV7()), Type: content.TypePost}
+	held.Relations = content.Relations{"related": {held.ID}}
+
+	err := held.SelfTargeted()
+
+	if !errors.Is(err, content.ErrSelfTarget) {
+		t.Fatalf("SelfTargeted() error = %v, want %v", err, content.ErrSelfTarget)
+	}
+	if !strings.Contains(err.Error(), "related") {
+		t.Errorf("SelfTargeted() error = %q, want the field named", err)
+	}
+}
+
+func TestSelfTargetedAcceptsAnotherItemOfItsOwnType(t *testing.T) {
+	t.Parallel()
+
+	held := content.Content{ID: uuid.Must(uuid.NewV7()), Type: content.TypePost}
+	held.Relations = content.Relations{"related": {uuid.Must(uuid.NewV7())}}
+
+	if err := held.SelfTargeted(); err != nil {
+		t.Fatalf("SelfTargeted() error = %v, want a sibling of the same type accepted", err)
+	}
+}

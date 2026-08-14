@@ -18,6 +18,9 @@ var ErrRepeatedTarget = errors.New("content: repeated target")
 // ErrTargetNotFound reports that a relation names an item nothing holds.
 var ErrTargetNotFound = errors.New("content: target not found")
 
+// ErrSelfTarget reports that a relation field points an item at itself.
+var ErrSelfTarget = errors.New("content: an item cannot point at itself")
+
 // ErrTargetType reports that a relation names an item of the wrong type.
 var ErrTargetType = errors.New("content: target is not the type the field points at")
 
@@ -99,6 +102,18 @@ func targetID(f Field, raw any) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("%w: %s holds identities", ErrFieldShape, f.Key)
 	}
 	return target, nil
+}
+
+// SelfTargeted reports whether any relation field of the item points at the item itself.
+func (c Content) SelfTargeted() error {
+	for key, targets := range c.Relations {
+		for _, target := range targets {
+			if target == c.ID {
+				return fmt.Errorf("%w: %s", ErrSelfTarget, key)
+			}
+		}
+	}
+	return nil
 }
 
 // Merge returns the stored targets with the patch applied, where a named field replaces its targets.
