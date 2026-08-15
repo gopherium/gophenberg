@@ -3,6 +3,9 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -234,7 +237,11 @@ func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, hel
 		respondDomainError(w, err)
 		return
 	}
-	etag := contentETag(held.Item)
+	etag, err := contentETag(detail)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
 	w.Header().Set("ETag", etag)
 	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)
@@ -300,14 +307,15 @@ func (s *server) respondTerm(w http.ResponseWriter, r *http.Request, held conten
 	for i, c := range rows {
 		items[i] = newPublishedSummary(c)
 	}
+	detail, err := s.publishedDetailOf(r, held.Item)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
 	authkit.Respond(w, http.StatusOK, resolvedAddress{
 		Kind: string(content.KindTerm),
 		Type: newServedType(held.Type),
-		Item: &publishedDetail{
-			publishedSummary: newPublishedSummary(held.Item),
-			Content:          publichtml.Sanitize(held.Item.Content),
-			Fields:           payloadValues(held.Item),
-		},
+		Item: &detail,
 		Page: &publishedPage{Items: items, Total: total, Page: held.Page, PerPage: filter.PerPage},
 	})
 }
@@ -370,7 +378,12 @@ func (s *server) handlePublishedList() http.HandlerFunc {
 	}
 }
 
-// contentETag returns the validator standing for the item's current revision.
-func contentETag(c content.Content) string {
-	return `"` + strconv.FormatInt(c.UpdatedAt.UTC().UnixNano(), 36) + `"`
+// contentETag returns the validator standing for the payload a reader is served.
+func contentETag(detail publishedDetail) (string, error) {
+	encoded, err := json.Marshal(detail)
+	if err != nil {
+		return "", fmt.Errorf("server: encode content etag: %w", err)
+	}
+	sum := sha256.Sum256(encoded)
+	return `"` + hex.EncodeToString(sum[:16]) + `"`, nil
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -28,9 +29,15 @@ type autosaveValuesBody struct {
 // declaredOn adds a field definition to the post type through the admin API.
 func declaredOn(t *testing.T, handler http.Handler, body string) {
 	t.Helper()
-	recorder := doRequest(t, handler, http.MethodPost, "/api/types/post/fields", body)
+	declaredOnType(t, handler, content.TypePost, body)
+}
+
+// declaredOnType adds a field definition to the named type through the admin API.
+func declaredOnType(t *testing.T, handler http.Handler, typeKey, body string) {
+	t.Helper()
+	recorder := doRequest(t, handler, http.MethodPost, "/api/types/"+typeKey+"/fields", body)
 	if recorder.Code != http.StatusCreated {
-		t.Fatalf("declaring a field: %d: %s", recorder.Code, recorder.Body.String())
+		t.Fatalf("declaring a field on %q: %d: %s", typeKey, recorder.Code, recorder.Body.String())
 	}
 }
 
@@ -161,7 +168,7 @@ func TestContentPatchRefusesPublishingWithoutARequiredField(t *testing.T) {
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
 	}
-	if body := recorder.Body.String(); !containsWord(body, "color") {
+	if body := recorder.Body.String(); !strings.Contains(body, "color") {
 		t.Errorf("body = %s, want the field named", body)
 	}
 }
@@ -236,16 +243,6 @@ func TestAutosaveRefusesAnUnknownField(t *testing.T) {
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
 	}
-}
-
-// containsWord reports whether the body names the word.
-func containsWord(body, word string) bool {
-	for i := 0; i+len(word) <= len(body); i++ {
-		if body[i:i+len(word)] == word {
-			return true
-		}
-	}
-	return false
 }
 
 func TestRevisionDetailCarriesFieldValues(t *testing.T) {
@@ -568,6 +565,68 @@ func TestResolveAnswersATermPage(t *testing.T) {
 	}
 }
 
+// resolvedValidator returns the entity tag a public read of the address carries.
+func resolvedValidator(t *testing.T, handler http.Handler, path string) string {
+	t.Helper()
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/resolve?path="+path, "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("resolving %q: %d: %s", path, recorder.Code, recorder.Body.String())
+	}
+	return recorder.Header().Get("ETag")
+}
+
+func TestResolveNamesATermsRelationsTheWayAnItemDoes(t *testing.T) {
+	t.Parallel()
+
+	handler := termTypeServer(t)
+	declaredOnType(t, handler, "category",
+		`{"key":"picks","label":"Picks","kind":"relation","relates_to":"post","many":true}`)
+	post := publishItemAt(t, handler, draftedPost(t, handler))
+	picked := patchValues(t, handler, storedCategoryItem(t, handler), fmt.Sprintf(`{"picks":[%q]}`, post.ID))
+	publishItemAt(t, handler, picked)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/resolve?path=categories/news", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	answer := decodeBody[struct {
+		Item struct {
+			Fields map[string][]struct {
+				ID    string `json:"id"`
+				Title string `json:"title"`
+				Path  string `json:"path"`
+			} `json:"fields"`
+		} `json:"item"`
+	}](t, recorder)
+	held := answer.Item.Fields["picks"]
+	if len(held) != 1 {
+		t.Fatalf("the term holds %v in picks, want the target it points at", answer.Item.Fields)
+	}
+	if held[0].Title != "Hello world" || held[0].Path != "hello-world" {
+		t.Errorf("the target reads %+v, want the post named and addressed as an item response names it", held[0])
+	}
+}
+
+func TestResolveChangesTheValidatorWhenATargetIsRenamed(t *testing.T) {
+	t.Parallel()
+
+	handler := termTypeServer(t)
+	news := publishItemAt(t, handler, storedCategoryItem(t, handler))
+	filed := patchValues(t, handler, draftedPost(t, handler), fmt.Sprintf(`{"categories":[%q]}`, news.ID))
+	publishItemAt(t, handler, filed)
+	before := resolvedValidator(t, handler, "hello-world")
+
+	renamed := fmt.Sprintf(`{"updated_at":%q,"title":"Headlines"}`, news.UpdatedAt)
+	if held := doRequest(t, handler, http.MethodPatch, "/api/content/"+news.ID, renamed); held.Code != http.StatusOK {
+		t.Fatalf("renaming the target: %d: %s", held.Code, held.Body.String())
+	}
+
+	if after := resolvedValidator(t, handler, "hello-world"); after == before {
+		t.Errorf("the validator stayed %q, want the renamed target to have changed it", after)
+	}
+}
+
 func TestResolveGivesATermPageNoValidator(t *testing.T) {
 	t.Parallel()
 
@@ -665,7 +724,7 @@ func TestResolveLeavesAnUnpublishedTargetOut(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
-	if body := recorder.Body.String(); containsWord(body, "News") {
+	if body := recorder.Body.String(); strings.Contains(body, "News") {
 		t.Errorf("the public item names an unpublished target: %s", body)
 	}
 }
@@ -724,11 +783,11 @@ func TestResolveNamesRelationSummariesTheWayAReaderReadsThem(t *testing.T) {
 	}
 	body := recorder.Body.String()
 	for _, member := range []string{`"id":`, `"title":`, `"path":`} {
-		if !containsWord(body, member) {
+		if !strings.Contains(body, member) {
 			t.Errorf("the target names no %s member: %s", member, body)
 		}
 	}
-	if containsWord(body, `"ID":`) {
+	if strings.Contains(body, `"ID":`) {
 		t.Errorf("the target names a Go field rather than a wire member: %s", body)
 	}
 }
