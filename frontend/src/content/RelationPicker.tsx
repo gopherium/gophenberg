@@ -3,11 +3,14 @@
 import { Button, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
 import { useQuery } from '@tanstack/react-query'
 
-import { listPosts } from './api'
+import { listEveryPost } from './api'
 import type { ContentField } from './types'
 
 /** What the picker offers when a single target field points at nothing. */
 const noTarget = { label: 'None', value: '' }
+
+/** The status an item carries while it waits in the trash. */
+const trashed = 'trash'
 
 /**
  * Returns the identities a stored relation value holds.
@@ -46,9 +49,11 @@ export function RelationPicker(props: {
 }) {
 	const held = useQuery({
 		queryKey: ['relation-targets', props.field.relatesTo],
-		queryFn: () => listPosts({ type: props.field.relatesTo }),
+		queryFn: () => listEveryPost({ type: props.field.relatesTo }),
 	})
-	const candidates = (held.data?.items ?? []).filter((item) => item.id !== props.postId)
+	const candidates = (held.data ?? []).filter(
+		(item) => item.id !== props.postId && item.status !== trashed,
+	)
 	if (props.field.many) {
 		return <ManyTargets {...props} candidates={candidates} />
 	}

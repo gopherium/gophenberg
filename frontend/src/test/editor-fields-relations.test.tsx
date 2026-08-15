@@ -70,6 +70,28 @@ beforeEach(() => {
 	)
 })
 
+test('leaves a trashed item out of what a relation field may point at', async () => {
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([ONE_CATEGORY])] })),
+		http.get('/api/content', () =>
+			HttpResponse.json({
+				items: [
+					{ ...storedPost, ...NEWS, type: 'category', slug: 'news' },
+					{ ...storedPost, ...GUIDES, type: 'category', slug: 'guides', status: 'trash' },
+				],
+				total: 2,
+			}),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	const picker = await screen.findByLabelText('Category')
+	await userEvent.click(picker)
+
+	expect(await screen.findByRole('option', { name: 'News' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Guides' })).not.toBeInTheDocument()
+})
+
 test('offers the items of the type a relation field points at', async () => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([ONE_CATEGORY])] })))
 	renderAt(EDITOR_PATH)

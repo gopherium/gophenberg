@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react'
 
 import { savePost } from './api'
 import type { PostChanges, PostDetail, SaveOutcome } from './api'
+import { sameFieldValues } from './fieldValues'
 
 export interface EditorBuffer {
 	title: string
@@ -121,7 +122,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 			parentId !== saved.parentId ||
 			excerpt !== saved.excerpt ||
 			status !== saved.status ||
-			!sameFields(fields, saved.fields),
+			!sameFieldValues(fields, saved.fields),
 		saving: write.isPending,
 		version,
 		hasUndo: history.hasUndo,
@@ -140,7 +141,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		}) => {
 			setTitle(kept.title)
 			setExcerpt(kept.excerpt)
-			setFields(kept.fields)
+			setFields({ ...fields, ...kept.fields })
 			history.setValue(parse(kept.content), false)
 		},
 		onInput: (next: Block[]) => history.setValue(next, true),
@@ -160,17 +161,6 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 			}),
 		adoptVersion: setVersion,
 	}
-}
-
-/**
- * Reports whether two sets of field values hold the same things.
- * @param held - The values the buffer holds.
- * @param saved - The values the server last reported.
- * @returns True when nothing moved.
- */
-function sameFields(held: Record<string, unknown>, saved: Record<string, unknown>): boolean {
-	const keys = Object.keys(held)
-	return keys.length === Object.keys(saved).length && keys.every((key) => held[key] === saved[key])
 }
 
 /**

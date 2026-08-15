@@ -4,6 +4,10 @@ import { z } from 'zod'
 
 const POSTS_PER_PAGE = 20
 
+const MAX_POSTS_PER_PAGE = 100
+
+const MAX_LISTING_PAGES = 100
+
 const MAX_EMPTY_ROUNDS = 50
 
 const postSchema = z.object({
@@ -57,6 +61,7 @@ export interface PostQuery {
 	status?: string
 	search?: string
 	page?: number
+	perPage?: number
 	orderBy?: string
 	order?: string
 }
@@ -295,7 +300,7 @@ export async function deletePost(id: string): Promise<void> {
  * @returns The page and the total number of matches.
  */
 export async function listPosts(query: PostQuery): Promise<PostPage> {
-	const params = new URLSearchParams({ per_page: String(POSTS_PER_PAGE) })
+	const params = new URLSearchParams({ per_page: String(query.perPage ?? POSTS_PER_PAGE) })
 	if (query.type) {
 		params.set('type', query.type)
 	}
@@ -320,6 +325,23 @@ export async function listPosts(query: PostQuery): Promise<PostPage> {
 	}
 	const page = pageSchema.parse(await response.json())
 	return { items: page.items.map(toPost), total: page.total }
+}
+
+/**
+ * Returns every post the query names, asking page after page until none are left.
+ * @param query - The listing to read, without paging.
+ * @returns Every post the listing holds.
+ */
+export async function listEveryPost(query: PostQuery): Promise<Post[]> {
+	const held: Post[] = []
+	for (let page = 1; page <= MAX_LISTING_PAGES; page += 1) {
+		const read = await listPosts({ ...query, page, perPage: MAX_POSTS_PER_PAGE })
+		held.push(...read.items)
+		if (held.length >= read.total || read.items.length === 0) {
+			return held
+		}
+	}
+	throw new Error('listing every post did not finish')
 }
 
 /**
