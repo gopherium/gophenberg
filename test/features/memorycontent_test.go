@@ -343,11 +343,11 @@ func (s *memoryContent) Update(
 	if !stored.UpdatedAt.Equal(expectedUpdatedAt) {
 		return content.Content{}, content.ErrConflict
 	}
-	if snapshot != nil {
-		s.revisions[c.ID] = append(s.revisions[c.ID], *snapshot)
-	}
 	if err := s.holdTargets(c); err != nil {
 		return content.Content{}, err
+	}
+	if snapshot != nil {
+		s.revisions[c.ID] = append(s.revisions[c.ID], *snapshot)
 	}
 	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
@@ -419,9 +419,7 @@ func (s *memoryContent) RelatedTo(
 	slices.SortFunc(matched, func(a, b content.Content) int {
 		return sortedAt(b).Compare(sortedAt(a))
 	})
-	total := len(matched)
-	start := min((page-1)*perPage, total)
-	return matched[start:min(start+perPage, total)], total, nil
+	return paged(matched, content.Filter{Page: page, PerPage: perPage}), len(matched), nil
 }
 
 // pointsAt reports whether any of the item's fields names the target.
@@ -446,6 +444,8 @@ func sortedAt(c content.Content) time.Time {
 
 // TargetsOf returns the published targets of active types the item points at.
 func (s *memoryContent) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	held, found := s.items[from]
 	if !found {
 		return nil, nil
@@ -455,6 +455,9 @@ func (s *memoryContent) TargetsOf(_ context.Context, from uuid.UUID) (content.Ta
 		for _, id := range listed {
 			pointed, stored := s.items[id]
 			if !stored || pointed.Status != content.StatusPublished {
+				continue
+			}
+			if s.types != nil && !s.types.serving(pointed.Type) {
 				continue
 			}
 			targets[key] = append(targets[key], content.Target{

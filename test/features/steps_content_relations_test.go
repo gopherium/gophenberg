@@ -152,20 +152,6 @@ func theAdministratorFilesUnderAnUnstoredTarget(ctx context.Context, title strin
 	return saveRelation(w, title, "categories", []string{uuid.Must(uuid.NewV7()).String()})
 }
 
-// theAdministratorClearsTheRelation empties the item's relation field.
-func theAdministratorClearsTheRelation(ctx context.Context, key, title string) error {
-	w, err := worldOf(ctx)
-	if err != nil {
-		return err
-	}
-	stored, err := freshPost(w, title)
-	if err != nil {
-		return err
-	}
-	body := fmt.Sprintf(`{"updated_at":%q,"fields":{%q:null}}`, stored.UpdatedAt, key)
-	return w.patchJSON(contentPath+"/"+stored.ID, body)
-}
-
 // theAdministratorPermanentlyDeletes removes the item outright rather than trashing it.
 func theAdministratorPermanentlyDeletes(ctx context.Context, title string) error {
 	w, err := worldOf(ctx)
@@ -284,6 +270,21 @@ func publishingWithoutTheRequiredTargetIsRefused(ctx context.Context) error {
 
 // theRequestIsRefusedAsUnfindable asserts the refusal names a target nothing holds.
 func theRequestIsRefusedAsUnfindable(ctx context.Context) error {
+	return refusedFor(ctx, content.ErrTargetNotFound)
+}
+
+// theRequestIsRefusedAsOverfilled asserts the refusal names a field given more targets than it holds.
+func theRequestIsRefusedAsOverfilled(ctx context.Context) error {
+	return refusedFor(ctx, content.ErrTooManyTargets)
+}
+
+// theRequestIsRefusedAsMistyped asserts the refusal names a target of the wrong type.
+func theRequestIsRefusedAsMistyped(ctx context.Context) error {
+	return refusedFor(ctx, content.ErrTargetType)
+}
+
+// refusedFor asserts the answer turned the edit away for the given reason.
+func refusedFor(ctx context.Context, reason error) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
@@ -291,8 +292,8 @@ func theRequestIsRefusedAsUnfindable(ctx context.Context) error {
 	if w.answer.status != http.StatusUnprocessableEntity {
 		return fmt.Errorf("status = %d, want %d", w.answer.status, http.StatusUnprocessableEntity)
 	}
-	if !strings.HasPrefix(w.answer.errorMessage(), content.ErrTargetNotFound.Error()) {
-		return fmt.Errorf("the refusal explains %q, want the target reported missing", w.answer.errorMessage())
+	if !strings.HasPrefix(w.answer.errorMessage(), reason.Error()) {
+		return fmt.Errorf("the refusal explains %q, want %q", w.answer.errorMessage(), reason)
 	}
 	return nil
 }
@@ -333,7 +334,7 @@ func initializeContentRelations(sc *godog.ScenarioContext) {
 		theAdministratorFilesUnderAnUnstoredTarget,
 	)
 	sc.When(`^the administrator files the car "([^"]*)" under "([^"]*)"$`, theAdministratorFilesCarUnder)
-	sc.When(`^the administrator clears "([^"]*)" of "([^"]*)"$`, theAdministratorClearsTheRelation)
+	sc.When(`^the administrator clears "([^"]*)" of "([^"]*)"$`, theAdministratorClears)
 	sc.When(`^the administrator permanently deletes the category "([^"]*)"$`, theAdministratorPermanentlyDeletes)
 	sc.When(`^the administrator deletes the field "([^"]*)" on "([^"]*)"$`, theAdministratorDeletesTheField)
 	sc.Then(`^"([^"]*)" lists "([^"]*)" in "([^"]*)"$`, theItemListsOne)
@@ -343,6 +344,7 @@ func initializeContentRelations(sc *godog.ScenarioContext) {
 	sc.Then(`^the car "([^"]*)" lists "([^"]*)" in "([^"]*)"$`, theItemListsOne)
 	sc.Then(`^publishing a car holding no engine is refused$`, publishingWithoutTheRequiredTargetIsRefused)
 	sc.Then(`^the request is refused$`, theRequestIsRefused)
-	sc.Then(`^the request is refused explaining (.+)$`, theRequestIsRefusedExplaining)
 	sc.Then(`^the request is refused as unfindable$`, theRequestIsRefusedAsUnfindable)
+	sc.Then(`^the request is refused because the field holds one target$`, theRequestIsRefusedAsOverfilled)
+	sc.Then(`^the request is refused because the target is the wrong type$`, theRequestIsRefusedAsMistyped)
 }

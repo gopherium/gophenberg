@@ -19,7 +19,7 @@ Feature: Relating content
     And the categories "News" and "Guides"
     And the post "Hello world"
     When the administrator files "Hello world" in "series" under "News" and "Guides"
-    Then the request is refused explaining content: field holds one target: series
+    Then the request is refused because the field holds one target
 
   Scenario: A single target is replaced, not appended
     Given the "relation" field "series" on "post" targeting "category" holding one
@@ -32,7 +32,7 @@ Feature: Relating content
     Given the post "Hello world"
     And the post "Second post"
     When the administrator files "Hello world" under "Second post"
-    Then the request is refused explaining content: target is not the type the field points at: categories holds post
+    Then the request is refused because the target is the wrong type
 
   Scenario: A target that does not exist is refused
     Given the post "Hello world"
