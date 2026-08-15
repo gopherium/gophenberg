@@ -296,11 +296,6 @@ func (s *TypeStore) UpdateField(ctx context.Context, f content.Field) (content.F
 func (s *TypeStore) DeleteField(ctx context.Context, typeKey, key string) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		if _, err := queries.LockContentHoldingField(ctx, db.LockContentHoldingFieldParams{
-			Type: typeKey, Key: key,
-		}); err != nil {
-			return err
-		}
 		removed, err := queries.DeleteContentField(ctx, db.DeleteContentFieldParams{TypeKey: typeKey, Key: key})
 		if err != nil {
 			return err

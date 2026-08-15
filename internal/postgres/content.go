@@ -254,6 +254,9 @@ func (s *ContentStore) update(
 		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
 			return err
 		}
+		if err := valuesDeclared(ctx, queries, c); err != nil {
+			return err
+		}
 		row, err := writeContent(ctx, queries, db.UpdateContentParams{
 			ID:                c.ID,
 			ParentID:          c.ParentID,
@@ -309,9 +312,33 @@ func writeContent(ctx context.Context, queries *db.Queries, p db.UpdateContentPa
 	return db.CoreContent{}, content.ErrConflict
 }
 
+// valuesDeclared refuses a value whose field the type no longer declares.
+func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content) error {
+	if len(c.Fields) == 0 {
+		return nil
+	}
+	keys, err := queries.LockFieldKeysOfType(ctx, c.Type)
+	if err != nil {
+		return err
+	}
+	declared := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		declared[key] = true
+	}
+	for key := range c.Fields {
+		if !declared[key] {
+			return fmt.Errorf("%w: %s", content.ErrUnknownField, key)
+		}
+	}
+	return nil
+}
+
 // updateFailure returns the refusal the update carries, and wraps anything else.
 func updateFailure(err error) error {
 	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) || isSlugTaken(err) {
+		return err
+	}
+	if errors.Is(err, content.ErrUnknownField) {
 		return err
 	}
 	if errors.Is(err, content.ErrTargetNotFound) || errors.Is(err, content.ErrTargetType) {

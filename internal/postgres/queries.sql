@@ -364,11 +364,9 @@ RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at
 -- name: DeleteContentField :execrows
 DELETE FROM core.content_fields WHERE type_key = @type_key AND key = @key;
 
--- name: LockContentHoldingField :many
-SELECT id FROM core.content
-WHERE type = @type AND fields ? @key::text
-ORDER BY id
-FOR UPDATE;
+-- name: LockFieldKeysOfType :many
+SELECT key FROM core.content_fields WHERE type_key = @type_key ORDER BY key
+FOR KEY SHARE;
 
 -- name: ClearContentFieldValues :exec
 UPDATE core.content SET fields = fields - @key::text

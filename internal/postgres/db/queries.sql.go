@@ -1344,38 +1344,6 @@ func (q *Queries) LockContent(ctx context.Context, id uuid.UUID) (CoreContent, e
 	return i, err
 }
 
-const lockContentHoldingField = `-- name: LockContentHoldingField :many
-SELECT id FROM core.content
-WHERE type = $1 AND fields ? $2::text
-ORDER BY id
-FOR UPDATE
-`
-
-type LockContentHoldingFieldParams struct {
-	Type string
-	Key  string
-}
-
-func (q *Queries) LockContentHoldingField(ctx context.Context, arg LockContentHoldingFieldParams) ([]uuid.UUID, error) {
-	rows, err := q.db.Query(ctx, lockContentHoldingField, arg.Type, arg.Key)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const lockContentType = `-- name: LockContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
     t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
@@ -1430,6 +1398,31 @@ func (q *Queries) LockDefaultContentType(ctx context.Context) (CoreContentType, 
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const lockFieldKeysOfType = `-- name: LockFieldKeysOfType :many
+SELECT key FROM core.content_fields WHERE type_key = $1 ORDER BY key
+FOR KEY SHARE
+`
+
+func (q *Queries) LockFieldKeysOfType(ctx context.Context, typeKey string) ([]string, error) {
+	rows, err := q.db.Query(ctx, lockFieldKeysOfType, typeKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		items = append(items, key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const moveDescendants = `-- name: MoveDescendants :exec
