@@ -17,11 +17,23 @@ if (!held) {
 
 const Post = theme.layouts.Post
 const Archive = theme.layouts.Archive
+const Term = theme.layouts.Term
 ---
 
 {
 	held.kind === 'item' && held.item ? (
 		<Post post={held.item} blocks={theme.blocks} seo={theme.seo} />
+	) : held.kind === 'term' && held.item ? (
+		<Term
+			term={held.item}
+			type={held.type}
+			posts={held.page?.items ?? []}
+			total={held.page?.total ?? 0}
+			page={held.page?.page ?? 1}
+			perPage={held.page?.per_page ?? 0}
+			blocks={theme.blocks}
+			seo={theme.seo}
+		/>
 	) : (
 		<Archive
 			type={held.type}
