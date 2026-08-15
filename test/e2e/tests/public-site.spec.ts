@@ -119,3 +119,30 @@ test('serves a nested page at the chain of its parents', async ({ page }) => {
 
 	await expect(page.getByRole('heading', { name: 'Team', level: 1 })).toBeVisible()
 })
+
+test('walks from a post to its category through the link the theme built', async ({ page }) => {
+	await page.goto('/welcome-to-gophenberg')
+
+	await page.getByRole('link', { name: 'News' }).click()
+
+	await expect(page).toHaveURL('/categories/news')
+	await expect(page.getByRole('heading', { name: 'News', level: 1 })).toBeVisible()
+	await expect(page.getByRole('link', { name: 'Welcome to Gophenberg' })).toBeVisible()
+
+	await page.getByRole('link', { name: 'Welcome to Gophenberg' }).click()
+
+	await expect(page).toHaveURL('/welcome-to-gophenberg')
+})
+
+test('serves a term page carrying the category body above what points at it', async ({ page }) => {
+	await page.goto('/categories/news')
+
+	await expect(page.getByText('Everything filed under News shows up below.')).toBeVisible()
+	await expect(page.getByRole('link', { name: 'Welcome to Gophenberg' })).toBeVisible()
+})
+
+test('lists the seeded categories under their own address', async ({ page }) => {
+	await page.goto('/categories')
+
+	await expect(page.getByRole('link', { name: 'News' })).toBeVisible()
+})
