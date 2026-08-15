@@ -36,13 +36,19 @@ touches nothing stored.
 ## Filling fields in
 
 The editor's Document panel shows one control per declared field,
-under the excerpt. Values save with the item, autosave with it, and
-travel with revisions, so restoring an old revision also restores
-the values it held.
+under the excerpt. Values save with the item and travel with
+revisions, so restoring an old revision also restores the values it
+held.
+
+Autosave keeps the fields listed in the table above. It does not
+keep relations, which are stored apart from the item. Press **Save
+draft** after changing what an item points at.
 
 A field can be marked **required**. A required field never blocks
 writing: drafts save freely with it empty. It blocks publishing, so
-an item goes public only once the field holds something.
+an item goes public only once the field holds something. The admin
+has no control for this yet, so a required field has to be declared
+over the API.
 
 ## Relations connect types
 
@@ -54,7 +60,9 @@ carry its own body, fields and picture.
 
 A relation field declares which type it points at, and whether an
 item holds one target or many. The editor then offers a picker
-listing the items of that type.
+listing the items of that type. Fields added in the admin hold many
+targets. A field holding a single one has to be declared over the
+API for now.
 
 A type whose items should list what points at them declares the
 archive page kind. Such an item serves a term page: its own title
