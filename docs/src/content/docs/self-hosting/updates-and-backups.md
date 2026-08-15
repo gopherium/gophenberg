@@ -21,12 +21,16 @@ Migrations run automatically when the new version starts. While
 Gophenberg is below 1.0, read the release notes first, since a
 release can change behavior.
 
-Updating to %VERSION% changes every public address once. A post that
-answered at `/post/hello-world` now answers at `/hello-world`, and
-each [content type](/guides/content-types/) serves its own addresses
-under its route word. Links kept outside your site to the old shape
-answer 404 after the update. This is a one-time change: addresses
-are stored now, so they will not change shape again.
+Updating to %VERSION% runs two migrations on start: one adds
+[fields](/guides/fields/) to the schema, the other adds the
+relation table connecting content to content. Back up the database
+before the first start on this release, as before any update.
+Public addresses do not change shape.
+
+Themes must move to `@gophenberg/astro` %VERSION% with the update.
+The kit now requires a `Term` layout for pages like categories, and
+item payloads gained a `fields` member, so a theme built on the
+previous kit will not serve.
 
 ## What to back up
 

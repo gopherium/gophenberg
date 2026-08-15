@@ -10,8 +10,80 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
 )
+
+const addRelation = `-- name: AddRelation :exec
+INSERT INTO core.content_relations (from_id, field_id, to_id, position, sort_at, visible)
+SELECT $1, $2, $3, $4, coalesce(c.published_at, c.created_at),
+    c.status = 'published'
+FROM core.content c
+WHERE c.id = $1
+`
+
+type AddRelationParams struct {
+	FromID   uuid.UUID
+	FieldID  int32
+	ToID     uuid.UUID
+	Position int32
+}
+
+func (q *Queries) AddRelation(ctx context.Context, arg AddRelationParams) error {
+	_, err := q.db.Exec(ctx, addRelation,
+		arg.FromID,
+		arg.FieldID,
+		arg.ToID,
+		arg.Position,
+	)
+	return err
+}
+
+const clearContentFieldValues = `-- name: ClearContentFieldValues :exec
+UPDATE core.content SET fields = fields - $1::text
+WHERE type = $2 AND fields ? $1::text
+`
+
+type ClearContentFieldValuesParams struct {
+	Key  string
+	Type string
+}
+
+func (q *Queries) ClearContentFieldValues(ctx context.Context, arg ClearContentFieldValuesParams) error {
+	_, err := q.db.Exec(ctx, clearContentFieldValues, arg.Key, arg.Type)
+	return err
+}
+
+const clearRelationsOfField = `-- name: ClearRelationsOfField :exec
+DELETE FROM core.content_relations WHERE from_id = $1 AND field_id = $2
+`
+
+type ClearRelationsOfFieldParams struct {
+	FromID  uuid.UUID
+	FieldID int32
+}
+
+func (q *Queries) ClearRelationsOfField(ctx context.Context, arg ClearRelationsOfFieldParams) error {
+	_, err := q.db.Exec(ctx, clearRelationsOfField, arg.FromID, arg.FieldID)
+	return err
+}
+
+const clearRevisionFieldValues = `-- name: ClearRevisionFieldValues :exec
+UPDATE core.content_revisions r
+SET fields = r.fields - $1::text
+FROM core.content c
+WHERE r.content_id = c.id AND c.type = $2 AND r.fields ? $1::text
+`
+
+type ClearRevisionFieldValuesParams struct {
+	Key  string
+	Type string
+}
+
+func (q *Queries) ClearRevisionFieldValues(ctx context.Context, arg ClearRevisionFieldValuesParams) error {
+	_, err := q.db.Exec(ctx, clearRevisionFieldValues, arg.Key, arg.Type)
+	return err
+}
 
 const contentDepth = `-- name: ContentDepth :one
 WITH RECURSIVE below AS (
@@ -132,6 +204,21 @@ func (q *Queries) CountMedia(ctx context.Context, arg CountMediaParams) (int64, 
 	return count, err
 }
 
+const countRelatedContent = `-- name: CountRelatedContent :one
+SELECT count(DISTINCT r.from_id)
+FROM core.content_relations r
+JOIN core.content c ON c.id = r.from_id
+JOIN core.content_types t ON t.key = c.type
+WHERE r.to_id = $1 AND r.visible AND t.active
+`
+
+func (q *Queries) CountRelatedContent(ctx context.Context, target uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countRelatedContent, target)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createContent = `-- name: CreateContent :one
 
 INSERT INTO core.content (
@@ -143,7 +230,7 @@ VALUES (
     $8, $9, $10, $11, $12, $13
 )
 RETURNING id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at, parent_id, path
+    author_id, published_at, created_at, updated_at, parent_id, path, fields
 `
 
 type CreateContentParams struct {
@@ -194,6 +281,57 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.Path,
+		&i.Fields,
+	)
+	return i, err
+}
+
+const createContentField = `-- name: CreateContentField :one
+INSERT INTO core.content_fields (
+    type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
+)
+RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+`
+
+type CreateContentFieldParams struct {
+	TypeKey   string
+	Key       string
+	Label     string
+	Kind      string
+	RelatesTo *string
+	Many      bool
+	Required  bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (q *Queries) CreateContentField(ctx context.Context, arg CreateContentFieldParams) (CoreContentField, error) {
+	row := q.db.QueryRow(ctx, createContentField,
+		arg.TypeKey,
+		arg.Key,
+		arg.Label,
+		arg.Kind,
+		arg.RelatesTo,
+		arg.Many,
+		arg.Required,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i CoreContentField
+	err := row.Scan(
+		&i.ID,
+		&i.TypeKey,
+		&i.Key,
+		&i.Label,
+		&i.Kind,
+		&i.RelatesTo,
+		&i.Many,
+		&i.Required,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -329,10 +467,10 @@ func (q *Queries) CreateMedia(ctx context.Context, arg CreateMediaParams) (CoreM
 
 const createRevision = `-- name: CreateRevision :exec
 INSERT INTO core.content_revisions (
-    id, content_id, kind, author_id, title, content, excerpt, created_at
+    id, content_id, kind, author_id, title, content, excerpt, fields, created_at
 )
 VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 `
 
@@ -344,6 +482,7 @@ type CreateRevisionParams struct {
 	Title     string
 	Content   string
 	Excerpt   string
+	Fields    content.Values
 	CreatedAt time.Time
 }
 
@@ -356,6 +495,7 @@ func (q *Queries) CreateRevision(ctx context.Context, arg CreateRevisionParams) 
 		arg.Title,
 		arg.Content,
 		arg.Excerpt,
+		arg.Fields,
 		arg.CreatedAt,
 	)
 	return err
@@ -382,6 +522,23 @@ DELETE FROM core.content AS p WHERE p.id = $1
 
 func (q *Queries) DeleteContent(ctx context.Context, id uuid.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteContent, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteContentField = `-- name: DeleteContentField :execrows
+DELETE FROM core.content_fields WHERE type_key = $1 AND key = $2
+`
+
+type DeleteContentFieldParams struct {
+	TypeKey string
+	Key     string
+}
+
+func (q *Queries) DeleteContentField(ctx context.Context, arg DeleteContentFieldParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteContentField, arg.TypeKey, arg.Key)
 	if err != nil {
 		return 0, err
 	}
@@ -449,7 +606,7 @@ func (q *Queries) DeleteRevision(ctx context.Context, arg DeleteRevisionParams) 
 }
 
 const getAutosave = `-- name: GetAutosave :one
-SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.fields, r.created_at
 FROM core.content_revisions r
 WHERE r.content_id = $1 AND r.author_id = $2 AND r.kind = 'autosave'
 `
@@ -459,9 +616,21 @@ type GetAutosaveParams struct {
 	AuthorID  uuid.UUID
 }
 
-func (q *Queries) GetAutosave(ctx context.Context, arg GetAutosaveParams) (CoreContentRevision, error) {
+type GetAutosaveRow struct {
+	ID        uuid.UUID
+	ContentID uuid.UUID
+	Kind      string
+	AuthorID  uuid.UUID
+	Title     string
+	Content   string
+	Excerpt   string
+	Fields    content.Values
+	CreatedAt time.Time
+}
+
+func (q *Queries) GetAutosave(ctx context.Context, arg GetAutosaveParams) (GetAutosaveRow, error) {
 	row := q.db.QueryRow(ctx, getAutosave, arg.ContentID, arg.AuthorID)
-	var i CoreContentRevision
+	var i GetAutosaveRow
 	err := row.Scan(
 		&i.ID,
 		&i.ContentID,
@@ -470,6 +639,7 @@ func (q *Queries) GetAutosave(ctx context.Context, arg GetAutosaveParams) (CoreC
 		&i.Title,
 		&i.Content,
 		&i.Excerpt,
+		&i.Fields,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -477,7 +647,7 @@ func (q *Queries) GetAutosave(ctx context.Context, arg GetAutosaveParams) (CoreC
 
 const getContent = `-- name: GetContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 FROM core.content p
 WHERE p.id = $1
 `
@@ -499,6 +669,7 @@ func (q *Queries) GetContent(ctx context.Context, id uuid.UUID) (CoreContent, er
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.Path,
+		&i.Fields,
 	)
 	return i, err
 }
@@ -562,7 +733,7 @@ func (q *Queries) GetMedia(ctx context.Context, id int64) (CoreMedia, error) {
 
 const getPublishedContentByPath = `-- name: GetPublishedContentByPath :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 FROM core.content p
 WHERE p.path = $1 AND p.status = 'published'
 `
@@ -584,12 +755,13 @@ func (q *Queries) GetPublishedContentByPath(ctx context.Context, path string) (C
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.Path,
+		&i.Fields,
 	)
 	return i, err
 }
 
 const getRevision = `-- name: GetRevision :one
-SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.created_at
+SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.content, r.excerpt, r.fields, r.created_at
 FROM core.content_revisions r
 WHERE r.content_id = $1 AND r.id = $2
 `
@@ -599,9 +771,21 @@ type GetRevisionParams struct {
 	ID        uuid.UUID
 }
 
-func (q *Queries) GetRevision(ctx context.Context, arg GetRevisionParams) (CoreContentRevision, error) {
+type GetRevisionRow struct {
+	ID        uuid.UUID
+	ContentID uuid.UUID
+	Kind      string
+	AuthorID  uuid.UUID
+	Title     string
+	Content   string
+	Excerpt   string
+	Fields    content.Values
+	CreatedAt time.Time
+}
+
+func (q *Queries) GetRevision(ctx context.Context, arg GetRevisionParams) (GetRevisionRow, error) {
 	row := q.db.QueryRow(ctx, getRevision, arg.ContentID, arg.ID)
-	var i CoreContentRevision
+	var i GetRevisionRow
 	err := row.Scan(
 		&i.ID,
 		&i.ContentID,
@@ -610,6 +794,7 @@ func (q *Queries) GetRevision(ctx context.Context, arg GetRevisionParams) (CoreC
 		&i.Title,
 		&i.Content,
 		&i.Excerpt,
+		&i.Fields,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -628,7 +813,7 @@ func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
 
 const listContent = `-- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 FROM core.content p
 WHERE p.type = $1
     AND ($2::text = '' OR p.status = $2)
@@ -671,6 +856,7 @@ type ListContentRow struct {
 	UpdatedAt   time.Time
 	ParentID    *uuid.UUID
 	Path        string
+	Fields      content.Values
 }
 
 func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error) {
@@ -703,6 +889,79 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 			&i.UpdatedAt,
 			&i.ParentID,
 			&i.Path,
+			&i.Fields,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listContentFields = `-- name: ListContentFields :many
+SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+FROM core.content_fields ORDER BY id
+`
+
+func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, error) {
+	rows, err := q.db.Query(ctx, listContentFields)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CoreContentField
+	for rows.Next() {
+		var i CoreContentField
+		if err := rows.Scan(
+			&i.ID,
+			&i.TypeKey,
+			&i.Key,
+			&i.Label,
+			&i.Kind,
+			&i.RelatesTo,
+			&i.Many,
+			&i.Required,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listContentFieldsOfType = `-- name: ListContentFieldsOfType :many
+SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+FROM core.content_fields WHERE type_key = $1 ORDER BY id
+`
+
+func (q *Queries) ListContentFieldsOfType(ctx context.Context, typeKey string) ([]CoreContentField, error) {
+	rows, err := q.db.Query(ctx, listContentFieldsOfType, typeKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CoreContentField
+	for rows.Next() {
+		var i CoreContentField
+		if err := rows.Scan(
+			&i.ID,
+			&i.TypeKey,
+			&i.Key,
+			&i.Label,
+			&i.Kind,
+			&i.RelatesTo,
+			&i.Many,
+			&i.Required,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -825,6 +1084,191 @@ func (q *Queries) ListMedia(ctx context.Context, arg ListMediaParams) ([]CoreMed
 	return items, nil
 }
 
+const listRelatedContent = `-- name: ListRelatedContent :many
+SELECT c.id, c.type, c.status, c.slug, c.title, c.excerpt,
+    c.author_id, c.published_at, c.created_at, c.updated_at, c.parent_id, c.path, c.fields
+FROM (
+    SELECT DISTINCT r.sort_at, r.from_id
+    FROM core.content_relations r
+    JOIN core.content pointing ON pointing.id = r.from_id
+    JOIN core.content_types pointer ON pointer.key = pointing.type
+    WHERE r.to_id = $1 AND r.visible AND pointer.active
+    ORDER BY r.sort_at DESC, r.from_id
+    LIMIT $3 OFFSET $2
+) held
+JOIN core.content c ON c.id = held.from_id
+ORDER BY held.sort_at DESC, held.from_id
+`
+
+type ListRelatedContentParams struct {
+	Target    uuid.UUID
+	RowOffset int32
+	RowLimit  int32
+}
+
+type ListRelatedContentRow struct {
+	ID          uuid.UUID
+	Type        string
+	Status      string
+	Slug        string
+	Title       string
+	Excerpt     string
+	AuthorID    uuid.UUID
+	PublishedAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	ParentID    *uuid.UUID
+	Path        string
+	Fields      content.Values
+}
+
+func (q *Queries) ListRelatedContent(ctx context.Context, arg ListRelatedContentParams) ([]ListRelatedContentRow, error) {
+	rows, err := q.db.Query(ctx, listRelatedContent, arg.Target, arg.RowOffset, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRelatedContentRow
+	for rows.Next() {
+		var i ListRelatedContentRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Status,
+			&i.Slug,
+			&i.Title,
+			&i.Excerpt,
+			&i.AuthorID,
+			&i.PublishedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ParentID,
+			&i.Path,
+			&i.Fields,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRelationFieldsOfType = `-- name: ListRelationFieldsOfType :many
+SELECT id, key, relates_to, many FROM core.content_fields
+WHERE type_key = $1 AND kind = 'relation'
+ORDER BY id
+`
+
+type ListRelationFieldsOfTypeRow struct {
+	ID        int32
+	Key       string
+	RelatesTo *string
+	Many      bool
+}
+
+func (q *Queries) ListRelationFieldsOfType(ctx context.Context, typeKey string) ([]ListRelationFieldsOfTypeRow, error) {
+	rows, err := q.db.Query(ctx, listRelationFieldsOfType, typeKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRelationFieldsOfTypeRow
+	for rows.Next() {
+		var i ListRelationFieldsOfTypeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.RelatesTo,
+			&i.Many,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRelationSummaries = `-- name: ListRelationSummaries :many
+SELECT f.key, c.id, c.title, c.path
+FROM core.content_relations r
+JOIN core.content_fields f ON f.id = r.field_id
+JOIN core.content c ON c.id = r.to_id
+JOIN core.content_types t ON t.key = c.type
+WHERE r.from_id = $1 AND c.status = 'published' AND t.active
+ORDER BY f.key, r.position
+`
+
+type ListRelationSummariesRow struct {
+	Key   string
+	ID    uuid.UUID
+	Title string
+	Path  string
+}
+
+func (q *Queries) ListRelationSummaries(ctx context.Context, fromID uuid.UUID) ([]ListRelationSummariesRow, error) {
+	rows, err := q.db.Query(ctx, listRelationSummaries, fromID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRelationSummariesRow
+	for rows.Next() {
+		var i ListRelationSummariesRow
+		if err := rows.Scan(
+			&i.Key,
+			&i.ID,
+			&i.Title,
+			&i.Path,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRelationTargets = `-- name: ListRelationTargets :many
+SELECT f.key, r.to_id
+FROM core.content_relations r
+JOIN core.content_fields f ON f.id = r.field_id
+WHERE r.from_id = $1
+ORDER BY f.key, r.position
+`
+
+type ListRelationTargetsRow struct {
+	Key  string
+	ToID uuid.UUID
+}
+
+func (q *Queries) ListRelationTargets(ctx context.Context, fromID uuid.UUID) ([]ListRelationTargetsRow, error) {
+	rows, err := q.db.Query(ctx, listRelationTargets, fromID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRelationTargetsRow
+	for rows.Next() {
+		var i ListRelationTargetsRow
+		if err := rows.Scan(&i.Key, &i.ToID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRevisions = `-- name: ListRevisions :many
 SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.excerpt, r.created_at
 FROM core.content_revisions r
@@ -872,7 +1316,7 @@ func (q *Queries) ListRevisions(ctx context.Context, contentID uuid.UUID) ([]Lis
 
 const lockContent = `-- name: LockContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 FROM core.content p
 WHERE p.id = $1
 FOR UPDATE
@@ -895,6 +1339,7 @@ func (q *Queries) LockContent(ctx context.Context, id uuid.UUID) (CoreContent, e
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.Path,
+		&i.Fields,
 	)
 	return i, err
 }
@@ -955,6 +1400,31 @@ func (q *Queries) LockDefaultContentType(ctx context.Context) (CoreContentType, 
 	return i, err
 }
 
+const lockFieldKeysOfType = `-- name: LockFieldKeysOfType :many
+SELECT key FROM core.content_fields WHERE type_key = $1 ORDER BY key
+FOR KEY SHARE
+`
+
+func (q *Queries) LockFieldKeysOfType(ctx context.Context, typeKey string) ([]string, error) {
+	rows, err := q.db.Query(ctx, lockFieldKeysOfType, typeKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		items = append(items, key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const moveDescendants = `-- name: MoveDescendants :exec
 WITH RECURSIVE moved AS (
     SELECT c.id, $3::text AS path
@@ -1003,6 +1473,18 @@ func (q *Queries) PruneRevisions(ctx context.Context, arg PruneRevisionsParams) 
 	return err
 }
 
+const refreshRelationVisibility = `-- name: RefreshRelationVisibility :exec
+UPDATE core.content_relations r
+SET sort_at = coalesce(c.published_at, c.created_at), visible = (c.status = 'published')
+FROM core.content c
+WHERE r.from_id = c.id AND c.id = $1
+`
+
+func (q *Queries) RefreshRelationVisibility(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, refreshRelationVisibility, id)
+	return err
+}
+
 const restoreContent = `-- name: RestoreContent :one
 UPDATE core.content AS p
 SET status = 'draft',
@@ -1011,7 +1493,7 @@ SET status = 'draft',
     updated_at = $1
 WHERE p.id = $2
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 `
 
 type RestoreContentParams struct {
@@ -1036,6 +1518,7 @@ func (q *Queries) RestoreContent(ctx context.Context, arg RestoreContentParams) 
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.Path,
+		&i.Fields,
 	)
 	return i, err
 }
@@ -1045,7 +1528,7 @@ UPDATE core.content AS p
 SET status = 'draft', updated_at = $1
 WHERE p.id = $2
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 `
 
 type RestoreContentKeepingSlugParams struct {
@@ -1070,6 +1553,7 @@ func (q *Queries) RestoreContentKeepingSlug(ctx context.Context, arg RestoreCont
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.Path,
+		&i.Fields,
 	)
 	return i, err
 }
@@ -1151,7 +1635,7 @@ SET status = 'trash', slug = p.slug || $1::text, path = p.path || $1::text,
     updated_at = $2
 WHERE p.id = $3
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 `
 
 type TrashContentParams struct {
@@ -1177,17 +1661,48 @@ func (q *Queries) TrashContent(ctx context.Context, arg TrashContentParams) (Cor
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.Path,
+		&i.Fields,
 	)
 	return i, err
+}
+
+const typesOfContent = `-- name: TypesOfContent :many
+SELECT id, type FROM core.content WHERE id = ANY($1::uuid[])
+`
+
+type TypesOfContentRow struct {
+	ID   uuid.UUID
+	Type string
+}
+
+func (q *Queries) TypesOfContent(ctx context.Context, ids []uuid.UUID) ([]TypesOfContentRow, error) {
+	rows, err := q.db.Query(ctx, typesOfContent, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TypesOfContentRow
+	for rows.Next() {
+		var i TypesOfContentRow
+		if err := rows.Scan(&i.ID, &i.Type); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateContent = `-- name: UpdateContent :one
 UPDATE core.content AS p
 SET status = $1, slug = $2, path = $3, parent_id = $4, title = $5,
-    content = $6, excerpt = $7, published_at = $8, updated_at = $9
-WHERE p.id = $10 AND p.updated_at = $11
+    content = $6, excerpt = $7, fields = $8, published_at = $9,
+    updated_at = $10
+WHERE p.id = $11 AND p.updated_at = $12
 RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 `
 
 type UpdateContentParams struct {
@@ -1198,6 +1713,7 @@ type UpdateContentParams struct {
 	Title             string
 	Content           string
 	Excerpt           string
+	Fields            content.Values
 	PublishedAt       *time.Time
 	UpdatedAt         time.Time
 	ID                uuid.UUID
@@ -1213,6 +1729,7 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (C
 		arg.Title,
 		arg.Content,
 		arg.Excerpt,
+		arg.Fields,
 		arg.PublishedAt,
 		arg.UpdatedAt,
 		arg.ID,
@@ -1233,6 +1750,46 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (C
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.Path,
+		&i.Fields,
+	)
+	return i, err
+}
+
+const updateContentField = `-- name: UpdateContentField :one
+UPDATE core.content_fields
+SET label = $1, required = $2, updated_at = $3
+WHERE type_key = $4 AND key = $5
+RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+`
+
+type UpdateContentFieldParams struct {
+	Label     string
+	Required  bool
+	UpdatedAt time.Time
+	TypeKey   string
+	Key       string
+}
+
+func (q *Queries) UpdateContentField(ctx context.Context, arg UpdateContentFieldParams) (CoreContentField, error) {
+	row := q.db.QueryRow(ctx, updateContentField,
+		arg.Label,
+		arg.Required,
+		arg.UpdatedAt,
+		arg.TypeKey,
+		arg.Key,
+	)
+	var i CoreContentField
+	err := row.Scan(
+		&i.ID,
+		&i.TypeKey,
+		&i.Key,
+		&i.Label,
+		&i.Kind,
+		&i.RelatesTo,
+		&i.Many,
+		&i.Required,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -1345,18 +1902,19 @@ func (q *Queries) UpdateMedia(ctx context.Context, arg UpdateMediaParams) (CoreM
 
 const upsertAutosave = `-- name: UpsertAutosave :one
 INSERT INTO core.content_revisions (
-    id, content_id, kind, author_id, title, content, excerpt, created_at
+    id, content_id, kind, author_id, title, content, excerpt, fields, created_at
 )
 VALUES (
-    $1, $2, 'autosave', $3, $4, $5, $6, $7
+    $1, $2, 'autosave', $3, $4, $5, $6, $7, $8
 )
 ON CONFLICT (content_id, author_id) WHERE kind = 'autosave'
 DO UPDATE SET
     title = EXCLUDED.title,
     content = EXCLUDED.content,
     excerpt = EXCLUDED.excerpt,
+    fields = EXCLUDED.fields,
     created_at = EXCLUDED.created_at
-RETURNING id, content_id, kind, author_id, title, content, excerpt, created_at
+RETURNING id, content_id, kind, author_id, title, content, excerpt, fields, created_at
 `
 
 type UpsertAutosaveParams struct {
@@ -1366,10 +1924,23 @@ type UpsertAutosaveParams struct {
 	Title     string
 	Content   string
 	Excerpt   string
+	Fields    content.Values
 	CreatedAt time.Time
 }
 
-func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) (CoreContentRevision, error) {
+type UpsertAutosaveRow struct {
+	ID        uuid.UUID
+	ContentID uuid.UUID
+	Kind      string
+	AuthorID  uuid.UUID
+	Title     string
+	Content   string
+	Excerpt   string
+	Fields    content.Values
+	CreatedAt time.Time
+}
+
+func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) (UpsertAutosaveRow, error) {
 	row := q.db.QueryRow(ctx, upsertAutosave,
 		arg.ID,
 		arg.ContentID,
@@ -1377,9 +1948,10 @@ func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) 
 		arg.Title,
 		arg.Content,
 		arg.Excerpt,
+		arg.Fields,
 		arg.CreatedAt,
 	)
-	var i CoreContentRevision
+	var i UpsertAutosaveRow
 	err := row.Scan(
 		&i.ID,
 		&i.ContentID,
@@ -1388,6 +1960,7 @@ func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) 
 		&i.Title,
 		&i.Content,
 		&i.Excerpt,
+		&i.Fields,
 		&i.CreatedAt,
 	)
 	return i, err

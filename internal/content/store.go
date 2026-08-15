@@ -35,6 +35,7 @@ type Revision struct {
 	Title     string
 	Content   string
 	Excerpt   string
+	Fields    Values
 	CreatedAt time.Time
 }
 
@@ -52,6 +53,7 @@ func NewRevision(c Content, kind RevisionKind, authorID uuid.UUID) (Revision, er
 		Title:     c.Title,
 		Content:   c.Content,
 		Excerpt:   c.Excerpt,
+		Fields:    c.Fields.Merge(nil),
 		CreatedAt: time.Now().UTC(),
 	}, nil
 }
@@ -119,6 +121,8 @@ type Store interface {
 	Children(ctx context.Context, id uuid.UUID) (int, error)
 	Depth(ctx context.Context, id uuid.UUID) (int, error)
 	List(ctx context.Context, f Filter) ([]Content, int, error)
+	RelatedTo(ctx context.Context, target uuid.UUID, page, perPage int) ([]Content, int, error)
+	TargetsOf(ctx context.Context, from uuid.UUID) (Targets, error)
 	Update(
 		ctx context.Context, c Content, expectedUpdatedAt time.Time, snapshot *Revision, revisionCap int,
 	) (Content, error)

@@ -2,6 +2,15 @@
 
 import { z } from 'zod'
 
+const fieldSchema = z.object({
+	key: z.string(),
+	label: z.string(),
+	kind: z.string(),
+	relates_to: z.string().optional(),
+	many: z.boolean(),
+	required: z.boolean(),
+})
+
 const typeSchema = z.object({
 	key: z.string(),
 	singular_label: z.string(),
@@ -13,11 +22,22 @@ const typeSchema = z.object({
 	page_kind: z.string(),
 	default: z.boolean(),
 	active: z.boolean(),
+	fields: z.array(fieldSchema).optional(),
 })
 
 const typeListSchema = z.object({ items: z.array(typeSchema) })
 
 const refusalSchema = z.object({ error: z.string() })
+
+/** One typed field a content type declares. */
+export interface ContentField {
+	key: string
+	label: string
+	kind: string
+	relatesTo: string
+	many: boolean
+	required: boolean
+}
 
 /** A content type as the admin reads it. */
 export interface ContentType {
@@ -31,6 +51,7 @@ export interface ContentType {
 	pageKind: string
 	isDefault: boolean
 	active: boolean
+	fields: ContentField[]
 }
 
 /** What registering a type needs. */
@@ -67,6 +88,23 @@ function toType(row: z.infer<typeof typeSchema>): ContentType {
 		pageKind: row.page_kind,
 		isDefault: row.default,
 		active: row.active,
+		fields: (row.fields ?? []).map(toField),
+	}
+}
+
+/**
+ * Returns the admin view of one declared field.
+ * @param row - The field as the API answered it.
+ * @returns The field the admin reads.
+ */
+function toField(row: z.infer<typeof fieldSchema>): ContentField {
+	return {
+		key: row.key,
+		label: row.label,
+		kind: row.kind,
+		relatesTo: row.relates_to ?? '',
+		many: row.many,
+		required: row.required,
 	}
 }
 
@@ -159,5 +197,101 @@ export async function deleteType(key: string): Promise<void> {
 	const response = await fetch(`/api/types/${encodeURIComponent(key)}`, { method: 'DELETE' })
 	if (!response.ok) {
 		await refuse(response, 'removing a content type')
+	}
+}
+
+/**
+ * Returns the key a label reduces to.
+ * @param label - The name the operator typed.
+ * @returns The slug the label reduces to.
+ */
+export function slugifyKey(label: string): string {
+	return label
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+}
+
+/** What declaring a field needs. */
+export interface NewField {
+	key: string
+	label: string
+	kind: string
+	relatesTo?: string
+	many?: boolean
+	required?: boolean
+}
+
+/**
+ * Returns the fields a content type declares.
+ * @param typeKey - The type whose fields to read.
+ * @returns The declared fields.
+ */
+export async function listFields(typeKey: string): Promise<ContentField[]> {
+	const response = await fetch(`/api/types/${typeKey}/fields`)
+	if (!response.ok) {
+		await refuse(response, 'reading the fields')
+	}
+	const listed = z.object({ items: z.array(fieldSchema) }).parse(await response.json())
+	return listed.items.map(toField)
+}
+
+/**
+ * Declares a field on a content type.
+ * @param typeKey - The type declaring the field.
+ * @param asked - The field to declare.
+ * @returns The stored field.
+ */
+export async function createField(typeKey: string, asked: NewField): Promise<ContentField> {
+	const response = await fetch(`/api/types/${typeKey}/fields`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({
+			key: asked.key,
+			label: asked.label,
+			kind: asked.kind,
+			relates_to: asked.relatesTo,
+			many: asked.many,
+			required: asked.required,
+		}),
+	})
+	if (!response.ok) {
+		await refuse(response, 'declaring the field')
+	}
+	return toField(fieldSchema.parse(await response.json()))
+}
+
+/**
+ * Carries a new label for a declared field.
+ * @param typeKey - The type declaring the field.
+ * @param key - The field to relabel.
+ * @param label - The label to carry.
+ * @returns The stored field.
+ */
+export async function renameField(
+	typeKey: string,
+	key: string,
+	label: string,
+): Promise<ContentField> {
+	const response = await fetch(`/api/types/${typeKey}/fields/${key}`, {
+		method: 'PATCH',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ label }),
+	})
+	if (!response.ok) {
+		await refuse(response, 'renaming the field')
+	}
+	return toField(fieldSchema.parse(await response.json()))
+}
+
+/**
+ * Removes a declared field and every value it held.
+ * @param typeKey - The type declaring the field.
+ * @param key - The field to remove.
+ */
+export async function deleteField(typeKey: string, key: string): Promise<void> {
+	const response = await fetch(`/api/types/${typeKey}/fields/${key}`, { method: 'DELETE' })
+	if (!response.ok) {
+		await refuse(response, 'deleting the field')
 	}
 }

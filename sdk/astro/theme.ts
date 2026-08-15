@@ -9,6 +9,7 @@ export interface ThemeLayouts {
 	Base: AstroComponentFactory
 	Post: AstroComponentFactory
 	Archive: AstroComponentFactory
+	Term: AstroComponentFactory
 	NotFound?: AstroComponentFactory
 }
 

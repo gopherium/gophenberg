@@ -51,7 +51,8 @@ type contentResponse struct {
 
 type contentDetailResponse struct {
 	contentResponse
-	Content string `json:"content"`
+	Content string         `json:"content"`
+	Fields  content.Values `json:"fields"`
 }
 
 type contentListResponse struct {
@@ -239,5 +240,6 @@ func (s *server) respondContent(w http.ResponseWriter, r *http.Request, status i
 	authkit.Respond(w, status, contentDetailResponse{
 		contentResponse: newContentResponse(c, names[c.AuthorID]),
 		Content:         c.Content,
+		Fields:          payloadValues(c),
 	})
 }

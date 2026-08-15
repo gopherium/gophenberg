@@ -37,7 +37,7 @@ export function useAutosave(
 			}
 			void autosavePost(
 				postId,
-				{ title: held.title, content: held.content, excerpt: held.excerpt },
+				{ title: held.title, content: held.content, excerpt: held.excerpt, fields: held.fields },
 				held.version,
 				keepalive,
 			)

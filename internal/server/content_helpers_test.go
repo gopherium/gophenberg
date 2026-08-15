@@ -167,6 +167,23 @@ func (s *fakePostStore) List(_ context.Context, f content.Filter) ([]content.Con
 	return matched[start:min(start+f.PerPage, total)], total, nil
 }
 
+// RelatedTo returns the published items pointing at the target, newest first, and the total.
+func (s *fakePostStore) RelatedTo(
+	_ context.Context, target uuid.UUID, page, perPage int,
+) ([]content.Content, int, error) {
+	matched := make([]content.Content, 0, len(s.posts))
+	for _, p := range s.ordered() {
+		if p.Status != content.StatusPublished || !pointsAt(p.Relations, target) {
+			continue
+		}
+		p.Content = ""
+		matched = append(matched, p)
+	}
+	total := len(matched)
+	start := min((page-1)*perPage, total)
+	return matched[start:min(start+perPage, total)], total, nil
+}
+
 // Update stores the post's fields and any snapshot unless an update error is injected.
 func (s *fakePostStore) Update(
 	_ context.Context, p content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision, revisionCap int,
@@ -478,4 +495,37 @@ type failingUserStore struct {
 // ListUsers reports a failure.
 func (failingUserStore) ListUsers(_ context.Context) ([]gouncer.User, error) {
 	return nil, context.DeadlineExceeded
+}
+
+// pointsAt reports whether any of the item's fields names the target.
+func pointsAt(held content.Relations, target uuid.UUID) bool {
+	for _, targets := range held {
+		for _, listed := range targets {
+			if listed == target {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// TargetsOf returns the published targets of active types the item points at.
+func (s *fakePostStore) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
+	held, found := s.posts[from]
+	if !found {
+		return nil, nil
+	}
+	targets := make(content.Targets)
+	for key, listed := range held.Relations {
+		for _, id := range listed {
+			pointed, stored := s.posts[id]
+			if !stored || pointed.Status != content.StatusPublished {
+				continue
+			}
+			targets[key] = append(targets[key], content.Target{
+				ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
+			})
+		}
+	}
+	return targets, nil
 }

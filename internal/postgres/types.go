@@ -27,6 +27,15 @@ const uniqueViolationCode = "23505"
 // restrictViolationCode is what Postgres reports when a restricted row is still referenced.
 const restrictViolationCode = "23001"
 
+// foreignKeyViolationCode is what Postgres reports when a reference points at no row.
+const foreignKeyViolationCode = "23503"
+
+// fieldKeyConstraint names the unique index over one type's field keys.
+const fieldKeyConstraint = "content_fields_key_unique"
+
+// fieldTargetConstraint names the reference a relation field keeps to its target type.
+const fieldTargetConstraint = "content_fields_relates_to_fkey"
+
 // TypeStore persists the content type registry in the core schema.
 type TypeStore struct {
 	queries *db.Queries
@@ -38,20 +47,29 @@ func NewTypeStore(pool *pgxpool.Pool) *TypeStore {
 	return &TypeStore{queries: db.New(pool), pool: pool}
 }
 
-// List returns every registered type in registration order.
+// List returns every registered type in registration order with its fields attached.
 func (s *TypeStore) List(ctx context.Context) ([]content.Type, error) {
 	rows, err := s.queries.ListContentTypes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: list content types: %w", err)
 	}
+	declared, err := s.queries.ListContentFields(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list content fields: %w", err)
+	}
+	held := make(map[string][]content.Field, len(rows))
+	for _, row := range declared {
+		held[row.TypeKey] = append(held[row.TypeKey], toField(row))
+	}
 	types := make([]content.Type, len(rows))
 	for i, row := range rows {
 		types[i] = toType(row)
+		types[i].Fields = held[row.Key]
 	}
 	return types, nil
 }
 
-// ByKey returns the type carrying the key, or [content.ErrTypeNotFound].
+// ByKey returns the type carrying the key with its fields, or [content.ErrTypeNotFound].
 func (s *TypeStore) ByKey(ctx context.Context, key string) (content.Type, error) {
 	row, err := s.queries.GetContentType(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -60,7 +78,15 @@ func (s *TypeStore) ByKey(ctx context.Context, key string) (content.Type, error)
 	if err != nil {
 		return content.Type{}, fmt.Errorf("postgres: get content type: %w", err)
 	}
-	return toType(row), nil
+	declared, err := s.queries.ListContentFieldsOfType(ctx, key)
+	if err != nil {
+		return content.Type{}, fmt.Errorf("postgres: list content fields: %w", err)
+	}
+	t := toType(row)
+	for _, f := range declared {
+		t.Fields = append(t.Fields, toField(f))
+	}
+	return t, nil
 }
 
 // Create stores a new content type, or reports the key or route word already in use.
@@ -227,6 +253,114 @@ func takenBy(err error) error {
 func isTypeInUse(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == restrictViolationCode
+}
+
+// CreateField declares the field on its type, or reports why the schema refused it.
+func (s *TypeStore) CreateField(ctx context.Context, f content.Field) (content.Field, error) {
+	row, err := s.queries.CreateContentField(ctx, db.CreateContentFieldParams{
+		TypeKey:   f.TypeKey,
+		Key:       f.Key,
+		Label:     f.Label,
+		Kind:      string(f.Kind),
+		RelatesTo: targetOf(f),
+		Many:      f.Many,
+		Required:  f.Required,
+		CreatedAt: f.CreatedAt,
+		UpdatedAt: f.UpdatedAt,
+	})
+	if err != nil {
+		return content.Field{}, fieldWriteFailure(err)
+	}
+	return toField(row), nil
+}
+
+// UpdateField stores the field's label and required flag, or reports it missing.
+func (s *TypeStore) UpdateField(ctx context.Context, f content.Field) (content.Field, error) {
+	row, err := s.queries.UpdateContentField(ctx, db.UpdateContentFieldParams{
+		Label:     f.Label,
+		Required:  f.Required,
+		UpdatedAt: f.UpdatedAt,
+		TypeKey:   f.TypeKey,
+		Key:       f.Key,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return content.Field{}, content.ErrFieldNotFound
+	}
+	if err != nil {
+		return content.Field{}, fmt.Errorf("postgres: update content field: %w", err)
+	}
+	return toField(row), nil
+}
+
+// DeleteField removes the definition and sweeps its values in one transaction.
+func (s *TypeStore) DeleteField(ctx context.Context, typeKey, key string) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		removed, err := queries.DeleteContentField(ctx, db.DeleteContentFieldParams{TypeKey: typeKey, Key: key})
+		if err != nil {
+			return err
+		}
+		if removed == 0 {
+			return content.ErrFieldNotFound
+		}
+		if err := queries.ClearContentFieldValues(ctx, db.ClearContentFieldValuesParams{
+			Key: key, Type: typeKey,
+		}); err != nil {
+			return err
+		}
+		return queries.ClearRevisionFieldValues(ctx, db.ClearRevisionFieldValuesParams{Key: key, Type: typeKey})
+	})
+	if errors.Is(err, content.ErrFieldNotFound) {
+		return err
+	}
+	if err != nil {
+		return fmt.Errorf("postgres: delete content field: %w", err)
+	}
+	return nil
+}
+
+// fieldWriteFailure returns the refusal a field write carries, and wraps anything else.
+func fieldWriteFailure(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		if pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == fieldKeyConstraint {
+			return content.ErrFieldTaken
+		}
+		if pgErr.Code == foreignKeyViolationCode && pgErr.ConstraintName == fieldTargetConstraint {
+			return content.ErrTargetUnknown
+		}
+		if pgErr.Code == foreignKeyViolationCode {
+			return content.ErrTypeNotFound
+		}
+	}
+	return fmt.Errorf("postgres: create content field: %w", err)
+}
+
+// targetOf returns the relation target as the nullable column holds it.
+func targetOf(f content.Field) *string {
+	if f.RelatesTo == "" {
+		return nil
+	}
+	return &f.RelatesTo
+}
+
+// toField maps a stored row to a domain field definition with UTC timestamps.
+func toField(row db.CoreContentField) content.Field {
+	f := content.Field{
+		ID:        int(row.ID),
+		TypeKey:   row.TypeKey,
+		Key:       row.Key,
+		Label:     row.Label,
+		Kind:      content.FieldKind(row.Kind),
+		Many:      row.Many,
+		Required:  row.Required,
+		CreatedAt: row.CreatedAt.UTC(),
+		UpdatedAt: row.UpdatedAt.UTC(),
+	}
+	if row.RelatesTo != nil {
+		f.RelatesTo = *row.RelatesTo
+	}
+	return f
 }
 
 // toType maps a stored row to a domain content type with UTC timestamps.

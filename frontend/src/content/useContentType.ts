@@ -19,6 +19,7 @@ const unknownType: ContentType = {
 	pageKind: 'single',
 	isDefault: false,
 	active: true,
+	fields: [],
 }
 
 /**

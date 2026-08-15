@@ -3,6 +3,7 @@
 import { InputControl, SelectControl, Stack, TextareaControl } from '@gophenberg/frontend-sdk'
 import { useMemo } from 'react'
 
+import { FieldsPanel } from './FieldsPanel'
 import { ParentPicker } from './ParentPicker'
 import { TrashPost } from './TrashPost'
 import { useContentType } from './useContentType'
@@ -84,6 +85,7 @@ export function DocumentPanels({ postId, buffer }: { postId: string, buffer: Edi
 				value={buffer.excerpt}
 				onValueChange={buffer.setExcerpt}
 			/>
+			<FieldsPanel postId={postId} declared={listed.fields} buffer={buffer} />
 			<TrashPost postId={postId} title={buffer.title} />
 		</Stack>
 	)

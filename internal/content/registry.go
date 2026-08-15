@@ -4,7 +4,9 @@ package content
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
 )
 
 // Registry answers which content types the CMS holds, caching what it reads.
@@ -174,11 +176,107 @@ func (r *Registry) Delete(ctx context.Context, key string) error {
 	if t.Default {
 		return ErrDefaultRequired
 	}
+	if err := r.untargeted(ctx, key); err != nil {
+		return err
+	}
 	if err := r.store.Delete(ctx, key); err != nil {
 		return err
 	}
 	r.invalidate()
 	return nil
+}
+
+// untargeted reports whether another type's relation field still points at the type.
+func (r *Registry) untargeted(ctx context.Context, key string) error {
+	types, err := r.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, stored := range types {
+		if stored.Key == key {
+			continue
+		}
+		for _, f := range stored.Fields {
+			if f.RelatesTo == key {
+				return fmt.Errorf("%w (%s on %s)", ErrTypeTargeted, f.Key, stored.Key)
+			}
+		}
+	}
+	return nil
+}
+
+// CreateField declares the field on its type, or reports why the registry refuses it.
+func (r *Registry) CreateField(ctx context.Context, f Field) (Field, error) {
+	if err := f.Validate(); err != nil {
+		return Field{}, err
+	}
+	t, err := r.ByKey(ctx, f.TypeKey)
+	if err != nil {
+		return Field{}, err
+	}
+	if f.Kind == FieldKindRelation {
+		if _, err := r.ByKey(ctx, f.RelatesTo); err != nil {
+			return Field{}, ErrTargetUnknown
+		}
+	}
+	if _, err := fieldOf(t, f.Key); err == nil {
+		return Field{}, ErrFieldTaken
+	}
+	created, err := r.store.CreateField(ctx, f)
+	if err != nil {
+		return Field{}, err
+	}
+	r.invalidate()
+	return created, nil
+}
+
+// UpdateField carries the field's label and required flag, keeping its shape.
+func (r *Registry) UpdateField(ctx context.Context, f Field) (Field, error) {
+	t, err := r.ByKey(ctx, f.TypeKey)
+	if err != nil {
+		return Field{}, err
+	}
+	stored, err := fieldOf(t, f.Key)
+	if err != nil {
+		return Field{}, err
+	}
+	stored.Label, stored.Required = f.Label, f.Required
+	stored.UpdatedAt = time.Now().UTC()
+	if err := stored.Validate(); err != nil {
+		return Field{}, err
+	}
+	updated, err := r.store.UpdateField(ctx, stored)
+	if err != nil {
+		return Field{}, err
+	}
+	r.invalidate()
+	return updated, nil
+}
+
+// DeleteField removes the field and its values, or reports it missing.
+func (r *Registry) DeleteField(ctx context.Context, typeKey, key string) error {
+	t, err := r.ByKey(ctx, typeKey)
+	if err != nil {
+		return err
+	}
+	if _, err := fieldOf(t, key); err != nil {
+		return err
+	}
+	if err := r.store.DeleteField(ctx, typeKey, key); err != nil {
+		return err
+	}
+	r.invalidate()
+	return nil
+}
+
+// fieldOf returns the declared field carrying the key, or [ErrFieldNotFound].
+func fieldOf(t Type, key string) (Field, error) {
+	for _, f := range t.Fields {
+		if f.Key == key {
+			return f, nil
+		}
+	}
+	return Field{}, ErrFieldNotFound
 }
 
 // load fills the cache when it is cold, reading again when a write lands mid read.

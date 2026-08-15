@@ -6,6 +6,7 @@ import { useState } from 'react'
 
 import { fetchAutosave } from './api'
 import type { Autosave, PostDetail } from './api'
+import { sameFieldValues } from './fieldValues'
 
 const MESSAGE = 'The browser kept an unsaved version of this post.'
 
@@ -19,7 +20,8 @@ function holdsKeptWords(kept: Autosave, stored: PostDetail): boolean {
 	return (
 		kept.title === stored.title &&
 		kept.content === stored.content &&
-		kept.excerpt === stored.excerpt
+		kept.excerpt === stored.excerpt &&
+		sameFieldValues(kept.fields, stored.fields)
 	)
 }
 

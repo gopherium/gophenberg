@@ -17,6 +17,7 @@ var errStoreDown = errors.New("the registry is unreachable")
 // fakeTypeStore holds content types in memory and counts what it was asked to read.
 type fakeTypeStore struct {
 	types     []content.Type
+	fieldIDs  int
 	listCalls int
 	listErr   error
 	createErr error
@@ -358,17 +359,20 @@ func TestRegistryLetsTheDefaultLeaveTheRootWhileStayingDefault(t *testing.T) {
 	}
 }
 
-func TestRegistryRefusesAnArchivePageKind(t *testing.T) {
+func TestRegistryRegistersAnArchivePageKind(t *testing.T) {
 	t.Parallel()
 
 	registry := content.NewRegistry(newFakeTypeStore())
 	car := carType(t)
 	car.PageKind = content.PageKindArchive
 
-	_, err := registry.Create(t.Context(), car)
+	created, err := registry.Create(t.Context(), car)
 
-	if !errors.Is(err, content.ErrPageKindUnavailable) {
-		t.Errorf("Create() error = %v, want %v", err, content.ErrPageKindUnavailable)
+	if err != nil {
+		t.Fatalf("Create() error = %v, want the archive page kind registered", err)
+	}
+	if created.PageKind != content.PageKindArchive {
+		t.Errorf("Create() page kind = %q, want %q", created.PageKind, content.PageKindArchive)
 	}
 }
 

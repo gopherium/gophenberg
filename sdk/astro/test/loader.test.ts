@@ -19,7 +19,11 @@ const summary: PostSummary = {
 }
 
 /** The same post carrying its block markup. */
-const post: Post = { ...summary, content: '<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->' }
+const post: Post = {
+	...summary,
+	content: '<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->',
+	fields: {},
+}
 
 /** The default content type as the handshake advertises it. */
 const postType: ContentType = {
@@ -30,6 +34,7 @@ const postType: ContentType = {
 	hierarchical: false,
 	page_kind: 'single',
 	default: true,
+	fields: [],
 }
 
 /** A page holding one summary. */

@@ -15,18 +15,19 @@ import (
 
 // typeResponse is a content type as the admin API answers it.
 type typeResponse struct {
-	Key           string    `json:"key"`
-	SingularLabel string    `json:"singular_label"`
-	PluralLabel   string    `json:"plural_label"`
-	RouteWord     string    `json:"route_word"`
-	Hierarchical  bool      `json:"hierarchical"`
-	Revisions     bool      `json:"revisions"`
-	RevisionCap   int       `json:"revision_cap"`
-	PageKind      string    `json:"page_kind"`
-	Default       bool      `json:"default"`
-	Active        bool      `json:"active"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	Key           string          `json:"key"`
+	SingularLabel string          `json:"singular_label"`
+	PluralLabel   string          `json:"plural_label"`
+	RouteWord     string          `json:"route_word"`
+	Hierarchical  bool            `json:"hierarchical"`
+	Revisions     bool            `json:"revisions"`
+	RevisionCap   int             `json:"revision_cap"`
+	PageKind      string          `json:"page_kind"`
+	Default       bool            `json:"default"`
+	Active        bool            `json:"active"`
+	Fields        []fieldResponse `json:"fields"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
 }
 
 // typeListResponse is the registry as the admin API answers it.
@@ -60,9 +61,19 @@ func newTypeResponse(t content.Type) typeResponse {
 		PageKind:      string(t.PageKind),
 		Default:       t.Default,
 		Active:        t.Active,
+		Fields:        declaredFields(t),
 		CreatedAt:     t.CreatedAt.UTC(),
 		UpdatedAt:     t.UpdatedAt.UTC(),
 	}
+}
+
+// declaredFields returns the type's field definitions as the admin API answers them.
+func declaredFields(t content.Type) []fieldResponse {
+	fields := make([]fieldResponse, len(t.Fields))
+	for i, f := range t.Fields {
+		fields[i] = newFieldResponse(f)
+	}
+	return fields
 }
 
 // applyTo edits the type, reporting whether anything changed.

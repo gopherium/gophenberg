@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,31 @@ func (r *fakeReader) List(_ context.Context, f content.Filter) ([]content.Conten
 	return matched[start:min(start+f.PerPage, total)], total, nil
 }
 
+// RelatedTo returns the published items pointing at the target, newest first, and the total.
+func (r *fakeReader) RelatedTo(
+	_ context.Context, target uuid.UUID, page, perPage int,
+) ([]content.Content, int, error) {
+	if r.listErr != nil {
+		return nil, 0, r.listErr
+	}
+	matched := make([]content.Content, 0, len(r.posts))
+	for _, p := range r.posts {
+		if p.Status != content.StatusPublished {
+			continue
+		}
+		for _, targets := range p.Relations {
+			if slices.Contains(targets, target) {
+				p.Content = ""
+				matched = append(matched, p)
+				break
+			}
+		}
+	}
+	total := len(matched)
+	start := min((page-1)*perPage, total)
+	return matched[start:min(start+perPage, total)], total, nil
+}
+
 // PublishedByPath returns the stored published item answering at the address.
 func (r *fakeReader) PublishedByPath(_ context.Context, path string) (content.Content, error) {
 	if r.readErr != nil {
@@ -60,8 +86,29 @@ func (r *fakeReader) PublishedByPath(_ context.Context, path string) (content.Co
 	return content.Content{}, content.ErrNotFound
 }
 
-// fakeTypes answers which type answers under a route word.
+// fakeTypes answers which type answers under a route word and which carries a key.
 type fakeTypes struct{ err error }
+
+// ByKey returns the type carrying the key, or reports it missing.
+func (t fakeTypes) ByKey(_ context.Context, key string) (content.Type, error) {
+	if t.err != nil {
+		return content.Type{}, t.err
+	}
+	switch key {
+	case "category":
+		return content.Type{
+			Key: "category", PluralLabel: "Categories", RouteWord: "categories",
+			PageKind: content.PageKindArchive, Active: true,
+		}, nil
+	case content.TypePost:
+		return content.Type{Key: content.TypePost, PluralLabel: "Posts", Default: true, Active: true}, nil
+	case "page":
+		return content.Type{
+			Key: "page", PluralLabel: "Pages", RouteWord: "pages", Hierarchical: true, Active: true,
+		}, nil
+	}
+	return content.Type{}, content.ErrTypeNotFound
+}
 
 // ByRouteWord returns the post type at the root and the page type under its word.
 func (t fakeTypes) ByRouteWord(_ context.Context, word string) (content.Type, error) {
@@ -374,4 +421,57 @@ func TestSiteShowsTheDateAPostWasPublished(t *testing.T) {
 	if !strings.Contains(body, `datetime="2026-08-03"`) {
 		t.Errorf("body = %q, want a machine readable date", body)
 	}
+}
+
+func TestSiteRendersATermPageWithItsRelatedContent(t *testing.T) {
+	t.Parallel()
+
+	news := content.Content{
+		ID: uuid.Must(uuid.NewV7()), Type: "category", Status: content.StatusPublished,
+		Path: "categories/news", Slug: "news", Title: "News", Content: blockMarkup,
+	}
+	filed := content.Content{
+		ID: uuid.Must(uuid.NewV7()), Type: content.TypePost, Status: content.StatusPublished,
+		Path: "hello-world", Slug: "hello-world", Title: "Hello world",
+		Relations: content.Relations{"categories": {news.ID}},
+	}
+	reader := &fakeReader{posts: []content.Content{news, filed}}
+	handler := publicsite.New(publicsite.Config{
+		Content: reader, Types: fakeTypes{}, Title: "A Test Site", Version: "1.2.3",
+	})
+
+	recorder := get(t, handler, "/categories/news")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, "News") || !strings.Contains(body, "Body text.") {
+		t.Errorf("the term page does not carry the category itself: %s", body)
+	}
+	if !strings.Contains(body, "Hello world") {
+		t.Errorf("the term page does not list what points at it: %s", body)
+	}
+}
+
+// TargetsOf returns the published targets the item points at, keyed by field key.
+func (r *fakeReader) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
+	targets := make(content.Targets)
+	for _, held := range r.posts {
+		if held.ID != from {
+			continue
+		}
+		for key, listed := range held.Relations {
+			for _, id := range listed {
+				for _, pointed := range r.posts {
+					if pointed.ID == id && pointed.Status == content.StatusPublished {
+						targets[key] = append(targets[key], content.Target{
+							ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
+						})
+					}
+				}
+			}
+		}
+	}
+	return targets, nil
 }

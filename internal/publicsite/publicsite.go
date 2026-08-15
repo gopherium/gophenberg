@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/publichtml"
 	"github.com/gopherium/gophenberg/internal/version"
@@ -37,12 +39,14 @@ var (
 	indexTemplate    = template.Must(template.ParseFS(files, "templates/shell.html", "templates/index.html"))
 	postTemplate     = template.Must(template.ParseFS(files, "templates/shell.html", "templates/content.html"))
 	notFoundTemplate = template.Must(template.ParseFS(files, "templates/shell.html", "templates/notfound.html"))
+	termTemplate     = template.Must(template.ParseFS(files, "templates/shell.html", "templates/term.html"))
 )
 
 // Reader reads the published content the site serves.
 type Reader interface {
 	List(ctx context.Context, f content.Filter) ([]content.Content, int, error)
 	PublishedByPath(ctx context.Context, path string) (content.Content, error)
+	RelatedTo(ctx context.Context, target uuid.UUID, page, perPage int) ([]content.Content, int, error)
 }
 
 // Config carries what the site renders with.
@@ -95,6 +99,15 @@ type detailData struct {
 	Post detail
 }
 
+// termData is what a term page renders with, the item and what points at it.
+type termData struct {
+	Shell
+	Post  detail
+	Posts []summary
+	Older string
+	Newer string
+}
+
 // site serves published content as HTML pages.
 type site struct {
 	posts     Reader
@@ -128,11 +141,35 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		serveError(w)
 		return
 	}
-	if held.Kind == content.KindItem {
-		s.serveItem(w, held.Item)
+	if held.Kind == content.KindArchive {
+		s.serveList(w, r, held.Type, held.Page)
 		return
 	}
-	s.serveList(w, r, held.Type, held.Page)
+	if held.Kind == content.KindTerm {
+		s.serveTerm(w, r, held)
+		return
+	}
+	s.serveItem(w, held.Item)
+}
+
+// serveTerm renders a term page, the item itself above what points at it.
+func (s *site) serveTerm(w http.ResponseWriter, r *http.Request, held content.Address) {
+	rows, total, err := s.posts.RelatedTo(r.Context(), held.Item.ID, held.Page, postsPerPage)
+	if err != nil {
+		serveError(w)
+		return
+	}
+	summaries := make([]summary, len(rows))
+	for i, p := range rows {
+		summaries[i] = newSummary(p)
+	}
+	s.render(w, termTemplate, http.StatusOK, termData{
+		Shell: s.shell(held.Item.Title + " | " + s.title),
+		Post:  newDetail(held.Item),
+		Posts: summaries,
+		Older: olderLink(held.Item.Path, held.Page, total),
+		Newer: newerLink(held.Item.Path, held.Page),
+	})
 }
 
 // serveList renders one page of the published content of a type.

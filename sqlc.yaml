@@ -15,6 +15,14 @@ sql:
             go_type:
               import: "github.com/gopherium/gophenberg/internal/media"
               type: "RenditionMap"
+          - column: "core.content.fields"
+            go_type:
+              import: "github.com/gopherium/gophenberg/internal/content"
+              type: "Values"
+          - column: "core.content_revisions.fields"
+            go_type:
+              import: "github.com/gopherium/gophenberg/internal/content"
+              type: "Values"
           - db_type: "uuid"
             go_type:
               import: "github.com/google/uuid"
@@ -31,4 +39,9 @@ sql:
             nullable: true
             go_type:
               type: "time.Time"
+              pointer: true
+          - db_type: "text"
+            nullable: true
+            go_type:
+              type: "string"
               pointer: true

@@ -18,7 +18,9 @@ Guide and Guides. Gophenberg derives the rest: the plural becomes the
 route word, so Guides answer under `/guides`.
 
 The new type appears in the admin menu right away, with the same list
-screen and editor Posts have.
+screen and editor Posts have. Press **Fields** on a type to give its
+items typed fields of their own, covered in
+[fields](/guides/fields/).
 
 ## Addresses and the route word
 

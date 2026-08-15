@@ -4,6 +4,7 @@ package features_test
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -12,9 +13,10 @@ import (
 
 // memoryTypes holds one scenario's content type registry in memory.
 type memoryTypes struct {
-	mu      sync.Mutex
-	types   []content.Type
-	content *memoryContent
+	mu       sync.Mutex
+	types    []content.Type
+	fieldIDs int
+	content  *memoryContent
 }
 
 // newMemoryTypes returns a registry holding the built-in post type the migration registers.
@@ -106,6 +108,91 @@ func (s *memoryTypes) handRootOver() {
 	}
 }
 
+// CreateField stores a field on its type, mirroring the schema's identity column.
+func (s *memoryTypes) CreateField(_ context.Context, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, stored := range s.types {
+		if stored.Key != f.TypeKey {
+			continue
+		}
+		s.fieldIDs++
+		f.ID = s.fieldIDs
+		s.types[i].Fields = append(s.types[i].Fields, f)
+		return f, nil
+	}
+	return content.Field{}, content.ErrTypeNotFound
+}
+
+// UpdateField stores the edited field on its type, or reports it missing.
+func (s *memoryTypes) UpdateField(_ context.Context, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, stored := range s.types {
+		if stored.Key != f.TypeKey {
+			continue
+		}
+		for j, held := range stored.Fields {
+			if held.Key == f.Key {
+				f.ID = held.ID
+				s.types[i].Fields[j] = f
+				return f, nil
+			}
+		}
+	}
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// DeleteField removes the field from its type, or reports it missing.
+func (s *memoryTypes) DeleteField(_ context.Context, typeKey, key string) error {
+	if !s.dropField(typeKey, key) {
+		return content.ErrFieldNotFound
+	}
+	if s.content != nil {
+		s.content.clearField(typeKey, key)
+		s.content.clearRelation(typeKey, key)
+	}
+	return nil
+}
+
+// dropField removes the declaration, reporting whether the type held one.
+func (s *memoryTypes) dropField(typeKey, key string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, stored := range s.types {
+		if stored.Key != typeKey {
+			continue
+		}
+		for j, held := range stored.Fields {
+			if held.Key == key {
+				s.types[i].Fields = append(stored.Fields[:j], stored.Fields[j+1:]...)
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// targeted reports whether the field of the type may point at an item of the stored type.
+func (s *memoryTypes) targeted(typeKey, key, stored string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, held := range s.types {
+		if held.Key != typeKey {
+			continue
+		}
+		for _, f := range held.Fields {
+			if f.Key == key {
+				if f.RelatesTo != stored {
+					return fmt.Errorf("%w: %s holds %s", content.ErrTargetType, key, stored)
+				}
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
 // Delete removes the type, or reports it missing or still holding content.
 func (s *memoryTypes) Delete(ctx context.Context, key string) error {
 	if s.holdsContent(ctx, key) {
@@ -129,4 +216,16 @@ func (s *memoryTypes) holdsContent(ctx context.Context, key string) bool {
 	}
 	items, _, err := s.content.List(ctx, content.Filter{Type: key})
 	return err == nil && len(items) > 0
+}
+
+// serving reports whether the type is active enough to appear on a term page.
+func (s *memoryTypes) serving(key string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, stored := range s.types {
+		if stored.Key == key {
+			return stored.Active
+		}
+	}
+	return false
 }

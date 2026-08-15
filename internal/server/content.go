@@ -3,6 +3,9 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -32,13 +35,24 @@ type contentHandshake struct {
 
 // servedType is a content type as a public reader sees it.
 type servedType struct {
-	Key          string `json:"key"`
-	SingularName string `json:"singular_label"`
-	PluralName   string `json:"plural_label"`
-	RouteWord    string `json:"route_word"`
-	Hierarchical bool   `json:"hierarchical"`
-	PageKind     string `json:"page_kind"`
-	Default      bool   `json:"default"`
+	Key          string        `json:"key"`
+	SingularName string        `json:"singular_label"`
+	PluralName   string        `json:"plural_label"`
+	RouteWord    string        `json:"route_word"`
+	Hierarchical bool          `json:"hierarchical"`
+	PageKind     string        `json:"page_kind"`
+	Default      bool          `json:"default"`
+	Fields       []servedField `json:"fields"`
+}
+
+// servedField is a field definition as a public reader sees it.
+type servedField struct {
+	Key       string `json:"key"`
+	Label     string `json:"label"`
+	Kind      string `json:"kind"`
+	RelatesTo string `json:"relates_to,omitempty"`
+	Many      bool   `json:"many"`
+	Required  bool   `json:"required"`
 }
 
 // newServedType returns the public view of a content type.
@@ -51,7 +65,24 @@ func newServedType(t content.Type) servedType {
 		Hierarchical: t.Hierarchical,
 		PageKind:     string(t.PageKind),
 		Default:      t.Default,
+		Fields:       servedFields(t),
 	}
+}
+
+// servedFields returns the type's field definitions as a public reader sees them.
+func servedFields(t content.Type) []servedField {
+	fields := make([]servedField, len(t.Fields))
+	for i, f := range t.Fields {
+		fields[i] = servedField{
+			Key:       f.Key,
+			Label:     f.Label,
+			Kind:      string(f.Kind),
+			RelatesTo: f.RelatesTo,
+			Many:      f.Many,
+			Required:  f.Required,
+		}
+	}
+	return fields
 }
 
 // resolvedAddress is what a public address holds, as a reader sees it.
@@ -74,10 +105,11 @@ type publishedSummary struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// publishedDetail adds the sanitized block markup to a summary.
+// publishedDetail adds the sanitized block markup and the field values to a summary.
 type publishedDetail struct {
 	publishedSummary
-	Content string `json:"content"`
+	Content string         `json:"content"`
+	Fields  content.Values `json:"fields"`
 }
 
 // publishedPage is one page of published summaries with the total behind it.
@@ -182,34 +214,105 @@ func (s *server) handleContentResolve() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		if held.Kind == content.KindArchive {
+		switch held.Kind {
+		case content.KindArchive:
 			s.respondArchive(w, r, held)
-			return
+		case content.KindTerm:
+			s.respondTerm(w, r, held)
+		default:
+			s.respondResolvedItem(w, r, held)
 		}
-		s.respondResolvedItem(w, r, held)
 	}
 }
 
 // respondResolvedItem answers with the addressed item, or reports it unchanged.
 func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, held content.Address) {
-	listed, err := s.types.ByKey(r.Context(), held.Item.Type)
+	detail, err := s.publishedDetailOf(r, held.Item)
 	if err != nil {
 		respondDomainError(w, err)
 		return
 	}
-	etag := contentETag(held.Item)
+	answer := resolvedAddress{
+		Kind: string(content.KindItem),
+		Type: newServedType(held.Type),
+		Item: &detail,
+	}
+	etag, err := contentETag(answer)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
 	w.Header().Set("ETag", etag)
 	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
+	authkit.Respond(w, http.StatusOK, answer)
+}
+
+// relatedTarget is one item a relation field points at, as a public reader sees it.
+type relatedTarget struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Path  string `json:"path"`
+}
+
+// namedTargets returns the targets a public payload carries under one relation field.
+func namedTargets(held []content.Target) []relatedTarget {
+	named := make([]relatedTarget, len(held))
+	for i, target := range held {
+		named[i] = relatedTarget{ID: target.ID.String(), Title: target.Title, Path: target.Path}
+	}
+	return named
+}
+
+// publishedDetailOf returns the public view of an item with its targets named and addressed.
+func (s *server) publishedDetailOf(r *http.Request, c content.Content) (publishedDetail, error) {
+	targets, err := s.content.TargetsOf(r.Context(), c.ID)
+	if err != nil {
+		return publishedDetail{}, err
+	}
+	held := heldValues(c.Fields)
+	values := make(content.Values, len(held)+len(targets))
+	for key, value := range held {
+		values[key] = value
+	}
+	for key, listed := range targets {
+		values[key] = namedTargets(listed)
+	}
+	return publishedDetail{
+		publishedSummary: newPublishedSummary(c),
+		Content:          publichtml.Sanitize(c.Content),
+		Fields:           values,
+	}, nil
+}
+
+// respondTerm answers with the addressed item and the published content pointing at it.
+func (s *server) respondTerm(w http.ResponseWriter, r *http.Request, held content.Address) {
+	filter, err := parsePublishedFilter(r.URL.Query())
+	if err != nil {
+		authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
+		return
+	}
+	rows, total, err := s.content.RelatedTo(r.Context(), held.Item.ID, held.Page, filter.PerPage)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
+	items := make([]publishedSummary, len(rows))
+	for i, c := range rows {
+		items[i] = newPublishedSummary(c)
+	}
+	detail, err := s.publishedDetailOf(r, held.Item)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
 	authkit.Respond(w, http.StatusOK, resolvedAddress{
-		Kind: string(content.KindItem),
-		Type: newServedType(listed),
-		Item: &publishedDetail{
-			publishedSummary: newPublishedSummary(held.Item),
-			Content:          publichtml.Sanitize(held.Item.Content),
-		},
+		Kind: string(content.KindTerm),
+		Type: newServedType(held.Type),
+		Item: &detail,
+		Page: &publishedPage{Items: items, Total: total, Page: held.Page, PerPage: filter.PerPage},
 	})
 }
 
@@ -271,7 +374,12 @@ func (s *server) handlePublishedList() http.HandlerFunc {
 	}
 }
 
-// contentETag returns the validator standing for the item's current revision.
-func contentETag(c content.Content) string {
-	return `"` + strconv.FormatInt(c.UpdatedAt.UTC().UnixNano(), 36) + `"`
+// contentETag returns the validator standing for the answer a reader is served.
+func contentETag(answer resolvedAddress) (string, error) {
+	encoded, err := json.Marshal(answer)
+	if err != nil {
+		return "", fmt.Errorf("server: encode content etag: %w", err)
+	}
+	sum := sha256.Sum256(encoded)
+	return `"` + hex.EncodeToString(sum[:16]) + `"`, nil
 }

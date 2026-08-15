@@ -4,6 +4,7 @@ package features_test
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,13 +19,170 @@ import (
 // memoryContent holds one scenario's content in memory.
 type memoryContent struct {
 	content.Store
-	mu    sync.Mutex
-	items map[uuid.UUID]content.Content
+	mu        sync.Mutex
+	items     map[uuid.UUID]content.Content
+	revisions map[uuid.UUID][]content.Revision
+	autosaves map[autosaveKey]content.Revision
+	types     *memoryTypes
+}
+
+// autosaveKey names one author's parked buffer over one item.
+type autosaveKey struct {
+	contentID uuid.UUID
+	authorID  uuid.UUID
 }
 
 // newMemoryContent returns an empty in-memory content store.
 func newMemoryContent() *memoryContent {
-	return &memoryContent{items: make(map[uuid.UUID]content.Content)}
+	return &memoryContent{
+		items:     make(map[uuid.UUID]content.Content),
+		revisions: make(map[uuid.UUID][]content.Revision),
+		autosaves: make(map[autosaveKey]content.Revision),
+	}
+}
+
+// holdTargets reports whether every target exists and is the type its field points at.
+func (s *memoryContent) holdTargets(c content.Content) error {
+	for key, targets := range c.Relations {
+		for _, target := range targets {
+			held, found := s.items[target]
+			if !found {
+				return fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)
+			}
+			if s.types != nil {
+				if err := s.types.targeted(c.Type, key, held.Type); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// clearRelation drops the field's targets from every item of the type.
+func (s *memoryContent) clearRelation(typeKey, key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, stored := range s.items {
+		if stored.Type != typeKey {
+			continue
+		}
+		delete(stored.Relations, key)
+		s.items[id] = stored
+	}
+}
+
+// unfileTarget drops every pointer at the removed item.
+func (s *memoryContent) unfileTarget(gone uuid.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, stored := range s.items {
+		for key, targets := range stored.Relations {
+			kept := make([]uuid.UUID, 0, len(targets))
+			for _, target := range targets {
+				if target != gone {
+					kept = append(kept, target)
+				}
+			}
+			stored.Relations[key] = kept
+		}
+		s.items[id] = stored
+	}
+}
+
+// clearField sweeps the field's values from the type's items and their snapshots.
+func (s *memoryContent) clearField(typeKey, key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, stored := range s.items {
+		if stored.Type != typeKey {
+			continue
+		}
+		delete(stored.Fields, key)
+		s.items[id] = stored
+		for i := range s.revisions[id] {
+			delete(s.revisions[id][i].Fields, key)
+		}
+		for held, parked := range s.autosaves {
+			if held.contentID == id {
+				delete(parked.Fields, key)
+			}
+		}
+	}
+}
+
+// Revisions returns the item's revisions newest first, without their content.
+func (s *memoryContent) Revisions(_ context.Context, contentID uuid.UUID) ([]content.Revision, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	held := s.revisions[contentID]
+	listed := make([]content.Revision, len(held))
+	for i, stored := range held {
+		listed[len(held)-1-i] = stored
+		listed[len(held)-1-i].Content = ""
+	}
+	return listed, nil
+}
+
+// RevisionByID returns the item's revision, or [content.ErrRevisionNotFound].
+func (s *memoryContent) RevisionByID(
+	_ context.Context, contentID, revisionID uuid.UUID,
+) (content.Revision, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, stored := range s.revisions[contentID] {
+		if stored.ID == revisionID {
+			return stored, nil
+		}
+	}
+	return content.Revision{}, content.ErrRevisionNotFound
+}
+
+// SaveAutosave stores the author's autosave of the item, replacing any earlier one.
+func (s *memoryContent) SaveAutosave(_ context.Context, autosave content.Revision) (content.Revision, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, found := s.items[autosave.ContentID]; !found {
+		return content.Revision{}, content.ErrNotFound
+	}
+	s.autosaves[autosaveKey{autosave.ContentID, autosave.AuthorID}] = autosave
+	return autosave, nil
+}
+
+// Autosave returns the author's autosave of the item, or [content.ErrRevisionNotFound].
+func (s *memoryContent) Autosave(
+	_ context.Context, contentID, authorID uuid.UUID,
+) (content.Revision, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	parked, found := s.autosaves[autosaveKey{contentID, authorID}]
+	if !found {
+		return content.Revision{}, content.ErrRevisionNotFound
+	}
+	return parked, nil
+}
+
+// Delete removes the item outright, unfiling everything that pointed at it.
+func (s *memoryContent) Delete(_ context.Context, id uuid.UUID) error {
+	s.mu.Lock()
+	_, found := s.items[id]
+	if found {
+		delete(s.items, id)
+	}
+	s.mu.Unlock()
+	if !found {
+		return content.ErrNotFound
+	}
+	s.unfileTarget(id)
+	return nil
+}
+
+// DeleteAutosave removes the author's autosave of the item.
+func (s *memoryContent) DeleteAutosave(_ context.Context, contentID, authorID uuid.UUID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.autosaves, autosaveKey{contentID, authorID})
+	return nil
 }
 
 // Create stores a new content item, suffixing its slug until its address is free.
@@ -174,7 +332,7 @@ func paged(matched []content.Content, f content.Filter) []content.Content {
 
 // Update stores the item's editable fields, or reports it missing or stale.
 func (s *memoryContent) Update(
-	_ context.Context, c content.Content, expectedUpdatedAt time.Time, _ *content.Revision, _ int,
+	_ context.Context, c content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision, _ int,
 ) (content.Content, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -185,11 +343,17 @@ func (s *memoryContent) Update(
 	if !stored.UpdatedAt.Equal(expectedUpdatedAt) {
 		return content.Content{}, content.ErrConflict
 	}
+	if err := s.holdTargets(c); err != nil {
+		return content.Content{}, err
+	}
 	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
 		slug := numberedSlug(c.Slug, attempt)
 		if s.addressHeld(content.AddressUnder(prefix, slug), c.ID) {
 			continue
+		}
+		if snapshot != nil {
+			s.revisions[c.ID] = append(s.revisions[c.ID], *snapshot)
 		}
 		settled := c.Place(prefix, slug)
 		s.items[settled.ID] = settled
@@ -234,4 +398,75 @@ func (s *memoryContent) Counts(_ context.Context, contentType string) (map[conte
 		}
 	}
 	return counts, nil
+}
+
+// RelatedTo returns the published items of active types pointing at the target, newest first.
+func (s *memoryContent) RelatedTo(
+	_ context.Context, target uuid.UUID, page, perPage int,
+) ([]content.Content, int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	matched := make([]content.Content, 0, len(s.items))
+	for _, stored := range s.items {
+		if stored.Status != content.StatusPublished || !pointsAt(stored.Relations, target) {
+			continue
+		}
+		if s.types != nil && !s.types.serving(stored.Type) {
+			continue
+		}
+		matched = append(matched, stored)
+	}
+	slices.SortFunc(matched, func(a, b content.Content) int {
+		if held := sortedAt(b).Compare(sortedAt(a)); held != 0 {
+			return held
+		}
+		return strings.Compare(a.ID.String(), b.ID.String())
+	})
+	return paged(matched, content.Filter{Page: page, PerPage: perPage}), len(matched), nil
+}
+
+// pointsAt reports whether any of the item's fields names the target.
+func pointsAt(held content.Relations, target uuid.UUID) bool {
+	for _, targets := range held {
+		for _, listed := range targets {
+			if listed == target {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// sortedAt returns the stamp a term page orders an item by.
+func sortedAt(c content.Content) time.Time {
+	if c.PublishedAt != nil {
+		return *c.PublishedAt
+	}
+	return c.CreatedAt
+}
+
+// TargetsOf returns the published targets of active types the item points at.
+func (s *memoryContent) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	held, found := s.items[from]
+	if !found {
+		return nil, nil
+	}
+	targets := make(content.Targets)
+	for key, listed := range held.Relations {
+		for _, id := range listed {
+			pointed, stored := s.items[id]
+			if !stored || pointed.Status != content.StatusPublished {
+				continue
+			}
+			if s.types != nil && !s.types.serving(pointed.Type) {
+				continue
+			}
+			targets[key] = append(targets[key], content.Target{
+				ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
+			})
+		}
+	}
+	return targets, nil
 }

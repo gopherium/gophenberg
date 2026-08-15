@@ -42,6 +42,18 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	if err != nil {
 		return err
 	}
+	if err := seedDemoContent(ctx, pool, users); err != nil {
+		return err
+	}
+	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {
+		return err
+	}
+	reportSeeded(stdout, created)
+	return nil
+}
+
+// seedDemoContent registers the demo types and stores the content they hold.
+func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.UserStore) error {
 	types := content.NewRegistry(postgres.NewTypeStore(pool))
 	if err := seed.Types(ctx, types); err != nil {
 		return err
@@ -53,11 +65,7 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	if err := seed.Pages(ctx, store, types, users); err != nil {
 		return err
 	}
-	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {
-		return err
-	}
-	reportSeeded(stdout, created)
-	return nil
+	return seed.Categories(ctx, store, types, users)
 }
 
 // seedDemoMedia stores the demo pictures when a media directory is configured.

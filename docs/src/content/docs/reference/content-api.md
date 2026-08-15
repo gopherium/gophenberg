@@ -36,7 +36,17 @@ curl https://example.com/api/content/v1
       "route_word": "",
       "hierarchical": false,
       "page_kind": "single",
-      "default": true
+      "default": true,
+      "fields": [
+        {
+          "key": "categories",
+          "label": "Categories",
+          "kind": "relation",
+          "relates_to": "category",
+          "many": true,
+          "required": false
+        }
+      ]
     }
   ]
 }
@@ -46,6 +56,11 @@ One request tells you the site runs Gophenberg, which version, which
 API generation, and every content type it serves. The `route_word` is
 the first segment of that type's addresses, and the type carrying an
 empty one answers at the root of the site.
+
+Each type also lists the [fields](/guides/fields/) it declares, so a
+reader knows what an item's values mean before fetching any. A
+`page_kind` of `archive` marks a type whose items answer with a term
+page, covered below.
 
 ## Listing items
 
@@ -109,6 +124,15 @@ item itself, and a `kind` of `archive` carries a page of items.
     "title": "Hello world",
     "excerpt": "The first post.",
     "content": "<!-- wp:paragraph --><p>The first post.</p><!-- /wp:paragraph -->",
+    "fields": {
+      "categories": [
+        {
+          "id": "0198f2c1-0000-7000-8000-0000000000c1",
+          "title": "News",
+          "path": "categories/news"
+        }
+      ]
+    },
     "published_at": "2026-08-01T10:00:00Z",
     "updated_at": "2026-08-02T09:30:00Z"
   }
@@ -118,6 +142,13 @@ item itself, and a `kind` of `archive` carries a page of items.
 An item's `content` is its block markup as HTML, sanitized for public
 delivery, with the block comment markers intact so a parser can
 identify each block.
+
+The `fields` object carries the item's values, keyed by field key.
+A scalar field holds its value as it was typed. A relation field
+holds a list of the items it points at, each named and addressed so
+a theme can link to it without another request. Only published
+targets of active types appear, so a draft category never leaks
+through a published post.
 
 Archive addresses answer with a page instead. The root of a type is
 its `route_word`, the front page is the default type, and both
@@ -141,7 +172,35 @@ archive page. Nothing published at an address answers
 `404 {"error":"content: not found"}`, and so does a page number below
 one.
 
+## Term pages
+
+An item of a type whose `page_kind` is `archive` answers with a third
+kind, `term`. The answer carries the item and a page together: the
+item is the term itself, a category for example, and the page lists
+the published content pointing at it, newest first.
+
+```sh
+curl "https://example.com/api/content/v1/resolve?path=/categories/news"
+```
+
+```json
+{
+  "kind": "term",
+  "type": { "key": "category", "route_word": "categories", "page_kind": "archive" },
+  "item": { "title": "News", "path": "categories/news" },
+  "page": { "items": [], "total": 0, "page": 1, "per_page": 20 }
+}
+```
+
+An item filed under the term through two different fields is listed
+once. Term pages paginate behind `/page/{n}` like archives, and a
+page suffix on an ordinary single item stays `404`.
+
 Item answers carry an `ETag`. Send it back as `If-None-Match` and an
-unchanged item answers `304` with no body, worth doing if you poll.
+unchanged answer comes back as `304` with no body, worth doing if you
+poll. The tag covers the whole answer, so it also moves when the type
+or its fields change.
 Cross-origin browser scripts cannot read the `ETag` header, so this is
-for servers and command lines.
+for servers and command lines. Term answers carry no `ETag`, because
+a term page changes when other items publish, which the term's own
+timestamp cannot witness.

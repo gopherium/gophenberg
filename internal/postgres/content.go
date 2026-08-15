@@ -126,7 +126,20 @@ func byID(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Conte
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: get content: %w", err)
 	}
-	return toContent(row), nil
+	held := toContent(row)
+	held.Relations, err = readRelations(ctx, queries, id)
+	if err != nil {
+		return content.Content{}, err
+	}
+	return held, nil
+}
+
+// storedValues returns the values a write holds, never nil so the column stays an object.
+func storedValues(v content.Values) content.Values {
+	if v == nil {
+		return content.Values{}
+	}
+	return v
 }
 
 // toContent maps a stored row to a domain content item with UTC timestamps.
@@ -142,6 +155,7 @@ func toContent(row db.CoreContent) content.Content {
 		Content:     row.Content,
 		Excerpt:     row.Excerpt,
 		AuthorID:    row.AuthorID,
+		Fields:      row.Fields,
 		PublishedAt: utcOrNil(row.PublishedAt),
 		CreatedAt:   row.CreatedAt.UTC(),
 		UpdatedAt:   row.UpdatedAt.UTC(),
@@ -240,6 +254,9 @@ func (s *ContentStore) update(
 		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
 			return err
 		}
+		if err := valuesDeclared(ctx, queries, c); err != nil {
+			return err
+		}
 		row, err := writeContent(ctx, queries, db.UpdateContentParams{
 			ID:                c.ID,
 			ParentID:          c.ParentID,
@@ -249,6 +266,7 @@ func (s *ContentStore) update(
 			Title:             c.Title,
 			Content:           c.Content,
 			Excerpt:           c.Excerpt,
+			Fields:            storedValues(c.Fields),
 			PublishedAt:       c.PublishedAt,
 			UpdatedAt:         c.UpdatedAt,
 			ExpectedUpdatedAt: expectedUpdatedAt,
@@ -257,6 +275,13 @@ func (s *ContentStore) update(
 			return err
 		}
 		updated = toContent(row)
+		if err := writeRelations(ctx, queries, c); err != nil {
+			return err
+		}
+		updated.Relations, err = readRelations(ctx, queries, c.ID)
+		if err != nil {
+			return err
+		}
 		if err := queries.MoveDescendants(ctx, db.MoveDescendantsParams{
 			ID:        c.ID,
 			Path:      path,
@@ -287,10 +312,40 @@ func writeContent(ctx context.Context, queries *db.Queries, p db.UpdateContentPa
 	return db.CoreContent{}, content.ErrConflict
 }
 
+// valuesDeclared refuses a value whose field the type no longer declares.
+func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content) error {
+	if len(c.Fields) == 0 {
+		return nil
+	}
+	keys, err := queries.LockFieldKeysOfType(ctx, c.Type)
+	if err != nil {
+		return err
+	}
+	declared := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		declared[key] = true
+	}
+	for key := range c.Fields {
+		if !declared[key] {
+			return fmt.Errorf("%w: %s", content.ErrUnknownField, key)
+		}
+	}
+	return nil
+}
+
 // updateFailure returns the refusal the update carries, and wraps anything else.
 func updateFailure(err error) error {
 	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) || isSlugTaken(err) {
 		return err
+	}
+	if errors.Is(err, content.ErrUnknownField) {
+		return err
+	}
+	if errors.Is(err, content.ErrTargetNotFound) || errors.Is(err, content.ErrTargetType) {
+		return err
+	}
+	if isTargetGone(err) {
+		return content.ErrTargetNotFound
 	}
 	return fmt.Errorf("postgres: update content: %w", err)
 }
@@ -321,7 +376,11 @@ func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.T
 			return err
 		}
 		trashed = toContent(row)
-		return nil
+		if err := queries.RefreshRelationVisibility(ctx, id); err != nil {
+			return err
+		}
+		trashed.Relations, err = readRelations(ctx, queries, id)
+		return err
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -362,19 +421,45 @@ func leavable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
 // Restore returns a trashed content item to draft. It recovers the original
 // slug, or leaves the trashed one in place when the original is taken.
 func (s *ContentStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
-	row, err := s.queries.RestoreContent(ctx, db.RestoreContentParams{ID: id, UpdatedAt: updatedAt})
-	if isSlugTaken(err) {
-		row, err = s.queries.RestoreContentKeepingSlug(
-			ctx, db.RestoreContentKeepingSlugParams{ID: id, UpdatedAt: updatedAt},
-		)
-	}
+	var restored content.Content
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		row, err := restoredRow(ctx, queries, tx, id, updatedAt)
+		if err != nil {
+			return err
+		}
+		restored = toContent(row)
+		if err := queries.RefreshRelationVisibility(ctx, id); err != nil {
+			return err
+		}
+		restored.Relations, err = readRelations(ctx, queries, id)
+		return err
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return content.Content{}, content.ErrNotFound
 	}
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: restore content: %w", err)
 	}
-	return toContent(row), nil
+	return restored, nil
+}
+
+// restoredRow returns the item to draft under its original slug, or under the trashed one when that is taken.
+func restoredRow(
+	ctx context.Context, queries *db.Queries, tx pgx.Tx, id uuid.UUID, updatedAt time.Time,
+) (db.CoreContent, error) {
+	var row db.CoreContent
+	err := pgx.BeginFunc(ctx, tx, func(attempt pgx.Tx) error {
+		var taken error
+		row, taken = queries.WithTx(attempt).RestoreContent(
+			ctx, db.RestoreContentParams{ID: id, UpdatedAt: updatedAt},
+		)
+		return taken
+	})
+	if !isSlugTaken(err) {
+		return row, err
+	}
+	return queries.RestoreContentKeepingSlug(ctx, db.RestoreContentKeepingSlugParams{ID: id, UpdatedAt: updatedAt})
 }
 
 // Counts returns the number of items of the type in each status.

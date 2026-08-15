@@ -21,20 +21,22 @@ const (
 )
 
 type autosaveResponse struct {
-	Target    string    `json:"target"`
-	ContentID uuid.UUID `json:"content_id"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
-	Excerpt   string    `json:"excerpt"`
-	SavedAt   time.Time `json:"saved_at"`
+	Target    string         `json:"target"`
+	ContentID uuid.UUID      `json:"content_id"`
+	Title     string         `json:"title"`
+	Content   string         `json:"content"`
+	Excerpt   string         `json:"excerpt"`
+	Fields    content.Values `json:"fields"`
+	SavedAt   time.Time      `json:"saved_at"`
 }
 
 // autosaveRequest carries the version the buffer was prepared against and the words it holds.
 type autosaveRequest struct {
-	UpdatedAt *time.Time `json:"updated_at"`
-	Title     string     `json:"title"`
-	Content   string     `json:"content"`
-	Excerpt   string     `json:"excerpt"`
+	UpdatedAt *time.Time     `json:"updated_at"`
+	Title     string         `json:"title"`
+	Content   string         `json:"content"`
+	Excerpt   string         `json:"excerpt"`
+	Fields    content.Values `json:"fields"`
 }
 
 // decodeAutosaveRequest reads an autosave request, reporting whether it may be used.
@@ -53,7 +55,16 @@ func decodeAutosaveRequest(w http.ResponseWriter, r *http.Request) (autosaveRequ
 
 // holdsBuffer reports whether the item already holds the words the buffer carries.
 func holdsBuffer(c content.Content, req autosaveRequest) bool {
-	return c.Title == req.Title && c.Content == req.Content && c.Excerpt == req.Excerpt
+	return c.Title == req.Title && c.Content == req.Content && c.Excerpt == req.Excerpt &&
+		sameValues(c.Fields, bufferValues(c, req))
+}
+
+// bufferValues returns the values the buffer holds, keeping the stored ones when it names none.
+func bufferValues(c content.Content, req autosaveRequest) content.Values {
+	if req.Fields == nil {
+		return c.Fields
+	}
+	return req.Fields
 }
 
 // writesInPlace reports whether the buffer may be written straight to the item.
@@ -78,6 +89,12 @@ func (s *server) handleAutosaveSave() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
+		scalars, err := s.bufferedValues(r, stored, req)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		req.Fields = scalars
 		s.storeBuffer(w, r, stored, req, authkit.IdentityFromContext(r.Context()).ID)
 	}
 }
@@ -92,11 +109,12 @@ func (s *server) storeBuffer(
 			return
 		}
 		authkit.Respond(w, http.StatusOK, newAutosaveResponse(autosaveTargetAutosave, stored.ID,
-			req.Title, req.Content, req.Excerpt, stored.UpdatedAt))
+			req.Title, req.Content, req.Excerpt, bufferValues(stored, req), stored.UpdatedAt))
 		return
 	}
 	buffer := stored
 	buffer.Title, buffer.Content, buffer.Excerpt = req.Title, req.Content, req.Excerpt
+	buffer.Fields = bufferValues(stored, req)
 	if writesInPlace(stored, authorID, *req.UpdatedAt) {
 		s.saveBufferToContent(w, r, buffer, stored.UpdatedAt)
 		return
@@ -113,7 +131,7 @@ func (s *server) clearParkedBuffer(
 		return
 	}
 	authkit.Respond(w, http.StatusOK, newAutosaveResponse(autosaveTargetPost, c.ID,
-		c.Title, c.Content, c.Excerpt, c.UpdatedAt))
+		c.Title, c.Content, c.Excerpt, c.Fields, c.UpdatedAt))
 }
 
 // saveBufferToContent writes the buffer to the item itself.
@@ -127,7 +145,7 @@ func (s *server) saveBufferToContent(
 		return
 	}
 	authkit.Respond(w, http.StatusOK, newAutosaveResponse(autosaveTargetPost, updated.ID,
-		updated.Title, updated.Content, updated.Excerpt, updated.UpdatedAt))
+		updated.Title, updated.Content, updated.Excerpt, updated.Fields, updated.UpdatedAt))
 }
 
 // parkBufferAsAutosave stores the buffer as the author's autosave.
@@ -145,7 +163,7 @@ func (s *server) parkBufferAsAutosave(
 		return
 	}
 	authkit.Respond(w, http.StatusOK, newAutosaveResponse(autosaveTargetAutosave, saved.ContentID,
-		saved.Title, saved.Content, saved.Excerpt, saved.CreatedAt))
+		saved.Title, saved.Content, saved.Excerpt, saved.Fields, saved.CreatedAt))
 }
 
 // handleAutosaveGet returns an http.HandlerFunc responding with the requester's autosave.
@@ -167,13 +185,14 @@ func (s *server) handleAutosaveGet() http.HandlerFunc {
 			return
 		}
 		authkit.Respond(w, http.StatusOK, newAutosaveResponse(autosaveTargetAutosave, autosave.ContentID,
-			autosave.Title, autosave.Content, autosave.Excerpt, autosave.CreatedAt))
+			autosave.Title, autosave.Content, autosave.Excerpt, autosave.Fields, autosave.CreatedAt))
 	}
 }
 
 // newAutosaveResponse builds an autosaveResponse, normalizing the timestamp to UTC.
 func newAutosaveResponse(
-	target string, contentID uuid.UUID, title, body, excerpt string, savedAt time.Time,
+	target string, contentID uuid.UUID, title, body, excerpt string,
+	fields content.Values, savedAt time.Time,
 ) autosaveResponse {
 	return autosaveResponse{
 		Target:    target,
@@ -181,6 +200,23 @@ func newAutosaveResponse(
 		Title:     title,
 		Content:   body,
 		Excerpt:   excerpt,
+		Fields:    heldValues(fields),
 		SavedAt:   savedAt.UTC(),
 	}
+}
+
+// bufferedValues returns the scalar values the buffer holds, leaving its targets to a save.
+func (s *server) bufferedValues(r *http.Request, c content.Content, req autosaveRequest) (content.Values, error) {
+	if req.Fields == nil {
+		return nil, nil
+	}
+	t, err := s.types.Active(r.Context(), c.Type)
+	if err != nil {
+		return nil, err
+	}
+	scalars, _, err := content.SplitValues(req.Fields, t.Fields)
+	if err != nil {
+		return nil, err
+	}
+	return scalars, scalars.Validate(t.Fields)
 }

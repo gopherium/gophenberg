@@ -4,6 +4,10 @@ import { z } from 'zod'
 
 const POSTS_PER_PAGE = 20
 
+const MAX_POSTS_PER_PAGE = 100
+
+const MAX_LISTING_PAGES = 100
+
 const MAX_EMPTY_ROUNDS = 50
 
 const postSchema = z.object({
@@ -21,7 +25,10 @@ const postSchema = z.object({
 	updated_at: z.string().optional(),
 })
 
-const detailSchema = postSchema.extend({ content: z.string() })
+const detailSchema = postSchema.extend({
+	content: z.string(),
+	fields: z.record(z.string(), z.unknown()).optional(),
+})
 
 const pageSchema = z.object({ items: z.array(postSchema), total: z.number() })
 
@@ -54,6 +61,7 @@ export interface PostQuery {
 	status?: string
 	search?: string
 	page?: number
+	perPage?: number
 	orderBy?: string
 	order?: string
 }
@@ -101,6 +109,7 @@ export async function createPost(type = 'post'): Promise<Post> {
 
 export interface PostDetail extends Post {
 	content: string
+	fields: Record<string, unknown>
 }
 
 export interface PostChanges {
@@ -110,6 +119,7 @@ export interface PostChanges {
 	slug?: string
 	status?: string
 	parent_id?: string | null
+	fields?: Record<string, unknown>
 }
 
 export type SaveOutcome =
@@ -123,7 +133,7 @@ export type SaveOutcome =
  * @returns The post with its content.
  */
 function toDetail(row: z.infer<typeof detailSchema>): PostDetail {
-	return { ...toPost(row), content: row.content }
+	return { ...toPost(row), content: row.content, fields: row.fields ?? {} }
 }
 
 /**
@@ -179,6 +189,7 @@ export interface AutosaveBuffer {
 	title: string
 	content: string
 	excerpt: string
+	fields: Record<string, unknown>
 }
 
 export interface Autosave extends AutosaveBuffer {
@@ -195,6 +206,7 @@ const autosaveSchema = z.object({
 	title: z.string(),
 	content: z.string(),
 	excerpt: z.string(),
+	fields: z.record(z.string(), z.unknown()).optional(),
 	saved_at: z.string(),
 })
 
@@ -209,7 +221,13 @@ export async function fetchAutosave(id: string): Promise<Autosave | null> {
 		return null
 	}
 	const row = autosaveSchema.parse(await response.json())
-	return { title: row.title, content: row.content, excerpt: row.excerpt, savedAt: row.saved_at }
+	return {
+		title: row.title,
+		content: row.content,
+		excerpt: row.excerpt,
+		fields: row.fields ?? {},
+		savedAt: row.saved_at,
+	}
 }
 
 /**
@@ -282,7 +300,7 @@ export async function deletePost(id: string): Promise<void> {
  * @returns The page and the total number of matches.
  */
 export async function listPosts(query: PostQuery): Promise<PostPage> {
-	const params = new URLSearchParams({ per_page: String(POSTS_PER_PAGE) })
+	const params = new URLSearchParams({ per_page: String(query.perPage ?? POSTS_PER_PAGE) })
 	if (query.type) {
 		params.set('type', query.type)
 	}
@@ -307,6 +325,23 @@ export async function listPosts(query: PostQuery): Promise<PostPage> {
 	}
 	const page = pageSchema.parse(await response.json())
 	return { items: page.items.map(toPost), total: page.total }
+}
+
+/**
+ * Returns the posts the query names, asking page after page up to the reading ceiling.
+ * @param query - The listing to read, without paging.
+ * @returns The posts the listing holds, up to the pages the ceiling allows.
+ */
+export async function listEveryPost(query: PostQuery): Promise<Post[]> {
+	const held: Post[] = []
+	for (let page = 1; page <= MAX_LISTING_PAGES; page += 1) {
+		const read = await listPosts({ ...query, page, perPage: MAX_POSTS_PER_PAGE })
+		held.push(...read.items)
+		if (held.length >= read.total || read.items.length === 0) {
+			return held
+		}
+	}
+	return held
 }
 
 /**

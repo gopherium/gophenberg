@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
-import { fetchPostCounts, listPosts } from '../content/api'
+import { fetchPostCounts, listEveryPost, listPosts } from '../content/api'
 
 const ROW = {
 	id: '019fb000-0000-7000-8000-000000000001',
@@ -99,6 +99,50 @@ test('lists the type it was asked for', async () => {
 	await listPosts({ type: 'page' })
 
 	expect(new URLSearchParams(queries[0]).get('type')).toBe('page')
+})
+
+test('reads every post of a type, not just the first page', async () => {
+	const total = 130
+	const queries: string[] = []
+	server.use(
+		http.get('/api/content', ({ request }) => {
+			const params = new URL(request.url).searchParams
+			queries.push(params.toString())
+			const page = Number(params.get('page') ?? '1')
+			const perPage = Number(params.get('per_page'))
+			const held = Math.max(0, Math.min(perPage, total - (page - 1) * perPage))
+			return HttpResponse.json({
+				items: Array.from({ length: held }, (_, i) => ({
+					...ROW,
+					id: `019fb000-0000-7000-8000-${String((page - 1) * perPage + i).padStart(12, '0')}`,
+				})),
+				total,
+			})
+		}),
+	)
+
+	const held = await listEveryPost({ type: 'category' })
+
+	expect(held).toHaveLength(total)
+	expect(new Set(held.map((post) => post.id)).size).toBe(total)
+	expect(queries).toHaveLength(2)
+	expect(new URLSearchParams(queries[0]).get('per_page')).toBe('100')
+})
+
+test('stops reading pages when the listing reports nothing', async () => {
+	server.use(http.get('/api/content', () => HttpResponse.json({ items: [], total: 500 })))
+
+	await expect(listEveryPost({ type: 'category' })).resolves.toEqual([])
+})
+
+test('stops at the reading ceiling when a listing never reaches its total', async () => {
+	server.use(
+		http.get('/api/content', () => HttpResponse.json({ items: [ROW], total: Number.MAX_SAFE_INTEGER })),
+	)
+
+	const held = await listEveryPost({ type: 'category' })
+
+	expect(held).toHaveLength(100)
 })
 
 test('counts the type it was asked for', async () => {

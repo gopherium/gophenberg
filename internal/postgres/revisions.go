@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -63,6 +62,7 @@ func (s *ContentStore) RevisionByID(ctx context.Context, contentID, revisionID u
 		Title:     row.Title,
 		Content:   row.Content,
 		Excerpt:   row.Excerpt,
+		Fields:    row.Fields,
 		CreatedAt: row.CreatedAt.UTC(),
 	}, nil
 }
@@ -88,6 +88,7 @@ func (s *ContentStore) SaveAutosave(ctx context.Context, autosave content.Revisi
 		Title:     autosave.Title,
 		Content:   autosave.Content,
 		Excerpt:   autosave.Excerpt,
+		Fields:    storedValues(autosave.Fields),
 		CreatedAt: autosave.CreatedAt,
 	})
 	if isContentGone(err) {
@@ -96,9 +97,17 @@ func (s *ContentStore) SaveAutosave(ctx context.Context, autosave content.Revisi
 	if err != nil {
 		return content.Revision{}, fmt.Errorf("postgres: save autosave: %w", err)
 	}
-	return toRevision(
-		row.ID, row.ContentID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt,
-	), nil
+	return content.Revision{
+		ID:        row.ID,
+		ContentID: row.ContentID,
+		Kind:      content.RevisionKind(row.Kind),
+		AuthorID:  row.AuthorID,
+		Title:     row.Title,
+		Content:   row.Content,
+		Excerpt:   row.Excerpt,
+		Fields:    row.Fields,
+		CreatedAt: row.CreatedAt.UTC(),
+	}, nil
 }
 
 // Autosave returns the author's autosave of the item, or [content.ErrRevisionNotFound].
@@ -110,9 +119,17 @@ func (s *ContentStore) Autosave(ctx context.Context, contentID, authorID uuid.UU
 	if err != nil {
 		return content.Revision{}, fmt.Errorf("postgres: get autosave: %w", err)
 	}
-	return toRevision(
-		row.ID, row.ContentID, row.Kind, row.AuthorID, row.Title, row.Content, row.Excerpt, row.CreatedAt,
-	), nil
+	return content.Revision{
+		ID:        row.ID,
+		ContentID: row.ContentID,
+		Kind:      content.RevisionKind(row.Kind),
+		AuthorID:  row.AuthorID,
+		Title:     row.Title,
+		Content:   row.Content,
+		Excerpt:   row.Excerpt,
+		Fields:    row.Fields,
+		CreatedAt: row.CreatedAt.UTC(),
+	}, nil
 }
 
 // DeleteAutosave removes the author's autosave of the item.
@@ -122,22 +139,6 @@ func (s *ContentStore) DeleteAutosave(ctx context.Context, contentID, authorID u
 		return fmt.Errorf("postgres: delete autosave: %w", err)
 	}
 	return nil
-}
-
-// toRevision builds a revision from its stored columns.
-func toRevision(
-	id, contentID uuid.UUID, kind string, authorID uuid.UUID, title, body, excerpt string, createdAt time.Time,
-) content.Revision {
-	return content.Revision{
-		ID:        id,
-		ContentID: contentID,
-		Kind:      content.RevisionKind(kind),
-		AuthorID:  authorID,
-		Title:     title,
-		Content:   body,
-		Excerpt:   excerpt,
-		CreatedAt: createdAt.UTC(),
-	}
 }
 
 // snapshotRevision stores the snapshot and prunes revisions beyond the cap, sparing autosaves.
@@ -150,6 +151,7 @@ func snapshotRevision(ctx context.Context, queries *db.Queries, snapshot content
 		Title:     snapshot.Title,
 		Content:   snapshot.Content,
 		Excerpt:   snapshot.Excerpt,
+		Fields:    storedValues(snapshot.Fields),
 		CreatedAt: snapshot.CreatedAt,
 	})
 	if err != nil {

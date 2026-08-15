@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { FieldsDialog } from './FieldsDialog'
 import { typesQueryKey } from './nav'
 import { createType, deleteType, listTypes, updateType } from './types'
 import type { ContentType, TypeEdit } from './types'
@@ -128,6 +129,7 @@ function TypesBody(props: Reporter & { types: ContentType[]; loading: boolean; f
 							key={registered.key}
 							registered={registered}
 							holder={props.types.find((listed) => listed.isDefault)}
+							types={props.types}
 							onDone={props.onDone}
 							onRefused={props.onRefused}
 						/>
@@ -143,7 +145,9 @@ function TypesBody(props: Reporter & { types: ContentType[]; loading: boolean; f
  * @param props - The type and the reporter.
  * @returns The row element.
  */
-function TypeRow(props: Reporter & { registered: ContentType; holder?: ContentType }): ReactNode {
+function TypeRow(
+	props: Reporter & { registered: ContentType; holder?: ContentType; types: ContentType[] },
+): ReactNode {
 	const { registered } = props
 	const edit = useMutation({
 		mutationFn: (asked: TypeEdit) => updateType(registered.key, asked),
@@ -174,6 +178,12 @@ function TypeRow(props: Reporter & { registered: ContentType; holder?: ContentTy
 			<td>
 				<Stack direction="row" gap="xs">
 					<ChangeAddress registered={registered} onMove={(word) => edit.mutate({ routeWord: word })} />
+					<FieldsDialog
+						registered={registered}
+						types={props.types}
+						onDone={props.onDone}
+						onRefused={props.onRefused}
+					/>
 					{!registered.isDefault && (
 						<HandOverRoot
 							registered={registered}

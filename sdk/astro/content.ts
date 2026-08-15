@@ -12,9 +12,27 @@ export interface PostSummary {
 	updated_at: string
 }
 
-/** A published post carrying the block markup the editor saved. */
+/** A published post carrying the block markup the editor saved and the values it holds. */
 export interface Post extends PostSummary {
 	content: string
+	fields: Record<string, unknown>
+}
+
+/** One item a relation field points at, as a reader sees it. */
+export interface RelatedItem {
+	id: string
+	title: string
+	path: string
+}
+
+/** One typed field a content type declares. */
+export interface ContentTypeField {
+	key: string
+	label: string
+	kind: string
+	relates_to?: string
+	many: boolean
+	required: boolean
 }
 
 /** A content type as the handshake advertises it. */
@@ -26,6 +44,7 @@ export interface ContentType {
 	hierarchical: boolean
 	page_kind: string
 	default: boolean
+	fields: ContentTypeField[]
 }
 
 /** The shape an instance speaks and the types it serves. */
@@ -37,7 +56,7 @@ export interface Handshake {
 
 /** What a public address holds. */
 export interface Resolved {
-	kind: 'item' | 'archive'
+	kind: 'item' | 'archive' | 'term'
 	type: ContentType
 	item?: Post
 	page?: Page<PostSummary>
