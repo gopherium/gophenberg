@@ -313,5 +313,5 @@ test('adds nothing when the placeholder is chosen', async () => {
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
 	await waitFor(() => expect(sent).toHaveLength(1))
-	expect(sent[0]).toMatchObject({ fields: { categories: [NEWS.id] } })
+	expect(sent[0].fields).toEqual({})
 })

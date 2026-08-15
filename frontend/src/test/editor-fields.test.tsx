@@ -88,11 +88,11 @@ test('sends the edited values when the post is saved', async () => {
 	expect(sent[0]).toMatchObject({ fields: { color: 'blue' } })
 })
 
-test('keeps the stored values when only the title moved', async () => {
-	const sent: unknown[] = []
+test('sends no field values when only the title moved', async () => {
+	const sent: Record<string, unknown>[] = []
 	server.use(
 		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
-			sent.push(await request.json())
+			sent.push((await request.json()) as Record<string, unknown>)
 			return HttpResponse.json({ ...storedPost, fields: { color: 'red' } })
 		}),
 	)
@@ -103,7 +103,30 @@ test('keeps the stored values when only the title moved', async () => {
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
 	await waitFor(() => expect(sent).toHaveLength(1))
-	expect(sent[0]).toMatchObject({ fields: { color: 'red' } })
+	expect(sent[0].fields).toEqual({})
+})
+
+test('sends no value for a field the type stopped declaring', async () => {
+	const sent: Record<string, unknown>[] = []
+	server.use(
+		http.get('/api/types', () =>
+			HttpResponse.json({ items: [{ ...TYPE_WITH_FIELDS, fields: [] }] }),
+		),
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { color: 'red' } }),
+		),
+		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
+			sent.push((await request.json()) as Record<string, unknown>)
+			return HttpResponse.json({ ...storedPost, fields: { color: 'red' } })
+		}),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), ' again')
+	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0].fields).toEqual({})
 })
 
 test('clears a number field when its control is emptied', async () => {

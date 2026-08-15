@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react'
 
 import { savePost } from './api'
 import type { PostChanges, PostDetail, SaveOutcome } from './api'
-import { sameFieldValues } from './fieldValues'
+import { changedFieldValues, sameFieldValues } from './fieldValues'
 
 export interface EditorBuffer {
 	title: string
@@ -148,7 +148,16 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 		onChange: (next: Block[]) => history.setValue(next, false),
 		undo: history.undo,
 		redo: history.redo,
-		save: () => write.mutate({ title, content, slug, excerpt, status, parent_id: parentId, fields }),
+		save: () =>
+			write.mutate({
+				title,
+				content,
+				slug,
+				excerpt,
+				status,
+				parent_id: parentId,
+				fields: changedFieldValues(fields, saved.fields),
+			}),
 		publish: () =>
 			write.mutate({
 				title,
@@ -157,7 +166,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 				excerpt,
 				status: 'published',
 				parent_id: parentId,
-				fields,
+				fields: changedFieldValues(fields, saved.fields),
 			}),
 		adoptVersion: setVersion,
 	}

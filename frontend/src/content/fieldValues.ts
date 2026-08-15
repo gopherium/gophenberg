@@ -18,6 +18,18 @@ export function sameFieldValues(held: FieldValues, other: FieldValues): boolean 
 }
 
 /**
+ * Returns the field values that moved away from the ones the server last reported.
+ * @param held - The values the buffer holds.
+ * @param settled - The values the server last reported.
+ * @returns Only the keys whose value changed.
+ */
+export function changedFieldValues(held: FieldValues, settled: FieldValues): FieldValues {
+	return Object.fromEntries(
+		Object.entries(held).filter(([key, value]) => !sameValue(value, settled[key])),
+	)
+}
+
+/**
  * Reports whether two field values stand for the same thing.
  * @param held - The value one side holds.
  * @param other - The value the other side holds.

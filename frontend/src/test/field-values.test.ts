@@ -2,7 +2,7 @@
 
 import { expect, test } from 'vitest'
 
-import { sameFieldValues } from '../content/fieldValues'
+import { changedFieldValues, sameFieldValues } from '../content/fieldValues'
 
 test('holds two sets of scalar values equal when every key matches', () => {
 	expect(sameFieldValues({ color: 'red', doors: 4 }, { color: 'red', doors: 4 })).toBe(true)
@@ -23,4 +23,13 @@ test('holds two relation lists equal when they name the same targets in order', 
 test('parts a relation list from a value that is no list', () => {
 	expect(sameFieldValues({ categories: ['a'] }, { categories: 'a' })).toBe(false)
 	expect(sameFieldValues({ categories: 'a' }, { categories: ['a'] })).toBe(false)
+})
+
+test('takes only the values that moved', () => {
+	const settled = { color: 'red', doors: 4, categories: ['a'] }
+
+	expect(changedFieldValues({ ...settled, color: 'blue' }, settled)).toEqual({ color: 'blue' })
+	expect(changedFieldValues(settled, settled)).toEqual({})
+	expect(changedFieldValues({ ...settled, categories: ['a'] }, settled)).toEqual({})
+	expect(changedFieldValues({ ...settled, color: null }, settled)).toEqual({ color: null })
 })
