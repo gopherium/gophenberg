@@ -7,7 +7,7 @@ CREATE TABLE core.content_fields (
     key text NOT NULL,
     label text NOT NULL,
     kind text NOT NULL CHECK (kind IN ('text', 'number', 'boolean', 'date', 'media', 'relation')),
-    relates_to text REFERENCES core.content_types (key),
+    relates_to text CONSTRAINT content_fields_relates_to_fkey REFERENCES core.content_types (key),
     many boolean NOT NULL DEFAULT false,
     required boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL,

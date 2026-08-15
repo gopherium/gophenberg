@@ -14,7 +14,5 @@ CREATE TABLE core.content_relations (
 CREATE INDEX content_relations_target_idx ON core.content_relations (to_id, sort_at DESC, from_id)
     WHERE visible;
 
-CREATE INDEX content_relations_source_idx ON core.content_relations (from_id, field_id);
-
 -- +goose Down
 DROP TABLE core.content_relations;

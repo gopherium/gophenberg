@@ -339,10 +339,12 @@ WHERE t.is_default
 FOR UPDATE;
 
 -- name: ListContentFields :many
-SELECT * FROM core.content_fields ORDER BY id;
+SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+FROM core.content_fields ORDER BY id;
 
 -- name: ListContentFieldsOfType :many
-SELECT * FROM core.content_fields WHERE type_key = @type_key ORDER BY id;
+SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+FROM core.content_fields WHERE type_key = @type_key ORDER BY id;
 
 -- name: CreateContentField :one
 INSERT INTO core.content_fields (
@@ -351,29 +353,32 @@ INSERT INTO core.content_fields (
 VALUES (
     @type_key, @key, @label, @kind, @relates_to, @many, @required, @created_at, @updated_at
 )
-RETURNING *;
+RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at;
 
 -- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = @label, required = @required, updated_at = @updated_at
 WHERE type_key = @type_key AND key = @key
-RETURNING *;
+RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at;
 
 -- name: DeleteContentField :execrows
 DELETE FROM core.content_fields WHERE type_key = @type_key AND key = @key;
 
--- name: LockContentOfType :many
-SELECT id FROM core.content WHERE type = @type ORDER BY id
+-- name: LockContentHoldingField :many
+SELECT id FROM core.content
+WHERE type = @type AND fields ? @key::text
+ORDER BY id
 FOR UPDATE;
 
 -- name: ClearContentFieldValues :exec
-UPDATE core.content SET fields = fields - @key::text WHERE type = @type;
+UPDATE core.content SET fields = fields - @key::text
+WHERE type = @type AND fields ? @key::text;
 
 -- name: ClearRevisionFieldValues :exec
 UPDATE core.content_revisions r
 SET fields = r.fields - @key::text
 FROM core.content c
-WHERE r.content_id = c.id AND c.type = @type;
+WHERE r.content_id = c.id AND c.type = @type AND r.fields ? @key::text;
 
 -- name: ListRelationFieldsOfType :many
 SELECT id, key, relates_to, many FROM core.content_fields

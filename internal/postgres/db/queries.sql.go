@@ -40,7 +40,8 @@ func (q *Queries) AddRelation(ctx context.Context, arg AddRelationParams) error 
 }
 
 const clearContentFieldValues = `-- name: ClearContentFieldValues :exec
-UPDATE core.content SET fields = fields - $1::text WHERE type = $2
+UPDATE core.content SET fields = fields - $1::text
+WHERE type = $2 AND fields ? $1::text
 `
 
 type ClearContentFieldValuesParams struct {
@@ -71,7 +72,7 @@ const clearRevisionFieldValues = `-- name: ClearRevisionFieldValues :exec
 UPDATE core.content_revisions r
 SET fields = r.fields - $1::text
 FROM core.content c
-WHERE r.content_id = c.id AND c.type = $2
+WHERE r.content_id = c.id AND c.type = $2 AND r.fields ? $1::text
 `
 
 type ClearRevisionFieldValuesParams struct {
@@ -901,7 +902,8 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 }
 
 const listContentFields = `-- name: ListContentFields :many
-SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at FROM core.content_fields ORDER BY id
+SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+FROM core.content_fields ORDER BY id
 `
 
 func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, error) {
@@ -936,7 +938,8 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 }
 
 const listContentFieldsOfType = `-- name: ListContentFieldsOfType :many
-SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at FROM core.content_fields WHERE type_key = $1 ORDER BY id
+SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+FROM core.content_fields WHERE type_key = $1 ORDER BY id
 `
 
 func (q *Queries) ListContentFieldsOfType(ctx context.Context, typeKey string) ([]CoreContentField, error) {
@@ -1341,13 +1344,20 @@ func (q *Queries) LockContent(ctx context.Context, id uuid.UUID) (CoreContent, e
 	return i, err
 }
 
-const lockContentOfType = `-- name: LockContentOfType :many
-SELECT id FROM core.content WHERE type = $1 ORDER BY id
+const lockContentHoldingField = `-- name: LockContentHoldingField :many
+SELECT id FROM core.content
+WHERE type = $1 AND fields ? $2::text
+ORDER BY id
 FOR UPDATE
 `
 
-func (q *Queries) LockContentOfType(ctx context.Context, type_ string) ([]uuid.UUID, error) {
-	rows, err := q.db.Query(ctx, lockContentOfType, type_)
+type LockContentHoldingFieldParams struct {
+	Type string
+	Key  string
+}
+
+func (q *Queries) LockContentHoldingField(ctx context.Context, arg LockContentHoldingFieldParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockContentHoldingField, arg.Type, arg.Key)
 	if err != nil {
 		return nil, err
 	}

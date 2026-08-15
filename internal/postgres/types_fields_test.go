@@ -3,7 +3,6 @@
 package postgres_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -42,7 +41,7 @@ func storedFields(t *testing.T, pool *pgxpool.Pool, slug string) string {
 // plantValues stores a content row and one revision carrying raw field values.
 func plantValues(t *testing.T, pool *pgxpool.Pool, author uuid.UUID, slug, values string) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	id := uuid.Must(uuid.NewV7())
 	now := time.Now().UTC()
 	if _, err := pool.Exec(ctx,
@@ -112,6 +111,19 @@ func TestTypeStoreKeepsARelationTargetWhole(t *testing.T) {
 	}
 	if created.RelatesTo != "page" || created.Kind != content.FieldKindRelation {
 		t.Errorf("CreateField() = %+v, want the relation shape stored", created)
+	}
+}
+
+func TestTypeStoreRefusesARelationTargetingAnUnknownType(t *testing.T) {
+	t.Parallel()
+
+	_, _, pool := newContentStoreWithPool(t)
+	types := postgres.NewTypeStore(pool)
+
+	_, err := types.CreateField(t.Context(), fieldOn(t, "post", "pages", content.FieldKindRelation, "ghost"))
+
+	if !errors.Is(err, content.ErrTargetUnknown) {
+		t.Fatalf("CreateField() error = %v, want %v", err, content.ErrTargetUnknown)
 	}
 }
 
@@ -205,7 +217,10 @@ func TestTypeStoreDeleteFieldSweepsValues(t *testing.T) {
 	}
 	var revision string
 	if err := pool.QueryRow(
-		t.Context(), `SELECT fields::text FROM core.content_revisions LIMIT 1`,
+		t.Context(),
+		`SELECT r.fields::text FROM core.content_revisions r
+		JOIN core.content c ON c.id = r.content_id WHERE c.slug = $1`,
+		"planted",
 	).Scan(&revision); err != nil {
 		t.Fatalf("reading the revision fields: %v, want nil", err)
 	}

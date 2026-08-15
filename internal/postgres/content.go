@@ -394,27 +394,45 @@ func leavable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
 // Restore returns a trashed content item to draft. It recovers the original
 // slug, or leaves the trashed one in place when the original is taken.
 func (s *ContentStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
-	row, err := s.queries.RestoreContent(ctx, db.RestoreContentParams{ID: id, UpdatedAt: updatedAt})
-	if isSlugTaken(err) {
-		row, err = s.queries.RestoreContentKeepingSlug(
-			ctx, db.RestoreContentKeepingSlugParams{ID: id, UpdatedAt: updatedAt},
-		)
-	}
+	var restored content.Content
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		row, err := restoredRow(ctx, queries, tx, id, updatedAt)
+		if err != nil {
+			return err
+		}
+		restored = toContent(row)
+		if err := queries.RefreshRelationVisibility(ctx, id); err != nil {
+			return err
+		}
+		restored.Relations, err = readRelations(ctx, queries, id)
+		return err
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return content.Content{}, content.ErrNotFound
 	}
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: restore content: %w", err)
 	}
-	if err := s.queries.RefreshRelationVisibility(ctx, id); err != nil {
-		return content.Content{}, fmt.Errorf("postgres: refresh relation visibility: %w", err)
-	}
-	restored := toContent(row)
-	restored.Relations, err = readRelations(ctx, s.queries, id)
-	if err != nil {
-		return content.Content{}, err
-	}
 	return restored, nil
+}
+
+// restoredRow returns the item to draft under its original slug, or under the trashed one when that is taken.
+func restoredRow(
+	ctx context.Context, queries *db.Queries, tx pgx.Tx, id uuid.UUID, updatedAt time.Time,
+) (db.CoreContent, error) {
+	var row db.CoreContent
+	err := pgx.BeginFunc(ctx, tx, func(attempt pgx.Tx) error {
+		var taken error
+		row, taken = queries.WithTx(attempt).RestoreContent(
+			ctx, db.RestoreContentParams{ID: id, UpdatedAt: updatedAt},
+		)
+		return taken
+	})
+	if !isSlugTaken(err) {
+		return row, err
+	}
+	return queries.RestoreContentKeepingSlug(ctx, db.RestoreContentKeepingSlugParams{ID: id, UpdatedAt: updatedAt})
 }
 
 // Counts returns the number of items of the type in each status.
