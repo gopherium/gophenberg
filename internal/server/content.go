@@ -227,17 +227,17 @@ func (s *server) handleContentResolve() http.HandlerFunc {
 
 // respondResolvedItem answers with the addressed item, or reports it unchanged.
 func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, held content.Address) {
-	listed, err := s.types.ByKey(r.Context(), held.Item.Type)
-	if err != nil {
-		respondDomainError(w, err)
-		return
-	}
 	detail, err := s.publishedDetailOf(r, held.Item)
 	if err != nil {
 		respondDomainError(w, err)
 		return
 	}
-	etag, err := contentETag(detail)
+	answer := resolvedAddress{
+		Kind: string(content.KindItem),
+		Type: newServedType(held.Type),
+		Item: &detail,
+	}
+	etag, err := contentETag(answer)
 	if err != nil {
 		respondDomainError(w, err)
 		return
@@ -247,11 +247,7 @@ func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, hel
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
-	authkit.Respond(w, http.StatusOK, resolvedAddress{
-		Kind: string(content.KindItem),
-		Type: newServedType(listed),
-		Item: &detail,
-	})
+	authkit.Respond(w, http.StatusOK, answer)
 }
 
 // relatedTarget is one item a relation field points at, as a public reader sees it.
@@ -378,9 +374,9 @@ func (s *server) handlePublishedList() http.HandlerFunc {
 	}
 }
 
-// contentETag returns the validator standing for the payload a reader is served.
-func contentETag(detail publishedDetail) (string, error) {
-	encoded, err := json.Marshal(detail)
+// contentETag returns the validator standing for the answer a reader is served.
+func contentETag(answer resolvedAddress) (string, error) {
+	encoded, err := json.Marshal(answer)
 	if err != nil {
 		return "", fmt.Errorf("server: encode content etag: %w", err)
 	}

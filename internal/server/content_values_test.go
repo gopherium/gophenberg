@@ -566,11 +566,11 @@ func TestResolveAnswersATermPage(t *testing.T) {
 }
 
 // resolvedValidator returns the entity tag a public read of the address carries.
-func resolvedValidator(t *testing.T, handler http.Handler, path string) string {
+func resolvedValidator(t *testing.T, handler http.Handler) string {
 	t.Helper()
-	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/resolve?path="+path, "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/resolve?path=hello-world", "")
 	if recorder.Code != http.StatusOK {
-		t.Fatalf("resolving %q: %d: %s", path, recorder.Code, recorder.Body.String())
+		t.Fatalf("resolving the post: %d: %s", recorder.Code, recorder.Body.String())
 	}
 	return recorder.Header().Get("ETag")
 }
@@ -615,15 +615,29 @@ func TestResolveChangesTheValidatorWhenATargetIsRenamed(t *testing.T) {
 	news := publishItemAt(t, handler, storedCategoryItem(t, handler))
 	filed := patchValues(t, handler, draftedPost(t, handler), fmt.Sprintf(`{"categories":[%q]}`, news.ID))
 	publishItemAt(t, handler, filed)
-	before := resolvedValidator(t, handler, "hello-world")
+	before := resolvedValidator(t, handler)
 
 	renamed := fmt.Sprintf(`{"updated_at":%q,"title":"Headlines"}`, news.UpdatedAt)
 	if held := doRequest(t, handler, http.MethodPatch, "/api/content/"+news.ID, renamed); held.Code != http.StatusOK {
 		t.Fatalf("renaming the target: %d: %s", held.Code, held.Body.String())
 	}
 
-	if after := resolvedValidator(t, handler, "hello-world"); after == before {
+	if after := resolvedValidator(t, handler); after == before {
 		t.Errorf("the validator stayed %q, want the renamed target to have changed it", after)
+	}
+}
+
+func TestResolveChangesTheValidatorWhenAFieldIsDeclared(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	publishItemAt(t, handler, draftedPost(t, handler))
+	before := resolvedValidator(t, handler)
+
+	declaredOn(t, handler, `{"key":"subtitle","label":"Subtitle","kind":"text"}`)
+
+	if after := resolvedValidator(t, handler); after == before {
+		t.Errorf("the validator stayed %q, want the declared field to have changed it", after)
 	}
 }
 

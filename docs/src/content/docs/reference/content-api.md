@@ -197,7 +197,9 @@ once. Term pages paginate behind `/page/{n}` like archives, and a
 page suffix on an ordinary single item stays `404`.
 
 Item answers carry an `ETag`. Send it back as `If-None-Match` and an
-unchanged item answers `304` with no body, worth doing if you poll.
+unchanged answer comes back as `304` with no body, worth doing if you
+poll. The tag covers the whole answer, so it also moves when the type
+or its fields change.
 Cross-origin browser scripts cannot read the `ETag` header, so this is
 for servers and command lines. Term answers carry no `ETag`, because
 a term page changes when other items publish, which the term's own
