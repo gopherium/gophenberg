@@ -707,3 +707,28 @@ func TestHandshakeCarriesFieldDefinitions(t *testing.T) {
 	}
 	t.Fatal("the handshake advertises no post type")
 }
+
+func TestResolveNamesRelationSummariesTheWayAReaderReadsThem(t *testing.T) {
+	t.Parallel()
+
+	handler := termTypeServer(t)
+	news := publishItemAt(t, handler, storedCategoryItem(t, handler))
+	post := draftedPost(t, handler)
+	filed := patchValues(t, handler, post, fmt.Sprintf(`{"categories":[%q]}`, news.ID))
+	publishItemAt(t, handler, filed)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/resolve?path=hello-world", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	for _, member := range []string{`"id":`, `"title":`, `"path":`} {
+		if !containsWord(body, member) {
+			t.Errorf("the target names no %s member: %s", member, body)
+		}
+	}
+	if containsWord(body, `"ID":`) {
+		t.Errorf("the target names a Go field rather than a wire member: %s", body)
+	}
+}

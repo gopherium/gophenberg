@@ -247,6 +247,22 @@ func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, hel
 	})
 }
 
+// relatedTarget is one item a relation field points at, as a public reader sees it.
+type relatedTarget struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Path  string `json:"path"`
+}
+
+// namedTargets returns the targets a public payload carries under one relation field.
+func namedTargets(held []content.Target) []relatedTarget {
+	named := make([]relatedTarget, len(held))
+	for i, target := range held {
+		named[i] = relatedTarget{ID: target.ID.String(), Title: target.Title, Path: target.Path}
+	}
+	return named
+}
+
 // publishedDetailOf returns the public view of an item with its targets named and addressed.
 func (s *server) publishedDetailOf(r *http.Request, c content.Content) (publishedDetail, error) {
 	targets, err := s.content.TargetsOf(r.Context(), c.ID)
@@ -259,7 +275,7 @@ func (s *server) publishedDetailOf(r *http.Request, c content.Content) (publishe
 		values[key] = value
 	}
 	for key, listed := range targets {
-		values[key] = listed
+		values[key] = namedTargets(listed)
 	}
 	return publishedDetail{
 		publishedSummary: newPublishedSummary(c),
