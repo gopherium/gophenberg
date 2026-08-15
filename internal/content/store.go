@@ -53,7 +53,7 @@ func NewRevision(c Content, kind RevisionKind, authorID uuid.UUID) (Revision, er
 		Title:     c.Title,
 		Content:   c.Content,
 		Excerpt:   c.Excerpt,
-		Fields:    c.Fields,
+		Fields:    c.Fields.Merge(nil),
 		CreatedAt: time.Now().UTC(),
 	}, nil
 }

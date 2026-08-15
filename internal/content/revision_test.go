@@ -50,6 +50,27 @@ func TestNewRevisionSnapshotsTheEditableContent(t *testing.T) {
 	}
 }
 
+func TestNewRevisionKeepsItsOwnFieldValues(t *testing.T) {
+	t.Parallel()
+
+	author := uuid.Must(uuid.NewV7())
+	p, err := content.New(postType(), nil, "Snapshot Me", author)
+	if err != nil {
+		t.Fatalf("New() error = %v, want nil", err)
+	}
+	p.Fields = content.Values{"color": "red"}
+
+	revision, err := content.NewRevision(p, content.RevisionKindRevision, author)
+
+	if err != nil {
+		t.Fatalf("NewRevision() error = %v, want nil", err)
+	}
+	p.Fields["color"] = "blue"
+	if revision.Fields["color"] != "red" {
+		t.Errorf("the revision holds %v, want the value the item held when it was snapshotted", revision.Fields["color"])
+	}
+}
+
 func TestNewRevisionCarriesTheAutosaveKind(t *testing.T) {
 	t.Parallel()
 
