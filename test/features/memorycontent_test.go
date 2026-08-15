@@ -346,14 +346,14 @@ func (s *memoryContent) Update(
 	if err := s.holdTargets(c); err != nil {
 		return content.Content{}, err
 	}
-	if snapshot != nil {
-		s.revisions[c.ID] = append(s.revisions[c.ID], *snapshot)
-	}
 	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
 		slug := numberedSlug(c.Slug, attempt)
 		if s.addressHeld(content.AddressUnder(prefix, slug), c.ID) {
 			continue
+		}
+		if snapshot != nil {
+			s.revisions[c.ID] = append(s.revisions[c.ID], *snapshot)
 		}
 		settled := c.Place(prefix, slug)
 		s.items[settled.ID] = settled
@@ -417,7 +417,10 @@ func (s *memoryContent) RelatedTo(
 		matched = append(matched, stored)
 	}
 	slices.SortFunc(matched, func(a, b content.Content) int {
-		return sortedAt(b).Compare(sortedAt(a))
+		if held := sortedAt(b).Compare(sortedAt(a)); held != 0 {
+			return held
+		}
+		return strings.Compare(a.ID.String(), b.ID.String())
 	})
 	return paged(matched, content.Filter{Page: page, PerPage: perPage}), len(matched), nil
 }
