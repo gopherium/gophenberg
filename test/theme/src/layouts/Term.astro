@@ -1,0 +1,45 @@
+---
+// SPDX-License-Identifier: Apache-2.0
+
+import { Blocks } from '@gophenberg/astro/components'
+import type { BlockComponentMap, ContentType, Post, PostSummary } from '@gophenberg/astro'
+
+import Base from './Base.astro'
+
+interface Props {
+	term: Post
+	type: ContentType
+	posts: PostSummary[]
+	total: number
+	page: number
+	perPage: number
+	blocks?: BlockComponentMap
+	seo: { siteName: string }
+}
+
+const { term, posts, page, perPage, total, blocks, seo } = Astro.props
+const root = `/${term.path}`
+const older = page * perPage < total ? `${root}/page/${page + 1}` : undefined
+const newer = page > 1 ? (page === 2 ? root : `${root}/page/${page - 1}`) : undefined
+---
+
+<Base seo={seo} title={term.title}>
+	<article class="gophenberg-term">
+		<h1>{term.title}</h1>
+		<Blocks html={term.content} components={blocks} post={term} />
+	</article>
+	<ul>
+		{
+			posts.map((post) => (
+				<li>
+					<a href={`/${post.path}`}>{post.title}</a>
+					<p>{post.excerpt}</p>
+				</li>
+			))
+		}
+	</ul>
+	<nav>
+		{newer && <a rel="prev" href={newer}>Newer</a>}
+		{older && <a rel="next" href={older}>Older</a>}
+	</nav>
+</Base>
