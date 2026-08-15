@@ -4,10 +4,13 @@ package postgres_test
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -449,5 +452,63 @@ func TestContentStorePagesATerm(t *testing.T) {
 	}
 	if total != 2 || len(items) != 1 || items[0].ID != oldest.ID {
 		t.Errorf("RelatedTo() page 2 = %d items of %d, want the older pointer alone", len(items), total)
+	}
+}
+
+// deadlocked reports whether Postgres turned the statement away to break a lock cycle.
+func deadlocked(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "40P01"
+}
+
+func TestContentStoreWritesRelationsWhileTheFieldIsDeleted(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := relatingStore(t)
+	types := postgres.NewTypeStore(pool)
+	news := storedCategory(t, store, "News", author)
+	for round := range 60 {
+		if round > 0 {
+			built, err := content.NewField(content.Field{
+				TypeKey: "post", Key: "categories", Label: "Categories",
+				Kind: content.FieldKindRelation, RelatesTo: "category", Many: true,
+			})
+			if err != nil {
+				t.Fatalf("NewField() error = %v, want nil", err)
+			}
+			if _, err := types.CreateField(t.Context(), built); err != nil {
+				t.Fatalf("redeclaring the relation: %v, want nil", err)
+			}
+		}
+		post := mustCreate(t, store, fmt.Sprintf("Hello world %d", round), author)
+		post.Relations = content.Relations{"categories": {news.ID}}
+		post.UpdatedAt = time.Now().UTC()
+		filed, err := store.Update(t.Context(), post, post.CreatedAt, nil, 0)
+		if err != nil {
+			t.Fatalf("filing the post: %v, want nil", err)
+		}
+		version := filed.UpdatedAt
+		filed.Title = "Renamed"
+		filed.UpdatedAt = time.Now().UTC()
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		var written, swept error
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, written = store.Update(t.Context(), filed, version, nil, 0)
+		}()
+		go func() {
+			defer wg.Done()
+			<-start
+			time.Sleep(time.Duration(round) * 100 * time.Microsecond)
+			swept = types.DeleteField(t.Context(), "post", "categories")
+		}()
+		close(start)
+		wg.Wait()
+		if deadlocked(written) || deadlocked(swept) {
+			t.Fatalf("round %d deadlocked: write = %v, sweep = %v", round, written, swept)
+		}
 	}
 }

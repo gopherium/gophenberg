@@ -314,9 +314,6 @@ func writeContent(ctx context.Context, queries *db.Queries, p db.UpdateContentPa
 
 // valuesDeclared refuses a value whose field the type no longer declares.
 func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content) error {
-	if len(c.Fields) == 0 {
-		return nil
-	}
 	keys, err := queries.LockFieldKeysOfType(ctx, c.Type)
 	if err != nil {
 		return err
