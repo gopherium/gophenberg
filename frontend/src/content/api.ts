@@ -328,9 +328,9 @@ export async function listPosts(query: PostQuery): Promise<PostPage> {
 }
 
 /**
- * Returns every post the query names, asking page after page until none are left.
+ * Returns the posts the query names, asking page after page up to the reading ceiling.
  * @param query - The listing to read, without paging.
- * @returns Every post the listing holds.
+ * @returns The posts the listing holds, up to the pages the ceiling allows.
  */
 export async function listEveryPost(query: PostQuery): Promise<Post[]> {
 	const held: Post[] = []
@@ -341,7 +341,7 @@ export async function listEveryPost(query: PostQuery): Promise<Post[]> {
 			return held
 		}
 	}
-	throw new Error('listing every post did not finish')
+	return held
 }
 
 /**

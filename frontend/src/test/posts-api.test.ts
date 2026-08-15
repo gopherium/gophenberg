@@ -135,12 +135,14 @@ test('stops reading pages when the listing reports nothing', async () => {
 	await expect(listEveryPost({ type: 'category' })).resolves.toEqual([])
 })
 
-test('gives up when a listing never reaches the total it reports', async () => {
+test('stops at the reading ceiling when a listing never reaches its total', async () => {
 	server.use(
 		http.get('/api/content', () => HttpResponse.json({ items: [ROW], total: Number.MAX_SAFE_INTEGER })),
 	)
 
-	await expect(listEveryPost({ type: 'category' })).rejects.toThrow(/did not finish/)
+	const held = await listEveryPost({ type: 'category' })
+
+	expect(held).toHaveLength(100)
 })
 
 test('counts the type it was asked for', async () => {
