@@ -46,6 +46,10 @@ func TestRefusalCodes(t *testing.T) {
 	runFeature(t, "features/refusal-codes.feature", initializeRefusalCodes)
 }
 
+func TestLocaleResolution(t *testing.T) {
+	runFeature(t, "features/locale-resolution.feature", initializeLocale)
+}
+
 func TestContentRelations(t *testing.T) {
 	runFeature(t, "features/content-relations.feature", initializeContentRelations)
 }

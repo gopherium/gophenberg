@@ -84,6 +84,29 @@ func (w *world) send(method, path, contentType string, body io.Reader) (*answer,
 	return &answer{status: response.StatusCode, body: read, header: response.Header}, nil
 }
 
+// sendPreferring reads the path with an Accept-Language header, leaving the last answer alone.
+func (w *world) sendPreferring(path, languages string) (*answer, error) {
+	if err := w.running(); err != nil {
+		return nil, err
+	}
+	request, err := http.NewRequest(http.MethodGet, w.site.URL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("building the GET %s request: %w", path, err)
+	}
+	request.Header.Set("Accept-Language", languages)
+	response, err := w.client.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("sending GET %s: %w", path, err)
+	}
+	defer func() { _ = response.Body.Close() }()
+
+	read, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading the answer to GET %s: %w", path, err)
+	}
+	return &answer{status: response.StatusCode, body: read, header: response.Header}, nil
+}
+
 // do sends a request to the running server and records what came back.
 func (w *world) do(method, path, contentType string, body io.Reader) error {
 	got, err := w.send(method, path, contentType, body)
@@ -102,6 +125,16 @@ func (w *world) postJSON(path, body string) error {
 // get asks the running server for a path.
 func (w *world) get(path string) error {
 	return w.do(http.MethodGet, path, "", nil)
+}
+
+// getPreferring reads the path, naming the languages the caller would rather read.
+func (w *world) getPreferring(path, languages string) error {
+	got, err := w.sendPreferring(path, languages)
+	if err != nil {
+		return err
+	}
+	w.answer = got
+	return nil
 }
 
 // patchJSON sends a JSON edit to the running server.
