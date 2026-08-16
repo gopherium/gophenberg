@@ -2,9 +2,11 @@
 
 import { Text } from '@gophenberg/frontend-sdk'
 import type { Field } from '@gophenberg/frontend-sdk/dataviews'
+import { __, _x } from '@wordpress/i18n'
 import { useState } from 'react'
 
 import { mediaSrc } from './api'
+import { formatDate } from '../i18n/display'
 import type { MediaItem } from './api'
 import { bestRendition, fileSize, imageDimensions, mediaName } from './format'
 
@@ -96,21 +98,21 @@ function FileSizeCell({ item }: { item: MediaItem }) {
  * @returns The date cell.
  */
 function DateCell({ item }: { item: MediaItem }) {
-	return <Text>{item.createdAt === '' ? '' : new Date(item.createdAt).toLocaleDateString()}</Text>
+	return <Text>{formatDate(item.createdAt)}</Text>
 }
 
 export const mediaFields: Field<MediaItem>[] = [
 	{
 		id: 'thumbnail',
 		type: 'media',
-		label: 'Thumbnail',
+		label: __('Thumbnail', 'gophenberg'),
 		render: ThumbnailCell,
 		enableSorting: false,
 		enableHiding: false,
 	},
 	{
 		id: 'title',
-		label: 'Title',
+		label: __('Title', 'gophenberg'),
 		render: TitleCell,
 		Edit: { control: 'text' },
 		enableSorting: false,
@@ -118,31 +120,65 @@ export const mediaFields: Field<MediaItem>[] = [
 	},
 	{
 		id: 'type',
-		label: 'Kind',
+		label: _x('Kind', 'media family', 'gophenberg'),
 		elements: [
-			{ value: 'image', label: 'Images' },
-			{ value: 'file', label: 'Files' },
+			{ value: 'image', label: __('Images', 'gophenberg') },
+			{ value: 'file', label: __('Files', 'gophenberg') },
 		],
 		filterBy: { operators: ['is'], isPrimary: true },
 		enableSorting: false,
 		readOnly: true,
 	},
-	{ id: 'filename', label: 'File name', render: FileNameCell, enableSorting: false, readOnly: true },
-	{ id: 'mimeType', label: 'File type', render: MimeTypeCell, enableSorting: false, readOnly: true },
+	{
+		id: 'filename',
+		label: __('File name', 'gophenberg'),
+		render: FileNameCell,
+		enableSorting: false,
+		readOnly: true,
+	},
+	{
+		id: 'mimeType',
+		label: __('File type', 'gophenberg'),
+		render: MimeTypeCell,
+		enableSorting: false,
+		readOnly: true,
+	},
 	{
 		id: 'dimensions',
-		label: 'Dimensions',
+		label: __('Dimensions', 'gophenberg'),
 		render: DimensionsCell,
 		enableSorting: false,
 		readOnly: true,
 	},
-	{ id: 'filesize', label: 'File size', render: FileSizeCell, enableSorting: false, readOnly: true },
-	{ id: 'date', label: 'Date added', render: DateCell, enableSorting: false, readOnly: true },
-	{ id: 'altText', label: 'Alt text', Edit: { control: 'textarea', rows: 2 }, enableSorting: false },
-	{ id: 'caption', label: 'Caption', Edit: { control: 'textarea', rows: 2 }, enableSorting: false },
+	{
+		id: 'filesize',
+		label: __('File size', 'gophenberg'),
+		render: FileSizeCell,
+		enableSorting: false,
+		readOnly: true,
+	},
+	{
+		id: 'date',
+		label: __('Date added', 'gophenberg'),
+		render: DateCell,
+		enableSorting: false,
+		readOnly: true,
+	},
+	{
+		id: 'altText',
+		label: __('Alt text', 'gophenberg'),
+		Edit: { control: 'textarea', rows: 2 },
+		enableSorting: false,
+	},
+	{
+		id: 'caption',
+		label: __('Caption', 'gophenberg'),
+		Edit: { control: 'textarea', rows: 2 },
+		enableSorting: false,
+	},
 	{
 		id: 'description',
-		label: 'Description',
+		label: __('Description', 'gophenberg'),
 		Edit: { control: 'textarea', rows: 5 },
 		enableSorting: false,
 	},

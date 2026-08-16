@@ -5,6 +5,7 @@ import type {
 	InserterMediaItem,
 	InserterMediaRequest,
 } from '@gophenberg/frontend-sdk/editor'
+import { __ } from '@wordpress/i18n'
 
 import { listMedia, mediaSrc } from './api'
 import type { MediaItem } from './api'
@@ -44,19 +45,40 @@ function storedMediaOf(kind: string) {
 export const MEDIA_CATEGORIES: InserterMediaCategory[] = [
 	{
 		name: 'gophenberg-images',
-		labels: { name: 'Images', search_items: 'Search images' },
+		labels: {
+			get name() {
+				return __('Images', 'gophenberg')
+			},
+			get search_items() {
+				return __('Search images', 'gophenberg')
+			},
+		},
 		mediaType: 'image',
 		fetch: storedMediaOf('image'),
 	},
 	{
 		name: 'gophenberg-videos',
-		labels: { name: 'Videos', search_items: 'Search videos' },
+		labels: {
+			get name() {
+				return __('Videos', 'gophenberg')
+			},
+			get search_items() {
+				return __('Search videos', 'gophenberg')
+			},
+		},
 		mediaType: 'video',
 		fetch: storedMediaOf('video'),
 	},
 	{
 		name: 'gophenberg-audio',
-		labels: { name: 'Audio', search_items: 'Search audio' },
+		labels: {
+			get name() {
+				return __('Audio', 'gophenberg')
+			},
+			get search_items() {
+				return __('Search audio', 'gophenberg')
+			},
+		},
 		mediaType: 'audio',
 		fetch: storedMediaOf('audio'),
 	},
