@@ -60,6 +60,12 @@ const mediaRoute = createRoute({
 	component: lazyRouteComponent(() => import('./media/MediaScreen'), 'MediaScreen'),
 })
 
+const languageRoute = createRoute({
+	getParentRoute: () => framedRoute,
+	path: '/language',
+	component: lazyRouteComponent(() => import('./i18n/LanguageScreen'), 'LanguageScreen'),
+})
+
 const themesRoute = createRoute({
 	getParentRoute: () => framedRoute,
 	path: '/themes',
@@ -81,6 +87,7 @@ const routeTree = rootRoute.addChildren([
 		usersRoute,
 		newUserRoute,
 		themesRoute,
+		languageRoute,
 		...plugins.flatMap((plugin) => plugin.routes(framedRoute)),
 	]),
 	editorRoute,

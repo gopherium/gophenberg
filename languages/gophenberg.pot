@@ -6,3 +6,21 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: gophenberg\n"
+
+msgid "A reload shows the admin in the language you chose."
+msgstr ""
+
+msgid "Choose the language the admin reads in."
+msgstr ""
+
+msgid "Follow the browser"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "The site default"
+msgstr ""
+
+msgid "Your language"
+msgstr ""

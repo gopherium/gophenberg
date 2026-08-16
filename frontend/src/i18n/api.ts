@@ -11,6 +11,8 @@ const localeSchema = z.object({
 
 const refusalSchema = z.object({ error: z.string() })
 
+const settingsSchema = z.object({ locale_default: z.string() })
+
 /** The language the admin reads in, and the ones it may read in. */
 export type Answered = z.infer<typeof localeSchema>
 
@@ -42,8 +44,51 @@ export async function chooseLocale(locale: string): Promise<Answered> {
 		body: JSON.stringify({ locale }),
 	})
 	if (!response.ok) {
-		const parsed = refusalSchema.safeParse(await response.json().catch(() => null))
-		throw new Error(parsed.success ? parsed.data.error : `the server answered ${response.status}`)
+		throw await refusalFrom(response)
 	}
 	return localeSchema.parse(await response.json())
+}
+
+/**
+ * Returns the refusal a failed request carries.
+ * @param response - The answer the server gave.
+ * @returns The message to raise.
+ */
+async function refusalFrom(response: Response): Promise<Error> {
+	const parsed = refusalSchema.safeParse(await response.json().catch(() => null))
+	return new Error(parsed.success ? parsed.data.error : `the server answered ${response.status}`)
+}
+
+/**
+ * Returns the language the site chose for itself, empty when it chose none or
+ * when the setting cannot be read.
+ * @returns The site's own language.
+ */
+export async function fetchSiteLocale(): Promise<string> {
+	try {
+		const response = await fetch('/api/settings')
+		if (!response.ok) {
+			return ''
+		}
+		return settingsSchema.parse(await response.json()).locale_default
+	} catch {
+		return ''
+	}
+}
+
+/**
+ * Stores the language the site answers in when a reader chose none.
+ * @param locale - The language to answer in, or empty to follow the browser.
+ * @returns The language the server stored.
+ */
+export async function chooseSiteLocale(locale: string): Promise<string> {
+	const response = await fetch('/api/settings', {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ locale_default: locale }),
+	})
+	if (!response.ok) {
+		throw await refusalFrom(response)
+	}
+	return settingsSchema.parse(await response.json()).locale_default
 }
