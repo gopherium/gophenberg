@@ -112,7 +112,8 @@ func (f Field) validateRelation() error {
 		return ErrRelationNeedsTarget
 	}
 	if !typeWord.MatchString(f.RelatesTo) {
-		return ErrInvalidKey
+		return Refuse(ErrInvalidKey, "relation_target_key_malformed",
+			"content: invalid relation target key", nil)
 	}
 	return nil
 }

@@ -43,7 +43,8 @@ func (req contentPatchRequest) nesting() (*uuid.UUID, bool, error) {
 	}
 	var asked uuid.UUID
 	if err := json.Unmarshal(req.ParentID, &asked); err != nil {
-		return nil, false, content.ErrParentType
+		return nil, false, content.Refuse(content.ErrParentType, "parent_id_malformed",
+			"content: malformed parent id", nil)
 	}
 	return &asked, true, nil
 }

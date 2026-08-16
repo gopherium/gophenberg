@@ -69,7 +69,8 @@ func (c *Content) canTransition(to Status) bool {
 // Restore returns a trashed content item to draft, or reports [ErrInvalidTransition].
 func (c *Content) Restore() error {
 	if c.Status != StatusTrash {
-		return ErrInvalidTransition
+		return Refuse(ErrInvalidTransition, "restore_not_trashed",
+			"content: only a trashed item can be restored", nil)
 	}
 	c.Status = StatusDraft
 	c.UpdatedAt = time.Now().UTC()

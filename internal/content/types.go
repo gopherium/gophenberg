@@ -160,7 +160,7 @@ func (t Type) validateRouteWord() error {
 		if t.Default {
 			return nil
 		}
-		return ErrRootTaken
+		return Refuse(ErrRootTaken, "route_word_required", "content: a route word is required", nil)
 	}
 	if !typeWord.MatchString(t.RouteWord) {
 		return ErrInvalidRouteWord

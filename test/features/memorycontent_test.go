@@ -379,7 +379,8 @@ func (s *memoryContent) Trash(ctx context.Context, id uuid.UUID, updatedAt time.
 		return content.Content{}, content.ErrNotFound
 	}
 	if stored.Status == content.StatusTrash {
-		return content.Content{}, content.ErrInvalidTransition
+		return content.Content{}, content.Refuse(content.ErrInvalidTransition, "content_already_trashed",
+			"content: the item is already in the trash", nil)
 	}
 	stored.Status, stored.UpdatedAt = content.StatusTrash, updatedAt
 	stored = stored.Place(content.AddressPrefix(stored.Path, stored.Slug), stored.Slug+"-trashed")
