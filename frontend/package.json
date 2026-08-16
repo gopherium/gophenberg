@@ -7,7 +7,7 @@
 		"build": "tsc -b && vite build && node ../sdk/frontend/scripts/build-site-assets.ts dist/gophenberg",
 		"cover": "vitest run --coverage",
 		"dev": "vite",
-		"lint": "oxlint",
+		"lint": "pnpm -w lint",
 		"lint:css": "stylelint 'src/**/*.css'",
 		"pot": "node scripts/write-pot.ts",
 		"preview": "vite preview",
