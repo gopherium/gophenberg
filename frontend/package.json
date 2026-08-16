@@ -5,6 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsc -b && vite build && node ../sdk/frontend/scripts/build-site-assets.ts dist/gophenberg",
+		"catalogs": "node scripts/write-catalogs.ts",
 		"cover": "vitest run --coverage",
 		"dev": "vite",
 		"lint": "pnpm -w lint",

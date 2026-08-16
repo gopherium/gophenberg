@@ -59,6 +59,7 @@ export default defineConfig({
 			exclude: [
 				'src/main.tsx',
 				'scripts/write-pot.ts',
+				'scripts/write-catalogs.ts',
 				'../sdk/frontend/scripts/build-site-assets.ts',
 				'**/*.d.ts',
 				'**/test/**',
