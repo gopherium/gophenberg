@@ -52,6 +52,10 @@ type Config struct {
 	ThemeTimeout time.Duration
 	// Version is the application version reported at /api/version.
 	Version string
+	// Settings persists the values the site chooses for itself. Nil leaves the site default unread.
+	Settings SiteSettings
+	// Readers persists the values one reader chooses. Nil leaves the locale preference unhandled.
+	Readers ReaderSettings
 }
 
 // NewServer returns the HTTP handler serving the CMS API. Every route
@@ -63,6 +67,7 @@ func NewServer(cfg Config) http.Handler {
 	s := &server{
 		auth: auth, users: cfg.Users, content: cfg.Content, themes: cfg.Themes,
 		media: cfg.Media, mediaStore: cfg.MediaStore, version: cfg.Version,
+		settings: cfg.Settings, readers: cfg.Readers,
 		types: content.NewRegistry(cfg.Types),
 	}
 	s.addresses = content.NewResolver(cfg.Content, s.types)
@@ -73,6 +78,7 @@ func NewServer(cfg Config) http.Handler {
 	router.Post("/api/auth/logout", auth.Logout)
 	router.Group(func(public chi.Router) {
 		public.Use(contentHeaders)
+		public.Get("/api/locale", s.handleLocaleGet())
 		public.Get("/api/content/v1", s.handleContentHandshake())
 		public.Get("/api/content/v1/items", s.handlePublishedList())
 		public.Get("/api/content/v1/resolve", s.handleContentResolve())
@@ -106,6 +112,9 @@ func NewServer(cfg Config) http.Handler {
 		protected.Get("/api/content/{id}/revisions/{revisionID}", s.handleRevisionGet())
 		protected.Delete("/api/content/{id}/revisions/{revisionID}", s.handleRevisionDelete())
 		protected.Get("/api/version", s.handleVersion())
+		if cfg.Readers != nil {
+			protected.Patch("/api/locale", s.handleLocalePatch())
+		}
 		if cfg.Media != nil && cfg.MediaStore != nil {
 			protected.Get("/api/media", s.handleMediaList())
 			protected.Post("/api/media", s.handleMediaUpload())
@@ -146,5 +155,7 @@ type server struct {
 	themes     Themes
 	media      MediaLibrary
 	mediaStore media.Store
+	settings   SiteSettings
+	readers    ReaderSettings
 	version    string
 }

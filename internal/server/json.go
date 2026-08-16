@@ -110,4 +110,5 @@ var domainRefusals = []struct {
 	{content.ErrTargetNotFound, http.StatusUnprocessableEntity, "target_not_found"},
 	{content.ErrTargetType, http.StatusUnprocessableEntity, "target_wrong_type"},
 	{content.ErrSelfTarget, http.StatusUnprocessableEntity, "target_is_self"},
+	{content.ErrLocaleUnknown, http.StatusUnprocessableEntity, "locale_unknown"},
 }
