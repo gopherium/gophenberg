@@ -52,11 +52,13 @@ export default defineConfig({
 		coverage: {
 			include: [
 				'src/**',
+				'scripts/**/*.ts',
 				'../sdk/frontend/**/*.{ts,tsx}',
 				'../plugins/*/frontend/**/*.{ts,tsx}',
 			],
 			exclude: [
 				'src/main.tsx',
+				'scripts/write-pot.ts',
 				'../sdk/frontend/scripts/build-site-assets.ts',
 				'**/*.d.ts',
 				'**/test/**',

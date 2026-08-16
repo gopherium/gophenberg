@@ -1,0 +1,14 @@
+{
+	"plugins": ["react", "unicorn", "oxc", "typescript"],
+	"categories": { "correctness": "error" },
+	"rules": {
+		"react/jsx-no-literals": "warn"
+	},
+	"ignorePatterns": ["**/dist/**", "**/node_modules/**"],
+	"overrides": [
+		{
+			"files": ["**/test/**", "**/*.test.ts", "**/*.test.tsx"],
+			"rules": { "react/jsx-no-literals": "off" }
+		}
+	]
+}

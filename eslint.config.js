@@ -10,6 +10,7 @@ export default [
 	{
 		files: [
 			'frontend/src/**/*.{ts,tsx}',
+			'frontend/scripts/**/*.{ts,tsx}',
 			'sdk/astro/**/*.{ts,tsx}',
 			'sdk/frontend/**/*.{ts,tsx}',
 			'plugins/*/frontend/**/*.{ts,tsx}',
@@ -26,6 +27,7 @@ export default [
 	{
 		files: [
 			'frontend/src/**/*.{ts,tsx}',
+			'frontend/scripts/**/*.{ts,tsx}',
 			'sdk/astro/**/*.{ts,tsx}',
 			'sdk/frontend/**/*.{ts,tsx}',
 			'plugins/*/frontend/**/*.{ts,tsx}',
@@ -48,6 +50,7 @@ export default [
 	{
 		files: [
 			'frontend/src/**/*.{ts,tsx}',
+			'frontend/scripts/**/*.{ts,tsx}',
 			'sdk/astro/**/*.{ts,tsx}',
 			'sdk/frontend/**/*.{ts,tsx}',
 			'plugins/*/frontend/**/*.{ts,tsx}',
