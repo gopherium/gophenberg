@@ -6,6 +6,7 @@ import { AuthGate, createAuthQueryClient } from '@gopherium/react-auth'
 import { LoginScreen } from '@gopherium/react-auth/wpds'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from '@tanstack/react-router'
+import { __ } from '@wordpress/i18n'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
@@ -21,6 +22,14 @@ await startLocale()
 const queryClient = createAuthQueryClient()
 const router = createAppRouter()
 
+/**
+ * Renders the message the auth gate shows when the session cannot be loaded.
+ * @returns The boot error element.
+ */
+function BootError() {
+	return <Text role="alert">{__('Something went wrong.', 'gophenberg')}</Text>
+}
+
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		<QueryClientProvider client={queryClient}>
@@ -30,7 +39,7 @@ createRoot(document.getElementById('root')!).render(
 						<LoginScreen brand="Gophenberg" onLogin={onLogin} />
 					)}
 					loading={<BootLoading />}
-					error={<Text role="alert">Something went wrong.</Text>}
+					error={<BootError />}
 				>
 					<Toaster>
 						<RouterProvider router={router} />

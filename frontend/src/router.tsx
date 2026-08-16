@@ -8,6 +8,7 @@ import {
 	lazyRouteComponent,
 } from '@tanstack/react-router'
 import type { RouterHistory } from '@tanstack/react-router'
+import { __ } from '@wordpress/i18n'
 
 import { adminBasepath } from './basepath'
 import { Home } from './Home'
@@ -98,7 +99,7 @@ const routeTree = rootRoute.addChildren([
  * @returns The pending element.
  */
 function RoutePending() {
-	return <LoadingScreen label="Loading the screen." />
+	return <LoadingScreen label={__('Loading the screen.', 'gophenberg')} />
 }
 
 /**
