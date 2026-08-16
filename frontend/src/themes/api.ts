@@ -2,6 +2,8 @@
 
 import { z } from 'zod'
 
+import { refusalText } from '../i18n/refusal'
+
 const themeSchema = z.object({
 	name: z.string(),
 	version: z.string().optional(),
@@ -19,7 +21,11 @@ const installedSchema = z.object({ name: z.string() })
 
 const activeSchema = z.object({ active: z.string() })
 
-const errorSchema = z.object({ error: z.string() })
+const errorSchema = z.object({
+	error: z.string(),
+	code: z.string().optional(),
+	meta: z.record(z.string(), z.unknown()).optional(),
+})
 
 export interface Theme {
 	name: string
@@ -62,7 +68,10 @@ function toTheme(row: z.infer<typeof themeSchema>): Theme {
  */
 async function messageFrom(response: Response): Promise<string> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
-	return parsed.success ? parsed.data.error : `the server answered ${response.status}`
+	if (!parsed.success) {
+		return refusalText({ error: '' })
+	}
+	return refusalText(parsed.data)
 }
 
 /**

@@ -2,6 +2,8 @@
 
 import { z } from 'zod'
 
+import { refusalText } from '../i18n/refusal'
+
 const fieldSchema = z.object({
 	key: z.string(),
 	label: z.string(),
@@ -27,7 +29,11 @@ const typeSchema = z.object({
 
 const typeListSchema = z.object({ items: z.array(typeSchema) })
 
-const refusalSchema = z.object({ error: z.string() })
+const refusalSchema = z.object({
+	error: z.string(),
+	code: z.string().optional(),
+	meta: z.record(z.string(), z.unknown()).optional(),
+})
 
 /** One typed field a content type declares. */
 export interface ContentField {
@@ -116,7 +122,7 @@ function toField(row: z.infer<typeof fieldSchema>): ContentField {
 async function refuse(response: Response, act: string): Promise<never> {
 	const refusal = refusalSchema.safeParse(await response.json().catch(() => null))
 	if (refusal.success) {
-		throw new Error(refusal.data.error)
+		throw new Error(refusalText(refusal.data))
 	}
 	throw new Error(`${act} failed with status ${response.status}`)
 }

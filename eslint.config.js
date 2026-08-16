@@ -15,7 +15,7 @@ export default [
 			'sdk/frontend/**/*.{ts,tsx}',
 			'plugins/*/frontend/**/*.{ts,tsx}',
 		],
-		ignores: ['frontend/src/plugins/index.ts'],
+		ignores: ['frontend/src/plugins/index.ts', 'frontend/src/i18n/refusalTemplates.ts'],
 		languageOptions: {
 			parser: tseslint.parser,
 			parserOptions: { ecmaFeatures: { jsx: true } },

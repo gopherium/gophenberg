@@ -110,7 +110,7 @@ test('falls back to the status when a refusal carries no reason', async () => {
 
 	expect(await uploadTheme(ARCHIVE)).toEqual({
 		kind: 'refused',
-		reason: 'the server answered 502',
+		reason: 'Something went wrong. Try again.',
 	})
 })
 

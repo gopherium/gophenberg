@@ -2,6 +2,8 @@
 
 import { z } from 'zod'
 
+import { refusalText } from '../i18n/refusal'
+
 const POSTS_PER_PAGE = 20
 
 const MAX_POSTS_PER_PAGE = 100
@@ -32,7 +34,11 @@ const detailSchema = postSchema.extend({
 
 const pageSchema = z.object({ items: z.array(postSchema), total: z.number() })
 
-const errorSchema = z.object({ error: z.string() })
+const errorSchema = z.object({
+	error: z.string(),
+	code: z.string().optional(),
+	meta: z.record(z.string(), z.unknown()).optional(),
+})
 
 const countsSchema = z.record(z.string(), z.number())
 
@@ -143,7 +149,10 @@ function toDetail(row: z.infer<typeof detailSchema>): PostDetail {
  */
 async function messageFrom(response: Response): Promise<string> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
-	return parsed.success ? parsed.data.error : `the server answered ${response.status}`
+	if (!parsed.success) {
+		return refusalText({ error: '' })
+	}
+	return refusalText(parsed.data)
 }
 
 /**

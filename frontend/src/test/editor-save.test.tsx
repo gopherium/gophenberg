@@ -285,7 +285,7 @@ test('reports a refusal that named no reason', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
-	expect(await screen.findByText(/answered 422/i)).toBeInTheDocument()
+	expect(await screen.findByText(/something went wrong/i)).toBeInTheDocument()
 })
 
 test('reports a refusal whose body was not json at all', async () => {
@@ -299,7 +299,7 @@ test('reports a refusal whose body was not json at all', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
-	expect(await screen.findByText(/answered 502/i)).toBeInTheDocument()
+	expect(await screen.findByText(/something went wrong/i)).toBeInTheDocument()
 })
 
 test('reports a save that never reached the server', async () => {
