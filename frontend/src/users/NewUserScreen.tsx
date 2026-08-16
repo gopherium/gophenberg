@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, InputControl, Stack } from '@gophenberg/frontend-sdk'
+import { __, _x } from '@wordpress/i18n'
 import {
 	EmailTakenError,
 	ValidationError,
@@ -19,12 +20,12 @@ import { useState } from 'react'
  */
 export function createFailureMessage(error: unknown): string {
 	if (error instanceof EmailTakenError) {
-		return 'That email is already in use.'
+		return __('That email is already in use.', 'gophenberg')
 	}
 	if (error instanceof ValidationError) {
 		return error.message
 	}
-	return 'The user could not be created.'
+	return __('The user could not be created.', 'gophenberg')
 }
 
 /**
@@ -46,7 +47,7 @@ export function NewUserScreen() {
 	})
 	const incomplete = email.trim() === '' || name.trim() === '' || password === ''
 	return (
-		<Page title="New user">
+		<Page title={__('New user', 'gophenberg')}>
 			<form
 				onSubmit={(event) => {
 					event.preventDefault()
@@ -55,15 +56,20 @@ export function NewUserScreen() {
 			>
 				<Stack direction="column" gap="md">
 					<InputControl
-						label="Email"
+						label={__('Email', 'gophenberg')}
 						type="email"
 						autoComplete="off"
 						value={email}
 						onValueChange={setEmail}
 					/>
-					<InputControl label="Name" autoComplete="off" value={name} onValueChange={setName} />
 					<InputControl
-						label="Password"
+						label={_x('Name', 'person', 'gophenberg')}
+						autoComplete="off"
+						value={name}
+						onValueChange={setName}
+					/>
+					<InputControl
+						label={__('Password', 'gophenberg')}
 						type="password"
 						autoComplete="new-password"
 						value={password}
@@ -74,7 +80,7 @@ export function NewUserScreen() {
 						disabled={incomplete || create.isPending}
 						loading={create.isPending}
 					>
-						Create user
+						{__('Create user', 'gophenberg')}
 					</Button>
 					{create.isError && <ErrorNotice>{createFailureMessage(create.error)}</ErrorNotice>}
 				</Stack>
