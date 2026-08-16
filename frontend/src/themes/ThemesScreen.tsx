@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Badge, Button, Stack, Text } from '@gophenberg/frontend-sdk'
+import { __, _x, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, LoadingRows, Page, useToaster } from '@gopherium/godmin'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -29,27 +30,40 @@ export function servingLine(listed: ThemeList | undefined): string | undefined {
 	}
 	const active = listed.themes.find((theme) => theme.active)
 	if (!active) {
-		return 'The built-in renderer is serving the public site.'
+		return __('The built-in renderer is serving the public site.', 'gophenberg')
 	}
 	const fallen = fallbackReason(active)
 	if (fallen !== '') {
-		return `${active.name} ${fallen}, so the built-in renderer is serving.`
+		return fallen
 	}
-	return active.version
-		? `${active.name} ${active.version} is serving the public site.`
-		: `${active.name} is serving the public site.`
+	if (active.version === '') {
+		return sprintf(__('%s is serving the public site.', 'gophenberg'), active.name)
+	}
+	return sprintf(__('%(name)s %(version)s is serving the public site.', 'gophenberg'), {
+		name: active.name,
+		version: active.version,
+	})
 }
 
 /**
- * Returns why the built-in renderer answers instead of the chosen theme.
+ * Returns the sentence saying why the built-in renderer answers instead of the chosen theme.
  * @param active - The chosen theme.
- * @returns The reason, empty when the theme is answering.
+ * @returns The sentence, empty when the theme is answering.
  */
 function fallbackReason(active: Theme): string {
 	if (active.broken !== '') {
-		return 'will not load'
+		return sprintf(
+			__('%s will not load, so the built-in renderer is serving.', 'gophenberg'),
+			active.name,
+		)
 	}
-	return active.serving ? '' : 'is not answering'
+	if (active.serving) {
+		return ''
+	}
+	return sprintf(
+		__('%s is not answering, so the built-in renderer is serving.', 'gophenberg'),
+		active.name,
+	)
 }
 
 /**
@@ -58,7 +72,9 @@ function fallbackReason(active: Theme): string {
  * @returns The button label.
  */
 export function rollbackLabel(target: string): string {
-	return target === '' ? 'Roll back to the built-in renderer' : `Roll back to ${target}`
+	return target === ''
+		? __('Roll back to the built-in renderer', 'gophenberg')
+		: sprintf(__('Roll back to %s', 'gophenberg'), target)
 }
 
 /**
@@ -77,8 +93,8 @@ export function chosenArchive(files: FileList | null): File | null {
  */
 function servingNow(name: string): string {
 	return name === ''
-		? 'The built-in renderer is now serving the public site.'
-		: `${name} is now serving the public site.`
+		? __('The built-in renderer is now serving the public site.', 'gophenberg')
+		: sprintf(__('%s is now serving the public site.', 'gophenberg'), name)
 }
 
 /**
@@ -113,13 +129,13 @@ export function ThemesScreen() {
 	 * Reports that a theme action never reached the server.
 	 */
 	function failed() {
-		setRefusal('The server could not be reached, so nothing was changed.')
+		setRefusal(__('The server could not be reached, so nothing was changed.', 'gophenberg'))
 	}
 
 	const report: Reporter = { done, failed }
 	const listed = themes.data ?? EMPTY_LIST
 	return (
-		<Page title="Themes" subtitle={servingLine(themes.data)}>
+		<Page title={__('Themes', 'gophenberg')} subtitle={servingLine(themes.data)}>
 			<Stack direction="column" gap="md">
 				{refusal !== '' && <ErrorNotice>{refusal}</ErrorNotice>}
 				<UploadControl onOutcome={report} />
@@ -157,29 +173,29 @@ function ThemesBody(props: {
 	onOutcome: Reporter
 }): ReactNode {
 	if (props.failed) {
-		return <ErrorNotice>Themes could not be loaded.</ErrorNotice>
+		return <ErrorNotice>{__('Themes could not be loaded.', 'gophenberg')}</ErrorNotice>
 	}
 	if (props.loading) {
-		return <LoadingRows label="Loading themes." />
+		return <LoadingRows label={__('Loading themes.', 'gophenberg')} />
 	}
 	if (props.themes.length === 0) {
-		return <Text>No themes are installed.</Text>
+		return <Text>{__('No themes are installed.', 'gophenberg')}</Text>
 	}
 	return (
 		<div
 			className="godmin-table-scroll godmin-arrival"
 			role="region"
-			aria-label="Themes"
+			aria-label={__('Themes', 'gophenberg')}
 			tabIndex={0}
 		>
 			<table className="godmin-table">
 				<thead>
 					<tr>
-						<th scope="col">Theme</th>
-						<th scope="col">Version</th>
-						<th scope="col">Status</th>
+						<th scope="col">{__('Theme', 'gophenberg')}</th>
+						<th scope="col">{__('Version', 'gophenberg')}</th>
+						<th scope="col">{_x('Status', 'theme', 'gophenberg')}</th>
 						<th scope="col" className="godmin-table__actions">
-							Actions
+							{__('Actions', 'gophenberg')}
 						</th>
 					</tr>
 				</thead>
@@ -225,15 +241,15 @@ function ThemeRow(props: { theme: Theme; onOutcome: Reporter }) {
 function ThemeBadge(props: { theme: Theme }) {
 	const { theme } = props
 	if (theme.broken !== '') {
-		return <Badge intent="high">Broken</Badge>
+		return <Badge intent="high">{__('Broken', 'gophenberg')}</Badge>
 	}
 	if (theme.serving) {
-		return <Badge intent="stable">Serving</Badge>
+		return <Badge intent="stable">{__('Serving', 'gophenberg')}</Badge>
 	}
 	if (theme.active) {
-		return <Badge intent="high">Not serving</Badge>
+		return <Badge intent="high">{__('Not serving', 'gophenberg')}</Badge>
 	}
-	return <Badge intent="draft">Installed</Badge>
+	return <Badge intent="draft">{__('Installed', 'gophenberg')}</Badge>
 }
 
 /**
@@ -248,14 +264,17 @@ function ServingToggle(props: { theme: Theme; onOutcome: Reporter }) {
 		onSuccess: (outcome) => props.onOutcome.done(outcome, servingNow),
 		onError: props.onOutcome.failed,
 	})
+	const named = theme.active
+		? sprintf(__('Deactivate %s', 'gophenberg'), theme.name)
+		: sprintf(__('Activate %s', 'gophenberg'), theme.name)
 	return (
 		<Button
 			variant="outline"
-			aria-label={`${theme.active ? 'Deactivate' : 'Activate'} ${theme.name}`}
+			aria-label={named}
 			loading={serve.isPending}
 			onClick={() => serve.mutate()}
 		>
-			{theme.active ? 'Deactivate' : 'Activate'}
+			{theme.active ? __('Deactivate', 'gophenberg') : __('Activate', 'gophenberg')}
 		</Button>
 	)
 }
@@ -289,12 +308,15 @@ function UploadControl(props: { onOutcome: Reporter }) {
 	const [archive, setArchive] = useState<File | null>(null)
 	const install = useMutation({
 		mutationFn: (chosen: File) => uploadTheme(chosen),
-		onSuccess: (outcome) => props.onOutcome.done(outcome, (name) => `${name} was installed.`),
+		onSuccess: (outcome) =>
+			props.onOutcome.done(outcome, (name) =>
+				sprintf(__('%s was installed.', 'gophenberg'), name),
+			),
 		onError: props.onOutcome.failed,
 	})
 	return (
 		<Stack direction="row" gap="sm">
-			<label htmlFor="theme-archive">Theme archive</label>
+			<label htmlFor="theme-archive">{__('Theme archive', 'gophenberg')}</label>
 			<input
 				id="theme-archive"
 				type="file"
@@ -307,7 +329,7 @@ function UploadControl(props: { onOutcome: Reporter }) {
 					loading={install.isPending}
 					onClick={() => install.mutate(archive)}
 				>
-					Install theme
+					{__('Install theme', 'gophenberg')}
 				</Button>
 			)}
 		</Stack>
