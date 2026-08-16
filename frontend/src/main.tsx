@@ -13,7 +13,10 @@ import '@gopherium/godmin/base.css'
 import '@gopherium/react-auth/wpds/style.css'
 import './index.css'
 import { BootLoading } from './boot'
+import { startLocale } from './i18n/start'
 import { createAppRouter } from './router'
+
+await startLocale()
 
 const queryClient = createAuthQueryClient()
 const router = createAppRouter()
