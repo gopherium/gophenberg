@@ -2,6 +2,7 @@
 
 import { Tabs } from '@gophenberg/frontend-sdk'
 import { BlockInspector } from '@gophenberg/frontend-sdk/editor'
+import { __ } from '@wordpress/i18n'
 
 import { DocumentPanels } from './DocumentPanels'
 import type { EditorBuffer } from './useEditorBuffer'
@@ -15,8 +16,8 @@ export function EditorSidebar({ postId, buffer }: { postId: string, buffer: Edit
 	return (
 		<Tabs.Root defaultValue="document">
 			<Tabs.List className="gophenberg-editor__sidebar-tabs">
-				<Tabs.Tab value="document">Document</Tabs.Tab>
-				<Tabs.Tab value="block">Block</Tabs.Tab>
+				<Tabs.Tab value="document">{__('Document', 'gophenberg')}</Tabs.Tab>
+				<Tabs.Tab value="block">{__('Block', 'gophenberg')}</Tabs.Tab>
 			</Tabs.List>
 			<Tabs.Panel value="document" className="gophenberg-editor__sidebar-panel">
 				<DocumentPanels postId={postId} buffer={buffer} />

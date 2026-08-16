@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, Skeleton, Stack } from '@gophenberg/frontend-sdk'
+import { __, _x } from '@wordpress/i18n'
 
 import type { PostCounts } from './api'
 
@@ -26,15 +27,15 @@ interface StatusView {
 }
 
 const LEADING: StatusView[] = [
-	{ status: '', label: 'All' },
-	{ status: 'published', label: 'Published' },
-	{ status: 'draft', label: 'Draft' },
-	{ status: 'pending', label: 'Pending' },
+	{ status: '', label: _x('All', 'status filter', 'gophenberg') },
+	{ status: 'published', label: _x('Published', 'post status', 'gophenberg') },
+	{ status: 'draft', label: _x('Draft', 'post status', 'gophenberg') },
+	{ status: 'pending', label: __('Pending', 'gophenberg') },
 ]
 
-const TRASH: StatusView = { status: 'trash', label: 'Trash' }
+const TRASH: StatusView = { status: 'trash', label: _x('Trash', 'post status', 'gophenberg') }
 
-const PRIVATE: StatusView = { status: 'private', label: 'Private' }
+const PRIVATE: StatusView = { status: 'private', label: __('Private', 'gophenberg') }
 
 /**
  * Returns how many posts a status view covers.
@@ -79,7 +80,7 @@ export function StatusViews({
 			gap="xs"
 			align="center"
 			role="group"
-			aria-label="Filter by status"
+			aria-label={__('Filter by status', 'gophenberg')}
 			className="godmin-arrival"
 		>
 			{viewsFor(counts).map((view) => (

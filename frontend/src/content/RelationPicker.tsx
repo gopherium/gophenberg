@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { __, sprintf } from '@wordpress/i18n'
 import { useQuery } from '@tanstack/react-query'
 
 import { listEveryPost } from './api'
 import type { ContentField } from './types'
-
-/** What the picker offers when a single target field points at nothing. */
-const noTarget = { label: 'None', value: '' }
 
 /** The status an item carries while it waits in the trash. */
 const trashed = 'trash'
@@ -57,6 +55,7 @@ export function RelationPicker(props: {
 	if (props.field.many) {
 		return <ManyTargets {...props} candidates={candidates} />
 	}
+	const noTarget = { label: __('None', 'gophenberg'), value: '' }
 	const items = [noTarget, ...candidates.map((item) => ({ label: item.title, value: item.id }))]
 	const selected = items.find((item) => item.value === (props.targets[0] ?? '')) ?? noTarget
 	return (
@@ -91,8 +90,9 @@ function ManyTargets(props: {
 		title: props.candidates.find((candidate) => candidate.id === id)?.title ?? id,
 	}))
 	const open = props.candidates.filter((candidate) => !props.targets.includes(candidate.id))
+	const addLabel = sprintf(__('Add %s', 'gophenberg'), props.field.label)
 	const items = [
-		{ label: `Add ${props.field.label}`, value: '' },
+		{ label: addLabel, value: '' },
 		...open.map((candidate) => ({ label: candidate.title, value: candidate.id })),
 	]
 	return (
@@ -106,13 +106,13 @@ function ManyTargets(props: {
 							variant="outline"
 							onClick={() => props.onChange(props.targets.filter((id) => id !== target.id))}
 						>
-							Remove {target.title}
+							{sprintf(__('Remove %s', 'gophenberg'), target.title)}
 						</Button>
 					</li>
 				))}
 			</ul>
 			<SelectControl
-				label={`Add ${props.field.label}`}
+				label={addLabel}
 				items={items}
 				value={items[0]}
 				onValueChange={(item) => {

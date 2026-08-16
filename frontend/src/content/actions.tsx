@@ -2,6 +2,7 @@
 
 import { Button, Notice, Stack, Text } from '@gophenberg/frontend-sdk'
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
+import { __, _n, _x, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useMemo } from 'react'
@@ -23,7 +24,38 @@ export type ReportNotice = (notice: PostNotice | null) => void
  * @returns The title, or a stand in for a post that has none.
  */
 function nameOf(post: Post): string {
-	return post.title === '' ? '(no title)' : post.title
+	return post.title === '' ? __('(no title)', 'gophenberg') : post.title
+}
+
+/**
+ * Returns the question asked before the given posts are trashed.
+ * @param items - The posts acted on.
+ * @returns The question to show.
+ */
+function trashQuestion(items: Post[]): string {
+	if (items.length === 1) {
+		return sprintf(__('Move %s to the trash?', 'gophenberg'), nameOf(items[0]))
+	}
+	const many = _n(
+		'Move these %d post to the trash?',
+		'Move these %d posts to the trash?',
+		items.length,
+		'gophenberg',
+	)
+	return sprintf(many, items.length)
+}
+
+/**
+ * Returns the note carried to the screen once the posts reach the trash.
+ * @param count - How many posts were trashed.
+ * @returns The note to show.
+ */
+function trashedNote(count: number): string {
+	if (count === 1) {
+		return __('Moved to the trash.', 'gophenberg')
+	}
+	const many = _n('%d post moved to the trash.', '%d posts moved to the trash.', count, 'gophenberg')
+	return sprintf(many, count)
 }
 
 /**
@@ -84,7 +116,7 @@ function Confirm({
 			)}
 			<Stack direction="row" gap="sm" justify="flex-end">
 				<Button variant="outline" onClick={closeModal}>
-					Cancel
+					{__('Cancel', 'gophenberg')}
 				</Button>
 				<Button loading={action.isPending} onClick={() => action.mutate()}>
 					{confirmLabel}
@@ -107,15 +139,13 @@ function TrashConfirm({
 	const single = items.length === 1
 	return (
 		<Confirm
-			question={
-				single
-					? `Move ${nameOf(items[0])} to the trash?`
-					: `Move these ${items.length} posts to the trash?`
-			}
+			question={trashQuestion(items)}
 			failure={
-				single ? 'Could not move that post to trash.' : 'Could not move every post to trash.'
+				single
+					? __('Could not move that post to trash.', 'gophenberg')
+					: __('Could not move every post to trash.', 'gophenberg')
 			}
-			confirmLabel="Move to Trash"
+			confirmLabel={__('Move to Trash', 'gophenberg')}
 			run={async () => {
 				const settled = await Promise.allSettled(items.map((post) => trashPost(post.id)))
 				if (settled.some((outcome) => outcome.status === 'rejected')) {
@@ -126,9 +156,7 @@ function TrashConfirm({
 			done={() =>
 				report({
 					intent: 'success',
-					message: single
-						? 'Moved to the trash.'
-						: `${items.length} posts moved to the trash.`,
+					message: trashedNote(items.length),
 					undoIds: items.map((post) => post.id),
 				})
 			}
@@ -145,9 +173,9 @@ function DeleteConfirm({ items, closeModal }: RenderModalProps<Post>) {
 	const target = items[0]
 	return (
 		<Confirm
-			question={`Delete ${nameOf(target)} for good? This cannot be undone.`}
-			failure="Could not delete that post."
-			confirmLabel="Delete Permanently"
+			question={sprintf(__('Delete %s for good? This cannot be undone.', 'gophenberg'), nameOf(target))}
+			failure={__('Could not delete that post.', 'gophenberg')}
+			confirmLabel={__('Delete Permanently', 'gophenberg')}
 			run={() => deletePost(target.id)}
 			closeModal={closeModal}
 		/>
@@ -168,7 +196,7 @@ export function usePostActions(status: string, report: ReportNotice): Action<Pos
 			return [
 				{
 					id: 'restore',
-					label: 'Restore',
+					label: _x('Restore', 'trash', 'gophenberg'),
 					callback: ([post]: Post[]) => {
 						restorePost(post.id)
 							.then(() => {
@@ -176,13 +204,16 @@ export function usePostActions(status: string, report: ReportNotice): Action<Pos
 								return refresh()
 							})
 							.catch(() =>
-							report({ intent: 'error', message: 'Could not restore that post.' }),
+							report({
+								intent: 'error',
+								message: __('Could not restore that post.', 'gophenberg'),
+							}),
 						)
 					},
 				},
 				{
 					id: 'delete',
-					label: 'Delete Permanently',
+					label: __('Delete Permanently', 'gophenberg'),
 					RenderModal: DeleteConfirm,
 				},
 			]
@@ -190,14 +221,14 @@ export function usePostActions(status: string, report: ReportNotice): Action<Pos
 		return [
 			{
 				id: 'edit',
-				label: 'Edit',
+				label: __('Edit', 'gophenberg'),
 				callback: ([post]: Post[]) => {
 					void navigate({ to: '/content/$typeKey/$postId/edit', params: { typeKey: post.type, postId: post.id } })
 				},
 			},
 			{
 				id: 'trash',
-				label: 'Move to Trash',
+				label: __('Move to Trash', 'gophenberg'),
 				supportsBulk: true,
 				RenderModal: (props: RenderModalProps<Post>) => (
 					<TrashConfirm {...props} report={report} />

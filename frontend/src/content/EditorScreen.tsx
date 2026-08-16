@@ -16,6 +16,7 @@ import {
 	registerMediaCategories,
 	registerMediaLibrary,
 } from '@gophenberg/frontend-sdk/editor'
+import { __, _x } from '@wordpress/i18n'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
@@ -47,12 +48,12 @@ export function EditorScreen() {
 	if (post.isError) {
 		return (
 			<Notice.Root intent="error" role="alert">
-				<Notice.Description>Could not load that post.</Notice.Description>
+				<Notice.Description>{__('Could not load that post.', 'gophenberg')}</Notice.Description>
 			</Notice.Root>
 		)
 	}
 	if (post.data === undefined) {
-		return <LoadingScreen label="Loading the post." />
+		return <LoadingScreen label={__('Loading the post.', 'gophenberg')} />
 	}
 	return <Editor postId={postId} stored={post.data} />
 }
@@ -91,8 +92,8 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 								/>
 								<div className="gophenberg-editor__title">
 									<InputControl
-										label="Title"
-										placeholder="Add title"
+										label={__('Title', 'gophenberg')}
+										placeholder={__('Add title', 'gophenberg')}
 										value={buffer.title}
 										onValueChange={buffer.setTitle}
 									/>
@@ -108,7 +109,7 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 							</div>
 						</div>
 						<div className="gophenberg-editor__foot">
-							<BlockBreadcrumb rootLabelText="Post" />
+							<BlockBreadcrumb rootLabelText={_x('Post', 'breadcrumb root', 'gophenberg')} />
 						</div>
 					</div>
 				</BlockEditorProvider>

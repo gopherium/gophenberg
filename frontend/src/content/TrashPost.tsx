@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { AlertDialog } from '@gophenberg/frontend-sdk'
+import { __, sprintf } from '@wordpress/i18n'
 import { useToaster } from '@gopherium/godmin'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -33,27 +34,31 @@ export function TrashPost({ postId, title }: { postId: string, title: string }) 
 		try {
 			await trashPost(postId)
 		} catch {
-			return { close: false, error: 'Could not move that post to trash.' }
+			return { close: false, error: __('Could not move that post to trash.', 'gophenberg') }
 		}
 		await navigate({ to: '/content/$typeKey' })
 		await reload()
-		toaster.show('Moved to the trash.', {
-			label: 'Undo',
+		toaster.show(__('Moved to the trash.', 'gophenberg'), {
+			label: __('Undo', 'gophenberg'),
 			onAct: () => {
 				restorePost(postId)
 					.then(reload)
-					.catch(() => toaster.show('Could not restore that post.'))
+					.catch(() => toaster.show(__('Could not restore that post.', 'gophenberg')))
 			},
 		})
 	}
+	const description =
+		title === ''
+			? __('This post goes to the trash. You can restore it from there.', 'gophenberg')
+			: sprintf(__('%s goes to the trash. You can restore it from there.', 'gophenberg'), title)
 	return (
 		<AlertDialog.Root onConfirm={trash}>
-			<AlertDialog.Trigger>Move to trash</AlertDialog.Trigger>
+			<AlertDialog.Trigger>{__('Move to trash', 'gophenberg')}</AlertDialog.Trigger>
 			<AlertDialog.Popup
 				intent="irreversible"
-				title="Move to trash"
-				description={`${title === '' ? 'This post' : title} goes to the trash. You can restore it from there.`}
-				confirmButtonText="Move to trash"
+				title={__('Move to trash', 'gophenberg')}
+				description={description}
+				confirmButtonText={__('Move to trash', 'gophenberg')}
 			/>
 		</AlertDialog.Root>
 	)

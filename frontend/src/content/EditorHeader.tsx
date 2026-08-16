@@ -12,6 +12,7 @@ import {
 	undoIcon,
 } from '@gophenberg/frontend-sdk'
 import { Inserter } from '@gophenberg/frontend-sdk/editor'
+import { __, sprintf } from '@wordpress/i18n'
 import { Link } from '@tanstack/react-router'
 
 import { DocumentBar } from './DocumentBar'
@@ -29,9 +30,9 @@ import type { EditorViews } from './useEditorViews'
  */
 function stateOf(dirty: boolean, saving: boolean): string {
 	if (saving) {
-		return 'Saving'
+		return __('Saving', 'gophenberg')
 	}
-	return dirty ? 'Unsaved changes' : 'Saved'
+	return dirty ? __('Unsaved changes', 'gophenberg') : __('Saved', 'gophenberg')
 }
 
 /**
@@ -57,9 +58,9 @@ export function chosenPreview(
  */
 export function primaryControl(buffer: EditorBuffer): { label: string, write: () => void } {
 	if (buffer.savedStatus === 'published') {
-		return { label: 'Update', write: buffer.save }
+		return { label: __('Update', 'gophenberg'), write: buffer.save }
 	}
-	return { label: 'Publish', write: buffer.publish }
+	return { label: __('Publish', 'gophenberg'), write: buffer.publish }
 }
 
 /**
@@ -77,15 +78,15 @@ export function EditorHeader(
 		<div className="gophenberg-editor__header">
 			<Stack direction="row" gap="xs" align="center">
 				<IconButton
-					label={`Back to ${listed.pluralLabel.toLowerCase()}`}
+					label={sprintf(__('Back to %s', 'gophenberg'), listed.pluralLabel.toLowerCase())}
 					icon={backIcon}
 					variant="minimal"
 					tone="neutral"
 					render={<Link to="/content/$typeKey" params={{ typeKey: type }} />}
 				/>
-				<Inserter position="bottom right" toggleProps={{ label: 'Add block' }} />
+				<Inserter position="bottom right" toggleProps={{ label: __('Add block', 'gophenberg') }} />
 				<IconButton
-					label="Undo"
+					label={__('Undo', 'gophenberg')}
 					icon={undoIcon}
 					variant="minimal"
 					tone="neutral"
@@ -93,7 +94,7 @@ export function EditorHeader(
 					onClick={buffer.undo}
 				/>
 				<IconButton
-					label="Redo"
+					label={__('Redo', 'gophenberg')}
 					icon={redoIcon}
 					variant="minimal"
 					tone="neutral"
@@ -101,7 +102,7 @@ export function EditorHeader(
 					onClick={buffer.redo}
 				/>
 				<IconButton
-					label="List view"
+					label={__('List view', 'gophenberg')}
 					icon={listViewIcon}
 					variant="minimal"
 					tone="neutral"
@@ -113,7 +114,7 @@ export function EditorHeader(
 			<Stack direction="row" gap="sm" align="center">
 				<Text>{stateOf(buffer.dirty, buffer.saving)}</Text>
 				<SelectControl
-					label="Preview"
+					label={__('Preview', 'gophenberg')}
 					hideLabelFromVision
 					size="compact"
 					items={PREVIEW_WIDTHS}
@@ -127,7 +128,7 @@ export function EditorHeader(
 						loading={buffer.saving}
 						onClick={buffer.save}
 					>
-						Save draft
+						{__('Save draft', 'gophenberg')}
 					</Button>
 				)}
 				<Button loading={buffer.saving} onClick={primary.write}>
