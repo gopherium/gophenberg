@@ -64,7 +64,7 @@ func (l *Library) Install(name string, archive io.ReaderAt, size int64) error {
 		return err
 	}
 	if l.dir == "" {
-		return refuse("no themes directory is configured, set GOPHENBERG_THEMES_DIR",
+		return refuse("themes_directory_unset", "no themes directory is configured, set GOPHENBERG_THEMES_DIR",
 			"themehost: installing %s with no themes directory", name)
 	}
 	if err := os.MkdirAll(l.dir, 0o755); err != nil {
@@ -86,7 +86,7 @@ func (l *Library) describe(name string) Installed {
 // validName reports whether a name may be a directory in the library.
 func validName(name string) error {
 	if name == "" || strings.HasPrefix(name, ".") || name != filepath.Base(name) {
-		return refuse("the theme name is not allowed", "themehost: %q is not a theme name", name)
+		return refuse("theme_name_malformed", "the theme name is not allowed", "themehost: %q is not a theme name", name)
 	}
 	return nil
 }

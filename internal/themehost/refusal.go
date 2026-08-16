@@ -6,6 +6,8 @@ import "fmt"
 
 // Refusal reports a theme turned away, carrying the reason an operator reads.
 type Refusal struct {
+	// Code names the rule the theme broke, for a client that translates it.
+	Code string
 	// Reason names the rule the theme broke, in words fit for an admin screen.
 	Reason string
 	// Detail is what went wrong underneath, for the log.
@@ -18,7 +20,7 @@ func (r *Refusal) Error() string { return r.Reason + ": " + r.Detail.Error() }
 // Unwrap returns the error the refusal was raised over.
 func (r *Refusal) Unwrap() error { return r.Detail }
 
-// refuse returns a refusal naming the reason over the formatted detail.
-func refuse(reason, format string, args ...any) error {
-	return &Refusal{Reason: reason, Detail: fmt.Errorf(format, args...)}
+// refuse returns a refusal naming its code and reason over the formatted detail.
+func refuse(code, reason, format string, args ...any) error {
+	return &Refusal{Code: code, Reason: reason, Detail: fmt.Errorf(format, args...)}
 }

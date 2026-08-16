@@ -76,7 +76,7 @@ func inspect(dir, name string) (manifest, error) {
 		return declared, err
 	}
 	if declared.Name != name {
-		return declared, refuse("the name does not match",
+		return declared, refuse("manifest_name_mismatch", "the name does not match",
 			"themehost: %s names theme %q, but it is installed as %q",
 			filepath.Join(name, manifestPath), declared.Name, name)
 	}
@@ -91,14 +91,14 @@ func readManifest(dir, name string) (manifest, error) {
 	var declared manifest
 	raw, err := os.ReadFile(filepath.Join(dir, manifestPath))
 	if errors.Is(err, fs.ErrNotExist) {
-		return declared, refuse("the manifest is missing",
+		return declared, refuse("manifest_missing", "the manifest is missing",
 			"%w: %s declares no %s", ErrNotInstalled, name, manifestPath)
 	}
 	if err != nil {
 		return declared, fmt.Errorf("themehost: reading %s: %w", filepath.Join(name, manifestPath), err)
 	}
 	if err := json.Unmarshal(raw, &declared); err != nil {
-		return declared, refuse("the manifest is not valid JSON",
+		return declared, refuse("manifest_malformed", "the manifest is not valid JSON",
 			"themehost: %s is not valid JSON: %w", filepath.Join(name, manifestPath), err)
 	}
 	return declared, nil
@@ -109,17 +109,18 @@ func requireParts(dir, name string) error {
 	for _, part := range []struct {
 		path   string
 		isDir  bool
+		code   string
 		reason string
 	}{
-		{path: entryPath, isDir: false, reason: "the server entry is missing"},
-		{path: clientPath, isDir: true, reason: "the client assets are missing"},
+		{path: entryPath, isDir: false, code: "server_entry_missing", reason: "the server entry is missing"},
+		{path: clientPath, isDir: true, code: "client_assets_missing", reason: "the client assets are missing"},
 	} {
 		info, err := os.Stat(filepath.Join(dir, part.path))
 		if err != nil {
-			return refuse(part.reason, "themehost: %s holds no %s", name, filepath.ToSlash(part.path))
+			return refuse(part.code, part.reason, "themehost: %s holds no %s", name, filepath.ToSlash(part.path))
 		}
 		if info.IsDir() != part.isDir {
-			return refuse(part.reason, "themehost: %s is the wrong kind of file in %s",
+			return refuse(part.code, part.reason, "themehost: %s is the wrong kind of file in %s",
 				filepath.ToSlash(part.path), name)
 		}
 	}
@@ -134,7 +135,7 @@ func walk(dir, name string) error {
 			return fmt.Errorf("themehost: reading %s: %w", name, err)
 		}
 		if entry.Type()&fs.ModeSymlink != 0 {
-			return refuse("symlinks are not allowed",
+			return refuse("symlink_present", "symlinks are not allowed",
 				"themehost: %s holds a symlink at %s, which a theme may not do",
 				name, relative(dir, path))
 		}
@@ -144,7 +145,7 @@ func walk(dir, name string) error {
 		}
 		total += size
 		if total > MaxSize {
-			return refuse("the theme is too large",
+			return refuse("theme_too_large", "the theme is too large",
 				"themehost: %s is larger than the %d byte cap", name, int64(MaxSize))
 		}
 		return nil

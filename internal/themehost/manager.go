@@ -109,7 +109,7 @@ func (m *Manager) Install(ctx context.Context, name string, archive io.ReaderAt,
 		return err
 	}
 	if name == active {
-		return refuse("the theme is active",
+		return refuse("theme_active", "the theme is active",
 			"themehost: %s is serving the public site, deactivate it before replacing it", name)
 	}
 	return m.cfg.Library.Install(name, archive, size)
@@ -195,7 +195,7 @@ func (m *Manager) Rollback(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if !known {
-		return "", refuse("there is nothing to roll back to",
+		return "", refuse("rollback_unavailable", "there is nothing to roll back to",
 			"themehost: no theme has ever been activated")
 	}
 	started, err := m.start(ctx, previous)
@@ -225,7 +225,7 @@ func (m *Manager) start(ctx context.Context, name string) (*Supervisor, error) {
 	supervisor := m.supervise(loaded)
 	if err := supervisor.Await(ctx); err != nil {
 		m.retire(supervisor)
-		return nil, refuse("the theme did not start", "themehost: %s did not start: %w", name, err)
+		return nil, refuse("theme_start_failed", "the theme did not start", "themehost: %s did not start: %w", name, err)
 	}
 	return supervisor, nil
 }
@@ -269,7 +269,7 @@ func (m *Manager) operatorAllows() error {
 	if m.cfg.Pinned == "" {
 		return nil
 	}
-	return refuse("the theme is pinned by the operator",
+	return refuse("theme_pinned", "the theme is pinned by the operator",
 		"themehost: the environment pins the theme to %s", m.cfg.Pinned)
 }
 
