@@ -98,3 +98,51 @@ func (s *server) handleLocalePatch() http.HandlerFunc {
 		})
 	}
 }
+
+// settingsResponse names the values the site chose for itself.
+type settingsResponse struct {
+	LocaleDefault string `json:"locale_default"`
+}
+
+// handleSettingsGet returns an http.HandlerFunc reporting what the site chose for itself.
+func (s *server) handleSettingsGet() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		held, _, err := s.settings.Lookup(r.Context(), content.LocaleSettingKey)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		authkit.Respond(w, http.StatusOK, settingsResponse{LocaleDefault: held})
+	}
+}
+
+// handleSettingsPatch returns an http.HandlerFunc storing what the site chose for itself.
+func (s *server) handleSettingsPatch() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := authkit.Decode[struct {
+			LocaleDefault *string `json:"locale_default"`
+		}](w, r)
+		if err != nil {
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "malformed json", Code: "body_malformed",
+			})
+			return
+		}
+		if req.LocaleDefault == nil {
+			authkit.Respond(w, http.StatusOK, settingsResponse{})
+			return
+		}
+		if *req.LocaleDefault != "" {
+			if err := content.ValidateLocale(*req.LocaleDefault); err != nil {
+				respondDomainError(w, err)
+				return
+			}
+		}
+		values := map[string]string{content.LocaleSettingKey: *req.LocaleDefault}
+		if err := s.settings.Save(r.Context(), values); err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		authkit.Respond(w, http.StatusOK, settingsResponse{LocaleDefault: *req.LocaleDefault})
+	}
+}

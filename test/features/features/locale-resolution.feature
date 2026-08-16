@@ -41,3 +41,14 @@ Feature: The admin speaks the reader's language
   Scenario: The login screen is answered without a session
     When a visitor asks for the locale without signing in
     Then the locale is answered without refusal
+
+  Scenario: An administrator sets the language the site answers in
+    Given a signed in administrator
+    When the administrator sets the site locale to "es-ES"
+    And a visitor asks for the locale preferring "en-US"
+    Then the locale answered is "es-ES"
+
+  Scenario: An unknown site locale is refused with a code
+    Given a signed in administrator
+    When the administrator sets the site locale to "xx-XX"
+    Then the request is refused with the code "locale_unknown"

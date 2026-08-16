@@ -13,6 +13,9 @@ import (
 // localePath is where a client asks which language it is answered in.
 const localePath = "/api/locale"
 
+// settingsPath is where an administrator writes what the site chose for itself.
+const settingsPath = "/api/settings"
+
 // theSupportedLocalesAre records the languages the site may answer in.
 func theSupportedLocalesAre(ctx context.Context, first, second string) error {
 	w, err := worldOf(ctx)
@@ -56,6 +59,15 @@ func theAdministratorSetsTheirLocaleTo(ctx context.Context, locale string) error
 		return err
 	}
 	return w.patchJSON(localePath, fmt.Sprintf(`{"locale":%q}`, locale))
+}
+
+// theAdministratorSetsTheSiteLocaleTo asks the server to store the site's own language.
+func theAdministratorSetsTheSiteLocaleTo(ctx context.Context, locale string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.patchJSON(settingsPath, fmt.Sprintf(`{"locale_default":%q}`, locale))
 }
 
 // theAdministratorSignsInAgain starts a fresh session for the same reader.
@@ -138,6 +150,7 @@ func initializeLocale(sc *godog.ScenarioContext) {
 	sc.When(`^a visitor asks for the locale without signing in$`, aVisitorAsksForTheLocaleWithoutSigningIn)
 	sc.When(`^the administrator asks for the locale$`, theAdministratorAsksForTheLocale)
 	sc.When(`^the administrator signs in again$`, theAdministratorSignsInAgain)
+	sc.When(`^the administrator sets the site locale to "([^"]*)"$`, theAdministratorSetsTheSiteLocaleTo)
 	sc.When(`^the administrator sets their locale to "([^"]*)"$`, theAdministratorSetsTheirLocaleTo)
 	sc.Then(`^the locale answered is "([^"]*)"$`, theLocaleAnsweredIs)
 	sc.Then(`^the locale is answered without refusal$`, theLocaleIsAnsweredWithoutRefusal)

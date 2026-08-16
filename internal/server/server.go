@@ -115,6 +115,10 @@ func NewServer(cfg Config) http.Handler {
 		if cfg.Readers != nil {
 			protected.Patch("/api/locale", s.handleLocalePatch())
 		}
+		if cfg.Settings != nil {
+			protected.Get("/api/settings", s.handleSettingsGet())
+			protected.Patch("/api/settings", s.handleSettingsPatch())
+		}
 		if cfg.Media != nil && cfg.MediaStore != nil {
 			protected.Get("/api/media", s.handleMediaList())
 			protected.Post("/api/media", s.handleMediaUpload())
