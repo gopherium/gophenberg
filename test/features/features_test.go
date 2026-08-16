@@ -42,6 +42,10 @@ func TestContentFields(t *testing.T) {
 	runFeature(t, "features/content-fields.feature", initializeContentFields)
 }
 
+func TestRefusalCodes(t *testing.T) {
+	runFeature(t, "features/refusal-codes.feature", initializeRefusalCodes)
+}
+
 func TestContentRelations(t *testing.T) {
 	runFeature(t, "features/content-relations.feature", initializeContentRelations)
 }

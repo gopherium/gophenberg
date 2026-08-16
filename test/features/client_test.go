@@ -28,6 +28,29 @@ func (a *answer) errorMessage() string {
 	return envelope.Error
 }
 
+// errorCode returns the machine readable reason a JSON error response names.
+func (a *answer) errorCode() string {
+	var envelope struct {
+		Code string `json:"code"`
+	}
+	_ = json.Unmarshal(a.body, &envelope)
+	return envelope.Code
+}
+
+// errorDetails returns the data a JSON error response carries beside its message.
+func (a *answer) errorDetails() map[string]any {
+	var envelope struct {
+		Meta map[string]any `json:"meta"`
+	}
+	_ = json.Unmarshal(a.body, &envelope)
+	return envelope.Meta
+}
+
+// errorDetail returns the value a JSON error response carries under a meta key.
+func (a *answer) errorDetail(key string) any {
+	return a.errorDetails()[key]
+}
+
 // decode reads the answer's body into target.
 func (a *answer) decode(target any) error {
 	if err := json.Unmarshal(a.body, target); err != nil {
