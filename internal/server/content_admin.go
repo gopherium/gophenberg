@@ -171,7 +171,9 @@ func (s *server) handleContentList() http.HandlerFunc {
 		}
 		filter, err := parseAdminContentFilter(r.URL.Query(), contentType)
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "invalid list parameters", Code: "list_parameters_invalid",
+			})
 			return
 		}
 		rows, total, err := s.content.List(r.Context(), filter)
@@ -197,7 +199,9 @@ func (s *server) handleContentGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(chi.URLParam(r, "id"))
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "malformed content id")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "malformed content id", Code: "content_id_malformed",
+			})
 			return
 		}
 		c, err := s.content.ByID(r.Context(), id)

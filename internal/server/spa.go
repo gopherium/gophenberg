@@ -81,7 +81,9 @@ func builtInSite(cfg Config, types *content.Registry) http.Handler {
 
 // respondNotFound reports that nothing lives at the address.
 func respondNotFound(w http.ResponseWriter, _ *http.Request) {
-	authkit.RespondError(w, http.StatusNotFound, "not found")
+	authkit.RespondRefusal(w, http.StatusNotFound, authkit.Refusal{
+		Message: "not found", Code: "not_found",
+	})
 }
 
 // spaHandler serves the single-page app from webFS with the admin prefix stripped, index.html

@@ -291,7 +291,9 @@ func (s *server) publishedDetailOf(r *http.Request, c content.Content) (publishe
 func (s *server) respondTerm(w http.ResponseWriter, r *http.Request, held content.Address) {
 	filter, err := parsePublishedFilter(r.URL.Query())
 	if err != nil {
-		authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
+		authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			Message: "invalid list parameters", Code: "list_parameters_invalid",
+		})
 		return
 	}
 	rows, total, err := s.content.RelatedTo(r.Context(), held.Item.ID, held.Page, filter.PerPage)
@@ -320,7 +322,9 @@ func (s *server) respondTerm(w http.ResponseWriter, r *http.Request, held conten
 func (s *server) respondArchive(w http.ResponseWriter, r *http.Request, held content.Address) {
 	filter, err := parsePublishedFilter(r.URL.Query())
 	if err != nil {
-		authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
+		authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			Message: "invalid list parameters", Code: "list_parameters_invalid",
+		})
 		return
 	}
 	filter.Type, filter.Page = held.Type.Key, held.Page
@@ -354,7 +358,9 @@ func (s *server) handlePublishedList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filter, err := parsePublishedFilter(r.URL.Query())
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "invalid list parameters", Code: "list_parameters_invalid",
+			})
 			return
 		}
 		if filter.Type == "" {
