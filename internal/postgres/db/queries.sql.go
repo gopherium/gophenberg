@@ -811,6 +811,22 @@ func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
 	return value, err
 }
 
+const getUserSetting = `-- name: GetUserSetting :one
+SELECT u.value FROM core.user_settings u WHERE u.user_id = $1 AND u.key = $2
+`
+
+type GetUserSettingParams struct {
+	UserID uuid.UUID
+	Key    string
+}
+
+func (q *Queries) GetUserSetting(ctx context.Context, arg GetUserSettingParams) (string, error) {
+	row := q.db.QueryRow(ctx, getUserSetting, arg.UserID, arg.Key)
+	var value string
+	err := row.Scan(&value)
+	return value, err
+}
+
 const listContent = `-- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
@@ -1597,6 +1613,23 @@ type SetSettingParams struct {
 
 func (q *Queries) SetSetting(ctx context.Context, arg SetSettingParams) error {
 	_, err := q.db.Exec(ctx, setSetting, arg.Key, arg.Value)
+	return err
+}
+
+const setUserSetting = `-- name: SetUserSetting :exec
+INSERT INTO core.user_settings (user_id, key, value)
+VALUES ($1, $2, $3)
+ON CONFLICT (user_id, key) DO UPDATE SET value = EXCLUDED.value
+`
+
+type SetUserSettingParams struct {
+	UserID uuid.UUID
+	Key    string
+	Value  string
+}
+
+func (q *Queries) SetUserSetting(ctx context.Context, arg SetUserSettingParams) error {
+	_, err := q.db.Exec(ctx, setUserSetting, arg.UserID, arg.Key, arg.Value)
 	return err
 }
 
