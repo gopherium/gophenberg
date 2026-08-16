@@ -4,6 +4,7 @@ import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { __, getLocaleData } from '@wordpress/i18n'
 import { expect, test } from 'vitest'
 
+import { displayLocale } from '../i18n/display'
 import { DOMAIN, startLocale } from '../i18n/start'
 
 test('answers the language the server resolved', async () => {
@@ -14,6 +15,18 @@ test('answers the language the server resolved', async () => {
 	)
 
 	expect(await startLocale()).toBe('es-ES')
+})
+
+test('remembers the language so dates and numbers follow it too', async () => {
+	server.use(
+		http.get('/api/locale', () =>
+			HttpResponse.json({ locale: 'es-ES', supported: ['en-US', 'es-ES'] }),
+		),
+	)
+
+	await startLocale()
+
+	expect(displayLocale()).toBe('es-ES')
 })
 
 test('loads the catalogue before it returns, so the editor reads it', async () => {

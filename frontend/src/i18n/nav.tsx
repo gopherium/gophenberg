@@ -13,7 +13,9 @@ const languageIcon = (
 )
 
 export const languageNavItem: NavItem = {
-	label: __('Language', 'gophenberg'),
+	get label() {
+		return __('Language', 'gophenberg')
+	},
 	to: '/language',
 	icon: languageIcon,
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { NavItem } from '@gophenberg/frontend-sdk'
+import { __ } from '@wordpress/i18n'
 
 const themesIcon = (
 	<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
@@ -9,7 +10,9 @@ const themesIcon = (
 )
 
 export const themesNavItem: NavItem = {
-	label: 'Themes',
+	get label() {
+		return __('Themes', 'gophenberg')
+	},
 	to: '/themes',
 	icon: themesIcon,
 }

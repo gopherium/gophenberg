@@ -4,6 +4,7 @@ import { setLocaleData } from '@wordpress/i18n'
 
 import { fetchLocale } from './api'
 import { catalogFor, editorCatalogFor, type Catalog } from './catalog'
+import { rememberLocale } from './display'
 
 /** The text domain every Gophenberg owned string names. */
 export const DOMAIN = 'gophenberg'
@@ -24,6 +25,7 @@ const shipped: Catalogs = { own: catalogFor, editor: editorCatalogFor }
  */
 export async function startLocale(from: Catalogs = shipped): Promise<string> {
 	const { locale } = await fetchLocale()
+	rememberLocale(locale)
 	const [own, editor] = await Promise.all([from.own(locale), from.editor(locale)])
 	if (own !== undefined) {
 		setLocaleData(own, DOMAIN)
