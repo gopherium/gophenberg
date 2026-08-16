@@ -7,7 +7,66 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: gophenberg\n"
 
+msgid "%(name)s %(version)s is serving the public site."
+msgstr ""
+
 msgid "%(name)s cannot be used as a theme name. Name the zip file after the theme, with no dot at the start and no slashes in it."
+msgstr ""
+
+msgid "%(name)s moves to /%(word)s. Every address of both types changes."
+msgstr ""
+
+msgid "%d post moved to the trash."
+msgid_plural "%d posts moved to the trash."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s declared."
+msgstr ""
+
+msgid "%s deleted."
+msgstr ""
+
+msgid "%s goes to the trash. You can restore it from there."
+msgstr ""
+
+msgid "%s is larger than one upload may be."
+msgstr ""
+
+msgid "%s is not a file this block accepts."
+msgstr ""
+
+msgid "%s is not answering, so the built-in renderer is serving."
+msgstr ""
+
+msgid "%s is now serving the public site."
+msgstr ""
+
+msgid "%s is serving the public site."
+msgstr ""
+
+msgid "%s registered."
+msgstr ""
+
+msgid "%s removed."
+msgstr ""
+
+msgid "%s renamed."
+msgstr ""
+
+msgid "%s updated."
+msgstr ""
+
+msgid "%s was installed."
+msgstr ""
+
+msgid "%s will answer at the root."
+msgstr ""
+
+msgid "%s will not load, so the built-in renderer is serving."
+msgstr ""
+
+msgid "(no title)"
 msgstr ""
 
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
@@ -34,6 +93,48 @@ msgstr ""
 msgid "A type key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Change the key and try again."
 msgstr ""
 
+msgid "Actions"
+msgstr ""
+
+msgid "Activate"
+msgstr ""
+
+msgid "Activate %s"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "Add %s"
+msgstr ""
+
+msgid "Add New"
+msgstr ""
+
+msgid "Add New Type"
+msgstr ""
+
+msgid "Add block"
+msgstr ""
+
+msgid "Add field"
+msgstr ""
+
+msgid "Add media"
+msgstr ""
+
+msgid "Add title"
+msgstr ""
+
+msgid "Address"
+msgstr ""
+
+msgid "All %s"
+msgstr ""
+
+msgid "Alt text"
+msgstr ""
+
 msgid "An item cannot point at itself. Pick a different item for %(field)s."
 msgstr ""
 
@@ -52,16 +153,211 @@ msgstr ""
 msgid "Another item of this content type already uses that address. Pick a different slug and save again."
 msgstr ""
 
+msgid "Audio"
+msgstr ""
+
+msgid "Author"
+msgstr ""
+
+msgid "Back to %s"
+msgstr ""
+
+msgid "Block"
+msgstr ""
+
+msgid "Broken"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Caption"
+msgstr ""
+
+msgid "Change address"
+msgstr ""
+
+msgid "Change the address of %s"
+msgstr ""
+
+msgid "Choose %s"
+msgstr ""
+
 msgid "Choose the language the admin reads in."
+msgstr ""
+
+msgid "Clear %s"
+msgstr ""
+
+msgid "Closed"
+msgstr ""
+
+msgid "Content"
+msgstr ""
+
+msgid "Content Types"
 msgstr ""
 
 msgid "Content nests at most %(max)d levels deep, and this item would sit deeper. Pick a parent closer to the top."
 msgstr ""
 
+msgid "Could not create a draft."
+msgstr ""
+
+msgid "Could not delete that item."
+msgid_plural "Could not delete every item."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Could not delete that post."
+msgstr ""
+
+msgid "Could not empty the trash."
+msgstr ""
+
+msgid "Could not load %s."
+msgstr ""
+
+msgid "Could not load that post."
+msgstr ""
+
+msgid "Could not move every post to trash."
+msgstr ""
+
+msgid "Could not move that post to trash."
+msgstr ""
+
+msgid "Could not restore that post."
+msgid_plural "Could not restore those posts."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Could not save that post."
+msgstr ""
+
+msgid "Create user"
+msgstr ""
+
+msgid "Date added"
+msgstr ""
+
+msgid "Deactivate"
+msgstr ""
+
+msgid "Deactivate %s"
+msgstr ""
+
+msgid "Default"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Delete %s"
+msgstr ""
+
+msgid "Delete %s for good? This cannot be undone."
+msgstr ""
+
+msgid "Delete All"
+msgstr ""
+
+msgid "Delete Permanently"
+msgstr ""
+
+msgid "Delete the field"
+msgstr ""
+
+msgid "Delete this %d item for good? This cannot be undone."
+msgid_plural "Delete these %d items for good? This cannot be undone."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Describe"
+msgstr ""
+
+msgid "Description"
+msgstr ""
+
+msgid "Desktop"
+msgstr ""
+
+msgid "Dimensions"
+msgstr ""
+
+msgid "Disable"
+msgstr ""
+
+msgid "Disable %s"
+msgstr ""
+
+msgid "Disabled"
+msgstr ""
+
+msgid "Document"
+msgstr ""
+
+msgid "Draft saved."
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "Email"
+msgstr ""
+
+msgid "Empty Trash"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "Enable %s"
+msgstr ""
+
+msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
+msgstr ""
+
 msgid "Every item needs an author who exists. Pick one from the list and save again."
 msgstr ""
 
+msgid "Every kind of content this site holds."
+msgstr ""
+
+msgid "Every post in the trash is removed for good. This cannot be undone."
+msgstr ""
+
+msgid "Every value stored under this field goes with it, in every item of this type and in the revisions behind them."
+msgstr ""
+
+msgid "Excerpt"
+msgstr ""
+
+msgid "Fields"
+msgstr ""
+
+msgid "Fields of %s"
+msgstr ""
+
+msgid "File name"
+msgstr ""
+
+msgid "File size"
+msgstr ""
+
+msgid "File type"
+msgstr ""
+
+msgid "Files"
+msgstr ""
+
+msgid "Filter by status"
+msgstr ""
+
 msgid "Follow the browser"
+msgstr ""
+
+msgid "Full Size"
 msgstr ""
 
 msgid "Gophenberg could not read what your browser sent. Reload the page and try again, and tell whoever looks after your site if it keeps happening."
@@ -85,13 +381,129 @@ msgstr ""
 msgid "Gophenberg keeps this word for itself, so no content type can answer under it. Pick a different route word."
 msgstr ""
 
+msgid "Hand over the root"
+msgstr ""
+
+msgid "Hand the root to %s"
+msgstr ""
+
+msgid "Home"
+msgstr ""
+
+msgid "Images"
+msgstr ""
+
+msgid "Install theme"
+msgstr ""
+
+msgid "Installed"
+msgstr ""
+
+msgid "Keep it"
+msgstr ""
+
 msgid "Language"
+msgstr ""
+
+msgid "Large"
+msgstr ""
+
+msgid "Last Modified"
+msgstr ""
+
+msgid "List view"
+msgstr ""
+
+msgid "Loading content types."
+msgstr ""
+
+msgid "Loading the post."
+msgstr ""
+
+msgid "Loading the screen."
+msgstr ""
+
+msgid "Loading themes."
+msgstr ""
+
+msgid "Loading users."
+msgstr ""
+
+msgid "Loading…"
+msgstr ""
+
+msgid "Make default"
+msgstr ""
+
+msgid "Media %d"
+msgstr ""
+
+msgid "Media Library"
+msgstr ""
+
+msgid "Medium"
+msgstr ""
+
+msgid "Mobile"
+msgstr ""
+
+msgid "Move %s to the trash?"
+msgstr ""
+
+msgid "Move every address"
+msgstr ""
+
+msgid "Move these %d post to the trash?"
+msgid_plural "Move these %d posts to the trash?"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Move to Trash"
+msgstr ""
+
+msgid "Move to trash"
+msgstr ""
+
+msgid "Moved to the trash."
+msgstr ""
+
+msgid "Navigation"
+msgstr ""
+
+msgid "Nests"
+msgstr ""
+
+msgid "New user"
 msgstr ""
 
 msgid "No file arrived with this upload. Choose a file and try again."
 msgstr ""
 
+msgid "No media chosen"
+msgstr ""
+
+msgid "No media has been uploaded yet."
+msgstr ""
+
+msgid "No parent"
+msgstr ""
+
 msgid "No theme arrived with this upload. Choose a zip file and try again."
+msgstr ""
+
+msgid "No themes are installed."
+msgstr ""
+
+msgid "No title"
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+msgid "Not serving"
+msgstr ""
+
+msgid "Number"
 msgstr ""
 
 msgid "One frame of this animation holds more than %(max)d pixels, which is more than Gophenberg opens. Upload a smaller animation."
@@ -112,7 +524,112 @@ msgstr ""
 msgid "Only a relation field points at another content type or holds many items. Pick the Relation kind, or leave the target and the many option empty."
 msgstr ""
 
+msgid "Only one file may be placed here."
+msgstr ""
+
 msgid "Only the content type at the root of your site may go without a route word. Give this type one and try again."
+msgstr ""
+
+msgid "Parent"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "Pending"
+msgstr ""
+
+msgid "Plural name"
+msgstr ""
+
+msgid "Points at"
+msgstr ""
+
+msgid "Post published."
+msgstr ""
+
+msgid "Preview"
+msgstr ""
+
+msgid "Private"
+msgstr ""
+
+msgid "Publish"
+msgstr ""
+
+msgid "Redo"
+msgstr ""
+
+msgid "Register"
+msgstr ""
+
+msgid "Register a content type"
+msgstr ""
+
+msgid "Relation"
+msgstr ""
+
+msgid "Remove %s"
+msgstr ""
+
+msgid "Rename"
+msgstr ""
+
+msgid "Rename %s"
+msgstr ""
+
+msgid "Restore"
+msgstr ""
+
+msgid "Roll back to %s"
+msgstr ""
+
+msgid "Roll back to the built-in renderer"
+msgstr ""
+
+msgid "Route word"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Save draft"
+msgstr ""
+
+msgid "Saved"
+msgstr ""
+
+msgid "Saving"
+msgstr ""
+
+msgid "Scheduled"
+msgstr ""
+
+msgid "Search %s"
+msgstr ""
+
+msgid "Search audio"
+msgstr ""
+
+msgid "Search images"
+msgstr ""
+
+msgid "Search media"
+msgstr ""
+
+msgid "Search videos"
+msgstr ""
+
+msgid "Select"
+msgstr ""
+
+msgid "Serving"
+msgstr ""
+
+msgid "Singular name"
+msgstr ""
+
+msgid "Slug"
 msgstr ""
 
 msgid "Someone else changed this media item while you were editing it. Reload the page and make your change again."
@@ -122,6 +639,21 @@ msgid "Someone else saved changes to this item while you were editing, so yours 
 msgstr ""
 
 msgid "Something went wrong inside Gophenberg. Try again in a moment, and tell whoever looks after your site if it keeps happening."
+msgstr ""
+
+msgid "Something went wrong."
+msgstr ""
+
+msgid "Start writing."
+msgstr ""
+
+msgid "Tablet"
+msgstr ""
+
+msgid "Text"
+msgstr ""
+
+msgid "That email is already in use."
 msgstr ""
 
 msgid "That field is not on this content type any more. Reload the page to see the fields it has now."
@@ -145,7 +677,19 @@ msgstr ""
 msgid "The %(file)s inside %(name)s is not valid JSON, so it could not be read. Fix that file and package the theme again."
 msgstr ""
 
+msgid "The browser kept an unsaved version of this post."
+msgstr ""
+
+msgid "The built-in renderer is now serving the public site."
+msgstr ""
+
+msgid "The built-in renderer is serving the public site."
+msgstr ""
+
 msgid "The content type this field points at is not named in a shape Gophenberg accepts. Give it a key that starts with a lowercase letter and then holds only lowercase letters, numbers and hyphens."
+msgstr ""
+
+msgid "The content types could not be loaded."
 msgstr ""
 
 msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."
@@ -178,10 +722,28 @@ msgstr ""
 msgid "The item you picked as parent no longer exists. Reload the page and pick another parent."
 msgstr ""
 
+msgid "The media library could not be loaded."
+msgstr ""
+
+msgid "The name changes. Nothing stored under this field moves."
+msgstr ""
+
 msgid "The number of revisions to keep has to be a whole number, and it cannot be negative. Enter a different number."
 msgstr ""
 
+msgid "The registry could not be reached."
+msgstr ""
+
 msgid "The same item was picked twice for %(field)s. Pick each item once."
+msgstr ""
+
+msgid "The server could not be reached, so nothing was changed."
+msgstr ""
+
+msgid "The server could not be reached, so nothing was saved."
+msgstr ""
+
+msgid "The server could not be reached, so nothing was uploaded."
 msgstr ""
 
 msgid "The site default"
@@ -209,6 +771,21 @@ msgid "The theme %(name)s is serving your site right now, so it cannot be replac
 msgstr ""
 
 msgid "The theme %(name)s is the one chosen, but it is not installed, so your site is served by the built-in renderer. Upload the theme again, or choose another one."
+msgstr ""
+
+msgid "The user could not be created."
+msgstr ""
+
+msgid "Theme"
+msgstr ""
+
+msgid "Theme archive"
+msgstr ""
+
+msgid "Themes"
+msgstr ""
+
+msgid "Themes could not be loaded."
 msgstr ""
 
 msgid "There is no content type called %(value)s. Pick a type your site holds, or register it first."
@@ -259,6 +836,9 @@ msgstr ""
 msgid "This item cannot go straight to that status from the one it holds now. Save it as a draft first, then try again."
 msgstr ""
 
+msgid "This item changed while you were describing it. Reload and try again."
+msgstr ""
+
 msgid "This item does not exist, and it may have been deleted. Go back to the list to see what is there."
 msgstr ""
 
@@ -280,6 +860,12 @@ msgstr ""
 msgid "This picture is %(width)d by %(height)d pixels, over the limit of %(max)d pixels in all. Make it smaller and upload it again."
 msgstr ""
 
+msgid "This post changed elsewhere. Reload before saving again."
+msgstr ""
+
+msgid "This post goes to the trash. You can restore it from there."
+msgstr ""
+
 msgid "This request left out %(field)s, which Gophenberg needs. Reload the page and try again."
 msgstr ""
 
@@ -292,7 +878,52 @@ msgstr ""
 msgid "This theme is over the limit of %(max)d bytes, packed or unpacked. Leave out what the theme does not need and package it again."
 msgstr ""
 
+msgid "This type declares no fields yet."
+msgstr ""
+
+msgid "This type will answer under /%s."
+msgstr ""
+
 msgid "This zip holds %(entries)d files, more than the %(max)d a theme may carry. Package only the built theme."
+msgstr ""
+
+msgid "Thumbnail"
+msgstr ""
+
+msgid "Title"
+msgstr ""
+
+msgid "Type"
+msgstr ""
+
+msgid "Undo"
+msgstr ""
+
+msgid "Unsaved changes"
+msgstr ""
+
+msgid "Update"
+msgstr ""
+
+msgid "Update failed."
+msgstr ""
+
+msgid "Users"
+msgstr ""
+
+msgid "Users could not be loaded."
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+msgid "Videos"
+msgstr ""
+
+msgid "Welcome to Gophenberg."
+msgstr ""
+
+msgid "Yes or no"
 msgstr ""
 
 msgid "Your language"
@@ -302,4 +933,107 @@ msgid "Your server pins the site to the theme %(name)s, so themes cannot be chan
 msgstr ""
 
 msgid "Your site always needs one default content type, so this one cannot be turned off or deleted. Make another type the default first."
+msgstr ""
+
+msgid "address"
+msgstr ""
+
+msgid "declaring the field failed with status %d"
+msgstr ""
+
+msgid "deleting the field failed with status %d"
+msgstr ""
+
+msgid "editing a content type failed with status %d"
+msgstr ""
+
+msgid "reading the content types failed with status %d"
+msgstr ""
+
+msgid "reading the fields failed with status %d"
+msgstr ""
+
+msgid "registering a content type failed with status %d"
+msgstr ""
+
+msgid "removing a content type failed with status %d"
+msgstr ""
+
+msgid "renaming the field failed with status %d"
+msgstr ""
+
+msgctxt "account"
+msgid "Status"
+msgstr ""
+
+msgctxt "admin section"
+msgid "Media"
+msgstr ""
+
+msgctxt "breadcrumb root"
+msgid "Post"
+msgstr ""
+
+msgctxt "column"
+msgid "Date"
+msgstr ""
+
+msgctxt "content type"
+msgid "Status"
+msgstr ""
+
+msgctxt "date caption"
+msgid "Published"
+msgstr ""
+
+msgctxt "field"
+msgid "Name"
+msgstr ""
+
+msgctxt "field type"
+msgid "Date"
+msgstr ""
+
+msgctxt "field type"
+msgid "Kind"
+msgstr ""
+
+msgctxt "field type"
+msgid "Media"
+msgstr ""
+
+msgctxt "media family"
+msgid "Kind"
+msgstr ""
+
+msgctxt "person"
+msgid "Name"
+msgstr ""
+
+msgctxt "post"
+msgid "Status"
+msgstr ""
+
+msgctxt "post status"
+msgid "Draft"
+msgstr ""
+
+msgctxt "post status"
+msgid "Published"
+msgstr ""
+
+msgctxt "post status"
+msgid "Trash"
+msgstr ""
+
+msgctxt "status filter"
+msgid "All"
+msgstr ""
+
+msgctxt "theme"
+msgid "Status"
+msgstr ""
+
+msgctxt "trash"
+msgid "Restore"
 msgstr ""
