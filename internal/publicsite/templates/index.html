@@ -6,10 +6,10 @@
 <p class="gophenberg-site__excerpt">{{.Excerpt}}</p>
 </article>
 {{else}}
-<p class="gophenberg-site__empty">Nothing published yet.</p>
+<p class="gophenberg-site__empty">{{$.T.Get "Nothing published yet."}}</p>
 {{end}}
 <nav class="gophenberg-site__pagination">
-{{with .Newer}}<a class="gophenberg-site__newer" href="{{.}}">Newer posts</a>{{end}}
-{{with .Older}}<a class="gophenberg-site__older" href="{{.}}">Older posts</a>{{end}}
+{{with .Newer}}<a class="gophenberg-site__newer" href="{{.}}">{{$.T.Get "Newer posts"}}</a>{{end}}
+{{with .Older}}<a class="gophenberg-site__older" href="{{.}}">{{$.T.Get "Older posts"}}</a>{{end}}
 </nav>
 {{end}}

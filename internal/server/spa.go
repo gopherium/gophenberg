@@ -73,6 +73,7 @@ func builtInSite(cfg Config, types *content.Registry) http.Handler {
 	}
 	return publicsite.New(publicsite.Config{
 		Content: cfg.Content,
+		Locale:  cfg.Settings,
 		Types:   types,
 		Title:   cfg.SiteTitle,
 		Version: cfg.Version,
