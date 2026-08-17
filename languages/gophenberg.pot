@@ -16,6 +16,9 @@ msgstr ""
 msgid "%(name)s moves to /%(word)s. Every address of both types changes."
 msgstr ""
 
+msgid "%[1]d %[2]s %[3]d"
+msgstr ""
+
 msgid "%d post moved to the trash."
 msgid_plural "%d posts moved to the trash."
 msgstr[0] ""
@@ -153,7 +156,13 @@ msgstr ""
 msgid "Another item of this content type already uses that address. Pick a different slug and save again."
 msgstr ""
 
+msgid "April"
+msgstr ""
+
 msgid "Audio"
+msgstr ""
+
+msgid "August"
 msgstr ""
 
 msgid "Author"
@@ -163,6 +172,9 @@ msgid "Back"
 msgstr ""
 
 msgid "Back to %s"
+msgstr ""
+
+msgid "Back to the latest posts"
 msgstr ""
 
 msgid "Block"
@@ -248,6 +260,9 @@ msgid "Deactivate"
 msgstr ""
 
 msgid "Deactivate %s"
+msgstr ""
+
+msgid "December"
 msgstr ""
 
 msgid "Default"
@@ -339,6 +354,9 @@ msgstr ""
 msgid "Excerpt"
 msgstr ""
 
+msgid "February"
+msgstr ""
+
 msgid "Fields"
 msgstr ""
 
@@ -405,6 +423,15 @@ msgstr ""
 msgid "Installed"
 msgstr ""
 
+msgid "January"
+msgstr ""
+
+msgid "July"
+msgstr ""
+
+msgid "June"
+msgstr ""
+
 msgid "Keep it"
 msgstr ""
 
@@ -439,6 +466,12 @@ msgid "Loading…"
 msgstr ""
 
 msgid "Make default"
+msgstr ""
+
+msgid "March"
+msgstr ""
+
+msgid "May"
 msgstr ""
 
 msgid "Media %d"
@@ -482,6 +515,9 @@ msgstr ""
 msgid "New user"
 msgstr ""
 
+msgid "Newer posts"
+msgstr ""
+
 msgid "No file arrived with this upload. Choose a file and try again."
 msgstr ""
 
@@ -489,6 +525,9 @@ msgid "No media chosen"
 msgstr ""
 
 msgid "No media has been uploaded yet."
+msgstr ""
+
+msgid "No page lives at this address."
 msgstr ""
 
 msgid "No parent"
@@ -506,10 +545,28 @@ msgstr ""
 msgid "None"
 msgstr ""
 
+msgid "Not found"
+msgstr ""
+
 msgid "Not serving"
 msgstr ""
 
+msgid "Nothing published here yet."
+msgstr ""
+
+msgid "Nothing published yet."
+msgstr ""
+
+msgid "November"
+msgstr ""
+
 msgid "Number"
+msgstr ""
+
+msgid "October"
+msgstr ""
+
+msgid "Older posts"
 msgstr ""
 
 msgid "One frame of this animation holds more than %(max)d pixels, which is more than Gophenberg opens. Upload a smaller animation."
@@ -630,6 +687,9 @@ msgid "Search videos"
 msgstr ""
 
 msgid "Select"
+msgstr ""
+
+msgid "September"
 msgstr ""
 
 msgid "Serving"
