@@ -9,7 +9,7 @@ Feature: The public site speaks the site's language
   Scenario: The public pages follow the site default
     Given the site default locale is "es-ES"
     When a reader opens a page that does not exist
-    Then the public page reads "No existe ninguna pagina en esta direccion."
+    Then the public page reads "No existe ninguna página en esta dirección."
     And the public page declares the language "es-ES"
 
   Scenario: The public pages read English when no default is set
