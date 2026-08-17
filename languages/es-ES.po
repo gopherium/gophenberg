@@ -7,3 +7,63 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: gophenberg\n"
+
+msgid "%[1]d %[2]s %[3]d"
+msgstr "%[1]d de %[2]s de %[3]d"
+
+msgid "January"
+msgstr "enero"
+
+msgid "February"
+msgstr "febrero"
+
+msgid "March"
+msgstr "marzo"
+
+msgid "April"
+msgstr "abril"
+
+msgid "May"
+msgstr "mayo"
+
+msgid "June"
+msgstr "junio"
+
+msgid "July"
+msgstr "julio"
+
+msgid "August"
+msgstr "agosto"
+
+msgid "September"
+msgstr "septiembre"
+
+msgid "October"
+msgstr "octubre"
+
+msgid "November"
+msgstr "noviembre"
+
+msgid "December"
+msgstr "diciembre"
+
+msgid "Not found"
+msgstr "No encontrado"
+
+msgid "No page lives at this address."
+msgstr "No existe ninguna pagina en esta direccion."
+
+msgid "Back to the latest posts"
+msgstr "Volver a las ultimas entradas"
+
+msgid "Nothing published yet."
+msgstr "Todavia no hay nada publicado."
+
+msgid "Nothing published here yet."
+msgstr "Todavia no hay nada publicado aqui."
+
+msgid "Newer posts"
+msgstr "Entradas mas recientes"
+
+msgid "Older posts"
+msgstr "Entradas anteriores"
