@@ -7,6 +7,8 @@ export const repoRoot = fileURLToPath(new URL('../..', import.meta.url))
 
 export const authFile = fileURLToPath(new URL('.auth/user.json', import.meta.url))
 
+export const proofAuthFile = fileURLToPath(new URL('.auth/proof.json', import.meta.url))
+
 const starterManifest = JSON.parse(
 	readFileSync(fileURLToPath(new URL('../theme/theme.json', import.meta.url)), 'utf8'),
 ) as { name: string; version: string }
@@ -25,4 +27,15 @@ export const credentials = {
 	email: process.env.GOPHENBERG_E2E_EMAIL ?? 'e2e@example.com',
 	password: process.env.GOPHENBERG_E2E_PASSWORD ?? 'correct horse battery',
 	name: process.env.GOPHENBERG_E2E_NAME ?? 'Grace Hopper',
+}
+
+export const proofCredentials = {
+	email: process.env.GOPHENBERG_E2E_PROOF_EMAIL ?? 'proof@example.com',
+	password: process.env.GOPHENBERG_E2E_PASSWORD ?? 'correct horse battery',
+	name: process.env.GOPHENBERG_E2E_PROOF_NAME ?? 'Ada Lovelace',
+}
+
+export const proofLocale = {
+	locale: 'es-ES',
+	englishState: authFile,
 }
