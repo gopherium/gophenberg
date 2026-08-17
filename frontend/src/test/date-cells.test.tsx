@@ -42,15 +42,23 @@ const post = {
 	updatedAt: NOON,
 } as Post
 
-const item = {
-	id: '1',
+const item: MediaItem = {
+	id: 1,
+	type: 'image',
 	file: 'one.png',
 	title: 'One',
+	altText: '',
+	caption: '',
+	description: '',
+	mimeType: 'image/png',
 	width: 1,
 	height: 1,
+	filesize: 1,
 	sizes: {},
+	authorId: '1',
 	createdAt: NOON,
-} as MediaItem
+	updatedAt: NOON,
+}
 
 test('shows a post date in the language the reader settled on', () => {
 	rememberLocale('es-ES')

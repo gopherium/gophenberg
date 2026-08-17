@@ -4,6 +4,8 @@ import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { __, getLocaleData } from '@wordpress/i18n'
 import { expect, test } from 'vitest'
 
+import { usersNavItem } from '@gopherium/react-auth/wpds'
+
 import { displayLocale } from '../i18n/display'
 import { DOMAIN, startLocale } from '../i18n/start'
 
@@ -63,6 +65,7 @@ test('loads the editor catalogue beside its own when a build produced one', asyn
 	await startLocale({
 		own: async () => undefined,
 		editor: async () => editor,
+		brick: async () => undefined,
 	})
 
 	expect(__('Bold')).toBe('Negrita')
@@ -75,7 +78,23 @@ test('loads nothing when a build produced no catalogue at all', async () => {
 		),
 	)
 
-	const held = await startLocale({ own: async () => undefined, editor: async () => undefined })
+	const held = await startLocale({
+		own: async () => undefined,
+		editor: async () => undefined,
+		brick: async () => undefined,
+	})
 
 	expect(held).toBe('es-ES')
+})
+
+test('loads the brick catalogue so its screens speak the same language', async () => {
+	server.use(
+		http.get('/api/locale', () =>
+			HttpResponse.json({ locale: 'es-ES', supported: ['en-US', 'es-ES'] }),
+		),
+	)
+
+	await startLocale()
+
+	expect(usersNavItem.label).toBe('Usuarios')
 })
