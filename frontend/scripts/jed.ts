@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { po } from 'gettext-parser'
+import { join } from 'node:path'
+
+/**
+ * Returns every directory a compiled catalogue is shipped from.
+ * @param root - The repository root the directories sit under.
+ * @returns The directories, the reader's and the server's.
+ */
+export function catalogTargets(root: string): string[] {
+	return [join(root, 'frontend', 'src', 'languages'), join(root, 'internal', 'i18n', 'catalogs')]
+}
 
 /** The metadata entry the runtime reads its plural rule from. */
 const METADATA = ''

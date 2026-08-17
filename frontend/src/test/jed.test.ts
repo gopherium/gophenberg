@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
-import { compileCatalog, serializeCatalog } from '../../scripts/jed.ts'
+import { catalogTargets, compileCatalog, serializeCatalog } from '../../scripts/jed.ts'
 import { repositoryRoot } from '../../scripts/pot.ts'
 
 const CATALOG = `msgid ""
@@ -90,14 +90,17 @@ test('compiles a catalogue that names no language or plural rule', () => {
 	expect(compileCatalog(bare)['']).toEqual({ lang: '', 'plural-forms': '' })
 })
 
-test('rebuilds every committed catalogue byte for byte', () => {
+test('rebuilds every committed catalogue byte for byte, everywhere one is shipped', () => {
 	const sources = join(repositoryRoot(), 'languages')
+	const targets = catalogTargets(repositoryRoot())
 
+	expect(targets.length).toBeGreaterThan(1)
 	for (const file of readdirSync(sources).filter((held) => held.endsWith('.po'))) {
 		const locale = file.slice(0, -'.po'.length)
-		const built = join(repositoryRoot(), 'frontend', 'src', 'languages', `${locale}.json`)
 		const rebuilt = serializeCatalog(compileCatalog(readFileSync(join(sources, file), 'utf8')))
 
-		expect(rebuilt).toBe(readFileSync(built, 'utf8'))
+		for (const target of targets) {
+			expect(readFileSync(join(target, `${locale}.json`), 'utf8')).toBe(rebuilt)
+		}
 	}
 })
