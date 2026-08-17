@@ -50,6 +50,10 @@ func TestLocaleResolution(t *testing.T) {
 	runFeature(t, "features/locale-resolution.feature", initializeLocale)
 }
 
+func TestPublicSiteLanguage(t *testing.T) {
+	runFeature(t, "features/public-site-language.feature", initializePublicSiteLanguage)
+}
+
 func TestContentRelations(t *testing.T) {
 	runFeature(t, "features/content-relations.feature", initializeContentRelations)
 }

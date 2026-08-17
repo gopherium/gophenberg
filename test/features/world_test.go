@@ -323,3 +323,28 @@ func (w *world) running() error {
 	}
 	return nil
 }
+
+// publishedOn stamps when a stored item went public, so a date reads the same on every run.
+func (w *world) publishedOn(title, day string) error {
+	at, err := time.Parse(time.DateOnly, day)
+	if err != nil {
+		return err
+	}
+	held, found := w.nested[title]
+	if !found {
+		return fmt.Errorf("the scenario stored nothing titled %q", title)
+	}
+	id, err := uuid.Parse(held.ID)
+	if err != nil {
+		return err
+	}
+	w.contentItems.mu.Lock()
+	defer w.contentItems.mu.Unlock()
+	stored, found := w.contentItems.items[id]
+	if !found {
+		return fmt.Errorf("the store holds nothing titled %q", title)
+	}
+	stored.PublishedAt = &at
+	w.contentItems.items[id] = stored
+	return nil
+}
