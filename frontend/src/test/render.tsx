@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Toaster } from '@gopherium/godmin'
 import { createAuthQueryClient } from '@gopherium/react-auth'
 import type { User } from '@gopherium/react-auth'
 import { defaultUser, seedSession } from '@gopherium/react-auth/testing'
@@ -10,6 +9,7 @@ import { render } from '@testing-library/react'
 
 import { adminBasepath } from '../basepath'
 import { createAppRouter } from '../router'
+import { AdminToaster } from '../toasts'
 import { versionQueryKey } from '../version'
 
 /** Renders the application at an app-relative path with a seeded session. */
@@ -30,9 +30,9 @@ export function renderAt(
 	)
 	render(
 		<QueryClientProvider client={client}>
-			<Toaster>
+			<AdminToaster>
 				<RouterProvider router={router} />
-			</Toaster>
+			</AdminToaster>
 		</QueryClientProvider>,
 	)
 	return client

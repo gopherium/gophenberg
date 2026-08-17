@@ -25,7 +25,11 @@ export function ContentSidebar() {
 			}),
 	})
 	return (
-		<NavScreen title={listed.pluralLabel} back={<Link to="/" />}>
+		<NavScreen
+			title={listed.pluralLabel}
+			back={<Link to="/" />}
+			backLabel={__('Back', 'gophenberg')}
+		>
 			<Stack direction="column" gap="xs" render={<ul />}>
 				<li>
 					<Link

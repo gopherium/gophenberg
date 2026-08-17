@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { AdminRoot, Toaster } from '@gopherium/godmin'
+import { AdminRoot } from '@gopherium/godmin'
 import { Text } from '@gophenberg/frontend-sdk'
 import { AuthGate, createAuthQueryClient } from '@gopherium/react-auth'
 import { LoginScreen } from '@gopherium/react-auth/wpds'
@@ -16,6 +16,7 @@ import './index.css'
 import { BootLoading } from './boot'
 import { startLocale } from './i18n/start'
 import { createAppRouter } from './router'
+import { AdminToaster } from './toasts'
 
 await startLocale()
 
@@ -41,9 +42,9 @@ createRoot(document.getElementById('root')!).render(
 					loading={<BootLoading />}
 					error={<BootError />}
 				>
-					<Toaster>
+					<AdminToaster>
 						<RouterProvider router={router} />
-					</Toaster>
+					</AdminToaster>
 				</AuthGate>
 			</AdminRoot>
 		</QueryClientProvider>

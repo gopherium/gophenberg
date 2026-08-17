@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { parse, registerCuratedBlocks } from '@gophenberg/frontend-sdk/editor'
-import { Toaster } from '@gopherium/godmin'
 import type { Block } from '@gophenberg/frontend-sdk/editor'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import { beforeAll, expect, test } from 'vitest'
 
+import { AdminToaster } from '../toasts'
 import { useEditorBuffer } from '../content/useEditorBuffer'
 import { storedPost } from './postFixture'
 
@@ -23,7 +23,7 @@ function renderBuffer() {
 	return renderHook(() => useEditorBuffer(storedPost.id, { ...storedPost, publishedAt: null } as never), {
 		wrapper: ({ children }) => (
 			<QueryClientProvider client={client}>
-				<Toaster>{children}</Toaster>
+				<AdminToaster>{children}</AdminToaster>
 			</QueryClientProvider>
 		),
 	})

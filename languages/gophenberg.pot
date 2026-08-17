@@ -159,6 +159,9 @@ msgstr ""
 msgid "Author"
 msgstr ""
 
+msgid "Back"
+msgstr ""
+
 msgid "Back to %s"
 msgstr ""
 
@@ -292,6 +295,9 @@ msgid "Disable %s"
 msgstr ""
 
 msgid "Disabled"
+msgstr ""
+
+msgid "Dismiss"
 msgstr ""
 
 msgid "Document"
@@ -528,6 +534,9 @@ msgid "Only one file may be placed here."
 msgstr ""
 
 msgid "Only the content type at the root of your site may go without a route word. Give this type one and try again."
+msgstr ""
+
+msgid "Open navigation"
 msgstr ""
 
 msgid "Parent"
