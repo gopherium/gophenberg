@@ -12,6 +12,8 @@ type Refusal struct {
 	Reason string
 	// Detail is what went wrong underneath, for the log.
 	Detail error
+	// Held names the values the reason's translation asks for.
+	Held map[string]any
 }
 
 // Error returns the reason followed by the detail behind it.
@@ -23,4 +25,9 @@ func (r *Refusal) Unwrap() error { return r.Detail }
 // refuse returns a refusal naming its code and reason over the formatted detail.
 func refuse(code, reason, format string, args ...any) error {
 	return &Refusal{Code: code, Reason: reason, Detail: fmt.Errorf(format, args...)}
+}
+
+// refuseHolding returns a refusal carrying the values its translation asks for.
+func refuseHolding(code, reason string, held map[string]any, format string, args ...any) error {
+	return &Refusal{Code: code, Reason: reason, Detail: fmt.Errorf(format, args...), Held: held}
 }

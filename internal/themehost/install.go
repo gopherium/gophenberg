@@ -46,7 +46,8 @@ func openArchive(archive io.ReaderAt, size int64) (*zip.Reader, error) {
 		return nil, refuse("archive_unreadable", "the archive could not be read", "themehost: reading the archive: %w", err)
 	}
 	if len(reader.File) > MaxEntries {
-		return nil, refuse("archive_too_many_entries", "the archive holds too many files",
+		return nil, refuseHolding("archive_too_many_entries", "the archive holds too many files",
+			map[string]any{"entries": len(reader.File), "max": MaxEntries},
 			"themehost: the archive holds %d entries, more than the %d cap", len(reader.File), MaxEntries)
 	}
 	return reader, nil
@@ -63,7 +64,8 @@ func unpack(reader *zip.Reader, dir string) error {
 		}
 		total += written
 		if total > MaxSize {
-			return refuse("theme_too_large", "the theme is too large",
+			return refuseHolding("theme_too_large", "the theme is too large",
+				map[string]any{"max": int64(MaxSize)},
 				"themehost: the archive unpacks to more than the %d byte cap", int64(MaxSize))
 		}
 	}
@@ -77,7 +79,8 @@ func unpackOne(file *zip.File, dir string, made map[string]bool) (int64, error) 
 		return 0, err
 	}
 	if file.FileInfo().Mode()&fs.ModeSymlink != 0 {
-		return 0, refuse("symlink_present", "symlinks are not allowed",
+		return 0, refuseHolding("symlink_present", "symlinks are not allowed",
+			map[string]any{"name": file.Name, "path": file.Name},
 			"themehost: the archive holds a symlink at %s", file.Name)
 	}
 	if strings.HasSuffix(file.Name, "/") {
@@ -105,7 +108,8 @@ func dirsCost(path, root string, made map[string]bool) int64 {
 func safeTarget(dir, entry string) (string, error) {
 	target := filepath.Join(dir, filepath.FromSlash(entry))
 	if target != dir && !strings.HasPrefix(target, dir+string(os.PathSeparator)) {
-		return "", refuse("archive_entry_escapes", "the archive is unsafe",
+		return "", refuseHolding("archive_entry_escapes", "the archive is unsafe",
+			map[string]any{"entry": entry},
 			"themehost: %s escapes the theme directory", entry)
 	}
 	return target, nil

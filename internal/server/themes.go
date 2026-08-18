@@ -109,6 +109,7 @@ func (s *server) handleThemeUpload() http.HandlerFunc {
 		if header.Size > themehost.MaxSize {
 			authkit.RespondRefusal(w, http.StatusRequestEntityTooLarge, authkit.Refusal{
 				Message: "the theme is too large", Code: "theme_too_large",
+				Meta: map[string]any{"max": int64(themehost.MaxSize)},
 			})
 			return
 		}
@@ -188,6 +189,7 @@ func respondUploadError(w http.ResponseWriter, err error) {
 	if errors.As(err, &tooLarge) {
 		authkit.RespondRefusal(w, http.StatusRequestEntityTooLarge, authkit.Refusal{
 			Message: "the theme is too large", Code: "theme_too_large",
+			Meta: map[string]any{"max": int64(themehost.MaxSize)},
 		})
 		return
 	}
@@ -201,7 +203,7 @@ func respondThemeError(w http.ResponseWriter, err error) {
 	var refusal *themehost.Refusal
 	if errors.As(err, &refusal) {
 		authkit.RespondRefusal(w, http.StatusUnprocessableEntity, authkit.Refusal{
-			Message: refusal.Reason, Code: refusal.Code,
+			Message: refusal.Reason, Code: refusal.Code, Meta: refusal.Held,
 		})
 		return
 	}
