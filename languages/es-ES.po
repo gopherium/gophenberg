@@ -1,96 +1,16 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: gophenberg\n"
-"Language: es_ES\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: POEditor.com\n"
 "X-Domain: gophenberg\n"
+"Project-Id-Version: Gophenberg\n"
+"Language: es\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#, fuzzy
-msgid "%[1]d %[2]s %[3]d"
-msgstr "%[1]d de %[2]s de %[3]d"
-
-#, fuzzy
-msgid "January"
-msgstr "enero"
-
-#, fuzzy
-msgid "February"
-msgstr "febrero"
-
-#, fuzzy
-msgid "March"
-msgstr "marzo"
-
-#, fuzzy
-msgid "April"
-msgstr "abril"
-
-#, fuzzy
-msgid "May"
-msgstr "mayo"
-
-#, fuzzy
-msgid "June"
-msgstr "junio"
-
-#, fuzzy
-msgid "July"
-msgstr "julio"
-
-#, fuzzy
-msgid "August"
-msgstr "agosto"
-
-#, fuzzy
-msgid "September"
-msgstr "septiembre"
-
-#, fuzzy
-msgid "October"
-msgstr "octubre"
-
-#, fuzzy
-msgid "November"
-msgstr "noviembre"
-
-#, fuzzy
-msgid "December"
-msgstr "diciembre"
-
-#, fuzzy
-msgid "Not found"
-msgstr "No encontrado"
-
-#, fuzzy
-msgid "No page lives at this address."
-msgstr "No existe ninguna página en esta dirección."
-
-#, fuzzy
-msgid "Back to the latest posts"
-msgstr "Volver a las últimas entradas"
-
-#, fuzzy
-msgid "Nothing published yet."
-msgstr "Todavía no hay nada publicado."
-
-#, fuzzy
-msgid "Nothing published here yet."
-msgstr "Todavía no hay nada publicado aquí."
-
-#, fuzzy
-msgid "Newer posts"
-msgstr "Entradas más recientes"
-
-#, fuzzy
-msgid "Older posts"
-msgstr "Entradas anteriores"
-
-#, fuzzy
 msgid "%(name)s %(version)s is serving the public site."
-msgstr "%(name)s %(version)s sirve el sitio público."
+msgstr "%(name)s %(version)s está publicado en la web."
 
 #, fuzzy
 msgid "%(name)s cannot be used as a theme name. Name the zip file after the theme, with no dot at the start and no slashes in it."
@@ -99,6 +19,10 @@ msgstr "%(name)s no se puede usar como nombre de tema. Nombra el archivo zip com
 #, fuzzy
 msgid "%(name)s moves to /%(word)s. Every address of both types changes."
 msgstr "%(name)s pasa a /%(word)s. Cambian todas las direcciones de ambos tipos."
+
+#, fuzzy
+msgid "%[1]d %[2]s %[3]d"
+msgstr "%[1]d de %[2]s de %[3]d"
 
 #, fuzzy
 msgid "%d post moved to the trash."
@@ -283,8 +207,16 @@ msgid "Another item of this content type already uses that address. Pick a diffe
 msgstr "Ya hay otro elemento de este tipo de contenido que usa esa dirección. Elige un slug distinto y guarda de nuevo."
 
 #, fuzzy
+msgid "April"
+msgstr "abril"
+
+#, fuzzy
 msgid "Audio"
 msgstr "Audio"
+
+#, fuzzy
+msgid "August"
+msgstr "agosto"
 
 #, fuzzy
 msgid "Author"
@@ -297,6 +229,10 @@ msgstr "Atrás"
 #, fuzzy
 msgid "Back to %s"
 msgstr "Volver a %s"
+
+#, fuzzy
+msgid "Back to the latest posts"
+msgstr "Volver a las últimas entradas"
 
 #, fuzzy
 msgid "Block"
@@ -409,6 +345,10 @@ msgstr "Desactivar"
 #, fuzzy
 msgid "Deactivate %s"
 msgstr "Desactivar %s"
+
+#, fuzzy
+msgid "December"
+msgstr "diciembre"
 
 #, fuzzy
 msgid "Default"
@@ -529,6 +469,10 @@ msgid "Excerpt"
 msgstr "Extracto"
 
 #, fuzzy
+msgid "February"
+msgstr "febrero"
+
+#, fuzzy
 msgid "Fields"
 msgstr "Campos"
 
@@ -617,6 +561,18 @@ msgid "Installed"
 msgstr "Instalado"
 
 #, fuzzy
+msgid "January"
+msgstr "enero"
+
+#, fuzzy
+msgid "July"
+msgstr "julio"
+
+#, fuzzy
+msgid "June"
+msgstr "junio"
+
+#, fuzzy
 msgid "Keep it"
 msgstr "Conservarlo"
 
@@ -663,6 +619,14 @@ msgstr "Cargando…"
 #, fuzzy
 msgid "Make default"
 msgstr "Hacer por defecto"
+
+#, fuzzy
+msgid "March"
+msgstr "marzo"
+
+#, fuzzy
+msgid "May"
+msgstr "mayo"
 
 #, fuzzy
 msgid "Media %d"
@@ -719,6 +683,10 @@ msgid "New user"
 msgstr "Usuario nuevo"
 
 #, fuzzy
+msgid "Newer posts"
+msgstr "Entradas más recientes"
+
+#, fuzzy
 msgid "No file arrived with this upload. Choose a file and try again."
 msgstr "No ha llegado ningún archivo con esta subida. Elige un archivo e inténtalo de nuevo."
 
@@ -729,6 +697,10 @@ msgstr "Ningún medio elegido"
 #, fuzzy
 msgid "No media has been uploaded yet."
 msgstr "Todavía no se ha subido ningún medio."
+
+#, fuzzy
+msgid "No page lives at this address."
+msgstr "No existe ninguna página en esta dirección."
 
 #, fuzzy
 msgid "No parent"
@@ -751,12 +723,36 @@ msgid "None"
 msgstr "Ninguno"
 
 #, fuzzy
+msgid "Not found"
+msgstr "No encontrado"
+
+#, fuzzy
 msgid "Not serving"
 msgstr "No está sirviendo"
 
 #, fuzzy
+msgid "Nothing published here yet."
+msgstr "Todavía no hay nada publicado aquí."
+
+#, fuzzy
+msgid "Nothing published yet."
+msgstr "Todavía no hay nada publicado."
+
+#, fuzzy
+msgid "November"
+msgstr "noviembre"
+
+#, fuzzy
 msgid "Number"
 msgstr "Número"
+
+#, fuzzy
+msgid "October"
+msgstr "octubre"
+
+#, fuzzy
+msgid "Older posts"
+msgstr "Entradas anteriores"
 
 #, fuzzy
 msgid "One frame of this animation holds more than %(max)d pixels, which is more than Gophenberg opens. Upload a smaller animation."
@@ -917,6 +913,10 @@ msgstr "Buscar vídeos"
 #, fuzzy
 msgid "Select"
 msgstr "Seleccionar"
+
+#, fuzzy
+msgid "September"
+msgstr "septiembre"
 
 #, fuzzy
 msgid "Serving"
@@ -1371,6 +1371,10 @@ msgid "renaming the field failed with status %d"
 msgstr "el renombrado del campo ha fallado con el estado %d"
 
 #, fuzzy
+msgid "Something went wrong. Try again."
+msgstr "Algo ha ido mal. Inténtalo de nuevo."
+
+#, fuzzy
 msgctxt "account"
 msgid "Status"
 msgstr "Estado"
@@ -1464,7 +1468,3 @@ msgstr "Estado"
 msgctxt "trash"
 msgid "Restore"
 msgstr "Restaurar"
-
-#, fuzzy
-msgid "Something went wrong. Try again."
-msgstr "Algo ha ido mal. Inténtalo de nuevo."
