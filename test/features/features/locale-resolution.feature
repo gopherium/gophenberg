@@ -13,7 +13,7 @@ Feature: The admin speaks the reader's language
 
   Scenario: An unsupported browser language falls back
     Given no site default locale
-    When a visitor asks for the locale preferring "fr-FR"
+    When a visitor asks for the locale preferring "de-DE"
     Then the locale answered is "en-US"
 
   Scenario: The site default wins over the browser

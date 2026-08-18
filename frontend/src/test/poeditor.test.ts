@@ -162,7 +162,7 @@ test('names no reason when the platform refused without one', async () => {
 })
 
 test('reads the languages the application says it answers in', () => {
-	expect(supportedLocales(repositoryRoot())).toEqual(['en-US', 'es-ES'])
+	expect(supportedLocales(repositoryRoot())).toEqual(['en-US', 'es-ES', 'fr-FR'])
 })
 
 test('matches a language named exactly as the application names it', () => {

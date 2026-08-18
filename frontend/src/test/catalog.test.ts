@@ -10,12 +10,18 @@ test('loads the catalogue a supported locale ships', async () => {
 	expect(held).toHaveProperty('')
 })
 
+test('loads the catalogue of every other language the site answers in', async () => {
+	const held = await catalogFor('fr-FR')
+
+	expect(held).toHaveProperty('')
+})
+
 test('loads nothing for the language the sources are already written in', async () => {
 	expect(await catalogFor(DEFAULT_LOCALE)).toBeUndefined()
 })
 
 test('loads nothing for a locale that ships no catalogue', async () => {
-	expect(await catalogFor('fr-FR')).toBeUndefined()
+	expect(await catalogFor('de-DE')).toBeUndefined()
 })
 
 test('loads no editor catalogue for the language the editor already speaks', async () => {
