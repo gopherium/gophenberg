@@ -116,8 +116,11 @@ func requireParts(dir, name string) error {
 		{path: clientPath, isDir: true, code: "client_assets_missing", reason: "the client assets are missing"},
 	} {
 		info, err := os.Stat(filepath.Join(dir, part.path))
-		if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
 			return refuse(part.code, part.reason, "themehost: %s holds no %s", name, filepath.ToSlash(part.path))
+		}
+		if err != nil {
+			return fmt.Errorf("themehost: reading %s in %s: %w", filepath.ToSlash(part.path), name, err)
 		}
 		if info.IsDir() != part.isDir {
 			return refuse(part.code, part.reason, "themehost: %s is the wrong kind of file in %s",
