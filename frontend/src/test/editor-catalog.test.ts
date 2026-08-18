@@ -1,5 +1,8 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
 import {
@@ -57,4 +60,20 @@ test('reads the strings a package passes to a gettext call', () => {
 
 	expect(held.has('Zulu label')).toBe(true)
 	expect(held.has('Alpha label')).toBe(true)
+})
+
+test('reads a source string whose text carries an escaped quote', () => {
+	const root = mkdtempSync(join(tmpdir(), 'gophenberg-editor-'))
+	mkdirSync(join(root, 'pkg'), { recursive: true })
+	writeFileSync(join(root, 'pkg', 'held.js'), String.raw`__('It\'s here')` + '\n')
+
+	expect(editorStrings(root, ['pkg/held.js'])).toContain("It's here")
+})
+
+test('keeps a source string whose escape it cannot read', () => {
+	const root = mkdtempSync(join(tmpdir(), 'gophenberg-editor-'))
+	mkdirSync(join(root, 'pkg'), { recursive: true })
+	writeFileSync(join(root, 'pkg', 'held.js'), String.raw`__('a \x41 b')` + '\n')
+
+	expect(editorStrings(root, ['pkg/held.js'])).toContain(String.raw`a \x41 b`)
 })

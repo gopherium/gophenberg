@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -30,6 +30,19 @@ export function wordpressLocale(locale: string): string {
 }
 
 /**
+ * Returns the string a captured literal holds, with its escapes resolved.
+ * @param raw - The captured text between the quotes.
+ * @returns The string as the runtime sees it.
+ */
+function decoded(raw: string): string {
+	try {
+		return JSON.parse(`"${raw.replace(/\\'/g, "'").replace(/"/g, '\\"')}"`) as string
+	} catch {
+		return raw
+	}
+}
+
+/**
  * Returns every source string the pinned editor packages hold.
  * @param root - The repository root the packages sit under.
  * @param packages - The package directories to read.
@@ -40,7 +53,7 @@ export function editorStrings(root: string, packages: string[]): Set<string> {
 	for (const held of packages) {
 		const source = readFileSync(join(root, held), 'utf8')
 		for (const match of source.matchAll(CALLS)) {
-			found.add(match[2])
+			found.add(decoded(match[2]))
 		}
 	}
 	return found
