@@ -75,7 +75,10 @@ export default defineConfig({
 				},
 				{
 					label: 'Contributing',
-					items: [{ slug: 'contributing/translate-gophenberg' }],
+					items: [
+						{ slug: 'contributing/translate-gophenberg' },
+						{ slug: 'contributing/add-a-translatable-string' },
+					],
 				},
 				{
 					label: 'Legal',
