@@ -3,15 +3,9 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import {
-	localeFor,
-	meaningfulChange,
-	poeditorAt,
-	supportedLocales,
-	translated,
-	withPluralRuleOf,
-} from './poeditor.ts'
+import { poeditorAt, supportedLocales } from './poeditor.ts'
 import { repositoryRoot } from './pot.ts'
+import { syncTranslations } from './sync.ts'
 
 const token = process.env.POEDITOR_API_TOKEN
 const project = process.env.POEDITOR_PROJECT_ID
@@ -21,35 +15,18 @@ if (token === undefined || project === undefined) {
 	process.exit(1)
 }
 
-const platform = poeditorAt(token, project)
 const root = repositoryRoot()
 const languages = join(root, 'languages')
-const supported = supportedLocales(root)
-const moved: string[] = []
-const skipped: string[] = []
 
-for (const named of await platform.languages()) {
-	const locale = localeFor(named, supported)
-	if (locale === undefined) {
-		skipped.push(`${named}, which the site does not answer in`)
-		continue
-	}
-	const target = join(languages, `${locale}.po`)
-	const current = existsSync(target) ? readFileSync(target, 'utf8') : undefined
-	const exported = await platform.exportPo(named)
-	if (translated(exported) === 0) {
-		skipped.push(`${named}, which nobody has translated yet`)
-		continue
-	}
-	const incoming = current === undefined ? exported : withPluralRuleOf(current, exported)
-	if (!meaningfulChange(current, incoming)) {
-		continue
-	}
-	writeFileSync(target, incoming)
-	moved.push(locale)
-}
+const done = await syncTranslations(poeditorAt(token, project), supportedLocales(root), {
+	read: (locale) => {
+		const target = join(languages, `${locale}.po`)
+		return existsSync(target) ? readFileSync(target, 'utf8') : undefined
+	},
+	write: (locale, source) => writeFileSync(join(languages, `${locale}.po`), source),
+})
 
-console.log(moved.length === 0 ? 'no translation moved' : `translations moved: ${moved.join(', ')}`)
-for (const held of skipped) {
+console.log(done.moved.length === 0 ? 'no translation moved' : `translations moved: ${done.moved.join(', ')}`)
+for (const held of done.skipped) {
 	console.log(`skipped ${held}`)
 }
