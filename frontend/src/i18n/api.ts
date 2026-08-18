@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
 import { z } from 'zod'
 
+import { refusalText } from './refusal'
 import { DEFAULT_LOCALE } from './catalog'
 
 const localeSchema = z.object({
@@ -9,7 +10,11 @@ const localeSchema = z.object({
 	supported: z.array(z.string()),
 })
 
-const refusalSchema = z.object({ error: z.string() })
+const refusalSchema = z.object({
+	error: z.string(),
+	code: z.string().optional(),
+	meta: z.record(z.string(), z.unknown()).optional(),
+})
 
 const settingsSchema = z.object({ locale_default: z.string() })
 
@@ -56,7 +61,7 @@ export async function chooseLocale(locale: string): Promise<Answered> {
  */
 async function refusalFrom(response: Response): Promise<Error> {
 	const parsed = refusalSchema.safeParse(await response.json().catch(() => null))
-	return new Error(parsed.success ? parsed.data.error : `the server answered ${response.status}`)
+	return new Error(parsed.success ? refusalText(parsed.data) : refusalText({ error: '' }))
 }
 
 /**

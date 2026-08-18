@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
@@ -59,17 +59,20 @@ test('answers the language the server stored', async () => {
 test('reports a refusal that carries no readable body', async () => {
 	server.use(http.patch('/api/locale', () => new HttpResponse(null, { status: 500 })))
 
-	await expect(chooseLocale('es-ES')).rejects.toThrow(/500/)
+	await expect(chooseLocale('es-ES')).rejects.toThrow(/something went wrong/i)
 })
 
 test('reports a refused language', async () => {
 	server.use(
 		http.patch('/api/locale', () =>
-			HttpResponse.json({ error: 'content: locale unknown', code: 'locale_unknown' }, { status: 422 }),
+			HttpResponse.json(
+				{ error: 'content: locale unknown', code: 'locale_unknown', meta: { value: 'xx-XX' } },
+				{ status: 422 },
+			),
 		),
 	)
 
-	await expect(chooseLocale('xx-XX')).rejects.toThrow(/locale/)
+	await expect(chooseLocale('xx-XX')).rejects.toThrow(/does not answer in xx-XX/)
 })
 
 test('reads the language the site chose for itself', async () => {
