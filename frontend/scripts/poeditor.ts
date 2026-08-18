@@ -1,6 +1,9 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
 import { po } from 'gettext-parser'
+
+/** How long any one call to the platform may take. */
+const REQUEST_TIMEOUT = 30_000
 
 /** Where the translation platform answers. */
 const API = 'https://api.poeditor.com/v2'
@@ -37,9 +40,9 @@ export function localeOf(code: string): string {
  */
 function answersOf(source: string): Answers {
 	const held: Answers = {}
-	for (const [context, entries] of Object.entries(po.parse(source).translations)) {
+	for (const [context, entries] of Object.entries(po.parse(source).translations).sort()) {
 		held[context] = {}
-		for (const [msgid, entry] of Object.entries(entries)) {
+		for (const [msgid, entry] of Object.entries(entries).sort()) {
 			if (msgid !== '') {
 				held[context][msgid] = entry.msgstr
 			}
@@ -73,7 +76,11 @@ async function ask(
 	path: string,
 	form: URLSearchParams,
 ): Promise<NonNullable<Answer['result']>> {
-	const response = await fetched(`${API}/${path}`, { method: 'POST', body: form })
+	const response = await fetched(`${API}/${path}`, {
+		method: 'POST',
+		body: form,
+		signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+	})
 	if (!response.ok) {
 		throw new Error(`the translation platform answered ${response.status}`)
 	}
@@ -100,10 +107,19 @@ export function poeditorAt(token: string, project: string, fetched: typeof fetch
 		return new URLSearchParams({ api_token: token, id: project })
 	}
 	return {
+		/**
+		 * Returns every language the project carries.
+		 * @returns The languages, named as a catalogue file names them.
+		 */
 		languages: async () => {
 			const held = await ask(fetched, 'languages/list', credentials())
 			return (held.languages ?? []).map((named) => localeOf(named.code))
 		},
+		/**
+		 * Returns one language's catalogue as the platform exports it.
+		 * @param locale - The language to export.
+		 * @returns The catalogue as PO text.
+		 */
 		exportPo: async (locale: string) => {
 			const form = credentials()
 			form.set('language', locale.toLowerCase())
@@ -112,7 +128,7 @@ export function poeditorAt(token: string, project: string, fetched: typeof fetch
 			if (held.url === undefined) {
 				throw new Error(`the translation platform named no export for ${locale}`)
 			}
-			const downloaded = await fetched(held.url)
+			const downloaded = await fetched(held.url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT) })
 			if (!downloaded.ok) {
 				throw new Error(`the export for ${locale} answered ${downloaded.status}`)
 			}

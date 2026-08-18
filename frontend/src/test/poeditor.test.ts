@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
 import { expect, test, vi } from 'vitest'
 
@@ -100,9 +100,9 @@ test('refuses a platform answer that did not arrive', async () => {
 
 test('downloads the export the platform prepared', async () => {
 	const asked: string[] = []
-	const fetched = vi.fn(async (url: string, init?: { body: URLSearchParams }) => {
+	const fetched = vi.fn(async (url: string, init?: { body?: URLSearchParams }) => {
 		asked.push(url)
-		if (init !== undefined) {
+		if (init?.body !== undefined) {
 			expect(init.body.toString()).toContain('language=es-es')
 			return {
 				ok: true,
@@ -128,8 +128,8 @@ test('refuses an export the platform named no address for', async () => {
 })
 
 test('refuses an export that could not be downloaded', async () => {
-	const fetched = vi.fn(async (_url: string, init?: { body: URLSearchParams }) =>
-		init !== undefined
+	const fetched = vi.fn(async (_url: string, init?: { body?: URLSearchParams }) =>
+		init?.body !== undefined
 			? { ok: true, json: async () => ({ response: { status: 'success' }, result: { url: 'https://held/es.po' } }) }
 			: { ok: false, status: 404 },
 	)
