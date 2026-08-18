@@ -267,8 +267,9 @@ func readLocale(t *testing.T, url string) string {
 	var answered struct {
 		Locale string `json:"locale"`
 	}
+	client := &http.Client{Timeout: 2 * time.Second}
 	for attempt := range 50 {
-		response, err := http.Get(url)
+		response, err := client.Get(url)
 		if err != nil {
 			time.Sleep(20 * time.Millisecond)
 			continue
