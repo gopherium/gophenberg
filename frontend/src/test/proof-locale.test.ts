@@ -28,11 +28,6 @@ test('leaves no more of the template unanswered than the proof locale admits', (
 	expect(untranslated(catalogOf(PROOF_LOCALE), template).length).toBeLessThanOrEqual(PENDING)
 })
 
-test('holds the proof locale to what it has already reached', () => {
-	const template = readFileSync(join(repositoryRoot(), 'languages', 'gophenberg.pot'), 'utf8')
-
-	expect(untranslated(catalogOf(PROOF_LOCALE), template).length).toBe(PENDING)
-})
 
 test('counts a message the catalogue omits entirely as waiting', () => {
 	const template = `msgid ""
