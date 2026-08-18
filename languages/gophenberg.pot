@@ -713,6 +713,9 @@ msgstr ""
 msgid "Something went wrong."
 msgstr ""
 
+msgid "Something went wrong. Try again."
+msgstr ""
+
 msgid "Start writing."
 msgstr ""
 

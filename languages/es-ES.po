@@ -1464,3 +1464,7 @@ msgstr "Estado"
 msgctxt "trash"
 msgid "Restore"
 msgstr "Restaurar"
+
+#, fuzzy
+msgid "Something went wrong. Try again."
+msgstr "Algo ha ido mal. Inténtalo de nuevo."

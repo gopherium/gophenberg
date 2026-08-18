@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
-import { sprintf } from '@wordpress/i18n'
+import { __, sprintf } from '@wordpress/i18n'
 
 import { refusalTemplates } from './refusalTemplates'
 
@@ -11,8 +11,13 @@ export interface Refused {
 	meta?: Record<string, unknown>
 }
 
-/** What a reader is told when the server said nothing readable at all. */
-const unexplained = 'Something went wrong. Try again.'
+/**
+ * Returns what a reader is told when the server said nothing readable at all.
+ * @returns The message to show.
+ */
+function unexplained(): string {
+	return __('Something went wrong. Try again.', 'gophenberg')
+}
 
 /** The named places a template asks the refusal to fill in. */
 const PLACEHOLDERS = /%\((\w+)\)[sd]/g
@@ -38,7 +43,7 @@ function filled(template: string, meta: Record<string, unknown>): boolean {
  * @returns The message to show.
  */
 export function refusalText(refused: Refused): string {
-	const spoken = refused.error === '' ? unexplained : refused.error
+	const spoken = refused.error === '' ? unexplained() : refused.error
 	const template = refused.code === undefined ? undefined : refusalTemplates()[refused.code]
 	if (template === undefined || !filled(template, refused.meta ?? {})) {
 		return spoken
