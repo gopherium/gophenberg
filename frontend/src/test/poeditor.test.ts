@@ -1,8 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
 
-import { localeOf, meaningfulChange, poeditorAt } from '../../scripts/poeditor.ts'
+import {
+	localeFor,
+	localeOf,
+	meaningfulChange,
+	poeditorAt,
+	supportedLocales,
+	translated,
+	withPluralRuleOf,
+} from '../../scripts/poeditor.ts'
+import { repositoryRoot } from '../../scripts/pot.ts'
 
 const HEADER = `msgid ""
 msgstr ""
@@ -147,4 +159,124 @@ test('names no reason when the platform refused without one', async () => {
 	const fetched = vi.fn(async () => ({ ok: true, json: async () => ({ response: { status: 'fail' } }) }))
 
 	await expect(poeditorAt('t', '1', fetched as never).languages()).rejects.toThrow(/no reason given/)
+})
+
+test('reads the languages the application says it answers in', () => {
+	expect(supportedLocales(repositoryRoot())).toEqual(['en-US', 'es-ES'])
+})
+
+test('matches a language named exactly as the application names it', () => {
+	expect(localeFor('es-ES', ['en-US', 'es-ES'])).toBe('es-ES')
+})
+
+test('matches a bare language against the one region the application supports', () => {
+	expect(localeFor('es', ['en-US', 'es-ES'])).toBe('es-ES')
+})
+
+test('refuses a bare language when two regions of it are supported', () => {
+	expect(localeFor('es', ['es-ES', 'es-MX'])).toBeUndefined()
+})
+
+test('refuses a language the application does not answer in', () => {
+	expect(localeFor('fr', ['en-US', 'es-ES'])).toBeUndefined()
+})
+
+test('reports a catalogue nobody has translated yet', () => {
+	const bare = `msgid ""
+msgstr ""
+"Language: fr\\n"
+
+msgid "Older posts"
+msgstr ""
+`
+
+	expect(translated(bare)).toBe(0)
+})
+
+test('counts the messages a catalogue answers', () => {
+	const held = `msgid ""
+msgstr ""
+"Language: es-ES\\n"
+
+msgid "Older posts"
+msgstr "Entradas anteriores"
+`
+
+	expect(translated(held)).toBe(1)
+})
+
+test('keeps the plural rule the committed catalogue declares', () => {
+	const ours = `msgid ""
+msgstr ""
+"Language: es-ES\\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\\n"
+`
+	const theirs = `msgid ""
+msgstr ""
+"Language: es-ES\\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n==2 ? 1 : 2);\\n"
+
+msgid "%d post"
+msgid_plural "%d posts"
+msgstr[0] "%d entrada"
+msgstr[1] "%d entradas"
+msgstr[2] ""
+`
+
+	const held = withPluralRuleOf(ours, theirs)
+
+	expect(held).toContain('nplurals=2')
+	expect(held).not.toContain('nplurals=3')
+	expect(held).not.toMatch(/msgstr\[2\]/)
+})
+
+test('refuses a source that declares no supported languages', () => {
+	const root = mkdtempSync(join(tmpdir(), 'gophenberg-locale-'))
+	mkdirSync(join(root, 'internal', 'content'), { recursive: true })
+	writeFileSync(join(root, 'internal', 'content', 'locale.go'), 'package content\n')
+
+	expect(() => supportedLocales(root)).toThrow(/no supported languages/)
+})
+
+test('takes the platform plural rule when the catalogue declares none', () => {
+	const ours = 'msgid ""\nmsgstr ""\n"Language: es-ES\\n"\n'
+	const theirs = 'msgid ""\nmsgstr ""\n"Plural-Forms: nplurals=2; plural=(n != 1);\\n"\n'
+
+	expect(withPluralRuleOf(ours, theirs)).toBe(theirs)
+})
+
+test('keeps one form when the committed rule names no count', () => {
+	const ours = 'msgid ""\nmsgstr ""\n"Plural-Forms: plural=(n != 1);\\n"\n'
+	const theirs = `msgid ""
+msgstr ""
+
+msgid "%d post"
+msgid_plural "%d posts"
+msgstr[0] "%d entrada"
+msgstr[1] "%d entradas"
+`
+
+	expect(withPluralRuleOf(ours, theirs)).not.toMatch(/msgstr\[1\]/)
+})
+
+test('refuses a region the application does not answer in, rather than taking another', () => {
+	expect(localeFor('es-MX', ['en-US', 'es-ES'])).toBeUndefined()
+})
+
+test('asks the platform for a language under the platform own name', async () => {
+	const asked: string[] = []
+	const fetched = vi.fn(async (_url: string, init?: { body?: URLSearchParams }) => {
+		if (init?.body !== undefined) {
+			asked.push(init.body.get('language') ?? '')
+			return {
+				ok: true,
+				json: async () => ({ response: { status: 'success' }, result: { url: 'https://held/es.po' } }),
+			}
+		}
+		return { ok: true, text: async () => 'msgid ""\nmsgstr ""\n' }
+	})
+
+	await poeditorAt('t', '1', fetched as never).exportPo('es')
+
+	expect(asked[0]).toBe('es')
 })

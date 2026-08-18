@@ -1,6 +1,90 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { po } from 'gettext-parser'
+
+/** Where the application declares the languages it answers in. */
+const LOCALE_SOURCE = ['internal', 'content', 'locale.go']
+
+/**
+ * Returns the languages the application answers in, as it declares them.
+ * @param root - The repository root the declaration sits under.
+ * @returns The languages, the fallback first.
+ */
+export function supportedLocales(root: string): string[] {
+	const source = readFileSync(join(root, ...LOCALE_SOURCE), 'utf8')
+	const declared = /DefaultLocale\s*=\s*"([^"]+)"/.exec(source)
+	const listed = /SupportedLocales\s*=\s*\[\]string\{([^}]*)\}/.exec(source)
+	if (declared === null || listed === null) {
+		throw new Error('the application declares no supported languages')
+	}
+	return listed[1]
+		.split(',')
+		.map((held) => held.trim())
+		.filter((held) => held !== '')
+		.map((held) => (held === 'DefaultLocale' ? declared[1] : held.replace(/"/g, '')))
+}
+
+/**
+ * Returns the language the application knows a platform code as, if it knows one.
+ * @param code - The language as the platform names it.
+ * @param supported - The languages the application answers in.
+ * @returns The application's own name for it, or nothing when it answers in no such language.
+ */
+export function localeFor(code: string, supported: string[]): string | undefined {
+	if (supported.includes(code)) {
+		return code
+	}
+	if (code.includes('-')) {
+		return undefined
+	}
+	const sharing = supported.filter((held) => held.split('-')[0] === code)
+	return sharing.length === 1 ? sharing[0] : undefined
+}
+
+/**
+ * Returns how many messages a catalogue answers.
+ * @param source - The catalogue as PO text.
+ * @returns The count of messages carrying a translation.
+ */
+export function translated(source: string): number {
+	let held = 0
+	for (const entries of Object.values(po.parse(source).translations)) {
+		for (const [msgid, entry] of Object.entries(entries)) {
+			if (msgid !== '' && entry.msgstr.some((form) => form !== '')) {
+				held += 1
+			}
+		}
+	}
+	return held
+}
+
+/**
+ * Returns an incoming catalogue under the plural rule the committed one declares.
+ * @param current - The catalogue as committed.
+ * @param incoming - The catalogue the platform exported.
+ * @returns The incoming catalogue, carrying the committed plural rule and no form beyond it.
+ */
+export function withPluralRuleOf(current: string, incoming: string): string {
+	const parsed = po.parse(current)
+	const rule = parsed.headers['Plural-Forms']
+	if (rule === undefined) {
+		return incoming
+	}
+	const held = po.parse(incoming)
+	held.headers['Plural-Forms'] = rule
+	const forms = Number(/nplurals\s*=\s*(\d+)/.exec(rule)?.[1] ?? 1)
+	for (const entries of Object.values(held.translations)) {
+		for (const entry of Object.values(entries)) {
+			if (entry.msgstr.length > forms) {
+				entry.msgstr = entry.msgstr.slice(0, forms)
+			}
+		}
+	}
+	return po.compile(held, { foldLength: 0, eol: '\n' }).toString()
+}
 
 /** How long any one call to the platform may take. */
 const REQUEST_TIMEOUT = 30_000
