@@ -12,6 +12,7 @@
 		"lint:css": "stylelint 'src/**/*.css'",
 		"pot": "node scripts/write-pot.ts",
 		"preview": "vite preview",
+		"translations": "node scripts/sync-translations.ts",
 		"typecheck": "tsc -b --force"
 	},
 	"dependencies": {
@@ -39,7 +40,6 @@
 		"gettext-extractor": "4.0.6",
 		"gettext-parser": "9.1.1",
 		"jsdom": "^29.1.1",
-		"oxlint": "^1.77.0",
 		"stylelint": "^17.0.0",
 		"typescript": "~6.0.2",
 		"vite": "^8.2.0",

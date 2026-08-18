@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 /** The text domain every Gophenberg owned string names. */
-export const DOMAIN = 'gophenberg'
+const DOMAIN = 'gophenberg'
 
 /** The globs holding every string the admin ships, read from the repository root. */
 const SOURCES = ['frontend/src/**/*.{ts,tsx}', 'sdk/frontend/**/*.{ts,tsx}']
