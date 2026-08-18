@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
 import { createI18n } from '@wordpress/i18n'
 import { readFileSync, readdirSync } from 'node:fs'

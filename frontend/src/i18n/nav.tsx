@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
 import type { NavItem } from '@gophenberg/frontend-sdk'
 import { __ } from '@wordpress/i18n'

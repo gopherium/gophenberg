@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
 import { GettextExtractor, JsExtractors } from 'gettext-extractor'
 import { po, type GetTextTranslation } from 'gettext-parser'
