@@ -22,7 +22,7 @@ func TestResolveLocaleFollowsTheBrowserWhenNothingIsSet(t *testing.T) {
 func TestResolveLocaleFallsBackToTheFirstSupported(t *testing.T) {
 	t.Parallel()
 
-	held := content.ResolveLocale(content.LocaleAsked{Accepted: "fr-FR,fr;q=0.9"})
+	held := content.ResolveLocale(content.LocaleAsked{Accepted: "de-DE,de;q=0.9"})
 
 	if held != content.DefaultLocale {
 		t.Errorf("ResolveLocale() = %q, want %q", held, content.DefaultLocale)
@@ -52,7 +52,7 @@ func TestResolveLocalePrefersTheReadersOwnChoice(t *testing.T) {
 func TestResolveLocaleIgnoresAnUnsupportedSiteDefault(t *testing.T) {
 	t.Parallel()
 
-	held := content.ResolveLocale(content.LocaleAsked{Site: "fr-FR", Accepted: "es-ES"})
+	held := content.ResolveLocale(content.LocaleAsked{Site: "de-DE", Accepted: "es-ES"})
 
 	if held != "es-ES" {
 		t.Errorf("ResolveLocale() = %q, want an unsupported site default passed over", held)
@@ -85,5 +85,23 @@ func TestValidateLocaleRefusesAnUnsupportedLanguage(t *testing.T) {
 	}
 	if code, ok := content.CodeOf(err); !ok || code != "locale_unknown" {
 		t.Errorf("CodeOf() = %q, %v, want the refusal named", code, ok)
+	}
+}
+
+func TestResolveLocaleAnswersInFrenchWhenTheBrowserAsksForIt(t *testing.T) {
+	t.Parallel()
+
+	held := content.ResolveLocale(content.LocaleAsked{Accepted: "fr-FR,fr;q=0.9"})
+
+	if held != "fr-FR" {
+		t.Errorf("ResolveLocale() = %q, want fr-FR", held)
+	}
+}
+
+func TestValidateLocaleAcceptsFrench(t *testing.T) {
+	t.Parallel()
+
+	if err := content.ValidateLocale("fr-FR"); err != nil {
+		t.Errorf("ValidateLocale(fr-FR) = %v, want nil", err)
 	}
 }

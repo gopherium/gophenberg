@@ -17,7 +17,7 @@ var ErrLocaleUnknown = errors.New("content: locale unknown")
 const DefaultLocale = "en-US"
 
 // SupportedLocales are the languages the site answers in, the fallback first.
-var SupportedLocales = []string{DefaultLocale, "es-ES"}
+var SupportedLocales = []string{DefaultLocale, "es-ES", "fr-FR"}
 
 // LocaleSettingKey names the stored site default language.
 const LocaleSettingKey = "locale.default"
