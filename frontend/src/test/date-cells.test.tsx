@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { render, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { afterEach, expect, test } from 'vitest'
 
 import { postFields } from '../content/fields'
@@ -23,7 +24,7 @@ afterEach(() => {
  */
 function renderDate<T>(fields: { id: string, render?: unknown }[], item: T) {
 	const field = fields.find((held) => held.id === 'date')!
-	const Cell = field.render as (props: { item: T }) => JSX.Element
+	const Cell = field.render as (props: { item: T }) => ReactElement
 	render(<Cell item={item} />)
 }
 
