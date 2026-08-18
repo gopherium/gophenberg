@@ -1,13 +1,18 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { __, getLocaleData } from '@wordpress/i18n'
-import { expect, test } from 'vitest'
+import { __, getLocaleData, resetLocaleData } from '@wordpress/i18n'
+import { beforeEach, expect, test } from 'vitest'
 
 import { usersNavItem } from '@gopherium/react-auth/wpds'
 
 import { displayLocale } from '../i18n/display'
 import { DOMAIN, startLocale } from '../i18n/start'
+
+beforeEach(() => {
+	resetLocaleData({}, DOMAIN)
+	resetLocaleData({})
+})
 
 test('answers the language the server resolved', async () => {
 	server.use(
