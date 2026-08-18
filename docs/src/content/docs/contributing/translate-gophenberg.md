@@ -24,7 +24,8 @@ Translation happens on POEditor, a website built for exactly this. You
 sign in, pick your language, and you see the English on one side and a box
 for your language on the other. You fill in the boxes.
 
-The link to the Gophenberg project is in the repository README.
+Join the Gophenberg project at
+[poeditor.com/join/project/WHdsSyegwJ](https://poeditor.com/join/project/WHdsSyegwJ).
 
 Ask a maintainer to add your language if it is not listed yet. Any
 language can be added, and a language with one contributor is welcome.

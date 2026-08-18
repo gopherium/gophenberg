@@ -58,6 +58,14 @@ A plugin is a Go package under `plugins/` with a `plugin.json`, compiled in by
 `make generate`. `plugins/feed` is the reference, and
 [write a plugin](https://docs.gophenberg.org/extending/write-a-plugin/) walks it.
 
+## Translating
+
+The admin speaks whatever language its catalogues carry. Translation happens on
+[POEditor](https://poeditor.com/join/project/WHdsSyegwJ), no Git needed, and a
+weekly job carries the finished work back in one batch.
+[Translate Gophenberg](https://docs.gophenberg.org/contributing/translate-gophenberg/)
+walks it.
+
 ## License
 
 Copyright (C) 2026 Manuel 'SirLouen' Camargo
