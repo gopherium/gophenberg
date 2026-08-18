@@ -3,7 +3,14 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { meaningfulChange, poeditorAt } from './poeditor.ts'
+import {
+	localeFor,
+	meaningfulChange,
+	poeditorAt,
+	supportedLocales,
+	translated,
+	withPluralRuleOf,
+} from './poeditor.ts'
 import { repositoryRoot } from './pot.ts'
 
 const token = process.env.POEDITOR_API_TOKEN
@@ -15,13 +22,26 @@ if (token === undefined || project === undefined) {
 }
 
 const platform = poeditorAt(token, project)
-const languages = join(repositoryRoot(), 'languages')
+const root = repositoryRoot()
+const languages = join(root, 'languages')
+const supported = supportedLocales(root)
 const moved: string[] = []
+const skipped: string[] = []
 
-for (const locale of await platform.languages()) {
+for (const named of await platform.languages()) {
+	const locale = localeFor(named, supported)
+	if (locale === undefined) {
+		skipped.push(`${named}, which the site does not answer in`)
+		continue
+	}
 	const target = join(languages, `${locale}.po`)
-	const incoming = await platform.exportPo(locale)
 	const current = existsSync(target) ? readFileSync(target, 'utf8') : undefined
+	const exported = await platform.exportPo(locale)
+	if (translated(exported) === 0) {
+		skipped.push(`${named}, which nobody has translated yet`)
+		continue
+	}
+	const incoming = current === undefined ? exported : withPluralRuleOf(current, exported)
 	if (!meaningfulChange(current, incoming)) {
 		continue
 	}
@@ -30,3 +50,6 @@ for (const locale of await platform.languages()) {
 }
 
 console.log(moved.length === 0 ? 'no translation moved' : `translations moved: ${moved.join(', ')}`)
+for (const held of skipped) {
+	console.log(`skipped ${held}`)
+}
