@@ -90,7 +90,7 @@ msgstr "Entradas anteriores"
 
 #, fuzzy
 msgid "%(name)s %(version)s is serving the public site."
-msgstr "%(name)s %(version)s está sirviendo el sitio público."
+msgstr "%(name)s %(version)s sirve el sitio público."
 
 #, fuzzy
 msgid "%(name)s cannot be used as a theme name. Name the zip file after the theme, with no dot at the start and no slashes in it."
@@ -128,15 +128,15 @@ msgstr "%s no es un archivo que este bloque acepte."
 
 #, fuzzy
 msgid "%s is not answering, so the built-in renderer is serving."
-msgstr "%s no responde, así que está sirviendo el renderizador integrado."
+msgstr "%s no responde, así que sirve el renderizador integrado."
 
 #, fuzzy
 msgid "%s is now serving the public site."
-msgstr "%s ya está sirviendo el sitio público."
+msgstr "%s ya sirve el sitio público."
 
 #, fuzzy
 msgid "%s is serving the public site."
-msgstr "%s está sirviendo el sitio público."
+msgstr "%s sirve el sitio público."
 
 #, fuzzy
 msgid "%s registered."
@@ -164,7 +164,7 @@ msgstr "%s responderá en la raíz."
 
 #, fuzzy
 msgid "%s will not load, so the built-in renderer is serving."
-msgstr "%s no se cargará, así que está sirviendo el renderizador integrado."
+msgstr "%s no se carga, así que sirve el renderizador integrado."
 
 #, fuzzy
 msgid "(no title)"
@@ -996,11 +996,11 @@ msgstr "El navegador ha guardado una versión sin guardar de esta entrada."
 
 #, fuzzy
 msgid "The built-in renderer is now serving the public site."
-msgstr "El renderizador integrado ya está sirviendo el sitio público."
+msgstr "El renderizador integrado ya sirve el sitio público."
 
 #, fuzzy
 msgid "The built-in renderer is serving the public site."
-msgstr "El renderizador integrado está sirviendo el sitio público."
+msgstr "El renderizador integrado sirve el sitio público."
 
 #, fuzzy
 msgid "The content type this field points at is not named in a shape Gophenberg accepts. Give it a key that starts with a lowercase letter and then holds only lowercase letters, numbers and hyphens."
@@ -1112,7 +1112,7 @@ msgstr "El tema %(name)s lleva un enlace a otro archivo en %(path)s, y un tema s
 
 #, fuzzy
 msgid "The theme %(name)s is serving your site right now, so it cannot be replaced. Deactivate it first, or install this copy under another name."
-msgstr "El tema %(name)s está sirviendo tu sitio ahora mismo, así que no se puede sustituir. Desactívalo primero, o instala esta copia con otro nombre."
+msgstr "El tema %(name)s sirve tu sitio ahora mismo, así que no se puede sustituir. Desactívalo primero, o instala esta copia con otro nombre."
 
 #, fuzzy
 msgid "The theme %(name)s is the one chosen, but it is not installed, so your site is served by the built-in renderer. Upload the theme again, or choose another one."
