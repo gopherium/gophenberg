@@ -265,7 +265,7 @@ test('refuses a region the application does not answer in, rather than taking an
 
 test('asks the platform for a language under the platform own name', async () => {
 	const asked: string[] = []
-	const fetched = vi.fn(async (url: string, init?: { body?: URLSearchParams }) => {
+	const fetched = vi.fn(async (_url: string, init?: { body?: URLSearchParams }) => {
 		if (init?.body !== undefined) {
 			asked.push(init.body.get('language') ?? '')
 			return {
