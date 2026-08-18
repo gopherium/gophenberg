@@ -2,8 +2,10 @@
 
 import { Badge, Stack, Text } from '@gophenberg/frontend-sdk'
 import type { Field } from '@gophenberg/frontend-sdk/dataviews'
+import { __, _x } from '@wordpress/i18n'
 import { Link } from '@tanstack/react-router'
 
+import { formatDate } from '../i18n/display'
 import type { Post } from './api'
 
 /**
@@ -14,15 +16,15 @@ import type { Post } from './api'
 function stateLabel(status: string): string | null {
 	switch (status) {
 		case 'draft':
-			return 'Draft'
+			return _x('Draft', 'post status', 'gophenberg')
 		case 'pending':
-			return 'Pending'
+			return __('Pending', 'gophenberg')
 		case 'private':
-			return 'Private'
+			return __('Private', 'gophenberg')
 		case 'scheduled':
-			return 'Scheduled'
+			return __('Scheduled', 'gophenberg')
 		case 'trash':
-			return 'Trash'
+			return _x('Trash', 'post status', 'gophenberg')
 		default:
 			return null
 	}
@@ -35,8 +37,8 @@ function stateLabel(status: string): string | null {
  */
 function dateLine(post: Post): { caption: string, at: string } {
 	return post.publishedAt !== null
-		? { caption: 'Published', at: post.publishedAt }
-		: { caption: 'Last Modified', at: post.updatedAt }
+		? { caption: _x('Published', 'date caption', 'gophenberg'), at: post.publishedAt }
+		: { caption: __('Last Modified', 'gophenberg'), at: post.updatedAt }
 }
 
 /**
@@ -49,7 +51,7 @@ function TitleCell({ item }: { item: Post }) {
 	return (
 		<Stack direction="row" gap="xs" align="center">
 			<Link to="/content/$typeKey/$postId/edit" params={{ typeKey: item.type, postId: item.id }}>
-				{item.title === '' ? '(no title)' : item.title}
+				{item.title === '' ? __('(no title)', 'gophenberg') : item.title}
 			</Link>
 			{state !== null && <Badge>{state}</Badge>}
 		</Stack>
@@ -74,13 +76,19 @@ function DateCell({ item }: { item: Post }) {
 	const { caption, at } = dateLine(item)
 	return (
 		<Text>
-			{caption} {at === '' ? '' : new Date(at).toLocaleDateString()}
+			{caption} {formatDate(at)}
 		</Text>
 	)
 }
 
 export const postFields: Field<Post>[] = [
-	{ id: 'title', label: 'Title', render: TitleCell, enableSorting: true, enableHiding: false },
-	{ id: 'author', label: 'Author', render: AuthorCell, enableSorting: false },
-	{ id: 'date', label: 'Date', render: DateCell, enableSorting: true },
+	{
+		id: 'title',
+		label: __('Title', 'gophenberg'),
+		render: TitleCell,
+		enableSorting: true,
+		enableHiding: false,
+	},
+	{ id: 'author', label: __('Author', 'gophenberg'), render: AuthorCell, enableSorting: false },
+	{ id: 'date', label: _x('Date', 'column', 'gophenberg'), render: DateCell, enableSorting: true },
 ]

@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { SelectControl } from '@gophenberg/frontend-sdk'
+import { __ } from '@wordpress/i18n'
 import { useQuery } from '@tanstack/react-query'
 
 import { listPosts } from './api'
-
-/** What the picker offers when the item hangs at the root of its type. */
-const rootItem = { label: 'No parent', value: '' }
 
 /**
  * Returns the parent a select change asks for, or nothing at the root.
@@ -35,6 +33,7 @@ export function ParentPicker(props: {
 		queryKey: ['parents', props.type],
 		queryFn: () => listPosts({ type: props.type }),
 	})
+	const rootItem = { label: __('No parent', 'gophenberg'), value: '' }
 	const items = [
 		rootItem,
 		...(held.data?.items ?? [])
@@ -44,7 +43,7 @@ export function ParentPicker(props: {
 	const selected = items.find((item) => item.value === (props.parentId ?? '')) ?? rootItem
 	return (
 		<SelectControl
-			label="Parent"
+			label={__('Parent', 'gophenberg')}
 			items={items}
 			value={selected}
 			onValueChange={(item) => props.onChange(chosenParent(item))}

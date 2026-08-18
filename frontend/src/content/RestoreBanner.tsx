@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Notice } from '@gophenberg/frontend-sdk'
+import { __ } from '@wordpress/i18n'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { fetchAutosave } from './api'
 import type { Autosave, PostDetail } from './api'
 import { sameFieldValues } from './fieldValues'
-
-const MESSAGE = 'The browser kept an unsaved version of this post.'
 
 /**
  * Reports whether the post already holds the kept words.
@@ -61,9 +60,10 @@ export function RestoreBanner({
 	if (offer === null || taken) {
 		return null
 	}
+	const message = __('The browser kept an unsaved version of this post.', 'gophenberg')
 	return (
-		<Notice.Root intent="warning" spokenMessage={MESSAGE}>
-			<Notice.Description>{MESSAGE}</Notice.Description>
+		<Notice.Root intent="warning" spokenMessage={message}>
+			<Notice.Description>{message}</Notice.Description>
 			<Notice.Actions>
 				<Notice.ActionButton
 					onClick={() => {
@@ -71,7 +71,7 @@ export function RestoreBanner({
 						onRestore(offer)
 					}}
 				>
-					Restore
+					{__('Restore', 'gophenberg')}
 				</Notice.ActionButton>
 			</Notice.Actions>
 		</Notice.Root>

@@ -159,7 +159,7 @@ test('stands in for a refusal that carries no message', async () => {
 
 	const outcome = await uploadMedia(new File(['x'], 'huge.jpg', { type: 'image/jpeg' }))
 
-	expect(outcome).toEqual({ kind: 'refused', reason: 'the server answered 413' })
+	expect(outcome).toEqual({ kind: 'refused', reason: 'Something went wrong. Try again.' })
 })
 
 test('saves descriptions against the version it read', async () => {

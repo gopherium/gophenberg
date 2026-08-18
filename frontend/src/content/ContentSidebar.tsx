@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, Notice, Stack } from '@gophenberg/frontend-sdk'
+import { __, sprintf } from '@wordpress/i18n'
 import { NavScreen } from '@gopherium/godmin'
 import { useMutation } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -24,7 +25,11 @@ export function ContentSidebar() {
 			}),
 	})
 	return (
-		<NavScreen title={listed.pluralLabel} back={<Link to="/" />}>
+		<NavScreen
+			title={listed.pluralLabel}
+			back={<Link to="/" />}
+			backLabel={__('Back', 'gophenberg')}
+		>
 			<Stack direction="column" gap="xs" render={<ul />}>
 				<li>
 					<Link
@@ -32,7 +37,7 @@ export function ContentSidebar() {
 						params={{ typeKey: listed.key }}
 						className="gophenberg-menu__item"
 					>
-						All {listed.pluralLabel}
+						{sprintf(__('All %s', 'gophenberg'), listed.pluralLabel)}
 					</Link>
 				</li>
 				<li>
@@ -42,13 +47,13 @@ export function ContentSidebar() {
 						loading={addNew.isPending}
 						onClick={() => addNew.mutate()}
 					>
-						Add New
+						{__('Add New', 'gophenberg')}
 					</Button>
 				</li>
 			</Stack>
 			{addNew.isError && (
 				<Notice.Root intent="error" role="alert">
-					<Notice.Description>Could not create a draft.</Notice.Description>
+					<Notice.Description>{__('Could not create a draft.', 'gophenberg')}</Notice.Description>
 				</Notice.Root>
 			)}
 		</NavScreen>

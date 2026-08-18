@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { NavItem } from '@gophenberg/frontend-sdk'
+import { __ } from '@wordpress/i18n'
 import { useQuery } from '@tanstack/react-query'
 
 import { listTypes } from './types'
@@ -22,7 +23,9 @@ const typesIcon = (
 
 /** The registry section, which is not itself a content type. */
 export const typesNavItem: NavItem = {
-	label: 'Content Types',
+	get label() {
+		return __('Content Types', 'gophenberg')
+	},
 	to: '/content-types',
 	icon: typesIcon,
 }

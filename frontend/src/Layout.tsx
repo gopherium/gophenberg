@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Frame } from '@gopherium/godmin'
+import { __ } from '@wordpress/i18n'
 import { useCanvas, useFrameLocation } from '@gopherium/godmin/router'
 import { Outlet } from '@tanstack/react-router'
 
@@ -20,7 +21,7 @@ export function Layout() {
 			chromeColor={CHROME_COLOR}
 			canvasColor={CANVAS_COLOR}
 		>
-			<Frame.Rail>
+			<Frame.Rail menuLabel={__('Open navigation', 'gophenberg')}>
 				<RailContent />
 			</Frame.Rail>
 			<Frame.Canvas canvas={useCanvas()}>

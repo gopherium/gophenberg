@@ -198,7 +198,9 @@ func (r *Registry) untargeted(ctx context.Context, key string) error {
 		}
 		for _, f := range stored.Fields {
 			if f.RelatesTo == key {
-				return fmt.Errorf("%w (%s on %s)", ErrTypeTargeted, f.Key, stored.Key)
+				return Refuse(ErrTypeTargeted, "type_targeted",
+					fmt.Sprintf("%s (%s on %s)", ErrTypeTargeted, f.Key, stored.Key),
+					Details{"field": f.Key, "type": stored.Key})
 			}
 		}
 	}

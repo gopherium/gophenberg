@@ -1,4 +1,4 @@
-.PHONY: peers dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down \
+.PHONY: peers dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down pot catalogs translations \
 	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump \
 	brick-link brick-sync brick-pack brick-unlink
 
@@ -65,6 +65,15 @@ lint:
 	golangci-lint run
 	go run ./cmd/doclint
 
+pot:
+	node frontend/scripts/write-pot.ts
+
+translations:
+	node frontend/scripts/sync-translations.ts
+
+catalogs:
+	node frontend/scripts/write-catalogs.ts
+
 fmt:
 	golangci-lint fmt
 
@@ -94,6 +103,8 @@ E2E_DB ?= gophenberg_e2e
 E2E_DATABASE_URL ?= postgres://postgres:gophenberg@localhost:5435/$(E2E_DB)?sslmode=disable
 E2E_EMAIL ?= e2e@example.com
 E2E_NAME ?= Grace Hopper
+E2E_PROOF_EMAIL ?= proof@example.com
+E2E_PROOF_NAME ?= Ada Lovelace
 E2E_PASSWORD ?= correct horse battery
 E2E_THEMES_DIR ?= $(CURDIR)/.e2e-themes
 E2E_THEME ?= starter
@@ -143,6 +154,9 @@ e2e-seed: db-up e2e-build
 	printf '%s\n' "$(E2E_PASSWORD)" | \
 		GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" ./gophenberg createadmin \
 		-email "$(E2E_EMAIL)" -name "$(E2E_NAME)"
+	printf '%s\n' "$(E2E_PASSWORD)" | \
+		GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" ./gophenberg createadmin \
+		-email "$(E2E_PROOF_EMAIL)" -name "$(E2E_PROOF_NAME)"
 	GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" ./gophenberg seed
 
 e2e-reset: e2e-db-reset e2e-seed

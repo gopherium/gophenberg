@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { __, sprintf } from '@wordpress/i18n'
+
 import { mediaSrc, uploadMedia } from './api'
 import type { MediaItem } from './api'
 import { displayFile } from './format'
@@ -26,10 +28,30 @@ export const ALLOWED_MIME_TYPES: Record<string, string> = {
 
 // IMAGE_SIZES names the renditions the editor offers, in the server's slugs.
 export const IMAGE_SIZES = [
-	{ slug: 'thumbnail', name: 'Thumbnail' },
-	{ slug: 'medium', name: 'Medium' },
-	{ slug: 'large', name: 'Large' },
-	{ slug: 'full', name: 'Full Size' },
+	{
+		slug: 'thumbnail',
+		get name() {
+			return __('Thumbnail', 'gophenberg')
+		},
+	},
+	{
+		slug: 'medium',
+		get name() {
+			return __('Medium', 'gophenberg')
+		},
+	},
+	{
+		slug: 'large',
+		get name() {
+			return __('Large', 'gophenberg')
+		},
+	},
+	{
+		slug: 'full',
+		get name() {
+			return __('Full Size', 'gophenberg')
+		},
+	},
 ]
 
 export interface EditorAttachment {
@@ -93,10 +115,10 @@ export function toAttachment(item: MediaItem): EditorAttachment {
  */
 function refusalOf(file: File, args: EditorMediaUploadArgs): string {
 	if (args.allowedTypes !== undefined && !typeAllowed(file.type, args.allowedTypes)) {
-		return `${file.name} is not a file this block accepts.`
+		return sprintf(__('%s is not a file this block accepts.', 'gophenberg'), file.name)
 	}
 	if (args.maxUploadFileSize !== undefined && file.size > args.maxUploadFileSize) {
-		return `${file.name} is larger than one upload may be.`
+		return sprintf(__('%s is larger than one upload may be.', 'gophenberg'), file.name)
 	}
 	return ''
 }
@@ -130,7 +152,7 @@ async function storedAttachment(
 		}
 		args.onError?.(new Error(outcome.reason))
 	} catch {
-		args.onError?.(new Error('The server could not be reached, so nothing was uploaded.'))
+		args.onError?.(new Error(__('The server could not be reached, so nothing was uploaded.', 'gophenberg')))
 	}
 	return null
 }
@@ -151,7 +173,7 @@ function report(slots: (EditorAttachment | null)[], args: EditorMediaUploadArgs)
 export async function editorMediaUpload(args: EditorMediaUploadArgs): Promise<void> {
 	const files = Array.from(args.filesList)
 	if (args.multiple === false && files.length > 1) {
-		args.onError?.(new Error('Only one file may be placed here.'))
+		args.onError?.(new Error(__('Only one file may be placed here.', 'gophenberg')))
 		return
 	}
 	const accepted: File[] = []

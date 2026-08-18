@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Notice } from '@gophenberg/frontend-sdk'
+import { __, _n } from '@wordpress/i18n'
 import { useMutation } from '@tanstack/react-query'
 
 import { useRefresh } from './actions'
@@ -15,7 +16,7 @@ import { restorePost } from './api'
 function refusal(refused: number): PostNotice {
 	return {
 		intent: 'error',
-		message: refused === 1 ? 'Could not restore that post.' : 'Could not restore those posts.',
+		message: _n('Could not restore that post.', 'Could not restore those posts.', refused, 'gophenberg'),
 	}
 }
 
@@ -37,7 +38,7 @@ function Undo({ undoIds, report }: { undoIds: string[], report: ReportNotice }) 
 	return (
 		<Notice.Actions>
 			<Notice.ActionButton loading={undo.isPending} onClick={() => undo.mutate()}>
-				Undo
+				{__('Undo', 'gophenberg')}
 			</Notice.ActionButton>
 		</Notice.Actions>
 	)

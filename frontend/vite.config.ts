@@ -28,6 +28,7 @@ export default defineConfig({
 			...godminDedupe,
 			'@tanstack/react-query',
 			'@tanstack/react-router',
+			'@wordpress/i18n',
 		],
 	},
 	server: {
@@ -42,7 +43,7 @@ export default defineConfig({
 		env: { TZ: 'UTC' },
 		css: { include: [/index\.css$/, /src\/content\/editor\.css$/, /src\/media\/media\.css$/] },
 		hookTimeout: 120000,
-		server: { deps: { inline: [/@wordpress\//] } },
+		server: { deps: { inline: [/@wordpress\//, /@gopherium\//] } },
 		setupFiles: ['./src/test/setup.ts'],
 		include: [
 			'src/**/*.test.{ts,tsx}',
@@ -52,11 +53,15 @@ export default defineConfig({
 		coverage: {
 			include: [
 				'src/**',
+				'scripts/**/*.ts',
 				'../sdk/frontend/**/*.{ts,tsx}',
 				'../plugins/*/frontend/**/*.{ts,tsx}',
 			],
 			exclude: [
 				'src/main.tsx',
+				'scripts/write-pot.ts',
+				'scripts/write-catalogs.ts',
+				'scripts/sync-translations.ts',
 				'../sdk/frontend/scripts/build-site-assets.ts',
 				'**/*.d.ts',
 				'**/test/**',

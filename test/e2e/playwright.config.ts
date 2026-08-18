@@ -2,7 +2,7 @@
 
 import { defineConfig, devices } from '@playwright/test'
 
-import { authFile, baseURL, repoRoot } from './env'
+import { authFile, baseURL, proofAuthFile, repoRoot } from './env'
 
 export default defineConfig({
 	testDir: './tests',
@@ -18,11 +18,19 @@ export default defineConfig({
 		screenshot: 'only-on-failure',
 	},
 	projects: [
-		{ name: 'setup', testMatch: '**/*.setup.ts' },
+		{ name: 'setup', testMatch: '**/auth.setup.ts' },
+		{ name: 'proof-setup', testMatch: '**/proof.setup.ts' },
 		{
 			name: 'chromium',
+			testIgnore: '**/proof-locale.spec.ts',
 			use: { ...devices['Desktop Chrome'], storageState: authFile },
 			dependencies: ['setup'],
+		},
+		{
+			name: 'proof',
+			testMatch: '**/proof-locale.spec.ts',
+			use: { ...devices['Desktop Chrome'], storageState: proofAuthFile },
+			dependencies: ['proof-setup'],
 		},
 	],
 	webServer: {

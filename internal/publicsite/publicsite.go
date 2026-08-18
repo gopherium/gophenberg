@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/i18n"
 	"github.com/gopherium/gophenberg/internal/publichtml"
 	"github.com/gopherium/gophenberg/internal/version"
 )
@@ -29,11 +30,11 @@ const postsPerPage = 20
 // defaultTitle names the site when the configuration names none.
 const defaultTitle = "Gophenberg"
 
-// dateText and dateAttr are how a publication date reads and how a machine reads it.
-const (
-	dateText = "2 January 2006"
-	dateAttr = time.DateOnly
-)
+// dateAttr is how a machine reads a publication date.
+const dateAttr = time.DateOnly
+
+// notFoundTitle names the missing page in the document title.
+var notFoundTitle = i18n.Msgid("Not found")
 
 var (
 	indexTemplate    = template.Must(template.ParseFS(files, "templates/shell.html", "templates/index.html"))
@@ -53,6 +54,8 @@ type Reader interface {
 type Config struct {
 	// Content reads the published content the site shows.
 	Content Reader
+	// Locale answers the language the site chose for itself. Nil leaves the site in en-US.
+	Locale SiteLocale
 	// Types answers which content type an address belongs to.
 	Types content.TypeReader
 	// Title names the site in its chrome.
@@ -61,11 +64,18 @@ type Config struct {
 	Version string
 }
 
+// SiteLocale answers the language the site chose for itself.
+type SiteLocale interface {
+	Lookup(ctx context.Context, key string) (string, bool, error)
+}
+
 // Shell is the chrome every page carries.
 type Shell struct {
 	SiteTitle string
 	Title     string
 	Generator string
+	Lang      string
+	T         *i18n.Translator
 }
 
 // summary is a published post as a listing shows it.
@@ -114,6 +124,7 @@ type site struct {
 	addresses *content.Resolver
 	title     string
 	generator string
+	locale    SiteLocale
 }
 
 // New returns the handler serving the built-in public site.
@@ -127,6 +138,7 @@ func New(cfg Config) http.Handler {
 		addresses: content.NewResolver(cfg.Content, cfg.Types),
 		title:     title,
 		generator: version.Generator(cfg.Version),
+		locale:    cfg.Locale,
 	}
 }
 
@@ -149,7 +161,7 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.serveTerm(w, r, held)
 		return
 	}
-	s.serveItem(w, held.Item)
+	s.serveItem(w, r, held.Item)
 }
 
 // serveTerm renders a term page, the item itself above what points at it.
@@ -159,13 +171,14 @@ func (s *site) serveTerm(w http.ResponseWriter, r *http.Request, held content.Ad
 		serveError(w)
 		return
 	}
+	shell := s.shell(r.Context(), held.Item.Title+" | "+s.title)
 	summaries := make([]summary, len(rows))
 	for i, p := range rows {
-		summaries[i] = newSummary(p)
+		summaries[i] = newSummary(p, shell.T)
 	}
 	s.render(w, termTemplate, http.StatusOK, termData{
-		Shell: s.shell(held.Item.Title + " | " + s.title),
-		Post:  newDetail(held.Item),
+		Shell: shell,
+		Post:  newDetail(held.Item, shell.T),
 		Posts: summaries,
 		Older: olderLink(held.Item.Path, held.Page, total),
 		Newer: newerLink(held.Item.Path, held.Page),
@@ -186,12 +199,13 @@ func (s *site) serveList(w http.ResponseWriter, r *http.Request, listed content.
 		serveError(w)
 		return
 	}
+	shell := s.shell(r.Context(), s.listingTitle(listed))
 	summaries := make([]summary, len(rows))
 	for i, p := range rows {
-		summaries[i] = newSummary(p)
+		summaries[i] = newSummary(p, shell.T)
 	}
 	s.render(w, indexTemplate, http.StatusOK, listData{
-		Shell: s.shell(s.listingTitle(listed)),
+		Shell: shell,
 		Posts: summaries,
 		Older: olderLink(listed.RouteWord, page, total),
 		Newer: newerLink(listed.RouteWord, page),
@@ -207,16 +221,16 @@ func (s *site) listingTitle(listed content.Type) string {
 }
 
 // serveItem renders one published content item.
-func (s *site) serveItem(w http.ResponseWriter, held content.Content) {
-	s.render(w, postTemplate, http.StatusOK, detailData{
-		Shell: s.shell(held.Title + " | " + s.title),
-		Post:  newDetail(held),
-	})
+func (s *site) serveItem(w http.ResponseWriter, r *http.Request, held content.Content) {
+	shell := s.shell(r.Context(), held.Title+" | "+s.title)
+	s.render(w, postTemplate, http.StatusOK, detailData{Shell: shell, Post: newDetail(held, shell.T)})
 }
 
 // serveNotFound renders the page reporting that nothing lives at an address.
-func (s *site) serveNotFound(w http.ResponseWriter, _ *http.Request) {
-	s.render(w, notFoundTemplate, http.StatusNotFound, listData{Shell: s.shell("Not found | " + s.title)})
+func (s *site) serveNotFound(w http.ResponseWriter, r *http.Request) {
+	shell := s.shell(r.Context(), "")
+	shell.Title = shell.T.Get(notFoundTitle) + " | " + s.title
+	s.render(w, notFoundTemplate, http.StatusNotFound, listData{Shell: shell})
 }
 
 // serveError reports that the site could not be rendered.
@@ -224,9 +238,28 @@ func serveError(w http.ResponseWriter) {
 	http.Error(w, "the site is unavailable", http.StatusInternalServerError)
 }
 
+// language returns the language the site chose for itself, en-US when it chose none.
+func (s *site) language(ctx context.Context) string {
+	if s.locale == nil {
+		return i18n.DefaultLocale
+	}
+	held, found, err := s.locale.Lookup(ctx, content.LocaleSettingKey)
+	if err != nil || !found || held == "" {
+		return i18n.DefaultLocale
+	}
+	return held
+}
+
 // shell returns the chrome a page carries under the given document title.
-func (s *site) shell(title string) Shell {
-	return Shell{SiteTitle: s.title, Title: title, Generator: s.generator}
+func (s *site) shell(ctx context.Context, title string) Shell {
+	locale := s.language(ctx)
+	return Shell{
+		SiteTitle: s.title,
+		Title:     title,
+		Generator: s.generator,
+		Lang:      locale,
+		T:         i18n.For(locale),
+	}
 }
 
 // render writes the executed template, leaving a failed render an error rather than a partial page.
@@ -242,23 +275,23 @@ func (s *site) render(w http.ResponseWriter, tmpl *template.Template, status int
 }
 
 // newSummary returns the listing view of a published content.
-func newSummary(p content.Content) summary {
+func newSummary(p content.Content, t *i18n.Translator) summary {
 	at := publishedAt(p)
 	return summary{
 		Title:    p.Title,
 		URL:      "/" + p.Path,
 		Excerpt:  p.Excerpt,
-		DateText: at.Format(dateText),
+		DateText: t.Date(at),
 		DateAttr: at.Format(dateAttr),
 	}
 }
 
 // newDetail returns the page view of a published content.
-func newDetail(p content.Content) detail {
+func newDetail(p content.Content, t *i18n.Translator) detail {
 	at := publishedAt(p)
 	return detail{
 		Title:    p.Title,
-		DateText: at.Format(dateText),
+		DateText: t.Date(at),
 		DateAttr: at.Format(dateAttr),
 		Content:  publichtml.Render(p.Content),
 	}

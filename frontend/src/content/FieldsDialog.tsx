@@ -1,22 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, Dialog, InputControl, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { __, _x, sprintf } from '@wordpress/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { typesQueryKey } from './nav'
 import { createField, deleteField, listFields, renameField, slugifyKey } from './types'
 import type { ContentField, ContentType } from './types'
-
-/** The kinds a field may be declared as, in the order the admin offers them. */
-const KINDS = [
-	{ label: 'Text', value: 'text' },
-	{ label: 'Number', value: 'number' },
-	{ label: 'Yes or no', value: 'boolean' },
-	{ label: 'Date', value: 'date' },
-	{ label: 'Media', value: 'media' },
-	{ label: 'Relation', value: 'relation' },
-]
 
 /**
  * Returns the key for a field query over one type.
@@ -31,6 +22,30 @@ export function fieldsQueryKey(typeKey: string): string[] {
 interface Choice {
 	label: string
 	value: string
+}
+
+/**
+ * Returns the kinds a field may be declared as, in the order the admin offers them.
+ * @returns The kinds, each under the label the admin shows.
+ */
+function fieldKinds(): Choice[] {
+	return [
+		{ label: __('Text', 'gophenberg'), value: 'text' },
+		{ label: __('Number', 'gophenberg'), value: 'number' },
+		{ label: __('Yes or no', 'gophenberg'), value: 'boolean' },
+		{ label: _x('Date', 'field type', 'gophenberg'), value: 'date' },
+		{ label: _x('Media', 'field type', 'gophenberg'), value: 'media' },
+		{ label: __('Relation', 'gophenberg'), value: 'relation' },
+	]
+}
+
+/**
+ * Returns the label a declared field's kind is shown under.
+ * @param kind - The kind as the registry stored it.
+ * @returns The label to show, the stored kind when the admin offers no name for it.
+ */
+function kindLabel(kind: string): string {
+	return fieldKinds().find((held) => held.value === kind)?.label ?? kind
 }
 
 /**
@@ -66,12 +81,14 @@ export function FieldsDialog(props: {
 	return (
 		<>
 			<Button variant="outline" onClick={() => setOpen(true)}>
-				Fields
+				{__('Fields', 'gophenberg')}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
-						<Dialog.Title>Fields of {props.registered.pluralLabel}</Dialog.Title>
+						<Dialog.Title>
+							{sprintf(__('Fields of %s', 'gophenberg'), props.registered.pluralLabel)}
+						</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
@@ -115,14 +132,14 @@ function FieldsBody(props: {
 	return (
 		<Stack direction="column" gap="md">
 			{declared.length === 0 ? (
-				<Text>This type declares no fields yet.</Text>
+				<Text>{__('This type declares no fields yet.', 'gophenberg')}</Text>
 			) : (
 				<ul className="godmin-plain-list">
 					{declared.map((field) => (
 						<li key={field.key}>
 							<Stack direction="row" gap="xs">
 								<Text>{field.label}</Text>
-								<Text variant="body-sm">{field.kind}</Text>
+								<Text variant="body-sm">{kindLabel(field.kind)}</Text>
 								<RenameField
 									typeKey={typeKey}
 									field={field}
@@ -161,12 +178,13 @@ function AddField(props: {
 	onDone: (said: string) => Promise<void>
 	onRefused: (cause: unknown) => void
 }) {
+	const [kinds] = useState(fieldKinds)
 	const targets = props.types.map((listed) => ({
 		label: listed.pluralLabel,
 		value: listed.key,
 	}))
 	const [label, setLabel] = useState('')
-	const [kind, setKind] = useState(KINDS[0])
+	const [kind, setKind] = useState(kinds[0])
 	const [target, setTarget] = useState(targets[0])
 	const relating = kind.value === 'relation'
 	const add = useMutation({
@@ -180,29 +198,34 @@ function AddField(props: {
 			}),
 		onSuccess: async () => {
 			setLabel('')
-			await props.onDone(`${label} declared.`)
+			await props.onDone(sprintf(__('%s declared.', 'gophenberg'), label))
 		},
 		onError: props.onRefused,
 	})
 	return (
 		<Stack direction="column" gap="sm">
-			<InputControl label="Name" autoComplete="off" value={label} onValueChange={setLabel} />
+			<InputControl
+				label={_x('Name', 'field', 'gophenberg')}
+				autoComplete="off"
+				value={label}
+				onValueChange={setLabel}
+			/>
 			<SelectControl
-				label="Kind"
-				items={KINDS}
+				label={_x('Kind', 'field type', 'gophenberg')}
+				items={kinds}
 				value={kind}
-				onValueChange={(item) => setKind(chosenOf(item, KINDS, kind))}
+				onValueChange={(item) => setKind(chosenOf(item, kinds, kind))}
 			/>
 			{relating && (
 				<SelectControl
-					label="Points at"
+					label={__('Points at', 'gophenberg')}
 					items={targets}
 					value={target}
 					onValueChange={(item) => setTarget(chosenOf(item, targets, target))}
 				/>
 			)}
 			<Button loading={add.isPending} onClick={() => add.mutate()}>
-				Add field
+				{__('Add field', 'gophenberg')}
 			</Button>
 		</Stack>
 	)
@@ -225,7 +248,7 @@ function RenameField(props: {
 		mutationFn: () => renameField(props.typeKey, props.field.key, label),
 		onSuccess: async () => {
 			setOpen(false)
-			await props.onDone(`${label} renamed.`)
+			await props.onDone(sprintf(__('%s renamed.', 'gophenberg'), label))
 		},
 		onError: (cause) => {
 			setOpen(false)
@@ -235,26 +258,30 @@ function RenameField(props: {
 	return (
 		<>
 			<Button variant="outline" onClick={() => setOpen(true)}>
-				Rename {props.field.label}
+				{sprintf(__('Rename %s', 'gophenberg'), props.field.label)}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
-						<Dialog.Title>Rename {props.field.label}</Dialog.Title>
+						<Dialog.Title>{sprintf(__('Rename %s', 'gophenberg'), props.field.label)}</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
 						<Stack direction="column" gap="md">
-							<Text>The name changes. Nothing stored under this field moves.</Text>
-							<InputControl label="Name" value={label} onValueChange={setLabel} />
+							<Text>{__('The name changes. Nothing stored under this field moves.', 'gophenberg')}</Text>
+							<InputControl
+								label={_x('Name', 'field', 'gophenberg')}
+								value={label}
+								onValueChange={setLabel}
+							/>
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
 						<Button variant="outline" onClick={() => setOpen(false)}>
-							Keep it
+							{__('Keep it', 'gophenberg')}
 						</Button>
 						<Button loading={rename.isPending} onClick={() => rename.mutate()}>
-							Rename
+							{__('Rename', 'gophenberg')}
 						</Button>
 					</Dialog.Footer>
 				</Dialog.Popup>
@@ -275,11 +302,15 @@ function DeleteField(props: {
 	onRefused: (cause: unknown) => void
 }) {
 	const [open, setOpen] = useState(false)
+	const warning = __(
+		'Every value stored under this field goes with it, in every item of this type and in the revisions behind them.',
+		'gophenberg',
+	)
 	const remove = useMutation({
 		mutationFn: () => deleteField(props.typeKey, props.field.key),
 		onSuccess: async () => {
 			setOpen(false)
-			await props.onDone(`${props.field.label} deleted.`)
+			await props.onDone(sprintf(__('%s deleted.', 'gophenberg'), props.field.label))
 		},
 		onError: (cause) => {
 			setOpen(false)
@@ -289,26 +320,23 @@ function DeleteField(props: {
 	return (
 		<>
 			<Button variant="outline" onClick={() => setOpen(true)}>
-				Delete {props.field.label}
+				{sprintf(__('Delete %s', 'gophenberg'), props.field.label)}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
-						<Dialog.Title>Delete {props.field.label}</Dialog.Title>
+						<Dialog.Title>{sprintf(__('Delete %s', 'gophenberg'), props.field.label)}</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
-						<Text>
-							Every value stored under this field goes with it, in every item of this type
-							and in the revisions behind them.
-						</Text>
+						<Text>{warning}</Text>
 					</Dialog.Content>
 					<Dialog.Footer>
 						<Button variant="outline" onClick={() => setOpen(false)}>
-							Keep it
+							{__('Keep it', 'gophenberg')}
 						</Button>
 						<Button loading={remove.isPending} onClick={() => remove.mutate()}>
-							Delete the field
+							{__('Delete the field', 'gophenberg')}
 						</Button>
 					</Dialog.Footer>
 				</Dialog.Popup>

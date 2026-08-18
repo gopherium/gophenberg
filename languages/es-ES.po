@@ -1,0 +1,1470 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: gophenberg\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Domain: gophenberg\n"
+
+#, fuzzy
+msgid "%[1]d %[2]s %[3]d"
+msgstr "%[1]d de %[2]s de %[3]d"
+
+#, fuzzy
+msgid "January"
+msgstr "enero"
+
+#, fuzzy
+msgid "February"
+msgstr "febrero"
+
+#, fuzzy
+msgid "March"
+msgstr "marzo"
+
+#, fuzzy
+msgid "April"
+msgstr "abril"
+
+#, fuzzy
+msgid "May"
+msgstr "mayo"
+
+#, fuzzy
+msgid "June"
+msgstr "junio"
+
+#, fuzzy
+msgid "July"
+msgstr "julio"
+
+#, fuzzy
+msgid "August"
+msgstr "agosto"
+
+#, fuzzy
+msgid "September"
+msgstr "septiembre"
+
+#, fuzzy
+msgid "October"
+msgstr "octubre"
+
+#, fuzzy
+msgid "November"
+msgstr "noviembre"
+
+#, fuzzy
+msgid "December"
+msgstr "diciembre"
+
+#, fuzzy
+msgid "Not found"
+msgstr "No encontrado"
+
+#, fuzzy
+msgid "No page lives at this address."
+msgstr "No existe ninguna página en esta dirección."
+
+#, fuzzy
+msgid "Back to the latest posts"
+msgstr "Volver a las últimas entradas"
+
+#, fuzzy
+msgid "Nothing published yet."
+msgstr "Todavía no hay nada publicado."
+
+#, fuzzy
+msgid "Nothing published here yet."
+msgstr "Todavía no hay nada publicado aquí."
+
+#, fuzzy
+msgid "Newer posts"
+msgstr "Entradas más recientes"
+
+#, fuzzy
+msgid "Older posts"
+msgstr "Entradas anteriores"
+
+#, fuzzy
+msgid "%(name)s %(version)s is serving the public site."
+msgstr "%(name)s %(version)s sirve el sitio público."
+
+#, fuzzy
+msgid "%(name)s cannot be used as a theme name. Name the zip file after the theme, with no dot at the start and no slashes in it."
+msgstr "%(name)s no se puede usar como nombre de tema. Nombra el archivo zip como el tema, sin punto al principio y sin barras."
+
+#, fuzzy
+msgid "%(name)s moves to /%(word)s. Every address of both types changes."
+msgstr "%(name)s pasa a /%(word)s. Cambian todas las direcciones de ambos tipos."
+
+#, fuzzy
+msgid "%d post moved to the trash."
+msgid_plural "%d posts moved to the trash."
+msgstr[0] "%d entrada movida a la papelera."
+msgstr[1] "%d entradas movidas a la papelera."
+
+#, fuzzy
+msgid "%s declared."
+msgstr "%s declarado."
+
+#, fuzzy
+msgid "%s deleted."
+msgstr "%s borrado."
+
+#, fuzzy
+msgid "%s goes to the trash. You can restore it from there."
+msgstr "%s va a la papelera. Puedes restaurarlo desde allí."
+
+#, fuzzy
+msgid "%s is larger than one upload may be."
+msgstr "%s es más grande de lo que puede ocupar una subida."
+
+#, fuzzy
+msgid "%s is not a file this block accepts."
+msgstr "%s no es un archivo que este bloque acepte."
+
+#, fuzzy
+msgid "%s is not answering, so the built-in renderer is serving."
+msgstr "%s no responde, así que sirve el renderizador integrado."
+
+#, fuzzy
+msgid "%s is now serving the public site."
+msgstr "%s ya sirve el sitio público."
+
+#, fuzzy
+msgid "%s is serving the public site."
+msgstr "%s sirve el sitio público."
+
+#, fuzzy
+msgid "%s registered."
+msgstr "%s registrado."
+
+#, fuzzy
+msgid "%s removed."
+msgstr "%s quitado."
+
+#, fuzzy
+msgid "%s renamed."
+msgstr "%s renombrado."
+
+#, fuzzy
+msgid "%s updated."
+msgstr "%s actualizado."
+
+#, fuzzy
+msgid "%s was installed."
+msgstr "%s se ha instalado."
+
+#, fuzzy
+msgid "%s will answer at the root."
+msgstr "%s responderá en la raíz."
+
+#, fuzzy
+msgid "%s will not load, so the built-in renderer is serving."
+msgstr "%s no se carga, así que sirve el renderizador integrado."
+
+#, fuzzy
+msgid "(no title)"
+msgstr "(sin título)"
+
+#, fuzzy
+msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
+msgstr "Un tipo de contenido necesita un nombre en singular y otro en plural, como Guía y Guías. Rellena ambos e inténtalo de nuevo."
+
+#, fuzzy
+msgid "A field key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the field so its key comes out in that shape."
+msgstr "La clave de un campo tiene que empezar por una letra minúscula y contener solo letras minúsculas, números y guiones. Renombra el campo para que su clave tenga esa forma."
+
+#, fuzzy
+msgid "A field needs a name. Type one and try again."
+msgstr "El campo necesita un nombre. Escribe uno e inténtalo de nuevo."
+
+#, fuzzy
+msgid "A field with that name already exists on this content type. Pick another name."
+msgstr "Ya existe un campo con ese nombre en este tipo de contenido. Elige otro nombre."
+
+#, fuzzy
+msgid "A relation field has to say which content type it points at. Pick that type and try again."
+msgstr "Un campo de relación tiene que indicar a qué tipo de contenido apunta. Elige ese tipo e inténtalo de nuevo."
+
+#, fuzzy
+msgid "A reload shows the admin in the language you chose."
+msgstr "Al recargar verás el escritorio en el idioma que has elegido."
+
+#, fuzzy
+msgid "A route word has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Change it and try again."
+msgstr "Una palabra de ruta tiene que empezar por una letra minúscula y contener solo letras minúsculas, números y guiones. Cámbiala e inténtalo de nuevo."
+
+#, fuzzy
+msgid "A type key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Change the key and try again."
+msgstr "La clave de un tipo tiene que empezar por una letra minúscula y contener solo letras minúsculas, números y guiones. Cambia la clave e inténtalo de nuevo."
+
+#, fuzzy
+msgid "Actions"
+msgstr "Acciones"
+
+#, fuzzy
+msgid "Activate"
+msgstr "Activar"
+
+#, fuzzy
+msgid "Activate %s"
+msgstr "Activar %s"
+
+#, fuzzy
+msgid "Active"
+msgstr "Activo"
+
+#, fuzzy
+msgid "Add %s"
+msgstr "Añadir %s"
+
+#, fuzzy
+msgid "Add New"
+msgstr "Añadir nuevo"
+
+#, fuzzy
+msgid "Add New Type"
+msgstr "Añadir tipo nuevo"
+
+#, fuzzy
+msgid "Add block"
+msgstr "Añadir bloque"
+
+#, fuzzy
+msgid "Add field"
+msgstr "Añadir campo"
+
+#, fuzzy
+msgid "Add media"
+msgstr "Añadir medio"
+
+#, fuzzy
+msgid "Add title"
+msgstr "Añadir título"
+
+#, fuzzy
+msgid "Address"
+msgstr "Dirección"
+
+#, fuzzy
+msgid "All %s"
+msgstr "Todo: %s"
+
+#, fuzzy
+msgid "Alt text"
+msgstr "Texto alternativo"
+
+#, fuzzy
+msgid "An item cannot point at itself. Pick a different item for %(field)s."
+msgstr "Un elemento no puede apuntarse a sí mismo. Elige otro elemento para %(field)s."
+
+#, fuzzy
+msgid "An item cannot sit inside itself, or inside one of the items nested under it. Pick a parent outside this branch."
+msgstr "Un elemento no puede estar dentro de sí mismo, ni dentro de otro anidado bajo él. Elige un superior fuera de esta rama."
+
+#, fuzzy
+msgid "Another content type already answers under this route word. Pick a different word."
+msgstr "Ya hay otro tipo de contenido que responde con esta palabra de ruta. Elige una palabra distinta."
+
+#, fuzzy
+msgid "Another content type already lives at the root of your site, and only one can. Give this type a route word, or hand the root over with Make default."
+msgstr "Ya hay otro tipo de contenido en la raíz de tu sitio, y solo puede haber uno. Dale a este tipo una palabra de ruta, o cede la raíz con Hacer por defecto."
+
+#, fuzzy
+msgid "Another content type already uses this key. Give this type a different name."
+msgstr "Ya hay otro tipo de contenido que usa esta clave. Dale a este tipo un nombre distinto."
+
+#, fuzzy
+msgid "Another item of this content type already uses that address. Pick a different slug and save again."
+msgstr "Ya hay otro elemento de este tipo de contenido que usa esa dirección. Elige un slug distinto y guarda de nuevo."
+
+#, fuzzy
+msgid "Audio"
+msgstr "Audio"
+
+#, fuzzy
+msgid "Author"
+msgstr "Autor"
+
+#, fuzzy
+msgid "Back"
+msgstr "Atrás"
+
+#, fuzzy
+msgid "Back to %s"
+msgstr "Volver a %s"
+
+#, fuzzy
+msgid "Block"
+msgstr "Bloque"
+
+#, fuzzy
+msgid "Broken"
+msgstr "Roto"
+
+#, fuzzy
+msgid "Cancel"
+msgstr "Cancelar"
+
+#, fuzzy
+msgid "Caption"
+msgstr "Leyenda"
+
+#, fuzzy
+msgid "Change address"
+msgstr "Cambiar la dirección"
+
+#, fuzzy
+msgid "Change the address of %s"
+msgstr "Cambiar la dirección de %s"
+
+#, fuzzy
+msgid "Choose %s"
+msgstr "Elegir %s"
+
+#, fuzzy
+msgid "Choose the language the admin reads in."
+msgstr "Elige el idioma en el que se lee el escritorio."
+
+#, fuzzy
+msgid "Clear %s"
+msgstr "Vaciar %s"
+
+#, fuzzy
+msgid "Closed"
+msgstr "Cerrado"
+
+#, fuzzy
+msgid "Content"
+msgstr "Contenido"
+
+#, fuzzy
+msgid "Content Types"
+msgstr "Tipos de contenido"
+
+#, fuzzy
+msgid "Content nests at most %(max)d levels deep, and this item would sit deeper. Pick a parent closer to the top."
+msgstr "El contenido se anida como mucho %(max)d niveles, y este elemento quedaría más abajo. Elige un superior más cercano al principio."
+
+#, fuzzy
+msgid "Could not create a draft."
+msgstr "No se ha podido crear el borrador."
+
+#, fuzzy
+msgid "Could not delete that item."
+msgid_plural "Could not delete every item."
+msgstr[0] "No se ha podido borrar ese elemento."
+msgstr[1] "No se han podido borrar todos los elementos."
+
+#, fuzzy
+msgid "Could not delete that post."
+msgstr "No se ha podido borrar esa entrada."
+
+#, fuzzy
+msgid "Could not empty the trash."
+msgstr "No se ha podido vaciar la papelera."
+
+#, fuzzy
+msgid "Could not load %s."
+msgstr "No se ha podido cargar %s."
+
+#, fuzzy
+msgid "Could not load that post."
+msgstr "No se ha podido cargar esa entrada."
+
+#, fuzzy
+msgid "Could not move every post to trash."
+msgstr "No se han podido mover todas las entradas a la papelera."
+
+#, fuzzy
+msgid "Could not move that post to trash."
+msgstr "No se ha podido mover esa entrada a la papelera."
+
+#, fuzzy
+msgid "Could not restore that post."
+msgid_plural "Could not restore those posts."
+msgstr[0] "No se ha podido restaurar esa entrada."
+msgstr[1] "No se han podido restaurar esas entradas."
+
+#, fuzzy
+msgid "Could not save that post."
+msgstr "No se ha podido guardar esa entrada."
+
+#, fuzzy
+msgid "Create user"
+msgstr "Crear usuario"
+
+#, fuzzy
+msgid "Date added"
+msgstr "Fecha de subida"
+
+#, fuzzy
+msgid "Deactivate"
+msgstr "Desactivar"
+
+#, fuzzy
+msgid "Deactivate %s"
+msgstr "Desactivar %s"
+
+#, fuzzy
+msgid "Default"
+msgstr "Por defecto"
+
+#, fuzzy
+msgid "Delete"
+msgstr "Borrar"
+
+#, fuzzy
+msgid "Delete %s"
+msgstr "Borrar %s"
+
+#, fuzzy
+msgid "Delete %s for good? This cannot be undone."
+msgstr "¿Borrar %s para siempre? Esto no se puede deshacer."
+
+#, fuzzy
+msgid "Delete All"
+msgstr "Borrar todo"
+
+#, fuzzy
+msgid "Delete Permanently"
+msgstr "Borrar permanentemente"
+
+#, fuzzy
+msgid "Delete the field"
+msgstr "Borrar el campo"
+
+#, fuzzy
+msgid "Delete this %d item for good? This cannot be undone."
+msgid_plural "Delete these %d items for good? This cannot be undone."
+msgstr[0] "¿Borrar este %d elemento para siempre? Esto no se puede deshacer."
+msgstr[1] "¿Borrar estos %d elementos para siempre? Esto no se puede deshacer."
+
+#, fuzzy
+msgid "Describe"
+msgstr "Describir"
+
+#, fuzzy
+msgid "Description"
+msgstr "Descripción"
+
+#, fuzzy
+msgid "Desktop"
+msgstr "Escritorio"
+
+#, fuzzy
+msgid "Dimensions"
+msgstr "Dimensiones"
+
+#, fuzzy
+msgid "Disable"
+msgstr "Desactivar"
+
+#, fuzzy
+msgid "Disable %s"
+msgstr "Desactivar a %s"
+
+#, fuzzy
+msgid "Disabled"
+msgstr "Desactivado"
+
+#, fuzzy
+msgid "Dismiss"
+msgstr "Descartar"
+
+#, fuzzy
+msgid "Document"
+msgstr "Documento"
+
+#, fuzzy
+msgid "Draft saved."
+msgstr "Borrador guardado."
+
+#, fuzzy
+msgid "Edit"
+msgstr "Editar"
+
+#, fuzzy
+msgid "Email"
+msgstr "Correo electrónico"
+
+#, fuzzy
+msgid "Empty Trash"
+msgstr "Vaciar la papelera"
+
+#, fuzzy
+msgid "Enable"
+msgstr "Activar"
+
+#, fuzzy
+msgid "Enable %s"
+msgstr "Activar a %s"
+
+#, fuzzy
+msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
+msgstr "Cambian todas las direcciones de este tipo. Los enlaces guardados en otro sitio hacia las direcciones antiguas dejan de funcionar."
+
+#, fuzzy
+msgid "Every item needs an author who exists. Pick one from the list and save again."
+msgstr "Cada elemento necesita un autor que exista. Elige uno de la lista y guarda de nuevo."
+
+#, fuzzy
+msgid "Every kind of content this site holds."
+msgstr "Todos los tipos de contenido que hay en este sitio."
+
+#, fuzzy
+msgid "Every post in the trash is removed for good. This cannot be undone."
+msgstr "Todas las entradas de la papelera se borran para siempre. Esto no se puede deshacer."
+
+#, fuzzy
+msgid "Every value stored under this field goes with it, in every item of this type and in the revisions behind them."
+msgstr "Todo lo guardado en este campo se va con él, en todos los elementos de este tipo y en las revisiones que hay detrás."
+
+#, fuzzy
+msgid "Excerpt"
+msgstr "Extracto"
+
+#, fuzzy
+msgid "Fields"
+msgstr "Campos"
+
+#, fuzzy
+msgid "Fields of %s"
+msgstr "Campos de %s"
+
+#, fuzzy
+msgid "File name"
+msgstr "Nombre del archivo"
+
+#, fuzzy
+msgid "File size"
+msgstr "Tamaño del archivo"
+
+#, fuzzy
+msgid "File type"
+msgstr "Tipo de archivo"
+
+#, fuzzy
+msgid "Files"
+msgstr "Archivos"
+
+#, fuzzy
+msgid "Filter by status"
+msgstr "Filtrar por estado"
+
+#, fuzzy
+msgid "Follow the browser"
+msgstr "Seguir al navegador"
+
+#, fuzzy
+msgid "Full Size"
+msgstr "Tamaño completo"
+
+#, fuzzy
+msgid "Gophenberg could not read what your browser sent. Reload the page and try again, and tell whoever looks after your site if it keeps happening."
+msgstr "Gophenberg no ha podido leer lo que ha enviado tu navegador. Recarga la página e inténtalo de nuevo, y avisa a quien lleve tu sitio si sigue pasando."
+
+#, fuzzy
+msgid "Gophenberg could not read which item you picked as parent. Reload the page and pick it again."
+msgstr "Gophenberg no ha podido leer qué elemento has elegido como superior. Recarga la página y vuelve a elegirlo."
+
+#, fuzzy
+msgid "Gophenberg does not accept %(extension)s files. Upload a picture, a video, an audio file, a PDF or a zip instead."
+msgstr "Gophenberg no acepta archivos %(extension)s. Sube una imagen, un vídeo, un audio, un PDF o un zip."
+
+#, fuzzy
+msgid "Gophenberg does not answer in %(value)s. Pick one of the languages on the list."
+msgstr "Gophenberg no responde en %(value)s. Elige uno de los idiomas de la lista."
+
+#, fuzzy
+msgid "Gophenberg has no autosave of yours for this item. Open the item to see the version that is stored."
+msgstr "Gophenberg no tiene ningún guardado automático tuyo de este elemento. Ábrelo para ver la versión guardada."
+
+#, fuzzy
+msgid "Gophenberg keeps this address for itself, so your content cannot answer there. Give the item a different slug."
+msgstr "Gophenberg reserva esta dirección para sí mismo, así que tu contenido no puede responder ahí. Dale al elemento otro slug."
+
+#, fuzzy
+msgid "Gophenberg keeps this word for itself, so no content type can answer under it. Pick a different route word."
+msgstr "Gophenberg reserva esta palabra para sí mismo, así que ningún tipo de contenido puede responder con ella. Elige otra palabra de ruta."
+
+#, fuzzy
+msgid "Hand over the root"
+msgstr "Ceder la raíz"
+
+#, fuzzy
+msgid "Hand the root to %s"
+msgstr "Ceder la raíz a %s"
+
+#, fuzzy
+msgid "Home"
+msgstr "Inicio"
+
+#, fuzzy
+msgid "Images"
+msgstr "Imágenes"
+
+#, fuzzy
+msgid "Install theme"
+msgstr "Instalar tema"
+
+#, fuzzy
+msgid "Installed"
+msgstr "Instalado"
+
+#, fuzzy
+msgid "Keep it"
+msgstr "Conservarlo"
+
+#, fuzzy
+msgid "Language"
+msgstr "Idioma"
+
+#, fuzzy
+msgid "Large"
+msgstr "Grande"
+
+#, fuzzy
+msgid "Last Modified"
+msgstr "Última modificación"
+
+#, fuzzy
+msgid "List view"
+msgstr "Vista de lista"
+
+#, fuzzy
+msgid "Loading content types."
+msgstr "Cargando los tipos de contenido."
+
+#, fuzzy
+msgid "Loading the post."
+msgstr "Cargando la entrada."
+
+#, fuzzy
+msgid "Loading the screen."
+msgstr "Cargando la pantalla."
+
+#, fuzzy
+msgid "Loading themes."
+msgstr "Cargando los temas."
+
+#, fuzzy
+msgid "Loading users."
+msgstr "Cargando los usuarios."
+
+#, fuzzy
+msgid "Loading…"
+msgstr "Cargando…"
+
+#, fuzzy
+msgid "Make default"
+msgstr "Hacer por defecto"
+
+#, fuzzy
+msgid "Media %d"
+msgstr "Medio %d"
+
+#, fuzzy
+msgid "Media Library"
+msgstr "Biblioteca de medios"
+
+#, fuzzy
+msgid "Medium"
+msgstr "Mediano"
+
+#, fuzzy
+msgid "Mobile"
+msgstr "Móvil"
+
+#, fuzzy
+msgid "Move %s to the trash?"
+msgstr "¿Mover %s a la papelera?"
+
+#, fuzzy
+msgid "Move every address"
+msgstr "Mover todas las direcciones"
+
+#, fuzzy
+msgid "Move these %d post to the trash?"
+msgid_plural "Move these %d posts to the trash?"
+msgstr[0] "¿Mover esta %d entrada a la papelera?"
+msgstr[1] "¿Mover estas %d entradas a la papelera?"
+
+#, fuzzy
+msgid "Move to Trash"
+msgstr "Mover a la papelera"
+
+#, fuzzy
+msgid "Move to trash"
+msgstr "Mover a la papelera"
+
+#, fuzzy
+msgid "Moved to the trash."
+msgstr "Movido a la papelera."
+
+#, fuzzy
+msgid "Navigation"
+msgstr "Navegación"
+
+#, fuzzy
+msgid "Nests"
+msgstr "Anida"
+
+#, fuzzy
+msgid "New user"
+msgstr "Usuario nuevo"
+
+#, fuzzy
+msgid "No file arrived with this upload. Choose a file and try again."
+msgstr "No ha llegado ningún archivo con esta subida. Elige un archivo e inténtalo de nuevo."
+
+#, fuzzy
+msgid "No media chosen"
+msgstr "Ningún medio elegido"
+
+#, fuzzy
+msgid "No media has been uploaded yet."
+msgstr "Todavía no se ha subido ningún medio."
+
+#, fuzzy
+msgid "No parent"
+msgstr "Sin superior"
+
+#, fuzzy
+msgid "No theme arrived with this upload. Choose a zip file and try again."
+msgstr "No ha llegado ningún tema con esta subida. Elige un archivo zip e inténtalo de nuevo."
+
+#, fuzzy
+msgid "No themes are installed."
+msgstr "No hay ningún tema instalado."
+
+#, fuzzy
+msgid "No title"
+msgstr "Sin título"
+
+#, fuzzy
+msgid "None"
+msgstr "Ninguno"
+
+#, fuzzy
+msgid "Not serving"
+msgstr "No está sirviendo"
+
+#, fuzzy
+msgid "Number"
+msgstr "Número"
+
+#, fuzzy
+msgid "One frame of this animation holds more than %(max)d pixels, which is more than Gophenberg opens. Upload a smaller animation."
+msgstr "Un fotograma de esta animación tiene más de %(max)d píxeles, más de lo que Gophenberg abre. Sube una animación más pequeña."
+
+#, fuzzy
+msgid "One of the filters on this list is not one Gophenberg understands. Clear the filters and try again."
+msgstr "Uno de los filtros de esta lista no es un filtro que Gophenberg entienda. Quita los filtros e inténtalo de nuevo."
+
+#, fuzzy
+msgid "One of the items picked for %(field)s is not the kind of content that field points at. Reload the page and pick from the list the field offers."
+msgstr "Uno de los elementos elegidos para %(field)s no es del tipo de contenido al que apunta ese campo. Recarga la página y elige de la lista que ofrece el campo."
+
+#, fuzzy
+msgid "One of the items picked for %(field)s was not named in a way Gophenberg understands. Reload the page and pick the items again."
+msgstr "Uno de los elementos elegidos para %(field)s no venía nombrado de una forma que Gophenberg entienda. Recarga la página y vuelve a elegir los elementos."
+
+#, fuzzy
+msgid "One of the items picked no longer exists. Reload the page and pick again."
+msgstr "Uno de los elementos elegidos ya no existe. Recarga la página y vuelve a elegir."
+
+#, fuzzy
+msgid "Only a relation field points at another content type or holds many items. Pick the Relation kind, or leave the target and the many option empty."
+msgstr "Solo un campo de relación apunta a otro tipo de contenido o guarda varios elementos. Elige el tipo Relación, o deja vacíos el destino y la opción de varios."
+
+#, fuzzy
+msgid "Only one file may be placed here."
+msgstr "Aquí solo se puede colocar un archivo."
+
+#, fuzzy
+msgid "Only the content type at the root of your site may go without a route word. Give this type one and try again."
+msgstr "Solo el tipo de contenido que está en la raíz de tu sitio puede ir sin palabra de ruta. Dale una a este tipo e inténtalo de nuevo."
+
+#, fuzzy
+msgid "Open navigation"
+msgstr "Abrir la navegación"
+
+#, fuzzy
+msgid "Parent"
+msgstr "Superior"
+
+#, fuzzy
+msgid "Password"
+msgstr "Contraseña"
+
+#, fuzzy
+msgid "Pending"
+msgstr "Pendiente"
+
+#, fuzzy
+msgid "Plural name"
+msgstr "Nombre en plural"
+
+#, fuzzy
+msgid "Points at"
+msgstr "Apunta a"
+
+#, fuzzy
+msgid "Post published."
+msgstr "Entrada publicada."
+
+#, fuzzy
+msgid "Preview"
+msgstr "Vista previa"
+
+#, fuzzy
+msgid "Private"
+msgstr "Privado"
+
+#, fuzzy
+msgid "Publish"
+msgstr "Publicar"
+
+#, fuzzy
+msgid "Redo"
+msgstr "Rehacer"
+
+#, fuzzy
+msgid "Register"
+msgstr "Registrar"
+
+#, fuzzy
+msgid "Register a content type"
+msgstr "Registrar un tipo de contenido"
+
+#, fuzzy
+msgid "Relation"
+msgstr "Relación"
+
+#, fuzzy
+msgid "Remove %s"
+msgstr "Quitar %s"
+
+#, fuzzy
+msgid "Rename"
+msgstr "Renombrar"
+
+#, fuzzy
+msgid "Rename %s"
+msgstr "Renombrar %s"
+
+#, fuzzy
+msgid "Restore"
+msgstr "Restaurar"
+
+#, fuzzy
+msgid "Roll back to %s"
+msgstr "Revertir a %s"
+
+#, fuzzy
+msgid "Roll back to the built-in renderer"
+msgstr "Revertir al renderizador integrado"
+
+#, fuzzy
+msgid "Route word"
+msgstr "Palabra de ruta"
+
+#, fuzzy
+msgid "Save"
+msgstr "Guardar"
+
+#, fuzzy
+msgid "Save draft"
+msgstr "Guardar el borrador"
+
+#, fuzzy
+msgid "Saved"
+msgstr "Guardado"
+
+#, fuzzy
+msgid "Saving"
+msgstr "Guardando"
+
+#, fuzzy
+msgid "Scheduled"
+msgstr "Programado"
+
+#, fuzzy
+msgid "Search %s"
+msgstr "Buscar %s"
+
+#, fuzzy
+msgid "Search audio"
+msgstr "Buscar audios"
+
+#, fuzzy
+msgid "Search images"
+msgstr "Buscar imágenes"
+
+#, fuzzy
+msgid "Search media"
+msgstr "Buscar medios"
+
+#, fuzzy
+msgid "Search videos"
+msgstr "Buscar vídeos"
+
+#, fuzzy
+msgid "Select"
+msgstr "Seleccionar"
+
+#, fuzzy
+msgid "Serving"
+msgstr "Sirviendo"
+
+#, fuzzy
+msgid "Singular name"
+msgstr "Nombre en singular"
+
+#, fuzzy
+msgid "Slug"
+msgstr "Slug"
+
+#, fuzzy
+msgid "Someone else changed this media item while you were editing it. Reload the page and make your change again."
+msgstr "Otra persona ha cambiado este medio mientras lo editabas. Recarga la página y vuelve a hacer tu cambio."
+
+#, fuzzy
+msgid "Someone else saved changes to this item while you were editing, so yours were not saved. Copy your text somewhere safe, then reload the item and put your changes back in."
+msgstr "Otra persona ha guardado cambios en este elemento mientras editabas, así que los tuyos no se han guardado. Copia tu texto a un lugar seguro, recarga el elemento y vuelve a ponerlos."
+
+#, fuzzy
+msgid "Something went wrong inside Gophenberg. Try again in a moment, and tell whoever looks after your site if it keeps happening."
+msgstr "Algo ha fallado dentro de Gophenberg. Inténtalo de nuevo en un momento, y avisa a quien lleve tu sitio si sigue pasando."
+
+#, fuzzy
+msgid "Something went wrong."
+msgstr "Algo ha ido mal."
+
+#, fuzzy
+msgid "Start writing."
+msgstr "Empieza a escribir."
+
+#, fuzzy
+msgid "Tablet"
+msgstr "Tableta"
+
+#, fuzzy
+msgid "Text"
+msgstr "Texto"
+
+#, fuzzy
+msgid "That email is already in use."
+msgstr "Ese correo electrónico ya está en uso."
+
+#, fuzzy
+msgid "That field is not on this content type any more. Reload the page to see the fields it has now."
+msgstr "Ese campo ya no está en este tipo de contenido. Recarga la página para ver los campos que tiene ahora."
+
+#, fuzzy
+msgid "That revision does not exist, and older ones drop off once a type holds more than it keeps. Open the item to see which revisions are left."
+msgstr "Esa revisión no existe, y las más antiguas se pierden cuando un tipo guarda más de las que conserva. Abre el elemento para ver qué revisiones quedan."
+
+#, fuzzy
+msgid "That web address does not name a media item Gophenberg can look up. Open the media library and pick the item from there."
+msgstr "Esa dirección web no nombra ningún medio que Gophenberg pueda encontrar. Abre la biblioteca de medios y elige el elemento desde ahí."
+
+#, fuzzy
+msgid "That web address does not name a revision Gophenberg can look up. Open the item and pick a revision from its history."
+msgstr "Esa dirección web no nombra ninguna revisión que Gophenberg pueda encontrar. Abre el elemento y elige una revisión de su historial."
+
+#, fuzzy
+msgid "That web address does not name an item Gophenberg can look up. Go back to the list and open the item from there."
+msgstr "Esa dirección web no nombra ningún elemento que Gophenberg pueda encontrar. Vuelve a la lista y abre el elemento desde ahí."
+
+#, fuzzy
+msgid "The %(file)s calls this theme %(declared)s, but it is being installed as %(installed)s. Rename the zip file to match, or change the name inside %(file)s."
+msgstr "El archivo %(file)s llama a este tema %(declared)s, pero se está instalando como %(installed)s. Renombra el zip para que coincida, o cambia el nombre dentro de %(file)s."
+
+#, fuzzy
+msgid "The %(file)s inside %(name)s is not valid JSON, so it could not be read. Fix that file and package the theme again."
+msgstr "El archivo %(file)s dentro de %(name)s no es JSON válido, así que no se ha podido leer. Corrige ese archivo y vuelve a empaquetar el tema."
+
+#, fuzzy
+msgid "The browser kept an unsaved version of this post."
+msgstr "El navegador ha guardado una versión sin guardar de esta entrada."
+
+#, fuzzy
+msgid "The built-in renderer is now serving the public site."
+msgstr "El renderizador integrado ya sirve el sitio público."
+
+#, fuzzy
+msgid "The built-in renderer is serving the public site."
+msgstr "El renderizador integrado sirve el sitio público."
+
+#, fuzzy
+msgid "The content type this field points at is not named in a shape Gophenberg accepts. Give it a key that starts with a lowercase letter and then holds only lowercase letters, numbers and hyphens."
+msgstr "El tipo de contenido al que apunta este campo no está nombrado con una forma que Gophenberg acepte. Dale una clave que empiece por una letra minúscula y contenga solo letras minúsculas, números y guiones."
+
+#, fuzzy
+msgid "The content types could not be loaded."
+msgstr "No se han podido cargar los tipos de contenido."
+
+#, fuzzy
+msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."
+msgstr "La entrada %(entry)s de este zip se escribiría fuera de la carpeta del tema, así que no se ha instalado nada. Vuelve a empaquetar el tema."
+
+#, fuzzy
+msgid "The field %(field)s cannot hold the value it was given. Check what kind of field it is and enter a value that matches."
+msgstr "El campo %(field)s no puede guardar el valor que se le ha dado. Comprueba de qué tipo de campo se trata e introduce un valor que encaje."
+
+#, fuzzy
+msgid "The field %(field)s has to hold a value before this item can be published. Fill it in, or leave the item as a draft."
+msgstr "El campo %(field)s tiene que tener un valor antes de poder publicar este elemento. Rellénalo, o deja el elemento como borrador."
+
+#, fuzzy
+msgid "The field %(field)s on %(type)s still points at this content type. Delete that field first, then delete this type."
+msgstr "El campo %(field)s de %(type)s todavía apunta a este tipo de contenido. Borra antes ese campo y luego borra este tipo."
+
+#, fuzzy
+msgid "The field %(field)s points at one item only. Remove the extra choices and keep one."
+msgstr "El campo %(field)s apunta a un solo elemento. Quita las opciones de más y deja una."
+
+#, fuzzy
+msgid "The field %(field)s points at other items, so it does not take a plain value. Pick the items it points at instead."
+msgstr "El campo %(field)s apunta a otros elementos, así que no admite un valor suelto. Elige en su lugar los elementos a los que apunta."
+
+#, fuzzy
+msgid "The field %(field)s takes a list of items, and what arrived was not a list. Reload the page and pick the items again."
+msgstr "El campo %(field)s admite una lista de elementos, y lo que ha llegado no era una lista. Recarga la página y vuelve a elegir los elementos."
+
+#, fuzzy
+msgid "The item you picked as parent holds another kind of content. Pick a parent of the same content type as this item."
+msgstr "El elemento que has elegido como superior tiene otro tipo de contenido. Elige un superior del mismo tipo de contenido que este elemento."
+
+#, fuzzy
+msgid "The item you picked as parent is in the trash. Restore it, or pick another parent."
+msgstr "El elemento que has elegido como superior está en la papelera. Restáuralo, o elige otro superior."
+
+#, fuzzy
+msgid "The item you picked as parent no longer exists. Reload the page and pick another parent."
+msgstr "El elemento que has elegido como superior ya no existe. Recarga la página y elige otro."
+
+#, fuzzy
+msgid "The media library could not be loaded."
+msgstr "No se ha podido cargar la biblioteca de medios."
+
+#, fuzzy
+msgid "The name changes. Nothing stored under this field moves."
+msgstr "El nombre cambia. Nada de lo guardado en este campo se mueve."
+
+#, fuzzy
+msgid "The number of revisions to keep has to be a whole number, and it cannot be negative. Enter a different number."
+msgstr "El número de revisiones que se conservan tiene que ser un número entero, y no puede ser negativo. Introduce otro número."
+
+#, fuzzy
+msgid "The registry could not be reached."
+msgstr "No se ha podido acceder al registro."
+
+#, fuzzy
+msgid "The same item was picked twice for %(field)s. Pick each item once."
+msgstr "El mismo elemento se ha elegido dos veces para %(field)s. Elige cada elemento una sola vez."
+
+#, fuzzy
+msgid "The server could not be reached, so nothing was changed."
+msgstr "No se ha podido acceder al servidor, así que no se ha cambiado nada."
+
+#, fuzzy
+msgid "The server could not be reached, so nothing was saved."
+msgstr "No se ha podido acceder al servidor, así que no se ha guardado nada."
+
+#, fuzzy
+msgid "The server could not be reached, so nothing was uploaded."
+msgstr "No se ha podido acceder al servidor, así que no se ha subido nada."
+
+#, fuzzy
+msgid "The site default"
+msgstr "El idioma por defecto del sitio"
+
+#, fuzzy
+msgid "The theme %(name)s carries no %(file)s, so Gophenberg cannot tell what it is. Put that file at the top level of the zip and package the theme again."
+msgstr "El tema %(name)s no lleva ningún %(file)s, así que Gophenberg no puede saber qué es. Pon ese archivo en el primer nivel del zip y vuelve a empaquetar el tema."
+
+#, fuzzy
+msgid "The theme %(name)s could not be read, so it cannot serve your site. Upload it again, or choose another theme."
+msgstr "El tema %(name)s no se ha podido leer, así que no puede servir tu sitio. Vuelve a subirlo, o elige otro tema."
+
+#, fuzzy
+msgid "The theme %(name)s did not start, so your site is still served by the theme it had. Ask whoever looks after your site to check the server log for what the theme reported."
+msgstr "El tema %(name)s no ha arrancado, así que tu sitio lo sigue sirviendo el tema que tenía. Pide a quien lleve tu sitio que mire en el registro del servidor qué ha dicho el tema."
+
+#, fuzzy
+msgid "The theme %(name)s does not carry %(path)s as a file, so there is nothing to run. Package the built theme rather than its source."
+msgstr "El tema %(name)s no lleva %(path)s como archivo, así que no hay nada que ejecutar. Empaqueta el tema ya construido, no su código fuente."
+
+#, fuzzy
+msgid "The theme %(name)s does not carry %(path)s as a folder, so its styles and scripts are missing. Package the built theme rather than its source."
+msgstr "El tema %(name)s no lleva %(path)s como carpeta, así que le faltan los estilos y los scripts. Empaqueta el tema ya construido, no su código fuente."
+
+#, fuzzy
+msgid "The theme %(name)s holds a link to another file at %(path)s, and a theme may only carry real files. Replace it and package the theme again."
+msgstr "El tema %(name)s lleva un enlace a otro archivo en %(path)s, y un tema solo puede llevar archivos de verdad. Sustitúyelo y vuelve a empaquetar el tema."
+
+#, fuzzy
+msgid "The theme %(name)s is serving your site right now, so it cannot be replaced. Deactivate it first, or install this copy under another name."
+msgstr "El tema %(name)s sirve tu sitio ahora mismo, así que no se puede sustituir. Desactívalo primero, o instala esta copia con otro nombre."
+
+#, fuzzy
+msgid "The theme %(name)s is the one chosen, but it is not installed, so your site is served by the built-in renderer. Upload the theme again, or choose another one."
+msgstr "El tema %(name)s es el elegido, pero no está instalado, así que tu sitio lo sirve el renderizador integrado. Vuelve a subir el tema, o elige otro."
+
+#, fuzzy
+msgid "The user could not be created."
+msgstr "No se ha podido crear el usuario."
+
+#, fuzzy
+msgid "Theme"
+msgstr "Tema"
+
+#, fuzzy
+msgid "Theme archive"
+msgstr "Archivo del tema"
+
+#, fuzzy
+msgid "Themes"
+msgstr "Temas"
+
+#, fuzzy
+msgid "Themes could not be loaded."
+msgstr "No se han podido cargar los temas."
+
+#, fuzzy
+msgid "There is no content type called %(value)s. Pick a type your site holds, or register it first."
+msgstr "No existe ningún tipo de contenido llamado %(value)s. Elige un tipo que tenga tu sitio, o regístralo primero."
+
+#, fuzzy
+msgid "There is no content type called %(value)s. Pick one of the types your site holds and try again."
+msgstr "No existe ningún tipo de contenido llamado %(value)s. Elige uno de los tipos que tiene tu sitio e inténtalo de nuevo."
+
+#, fuzzy
+msgid "There is no kind of field called %(value)s. Pick one of these instead: %(allowed)s."
+msgstr "No existe ningún tipo de campo llamado %(value)s. Elige uno de estos: %(allowed)s."
+
+#, fuzzy
+msgid "There is no page kind called %(value)s. Pick one of these instead: %(allowed)s."
+msgstr "No existe ningún tipo de página llamado %(value)s. Elige uno de estos: %(allowed)s."
+
+#, fuzzy
+msgid "There is no status called %(value)s. Pick one of these instead: %(allowed)s."
+msgstr "No existe ningún estado llamado %(value)s. Elige uno de estos: %(allowed)s."
+
+#, fuzzy
+msgid "There is nothing at this address. Check the link, or go back to the dashboard."
+msgstr "No hay nada en esta dirección. Comprueba el enlace, o vuelve al escritorio."
+
+#, fuzzy
+msgid "There is nothing to roll back to, because your site has not been through a theme change yet. Install a theme first, then a rollback has somewhere to go."
+msgstr "No hay nada a lo que volver, porque tu sitio todavía no ha cambiado de tema. Instala un tema primero y así la vuelta atrás tendrá adónde ir."
+
+#, fuzzy
+msgid "This content type does not exist any more. Reload the page to see the types your site holds now."
+msgstr "Este tipo de contenido ya no existe. Recarga la página para ver los tipos que tiene ahora tu sitio."
+
+#, fuzzy
+msgid "This content type does not nest, so one of its items cannot sit inside another. Mark the type as Nests first."
+msgstr "Este tipo de contenido no anida, así que uno de sus elementos no puede estar dentro de otro. Marca antes el tipo como Anida."
+
+#, fuzzy
+msgid "This content type has no field called %(field)s. Check the name, or declare the field on the type first."
+msgstr "Este tipo de contenido no tiene ningún campo llamado %(field)s. Comprueba el nombre, o declara antes el campo en el tipo."
+
+#, fuzzy
+msgid "This content type is turned off, so its content is not served or edited. Activate it first."
+msgstr "Este tipo de contenido está desactivado, así que su contenido ni se sirve ni se edita. Actívalo primero."
+
+#, fuzzy
+msgid "This content type still holds content, so it cannot be deleted. Move or delete its items first."
+msgstr "Este tipo de contenido todavía tiene contenido, así que no se puede borrar. Mueve o borra antes sus elementos."
+
+#, fuzzy
+msgid "This file could not be opened as a zip. Package the theme again and upload the new file."
+msgstr "Este archivo no se ha podido abrir como zip. Vuelve a empaquetar el tema y sube el archivo nuevo."
+
+#, fuzzy
+msgid "This file is larger than the upload limit. Upload a smaller file."
+msgstr "Este archivo es más grande que el límite de subida. Sube un archivo más pequeño."
+
+#, fuzzy
+msgid "This file is named %(extension)s but it holds %(detected)s content. Upload it under a name that matches what is inside it."
+msgstr "Este archivo se llama %(extension)s pero lleva contenido %(detected)s. Súbelo con un nombre que coincida con lo que lleva dentro."
+
+#, fuzzy
+msgid "This item cannot go straight to that status from the one it holds now. Save it as a draft first, then try again."
+msgstr "Este elemento no puede pasar directamente a ese estado desde el que tiene ahora. Guárdalo antes como borrador e inténtalo de nuevo."
+
+#, fuzzy
+msgid "This item changed while you were describing it. Reload and try again."
+msgstr "Este elemento ha cambiado mientras lo describías. Recarga e inténtalo de nuevo."
+
+#, fuzzy
+msgid "This item does not exist, and it may have been deleted. Go back to the list to see what is there."
+msgstr "Este elemento no existe, y puede que se haya borrado. Vuelve a la lista para ver qué hay."
+
+#, fuzzy
+msgid "This item is already in the trash. Restore it first to work on it again."
+msgstr "Este elemento ya está en la papelera. Restáuralo primero para volver a trabajar en él."
+
+#, fuzzy
+msgid "This item is not in the trash, so there is nothing to restore. Open it from the list to work on it as it is."
+msgstr "Este elemento no está en la papelera, así que no hay nada que restaurar. Ábrelo desde la lista para trabajar en él tal como está."
+
+#, fuzzy
+msgid "This item still holds items nested inside it. Move or delete those first."
+msgstr "Este elemento todavía tiene elementos anidados dentro. Mueve o borra antes esos."
+
+#, fuzzy
+msgid "This media item is not in the library, and someone may have deleted it. Reload the page to see what is there now."
+msgstr "Este medio no está en la biblioteca, y puede que alguien lo haya borrado. Recarga la página para ver qué hay ahora."
+
+#, fuzzy
+msgid "This picture could not be read, so nothing was stored. The file may be damaged, so open it on your computer and upload it again."
+msgstr "Esta imagen no se ha podido leer, así que no se ha guardado nada. Puede que el archivo esté dañado, así que ábrelo en tu ordenador y vuelve a subirlo."
+
+#, fuzzy
+msgid "This picture is %(width)d by %(height)d pixels, over the limit of %(max)d pixels in all. Make it smaller and upload it again."
+msgstr "Esta imagen tiene %(width)d por %(height)d píxeles, por encima del límite de %(max)d píxeles en total. Hazla más pequeña y vuelve a subirla."
+
+#, fuzzy
+msgid "This post changed elsewhere. Reload before saving again."
+msgstr "Esta entrada ha cambiado en otro sitio. Recarga antes de volver a guardar."
+
+#, fuzzy
+msgid "This post goes to the trash. You can restore it from there."
+msgstr "Esta entrada va a la papelera. Puedes restaurarla desde allí."
+
+#, fuzzy
+msgid "This request left out %(field)s, which Gophenberg needs. Reload the page and try again."
+msgstr "En esta petición faltaba %(field)s, que Gophenberg necesita. Recarga la página e inténtalo de nuevo."
+
+#, fuzzy
+msgid "This site has nowhere to keep themes, so no theme can be installed. Ask whoever looks after your site to point %(setting)s at a folder the server can write to."
+msgstr "Este sitio no tiene dónde guardar los temas, así que no se puede instalar ninguno. Pide a quien lleve tu sitio que apunte %(setting)s a una carpeta en la que el servidor pueda escribir."
+
+#, fuzzy
+msgid "This site has nowhere to store uploads, so nothing can be uploaded. Ask whoever looks after your site to point %(setting)s at a folder the server can write to."
+msgstr "Este sitio no tiene dónde guardar las subidas, así que no se puede subir nada. Pide a quien lleve tu sitio que apunte %(setting)s a una carpeta en la que el servidor pueda escribir."
+
+#, fuzzy
+msgid "This theme is over the limit of %(max)d bytes, packed or unpacked. Leave out what the theme does not need and package it again."
+msgstr "Este tema pasa del límite de %(max)d bytes, comprimido o sin comprimir. Deja fuera lo que el tema no necesite y vuelve a empaquetarlo."
+
+#, fuzzy
+msgid "This type declares no fields yet."
+msgstr "Este tipo todavía no declara ningún campo."
+
+#, fuzzy
+msgid "This type will answer under /%s."
+msgstr "Este tipo responderá en /%s."
+
+#, fuzzy
+msgid "This zip holds %(entries)d files, more than the %(max)d a theme may carry. Package only the built theme."
+msgstr "Este zip lleva %(entries)d archivos, más de los %(max)d que puede llevar un tema. Empaqueta solo el tema ya construido."
+
+#, fuzzy
+msgid "Thumbnail"
+msgstr "Miniatura"
+
+#, fuzzy
+msgid "Title"
+msgstr "Título"
+
+#, fuzzy
+msgid "Type"
+msgstr "Tipo"
+
+#, fuzzy
+msgid "Undo"
+msgstr "Deshacer"
+
+#, fuzzy
+msgid "Unsaved changes"
+msgstr "Cambios sin guardar"
+
+#, fuzzy
+msgid "Update"
+msgstr "Actualizar"
+
+#, fuzzy
+msgid "Update failed."
+msgstr "No se ha podido actualizar."
+
+#, fuzzy
+msgid "Users"
+msgstr "Usuarios"
+
+#, fuzzy
+msgid "Users could not be loaded."
+msgstr "No se han podido cargar los usuarios."
+
+#, fuzzy
+msgid "Version"
+msgstr "Versión"
+
+#, fuzzy
+msgid "Videos"
+msgstr "Vídeos"
+
+#, fuzzy
+msgid "Welcome to Gophenberg."
+msgstr "Te damos la bienvenida a Gophenberg."
+
+#, fuzzy
+msgid "Yes or no"
+msgstr "Sí o no"
+
+#, fuzzy
+msgid "Your language"
+msgstr "Tu idioma"
+
+#, fuzzy
+msgid "Your server pins the site to the theme %(name)s, so themes cannot be changed here. Ask whoever looks after your site to remove the pin."
+msgstr "Tu servidor fija el sitio al tema %(name)s, así que los temas no se pueden cambiar desde aquí. Pide a quien lleve tu sitio que quite esa fijación."
+
+#, fuzzy
+msgid "Your site always needs one default content type, so this one cannot be turned off or deleted. Make another type the default first."
+msgstr "Tu sitio siempre necesita un tipo de contenido por defecto, así que este no se puede desactivar ni borrar. Haz antes que otro tipo sea el que está por defecto."
+
+#, fuzzy
+msgid "address"
+msgstr "dirección"
+
+#, fuzzy
+msgid "declaring the field failed with status %d"
+msgstr "la declaración del campo ha fallado con el estado %d"
+
+#, fuzzy
+msgid "deleting the field failed with status %d"
+msgstr "el borrado del campo ha fallado con el estado %d"
+
+#, fuzzy
+msgid "editing a content type failed with status %d"
+msgstr "la edición de un tipo de contenido ha fallado con el estado %d"
+
+#, fuzzy
+msgid "reading the content types failed with status %d"
+msgstr "la lectura de los tipos de contenido ha fallado con el estado %d"
+
+#, fuzzy
+msgid "reading the fields failed with status %d"
+msgstr "la lectura de los campos ha fallado con el estado %d"
+
+#, fuzzy
+msgid "registering a content type failed with status %d"
+msgstr "el registro de un tipo de contenido ha fallado con el estado %d"
+
+#, fuzzy
+msgid "removing a content type failed with status %d"
+msgstr "el borrado de un tipo de contenido ha fallado con el estado %d"
+
+#, fuzzy
+msgid "renaming the field failed with status %d"
+msgstr "el renombrado del campo ha fallado con el estado %d"
+
+#, fuzzy
+msgctxt "account"
+msgid "Status"
+msgstr "Estado"
+
+#, fuzzy
+msgctxt "admin section"
+msgid "Media"
+msgstr "Medios"
+
+#, fuzzy
+msgctxt "breadcrumb root"
+msgid "Post"
+msgstr "Entrada"
+
+#, fuzzy
+msgctxt "column"
+msgid "Date"
+msgstr "Fecha"
+
+#, fuzzy
+msgctxt "content type"
+msgid "Status"
+msgstr "Estado"
+
+#, fuzzy
+msgctxt "date caption"
+msgid "Published"
+msgstr "Publicada"
+
+#, fuzzy
+msgctxt "field"
+msgid "Name"
+msgstr "Nombre"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Date"
+msgstr "Fecha"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Kind"
+msgstr "Tipo"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Media"
+msgstr "Medio"
+
+#, fuzzy
+msgctxt "media family"
+msgid "Kind"
+msgstr "Clase"
+
+#, fuzzy
+msgctxt "person"
+msgid "Name"
+msgstr "Nombre"
+
+#, fuzzy
+msgctxt "post"
+msgid "Status"
+msgstr "Estado"
+
+#, fuzzy
+msgctxt "post status"
+msgid "Draft"
+msgstr "Borrador"
+
+#, fuzzy
+msgctxt "post status"
+msgid "Published"
+msgstr "Publicada"
+
+#, fuzzy
+msgctxt "post status"
+msgid "Trash"
+msgstr "Papelera"
+
+#, fuzzy
+msgctxt "status filter"
+msgid "All"
+msgstr "Todo"
+
+#, fuzzy
+msgctxt "theme"
+msgid "Status"
+msgstr "Estado"
+
+#, fuzzy
+msgctxt "trash"
+msgid "Restore"
+msgstr "Restaurar"
+
+#, fuzzy
+msgid "Something went wrong. Try again."
+msgstr "Algo ha ido mal. Inténtalo de nuevo."

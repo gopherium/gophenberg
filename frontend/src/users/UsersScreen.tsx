@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Badge, Button, Stack, Text } from '@gophenberg/frontend-sdk'
+import { __, _x, sprintf } from '@wordpress/i18n'
 import { fetchUsers, setUserDisabled, usersQueryKey } from '@gopherium/react-auth/admin'
 import type { User } from '@gopherium/react-auth/admin'
 import { useSession } from '@gopherium/react-auth'
@@ -21,8 +22,10 @@ export function UsersScreen() {
 	})
 	return (
 		<Page
-			title="Users"
-			actions={<Button render={<Link to="/users/new" />}>New user</Button>}
+			title={__('Users', 'gophenberg')}
+			actions={
+				<Button render={<Link to="/users/new" />}>{__('New user', 'gophenberg')}</Button>
+			}
 		>
 			<UsersBody users={users.data} failed={users.isError} currentUserId={currentUserId} />
 		</Page>
@@ -44,26 +47,26 @@ function UsersBody({
 	currentUserId: string | undefined
 }): ReactNode {
 	if (failed) {
-		return <ErrorNotice>Users could not be loaded.</ErrorNotice>
+		return <ErrorNotice>{__('Users could not be loaded.', 'gophenberg')}</ErrorNotice>
 	}
 	if (users === undefined) {
-		return <LoadingRows label="Loading users." />
+		return <LoadingRows label={__('Loading users.', 'gophenberg')} />
 	}
 	return (
 		<div
 			className="godmin-table-scroll godmin-arrival"
 			role="region"
-			aria-label="Users"
+			aria-label={__('Users', 'gophenberg')}
 			tabIndex={0}
 		>
 			<table className="godmin-table">
 				<thead>
 					<tr>
-						<th scope="col">Name</th>
-						<th scope="col">Email</th>
-						<th scope="col">Status</th>
+						<th scope="col">{_x('Name', 'person', 'gophenberg')}</th>
+						<th scope="col">{__('Email', 'gophenberg')}</th>
+						<th scope="col">{_x('Status', 'account', 'gophenberg')}</th>
 						<th scope="col" className="godmin-table__actions">
-							Actions
+							{__('Actions', 'gophenberg')}
 						</th>
 					</tr>
 				</thead>
@@ -102,7 +105,9 @@ function UserRow({ user, isSelf }: { user: User, isSelf: boolean }) {
  */
 function UserStatus({ disabled }: { disabled: boolean }) {
 	return (
-		<Badge intent={disabled ? 'draft' : 'stable'}>{disabled ? 'Disabled' : 'Active'}</Badge>
+		<Badge intent={disabled ? 'draft' : 'stable'}>
+			{disabled ? __('Disabled', 'gophenberg') : __('Active', 'gophenberg')}
+		</Badge>
 	)
 }
 
@@ -117,18 +122,21 @@ function UserToggle({ user }: { user: User }) {
 		mutationFn: () => setUserDisabled(user.id, !user.disabled),
 		onSuccess: () => client.invalidateQueries({ queryKey: usersQueryKey }),
 	})
-	const verb = user.disabled ? 'Enable' : 'Disable'
+	const verb = user.disabled ? __('Enable', 'gophenberg') : __('Disable', 'gophenberg')
+	const named = user.disabled
+		? sprintf(__('Enable %s', 'gophenberg'), user.name)
+		: sprintf(__('Disable %s', 'gophenberg'), user.name)
 	return (
 		<Stack direction="column" gap="xs">
 			<Button
 				variant="outline"
-				aria-label={`${verb} ${user.name}`}
+				aria-label={named}
 				loading={toggle.isPending}
 				onClick={() => toggle.mutate()}
 			>
 				{verb}
 			</Button>
-			{toggle.isError && <Text role="alert">Update failed.</Text>}
+			{toggle.isError && <Text role="alert">{__('Update failed.', 'gophenberg')}</Text>}
 		</Stack>
 	)
 }

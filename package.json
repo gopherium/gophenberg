@@ -4,7 +4,8 @@
 	"type": "module",
 	"packageManager": "pnpm@11.10.0",
 	"scripts": {
-		"dev": "pnpm --filter @gophenberg/frontend dev"
+		"dev": "pnpm --filter @gophenberg/frontend dev",
+		"lint": "oxlint -c .oxlintrc.json frontend sdk plugins test"
 	},
 	"devDependencies": {
 		"eslint": "^10.8.1",
@@ -12,6 +13,7 @@
 		"eslint-plugin-sonarjs": "^4.2.0",
 		"eslint-plugin-tsdoc": "^0.5.2",
 		"knip": "^6.31.0",
+		"oxlint": "^1.77.0",
 		"typescript-eslint": "^8.66.0"
 	}
 }

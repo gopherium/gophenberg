@@ -8,6 +8,7 @@ import {
 	lazyRouteComponent,
 } from '@tanstack/react-router'
 import type { RouterHistory } from '@tanstack/react-router'
+import { __ } from '@wordpress/i18n'
 
 import { adminBasepath } from './basepath'
 import { Home } from './Home'
@@ -60,6 +61,12 @@ const mediaRoute = createRoute({
 	component: lazyRouteComponent(() => import('./media/MediaScreen'), 'MediaScreen'),
 })
 
+const languageRoute = createRoute({
+	getParentRoute: () => framedRoute,
+	path: '/language',
+	component: lazyRouteComponent(() => import('./i18n/LanguageScreen'), 'LanguageScreen'),
+})
+
 const themesRoute = createRoute({
 	getParentRoute: () => framedRoute,
 	path: '/themes',
@@ -81,6 +88,7 @@ const routeTree = rootRoute.addChildren([
 		usersRoute,
 		newUserRoute,
 		themesRoute,
+		languageRoute,
 		...plugins.flatMap((plugin) => plugin.routes(framedRoute)),
 	]),
 	editorRoute,
@@ -91,7 +99,7 @@ const routeTree = rootRoute.addChildren([
  * @returns The pending element.
  */
 function RoutePending() {
-	return <LoadingScreen label="Loading the screen." />
+	return <LoadingScreen label={__('Loading the screen.', 'gophenberg')} />
 }
 
 /**

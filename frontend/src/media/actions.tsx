@@ -3,6 +3,7 @@
 import { Button, Notice, Stack, Text } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
+import { __, _n, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 
@@ -31,7 +32,7 @@ export function useRefreshMedia(): () => Promise<unknown> {
  */
 export function describeFailure(kind: string, message: string): string {
 	if (kind === 'stale') {
-		return 'This item changed while you were describing it. Reload and try again.'
+		return __('This item changed while you were describing it. Reload and try again.', 'gophenberg')
 	}
 	return kind === 'rejected' ? message : ''
 }
@@ -58,7 +59,7 @@ function DescribeForm({ items, closeModal }: RenderModalProps<MediaItem>) {
 			await refresh()
 			closeModal?.()
 		},
-		onError: () => setRefusal('The server could not be reached, so nothing was saved.'),
+		onError: () => setRefusal(__('The server could not be reached, so nothing was saved.', 'gophenberg')),
 	})
 	return (
 		<Stack direction="column" gap="md">
@@ -75,10 +76,10 @@ function DescribeForm({ items, closeModal }: RenderModalProps<MediaItem>) {
 			)}
 			<Stack direction="row" gap="sm" justify="flex-end">
 				<Button variant="outline" onClick={closeModal}>
-					Cancel
+					{__('Cancel', 'gophenberg')}
 				</Button>
 				<Button loading={save.isPending} onClick={() => save.mutate()}>
-					Save
+					{__('Save', 'gophenberg')}
 				</Button>
 			</Stack>
 		</Stack>
@@ -92,9 +93,17 @@ function DescribeForm({ items, closeModal }: RenderModalProps<MediaItem>) {
  */
 export function deleteQuestion(items: MediaItem[]): string {
 	if (items.length === 1) {
-		return `Delete ${mediaName(items[0])} for good? This cannot be undone.`
+		return sprintf(__('Delete %s for good? This cannot be undone.', 'gophenberg'), mediaName(items[0]))
 	}
-	return `Delete these ${items.length} items for good? This cannot be undone.`
+	return sprintf(
+		_n(
+			'Delete this %d item for good? This cannot be undone.',
+			'Delete these %d items for good? This cannot be undone.',
+			items.length,
+			'gophenberg',
+		),
+		items.length,
+	)
 }
 
 /**
@@ -103,7 +112,7 @@ export function deleteQuestion(items: MediaItem[]): string {
  * @returns The sentence to show.
  */
 export function deleteFailure(items: MediaItem[]): string {
-	return items.length === 1 ? 'Could not delete that item.' : 'Could not delete every item.'
+	return _n('Could not delete that item.', 'Could not delete every item.', items.length, 'gophenberg')
 }
 
 /**
@@ -138,10 +147,10 @@ function DeleteConfirm({ items, closeModal }: RenderModalProps<MediaItem>) {
 			)}
 			<Stack direction="row" gap="sm" justify="flex-end">
 				<Button variant="outline" onClick={closeModal}>
-					Cancel
+					{__('Cancel', 'gophenberg')}
 				</Button>
 				<Button loading={remove.isPending} onClick={() => remove.mutate()}>
-					Delete Permanently
+					{__('Delete Permanently', 'gophenberg')}
 				</Button>
 			</Stack>
 		</Stack>
@@ -155,10 +164,10 @@ function DeleteConfirm({ items, closeModal }: RenderModalProps<MediaItem>) {
 export function useMediaActions(): Action<MediaItem>[] {
 	return useMemo(
 		() => [
-			{ id: 'describe', label: 'Describe', RenderModal: DescribeForm },
+			{ id: 'describe', label: __('Describe', 'gophenberg'), RenderModal: DescribeForm },
 			{
 				id: 'delete',
-				label: 'Delete Permanently',
+				label: __('Delete Permanently', 'gophenberg'),
 				supportsBulk: true,
 				RenderModal: DeleteConfirm,
 			},

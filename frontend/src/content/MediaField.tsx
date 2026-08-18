@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, Stack, Text } from '@gophenberg/frontend-sdk'
+import { __, sprintf } from '@wordpress/i18n'
 
 import { MediaLibraryPicker } from '../media/MediaLibraryPicker'
 import type { ContentField } from './types'
-
-/** What the control reports when a media field points at nothing. */
-const nothingChosen = 'No media chosen'
 
 /**
  * Returns the media identity a stored value holds.
@@ -46,20 +44,24 @@ export function MediaField(props: {
 	return (
 		<Stack direction="column" gap="xs">
 			<Text variant="body-sm">{props.field.label}</Text>
-			<Text>{props.value === undefined ? nothingChosen : `Media ${props.value}`}</Text>
+			<Text>
+				{props.value === undefined
+					? __('No media chosen', 'gophenberg')
+					: sprintf(__('Media %d', 'gophenberg'), props.value)}
+			</Text>
 			<MediaLibraryPicker
 				value={props.value}
 				onSelect={(picked) => props.onChange(pickedMedia(picked))}
 				onClose={() => {}}
 				render={({ open }) => (
 					<Button variant="outline" onClick={open}>
-						Choose {props.field.label}
+						{sprintf(__('Choose %s', 'gophenberg'), props.field.label)}
 					</Button>
 				)}
 			/>
 			{props.value !== undefined && (
 				<Button variant="outline" onClick={() => props.onChange(null)}>
-					Clear {props.field.label}
+					{sprintf(__('Clear %s', 'gophenberg'), props.field.label)}
 				</Button>
 			)}
 		</Stack>

@@ -43,11 +43,12 @@ func detect(name string, data []byte) (kind, error) {
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(baseName(name)), "."))
 	k, allowed := allowedKinds[ext]
 	if !allowed {
-		return kind{}, refuse("the file type is not allowed", "extension %q is not in the allowed set", ext)
+		return kind{}, refuse("file_type_not_allowed", "the file type is not allowed",
+			"extension %q is not in the allowed set", ext)
 	}
 	sniffed, _, _ := strings.Cut(http.DetectContentType(data), ";")
 	if !k.accepts(strings.TrimSpace(sniffed)) {
-		return kind{}, refuse("the content does not match", "%s content in a %q file", sniffed, ext)
+		return kind{}, refuse("file_content_mismatch", "the content does not match", "%s content in a %q file", sniffed, ext)
 	}
 	return k, nil
 }

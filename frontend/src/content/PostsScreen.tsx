@@ -2,6 +2,7 @@
 
 import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 import type { View } from '@gophenberg/frontend-sdk/dataviews'
+import { __, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, Page } from '@gopherium/godmin'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
@@ -88,7 +89,9 @@ export function PostsScreen() {
 			/>
 			{notice !== null && <PostsNotice notice={notice} report={setNotice} />}
 			{posts.isError ? (
-				<ErrorNotice>Could not load {listed.pluralLabel.toLowerCase()}.</ErrorNotice>
+				<ErrorNotice>
+					{sprintf(__('Could not load %s.', 'gophenberg'), listed.pluralLabel.toLowerCase())}
+				</ErrorNotice>
 			) : (
 				<div
 					className="godmin-table-scroll"
@@ -106,7 +109,7 @@ export function PostsScreen() {
 						onChangeSelection={setSelection}
 						isLoading={posts.isPending}
 						getItemId={(post) => post.id}
-						searchLabel={`Search ${listed.pluralLabel.toLowerCase()}`}
+						searchLabel={sprintf(__('Search %s', 'gophenberg'), listed.pluralLabel.toLowerCase())}
 						config={{ perPageSizes: [PER_PAGE] }}
 						paginationInfo={{
 							totalItems: page.total,

@@ -111,7 +111,9 @@ func newMediaView(m media.Media) mediaView {
 func (s *server) handleMediaUpload() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := extendUploadDeadline(w); err != nil {
-			authkit.RespondError(w, http.StatusInternalServerError, "internal error")
+			authkit.RespondRefusal(w, http.StatusInternalServerError, authkit.Refusal{
+				Message: "internal error", Code: "internal",
+			})
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, s.media.Cap()+uploadEnvelope)
@@ -123,12 +125,16 @@ func (s *server) handleMediaUpload() http.HandlerFunc {
 		defer func() { _ = file.Close() }()
 
 		if header.Size > s.media.Cap() {
-			authkit.RespondError(w, http.StatusRequestEntityTooLarge, "the file is too large")
+			authkit.RespondRefusal(w, http.StatusRequestEntityTooLarge, authkit.Refusal{
+				Message: "the file is too large", Code: "file_too_large",
+			})
 			return
 		}
 		data, err := io.ReadAll(file)
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "the upload carries no file")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "the upload carries no file", Code: "upload_file_required",
+			})
 			return
 		}
 		item, err := s.media.Ingest(header.Filename, data, authkit.IdentityFromContext(r.Context()).ID)
@@ -139,7 +145,9 @@ func (s *server) handleMediaUpload() http.HandlerFunc {
 		created, err := s.mediaStore.Create(r.Context(), item)
 		if err != nil {
 			_ = s.media.Remove(item)
-			authkit.RespondError(w, http.StatusInternalServerError, "internal error")
+			authkit.RespondRefusal(w, http.StatusInternalServerError, authkit.Refusal{
+				Message: "internal error", Code: "internal",
+			})
 			return
 		}
 		authkit.Respond(w, http.StatusCreated, newMediaView(created))
@@ -213,7 +221,9 @@ func (s *server) handleMediaList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filter, err := parseMediaFilter(r.URL.Query())
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "invalid list parameters")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "invalid list parameters", Code: "list_parameters_invalid",
+			})
 			return
 		}
 		rows, total, err := s.mediaStore.List(r.Context(), filter)
@@ -234,7 +244,9 @@ func (s *server) handleMediaGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := mediaID(r)
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "malformed media id")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "malformed media id", Code: "media_id_malformed",
+			})
 			return
 		}
 		m, err := s.mediaStore.ByID(r.Context(), id)
@@ -281,16 +293,22 @@ func (s *server) handleMediaPatch() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := mediaID(r)
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "malformed media id")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "malformed media id", Code: "media_id_malformed",
+			})
 			return
 		}
 		req, err := authkit.Decode[mediaPatchRequest](w, r)
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "malformed json")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "malformed json", Code: "body_malformed",
+			})
 			return
 		}
 		if req.UpdatedAt == nil {
-			authkit.RespondError(w, http.StatusBadRequest, "missing updated_at")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "missing updated_at", Code: "body_field_required", Meta: map[string]any{"field": "updated_at"},
+			})
 			return
 		}
 		updated, err := s.patchMedia(r, id, *req.UpdatedAt, req)
@@ -325,7 +343,9 @@ func (s *server) handleMediaDelete() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := mediaID(r)
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "malformed media id")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "malformed media id", Code: "media_id_malformed",
+			})
 			return
 		}
 		item, err := s.mediaStore.ByID(r.Context(), id)
@@ -334,7 +354,9 @@ func (s *server) handleMediaDelete() http.HandlerFunc {
 			return
 		}
 		if err := s.media.Remove(item); err != nil {
-			authkit.RespondError(w, http.StatusInternalServerError, "internal error")
+			authkit.RespondRefusal(w, http.StatusInternalServerError, authkit.Refusal{
+				Message: "internal error", Code: "internal",
+			})
 			return
 		}
 		if _, err := s.mediaStore.Delete(r.Context(), id); err != nil {
@@ -387,18 +409,26 @@ func mediaFileName(urlPath string) (string, bool) {
 func respondMediaUploadError(w http.ResponseWriter, err error) {
 	var tooLarge *http.MaxBytesError
 	if errors.As(err, &tooLarge) {
-		authkit.RespondError(w, http.StatusRequestEntityTooLarge, "the file is too large")
+		authkit.RespondRefusal(w, http.StatusRequestEntityTooLarge, authkit.Refusal{
+			Message: "the file is too large", Code: "file_too_large",
+		})
 		return
 	}
-	authkit.RespondError(w, http.StatusBadRequest, "the upload carries no file")
+	authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+		Message: "the upload carries no file", Code: "upload_file_required",
+	})
 }
 
 // respondMediaError writes a refused upload as the reason the operator reads.
 func respondMediaError(w http.ResponseWriter, err error) {
 	var refusal *mediahost.Refusal
 	if errors.As(err, &refusal) {
-		authkit.RespondError(w, http.StatusUnprocessableEntity, refusal.Reason)
+		authkit.RespondRefusal(w, http.StatusUnprocessableEntity, authkit.Refusal{
+			Message: refusal.Reason, Code: refusal.Code,
+		})
 		return
 	}
-	authkit.RespondError(w, http.StatusInternalServerError, "internal error")
+	authkit.RespondRefusal(w, http.StatusInternalServerError, authkit.Refusal{
+		Message: "internal error", Code: "internal",
+	})
 }

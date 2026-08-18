@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
+	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/mediahost"
@@ -53,6 +54,34 @@ func (m *memorySettings) Lookup(_ context.Context, key string) (string, bool, er
 	return value, found, nil
 }
 
+// memoryReaders holds one scenario's per reader preferences in memory.
+type memoryReaders struct {
+	mu     sync.Mutex
+	values map[string]string
+	fails  error
+}
+
+// Lookup returns the value the reader stored under key, and whether it is set at all.
+func (m *memoryReaders) Lookup(
+	_ context.Context, userID uuid.UUID, key string,
+) (string, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.fails != nil {
+		return "", false, m.fails
+	}
+	value, found := m.values[userID.String()+" "+key]
+	return value, found, nil
+}
+
+// Save stores the value under the reader's key.
+func (m *memoryReaders) Save(_ context.Context, userID uuid.UUID, key, value string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.values[userID.String()+" "+key] = value
+	return nil
+}
+
 // Save stores every given value, or stores none of them.
 func (m *memorySettings) Save(_ context.Context, values map[string]string) error {
 	m.mu.Lock()
@@ -81,6 +110,8 @@ type world struct {
 	mediaFiles     *mediahost.Library
 	mediaSubject   int64
 	mediaVersion   time.Time
+	locales        []string
+	readers        *memoryReaders
 	mediaFilesGone []string
 	lastUpload     []byte
 	visitor        *http.Client
@@ -117,6 +148,7 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 		mediaDir:     uploads,
 		library:      themehost.NewLibrary(themes),
 		settings:     &memorySettings{values: make(map[string]string)},
+		readers:      &memoryReaders{values: make(map[string]string)},
 		users:        newMemoryStore(),
 		contentItems: items,
 		contentTypes: types,
@@ -209,6 +241,8 @@ func (w *world) start(ctx context.Context) error {
 		MediaStore: w.mediaStore,
 		MediaFiles: os.DirFS(w.mediaDir),
 		SiteTitle:  siteTitle,
+		Settings:   w.settings,
+		Readers:    w.readers,
 		Version:    "0.0.0-test",
 		Web:        fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Admin</title>")}},
 	}))
@@ -291,5 +325,30 @@ func (w *world) running() error {
 	if w.site == nil {
 		return errors.New("no Gophenberg is running in this scenario")
 	}
+	return nil
+}
+
+// publishedOn stamps when a stored item went public, so a date reads the same on every run.
+func (w *world) publishedOn(title, day string) error {
+	at, err := time.Parse(time.DateOnly, day)
+	if err != nil {
+		return err
+	}
+	held, found := w.nested[title]
+	if !found {
+		return fmt.Errorf("the scenario stored nothing titled %q", title)
+	}
+	id, err := uuid.Parse(held.ID)
+	if err != nil {
+		return err
+	}
+	w.contentItems.mu.Lock()
+	defer w.contentItems.mu.Unlock()
+	stored, found := w.contentItems.items[id]
+	if !found {
+		return fmt.Errorf("the store holds nothing titled %q", title)
+	}
+	stored.PublishedAt = &at
+	w.contentItems.items[id] = stored
 	return nil
 }

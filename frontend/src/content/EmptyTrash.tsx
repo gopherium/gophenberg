@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { AlertDialog } from '@gophenberg/frontend-sdk'
+import { __ } from '@wordpress/i18n'
 
 import { emptyTrash } from './api'
 
@@ -16,17 +17,17 @@ export function EmptyTrash({ onEmptied }: { onEmptied: () => Promise<unknown> })
 				try {
 					await emptyTrash()
 				} catch {
-					return { close: false, error: 'Could not empty the trash.' }
+					return { close: false, error: __('Could not empty the trash.', 'gophenberg') }
 				}
 				await onEmptied()
 			}}
 		>
-			<AlertDialog.Trigger>Empty Trash</AlertDialog.Trigger>
+			<AlertDialog.Trigger>{__('Empty Trash', 'gophenberg')}</AlertDialog.Trigger>
 			<AlertDialog.Popup
 				intent="irreversible"
-				title="Empty Trash"
-				description="Every post in the trash is removed for good. This cannot be undone."
-				confirmButtonText="Delete All"
+				title={__('Empty Trash', 'gophenberg')}
+				description={__('Every post in the trash is removed for good. This cannot be undone.', 'gophenberg')}
+				confirmButtonText={__('Delete All', 'gophenberg')}
 			/>
 		</AlertDialog.Root>
 	)

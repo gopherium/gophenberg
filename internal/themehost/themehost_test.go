@@ -3,6 +3,7 @@
 package themehost_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,9 +13,10 @@ import (
 )
 
 // writeTheme lays out a valid theme directory and returns the themes directory holding it.
-func writeTheme(t *testing.T, name string) string {
+func writeTheme(t *testing.T) string {
 	t.Helper()
 
+	const name = "starter"
 	themesDir := t.TempDir()
 	dir := filepath.Join(themesDir, name)
 	if err := os.MkdirAll(filepath.Join(dir, "server"), 0o755); err != nil {
@@ -41,7 +43,7 @@ func writeFile(t *testing.T, path, content string) {
 func TestLoadReadsAValidThemeDirectory(t *testing.T) {
 	t.Parallel()
 
-	themesDir := writeTheme(t, "starter")
+	themesDir := writeTheme(t)
 
 	theme, err := themehost.Load(themesDir, "starter")
 
@@ -170,7 +172,7 @@ func TestLoadRefusesADirectoryThatBreaksTheContract(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			themesDir := writeTheme(t, "starter")
+			themesDir := writeTheme(t)
 			testCase.break_(t, filepath.Join(themesDir, "starter"))
 
 			theme, err := themehost.Load(themesDir, "starter")
@@ -245,5 +247,45 @@ func grow(t *testing.T, path string, size int64) {
 	defer func() { _ = file.Close() }()
 	if err := file.Truncate(size); err != nil {
 		t.Fatalf("growing %s: %v", path, err)
+	}
+}
+
+func TestLoadNamesABrokenSymlinkAsASymlinkRatherThanAMissingFile(t *testing.T) {
+	t.Parallel()
+
+	themesDir := writeTheme(t)
+	entry := filepath.Join(themesDir, "starter", "server", "entry.mjs")
+	remove(t, entry)
+	if err := os.Symlink(filepath.Join(themesDir, "nowhere.mjs"), entry); err != nil {
+		t.Fatalf("linking the server entry: %v", err)
+	}
+
+	_, err := themehost.Load(themesDir, "starter")
+
+	var refusal *themehost.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("Load() error = %v, want a refusal", err)
+	}
+	if refusal.Code != "symlink_present" {
+		t.Errorf("Load() code = %q, want symlink_present", refusal.Code)
+	}
+}
+
+func TestLoadCarriesTheMetadataItsRefusalTemplateNames(t *testing.T) {
+	t.Parallel()
+
+	themesDir := writeTheme(t)
+	remove(t, filepath.Join(themesDir, "starter", "theme.json"))
+
+	_, err := themehost.Load(themesDir, "starter")
+
+	var refusal *themehost.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("Load() error = %v, want a refusal", err)
+	}
+	for _, key := range []string{"name", "file"} {
+		if _, found := refusal.Held[key]; !found {
+			t.Errorf("Load() refusal holds no %q, so its template cannot be filled", key)
+		}
 	}
 }

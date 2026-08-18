@@ -3,6 +3,7 @@
 import { Stack, Text } from '@gophenberg/frontend-sdk'
 import { AccountPanel } from '@gopherium/react-auth/wpds'
 import { Link, useRouterState } from '@tanstack/react-router'
+import { __ } from '@wordpress/i18n'
 
 import { MainMenu } from './menu/MainMenu'
 import { useAppVersion } from './version'
@@ -20,12 +21,18 @@ export function RailContent() {
 		<>
 			<Stack direction="column" gap="lg">
 				<Link to="/" className="gophenberg-rail__brand">
-					<Text variant="heading-lg">Gophenberg</Text>
+					<Text variant="heading-lg">{'Gophenberg'}</Text>
 				</Link>
-				<nav aria-label="Navigation">{Sidebar ? <Sidebar /> : <MainMenu />}</nav>
+				<nav aria-label={__('Navigation', 'gophenberg')}>
+					{Sidebar ? <Sidebar /> : <MainMenu />}
+				</nav>
 			</Stack>
 			<AccountPanel className="gophenberg-rail__account" />
-			{version ? <Text className="gophenberg-rail__version">v{version}</Text> : null}
+			{version ? (
+				<Text className="gophenberg-rail__version">
+					v{version}
+				</Text>
+			) : null}
 		</>
 	)
 }

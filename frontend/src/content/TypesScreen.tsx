@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Badge, Button, Dialog, InputControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { __, _x, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, LoadingRows, Page, useToaster } from '@gopherium/godmin'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -38,7 +39,7 @@ export function slugify(plural: string): string {
  * @returns The sentence to show.
  */
 export function refusalMessage(cause: unknown): string {
-	return cause instanceof Error ? cause.message : 'The registry could not be reached.'
+	return cause instanceof Error ? cause.message : __('The registry could not be reached.', 'gophenberg')
 }
 
 /**
@@ -71,8 +72,8 @@ export function TypesScreen() {
 
 	return (
 		<Page
-			title="Content Types"
-			subtitle="Every kind of content this site holds."
+			title={__('Content Types', 'gophenberg')}
+			subtitle={__('Every kind of content this site holds.', 'gophenberg')}
 			actions={<AddType onDone={done} onRefused={refused} />}
 		>
 			<Stack direction="column" gap="md">
@@ -102,25 +103,25 @@ interface Reporter {
  */
 function TypesBody(props: Reporter & { types: ContentType[]; loading: boolean; failed: boolean }) {
 	if (props.failed) {
-		return <ErrorNotice>The content types could not be loaded.</ErrorNotice>
+		return <ErrorNotice>{__('The content types could not be loaded.', 'gophenberg')}</ErrorNotice>
 	}
 	if (props.loading) {
-		return <LoadingRows label="Loading content types." />
+		return <LoadingRows label={__('Loading content types.', 'gophenberg')} />
 	}
 	return (
 		<div
 			className="godmin-table-scroll godmin-arrival"
 			role="region"
-			aria-label="Content Types"
+			aria-label={__('Content Types', 'gophenberg')}
 			tabIndex={0}
 		>
 			<table className="godmin-table">
 				<thead>
 					<tr>
-						<th scope="col">Type</th>
-						<th scope="col">Address</th>
-						<th scope="col">Status</th>
-						<th scope="col">Actions</th>
+						<th scope="col">{__('Type', 'gophenberg')}</th>
+						<th scope="col">{__('Address', 'gophenberg')}</th>
+						<th scope="col">{_x('Status', 'content type', 'gophenberg')}</th>
+						<th scope="col">{__('Actions', 'gophenberg')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -151,12 +152,12 @@ function TypeRow(
 	const { registered } = props
 	const edit = useMutation({
 		mutationFn: (asked: TypeEdit) => updateType(registered.key, asked),
-		onSuccess: () => props.onDone(`${registered.pluralLabel} updated.`),
+		onSuccess: () => props.onDone(sprintf(__('%s updated.', 'gophenberg'), registered.pluralLabel)),
 		onError: props.onRefused,
 	})
 	const remove = useMutation({
 		mutationFn: () => deleteType(registered.key),
-		onSuccess: () => props.onDone(`${registered.pluralLabel} removed.`),
+		onSuccess: () => props.onDone(sprintf(__('%s removed.', 'gophenberg'), registered.pluralLabel)),
 		onError: props.onRefused,
 	})
 	return (
@@ -170,9 +171,9 @@ function TypeRow(
 			<td>{addressOf(registered)}</td>
 			<td>
 				<Stack direction="row" gap="xs">
-					{registered.isDefault && <Badge>Default</Badge>}
-					{registered.hierarchical && <Badge>Nests</Badge>}
-					{!registered.active && <Badge intent="draft">Closed</Badge>}
+					{registered.isDefault && <Badge>{__('Default', 'gophenberg')}</Badge>}
+					{registered.hierarchical && <Badge>{__('Nests', 'gophenberg')}</Badge>}
+					{!registered.active && <Badge intent="draft">{__('Closed', 'gophenberg')}</Badge>}
 				</Stack>
 			</td>
 			<td>
@@ -193,17 +194,17 @@ function TypeRow(
 					)}
 					{!registered.isDefault && registered.active && (
 						<Button variant="outline" onClick={() => edit.mutate({ active: false })}>
-							Deactivate
+							{__('Deactivate', 'gophenberg')}
 						</Button>
 					)}
 					{!registered.active && (
 						<Button variant="outline" onClick={() => edit.mutate({ active: true })}>
-							Activate
+							{__('Activate', 'gophenberg')}
 						</Button>
 					)}
 					{!registered.isDefault && (
 						<Button variant="outline" loading={remove.isPending} onClick={() => remove.mutate()}>
-							Delete
+							{__('Delete', 'gophenberg')}
 						</Button>
 					)}
 				</Stack>
@@ -227,28 +228,37 @@ function HandOverRoot(props: {
 	return (
 		<>
 			<Button variant="outline" onClick={() => setOpen(true)}>
-				Make default
+				{__('Make default', 'gophenberg')}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
-						<Dialog.Title>Hand the root to {props.registered.pluralLabel}</Dialog.Title>
+						<Dialog.Title>
+							{sprintf(__('Hand the root to %s', 'gophenberg'), props.registered.pluralLabel)}
+						</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
 						<Stack direction="column" gap="md">
-							<Text>{props.registered.pluralLabel} will answer at the root.</Text>
+							<Text>
+								{sprintf(__('%s will answer at the root.', 'gophenberg'), props.registered.pluralLabel)}
+							</Text>
 							{holder !== undefined && (
 								<Text>
-									{holder.pluralLabel} moves to /{slugify(holder.pluralLabel)}. Every address
-									of both types changes.
+									{sprintf(
+										__(
+											'%(name)s moves to /%(word)s. Every address of both types changes.',
+											'gophenberg',
+										),
+										{ name: holder.pluralLabel, word: slugify(holder.pluralLabel) },
+									)}
 								</Text>
 							)}
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
 						<Button variant="outline" onClick={() => setOpen(false)}>
-							Keep it
+							{__('Keep it', 'gophenberg')}
 						</Button>
 						<Button
 							onClick={() => {
@@ -256,7 +266,7 @@ function HandOverRoot(props: {
 								props.onHandOver()
 							}}
 						>
-							Hand over the root
+							{__('Hand over the root', 'gophenberg')}
 						</Button>
 					</Dialog.Footer>
 				</Dialog.Popup>
@@ -276,26 +286,34 @@ function ChangeAddress(props: { registered: ContentType; onMove: (word: string) 
 	return (
 		<>
 			<Button variant="outline" onClick={() => setOpen(true)}>
-				Change address
+				{__('Change address', 'gophenberg')}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
-						<Dialog.Title>Change the address of {props.registered.pluralLabel}</Dialog.Title>
+						<Dialog.Title>
+							{sprintf(__('Change the address of %s', 'gophenberg'), props.registered.pluralLabel)}
+						</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
 						<Stack direction="column" gap="md">
 							<Text>
-								Every address of this type moves. Links kept elsewhere to the old addresses
-								stop working.
+								{__(
+									'Every address of this type moves. Links kept elsewhere to the old addresses stop working.',
+									'gophenberg',
+								)}
 							</Text>
-							<InputControl label="Route word" value={word} onValueChange={setWord} />
+							<InputControl
+								label={__('Route word', 'gophenberg')}
+								value={word}
+								onValueChange={setWord}
+							/>
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
 						<Button variant="outline" onClick={() => setOpen(false)}>
-							Keep it
+							{__('Keep it', 'gophenberg')}
 						</Button>
 						<Button
 							onClick={() => {
@@ -303,7 +321,7 @@ function ChangeAddress(props: { registered: ContentType; onMove: (word: string) 
 								props.onMove(word)
 							}}
 						>
-							Move every address
+							{__('Move every address', 'gophenberg')}
 						</Button>
 					</Dialog.Footer>
 				</Dialog.Popup>
@@ -333,7 +351,7 @@ function AddType(props: Reporter) {
 			setOpen(false)
 			setSingular('')
 			setPlural('')
-			props.onDone(`${plural} registered.`)
+			props.onDone(sprintf(__('%s registered.', 'gophenberg'), plural))
 		},
 		onError: (cause) => {
 			setOpen(false)
@@ -342,38 +360,41 @@ function AddType(props: Reporter) {
 	})
 	return (
 		<>
-			<Button onClick={() => setOpen(true)}>Add New Type</Button>
+			<Button onClick={() => setOpen(true)}>{__('Add New Type', 'gophenberg')}</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
-						<Dialog.Title>Register a content type</Dialog.Title>
+						<Dialog.Title>{__('Register a content type', 'gophenberg')}</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
 						<Stack direction="column" gap="md">
 							<InputControl
-								label="Singular name"
+								label={__('Singular name', 'gophenberg')}
 								autoComplete="off"
 								value={singular}
 								onValueChange={setSingular}
 							/>
 							<InputControl
-								label="Plural name"
+								label={__('Plural name', 'gophenberg')}
 								autoComplete="off"
 								value={plural}
 								onValueChange={setPlural}
 							/>
 							<Text variant="body-sm">
-								This type will answer under /{slugify(plural) || 'address'}.
+								{sprintf(
+									__('This type will answer under /%s.', 'gophenberg'),
+									slugify(plural) || __('address', 'gophenberg'),
+								)}
 							</Text>
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
 						<Button variant="outline" onClick={() => setOpen(false)}>
-							Cancel
+							{__('Cancel', 'gophenberg')}
 						</Button>
 						<Button loading={add.isPending} onClick={() => add.mutate()}>
-							Register
+							{__('Register', 'gophenberg')}
 						</Button>
 					</Dialog.Footer>
 				</Dialog.Popup>

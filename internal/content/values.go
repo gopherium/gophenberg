@@ -32,16 +32,19 @@ func (v Values) Validate(fields []Field) error {
 	for key, value := range v {
 		f, found := declared[key]
 		if !found {
-			return fmt.Errorf("%w: %s", ErrUnknownField, key)
+			return Refuse(ErrUnknownField, "field_unknown",
+				fmt.Sprintf("%s: %s", ErrUnknownField, key), Details{"field": key})
 		}
 		if f.Kind == FieldKindRelation {
-			return fmt.Errorf("%w: %s holds targets rather than a value", ErrFieldShape, key)
+			return Refuse(ErrFieldShape, "field_shape_value",
+				fmt.Sprintf("%s: %s holds targets rather than a value", ErrFieldShape, key), Details{"field": key})
 		}
 		if value == nil {
 			continue
 		}
 		if !holdsKind(value, f.Kind) {
-			return fmt.Errorf("%w: %s holds %s", ErrFieldShape, key, f.Kind)
+			return Refuse(ErrFieldShape, "field_shape_kind",
+				fmt.Sprintf("%s: %s holds %s", ErrFieldShape, key, f.Kind), Details{"field": key, "kind": string(f.Kind)})
 		}
 	}
 	return nil

@@ -6,6 +6,7 @@ import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import type { MediaLibraryProps } from '@gophenberg/frontend-sdk/editor'
 import { ErrorNotice } from '@gopherium/godmin'
 import { useQuery } from '@tanstack/react-query'
+import { __ } from '@wordpress/i18n'
 import { useState } from 'react'
 
 import './media.css'
@@ -98,7 +99,7 @@ export function MediaLibraryPicker({
 	const actions = [
 		{
 			id: 'select',
-			label: 'Select',
+			label: __('Select', 'gophenberg'),
 			isPrimary: true,
 			supportsBulk: takesMany,
 			callback: choose,
@@ -115,12 +116,12 @@ export function MediaLibraryPicker({
 			<Dialog.Root open={open} onOpenChange={() => close()}>
 				<Dialog.Popup size="large" className="gophenberg-media-picker">
 					<Dialog.Header>
-						<Dialog.Title>Media Library</Dialog.Title>
+						<Dialog.Title>{__('Media Library', 'gophenberg')}</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
 						{media.isError ? (
-							<ErrorNotice>The media library could not be loaded.</ErrorNotice>
+							<ErrorNotice>{__('The media library could not be loaded.', 'gophenberg')}</ErrorNotice>
 						) : (
 							<DataViewsPicker
 								data={page.items}
@@ -132,7 +133,7 @@ export function MediaLibraryPicker({
 								onChangeSelection={setSelection}
 								isLoading={media.isPending}
 								getItemId={(item: MediaItem) => String(item.id)}
-								searchLabel="Search media"
+								searchLabel={__('Search media', 'gophenberg')}
 								config={{ perPageSizes: [PER_PAGE] }}
 								paginationInfo={{
 									totalItems: page.total,
@@ -144,14 +145,14 @@ export function MediaLibraryPicker({
 										pickerTable: { fields: ['filename', 'filesize'] },
 									} as unknown as Record<string, object>
 								}
-								empty={<Text>No media has been uploaded yet.</Text>}
+								empty={<Text>{__('No media has been uploaded yet.', 'gophenberg')}</Text>}
 							/>
 						)}
 					</Dialog.Content>
 					<Dialog.Footer>
 						<Stack direction="row" gap="sm" justify="flex-end">
 							<Button variant="outline" onClick={close}>
-								Cancel
+								{__('Cancel', 'gophenberg')}
 							</Button>
 						</Stack>
 					</Dialog.Footer>

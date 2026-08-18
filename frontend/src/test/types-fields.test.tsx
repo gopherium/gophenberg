@@ -55,8 +55,8 @@ test('lists the fields a type declares', async () => {
 	await openFields()
 
 	const held = await screen.findByRole('dialog')
-	expect(within(held).getByText('Color')).toBeInTheDocument()
-	expect(within(held).getByText('text')).toBeInTheDocument()
+	const row = within(held).getByText('Color').closest('li')!
+	expect(within(row).getByText('Text')).toBeInTheDocument()
 })
 
 test('says when a type declares no fields yet', async () => {
@@ -263,4 +263,31 @@ test('points a relation at the first type offered when none is chosen', async ()
 
 	await waitFor(() => expect(sent).toHaveLength(1))
 	expect(sent[0]).toMatchObject({ kind: 'relation', relates_to: 'post', many: true })
+})
+
+test('keeps the chosen kind marked as chosen after the dialog redraws', async () => {
+	await openFields()
+	const held = await screen.findByRole('dialog')
+
+	await userEvent.type(within(held).getByLabelText('Name'), 'Color')
+	await userEvent.click(within(held).getByLabelText('Kind'))
+
+	expect(await screen.findByRole('option', { name: 'Text' })).toHaveAttribute(
+		'aria-selected',
+		'true',
+	)
+})
+
+test('falls back to the stored kind when the admin offers no name for it', async () => {
+	server.use(
+		http.get('/api/types/post/fields', () =>
+			HttpResponse.json({ items: [{ ...COLOR, kind: 'geography' }] }),
+		),
+	)
+
+	await openFields()
+
+	const held = await screen.findByRole('dialog')
+	const row = within(held).getByText('Color').closest('li')!
+	expect(within(row).getByText('geography')).toBeInTheDocument()
 })

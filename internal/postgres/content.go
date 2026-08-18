@@ -403,7 +403,8 @@ func leavable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
 		return err
 	}
 	if content.Status(row.Status) == content.StatusTrash {
-		return content.ErrInvalidTransition
+		return content.Refuse(content.ErrInvalidTransition, "content_already_trashed",
+			"content: the item is already in the trash", nil)
 	}
 	held, err := queries.CountChildren(ctx, &id)
 	if err != nil {

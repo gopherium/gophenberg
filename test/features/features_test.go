@@ -42,6 +42,18 @@ func TestContentFields(t *testing.T) {
 	runFeature(t, "features/content-fields.feature", initializeContentFields)
 }
 
+func TestRefusalCodes(t *testing.T) {
+	runFeature(t, "features/refusal-codes.feature", initializeRefusalCodes)
+}
+
+func TestLocaleResolution(t *testing.T) {
+	runFeature(t, "features/locale-resolution.feature", initializeLocale)
+}
+
+func TestPublicSiteLanguage(t *testing.T) {
+	runFeature(t, "features/public-site-language.feature", initializePublicSiteLanguage)
+}
+
 func TestContentRelations(t *testing.T) {
 	runFeature(t, "features/content-relations.feature", initializeContentRelations)
 }

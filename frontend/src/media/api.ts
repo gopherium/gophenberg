@@ -2,6 +2,8 @@
 
 import { z } from 'zod'
 
+import { refusalText } from '../i18n/refusal'
+
 const MEDIA_PER_PAGE = 20
 
 const renditionSchema = z.object({
@@ -32,7 +34,11 @@ const mediaSchema = z.object({
 
 const pageSchema = z.object({ items: z.array(mediaSchema), total: z.number() })
 
-const errorSchema = z.object({ error: z.string() })
+const errorSchema = z.object({
+	error: z.string(),
+	code: z.string().optional(),
+	meta: z.record(z.string(), z.unknown()).optional(),
+})
 
 interface Rendition {
 	file: string
@@ -163,7 +169,10 @@ function toMedia(row: z.infer<typeof mediaSchema>): MediaItem {
  */
 async function messageFrom(response: Response): Promise<string> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
-	return parsed.success ? parsed.data.error : `the server answered ${response.status}`
+	if (!parsed.success) {
+		return refusalText({ error: '' })
+	}
+	return refusalText(parsed.data)
 }
 
 /**

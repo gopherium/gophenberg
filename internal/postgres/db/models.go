@@ -100,3 +100,9 @@ type CoreSetting struct {
 	Key   string
 	Value string
 }
+
+type CoreUserSetting struct {
+	UserID uuid.UUID
+	Key    string
+	Value  string
+}

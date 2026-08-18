@@ -82,14 +82,15 @@ func (l *Library) Cap() int64 { return l.maxSize }
 // Ingest validates an upload, stores its files, and returns the media item they make.
 func (l *Library) Ingest(name string, data []byte, authorID uuid.UUID) (media.Media, error) {
 	if l.dir == "" {
-		return media.Media{}, refuse("no media directory is configured, set GOPHENBERG_MEDIA_DIR",
+		return media.Media{}, refuse("media_directory_unset", "no media directory is configured, set GOPHENBERG_MEDIA_DIR",
 			"the library holds no directory")
 	}
 	if authorID == uuid.Nil {
 		return media.Media{}, media.ErrInvalidAuthor
 	}
 	if int64(len(data)) > l.maxSize {
-		return media.Media{}, refuse("the file is too large", "%d bytes over the cap of %d", len(data), l.maxSize)
+		return media.Media{}, refuse("file_too_large", "the file is too large",
+			"%d bytes over the cap of %d", len(data), l.maxSize)
 	}
 	k, err := detect(name, data)
 	if err != nil {
@@ -118,7 +119,7 @@ func (l *Library) ingestImage(name string, k kind, data []byte, authorID uuid.UU
 	}
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
-		return media.Media{}, refuse("the image cannot be read", "decoding: %w", err)
+		return media.Media{}, refuse("image_unreadable", "the image cannot be read", "decoding: %w", err)
 	}
 	img, data, err = uprightJPEG(k, img, data)
 	if err != nil {
@@ -135,10 +136,10 @@ func (l *Library) ingestImage(name string, k kind, data []byte, authorID uuid.UU
 func decodeBudget(data []byte) (image.Config, error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return image.Config{}, refuse("the image cannot be read", "reading the header: %w", err)
+		return image.Config{}, refuse("image_unreadable", "the image cannot be read", "reading the header: %w", err)
 	}
 	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width > maxPixels/cfg.Height {
-		return image.Config{}, refuse("the image is too large",
+		return image.Config{}, refuse("image_frame_too_large", "the image is too large",
 			"%dx%d exceeds the %d pixel budget", cfg.Width, cfg.Height, maxPixels)
 	}
 	return cfg, nil
@@ -148,10 +149,10 @@ func decodeBudget(data []byte) (image.Config, error) {
 func isAnimated(data []byte) (bool, error) {
 	frames, err := gifFrames(data)
 	if errors.Is(err, errGIFFrameTooLarge) {
-		return false, refuse("the image is too large", "walking the animation: %w", err)
+		return false, refuse("image_frame_too_large", "the image is too large", "walking the animation: %w", err)
 	}
 	if err != nil {
-		return false, refuse("the image cannot be read", "reading the animation: %w", err)
+		return false, refuse("image_unreadable", "the image cannot be read", "reading the animation: %w", err)
 	}
 	return frames > 1, nil
 }

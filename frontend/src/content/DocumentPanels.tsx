@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { InputControl, SelectControl, Stack, TextareaControl } from '@gophenberg/frontend-sdk'
+import { __, _x } from '@wordpress/i18n'
 import { useMemo } from 'react'
 
 import { FieldsPanel } from './FieldsPanel'
@@ -9,23 +10,35 @@ import { TrashPost } from './TrashPost'
 import { useContentType } from './useContentType'
 import type { EditorBuffer } from './useEditorBuffer'
 
-const AUTHORED_STATUSES = [
-	{ label: 'Draft', value: 'draft' },
-	{ label: 'Pending', value: 'pending' },
-	{ label: 'Private', value: 'private' },
-]
-
-const LABELS: Record<string, string> = {
-	draft: 'Draft',
-	pending: 'Pending',
-	private: 'Private',
-	published: 'Published',
-	trash: 'Trash',
-}
-
 interface StatusItem {
 	label: string
 	value: string
+}
+
+/**
+ * Returns the statuses an author can put a post into.
+ * @returns The items the select offers.
+ */
+function authoredStatuses(): StatusItem[] {
+	return [
+		{ label: _x('Draft', 'post status', 'gophenberg'), value: 'draft' },
+		{ label: __('Pending', 'gophenberg'), value: 'pending' },
+		{ label: __('Private', 'gophenberg'), value: 'private' },
+	]
+}
+
+/**
+ * Returns the label each status is shown under.
+ * @returns The label of every status, keyed by the slug the server sends.
+ */
+function statusLabels(): Record<string, string> {
+	return {
+		draft: _x('Draft', 'post status', 'gophenberg'),
+		pending: __('Pending', 'gophenberg'),
+		private: __('Private', 'gophenberg'),
+		published: _x('Published', 'post status', 'gophenberg'),
+		trash: _x('Trash', 'post status', 'gophenberg'),
+	}
 }
 
 /**
@@ -34,12 +47,13 @@ interface StatusItem {
  * @returns The items to offer and the selected item, which is one of them.
  */
 function statusItems(status: string): { items: StatusItem[], selected: StatusItem } {
-	const authored = AUTHORED_STATUSES.find((item) => item.value === status)
+	const offered = authoredStatuses()
+	const authored = offered.find((item) => item.value === status)
 	if (authored !== undefined) {
-		return { items: AUTHORED_STATUSES, selected: authored }
+		return { items: offered, selected: authored }
 	}
-	const held = { label: LABELS[status] ?? status, value: status }
-	return { items: [...AUTHORED_STATUSES, held], selected: held }
+	const held = { label: statusLabels()[status] ?? status, value: status }
+	return { items: [...offered, held], selected: held }
 }
 
 /**
@@ -66,12 +80,12 @@ export function DocumentPanels({ postId, buffer }: { postId: string, buffer: Edi
 	return (
 		<Stack direction="column" gap="md">
 			<SelectControl
-				label="Status"
+				label={_x('Status', 'post', 'gophenberg')}
 				items={items}
 				value={selected}
 				onValueChange={(item) => buffer.setStatus(chosenStatus(item, buffer.status))}
 			/>
-			<InputControl label="Slug" value={buffer.slug} onValueChange={buffer.setSlug} />
+			<InputControl label={__('Slug', 'gophenberg')} value={buffer.slug} onValueChange={buffer.setSlug} />
 			{listed.hierarchical && (
 				<ParentPicker
 					postId={postId}
@@ -81,7 +95,7 @@ export function DocumentPanels({ postId, buffer }: { postId: string, buffer: Edi
 				/>
 			)}
 			<TextareaControl
-				label="Excerpt"
+				label={__('Excerpt', 'gophenberg')}
 				value={buffer.excerpt}
 				onValueChange={buffer.setExcerpt}
 			/>

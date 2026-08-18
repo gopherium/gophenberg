@@ -10,11 +10,12 @@ export default [
 	{
 		files: [
 			'frontend/src/**/*.{ts,tsx}',
+			'frontend/scripts/**/*.{ts,tsx}',
 			'sdk/astro/**/*.{ts,tsx}',
 			'sdk/frontend/**/*.{ts,tsx}',
 			'plugins/*/frontend/**/*.{ts,tsx}',
 		],
-		ignores: ['frontend/src/plugins/index.ts'],
+		ignores: ['frontend/src/plugins/index.ts', 'frontend/src/i18n/refusalTemplates.ts'],
 		languageOptions: {
 			parser: tseslint.parser,
 			parserOptions: { ecmaFeatures: { jsx: true } },
@@ -26,6 +27,7 @@ export default [
 	{
 		files: [
 			'frontend/src/**/*.{ts,tsx}',
+			'frontend/scripts/**/*.{ts,tsx}',
 			'sdk/astro/**/*.{ts,tsx}',
 			'sdk/frontend/**/*.{ts,tsx}',
 			'plugins/*/frontend/**/*.{ts,tsx}',
@@ -48,6 +50,7 @@ export default [
 	{
 		files: [
 			'frontend/src/**/*.{ts,tsx}',
+			'frontend/scripts/**/*.{ts,tsx}',
 			'sdk/astro/**/*.{ts,tsx}',
 			'sdk/frontend/**/*.{ts,tsx}',
 			'plugins/*/frontend/**/*.{ts,tsx}',

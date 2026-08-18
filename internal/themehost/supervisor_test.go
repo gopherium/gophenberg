@@ -35,7 +35,7 @@ func nodeBin(t *testing.T) string {
 func installStub(t *testing.T, stub string) *themehost.Theme {
 	t.Helper()
 
-	themesDir := writeTheme(t, "starter")
+	themesDir := writeTheme(t)
 	source, err := os.ReadFile(filepath.Join("testdata", stub+".mjs"))
 	if err != nil {
 		t.Fatalf("reading stub %s: %v", stub, err)

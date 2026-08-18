@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
+import { __ } from '@wordpress/i18n'
 
 import { typesQueryKey } from './nav'
 import { listTypes } from './types'
@@ -10,8 +11,12 @@ import type { ContentType } from './types'
 /** The type a screen falls back to before the registry answers. */
 const unknownType: ContentType = {
 	key: '',
-	singularLabel: 'Content',
-	pluralLabel: 'Content',
+	get singularLabel() {
+		return __('Content', 'gophenberg')
+	},
+	get pluralLabel() {
+		return __('Content', 'gophenberg')
+	},
 	routeWord: '',
 	hierarchical: false,
 	revisions: true,

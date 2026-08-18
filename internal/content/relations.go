@@ -48,7 +48,8 @@ func SplitValues(patch Values, fields []Field) (Values, Relations, error) {
 	for key, value := range patch {
 		f, found := declared[key]
 		if !found {
-			return nil, nil, fmt.Errorf("%w: %s", ErrUnknownField, key)
+			return nil, nil, Refuse(ErrUnknownField, "field_unknown",
+				fmt.Sprintf("%s: %s", ErrUnknownField, key), Details{"field": key})
 		}
 		if f.Kind != FieldKindRelation {
 			scalars[key] = value
@@ -70,10 +71,12 @@ func targetsOf(f Field, value any) ([]uuid.UUID, error) {
 	}
 	listed, ok := value.([]any)
 	if !ok {
-		return nil, fmt.Errorf("%w: %s holds a list of targets", ErrFieldShape, f.Key)
+		return nil, Refuse(ErrFieldShape, "field_shape_list",
+			fmt.Sprintf("%s: %s holds a list of targets", ErrFieldShape, f.Key), Details{"field": f.Key})
 	}
 	if !f.Many && len(listed) > 1 {
-		return nil, fmt.Errorf("%w: %s", ErrTooManyTargets, f.Key)
+		return nil, Refuse(ErrTooManyTargets, "too_many_targets",
+			fmt.Sprintf("%s: %s", ErrTooManyTargets, f.Key), Details{"field": f.Key})
 	}
 	targets := make([]uuid.UUID, 0, len(listed))
 	held := make(map[uuid.UUID]bool, len(listed))
@@ -83,7 +86,8 @@ func targetsOf(f Field, value any) ([]uuid.UUID, error) {
 			return nil, err
 		}
 		if held[target] {
-			return nil, fmt.Errorf("%w: %s", ErrRepeatedTarget, f.Key)
+			return nil, Refuse(ErrRepeatedTarget, "target_repeated",
+				fmt.Sprintf("%s: %s", ErrRepeatedTarget, f.Key), Details{"field": f.Key})
 		}
 		held[target] = true
 		targets = append(targets, target)
@@ -95,11 +99,13 @@ func targetsOf(f Field, value any) ([]uuid.UUID, error) {
 func targetID(f Field, raw any) (uuid.UUID, error) {
 	written, ok := raw.(string)
 	if !ok {
-		return uuid.Nil, fmt.Errorf("%w: %s holds identities", ErrFieldShape, f.Key)
+		return uuid.Nil, Refuse(ErrFieldShape, "field_shape_identity",
+			fmt.Sprintf("%s: %s holds identities", ErrFieldShape, f.Key), Details{"field": f.Key})
 	}
 	target, err := uuid.Parse(written)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("%w: %s holds identities", ErrFieldShape, f.Key)
+		return uuid.Nil, Refuse(ErrFieldShape, "field_shape_identity",
+			fmt.Sprintf("%s: %s holds identities", ErrFieldShape, f.Key), Details{"field": f.Key})
 	}
 	return target, nil
 }
@@ -109,7 +115,8 @@ func (c Content) SelfTargeted() error {
 	for key, targets := range c.Relations {
 		for _, target := range targets {
 			if target == c.ID {
-				return fmt.Errorf("%w: %s", ErrSelfTarget, key)
+				return Refuse(ErrSelfTarget, "target_is_self",
+					fmt.Sprintf("%s: %s", ErrSelfTarget, key), Details{"field": key})
 			}
 		}
 	}
@@ -135,7 +142,8 @@ func Filled(values Values, relations Relations, fields []Field) error {
 			continue
 		}
 		if unfilled(values, relations, f) {
-			return fmt.Errorf("%w: %s", ErrFieldRequired, f.Key)
+			return Refuse(ErrFieldRequired, "field_required",
+				fmt.Sprintf("%s: %s", ErrFieldRequired, f.Key), Details{"field": f.Key})
 		}
 	}
 	return nil

@@ -9,9 +9,9 @@ require (
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/gopherium/gouncer v0.1.0
-	github.com/gopherium/gouncer/authkit v0.4.0
+	github.com/gopherium/gouncer/authkit v0.5.0
 	github.com/gopherium/gouncer/authkit/postgres v0.3.0
-	github.com/gopherium/gouncer/authkit/ratelimit v0.2.0
+	github.com/gopherium/gouncer/authkit/ratelimit v0.3.0
 	github.com/gopherium/pluginkit v0.3.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/joho/godotenv v1.5.1
@@ -71,7 +71,7 @@ require (
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260727163830-6c54dddc4772 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260727163830-6c54dddc4772 // indirect
 	google.golang.org/grpc v1.82.1 // indirect

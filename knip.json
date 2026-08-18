@@ -4,6 +4,7 @@
 	"ignore": [
 		".e2e-themes/**",
 		".e2e-archive/**",
+		"frontend/testdata/**",
 		"internal/themehost/testdata/**",
 		"docs/**"
 	],

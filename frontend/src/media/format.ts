@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { displayLocale } from '../i18n/display'
 import type { MediaItem } from './api'
 
-// sizeUnits are the binary steps a file size is reported in.
+/** The binary steps a file size is reported in. */
 const sizeUnits = [
 	{ mag: 1024 ** 4, unit: 'TB' },
 	{ mag: 1024 ** 3, unit: 'GB' },
@@ -21,7 +22,7 @@ export function fileSize(bytes: number): string {
 	if (step === undefined) {
 		return ''
 	}
-	const scaled = (bytes / step.mag).toLocaleString(undefined, {
+	const scaled = (bytes / step.mag).toLocaleString(displayLocale(), {
 		minimumFractionDigits: 0,
 		maximumFractionDigits: 2,
 	})

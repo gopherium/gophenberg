@@ -5,6 +5,7 @@ import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { ErrorNotice, Page } from '@gopherium/godmin'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { __, _x } from '@wordpress/i18n'
 import { useState } from 'react'
 import type { DragEvent } from 'react'
 
@@ -84,7 +85,8 @@ export function MediaScreen() {
 			setRefusal('')
 			await refresh()
 		},
-		onError: () => setRefusal('The server could not be reached, so nothing was uploaded.'),
+		onError: () =>
+			setRefusal(__('The server could not be reached, so nothing was uploaded.', 'gophenberg')),
 	})
 	/**
 	 * Uploads a file the administrator handed the library.
@@ -97,11 +99,14 @@ export function MediaScreen() {
 	}
 	const page = media.data ?? EMPTY_PAGE
 	return (
-		<Page title="Media" actions={<UploadControl onChoose={accept} busy={upload.isPending} />}>
+		<Page
+			title={_x('Media', 'admin section', 'gophenberg')}
+			actions={<UploadControl onChoose={accept} busy={upload.isPending} />}
+		>
 			<Stack direction="column" gap="md">
 				{refusal !== '' && <ErrorNotice>{refusal}</ErrorNotice>}
 				{media.isError ? (
-					<ErrorNotice>The media library could not be loaded.</ErrorNotice>
+					<ErrorNotice>{__('The media library could not be loaded.', 'gophenberg')}</ErrorNotice>
 				) : (
 					<div
 						className="gophenberg-media__drop"
@@ -122,7 +127,7 @@ export function MediaScreen() {
 							onChangeSelection={setSelection}
 							isLoading={media.isPending}
 							getItemId={(item: MediaItem) => String(item.id)}
-							searchLabel="Search media"
+							searchLabel={__('Search media', 'gophenberg')}
 							config={{ perPageSizes: [PER_PAGE] }}
 							paginationInfo={{
 								totalItems: page.total,
@@ -134,7 +139,7 @@ export function MediaScreen() {
 									fields: ['filename', 'mimeType', 'dimensions', 'filesize', 'date'],
 								},
 							}}
-							empty={<Text>No media has been uploaded yet.</Text>}
+							empty={<Text>{__('No media has been uploaded yet.', 'gophenberg')}</Text>}
 						/>
 					</div>
 				)}
@@ -157,7 +162,7 @@ function UploadControl({
 }) {
 	return (
 		<Stack direction="row" gap="sm" align="center">
-			<label htmlFor="media-file">Add media</label>
+			<label htmlFor="media-file">{__('Add media', 'gophenberg')}</label>
 			<input
 				id="media-file"
 				type="file"

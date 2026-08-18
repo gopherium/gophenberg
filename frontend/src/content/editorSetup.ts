@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { __ } from '@wordpress/i18n'
+
 import {
 	ALLOWED_MIME_TYPES,
 	IMAGE_SIZES,
@@ -8,7 +10,9 @@ import {
 } from '../media/editorMedia'
 
 export const EDITOR_SETTINGS = {
-	bodyPlaceholder: 'Start writing.',
+	get bodyPlaceholder() {
+		return __('Start writing.', 'gophenberg')
+	},
 	__experimentalBlockPatterns: [],
 	mediaUpload: editorMediaUpload,
 	allowedMimeTypes: ALLOWED_MIME_TYPES,
@@ -19,9 +23,24 @@ export const EDITOR_SETTINGS = {
 }
 
 const PREVIEW_ITEMS = {
-	desktop: { label: 'Desktop', value: 'desktop' },
-	tablet: { label: 'Tablet', value: 'tablet' },
-	mobile: { label: 'Mobile', value: 'mobile' },
+	desktop: {
+		get label() {
+			return __('Desktop', 'gophenberg')
+		},
+		value: 'desktop',
+	},
+	tablet: {
+		get label() {
+			return __('Tablet', 'gophenberg')
+		},
+		value: 'tablet',
+	},
+	mobile: {
+		get label() {
+			return __('Mobile', 'gophenberg')
+		},
+		value: 'mobile',
+	},
 }
 
 export type PreviewWidth = keyof typeof PREVIEW_ITEMS

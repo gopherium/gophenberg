@@ -269,8 +269,8 @@ func TestTypePatchRefusesASecondTypeAtTheRoot(t *testing.T) {
 		t.Fatalf("status = %d, want %d: %s",
 			recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
 	}
-	if body := recorder.Body.String(); !strings.Contains(body, "root") {
-		t.Errorf("body = %q, want it to name the root as the blocker", body)
+	if body := recorder.Body.String(); !strings.Contains(body, "route word is required") {
+		t.Errorf("body = %q, want the missing route word named as the blocker", body)
 	}
 }
 

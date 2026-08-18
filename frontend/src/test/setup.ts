@@ -35,5 +35,6 @@ beforeAll(async () => {
 		import('../users/UsersScreen'),
 		import('../users/NewUserScreen'),
 		import('../themes/ThemesScreen'),
+		import('../i18n/LanguageScreen'),
 	])
 })

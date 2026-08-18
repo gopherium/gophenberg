@@ -64,7 +64,9 @@ test('refuses an archive that is not a theme and leaves the site alone', async (
 	})
 	await page.getByRole('button', { name: 'Install theme' }).click()
 
-	await expect(page.getByRole('alert')).toHaveText('the archive could not be read')
+	await expect(page.getByRole('alert')).toHaveText(
+		'This file could not be opened as a zip. Package the theme again and upload the new file.',
+	)
 	await expect(page.getByRole('row', { name: /riverbed/ })).toHaveCount(0)
 	await expect(
 		page.getByText(`${starterTheme.name} ${starterTheme.version} is serving the public site.`),

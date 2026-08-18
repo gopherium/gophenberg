@@ -73,7 +73,9 @@ func (s *server) handleFieldCreate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := authkit.Decode[request](w, r)
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "malformed json")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "malformed json", Code: "body_malformed",
+			})
 			return
 		}
 		asked, err := content.NewField(content.Field{
@@ -117,7 +119,9 @@ func (s *server) handleFieldPatch() http.HandlerFunc {
 		}
 		req, err := authkit.Decode[request](w, r)
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, "malformed json")
+			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+				Message: "malformed json", Code: "body_malformed",
+			})
 			return
 		}
 		if req.Label != nil {

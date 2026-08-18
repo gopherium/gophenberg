@@ -4,6 +4,7 @@ import { useToaster } from '@gopherium/godmin'
 import { parse, serialize, useStateWithHistory } from '@gophenberg/frontend-sdk/editor'
 import type { Block } from '@gophenberg/frontend-sdk/editor'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { __ } from '@wordpress/i18n'
 import { useMemo, useState } from 'react'
 
 import { savePost } from './api'
@@ -82,7 +83,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 				])
 			}
 		},
-		onError: () => toaster.show('Could not save that post.'),
+		onError: () => toaster.show(__('Could not save that post.', 'gophenberg')),
 	})
 	/**
 	 * Takes the post the server wrote as the new settled buffer.
@@ -180,10 +181,12 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
  */
 function reportOf(outcome: SaveOutcome, changes: PostChanges): string {
 	if (outcome.kind === 'conflict') {
-		return 'This post changed elsewhere. Reload before saving again.'
+		return __('This post changed elsewhere. Reload before saving again.', 'gophenberg')
 	}
 	if (outcome.kind === 'rejected') {
 		return outcome.message
 	}
-	return changes.status === 'published' ? 'Post published.' : 'Draft saved.'
+	return changes.status === 'published'
+		? __('Post published.', 'gophenberg')
+		: __('Draft saved.', 'gophenberg')
 }

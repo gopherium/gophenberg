@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { NavItem } from '@gophenberg/frontend-sdk'
+import { _x } from '@wordpress/i18n'
 
 const mediaIcon = (
 	<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
@@ -9,7 +10,9 @@ const mediaIcon = (
 )
 
 export const mediaNavItem: NavItem = {
-	label: 'Media',
+	get label() {
+		return _x('Media', 'admin section', 'gophenberg')
+	},
 	to: '/media',
 	icon: mediaIcon,
 }
