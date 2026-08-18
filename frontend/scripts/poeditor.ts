@@ -201,11 +201,6 @@ export function poeditorAt(token: string, project: string, fetched: typeof fetch
 			return (held.languages ?? []).map((named) => localeOf(named.code))
 		},
 		/**
-		 * Returns one language's catalogue as the platform exports it.
-		 * @param locale - The language to export.
-		 * @returns The catalogue as PO text.
-		 */
-		/**
 		 * Adds to the platform every term the template names, leaving translations alone.
 		 * @param source - The catalogue template as POT text.
 		 */
