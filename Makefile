@@ -1,4 +1,4 @@
-.PHONY: peers dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down pot catalogs \
+.PHONY: peers dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down pot catalogs translations \
 	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump \
 	brick-link brick-sync brick-pack brick-unlink
 
@@ -67,6 +67,9 @@ lint:
 
 pot:
 	node frontend/scripts/write-pot.ts
+
+translations:
+	node frontend/scripts/sync-translations.ts
 
 catalogs:
 	node frontend/scripts/write-catalogs.ts
