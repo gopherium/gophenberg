@@ -105,6 +105,7 @@ interface Answer {
 export interface Poeditor {
 	languages: () => Promise<string[]>
 	exportPo: (locale: string) => Promise<string>
+	uploadTerms: (source: string) => Promise<void>
 }
 
 /**
@@ -198,6 +199,36 @@ export function poeditorAt(token: string, project: string, fetched: typeof fetch
 		languages: async () => {
 			const held = await ask(fetched, 'languages/list', credentials())
 			return (held.languages ?? []).map((named) => localeOf(named.code))
+		},
+		/**
+		 * Returns one language's catalogue as the platform exports it.
+		 * @param locale - The language to export.
+		 * @returns The catalogue as PO text.
+		 */
+		/**
+		 * Adds to the platform every term the template names, leaving translations alone.
+		 * @param source - The catalogue template as POT text.
+		 */
+		uploadTerms: async (source: string) => {
+			const form = new FormData()
+			form.set('api_token', token)
+			form.set('id', project)
+			form.set('updating', 'terms')
+			form.set('file', new Blob([source]), 'gophenberg.pot')
+			const response = await fetched(`${API}/projects/upload`, {
+				method: 'POST',
+				body: form,
+				signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+			})
+			if (!response.ok) {
+				throw new Error(`the translation platform answered ${response.status}`)
+			}
+			const answered = (await response.json()) as Answer
+			if (answered.response.status !== 'success') {
+				throw new Error(
+					`the translation platform refused: ${answered.response.message ?? 'no reason given'}`,
+				)
+			}
 		},
 		/**
 		 * Returns one language's catalogue as the platform exports it.

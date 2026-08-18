@@ -280,3 +280,57 @@ test('asks the platform for a language under the platform own name', async () =>
 
 	expect(asked[0]).toBe('es')
 })
+
+test('sends only the fields an upload needs, so no destructive option can ride along', async () => {
+	let sent: string[] = []
+	let path = ''
+	const fetched = vi.fn(async (url: string, init?: { body?: FormData }) => {
+		path = url
+		sent = [...((init as { body: FormData }).body).keys()].sort()
+		return { ok: true, json: async () => ({ response: { status: 'success' } }) }
+	})
+
+	await poeditorAt('t', '1', fetched as never).uploadTerms('msgid ""\nmsgstr ""\n')
+
+	expect(path).toContain('projects/upload')
+	expect(sent).toEqual(['api_token', 'file', 'id', 'updating'])
+})
+
+test('uploads terms only, so no translation can be overwritten', async () => {
+	let updating = ''
+	const fetched = vi.fn(async (_url: string, init?: { body?: FormData }) => {
+		updating = String(((init as { body: FormData }).body).get('updating'))
+		return { ok: true, json: async () => ({ response: { status: 'success' } }) }
+	})
+
+	await poeditorAt('t', '1', fetched as never).uploadTerms('msgid ""\nmsgstr ""\n')
+
+	expect(updating).toBe('terms')
+})
+
+test('refuses an upload the platform did not accept', async () => {
+	const fetched = vi.fn(async () => ({ ok: false, status: 502, json: async () => ({}) }))
+
+	await expect(poeditorAt('t', '1', fetched as never).uploadTerms('msgid ""\n')).rejects.toThrow(
+		/502/,
+	)
+})
+
+test('refuses an upload the platform reported a failure for', async () => {
+	const fetched = vi.fn(async () => ({
+		ok: true,
+		json: async () => ({ response: { status: 'fail', message: 'terms locked' } }),
+	}))
+
+	await expect(poeditorAt('t', '1', fetched as never).uploadTerms('msgid ""\n')).rejects.toThrow(
+		/terms locked/,
+	)
+})
+
+test('names no reason when the platform refused an upload without one', async () => {
+	const fetched = vi.fn(async () => ({ ok: true, json: async () => ({ response: { status: 'fail' } }) }))
+
+	await expect(poeditorAt('t', '1', fetched as never).uploadTerms('msgid ""\n')).rejects.toThrow(
+		/no reason given/,
+	)
+})

@@ -39,6 +39,7 @@ function platformOf(
 			asked.push(named)
 			return exports[named] ?? ''
 		},
+		uploadTerms: async () => undefined,
 	}
 }
 
