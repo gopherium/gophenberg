@@ -19,11 +19,15 @@ function catalogOf(locale: string): string {
 	return readFileSync(join(repositoryRoot(), 'languages', `${locale}.po`), 'utf8')
 }
 
-test('leaves no message of the template untranslated in the proof locale', () => {
+/** How many messages of the template the proof locale has yet to answer. */
+const PENDING = 0
+
+test('leaves no more of the template unanswered than the proof locale admits', () => {
 	const template = readFileSync(join(repositoryRoot(), 'languages', 'gophenberg.pot'), 'utf8')
 
-	expect(untranslated(catalogOf(PROOF_LOCALE), template)).toEqual([])
+	expect(untranslated(catalogOf(PROOF_LOCALE), template).length).toBeLessThanOrEqual(PENDING)
 })
+
 
 test('counts a message the catalogue omits entirely as waiting', () => {
 	const template = `msgid ""

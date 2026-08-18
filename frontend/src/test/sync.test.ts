@@ -6,6 +6,8 @@ import { syncTranslations } from '../../scripts/sync.ts'
 import type { Catalogues } from '../../scripts/sync.ts'
 import type { Poeditor } from '../../scripts/poeditor.ts'
 
+const TEMPLATE = 'msgid "Older posts"\nmsgstr ""\n'
+
 const HEADER = `msgid ""
 msgstr ""
 "Language: es-ES\\n"
@@ -25,7 +27,7 @@ function catalogue(msgstr: string): string {
  * Returns a platform answering with the given languages and exports.
  * @param languages - The languages the platform lists.
  * @param exports - The catalogue each language exports, keyed by platform name.
- * @param asked - The names the platform was asked for, appended to.
+ * @param asked - What the platform was asked to do, in order, appended to.
  * @returns The platform.
  */
 function platformOf(
@@ -36,8 +38,11 @@ function platformOf(
 	return {
 		languages: async () => languages,
 		exportPo: async (named: string) => {
-			asked.push(named)
+			asked.push(`export:${named}`)
 			return exports[named] ?? ''
+		},
+		uploadTerms: async (source: string) => {
+			asked.push(`upload:${source}`)
 		},
 	}
 }
@@ -68,9 +73,9 @@ test('asks the platform under its own name and writes under the site locale', as
 	const platform = platformOf(['es'], { es: catalogue('Entradas anteriores') }, asked)
 	const { held, written } = storeOf()
 
-	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held)
+	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
 
-	expect(asked).toEqual(['es'])
+	expect(asked).toEqual([`upload:${TEMPLATE}`, 'export:es'])
 	expect(Object.keys(written)).toEqual(['es-ES'])
 	expect(done.moved).toEqual(['es-ES'])
 })
@@ -80,9 +85,9 @@ test('skips a language the site does not answer in', async () => {
 	const platform = platformOf(['fr'], { fr: catalogue('Articles plus anciens') }, asked)
 	const { held, written } = storeOf()
 
-	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held)
+	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
 
-	expect(asked).toEqual([])
+	expect(asked).toEqual([`upload:${TEMPLATE}`])
 	expect(written).toEqual({})
 	expect(done.skipped[0]).toContain('fr')
 })
@@ -91,7 +96,7 @@ test('skips a region the site does not answer in, rather than writing over anoth
 	const platform = platformOf(['es-MX'], { 'es-MX': catalogue('Entradas antiguas') })
 	const { held, written } = storeOf({ 'es-ES': catalogue('Entradas anteriores') })
 
-	await syncTranslations(platform, ['en-US', 'es-ES'], held)
+	await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
 
 	expect(written).toEqual({})
 })
@@ -101,7 +106,7 @@ test('skips a language nobody has translated yet', async () => {
 	const platform = platformOf(['es'], { es: bare })
 	const { held, written } = storeOf()
 
-	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held)
+	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
 
 	expect(written).toEqual({})
 	expect(done.skipped[0]).toContain('nobody has translated')
@@ -112,7 +117,7 @@ test('writes nothing when the platform says what the catalogue already says', as
 	const platform = platformOf(['es'], { es: same })
 	const { held, written } = storeOf({ 'es-ES': same })
 
-	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held)
+	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
 
 	expect(written).toEqual({})
 	expect(done.moved).toEqual([])
@@ -132,8 +137,27 @@ msgstr[2] ""
 	const platform = platformOf(['es'], { es: theirs })
 	const { held, written } = storeOf({ 'es-ES': HEADER })
 
-	await syncTranslations(platform, ['en-US', 'es-ES'], held)
+	await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
 
 	expect(written['es-ES']).toContain('nplurals=2')
 	expect(written['es-ES']).not.toMatch(/msgstr\[2\]/)
+})
+
+test('sends the template before asking what the platform holds', async () => {
+	const order: string[] = []
+	const platform: Poeditor = {
+		languages: async () => {
+			order.push('languages')
+			return []
+		},
+		exportPo: async () => '',
+		uploadTerms: async (source: string) => {
+			order.push(`upload:${source.trim()}`)
+		},
+	}
+	const { held } = storeOf()
+
+	await syncTranslations(platform, ['en-US'], held, 'msgid "Older posts"')
+
+	expect(order).toEqual(['upload:msgid "Older posts"', 'languages'])
 })

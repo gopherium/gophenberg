@@ -20,15 +20,18 @@ export interface Synced {
  * @param platform - The translation platform to read.
  * @param supported - The languages the site answers in.
  * @param held - Where the catalogues live.
+ * @param template - The catalogue template naming every message the site shows.
  * @returns The languages that moved and the ones passed over, each with its reason.
  */
 export async function syncTranslations(
 	platform: Poeditor,
 	supported: string[],
 	held: Catalogues,
+	template: string,
 ): Promise<Synced> {
 	const moved: string[] = []
 	const skipped: string[] = []
+	await platform.uploadTerms(template)
 	for (const named of await platform.languages()) {
 		const locale = localeFor(named, supported)
 		if (locale === undefined) {

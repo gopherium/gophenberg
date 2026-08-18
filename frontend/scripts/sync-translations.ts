@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { poeditorAt, supportedLocales } from './poeditor.ts'
-import { repositoryRoot } from './pot.ts'
+import { DOMAIN, repositoryRoot } from './pot.ts'
 import { syncTranslations } from './sync.ts'
 
 const token = process.env.POEDITOR_API_TOKEN
@@ -24,7 +24,7 @@ const done = await syncTranslations(poeditorAt(token, project), supportedLocales
 		return existsSync(target) ? readFileSync(target, 'utf8') : undefined
 	},
 	write: (locale, source) => writeFileSync(join(languages, `${locale}.po`), source),
-})
+}, readFileSync(join(languages, `${DOMAIN}.pot`), 'utf8'))
 
 console.log(done.moved.length === 0 ? 'no translation moved' : `translations moved: ${done.moved.join(', ')}`)
 for (const held of done.skipped) {
