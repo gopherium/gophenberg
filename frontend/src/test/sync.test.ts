@@ -27,7 +27,7 @@ function catalogue(msgstr: string): string {
  * Returns a platform answering with the given languages and exports.
  * @param languages - The languages the platform lists.
  * @param exports - The catalogue each language exports, keyed by platform name.
- * @param asked - The names the platform was asked for, appended to.
+ * @param asked - What the platform was asked to do, in order, appended to.
  * @returns The platform.
  */
 function platformOf(
@@ -38,10 +38,12 @@ function platformOf(
 	return {
 		languages: async () => languages,
 		exportPo: async (named: string) => {
-			asked.push(named)
+			asked.push(`export:${named}`)
 			return exports[named] ?? ''
 		},
-		uploadTerms: async () => undefined,
+		uploadTerms: async (source: string) => {
+			asked.push(`upload:${source}`)
+		},
 	}
 }
 
@@ -73,7 +75,7 @@ test('asks the platform under its own name and writes under the site locale', as
 
 	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
 
-	expect(asked).toEqual(['es'])
+	expect(asked).toEqual([`upload:${TEMPLATE}`, 'export:es'])
 	expect(Object.keys(written)).toEqual(['es-ES'])
 	expect(done.moved).toEqual(['es-ES'])
 })
@@ -85,7 +87,7 @@ test('skips a language the site does not answer in', async () => {
 
 	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
 
-	expect(asked).toEqual([])
+	expect(asked).toEqual([`upload:${TEMPLATE}`])
 	expect(written).toEqual({})
 	expect(done.skipped[0]).toContain('fr')
 })

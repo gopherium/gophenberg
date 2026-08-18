@@ -284,9 +284,12 @@ test('asks the platform for a language under the platform own name', async () =>
 test('sends only the fields an upload needs, so no destructive option can ride along', async () => {
 	let sent: string[] = []
 	let path = ''
+	let uploaded = new File([], '')
 	const fetched = vi.fn(async (url: string, init?: { body?: FormData }) => {
 		path = url
-		sent = [...((init as { body: FormData }).body).keys()].sort()
+		const body = (init as { body: FormData }).body
+		sent = [...body.keys()].sort()
+		uploaded = body.get('file') as File
 		return { ok: true, json: async () => ({ response: { status: 'success' } }) }
 	})
 
@@ -294,6 +297,8 @@ test('sends only the fields an upload needs, so no destructive option can ride a
 
 	expect(path).toContain('projects/upload')
 	expect(sent).toEqual(['api_token', 'file', 'id', 'updating'])
+	expect(await uploaded.text()).toBe('msgid ""\nmsgstr ""\n')
+	expect(uploaded.name).toBe('gophenberg.pot')
 })
 
 test('uploads terms only, so no translation can be overwritten', async () => {
