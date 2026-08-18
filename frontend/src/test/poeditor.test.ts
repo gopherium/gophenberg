@@ -258,3 +258,25 @@ msgstr[1] "%d entradas"
 
 	expect(withPluralRuleOf(ours, theirs)).not.toMatch(/msgstr\[1\]/)
 })
+
+test('refuses a region the application does not answer in, rather than taking another', () => {
+	expect(localeFor('es-MX', ['en-US', 'es-ES'])).toBeUndefined()
+})
+
+test('asks the platform for a language under the platform own name', async () => {
+	const asked: string[] = []
+	const fetched = vi.fn(async (url: string, init?: { body?: URLSearchParams }) => {
+		if (init?.body !== undefined) {
+			asked.push(init.body.get('language') ?? '')
+			return {
+				ok: true,
+				json: async () => ({ response: { status: 'success' }, result: { url: 'https://held/es.po' } }),
+			}
+		}
+		return { ok: true, text: async () => 'msgid ""\nmsgstr ""\n' }
+	})
+
+	await poeditorAt('t', '1', fetched as never).exportPo('es')
+
+	expect(asked[0]).toBe('es')
+})

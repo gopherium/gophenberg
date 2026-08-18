@@ -37,7 +37,10 @@ export function localeFor(code: string, supported: string[]): string | undefined
 	if (supported.includes(code)) {
 		return code
 	}
-	const sharing = supported.filter((held) => held.split('-')[0] === code.split('-')[0])
+	if (code.includes('-')) {
+		return undefined
+	}
+	const sharing = supported.filter((held) => held.split('-')[0] === code)
 	return sharing.length === 1 ? sharing[0] : undefined
 }
 
