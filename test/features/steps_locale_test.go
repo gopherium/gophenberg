@@ -4,6 +4,7 @@ package features_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -136,6 +137,16 @@ func theLocaleIsAnsweredWithoutRefusal(ctx context.Context) error {
 	return w.expect(http.StatusOK)
 }
 
+// theReaderSettingsStoreCannotBeRead makes every reader preference lookup fail.
+func theReaderSettingsStoreCannotBeRead(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	w.readers.fails = errors.New("features: the reader settings store is unreachable")
+	return nil
+}
+
 // initializeLocale registers the steps of the locale resolution feature.
 func initializeLocale(sc *godog.ScenarioContext) {
 	sc.Before(provisionWorld)
@@ -143,6 +154,7 @@ func initializeLocale(sc *godog.ScenarioContext) {
 	sc.Given(`^a running Gophenberg with the default content types$`, aRunningGophenbergWithTheDefaultContentTypes)
 	sc.Given(`^the supported locales are "([^"]*)" and "([^"]*)"$`, theSupportedLocalesAre)
 	sc.Given(`^no site default locale$`, noSiteDefaultLocale)
+	sc.Given(`^the reader settings store cannot be read$`, theReaderSettingsStoreCannotBeRead)
 	sc.Given(`^the site default locale is "([^"]*)"$`, theSiteDefaultLocaleIs)
 	sc.Given(`^a signed in administrator$`, aSignedInAdministrator)
 	sc.Given(`^a signed in administrator whose locale is "([^"]*)"$`, aSignedInAdministratorWhoseLocaleIs)

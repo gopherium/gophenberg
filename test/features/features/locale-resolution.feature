@@ -52,3 +52,9 @@ Feature: The admin speaks the reader's language
     Given a signed in administrator
     When the administrator sets the site locale to "xx-XX"
     Then the request is refused with the code "locale_unknown"
+
+  Scenario: A store that cannot be read is reported, not passed over
+    Given a signed in administrator
+    And the reader settings store cannot be read
+    When the administrator asks for the locale
+    Then the request is refused with the code "internal"

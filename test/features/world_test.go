@@ -58,6 +58,7 @@ func (m *memorySettings) Lookup(_ context.Context, key string) (string, bool, er
 type memoryReaders struct {
 	mu     sync.Mutex
 	values map[string]string
+	fails  error
 }
 
 // Lookup returns the value the reader stored under key, and whether it is set at all.
@@ -66,6 +67,9 @@ func (m *memoryReaders) Lookup(
 ) (string, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.fails != nil {
+		return "", false, m.fails
+	}
 	value, found := m.values[userID.String()+" "+key]
 	return value, found, nil
 }

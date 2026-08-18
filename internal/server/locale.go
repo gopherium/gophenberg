@@ -43,7 +43,12 @@ func (s *server) handleLocaleGet() http.HandlerFunc {
 			}
 			asked.Site = held
 		}
-		asked.User = s.readerLocale(r)
+		held, err := s.readerLocale(r)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		asked.User = held
 		authkit.Respond(w, http.StatusOK, localeResponse{
 			Locale:    content.ResolveLocale(asked),
 			Supported: content.SupportedLocales,
@@ -52,23 +57,26 @@ func (s *server) handleLocaleGet() http.HandlerFunc {
 }
 
 // readerLocale returns the language the signed in reader chose, if a session names one.
-func (s *server) readerLocale(r *http.Request) string {
+func (s *server) readerLocale(r *http.Request) (string, error) {
 	if s.readers == nil {
-		return ""
+		return "", nil
 	}
 	cookie, err := r.Cookie(s.auth.CookieName())
 	if err != nil {
-		return ""
+		return "", nil
 	}
 	identity, err := s.auth.SessionIdentity(r.Context(), cookie.Value)
 	if err != nil {
-		return ""
+		return "", nil
 	}
-	held, _, err := s.readers.Lookup(r.Context(), identity.ID, content.LocaleSettingKey)
+	held, found, err := s.readers.Lookup(r.Context(), identity.ID, content.LocaleSettingKey)
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return held
+	if !found {
+		return "", nil
+	}
+	return held, nil
 }
 
 // handleLocalePatch returns an http.HandlerFunc storing the reader's own language.
