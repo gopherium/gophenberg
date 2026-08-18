@@ -36,7 +36,7 @@ for (const named of await platform.languages()) {
 	}
 	const target = join(languages, `${locale}.po`)
 	const current = existsSync(target) ? readFileSync(target, 'utf8') : undefined
-	const exported = await platform.exportPo(locale)
+	const exported = await platform.exportPo(named)
 	if (translated(exported) === 0) {
 		skipped.push(`${named}, which nobody has translated yet`)
 		continue
