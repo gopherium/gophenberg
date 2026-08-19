@@ -142,7 +142,7 @@ msgid "Content Types"
 msgstr "Tipos de contenido"
 
 msgid "Content nests at most %(max)d levels deep, and this item would sit deeper. Pick a parent closer to the top."
-msgstr "El contenido se anida como mucho %(max)d niveles, y este elemento quedaría más abajo. Elige un nivel superior más cercano a inicio."
+msgstr "El contenido se anida como mucho %(max)d niveles, y este elemento quedaría más abajo. Elige un nivel superior más cercano al inicio."
 
 msgid "Could not create a draft."
 msgstr "No se ha podido crear el borrador."
@@ -156,11 +156,9 @@ msgstr[2] "No se han podido borrar todos los elementos."
 msgid "Could not delete that post."
 msgstr "No se ha podido borrar esa entrada."
 
-#, fuzzy
 msgid "Could not empty the trash."
 msgstr "No se ha podido vaciar la papelera."
 
-#, fuzzy
 msgid "Could not load that post."
 msgstr "No se ha podido cargar esa entrada."
 
@@ -176,75 +174,57 @@ msgstr[0] "No se ha podido restaurar esa entrada."
 msgstr[1] "No se han podido restaurar esas entradas."
 msgstr[2] "No se han podido restaurar esas entradas."
 
-#, fuzzy
 msgid "Could not save that post."
 msgstr "No se ha podido guardar esa entrada."
 
-#, fuzzy
 msgid "Create user"
 msgstr "Crear usuario"
 
-#, fuzzy
 msgid "Date added"
 msgstr "Fecha de subida"
 
-#, fuzzy
 msgid "Deactivate"
 msgstr "Desactivar"
 
-#, fuzzy
 msgid "December"
 msgstr "diciembre"
 
-#, fuzzy
 msgid "Default"
 msgstr "Por defecto"
 
-#, fuzzy
 msgid "Delete"
 msgstr "Borrar"
 
-#, fuzzy
 msgid "Delete All"
 msgstr "Borrar todo"
 
-#, fuzzy
 msgid "Delete Permanently"
 msgstr "Borrar permanentemente"
 
-#, fuzzy
 msgid "Delete the field"
 msgstr "Borrar el campo"
 
-#, fuzzy
 msgid "Describe"
 msgstr "Describir"
 
-#, fuzzy
 msgid "Description"
 msgstr "Descripción"
 
-#, fuzzy
 msgid "Desktop"
 msgstr "Escritorio"
 
-#, fuzzy
 msgid "Dimensions"
 msgstr "Dimensiones"
 
-#, fuzzy
 msgid "Disable"
 msgstr "Desactivar"
 
-#, fuzzy
 msgid "Disabled"
 msgstr "Desactivado"
 
-#, fuzzy
 msgid "Dismiss"
 msgstr "Descartar"
 
-#, fuzzy
 msgid "Document"
 msgstr "Documento"
 
@@ -343,209 +323,159 @@ msgstr "Gophenberg no responde en %(value)s. Elige uno de los idiomas de la list
 msgid "Gophenberg has no autosave of yours for this item. Open the item to see the version that is stored."
 msgstr "Gophenberg no tiene ningún guardado automático tuyo de este elemento. Ábrelo para ver la versión guardada."
 
-#, fuzzy
 msgid "Gophenberg keeps this address for itself, so your content cannot answer there. Give the item a different slug."
-msgstr "Gophenberg reserva esta dirección para sí mismo, así que tu contenido no puede responder ahí. Dale al elemento otro slug."
+msgstr "Gophenberg reserva esta dirección para sí mismo, así que tu contenido no puede usarla. Dale al elemento otra dirección."
 
-#, fuzzy
 msgid "Gophenberg keeps this word for itself, so no content type can answer under it. Pick a different route word."
-msgstr "Gophenberg reserva esta palabra para sí mismo, así que ningún tipo de contenido puede responder con ella. Elige otra palabra de ruta."
+msgstr "Gophenberg reserva esta palabra para sí mismo, así que ningún tipo de contenido puede usarla. Elige otra palabra de ruta de URL."
 
-#, fuzzy
 msgid "Hand over the root"
 msgstr "Ceder la raíz"
 
-#, fuzzy
 msgid "Home"
 msgstr "Inicio"
 
-#, fuzzy
 msgid "Images"
 msgstr "Imágenes"
 
-#, fuzzy
 msgid "Install theme"
 msgstr "Instalar tema"
 
-#, fuzzy
 msgid "Installed"
 msgstr "Instalado"
 
-#, fuzzy
 msgid "January"
 msgstr "enero"
 
-#, fuzzy
 msgid "July"
 msgstr "julio"
 
-#, fuzzy
 msgid "June"
 msgstr "junio"
 
-#, fuzzy
 msgid "Keep it"
 msgstr "Conservarlo"
 
-#, fuzzy
 msgid "Language"
 msgstr "Idioma"
 
-#, fuzzy
 msgid "Large"
 msgstr "Grande"
 
-#, fuzzy
 msgid "Last Modified"
 msgstr "Última modificación"
 
-#, fuzzy
 msgid "List view"
 msgstr "Vista de lista"
 
-#, fuzzy
 msgid "Loading content types."
 msgstr "Cargando los tipos de contenido."
 
-#, fuzzy
 msgid "Loading the post."
 msgstr "Cargando la entrada."
 
-#, fuzzy
 msgid "Loading the screen."
 msgstr "Cargando la pantalla."
 
-#, fuzzy
 msgid "Loading themes."
 msgstr "Cargando los temas."
 
-#, fuzzy
 msgid "Loading users."
 msgstr "Cargando los usuarios."
 
-#, fuzzy
 msgid "Loading…"
 msgstr "Cargando…"
 
 msgid "Make default"
 msgstr "Establecer como predeterminado"
 
-#, fuzzy
 msgid "March"
 msgstr "marzo"
 
-#, fuzzy
 msgid "May"
 msgstr "mayo"
 
-#, fuzzy
 msgid "Media Library"
 msgstr "Biblioteca de medios"
 
-#, fuzzy
 msgid "Medium"
 msgstr "Mediano"
 
-#, fuzzy
 msgid "Mobile"
 msgstr "Móvil"
 
-#, fuzzy
 msgid "Move every address"
 msgstr "Mover todas las direcciones"
 
-#, fuzzy
 msgid "Move to Trash"
-msgstr "Mover a la papelera"
+msgstr "Mover a la Papelera"
 
-#, fuzzy
 msgid "Move to trash"
 msgstr "Mover a la papelera"
 
 msgid "Moved to the trash."
 msgstr "Movido a la papelera."
 
-#, fuzzy
 msgid "Navigation"
 msgstr "Navegación"
 
-#, fuzzy
 msgid "Nests"
 msgstr "Anida"
 
-#, fuzzy
 msgid "New user"
 msgstr "Usuario nuevo"
 
-#, fuzzy
 msgid "Newer posts"
 msgstr "Entradas más recientes"
 
-#, fuzzy
 msgid "No file arrived with this upload. Choose a file and try again."
 msgstr "No ha llegado ningún archivo con esta subida. Elige un archivo e inténtalo de nuevo."
 
-#, fuzzy
 msgid "No media chosen"
 msgstr "Ningún medio elegido"
 
-#, fuzzy
 msgid "No media has been uploaded yet."
 msgstr "Todavía no se ha subido ningún medio."
 
-#, fuzzy
 msgid "No page lives at this address."
 msgstr "No existe ninguna página en esta dirección."
 
-#, fuzzy
 msgid "No parent"
-msgstr "Sin superior"
+msgstr "Sin elemento superior"
 
-#, fuzzy
 msgid "No theme arrived with this upload. Choose a zip file and try again."
 msgstr "No ha llegado ningún tema con esta subida. Elige un archivo zip e inténtalo de nuevo."
 
-#, fuzzy
 msgid "No themes are installed."
 msgstr "No hay ningún tema instalado."
 
-#, fuzzy
 msgid "No title"
 msgstr "Sin título"
 
-#, fuzzy
 msgid "None"
 msgstr "Ninguno"
 
-#, fuzzy
 msgid "Not found"
 msgstr "No encontrado"
 
-#, fuzzy
 msgid "Not serving"
 msgstr "No está sirviendo"
 
-#, fuzzy
 msgid "Nothing published here yet."
 msgstr "Todavía no hay nada publicado aquí."
 
-#, fuzzy
 msgid "Nothing published yet."
 msgstr "Todavía no hay nada publicado."
 
-#, fuzzy
 msgid "November"
 msgstr "noviembre"
 
-#, fuzzy
 msgid "Number"
 msgstr "Número"
 
-#, fuzzy
 msgid "October"
 msgstr "octubre"
 
-#, fuzzy
 msgid "Older posts"
 msgstr "Entradas anteriores"
 
@@ -1001,9 +931,6 @@ msgstr "Este elemento no está en la papelera, así que no hay nada que restaura
 msgid "This item still holds items nested inside it. Move or delete those first."
 msgstr "Este elemento todavía tiene elementos anidados dentro. Mueve o borra antes esos."
 
-msgid "This line proves the translation pipeline and is removed again."
-msgstr "Esta línea prueba el flujo de traducción y se vuelve a quitar."
-
 #, fuzzy
 msgid "This media item is not in the library, and someone may have deleted it. Reload the page to see what is there now."
 msgstr "Este medio no está en la biblioteca, y puede que alguien lo haya borrado. Recarga la página para ver qué hay ahora."
@@ -1275,6 +1202,9 @@ msgstr "Este tipo responderá en /%(word)s."
 
 msgid "{day} {month} {year}"
 msgstr "{day} de {month} de {year}"
+
+msgid "This line proves the translation pipeline and is removed again."
+msgstr ""
 
 #, fuzzy
 msgctxt "account"
