@@ -61,7 +61,7 @@ test.describe('the admin read in the proof locale', () => {
 		await page.goto('/admin/language')
 
 		await expect(page.getByRole('heading', { name: 'Idioma' })).toBeVisible()
-		await expect(page.getByText('Elige el idioma en el que se lee el escritorio.')).toBeVisible()
+		await expect(page.getByText('Elige el idioma en el que se lee el panel de administración.')).toBeVisible()
 	})
 
 	test('names the editor chrome in the reader language', async ({ page }) => {
