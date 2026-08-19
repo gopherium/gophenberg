@@ -45,7 +45,7 @@ msgstr "%(title)s va a la papelera. Puedes restaurarlo desde allí."
 
 #, fuzzy
 msgid "%(file)s is larger than one upload may be."
-msgstr "%(file)s es más grande de lo que puede ocupar una subida."
+msgstr "%(file)s es más grande de lo que una subida permite."
 
 #, fuzzy
 msgid "%(file)s is not a file this block accepts."
@@ -53,7 +53,7 @@ msgstr "%(file)s no es un archivo que este bloque acepte."
 
 #, fuzzy
 msgid "%(theme)s is not answering, so the built-in renderer is serving."
-msgstr "%(theme)s no responde, así que sirve el renderizador integrado."
+msgstr "%(theme)s no responde, así que el renderizador ha tomado el relevo."
 
 #, fuzzy
 msgid "%(theme)s is now serving the public site."
@@ -69,7 +69,7 @@ msgstr "%(type)s registrado."
 
 #, fuzzy
 msgid "%(type)s removed."
-msgstr "%(type)s quitado."
+msgstr "%(type)s eliminado."
 
 #, fuzzy
 msgid "%(field)s renamed."
@@ -89,7 +89,7 @@ msgstr "%(type)s responderá en la raíz."
 
 #, fuzzy
 msgid "%(theme)s will not load, so the built-in renderer is serving."
-msgstr "%(theme)s no se carga, así que sirve el renderizador integrado."
+msgstr "%(theme)s no se carga, así que el renderizador ha tomado el relevo."
 
 #, fuzzy
 msgid "(no title)"
