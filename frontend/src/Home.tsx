@@ -12,7 +12,6 @@ export function Home() {
 	return (
 		<Page title={__('Home', 'gophenberg')}>
 			<Text>{__('Welcome to Gophenberg.', 'gophenberg')}</Text>
-			<Text>{__('This line proves the translation pipeline and is removed again.', 'gophenberg')}</Text>
 		</Page>
 	)
 }

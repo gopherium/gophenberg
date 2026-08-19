@@ -1348,9 +1348,6 @@ msgid "{day} {month} {year}"
 msgstr "{day} {month} {year}"
 
 #, fuzzy
-msgid "This line proves the translation pipeline and is removed again."
-msgstr "Cette ligne prouve que le flux de traduction fonctionne et peut être retirée."
-
 #, fuzzy
 msgctxt "account"
 msgid "Status"

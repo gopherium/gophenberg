@@ -1203,9 +1203,6 @@ msgstr "Este tipo responderá en /%(word)s."
 msgid "{day} {month} {year}"
 msgstr "{day} de {month} de {year}"
 
-msgid "This line proves the translation pipeline and is removed again."
-msgstr "Esta línea prueba que el flujo de traducción funciona y puede ser eliminado de nuevo."
-
 #, fuzzy
 msgctxt "account"
 msgid "Status"
