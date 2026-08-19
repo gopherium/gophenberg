@@ -123,6 +123,40 @@ test('writes nothing when the platform says what the catalogue already says', as
 	expect(done.moved).toEqual([])
 })
 
+test('drops what the template no longer names, rather than carrying it back in', async () => {
+	const theirs = `${HEADER}
+msgid "Older posts"
+msgstr "Entradas anteriores"
+
+msgid "Retired"
+msgstr "Retirado"
+`
+	const platform = platformOf(['es'], { es: theirs })
+	const { held, written } = storeOf()
+
+	await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
+
+	expect(written['es-ES']).toContain('Entradas anteriores')
+	expect(written['es-ES']).not.toContain('Retired')
+})
+
+test('skips a language whose only translations answer retired messages', async () => {
+	const theirs = `${HEADER}
+msgid "Older posts"
+msgstr ""
+
+msgid "Retired"
+msgstr "Retirado"
+`
+	const platform = platformOf(['es'], { es: theirs })
+	const { held, written } = storeOf()
+
+	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
+
+	expect(written).toEqual({})
+	expect(done.skipped[0]).toContain('nobody has translated')
+})
+
 test('keeps the plural rule the committed catalogue declares', async () => {
 	const theirs = `msgid ""
 msgstr ""
@@ -134,10 +168,11 @@ msgstr[0] "%d entrada"
 msgstr[1] "%d entradas"
 msgstr[2] ""
 `
+	const naming = 'msgid "%d post"\nmsgid_plural "%d posts"\nmsgstr[0] ""\nmsgstr[1] ""\n'
 	const platform = platformOf(['es'], { es: theirs })
 	const { held, written } = storeOf({ 'es-ES': HEADER })
 
-	await syncTranslations(platform, ['en-US', 'es-ES'], held, TEMPLATE)
+	await syncTranslations(platform, ['en-US', 'es-ES'], held, naming)
 
 	expect(written['es-ES']).toContain('nplurals=2')
 	expect(written['es-ES']).not.toMatch(/msgstr\[2\]/)

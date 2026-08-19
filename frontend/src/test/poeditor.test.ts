@@ -313,6 +313,77 @@ test('uploads terms only, so no translation can be overwritten', async () => {
 	expect(updating).toBe('terms')
 })
 
+test('retires with the template as the whole truth, deleting what it does not name', async () => {
+	let sent: string[] = []
+	let path = ''
+	let syncing = ''
+	const fetched = vi.fn(async (url: string, init?: { body?: FormData }) => {
+		path = url
+		const body = (init as { body: FormData }).body
+		sent = [...body.keys()].sort()
+		syncing = String(body.get('sync_terms'))
+		return { ok: true, json: async () => ({ response: { status: 'success' } }) }
+	})
+
+	await poeditorAt('t', '1', fetched as never).retireTerms('msgid ""\nmsgstr ""\n\nmsgid "Kept"\nmsgstr ""\n')
+
+	expect(path).toContain('projects/upload')
+	expect(sent).toEqual(['api_token', 'file', 'id', 'sync_terms', 'updating'])
+	expect(syncing).toBe('1')
+})
+
+test('reports how many terms the platform deleted', async () => {
+	const fetched = vi.fn(async () => ({
+		ok: true,
+		json: async () => ({ response: { status: 'success' }, result: { terms: { deleted: 49 } } }),
+	}))
+
+	const deleted = await poeditorAt('t', '1', fetched as never)
+		.retireTerms('msgid ""\nmsgstr ""\n\nmsgid "Kept"\nmsgstr ""\n')
+
+	expect(deleted).toBe(49)
+})
+
+test('reports no deletion when the platform names none', async () => {
+	const fetched = vi.fn(async () => ({
+		ok: true,
+		json: async () => ({ response: { status: 'success' } }),
+	}))
+
+	const deleted = await poeditorAt('t', '1', fetched as never)
+		.retireTerms('msgid ""\nmsgstr ""\n\nmsgid "Kept"\nmsgstr ""\n')
+
+	expect(deleted).toBe(0)
+})
+
+test('refuses to retire with a template naming no messages, before asking the platform', async () => {
+	const fetched = vi.fn()
+
+	await expect(poeditorAt('t', '1', fetched as never).retireTerms('msgid ""\nmsgstr ""\n')).rejects.toThrow(
+		/names no messages/,
+	)
+	expect(fetched).not.toHaveBeenCalled()
+})
+
+test('refuses a retirement the platform did not accept', async () => {
+	const fetched = vi.fn(async () => ({ ok: false, status: 502, json: async () => ({}) }))
+
+	await expect(
+		poeditorAt('t', '1', fetched as never).retireTerms('msgid ""\nmsgstr ""\n\nmsgid "Kept"\nmsgstr ""\n'),
+	).rejects.toThrow(/502/)
+})
+
+test('refuses a retirement the platform reported a failure for', async () => {
+	const fetched = vi.fn(async () => ({
+		ok: true,
+		json: async () => ({ response: { status: 'fail', message: 'terms locked' } }),
+	}))
+
+	await expect(
+		poeditorAt('t', '1', fetched as never).retireTerms('msgid ""\nmsgstr ""\n\nmsgid "Kept"\nmsgstr ""\n'),
+	).rejects.toThrow(/terms locked/)
+})
+
 test('refuses an upload the platform did not accept', async () => {
 	const fetched = vi.fn(async () => ({ ok: false, status: 502, json: async () => ({}) }))
 

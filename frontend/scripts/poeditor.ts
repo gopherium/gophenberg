@@ -86,6 +86,25 @@ export function withPluralRuleOf(current: string, incoming: string): string {
 	return po.compile(held, { foldLength: 0, eol: '\n' }).toString()
 }
 
+/**
+ * Returns an incoming catalogue without any message the template does not name.
+ * @param incoming - The catalogue the platform exported.
+ * @param template - The template naming every message the catalogue may carry.
+ * @returns The incoming catalogue, trimmed to the template.
+ */
+export function namedByTemplate(incoming: string, template: string): string {
+	const named = po.parse(template).translations
+	const held = po.parse(incoming)
+	for (const [context, entries] of Object.entries(held.translations)) {
+		for (const msgid of Object.keys(entries)) {
+			if (msgid !== '' && named[context]?.[msgid] === undefined) {
+				delete held.translations[context][msgid]
+			}
+		}
+	}
+	return po.compile(held, { foldLength: 0, eol: '\n' }).toString()
+}
+
 /** How long any one call to the platform may take. */
 const REQUEST_TIMEOUT = 30_000
 
@@ -98,7 +117,7 @@ type Answers = Record<string, Record<string, string[]>>
 /** What the platform answers a request with. */
 interface Answer {
 	response: { status: string, message?: string }
-	result?: { languages?: { code: string }[], url?: string }
+	result?: { languages?: { code: string }[], url?: string, terms?: { deleted?: number } }
 }
 
 /** What this repository reads a translation platform through. */
@@ -106,6 +125,28 @@ export interface Poeditor {
 	languages: () => Promise<string[]>
 	exportPo: (locale: string) => Promise<string>
 	uploadTerms: (source: string) => Promise<void>
+}
+
+/** What this repository retires a platform's absent terms through. */
+export interface Retiring {
+	retireTerms: (source: string) => Promise<number>
+}
+
+/**
+ * Returns how many messages a template names.
+ * @param source - The template as POT text.
+ * @returns The count of named messages.
+ */
+function namedMessages(source: string): number {
+	let held = 0
+	for (const entries of Object.values(po.parse(source).translations)) {
+		for (const msgid of Object.keys(entries)) {
+			if (msgid !== '') {
+				held += 1
+			}
+		}
+	}
+	return held
 }
 
 /**
@@ -177,19 +218,54 @@ async function ask(
 }
 
 /**
- * Returns the reader of one translation platform project.
+ * Returns the reader and retirer of one translation platform project.
  * @param token - The credential the platform answers to.
  * @param project - The project the translations live in.
  * @param fetched - How a request is sent, the runtime's own by default.
- * @returns The reader.
+ * @returns The reader, carrying the retirement its own interface names.
  */
-export function poeditorAt(token: string, project: string, fetched: typeof fetch = fetch): Poeditor {
+export function poeditorAt(
+	token: string,
+	project: string,
+	fetched: typeof fetch = fetch,
+): Poeditor & Retiring {
 	/**
 	 * Returns the values every call carries.
 	 * @returns The credential and the project.
 	 */
 	function credentials(): URLSearchParams {
 		return new URLSearchParams({ api_token: token, id: project })
+	}
+	/**
+	 * Sends the template to the platform, saying whether absent terms retire.
+	 * @param source - The catalogue template as POT text.
+	 * @param retiring - Whether terms the template does not name are deleted.
+	 * @returns The result the platform answered with.
+	 */
+	async function sendTemplate(source: string, retiring: boolean): Promise<NonNullable<Answer['result']>> {
+		const form = new FormData()
+		form.set('api_token', token)
+		form.set('id', project)
+		form.set('updating', 'terms')
+		if (retiring) {
+			form.set('sync_terms', '1')
+		}
+		form.set('file', new Blob([source]), 'gophenberg.pot')
+		const response = await fetched(`${API}/projects/upload`, {
+			method: 'POST',
+			body: form,
+			signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+		})
+		if (!response.ok) {
+			throw new Error(`the translation platform answered ${response.status}`)
+		}
+		const answered = (await response.json()) as Answer
+		if (answered.response.status !== 'success') {
+			throw new Error(
+				`the translation platform refused: ${answered.response.message ?? 'no reason given'}`,
+			)
+		}
+		return answered.result ?? {}
 	}
 	return {
 		/**
@@ -205,25 +281,18 @@ export function poeditorAt(token: string, project: string, fetched: typeof fetch
 		 * @param source - The catalogue template as POT text.
 		 */
 		uploadTerms: async (source: string) => {
-			const form = new FormData()
-			form.set('api_token', token)
-			form.set('id', project)
-			form.set('updating', 'terms')
-			form.set('file', new Blob([source]), 'gophenberg.pot')
-			const response = await fetched(`${API}/projects/upload`, {
-				method: 'POST',
-				body: form,
-				signal: AbortSignal.timeout(REQUEST_TIMEOUT),
-			})
-			if (!response.ok) {
-				throw new Error(`the translation platform answered ${response.status}`)
+			await sendTemplate(source, false)
+		},
+		/**
+		 * Deletes from the platform every term the template does not name.
+		 * @param source - The catalogue template as POT text.
+		 * @returns How many terms the platform deleted.
+		 */
+		retireTerms: async (source: string) => {
+			if (namedMessages(source) === 0) {
+				throw new Error('the template names no messages, so retiring would empty the project')
 			}
-			const answered = (await response.json()) as Answer
-			if (answered.response.status !== 'success') {
-				throw new Error(
-					`the translation platform refused: ${answered.response.message ?? 'no reason given'}`,
-				)
-			}
+			return (await sendTemplate(source, true)).terms?.deleted ?? 0
 		},
 		/**
 		 * Returns one language's catalogue as the platform exports it.

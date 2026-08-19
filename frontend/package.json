@@ -13,6 +13,7 @@
 		"pot": "node scripts/write-pot.ts",
 		"preview": "vite preview",
 		"translations": "node scripts/sync-translations.ts",
+		"translations:retire": "node scripts/retire-translations.ts",
 		"typecheck": "tsc -b --force"
 	},
 	"dependencies": {

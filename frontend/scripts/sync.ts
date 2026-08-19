@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { localeFor, meaningfulChange, translated, withPluralRuleOf } from './poeditor.ts'
+import { localeFor, meaningfulChange, namedByTemplate, translated, withPluralRuleOf } from './poeditor.ts'
 import type { Poeditor } from './poeditor.ts'
 
 /** Where the catalogues a sync reads and writes live. */
@@ -38,7 +38,7 @@ export async function syncTranslations(
 			skipped.push(`${named}, which the site does not answer in`)
 			continue
 		}
-		const exported = await platform.exportPo(named)
+		const exported = namedByTemplate(await platform.exportPo(named), template)
 		if (translated(exported) === 0) {
 			skipped.push(`${named}, which nobody has translated yet`)
 			continue

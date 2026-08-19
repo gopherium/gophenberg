@@ -35,6 +35,25 @@ function answered(source: string): Set<string> {
 	return held
 }
 
+/**
+ * Returns every message a catalogue carries that the template does not name.
+ * @param source - The catalogue as PO text.
+ * @param template - The template naming every message the catalogue may carry.
+ * @returns The keys carried without a place in the template, in the order the catalogue holds them.
+ */
+export function orphaned(source: string, template: string): string[] {
+	const named = po.parse(template).translations
+	const carried: string[] = []
+	for (const [context, entries] of Object.entries(po.parse(source).translations)) {
+		for (const msgid of Object.keys(entries)) {
+			if (msgid !== METADATA && named[context]?.[msgid] === undefined) {
+				carried.push(keyOf(context, msgid))
+			}
+		}
+	}
+	return carried
+}
+
 /** A placeholder naming what goes into it. */
 const NAMED = /%\(([A-Za-z_][A-Za-z0-9_]*)\)[bcdieEfgGosuxX]/g
 
