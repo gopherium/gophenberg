@@ -35,6 +35,71 @@ function answered(source: string): Set<string> {
 	return held
 }
 
+/** A placeholder naming what goes into it. */
+const NAMED = /%\(([A-Za-z_][A-Za-z0-9_]*)\)[bcdieEfgGosuxX]/g
+
+/** A placeholder naming nothing. */
+const BARE = /%(?:\d+\$)?[bcdieEfgGosuxX]/
+
+/**
+ * Returns the placeholders a message names, each once.
+ * @param message - The message to read.
+ * @returns The names, in a settled order.
+ */
+function placeholders(message: string): string[] {
+	return [...new Set([...message.matchAll(NAMED)].map((found) => found[1]))].sort()
+}
+
+/**
+ * Returns whether a message carries a placeholder naming nothing.
+ * @param message - The message to read.
+ * @returns Whether a bare placeholder is present.
+ */
+function carriesBare(message: string): boolean {
+	return BARE.test(message.replace(NAMED, ''))
+}
+
+/**
+ * Returns whether a translated form answers its message with the placeholders that message names.
+ * @param form - The translated form.
+ * @param message - The message the form answers.
+ * @returns Whether the form matches.
+ */
+function answersPlaceholders(form: string, message: string): boolean {
+	if (form === '' || carriesBare(form)) {
+		return form === ''
+	}
+	const named = placeholders(form)
+	const wanted = placeholders(message)
+	return named.length === wanted.length && named.every((held, at) => held === wanted[at])
+}
+
+/**
+ * Returns every message whose translation names placeholders its message does not.
+ * @param source - The catalogue as PO text.
+ * @param template - The template naming every message and the placeholders it carries.
+ * @returns The keys whose translation would not render, in the order the template holds them.
+ */
+export function mismatched(source: string, template: string): string[] {
+	const held = po.parse(source).translations
+	const broken: string[] = []
+	for (const [context, entries] of Object.entries(po.parse(template).translations)) {
+		for (const [msgid, entry] of Object.entries(entries)) {
+			const answer = held[context]?.[msgid]
+			if (msgid === METADATA || answer === undefined) {
+				continue
+			}
+			const plural = entry.msgid_plural ?? msgid
+			const matches = answer.msgstr.every((form, at) =>
+				answersPlaceholders(form, at === 0 ? msgid : plural))
+			if (!matches) {
+				broken.push(keyOf(context, msgid))
+			}
+		}
+	}
+	return broken
+}
+
 /**
  * Returns every message of a catalogue that still waits for a translation.
  * @param source - The catalogue as PO text.
