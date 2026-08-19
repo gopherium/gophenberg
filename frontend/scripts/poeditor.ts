@@ -86,6 +86,25 @@ export function withPluralRuleOf(current: string, incoming: string): string {
 	return po.compile(held, { foldLength: 0, eol: '\n' }).toString()
 }
 
+/**
+ * Returns an incoming catalogue without any message the template does not name.
+ * @param incoming - The catalogue the platform exported.
+ * @param template - The template naming every message the catalogue may carry.
+ * @returns The incoming catalogue, trimmed to the template.
+ */
+export function namedByTemplate(incoming: string, template: string): string {
+	const named = po.parse(template).translations
+	const held = po.parse(incoming)
+	for (const [context, entries] of Object.entries(held.translations)) {
+		for (const msgid of Object.keys(entries)) {
+			if (msgid !== '' && named[context]?.[msgid] === undefined) {
+				delete held.translations[context][msgid]
+			}
+		}
+	}
+	return po.compile(held, { foldLength: 0, eol: '\n' }).toString()
+}
+
 /** How long any one call to the platform may take. */
 const REQUEST_TIMEOUT = 30_000
 
