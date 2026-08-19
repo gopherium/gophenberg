@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { __, sprintf } from '@wordpress/i18n'
+import { __ } from '@wordpress/i18n'
 import { z } from 'zod'
 
 import { refusalText } from '../i18n/refusal'
@@ -118,14 +118,10 @@ function toField(row: z.infer<typeof fieldSchema>): ContentField {
 /**
  * Throws the reason the registry refused a write, or the status it failed with.
  * @param response - The answer the registry gave.
- * @param failure - The sentence naming what failed, already carrying the status.
  */
-async function refuse(response: Response, failure: string): Promise<never> {
+async function refuse(response: Response): Promise<never> {
 	const refusal = refusalSchema.safeParse(await response.json().catch(() => null))
-	if (refusal.success) {
-		throw new Error(refusalText(refusal.data))
-	}
-	throw new Error(failure)
+	throw new Error(refusalText(refusal.success ? refusal.data : { error: '' }))
 }
 
 /**
@@ -135,9 +131,7 @@ async function refuse(response: Response, failure: string): Promise<never> {
 export async function listTypes(): Promise<ContentType[]> {
 	const response = await fetch('/api/types')
 	if (!response.ok) {
-		throw new Error(
-			sprintf(__('reading the content types failed with status %d', 'gophenberg'), response.status),
-		)
+		throw new Error(`reading the content types failed with status ${response.status}`)
 	}
 	return typeListSchema.parse(await response.json()).items.map(toType)
 }
@@ -159,10 +153,7 @@ export async function createType(asked: NewType): Promise<ContentType> {
 		}),
 	})
 	if (!response.ok) {
-		await refuse(
-			response,
-			sprintf(__('registering a content type failed with status %d', 'gophenberg'), response.status),
-		)
+		await refuse(response)
 	}
 	return toType(typeSchema.parse(await response.json()))
 }
@@ -196,10 +187,7 @@ export async function updateType(key: string, edit: TypeEdit): Promise<ContentTy
 		body: JSON.stringify(body),
 	})
 	if (!response.ok) {
-		await refuse(
-			response,
-			sprintf(__('editing a content type failed with status %d', 'gophenberg'), response.status),
-		)
+		await refuse(response)
 	}
 	return toType(typeSchema.parse(await response.json()))
 }
@@ -211,10 +199,7 @@ export async function updateType(key: string, edit: TypeEdit): Promise<ContentTy
 export async function deleteType(key: string): Promise<void> {
 	const response = await fetch(`/api/types/${encodeURIComponent(key)}`, { method: 'DELETE' })
 	if (!response.ok) {
-		await refuse(
-			response,
-			sprintf(__('removing a content type failed with status %d', 'gophenberg'), response.status),
-		)
+		await refuse(response)
 	}
 }
 
@@ -248,10 +233,7 @@ export interface NewField {
 export async function listFields(typeKey: string): Promise<ContentField[]> {
 	const response = await fetch(`/api/types/${typeKey}/fields`)
 	if (!response.ok) {
-		await refuse(
-			response,
-			sprintf(__('reading the fields failed with status %d', 'gophenberg'), response.status),
-		)
+		await refuse(response)
 	}
 	const listed = z.object({ items: z.array(fieldSchema) }).parse(await response.json())
 	return listed.items.map(toField)
@@ -277,10 +259,7 @@ export async function createField(typeKey: string, asked: NewField): Promise<Con
 		}),
 	})
 	if (!response.ok) {
-		await refuse(
-			response,
-			sprintf(__('declaring the field failed with status %d', 'gophenberg'), response.status),
-		)
+		await refuse(response)
 	}
 	return toField(fieldSchema.parse(await response.json()))
 }
@@ -303,10 +282,7 @@ export async function renameField(
 		body: JSON.stringify({ label }),
 	})
 	if (!response.ok) {
-		await refuse(
-			response,
-			sprintf(__('renaming the field failed with status %d', 'gophenberg'), response.status),
-		)
+		await refuse(response)
 	}
 	return toField(fieldSchema.parse(await response.json()))
 }
@@ -319,9 +295,6 @@ export async function renameField(
 export async function deleteField(typeKey: string, key: string): Promise<void> {
 	const response = await fetch(`/api/types/${typeKey}/fields/${key}`, { method: 'DELETE' })
 	if (!response.ok) {
-		await refuse(
-			response,
-			sprintf(__('deleting the field failed with status %d', 'gophenberg'), response.status),
-		)
+		await refuse(response)
 	}
 }

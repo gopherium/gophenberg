@@ -107,7 +107,7 @@ test('removes a type that holds nothing', async () => {
 test('reports an edit the registry could not take', async () => {
 	server.use(http.patch('/api/types/page', () => new HttpResponse(null, { status: 503 })))
 
-	await expect(updateType('page', { active: false })).rejects.toThrow(/503/)
+	await expect(updateType('page', { active: false })).rejects.toThrow(/something went wrong/i)
 })
 
 test('sends every field an edit names', async () => {
@@ -139,5 +139,13 @@ test('sends every field an edit names', async () => {
 test('reports a removal the registry could not take', async () => {
 	server.use(http.delete('/api/types/page', () => new HttpResponse(null, { status: 503 })))
 
-	await expect(deleteType('page')).rejects.toThrow(/503/)
+	await expect(deleteType('page')).rejects.toThrow(/something went wrong/i)
+})
+
+test('says something a reader can act on when the server body is unreadable', async () => {
+	server.use(http.post('/api/types', () => new HttpResponse(null, { status: 500 })))
+
+	const guide = { key: 'guide', singularLabel: 'Guide', pluralLabel: 'Guides', routeWord: 'guides' }
+
+	await expect(createType(guide)).rejects.toThrow(/something went wrong/i)
 })
