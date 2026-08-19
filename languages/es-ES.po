@@ -21,73 +21,73 @@ msgid "%(name)s moves to /%(word)s. Every address of both types changes."
 msgstr "%(name)s pasa a /%(word)s. Cambian todas las direcciones de ambos tipos."
 
 #, fuzzy
-msgid "%[1]d %[2]s %[3]d"
-msgstr "%[1]d de %[2]s de %[3]d"
+msgid "{day} {month} {year}"
+msgstr "{day} de {month} de {year}"
 
 #, fuzzy
-msgid "%d post moved to the trash."
-msgid_plural "%d posts moved to the trash."
+msgid "%(count)d post moved to the trash."
+msgid_plural "%(count)d posts moved to the trash."
 msgstr[0] "%d entrada movida a la papelera."
 msgstr[1] "%d entradas movidas a la papelera."
 
 #, fuzzy
-msgid "%s declared."
+msgid "%(field)s declared."
 msgstr "%s declarado."
 
 #, fuzzy
-msgid "%s deleted."
+msgid "%(field)s deleted."
 msgstr "%s borrado."
 
 #, fuzzy
-msgid "%s goes to the trash. You can restore it from there."
+msgid "%(title)s goes to the trash. You can restore it from there."
 msgstr "%s va a la papelera. Puedes restaurarlo desde allí."
 
 #, fuzzy
-msgid "%s is larger than one upload may be."
+msgid "%(file)s is larger than one upload may be."
 msgstr "%s es más grande de lo que puede ocupar una subida."
 
 #, fuzzy
-msgid "%s is not a file this block accepts."
+msgid "%(file)s is not a file this block accepts."
 msgstr "%s no es un archivo que este bloque acepte."
 
 #, fuzzy
-msgid "%s is not answering, so the built-in renderer is serving."
+msgid "%(theme)s is not answering, so the built-in renderer is serving."
 msgstr "%s no responde, así que sirve el renderizador integrado."
 
 #, fuzzy
-msgid "%s is now serving the public site."
+msgid "%(theme)s is now serving the public site."
 msgstr "%s ya sirve el sitio público."
 
 #, fuzzy
-msgid "%s is serving the public site."
+msgid "%(theme)s is serving the public site."
 msgstr "%s sirve el sitio público."
 
 #, fuzzy
-msgid "%s registered."
+msgid "%(type)s registered."
 msgstr "%s registrado."
 
 #, fuzzy
-msgid "%s removed."
+msgid "%(type)s removed."
 msgstr "%s quitado."
 
 #, fuzzy
-msgid "%s renamed."
+msgid "%(field)s renamed."
 msgstr "%s renombrado."
 
 #, fuzzy
-msgid "%s updated."
+msgid "%(type)s updated."
 msgstr "%s actualizado."
 
 #, fuzzy
-msgid "%s was installed."
+msgid "%(theme)s was installed."
 msgstr "%s se ha instalado."
 
 #, fuzzy
-msgid "%s will answer at the root."
+msgid "%(type)s will answer at the root."
 msgstr "%s responderá en la raíz."
 
 #, fuzzy
-msgid "%s will not load, so the built-in renderer is serving."
+msgid "%(theme)s will not load, so the built-in renderer is serving."
 msgstr "%s no se carga, así que sirve el renderizador integrado."
 
 #, fuzzy
@@ -135,7 +135,7 @@ msgid "Activate"
 msgstr "Activar"
 
 #, fuzzy
-msgid "Activate %s"
+msgid "Activate %(theme)s"
 msgstr "Activar %s"
 
 #, fuzzy
@@ -143,7 +143,7 @@ msgid "Active"
 msgstr "Activo"
 
 #, fuzzy
-msgid "Add %s"
+msgid "Add %(type)s"
 msgstr "Añadir %s"
 
 #, fuzzy
@@ -175,7 +175,7 @@ msgid "Address"
 msgstr "Dirección"
 
 #, fuzzy
-msgid "All %s"
+msgid "All %(type)s"
 msgstr "Todo: %s"
 
 #, fuzzy
@@ -227,7 +227,7 @@ msgid "Back"
 msgstr "Atrás"
 
 #, fuzzy
-msgid "Back to %s"
+msgid "Back to %(type)s"
 msgstr "Volver a %s"
 
 #, fuzzy
@@ -255,11 +255,11 @@ msgid "Change address"
 msgstr "Cambiar la dirección"
 
 #, fuzzy
-msgid "Change the address of %s"
+msgid "Change the address of %(type)s"
 msgstr "Cambiar la dirección de %s"
 
 #, fuzzy
-msgid "Choose %s"
+msgid "Choose %(field)s"
 msgstr "Elegir %s"
 
 #, fuzzy
@@ -267,7 +267,7 @@ msgid "Choose the language the admin reads in."
 msgstr "Elige el idioma en el que se lee el escritorio."
 
 #, fuzzy
-msgid "Clear %s"
+msgid "Clear %(field)s"
 msgstr "Vaciar %s"
 
 #, fuzzy
@@ -305,7 +305,7 @@ msgid "Could not empty the trash."
 msgstr "No se ha podido vaciar la papelera."
 
 #, fuzzy
-msgid "Could not load %s."
+msgid "Could not load %(type)s."
 msgstr "No se ha podido cargar %s."
 
 #, fuzzy
@@ -343,7 +343,7 @@ msgid "Deactivate"
 msgstr "Desactivar"
 
 #, fuzzy
-msgid "Deactivate %s"
+msgid "Deactivate %(theme)s"
 msgstr "Desactivar %s"
 
 #, fuzzy
@@ -359,11 +359,11 @@ msgid "Delete"
 msgstr "Borrar"
 
 #, fuzzy
-msgid "Delete %s"
+msgid "Delete %(field)s"
 msgstr "Borrar %s"
 
 #, fuzzy
-msgid "Delete %s for good? This cannot be undone."
+msgid "Delete %(title)s for good? This cannot be undone."
 msgstr "¿Borrar %s para siempre? Esto no se puede deshacer."
 
 #, fuzzy
@@ -379,8 +379,8 @@ msgid "Delete the field"
 msgstr "Borrar el campo"
 
 #, fuzzy
-msgid "Delete this %d item for good? This cannot be undone."
-msgid_plural "Delete these %d items for good? This cannot be undone."
+msgid "Delete this %(count)d item for good? This cannot be undone."
+msgid_plural "Delete these %(count)d items for good? This cannot be undone."
 msgstr[0] "¿Borrar este %d elemento para siempre? Esto no se puede deshacer."
 msgstr[1] "¿Borrar estos %d elementos para siempre? Esto no se puede deshacer."
 
@@ -405,7 +405,7 @@ msgid "Disable"
 msgstr "Desactivar"
 
 #, fuzzy
-msgid "Disable %s"
+msgid "Disable %(name)s"
 msgstr "Desactivar a %s"
 
 #, fuzzy
@@ -441,7 +441,7 @@ msgid "Enable"
 msgstr "Activar"
 
 #, fuzzy
-msgid "Enable %s"
+msgid "Enable %(name)s"
 msgstr "Activar a %s"
 
 #, fuzzy
@@ -477,7 +477,7 @@ msgid "Fields"
 msgstr "Campos"
 
 #, fuzzy
-msgid "Fields of %s"
+msgid "Fields of %(type)s"
 msgstr "Campos de %s"
 
 #, fuzzy
@@ -541,7 +541,7 @@ msgid "Hand over the root"
 msgstr "Ceder la raíz"
 
 #, fuzzy
-msgid "Hand the root to %s"
+msgid "Hand the root to %(type)s"
 msgstr "Ceder la raíz a %s"
 
 #, fuzzy
@@ -629,7 +629,7 @@ msgid "May"
 msgstr "mayo"
 
 #, fuzzy
-msgid "Media %d"
+msgid "Media %(id)d"
 msgstr "Medio %d"
 
 #, fuzzy
@@ -645,7 +645,7 @@ msgid "Mobile"
 msgstr "Móvil"
 
 #, fuzzy
-msgid "Move %s to the trash?"
+msgid "Move %(title)s to the trash?"
 msgstr "¿Mover %s a la papelera?"
 
 #, fuzzy
@@ -653,8 +653,8 @@ msgid "Move every address"
 msgstr "Mover todas las direcciones"
 
 #, fuzzy
-msgid "Move these %d post to the trash?"
-msgid_plural "Move these %d posts to the trash?"
+msgid "Move these %(count)d post to the trash?"
+msgid_plural "Move these %(count)d posts to the trash?"
 msgstr[0] "¿Mover esta %d entrada a la papelera?"
 msgstr[1] "¿Mover estas %d entradas a la papelera?"
 
@@ -843,7 +843,7 @@ msgid "Relation"
 msgstr "Relación"
 
 #, fuzzy
-msgid "Remove %s"
+msgid "Remove %(title)s"
 msgstr "Quitar %s"
 
 #, fuzzy
@@ -851,7 +851,7 @@ msgid "Rename"
 msgstr "Renombrar"
 
 #, fuzzy
-msgid "Rename %s"
+msgid "Rename %(field)s"
 msgstr "Renombrar %s"
 
 #, fuzzy
@@ -859,7 +859,7 @@ msgid "Restore"
 msgstr "Restaurar"
 
 #, fuzzy
-msgid "Roll back to %s"
+msgid "Roll back to %(theme)s"
 msgstr "Revertir a %s"
 
 #, fuzzy
@@ -891,7 +891,7 @@ msgid "Scheduled"
 msgstr "Programado"
 
 #, fuzzy
-msgid "Search %s"
+msgid "Search %(type)s"
 msgstr "Buscar %s"
 
 #, fuzzy
@@ -1263,7 +1263,7 @@ msgid "This type declares no fields yet."
 msgstr "Este tipo todavía no declara ningún campo."
 
 #, fuzzy
-msgid "This type will answer under /%s."
+msgid "This type will answer under /%(word)s."
 msgstr "Este tipo responderá en /%s."
 
 #, fuzzy
@@ -1337,38 +1337,6 @@ msgstr "Tu sitio siempre necesita un tipo de contenido por defecto, así que est
 #, fuzzy
 msgid "address"
 msgstr "dirección"
-
-#, fuzzy
-msgid "declaring the field failed with status %d"
-msgstr "la declaración del campo ha fallado con el estado %d"
-
-#, fuzzy
-msgid "deleting the field failed with status %d"
-msgstr "el borrado del campo ha fallado con el estado %d"
-
-#, fuzzy
-msgid "editing a content type failed with status %d"
-msgstr "la edición de un tipo de contenido ha fallado con el estado %d"
-
-#, fuzzy
-msgid "reading the content types failed with status %d"
-msgstr "la lectura de los tipos de contenido ha fallado con el estado %d"
-
-#, fuzzy
-msgid "reading the fields failed with status %d"
-msgstr "la lectura de los campos ha fallado con el estado %d"
-
-#, fuzzy
-msgid "registering a content type failed with status %d"
-msgstr "el registro de un tipo de contenido ha fallado con el estado %d"
-
-#, fuzzy
-msgid "removing a content type failed with status %d"
-msgstr "el borrado de un tipo de contenido ha fallado con el estado %d"
-
-#, fuzzy
-msgid "renaming the field failed with status %d"
-msgstr "el renombrado del campo ha fallado con el estado %d"
 
 #, fuzzy
 msgid "Something went wrong. Try again."
