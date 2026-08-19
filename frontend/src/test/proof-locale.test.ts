@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
 import { repositoryRoot } from '../../scripts/pot.ts'
-import { untranslated } from '../../scripts/completeness.ts'
+import { orphaned, untranslated } from '../../scripts/completeness.ts'
 
 /**
  * Returns every language the repository ships a catalogue for.
@@ -27,6 +27,34 @@ test.each(catalogues())('leaves no more of the template unanswered in %s than is
 	expect(untranslated(source, template).length).toBeLessThanOrEqual(PENDING)
 })
 
+
+test.each(catalogues())('carries nothing in %s that the template does not name', (_locale, source) => {
+	const template = readFileSync(join(repositoryRoot(), 'languages', 'gophenberg.pot'), 'utf8')
+
+	expect(orphaned(source, template)).toEqual([])
+})
+
+test('names a message the template no longer holds', () => {
+	const template = `msgid ""\nmsgstr ""\n\nmsgid "Kept"\nmsgstr ""\n`
+	const held = `msgid ""\nmsgstr ""\n"Language: es-ES\\n"\n\nmsgid "Kept"\nmsgstr "Conservado"\n\n` +
+		`msgid "Retired"\nmsgstr "Retirado"\n`
+
+	expect(orphaned(held, template)).toEqual(['Retired'])
+})
+
+test('names an orphan under its context, apart from the same word without one', () => {
+	const template = `msgid ""\nmsgstr ""\n\nmsgid "Post"\nmsgstr ""\n`
+	const held = `msgid ""\nmsgstr ""\n"Language: es-ES\\n"\n\nmsgctxt "noun"\nmsgid "Post"\nmsgstr "Entrada"\n`
+
+	expect(orphaned(held, template)).toEqual([`noun${''}Post`])
+})
+
+test('names no orphan in a catalogue the template fully covers', () => {
+	const template = `msgid ""\nmsgstr ""\n\nmsgid "Kept"\nmsgstr ""\n`
+	const held = `msgid ""\nmsgstr ""\n"Language: es-ES\\n"\n\nmsgid "Kept"\nmsgstr "Conservado"\n`
+
+	expect(orphaned(held, template)).toEqual([])
+})
 
 test('counts a message the catalogue omits entirely as waiting', () => {
 	const template = `msgid ""
