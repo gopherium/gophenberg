@@ -920,6 +920,9 @@ msgstr ""
 msgid "This item still holds items nested inside it. Move or delete those first."
 msgstr ""
 
+msgid "This line proves the translation pipeline and is removed again."
+msgstr ""
+
 msgid "This media item is not in the library, and someone may have deleted it. Reload the page to see what is there now."
 msgstr ""
 

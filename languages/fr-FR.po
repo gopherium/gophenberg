@@ -1231,6 +1231,9 @@ msgstr "Cet élément n'est pas dans la corbeille, il n'y a donc rien à rétabl
 msgid "This item still holds items nested inside it. Move or delete those first."
 msgstr "Cet élément contient encore des éléments imbriqués. Déplacez-les ou supprimez-les d'abord."
 
+msgid "This line proves the translation pipeline and is removed again."
+msgstr "Cette ligne teste le flux de traduction et sera retirée de nouveau."
+
 #, fuzzy
 msgid "This media item is not in the library, and someone may have deleted it. Reload the page to see what is there now."
 msgstr "Ce média n'est pas dans la bibliothèque, et quelqu'un l'a peut-être supprimé. Rechargez la page pour voir ce qui s'y trouve maintenant."

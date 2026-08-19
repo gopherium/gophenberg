@@ -1001,6 +1001,9 @@ msgstr "Este elemento no está en la papelera, así que no hay nada que restaura
 msgid "This item still holds items nested inside it. Move or delete those first."
 msgstr "Este elemento todavía tiene elementos anidados dentro. Mueve o borra antes esos."
 
+msgid "This line proves the translation pipeline and is removed again."
+msgstr "Esta línea prueba el flujo de traducción y se vuelve a quitar."
+
 #, fuzzy
 msgid "This media item is not in the library, and someone may have deleted it. Reload the page to see what is there now."
 msgstr "Este medio no está en la biblioteca, y puede que alguien lo haya borrado. Recarga la página para ver qué hay ahora."
