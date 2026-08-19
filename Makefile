@@ -70,10 +70,10 @@ pot:
 	node frontend/scripts/write-pot.ts
 
 translations:
-	node frontend/scripts/sync-translations.ts
+	node --env-file-if-exists=.env frontend/scripts/sync-translations.ts
 
 translations-retire:
-	node frontend/scripts/retire-translations.ts
+	node --env-file-if-exists=.env frontend/scripts/retire-translations.ts
 
 catalogs:
 	node frontend/scripts/write-catalogs.ts
