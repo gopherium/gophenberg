@@ -50,7 +50,7 @@ export function TrashPost({ postId, title }: { postId: string, title: string }) 
 	const description =
 		title === ''
 			? __('This post goes to the trash. You can restore it from there.', 'gophenberg')
-			: sprintf(__('%s goes to the trash. You can restore it from there.', 'gophenberg'), title)
+			: sprintf(__('%(title)s goes to the trash. You can restore it from there.', 'gophenberg'), { title })
 	return (
 		<AlertDialog.Root onConfirm={trash}>
 			<AlertDialog.Trigger>{__('Move to trash', 'gophenberg')}</AlertDialog.Trigger>

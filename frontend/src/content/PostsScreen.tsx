@@ -90,7 +90,9 @@ export function PostsScreen() {
 			{notice !== null && <PostsNotice notice={notice} report={setNotice} />}
 			{posts.isError ? (
 				<ErrorNotice>
-					{sprintf(__('Could not load %s.', 'gophenberg'), listed.pluralLabel.toLowerCase())}
+					{sprintf(__('Could not load %(type)s.', 'gophenberg'), {
+						type: listed.pluralLabel.toLowerCase(),
+					})}
 				</ErrorNotice>
 			) : (
 				<div
@@ -109,7 +111,9 @@ export function PostsScreen() {
 						onChangeSelection={setSelection}
 						isLoading={posts.isPending}
 						getItemId={(post) => post.id}
-						searchLabel={sprintf(__('Search %s', 'gophenberg'), listed.pluralLabel.toLowerCase())}
+						searchLabel={sprintf(__('Search %(type)s', 'gophenberg'), {
+							type: listed.pluralLabel.toLowerCase(),
+						})}
 						config={{ perPageSizes: [PER_PAGE] }}
 						paginationInfo={{
 							totalItems: page.total,

@@ -124,8 +124,8 @@ function UserToggle({ user }: { user: User }) {
 	})
 	const verb = user.disabled ? __('Enable', 'gophenberg') : __('Disable', 'gophenberg')
 	const named = user.disabled
-		? sprintf(__('Enable %s', 'gophenberg'), user.name)
-		: sprintf(__('Disable %s', 'gophenberg'), user.name)
+		? sprintf(__('Enable %(name)s', 'gophenberg'), { name: user.name })
+		: sprintf(__('Disable %(name)s', 'gophenberg'), { name: user.name })
 	return (
 		<Stack direction="column" gap="xs">
 			<Button

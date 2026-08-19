@@ -34,15 +34,15 @@ function nameOf(post: Post): string {
  */
 function trashQuestion(items: Post[]): string {
 	if (items.length === 1) {
-		return sprintf(__('Move %s to the trash?', 'gophenberg'), nameOf(items[0]))
+		return sprintf(__('Move %(title)s to the trash?', 'gophenberg'), { title: nameOf(items[0]) })
 	}
 	const many = _n(
-		'Move these %d post to the trash?',
-		'Move these %d posts to the trash?',
+		'Move these %(count)d post to the trash?',
+		'Move these %(count)d posts to the trash?',
 		items.length,
 		'gophenberg',
 	)
-	return sprintf(many, items.length)
+	return sprintf(many, { count: items.length })
 }
 
 /**
@@ -54,8 +54,13 @@ function trashedNote(count: number): string {
 	if (count === 1) {
 		return __('Moved to the trash.', 'gophenberg')
 	}
-	const many = _n('%d post moved to the trash.', '%d posts moved to the trash.', count, 'gophenberg')
-	return sprintf(many, count)
+	const many = _n(
+		'%(count)d post moved to the trash.',
+		'%(count)d posts moved to the trash.',
+		count,
+		'gophenberg',
+	)
+	return sprintf(many, { count })
 }
 
 /**
@@ -173,7 +178,9 @@ function DeleteConfirm({ items, closeModal }: RenderModalProps<Post>) {
 	const target = items[0]
 	return (
 		<Confirm
-			question={sprintf(__('Delete %s for good? This cannot be undone.', 'gophenberg'), nameOf(target))}
+			question={sprintf(__('Delete %(title)s for good? This cannot be undone.', 'gophenberg'), {
+				title: nameOf(target),
+			})}
 			failure={__('Could not delete that post.', 'gophenberg')}
 			confirmLabel={__('Delete Permanently', 'gophenberg')}
 			run={() => deletePost(target.id)}

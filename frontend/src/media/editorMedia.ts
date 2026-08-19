@@ -115,10 +115,10 @@ export function toAttachment(item: MediaItem): EditorAttachment {
  */
 function refusalOf(file: File, args: EditorMediaUploadArgs): string {
 	if (args.allowedTypes !== undefined && !typeAllowed(file.type, args.allowedTypes)) {
-		return sprintf(__('%s is not a file this block accepts.', 'gophenberg'), file.name)
+		return sprintf(__('%(file)s is not a file this block accepts.', 'gophenberg'), { file: file.name })
 	}
 	if (args.maxUploadFileSize !== undefined && file.size > args.maxUploadFileSize) {
-		return sprintf(__('%s is larger than one upload may be.', 'gophenberg'), file.name)
+		return sprintf(__('%(file)s is larger than one upload may be.', 'gophenberg'), { file: file.name })
 	}
 	return ''
 }

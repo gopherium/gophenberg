@@ -93,16 +93,18 @@ function DescribeForm({ items, closeModal }: RenderModalProps<MediaItem>) {
  */
 export function deleteQuestion(items: MediaItem[]): string {
 	if (items.length === 1) {
-		return sprintf(__('Delete %s for good? This cannot be undone.', 'gophenberg'), mediaName(items[0]))
+		return sprintf(__('Delete %(title)s for good? This cannot be undone.', 'gophenberg'), {
+			title: mediaName(items[0]),
+		})
 	}
 	return sprintf(
 		_n(
-			'Delete this %d item for good? This cannot be undone.',
-			'Delete these %d items for good? This cannot be undone.',
+			'Delete this %(count)d item for good? This cannot be undone.',
+			'Delete these %(count)d items for good? This cannot be undone.',
 			items.length,
 			'gophenberg',
 		),
-		items.length,
+		{ count: items.length },
 	)
 }
 

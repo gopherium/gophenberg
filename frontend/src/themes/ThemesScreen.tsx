@@ -37,7 +37,9 @@ export function servingLine(listed: ThemeList | undefined): string | undefined {
 		return fallen
 	}
 	if (active.version === '') {
-		return sprintf(__('%s is serving the public site.', 'gophenberg'), active.name)
+		return sprintf(__('%(theme)s is serving the public site.', 'gophenberg'), {
+			theme: active.name,
+		})
 	}
 	return sprintf(__('%(name)s %(version)s is serving the public site.', 'gophenberg'), {
 		name: active.name,
@@ -52,18 +54,16 @@ export function servingLine(listed: ThemeList | undefined): string | undefined {
  */
 function fallbackReason(active: Theme): string {
 	if (active.broken !== '') {
-		return sprintf(
-			__('%s will not load, so the built-in renderer is serving.', 'gophenberg'),
-			active.name,
-		)
+		return sprintf(__('%(theme)s will not load, so the built-in renderer is serving.', 'gophenberg'), {
+			theme: active.name,
+		})
 	}
 	if (active.serving) {
 		return ''
 	}
-	return sprintf(
-		__('%s is not answering, so the built-in renderer is serving.', 'gophenberg'),
-		active.name,
-	)
+	return sprintf(__('%(theme)s is not answering, so the built-in renderer is serving.', 'gophenberg'), {
+		theme: active.name,
+	})
 }
 
 /**
@@ -74,7 +74,7 @@ function fallbackReason(active: Theme): string {
 export function rollbackLabel(target: string): string {
 	return target === ''
 		? __('Roll back to the built-in renderer', 'gophenberg')
-		: sprintf(__('Roll back to %s', 'gophenberg'), target)
+		: sprintf(__('Roll back to %(theme)s', 'gophenberg'), { theme: target })
 }
 
 /**
@@ -94,7 +94,7 @@ export function chosenArchive(files: FileList | null): File | null {
 function servingNow(name: string): string {
 	return name === ''
 		? __('The built-in renderer is now serving the public site.', 'gophenberg')
-		: sprintf(__('%s is now serving the public site.', 'gophenberg'), name)
+		: sprintf(__('%(theme)s is now serving the public site.', 'gophenberg'), { theme: name })
 }
 
 /**
@@ -265,8 +265,8 @@ function ServingToggle(props: { theme: Theme; onOutcome: Reporter }) {
 		onError: props.onOutcome.failed,
 	})
 	const named = theme.active
-		? sprintf(__('Deactivate %s', 'gophenberg'), theme.name)
-		: sprintf(__('Activate %s', 'gophenberg'), theme.name)
+		? sprintf(__('Deactivate %(theme)s', 'gophenberg'), { theme: theme.name })
+		: sprintf(__('Activate %(theme)s', 'gophenberg'), { theme: theme.name })
 	return (
 		<Button
 			variant="outline"
@@ -310,7 +310,7 @@ function UploadControl(props: { onOutcome: Reporter }) {
 		mutationFn: (chosen: File) => uploadTheme(chosen),
 		onSuccess: (outcome) =>
 			props.onOutcome.done(outcome, (name) =>
-				sprintf(__('%s was installed.', 'gophenberg'), name),
+				sprintf(__('%(theme)s was installed.', 'gophenberg'), { theme: name }),
 			),
 		onError: props.onOutcome.failed,
 	})

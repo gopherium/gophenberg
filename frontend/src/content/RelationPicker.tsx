@@ -90,7 +90,7 @@ function ManyTargets(props: {
 		title: props.candidates.find((candidate) => candidate.id === id)?.title ?? id,
 	}))
 	const open = props.candidates.filter((candidate) => !props.targets.includes(candidate.id))
-	const addLabel = sprintf(__('Add %s', 'gophenberg'), props.field.label)
+	const addLabel = sprintf(__('Add %(type)s', 'gophenberg'), { type: props.field.label })
 	const items = [
 		{ label: addLabel, value: '' },
 		...open.map((candidate) => ({ label: candidate.title, value: candidate.id })),
@@ -106,7 +106,7 @@ function ManyTargets(props: {
 							variant="outline"
 							onClick={() => props.onChange(props.targets.filter((id) => id !== target.id))}
 						>
-							{sprintf(__('Remove %s', 'gophenberg'), target.title)}
+							{sprintf(__('Remove %(title)s', 'gophenberg'), { title: target.title })}
 						</Button>
 					</li>
 				))}

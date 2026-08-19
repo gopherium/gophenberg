@@ -152,12 +152,12 @@ function TypeRow(
 	const { registered } = props
 	const edit = useMutation({
 		mutationFn: (asked: TypeEdit) => updateType(registered.key, asked),
-		onSuccess: () => props.onDone(sprintf(__('%s updated.', 'gophenberg'), registered.pluralLabel)),
+		onSuccess: () => props.onDone(sprintf(__('%(type)s updated.', 'gophenberg'), { type: registered.pluralLabel })),
 		onError: props.onRefused,
 	})
 	const remove = useMutation({
 		mutationFn: () => deleteType(registered.key),
-		onSuccess: () => props.onDone(sprintf(__('%s removed.', 'gophenberg'), registered.pluralLabel)),
+		onSuccess: () => props.onDone(sprintf(__('%(type)s removed.', 'gophenberg'), { type: registered.pluralLabel })),
 		onError: props.onRefused,
 	})
 	return (
@@ -234,14 +234,14 @@ function HandOverRoot(props: {
 				<Dialog.Popup>
 					<Dialog.Header>
 						<Dialog.Title>
-							{sprintf(__('Hand the root to %s', 'gophenberg'), props.registered.pluralLabel)}
+							{sprintf(__('Hand the root to %(type)s', 'gophenberg'), { type: props.registered.pluralLabel })}
 						</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
 						<Stack direction="column" gap="md">
 							<Text>
-								{sprintf(__('%s will answer at the root.', 'gophenberg'), props.registered.pluralLabel)}
+								{sprintf(__('%(type)s will answer at the root.', 'gophenberg'), { type: props.registered.pluralLabel })}
 							</Text>
 							{holder !== undefined && (
 								<Text>
@@ -292,7 +292,7 @@ function ChangeAddress(props: { registered: ContentType; onMove: (word: string) 
 				<Dialog.Popup>
 					<Dialog.Header>
 						<Dialog.Title>
-							{sprintf(__('Change the address of %s', 'gophenberg'), props.registered.pluralLabel)}
+							{sprintf(__('Change the address of %(type)s', 'gophenberg'), { type: props.registered.pluralLabel })}
 						</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
@@ -351,7 +351,7 @@ function AddType(props: Reporter) {
 			setOpen(false)
 			setSingular('')
 			setPlural('')
-			props.onDone(sprintf(__('%s registered.', 'gophenberg'), plural))
+			props.onDone(sprintf(__('%(type)s registered.', 'gophenberg'), { type: plural }))
 		},
 		onError: (cause) => {
 			setOpen(false)
@@ -383,8 +383,8 @@ function AddType(props: Reporter) {
 							/>
 							<Text variant="body-sm">
 								{sprintf(
-									__('This type will answer under /%s.', 'gophenberg'),
-									slugify(plural) || __('address', 'gophenberg'),
+									__('This type will answer under /%(word)s.', 'gophenberg'),
+									{ word: slugify(plural) || __('address', 'gophenberg') },
 								)}
 							</Text>
 						</Stack>

@@ -87,7 +87,7 @@ export function FieldsDialog(props: {
 				<Dialog.Popup>
 					<Dialog.Header>
 						<Dialog.Title>
-							{sprintf(__('Fields of %s', 'gophenberg'), props.registered.pluralLabel)}
+							{sprintf(__('Fields of %(type)s', 'gophenberg'), { type: props.registered.pluralLabel })}
 						</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
@@ -198,7 +198,7 @@ function AddField(props: {
 			}),
 		onSuccess: async () => {
 			setLabel('')
-			await props.onDone(sprintf(__('%s declared.', 'gophenberg'), label))
+			await props.onDone(sprintf(__('%(field)s declared.', 'gophenberg'), { field: label }))
 		},
 		onError: props.onRefused,
 	})
@@ -248,7 +248,7 @@ function RenameField(props: {
 		mutationFn: () => renameField(props.typeKey, props.field.key, label),
 		onSuccess: async () => {
 			setOpen(false)
-			await props.onDone(sprintf(__('%s renamed.', 'gophenberg'), label))
+			await props.onDone(sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }))
 		},
 		onError: (cause) => {
 			setOpen(false)
@@ -258,12 +258,12 @@ function RenameField(props: {
 	return (
 		<>
 			<Button variant="outline" onClick={() => setOpen(true)}>
-				{sprintf(__('Rename %s', 'gophenberg'), props.field.label)}
+				{sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
-						<Dialog.Title>{sprintf(__('Rename %s', 'gophenberg'), props.field.label)}</Dialog.Title>
+						<Dialog.Title>{sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })}</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
@@ -310,7 +310,7 @@ function DeleteField(props: {
 		mutationFn: () => deleteField(props.typeKey, props.field.key),
 		onSuccess: async () => {
 			setOpen(false)
-			await props.onDone(sprintf(__('%s deleted.', 'gophenberg'), props.field.label))
+			await props.onDone(sprintf(__('%(field)s deleted.', 'gophenberg'), { field: props.field.label }))
 		},
 		onError: (cause) => {
 			setOpen(false)
@@ -320,12 +320,12 @@ function DeleteField(props: {
 	return (
 		<>
 			<Button variant="outline" onClick={() => setOpen(true)}>
-				{sprintf(__('Delete %s', 'gophenberg'), props.field.label)}
+				{sprintf(__('Delete %(field)s', 'gophenberg'), { field: props.field.label })}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
-						<Dialog.Title>{sprintf(__('Delete %s', 'gophenberg'), props.field.label)}</Dialog.Title>
+						<Dialog.Title>{sprintf(__('Delete %(field)s', 'gophenberg'), { field: props.field.label })}</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>

@@ -37,7 +37,7 @@ export function ContentSidebar() {
 						params={{ typeKey: listed.key }}
 						className="gophenberg-menu__item"
 					>
-						{sprintf(__('All %s', 'gophenberg'), listed.pluralLabel)}
+						{sprintf(__('All %(type)s', 'gophenberg'), { type: listed.pluralLabel })}
 					</Link>
 				</li>
 				<li>

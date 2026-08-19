@@ -78,7 +78,7 @@ export function EditorHeader(
 		<div className="gophenberg-editor__header">
 			<Stack direction="row" gap="xs" align="center">
 				<IconButton
-					label={sprintf(__('Back to %s', 'gophenberg'), listed.pluralLabel.toLowerCase())}
+					label={sprintf(__('Back to %(type)s', 'gophenberg'), { type: listed.pluralLabel.toLowerCase() })}
 					icon={backIcon}
 					variant="minimal"
 					tone="neutral"

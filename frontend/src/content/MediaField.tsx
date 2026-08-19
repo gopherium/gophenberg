@@ -47,7 +47,7 @@ export function MediaField(props: {
 			<Text>
 				{props.value === undefined
 					? __('No media chosen', 'gophenberg')
-					: sprintf(__('Media %d', 'gophenberg'), props.value)}
+					: sprintf(__('Media %(id)d', 'gophenberg'), { id: props.value })}
 			</Text>
 			<MediaLibraryPicker
 				value={props.value}
@@ -55,13 +55,13 @@ export function MediaField(props: {
 				onClose={() => {}}
 				render={({ open }) => (
 					<Button variant="outline" onClick={open}>
-						{sprintf(__('Choose %s', 'gophenberg'), props.field.label)}
+						{sprintf(__('Choose %(field)s', 'gophenberg'), { field: props.field.label })}
 					</Button>
 				)}
 			/>
 			{props.value !== undefined && (
 				<Button variant="outline" onClick={() => props.onChange(null)}>
-					{sprintf(__('Clear %s', 'gophenberg'), props.field.label)}
+					{sprintf(__('Clear %(field)s', 'gophenberg'), { field: props.field.label })}
 				</Button>
 			)}
 		</Stack>
