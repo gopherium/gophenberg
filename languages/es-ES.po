@@ -7,7 +7,7 @@ msgstr ""
 "X-Domain: gophenberg\n"
 "Project-Id-Version: Gophenberg\n"
 "Language: es\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=3; plural=((n == 1) ? 0 : ((n != 0 && n % 1000000 == 0) ? 1 : 2));\n"
 
 msgid "%(name)s %(version)s is serving the public site."
 msgstr "%(name)s %(version)s está publicado en la web."
@@ -29,6 +29,7 @@ msgid "%(count)d post moved to the trash."
 msgid_plural "%(count)d posts moved to the trash."
 msgstr[0] "%(count)d entrada movida a la papelera."
 msgstr[1] "%(count)d entradas movidas a la papelera."
+msgstr[2] "%(count)d entradas movidas a la papelera."
 
 #, fuzzy
 msgid "%(field)s declared."
@@ -295,6 +296,7 @@ msgid "Could not delete that item."
 msgid_plural "Could not delete every item."
 msgstr[0] "No se ha podido borrar ese elemento."
 msgstr[1] "No se han podido borrar todos los elementos."
+msgstr[2] "No se han podido borrar todos los elementos."
 
 #, fuzzy
 msgid "Could not delete that post."
@@ -325,6 +327,7 @@ msgid "Could not restore that post."
 msgid_plural "Could not restore those posts."
 msgstr[0] "No se ha podido restaurar esa entrada."
 msgstr[1] "No se han podido restaurar esas entradas."
+msgstr[2] "No se han podido restaurar esas entradas."
 
 #, fuzzy
 msgid "Could not save that post."
@@ -383,6 +386,7 @@ msgid "Delete this %(count)d item for good? This cannot be undone."
 msgid_plural "Delete these %(count)d items for good? This cannot be undone."
 msgstr[0] "¿Borrar este %(count)d elemento para siempre? Esto no se puede deshacer."
 msgstr[1] "¿Borrar estos %(count)d elementos para siempre? Esto no se puede deshacer."
+msgstr[2] "¿Borrar estos %(count)d elementos para siempre? Esto no se puede deshacer."
 
 #, fuzzy
 msgid "Describe"
@@ -657,6 +661,7 @@ msgid "Move these %(count)d post to the trash?"
 msgid_plural "Move these %(count)d posts to the trash?"
 msgstr[0] "¿Mover esta %(count)d entrada a la papelera?"
 msgstr[1] "¿Mover estas %(count)d entradas a la papelera?"
+msgstr[2] "¿Mover estas %(count)d entradas a la papelera?"
 
 #, fuzzy
 msgid "Move to Trash"
