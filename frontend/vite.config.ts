@@ -62,6 +62,7 @@ export default defineConfig({
 				'scripts/write-pot.ts',
 				'scripts/write-catalogs.ts',
 				'scripts/sync-translations.ts',
+				'scripts/retire-translations.ts',
 				'../sdk/frontend/scripts/build-site-assets.ts',
 				'**/*.d.ts',
 				'**/test/**',
