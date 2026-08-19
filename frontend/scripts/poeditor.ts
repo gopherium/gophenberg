@@ -218,11 +218,11 @@ async function ask(
 }
 
 /**
- * Returns the reader of one translation platform project.
+ * Returns the reader and retirer of one translation platform project.
  * @param token - The credential the platform answers to.
  * @param project - The project the translations live in.
  * @param fetched - How a request is sent, the runtime's own by default.
- * @returns The reader.
+ * @returns The reader, carrying the retirement its own interface names.
  */
 export function poeditorAt(
 	token: string,
