@@ -4,7 +4,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"Plural-Forms: nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
 "X-Domain: gophenberg\n"
 "Language: fr\n"
 
@@ -29,6 +29,7 @@ msgid "%(count)d post moved to the trash."
 msgid_plural "%(count)d posts moved to the trash."
 msgstr[0] "%(count)d article déplacé dans la corbeille."
 msgstr[1] "%(count)d articles déplacés dans la corbeille."
+msgstr[2] "%(count)d articles déplacés dans la corbeille."
 
 #, fuzzy
 msgid "%(field)s declared."
@@ -295,6 +296,7 @@ msgid "Could not delete that item."
 msgid_plural "Could not delete every item."
 msgstr[0] "Impossible de supprimer cet élément."
 msgstr[1] "Impossible de supprimer tous les éléments."
+msgstr[2] "Impossible de supprimer tous les éléments."
 
 #, fuzzy
 msgid "Could not delete that post."
@@ -325,6 +327,7 @@ msgid "Could not restore that post."
 msgid_plural "Could not restore those posts."
 msgstr[0] "Impossible de rétablir cet article."
 msgstr[1] "Impossible de rétablir ces articles."
+msgstr[2] "Impossible de rétablir ces articles."
 
 #, fuzzy
 msgid "Could not save that post."
@@ -383,6 +386,7 @@ msgid "Delete this %(count)d item for good? This cannot be undone."
 msgid_plural "Delete these %(count)d items for good? This cannot be undone."
 msgstr[0] "Supprimer définitivement ce %(count)d élément ? Cette action est irréversible."
 msgstr[1] "Supprimer définitivement ces %(count)d éléments ? Cette action est irréversible."
+msgstr[2] "Supprimer définitivement ces %(count)d éléments ? Cette action est irréversible."
 
 #, fuzzy
 msgid "Describe"
@@ -657,6 +661,7 @@ msgid "Move these %(count)d post to the trash?"
 msgid_plural "Move these %(count)d posts to the trash?"
 msgstr[0] "Déplacer ce %(count)d article dans la corbeille ?"
 msgstr[1] "Déplacer ces %(count)d articles dans la corbeille ?"
+msgstr[2] "Déplacer ces %(count)d articles dans la corbeille ?"
 
 #, fuzzy
 msgid "Move to Trash"
