@@ -17,7 +17,7 @@ test('finds the messages the Go templates ask the translator for', () => {
 test('finds the messages the Go source marks', () => {
 	expect(found).toContain('January')
 	expect(found).toContain('August')
-	expect(found).toContain('%[1]d %[2]s %[3]d')
+	expect(found).toContain('{day} {month} {year}')
 	expect(found).toContain('Not found')
 })
 

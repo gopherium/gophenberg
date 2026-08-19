@@ -6,8 +6,9 @@ package i18n
 import (
 	"embed"
 	"encoding/json"
-	"fmt"
 	"path"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -18,8 +19,8 @@ const DefaultLocale = "en-US"
 // Msgid marks a message for extraction and returns it unchanged.
 func Msgid(s string) string { return s }
 
-// datePattern is the order a date reads in, taking the day, the month and the year.
-var datePattern = Msgid("%[1]d %[2]s %[3]d")
+// DatePattern is the order a date reads in, naming each part it takes.
+var DatePattern = Msgid("{day} {month} {year}")
 
 // months holds each month's name in the order the calendar counts them.
 var months = [...]string{
@@ -87,5 +88,9 @@ func (t *Translator) Get(msgid string) string {
 
 // Date returns the date as the translator's language writes it.
 func (t *Translator) Date(at time.Time) string {
-	return fmt.Sprintf(t.Get(datePattern), at.Day(), t.Get(months[at.Month()-1]), at.Year())
+	return strings.NewReplacer(
+		"{day}", strconv.Itoa(at.Day()),
+		"{month}", t.Get(months[at.Month()-1]),
+		"{year}", strconv.Itoa(at.Year()),
+	).Replace(t.Get(DatePattern))
 }

@@ -59,3 +59,11 @@ func TestDateFollowsTheCatalogsPatternAndMonth(t *testing.T) {
 		t.Errorf("got %q, want the translated date", held)
 	}
 }
+
+func TestDatePatternNamesWhatEachPartHolds(t *testing.T) {
+	t.Parallel()
+
+	if held := i18n.DatePattern; held != "{day} {month} {year}" {
+		t.Errorf("DatePattern = %q, want tokens a translator can read", held)
+	}
+}
