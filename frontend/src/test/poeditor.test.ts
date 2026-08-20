@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
 
 import {
+	keepingAnswers,
 	localeFor,
 	localeOf,
 	meaningfulChange,
@@ -173,8 +174,12 @@ test('matches a bare language against the one region the application supports', 
 	expect(localeFor('es', ['en-US', 'es-ES'])).toBe('es-ES')
 })
 
-test('refuses a bare language when two regions of it are supported', () => {
-	expect(localeFor('es', ['es-ES', 'es-MX'])).toBeUndefined()
+test('matches a bare language to its doubled region beside another region of it', () => {
+	expect(localeFor('es', ['es-ES', 'es-MX'])).toBe('es-ES')
+})
+
+test('refuses a bare language whose doubled region the site does not answer in', () => {
+	expect(localeFor('pt', ['en-US', 'pt-BR'])).toBeUndefined()
 })
 
 test('refuses a language the application does not answer in', () => {
@@ -245,7 +250,7 @@ test('takes the platform plural rule when the catalogue declares none', () => {
 	expect(withPluralRuleOf(ours, theirs)).toBe(theirs)
 })
 
-test('keeps one form when the committed rule names no count', () => {
+test('refuses a committed rule naming no count', () => {
 	const ours = 'msgid ""\nmsgstr ""\n"Plural-Forms: plural=(n != 1);\\n"\n'
 	const theirs = `msgid ""
 msgstr ""
@@ -256,7 +261,50 @@ msgstr[0] "%d entrada"
 msgstr[1] "%d entradas"
 `
 
-	expect(withPluralRuleOf(ours, theirs)).not.toMatch(/msgstr\[1\]/)
+	expect(() => withPluralRuleOf(ours, theirs)).toThrow(/count/)
+})
+
+test('keeps a current answer the incoming catalogue leaves empty', () => {
+	const naming = 'msgid "Older posts"\nmsgstr ""\n'
+	const ours = 'msgid ""\nmsgstr ""\n\nmsgid "Older posts"\nmsgstr "Entradas anteriores"\n'
+	const theirs = 'msgid ""\nmsgstr ""\n\nmsgid "Older posts"\nmsgstr ""\n'
+
+	expect(keepingAnswers(ours, theirs, naming)).toContain('Entradas anteriores')
+})
+
+test('takes an incoming answer over the current one', () => {
+	const naming = 'msgid "Older posts"\nmsgstr ""\n'
+	const ours = 'msgid ""\nmsgstr ""\n\nmsgid "Older posts"\nmsgstr "Entradas anteriores"\n'
+	const theirs = 'msgid ""\nmsgstr ""\n\nmsgid "Older posts"\nmsgstr "Entradas antiguas"\n'
+
+	const held = keepingAnswers(ours, theirs, naming)
+
+	expect(held).toContain('Entradas antiguas')
+	expect(held).not.toContain('Entradas anteriores')
+})
+
+test('restores an answer the incoming catalogue does not carry', () => {
+	const naming = 'msgid "Older posts"\nmsgstr ""\n'
+	const ours = 'msgid ""\nmsgstr ""\n\nmsgid "Older posts"\nmsgstr "Entradas anteriores"\n'
+	const theirs = 'msgid ""\nmsgstr ""\n'
+
+	expect(keepingAnswers(ours, theirs, naming)).toContain('Entradas anteriores')
+})
+
+test('restores an answer under a context the incoming catalogue does not know', () => {
+	const naming = 'msgctxt "posts"\nmsgid "Older"\nmsgstr ""\n'
+	const ours = 'msgid ""\nmsgstr ""\n\nmsgctxt "posts"\nmsgid "Older"\nmsgstr "Antiguas"\n'
+	const theirs = 'msgid ""\nmsgstr ""\n'
+
+	expect(keepingAnswers(ours, theirs, naming)).toContain('Antiguas')
+})
+
+test('does not restore an answer the template no longer names', () => {
+	const naming = 'msgid "Older posts"\nmsgstr ""\n'
+	const ours = 'msgid ""\nmsgstr ""\n\nmsgid "Retired"\nmsgstr "Retirado"\n'
+	const theirs = 'msgid ""\nmsgstr ""\n\nmsgid "Older posts"\nmsgstr "Entradas anteriores"\n'
+
+	expect(keepingAnswers(ours, theirs, naming)).not.toContain('Retirado')
 })
 
 test('refuses a region the application does not answer in, rather than taking another', () => {

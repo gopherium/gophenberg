@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { localeFor, meaningfulChange, namedByTemplate, translated, withPluralRuleOf } from './poeditor.ts'
+import {
+	keepingAnswers,
+	localeFor,
+	meaningfulChange,
+	namedByTemplate,
+	translated,
+	withPluralRuleOf,
+} from './poeditor.ts'
 import type { Poeditor } from './poeditor.ts'
 
 /** Where the catalogues a sync reads and writes live. */
@@ -13,6 +20,27 @@ export interface Catalogues {
 export interface Synced {
 	moved: string[]
 	skipped: string[]
+	kept: string[]
+}
+
+/**
+ * Returns the catalogue a sync writes and how many committed answers it restored.
+ * @param current - The catalogue as committed, or nothing when none is committed yet.
+ * @param exported - The catalogue the platform exported, trimmed to the template.
+ * @param template - The catalogue template naming every message the site shows.
+ * @returns The catalogue to write and the count of answers the export had lost.
+ */
+function merged(
+	current: string | undefined,
+	exported: string,
+	template: string,
+): { incoming: string, restored: number } {
+	if (current === undefined) {
+		return { incoming: exported, restored: 0 }
+	}
+	const clamped = withPluralRuleOf(current, exported)
+	const incoming = keepingAnswers(current, clamped, template)
+	return { incoming, restored: translated(incoming) - translated(clamped) }
 }
 
 /**
@@ -31,6 +59,7 @@ export async function syncTranslations(
 ): Promise<Synced> {
 	const moved: string[] = []
 	const skipped: string[] = []
+	const kept: string[] = []
 	await platform.uploadTerms(template)
 	for (const named of await platform.languages()) {
 		const locale = localeFor(named, supported)
@@ -44,12 +73,15 @@ export async function syncTranslations(
 			continue
 		}
 		const current = held.read(locale)
-		const incoming = current === undefined ? exported : withPluralRuleOf(current, exported)
+		const { incoming, restored } = merged(current, exported, template)
+		if (restored > 0) {
+			kept.push(`${locale}, keeping ${restored} answered where the platform holds nothing`)
+		}
 		if (!meaningfulChange(current, incoming)) {
 			continue
 		}
 		held.write(locale, incoming)
 		moved.push(locale)
 	}
-	return { moved, skipped }
+	return { moved, skipped, kept }
 }

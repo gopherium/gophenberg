@@ -30,3 +30,6 @@ console.log(done.moved.length === 0 ? 'no translation moved' : `translations mov
 for (const held of done.skipped) {
 	console.log(`skipped ${held}`)
 }
+for (const held of done.kept) {
+	console.log(`kept ${held}`)
+}

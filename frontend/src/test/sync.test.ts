@@ -157,6 +157,57 @@ msgstr "Retirado"
 	expect(done.skipped[0]).toContain('nobody has translated')
 })
 
+test('keeps an answer the platform holds empty', async () => {
+	const naming = 'msgid "Older posts"\nmsgstr ""\n\nmsgid "Newer posts"\nmsgstr ""\n'
+	const theirs = `${HEADER}
+msgid "Older posts"
+msgstr ""
+
+msgid "Newer posts"
+msgstr "Entradas nuevas"
+`
+	const platform = platformOf(['es'], { es: theirs })
+	const { held, written } = storeOf({ 'es-ES': catalogue('Entradas anteriores') })
+
+	await syncTranslations(platform, ['en-US', 'es-ES'], held, naming)
+
+	expect(written['es-ES']).toContain('Entradas nuevas')
+	expect(written['es-ES']).toContain('Entradas anteriores')
+})
+
+test('keeps an answer the export does not carry', async () => {
+	const naming = 'msgid "Older posts"\nmsgstr ""\n\nmsgid "Newer posts"\nmsgstr ""\n'
+	const theirs = `${HEADER}
+msgid "Newer posts"
+msgstr "Entradas nuevas"
+`
+	const platform = platformOf(['es'], { es: theirs })
+	const { held, written } = storeOf({ 'es-ES': catalogue('Entradas anteriores') })
+
+	await syncTranslations(platform, ['en-US', 'es-ES'], held, naming)
+
+	expect(written['es-ES']).toContain('Entradas nuevas')
+	expect(written['es-ES']).toContain('Entradas anteriores')
+})
+
+test('reports the answers it kept for a language', async () => {
+	const naming = 'msgid "Older posts"\nmsgstr ""\n\nmsgid "Newer posts"\nmsgstr ""\n'
+	const theirs = `${HEADER}
+msgid "Older posts"
+msgstr ""
+
+msgid "Newer posts"
+msgstr "Entradas nuevas"
+`
+	const platform = platformOf(['es'], { es: theirs })
+	const { held } = storeOf({ 'es-ES': catalogue('Entradas anteriores') })
+
+	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held, naming)
+
+	expect(done.kept[0]).toContain('es-ES')
+	expect(done.kept[0]).toContain('1')
+})
+
 test('keeps the plural rule the committed catalogue declares', async () => {
 	const theirs = `msgid ""
 msgstr ""
