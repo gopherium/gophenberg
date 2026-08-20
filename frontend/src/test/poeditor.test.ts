@@ -352,6 +352,31 @@ msgstr[1] ""
 	expect(held).not.toContain('una entrada')
 })
 
+test('keeps every committed form when the export flattens the entry', () => {
+	const naming = 'msgid "%(count)d post"\nmsgid_plural "%(count)d posts"\nmsgstr[0] ""\nmsgstr[1] ""\n'
+	const ours = `msgid ""
+msgstr ""
+"Plural-Forms: nplurals=2; plural=(n != 1);\\n"
+
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "una entrada"
+msgstr[1] "varias entradas"
+`
+	const theirs = `msgid ""
+msgstr ""
+"Plural-Forms: nplurals=2; plural=(n != 1);\\n"
+
+msgid "%(count)d post"
+msgstr "una entrada"
+`
+
+	const held = keepingAnswers(ours, theirs, naming)
+
+	expect(held).toContain('varias entradas')
+	expect(held).toContain('msgid_plural')
+})
+
 test('keeps committed forms the export stops short of', () => {
 	const naming = 'msgid "%(count)d post"\nmsgid_plural "%(count)d posts"\nmsgstr[0] ""\nmsgstr[1] ""\n'
 	const ours = `msgid ""

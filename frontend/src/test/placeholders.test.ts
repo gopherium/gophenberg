@@ -7,6 +7,34 @@ import { describe, expect, test } from 'vitest'
 import { repositoryRoot } from '../../scripts/pot.ts'
 import { mismatched } from '../../scripts/completeness.ts'
 
+test('passes a translation keeping the bare placeholder its message names', () => {
+	const naming = 'msgid "Disable %s"\nmsgstr ""\n'
+	const answered = 'msgid "Disable %s"\nmsgstr "Desactivar a %s"\n'
+
+	expect(mismatched(answered, naming)).toEqual([])
+})
+
+test('names a translation dropping the bare placeholder its message names', () => {
+	const naming = 'msgid "Disable %s"\nmsgstr ""\n'
+	const dropped = 'msgid "Disable %s"\nmsgstr "Desactivar"\n'
+
+	expect(mismatched(dropped, naming)).toEqual(['Disable %s'])
+})
+
+test('passes a translation reordering the positional placeholders its message names', () => {
+	const naming = 'msgid "%1$s of %2$s"\nmsgstr ""\n'
+	const answered = 'msgid "%1$s of %2$s"\nmsgstr "%2$s de %1$s"\n'
+
+	expect(mismatched(answered, naming)).toEqual([])
+})
+
+test('names a translation carrying a bare placeholder its message does not name', () => {
+	const naming = 'msgid "Saved"\nmsgstr ""\n'
+	const bare = 'msgid "Saved"\nmsgstr "Guardado %s"\n'
+
+	expect(mismatched(bare, naming)).toEqual(['Saved'])
+})
+
 /** The separator gettext writes between a context and the message it qualifies. */
 const CONTEXT = String.fromCharCode(4)
 

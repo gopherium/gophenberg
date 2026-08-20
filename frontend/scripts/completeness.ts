@@ -58,7 +58,7 @@ export function orphaned(source: string, template: string): string[] {
 const NAMED = /%\(([A-Za-z_][A-Za-z0-9_]*)\)[bcdieEfgGosuxX]/g
 
 /** A placeholder naming nothing. */
-const BARE = /%(?:\d+\$)?[bcdieEfgGosuxX]/
+const BARE = /%(?:\d+\$)?[bcdieEfgGosuxX]/g
 
 /**
  * Returns the placeholders a message names, each once.
@@ -70,12 +70,22 @@ function placeholders(message: string): string[] {
 }
 
 /**
- * Returns whether a message carries a placeholder naming nothing.
+ * Returns the placeholders a message carries that name nothing, in a settled order.
  * @param message - The message to read.
- * @returns Whether a bare placeholder is present.
+ * @returns The bare placeholders, sorted.
  */
-function carriesBare(message: string): boolean {
-	return BARE.test(message.replace(NAMED, ''))
+function bare(message: string): string[] {
+	return [...message.replace(NAMED, '').matchAll(BARE)].map((found) => found[0]).sort()
+}
+
+/**
+ * Returns whether two placeholder lists hold the same members.
+ * @param left - The list on the left.
+ * @param right - The list on the right.
+ * @returns Whether both hold the same members.
+ */
+function alike(left: string[], right: string[]): boolean {
+	return left.length === right.length && left.every((held, at) => held === right[at])
 }
 
 /**
@@ -85,12 +95,10 @@ function carriesBare(message: string): boolean {
  * @returns Whether the form matches.
  */
 function answersPlaceholders(form: string, message: string): boolean {
-	if (form === '' || carriesBare(form)) {
-		return form === ''
+	if (form === '') {
+		return true
 	}
-	const named = placeholders(form)
-	const wanted = placeholders(message)
-	return named.length === wanted.length && named.every((held, at) => held === wanted[at])
+	return alike(placeholders(form), placeholders(message)) && alike(bare(form), bare(message))
 }
 
 /**
