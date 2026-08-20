@@ -77,10 +77,10 @@ export function withPluralRuleOf(current: string, incoming: string): string {
 	const held = po.parse(incoming)
 	held.headers['Plural-Forms'] = rule
 	const counted = /nplurals\s*=\s*(\d+)/.exec(rule)
-	if (counted === null) {
-		throw new Error('the committed catalogue declares a plural rule naming no count')
+	const forms = counted === null ? 0 : Number(counted[1])
+	if (forms < 1) {
+		throw new Error('the committed catalogue declares a plural rule naming no usable count')
 	}
-	const forms = Number(counted[1])
 	for (const entries of Object.values(held.translations)) {
 		for (const entry of Object.values(entries)) {
 			if (entry.msgstr.length > forms) {

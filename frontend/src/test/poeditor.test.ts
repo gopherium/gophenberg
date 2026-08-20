@@ -264,6 +264,18 @@ msgstr[1] "%d entradas"
 	expect(() => withPluralRuleOf(ours, theirs)).toThrow(/count/)
 })
 
+test('refuses a committed rule naming fewer than one form', () => {
+	const ours = 'msgid ""\nmsgstr ""\n"Plural-Forms: nplurals=0; plural=0;\\n"\n'
+	const theirs = `msgid ""
+msgstr ""
+
+msgid "Older posts"
+msgstr "Entradas anteriores"
+`
+
+	expect(() => withPluralRuleOf(ours, theirs)).toThrow(/count/)
+})
+
 test('keeps a current answer the incoming catalogue leaves empty', () => {
 	const naming = 'msgid "Older posts"\nmsgstr ""\n'
 	const ours = 'msgid ""\nmsgstr ""\n\nmsgid "Older posts"\nmsgstr "Entradas anteriores"\n'
