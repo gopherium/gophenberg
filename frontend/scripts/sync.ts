@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+	answeredForms,
 	keepingAnswers,
 	localeFor,
 	meaningfulChange,
@@ -40,7 +41,7 @@ function merged(
 	}
 	const clamped = withPluralRuleOf(current, exported)
 	const incoming = keepingAnswers(current, clamped, template)
-	return { incoming, restored: translated(incoming) - translated(clamped) }
+	return { incoming, restored: answeredForms(incoming) - answeredForms(clamped) }
 }
 
 /**

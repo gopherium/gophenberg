@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
 
 import {
+	answeredForms,
 	keepingAnswers,
 	localeFor,
 	localeOf,
@@ -301,6 +302,118 @@ test('restores an answer the incoming catalogue does not carry', () => {
 	const theirs = 'msgid ""\nmsgstr ""\n'
 
 	expect(keepingAnswers(ours, theirs, naming)).toContain('Entradas anteriores')
+})
+
+test('keeps a plural form the incoming catalogue leaves empty', () => {
+	const naming = 'msgid "%(count)d post"\nmsgid_plural "%(count)d posts"\nmsgstr[0] ""\nmsgstr[1] ""\n'
+	const ours = `msgid ""
+msgstr ""
+
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "%(count)d entrada"
+msgstr[1] "%(count)d entradas"
+`
+	const theirs = `msgid ""
+msgstr ""
+
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "%(count)d entrada"
+msgstr[1] ""
+`
+
+	expect(keepingAnswers(ours, theirs, naming)).toContain('%(count)d entradas')
+})
+
+test('takes each incoming form over the committed one it answers', () => {
+	const naming = 'msgid "%(count)d post"\nmsgid_plural "%(count)d posts"\nmsgstr[0] ""\nmsgstr[1] ""\n'
+	const ours = `msgid ""
+msgstr ""
+
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "una entrada"
+msgstr[1] "varias entradas"
+`
+	const theirs = `msgid ""
+msgstr ""
+
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "la entrada"
+msgstr[1] ""
+`
+
+	const held = keepingAnswers(ours, theirs, naming)
+
+	expect(held).toContain('la entrada')
+	expect(held).toContain('varias entradas')
+	expect(held).not.toContain('una entrada')
+})
+
+test('keeps committed forms the export stops short of', () => {
+	const naming = 'msgid "%(count)d post"\nmsgid_plural "%(count)d posts"\nmsgstr[0] ""\nmsgstr[1] ""\n'
+	const ours = `msgid ""
+msgstr ""
+
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "una entrada"
+msgstr[1] "varias entradas"
+`
+	const theirs = `msgid ""
+msgstr ""
+
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "la entrada"
+`
+
+	const held = keepingAnswers(ours, theirs, naming)
+
+	expect(held).toContain('la entrada')
+	expect(held).toContain('varias entradas')
+})
+
+test('leaves a form empty that neither catalogue answers', () => {
+	const naming = 'msgid "%(count)d post"\nmsgid_plural "%(count)d posts"\nmsgstr[0] ""\nmsgstr[1] ""\n'
+	const ours = `msgid ""
+msgstr ""
+
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "una entrada"
+`
+	const theirs = `msgid ""
+msgstr ""
+
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "la entrada"
+msgstr[1] ""
+`
+
+	const held = keepingAnswers(ours, theirs, naming)
+
+	expect(held).toContain('la entrada')
+	expect(held).toMatch(/msgstr\[1\] ""/)
+})
+
+test('counts every answered form a catalogue carries', () => {
+	const held = `msgid ""
+msgstr ""
+
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "%(count)d entrada"
+msgstr[1] ""
+
+msgid "Older posts"
+msgstr "Entradas anteriores"
+`
+
+	expect(answeredForms(held)).toBe(2)
 })
 
 test('restores an answer under a context the incoming catalogue does not know', () => {

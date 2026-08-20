@@ -63,6 +63,23 @@ export function translated(source: string): number {
 }
 
 /**
+ * Returns how many translated forms a catalogue carries.
+ * @param source - The catalogue as PO text.
+ * @returns The count of answered forms across every message.
+ */
+export function answeredForms(source: string): number {
+	let held = 0
+	for (const entries of Object.values(po.parse(source).translations)) {
+		for (const [msgid, entry] of Object.entries(entries)) {
+			if (msgid !== '') {
+				held += entry.msgstr.filter((form) => form !== '').length
+			}
+		}
+	}
+	return held
+}
+
+/**
  * Returns an incoming catalogue under the plural rule the committed one declares.
  * @param current - The catalogue as committed.
  * @param incoming - The catalogue the platform exported.
@@ -115,15 +132,30 @@ export function keepingAnswers(current: string, incoming: string, template: stri
 
 /**
  * Reports whether a catalogue entry carries any translated form.
- * @param entry - The entry to read, or nothing when the catalogue lacks it.
+ * @param entry - The entry to read.
  * @returns True when a form holds text.
  */
-function answered(entry: GetTextTranslation | undefined): boolean {
-	return entry !== undefined && entry.msgstr.some((form) => form !== '')
+function answered(entry: GetTextTranslation): boolean {
+	return entry.msgstr.some((form) => form !== '')
 }
 
 /**
- * Writes one committed answer into a catalogue that arrived without it.
+ * Returns the forms a catalogue keeps, taking each answered form over an empty one.
+ * @param ours - The forms as committed.
+ * @param theirs - The forms the platform exported.
+ * @returns The forms, answered wherever either side answers them.
+ */
+function mergedForms(ours: string[], theirs: string[]): string[] {
+	const held: string[] = []
+	for (let at = 0; at < Math.max(ours.length, theirs.length); at += 1) {
+		const arrived = theirs[at] ?? ''
+		held.push(arrived === '' ? (ours[at] ?? '') : arrived)
+	}
+	return held
+}
+
+/**
+ * Writes one committed answer into a catalogue that arrived without every form of it.
  * @param held - The catalogue the platform exported, as parsed.
  * @param context - The context the answer sits under.
  * @param msgid - The message the answer belongs to.
@@ -135,11 +167,13 @@ function restoring(
 	msgid: string,
 	entry: GetTextTranslation,
 ): void {
-	if (answered(held.translations[context]?.[msgid])) {
+	const arrived = held.translations[context]?.[msgid]
+	if (arrived === undefined) {
+		held.translations[context] ??= {}
+		held.translations[context][msgid] = entry
 		return
 	}
-	held.translations[context] ??= {}
-	held.translations[context][msgid] = entry
+	arrived.msgstr = mergedForms(entry.msgstr, arrived.msgstr)
 }
 
 /**

@@ -208,6 +208,30 @@ msgstr "Entradas nuevas"
 	expect(done.kept[0]).toContain('1')
 })
 
+test('keeps the plural forms the platform holds empty and counts them', async () => {
+	const naming = 'msgid "%(count)d post"\nmsgid_plural "%(count)d posts"\nmsgstr[0] ""\nmsgstr[1] ""\n'
+	const ours = `${HEADER}
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "%(count)d entrada"
+msgstr[1] "%(count)d entradas"
+`
+	const theirs = `${HEADER}
+msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "%(count)d entrada nueva"
+msgstr[1] ""
+`
+	const platform = platformOf(['es'], { es: theirs })
+	const { held, written } = storeOf({ 'es-ES': ours })
+
+	const done = await syncTranslations(platform, ['en-US', 'es-ES'], held, naming)
+
+	expect(written['es-ES']).toContain('%(count)d entrada nueva')
+	expect(written['es-ES']).toContain('%(count)d entradas')
+	expect(done.kept[0]).toContain('1')
+})
+
 test('keeps the plural rule the committed catalogue declares', async () => {
 	const theirs = `msgid ""
 msgstr ""
