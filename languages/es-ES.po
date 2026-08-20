@@ -243,83 +243,63 @@ msgstr "Vaciar la papelera"
 msgid "Enable"
 msgstr "Activar"
 
-#, fuzzy
 msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
 msgstr "Cambian todas las direcciones de este tipo. Los enlaces guardados en otro sitio hacia las direcciones antiguas dejan de funcionar."
 
-#, fuzzy
 msgid "Every item needs an author who exists. Pick one from the list and save again."
 msgstr "Cada elemento necesita un autor que exista. Elige uno de la lista y guarda de nuevo."
 
-#, fuzzy
 msgid "Every kind of content this site holds."
 msgstr "Todos los tipos de contenido que hay en este sitio."
 
-#, fuzzy
 msgid "Every post in the trash is removed for good. This cannot be undone."
 msgstr "Todas las entradas de la papelera se borran para siempre. Esto no se puede deshacer."
 
-#, fuzzy
 msgid "Every value stored under this field goes with it, in every item of this type and in the revisions behind them."
 msgstr "Todo lo guardado en este campo se va con él, en todos los elementos de este tipo y en las revisiones que hay detrás."
 
-#, fuzzy
 msgid "Excerpt"
 msgstr "Extracto"
 
-#, fuzzy
 msgid "February"
 msgstr "febrero"
 
-#, fuzzy
 msgid "Fields"
 msgstr "Campos"
 
-#, fuzzy
 msgid "File name"
 msgstr "Nombre del archivo"
 
-#, fuzzy
 msgid "File size"
 msgstr "Tamaño del archivo"
 
-#, fuzzy
 msgid "File type"
 msgstr "Tipo de archivo"
 
-#, fuzzy
 msgid "Files"
 msgstr "Archivos"
 
-#, fuzzy
 msgid "Filter by status"
 msgstr "Filtrar por estado"
 
-#, fuzzy
 msgid "Follow the browser"
-msgstr "Seguir al navegador"
+msgstr "Sigue al navegador"
 
-#, fuzzy
 msgid "Full Size"
 msgstr "Tamaño completo"
 
-#, fuzzy
 msgid "Gophenberg could not read what your browser sent. Reload the page and try again, and tell whoever looks after your site if it keeps happening."
-msgstr "Gophenberg no ha podido leer lo que ha enviado tu navegador. Recarga la página e inténtalo de nuevo, y avisa a quien lleve tu sitio si sigue pasando."
+msgstr "Gophenberg no ha podido leer lo que ha enviado tu navegador. Recarga la página e inténtalo de nuevo, y avisa a quien gestiona tu sitio si sigue pasando."
 
-#, fuzzy
 msgid "Gophenberg could not read which item you picked as parent. Reload the page and pick it again."
-msgstr "Gophenberg no ha podido leer qué elemento has elegido como superior. Recarga la página y vuelve a elegirlo."
+msgstr "Gophenberg no ha podido leer qué elemento has elegido como elemento superior. Recarga la página y vuelve a elegirlo."
 
-#, fuzzy
 msgid "Gophenberg does not accept %(extension)s files. Upload a picture, a video, an audio file, a PDF or a zip instead."
 msgstr "Gophenberg no acepta archivos %(extension)s. Sube una imagen, un vídeo, un audio, un PDF o un zip."
 
-#, fuzzy
 msgid "Gophenberg does not answer in %(value)s. Pick one of the languages on the list."
 msgstr "Gophenberg no responde en %(value)s. Elige uno de los idiomas de la lista."
 
-#, fuzzy
 msgid "Gophenberg has no autosave of yours for this item. Open the item to see the version that is stored."
 msgstr "Gophenberg no tiene ningún guardado automático tuyo de este elemento. Ábrelo para ver la versión guardada."
 
@@ -479,11 +459,9 @@ msgstr "octubre"
 msgid "Older posts"
 msgstr "Entradas anteriores"
 
-#, fuzzy
 msgid "One frame of this animation holds more than %(max)d pixels, which is more than Gophenberg opens. Upload a smaller animation."
 msgstr "Un fotograma de esta animación tiene más de %(max)d píxeles, más de lo que Gophenberg abre. Sube una animación más pequeña."
 
-#, fuzzy
 msgid "One of the filters on this list is not one Gophenberg understands. Clear the filters and try again."
 msgstr "Uno de los filtros de esta lista no es un filtro que Gophenberg entienda. Quita los filtros e inténtalo de nuevo."
 
