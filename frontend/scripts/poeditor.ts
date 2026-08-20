@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { po } from 'gettext-parser'
+import type { GetTextTranslation, GetTextTranslations } from 'gettext-parser'
 
 /** Where the application declares the languages it answers in. */
 const LOCALE_SOURCE = ['internal', 'content', 'locale.go']
@@ -40,8 +41,8 @@ export function localeFor(code: string, supported: string[]): string | undefined
 	if (code.includes('-')) {
 		return undefined
 	}
-	const sharing = supported.filter((held) => held.split('-')[0] === code)
-	return sharing.length === 1 ? sharing[0] : undefined
+	const doubled = localeOf(`${code}-${code}`)
+	return supported.includes(doubled) ? doubled : undefined
 }
 
 /**
@@ -75,7 +76,11 @@ export function withPluralRuleOf(current: string, incoming: string): string {
 	}
 	const held = po.parse(incoming)
 	held.headers['Plural-Forms'] = rule
-	const forms = Number(/nplurals\s*=\s*(\d+)/.exec(rule)?.[1] ?? 1)
+	const counted = /nplurals\s*=\s*(\d+)/.exec(rule)
+	const forms = counted === null ? 0 : Number(counted[1])
+	if (forms < 1) {
+		throw new Error('the committed catalogue declares a plural rule naming no usable count')
+	}
 	for (const entries of Object.values(held.translations)) {
 		for (const entry of Object.values(entries)) {
 			if (entry.msgstr.length > forms) {
@@ -84,6 +89,57 @@ export function withPluralRuleOf(current: string, incoming: string): string {
 		}
 	}
 	return po.compile(held, { foldLength: 0, eol: '\n' }).toString()
+}
+
+/**
+ * Returns an incoming catalogue restoring every committed answer it lost.
+ * @param current - The catalogue as committed.
+ * @param incoming - The catalogue the platform exported.
+ * @param template - The template naming every message the catalogue may carry.
+ * @returns The incoming catalogue, keeping each committed answer the export holds empty or lacks.
+ */
+export function keepingAnswers(current: string, incoming: string, template: string): string {
+	const named = po.parse(template).translations
+	const ours = po.parse(current).translations
+	const held = po.parse(incoming)
+	for (const [context, entries] of Object.entries(ours)) {
+		for (const [msgid, entry] of Object.entries(entries)) {
+			if (msgid === '' || named[context]?.[msgid] === undefined || !answered(entry)) {
+				continue
+			}
+			restoring(held, context, msgid, entry)
+		}
+	}
+	return po.compile(held, { foldLength: 0, eol: '\n' }).toString()
+}
+
+/**
+ * Reports whether a catalogue entry carries any translated form.
+ * @param entry - The entry to read, or nothing when the catalogue lacks it.
+ * @returns True when a form holds text.
+ */
+function answered(entry: GetTextTranslation | undefined): boolean {
+	return entry !== undefined && entry.msgstr.some((form) => form !== '')
+}
+
+/**
+ * Writes one committed answer into a catalogue that arrived without it.
+ * @param held - The catalogue the platform exported, as parsed.
+ * @param context - The context the answer sits under.
+ * @param msgid - The message the answer belongs to.
+ * @param entry - The committed answer.
+ */
+function restoring(
+	held: GetTextTranslations,
+	context: string,
+	msgid: string,
+	entry: GetTextTranslation,
+): void {
+	if (answered(held.translations[context]?.[msgid])) {
+		return
+	}
+	held.translations[context] ??= {}
+	held.translations[context][msgid] = entry
 }
 
 /**
