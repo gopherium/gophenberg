@@ -465,165 +465,125 @@ msgstr "Un fotograma de esta animación tiene más de %(max)d píxeles, más de 
 msgid "One of the filters on this list is not one Gophenberg understands. Clear the filters and try again."
 msgstr "Uno de los filtros de esta lista no es un filtro que Gophenberg entienda. Quita los filtros e inténtalo de nuevo."
 
-#, fuzzy
 msgid "One of the items picked for %(field)s is not the kind of content that field points at. Reload the page and pick from the list the field offers."
 msgstr "Uno de los elementos elegidos para %(field)s no es del tipo de contenido al que apunta ese campo. Recarga la página y elige de la lista que ofrece el campo."
 
-#, fuzzy
 msgid "One of the items picked for %(field)s was not named in a way Gophenberg understands. Reload the page and pick the items again."
 msgstr "Uno de los elementos elegidos para %(field)s no venía nombrado de una forma que Gophenberg entienda. Recarga la página y vuelve a elegir los elementos."
 
-#, fuzzy
 msgid "One of the items picked no longer exists. Reload the page and pick again."
 msgstr "Uno de los elementos elegidos ya no existe. Recarga la página y vuelve a elegir."
 
-#, fuzzy
 msgid "Only a relation field points at another content type or holds many items. Pick the Relation kind, or leave the target and the many option empty."
-msgstr "Solo un campo de relación apunta a otro tipo de contenido o guarda varios elementos. Elige el tipo Relación, o deja vacíos el destino y la opción de varios."
+msgstr "Solo un campo de relación apunta a otro tipo de contenido o guarda varios elementos. Elige el tipo Relación, o deja vacío el destino y la opción de varios."
 
-#, fuzzy
 msgid "Only one file may be placed here."
 msgstr "Aquí solo se puede colocar un archivo."
 
-#, fuzzy
 msgid "Only the content type at the root of your site may go without a route word. Give this type one and try again."
-msgstr "Solo el tipo de contenido que está en la raíz de tu sitio puede ir sin palabra de ruta. Dale una a este tipo e inténtalo de nuevo."
+msgstr "Solo el tipo de contenido que está en la raíz de tu sitio puede ir sin palabra de ruta de URL. Dale una a este tipo e inténtalo de nuevo."
 
-#, fuzzy
 msgid "Open navigation"
 msgstr "Abrir la navegación"
 
-#, fuzzy
 msgid "Parent"
-msgstr "Superior"
+msgstr "Elemento Superior"
 
-#, fuzzy
 msgid "Password"
 msgstr "Contraseña"
 
-#, fuzzy
 msgid "Pending"
 msgstr "Pendiente"
 
-#, fuzzy
 msgid "Plural name"
 msgstr "Nombre en plural"
 
-#, fuzzy
 msgid "Points at"
 msgstr "Apunta a"
 
-#, fuzzy
 msgid "Post published."
 msgstr "Entrada publicada."
 
-#, fuzzy
 msgid "Preview"
 msgstr "Vista previa"
 
-#, fuzzy
 msgid "Private"
 msgstr "Privado"
 
-#, fuzzy
 msgid "Publish"
 msgstr "Publicar"
 
-#, fuzzy
 msgid "Redo"
 msgstr "Rehacer"
 
-#, fuzzy
 msgid "Register"
 msgstr "Registrar"
 
-#, fuzzy
 msgid "Register a content type"
 msgstr "Registrar un tipo de contenido"
 
-#, fuzzy
 msgid "Relation"
 msgstr "Relación"
 
-#, fuzzy
 msgid "Rename"
 msgstr "Renombrar"
 
-#, fuzzy
 msgid "Restore"
 msgstr "Restaurar"
 
-#, fuzzy
 msgid "Roll back to the built-in renderer"
 msgstr "Revertir al renderizador integrado"
 
-#, fuzzy
 msgid "Route word"
 msgstr "Palabra de ruta"
 
-#, fuzzy
 msgid "Save"
 msgstr "Guardar"
 
-#, fuzzy
 msgid "Save draft"
 msgstr "Guardar el borrador"
 
-#, fuzzy
 msgid "Saved"
 msgstr "Guardado"
 
-#, fuzzy
 msgid "Saving"
 msgstr "Guardando"
 
-#, fuzzy
 msgid "Scheduled"
 msgstr "Programado"
 
-#, fuzzy
 msgid "Search audio"
 msgstr "Buscar audios"
 
-#, fuzzy
 msgid "Search images"
 msgstr "Buscar imágenes"
 
-#, fuzzy
 msgid "Search media"
 msgstr "Buscar medios"
 
-#, fuzzy
 msgid "Search videos"
 msgstr "Buscar vídeos"
 
-#, fuzzy
 msgid "Select"
 msgstr "Seleccionar"
 
-#, fuzzy
 msgid "September"
 msgstr "septiembre"
 
-#, fuzzy
 msgid "Serving"
-msgstr "Sirviendo"
+msgstr "Atendiendo"
 
-#, fuzzy
 msgid "Singular name"
 msgstr "Nombre en singular"
 
-#, fuzzy
 msgid "Slug"
 msgstr "Slug"
 
-#, fuzzy
 msgid "Someone else changed this media item while you were editing it. Reload the page and make your change again."
 msgstr "Otra persona ha cambiado este medio mientras lo editabas. Recarga la página y vuelve a hacer tu cambio."
 
-#, fuzzy
 msgid "Someone else saved changes to this item while you were editing, so yours were not saved. Copy your text somewhere safe, then reload the item and put your changes back in."
-msgstr "Otra persona ha guardado cambios en este elemento mientras editabas, así que los tuyos no se han guardado. Copia tu texto a un lugar seguro, recarga el elemento y vuelve a ponerlos."
+msgstr "Otra persona ha guardado cambios en este elemento mientras editabas, así que los tuyos no se han guardado. Copia tu texto a un lugar seguro, recarga el elemento y vuelve a colocarlos de vuelta."
 
 #, fuzzy
 msgid "Something went wrong inside Gophenberg. Try again in a moment, and tell whoever looks after your site if it keeps happening."
@@ -1166,17 +1126,14 @@ msgstr "Quitar %(title)s"
 msgid "Rename %(field)s"
 msgstr "Renombrar %(field)s"
 
-#, fuzzy
 msgid "Roll back to %(theme)s"
 msgstr "Revertir a %(theme)s"
 
-#, fuzzy
 msgid "Search %(type)s"
 msgstr "Buscar %(type)s"
 
-#, fuzzy
 msgid "This type will answer under /%(word)s."
-msgstr "Este tipo responderá en /%(word)s."
+msgstr "Este tipo responderá como /%(word)s."
 
 msgid "{day} {month} {year}"
 msgstr "{day} de {month} de {year}"
