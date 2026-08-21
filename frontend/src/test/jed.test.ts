@@ -5,8 +5,9 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
-import { catalogTargets, compileCatalog, serializeCatalog } from '../../scripts/jed.ts'
-import { repositoryRoot } from '../../scripts/pot.ts'
+import { compileCatalog, serializeCatalog } from '@gopherium/gottext/build'
+
+import { catalogTargets, repositoryRoot } from '../../scripts/config.ts'
 
 const CATALOG = `msgid ""
 msgstr ""

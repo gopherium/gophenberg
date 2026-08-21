@@ -3,8 +3,9 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { catalogTargets, compileCatalog, serializeCatalog } from './jed.ts'
-import { repositoryRoot } from './pot.ts'
+import { compileCatalog, serializeCatalog } from '@gopherium/gottext/build'
+
+import { catalogTargets, repositoryRoot } from './config.ts'
 
 const root = repositoryRoot()
 const sources = join(root, 'languages')

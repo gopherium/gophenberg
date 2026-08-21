@@ -4,8 +4,9 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
-import { repositoryRoot } from '../../scripts/pot.ts'
-import { orphaned, untranslated } from '../../scripts/completeness.ts'
+import { orphaned, untranslated } from '@gopherium/gottext/build'
+
+import { repositoryRoot } from '../../scripts/config.ts'
 
 /**
  * Returns every language the repository ships a catalogue for.

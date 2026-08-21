@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import type { Catalog } from './jed.ts'
+import type { Catalog } from '@gopherium/gottext/build'
 
 /** The Gutenberg release whose packages this repository pins. */
 export const EDITOR_RELEASE = '23.7.2'

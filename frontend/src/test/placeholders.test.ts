@@ -4,8 +4,9 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
-import { repositoryRoot } from '../../scripts/pot.ts'
-import { mismatched } from '../../scripts/completeness.ts'
+import { mismatched } from '@gopherium/gottext/build'
+
+import { repositoryRoot } from '../../scripts/config.ts'
 
 test('passes a translation keeping the bare placeholder its message names', () => {
 	const naming = 'msgid "Disable %s"\nmsgstr ""\n'
