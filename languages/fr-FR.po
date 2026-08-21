@@ -1353,6 +1353,14 @@ msgstr "{day} {month} {year}"
 #, fuzzy
 #, fuzzy
 msgctxt "account"
+msgid "Role"
+msgstr "Rôle"
+
+msgctxt "account"
+msgid "Role of %(name)s"
+msgstr "Rôle de %(name)s"
+
+msgctxt "account"
 msgid "Status"
 msgstr "État"
 
@@ -1410,6 +1418,22 @@ msgstr "Type"
 msgctxt "person"
 msgid "Name"
 msgstr "Nom"
+
+msgctxt "rank"
+msgid "Administrator"
+msgstr "Administrateur"
+
+msgctxt "rank"
+msgid "Author"
+msgstr "Auteur"
+
+msgctxt "rank"
+msgid "Editor"
+msgstr "Éditeur"
+
+msgctxt "rank"
+msgid "Unranked"
+msgstr "Sans rôle"
 
 #, fuzzy
 msgctxt "post"

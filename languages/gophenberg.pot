@@ -1014,6 +1014,14 @@ msgid "{day} {month} {year}"
 msgstr ""
 
 msgctxt "account"
+msgid "Role"
+msgstr ""
+
+msgctxt "account"
+msgid "Role of %(name)s"
+msgstr ""
+
+msgctxt "account"
 msgid "Status"
 msgstr ""
 
@@ -1075,6 +1083,22 @@ msgstr ""
 
 msgctxt "post status"
 msgid "Trash"
+msgstr ""
+
+msgctxt "rank"
+msgid "Administrator"
+msgstr ""
+
+msgctxt "rank"
+msgid "Author"
+msgstr ""
+
+msgctxt "rank"
+msgid "Editor"
+msgstr ""
+
+msgctxt "rank"
+msgid "Unranked"
 msgstr ""
 
 msgctxt "status filter"

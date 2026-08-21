@@ -1021,6 +1021,14 @@ msgid "{day} {month} {year}"
 msgstr "{day} de {month} de {year}"
 
 msgctxt "account"
+msgid "Role"
+msgstr "Rol"
+
+msgctxt "account"
+msgid "Role of %(name)s"
+msgstr "Rol de %(name)s"
+
+msgctxt "account"
 msgid "Status"
 msgstr "Estado"
 
@@ -1067,6 +1075,22 @@ msgstr "Clase"
 msgctxt "person"
 msgid "Name"
 msgstr "Nombre"
+
+msgctxt "rank"
+msgid "Administrator"
+msgstr "Administrador"
+
+msgctxt "rank"
+msgid "Author"
+msgstr "Autor"
+
+msgctxt "rank"
+msgid "Editor"
+msgstr "Editor"
+
+msgctxt "rank"
+msgid "Unranked"
+msgstr "Sin rol"
 
 msgctxt "post"
 msgid "Status"
