@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { DOMAIN as BRICK_DOMAIN, catalogFor as brickCatalogFor } from '@gopherium/react-auth'
-import { setLocaleData } from '@wordpress/i18n'
+
+import { startLocale as start } from '@gopherium/gottext'
 
 import { fetchLocale } from './api'
-import { catalogFor, editorCatalogFor, type Catalog } from './catalog'
-import { rememberLocale } from './display'
+import { DEFAULT_LOCALE, catalogFor, editorCatalogFor, type Catalog } from './catalog'
 
 /** The text domain every Gophenberg owned string names. */
 export const DOMAIN = 'gophenberg'
@@ -26,21 +26,13 @@ const shipped: Catalogs = { own: catalogFor, editor: editorCatalogFor, brick: br
  * @returns The language the admin reads in.
  */
 export async function startLocale(from: Catalogs = shipped): Promise<string> {
-	const { locale } = await fetchLocale()
-	rememberLocale(locale)
-	const [own, editor, brick] = await Promise.all([
-		from.own(locale),
-		from.editor(locale),
-		from.brick(locale),
-	])
-	if (own !== undefined) {
-		setLocaleData(own, DOMAIN)
-	}
-	if (editor !== undefined) {
-		setLocaleData(editor)
-	}
-	if (brick !== undefined) {
-		setLocaleData(brick, BRICK_DOMAIN)
-	}
-	return locale
+	return start(
+		async () => (await fetchLocale()).locale,
+		[
+			{ domain: DOMAIN, load: from.own },
+			{ load: from.editor },
+			{ domain: BRICK_DOMAIN, load: from.brick },
+		],
+		{ defaultLocale: DEFAULT_LOCALE },
+	)
 }

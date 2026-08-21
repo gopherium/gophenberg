@@ -3,7 +3,7 @@
 import { afterEach, expect, test } from 'vitest'
 
 import { DEFAULT_LOCALE } from '../i18n/catalog'
-import { displayLocale, formatDate, rememberLocale } from '../i18n/display'
+import { displayLocale, formatDate, rememberLocale } from '@gopherium/gottext'
 import { fileSize } from '../media/format'
 
 const NOON = '2026-08-16T12:00:00Z'

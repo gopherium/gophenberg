@@ -6,7 +6,7 @@ import { afterEach, expect, test } from 'vitest'
 
 import { postFields } from '../content/fields'
 import { DEFAULT_LOCALE } from '../i18n/catalog'
-import { rememberLocale } from '../i18n/display'
+import { rememberLocale } from '@gopherium/gottext'
 import { mediaFields } from '../media/fields'
 import type { MediaItem } from '../media/api'
 import type { Post } from '../content/api'

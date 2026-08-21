@@ -6,7 +6,7 @@ import { __, _x } from '@wordpress/i18n'
 import { useState } from 'react'
 
 import { mediaSrc } from './api'
-import { formatDate } from '../i18n/display'
+import { formatDate } from '@gopherium/gottext'
 import type { MediaItem } from './api'
 import { bestRendition, fileSize, imageDimensions, mediaName } from './format'
 

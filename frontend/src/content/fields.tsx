@@ -5,7 +5,7 @@ import type { Field } from '@gophenberg/frontend-sdk/dataviews'
 import { __, _x } from '@wordpress/i18n'
 import { Link } from '@tanstack/react-router'
 
-import { formatDate } from '../i18n/display'
+import { formatDate } from '@gopherium/gottext'
 import type { Post } from './api'
 
 /**

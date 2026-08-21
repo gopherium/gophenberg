@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { displayLocale } from '../i18n/display'
+import { displayLocale } from '@gopherium/gottext'
 import type { MediaItem } from './api'
 
 /** The binary steps a file size is reported in. */

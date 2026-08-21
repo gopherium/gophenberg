@@ -3,8 +3,9 @@
 /** The language the sources are written in, which ships no catalogue. */
 export const DEFAULT_LOCALE = 'en-US'
 
-/** A compiled catalogue, keyed by message. */
-export type Catalog = Record<string, string[] | Record<string, string>>
+import type { Catalog } from '@gopherium/gottext'
+
+export type { Catalog }
 
 /** The lazy chunks a build produced, keyed by path. */
 export type Chunks = Record<string, () => Promise<{ default: Catalog }>>
