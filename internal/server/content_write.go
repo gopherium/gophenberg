@@ -237,6 +237,9 @@ func (s *server) patchContent(
 	if err != nil {
 		return content.Content{}, err
 	}
+	if err := refuseUnlessAuthor(r, stored.AuthorID); err != nil {
+		return content.Content{}, err
+	}
 	previous := stored
 	changed, snapshotted, err := s.applyEdit(r, &stored, req)
 	if err != nil {
@@ -429,6 +432,10 @@ func (s *server) handleContentDelete() http.HandlerFunc {
 			})
 			return
 		}
+		if _, err := s.ownedContent(r, id); err != nil {
+			respondDomainError(w, err)
+			return
+		}
 		if r.URL.Query().Get("force") == "true" {
 			if err := s.content.Delete(r.Context(), id); err != nil {
 				respondDomainError(w, err)
@@ -456,7 +463,7 @@ func (s *server) handleContentRestore() http.HandlerFunc {
 			})
 			return
 		}
-		stored, err := s.content.ByID(r.Context(), id)
+		stored, err := s.ownedContent(r, id)
 		if err != nil {
 			respondDomainError(w, err)
 			return
