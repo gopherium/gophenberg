@@ -11,6 +11,7 @@ export {
 	Inserter,
 	__experimentalListView as ListView,
 } from '@wordpress/block-editor'
+export { BlockPreview } from './preview'
 export { getBlockTypes, parse, serialize } from '@wordpress/blocks'
 export type { Block } from '@wordpress/blocks'
 export { SlotFillProvider } from '@wordpress/components'
