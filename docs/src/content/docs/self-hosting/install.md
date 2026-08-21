@@ -75,12 +75,13 @@ writable.
 ```sh
 docker compose up -d
 docker compose run --rm -T gophenberg \
-  createadmin -email admin@example.com -name "Maria Perez"
+  createadmin -email admin@example.com -name "Maria Perez" -rank admin
 ```
 
 Migrations run at startup, so there is no setup step.
 `createadmin` waits for you to type the password, keeping it out
-of your shell history.
+of your shell history. The `-rank` flag says what the account may do,
+and `admin` is the rank that can reach everything.
 
 ## 3. Point your proxy at it
 
