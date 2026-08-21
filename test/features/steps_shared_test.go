@@ -12,6 +12,8 @@ import (
 	"github.com/cucumber/godog"
 
 	"github.com/gopherium/gouncer/authkit"
+
+	"github.com/gopherium/gophenberg/internal/role"
 )
 
 // readyWait is how long a scenario gives a theme to take over the public site.
@@ -41,7 +43,8 @@ func aSignedInAdministrator(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := authkit.EnsureAdmin(ctx, w.users, adminEmail, "Maria Perez", adminPassword); err != nil {
+	_, err = authkit.EnsureAdmin(ctx, w.users, adminEmail, "Maria Perez", adminPassword, role.Admin)
+	if err != nil {
 		return fmt.Errorf("creating the administrator: %w", err)
 	}
 	body := fmt.Sprintf(`{"email":%q,"password":%q}`, adminEmail, adminPassword)

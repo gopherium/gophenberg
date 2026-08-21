@@ -17,6 +17,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/postgres"
+	"github.com/gopherium/gophenberg/internal/role"
 	"github.com/gopherium/gophenberg/internal/seed"
 )
 
@@ -38,7 +39,9 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 		return err
 	}
 	users := authkitpg.NewUserStore(pool)
-	created, err := authkit.EnsureAdmin(ctx, users, seed.AdminEmail, seed.AdminName, seed.AdminPassword)
+	created, err := authkit.EnsureAdmin(
+		ctx, users, seed.AdminEmail, seed.AdminName, seed.AdminPassword, role.Admin,
+	)
 	if err != nil {
 		return err
 	}

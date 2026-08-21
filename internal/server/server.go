@@ -63,7 +63,7 @@ type Config struct {
 // declared public paths.
 func NewServer(cfg Config) http.Handler {
 	auth := authkit.New(authkit.Config{Store: cfg.Users, CookieName: sessionCookieName})
-	admin := authkit.NewAdmin(cfg.Users)
+	admin := authkit.NewAdmin(authkit.AdminConfig{Store: cfg.Users})
 	s := &server{
 		auth: auth, users: cfg.Users, content: cfg.Content, themes: cfg.Themes,
 		media: cfg.Media, mediaStore: cfg.MediaStore, version: cfg.Version,
