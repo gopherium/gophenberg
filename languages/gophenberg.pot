@@ -141,6 +141,9 @@ msgstr ""
 msgid "An item cannot sit inside itself, or inside one of the items nested under it. Pick a parent outside this branch."
 msgstr ""
 
+msgid "Another account wrote this, and only its author, an editor or an administrator may change it. You can still read it."
+msgstr ""
+
 msgid "Another content type already answers under this route word. Pick a different word."
 msgstr ""
 

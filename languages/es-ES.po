@@ -84,6 +84,9 @@ msgstr "Un elemento no puede apuntarse a sí mismo. Elige otro elemento para %(f
 msgid "An item cannot sit inside itself, or inside one of the items nested under it. Pick a parent outside this branch."
 msgstr "Un elemento no puede estar dentro de sí mismo, ni dentro de otro anidado bajo él. Elige un nivel superior fuera de esta rama."
 
+msgid "Another account wrote this, and only its author, an editor or an administrator may change it. You can still read it."
+msgstr "Otra cuenta escribió esto, y solo su autor, un editor o un administrador pueden cambiarlo. Todavía puedes leerlo."
+
 msgid "Another content type already answers under this route word. Pick a different word."
 msgstr "Ya hay otro tipo de contenido que responde con esta palabra de ruta de URL. Elige una palabra distinta."
 
