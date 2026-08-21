@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, InputControl, Stack } from '@gophenberg/frontend-sdk'
+import { Button, InputControl, SelectControl, Stack } from '@gophenberg/frontend-sdk'
 import { __, _x } from '@wordpress/i18n'
 import {
 	EmailTakenError,
@@ -12,6 +12,8 @@ import { ErrorNotice, Page } from '@gopherium/godmin'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
+
+import { NARROWEST, rankOptions } from './ranks'
 
 /**
  * Returns the message shown under the form when a creation fails.
@@ -38,8 +40,9 @@ export function NewUserScreen() {
 	const [email, setEmail] = useState('')
 	const [name, setName] = useState('')
 	const [password, setPassword] = useState('')
+	const [rank, setRank] = useState(NARROWEST)
 	const create = useMutation({
-		mutationFn: () => createUser({ email: email.trim(), name: name.trim(), password }),
+		mutationFn: () => createUser({ email: email.trim(), name: name.trim(), password, rank }),
 		onSuccess: async () => {
 			await client.invalidateQueries({ queryKey: usersQueryKey })
 			await navigate({ to: '/users' })
@@ -74,6 +77,12 @@ export function NewUserScreen() {
 						autoComplete="new-password"
 						value={password}
 						onValueChange={setPassword}
+					/>
+					<SelectControl
+						label={_x('Role', 'account', 'gophenberg')}
+						items={rankOptions()}
+						value={rankOptions().find((option) => option.value === rank)}
+						onValueChange={(item) => item?.value != null && setRank(item.value)}
 					/>
 					<Button
 						type="submit"
