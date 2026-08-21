@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Icon, Stack } from '@gophenberg/frontend-sdk'
+import { Icon, Stack, can } from '@gophenberg/frontend-sdk'
 import type { NavItem } from '@gophenberg/frontend-sdk'
 import { useSession } from '@gopherium/react-auth'
 import { Link, useRouter } from '@tanstack/react-router'
 import type { AnyRoute } from '@tanstack/react-router'
 
-import { can } from '../capabilities'
+
 import { useContentNav } from '../content/nav'
 import { plugins } from '../plugins'
 import { coreNav } from './coreNav'

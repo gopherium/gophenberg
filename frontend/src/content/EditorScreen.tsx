@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { LoadingScreen } from '@gopherium/godmin'
-import { InputControl, Notice } from '@gophenberg/frontend-sdk'
+import { InputControl, Notice, sessionMayChange } from '@gophenberg/frontend-sdk'
 import {
 	BlockBreadcrumb,
 	BlockCanvas,
@@ -22,7 +22,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
 import './editor.css'
-import { sessionMayChange } from '../capabilities'
+
 import { MEDIA_CATEGORIES } from '../media/inserterCategories'
 import { MediaLibraryPicker } from '../media/MediaLibraryPicker'
 import { fetchPost } from './api'

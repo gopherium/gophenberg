@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { ADMIN, AUTHOR, EDITOR } from './users/ranks'
+/** The rank holding every authority over the site. */
+export const ADMIN = 'admin'
+
+/** The rank working every account's content and media. */
+export const EDITOR = 'editor'
+
+/** The rank working only its own content and media. */
+export const AUTHOR = 'author'
 
 /** A named permission a screen or control asks for. */
 export type Capability =
@@ -64,10 +71,4 @@ export function sessionMayChange(
 	author: string,
 ): boolean {
 	return mayChange(session?.rank, session?.id ?? '', author)
-}
-
-declare module '@tanstack/react-router' {
-	interface StaticDataRouteOption {
-		capability?: Capability
-	}
 }

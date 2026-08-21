@@ -10,8 +10,9 @@ import {
 import type { RouterHistory } from '@tanstack/react-router'
 import { __ } from '@wordpress/i18n'
 
+import { MANAGE_THEMES, MANAGE_TYPES, MANAGE_USERS } from '@gophenberg/frontend-sdk'
+
 import { adminBasepath } from './basepath'
-import { MANAGE_THEMES, MANAGE_TYPES, MANAGE_USERS } from './capabilities'
 import { CapabilityGate } from './CapabilityGate'
 import { Home } from './Home'
 import { Layout } from './Layout'

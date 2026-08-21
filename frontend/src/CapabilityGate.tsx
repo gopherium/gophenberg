@@ -3,7 +3,7 @@
 import { useSession } from '@gopherium/react-auth'
 import { Navigate, Outlet, useMatches } from '@tanstack/react-router'
 
-import { can } from './capabilities'
+import { can } from '@gophenberg/frontend-sdk'
 
 /**
  * Renders the nested screen when the session holds every capability the route declares,

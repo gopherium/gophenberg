@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { MANAGE_SETTINGS, SelectControl, Stack, Text, can } from '@gophenberg/frontend-sdk'
 import { __ } from '@wordpress/i18n'
 import { ErrorNotice, Page } from '@gopherium/godmin'
 import { useSession } from '@gopherium/react-auth'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { MANAGE_SETTINGS, can } from '../capabilities'
+
 import { chooseLocale, chooseSiteLocale, fetchLocale, fetchSiteLocale } from './api'
 import { DEFAULT_LOCALE } from './catalog'
 

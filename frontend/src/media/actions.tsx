@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Notice, Stack, Text } from '@gophenberg/frontend-sdk'
+import { Button, Notice, Stack, Text, sessionMayChange } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
 import { useSession } from '@gopherium/react-auth'
@@ -8,7 +8,6 @@ import { __, _n, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 
-import { sessionMayChange } from '../capabilities'
 import { deleteMedia, describeMedia, mediaQueryKey } from './api'
 import type { MediaDescriptions, MediaItem } from './api'
 import { describeForm, mediaFields } from './fields'

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Notice, Stack, Text } from '@gophenberg/frontend-sdk'
+import { Button, Notice, Stack, Text, sessionMayChange } from '@gophenberg/frontend-sdk'
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
 import { useSession } from '@gopherium/react-auth'
 import { __, _n, _x, sprintf } from '@wordpress/i18n'
@@ -8,7 +8,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useMemo } from 'react'
 
-import { sessionMayChange } from '../capabilities'
 import { deletePost, restorePost, trashPost } from './api'
 import type { Post } from './api'
 

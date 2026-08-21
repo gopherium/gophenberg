@@ -1,15 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { ADMIN, AUTHOR, EDITOR } from '@gophenberg/frontend-sdk'
 import { _x } from '@wordpress/i18n'
-
-/** The rank holding every authority over the site. */
-export const ADMIN = 'admin'
-
-/** The rank working every account's content and media. */
-export const EDITOR = 'editor'
-
-/** The rank working only its own content and media. */
-export const AUTHOR = 'author'
 
 /** The rank a new account starts under. */
 export const NARROWEST = AUTHOR
