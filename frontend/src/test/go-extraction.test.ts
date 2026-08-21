@@ -5,9 +5,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
-import { goMessages, goString, repositoryRoot } from '../../scripts/pot.ts'
+import { goMessages, goString } from '@gopherium/gottext/build'
 
-const found = goMessages(repositoryRoot())
+import { GO_ROOTS, repositoryRoot } from '../../scripts/config.ts'
+
+const found = goMessages(repositoryRoot(), GO_ROOTS)
 
 test('finds the messages the Go templates ask the translator for', () => {
 	expect(found).toContain('Older posts')

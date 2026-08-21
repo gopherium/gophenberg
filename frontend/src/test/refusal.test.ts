@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 import { refusalText } from '../i18n/refusal'
 import { refusalTemplates } from '../i18n/refusalTemplates'
-import { repositoryRoot } from '../../scripts/pot.ts'
+import { repositoryRoot } from '../../scripts/config.ts'
 
 test('reads the message a code stands for', () => {
 	const held = refusalText({ error: 'content: type still holds content', code: 'type_in_use' })

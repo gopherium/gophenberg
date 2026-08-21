@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { po } from 'gettext-parser'
 import { describe, expect, test } from 'vitest'
 
-import { repositoryRoot } from '../../scripts/pot.ts'
+import { repositoryRoot } from '../../scripts/config.ts'
 
 /** The plural rule each language the site answers in is written under. */
 const RULES: Record<string, string> = {

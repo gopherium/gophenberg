@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
-import { repositoryRoot } from '../../scripts/pot.ts'
+import { repositoryRoot } from '../../scripts/config.ts'
 import { pinnedVersions, resolvedVersions } from '../../scripts/singleCopy.ts'
 
 const ROOT = repositoryRoot()

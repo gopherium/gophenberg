@@ -12,7 +12,7 @@ import {
 	filterEditorCatalog,
 	wordpressLocale,
 } from '../../scripts/editorCatalog.ts'
-import { repositoryRoot } from '../../scripts/pot.ts'
+import { repositoryRoot } from '../../scripts/config.ts'
 
 /** The separator a context keyed message carries between its parts. */
 const CONTEXT = ''
