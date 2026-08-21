@@ -21,6 +21,7 @@ const postSchema = z.object({
 	title: z.string(),
 	status: z.string(),
 	excerpt: z.string().optional(),
+	author_id: z.string().optional(),
 	author_name: z.string().optional(),
 	published_at: z.string().nullable().optional(),
 	created_at: z.string().optional(),
@@ -51,6 +52,7 @@ export interface Post {
 	title: string
 	status: string
 	excerpt: string
+	authorId: string
 	authorName: string
 	publishedAt: string | null
 	createdAt: string
@@ -89,6 +91,7 @@ function toPost(row: z.infer<typeof postSchema>): Post {
 		title: row.title,
 		status: row.status,
 		excerpt: row.excerpt ?? '',
+		authorId: row.author_id ?? '',
 		authorName: row.author_name ?? '',
 		publishedAt: row.published_at ?? null,
 		createdAt: row.created_at ?? '',

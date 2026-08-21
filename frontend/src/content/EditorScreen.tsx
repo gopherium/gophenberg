@@ -16,15 +16,18 @@ import {
 	registerMediaCategories,
 	registerMediaLibrary,
 } from '@gophenberg/frontend-sdk/editor'
+import { useSession } from '@gopherium/react-auth'
 import { __, _x } from '@wordpress/i18n'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
 import './editor.css'
+import { sessionMayChange } from '../capabilities'
 import { MEDIA_CATEGORIES } from '../media/inserterCategories'
 import { MediaLibraryPicker } from '../media/MediaLibraryPicker'
 import { fetchPost } from './api'
 import type { PostDetail } from './api'
+import { PostReadView } from './PostReadView'
 import { EDITOR_SETTINGS, canvasClass } from './editorSetup'
 import { EditorHeader } from './EditorHeader'
 import { EditorSidebar } from './EditorSidebar'
@@ -44,6 +47,7 @@ registerMediaCategories(MEDIA_CATEGORIES)
  */
 export function EditorScreen() {
 	const { postId } = useParams({ from: '/content/$typeKey/$postId/edit' })
+	const session = useSession().data
 	const post = useQuery({ queryKey: ['post', postId], queryFn: () => fetchPost(postId) })
 	if (post.isError) {
 		return (
@@ -54,6 +58,9 @@ export function EditorScreen() {
 	}
 	if (post.data === undefined) {
 		return <LoadingScreen label={__('Loading the post.', 'gophenberg')} />
+	}
+	if (!sessionMayChange(session, post.data.authorId)) {
+		return <PostReadView stored={post.data} />
 	}
 	return <Editor postId={postId} stored={post.data} />
 }

@@ -2,11 +2,13 @@
 
 import { Button, Notice, Stack, Text } from '@gophenberg/frontend-sdk'
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
+import { useSession } from '@gopherium/react-auth'
 import { __, _n, _x, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useMemo } from 'react'
 
+import { sessionMayChange } from '../capabilities'
 import { deletePost, restorePost, trashPost } from './api'
 import type { Post } from './api'
 
@@ -198,12 +200,15 @@ function DeleteConfirm({ items, closeModal }: RenderModalProps<Post>) {
 export function usePostActions(status: string, report: ReportNotice): Action<Post>[] {
 	const navigate = useNavigate()
 	const refresh = useRefresh()
+	const session = useSession().data
 	return useMemo(() => {
+		const mine = (post: Post) => sessionMayChange(session, post.authorId)
 		if (status === 'trash') {
 			return [
 				{
 					id: 'restore',
 					label: _x('Restore', 'trash', 'gophenberg'),
+					isEligible: mine,
 					callback: ([post]: Post[]) => {
 						restorePost(post.id)
 							.then(() => {
@@ -221,6 +226,7 @@ export function usePostActions(status: string, report: ReportNotice): Action<Pos
 				{
 					id: 'delete',
 					label: __('Delete Permanently', 'gophenberg'),
+					isEligible: mine,
 					RenderModal: DeleteConfirm,
 				},
 			]
@@ -229,6 +235,7 @@ export function usePostActions(status: string, report: ReportNotice): Action<Pos
 			{
 				id: 'edit',
 				label: __('Edit', 'gophenberg'),
+				isEligible: mine,
 				callback: ([post]: Post[]) => {
 					void navigate({ to: '/content/$typeKey/$postId/edit', params: { typeKey: post.type, postId: post.id } })
 				},
@@ -237,10 +244,11 @@ export function usePostActions(status: string, report: ReportNotice): Action<Pos
 				id: 'trash',
 				label: __('Move to Trash', 'gophenberg'),
 				supportsBulk: true,
+				isEligible: mine,
 				RenderModal: (props: RenderModalProps<Post>) => (
 					<TrashConfirm {...props} report={report} />
 				),
 			},
 		]
-	}, [navigate, refresh, report, status])
+	}, [navigate, refresh, report, status, session])
 }

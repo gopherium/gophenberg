@@ -8,6 +8,7 @@ export type Capability =
 	| 'manage_themes'
 	| 'manage_types'
 	| 'manage_settings'
+	| 'change_others_work'
 
 /** The capability administering accounts. */
 export const MANAGE_USERS: Capability = 'manage_users'
@@ -21,10 +22,13 @@ export const MANAGE_TYPES: Capability = 'manage_types'
 /** The capability writing the site wide settings. */
 export const MANAGE_SETTINGS: Capability = 'manage_settings'
 
+/** The capability changing content and media another account wrote. */
+export const CHANGE_OTHERS_WORK: Capability = 'change_others_work'
+
 /** The capabilities each rank carries. */
 const carried: Record<string, Capability[]> = {
-	[ADMIN]: [MANAGE_USERS, MANAGE_THEMES, MANAGE_TYPES, MANAGE_SETTINGS],
-	[EDITOR]: [],
+	[ADMIN]: [MANAGE_USERS, MANAGE_THEMES, MANAGE_TYPES, MANAGE_SETTINGS, CHANGE_OTHERS_WORK],
+	[EDITOR]: [CHANGE_OTHERS_WORK],
 	[AUTHOR]: [],
 }
 
@@ -36,6 +40,30 @@ const carried: Record<string, Capability[]> = {
  */
 export function can(rank: string | undefined, capability: Capability): boolean {
 	return (carried[rank ?? ''] ?? []).includes(capability)
+}
+
+/**
+ * Reports whether an account of the given rank may change work the author owns.
+ * @param rank - The rank the session carries, missing counting as none.
+ * @param actor - The signed in account.
+ * @param author - The account that wrote the work.
+ * @returns Whether the change is allowed.
+ */
+export function mayChange(rank: string | undefined, actor: string, author: string): boolean {
+	return can(rank, CHANGE_OTHERS_WORK) || actor === author
+}
+
+/**
+ * Reports whether the session may change work the author owns, no session changing nothing.
+ * @param session - The signed in account, or nothing.
+ * @param author - The account that wrote the work.
+ * @returns Whether the change is allowed.
+ */
+export function sessionMayChange(
+	session: { rank?: string, id?: string } | null | undefined,
+	author: string,
+): boolean {
+	return mayChange(session?.rank, session?.id ?? '', author)
 }
 
 declare module '@tanstack/react-router' {
