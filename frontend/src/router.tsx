@@ -10,6 +10,7 @@ import {
 import type { RouterHistory } from '@tanstack/react-router'
 import { __ } from '@wordpress/i18n'
 
+import { AdminOnly } from './AdminOnly'
 import { adminBasepath } from './basepath'
 import { Home } from './Home'
 import { Layout } from './Layout'
@@ -37,20 +38,26 @@ const contentRoute = createRoute({
 	component: lazyRouteComponent(() => import('./content/PostsScreen'), 'PostsScreen'),
 })
 
-const contentTypesRoute = createRoute({
+const adminRoute = createRoute({
 	getParentRoute: () => framedRoute,
+	id: 'admin',
+	component: AdminOnly,
+})
+
+const contentTypesRoute = createRoute({
+	getParentRoute: () => adminRoute,
 	path: '/content-types',
 	component: lazyRouteComponent(() => import('./content/TypesScreen'), 'TypesScreen'),
 })
 
 const usersRoute = createRoute({
-	getParentRoute: () => framedRoute,
+	getParentRoute: () => adminRoute,
 	path: '/users',
 	component: lazyRouteComponent(() => import('./users/UsersScreen'), 'UsersScreen'),
 })
 
 const newUserRoute = createRoute({
-	getParentRoute: () => framedRoute,
+	getParentRoute: () => adminRoute,
 	path: '/users/new',
 	component: lazyRouteComponent(() => import('./users/NewUserScreen'), 'NewUserScreen'),
 })
@@ -68,7 +75,7 @@ const languageRoute = createRoute({
 })
 
 const themesRoute = createRoute({
-	getParentRoute: () => framedRoute,
+	getParentRoute: () => adminRoute,
 	path: '/themes',
 	component: lazyRouteComponent(() => import('./themes/ThemesScreen'), 'ThemesScreen'),
 })
@@ -83,12 +90,9 @@ const routeTree = rootRoute.addChildren([
 	framedRoute.addChildren([
 		homeRoute,
 		contentRoute,
-		contentTypesRoute,
 		mediaRoute,
-		usersRoute,
-		newUserRoute,
-		themesRoute,
 		languageRoute,
+		adminRoute.addChildren([contentTypesRoute, usersRoute, newUserRoute, themesRoute]),
 		...plugins.flatMap((plugin) => plugin.routes(framedRoute)),
 	]),
 	editorRoute,

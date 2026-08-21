@@ -6,9 +6,9 @@ import { createAppRouter } from '../router'
 
 const SPLIT_ROUTES = [
 	'/framed/content/$typeKey',
-	'/framed/content-types',
-	'/framed/users',
-	'/framed/users/new',
+	'/framed/admin/content-types',
+	'/framed/admin/users',
+	'/framed/admin/users/new',
 	'/content/$typeKey/$postId/edit',
 ]
 
