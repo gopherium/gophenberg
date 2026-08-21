@@ -27,15 +27,6 @@ export function rankOptions(): { value: string, label: string }[] {
 }
 
 /**
- * Reports whether a rank reaches the administration screens.
- * @param rank - The rank the account holds, missing counting as none.
- * @returns Whether the administration screens are open to it.
- */
-export function isAdmin(rank: string | undefined): boolean {
-	return rank === ADMIN
-}
-
-/**
  * Returns the label a rank reads as, falling back to what the server stored.
  * @param rank - The rank the account holds.
  * @returns The label.
