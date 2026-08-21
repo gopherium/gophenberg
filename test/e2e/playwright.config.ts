@@ -20,11 +20,12 @@ export default defineConfig({
 	projects: [
 		{ name: 'setup', testMatch: '**/auth.setup.ts' },
 		{ name: 'proof-setup', testMatch: '**/proof.setup.ts' },
+		{ name: 'rank-setup', testMatch: '**/ranks.setup.ts', dependencies: ['setup'] },
 		{
 			name: 'chromium',
 			testIgnore: '**/proof-locale.spec.ts',
 			use: { ...devices['Desktop Chrome'], storageState: authFile },
-			dependencies: ['setup'],
+			dependencies: ['setup', 'rank-setup'],
 		},
 		{
 			name: 'proof',
