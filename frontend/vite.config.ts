@@ -26,6 +26,7 @@ export default defineConfig({
 		alias: mediaWorkerStubs,
 		dedupe: [
 			...godminDedupe,
+			'@gopherium/gottext',
 			'@tanstack/react-query',
 			'@tanstack/react-router',
 			'@wordpress/i18n',
