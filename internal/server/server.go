@@ -16,6 +16,7 @@ import (
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
+	"github.com/gopherium/gophenberg/internal/role"
 )
 
 // sessionCookieName scopes the login cookie to this product.
@@ -62,8 +63,10 @@ type Config struct {
 // requires a login session except login, logout, and each plugin's
 // declared public paths.
 func NewServer(cfg Config) http.Handler {
-	auth := authkit.New(authkit.Config{Store: cfg.Users, CookieName: sessionCookieName})
-	admin := authkit.NewAdmin(cfg.Users)
+	auth := authkit.New(authkit.Config{
+		Store: cfg.Users, CookieName: sessionCookieName, Privileged: role.Privileged(),
+	})
+	admin := authkit.NewAdmin(authkit.AdminConfig{Store: cfg.Users, Privileged: role.Privileged()})
 	s := &server{
 		auth: auth, users: cfg.Users, content: cfg.Content, themes: cfg.Themes,
 		media: cfg.Media, mediaStore: cfg.MediaStore, version: cfg.Version,
@@ -86,57 +89,15 @@ func NewServer(cfg Config) http.Handler {
 	router.Group(func(protected chi.Router) {
 		protected.Use(auth.RequireSession)
 		protected.Get("/api/auth/session", auth.Session)
-		protected.Get("/api/users", admin.List)
-		protected.Post("/api/users", admin.Create)
-		protected.Patch("/api/users/{id}", admin.SetDisabled)
-		if cfg.Types != nil {
-			protected.Get("/api/types", s.handleTypeList())
-			protected.Post("/api/types", s.handleTypeCreate())
-			protected.Patch("/api/types/{key}", s.handleTypePatch())
-			protected.Delete("/api/types/{key}", s.handleTypeDelete())
-			protected.Get("/api/types/{key}/fields", s.handleFieldList())
-			protected.Post("/api/types/{key}/fields", s.handleFieldCreate())
-			protected.Patch("/api/types/{key}/fields/{fieldKey}", s.handleFieldPatch())
-			protected.Delete("/api/types/{key}/fields/{fieldKey}", s.handleFieldDelete())
-		}
-		protected.Get("/api/content", s.handleContentList())
-		protected.Post("/api/content", s.handleContentCreate())
-		protected.Get("/api/content/counts", s.handleContentCounts())
-		protected.Get("/api/content/{id}", s.handleContentGet())
-		protected.Patch("/api/content/{id}", s.handleContentPatch())
-		protected.Delete("/api/content/{id}", s.handleContentDelete())
-		protected.Post("/api/content/{id}/restore", s.handleContentRestore())
-		protected.Post("/api/content/{id}/autosave", s.handleAutosaveSave())
-		protected.Get("/api/content/{id}/autosave", s.handleAutosaveGet())
-		protected.Get("/api/content/{id}/revisions", s.handleRevisionList())
-		protected.Get("/api/content/{id}/revisions/{revisionID}", s.handleRevisionGet())
-		protected.Delete("/api/content/{id}/revisions/{revisionID}", s.handleRevisionDelete())
-		protected.Get("/api/version", s.handleVersion())
-		if cfg.Readers != nil {
-			protected.Patch("/api/locale", s.handleLocalePatch())
-		}
-		if cfg.Settings != nil {
-			protected.Get("/api/settings", s.handleSettingsGet())
-			protected.Patch("/api/settings", s.handleSettingsPatch())
-		}
-		if cfg.Media != nil && cfg.MediaStore != nil {
-			protected.Get("/api/media", s.handleMediaList())
-			protected.Post("/api/media", s.handleMediaUpload())
-			protected.Get("/api/media/{id}", s.handleMediaGet())
-			protected.Patch("/api/media/{id}", s.handleMediaPatch())
-			protected.Delete("/api/media/{id}", s.handleMediaDelete())
-		}
-		if cfg.Themes != nil {
-			protected.Get("/api/themes", s.handleThemeList())
-			protected.Post("/api/themes", s.handleThemeUpload())
-			protected.Post("/api/themes/active", s.handleThemeActivate())
-			protected.Delete("/api/themes/active", s.handleThemeDeactivate())
-			protected.Post("/api/themes/rollback", s.handleThemeRollback())
-		}
+		s.mountOpen(protected, cfg)
+	})
+	router.Group(func(privileged chi.Router) {
+		privileged.Use(auth.RequireSession, auth.RequirePrivilege)
+		s.mountAdmin(privileged, admin, cfg)
 	})
 	for id, handler := range cfg.Plugins {
 		prefix := "/api/plugins/" + id
-		guarded := pluginkit.Protect(handler, cfg.PluginPublicPaths[id], auth.RequireSession)
+		guarded := pluginkit.Protect(handler, cfg.PluginPublicPaths[id], guardPlugin(auth))
 		router.Mount(prefix, http.StripPrefix(prefix, guarded))
 	}
 	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web))
@@ -148,6 +109,66 @@ func NewServer(cfg Config) http.Handler {
 	public := identify(cfg.Version)(themedSite(cfg.Theme, site, cfg.ThemeTimeout))
 	router.NotFound(fallbackHandler(adminApp(cfg), renderer, public))
 	return router
+}
+
+// mountOpen registers the routes every signed in rank reaches.
+func (s *server) mountOpen(r chi.Router, cfg Config) {
+	if cfg.Types != nil {
+		r.Get("/api/types", s.handleTypeList())
+		r.Get("/api/types/{key}/fields", s.handleFieldList())
+	}
+	r.Get("/api/content", s.handleContentList())
+	r.Post("/api/content", s.handleContentCreate())
+	r.Get("/api/content/counts", s.handleContentCounts())
+	r.Get("/api/content/{id}", s.handleContentGet())
+	r.Patch("/api/content/{id}", s.handleContentPatch())
+	r.Delete("/api/content/{id}", s.handleContentDelete())
+	r.Post("/api/content/{id}/restore", s.handleContentRestore())
+	r.Post("/api/content/{id}/autosave", s.handleAutosaveSave())
+	r.Get("/api/content/{id}/autosave", s.handleAutosaveGet())
+	r.Get("/api/content/{id}/revisions", s.handleRevisionList())
+	r.Get("/api/content/{id}/revisions/{revisionID}", s.handleRevisionGet())
+	r.Delete("/api/content/{id}/revisions/{revisionID}", s.handleRevisionDelete())
+	r.Get("/api/version", s.handleVersion())
+	if cfg.Readers != nil {
+		r.Patch("/api/locale", s.handleLocalePatch())
+	}
+	if cfg.Settings != nil {
+		r.Get("/api/settings", s.handleSettingsGet())
+	}
+	if cfg.Media != nil && cfg.MediaStore != nil {
+		r.Get("/api/media", s.handleMediaList())
+		r.Post("/api/media", s.handleMediaUpload())
+		r.Get("/api/media/{id}", s.handleMediaGet())
+		r.Patch("/api/media/{id}", s.handleMediaPatch())
+		r.Delete("/api/media/{id}", s.handleMediaDelete())
+	}
+}
+
+// mountAdmin registers the routes only a privileged rank reaches.
+func (s *server) mountAdmin(r chi.Router, admin *authkit.AdminHandlers, cfg Config) {
+	r.Get("/api/users", admin.List)
+	r.Post("/api/users", admin.Create)
+	r.Patch("/api/users/{id}", admin.SetDisabled)
+	r.Put("/api/users/{id}/rank", admin.SetRank)
+	if cfg.Types != nil {
+		r.Post("/api/types", s.handleTypeCreate())
+		r.Patch("/api/types/{key}", s.handleTypePatch())
+		r.Delete("/api/types/{key}", s.handleTypeDelete())
+		r.Post("/api/types/{key}/fields", s.handleFieldCreate())
+		r.Patch("/api/types/{key}/fields/{fieldKey}", s.handleFieldPatch())
+		r.Delete("/api/types/{key}/fields/{fieldKey}", s.handleFieldDelete())
+	}
+	if cfg.Settings != nil {
+		r.Patch("/api/settings", s.handleSettingsPatch())
+	}
+	if cfg.Themes != nil {
+		r.Get("/api/themes", s.handleThemeList())
+		r.Post("/api/themes", s.handleThemeUpload())
+		r.Post("/api/themes/active", s.handleThemeActivate())
+		r.Delete("/api/themes/active", s.handleThemeDeactivate())
+		r.Post("/api/themes/rollback", s.handleThemeRollback())
+	}
 }
 
 type server struct {

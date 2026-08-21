@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Badge, Button, Stack, Text } from '@gophenberg/frontend-sdk'
+import { Badge, Button, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
 import { __, _x, sprintf } from '@wordpress/i18n'
-import { fetchUsers, setUserDisabled, usersQueryKey } from '@gopherium/react-auth/admin'
+import { fetchUsers, setUserDisabled, setUserRank, usersQueryKey } from '@gopherium/react-auth/admin'
 import type { User } from '@gopherium/react-auth/admin'
 import { useSession } from '@gopherium/react-auth'
 import { ErrorNotice, LoadingRows, Page } from '@gopherium/godmin'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
+
+import { rankLabel, rankOptions } from './ranks'
 
 /**
  * Renders the account administration screen.
@@ -64,6 +66,7 @@ function UsersBody({
 					<tr>
 						<th scope="col">{_x('Name', 'person', 'gophenberg')}</th>
 						<th scope="col">{__('Email', 'gophenberg')}</th>
+						<th scope="col">{_x('Role', 'account', 'gophenberg')}</th>
 						<th scope="col">{_x('Status', 'account', 'gophenberg')}</th>
 						<th scope="col" className="godmin-table__actions">
 							{__('Actions', 'gophenberg')}
@@ -90,11 +93,40 @@ function UserRow({ user, isSelf }: { user: User, isSelf: boolean }) {
 		<tr>
 			<td>{user.name}</td>
 			<td>{user.email}</td>
+			<td>{isSelf ? rankLabel(user.rank) : <UserRank user={user} />}</td>
 			<td>
 				<UserStatus disabled={user.disabled} />
 			</td>
 			<td className="godmin-table__actions">{isSelf ? null : <UserToggle user={user} />}</td>
 		</tr>
+	)
+}
+
+/**
+ * Renders the control writing the rank an account holds.
+ * @param props - The account the control acts on.
+ * @returns The rank control element.
+ */
+function UserRank({ user }: { user: User }) {
+	const client = useQueryClient()
+	const write = useMutation({
+		mutationFn: (rank: string) => setUserRank(user.id, rank),
+		onSuccess: () => client.invalidateQueries({ queryKey: usersQueryKey }),
+	})
+	const options = rankOptions()
+	const held = options.find((option) => option.value === user.rank)
+	return (
+		<Stack direction="column" gap="xs">
+			<SelectControl
+				label={sprintf(_x('Role of %(name)s', 'account', 'gophenberg'), { name: user.name })}
+				hideLabelFromVision
+				size="compact"
+				items={options}
+				value={held}
+				onValueChange={(item) => item?.value != null && write.mutate(item.value)}
+			/>
+			{write.isError && <Text role="alert">{__('Update failed.', 'gophenberg')}</Text>}
+		</Stack>
 	)
 }
 

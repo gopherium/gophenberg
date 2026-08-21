@@ -109,6 +109,12 @@ msgstr "Un élément ne peut pas se viser lui-même. Choisissez un autre éléme
 msgid "An item cannot sit inside itself, or inside one of the items nested under it. Pick a parent outside this branch."
 msgstr "Un élément ne peut pas se trouver dans lui-même, ni dans un élément imbriqué sous lui. Choisissez un parent hors de cette branche."
 
+msgid "Another account wrote this, and only its author, an editor or an administrator may change it. You can still read it."
+msgstr "Un autre compte a écrit ceci, et seuls son auteur, un éditeur ou un administrateur peuvent le modifier. Vous pouvez toujours le lire."
+
+msgid "Another account wrote this, so you are reading it rather than editing it."
+msgstr "Un autre compte a écrit ceci, alors vous le lisez au lieu de le modifier."
+
 #, fuzzy
 msgid "Another content type already answers under this route word. Pick a different word."
 msgstr "Un autre type de contenu répond déjà sous ce mot de route. Choisissez un autre mot."
@@ -1347,7 +1353,14 @@ msgstr "Ce type répondra sous /%(word)s."
 msgid "{day} {month} {year}"
 msgstr "{day} {month} {year}"
 
-#, fuzzy
+msgctxt "account"
+msgid "Role"
+msgstr "Rôle"
+
+msgctxt "account"
+msgid "Role of %(name)s"
+msgstr "Rôle de %(name)s"
+
 #, fuzzy
 msgctxt "account"
 msgid "Status"
@@ -1407,6 +1420,22 @@ msgstr "Type"
 msgctxt "person"
 msgid "Name"
 msgstr "Nom"
+
+msgctxt "rank"
+msgid "Administrator"
+msgstr "Administrateur"
+
+msgctxt "rank"
+msgid "Author"
+msgstr "Auteur"
+
+msgctxt "rank"
+msgid "Editor"
+msgstr "Éditeur"
+
+msgctxt "rank"
+msgid "Unranked"
+msgstr "Sans rôle"
 
 #, fuzzy
 msgctxt "post"

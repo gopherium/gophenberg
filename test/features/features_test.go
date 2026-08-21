@@ -42,6 +42,14 @@ func TestContentFields(t *testing.T) {
 	runFeature(t, "features/content-fields.feature", initializeContentFields)
 }
 
+func TestRouteGate(t *testing.T) {
+	runFeature(t, "features/roles-route-gate.feature", initializeRouteGate)
+}
+
+func TestOwnership(t *testing.T) {
+	runFeature(t, "features/roles-ownership.feature", initializeOwnership)
+}
+
 func TestRefusalCodes(t *testing.T) {
 	runFeature(t, "features/refusal-codes.feature", initializeRefusalCodes)
 }

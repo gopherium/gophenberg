@@ -20,24 +20,30 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	_ = godotenv.Load()
-	if len(os.Args) > 1 && os.Args[1] == "createadmin" {
-		if err := createAdmin(ctx); err != nil {
-			fmt.Fprintln(os.Stderr, "gophenberg:", err)
-			os.Exit(1)
-		}
-		return
-	}
-	if len(os.Args) > 1 && os.Args[1] == "seed" {
-		if err := seedDemoData(ctx, os.Getenv, os.Stdout); err != nil {
-			fmt.Fprintln(os.Stderr, "gophenberg:", err)
-			os.Exit(1)
-		}
-		return
-	}
-	if err := run(ctx, os.Getenv, os.Stderr, registerPlugins); err != nil {
+	if err := dispatch(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, "gophenberg:", err)
 		os.Exit(1)
 	}
+}
+
+// dispatch runs the subcommand the arguments name, serving the site when they name none.
+func dispatch(ctx context.Context) error {
+	subcommands := map[string]func(context.Context) error{
+		"createadmin": createAdmin,
+		"grantrank":   grantRank,
+		"seed":        seedFromEnvironment,
+	}
+	if len(os.Args) > 1 {
+		if subcommand, named := subcommands[os.Args[1]]; named {
+			return subcommand(ctx)
+		}
+	}
+	return run(ctx, os.Getenv, os.Stderr, registerPlugins)
+}
+
+// seedFromEnvironment runs the seed subcommand over the configured environment.
+func seedFromEnvironment(ctx context.Context) error {
+	return seedDemoData(ctx, os.Getenv, os.Stdout)
 }
 
 // createAdmin runs the createadmin subcommand.
@@ -47,4 +53,13 @@ func createAdmin(ctx context.Context) error {
 		return errors.New("GOPHENBERG_DATABASE_URL is required")
 	}
 	return authkitpg.RunCreateAdmin(ctx, databaseURL, os.Args[2:], os.Stdin, os.Stdout)
+}
+
+// grantRank gives the named rank to every account holding none.
+func grantRank(ctx context.Context) error {
+	databaseURL := os.Getenv("GOPHENBERG_DATABASE_URL")
+	if databaseURL == "" {
+		return errors.New("GOPHENBERG_DATABASE_URL is required")
+	}
+	return authkitpg.RunGrantRank(ctx, databaseURL, os.Args[2:], os.Stdout)
 }

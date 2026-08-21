@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Notice, Stack, Text } from '@gophenberg/frontend-sdk'
+import { Button, Notice, Stack, Text, sessionMayChange } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
+import { useSession } from '@gopherium/react-auth'
 import { __, _n, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
@@ -164,16 +165,23 @@ function DeleteConfirm({ items, closeModal }: RenderModalProps<MediaItem>) {
  * @returns The row actions.
  */
 export function useMediaActions(): Action<MediaItem>[] {
-	return useMemo(
-		() => [
-			{ id: 'describe', label: __('Describe', 'gophenberg'), RenderModal: DescribeForm },
+	const session = useSession().data
+	return useMemo(() => {
+		const mine = (item: MediaItem) => sessionMayChange(session, item.authorId)
+		return [
+			{
+				id: 'describe',
+				label: __('Describe', 'gophenberg'),
+				isEligible: mine,
+				RenderModal: DescribeForm,
+			},
 			{
 				id: 'delete',
 				label: __('Delete Permanently', 'gophenberg'),
 				supportsBulk: true,
+				isEligible: mine,
 				RenderModal: DeleteConfirm,
 			},
-		],
-		[],
-	)
+		]
+	}, [session])
 }

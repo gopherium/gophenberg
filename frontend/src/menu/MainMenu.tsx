@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Icon, Stack } from '@gophenberg/frontend-sdk'
+import { Icon, Stack, can } from '@gophenberg/frontend-sdk'
 import type { NavItem } from '@gophenberg/frontend-sdk'
+import { useSession } from '@gopherium/react-auth'
 import { Link, useRouter } from '@tanstack/react-router'
 import type { AnyRoute } from '@tanstack/react-router'
+
 
 import { useContentNav } from '../content/nav'
 import { plugins } from '../plugins'
@@ -64,16 +66,23 @@ function MenuItem({ item }: { item: NavItem }) {
  */
 export function MainMenu() {
 	const contentNav = useContentNav()
+	const rank = useSession().data?.rank
+	const routesByPath: Record<string, AnyRoute | undefined> = useRouter().routesByPath
+	const reachable = (items: NavItem[]) =>
+		items.filter((item) => {
+			const asked = routesByPath[item.to]?.options.staticData?.capability
+			return asked === undefined || can(rank, asked)
+		})
 	return (
 		<Stack direction="column" gap="xs">
-			{contentNav.map((item) => (
+			{reachable(contentNav).map((item) => (
 				<MenuItem key={item.to} item={item} />
 			))}
-			{coreNav.map((item) => (
+			{reachable(coreNav).map((item) => (
 				<MenuItem key={item.to} item={item} />
 			))}
 			{plugins.flatMap((plugin) =>
-				plugin.nav.map((item) => <MenuItem key={item.to} item={item} />),
+				reachable(plugin.nav).map((item) => <MenuItem key={item.to} item={item} />),
 			)}
 		</Stack>
 	)

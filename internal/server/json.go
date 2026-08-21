@@ -62,6 +62,7 @@ var domainRefusals = []struct {
 	status int
 	code   string
 }{
+	{errNotAuthor, http.StatusForbidden, "not_the_author"},
 	{content.ErrNotFound, http.StatusNotFound, "content_not_found"},
 	{content.ErrRevisionNotFound, http.StatusNotFound, "revision_not_found"},
 	{content.ErrTypeNotFound, http.StatusNotFound, "type_not_found"},

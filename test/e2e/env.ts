@@ -35,6 +35,15 @@ export const proofCredentials = {
 	name: process.env.GOPHENBERG_E2E_PROOF_NAME ?? 'Ada Lovelace',
 }
 
+export const editorAuthFile = fileURLToPath(new URL('.auth/editor.json', import.meta.url))
+
+export const authorAuthFile = fileURLToPath(new URL('.auth/author.json', import.meta.url))
+
+export const seededRanks = {
+	editor: { email: 'editor@example.com', password: 'password1234' },
+	author: { email: 'author@example.com', password: 'password1234' },
+}
+
 export const proofLocale = {
 	locale: 'es-ES',
 	englishState: authFile,

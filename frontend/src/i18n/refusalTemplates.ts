@@ -160,6 +160,10 @@ export function refusalTemplates(): Record<string, string> {
 			'Someone else changed this media item while you were editing it. Reload the page and make your change again.',
 			DOMAIN,
 		),
+		not_the_author: __(
+			'Another account wrote this, and only its author, an editor or an administrator may change it. You can still read it.',
+			DOMAIN,
+		),
 		nesting_limit_reached: __(
 			'Content nests at most %(max)d levels deep, and this item would sit deeper. Pick a parent closer to the top.',
 			DOMAIN,

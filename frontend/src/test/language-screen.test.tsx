@@ -5,7 +5,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
-import { renderAt } from './render'
+import { adminUser, renderAt } from './render'
 
 const PATH = '/language'
 
@@ -88,4 +88,11 @@ test('reports a refused site default rather than failing quietly', async () => {
 	await userEvent.click(await screen.findByRole('option', { name: 'es-ES' }))
 
 	expect(await screen.findByRole('alert')).toHaveTextContent(/locale unknown/)
+})
+
+test('keeps the site default in an administrator s hands alone', async () => {
+	renderAt(PATH, { ...adminUser, rank: 'author' })
+
+	expect(await screen.findByLabelText('Your language')).toBeInTheDocument()
+	expect(screen.queryByLabelText('The site default')).toBeNull()
 })

@@ -108,3 +108,61 @@ func (m *memoryStore) SetUserDisabled(_ context.Context, id uuid.UUID, disabled 
 	}
 	return gouncer.ErrUserNotFound
 }
+
+// SetUserDisabledUnderCover disables an account, refusing to leave no enabled account privileged.
+func (m *memoryStore) SetUserDisabledUnderCover(
+	_ context.Context, id uuid.UUID, disabled bool, privileged gouncer.Ranks,
+) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err := m.refuseUncoveredLocked(id, privileged, disabled); err != nil {
+		return err
+	}
+	return m.updateLocked(id, func(user *gouncer.User) { user.Disabled = disabled })
+}
+
+// SetUserRank writes an account's rank, refusing to leave no enabled account privileged.
+func (m *memoryStore) SetUserRank(
+	_ context.Context, id uuid.UUID, rank string, privileged gouncer.Ranks,
+) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err := m.refuseUncoveredLocked(id, privileged, !privileged.Holds(rank)); err != nil {
+		return err
+	}
+	return m.updateLocked(id, func(user *gouncer.User) { user.Rank = rank })
+}
+
+// updateLocked changes one stored account, the caller holding the lock.
+func (m *memoryStore) updateLocked(id uuid.UUID, change func(*gouncer.User)) error {
+	for email, user := range m.users {
+		if user.ID == id {
+			change(&user)
+			m.users[email] = user
+			return nil
+		}
+	}
+	return gouncer.ErrUserNotFound
+}
+
+// refuseUncoveredLocked refuses a write leaving no enabled account privileged, the caller holding the lock.
+func (m *memoryStore) refuseUncoveredLocked(id uuid.UUID, privileged gouncer.Ranks, removesCover bool) error {
+	if len(privileged) == 0 || !removesCover {
+		return nil
+	}
+	held, cover := false, 0
+	for _, user := range m.users {
+		if user.Disabled || !privileged.Holds(user.Rank) {
+			continue
+		}
+		if user.ID == id {
+			held = true
+			continue
+		}
+		cover++
+	}
+	if held && cover == 0 {
+		return gouncer.ErrLastPrivileged
+	}
+	return nil
+}

@@ -17,6 +17,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/postgres"
+	"github.com/gopherium/gophenberg/internal/role"
 	"github.com/gopherium/gophenberg/internal/seed"
 )
 
@@ -38,8 +39,13 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 		return err
 	}
 	users := authkitpg.NewUserStore(pool)
-	created, err := authkit.EnsureAdmin(ctx, users, seed.AdminEmail, seed.AdminName, seed.AdminPassword)
+	created, err := authkit.EnsureAdmin(
+		ctx, users, seed.AdminEmail, seed.AdminName, seed.AdminPassword, role.Admin,
+	)
 	if err != nil {
+		return err
+	}
+	if err := seedRankedAccounts(ctx, users); err != nil {
 		return err
 	}
 	if err := seedDemoContent(ctx, pool, users); err != nil {
@@ -49,6 +55,21 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 		return err
 	}
 	reportSeeded(stdout, created)
+	return nil
+}
+
+// seedRankedAccounts stores one demo account under each rank below admin.
+func seedRankedAccounts(ctx context.Context, users gouncer.Store) error {
+	ranked := []struct{ email, name, rank string }{
+		{seed.EditorEmail, seed.EditorName, role.Editor},
+		{seed.AuthorEmail, seed.AuthorName, role.Author},
+	}
+	for _, account := range ranked {
+		_, err := authkit.EnsureAdmin(ctx, users, account.email, account.name, seed.AdminPassword, account.rank)
+		if err != nil {
+			return fmt.Errorf("seeding the %s account: %w", account.rank, err)
+		}
+	}
 	return nil
 }
 
@@ -88,5 +109,6 @@ func reportSeeded(stdout io.Writer, created bool) {
 	} else {
 		_, _ = fmt.Fprintln(stdout, seed.AdminEmail+" already exists, its password is unchanged")
 	}
+	_, _ = fmt.Fprintln(stdout, "also seeded: "+seed.EditorEmail+" and "+seed.AuthorEmail+", same password")
 	_, _ = fmt.Fprintln(stdout, "development only, never seed a production database")
 }

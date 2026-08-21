@@ -113,6 +113,10 @@ func (s *server) handleRevisionDelete() http.HandlerFunc {
 		if !ok {
 			return
 		}
+		if _, err := s.ownedContent(r, contentID); err != nil {
+			respondDomainError(w, err)
+			return
+		}
 		if err := s.content.DeleteRevision(r.Context(), contentID, revisionID); err != nil {
 			respondDomainError(w, err)
 			return

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { MANAGE_SETTINGS, SelectControl, Stack, Text, can } from '@gophenberg/frontend-sdk'
 import { __ } from '@wordpress/i18n'
 import { ErrorNotice, Page } from '@gopherium/godmin'
+import { useSession } from '@gopherium/react-auth'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+
 
 import { chooseLocale, chooseSiteLocale, fetchLocale, fetchSiteLocale } from './api'
 import { DEFAULT_LOCALE } from './catalog'
@@ -34,6 +36,7 @@ function optionsOf(supported: string[]): { label: string, value: string }[] {
  */
 export function LanguageScreen() {
 	const client = useQueryClient()
+	const rank = useSession().data?.rank
 	const [refusal, setRefusal] = useState('')
 	const answered = useQuery({ queryKey: localeQueryKey, queryFn: fetchLocale })
 	const site = useQuery({ queryKey: siteLocaleQueryKey, queryFn: fetchSiteLocale })
@@ -74,12 +77,14 @@ export function LanguageScreen() {
 				<Text variant="body-sm">
 					{__('A reload shows the admin in the language you chose.', 'gophenberg')}
 				</Text>
-				<SelectControl
-					label={__('The site default', 'gophenberg')}
-					items={siteOptions}
-					value={siteChosen}
-					onValueChange={(item) => item?.value != null && theirs.mutate(item.value)}
-				/>
+				{can(rank, MANAGE_SETTINGS) && (
+					<SelectControl
+						label={__('The site default', 'gophenberg')}
+						items={siteOptions}
+						value={siteChosen}
+						onValueChange={(item) => item?.value != null && theirs.mutate(item.value)}
+					/>
+				)}
 			</Stack>
 		</Page>
 	)

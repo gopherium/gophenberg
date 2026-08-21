@@ -9,6 +9,7 @@ import {
 	createRoute,
 	createRouter,
 } from '@tanstack/react-router'
+import { defaultUser, seedSession } from '@gopherium/react-auth/testing'
 import { render, screen, within } from '@testing-library/react'
 import { expect, test } from 'vitest'
 
@@ -52,6 +53,7 @@ function renderMenuAt(path: string, withSections = false) {
 		history: createMemoryHistory({ initialEntries: [path] }),
 	})
 	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+	seedSession(client, { ...defaultUser, rank: 'admin' })
 	render(
 		<QueryClientProvider client={client}>
 			<RouterProvider router={router} />

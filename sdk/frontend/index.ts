@@ -3,11 +3,14 @@
 import type { AnyRoute } from '@tanstack/react-router'
 import type { ComponentProps, ComponentType, ReactElement } from 'react'
 
+import type { Capability } from './capabilities'
+
 export type { CanvasMode } from '@gopherium/godmin'
 
 declare module '@tanstack/react-router' {
 	interface StaticDataRouteOption {
 		Sidebar?: ComponentType
+		capability?: Capability
 	}
 }
 
@@ -45,3 +48,17 @@ export {
 	undo as undoIcon,
 } from '@wordpress/icons'
 export { TextareaControl } from './TextareaControl'
+export {
+	ADMIN,
+	AUTHOR,
+	CHANGE_OTHERS_WORK,
+	EDITOR,
+	MANAGE_SETTINGS,
+	MANAGE_THEMES,
+	MANAGE_TYPES,
+	MANAGE_USERS,
+	can,
+	sessionMayChange,
+} from './capabilities'
+export { useSession } from '@gopherium/react-auth'
+export type { User as Session } from '@gopherium/react-auth'

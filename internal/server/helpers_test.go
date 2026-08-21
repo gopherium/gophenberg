@@ -12,6 +12,8 @@ import (
 
 	"github.com/gopherium/gouncer"
 	"github.com/gopherium/gouncer/authkit/testkit"
+
+	"github.com/gopherium/gophenberg/internal/role"
 )
 
 const testPassword = "correct horse battery"
@@ -21,10 +23,21 @@ func newFakeUserStore() *testkit.Store {
 	return testkit.NewStore()
 }
 
-// addAda stores and returns the default test user.
+// addRanked stores and returns an account holding the given rank.
+func addRanked(t *testing.T, store *testkit.Store, email, name, rank string) gouncer.User {
+	t.Helper()
+	user := store.AddUser(t, email, name, testPassword)
+	if err := store.SetUserRank(t.Context(), user.ID, rank, nil); err != nil {
+		t.Fatalf("setting the rank of %q: %v", email, err)
+	}
+	user.Rank = rank
+	return user
+}
+
+// addAda stores and returns the default test user, an administrator.
 func addAda(t *testing.T, store *testkit.Store) gouncer.User {
 	t.Helper()
-	return store.AddUser(t, "ada@example.com", "Ada Lovelace", testPassword)
+	return addRanked(t, store, "ada@example.com", "Ada Lovelace", role.Admin)
 }
 
 // doRequest performs an in-memory request against handler.
