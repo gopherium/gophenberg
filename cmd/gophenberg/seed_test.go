@@ -44,6 +44,42 @@ func TestSeedGivesTheAdminTheAdminRank(t *testing.T) {
 	}
 }
 
+func TestSeedStoresAnAccountUnderEveryRank(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	var stdout strings.Builder
+	if err := seedDemoData(t.Context(), testGetenv(env), &stdout); err != nil {
+		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	}
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("connecting pool: %v", err)
+	}
+	defer pool.Close()
+	users := authkitpg.NewUserStore(pool)
+
+	for _, email := range []string{seed.EditorEmail, seed.AuthorEmail} {
+		if !strings.Contains(stdout.String(), email) {
+			t.Errorf("output = %q, want it to name the seeded %q", stdout.String(), email)
+		}
+	}
+	for email, want := range map[string]string{
+		seed.AdminEmail:  role.Admin,
+		seed.EditorEmail: role.Editor,
+		seed.AuthorEmail: role.Author,
+	} {
+		held, err := users.UserByEmail(t.Context(), email)
+		if err != nil {
+			t.Fatalf("UserByEmail(%q) error = %v, want nil", email, err)
+		}
+		if held.Rank != want {
+			t.Errorf("%q holds %q, want %q", email, held.Rank, want)
+		}
+	}
+}
+
 // execSQL runs statement against the database at databaseURL.
 func execSQL(t *testing.T, databaseURL, statement string) {
 	t.Helper()
