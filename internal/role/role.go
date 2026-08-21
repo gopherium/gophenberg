@@ -3,7 +3,11 @@
 // Package role names the ranks a Gophenberg account holds.
 package role
 
-import "github.com/gopherium/gouncer"
+import (
+	"github.com/google/uuid"
+
+	"github.com/gopherium/gouncer"
+)
 
 // Admin is the rank holding every authority over the site.
 const Admin = "admin"
@@ -17,4 +21,12 @@ const Author = "author"
 // Privileged returns the ranks that may administer the site.
 func Privileged() gouncer.Ranks {
 	return gouncer.Ranks{Admin}
+}
+
+// MayChange reports whether an account of the given rank may change work the author owns.
+func MayChange(rank string, actor, author uuid.UUID) bool {
+	if rank == Admin || rank == Editor {
+		return true
+	}
+	return actor == author
 }
