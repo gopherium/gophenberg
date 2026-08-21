@@ -18,7 +18,8 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/peterldowns/pgtestdb v0.1.1
 	github.com/pressly/goose/v3 v3.27.3
-	golang.org/x/image v0.44.0
+	golang.org/x/image v0.45.0
+	golang.org/x/text v0.41.0
 )
 
 require (
@@ -71,7 +72,6 @@ require (
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260727163830-6c54dddc4772 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260727163830-6c54dddc4772 // indirect
 	google.golang.org/grpc v1.82.1 // indirect
