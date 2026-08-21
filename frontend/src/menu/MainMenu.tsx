@@ -7,7 +7,7 @@ import type { AnyRoute } from '@tanstack/react-router'
 
 import { useContentNav } from '../content/nav'
 import { plugins } from '../plugins'
-import { coreNav } from './coreNav'
+import { useCoreNav } from './coreNav'
 
 const chevronRightSmall = (
 	<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
@@ -64,12 +64,13 @@ function MenuItem({ item }: { item: NavItem }) {
  */
 export function MainMenu() {
 	const contentNav = useContentNav()
+	const reachable = useCoreNav()
 	return (
 		<Stack direction="column" gap="xs">
 			{contentNav.map((item) => (
 				<MenuItem key={item.to} item={item} />
 			))}
-			{coreNav.map((item) => (
+			{reachable.map((item) => (
 				<MenuItem key={item.to} item={item} />
 			))}
 			{plugins.flatMap((plugin) =>
