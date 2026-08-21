@@ -97,7 +97,7 @@ func NewServer(cfg Config) http.Handler {
 	})
 	for id, handler := range cfg.Plugins {
 		prefix := "/api/plugins/" + id
-		guarded := pluginkit.Protect(handler, cfg.PluginPublicPaths[id], auth.RequireSession)
+		guarded := pluginkit.Protect(handler, cfg.PluginPublicPaths[id], guardPlugin(auth))
 		router.Mount(prefix, http.StripPrefix(prefix, guarded))
 	}
 	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web))

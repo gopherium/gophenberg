@@ -50,6 +50,15 @@ func Can(rank string, capability Capability) bool {
 	return slices.Contains(carried[rank], capability)
 }
 
+// CapabilitiesOf returns the capabilities a rank carries, named for a caller outside this package.
+func CapabilitiesOf(rank string) []string {
+	held := make([]string, 0, len(carried[rank]))
+	for _, capability := range carried[rank] {
+		held = append(held, string(capability))
+	}
+	return held
+}
+
 // Privileged returns the ranks administering accounts, the cover the safety rails keep.
 func Privileged() gouncer.Ranks {
 	var ranks gouncer.Ranks
