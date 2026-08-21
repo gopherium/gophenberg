@@ -3,9 +3,10 @@
 import { DOMAIN as BRICK_DOMAIN, catalogFor as brickCatalogFor } from '@gopherium/react-auth'
 import { setLocaleData } from '@wordpress/i18n'
 
+import { rememberLocale } from '@gopherium/gottext'
+
 import { fetchLocale } from './api'
 import { catalogFor, editorCatalogFor, type Catalog } from './catalog'
-import { rememberLocale } from './display'
 
 /** The text domain every Gophenberg owned string names. */
 export const DOMAIN = 'gophenberg'

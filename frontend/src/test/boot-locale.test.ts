@@ -6,7 +6,7 @@ import { beforeEach, expect, test } from 'vitest'
 
 import { usersNavItem } from '@gopherium/react-auth/wpds'
 
-import { displayLocale } from '../i18n/display'
+import { displayLocale } from '@gopherium/gottext'
 import { DOMAIN, startLocale } from '../i18n/start'
 
 beforeEach(() => {
