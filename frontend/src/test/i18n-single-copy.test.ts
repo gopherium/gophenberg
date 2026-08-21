@@ -9,6 +9,7 @@ import { pinnedVersions, resolvedVersions } from '../../scripts/singleCopy.ts'
 
 const ROOT = repositoryRoot()
 const RUNTIME = '@wordpress/i18n'
+const BRICK = '@gopherium/gottext'
 
 test('resolves exactly one copy of the translation runtime', () => {
 	expect(resolvedVersions(readFileSync(join(ROOT, 'pnpm-lock.yaml'), 'utf8'), RUNTIME)).toHaveLength(1)
@@ -24,6 +25,20 @@ test('pins the runtime exactly, at the one resolved version', () => {
 
 test('pins the runtime in every package that calls it', () => {
 	expect(pinnedVersions(ROOT, RUNTIME)).toHaveLength(2)
+})
+
+test('resolves exactly one copy of the translation brick', () => {
+	const lockfile = readFileSync(join(ROOT, 'pnpm-lock.yaml'), 'utf8')
+
+	expect(resolvedVersions(lockfile, BRICK)).toHaveLength(1)
+})
+
+test('pins the brick exactly, at the one resolved version', () => {
+	const resolved = resolvedVersions(readFileSync(join(ROOT, 'pnpm-lock.yaml'), 'utf8'), BRICK)
+
+	for (const pinned of pinnedVersions(ROOT, BRICK)) {
+		expect(pinned).toBe(resolved[0])
+	}
 })
 
 test('reads a lockfile whose packages run to the end', () => {

@@ -8,10 +8,10 @@ import type { PotOptions } from '@gopherium/gottext/build'
 export const DOMAIN = 'gophenberg'
 
 /** The globs holding every string the admin ships, read from the repository root. */
-export const SOURCES = ['frontend/src/**/*.{ts,tsx}', 'sdk/frontend/**/*.{ts,tsx}']
+const SOURCES = ['frontend/src/**/*.{ts,tsx}', 'sdk/frontend/**/*.{ts,tsx}']
 
 /** The directories inside those globs that ship no string. */
-export const IGNORED = ['**/test/**', '**/stubs/**', '**/scripts/**']
+const IGNORED = ['**/test/**', '**/stubs/**', '**/scripts/**']
 
 /** The directories the Go side's messages live under. */
 export const GO_ROOTS = ['internal', 'cmd', 'plugins']
