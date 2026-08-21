@@ -144,6 +144,9 @@ msgstr ""
 msgid "Another account wrote this, and only its author, an editor or an administrator may change it. You can still read it."
 msgstr ""
 
+msgid "Another account wrote this, so you are reading it rather than editing it."
+msgstr ""
+
 msgid "Another content type already answers under this route word. Pick a different word."
 msgstr ""
 

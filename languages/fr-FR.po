@@ -112,6 +112,9 @@ msgstr "Un élément ne peut pas se trouver dans lui-même, ni dans un élément
 msgid "Another account wrote this, and only its author, an editor or an administrator may change it. You can still read it."
 msgstr "Un autre compte a écrit ceci, et seuls son auteur, un éditeur ou un administrateur peuvent le modifier. Vous pouvez toujours le lire."
 
+msgid "Another account wrote this, so you are reading it rather than editing it."
+msgstr "Un autre compte a écrit ceci, alors vous le lisez au lieu de le modifier."
+
 #, fuzzy
 msgid "Another content type already answers under this route word. Pick a different word."
 msgstr "Un autre type de contenu répond déjà sous ce mot de route. Choisissez un autre mot."

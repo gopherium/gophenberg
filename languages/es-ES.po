@@ -87,6 +87,9 @@ msgstr "Un elemento no puede estar dentro de sí mismo, ni dentro de otro anidad
 msgid "Another account wrote this, and only its author, an editor or an administrator may change it. You can still read it."
 msgstr "Otra cuenta escribió esto, y solo su autor, un editor o un administrador pueden cambiarlo. Todavía puedes leerlo."
 
+msgid "Another account wrote this, so you are reading it rather than editing it."
+msgstr "Otra cuenta escribió esto, así que lo estás leyendo, no editando."
+
 msgid "Another content type already answers under this route word. Pick a different word."
 msgstr "Ya hay otro tipo de contenido que responde con esta palabra de ruta de URL. Elige una palabra distinta."
 
