@@ -3,8 +3,9 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { poeditorAt } from './poeditor.ts'
-import { DOMAIN, repositoryRoot } from './pot.ts'
+import { poeditorAt } from '@gopherium/gottext/sync'
+
+import { DOMAIN, repositoryRoot } from './config.ts'
 
 const token = process.env.POEDITOR_API_TOKEN
 const project = process.env.POEDITOR_PROJECT_ID
@@ -15,6 +16,6 @@ if (token === undefined || project === undefined) {
 }
 
 const template = readFileSync(join(repositoryRoot(), 'languages', `${DOMAIN}.pot`), 'utf8')
-const deleted = await poeditorAt(token, project).retireTerms(template)
+const deleted = await poeditorAt({ token, project, domain: DOMAIN }).retireTerms(template)
 
 console.log(deleted === 0 ? 'the platform held nothing to retire' : `terms retired: ${deleted}`)
