@@ -36,6 +36,51 @@ func TestPrivilegedCannotBeChangedByItsCaller(t *testing.T) {
 	}
 }
 
+func TestCan(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		rank       string
+		capability role.Capability
+		want       bool
+	}{
+		"an admin administers accounts":           {role.Admin, role.ManageUsers, true},
+		"an admin manages themes":                 {role.Admin, role.ManageThemes, true},
+		"an admin reshapes the content model":     {role.Admin, role.ManageTypes, true},
+		"an admin writes the site settings":       {role.Admin, role.ManageSettings, true},
+		"an admin changes work it did not write":  {role.Admin, role.ChangeOthersWork, true},
+		"an editor changes work it did not write": {role.Editor, role.ChangeOthersWork, true},
+		"an editor cannot administer accounts":    {role.Editor, role.ManageUsers, false},
+		"an editor cannot manage themes":          {role.Editor, role.ManageThemes, false},
+		"an author holds none of them":            {role.Author, role.ChangeOthersWork, false},
+		"an unknown rank holds nothing":           {"archivist", role.ManageUsers, false},
+		"an unranked account holds nothing":       {"", role.ManageSettings, false},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := role.Can(test.rank, test.capability); got != test.want {
+				t.Errorf("Can(%q, %q) = %v, want %v", test.rank, test.capability, got, test.want)
+			}
+		})
+	}
+}
+
+func TestPrivilegedIsWhoeverAdministersAccounts(t *testing.T) {
+	t.Parallel()
+
+	held := role.Privileged()
+
+	for _, rank := range []string{role.Admin, role.Editor, role.Author} {
+		if held.Holds(rank) != role.Can(rank, role.ManageUsers) {
+			t.Errorf("Privileged().Holds(%q) = %v, want it to follow Can(%q, ManageUsers)",
+				rank, held.Holds(rank), rank)
+		}
+	}
+}
+
 func TestMayChange(t *testing.T) {
 	t.Parallel()
 
