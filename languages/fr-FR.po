@@ -1353,8 +1353,6 @@ msgstr "Ce type répondra sous /%(word)s."
 msgid "{day} {month} {year}"
 msgstr "{day} {month} {year}"
 
-#, fuzzy
-#, fuzzy
 msgctxt "account"
 msgid "Role"
 msgstr "Rôle"
@@ -1363,6 +1361,7 @@ msgctxt "account"
 msgid "Role of %(name)s"
 msgstr "Rôle de %(name)s"
 
+#, fuzzy
 msgctxt "account"
 msgid "Status"
 msgstr "État"
