@@ -188,6 +188,17 @@ test('offers an author no controls on media another account uploaded', async () 
 	expect(screen.queryByRole('menuitem', { name: 'Delete Permanently' })).toBeNull()
 })
 
+test('offers an editor every action on media another account uploaded', async () => {
+	serveMedia(FOREIGN)
+	renderAt('/media', grace)
+	await screen.findByText('Harbor at dawn')
+
+	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
+
+	expect(await screen.findByRole('menuitem', { name: 'Describe' })).toBeInTheDocument()
+	expect(screen.getByRole('menuitem', { name: 'Delete Permanently' })).toBeInTheDocument()
+})
+
 test('offers an author every action on its own upload', async () => {
 	serveMedia(maria.id)
 	renderAt('/media', maria)
