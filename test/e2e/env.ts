@@ -39,7 +39,7 @@ export const editorAuthFile = fileURLToPath(new URL('.auth/editor.json', import.
 
 export const authorAuthFile = fileURLToPath(new URL('.auth/author.json', import.meta.url))
 
-export const seededRanks = {
+export const seededRoles = {
 	editor: { email: 'editor@example.com', password: 'password1234' },
 	author: { email: 'author@example.com', password: 'password1234' },
 }
