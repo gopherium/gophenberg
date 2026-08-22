@@ -4,12 +4,14 @@ description: Accounts, the login screen, and enabling and disabling users.
 ---
 
 Everyone who writes in Gophenberg has an account with an email and
-a password. Every account holds one rank, and the rank decides what
-it may do.
+a password. An account holds one role, and the role decides what it
+may do. Accounts made before roles existed are the one exception.
+They hold none until you give them one, and the last section covers
+that.
 
-## Ranks
+## Roles
 
-There are three ranks.
+There are three roles.
 
 An **admin** runs the site. It manages accounts, installs and
 switches themes, reshapes the content model, writes the site
@@ -21,8 +23,8 @@ or settings.
 
 An **author** writes and works only its own content and media.
 
-Nothing else changes with rank. Every rank signs in the same way and
-sees the same admin, minus the screens its rank cannot use.
+Nothing else changes with the role. Every role signs in the same way
+and sees the same admin, minus the screens its role cannot use.
 
 ## Signing in
 
@@ -50,24 +52,52 @@ administrator from locking everyone out.
 
 Changing a password is not something the admin offers.
 
-## Giving a rank to accounts that hold none
+## Upgrading a site that ran an earlier version
 
-Accounts made before ranks existed hold no rank, so they can do
-nothing until one is given. The `grantrank` command gives a rank to
+Two steps, in this order, and only on a site that ran a version
+before this one.
+
+**First, rename the column, if your site still has the old one.**
+Versions before this one stored the role in a column called `rank`.
+The rename ships as an edit to the migration that creates it, and a
+database that already ran the old one keeps the old name. Nothing
+detects this, so the site starts, reports no error, and then fails
+the first time anyone signs in. Check which name your database has:
+
+```sh
+psql "$GOPHENBERG_DATABASE_URL" -tAc "select column_name from information_schema.columns where table_schema='auth' and table_name='users' and column_name in ('rank','role');"
+```
+
+If it answers `role`, or nothing at all, skip this step. If it
+answers `rank`, rename it once, before starting the new version:
+
+```sh
+psql "$GOPHENBERG_DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
+  -c "ALTER TABLE auth.users RENAME COLUMN rank TO role;" \
+  -c "ALTER INDEX auth.users_rank_idx RENAME TO users_role_idx;"
+```
+
+Both renames happen together or neither does, so a failure halfway
+leaves the database as it was. Every account keeps the role it held.
+
+**Second, give a role to the accounts that hold none.**
+
+Accounts made before roles existed hold no role, so they can do
+nothing until one is given. The `grantrole` command gives a role to
 every account that holds none, and says how many it changed.
 
 ```sh
-GOPHENBERG_DATABASE_URL=... gophenberg grantrank -rank admin
+GOPHENBERG_DATABASE_URL=... gophenberg grantrole -role admin
 ```
 
-Run it once after upgrading. It only touches rankless accounts, so
-running it again changes nothing, and an account that already holds
-a rank keeps it.
+Run it once after upgrading. It only touches accounts holding no
+role, so running it again changes nothing, and an account that
+already holds a role keeps it.
 
-Pick the rank you want those accounts to have. On a site where the
+Pick the role you want those accounts to have. On a site where the
 existing accounts are the people running it, `admin` is the usual
-answer. On a larger site, give `author` and raise the few who need
-more.
+answer. On a larger site, give `author`, then change the few
+accounts that need to do more.
 
 The login machinery comes from the Gopherium authentication
 bricks, documented at

@@ -1421,20 +1421,20 @@ msgctxt "person"
 msgid "Name"
 msgstr "Nom"
 
-msgctxt "rank"
+msgctxt "role"
 msgid "Administrator"
 msgstr "Administrateur"
 
-msgctxt "rank"
+msgctxt "role"
 msgid "Author"
 msgstr "Auteur"
 
-msgctxt "rank"
+msgctxt "role"
 msgid "Editor"
 msgstr "Éditeur"
 
-msgctxt "rank"
-msgid "Unranked"
+msgctxt "role"
+msgid "No role"
 msgstr "Sans rôle"
 
 #, fuzzy

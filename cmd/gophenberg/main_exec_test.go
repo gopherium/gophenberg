@@ -106,7 +106,7 @@ func TestMainBinaryCreateAdminProvisionsAUser(t *testing.T) {
 	binary, env := coverBinary(t)
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command(
-		binary, "createadmin", "-email", "admin@example.com", "-name", "Admin", "-rank", "admin",
+		binary, "createadmin", "-email", "admin@example.com", "-name", "Admin", "-role", "admin",
 	)
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(env, "GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t))

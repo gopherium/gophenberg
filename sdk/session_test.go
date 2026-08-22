@@ -23,8 +23,8 @@ func TestSessionFromAnswersWhatTheHostFiled(t *testing.T) {
 	if held.ID != id || held.Email != "maria@example.com" || held.Name != "Maria Perez" {
 		t.Errorf("session = %+v, want the identity the host filed", held)
 	}
-	if held.Rank != "editor" {
-		t.Errorf("rank = %q, want %q", held.Rank, "editor")
+	if held.Role != "editor" {
+		t.Errorf("role = %q, want %q", held.Role, "editor")
 	}
 }
 

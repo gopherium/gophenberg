@@ -33,7 +33,7 @@ async function foreignPost(request: APIRequestContext): Promise<ListedPost> {
 test.describe('an author', () => {
 	test.use({ storageState: authorAuthFile })
 
-	test('sees only the screens its rank reaches', async ({ page }) => {
+	test('sees only the screens its role reaches', async ({ page }) => {
 		await page.goto('/admin/')
 		const menu = page.getByRole('navigation')
 
@@ -55,7 +55,7 @@ test.describe('an author', () => {
 		const answer = await request.get('/api/users')
 
 		expect(answer.status()).toBe(403)
-		expect(((await answer.json()) as { code: string }).code).toBe('rank_insufficient')
+		expect(((await answer.json()) as { code: string }).code).toBe('role_insufficient')
 	})
 
 	test('is refused a change to work another account wrote', async ({ request }) => {
@@ -99,7 +99,7 @@ test.describe('an editor', () => {
 		const answer = await request.get('/api/themes')
 
 		expect(answer.status()).toBe(403)
-		expect(((await answer.json()) as { code: string }).code).toBe('rank_insufficient')
+		expect(((await answer.json()) as { code: string }).code).toBe('role_insufficient')
 	})
 
 	test('opens a post another account wrote as the editor', async ({ page, request }) => {

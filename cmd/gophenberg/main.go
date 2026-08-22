@@ -30,7 +30,7 @@ func main() {
 func dispatch(ctx context.Context) error {
 	subcommands := map[string]func(context.Context) error{
 		"createadmin": createAdmin,
-		"grantrank":   grantRank,
+		"grantrole":   grantRole,
 		"seed":        seedFromEnvironment,
 	}
 	if len(os.Args) > 1 {
@@ -55,11 +55,11 @@ func createAdmin(ctx context.Context) error {
 	return authkitpg.RunCreateAdmin(ctx, databaseURL, os.Args[2:], os.Stdin, os.Stdout)
 }
 
-// grantRank gives the named rank to every account holding none.
-func grantRank(ctx context.Context) error {
+// grantRole gives the named role to every account holding none.
+func grantRole(ctx context.Context) error {
 	databaseURL := os.Getenv("GOPHENBERG_DATABASE_URL")
 	if databaseURL == "" {
 		return errors.New("GOPHENBERG_DATABASE_URL is required")
 	}
-	return authkitpg.RunGrantRank(ctx, databaseURL, os.Args[2:], os.Stdout)
+	return authkitpg.RunGrantRole(ctx, databaseURL, os.Args[2:], os.Stdout)
 }

@@ -1088,20 +1088,20 @@ msgctxt "post status"
 msgid "Trash"
 msgstr ""
 
-msgctxt "rank"
+msgctxt "role"
 msgid "Administrator"
 msgstr ""
 
-msgctxt "rank"
+msgctxt "role"
 msgid "Author"
 msgstr ""
 
-msgctxt "rank"
+msgctxt "role"
 msgid "Editor"
 msgstr ""
 
-msgctxt "rank"
-msgid "Unranked"
+msgctxt "role"
+msgid "No role"
 msgstr ""
 
 msgctxt "status filter"

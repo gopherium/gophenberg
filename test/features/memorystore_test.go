@@ -111,7 +111,7 @@ func (m *memoryStore) SetUserDisabled(_ context.Context, id uuid.UUID, disabled 
 
 // SetUserDisabledUnderCover disables an account, refusing to leave no enabled account privileged.
 func (m *memoryStore) SetUserDisabledUnderCover(
-	_ context.Context, id uuid.UUID, disabled bool, privileged gouncer.Ranks,
+	_ context.Context, id uuid.UUID, disabled bool, privileged gouncer.Roles,
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -121,16 +121,16 @@ func (m *memoryStore) SetUserDisabledUnderCover(
 	return m.updateLocked(id, func(user *gouncer.User) { user.Disabled = disabled })
 }
 
-// SetUserRank writes an account's rank, refusing to leave no enabled account privileged.
-func (m *memoryStore) SetUserRank(
-	_ context.Context, id uuid.UUID, rank string, privileged gouncer.Ranks,
+// SetUserRole writes an account's role, refusing to leave no enabled account privileged.
+func (m *memoryStore) SetUserRole(
+	_ context.Context, id uuid.UUID, role string, privileged gouncer.Roles,
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if err := m.refuseUncoveredLocked(id, privileged, !privileged.Holds(rank)); err != nil {
+	if err := m.refuseUncoveredLocked(id, privileged, !privileged.Holds(role)); err != nil {
 		return err
 	}
-	return m.updateLocked(id, func(user *gouncer.User) { user.Rank = rank })
+	return m.updateLocked(id, func(user *gouncer.User) { user.Role = role })
 }
 
 // updateLocked changes one stored account, the caller holding the lock.
@@ -146,13 +146,13 @@ func (m *memoryStore) updateLocked(id uuid.UUID, change func(*gouncer.User)) err
 }
 
 // refuseUncoveredLocked refuses a write leaving no enabled account privileged, the caller holding the lock.
-func (m *memoryStore) refuseUncoveredLocked(id uuid.UUID, privileged gouncer.Ranks, removesCover bool) error {
+func (m *memoryStore) refuseUncoveredLocked(id uuid.UUID, privileged gouncer.Roles, removesCover bool) error {
 	if len(privileged) == 0 || !removesCover {
 		return nil
 	}
 	held, cover := false, 0
 	for _, user := range m.users {
-		if user.Disabled || !privileged.Holds(user.Rank) {
+		if user.Disabled || !privileged.Holds(user.Role) {
 			continue
 		}
 		if user.ID == id {

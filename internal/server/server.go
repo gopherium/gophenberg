@@ -111,7 +111,7 @@ func NewServer(cfg Config) http.Handler {
 	return router
 }
 
-// mountOpen registers the routes every signed in rank reaches.
+// mountOpen registers the routes every signed in role reaches.
 func (s *server) mountOpen(r chi.Router, cfg Config) {
 	if cfg.Types != nil {
 		r.Get("/api/types", s.handleTypeList())
@@ -145,12 +145,12 @@ func (s *server) mountOpen(r chi.Router, cfg Config) {
 	}
 }
 
-// mountAdmin registers the routes only a privileged rank reaches.
+// mountAdmin registers the routes only a privileged role reaches.
 func (s *server) mountAdmin(r chi.Router, admin *authkit.AdminHandlers, cfg Config) {
 	r.Get("/api/users", admin.List)
 	r.Post("/api/users", admin.Create)
 	r.Patch("/api/users/{id}", admin.SetDisabled)
-	r.Put("/api/users/{id}/rank", admin.SetRank)
+	r.Put("/api/users/{id}/role", admin.SetRole)
 	if cfg.Types != nil {
 		r.Post("/api/types", s.handleTypeCreate())
 		r.Patch("/api/types/{key}", s.handleTypePatch())

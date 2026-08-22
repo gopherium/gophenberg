@@ -20,14 +20,14 @@ test('an admin holds every capability the screens ask for', () => {
 })
 
 test('an editor and an author hold none of the administration capabilities', () => {
-	for (const rank of ['editor', 'author']) {
+	for (const role of ['editor', 'author']) {
 		for (const capability of [MANAGE_USERS, MANAGE_THEMES, MANAGE_TYPES, MANAGE_SETTINGS]) {
-			expect(can(rank, capability)).toBe(false)
+			expect(can(role, capability)).toBe(false)
 		}
 	}
 })
 
-test('a rank the table does not know holds nothing', () => {
+test('a role the table does not know holds nothing', () => {
 	expect(can('archivist', MANAGE_USERS)).toBe(false)
 	expect(can('', MANAGE_SETTINGS)).toBe(false)
 	expect(can(undefined, MANAGE_THEMES)).toBe(false)
@@ -41,8 +41,8 @@ test('an admin and an editor change work another account wrote, an author does n
 
 test('no session changes nothing, and a session follows mayChange', () => {
 	expect(sessionMayChange(undefined, 'account-a')).toBe(false)
-	expect(sessionMayChange({ rank: 'author', id: 'account-a' }, 'account-a')).toBe(true)
-	expect(sessionMayChange({ rank: 'editor', id: 'account-a' }, 'account-b')).toBe(true)
+	expect(sessionMayChange({ role: 'author', id: 'account-a' }, 'account-a')).toBe(true)
+	expect(sessionMayChange({ role: 'editor', id: 'account-a' }, 'account-b')).toBe(true)
 })
 
 test('mayChange follows the capability or the authorship', () => {

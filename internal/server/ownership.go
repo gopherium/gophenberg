@@ -20,7 +20,7 @@ var errNotAuthor = errors.New("not the author of this item")
 // refuseUnlessAuthor refuses unless the session may change work the author owns.
 func refuseUnlessAuthor(r *http.Request, author uuid.UUID) error {
 	identity := authkit.IdentityFromContext(r.Context())
-	if role.MayChange(identity.Rank, identity.ID, author) {
+	if role.MayChange(identity.Role, identity.ID, author) {
 		return nil
 	}
 	return errNotAuthor
