@@ -33,7 +33,7 @@ var publicRoutes = []route{
 	{http.MethodGet, "/api/content/v1/resolve"},
 }
 
-// everyoneRoutes names the API routes every signed in rank reaches.
+// everyoneRoutes names the API routes every signed in role reaches.
 var everyoneRoutes = []route{
 	{http.MethodGet, "/api/auth/session"},
 	{http.MethodGet, "/api/types"},
@@ -60,12 +60,12 @@ var everyoneRoutes = []route{
 	{http.MethodDelete, "/api/media/{id}"},
 }
 
-// adminRoutes names the API routes only a privileged rank reaches.
+// adminRoutes names the API routes only a privileged role reaches.
 var adminRoutes = []route{
 	{http.MethodGet, "/api/users"},
 	{http.MethodPost, "/api/users"},
 	{http.MethodPatch, "/api/users/{id}"},
-	{http.MethodPut, "/api/users/{id}/rank"},
+	{http.MethodPut, "/api/users/{id}/role"},
 	{http.MethodPost, "/api/types"},
 	{http.MethodPatch, "/api/types/{key}"},
 	{http.MethodDelete, "/api/types/{key}"},
@@ -107,7 +107,7 @@ func newGateServer(t *testing.T) (http.Handler, *http.Cookie) {
 	t.Helper()
 	users := newFakeUserStore()
 	addAda(t, users)
-	addRanked(t, users, "author@example.com", "Maria Perez", role.Author)
+	addWithRole(t, users, "author@example.com", "Maria Perez", role.Author)
 	handler := server.NewServer(server.Config{
 		Users:      users,
 		Content:    newFakePostStore(),
@@ -184,7 +184,7 @@ func concrete(pattern string) string {
 	return replaced.Replace(pattern)
 }
 
-func TestAnUnprivilegedRankIsRefusedEveryAdminRoute(t *testing.T) {
+func TestAnUnprivilegedRoleIsRefusedEveryAdminRoute(t *testing.T) {
 	t.Parallel()
 
 	handler, cookie := newGateServer(t)
@@ -204,7 +204,7 @@ func TestAnUnprivilegedRankIsRefusedEveryAdminRoute(t *testing.T) {
 	}
 }
 
-func TestAnUnprivilegedRankReachesEveryOpenRoute(t *testing.T) {
+func TestAnUnprivilegedRoleReachesEveryOpenRoute(t *testing.T) {
 	t.Parallel()
 
 	handler, cookie := newGateServer(t)
@@ -218,7 +218,7 @@ func TestAnUnprivilegedRankReachesEveryOpenRoute(t *testing.T) {
 		handler.ServeHTTP(recorder, request)
 
 		if recorder.Code == http.StatusForbidden {
-			t.Errorf("%s %s refused an author with %d, want the rank gate to admit it",
+			t.Errorf("%s %s refused an author with %d, want the role gate to admit it",
 				open.method, open.pattern, recorder.Code)
 		}
 	}

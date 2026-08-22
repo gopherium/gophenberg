@@ -23,21 +23,21 @@ func newFakeUserStore() *testkit.Store {
 	return testkit.NewStore()
 }
 
-// addRanked stores and returns an account holding the given rank.
-func addRanked(t *testing.T, store *testkit.Store, email, name, rank string) gouncer.User {
+// addWithRole stores and returns an account holding the given role.
+func addWithRole(t *testing.T, store *testkit.Store, email, name, role string) gouncer.User {
 	t.Helper()
 	user := store.AddUser(t, email, name, testPassword)
-	if err := store.SetUserRank(t.Context(), user.ID, rank, nil); err != nil {
-		t.Fatalf("setting the rank of %q: %v", email, err)
+	if err := store.SetUserRole(t.Context(), user.ID, role, nil); err != nil {
+		t.Fatalf("setting the role of %q: %v", email, err)
 	}
-	user.Rank = rank
+	user.Role = role
 	return user
 }
 
 // addAda stores and returns the default test user, an administrator.
 func addAda(t *testing.T, store *testkit.Store) gouncer.User {
 	t.Helper()
-	return addRanked(t, store, "ada@example.com", "Ada Lovelace", role.Admin)
+	return addWithRole(t, store, "ada@example.com", "Ada Lovelace", role.Admin)
 }
 
 // doRequest performs an in-memory request against handler.
