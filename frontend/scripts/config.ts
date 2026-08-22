@@ -16,6 +16,9 @@ const IGNORED = ['**/test/**', '**/stubs/**', '**/scripts/**']
 /** The directories the Go side's messages live under. */
 export const GO_ROOTS = ['internal', 'cmd', 'plugins']
 
+/** The packages that pin the translation runtime and the brick for themselves. */
+export const PINNING = ['frontend', 'sdk/frontend']
+
 /**
  * Returns the repository root the source globs resolve against.
  * @returns The absolute path of the repository root.
