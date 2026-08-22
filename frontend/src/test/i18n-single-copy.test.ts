@@ -4,8 +4,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
-import { repositoryRoot } from '../../scripts/config.ts'
-import { pinnedVersions, resolvedVersions } from '../../scripts/singleCopy.ts'
+import { pinnedVersions, resolvedVersions } from '@gopherium/gottext/build'
+
+import { PINNING, repositoryRoot } from '../../scripts/config.ts'
 
 const ROOT = repositoryRoot()
 const RUNTIME = '@wordpress/i18n'
@@ -18,13 +19,13 @@ test('resolves exactly one copy of the translation runtime', () => {
 test('pins the runtime exactly, at the one resolved version', () => {
 	const resolved = resolvedVersions(readFileSync(join(ROOT, 'pnpm-lock.yaml'), 'utf8'), RUNTIME)
 
-	for (const pinned of pinnedVersions(ROOT, RUNTIME)) {
+	for (const pinned of pinnedVersions(ROOT, PINNING, RUNTIME)) {
 		expect(pinned).toBe(resolved[0])
 	}
 })
 
 test('pins the runtime in every package that calls it', () => {
-	expect(pinnedVersions(ROOT, RUNTIME)).toHaveLength(2)
+	expect(pinnedVersions(ROOT, PINNING, RUNTIME)).toHaveLength(2)
 })
 
 test('resolves exactly one copy of the translation brick', () => {
@@ -36,7 +37,7 @@ test('resolves exactly one copy of the translation brick', () => {
 test('pins the brick exactly, at the one resolved version', () => {
 	const resolved = resolvedVersions(readFileSync(join(ROOT, 'pnpm-lock.yaml'), 'utf8'), BRICK)
 
-	for (const pinned of pinnedVersions(ROOT, BRICK)) {
+	for (const pinned of pinnedVersions(ROOT, PINNING, BRICK)) {
 		expect(pinned).toBe(resolved[0])
 	}
 })
@@ -48,5 +49,5 @@ test('reads a lockfile whose packages run to the end', () => {
 })
 
 test('reports no pin for a package nothing declares', () => {
-	expect(pinnedVersions(ROOT, '@gophenberg/not-a-package')).toEqual([])
+	expect(pinnedVersions(ROOT, PINNING, '@gophenberg/not-a-package')).toEqual([])
 })
