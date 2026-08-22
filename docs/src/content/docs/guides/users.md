@@ -57,6 +57,12 @@ Changing a password is not something the admin offers.
 Two steps, in this order, and only on a site that ran a version
 before this one.
 
+The commands below match the Docker setup from
+[Install](/self-hosting/install/), where the database service is
+called `db`. If you run Gophenberg another way, drop the
+`docker compose` wrappers and call `psql "$GOPHENBERG_DATABASE_URL"`
+and `gophenberg` directly.
+
 **First, rename the column, if your site still has the old one.**
 Versions before this one stored the role in a column called `rank`.
 The rename ships as an edit to the migration that creates it, and a
@@ -65,16 +71,21 @@ detects this, so the site starts, reports no error, and then fails
 the first time anyone signs in. Check which name your database has:
 
 ```sh
-psql "$GOPHENBERG_DATABASE_URL" -tAc "select column_name from information_schema.columns where table_schema='auth' and table_name='users' and column_name in ('rank','role');"
+docker compose exec -T db psql -U postgres -d gophenberg -tAc \
+  "select column_name from information_schema.columns where table_schema='auth' and table_name='users' and column_name in ('rank','role');"
 ```
 
 If it answers `role`, or nothing at all, skip this step. If it
-answers `rank`, rename it once, before starting the new version:
+answers `rank`, stop the site, rename the column, and start the new
+version. With the new image tag already in your `compose.yaml`:
 
 ```sh
-psql "$GOPHENBERG_DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
+docker compose stop gophenberg
+docker compose exec -T db psql -U postgres -d gophenberg \
+  -v ON_ERROR_STOP=1 --single-transaction \
   -c "ALTER TABLE auth.users RENAME COLUMN rank TO role;" \
   -c "ALTER INDEX auth.users_rank_idx RENAME TO users_role_idx;"
+docker compose up -d
 ```
 
 Both renames happen together or neither does, so a failure halfway
@@ -87,7 +98,7 @@ nothing until one is given. The `grantrole` command gives a role to
 every account that holds none, and says how many it changed.
 
 ```sh
-GOPHENBERG_DATABASE_URL=... gophenberg grantrole -role admin
+docker compose run --rm -T gophenberg grantrole -role admin
 ```
 
 Run it once after upgrading. It only touches accounts holding no
