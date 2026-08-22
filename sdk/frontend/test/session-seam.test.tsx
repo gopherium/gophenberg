@@ -17,9 +17,9 @@ function PluginScreen() {
 	const session = useSession().data
 	return (
 		<ul>
-			<li>{`rank:${session?.rank ?? 'none'}`}</li>
-			<li>{`changes:${String(can(session?.rank, CHANGE_OTHERS_WORK))}`}</li>
-			<li>{`administers:${String(can(session?.rank, MANAGE_USERS))}`}</li>
+			<li>{`role:${session?.role ?? 'none'}`}</li>
+			<li>{`changes:${String(can(session?.role, CHANGE_OTHERS_WORK))}`}</li>
+			<li>{`administers:${String(can(session?.role, MANAGE_USERS))}`}</li>
 		</ul>
 	)
 }
@@ -38,14 +38,14 @@ function renderAs(session: Session | null) {
 	)
 }
 
-test('a plugin screen reads the rank the session carries', async () => {
-	renderAs({ ...defaultUser, rank: 'editor' })
+test('a plugin screen reads the role the session carries', async () => {
+	renderAs({ ...defaultUser, role: 'editor' })
 
-	expect(await screen.findByText('rank:editor')).toBeInTheDocument()
+	expect(await screen.findByText('role:editor')).toBeInTheDocument()
 })
 
-test('a plugin screen asks capabilities rather than comparing ranks', async () => {
-	renderAs({ ...defaultUser, rank: 'editor' })
+test('a plugin screen asks capabilities rather than comparing roles', async () => {
+	renderAs({ ...defaultUser, role: 'editor' })
 
 	expect(await screen.findByText('changes:true')).toBeInTheDocument()
 	expect(screen.getByText('administers:false')).toBeInTheDocument()
@@ -54,6 +54,6 @@ test('a plugin screen asks capabilities rather than comparing ranks', async () =
 test('a plugin screen holds nothing without a session', async () => {
 	renderAs(null)
 
-	expect(await screen.findByText('rank:none')).toBeInTheDocument()
+	expect(await screen.findByText('role:none')).toBeInTheDocument()
 	expect(screen.getByText('changes:false')).toBeInTheDocument()
 })

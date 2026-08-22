@@ -14,15 +14,15 @@ type Session struct {
 	ID    uuid.UUID
 	Email string
 	Name  string
-	Rank  string
+	Role  string
 
 	capabilities []string
 }
 
 // NewSession returns the session a host files for a request.
-func NewSession(id uuid.UUID, email, name, rank string, capabilities []string) Session {
+func NewSession(id uuid.UUID, email, name, role string, capabilities []string) Session {
 	return Session{
-		ID: id, Email: email, Name: name, Rank: rank,
+		ID: id, Email: email, Name: name, Role: role,
 		capabilities: slices.Clone(capabilities),
 	}
 }
