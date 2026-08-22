@@ -11,9 +11,9 @@ import { can } from '@gophenberg/frontend-sdk'
  * @returns The nested screen, or the redirect standing in for it.
  */
 export function CapabilityGate() {
-	const rank = useSession().data?.rank
+	const role = useSession().data?.role
 	const asked = useMatches().flatMap((match) => match.staticData.capability ?? [])
-	if (asked.length === 0 || !asked.every((capability) => can(rank, capability))) {
+	if (asked.length === 0 || !asked.every((capability) => can(role, capability))) {
 		return <Navigate to="/" replace />
 	}
 	return <Outlet />

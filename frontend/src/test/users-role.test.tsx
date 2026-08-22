@@ -5,7 +5,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
-import { rankLabel } from '../users/ranks'
+import { roleLabel } from '../users/roles'
 import { renderAt } from './render'
 
 const SIGNED_IN = '0198b2f0-0000-7000-8000-000000000001'
@@ -13,30 +13,30 @@ const SIGNED_IN = '0198b2f0-0000-7000-8000-000000000001'
 const OTHER = '0198b2f0-0000-7000-8000-000000000002'
 
 /**
- * Returns a stored account row holding a rank.
+ * Returns a stored account row holding a role.
  * @param id - The account identifier.
  * @param name - The account holder's name.
- * @param rank - The rank the account holds.
+ * @param role - The role the account holds.
  * @returns The account row.
  */
-function ranked(id: string, name: string, rank: string) {
+function withRole(id: string, name: string, role: string) {
 	return {
 		id,
 		email: `${name.split(' ')[0]?.toLowerCase()}@example.com`,
 		name,
 		disabled: false,
-		rank,
+		role,
 		created_at: '2026-07-06T10:00:00Z',
 	}
 }
 
 beforeEach(() =>
 	server.use(
-		http.get('/api/users', () => HttpResponse.json([ranked(OTHER, 'Maria Perez', 'editor')])),
+		http.get('/api/users', () => HttpResponse.json([withRole(OTHER, 'Maria Perez', 'editor')])),
 	),
 )
 
-test('shows the rank each account holds', async () => {
+test('shows the role each account holds', async () => {
 	renderAt('/users')
 
 	const row = await screen.findByRole('row', { name: /Maria Perez/ })
@@ -44,10 +44,10 @@ test('shows the rank each account holds', async () => {
 	expect(within(row).getByText('Editor')).toBeInTheDocument()
 })
 
-test('writes the rank the reader picked for another account', async () => {
+test('writes the role the reader picked for another account', async () => {
 	const asked: unknown[] = []
 	server.use(
-		http.put(`/api/users/${OTHER}/rank`, async ({ request }) => {
+		http.put(`/api/users/${OTHER}/role`, async ({ request }) => {
 			asked.push(await request.json())
 			return new HttpResponse(null, { status: 204 })
 		}),
@@ -58,12 +58,14 @@ test('writes the rank the reader picked for another account', async () => {
 	await userEvent.click(await screen.findByRole('option', { name: 'Administrator' }))
 
 	await waitFor(() => expect(asked).toHaveLength(1))
-	expect(asked[0]).toMatchObject({ rank: 'admin' })
+	expect(asked[0]).toMatchObject({ role: 'admin' })
 })
 
-test('leaves the signed in account without a way to change its own rank', async () => {
+test('leaves the signed in account without a way to change its own role', async () => {
 	server.use(
-		http.get('/api/users', () => HttpResponse.json([ranked(SIGNED_IN, 'Grace Hopper', 'admin')])),
+		http.get('/api/users', () =>
+			HttpResponse.json([withRole(SIGNED_IN, 'Grace Hopper', 'admin')]),
+		),
 	)
 	renderAt('/users')
 
@@ -73,12 +75,12 @@ test('leaves the signed in account without a way to change its own rank', async 
 	expect(within(row).getByText('Administrator')).toBeInTheDocument()
 })
 
-test('creates an account under the rank the form picked', async () => {
+test('creates an account under the role the form picked', async () => {
 	const sent: unknown[] = []
 	server.use(
 		http.post('/api/users', async ({ request }) => {
 			sent.push(await request.json())
-			return HttpResponse.json(ranked(OTHER, 'Maria Perez', 'editor'), { status: 201 })
+			return HttpResponse.json(withRole(OTHER, 'Maria Perez', 'editor'), { status: 201 })
 		}),
 	)
 	renderAt('/users/new')
@@ -91,18 +93,18 @@ test('creates an account under the rank the form picked', async () => {
 	await userEvent.click(screen.getByRole('button', { name: 'Create user' }))
 
 	await waitFor(() => expect(sent).toHaveLength(1))
-	expect(sent[0]).toMatchObject({ rank: 'editor' })
+	expect(sent[0]).toMatchObject({ role: 'editor' })
 })
 
-test('starts a new account at the narrowest rank', async () => {
+test('starts a new account at the narrowest role', async () => {
 	renderAt('/users/new')
 
 	expect(await screen.findByRole('combobox', { name: 'Role' })).toHaveTextContent('Author')
 })
 
-test('says so when a rank could not be written', async () => {
+test('says so when a role could not be written', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.put(`/api/users/${OTHER}/rank`, () => HttpResponse.json({}, { status: 500 })))
+	server.use(http.put(`/api/users/${OTHER}/role`, () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/users')
 
 	await userEvent.click(await screen.findByRole('combobox', { name: 'Role of Maria Perez' }))
@@ -111,8 +113,8 @@ test('says so when a rank could not be written', async () => {
 	expect(await screen.findByRole('alert')).toHaveTextContent('Update failed.')
 })
 
-test('reads a rank the screen does not know as the server stored it', () => {
-	expect(rankLabel('archivist')).toBe('archivist')
-	expect(rankLabel('')).toBe('Unranked')
-	expect(rankLabel('editor')).toBe('Editor')
+test('reads a role the screen does not know as the server stored it', () => {
+	expect(roleLabel('archivist')).toBe('archivist')
+	expect(roleLabel('')).toBe('No role')
+	expect(roleLabel('editor')).toBe('Editor')
 })

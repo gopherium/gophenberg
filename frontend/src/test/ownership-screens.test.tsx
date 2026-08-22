@@ -10,9 +10,9 @@ import { storedPost } from './postFixture'
 
 const FOREIGN = '019fb000-0000-7000-8000-0000000000ff'
 
-const maria = { ...adminUser, rank: 'author' }
+const maria = { ...adminUser, role: 'author' }
 
-const grace = { ...adminUser, rank: 'editor' }
+const grace = { ...adminUser, role: 'editor' }
 
 beforeAll(async () => {
 	await import('../content/EditorScreen')

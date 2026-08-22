@@ -12,8 +12,8 @@ import { createAppRouter } from '../router'
 import { AdminToaster } from '../toasts'
 import { versionQueryKey } from '../version'
 
-/** The account tests render as, an administrator unless a test names another rank. */
-export const adminUser: User = { ...defaultUser, rank: 'admin' }
+/** The account tests render as, an administrator unless a test names another role. */
+export const adminUser: User = { ...defaultUser, role: 'admin' }
 
 /** Renders the application at an app-relative path with a seeded session. */
 export function renderAt(

@@ -53,7 +53,7 @@ function renderMenuAt(path: string, withSections = false) {
 		history: createMemoryHistory({ initialEntries: [path] }),
 	})
 	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-	seedSession(client, { ...defaultUser, rank: 'admin' })
+	seedSession(client, { ...defaultUser, role: 'admin' })
 	render(
 		<QueryClientProvider client={client}>
 			<RouterProvider router={router} />

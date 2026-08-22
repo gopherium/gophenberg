@@ -2,7 +2,7 @@
 
 import { Badge, Button, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
 import { __, _x, sprintf } from '@wordpress/i18n'
-import { fetchUsers, setUserDisabled, setUserRank, usersQueryKey } from '@gopherium/react-auth/admin'
+import { fetchUsers, setUserDisabled, setUserRole, usersQueryKey } from '@gopherium/react-auth/admin'
 import type { User } from '@gopherium/react-auth/admin'
 import { useSession } from '@gopherium/react-auth'
 import { ErrorNotice, LoadingRows, Page } from '@gopherium/godmin'
@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
-import { rankLabel, rankOptions } from './ranks'
+import { roleLabel, roleOptions } from './roles'
 
 /**
  * Renders the account administration screen.
@@ -93,7 +93,7 @@ function UserRow({ user, isSelf }: { user: User, isSelf: boolean }) {
 		<tr>
 			<td>{user.name}</td>
 			<td>{user.email}</td>
-			<td>{isSelf ? rankLabel(user.rank) : <UserRank user={user} />}</td>
+			<td>{isSelf ? roleLabel(user.role) : <UserRole user={user} />}</td>
 			<td>
 				<UserStatus disabled={user.disabled} />
 			</td>
@@ -103,18 +103,18 @@ function UserRow({ user, isSelf }: { user: User, isSelf: boolean }) {
 }
 
 /**
- * Renders the control writing the rank an account holds.
+ * Renders the control writing the role an account holds.
  * @param props - The account the control acts on.
- * @returns The rank control element.
+ * @returns The role control element.
  */
-function UserRank({ user }: { user: User }) {
+function UserRole({ user }: { user: User }) {
 	const client = useQueryClient()
 	const write = useMutation({
-		mutationFn: (rank: string) => setUserRank(user.id, rank),
+		mutationFn: (role: string) => setUserRole(user.id, role),
 		onSuccess: () => client.invalidateQueries({ queryKey: usersQueryKey }),
 	})
-	const options = rankOptions()
-	const held = options.find((option) => option.value === user.rank)
+	const options = roleOptions()
+	const held = options.find((option) => option.value === user.role)
 	return (
 		<Stack direction="column" gap="xs">
 			<SelectControl
