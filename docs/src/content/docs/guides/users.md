@@ -72,12 +72,13 @@ If it answers `role`, or nothing at all, skip this step. If it
 answers `rank`, rename it once, before starting the new version:
 
 ```sh
-psql "$GOPHENBERG_DATABASE_URL" \
+psql "$GOPHENBERG_DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
   -c "ALTER TABLE auth.users RENAME COLUMN rank TO role;" \
   -c "ALTER INDEX auth.users_rank_idx RENAME TO users_role_idx;"
 ```
 
-Every account keeps the role it held.
+Both renames happen together or neither does, so a failure halfway
+leaves the database as it was. Every account keeps the role it held.
 
 **Second, give a role to the accounts that hold none.**
 
