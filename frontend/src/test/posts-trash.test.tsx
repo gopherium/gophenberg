@@ -6,6 +6,9 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 import { renderAt } from './render'
+import { warmPostsScreen } from './warm'
+
+warmPostsScreen()
 
 const TRASHED = {
 	id: '019fb000-0000-7000-8000-000000000003',

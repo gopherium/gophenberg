@@ -5,6 +5,9 @@ import { screen, within } from '@testing-library/react'
 import { beforeEach, expect, test } from 'vitest'
 
 import { renderAt } from './render'
+import { warmPostsScreen } from './warm'
+
+warmPostsScreen()
 
 const PUBLISHED = {
 	id: '019fb000-0000-7000-8000-000000000001',

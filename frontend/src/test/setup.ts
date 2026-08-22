@@ -2,7 +2,13 @@
 
 import { configure } from '@testing-library/react'
 import { http, HttpResponse, installTestEnvironment, server } from '@gophenberg/frontend-sdk/testing'
-import { beforeAll, beforeEach } from 'vitest'
+import { DOMAIN as BRICK_DOMAIN } from '@gopherium/react-auth'
+import { rememberLocale } from '@gopherium/gottext'
+import { resetLocaleData } from '@wordpress/i18n'
+import { afterAll, beforeEach } from 'vitest'
+
+import { DEFAULT_LOCALE } from '../i18n/catalog'
+import { DOMAIN } from '../i18n/start'
 
 installTestEnvironment()
 configure({ asyncUtilTimeout: 2000 })
@@ -27,14 +33,9 @@ beforeEach(() => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [builtInType] })))
 })
 
-beforeAll(async () => {
-	await Promise.all([
-		import('../content/PostsScreen'),
-		import('../content/TypesScreen'),
-		import('../media/MediaScreen'),
-		import('../users/UsersScreen'),
-		import('../users/NewUserScreen'),
-		import('../themes/ThemesScreen'),
-		import('../i18n/LanguageScreen'),
-	])
+afterAll(() => {
+	resetLocaleData({}, DOMAIN)
+	resetLocaleData({}, BRICK_DOMAIN)
+	resetLocaleData({})
+	rememberLocale(DEFAULT_LOCALE)
 })

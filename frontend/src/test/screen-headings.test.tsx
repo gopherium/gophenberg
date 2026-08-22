@@ -5,6 +5,9 @@ import { screen, within } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 
 import { renderAt } from './render'
+import { warmPostsScreen } from './warm'
+
+warmPostsScreen()
 
 /**
  * Serves an empty posts listing so the list screen settles.

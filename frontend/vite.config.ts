@@ -1,15 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/// <reference types="vitest/config" />
 import { godminDedupe, godminSingleCopy, godminStylesheetFirst } from '@gopherium/godmin/vite'
 import react from '@vitejs/plugin-react'
 import dsTokenFallbacks from '@wordpress/theme/vite-plugins/vite-ds-token-fallbacks'
 import { defineConfig } from 'vite'
+import { defaultExclude } from 'vitest/config'
 import { fileURLToPath } from 'node:url'
 
 import { adminBasepath } from './src/basepath.js'
 
 const backend = process.env.GOPHENBERG_API || 'http://localhost:8081'
+
+/** Every test file the admin, the sdk and the plugins hold. */
+const testFiles = [
+	'src/**/*.test.{ts,tsx}',
+	'../sdk/frontend/test/*.test.{ts,tsx}',
+	'../plugins/*/frontend/test/*.test.{ts,tsx}',
+]
+
+/** The test files that replace a module or leave module state behind, each needing its own worker. */
+const moduleStateFiles = [
+	'src/test/plugin-wiring.test.tsx',
+	'src/test/refusal.test.ts',
+	'src/test/role-navigation.test.tsx',
+]
 
 // The workers @wordpress/upload-media reaches for, stubbed out until the media cycle ships.
 const mediaWorkerStubs = {
@@ -46,10 +60,20 @@ export default defineConfig({
 		hookTimeout: 120000,
 		server: { deps: { inline: [/@wordpress\//, /@gopherium\//] } },
 		setupFiles: ['./src/test/setup.ts'],
-		include: [
-			'src/**/*.test.{ts,tsx}',
-			'../sdk/frontend/test/*.test.{ts,tsx}',
-			'../plugins/*/frontend/test/*.test.{ts,tsx}',
+		projects: [
+			{
+				extends: true,
+				test: {
+					name: 'shared',
+					isolate: false,
+					include: testFiles,
+					exclude: [...defaultExclude, ...moduleStateFiles],
+				},
+			},
+			{
+				extends: true,
+				test: { name: 'isolated', include: moduleStateFiles },
+			},
 		],
 		coverage: {
 			include: [
