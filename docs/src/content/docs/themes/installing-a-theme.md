@@ -31,7 +31,7 @@ client/     (from dist/client)
 `theme.json` is one line you write once:
 
 ```json
-{ "name": "mytheme", "version": "1.0.0", "kit": "%VERSION%" }
+{ "name": "mytheme", "version": "0.1.0", "kit": "%KIT_VERSION%" }
 ```
 
 Name the zip after the theme. Gophenberg installs `mytheme.zip` as
