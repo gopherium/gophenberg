@@ -12,9 +12,6 @@ const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.
 	version: string
 }
 
-/** The version the product embeds. */
-const productVersion = readFileSync(new URL('../../../internal/version/VERSION', import.meta.url), 'utf8').trim()
-
 describe('kit identity', () => {
 	test('names the package a theme depends on', () => {
 		expect(kitName).toBe('@gophenberg/astro')
@@ -44,8 +41,12 @@ describe('what a themed page reports', () => {
 })
 
 describe('the version the kit ships at', () => {
-	test('matches the version the product embeds', () => {
-		expect(kitVersion).toBe(productVersion)
+	test('matches the version the manifest publishes', () => {
+		expect(kitVersion).toBe(manifest.version)
+	})
+
+	test('is a release version, never a range', () => {
+		expect(kitVersion).toMatch(/^\d+\.\d+\.\d+$/)
 	})
 })
 
