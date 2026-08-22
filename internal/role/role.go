@@ -59,7 +59,7 @@ func CapabilitiesOf(role string) []string {
 	return held
 }
 
-// Privileged returns the roles administering accounts, the cover the safety rails keep.
+// Privileged returns the roles that administer accounts.
 func Privileged() gouncer.Roles {
 	var roles gouncer.Roles
 	for role := range carried {

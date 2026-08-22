@@ -4,8 +4,10 @@ description: Accounts, the login screen, and enabling and disabling users.
 ---
 
 Everyone who writes in Gophenberg has an account with an email and
-a password. Every account holds one role, and the role decides what
-it may do.
+a password. An account holds one role, and the role decides what it
+may do. Accounts made before roles existed are the one exception.
+They hold none until you give them one, and the last section covers
+that.
 
 ## Roles
 
@@ -50,7 +52,34 @@ administrator from locking everyone out.
 
 Changing a password is not something the admin offers.
 
-## Giving a role to accounts that hold none
+## Upgrading a site that ran an earlier version
+
+Two steps, in this order, and only on a site that ran a version
+before this one.
+
+**First, rename the column, if your site still has the old one.**
+Versions before this one stored the role in a column called `rank`.
+The rename ships as an edit to the migration that creates it, and a
+database that already ran the old one keeps the old name. Nothing
+detects this, so the site starts, reports no error, and then fails
+the first time anyone signs in. Check which name your database has:
+
+```sh
+psql "$GOPHENBERG_DATABASE_URL" -tAc "select column_name from information_schema.columns where table_schema='auth' and table_name='users' and column_name in ('rank','role');"
+```
+
+If it answers `role`, or nothing at all, skip this step. If it
+answers `rank`, rename it once, before starting the new version:
+
+```sh
+psql "$GOPHENBERG_DATABASE_URL" \
+  -c "ALTER TABLE auth.users RENAME COLUMN rank TO role;" \
+  -c "ALTER INDEX auth.users_rank_idx RENAME TO users_role_idx;"
+```
+
+Every account keeps the role it held.
+
+**Second, give a role to the accounts that hold none.**
 
 Accounts made before roles existed hold no role, so they can do
 nothing until one is given. The `grantrole` command gives a role to

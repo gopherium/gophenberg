@@ -113,6 +113,17 @@ test('says so when a role could not be written', async () => {
 	expect(await screen.findByRole('alert')).toHaveTextContent('Update failed.')
 })
 
+test('names the control of an account holding no role', async () => {
+	server.use(
+		http.get('/api/users', () => HttpResponse.json([withRole(OTHER, 'Maria Perez', '')])),
+	)
+	renderAt('/users')
+
+	const row = await screen.findByRole('row', { name: /Maria Perez/ })
+
+	expect(within(row).getByText('No role')).toBeInTheDocument()
+})
+
 test('reads a role the screen does not know as the server stored it', () => {
 	expect(roleLabel('archivist')).toBe('archivist')
 	expect(roleLabel('')).toBe('No role')

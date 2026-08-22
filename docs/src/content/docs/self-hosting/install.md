@@ -83,11 +83,13 @@ Migrations run at startup, so there is no setup step.
 of your shell history. The `-role` flag says what the account may do,
 and `admin` is the role that can reach everything.
 
-Upgrading a site whose accounts were made before roles existed needs
-one extra command, `grantrole`, which
-[Users and signing in](/guides/users/#giving-a-role-to-accounts-that-hold-none)
-covers. Until it runs, those accounts hold no role and can do
-nothing.
+That is everything a new site needs. Upgrading a site that ran an
+earlier version needs two manual steps first, renaming the role
+column and giving a role to the accounts that hold none, both
+covered by
+[Users and signing in](/guides/users/#upgrading-a-site-that-ran-an-earlier-version).
+Skipping the first one leaves a site that starts without complaint
+and then refuses every login.
 
 ## 3. Point your proxy at it
 

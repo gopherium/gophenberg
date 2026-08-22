@@ -117,6 +117,7 @@ function UserRole({ user }: { user: User }) {
 	const held = options.find((option) => option.value === user.role)
 	return (
 		<Stack direction="column" gap="xs">
+			{!held && <Text>{roleLabel(user.role)}</Text>}
 			<SelectControl
 				label={sprintf(_x('Role of %(name)s', 'account', 'gophenberg'), { name: user.name })}
 				hideLabelFromVision
