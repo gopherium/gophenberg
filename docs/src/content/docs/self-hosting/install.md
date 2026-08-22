@@ -83,6 +83,12 @@ Migrations run at startup, so there is no setup step.
 of your shell history. The `-rank` flag says what the account may do,
 and `admin` is the rank that can reach everything.
 
+Upgrading a site whose accounts were made before ranks existed needs
+one extra command, `grantrank`, which
+[Users and signing in](/guides/users/#giving-a-rank-to-accounts-that-hold-none)
+covers. Until it runs, those accounts hold no rank and can do
+nothing.
+
 ## 3. Point your proxy at it
 
 Forward your domain to `127.0.0.1:8081`. With Caddy:
