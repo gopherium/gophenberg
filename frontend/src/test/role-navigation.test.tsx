@@ -10,16 +10,16 @@ import { renderAt } from './render'
 /** The gated screens, which only an administrator reaches. */
 const GATED = ['Users', 'Themes', 'Content Types']
 
-/** The screens every signed in rank reaches. */
+/** The screens every signed in role reaches. */
 const OPEN = ['Media', 'Language']
 
 /**
- * Returns the seeded account holding the given rank.
- * @param rank - The rank the account holds.
+ * Returns the seeded account holding the given role.
+ * @param role - The role the account holds.
  * @returns The account.
  */
-function holding(rank: string) {
-	return { ...defaultUser, rank }
+function holding(role: string) {
+	return { ...defaultUser, role }
 }
 
 beforeEach(() =>

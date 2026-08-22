@@ -17,7 +17,7 @@ import (
 type seenSession struct {
 	Filed        bool   `json:"filed"`
 	Email        string `json:"email"`
-	Rank         string `json:"rank"`
+	Role         string `json:"role"`
 	ChangesWork  bool   `json:"changes_work"`
 	ManagesUsers bool   `json:"manages_users"`
 }
@@ -29,18 +29,18 @@ func sessionReporter() http.Handler {
 		_ = json.NewEncoder(w).Encode(seenSession{
 			Filed:        filed,
 			Email:        held.Email,
-			Rank:         held.Rank,
+			Role:         held.Role,
 			ChangesWork:  held.Can(string(role.ChangeOthersWork)),
 			ManagesUsers: held.Can(string(role.ManageUsers)),
 		})
 	})
 }
 
-// pluginServerFor returns a server mounting the reporter, and a cookie for the given rank.
-func pluginServerFor(t *testing.T, rank string) (http.Handler, *http.Cookie) {
+// pluginServerFor returns a server mounting the reporter, and a cookie for the given role.
+func pluginServerFor(t *testing.T, role string) (http.Handler, *http.Cookie) {
 	t.Helper()
 	users := newFakeUserStore()
-	addRanked(t, users, "maria@example.com", "Maria Perez", rank)
+	addWithRole(t, users, "maria@example.com", "Maria Perez", role)
 	handler := server.NewServer(server.Config{
 		Users:             users,
 		Plugins:           map[string]http.Handler{"reporter": sessionReporter()},
@@ -78,12 +78,12 @@ func TestAPluginReadsTheSessionTheHostFiled(t *testing.T) {
 	if !seen.Filed {
 		t.Fatal("the plugin saw no session, want the host to file one on every guarded request")
 	}
-	if seen.Email != "maria@example.com" || seen.Rank != role.Editor {
-		t.Errorf("the plugin saw %+v, want the signed in identity and its rank", seen)
+	if seen.Email != "maria@example.com" || seen.Role != role.Editor {
+		t.Errorf("the plugin saw %+v, want the signed in identity and its role", seen)
 	}
 }
 
-func TestAPluginAsksCapabilitiesRatherThanRanks(t *testing.T) {
+func TestAPluginAsksCapabilitiesRatherThanRoles(t *testing.T) {
 	t.Parallel()
 
 	editor, editorCookie := pluginServerFor(t, role.Editor)

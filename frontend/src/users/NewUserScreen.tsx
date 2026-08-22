@@ -13,7 +13,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { NARROWEST, rankOptions } from './ranks'
+import { NARROWEST, roleOptions } from './roles'
 
 /**
  * Returns the message shown under the form when a creation fails.
@@ -40,9 +40,9 @@ export function NewUserScreen() {
 	const [email, setEmail] = useState('')
 	const [name, setName] = useState('')
 	const [password, setPassword] = useState('')
-	const [rank, setRank] = useState(NARROWEST)
+	const [role, setRole] = useState(NARROWEST)
 	const create = useMutation({
-		mutationFn: () => createUser({ email: email.trim(), name: name.trim(), password, rank }),
+		mutationFn: () => createUser({ email: email.trim(), name: name.trim(), password, role }),
 		onSuccess: async () => {
 			await client.invalidateQueries({ queryKey: usersQueryKey })
 			await navigate({ to: '/users' })
@@ -80,9 +80,9 @@ export function NewUserScreen() {
 					/>
 					<SelectControl
 						label={_x('Role', 'account', 'gophenberg')}
-						items={rankOptions()}
-						value={rankOptions().find((option) => option.value === rank)}
-						onValueChange={(item) => item?.value != null && setRank(item.value)}
+						items={roleOptions()}
+						value={roleOptions().find((option) => option.value === role)}
+						onValueChange={(item) => item?.value != null && setRole(item.value)}
 					/>
 					<Button
 						type="submit"

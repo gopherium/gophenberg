@@ -1079,20 +1079,20 @@ msgctxt "person"
 msgid "Name"
 msgstr "Nombre"
 
-msgctxt "rank"
+msgctxt "role"
 msgid "Administrator"
 msgstr "Administrador"
 
-msgctxt "rank"
+msgctxt "role"
 msgid "Author"
 msgstr "Autor"
 
-msgctxt "rank"
+msgctxt "role"
 msgid "Editor"
 msgstr "Editor"
 
-msgctxt "rank"
-msgid "Unranked"
+msgctxt "role"
+msgid "No role"
 msgstr "Sin rol"
 
 msgctxt "post"
