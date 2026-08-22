@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { apiFetchAttempts } from '@gophenberg/frontend-sdk/editor'
+import { apiFetchAttempts, clearApiFetchAttempts } from '@gophenberg/frontend-sdk/editor'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen } from '@testing-library/react'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
@@ -15,6 +15,7 @@ beforeAll(async () => {
 }, 120000)
 
 beforeEach(() => {
+	clearApiFetchAttempts()
 	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)))
 })
 
