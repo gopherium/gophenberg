@@ -45,7 +45,7 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	if err != nil {
 		return err
 	}
-	if err := seedRankedAccounts(ctx, users); err != nil {
+	if err := seedAccountsWithRoles(ctx, users); err != nil {
 		return err
 	}
 	if err := seedDemoContent(ctx, pool, users); err != nil {
@@ -58,16 +58,16 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	return nil
 }
 
-// seedRankedAccounts stores one demo account under each rank below admin.
-func seedRankedAccounts(ctx context.Context, users gouncer.Store) error {
-	ranked := []struct{ email, name, rank string }{
+// seedAccountsWithRoles stores one demo account under each role other than admin.
+func seedAccountsWithRoles(ctx context.Context, users gouncer.Store) error {
+	accounts := []struct{ email, name, role string }{
 		{seed.EditorEmail, seed.EditorName, role.Editor},
 		{seed.AuthorEmail, seed.AuthorName, role.Author},
 	}
-	for _, account := range ranked {
-		_, err := authkit.EnsureAdmin(ctx, users, account.email, account.name, seed.AdminPassword, account.rank)
+	for _, account := range accounts {
+		_, err := authkit.EnsureAdmin(ctx, users, account.email, account.name, seed.AdminPassword, account.role)
 		if err != nil {
-			return fmt.Errorf("seeding the %s account: %w", account.rank, err)
+			return fmt.Errorf("seeding the %s account: %w", account.role, err)
 		}
 	}
 	return nil

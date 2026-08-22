@@ -20,7 +20,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/seed"
 )
 
-func TestSeedGivesTheAdminTheAdminRank(t *testing.T) {
+func TestSeedGivesTheAdminTheAdminRole(t *testing.T) {
 	t.Parallel()
 
 	databaseURL := emptyDatabaseURL(t)
@@ -39,12 +39,12 @@ func TestSeedGivesTheAdminTheAdminRank(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UserByEmail() error = %v, want nil", err)
 	}
-	if held.Rank != role.Admin {
-		t.Errorf("rank = %q, want the seeded administrator to hold %q", held.Rank, role.Admin)
+	if held.Role != role.Admin {
+		t.Errorf("role = %q, want the seeded administrator to hold %q", held.Role, role.Admin)
 	}
 }
 
-func TestSeedStoresAnAccountUnderEveryRank(t *testing.T) {
+func TestSeedStoresAnAccountUnderEveryRole(t *testing.T) {
 	t.Parallel()
 
 	databaseURL := emptyDatabaseURL(t)
@@ -74,8 +74,8 @@ func TestSeedStoresAnAccountUnderEveryRank(t *testing.T) {
 		if err != nil {
 			t.Fatalf("UserByEmail(%q) error = %v, want nil", email, err)
 		}
-		if held.Rank != want {
-			t.Errorf("%q holds %q, want %q", email, held.Rank, want)
+		if held.Role != want {
+			t.Errorf("%q holds %q, want %q", email, held.Role, want)
 		}
 	}
 }
