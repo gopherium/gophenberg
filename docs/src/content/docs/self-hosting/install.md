@@ -75,18 +75,18 @@ writable.
 ```sh
 docker compose up -d
 docker compose run --rm -T gophenberg \
-  createadmin -email admin@example.com -name "Maria Perez" -rank admin
+  createadmin -email admin@example.com -name "Maria Perez" -role admin
 ```
 
 Migrations run at startup, so there is no setup step.
 `createadmin` waits for you to type the password, keeping it out
-of your shell history. The `-rank` flag says what the account may do,
-and `admin` is the rank that can reach everything.
+of your shell history. The `-role` flag says what the account may do,
+and `admin` is the role that can reach everything.
 
-Upgrading a site whose accounts were made before ranks existed needs
-one extra command, `grantrank`, which
-[Users and signing in](/guides/users/#giving-a-rank-to-accounts-that-hold-none)
-covers. Until it runs, those accounts hold no rank and can do
+Upgrading a site whose accounts were made before roles existed needs
+one extra command, `grantrole`, which
+[Users and signing in](/guides/users/#giving-a-role-to-accounts-that-hold-none)
+covers. Until it runs, those accounts hold no role and can do
 nothing.
 
 ## 3. Point your proxy at it
