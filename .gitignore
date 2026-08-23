@@ -3,6 +3,7 @@ cover.out
 frontend/dist/
 frontend/coverage/
 sdk/astro/.astro/
+sdk/astro/coverage/
 test/theme/.astro/
 test/theme/dist/
 .e2e-themes/

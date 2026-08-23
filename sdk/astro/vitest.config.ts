@@ -8,7 +8,7 @@ export default getViteConfig({
 		coverage: {
 			include: ['**/*.ts'],
 			exclude: ['**/*.d.ts', '**/test/**', '**/node_modules/**'],
-			reporter: ['text'],
+			reporter: ['text', 'lcov'],
 			thresholds: {
 				statements: 100,
 				branches: 100,
