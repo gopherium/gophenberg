@@ -469,3 +469,42 @@ func TestTypeStoreReportsADatabaseItCannotReach(t *testing.T) {
 		})
 	}
 }
+
+func TestTypeUpdateRefusesACarryOntoATakenAddress(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	types := postgres.NewTypeStore(pool)
+	cars, err := types.Create(t.Context(), carType(t))
+	if err != nil {
+		t.Fatalf("Create(cars) error = %v, want nil", err)
+	}
+	autosType, err := content.NewType("auto", "Auto", "Autos", "autos")
+	if err != nil {
+		t.Fatalf("NewType(auto) error = %v, want nil", err)
+	}
+	if _, err := types.Create(t.Context(), autosType); err != nil {
+		t.Fatalf("Create(autos) error = %v, want nil", err)
+	}
+	storeItem := func(kind content.Type, title string) {
+		built, err := content.New(kind, nil, title, author)
+		if err != nil {
+			t.Fatalf("New(%q) error = %v, want nil", title, err)
+		}
+		if _, err := store.Create(t.Context(), built); err != nil {
+			t.Fatalf("Create(%q) error = %v, want nil", title, err)
+		}
+	}
+	storeItem(cars, "Same Slug")
+	storeItem(autosType, "Same Slug")
+	sabotage(t, pool, "UPDATE core.content_types SET route_word = 'blocked' WHERE key = 'auto'")
+
+	cars.RouteWord = "autos"
+	cars.UpdatedAt = time.Now().UTC()
+
+	_, err = types.Update(t.Context(), cars)
+
+	if !errors.Is(err, content.ErrSlugTaken) {
+		t.Errorf("Update() error = %v, want %v", err, content.ErrSlugTaken)
+	}
+}

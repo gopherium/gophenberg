@@ -21,6 +21,9 @@ var _ content.TypeStore = (*TypeStore)(nil)
 // routeWordConstraint names the unique index over the route words in use.
 const routeWordConstraint = "content_types_route_word_idx"
 
+// typeKeyConstraint names the primary key over the type keys in use.
+const typeKeyConstraint = "content_types_pkey"
+
 // uniqueViolationCode is what Postgres reports when a row breaks a unique index.
 const uniqueViolationCode = "23505"
 
@@ -246,7 +249,10 @@ func takenBy(err error) error {
 	if pgErr.ConstraintName == routeWordConstraint {
 		return content.ErrRouteWordTaken
 	}
-	return content.ErrTypeTaken
+	if pgErr.ConstraintName == typeKeyConstraint {
+		return content.ErrTypeTaken
+	}
+	return nil
 }
 
 // isTypeInUse reports whether err is content still referencing the type.
