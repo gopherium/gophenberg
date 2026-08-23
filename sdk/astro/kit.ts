@@ -16,7 +16,7 @@ export const kitVersion = version
  * @param version - The full version.
  * @returns The feature version.
  */
-export function featureVersion(version: string): string {
+function featureVersion(version: string): string {
 	return version.split('.').slice(0, 2).join('.')
 }
 
