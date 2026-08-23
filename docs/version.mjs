@@ -23,7 +23,7 @@ const tokens = {
 	'%KIT_VERSION%': kitVersion,
 }
 const tokenPattern = /%VERSION%|%FEATURE_VERSION%|%KIT_VERSION%/g
-const escaped = (text) => text.replace(/\./g, '\\.')
+const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const literalPattern = new RegExp(
 	`\\b${escaped(version)}\\b|\\b${escaped(kitVersion)}\\b|Gophenberg ${escaped(featureVersion)}\\b`,
 )
