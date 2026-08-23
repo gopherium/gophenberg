@@ -43,6 +43,7 @@ type fakePostStore struct {
 	depthErr     error
 	targetsErr   error
 	relatedErr   error
+	byIDErrFor   map[uuid.UUID]error
 
 	revisions         []content.Revision
 	revisionsErr      error
@@ -134,6 +135,9 @@ func (s *fakePostStore) Create(_ context.Context, p content.Content) (content.Co
 
 // ByID returns the stored post, or [content.ErrNotFound].
 func (s *fakePostStore) ByID(_ context.Context, id uuid.UUID) (content.Content, error) {
+	if held, found := s.byIDErrFor[id]; found {
+		return content.Content{}, held
+	}
 	if s.byIDErr != nil {
 		return content.Content{}, s.byIDErr
 	}
