@@ -213,3 +213,15 @@ func (s stubPostStore) Create(_ context.Context, p content.Content) (content.Con
 func (s stubPostStore) Trash(_ context.Context, _ uuid.UUID, _ time.Time) (content.Content, error) {
 	return content.Content{}, s.trashErr
 }
+
+func TestPostsReportsAMissingPostType(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(&categoryTypeStore{postless: true})
+
+	err := Posts(t.Context(), newFilingStore(), registry, stubUserStore{id: uuid.New()})
+
+	if err == nil {
+		t.Error("Posts() error = nil, want the missing post type reported")
+	}
+}
