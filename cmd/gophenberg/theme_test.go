@@ -4,12 +4,15 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gopherium/gophenberg/internal/themehost"
 )
 
 // testLogger returns a logger writing structured lines the test reads back.
@@ -28,7 +31,7 @@ func writeThemeDir(t *testing.T, name string) string {
 			t.Fatalf("making %s: %v", part, err)
 		}
 	}
-	manifest := `{"name":"` + name + `","version":"0.1.0","kit":"^0.1.0"}`
+	manifest := fmt.Sprintf(`{"name":%q,"version":"0.1.0","kit":%q}`, name, themehost.NewestKit())
 	if err := os.WriteFile(filepath.Join(dir, "theme.json"), []byte(manifest), 0o644); err != nil {
 		t.Fatalf("writing the manifest: %v", err)
 	}

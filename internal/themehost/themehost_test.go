@@ -4,6 +4,7 @@ package themehost_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,11 @@ import (
 
 	"github.com/gopherium/gophenberg/internal/themehost"
 )
+
+// manifestFor returns a manifest body naming a theme built on the kit this release serves.
+func manifestFor(name, version string) string {
+	return fmt.Sprintf(`{"name":%q,"version":%q,"kit":%q}`, name, version, themehost.NewestKit())
+}
 
 // writeTheme lays out a valid theme directory and returns the themes directory holding it.
 func writeTheme(t *testing.T) string {
@@ -25,7 +31,7 @@ func writeTheme(t *testing.T) string {
 	if err := os.MkdirAll(filepath.Join(dir, "client"), 0o755); err != nil {
 		t.Fatalf("making client dir: %v", err)
 	}
-	writeFile(t, filepath.Join(dir, "theme.json"), `{"name":"`+name+`","version":"0.1.0","kit":"^0.1.0"}`)
+	writeFile(t, filepath.Join(dir, "theme.json"), manifestFor(name, "0.1.0"))
 	writeFile(t, filepath.Join(dir, "server", "entry.mjs"), "export const handler = () => {}\n")
 	writeFile(t, filepath.Join(dir, "client", "tokens.css"), "body{margin:0}\n")
 	return themesDir
@@ -60,7 +66,7 @@ func TestLoadReadsAValidThemeDirectory(t *testing.T) {
 	}{
 		{name: "Name", got: theme.Name, want: "starter"},
 		{name: "Version", got: theme.Version, want: "0.1.0"},
-		{name: "Kit", got: theme.Kit, want: "^0.1.0"},
+		{name: "Kit", got: theme.Kit, want: themehost.NewestKit()},
 		{name: "Dir", got: theme.Dir, want: filepath.Join(themesDir, "starter")},
 		{name: "Entry", got: theme.Entry, want: filepath.Join(themesDir, "starter", "server", "entry.mjs")},
 	} {
@@ -104,7 +110,7 @@ func TestLoadRefusesADirectoryThatBreaksTheContract(t *testing.T) {
 		{
 			name: "manifest names another theme",
 			break_: func(t *testing.T, dir string) {
-				writeFile(t, filepath.Join(dir, "theme.json"), `{"name":"other","version":"0.1.0","kit":"^0.1.0"}`)
+				writeFile(t, filepath.Join(dir, "theme.json"), manifestFor("other", "0.1.0"))
 			},
 			wantAll: []string{"theme.json", "other", "starter"},
 		},

@@ -52,7 +52,7 @@ func validArchive(t *testing.T, name string) []byte {
 	t.Helper()
 
 	return archiveOf(t,
-		entry{path: "theme.json", body: `{"name":"` + name + `","version":"1.0.0","kit":"0.1.0"}`},
+		entry{path: "theme.json", body: manifestFor(name, "1.0.0")},
 		entry{path: "server/entry.mjs", body: "export default {}\n"},
 		entry{path: "client/app.css", body: "body{}\n"},
 	)
@@ -111,7 +111,7 @@ func TestInstallRefusesAnArchiveWithoutAServerEntry(t *testing.T) {
 	t.Parallel()
 
 	_, err := install(t, archiveOf(t,
-		entry{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`},
+		entry{path: "theme.json", body: manifestFor("aurora", "1.0.0")},
 		entry{path: "client/app.css", body: "body{}\n"},
 	))
 
@@ -124,7 +124,7 @@ func TestInstallRefusesAnArchiveWithoutClientAssets(t *testing.T) {
 	t.Parallel()
 
 	_, err := install(t, archiveOf(t,
-		entry{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`},
+		entry{path: "theme.json", body: manifestFor("aurora", "1.0.0")},
 		entry{path: "server/entry.mjs", body: "export default {}\n"},
 	))
 
@@ -137,7 +137,7 @@ func TestInstallRefusesASymlink(t *testing.T) {
 	t.Parallel()
 
 	_, err := install(t, archiveOf(t,
-		entry{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`},
+		entry{path: "theme.json", body: manifestFor("aurora", "1.0.0")},
 		entry{path: "server/entry.mjs", body: "export default {}\n"},
 		entry{path: "client/app.css", body: "body{}\n"},
 		entry{path: "client/escape", body: "/etc/passwd", symlink: true},
@@ -153,7 +153,7 @@ func TestInstallRefusesAnEntryEscapingTheThemeDirectory(t *testing.T) {
 
 	themesDir := t.TempDir()
 	archive := archiveOf(t,
-		entry{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`},
+		entry{path: "theme.json", body: manifestFor("aurora", "1.0.0")},
 		entry{path: "server/entry.mjs", body: "export default {}\n"},
 		entry{path: "client/app.css", body: "body{}\n"},
 		entry{path: "../escaped.txt", body: "owned"},
@@ -173,7 +173,7 @@ func TestInstallRefusesAThemeOverTheSizeCap(t *testing.T) {
 	t.Parallel()
 
 	_, err := install(t, archiveOf(t,
-		entry{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`},
+		entry{path: "theme.json", body: manifestFor("aurora", "1.0.0")},
 		entry{path: "server/entry.mjs", body: "export default {}\n"},
 		entry{path: "client/app.css", body: strings.Repeat("a", int(themehost.MaxSize)+1)},
 	))
@@ -189,7 +189,7 @@ func TestInstallAcceptsAnArchiveCarryingDirectoryEntries(t *testing.T) {
 	themesDir, err := install(t, archiveOf(t,
 		entry{path: "server/"},
 		entry{path: "client/"},
-		entry{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`},
+		entry{path: "theme.json", body: manifestFor("aurora", "1.0.0")},
 		entry{path: "server/entry.mjs", body: "export default {}\n"},
 		entry{path: "client/app.css", body: "body{}\n"},
 	))
@@ -206,7 +206,7 @@ func TestInstallRefusesAnArchiveCarryingMoreFilesThanTheCap(t *testing.T) {
 	t.Parallel()
 
 	entries := []entry{
-		{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`},
+		{path: "theme.json", body: manifestFor("aurora", "1.0.0")},
 		{path: "server/entry.mjs", body: "export default {}\n"},
 		{path: "client/app.css", body: "body{}\n"},
 	}
@@ -230,7 +230,7 @@ func TestInstallRefusesAnArchiveOfDirectoriesThatUnpacksPastTheCap(t *testing.T)
 
 	deep := strings.Repeat("d/", 400)
 	entries := []entry{
-		{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`},
+		{path: "theme.json", body: manifestFor("aurora", "1.0.0")},
 		{path: "server/entry.mjs", body: "export default {}\n"},
 		{path: "client/app.css", body: "body{}\n"},
 	}
@@ -318,7 +318,7 @@ func TestInstallReplacesAnInstalledTheme(t *testing.T) {
 		t.Fatalf("installing the first copy: %v", err)
 	}
 	second := archiveOf(t,
-		entry{path: "theme.json", body: `{"name":"aurora","version":"2.0.0","kit":"0.1.0"}`},
+		entry{path: "theme.json", body: manifestFor("aurora", "2.0.0")},
 		entry{path: "server/entry.mjs", body: "export default {}\n"},
 		entry{path: "client/app.css", body: "body{}\n"},
 	)
