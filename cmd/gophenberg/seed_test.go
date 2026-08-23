@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/gouncer"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -397,5 +399,93 @@ func TestSeedStoresAPageHoldingAChild(t *testing.T) {
 	}
 	if got := seededAddress(t, databaseURL, "Team"); got != "pages/about/team" {
 		t.Errorf("Team answers at %q, want %q", got, "pages/about/team")
+	}
+}
+
+// refusingUserStore is a user store that refuses to store an account.
+type refusingUserStore struct {
+	gouncer.Store
+}
+
+// UserByEmail reports that no account carries the email.
+func (refusingUserStore) UserByEmail(context.Context, string) (gouncer.User, error) {
+	return gouncer.User{}, gouncer.ErrUserNotFound
+}
+
+// CreateUser refuses to store the account.
+func (refusingUserStore) CreateUser(context.Context, gouncer.User) error {
+	return context.DeadlineExceeded
+}
+
+func TestSeedNamesTheRoleItCouldNotStore(t *testing.T) {
+	t.Parallel()
+
+	err := seedAccountsWithRoles(t.Context(), refusingUserStore{})
+
+	if err == nil {
+		t.Fatal("seedAccountsWithRoles() error = nil, want a failure")
+	}
+	if !strings.Contains(err.Error(), role.Editor) {
+		t.Errorf("error = %v, want it to name the role it was seeding", err)
+	}
+}
+
+func TestSeedReportsContentItCannotRegister(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	}
+	execSQL(t, databaseURL, "DROP TABLE core.content_types CASCADE")
+
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("opening the pool: %v", err)
+	}
+	defer pool.Close()
+
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+		t.Error("seedDemoContent() error = nil, want the missing registry reported")
+	}
+}
+
+func TestSeedReportsAnAccountItCannotStore(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	}
+	execSQL(t, databaseURL, "DELETE FROM auth.users WHERE email = '"+seed.EditorEmail+"'")
+	execSQL(t, databaseURL,
+		"ALTER TABLE auth.users ADD CONSTRAINT no_editor CHECK (email <> '"+seed.EditorEmail+"')")
+
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err == nil {
+		t.Error("seedDemoData() error = nil, want the refused account reported")
+	}
+}
+
+func TestSeedReportsPagesItCannotStore(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	}
+	execSQL(t, databaseURL, "DELETE FROM core.content WHERE type = 'page'")
+	execSQL(t, databaseURL, "ALTER TABLE core.content ADD CONSTRAINT no_pages CHECK (type <> 'page')")
+
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("opening the pool: %v", err)
+	}
+	defer pool.Close()
+
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+		t.Error("seedDemoContent() error = nil, want the refused page reported")
 	}
 }
