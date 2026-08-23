@@ -125,9 +125,7 @@ func storeDemoPage(
 	built.ID = id
 	built.Excerpt = scripted.excerpt
 	built.Content = scripted.content
-	if err := built.Transition(content.StatusPublished); err != nil {
-		return fmt.Errorf("build page: %w", err)
-	}
+	mustPublish(&built)
 	if _, err := store.Create(ctx, built); err != nil {
 		return fmt.Errorf("seed page: %w", err)
 	}

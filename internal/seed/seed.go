@@ -173,3 +173,10 @@ func storeDemoPost(
 	}
 	return nil
 }
+
+// mustPublish moves freshly built demo content to published, panicking on a refused transition.
+func mustPublish(built *content.Content) {
+	if err := built.Transition(content.StatusPublished); err != nil {
+		panic(err)
+	}
+}
