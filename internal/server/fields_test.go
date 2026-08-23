@@ -322,3 +322,61 @@ func TestTypeListCarriesFieldDefinitions(t *testing.T) {
 		t.Errorf("fields[0] = %+v, want the declared field", held)
 	}
 }
+
+func TestFieldWritesRefuseABodyTheyCannotRead(t *testing.T) {
+	t.Parallel()
+
+	for name, ask := range map[string]struct{ method, path string }{
+		"declaring one": {http.MethodPost, "/api/types/post/fields"},
+		"editing one":   {http.MethodPatch, "/api/types/post/fields/color"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := authedTypeServer(t)
+			if ask.method == http.MethodPatch {
+				declared := doRequest(t, handler, http.MethodPost, "/api/types/post/fields",
+					`{"key":"color","label":"Color","kind":"text"}`)
+				if declared.Code != http.StatusCreated {
+					t.Fatalf("declaring the field answered %d", declared.Code)
+				}
+			}
+
+			recorder := doRequest(t, handler, ask.method, ask.path, "{")
+
+			if recorder.Code != http.StatusBadRequest {
+				t.Errorf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
+			}
+		})
+	}
+}
+
+func TestFieldPatchMissesAnUnknownType(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/absent/fields/color",
+		`{"label":"Colour"}`)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestFieldPatchRefusesALabelTheFieldWillNotTake(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declared := doRequest(t, handler, http.MethodPost, "/api/types/post/fields",
+		`{"key":"color","label":"Color","kind":"text"}`)
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field answered %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/post/fields/color", `{"label":""}`)
+
+	if recorder.Code == http.StatusOK {
+		t.Errorf("status = %d, want the empty label refused", recorder.Code)
+	}
+}
