@@ -25,10 +25,7 @@ import (
 // contentAPIGeneration returns the shape published readers code against, the major of the newest kit served.
 func contentAPIGeneration() int {
 	major, _, _ := strings.Cut(themehost.NewestKit(), ".")
-	generation, err := strconv.Atoi(major)
-	if err != nil {
-		return 0
-	}
+	generation, _ := strconv.Atoi(major)
 	return generation
 }
 
