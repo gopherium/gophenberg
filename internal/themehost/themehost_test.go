@@ -295,3 +295,25 @@ func TestLoadCarriesTheMetadataItsErrorTemplateNames(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadReportsAPathItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	themesDir := t.TempDir()
+	dir := filepath.Join(themesDir, "starter")
+	if err := os.MkdirAll(filepath.Join(dir, "client"), 0o755); err != nil {
+		t.Fatalf("making the client dir: %v", err)
+	}
+	writeFile(t, filepath.Join(dir, "theme.json"), manifestFor("starter", "0.1.0"))
+	writeFile(t, filepath.Join(dir, "server"), "a file where the directory belongs")
+
+	_, err := themehost.Load(themesDir, "starter")
+
+	if err == nil {
+		t.Fatal("Load() error = nil, want the unreadable path reported")
+	}
+	var refused *themehost.Error
+	if errors.As(err, &refused) {
+		t.Errorf("Load() refused with %q, want a plain read failure", refused.Code)
+	}
+}

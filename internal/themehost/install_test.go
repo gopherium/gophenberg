@@ -339,3 +339,50 @@ func TestInstallReplacesAnInstalledTheme(t *testing.T) {
 		t.Errorf("the themes directory holds %d entries, want only the replaced theme", len(left))
 	}
 }
+
+func TestInstallReportsAStagingDirectoryItCannotMake(t *testing.T) {
+	t.Parallel()
+
+	blocked := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blocked, []byte("in the way"), 0o644); err != nil {
+		t.Fatalf("planting the blocking file: %v", err)
+	}
+	archive := validArchive(t, "aurora")
+
+	_, err := themehost.Install(blocked, "aurora", bytes.NewReader(archive), int64(len(archive)))
+
+	if err == nil {
+		t.Error("Install() error = nil, want the staging directory reported")
+	}
+}
+
+func TestInstallReportsAnArchiveHoldingAFileWhereADirectoryBelongs(t *testing.T) {
+	t.Parallel()
+
+	for name, entries := range map[string][]entry{
+		"a file a later entry nests under": {
+			{path: "server", body: "a file where the directory belongs"},
+			{path: "server/entry.mjs", body: "export const handler = () => {}"},
+		},
+		"a file a later directory takes over": {
+			{path: "client", body: "a file where the directory belongs"},
+			{path: "client/", body: ""},
+		},
+		"a directory a later file takes over": {
+			{path: "client/", body: ""},
+			{path: "client", body: "a file where the directory belongs"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			archive := archiveOf(t, entries...)
+
+			_, err := themehost.Install(t.TempDir(), "aurora", bytes.NewReader(archive), int64(len(archive)))
+
+			if err == nil {
+				t.Error("Install() error = nil, want the clashing entry reported")
+			}
+		})
+	}
+}

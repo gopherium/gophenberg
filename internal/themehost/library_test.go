@@ -181,3 +181,35 @@ func TestTheLibraryCreatesItsDirectoryOnTheFirstInstall(t *testing.T) {
 		t.Errorf("the installed theme does not load: %v", err)
 	}
 }
+
+func TestListReportsAThemesDirectoryItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	blocked := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blocked, []byte("in the way"), 0o644); err != nil {
+		t.Fatalf("planting the blocking file: %v", err)
+	}
+
+	_, err := themehost.NewLibrary(blocked).List()
+
+	if err == nil {
+		t.Error("List() error = nil, want the unreadable directory reported")
+	}
+}
+
+func TestInstallReportsAThemesDirectoryItCannotCreate(t *testing.T) {
+	t.Parallel()
+
+	blocked := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blocked, []byte("in the way"), 0o644); err != nil {
+		t.Fatalf("planting the blocking file: %v", err)
+	}
+	library := themehost.NewLibrary(filepath.Join(blocked, "themes"))
+	archive := validArchive(t, "aurora")
+
+	err := library.Install("aurora", bytes.NewReader(archive), int64(len(archive)))
+
+	if err == nil {
+		t.Error("Install() error = nil, want the directory it cannot create reported")
+	}
+}
