@@ -56,6 +56,7 @@ export default defineConfig({
 						{ slug: 'themes/writing-a-theme' },
 						{ slug: 'themes/rendering-blocks' },
 						{ slug: 'themes/installing-a-theme' },
+						{ slug: 'themes/compatibility' },
 					],
 				},
 				{
