@@ -127,6 +127,14 @@ export function refusalTemplates(): Record<string, string> {
 			'Something went wrong inside Gophenberg. Try again in a moment, and tell whoever looks after your site if it keeps happening.',
 			DOMAIN,
 		),
+		kit_missing: __(
+			'The %(file)s inside %(name)s names its theme kit as %(declared)s, which is not a version number. Build the theme again, and the build will fill that in.',
+			DOMAIN,
+		),
+		kit_unsupported: __(
+			'The theme %(name)s was built on theme kit %(declared)s, and this site serves %(served)s. Build the theme again against a kit this site serves, then install it.',
+			DOMAIN,
+		),
 		list_parameters_invalid: __(
 			'One of the filters on this list is not one Gophenberg understands. Clear the filters and try again.',
 			DOMAIN,

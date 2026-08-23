@@ -1,6 +1,6 @@
 .PHONY: peers dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down pot catalogs translations \
 	translations-retire \
-	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump \
+	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump bump-kit \
 	brick-link brick-sync brick-pack brick-unlink
 
 COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/testdb)
@@ -45,6 +45,9 @@ brick-unlink:
 bump:
 	@test -n "$(V)" || (echo "usage: make bump V=0.2.0" && exit 1)
 	printf '%s\n' "$(V)" > internal/version/VERSION
+
+bump-kit:
+	@test -n "$(V)" || (echo "usage: make bump-kit V=0.2.0" && exit 1)
 	cd sdk/astro && npm version "$(V)" --no-git-tag-version --allow-same-version
 
 dev: db-up
@@ -115,6 +118,8 @@ E2E_THEME ?= starter
 E2E_ARCHIVE_DIR ?= $(CURDIR)/.e2e-archive
 E2E_UPLOAD_THEME ?= driftwood
 E2E_UPLOAD_VERSION ?= 9.9.9
+E2E_STALE_THEME ?= millpond
+E2E_STALE_KIT ?= 0.1.0
 E2E_MEDIA_DIR ?= $(CURDIR)/.e2e-media
 
 e2e-build:
@@ -125,7 +130,7 @@ e2e-build:
 e2e-theme: e2e-build
 	rm -rf $(E2E_THEMES_DIR)
 	mkdir -p $(E2E_THEMES_DIR)/$(E2E_THEME)
-	cp -R test/theme/dist/server test/theme/dist/client test/theme/theme.json \
+	cp -R test/theme/dist/server test/theme/dist/client test/theme/dist/theme.json \
 		$(E2E_THEMES_DIR)/$(E2E_THEME)/
 
 e2e-archive: e2e-build
@@ -133,11 +138,20 @@ e2e-archive: e2e-build
 	mkdir -p $(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME)
 	cp -R test/theme/dist/server test/theme/dist/client \
 		$(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME)/
-	printf '{"name":"%s","version":"%s","kit":"^0.1.0"}\n' \
+	printf '{"name":"%s","version":"%s","kit":"%s"}\n' \
 		"$(E2E_UPLOAD_THEME)" "$(E2E_UPLOAD_VERSION)" \
+		"$$(node -p "require('./test/theme/dist/theme.json').kit")" \
 		> $(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME)/theme.json
 	cd $(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME) && \
 		zip -qr ../$(E2E_UPLOAD_THEME).zip theme.json server client
+	mkdir -p $(E2E_ARCHIVE_DIR)/$(E2E_STALE_THEME)
+	cp -R test/theme/dist/server test/theme/dist/client \
+		$(E2E_ARCHIVE_DIR)/$(E2E_STALE_THEME)/
+	printf '{"name":"%s","version":"%s","kit":"%s"}\n' \
+		"$(E2E_STALE_THEME)" "$(E2E_UPLOAD_VERSION)" "$(E2E_STALE_KIT)" \
+		> $(E2E_ARCHIVE_DIR)/$(E2E_STALE_THEME)/theme.json
+	cd $(E2E_ARCHIVE_DIR)/$(E2E_STALE_THEME) && \
+		zip -qr ../$(E2E_STALE_THEME).zip theme.json server client
 
 e2e-media:
 	rm -rf $(E2E_MEDIA_DIR)

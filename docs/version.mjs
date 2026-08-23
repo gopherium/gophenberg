@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { visit } from 'unist-util-visit'
 
 const versionFile = fileURLToPath(new URL('../internal/version/VERSION', import.meta.url))
+const kitFile = fileURLToPath(new URL('../sdk/astro/package.json', import.meta.url))
 
 /** The release the docs describe. */
 export const version = readFileSync(versionFile, 'utf8').trim()
@@ -13,11 +14,18 @@ export const version = readFileSync(versionFile, 'utf8').trim()
 /** The major and minor the product reports in its public headers. */
 export const featureVersion = version.split('.').slice(0, 2).join('.')
 
-const tokens = { '%VERSION%': version, '%FEATURE_VERSION%': featureVersion }
-const tokenPattern = /%VERSION%|%FEATURE_VERSION%/g
-const escaped = (text) => text.replace(/\./g, '\\.')
+/** The theme kit release the docs describe, versioned apart from the product. */
+export const kitVersion = JSON.parse(readFileSync(kitFile, 'utf8')).version
+
+const tokens = {
+	'%VERSION%': version,
+	'%FEATURE_VERSION%': featureVersion,
+	'%KIT_VERSION%': kitVersion,
+}
+const tokenPattern = /%VERSION%|%FEATURE_VERSION%|%KIT_VERSION%/g
+const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const literalPattern = new RegExp(
-	`\\b${escaped(version)}\\b|Gophenberg ${escaped(featureVersion)}\\b`,
+	`\\b${escaped(version)}\\b|\\b${escaped(kitVersion)}\\b|Gophenberg ${escaped(featureVersion)}\\b`,
 )
 
 /**
@@ -47,7 +55,7 @@ export function remarkVersion() {
 		visit(tree, ['text', 'code', 'inlineCode', 'yaml', 'html'], (node) => {
 			if (pinsALiteral(node.value)) {
 				throw new Error(
-					`${file.path}: pins a version literal, use %VERSION% or %FEATURE_VERSION%\n  ${node.value.slice(0, 120)}`,
+					`${file.path}: pins a version literal, use %VERSION%, %FEATURE_VERSION% or %KIT_VERSION%\n  ${node.value.slice(0, 120)}`,
 				)
 			}
 			node.value = substitute(node.value)

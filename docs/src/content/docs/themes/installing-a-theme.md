@@ -23,19 +23,29 @@ compiled native code cannot load from the artifact.
 The zip holds three things at its top level:
 
 ```text
-theme.json
+theme.json  (from dist/theme.json)
 server/     (from dist/server)
 client/     (from dist/client)
 ```
 
-`theme.json` is one line you write once:
+`theme.json` holds two fields you write once, in your project root:
 
 ```json
-{ "name": "mytheme", "version": "1.0.0", "kit": "%VERSION%" }
+{ "name": "mytheme", "version": "0.1.0" }
 ```
 
 Name the zip after the theme. Gophenberg installs `mytheme.zip` as
 `mytheme`, and the `name` inside `theme.json` has to match.
+
+The build writes a third field into `dist/theme.json`:
+
+```json
+{ "name": "mytheme", "version": "0.1.0", "kit": "%KIT_VERSION%" }
+```
+
+`kit` is the exact version of `@gophenberg/astro` you built with. The
+build fills it in so it is always right, which is why the zip takes
+`dist/theme.json` and never the one you wrote.
 
 ## 3. Upload and activate
 
@@ -52,6 +62,8 @@ choice before the current one.
 An upload is refused whole, and the admin shows the reason:
 
 - `theme.json` present and valid, its `name` matching the zip name
+- `kit` naming a version the site serves, which its
+  [handshake](/reference/content-api/) lists
 - `server/entry.mjs` present as a file, `client/` as a directory
 - no symlinks anywhere, and nothing over 64 MiB packed or unpacked
 - at most 10000 files, which is far more than a theme needs

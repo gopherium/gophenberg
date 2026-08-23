@@ -2,7 +2,7 @@ name: publish-kit
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["astro@*"]
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
         run: npm install -g npm@^11.5.1
       - name: Verify the tag matches the package version
         run: |
-          tag_version="${GITHUB_REF_NAME#v}"
+          tag_version="${GITHUB_REF_NAME#astro@}"
           pkg_version="$(node -p "require('./package.json').version")"
           if [ "$tag_version" != "$pkg_version" ]; then
             echo "tag $tag_version does not match package.json version $pkg_version" >&2

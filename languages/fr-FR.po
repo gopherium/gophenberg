@@ -1471,3 +1471,22 @@ msgstr "État"
 msgctxt "trash"
 msgid "Restore"
 msgstr "Rétablir"
+
+#, fuzzy
+msgid ""
+"The %(file)s inside %(name)s names its theme kit as %(declared)s, which is "
+"not a version number. Build the theme again, and the build will fill that in."
+msgstr ""
+"Le %(file)s dans %(name)s indique son kit de thèmes comme %(declared)s, ce "
+"qui n'est pas un numéro de version. Compilez le thème à nouveau et la "
+"compilation le renseignera."
+
+#, fuzzy
+msgid ""
+"The theme %(name)s was built on theme kit %(declared)s, and this site serves "
+"%(served)s. Build the theme again against a kit this site serves, then "
+"install it."
+msgstr ""
+"Le thème %(name)s a été compilé avec le kit de thèmes %(declared)s, et ce "
+"site sert %(served)s. Compilez le thème à nouveau avec un kit que ce site "
+"sert, puis installez-le."

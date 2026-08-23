@@ -30,7 +30,7 @@ const pinned = pagesUnder(pages).filter((page) => pinsALiteral(readFileSync(page
 
 if (pinned.length > 0) {
 	for (const page of pinned) {
-		console.error(`${page}: pins a version literal, use %VERSION% or %FEATURE_VERSION%`)
+		console.error(`${page}: pins a version literal, use %VERSION%, %FEATURE_VERSION% or %KIT_VERSION%`)
 	}
 	process.exit(1)
 }

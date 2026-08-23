@@ -14,7 +14,7 @@ import (
 func TestInstallRefusalsCarryTheReasonAnOperatorReads(t *testing.T) {
 	t.Parallel()
 
-	manifest := entry{path: "theme.json", body: `{"name":"aurora","version":"1.0.0","kit":"0.1.0"}`}
+	manifest := entry{path: "theme.json", body: manifestFor("aurora", "1.0.0")}
 	server := entry{path: "server/entry.mjs", body: "export default {}\n"}
 	client := entry{path: "client/app.css", body: "body{}\n"}
 	cases := []struct {

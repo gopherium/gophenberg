@@ -752,6 +752,9 @@ msgstr ""
 msgid "The %(file)s inside %(name)s is not valid JSON, so it could not be read. Fix that file and package the theme again."
 msgstr ""
 
+msgid "The %(file)s inside %(name)s names its theme kit as %(declared)s, which is not a version number. Build the theme again, and the build will fill that in."
+msgstr ""
+
 msgid "The browser kept an unsaved version of this post."
 msgstr ""
 
@@ -846,6 +849,9 @@ msgid "The theme %(name)s is serving your site right now, so it cannot be replac
 msgstr ""
 
 msgid "The theme %(name)s is the one chosen, but it is not installed, so your site is served by the built-in renderer. Upload the theme again, or choose another one."
+msgstr ""
+
+msgid "The theme %(name)s was built on theme kit %(declared)s, and this site serves %(served)s. Build the theme again against a kit this site serves, then install it."
 msgstr ""
 
 msgid "The user could not be created."

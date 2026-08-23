@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -230,7 +229,7 @@ func plantTheme(t *testing.T, dir, name string) {
 			t.Fatalf("making %s: %v", part, err)
 		}
 	}
-	manifest := fmt.Sprintf(`{"name":%q,"version":"1.0.0","kit":"0.1.0"}`, name)
+	manifest := manifestFor(name, "1.0.0")
 	if err := os.WriteFile(filepath.Join(dir, "theme.json"), []byte(manifest), 0o644); err != nil {
 		t.Fatalf("writing the manifest: %v", err)
 	}

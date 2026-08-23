@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { siteAssetUrls } from '../assets.ts'
-import { generator } from '../kit.ts'
+import { generator, generatorFor } from '../kit.ts'
+import { siteProfile } from '../site.ts'
 
 interface Props {
 	title?: string
@@ -10,9 +11,11 @@ interface Props {
 
 const { title } = Astro.props
 const assets = siteAssetUrls()
+const site = await siteProfile()
+const servedBy = site ? generatorFor(site.gophenberg) : generator
 ---
 
-<meta name="generator" content={generator} />
+<meta name="generator" content={servedBy} />
 {title && <title>{title}</title>}
 <link rel="icon" href={assets.favicon} />
 <link rel="stylesheet" href={assets.blocks} />

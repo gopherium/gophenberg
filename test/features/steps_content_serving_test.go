@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/cucumber/godog"
@@ -138,6 +139,7 @@ func initializeContentServing(sc *godog.ScenarioContext) {
 	sc.When(`^a visitor reads the content handshake$`, aVisitorReadsTheContentHandshake)
 	sc.When(`^a visitor resolves "([^"]*)"$`, aVisitorResolves)
 	sc.Then(`^it carries api (\d+)$`, itCarriesAPI)
+	sc.Then(`^it serves kit "([^"]*)"$`, itServesKit)
 	sc.Then(`^it lists "([^"]*)" as the default type at the root$`, itListsTheDefaultTypeAtTheRoot)
 	sc.Then(`^it lists "([^"]*)" under "([^"]*)" as hierarchical$`, itListsTheNestingType)
 	sc.Then(`^the answer is a single "([^"]*)"$`, theAnswerIsASingle)
@@ -146,7 +148,8 @@ func initializeContentServing(sc *godog.ScenarioContext) {
 
 // handshake is the versions and types the content API advertises.
 type handshake struct {
-	API   int `json:"api"`
+	API   int      `json:"api"`
+	Kit   []string `json:"kit"`
 	Types []struct {
 		Key          string `json:"key"`
 		RouteWord    string `json:"route_word"`
@@ -190,6 +193,22 @@ func itCarriesAPI(ctx context.Context, version int) error {
 	}
 	if advertised.API != version {
 		return fmt.Errorf("the handshake carries api %d, want %d", advertised.API, version)
+	}
+	return nil
+}
+
+// itServesKit asserts the handshake advertises a theme kit version it serves.
+func itServesKit(ctx context.Context, kit string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	var advertised handshake
+	if err := w.answer.decode(&advertised); err != nil {
+		return err
+	}
+	if !slices.Contains(advertised.Kit, kit) {
+		return fmt.Errorf("the handshake serves kits %v, want one of them to be %q", advertised.Kit, kit)
 	}
 	return nil
 }
