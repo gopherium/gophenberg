@@ -475,3 +475,105 @@ func (r *fakeReader) TargetsOf(_ context.Context, from uuid.UUID) (content.Targe
 	}
 	return targets, nil
 }
+
+// fakeLocale answers the language the site chose, with scripted failure and absence.
+type fakeLocale struct {
+	held  string
+	found bool
+	err   error
+}
+
+// Lookup returns the language the site chose for itself.
+func (l fakeLocale) Lookup(context.Context, string) (string, bool, error) {
+	return l.held, l.found, l.err
+}
+
+// siteSpeaking returns a handler serving one published post under the given site language.
+func siteSpeaking(locale publicsite.SiteLocale, posts ...content.Content) http.Handler {
+	return publicsite.New(publicsite.Config{
+		Content: &fakeReader{posts: posts},
+		Types:   fakeTypes{},
+		Locale:  locale,
+		Title:   "A Test Site",
+		Version: "1.2.3",
+	})
+}
+
+func TestSiteReportsAListingItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	handler, reader := siteWith()
+	reader.listErr = errors.New("the database is unreachable")
+
+	recorder := get(t, handler, "/")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestSiteReportsATermPageItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	term := publishedPost("News", "categories/news", blockMarkup, now)
+	term.Type = "category"
+	handler, reader := siteWith(term)
+	reader.listErr = errors.New("the database is unreachable")
+
+	recorder := get(t, handler, "/categories/news")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestAListingUnderARouteWordNamesItsTypeInTheTitle(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	page := publishedPost("About", "pages/about", blockMarkup, now)
+	page.Type = "page"
+	handler, _ := siteWith(page)
+
+	recorder := get(t, handler, "/pages")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if got := recorder.Body.String(); !strings.Contains(got, "<title>Pages | A Test Site</title>") {
+		t.Errorf("the listing title is missing, want the type named before the site")
+	}
+}
+
+func TestTheSiteSpeaksTheLanguageItChose(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	post := publishedPost("A Post", "a-post", blockMarkup, now)
+
+	for name, test := range map[string]struct {
+		locale publicsite.SiteLocale
+		want   string
+	}{
+		"the language the site stored":     {fakeLocale{held: "es-ES", found: true}, "es-ES"},
+		"the default when it stored none":  {fakeLocale{}, "en-US"},
+		"the default when it stored empty": {fakeLocale{found: true}, "en-US"},
+		"the default when the lookup fails": {
+			fakeLocale{err: errors.New("the database is unreachable")}, "en-US",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			recorder := get(t, siteSpeaking(test.locale, post), "/")
+
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+			}
+			if got := recorder.Body.String(); !strings.Contains(got, `lang="`+test.want+`"`) {
+				t.Errorf("the page does not declare lang=%q", test.want)
+			}
+		})
+	}
+}
