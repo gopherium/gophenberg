@@ -57,7 +57,7 @@ export async function chooseLocale(locale: string): Promise<Answered> {
 /**
  * Returns the error a failed request carries.
  * @param response - The answer the server gave.
- * @returns The message to raise.
+ * @returns The error to raise.
  */
 async function errorFrom(response: Response): Promise<Error> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
