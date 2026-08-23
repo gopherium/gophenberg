@@ -157,12 +157,12 @@ func TestTheLibraryRefusesAnUploadWithNoDirectoryToInstallInto(t *testing.T) {
 
 	err := library.Install("aurora", bytes.NewReader(archive), int64(len(archive)))
 
-	var refusal *themehost.Refusal
-	if !errors.As(err, &refusal) {
-		t.Fatalf("Install() = %v, want a refusal the admin can read", err)
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Install() = %v, want it refused in words the admin can read", err)
 	}
-	if refusal.Reason != "no themes directory is configured, set GOPHENBERG_THEMES_DIR" {
-		t.Errorf("Reason = %q, want it to name the missing setting", refusal.Reason)
+	if refused.Reason != "no themes directory is configured, set GOPHENBERG_THEMES_DIR" {
+		t.Errorf("Reason = %q, want it to name the missing setting", refused.Reason)
 	}
 }
 

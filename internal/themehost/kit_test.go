@@ -42,7 +42,7 @@ func TestLoadRefusesAThemeBuiltOnAKitThisReleaseDoesNotServe(t *testing.T) {
 
 	_, err := themehost.Load(themesDir, "aurora")
 
-	assertRefusal(t, err, "kit_unsupported")
+	assertRefusedWith(t, err, "kit_unsupported")
 }
 
 func TestLoadRefusesAManifestNamingNoPlainKitVersion(t *testing.T) {
@@ -56,7 +56,7 @@ func TestLoadRefusesAManifestNamingNoPlainKitVersion(t *testing.T) {
 
 			_, err := themehost.Load(themesDir, "aurora")
 
-			assertRefusal(t, err, "kit_missing")
+			assertRefusedWith(t, err, "kit_missing")
 		})
 	}
 }
@@ -94,18 +94,18 @@ func themeDirDeclaring(t *testing.T, name, kit string) string {
 	return themesDir
 }
 
-// assertRefusal fails unless the error is a refusal carrying the code.
-func assertRefusal(t *testing.T, err error, code string) {
+// assertRefusedWith fails unless the error was refused carrying the code.
+func assertRefusedWith(t *testing.T, err error, code string) {
 	t.Helper()
 
 	if err == nil {
 		t.Fatalf("Load returned no error, want the code %q", code)
 	}
-	var refusal *themehost.Refusal
-	if !errors.As(err, &refusal) {
-		t.Fatalf("Load returned %v, want a refusal carrying %q", err, code)
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Load returned %v, want it refused carrying %q", err, code)
 	}
-	if refusal.Code != code {
-		t.Errorf("code = %q, want %q", refusal.Code, code)
+	if refused.Code != code {
+		t.Errorf("code = %q, want %q", refused.Code, code)
 	}
 }

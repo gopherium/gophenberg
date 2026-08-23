@@ -94,11 +94,11 @@ func validName(name string) error {
 	return nil
 }
 
-// reasonOf returns the refusal reason behind an error, or a general one.
+// reasonOf returns the reason behind an error, or a general one.
 func reasonOf(err error) string {
-	var refusal *Refusal
-	if errors.As(err, &refusal) {
-		return refusal.Reason
+	var named *Error
+	if errors.As(err, &named) {
+		return named.Reason
 	}
 	return "the theme could not be read"
 }

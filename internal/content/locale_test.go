@@ -84,7 +84,7 @@ func TestValidateLocaleRefusesAnUnsupportedLanguage(t *testing.T) {
 		t.Fatalf("ValidateLocale() error = %v, want %v", err, content.ErrLocaleUnknown)
 	}
 	if code, ok := content.CodeOf(err); !ok || code != "locale_unknown" {
-		t.Errorf("CodeOf() = %q, %v, want the refusal named", code, ok)
+		t.Errorf("CodeOf() = %q, %v, want the error named", code, ok)
 	}
 }
 

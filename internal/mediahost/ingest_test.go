@@ -59,15 +59,15 @@ func storedBytes(t *testing.T, l *mediahost.Library, file string) []byte {
 	return data
 }
 
-// wantRefusal asserts err is a refusal carrying the exact reason.
-func wantRefusal(t *testing.T, err error, reason string) {
+// wantRefused asserts err was refused carrying the exact reason.
+func wantRefused(t *testing.T, err error, reason string) {
 	t.Helper()
-	var refusal *mediahost.Refusal
-	if !errors.As(err, &refusal) {
-		t.Fatalf("error = %v, want a refusal explaining %q", err, reason)
+	var refused *mediahost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("error = %v, want it refused explaining %q", err, reason)
 	}
-	if refusal.Reason != reason {
-		t.Errorf("the refusal explains %q, want %q", refusal.Reason, reason)
+	if refused.Reason != reason {
+		t.Errorf("it was refused explaining %q, want %q", refused.Reason, reason)
 	}
 }
 
@@ -378,7 +378,7 @@ func TestIngestRefusesWhatItCannotTrust(t *testing.T) {
 
 			_, err := library.Ingest(tc.file, tc.data, uuid.Must(uuid.NewV7()))
 
-			wantRefusal(t, err, tc.reason)
+			wantRefused(t, err, tc.reason)
 			wantEmptyDir(t, library)
 		})
 	}
@@ -399,7 +399,7 @@ func TestIngestRefusesDimensionsBeyondAnyBudget(t *testing.T) {
 	for _, tc := range astronomical {
 		_, err := library.Ingest("bomb.png", pixelSizedPNG(tc.width, tc.height), uuid.Must(uuid.NewV7()))
 
-		wantRefusal(t, err, "the image is too large")
+		wantRefused(t, err, "the image is too large")
 	}
 	wantEmptyDir(t, library)
 }
@@ -413,8 +413,8 @@ func TestIngestRefusesExecutableContentInDocuments(t *testing.T) {
 	_, pdfErr := library.Ingest("manual.pdf", executable, uuid.Must(uuid.NewV7()))
 	_, zipErr := library.Ingest("bundle.zip", executable, uuid.Must(uuid.NewV7()))
 
-	wantRefusal(t, pdfErr, "the content does not match")
-	wantRefusal(t, zipErr, "the content does not match")
+	wantRefused(t, pdfErr, "the content does not match")
+	wantRefused(t, zipErr, "the content does not match")
 	wantEmptyDir(t, library)
 }
 
@@ -438,7 +438,7 @@ func TestIngestRefusesAFrameBeyondTheBudget(t *testing.T) {
 
 	_, err := library.Ingest("loader.gif", animation, uuid.Must(uuid.NewV7()))
 
-	wantRefusal(t, err, "the image is too large")
+	wantRefused(t, err, "the image is too large")
 	wantEmptyDir(t, library)
 }
 
@@ -450,7 +450,7 @@ func TestIngestRefusesAnAnimationMissingItsTrailer(t *testing.T) {
 
 	_, err := library.Ingest("loader.gif", animation[:len(animation)-1], uuid.Must(uuid.NewV7()))
 
-	wantRefusal(t, err, "the image cannot be read")
+	wantRefused(t, err, "the image cannot be read")
 	wantEmptyDir(t, library)
 }
 
@@ -461,7 +461,7 @@ func TestIngestRefusesAnUploadOverTheCap(t *testing.T) {
 
 	_, err := library.Ingest("huge.jpg", bytes.Repeat([]byte{0}, 2<<10), uuid.Must(uuid.NewV7()))
 
-	wantRefusal(t, err, "the file is too large")
+	wantRefused(t, err, "the file is too large")
 	wantEmptyDir(t, library)
 }
 
@@ -472,7 +472,7 @@ func TestIngestRefusesWithoutADirectory(t *testing.T) {
 
 	_, err := library.Ingest("harbor.jpg", jpegImage(t, 4, 4), uuid.Must(uuid.NewV7()))
 
-	wantRefusal(t, err, "no media directory is configured, set GOPHENBERG_MEDIA_DIR")
+	wantRefused(t, err, "no media directory is configured, set GOPHENBERG_MEDIA_DIR")
 }
 
 func TestIngestCapDefaultsGenerously(t *testing.T) {
@@ -500,9 +500,9 @@ func TestIngestReportsAnUnwritableDirectory(t *testing.T) {
 	if err == nil {
 		t.Fatal("Ingest() into an unwritable directory error = nil, want a failure")
 	}
-	var refusal *mediahost.Refusal
-	if errors.As(err, &refusal) {
-		t.Errorf("error = %v, want a plain failure rather than a refusal", err)
+	var refused *mediahost.Error
+	if errors.As(err, &refused) {
+		t.Errorf("error = %v, want a plain failure rather than one refused", err)
 	}
 }
 
@@ -576,8 +576,8 @@ func TestIngestRefusesTruncatedImages(t *testing.T) {
 	_, gifErr := library.Ingest("cut.gif", cutGIF, uuid.Must(uuid.NewV7()))
 	_, pngErr := library.Ingest("cut.png", cutPNG, uuid.Must(uuid.NewV7()))
 
-	wantRefusal(t, gifErr, "the image cannot be read")
-	wantRefusal(t, pngErr, "the image cannot be read")
+	wantRefused(t, gifErr, "the image cannot be read")
+	wantRefused(t, pngErr, "the image cannot be read")
 	wantEmptyDir(t, library)
 }
 
@@ -606,22 +606,22 @@ func TestIngestRefusesAMissingAuthor(t *testing.T) {
 	wantEmptyDir(t, library)
 }
 
-func TestRefusalNamesTheReasonAndUnwraps(t *testing.T) {
+func TestErrorNamesTheReasonAndUnwraps(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
 
 	_, err := library.Ingest("notes.txt", []byte("meeting notes"), uuid.Must(uuid.NewV7()))
 
-	var refusal *mediahost.Refusal
-	if !errors.As(err, &refusal) {
-		t.Fatalf("error = %v, want a refusal", err)
+	var refused *mediahost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("error = %v, want it refused", err)
 	}
-	if !strings.HasPrefix(refusal.Error(), "the file type is not allowed: ") {
-		t.Errorf("Error() = %q, want the reason before the detail", refusal.Error())
+	if !strings.HasPrefix(refused.Error(), "the file type is not allowed: ") {
+		t.Errorf("Error() = %q, want the reason before the detail", refused.Error())
 	}
-	if errors.Unwrap(refusal) == nil {
-		t.Error("Unwrap() = nil, want the detail behind the refusal")
+	if errors.Unwrap(refused) == nil {
+		t.Error("Unwrap() = nil, want the detail behind it")
 	}
 }
 

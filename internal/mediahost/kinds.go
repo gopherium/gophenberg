@@ -38,7 +38,7 @@ var allowedKinds = map[string]kind{
 	"zip":  {mime: "application/zip", ext: "zip", strict: true},
 }
 
-// detect returns the upload type name and data agree on, or the refusal they earn.
+// detect returns the upload type name and data agree on, or the error they earn.
 func detect(name string, data []byte) (kind, error) {
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(baseName(name)), "."))
 	k, allowed := allowedKinds[ext]
