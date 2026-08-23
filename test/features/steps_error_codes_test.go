@@ -80,49 +80,49 @@ func theRequestIsRefusedWithTheCode(ctx context.Context, code string) error {
 		return fmt.Errorf("status = %d, want the request refused", w.answer.status)
 	}
 	if got := w.answer.errorCode(); got != code {
-		return fmt.Errorf("the refusal names %q, want %q", got, code)
+		return fmt.Errorf("the error names %q, want %q", got, code)
 	}
 	return nil
 }
 
-// theRefusalNamesUnder asserts the refusal carries the value under the meta key.
-func theRefusalNamesUnder(ctx context.Context, want, key string) error {
+// theErrorNamesUnder asserts the error carries the value under the meta key.
+func theErrorNamesUnder(ctx context.Context, want, key string) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
 	}
 	if got := w.answer.errorDetail(key); got != want {
-		return fmt.Errorf("the refusal carries %v under %q, want %q", got, key, want)
+		return fmt.Errorf("the error carries %v under %q, want %q", got, key, want)
 	}
 	return nil
 }
 
-// theRefusalStillCarriesAReadableMessage asserts the English prose survives beside the code.
-func theRefusalStillCarriesAReadableMessage(ctx context.Context) error {
+// theErrorStillCarriesAReadableMessage asserts the English prose survives beside the code.
+func theErrorStillCarriesAReadableMessage(ctx context.Context) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
 	}
 	if w.answer.errorMessage() == "" {
-		return fmt.Errorf("the refusal carries no message, want the prose kept for logs")
+		return fmt.Errorf("the error carries no message, want the prose kept for logs")
 	}
 	return nil
 }
 
-// theRefusalCarriesNoData asserts a refusal with no dynamic part sends none.
-func theRefusalCarriesNoData(ctx context.Context) error {
+// theErrorCarriesNoData asserts an error with no dynamic part sends none.
+func theErrorCarriesNoData(ctx context.Context) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
 	}
 	if held := w.answer.errorDetails(); len(held) != 0 {
-		return fmt.Errorf("the refusal carries %v, want no data beside a fixed message", held)
+		return fmt.Errorf("the error carries %v, want no data beside a fixed message", held)
 	}
 	return nil
 }
 
-// initializeRefusalCodes registers the steps of the refusal codes feature.
-func initializeRefusalCodes(sc *godog.ScenarioContext) {
+// initializeErrorCodes registers the steps of the error codes feature.
+func initializeErrorCodes(sc *godog.ScenarioContext) {
 	sc.Before(provisionWorld)
 	sc.After(retireWorld)
 	sc.Given(`^a running Gophenberg with the default content types$`, aRunningGophenbergWithTheDefaultContentTypes)
@@ -150,7 +150,7 @@ func initializeRefusalCodes(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator asks for the content item "([^"]*)"$`, theAdministratorAsksForTheContentItem)
 	sc.When(`^the administrator trashes "([^"]*)" twice$`, theAdministratorTrashesTwice)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
-	sc.Then(`^the refusal names "([^"]*)" under "([^"]*)"$`, theRefusalNamesUnder)
-	sc.Then(`^the refusal still carries a readable message$`, theRefusalStillCarriesAReadableMessage)
-	sc.Then(`^the refusal carries no data$`, theRefusalCarriesNoData)
+	sc.Then(`^the error names "([^"]*)" under "([^"]*)"$`, theErrorNamesUnder)
+	sc.Then(`^the error still carries a readable message$`, theErrorStillCarriesAReadableMessage)
+	sc.Then(`^the error carries no data$`, theErrorCarriesNoData)
 }

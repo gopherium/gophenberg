@@ -78,7 +78,7 @@ func theRequestIsRefusedExplaining(ctx context.Context, reason string) error {
 		return fmt.Errorf("status = %d, want the request refused", w.answer.status)
 	}
 	if got := w.answer.errorMessage(); got != reason {
-		return fmt.Errorf("the refusal explains %q, want %q", got, reason)
+		return fmt.Errorf("it was refused explaining %q, want %q", got, reason)
 	}
 	return nil
 }
@@ -217,7 +217,7 @@ func theServerWasPinned(ctx context.Context, name string) error {
 	return w.waitServedBy(name)
 }
 
-// theAdministratorTriesToActivate attempts activation expecting a refusal.
+// theAdministratorTriesToActivate attempts activation expecting it refused.
 func theAdministratorTriesToActivate(ctx context.Context, name string) error {
 	w, err := worldOf(ctx)
 	if err != nil {
@@ -226,7 +226,7 @@ func theAdministratorTriesToActivate(ctx context.Context, name string) error {
 	return w.postJSON(activePath, fmt.Sprintf(`{"name":%q}`, name))
 }
 
-// theRequestIsRefusedAsPinned asserts the refusal names the operator pin.
+// theRequestIsRefusedAsPinned asserts the error names the operator pin.
 func theRequestIsRefusedAsPinned(ctx context.Context) error {
 	return theRequestIsRefusedExplaining(ctx, "the theme is pinned by the operator")
 }

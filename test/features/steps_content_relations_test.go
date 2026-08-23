@@ -268,17 +268,17 @@ func publishingWithoutTheRequiredTargetIsRefused(ctx context.Context) error {
 	return theRequestIsRefused(ctx)
 }
 
-// theRequestIsRefusedAsUnfindable asserts the refusal names a target nothing holds.
+// theRequestIsRefusedAsUnfindable asserts the error names a target nothing holds.
 func theRequestIsRefusedAsUnfindable(ctx context.Context) error {
 	return refusedFor(ctx, content.ErrTargetNotFound)
 }
 
-// theRequestIsRefusedAsOverfilled asserts the refusal names a field given more targets than it holds.
+// theRequestIsRefusedAsOverfilled asserts the error names a field given more targets than it holds.
 func theRequestIsRefusedAsOverfilled(ctx context.Context) error {
 	return refusedFor(ctx, content.ErrTooManyTargets)
 }
 
-// theRequestIsRefusedAsMistyped asserts the refusal names a target of the wrong type.
+// theRequestIsRefusedAsMistyped asserts the error names a target of the wrong type.
 func theRequestIsRefusedAsMistyped(ctx context.Context) error {
 	return refusedFor(ctx, content.ErrTargetType)
 }
@@ -293,7 +293,7 @@ func refusedFor(ctx context.Context, reason error) error {
 		return fmt.Errorf("status = %d, want %d", w.answer.status, http.StatusUnprocessableEntity)
 	}
 	if !strings.HasPrefix(w.answer.errorMessage(), reason.Error()) {
-		return fmt.Errorf("the refusal explains %q, want %q", w.answer.errorMessage(), reason)
+		return fmt.Errorf("it was refused explaining %q, want %q", w.answer.errorMessage(), reason)
 	}
 	return nil
 }

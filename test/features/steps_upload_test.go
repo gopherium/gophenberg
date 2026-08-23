@@ -94,7 +94,7 @@ func theUploadIsRefused(ctx context.Context, reason string) error {
 		return fmt.Errorf("status = %d, want the upload refused", w.answer.status)
 	}
 	if got := w.answer.errorMessage(); got != reason {
-		return fmt.Errorf("the refusal explains %q, want %q", got, reason)
+		return fmt.Errorf("it was refused explaining %q, want %q", got, reason)
 	}
 	return nil
 }

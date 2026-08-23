@@ -50,8 +50,8 @@ func TestOwnership(t *testing.T) {
 	runFeature(t, "features/roles-ownership.feature", initializeOwnership)
 }
 
-func TestRefusalCodes(t *testing.T) {
-	runFeature(t, "features/refusal-codes.feature", initializeRefusalCodes)
+func TestErrorCodes(t *testing.T) {
+	runFeature(t, "features/error-codes.feature", initializeErrorCodes)
 }
 
 func TestLocaleResolution(t *testing.T) {
