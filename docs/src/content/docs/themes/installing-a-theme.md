@@ -37,6 +37,11 @@ client/     (from dist/client)
 Name the zip after the theme. Gophenberg installs `mytheme.zip` as
 `mytheme`, and the `name` inside `theme.json` has to match.
 
+`kit` is the exact version of `@gophenberg/astro` you built against,
+three numbers and nothing else. A range like `^0.1.0` is refused,
+because the site has to know which shape your theme reads rather than
+which ones you would accept.
+
 ## 3. Upload and activate
 
 Open **Themes** in the admin, choose the zip, and select **Install
@@ -52,6 +57,8 @@ choice before the current one.
 An upload is refused whole, and the admin shows the reason:
 
 - `theme.json` present and valid, its `name` matching the zip name
+- `kit` naming a version the site serves, which its
+  [handshake](/reference/content-api/) lists
 - `server/entry.mjs` present as a file, `client/` as a directory
 - no symlinks anywhere, and nothing over 64 MiB packed or unpacked
 - at most 10000 files, which is far more than a theme needs
