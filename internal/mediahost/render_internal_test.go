@@ -6,6 +6,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -45,26 +46,33 @@ func TestRenditionFormatFallsBackWhenNothingDeclaresTransparency(t *testing.T) {
 	}
 }
 
-func TestEncodedRenditionReportsWhatItCannotEncode(t *testing.T) {
-	t.Parallel()
-
-	_, err := encodedRendition("full", flatImage(bigImageBound*2), "png")
-
-	if err == nil {
-		t.Error("encodedRendition() error = nil, want the empty image refused")
+// wantEncodePanic fails the test unless the deferred recover carries the named encoder refusal.
+func wantEncodePanic(t *testing.T, call, refusal string) {
+	t.Helper()
+	recovered := recover()
+	if recovered == nil {
+		t.Fatalf("%s returned, want the refused image to panic", call)
+	}
+	err, isError := recovered.(error)
+	if !isError || !strings.Contains(err.Error(), refusal) {
+		t.Errorf("%s panic = %v, want the refusal %q", call, recovered, refusal)
 	}
 }
 
-func TestUprightJPEGReportsWhatItCannotReEncode(t *testing.T) {
+func TestEncodedRenditionPanicsOnAnImageItCannotEncode(t *testing.T) {
+	t.Parallel()
+
+	defer wantEncodePanic(t, "encodedRendition()", "encoding a png rendition")
+	encodedRendition("full", flatImage(bigImageBound*2), "png")
+}
+
+func TestUprightJPEGPanicsOnAnImageItCannotReEncode(t *testing.T) {
 	t.Parallel()
 
 	turned := jpegWithSegment(0xE1, append([]byte("Exif\x00\x00"), tiffBlock(shortEntry(0x0112, 6))...))
 
-	_, _, err := uprightJPEG(kind{ext: "jpg", mime: "image/jpeg"}, hugeImage(), turned)
-
-	if err == nil {
-		t.Error("uprightJPEG() error = nil, want the oversized image refused")
-	}
+	defer wantEncodePanic(t, "uprightJPEG()", "encoding a jpeg rendition")
+	uprightJPEG(kind{ext: "jpg", mime: "image/jpeg"}, hugeImage(), turned)
 }
 
 func TestWriteExclusiveReportsWhatItCannotOpen(t *testing.T) {

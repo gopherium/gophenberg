@@ -121,14 +121,8 @@ func (l *Library) ingestImage(name string, k kind, data []byte, authorID uuid.UU
 	if err != nil {
 		return media.Media{}, refuse("image_unreadable", "the image cannot be read", "decoding: %w", err)
 	}
-	img, data, err = uprightJPEG(k, img, data)
-	if err != nil {
-		return media.Media{}, err
-	}
-	renditions, err := deriveRenditions(img, k)
-	if err != nil {
-		return media.Media{}, err
-	}
+	img, data = uprightJPEG(k, img, data)
+	renditions := deriveRenditions(img, k)
 	return l.store(name, k, data, img.Bounds().Dx(), img.Bounds().Dy(), renditions, authorID)
 }
 
@@ -158,89 +152,63 @@ func isAnimated(data []byte) (bool, error) {
 }
 
 // uprightJPEG applies a JPEG's orientation tag, re-encoding when the pixels moved.
-func uprightJPEG(k kind, img image.Image, data []byte) (image.Image, []byte, error) {
+func uprightJPEG(k kind, img image.Image, data []byte) (image.Image, []byte) {
 	if k.ext != "jpg" {
-		return img, data, nil
+		return img, data
 	}
 	orientation := jpegOrientation(data)
 	if orientation == 1 {
-		return img, data, nil
+		return img, data
 	}
 	upright := orient(img, orientation)
-	encoded, err := encodeImage(upright, "jpeg")
-	if err != nil {
-		return nil, nil, err
-	}
-	return upright, encoded, nil
+	return upright, mustEncode(upright, "jpeg")
 }
 
 // deriveRenditions returns the derived copies an upright image needs.
-func deriveRenditions(img image.Image, k kind) ([]rendition, error) {
+func deriveRenditions(img image.Image, k kind) []rendition {
 	format := renditionFormat(k.ext, img)
-	out, err := scaledFull(img, format)
-	if err != nil {
-		return nil, err
-	}
-	out, err = fitRenditions(out, img, format)
-	if err != nil {
-		return nil, err
-	}
+	out := scaledFull(img, format)
+	out = fitRenditions(out, img, format)
 	return thumbRendition(out, img, format)
 }
 
 // scaledFull returns the display copy of an image beyond the big image bound.
-func scaledFull(img image.Image, format string) ([]rendition, error) {
+func scaledFull(img image.Image, format string) []rendition {
 	out := make([]rendition, 0, 4)
 	if img.Bounds().Dx() <= bigImageBound && img.Bounds().Dy() <= bigImageBound {
-		return out, nil
+		return out
 	}
-	scaled, err := encodedRendition("full", resizeFit(img, bigImageBound), format)
-	if err != nil {
-		return nil, err
-	}
-	return append(out, scaled), nil
+	return append(out, encodedRendition("full", resizeFit(img, bigImageBound), format))
 }
 
 // fitRenditions appends the renditions bounded by their longest side.
-func fitRenditions(out []rendition, img image.Image, format string) ([]rendition, error) {
+func fitRenditions(out []rendition, img image.Image, format string) []rendition {
 	for _, size := range fitBounds {
 		if img.Bounds().Dx() <= size.bound && img.Bounds().Dy() <= size.bound {
 			continue
 		}
-		fitted, err := encodedRendition(size.slug, resizeFit(img, size.bound), format)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, fitted)
+		out = append(out, encodedRendition(size.slug, resizeFit(img, size.bound), format))
 	}
-	return out, nil
+	return out
 }
 
 // thumbRendition appends the square thumbnail crop of a large enough image.
-func thumbRendition(out []rendition, img image.Image, format string) ([]rendition, error) {
+func thumbRendition(out []rendition, img image.Image, format string) []rendition {
 	if img.Bounds().Dx() <= thumbnailSize || img.Bounds().Dy() <= thumbnailSize {
-		return out, nil
+		return out
 	}
-	cropped, err := encodedRendition("thumbnail", resizeCrop(img, thumbnailSize), format)
-	if err != nil {
-		return nil, err
-	}
-	return append(out, cropped), nil
+	return append(out, encodedRendition("thumbnail", resizeCrop(img, thumbnailSize), format))
 }
 
 // encodedRendition returns img encoded as the named rendition.
-func encodedRendition(slug string, img image.Image, format string) (rendition, error) {
-	data, err := encodeImage(img, format)
-	if err != nil {
-		return rendition{}, err
-	}
+func encodedRendition(slug string, img image.Image, format string) rendition {
 	return rendition{
 		slug:   slug,
-		data:   data,
+		data:   mustEncode(img, format),
 		width:  img.Bounds().Dx(),
 		height: img.Bounds().Dy(),
 		format: format,
-	}, nil
+	}
 }
 
 // store claims a name for the upload, writes its files, and builds the media item.

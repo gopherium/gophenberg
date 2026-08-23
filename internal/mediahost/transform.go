@@ -132,6 +132,15 @@ func encodeImage(img image.Image, format string) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// mustEncode returns img encoded in the given format, panicking when the encoder refuses it.
+func mustEncode(img image.Image, format string) []byte {
+	data, err := encodeImage(img, format)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
 // renditionFormat returns the format renditions of a source format encode in.
 func renditionFormat(ext string, img image.Image) string {
 	switch ext {
