@@ -1,0 +1,26 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0%
+      frontend:
+        flags:
+          - frontend
+        target: 100%
+      kit:
+        flags:
+          - kit
+        target: 100%
+    patch:
+      default:
+        target: 100%
+
+ignore:
+  - internal/postgres/db
+  - internal/testdb
+  - "**/*_gen.go"
+
+comment:
+  layout: reach, diff, flags, files
+  require_changes: true

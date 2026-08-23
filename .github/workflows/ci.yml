@@ -28,8 +28,15 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
-      - run: go test -race ./...
+      - run: make cover GOTESTFLAGS=-race
       - run: go vet ./...
+      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: .covdata/cover.out
+          flags: backend
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          version: v11.3.0
 
   frontend:
     runs-on: ubuntu-latest
@@ -55,10 +62,24 @@ jobs:
       - run: pnpm exec knip
         working-directory: ${{ github.workspace }}
       - run: pnpm cover
+      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: frontend/coverage/lcov.info
+          flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          version: v11.3.0
       - run: pnpm --filter @gophenberg/astro run typecheck
         working-directory: ${{ github.workspace }}
       - run: pnpm --filter @gophenberg/astro cover
         working-directory: ${{ github.workspace }}
+      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: sdk/astro/coverage/lcov.info
+          flags: kit
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          version: v11.3.0
       - run: pnpm --filter @gophenberg/theme-starter run typecheck
         working-directory: ${{ github.workspace }}
       - run: pnpm --filter @gophenberg/theme-starter run build
