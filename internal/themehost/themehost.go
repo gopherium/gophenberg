@@ -81,10 +81,30 @@ func inspect(dir, name string) (manifest, error) {
 			"themehost: %s names theme %q, but it is installed as %q",
 			filepath.Join(name, manifestPath), declared.Name, name)
 	}
+	if err := requireServedKit(declared.Kit, name); err != nil {
+		return declared, err
+	}
 	if err := requireParts(dir, name); err != nil {
 		return declared, err
 	}
 	return declared, walk(dir, name)
+}
+
+// requireServedKit refuses a theme built on a kit version this release does not serve.
+func requireServedKit(declared, name string) error {
+	if _, ok := parseKit(declared); !ok {
+		return refuseHolding("kit_missing", "the manifest names no kit version",
+			map[string]any{"file": manifestPath, "name": name, "declared": declared},
+			"themehost: %s names the kit as %q, which is not a plain version, so rebuild the theme",
+			filepath.Join(name, manifestPath), declared)
+	}
+	if !ServesKit(declared) {
+		return refuseHolding("kit_unsupported", "the theme kit is not served",
+			map[string]any{"name": name, "declared": declared, "served": ServedKits()},
+			"themehost: %s is built on theme kit %s, and this release serves %s",
+			name, declared, strings.Join(servedKits, ", "))
+	}
+	return nil
 }
 
 // readManifest returns the manifest a theme directory declares itself with.

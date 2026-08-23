@@ -24,7 +24,15 @@ type part struct {
 func manifestOf(name, version string) part {
 	return part{
 		path: "theme.json",
-		body: fmt.Sprintf(`{"name":%q,"version":%q,"kit":"0.1.0"}`, name, version),
+		body: fmt.Sprintf(`{"name":%q,"version":%q,"kit":%q}`, name, version, themehost.NewestKit()),
+	}
+}
+
+// manifestNaming returns the manifest a theme declares itself with, naming the kit value given.
+func manifestNaming(name, kit string) part {
+	return part{
+		path: "theme.json",
+		body: fmt.Sprintf(`{"name":%q,"version":"1.0.0","kit":%q}`, name, kit),
 	}
 }
 
@@ -121,6 +129,10 @@ func flawedArchive(name, flaw string) ([]byte, error) {
 		return archiveOf(serverEntry, clientAsset)
 	case `declares the name "other" in theme.json`:
 		return archiveOf(manifestOf("other", "1.0.0"), serverEntry, clientAsset)
+	case "is built on a kit this release does not serve":
+		return archiveOf(manifestNaming(name, "0.1.0"), serverEntry, clientAsset)
+	case "names a kit range rather than a version":
+		return archiveOf(manifestNaming(name, "^0.9.0"), serverEntry, clientAsset)
 	case "holds no server entry":
 		return archiveOf(manifest, clientAsset)
 	case "holds no client directory":

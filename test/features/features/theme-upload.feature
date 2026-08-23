@@ -28,6 +28,8 @@ Feature: Installing a theme from the admin
       | flaw                                     | reason                           |
       | carries no theme.json                    | the manifest is missing          |
       | declares the name "other" in theme.json  | the name does not match          |
+      | is built on a kit this release does not serve | the theme kit is not served |
+      | names a kit range rather than a version  | the manifest names no kit version |
       | holds no server entry                    | the server entry is missing      |
       | holds no client directory                | the client assets are missing    |
       | contains a symbolic link                 | symlinks are not allowed         |
