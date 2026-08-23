@@ -58,7 +58,7 @@ working while new ones move across.
 
 ## When a site cannot serve your theme
 
-Two things check this, so a mismatch is always a clear refusal
+Two things check this, so a mismatch is always clearly refused
 rather than a broken page.
 
 **The site refuses it.** Uploading a theme built on a kit the site

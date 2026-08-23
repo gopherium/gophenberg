@@ -16,9 +16,9 @@ server has stored it.
 
 Gophenberg accepts JPEG, PNG, GIF and WebP pictures, MP4 and WebM
 video, MP3, M4A, WAV, OGG and FLAC audio, PDF documents and ZIP
-archives. Anything else is refused, and the refusal says why.
+archives. Anything else is refused, and the answer says why.
 
-A file is checked before it is stored, so a refusal never leaves
+A file is checked before it is stored, so refusing one never leaves
 anything behind. An upload is turned away when its type is not on
 that list, when its contents do not match its name, when it is
 larger than the upload limit, or when it is a picture the server
