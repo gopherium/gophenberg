@@ -1,5 +1,7 @@
 # Gophenberg
 
+[![codecov](https://codecov.io/github/gopherium/gophenberg/graph/badge.svg)](https://codecov.io/github/gopherium/gophenberg)
+
 A plugin-first CMS. Go backend exposing a JSON API, React SPA admin built on top of
 the WPDS and Gutenberg block editor.
 
