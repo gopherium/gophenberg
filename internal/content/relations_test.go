@@ -247,3 +247,18 @@ func TestSelfTargetedAcceptsAnotherItemOfItsOwnType(t *testing.T) {
 		t.Fatalf("SelfTargeted() error = %v, want a sibling of the same type accepted", err)
 	}
 }
+
+func TestARelationRefusesATargetThatIsNotWritten(t *testing.T) {
+	t.Parallel()
+
+	fields := []content.Field{{
+		TypeKey: content.TypePost, Key: "categories", Label: "Categories",
+		Kind: content.FieldKindRelation, RelatesTo: "category", Many: true,
+	}}
+
+	_, _, err := content.SplitValues(content.Values{"categories": []any{42}}, fields)
+
+	if !errors.Is(err, content.ErrFieldShape) {
+		t.Errorf("SplitValues() error = %v, want %v", err, content.ErrFieldShape)
+	}
+}

@@ -261,3 +261,31 @@ func requiredColor(t *testing.T) content.Field {
 	}
 	return built
 }
+
+func TestValuesRefuseAKindTheCMSDoesNotHold(t *testing.T) {
+	t.Parallel()
+
+	held := content.Values{"oddity": "anything"}
+	fields := []content.Field{{TypeKey: content.TypePost, Key: "oddity", Label: "Oddity", Kind: "sculpture"}}
+
+	err := held.Validate(fields)
+
+	if !errors.Is(err, content.ErrFieldShape) {
+		t.Errorf("Validate() error = %v, want %v", err, content.ErrFieldShape)
+	}
+}
+
+func TestADateFieldRefusesAValueThatIsNotWritten(t *testing.T) {
+	t.Parallel()
+
+	held := content.Values{"published": 20260823}
+	fields := []content.Field{
+		{TypeKey: content.TypePost, Key: "published", Label: "Published", Kind: content.FieldKindDate},
+	}
+
+	err := held.Validate(fields)
+
+	if !errors.Is(err, content.ErrFieldShape) {
+		t.Errorf("Validate() error = %v, want %v", err, content.ErrFieldShape)
+	}
+}
