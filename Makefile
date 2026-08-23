@@ -90,13 +90,15 @@ generate:
 
 COVERDATA = .covdata
 
+GOTESTFLAGS ?=
+
 cover:
 	rm -rf $(COVERDATA)
 	mkdir -p $(COVERDATA)/bin $(COVERDATA)/counters
-	go build -cover -coverpkg=./cmd/... -o $(COVERDATA)/bin ./cmd/gophenberg ./cmd/doclint ./cmd/pluginwire
+	go build -cover -covermode=atomic -coverpkg=./cmd/... -o $(COVERDATA)/bin ./cmd/gophenberg ./cmd/doclint ./cmd/pluginwire
 	GOPHENBERG_COVER_BINDIR=$(CURDIR)/$(COVERDATA)/bin \
 	GOPHENBERG_COVER_GOCOVERDIR=$(CURDIR)/$(COVERDATA)/counters \
-	go test -cover $(COVERPKGS) -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
+	go test -cover -covermode=atomic $(GOTESTFLAGS) $(COVERPKGS) -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
 	@echo "=== merged unit + binary coverage ==="
 	go tool covdata percent -i=$(COVERDATA)/counters
 	@echo
