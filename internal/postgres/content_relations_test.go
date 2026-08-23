@@ -512,3 +512,51 @@ func TestContentStoreWritesRelationsWhileTheFieldIsDeleted(t *testing.T) {
 		}
 	}
 }
+
+func TestContentStoreNamesTheTargetsAnItemPointsAt(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := relatingStore(t)
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	filed := fileUnder(t, store, mustCreate(t, store, "A Filed Post", author), news.ID)
+
+	held, err := store.TargetsOf(t.Context(), filed.ID)
+
+	if err != nil {
+		t.Fatalf("TargetsOf() error = %v, want nil", err)
+	}
+	listed := held["categories"]
+	if len(listed) != 1 {
+		t.Fatalf("TargetsOf() = %v, want the one category it is filed under", held)
+	}
+	if listed[0].ID != news.ID || listed[0].Title != "News" || listed[0].Path == "" {
+		t.Errorf("target = %+v, want the category named and addressed", listed[0])
+	}
+}
+
+func TestContentStoreNamesNoTargetsForAnItemPointingNowhere(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := relatingStore(t)
+	alone := mustCreate(t, store, "Points Nowhere", author)
+
+	held, err := store.TargetsOf(t.Context(), alone.ID)
+
+	if err != nil {
+		t.Fatalf("TargetsOf() error = %v, want nil", err)
+	}
+	if len(held) != 0 {
+		t.Errorf("TargetsOf() = %v, want nothing pointed at", held)
+	}
+}
+
+func TestContentStoreReportsTargetsItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := relatingStore(t)
+	pool.Close()
+
+	if _, err := store.TargetsOf(t.Context(), uuid.New()); err == nil {
+		t.Error("TargetsOf() error = nil, want the closed pool reported")
+	}
+}
