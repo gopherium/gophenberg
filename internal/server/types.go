@@ -146,7 +146,7 @@ func (s *server) handleTypeCreate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := authkit.Decode[request](w, r)
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed json", Code: "body_malformed",
 			})
 			return
@@ -176,7 +176,7 @@ func (s *server) handleTypePatch() http.HandlerFunc {
 		}
 		req, err := authkit.Decode[typePatchRequest](w, r)
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed json", Code: "body_malformed",
 			})
 			return

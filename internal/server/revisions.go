@@ -54,7 +54,7 @@ func (s *server) handleRevisionList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		contentID, err := uuid.Parse(chi.URLParam(r, "id"))
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed content id", Code: "content_id_malformed",
 			})
 			return
@@ -129,14 +129,14 @@ func (s *server) handleRevisionDelete() http.HandlerFunc {
 func parseRevisionIDs(w http.ResponseWriter, r *http.Request) (uuid.UUID, uuid.UUID, bool) {
 	contentID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
-		authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+		authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 			Message: "malformed content id", Code: "content_id_malformed",
 		})
 		return uuid.Nil, uuid.Nil, false
 	}
 	revisionID, err := uuid.Parse(chi.URLParam(r, "revisionID"))
 	if err != nil {
-		authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+		authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 			Message: "malformed revision id", Code: "revision_id_malformed",
 		})
 		return uuid.Nil, uuid.Nil, false

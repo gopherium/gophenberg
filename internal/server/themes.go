@@ -59,14 +59,14 @@ func (s *server) handleThemeList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		installed, err := s.themes.List(r.Context())
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusInternalServerError, authkit.Refusal{
+			authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
 				Message: "internal error", Code: "internal",
 			})
 			return
 		}
 		previous, offered, err := s.themes.Previous(r.Context())
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusInternalServerError, authkit.Refusal{
+			authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
 				Message: "internal error", Code: "internal",
 			})
 			return
@@ -93,7 +93,7 @@ func (s *server) handleThemeList() http.HandlerFunc {
 func (s *server) handleThemeUpload() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := extendUploadDeadline(w); err != nil {
-			authkit.RespondRefusal(w, http.StatusInternalServerError, authkit.Refusal{
+			authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
 				Message: "internal error", Code: "internal",
 			})
 			return
@@ -107,7 +107,7 @@ func (s *server) handleThemeUpload() http.HandlerFunc {
 		defer func() { _ = file.Close() }()
 
 		if header.Size > themehost.MaxSize {
-			authkit.RespondRefusal(w, http.StatusRequestEntityTooLarge, authkit.Refusal{
+			authkit.RespondError(w, http.StatusRequestEntityTooLarge, authkit.ErrorResponse{
 				Message: "the theme is too large", Code: "theme_too_large",
 				Meta: map[string]any{"max": int64(themehost.MaxSize)},
 			})
@@ -132,7 +132,7 @@ func (s *server) handleThemeActivate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := authkit.Decode[activateRequest](w, r)
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed json", Code: "body_malformed",
 			})
 			return
@@ -187,27 +187,27 @@ func themeNameOf(filename string) string {
 func respondUploadError(w http.ResponseWriter, err error) {
 	var tooLarge *http.MaxBytesError
 	if errors.As(err, &tooLarge) {
-		authkit.RespondRefusal(w, http.StatusRequestEntityTooLarge, authkit.Refusal{
+		authkit.RespondError(w, http.StatusRequestEntityTooLarge, authkit.ErrorResponse{
 			Message: "the theme is too large", Code: "theme_too_large",
 			Meta: map[string]any{"max": int64(themehost.MaxSize)},
 		})
 		return
 	}
-	authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+	authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 		Message: "the upload carries no theme archive", Code: "upload_theme_required",
 	})
 }
 
 // respondThemeError writes a refused theme as the reason the operator reads.
 func respondThemeError(w http.ResponseWriter, err error) {
-	var refusal *themehost.Refusal
-	if errors.As(err, &refusal) {
-		authkit.RespondRefusal(w, http.StatusUnprocessableEntity, authkit.Refusal{
-			Message: refusal.Reason, Code: refusal.Code, Meta: refusal.Held,
+	var refused *themehost.Error
+	if errors.As(err, &refused) {
+		authkit.RespondError(w, http.StatusUnprocessableEntity, authkit.ErrorResponse{
+			Message: refused.Reason, Code: refused.Code, Meta: refused.Held,
 		})
 		return
 	}
-	authkit.RespondRefusal(w, http.StatusInternalServerError, authkit.Refusal{
+	authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
 		Message: "internal error", Code: "internal",
 	})
 }

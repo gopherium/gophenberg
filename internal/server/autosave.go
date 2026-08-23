@@ -43,13 +43,13 @@ type autosaveRequest struct {
 func decodeAutosaveRequest(w http.ResponseWriter, r *http.Request) (autosaveRequest, bool) {
 	req, err := authkit.Decode[autosaveRequest](w, r)
 	if err != nil {
-		authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+		authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 			Message: "malformed json", Code: "body_malformed",
 		})
 		return autosaveRequest{}, false
 	}
 	if req.UpdatedAt == nil {
-		authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+		authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 			Message: "missing updated_at", Code: "body_field_required", Meta: map[string]any{"field": "updated_at"},
 		})
 		return autosaveRequest{}, false
@@ -81,7 +81,7 @@ func (s *server) handleAutosaveSave() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(chi.URLParam(r, "id"))
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed content id", Code: "content_id_malformed",
 			})
 			return
@@ -177,7 +177,7 @@ func (s *server) handleAutosaveGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(chi.URLParam(r, "id"))
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed content id", Code: "content_id_malformed",
 			})
 			return

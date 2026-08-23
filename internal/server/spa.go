@@ -82,7 +82,7 @@ func builtInSite(cfg Config, types *content.Registry) http.Handler {
 
 // respondNotFound reports that nothing lives at the address.
 func respondNotFound(w http.ResponseWriter, _ *http.Request) {
-	authkit.RespondRefusal(w, http.StatusNotFound, authkit.Refusal{
+	authkit.RespondError(w, http.StatusNotFound, authkit.ErrorResponse{
 		Message: "not found", Code: "route_not_found",
 	})
 }
