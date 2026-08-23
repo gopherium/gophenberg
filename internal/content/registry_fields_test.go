@@ -12,6 +12,9 @@ import (
 
 // CreateField stores a field on its type.
 func (s *fakeTypeStore) CreateField(_ context.Context, f content.Field) (content.Field, error) {
+	if s.createFieldErr != nil {
+		return content.Field{}, s.createFieldErr
+	}
 	for i, stored := range s.types {
 		if stored.Key != f.TypeKey {
 			continue
@@ -25,6 +28,9 @@ func (s *fakeTypeStore) CreateField(_ context.Context, f content.Field) (content
 
 // UpdateField stores the edited field on its type.
 func (s *fakeTypeStore) UpdateField(_ context.Context, f content.Field) (content.Field, error) {
+	if s.updateFieldErr != nil {
+		return content.Field{}, s.updateFieldErr
+	}
 	for i, stored := range s.types {
 		if stored.Key != f.TypeKey {
 			continue
@@ -42,6 +48,9 @@ func (s *fakeTypeStore) UpdateField(_ context.Context, f content.Field) (content
 
 // DeleteField removes the field from its type.
 func (s *fakeTypeStore) DeleteField(_ context.Context, typeKey, key string) error {
+	if s.deleteFieldErr != nil {
+		return s.deleteFieldErr
+	}
 	for i, stored := range s.types {
 		if stored.Key != typeKey {
 			continue

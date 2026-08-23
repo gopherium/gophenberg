@@ -23,6 +23,10 @@ type fakeTypeStore struct {
 	createErr error
 	updateErr error
 	deleteErr error
+
+	createFieldErr error
+	updateFieldErr error
+	deleteFieldErr error
 }
 
 // newFakeTypeStore returns a store holding the built-in post type.
