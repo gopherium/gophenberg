@@ -48,7 +48,11 @@ function parts(declared: string): [number, number, number] | undefined {
 	if (!found) {
 		return undefined
 	}
-	return [Number(found[1]), Number(found[2]), Number(found[3])]
+	const numbers = found.slice(1).map(Number)
+	if (!numbers.every(Number.isSafeInteger)) {
+		return undefined
+	}
+	return numbers as [number, number, number]
 }
 
 /**

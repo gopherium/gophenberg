@@ -74,6 +74,12 @@ describe('kitServes, the rule a host answers a theme by', () => {
 		{ served: '1.0.0', declared: '0.9.0', want: false, why: 'zero against one' },
 		{ served: '0.9.0', declared: '^0.9.0', want: false, why: 'a range rather than a version' },
 		{ served: '0.9.0', declared: '', want: false, why: 'nothing at all' },
+		{
+			served: '1.9007199254740992.0',
+			declared: '1.9007199254740993.0',
+			want: false,
+			why: 'a minor too large to tell apart as a number',
+		},
 		{ served: 'latest', declared: '0.9.0', want: false, why: 'a served value that is not a version' },
 	])('$why', ({ served, declared, want }) => {
 		expect(kitServes(served, declared)).toBe(want)
