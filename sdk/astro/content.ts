@@ -51,6 +51,7 @@ export interface ContentType {
 export interface Handshake {
 	gophenberg: string
 	api: number
+	kit?: string[]
 	types: ContentType[]
 }
 
