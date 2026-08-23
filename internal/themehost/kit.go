@@ -83,16 +83,8 @@ func serves(served, declared kitVersion) bool {
 	if served.major == 0 && served.minor != declared.minor {
 		return false
 	}
-	return compareKits(served, declared) >= 0
-}
-
-// compareKits returns a negative number when the first version is older, and a positive one when it is newer.
-func compareKits(a, b kitVersion) int {
-	if a.major != b.major {
-		return a.major - b.major
+	if served.minor != declared.minor {
+		return served.minor > declared.minor
 	}
-	if a.minor != b.minor {
-		return a.minor - b.minor
-	}
-	return a.patch - b.patch
+	return served.patch >= declared.patch
 }

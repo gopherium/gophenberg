@@ -109,3 +109,13 @@ func assertRefusedWith(t *testing.T, err error, code string) {
 		t.Errorf("code = %q, want %q", refused.Code, code)
 	}
 }
+
+func TestServesKitRefusesAVersionItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	for _, declared := range []string{"", "^0.9.0", "latest", "0.9"} {
+		if themehost.ServesKit(declared) {
+			t.Errorf("ServesKit(%q) = true, want a version it cannot read refused", declared)
+		}
+	}
+}
