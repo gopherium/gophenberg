@@ -23,24 +23,29 @@ compiled native code cannot load from the artifact.
 The zip holds three things at its top level:
 
 ```text
-theme.json
+theme.json  (from dist/theme.json)
 server/     (from dist/server)
 client/     (from dist/client)
 ```
 
-`theme.json` is one line you write once:
+`theme.json` is two lines you write once, in your project root:
 
 ```json
-{ "name": "mytheme", "version": "0.1.0", "kit": "%KIT_VERSION%" }
+{ "name": "mytheme", "version": "0.1.0" }
 ```
 
 Name the zip after the theme. Gophenberg installs `mytheme.zip` as
 `mytheme`, and the `name` inside `theme.json` has to match.
 
-`kit` is the exact version of `@gophenberg/astro` you built against,
-three numbers and nothing else. A range like `^0.1.0` is refused,
-because the site has to know which shape your theme reads rather than
-which ones you would accept.
+The build writes a third field into `dist/theme.json`:
+
+```json
+{ "name": "mytheme", "version": "0.1.0", "kit": "%KIT_VERSION%" }
+```
+
+`kit` is the exact version of `@gophenberg/astro` you built with. The
+build fills it in so it is always right, which is why the zip takes
+`dist/theme.json` and never the one you wrote.
 
 ## 3. Upload and activate
 
