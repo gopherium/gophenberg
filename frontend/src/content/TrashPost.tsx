@@ -28,7 +28,7 @@ export function TrashPost({ postId, title }: { postId: string, title: string }) 
 	}
 	/**
 	 * Trashes the post, leaves for the listing and offers to take it back.
-	 * @returns The refusal to report, or nothing once the post is trashed.
+	 * @returns The error to report, or nothing once the post is trashed.
 	 */
 	async function trash() {
 		try {

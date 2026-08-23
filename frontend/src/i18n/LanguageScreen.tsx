@@ -37,25 +37,25 @@ function optionsOf(supported: string[]): { label: string, value: string }[] {
 export function LanguageScreen() {
 	const client = useQueryClient()
 	const role = useSession().data?.role
-	const [refusal, setRefusal] = useState('')
+	const [notice, setNotice] = useState('')
 	const answered = useQuery({ queryKey: localeQueryKey, queryFn: fetchLocale })
 	const site = useQuery({ queryKey: siteLocaleQueryKey, queryFn: fetchSiteLocale })
 	const supported = answered.data?.supported ?? [DEFAULT_LOCALE]
 	const mine = useMutation({
 		mutationFn: chooseLocale,
 		onSuccess: async () => {
-			setRefusal('')
+			setNotice('')
 			await client.invalidateQueries({ queryKey: localeQueryKey })
 		},
-		onError: (err: Error) => setRefusal(err.message),
+		onError: (err: Error) => setNotice(err.message),
 	})
 	const theirs = useMutation({
 		mutationFn: chooseSiteLocale,
 		onSuccess: async () => {
-			setRefusal('')
+			setNotice('')
 			await client.invalidateQueries({ queryKey: siteLocaleQueryKey })
 		},
-		onError: (err: Error) => setRefusal(err.message),
+		onError: (err: Error) => setNotice(err.message),
 	})
 	const options = optionsOf(supported)
 	const chosen = options.find((held) => held.value === answered.data?.locale) ?? options[0]
@@ -67,7 +67,7 @@ export function LanguageScreen() {
 			subtitle={__('Choose the language the admin reads in.', 'gophenberg')}
 		>
 			<Stack direction="column" gap="md">
-				{refusal !== '' && <ErrorNotice>{refusal}</ErrorNotice>}
+				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
 				<SelectControl
 					label={__('Your language', 'gophenberg')}
 					items={options}

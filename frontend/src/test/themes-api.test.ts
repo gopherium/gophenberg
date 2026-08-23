@@ -105,7 +105,7 @@ test('reports the reason an upload was refused', async () => {
 	})
 })
 
-test('falls back to the status when a refusal carries no reason', async () => {
+test('falls back to the status when a refused theme names no reason', async () => {
 	server.use(http.post('/api/themes', () => new HttpResponse('<html>gateway</html>', { status: 502 })))
 
 	expect(await uploadTheme(ARCHIVE)).toEqual({

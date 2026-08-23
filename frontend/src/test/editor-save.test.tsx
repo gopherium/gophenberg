@@ -274,7 +274,7 @@ test('says it is saving while the write is in flight', async () => {
 	await waitFor(() => expect(screen.queryByText('Saving')).not.toBeInTheDocument())
 })
 
-test('reports a refusal that named no reason', async () => {
+test('reports a refused save that named no reason', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
 		http.patch(`/api/content/${POST_ID}`, () => HttpResponse.json({ nope: true }, { status: 422 })),
@@ -288,7 +288,7 @@ test('reports a refusal that named no reason', async () => {
 	expect(await screen.findByText(/something went wrong/i)).toBeInTheDocument()
 })
 
-test('reports a refusal whose body was not json at all', async () => {
+test('reports a refused save whose body was not json at all', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
 		http.patch(`/api/content/${POST_ID}`, () => new HttpResponse('gateway down', { status: 502 })),

@@ -38,7 +38,7 @@ export function slugify(plural: string): string {
  * @param cause - What the write failed with.
  * @returns The sentence to show.
  */
-export function refusalMessage(cause: unknown): string {
+export function errorMessage(cause: unknown): string {
 	return cause instanceof Error ? cause.message : __('The registry could not be reached.', 'gophenberg')
 }
 
@@ -49,7 +49,7 @@ export function refusalMessage(cause: unknown): string {
 export function TypesScreen() {
 	const client = useQueryClient()
 	const toaster = useToaster()
-	const [refusal, setRefusal] = useState('')
+	const [notice, setNotice] = useState('')
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
 
 	/**
@@ -57,7 +57,7 @@ export function TypesScreen() {
 	 * @param said - The sentence naming what was done.
 	 */
 	async function done(said: string) {
-		setRefusal('')
+		setNotice('')
 		toaster.show(said)
 		await client.invalidateQueries({ queryKey: typesQueryKey })
 	}
@@ -67,7 +67,7 @@ export function TypesScreen() {
 	 * @param cause - What the write failed with.
 	 */
 	function refused(cause: unknown) {
-		setRefusal(refusalMessage(cause))
+		setNotice(errorMessage(cause))
 	}
 
 	return (
@@ -77,7 +77,7 @@ export function TypesScreen() {
 			actions={<AddType onDone={done} onRefused={refused} />}
 		>
 			<Stack direction="column" gap="md">
-				{refusal !== '' && <ErrorNotice>{refusal}</ErrorNotice>}
+				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
 				<TypesBody
 					types={types.data ?? []}
 					loading={types.isPending}

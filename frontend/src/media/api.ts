@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 
-import { refusalText } from '../i18n/refusal'
+import { errorText } from '../i18n/errors'
 
 const MEDIA_PER_PAGE = 20
 
@@ -170,9 +170,9 @@ function toMedia(row: z.infer<typeof mediaSchema>): MediaItem {
 async function messageFrom(response: Response): Promise<string> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
 	if (!parsed.success) {
-		return refusalText({ error: '' })
+		return errorText({ error: '' })
 	}
-	return refusalText(parsed.data)
+	return errorText(parsed.data)
 }
 
 /**

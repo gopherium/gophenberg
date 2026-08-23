@@ -67,7 +67,7 @@ export function chosenFile(files: FileList | null): File | null {
 export function MediaScreen() {
 	const [view, setView] = useState<View>(INITIAL_VIEW)
 	const [selection, setSelection] = useState<string[]>([])
-	const [refusal, setRefusal] = useState('')
+	const [notice, setNotice] = useState('')
 	const actions = useMediaActions()
 	const refresh = useRefreshMedia()
 	const kind = filteredKind(view)
@@ -79,14 +79,14 @@ export function MediaScreen() {
 		mutationFn: (chosen: File) => uploadMedia(chosen),
 		onSuccess: async (outcome) => {
 			if (outcome.kind === 'refused') {
-				setRefusal(outcome.reason)
+				setNotice(outcome.reason)
 				return
 			}
-			setRefusal('')
+			setNotice('')
 			await refresh()
 		},
 		onError: () =>
-			setRefusal(__('The server could not be reached, so nothing was uploaded.', 'gophenberg')),
+			setNotice(__('The server could not be reached, so nothing was uploaded.', 'gophenberg')),
 	})
 	/**
 	 * Uploads a file the administrator handed the library.
@@ -104,7 +104,7 @@ export function MediaScreen() {
 			actions={<UploadControl onChoose={accept} busy={upload.isPending} />}
 		>
 			<Stack direction="column" gap="md">
-				{refusal !== '' && <ErrorNotice>{refusal}</ErrorNotice>}
+				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
 				{media.isError ? (
 					<ErrorNotice>{__('The media library could not be loaded.', 'gophenberg')}</ErrorNotice>
 				) : (

@@ -46,21 +46,21 @@ export function describeFailure(kind: string, message: string): string {
 function DescribeForm({ items, closeModal }: RenderModalProps<MediaItem>) {
 	const target = items[0]
 	const [edits, setEdits] = useState<MediaDescriptions>({})
-	const [refusal, setRefusal] = useState('')
+	const [notice, setNotice] = useState('')
 	const refresh = useRefreshMedia()
 	const save = useMutation({
 		mutationFn: () => describeMedia(target.id, edits, target.updatedAt),
 		onSuccess: async (outcome) => {
 			const failure = describeFailure(outcome.kind, outcome.kind === 'rejected' ? outcome.message : '')
 			if (failure !== '') {
-				setRefusal(failure)
+				setNotice(failure)
 				return
 			}
-			setRefusal('')
+			setNotice('')
 			await refresh()
 			closeModal?.()
 		},
-		onError: () => setRefusal(__('The server could not be reached, so nothing was saved.', 'gophenberg')),
+		onError: () => setNotice(__('The server could not be reached, so nothing was saved.', 'gophenberg')),
 	})
 	return (
 		<Stack direction="column" gap="md">
@@ -70,9 +70,9 @@ function DescribeForm({ items, closeModal }: RenderModalProps<MediaItem>) {
 				form={describeForm}
 				onChange={(changed) => setEdits((current) => ({ ...current, ...changed }))}
 			/>
-			{refusal !== '' && (
+			{notice !== '' && (
 				<Notice.Root intent="error" role="alert">
-					<Notice.Description>{refusal}</Notice.Description>
+					<Notice.Description>{notice}</Notice.Description>
 				</Notice.Root>
 			)}
 			<Stack direction="row" gap="sm" justify="flex-end">

@@ -5,7 +5,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test } from 'vitest'
 
-import { refusalMessage } from '../content/TypesScreen'
+import { errorMessage } from '../content/TypesScreen'
 import { renderAt } from './render'
 
 const POST_TYPE = {
@@ -271,14 +271,14 @@ test('registers nothing when the new type is cancelled', async () => {
 	expect(sent).toHaveLength(0)
 })
 
-test('names the refusal a registry write carried', () => {
-	expect(refusalMessage(new Error('content: the route word is taken'))).toBe(
+test('names the error a registry write carried', () => {
+	expect(errorMessage(new Error('content: the route word is taken'))).toBe(
 		'content: the route word is taken',
 	)
 })
 
 test('names an unreachable registry when the failure carries no message', () => {
-	expect(refusalMessage('nonsense')).toBe('The registry could not be reached.')
+	expect(errorMessage('nonsense')).toBe('The registry could not be reached.')
 })
 
 test('states what the root hand over moves before moving it', async () => {

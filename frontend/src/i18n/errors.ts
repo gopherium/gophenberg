@@ -2,7 +2,7 @@
 
 import { __, sprintf } from '@wordpress/i18n'
 
-import { refusalTemplates } from './refusalTemplates'
+import { errorTemplates } from './errorTemplates'
 
 /** What the server answers when it turns a request away. */
 export interface Refused {
@@ -19,13 +19,13 @@ function unexplained(): string {
 	return __('Something went wrong. Try again.', 'gophenberg')
 }
 
-/** The named places a template asks the refusal to fill in. */
+/** The named places a template asks the error to fill in. */
 const PLACEHOLDERS = /%\((\w+)\)[sd]/g
 
 /**
- * Reports whether the refusal carries every value the template names.
+ * Reports whether the error carries every value the template names.
  * @param template - The message to fill in.
- * @param meta - The data the refusal carries.
+ * @param meta - The data the error carries.
  * @returns True when nothing the template asks for is missing.
  */
 function filled(template: string, meta: Record<string, unknown>): boolean {
@@ -38,13 +38,13 @@ function filled(template: string, meta: Record<string, unknown>): boolean {
 }
 
 /**
- * Returns the message a reader is shown for a refusal, in their own language.
+ * Returns the message a reader is shown for a refused request, in their own language.
  * @param refused - What the server answered.
  * @returns The message to show.
  */
-export function refusalText(refused: Refused): string {
+export function errorText(refused: Refused): string {
 	const spoken = refused.error === '' ? unexplained() : refused.error
-	const template = refused.code === undefined ? undefined : refusalTemplates()[refused.code]
+	const template = refused.code === undefined ? undefined : errorTemplates()[refused.code]
 	if (template === undefined || !filled(template, refused.meta ?? {})) {
 		return spoken
 	}

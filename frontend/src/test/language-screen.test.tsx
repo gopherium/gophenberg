@@ -62,7 +62,7 @@ test('stores the language the site answers in', async () => {
 	await waitFor(() => expect(sent[0]).toBe('{"locale_default":"es-ES"}'))
 })
 
-test('reports a refusal rather than failing quietly', async () => {
+test('reports a refused write rather than failing quietly', async () => {
 	server.use(
 		http.patch('/api/locale', () =>
 			HttpResponse.json({ error: 'content: locale unknown' }, { status: 422 }),

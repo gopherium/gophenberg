@@ -342,7 +342,7 @@ test('shows the reason an upload was refused', async () => {
 	expect(await screen.findByRole('alert')).toHaveTextContent('the manifest is missing')
 })
 
-test('takes a shown refusal back once the next action works', async () => {
+test('takes a shown error back once the next action works', async () => {
 	let attempts = 0
 	server.use(
 		http.post('/api/themes', () => {

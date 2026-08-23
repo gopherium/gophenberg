@@ -13,7 +13,7 @@ import { restorePost } from './api'
  * @param refused - How many posts were not restored.
  * @returns The notice to show.
  */
-function refusal(refused: number): PostNotice {
+function refusedNotice(refused: number): PostNotice {
 	return {
 		intent: 'error',
 		message: _n('Could not restore that post.', 'Could not restore those posts.', refused, 'gophenberg'),
@@ -31,7 +31,7 @@ function Undo({ undoIds, report }: { undoIds: string[], report: ReportNotice }) 
 		mutationFn: () => Promise.allSettled(undoIds.map((id) => restorePost(id))),
 		onSuccess: async (outcomes) => {
 			const refused = outcomes.filter((outcome) => outcome.status === 'rejected')
-			report(refused.length === 0 ? null : refusal(refused.length))
+			report(refused.length === 0 ? null : refusedNotice(refused.length))
 			await refresh()
 		},
 	})

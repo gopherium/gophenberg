@@ -56,7 +56,7 @@ test('answers the language the server stored', async () => {
 	expect((await chooseLocale('es-ES')).locale).toBe('es-ES')
 })
 
-test('reports a refusal that carries no readable body', async () => {
+test('reports a refused request that carries no readable body', async () => {
 	server.use(http.patch('/api/locale', () => new HttpResponse(null, { status: 500 })))
 
 	await expect(chooseLocale('es-ES')).rejects.toThrow(/something went wrong/i)
