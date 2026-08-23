@@ -427,3 +427,45 @@ func TestUpdateRefusesToHandTheRootToAnUnusableAddress(t *testing.T) {
 		t.Fatalf("Update() error = %v, want %v", err, content.ErrInvalidRouteWord)
 	}
 }
+
+// closedTypeStore returns a type store whose pool is already closed.
+func closedTypeStore(t *testing.T) *postgres.TypeStore {
+	t.Helper()
+	_, _, pool := newContentStoreWithPool(t)
+	store := postgres.NewTypeStore(pool)
+	pool.Close()
+	return store
+}
+
+func TestTypeStoreReportsADatabaseItCannotReach(t *testing.T) {
+	t.Parallel()
+
+	store := closedTypeStore(t)
+	field := content.Field{TypeKey: content.TypePost, Key: "color", Label: "Colour", Kind: content.FieldKindText}
+
+	for name, run := range map[string]func() error{
+		"listing the registry": func() error {
+			_, err := store.List(t.Context())
+			return err
+		},
+		"reading one type": func() error {
+			_, err := store.ByKey(t.Context(), content.TypePost)
+			return err
+		},
+		"editing a field": func() error {
+			_, err := store.UpdateField(t.Context(), field)
+			return err
+		},
+		"removing a field": func() error {
+			return store.DeleteField(t.Context(), content.TypePost, "color")
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if err := run(); err == nil {
+				t.Errorf("%s: error = nil, want the closed pool reported", name)
+			}
+		})
+	}
+}
