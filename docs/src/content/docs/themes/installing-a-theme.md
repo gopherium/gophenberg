@@ -28,7 +28,7 @@ server/     (from dist/server)
 client/     (from dist/client)
 ```
 
-`theme.json` is two fields you write once, in your project root:
+`theme.json` holds two fields you write once, in your project root:
 
 ```json
 { "name": "mytheme", "version": "0.1.0" }
