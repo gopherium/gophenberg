@@ -21,7 +21,11 @@ export const uploadArchive = fileURLToPath(
 	new URL(`../../.e2e-archive/${uploadedTheme.name}.zip`, import.meta.url),
 )
 
-export const staleTheme = { name: 'millpond', kit: '0.1.0' }
+const staleManifest = JSON.parse(
+	readFileSync(fileURLToPath(new URL('../../.e2e-archive/millpond/theme.json', import.meta.url)), 'utf8'),
+) as { name: string; kit: string }
+
+export const staleTheme = { name: staleManifest.name, kit: staleManifest.kit }
 
 export const staleArchive = fileURLToPath(
 	new URL(`../../.e2e-archive/${staleTheme.name}.zip`, import.meta.url),
