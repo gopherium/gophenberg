@@ -41,6 +41,8 @@ type fakePostStore struct {
 	countsErr    error
 	childrenErr  error
 	depthErr     error
+	targetsErr   error
+	relatedErr   error
 
 	revisions         []content.Revision
 	revisionsErr      error
@@ -171,6 +173,9 @@ func (s *fakePostStore) List(_ context.Context, f content.Filter) ([]content.Con
 func (s *fakePostStore) RelatedTo(
 	_ context.Context, target uuid.UUID, page, perPage int,
 ) ([]content.Content, int, error) {
+	if s.relatedErr != nil {
+		return nil, 0, s.relatedErr
+	}
 	matched := make([]content.Content, 0, len(s.posts))
 	for _, p := range s.ordered() {
 		if p.Status != content.StatusPublished || !pointsAt(p.Relations, target) {
@@ -511,6 +516,9 @@ func pointsAt(held content.Relations, target uuid.UUID) bool {
 
 // TargetsOf returns the published targets of active types the item points at.
 func (s *fakePostStore) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
+	if s.targetsErr != nil {
+		return nil, s.targetsErr
+	}
 	held, found := s.posts[from]
 	if !found {
 		return nil, nil
