@@ -118,7 +118,6 @@ E2E_THEME ?= starter
 E2E_ARCHIVE_DIR ?= $(CURDIR)/.e2e-archive
 E2E_UPLOAD_THEME ?= driftwood
 E2E_UPLOAD_VERSION ?= 9.9.9
-KIT_VERSION = $(shell node -p "require('./sdk/astro/package.json').version")
 E2E_MEDIA_DIR ?= $(CURDIR)/.e2e-media
 
 e2e-build:
@@ -129,7 +128,7 @@ e2e-build:
 e2e-theme: e2e-build
 	rm -rf $(E2E_THEMES_DIR)
 	mkdir -p $(E2E_THEMES_DIR)/$(E2E_THEME)
-	cp -R test/theme/dist/server test/theme/dist/client test/theme/theme.json \
+	cp -R test/theme/dist/server test/theme/dist/client test/theme/dist/theme.json \
 		$(E2E_THEMES_DIR)/$(E2E_THEME)/
 
 e2e-archive: e2e-build
@@ -138,7 +137,8 @@ e2e-archive: e2e-build
 	cp -R test/theme/dist/server test/theme/dist/client \
 		$(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME)/
 	printf '{"name":"%s","version":"%s","kit":"%s"}\n' \
-		"$(E2E_UPLOAD_THEME)" "$(E2E_UPLOAD_VERSION)" "$(KIT_VERSION)" \
+		"$(E2E_UPLOAD_THEME)" "$(E2E_UPLOAD_VERSION)" \
+		"$$(node -p "require('./test/theme/dist/theme.json').kit")" \
 		> $(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME)/theme.json
 	cd $(E2E_ARCHIVE_DIR)/$(E2E_UPLOAD_THEME) && \
 		zip -qr ../$(E2E_UPLOAD_THEME).zip theme.json server client

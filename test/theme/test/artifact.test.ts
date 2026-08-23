@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { kitVersion } from '@gophenberg/astro'
 import { describe, expect, test } from 'vitest'
 
 /** Where the build leaves the artifact a theme directory ships. */
@@ -53,13 +54,21 @@ function namedModules(files: string[]): string[] {
 const built = existsSync(join(artifact, 'server', 'entry.mjs'))
 
 describe('what a theme directory declares about itself', () => {
-	test('names itself, its version, and the kit it was built against', () => {
+	test('names itself and its version, leaving the kit to the build', () => {
 		const manifest = JSON.parse(readFileSync(new URL('../theme.json', import.meta.url), 'utf8')) as Record<
 			string,
 			string
 		>
 
-		expect(manifest).toEqual({ name: 'starter', version: '0.1.0', kit: '^0.1.0' })
+		expect(manifest).toEqual({ name: 'starter', version: '0.1.0' })
+	})
+})
+
+describe.skipIf(!built)('the manifest the build stamps', () => {
+	test('carries the name and version the theme declared, and the kit it was built with', () => {
+		const stamped = JSON.parse(readFileSync(join(artifact, 'theme.json'), 'utf8')) as Record<string, string>
+
+		expect(stamped).toEqual({ name: 'starter', version: '0.1.0', kit: kitVersion })
 	})
 })
 
