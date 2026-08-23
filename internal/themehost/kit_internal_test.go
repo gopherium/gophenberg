@@ -36,6 +36,7 @@ func TestParseKitRefusesAnythingButAPlainVersion(t *testing.T) {
 	refused := []string{
 		"", "^0.1.0", "~0.9.0", "0.9", "0.9.0.1",
 		"v0.9.0", "latest", "0.9.x", "a.b.c", "0.9.0-beta",
+		"+0.9.0", "0.+9.0", "0.9.+0", "-0.9.0", " 0.9.0", "0.9.0 ",
 	}
 	for _, declared := range refused {
 		t.Run(declared, func(t *testing.T) {

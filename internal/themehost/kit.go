@@ -50,13 +50,29 @@ func parseKit(declared string) (kitVersion, bool) {
 	}
 	numbers := make([]int, 0, len(parts))
 	for _, part := range parts {
+		if !onlyDigits(part) {
+			return kitVersion{}, false
+		}
 		number, err := strconv.Atoi(part)
-		if err != nil || number < 0 {
+		if err != nil {
 			return kitVersion{}, false
 		}
 		numbers = append(numbers, number)
 	}
 	return kitVersion{major: numbers[0], minor: numbers[1], patch: numbers[2]}, true
+}
+
+// onlyDigits reports whether a version part is written as digits alone, with no sign or spacing.
+func onlyDigits(part string) bool {
+	if part == "" {
+		return false
+	}
+	for _, character := range part {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // serves reports whether a served kit answers everything a theme built on the declared one asks for.
