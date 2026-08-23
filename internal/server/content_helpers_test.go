@@ -399,6 +399,22 @@ func authedPostServer(t *testing.T) (http.Handler, *fakePostStore, gouncer.User)
 	return authed, posts, ada
 }
 
+// typedPostServer returns a signed in handler, the post store, the type store behind it, and the signed-in user.
+func typedPostServer(t *testing.T) (http.Handler, *fakePostStore, *fakeTypeStore, gouncer.User) {
+	t.Helper()
+	users := newFakeUserStore()
+	ada := addAda(t, users)
+	posts := newFakePostStore()
+	types := newFakeTypeStore()
+	handler := server.NewServer(server.Config{Users: users, Content: posts, Types: types})
+	cookie := loginCookie(t, handler)
+	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.AddCookie(cookie)
+		handler.ServeHTTP(w, r)
+	})
+	return authed, posts, types, ada
+}
+
 // serverConfig returns a server config over the given stores.
 func serverConfig(users authkit.AdminStore, posts content.Store) server.Config {
 	return server.Config{Users: users, Content: posts, Types: newFakeTypeStore()}
