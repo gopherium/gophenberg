@@ -3,6 +3,7 @@
 package role_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -78,6 +79,68 @@ func TestPrivilegedIsWhoeverAdministersAccounts(t *testing.T) {
 			t.Errorf("Privileged().Holds(%q) = %v, want it to follow Can(%q, ManageUsers)",
 				named, held.Holds(named), named)
 		}
+	}
+}
+
+func TestCapabilitiesOf(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		role string
+		want []string
+	}{
+		"an admin carries every capability": {role.Admin, []string{
+			string(role.ChangeOthersWork),
+			string(role.ManageSettings),
+			string(role.ManageThemes),
+			string(role.ManageTypes),
+			string(role.ManageUsers),
+		}},
+		"an editor carries only the one it works with": {role.Editor, []string{string(role.ChangeOthersWork)}},
+		"an author carries none":                       {role.Author, []string{}},
+		"an unknown role carries none":                 {"archivist", []string{}},
+		"an account holding no role carries none":      {"", []string{}},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			held := role.CapabilitiesOf(test.role)
+			slices.Sort(held)
+
+			if !slices.Equal(held, test.want) {
+				t.Errorf("CapabilitiesOf(%q) = %v, want %v", test.role, held, test.want)
+			}
+		})
+	}
+}
+
+func TestCapabilitiesOfAnswersEveryCapabilityCanAgreesWith(t *testing.T) {
+	t.Parallel()
+
+	every := []role.Capability{
+		role.ManageUsers, role.ManageThemes, role.ManageTypes, role.ManageSettings, role.ChangeOthersWork,
+	}
+
+	for _, named := range []string{role.Admin, role.Editor, role.Author, "archivist", ""} {
+		held := role.CapabilitiesOf(named)
+		for _, capability := range every {
+			if slices.Contains(held, string(capability)) != role.Can(named, capability) {
+				t.Errorf("CapabilitiesOf(%q) and Can(%q, %q) disagree", named, named, capability)
+			}
+		}
+	}
+}
+
+func TestCapabilitiesOfCannotBeChangedByItsCaller(t *testing.T) {
+	t.Parallel()
+
+	held := role.CapabilitiesOf(role.Editor)
+	held[0] = "manage_everything"
+
+	if again := role.CapabilitiesOf(role.Editor); !slices.Equal(again, []string{string(role.ChangeOthersWork)}) {
+		t.Errorf("CapabilitiesOf(Editor) = %v after a caller wrote to it, want the table untouched", again)
 	}
 }
 
