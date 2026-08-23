@@ -76,6 +76,43 @@ func uploadBody(t *testing.T, filename string, archive []byte) (string, io.Reade
 	return writer.FormDataContentType(), &body
 }
 
+// endlessFiller is a stream of one repeated byte that never ends.
+type endlessFiller struct{}
+
+// Read fills p with the repeated byte.
+func (endlessFiller) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 'a'
+	}
+	return len(p), nil
+}
+
+// pastTheReadCapBody returns a multipart body whose archive runs past the read cap.
+func pastTheReadCapBody(t *testing.T) (string, io.Reader) {
+	t.Helper()
+
+	var framing bytes.Buffer
+	writer := multipart.NewWriter(&framing)
+	if _, err := writer.CreateFormFile("theme", "aurora.zip"); err != nil {
+		t.Fatalf("building the upload: %v", err)
+	}
+	archive := io.LimitReader(endlessFiller{}, themehost.MaxSize+(1<<20))
+	return writer.FormDataContentType(), io.MultiReader(&framing, archive)
+}
+
+// countingReader is a stream recording how many bytes were taken from it.
+type countingReader struct {
+	source io.Reader
+	read   int64
+}
+
+// Read records the bytes handed over.
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.source.Read(p)
+	c.read += int64(n)
+	return n, err
+}
+
 // sendUpload posts a body to the theme upload route and returns what it answered.
 func sendUpload(t *testing.T, handler http.Handler, contentType string, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
@@ -156,6 +193,26 @@ func TestUploadingOverTheCapIsRefused(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), "too large") {
 		t.Errorf("body = %q, want it to say the theme is too large", recorder.Body.String())
+	}
+}
+
+func TestAnUploadPastTheReadCapIsRefusedBeforeItArrives(t *testing.T) {
+	t.Parallel()
+
+	handler := themeServer(t, errThemes{})
+	contentType, body := pastTheReadCapBody(t)
+	counted := &countingReader{source: body}
+
+	recorder := sendUpload(t, handler, contentType, counted)
+
+	if recorder.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusRequestEntityTooLarge)
+	}
+	if !strings.Contains(recorder.Body.String(), "theme_too_large") {
+		t.Errorf("body = %q, want it to say the theme is too large", recorder.Body.String())
+	}
+	if counted.read >= themehost.MaxSize+(1<<20) {
+		t.Errorf("bytes read = %d, want the upload refused before the whole archive arrived", counted.read)
 	}
 }
 
