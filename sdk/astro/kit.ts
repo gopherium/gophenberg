@@ -39,7 +39,7 @@ export function generatorFor(version: string): string {
 const plainVersion = /^(\d+)\.(\d+)\.(\d+)$/
 
 /**
- * Returns the numbers a kit version carries, or nothing when it is not three of them.
+ * Returns the numbers a kit version carries, or nothing when they are not three exact whole numbers.
  * @param declared - The version to read.
  * @returns The major, minor and patch.
  */
