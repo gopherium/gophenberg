@@ -4,6 +4,8 @@ import { experimental_AstroContainer as AstroContainer } from 'astro/container'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import GophenbergHead from '../components/GophenbergHead.astro'
+import { generator } from '../kit.ts'
+import * as site from '../site.ts'
 
 /**
  * Returns the head markup a page renders.
@@ -16,6 +18,8 @@ async function renderHead(props: Record<string, unknown> = {}): Promise<string> 
 }
 
 afterEach(() => {
+	vi.restoreAllMocks()
+	site.forgetSite()
 	vi.unstubAllEnvs()
 })
 
@@ -24,6 +28,22 @@ describe('what a themed page says about itself', () => {
 		const got = await renderHead()
 
 		expect(got).toContain('<meta name="generator" content="Gophenberg')
+	})
+
+	test('names the version the site runs, not the version the kit ships at', async () => {
+		vi.spyOn(site, 'siteProfile').mockResolvedValue({ gophenberg: '1.2.3', api: 1, kit: ['0.9.0'] })
+
+		const got = await renderHead()
+
+		expect(got).toContain('<meta name="generator" content="Gophenberg 1.2"')
+	})
+
+	test('falls back to the kit version when the site does not answer', async () => {
+		vi.spyOn(site, 'siteProfile').mockResolvedValue(undefined)
+
+		const got = await renderHead()
+
+		expect(got).toContain(`<meta name="generator" content="${generator}"`)
 	})
 
 	test('loads the stylesheets a stored block was written against', async () => {
