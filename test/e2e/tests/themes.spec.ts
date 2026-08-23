@@ -66,10 +66,10 @@ test('refuses a theme built on a kit this site does not serve', async ({ page })
 	await page.getByLabel('Theme archive').setInputFiles(staleArchive)
 	await page.getByRole('button', { name: 'Install theme' }).click()
 
-	const refusal = page.getByRole('alert')
-	await expect(refusal).toContainText(builtOn)
+	const notice = page.getByRole('alert')
+	await expect(notice).toContainText(builtOn)
 	for (const kit of served) {
-		await expect(refusal).toContainText(kit)
+		await expect(notice).toContainText(kit)
 	}
 	await expect(page.getByRole('row', { name: new RegExp(staleTheme.name) })).toHaveCount(0)
 	await expect(

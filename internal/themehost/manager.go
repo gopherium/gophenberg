@@ -264,7 +264,7 @@ func (m *Manager) retire(supervisor *Supervisor) {
 	}()
 }
 
-// operatorAllows returns the refusal that an operator pinned the theme by environment.
+// operatorAllows returns the error naming a theme an operator pinned by environment.
 func (m *Manager) operatorAllows() error {
 	if m.cfg.Pinned == "" {
 		return nil

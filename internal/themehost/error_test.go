@@ -11,7 +11,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/themehost"
 )
 
-func TestInstallRefusalsCarryTheReasonAnOperatorReads(t *testing.T) {
+func TestInstallErrorsCarryTheReasonAnOperatorReads(t *testing.T) {
 	t.Parallel()
 
 	manifest := entry{path: "theme.json", body: manifestFor("aurora", "1.0.0")}
@@ -70,18 +70,18 @@ func TestInstallRefusalsCarryTheReasonAnOperatorReads(t *testing.T) {
 
 			_, err := install(t, testCase.archive)
 
-			var refusal *themehost.Refusal
-			if !errors.As(err, &refusal) {
-				t.Fatalf("Install() = %v, want a refusal naming the reason", err)
+			var refused *themehost.Error
+			if !errors.As(err, &refused) {
+				t.Fatalf("Install() = %v, want it refused naming the reason", err)
 			}
-			if refusal.Reason != testCase.reason {
-				t.Errorf("Reason = %q, want %q", refusal.Reason, testCase.reason)
+			if refused.Reason != testCase.reason {
+				t.Errorf("Reason = %q, want %q", refused.Reason, testCase.reason)
 			}
 		})
 	}
 }
 
-func TestARefusalStillReportsWhatWentWrong(t *testing.T) {
+func TestAnErrorStillReportsWhatWentWrong(t *testing.T) {
 	t.Parallel()
 
 	archive := validArchive(t, "driftwood")

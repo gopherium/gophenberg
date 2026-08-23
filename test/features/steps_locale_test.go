@@ -128,8 +128,8 @@ func theLocaleAnsweredIs(ctx context.Context, want string) error {
 	return nil
 }
 
-// theLocaleIsAnsweredWithoutRefusal asserts an unauthenticated reader is answered.
-func theLocaleIsAnsweredWithoutRefusal(ctx context.Context) error {
+// theLocaleIsAnsweredWithoutError asserts an unauthenticated reader is answered.
+func theLocaleIsAnsweredWithoutError(ctx context.Context) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
@@ -165,6 +165,6 @@ func initializeLocale(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator sets the site locale to "([^"]*)"$`, theAdministratorSetsTheSiteLocaleTo)
 	sc.When(`^the administrator sets their locale to "([^"]*)"$`, theAdministratorSetsTheirLocaleTo)
 	sc.Then(`^the locale answered is "([^"]*)"$`, theLocaleAnsweredIs)
-	sc.Then(`^the locale is answered without refusal$`, theLocaleIsAnsweredWithoutRefusal)
+	sc.Then(`^the locale is answered without an error$`, theLocaleIsAnsweredWithoutError)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 }

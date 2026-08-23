@@ -120,7 +120,7 @@ func (s *server) handleContentCreate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := authkit.Decode[request](w, r)
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed json", Code: "body_malformed",
 			})
 			return
@@ -189,20 +189,20 @@ func (s *server) handleContentPatch() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(chi.URLParam(r, "id"))
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed content id", Code: "content_id_malformed",
 			})
 			return
 		}
 		req, err := authkit.Decode[contentPatchRequest](w, r)
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed json", Code: "body_malformed",
 			})
 			return
 		}
 		if req.UpdatedAt == nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "missing updated_at", Code: "body_field_required", Meta: map[string]any{"field": "updated_at"},
 			})
 			return
@@ -427,7 +427,7 @@ func (s *server) handleContentDelete() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(chi.URLParam(r, "id"))
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed content id", Code: "content_id_malformed",
 			})
 			return
@@ -458,7 +458,7 @@ func (s *server) handleContentRestore() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(chi.URLParam(r, "id"))
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed content id", Code: "content_id_malformed",
 			})
 			return

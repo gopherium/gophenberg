@@ -265,10 +265,10 @@ func TestUploadingMediaRefusesWhatTheLibraryRefuses(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnprocessableEntity)
 	}
 	if !strings.Contains(recorder.Body.String(), "the file type is not allowed") {
-		t.Errorf("body = %q, want the refusal reason", recorder.Body.String())
+		t.Errorf("body = %q, want the reason it was refused", recorder.Body.String())
 	}
 	if store.count() != 0 {
-		t.Errorf("the store holds %d items, want the refusal to store nothing", store.count())
+		t.Errorf("the store holds %d items, want a refused upload to store nothing", store.count())
 	}
 }
 

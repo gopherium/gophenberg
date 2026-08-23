@@ -185,7 +185,7 @@ func (s *TypeStore) writeType(ctx context.Context, tx pgx.Tx, t content.Type) (c
 	return toType(row), carryContent(ctx, tx, queries, t, was.RouteWord)
 }
 
-// updateTypeFailure returns the refusal the type update carries, and wraps anything else.
+// updateTypeFailure returns the error the type update carries, and wraps anything else.
 func updateTypeFailure(err error) error {
 	if errors.Is(err, content.ErrTypeNotFound) ||
 		errors.Is(err, content.ErrRouteWordReserved) ||
@@ -319,7 +319,7 @@ func (s *TypeStore) DeleteField(ctx context.Context, typeKey, key string) error 
 	return nil
 }
 
-// fieldWriteFailure returns the refusal a field write carries, and wraps anything else.
+// fieldWriteFailure returns the error a field write carries, and wraps anything else.
 func fieldWriteFailure(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {

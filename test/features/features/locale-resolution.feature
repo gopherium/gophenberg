@@ -40,7 +40,7 @@ Feature: The admin speaks the reader's language
 
   Scenario: The login screen is answered without a session
     When a visitor asks for the locale without signing in
-    Then the locale is answered without refusal
+    Then the locale is answered without an error
 
   Scenario: An administrator sets the language the site answers in
     Given a signed in administrator

@@ -111,9 +111,9 @@ export function toAttachment(item: MediaItem): EditorAttachment {
  * Returns why a file may not be uploaded, empty when it may.
  * @param file - The file the block was handed.
  * @param args - The rules the block passed along.
- * @returns The refusal to report, empty for an acceptable file.
+ * @returns The error to report, empty for an acceptable file.
  */
-function refusalOf(file: File, args: EditorMediaUploadArgs): string {
+function errorOf(file: File, args: EditorMediaUploadArgs): string {
 	if (args.allowedTypes !== undefined && !typeAllowed(file.type, args.allowedTypes)) {
 		return sprintf(__('%(file)s is not a file this block accepts.', 'gophenberg'), { file: file.name })
 	}
@@ -178,11 +178,11 @@ export async function editorMediaUpload(args: EditorMediaUploadArgs): Promise<vo
 	}
 	const accepted: File[] = []
 	for (const file of files) {
-		const refusal = refusalOf(file, args)
-		if (refusal === '') {
+		const message = errorOf(file, args)
+		if (message === '') {
 			accepted.push(file)
 		} else {
-			args.onError?.(new Error(refusal))
+			args.onError?.(new Error(message))
 		}
 	}
 	const slots: (EditorAttachment | null)[] = accepted.map((file) => ({

@@ -106,7 +106,7 @@ func TestTypeCreateRefusesWhatTheRegistryWillNotHold(t *testing.T) {
 	t.Parallel()
 
 	handler := authedTypeServer(t)
-	refusals := map[string]string{
+	bodies := map[string]string{
 		"taken key":      `{"key":"post","singular_label":"Story","plural_label":"Stories","route_word":"stories"}`,
 		"reserved word":  `{"key":"car","singular_label":"Car","plural_label":"Cars","route_word":"admin"}`,
 		"the root":       `{"key":"car","singular_label":"Car","plural_label":"Cars","route_word":""}`,
@@ -114,7 +114,7 @@ func TestTypeCreateRefusesWhatTheRegistryWillNotHold(t *testing.T) {
 		"missing labels": `{"key":"car","singular_label":"","plural_label":"","route_word":"cars"}`,
 	}
 
-	for name, body := range refusals {
+	for name, body := range bodies {
 		recorder := doRequest(t, handler, http.MethodPost, "/api/types", body)
 
 		if recorder.Code != http.StatusUnprocessableEntity {

@@ -302,7 +302,7 @@ func (s *server) publishedDetailOf(r *http.Request, c content.Content) (publishe
 func (s *server) respondTerm(w http.ResponseWriter, r *http.Request, held content.Address) {
 	filter, err := parsePublishedFilter(r.URL.Query())
 	if err != nil {
-		authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+		authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 			Message: "invalid list parameters", Code: "list_parameters_invalid",
 		})
 		return
@@ -333,7 +333,7 @@ func (s *server) respondTerm(w http.ResponseWriter, r *http.Request, held conten
 func (s *server) respondArchive(w http.ResponseWriter, r *http.Request, held content.Address) {
 	filter, err := parsePublishedFilter(r.URL.Query())
 	if err != nil {
-		authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+		authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 			Message: "invalid list parameters", Code: "list_parameters_invalid",
 		})
 		return
@@ -369,7 +369,7 @@ func (s *server) handlePublishedList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filter, err := parsePublishedFilter(r.URL.Query())
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "invalid list parameters", Code: "list_parameters_invalid",
 			})
 			return

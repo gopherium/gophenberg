@@ -10,7 +10,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-func TestRefusalKeepsTheSentinelFindable(t *testing.T) {
+func TestErrorKeepsTheSentinelFindable(t *testing.T) {
 	t.Parallel()
 
 	refused := content.Refuse(content.ErrUnknownField, "field_unknown",
@@ -21,7 +21,7 @@ func TestRefusalKeepsTheSentinelFindable(t *testing.T) {
 	}
 }
 
-func TestRefusalReadsAsTheProseItReplaces(t *testing.T) {
+func TestErrorReadsAsTheProseItReplaces(t *testing.T) {
 	t.Parallel()
 
 	refused := content.Refuse(content.ErrUnknownField, "field_unknown",
@@ -32,7 +32,7 @@ func TestRefusalReadsAsTheProseItReplaces(t *testing.T) {
 	}
 }
 
-func TestRefusalCarriesItsDetails(t *testing.T) {
+func TestErrorCarriesItsDetails(t *testing.T) {
 	t.Parallel()
 
 	refused := content.Refuse(content.ErrFieldShape, "field_shape_kind", "content: field shape", content.Details{

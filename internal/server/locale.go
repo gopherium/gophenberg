@@ -86,7 +86,7 @@ func (s *server) handleLocalePatch() http.HandlerFunc {
 			Locale string `json:"locale"`
 		}](w, r)
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed json", Code: "body_malformed",
 			})
 			return
@@ -131,7 +131,7 @@ func (s *server) handleSettingsPatch() http.HandlerFunc {
 			LocaleDefault *string `json:"locale_default"`
 		}](w, r)
 		if err != nil {
-			authkit.RespondRefusal(w, http.StatusBadRequest, authkit.Refusal{
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "malformed json", Code: "body_malformed",
 			})
 			return

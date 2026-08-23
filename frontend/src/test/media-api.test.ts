@@ -154,7 +154,7 @@ test('carries the reason an upload was refused', async () => {
 	expect(outcome).toEqual({ kind: 'refused', reason: 'the file type is not allowed' })
 })
 
-test('stands in for a refusal that carries no message', async () => {
+test('stands in when a refused upload carries no message', async () => {
 	server.use(http.post('/api/media', () => new HttpResponse('', { status: 413 })))
 
 	const outcome = await uploadMedia(new File(['x'], 'huge.jpg', { type: 'image/jpeg' }))

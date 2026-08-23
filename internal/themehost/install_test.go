@@ -216,12 +216,12 @@ func TestInstallRefusesAnArchiveCarryingMoreFilesThanTheCap(t *testing.T) {
 
 	_, err := install(t, archiveOf(t, entries...))
 
-	var refusal *themehost.Refusal
-	if !errors.As(err, &refusal) {
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
 		t.Fatalf("Install() = %v, want an archive of too many files refused", err)
 	}
-	if refusal.Reason != "the archive holds too many files" {
-		t.Errorf("Reason = %q, want the file count refused", refusal.Reason)
+	if refused.Reason != "the archive holds too many files" {
+		t.Errorf("Reason = %q, want the file count refused", refused.Reason)
 	}
 }
 
@@ -240,12 +240,12 @@ func TestInstallRefusesAnArchiveOfDirectoriesThatUnpacksPastTheCap(t *testing.T)
 
 	themesDir, err := install(t, archiveOf(t, entries...))
 
-	var refusal *themehost.Refusal
-	if !errors.As(err, &refusal) {
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
 		t.Fatalf("Install() = %v, want an archive of directories refused", err)
 	}
-	if refusal.Reason != "the theme is too large" {
-		t.Errorf("Reason = %q, want the size cap to catch the directories", refusal.Reason)
+	if refused.Reason != "the theme is too large" {
+		t.Errorf("Reason = %q, want the size cap to catch the directories", refused.Reason)
 	}
 	if !strings.Contains(err.Error(), "unpacks to more than") {
 		t.Errorf("error = %v, want it refused while unpacking rather than after the tree exists", err)

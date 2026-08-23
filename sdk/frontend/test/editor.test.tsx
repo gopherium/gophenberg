@@ -96,7 +96,7 @@ test('refuses a caller that named neither a path nor a url', async () => {
 	expect(apiFetchAttempts()).toEqual(['(no path)'])
 })
 
-test('records an attempt even when the caller swallows the refusal', async () => {
+test('records an attempt even when the caller swallows the error', async () => {
 	installApiFetchGuard()
 	const apiFetch = (await import('@wordpress/api-fetch')).default
 

@@ -21,7 +21,7 @@ const testFiles = [
 /** The test files that replace a module or leave module state behind, each needing its own worker. */
 const moduleStateFiles = [
 	'src/test/plugin-wiring.test.tsx',
-	'src/test/refusal.test.ts',
+	'src/test/errors.test.ts',
 	'src/test/role-navigation.test.tsx',
 ]
 

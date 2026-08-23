@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 
-import { refusalText } from './refusal'
+import { errorText } from './errors'
 import { DEFAULT_LOCALE } from './catalog'
 
 const localeSchema = z.object({
@@ -10,7 +10,7 @@ const localeSchema = z.object({
 	supported: z.array(z.string()),
 })
 
-const refusalSchema = z.object({
+const errorSchema = z.object({
 	error: z.string(),
 	code: z.string().optional(),
 	meta: z.record(z.string(), z.unknown()).optional(),
@@ -49,19 +49,19 @@ export async function chooseLocale(locale: string): Promise<Answered> {
 		body: JSON.stringify({ locale }),
 	})
 	if (!response.ok) {
-		throw await refusalFrom(response)
+		throw await errorFrom(response)
 	}
 	return localeSchema.parse(await response.json())
 }
 
 /**
- * Returns the refusal a failed request carries.
+ * Returns the error a failed request carries.
  * @param response - The answer the server gave.
- * @returns The message to raise.
+ * @returns The error to raise.
  */
-async function refusalFrom(response: Response): Promise<Error> {
-	const parsed = refusalSchema.safeParse(await response.json().catch(() => null))
-	return new Error(parsed.success ? refusalText(parsed.data) : refusalText({ error: '' }))
+async function errorFrom(response: Response): Promise<Error> {
+	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
+	return new Error(parsed.success ? errorText(parsed.data) : errorText({ error: '' }))
 }
 
 /**
@@ -93,7 +93,7 @@ export async function chooseSiteLocale(locale: string): Promise<string> {
 		body: JSON.stringify({ locale_default: locale }),
 	})
 	if (!response.ok) {
-		throw await refusalFrom(response)
+		throw await errorFrom(response)
 	}
 	return settingsSchema.parse(await response.json()).locale_default
 }

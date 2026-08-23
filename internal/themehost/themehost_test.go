@@ -184,7 +184,7 @@ func TestLoadRefusesADirectoryThatBreaksTheContract(t *testing.T) {
 			theme, err := themehost.Load(themesDir, "starter")
 
 			if err == nil {
-				t.Fatalf("Load() error = nil, want a refusal naming %v", testCase.wantAll)
+				t.Fatalf("Load() error = nil, want it refused naming %v", testCase.wantAll)
 			}
 			if theme != nil {
 				t.Errorf("Load() theme = %v, want nil", theme)
@@ -204,7 +204,7 @@ func TestLoadRefusesAThemeThatIsNotInstalled(t *testing.T) {
 	_, err := themehost.Load(t.TempDir(), "missing")
 
 	if err == nil {
-		t.Fatal("Load() error = nil, want a refusal")
+		t.Fatal("Load() error = nil, want it refused")
 	}
 	if !strings.Contains(err.Error(), "missing") {
 		t.Errorf("Load() error = %q, want it to name the theme", err)
@@ -268,16 +268,16 @@ func TestLoadNamesABrokenSymlinkAsASymlinkRatherThanAMissingFile(t *testing.T) {
 
 	_, err := themehost.Load(themesDir, "starter")
 
-	var refusal *themehost.Refusal
-	if !errors.As(err, &refusal) {
-		t.Fatalf("Load() error = %v, want a refusal", err)
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Load() error = %v, want it refused", err)
 	}
-	if refusal.Code != "symlink_present" {
-		t.Errorf("Load() code = %q, want symlink_present", refusal.Code)
+	if refused.Code != "symlink_present" {
+		t.Errorf("Load() code = %q, want symlink_present", refused.Code)
 	}
 }
 
-func TestLoadCarriesTheMetadataItsRefusalTemplateNames(t *testing.T) {
+func TestLoadCarriesTheMetadataItsErrorTemplateNames(t *testing.T) {
 	t.Parallel()
 
 	themesDir := writeTheme(t)
@@ -285,13 +285,13 @@ func TestLoadCarriesTheMetadataItsRefusalTemplateNames(t *testing.T) {
 
 	_, err := themehost.Load(themesDir, "starter")
 
-	var refusal *themehost.Refusal
-	if !errors.As(err, &refusal) {
-		t.Fatalf("Load() error = %v, want a refusal", err)
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Load() error = %v, want it refused", err)
 	}
 	for _, key := range []string{"name", "file"} {
-		if _, found := refusal.Held[key]; !found {
-			t.Errorf("Load() refusal holds no %q, so its template cannot be filled", key)
+		if _, found := refused.Held[key]; !found {
+			t.Errorf("Load() error holds no %q, so its template cannot be filled", key)
 		}
 	}
 }

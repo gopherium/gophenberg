@@ -15,27 +15,27 @@ import (
 // respondDomainError maps a domain error to an HTTP status and writes it as a JSON error response,
 // masking internal errors.
 func respondDomainError(w http.ResponseWriter, err error) {
-	status, refusal := refusalFor(err)
-	authkit.RespondRefusal(w, status, refusal)
+	status, response := errorResponseFor(err)
+	authkit.RespondError(w, status, response)
 }
 
-// refusalFor returns the status and named refusal for a domain error,
+// errorResponseFor returns the status and error body for a domain error,
 // masking unrecognized errors as internal ones.
-func refusalFor(err error) (int, authkit.Refusal) {
-	for _, held := range domainRefusals {
+func errorResponseFor(err error) (int, authkit.ErrorResponse) {
+	for _, held := range domainErrors {
 		if !errors.Is(err, held.err) {
 			continue
 		}
-		return held.status, authkit.Refusal{
+		return held.status, authkit.ErrorResponse{
 			Message: err.Error(),
 			Code:    codeFor(err, held.code),
 			Meta:    detailsFor(err),
 		}
 	}
-	if status, refusal, ok := authkit.RefusalForAuthError(err); ok {
-		return status, refusal
+	if status, response, ok := authkit.ErrorResponseForAuthError(err); ok {
+		return status, response
 	}
-	return http.StatusInternalServerError, authkit.Refusal{Message: "internal error", Code: "internal"}
+	return http.StatusInternalServerError, authkit.ErrorResponse{Message: "internal error", Code: "internal"}
 }
 
 // codeFor returns the code the raise site named, falling back to the sentinel's own.
@@ -46,7 +46,7 @@ func codeFor(err error, fallback string) string {
 	return fallback
 }
 
-// detailsFor returns the data a refusal carries, or nothing when it carries none.
+// detailsFor returns the data an error body carries, or nothing when it carries none.
 func detailsFor(err error) map[string]any {
 	held, ok := content.DetailsOf(err)
 	if !ok || len(held) == 0 {
@@ -55,9 +55,9 @@ func detailsFor(err error) map[string]any {
 	return held
 }
 
-// domainRefusals maps each domain error a client may meet to its status and code,
+// domainErrors maps each domain error a client may meet to its status and code,
 // ordered so a narrower sentinel is matched before a broader one.
-var domainRefusals = []struct {
+var domainErrors = []struct {
 	err    error
 	status int
 	code   string

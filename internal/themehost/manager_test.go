@@ -95,12 +95,12 @@ func TestTheManagerRefusesToRollBackWithNoHistory(t *testing.T) {
 
 	_, err := manager.Rollback(t.Context())
 
-	var refusal *themehost.Refusal
-	if !errors.As(err, &refusal) {
-		t.Fatalf("Rollback() = %v, want a refusal", err)
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Rollback() = %v, want it refused", err)
 	}
-	if refusal.Reason != "there is nothing to roll back to" {
-		t.Errorf("Reason = %q, want nothing to roll back to", refusal.Reason)
+	if refused.Reason != "there is nothing to roll back to" {
+		t.Errorf("Reason = %q, want nothing to roll back to", refused.Reason)
 	}
 }
 
@@ -111,12 +111,12 @@ func TestTheManagerRefusesToDeactivateUnderAnOperatorPin(t *testing.T) {
 
 	err := manager.Deactivate(t.Context())
 
-	var refusal *themehost.Refusal
-	if !errors.As(err, &refusal) {
-		t.Fatalf("Deactivate() = %v, want a refusal", err)
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Deactivate() = %v, want it refused", err)
 	}
-	if refusal.Reason != "the theme is pinned by the operator" {
-		t.Errorf("Reason = %q, want the operator pin named", refusal.Reason)
+	if refused.Reason != "the theme is pinned by the operator" {
+		t.Errorf("Reason = %q, want the operator pin named", refused.Reason)
 	}
 }
 
@@ -182,13 +182,13 @@ func TestTheManagerRefusesActivatingANameThatIsNotAThemeName(t *testing.T) {
 	for _, name := range []string{"", ".", "..", "../outside", "themes/aurora", ".hidden"} {
 		err := manager.Activate(t.Context(), name)
 
-		var refusal *themehost.Refusal
-		if !errors.As(err, &refusal) {
-			t.Errorf("Activate(%q) = %v, want a refusal", name, err)
+		var refused *themehost.Error
+		if !errors.As(err, &refused) {
+			t.Errorf("Activate(%q) = %v, want it refused", name, err)
 			continue
 		}
-		if refusal.Reason != "the theme name is not allowed" {
-			t.Errorf("Activate(%q) reason = %q, want the name refused", name, refusal.Reason)
+		if refused.Reason != "the theme name is not allowed" {
+			t.Errorf("Activate(%q) reason = %q, want the name refused", name, refused.Reason)
 		}
 	}
 }
@@ -208,12 +208,12 @@ func TestActivatingIsRefusedBeforeItCanReachOutsideTheThemesDirectory(t *testing
 
 	err := manager.Activate(t.Context(), "../outside")
 
-	var refusal *themehost.Refusal
-	if !errors.As(err, &refusal) {
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
 		t.Fatalf("Activate() = %v, want a theme outside the managed directory refused", err)
 	}
-	if refusal.Reason != "the theme name is not allowed" {
-		t.Errorf("Reason = %q, want the name refused before the theme is ever loaded", refusal.Reason)
+	if refused.Reason != "the theme name is not allowed" {
+		t.Errorf("Reason = %q, want the name refused before the theme is ever loaded", refused.Reason)
 	}
 	if manager.Holder().Healthy() {
 		t.Error("a theme outside the managed directory is serving")
@@ -438,12 +438,12 @@ func TestTheManagerRefusesAnEmptyUploadNameForWhatItIs(t *testing.T) {
 
 	err := manager.Install(t.Context(), "", bytes.NewReader(archive), int64(len(archive)))
 
-	var refusal *themehost.Refusal
-	if !errors.As(err, &refusal) {
-		t.Fatalf("Install() = %v, want a refusal", err)
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Install() = %v, want it refused", err)
 	}
-	if refusal.Reason != "the theme name is not allowed" {
-		t.Errorf("Reason = %q, want the name refused rather than a claim about the active theme", refusal.Reason)
+	if refused.Reason != "the theme name is not allowed" {
+		t.Errorf("Reason = %q, want the name refused rather than a claim about the active theme", refused.Reason)
 	}
 }
 

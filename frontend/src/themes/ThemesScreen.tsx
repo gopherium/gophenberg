@@ -104,7 +104,7 @@ function servingNow(name: string): string {
 export function ThemesScreen() {
 	const client = useQueryClient()
 	const toaster = useToaster()
-	const [refusal, setRefusal] = useState('')
+	const [notice, setNotice] = useState('')
 	const themes = useQuery({
 		queryKey: themesQueryKey,
 		queryFn: ({ signal }) => listThemes(signal),
@@ -117,10 +117,10 @@ export function ThemesScreen() {
 	 */
 	async function done(outcome: ThemeOutcome, said: (name: string) => string) {
 		if (outcome.kind === 'refused') {
-			setRefusal(outcome.reason)
+			setNotice(outcome.reason)
 			return
 		}
-		setRefusal('')
+		setNotice('')
 		toaster.show(said(outcome.name))
 		await client.invalidateQueries({ queryKey: themesQueryKey })
 	}
@@ -129,7 +129,7 @@ export function ThemesScreen() {
 	 * Reports that a theme action never reached the server.
 	 */
 	function failed() {
-		setRefusal(__('The server could not be reached, so nothing was changed.', 'gophenberg'))
+		setNotice(__('The server could not be reached, so nothing was changed.', 'gophenberg'))
 	}
 
 	const report: Reporter = { done, failed }
@@ -137,7 +137,7 @@ export function ThemesScreen() {
 	return (
 		<Page title={__('Themes', 'gophenberg')} subtitle={servingLine(themes.data)}>
 			<Stack direction="column" gap="md">
-				{refusal !== '' && <ErrorNotice>{refusal}</ErrorNotice>}
+				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
 				<UploadControl onOutcome={report} />
 				{listed.rollback !== null && (
 					<RollbackControl target={listed.rollback} onOutcome={report} />

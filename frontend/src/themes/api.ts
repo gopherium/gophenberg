@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 
-import { refusalText } from '../i18n/refusal'
+import { errorText } from '../i18n/errors'
 
 const themeSchema = z.object({
 	name: z.string(),
@@ -69,9 +69,9 @@ function toTheme(row: z.infer<typeof themeSchema>): Theme {
 async function messageFrom(response: Response): Promise<string> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
 	if (!parsed.success) {
-		return refusalText({ error: '' })
+		return errorText({ error: '' })
 	}
-	return refusalText(parsed.data)
+	return errorText(parsed.data)
 }
 
 /**

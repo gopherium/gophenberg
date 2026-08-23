@@ -6,11 +6,11 @@ import { __ } from '@wordpress/i18n'
 const DOMAIN = 'gophenberg'
 
 /**
- * Returns the message each refusal code stands for, read fresh so the
+ * Returns the message each error code stands for, read fresh so the
  * catalogue the reader loaded is the one that answers.
  * @returns The messages, keyed by code.
  */
-export function refusalTemplates(): Record<string, string> {
+export function errorTemplates(): Record<string, string> {
 	return {
 		address_reserved: __(
 			'Gophenberg keeps this address for itself, so your content cannot answer there. Give the item a different slug.',

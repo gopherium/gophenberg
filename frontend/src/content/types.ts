@@ -3,7 +3,7 @@
 import { __ } from '@wordpress/i18n'
 import { z } from 'zod'
 
-import { refusalText } from '../i18n/refusal'
+import { errorText } from '../i18n/errors'
 
 const fieldSchema = z.object({
 	key: z.string(),
@@ -30,7 +30,7 @@ const typeSchema = z.object({
 
 const typeListSchema = z.object({ items: z.array(typeSchema) })
 
-const refusalSchema = z.object({
+const errorSchema = z.object({
 	error: z.string(),
 	code: z.string().optional(),
 	meta: z.record(z.string(), z.unknown()).optional(),
@@ -120,8 +120,8 @@ function toField(row: z.infer<typeof fieldSchema>): ContentField {
  * @param response - The answer the registry gave.
  */
 async function refuse(response: Response): Promise<never> {
-	const refusal = refusalSchema.safeParse(await response.json().catch(() => null))
-	throw new Error(refusalText(refusal.success ? refusal.data : { error: '' }))
+	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
+	throw new Error(errorText(parsed.success ? parsed.data : { error: '' }))
 }
 
 /**

@@ -301,7 +301,7 @@ func TestRegisterRejectsAMalformedItemsCap(t *testing.T) {
 		plugin, err := feed.Register(sdk.Deps{Content: &stubPosts{}, Getenv: testEnv(values)})
 
 		if err == nil {
-			t.Errorf("Register() with cap %q error = nil, want a loud refusal", raw)
+			t.Errorf("Register() with cap %q error = nil, want it loudly refused", raw)
 		}
 		if plugin != nil {
 			t.Errorf("Register() with cap %q = %v, want nil on failure", raw, plugin)
