@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,10 +19,18 @@ import (
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/publichtml"
+	"github.com/gopherium/gophenberg/internal/themehost"
 )
 
-// contentAPIVersion is the shape published readers code against.
-const contentAPIVersion = 2
+// contentAPIGeneration returns the shape published readers code against, the major of the newest kit served.
+func contentAPIGeneration() int {
+	major, _, _ := strings.Cut(themehost.NewestKit(), ".")
+	generation, err := strconv.Atoi(major)
+	if err != nil {
+		return 0
+	}
+	return generation
+}
 
 // contentCacheControl is how long a shared cache may serve a public read.
 const contentCacheControl = "public, s-maxage=60, stale-while-revalidate=300"
@@ -30,6 +39,7 @@ const contentCacheControl = "public, s-maxage=60, stale-while-revalidate=300"
 type contentHandshake struct {
 	Gophenberg string       `json:"gophenberg"`
 	API        int          `json:"api"`
+	Kit        []string     `json:"kit"`
 	Types      []servedType `json:"types"`
 }
 
@@ -200,7 +210,8 @@ func (s *server) handleContentHandshake() http.HandlerFunc {
 		}
 		authkit.Respond(w, http.StatusOK, contentHandshake{
 			Gophenberg: s.version,
-			API:        contentAPIVersion,
+			API:        contentAPIGeneration(),
+			Kit:        themehost.ServedKits(),
 			Types:      served,
 		})
 	}

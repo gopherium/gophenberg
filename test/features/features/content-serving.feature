@@ -49,7 +49,8 @@ Feature: Serving content by address
 
   Scenario: The handshake advertises the types
     When a visitor reads the content handshake
-    Then it carries api 2
+    Then it carries api 0
+    And it serves kit "0.9.0"
     And it lists "post" as the default type at the root
     And it lists "page" under "pages" as hierarchical
 

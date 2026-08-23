@@ -27,7 +27,8 @@ curl https://example.com/api/content/v1
 ```json
 {
   "gophenberg": "%VERSION%",
-  "api": 2,
+  "api": 0,
+  "kit": ["%KIT_VERSION%"],
   "types": [
     {
       "key": "post",
@@ -56,6 +57,11 @@ One request tells you the site runs Gophenberg, which version, which
 API generation, and every content type it serves. The `route_word` is
 the first segment of that type's addresses, and the type carrying an
 empty one answers at the root of the site.
+
+`kit` lists the [theme kit](/themes/writing-a-theme/) versions this
+site serves, and `api` is the major version of the newest of them. A
+site serving more than one kit major lists them all, so a reader can
+tell whether the shape it was built against is still answered here.
 
 Each type also lists the [fields](/guides/fields/) it declares, so a
 reader knows what an item's values mean before fetching any. A

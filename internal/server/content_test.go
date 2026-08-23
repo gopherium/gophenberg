@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -68,8 +69,11 @@ func TestContentAPIAnswersTheHandshakeWithoutASession(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 	body := recorder.Body.String()
-	if !strings.Contains(body, `"api":2`) {
-		t.Errorf("body = %q, want the api version", body)
+	if !strings.Contains(body, `"api":0`) {
+		t.Errorf("body = %q, want the api generation", body)
+	}
+	if !strings.Contains(body, `"kit":["0.9.0"]`) {
+		t.Errorf("body = %q, want the kit versions served", body)
 	}
 	if !strings.Contains(body, `"gophenberg"`) {
 		t.Errorf("body = %q, want the product version", body)
@@ -319,7 +323,8 @@ func TestContentAPIAdvertisesTheTypesItServes(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 	var handshake struct {
-		API   int `json:"api"`
+		API   int      `json:"api"`
+		Kit   []string `json:"kit"`
 		Types []struct {
 			Key          string `json:"key"`
 			SingularName string `json:"singular_label"`
@@ -333,8 +338,11 @@ func TestContentAPIAdvertisesTheTypesItServes(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &handshake); err != nil {
 		t.Fatalf("reading the handshake: %v", err)
 	}
-	if handshake.API != 2 {
-		t.Errorf("api = %d, want 2", handshake.API)
+	if handshake.API != 0 {
+		t.Errorf("api = %d, want 0", handshake.API)
+	}
+	if !slices.Equal(handshake.Kit, []string{"0.9.0"}) {
+		t.Errorf("kit = %v, want the kit versions this release serves", handshake.Kit)
 	}
 	if len(handshake.Types) != 1 {
 		t.Fatalf("types = %d, want the one registered type", len(handshake.Types))
