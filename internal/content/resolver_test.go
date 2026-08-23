@@ -18,6 +18,7 @@ type fakeAddresses struct {
 	items   map[string]content.Content
 	lookups int
 	err     error
+	errFor  map[string]error
 }
 
 // newFakeAddresses returns a store holding nothing.
@@ -40,6 +41,9 @@ func (s *fakeAddresses) hold(contentType, path string) content.Content {
 // PublishedByPath returns the published item answering at the path.
 func (s *fakeAddresses) PublishedByPath(_ context.Context, path string) (content.Content, error) {
 	s.lookups++
+	if held, found := s.errFor[path]; found {
+		return content.Content{}, held
+	}
 	if s.err != nil {
 		return content.Content{}, s.err
 	}
