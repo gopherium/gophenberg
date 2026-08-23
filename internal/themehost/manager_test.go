@@ -517,3 +517,101 @@ func TestTheManagerRefusesABootPinNamingAThemeThatIsGone(t *testing.T) {
 		t.Error("Boot() = nil, want an operator pin naming a missing theme refused")
 	}
 }
+
+// managerServing returns a manager whose library holds one theme that really serves.
+func managerServing(t *testing.T, settings themehost.Settings, pinned string) *themehost.Manager {
+	t.Helper()
+
+	node := nodeBin(t)
+	themesDir := t.TempDir()
+	dir := filepath.Join(themesDir, "aurora")
+	plantTheme(t, dir, "aurora")
+	source, err := os.ReadFile(filepath.Join("testdata", "healthy.mjs"))
+	if err != nil {
+		t.Fatalf("reading the stub: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "server", "entry.mjs"), source, 0o644); err != nil {
+		t.Fatalf("writing the stub entry: %v", err)
+	}
+	manager := themehost.NewManager(themehost.ManagerConfig{
+		Library:  themehost.NewLibrary(themesDir),
+		Settings: settings,
+		Pinned:   pinned,
+		Supervision: themehost.SupervisorConfig{
+			NodeBin:      node,
+			ReadyTimeout: 20 * time.Second,
+			Backoff:      time.Millisecond,
+			MaxBackoff:   time.Millisecond,
+			MaxAttempts:  2,
+		},
+	})
+	t.Cleanup(manager.Close)
+	return manager
+}
+
+func TestBootServesThroughTheStoredChoice(t *testing.T) {
+	t.Parallel()
+
+	settings := newSettings()
+	settings.values[themehost.ActiveKey] = "aurora"
+	manager := managerServing(t, settings, "")
+
+	if err := manager.Boot(t.Context()); err != nil {
+		t.Fatalf("Boot() error = %v, want nil", err)
+	}
+
+	if !servingWithin(manager, 20*time.Second) {
+		t.Error("the holder is not serving, want the stored theme in front of the site")
+	}
+}
+
+// servingWithin reports whether the manager's holder starts serving before the deadline.
+func servingWithin(manager *themehost.Manager, within time.Duration) bool {
+	deadline := time.Now().Add(within)
+	for time.Now().Before(deadline) {
+		if manager.Holder().Healthy() {
+			return true
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return false
+}
+
+func TestBootServesTheRendererWhenNoThemeIsStored(t *testing.T) {
+	t.Parallel()
+
+	manager := managerServing(t, newSettings(), "")
+
+	if err := manager.Boot(t.Context()); err != nil {
+		t.Fatalf("Boot() error = %v, want nil", err)
+	}
+
+	if manager.Holder().Healthy() {
+		t.Error("a theme is serving, want the built-in renderer")
+	}
+}
+
+func TestActivateAndRollBackWalkBothWays(t *testing.T) {
+	t.Parallel()
+
+	settings := newSettings()
+	manager := managerServing(t, settings, "")
+	if err := manager.Activate(t.Context(), "aurora"); err != nil {
+		t.Fatalf("Activate() error = %v, want nil", err)
+	}
+	if !manager.Holder().Healthy() {
+		t.Fatal("the holder is not serving after activating")
+	}
+	if err := manager.Deactivate(t.Context()); err != nil {
+		t.Fatalf("Deactivate() error = %v, want nil", err)
+	}
+
+	previous, err := manager.Rollback(t.Context())
+
+	if err != nil {
+		t.Fatalf("Rollback() error = %v, want nil", err)
+	}
+	if previous != "aurora" {
+		t.Errorf("Rollback() = %q, want the choice before the current one", previous)
+	}
+}
