@@ -27,10 +27,12 @@ relation table connecting content to content. Back up the database
 before the first start on this release, as before any update.
 Public addresses do not change shape.
 
-Themes must move to `@gophenberg/astro` %KIT_VERSION% with the update.
-The kit now requires a `Term` layout for pages like categories, and
-item payloads gained a `fields` member, so a theme built on the
-previous kit will not serve.
+This release serves themes built on `@gophenberg/astro`
+%KIT_VERSION%, and refuses any other, naming what it found. Rebuild
+and reinstall your theme against that kit before updating. Which
+kits an update serves is in the release notes, and
+[theme compatibility](/themes/compatibility/) explains how long a
+built theme keeps working.
 
 ## What to back up
 
