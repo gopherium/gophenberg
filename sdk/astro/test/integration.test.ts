@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 
 import { gophenberg } from '../integration.ts'
-import { kitName } from '../kit.ts'
+import { kitName, kitVersion } from '../kit.ts'
 
 /** The manifest the package ships. */
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
@@ -125,6 +125,86 @@ describe('the build profile it pins', () => {
 		}
 
 		expect(() => done?.({ config: kept } as never)).not.toThrow()
+	})
+})
+
+/** What a built theme leaves beside its server and client directories. */
+interface StampedManifest {
+	name: string
+	version: string
+	kit: string
+}
+
+/**
+ * Runs a whole build against a staged project and returns the manifest it stamped.
+ * @param source - What the project's own manifest holds, or nothing to leave it out.
+ * @returns The manifest the build wrote into the output directory.
+ */
+function runBuild(source?: Record<string, unknown>): StampedManifest {
+	const root = mkdtempSync(join(tmpdir(), 'gophenberg-build-'))
+	mkdirSync(join(root, 'src'))
+	writeFileSync(join(root, 'src', 'theme.ts'), 'export default {}\n')
+	if (source) {
+		writeFileSync(join(root, 'theme.json'), JSON.stringify(source))
+	}
+	const outDir = join(root, 'dist')
+	mkdirSync(outDir)
+	const hooks = gophenberg().hooks
+	hooks['astro:config:done']?.({
+		config: {
+			output: 'server',
+			image: { service: { entrypoint: 'astro/assets/services/noop' } },
+			vite: { ssr: { noExternal: true } },
+			root: pathToFileURL(`${root}/`),
+			outDir: pathToFileURL(`${outDir}/`),
+		},
+	} as never)
+	hooks['astro:build:done']?.({} as never)
+	return JSON.parse(readFileSync(join(outDir, 'theme.json'), 'utf8')) as StampedManifest
+}
+
+describe('the manifest it stamps', () => {
+	test('carries the kit version the theme was built with', () => {
+		const stamped = runBuild({ name: 'aurora', version: '1.2.3' })
+
+		expect(stamped.kit).toBe(kitVersion)
+	})
+
+	test('carries the name and version the theme declares', () => {
+		const stamped = runBuild({ name: 'aurora', version: '1.2.3' })
+
+		expect(stamped.name).toBe('aurora')
+		expect(stamped.version).toBe('1.2.3')
+	})
+
+	test('carries nothing else, so the host reads three fields', () => {
+		const stamped = runBuild({ name: 'aurora', version: '1.2.3' })
+
+		expect(Object.keys(stamped).sort()).toEqual(['kit', 'name', 'version'])
+	})
+
+	test('ignores a kit the theme wrote by hand, since the build decides it', () => {
+		const stamped = runBuild({ name: 'aurora', version: '1.2.3', kit: '0.0.1' })
+
+		expect(stamped.kit).toBe(kitVersion)
+	})
+
+	test('refuses a project whose manifest is missing, naming it', () => {
+		expect(() => runBuild()).toThrow(/theme\.json/)
+	})
+
+	test('refuses a manifest naming no theme', () => {
+		expect(() => runBuild({ version: '1.2.3' })).toThrow(/name/)
+	})
+
+	test('refuses a manifest naming no version', () => {
+		expect(() => runBuild({ name: 'aurora' })).toThrow(/version/)
+	})
+
+	test('stamps nothing when the build ran without a resolved config', () => {
+		const hooks = gophenberg().hooks
+
+		expect(() => hooks['astro:build:done']?.({} as never)).not.toThrow()
 	})
 })
 

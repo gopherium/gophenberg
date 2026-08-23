@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import node from '@astrojs/node'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import type { AstroIntegration } from 'astro'
 
-import { kitName } from './kit.ts'
+import { kitName, kitVersion } from './kit.ts'
 import { buildProfile, profileIssue } from './profile.ts'
 
 /** The module the injected routes read the active theme through. */
@@ -14,6 +14,9 @@ const themeModuleId = 'virtual:gophenberg/theme'
 
 /** The path a theme lives at when it names none. */
 const defaultThemePath = './src/theme.ts'
+
+/** The file a theme directory declares itself with. */
+const manifestName = 'theme.json'
 
 /** The addresses the kit serves, and the files it serves them from. */
 const injectedRoutes = [
@@ -35,6 +38,7 @@ export interface GophenbergOptions {
  */
 export function gophenberg(options: GophenbergOptions = {}): AstroIntegration {
 	const themePath = options.theme ?? defaultThemePath
+	let settled: { root: URL; outDir: URL } | undefined
 	return {
 		name: kitName,
 		hooks: {
@@ -64,9 +68,36 @@ export function gophenberg(options: GophenbergOptions = {}): AstroIntegration {
 				if (issue) {
 					throw new Error(issue)
 				}
+				settled = { root: config.root, outDir: config.outDir }
+			},
+			'astro:build:done': () => {
+				if (settled) {
+					stampManifest(settled.root, settled.outDir)
+				}
 			},
 		},
 	}
+}
+
+/**
+ * Writes the manifest a built theme ships, naming the kit it was built with.
+ * @param root - The project root the theme declares itself in.
+ * @param outDir - Where the build leaves the artifact.
+ */
+function stampManifest(root: URL, outDir: URL): void {
+	const source = new URL(manifestName, root)
+	if (!existsSync(source)) {
+		throw new Error(`gophenberg: no ${manifestName} at ${fileURLToPath(source)}, name the theme and its version there`)
+	}
+	const declared = JSON.parse(readFileSync(source, 'utf8')) as { name?: unknown; version?: unknown }
+	if (typeof declared.name !== 'string' || declared.name === '') {
+		throw new Error(`gophenberg: ${fileURLToPath(source)} names no theme, set name to what the zip is called`)
+	}
+	if (typeof declared.version !== 'string' || declared.version === '') {
+		throw new Error(`gophenberg: ${fileURLToPath(source)} names no version, set version to this theme's own release`)
+	}
+	const stamped = { name: declared.name, version: declared.version, kit: kitVersion }
+	writeFileSync(new URL(manifestName, outDir), `${JSON.stringify(stamped)}\n`)
 }
 
 /**
