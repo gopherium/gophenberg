@@ -2,7 +2,7 @@
 
 import { expect, test } from '@playwright/test'
 
-import { starterTheme, uploadArchive, uploadedTheme } from '../env'
+import { servedKit, staleArchive, staleTheme, starterTheme, uploadArchive, uploadedTheme } from '../env'
 
 const READY = { timeout: 60_000 }
 
@@ -52,6 +52,25 @@ test('installs a theme, serves the site through it, and rolls back', async ({ pa
 	const restored = await page.request.get('/')
 	expect(restored.status()).toBe(200)
 	expect(await restored.text()).toContain('Gophenberg Starter')
+})
+
+test('refuses a theme built on a kit this site does not serve', async ({ page }) => {
+	await page.goto('/admin/themes')
+
+	await page.getByLabel('Theme archive').setInputFiles(staleArchive)
+	await page.getByRole('button', { name: 'Install theme' }).click()
+
+	const refusal = page.getByRole('alert')
+	await expect(refusal).toContainText(staleTheme.kit)
+	await expect(refusal).toContainText(servedKit)
+	await expect(page.getByRole('row', { name: new RegExp(staleTheme.name) })).toHaveCount(0)
+	await expect(
+		page.getByText(`${starterTheme.name} ${starterTheme.version} is serving the public site.`),
+	).toBeVisible()
+
+	const served = await page.request.get('/')
+	expect(served.status()).toBe(200)
+	expect(await served.text()).toContain('Gophenberg Starter')
 })
 
 test('refuses an archive that is not a theme and leaves the site alone', async ({ page }) => {

@@ -21,6 +21,16 @@ export const uploadArchive = fileURLToPath(
 	new URL(`../../.e2e-archive/${uploadedTheme.name}.zip`, import.meta.url),
 )
 
+export const staleTheme = { name: 'millpond', kit: '0.1.0' }
+
+export const staleArchive = fileURLToPath(
+	new URL(`../../.e2e-archive/${staleTheme.name}.zip`, import.meta.url),
+)
+
+export const servedKit = JSON.parse(
+	readFileSync(fileURLToPath(new URL('../theme/dist/theme.json', import.meta.url)), 'utf8'),
+).kit as string
+
 export const baseURL = process.env.GOPHENBERG_E2E_URL ?? 'http://localhost:8081'
 
 export const credentials = {
