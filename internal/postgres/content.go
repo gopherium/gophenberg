@@ -330,7 +330,7 @@ func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content)
 	return nil
 }
 
-// updateFailure returns the refusal the update carries, and wraps anything else.
+// updateFailure returns the error the update carries, and wraps anything else.
 func updateFailure(err error) error {
 	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) || isSlugTaken(err) {
 		return err
