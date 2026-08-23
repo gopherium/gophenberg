@@ -224,3 +224,40 @@ func (p failingPlugin) Start(_ context.Context) error {
 func (failingPlugin) Stop(_ context.Context) error {
 	return nil
 }
+
+func TestRunServesMediaWhenADirectoryIsConfigured(t *testing.T) {
+	t.Parallel()
+
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
+		"GOPHENBERG_ADDR":         "localhost:0",
+		"GOPHENBERG_WEB_DIR":      t.TempDir(),
+		"GOPHENBERG_MEDIA_DIR":    t.TempDir(),
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	if err := run(ctx, testGetenv(env), cancelOnListen{cancel: cancel}, noPlugins); err != nil {
+		t.Fatalf("run() error = %v, want a clean shutdown", err)
+	}
+}
+
+func TestRunReportsAPinnedThemeItCannotLoad(t *testing.T) {
+	t.Parallel()
+
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
+		"GOPHENBERG_ADDR":         "localhost:0",
+		"GOPHENBERG_THEMES_DIR":   t.TempDir(),
+		"GOPHENBERG_THEME":        "missing",
+	}
+
+	err := run(t.Context(), testGetenv(env), io.Discard, noPlugins)
+
+	if err == nil {
+		t.Fatal("run() error = nil, want the pinned theme reported")
+	}
+	if !strings.Contains(err.Error(), "missing") {
+		t.Errorf("error = %v, want it to name the theme", err)
+	}
+}
