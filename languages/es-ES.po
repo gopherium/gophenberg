@@ -1139,3 +1139,56 @@ msgstr ""
 "El tema %(name)s se compiló con el kit de temas %(declared)s y este sitio "
 "sirve %(served)s. Compila el tema de nuevo con un kit que este sitio sirva y "
 "después instálalo."
+
+msgid "%(field)s is optional again."
+msgstr "%(field)s vuelve a ser opcional."
+
+msgid "%(field)s is required now."
+msgstr "%(field)s ahora es obligatorio."
+
+msgid "Holds"
+msgstr "Contiene"
+
+msgid "Make %(field)s optional"
+msgstr "Hacer %(field)s opcional"
+
+msgid "Many targets"
+msgstr "Varios destinos"
+
+msgid "Move %(field)s down"
+msgstr "Bajar %(field)s"
+
+msgid "Move %(field)s up"
+msgstr "Subir %(field)s"
+
+msgid "No"
+msgstr "No"
+
+msgid "One target"
+msgstr "Un destino"
+
+msgid "Order stored."
+msgstr "Orden guardado."
+
+msgid "Require %(field)s"
+msgstr "Hacer %(field)s obligatorio"
+
+msgid "Required"
+msgstr "Obligatorio"
+
+msgid ""
+"The new order has to name every field of this content type exactly once. "
+"Reload the page and move the fields again."
+msgstr ""
+"El nuevo orden tiene que nombrar cada campo de este tipo de contenido "
+"exactamente una vez. Recarga la página y mueve los campos de nuevo."
+
+msgid ""
+"This request carried %(attribute)s, which fields do not take. Reload the "
+"page so the admin and the server agree again."
+msgstr ""
+"Esta petición llevaba %(attribute)s, que los campos no aceptan. Recarga la "
+"página para que la administración y el servidor vuelvan a coincidir."
+
+msgid "Yes"
+msgstr "Sí"
