@@ -96,6 +96,7 @@ var domainErrors = []struct {
 	{content.ErrInvalidPageKind, http.StatusUnprocessableEntity, "page_kind_unknown"},
 	{content.ErrInvalidRevisionCap, http.StatusUnprocessableEntity, "revision_cap_invalid"},
 	{content.ErrFieldTaken, http.StatusUnprocessableEntity, "field_taken"},
+	{content.ErrFieldOrder, http.StatusUnprocessableEntity, "field_order_incomplete"},
 	{content.ErrInvalidFieldKey, http.StatusUnprocessableEntity, "field_key_malformed"},
 	{content.ErrInvalidFieldLabel, http.StatusUnprocessableEntity, "field_label_required"},
 	{content.ErrInvalidFieldKind, http.StatusUnprocessableEntity, "field_kind_unknown"},

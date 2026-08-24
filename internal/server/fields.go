@@ -139,6 +139,32 @@ func (s *server) handleFieldPatch() http.HandlerFunc {
 	}
 }
 
+// handleFieldOrder returns an http.HandlerFunc storing a type's field declaration order.
+func (s *server) handleFieldOrder() http.HandlerFunc {
+	type request struct {
+		Order []string `json:"order"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := authkit.Decode[request](w, r)
+		if err != nil {
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
+				Message: "malformed json", Code: "body_malformed",
+			})
+			return
+		}
+		reordered, err := s.types.ReorderFields(r.Context(), chi.URLParam(r, "key"), req.Order)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		items := make([]fieldResponse, len(reordered))
+		for i, f := range reordered {
+			items[i] = newFieldResponse(f)
+		}
+		authkit.Respond(w, http.StatusOK, fieldListResponse{Items: items})
+	}
+}
+
 // handleFieldDelete returns an http.HandlerFunc removing a field and its values.
 func (s *server) handleFieldDelete() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

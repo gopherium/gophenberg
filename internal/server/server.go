@@ -156,6 +156,7 @@ func (s *server) mountAdmin(r chi.Router, admin *authkit.AdminHandlers, cfg Conf
 		r.Patch("/api/types/{key}", s.handleTypePatch())
 		r.Delete("/api/types/{key}", s.handleTypeDelete())
 		r.Post("/api/types/{key}/fields", s.handleFieldCreate())
+		r.Put("/api/types/{key}/fields/order", s.handleFieldOrder())
 		r.Patch("/api/types/{key}/fields/{fieldKey}", s.handleFieldPatch())
 		r.Delete("/api/types/{key}/fields/{fieldKey}", s.handleFieldDelete())
 	}
