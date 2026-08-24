@@ -170,32 +170,36 @@ function FieldsBody(props: {
 			{declared.length === 0 ? (
 				<Text>{__('This type declares no fields yet.', 'gophenberg')}</Text>
 			) : (
-				<ul className="godmin-plain-list">
+				<ul className="gophenberg-fields__list">
 					{declared.map((field, index) => (
 						<li key={field.key}>
-							<Stack direction="row" gap="sm" align="center" justify="space-between" wrap="wrap">
-								<Stack direction="row" gap="xs" align="center">
-									<IconButton
-										icon={upIcon}
-										label={sprintf(__('Move %(field)s up', 'gophenberg'), { field: field.label })}
-										size="compact"
-										variant="minimal"
-										tone="neutral"
-										disabled={index === 0}
-										onClick={() => reorder.mutate(moved(index, -1))}
-									/>
-									<IconButton
-										icon={downIcon}
-										label={sprintf(__('Move %(field)s down', 'gophenberg'), { field: field.label })}
-										size="compact"
-										variant="minimal"
-										tone="neutral"
-										disabled={index === declared.length - 1}
-										onClick={() => reorder.mutate(moved(index, 1))}
-									/>
-									<Text>{field.label}</Text>
-									<Text variant="body-sm">{kindLabel(field.kind)}</Text>
-									{field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
+							<Stack direction="column" gap="xs">
+								<Stack direction="row" gap="sm" align="center" justify="space-between">
+									<Stack direction="row" gap="xs" align="center">
+										<Text>{field.label}</Text>
+										<Text variant="body-sm">{kindLabel(field.kind)}</Text>
+										{field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
+									</Stack>
+									<Stack direction="row" gap="xs" align="center">
+										<IconButton
+											icon={upIcon}
+											label={sprintf(__('Move %(field)s up', 'gophenberg'), { field: field.label })}
+											size="compact"
+											variant="minimal"
+											tone="neutral"
+											disabled={index === 0}
+											onClick={() => reorder.mutate(moved(index, -1))}
+										/>
+										<IconButton
+											icon={downIcon}
+											label={sprintf(__('Move %(field)s down', 'gophenberg'), { field: field.label })}
+											size="compact"
+											variant="minimal"
+											tone="neutral"
+											disabled={index === declared.length - 1}
+											onClick={() => reorder.mutate(moved(index, 1))}
+										/>
+									</Stack>
 								</Stack>
 								<Stack direction="row" gap="xs" align="center">
 									<RequireField
