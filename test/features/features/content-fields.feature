@@ -114,7 +114,6 @@ Feature: Managing content fields
     When the administrator reorders the fields of "post" as "color"
     Then the request is refused
 
-  @wip
   Scenario: A field edit naming an unknown attribute is refused
     Given the "text" field "color" labeled "Color" on "post"
     When the administrator edits the field "color" on "post" with the unknown attribute "kind"

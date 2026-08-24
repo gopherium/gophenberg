@@ -200,6 +200,15 @@ func theFieldsOfAreListedAs(ctx context.Context, typeKey, listed string) error {
 	return nil
 }
 
+// theAdministratorEditsTheFieldWithTheUnknownAttribute sends a field edit naming a stray attribute.
+func theAdministratorEditsTheFieldWithTheUnknownAttribute(ctx context.Context, key, typeKey, attribute string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.patchJSON(fieldsPathOf(typeKey)+"/"+key, fmt.Sprintf(`{%q:"number"}`, attribute))
+}
+
 // theAdministratorDeletesTheField asks the registry to forget a field and its values.
 func theAdministratorDeletesTheField(ctx context.Context, key, typeKey string) error {
 	w, err := worldOf(ctx)
@@ -467,6 +476,10 @@ func initializeContentFields(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator relabels the field "([^"]*)" on "([^"]*)" as "([^"]*)"$`, theAdministratorRelabelsTheField)
 	sc.When(`^the administrator deletes the field "([^"]*)" on "([^"]*)"$`, theAdministratorDeletesTheField)
 	sc.When(`^the administrator reorders the fields of "([^"]*)" as "([^"]*)"$`, theAdministratorReordersTheFieldsOf)
+	sc.When(
+		`^the administrator edits the field "([^"]*)" on "([^"]*)" with the unknown attribute "([^"]*)"$`,
+		theAdministratorEditsTheFieldWithTheUnknownAttribute,
+	)
 	sc.Then(`^the fields of "([^"]*)" are listed as "([^"]*)"$`, theFieldsOfAreListedAs)
 	sc.When(`^the administrator saves "([^"]*)" into "([^"]*)" of "([^"]*)"$`, theAdministratorSavesInto)
 	sc.When(`^the administrator clears "([^"]*)" of "([^"]*)"$`, theAdministratorClears)
