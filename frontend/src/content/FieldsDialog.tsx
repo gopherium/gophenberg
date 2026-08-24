@@ -187,7 +187,7 @@ function FieldsBody(props: {
 											size="compact"
 											variant="minimal"
 											tone="neutral"
-											disabled={index === 0}
+											disabled={reorder.isPending || index === 0}
 											onClick={() => reorder.mutate(moved(index, -1))}
 										/>
 										<IconButton
@@ -196,7 +196,7 @@ function FieldsBody(props: {
 											size="compact"
 											variant="minimal"
 											tone="neutral"
-											disabled={index === declared.length - 1}
+											disabled={reorder.isPending || index === declared.length - 1}
 											onClick={() => reorder.mutate(moved(index, 1))}
 										/>
 									</Stack>

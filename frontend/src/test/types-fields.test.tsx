@@ -431,6 +431,34 @@ test('stores the order a field is moved down into', async () => {
 	expect(sent[0]).toEqual({ order: ['engine', 'color'] })
 })
 
+test('sends one order at a time while a reorder is in flight', async () => {
+	const sent: unknown[] = []
+	let release = () => {}
+	const held = new Promise<void>((resolve) => {
+		release = resolve
+	})
+	server.use(
+		http.get('/api/types/post/fields', () => HttpResponse.json({ items: [COLOR, ENGINE] })),
+		http.put('/api/types/post/fields/order', async ({ request }) => {
+			sent.push(await request.json())
+			await held
+			return HttpResponse.json({ items: [ENGINE, COLOR] })
+		}),
+	)
+	await openFields()
+	const dialog = await screen.findByRole('dialog')
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Engine up' }))
+	await waitFor(() => expect(sent).toHaveLength(1))
+
+	expect(within(dialog).getByRole('button', { name: 'Move Color down' })).toHaveAttribute(
+		'aria-disabled',
+		'true',
+	)
+	release()
+	await waitFor(() => expect(sent).toHaveLength(1))
+})
+
 test('holds the edges of the field order still', async () => {
 	server.use(http.get('/api/types/post/fields', () => HttpResponse.json({ items: [COLOR, ENGINE] })))
 
