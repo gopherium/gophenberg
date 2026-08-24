@@ -3,14 +3,56 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gopherium/gouncer/authkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
 )
+
+// decodeKnown reads a single JSON request body into T, refusing attributes T does not declare.
+func decodeKnown[T any](w http.ResponseWriter, r *http.Request) (T, error) {
+	var v T
+	r.Body = http.MaxBytesReader(w, r.Body, authkit.MaxRequestBodyBytes)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&v); err != nil {
+		return v, fmt.Errorf("decode json: %w", err)
+	}
+	if dec.More() {
+		return v, errors.New("decode json: unexpected trailing content")
+	}
+	return v, nil
+}
+
+// respondBodyError writes a failed strict decode, naming a refused attribute when one is.
+func respondBodyError(w http.ResponseWriter, err error) {
+	if attribute, stray := unknownAttributeOf(err); stray {
+		authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
+			Message: "unknown attribute " + attribute, Code: "body_unknown_attribute",
+			Meta: map[string]any{"attribute": attribute},
+		})
+		return
+	}
+	authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
+		Message: "malformed json", Code: "body_malformed",
+	})
+}
+
+// unknownAttributeOf returns the attribute a strict decode refused, reporting false for other failures.
+func unknownAttributeOf(err error) (string, bool) {
+	_, rest, found := strings.Cut(err.Error(), `json: unknown field "`)
+	if !found {
+		return "", false
+	}
+	attribute, _, _ := strings.Cut(rest, `"`)
+	return attribute, true
+}
 
 // respondDomainError maps a domain error to an HTTP status and writes it as a JSON error response,
 // masking internal errors.

@@ -468,6 +468,87 @@ func TestFieldOrderRefusesAnIncompleteList(t *testing.T) {
 	}
 }
 
+func TestFieldPatchRefusesAnUnknownAttribute(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declared := doRequest(t, handler, http.MethodPost, "/api/types/post/fields",
+		`{"key":"color","label":"Color","kind":"text"}`)
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field answered %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/post/fields/color", `{"kind":"number"}`)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, "body_unknown_attribute") || !strings.Contains(body, "kind") {
+		t.Errorf("body = %q, want the stray attribute named", body)
+	}
+	listed := doRequest(t, handler, http.MethodGet, "/api/types/post/fields", "")
+	if !strings.Contains(listed.Body.String(), `"kind":"text"`) {
+		t.Errorf("list = %q, want the kind untouched", listed.Body.String())
+	}
+}
+
+func TestFieldCreateRefusesAnUnknownAttribute(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/types/post/fields",
+		`{"key":"color","label":"Color","kind":"text","position":3}`)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "body_unknown_attribute") {
+		t.Errorf("body = %q, want the stray attribute refused", recorder.Body.String())
+	}
+	if got := listedFieldKeys(t, handler); len(got) != 0 {
+		t.Errorf("listed fields = %v, want nothing declared", got)
+	}
+}
+
+func TestFieldOrderRefusesAnUnknownAttribute(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declareThreeFields(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order",
+		`{"fields":["doors","color","engine"]}`)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "body_unknown_attribute") {
+		t.Errorf("body = %q, want the stray attribute refused", recorder.Body.String())
+	}
+	if got := listedFieldKeys(t, handler); !slices.Equal(got, []string{"color", "engine", "doors"}) {
+		t.Errorf("listed order = %v, want the declared order kept", got)
+	}
+}
+
+func TestFieldOrderRefusesTrailingContent(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declareThreeFields(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order",
+		`{"order":["doors","color","engine"]} {"order":[]}`)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "body_malformed") {
+		t.Errorf("body = %q, want the trailing content refused as malformed", recorder.Body.String())
+	}
+}
+
 func TestFieldOrderRefusesABodyThatIsNotJSON(t *testing.T) {
 	t.Parallel()
 
