@@ -119,7 +119,6 @@ Feature: Managing content fields
     When the administrator edits the field "color" on "post" with the unknown attribute "kind"
     Then the request is refused
 
-  @wip
   Scenario: A field made required later gates the next publish
     Given the "text" field "color" labeled "Color" on "post"
     And the post "Hello world"

@@ -200,6 +200,18 @@ func theFieldsOfAreListedAs(ctx context.Context, typeKey, listed string) error {
 	return nil
 }
 
+// theAdministratorMarksTheFieldRequired switches a declared field to required.
+func theAdministratorMarksTheFieldRequired(ctx context.Context, key, typeKey string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.patchJSON(fieldsPathOf(typeKey)+"/"+key, `{"required":true}`); err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
 // theAdministratorEditsTheFieldWithTheUnknownAttribute sends a field edit naming a stray attribute.
 func theAdministratorEditsTheFieldWithTheUnknownAttribute(ctx context.Context, key, typeKey, attribute string) error {
 	w, err := worldOf(ctx)
@@ -480,6 +492,7 @@ func initializeContentFields(sc *godog.ScenarioContext) {
 		`^the administrator edits the field "([^"]*)" on "([^"]*)" with the unknown attribute "([^"]*)"$`,
 		theAdministratorEditsTheFieldWithTheUnknownAttribute,
 	)
+	sc.When(`^the administrator marks the field "([^"]*)" on "([^"]*)" required$`, theAdministratorMarksTheFieldRequired)
 	sc.Then(`^the fields of "([^"]*)" are listed as "([^"]*)"$`, theFieldsOfAreListedAs)
 	sc.When(`^the administrator saves "([^"]*)" into "([^"]*)" of "([^"]*)"$`, theAdministratorSavesInto)
 	sc.When(`^the administrator clears "([^"]*)" of "([^"]*)"$`, theAdministratorClears)
