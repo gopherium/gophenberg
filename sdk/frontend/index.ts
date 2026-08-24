@@ -43,9 +43,11 @@ export {
 } from '@wordpress/ui'
 export {
 	chevronLeft as backIcon,
+	chevronDown as downIcon,
 	listView as listViewIcon,
 	redo as redoIcon,
 	undo as undoIcon,
+	chevronUp as upIcon,
 } from '@wordpress/icons'
 export { TextareaControl } from './TextareaControl'
 export {

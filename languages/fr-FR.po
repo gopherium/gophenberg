@@ -1490,3 +1490,63 @@ msgstr ""
 "Le thème %(name)s a été compilé avec le kit de thèmes %(declared)s, et ce "
 "site sert %(served)s. Compilez le thème à nouveau avec un kit que ce site "
 "sert, puis installez-le."
+
+msgid "%(field)s is optional again."
+msgstr "%(field)s est de nouveau facultatif."
+
+msgid "%(field)s is required now."
+msgstr "%(field)s est maintenant obligatoire."
+
+msgid "Holds"
+msgstr "Contient"
+
+msgid "Make %(field)s optional"
+msgstr "Rendre %(field)s facultatif"
+
+msgid "Make optional"
+msgstr "Rendre facultatif"
+
+msgid "Require"
+msgstr "Rendre obligatoire"
+
+msgid "Many targets"
+msgstr "Plusieurs cibles"
+
+msgid "Move %(field)s down"
+msgstr "Descendre %(field)s"
+
+msgid "Move %(field)s up"
+msgstr "Monter %(field)s"
+
+msgid "No"
+msgstr "Non"
+
+msgid "One target"
+msgstr "Une cible"
+
+msgid "Order stored."
+msgstr "Ordre enregistré."
+
+msgid "Require %(field)s"
+msgstr "Rendre %(field)s obligatoire"
+
+msgid "Required"
+msgstr "Obligatoire"
+
+msgid ""
+"The new order has to name every field of this content type exactly once. "
+"Reload the page and move the fields again."
+msgstr ""
+"Le nouvel ordre doit nommer chaque champ de ce type de contenu exactement "
+"une fois. Rechargez la page et déplacez les champs à nouveau."
+
+msgid ""
+"This request carried %(attribute)s, which fields do not take. Reload the "
+"page so the admin and the server agree again."
+msgstr ""
+"Cette requête portait %(attribute)s, que les champs n'acceptent pas. "
+"Rechargez la page pour que l'administration et le serveur concordent à "
+"nouveau."
+
+msgid "Yes"
+msgstr "Oui"

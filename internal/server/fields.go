@@ -71,11 +71,9 @@ func (s *server) handleFieldCreate() http.HandlerFunc {
 		Required  bool   `json:"required"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := authkit.Decode[request](w, r)
+		req, err := decodeKnown[request](w, r)
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
-				Message: "malformed json", Code: "body_malformed",
-			})
+			respondBodyError(w, err)
 			return
 		}
 		asked, err := content.NewField(content.Field{
@@ -117,11 +115,9 @@ func (s *server) handleFieldPatch() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		req, err := authkit.Decode[request](w, r)
+		req, err := decodeKnown[request](w, r)
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
-				Message: "malformed json", Code: "body_malformed",
-			})
+			respondBodyError(w, err)
 			return
 		}
 		if req.Label != nil {
@@ -136,6 +132,30 @@ func (s *server) handleFieldPatch() http.HandlerFunc {
 			return
 		}
 		authkit.Respond(w, http.StatusOK, newFieldResponse(updated))
+	}
+}
+
+// handleFieldOrder returns an http.HandlerFunc storing a type's field declaration order.
+func (s *server) handleFieldOrder() http.HandlerFunc {
+	type request struct {
+		Order []string `json:"order"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := decodeKnown[request](w, r)
+		if err != nil {
+			respondBodyError(w, err)
+			return
+		}
+		reordered, err := s.types.ReorderFields(r.Context(), chi.URLParam(r, "key"), req.Order)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		items := make([]fieldResponse, len(reordered))
+		for i, f := range reordered {
+			items[i] = newFieldResponse(f)
+		}
+		authkit.Respond(w, http.StatusOK, fieldListResponse{Items: items})
 	}
 }
 

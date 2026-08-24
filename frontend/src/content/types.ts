@@ -288,6 +288,48 @@ export async function renameField(
 }
 
 /**
+ * Stores whether a field must be filled before its item publishes.
+ * @param typeKey - The type declaring the field.
+ * @param key - The field to change.
+ * @param required - Whether the field gates publishing.
+ * @returns The stored field.
+ */
+export async function setFieldRequired(
+	typeKey: string,
+	key: string,
+	required: boolean,
+): Promise<ContentField> {
+	const response = await fetch(`/api/types/${typeKey}/fields/${key}`, {
+		method: 'PATCH',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ required }),
+	})
+	if (!response.ok) {
+		await refuse(response)
+	}
+	return toField(fieldSchema.parse(await response.json()))
+}
+
+/**
+ * Stores the declaration order of a type's fields.
+ * @param typeKey - The type whose fields are reordered.
+ * @param keys - Every declared field key in the order to store.
+ * @returns The reordered fields.
+ */
+export async function reorderFields(typeKey: string, keys: string[]): Promise<ContentField[]> {
+	const response = await fetch(`/api/types/${typeKey}/fields/order`, {
+		method: 'PUT',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ order: keys }),
+	})
+	if (!response.ok) {
+		await refuse(response)
+	}
+	const listed = z.object({ items: z.array(fieldSchema) }).parse(await response.json())
+	return listed.items.map(toField)
+}
+
+/**
  * Removes a declared field and every value it held.
  * @param typeKey - The type declaring the field.
  * @param key - The field to remove.

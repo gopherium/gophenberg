@@ -54,6 +54,11 @@ func (stubTypeStore) Update(context.Context, content.Type) (content.Type, error)
 // Delete refuses to remove a type in a seeding run.
 func (stubTypeStore) Delete(context.Context, string) error { return content.ErrTypeNotFound }
 
+// ReorderFields refuses to reorder fields in a seeding run.
+func (stubTypeStore) ReorderFields(context.Context, string, []string) error {
+	return content.ErrTypeNotFound
+}
+
 // CreateField refuses to declare a field in a seeding run.
 func (stubTypeStore) CreateField(context.Context, content.Field) (content.Field, error) {
 	return content.Field{}, content.ErrTypeNotFound

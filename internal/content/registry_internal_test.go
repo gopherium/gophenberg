@@ -54,6 +54,11 @@ func (unreadableTypeStore) DeleteField(context.Context, string, string) error {
 	return errTypeStoreDown
 }
 
+// ReorderFields reports the failure rather than storing the order.
+func (unreadableTypeStore) ReorderFields(context.Context, string, []string) error {
+	return errTypeStoreDown
+}
+
 func TestUntargetedReportsARegistryItCannotRead(t *testing.T) {
 	t.Parallel()
 

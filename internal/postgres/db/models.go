@@ -40,6 +40,7 @@ type CoreContentField struct {
 	Required  bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Position  int32
 }
 
 type CoreContentRelation struct {

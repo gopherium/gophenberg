@@ -18,6 +18,12 @@ msgstr ""
 msgid "%(field)s deleted."
 msgstr ""
 
+msgid "%(field)s is optional again."
+msgstr ""
+
+msgid "%(field)s is required now."
+msgstr ""
+
 msgid "%(field)s renamed."
 msgstr ""
 
@@ -414,6 +420,9 @@ msgstr ""
 msgid "Hand the root to %(type)s"
 msgstr ""
 
+msgid "Holds"
+msgstr ""
+
 msgid "Home"
 msgstr ""
 
@@ -468,7 +477,16 @@ msgstr ""
 msgid "Loading…"
 msgstr ""
 
+msgid "Make %(field)s optional"
+msgstr ""
+
 msgid "Make default"
+msgstr ""
+
+msgid "Make optional"
+msgstr ""
+
+msgid "Many targets"
 msgstr ""
 
 msgid "March"
@@ -487,6 +505,12 @@ msgid "Medium"
 msgstr ""
 
 msgid "Mobile"
+msgstr ""
+
+msgid "Move %(field)s down"
+msgstr ""
+
+msgid "Move %(field)s up"
 msgstr ""
 
 msgid "Move %(title)s to the trash?"
@@ -519,6 +543,9 @@ msgid "New user"
 msgstr ""
 
 msgid "Newer posts"
+msgstr ""
+
+msgid "No"
 msgstr ""
 
 msgid "No file arrived with this upload. Choose a file and try again."
@@ -587,6 +614,9 @@ msgstr ""
 msgid "One of the items picked no longer exists. Reload the page and pick again."
 msgstr ""
 
+msgid "One target"
+msgstr ""
+
 msgid "Only a relation field points at another content type or holds many items. Pick the Relation kind, or leave the target and the many option empty."
 msgstr ""
 
@@ -597,6 +627,9 @@ msgid "Only the content type at the root of your site may go without a route wor
 msgstr ""
 
 msgid "Open navigation"
+msgstr ""
+
+msgid "Order stored."
 msgstr ""
 
 msgid "Parent"
@@ -645,6 +678,15 @@ msgid "Rename"
 msgstr ""
 
 msgid "Rename %(field)s"
+msgstr ""
+
+msgid "Require"
+msgstr ""
+
+msgid "Require %(field)s"
+msgstr ""
+
+msgid "Required"
 msgstr ""
 
 msgid "Restore"
@@ -806,6 +848,9 @@ msgstr ""
 msgid "The name changes. Nothing stored under this field moves."
 msgstr ""
 
+msgid "The new order has to name every field of this content type exactly once. Reload the page and move the fields again."
+msgstr ""
+
 msgid "The number of revisions to keep has to be a whole number, and it cannot be negative. Enter a different number."
 msgstr ""
 
@@ -947,6 +992,9 @@ msgstr ""
 msgid "This post goes to the trash. You can restore it from there."
 msgstr ""
 
+msgid "This request carried %(attribute)s, which fields do not take. Reload the page so the admin and the server agree again."
+msgstr ""
+
 msgid "This request left out %(field)s, which Gophenberg needs. Reload the page and try again."
 msgstr ""
 
@@ -1002,6 +1050,9 @@ msgid "Videos"
 msgstr ""
 
 msgid "Welcome to Gophenberg."
+msgstr ""
+
+msgid "Yes"
 msgstr ""
 
 msgid "Yes or no"

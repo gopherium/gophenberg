@@ -142,6 +142,11 @@ func (w *world) patchJSON(path, body string) error {
 	return w.do(http.MethodPatch, path, "application/json", strings.NewReader(body))
 }
 
+// putJSON sends a JSON replacement to the running server.
+func (w *world) putJSON(path, body string) error {
+	return w.do(http.MethodPut, path, "application/json", strings.NewReader(body))
+}
+
 // deleteAt asks the running server to remove what a path holds.
 func (w *world) deleteAt(path string) error {
 	return w.do(http.MethodDelete, path, "", nil)

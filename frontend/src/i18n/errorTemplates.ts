@@ -41,6 +41,10 @@ export function errorTemplates(): Record<string, string> {
 			'Gophenberg could not read what your browser sent. Reload the page and try again, and tell whoever looks after your site if it keeps happening.',
 			DOMAIN,
 		),
+		body_unknown_attribute: __(
+			'This request carried %(attribute)s, which fields do not take. Reload the page so the admin and the server agree again.',
+			DOMAIN,
+		),
 		client_assets_missing: __(
 			'The theme %(name)s does not carry %(path)s as a folder, so its styles and scripts are missing. Package the built theme rather than its source.',
 			DOMAIN,
@@ -75,6 +79,10 @@ export function errorTemplates(): Record<string, string> {
 		),
 		field_not_relational: __(
 			'Only a relation field points at another content type or holds many items. Pick the Relation kind, or leave the target and the many option empty.',
+			DOMAIN,
+		),
+		field_order_incomplete: __(
+			'The new order has to name every field of this content type exactly once. Reload the page and move the fields again.',
 			DOMAIN,
 		),
 		field_required: __(

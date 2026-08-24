@@ -5,6 +5,8 @@ package server_test
 import (
 	"context"
 	"net/http"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -378,5 +380,217 @@ func TestFieldPatchRefusesALabelTheFieldWillNotTake(t *testing.T) {
 
 	if recorder.Code == http.StatusOK {
 		t.Errorf("status = %d, want the empty label refused", recorder.Code)
+	}
+}
+
+// declareThreeFields declares three text fields on the post type in a fixed order.
+func declareThreeFields(t *testing.T, handler http.Handler) {
+	t.Helper()
+	for _, key := range []string{"color", "engine", "doors"} {
+		declared := doRequest(t, handler, http.MethodPost, "/api/types/post/fields",
+			`{"key":"`+key+`","label":"`+key+`","kind":"text"}`)
+		if declared.Code != http.StatusCreated {
+			t.Fatalf("declaring %q answered %d", key, declared.Code)
+		}
+	}
+}
+
+// listedFieldKeys returns the field keys the list endpoint answers, in order.
+func listedFieldKeys(t *testing.T, handler http.Handler) []string {
+	t.Helper()
+	listed := doRequest(t, handler, http.MethodGet, "/api/types/post/fields", "")
+	if listed.Code != http.StatusOK {
+		t.Fatalf("listing the fields answered %d", listed.Code)
+	}
+	body := decodeBody[fieldListBody](t, listed)
+	keys := make([]string, len(body.Items))
+	for i, f := range body.Items {
+		keys[i] = f.Key
+	}
+	return keys
+}
+
+func TestFieldOrderIsStored(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declareThreeFields(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order",
+		`{"order":["doors","color","engine"]}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := decodeBody[fieldListBody](t, recorder)
+	want := []string{"doors", "color", "engine"}
+	for i, f := range body.Items {
+		if f.Key != want[i] {
+			t.Fatalf("answered order[%d] = %q, want %q", i, f.Key, want[i])
+		}
+	}
+	if got := listedFieldKeys(t, handler); !slices.Equal(got, want) {
+		t.Errorf("listed order = %v, want %v", got, want)
+	}
+}
+
+func TestFieldOrderRefusesAStranger(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declareThreeFields(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order",
+		`{"order":["doors","color","finish"]}`)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+	if got := listedFieldKeys(t, handler); !slices.Equal(got, []string{"color", "engine", "doors"}) {
+		t.Errorf("listed order = %v, want the declared order kept", got)
+	}
+}
+
+func TestFieldOrderRefusesAnIncompleteList(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declareThreeFields(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order",
+		`{"order":["doors","color"]}`)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "field_order_incomplete") {
+		t.Errorf("body = %q, want the incomplete order named", recorder.Body.String())
+	}
+	if got := listedFieldKeys(t, handler); !slices.Equal(got, []string{"color", "engine", "doors"}) {
+		t.Errorf("listed order = %v, want the declared order kept", got)
+	}
+}
+
+func TestFieldPatchRefusesAnUnknownAttribute(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declared := doRequest(t, handler, http.MethodPost, "/api/types/post/fields",
+		`{"key":"color","label":"Color","kind":"text"}`)
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field answered %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/post/fields/color", `{"kind":"number"}`)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, "body_unknown_attribute") || !strings.Contains(body, "kind") {
+		t.Errorf("body = %q, want the stray attribute named", body)
+	}
+	listed := doRequest(t, handler, http.MethodGet, "/api/types/post/fields", "")
+	if !strings.Contains(listed.Body.String(), `"kind":"text"`) {
+		t.Errorf("list = %q, want the kind untouched", listed.Body.String())
+	}
+}
+
+func TestFieldCreateRefusesAnUnknownAttribute(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/types/post/fields",
+		`{"key":"color","label":"Color","kind":"text","position":3}`)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "body_unknown_attribute") {
+		t.Errorf("body = %q, want the stray attribute refused", recorder.Body.String())
+	}
+	if got := listedFieldKeys(t, handler); len(got) != 0 {
+		t.Errorf("listed fields = %v, want nothing declared", got)
+	}
+}
+
+func TestFieldOrderRefusesAnUnknownAttribute(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declareThreeFields(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order",
+		`{"fields":["doors","color","engine"]}`)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "body_unknown_attribute") {
+		t.Errorf("body = %q, want the stray attribute refused", recorder.Body.String())
+	}
+	if got := listedFieldKeys(t, handler); !slices.Equal(got, []string{"color", "engine", "doors"}) {
+		t.Errorf("listed order = %v, want the declared order kept", got)
+	}
+}
+
+func TestFieldOrderRefusesTrailingContent(t *testing.T) {
+	t.Parallel()
+
+	for name, body := range map[string]string{
+		"another object":    `{"order":["doors","color","engine"]} {"order":[]}`,
+		"a closing bracket": `{"order":["doors","color","engine"]}]`,
+		"a closing brace":   `{"order":["doors","color","engine"]}}`,
+		"a bare word":       `{"order":["doors","color","engine"]} nonsense`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := authedTypeServer(t)
+			declareThreeFields(t, handler)
+
+			recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order", body)
+
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), "body_malformed") {
+				t.Errorf("body = %q, want the trailing content refused as malformed", recorder.Body.String())
+			}
+			if got := listedFieldKeys(t, handler); !slices.Equal(got, []string{"color", "engine", "doors"}) {
+				t.Errorf("listed order = %v, want the declared order kept", got)
+			}
+		})
+	}
+}
+
+func TestFieldOrderAcceptsABodyPaddedWithWhitespace(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declareThreeFields(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order",
+		"\n\t {\"order\":[\"doors\",\"color\",\"engine\"]} \n\t ")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if got := listedFieldKeys(t, handler); !slices.Equal(got, []string{"doors", "color", "engine"}) {
+		t.Errorf("listed order = %v, want the padded body honoured", got)
+	}
+}
+
+func TestFieldOrderRefusesABodyThatIsNotJSON(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declareThreeFields(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order", "not json")
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
 	}
 }

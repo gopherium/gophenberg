@@ -347,27 +347,38 @@ WHERE t.is_default
 FOR UPDATE;
 
 -- name: ListContentFields :many
-SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
-FROM core.content_fields ORDER BY id;
+SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position
+FROM core.content_fields ORDER BY type_key, position, id;
 
 -- name: ListContentFieldsOfType :many
-SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
-FROM core.content_fields WHERE type_key = @type_key ORDER BY id;
+SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position
+FROM core.content_fields WHERE type_key = @type_key ORDER BY position, id;
 
 -- name: CreateContentField :one
 INSERT INTO core.content_fields (
-    type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+    type_key, key, label, kind, relates_to, many, required, position, created_at, updated_at
 )
 VALUES (
-    @type_key, @key, @label, @kind, @relates_to, @many, @required, @created_at, @updated_at
+    @type_key, @key, @label, @kind, @relates_to, @many, @required,
+    (SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields WHERE type_key = @type_key),
+    @created_at, @updated_at
 )
-RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at;
+RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position;
+
+-- name: ReorderContentFields :exec
+UPDATE core.content_fields
+SET position = ordered.position
+FROM (
+    SELECT key, ordinality AS position
+    FROM unnest(@keys::text []) WITH ORDINALITY AS asked (key, ordinality)
+) AS ordered
+WHERE core.content_fields.type_key = @type_key AND core.content_fields.key = ordered.key;
 
 -- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = @label, required = @required, updated_at = @updated_at
 WHERE type_key = @type_key AND key = @key
-RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at;
+RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position;
 
 -- name: DeleteContentField :execrows
 DELETE FROM core.content_fields WHERE type_key = @type_key AND key = @key;
