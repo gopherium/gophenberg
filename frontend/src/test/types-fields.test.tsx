@@ -278,6 +278,190 @@ test('keeps the chosen kind marked as chosen after the dialog redraws', async ()
 	)
 })
 
+const ENGINE = { key: 'engine', label: 'Engine', kind: 'text', many: false, required: false }
+
+test('declares an optional field unless asked otherwise', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.post('/api/types/post/fields', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(COLOR, { status: 201 })
+		}),
+	)
+	await openFields()
+	const held = await screen.findByRole('dialog')
+
+	await userEvent.type(within(held).getByLabelText('Name'), 'Color')
+	await userEvent.click(within(held).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toMatchObject({ required: false })
+})
+
+test('declares a required field when asked for one', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.post('/api/types/post/fields', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...COLOR, required: true }, { status: 201 })
+		}),
+	)
+	await openFields()
+	const held = await screen.findByRole('dialog')
+
+	await userEvent.type(within(held).getByLabelText('Name'), 'Color')
+	await userEvent.click(within(held).getByLabelText('Required'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Yes' }))
+	await userEvent.click(within(held).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toMatchObject({ required: true })
+})
+
+test('declares a relation holding one target when asked', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.post('/api/types/post/fields', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(COLOR, { status: 201 })
+		}),
+	)
+	await openFields()
+	const held = await screen.findByRole('dialog')
+
+	await userEvent.type(within(held).getByLabelText('Name'), 'Main category')
+	await userEvent.click(within(held).getByLabelText('Kind'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Relation' }))
+	await userEvent.click(within(held).getByLabelText('Holds'))
+	await userEvent.click(await screen.findByRole('option', { name: 'One target' }))
+	await userEvent.click(within(held).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toMatchObject({ kind: 'relation', many: false })
+})
+
+test('requires a declared field from its row', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.get('/api/types/post/fields', () => HttpResponse.json({ items: [COLOR] })),
+		http.patch('/api/types/post/fields/color', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...COLOR, required: true })
+		}),
+	)
+	await openFields()
+	const held = await screen.findByRole('dialog')
+
+	await userEvent.click(within(held).getByRole('button', { name: 'Require Color' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toEqual({ required: true })
+})
+
+test('releases a required field from its row', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.get('/api/types/post/fields', () =>
+			HttpResponse.json({ items: [{ ...COLOR, required: true }] }),
+		),
+		http.patch('/api/types/post/fields/color', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(COLOR)
+		}),
+	)
+	await openFields()
+	const held = await screen.findByRole('dialog')
+
+	const row = within(held).getByText('Color').closest('li')!
+	expect(within(row).getByText('Required')).toBeInTheDocument()
+	await userEvent.click(within(held).getByRole('button', { name: 'Make Color optional' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toEqual({ required: false })
+})
+
+test('carries the reason a required toggle was refused', async () => {
+	server.use(
+		http.get('/api/types/post/fields', () => HttpResponse.json({ items: [COLOR] })),
+		http.patch('/api/types/post/fields/color', () =>
+			HttpResponse.json({ error: 'content: field not found' }, { status: 404 }),
+		),
+	)
+	await openFields()
+	const held = await screen.findByRole('dialog')
+
+	await userEvent.click(within(held).getByRole('button', { name: 'Require Color' }))
+
+	expect(await screen.findByText(/field not found/)).toBeInTheDocument()
+})
+
+test('stores the order a field is moved up into', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.get('/api/types/post/fields', () => HttpResponse.json({ items: [COLOR, ENGINE] })),
+		http.put('/api/types/post/fields/order', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ items: [ENGINE, COLOR] })
+		}),
+	)
+	await openFields()
+	const held = await screen.findByRole('dialog')
+
+	await userEvent.click(within(held).getByRole('button', { name: 'Move Engine up' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toEqual({ order: ['engine', 'color'] })
+})
+
+test('stores the order a field is moved down into', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.get('/api/types/post/fields', () => HttpResponse.json({ items: [COLOR, ENGINE] })),
+		http.put('/api/types/post/fields/order', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ items: [ENGINE, COLOR] })
+		}),
+	)
+	await openFields()
+	const held = await screen.findByRole('dialog')
+
+	await userEvent.click(within(held).getByRole('button', { name: 'Move Color down' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toEqual({ order: ['engine', 'color'] })
+})
+
+test('holds the edges of the field order still', async () => {
+	server.use(http.get('/api/types/post/fields', () => HttpResponse.json({ items: [COLOR, ENGINE] })))
+
+	await openFields()
+
+	const held = await screen.findByRole('dialog')
+	expect(within(held).getByRole('button', { name: 'Move Color up' })).toHaveAttribute(
+		'aria-disabled',
+		'true',
+	)
+	expect(within(held).getByRole('button', { name: 'Move Engine down' })).toHaveAttribute(
+		'aria-disabled',
+		'true',
+	)
+})
+
+test('carries the reason a reorder was refused', async () => {
+	server.use(
+		http.get('/api/types/post/fields', () => HttpResponse.json({ items: [COLOR, ENGINE] })),
+		http.put('/api/types/post/fields/order', () =>
+			HttpResponse.json({ error: 'content: incomplete field order' }, { status: 422 }),
+		),
+	)
+	await openFields()
+	const held = await screen.findByRole('dialog')
+
+	await userEvent.click(within(held).getByRole('button', { name: 'Move Engine up' }))
+
+	expect(await screen.findByText(/incomplete field order/)).toBeInTheDocument()
+})
+
 test('falls back to the stored kind when the admin offers no name for it', async () => {
 	server.use(
 		http.get('/api/types/post/fields', () =>
