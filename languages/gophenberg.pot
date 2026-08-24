@@ -483,6 +483,9 @@ msgstr ""
 msgid "Make default"
 msgstr ""
 
+msgid "Make optional"
+msgstr ""
+
 msgid "Many targets"
 msgstr ""
 
@@ -675,6 +678,9 @@ msgid "Rename"
 msgstr ""
 
 msgid "Rename %(field)s"
+msgstr ""
+
+msgid "Require"
 msgstr ""
 
 msgid "Require %(field)s"

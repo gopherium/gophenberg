@@ -1152,6 +1152,12 @@ msgstr "Contiene"
 msgid "Make %(field)s optional"
 msgstr "Hacer %(field)s opcional"
 
+msgid "Make optional"
+msgstr "Hacer opcional"
+
+msgid "Require"
+msgstr "Hacer obligatorio"
+
 msgid "Many targets"
 msgstr "Varios destinos"
 
