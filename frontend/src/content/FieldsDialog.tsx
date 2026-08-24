@@ -4,10 +4,13 @@ import {
 	Badge,
 	Button,
 	Dialog,
+	IconButton,
 	InputControl,
 	SelectControl,
 	Stack,
 	Text,
+	downIcon,
+	upIcon,
 } from '@gophenberg/frontend-sdk'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -170,42 +173,50 @@ function FieldsBody(props: {
 				<ul className="godmin-plain-list">
 					{declared.map((field, index) => (
 						<li key={field.key}>
-							<Stack direction="row" gap="xs">
-								<Text>{field.label}</Text>
-								<Text variant="body-sm">{kindLabel(field.kind)}</Text>
-								{field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
-								<Button
-									variant="outline"
-									disabled={index === 0}
-									onClick={() => reorder.mutate(moved(index, -1))}
-								>
-									{sprintf(__('Move %(field)s up', 'gophenberg'), { field: field.label })}
-								</Button>
-								<Button
-									variant="outline"
-									disabled={index === declared.length - 1}
-									onClick={() => reorder.mutate(moved(index, 1))}
-								>
-									{sprintf(__('Move %(field)s down', 'gophenberg'), { field: field.label })}
-								</Button>
-								<RequireField
-									typeKey={typeKey}
-									field={field}
-									onDone={done}
-									onRefused={props.onRefused}
-								/>
-								<RenameField
-									typeKey={typeKey}
-									field={field}
-									onDone={done}
-									onRefused={props.onRefused}
-								/>
-								<DeleteField
-									typeKey={typeKey}
-									field={field}
-									onDone={done}
-									onRefused={props.onRefused}
-								/>
+							<Stack direction="row" gap="sm" align="center" justify="space-between" wrap="wrap">
+								<Stack direction="row" gap="xs" align="center">
+									<IconButton
+										icon={upIcon}
+										label={sprintf(__('Move %(field)s up', 'gophenberg'), { field: field.label })}
+										size="compact"
+										variant="minimal"
+										tone="neutral"
+										disabled={index === 0}
+										onClick={() => reorder.mutate(moved(index, -1))}
+									/>
+									<IconButton
+										icon={downIcon}
+										label={sprintf(__('Move %(field)s down', 'gophenberg'), { field: field.label })}
+										size="compact"
+										variant="minimal"
+										tone="neutral"
+										disabled={index === declared.length - 1}
+										onClick={() => reorder.mutate(moved(index, 1))}
+									/>
+									<Text>{field.label}</Text>
+									<Text variant="body-sm">{kindLabel(field.kind)}</Text>
+									{field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
+								</Stack>
+								<Stack direction="row" gap="xs" align="center">
+									<RequireField
+										typeKey={typeKey}
+										field={field}
+										onDone={done}
+										onRefused={props.onRefused}
+									/>
+									<RenameField
+										typeKey={typeKey}
+										field={field}
+										onDone={done}
+										onRefused={props.onRefused}
+									/>
+									<DeleteField
+										typeKey={typeKey}
+										field={field}
+										onDone={done}
+										onRefused={props.onRefused}
+									/>
+								</Stack>
 							</Stack>
 						</li>
 					))}
@@ -335,8 +346,14 @@ function RequireField(props: {
 		? sprintf(__('Make %(field)s optional', 'gophenberg'), { field: props.field.label })
 		: sprintf(__('Require %(field)s', 'gophenberg'), { field: props.field.label })
 	return (
-		<Button variant="outline" loading={flip.isPending} onClick={() => flip.mutate()}>
-			{asking}
+		<Button
+			variant="outline"
+			size="compact"
+			aria-label={asking}
+			loading={flip.isPending}
+			onClick={() => flip.mutate()}
+		>
+			{props.field.required ? __('Make optional', 'gophenberg') : __('Require', 'gophenberg')}
 		</Button>
 	)
 }
@@ -367,8 +384,13 @@ function RenameField(props: {
 	})
 	return (
 		<>
-			<Button variant="outline" onClick={() => setOpen(true)}>
-				{sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })}
+			<Button
+				variant="outline"
+				size="compact"
+				aria-label={sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })}
+				onClick={() => setOpen(true)}
+			>
+				{__('Rename', 'gophenberg')}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
@@ -429,8 +451,13 @@ function DeleteField(props: {
 	})
 	return (
 		<>
-			<Button variant="outline" onClick={() => setOpen(true)}>
-				{sprintf(__('Delete %(field)s', 'gophenberg'), { field: props.field.label })}
+			<Button
+				variant="outline"
+				size="compact"
+				aria-label={sprintf(__('Delete %(field)s', 'gophenberg'), { field: props.field.label })}
+				onClick={() => setOpen(true)}
+			>
+				{__('Delete', 'gophenberg')}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
