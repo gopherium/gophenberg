@@ -96,6 +96,7 @@ type TypeStore interface {
 	CreateField(ctx context.Context, f Field) (Field, error)
 	UpdateField(ctx context.Context, f Field) (Field, error)
 	DeleteField(ctx context.Context, typeKey, key string) error
+	ReorderFields(ctx context.Context, typeKey string, keys []string) error
 }
 
 // NewType returns a content type ready to store, or the reason it is not one.

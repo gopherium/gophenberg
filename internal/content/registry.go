@@ -255,6 +255,46 @@ func (r *Registry) UpdateField(ctx context.Context, f Field) (Field, error) {
 	return updated, nil
 }
 
+// ReorderFields stores the given declaration order, or reports why the order does not stand.
+func (r *Registry) ReorderFields(ctx context.Context, typeKey string, keys []string) ([]Field, error) {
+	t, err := r.ByKey(ctx, typeKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := orderCovers(t, keys); err != nil {
+		return nil, err
+	}
+	if err := r.store.ReorderFields(ctx, typeKey, keys); err != nil {
+		return nil, err
+	}
+	r.invalidate()
+	reordered, err := r.ByKey(ctx, typeKey)
+	if err != nil {
+		return nil, err
+	}
+	return reordered.Fields, nil
+}
+
+// orderCovers reports whether keys name every field the type declares exactly once.
+func orderCovers(t Type, keys []string) error {
+	seen := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		if _, err := fieldOf(t, key); err != nil {
+			return err
+		}
+		if seen[key] {
+			return Refuse(ErrFieldOrder, "field_order_incomplete",
+				"content: the order names a field twice", Details{"key": key})
+		}
+		seen[key] = true
+	}
+	if len(keys) != len(t.Fields) {
+		return Refuse(ErrFieldOrder, "field_order_incomplete",
+			"content: the order leaves declared fields out", nil)
+	}
+	return nil
+}
+
 // DeleteField removes the field and its values, or reports it missing.
 func (r *Registry) DeleteField(ctx context.Context, typeKey, key string) error {
 	t, err := r.ByKey(ctx, typeKey)

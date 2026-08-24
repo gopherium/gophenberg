@@ -14,6 +14,9 @@ var ErrFieldNotFound = errors.New("content: field not found")
 // ErrFieldTaken reports that the type already declares a field under the key.
 var ErrFieldTaken = errors.New("content: field key taken")
 
+// ErrFieldOrder reports that an order does not name every declared field exactly once.
+var ErrFieldOrder = errors.New("content: incomplete field order")
+
 // ErrInvalidFieldKey reports that a field key is not a lowercase word.
 var ErrInvalidFieldKey = errors.New("content: invalid field key")
 

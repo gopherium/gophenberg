@@ -36,6 +36,28 @@ func newMemoryTypes(items *memoryContent) *memoryTypes {
 	}}}
 }
 
+// ReorderFields stores the given declaration order on the type.
+func (s *memoryTypes) ReorderFields(_ context.Context, typeKey string, keys []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, stored := range s.types {
+		if stored.Key != typeKey {
+			continue
+		}
+		reordered := make([]content.Field, 0, len(stored.Fields))
+		for _, key := range keys {
+			for _, held := range stored.Fields {
+				if held.Key == key {
+					reordered = append(reordered, held)
+				}
+			}
+		}
+		s.types[i].Fields = reordered
+		return nil
+	}
+	return content.ErrTypeNotFound
+}
+
 // List returns every stored type in registration order.
 func (s *memoryTypes) List(context.Context) ([]content.Type, error) {
 	s.mu.Lock()
