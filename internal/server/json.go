@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -24,7 +25,8 @@ func decodeKnown[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 	if err := dec.Decode(&v); err != nil {
 		return v, fmt.Errorf("decode json: %w", err)
 	}
-	if dec.More() {
+	var trailing json.RawMessage
+	if err := dec.Decode(&trailing); !errors.Is(err, io.EOF) {
 		return v, errors.New("decode json: unexpected trailing content")
 	}
 	return v, nil

@@ -466,6 +466,9 @@ func TestFieldOrderRefusesAnIncompleteList(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "field_order_incomplete") {
 		t.Errorf("body = %q, want the incomplete order named", recorder.Body.String())
 	}
+	if got := listedFieldKeys(t, handler); !slices.Equal(got, []string{"color", "engine", "doors"}) {
+		t.Errorf("listed order = %v, want the declared order kept", got)
+	}
 }
 
 func TestFieldPatchRefusesAnUnknownAttribute(t *testing.T) {
@@ -535,17 +538,47 @@ func TestFieldOrderRefusesAnUnknownAttribute(t *testing.T) {
 func TestFieldOrderRefusesTrailingContent(t *testing.T) {
 	t.Parallel()
 
+	for name, body := range map[string]string{
+		"another object":    `{"order":["doors","color","engine"]} {"order":[]}`,
+		"a closing bracket": `{"order":["doors","color","engine"]}]`,
+		"a closing brace":   `{"order":["doors","color","engine"]}}`,
+		"a bare word":       `{"order":["doors","color","engine"]} nonsense`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := authedTypeServer(t)
+			declareThreeFields(t, handler)
+
+			recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order", body)
+
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), "body_malformed") {
+				t.Errorf("body = %q, want the trailing content refused as malformed", recorder.Body.String())
+			}
+			if got := listedFieldKeys(t, handler); !slices.Equal(got, []string{"color", "engine", "doors"}) {
+				t.Errorf("listed order = %v, want the declared order kept", got)
+			}
+		})
+	}
+}
+
+func TestFieldOrderAcceptsABodyPaddedWithWhitespace(t *testing.T) {
+	t.Parallel()
+
 	handler := authedTypeServer(t)
 	declareThreeFields(t, handler)
 
 	recorder := doRequest(t, handler, http.MethodPut, "/api/types/post/fields/order",
-		`{"order":["doors","color","engine"]} {"order":[]}`)
+		"\n\t {\"order\":[\"doors\",\"color\",\"engine\"]} \n\t ")
 
-	if recorder.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), "body_malformed") {
-		t.Errorf("body = %q, want the trailing content refused as malformed", recorder.Body.String())
+	if got := listedFieldKeys(t, handler); !slices.Equal(got, []string{"doors", "color", "engine"}) {
+		t.Errorf("listed order = %v, want the padded body honoured", got)
 	}
 }
 
