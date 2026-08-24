@@ -95,3 +95,35 @@ Feature: Managing content fields
     And the administrator deletes the field "color" on "post"
     And the administrator restores the previous revision of "Hello world"
     Then the post "Hello world" holds no field "color"
+
+  Scenario: Fields keep the order they are given
+    Given the "text" field "color" labeled "Color" on "post"
+    And the "text" field "engine" labeled "Engine" on "post"
+    And the "text" field "doors" labeled "Doors" on "post"
+    When the administrator reorders the fields of "post" as "doors, color, engine"
+    Then the fields of "post" are listed as "doors, color, engine"
+
+  Scenario: A reorder naming a stranger field is refused
+    Given the "text" field "color" labeled "Color" on "post"
+    When the administrator reorders the fields of "post" as "color, finish"
+    Then the request is refused
+
+  Scenario: A reorder leaving a field out is refused
+    Given the "text" field "color" labeled "Color" on "post"
+    And the "text" field "engine" labeled "Engine" on "post"
+    When the administrator reorders the fields of "post" as "color"
+    Then the request is refused
+
+  @wip
+  Scenario: A field edit naming an unknown attribute is refused
+    Given the "text" field "color" labeled "Color" on "post"
+    When the administrator edits the field "color" on "post" with the unknown attribute "kind"
+    Then the request is refused
+
+  @wip
+  Scenario: A field made required later gates the next publish
+    Given the "text" field "color" labeled "Color" on "post"
+    And the post "Hello world"
+    When the administrator marks the field "color" on "post" required
+    And the administrator publishes "Hello world"
+    Then the request is refused

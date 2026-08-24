@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/cucumber/godog"
 )
@@ -155,6 +156,48 @@ func theAdministratorRelabelsTheField(ctx context.Context, key, typeKey, label s
 		return err
 	}
 	return w.expect(http.StatusOK)
+}
+
+// theAdministratorReordersTheFieldsOf sends a declaration order for a type's fields.
+func theAdministratorReordersTheFieldsOf(ctx context.Context, typeKey, listed string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	keys := strings.Split(listed, ", ")
+	encoded, err := json.Marshal(map[string][]string{"order": keys})
+	if err != nil {
+		return err
+	}
+	return w.putJSON(fieldsPathOf(typeKey)+"/order", string(encoded))
+}
+
+// theFieldsOfAreListedAs verifies the declaration order the list endpoint answers.
+func theFieldsOfAreListedAs(ctx context.Context, typeKey, listed string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.get(fieldsPathOf(typeKey)); err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusOK); err != nil {
+		return fmt.Errorf("listing the fields of %q: %w", typeKey, err)
+	}
+	var answered struct {
+		Items []listedField `json:"items"`
+	}
+	if err := w.answer.decode(&answered); err != nil {
+		return err
+	}
+	keys := make([]string, len(answered.Items))
+	for i, f := range answered.Items {
+		keys[i] = f.Key
+	}
+	if got := strings.Join(keys, ", "); got != listed {
+		return fmt.Errorf("the fields of %q are listed as %q, want %q", typeKey, got, listed)
+	}
+	return nil
 }
 
 // theAdministratorDeletesTheField asks the registry to forget a field and its values.
@@ -423,6 +466,8 @@ func initializeContentFields(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator deletes the type "([^"]*)"$`, theAdministratorDeletesTheType)
 	sc.When(`^the administrator relabels the field "([^"]*)" on "([^"]*)" as "([^"]*)"$`, theAdministratorRelabelsTheField)
 	sc.When(`^the administrator deletes the field "([^"]*)" on "([^"]*)"$`, theAdministratorDeletesTheField)
+	sc.When(`^the administrator reorders the fields of "([^"]*)" as "([^"]*)"$`, theAdministratorReordersTheFieldsOf)
+	sc.Then(`^the fields of "([^"]*)" are listed as "([^"]*)"$`, theFieldsOfAreListedAs)
 	sc.When(`^the administrator saves "([^"]*)" into "([^"]*)" of "([^"]*)"$`, theAdministratorSavesInto)
 	sc.When(`^the administrator clears "([^"]*)" of "([^"]*)"$`, theAdministratorClears)
 	sc.When(`^the administrator creates the post "([^"]*)"$`, theAdministratorCreatesThePost)
