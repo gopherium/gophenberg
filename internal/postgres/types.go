@@ -298,6 +298,18 @@ func (s *TypeStore) UpdateField(ctx context.Context, f content.Field) (content.F
 	return toField(row), nil
 }
 
+// ReorderFields stores the given declaration order on the type's fields.
+func (s *TypeStore) ReorderFields(ctx context.Context, typeKey string, keys []string) error {
+	err := s.queries.ReorderContentFields(ctx, db.ReorderContentFieldsParams{
+		Keys:    keys,
+		TypeKey: typeKey,
+	})
+	if err != nil {
+		return fmt.Errorf("postgres: reorder content fields: %w", err)
+	}
+	return nil
+}
+
 // DeleteField removes the definition and sweeps its values in one transaction.
 func (s *TypeStore) DeleteField(ctx context.Context, typeKey, key string) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {

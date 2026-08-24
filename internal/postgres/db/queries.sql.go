@@ -288,12 +288,14 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 
 const createContentField = `-- name: CreateContentField :one
 INSERT INTO core.content_fields (
-    type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+    type_key, key, label, kind, relates_to, many, required, position, created_at, updated_at
 )
 VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9
+    $1, $2, $3, $4, $5, $6, $7,
+    (SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields WHERE type_key = $1),
+    $8, $9
 )
-RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position
 `
 
 type CreateContentFieldParams struct {
@@ -332,6 +334,7 @@ func (q *Queries) CreateContentField(ctx context.Context, arg CreateContentField
 		&i.Required,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Position,
 	)
 	return i, err
 }
@@ -918,8 +921,8 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 }
 
 const listContentFields = `-- name: ListContentFields :many
-SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
-FROM core.content_fields ORDER BY id
+SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position
+FROM core.content_fields ORDER BY type_key, position, id
 `
 
 func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, error) {
@@ -942,6 +945,7 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 			&i.Required,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Position,
 		); err != nil {
 			return nil, err
 		}
@@ -954,8 +958,8 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 }
 
 const listContentFieldsOfType = `-- name: ListContentFieldsOfType :many
-SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
-FROM core.content_fields WHERE type_key = $1 ORDER BY id
+SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position
+FROM core.content_fields WHERE type_key = $1 ORDER BY position, id
 `
 
 func (q *Queries) ListContentFieldsOfType(ctx context.Context, typeKey string) ([]CoreContentField, error) {
@@ -978,6 +982,7 @@ func (q *Queries) ListContentFieldsOfType(ctx context.Context, typeKey string) (
 			&i.Required,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Position,
 		); err != nil {
 			return nil, err
 		}
@@ -1501,6 +1506,26 @@ func (q *Queries) RefreshRelationVisibility(ctx context.Context, id uuid.UUID) e
 	return err
 }
 
+const reorderContentFields = `-- name: ReorderContentFields :exec
+UPDATE core.content_fields
+SET position = ordered.position
+FROM (
+    SELECT key, ordinality AS position
+    FROM unnest($2::text []) WITH ORDINALITY AS asked (key, ordinality)
+) AS ordered
+WHERE core.content_fields.type_key = $1 AND core.content_fields.key = ordered.key
+`
+
+type ReorderContentFieldsParams struct {
+	TypeKey string
+	Keys    []string
+}
+
+func (q *Queries) ReorderContentFields(ctx context.Context, arg ReorderContentFieldsParams) error {
+	_, err := q.db.Exec(ctx, reorderContentFields, arg.TypeKey, arg.Keys)
+	return err
+}
+
 const restoreContent = `-- name: RestoreContent :one
 UPDATE core.content AS p
 SET status = 'draft',
@@ -1792,7 +1817,7 @@ const updateContentField = `-- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = $1, required = $2, updated_at = $3
 WHERE type_key = $4 AND key = $5
-RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at
+RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position
 `
 
 type UpdateContentFieldParams struct {
@@ -1823,6 +1848,7 @@ func (q *Queries) UpdateContentField(ctx context.Context, arg UpdateContentField
 		&i.Required,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Position,
 	)
 	return i, err
 }
