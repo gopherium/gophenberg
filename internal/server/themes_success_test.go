@@ -77,6 +77,7 @@ func TestThemeListNamesEveryInstalledThemeAndTheRollback(t *testing.T) {
 		installed: []themehost.Installed{
 			{Name: "aurora", Version: "1.0.0", Active: true, Serving: true},
 			{Name: "driftwood", Broken: "the theme kit is not served"},
+			{Name: "millpond", Version: "2.0.0", StartFailed: true},
 		},
 		previous: "driftwood",
 		offered:  true,
@@ -89,11 +90,12 @@ func TestThemeListNamesEveryInstalledThemeAndTheRollback(t *testing.T) {
 	}
 	var listed struct {
 		Themes []struct {
-			Name    string `json:"name"`
-			Version string `json:"version"`
-			Broken  string `json:"broken"`
-			Active  bool   `json:"active"`
-			Serving bool   `json:"serving"`
+			Name        string `json:"name"`
+			Version     string `json:"version"`
+			Broken      string `json:"broken"`
+			Active      bool   `json:"active"`
+			Serving     bool   `json:"serving"`
+			StartFailed bool   `json:"startFailed"`
 		} `json:"themes"`
 		Rollback *struct {
 			Theme string `json:"theme"`
@@ -102,14 +104,17 @@ func TestThemeListNamesEveryInstalledThemeAndTheRollback(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &listed); err != nil {
 		t.Fatalf("reading the listing: %v", err)
 	}
-	if len(listed.Themes) != 2 {
-		t.Fatalf("listed %d themes, want the two installed", len(listed.Themes))
+	if len(listed.Themes) != 3 {
+		t.Fatalf("listed %d themes, want the three installed", len(listed.Themes))
 	}
-	if !listed.Themes[0].Active || !listed.Themes[0].Serving {
-		t.Errorf("aurora = %+v, want it active and serving", listed.Themes[0])
+	if !listed.Themes[0].Active || !listed.Themes[0].Serving || listed.Themes[0].StartFailed {
+		t.Errorf("aurora = %+v, want it active, serving and still trying", listed.Themes[0])
 	}
 	if listed.Themes[1].Broken == "" {
 		t.Errorf("driftwood = %+v, want the reason it will not load", listed.Themes[1])
+	}
+	if !listed.Themes[2].StartFailed {
+		t.Errorf("millpond = %+v, want the theme that stopped trying marked", listed.Themes[2])
 	}
 	if listed.Rollback == nil || listed.Rollback.Theme != "driftwood" {
 		t.Errorf("rollback = %+v, want the choice before the current one", listed.Rollback)
