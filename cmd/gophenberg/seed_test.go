@@ -46,6 +46,44 @@ func TestSeedGivesTheAdminTheAdminRole(t *testing.T) {
 	}
 }
 
+func TestSeedCarriesAnAdminAcrossFromBeforeRolesExisted(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	if err := authkitpg.Migrate(t.Context(), databaseURL); err != nil {
+		t.Fatalf("migrating the auth schema: %v", err)
+	}
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("connecting pool: %v", err)
+	}
+	defer pool.Close()
+	users := authkitpg.NewUserStore(pool)
+	before, err := gouncer.NewUser(seed.AdminEmail, seed.AdminName, seed.AdminPassword)
+	if err != nil {
+		t.Fatalf("NewUser() error = %v, want nil", err)
+	}
+	if err := users.CreateUser(t.Context(), before); err != nil {
+		t.Fatalf("storing the account that predates roles: %v", err)
+	}
+
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	}
+
+	held, err := users.UserByEmail(t.Context(), seed.AdminEmail)
+	if err != nil {
+		t.Fatalf("UserByEmail() error = %v, want nil", err)
+	}
+	if held.Role != role.Admin {
+		t.Errorf("role = %q, want the roleless administrator carried across to %q", held.Role, role.Admin)
+	}
+	if held.PasswordHash != before.PasswordHash {
+		t.Error("password hash changed, want the repair to touch only the role")
+	}
+}
+
 func TestSeedStoresAnAccountUnderEveryRole(t *testing.T) {
 	t.Parallel()
 
