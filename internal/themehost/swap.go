@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-// ErrGaveUp reports a theme the supervisor stopped trying to start.
-var ErrGaveUp = errors.New("themehost: the theme did not start")
+// ErrStartFailed reports a theme the supervisor stopped trying to start.
+var ErrStartFailed = errors.New("themehost: the theme did not start")
 
-// Await blocks until the theme serves, the supervisor gives up, or ctx ends.
+// Await blocks until the theme serves, the start fails for good, or ctx ends.
 func (s *Supervisor) Await(ctx context.Context) error {
 	ticker := time.NewTicker(readyPoll)
 	defer ticker.Stop()
@@ -22,7 +22,7 @@ func (s *Supervisor) Await(ctx context.Context) error {
 		}
 		select {
 		case <-s.done:
-			return ErrGaveUp
+			return ErrStartFailed
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
@@ -48,11 +48,11 @@ func (h *Holder) Healthy() bool {
 	return h.current != nil && h.current.Healthy()
 }
 
-// GaveUp reports whether the held theme stopped trying to start.
-func (h *Holder) GaveUp() bool {
+// StartFailed reports whether the held theme stopped trying to start.
+func (h *Holder) StartFailed() bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	return h.current != nil && h.current.GaveUp()
+	return h.current != nil && h.current.StartFailed()
 }
 
 // Target returns the address the held theme serves on, empty while none does.

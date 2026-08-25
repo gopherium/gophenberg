@@ -48,11 +48,11 @@ type Supervisor struct {
 	done   chan struct{}
 	once   sync.Once
 
-	mu      sync.RWMutex
-	port    int
-	group   int
-	healthy bool
-	gaveUp  bool
+	mu          sync.RWMutex
+	port        int
+	group       int
+	healthy     bool
+	startFailed bool
 }
 
 // NewSupervisor returns a supervisor for one theme.
@@ -108,11 +108,11 @@ func (s *Supervisor) Healthy() bool {
 	return s.healthy
 }
 
-// GaveUp reports whether the supervisor stopped trying to start the theme.
-func (s *Supervisor) GaveUp() bool {
+// StartFailed reports whether the supervisor stopped retrying the theme.
+func (s *Supervisor) StartFailed() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.gaveUp
+	return s.startFailed
 }
 
 // Target returns the address the theme serves on, empty while it is down.
@@ -151,9 +151,9 @@ func (s *Supervisor) supervise(ctx context.Context) {
 		wait = min(wait*2, s.config.MaxBackoff)
 	}
 	s.mu.Lock()
-	s.gaveUp = true
+	s.startFailed = true
 	s.mu.Unlock()
-	s.config.Logger.Error("theme gave up", "theme", s.config.Theme.Name, "attempts", s.config.MaxAttempts)
+	s.config.Logger.Error("theme start failed", "theme", s.config.Theme.Name, "attempts", s.config.MaxAttempts)
 }
 
 // attempt runs the theme once and reports whether it ever served.

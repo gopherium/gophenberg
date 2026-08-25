@@ -25,8 +25,8 @@ type Installed struct {
 	Active bool
 	// Serving reports whether the public site is answered by this theme right now.
 	Serving bool
-	// GaveUp reports whether the supervisor stopped trying to start this theme.
-	GaveUp bool
+	// StartFailed reports whether the supervisor stopped trying to start this theme.
+	StartFailed bool
 }
 
 // Library is the managed themes directory the admin lists and installs into.

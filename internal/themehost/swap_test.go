@@ -34,10 +34,10 @@ func TestAwaitReportsAThemeThatGivesUp(t *testing.T) {
 	err := supervisor.Await(t.Context())
 
 	if err == nil {
-		t.Fatal("Await() = nil, want the give-up reported")
+		t.Fatal("Await() = nil, want the failed start reported")
 	}
 	if supervisor.Healthy() {
-		t.Error("want the theme unhealthy after it gave up")
+		t.Error("want the theme unhealthy after its start failed")
 	}
 }
 
@@ -64,12 +64,12 @@ func TestHolderWithoutAThemeIsNotServing(t *testing.T) {
 	if holder.Target() != "" {
 		t.Errorf("Target() = %q, want empty", holder.Target())
 	}
-	if holder.GaveUp() {
-		t.Error("want an empty holder to report nothing gave up")
+	if holder.StartFailed() {
+		t.Error("want an empty holder to report no failed start")
 	}
 }
 
-func TestHolderSaysWhenTheHeldThemeGaveUp(t *testing.T) {
+func TestHolderSaysWhenTheHeldThemeFailedItsStart(t *testing.T) {
 	t.Parallel()
 
 	supervisor, _ := startSupervisor(t, "deaf", func(c *themehost.SupervisorConfig) {
@@ -79,10 +79,10 @@ func TestHolderSaysWhenTheHeldThemeGaveUp(t *testing.T) {
 	holder := themehost.NewHolder()
 	holder.Swap(supervisor)
 
-	waitFor(t, "the held theme to give up", holder.GaveUp)
+	waitFor(t, "the held theme to fail its start", holder.StartFailed)
 
 	if holder.Healthy() {
-		t.Error("want a theme that gave up reported as not serving")
+		t.Error("want a theme whose start failed reported as not serving")
 	}
 }
 

@@ -205,7 +205,7 @@ func TestActivateReportsAThemeThatNeverAnswersItsProbe(t *testing.T) {
 	}
 }
 
-func TestListSaysTheStoredThemeGaveUpRatherThanStillStarting(t *testing.T) {
+func TestListSaysTheStoredThemeStartFailedRatherThanStillStarting(t *testing.T) {
 	t.Parallel()
 
 	themesDir := t.TempDir()
@@ -228,7 +228,7 @@ func TestListSaysTheStoredThemeGaveUpRatherThanStillStarting(t *testing.T) {
 	if err := manager.Boot(t.Context()); err != nil {
 		t.Fatalf("Boot() = %v, want the server up while the stored theme struggles", err)
 	}
-	waitFor(t, "the stored theme to give up", manager.Holder().GaveUp)
+	waitFor(t, "the stored theme to fail its start", manager.Holder().StartFailed)
 
 	listed, err := manager.List(t.Context())
 
@@ -238,11 +238,11 @@ func TestListSaysTheStoredThemeGaveUpRatherThanStillStarting(t *testing.T) {
 	if len(listed) != 1 || listed[0].Name != "aurora" {
 		t.Fatalf("List() = %+v, want aurora alone", listed)
 	}
-	if !listed[0].GaveUp {
-		t.Error("GaveUp = false, want the theme that stopped trying marked")
+	if !listed[0].StartFailed {
+		t.Error("StartFailed = false, want the theme that stopped trying marked")
 	}
 	if listed[0].Serving {
-		t.Error("Serving = true, want a theme that gave up not marked serving")
+		t.Error("Serving = true, want a theme whose start failed not marked serving")
 	}
 }
 

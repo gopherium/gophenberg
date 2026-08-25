@@ -79,7 +79,7 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 		return nil, err
 	}
 	answering, healthy := m.holder.Serving()
-	if !mark(installed, active, answering, healthy, m.holder.GaveUp()) && active != "" {
+	if !mark(installed, active, answering, healthy, m.holder.StartFailed()) && active != "" {
 		installed = append(installed, Installed{
 			Name:   active,
 			Broken: "the theme is not installed",
@@ -90,12 +90,12 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 }
 
 // mark labels each theme with the operator's choice and the one answering, reporting the choice found.
-func mark(installed []Installed, active, answering string, healthy, gaveUp bool) bool {
+func mark(installed []Installed, active, answering string, healthy, startFailed bool) bool {
 	found := false
 	for i := range installed {
 		installed[i].Active = installed[i].Name == active
 		installed[i].Serving = healthy && installed[i].Name == answering
-		installed[i].GaveUp = gaveUp && installed[i].Name == answering
+		installed[i].StartFailed = startFailed && installed[i].Name == answering
 		found = found || installed[i].Active
 	}
 	return found

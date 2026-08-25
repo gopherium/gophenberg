@@ -178,8 +178,8 @@ func TestSupervisorBacksOffThenGivesUpOnATheseThatNeverBoots(t *testing.T) {
 
 	supervisor, logs := startSupervisor(t, "crash", nil)
 
-	waitFor(t, "the supervisor to give up", func() bool {
-		return strings.Contains(logs.String(), "theme gave up")
+	waitFor(t, "the supervisor to stop retrying", func() bool {
+		return strings.Contains(logs.String(), "theme start failed")
 	})
 	if supervisor.Healthy() {
 		t.Error("Healthy() = true, want false for a theme that never boots")
@@ -244,15 +244,15 @@ func TestSupervisorGivesUpOnAThemeThatBootsButNeverReportsReady(t *testing.T) {
 		config.ReadyTimeout = 150 * time.Millisecond
 	})
 
-	waitFor(t, "the supervisor to give up on a theme that never answers", func() bool {
-		return strings.Contains(logs.String(), "theme gave up")
+	waitFor(t, "the supervisor to stop retrying a theme that never answers", func() bool {
+		return strings.Contains(logs.String(), "theme start failed")
 	})
 	if supervisor.Healthy() {
 		t.Error("Healthy() = true, want false for a theme that never answered its probe")
 	}
 }
 
-func TestTheSupervisorSaysWhenItHasGivenUp(t *testing.T) {
+func TestTheSupervisorSaysWhenItsStartFailed(t *testing.T) {
 	t.Parallel()
 
 	supervisor, _ := startSupervisor(t, "deaf", func(config *themehost.SupervisorConfig) {
@@ -260,13 +260,13 @@ func TestTheSupervisorSaysWhenItHasGivenUp(t *testing.T) {
 		config.MaxAttempts = 1
 	})
 
-	if supervisor.GaveUp() {
-		t.Error("GaveUp() = true, want false while the supervisor is still trying")
+	if supervisor.StartFailed() {
+		t.Error("StartFailed() = true, want false while the supervisor is still trying")
 	}
-	waitFor(t, "the supervisor to record that it gave up", supervisor.GaveUp)
+	waitFor(t, "the supervisor to record the failed start", supervisor.StartFailed)
 }
 
-func TestAStoppedSupervisorHasNotGivenUp(t *testing.T) {
+func TestAStoppedSupervisorHasNotFailedItsStart(t *testing.T) {
 	t.Parallel()
 
 	supervisor, _ := startSupervisor(t, "healthy", nil)
@@ -276,8 +276,8 @@ func TestAStoppedSupervisorHasNotGivenUp(t *testing.T) {
 
 	supervisor.Stop()
 
-	if supervisor.GaveUp() {
-		t.Error("GaveUp() = true, want a deliberate stop kept apart from giving up")
+	if supervisor.StartFailed() {
+		t.Error("StartFailed() = true, want a deliberate stop kept apart from a failed start")
 	}
 }
 
