@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
-import { orphaned, untranslated } from '@gopherium/gottext/build'
+import { orphaned, unreviewed, untranslated } from '@gopherium/gottext/build'
 
 import { repositoryRoot } from '../../scripts/config.ts'
 
@@ -28,6 +28,25 @@ test.each(catalogues())('leaves no more of the template unanswered in %s than is
 	expect(untranslated(source, template).length).toBeLessThanOrEqual(PENDING)
 })
 
+
+test.each(catalogues())('says how much of %s still waits for review', (locale, source) => {
+	const waiting = unreviewed(source)
+
+	console.log(`${locale}: ${waiting.length} answers awaiting review`)
+	expect(Array.isArray(waiting)).toBe(true)
+})
+
+test('names an answer still carrying the fuzzy flag', () => {
+	const held = `msgid ""\nmsgstr ""\n"Language: es-ES\\n"\n\n#, fuzzy\nmsgid "Machine"\nmsgstr "Maquina"\n`
+
+	expect(unreviewed(held)).toEqual(['Machine'])
+})
+
+test('names no answer waiting for review in a settled catalogue', () => {
+	const held = `msgid ""\nmsgstr ""\n"Language: es-ES\\n"\n\nmsgid "Settled"\nmsgstr "Asentado"\n`
+
+	expect(unreviewed(held)).toEqual([])
+})
 
 test.each(catalogues())('carries nothing in %s that the template does not name', (_locale, source) => {
 	const template = readFileSync(join(repositoryRoot(), 'languages', 'gophenberg.pot'), 'utf8')

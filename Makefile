@@ -1,5 +1,5 @@
 .PHONY: peers dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down pot catalogs translations \
-	translations-retire \
+	translations-push translations-retire \
 	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump bump-kit \
 	brick-link brick-sync brick-pack brick-unlink
 
@@ -74,6 +74,9 @@ pot:
 
 translations:
 	node --env-file-if-exists=.env frontend/scripts/sync-translations.ts
+
+translations-push:
+	node --env-file-if-exists=.env frontend/scripts/push-translations.ts
 
 translations-retire:
 	node --env-file-if-exists=.env frontend/scripts/retire-translations.ts
