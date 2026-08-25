@@ -64,6 +64,26 @@ func TestHolderWithoutAThemeIsNotServing(t *testing.T) {
 	if holder.Target() != "" {
 		t.Errorf("Target() = %q, want empty", holder.Target())
 	}
+	if holder.GaveUp() {
+		t.Error("want an empty holder to report nothing gave up")
+	}
+}
+
+func TestHolderSaysWhenTheHeldThemeGaveUp(t *testing.T) {
+	t.Parallel()
+
+	supervisor, _ := startSupervisor(t, "deaf", func(c *themehost.SupervisorConfig) {
+		c.ReadyTimeout = 150 * time.Millisecond
+		c.MaxAttempts = 1
+	})
+	holder := themehost.NewHolder()
+	holder.Swap(supervisor)
+
+	waitFor(t, "the held theme to give up", holder.GaveUp)
+
+	if holder.Healthy() {
+		t.Error("want a theme that gave up reported as not serving")
+	}
 }
 
 func TestHolderReportsTheThemeItHolds(t *testing.T) {

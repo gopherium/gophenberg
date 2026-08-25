@@ -48,6 +48,13 @@ func (h *Holder) Healthy() bool {
 	return h.current != nil && h.current.Healthy()
 }
 
+// GaveUp reports whether the held theme stopped trying to start.
+func (h *Holder) GaveUp() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.current != nil && h.current.GaveUp()
+}
+
 // Target returns the address the held theme serves on, empty while none does.
 func (h *Holder) Target() string {
 	h.mu.RLock()

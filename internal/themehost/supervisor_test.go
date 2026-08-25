@@ -252,6 +252,35 @@ func TestSupervisorGivesUpOnAThemeThatBootsButNeverReportsReady(t *testing.T) {
 	}
 }
 
+func TestTheSupervisorSaysWhenItHasGivenUp(t *testing.T) {
+	t.Parallel()
+
+	supervisor, _ := startSupervisor(t, "deaf", func(config *themehost.SupervisorConfig) {
+		config.ReadyTimeout = 150 * time.Millisecond
+		config.MaxAttempts = 1
+	})
+
+	if supervisor.GaveUp() {
+		t.Error("GaveUp() = true, want false while the supervisor is still trying")
+	}
+	waitFor(t, "the supervisor to record that it gave up", supervisor.GaveUp)
+}
+
+func TestAStoppedSupervisorHasNotGivenUp(t *testing.T) {
+	t.Parallel()
+
+	supervisor, _ := startSupervisor(t, "healthy", nil)
+	if err := supervisor.Await(t.Context()); err != nil {
+		t.Fatalf("Await() = %v, want the theme serving before it is stopped", err)
+	}
+
+	supervisor.Stop()
+
+	if supervisor.GaveUp() {
+		t.Error("GaveUp() = true, want a deliberate stop kept apart from giving up")
+	}
+}
+
 func TestNewSupervisorFillsInTheTimingsAThemeIsRunUnder(t *testing.T) {
 	t.Parallel()
 

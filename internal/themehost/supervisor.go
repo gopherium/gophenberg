@@ -52,6 +52,7 @@ type Supervisor struct {
 	port    int
 	group   int
 	healthy bool
+	gaveUp  bool
 }
 
 // NewSupervisor returns a supervisor for one theme.
@@ -107,6 +108,13 @@ func (s *Supervisor) Healthy() bool {
 	return s.healthy
 }
 
+// GaveUp reports whether the supervisor stopped trying to start the theme.
+func (s *Supervisor) GaveUp() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.gaveUp
+}
+
 // Target returns the address the theme serves on, empty while it is down.
 func (s *Supervisor) Target() string {
 	s.mu.RLock()
@@ -142,6 +150,9 @@ func (s *Supervisor) supervise(ctx context.Context) {
 		}
 		wait = min(wait*2, s.config.MaxBackoff)
 	}
+	s.mu.Lock()
+	s.gaveUp = true
+	s.mu.Unlock()
 	s.config.Logger.Error("theme gave up", "theme", s.config.Theme.Name, "attempts", s.config.MaxAttempts)
 }
 
