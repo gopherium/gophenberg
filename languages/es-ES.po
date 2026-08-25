@@ -912,8 +912,13 @@ msgstr "%(file)s es más grande de lo que una subida permite."
 msgid "%(file)s is not a file this block accepts."
 msgstr "%(file)s no es un archivo que este bloque acepte."
 
-msgid "%(theme)s is not answering, so the built-in renderer is serving."
-msgstr "%(theme)s no responde, así que el renderizador ha tomado el relevo."
+#, fuzzy
+msgid "%(theme)s failed to start, so the built-in renderer is serving."
+msgstr "%(theme)s no pudo arrancar, así que el renderizador ha tomado el relevo."
+
+#, fuzzy
+msgid "%(theme)s is still starting, so the built-in renderer is serving."
+msgstr "%(theme)s todavía está arrancando, así que el renderizador ha tomado el relevo."
 
 msgid "%(theme)s is now serving the public site."
 msgstr "%(theme)s ya sirve el sitio público."

@@ -1208,8 +1208,12 @@ msgid "%(file)s is not a file this block accepts."
 msgstr "%(file)s n'est pas un fichier que ce bloc accepte."
 
 #, fuzzy
-msgid "%(theme)s is not answering, so the built-in renderer is serving."
-msgstr "%(theme)s ne répond pas, le moteur de rendu intégré sert donc le site."
+msgid "%(theme)s failed to start, so the built-in renderer is serving."
+msgstr "%(theme)s n'a pas pu démarrer, le moteur de rendu intégré sert donc le site."
+
+#, fuzzy
+msgid "%(theme)s is still starting, so the built-in renderer is serving."
+msgstr "%(theme)s démarre encore, le moteur de rendu intégré sert donc le site."
 
 #, fuzzy
 msgid "%(theme)s is now serving the public site."
