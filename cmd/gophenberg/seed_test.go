@@ -64,6 +64,9 @@ func TestSeedCarriesAnAdminAcrossFromBeforeRolesExisted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewUser() error = %v, want nil", err)
 	}
+	if before.Role != "" {
+		t.Fatalf("Role = %q, want an account holding none before the seed runs", before.Role)
+	}
 	if err := users.CreateUser(t.Context(), before); err != nil {
 		t.Fatalf("storing the account that predates roles: %v", err)
 	}
