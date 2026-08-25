@@ -46,16 +46,16 @@ when you want it fixed by deployment, and check the site after.
   its port, and the API address. Never the database.
 - Gophenberg waits up to 30 seconds for it to report ready, and
   restarts it with growing pauses if it exits. After five starts
-  that never served, it logs `theme gave up` and stops trying.
+  that never served, it logs `theme start failed` and stops trying.
 - `/api`, `/admin`, `/media`, `/gophenberg`, and `/_gophenberg`
   never reach a theme.
 
 In the logs, `mode=theme` at startup means a theme is configured,
 not yet that it serves. `theme ready` means it serves.
-`theme gave up` means the renderer is serving. `theme exited` also
-appears for the theme you just replaced. The Themes screen says the
-same thing without the logs: it marks the theme answering the site
-as serving, and a chosen theme that is not answering as not serving.
+`theme start failed` means the renderer is serving. `theme exited`
+also appears for the theme you just replaced. The Themes screen says
+the same thing without the logs: it says whether the chosen theme is
+serving, still starting, or failed to start.
 
 ## Where to go next
 
