@@ -41,16 +41,16 @@ func (q *Queries) AddRelation(ctx context.Context, arg AddRelationParams) error 
 
 const clearContentFieldValues = `-- name: ClearContentFieldValues :exec
 UPDATE core.content SET fields = fields - $1::text
-WHERE type = $2 AND fields ? $1::text
+WHERE type = ANY($2::text []) AND fields ? $1::text
 `
 
 type ClearContentFieldValuesParams struct {
-	Key  string
-	Type string
+	Key   string
+	Types []string
 }
 
 func (q *Queries) ClearContentFieldValues(ctx context.Context, arg ClearContentFieldValuesParams) error {
-	_, err := q.db.Exec(ctx, clearContentFieldValues, arg.Key, arg.Type)
+	_, err := q.db.Exec(ctx, clearContentFieldValues, arg.Key, arg.Types)
 	return err
 }
 
@@ -72,16 +72,16 @@ const clearRevisionFieldValues = `-- name: ClearRevisionFieldValues :exec
 UPDATE core.content_revisions r
 SET fields = r.fields - $1::text
 FROM core.content c
-WHERE r.content_id = c.id AND c.type = $2 AND r.fields ? $1::text
+WHERE r.content_id = c.id AND c.type = ANY($2::text []) AND r.fields ? $1::text
 `
 
 type ClearRevisionFieldValuesParams struct {
-	Key  string
-	Type string
+	Key   string
+	Types []string
 }
 
 func (q *Queries) ClearRevisionFieldValues(ctx context.Context, arg ClearRevisionFieldValuesParams) error {
-	_, err := q.db.Exec(ctx, clearRevisionFieldValues, arg.Key, arg.Type)
+	_, err := q.db.Exec(ctx, clearRevisionFieldValues, arg.Key, arg.Types)
 	return err
 }
 
@@ -288,18 +288,18 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 
 const createContentField = `-- name: CreateContentField :one
 INSERT INTO core.content_fields (
-    type_key, key, label, kind, relates_to, many, required, position, created_at, updated_at
+    group_id, key, label, kind, relates_to, many, required, position, created_at, updated_at
 )
 VALUES (
     $1, $2, $3, $4, $5, $6, $7,
-    (SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields WHERE type_key = $1),
+    (SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields WHERE group_id = $1),
     $8, $9
 )
-RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id
 `
 
 type CreateContentFieldParams struct {
-	TypeKey   string
+	GroupID   int32
 	Key       string
 	Label     string
 	Kind      string
@@ -312,7 +312,7 @@ type CreateContentFieldParams struct {
 
 func (q *Queries) CreateContentField(ctx context.Context, arg CreateContentFieldParams) (CoreContentField, error) {
 	row := q.db.QueryRow(ctx, createContentField,
-		arg.TypeKey,
+		arg.GroupID,
 		arg.Key,
 		arg.Label,
 		arg.Kind,
@@ -325,7 +325,6 @@ func (q *Queries) CreateContentField(ctx context.Context, arg CreateContentField
 	var i CoreContentField
 	err := row.Scan(
 		&i.ID,
-		&i.TypeKey,
 		&i.Key,
 		&i.Label,
 		&i.Kind,
@@ -335,6 +334,7 @@ func (q *Queries) CreateContentField(ctx context.Context, arg CreateContentField
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Position,
+		&i.GroupID,
 	)
 	return i, err
 }
@@ -393,6 +393,43 @@ func (q *Queries) CreateContentType(ctx context.Context, arg CreateContentTypePa
 		&i.RevisionCap,
 		&i.PageKind,
 		&i.IsDefault,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createFieldGroup = `-- name: CreateFieldGroup :one
+INSERT INTO core.field_groups (title, location, position, created_at, updated_at)
+VALUES (
+    $1, $2,
+    (SELECT COALESCE(MAX(position), 0) + 1 FROM core.field_groups),
+    $3, $4
+)
+RETURNING id, title, location, position, active, created_at, updated_at
+`
+
+type CreateFieldGroupParams struct {
+	Title     string
+	Location  []byte
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (q *Queries) CreateFieldGroup(ctx context.Context, arg CreateFieldGroupParams) (CoreFieldGroup, error) {
+	row := q.db.QueryRow(ctx, createFieldGroup,
+		arg.Title,
+		arg.Location,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i CoreFieldGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Location,
+		&i.Position,
 		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -532,16 +569,16 @@ func (q *Queries) DeleteContent(ctx context.Context, id uuid.UUID) (int64, error
 }
 
 const deleteContentField = `-- name: DeleteContentField :execrows
-DELETE FROM core.content_fields WHERE type_key = $1 AND key = $2
+DELETE FROM core.content_fields WHERE group_id = $1 AND key = $2
 `
 
 type DeleteContentFieldParams struct {
-	TypeKey string
+	GroupID int32
 	Key     string
 }
 
 func (q *Queries) DeleteContentField(ctx context.Context, arg DeleteContentFieldParams) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteContentField, arg.TypeKey, arg.Key)
+	result, err := q.db.Exec(ctx, deleteContentField, arg.GroupID, arg.Key)
 	if err != nil {
 		return 0, err
 	}
@@ -554,6 +591,18 @@ DELETE FROM core.content_types AS t WHERE t.key = $1
 
 func (q *Queries) DeleteContentType(ctx context.Context, key string) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteContentType, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteFieldGroup = `-- name: DeleteFieldGroup :execrows
+DELETE FROM core.field_groups WHERE id = $1
+`
+
+func (q *Queries) DeleteFieldGroup(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteFieldGroup, id)
 	if err != nil {
 		return 0, err
 	}
@@ -830,6 +879,27 @@ func (q *Queries) GetUserSetting(ctx context.Context, arg GetUserSettingParams) 
 	return value, err
 }
 
+const groupByLocation = `-- name: GroupByLocation :one
+SELECT id, title, location, position, active, created_at, updated_at
+FROM core.field_groups WHERE location = $1
+ORDER BY position, id LIMIT 1
+`
+
+func (q *Queries) GroupByLocation(ctx context.Context, location []byte) (CoreFieldGroup, error) {
+	row := q.db.QueryRow(ctx, groupByLocation, location)
+	var i CoreFieldGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Location,
+		&i.Position,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listContent = `-- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
@@ -921,8 +991,8 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 }
 
 const listContentFields = `-- name: ListContentFields :many
-SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position
-FROM core.content_fields ORDER BY type_key, position, id
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id
+FROM core.content_fields ORDER BY group_id, position, id
 `
 
 func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, error) {
@@ -936,7 +1006,6 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 		var i CoreContentField
 		if err := rows.Scan(
 			&i.ID,
-			&i.TypeKey,
 			&i.Key,
 			&i.Label,
 			&i.Kind,
@@ -946,6 +1015,7 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Position,
+			&i.GroupID,
 		); err != nil {
 			return nil, err
 		}
@@ -957,13 +1027,13 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 	return items, nil
 }
 
-const listContentFieldsOfType = `-- name: ListContentFieldsOfType :many
-SELECT id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position
-FROM core.content_fields WHERE type_key = $1 ORDER BY position, id
+const listContentFieldsOfGroup = `-- name: ListContentFieldsOfGroup :many
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id
+FROM core.content_fields WHERE group_id = $1 ORDER BY position, id
 `
 
-func (q *Queries) ListContentFieldsOfType(ctx context.Context, typeKey string) ([]CoreContentField, error) {
-	rows, err := q.db.Query(ctx, listContentFieldsOfType, typeKey)
+func (q *Queries) ListContentFieldsOfGroup(ctx context.Context, groupID int32) ([]CoreContentField, error) {
+	rows, err := q.db.Query(ctx, listContentFieldsOfGroup, groupID)
 	if err != nil {
 		return nil, err
 	}
@@ -973,7 +1043,6 @@ func (q *Queries) ListContentFieldsOfType(ctx context.Context, typeKey string) (
 		var i CoreContentField
 		if err := rows.Scan(
 			&i.ID,
-			&i.TypeKey,
 			&i.Key,
 			&i.Label,
 			&i.Kind,
@@ -983,6 +1052,7 @@ func (q *Queries) ListContentFieldsOfType(ctx context.Context, typeKey string) (
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Position,
+			&i.GroupID,
 		); err != nil {
 			return nil, err
 		}
@@ -1020,6 +1090,39 @@ func (q *Queries) ListContentTypes(ctx context.Context) ([]CoreContentType, erro
 			&i.RevisionCap,
 			&i.PageKind,
 			&i.IsDefault,
+			&i.Active,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFieldGroups = `-- name: ListFieldGroups :many
+SELECT id, title, location, position, active, created_at, updated_at
+FROM core.field_groups ORDER BY position, id
+`
+
+func (q *Queries) ListFieldGroups(ctx context.Context) ([]CoreFieldGroup, error) {
+	rows, err := q.db.Query(ctx, listFieldGroups)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CoreFieldGroup
+	for rows.Next() {
+		var i CoreFieldGroup
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Location,
+			&i.Position,
 			&i.Active,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -1177,28 +1280,28 @@ func (q *Queries) ListRelatedContent(ctx context.Context, arg ListRelatedContent
 	return items, nil
 }
 
-const listRelationFieldsOfType = `-- name: ListRelationFieldsOfType :many
+const listRelationFieldsOfGroups = `-- name: ListRelationFieldsOfGroups :many
 SELECT id, key, relates_to, many FROM core.content_fields
-WHERE type_key = $1 AND kind = 'relation'
+WHERE group_id = ANY($1::integer []) AND kind = 'relation'
 ORDER BY id
 `
 
-type ListRelationFieldsOfTypeRow struct {
+type ListRelationFieldsOfGroupsRow struct {
 	ID        int32
 	Key       string
 	RelatesTo *string
 	Many      bool
 }
 
-func (q *Queries) ListRelationFieldsOfType(ctx context.Context, typeKey string) ([]ListRelationFieldsOfTypeRow, error) {
-	rows, err := q.db.Query(ctx, listRelationFieldsOfType, typeKey)
+func (q *Queries) ListRelationFieldsOfGroups(ctx context.Context, ids []int32) ([]ListRelationFieldsOfGroupsRow, error) {
+	rows, err := q.db.Query(ctx, listRelationFieldsOfGroups, ids)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListRelationFieldsOfTypeRow
+	var items []ListRelationFieldsOfGroupsRow
 	for rows.Next() {
-		var i ListRelationFieldsOfTypeRow
+		var i ListRelationFieldsOfGroupsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Key,
@@ -1421,13 +1524,13 @@ func (q *Queries) LockDefaultContentType(ctx context.Context) (CoreContentType, 
 	return i, err
 }
 
-const lockFieldKeysOfType = `-- name: LockFieldKeysOfType :many
-SELECT key FROM core.content_fields WHERE type_key = $1 ORDER BY key
+const lockFieldKeysOfGroups = `-- name: LockFieldKeysOfGroups :many
+SELECT key FROM core.content_fields WHERE group_id = ANY($1::integer []) ORDER BY key
 FOR KEY SHARE
 `
 
-func (q *Queries) LockFieldKeysOfType(ctx context.Context, typeKey string) ([]string, error) {
-	rows, err := q.db.Query(ctx, lockFieldKeysOfType, typeKey)
+func (q *Queries) LockFieldKeysOfGroups(ctx context.Context, ids []int32) ([]string, error) {
+	rows, err := q.db.Query(ctx, lockFieldKeysOfGroups, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -1513,16 +1616,31 @@ FROM (
     SELECT key, ordinality AS position
     FROM unnest($2::text []) WITH ORDINALITY AS asked (key, ordinality)
 ) AS ordered
-WHERE core.content_fields.type_key = $1 AND core.content_fields.key = ordered.key
+WHERE core.content_fields.group_id = $1 AND core.content_fields.key = ordered.key
 `
 
 type ReorderContentFieldsParams struct {
-	TypeKey string
+	GroupID int32
 	Keys    []string
 }
 
 func (q *Queries) ReorderContentFields(ctx context.Context, arg ReorderContentFieldsParams) error {
-	_, err := q.db.Exec(ctx, reorderContentFields, arg.TypeKey, arg.Keys)
+	_, err := q.db.Exec(ctx, reorderContentFields, arg.GroupID, arg.Keys)
+	return err
+}
+
+const reorderFieldGroups = `-- name: ReorderFieldGroups :exec
+UPDATE core.field_groups
+SET position = ordered.position
+FROM (
+    SELECT id, ordinality AS position
+    FROM unnest($1::integer []) WITH ORDINALITY AS asked (id, ordinality)
+) AS ordered
+WHERE core.field_groups.id = ordered.id
+`
+
+func (q *Queries) ReorderFieldGroups(ctx context.Context, ids []int32) error {
+	_, err := q.db.Exec(ctx, reorderFieldGroups, ids)
 	return err
 }
 
@@ -1724,6 +1842,30 @@ func (q *Queries) TrashContent(ctx context.Context, arg TrashContentParams) (Cor
 	return i, err
 }
 
+const typeKeys = `-- name: TypeKeys :many
+SELECT key FROM core.content_types ORDER BY created_at, key
+`
+
+func (q *Queries) TypeKeys(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, typeKeys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		items = append(items, key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const typesOfContent = `-- name: TypesOfContent :many
 SELECT id, type FROM core.content WHERE id = ANY($1::uuid[])
 `
@@ -1816,15 +1958,15 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (C
 const updateContentField = `-- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = $1, required = $2, updated_at = $3
-WHERE type_key = $4 AND key = $5
-RETURNING id, type_key, key, label, kind, relates_to, many, required, created_at, updated_at, position
+WHERE group_id = $4 AND key = $5
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id
 `
 
 type UpdateContentFieldParams struct {
 	Label     string
 	Required  bool
 	UpdatedAt time.Time
-	TypeKey   string
+	GroupID   int32
 	Key       string
 }
 
@@ -1833,13 +1975,12 @@ func (q *Queries) UpdateContentField(ctx context.Context, arg UpdateContentField
 		arg.Label,
 		arg.Required,
 		arg.UpdatedAt,
-		arg.TypeKey,
+		arg.GroupID,
 		arg.Key,
 	)
 	var i CoreContentField
 	err := row.Scan(
 		&i.ID,
-		&i.TypeKey,
 		&i.Key,
 		&i.Label,
 		&i.Kind,
@@ -1849,6 +1990,7 @@ func (q *Queries) UpdateContentField(ctx context.Context, arg UpdateContentField
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Position,
+		&i.GroupID,
 	)
 	return i, err
 }
@@ -1902,6 +2044,42 @@ func (q *Queries) UpdateContentType(ctx context.Context, arg UpdateContentTypePa
 		&i.RevisionCap,
 		&i.PageKind,
 		&i.IsDefault,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateFieldGroup = `-- name: UpdateFieldGroup :one
+UPDATE core.field_groups
+SET title = $1, location = $2, active = $3, updated_at = $4
+WHERE id = $5
+RETURNING id, title, location, position, active, created_at, updated_at
+`
+
+type UpdateFieldGroupParams struct {
+	Title     string
+	Location  []byte
+	Active    bool
+	UpdatedAt time.Time
+	ID        int32
+}
+
+func (q *Queries) UpdateFieldGroup(ctx context.Context, arg UpdateFieldGroupParams) (CoreFieldGroup, error) {
+	row := q.db.QueryRow(ctx, updateFieldGroup,
+		arg.Title,
+		arg.Location,
+		arg.Active,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	var i CoreFieldGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Location,
+		&i.Position,
 		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,

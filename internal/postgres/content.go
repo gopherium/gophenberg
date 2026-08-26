@@ -314,7 +314,11 @@ func writeContent(ctx context.Context, queries *db.Queries, p db.UpdateContentPa
 
 // valuesDeclared refuses a value whose field the type no longer declares.
 func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content) error {
-	keys, err := queries.LockFieldKeysOfType(ctx, c.Type)
+	ids, err := matchingGroupIDs(ctx, queries, c.Type)
+	if err != nil {
+		return err
+	}
+	keys, err := queries.LockFieldKeysOfGroups(ctx, ids)
 	if err != nil {
 		return err
 	}

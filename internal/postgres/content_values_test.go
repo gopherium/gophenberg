@@ -83,7 +83,7 @@ func TestContentStoreWaitsForAFieldDeletionInFlight(t *testing.T) {
 	}
 	defer func() { _ = removing.Rollback(context.Background()) }()
 	if _, err := removing.Exec(
-		t.Context(), `DELETE FROM core.content_fields WHERE type_key = 'post' AND key = 'color'`,
+		t.Context(), `DELETE FROM core.content_fields WHERE key = 'color'`,
 	); err != nil {
 		t.Fatalf("removing the definition: %v, want nil", err)
 	}
@@ -119,7 +119,7 @@ func TestTypeStoreDeleteFieldWaitsForAContentWriteHoldingTheDefinition(t *testin
 	}
 	defer func() { _ = held.Rollback(context.Background()) }()
 	if _, err := held.Exec(
-		t.Context(), `SELECT key FROM core.content_fields WHERE type_key = 'post' FOR KEY SHARE`,
+		t.Context(), `SELECT key FROM core.content_fields FOR KEY SHARE`,
 	); err != nil {
 		t.Fatalf("holding the field definitions: %v, want nil", err)
 	}

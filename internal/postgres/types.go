@@ -33,8 +33,11 @@ const restrictViolationCode = "23001"
 // foreignKeyViolationCode is what Postgres reports when a reference points at no row.
 const foreignKeyViolationCode = "23503"
 
-// fieldKeyConstraint names the unique index over one type's field keys.
-const fieldKeyConstraint = "content_fields_key_unique"
+// fieldKeyConstraint names the unique index over one group's field keys.
+const fieldKeyConstraint = "content_fields_group_key_unique"
+
+// fieldGroupConstraint names the reference a field keeps to its group.
+const fieldGroupConstraint = "content_fields_group_fkey"
 
 // fieldTargetConstraint names the reference a relation field keeps to its target type.
 const fieldTargetConstraint = "content_fields_relates_to_fkey"
@@ -50,29 +53,25 @@ func NewTypeStore(pool *pgxpool.Pool) *TypeStore {
 	return &TypeStore{queries: db.New(pool), pool: pool}
 }
 
-// List returns every registered type in registration order with its fields attached.
+// List returns every registered type in registration order with its flattened fields attached.
 func (s *TypeStore) List(ctx context.Context) ([]content.Type, error) {
 	rows, err := s.queries.ListContentTypes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: list content types: %w", err)
 	}
-	declared, err := s.queries.ListContentFields(ctx)
+	groups, err := groupsWithFields(ctx, s.queries)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: list content fields: %w", err)
-	}
-	held := make(map[string][]content.Field, len(rows))
-	for _, row := range declared {
-		held[row.TypeKey] = append(held[row.TypeKey], toField(row))
+		return nil, err
 	}
 	types := make([]content.Type, len(rows))
 	for i, row := range rows {
 		types[i] = toType(row)
-		types[i].Fields = held[row.Key]
+		types[i].Fields = flattenedFields(groups, row.Key)
 	}
 	return types, nil
 }
 
-// ByKey returns the type carrying the key with its fields, or [content.ErrTypeNotFound].
+// ByKey returns the type carrying the key with its flattened fields, or [content.ErrTypeNotFound].
 func (s *TypeStore) ByKey(ctx context.Context, key string) (content.Type, error) {
 	row, err := s.queries.GetContentType(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -81,14 +80,12 @@ func (s *TypeStore) ByKey(ctx context.Context, key string) (content.Type, error)
 	if err != nil {
 		return content.Type{}, fmt.Errorf("postgres: get content type: %w", err)
 	}
-	declared, err := s.queries.ListContentFieldsOfType(ctx, key)
+	groups, err := groupsWithFields(ctx, s.queries)
 	if err != nil {
-		return content.Type{}, fmt.Errorf("postgres: list content fields: %w", err)
+		return content.Type{}, err
 	}
 	t := toType(row)
-	for _, f := range declared {
-		t.Fields = append(t.Fields, toField(f))
-	}
+	t.Fields = flattenedFields(groups, key)
 	return t, nil
 }
 
@@ -261,48 +258,83 @@ func isTypeInUse(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == restrictViolationCode
 }
 
-// CreateField declares the field on its type, or reports why the schema refused it.
+// CreateField declares the field on its type's group, raising the group when none matches.
 func (s *TypeStore) CreateField(ctx context.Context, f content.Field) (content.Field, error) {
-	row, err := s.queries.CreateContentField(ctx, db.CreateContentFieldParams{
-		TypeKey:   f.TypeKey,
-		Key:       f.Key,
-		Label:     f.Label,
-		Kind:      string(f.Kind),
-		RelatesTo: targetOf(f),
-		Many:      f.Many,
-		Required:  f.Required,
-		CreatedAt: f.CreatedAt,
-		UpdatedAt: f.UpdatedAt,
+	var created content.Field
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		target, err := groupForWrite(ctx, queries, f.TypeKey)
+		if err != nil {
+			return err
+		}
+		row, err := queries.CreateContentField(ctx, db.CreateContentFieldParams{
+			GroupID:   int32(target.ID),
+			Key:       f.Key,
+			Label:     f.Label,
+			Kind:      string(f.Kind),
+			RelatesTo: targetOf(f),
+			Many:      f.Many,
+			Required:  f.Required,
+			CreatedAt: f.CreatedAt,
+			UpdatedAt: f.UpdatedAt,
+		})
+		if err != nil {
+			return err
+		}
+		created = toField(row)
+		created.TypeKey = f.TypeKey
+		return nil
 	})
 	if err != nil {
 		return content.Field{}, fieldWriteFailure(err)
 	}
-	return toField(row), nil
+	return created, nil
 }
 
 // UpdateField stores the field's label and required flag, or reports it missing.
 func (s *TypeStore) UpdateField(ctx context.Context, f content.Field) (content.Field, error) {
-	row, err := s.queries.UpdateContentField(ctx, db.UpdateContentFieldParams{
-		Label:     f.Label,
-		Required:  f.Required,
-		UpdatedAt: f.UpdatedAt,
-		TypeKey:   f.TypeKey,
-		Key:       f.Key,
+	var updated content.Field
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		owner, err := ownerOf(ctx, queries, f.TypeKey, f.Key)
+		if err != nil {
+			return err
+		}
+		row, err := queries.UpdateContentField(ctx, db.UpdateContentFieldParams{
+			Label:     f.Label,
+			Required:  f.Required,
+			UpdatedAt: f.UpdatedAt,
+			GroupID:   int32(owner.ID),
+			Key:       f.Key,
+		})
+		if err != nil {
+			return err
+		}
+		updated = toField(row)
+		updated.TypeKey = f.TypeKey
+		return nil
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, pgx.ErrNoRows) {
 		return content.Field{}, content.ErrFieldNotFound
 	}
 	if err != nil {
 		return content.Field{}, fmt.Errorf("postgres: update content field: %w", err)
 	}
-	return toField(row), nil
+	return updated, nil
 }
 
-// ReorderFields stores the given declaration order on the type's fields.
+// ReorderFields stores the given declaration order on the type's group.
 func (s *TypeStore) ReorderFields(ctx context.Context, typeKey string, keys []string) error {
-	err := s.queries.ReorderContentFields(ctx, db.ReorderContentFieldsParams{
-		Keys:    keys,
-		TypeKey: typeKey,
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		target, found, err := groupForType(ctx, queries, typeKey)
+		if err != nil || !found {
+			return err
+		}
+		return queries.ReorderContentFields(ctx, db.ReorderContentFieldsParams{
+			Keys:    keys,
+			GroupID: int32(target.ID),
+		})
 	})
 	if err != nil {
 		return fmt.Errorf("postgres: reorder content fields: %w", err)
@@ -310,23 +342,19 @@ func (s *TypeStore) ReorderFields(ctx context.Context, typeKey string, keys []st
 	return nil
 }
 
-// DeleteField removes the definition and sweeps its values in one transaction.
+// DeleteField removes the definition and sweeps its values from the types its group matches.
 func (s *TypeStore) DeleteField(ctx context.Context, typeKey, key string) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		removed, err := queries.DeleteContentField(ctx, db.DeleteContentFieldParams{TypeKey: typeKey, Key: key})
+		owner, err := ownerOf(ctx, queries, typeKey, key)
 		if err != nil {
 			return err
 		}
-		if removed == 0 {
-			return content.ErrFieldNotFound
-		}
-		if err := queries.ClearContentFieldValues(ctx, db.ClearContentFieldValuesParams{
-			Key: key, Type: typeKey,
-		}); err != nil {
+		matched, err := typesMatchedBy(ctx, queries, owner)
+		if err != nil {
 			return err
 		}
-		return queries.ClearRevisionFieldValues(ctx, db.ClearRevisionFieldValuesParams{Key: key, Type: typeKey})
+		return deleteFieldRow(ctx, queries, owner.ID, key, matched)
 	})
 	if errors.Is(err, content.ErrFieldNotFound) {
 		return err
@@ -347,9 +375,12 @@ func fieldWriteFailure(err error) error {
 		if pgErr.Code == foreignKeyViolationCode && pgErr.ConstraintName == fieldTargetConstraint {
 			return content.ErrTargetUnknown
 		}
-		if pgErr.Code == foreignKeyViolationCode {
-			return content.ErrTypeNotFound
+		if pgErr.Code == foreignKeyViolationCode && pgErr.ConstraintName == fieldGroupConstraint {
+			return content.ErrGroupNotFound
 		}
+	}
+	if errors.Is(err, content.ErrTypeNotFound) || errors.Is(err, content.ErrGroupNotFound) {
+		return err
 	}
 	return fmt.Errorf("postgres: create content field: %w", err)
 }
@@ -366,7 +397,7 @@ func targetOf(f content.Field) *string {
 func toField(row db.CoreContentField) content.Field {
 	f := content.Field{
 		ID:        int(row.ID),
-		TypeKey:   row.TypeKey,
+		GroupID:   int(row.GroupID),
 		Key:       row.Key,
 		Label:     row.Label,
 		Kind:      content.FieldKind(row.Kind),

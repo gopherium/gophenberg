@@ -8,14 +8,34 @@ import (
 	"time"
 )
 
-// insertField stores a field definition row with the given shape.
+// ensureGroup returns the id of the group naming the type, storing one when none does.
+func ensureGroup(db *sql.DB, typeKey string) (int64, error) {
+	location := `[[{"source": "content_type", "operator": "==", "value": "` + typeKey + `"}]]`
+	var id int64
+	err := db.QueryRow(`SELECT id FROM core.field_groups WHERE location = $1`, location).Scan(&id)
+	if err == nil {
+		return id, nil
+	}
+	err = db.QueryRow(
+		`INSERT INTO core.field_groups (title, location, created_at, updated_at)
+		VALUES ($1, $2, now(), now()) RETURNING id`,
+		typeKey+" fields", location,
+	).Scan(&id)
+	return id, err
+}
+
+// insertField stores a field definition row with the given shape under the type's group.
 func insertField(db *sql.DB, typeKey, key, kind string, relatesTo *string, many bool) error {
+	groupID, err := ensureGroup(db, typeKey)
+	if err != nil {
+		return err
+	}
 	now := time.Now().UTC()
-	_, err := db.Exec(
+	_, err = db.Exec(
 		`INSERT INTO core.content_fields
-		(type_key, key, label, kind, relates_to, many, required, created_at, updated_at)
+		(group_id, key, label, kind, relates_to, many, required, created_at, updated_at)
 		VALUES ($1, $2, 'A Field', $3, $4, $5, false, $6, $6)`,
-		typeKey, key, kind, relatesTo, many, now,
+		groupID, key, kind, relatesTo, many, now,
 	)
 	return err
 }
@@ -84,29 +104,22 @@ func TestFieldMigrationsKeepManyForRelations(t *testing.T) {
 	}
 }
 
-func TestFieldMigrationsFollowTheirType(t *testing.T) {
+func TestFieldMigrationsKeepAGroupHoldingFields(t *testing.T) {
 	t.Parallel()
 
 	db := newTestDB(t)
-	if err := insertType(db, "car", "cars", false); err != nil {
-		t.Fatalf("inserting the type: %v, want nil", err)
-	}
 	if err := insertField(db, "car", "color", "text", nil, false); err != nil {
 		t.Fatalf("inserting the field: %v, want nil", err)
 	}
-
-	if _, err := db.Exec(`DELETE FROM core.content_types WHERE key = 'car'`); err != nil {
-		t.Fatalf("deleting the empty type: %v, want the cascade to carry its fields", err)
+	groupID, err := ensureGroup(db, "car")
+	if err != nil {
+		t.Fatalf("finding the group: %v, want nil", err)
 	}
 
-	var remaining int
-	if err := db.QueryRow(
-		`SELECT count(*) FROM core.content_fields WHERE type_key = 'car'`,
-	).Scan(&remaining); err != nil {
-		t.Fatalf("counting the fields: %v, want nil", err)
-	}
-	if remaining != 0 {
-		t.Errorf("the deleted type keeps %d fields, want them gone with it", remaining)
+	_, err = db.Exec(`DELETE FROM core.field_groups WHERE id = $1`, groupID)
+
+	if code := pgErrorCode(err); code != restrictViolation {
+		t.Fatalf("deleting a holding group: %v with code %q, want %q", err, code, restrictViolation)
 	}
 }
 

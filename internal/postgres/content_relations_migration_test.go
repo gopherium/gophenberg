@@ -44,7 +44,7 @@ func relatableContent(t *testing.T, db *sql.DB) (uuid.UUID, uuid.UUID, int) {
 		t.Fatalf("reading the target: %v, want nil", err)
 	}
 	if err := db.QueryRow(
-		`SELECT id FROM core.content_fields WHERE type_key = 'post' AND key = 'related'`,
+		`SELECT id FROM core.content_fields WHERE key = 'related'`,
 	).Scan(&fieldID); err != nil {
 		t.Fatalf("reading the field: %v, want nil", err)
 	}
