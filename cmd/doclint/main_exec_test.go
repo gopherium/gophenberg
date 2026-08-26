@@ -12,6 +12,7 @@ import (
 	"testing"
 )
 
+// coverBinary returns the path of the doclint cover binary and the environment to run it with.
 func coverBinary(t *testing.T) (string, []string) {
 	t.Helper()
 	bindir := os.Getenv("GOPHENBERG_COVER_BINDIR")
@@ -28,6 +29,7 @@ func coverBinary(t *testing.T) (string, []string) {
 	return filepath.Join(bindir, "doclint"), append(env, "GOCOVERDIR="+gocoverdir)
 }
 
+// writeFixture stores source as the named file under dir.
 func writeFixture(t *testing.T, dir, name, source string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), []byte(source), 0o644); err != nil {

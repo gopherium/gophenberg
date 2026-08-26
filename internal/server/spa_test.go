@@ -11,6 +11,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
+// spaServer returns a server serving a small in-memory web bundle.
 func spaServer(t *testing.T) http.Handler {
 	t.Helper()
 	return server.NewServer(server.Config{

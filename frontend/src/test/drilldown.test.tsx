@@ -16,6 +16,10 @@ import { expect, test } from 'vitest'
 import { Layout } from '../Layout'
 import { versionQueryKey } from '../version'
 
+/**
+ * Renders the layout over a home route and a section route carrying a sidebar.
+ * @param path - The path to start at.
+ */
 function renderSectionAt(path: string) {
 	const rootRoute = createRootRoute({ component: Layout })
 	const homeRoute = createRoute({
