@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { act, render, screen } from '@testing-library/react'
-import { useState } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
@@ -10,19 +9,16 @@ beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 
 /**
- * Renders a probe exposing both the live and the debounced value.
- * @returns A setter driving the live value.
+ * Renders a probe reporting the debounced value of the one it is given.
+ * @returns A function handing the probe its next live value.
  */
 function renderProbe(): (next: string) => void {
-	let setLive: (next: string) => void = () => {}
-	function Probe() {
-		const [live, setValue] = useState('')
-		setLive = setValue
+	function Probe({ live }: { live: string }) {
 		const settled = useDebouncedValue(live, 300)
 		return <output>{settled}</output>
 	}
-	render(<Probe />)
-	return (next) => act(() => setLive(next))
+	const { rerender } = render(<Probe live="" />)
+	return (next) => act(() => rerender(<Probe live={next} />))
 }
 
 test('reports the value it started with', () => {

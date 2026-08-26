@@ -24,7 +24,9 @@ export function useAutosave(
 	},
 ): void {
 	const latest = useRef(buffer)
-	latest.current = buffer
+	useEffect(() => {
+		latest.current = buffer
+	})
 	useEffect(() => {
 		/**
 		 * Parks the buffer when it holds unsaved words and no write is in flight.
