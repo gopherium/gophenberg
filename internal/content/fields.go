@@ -51,9 +51,10 @@ const (
 	FieldKindRelation FieldKind = "relation"
 )
 
-// Field describes one typed field a content type declares.
+// Field describes one typed field a group declares, flattened onto the types its group matches.
 type Field struct {
 	ID        int
+	GroupID   int
 	TypeKey   string
 	Key       string
 	Label     string
