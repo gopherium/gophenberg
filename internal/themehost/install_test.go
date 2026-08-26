@@ -5,6 +5,7 @@ package themehost_test
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -222,6 +223,117 @@ func TestInstallRefusesAnArchiveCarryingMoreFilesThanTheCap(t *testing.T) {
 	}
 	if refused.Reason != "the archive holds too many files" {
 		t.Errorf("Reason = %q, want the file count refused", refused.Reason)
+	}
+}
+
+func TestInstallRefusesADeclaredEntryFloodBeforeReadingTheDirectory(t *testing.T) {
+	t.Parallel()
+
+	blob := bytes.Repeat([]byte{0xAA}, 4096)
+	record := make([]byte, 22)
+	binary.LittleEndian.PutUint32(record[0:], 0x06054b50)
+	binary.LittleEndian.PutUint16(record[8:], 60000)
+	binary.LittleEndian.PutUint16(record[10:], 60000)
+	binary.LittleEndian.PutUint32(record[12:], 4096)
+
+	_, err := install(t, append(blob, record...))
+
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Install() = %v, want the declared flood refused", err)
+	}
+	if refused.Code != "archive_too_many_entries" {
+		t.Errorf("Code = %q, want the count refused before the directory is ever read", refused.Code)
+	}
+}
+
+func TestInstallStillCountsTheEntriesWhenTheClosingRecordWrapsAround(t *testing.T) {
+	t.Parallel()
+
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	for i := range 65536 + 2 {
+		header := &zip.FileHeader{Name: fmt.Sprintf("client/%d", i), Method: zip.Store}
+		if _, err := writer.CreateHeader(header); err != nil {
+			t.Fatalf("adding entry %d: %v", i, err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("closing the archive: %v", err)
+	}
+	archive := buffer.Bytes()
+	at := bytes.LastIndex(archive, binary.LittleEndian.AppendUint32(nil, 0x06054b50))
+	binary.LittleEndian.PutUint16(archive[at+8:], 3)
+	binary.LittleEndian.PutUint16(archive[at+10:], 3)
+
+	_, err := install(t, archive)
+
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Install() = %v, want the parsed count refused despite the wrapped record", err)
+	}
+	if refused.Code != "archive_too_many_entries" {
+		t.Errorf("Code = %q, want archive_too_many_entries", refused.Code)
+	}
+}
+
+func TestInstallFindsTheClosingRecordBehindTrailingJunk(t *testing.T) {
+	t.Parallel()
+
+	blob := bytes.Repeat([]byte{0xAA}, 4096)
+	record := make([]byte, 22)
+	binary.LittleEndian.PutUint32(record[0:], 0x06054b50)
+	binary.LittleEndian.PutUint16(record[8:], 60000)
+	binary.LittleEndian.PutUint16(record[10:], 60000)
+	decoy := make([]byte, 22)
+	binary.LittleEndian.PutUint32(decoy[0:], 0x06054b50)
+	binary.LittleEndian.PutUint16(decoy[20:], 65535)
+	blob = append(append(blob, record...), decoy...)
+
+	_, err := install(t, blob)
+
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Install() = %v, want the declared flood refused past the decoy", err)
+	}
+	if refused.Code != "archive_too_many_entries" {
+		t.Errorf("Code = %q, want the record behind the junk read rather than the decoy", refused.Code)
+	}
+}
+
+func TestInstallReportsALongBlobHoldingNoClosingRecord(t *testing.T) {
+	t.Parallel()
+
+	_, err := install(t, bytes.Repeat([]byte{0xAA}, 4096))
+
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Install() = %v, want the recordless blob refused", err)
+	}
+	if refused.Code != "archive_unreadable" {
+		t.Errorf("Code = %q, want archive_unreadable", refused.Code)
+	}
+}
+
+// unreadableArchive is a reader that fails every read.
+type unreadableArchive struct{}
+
+// ReadAt fails as a broken upload would.
+func (unreadableArchive) ReadAt([]byte, int64) (int, error) {
+	return 0, errors.New("the upload is broken")
+}
+
+func TestInstallReportsAnArchiveItCannotReadTheTailOf(t *testing.T) {
+	t.Parallel()
+
+	_, err := themehost.Install(t.TempDir(), "aurora", unreadableArchive{}, 4096)
+
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Install() = %v, want the unreadable archive refused", err)
+	}
+	if refused.Code != "archive_unreadable" {
+		t.Errorf("Code = %q, want archive_unreadable", refused.Code)
 	}
 }
 
