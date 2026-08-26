@@ -12,7 +12,10 @@ import (
 // ErrStartFailed reports a theme the supervisor stopped trying to start.
 var ErrStartFailed = errors.New("themehost: the theme did not start")
 
-// Await blocks until the theme serves, the start fails for good, or ctx ends.
+// ErrStopped reports a theme the supervisor was told to stop.
+var ErrStopped = errors.New("themehost: the theme was stopped")
+
+// Await blocks until the theme serves, its start fails, it is stopped, or ctx ends.
 func (s *Supervisor) Await(ctx context.Context) error {
 	ticker := time.NewTicker(readyPoll)
 	defer ticker.Stop()
@@ -22,7 +25,10 @@ func (s *Supervisor) Await(ctx context.Context) error {
 		}
 		select {
 		case <-s.done:
-			return ErrStartFailed
+			if s.StartFailed() {
+				return ErrStartFailed
+			}
+			return ErrStopped
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:

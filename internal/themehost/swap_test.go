@@ -4,6 +4,7 @@ package themehost_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func TestAwaitReturnsOnceTheThemeServes(t *testing.T) {
 	}
 }
 
-func TestAwaitReportsAThemeThatGivesUp(t *testing.T) {
+func TestAwaitReportsAThemeWhoseStartFailed(t *testing.T) {
 	t.Parallel()
 
 	supervisor, _ := startSupervisor(t, "crash", func(c *themehost.SupervisorConfig) {
@@ -38,6 +39,26 @@ func TestAwaitReportsAThemeThatGivesUp(t *testing.T) {
 	}
 	if supervisor.Healthy() {
 		t.Error("want the theme unhealthy after its start failed")
+	}
+}
+
+func TestAwaitTellsADeliberateStopFromAFailedStart(t *testing.T) {
+	t.Parallel()
+
+	supervisor, _ := startSupervisor(t, "deaf", func(c *themehost.SupervisorConfig) {
+		c.ReadyTimeout = 10 * time.Second
+	})
+	awaited := make(chan error, 1)
+	go func() { awaited <- supervisor.Await(context.Background()) }()
+
+	supervisor.Stop()
+
+	err := <-awaited
+	if errors.Is(err, themehost.ErrStartFailed) {
+		t.Fatalf("Await() = %v, want a stopped theme not reported as a failed start", err)
+	}
+	if !errors.Is(err, themehost.ErrStopped) {
+		t.Errorf("Await() = %v, want the stop reported as itself", err)
 	}
 }
 
