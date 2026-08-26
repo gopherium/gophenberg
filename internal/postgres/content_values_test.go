@@ -23,6 +23,45 @@ func declareField(t *testing.T, pool *pgxpool.Pool, key string, kind content.Fie
 	}
 }
 
+func TestContentStoreFreezesTheValuesOfAGroupThatStoppedMatching(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	declareField(t, pool, "color", content.FieldKindText)
+	types := postgres.NewTypeStore(pool)
+	created := mustCreate(t, store, "Hello world", author)
+	created.Fields = content.Values{"color": "red"}
+	created.UpdatedAt = time.Now().UTC()
+	stored, err := store.Update(t.Context(), created, created.CreatedAt, nil, 0)
+	if err != nil {
+		t.Fatalf("storing the value: %v, want nil", err)
+	}
+	groups, err := types.ListGroups(t.Context())
+	if err != nil || len(groups) != 1 {
+		t.Fatalf("ListGroups() = %v, %v, want the one raised group", groups, err)
+	}
+	resting := groups[0]
+	resting.Active = false
+	if _, err := types.UpdateGroup(t.Context(), resting); err != nil {
+		t.Fatalf("resting the group: %v, want nil", err)
+	}
+
+	was := stored.UpdatedAt
+	stored.Title = "Renamed while the group rests"
+	stored.UpdatedAt = time.Now().UTC()
+	settled, err := store.Update(t.Context(), stored, was, nil, 0)
+
+	if err != nil {
+		t.Fatalf("Update() error = %v, want the item still editable while its group rests", err)
+	}
+	if settled.Title != "Renamed while the group rests" {
+		t.Errorf("Title = %q, want the edit stored", settled.Title)
+	}
+	if held := storedFields(t, pool, settled.Slug); held != `{"color": "red"}` {
+		t.Errorf("fields = %s, want the resting group's value frozen rather than swept", held)
+	}
+}
+
 func TestContentStoreCarriesFieldValues(t *testing.T) {
 	t.Parallel()
 

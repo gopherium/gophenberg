@@ -1496,6 +1496,31 @@ func (q *Queries) LockContentType(ctx context.Context, key string) (CoreContentT
 	return i, err
 }
 
+const lockDeclaredFieldKeys = `-- name: LockDeclaredFieldKeys :many
+SELECT key FROM core.content_fields ORDER BY key
+FOR KEY SHARE
+`
+
+func (q *Queries) LockDeclaredFieldKeys(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, lockDeclaredFieldKeys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		items = append(items, key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockDefaultContentType = `-- name: LockDefaultContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
     t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
@@ -1522,31 +1547,6 @@ func (q *Queries) LockDefaultContentType(ctx context.Context) (CoreContentType, 
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const lockFieldKeysOfGroups = `-- name: LockFieldKeysOfGroups :many
-SELECT key FROM core.content_fields WHERE group_id = ANY($1::integer []) ORDER BY key
-FOR KEY SHARE
-`
-
-func (q *Queries) LockFieldKeysOfGroups(ctx context.Context, ids []int32) ([]string, error) {
-	rows, err := q.db.Query(ctx, lockFieldKeysOfGroups, ids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []string
-	for rows.Next() {
-		var key string
-		if err := rows.Scan(&key); err != nil {
-			return nil, err
-		}
-		items = append(items, key)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const moveDescendants = `-- name: MoveDescendants :exec

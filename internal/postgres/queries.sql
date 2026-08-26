@@ -422,8 +422,8 @@ RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_
 -- name: DeleteContentField :execrows
 DELETE FROM core.content_fields WHERE group_id = @group_id AND key = @key;
 
--- name: LockFieldKeysOfGroups :many
-SELECT key FROM core.content_fields WHERE group_id = ANY(@ids::integer []) ORDER BY key
+-- name: LockDeclaredFieldKeys :many
+SELECT key FROM core.content_fields ORDER BY key
 FOR KEY SHARE;
 
 -- name: ClearContentFieldValues :exec

@@ -315,19 +315,15 @@ func writeContent(ctx context.Context, queries *db.Queries, p db.UpdateContentPa
 
 // declaredValues returns the groups matching the item's type once every held value is declared.
 func declaredValues(ctx context.Context, queries *db.Queries, c content.Content) ([]int32, error) {
-	matching, err := matchingGroupIDs(ctx, queries, c.Type)
-	if err != nil {
+	if err := valuesDeclared(ctx, queries, c); err != nil {
 		return nil, err
 	}
-	if err := valuesDeclared(ctx, queries, matching, c); err != nil {
-		return nil, err
-	}
-	return matching, nil
+	return matchingGroupIDs(ctx, queries, c.Type)
 }
 
-// valuesDeclared refuses a value whose field no group matching the type declares.
-func valuesDeclared(ctx context.Context, queries *db.Queries, matching []int32, c content.Content) error {
-	keys, err := queries.LockFieldKeysOfGroups(ctx, matching)
+// valuesDeclared refuses a value whose field no group declares at all.
+func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content) error {
+	keys, err := queries.LockDeclaredFieldKeys(ctx)
 	if err != nil {
 		return err
 	}
