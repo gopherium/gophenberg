@@ -34,7 +34,7 @@ test('stands the editor up as a column filling the screen', async () => {
 	const editor = document.querySelector('.gophenberg-editor') as HTMLElement
 
 	expect(getComputedStyle(editor).flexDirection).toBe('column')
-	expect(getComputedStyle(editor).height).toBe('100vh')
+	expect(getComputedStyle(editor).height).toBe(`${window.innerHeight}px`)
 })
 
 test('holds the header to one row under a rule', async () => {
