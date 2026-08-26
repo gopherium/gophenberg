@@ -47,11 +47,12 @@ type rollbackView struct {
 
 // themeView is one installed theme as the admin sees it.
 type themeView struct {
-	Name    string `json:"name"`
-	Version string `json:"version,omitempty"`
-	Broken  string `json:"broken,omitempty"`
-	Active  bool   `json:"active"`
-	Serving bool   `json:"serving"`
+	Name        string `json:"name"`
+	Version     string `json:"version,omitempty"`
+	Broken      string `json:"broken,omitempty"`
+	Active      bool   `json:"active"`
+	Serving     bool   `json:"serving"`
+	StartFailed bool   `json:"startFailed"`
 }
 
 // handleThemeList returns the handler listing the installed themes.
@@ -74,11 +75,12 @@ func (s *server) handleThemeList() http.HandlerFunc {
 		views := make([]themeView, 0, len(installed))
 		for _, theme := range installed {
 			views = append(views, themeView{
-				Name:    theme.Name,
-				Version: theme.Version,
-				Broken:  theme.Broken,
-				Active:  theme.Active,
-				Serving: theme.Serving,
+				Name:        theme.Name,
+				Version:     theme.Version,
+				Broken:      theme.Broken,
+				Active:      theme.Active,
+				Serving:     theme.Serving,
+				StartFailed: theme.StartFailed,
 			})
 		}
 		listed := map[string]any{"themes": views}

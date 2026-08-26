@@ -39,6 +39,8 @@ type ManagerConfig struct {
 type Manager struct {
 	cfg      ManagerConfig
 	holder   *Holder
+	lifetime context.Context
+	end      context.CancelFunc
 	mu       sync.Mutex
 	retiring sync.WaitGroup
 }
@@ -48,7 +50,8 @@ func NewManager(cfg ManagerConfig) *Manager {
 	if cfg.Supervision.Logger == nil {
 		cfg.Supervision.Logger = slog.New(slog.DiscardHandler)
 	}
-	return &Manager{cfg: cfg, holder: NewHolder()}
+	lifetime, end := context.WithCancel(context.Background())
+	return &Manager{cfg: cfg, holder: NewHolder(), lifetime: lifetime, end: end}
 }
 
 // Holder returns the theme the public site is served through.
@@ -56,6 +59,7 @@ func (m *Manager) Holder() *Holder { return m.holder }
 
 // Close stops the theme the manager is serving through and every theme it retired.
 func (m *Manager) Close() {
+	m.end()
 	m.mu.Lock()
 	if previous := m.holder.Swap(nil); previous != nil {
 		previous.Stop()
@@ -75,7 +79,7 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 		return nil, err
 	}
 	answering, healthy := m.holder.Serving()
-	if !mark(installed, active, answering, healthy) && active != "" {
+	if !mark(installed, active, answering, healthy, m.holder.StartFailed()) && active != "" {
 		installed = append(installed, Installed{
 			Name:   active,
 			Broken: "the theme is not installed",
@@ -86,11 +90,12 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 }
 
 // mark labels each theme with the operator's choice and the one answering, reporting the choice found.
-func mark(installed []Installed, active, answering string, healthy bool) bool {
+func mark(installed []Installed, active, answering string, healthy, startFailed bool) bool {
 	found := false
 	for i := range installed {
 		installed[i].Active = installed[i].Name == active
 		installed[i].Serving = healthy && installed[i].Name == answering
+		installed[i].StartFailed = startFailed && installed[i].Name == answering
 		found = found || installed[i].Active
 	}
 	return found
@@ -222,6 +227,9 @@ func (m *Manager) start(ctx context.Context, name string) (*Supervisor, error) {
 	if loaded == nil {
 		return nil, nil
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	defer context.AfterFunc(m.lifetime, cancel)()
 	supervisor := m.supervise(loaded)
 	if err := supervisor.Await(ctx); err != nil {
 		m.retire(supervisor)

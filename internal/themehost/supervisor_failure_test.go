@@ -51,15 +51,15 @@ func startWithoutNodeBin(
 	return supervisor, logs
 }
 
-func TestSupervisorGivesUpWhenTheThemeProcessNeverStarts(t *testing.T) {
+func TestSupervisorFailsTheStartWhenTheThemeProcessNeverStarts(t *testing.T) {
 	t.Parallel()
 
 	absentNodeBin := missingNodeBin(t)
 
 	supervisor, logs := startWithoutNodeBin(t, absentNodeBin, nil)
 
-	waitFor(t, "the supervisor to give up on a theme it cannot start", func() bool {
-		return strings.Contains(logs.String(), "theme gave up")
+	waitFor(t, "the supervisor to stop retrying a theme it cannot start", func() bool {
+		return strings.Contains(logs.String(), "theme start failed")
 	})
 	if supervisor.Healthy() {
 		t.Error("Healthy() = true, want false for a theme that never started")
@@ -114,8 +114,8 @@ func TestSupervisorStopsWhileItIsWaitingToRetry(t *testing.T) {
 	if got := strings.Count(logs.String(), "theme exited"); got != 1 {
 		t.Errorf("exit lines = %d, want one because the retry was still being waited for", got)
 	}
-	if strings.Contains(logs.String(), "theme gave up") {
-		t.Errorf("logs = %q, want no giving up line because the wait was cut short", logs.String())
+	if strings.Contains(logs.String(), "theme start failed") {
+		t.Errorf("logs = %q, want no failed start line because the wait was cut short", logs.String())
 	}
 	if supervisor.Healthy() {
 		t.Error("Healthy() = true after Stop(), want false")

@@ -61,7 +61,12 @@ function fallbackReason(active: Theme): string {
 	if (active.serving) {
 		return ''
 	}
-	return sprintf(__('%(theme)s is not answering, so the built-in renderer is serving.', 'gophenberg'), {
+	if (active.startFailed) {
+		return sprintf(__('%(theme)s failed to start, so the built-in renderer is serving.', 'gophenberg'), {
+			theme: active.name,
+		})
+	}
+	return sprintf(__('%(theme)s is still starting, so the built-in renderer is serving.', 'gophenberg'), {
 		theme: active.name,
 	})
 }

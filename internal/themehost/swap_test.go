@@ -4,6 +4,7 @@ package themehost_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func TestAwaitReturnsOnceTheThemeServes(t *testing.T) {
 	}
 }
 
-func TestAwaitReportsAThemeThatGivesUp(t *testing.T) {
+func TestAwaitReportsAThemeWhoseStartFailed(t *testing.T) {
 	t.Parallel()
 
 	supervisor, _ := startSupervisor(t, "crash", func(c *themehost.SupervisorConfig) {
@@ -34,10 +35,30 @@ func TestAwaitReportsAThemeThatGivesUp(t *testing.T) {
 	err := supervisor.Await(t.Context())
 
 	if err == nil {
-		t.Fatal("Await() = nil, want the give-up reported")
+		t.Fatal("Await() = nil, want the failed start reported")
 	}
 	if supervisor.Healthy() {
-		t.Error("want the theme unhealthy after it gave up")
+		t.Error("want the theme unhealthy after its start failed")
+	}
+}
+
+func TestAwaitTellsADeliberateStopFromAFailedStart(t *testing.T) {
+	t.Parallel()
+
+	supervisor, _ := startSupervisor(t, "deaf", func(c *themehost.SupervisorConfig) {
+		c.ReadyTimeout = 10 * time.Second
+	})
+	awaited := make(chan error, 1)
+	go func() { awaited <- supervisor.Await(context.Background()) }()
+
+	supervisor.Stop()
+
+	err := <-awaited
+	if errors.Is(err, themehost.ErrStartFailed) {
+		t.Fatalf("Await() = %v, want a stopped theme not reported as a failed start", err)
+	}
+	if !errors.Is(err, themehost.ErrStopped) {
+		t.Errorf("Await() = %v, want the stop reported as itself", err)
 	}
 }
 
@@ -63,6 +84,26 @@ func TestHolderWithoutAThemeIsNotServing(t *testing.T) {
 	}
 	if holder.Target() != "" {
 		t.Errorf("Target() = %q, want empty", holder.Target())
+	}
+	if holder.StartFailed() {
+		t.Error("want an empty holder to report no failed start")
+	}
+}
+
+func TestHolderSaysWhenTheHeldThemeFailedItsStart(t *testing.T) {
+	t.Parallel()
+
+	supervisor, _ := startSupervisor(t, "deaf", func(c *themehost.SupervisorConfig) {
+		c.ReadyTimeout = 150 * time.Millisecond
+		c.MaxAttempts = 1
+	})
+	holder := themehost.NewHolder()
+	holder.Swap(supervisor)
+
+	waitFor(t, "the held theme to fail its start", holder.StartFailed)
+
+	if holder.Healthy() {
+		t.Error("want a theme whose start failed reported as not serving")
 	}
 }
 

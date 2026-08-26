@@ -56,9 +56,6 @@ func TestLoadReadsAValidThemeDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v, want nil", err)
 	}
-	if theme == nil {
-		t.Fatal("Load() theme = nil, want a theme")
-	}
 	for _, field := range []struct {
 		name string
 		got  string
@@ -73,6 +70,28 @@ func TestLoadReadsAValidThemeDirectory(t *testing.T) {
 		if field.got != field.want {
 			t.Errorf("%s = %q, want %q", field.name, field.got, field.want)
 		}
+	}
+}
+
+func TestLoadChargesNoDirectoriesAgainstTheSizeCap(t *testing.T) {
+	t.Parallel()
+
+	themesDir := writeTheme(t)
+	dir := filepath.Join(themesDir, "starter")
+	grow(t, filepath.Join(dir, "client", "huge.bin"), themehost.MaxSize-2048)
+	for _, nested := range []string{"fonts", "images", "styles"} {
+		if err := os.MkdirAll(filepath.Join(dir, "client", nested), 0o755); err != nil {
+			t.Fatalf("making %s: %v", nested, err)
+		}
+	}
+
+	theme, err := themehost.Load(themesDir, "starter")
+
+	if err != nil {
+		t.Fatalf("Load() error = %v, want a theme whose files fit kept loadable however many directories it holds", err)
+	}
+	if theme.Name != "starter" {
+		t.Errorf("Name = %q, want the theme loaded however many directories it holds", theme.Name)
 	}
 }
 

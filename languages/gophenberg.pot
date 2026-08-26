@@ -42,13 +42,16 @@ msgstr ""
 msgid "%(name)s moves to /%(word)s. Every address of both types changes."
 msgstr ""
 
-msgid "%(theme)s is not answering, so the built-in renderer is serving."
+msgid "%(theme)s failed to start, so the built-in renderer is serving."
 msgstr ""
 
 msgid "%(theme)s is now serving the public site."
 msgstr ""
 
 msgid "%(theme)s is serving the public site."
+msgstr ""
+
+msgid "%(theme)s is still starting, so the built-in renderer is serving."
 msgstr ""
 
 msgid "%(theme)s was installed."

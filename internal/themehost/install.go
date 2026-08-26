@@ -4,6 +4,7 @@ package themehost
 
 import (
 	"archive/zip"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -41,6 +42,11 @@ func Install(themesDir, name string, archive io.ReaderAt, size int64) (*Theme, e
 
 // openArchive returns the entries an archive carries, refusing one carrying more than the cap.
 func openArchive(archive io.ReaderAt, size int64) (*zip.Reader, error) {
+	if declared, found := declaredEntries(archive, size); found && declared > MaxEntries {
+		return nil, refuseHolding("archive_too_many_entries", "the archive holds too many files",
+			map[string]any{"entries": declared, "max": MaxEntries},
+			"themehost: the archive declares %d entries, more than the %d cap", declared, MaxEntries)
+	}
 	reader, err := zip.NewReader(archive, size)
 	if err != nil {
 		return nil, refuse("archive_unreadable", "the archive could not be read", "themehost: reading the archive: %w", err)
@@ -51,6 +57,37 @@ func openArchive(archive io.ReaderAt, size int64) (*zip.Reader, error) {
 			"themehost: the archive holds %d entries, more than the %d cap", len(reader.File), MaxEntries)
 	}
 	return reader, nil
+}
+
+// eocdSignature marks the closing record a zip archive ends with.
+const eocdSignature = 0x06054b50
+
+// eocdLen is the fixed length of a zip archive's closing record.
+const eocdLen = 22
+
+// maxComment is the longest trailing comment a zip archive's closing record may carry.
+const maxComment = 65535
+
+// declaredEntries returns the entry count the archive's closing record declares, when one is found.
+func declaredEntries(archive io.ReaderAt, size int64) (int, bool) {
+	window := min(size, eocdLen+maxComment)
+	if window < eocdLen {
+		return 0, false
+	}
+	tail := make([]byte, window)
+	if _, err := archive.ReadAt(tail, size-window); err != nil {
+		return 0, false
+	}
+	for at := len(tail) - eocdLen; at >= 0; at-- {
+		if binary.LittleEndian.Uint32(tail[at:]) != eocdSignature {
+			continue
+		}
+		if comment := int(binary.LittleEndian.Uint16(tail[at+20:])); at+eocdLen+comment > len(tail) {
+			continue
+		}
+		return int(binary.LittleEndian.Uint16(tail[at+10:])), true
+	}
+	return 0, false
 }
 
 // unpack writes every archive entry under dir, refusing an archive that unpacks past the cap.

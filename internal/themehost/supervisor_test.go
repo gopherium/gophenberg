@@ -173,13 +173,13 @@ func TestSupervisorWaitsForASlowBoot(t *testing.T) {
 	waitFor(t, "the slow theme to report ready", supervisor.Healthy)
 }
 
-func TestSupervisorBacksOffThenGivesUpOnATheseThatNeverBoots(t *testing.T) {
+func TestSupervisorBacksOffThenFailsTheStartOfAThemeThatNeverBoots(t *testing.T) {
 	t.Parallel()
 
 	supervisor, logs := startSupervisor(t, "crash", nil)
 
-	waitFor(t, "the supervisor to give up", func() bool {
-		return strings.Contains(logs.String(), "theme gave up")
+	waitFor(t, "the supervisor to stop retrying", func() bool {
+		return strings.Contains(logs.String(), "theme start failed")
 	})
 	if supervisor.Healthy() {
 		t.Error("Healthy() = true, want false for a theme that never boots")
@@ -237,18 +237,47 @@ func TestSupervisorRestartsAThemeThatDiesAfterServing(t *testing.T) {
 	})
 }
 
-func TestSupervisorGivesUpOnAThemeThatBootsButNeverReportsReady(t *testing.T) {
+func TestSupervisorFailsTheStartOfAThemeThatBootsButNeverReportsReady(t *testing.T) {
 	t.Parallel()
 
 	supervisor, logs := startSupervisor(t, "deaf", func(config *themehost.SupervisorConfig) {
 		config.ReadyTimeout = 150 * time.Millisecond
 	})
 
-	waitFor(t, "the supervisor to give up on a theme that never answers", func() bool {
-		return strings.Contains(logs.String(), "theme gave up")
+	waitFor(t, "the supervisor to stop retrying a theme that never answers", func() bool {
+		return strings.Contains(logs.String(), "theme start failed")
 	})
 	if supervisor.Healthy() {
 		t.Error("Healthy() = true, want false for a theme that never answered its probe")
+	}
+}
+
+func TestTheSupervisorSaysWhenItsStartFailed(t *testing.T) {
+	t.Parallel()
+
+	supervisor, _ := startSupervisor(t, "deaf", func(config *themehost.SupervisorConfig) {
+		config.ReadyTimeout = 150 * time.Millisecond
+		config.MaxAttempts = 1
+	})
+
+	if supervisor.StartFailed() {
+		t.Error("StartFailed() = true, want false while the supervisor is still trying")
+	}
+	waitFor(t, "the supervisor to record the failed start", supervisor.StartFailed)
+}
+
+func TestAStoppedSupervisorHasNotFailedItsStart(t *testing.T) {
+	t.Parallel()
+
+	supervisor, _ := startSupervisor(t, "healthy", nil)
+	if err := supervisor.Await(t.Context()); err != nil {
+		t.Fatalf("Await() = %v, want the theme serving before it is stopped", err)
+	}
+
+	supervisor.Stop()
+
+	if supervisor.StartFailed() {
+		t.Error("StartFailed() = true, want a deliberate stop kept apart from a failed start")
 	}
 }
 

@@ -4,7 +4,9 @@ package themehost_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -200,5 +202,81 @@ func TestActivateReportsAThemeThatNeverAnswersItsProbe(t *testing.T) {
 	}
 	if manager.Holder().Healthy() {
 		t.Error("a theme is serving, want the site left on the built-in renderer")
+	}
+}
+
+func TestListSaysTheStoredThemeStartFailedRatherThanStillStarting(t *testing.T) {
+	t.Parallel()
+
+	themesDir := t.TempDir()
+	plantStub(t, themesDir, "aurora", "deaf")
+	settings := newSettings()
+	settings.values[themehost.ActiveKey] = "aurora"
+	manager := themehost.NewManager(themehost.ManagerConfig{
+		Library:  themehost.NewLibrary(themesDir),
+		Settings: settings,
+		Supervision: themehost.SupervisorConfig{
+			NodeBin:      nodeBin(t),
+			ReadyTimeout: 150 * time.Millisecond,
+			Backoff:      time.Millisecond,
+			MaxBackoff:   time.Millisecond,
+			MaxAttempts:  1,
+			StopGrace:    250 * time.Millisecond,
+		},
+	})
+	t.Cleanup(manager.Close)
+	if err := manager.Boot(t.Context()); err != nil {
+		t.Fatalf("Boot() = %v, want the server up while the stored theme struggles", err)
+	}
+	waitFor(t, "the stored theme to fail its start", manager.Holder().StartFailed)
+
+	listed, err := manager.List(t.Context())
+
+	if err != nil {
+		t.Fatalf("List() = %v, want the themes listed", err)
+	}
+	if len(listed) != 1 || listed[0].Name != "aurora" {
+		t.Fatalf("List() = %+v, want aurora alone", listed)
+	}
+	if !listed[0].StartFailed {
+		t.Error("StartFailed = false, want the theme that stopped trying marked")
+	}
+	if listed[0].Serving {
+		t.Error("Serving = true, want a theme whose start failed not marked serving")
+	}
+}
+
+func TestCloseInterruptsAnActivationStillAwaitingItsProbe(t *testing.T) {
+	t.Parallel()
+
+	logs := &logBuffer{}
+	manager := managerRunning(t, "deaf", func(supervision *themehost.SupervisorConfig) {
+		supervision.Logger = slog.New(slog.NewTextHandler(logs, nil))
+		supervision.ReadyTimeout = 6 * time.Second
+		supervision.MaxAttempts = 1
+		supervision.StopGrace = 250 * time.Millisecond
+	})
+	activated := make(chan error, 1)
+	go func() { activated <- manager.Activate(context.Background(), "aurora") }()
+	waitFor(t, "the activation to start its theme", func() bool {
+		return strings.Contains(logs.String(), "theme starting")
+	})
+
+	began := time.Now()
+	manager.Close()
+	took := time.Since(began)
+
+	if took > 2*time.Second {
+		t.Errorf("Close() took %v, want the waiting activation interrupted well inside a stop grace", took)
+	}
+	var refused *themehost.Error
+	if err := <-activated; !errors.As(err, &refused) {
+		t.Fatalf("Activate() = %v, want the interrupted start refused", err)
+	}
+	if refused.Code != "theme_start_failed" {
+		t.Errorf("Code = %q, want theme_start_failed", refused.Code)
+	}
+	if manager.Holder().Healthy() {
+		t.Error("a theme is serving, want the closed manager holding nothing")
 	}
 }

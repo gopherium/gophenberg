@@ -53,10 +53,12 @@ beforeEach(() =>
  * @param active - Whether it is the chosen theme.
  * @param broken - The reason it will not load, empty when it loads.
  * @param version - The version its manifest declares.
+ * @param serving - Whether the public site is answered by it.
+ * @param startFailed - Whether its supervisor stopped trying to start it.
  * @returns The theme.
  */
-function theme(name: string, active: boolean, broken = '', version = '1.0.0', serving = active) {
-	return { name, version, broken, active, serving }
+function theme(name: string, active: boolean, broken = '', version = '1.0.0', serving = active, startFailed = false) {
+	return { name, version, broken, active, serving, startFailed }
 }
 
 test('names the theme serving the public site', async () => {
@@ -65,15 +67,24 @@ test('names the theme serving the public site', async () => {
 	expect(await screen.findByText('aurora 1.0.0 is serving the public site.')).toBeTruthy()
 })
 
-test('says the renderer took over when the chosen theme stopped answering', async () => {
+test('says the chosen theme is still starting while it has not answered yet', async () => {
 	listing([chosenButDown('aurora')])
 	renderAt('/themes')
 
 	expect(
-		await screen.findByText('aurora is not answering, so the built-in renderer is serving.'),
+		await screen.findByText('aurora is still starting, so the built-in renderer is serving.'),
 	).toBeTruthy()
 	const listed = await screen.findByRole('row', { name: /aurora/ })
 	expect(within(listed).getByText('Not serving')).toBeTruthy()
+})
+
+test('says the chosen theme failed to start rather than calling it still starting', async () => {
+	listing([{ ...chosenButDown('aurora'), startFailed: true }])
+	renderAt('/themes')
+
+	expect(
+		await screen.findByText('aurora failed to start, so the built-in renderer is serving.'),
+	).toBeTruthy()
 })
 
 test('says the built-in renderer is serving when no theme is active', async () => {
@@ -132,7 +143,10 @@ test('phrases what is serving from the themes alone', () => {
 	).toBe('aurora will not load, so the built-in renderer is serving.')
 	expect(
 		servingLine({ themes: [theme('aurora', true, '', '1.0.0', false)], rollback: null }),
-	).toBe('aurora is not answering, so the built-in renderer is serving.')
+	).toBe('aurora is still starting, so the built-in renderer is serving.')
+	expect(
+		servingLine({ themes: [theme('aurora', true, '', '1.0.0', false, true)], rollback: null }),
+	).toBe('aurora failed to start, so the built-in renderer is serving.')
 })
 
 test('reads the archive out of a file field that may hold none', () => {
