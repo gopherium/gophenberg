@@ -14,6 +14,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
+// echoHandler returns a handler answering every request with the given status and body.
 func echoHandler(status int, body string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(status)
@@ -21,6 +22,7 @@ func echoHandler(status int, body string) http.Handler {
 	})
 }
 
+// newProtectedServer returns a server over a fake user store holding Ada, and that store.
 func newProtectedServer(t *testing.T) (http.Handler, *testkit.Store) {
 	t.Helper()
 	users := newFakeUserStore()

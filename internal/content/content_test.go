@@ -34,6 +34,7 @@ func postType() content.Type {
 
 type failingReader struct{}
 
+// Read fails with the canned entropy error.
 func (failingReader) Read([]byte) (int, error) {
 	return 0, errEntropy
 }

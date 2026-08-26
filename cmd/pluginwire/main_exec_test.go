@@ -12,6 +12,7 @@ import (
 	"testing"
 )
 
+// writePlugin lays out a plugin directory under root, with a manifest when one is given.
 func writePlugin(t *testing.T, root, dir, manifestJSON string) {
 	t.Helper()
 	pluginDir := filepath.Join(root, "plugins", dir)
@@ -26,6 +27,7 @@ func writePlugin(t *testing.T, root, dir, manifestJSON string) {
 	}
 }
 
+// coverBinary returns the path of the pluginwire cover binary and the environment to run it with.
 func coverBinary(t *testing.T) (string, []string) {
 	t.Helper()
 	bindir := os.Getenv("GOPHENBERG_COVER_BINDIR")

@@ -213,14 +213,17 @@ type failingPlugin struct {
 	err error
 }
 
+// ID returns the plugin's identifier.
 func (failingPlugin) ID() string {
 	return "failing"
 }
 
+// Start returns the failure the plugin was built with.
 func (p failingPlugin) Start(_ context.Context) error {
 	return p.err
 }
 
+// Stop returns nil without stopping anything.
 func (failingPlugin) Stop(_ context.Context) error {
 	return nil
 }

@@ -19,6 +19,11 @@ import { MainMenu } from '../MainMenu'
 
 const navItems = [...coreNav, ...plugins.flatMap((plugin) => plugin.nav)]
 
+/**
+ * Renders the main menu as an admin over a route for every navigation item.
+ * @param path - The path to start at.
+ * @param withSections - Whether each route carries a sidebar of its own.
+ */
 function renderMenuAt(path: string, withSections = false) {
 	const rootRoute = createRootRoute({
 		component: function MenuHost() {

@@ -23,6 +23,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
+// coverBinary returns the path of the gophenberg cover binary and the environment to run it with.
 func coverBinary(t *testing.T) (string, []string) {
 	t.Helper()
 	bindir := os.Getenv("GOPHENBERG_COVER_BINDIR")
