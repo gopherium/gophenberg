@@ -99,6 +99,9 @@ msgstr ""
 msgid "A route word has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Change it and try again."
 msgstr ""
 
+msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead."
+msgstr ""
+
 msgid "A type key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Change the key and try again."
 msgstr ""
 
@@ -824,7 +827,7 @@ msgstr ""
 msgid "The field %(field)s has to hold a value before this item can be published. Fill it in, or leave the item as a draft."
 msgstr ""
 
-msgid "The field %(field)s on %(type)s still points at this content type. Delete that field first, then delete this type."
+msgid "The field %(field)s in %(group)s still points at this content type. Delete that field first, then delete this type."
 msgstr ""
 
 msgid "The field %(field)s points at one item only. Remove the extra choices and keep one."
@@ -860,6 +863,9 @@ msgstr ""
 msgid "The registry could not be reached."
 msgstr ""
 
+msgid "The rule on %(source)s names nothing to match. Pick a value, or remove the rule."
+msgstr ""
+
 msgid "The same item was picked twice for %(field)s. Pick each item once."
 msgstr ""
 
@@ -873,6 +879,9 @@ msgid "The server could not be reached, so nothing was uploaded."
 msgstr ""
 
 msgid "The site default"
+msgstr ""
+
+msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
 msgstr ""
 
 msgid "The theme %(name)s carries no %(file)s, so Gophenberg cannot tell what it is. Put that file at the top level of the zip and package the theme again."
@@ -1001,6 +1010,9 @@ msgstr ""
 msgid "This request left out %(field)s, which Gophenberg needs. Reload the page and try again."
 msgstr ""
 
+msgid "This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed."
+msgstr ""
+
 msgid "This site has nowhere to keep themes, so no theme can be installed. Ask whoever looks after your site to point %(setting)s at a folder the server can write to."
 msgstr ""
 
@@ -1023,6 +1035,9 @@ msgid "Thumbnail"
 msgstr ""
 
 msgid "Title"
+msgstr ""
+
+msgid "Two rule sources are registered under the name %(param)s. A plugin is declaring a source your site already holds."
 msgstr ""
 
 msgid "Type"

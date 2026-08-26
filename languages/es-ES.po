@@ -654,8 +654,29 @@ msgstr "El campo %(field)s no puede guardar el valor que se le ha dado. Comprueb
 msgid "The field %(field)s has to hold a value before this item can be published. Fill it in, or leave the item as a draft."
 msgstr "El campo %(field)s tiene que tener un valor antes de poder publicar este elemento. Rellénalo, o deja el elemento como borrador."
 
-msgid "The field %(field)s on %(type)s still points at this content type. Delete that field first, then delete this type."
-msgstr "El campo %(field)s de %(type)s todavía apunta a este tipo de contenido. Borra antes ese campo y luego borra este tipo."
+#, fuzzy
+msgid "The field %(field)s in %(group)s still points at this content type. Delete that field first, then delete this type."
+msgstr "El campo %(field)s de %(group)s todavía apunta a este tipo de contenido. Borra antes ese campo y luego borra este tipo."
+
+#, fuzzy
+msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead."
+msgstr "Una regla que vale para cualquier %(source)s no se puede convertir en exclusión. Déjala como está, o nombra los que quieras dejar fuera."
+
+#, fuzzy
+msgid "The rule on %(source)s names nothing to match. Pick a value, or remove the rule."
+msgstr "La regla sobre %(source)s no nombra nada con lo que coincidir. Elige un valor, o quita la regla."
+
+#, fuzzy
+msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
+msgstr "La fuente %(source)s no ofrece %(operator)s. Elige una de las comparaciones que sí ofrece."
+
+#, fuzzy
+msgid "This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed."
+msgstr "Esta regla lee una fuente llamada %(source)s, y nada en tu sitio declara ninguna. Puede que se haya quitado un plugin que la añadía."
+
+#, fuzzy
+msgid "Two rule sources are registered under the name %(param)s. A plugin is declaring a source your site already holds."
+msgstr "Hay dos fuentes de reglas registradas con el nombre %(param)s. Un plugin declara una fuente que tu sitio ya tiene."
 
 msgid "The field %(field)s points at one item only. Remove the extra choices and keep one."
 msgstr "El campo %(field)s apunta a un solo elemento. Quita las opciones de más y deja una."

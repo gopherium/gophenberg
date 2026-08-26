@@ -865,8 +865,28 @@ msgid "The field %(field)s has to hold a value before this item can be published
 msgstr "Le champ %(field)s doit contenir une valeur avant que cet élément puisse être publié. Remplissez-le, ou laissez l'élément en brouillon."
 
 #, fuzzy
-msgid "The field %(field)s on %(type)s still points at this content type. Delete that field first, then delete this type."
-msgstr "Le champ %(field)s sur %(type)s vise encore ce type de contenu. Supprimez d'abord ce champ, puis supprimez ce type."
+msgid "The field %(field)s in %(group)s still points at this content type. Delete that field first, then delete this type."
+msgstr "Le champ %(field)s dans %(group)s vise encore ce type de contenu. Supprimez d'abord ce champ, puis supprimez ce type."
+
+#, fuzzy
+msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead."
+msgstr "Une règle valable pour n'importe quel %(source)s ne peut pas devenir une exclusion. Laissez-la telle quelle, ou nommez ceux à écarter."
+
+#, fuzzy
+msgid "The rule on %(source)s names nothing to match. Pick a value, or remove the rule."
+msgstr "La règle sur %(source)s ne nomme rien à faire correspondre. Choisissez une valeur, ou retirez la règle."
+
+#, fuzzy
+msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
+msgstr "La source %(source)s n'offre pas %(operator)s. Choisissez une des comparaisons qu'elle offre."
+
+#, fuzzy
+msgid "This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed."
+msgstr "Cette règle lit une source nommée %(source)s, et rien sur votre site n'en déclare. Une extension qui l'ajoutait a pu être retirée."
+
+#, fuzzy
+msgid "Two rule sources are registered under the name %(param)s. A plugin is declaring a source your site already holds."
+msgstr "Deux sources de règles sont enregistrées sous le nom %(param)s. Une extension déclare une source que votre site possède déjà."
 
 #, fuzzy
 msgid "The field %(field)s points at one item only. Remove the extra choices and keep one."
