@@ -56,9 +56,6 @@ func TestLoadReadsAValidThemeDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v, want nil", err)
 	}
-	if theme == nil {
-		t.Fatal("Load() theme = nil, want a theme")
-	}
 	for _, field := range []struct {
 		name string
 		got  string
@@ -93,8 +90,8 @@ func TestLoadChargesNoDirectoriesAgainstTheSizeCap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v, want a theme whose files fit kept loadable however many directories it holds", err)
 	}
-	if theme == nil {
-		t.Fatal("Load() theme = nil, want a theme")
+	if theme.Name != "starter" {
+		t.Errorf("Name = %q, want the theme loaded however many directories it holds", theme.Name)
 	}
 }
 
