@@ -23,6 +23,7 @@ const moduleStateFiles = [
 	'src/test/plugin-wiring.test.tsx',
 	'src/test/errors.test.ts',
 	'src/test/role-navigation.test.tsx',
+	'src/test/route-pending.test.tsx',
 ]
 
 // The workers @wordpress/upload-media reaches for, stubbed out until the media cycle ships.
