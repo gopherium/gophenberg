@@ -297,6 +297,23 @@ func TestRegistryRefusesDeletingATypeARestingGroupStillTargets(t *testing.T) {
 	}
 }
 
+func TestRegistryDeletesATypeNoRelationTargets(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+	if _, err := registry.Create(t.Context(), carType(t)); err != nil {
+		t.Fatalf("registering the car type: %v, want nil", err)
+	}
+
+	if err := registry.Delete(t.Context(), "car"); err != nil {
+		t.Fatalf("Delete() error = %v, want the untargeted type released", err)
+	}
+
+	if _, err := registry.ByKey(t.Context(), "car"); !errors.Is(err, content.ErrTypeNotFound) {
+		t.Errorf("ByKey() error = %v, want the type gone from the registry", err)
+	}
+}
+
 func TestRegistryHoldsATypeItsOwnGroupStillTargets(t *testing.T) {
 	t.Parallel()
 
