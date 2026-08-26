@@ -51,7 +51,7 @@ func startWithoutNodeBin(
 	return supervisor, logs
 }
 
-func TestSupervisorGivesUpWhenTheThemeProcessNeverStarts(t *testing.T) {
+func TestSupervisorFailsTheStartWhenTheThemeProcessNeverStarts(t *testing.T) {
 	t.Parallel()
 
 	absentNodeBin := missingNodeBin(t)

@@ -173,7 +173,7 @@ func TestSupervisorWaitsForASlowBoot(t *testing.T) {
 	waitFor(t, "the slow theme to report ready", supervisor.Healthy)
 }
 
-func TestSupervisorBacksOffThenGivesUpOnATheseThatNeverBoots(t *testing.T) {
+func TestSupervisorBacksOffThenFailsTheStartOfAThemeThatNeverBoots(t *testing.T) {
 	t.Parallel()
 
 	supervisor, logs := startSupervisor(t, "crash", nil)
@@ -237,7 +237,7 @@ func TestSupervisorRestartsAThemeThatDiesAfterServing(t *testing.T) {
 	})
 }
 
-func TestSupervisorGivesUpOnAThemeThatBootsButNeverReportsReady(t *testing.T) {
+func TestSupervisorFailsTheStartOfAThemeThatBootsButNeverReportsReady(t *testing.T) {
 	t.Parallel()
 
 	supervisor, logs := startSupervisor(t, "deaf", func(config *themehost.SupervisorConfig) {
