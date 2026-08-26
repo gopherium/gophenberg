@@ -1,4 +1,6 @@
 reviews:
+  auto_review:
+    drafts: false
   path_instructions:
     - path: "**/*.go"
       instructions: >-
