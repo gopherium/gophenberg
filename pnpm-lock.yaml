@@ -44,7 +44,7 @@ importers:
         version: link:../sdk/frontend
       '@gopherium/godmin':
         specifier: 0.7.0
-        version: 0.7.0(@tanstack/react-router@1.170.24(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@wordpress/style-runtime@0.8.0)(@wordpress/theme@1.1.0(@types/react@19.2.18)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(@wordpress/ui@0.19.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vitest@4.1.10)
+        version: 0.7.0(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@wordpress/style-runtime@0.8.0)(@wordpress/theme@1.1.0(@types/react@19.2.18)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(@wordpress/ui@0.19.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vitest@4.1.10)
       '@gopherium/gottext':
         specifier: 0.3.0
         version: 0.3.0(@wordpress/i18n@6.26.0)(gettext-extractor@4.0.6)
@@ -55,8 +55,8 @@ importers:
         specifier: ^5.101.2
         version: 5.101.4(react@19.2.8)
       '@tanstack/react-router':
-        specifier: ^1.170.24
-        version: 1.170.24(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^1.170.32
+        version: 1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@wordpress/i18n':
         specifier: 6.26.0
         version: 6.26.0
@@ -154,7 +154,7 @@ importers:
     dependencies:
       '@gopherium/godmin':
         specifier: 0.7.0
-        version: 0.7.0(@tanstack/react-router@1.170.24(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@wordpress/style-runtime@0.8.0)(@wordpress/theme@1.1.0(@types/react@19.2.18)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(@wordpress/ui@0.19.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vitest@4.1.10)
+        version: 0.7.0(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@wordpress/style-runtime@0.8.0)(@wordpress/theme@1.1.0(@types/react@19.2.18)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(@wordpress/ui@0.19.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vitest@4.1.10)
       '@gopherium/react-auth':
         specifier: 0.7.0
         version: 0.7.0(@tanstack/react-query@5.101.4(react@19.2.8))(@testing-library/jest-dom@6.10.0(@testing-library/dom@10.4.1))(@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@wordpress/i18n@6.26.0)(@wordpress/theme@1.1.0(@types/react@19.2.18)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(@wordpress/ui@0.19.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(react@19.2.8)(vitest@4.1.10)
@@ -208,8 +208,8 @@ importers:
         version: 19.2.8
     devDependencies:
       '@tanstack/react-router':
-        specifier: ^1.170.24
-        version: 1.170.24(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^1.170.32
+        version: 1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.10.0(@testing-library/dom@10.4.1)
@@ -2026,8 +2026,8 @@ packages:
     peerDependencies:
       react: ^19.2.8
 
-  '@tanstack/react-router@1.170.24':
-    resolution: {integrity: sha512-gCeAtUAepQa1sncLUk6BxfH0oeGmHOHkx1ZsQeLnyZFNhRm19YIr3HfNQ7BFOLXpD8IeFm2o76WM6rCjyAQkyQ==}
+  '@tanstack/react-router@1.170.32':
+    resolution: {integrity: sha512-SIpxvaTKco100a5ZR3ePmArbhtm3XOx+w1dpGYY9gxHDta4iXSKDdQuhLonwJbIMkVJsU1rwXf0UDHMrF/1snw==}
     engines: {node: '>=20.19'}
     peerDependencies:
       react: ^19.2.8
@@ -2039,8 +2039,8 @@ packages:
       react: ^19.2.8
       react-dom: ^19.2.8
 
-  '@tanstack/router-core@1.171.20':
-    resolution: {integrity: sha512-zkqjM/AuC8ps6bKPlxp3jbSE8ZBeTRuqFg+mYPXzp+5lYiZBd1ppY/c5yM8y/SIxOGvKQjn3K+AmA/PDh2XzZg==}
+  '@tanstack/router-core@1.171.27':
+    resolution: {integrity: sha512-wDwSLvoLwIaNcnx9UNcN9Mb7Y8QwCYq1U1RQZwyN186gnkIoIYI2SOxy8VqH1vFigbkHkk4FmwMAQlghPgDK2g==}
     engines: {node: '>=20.19'}
 
   '@tanstack/store@0.9.3':
@@ -4552,14 +4552,14 @@ packages:
   sentence-case@3.0.4:
     resolution: {integrity: sha512-8LS0JInaQMCRoQ7YUytAo/xUu5W2XnQxV2HI/6uM6U7CITS1RqPElr30V6uIqyMKM9lJGRVFy5/4CuzcixNYSg==}
 
-  seroval-plugins@1.6.2:
-    resolution: {integrity: sha512-TfxuUjlbBESzUOWdTkTKqvSmav0ABym+itetDXLK6mDz8SmrpdI30aF8RTXE8Bvq+tH/1yIDkvy3W0lfQb1ipQ==}
+  seroval-plugins@1.6.4:
+    resolution: {integrity: sha512-R0f1U9hmn38+dFMz6b6ab8lwucmw4AtiY7St+JPWudy1dm+Bs3g884nyrsH9Cy6rKpZKLYayXuMda9GZ/fl8JQ==}
     engines: {node: '>=10'}
     peerDependencies:
       seroval: ^1.0
 
-  seroval@1.6.2:
-    resolution: {integrity: sha512-mPT+SD2TrlB6wvte1KkYOYUkubaTbd6pZ/6Kk3C9nxzrHmCZyhxOO7XGAeL7f+yLKZglzGtM9odUVvg/EhO+vQ==}
+  seroval@1.6.4:
+    resolution: {integrity: sha512-LErWMNS2RRFdu2RMA5u/PA59/IWs0XsikyEXGQ2/36iEWFrdG0ABmg17E17cikrv76891kOAMq3TkTFXpwAHXw==}
     engines: {node: '>=10'}
 
   server-destroy@1.0.1:
@@ -5995,14 +5995,14 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@gopherium/godmin@0.7.0(@tanstack/react-router@1.170.24(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@wordpress/style-runtime@0.8.0)(@wordpress/theme@1.1.0(@types/react@19.2.18)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(@wordpress/ui@0.19.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vitest@4.1.10)':
+  '@gopherium/godmin@0.7.0(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@wordpress/style-runtime@0.8.0)(@wordpress/theme@1.1.0(@types/react@19.2.18)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(@wordpress/ui@0.19.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vitest@4.1.10)':
     dependencies:
       '@wordpress/style-runtime': 0.8.0
       '@wordpress/theme': 1.1.0(@types/react@19.2.18)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
       '@wordpress/ui': 0.19.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(esbuild@0.28.1)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(stylelint@17.14.1(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
       react: 19.2.8
     optionalDependencies:
-      '@tanstack/react-router': 1.170.24(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tanstack/react-router': 1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@testing-library/react': 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       stylelint: 17.14.1(typescript@6.0.3)
       vitest: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(msw@2.15.0(@types/node@26.1.2)(typescript@6.0.3))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
@@ -6761,11 +6761,11 @@ snapshots:
       '@tanstack/query-core': 5.101.4
       react: 19.2.8
 
-  '@tanstack/react-router@1.170.24(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@tanstack/history': 1.162.1
       '@tanstack/react-store': 0.9.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@tanstack/router-core': 1.171.20
+      '@tanstack/router-core': 1.171.27
       isbot: 5.2.1
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
@@ -6777,12 +6777,12 @@ snapshots:
       react-dom: 19.2.8(react@19.2.8)
       use-sync-external-store: 1.6.0(react@19.2.8)
 
-  '@tanstack/router-core@1.171.20':
+  '@tanstack/router-core@1.171.27':
     dependencies:
       '@tanstack/history': 1.162.1
       cookie-es: 3.1.1
-      seroval: 1.6.2
-      seroval-plugins: 1.6.2(seroval@1.6.2)
+      seroval: 1.6.4
+      seroval-plugins: 1.6.4(seroval@1.6.4)
 
   '@tanstack/store@0.9.3': {}
 
@@ -9941,11 +9941,11 @@ snapshots:
       tslib: 2.8.1
       upper-case-first: 2.0.2
 
-  seroval-plugins@1.6.2(seroval@1.6.2):
+  seroval-plugins@1.6.4(seroval@1.6.4):
     dependencies:
-      seroval: 1.6.2
+      seroval: 1.6.4
 
-  seroval@1.6.2: {}
+  seroval@1.6.4: {}
 
   server-destroy@1.0.1: {}
 
