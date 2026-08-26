@@ -67,6 +67,32 @@ func (s *memoryTypes) List(context.Context) ([]content.Type, error) {
 	return stored, nil
 }
 
+// CreateGroup hands the group back unstored.
+func (s *memoryTypes) CreateGroup(_ context.Context, g content.Group) (content.Group, error) {
+	return g, nil
+}
+
+// UpdateGroup hands the group back unstored.
+func (s *memoryTypes) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
+	return g, nil
+}
+
+// DeleteGroup removes no group.
+func (s *memoryTypes) DeleteGroup(context.Context, int) error { return nil }
+
+// ReorderGroups stores no order.
+func (s *memoryTypes) ReorderGroups(context.Context, []int) error { return nil }
+
+// CreateFieldInGroup hands the field back undeclared.
+func (s *memoryTypes) CreateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
+	return f, nil
+}
+
+// MoveField carries no field.
+func (s *memoryTypes) MoveField(context.Context, int, string, int) (content.Field, error) {
+	return content.Field{}, content.ErrFieldNotFound
+}
+
 // ListGroups returns one group per stored type holding the fields it declares.
 func (s *memoryTypes) ListGroups(context.Context) ([]content.Group, error) {
 	s.mu.Lock()

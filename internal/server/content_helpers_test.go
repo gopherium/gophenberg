@@ -464,6 +464,32 @@ func (s *fakeTypeStore) List(context.Context) ([]content.Type, error) {
 }
 
 // ListGroups returns one group per stored type holding the fields it declares.
+func (s *fakeTypeStore) CreateGroup(_ context.Context, g content.Group) (content.Group, error) {
+	return g, nil
+}
+
+// UpdateGroup hands the group back unstored.
+func (s *fakeTypeStore) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
+	return g, nil
+}
+
+// DeleteGroup removes no group.
+func (s *fakeTypeStore) DeleteGroup(context.Context, int) error { return nil }
+
+// ReorderGroups stores no order.
+func (s *fakeTypeStore) ReorderGroups(context.Context, []int) error { return nil }
+
+// CreateFieldInGroup hands the field back undeclared.
+func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
+	return f, nil
+}
+
+// MoveField carries no field.
+func (s *fakeTypeStore) MoveField(context.Context, int, string, int) (content.Field, error) {
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// ListGroups returns one group per stored type holding the fields it declares.
 func (s *fakeTypeStore) ListGroups(context.Context) ([]content.Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
