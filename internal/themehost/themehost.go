@@ -19,7 +19,7 @@ const MaxSize = 64 << 20
 // MaxEntries is how many files an archive may carry.
 const MaxEntries = 10_000
 
-// dirSize is what one directory is charged against the size cap.
+// dirSize is what one unpacked directory is charged against the size cap at install.
 const dirSize = 4096
 
 // ErrNotInstalled reports that no theme is installed under the name.
@@ -176,6 +176,9 @@ func walk(dir, name string) error {
 				"themehost: %s holds a symlink at %s, which a theme may not do",
 				name, relative(dir, path))
 		}
+		if entry.IsDir() {
+			return nil
+		}
 		size, err := sizeOf(entry)
 		if err != nil {
 			return fmt.Errorf("themehost: reading %s: %w", relative(dir, path), err)
@@ -190,11 +193,8 @@ func walk(dir, name string) error {
 	})
 }
 
-// sizeOf returns the bytes a directory entry occupies.
+// sizeOf returns the bytes a file entry occupies.
 func sizeOf(entry fs.DirEntry) (int64, error) {
-	if entry.IsDir() {
-		return dirSize, nil
-	}
 	info, err := entry.Info()
 	if err != nil {
 		return 0, err
