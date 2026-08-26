@@ -289,10 +289,10 @@ func (s *server) applyValues(
 	if err != nil {
 		return false, false, err
 	}
-	merged := c.Fields.Merge(scalars)
-	if err := merged.Validate(t.Fields); err != nil {
+	if err := scalars.Validate(t.Fields); err != nil {
 		return false, false, err
 	}
+	merged := c.Fields.Merge(scalars)
 	held := c.Relations.Merge(targets)
 	pointing := *c
 	pointing.Relations = held
