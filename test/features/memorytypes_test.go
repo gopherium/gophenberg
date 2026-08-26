@@ -67,6 +67,19 @@ func (s *memoryTypes) List(context.Context) ([]content.Type, error) {
 	return stored, nil
 }
 
+// ListGroups returns one group per stored type holding the fields it declares.
+func (s *memoryTypes) ListGroups(context.Context) ([]content.Group, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	groups := make([]content.Group, 0, len(s.types))
+	for i, t := range s.types {
+		groups = append(groups, content.Group{
+			ID: i + 1, Title: t.SingularLabel + " fields", Active: true, Fields: t.Fields,
+		})
+	}
+	return groups, nil
+}
+
 // ByKey returns the stored type carrying the key, or [content.ErrTypeNotFound].
 func (s *memoryTypes) ByKey(_ context.Context, key string) (content.Type, error) {
 	s.mu.Lock()

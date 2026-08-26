@@ -261,7 +261,43 @@ func TestRegistryKeepsATypeAFieldTargets(t *testing.T) {
 	}
 }
 
-func TestRegistryLetsASelfTargetingTypeGo(t *testing.T) {
+// groupedStore is a fake exposing groups beside the per type surface.
+type groupedStore struct {
+	*fakeTypeStore
+	groups []content.Group
+}
+
+// ListGroups returns the held groups.
+func (s *groupedStore) ListGroups(context.Context) ([]content.Group, error) {
+	return s.groups, nil
+}
+
+func TestRegistryRefusesDeletingATypeARestingGroupStillTargets(t *testing.T) {
+	t.Parallel()
+
+	store := &groupedStore{fakeTypeStore: newFakeTypeStore(), groups: []content.Group{{
+		ID: 1, Title: "Resting extras", Active: false,
+		Fields: []content.Field{{
+			Key: "cars", Label: "Cars", Kind: content.FieldKindRelation, RelatesTo: "car", Many: true,
+		}},
+	}}}
+	registry := content.NewRegistry(store)
+	if _, err := registry.Create(t.Context(), carType(t)); err != nil {
+		t.Fatalf("registering the car type: %v, want nil", err)
+	}
+
+	err := registry.Delete(t.Context(), "car")
+
+	if !errors.Is(err, content.ErrTypeTargeted) {
+		t.Fatalf("Delete() error = %v, want the inactive group's relation still guarding", err)
+	}
+	var refused *content.Error
+	if !errors.As(err, &refused) || refused.Held["group"] != "Resting extras" {
+		t.Errorf("details = %v, want the guarding group named", err)
+	}
+}
+
+func TestRegistryHoldsATypeItsOwnGroupStillTargets(t *testing.T) {
 	t.Parallel()
 
 	registry := content.NewRegistry(newFakeTypeStore())
@@ -279,8 +315,10 @@ func TestRegistryLetsASelfTargetingTypeGo(t *testing.T) {
 		t.Fatalf("declaring the relation: %v, want nil", err)
 	}
 
-	if err := registry.Delete(t.Context(), "car"); err != nil {
-		t.Fatalf("Delete() error = %v, want the self targeting type released", err)
+	err = registry.Delete(t.Context(), "car")
+
+	if !errors.Is(err, content.ErrTypeTargeted) {
+		t.Fatalf("Delete() error = %v, want the surviving relation holding the type", err)
 	}
 }
 

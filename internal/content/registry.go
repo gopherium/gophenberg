@@ -186,21 +186,18 @@ func (r *Registry) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-// untargeted reports whether another type's relation field still points at the type.
+// untargeted reports whether a relation field in any group still points at the type.
 func (r *Registry) untargeted(ctx context.Context, key string) error {
-	types, err := r.All(ctx)
+	groups, err := r.store.ListGroups(ctx)
 	if err != nil {
 		return err
 	}
-	for _, stored := range types {
-		if stored.Key == key {
-			continue
-		}
-		for _, f := range stored.Fields {
+	for _, g := range groups {
+		for _, f := range g.Fields {
 			if f.RelatesTo == key {
 				return Refuse(ErrTypeTargeted, "type_targeted",
-					fmt.Sprintf("%s (%s on %s)", ErrTypeTargeted, f.Key, stored.Key),
-					Details{"field": f.Key, "type": stored.Key})
+					fmt.Sprintf("%s (%s in %s)", ErrTypeTargeted, f.Key, g.Title),
+					Details{"field": f.Key, "group": g.Title})
 			}
 		}
 	}

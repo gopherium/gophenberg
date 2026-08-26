@@ -93,6 +93,7 @@ type TypeStore interface {
 	Create(ctx context.Context, t Type) (Type, error)
 	Update(ctx context.Context, t Type) (Type, error)
 	Delete(ctx context.Context, key string) error
+	ListGroups(ctx context.Context) ([]Group, error)
 	CreateField(ctx context.Context, f Field) (Field, error)
 	UpdateField(ctx context.Context, f Field) (Field, error)
 	DeleteField(ctx context.Context, typeKey, key string) error

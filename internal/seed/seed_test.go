@@ -55,6 +55,11 @@ func (stubTypeStore) Update(context.Context, content.Type) (content.Type, error)
 func (stubTypeStore) Delete(context.Context, string) error { return content.ErrTypeNotFound }
 
 // ReorderFields refuses to reorder fields in a seeding run.
+// ListGroups returns no field groups.
+func (stubTypeStore) ListGroups(context.Context) ([]content.Group, error) {
+	return nil, nil
+}
+
 func (stubTypeStore) ReorderFields(context.Context, string, []string) error {
 	return content.ErrTypeNotFound
 }

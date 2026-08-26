@@ -59,6 +59,11 @@ func (unreadableTypeStore) ReorderFields(context.Context, string, []string) erro
 	return errTypeStoreDown
 }
 
+// ListGroups reports the failure rather than listing the groups.
+func (unreadableTypeStore) ListGroups(context.Context) ([]Group, error) {
+	return nil, errTypeStoreDown
+}
+
 func TestUntargetedReportsARegistryItCannotRead(t *testing.T) {
 	t.Parallel()
 
