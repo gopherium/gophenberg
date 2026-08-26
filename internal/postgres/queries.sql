@@ -377,6 +377,17 @@ FROM (
 ) AS ordered
 WHERE core.field_groups.id = ordered.id;
 
+-- name: MoveContentField :one
+UPDATE core.content_fields AS moved
+SET group_id = @to_group,
+    position = (
+        SELECT COALESCE(MAX(landing.position), 0) + 1
+        FROM core.content_fields AS landing WHERE landing.group_id = @to_group
+    ),
+    updated_at = @updated_at
+WHERE moved.group_id = @group_id AND moved.key = @key
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id;
+
 -- name: GroupByLocation :one
 SELECT id, title, location, position, active, created_at, updated_at
 FROM core.field_groups WHERE location = @location

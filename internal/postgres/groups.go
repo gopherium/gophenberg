@@ -303,6 +303,22 @@ func (s *TypeStore) ReorderGroups(ctx context.Context, ids []int) error {
 	return nil
 }
 
+// MoveField carries the field into another group, keeping the values it holds.
+func (s *TypeStore) MoveField(
+	ctx context.Context, groupID int, key string, toGroup int,
+) (content.Field, error) {
+	row, err := s.queries.MoveContentField(ctx, db.MoveContentFieldParams{
+		ToGroup: int32(toGroup), UpdatedAt: time.Now().UTC(), GroupID: int32(groupID), Key: key,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return content.Field{}, content.ErrFieldNotFound
+	}
+	if err != nil {
+		return content.Field{}, fieldWriteFailure(err)
+	}
+	return toField(row), nil
+}
+
 // CreateFieldInGroup declares the field inside the group.
 func (s *TypeStore) CreateFieldInGroup(ctx context.Context, groupID int, f content.Field) (content.Field, error) {
 	row, err := s.queries.CreateContentField(ctx, db.CreateContentFieldParams{

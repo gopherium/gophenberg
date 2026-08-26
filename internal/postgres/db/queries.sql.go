@@ -1549,6 +1549,49 @@ func (q *Queries) LockDefaultContentType(ctx context.Context) (CoreContentType, 
 	return i, err
 }
 
+const moveContentField = `-- name: MoveContentField :one
+UPDATE core.content_fields AS moved
+SET group_id = $1,
+    position = (
+        SELECT COALESCE(MAX(landing.position), 0) + 1
+        FROM core.content_fields AS landing WHERE landing.group_id = $1
+    ),
+    updated_at = $2
+WHERE moved.group_id = $3 AND moved.key = $4
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id
+`
+
+type MoveContentFieldParams struct {
+	ToGroup   int32
+	UpdatedAt time.Time
+	GroupID   int32
+	Key       string
+}
+
+func (q *Queries) MoveContentField(ctx context.Context, arg MoveContentFieldParams) (CoreContentField, error) {
+	row := q.db.QueryRow(ctx, moveContentField,
+		arg.ToGroup,
+		arg.UpdatedAt,
+		arg.GroupID,
+		arg.Key,
+	)
+	var i CoreContentField
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Label,
+		&i.Kind,
+		&i.RelatesTo,
+		&i.Many,
+		&i.Required,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Position,
+		&i.GroupID,
+	)
+	return i, err
+}
+
 const moveDescendants = `-- name: MoveDescendants :exec
 WITH RECURSIVE moved AS (
     SELECT c.id, $3::text AS path
