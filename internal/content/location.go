@@ -77,6 +77,12 @@ func NewParamRegistry() *ParamRegistry {
 	return &ParamRegistry{held: map[string]Param{}}
 }
 
+// DefaultParamRegistry returns a registry holding the built in content type param.
+func DefaultParamRegistry(choices TypeChoices) *ParamRegistry {
+	param := NewContentTypeParam(choices)
+	return &ParamRegistry{held: map[string]Param{param.Name(): param}, order: []Param{param}}
+}
+
 // Register adds a param, refusing a name already taken.
 func (r *ParamRegistry) Register(p Param) error {
 	if _, taken := r.held[p.Name()]; taken {

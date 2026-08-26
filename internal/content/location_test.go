@@ -291,6 +291,21 @@ func TestValidateRefusesTheAnyValueNegated(t *testing.T) {
 	}
 }
 
+func TestTheDefaultRegistryHoldsTheContentTypeParam(t *testing.T) {
+	t.Parallel()
+
+	params := content.DefaultParamRegistry(nil)
+
+	listed := params.All()
+	if len(listed) != 1 || listed[0].Name() != content.ScreenContentType {
+		t.Fatalf("All() = %v, want the content type param alone", listed)
+	}
+	rules := content.Rules{{rule(content.ScreenContentType, content.OperatorIs, "post")}}
+	if err := rules.Validate(params); err != nil {
+		t.Errorf("Validate() = %v, want the default registry validating a content type rule", err)
+	}
+}
+
 func TestContentTypeParamServesItsChoices(t *testing.T) {
 	t.Parallel()
 
