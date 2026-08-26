@@ -16,12 +16,8 @@ import (
 )
 
 // writeRelations stores the targets the item points at and refreshes what a term page reads.
-func writeRelations(ctx context.Context, queries *db.Queries, c content.Content) error {
-	ids, err := matchingGroupIDs(ctx, queries, c.Type)
-	if err != nil {
-		return err
-	}
-	declared, err := queries.ListRelationFieldsOfGroups(ctx, ids)
+func writeRelations(ctx context.Context, queries *db.Queries, matching []int32, c content.Content) error {
+	declared, err := queries.ListRelationFieldsOfGroups(ctx, matching)
 	if err != nil {
 		return err
 	}

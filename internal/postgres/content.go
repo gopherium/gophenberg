@@ -254,7 +254,8 @@ func (s *ContentStore) update(
 		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
 			return err
 		}
-		if err := valuesDeclared(ctx, queries, c); err != nil {
+		matching, err := declaredValues(ctx, queries, c)
+		if err != nil {
 			return err
 		}
 		row, err := writeContent(ctx, queries, db.UpdateContentParams{
@@ -275,7 +276,7 @@ func (s *ContentStore) update(
 			return err
 		}
 		updated = toContent(row)
-		if err := writeRelations(ctx, queries, c); err != nil {
+		if err := writeRelations(ctx, queries, matching, c); err != nil {
 			return err
 		}
 		updated.Relations, err = readRelations(ctx, queries, c.ID)
@@ -312,13 +313,21 @@ func writeContent(ctx context.Context, queries *db.Queries, p db.UpdateContentPa
 	return db.CoreContent{}, content.ErrConflict
 }
 
-// valuesDeclared refuses a value whose field the type no longer declares.
-func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content) error {
-	ids, err := matchingGroupIDs(ctx, queries, c.Type)
+// declaredValues returns the groups matching the item's type once every held value is declared.
+func declaredValues(ctx context.Context, queries *db.Queries, c content.Content) ([]int32, error) {
+	matching, err := matchingGroupIDs(ctx, queries, c.Type)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	keys, err := queries.LockFieldKeysOfGroups(ctx, ids)
+	if err := valuesDeclared(ctx, queries, matching, c); err != nil {
+		return nil, err
+	}
+	return matching, nil
+}
+
+// valuesDeclared refuses a value whose field no group matching the type declares.
+func valuesDeclared(ctx context.Context, queries *db.Queries, matching []int32, c content.Content) error {
+	keys, err := queries.LockFieldKeysOfGroups(ctx, matching)
 	if err != nil {
 		return err
 	}
