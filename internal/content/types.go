@@ -94,6 +94,12 @@ type TypeStore interface {
 	Update(ctx context.Context, t Type) (Type, error)
 	Delete(ctx context.Context, key string) error
 	ListGroups(ctx context.Context) ([]Group, error)
+	CreateGroup(ctx context.Context, g Group) (Group, error)
+	UpdateGroup(ctx context.Context, g Group) (Group, error)
+	DeleteGroup(ctx context.Context, id int) error
+	ReorderGroups(ctx context.Context, ids []int) error
+	CreateFieldInGroup(ctx context.Context, groupID int, f Field) (Field, error)
+	MoveField(ctx context.Context, groupID int, key string, toGroup int) (Field, error)
 	CreateField(ctx context.Context, f Field) (Field, error)
 	UpdateField(ctx context.Context, f Field) (Field, error)
 	DeleteField(ctx context.Context, typeKey, key string) error

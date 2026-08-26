@@ -13,6 +13,7 @@ import (
 type Registry struct {
 	mu         sync.RWMutex
 	store      TypeStore
+	locations  *ParamRegistry
 	byKey      map[string]Type
 	order      []Type
 	loaded     bool
@@ -22,6 +23,30 @@ type Registry struct {
 // NewRegistry returns a [Registry] reading through store.
 func NewRegistry(store TypeStore) *Registry {
 	return &Registry{store: store}
+}
+
+// WithParams returns the registry evaluating locations against the given rule sources.
+func (r *Registry) WithParams(params *ParamRegistry) *Registry {
+	r.locations = params
+	return r
+}
+
+// Params returns the rule sources locations evaluate against, the built in ones by default.
+func (r *Registry) Params(ctx context.Context) *ParamRegistry {
+	if r.locations == nil {
+		r.locations = DefaultParamRegistry(func(context.Context) ([]Choice, error) {
+			types, err := r.All(ctx)
+			if err != nil {
+				return nil, err
+			}
+			choices := make([]Choice, len(types))
+			for i, t := range types {
+				choices[i] = Choice{Value: t.Key, Label: t.PluralLabel}
+			}
+			return choices, nil
+		})
+	}
+	return r.locations
 }
 
 // All returns every registered type, active or not, in registration order.

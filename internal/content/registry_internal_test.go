@@ -64,6 +64,36 @@ func (unreadableTypeStore) ListGroups(context.Context) ([]Group, error) {
 	return nil, errTypeStoreDown
 }
 
+// CreateGroup reports the failure rather than storing the group.
+func (unreadableTypeStore) CreateGroup(context.Context, Group) (Group, error) {
+	return Group{}, errTypeStoreDown
+}
+
+// UpdateGroup reports the failure rather than storing the group.
+func (unreadableTypeStore) UpdateGroup(context.Context, Group) (Group, error) {
+	return Group{}, errTypeStoreDown
+}
+
+// DeleteGroup reports the failure rather than removing the group.
+func (unreadableTypeStore) DeleteGroup(context.Context, int) error {
+	return errTypeStoreDown
+}
+
+// ReorderGroups reports the failure rather than storing the order.
+func (unreadableTypeStore) ReorderGroups(context.Context, []int) error {
+	return errTypeStoreDown
+}
+
+// CreateFieldInGroup reports the failure rather than declaring the field.
+func (unreadableTypeStore) CreateFieldInGroup(context.Context, int, Field) (Field, error) {
+	return Field{}, errTypeStoreDown
+}
+
+// MoveField reports the failure rather than carrying the field.
+func (unreadableTypeStore) MoveField(context.Context, int, string, int) (Field, error) {
+	return Field{}, errTypeStoreDown
+}
+
 func TestUntargetedReportsARegistryItCannotRead(t *testing.T) {
 	t.Parallel()
 
