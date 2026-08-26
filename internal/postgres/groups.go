@@ -16,16 +16,7 @@ import (
 )
 
 // locationParams holds the built in rule sources the store evaluates locations with.
-var locationParams = mustLocationParams()
-
-// mustLocationParams returns a registry holding the content type param.
-func mustLocationParams() *content.ParamRegistry {
-	params := content.NewParamRegistry()
-	if err := params.Register(content.NewContentTypeParam(nil)); err != nil {
-		panic(err)
-	}
-	return params
-}
+var locationParams = content.DefaultParamRegistry(nil)
 
 // toGroup maps a stored row to a domain group without its fields.
 func toGroup(row db.CoreFieldGroup) (content.Group, error) {
@@ -45,12 +36,9 @@ func toGroup(row db.CoreFieldGroup) (content.Group, error) {
 }
 
 // locationJSON returns the location rules as the jsonb column holds them.
-func locationJSON(location content.Rules) ([]byte, error) {
-	raw, err := json.Marshal(location.Normalize())
-	if err != nil {
-		return nil, fmt.Errorf("postgres: writing a group location: %w", err)
-	}
-	return raw, nil
+func locationJSON(location content.Rules) []byte {
+	raw, _ := json.Marshal(location.Normalize())
+	return raw
 }
 
 // groupsWithFields loads every group in position order with its fields attached.
@@ -142,11 +130,7 @@ func literalLocationOf(typeKey string) content.Rules {
 
 // groupForType returns the type's literal group, else its first active matching group.
 func groupForType(ctx context.Context, queries *db.Queries, typeKey string) (content.Group, bool, error) {
-	literal, err := locationJSON(literalLocationOf(typeKey))
-	if err != nil {
-		return content.Group{}, false, err
-	}
-	row, err := queries.GroupByLocation(ctx, literal)
+	row, err := queries.GroupByLocation(ctx, locationJSON(literalLocationOf(typeKey)))
 	if err == nil {
 		group, mapErr := toGroup(row)
 		return group, mapErr == nil, mapErr
@@ -182,13 +166,11 @@ func groupForWrite(ctx context.Context, queries *db.Queries, typeKey string) (co
 	if err != nil {
 		return content.Group{}, fmt.Errorf("postgres: get content type: %w", err)
 	}
-	literal, err := locationJSON(literalLocationOf(typeKey))
-	if err != nil {
-		return content.Group{}, err
-	}
 	now := time.Now().UTC()
 	row, err := queries.CreateFieldGroup(ctx, db.CreateFieldGroupParams{
-		Title: named.SingularLabel + " fields", Location: literal, CreatedAt: now, UpdatedAt: now,
+		Title:     named.SingularLabel + " fields",
+		Location:  locationJSON(literalLocationOf(typeKey)),
+		CreatedAt: now, UpdatedAt: now,
 	})
 	if err != nil {
 		return content.Group{}, fmt.Errorf("postgres: raise the type's group: %w", err)
@@ -222,13 +204,9 @@ func (s *TypeStore) ListGroups(ctx context.Context) ([]content.Group, error) {
 
 // CreateGroup stores a new field group at the end of the order.
 func (s *TypeStore) CreateGroup(ctx context.Context, g content.Group) (content.Group, error) {
-	location, err := locationJSON(g.Location)
-	if err != nil {
-		return content.Group{}, err
-	}
 	now := time.Now().UTC()
 	row, err := s.queries.CreateFieldGroup(ctx, db.CreateFieldGroupParams{
-		Title: g.Title, Location: location, CreatedAt: now, UpdatedAt: now,
+		Title: g.Title, Location: locationJSON(g.Location), CreatedAt: now, UpdatedAt: now,
 	})
 	if err != nil {
 		return content.Group{}, fmt.Errorf("postgres: create field group: %w", err)
@@ -238,12 +216,8 @@ func (s *TypeStore) CreateGroup(ctx context.Context, g content.Group) (content.G
 
 // UpdateGroup stores the group's title, location and active flag.
 func (s *TypeStore) UpdateGroup(ctx context.Context, g content.Group) (content.Group, error) {
-	location, err := locationJSON(g.Location)
-	if err != nil {
-		return content.Group{}, err
-	}
 	row, err := s.queries.UpdateFieldGroup(ctx, db.UpdateFieldGroupParams{
-		Title: g.Title, Location: location, Active: g.Active,
+		Title: g.Title, Location: locationJSON(g.Location), Active: g.Active,
 		UpdatedAt: time.Now().UTC(), ID: int32(g.ID),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -302,14 +276,10 @@ func groupByID(groups []content.Group, id int) (content.Group, bool) {
 
 // deleteFieldRow removes one field row and sweeps its values from the matched types.
 func deleteFieldRow(ctx context.Context, queries *db.Queries, groupID int, key string, matched []string) error {
-	removed, err := queries.DeleteContentField(ctx, db.DeleteContentFieldParams{
+	if _, err := queries.DeleteContentField(ctx, db.DeleteContentFieldParams{
 		GroupID: int32(groupID), Key: key,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
-	}
-	if removed == 0 {
-		return content.ErrFieldNotFound
 	}
 	if err := queries.ClearContentFieldValues(ctx, db.ClearContentFieldValuesParams{
 		Key: key, Types: matched,
