@@ -13,10 +13,12 @@ import (
 
 // memoryTypes holds one scenario's content type registry in memory.
 type memoryTypes struct {
-	mu       sync.Mutex
-	types    []content.Type
-	fieldIDs int
-	content  *memoryContent
+	mu          sync.Mutex
+	types       []content.Type
+	groups      []content.Group
+	nextGroupID int
+	fieldIDs    int
+	content     *memoryContent
 }
 
 // newMemoryTypes returns a registry holding the built-in post type the migration registers.
@@ -64,46 +66,145 @@ func (s *memoryTypes) List(context.Context) ([]content.Type, error) {
 	defer s.mu.Unlock()
 	stored := make([]content.Type, len(s.types))
 	copy(stored, s.types)
+	for i, held := range stored {
+		stored[i].Fields = s.flattened(held.Key, held.Fields)
+	}
 	return stored, nil
 }
 
-// CreateGroup hands the group back unstored.
+// memoryParams holds the rule sources the memory store evaluates locations with.
+var memoryParams = content.DefaultParamRegistry(nil)
+
+// flattened returns the type's own fields beside those its matching groups place on it.
+func (s *memoryTypes) flattened(typeKey string, own []content.Field) []content.Field {
+	fields := append([]content.Field(nil), own...)
+	screen := content.Screen{content.ScreenContentType: typeKey}
+	for _, g := range s.groups {
+		if !g.Active || !g.Location.Match(screen, memoryParams) {
+			continue
+		}
+		for _, f := range g.Fields {
+			f.TypeKey = typeKey
+			fields = append(fields, f)
+		}
+	}
+	return fields
+}
+
+// CreateGroup stores a new field group at the end of the order.
 func (s *memoryTypes) CreateGroup(_ context.Context, g content.Group) (content.Group, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.nextGroupID++
+	g.ID, g.Active, g.Position = s.nextGroupID+len(s.types), true, len(s.groups)+1
+	s.groups = append(s.groups, g)
 	return g, nil
 }
 
-// UpdateGroup hands the group back unstored.
+// UpdateGroup stores the group's title, location and resting flag.
 func (s *memoryTypes) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
-	return g, nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID != g.ID {
+			continue
+		}
+		held.Title, held.Location, held.Active = g.Title, g.Location, g.Active
+		s.groups[i] = held
+		return held, nil
+	}
+	return content.Group{}, content.ErrGroupNotFound
 }
 
-// DeleteGroup removes no group.
-func (s *memoryTypes) DeleteGroup(context.Context, int) error { return nil }
-
-// ReorderGroups stores no order.
-func (s *memoryTypes) ReorderGroups(context.Context, []int) error { return nil }
-
-// CreateFieldInGroup hands the field back undeclared.
-func (s *memoryTypes) CreateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
-	return f, nil
+// DeleteGroup removes the group and every field it holds.
+func (s *memoryTypes) DeleteGroup(_ context.Context, id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID == id {
+			s.groups = append(s.groups[:i], s.groups[i+1:]...)
+			return nil
+		}
+	}
+	return content.ErrGroupNotFound
 }
 
-// MoveField carries no field.
-func (s *memoryTypes) MoveField(context.Context, int, string, int) (content.Field, error) {
-	return content.Field{}, content.ErrFieldNotFound
+// ReorderGroups stores the given order on the groups.
+func (s *memoryTypes) ReorderGroups(_ context.Context, ids []int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ordered := make([]content.Group, 0, len(ids))
+	for _, id := range ids {
+		for _, held := range s.groups {
+			if held.ID == id {
+				ordered = append(ordered, held)
+			}
+		}
+	}
+	s.groups = ordered
+	return nil
 }
 
-// ListGroups returns one group per stored type holding the fields it declares.
+// CreateFieldInGroup declares the field inside the group.
+func (s *memoryTypes) CreateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		s.fieldIDs++
+		f.ID, f.GroupID = s.fieldIDs, groupID
+		s.groups[i].Fields = append(held.Fields, f)
+		return f, nil
+	}
+	return content.Field{}, content.ErrGroupNotFound
+}
+
+// MoveField carries the field into another group.
+func (s *memoryTypes) MoveField(_ context.Context, groupID int, key string, toGroup int) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var carried content.Field
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		for at, f := range held.Fields {
+			if f.Key == key {
+				carried = f
+				s.groups[i].Fields = append(held.Fields[:at], held.Fields[at+1:]...)
+				break
+			}
+		}
+	}
+	if carried.Key == "" {
+		return content.Field{}, content.ErrFieldNotFound
+	}
+	carried.GroupID = toGroup
+	for i, held := range s.groups {
+		if held.ID == toGroup {
+			s.groups[i].Fields = append(held.Fields, carried)
+			return carried, nil
+		}
+	}
+	return content.Field{}, content.ErrGroupNotFound
+}
+
+// ListGroups returns the stored groups beside one per type already holding fields.
 func (s *memoryTypes) ListGroups(context.Context) ([]content.Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	groups := make([]content.Group, 0, len(s.types))
+	groups := make([]content.Group, 0, len(s.types)+len(s.groups))
 	for i, t := range s.types {
+		if len(t.Fields) == 0 {
+			continue
+		}
 		groups = append(groups, content.Group{
 			ID: i + 1, Title: t.SingularLabel + " fields", Active: true, Fields: t.Fields,
 		})
 	}
-	return groups, nil
+	return append(groups, s.groups...), nil
 }
 
 // ByKey returns the stored type carrying the key, or [content.ErrTypeNotFound].
@@ -112,6 +213,7 @@ func (s *memoryTypes) ByKey(_ context.Context, key string) (content.Type, error)
 	defer s.mu.Unlock()
 	for _, stored := range s.types {
 		if stored.Key == key {
+			stored.Fields = s.flattened(key, stored.Fields)
 			return stored, nil
 		}
 	}
