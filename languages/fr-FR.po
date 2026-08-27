@@ -869,6 +869,18 @@ msgid "The field %(field)s in %(group)s still points at this content type. Delet
 msgstr "Le champ %(field)s dans %(group)s vise encore ce type de contenu. Supprimez d'abord ce champ, puis supprimez ce type."
 
 #, fuzzy
+msgid "Every field group needs a title. Give it a name and save again."
+msgstr "Chaque groupe de champs a besoin d'un titre. Donnez-lui un nom et enregistrez à nouveau."
+
+#, fuzzy
+msgid "That field group no longer exists. Reload the page to see the groups your site holds now."
+msgstr "Ce groupe de champs n'existe plus. Rechargez la page pour voir les groupes que votre site contient maintenant."
+
+#, fuzzy
+msgid "The new order has to name every field group exactly once. Reload the page and move the groups again."
+msgstr "Le nouvel ordre doit nommer chaque groupe de champs exactement une fois. Rechargez la page et déplacez les groupes à nouveau."
+
+#, fuzzy
 msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead."
 msgstr "Une règle valable pour n'importe quel %(source)s ne peut pas devenir une exclusion. Laissez-la telle quelle, ou nommez ceux à écarter."
 

@@ -354,6 +354,9 @@ msgstr ""
 msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
 msgstr ""
 
+msgid "Every field group needs a title. Give it a name and save again."
+msgstr ""
+
 msgid "Every item needs an author who exists. Pick one from the list and save again."
 msgstr ""
 
@@ -779,6 +782,9 @@ msgstr ""
 msgid "That email is already in use."
 msgstr ""
 
+msgid "That field group no longer exists. Reload the page to see the groups your site holds now."
+msgstr ""
+
 msgid "That field is not on this content type any more. Reload the page to see the fields it has now."
 msgstr ""
 
@@ -852,6 +858,9 @@ msgid "The media library could not be loaded."
 msgstr ""
 
 msgid "The name changes. Nothing stored under this field moves."
+msgstr ""
+
+msgid "The new order has to name every field group exactly once. Reload the page and move the groups again."
 msgstr ""
 
 msgid "The new order has to name every field of this content type exactly once. Reload the page and move the fields again."
