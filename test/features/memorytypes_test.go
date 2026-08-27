@@ -78,12 +78,20 @@ var memoryParams = content.DefaultParamRegistry(nil)
 // flattened returns the type's own fields beside those its matching groups place on it.
 func (s *memoryTypes) flattened(typeKey string, own []content.Field) []content.Field {
 	fields := append([]content.Field(nil), own...)
+	served := make(map[string]bool, len(fields))
+	for _, f := range fields {
+		served[f.Key] = true
+	}
 	screen := content.Screen{content.ScreenContentType: typeKey}
 	for _, g := range s.groups {
 		if !g.Active || !g.Location.Match(screen, memoryParams) {
 			continue
 		}
 		for _, f := range g.Fields {
+			if served[f.Key] {
+				continue
+			}
+			served[f.Key] = true
 			f.TypeKey = typeKey
 			fields = append(fields, f)
 		}

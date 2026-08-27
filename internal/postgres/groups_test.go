@@ -3,8 +3,10 @@
 package postgres_test
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -121,6 +123,127 @@ func TestCreateFieldJoinsTheGroupAlreadyNamingTheType(t *testing.T) {
 	}
 	if len(groups[0].Fields) != 2 || groups[0].Fields[1].Key != "mileage" {
 		t.Errorf("Fields = %v, want mileage second by position", groups[0].Fields)
+	}
+}
+
+func TestByKeyServesOneFieldWhenTwoGroupsCarryTheKey(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	storeType(t, store, "book")
+	holding := func(title, typeKey string) {
+		t.Helper()
+		group, err := store.CreateGroup(
+			t.Context(), content.Group{Title: title, Location: content.Rules{{{
+				Source: "content_type", Operator: content.OperatorIsNot, Value: typeKey,
+			}}}},
+		)
+		if err != nil {
+			t.Fatalf("CreateGroup(%q) error = %v, want nil", title, err)
+		}
+		if _, err := store.CreateFieldInGroup(
+			t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""),
+		); err != nil {
+			t.Fatalf("CreateFieldInGroup(%q) error = %v, want nil", title, err)
+		}
+	}
+	holding("Not cars", "car")
+	holding("Not books", "book")
+
+	storeType(t, store, "page")
+	held, err := store.ByKey(t.Context(), "page")
+
+	if err != nil {
+		t.Fatalf("ByKey() error = %v, want nil", err)
+	}
+	keys := make([]string, len(held.Fields))
+	for i, f := range held.Fields {
+		keys[i] = f.Key
+	}
+	if len(held.Fields) != 1 {
+		t.Fatalf("Fields = %v, want the key served once by the first group", keys)
+	}
+}
+
+func TestUpdateGroupRefusesOneOfTwoMovesOntoTheSameType(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	storeType(t, store, "book")
+	storeType(t, store, "page")
+	moving := func(title, typeKey string) content.Group {
+		t.Helper()
+		group, err := store.CreateGroup(
+			t.Context(), content.Group{Title: title, Location: locationOf(typeKey)},
+		)
+		if err != nil {
+			t.Fatalf("CreateGroup(%q) error = %v, want nil", title, err)
+		}
+		if _, err := store.CreateFieldInGroup(
+			t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""),
+		); err != nil {
+			t.Fatalf("CreateFieldInGroup(%q) error = %v, want nil", title, err)
+		}
+		group.Location = locationOf("page")
+		return group
+	}
+	first, second := moving("Cars", "car"), moving("Books", "book")
+
+	if _, err := store.UpdateGroup(t.Context(), first); err != nil {
+		t.Fatalf("UpdateGroup(first) error = %v, want nil", err)
+	}
+
+	_, err := store.UpdateGroup(t.Context(), second)
+
+	if !errors.Is(err, content.ErrFieldTaken) {
+		t.Fatalf("UpdateGroup(second) error = %v, want %v", err, content.ErrFieldTaken)
+	}
+	held, err := store.ByKey(t.Context(), "page")
+	if err != nil {
+		t.Fatalf("ByKey() error = %v, want nil", err)
+	}
+	if len(held.Fields) != 1 {
+		t.Errorf("Fields = %v, want the key served once", held.Fields)
+	}
+}
+
+func TestUpdateGroupWaitsForAGroupWriteAlreadyUnderway(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	group, err := store.CreateGroup(t.Context(), content.Group{Title: "Cars", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+
+	holding, err := pool.Begin(context.Background())
+	if err != nil {
+		t.Fatalf("Begin() error = %v, want nil", err)
+	}
+	defer func() { _ = holding.Rollback(context.Background()) }()
+	if _, err := holding.Exec(
+		context.Background(), "SELECT pg_advisory_xact_lock(hashtext('core.field_groups'))",
+	); err != nil {
+		t.Fatalf("taking the lock: %v", err)
+	}
+
+	group.Title = "Motors"
+	done := make(chan error, 1)
+	go func() { _, err := store.UpdateGroup(context.Background(), group); done <- err }()
+
+	select {
+	case err := <-done:
+		t.Fatalf("UpdateGroup() answered %v while another write held the lock, want it waiting", err)
+	case <-time.After(250 * time.Millisecond):
+	}
+	if err := holding.Rollback(context.Background()); err != nil {
+		t.Fatalf("Rollback() error = %v, want nil", err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("UpdateGroup() error = %v, want nil once the lock is free", err)
 	}
 }
 

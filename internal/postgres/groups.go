@@ -72,14 +72,20 @@ func screenOf(typeKey string) content.Screen {
 	return content.Screen{content.ScreenContentType: typeKey}
 }
 
-// flattenedFields returns the fields the active matching groups serve on the type.
+// flattenedFields returns the fields the active matching groups serve on the type,
+// the first group holding a key winning it.
 func flattenedFields(groups []content.Group, typeKey string) []content.Field {
 	var fields []content.Field
+	served := make(map[string]bool)
 	for _, g := range groups {
 		if !g.Active || !g.Location.Match(screenOf(typeKey), locationParams) {
 			continue
 		}
 		for _, f := range g.Fields {
+			if served[f.Key] {
+				continue
+			}
+			served[f.Key] = true
 			f.TypeKey = typeKey
 			fields = append(fields, f)
 		}
@@ -216,17 +222,66 @@ func (s *TypeStore) CreateGroup(ctx context.Context, g content.Group) (content.G
 
 // UpdateGroup stores the group's title, location and active flag.
 func (s *TypeStore) UpdateGroup(ctx context.Context, g content.Group) (content.Group, error) {
-	row, err := s.queries.UpdateFieldGroup(ctx, db.UpdateFieldGroupParams{
-		Title: g.Title, Location: locationJSON(g.Location), Active: g.Active,
-		UpdatedAt: time.Now().UTC(), ID: int32(g.ID),
+	var updated content.Group
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := queries.LockFieldGroups(ctx); err != nil {
+			return fmt.Errorf("postgres: lock field groups: %w", err)
+		}
+		if err := groupStandsAlone(ctx, queries, g); err != nil {
+			return err
+		}
+		row, err := queries.UpdateFieldGroup(ctx, db.UpdateFieldGroupParams{
+			Title: g.Title, Location: locationJSON(g.Location), Active: g.Active,
+			UpdatedAt: time.Now().UTC(), ID: int32(g.ID),
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return content.ErrGroupNotFound
+		}
+		if err != nil {
+			return err
+		}
+		updated, err = toGroup(row)
+		return err
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return content.Group{}, content.ErrGroupNotFound
-	}
 	if err != nil {
-		return content.Group{}, fmt.Errorf("postgres: update field group: %w", err)
+		return content.Group{}, updateGroupFailure(err)
 	}
-	return toGroup(row)
+	return updated, nil
+}
+
+// updateGroupFailure returns the error a group update carries, and wraps anything else.
+func updateGroupFailure(err error) error {
+	if errors.Is(err, content.ErrGroupNotFound) || errors.Is(err, content.ErrFieldTaken) {
+		return err
+	}
+	return fmt.Errorf("postgres: update field group: %w", err)
+}
+
+// groupStandsAlone reports whether the group's stored keys stay free of every rival it would share a type with.
+func groupStandsAlone(ctx context.Context, queries *db.Queries, g content.Group) error {
+	groups, err := groupsWithFields(ctx, queries)
+	if err != nil {
+		return err
+	}
+	held, found := groupByID(groups, g.ID)
+	if !found {
+		return nil
+	}
+	keys := make([]string, 0, len(held.Fields))
+	for _, f := range held.Fields {
+		keys = append(keys, f.Key)
+	}
+	names, err := queries.TypeKeys(ctx)
+	if err != nil {
+		return fmt.Errorf("postgres: list type keys: %w", err)
+	}
+	types := make([]content.Type, len(names))
+	for i, key := range names {
+		types[i] = content.Type{Key: key}
+	}
+	g.Fields = held.Fields
+	return content.Uncollided(types, groups, g, keys, 0, locationParams)
 }
 
 // DeleteGroup removes the group, its fields and their stored values in one transaction.
