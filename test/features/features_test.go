@@ -42,6 +42,10 @@ func TestContentFields(t *testing.T) {
 	runFeature(t, "features/content-fields.feature", initializeContentFields)
 }
 
+func TestFieldGroups(t *testing.T) {
+	runFeature(t, "features/field-groups.feature", initializeFieldGroups)
+}
+
 func TestRouteGate(t *testing.T) {
 	runFeature(t, "features/roles-route-gate.feature", initializeRouteGate)
 }
