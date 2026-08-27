@@ -3,7 +3,8 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
-import { chosenOf, fieldsQueryKey } from '../content/FieldsDialog'
+import { fieldsQueryKey } from '../content/FieldsDialog'
+import { chosenOf } from '../content/select'
 import { createField, deleteField, listFields, renameField, slugifyKey } from '../content/types'
 
 const COLOR = { key: 'color', label: 'Color', kind: 'text', many: false, required: false }

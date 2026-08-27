@@ -26,6 +26,8 @@ import {
 	setFieldRequired,
 	slugifyKey,
 } from './types'
+import { chosenOf } from './select'
+import type { Choice } from './select'
 import type { ContentField, ContentType } from './types'
 
 /**
@@ -35,12 +37,6 @@ import type { ContentField, ContentType } from './types'
  */
 export function fieldsQueryKey(typeKey: string): string[] {
 	return ['content-fields', typeKey]
-}
-
-/** One choice a select offers. */
-interface Choice {
-	label: string
-	value: string
 }
 
 /**
@@ -65,24 +61,6 @@ function fieldKinds(): Choice[] {
  */
 function kindLabel(kind: string): string {
 	return fieldKinds().find((held) => held.value === kind)?.label ?? kind
-}
-
-/**
- * Returns the choice a select change asks for.
- * @param item - The item the select reported, or nothing.
- * @param offered - The choices the select holds.
- * @param current - The choice held.
- * @returns The choice to hold.
- */
-export function chosenOf(
-	item: { value: string | null } | null,
-	offered: Choice[],
-	current: Choice,
-): Choice {
-	if (item === null || item.value === null) {
-		return current
-	}
-	return offered.find((choice) => choice.value === item.value) ?? current
 }
 
 /**
