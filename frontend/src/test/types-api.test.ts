@@ -3,7 +3,17 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
-import { createType, deleteType, listTypes, updateType } from '../content/types'
+import { createType, deleteType, kindLabel, listTypes, slugifyKey, updateType } from '../content/types'
+
+test('reduces a label to the key it declares', () => {
+	expect(slugifyKey('Sold On')).toBe('sold-on')
+	expect(slugifyKey('  Colour!  ')).toBe('colour')
+})
+
+test('names a field kind the admin has no word for by the kind itself', () => {
+	expect(kindLabel('text')).toBe('Text')
+	expect(kindLabel('sundial')).toBe('sundial')
+})
 
 const POST_ROW = {
 	key: 'post',
