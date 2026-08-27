@@ -255,7 +255,12 @@ test.each([
 	['updateGroup', () => updateGroup(3, { title: 'Renamed' }), 'patch', '/api/groups/3'],
 	['deleteGroup', () => deleteGroup(3), 'delete', '/api/groups/3'],
 	['reorderGroups', () => reorderGroups([3]), 'put', '/api/groups/order'],
-	['createFieldInGroup', () => createFieldInGroup(3, { key: 'a', label: 'A', kind: 'text' }), 'post', '/api/groups/3/fields'],
+	[
+		'createFieldInGroup',
+		() => createFieldInGroup(3, { key: 'a', label: 'A', kind: 'text' }),
+		'post',
+		'/api/groups/3/fields',
+	],
 	['renameFieldInGroup', () => renameFieldInGroup(3, 'a', 'B'), 'patch', '/api/groups/3/fields/a'],
 	['reorderFieldsInGroup', () => reorderFieldsInGroup(3, ['a']), 'put', '/api/groups/3/fields/order'],
 	['deleteFieldInGroup', () => deleteFieldInGroup(3, 'a'), 'delete', '/api/groups/3/fields/a'],
