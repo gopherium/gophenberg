@@ -25,6 +25,8 @@ func TestGroupRoutesRefuseAMalformedBody(t *testing.T) {
 		"order":      {http.MethodPut, "/api/groups/order"},
 		"declare":    {http.MethodPost, groupPath(id) + "/fields"},
 		"move":       {http.MethodPost, groupPath(id) + "/fields/subtitle/move"},
+		"fieldPatch": {http.MethodPatch, groupPath(id) + "/fields/subtitle"},
+		"fieldOrder": {http.MethodPut, groupPath(id) + "/fields/order"},
 		"unknownKey": {http.MethodPost, "/api/groups"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -55,10 +57,13 @@ func TestGroupRoutesRefuseAnIdentifierThatIsNotANumber(t *testing.T) {
 		path   string
 		body   string
 	}{
-		"patch":   {http.MethodPatch, "/api/groups/many", `{"title": "Extras"}`},
-		"delete":  {http.MethodDelete, "/api/groups/many", ""},
-		"declare": {http.MethodPost, "/api/groups/many/fields", `{"key": "a", "label": "A", "kind": "text"}`},
-		"move":    {http.MethodPost, "/api/groups/many/fields/a/move", `{"to_group": 1}`},
+		"patch":       {http.MethodPatch, "/api/groups/many", `{"title": "Extras"}`},
+		"delete":      {http.MethodDelete, "/api/groups/many", ""},
+		"declare":     {http.MethodPost, "/api/groups/many/fields", `{"key": "a", "label": "A", "kind": "text"}`},
+		"move":        {http.MethodPost, "/api/groups/many/fields/a/move", `{"to_group": 1}`},
+		"fieldPatch":  {http.MethodPatch, "/api/groups/many/fields/a", `{"label": "A"}`},
+		"fieldDelete": {http.MethodDelete, "/api/groups/many/fields/a", ""},
+		"fieldOrder":  {http.MethodPut, "/api/groups/many/fields/order", `{"order": []}`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -150,12 +155,15 @@ func TestGroupRoutesReportAStoreThatWillNotAnswer(t *testing.T) {
 		path   string
 		body   string
 	}{
-		"list":    {http.MethodGet, "/api/groups", ""},
-		"params":  {http.MethodGet, "/api/groups/params", ""},
-		"patch":   {http.MethodPatch, "/api/groups/1", `{"title": "Extras"}`},
-		"order":   {http.MethodPut, "/api/groups/order", `{"order": [1]}`},
-		"declare": {http.MethodPost, "/api/groups/1/fields", `{"key": "a", "label": "A", "kind": "text"}`},
-		"move":    {http.MethodPost, "/api/groups/1/fields/a/move", `{"to_group": 2}`},
+		"list":        {http.MethodGet, "/api/groups", ""},
+		"params":      {http.MethodGet, "/api/groups/params", ""},
+		"patch":       {http.MethodPatch, "/api/groups/1", `{"title": "Extras"}`},
+		"order":       {http.MethodPut, "/api/groups/order", `{"order": [1]}`},
+		"declare":     {http.MethodPost, "/api/groups/1/fields", `{"key": "a", "label": "A", "kind": "text"}`},
+		"move":        {http.MethodPost, "/api/groups/1/fields/a/move", `{"to_group": 2}`},
+		"fieldPatch":  {http.MethodPatch, "/api/groups/1/fields/a", `{"label": "A"}`},
+		"fieldDelete": {http.MethodDelete, "/api/groups/1/fields/a", ""},
+		"fieldOrder":  {http.MethodPut, "/api/groups/1/fields/order", `{"order": ["a"]}`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -170,6 +178,85 @@ func TestGroupRoutesReportAStoreThatWillNotAnswer(t *testing.T) {
 					recorder.Code, http.StatusInternalServerError, recorder.Body.String())
 			}
 		})
+	}
+}
+
+func TestGroupFieldPatchReportsAFieldThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/absent",
+		groupBody(t, map[string]any{"label": "Absent"}))
+
+	if code := refusalCode(t, recorder); code != "field_not_found" {
+		t.Errorf("code = %q, want field_not_found, body %s", code, recorder.Body.String())
+	}
+}
+
+func TestGroupFieldDeleteReportsAFieldThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+
+	recorder := doRequest(t, handler, http.MethodDelete, groupPath(id)+"/fields/absent", "")
+
+	if code := refusalCode(t, recorder); code != "field_not_found" {
+		t.Errorf("code = %q, want field_not_found, body %s", code, recorder.Body.String())
+	}
+}
+
+func TestGroupFieldPatchReportsAGroupThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(4242)+"/fields/absent",
+		groupBody(t, map[string]any{"label": "Absent"}))
+
+	if code := refusalCode(t, recorder); code != "group_not_found" {
+		t.Errorf("code = %q, want group_not_found, body %s", code, recorder.Body.String())
+	}
+}
+
+func TestGroupFieldOrderRefusesAnOrderLeavingAFieldOut(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	declared := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field: status = %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPut, groupPath(id)+"/fields/order",
+		groupBody(t, map[string]any{"order": []string{}}))
+
+	if code := refusalCode(t, recorder); code != "field_order_incomplete" {
+		t.Errorf("code = %q, want field_order_incomplete, body %s", code, recorder.Body.String())
+	}
+}
+
+func TestGroupFieldPatchRefusesAnEmptyLabel(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	createGroup(t, handler, "Article details")
+	second := createGroup(t, handler, "Extras")
+	declared := doRequest(t, handler, http.MethodPost, groupPath(second)+"/fields",
+		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field: status = %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(second)+"/fields/subtitle",
+		groupBody(t, map[string]any{"label": ""}))
+
+	if code := refusalCode(t, recorder); code != "field_label_required" {
+		t.Errorf("code = %q, want field_label_required, body %s", code, recorder.Body.String())
 	}
 }
 

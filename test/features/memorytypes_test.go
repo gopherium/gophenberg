@@ -161,6 +161,64 @@ func (s *memoryTypes) CreateFieldInGroup(_ context.Context, groupID int, f conte
 	return content.Field{}, content.ErrGroupNotFound
 }
 
+// UpdateFieldInGroup stores the field's label and required flag inside its group.
+func (s *memoryTypes) UpdateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		for j, stored := range held.Fields {
+			if stored.Key == f.Key {
+				s.groups[i].Fields[j] = f
+				return f, nil
+			}
+		}
+	}
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// DeleteFieldInGroup removes the field from its group.
+func (s *memoryTypes) DeleteFieldInGroup(_ context.Context, groupID int, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		for j, stored := range held.Fields {
+			if stored.Key == key {
+				s.groups[i].Fields = append(held.Fields[:j], held.Fields[j+1:]...)
+				return nil
+			}
+		}
+	}
+	return content.ErrFieldNotFound
+}
+
+// ReorderFieldsInGroup stores the given order on the group's fields.
+func (s *memoryTypes) ReorderFieldsInGroup(_ context.Context, groupID int, keys []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		ordered := make([]content.Field, 0, len(keys))
+		for _, key := range keys {
+			for _, stored := range held.Fields {
+				if stored.Key == key {
+					ordered = append(ordered, stored)
+				}
+			}
+		}
+		s.groups[i].Fields = ordered
+		return nil
+	}
+	return content.ErrGroupNotFound
+}
+
 // MoveField carries the field into another group.
 func (s *memoryTypes) MoveField(_ context.Context, groupID int, key string, toGroup int) (content.Field, error) {
 	s.mu.Lock()

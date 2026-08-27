@@ -261,6 +261,83 @@ func TestGroupFieldCreateRefusesAKeyAMatchingGroupHolds(t *testing.T) {
 	}
 }
 
+func TestGroupFieldPatchCarriesTheLabelAndTheRequiredFlag(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	declared := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field: status = %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/subtitle",
+		groupBody(t, map[string]any{"label": "Renamed", "required": true}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	patched := decodeBody[struct {
+		Label    string `json:"label"`
+		Required bool   `json:"required"`
+	}](t, recorder)
+	if patched.Label != "Renamed" || !patched.Required {
+		t.Errorf("patched = %+v, want the new label and the required flag", patched)
+	}
+}
+
+func TestGroupFieldDeleteTakesTheFieldAway(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	declared := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field: status = %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodDelete, groupPath(id)+"/fields/subtitle", "")
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusNoContent, recorder.Body.String())
+	}
+	listed := decodeBody[groupsHeld](t, doRequest(t, handler, http.MethodGet, "/api/groups", ""))
+	if len(listed.Items) != 1 || len(listed.Items[0].Fields) != 0 {
+		t.Errorf("groups = %+v, want the field gone", listed.Items)
+	}
+}
+
+func TestGroupFieldOrderStoresTheAskedOrder(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	for _, key := range []string{"subtitle", "footnote"} {
+		declared := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+			groupBody(t, map[string]any{"key": key, "label": "A Field", "kind": "text"}))
+		if declared.Code != http.StatusCreated {
+			t.Fatalf("declaring %s: status = %d", key, declared.Code)
+		}
+	}
+
+	recorder := doRequest(t, handler, http.MethodPut, groupPath(id)+"/fields/order",
+		groupBody(t, map[string]any{"order": []string{"footnote", "subtitle"}}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	ordered := decodeBody[struct {
+		Items []struct {
+			Key string `json:"key"`
+		} `json:"items"`
+	}](t, recorder)
+	if len(ordered.Items) != 2 || ordered.Items[0].Key != "footnote" {
+		t.Errorf("order = %+v, want the asked order", ordered.Items)
+	}
+}
+
 func TestGroupFieldMoveCarriesTheFieldAcross(t *testing.T) {
 	t.Parallel()
 

@@ -166,6 +166,9 @@ func (s *server) mountAdmin(r chi.Router, admin *authkit.AdminHandlers, cfg Conf
 		r.Patch("/api/groups/{id}", s.handleGroupPatch())
 		r.Delete("/api/groups/{id}", s.handleGroupDelete())
 		r.Post("/api/groups/{id}/fields", s.handleGroupFieldCreate())
+		r.Put("/api/groups/{id}/fields/order", s.handleGroupFieldOrder())
+		r.Patch("/api/groups/{id}/fields/{fieldKey}", s.handleGroupFieldPatch())
+		r.Delete("/api/groups/{id}/fields/{fieldKey}", s.handleGroupFieldDelete())
 		r.Post("/api/groups/{id}/fields/{fieldKey}/move", s.handleGroupFieldMove())
 	}
 	if cfg.Settings != nil {

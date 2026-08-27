@@ -257,6 +257,108 @@ func (s *server) handleGroupFieldCreate() http.HandlerFunc {
 	}
 }
 
+// handleGroupFieldPatch returns an http.HandlerFunc carrying a field's label and required flag.
+func (s *server) handleGroupFieldPatch() http.HandlerFunc {
+	type request struct {
+		Label    *string `json:"label"`
+		Required *bool   `json:"required"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := groupIDOf(r)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		req, err := decodeKnown[request](w, r)
+		if err != nil {
+			respondBodyError(w, err)
+			return
+		}
+		stored, err := s.heldGroupField(r, id)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		if req.Label != nil {
+			stored.Label = *req.Label
+		}
+		if req.Required != nil {
+			stored.Required = *req.Required
+		}
+		updated, err := s.types.UpdateFieldInGroup(r.Context(), id, stored)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		authkit.Respond(w, http.StatusOK, newFieldResponse(updated))
+	}
+}
+
+// heldGroupField returns the field the request path names inside its group.
+func (s *server) heldGroupField(r *http.Request, groupID int) (content.Field, error) {
+	groups, err := s.types.Groups(r.Context())
+	if err != nil {
+		return content.Field{}, err
+	}
+	for _, g := range groups {
+		if g.ID != groupID {
+			continue
+		}
+		for _, f := range g.Fields {
+			if f.Key == chi.URLParam(r, "fieldKey") {
+				return f, nil
+			}
+		}
+		return content.Field{}, content.ErrFieldNotFound
+	}
+	return content.Field{}, content.ErrGroupNotFound
+}
+
+// handleGroupFieldDelete returns an http.HandlerFunc removing a field and the values it held.
+func (s *server) handleGroupFieldDelete() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := groupIDOf(r)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		if err := s.types.DeleteFieldInGroup(r.Context(), id, chi.URLParam(r, "fieldKey")); err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// handleGroupFieldOrder returns an http.HandlerFunc storing a group's field declaration order.
+func (s *server) handleGroupFieldOrder() http.HandlerFunc {
+	type request struct {
+		Order []string `json:"order"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := groupIDOf(r)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		req, err := decodeKnown[request](w, r)
+		if err != nil {
+			respondBodyError(w, err)
+			return
+		}
+		reordered, err := s.types.ReorderFieldsInGroup(r.Context(), id, req.Order)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		items := make([]fieldResponse, len(reordered))
+		for i, f := range reordered {
+			items[i] = newFieldResponse(f)
+		}
+		authkit.Respond(w, http.StatusOK, fieldListResponse{Items: items})
+	}
+}
+
 // handleGroupFieldMove returns an http.HandlerFunc carrying a field into another group.
 func (s *server) handleGroupFieldMove() http.HandlerFunc {
 	type request struct {
