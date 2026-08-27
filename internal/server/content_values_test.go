@@ -32,10 +32,38 @@ func declaredOn(t *testing.T, handler http.Handler, body string) {
 	declaredOnType(t, handler, content.TypePost, body)
 }
 
+// groupOver returns a group placed on the type, raising one when nothing is placed there yet.
+func groupOver(t *testing.T, handler http.Handler, typeKey string) int {
+	t.Helper()
+	listed := decodeBody[groupsHeld](t, doRequest(t, handler, http.MethodGet, "/api/groups", ""))
+	for _, held := range listed.Items {
+		for _, set := range held.Location {
+			for _, rule := range set {
+				if rule.Value == typeKey {
+					return held.ID
+				}
+			}
+		}
+	}
+	raised := doRequest(t, handler, http.MethodPost, "/api/groups", groupBody(t, map[string]any{
+		"title": typeKey + " fields",
+		"location": []any{[]any{map[string]any{
+			"source": content.ScreenContentType, "operator": content.OperatorIs, "value": typeKey,
+		}}},
+	}))
+	if raised.Code != http.StatusCreated {
+		t.Fatalf("raising a group over %q: %d: %s", typeKey, raised.Code, raised.Body.String())
+	}
+	return decodeBody[struct {
+		ID int `json:"id"`
+	}](t, raised).ID
+}
+
 // declaredOnType adds a field definition to the named type through the admin API.
 func declaredOnType(t *testing.T, handler http.Handler, typeKey, body string) {
 	t.Helper()
-	recorder := doRequest(t, handler, http.MethodPost, "/api/types/"+typeKey+"/fields", body)
+	where := fmt.Sprintf("/api/groups/%d/fields", groupOver(t, handler, typeKey))
+	recorder := doRequest(t, handler, http.MethodPost, where, body)
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("declaring a field on %q: %d: %s", typeKey, recorder.Code, recorder.Body.String())
 	}

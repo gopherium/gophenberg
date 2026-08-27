@@ -462,7 +462,29 @@ func (s *fakeTypeStore) List(context.Context) ([]content.Type, error) {
 	}
 	stored := make([]content.Type, len(s.types))
 	copy(stored, s.types)
+	for i, held := range stored {
+		stored[i].Fields = s.flattened(held.Key, held.Fields)
+	}
 	return stored, nil
+}
+
+// fakeParams holds the rule sources the fake store evaluates locations with.
+var fakeParams = content.DefaultParamRegistry(nil)
+
+// flattened returns the type's own fields beside those its matching groups place on it.
+func (s *fakeTypeStore) flattened(typeKey string, own []content.Field) []content.Field {
+	fields := append([]content.Field(nil), own...)
+	screen := content.Screen{content.ScreenContentType: typeKey}
+	for _, g := range s.groups {
+		if !g.Active || !g.Location.Match(screen, fakeParams) {
+			continue
+		}
+		for _, f := range g.Fields {
+			f.TypeKey = typeKey
+			fields = append(fields, f)
+		}
+	}
+	return fields
 }
 
 // ListGroups returns one group per stored type holding the fields it declares.

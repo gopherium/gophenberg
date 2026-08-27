@@ -37,7 +37,6 @@ var publicRoutes = []route{
 var everyoneRoutes = []route{
 	{http.MethodGet, "/api/auth/session"},
 	{http.MethodGet, "/api/types"},
-	{http.MethodGet, "/api/types/{key}/fields"},
 	{http.MethodGet, "/api/groups"},
 	{http.MethodGet, "/api/groups/params"},
 	{http.MethodGet, "/api/content"},
@@ -71,10 +70,6 @@ var adminRoutes = []route{
 	{http.MethodPost, "/api/types"},
 	{http.MethodPatch, "/api/types/{key}"},
 	{http.MethodDelete, "/api/types/{key}"},
-	{http.MethodPost, "/api/types/{key}/fields"},
-	{http.MethodPut, "/api/types/{key}/fields/order"},
-	{http.MethodPatch, "/api/types/{key}/fields/{fieldKey}"},
-	{http.MethodDelete, "/api/types/{key}/fields/{fieldKey}"},
 	{http.MethodPost, "/api/groups"},
 	{http.MethodPut, "/api/groups/order"},
 	{http.MethodPatch, "/api/groups/{id}"},
