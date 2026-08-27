@@ -430,6 +430,74 @@ func TestContentWriteReportsALocationItCannotRead(t *testing.T) {
 	}
 }
 
+func TestUpdateFieldInGroupReportsALabelItCannotStore(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+	raiseOn(t, pool, "core.content_fields", "UPDATE")
+
+	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{
+		Key: "subtitle", Label: "Renamed",
+	})
+
+	if err == nil {
+		t.Error("UpdateFieldInGroup() error = nil, want the refused write reported")
+	}
+}
+
+func TestDeleteFieldInGroupReportsGroupsItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
+
+	if err := store.DeleteFieldInGroup(t.Context(), 1, "subtitle"); err == nil {
+		t.Error("DeleteFieldInGroup() error = nil, want the unreadable groups reported")
+	}
+}
+
+func TestDeleteFieldInGroupReportsTypesItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
+
+	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle"); err == nil {
+		t.Error("DeleteFieldInGroup() error = nil, want the unreadable types reported")
+	}
+}
+
+func TestDeleteFieldInGroupReportsValuesItCannotSweep(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+	plantTyped(t, pool, author, "car", "one-car", `{"subtitle": "car words"}`)
+	raiseOn(t, pool, "core.content_fields", "DELETE")
+
+	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle"); err == nil {
+		t.Error("DeleteFieldInGroup() error = nil, want the refused removal reported")
+	}
+}
+
+func TestReorderFieldsInGroupReportsAnOrderItCannotStore(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+	raiseOn(t, pool, "core.content_fields", "UPDATE")
+
+	if err := store.ReorderFieldsInGroup(t.Context(), declared.GroupID, []string{"subtitle"}); err == nil {
+		t.Error("ReorderFieldsInGroup() error = nil, want the refused write reported")
+	}
+}
+
 func TestByKeyReportsGroupsItCannotRead(t *testing.T) {
 	t.Parallel()
 

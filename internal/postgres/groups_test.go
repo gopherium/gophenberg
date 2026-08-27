@@ -213,6 +213,94 @@ func TestTheAnyRuleServesAGroupOnEveryType(t *testing.T) {
 	}
 }
 
+func TestUpdateFieldInGroupStoresTheLabelAndTheRequiredFlag(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+
+	updated, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{
+		Key: "subtitle", Label: "Renamed", Required: true, UpdatedAt: declared.UpdatedAt,
+	})
+
+	if err != nil {
+		t.Fatalf("UpdateFieldInGroup() error = %v, want nil", err)
+	}
+	if updated.Label != "Renamed" || !updated.Required {
+		t.Errorf("updated = %+v, want the new label and the required flag", updated)
+	}
+}
+
+func TestUpdateFieldInGroupReportsAFieldThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+
+	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{Key: "absent", Label: "Absent"})
+
+	if !errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrFieldNotFound)
+	}
+}
+
+func TestDeleteFieldInGroupSweepsTheValuesOfItsMatchedTypes(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	storeType(t, store, "book")
+	declared := declareTypedField(t, store, "car", "subtitle")
+	declareTypedField(t, store, "book", "subtitle")
+	plantTyped(t, pool, author, "car", "one-car", `{"subtitle": "car words"}`)
+	plantTyped(t, pool, author, "book", "one-book", `{"subtitle": "book words"}`)
+
+	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle"); err != nil {
+		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
+	}
+
+	if held := storedFields(t, pool, "one-car"); held != "{}" {
+		t.Errorf("car fields = %s, want the deleted field's value swept", held)
+	}
+	if held := storedFields(t, pool, "one-book"); held != `{"subtitle": "book words"}` {
+		t.Errorf("book fields = %s, want another type's same named field untouched", held)
+	}
+}
+
+func TestDeleteFieldInGroupReportsAGroupThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+
+	err := store.DeleteFieldInGroup(t.Context(), 4242, "subtitle")
+
+	if !errors.Is(err, content.ErrGroupNotFound) {
+		t.Errorf("DeleteFieldInGroup() error = %v, want %v", err, content.ErrGroupNotFound)
+	}
+}
+
+func TestReorderFieldsInGroupSettlesTheOrder(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+	declareTypedField(t, store, "car", "mileage")
+
+	if err := store.ReorderFieldsInGroup(
+		t.Context(), declared.GroupID, []string{"mileage", "subtitle"},
+	); err != nil {
+		t.Fatalf("ReorderFieldsInGroup() error = %v, want nil", err)
+	}
+
+	held, err := store.ByKey(t.Context(), "car")
+	if err != nil || len(held.Fields) != 2 || held.Fields[0].Key != "mileage" {
+		t.Errorf("Fields = %v, %v, want the asked order", held.Fields, err)
+	}
+}
+
 func TestMoveFieldCarriesTheFieldAndKeepsItsValues(t *testing.T) {
 	t.Parallel()
 
