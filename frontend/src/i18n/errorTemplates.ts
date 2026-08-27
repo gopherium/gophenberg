@@ -119,6 +119,15 @@ export function errorTemplates(): Record<string, string> {
 			'Gophenberg does not accept %(extension)s files. Upload a picture, a video, an audio file, a PDF or a zip instead.',
 			DOMAIN,
 		),
+		group_not_found: __(
+			'That field group no longer exists. Reload the page to see the groups your site holds now.',
+			DOMAIN,
+		),
+		group_order_incomplete: __(
+			'The new order has to name every field group exactly once. Reload the page and move the groups again.',
+			DOMAIN,
+		),
+		group_title_required: __('Every field group needs a title. Give it a name and save again.', DOMAIN),
 		image_frame_too_large: __(
 			'One frame of this animation holds more than %(max)d pixels, which is more than Gophenberg opens. Upload a smaller animation.',
 			DOMAIN,
