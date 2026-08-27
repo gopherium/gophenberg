@@ -283,7 +283,7 @@ func (r *Registry) ReorderFields(ctx context.Context, typeKey string, keys []str
 	if err != nil {
 		return nil, err
 	}
-	if err := orderCovers(t, keys); err != nil {
+	if err := orderCovers(t.Fields, keys); err != nil {
 		return nil, err
 	}
 	if err := r.store.ReorderFields(ctx, typeKey, keys); err != nil {
@@ -297,11 +297,11 @@ func (r *Registry) ReorderFields(ctx context.Context, typeKey string, keys []str
 	return reordered.Fields, nil
 }
 
-// orderCovers reports whether keys name every field the type declares exactly once.
-func orderCovers(t Type, keys []string) error {
+// orderCovers reports whether keys name every declared field exactly once.
+func orderCovers(fields []Field, keys []string) error {
 	seen := make(map[string]bool, len(keys))
 	for _, key := range keys {
-		if _, err := fieldOf(t, key); err != nil {
+		if _, err := fieldAmong(fields, key); err != nil {
 			return err
 		}
 		if seen[key] {
@@ -310,7 +310,7 @@ func orderCovers(t Type, keys []string) error {
 		}
 		seen[key] = true
 	}
-	if len(keys) != len(t.Fields) {
+	if len(keys) != len(fields) {
 		return Refuse(ErrFieldOrder, "field_order_incomplete",
 			"content: the order leaves declared fields out", nil)
 	}
@@ -335,7 +335,12 @@ func (r *Registry) DeleteField(ctx context.Context, typeKey, key string) error {
 
 // fieldOf returns the declared field carrying the key, or [ErrFieldNotFound].
 func fieldOf(t Type, key string) (Field, error) {
-	for _, f := range t.Fields {
+	return fieldAmong(t.Fields, key)
+}
+
+// fieldAmong returns the field carrying the key, or [ErrFieldNotFound].
+func fieldAmong(fields []Field, key string) (Field, error) {
+	for _, f := range fields {
 		if f.Key == key {
 			return f, nil
 		}

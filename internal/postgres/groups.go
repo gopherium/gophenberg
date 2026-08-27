@@ -303,6 +303,65 @@ func (s *TypeStore) ReorderGroups(ctx context.Context, ids []int) error {
 	return nil
 }
 
+// UpdateFieldInGroup stores the field's label and required flag inside its group.
+func (s *TypeStore) UpdateFieldInGroup(
+	ctx context.Context, groupID int, f content.Field,
+) (content.Field, error) {
+	row, err := s.queries.UpdateContentField(ctx, db.UpdateContentFieldParams{
+		Label:     f.Label,
+		Required:  f.Required,
+		UpdatedAt: f.UpdatedAt,
+		GroupID:   int32(groupID),
+		Key:       f.Key,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return content.Field{}, content.ErrFieldNotFound
+	}
+	if err != nil {
+		return content.Field{}, fmt.Errorf("postgres: update content field: %w", err)
+	}
+	return toField(row), nil
+}
+
+// DeleteFieldInGroup removes the field and sweeps its values from the types its group matches.
+func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key string) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		groups, err := groupsWithFields(ctx, queries)
+		if err != nil {
+			return err
+		}
+		held, found := groupByID(groups, groupID)
+		if !found {
+			return content.ErrGroupNotFound
+		}
+		matched, err := typesMatchedBy(ctx, queries, held)
+		if err != nil {
+			return err
+		}
+		return deleteFieldRow(ctx, queries, groupID, key, matched)
+	})
+	if errors.Is(err, content.ErrGroupNotFound) {
+		return err
+	}
+	if err != nil {
+		return fmt.Errorf("postgres: delete content field: %w", err)
+	}
+	return nil
+}
+
+// ReorderFieldsInGroup stores the declaration order of a group's fields.
+func (s *TypeStore) ReorderFieldsInGroup(ctx context.Context, groupID int, keys []string) error {
+	err := s.queries.ReorderContentFields(ctx, db.ReorderContentFieldsParams{
+		Keys:    keys,
+		GroupID: int32(groupID),
+	})
+	if err != nil {
+		return fmt.Errorf("postgres: reorder content fields: %w", err)
+	}
+	return nil
+}
+
 // MoveField carries the field into another group, keeping the values it holds.
 func (s *TypeStore) MoveField(
 	ctx context.Context, groupID int, key string, toGroup int,

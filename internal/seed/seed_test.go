@@ -86,6 +86,17 @@ func (stubTypeStore) MoveField(context.Context, int, string, int) (content.Field
 	return content.Field{}, content.ErrFieldNotFound
 }
 
+// UpdateFieldInGroup hands the field back unstored.
+func (stubTypeStore) UpdateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
+	return f, nil
+}
+
+// DeleteFieldInGroup removes no field.
+func (stubTypeStore) DeleteFieldInGroup(context.Context, int, string) error { return nil }
+
+// ReorderFieldsInGroup stores no order.
+func (stubTypeStore) ReorderFieldsInGroup(context.Context, int, []string) error { return nil }
+
 func (stubTypeStore) ReorderFields(context.Context, string, []string) error {
 	return content.ErrTypeNotFound
 }

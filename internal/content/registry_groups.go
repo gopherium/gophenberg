@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Groups returns every field group in position order with its fields attached.
@@ -131,6 +132,79 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	}
 	r.invalidate()
 	return created, nil
+}
+
+// UpdateFieldInGroup carries the field's label and required flag inside its group.
+func (r *Registry) UpdateFieldInGroup(ctx context.Context, groupID int, f Field) (Field, error) {
+	held, err := r.heldField(ctx, groupID, f.Key)
+	if err != nil {
+		return Field{}, err
+	}
+	held.Label, held.Required = f.Label, f.Required
+	held.UpdatedAt = time.Now().UTC()
+	if err := held.Validate(); err != nil {
+		return Field{}, err
+	}
+	updated, err := r.store.UpdateFieldInGroup(ctx, groupID, held)
+	if err != nil {
+		return Field{}, err
+	}
+	r.invalidate()
+	return updated, nil
+}
+
+// DeleteFieldInGroup removes the field and its values from the types its group matches.
+func (r *Registry) DeleteFieldInGroup(ctx context.Context, groupID int, key string) error {
+	if _, err := r.heldField(ctx, groupID, key); err != nil {
+		return err
+	}
+	if err := r.store.DeleteFieldInGroup(ctx, groupID, key); err != nil {
+		return err
+	}
+	r.invalidate()
+	return nil
+}
+
+// ReorderFieldsInGroup stores the declaration order of a group's fields.
+func (r *Registry) ReorderFieldsInGroup(ctx context.Context, groupID int, keys []string) ([]Field, error) {
+	held, err := r.heldGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if err := orderCovers(held.Fields, keys); err != nil {
+		return nil, err
+	}
+	if err := r.store.ReorderFieldsInGroup(ctx, groupID, keys); err != nil {
+		return nil, err
+	}
+	r.invalidate()
+	reordered, err := r.heldGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return reordered.Fields, nil
+}
+
+// heldGroup returns the stored group carrying the identifier.
+func (r *Registry) heldGroup(ctx context.Context, groupID int) (Group, error) {
+	held, err := r.Groups(ctx)
+	if err != nil {
+		return Group{}, err
+	}
+	target, found := groupOf(held, groupID)
+	if !found {
+		return Group{}, ErrGroupNotFound
+	}
+	return target, nil
+}
+
+// heldField returns the stored field a group declares under the key.
+func (r *Registry) heldField(ctx context.Context, groupID int, key string) (Field, error) {
+	target, err := r.heldGroup(ctx, groupID)
+	if err != nil {
+		return Field{}, err
+	}
+	return fieldAmong(target.Fields, key)
 }
 
 // MoveField carries the field into another group, keeping the values it holds.

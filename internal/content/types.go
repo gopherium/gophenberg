@@ -99,6 +99,9 @@ type TypeStore interface {
 	DeleteGroup(ctx context.Context, id int) error
 	ReorderGroups(ctx context.Context, ids []int) error
 	CreateFieldInGroup(ctx context.Context, groupID int, f Field) (Field, error)
+	UpdateFieldInGroup(ctx context.Context, groupID int, f Field) (Field, error)
+	DeleteFieldInGroup(ctx context.Context, groupID int, key string) error
+	ReorderFieldsInGroup(ctx context.Context, groupID int, keys []string) error
 	MoveField(ctx context.Context, groupID int, key string, toGroup int) (Field, error)
 	CreateField(ctx context.Context, f Field) (Field, error)
 	UpdateField(ctx context.Context, f Field) (Field, error)

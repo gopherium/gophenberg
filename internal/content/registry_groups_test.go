@@ -13,14 +13,19 @@ import (
 // groupingStore holds field groups beside the types the fake registry serves.
 type groupingStore struct {
 	*fakeTypeStore
-	groups    []content.Group
-	nextID    int
-	groupsErr error
-	createErr error
-	updateErr error
-	deleteErr error
-	moveErr   error
-	orderErr  error
+	groups          []content.Group
+	nextID          int
+	groupsErr       error
+	createErr       error
+	updateErr       error
+	deleteErr       error
+	moveErr         error
+	orderErr        error
+	updateFieldErr  error
+	deleteFieldErr  error
+	reorderFieldErr error
+
+	failReadAfterOrder bool
 }
 
 // newGroupingStore returns a store holding the built-in post type and no groups.
@@ -110,6 +115,70 @@ func (s *groupingStore) CreateFieldInGroup(_ context.Context, groupID int, f con
 		return f, nil
 	}
 	return content.Field{}, content.ErrGroupNotFound
+}
+
+// UpdateFieldInGroup stores the field's label and required flag inside its group.
+func (s *groupingStore) UpdateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
+	if s.updateFieldErr != nil {
+		return content.Field{}, s.updateFieldErr
+	}
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		for j, stored := range held.Fields {
+			if stored.Key == f.Key {
+				s.groups[i].Fields[j] = f
+				return f, nil
+			}
+		}
+	}
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// DeleteFieldInGroup removes the field from its group.
+func (s *groupingStore) DeleteFieldInGroup(_ context.Context, groupID int, key string) error {
+	if s.deleteFieldErr != nil {
+		return s.deleteFieldErr
+	}
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		for j, stored := range held.Fields {
+			if stored.Key == key {
+				s.groups[i].Fields = append(held.Fields[:j], held.Fields[j+1:]...)
+				return nil
+			}
+		}
+	}
+	return content.ErrFieldNotFound
+}
+
+// ReorderFieldsInGroup stores the given order on the group's fields.
+func (s *groupingStore) ReorderFieldsInGroup(_ context.Context, groupID int, keys []string) error {
+	if s.reorderFieldErr != nil {
+		return s.reorderFieldErr
+	}
+	if s.failReadAfterOrder {
+		s.groupsErr = errStoreDown
+	}
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		ordered := make([]content.Field, 0, len(keys))
+		for _, key := range keys {
+			for _, stored := range held.Fields {
+				if stored.Key == key {
+					ordered = append(ordered, stored)
+				}
+			}
+		}
+		s.groups[i].Fields = ordered
+		return nil
+	}
+	return content.ErrGroupNotFound
 }
 
 // MoveField carries the field into another group.
@@ -213,6 +282,32 @@ func TestRegistryReportsAGroupStoreThatWillNotAnswer(t *testing.T) {
 			_, err := r.MoveField(t.Context(), from.ID, "subtitle", to.ID)
 			return err
 		},
+		"UpdateFieldInGroup": func(r *content.Registry, s *groupingStore) error {
+			held := groupNaming(t, r, "Extras", namingPost())
+			if _, err := r.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+				return err
+			}
+			s.updateFieldErr = errStoreDown
+			_, err := r.UpdateFieldInGroup(t.Context(), held.ID, content.Field{Key: "subtitle", Label: "Renamed"})
+			return err
+		},
+		"DeleteFieldInGroup": func(r *content.Registry, s *groupingStore) error {
+			held := groupNaming(t, r, "Extras", namingPost())
+			if _, err := r.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+				return err
+			}
+			s.deleteFieldErr = errStoreDown
+			return r.DeleteFieldInGroup(t.Context(), held.ID, "subtitle")
+		},
+		"ReorderFieldsInGroup": func(r *content.Registry, s *groupingStore) error {
+			held := groupNaming(t, r, "Extras", namingPost())
+			if _, err := r.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+				return err
+			}
+			s.reorderFieldErr = errStoreDown
+			_, err := r.ReorderFieldsInGroup(t.Context(), held.ID, []string{"subtitle"})
+			return err
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -289,6 +384,17 @@ func TestRegistryReportsAGroupsListItCannotRead(t *testing.T) {
 		},
 		"UpdateGroup": func(r *content.Registry) error {
 			_, err := r.UpdateGroup(t.Context(), content.Group{ID: 1, Title: "Extras", Location: namingPost()})
+			return err
+		},
+		"UpdateFieldInGroup": func(r *content.Registry) error {
+			_, err := r.UpdateFieldInGroup(t.Context(), 1, content.Field{Key: "subtitle", Label: "Renamed"})
+			return err
+		},
+		"DeleteFieldInGroup": func(r *content.Registry) error {
+			return r.DeleteFieldInGroup(t.Context(), 1, "subtitle")
+		},
+		"ReorderFieldsInGroup": func(r *content.Registry) error {
+			_, err := r.ReorderFieldsInGroup(t.Context(), 1, []string{"subtitle"})
 			return err
 		},
 	} {
@@ -608,6 +714,146 @@ func TestRegistryRefusesWakingAGroupIntoACollision(t *testing.T) {
 
 	if !errors.Is(err, content.ErrFieldTaken) {
 		t.Errorf("UpdateGroup() error = %v, want waking into a collision refused", err)
+	}
+}
+
+func TestRegistryRelabelsAFieldInsideItsGroup(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Article details", namingPost())
+	if _, err := registry.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+		t.Fatalf("declaring the field: %v, want nil", err)
+	}
+
+	updated, err := registry.UpdateFieldInGroup(t.Context(), held.ID, content.Field{
+		Key: "subtitle", Label: "Renamed", Required: true,
+	})
+
+	if err != nil {
+		t.Fatalf("UpdateFieldInGroup() error = %v, want nil", err)
+	}
+	if updated.Label != "Renamed" || !updated.Required {
+		t.Errorf("updated = %+v, want the new label and the required flag", updated)
+	}
+}
+
+func TestRegistryReportsRelabelingAFieldNoGroupHolds(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Article details", namingPost())
+
+	_, err := registry.UpdateFieldInGroup(t.Context(), held.ID, content.Field{Key: "absent", Label: "Absent"})
+
+	if !errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrFieldNotFound)
+	}
+}
+
+func TestRegistryDeletesAFieldInsideItsGroup(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Article details", namingPost())
+	if _, err := registry.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+		t.Fatalf("declaring the field: %v, want nil", err)
+	}
+
+	if err := registry.DeleteFieldInGroup(t.Context(), held.ID, "subtitle"); err != nil {
+		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
+	}
+
+	groups, err := registry.Groups(t.Context())
+	if err != nil || len(groups) != 1 || len(groups[0].Fields) != 0 {
+		t.Errorf("Groups() = %v, %v, want the field gone from its group", groups, err)
+	}
+}
+
+func TestRegistryReordersTheFieldsOfAGroup(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Article details", namingPost())
+	for _, key := range []string{"subtitle", "footnote"} {
+		built, err := content.NewField(content.Field{Key: key, Label: "A Field", Kind: content.FieldKindText})
+		if err != nil {
+			t.Fatalf("NewField(%s) error = %v, want nil", key, err)
+		}
+		if _, err := registry.CreateFieldInGroup(t.Context(), held.ID, built); err != nil {
+			t.Fatalf("declaring %s: %v, want nil", key, err)
+		}
+	}
+
+	reordered, err := registry.ReorderFieldsInGroup(t.Context(), held.ID, []string{"footnote", "subtitle"})
+
+	if err != nil {
+		t.Fatalf("ReorderFieldsInGroup() error = %v, want nil", err)
+	}
+	if len(reordered) != 2 || reordered[0].Key != "footnote" {
+		t.Errorf("ReorderFieldsInGroup() = %v, want the asked order", reordered)
+	}
+}
+
+func TestRegistryRefusesRelabelingAFieldToNothing(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Article details", namingPost())
+	if _, err := registry.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+		t.Fatalf("declaring the field: %v, want nil", err)
+	}
+
+	_, err := registry.UpdateFieldInGroup(t.Context(), held.ID, content.Field{Key: "subtitle", Label: ""})
+
+	if !errors.Is(err, content.ErrInvalidFieldLabel) {
+		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrInvalidFieldLabel)
+	}
+}
+
+func TestRegistryReportsAnOrderedGroupItCannotReadBack(t *testing.T) {
+	t.Parallel()
+
+	store := newGroupingStore()
+	registry := content.NewRegistry(store)
+	held := groupNaming(t, registry, "Article details", namingPost())
+	if _, err := registry.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+		t.Fatalf("declaring the field: %v, want nil", err)
+	}
+	store.failReadAfterOrder = true
+
+	_, err := registry.ReorderFieldsInGroup(t.Context(), held.ID, []string{"subtitle"})
+
+	if !errors.Is(err, errStoreDown) {
+		t.Errorf("ReorderFieldsInGroup() error = %v, want the failed read back reported", err)
+	}
+}
+
+func TestRegistryReordersFieldsOfAGroupThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+
+	_, err := registry.ReorderFieldsInGroup(t.Context(), 4242, []string{"subtitle"})
+
+	if !errors.Is(err, content.ErrGroupNotFound) {
+		t.Errorf("ReorderFieldsInGroup() error = %v, want %v", err, content.ErrGroupNotFound)
+	}
+}
+
+func TestRegistryRefusesAGroupOrderLeavingAFieldOut(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Article details", namingPost())
+	if _, err := registry.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+		t.Fatalf("declaring the field: %v, want nil", err)
+	}
+
+	_, err := registry.ReorderFieldsInGroup(t.Context(), held.ID, []string{})
+
+	if !errors.Is(err, content.ErrFieldOrder) {
+		t.Errorf("ReorderFieldsInGroup() error = %v, want %v", err, content.ErrFieldOrder)
 	}
 }
 

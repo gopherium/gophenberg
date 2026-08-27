@@ -94,6 +94,21 @@ func (unreadableTypeStore) MoveField(context.Context, int, string, int) (Field, 
 	return Field{}, errTypeStoreDown
 }
 
+// UpdateFieldInGroup reports the failure rather than storing the field.
+func (unreadableTypeStore) UpdateFieldInGroup(context.Context, int, Field) (Field, error) {
+	return Field{}, errTypeStoreDown
+}
+
+// DeleteFieldInGroup reports the failure rather than removing the field.
+func (unreadableTypeStore) DeleteFieldInGroup(context.Context, int, string) error {
+	return errTypeStoreDown
+}
+
+// ReorderFieldsInGroup reports the failure rather than storing the order.
+func (unreadableTypeStore) ReorderFieldsInGroup(context.Context, int, []string) error {
+	return errTypeStoreDown
+}
+
 func TestUntargetedReportsARegistryItCannotRead(t *testing.T) {
 	t.Parallel()
 
