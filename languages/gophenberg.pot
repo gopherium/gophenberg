@@ -42,6 +42,9 @@ msgstr ""
 msgid "%(group)s created."
 msgstr ""
 
+msgid "%(group)s now appears where you said."
+msgstr ""
+
 msgid "%(group)s removed."
 msgstr ""
 
@@ -150,10 +153,16 @@ msgstr ""
 msgid "Add block"
 msgstr ""
 
+msgid "Add condition"
+msgstr ""
+
 msgid "Add field"
 msgstr ""
 
 msgid "Add media"
+msgstr ""
+
+msgid "Add rule set"
 msgstr ""
 
 msgid "Add title"
@@ -249,6 +258,9 @@ msgstr ""
 msgid "Closed"
 msgstr ""
 
+msgid "Condition"
+msgstr ""
+
 msgid "Content"
 msgstr ""
 
@@ -256,6 +268,9 @@ msgid "Content Types"
 msgstr ""
 
 msgid "Content nests at most %(max)d levels deep, and this item would sit deeper. Pick a parent closer to the top."
+msgstr ""
+
+msgid "Content type"
 msgstr ""
 
 msgid "Could not create a draft."
@@ -749,6 +764,9 @@ msgstr ""
 msgid "Relation"
 msgstr ""
 
+msgid "Remove"
+msgstr ""
+
 msgid "Remove %(title)s"
 msgstr ""
 
@@ -779,10 +797,22 @@ msgstr ""
 msgid "Route word"
 msgstr ""
 
+msgid "Rule %(number)d of set %(set)d"
+msgstr ""
+
+msgid "Rule set %(number)d"
+msgstr ""
+
+msgid "Rules"
+msgstr ""
+
 msgid "Save"
 msgstr ""
 
 msgid "Save draft"
+msgstr ""
+
+msgid "Save rules"
 msgstr ""
 
 msgid "Saved"
@@ -837,6 +867,9 @@ msgid "Something went wrong."
 msgstr ""
 
 msgid "Something went wrong. Try again."
+msgstr ""
+
+msgid "Source"
 msgstr ""
 
 msgid "Start writing."
@@ -954,6 +987,9 @@ msgid "The registry could not be reached."
 msgstr ""
 
 msgid "The rule on %(source)s names nothing to match. Pick a value, or remove the rule."
+msgstr ""
+
+msgid "The rules could not be loaded."
 msgstr ""
 
 msgid "The same item was picked twice for %(field)s. Pick each item once."
@@ -1151,6 +1187,9 @@ msgstr ""
 msgid "Users could not be loaded."
 msgstr ""
 
+msgid "Value"
+msgstr ""
+
 msgid "Version"
 msgstr ""
 
@@ -1158,6 +1197,12 @@ msgid "Videos"
 msgstr ""
 
 msgid "Welcome to Gophenberg."
+msgstr ""
+
+msgid "Where %(group)s appears"
+msgstr ""
+
+msgid "Without a rule this group appears nowhere."
 msgstr ""
 
 msgid "Yes"
@@ -1179,6 +1224,12 @@ msgid "a content type"
 msgstr ""
 
 msgid "address"
+msgstr ""
+
+msgid "is"
+msgstr ""
+
+msgid "is not"
 msgstr ""
 
 msgid "{day} {month} {year}"

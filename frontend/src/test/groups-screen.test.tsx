@@ -5,7 +5,8 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
-import { groupErrorMessage, placementOf } from '../content/GroupsScreen'
+import { placementOf } from '../content/GroupsScreen'
+import { groupErrorMessage } from '../content/groups'
 import { renderAt } from './render'
 
 const POST_TYPE = {

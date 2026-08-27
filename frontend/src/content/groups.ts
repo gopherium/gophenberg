@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { z } from 'zod'
+import { __ } from '@wordpress/i18n'
 
 import { errorText } from '../i18n/errors'
 import { fieldSchema, toField } from './types'
@@ -36,7 +37,7 @@ const errorSchema = z.object({
 })
 
 /** One condition of a group's location, read by its source. */
-interface LocationRule {
+export interface LocationRule {
 	source: string
 	operator: string
 	value: string
@@ -94,8 +95,26 @@ async function refuse(response: Response): Promise<never> {
 	throw new Error(errorText(parsed.success ? parsed.data : { error: '' }))
 }
 
+/**
+ * Returns the sentence naming why a group write was turned away.
+ * @param cause - What the write failed with.
+ * @returns The sentence to show.
+ */
+export function groupErrorMessage(cause: unknown): string {
+	return cause instanceof Error ? cause.message : __('The field groups could not be reached.', 'gophenberg')
+}
+
 /** The key the stored field groups are cached under. */
 export const groupsQueryKey = ['field-groups']
+
+/** The key the rule sources are cached under. */
+export const ruleSourcesQueryKey = ['rule-sources']
+
+/** The source a rule reads to match the content type. */
+export const typeSource = 'content_type'
+
+/** The value a rule carries to match every content type. */
+export const anyType = '*'
 
 /**
  * Returns every stored field group in position order.

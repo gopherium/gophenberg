@@ -1,34 +1,37 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Badge, Button, Dialog, IconButton, InputControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import {
+	Badge,
+	Button,
+	Dialog,
+	IconButton,
+	InputControl,
+	Stack,
+	Text,
+	downIcon,
+	upIcon,
+} from '@gophenberg/frontend-sdk'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, LoadingRows, Page, useToaster } from '@gopherium/godmin'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { createGroup, deleteGroup, groupsQueryKey, listGroups, reorderGroups, updateGroup } from './groups'
+import {
+	anyType,
+	createGroup,
+	deleteGroup,
+	groupErrorMessage,
+	groupsQueryKey,
+	listGroups,
+	reorderGroups,
+	typeSource,
+	updateGroup,
+} from './groups'
 import { typesQueryKey } from './nav'
+import { RulesDialog } from './RulesDialog'
 import { listTypes } from './types'
 import type { FieldGroup, GroupEdit, Location } from './groups'
 import type { ContentType } from './types'
-
-/** The value a rule carries to match every content type. */
-const ANY_TYPE = '*'
-
-/** The source the built in content type rule reads. */
-const TYPE_SOURCE = 'content_type'
-
-const upIcon = (
-	<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="20" height="20">
-		<path d="M12 8l6 6H6z" />
-	</svg>
-)
-
-const downIcon = (
-	<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="20" height="20">
-		<path d="M12 16l-6-6h12z" />
-	</svg>
-)
 
 /** A content type as the placement sentence reads it. */
 interface NamedType {
@@ -57,25 +60,16 @@ export function placementOf(location: Location, types: NamedType[]): string {
  * @returns The phrase for that rule.
  */
 function ruleSentence(rule: { source: string; operator: string; value: string }, types: NamedType[]): string {
-	if (rule.source !== TYPE_SOURCE) {
+	if (rule.source !== typeSource) {
 		return sprintf(__('%(source)s is %(value)s', 'gophenberg'), { source: rule.source, value: rule.value })
 	}
-	const named = rule.value === ANY_TYPE
+	const named = rule.value === anyType
 		? __('Every content type', 'gophenberg')
 		: (types.find((held) => held.key === rule.value)?.pluralLabel ?? rule.value)
 	if (rule.operator === '!=') {
 		return sprintf(__('Not %(type)s', 'gophenberg'), { type: named })
 	}
 	return named
-}
-
-/**
- * Returns the sentence naming why a group write was turned away.
- * @param cause - What the write failed with.
- * @returns The sentence to show.
- */
-export function groupErrorMessage(cause: unknown): string {
-	return cause instanceof Error ? cause.message : __('The field groups could not be reached.', 'gophenberg')
 }
 
 /**
@@ -212,6 +206,7 @@ function GroupRow(
 			<td>
 				<Stack direction="row" gap="xs">
 					<MoveGroup held={held} order={props.order} at={props.at} pending={move.isPending} onMove={move.mutate} />
+					<RulesDialog held={held} onDone={props.onDone} />
 					<Button variant="outline" onClick={() => edit.mutate({ active: !held.active })}>
 						{held.active ? __('Deactivate', 'gophenberg') : __('Activate', 'gophenberg')}
 					</Button>
@@ -329,7 +324,7 @@ function AddGroup(props: Reporter & { types: ContentType[] }) {
 	const seeded = props.types[0]?.key ?? ''
 	const add = useMutation({
 		mutationFn: () =>
-			createGroup(title, [[{ source: TYPE_SOURCE, operator: '==', value: seeded }]]),
+			createGroup(title, [[{ source: typeSource, operator: '==', value: seeded }]]),
 		onSuccess: () => {
 			setOpen(false)
 			setTitle('')

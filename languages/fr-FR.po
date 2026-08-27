@@ -22,6 +22,10 @@ msgid "%(group)s created."
 msgstr "%(group)s créé."
 
 #, fuzzy
+msgid "%(group)s now appears where you said."
+msgstr "%(group)s apparaît maintenant là où vous avez dit."
+
+#, fuzzy
 msgid "%(group)s removed."
 msgstr "%(group)s supprimé."
 
@@ -110,12 +114,20 @@ msgid "Add block"
 msgstr "Ajouter un bloc"
 
 #, fuzzy
+msgid "Add condition"
+msgstr "Ajouter une condition"
+
+#, fuzzy
 msgid "Add field"
 msgstr "Ajouter un champ"
 
 #, fuzzy
 msgid "Add media"
 msgstr "Ajouter un média"
+
+#, fuzzy
+msgid "Add rule set"
+msgstr "Ajouter un ensemble de règles"
 
 #, fuzzy
 msgid "Add title"
@@ -220,6 +232,10 @@ msgid "Closed"
 msgstr "Fermé"
 
 #, fuzzy
+msgid "Condition"
+msgstr "Condition"
+
+#, fuzzy
 msgid "Content"
 msgstr "Contenu"
 
@@ -230,6 +246,10 @@ msgstr "Types de contenu"
 #, fuzzy
 msgid "Content nests at most %(max)d levels deep, and this item would sit deeper. Pick a parent closer to the top."
 msgstr "Le contenu s'imbrique sur au plus %(max)d niveaux, et cet élément irait plus profond. Choisissez un parent plus proche du sommet."
+
+#, fuzzy
+msgid "Content type"
+msgstr "Type de contenu"
 
 #, fuzzy
 msgid "Could not create a draft."
@@ -794,6 +814,10 @@ msgid "Relation"
 msgstr "Relation"
 
 #, fuzzy
+msgid "Remove"
+msgstr "Retirer"
+
+#, fuzzy
 msgid "Rename"
 msgstr "Renommer"
 
@@ -810,12 +834,28 @@ msgid "Route word"
 msgstr "Mot de route"
 
 #, fuzzy
+msgid "Rule %(number)d of set %(set)d"
+msgstr "Règle %(number)d de l ensemble %(set)d"
+
+#, fuzzy
+msgid "Rule set %(number)d"
+msgstr "Ensemble de règles %(number)d"
+
+#, fuzzy
+msgid "Rules"
+msgstr "Règles"
+
+#, fuzzy
 msgid "Save"
 msgstr "Enregistrer"
 
 #, fuzzy
 msgid "Save draft"
 msgstr "Enregistrer le brouillon"
+
+#, fuzzy
+msgid "Save rules"
+msgstr "Enregistrer les règles"
 
 #, fuzzy
 msgid "Saved"
@@ -880,6 +920,10 @@ msgstr "Quelque chose a mal tourné dans Gophenberg. Réessayez dans un instant,
 #, fuzzy
 msgid "Something went wrong."
 msgstr "Quelque chose a mal tourné."
+
+#, fuzzy
+msgid "Source"
+msgstr "Source"
 
 #, fuzzy
 msgid "Start writing."
@@ -1000,6 +1044,10 @@ msgstr "Une règle valable pour n'importe quel %(source)s ne peut pas devenir un
 #, fuzzy
 msgid "The rule on %(source)s names nothing to match. Pick a value, or remove the rule."
 msgstr "La règle sur %(source)s ne nomme rien à faire correspondre. Choisissez une valeur, ou retirez la règle."
+
+#, fuzzy
+msgid "The rules could not be loaded."
+msgstr "Les règles n'ont pas pu être chargées."
 
 #, fuzzy
 msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
@@ -1290,6 +1338,10 @@ msgid "Users could not be loaded."
 msgstr "Les utilisateurs n'ont pas pu être chargés."
 
 #, fuzzy
+msgid "Value"
+msgstr "Valeur"
+
+#, fuzzy
 msgid "Version"
 msgstr "Version"
 
@@ -1300,6 +1352,14 @@ msgstr "Vidéos"
 #, fuzzy
 msgid "Welcome to Gophenberg."
 msgstr "Bienvenue sur Gophenberg."
+
+#, fuzzy
+msgid "Where %(group)s appears"
+msgstr "Où apparaît %(group)s"
+
+#, fuzzy
+msgid "Without a rule this group appears nowhere."
+msgstr "Sans une règle ce groupe n'apparaît nulle part."
 
 #, fuzzy
 msgid "Yes or no"
@@ -1506,6 +1566,14 @@ msgstr "Ce type répondra sous /%(word)s."
 msgctxt "field group"
 msgid "Status"
 msgstr "Statut"
+
+#, fuzzy
+msgid "is"
+msgstr "est"
+
+#, fuzzy
+msgid "is not"
+msgstr "n'est pas"
 
 #, fuzzy
 msgid "{day} {month} {year}"
