@@ -7,6 +7,12 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: gophenberg\n"
 
+msgid " and "
+msgstr ""
+
+msgid " or "
+msgstr ""
+
 msgid "%(count)d post moved to the trash."
 msgid_plural "%(count)d posts moved to the trash."
 msgstr[0] ""
@@ -33,6 +39,15 @@ msgstr ""
 msgid "%(file)s is not a file this block accepts."
 msgstr ""
 
+msgid "%(group)s created."
+msgstr ""
+
+msgid "%(group)s removed."
+msgstr ""
+
+msgid "%(group)s updated."
+msgstr ""
+
 msgid "%(name)s %(version)s is serving the public site."
 msgstr ""
 
@@ -40,6 +55,9 @@ msgid "%(name)s cannot be used as a theme name. Name the zip file after the them
 msgstr ""
 
 msgid "%(name)s moves to /%(word)s. Every address of both types changes."
+msgstr ""
+
+msgid "%(source)s is %(value)s"
 msgstr ""
 
 msgid "%(theme)s failed to start, so the built-in renderer is serving."
@@ -123,6 +141,9 @@ msgstr ""
 msgid "Add New"
 msgstr ""
 
+msgid "Add New Group"
+msgstr ""
+
 msgid "Add New Type"
 msgstr ""
 
@@ -171,6 +192,9 @@ msgstr ""
 msgid "Another item of this content type already uses that address. Pick a different slug and save again."
 msgstr ""
 
+msgid "Appears on"
+msgstr ""
+
 msgid "April"
 msgstr ""
 
@@ -196,6 +220,9 @@ msgid "Block"
 msgstr ""
 
 msgid "Broken"
+msgstr ""
+
+msgid "Bundles of fields, shown where their rules place them."
 msgstr ""
 
 msgid "Cancel"
@@ -265,6 +292,12 @@ msgstr[1] ""
 msgid "Could not save that post."
 msgstr ""
 
+msgid "Create"
+msgstr ""
+
+msgid "Create a field group"
+msgstr ""
+
 msgid "Create user"
 msgstr ""
 
@@ -289,6 +322,9 @@ msgstr ""
 msgid "Delete %(field)s"
 msgstr ""
 
+msgid "Delete %(group)s"
+msgstr ""
+
 msgid "Delete %(title)s for good? This cannot be undone."
 msgstr ""
 
@@ -299,6 +335,9 @@ msgid "Delete Permanently"
 msgstr ""
 
 msgid "Delete the field"
+msgstr ""
+
+msgid "Delete the group"
 msgstr ""
 
 msgid "Delete this %(count)d item for good? This cannot be undone."
@@ -354,6 +393,9 @@ msgstr ""
 msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
 msgstr ""
 
+msgid "Every content type"
+msgstr ""
+
 msgid "Every field group needs a title. Give it a name and save again."
 msgstr ""
 
@@ -373,6 +415,9 @@ msgid "Excerpt"
 msgstr ""
 
 msgid "February"
+msgstr ""
+
+msgid "Field Groups"
 msgstr ""
 
 msgid "Fields"
@@ -423,6 +468,9 @@ msgstr ""
 msgid "Gophenberg keeps this word for itself, so no content type can answer under it. Pick a different route word."
 msgstr ""
 
+msgid "Group"
+msgstr ""
+
 msgid "Hand over the root"
 msgstr ""
 
@@ -438,10 +486,16 @@ msgstr ""
 msgid "Images"
 msgstr ""
 
+msgid "Inactive"
+msgstr ""
+
 msgid "Install theme"
 msgstr ""
 
 msgid "Installed"
+msgstr ""
+
+msgid "It starts on %(type)s, and the rules may be edited afterwards."
 msgstr ""
 
 msgid "January"
@@ -469,6 +523,9 @@ msgid "List view"
 msgstr ""
 
 msgid "Loading content types."
+msgstr ""
+
+msgid "Loading field groups."
 msgstr ""
 
 msgid "Loading the post."
@@ -520,6 +577,12 @@ msgid "Move %(field)s down"
 msgstr ""
 
 msgid "Move %(field)s up"
+msgstr ""
+
+msgid "Move %(group)s down"
+msgstr ""
+
+msgid "Move %(group)s up"
 msgstr ""
 
 msgid "Move %(title)s to the trash?"
@@ -584,6 +647,9 @@ msgstr ""
 msgid "None"
 msgstr ""
 
+msgid "Not %(type)s"
+msgstr ""
+
 msgid "Not found"
 msgstr ""
 
@@ -597,6 +663,9 @@ msgid "Nothing published yet."
 msgstr ""
 
 msgid "November"
+msgstr ""
+
+msgid "Nowhere"
 msgstr ""
 
 msgid "Number"
@@ -843,6 +912,18 @@ msgid "The field %(field)s points at other items, so it does not take a plain va
 msgstr ""
 
 msgid "The field %(field)s takes a list of items, and what arrived was not a list. Reload the page and pick the items again."
+msgstr ""
+
+msgid "The field groups could not be loaded."
+msgstr ""
+
+msgid "The field groups could not be reached."
+msgstr ""
+
+msgid "The fields this group holds go with it, and so do the values every item stored in them."
+msgstr ""
+
+msgid "The groups were reordered."
 msgstr ""
 
 msgid "The item you picked as parent holds another kind of content. Pick a parent of the same content type as this item."
@@ -1094,6 +1175,9 @@ msgstr ""
 msgid "Your site always needs one default content type, so this one cannot be turned off or deleted. Make another type the default first."
 msgstr ""
 
+msgid "a content type"
+msgstr ""
+
 msgid "address"
 msgstr ""
 
@@ -1134,6 +1218,10 @@ msgstr ""
 
 msgctxt "field"
 msgid "Name"
+msgstr ""
+
+msgctxt "field group"
+msgid "Status"
 msgstr ""
 
 msgctxt "field type"

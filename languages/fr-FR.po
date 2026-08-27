@@ -10,6 +10,26 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
 
 #, fuzzy
+msgid " and "
+msgstr " et "
+
+#, fuzzy
+msgid " or "
+msgstr " ou "
+
+#, fuzzy
+msgid "%(group)s created."
+msgstr "%(group)s créé."
+
+#, fuzzy
+msgid "%(group)s removed."
+msgstr "%(group)s supprimé."
+
+#, fuzzy
+msgid "%(group)s updated."
+msgstr "%(group)s mis à jour."
+
+#, fuzzy
 msgid "%(name)s %(version)s is serving the public site."
 msgstr "%(name)s %(version)s sert le site public."
 
@@ -20,6 +40,10 @@ msgstr "%(name)s ne peut pas servir de nom de thème. Nommez le fichier zip comm
 #, fuzzy
 msgid "%(name)s moves to /%(word)s. Every address of both types changes."
 msgstr "%(name)s passe à /%(word)s. Toutes les adresses des deux types changent."
+
+#, fuzzy
+msgid "%(source)s is %(value)s"
+msgstr "%(source)s est %(value)s"
 
 #, fuzzy
 msgid "(no title)"
@@ -72,6 +96,10 @@ msgstr "Actif"
 #, fuzzy
 msgid "Add New"
 msgstr "Ajouter"
+
+#, fuzzy
+msgid "Add New Group"
+msgstr "Ajouter un nouveau groupe"
 
 #, fuzzy
 msgid "Add New Type"
@@ -132,6 +160,10 @@ msgid "Another item of this content type already uses that address. Pick a diffe
 msgstr "Un autre élément de ce type de contenu utilise déjà cette adresse. Choisissez un autre slug et enregistrez de nouveau."
 
 #, fuzzy
+msgid "Appears on"
+msgstr "Apparaît sur"
+
+#, fuzzy
 msgid "April"
 msgstr "avril"
 
@@ -162,6 +194,10 @@ msgstr "Bloc"
 #, fuzzy
 msgid "Broken"
 msgstr "Cassé"
+
+#, fuzzy
+msgid "Bundles of fields, shown where their rules place them."
+msgstr "Ensembles de champs, affichés là où leurs règles les placent."
 
 #, fuzzy
 msgid "Cancel"
@@ -237,6 +273,14 @@ msgid "Could not save that post."
 msgstr "Impossible d'enregistrer cet article."
 
 #, fuzzy
+msgid "Create"
+msgstr "Créer"
+
+#, fuzzy
+msgid "Create a field group"
+msgstr "Créer un groupe de champs"
+
+#, fuzzy
 msgid "Create user"
 msgstr "Créer l'utilisateur"
 
@@ -261,6 +305,10 @@ msgid "Delete"
 msgstr "Supprimer"
 
 #, fuzzy
+msgid "Delete %(group)s"
+msgstr "Supprimer %(group)s"
+
+#, fuzzy
 msgid "Delete All"
 msgstr "Tout supprimer"
 
@@ -271,6 +319,10 @@ msgstr "Supprimer définitivement"
 #, fuzzy
 msgid "Delete the field"
 msgstr "Supprimer le champ"
+
+#, fuzzy
+msgid "Delete the group"
+msgstr "Supprimer le groupe"
 
 #, fuzzy
 msgid "Describe"
@@ -329,6 +381,10 @@ msgid "Every address of this type moves. Links kept elsewhere to the old address
 msgstr "Toutes les adresses de ce type changent. Les liens conservés ailleurs vers les anciennes adresses cessent de fonctionner."
 
 #, fuzzy
+msgid "Every content type"
+msgstr "Tous les types de contenu"
+
+#, fuzzy
 msgid "Every item needs an author who exists. Pick one from the list and save again."
 msgstr "Chaque élément a besoin d'un auteur existant. Choisissez-en un dans la liste et enregistrez de nouveau."
 
@@ -351,6 +407,10 @@ msgstr "Extrait"
 #, fuzzy
 msgid "February"
 msgstr "février"
+
+#, fuzzy
+msgid "Field Groups"
+msgstr "Groupes de champs"
 
 #, fuzzy
 msgid "Fields"
@@ -413,6 +473,10 @@ msgid "Gophenberg keeps this word for itself, so no content type can answer unde
 msgstr "Gophenberg garde ce mot pour lui, aucun type de contenu ne peut donc répondre sous ce mot. Choisissez un autre mot de route."
 
 #, fuzzy
+msgid "Group"
+msgstr "Groupe"
+
+#, fuzzy
 msgid "Hand over the root"
 msgstr "Céder la racine"
 
@@ -425,12 +489,21 @@ msgid "Images"
 msgstr "Images"
 
 #, fuzzy
+msgid "Inactive"
+msgstr "Inactif"
+
+#, fuzzy
 msgid "Install theme"
 msgstr "Installer le thème"
 
 #, fuzzy
 msgid "Installed"
 msgstr "Installé"
+
+#, fuzzy
+msgid "It starts on %(type)s, and the rules may be edited afterwards."
+msgstr ""
+"Il commence sur %(type)s, et les règles peuvent être modifiées ensuite."
 
 #, fuzzy
 msgid "January"
@@ -467,6 +540,10 @@ msgstr "Vue en liste"
 #, fuzzy
 msgid "Loading content types."
 msgstr "Chargement des types de contenu."
+
+#, fuzzy
+msgid "Loading field groups."
+msgstr "Chargement des groupes de champs."
 
 #, fuzzy
 msgid "Loading the post."
@@ -511,6 +588,14 @@ msgstr "Moyenne"
 #, fuzzy
 msgid "Mobile"
 msgstr "Mobile"
+
+#, fuzzy
+msgid "Move %(group)s down"
+msgstr "Descendre %(group)s"
+
+#, fuzzy
+msgid "Move %(group)s up"
+msgstr "Monter %(group)s"
 
 #, fuzzy
 msgid "Move every address"
@@ -581,6 +666,10 @@ msgid "None"
 msgstr "Aucun"
 
 #, fuzzy
+msgid "Not %(type)s"
+msgstr "Sauf %(type)s"
+
+#, fuzzy
 msgid "Not found"
 msgstr "Introuvable"
 
@@ -599,6 +688,10 @@ msgstr "Rien n'est encore publié."
 #, fuzzy
 msgid "November"
 msgstr "novembre"
+
+#, fuzzy
+msgid "Nowhere"
+msgstr "Nulle part"
 
 #, fuzzy
 msgid "Number"
@@ -875,6 +968,26 @@ msgstr "Chaque groupe de champs a besoin d'un titre. Donnez-lui un nom et enregi
 #, fuzzy
 msgid "That field group no longer exists. Reload the page to see the groups your site holds now."
 msgstr "Ce groupe de champs n'existe plus. Rechargez la page pour voir les groupes que votre site contient maintenant."
+
+#, fuzzy
+msgid "The field groups could not be loaded."
+msgstr "Les groupes de champs n'ont pas pu être chargés."
+
+#, fuzzy
+msgid "The field groups could not be reached."
+msgstr "Les groupes de champs n'ont pas pu être joints."
+
+#, fuzzy
+msgid ""
+"The fields this group holds go with it, and so do the values every item "
+"stored in them."
+msgstr ""
+"Les champs que ce groupe contient partent avec lui, ainsi que les valeurs "
+"que chaque élément y a enregistrées."
+
+#, fuzzy
+msgid "The groups were reordered."
+msgstr "Les groupes ont été réordonnés."
 
 #, fuzzy
 msgid "The new order has to name every field group exactly once. Reload the page and move the groups again."
@@ -1205,6 +1318,10 @@ msgid "Your site always needs one default content type, so this one cannot be tu
 msgstr "Votre site a toujours besoin d'un type de contenu par défaut, celui-ci ne peut donc être ni désactivé ni supprimé. Rendez d'abord un autre type par défaut."
 
 #, fuzzy
+msgid "a content type"
+msgstr "un type de contenu"
+
+#, fuzzy
 msgid "address"
 msgstr "adresse"
 
@@ -1384,6 +1501,11 @@ msgstr "Rechercher %(type)s"
 #, fuzzy
 msgid "This type will answer under /%(word)s."
 msgstr "Ce type répondra sous /%(word)s."
+
+#, fuzzy
+msgctxt "field group"
+msgid "Status"
+msgstr "Statut"
 
 #, fuzzy
 msgid "{day} {month} {year}"
