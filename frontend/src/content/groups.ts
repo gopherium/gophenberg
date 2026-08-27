@@ -94,6 +94,9 @@ async function refuse(response: Response): Promise<never> {
 	throw new Error(errorText(parsed.success ? parsed.data : { error: '' }))
 }
 
+/** The key the stored field groups are cached under. */
+export const groupsQueryKey = ['field-groups']
+
 /**
  * Returns every stored field group in position order.
  * @returns The groups with their rules and fields.

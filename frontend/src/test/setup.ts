@@ -31,6 +31,8 @@ const builtInType = {
 
 beforeEach(() => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [builtInType] })))
+	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [] })))
+	server.use(http.get('/api/groups/params', () => HttpResponse.json({ items: [] })))
 })
 
 afterAll(() => {
