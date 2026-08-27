@@ -111,7 +111,7 @@ msgstr ""
 msgid "A field needs a name. Type one and try again."
 msgstr ""
 
-msgid "A field with that name already exists on this content type. Pick another name."
+msgid "A field with that name already exists on the items this group reaches. Pick another name."
 msgstr ""
 
 msgid "A relation field has to say which content type it points at. Pick that type and try again."
@@ -426,9 +426,6 @@ msgstr ""
 msgid "Every post in the trash is removed for good. This cannot be undone."
 msgstr ""
 
-msgid "Every value stored under this field goes with it, in every item of this type and in the revisions behind them."
-msgstr ""
-
 msgid "Every value stored under this field goes with it, in every item the group reaches and in the revisions behind them."
 msgstr ""
 
@@ -445,9 +442,6 @@ msgid "Fields"
 msgstr ""
 
 msgid "Fields of %(group)s"
-msgstr ""
-
-msgid "Fields of %(type)s"
 msgstr ""
 
 msgid "File name"
@@ -1173,9 +1167,6 @@ msgid "This site has nowhere to store uploads, so nothing can be uploaded. Ask w
 msgstr ""
 
 msgid "This theme is over the limit of %(max)d bytes, packed or unpacked. Leave out what the theme does not need and package it again."
-msgstr ""
-
-msgid "This type declares no fields yet."
 msgstr ""
 
 msgid "This type will answer under /%(word)s."

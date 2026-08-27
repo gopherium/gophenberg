@@ -62,8 +62,13 @@ msgstr "La clave de un campo tiene que empezar por una letra minúscula y conten
 msgid "A field needs a name. Type one and try again."
 msgstr "El campo necesita un nombre. Escribe uno e inténtalo de nuevo."
 
-msgid "A field with that name already exists on this content type. Pick another name."
-msgstr "Ya existe un campo con ese nombre en este tipo de contenido. Elige otro nombre."
+#, fuzzy
+msgid ""
+"A field with that name already exists on the items this group reaches. Pick "
+"another name."
+msgstr ""
+"Ya existe un campo con ese nombre en los elementos que este grupo alcanza. "
+"Elige otro nombre."
 
 msgid "A relation field has to say which content type it points at. Pick that type and try again."
 msgstr "Un campo de relación tiene que indicar a qué tipo de contenido apunta. Elige ese tipo e inténtalo de nuevo."
@@ -340,9 +345,6 @@ msgstr "Todos los tipos de contenido que hay en este sitio."
 
 msgid "Every post in the trash is removed for good. This cannot be undone."
 msgstr "Todas las entradas de la papelera se borran para siempre. Esto no se puede deshacer."
-
-msgid "Every value stored under this field goes with it, in every item of this type and in the revisions behind them."
-msgstr "Todo lo guardado en este campo se va con él, en todos los elementos de este tipo y en las revisiones que hay detrás."
 
 #, fuzzy
 msgid ""
@@ -1064,9 +1066,6 @@ msgstr "Este sitio no tiene dónde guardar las subidas, así que no se puede sub
 msgid "This theme is over the limit of %(max)d bytes, packed or unpacked. Leave out what the theme does not need and package it again."
 msgstr "Este tema pasa del límite de %(max)d bytes, comprimido o sin comprimir. Saca lo que el tema no necesite y vuelve a empaquetarlo."
 
-msgid "This type declares no fields yet."
-msgstr "Este tipo todavía no declara ningún campo."
-
 msgid "This zip holds %(entries)d files, more than the %(max)d a theme may carry. Package only the built theme."
 msgstr "Este zip lleva %(entries)d archivos, más de los %(max)d que puede llevar un tema. Empaqueta solo el tema ya construido."
 
@@ -1240,9 +1239,6 @@ msgstr "Desactivar a %(name)s"
 
 msgid "Enable %(name)s"
 msgstr "Activar a %(name)s"
-
-msgid "Fields of %(type)s"
-msgstr "Campos de %(type)s"
 
 msgid "Hand the root to %(type)s"
 msgstr "Ceder la raíz a %(type)s"

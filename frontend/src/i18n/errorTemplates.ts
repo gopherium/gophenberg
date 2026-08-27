@@ -105,7 +105,10 @@ export function errorTemplates(): Record<string, string> {
 			'The field %(field)s points at other items, so it does not take a plain value. Pick the items it points at instead.',
 			DOMAIN,
 		),
-		field_taken: __('A field with that name already exists on this content type. Pick another name.', DOMAIN),
+		field_taken: __(
+			'A field with that name already exists on the items this group reaches. Pick another name.',
+			DOMAIN,
+		),
 		field_unknown: __(
 			'This content type has no field called %(field)s. Check the name, or declare the field on the type first.',
 			DOMAIN,
