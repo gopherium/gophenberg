@@ -213,6 +213,75 @@ func TestTheAnyRuleServesAGroupOnEveryType(t *testing.T) {
 	}
 }
 
+func TestMoveFieldCarriesTheFieldAndKeepsItsValues(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	declareTypedField(t, store, "car", "subtitle")
+	plantTyped(t, pool, author, "car", "one-car", `{"subtitle": "kept words"}`)
+	extras, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	groups, err := store.ListGroups(t.Context())
+	if err != nil || len(groups) != 2 {
+		t.Fatalf("ListGroups() = %v, %v, want both groups", groups, err)
+	}
+
+	moved, err := store.MoveField(t.Context(), groups[0].ID, "subtitle", extras.ID)
+
+	if err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+	if moved.GroupID != extras.ID {
+		t.Errorf("GroupID = %d, want the field carried into %d", moved.GroupID, extras.ID)
+	}
+	if held := storedFields(t, pool, "one-car"); held != `{"subtitle": "kept words"}` {
+		t.Errorf("fields = %s, want the value kept through the move", held)
+	}
+	served, err := store.ByKey(t.Context(), "car")
+	if err != nil || len(served.Fields) != 1 || served.Fields[0].Key != "subtitle" {
+		t.Errorf("ByKey().Fields = %v, %v, want the field still served on the type", served.Fields, err)
+	}
+}
+
+func TestMoveFieldReportsAFieldThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	declareTypedField(t, store, "car", "subtitle")
+	groups, err := store.ListGroups(t.Context())
+	if err != nil || len(groups) != 1 {
+		t.Fatalf("ListGroups() = %v, %v, want the one raised group", groups, err)
+	}
+
+	_, err = store.MoveField(t.Context(), groups[0].ID, "absent", groups[0].ID)
+
+	if !errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldNotFound)
+	}
+}
+
+func TestMoveFieldReportsAGroupThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	declareTypedField(t, store, "car", "subtitle")
+	groups, err := store.ListGroups(t.Context())
+	if err != nil || len(groups) != 1 {
+		t.Fatalf("ListGroups() = %v, %v, want the one raised group", groups, err)
+	}
+
+	_, err = store.MoveField(t.Context(), groups[0].ID, "subtitle", 4242)
+
+	if !errors.Is(err, content.ErrGroupNotFound) {
+		t.Errorf("MoveField() error = %v, want %v", err, content.ErrGroupNotFound)
+	}
+}
+
 func TestDeleteFieldSweepsOnlyTheTypesItsGroupMatches(t *testing.T) {
 	t.Parallel()
 
