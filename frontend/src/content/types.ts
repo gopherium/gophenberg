@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { __ } from '@wordpress/i18n'
+import { __, _x } from '@wordpress/i18n'
 import { z } from 'zod'
 
 import { errorText } from '../i18n/errors'
+import type { Choice } from './select'
 
 export const fieldSchema = z.object({
 	key: z.string(),
@@ -201,6 +202,30 @@ export async function deleteType(key: string): Promise<void> {
 	if (!response.ok) {
 		await refuse(response)
 	}
+}
+
+/**
+ * Returns the kinds a field may be declared as, in the order the admin offers them.
+ * @returns The kinds, each under the label the admin shows.
+ */
+export function fieldKinds(): Choice[] {
+	return [
+		{ label: __('Text', 'gophenberg'), value: 'text' },
+		{ label: __('Number', 'gophenberg'), value: 'number' },
+		{ label: __('Yes or no', 'gophenberg'), value: 'boolean' },
+		{ label: _x('Date', 'field type', 'gophenberg'), value: 'date' },
+		{ label: _x('Media', 'field type', 'gophenberg'), value: 'media' },
+		{ label: __('Relation', 'gophenberg'), value: 'relation' },
+	]
+}
+
+/**
+ * Returns the label a declared field's kind is shown under.
+ * @param kind - The kind as the registry stored it.
+ * @returns The label to show, the stored kind when the admin offers no name for it.
+ */
+export function kindLabel(kind: string): string {
+	return fieldKinds().find((held) => held.value === kind)?.label ?? kind
 }
 
 /**

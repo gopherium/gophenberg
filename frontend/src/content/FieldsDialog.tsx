@@ -20,6 +20,8 @@ import { typesQueryKey } from './nav'
 import {
 	createField,
 	deleteField,
+	fieldKinds,
+	kindLabel,
 	listFields,
 	renameField,
 	reorderFields,
@@ -37,30 +39,6 @@ import type { ContentField, ContentType } from './types'
  */
 export function fieldsQueryKey(typeKey: string): string[] {
 	return ['content-fields', typeKey]
-}
-
-/**
- * Returns the kinds a field may be declared as, in the order the admin offers them.
- * @returns The kinds, each under the label the admin shows.
- */
-function fieldKinds(): Choice[] {
-	return [
-		{ label: __('Text', 'gophenberg'), value: 'text' },
-		{ label: __('Number', 'gophenberg'), value: 'number' },
-		{ label: __('Yes or no', 'gophenberg'), value: 'boolean' },
-		{ label: _x('Date', 'field type', 'gophenberg'), value: 'date' },
-		{ label: _x('Media', 'field type', 'gophenberg'), value: 'media' },
-		{ label: __('Relation', 'gophenberg'), value: 'relation' },
-	]
-}
-
-/**
- * Returns the label a declared field's kind is shown under.
- * @param kind - The kind as the registry stored it.
- * @returns The label to show, the stored kind when the admin offers no name for it.
- */
-function kindLabel(kind: string): string {
-	return fieldKinds().find((held) => held.value === kind)?.label ?? kind
 }
 
 /**
