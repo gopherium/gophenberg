@@ -1549,6 +1549,15 @@ func (q *Queries) LockDefaultContentType(ctx context.Context) (CoreContentType, 
 	return i, err
 }
 
+const lockFieldGroups = `-- name: LockFieldGroups :exec
+SELECT pg_advisory_xact_lock(hashtext('core.field_groups'))
+`
+
+func (q *Queries) LockFieldGroups(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockFieldGroups)
+	return err
+}
+
 const moveContentField = `-- name: MoveContentField :one
 UPDATE core.content_fields AS moved
 SET group_id = $1,

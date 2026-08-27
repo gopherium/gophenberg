@@ -255,19 +255,26 @@ func (r *Registry) freeOfCollisions(ctx context.Context, asked Group) error {
 func (r *Registry) uncollided(
 	ctx context.Context, held []Group, target Group, keys []string, leaving int,
 ) error {
-	if !target.Active || len(keys) == 0 {
-		return nil
-	}
 	types, err := r.All(ctx)
 	if err != nil {
 		return err
+	}
+	return Uncollided(types, held, target, keys, leaving, r.Params(ctx))
+}
+
+// Uncollided reports whether the keys stay free of every other group sharing a type with this one.
+func Uncollided(
+	types []Type, held []Group, target Group, keys []string, leaving int, params *ParamRegistry,
+) error {
+	if !target.Active || len(keys) == 0 {
+		return nil
 	}
 	wanted := make(map[string]bool, len(keys))
 	for _, key := range keys {
 		wanted[key] = true
 	}
 	for _, rival := range held {
-		if !rivalOf(target, rival, leaving) || !sharesAType(types, target, rival, r.Params(ctx)) {
+		if !rivalOf(target, rival, leaving) || !sharesAType(types, target, rival, params) {
 			continue
 		}
 		if err := rivalFree(rival, wanted); err != nil {

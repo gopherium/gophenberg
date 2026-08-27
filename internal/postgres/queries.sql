@@ -393,6 +393,9 @@ SELECT id, title, location, position, active, created_at, updated_at
 FROM core.field_groups WHERE location = @location
 ORDER BY position, id LIMIT 1;
 
+-- name: LockFieldGroups :exec
+SELECT pg_advisory_xact_lock(hashtext('core.field_groups'));
+
 -- name: TypeKeys :many
 SELECT key FROM core.content_types ORDER BY created_at, key;
 
