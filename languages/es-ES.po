@@ -18,6 +18,10 @@ msgid " or "
 msgstr " o "
 
 #, fuzzy
+msgid "%(field)s moved."
+msgstr "%(field)s movido."
+
+#, fuzzy
 msgid "%(group)s created."
 msgstr "%(group)s creado."
 
@@ -340,6 +344,14 @@ msgstr "Todas las entradas de la papelera se borran para siempre. Esto no se pue
 msgid "Every value stored under this field goes with it, in every item of this type and in the revisions behind them."
 msgstr "Todo lo guardado en este campo se va con él, en todos los elementos de este tipo y en las revisiones que hay detrás."
 
+#, fuzzy
+msgid ""
+"Every value stored under this field goes with it, in every item the group "
+"reaches and in the revisions behind them."
+msgstr ""
+"Todos los valores guardados en este campo se van con él, en cada elemento "
+"que el grupo alcanza y en las revisiones que hay detrás."
+
 msgid "Excerpt"
 msgstr "Extracto"
 
@@ -352,6 +364,10 @@ msgstr "Grupos de campos"
 
 msgid "Fields"
 msgstr "Campos"
+
+#, fuzzy
+msgid "Fields of %(group)s"
+msgstr "Campos de %(group)s"
 
 msgid "File name"
 msgstr "Nombre del archivo"
@@ -434,6 +450,10 @@ msgstr "junio"
 msgid "Keep it"
 msgstr "Conservarlo"
 
+#, fuzzy
+msgid "Keep it here"
+msgstr "Dejarlo aquí"
+
 msgid "Language"
 msgstr "Idioma"
 
@@ -487,6 +507,14 @@ msgid "Mobile"
 msgstr "Móvil"
 
 #, fuzzy
+msgid "Move"
+msgstr "Mover"
+
+#, fuzzy
+msgid "Move %(field)s elsewhere"
+msgstr "Mover %(field)s a otro sitio"
+
+#, fuzzy
 msgid "Move %(group)s down"
 msgstr "Bajar %(group)s"
 
@@ -496,6 +524,10 @@ msgstr "Subir %(group)s"
 
 msgid "Move every address"
 msgstr "Mover todas las direcciones"
+
+#, fuzzy
+msgid "Move the field"
+msgstr "Mover el campo"
 
 msgid "Move to Trash"
 msgstr "Mover a la Papelera"
@@ -811,6 +843,10 @@ msgid "The field groups could not be reached."
 msgstr "No se ha podido contactar con los grupos de campos."
 
 #, fuzzy
+msgid "The field keeps every value stored under it."
+msgstr "El campo conserva todos los valores guardados en él."
+
+#, fuzzy
 msgid ""
 "The fields this group holds go with it, and so do the values every item "
 "stored in them."
@@ -841,6 +877,10 @@ msgstr "No se han podido cargar las reglas."
 #, fuzzy
 msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
 msgstr "La fuente %(source)s no ofrece %(operator)s. Elige una de las comparaciones que sí ofrece."
+
+#, fuzzy
+msgid "This group holds no fields yet."
+msgstr "Este grupo todavía no tiene campos."
 
 #, fuzzy
 msgid "This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed."

@@ -28,6 +28,7 @@ import {
 	updateGroup,
 } from './groups'
 import { typesQueryKey } from './nav'
+import { GroupFieldsDialog } from './GroupFieldsDialog'
 import { RulesDialog } from './RulesDialog'
 import { listTypes } from './types'
 import type { FieldGroup, GroupEdit, Location } from './groups'
@@ -165,6 +166,7 @@ function GroupsBody(
 						<GroupRow
 							key={held.id}
 							held={held}
+							groups={props.groups}
 							types={props.types}
 							order={props.groups.map((listed) => listed.id)}
 							at={at}
@@ -184,7 +186,13 @@ function GroupsBody(
  * @returns The row element.
  */
 function GroupRow(
-	props: Reporter & { held: FieldGroup; types: ContentType[]; order: number[]; at: number },
+	props: Reporter & {
+		held: FieldGroup
+		groups: FieldGroup[]
+		types: ContentType[]
+		order: number[]
+		at: number
+	},
 ) {
 	const { held } = props
 	const edit = useMutation({
@@ -206,6 +214,12 @@ function GroupRow(
 			<td>
 				<Stack direction="row" gap="xs">
 					<MoveGroup held={held} order={props.order} at={props.at} pending={move.isPending} onMove={move.mutate} />
+					<GroupFieldsDialog
+						held={held}
+						groups={props.groups}
+						types={props.types}
+						onDone={props.onDone}
+					/>
 					<RulesDialog held={held} onDone={props.onDone} />
 					<Button variant="outline" onClick={() => edit.mutate({ active: !held.active })}>
 						{held.active ? __('Deactivate', 'gophenberg') : __('Activate', 'gophenberg')}

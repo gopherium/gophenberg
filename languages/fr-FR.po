@@ -18,6 +18,10 @@ msgid " or "
 msgstr " ou "
 
 #, fuzzy
+msgid "%(field)s moved."
+msgstr "%(field)s déplacé."
+
+#, fuzzy
 msgid "%(group)s created."
 msgstr "%(group)s créé."
 
@@ -421,6 +425,14 @@ msgid "Every value stored under this field goes with it, in every item of this t
 msgstr "Toutes les valeurs stockées sous ce champ partent avec lui, dans chaque élément de ce type et dans les révisions derrière eux."
 
 #, fuzzy
+msgid ""
+"Every value stored under this field goes with it, in every item the group "
+"reaches and in the revisions behind them."
+msgstr ""
+"Toutes les valeurs enregistrées dans ce champ partent avec lui, dans chaque "
+"élément que le groupe atteint et dans les révisions qui les suivent."
+
+#, fuzzy
 msgid "Excerpt"
 msgstr "Extrait"
 
@@ -435,6 +447,10 @@ msgstr "Groupes de champs"
 #, fuzzy
 msgid "Fields"
 msgstr "Champs"
+
+#, fuzzy
+msgid "Fields of %(group)s"
+msgstr "Champs de %(group)s"
 
 #, fuzzy
 msgid "File name"
@@ -542,6 +558,10 @@ msgid "Keep it"
 msgstr "Le conserver"
 
 #, fuzzy
+msgid "Keep it here"
+msgstr "Le laisser ici"
+
+#, fuzzy
 msgid "Language"
 msgstr "Langue"
 
@@ -610,6 +630,14 @@ msgid "Mobile"
 msgstr "Mobile"
 
 #, fuzzy
+msgid "Move"
+msgstr "Déplacer"
+
+#, fuzzy
+msgid "Move %(field)s elsewhere"
+msgstr "Déplacer %(field)s ailleurs"
+
+#, fuzzy
 msgid "Move %(group)s down"
 msgstr "Descendre %(group)s"
 
@@ -620,6 +648,10 @@ msgstr "Monter %(group)s"
 #, fuzzy
 msgid "Move every address"
 msgstr "Déplacer toutes les adresses"
+
+#, fuzzy
+msgid "Move the field"
+msgstr "Déplacer le champ"
 
 #, fuzzy
 msgid "Move to Trash"
@@ -1022,6 +1054,10 @@ msgid "The field groups could not be reached."
 msgstr "Les groupes de champs n'ont pas pu être joints."
 
 #, fuzzy
+msgid "The field keeps every value stored under it."
+msgstr "Le champ conserve toutes les valeurs qui y sont enregistrées."
+
+#, fuzzy
 msgid ""
 "The fields this group holds go with it, and so do the values every item "
 "stored in them."
@@ -1052,6 +1088,10 @@ msgstr "Les règles n'ont pas pu être chargées."
 #, fuzzy
 msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
 msgstr "La source %(source)s n'offre pas %(operator)s. Choisissez une des comparaisons qu'elle offre."
+
+#, fuzzy
+msgid "This group holds no fields yet."
+msgstr "Ce groupe ne contient pas encore de champs."
 
 #, fuzzy
 msgid "This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed."

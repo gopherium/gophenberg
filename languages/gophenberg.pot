@@ -30,6 +30,9 @@ msgstr ""
 msgid "%(field)s is required now."
 msgstr ""
 
+msgid "%(field)s moved."
+msgstr ""
+
 msgid "%(field)s renamed."
 msgstr ""
 
@@ -426,6 +429,9 @@ msgstr ""
 msgid "Every value stored under this field goes with it, in every item of this type and in the revisions behind them."
 msgstr ""
 
+msgid "Every value stored under this field goes with it, in every item the group reaches and in the revisions behind them."
+msgstr ""
+
 msgid "Excerpt"
 msgstr ""
 
@@ -436,6 +442,9 @@ msgid "Field Groups"
 msgstr ""
 
 msgid "Fields"
+msgstr ""
+
+msgid "Fields of %(group)s"
 msgstr ""
 
 msgid "Fields of %(type)s"
@@ -525,6 +534,9 @@ msgstr ""
 msgid "Keep it"
 msgstr ""
 
+msgid "Keep it here"
+msgstr ""
+
 msgid "Language"
 msgstr ""
 
@@ -588,7 +600,13 @@ msgstr ""
 msgid "Mobile"
 msgstr ""
 
+msgid "Move"
+msgstr ""
+
 msgid "Move %(field)s down"
+msgstr ""
+
+msgid "Move %(field)s elsewhere"
 msgstr ""
 
 msgid "Move %(field)s up"
@@ -604,6 +622,9 @@ msgid "Move %(title)s to the trash?"
 msgstr ""
 
 msgid "Move every address"
+msgstr ""
+
+msgid "Move the field"
 msgstr ""
 
 msgid "Move these %(count)d post to the trash?"
@@ -953,6 +974,9 @@ msgstr ""
 msgid "The field groups could not be reached."
 msgstr ""
 
+msgid "The field keeps every value stored under it."
+msgstr ""
+
 msgid "The fields this group holds go with it, and so do the values every item stored in them."
 msgstr ""
 
@@ -1095,6 +1119,9 @@ msgid "This file is larger than the upload limit. Upload a smaller file."
 msgstr ""
 
 msgid "This file is named %(extension)s but it holds %(detected)s content. Upload it under a name that matches what is inside it."
+msgstr ""
+
+msgid "This group holds no fields yet."
 msgstr ""
 
 msgid "This item cannot go straight to that status from the one it holds now. Save it as a draft first, then try again."
