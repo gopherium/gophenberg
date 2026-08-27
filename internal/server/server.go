@@ -116,6 +116,8 @@ func (s *server) mountOpen(r chi.Router, cfg Config) {
 	if cfg.Types != nil {
 		r.Get("/api/types", s.handleTypeList())
 		r.Get("/api/types/{key}/fields", s.handleFieldList())
+		r.Get("/api/groups", s.handleGroupList())
+		r.Get("/api/groups/params", s.handleGroupParams())
 	}
 	r.Get("/api/content", s.handleContentList())
 	r.Post("/api/content", s.handleContentCreate())
@@ -159,6 +161,12 @@ func (s *server) mountAdmin(r chi.Router, admin *authkit.AdminHandlers, cfg Conf
 		r.Put("/api/types/{key}/fields/order", s.handleFieldOrder())
 		r.Patch("/api/types/{key}/fields/{fieldKey}", s.handleFieldPatch())
 		r.Delete("/api/types/{key}/fields/{fieldKey}", s.handleFieldDelete())
+		r.Post("/api/groups", s.handleGroupCreate())
+		r.Put("/api/groups/order", s.handleGroupOrder())
+		r.Patch("/api/groups/{id}", s.handleGroupPatch())
+		r.Delete("/api/groups/{id}", s.handleGroupDelete())
+		r.Post("/api/groups/{id}/fields", s.handleGroupFieldCreate())
+		r.Post("/api/groups/{id}/fields/{fieldKey}/move", s.handleGroupFieldMove())
 	}
 	if cfg.Settings != nil {
 		r.Patch("/api/settings", s.handleSettingsPatch())
