@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import { errorText } from '../i18n/errors'
 
-const fieldSchema = z.object({
+export const fieldSchema = z.object({
 	key: z.string(),
 	label: z.string(),
 	kind: z.string(),
@@ -104,7 +104,7 @@ function toType(row: z.infer<typeof typeSchema>): ContentType {
  * @param row - The field as the API answered it.
  * @returns The field the admin reads.
  */
-function toField(row: z.infer<typeof fieldSchema>): ContentField {
+export function toField(row: z.infer<typeof fieldSchema>): ContentField {
 	return {
 		key: row.key,
 		label: row.label,
