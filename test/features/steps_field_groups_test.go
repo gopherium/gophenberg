@@ -204,22 +204,12 @@ func theFieldExistsInGroup(ctx context.Context, kind, key, label, title string) 
 
 // servedFieldKeys returns the field keys a content type serves.
 func servedFieldKeys(w *world, typeKey string) ([]string, error) {
-	var listed struct {
-		Items []struct {
-			Key string `json:"key"`
-		} `json:"items"`
-	}
-	if err := w.get("/api/types/" + typeKey + "/fields"); err != nil {
+	listed, err := fieldsOnType(w, typeKey)
+	if err != nil {
 		return nil, err
 	}
-	if err := w.expect(http.StatusOK); err != nil {
-		return nil, err
-	}
-	if err := w.answer.decode(&listed); err != nil {
-		return nil, err
-	}
-	keys := make([]string, len(listed.Items))
-	for i, held := range listed.Items {
+	keys := make([]string, len(listed))
+	for i, held := range listed {
 		keys[i] = held.Key
 	}
 	return keys, nil

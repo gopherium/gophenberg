@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/cucumber/godog"
@@ -28,9 +29,66 @@ type fieldedContent struct {
 	Fields    map[string]json.RawMessage `json:"fields"`
 }
 
-// fieldsPathOf returns where the named type's field definitions answer.
-func fieldsPathOf(typeKey string) string {
-	return typesPath + "/" + typeKey + "/fields"
+// groupOverType returns the group a type's fields are declared into, raising it once.
+func groupOverType(ctx context.Context, typeKey string) (int, error) {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return 0, err
+	}
+	title := typeKey + " fields"
+	if held, found := groupNamed(w, title); found == nil {
+		return held.ID, nil
+	}
+	if err := createGroupWithLocation(ctx, title, namingType(typeKey)); err != nil {
+		return 0, err
+	}
+	if err := w.expect(http.StatusCreated); err != nil {
+		return 0, fmt.Errorf("raising a group over %q: %w", typeKey, err)
+	}
+	held, err := groupNamed(w, title)
+	if err != nil {
+		return 0, err
+	}
+	return held.ID, nil
+}
+
+// fieldsPathIn returns where a group's field definitions answer.
+func fieldsPathIn(group int) string {
+	return groupsPath + "/" + strconv.Itoa(group) + "/fields"
+}
+
+// fieldPathOf returns where one declared field of a type answers.
+func fieldPathOf(ctx context.Context, typeKey, key string) (string, error) {
+	group, err := groupOverType(ctx, typeKey)
+	if err != nil {
+		return "", err
+	}
+	return fieldsPathIn(group) + "/" + key, nil
+}
+
+// fieldsOnType returns the field definitions the registry serves on the named type.
+func fieldsOnType(w *world, typeKey string) ([]listedField, error) {
+	if err := w.get(typesPath); err != nil {
+		return nil, err
+	}
+	if err := w.expect(http.StatusOK); err != nil {
+		return nil, fmt.Errorf("listing the types: %w", err)
+	}
+	var listed struct {
+		Items []struct {
+			Key    string        `json:"key"`
+			Fields []listedField `json:"fields"`
+		} `json:"items"`
+	}
+	if err := w.answer.decode(&listed); err != nil {
+		return nil, err
+	}
+	for _, held := range listed.Items {
+		if held.Key == typeKey {
+			return held.Fields, nil
+		}
+	}
+	return nil, fmt.Errorf("the registry lists no type %q", typeKey)
 }
 
 // theAdministratorListsTheFieldsOf asks the registry for a type's field definitions.
@@ -39,26 +97,22 @@ func theAdministratorListsTheFieldsOf(ctx context.Context, typeKey string) error
 	if err != nil {
 		return err
 	}
-	return w.get(fieldsPathOf(typeKey))
+	_, err = fieldsOnType(w, typeKey)
+	return err
 }
 
-// noFieldsAreListed asserts the registry answered an empty definition list.
-func noFieldsAreListed(ctx context.Context) error {
+// noFieldsAreListedOn asserts the registry serves the type no field definitions.
+func noFieldsAreListedOn(ctx context.Context, typeKey string) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
 	}
-	if err := w.expect(http.StatusOK); err != nil {
-		return fmt.Errorf("listing the fields: %w", err)
-	}
-	var listed struct {
-		Items []listedField `json:"items"`
-	}
-	if err := w.answer.decode(&listed); err != nil {
+	held, err := fieldsOnType(w, typeKey)
+	if err != nil {
 		return err
 	}
-	if len(listed.Items) != 0 {
-		return fmt.Errorf("the registry lists %d fields, want none", len(listed.Items))
+	if len(held) != 0 {
+		return fmt.Errorf("the registry lists %d fields on %q, want none", len(held), typeKey)
 	}
 	return nil
 }
@@ -69,7 +123,11 @@ func addField(ctx context.Context, typeKey, body string) error {
 	if err != nil {
 		return err
 	}
-	return w.postJSON(fieldsPathOf(typeKey), body)
+	group, err := groupOverType(ctx, typeKey)
+	if err != nil {
+		return err
+	}
+	return w.postJSON(fieldsPathIn(group), body)
 }
 
 // theAdministratorAddsTheField asks the registry to hold a new field on a type.
@@ -126,19 +184,11 @@ func theFieldIsListedOn(ctx context.Context, key, typeKey string) error {
 	if err != nil {
 		return err
 	}
-	if err := w.get(fieldsPathOf(typeKey)); err != nil {
+	listed, err := fieldsOnType(w, typeKey)
+	if err != nil {
 		return err
 	}
-	if err := w.expect(http.StatusOK); err != nil {
-		return fmt.Errorf("listing the fields of %q: %w", typeKey, err)
-	}
-	var listed struct {
-		Items []listedField `json:"items"`
-	}
-	if err := w.answer.decode(&listed); err != nil {
-		return err
-	}
-	for _, found := range listed.Items {
+	for _, found := range listed {
 		if found.Key == key {
 			return nil
 		}
@@ -152,7 +202,11 @@ func theAdministratorRelabelsTheField(ctx context.Context, key, typeKey, label s
 	if err != nil {
 		return err
 	}
-	if err := w.patchJSON(fieldsPathOf(typeKey)+"/"+key, fmt.Sprintf(`{"label":%q}`, label)); err != nil {
+	where, err := fieldPathOf(ctx, typeKey, key)
+	if err != nil {
+		return err
+	}
+	if err := w.patchJSON(where, fmt.Sprintf(`{"label":%q}`, label)); err != nil {
 		return err
 	}
 	return w.expect(http.StatusOK)
@@ -169,7 +223,11 @@ func theAdministratorReordersTheFieldsOf(ctx context.Context, typeKey, listed st
 	if err != nil {
 		return err
 	}
-	return w.putJSON(fieldsPathOf(typeKey)+"/order", string(encoded))
+	group, err := groupOverType(ctx, typeKey)
+	if err != nil {
+		return err
+	}
+	return w.putJSON(fieldsPathIn(group)+"/order", string(encoded))
 }
 
 // theFieldsOfAreListedAs verifies the declaration order the list endpoint answers.
@@ -178,20 +236,12 @@ func theFieldsOfAreListedAs(ctx context.Context, typeKey, listed string) error {
 	if err != nil {
 		return err
 	}
-	if err := w.get(fieldsPathOf(typeKey)); err != nil {
+	answered, err := fieldsOnType(w, typeKey)
+	if err != nil {
 		return err
 	}
-	if err := w.expect(http.StatusOK); err != nil {
-		return fmt.Errorf("listing the fields of %q: %w", typeKey, err)
-	}
-	var answered struct {
-		Items []listedField `json:"items"`
-	}
-	if err := w.answer.decode(&answered); err != nil {
-		return err
-	}
-	keys := make([]string, len(answered.Items))
-	for i, f := range answered.Items {
+	keys := make([]string, len(answered))
+	for i, f := range answered {
 		keys[i] = f.Key
 	}
 	if got := strings.Join(keys, ", "); got != listed {
@@ -206,7 +256,11 @@ func theAdministratorMarksTheFieldRequired(ctx context.Context, key, typeKey str
 	if err != nil {
 		return err
 	}
-	if err := w.patchJSON(fieldsPathOf(typeKey)+"/"+key, `{"required":true}`); err != nil {
+	where, err := fieldPathOf(ctx, typeKey, key)
+	if err != nil {
+		return err
+	}
+	if err := w.patchJSON(where, `{"required":true}`); err != nil {
 		return err
 	}
 	return w.expect(http.StatusOK)
@@ -218,7 +272,11 @@ func theAdministratorEditsTheFieldWithTheUnknownAttribute(ctx context.Context, k
 	if err != nil {
 		return err
 	}
-	return w.patchJSON(fieldsPathOf(typeKey)+"/"+key, fmt.Sprintf(`{%q:"number"}`, attribute))
+	where, err := fieldPathOf(ctx, typeKey, key)
+	if err != nil {
+		return err
+	}
+	return w.patchJSON(where, fmt.Sprintf(`{%q:"number"}`, attribute))
 }
 
 // theAdministratorDeletesTheField asks the registry to forget a field and its values.
@@ -227,7 +285,11 @@ func theAdministratorDeletesTheField(ctx context.Context, key, typeKey string) e
 	if err != nil {
 		return err
 	}
-	if err := w.deleteAt(fieldsPathOf(typeKey) + "/" + key); err != nil {
+	where, err := fieldPathOf(ctx, typeKey, key)
+	if err != nil {
+		return err
+	}
+	if err := w.deleteAt(where); err != nil {
 		return err
 	}
 	return w.expect(http.StatusNoContent)
@@ -503,7 +565,7 @@ func initializeContentFields(sc *godog.ScenarioContext) {
 		`^the administrator restores the previous revision of "([^"]*)"$`,
 		theAdministratorRestoresThePreviousRevisionOf,
 	)
-	sc.Then(`^no fields are listed$`, noFieldsAreListed)
+	sc.Then(`^no fields are listed on "([^"]*)"$`, noFieldsAreListedOn)
 	sc.Then(`^the field "([^"]*)" is listed on "([^"]*)"$`, theFieldIsListedOn)
 	sc.Then(`^the request is refused$`, theRequestIsRefused)
 	sc.Then(`^the post "([^"]*)" holds "([^"]*)" in "([^"]*)"$`, thePostHolds)

@@ -153,6 +153,11 @@ func (s *memoryTypes) CreateFieldInGroup(_ context.Context, groupID int, f conte
 		if held.ID != groupID {
 			continue
 		}
+		for _, stored := range held.Fields {
+			if stored.Key == f.Key {
+				return content.Field{}, content.ErrFieldTaken
+			}
+		}
 		s.fieldIDs++
 		f.ID, f.GroupID = s.fieldIDs, groupID
 		s.groups[i].Fields = append(held.Fields, f)
@@ -181,6 +186,21 @@ func (s *memoryTypes) UpdateFieldInGroup(_ context.Context, groupID int, f conte
 
 // DeleteFieldInGroup removes the field from its group.
 func (s *memoryTypes) DeleteFieldInGroup(_ context.Context, groupID int, key string) error {
+	reached, dropped := s.dropFieldInGroup(groupID, key)
+	if !dropped {
+		return content.ErrFieldNotFound
+	}
+	if s.content != nil {
+		for _, typeKey := range reached {
+			s.content.clearField(typeKey, key)
+			s.content.clearRelation(typeKey, key)
+		}
+	}
+	return nil
+}
+
+// dropFieldInGroup removes the declaration, reporting the types the group reached.
+func (s *memoryTypes) dropFieldInGroup(groupID int, key string) ([]string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
@@ -188,13 +208,25 @@ func (s *memoryTypes) DeleteFieldInGroup(_ context.Context, groupID int, key str
 			continue
 		}
 		for j, stored := range held.Fields {
-			if stored.Key == key {
-				s.groups[i].Fields = append(held.Fields[:j], held.Fields[j+1:]...)
-				return nil
+			if stored.Key != key {
+				continue
 			}
+			s.groups[i].Fields = append(held.Fields[:j], held.Fields[j+1:]...)
+			return s.typesMatchedBy(held), true
 		}
 	}
-	return content.ErrFieldNotFound
+	return nil, false
+}
+
+// typesMatchedBy returns the keys of the types the group's location reaches.
+func (s *memoryTypes) typesMatchedBy(g content.Group) []string {
+	matched := make([]string, 0, len(s.types))
+	for _, t := range s.types {
+		if g.Location.Match(content.Screen{content.ScreenContentType: t.Key}, memoryParams) {
+			matched = append(matched, t.Key)
+		}
+	}
+	return matched
 }
 
 // ReorderFieldsInGroup stores the given order on the group's fields.
@@ -402,7 +434,7 @@ func (s *memoryTypes) targeted(typeKey, key, stored string) error {
 		if held.Key != typeKey {
 			continue
 		}
-		for _, f := range held.Fields {
+		for _, f := range s.flattened(typeKey, held.Fields) {
 			if f.Key == key {
 				if f.RelatesTo != stored {
 					return fmt.Errorf("%w: %s holds %s", content.ErrTargetType, key, stored)
