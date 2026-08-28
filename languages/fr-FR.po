@@ -867,7 +867,7 @@ msgstr "Mot de route"
 
 #, fuzzy
 msgid "Rule %(number)d of set %(set)d"
-msgstr "Règle %(number)d de l ensemble %(set)d"
+msgstr "Règle %(number)d de l'ensemble %(set)d"
 
 #, fuzzy
 msgid "Rule set %(number)d"

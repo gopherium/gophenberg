@@ -1124,7 +1124,7 @@ msgid "Your language"
 msgstr "Tu idioma"
 
 msgid "Your server pins the site to the theme %(name)s, so themes cannot be changed here. Ask whoever looks after your site to remove the pin."
-msgstr "Tu servidor bloque el sitio al tema %(name)s, así que los temas no se pueden cambiar desde aquí. Pide a quien gestiona tu sitio que quite ese bloqueo."
+msgstr "Tu servidor fija el sitio al tema %(name)s, así que los temas no se pueden cambiar desde aquí. Pide a quien gestiona tu sitio que quite ese bloqueo."
 
 msgid "Your site always needs one default content type, so this one cannot be turned off or deleted. Make another type the default first."
 msgstr "Tu sitio siempre necesita un tipo de contenido por defecto, así que este no se puede desactivar ni borrar. Haz antes que otro tipo sea el que está por defecto."
