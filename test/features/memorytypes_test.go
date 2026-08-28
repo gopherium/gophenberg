@@ -38,28 +38,6 @@ func newMemoryTypes(items *memoryContent) *memoryTypes {
 	}}}
 }
 
-// ReorderFields stores the given declaration order on the type.
-func (s *memoryTypes) ReorderFields(_ context.Context, typeKey string, keys []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i, stored := range s.types {
-		if stored.Key != typeKey {
-			continue
-		}
-		reordered := make([]content.Field, 0, len(stored.Fields))
-		for _, key := range keys {
-			for _, held := range stored.Fields {
-				if held.Key == key {
-					reordered = append(reordered, held)
-				}
-			}
-		}
-		s.types[i].Fields = reordered
-		return nil
-	}
-	return content.ErrTypeNotFound
-}
-
 // List returns every stored type in registration order.
 func (s *memoryTypes) List(context.Context) ([]content.Type, error) {
 	s.mu.Lock()
@@ -387,55 +365,6 @@ func (s *memoryTypes) CreateField(_ context.Context, f content.Field) (content.F
 		return f, nil
 	}
 	return content.Field{}, content.ErrTypeNotFound
-}
-
-// UpdateField stores the edited field on its type, or reports it missing.
-func (s *memoryTypes) UpdateField(_ context.Context, f content.Field) (content.Field, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i, stored := range s.types {
-		if stored.Key != f.TypeKey {
-			continue
-		}
-		for j, held := range stored.Fields {
-			if held.Key == f.Key {
-				f.ID = held.ID
-				s.types[i].Fields[j] = f
-				return f, nil
-			}
-		}
-	}
-	return content.Field{}, content.ErrFieldNotFound
-}
-
-// DeleteField removes the field from its type, or reports it missing.
-func (s *memoryTypes) DeleteField(_ context.Context, typeKey, key string) error {
-	if !s.dropField(typeKey, key) {
-		return content.ErrFieldNotFound
-	}
-	if s.content != nil {
-		s.content.clearField(typeKey, key)
-		s.content.clearRelation(typeKey, key)
-	}
-	return nil
-}
-
-// dropField removes the declaration, reporting whether the type held one.
-func (s *memoryTypes) dropField(typeKey, key string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i, stored := range s.types {
-		if stored.Key != typeKey {
-			continue
-		}
-		for j, held := range stored.Fields {
-			if held.Key == key {
-				s.types[i].Fields = append(stored.Fields[:j], stored.Fields[j+1:]...)
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // targeted reports whether the field of the type may point at an item of the stored type.

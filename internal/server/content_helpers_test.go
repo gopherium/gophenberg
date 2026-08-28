@@ -715,28 +715,6 @@ func (s *fakeTypeStore) Delete(_ context.Context, key string) error {
 	return content.ErrTypeNotFound
 }
 
-// ReorderFields stores the given declaration order on the type.
-func (s *fakeTypeStore) ReorderFields(_ context.Context, typeKey string, keys []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i, stored := range s.types {
-		if stored.Key != typeKey {
-			continue
-		}
-		reordered := make([]content.Field, 0, len(stored.Fields))
-		for _, key := range keys {
-			for _, held := range stored.Fields {
-				if held.Key == key {
-					reordered = append(reordered, held)
-				}
-			}
-		}
-		s.types[i].Fields = reordered
-		return nil
-	}
-	return content.ErrTypeNotFound
-}
-
 // serverWithStores returns an unauthenticated handler over the given stores.
 func serverWithStores(users authkit.AdminStore, posts content.Store) http.Handler {
 	return server.NewServer(serverConfig(users, posts))

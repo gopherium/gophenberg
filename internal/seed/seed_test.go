@@ -97,23 +97,9 @@ func (stubTypeStore) DeleteFieldInGroup(context.Context, int, string) error { re
 // ReorderFieldsInGroup stores no order.
 func (stubTypeStore) ReorderFieldsInGroup(context.Context, int, []string) error { return nil }
 
-func (stubTypeStore) ReorderFields(context.Context, string, []string) error {
-	return content.ErrTypeNotFound
-}
-
 // CreateField refuses to declare a field in a seeding run.
 func (stubTypeStore) CreateField(context.Context, content.Field) (content.Field, error) {
 	return content.Field{}, content.ErrTypeNotFound
-}
-
-// UpdateField refuses to edit a field in a seeding run.
-func (stubTypeStore) UpdateField(context.Context, content.Field) (content.Field, error) {
-	return content.Field{}, content.ErrFieldNotFound
-}
-
-// DeleteField refuses to remove a field in a seeding run.
-func (stubTypeStore) DeleteField(context.Context, string, string) error {
-	return content.ErrFieldNotFound
 }
 
 func TestPostsReportsStoreFailures(t *testing.T) {
