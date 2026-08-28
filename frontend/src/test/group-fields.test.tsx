@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vitest'
 
 import { renderAt } from './render'
 
@@ -57,12 +57,19 @@ const EXTRAS = {
 	fields: [],
 }
 
-/** Serves the given groups from the listing endpoint. */
+/**
+ * Serves the given groups from the listing endpoint.
+ * @param groups - The groups the listing answers with.
+ */
 function listing(groups: unknown[]) {
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: groups })))
 }
 
-/** Opens the fields of the named group and answers with its dialog. */
+/**
+ * Opens the fields of the named group.
+ * @param named - The group whose fields to open.
+ * @returns The dialog the group opened.
+ */
 async function openFields(named = 'Article details') {
 	const table = await screen.findByRole('region', { name: 'Field Groups' })
 	const row = within(table).getByRole('row', { name: new RegExp(named) })
@@ -285,6 +292,28 @@ test('declares a relation field pointing at the type and holding what was picked
 			required: true,
 		}),
 	)
+})
+
+test('declares a plain field while the content types are still out of reach', async () => {
+	let sent: unknown
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(http.get('/api/types', () => new HttpResponse(null, { status: 500 })))
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByLabelText('Name'), 'Summary')
+	await userEvent.click(within(dialog).getByLabelText('Kind'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Relation' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+
+	expect(within(dialog).queryByLabelText('Points at')).not.toBeInTheDocument()
+	await waitFor(() => expect(sent).toMatchObject({ key: 'summary' }))
 })
 
 test('makes a required field optional again', async () => {

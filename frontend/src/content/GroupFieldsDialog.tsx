@@ -248,9 +248,10 @@ function AddField(props: Reporter & { group: number; types: ContentType[] }) {
 	])
 	const [label, setLabel] = useState('')
 	const [kind, setKind] = useState(kinds[0])
-	const [target, setTarget] = useState(targets[0])
+	const [targetKey, setTargetKey] = useState('')
 	const [presence, setPresence] = useState(presences[0])
 	const [holding, setHolding] = useState(holdings[0])
+	const target = targets.find((held) => held.value === targetKey) ?? targets[0]
 	const relating = kind.value === 'relation'
 	const add = useMutation({
 		mutationFn: () =>
@@ -258,7 +259,7 @@ function AddField(props: Reporter & { group: number; types: ContentType[] }) {
 				key: slugifyKey(label),
 				label,
 				kind: kind.value,
-				relatesTo: relating ? target.value : undefined,
+				relatesTo: relating ? target?.value : undefined,
 				many: relating && holding.value === 'many',
 				required: presence.value === 'required',
 			}),
@@ -282,12 +283,12 @@ function AddField(props: Reporter & { group: number; types: ContentType[] }) {
 				value={kind}
 				onValueChange={(item) => setKind(chosenOf(item, kinds, kind))}
 			/>
-			{relating && (
+			{relating && target !== undefined && (
 				<SelectControl
 					label={__('Points at', 'gophenberg')}
 					items={targets}
 					value={target}
-					onValueChange={(item) => setTarget(chosenOf(item, targets, target))}
+					onValueChange={(item) => setTargetKey(chosenOf(item, targets, target).value)}
 				/>
 			)}
 			{relating && (
