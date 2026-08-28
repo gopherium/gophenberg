@@ -38,6 +38,13 @@ msgid "%(group)s updated."
 msgstr "%(group)s mis à jour."
 
 #, fuzzy
+msgid ""
+"%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
+msgstr ""
+"%(key)s est servi par %(winner)s, donc %(loser)s ne le montre pas sur "
+"%(where)s."
+
+#, fuzzy
 msgid "%(name)s %(version)s is serving the public site."
 msgstr "%(name)s %(version)s sert le site public."
 
@@ -930,6 +937,10 @@ msgid "Serving"
 msgstr "En service"
 
 #, fuzzy
+msgid "Shadowed"
+msgstr "Masqué"
+
+#, fuzzy
 msgid "Singular name"
 msgstr "Nom au singulier"
 
@@ -1018,8 +1029,24 @@ msgid "The content type this field points at is not named in a shape Gophenberg 
 msgstr "Le type de contenu que vise ce champ n'est pas nommé sous une forme que Gophenberg accepte. Donnez-lui une clé qui commence par une lettre minuscule et ne contient ensuite que des lettres minuscules, des chiffres et des tirets."
 
 #, fuzzy
+msgid ""
+"The content types could not be loaded, so where these groups appear and "
+"which fields they shadow are not shown."
+msgstr ""
+"Les types de contenu n'ont pas pu être chargés, donc où ces groupes "
+"apparaissent et quels champs ils masquent ne sont pas affichés."
+
+#, fuzzy
 msgid "The content types could not be loaded."
 msgstr "Les types de contenu n'ont pas pu être chargés."
+
+#, fuzzy
+msgid ""
+"The content types could not be refreshed, so where these groups appear and "
+"what they shadow may be out of date."
+msgstr ""
+"Les types de contenu n'ont pas pu être actualisés, donc où ces groupes "
+"apparaissent et ce qu'ils masquent peut être obsolète."
 
 #, fuzzy
 msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."

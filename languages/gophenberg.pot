@@ -54,6 +54,9 @@ msgstr ""
 msgid "%(group)s updated."
 msgstr ""
 
+msgid "%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
+msgstr ""
+
 msgid "%(name)s %(version)s is serving the public site."
 msgstr ""
 
@@ -863,6 +866,9 @@ msgstr ""
 msgid "Serving"
 msgstr ""
 
+msgid "Shadowed"
+msgstr ""
+
 msgid "Singular name"
 msgstr ""
 
@@ -938,7 +944,13 @@ msgstr ""
 msgid "The content type this field points at is not named in a shape Gophenberg accepts. Give it a key that starts with a lowercase letter and then holds only lowercase letters, numbers and hyphens."
 msgstr ""
 
+msgid "The content types could not be loaded, so where these groups appear and which fields they shadow are not shown."
+msgstr ""
+
 msgid "The content types could not be loaded."
+msgstr ""
+
+msgid "The content types could not be refreshed, so where these groups appear and what they shadow may be out of date."
 msgstr ""
 
 msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."

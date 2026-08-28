@@ -6,6 +6,7 @@ import {
 	Dialog,
 	IconButton,
 	InputControl,
+	Notice,
 	Stack,
 	Text,
 	downIcon,
@@ -31,7 +32,7 @@ import { typesQueryKey } from './nav'
 import { GroupFieldsDialog } from './GroupFieldsDialog'
 import { RulesDialog } from './RulesDialog'
 import { listTypes } from './types'
-import type { FieldGroup, GroupEdit, Location } from './groups'
+import type { FieldGroup, GroupEdit, Location, LocationRule } from './groups'
 import type { ContentType } from './types'
 
 /** A content type as the placement sentence reads it. */
@@ -74,6 +75,143 @@ function ruleSentence(rule: { source: string; operator: string; value: string },
 }
 
 /**
+ * Returns whether one rule holds on the type, as the server evaluates it.
+ * @param rule - The rule to evaluate.
+ * @param typeKey - The type the screen would show.
+ * @returns Whether the rule holds.
+ */
+function ruleHolds(rule: LocationRule, typeKey: string): boolean {
+	if (rule.source !== typeSource) {
+		return false
+	}
+	const matched = rule.value === anyType || rule.value === typeKey
+	return rule.operator === '!=' ? !matched : matched
+}
+
+/**
+ * Returns whether a location places its group on the type.
+ * @param location - The rules the group carries.
+ * @param typeKey - The type the screen would show.
+ * @returns Whether any rule set fully holds.
+ */
+function matchesType(location: Location, typeKey: string): boolean {
+	return location.some((set) => set.length > 0 && set.every((rule) => ruleHolds(rule, typeKey)))
+}
+
+/** One field key a group holds, as the overlap walk reads it. */
+interface HeldKey {
+	key: string
+}
+
+/** A group as the overlap walk reads it. */
+interface PlacedGroup {
+	id: number
+	title: string
+	active: boolean
+	location: Location
+	fields: HeldKey[]
+}
+
+/** One field key a group holds without showing it, and who serves it instead. */
+export interface Shadowing {
+	key: string
+	winner: string
+	loser: string
+	loserID: number
+	where: string[]
+}
+
+/**
+ * Returns every field key a later group holds while an earlier one serves it.
+ * @param groups - The groups in the order the listing serves them.
+ * @param types - The registered types the rules may reach.
+ * @returns The overlaps, each naming the winning and the losing group.
+ */
+export function shadowings(groups: PlacedGroup[], types: NamedType[]): Shadowing[] {
+	const active = groups.filter((held) => held.active)
+	const found: Shadowing[] = []
+	const noted = new Map<string, Shadowing>()
+	for (const listed of types) {
+		collectOverlaps(active, listed, noted, found)
+	}
+	return found
+}
+
+/**
+ * Adds every overlap one type carries to the overlaps already found.
+ * @param active - The active groups in listing order.
+ * @param listed - The type walked.
+ * @param noted - The overlaps already found, by key and pair.
+ * @param found - The overlaps in the order they were found.
+ */
+function collectOverlaps(
+	active: PlacedGroup[],
+	listed: NamedType,
+	noted: Map<string, Shadowing>,
+	found: Shadowing[],
+) {
+	const winners = new Map<string, PlacedGroup>()
+	for (const held of active) {
+		if (!matchesType(held.location, listed.key)) {
+			continue
+		}
+		for (const f of held.fields) {
+			const winner = winners.get(f.key)
+			if (winner === undefined) {
+				winners.set(f.key, held)
+				continue
+			}
+			noteOverlap(noted, found, f.key, winner, held, listed.pluralLabel)
+		}
+	}
+}
+
+/**
+ * Records the overlap between two groups on one type.
+ * @param noted - The overlaps already found, by key and pair.
+ * @param found - The overlaps in the order they were found.
+ * @param key - The field key both groups hold.
+ * @param winner - The group serving the key.
+ * @param loser - The group holding the key without showing it.
+ * @param label - The plural label of the type both reach.
+ */
+function noteOverlap(
+	noted: Map<string, Shadowing>,
+	found: Shadowing[],
+	key: string,
+	winner: PlacedGroup,
+	loser: PlacedGroup,
+	label: string,
+) {
+	const at = `${key}:${winner.id}:${loser.id}`
+	const known = noted.get(at)
+	if (known !== undefined) {
+		known.where.push(label)
+		return
+	}
+	const fresh = { key, winner: winner.title, loser: loser.title, loserID: loser.id, where: [label] }
+	noted.set(at, fresh)
+	found.push(fresh)
+}
+
+/**
+ * Returns the sentence one overlap warns with.
+ * @param held - The overlap to phrase.
+ * @returns The sentence the notice shows.
+ */
+function shadowingSentence(held: Shadowing): string {
+	return sprintf(
+		__('%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s.', 'gophenberg'),
+		{
+			key: held.key,
+			winner: held.winner,
+			loser: held.loser,
+			where: held.where.join(__(' and ', 'gophenberg')),
+		},
+	)
+}
+
+/**
  * Renders the field groups screen.
  * @returns The field groups screen element.
  */
@@ -83,6 +221,15 @@ export function GroupsScreen() {
 	const [notice, setNotice] = useState('')
 	const groups = useQuery({ queryKey: groupsQueryKey, queryFn: listGroups })
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
+	const overlaps = shadowings(groups.data ?? [], types.data ?? [])
+	const typesLost = __(
+		'The content types could not be loaded, so where these groups appear and which fields they shadow are not shown.',
+		'gophenberg',
+	)
+	const typesStale = __(
+		'The content types could not be refreshed, so where these groups appear and what they shadow may be out of date.',
+		'gophenberg',
+	)
 
 	/**
 	 * Reports what a group write did, and refreshes what the admin holds.
@@ -111,9 +258,25 @@ export function GroupsScreen() {
 		>
 			<Stack direction="column" gap="md">
 				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
+				{types.isError && (
+					<ErrorNotice>{types.data === undefined ? typesLost : typesStale}</ErrorNotice>
+				)}
+				{overlaps.map((held) => {
+					const said = shadowingSentence(held)
+					return (
+						<Notice.Root
+							key={`${held.key}:${held.winner}:${held.loserID}`}
+							intent="warning"
+							spokenMessage={said}
+						>
+							<Notice.Description>{said}</Notice.Description>
+						</Notice.Root>
+					)
+				})}
 				<GroupsBody
 					groups={groups.data ?? []}
 					types={types.data ?? []}
+					shadowed={new Set(overlaps.map((held) => held.loserID))}
 					loading={groups.isPending}
 					failed={groups.isError}
 					onDone={done}
@@ -136,7 +299,13 @@ interface Reporter {
  * @returns The groups body element.
  */
 function GroupsBody(
-	props: Reporter & { groups: FieldGroup[]; types: ContentType[]; loading: boolean; failed: boolean },
+	props: Reporter & {
+		groups: FieldGroup[]
+		types: ContentType[]
+		shadowed: Set<number>
+		loading: boolean
+		failed: boolean
+	},
 ) {
 	if (props.failed) {
 		return <ErrorNotice>{__('The field groups could not be loaded.', 'gophenberg')}</ErrorNotice>
@@ -168,6 +337,7 @@ function GroupsBody(
 							held={held}
 							groups={props.groups}
 							types={props.types}
+							shadowed={props.shadowed.has(held.id)}
 							order={props.groups.map((listed) => listed.id)}
 							at={at}
 							onDone={props.onDone}
@@ -190,6 +360,7 @@ function GroupRow(
 		held: FieldGroup
 		groups: FieldGroup[]
 		types: ContentType[]
+		shadowed: boolean
 		order: number[]
 		at: number
 	},
@@ -210,7 +381,12 @@ function GroupRow(
 			<td>{held.title}</td>
 			<td>{placementOf(held.location, props.types)}</td>
 			<td>{String(held.fields.length)}</td>
-			<td>{!held.active && <Badge intent="draft">{__('Inactive', 'gophenberg')}</Badge>}</td>
+			<td>
+				<Stack direction="row" gap="xs">
+					{!held.active && <Badge intent="draft">{__('Inactive', 'gophenberg')}</Badge>}
+					{props.shadowed && <Badge intent="high">{__('Shadowed', 'gophenberg')}</Badge>}
+				</Stack>
+			</td>
 			<td>
 				<Stack direction="row" gap="xs">
 					<MoveGroup held={held} order={props.order} at={props.at} pending={move.isPending} onMove={move.mutate} />

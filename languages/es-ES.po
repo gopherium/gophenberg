@@ -37,6 +37,12 @@ msgstr "%(group)s eliminado."
 msgid "%(group)s updated."
 msgstr "%(group)s actualizado."
 
+#, fuzzy
+msgid ""
+"%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
+msgstr ""
+"%(key)s lo sirve %(winner)s, así que %(loser)s no lo muestra en %(where)s."
+
 msgid "%(name)s %(version)s is serving the public site."
 msgstr "%(name)s %(version)s está publicado en la web."
 
@@ -745,6 +751,10 @@ msgstr "septiembre"
 msgid "Serving"
 msgstr "Atendiendo"
 
+#, fuzzy
+msgid "Shadowed"
+msgstr "Eclipsado"
+
 msgid "Singular name"
 msgstr "Nombre en singular"
 
@@ -812,8 +822,24 @@ msgstr "El renderizador integrado presta servicio al sitio público."
 msgid "The content type this field points at is not named in a shape Gophenberg accepts. Give it a key that starts with a lowercase letter and then holds only lowercase letters, numbers and hyphens."
 msgstr "El tipo de contenido al que apunta este campo no está nombrado con un formato que Gophenberg acepte. Dale una clave que empiece por una letra minúscula y contenga solo letras minúsculas, números y guiones."
 
+#, fuzzy
+msgid ""
+"The content types could not be loaded, so where these groups appear and "
+"which fields they shadow are not shown."
+msgstr ""
+"No se han podido cargar los tipos de contenido, así que no se muestra dónde "
+"aparecen estos grupos ni qué campos eclipsan."
+
 msgid "The content types could not be loaded."
 msgstr "No se han podido cargar los tipos de contenido."
+
+#, fuzzy
+msgid ""
+"The content types could not be refreshed, so where these groups appear and "
+"what they shadow may be out of date."
+msgstr ""
+"No se han podido actualizar los tipos de contenido, así que dónde aparecen "
+"estos grupos y qué eclipsan puede estar desactualizado."
 
 msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."
 msgstr "La entrada %(entry)s de este zip se escribiría fuera de la carpeta del tema, así que no se ha instalado nada. Vuelve a empaquetar el tema."
