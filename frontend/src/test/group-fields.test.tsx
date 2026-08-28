@@ -313,7 +313,11 @@ test('declares a plain field while the content types are still out of reach', as
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
 
 	expect(within(dialog).queryByLabelText('Points at')).not.toBeInTheDocument()
-	await waitFor(() => expect(sent).toMatchObject({ key: 'summary' }))
+	expect(within(dialog).getByRole('button', { name: 'Add field' })).toHaveAttribute(
+		'aria-disabled',
+		'true',
+	)
+	expect(sent).toBeUndefined()
 })
 
 test('makes a required field optional again', async () => {

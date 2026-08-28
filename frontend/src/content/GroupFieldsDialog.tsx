@@ -305,7 +305,11 @@ function AddField(props: Reporter & { group: number; types: ContentType[] }) {
 				value={presence}
 				onValueChange={(item) => setPresence(chosenOf(item, presences, presence))}
 			/>
-			<Button loading={add.isPending} onClick={() => add.mutate()}>
+			<Button
+				loading={add.isPending}
+				disabled={relating && target === undefined}
+				onClick={() => add.mutate()}
+			>
 				{__('Add field', 'gophenberg')}
 			</Button>
 		</Stack>
