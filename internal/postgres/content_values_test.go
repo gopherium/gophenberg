@@ -97,7 +97,8 @@ func TestContentStoreRefusesAValueWhoseFieldIsGone(t *testing.T) {
 	created := mustCreate(t, store, "Hello world", author)
 	created.Fields = content.Values{"color": "red"}
 	created.UpdatedAt = time.Now().UTC()
-	if err := postgres.NewTypeStore(pool).DeleteField(t.Context(), "post", "color"); err != nil {
+	types := postgres.NewTypeStore(pool)
+	if err := types.DeleteFieldInGroup(t.Context(), groupHolding(t, types, "color"), "color"); err != nil {
 		t.Fatalf("deleting the field: %v, want nil", err)
 	}
 
@@ -146,11 +147,13 @@ func TestContentStoreWaitsForAFieldDeletionInFlight(t *testing.T) {
 	}
 }
 
-func TestTypeStoreDeleteFieldWaitsForAContentWriteHoldingTheDefinition(t *testing.T) {
+func TestDeleteFieldInGroupWaitsForAContentWriteHoldingTheDefinition(t *testing.T) {
 	t.Parallel()
 
 	store, author, pool := newContentStoreWithPool(t)
 	declareField(t, pool, "color", content.FieldKindText)
+	types := postgres.NewTypeStore(pool)
+	group := groupHolding(t, types, "color")
 	created := mustCreate(t, store, "Hello world", author)
 	held, err := pool.Begin(t.Context())
 	if err != nil {
@@ -164,11 +167,11 @@ func TestTypeStoreDeleteFieldWaitsForAContentWriteHoldingTheDefinition(t *testin
 	}
 	swept := make(chan error, 1)
 
-	go func() { swept <- postgres.NewTypeStore(pool).DeleteField(context.Background(), "post", "color") }()
+	go func() { swept <- types.DeleteFieldInGroup(context.Background(), group, "color") }()
 
 	select {
 	case err := <-swept:
-		t.Fatalf("DeleteField() returned %v while a content write held the definitions, want it waiting", err)
+		t.Fatalf("DeleteFieldInGroup() returned %v while a content write held the definitions, want it waiting", err)
 	case <-time.After(300 * time.Millisecond):
 	}
 	created.Fields = content.Values{"color": "red"}

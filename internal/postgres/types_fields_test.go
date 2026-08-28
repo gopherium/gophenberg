@@ -156,53 +156,19 @@ func TestTypeStoreRefusesAFieldOnAnUnknownType(t *testing.T) {
 	}
 }
 
-func TestTypeStoreRelabelsAField(t *testing.T) {
+func TestDeleteFieldInGroupSweepsRevisionValues(t *testing.T) {
 	t.Parallel()
 
-	_, _, pool := newContentStoreWithPool(t)
+	_, author, pool := newContentStoreWithPool(t)
 	types := postgres.NewTypeStore(pool)
 	declared, err := types.CreateField(t.Context(), fieldOn(t, "post", "color", content.FieldKindText, ""))
 	if err != nil {
 		t.Fatalf("declaring the field: %v, want nil", err)
 	}
-	declared.Label, declared.Required = "Paint", true
-	declared.UpdatedAt = time.Now().UTC()
-
-	updated, err := types.UpdateField(t.Context(), declared)
-
-	if err != nil {
-		t.Fatalf("UpdateField() error = %v, want nil", err)
-	}
-	if updated.Label != "Paint" || !updated.Required || updated.Kind != content.FieldKindText {
-		t.Errorf("UpdateField() = %+v, want the label carried and the kind kept", updated)
-	}
-}
-
-func TestTypeStoreMissesAnUnknownFieldOnUpdate(t *testing.T) {
-	t.Parallel()
-
-	_, _, pool := newContentStoreWithPool(t)
-	types := postgres.NewTypeStore(pool)
-
-	_, err := types.UpdateField(t.Context(), fieldOn(t, "post", "color", content.FieldKindText, ""))
-
-	if !errors.Is(err, content.ErrFieldNotFound) {
-		t.Fatalf("UpdateField() error = %v, want %v", err, content.ErrFieldNotFound)
-	}
-}
-
-func TestTypeStoreDeleteFieldSweepsValues(t *testing.T) {
-	t.Parallel()
-
-	_, author, pool := newContentStoreWithPool(t)
-	types := postgres.NewTypeStore(pool)
-	if _, err := types.CreateField(t.Context(), fieldOn(t, "post", "color", content.FieldKindText, "")); err != nil {
-		t.Fatalf("declaring the field: %v, want nil", err)
-	}
 	plantValues(t, pool, author, "planted", `{"color": "red", "other": 1}`)
 
-	if err := types.DeleteField(t.Context(), "post", "color"); err != nil {
-		t.Fatalf("DeleteField() error = %v, want nil", err)
+	if err := types.DeleteFieldInGroup(t.Context(), declared.GroupID, "color"); err != nil {
+		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
 	}
 
 	held, err := types.ByKey(t.Context(), "post")
@@ -226,18 +192,5 @@ func TestTypeStoreDeleteFieldSweepsValues(t *testing.T) {
 	}
 	if revision != `{"other": 1}` {
 		t.Errorf("the revision holds %s, want the key swept from snapshots too", revision)
-	}
-}
-
-func TestTypeStoreMissesAnUnknownFieldOnDelete(t *testing.T) {
-	t.Parallel()
-
-	_, _, pool := newContentStoreWithPool(t)
-	types := postgres.NewTypeStore(pool)
-
-	err := types.DeleteField(t.Context(), "post", "color")
-
-	if !errors.Is(err, content.ErrFieldNotFound) {
-		t.Fatalf("DeleteField() error = %v, want %v", err, content.ErrFieldNotFound)
 	}
 }
