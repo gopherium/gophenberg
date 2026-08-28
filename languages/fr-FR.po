@@ -1041,6 +1041,14 @@ msgid "The content types could not be loaded."
 msgstr "Les types de contenu n'ont pas pu être chargés."
 
 #, fuzzy
+msgid ""
+"The content types could not be refreshed, so where these groups appear and "
+"what they shadow may be out of date."
+msgstr ""
+"Les types de contenu n'ont pas pu être actualisés, donc où ces groupes "
+"apparaissent et ce qu'ils masquent peut être obsolète."
+
+#, fuzzy
 msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."
 msgstr "L'entrée %(entry)s de ce zip s'écrirait hors du dossier du thème, rien n'a donc été installé. Réempaquetez le thème."
 

@@ -950,6 +950,9 @@ msgstr ""
 msgid "The content types could not be loaded."
 msgstr ""
 
+msgid "The content types could not be refreshed, so where these groups appear and what they shadow may be out of date."
+msgstr ""
+
 msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."
 msgstr ""
 

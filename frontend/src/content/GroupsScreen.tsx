@@ -138,10 +138,10 @@ export function shadowings(groups: PlacedGroup[], types: NamedType[]): Shadowing
 }
 
 /**
- * Collects the overlaps one type carries into the accumulators.
+ * Adds every overlap one type carries to the overlaps already found.
  * @param active - The active groups in listing order.
  * @param listed - The type walked.
- * @param noted - The overlaps already noted, by key and pair.
+ * @param noted - The overlaps already found, by key and pair.
  * @param found - The overlaps in the order they were found.
  */
 function collectOverlaps(
@@ -167,8 +167,8 @@ function collectOverlaps(
 }
 
 /**
- * Notes one overlap, growing the noted pair's reach instead of repeating it.
- * @param noted - The overlaps already noted, by key and pair.
+ * Records the overlap between two groups on one type.
+ * @param noted - The overlaps already found, by key and pair.
  * @param found - The overlaps in the order they were found.
  * @param key - The field key both groups hold.
  * @param winner - The group serving the key.
@@ -226,6 +226,10 @@ export function GroupsScreen() {
 		'The content types could not be loaded, so where these groups appear and which fields they shadow are not shown.',
 		'gophenberg',
 	)
+	const typesStale = __(
+		'The content types could not be refreshed, so where these groups appear and what they shadow may be out of date.',
+		'gophenberg',
+	)
 
 	/**
 	 * Reports what a group write did, and refreshes what the admin holds.
@@ -254,7 +258,9 @@ export function GroupsScreen() {
 		>
 			<Stack direction="column" gap="md">
 				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
-				{types.isError && <ErrorNotice>{typesLost}</ErrorNotice>}
+				{types.isError && (
+					<ErrorNotice>{types.data === undefined ? typesLost : typesStale}</ErrorNotice>
+				)}
 				{overlaps.map((held) => {
 					const said = shadowingSentence(held)
 					return (

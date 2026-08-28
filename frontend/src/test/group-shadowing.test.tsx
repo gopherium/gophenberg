@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 import { shadowings } from '../content/GroupsScreen'
+import { typesQueryKey } from '../content/nav'
 import { renderAt } from './render'
 import type { Location } from '../content/groups'
 
@@ -58,7 +59,10 @@ const EXTRAS = {
 	position: 2,
 }
 
-/** Serves the given groups from the listing endpoint. */
+/**
+ * Serves the given groups from the listing endpoint.
+ * @param groups - The groups the listing answers with.
+ */
 function listing(groups: unknown[]) {
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: groups })))
 }
@@ -128,11 +132,41 @@ test('says the overlaps are unknown while the content types are out of reach', a
 	expect(within(table).queryByText('Shadowed')).not.toBeInTheDocument()
 })
 
+test('says the overlaps may be out of date when the types cannot be refreshed', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	listing([DETAILS, EXTRAS])
+	const client = renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	expect(within(table).getByText('Shadowed')).toBeInTheDocument()
+
+	server.use(http.get('/api/types', () => new HttpResponse(null, { status: 500 })))
+	await act(async () => {
+		await client.invalidateQueries({ queryKey: typesQueryKey })
+	})
+
+	expect(
+		await screen.findByText(
+			'The content types could not be refreshed, so where these groups appear and what they shadow may be out of date.',
+		),
+	).toBeInTheDocument()
+	expect(screen.getByText('Shadowed')).toBeInTheDocument()
+	expect(screen.getByText(/is served by/)).toBeInTheDocument()
+})
+
 test('names the overlaps a listing carries from its rules alone', () => {
 	const types = [
 		{ key: 'post', pluralLabel: 'Posts' },
 		{ key: 'recipe', pluralLabel: 'Recipes' },
 	]
+	/**
+	 * Returns a group the overlap walk can read.
+	 * @param id - The identifier the group carries.
+	 * @param title - The name the group is listed under.
+	 * @param location - The rules placing the group.
+	 * @param keys - The field keys the group holds.
+	 * @param active - Whether the group is active.
+	 * @returns The group to walk.
+	 */
 	const holding = (id: number, title: string, location: Location, keys: string[], active = true) => ({
 		id,
 		title,
