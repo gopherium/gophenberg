@@ -38,6 +38,13 @@ msgid "%(group)s updated."
 msgstr "%(group)s mis à jour."
 
 #, fuzzy
+msgid ""
+"%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
+msgstr ""
+"%(key)s est servi par %(winner)s, donc %(loser)s ne le montre pas sur "
+"%(where)s."
+
+#, fuzzy
 msgid "%(name)s %(version)s is serving the public site."
 msgstr "%(name)s %(version)s sert le site public."
 
@@ -928,6 +935,10 @@ msgstr "septembre"
 #, fuzzy
 msgid "Serving"
 msgstr "En service"
+
+#, fuzzy
+msgid "Shadowed"
+msgstr "Masqué"
 
 #, fuzzy
 msgid "Singular name"

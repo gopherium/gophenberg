@@ -54,6 +54,9 @@ msgstr ""
 msgid "%(group)s updated."
 msgstr ""
 
+msgid "%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
+msgstr ""
+
 msgid "%(name)s %(version)s is serving the public site."
 msgstr ""
 
@@ -861,6 +864,9 @@ msgid "September"
 msgstr ""
 
 msgid "Serving"
+msgstr ""
+
+msgid "Shadowed"
 msgstr ""
 
 msgid "Singular name"
