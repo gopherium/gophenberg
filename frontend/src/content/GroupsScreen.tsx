@@ -222,6 +222,10 @@ export function GroupsScreen() {
 	const groups = useQuery({ queryKey: groupsQueryKey, queryFn: listGroups })
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
 	const overlaps = shadowings(groups.data ?? [], types.data ?? [])
+	const typesLost = __(
+		'The content types could not be loaded, so where these groups appear and which fields they shadow are not shown.',
+		'gophenberg',
+	)
 
 	/**
 	 * Reports what a group write did, and refreshes what the admin holds.
@@ -250,6 +254,7 @@ export function GroupsScreen() {
 		>
 			<Stack direction="column" gap="md">
 				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
+				{types.isError && <ErrorNotice>{typesLost}</ErrorNotice>}
 				{overlaps.map((held) => {
 					const said = shadowingSentence(held)
 					return (

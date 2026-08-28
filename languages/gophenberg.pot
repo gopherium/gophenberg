@@ -944,6 +944,9 @@ msgstr ""
 msgid "The content type this field points at is not named in a shape Gophenberg accepts. Give it a key that starts with a lowercase letter and then holds only lowercase letters, numbers and hyphens."
 msgstr ""
 
+msgid "The content types could not be loaded, so where these groups appear and which fields they shadow are not shown."
+msgstr ""
+
 msgid "The content types could not be loaded."
 msgstr ""
 

@@ -2,7 +2,7 @@
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, within } from '@testing-library/react'
-import { beforeEach, expect, test } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vitest'
 
 import { shadowings } from '../content/GroupsScreen'
 import { renderAt } from './render'
@@ -110,6 +110,22 @@ test('stays quiet while the losing group is inactive', async () => {
 	await screen.findByRole('region', { name: 'Field Groups' })
 
 	expect(screen.queryByText(/is served by/)).not.toBeInTheDocument()
+})
+
+test('says the overlaps are unknown while the content types are out of reach', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(http.get('/api/types', () => new HttpResponse(null, { status: 500 })))
+	listing([DETAILS, EXTRAS])
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+
+	expect(
+		screen.getByText(
+			'The content types could not be loaded, so where these groups appear and which fields they shadow are not shown.',
+		),
+	).toBeInTheDocument()
+	expect(within(table).queryByText('Shadowed')).not.toBeInTheDocument()
 })
 
 test('names the overlaps a listing carries from its rules alone', () => {

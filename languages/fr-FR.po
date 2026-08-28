@@ -1029,6 +1029,14 @@ msgid "The content type this field points at is not named in a shape Gophenberg 
 msgstr "Le type de contenu que vise ce champ n'est pas nommé sous une forme que Gophenberg accepte. Donnez-lui une clé qui commence par une lettre minuscule et ne contient ensuite que des lettres minuscules, des chiffres et des tirets."
 
 #, fuzzy
+msgid ""
+"The content types could not be loaded, so where these groups appear and "
+"which fields they shadow are not shown."
+msgstr ""
+"Les types de contenu n'ont pas pu être chargés, donc où ces groupes "
+"apparaissent et quels champs ils masquent ne sont pas affichés."
+
+#, fuzzy
 msgid "The content types could not be loaded."
 msgstr "Les types de contenu n'ont pas pu être chargés."
 
