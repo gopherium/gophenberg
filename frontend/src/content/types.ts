@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { __ } from '@wordpress/i18n'
+import { __, _x } from '@wordpress/i18n'
 import { z } from 'zod'
 
 import { errorText } from '../i18n/errors'
+import type { Choice } from './select'
 
-const fieldSchema = z.object({
+export const fieldSchema = z.object({
 	key: z.string(),
 	label: z.string(),
 	kind: z.string(),
@@ -104,7 +105,7 @@ function toType(row: z.infer<typeof typeSchema>): ContentType {
  * @param row - The field as the API answered it.
  * @returns The field the admin reads.
  */
-function toField(row: z.infer<typeof fieldSchema>): ContentField {
+export function toField(row: z.infer<typeof fieldSchema>): ContentField {
 	return {
 		key: row.key,
 		label: row.label,
@@ -204,6 +205,30 @@ export async function deleteType(key: string): Promise<void> {
 }
 
 /**
+ * Returns the kinds a field may be declared as, in the order the admin offers them.
+ * @returns The kinds, each under the label the admin shows.
+ */
+export function fieldKinds(): Choice[] {
+	return [
+		{ label: __('Text', 'gophenberg'), value: 'text' },
+		{ label: __('Number', 'gophenberg'), value: 'number' },
+		{ label: __('Yes or no', 'gophenberg'), value: 'boolean' },
+		{ label: _x('Date', 'field type', 'gophenberg'), value: 'date' },
+		{ label: _x('Media', 'field type', 'gophenberg'), value: 'media' },
+		{ label: __('Relation', 'gophenberg'), value: 'relation' },
+	]
+}
+
+/**
+ * Returns the label a declared field's kind is shown under.
+ * @param kind - The kind as the registry stored it.
+ * @returns The label to show, the stored kind when the admin offers no name for it.
+ */
+export function kindLabel(kind: string): string {
+	return fieldKinds().find((held) => held.value === kind)?.label ?? kind
+}
+
+/**
  * Returns the key a label reduces to.
  * @param label - The name the operator typed.
  * @returns The slug the label reduces to.
@@ -225,118 +250,3 @@ export interface NewField {
 	required?: boolean
 }
 
-/**
- * Returns the fields a content type declares.
- * @param typeKey - The type whose fields to read.
- * @returns The declared fields.
- */
-export async function listFields(typeKey: string): Promise<ContentField[]> {
-	const response = await fetch(`/api/types/${typeKey}/fields`)
-	if (!response.ok) {
-		await refuse(response)
-	}
-	const listed = z.object({ items: z.array(fieldSchema) }).parse(await response.json())
-	return listed.items.map(toField)
-}
-
-/**
- * Declares a field on a content type.
- * @param typeKey - The type declaring the field.
- * @param asked - The field to declare.
- * @returns The stored field.
- */
-export async function createField(typeKey: string, asked: NewField): Promise<ContentField> {
-	const response = await fetch(`/api/types/${typeKey}/fields`, {
-		method: 'POST',
-		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({
-			key: asked.key,
-			label: asked.label,
-			kind: asked.kind,
-			relates_to: asked.relatesTo,
-			many: asked.many,
-			required: asked.required,
-		}),
-	})
-	if (!response.ok) {
-		await refuse(response)
-	}
-	return toField(fieldSchema.parse(await response.json()))
-}
-
-/**
- * Carries a new label for a declared field.
- * @param typeKey - The type declaring the field.
- * @param key - The field to relabel.
- * @param label - The label to carry.
- * @returns The stored field.
- */
-export async function renameField(
-	typeKey: string,
-	key: string,
-	label: string,
-): Promise<ContentField> {
-	const response = await fetch(`/api/types/${typeKey}/fields/${key}`, {
-		method: 'PATCH',
-		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ label }),
-	})
-	if (!response.ok) {
-		await refuse(response)
-	}
-	return toField(fieldSchema.parse(await response.json()))
-}
-
-/**
- * Stores whether a field must be filled before its item publishes.
- * @param typeKey - The type declaring the field.
- * @param key - The field to change.
- * @param required - Whether the field gates publishing.
- * @returns The stored field.
- */
-export async function setFieldRequired(
-	typeKey: string,
-	key: string,
-	required: boolean,
-): Promise<ContentField> {
-	const response = await fetch(`/api/types/${typeKey}/fields/${key}`, {
-		method: 'PATCH',
-		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ required }),
-	})
-	if (!response.ok) {
-		await refuse(response)
-	}
-	return toField(fieldSchema.parse(await response.json()))
-}
-
-/**
- * Stores the declaration order of a type's fields.
- * @param typeKey - The type whose fields are reordered.
- * @param keys - Every declared field key in the order to store.
- * @returns The reordered fields.
- */
-export async function reorderFields(typeKey: string, keys: string[]): Promise<ContentField[]> {
-	const response = await fetch(`/api/types/${typeKey}/fields/order`, {
-		method: 'PUT',
-		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ order: keys }),
-	})
-	if (!response.ok) {
-		await refuse(response)
-	}
-	const listed = z.object({ items: z.array(fieldSchema) }).parse(await response.json())
-	return listed.items.map(toField)
-}
-
-/**
- * Removes a declared field and every value it held.
- * @param typeKey - The type declaring the field.
- * @param key - The field to remove.
- */
-export async function deleteField(typeKey: string, key: string): Promise<void> {
-	const response = await fetch(`/api/types/${typeKey}/fields/${key}`, { method: 'DELETE' })
-	if (!response.ok) {
-		await refuse(response)
-	}
-}

@@ -53,6 +53,13 @@ const contentTypesRoute = createRoute({
 	component: lazyRouteComponent(() => import('./content/TypesScreen'), 'TypesScreen'),
 })
 
+const fieldGroupsRoute = createRoute({
+	getParentRoute: () => adminRoute,
+	path: '/field-groups',
+	staticData: { capability: MANAGE_TYPES },
+	component: lazyRouteComponent(() => import('./content/GroupsScreen'), 'GroupsScreen'),
+})
+
 const usersRoute = createRoute({
 	getParentRoute: () => adminRoute,
 	path: '/users',
@@ -98,7 +105,7 @@ const routeTree = rootRoute.addChildren([
 		contentRoute,
 		mediaRoute,
 		languageRoute,
-		adminRoute.addChildren([contentTypesRoute, usersRoute, newUserRoute, themesRoute]),
+		adminRoute.addChildren([contentTypesRoute, fieldGroupsRoute, usersRoute, newUserRoute, themesRoute]),
 		...plugins.flatMap((plugin) => plugin.routes(framedRoute)),
 	]),
 	editorRoute,

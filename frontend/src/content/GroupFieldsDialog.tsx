@@ -12,106 +12,111 @@ import {
 	downIcon,
 	upIcon,
 } from '@gophenberg/frontend-sdk'
+import { ErrorNotice } from '@gopherium/godmin'
 import { __, _x, sprintf } from '@wordpress/i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { typesQueryKey } from './nav'
 import {
-	createField,
-	deleteField,
-	listFields,
-	renameField,
-	reorderFields,
-	setFieldRequired,
-	slugifyKey,
-} from './types'
+	createFieldInGroup,
+	deleteFieldInGroup,
+	groupErrorMessage,
+	groupsQueryKey,
+	moveField,
+	renameFieldInGroup,
+	reorderFieldsInGroup,
+	setFieldRequiredInGroup,
+} from './groups'
+import { chosenOf } from './select'
+import { fieldKinds, kindLabel, slugifyKey } from './types'
+import { typesQueryKey } from './nav'
+import type { FieldGroup } from './groups'
+import type { Choice } from './select'
 import type { ContentField, ContentType } from './types'
 
-/**
- * Returns the key for a field query over one type.
- * @param typeKey - The type the fields belong to.
- * @returns The query key.
- */
-export function fieldsQueryKey(typeKey: string): string[] {
-	return ['content-fields', typeKey]
+/** What a field control reports back once its write settles. */
+interface Reporter {
+	onDone: (said: string) => Promise<void>
+	onRefused: (cause: unknown) => void
 }
 
-/** One choice a select offers. */
-interface Choice {
-	label: string
-	value: string
+/** The group a field control acts inside. */
+interface Inside extends Reporter {
+	group: number
+	field: ContentField
 }
 
 /**
- * Returns the kinds a field may be declared as, in the order the admin offers them.
- * @returns The kinds, each under the label the admin shows.
- */
-function fieldKinds(): Choice[] {
-	return [
-		{ label: __('Text', 'gophenberg'), value: 'text' },
-		{ label: __('Number', 'gophenberg'), value: 'number' },
-		{ label: __('Yes or no', 'gophenberg'), value: 'boolean' },
-		{ label: _x('Date', 'field type', 'gophenberg'), value: 'date' },
-		{ label: _x('Media', 'field type', 'gophenberg'), value: 'media' },
-		{ label: __('Relation', 'gophenberg'), value: 'relation' },
-	]
-}
-
-/**
- * Returns the label a declared field's kind is shown under.
- * @param kind - The kind as the registry stored it.
- * @returns The label to show, the stored kind when the admin offers no name for it.
- */
-function kindLabel(kind: string): string {
-	return fieldKinds().find((held) => held.value === kind)?.label ?? kind
-}
-
-/**
- * Returns the choice a select change asks for.
- * @param item - The item the select reported, or nothing.
- * @param offered - The choices the select holds.
- * @param current - The choice held.
- * @returns The choice to hold.
- */
-export function chosenOf(
-	item: { value: string | null } | null,
-	offered: Choice[],
-	current: Choice,
-): Choice {
-	if (item === null || item.value === null) {
-		return current
-	}
-	return offered.find((choice) => choice.value === item.value) ?? current
-}
-
-/**
- * Renders the view declaring and removing the fields of one content type.
- * @param props - The type whose fields are managed, the other types, and the reporter.
+ * Renders the control managing the fields a group holds.
+ * @param props - The group, the other groups, the types, and what to report.
  * @returns The control and its dialog.
  */
-export function FieldsDialog(props: {
-	registered: ContentType
+export function GroupFieldsDialog(props: {
+	held: FieldGroup
+	groups: FieldGroup[]
 	types: ContentType[]
 	onDone: (said: string) => void
-	onRefused: (cause: unknown) => void
 }) {
+	const client = useQueryClient()
 	const [open, setOpen] = useState(false)
+	const [notice, setNotice] = useState('')
+
+	/**
+	 * Reports what a field write did and refreshes what the screen holds.
+	 * @param said - The sentence naming what was done.
+	 */
+	async function done(said: string) {
+		setNotice('')
+		props.onDone(said)
+		await Promise.all([
+			client.invalidateQueries({ queryKey: groupsQueryKey }),
+			client.invalidateQueries({ queryKey: typesQueryKey }),
+		])
+	}
+
+	/**
+	 * Reports why a field write was turned away, where the operator is looking.
+	 * @param cause - What the write failed with.
+	 */
+	function refused(cause: unknown) {
+		setNotice(groupErrorMessage(cause))
+	}
+
+	/**
+	 * Opens the dialog on the stored fields, or closes it.
+	 * @param next - Whether the dialog is opening.
+	 */
+	function change(next: boolean) {
+		if (next) {
+			setNotice('')
+		}
+		setOpen(next)
+	}
+
 	return (
 		<>
-			<Button variant="outline" onClick={() => setOpen(true)}>
+			<Button variant="outline" onClick={() => change(true)}>
 				{__('Fields', 'gophenberg')}
 			</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
+			<Dialog.Root open={open} onOpenChange={change}>
 				<Dialog.Popup>
 					<Dialog.Header>
 						<Dialog.Title>
-							{sprintf(__('Fields of %(type)s', 'gophenberg'), { type: props.registered.pluralLabel })}
+							{sprintf(__('Fields of %(group)s', 'gophenberg'), { group: props.held.title })}
 						</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
-						<FieldsBody {...props} />
+						<Stack direction="column" gap="md">
+							{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
+							<FieldsBody
+								held={props.held}
+								groups={props.groups}
+								types={props.types}
+								onDone={done}
+								onRefused={refused}
+							/>
+						</Stack>
 					</Dialog.Content>
 				</Dialog.Popup>
 			</Dialog.Root>
@@ -120,39 +125,20 @@ export function FieldsDialog(props: {
 }
 
 /**
- * Renders the declared fields and the control adding another.
- * @param props - The type whose fields are managed, the other types, and the reporter.
+ * Renders the fields a group holds and the control declaring another.
+ * @param props - The group, the other groups, the types, and what to report.
  * @returns The body element.
  */
-function FieldsBody(props: {
-	registered: ContentType
-	types: ContentType[]
-	onDone: (said: string) => void
-	onRefused: (cause: unknown) => void
-}) {
-	const client = useQueryClient()
-	const typeKey = props.registered.key
-	const held = useQuery({
-		queryKey: fieldsQueryKey(typeKey),
-		queryFn: () => listFields(typeKey),
-	})
-	/**
-	 * Reports what a field write did and refreshes what the screen holds.
-	 * @param said - The sentence naming what was done.
-	 */
-	async function done(said: string) {
-		props.onDone(said)
-		await Promise.all([
-			client.invalidateQueries({ queryKey: fieldsQueryKey(typeKey) }),
-			client.invalidateQueries({ queryKey: typesQueryKey }),
-		])
-	}
-	const declared = held.data ?? []
+function FieldsBody(
+	props: Reporter & { held: FieldGroup; groups: FieldGroup[]; types: ContentType[] },
+) {
+	const declared = props.held.fields
 	const reorder = useMutation({
-		mutationFn: (keys: string[]) => reorderFields(typeKey, keys),
-		onSuccess: () => done(__('Order stored.', 'gophenberg')),
+		mutationFn: (keys: string[]) => reorderFieldsInGroup(props.held.id, keys),
+		onSuccess: () => props.onDone(__('Order stored.', 'gophenberg')),
 		onError: props.onRefused,
 	})
+
 	/**
 	 * Returns the declared keys with one field moved by an offset.
 	 * @param index - The field's place in the declared order.
@@ -165,14 +151,15 @@ function FieldsBody(props: {
 		keys.splice(index + offset, 0, taken)
 		return keys
 	}
+
 	return (
 		<Stack direction="column" gap="md">
 			{declared.length === 0 ? (
-				<Text>{__('This type declares no fields yet.', 'gophenberg')}</Text>
+				<Text>{__('This group holds no fields yet.', 'gophenberg')}</Text>
 			) : (
 				<ul className="gophenberg-fields__list">
 					{declared.map((field, index) => (
-						<li key={field.key}>
+						<li key={field.key} aria-label={field.label}>
 							<Stack direction="column" gap="xs">
 								<Stack direction="row" gap="sm" align="center" justify="space-between">
 									<Stack direction="row" gap="xs" align="center">
@@ -203,21 +190,28 @@ function FieldsBody(props: {
 								</Stack>
 								<Stack direction="row" gap="xs" align="center">
 									<RequireField
-										typeKey={typeKey}
+										group={props.held.id}
 										field={field}
-										onDone={done}
+										onDone={props.onDone}
 										onRefused={props.onRefused}
 									/>
 									<RenameField
-										typeKey={typeKey}
+										group={props.held.id}
 										field={field}
-										onDone={done}
+										onDone={props.onDone}
+										onRefused={props.onRefused}
+									/>
+									<CarryField
+										group={props.held.id}
+										field={field}
+										elsewhere={props.groups.filter((listed) => listed.id !== props.held.id)}
+										onDone={props.onDone}
 										onRefused={props.onRefused}
 									/>
 									<DeleteField
-										typeKey={typeKey}
+										group={props.held.id}
 										field={field}
-										onDone={done}
+										onDone={props.onDone}
 										onRefused={props.onRefused}
 									/>
 								</Stack>
@@ -227,9 +221,9 @@ function FieldsBody(props: {
 				</ul>
 			)}
 			<AddField
-				registered={props.registered}
+				group={props.held.id}
 				types={props.types}
-				onDone={done}
+				onDone={props.onDone}
 				onRefused={props.onRefused}
 			/>
 		</Stack>
@@ -237,21 +231,13 @@ function FieldsBody(props: {
 }
 
 /**
- * Renders the control declaring a new field.
- * @param props - The type declaring the field, the other types, and the reporter.
+ * Renders the control declaring a new field into the group.
+ * @param props - The group, the types a relation may point at, and what to report.
  * @returns The control element.
  */
-function AddField(props: {
-	registered: ContentType
-	types: ContentType[]
-	onDone: (said: string) => Promise<void>
-	onRefused: (cause: unknown) => void
-}) {
+function AddField(props: Reporter & { group: number; types: ContentType[] }) {
 	const [kinds] = useState(fieldKinds)
-	const targets = props.types.map((listed) => ({
-		label: listed.pluralLabel,
-		value: listed.key,
-	}))
+	const targets = props.types.map((listed) => ({ label: listed.pluralLabel, value: listed.key }))
 	const [presences] = useState<Choice[]>([
 		{ label: __('No', 'gophenberg'), value: 'optional' },
 		{ label: __('Yes', 'gophenberg'), value: 'required' },
@@ -262,17 +248,18 @@ function AddField(props: {
 	])
 	const [label, setLabel] = useState('')
 	const [kind, setKind] = useState(kinds[0])
-	const [target, setTarget] = useState(targets[0])
+	const [targetKey, setTargetKey] = useState('')
 	const [presence, setPresence] = useState(presences[0])
 	const [holding, setHolding] = useState(holdings[0])
+	const target = targets.find((held) => held.value === targetKey) ?? targets[0]
 	const relating = kind.value === 'relation'
 	const add = useMutation({
 		mutationFn: () =>
-			createField(props.registered.key, {
+			createFieldInGroup(props.group, {
 				key: slugifyKey(label),
 				label,
 				kind: kind.value,
-				relatesTo: relating ? target.value : undefined,
+				relatesTo: relating ? target?.value : undefined,
 				many: relating && holding.value === 'many',
 				required: presence.value === 'required',
 			}),
@@ -296,12 +283,12 @@ function AddField(props: {
 				value={kind}
 				onValueChange={(item) => setKind(chosenOf(item, kinds, kind))}
 			/>
-			{relating && (
+			{relating && target !== undefined && (
 				<SelectControl
 					label={__('Points at', 'gophenberg')}
 					items={targets}
 					value={target}
-					onValueChange={(item) => setTarget(chosenOf(item, targets, target))}
+					onValueChange={(item) => setTargetKey(chosenOf(item, targets, target).value)}
 				/>
 			)}
 			{relating && (
@@ -318,7 +305,11 @@ function AddField(props: {
 				value={presence}
 				onValueChange={(item) => setPresence(chosenOf(item, presences, presence))}
 			/>
-			<Button loading={add.isPending} onClick={() => add.mutate()}>
+			<Button
+				loading={add.isPending}
+				disabled={relating && target === undefined}
+				onClick={() => add.mutate()}
+			>
 				{__('Add field', 'gophenberg')}
 			</Button>
 		</Stack>
@@ -327,17 +318,12 @@ function AddField(props: {
 
 /**
  * Renders the control flipping whether a field gates publishing.
- * @param props - The type, the field, and the reporter.
+ * @param props - The group, the field, and what to report.
  * @returns The control element.
  */
-function RequireField(props: {
-	typeKey: string
-	field: ContentField
-	onDone: (said: string) => Promise<void>
-	onRefused: (cause: unknown) => void
-}) {
+function RequireField(props: Inside) {
 	const flip = useMutation({
-		mutationFn: () => setFieldRequired(props.typeKey, props.field.key, !props.field.required),
+		mutationFn: () => setFieldRequiredInGroup(props.group, props.field.key, !props.field.required),
 		onSuccess: async () => {
 			const said = props.field.required
 				? __('%(field)s is optional again.', 'gophenberg')
@@ -364,19 +350,15 @@ function RequireField(props: {
 
 /**
  * Renders the control carrying a new label for a field.
- * @param props - The type, the field, and the reporter.
+ * @param props - The group, the field, and what to report.
  * @returns The control and its dialog.
  */
-function RenameField(props: {
-	typeKey: string
-	field: ContentField
-	onDone: (said: string) => Promise<void>
-	onRefused: (cause: unknown) => void
-}) {
+function RenameField(props: Inside) {
 	const [open, setOpen] = useState(false)
 	const [label, setLabel] = useState(props.field.label)
+	const asking = sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })
 	const rename = useMutation({
-		mutationFn: () => renameField(props.typeKey, props.field.key, label),
+		mutationFn: () => renameFieldInGroup(props.group, props.field.key, label),
 		onSuccess: async () => {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }))
@@ -388,18 +370,13 @@ function RenameField(props: {
 	})
 	return (
 		<>
-			<Button
-				variant="outline"
-				size="compact"
-				aria-label={sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })}
-				onClick={() => setOpen(true)}
-			>
+			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
 				{__('Rename', 'gophenberg')}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
-						<Dialog.Title>{sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })}</Dialog.Title>
+						<Dialog.Title>{asking}</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>
@@ -427,23 +404,79 @@ function RenameField(props: {
 }
 
 /**
+ * Renders the control carrying a field into another group.
+ * @param props - The group, the field, the groups it may land in, and what to report.
+ * @returns The control and its dialog, or nothing when there is nowhere to carry it.
+ */
+function CarryField(props: Inside & { elsewhere: FieldGroup[] }) {
+	const landings = props.elsewhere.map((listed) => ({ label: listed.title, value: String(listed.id) }))
+	const [open, setOpen] = useState(false)
+	const [landing, setLanding] = useState(landings[0])
+	const asking = sprintf(__('Move %(field)s elsewhere', 'gophenberg'), { field: props.field.label })
+	const carry = useMutation({
+		mutationFn: () => moveField(props.group, props.field.key, Number(landing?.value)),
+		onSuccess: async () => {
+			setOpen(false)
+			await props.onDone(sprintf(__('%(field)s moved.', 'gophenberg'), { field: props.field.label }))
+		},
+		onError: (cause) => {
+			setOpen(false)
+			props.onRefused(cause)
+		},
+	})
+	if (landing === undefined) {
+		return null
+	}
+	return (
+		<>
+			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
+				{__('Move', 'gophenberg')}
+			</Button>
+			<Dialog.Root open={open} onOpenChange={setOpen}>
+				<Dialog.Popup>
+					<Dialog.Header>
+						<Dialog.Title>{asking}</Dialog.Title>
+						<Dialog.CloseIcon />
+					</Dialog.Header>
+					<Dialog.Content>
+						<Stack direction="column" gap="md">
+							<Text>{__('The field keeps every value stored under it.', 'gophenberg')}</Text>
+							<SelectControl
+								label={__('Group', 'gophenberg')}
+								items={landings}
+								value={landing}
+								onValueChange={(item) => setLanding(chosenOf(item, landings, landing))}
+							/>
+						</Stack>
+					</Dialog.Content>
+					<Dialog.Footer>
+						<Button variant="outline" onClick={() => setOpen(false)}>
+							{__('Keep it here', 'gophenberg')}
+						</Button>
+						<Button loading={carry.isPending} onClick={() => carry.mutate()}>
+							{__('Move the field', 'gophenberg')}
+						</Button>
+					</Dialog.Footer>
+				</Dialog.Popup>
+			</Dialog.Root>
+		</>
+	)
+}
+
+/**
  * Renders the control removing a field and everything stored under it.
- * @param props - The type, the field, and the reporter.
+ * @param props - The group, the field, and what to report.
  * @returns The control and its dialog.
  */
-function DeleteField(props: {
-	typeKey: string
-	field: ContentField
-	onDone: (said: string) => Promise<void>
-	onRefused: (cause: unknown) => void
-}) {
+function DeleteField(props: Inside) {
 	const [open, setOpen] = useState(false)
+	const asking = sprintf(__('Delete %(field)s', 'gophenberg'), { field: props.field.label })
 	const warning = __(
-		'Every value stored under this field goes with it, in every item of this type and in the revisions behind them.',
+		'Every value stored under this field goes with it, in every item the group reaches and in the revisions behind them.',
 		'gophenberg',
 	)
 	const remove = useMutation({
-		mutationFn: () => deleteField(props.typeKey, props.field.key),
+		mutationFn: () => deleteFieldInGroup(props.group, props.field.key),
 		onSuccess: async () => {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s deleted.', 'gophenberg'), { field: props.field.label }))
@@ -455,18 +488,13 @@ function DeleteField(props: {
 	})
 	return (
 		<>
-			<Button
-				variant="outline"
-				size="compact"
-				aria-label={sprintf(__('Delete %(field)s', 'gophenberg'), { field: props.field.label })}
-				onClick={() => setOpen(true)}
-			>
+			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
 				{__('Delete', 'gophenberg')}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
 					<Dialog.Header>
-						<Dialog.Title>{sprintf(__('Delete %(field)s', 'gophenberg'), { field: props.field.label })}</Dialog.Title>
+						<Dialog.Title>{asking}</Dialog.Title>
 						<Dialog.CloseIcon />
 					</Dialog.Header>
 					<Dialog.Content>

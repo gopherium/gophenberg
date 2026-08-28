@@ -104,6 +104,42 @@ func TestPatchLeavesTheParentAloneWhenTheBodyNamesTheSameOne(t *testing.T) {
 	}
 }
 
+func TestPatchEditsAnItemHoldingTheValueOfARestingGroup(t *testing.T) {
+	t.Parallel()
+
+	users := newFakeUserStore()
+	ada := addAda(t, users)
+	posts := newFakePostStore()
+	types := newFakeTypeStore()
+	types.register(content.Type{
+		Key: content.TypePost, SingularLabel: "Post", PluralLabel: "Posts", Default: true, Active: true,
+		PageKind: content.PageKindSingle,
+		Fields: []content.Field{{
+			TypeKey: content.TypePost, Key: "subtitle", Label: "Subtitle", Kind: content.FieldKindText,
+		}},
+	})
+	handler := server.NewServer(server.Config{Users: users, Content: posts, Types: types})
+	cookie := loginCookie(t, handler)
+	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.AddCookie(cookie)
+		handler.ServeHTTP(w, r)
+	})
+	held := newPost(t, "Original", ada.ID)
+	held.Fields = content.Values{"resting": "frozen words"}
+	stored := posts.add(held)
+
+	recorder := doRequest(t, authed, http.MethodPatch, "/api/content/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt, map[string]any{"title": "Renamed"}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want the item editable while a resting group holds a value, body %s",
+			recorder.Code, recorder.Body.String())
+	}
+	if kept := posts.posts[stored.ID].Fields["resting"]; kept != "frozen words" {
+		t.Errorf("resting value = %v, want it frozen rather than dropped", kept)
+	}
+}
+
 func TestPatchRefusesAnItemPointingAtItself(t *testing.T) {
 	t.Parallel()
 

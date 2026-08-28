@@ -13,6 +13,7 @@ import (
 type Registry struct {
 	mu         sync.RWMutex
 	store      TypeStore
+	locations  *ParamRegistry
 	byKey      map[string]Type
 	order      []Type
 	loaded     bool
@@ -22,6 +23,38 @@ type Registry struct {
 // NewRegistry returns a [Registry] reading through store.
 func NewRegistry(store TypeStore) *Registry {
 	return &Registry{store: store}
+}
+
+// WithParams returns the registry evaluating locations against the given rule sources.
+func (r *Registry) WithParams(params *ParamRegistry) *Registry {
+	r.locations = params
+	return r
+}
+
+// Params returns the rule sources locations evaluate against, the built in ones by default.
+func (r *Registry) Params(ctx context.Context) *ParamRegistry {
+	r.mu.RLock()
+	held := r.locations
+	r.mu.RUnlock()
+	if held != nil {
+		return held
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.locations == nil {
+		r.locations = DefaultParamRegistry(func(context.Context) ([]Choice, error) {
+			types, err := r.All(ctx)
+			if err != nil {
+				return nil, err
+			}
+			choices := make([]Choice, len(types))
+			for i, t := range types {
+				choices[i] = Choice{Value: t.Key, Label: t.PluralLabel}
+			}
+			return choices, nil
+		})
+	}
+	return r.locations
 }
 
 // All returns every registered type, active or not, in registration order.
@@ -186,21 +219,18 @@ func (r *Registry) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-// untargeted reports whether another type's relation field still points at the type.
+// untargeted reports whether a relation field in any group still points at the type.
 func (r *Registry) untargeted(ctx context.Context, key string) error {
-	types, err := r.All(ctx)
+	groups, err := r.store.ListGroups(ctx)
 	if err != nil {
 		return err
 	}
-	for _, stored := range types {
-		if stored.Key == key {
-			continue
-		}
-		for _, f := range stored.Fields {
+	for _, g := range groups {
+		for _, f := range g.Fields {
 			if f.RelatesTo == key {
 				return Refuse(ErrTypeTargeted, "type_targeted",
-					fmt.Sprintf("%s (%s on %s)", ErrTypeTargeted, f.Key, stored.Key),
-					Details{"field": f.Key, "type": stored.Key})
+					fmt.Sprintf("%s (%s in %s)", ErrTypeTargeted, f.Key, g.Title),
+					Details{"field": f.Key, "group": g.Title})
 			}
 		}
 	}
@@ -261,7 +291,7 @@ func (r *Registry) ReorderFields(ctx context.Context, typeKey string, keys []str
 	if err != nil {
 		return nil, err
 	}
-	if err := orderCovers(t, keys); err != nil {
+	if err := orderCovers(t.Fields, keys); err != nil {
 		return nil, err
 	}
 	if err := r.store.ReorderFields(ctx, typeKey, keys); err != nil {
@@ -275,11 +305,11 @@ func (r *Registry) ReorderFields(ctx context.Context, typeKey string, keys []str
 	return reordered.Fields, nil
 }
 
-// orderCovers reports whether keys name every field the type declares exactly once.
-func orderCovers(t Type, keys []string) error {
+// orderCovers reports whether keys name every declared field exactly once.
+func orderCovers(fields []Field, keys []string) error {
 	seen := make(map[string]bool, len(keys))
 	for _, key := range keys {
-		if _, err := fieldOf(t, key); err != nil {
+		if _, err := fieldAmong(fields, key); err != nil {
 			return err
 		}
 		if seen[key] {
@@ -288,7 +318,7 @@ func orderCovers(t Type, keys []string) error {
 		}
 		seen[key] = true
 	}
-	if len(keys) != len(t.Fields) {
+	if len(keys) != len(fields) {
 		return Refuse(ErrFieldOrder, "field_order_incomplete",
 			"content: the order leaves declared fields out", nil)
 	}
@@ -313,7 +343,12 @@ func (r *Registry) DeleteField(ctx context.Context, typeKey, key string) error {
 
 // fieldOf returns the declared field carrying the key, or [ErrFieldNotFound].
 func fieldOf(t Type, key string) (Field, error) {
-	for _, f := range t.Fields {
+	return fieldAmong(t.Fields, key)
+}
+
+// fieldAmong returns the field carrying the key, or [ErrFieldNotFound].
+func fieldAmong(fields []Field, key string) (Field, error) {
+	for _, f := range fields {
 		if f.Key == key {
 			return f, nil
 		}

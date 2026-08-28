@@ -16,8 +16,8 @@ import (
 )
 
 // writeRelations stores the targets the item points at and refreshes what a term page reads.
-func writeRelations(ctx context.Context, queries *db.Queries, c content.Content) error {
-	declared, err := queries.ListRelationFieldsOfType(ctx, c.Type)
+func writeRelations(ctx context.Context, queries *db.Queries, matching []int32, c content.Content) error {
+	declared, err := queries.ListRelationFieldsOfGroups(ctx, matching)
 	if err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func writeRelations(ctx context.Context, queries *db.Queries, c content.Content)
 // carryTargets replaces the targets one relation field holds.
 func carryTargets(
 	ctx context.Context, queries *db.Queries, c content.Content,
-	f db.ListRelationFieldsOfTypeRow, targets []uuid.UUID,
+	f db.ListRelationFieldsOfGroupsRow, targets []uuid.UUID,
 ) error {
 	if err := targetsAllowed(ctx, queries, f, targets); err != nil {
 		return err
@@ -61,7 +61,7 @@ func carryTargets(
 
 // targetsAllowed reports whether every target exists and is the type the field points at.
 func targetsAllowed(
-	ctx context.Context, queries *db.Queries, f db.ListRelationFieldsOfTypeRow, targets []uuid.UUID,
+	ctx context.Context, queries *db.Queries, f db.ListRelationFieldsOfGroupsRow, targets []uuid.UUID,
 ) error {
 	if len(targets) == 0 {
 		return nil

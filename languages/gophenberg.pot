@@ -7,6 +7,12 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: gophenberg\n"
 
+msgid " and "
+msgstr ""
+
+msgid " or "
+msgstr ""
+
 msgid "%(count)d post moved to the trash."
 msgid_plural "%(count)d posts moved to the trash."
 msgstr[0] ""
@@ -24,6 +30,9 @@ msgstr ""
 msgid "%(field)s is required now."
 msgstr ""
 
+msgid "%(field)s moved."
+msgstr ""
+
 msgid "%(field)s renamed."
 msgstr ""
 
@@ -33,6 +42,18 @@ msgstr ""
 msgid "%(file)s is not a file this block accepts."
 msgstr ""
 
+msgid "%(group)s created."
+msgstr ""
+
+msgid "%(group)s now appears where you said."
+msgstr ""
+
+msgid "%(group)s removed."
+msgstr ""
+
+msgid "%(group)s updated."
+msgstr ""
+
 msgid "%(name)s %(version)s is serving the public site."
 msgstr ""
 
@@ -40,6 +61,9 @@ msgid "%(name)s cannot be used as a theme name. Name the zip file after the them
 msgstr ""
 
 msgid "%(name)s moves to /%(word)s. Every address of both types changes."
+msgstr ""
+
+msgid "%(source)s is %(value)s"
 msgstr ""
 
 msgid "%(theme)s failed to start, so the built-in renderer is serving."
@@ -87,7 +111,7 @@ msgstr ""
 msgid "A field needs a name. Type one and try again."
 msgstr ""
 
-msgid "A field with that name already exists on this content type. Pick another name."
+msgid "A field with that name already exists on the items this group reaches. Pick another name."
 msgstr ""
 
 msgid "A relation field has to say which content type it points at. Pick that type and try again."
@@ -97,6 +121,9 @@ msgid "A reload shows the admin in the language you chose."
 msgstr ""
 
 msgid "A route word has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Change it and try again."
+msgstr ""
+
+msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead."
 msgstr ""
 
 msgid "A type key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Change the key and try again."
@@ -120,16 +147,25 @@ msgstr ""
 msgid "Add New"
 msgstr ""
 
+msgid "Add New Group"
+msgstr ""
+
 msgid "Add New Type"
 msgstr ""
 
 msgid "Add block"
 msgstr ""
 
+msgid "Add condition"
+msgstr ""
+
 msgid "Add field"
 msgstr ""
 
 msgid "Add media"
+msgstr ""
+
+msgid "Add rule set"
 msgstr ""
 
 msgid "Add title"
@@ -168,6 +204,9 @@ msgstr ""
 msgid "Another item of this content type already uses that address. Pick a different slug and save again."
 msgstr ""
 
+msgid "Appears on"
+msgstr ""
+
 msgid "April"
 msgstr ""
 
@@ -195,6 +234,9 @@ msgstr ""
 msgid "Broken"
 msgstr ""
 
+msgid "Bundles of fields, shown where their rules place them."
+msgstr ""
+
 msgid "Cancel"
 msgstr ""
 
@@ -219,6 +261,9 @@ msgstr ""
 msgid "Closed"
 msgstr ""
 
+msgid "Condition"
+msgstr ""
+
 msgid "Content"
 msgstr ""
 
@@ -226,6 +271,9 @@ msgid "Content Types"
 msgstr ""
 
 msgid "Content nests at most %(max)d levels deep, and this item would sit deeper. Pick a parent closer to the top."
+msgstr ""
+
+msgid "Content type"
 msgstr ""
 
 msgid "Could not create a draft."
@@ -262,6 +310,12 @@ msgstr[1] ""
 msgid "Could not save that post."
 msgstr ""
 
+msgid "Create"
+msgstr ""
+
+msgid "Create a field group"
+msgstr ""
+
 msgid "Create user"
 msgstr ""
 
@@ -286,6 +340,9 @@ msgstr ""
 msgid "Delete %(field)s"
 msgstr ""
 
+msgid "Delete %(group)s"
+msgstr ""
+
 msgid "Delete %(title)s for good? This cannot be undone."
 msgstr ""
 
@@ -296,6 +353,9 @@ msgid "Delete Permanently"
 msgstr ""
 
 msgid "Delete the field"
+msgstr ""
+
+msgid "Delete the group"
 msgstr ""
 
 msgid "Delete this %(count)d item for good? This cannot be undone."
@@ -351,6 +411,12 @@ msgstr ""
 msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
 msgstr ""
 
+msgid "Every content type"
+msgstr ""
+
+msgid "Every field group needs a title. Give it a name and save again."
+msgstr ""
+
 msgid "Every item needs an author who exists. Pick one from the list and save again."
 msgstr ""
 
@@ -360,7 +426,7 @@ msgstr ""
 msgid "Every post in the trash is removed for good. This cannot be undone."
 msgstr ""
 
-msgid "Every value stored under this field goes with it, in every item of this type and in the revisions behind them."
+msgid "Every value stored under this field goes with it, in every item the group reaches and in the revisions behind them."
 msgstr ""
 
 msgid "Excerpt"
@@ -369,10 +435,13 @@ msgstr ""
 msgid "February"
 msgstr ""
 
+msgid "Field Groups"
+msgstr ""
+
 msgid "Fields"
 msgstr ""
 
-msgid "Fields of %(type)s"
+msgid "Fields of %(group)s"
 msgstr ""
 
 msgid "File name"
@@ -417,6 +486,9 @@ msgstr ""
 msgid "Gophenberg keeps this word for itself, so no content type can answer under it. Pick a different route word."
 msgstr ""
 
+msgid "Group"
+msgstr ""
+
 msgid "Hand over the root"
 msgstr ""
 
@@ -432,10 +504,16 @@ msgstr ""
 msgid "Images"
 msgstr ""
 
+msgid "Inactive"
+msgstr ""
+
 msgid "Install theme"
 msgstr ""
 
 msgid "Installed"
+msgstr ""
+
+msgid "It starts on %(type)s, and the rules may be edited afterwards."
 msgstr ""
 
 msgid "January"
@@ -448,6 +526,9 @@ msgid "June"
 msgstr ""
 
 msgid "Keep it"
+msgstr ""
+
+msgid "Keep it here"
 msgstr ""
 
 msgid "Language"
@@ -463,6 +544,9 @@ msgid "List view"
 msgstr ""
 
 msgid "Loading content types."
+msgstr ""
+
+msgid "Loading field groups."
 msgstr ""
 
 msgid "Loading the post."
@@ -510,16 +594,31 @@ msgstr ""
 msgid "Mobile"
 msgstr ""
 
+msgid "Move"
+msgstr ""
+
 msgid "Move %(field)s down"
 msgstr ""
 
+msgid "Move %(field)s elsewhere"
+msgstr ""
+
 msgid "Move %(field)s up"
+msgstr ""
+
+msgid "Move %(group)s down"
+msgstr ""
+
+msgid "Move %(group)s up"
 msgstr ""
 
 msgid "Move %(title)s to the trash?"
 msgstr ""
 
 msgid "Move every address"
+msgstr ""
+
+msgid "Move the field"
 msgstr ""
 
 msgid "Move these %(count)d post to the trash?"
@@ -578,6 +677,9 @@ msgstr ""
 msgid "None"
 msgstr ""
 
+msgid "Not %(type)s"
+msgstr ""
+
 msgid "Not found"
 msgstr ""
 
@@ -591,6 +693,9 @@ msgid "Nothing published yet."
 msgstr ""
 
 msgid "November"
+msgstr ""
+
+msgid "Nowhere"
 msgstr ""
 
 msgid "Number"
@@ -674,6 +779,9 @@ msgstr ""
 msgid "Relation"
 msgstr ""
 
+msgid "Remove"
+msgstr ""
+
 msgid "Remove %(title)s"
 msgstr ""
 
@@ -704,10 +812,22 @@ msgstr ""
 msgid "Route word"
 msgstr ""
 
+msgid "Rule %(number)d of set %(set)d"
+msgstr ""
+
+msgid "Rule set %(number)d"
+msgstr ""
+
+msgid "Rules"
+msgstr ""
+
 msgid "Save"
 msgstr ""
 
 msgid "Save draft"
+msgstr ""
+
+msgid "Save rules"
 msgstr ""
 
 msgid "Saved"
@@ -764,6 +884,9 @@ msgstr ""
 msgid "Something went wrong. Try again."
 msgstr ""
 
+msgid "Source"
+msgstr ""
+
 msgid "Start writing."
 msgstr ""
 
@@ -774,6 +897,9 @@ msgid "Text"
 msgstr ""
 
 msgid "That email is already in use."
+msgstr ""
+
+msgid "That field group no longer exists. Reload the page to see the groups your site holds now."
 msgstr ""
 
 msgid "That field is not on this content type any more. Reload the page to see the fields it has now."
@@ -824,7 +950,7 @@ msgstr ""
 msgid "The field %(field)s has to hold a value before this item can be published. Fill it in, or leave the item as a draft."
 msgstr ""
 
-msgid "The field %(field)s on %(type)s still points at this content type. Delete that field first, then delete this type."
+msgid "The field %(field)s in %(group)s still points at this content type. Delete that field first, then delete this type."
 msgstr ""
 
 msgid "The field %(field)s points at one item only. Remove the extra choices and keep one."
@@ -834,6 +960,21 @@ msgid "The field %(field)s points at other items, so it does not take a plain va
 msgstr ""
 
 msgid "The field %(field)s takes a list of items, and what arrived was not a list. Reload the page and pick the items again."
+msgstr ""
+
+msgid "The field groups could not be loaded."
+msgstr ""
+
+msgid "The field groups could not be reached."
+msgstr ""
+
+msgid "The field keeps every value stored under it."
+msgstr ""
+
+msgid "The fields this group holds go with it, and so do the values every item stored in them."
+msgstr ""
+
+msgid "The groups were reordered."
 msgstr ""
 
 msgid "The item you picked as parent holds another kind of content. Pick a parent of the same content type as this item."
@@ -851,6 +992,9 @@ msgstr ""
 msgid "The name changes. Nothing stored under this field moves."
 msgstr ""
 
+msgid "The new order has to name every field group exactly once. Reload the page and move the groups again."
+msgstr ""
+
 msgid "The new order has to name every field of this content type exactly once. Reload the page and move the fields again."
 msgstr ""
 
@@ -858,6 +1002,12 @@ msgid "The number of revisions to keep has to be a whole number, and it cannot b
 msgstr ""
 
 msgid "The registry could not be reached."
+msgstr ""
+
+msgid "The rule on %(source)s names nothing to match. Pick a value, or remove the rule."
+msgstr ""
+
+msgid "The rules could not be loaded."
 msgstr ""
 
 msgid "The same item was picked twice for %(field)s. Pick each item once."
@@ -873,6 +1023,9 @@ msgid "The server could not be reached, so nothing was uploaded."
 msgstr ""
 
 msgid "The site default"
+msgstr ""
+
+msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
 msgstr ""
 
 msgid "The theme %(name)s carries no %(file)s, so Gophenberg cannot tell what it is. Put that file at the top level of the zip and package the theme again."
@@ -962,6 +1115,9 @@ msgstr ""
 msgid "This file is named %(extension)s but it holds %(detected)s content. Upload it under a name that matches what is inside it."
 msgstr ""
 
+msgid "This group holds no fields yet."
+msgstr ""
+
 msgid "This item cannot go straight to that status from the one it holds now. Save it as a draft first, then try again."
 msgstr ""
 
@@ -1001,6 +1157,9 @@ msgstr ""
 msgid "This request left out %(field)s, which Gophenberg needs. Reload the page and try again."
 msgstr ""
 
+msgid "This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed."
+msgstr ""
+
 msgid "This site has nowhere to keep themes, so no theme can be installed. Ask whoever looks after your site to point %(setting)s at a folder the server can write to."
 msgstr ""
 
@@ -1008,9 +1167,6 @@ msgid "This site has nowhere to store uploads, so nothing can be uploaded. Ask w
 msgstr ""
 
 msgid "This theme is over the limit of %(max)d bytes, packed or unpacked. Leave out what the theme does not need and package it again."
-msgstr ""
-
-msgid "This type declares no fields yet."
 msgstr ""
 
 msgid "This type will answer under /%(word)s."
@@ -1023,6 +1179,9 @@ msgid "Thumbnail"
 msgstr ""
 
 msgid "Title"
+msgstr ""
+
+msgid "Two rule sources are registered under the name %(param)s. A plugin is declaring a source your site already holds."
 msgstr ""
 
 msgid "Type"
@@ -1046,6 +1205,9 @@ msgstr ""
 msgid "Users could not be loaded."
 msgstr ""
 
+msgid "Value"
+msgstr ""
+
 msgid "Version"
 msgstr ""
 
@@ -1053,6 +1215,12 @@ msgid "Videos"
 msgstr ""
 
 msgid "Welcome to Gophenberg."
+msgstr ""
+
+msgid "Where %(group)s appears"
+msgstr ""
+
+msgid "Without a rule this group appears nowhere."
 msgstr ""
 
 msgid "Yes"
@@ -1070,7 +1238,16 @@ msgstr ""
 msgid "Your site always needs one default content type, so this one cannot be turned off or deleted. Make another type the default first."
 msgstr ""
 
+msgid "a content type"
+msgstr ""
+
 msgid "address"
+msgstr ""
+
+msgid "is"
+msgstr ""
+
+msgid "is not"
 msgstr ""
 
 msgid "{day} {month} {year}"
@@ -1110,6 +1287,10 @@ msgstr ""
 
 msgctxt "field"
 msgid "Name"
+msgstr ""
+
+msgctxt "field group"
+msgid "Status"
 msgstr ""
 
 msgctxt "field type"

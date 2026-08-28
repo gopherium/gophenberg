@@ -55,6 +55,48 @@ func (stubTypeStore) Update(context.Context, content.Type) (content.Type, error)
 func (stubTypeStore) Delete(context.Context, string) error { return content.ErrTypeNotFound }
 
 // ReorderFields refuses to reorder fields in a seeding run.
+// ListGroups returns no field groups.
+func (stubTypeStore) ListGroups(context.Context) ([]content.Group, error) {
+	return nil, nil
+}
+
+// CreateGroup hands the group back unstored.
+func (stubTypeStore) CreateGroup(_ context.Context, g content.Group) (content.Group, error) {
+	return g, nil
+}
+
+// UpdateGroup hands the group back unstored.
+func (stubTypeStore) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
+	return g, nil
+}
+
+// DeleteGroup removes no group.
+func (stubTypeStore) DeleteGroup(context.Context, int) error { return nil }
+
+// ReorderGroups stores no order.
+func (stubTypeStore) ReorderGroups(context.Context, []int) error { return nil }
+
+// CreateFieldInGroup hands the field back undeclared.
+func (stubTypeStore) CreateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
+	return f, nil
+}
+
+// MoveField carries no field.
+func (stubTypeStore) MoveField(context.Context, int, string, int) (content.Field, error) {
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// UpdateFieldInGroup hands the field back unstored.
+func (stubTypeStore) UpdateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
+	return f, nil
+}
+
+// DeleteFieldInGroup removes no field.
+func (stubTypeStore) DeleteFieldInGroup(context.Context, int, string) error { return nil }
+
+// ReorderFieldsInGroup stores no order.
+func (stubTypeStore) ReorderFieldsInGroup(context.Context, int, []string) error { return nil }
+
 func (stubTypeStore) ReorderFields(context.Context, string, []string) error {
 	return content.ErrTypeNotFound
 }

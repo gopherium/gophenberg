@@ -12,6 +12,7 @@ const FRAMED = [
 	'/',
 	'/content/$typeKey',
 	'/content-types',
+	'/field-groups',
 	'/media',
 	'/users',
 	'/users/new',

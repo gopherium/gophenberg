@@ -434,9 +434,11 @@ var errRegistryDown = errors.New("the registry is unreachable")
 
 // fakeTypeStore holds the content type registry in memory.
 type fakeTypeStore struct {
-	mu      sync.Mutex
-	types   []content.Type
-	listErr error
+	mu          sync.Mutex
+	types       []content.Type
+	groups      []content.Group
+	nextGroupID int
+	listErr     error
 }
 
 // newFakeTypeStore returns a registry holding the built-in post type.
@@ -460,7 +462,213 @@ func (s *fakeTypeStore) List(context.Context) ([]content.Type, error) {
 	}
 	stored := make([]content.Type, len(s.types))
 	copy(stored, s.types)
+	for i, held := range stored {
+		stored[i].Fields = s.flattened(held.Key, held.Fields)
+	}
 	return stored, nil
+}
+
+// fakeParams holds the rule sources the fake store evaluates locations with.
+var fakeParams = content.DefaultParamRegistry(nil)
+
+// flattened returns the type's own fields beside those its matching groups place on it.
+func (s *fakeTypeStore) flattened(typeKey string, own []content.Field) []content.Field {
+	fields := append([]content.Field(nil), own...)
+	served := make(map[string]bool, len(fields))
+	for _, f := range fields {
+		served[f.Key] = true
+	}
+	screen := content.Screen{content.ScreenContentType: typeKey}
+	for _, g := range s.groups {
+		if !g.Active || !g.Location.Match(screen, fakeParams) {
+			continue
+		}
+		for _, f := range g.Fields {
+			if served[f.Key] {
+				continue
+			}
+			served[f.Key] = true
+			f.TypeKey = typeKey
+			fields = append(fields, f)
+		}
+	}
+	return fields
+}
+
+// CreateGroup stores a new field group at the end of the order.
+func (s *fakeTypeStore) CreateGroup(_ context.Context, g content.Group) (content.Group, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.nextGroupID++
+	g.ID, g.Active, g.Position = s.nextGroupID+len(s.types), true, len(s.groups)+1
+	s.groups = append(s.groups, g)
+	return g, nil
+}
+
+// UpdateGroup stores the group's title, location and resting flag.
+func (s *fakeTypeStore) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID != g.ID {
+			continue
+		}
+		held.Title, held.Location, held.Active = g.Title, g.Location, g.Active
+		s.groups[i] = held
+		return held, nil
+	}
+	return content.Group{}, content.ErrGroupNotFound
+}
+
+// DeleteGroup removes the group and every field it holds.
+func (s *fakeTypeStore) DeleteGroup(_ context.Context, id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID == id {
+			s.groups = append(s.groups[:i], s.groups[i+1:]...)
+			return nil
+		}
+	}
+	return content.ErrGroupNotFound
+}
+
+// ReorderGroups stores the given order on the groups.
+func (s *fakeTypeStore) ReorderGroups(_ context.Context, ids []int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ordered := make([]content.Group, 0, len(ids))
+	for _, id := range ids {
+		for _, held := range s.groups {
+			if held.ID == id {
+				ordered = append(ordered, held)
+			}
+		}
+	}
+	s.groups = ordered
+	return nil
+}
+
+// CreateFieldInGroup declares the field inside the group.
+func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		f.GroupID = groupID
+		s.groups[i].Fields = append(held.Fields, f)
+		return f, nil
+	}
+	return content.Field{}, content.ErrGroupNotFound
+}
+
+// UpdateFieldInGroup stores the field's label and required flag inside its group.
+func (s *fakeTypeStore) UpdateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		for j, stored := range held.Fields {
+			if stored.Key == f.Key {
+				s.groups[i].Fields[j] = f
+				return f, nil
+			}
+		}
+	}
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// DeleteFieldInGroup removes the field from its group.
+func (s *fakeTypeStore) DeleteFieldInGroup(_ context.Context, groupID int, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		for j, stored := range held.Fields {
+			if stored.Key == key {
+				s.groups[i].Fields = append(held.Fields[:j], held.Fields[j+1:]...)
+				return nil
+			}
+		}
+	}
+	return content.ErrFieldNotFound
+}
+
+// ReorderFieldsInGroup stores the given order on the group's fields.
+func (s *fakeTypeStore) ReorderFieldsInGroup(_ context.Context, groupID int, keys []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		ordered := make([]content.Field, 0, len(keys))
+		for _, key := range keys {
+			for _, stored := range held.Fields {
+				if stored.Key == key {
+					ordered = append(ordered, stored)
+				}
+			}
+		}
+		s.groups[i].Fields = ordered
+		return nil
+	}
+	return content.ErrGroupNotFound
+}
+
+// MoveField carries the field into another group.
+func (s *fakeTypeStore) MoveField(_ context.Context, groupID int, key string, toGroup int) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var carried content.Field
+	for i, held := range s.groups {
+		if held.ID != groupID {
+			continue
+		}
+		for at, f := range held.Fields {
+			if f.Key == key {
+				carried = f
+				s.groups[i].Fields = append(held.Fields[:at], held.Fields[at+1:]...)
+				break
+			}
+		}
+	}
+	if carried.Key == "" {
+		return content.Field{}, content.ErrFieldNotFound
+	}
+	carried.GroupID = toGroup
+	for i, held := range s.groups {
+		if held.ID == toGroup {
+			s.groups[i].Fields = append(held.Fields, carried)
+			return carried, nil
+		}
+	}
+	return content.Field{}, content.ErrGroupNotFound
+}
+
+// ListGroups returns the stored groups beside one per type holding the fields it declares.
+func (s *fakeTypeStore) ListGroups(context.Context) ([]content.Group, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.listErr != nil {
+		return nil, s.listErr
+	}
+	groups := make([]content.Group, 0, len(s.types)+len(s.groups))
+	for i, t := range s.types {
+		if len(t.Fields) == 0 {
+			continue
+		}
+		groups = append(groups, content.Group{
+			ID: i + 1, Title: t.SingularLabel + " fields", Active: true, Fields: t.Fields,
+		})
+	}
+	return append(groups, s.groups...), nil
 }
 
 // ByKey returns the stored type carrying the key.

@@ -31,7 +31,6 @@ type CoreContent struct {
 
 type CoreContentField struct {
 	ID        int32
-	TypeKey   string
 	Key       string
 	Label     string
 	Kind      string
@@ -41,6 +40,7 @@ type CoreContentField struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Position  int32
+	GroupID   int32
 }
 
 type CoreContentRelation struct {
@@ -77,6 +77,16 @@ type CoreContentType struct {
 	Active        bool
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+}
+
+type CoreFieldGroup struct {
+	ID        int32
+	Title     string
+	Location  []byte
+	Position  int32
+	Active    bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type CoreMedia struct {

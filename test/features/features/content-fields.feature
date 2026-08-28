@@ -9,7 +9,7 @@ Feature: Managing content fields
 
   Scenario: A type starts with no fields
     When the administrator lists the fields of "post"
-    Then no fields are listed
+    Then no fields are listed on "post"
 
   Scenario: Adding a text field
     When the administrator adds the "text" field "color" labeled "Color" to "post"

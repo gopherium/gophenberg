@@ -105,7 +105,10 @@ export function errorTemplates(): Record<string, string> {
 			'The field %(field)s points at other items, so it does not take a plain value. Pick the items it points at instead.',
 			DOMAIN,
 		),
-		field_taken: __('A field with that name already exists on this content type. Pick another name.', DOMAIN),
+		field_taken: __(
+			'A field with that name already exists on the items this group reaches. Pick another name.',
+			DOMAIN,
+		),
 		field_unknown: __(
 			'This content type has no field called %(field)s. Check the name, or declare the field on the type first.',
 			DOMAIN,
@@ -119,6 +122,15 @@ export function errorTemplates(): Record<string, string> {
 			'Gophenberg does not accept %(extension)s files. Upload a picture, a video, an audio file, a PDF or a zip instead.',
 			DOMAIN,
 		),
+		group_not_found: __(
+			'That field group no longer exists. Reload the page to see the groups your site holds now.',
+			DOMAIN,
+		),
+		group_order_incomplete: __(
+			'The new order has to name every field group exactly once. Reload the page and move the groups again.',
+			DOMAIN,
+		),
+		group_title_required: __('Every field group needs a title. Give it a name and save again.', DOMAIN),
 		image_frame_too_large: __(
 			'One frame of this animation holds more than %(max)d pixels, which is more than Gophenberg opens. Upload a smaller animation.',
 			DOMAIN,
@@ -193,6 +205,10 @@ export function errorTemplates(): Record<string, string> {
 			'Gophenberg could not read which item you picked as parent. Reload the page and pick it again.',
 			DOMAIN,
 		),
+		param_taken: __(
+			'Two rule sources are registered under the name %(param)s. A plugin is declaring a source your site already holds.',
+			DOMAIN,
+		),
 		parent_not_found: __(
 			'The item you picked as parent no longer exists. Reload the page and pick another parent.',
 			DOMAIN,
@@ -232,6 +248,22 @@ export function errorTemplates(): Record<string, string> {
 		),
 		rollback_unavailable: __(
 			'There is nothing to roll back to, because your site has not been through a theme change yet. Install a theme first, then a rollback has somewhere to go.',
+			DOMAIN,
+		),
+		rule_any_negated: __(
+			'A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead.',
+			DOMAIN,
+		),
+		rule_operator: __(
+			'The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer.',
+			DOMAIN,
+		),
+		rule_source_unknown: __(
+			'This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed.',
+			DOMAIN,
+		),
+		rule_value_missing: __(
+			'The rule on %(source)s names nothing to match. Pick a value, or remove the rule.',
 			DOMAIN,
 		),
 		root_taken: __(
@@ -335,7 +367,7 @@ export function errorTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		type_targeted: __(
-			'The field %(field)s on %(type)s still points at this content type. Delete that field first, then delete this type.',
+			'The field %(field)s in %(group)s still points at this content type. Delete that field first, then delete this type.',
 			DOMAIN,
 		),
 		type_unknown: __(

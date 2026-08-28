@@ -35,6 +35,17 @@ test('renders a navigation entry for every core and plugin section', async () =>
 	)
 })
 
+test('offers the field groups a way in from the menu', async () => {
+	renderAt('/')
+
+	const nav = await screen.findByRole('navigation')
+
+	expect(within(nav).getByRole('link', { name: 'Field Groups' })).toHaveAttribute(
+		'href',
+		'/admin/field-groups',
+	)
+})
+
 test('frames the active route inside the main content region', async () => {
 	renderAt('/')
 
