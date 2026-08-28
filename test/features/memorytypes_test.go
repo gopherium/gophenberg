@@ -104,7 +104,7 @@ func (s *memoryTypes) CreateGroup(_ context.Context, g content.Group) (content.G
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.nextGroupID++
-	g.ID, g.Active, g.Position = s.nextGroupID+len(s.types), true, len(s.groups)+1
+	g.ID, g.Active, g.Position = s.nextGroupID, true, len(s.groups)+1
 	s.groups = append(s.groups, g)
 	return g, nil
 }
@@ -263,6 +263,15 @@ func (s *memoryTypes) ReorderFieldsInGroup(_ context.Context, groupID int, keys 
 func (s *memoryTypes) MoveField(_ context.Context, groupID int, key string, toGroup int) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	landing := -1
+	for i, held := range s.groups {
+		if held.ID == toGroup {
+			landing = i
+		}
+	}
+	if landing < 0 {
+		return content.Field{}, content.ErrGroupNotFound
+	}
 	var carried content.Field
 	for i, held := range s.groups {
 		if held.ID != groupID {
@@ -280,13 +289,8 @@ func (s *memoryTypes) MoveField(_ context.Context, groupID int, key string, toGr
 		return content.Field{}, content.ErrFieldNotFound
 	}
 	carried.GroupID = toGroup
-	for i, held := range s.groups {
-		if held.ID == toGroup {
-			s.groups[i].Fields = append(held.Fields, carried)
-			return carried, nil
-		}
-	}
-	return content.Field{}, content.ErrGroupNotFound
+	s.groups[landing].Fields = append(s.groups[landing].Fields, carried)
+	return carried, nil
 }
 
 // ListGroups returns the stored groups beside one per type already holding fields.
@@ -299,7 +303,7 @@ func (s *memoryTypes) ListGroups(context.Context) ([]content.Group, error) {
 			continue
 		}
 		groups = append(groups, content.Group{
-			ID: i + 1, Title: t.SingularLabel + " fields", Active: true, Fields: t.Fields,
+			ID: -(i + 1), Title: t.SingularLabel + " fields", Active: true, Fields: t.Fields,
 		})
 	}
 	return append(groups, s.groups...), nil

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -235,7 +236,15 @@ func theFieldIsServedOn(ctx context.Context, key, typeKey string) error {
 
 // theFieldIsNotServedOn asserts the content type serves no such field.
 func theFieldIsNotServedOn(ctx context.Context, key, typeKey string) error {
-	if err := theFieldIsServedOn(ctx, key, typeKey); err == nil {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	keys, err := servedFieldKeys(w, typeKey)
+	if err != nil {
+		return err
+	}
+	if slices.Contains(keys, key) {
 		return fmt.Errorf("%s still serves the field %q, want it withheld", typeKey, key)
 	}
 	return nil

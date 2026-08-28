@@ -57,9 +57,22 @@ func fieldsPathIn(group int) string {
 	return groupsPath + "/" + strconv.Itoa(group) + "/fields"
 }
 
+// groupHoldingType returns the group a type's fields already live in.
+func groupHoldingType(ctx context.Context, typeKey string) (int, error) {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return 0, err
+	}
+	held, err := groupNamed(w, typeKey+" fields")
+	if err != nil {
+		return 0, fmt.Errorf("no group holds the fields of %q: %w", typeKey, err)
+	}
+	return held.ID, nil
+}
+
 // fieldPathOf returns where one declared field of a type answers.
 func fieldPathOf(ctx context.Context, typeKey, key string) (string, error) {
-	group, err := groupOverType(ctx, typeKey)
+	group, err := groupHoldingType(ctx, typeKey)
 	if err != nil {
 		return "", err
 	}

@@ -39,7 +39,8 @@ func groupOver(t *testing.T, handler http.Handler, typeKey string) int {
 	for _, held := range listed.Items {
 		for _, set := range held.Location {
 			for _, rule := range set {
-				if rule.Value == typeKey {
+				if rule.Source == content.ScreenContentType &&
+					rule.Operator == content.OperatorIs && rule.Value == typeKey {
 					return held.ID
 				}
 			}
@@ -123,6 +124,26 @@ func TestContentPatchLeavesAbsentFieldsAlone(t *testing.T) {
 	}
 	if saved.Fields["doors"] != float64(4) {
 		t.Errorf("fields = %v, want the absent key left alone", saved.Fields)
+	}
+}
+
+func TestContentPatchKeepsAValueItsGroupStoppedServing(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler, `{"key":"color","label":"Color","kind":"text"}`)
+	declaredOn(t, handler, `{"key":"doors","label":"Doors","kind":"number"}`)
+	held := patchValues(t, handler, draftedPost(t, handler), `{"color":"red","doors":4}`)
+	resting := doRequest(t, handler, http.MethodPatch,
+		fmt.Sprintf("/api/groups/%d", groupOver(t, handler, content.TypePost)), `{"active":false}`)
+	if resting.Code != http.StatusOK {
+		t.Fatalf("resting the group: %d: %s", resting.Code, resting.Body.String())
+	}
+
+	saved := patchValues(t, handler, held, `{}`)
+
+	if saved.Fields["color"] != "red" || saved.Fields["doors"] != float64(4) {
+		t.Errorf("fields = %v, want the frozen values kept once the group stopped serving them", saved.Fields)
 	}
 }
 

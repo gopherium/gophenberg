@@ -495,7 +495,7 @@ func (s *fakeTypeStore) flattened(typeKey string, own []content.Field) []content
 	return fields
 }
 
-// ListGroups returns one group per stored type holding the fields it declares.
+// CreateGroup stores a new field group at the end of the order.
 func (s *fakeTypeStore) CreateGroup(_ context.Context, g content.Group) (content.Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
