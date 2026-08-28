@@ -375,33 +375,19 @@ func TestTypeUpdateReportsADefaultItCannotDemote(t *testing.T) {
 	}
 }
 
-func TestDeleteFieldReportsValuesItCannotClear(t *testing.T) {
+func TestDeleteFieldInGroupReportsRevisionValuesItCannotClear(t *testing.T) {
 	t.Parallel()
 
 	store, _, pool := relatingStore(t)
 	_ = store
 	types := postgres.NewTypeStore(pool)
-	raiseOn(t, pool, "core.content", "UPDATE")
-
-	err := types.DeleteField(t.Context(), "post", "categories")
-
-	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
-		t.Errorf("DeleteField() error = %v, want the failing sweep reported", err)
-	}
-}
-
-func TestDeleteFieldReportsRevisionValuesItCannotClear(t *testing.T) {
-	t.Parallel()
-
-	store, _, pool := relatingStore(t)
-	_ = store
-	types := postgres.NewTypeStore(pool)
+	group := groupHolding(t, types, "categories")
 	raiseOn(t, pool, "core.content_revisions", "UPDATE")
 
-	err := types.DeleteField(t.Context(), "post", "categories")
+	err := types.DeleteFieldInGroup(t.Context(), group, "categories")
 
 	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
-		t.Errorf("DeleteField() error = %v, want the failing revision sweep reported", err)
+		t.Errorf("DeleteFieldInGroup() error = %v, want the failing revision sweep reported", err)
 	}
 }
 
@@ -510,17 +496,18 @@ func TestContentUpdateReportsFieldsItCannotLock(t *testing.T) {
 	}
 }
 
-func TestDeleteFieldReportsADefinitionItCannotRemove(t *testing.T) {
+func TestDeleteFieldInGroupReportsADefinitionItCannotRemove(t *testing.T) {
 	t.Parallel()
 
 	_, _, pool := relatingStore(t)
 	types := postgres.NewTypeStore(pool)
+	group := groupHolding(t, types, "categories")
 	raiseOn(t, pool, "core.content_fields", "DELETE")
 
-	err := types.DeleteField(t.Context(), "post", "categories")
+	err := types.DeleteFieldInGroup(t.Context(), group, "categories")
 
 	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
-		t.Errorf("DeleteField() error = %v, want the failing removal reported", err)
+		t.Errorf("DeleteFieldInGroup() error = %v, want the failing removal reported", err)
 	}
 }
 

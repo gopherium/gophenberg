@@ -44,21 +44,6 @@ func (unreadableTypeStore) CreateField(context.Context, Field) (Field, error) {
 	return Field{}, errTypeStoreDown
 }
 
-// UpdateField reports the failure rather than storing the edited field.
-func (unreadableTypeStore) UpdateField(context.Context, Field) (Field, error) {
-	return Field{}, errTypeStoreDown
-}
-
-// DeleteField reports the failure rather than removing the field.
-func (unreadableTypeStore) DeleteField(context.Context, string, string) error {
-	return errTypeStoreDown
-}
-
-// ReorderFields reports the failure rather than storing the order.
-func (unreadableTypeStore) ReorderFields(context.Context, string, []string) error {
-	return errTypeStoreDown
-}
-
 // ListGroups reports the failure rather than listing the groups.
 func (unreadableTypeStore) ListGroups(context.Context) ([]Group, error) {
 	return nil, errTypeStoreDown

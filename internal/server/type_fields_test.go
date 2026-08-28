@@ -26,43 +26,6 @@ func (s *fakeTypeStore) CreateField(_ context.Context, f content.Field) (content
 	return content.Field{}, content.ErrTypeNotFound
 }
 
-// UpdateField stores the edited field on its type.
-func (s *fakeTypeStore) UpdateField(_ context.Context, f content.Field) (content.Field, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i, stored := range s.types {
-		if stored.Key != f.TypeKey {
-			continue
-		}
-		for j, held := range stored.Fields {
-			if held.Key == f.Key {
-				f.ID = held.ID
-				s.types[i].Fields[j] = f
-				return f, nil
-			}
-		}
-	}
-	return content.Field{}, content.ErrFieldNotFound
-}
-
-// DeleteField removes the field from its type.
-func (s *fakeTypeStore) DeleteField(_ context.Context, typeKey, key string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i, stored := range s.types {
-		if stored.Key != typeKey {
-			continue
-		}
-		for j, held := range stored.Fields {
-			if held.Key == key {
-				s.types[i].Fields = append(stored.Fields[:j], stored.Fields[j+1:]...)
-				return nil
-			}
-		}
-	}
-	return content.ErrFieldNotFound
-}
-
 // fieldBody is the field definition shape the admin API answers.
 type fieldBody struct {
 	Key       string `json:"key"`

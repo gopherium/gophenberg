@@ -467,6 +467,7 @@ func TestContentStoreWritesRelationsWhileTheFieldIsDeleted(t *testing.T) {
 	store, author, pool := relatingStore(t)
 	types := postgres.NewTypeStore(pool)
 	news := storedCategory(t, store, "News", author)
+	group := groupHolding(t, types, "categories")
 	for round := range 60 {
 		if round > 0 {
 			built, err := content.NewField(content.Field{
@@ -503,7 +504,7 @@ func TestContentStoreWritesRelationsWhileTheFieldIsDeleted(t *testing.T) {
 			defer wg.Done()
 			<-start
 			time.Sleep(time.Duration(round) * 100 * time.Microsecond)
-			swept = types.DeleteField(t.Context(), "post", "categories")
+			swept = types.DeleteFieldInGroup(t.Context(), group, "categories")
 		}()
 		close(start)
 		wg.Wait()

@@ -73,6 +73,24 @@ func locationOf(typeKey string) content.Rules {
 	return content.Rules{{{Source: "content_type", Operator: content.OperatorIs, Value: typeKey}}}
 }
 
+// groupHolding returns the id of the stored group declaring the key.
+func groupHolding(t *testing.T, store *postgres.TypeStore, key string) int {
+	t.Helper()
+	groups, err := store.ListGroups(context.Background())
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v, want nil", err)
+	}
+	for _, g := range groups {
+		for _, f := range g.Fields {
+			if f.Key == key {
+				return g.ID
+			}
+		}
+	}
+	t.Fatalf("no stored group declares %q", key)
+	return 0
+}
+
 func TestCreateFieldRaisesADefaultGroupOnDemand(t *testing.T) {
 	t.Parallel()
 
@@ -573,19 +591,19 @@ func TestMoveFieldReportsAGroupThatIsGone(t *testing.T) {
 	}
 }
 
-func TestDeleteFieldSweepsOnlyTheTypesItsGroupMatches(t *testing.T) {
+func TestDeleteFieldInGroupSweepsOnlyTheTypesItMatches(t *testing.T) {
 	t.Parallel()
 
 	store, author, pool := typedStore(t)
 	storeType(t, store, "car")
 	storeType(t, store, "book")
-	declareTypedField(t, store, "car", "subtitle")
+	carField := declareTypedField(t, store, "car", "subtitle")
 	declareTypedField(t, store, "book", "subtitle")
 	plantTyped(t, pool, author, "car", "one-car", `{"subtitle": "car words"}`)
 	plantTyped(t, pool, author, "book", "one-book", `{"subtitle": "book words"}`)
 
-	if err := store.DeleteField(t.Context(), "car", "subtitle"); err != nil {
-		t.Fatalf("DeleteField() error = %v, want nil", err)
+	if err := store.DeleteFieldInGroup(t.Context(), carField.GroupID, "subtitle"); err != nil {
+		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
 	}
 
 	if held := storedFields(t, pool, "one-car"); held != "{}" {

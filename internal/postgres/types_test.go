@@ -453,11 +453,11 @@ func TestTypeStoreReportsADatabaseItCannotReach(t *testing.T) {
 			return err
 		},
 		"editing a field": func() error {
-			_, err := store.UpdateField(t.Context(), field)
+			_, err := store.UpdateFieldInGroup(t.Context(), 1, field)
 			return err
 		},
 		"removing a field": func() error {
-			return store.DeleteField(t.Context(), content.TypePost, "color")
+			return store.DeleteFieldInGroup(t.Context(), 1, "color")
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
