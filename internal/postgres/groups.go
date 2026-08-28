@@ -184,25 +184,6 @@ func groupForWrite(ctx context.Context, queries *db.Queries, typeKey string) (co
 	return toGroup(row)
 }
 
-// ownerOf returns the matching group declaring the key on the type, or reports the field missing.
-func ownerOf(ctx context.Context, queries *db.Queries, typeKey, key string) (content.Group, error) {
-	groups, err := groupsWithFields(ctx, queries)
-	if err != nil {
-		return content.Group{}, err
-	}
-	for _, g := range groups {
-		if !g.Location.Match(screenOf(typeKey), locationParams) {
-			continue
-		}
-		for _, f := range g.Fields {
-			if f.Key == key {
-				return g, nil
-			}
-		}
-	}
-	return content.Group{}, content.ErrFieldNotFound
-}
-
 // ListGroups returns every field group in position order with its fields attached.
 func (s *TypeStore) ListGroups(ctx context.Context) ([]content.Group, error) {
 	return groupsWithFields(ctx, s.queries)
