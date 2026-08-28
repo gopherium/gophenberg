@@ -33,6 +33,14 @@ func (r *Registry) WithParams(params *ParamRegistry) *Registry {
 
 // Params returns the rule sources locations evaluate against, the built in ones by default.
 func (r *Registry) Params(ctx context.Context) *ParamRegistry {
+	r.mu.RLock()
+	held := r.locations
+	r.mu.RUnlock()
+	if held != nil {
+		return held
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.locations == nil {
 		r.locations = DefaultParamRegistry(func(context.Context) ([]Choice, error) {
 			types, err := r.All(ctx)
