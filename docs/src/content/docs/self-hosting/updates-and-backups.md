@@ -27,6 +27,15 @@ relation table connecting content to content. Back up the database
 before the first start on this release, as before any update.
 Public addresses do not change shape.
 
+Rolling this release back is not free. Fields now live in
+[field groups](/guides/fields/), and the rollback puts each field
+back on the single content type its group names. A group placed on
+every type, on several types, or by a rule that excludes one loses
+its field definitions, because there is no single type to give them
+back to. The values those fields held stay in the database, but the
+definitions do not return if you migrate forward again. Take a
+backup before rolling back past this release.
+
 This release serves themes built on `@gophenberg/astro`
 %KIT_VERSION%, and refuses any other, naming what it found. Rebuild
 and reinstall your theme against that kit before updating. Which
