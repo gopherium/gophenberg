@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 )
 
 // Registry answers which content types the CMS holds, caching what it reads.
@@ -262,49 +261,6 @@ func (r *Registry) CreateField(ctx context.Context, f Field) (Field, error) {
 	return created, nil
 }
 
-// UpdateField carries the field's label and required flag, keeping its shape.
-func (r *Registry) UpdateField(ctx context.Context, f Field) (Field, error) {
-	t, err := r.ByKey(ctx, f.TypeKey)
-	if err != nil {
-		return Field{}, err
-	}
-	stored, err := fieldOf(t, f.Key)
-	if err != nil {
-		return Field{}, err
-	}
-	stored.Label, stored.Required = f.Label, f.Required
-	stored.UpdatedAt = time.Now().UTC()
-	if err := stored.Validate(); err != nil {
-		return Field{}, err
-	}
-	updated, err := r.store.UpdateField(ctx, stored)
-	if err != nil {
-		return Field{}, err
-	}
-	r.invalidate()
-	return updated, nil
-}
-
-// ReorderFields stores the given declaration order, or reports why the order does not stand.
-func (r *Registry) ReorderFields(ctx context.Context, typeKey string, keys []string) ([]Field, error) {
-	t, err := r.ByKey(ctx, typeKey)
-	if err != nil {
-		return nil, err
-	}
-	if err := orderCovers(t.Fields, keys); err != nil {
-		return nil, err
-	}
-	if err := r.store.ReorderFields(ctx, typeKey, keys); err != nil {
-		return nil, err
-	}
-	r.invalidate()
-	reordered, err := r.ByKey(ctx, typeKey)
-	if err != nil {
-		return nil, err
-	}
-	return reordered.Fields, nil
-}
-
 // orderCovers reports whether keys name every declared field exactly once.
 func orderCovers(fields []Field, keys []string) error {
 	seen := make(map[string]bool, len(keys))
@@ -322,22 +278,6 @@ func orderCovers(fields []Field, keys []string) error {
 		return Refuse(ErrFieldOrder, "field_order_incomplete",
 			"content: the order leaves declared fields out", nil)
 	}
-	return nil
-}
-
-// DeleteField removes the field and its values, or reports it missing.
-func (r *Registry) DeleteField(ctx context.Context, typeKey, key string) error {
-	t, err := r.ByKey(ctx, typeKey)
-	if err != nil {
-		return err
-	}
-	if _, err := fieldOf(t, key); err != nil {
-		return err
-	}
-	if err := r.store.DeleteField(ctx, typeKey, key); err != nil {
-		return err
-	}
-	r.invalidate()
 	return nil
 }
 
