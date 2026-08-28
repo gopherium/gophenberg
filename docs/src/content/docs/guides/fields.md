@@ -58,6 +58,13 @@ Two fields cannot share a key on the same content. If another group
 reaching the same items already holds that key, the save is refused
 and says so.
 
+Registering a new content type can still make two groups meet on a
+key. When that happens, the first group in the list serves the field
+and the other holds it without showing it. The Field Groups screen
+warns you, naming the key and both groups, and marks the group that
+lost with a **Shadowed** badge. Move or rename one of the fields to
+settle it.
+
 ## The kinds
 
 | Kind | Holds | Example |
