@@ -591,7 +591,7 @@ func TestMoveFieldReportsAGroupThatIsGone(t *testing.T) {
 	}
 }
 
-func TestDeleteFieldSweepsOnlyTheTypesItsGroupMatches(t *testing.T) {
+func TestDeleteFieldInGroupSweepsOnlyTheTypesItMatches(t *testing.T) {
 	t.Parallel()
 
 	store, author, pool := typedStore(t)

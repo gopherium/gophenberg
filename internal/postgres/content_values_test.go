@@ -183,7 +183,7 @@ func TestDeleteFieldInGroupWaitsForAContentWriteHoldingTheDefinition(t *testing.
 		t.Fatalf("committing the holding transaction: %v, want nil", err)
 	}
 	if err := <-swept; err != nil {
-		t.Fatalf("DeleteField() error = %v, want nil once the write finished", err)
+		t.Fatalf("DeleteFieldInGroup() error = %v, want nil once the write finished", err)
 	}
 	if got := storedFields(t, pool, created.Slug); got != `{}` {
 		t.Errorf("the item holds %s, want the sweep to have caught the value the write added", got)
