@@ -272,13 +272,9 @@ func groupStandsAlone(ctx context.Context, queries *db.Queries, g content.Group)
 	for _, f := range held.Fields {
 		keys = append(keys, f.Key)
 	}
-	names, err := queries.TypeKeys(ctx)
+	types, err := storedTypes(ctx, queries)
 	if err != nil {
-		return fmt.Errorf("postgres: list type keys: %w", err)
-	}
-	types := make([]content.Type, len(names))
-	for i, key := range names {
-		types[i] = content.Type{Key: key}
+		return err
 	}
 	g.Fields = held.Fields
 	return content.Uncollided(types, groups, g, keys, 0, locationParams)
@@ -296,12 +292,13 @@ func (s *TypeStore) DeleteGroup(ctx context.Context, id int) error {
 		if !found {
 			return content.ErrGroupNotFound
 		}
-		matched, err := typesMatchedBy(ctx, queries, held)
+		types, err := storedTypes(ctx, queries)
 		if err != nil {
 			return err
 		}
 		for _, f := range held.Fields {
-			if err := deleteFieldRow(ctx, queries, held.ID, f.Key, matched); err != nil {
+			swept := sweptByDelete(groups, types, held.ID, f.Key)
+			if err := deleteFieldRow(ctx, queries, held.ID, f.Key, swept); err != nil {
 				return err
 			}
 		}
@@ -327,6 +324,74 @@ func groupByID(groups []content.Group, id int) (content.Group, bool) {
 		}
 	}
 	return content.Group{}, false
+}
+
+// storedTypes returns every registered type carrying nothing but its key.
+func storedTypes(ctx context.Context, queries *db.Queries) ([]content.Type, error) {
+	names, err := queries.TypeKeys(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list type keys: %w", err)
+	}
+	types := make([]content.Type, len(names))
+	for i, key := range names {
+		types[i] = content.Type{Key: key}
+	}
+	return types, nil
+}
+
+// keyFreeInGroup reports whether the key stays open on every type the group serves.
+func keyFreeInGroup(ctx context.Context, queries *db.Queries, groupID int, key string, leaving int) error {
+	groups, err := groupsWithFields(ctx, queries)
+	if err != nil {
+		return err
+	}
+	target, found := groupByID(groups, groupID)
+	if !found {
+		return content.ErrGroupNotFound
+	}
+	types, err := storedTypes(ctx, queries)
+	if err != nil {
+		return err
+	}
+	return content.Uncollided(types, groups, target, []string{key}, leaving, locationParams)
+}
+
+// holdsKey reports whether the group declares a field under the key.
+func holdsKey(g content.Group, key string) bool {
+	for _, f := range g.Fields {
+		if f.Key == key {
+			return true
+		}
+	}
+	return false
+}
+
+// servedElsewhere returns the types another active group still serves the key on.
+func servedElsewhere(groups []content.Group, types []content.Type, leaving int, key string) map[string]bool {
+	spared := make(map[string]bool)
+	for _, g := range groups {
+		if g.ID == leaving || !g.Active || !holdsKey(g, key) {
+			continue
+		}
+		for _, t := range types {
+			if g.Location.Match(screenOf(t.Key), locationParams) {
+				spared[t.Key] = true
+			}
+		}
+	}
+	return spared
+}
+
+// sweptByDelete returns the types a deleted key clears from, sparing those another group still serves it on.
+func sweptByDelete(groups []content.Group, types []content.Type, leaving int, key string) []string {
+	spared := servedElsewhere(groups, types, leaving, key)
+	swept := make([]string, 0, len(types))
+	for _, t := range types {
+		if !spared[t.Key] {
+			swept = append(swept, t.Key)
+		}
+	}
+	return swept
 }
 
 // deleteFieldRow removes one field row and sweeps its values from the matched types.
@@ -421,33 +486,73 @@ func (s *TypeStore) ReorderFieldsInGroup(ctx context.Context, groupID int, keys 
 func (s *TypeStore) MoveField(
 	ctx context.Context, groupID int, key string, toGroup int,
 ) (content.Field, error) {
-	row, err := s.queries.MoveContentField(ctx, db.MoveContentFieldParams{
-		ToGroup: int32(toGroup), UpdatedAt: time.Now().UTC(), GroupID: int32(groupID), Key: key,
+	var moved content.Field
+	err := s.settledFieldWrite(ctx, toGroup, key, groupID, func(queries *db.Queries) error {
+		row, err := queries.MoveContentField(ctx, db.MoveContentFieldParams{
+			ToGroup: int32(toGroup), UpdatedAt: time.Now().UTC(), GroupID: int32(groupID), Key: key,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return content.ErrFieldNotFound
+		}
+		if err != nil {
+			return err
+		}
+		moved = toField(row)
+		return nil
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return content.Field{}, content.ErrFieldNotFound
-	}
 	if err != nil {
-		return content.Field{}, fieldWriteFailure(err)
+		return content.Field{}, err
 	}
-	return toField(row), nil
+	return moved, nil
+}
+
+// settledFieldWrite runs the write once the key is held free of every rival group sharing a type.
+func (s *TypeStore) settledFieldWrite(
+	ctx context.Context, groupID int, key string, leaving int, write func(*db.Queries) error,
+) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := queries.LockFieldGroups(ctx); err != nil {
+			return fmt.Errorf("postgres: lock field groups: %w", err)
+		}
+		if err := keyFreeInGroup(ctx, queries, groupID, key, leaving); err != nil {
+			return err
+		}
+		return write(queries)
+	})
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) ||
+		errors.Is(err, content.ErrFieldTaken) {
+		return err
+	}
+	return fieldWriteFailure(err)
 }
 
 // CreateFieldInGroup declares the field inside the group.
 func (s *TypeStore) CreateFieldInGroup(ctx context.Context, groupID int, f content.Field) (content.Field, error) {
-	row, err := s.queries.CreateContentField(ctx, db.CreateContentFieldParams{
-		GroupID:   int32(groupID),
-		Key:       f.Key,
-		Label:     f.Label,
-		Kind:      string(f.Kind),
-		RelatesTo: targetOf(f),
-		Many:      f.Many,
-		Required:  f.Required,
-		CreatedAt: f.CreatedAt,
-		UpdatedAt: f.UpdatedAt,
+	var created content.Field
+	err := s.settledFieldWrite(ctx, groupID, f.Key, 0, func(queries *db.Queries) error {
+		row, err := queries.CreateContentField(ctx, db.CreateContentFieldParams{
+			GroupID:   int32(groupID),
+			Key:       f.Key,
+			Label:     f.Label,
+			Kind:      string(f.Kind),
+			RelatesTo: targetOf(f),
+			Many:      f.Many,
+			Required:  f.Required,
+			CreatedAt: f.CreatedAt,
+			UpdatedAt: f.UpdatedAt,
+		})
+		if err != nil {
+			return err
+		}
+		created = toField(row)
+		return nil
 	})
 	if err != nil {
-		return content.Field{}, fieldWriteFailure(err)
+		return content.Field{}, err
 	}
-	return toField(row), nil
+	return created, nil
 }

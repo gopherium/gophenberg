@@ -5,6 +5,7 @@ package postgres_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -132,12 +133,13 @@ func TestByKeyServesOneFieldWhenTwoGroupsCarryTheKey(t *testing.T) {
 	store, _, _ := typedStore(t)
 	storeType(t, store, "car")
 	storeType(t, store, "book")
-	holding := func(title, typeKey string) {
+	holding := func(title, away string) content.Group {
 		t.Helper()
 		group, err := store.CreateGroup(
-			t.Context(), content.Group{Title: title, Location: content.Rules{{{
-				Source: "content_type", Operator: content.OperatorIsNot, Value: typeKey,
-			}}}},
+			t.Context(), content.Group{Title: title, Location: content.Rules{{
+				{Source: "content_type", Operator: content.OperatorIsNot, Value: away},
+				{Source: "content_type", Operator: content.OperatorIsNot, Value: content.TypePost},
+			}}},
 		)
 		if err != nil {
 			t.Fatalf("CreateGroup(%q) error = %v, want nil", title, err)
@@ -147,8 +149,9 @@ func TestByKeyServesOneFieldWhenTwoGroupsCarryTheKey(t *testing.T) {
 		); err != nil {
 			t.Fatalf("CreateFieldInGroup(%q) error = %v, want nil", title, err)
 		}
+		return group
 	}
-	holding("Not cars", "car")
+	first := holding("Not cars", "car")
 	holding("Not books", "book")
 
 	storeType(t, store, "page")
@@ -163,6 +166,83 @@ func TestByKeyServesOneFieldWhenTwoGroupsCarryTheKey(t *testing.T) {
 	}
 	if len(held.Fields) != 1 {
 		t.Fatalf("Fields = %v, want the key served once by the first group", keys)
+	}
+	if held.Fields[0].GroupID != first.ID {
+		t.Errorf("GroupID = %d, want the first group %d winning the key", held.Fields[0].GroupID, first.ID)
+	}
+}
+
+func TestDeleteGroupSweepsAValueLeftOnATypeItStoppedMatching(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	storeType(t, store, "book")
+	group, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	if _, err := store.CreateFieldInGroup(
+		t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""),
+	); err != nil {
+		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
+	}
+	plantTyped(t, pool, author, "car", "left-behind", `{"subtitle": "must go"}`)
+	group.Location = locationOf("book")
+	if _, err := store.UpdateGroup(t.Context(), group); err != nil {
+		t.Fatalf("UpdateGroup() error = %v, want nil", err)
+	}
+
+	if err := store.DeleteGroup(t.Context(), group.ID); err != nil {
+		t.Fatalf("DeleteGroup() error = %v, want nil", err)
+	}
+
+	var held string
+	if err := pool.QueryRow(t.Context(),
+		`SELECT fields::text FROM core.content WHERE slug = 'left-behind'`,
+	).Scan(&held); err != nil {
+		t.Fatalf("reading the former car row: %v, want nil", err)
+	}
+	if strings.Contains(held, "subtitle") {
+		t.Errorf("fields = %s, want the value gone with the group that declared it", held)
+	}
+}
+
+func TestDeleteGroupSparesAValueAnotherGroupStillServes(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	storeType(t, store, "book")
+	holding := func(title, typeKey string) content.Group {
+		t.Helper()
+		group, err := store.CreateGroup(t.Context(), content.Group{Title: title, Location: locationOf(typeKey)})
+		if err != nil {
+			t.Fatalf("CreateGroup(%q) error = %v, want nil", title, err)
+		}
+		if _, err := store.CreateFieldInGroup(
+			t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""),
+		); err != nil {
+			t.Fatalf("CreateFieldInGroup(%q) error = %v, want nil", title, err)
+		}
+		return group
+	}
+	cars := holding("Car extras", "car")
+	holding("Book extras", "book")
+	plantTyped(t, pool, author, "book", "kept", `{"subtitle": "must remain"}`)
+
+	if err := store.DeleteGroup(t.Context(), cars.ID); err != nil {
+		t.Fatalf("DeleteGroup() error = %v, want nil", err)
+	}
+
+	var held string
+	if err := pool.QueryRow(t.Context(),
+		`SELECT fields::text FROM core.content WHERE slug = 'kept'`,
+	).Scan(&held); err != nil {
+		t.Fatalf("reading the book row: %v, want nil", err)
+	}
+	if !strings.Contains(held, "must remain") {
+		t.Errorf("fields = %s, want the value the other group still serves left alone", held)
 	}
 }
 
