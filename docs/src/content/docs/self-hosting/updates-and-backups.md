@@ -21,11 +21,12 @@ Migrations run automatically when the new version starts. While
 Gophenberg is below 1.0, read the release notes first, since a
 release can change behavior.
 
-Updating to %VERSION% runs two migrations on start: one adds
-[fields](/guides/fields/) to the schema, the other adds the
-relation table connecting content to content. Back up the database
-before the first start on this release, as before any update.
-Public addresses do not change shape.
+Updating to %VERSION% runs one migration on start. It carries the
+[fields](/guides/fields/) each type declares into a field group and
+places that group on the type they came from, so every type serves
+the same fields it served before. Back up the database before the
+first start on this release, as before any update. Public addresses
+do not change shape.
 
 Rolling this release back is not free. Fields now live in
 [field groups](/guides/fields/), and the rollback puts each field
