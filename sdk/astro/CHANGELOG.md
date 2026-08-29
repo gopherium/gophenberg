@@ -13,6 +13,10 @@ through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 
 ## [Unreleased]
 
+### Added
+
+- A content type's fields carry the settings the operator set on them.
+
 ### Changed
 
 - The kit is versioned on its own line, released on `astro@X.Y.Z` tags,

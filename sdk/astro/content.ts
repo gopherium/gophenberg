@@ -33,6 +33,7 @@ export interface ContentTypeField {
 	relates_to?: string
 	many: boolean
 	required: boolean
+	settings?: Record<string, unknown>
 }
 
 /** A content type as the handshake advertises it. */
