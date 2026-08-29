@@ -70,6 +70,7 @@ func CategoriesField() content.Field {
 		Kind:      content.FieldKindRelation,
 		RelatesTo: CategoryTypeKey,
 		Many:      true,
+		Settings:  map[string]any{"instructions": "Pick the categories this post belongs to."},
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

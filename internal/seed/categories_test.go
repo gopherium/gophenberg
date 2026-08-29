@@ -165,6 +165,16 @@ func TestTheCategoriesFieldPointsPostsAtCategories(t *testing.T) {
 	}
 }
 
+func TestTheCategoriesFieldCarriesInstructions(t *testing.T) {
+	t.Parallel()
+
+	held := CategoriesField()
+
+	if written, ok := held.Settings["instructions"].(string); !ok || written == "" {
+		t.Errorf("settings = %v, want the demo to show what instructions look like", held.Settings)
+	}
+}
+
 func TestTheSeededCategoryCarriesAFixedIdentity(t *testing.T) {
 	t.Parallel()
 
