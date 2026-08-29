@@ -340,6 +340,50 @@ func TestGroupFieldPatchClearsTheSettings(t *testing.T) {
 	}
 }
 
+func TestGroupFieldPatchRefusesSettingsTheDefinitionForbids(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		settings map[string]any
+		code     string
+	}{
+		"a setting the kind does not take": {
+			map[string]any{"min": 1}, "setting_unknown",
+		},
+		"a setting holding the wrong shape": {
+			map[string]any{"maxlength": "eighty"}, "setting_shape",
+		},
+		"bounds that disagree with each other": {
+			map[string]any{"maxlength": 2, "default": "far too long"}, "setting_bounds",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			handler, _, _, _ := typedPostServer(t)
+			id := createGroup(t, handler, "Article details")
+			declared := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+				groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
+			if declared.Code != http.StatusCreated {
+				t.Fatalf("declaring the field: status = %d", declared.Code)
+			}
+
+			recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/subtitle",
+				groupBody(t, map[string]any{"settings": test.settings}))
+
+			if recorder.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("status = %d, want %d, body %s",
+					recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+			}
+			if code := decodeBody[struct {
+				Code string `json:"code"`
+			}](t, recorder).Code; code != test.code {
+				t.Errorf("code = %q, want %q", code, test.code)
+			}
+		})
+	}
+}
+
 func TestGroupFieldDeleteTakesTheFieldAway(t *testing.T) {
 	t.Parallel()
 
