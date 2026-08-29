@@ -218,12 +218,13 @@ func (s *server) handleGroupOrder() http.HandlerFunc {
 // handleGroupFieldCreate returns an http.HandlerFunc declaring a field inside a group.
 func (s *server) handleGroupFieldCreate() http.HandlerFunc {
 	type request struct {
-		Key       string `json:"key"`
-		Label     string `json:"label"`
-		Kind      string `json:"kind"`
-		RelatesTo string `json:"relates_to"`
-		Many      bool   `json:"many"`
-		Required  bool   `json:"required"`
+		Key       string         `json:"key"`
+		Label     string         `json:"label"`
+		Kind      string         `json:"kind"`
+		RelatesTo string         `json:"relates_to"`
+		Many      bool           `json:"many"`
+		Required  bool           `json:"required"`
+		Settings  map[string]any `json:"settings"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := groupIDOf(r)
@@ -243,6 +244,7 @@ func (s *server) handleGroupFieldCreate() http.HandlerFunc {
 			RelatesTo: req.RelatesTo,
 			Many:      req.Many,
 			Required:  req.Required,
+			Settings:  req.Settings,
 		})
 		if err != nil {
 			respondDomainError(w, err)
@@ -260,8 +262,9 @@ func (s *server) handleGroupFieldCreate() http.HandlerFunc {
 // handleGroupFieldPatch returns an http.HandlerFunc carrying a field's label and required flag.
 func (s *server) handleGroupFieldPatch() http.HandlerFunc {
 	type request struct {
-		Label    *string `json:"label"`
-		Required *bool   `json:"required"`
+		Label    *string         `json:"label"`
+		Required *bool           `json:"required"`
+		Settings *map[string]any `json:"settings"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := groupIDOf(r)
@@ -284,6 +287,9 @@ func (s *server) handleGroupFieldPatch() http.HandlerFunc {
 		}
 		if req.Required != nil {
 			stored.Required = *req.Required
+		}
+		if req.Settings != nil {
+			stored.Settings = *req.Settings
 		}
 		updated, err := s.types.UpdateFieldInGroup(r.Context(), id, stored)
 		if err != nil {

@@ -12,7 +12,7 @@ import type { ContentField } from '../content/types'
  * @returns The declared field.
  */
 function declared(kind: string, required = false): ContentField {
-	return { key: `a-${kind}`, label: kind, kind, relatesTo: '', many: false, required }
+	return { key: `a-${kind}`, label: kind, kind, relatesTo: '', many: false, required, settings: {} }
 }
 
 test('writes an emptied control as the value that clears its key', () => {

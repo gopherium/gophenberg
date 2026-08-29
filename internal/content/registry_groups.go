@@ -140,7 +140,7 @@ func (r *Registry) UpdateFieldInGroup(ctx context.Context, groupID int, f Field)
 	if err != nil {
 		return Field{}, err
 	}
-	held.Label, held.Required = f.Label, f.Required
+	held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
 	held.UpdatedAt = time.Now().UTC()
 	if err := held.Validate(); err != nil {
 		return Field{}, err

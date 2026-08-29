@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -62,6 +63,53 @@ func TestTypeDeleteRefusedWhileAFieldTargetsIt(t *testing.T) {
 
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want the targeted type kept", recorder.Code)
+	}
+}
+
+func TestAFieldWithoutSettingsServesNoSettingsKey(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	group := createGroup(t, handler, "Article details")
+	declareField(t, handler, group, `{"key":"color","label":"Color","kind":"text"}`)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/types", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if strings.Contains(recorder.Body.String(), "settings") {
+		t.Errorf("body = %s, want no settings key so the served shape stays as it was", recorder.Body.String())
+	}
+}
+
+func TestAFieldWithSettingsServesThem(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	group := createGroup(t, handler, "Article details")
+	declareField(t, handler, group,
+		`{"key":"rating","label":"Rating","kind":"number","settings":{"min":1,"max":10}}`)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/types", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	body := decodeBody[struct {
+		Items []struct {
+			Key    string `json:"key"`
+			Fields []struct {
+				Key      string         `json:"key"`
+				Settings map[string]any `json:"settings"`
+			} `json:"fields"`
+		} `json:"items"`
+	}](t, recorder)
+	if len(body.Items) == 0 || len(body.Items[0].Fields) != 1 {
+		t.Fatalf("items = %+v, want the post type carrying its field", body.Items)
+	}
+	if held := body.Items[0].Fields[0].Settings; held["min"] != float64(1) || held["max"] != float64(10) {
+		t.Errorf("settings = %v, want the stored bounds served", held)
 	}
 }
 

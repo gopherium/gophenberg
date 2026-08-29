@@ -10,14 +10,15 @@ import (
 
 // fieldResponse is a field definition as the admin API answers it.
 type fieldResponse struct {
-	Key       string    `json:"key"`
-	Label     string    `json:"label"`
-	Kind      string    `json:"kind"`
-	RelatesTo string    `json:"relates_to,omitempty"`
-	Many      bool      `json:"many"`
-	Required  bool      `json:"required"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Key       string         `json:"key"`
+	Label     string         `json:"label"`
+	Kind      string         `json:"kind"`
+	RelatesTo string         `json:"relates_to,omitempty"`
+	Many      bool           `json:"many"`
+	Required  bool           `json:"required"`
+	Settings  map[string]any `json:"settings,omitempty"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
 }
 
 // fieldListResponse is one type's definition list as the admin API answers it.
@@ -34,6 +35,7 @@ func newFieldResponse(f content.Field) fieldResponse {
 		RelatesTo: f.RelatesTo,
 		Many:      f.Many,
 		Required:  f.Required,
+		Settings:  f.Settings,
 		CreatedAt: f.CreatedAt.UTC(),
 		UpdatedAt: f.UpdatedAt.UTC(),
 	}
