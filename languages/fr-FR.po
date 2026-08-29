@@ -43,6 +43,12 @@ msgid "%(field)s moved."
 msgstr "%(field)s déplacé."
 
 #, fuzzy
+msgid "%(field)s names the same one twice. Remove the repeat and save again."
+msgstr ""
+"%(field)s nomme le même deux fois. Retirez la répétition et enregistrez de "
+"nouveau."
+
+#, fuzzy
 msgid ""
 "%(field)s only takes one of its listed choices. Pick one and save again."
 msgstr ""

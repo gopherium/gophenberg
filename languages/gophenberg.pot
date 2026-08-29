@@ -42,6 +42,9 @@ msgstr ""
 msgid "%(field)s moved."
 msgstr ""
 
+msgid "%(field)s names the same one twice. Remove the repeat and save again."
+msgstr ""
+
 msgid "%(field)s only takes one of its listed choices. Pick one and save again."
 msgstr ""
 

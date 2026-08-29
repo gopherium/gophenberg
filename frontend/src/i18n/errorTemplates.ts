@@ -113,6 +113,10 @@ export function errorTemplates(): Record<string, string> {
 			'%(field)s does not match the format its field asks for. Check it and save again.',
 			DOMAIN,
 		),
+		field_repeated: __(
+			'%(field)s names the same one twice. Remove the repeat and save again.',
+			DOMAIN,
+		),
 		field_length: __(
 			'%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again.',
 			DOMAIN,
