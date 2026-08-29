@@ -287,6 +287,59 @@ func TestGroupFieldPatchCarriesTheLabelAndTheRequiredFlag(t *testing.T) {
 	}
 }
 
+func TestGroupFieldPatchCarriesTheSettings(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	declared := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field: status = %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/subtitle",
+		groupBody(t, map[string]any{"settings": map[string]any{"maxlength": 80}}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	patched := decodeBody[struct {
+		Settings map[string]any `json:"settings"`
+	}](t, recorder)
+	if patched.Settings["maxlength"] != float64(80) {
+		t.Errorf("patched settings = %v, want the maxlength the caller sent", patched.Settings)
+	}
+}
+
+func TestGroupFieldPatchClearsTheSettings(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	declared := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+		groupBody(t, map[string]any{
+			"key": "subtitle", "label": "Subtitle", "kind": "text",
+			"settings": map[string]any{"maxlength": 80},
+		}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field: status = %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/subtitle",
+		groupBody(t, map[string]any{"settings": map[string]any{}}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	patched := decodeBody[struct {
+		Settings map[string]any `json:"settings"`
+	}](t, recorder)
+	if len(patched.Settings) != 0 {
+		t.Errorf("patched settings = %v, want the field to carry none", patched.Settings)
+	}
+}
+
 func TestGroupFieldDeleteTakesTheFieldAway(t *testing.T) {
 	t.Parallel()
 
