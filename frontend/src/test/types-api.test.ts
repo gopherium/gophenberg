@@ -54,7 +54,7 @@ test('maps a picker entry to the kind and the settings it starts with', () => {
 	expect(pickedKind('checkboxes')).toEqual({
 		kind: 'choice',
 		many: false,
-		settings: { presentation: 'checkbox' },
+		settings: { presentation: 'checkbox', multiple: true },
 	})
 	expect(pickedKind('email')).toEqual({
 		kind: 'text',

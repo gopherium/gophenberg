@@ -273,7 +273,11 @@ export function pickedKind(value: string): PickedKind {
 		range: { kind: 'number', many: false, settings: { presentation: 'range' } },
 		select: { kind: 'choice', many: false, settings: { presentation: 'select' } },
 		radio: { kind: 'choice', many: false, settings: { presentation: 'radio' } },
-		checkboxes: { kind: 'choice', many: false, settings: { presentation: 'checkbox' } },
+		checkboxes: {
+			kind: 'choice',
+			many: false,
+			settings: { presentation: 'checkbox', multiple: true },
+		},
 		buttons: { kind: 'choice', many: false, settings: { presentation: 'buttons' } },
 		gallery: { kind: 'media', many: true },
 	}
