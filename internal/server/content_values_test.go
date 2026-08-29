@@ -406,6 +406,87 @@ func TestPublishingCannotExposeWhatAutosaveParked(t *testing.T) {
 	}
 }
 
+func TestContentPatchNamesTheChoiceTheListRefuses(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler,
+		`{"key":"style","label":"Style","kind":"choice","settings":{"choices":[{"value":"ipa","label":"IPA"}]}}`)
+	held := draftedPost(t, handler)
+
+	body := fmt.Sprintf(`{"updated_at":%q,"fields":{"style":"porter"}}`, held.UpdatedAt)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+held.ID, body)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+	if code := errorCode(t, recorder); code != "field_choice" {
+		t.Errorf("code = %q, want field_choice", code)
+	}
+}
+
+func TestContentPatchNamesTheFormatTheVariantRefuses(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler,
+		`{"key":"contact","label":"Contact","kind":"text","settings":{"variant":"email"}}`)
+	held := draftedPost(t, handler)
+
+	body := fmt.Sprintf(`{"updated_at":%q,"fields":{"contact":"not-an-email"}}`, held.UpdatedAt)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+held.ID, body)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+	if code := errorCode(t, recorder); code != "field_format" {
+		t.Errorf("code = %q, want field_format", code)
+	}
+}
+
+func TestHandshakeServesTheChoicePairs(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler,
+		`{"key":"style","label":"Style","kind":"choice","settings":{"choices":[{"value":"ipa","label":"IPA"}]}}`)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	var answered struct {
+		Types []struct {
+			Key    string `json:"key"`
+			Fields []struct {
+				Key      string         `json:"key"`
+				Kind     string         `json:"kind"`
+				Settings map[string]any `json:"settings"`
+			} `json:"fields"`
+		} `json:"types"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answered); err != nil {
+		t.Fatalf("reading the handshake: %v", err)
+	}
+	for _, served := range answered.Types {
+		for _, field := range served.Fields {
+			if field.Key != "style" {
+				continue
+			}
+			if field.Kind != "choice" {
+				t.Errorf("kind = %q, want choice served", field.Kind)
+			}
+			pairs, ok := field.Settings["choices"].([]any)
+			if !ok || len(pairs) != 1 {
+				t.Errorf("settings = %v, want the choice pairs served", field.Settings)
+			}
+			return
+		}
+	}
+	t.Fatalf("handshake = %s, want the style field listed", recorder.Body.String())
+}
+
 func TestRevisionDetailCarriesFieldValues(t *testing.T) {
 	t.Parallel()
 
