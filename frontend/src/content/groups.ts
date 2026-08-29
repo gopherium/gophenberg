@@ -278,6 +278,21 @@ export async function renameFieldInGroup(
 }
 
 /**
+ * Stores the settings a field carries, replacing the ones it held.
+ * @param id - The group declaring the field.
+ * @param key - The field to change.
+ * @param settings - The settings to store.
+ * @returns The stored field.
+ */
+export async function setFieldSettingsInGroup(
+	id: number,
+	key: string,
+	settings: Record<string, unknown>,
+): Promise<ContentField> {
+	return patchFieldInGroup(id, key, { settings })
+}
+
+/**
  * Stores whether a field must be filled before its item publishes.
  * @param id - The group declaring the field.
  * @param key - The field to change.

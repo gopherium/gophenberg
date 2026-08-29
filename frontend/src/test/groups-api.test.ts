@@ -15,6 +15,7 @@ import {
 	reorderFieldsInGroup,
 	reorderGroups,
 	setFieldRequiredInGroup,
+	setFieldSettingsInGroup,
 	updateGroup,
 } from '../content/groups'
 
@@ -220,6 +221,21 @@ test('stores whether a field gates publishing', async () => {
 
 	expect(sent).toEqual({ required: false })
 	expect(eased.required).toBe(false)
+})
+
+test('stores the settings a field carries', async () => {
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE_ROW, settings: { maxlength: 80 } })
+		}),
+	)
+
+	const bounded = await setFieldSettingsInGroup(3, 'subtitle', { maxlength: 80 })
+
+	expect(sent).toEqual({ settings: { maxlength: 80 } })
+	expect(bounded.settings).toEqual({ maxlength: 80 })
 })
 
 test('stores the declaration order of a group', async () => {
