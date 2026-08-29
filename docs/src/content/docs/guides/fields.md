@@ -87,9 +87,10 @@ A choice field lists its answers under **Choices**. Each answer has
 a **Value**, which is what gets stored, and a **Label**, which is
 what the editor reads. A field listing no answers takes whatever is
 typed, so add them first. **Many values** lets an item hold several
-answers, in a box you add them into. **Allow custom** widens what a
-Many values field takes, and **Allow empty** adds a None entry that
-clears the field.
+answers, in a box you add them into. **Allow custom** lets the field
+take answers outside its list, which only a Many values box offers a
+way to type. **Allow empty** adds a None entry that clears the
+field.
 
 **Longest**, **Lowest** and **Highest** are limits. Longest stops
 your typing. Anything else the field will not take is refused when
