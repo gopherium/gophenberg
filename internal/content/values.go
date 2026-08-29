@@ -47,23 +47,51 @@ func (v Values) validate(fields []Field, bounded bool) error {
 			return Refuse(ErrUnknownField, "field_unknown",
 				fmt.Sprintf("%s: %s", ErrUnknownField, key), Details{"field": key})
 		}
-		if f.Kind == FieldKindRelation {
-			return Refuse(ErrFieldShape, "field_shape_value",
-				fmt.Sprintf("%s: %s holds targets rather than a value", ErrFieldShape, key), Details{"field": key})
-		}
-		if value == nil {
-			continue
-		}
-		if !holdsShape(f, value) {
-			return Refuse(ErrFieldShape, "field_shape_kind",
-				fmt.Sprintf("%s: %s holds %s", ErrFieldShape, key, f.Kind), Details{"field": key, "kind": string(f.Kind)})
-		}
-		if !bounded {
-			continue
-		}
-		if err := withinBounds(f, value); err != nil {
+		if err := valueStands(f, value, bounded); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// valueStands reports whether one value matches its field, checking the bounds only when asked.
+func valueStands(f Field, value any, bounded bool) error {
+	if f.Kind == FieldKindRelation {
+		return Refuse(ErrFieldShape, "field_shape_value",
+			fmt.Sprintf("%s: %s holds targets rather than a value", ErrFieldShape, f.Key),
+			Details{"field": f.Key})
+	}
+	if value == nil {
+		return nil
+	}
+	if !holdsShape(f, value) {
+		return Refuse(ErrFieldShape, "field_shape_kind",
+			fmt.Sprintf("%s: %s holds %s", ErrFieldShape, f.Key, f.Kind),
+			Details{"field": f.Key, "kind": string(f.Kind)})
+	}
+	if err := holdsEachOnce(f, value); err != nil {
+		return err
+	}
+	if !bounded {
+		return nil
+	}
+	return withinBounds(f, value)
+}
+
+// holdsEachOnce reports whether a list field names each of its members once.
+func holdsEachOnce(f Field, value any) error {
+	members, many := value.([]any)
+	if !many {
+		return nil
+	}
+	seen := make(map[any]bool, len(members))
+	for _, member := range members {
+		if seen[member] {
+			return Refuse(ErrFieldShape, "field_repeated",
+				fmt.Sprintf("%s: %s names the same one twice", ErrFieldShape, f.Key),
+				Details{"field": f.Key})
+		}
+		seen[member] = true
 	}
 	return nil
 }
@@ -90,11 +118,10 @@ func choiceWithinBounds(f Field, value any) error {
 	if custom, _ := f.Settings[SettingAllowCustom].(bool); custom {
 		return nil
 	}
-	listed, offered := f.Settings[SettingChoices]
-	if !offered {
+	held := choiceValues(f.Settings[SettingChoices])
+	if len(held) == 0 {
 		return nil
 	}
-	held := choiceValues(listed)
 	members, many := value.([]any)
 	if !many {
 		members = []any{value}
@@ -142,13 +169,21 @@ var emailWord = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
 // textFormat reports whether the text reads as the variant its field carries.
 func textFormat(f Field, held string) error {
 	variant, _ := f.Settings[SettingVariant].(string)
-	if variant == "email" && !emailWord.MatchString(held) {
-		return badFormat(f, variant)
-	}
-	if variant == "url" && !webAddress(held) {
+	if !readsAsVariant(variant, held) {
 		return badFormat(f, variant)
 	}
 	return nil
+}
+
+// readsAsVariant reports whether the text reads as the named variant.
+func readsAsVariant(variant, held string) bool {
+	if variant == "email" {
+		return emailWord.MatchString(held)
+	}
+	if variant == "url" {
+		return webAddress(held)
+	}
+	return true
 }
 
 // badFormat returns the error naming the field and the format it missed.

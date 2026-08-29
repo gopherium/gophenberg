@@ -241,11 +241,10 @@ func choiceSettingsAgree(settings map[string]any) error {
 	if custom, _ := settings[SettingAllowCustom].(bool); custom {
 		return nil
 	}
-	listed, offered := settings[SettingChoices]
-	if !offered {
+	held := choiceValues(settings[SettingChoices])
+	if len(held) == 0 {
 		return nil
 	}
-	held := choiceValues(listed)
 	for _, member := range members {
 		if !held[member.(string)] {
 			return disagree(SettingDefault)
@@ -288,11 +287,18 @@ func numberSettingsAgree(settings map[string]any) error {
 	return nil
 }
 
-// textSettingsAgree reports whether the default fits inside maxlength.
+// textSettingsAgree reports whether the default fits inside maxlength and reads as the variant.
 func textSettingsAgree(settings map[string]any) error {
 	chosen, hasChosen := settings[SettingDefault].(string)
+	if !hasChosen {
+		return nil
+	}
 	longest, hasLongest := settingNumber(settings[SettingMaxLength])
-	if hasChosen && hasLongest && float64(len([]rune(chosen))) > longest {
+	if hasLongest && float64(len([]rune(chosen))) > longest {
+		return disagree(SettingDefault)
+	}
+	variant, _ := settings[SettingVariant].(string)
+	if !readsAsVariant(variant, chosen) {
 		return disagree(SettingDefault)
 	}
 	return nil

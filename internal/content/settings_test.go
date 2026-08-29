@@ -234,6 +234,19 @@ func TestSettingsAgreeWithEachOther(t *testing.T) {
 		"a default may fill maxlength": {
 			content.FieldKindText, map[string]any{"default": "abc", "maxlength": float64(3)}, true,
 		},
+		"an email default has to read as one": {
+			content.FieldKindText, map[string]any{"variant": "email", "default": "nobody"}, false,
+		},
+		"an email default that reads as one stands": {
+			content.FieldKindText,
+			map[string]any{"variant": "email", "default": "maria@example.com"}, true,
+		},
+		"a web address default has to read as one": {
+			content.FieldKindText, map[string]any{"variant": "url", "default": "example.com"}, false,
+		},
+		"a text area default is never a format": {
+			content.FieldKindText, map[string]any{"variant": "textarea", "default": "anything"}, true,
+		},
 		"a choice default sits among its choices": {
 			content.FieldKindChoice, map[string]any{
 				"default": "ipa", "choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
@@ -267,8 +280,8 @@ func TestSettingsAgreeWithEachOther(t *testing.T) {
 				"choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
 			}, false,
 		},
-		"an empty choices list allows no default": {
-			content.FieldKindChoice, map[string]any{"default": "ipa", "choices": []any{}}, false,
+		"a field listing nothing takes any default": {
+			content.FieldKindChoice, map[string]any{"default": "ipa", "choices": []any{}}, true,
 		},
 		"a default with no choices listed stands": {
 			content.FieldKindChoice, map[string]any{"default": "ipa"}, true,

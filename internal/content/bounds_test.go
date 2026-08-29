@@ -150,6 +150,9 @@ func TestValuesAcceptWhatTheBoundsAllow(t *testing.T) {
 		"a bare choice field takes any word": {
 			bounded(t, "style", content.FieldKindChoice, nil), "porter",
 		},
+		"a choice field listing nothing takes any word": {
+			bounded(t, "style", content.FieldKindChoice, map[string]any{"choices": []any{}}), "porter",
+		},
 		"a multiple choice all listed": {
 			bounded(t, "styles", content.FieldKindChoice, map[string]any{
 				"multiple": true,
