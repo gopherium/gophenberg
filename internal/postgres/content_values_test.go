@@ -211,6 +211,20 @@ func TestContentStoreCreatesWithTheFieldValuesGiven(t *testing.T) {
 	}
 }
 
+func TestContentStoreCreateRefusesAValueNoFieldDeclares(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := newContentStoreWithPool(t)
+	post := mustPost(t, "Hello world", author)
+	post.Fields = content.Values{"undeclared": "red"}
+
+	_, err := store.Create(t.Context(), post)
+
+	if !errors.Is(err, content.ErrUnknownField) {
+		t.Errorf("Create() error = %v, want %v", err, content.ErrUnknownField)
+	}
+}
+
 func TestContentStoreStartsWithNoFieldValues(t *testing.T) {
 	t.Parallel()
 
