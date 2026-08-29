@@ -59,6 +59,14 @@ msgstr "%(source)s es %(value)s"
 msgid "(no title)"
 msgstr "(sin título)"
 
+#, fuzzy
+msgid ""
+"A %(kind)s field does not take a setting called %(setting)s. Remove it and "
+"try again."
+msgstr ""
+"Un campo %(kind)s no acepta un ajuste llamado %(setting)s. Quítalo y prueba "
+"de nuevo."
+
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
 msgstr "Un tipo de contenido necesita un nombre en singular y otro en plural, como Guía y Guías. Rellena ambos e inténtalo de nuevo."
 
@@ -901,6 +909,22 @@ msgstr "La regla sobre %(source)s no nombra nada con lo que coincidir. Elige un 
 #, fuzzy
 msgid "The rules could not be loaded."
 msgstr "No se han podido cargar las reglas."
+
+#, fuzzy
+msgid ""
+"The setting %(setting)s cannot hold the value it was given. Check what this "
+"setting takes and try again."
+msgstr ""
+"El ajuste %(setting)s no puede contener el valor que se le dio. Comprueba "
+"qué acepta este ajuste y prueba de nuevo."
+
+#, fuzzy
+msgid ""
+"The setting %(setting)s falls outside the others. Keep min below max and "
+"the default inside the bounds."
+msgstr ""
+"El ajuste %(setting)s queda fuera de los demás. Mantén min por debajo de "
+"max y el valor por defecto dentro de los límites."
 
 #, fuzzy
 msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."

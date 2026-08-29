@@ -105,6 +105,9 @@ msgstr ""
 msgid "(no title)"
 msgstr ""
 
+msgid "A %(kind)s field does not take a setting called %(setting)s. Remove it and try again."
+msgstr ""
+
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
 msgstr ""
 
@@ -1032,6 +1035,12 @@ msgid "The server could not be reached, so nothing was saved."
 msgstr ""
 
 msgid "The server could not be reached, so nothing was uploaded."
+msgstr ""
+
+msgid "The setting %(setting)s cannot hold the value it was given. Check what this setting takes and try again."
+msgstr ""
+
+msgid "The setting %(setting)s falls outside the others. Keep min below max and the default inside the bounds."
 msgstr ""
 
 msgid "The site default"

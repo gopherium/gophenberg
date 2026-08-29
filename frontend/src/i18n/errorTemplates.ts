@@ -288,6 +288,18 @@ export function errorTemplates(): Record<string, string> {
 			'The theme %(name)s does not carry %(path)s as a file, so there is nothing to run. Package the built theme rather than its source.',
 			DOMAIN,
 		),
+		setting_bounds: __(
+			'The setting %(setting)s falls outside the others. Keep min below max and the default inside the bounds.',
+			DOMAIN,
+		),
+		setting_shape: __(
+			'The setting %(setting)s cannot hold the value it was given. Check what this setting takes and try again.',
+			DOMAIN,
+		),
+		setting_unknown: __(
+			'A %(kind)s field does not take a setting called %(setting)s. Remove it and try again.',
+			DOMAIN,
+		),
 		slug_taken: __(
 			'Another item of this content type already uses that address. Pick a different slug and save again.',
 			DOMAIN,
