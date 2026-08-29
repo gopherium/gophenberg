@@ -5,6 +5,7 @@ import { __, sprintf } from '@wordpress/i18n'
 import { useQuery } from '@tanstack/react-query'
 
 import { listEveryPost } from './api'
+import { FieldLabel } from './FieldLabel'
 import type { ContentField } from './types'
 
 /** The status an item carries while it waits in the trash. */
@@ -97,7 +98,7 @@ function ManyTargets(props: {
 	]
 	return (
 		<Stack direction="column" gap="xs">
-			<Text variant="body-sm">{props.field.label}</Text>
+			<FieldLabel field={props.field} />
 			<ul className="gophenberg-editor__targets" aria-label={props.field.label}>
 				{named.map((target) => (
 					<li key={target.id}>
