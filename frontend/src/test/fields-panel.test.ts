@@ -103,6 +103,81 @@ test('passes on a setting the control cannot express', () => {
 	expect(held[0].isValid).toEqual({ required: false })
 })
 
+const PAIRS = [
+	{ value: 'ipa', label: 'IPA' },
+	{ value: 'stout', label: 'Stout' },
+]
+
+test('renders a choice field as its pairs to pick from', () => {
+	const held = fieldDescriptors([carrying('choice', { choices: PAIRS })])
+
+	expect(held[0].type).toBe('text')
+	expect(held[0].elements).toEqual(PAIRS)
+	expect(held[0].Edit).toBeUndefined()
+})
+
+test('offers an empty entry when the choice allows one', () => {
+	const held = fieldDescriptors([carrying('choice', { choices: PAIRS, allow_null: true })])
+
+	expect(held[0].elements).toEqual([{ value: '', label: 'None' }, ...PAIRS])
+})
+
+test('gives each presentation its own control', () => {
+	const radio = fieldDescriptors([carrying('choice', { choices: PAIRS, presentation: 'radio' })])
+	const boxes = fieldDescriptors([carrying('choice', { choices: PAIRS, presentation: 'checkbox' })])
+	const buttons = fieldDescriptors([carrying('choice', { choices: PAIRS, presentation: 'buttons' })])
+	const select = fieldDescriptors([carrying('choice', { choices: PAIRS, presentation: 'select' })])
+
+	expect(radio[0].Edit).toBe('radio')
+	expect(boxes[0].Edit).toBe('radio')
+	expect(buttons[0].Edit).toBe('toggleGroup')
+	expect(select[0].Edit).toBeUndefined()
+})
+
+test('renders a multiple choice as a list of tokens', () => {
+	const held = fieldDescriptors([carrying('choice', { choices: PAIRS, multiple: true })])
+
+	expect(held[0].type).toBe('array')
+	expect(held[0].elements).toEqual(PAIRS)
+})
+
+test('leaves a choice with no pairs listing nothing', () => {
+	const held = fieldDescriptors([carrying('choice', {})])
+
+	expect(held[0].elements).toBeUndefined()
+})
+
+test('gives a text variant its own input', () => {
+	const contact = fieldDescriptors([carrying('text', { variant: 'email' })])
+	const homepage = fieldDescriptors([carrying('text', { variant: 'url' })])
+	const notes = fieldDescriptors([carrying('text', { variant: 'textarea' })])
+
+	expect(contact[0].type).toBe('email')
+	expect(homepage[0].type).toBe('url')
+	expect(notes[0].type).toBe('text')
+	expect(notes[0].Edit).toBe('textarea')
+})
+
+test('renders a range between its bounds as a slider', () => {
+	const held = fieldDescriptors([
+		carrying('number', { presentation: 'range', min: 1, max: 10 }),
+	])
+
+	expect(typeof held[0].Edit).toBe('function')
+})
+
+test('leaves a range missing a bound on the plain number input', () => {
+	const held = fieldDescriptors([carrying('number', { presentation: 'range', min: 1 })])
+
+	expect(held[0].Edit).toBeUndefined()
+})
+
+test('renders the choice kind among the editable fields', () => {
+	const held = [declared('choice'), declared('text')]
+
+	expect(editableFields(held)).toHaveLength(2)
+})
+
 test('ignores a setting whose value is the wrong shape', () => {
 	const held = fieldDescriptors([carrying('number', { min: 'low', max: true })])
 

@@ -231,6 +231,28 @@ export function fieldKinds(): Choice[] {
 	]
 }
 
+/** One choice a field offers: the value it stores and the label it shows. */
+export interface ChoicePair {
+	value: string
+	label: string
+}
+
+/**
+ * Returns the value and label pairs a field's choices setting holds.
+ * @param settings - The settings the field carries.
+ * @returns The pairs, empty when the field lists none.
+ */
+export function pairsOf(settings: Record<string, unknown>): ChoicePair[] {
+	const listed = Array.isArray(settings.choices) ? settings.choices : []
+	return listed.flatMap((pair) => {
+		if (typeof pair !== 'object' || pair === null) {
+			return []
+		}
+		const { value, label } = pair as Record<string, unknown>
+		return typeof value === 'string' && typeof label === 'string' ? [{ value, label }] : []
+	})
+}
+
 /** What a picker entry declares: the kind, whether it holds many, and the settings it starts with. */
 export interface PickedKind {
 	kind: string

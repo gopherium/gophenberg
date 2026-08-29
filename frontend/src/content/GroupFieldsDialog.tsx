@@ -29,7 +29,8 @@ import {
 	setFieldSettingsInGroup,
 } from './groups'
 import { chosenOf } from './select'
-import { fieldKinds, kindLabel, pickedKind, slugifyKey } from './types'
+import { fieldKinds, kindLabel, pairsOf, pickedKind, slugifyKey } from './types'
+import type { ChoicePair } from './types'
 import { typesQueryKey } from './nav'
 import type { FieldGroup } from './groups'
 import type { Choice } from './select'
@@ -363,28 +364,6 @@ function settingsOffered(kind: string): SettingControl[] {
 	return held
 }
 
-/** One choice a field offers, as the editor rows hold it. */
-interface ChoicePair {
-	value: string
-	label: string
-}
-
-/**
- * Returns the pairs the choices setting holds.
- * @param settings - The settings the field carries.
- * @returns The pairs, empty when the field lists none.
- */
-function heldPairs(settings: Record<string, unknown>): ChoicePair[] {
-	const listed = Array.isArray(settings.choices) ? settings.choices : []
-	return listed.flatMap((pair) => {
-		if (typeof pair !== 'object' || pair === null) {
-			return []
-		}
-		const { value, label } = pair as Record<string, unknown>
-		return typeof value === 'string' && typeof label === 'string' ? [{ value, label }] : []
-	})
-}
-
 /**
  * Returns the settings with the choice pairs the editor holds written in.
  * @param kind - The kind the field holds.
@@ -487,7 +466,7 @@ function FieldSettings(props: Inside) {
 	const answers = settingAnswers()
 	const [open, setOpen] = useState(false)
 	const [typed, setTyped] = useState(() => typedSettings(offered, props.field.settings))
-	const [pairs, setPairs] = useState(() => heldPairs(props.field.settings))
+	const [pairs, setPairs] = useState(() => pairsOf(props.field.settings))
 	const asking = sprintf(__('Settings of %(field)s', 'gophenberg'), { field: props.field.label })
 	const save = useMutation({
 		mutationFn: () =>
@@ -517,7 +496,7 @@ function FieldSettings(props: Inside) {
 	function change(next: boolean) {
 		if (next && !save.isError) {
 			setTyped(typedSettings(offered, props.field.settings))
-			setPairs(heldPairs(props.field.settings))
+			setPairs(pairsOf(props.field.settings))
 		}
 		setOpen(next)
 	}

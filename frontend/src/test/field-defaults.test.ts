@@ -16,6 +16,30 @@ function declared(key: string, kind: string, settings: Record<string, unknown>):
 	return { key, label: key, kind, relatesTo: '', many: false, required: false, settings }
 }
 
+test('seeds the default a choice field names', () => {
+	expect(
+		seededValues([declared('style', 'choice', { default: 'ipa' })]),
+	).toEqual({ style: 'ipa' })
+})
+
+test('seeds the list a multiple choice names', () => {
+	expect(
+		seededValues([
+			declared('styles', 'choice', { multiple: true, default: ['ipa', 'stout'] }),
+		]),
+	).toEqual({ styles: ['ipa', 'stout'] })
+})
+
+test('seeds nothing from a choice default of the wrong shape', () => {
+	expect(seededValues([declared('style', 'choice', { default: 5 })])).toEqual({})
+	expect(
+		seededValues([declared('style', 'choice', { multiple: true, default: 'ipa' })]),
+	).toEqual({})
+	expect(
+		seededValues([declared('styles', 'choice', { multiple: true, default: ['ipa', 5] })]),
+	).toEqual({})
+})
+
 test('seeds nothing when no field names a default', () => {
 	expect(seededValues([])).toEqual({})
 	expect(seededValues([declared('subtitle', 'text', {})])).toEqual({})
