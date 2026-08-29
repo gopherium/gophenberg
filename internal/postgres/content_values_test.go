@@ -190,6 +190,27 @@ func TestDeleteFieldInGroupWaitsForAContentWriteHoldingTheDefinition(t *testing.
 	}
 }
 
+func TestContentStoreCreatesWithTheFieldValuesGiven(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	declareField(t, pool, "color", content.FieldKindText)
+	post := mustPost(t, "Hello world", author)
+	post.Fields = content.Values{"color": "red"}
+
+	created, err := store.Create(t.Context(), post)
+
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	if created.Fields["color"] != "red" {
+		t.Errorf("Create() fields = %v, want the values the caller gave", created.Fields)
+	}
+	if got := storedFields(t, pool, created.Slug); got != `{"color": "red"}` {
+		t.Errorf("the item holds %s, want the values the caller gave", got)
+	}
+}
+
 func TestContentStoreStartsWithNoFieldValues(t *testing.T) {
 	t.Parallel()
 

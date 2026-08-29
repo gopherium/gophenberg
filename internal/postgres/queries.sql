@@ -3,11 +3,11 @@
 -- name: CreateContent :one
 INSERT INTO core.content (
     id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at, parent_id, path
+    author_id, published_at, created_at, updated_at, parent_id, path, fields
 )
 VALUES (
     @id, @type, @status, @slug, @title, @content, @excerpt,
-    @author_id, @published_at, @created_at, @updated_at, @parent_id, @path
+    @author_id, @published_at, @created_at, @updated_at, @parent_id, @path, @fields
 )
 RETURNING id, type, status, slug, title, content, excerpt,
     author_id, published_at, created_at, updated_at, parent_id, path, fields;

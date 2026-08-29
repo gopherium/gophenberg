@@ -223,11 +223,11 @@ const createContent = `-- name: CreateContent :one
 
 INSERT INTO core.content (
     id, type, status, slug, title, content, excerpt,
-    author_id, published_at, created_at, updated_at, parent_id, path
+    author_id, published_at, created_at, updated_at, parent_id, path, fields
 )
 VALUES (
     $1, $2, $3, $4, $5, $6, $7,
-    $8, $9, $10, $11, $12, $13
+    $8, $9, $10, $11, $12, $13, $14
 )
 RETURNING id, type, status, slug, title, content, excerpt,
     author_id, published_at, created_at, updated_at, parent_id, path, fields
@@ -247,6 +247,7 @@ type CreateContentParams struct {
 	UpdatedAt   time.Time
 	ParentID    *uuid.UUID
 	Path        string
+	Fields      content.Values
 }
 
 // SPDX-License-Identifier: Apache-2.0
@@ -265,6 +266,7 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 		arg.UpdatedAt,
 		arg.ParentID,
 		arg.Path,
+		arg.Fields,
 	)
 	var i CoreContent
 	err := row.Scan(

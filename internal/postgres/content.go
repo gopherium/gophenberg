@@ -84,6 +84,7 @@ func (s *ContentStore) create(
 		PublishedAt: c.PublishedAt,
 		CreatedAt:   c.CreatedAt,
 		UpdatedAt:   c.UpdatedAt,
+		Fields:      storedValues(c.Fields),
 	})
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: create content: %w", err)
