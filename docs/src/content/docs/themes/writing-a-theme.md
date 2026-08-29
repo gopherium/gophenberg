@@ -119,7 +119,8 @@ const { post, blocks, seo } = Astro.props
 
 **Archive** receives `posts` (summaries without content), `total`,
 `page`, `perPage`, `type` (the content type being listed, carrying
-its labels and route word), and `seo`. **NotFound** receives `seo`.
+its labels, its route word, and the settings each of its fields
+holds), and `seo`. **NotFound** receives `seo`.
 
 **Term** renders an item that lists what points at it, a category
 page for example. It receives the Archive props plus `term`, the

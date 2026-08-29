@@ -35,7 +35,7 @@ body.
 ## Creating a post
 
 Open the Posts section in the menu and press **Add New**.
-Gophenberg creates an empty draft and opens it in
+Gophenberg creates a draft and opens it in
 [the editor](/guides/editor/).
 
 ## Trash

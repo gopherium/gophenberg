@@ -50,6 +50,8 @@ The absences are deliberate, so build against them:
   connections and your schema.
 - **No content type registration.** A plugin cannot add its own
   content type.
+- **No field values or definitions.** A plugin that needs them
+  reads the content API the way a theme does.
 
 ## Admin screens for plugins
 
