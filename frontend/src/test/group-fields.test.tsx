@@ -666,6 +666,194 @@ test('offers a number field no placeholder, which its control never shows', asyn
 	expect(within(settings).queryByLabelText('Placeholder')).not.toBeInTheDocument()
 })
 
+test('declares a radio group as the choice kind presented as radio', async () => {
+	let sent: unknown
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByLabelText('Name'), 'Style')
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Radio group' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() =>
+		expect(sent).toMatchObject({
+			key: 'style',
+			kind: 'choice',
+			settings: { presentation: 'radio' },
+		}),
+	)
+})
+
+test('declares an email field as text checked as an email', async () => {
+	let sent: unknown
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, key: 'contact', label: 'Contact' })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByLabelText('Name'), 'Contact')
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Email' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() =>
+		expect(sent).toMatchObject({ kind: 'text', settings: { variant: 'email' } }),
+	)
+})
+
+test('declares a gallery as a media field holding many', async () => {
+	let sent: unknown
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, key: 'gallery', label: 'Gallery', kind: 'media' })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByLabelText('Name'), 'Gallery')
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Gallery' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(sent).toMatchObject({ kind: 'media', many: true }))
+	expect((sent as { settings?: unknown }).settings).toBeUndefined()
+})
+
+test('offers a choice field its choices and stores the pairs', async () => {
+	listing([
+		{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' }] },
+	])
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/style', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, key: 'style', kind: 'choice' })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Style' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Style' })
+	await userEvent.click(within(settings).getByRole('button', { name: 'Add choice' }))
+	await userEvent.type(within(settings).getByLabelText('Value'), 'ipa')
+	await userEvent.type(within(settings).getByLabelText('Label'), 'IPA')
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({ settings: { choices: [{ value: 'ipa', label: 'IPA' }] } }),
+	)
+})
+
+test('shows the pairs a choice field already carries and drops a removed one', async () => {
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'style',
+					label: 'Style',
+					kind: 'choice',
+					settings: {
+						choices: [
+							{ value: 'ipa', label: 'IPA' },
+							{ value: 'stout', label: 'Stout' },
+						],
+					},
+				},
+			],
+		},
+	])
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/style', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, key: 'style', kind: 'choice' })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Style' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Style' })
+	expect(within(settings).getAllByLabelText('Value')).toHaveLength(2)
+
+	await userEvent.type(within(settings).getAllByLabelText('Label')[1], ' Beer')
+	await userEvent.type(within(settings).getAllByLabelText('Value')[1], 's')
+	await userEvent.click(within(settings).getAllByRole('button', { name: 'Remove' })[0])
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({
+			settings: { choices: [{ value: 'stouts', label: 'Stout Beer' }] },
+		}),
+	)
+})
+
+test('shows only the pairs a stray choices value actually holds', async () => {
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'style',
+					label: 'Style',
+					kind: 'choice',
+					settings: {
+						choices: [{ value: 'ipa', label: 'IPA' }, 'stray', { value: 1, label: 'One' }],
+					},
+				},
+			],
+		},
+	])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Style' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Style' })
+
+	expect(within(settings).getAllByLabelText('Value')).toHaveLength(1)
+	expect(within(settings).getByLabelText('Value')).toHaveValue('ipa')
+})
+
+test('offers a choice field the flags its kind takes', async () => {
+	listing([
+		{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' }] },
+	])
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/style', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, key: 'style', kind: 'choice' })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Style' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Style' })
+	await userEvent.click(within(settings).getByRole('combobox', { name: 'Allow custom' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Yes' }))
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() => expect(sent).toEqual({ settings: { allow_custom: true } }))
+})
+
 test('offers a boolean field the value it starts on', async () => {
 	listing([
 		{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'boxed', label: 'Boxed', kind: 'boolean' }] },

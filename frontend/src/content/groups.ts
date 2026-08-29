@@ -231,6 +231,7 @@ export async function createFieldInGroup(id: number, asked: NewField): Promise<C
 			relates_to: asked.relatesTo,
 			many: asked.many,
 			required: asked.required,
+			settings: asked.settings,
 		}),
 	})
 	if (!response.ok) {

@@ -29,7 +29,7 @@ import {
 	setFieldSettingsInGroup,
 } from './groups'
 import { chosenOf } from './select'
-import { fieldKinds, kindLabel, slugifyKey } from './types'
+import { fieldKinds, kindLabel, pickedKind, slugifyKey } from './types'
 import { typesQueryKey } from './nav'
 import type { FieldGroup } from './groups'
 import type { Choice } from './select'
@@ -259,16 +259,18 @@ function AddField(props: Reporter & { group: number; types: ContentType[] }) {
 	const [presence, setPresence] = useState(presences[0])
 	const [holding, setHolding] = useState(holdings[0])
 	const target = targets.find((held) => held.value === targetKey) ?? targets[0]
-	const relating = kind.value === 'relation'
+	const picked = pickedKind(kind.value)
+	const relating = picked.kind === 'relation'
 	const add = useMutation({
 		mutationFn: () =>
 			createFieldInGroup(props.group, {
 				key: slugifyKey(label),
 				label,
-				kind: kind.value,
+				kind: picked.kind,
 				relatesTo: relating ? target?.value : undefined,
-				many: relating && holding.value === 'many',
+				many: relating ? holding.value === 'many' : picked.many,
 				required: presence.value === 'required',
+				settings: picked.settings,
 			}),
 		onSuccess: async () => {
 			setLabel('')
@@ -353,6 +355,58 @@ function settingsOffered(kind: string): SettingControl[] {
 	if (kind === 'boolean') {
 		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'choice' })
 	}
+	if (kind === 'choice') {
+		held.push({ name: 'multiple', label: __('Many values', 'gophenberg'), shape: 'choice' })
+		held.push({ name: 'allow_custom', label: __('Allow custom', 'gophenberg'), shape: 'choice' })
+		held.push({ name: 'allow_null', label: __('Allow empty', 'gophenberg'), shape: 'choice' })
+	}
+	return held
+}
+
+/** One choice a field offers, as the editor rows hold it. */
+interface ChoicePair {
+	value: string
+	label: string
+}
+
+/**
+ * Returns the pairs the choices setting holds.
+ * @param settings - The settings the field carries.
+ * @returns The pairs, empty when the field lists none.
+ */
+function heldPairs(settings: Record<string, unknown>): ChoicePair[] {
+	const listed = Array.isArray(settings.choices) ? settings.choices : []
+	return listed.flatMap((pair) => {
+		if (typeof pair !== 'object' || pair === null) {
+			return []
+		}
+		const { value, label } = pair as Record<string, unknown>
+		return typeof value === 'string' && typeof label === 'string' ? [{ value, label }] : []
+	})
+}
+
+/**
+ * Returns the settings with the choice pairs the editor holds written in.
+ * @param kind - The kind the field holds.
+ * @param settings - The settings as the controls stored them.
+ * @param pairs - The pairs the editor rows hold.
+ * @returns The settings to store.
+ */
+function pairedSettings(
+	kind: string,
+	settings: Record<string, unknown>,
+	pairs: ChoicePair[],
+): Record<string, unknown> {
+	if (kind !== 'choice') {
+		return settings
+	}
+	const settled = pairs.filter((pair) => pair.value !== '' && pair.label !== '')
+	const held = { ...settings }
+	if (settled.length === 0) {
+		delete held.choices
+		return held
+	}
+	held.choices = settled
 	return held
 }
 
@@ -433,13 +487,18 @@ function FieldSettings(props: Inside) {
 	const answers = settingAnswers()
 	const [open, setOpen] = useState(false)
 	const [typed, setTyped] = useState(() => typedSettings(offered, props.field.settings))
+	const [pairs, setPairs] = useState(() => heldPairs(props.field.settings))
 	const asking = sprintf(__('Settings of %(field)s', 'gophenberg'), { field: props.field.label })
 	const save = useMutation({
 		mutationFn: () =>
 			setFieldSettingsInGroup(
 				props.group,
 				props.field.key,
-				storedSettings(offered, typed, props.field.settings),
+				pairedSettings(
+					props.field.kind,
+					storedSettings(offered, typed, props.field.settings),
+					pairs,
+				),
 			),
 		onSuccess: async () => {
 			setOpen(false)
@@ -458,6 +517,7 @@ function FieldSettings(props: Inside) {
 	function change(next: boolean) {
 		if (next && !save.isError) {
 			setTyped(typedSettings(offered, props.field.settings))
+			setPairs(heldPairs(props.field.settings))
 		}
 		setOpen(next)
 	}
@@ -502,6 +562,9 @@ function FieldSettings(props: Inside) {
 									/>
 								),
 							)}
+							{props.field.kind === 'choice' && (
+								<ChoicesEditor pairs={pairs} onChange={setPairs} />
+							)}
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
@@ -515,6 +578,56 @@ function FieldSettings(props: Inside) {
 				</Dialog.Popup>
 			</Dialog.Root>
 		</>
+	)
+}
+
+/**
+ * Renders the rows editing the value and label pairs a choice field offers.
+ * @param props - The pairs held and what to call with an edit.
+ * @returns The editor element.
+ */
+function ChoicesEditor(props: { pairs: ChoicePair[]; onChange: (pairs: ChoicePair[]) => void }) {
+	return (
+		<Stack direction="column" gap="sm">
+			<Text variant="body-sm">{__('Choices', 'gophenberg')}</Text>
+			{props.pairs.map((pair, at) => (
+				<Stack key={at} direction="row" gap="sm">
+					<InputControl
+						label={__('Value', 'gophenberg')}
+						autoComplete="off"
+						value={pair.value}
+						onValueChange={(written) =>
+							props.onChange(props.pairs.map((held, row) =>
+								row === at ? { ...held, value: written } : held,
+							))
+						}
+					/>
+					<InputControl
+						label={__('Label', 'gophenberg')}
+						autoComplete="off"
+						value={pair.label}
+						onValueChange={(written) =>
+							props.onChange(props.pairs.map((held, row) =>
+								row === at ? { ...held, label: written } : held,
+							))
+						}
+					/>
+					<Button
+						variant="outline"
+						size="compact"
+						onClick={() => props.onChange(props.pairs.filter((_, row) => row !== at))}
+					>
+						{__('Remove', 'gophenberg')}
+					</Button>
+				</Stack>
+			))}
+			<Button
+				variant="outline"
+				onClick={() => props.onChange([...props.pairs, { value: '', label: '' }])}
+			>
+				{__('Add choice', 'gophenberg')}
+			</Button>
+		</Stack>
 	)
 }
 
