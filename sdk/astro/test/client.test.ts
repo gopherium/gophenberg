@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { GophenbergClient } from '../client.ts'
-import type { ContentType, Page, Post, PostSummary } from '../content.ts'
+import type { ContentType, ContentTypeField, Page, Post, PostSummary } from '../content.ts'
 
 /** A published summary as the content API serves it. */
 const summary: PostSummary = {
@@ -38,6 +38,31 @@ const postType: ContentType = {
 
 /** A page holding one summary. */
 const page: Page<PostSummary> = { items: [summary], total: 1, page: 1, per_page: 20 }
+
+test('a type carries the settings an operator set on its fields', () => {
+	const field: ContentTypeField = {
+		key: 'reading-time',
+		label: 'Reading time',
+		kind: 'number',
+		many: false,
+		required: false,
+		settings: { instructions: 'How long the post takes.', step: 5 },
+	}
+
+	expect(field.settings?.step).toBe(5)
+})
+
+test('a field carrying no settings leaves the key absent', () => {
+	const field: ContentTypeField = {
+		key: 'subtitle',
+		label: 'Subtitle',
+		kind: 'text',
+		many: false,
+		required: false,
+	}
+
+	expect(field.settings).toBeUndefined()
+})
 
 /**
  * Returns a fetch double answering with the given body and status, recording the URLs it saw.

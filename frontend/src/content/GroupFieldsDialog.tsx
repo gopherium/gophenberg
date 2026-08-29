@@ -26,6 +26,7 @@ import {
 	renameFieldInGroup,
 	reorderFieldsInGroup,
 	setFieldRequiredInGroup,
+	setFieldSettingsInGroup,
 } from './groups'
 import { chosenOf } from './select'
 import { fieldKinds, kindLabel, slugifyKey } from './types'
@@ -201,6 +202,12 @@ function FieldsBody(
 										onDone={props.onDone}
 										onRefused={props.onRefused}
 									/>
+									<FieldSettings
+										group={props.held.id}
+										field={field}
+										onDone={props.onDone}
+										onRefused={props.onRefused}
+									/>
 									<CarryField
 										group={props.held.id}
 										field={field}
@@ -313,6 +320,201 @@ function AddField(props: Reporter & { group: number; types: ContentType[] }) {
 				{__('Add field', 'gophenberg')}
 			</Button>
 		</Stack>
+	)
+}
+
+/** One setting a kind takes, as its control edits it. */
+interface SettingControl {
+	name: string
+	label: string
+	shape: 'text' | 'number' | 'choice'
+}
+
+/**
+ * Returns the settings a kind takes, in the order the controls show them.
+ * @param kind - The kind the field holds.
+ * @returns The settings to offer.
+ */
+function settingsOffered(kind: string): SettingControl[] {
+	const held: SettingControl[] = [
+		{ name: 'instructions', label: __('Instructions', 'gophenberg'), shape: 'text' },
+	]
+	if (kind === 'text') {
+		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'text' })
+		held.push({ name: 'placeholder', label: __('Placeholder', 'gophenberg'), shape: 'text' })
+		held.push({ name: 'maxlength', label: __('Longest', 'gophenberg'), shape: 'number' })
+	}
+	if (kind === 'number') {
+		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'number' })
+		held.push({ name: 'min', label: __('Lowest', 'gophenberg'), shape: 'number' })
+		held.push({ name: 'max', label: __('Highest', 'gophenberg'), shape: 'number' })
+		held.push({ name: 'step', label: __('Steps of', 'gophenberg'), shape: 'number' })
+	}
+	if (kind === 'boolean') {
+		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'choice' })
+	}
+	return held
+}
+
+/**
+ * Returns the answers a boolean setting offers, the first one leaving it unset.
+ * @returns The answers to offer.
+ */
+function settingAnswers(): Choice[] {
+	return [
+		{ label: __('None', 'gophenberg'), value: '' },
+		{ label: __('Yes', 'gophenberg'), value: 'true' },
+		{ label: __('No', 'gophenberg'), value: 'false' },
+	]
+}
+
+/**
+ * Returns the settings as the controls hold them, every value written out.
+ * @param offered - The settings the kind takes.
+ * @param held - The settings the field carries.
+ * @returns The text each control starts with.
+ */
+function typedSettings(offered: SettingControl[], held: Record<string, unknown>): Record<string, string> {
+	const written: Record<string, string> = {}
+	for (const setting of offered) {
+		const value = held[setting.name]
+		written[setting.name] = value === undefined || value === null ? '' : String(value)
+	}
+	return written
+}
+
+/**
+ * Returns the settings to store, leaving out every control the operator left empty.
+ * @param offered - The settings the kind takes.
+ * @param typed - The text the controls hold.
+ * @param held - The settings the field carries.
+ * @returns The settings as the registry stores them.
+ */
+function storedSettings(
+	offered: SettingControl[],
+	typed: Record<string, string>,
+	held: Record<string, unknown>,
+): Record<string, unknown> {
+	const settings: Record<string, unknown> = { ...held }
+	for (const setting of offered) {
+		const written = typed[setting.name].trim()
+		if (written === '') {
+			delete settings[setting.name]
+			continue
+		}
+		settings[setting.name] = settingHeld(setting.shape, written)
+	}
+	return settings
+}
+
+/**
+ * Returns what a control holds as the shape its setting stores.
+ * @param shape - The shape the setting takes.
+ * @param written - The text the control holds.
+ * @returns The value to store.
+ */
+function settingHeld(shape: SettingControl['shape'], written: string): unknown {
+	if (shape === 'number') {
+		return Number(written)
+	}
+	if (shape === 'choice') {
+		return written === 'true'
+	}
+	return written
+}
+
+/**
+ * Renders the control editing the settings a field carries.
+ * @param props - The group, the field, and what to report.
+ * @returns The control and its dialog.
+ */
+function FieldSettings(props: Inside) {
+	const offered = settingsOffered(props.field.kind)
+	const answers = settingAnswers()
+	const [open, setOpen] = useState(false)
+	const [typed, setTyped] = useState(() => typedSettings(offered, props.field.settings))
+	const asking = sprintf(__('Settings of %(field)s', 'gophenberg'), { field: props.field.label })
+	const save = useMutation({
+		mutationFn: () =>
+			setFieldSettingsInGroup(
+				props.group,
+				props.field.key,
+				storedSettings(offered, typed, props.field.settings),
+			),
+		onSuccess: async () => {
+			setOpen(false)
+			await props.onDone(sprintf(__('%(field)s settled.', 'gophenberg'), { field: props.field.label }))
+		},
+		onError: (cause) => {
+			setOpen(false)
+			props.onRefused(cause)
+		},
+	})
+
+	/**
+	 * Opens the dialog on the stored settings, or closes it on the edits.
+	 * @param next - Whether the dialog is opening.
+	 */
+	function change(next: boolean) {
+		if (next && !save.isError) {
+			setTyped(typedSettings(offered, props.field.settings))
+		}
+		setOpen(next)
+	}
+
+	return (
+		<>
+			<Button variant="outline" size="compact" aria-label={asking} onClick={() => change(true)}>
+				{__('Settings', 'gophenberg')}
+			</Button>
+			<Dialog.Root open={open} onOpenChange={change}>
+				<Dialog.Popup>
+					<Dialog.Header>
+						<Dialog.Title>{asking}</Dialog.Title>
+						<Dialog.CloseIcon />
+					</Dialog.Header>
+					<Dialog.Content>
+						<Stack direction="column" gap="md">
+							{offered.map((setting) =>
+								setting.shape === 'choice' ? (
+									<SelectControl
+										key={setting.name}
+										label={setting.label}
+										items={answers}
+										value={chosenOf({ value: typed[setting.name] }, answers, answers[0])}
+										onValueChange={(item) =>
+											setTyped((was) => ({
+												...was,
+												[setting.name]: chosenOf(item, answers, answers[0]).value,
+											}))
+										}
+									/>
+								) : (
+									<InputControl
+										key={setting.name}
+										label={setting.label}
+										type={setting.shape}
+										autoComplete="off"
+										value={typed[setting.name]}
+										onValueChange={(written) =>
+											setTyped((was) => ({ ...was, [setting.name]: written }))
+										}
+									/>
+								),
+							)}
+						</Stack>
+					</Dialog.Content>
+					<Dialog.Footer>
+						<Button variant="outline" onClick={() => change(false)}>
+							{__('Cancel', 'gophenberg')}
+						</Button>
+						<Button loading={save.isPending} onClick={() => save.mutate()}>
+							{__('Save settings', 'gophenberg')}
+						</Button>
+					</Dialog.Footer>
+				</Dialog.Popup>
+			</Dialog.Root>
+		</>
 	)
 }
 

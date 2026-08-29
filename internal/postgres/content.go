@@ -70,7 +70,7 @@ func (s *ContentStore) Create(ctx context.Context, c content.Content) (content.C
 func (s *ContentStore) create(
 	ctx context.Context, c content.Content, prefix, slug string,
 ) (content.Content, error) {
-	row, err := s.queries.CreateContent(ctx, db.CreateContentParams{
+	params := db.CreateContentParams{
 		ID:          c.ID,
 		Type:        c.Type,
 		ParentID:    c.ParentID,
@@ -84,6 +84,31 @@ func (s *ContentStore) create(
 		PublishedAt: c.PublishedAt,
 		CreatedAt:   c.CreatedAt,
 		UpdatedAt:   c.UpdatedAt,
+		Fields:      storedValues(c.Fields),
+	}
+	if len(c.Fields) > 0 {
+		return s.createDeclared(ctx, c, params)
+	}
+	row, err := s.queries.CreateContent(ctx, params)
+	if err != nil {
+		return content.Content{}, fmt.Errorf("postgres: create content: %w", err)
+	}
+	return toContent(row), nil
+}
+
+// createDeclared stores the item once every value it carries names a field a group still declares.
+func (s *ContentStore) createDeclared(
+	ctx context.Context, c content.Content, params db.CreateContentParams,
+) (content.Content, error) {
+	var row db.CoreContent
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := valuesDeclared(ctx, queries, c); err != nil {
+			return err
+		}
+		created, err := queries.CreateContent(ctx, params)
+		row = created
+		return err
 	})
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: create content: %w", err)

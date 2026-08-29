@@ -102,13 +102,14 @@ function toPost(row: z.infer<typeof postSchema>): Post {
 /**
  * Creates a draft of the given type.
  * @param type - The post type to create.
+ * @param fields - The values the draft starts with.
  * @returns The stored draft.
  */
-export async function createPost(type = 'post'): Promise<Post> {
+export async function createPost(type = 'post', fields: Record<string, unknown> = {}): Promise<Post> {
 	const response = await fetch('/api/content', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ type, title: '' }),
+		body: JSON.stringify({ type, title: '', fields }),
 	})
 	if (!response.ok) {
 		throw new Error(`creating a post failed with status ${response.status}`)

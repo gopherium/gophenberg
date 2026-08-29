@@ -478,3 +478,213 @@ test('reports a refused reorder inside the dialog', async () => {
 
 	expect(await within(dialog).findByRole('alert')).toHaveTextContent(/every field/)
 })
+
+test('offers the settings a text field takes and stores them', async () => {
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, settings: { maxlength: 80 } })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+	await userEvent.type(within(settings).getByLabelText('Instructions'), 'Say who wrote it.')
+	await userEvent.type(within(settings).getByLabelText('Longest'), '80')
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({ settings: { instructions: 'Say who wrote it.', maxlength: 80 } }),
+	)
+})
+
+test('offers a number field its own bounds', async () => {
+	listing([{ ...DETAILS, fields: [READING_TIME] }, EXTRAS])
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/reading-time', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(READING_TIME)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Reading time' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Reading time' })
+	await userEvent.type(within(settings).getByLabelText('Lowest'), '1')
+	await userEvent.type(within(settings).getByLabelText('Highest'), '10')
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() => expect(sent).toEqual({ settings: { min: 1, max: 10 } }))
+})
+
+test('offers a media field nothing but instructions', async () => {
+	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'cover', label: 'Cover', kind: 'media' }] }])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Cover' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Cover' })
+
+	expect(within(settings).getByLabelText('Instructions')).toBeInTheDocument()
+	expect(within(settings).queryByLabelText('Longest')).not.toBeInTheDocument()
+	expect(within(settings).queryByLabelText('Default')).not.toBeInTheDocument()
+})
+
+test('shows the settings a field already carries', async () => {
+	listing([
+		{ ...DETAILS, fields: [{ ...SUBTITLE, settings: { instructions: 'Held.', maxlength: 40 } }] },
+	])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+
+	expect(within(settings).getByLabelText('Instructions')).toHaveValue('Held.')
+	expect(within(settings).getByLabelText('Longest')).toHaveValue(40)
+})
+
+test('stores nothing for a setting left empty', async () => {
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() => expect(sent).toEqual({ settings: {} }))
+})
+
+test('stores no settings when the dialog is abandoned', async () => {
+	let hit = false
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () => {
+			hit = true
+			return HttpResponse.json(SUBTITLE)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+	await userEvent.type(within(settings).getByLabelText('Instructions'), 'Never stored.')
+	await userEvent.click(within(settings).getByRole('button', { name: 'Cancel' }))
+
+	await waitFor(() =>
+		expect(screen.queryByRole('dialog', { name: 'Settings of Subtitle' })).not.toBeInTheDocument(),
+	)
+	expect(hit).toBe(false)
+})
+
+test('closes the settings and reports why they were turned away', async () => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json(
+				{ error: 'content: settings disagree', code: 'setting_bounds', meta: { setting: 'min' } },
+				{ status: 422 },
+			),
+		),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	expect(await within(dialog).findByRole('alert')).toHaveTextContent(/setting/i)
+})
+
+test('keeps what was typed when the settings are turned away', async () => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json(
+				{ error: 'content: setting shape', code: 'setting_shape', meta: { setting: 'maxlength' } },
+				{ status: 422 },
+			),
+		),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+	await userEvent.type(within(settings).getByLabelText('Instructions'), 'Say who wrote it.')
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+	await within(dialog).findByRole('alert')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+
+	const reopened = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+	expect(within(reopened).getByLabelText('Instructions')).toHaveValue('Say who wrote it.')
+})
+
+test('keeps a setting the dialog does not offer', async () => {
+	listing([
+		{ ...DETAILS, fields: [{ ...READING_TIME, settings: { placeholder: 'How many minutes' } }] },
+	])
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/reading-time', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(READING_TIME)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Reading time' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Reading time' })
+	await userEvent.type(within(settings).getByLabelText('Lowest'), '1')
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({ settings: { placeholder: 'How many minutes', min: 1 } }),
+	)
+})
+
+test('offers a number field no placeholder, which its control never shows', async () => {
+	listing([{ ...DETAILS, fields: [READING_TIME] }])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Reading time' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Reading time' })
+
+	expect(within(settings).queryByLabelText('Placeholder')).not.toBeInTheDocument()
+})
+
+test('offers a boolean field the value it starts on', async () => {
+	listing([
+		{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'boxed', label: 'Boxed', kind: 'boolean' }] },
+	])
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/boxed', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Boxed' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Boxed' })
+	await userEvent.click(within(settings).getByRole('combobox', { name: 'Default' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Yes' }))
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() => expect(sent).toEqual({ settings: { default: true } }))
+})

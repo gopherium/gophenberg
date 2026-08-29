@@ -58,9 +58,46 @@ export function fieldDescriptors(declared: ContentField[]): Field<FieldValues>[]
 		id: field.key,
 		label: field.label,
 		type: TYPES[field.kind],
-		isValid: { required: field.required },
+		description: worded(field.settings.instructions),
+		placeholder: worded(field.settings.placeholder),
+		isValid: { required: field.required, ...boundsOf(field) },
 		enableSorting: false,
 	})) as Field<FieldValues>[]
+}
+
+/**
+ * Returns the setting as text the control shows, or nothing when it holds none.
+ * @param held - The setting to read.
+ * @returns The text, or undefined.
+ */
+function worded(held: unknown): string | undefined {
+	return typeof held === 'string' && held !== '' ? held : undefined
+}
+
+/**
+ * Returns the setting as a number a rule takes, or nothing when it holds none.
+ * @param held - The setting to read.
+ * @returns The number, or undefined.
+ */
+function counted(held: unknown): number | undefined {
+	return typeof held === 'number' ? held : undefined
+}
+
+/**
+ * Returns the validation rules a field's bounds set on its control.
+ * @param field - The declared field to read.
+ * @returns The rules the control validates against.
+ */
+function boundsOf(field: ContentField): Record<string, number> {
+	const rules: Record<string, number> = {}
+	if (field.kind !== 'text') {
+		return rules
+	}
+	const longest = counted(field.settings.maxlength)
+	if (longest !== undefined) {
+		rules.maxLength = longest
+	}
+	return rules
 }
 
 /**

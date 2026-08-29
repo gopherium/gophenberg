@@ -54,12 +54,13 @@ type servedType struct {
 
 // servedField is a field definition as a public reader sees it.
 type servedField struct {
-	Key       string `json:"key"`
-	Label     string `json:"label"`
-	Kind      string `json:"kind"`
-	RelatesTo string `json:"relates_to,omitempty"`
-	Many      bool   `json:"many"`
-	Required  bool   `json:"required"`
+	Key       string         `json:"key"`
+	Label     string         `json:"label"`
+	Kind      string         `json:"kind"`
+	RelatesTo string         `json:"relates_to,omitempty"`
+	Many      bool           `json:"many"`
+	Required  bool           `json:"required"`
+	Settings  map[string]any `json:"settings,omitempty"`
 }
 
 // newServedType returns the public view of a content type.
@@ -87,6 +88,7 @@ func servedFields(t content.Type) []servedField {
 			RelatesTo: f.RelatesTo,
 			Many:      f.Many,
 			Required:  f.Required,
+			Settings:  f.Settings,
 		}
 	}
 	return fields

@@ -4,6 +4,7 @@ import { Button, Stack, Text } from '@gophenberg/frontend-sdk'
 import { __, sprintf } from '@wordpress/i18n'
 
 import { MediaLibraryPicker } from '../media/MediaLibraryPicker'
+import { FieldLabel } from './FieldLabel'
 import type { ContentField } from './types'
 
 /**
@@ -43,7 +44,7 @@ export function MediaField(props: {
 }) {
 	return (
 		<Stack direction="column" gap="xs">
-			<Text variant="body-sm">{props.field.label}</Text>
+			<FieldLabel field={props.field} />
 			<Text>
 				{props.value === undefined
 					? __('No media chosen', 'gophenberg')

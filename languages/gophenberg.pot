@@ -24,6 +24,12 @@ msgstr ""
 msgid "%(field)s deleted."
 msgstr ""
 
+msgid "%(field)s goes no higher than %(limit)s. Lower the value and save again."
+msgstr ""
+
+msgid "%(field)s goes no lower than %(limit)s. Raise the value and save again."
+msgstr ""
+
 msgid "%(field)s is optional again."
 msgstr ""
 
@@ -34,6 +40,12 @@ msgid "%(field)s moved."
 msgstr ""
 
 msgid "%(field)s renamed."
+msgstr ""
+
+msgid "%(field)s settled."
+msgstr ""
+
+msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again."
 msgstr ""
 
 msgid "%(file)s is larger than one upload may be."
@@ -103,6 +115,9 @@ msgid "%(type)s will answer at the root."
 msgstr ""
 
 msgid "(no title)"
+msgstr ""
+
+msgid "A %(kind)s field does not take a setting called %(setting)s. Remove it and try again."
 msgstr ""
 
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
@@ -498,6 +513,9 @@ msgstr ""
 msgid "Hand the root to %(type)s"
 msgstr ""
 
+msgid "Highest"
+msgstr ""
+
 msgid "Holds"
 msgstr ""
 
@@ -514,6 +532,9 @@ msgid "Install theme"
 msgstr ""
 
 msgid "Installed"
+msgstr ""
+
+msgid "Instructions"
 msgstr ""
 
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
@@ -565,6 +586,12 @@ msgid "Loading users."
 msgstr ""
 
 msgid "Loading…"
+msgstr ""
+
+msgid "Longest"
+msgstr ""
+
+msgid "Lowest"
 msgstr ""
 
 msgid "Make %(field)s optional"
@@ -752,6 +779,9 @@ msgstr ""
 msgid "Pending"
 msgstr ""
 
+msgid "Placeholder"
+msgstr ""
+
 msgid "Plural name"
 msgstr ""
 
@@ -833,6 +863,9 @@ msgstr ""
 msgid "Save rules"
 msgstr ""
 
+msgid "Save settings"
+msgstr ""
+
 msgid "Saved"
 msgstr ""
 
@@ -866,6 +899,12 @@ msgstr ""
 msgid "Serving"
 msgstr ""
 
+msgid "Settings"
+msgstr ""
+
+msgid "Settings of %(field)s"
+msgstr ""
+
 msgid "Shadowed"
 msgstr ""
 
@@ -894,6 +933,9 @@ msgid "Source"
 msgstr ""
 
 msgid "Start writing."
+msgstr ""
+
+msgid "Steps of"
 msgstr ""
 
 msgid "Tablet"
@@ -1032,6 +1074,12 @@ msgid "The server could not be reached, so nothing was saved."
 msgstr ""
 
 msgid "The server could not be reached, so nothing was uploaded."
+msgstr ""
+
+msgid "The setting %(setting)s cannot hold the value it was given. Check what this setting takes and try again."
+msgstr ""
+
+msgid "The setting %(setting)s falls outside the others. Keep min below max and the default inside the bounds."
 msgstr ""
 
 msgid "The site default"

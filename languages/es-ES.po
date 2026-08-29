@@ -18,8 +18,29 @@ msgid " or "
 msgstr " o "
 
 #, fuzzy
+msgid ""
+"%(field)s goes no higher than %(limit)s. Lower the value and save again."
+msgstr "%(field)s no pasa de %(limit)s. Baja el valor y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s goes no lower than %(limit)s. Raise the value and save again."
+msgstr "%(field)s no baja de %(limit)s. Sube el valor y guarda de nuevo."
+
+#, fuzzy
 msgid "%(field)s moved."
 msgstr "%(field)s movido."
+
+#, fuzzy
+msgid "%(field)s settled."
+msgstr "%(field)s ajustado."
+
+#, fuzzy
+msgid ""
+"%(field)s takes at most %(limit)s letters. Shorten what you wrote and save "
+"again."
+msgstr ""
+"%(field)s acepta como mucho %(limit)s letras. Acorta lo que has escrito y "
+"guarda de nuevo."
 
 #, fuzzy
 msgid "%(group)s created."
@@ -58,6 +79,14 @@ msgstr "%(source)s es %(value)s"
 
 msgid "(no title)"
 msgstr "(sin título)"
+
+#, fuzzy
+msgid ""
+"A %(kind)s field does not take a setting called %(setting)s. Remove it and "
+"try again."
+msgstr ""
+"Un campo %(kind)s no acepta un ajuste llamado %(setting)s. Quítalo y prueba "
+"de nuevo."
 
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
 msgstr "Un tipo de contenido necesita un nombre en singular y otro en plural, como Guía y Guías. Rellena ambos e inténtalo de nuevo."
@@ -426,6 +455,10 @@ msgstr "Grupo"
 msgid "Hand over the root"
 msgstr "Ceder la raíz"
 
+#, fuzzy
+msgid "Highest"
+msgstr "Máximo"
+
 msgid "Home"
 msgstr "Inicio"
 
@@ -441,6 +474,10 @@ msgstr "Instalar tema"
 
 msgid "Installed"
 msgstr "Instalado"
+
+#, fuzzy
+msgid "Instructions"
+msgstr "Instrucciones"
 
 #, fuzzy
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
@@ -495,6 +532,14 @@ msgstr "Cargando los usuarios."
 
 msgid "Loading…"
 msgstr "Cargando…"
+
+#, fuzzy
+msgid "Longest"
+msgstr "Largo máximo"
+
+#, fuzzy
+msgid "Lowest"
+msgstr "Mínimo"
 
 msgid "Make default"
 msgstr "Establecer como predeterminado"
@@ -653,6 +698,10 @@ msgstr "Contraseña"
 msgid "Pending"
 msgstr "Pendiente"
 
+#, fuzzy
+msgid "Placeholder"
+msgstr "Texto de ejemplo"
+
 msgid "Plural name"
 msgstr "Nombre en plural"
 
@@ -721,6 +770,10 @@ msgstr "Guardar el borrador"
 msgid "Save rules"
 msgstr "Guardar las reglas"
 
+#, fuzzy
+msgid "Save settings"
+msgstr "Guardar los ajustes"
+
 msgid "Saved"
 msgstr "Guardado"
 
@@ -752,6 +805,14 @@ msgid "Serving"
 msgstr "Atendiendo"
 
 #, fuzzy
+msgid "Settings"
+msgstr "Ajustes"
+
+#, fuzzy
+msgid "Settings of %(field)s"
+msgstr "Ajustes de %(field)s"
+
+#, fuzzy
 msgid "Shadowed"
 msgstr "Eclipsado"
 
@@ -779,6 +840,10 @@ msgstr "Origen"
 
 msgid "Start writing."
 msgstr "Empieza a escribir."
+
+#, fuzzy
+msgid "Steps of"
+msgstr "Pasos de"
 
 msgid "Tablet"
 msgstr "Tableta"
@@ -901,6 +966,22 @@ msgstr "La regla sobre %(source)s no nombra nada con lo que coincidir. Elige un 
 #, fuzzy
 msgid "The rules could not be loaded."
 msgstr "No se han podido cargar las reglas."
+
+#, fuzzy
+msgid ""
+"The setting %(setting)s cannot hold the value it was given. Check what this "
+"setting takes and try again."
+msgstr ""
+"El ajuste %(setting)s no puede contener el valor que se le dio. Comprueba "
+"qué acepta este ajuste y prueba de nuevo."
+
+#, fuzzy
+msgid ""
+"The setting %(setting)s falls outside the others. Keep min below max and "
+"the default inside the bounds."
+msgstr ""
+"El ajuste %(setting)s queda fuera de los demás. Mantén min por debajo de "
+"max y el valor por defecto dentro de los límites."
 
 #, fuzzy
 msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."

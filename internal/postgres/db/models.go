@@ -41,6 +41,7 @@ type CoreContentField struct {
 	UpdatedAt time.Time
 	Position  int32
 	GroupID   int32
+	Settings  []byte
 }
 
 type CoreContentRelation struct {

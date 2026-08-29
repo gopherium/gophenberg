@@ -69,6 +69,55 @@ test('shows no panel when the type declares no fields', async () => {
 	expect(screen.queryByLabelText('Color')).not.toBeInTheDocument()
 })
 
+/**
+ * Serves a type whose only field is the one described.
+ * @param field - The field the type declares.
+ */
+function declaring(field: Record<string, unknown>) {
+	server.use(
+		http.get('/api/types', () =>
+			HttpResponse.json({ items: [{ ...TYPE_WITH_FIELDS, fields: [field] }] }),
+		),
+	)
+}
+
+const A_TEXT_FIELD = { key: 'color', label: 'Color', kind: 'text', many: false, required: false }
+
+test('shows the instructions a field carries under its control', async () => {
+	declaring({ ...A_TEXT_FIELD, settings: { instructions: 'Name the colour.' } })
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByText('Name the colour.')).toBeInTheDocument()
+})
+
+test('shows the placeholder a field carries in its empty control', async () => {
+	declaring({ ...A_TEXT_FIELD, settings: { placeholder: 'red' } })
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByLabelText('Color')).toHaveAttribute('placeholder', 'red')
+})
+
+test('holds a control to the length its field allows', async () => {
+	declaring({ ...A_TEXT_FIELD, settings: { maxlength: 5 } })
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByLabelText('Color')).toHaveAttribute('maxlength', '5')
+})
+
+test('shows the instructions a media field carries, which no control builds for it', async () => {
+	declaring({
+		key: 'cover',
+		label: 'Cover',
+		kind: 'media',
+		many: false,
+		required: false,
+		settings: { instructions: 'Pick a wide one.' },
+	})
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByText('Pick a wide one.')).toBeInTheDocument()
+})
+
 test('sends the edited values when the post is saved', async () => {
 	const sent: unknown[] = []
 	server.use(

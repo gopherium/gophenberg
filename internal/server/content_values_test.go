@@ -127,6 +127,56 @@ func TestContentPatchLeavesAbsentFieldsAlone(t *testing.T) {
 	}
 }
 
+func TestContentCreateStoresTheValuesItIsGiven(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler, `{"key":"color","label":"Color","kind":"text"}`)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content",
+		`{"type":"post","title":"Hello world","fields":{"color":"red"}}`)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusCreated, recorder.Body.String())
+	}
+	created := decodeBody[contentValuesBody](t, recorder)
+	if created.Fields["color"] != "red" {
+		t.Errorf("fields = %v, want the value the create carried", created.Fields)
+	}
+}
+
+func TestContentCreateStoresNothingWhenItIsGivenNothing(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler, `{"key":"color","label":"Color","kind":"text","settings":{"default":"red"}}`)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content",
+		`{"type":"post","title":"Hello world"}`)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusCreated)
+	}
+	created := decodeBody[contentValuesBody](t, recorder)
+	if len(created.Fields) != 0 {
+		t.Errorf("fields = %v, want the server to invent nothing for a caller who sent nothing", created.Fields)
+	}
+}
+
+func TestContentCreateRefusesAValueTheBoundsForbid(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler, `{"key":"rating","label":"Rating","kind":"number","settings":{"max":10}}`)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content",
+		`{"type":"post","title":"Hello world","fields":{"rating":50}}`)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want the out of bounds value refused at create", recorder.Code)
+	}
+}
+
 func TestContentPatchKeepsAValueItsGroupStoppedServing(t *testing.T) {
 	t.Parallel()
 
@@ -291,6 +341,68 @@ func TestAutosaveRefusesAnUnknownField(t *testing.T) {
 
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+}
+
+func TestAutosaveRefusesAValueOfTheWrongShape(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler, `{"key":"rating","label":"Rating","kind":"number"}`)
+	held := draftedPost(t, handler)
+
+	body := fmt.Sprintf(`{"updated_at":%q,"title":"Hello world","fields":{"rating":"high"}}`, held.UpdatedAt)
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content/"+held.ID+"/autosave", body)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+}
+
+func TestAutosaveKeepsAnOutOfBoundsValueOffTheItem(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler,
+		`{"key":"rating","label":"Rating","kind":"number","settings":{"max":10}}`)
+	held := draftedPost(t, handler)
+
+	body := fmt.Sprintf(`{"updated_at":%q,"title":"Hello world","fields":{"rating":50}}`, held.UpdatedAt)
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content/"+held.ID+"/autosave", body)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if saved := decodeBody[autosaveValuesBody](t, recorder); saved.Fields["rating"] != float64(50) {
+		t.Errorf("fields = %v, want the buffer to keep what the author typed", saved.Fields)
+	}
+	item := doRequest(t, handler, http.MethodGet, "/api/content/"+held.ID, "")
+	if stored := decodeBody[autosaveValuesBody](t, item); stored.Fields["rating"] != nil {
+		t.Errorf("the item holds %v, want the bounds to keep it off the item", stored.Fields)
+	}
+}
+
+func TestPublishingCannotExposeWhatAutosaveParked(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler,
+		`{"key":"rating","label":"Rating","kind":"number","settings":{"max":10}}`)
+	held := draftedPost(t, handler)
+	body := fmt.Sprintf(`{"updated_at":%q,"title":"Hello world","fields":{"rating":50}}`, held.UpdatedAt)
+	doRequest(t, handler, http.MethodPost, "/api/content/"+held.ID+"/autosave", body)
+
+	standing := decodeBody[contentValuesBody](t,
+		doRequest(t, handler, http.MethodGet, "/api/content/"+held.ID, ""))
+	published := doRequest(t, handler, http.MethodPatch, "/api/content/"+held.ID,
+		fmt.Sprintf(`{"updated_at":%q,"status":"published"}`, standing.UpdatedAt))
+
+	if published.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", published.Code, http.StatusOK, published.Body.String())
+	}
+	item := doRequest(t, handler, http.MethodGet, "/api/content/"+held.ID, "")
+	if stored := decodeBody[contentValuesBody](t, item); stored.Fields["rating"] != nil {
+		t.Errorf("the published item holds %v, want no value the bounds forbid", stored.Fields)
 	}
 }
 

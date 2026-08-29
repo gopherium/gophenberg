@@ -18,8 +18,33 @@ msgid " or "
 msgstr " ou "
 
 #, fuzzy
+msgid ""
+"%(field)s goes no higher than %(limit)s. Lower the value and save again."
+msgstr ""
+"%(field)s ne dépasse pas %(limit)s. Baissez la valeur et enregistrez de "
+"nouveau."
+
+#, fuzzy
+msgid "%(field)s goes no lower than %(limit)s. Raise the value and save again."
+msgstr ""
+"%(field)s ne descend pas sous %(limit)s. Augmentez la valeur et enregistrez "
+"de nouveau."
+
+#, fuzzy
 msgid "%(field)s moved."
 msgstr "%(field)s déplacé."
+
+#, fuzzy
+msgid "%(field)s settled."
+msgstr "%(field)s réglé."
+
+#, fuzzy
+msgid ""
+"%(field)s takes at most %(limit)s letters. Shorten what you wrote and save "
+"again."
+msgstr ""
+"%(field)s accepte au plus %(limit)s lettres. Raccourcissez ce que vous avez "
+"écrit et enregistrez de nouveau."
 
 #, fuzzy
 msgid "%(group)s created."
@@ -63,6 +88,14 @@ msgstr "%(source)s est %(value)s"
 #, fuzzy
 msgid "(no title)"
 msgstr "(sans titre)"
+
+#, fuzzy
+msgid ""
+"A %(kind)s field does not take a setting called %(setting)s. Remove it and "
+"try again."
+msgstr ""
+"Un champ %(kind)s n'accepte pas de réglage nommé %(setting)s. Retirez-le et "
+"réessayez."
 
 #, fuzzy
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
@@ -524,6 +557,10 @@ msgid "Hand over the root"
 msgstr "Céder la racine"
 
 #, fuzzy
+msgid "Highest"
+msgstr "Maximum"
+
+#, fuzzy
 msgid "Home"
 msgstr "Accueil"
 
@@ -542,6 +579,10 @@ msgstr "Installer le thème"
 #, fuzzy
 msgid "Installed"
 msgstr "Installé"
+
+#, fuzzy
+msgid "Instructions"
+msgstr "Instructions"
 
 #, fuzzy
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
@@ -611,6 +652,14 @@ msgstr "Chargement des utilisateurs."
 #, fuzzy
 msgid "Loading…"
 msgstr "Chargement…"
+
+#, fuzzy
+msgid "Longest"
+msgstr "Longueur maximale"
+
+#, fuzzy
+msgid "Lowest"
+msgstr "Minimum"
 
 #, fuzzy
 msgid "Make default"
@@ -813,6 +862,10 @@ msgid "Pending"
 msgstr "En attente"
 
 #, fuzzy
+msgid "Placeholder"
+msgstr "Texte indicatif"
+
+#, fuzzy
 msgid "Plural name"
 msgstr "Nom au pluriel"
 
@@ -897,6 +950,10 @@ msgid "Save rules"
 msgstr "Enregistrer les règles"
 
 #, fuzzy
+msgid "Save settings"
+msgstr "Enregistrer les réglages"
+
+#, fuzzy
 msgid "Saved"
 msgstr "Enregistré"
 
@@ -937,6 +994,14 @@ msgid "Serving"
 msgstr "En service"
 
 #, fuzzy
+msgid "Settings"
+msgstr "Réglages"
+
+#, fuzzy
+msgid "Settings of %(field)s"
+msgstr "Réglages de %(field)s"
+
+#, fuzzy
 msgid "Shadowed"
 msgstr "Masqué"
 
@@ -971,6 +1036,10 @@ msgstr "Source"
 #, fuzzy
 msgid "Start writing."
 msgstr "Commencez à écrire."
+
+#, fuzzy
+msgid "Steps of"
+msgstr "Pas de"
 
 #, fuzzy
 msgid "Tablet"
@@ -1111,6 +1180,22 @@ msgstr "La règle sur %(source)s ne nomme rien à faire correspondre. Choisissez
 #, fuzzy
 msgid "The rules could not be loaded."
 msgstr "Les règles n'ont pas pu être chargées."
+
+#, fuzzy
+msgid ""
+"The setting %(setting)s cannot hold the value it was given. Check what this "
+"setting takes and try again."
+msgstr ""
+"Le réglage %(setting)s ne peut pas contenir la valeur donnée. Vérifiez ce "
+"que ce réglage accepte et réessayez."
+
+#, fuzzy
+msgid ""
+"The setting %(setting)s falls outside the others. Keep min below max and "
+"the default inside the bounds."
+msgstr ""
+"Le réglage %(setting)s sort des autres. Gardez min sous max et la valeur "
+"par défaut dans les limites."
 
 #, fuzzy
 msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."

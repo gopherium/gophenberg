@@ -13,6 +13,7 @@ export const fieldSchema = z.object({
 	relates_to: z.string().optional(),
 	many: z.boolean(),
 	required: z.boolean(),
+	settings: z.record(z.string(), z.unknown()).optional(),
 })
 
 const typeSchema = z.object({
@@ -45,6 +46,7 @@ export interface ContentField {
 	relatesTo: string
 	many: boolean
 	required: boolean
+	settings: Record<string, unknown>
 }
 
 /** A content type as the admin reads it. */
@@ -113,6 +115,7 @@ export function toField(row: z.infer<typeof fieldSchema>): ContentField {
 		relatesTo: row.relates_to ?? '',
 		many: row.many,
 		required: row.required,
+		settings: row.settings ?? {},
 	}
 }
 

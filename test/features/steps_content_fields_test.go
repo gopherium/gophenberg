@@ -15,10 +15,11 @@ import (
 
 // listedField is one field definition as the admin registry reports it.
 type listedField struct {
-	Key      string `json:"key"`
-	Label    string `json:"label"`
-	Kind     string `json:"kind"`
-	Required bool   `json:"required"`
+	Key      string         `json:"key"`
+	Label    string         `json:"label"`
+	Kind     string         `json:"kind"`
+	Required bool           `json:"required"`
+	Settings map[string]any `json:"settings"`
 }
 
 // fieldedContent is one content item with its field values as the admin API reports it.

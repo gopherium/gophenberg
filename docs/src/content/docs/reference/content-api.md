@@ -45,7 +45,8 @@ curl https://example.com/api/content/v1
           "kind": "relation",
           "relates_to": "category",
           "many": true,
-          "required": false
+          "required": false,
+          "settings": { "instructions": "Files this post under a category." }
         }
       ]
     }
@@ -65,8 +66,11 @@ tell whether the shape it was built against is still answered here.
 
 Each type also lists the [fields](/guides/fields/) it declares, so a
 reader knows what an item's values mean before fetching any. A
-`page_kind` of `archive` marks a type whose items answer with a term
-page, covered below.
+field's `settings` carry what the operator set on it, and the key is
+absent when it carries none. A bound there says what a new value has
+to satisfy, so a value stored before the bound was set can sit
+outside it. A `page_kind` of `archive` marks a type whose items
+answer with a term page, covered below.
 
 ## Listing items
 

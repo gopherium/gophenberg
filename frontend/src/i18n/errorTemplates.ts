@@ -105,6 +105,12 @@ export function errorTemplates(): Record<string, string> {
 			'The field %(field)s points at other items, so it does not take a plain value. Pick the items it points at instead.',
 			DOMAIN,
 		),
+		field_length: __(
+			'%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again.',
+			DOMAIN,
+		),
+		field_max: __('%(field)s goes no higher than %(limit)s. Lower the value and save again.', DOMAIN),
+		field_min: __('%(field)s goes no lower than %(limit)s. Raise the value and save again.', DOMAIN),
 		field_taken: __(
 			'A field with that name already exists on the items this group reaches. Pick another name.',
 			DOMAIN,
@@ -286,6 +292,18 @@ export function errorTemplates(): Record<string, string> {
 		route_word_taken: __('Another content type already answers under this route word. Pick a different word.', DOMAIN),
 		server_entry_missing: __(
 			'The theme %(name)s does not carry %(path)s as a file, so there is nothing to run. Package the built theme rather than its source.',
+			DOMAIN,
+		),
+		setting_bounds: __(
+			'The setting %(setting)s falls outside the others. Keep min below max and the default inside the bounds.',
+			DOMAIN,
+		),
+		setting_shape: __(
+			'The setting %(setting)s cannot hold the value it was given. Check what this setting takes and try again.',
+			DOMAIN,
+		),
+		setting_unknown: __(
+			'A %(kind)s field does not take a setting called %(setting)s. Remove it and try again.',
 			DOMAIN,
 		),
 		slug_taken: __(
