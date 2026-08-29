@@ -18,8 +18,25 @@ msgid " or "
 msgstr " o "
 
 #, fuzzy
+msgid ""
+"%(field)s goes no higher than %(limit)s. Lower the value and save again."
+msgstr "%(field)s no pasa de %(limit)s. Baja el valor y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s goes no lower than %(limit)s. Raise the value and save again."
+msgstr "%(field)s no baja de %(limit)s. Sube el valor y guarda de nuevo."
+
+#, fuzzy
 msgid "%(field)s moved."
 msgstr "%(field)s movido."
+
+#, fuzzy
+msgid ""
+"%(field)s takes at most %(limit)s letters. Shorten what you wrote and save "
+"again."
+msgstr ""
+"%(field)s acepta como mucho %(limit)s letras. Acorta lo que has escrito y "
+"guarda de nuevo."
 
 #, fuzzy
 msgid "%(group)s created."

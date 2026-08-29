@@ -24,6 +24,12 @@ msgstr ""
 msgid "%(field)s deleted."
 msgstr ""
 
+msgid "%(field)s goes no higher than %(limit)s. Lower the value and save again."
+msgstr ""
+
+msgid "%(field)s goes no lower than %(limit)s. Raise the value and save again."
+msgstr ""
+
 msgid "%(field)s is optional again."
 msgstr ""
 
@@ -34,6 +40,9 @@ msgid "%(field)s moved."
 msgstr ""
 
 msgid "%(field)s renamed."
+msgstr ""
+
+msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again."
 msgstr ""
 
 msgid "%(file)s is larger than one upload may be."
