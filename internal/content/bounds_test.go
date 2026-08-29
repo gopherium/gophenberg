@@ -41,6 +41,18 @@ func TestValuesRefuseWhatTheBoundsForbid(t *testing.T) {
 			bounded(t, "subtitle", content.FieldKindText, map[string]any{"maxlength": float64(3)}),
 			"much too long", "field_length",
 		},
+		"a number the caller decoded as a small float": {
+			bounded(t, "rating", content.FieldKindNumber, map[string]any{"max": float64(10)}),
+			float32(50), "field_max",
+		},
+		"a number the caller decoded as a small whole number": {
+			bounded(t, "rating", content.FieldKindNumber, map[string]any{"max": float64(10)}),
+			int32(50), "field_max",
+		},
+		"a number the caller decoded as a wide whole number": {
+			bounded(t, "rating", content.FieldKindNumber, map[string]any{"max": float64(10)}),
+			int64(50), "field_max",
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -90,6 +102,18 @@ func TestValuesAcceptWhatTheBoundsAllow(t *testing.T) {
 		},
 		"step is never enforced": {
 			bounded(t, "rating", content.FieldKindNumber, map[string]any{"step": float64(5)}), float64(3),
+		},
+		"a day carrying instructions, which set no bound": {
+			bounded(t, "sold-on", content.FieldKindDate,
+				map[string]any{"instructions": "The day it sold."}), "2026-08-29",
+		},
+		"a check carrying instructions, which set no bound": {
+			bounded(t, "boxed", content.FieldKindBoolean,
+				map[string]any{"instructions": "Whether it ships boxed."}), true,
+		},
+		"a picture carrying instructions, which set no bound": {
+			bounded(t, "cover", content.FieldKindMedia,
+				map[string]any{"instructions": "Pick a wide one."}), float64(7),
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

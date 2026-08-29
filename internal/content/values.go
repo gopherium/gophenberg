@@ -71,14 +71,13 @@ func withinBounds(f Field, value any) error {
 	if len(f.Settings) == 0 {
 		return nil
 	}
-	switch f.Kind {
-	case FieldKindNumber:
-		return numberWithinBounds(f, value)
-	case FieldKindText:
-		return textWithinBounds(f, value)
-	default:
-		return nil
+	if held, ok := settingNumber(value); ok && f.Kind == FieldKindNumber {
+		return numberWithinBounds(f, held)
 	}
+	if held, ok := value.(string); ok && f.Kind == FieldKindText {
+		return textWithinBounds(f, held)
+	}
+	return nil
 }
 
 // outOfBounds returns the refusal naming the field and the limit it passed.
@@ -89,11 +88,7 @@ func outOfBounds(f Field, code, setting string, limit float64) error {
 }
 
 // numberWithinBounds reports whether the number sits between the min and the max.
-func numberWithinBounds(f Field, value any) error {
-	held, ok := settingNumber(value)
-	if !ok {
-		return nil
-	}
+func numberWithinBounds(f Field, held float64) error {
 	if low, named := settingNumber(f.Settings[SettingMin]); named && held < low {
 		return outOfBounds(f, "field_min", SettingMin, low)
 	}
@@ -104,11 +99,7 @@ func numberWithinBounds(f Field, value any) error {
 }
 
 // textWithinBounds reports whether the text is no longer than maxlength.
-func textWithinBounds(f Field, value any) error {
-	held, ok := value.(string)
-	if !ok {
-		return nil
-	}
+func textWithinBounds(f Field, held string) error {
 	longest, named := settingNumber(f.Settings[SettingMaxLength])
 	if named && float64(len([]rune(held))) > longest {
 		return outOfBounds(f, "field_length", SettingMaxLength, longest)
@@ -136,12 +127,8 @@ func holdsKind(value any, kind FieldKind) bool {
 
 // isNumber reports whether the value is a number, however it was decoded.
 func isNumber(value any) bool {
-	switch value.(type) {
-	case float64, float32, int, int32, int64:
-		return true
-	default:
-		return false
-	}
+	_, held := settingNumber(value)
+	return held
 }
 
 // isDay reports whether the value is a day written as a date.

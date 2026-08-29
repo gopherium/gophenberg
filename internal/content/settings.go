@@ -79,7 +79,11 @@ func settingNumber(value any) (float64, bool) {
 	switch held := value.(type) {
 	case float64:
 		return held, true
+	case float32:
+		return float64(held), true
 	case int:
+		return float64(held), true
+	case int32:
 		return float64(held), true
 	case int64:
 		return float64(held), true
