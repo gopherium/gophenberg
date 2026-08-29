@@ -226,5 +226,5 @@ func (s *server) bufferedValues(r *http.Request, c content.Content, req autosave
 	if err != nil {
 		return nil, err
 	}
-	return scalars, scalars.Validate(t.Fields)
+	return scalars, scalars.ValidateShape(t.Fields)
 }

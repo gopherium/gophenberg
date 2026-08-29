@@ -18,6 +18,9 @@ var ErrSettingShape = errors.New("content: setting shape")
 // ErrSettingBounds reports settings that disagree with each other.
 var ErrSettingBounds = errors.New("content: settings disagree")
 
+// ErrFieldBounds reports a value falling outside the bounds its field carries.
+var ErrFieldBounds = errors.New("content: value out of bounds")
+
 // SettingDefault names the value the editor pre-fills a fresh item with.
 const SettingDefault = "default"
 
