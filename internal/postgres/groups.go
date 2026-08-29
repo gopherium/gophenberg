@@ -411,6 +411,7 @@ func (s *TypeStore) UpdateFieldInGroup(
 	row, err := s.queries.UpdateContentField(ctx, db.UpdateContentFieldParams{
 		Label:     f.Label,
 		Required:  f.Required,
+		Settings:  settingsJSON(f.Settings),
 		UpdatedAt: f.UpdatedAt,
 		GroupID:   int32(groupID),
 		Key:       f.Key,
@@ -525,6 +526,7 @@ func (s *TypeStore) CreateFieldInGroup(ctx context.Context, groupID int, f conte
 			Required:  f.Required,
 			CreatedAt: f.CreatedAt,
 			UpdatedAt: f.UpdatedAt,
+			Settings:  settingsJSON(f.Settings),
 		})
 		if err != nil {
 			return err

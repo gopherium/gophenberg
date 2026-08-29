@@ -4,6 +4,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -277,6 +278,7 @@ func (s *TypeStore) CreateField(ctx context.Context, f content.Field) (content.F
 			Required:  f.Required,
 			CreatedAt: f.CreatedAt,
 			UpdatedAt: f.UpdatedAt,
+			Settings:  settingsJSON(f.Settings),
 		})
 		if err != nil {
 			return err
@@ -335,7 +337,26 @@ func toField(row db.CoreContentField) content.Field {
 	if row.RelatesTo != nil {
 		f.RelatesTo = *row.RelatesTo
 	}
+	f.Settings = settingsOf(row.Settings)
 	return f
+}
+
+// settingsJSON returns the settings as the jsonb column holds them, an empty object for none.
+func settingsJSON(settings map[string]any) []byte {
+	if len(settings) == 0 {
+		return []byte("{}")
+	}
+	raw, _ := json.Marshal(settings)
+	return raw
+}
+
+// settingsOf returns the stored settings as the domain reads them, nothing for an empty object.
+func settingsOf(raw []byte) map[string]any {
+	var settings map[string]any
+	if err := json.Unmarshal(raw, &settings); err != nil || len(settings) == 0 {
+		return nil
+	}
+	return settings
 }
 
 // toType maps a stored row to a domain content type with UTC timestamps.
