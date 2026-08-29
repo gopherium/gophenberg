@@ -296,7 +296,7 @@ func TestRegistryRefusesAReorderNamingAStranger(t *testing.T) {
 		t.Fatalf("ReorderFieldsInGroup() error = %v, want %v", err, content.ErrFieldNotFound)
 	}
 	if got := fieldKeysOf(t, registry, "car"); !slices.Equal(got, []string{"color", "engine", "doors"}) {
-		t.Errorf("fields after the refusal = %v, want the declared order kept", got)
+		t.Errorf("fields after the refused write = %v, want the declared order kept", got)
 	}
 }
 

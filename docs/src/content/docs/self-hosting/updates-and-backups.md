@@ -21,16 +21,21 @@ Migrations run automatically when the new version starts. While
 Gophenberg is below 1.0, read the release notes first, since a
 release can change behavior.
 
-Updating to %VERSION% runs one migration on start. It adds one
-column to the stored [fields](/guides/fields/), holding the settings
-each one carries, and every field you already have starts with none.
-It reads and rewrites no content. Back up the database first anyway,
-as before any update. Public addresses do not change shape.
+Updating to %VERSION% runs one migration on start. It carries the
+[fields](/guides/fields/) each type declares into a field group and
+places that group on the type they came from, so every type serves
+the same fields it served before. Back up the database before the
+first start on this release, as before any update. Public addresses
+do not change shape.
 
-Rolling this release back means dropping that column, and every
-instruction, default and bound an operator typed goes with it. They
-do not return if you migrate forward again. Nothing else is touched:
-the fields, their values, your content and its revisions all stand.
+Rolling this release back is not free. Fields now live in
+[field groups](/guides/fields/), and the rollback puts each field
+back on the single content type its group names. A group placed on
+every type, on several types, or by a rule that excludes one loses
+its field definitions, because there is no single type to give them
+back to. The values those fields held stay in the database, but the
+definitions do not return if you migrate forward again. Take a
+backup before rolling back past this release.
 
 This release serves themes built on `@gophenberg/astro`
 %KIT_VERSION%, and refuses any other, naming what it found. Rebuild

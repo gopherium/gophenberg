@@ -124,8 +124,7 @@ holds), and `seo`. **NotFound** receives `seo`.
 
 **Term** renders an item that lists what points at it, a category
 page for example. It receives the Archive props plus `term`, the
-item itself as a full `Post`, and `blocks`. Render the term's own
-title and content first, then the `posts` the way an archive does.
+item itself as a full `Post`, and `blocks`.
 
 A post's `fields` object carries its values, and relation values
 name the items they point at. The kit's `relatedFields` helper
@@ -150,6 +149,10 @@ const related = relatedFields(post)
 	))
 }
 ```
+
+`relatedFields` returns relations only. A choice value comes back
+as the stored value and a media value as a library identity, both
+covered in the [content API](/reference/content-api/).
 
 ## Trying it
 

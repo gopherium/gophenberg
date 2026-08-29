@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
@@ -116,6 +116,119 @@ test('shows the instructions a media field carries, which no control builds for 
 	renderAt(EDITOR_PATH)
 
 	expect(await screen.findByText('Pick a wide one.')).toBeInTheDocument()
+})
+
+test('offers a choice field its listed pairs', async () => {
+	declaring({
+		key: 'style',
+		label: 'Style',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			choices: [
+				{ value: 'ipa', label: 'IPA' },
+				{ value: 'stout', label: 'Stout' },
+			],
+		},
+	})
+	renderAt(EDITOR_PATH)
+
+	const control = await screen.findByLabelText('Style')
+	await userEvent.click(control)
+
+	expect(await screen.findByRole('option', { name: 'IPA' })).toBeInTheDocument()
+	expect(screen.getByRole('option', { name: 'Stout' })).toBeInTheDocument()
+})
+
+test('offers a radio presentation one circle per pair', async () => {
+	declaring({
+		key: 'style',
+		label: 'Style',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'radio',
+			choices: [
+				{ value: 'ipa', label: 'IPA' },
+				{ value: 'stout', label: 'Stout' },
+			],
+		},
+	})
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByRole('radio', { name: 'IPA' })).toBeInTheDocument()
+	expect(screen.getByRole('radio', { name: 'Stout' })).toBeInTheDocument()
+})
+
+test('offers a textarea variant a box holding lines', async () => {
+	declaring({
+		key: 'notes',
+		label: 'Notes',
+		kind: 'text',
+		many: false,
+		required: false,
+		settings: { variant: 'textarea' },
+	})
+	renderAt(EDITOR_PATH)
+
+	const control = await screen.findByLabelText('Notes')
+	expect(control.tagName).toBe('TEXTAREA')
+})
+
+test('offers an email variant the input that says so', async () => {
+	declaring({
+		key: 'contact',
+		label: 'Contact',
+		kind: 'text',
+		many: false,
+		required: false,
+		settings: { variant: 'email' },
+	})
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByLabelText('Contact')).toHaveAttribute('type', 'email')
+})
+
+test('offers a bounded range a slider and an unbounded one the plain input', async () => {
+	declaring({
+		key: 'rating',
+		label: 'Rating',
+		kind: 'number',
+		many: false,
+		required: false,
+		settings: { presentation: 'range', min: 1, max: 10 },
+	})
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByRole('slider', { name: 'Rating' })).toBeInTheDocument()
+})
+
+test('sends the number the slider was dragged to', async () => {
+	declaring({
+		key: 'rating',
+		label: 'Rating',
+		kind: 'number',
+		many: false,
+		required: false,
+		settings: { presentation: 'range', min: 1, max: 10 },
+	})
+	const sent: unknown[] = []
+	server.use(
+		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...storedPost, fields: { rating: 7 } })
+		}),
+	)
+	renderAt(EDITOR_PATH)
+	const slider = await screen.findByRole('slider', { name: 'Rating' })
+
+	fireEvent.change(slider, { target: { value: '7' } })
+	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toMatchObject({ fields: { rating: 7 } })
 })
 
 test('sends the edited values when the post is saved', async () => {

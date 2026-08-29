@@ -24,6 +24,9 @@ msgstr ""
 msgid "%(field)s deleted."
 msgstr ""
 
+msgid "%(field)s does not match the format its field asks for. Check it and save again."
+msgstr ""
+
 msgid "%(field)s goes no higher than %(limit)s. Lower the value and save again."
 msgstr ""
 
@@ -37,6 +40,12 @@ msgid "%(field)s is required now."
 msgstr ""
 
 msgid "%(field)s moved."
+msgstr ""
+
+msgid "%(field)s names the same one twice. Remove the repeat and save again."
+msgstr ""
+
+msgid "%(field)s only takes one of its listed choices. Pick one and save again."
 msgstr ""
 
 msgid "%(field)s renamed."
@@ -174,6 +183,9 @@ msgstr ""
 msgid "Add block"
 msgstr ""
 
+msgid "Add choice"
+msgstr ""
+
 msgid "Add condition"
 msgstr ""
 
@@ -189,10 +201,19 @@ msgstr ""
 msgid "Add title"
 msgstr ""
 
+msgid "Add to %(field)s"
+msgstr ""
+
 msgid "Address"
 msgstr ""
 
 msgid "All %(type)s"
+msgstr ""
+
+msgid "Allow custom"
+msgstr ""
+
+msgid "Allow empty"
 msgstr ""
 
 msgid "Alt text"
@@ -255,6 +276,9 @@ msgstr ""
 msgid "Bundles of fields, shown where their rules place them."
 msgstr ""
 
+msgid "Button group"
+msgstr ""
+
 msgid "Cancel"
 msgstr ""
 
@@ -265,6 +289,12 @@ msgid "Change address"
 msgstr ""
 
 msgid "Change the address of %(type)s"
+msgstr ""
+
+msgid "Checkbox group"
+msgstr ""
+
+msgid "Choices"
 msgstr ""
 
 msgid "Choose %(field)s"
@@ -555,6 +585,9 @@ msgstr ""
 msgid "Keep it here"
 msgstr ""
 
+msgid "Label"
+msgstr ""
+
 msgid "Language"
 msgstr ""
 
@@ -604,6 +637,9 @@ msgid "Make optional"
 msgstr ""
 
 msgid "Many targets"
+msgstr ""
+
+msgid "Many values"
 msgstr ""
 
 msgid "March"
@@ -800,6 +836,9 @@ msgstr ""
 msgid "Publish"
 msgstr ""
 
+msgid "Radio group"
+msgstr ""
+
 msgid "Redo"
 msgstr ""
 
@@ -816,6 +855,9 @@ msgid "Remove"
 msgstr ""
 
 msgid "Remove %(title)s"
+msgstr ""
+
+msgid "Remove Media %(id)d"
 msgstr ""
 
 msgid "Rename"
@@ -942,6 +984,9 @@ msgid "Tablet"
 msgstr ""
 
 msgid "Text"
+msgstr ""
+
+msgid "Text area"
 msgstr ""
 
 msgid "That email is already in use."
@@ -1274,6 +1319,9 @@ msgstr ""
 msgid "Videos"
 msgstr ""
 
+msgid "Web address"
+msgstr ""
+
 msgid "Welcome to Gophenberg."
 msgstr ""
 
@@ -1354,7 +1402,15 @@ msgid "Status"
 msgstr ""
 
 msgctxt "field type"
+msgid "Choice"
+msgstr ""
+
+msgctxt "field type"
 msgid "Date"
+msgstr ""
+
+msgctxt "field type"
+msgid "Gallery"
 msgstr ""
 
 msgctxt "field type"
@@ -1363,6 +1419,14 @@ msgstr ""
 
 msgctxt "field type"
 msgid "Media"
+msgstr ""
+
+msgctxt "field type"
+msgid "Range"
+msgstr ""
+
+msgctxt "field type"
+msgid "Select"
 msgstr ""
 
 msgctxt "media family"

@@ -29,8 +29,8 @@ var ErrInvalidFieldKind = errors.New("content: invalid field kind")
 // ErrRelationNeedsTarget reports that a relation field names no target type.
 var ErrRelationNeedsTarget = errors.New("content: a relation field needs a target type")
 
-// ErrFieldNotRelational reports that only a relation field takes a target or many.
-var ErrFieldNotRelational = errors.New("content: only a relation field takes a target or many")
+// ErrFieldNotRelational reports a target or many on a kind that takes neither.
+var ErrFieldNotRelational = errors.New("content: the kind takes no target or many")
 
 // ErrTargetUnknown reports that a relation field targets an unregistered type.
 var ErrTargetUnknown = errors.New("content: relation target unknown")
@@ -49,6 +49,7 @@ const (
 	FieldKindDate     FieldKind = "date"
 	FieldKindMedia    FieldKind = "media"
 	FieldKindRelation FieldKind = "relation"
+	FieldKindChoice   FieldKind = "choice"
 )
 
 // Field describes one typed field a group declares, flattened onto the types its group matches.
@@ -101,17 +102,26 @@ func (f Field) Validate() error {
 // validFieldKind reports whether the CMS holds values of the kind.
 func validFieldKind(kind FieldKind) bool {
 	switch kind {
-	case FieldKindText, FieldKindNumber, FieldKindBoolean, FieldKindDate, FieldKindMedia, FieldKindRelation:
+	case FieldKindText, FieldKindNumber, FieldKindBoolean, FieldKindDate,
+		FieldKindMedia, FieldKindRelation, FieldKindChoice:
 		return true
 	default:
 		return false
 	}
 }
 
-// validateRelation reports whether the relation shape matches the kind.
+// holdsMany reports whether the kind takes many values under one key.
+func holdsMany(kind FieldKind) bool {
+	return kind == FieldKindRelation || kind == FieldKindMedia
+}
+
+// validateRelation reports whether the target and many match the kind.
 func (f Field) validateRelation() error {
+	if f.Many && !holdsMany(f.Kind) {
+		return ErrFieldNotRelational
+	}
 	if f.Kind != FieldKindRelation {
-		if f.RelatesTo != "" || f.Many {
+		if f.RelatesTo != "" {
 			return ErrFieldNotRelational
 		}
 		return nil

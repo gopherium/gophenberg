@@ -3,7 +3,16 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
-import { createType, deleteType, kindLabel, listTypes, slugifyKey, updateType } from '../content/types'
+import {
+	createType,
+	deleteType,
+	fieldKinds,
+	kindLabel,
+	listTypes,
+	pickedKind,
+	slugifyKey,
+	updateType,
+} from '../content/types'
 
 test('reduces a label to the key it declares', () => {
 	expect(slugifyKey('Sold On')).toBe('sold-on')
@@ -12,7 +21,54 @@ test('reduces a label to the key it declares', () => {
 
 test('names a field kind the admin has no word for by the kind itself', () => {
 	expect(kindLabel('text')).toBe('Text')
+	expect(kindLabel('choice')).toBe('Choice')
 	expect(kindLabel('sundial')).toBe('sundial')
+})
+
+test('offers a picker entry for every presentation a field starts as', () => {
+	expect(fieldKinds().map((held) => held.value)).toEqual([
+		'text',
+		'textarea',
+		'email',
+		'url',
+		'number',
+		'range',
+		'boolean',
+		'date',
+		'select',
+		'radio',
+		'checkboxes',
+		'buttons',
+		'media',
+		'gallery',
+		'relation',
+	])
+})
+
+test('maps a picker entry to the kind and the settings it starts with', () => {
+	expect(pickedKind('radio')).toEqual({
+		kind: 'choice',
+		many: false,
+		settings: { presentation: 'radio' },
+	})
+	expect(pickedKind('checkboxes')).toEqual({
+		kind: 'choice',
+		many: false,
+		settings: { presentation: 'checkbox', multiple: true },
+	})
+	expect(pickedKind('email')).toEqual({
+		kind: 'text',
+		many: false,
+		settings: { variant: 'email' },
+	})
+	expect(pickedKind('range')).toEqual({
+		kind: 'number',
+		many: false,
+		settings: { presentation: 'range' },
+	})
+	expect(pickedKind('gallery')).toEqual({ kind: 'media', many: true })
+	expect(pickedKind('text')).toEqual({ kind: 'text', many: false })
+	expect(pickedKind('relation')).toEqual({ kind: 'relation', many: false })
 })
 
 const POST_ROW = {

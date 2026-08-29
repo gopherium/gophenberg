@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 )
 
@@ -42,6 +43,24 @@ const SettingMaxLength = "maxlength"
 // SettingStep names the increment the editor control moves by.
 const SettingStep = "step"
 
+// SettingChoices names the value and label pairs a choice field offers.
+const SettingChoices = "choices"
+
+// SettingMultiple names whether a choice field holds several values.
+const SettingMultiple = "multiple"
+
+// SettingPresentation names the control a field is edited as.
+const SettingPresentation = "presentation"
+
+// SettingAllowNull names whether a choice control offers an explicit empty entry.
+const SettingAllowNull = "allow_null"
+
+// SettingAllowCustom names whether a choice field takes values outside its choices.
+const SettingAllowCustom = "allow_custom"
+
+// SettingVariant names the flavor a text field is edited and checked as.
+const SettingVariant = "variant"
+
 // settingChecks returns the settings the kind takes, each with its shape check.
 func settingChecks(kind FieldKind) map[string]func(value any) bool {
 	held := map[string]func(value any) bool{SettingInstructions: settingString}
@@ -50,16 +69,75 @@ func settingChecks(kind FieldKind) map[string]func(value any) bool {
 		held[SettingDefault] = settingString
 		held[SettingPlaceholder] = settingString
 		held[SettingMaxLength] = settingWhole
+		held[SettingVariant] = settingOneOf("email", "url", "textarea")
 	case FieldKindNumber:
 		held[SettingDefault] = settingNumeric
 		held[SettingPlaceholder] = settingString
 		held[SettingMin] = settingNumeric
 		held[SettingMax] = settingNumeric
 		held[SettingStep] = settingPositive
+		held[SettingPresentation] = settingOneOf("range")
 	case FieldKindBoolean:
 		held[SettingDefault] = settingBool
+	case FieldKindChoice:
+		held[SettingDefault] = settingChoiceDefault
+		held[SettingChoices] = settingChoicePairs
+		held[SettingMultiple] = settingBool
+		held[SettingPresentation] = settingOneOf("select", "checkbox", "radio", "buttons")
+		held[SettingAllowNull] = settingBool
+		held[SettingAllowCustom] = settingBool
 	}
 	return held
+}
+
+// settingOneOf returns a check accepting one of the named words.
+func settingOneOf(words ...string) func(value any) bool {
+	return func(value any) bool {
+		held, ok := value.(string)
+		return ok && slices.Contains(words, held)
+	}
+}
+
+// settingChoicePairs reports whether the value is a list of value and label pairs.
+func settingChoicePairs(value any) bool {
+	pairs, ok := value.([]any)
+	if !ok {
+		return false
+	}
+	for _, pair := range pairs {
+		if !choicePair(pair) {
+			return false
+		}
+	}
+	return true
+}
+
+// choicePair reports whether the value is one pair of a value and a label, both words.
+func choicePair(value any) bool {
+	pair, ok := value.(map[string]any)
+	if !ok || len(pair) != 2 {
+		return false
+	}
+	chosen, hasValue := pair["value"].(string)
+	named, hasLabel := pair["label"].(string)
+	return hasValue && hasLabel && chosen != "" && named != ""
+}
+
+// settingChoiceDefault reports whether the value is a word or a list of words.
+func settingChoiceDefault(value any) bool {
+	if _, ok := value.(string); ok {
+		return true
+	}
+	members, ok := value.([]any)
+	if !ok {
+		return false
+	}
+	for _, member := range members {
+		if _, ok := member.(string); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // settingString reports whether the value is a string.
@@ -140,12 +218,56 @@ func settingsAgree(kind FieldKind, settings map[string]any) error {
 		return numberSettingsAgree(settings)
 	case FieldKindText:
 		return textSettingsAgree(settings)
+	case FieldKindChoice:
+		return choiceSettingsAgree(settings)
 	default:
 		return nil
 	}
 }
 
-// disagree returns the refusal naming the setting that falls outside the others.
+// choiceSettingsAgree reports whether the default matches multiple and sits among the choices.
+func choiceSettingsAgree(settings map[string]any) error {
+	chosen, hasChosen := settings[SettingDefault]
+	if !hasChosen {
+		return nil
+	}
+	members, isMany := chosen.([]any)
+	if !isMany {
+		members = []any{chosen}
+	}
+	if multiple, _ := settings[SettingMultiple].(bool); multiple != isMany {
+		return disagree(SettingDefault)
+	}
+	if custom, _ := settings[SettingAllowCustom].(bool); custom {
+		return nil
+	}
+	held := choiceValues(settings[SettingChoices])
+	if len(held) == 0 {
+		return nil
+	}
+	for _, member := range members {
+		if !held[member.(string)] {
+			return disagree(SettingDefault)
+		}
+	}
+	return nil
+}
+
+// choiceValues returns the values a choices setting lists.
+func choiceValues(listed any) map[string]bool {
+	held := map[string]bool{}
+	pairs, _ := listed.([]any)
+	for _, pair := range pairs {
+		if named, ok := pair.(map[string]any); ok {
+			if chosen, ok := named["value"].(string); ok {
+				held[chosen] = true
+			}
+		}
+	}
+	return held
+}
+
+// disagree returns the error naming the setting that falls outside the others.
 func disagree(setting string) error {
 	return Refuse(ErrSettingBounds, "setting_bounds",
 		fmt.Sprintf("%s: %s", ErrSettingBounds, setting), Details{"setting": setting})
@@ -165,11 +287,18 @@ func numberSettingsAgree(settings map[string]any) error {
 	return nil
 }
 
-// textSettingsAgree reports whether the default fits inside maxlength.
+// textSettingsAgree reports whether the default fits inside maxlength and reads as the variant.
 func textSettingsAgree(settings map[string]any) error {
 	chosen, hasChosen := settings[SettingDefault].(string)
+	if !hasChosen {
+		return nil
+	}
 	longest, hasLongest := settingNumber(settings[SettingMaxLength])
-	if hasChosen && hasLongest && float64(len([]rune(chosen))) > longest {
+	if hasLongest && float64(len([]rune(chosen))) > longest {
+		return disagree(SettingDefault)
+	}
+	variant, _ := settings[SettingVariant].(string)
+	if !readsAsVariant(variant, chosen) {
 		return disagree(SettingDefault)
 	}
 	return nil

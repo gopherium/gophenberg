@@ -55,15 +55,27 @@ func TestFieldMigrationsHoldOneKeyPerType(t *testing.T) {
 	}
 }
 
-func TestFieldMigrationsRejectAnUnknownKind(t *testing.T) {
+func TestFieldMigrationsLeaveKindValidityToTheRegistry(t *testing.T) {
 	t.Parallel()
 
 	db := newTestDB(t)
 
 	err := insertField(db, "post", "taste", "flavor", nil, false)
 
-	if code := pgErrorCode(err); code != checkViolation {
-		t.Fatalf("an unknown kind: %v with code %q, want %q", err, code, checkViolation)
+	if err != nil {
+		t.Fatalf("an unlisted kind: %v, want the registry to be the only gate", err)
+	}
+}
+
+func TestFieldMigrationsAcceptAManyMedia(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+
+	err := insertField(db, "post", "gallery", "media", nil, true)
+
+	if err != nil {
+		t.Fatalf("many on a media: %v, want the widened constraint to accept it", err)
 	}
 }
 

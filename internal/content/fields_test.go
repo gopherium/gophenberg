@@ -45,6 +45,36 @@ func TestNewFieldAcceptsEveryScalarKind(t *testing.T) {
 	}
 }
 
+func TestNewFieldAcceptsTheChoiceKind(t *testing.T) {
+	t.Parallel()
+
+	f, err := content.NewField(content.Field{
+		TypeKey: "post", Key: "beer-style", Label: "Beer style", Kind: content.FieldKindChoice,
+	})
+
+	if err != nil {
+		t.Fatalf("NewField() error = %v, want nil", err)
+	}
+	if f.Kind != content.FieldKindChoice {
+		t.Errorf("Kind = %q, want %q", f.Kind, content.FieldKindChoice)
+	}
+}
+
+func TestNewFieldAcceptsAManyMedia(t *testing.T) {
+	t.Parallel()
+
+	f, err := content.NewField(content.Field{
+		TypeKey: "post", Key: "gallery", Label: "Gallery", Kind: content.FieldKindMedia, Many: true,
+	})
+
+	if err != nil {
+		t.Fatalf("NewField() error = %v, want nil", err)
+	}
+	if !f.Many {
+		t.Errorf("Many = false, want a media field holding many")
+	}
+}
+
 func TestNewFieldRefusesABadKey(t *testing.T) {
 	t.Parallel()
 

@@ -106,7 +106,7 @@ func TestTheManagerRefusesThemeChangesUnderAnOperatorPin(t *testing.T) {
 				t.Fatalf("%s() = %v, want it refused", name, err)
 			}
 			if refused.Code != "theme_pinned" {
-				t.Errorf("%s() code = %q, want theme_pinned rather than any later refusal", name, refused.Code)
+				t.Errorf("%s() code = %q, want theme_pinned rather than any later error", name, refused.Code)
 			}
 			if refused.Reason != "the theme is pinned by the operator" {
 				t.Errorf("%s() reason = %q, want the operator pin named", name, refused.Reason)

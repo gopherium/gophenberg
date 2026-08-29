@@ -236,12 +236,12 @@ func TestThemeActivateReportsTheReasonAThemeWasRefused(t *testing.T) {
 		Meta map[string]any `json:"meta"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &answered); err != nil {
-		t.Fatalf("reading the refusal: %v", err)
+		t.Fatalf("reading the error response: %v", err)
 	}
 	if answered.Code != "kit_unsupported" {
 		t.Errorf("code = %q, want the reason the theme was refused", answered.Code)
 	}
 	if answered.Meta["declared"] != "0.1.0" {
-		t.Errorf("meta = %v, want the versions the refusal carries", answered.Meta)
+		t.Errorf("meta = %v, want the versions the error response carries", answered.Meta)
 	}
 }

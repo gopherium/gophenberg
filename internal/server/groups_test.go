@@ -107,7 +107,7 @@ func TestGroupCreateRefusesAGroupWithNoTitle(t *testing.T) {
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnprocessableEntity)
 	}
-	if code := refusalCode(t, recorder); code != "group_title_required" {
+	if code := errorCode(t, recorder); code != "group_title_required" {
 		t.Errorf("code = %q, want group_title_required", code)
 	}
 }
@@ -122,7 +122,7 @@ func TestGroupCreateRefusesARuleSourceNothingDeclares(t *testing.T) {
 			"source": "vanished", "operator": content.OperatorIs, "value": "post",
 		}}}}))
 
-	if code := refusalCode(t, recorder); code != "rule_source_unknown" {
+	if code := errorCode(t, recorder); code != "rule_source_unknown" {
 		t.Errorf("code = %q, want rule_source_unknown, body %s", code, recorder.Body.String())
 	}
 }
@@ -215,7 +215,7 @@ func TestGroupOrderRefusesAnOrderLeavingAGroupOut(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPut, "/api/groups/order",
 		groupBody(t, map[string]any{"order": []int{first}}))
 
-	if code := refusalCode(t, recorder); code != "group_order_incomplete" {
+	if code := errorCode(t, recorder); code != "group_order_incomplete" {
 		t.Errorf("code = %q, want group_order_incomplete", code)
 	}
 }
@@ -256,7 +256,7 @@ func TestGroupFieldCreateRefusesAKeyAMatchingGroupHolds(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPost, groupPath(rival)+"/fields",
 		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
 
-	if code := refusalCode(t, recorder); code != "field_taken" {
+	if code := errorCode(t, recorder); code != "field_taken" {
 		t.Errorf("code = %q, want field_taken, body %s", code, recorder.Body.String())
 	}
 }

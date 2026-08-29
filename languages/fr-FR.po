@@ -19,6 +19,14 @@ msgstr " ou "
 
 #, fuzzy
 msgid ""
+"%(field)s does not match the format its field asks for. Check it and save "
+"again."
+msgstr ""
+"%(field)s ne respecte pas le format demandé par son champ. Vérifiez-le et "
+"enregistrez de nouveau."
+
+#, fuzzy
+msgid ""
 "%(field)s goes no higher than %(limit)s. Lower the value and save again."
 msgstr ""
 "%(field)s ne dépasse pas %(limit)s. Baissez la valeur et enregistrez de "
@@ -33,6 +41,19 @@ msgstr ""
 #, fuzzy
 msgid "%(field)s moved."
 msgstr "%(field)s déplacé."
+
+#, fuzzy
+msgid "%(field)s names the same one twice. Remove the repeat and save again."
+msgstr ""
+"%(field)s nomme le même deux fois. Retirez la répétition et enregistrez de "
+"nouveau."
+
+#, fuzzy
+msgid ""
+"%(field)s only takes one of its listed choices. Pick one and save again."
+msgstr ""
+"%(field)s accepte uniquement un des choix de sa liste. Choisissez-en un et "
+"enregistrez de nouveau."
 
 #, fuzzy
 msgid "%(field)s settled."
@@ -162,6 +183,10 @@ msgid "Add block"
 msgstr "Ajouter un bloc"
 
 #, fuzzy
+msgid "Add choice"
+msgstr "Ajouter un choix"
+
+#, fuzzy
 msgid "Add condition"
 msgstr "Ajouter une condition"
 
@@ -182,8 +207,20 @@ msgid "Add title"
 msgstr "Ajouter un titre"
 
 #, fuzzy
+msgid "Add to %(field)s"
+msgstr "Ajouter à %(field)s"
+
+#, fuzzy
 msgid "Address"
 msgstr "Adresse"
+
+#, fuzzy
+msgid "Allow custom"
+msgstr "Autoriser les valeurs libres"
+
+#, fuzzy
+msgid "Allow empty"
+msgstr "Autoriser le vide"
 
 #, fuzzy
 msgid "Alt text"
@@ -260,6 +297,10 @@ msgid "Bundles of fields, shown where their rules place them."
 msgstr "Ensembles de champs, affichés là où leurs règles les placent."
 
 #, fuzzy
+msgid "Button group"
+msgstr "Groupe de boutons"
+
+#, fuzzy
 msgid "Cancel"
 msgstr "Annuler"
 
@@ -270,6 +311,14 @@ msgstr "Légende"
 #, fuzzy
 msgid "Change address"
 msgstr "Changer l'adresse"
+
+#, fuzzy
+msgid "Checkbox group"
+msgstr "Groupe de cases à cocher"
+
+#, fuzzy
+msgid "Choices"
+msgstr "Choix"
 
 #, fuzzy
 msgid "Choose the language the admin reads in."
@@ -610,6 +659,10 @@ msgid "Keep it here"
 msgstr "Le laisser ici"
 
 #, fuzzy
+msgid "Label"
+msgstr "Libellé"
+
+#, fuzzy
 msgid "Language"
 msgstr "Langue"
 
@@ -664,6 +717,10 @@ msgstr "Minimum"
 #, fuzzy
 msgid "Make default"
 msgstr "Rendre par défaut"
+
+#, fuzzy
+msgid "Many values"
+msgstr "Plusieurs valeurs"
 
 #, fuzzy
 msgid "March"
@@ -890,6 +947,10 @@ msgid "Publish"
 msgstr "Publier"
 
 #, fuzzy
+msgid "Radio group"
+msgstr "Groupe de boutons radio"
+
+#, fuzzy
 msgid "Redo"
 msgstr "Rétablir"
 
@@ -908,6 +969,10 @@ msgstr "Relation"
 #, fuzzy
 msgid "Remove"
 msgstr "Retirer"
+
+#, fuzzy
+msgid "Remove Media %(id)d"
+msgstr "Retirer le média %(id)d"
 
 #, fuzzy
 msgid "Rename"
@@ -1048,6 +1113,10 @@ msgstr "Tablette"
 #, fuzzy
 msgid "Text"
 msgstr "Texte"
+
+#, fuzzy
+msgid "Text area"
+msgstr "Zone de texte"
 
 #, fuzzy
 msgid "That email is already in use."
@@ -1498,6 +1567,10 @@ msgid "Videos"
 msgstr "Vidéos"
 
 #, fuzzy
+msgid "Web address"
+msgstr "Adresse web"
+
+#, fuzzy
 msgid "Welcome to Gophenberg."
 msgstr "Bienvenue sur Gophenberg."
 
@@ -1710,6 +1783,26 @@ msgstr "Ce type répondra sous /%(word)s."
 msgctxt "field group"
 msgid "Status"
 msgstr "Statut"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Choice"
+msgstr "Choix"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Gallery"
+msgstr "Galerie"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Range"
+msgstr "Plage"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Select"
+msgstr "Liste déroulante"
 
 #, fuzzy
 msgid "is"

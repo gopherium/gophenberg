@@ -27,7 +27,7 @@ func TestContentETagRefusesAnAnswerItCannotEncode(t *testing.T) {
 	}
 	var refused *json.UnsupportedValueError
 	if !errors.As(err, &refused) {
-		t.Fatalf("contentETag() error = %v, want the encoder refusal wrapped", err)
+		t.Fatalf("contentETag() error = %v, want the encoder error wrapped", err)
 	}
 	if got := err.Error(); !strings.HasPrefix(got, "server: encode content etag: ") {
 		t.Errorf("contentETag() error = %q, want the failure named as encode content etag", got)

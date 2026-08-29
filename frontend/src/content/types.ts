@@ -214,12 +214,74 @@ export async function deleteType(key: string): Promise<void> {
 export function fieldKinds(): Choice[] {
 	return [
 		{ label: __('Text', 'gophenberg'), value: 'text' },
+		{ label: __('Text area', 'gophenberg'), value: 'textarea' },
+		{ label: __('Email', 'gophenberg'), value: 'email' },
+		{ label: __('Web address', 'gophenberg'), value: 'url' },
 		{ label: __('Number', 'gophenberg'), value: 'number' },
+		{ label: _x('Range', 'field type', 'gophenberg'), value: 'range' },
 		{ label: __('Yes or no', 'gophenberg'), value: 'boolean' },
 		{ label: _x('Date', 'field type', 'gophenberg'), value: 'date' },
+		{ label: _x('Select', 'field type', 'gophenberg'), value: 'select' },
+		{ label: __('Radio group', 'gophenberg'), value: 'radio' },
+		{ label: __('Checkbox group', 'gophenberg'), value: 'checkboxes' },
+		{ label: __('Button group', 'gophenberg'), value: 'buttons' },
 		{ label: _x('Media', 'field type', 'gophenberg'), value: 'media' },
+		{ label: _x('Gallery', 'field type', 'gophenberg'), value: 'gallery' },
 		{ label: __('Relation', 'gophenberg'), value: 'relation' },
 	]
+}
+
+/** One choice a field offers: the value it stores and the label it shows. */
+export interface ChoicePair {
+	value: string
+	label: string
+}
+
+/**
+ * Returns the value and label pairs a field's choices setting holds.
+ * @param settings - The settings the field carries.
+ * @returns The pairs, empty when the field lists none.
+ */
+export function pairsOf(settings: Record<string, unknown>): ChoicePair[] {
+	const listed = Array.isArray(settings.choices) ? settings.choices : []
+	return listed.flatMap((pair) => {
+		if (typeof pair !== 'object' || pair === null) {
+			return []
+		}
+		const { value, label } = pair as Record<string, unknown>
+		return typeof value === 'string' && typeof label === 'string' ? [{ value, label }] : []
+	})
+}
+
+/** What a picker entry declares: the kind, whether it holds many, and the settings it starts with. */
+export interface PickedKind {
+	kind: string
+	many: boolean
+	settings?: Record<string, unknown>
+}
+
+/**
+ * Returns the kind and the starting settings the picker entry declares.
+ * @param value - The picker entry chosen.
+ * @returns The declaration the entry stands for.
+ */
+export function pickedKind(value: string): PickedKind {
+	const settled: Record<string, PickedKind> = {
+		textarea: { kind: 'text', many: false, settings: { variant: 'textarea' } },
+		email: { kind: 'text', many: false, settings: { variant: 'email' } },
+		url: { kind: 'text', many: false, settings: { variant: 'url' } },
+		range: { kind: 'number', many: false, settings: { presentation: 'range' } },
+		select: { kind: 'choice', many: false, settings: { presentation: 'select' } },
+		radio: { kind: 'choice', many: false, settings: { presentation: 'radio' } },
+		checkboxes: {
+			kind: 'choice',
+			many: false,
+			settings: { presentation: 'checkbox', multiple: true },
+		},
+		buttons: { kind: 'choice', many: false, settings: { presentation: 'buttons' } },
+		gallery: { kind: 'media', many: true },
+	}
+	return settled[value] ?? { kind: value, many: false }
 }
 
 /**
@@ -228,6 +290,9 @@ export function fieldKinds(): Choice[] {
  * @returns The label to show, the stored kind when the admin offers no name for it.
  */
 export function kindLabel(kind: string): string {
+	if (kind === 'choice') {
+		return _x('Choice', 'field type', 'gophenberg')
+	}
 	return fieldKinds().find((held) => held.value === kind)?.label ?? kind
 }
 
@@ -251,5 +316,6 @@ export interface NewField {
 	relatesTo?: string
 	many?: boolean
 	required?: boolean
+	settings?: Record<string, unknown>
 }
 

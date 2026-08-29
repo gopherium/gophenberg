@@ -53,6 +53,27 @@ func TestValuesRefuseWhatTheBoundsForbid(t *testing.T) {
 			bounded(t, "rating", content.FieldKindNumber, map[string]any{"max": float64(10)}),
 			int64(50), "field_max",
 		},
+		"a choice outside its list": {
+			bounded(t, "style", content.FieldKindChoice, map[string]any{
+				"choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
+			}),
+			"porter", "field_choice",
+		},
+		"a choice member outside its list": {
+			bounded(t, "styles", content.FieldKindChoice, map[string]any{
+				"multiple": true,
+				"choices":  []any{map[string]any{"value": "ipa", "label": "IPA"}},
+			}),
+			[]any{"ipa", "porter"}, "field_choice",
+		},
+		"an email that is not one": {
+			bounded(t, "contact", content.FieldKindText, map[string]any{"variant": "email"}),
+			"184467235", "field_format",
+		},
+		"a url that is not one": {
+			bounded(t, "homepage", content.FieldKindText, map[string]any{"variant": "url"}),
+			"gophenberg", "field_format",
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -115,6 +136,44 @@ func TestValuesAcceptWhatTheBoundsAllow(t *testing.T) {
 			bounded(t, "cover", content.FieldKindMedia,
 				map[string]any{"instructions": "Pick a wide one."}), float64(7),
 		},
+		"a listed choice": {
+			bounded(t, "style", content.FieldKindChoice, map[string]any{
+				"choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
+			}), "ipa",
+		},
+		"a stranger choice when custom is allowed": {
+			bounded(t, "style", content.FieldKindChoice, map[string]any{
+				"allow_custom": true,
+				"choices":      []any{map[string]any{"value": "ipa", "label": "IPA"}},
+			}), "porter",
+		},
+		"a bare choice field takes any word": {
+			bounded(t, "style", content.FieldKindChoice, nil), "porter",
+		},
+		"a choice field listing nothing takes any word": {
+			bounded(t, "style", content.FieldKindChoice, map[string]any{"choices": []any{}}), "porter",
+		},
+		"a multiple choice all listed": {
+			bounded(t, "styles", content.FieldKindChoice, map[string]any{
+				"multiple": true,
+				"choices": []any{
+					map[string]any{"value": "ipa", "label": "IPA"},
+					map[string]any{"value": "stout", "label": "Stout"},
+				},
+			}), []any{"ipa", "stout"},
+		},
+		"an email that is one": {
+			bounded(t, "contact", content.FieldKindText,
+				map[string]any{"variant": "email"}), "maria@example.com",
+		},
+		"a url that is one": {
+			bounded(t, "homepage", content.FieldKindText,
+				map[string]any{"variant": "url"}), "https://example.com/beers",
+		},
+		"a textarea holds any words": {
+			bounded(t, "notes", content.FieldKindText,
+				map[string]any{"variant": "textarea"}), "several lines of notes",
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -142,5 +201,25 @@ func TestParkedValuesSkipTheBounds(t *testing.T) {
 
 	if err := wrong.ValidateShape([]content.Field{held}); !errors.Is(err, content.ErrFieldShape) {
 		t.Errorf("ValidateShape() error = %v, want %v, shape still applies", err, content.ErrFieldShape)
+	}
+}
+
+func TestParkedValuesSkipMembershipAndFormat(t *testing.T) {
+	t.Parallel()
+
+	style := bounded(t, "style", content.FieldKindChoice, map[string]any{
+		"choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
+	})
+	stranger := content.Values{"style": "porter"}
+
+	if err := stranger.ValidateShape([]content.Field{style}); err != nil {
+		t.Errorf("ValidateShape() error = %v, want the buffer to park a stranger choice", err)
+	}
+
+	contact := bounded(t, "contact", content.FieldKindText, map[string]any{"variant": "email"})
+	unfinished := content.Values{"contact": "maria@"}
+
+	if err := unfinished.ValidateShape([]content.Field{contact}); err != nil {
+		t.Errorf("ValidateShape() error = %v, want the buffer to park a half typed email", err)
 	}
 }

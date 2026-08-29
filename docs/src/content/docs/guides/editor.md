@@ -40,8 +40,8 @@ Verse, Table, Image, Separator, Spacer, Group, Columns, Buttons,
 Details, Custom HTML, More, and Page Break, plus the structural
 blocks inside lists, columns, and buttons.
 
-The Image block takes a web address. Gophenberg stores no files,
-so there is nothing to upload.
+The Image block fills itself from the
+[media library](/guides/media/) or from a web address.
 
 Content using a block Gophenberg does not know still opens and
 saves. It shows as an unrecognized block and its markup is kept.

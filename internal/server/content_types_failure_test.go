@@ -37,14 +37,14 @@ func newSpareItem(t *testing.T, title string, author uuid.UUID) content.Content 
 	return c
 }
 
-// refusalCode returns the code the recorded refusal carries.
-func refusalCode(t *testing.T, recorder *httptest.ResponseRecorder) string {
+// errorCode returns the code the recorded error response carries.
+func errorCode(t *testing.T, recorder *httptest.ResponseRecorder) string {
 	t.Helper()
 	var answered struct {
 		Code string `json:"code"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &answered); err != nil {
-		t.Fatalf("reading the refusal: %v", err)
+		t.Fatalf("reading the error response: %v", err)
 	}
 	return answered.Code
 }
@@ -122,7 +122,7 @@ func TestPublishedListMasksARegistryItCannotRead(t *testing.T) {
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusInternalServerError, recorder.Body.String())
 	}
-	if code := refusalCode(t, recorder); code != "internal" {
+	if code := errorCode(t, recorder); code != "internal" {
 		t.Errorf("code = %q, want the registry failure masked", code)
 	}
 }
@@ -154,7 +154,7 @@ func TestAutosaveMasksARegistryItCannotRead(t *testing.T) {
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusInternalServerError, recorder.Body.String())
 	}
-	if code := refusalCode(t, recorder); code != "internal" {
+	if code := errorCode(t, recorder); code != "internal" {
 		t.Errorf("code = %q, want the registry failure masked", code)
 	}
 }
@@ -176,7 +176,7 @@ func TestPatchRefusesAnAddressAnotherTypeAnswersUnder(t *testing.T) {
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
 	}
-	if code := refusalCode(t, recorder); code != "address_reserved" {
+	if code := errorCode(t, recorder); code != "address_reserved" {
 		t.Errorf("code = %q, want the address kept for the other type", code)
 	}
 }
@@ -200,7 +200,7 @@ func TestNestingReportsATypeSwitchedOffWhileItReadsTheParent(t *testing.T) {
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
 	}
-	if code := refusalCode(t, recorder); code != "type_inactive" {
+	if code := errorCode(t, recorder); code != "type_inactive" {
 		t.Errorf("code = %q, want the type switched off while the nesting was read", code)
 	}
 }
@@ -221,7 +221,7 @@ func TestPatchMasksARegistryDroppedWhileItChecksTheAddress(t *testing.T) {
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusInternalServerError, recorder.Body.String())
 	}
-	if code := refusalCode(t, recorder); code != "internal" {
+	if code := errorCode(t, recorder); code != "internal" {
 		t.Errorf("code = %q, want the registry failure masked", code)
 	}
 }
@@ -242,7 +242,7 @@ func TestPatchReportsATypeSwitchedOffWhileTheEditLands(t *testing.T) {
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
 	}
-	if code := refusalCode(t, recorder); code != "type_inactive" {
+	if code := errorCode(t, recorder); code != "type_inactive" {
 		t.Errorf("code = %q, want the type switched off before the revision was taken", code)
 	}
 }

@@ -105,6 +105,18 @@ export function errorTemplates(): Record<string, string> {
 			'The field %(field)s points at other items, so it does not take a plain value. Pick the items it points at instead.',
 			DOMAIN,
 		),
+		field_choice: __(
+			'%(field)s only takes one of its listed choices. Pick one and save again.',
+			DOMAIN,
+		),
+		field_format: __(
+			'%(field)s does not match the format its field asks for. Check it and save again.',
+			DOMAIN,
+		),
+		field_repeated: __(
+			'%(field)s names the same one twice. Remove the repeat and save again.',
+			DOMAIN,
+		),
 		field_length: __(
 			'%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again.',
 			DOMAIN,

@@ -69,8 +69,11 @@ reader knows what an item's values mean before fetching any. A
 field's `settings` carry what the operator set on it, and the key is
 absent when it carries none. A bound there says what a new value has
 to satisfy, so a value stored before the bound was set can sit
-outside it. A `page_kind` of `archive` marks a type whose items
-answer with a term page, covered below.
+outside it. A choice field lists its `choices` there, each a `value`
+and the `label` to show it under. `many` says a relation or a media
+field holds a list, and a choice says the same thing through its
+`multiple` setting instead. A `page_kind` of `archive` marks a type
+whose items answer with a term page, covered below.
 
 ## Listing items
 
@@ -154,11 +157,16 @@ delivery, with the block comment markers intact so a parser can
 identify each block.
 
 The `fields` object carries the item's values, keyed by field key.
-A scalar field holds its value as it was typed. A relation field
-holds a list of the items it points at, each named and addressed so
-a theme can link to it without another request. Only published
-targets of active types appear, so a draft category never leaks
-through a published post.
+A text, number, date or yes-no field holds its value as it was
+typed. A choice field holds the stored value, and the label sits in
+that field's `choices`. A media field holds the library identity of
+the file, which no public route turns into an address. A field
+holding many, whether choice, media or relation, holds a list, and
+relation entries name and address the item they point at, so a
+theme links to it without another request. Only published targets
+of active types appear, so a draft category never leaks through a
+published post. A field nobody filled is absent, though a Many
+values choice emptied in the editor comes back as an empty list.
 
 Archive addresses answer with a page instead. The root of a type is
 its `route_word`, the front page is the default type, and both
