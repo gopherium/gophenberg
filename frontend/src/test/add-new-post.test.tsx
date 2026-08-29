@@ -56,7 +56,48 @@ test('add new asks for a post of the default type', async () => {
 	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
 	await screen.findByTitle('Editor canvas')
 
-	expect(recorded.bodies).toEqual([{ type: 'post', title: '' }])
+	expect(recorded.bodies).toEqual([{ type: 'post', title: '', fields: {} }])
+})
+
+test('add new starts a draft on the defaults its fields name', async () => {
+	server.use(
+		http.get('/api/types', () =>
+			HttpResponse.json({
+				items: [
+					{
+						key: 'post',
+						singular_label: 'Post',
+						plural_label: 'Posts',
+						route_word: '',
+						hierarchical: false,
+						revisions: true,
+						revision_cap: 100,
+						page_kind: 'single',
+						default: true,
+						active: true,
+						fields: [
+							{
+								key: 'rating',
+								label: 'Rating',
+								kind: 'number',
+								many: false,
+								required: false,
+								settings: { default: 5 },
+							},
+							{ key: 'subtitle', label: 'Subtitle', kind: 'text', many: false, required: false },
+						],
+					},
+				],
+			}),
+		),
+	)
+	const recorded = captureCreate()
+	renderAt('/content/post')
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add New' }))
+	await screen.findByTitle('Editor canvas')
+
+	expect(recorded.bodies).toEqual([{ type: 'post', title: '', fields: { rating: 5 } }])
 })
 
 test('add new reports a failure without navigating away', async () => {

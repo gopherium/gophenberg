@@ -7,6 +7,7 @@ import { useMutation } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 
 import { createPost } from './api'
+import { seededValues } from './fieldDefaults'
 import { useContentType } from './useContentType'
 
 /**
@@ -17,7 +18,7 @@ export function ContentSidebar() {
 	const navigate = useNavigate()
 	const listed = useContentType()
 	const addNew = useMutation({
-		mutationFn: () => createPost(listed.key),
+		mutationFn: () => createPost(listed.key, seededValues(listed.fields)),
 		onSuccess: (post) =>
 			navigate({
 				to: '/content/$typeKey/$postId/edit',

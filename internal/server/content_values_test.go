@@ -127,6 +127,56 @@ func TestContentPatchLeavesAbsentFieldsAlone(t *testing.T) {
 	}
 }
 
+func TestContentCreateStoresTheValuesItIsGiven(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler, `{"key":"color","label":"Color","kind":"text"}`)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content",
+		`{"type":"post","title":"Hello world","fields":{"color":"red"}}`)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusCreated, recorder.Body.String())
+	}
+	created := decodeBody[contentValuesBody](t, recorder)
+	if created.Fields["color"] != "red" {
+		t.Errorf("fields = %v, want the value the create carried", created.Fields)
+	}
+}
+
+func TestContentCreateStoresNothingWhenItIsGivenNothing(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler, `{"key":"color","label":"Color","kind":"text","settings":{"default":"red"}}`)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content",
+		`{"type":"post","title":"Hello world"}`)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusCreated)
+	}
+	created := decodeBody[contentValuesBody](t, recorder)
+	if len(created.Fields) != 0 {
+		t.Errorf("fields = %v, want the server to invent nothing for a caller who sent nothing", created.Fields)
+	}
+}
+
+func TestContentCreateRefusesAValueTheBoundsForbid(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler, `{"key":"rating","label":"Rating","kind":"number","settings":{"max":10}}`)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content",
+		`{"type":"post","title":"Hello world","fields":{"rating":50}}`)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want the out of bounds value refused at create", recorder.Code)
+	}
+}
+
 func TestContentPatchKeepsAValueItsGroupStoppedServing(t *testing.T) {
 	t.Parallel()
 

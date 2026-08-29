@@ -113,9 +113,10 @@ func applyContentStatus(c *content.Content, raw *string) (bool, error) {
 // handleContentCreate returns an http.HandlerFunc storing a draft authored by the requester.
 func (s *server) handleContentCreate() http.HandlerFunc {
 	type request struct {
-		Type     string     `json:"type"`
-		Title    string     `json:"title"`
-		ParentID *uuid.UUID `json:"parent_id"`
+		Type     string         `json:"type"`
+		Title    string         `json:"title"`
+		ParentID *uuid.UUID     `json:"parent_id"`
+		Fields   content.Values `json:"fields"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := authkit.Decode[request](w, r)
@@ -145,6 +146,11 @@ func (s *server) handleContentCreate() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
+		if err := req.Fields.Validate(contentType.Fields); err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		c.Fields = req.Fields
 		created, err := s.content.Create(r.Context(), c)
 		if err != nil {
 			respondDomainError(w, err)
