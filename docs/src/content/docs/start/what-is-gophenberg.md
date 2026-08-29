@@ -36,11 +36,9 @@ undo.
 
 Gophenberg is below 1.0 and honest about it. Working today: posts
 with statuses, slugs, and excerpts, autosave and recovery, trash
-and restore, user accounts, themes, plugins, a public content API,
-and an RSS feed.
-
-Images are added by web address. Gophenberg stores no files, so
-there is no upload.
+and restore, a media library, content types with their own
+addresses, typed fields, user accounts, themes, plugins, a public
+content API, and an RSS feed.
 
 ## Where to go next
 

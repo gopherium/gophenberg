@@ -76,6 +76,9 @@ A picture placed in a post keeps pointing at the library. Deleting
 it from the library does not repair the post, so check where a
 file is used before removing it.
 
+A **Media** or **Gallery** [field](/guides/fields/) opens the same
+library from the Document panel, and the same warning applies.
+
 ## Deleting
 
 **Delete Permanently** removes an item and every copy of it from
