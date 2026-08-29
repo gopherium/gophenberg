@@ -315,3 +315,96 @@ test('adds nothing when the placeholder is chosen', async () => {
 	await waitFor(() => expect(sent).toHaveLength(1))
 	expect(sent[0].fields).toEqual({})
 })
+
+const GALLERY_FIELD = {
+	key: 'gallery',
+	label: 'Gallery',
+	kind: 'media',
+	relates_to: '',
+	many: true,
+	required: false,
+}
+
+const SHORE_LISTING = {
+	items: [
+		{
+			id: 15,
+			type: 'image',
+			file: '2026/08/shore.jpg',
+			title: 'Shore',
+			alt_text: 'A quiet shore',
+			caption: '',
+			mime_type: 'image/jpeg',
+			width: 1600,
+			height: 1000,
+			filesize: 254000,
+			sizes: {},
+			updated_at: storedPost.updated_at,
+		},
+	],
+	total: 1,
+}
+
+test('adds a picked item to the gallery a field holds', async () => {
+	const sent: Record<string, unknown>[] = []
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([GALLERY_FIELD])] })),
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { gallery: [12] } }),
+		),
+		http.get('/api/media', () => HttpResponse.json(SHORE_LISTING)),
+		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
+			sent.push((await request.json()) as Record<string, unknown>)
+			return HttpResponse.json({ ...storedPost, fields: { gallery: [12, 15] } })
+		}),
+	)
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByText('Media 12')).toBeInTheDocument()
+	await userEvent.click(screen.getByRole('button', { name: 'Add to Gallery' }))
+	await userEvent.click(await screen.findByText('Shore'))
+	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toMatchObject({ fields: { gallery: [12, 15] } })
+})
+
+test('never adds the item the gallery already holds', async () => {
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([GALLERY_FIELD])] })),
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { gallery: [15] } }),
+		),
+		http.get('/api/media', () => HttpResponse.json(SHORE_LISTING)),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add to Gallery' }))
+	await userEvent.click(await screen.findByText('Shore'))
+	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+
+	expect(screen.getAllByText('Media 15')).toHaveLength(1)
+})
+
+test('removes one item from the gallery and clears an emptied one', async () => {
+	const sent: Record<string, unknown>[] = []
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([GALLERY_FIELD])] })),
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { gallery: [12, 15] } }),
+		),
+		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
+			sent.push((await request.json()) as Record<string, unknown>)
+			return HttpResponse.json({ ...storedPost, fields: {} })
+		}),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Remove Media 12' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Remove Media 15' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toMatchObject({ fields: { gallery: null } })
+})
