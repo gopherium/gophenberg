@@ -198,6 +198,9 @@ msgstr ""
 msgid "Add title"
 msgstr ""
 
+msgid "Add to %(field)s"
+msgstr ""
+
 msgid "Address"
 msgstr ""
 
@@ -849,6 +852,9 @@ msgid "Remove"
 msgstr ""
 
 msgid "Remove %(title)s"
+msgstr ""
+
+msgid "Remove Media %(id)d"
 msgstr ""
 
 msgid "Rename"

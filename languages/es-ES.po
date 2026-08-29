@@ -175,6 +175,10 @@ msgstr "Añadir conjunto de reglas"
 msgid "Add title"
 msgstr "Añadir título"
 
+#, fuzzy
+msgid "Add to %(field)s"
+msgstr "Añadir a %(field)s"
+
 msgid "Address"
 msgstr "Dirección"
 
@@ -786,6 +790,10 @@ msgstr "Relación"
 #, fuzzy
 msgid "Remove"
 msgstr "Quitar"
+
+#, fuzzy
+msgid "Remove Media %(id)d"
+msgstr "Quitar el medio %(id)d"
 
 msgid "Rename"
 msgstr "Renombrar"

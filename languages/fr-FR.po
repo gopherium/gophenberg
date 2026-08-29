@@ -201,6 +201,10 @@ msgid "Add title"
 msgstr "Ajouter un titre"
 
 #, fuzzy
+msgid "Add to %(field)s"
+msgstr "Ajouter à %(field)s"
+
+#, fuzzy
 msgid "Address"
 msgstr "Adresse"
 
@@ -959,6 +963,10 @@ msgstr "Relation"
 #, fuzzy
 msgid "Remove"
 msgstr "Retirer"
+
+#, fuzzy
+msgid "Remove Media %(id)d"
+msgstr "Retirer le média %(id)d"
 
 #, fuzzy
 msgid "Rename"
