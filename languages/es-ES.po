@@ -31,6 +31,10 @@ msgid "%(field)s moved."
 msgstr "%(field)s movido."
 
 #, fuzzy
+msgid "%(field)s settled."
+msgstr "%(field)s ajustado."
+
+#, fuzzy
 msgid ""
 "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save "
 "again."
@@ -451,6 +455,10 @@ msgstr "Grupo"
 msgid "Hand over the root"
 msgstr "Ceder la raíz"
 
+#, fuzzy
+msgid "Highest"
+msgstr "Máximo"
+
 msgid "Home"
 msgstr "Inicio"
 
@@ -466,6 +474,10 @@ msgstr "Instalar tema"
 
 msgid "Installed"
 msgstr "Instalado"
+
+#, fuzzy
+msgid "Instructions"
+msgstr "Instrucciones"
 
 #, fuzzy
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
@@ -520,6 +532,14 @@ msgstr "Cargando los usuarios."
 
 msgid "Loading…"
 msgstr "Cargando…"
+
+#, fuzzy
+msgid "Longest"
+msgstr "Largo máximo"
+
+#, fuzzy
+msgid "Lowest"
+msgstr "Mínimo"
 
 msgid "Make default"
 msgstr "Establecer como predeterminado"
@@ -678,6 +698,10 @@ msgstr "Contraseña"
 msgid "Pending"
 msgstr "Pendiente"
 
+#, fuzzy
+msgid "Placeholder"
+msgstr "Texto de ejemplo"
+
 msgid "Plural name"
 msgstr "Nombre en plural"
 
@@ -746,6 +770,10 @@ msgstr "Guardar el borrador"
 msgid "Save rules"
 msgstr "Guardar las reglas"
 
+#, fuzzy
+msgid "Save settings"
+msgstr "Guardar los ajustes"
+
 msgid "Saved"
 msgstr "Guardado"
 
@@ -777,6 +805,14 @@ msgid "Serving"
 msgstr "Atendiendo"
 
 #, fuzzy
+msgid "Settings"
+msgstr "Ajustes"
+
+#, fuzzy
+msgid "Settings of %(field)s"
+msgstr "Ajustes de %(field)s"
+
+#, fuzzy
 msgid "Shadowed"
 msgstr "Eclipsado"
 
@@ -804,6 +840,10 @@ msgstr "Origen"
 
 msgid "Start writing."
 msgstr "Empieza a escribir."
+
+#, fuzzy
+msgid "Steps of"
+msgstr "Pasos de"
 
 msgid "Tablet"
 msgstr "Tableta"

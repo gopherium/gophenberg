@@ -42,6 +42,9 @@ msgstr ""
 msgid "%(field)s renamed."
 msgstr ""
 
+msgid "%(field)s settled."
+msgstr ""
+
 msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again."
 msgstr ""
 
@@ -510,6 +513,9 @@ msgstr ""
 msgid "Hand the root to %(type)s"
 msgstr ""
 
+msgid "Highest"
+msgstr ""
+
 msgid "Holds"
 msgstr ""
 
@@ -526,6 +532,9 @@ msgid "Install theme"
 msgstr ""
 
 msgid "Installed"
+msgstr ""
+
+msgid "Instructions"
 msgstr ""
 
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
@@ -577,6 +586,12 @@ msgid "Loading users."
 msgstr ""
 
 msgid "Loading…"
+msgstr ""
+
+msgid "Longest"
+msgstr ""
+
+msgid "Lowest"
 msgstr ""
 
 msgid "Make %(field)s optional"
@@ -764,6 +779,9 @@ msgstr ""
 msgid "Pending"
 msgstr ""
 
+msgid "Placeholder"
+msgstr ""
+
 msgid "Plural name"
 msgstr ""
 
@@ -845,6 +863,9 @@ msgstr ""
 msgid "Save rules"
 msgstr ""
 
+msgid "Save settings"
+msgstr ""
+
 msgid "Saved"
 msgstr ""
 
@@ -878,6 +899,12 @@ msgstr ""
 msgid "Serving"
 msgstr ""
 
+msgid "Settings"
+msgstr ""
+
+msgid "Settings of %(field)s"
+msgstr ""
+
 msgid "Shadowed"
 msgstr ""
 
@@ -906,6 +933,9 @@ msgid "Source"
 msgstr ""
 
 msgid "Start writing."
+msgstr ""
+
+msgid "Steps of"
 msgstr ""
 
 msgid "Tablet"
