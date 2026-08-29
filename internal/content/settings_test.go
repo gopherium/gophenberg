@@ -59,6 +59,40 @@ func TestEachKindAcceptsItsOwnSettings(t *testing.T) {
 		"maxlength arrives as an int too": {content.FieldKindText, map[string]any{
 			"maxlength": 80,
 		}},
+		"choice takes its vocabulary": {content.FieldKindChoice, map[string]any{
+			"instructions": "The style it pours as.", "default": "ipa",
+			"choices": []any{
+				map[string]any{"value": "ipa", "label": "IPA"},
+				map[string]any{"value": "stout", "label": "Stout"},
+			},
+			"multiple": false, "presentation": "select", "allow_null": true, "allow_custom": false,
+		}},
+		"choice multiple takes a list default": {content.FieldKindChoice, map[string]any{
+			"multiple": true, "default": []any{"ipa", "stout"},
+			"choices": []any{
+				map[string]any{"value": "ipa", "label": "IPA"},
+				map[string]any{"value": "stout", "label": "Stout"},
+			},
+		}},
+		"choice takes an empty choices list": {content.FieldKindChoice, map[string]any{
+			"choices": []any{},
+		}},
+		"choice takes a stranger default when custom is allowed": {content.FieldKindChoice, map[string]any{
+			"allow_custom": true, "default": "porter",
+			"choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
+		}},
+		"text takes the email variant": {content.FieldKindText, map[string]any{
+			"variant": "email",
+		}},
+		"text takes the url variant": {content.FieldKindText, map[string]any{
+			"variant": "url",
+		}},
+		"text takes the textarea variant": {content.FieldKindText, map[string]any{
+			"variant": "textarea", "maxlength": 500,
+		}},
+		"number takes the range presentation": {content.FieldKindNumber, map[string]any{
+			"presentation": "range", "min": 1, "max": 10,
+		}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -82,6 +116,11 @@ func TestAKindRefusesASettingItDoesNotTake(t *testing.T) {
 		"a text field takes no step":   {content.FieldKindText, map[string]any{"step": float64(1)}},
 		"a media field has no default": {content.FieldKindMedia, map[string]any{"default": float64(3)}},
 		"a made up name is refused":    {content.FieldKindNumber, map[string]any{"banana": true}},
+		"a text field takes no choices": {content.FieldKindText, map[string]any{
+			"choices": []any{map[string]any{"value": "a", "label": "A"}},
+		}},
+		"a number takes no variant":   {content.FieldKindNumber, map[string]any{"variant": "range"}},
+		"a choice takes no maxlength": {content.FieldKindChoice, map[string]any{"maxlength": float64(3)}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -117,6 +156,36 @@ func TestASettingRefusesAValueOfTheWrongShape(t *testing.T) {
 		"a text default is a string":     {content.FieldKindText, map[string]any{"default": float64(5)}},
 		"a number default is a number":   {content.FieldKindNumber, map[string]any{"default": "five"}},
 		"a boolean default is a bool":    {content.FieldKindBoolean, map[string]any{"default": "yes"}},
+		"a variant is one of its words":  {content.FieldKindText, map[string]any{"variant": "phone"}},
+		"a number presentation is range": {content.FieldKindNumber, map[string]any{"presentation": "dial"}},
+		"a choice presentation is one of four": {content.FieldKindChoice, map[string]any{
+			"presentation": "carousel",
+		}},
+		"choices come as a list": {content.FieldKindChoice, map[string]any{"choices": "ipa, stout"}},
+		"a choice pair needs its label": {content.FieldKindChoice, map[string]any{
+			"choices": []any{map[string]any{"value": "ipa"}},
+		}},
+		"a choice pair needs its value": {content.FieldKindChoice, map[string]any{
+			"choices": []any{map[string]any{"label": "IPA"}},
+		}},
+		"a choice pair takes nothing else": {content.FieldKindChoice, map[string]any{
+			"choices": []any{map[string]any{"value": "ipa", "label": "IPA", "color": "amber"}},
+		}},
+		"a choice pair holds words": {content.FieldKindChoice, map[string]any{
+			"choices": []any{map[string]any{"value": float64(1), "label": "One"}},
+		}},
+		"a choice pair value is never empty": {content.FieldKindChoice, map[string]any{
+			"choices": []any{map[string]any{"value": "", "label": "Empty"}},
+		}},
+		"multiple takes a bool":     {content.FieldKindChoice, map[string]any{"multiple": "yes"}},
+		"allow_null takes a bool":   {content.FieldKindChoice, map[string]any{"allow_null": "maybe"}},
+		"allow_custom takes a bool": {content.FieldKindChoice, map[string]any{"allow_custom": 1}},
+		"a choice default holds words": {content.FieldKindChoice, map[string]any{
+			"default": []any{"ipa", float64(2)},
+		}},
+		"a choice default is words not a number": {content.FieldKindChoice, map[string]any{
+			"default": float64(2),
+		}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -164,6 +233,45 @@ func TestSettingsAgreeWithEachOther(t *testing.T) {
 		},
 		"a default may fill maxlength": {
 			content.FieldKindText, map[string]any{"default": "abc", "maxlength": float64(3)}, true,
+		},
+		"a choice default sits among its choices": {
+			content.FieldKindChoice, map[string]any{
+				"default": "ipa", "choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
+			}, true,
+		},
+		"a choice default outside its choices disagrees": {
+			content.FieldKindChoice, map[string]any{
+				"default": "porter", "choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
+			}, false,
+		},
+		"a custom choice default may wander": {
+			content.FieldKindChoice, map[string]any{
+				"allow_custom": true, "default": "porter",
+				"choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
+			}, true,
+		},
+		"a single default never comes as a list": {
+			content.FieldKindChoice, map[string]any{
+				"default": []any{"ipa"}, "choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
+			}, false,
+		},
+		"a multiple default always comes as a list": {
+			content.FieldKindChoice, map[string]any{
+				"multiple": true, "default": "ipa",
+				"choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
+			}, false,
+		},
+		"a multiple default checks every member": {
+			content.FieldKindChoice, map[string]any{
+				"multiple": true, "default": []any{"ipa", "porter"},
+				"choices": []any{map[string]any{"value": "ipa", "label": "IPA"}},
+			}, false,
+		},
+		"an empty choices list allows no default": {
+			content.FieldKindChoice, map[string]any{"default": "ipa", "choices": []any{}}, false,
+		},
+		"a default with no choices listed stands": {
+			content.FieldKindChoice, map[string]any{"default": "ipa"}, true,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

@@ -59,6 +59,79 @@ func TestValuesAcceptAWholeNumberWrittenInGo(t *testing.T) {
 	}
 }
 
+// shaped returns a field of the kind, holding many when asked, carrying the settings.
+func shaped(t *testing.T, kind content.FieldKind, many bool, settings map[string]any) content.Field {
+	t.Helper()
+	built, err := content.NewField(content.Field{
+		TypeKey: "post", Key: "held", Label: "Held", Kind: kind, Many: many, Settings: settings,
+	})
+	if err != nil {
+		t.Fatalf("NewField(%s) error = %v, want nil", kind, err)
+	}
+	return built
+}
+
+func TestValuesShapeTheChoiceKindAndAManyMedia(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		field content.Field
+		value any
+		holds bool
+	}{
+		"a choice holds a word": {
+			shaped(t, content.FieldKindChoice, false, nil), "ipa", true,
+		},
+		"a choice refuses a list": {
+			shaped(t, content.FieldKindChoice, false, nil), []any{"ipa"}, false,
+		},
+		"a choice refuses a number": {
+			shaped(t, content.FieldKindChoice, false, nil), float64(2), false,
+		},
+		"a multiple choice holds a list of words": {
+			shaped(t, content.FieldKindChoice, false, map[string]any{"multiple": true}),
+			[]any{"ipa", "stout"}, true,
+		},
+		"a multiple choice refuses a bare word": {
+			shaped(t, content.FieldKindChoice, false, map[string]any{"multiple": true}), "ipa", false,
+		},
+		"a multiple choice refuses a listed number": {
+			shaped(t, content.FieldKindChoice, false, map[string]any{"multiple": true}),
+			[]any{"ipa", float64(2)}, false,
+		},
+		"a many media holds a list of numbers": {
+			shaped(t, content.FieldKindMedia, true, nil), []any{float64(1), float64(2)}, true,
+		},
+		"a many media refuses one bare number": {
+			shaped(t, content.FieldKindMedia, true, nil), float64(3), false,
+		},
+		"a many media refuses a listed word": {
+			shaped(t, content.FieldKindMedia, true, nil), []any{"cover"}, false,
+		},
+		"a single media still refuses a list": {
+			shaped(t, content.FieldKindMedia, false, nil), []any{float64(1)}, false,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			held := content.Values{test.field.Key: test.value}
+
+			err := held.Validate([]content.Field{test.field})
+
+			if test.holds {
+				if err != nil {
+					t.Fatalf("Validate() error = %v, want nil", err)
+				}
+				return
+			}
+			if !errors.Is(err, content.ErrFieldShape) {
+				t.Fatalf("Validate() error = %v, want %v", err, content.ErrFieldShape)
+			}
+		})
+	}
+}
+
 func TestValuesRefuseAnUnknownKey(t *testing.T) {
 	t.Parallel()
 
@@ -212,6 +285,23 @@ func TestValuesFilledRefusesAnEmptyRequiredField(t *testing.T) {
 				t.Errorf("Filled() error = %q, want the field named", err)
 			}
 		})
+	}
+}
+
+func TestValuesFilledRefusesAnEmptiedRequiredList(t *testing.T) {
+	t.Parallel()
+
+	gallery, err := content.NewField(content.Field{
+		TypeKey: "post", Key: "gallery", Label: "Gallery",
+		Kind: content.FieldKindMedia, Many: true, Required: true,
+	})
+	if err != nil {
+		t.Fatalf("NewField() error = %v, want nil", err)
+	}
+	held := content.Values{"gallery": []any{}}
+
+	if err := content.Filled(held, nil, []content.Field{gallery}); !errors.Is(err, content.ErrFieldRequired) {
+		t.Fatalf("Filled() error = %v, want %v, an emptied list holds nothing", err, content.ErrFieldRequired)
 	}
 }
 

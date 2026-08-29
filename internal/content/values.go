@@ -5,6 +5,8 @@ package content
 import (
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
 	"time"
 )
 
@@ -52,7 +54,7 @@ func (v Values) validate(fields []Field, bounded bool) error {
 		if value == nil {
 			continue
 		}
-		if !holdsKind(value, f.Kind) {
+		if !holdsShape(f, value) {
 			return Refuse(ErrFieldShape, "field_shape_kind",
 				fmt.Sprintf("%s: %s holds %s", ErrFieldShape, key, f.Kind), Details{"field": key, "kind": string(f.Kind)})
 		}
@@ -71,11 +73,38 @@ func withinBounds(f Field, value any) error {
 	if len(f.Settings) == 0 {
 		return nil
 	}
+	if f.Kind == FieldKindChoice {
+		return choiceWithinBounds(f, value)
+	}
 	if held, ok := settingNumber(value); ok && f.Kind == FieldKindNumber {
 		return numberWithinBounds(f, held)
 	}
 	if held, ok := value.(string); ok && f.Kind == FieldKindText {
 		return textWithinBounds(f, held)
+	}
+	return nil
+}
+
+// choiceWithinBounds reports whether every held value sits among the field's choices.
+func choiceWithinBounds(f Field, value any) error {
+	if custom, _ := f.Settings[SettingAllowCustom].(bool); custom {
+		return nil
+	}
+	listed, offered := f.Settings[SettingChoices]
+	if !offered {
+		return nil
+	}
+	held := choiceValues(listed)
+	members, many := value.([]any)
+	if !many {
+		members = []any{value}
+	}
+	for _, member := range members {
+		if !held[member.(string)] {
+			return Refuse(ErrFieldBounds, "field_choice",
+				fmt.Sprintf("%s: %s is not among the choices", ErrFieldBounds, f.Key),
+				Details{"field": f.Key})
+		}
 	}
 	return nil
 }
@@ -98,13 +127,81 @@ func numberWithinBounds(f Field, held float64) error {
 	return nil
 }
 
-// textWithinBounds reports whether the text is no longer than maxlength.
+// textWithinBounds reports whether the text is no longer than maxlength and matches its variant.
 func textWithinBounds(f Field, held string) error {
 	longest, named := settingNumber(f.Settings[SettingMaxLength])
 	if named && float64(len([]rune(held))) > longest {
 		return outOfBounds(f, "field_length", SettingMaxLength, longest)
 	}
+	return textFormat(f, held)
+}
+
+// emailWord matches something before an at sign, something after, and a dot in the domain.
+var emailWord = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
+
+// textFormat reports whether the text reads as the variant its field carries.
+func textFormat(f Field, held string) error {
+	variant, _ := f.Settings[SettingVariant].(string)
+	if variant == "email" && !emailWord.MatchString(held) {
+		return badFormat(f, variant)
+	}
+	if variant == "url" && !webAddress(held) {
+		return badFormat(f, variant)
+	}
 	return nil
+}
+
+// badFormat returns the refusal naming the field and the format it missed.
+func badFormat(f Field, variant string) error {
+	return Refuse(ErrFieldBounds, "field_format",
+		fmt.Sprintf("%s: %s holds no %s", ErrFieldBounds, f.Key, variant),
+		Details{"field": f.Key, "variant": variant})
+}
+
+// webAddress reports whether the text reads as an http or https address.
+func webAddress(held string) bool {
+	parsed, err := url.Parse(held)
+	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
+}
+
+// holdsShape reports whether the value carries the shape the field stores.
+func holdsShape(f Field, value any) bool {
+	switch {
+	case f.Kind == FieldKindChoice && choiceMultiple(f):
+		return holdsEvery(value, isWord)
+	case f.Kind == FieldKindChoice:
+		return isWord(value)
+	case f.Kind == FieldKindMedia && f.Many:
+		return holdsEvery(value, isNumber)
+	default:
+		return holdsKind(value, f.Kind)
+	}
+}
+
+// choiceMultiple reports whether the choice field holds several values.
+func choiceMultiple(f Field) bool {
+	multiple, _ := f.Settings[SettingMultiple].(bool)
+	return multiple
+}
+
+// isWord reports whether the value is a string.
+func isWord(value any) bool {
+	_, ok := value.(string)
+	return ok
+}
+
+// holdsEvery reports whether the value is a list whose members all pass the check.
+func holdsEvery(value any, check func(any) bool) bool {
+	members, ok := value.([]any)
+	if !ok {
+		return false
+	}
+	for _, member := range members {
+		if !check(member) {
+			return false
+		}
+	}
+	return true
 }
 
 // holdsKind reports whether the value carries the shape the kind stores.
@@ -161,6 +258,9 @@ func (v Values) Merge(patch Values) Values {
 func empty(value any) bool {
 	if value == nil {
 		return true
+	}
+	if members, ok := value.([]any); ok {
+		return len(members) == 0
 	}
 	written, ok := value.(string)
 	return ok && written == ""
