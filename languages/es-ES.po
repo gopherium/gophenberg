@@ -19,6 +19,14 @@ msgstr " o "
 
 #, fuzzy
 msgid ""
+"%(field)s does not match the format its field asks for. Check it and save "
+"again."
+msgstr ""
+"%(field)s no tiene el formato que su campo requiere. Revísalo y guarda de "
+"nuevo."
+
+#, fuzzy
+msgid ""
 "%(field)s goes no higher than %(limit)s. Lower the value and save again."
 msgstr "%(field)s no pasa de %(limit)s. Baja el valor y guarda de nuevo."
 
@@ -29,6 +37,13 @@ msgstr "%(field)s no baja de %(limit)s. Sube el valor y guarda de nuevo."
 #, fuzzy
 msgid "%(field)s moved."
 msgstr "%(field)s movido."
+
+#, fuzzy
+msgid ""
+"%(field)s only takes one of its listed choices. Pick one and save again."
+msgstr ""
+"%(field)s solo admite una de las opciones de su lista. Elige una y guarda "
+"de nuevo."
 
 #, fuzzy
 msgid "%(field)s settled."

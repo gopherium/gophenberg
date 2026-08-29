@@ -19,6 +19,14 @@ msgstr " ou "
 
 #, fuzzy
 msgid ""
+"%(field)s does not match the format its field asks for. Check it and save "
+"again."
+msgstr ""
+"%(field)s ne respecte pas le format demandé par son champ. Vérifiez-le et "
+"enregistrez de nouveau."
+
+#, fuzzy
+msgid ""
 "%(field)s goes no higher than %(limit)s. Lower the value and save again."
 msgstr ""
 "%(field)s ne dépasse pas %(limit)s. Baissez la valeur et enregistrez de "
@@ -33,6 +41,13 @@ msgstr ""
 #, fuzzy
 msgid "%(field)s moved."
 msgstr "%(field)s déplacé."
+
+#, fuzzy
+msgid ""
+"%(field)s only takes one of its listed choices. Pick one and save again."
+msgstr ""
+"%(field)s accepte uniquement un des choix de sa liste. Choisissez-en un et "
+"enregistrez de nouveau."
 
 #, fuzzy
 msgid "%(field)s settled."

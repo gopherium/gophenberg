@@ -24,6 +24,9 @@ msgstr ""
 msgid "%(field)s deleted."
 msgstr ""
 
+msgid "%(field)s does not match the format its field asks for. Check it and save again."
+msgstr ""
+
 msgid "%(field)s goes no higher than %(limit)s. Lower the value and save again."
 msgstr ""
 
@@ -37,6 +40,9 @@ msgid "%(field)s is required now."
 msgstr ""
 
 msgid "%(field)s moved."
+msgstr ""
+
+msgid "%(field)s only takes one of its listed choices. Pick one and save again."
 msgstr ""
 
 msgid "%(field)s renamed."
