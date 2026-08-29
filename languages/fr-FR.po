@@ -177,6 +177,10 @@ msgid "Add block"
 msgstr "Ajouter un bloc"
 
 #, fuzzy
+msgid "Add choice"
+msgstr "Ajouter un choix"
+
+#, fuzzy
 msgid "Add condition"
 msgstr "Ajouter une condition"
 
@@ -199,6 +203,14 @@ msgstr "Ajouter un titre"
 #, fuzzy
 msgid "Address"
 msgstr "Adresse"
+
+#, fuzzy
+msgid "Allow custom"
+msgstr "Autoriser les valeurs libres"
+
+#, fuzzy
+msgid "Allow empty"
+msgstr "Autoriser le vide"
 
 #, fuzzy
 msgid "Alt text"
@@ -275,6 +287,10 @@ msgid "Bundles of fields, shown where their rules place them."
 msgstr "Ensembles de champs, affichés là où leurs règles les placent."
 
 #, fuzzy
+msgid "Button group"
+msgstr "Groupe de boutons"
+
+#, fuzzy
 msgid "Cancel"
 msgstr "Annuler"
 
@@ -285,6 +301,14 @@ msgstr "Légende"
 #, fuzzy
 msgid "Change address"
 msgstr "Changer l'adresse"
+
+#, fuzzy
+msgid "Checkbox group"
+msgstr "Groupe de cases à cocher"
+
+#, fuzzy
+msgid "Choices"
+msgstr "Choix"
 
 #, fuzzy
 msgid "Choose the language the admin reads in."
@@ -625,6 +649,10 @@ msgid "Keep it here"
 msgstr "Le laisser ici"
 
 #, fuzzy
+msgid "Label"
+msgstr "Libellé"
+
+#, fuzzy
 msgid "Language"
 msgstr "Langue"
 
@@ -679,6 +707,10 @@ msgstr "Minimum"
 #, fuzzy
 msgid "Make default"
 msgstr "Rendre par défaut"
+
+#, fuzzy
+msgid "Many values"
+msgstr "Plusieurs valeurs"
 
 #, fuzzy
 msgid "March"
@@ -905,6 +937,10 @@ msgid "Publish"
 msgstr "Publier"
 
 #, fuzzy
+msgid "Radio group"
+msgstr "Groupe de boutons radio"
+
+#, fuzzy
 msgid "Redo"
 msgstr "Rétablir"
 
@@ -1063,6 +1099,10 @@ msgstr "Tablette"
 #, fuzzy
 msgid "Text"
 msgstr "Texte"
+
+#, fuzzy
+msgid "Text area"
+msgstr "Zone de texte"
 
 #, fuzzy
 msgid "That email is already in use."
@@ -1513,6 +1553,10 @@ msgid "Videos"
 msgstr "Vidéos"
 
 #, fuzzy
+msgid "Web address"
+msgstr "Adresse web"
+
+#, fuzzy
 msgid "Welcome to Gophenberg."
 msgstr "Bienvenue sur Gophenberg."
 
@@ -1725,6 +1769,26 @@ msgstr "Ce type répondra sous /%(word)s."
 msgctxt "field group"
 msgid "Status"
 msgstr "Statut"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Choice"
+msgstr "Choix"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Gallery"
+msgstr "Galerie"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Range"
+msgstr "Plage"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Select"
+msgstr "Liste déroulante"
 
 #, fuzzy
 msgid "is"
