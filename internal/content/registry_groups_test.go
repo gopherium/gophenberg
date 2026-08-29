@@ -347,7 +347,7 @@ func TestRegistryUpdatesAGroupTheStoreNoLongerHolds(t *testing.T) {
 	})
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
-		t.Errorf("UpdateGroup() error = %v, want the store's refusal carried", err)
+		t.Errorf("UpdateGroup() error = %v, want the store's error carried", err)
 	}
 }
 

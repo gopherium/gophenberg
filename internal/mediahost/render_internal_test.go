@@ -46,16 +46,16 @@ func TestRenditionFormatFallsBackWhenNothingDeclaresTransparency(t *testing.T) {
 	}
 }
 
-// wantEncodePanic fails the test unless the deferred recover carries the named encoder refusal.
-func wantEncodePanic(t *testing.T, call, refusal string) {
+// wantEncodePanic fails the test unless the deferred recover carries the named encoder error.
+func wantEncodePanic(t *testing.T, call, errorText string) {
 	t.Helper()
 	recovered := recover()
 	if recovered == nil {
 		t.Fatalf("%s returned, want the refused image to panic", call)
 	}
 	err, isError := recovered.(error)
-	if !isError || !strings.Contains(err.Error(), refusal) {
-		t.Errorf("%s panic = %v, want the refusal %q", call, recovered, refusal)
+	if !isError || !strings.Contains(err.Error(), errorText) {
+		t.Errorf("%s panic = %v, want the error %q", call, recovered, errorText)
 	}
 }
 

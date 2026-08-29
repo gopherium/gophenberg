@@ -88,7 +88,7 @@ func TestGroupPatchReportsAGroupThatIsGone(t *testing.T) {
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
 	}
-	if code := refusalCode(t, recorder); code != "group_not_found" {
+	if code := errorCode(t, recorder); code != "group_not_found" {
 		t.Errorf("code = %q, want group_not_found", code)
 	}
 }
@@ -100,7 +100,7 @@ func TestGroupDeleteReportsAGroupThatIsGone(t *testing.T) {
 
 	recorder := doRequest(t, handler, http.MethodDelete, groupPath(4242), "")
 
-	if code := refusalCode(t, recorder); code != "group_not_found" {
+	if code := errorCode(t, recorder); code != "group_not_found" {
 		t.Errorf("code = %q, want group_not_found", code)
 	}
 }
@@ -113,7 +113,7 @@ func TestGroupFieldCreateReportsAGroupThatIsGone(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPost, groupPath(4242)+"/fields",
 		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
 
-	if code := refusalCode(t, recorder); code != "group_not_found" {
+	if code := errorCode(t, recorder); code != "group_not_found" {
 		t.Errorf("code = %q, want group_not_found, body %s", code, recorder.Body.String())
 	}
 }
@@ -127,7 +127,7 @@ func TestGroupFieldCreateRefusesAFieldItCannotBuild(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
 		groupBody(t, map[string]any{"key": "Not A Key", "label": "Bad", "kind": "text"}))
 
-	if code := refusalCode(t, recorder); code != "field_key_malformed" {
+	if code := errorCode(t, recorder); code != "field_key_malformed" {
 		t.Errorf("code = %q, want field_key_malformed", code)
 	}
 }
@@ -142,7 +142,7 @@ func TestGroupFieldMoveReportsAFieldThatIsGone(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPost, groupPath(from)+"/fields/absent/move",
 		groupBody(t, map[string]any{"to_group": to}))
 
-	if code := refusalCode(t, recorder); code != "field_not_found" {
+	if code := errorCode(t, recorder); code != "field_not_found" {
 		t.Errorf("code = %q, want field_not_found, body %s", code, recorder.Body.String())
 	}
 }
@@ -190,7 +190,7 @@ func TestGroupFieldPatchReportsAFieldThatIsGone(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/absent",
 		groupBody(t, map[string]any{"label": "Absent"}))
 
-	if code := refusalCode(t, recorder); code != "field_not_found" {
+	if code := errorCode(t, recorder); code != "field_not_found" {
 		t.Errorf("code = %q, want field_not_found, body %s", code, recorder.Body.String())
 	}
 }
@@ -203,7 +203,7 @@ func TestGroupFieldDeleteReportsAFieldThatIsGone(t *testing.T) {
 
 	recorder := doRequest(t, handler, http.MethodDelete, groupPath(id)+"/fields/absent", "")
 
-	if code := refusalCode(t, recorder); code != "field_not_found" {
+	if code := errorCode(t, recorder); code != "field_not_found" {
 		t.Errorf("code = %q, want field_not_found, body %s", code, recorder.Body.String())
 	}
 }
@@ -216,7 +216,7 @@ func TestGroupFieldPatchReportsAGroupThatIsGone(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(4242)+"/fields/absent",
 		groupBody(t, map[string]any{"label": "Absent"}))
 
-	if code := refusalCode(t, recorder); code != "group_not_found" {
+	if code := errorCode(t, recorder); code != "group_not_found" {
 		t.Errorf("code = %q, want group_not_found, body %s", code, recorder.Body.String())
 	}
 }
@@ -235,7 +235,7 @@ func TestGroupFieldOrderRefusesAnOrderLeavingAFieldOut(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPut, groupPath(id)+"/fields/order",
 		groupBody(t, map[string]any{"order": []string{}}))
 
-	if code := refusalCode(t, recorder); code != "field_order_incomplete" {
+	if code := errorCode(t, recorder); code != "field_order_incomplete" {
 		t.Errorf("code = %q, want field_order_incomplete, body %s", code, recorder.Body.String())
 	}
 }
@@ -255,7 +255,7 @@ func TestGroupFieldPatchRefusesAnEmptyLabel(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(second)+"/fields/subtitle",
 		groupBody(t, map[string]any{"label": ""}))
 
-	if code := refusalCode(t, recorder); code != "field_label_required" {
+	if code := errorCode(t, recorder); code != "field_label_required" {
 		t.Errorf("code = %q, want field_label_required, body %s", code, recorder.Body.String())
 	}
 }
@@ -302,7 +302,7 @@ func TestGroupPatchRefusesALocationBringingAKeyIntoCollision(t *testing.T) {
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(rival),
 		groupBody(t, map[string]any{"active": true}))
 
-	if code := refusalCode(t, recorder); code != "field_taken" {
+	if code := errorCode(t, recorder); code != "field_taken" {
 		t.Errorf("code = %q, want field_taken, body %s", code, recorder.Body.String())
 	}
 }

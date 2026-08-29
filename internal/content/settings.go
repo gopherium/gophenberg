@@ -268,7 +268,7 @@ func choiceValues(listed any) map[string]bool {
 	return held
 }
 
-// disagree returns the refusal naming the setting that falls outside the others.
+// disagree returns the error naming the setting that falls outside the others.
 func disagree(setting string) error {
 	return Refuse(ErrSettingBounds, "setting_bounds",
 		fmt.Sprintf("%s: %s", ErrSettingBounds, setting), Details{"setting": setting})

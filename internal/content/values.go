@@ -109,7 +109,7 @@ func choiceWithinBounds(f Field, value any) error {
 	return nil
 }
 
-// outOfBounds returns the refusal naming the field and the limit it passed.
+// outOfBounds returns the error naming the field and the limit it passed.
 func outOfBounds(f Field, code, setting string, limit float64) error {
 	return Refuse(ErrFieldBounds, code,
 		fmt.Sprintf("%s: %s %s %v", ErrFieldBounds, f.Key, setting, limit),
@@ -151,7 +151,7 @@ func textFormat(f Field, held string) error {
 	return nil
 }
 
-// badFormat returns the refusal naming the field and the format it missed.
+// badFormat returns the error naming the field and the format it missed.
 func badFormat(f Field, variant string) error {
 	return Refuse(ErrFieldBounds, "field_format",
 		fmt.Sprintf("%s: %s holds no %s", ErrFieldBounds, f.Key, variant),

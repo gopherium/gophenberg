@@ -291,7 +291,7 @@ test.each([
 	await expect(run()).rejects.toThrow(/group/i)
 })
 
-test('answers something readable when a refusal carries no JSON', async () => {
+test('answers something readable when an error response carries no JSON', async () => {
 	server.use(http.delete('/api/groups/3', () => new HttpResponse('gone wrong', { status: 500 })))
 
 	await expect(deleteGroup(3)).rejects.toThrow()
