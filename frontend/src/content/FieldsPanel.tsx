@@ -148,6 +148,11 @@ function rangeEdit(field: ContentField): ComponentType<DataFormControlProps<Fiel
 		return undefined
 	}
 	const step = counted(field.settings.step)
+	/**
+	 * Renders the slider a bounded range is edited with.
+	 * @param props - The item, the field, and what to call with a change.
+	 * @returns The slider element.
+	 */
 	return function RangeEdit({ data, field: described, onChange }: DataFormControlProps<FieldValues>) {
 		const held = described.getValue({ item: data })
 		return (

@@ -479,7 +479,11 @@ func TestHandshakeServesTheChoicePairs(t *testing.T) {
 			}
 			pairs, ok := field.Settings["choices"].([]any)
 			if !ok || len(pairs) != 1 {
-				t.Errorf("settings = %v, want the choice pairs served", field.Settings)
+				t.Fatalf("settings = %v, want the choice pairs served", field.Settings)
+			}
+			pair, ok := pairs[0].(map[string]any)
+			if !ok || pair["value"] != "ipa" || pair["label"] != "IPA" {
+				t.Errorf("pair = %v, want the value and the label served", pairs[0])
 			}
 			return
 		}

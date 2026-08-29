@@ -46,7 +46,7 @@ func TestRenditionFormatFallsBackWhenNothingDeclaresTransparency(t *testing.T) {
 	}
 }
 
-// wantEncodePanic fails the test unless the deferred recover carries the named encoder error.
+// wantEncodePanic fails the test unless the call panics with the named encoder error.
 func wantEncodePanic(t *testing.T, call, errorText string) {
 	t.Helper()
 	recovered := recover()
