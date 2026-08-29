@@ -62,6 +62,7 @@ type Field struct {
 	RelatesTo string
 	Many      bool
 	Required  bool
+	Settings  map[string]any
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -90,6 +91,9 @@ func (f Field) Validate() error {
 	}
 	if !validFieldKind(f.Kind) {
 		return ErrInvalidFieldKind
+	}
+	if err := ValidateSettings(f.Kind, f.Settings); err != nil {
+		return err
 	}
 	return f.validateRelation()
 }
