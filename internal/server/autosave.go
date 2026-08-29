@@ -95,19 +95,20 @@ func (s *server) handleAutosaveSave() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		scalars, err := s.bufferedValues(r, stored, req)
+		scalars, bounded, err := s.bufferedValues(r, stored, req)
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
 		req.Fields = scalars
-		s.storeBuffer(w, r, stored, req, authkit.IdentityFromContext(r.Context()).ID)
+		s.storeBuffer(w, r, stored, req, authkit.IdentityFromContext(r.Context()).ID, bounded)
 	}
 }
 
 // storeBuffer writes the buffer to the item, parks it, or leaves words the item already holds.
 func (s *server) storeBuffer(
-	w http.ResponseWriter, r *http.Request, stored content.Content, req autosaveRequest, authorID uuid.UUID,
+	w http.ResponseWriter, r *http.Request, stored content.Content, req autosaveRequest,
+	authorID uuid.UUID, bounded bool,
 ) {
 	if holdsBuffer(stored, req) {
 		if req.UpdatedAt.Equal(stored.UpdatedAt) {
@@ -121,7 +122,7 @@ func (s *server) storeBuffer(
 	buffer := stored
 	buffer.Title, buffer.Content, buffer.Excerpt = req.Title, req.Content, req.Excerpt
 	buffer.Fields = bufferValues(stored, req)
-	if writesInPlace(stored, authorID, *req.UpdatedAt) {
+	if bounded && writesInPlace(stored, authorID, *req.UpdatedAt) {
 		s.saveBufferToContent(w, r, buffer, stored.UpdatedAt)
 		return
 	}
@@ -213,18 +214,23 @@ func newAutosaveResponse(
 	}
 }
 
-// bufferedValues returns the scalar values the buffer holds, leaving its targets to a save.
-func (s *server) bufferedValues(r *http.Request, c content.Content, req autosaveRequest) (content.Values, error) {
+// bufferedValues returns the scalar values the buffer holds and whether they sit inside their bounds.
+func (s *server) bufferedValues(
+	r *http.Request, c content.Content, req autosaveRequest,
+) (content.Values, bool, error) {
 	if req.Fields == nil {
-		return nil, nil
+		return nil, true, nil
 	}
 	t, err := s.types.Active(r.Context(), c.Type)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	scalars, _, err := content.SplitValues(req.Fields, t.Fields)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return scalars, scalars.ValidateShape(t.Fields)
+	if err := scalars.ValidateShape(t.Fields); err != nil {
+		return nil, false, err
+	}
+	return scalars, scalars.Validate(t.Fields) == nil, nil
 }
