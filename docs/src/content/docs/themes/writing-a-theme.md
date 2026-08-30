@@ -150,11 +150,44 @@ const related = relatedFields(post)
 }
 ```
 
-`relatedFields` returns relations only. A choice value comes back
-as the stored value, and a media value as an object carrying `src`,
-`alt_text` and its `sizes`, so an image renders straight from the
-page answer. The shapes are covered in the
+`relatedFields` returns relations only, and a choice value comes
+back as the stored value. The shapes are covered in the
 [content API](/reference/content-api/).
+
+Media fields work the same way through `mediaFields`, which reads a
+Media field and a Gallery alike, so one loop renders either:
+
+```astro
+---
+import { mediaFields, mediaUrl } from '@gophenberg/astro'
+
+const pictured = mediaFields(post)
+---
+
+{
+	pictured.map((field) => (
+		<ul>
+			{field.items.map((item) => (
+				<li>
+					<img
+						src={mediaUrl(item.src)}
+						alt={item.alt_text}
+						width={item.width}
+						height={item.height}
+						loading="lazy"
+					/>
+				</li>
+			))}
+		</ul>
+	))
+}
+```
+
+Always pass `mediaUrl`, which is what lets a theme running on its
+own address during development still load files from the instance.
+Giving `width` and `height` stops the page jumping as images
+arrive. `item.sizes` holds the other renditions when you want a
+`srcset`, and it can be empty, so check before reaching into it.
 
 ## Trying it
 
