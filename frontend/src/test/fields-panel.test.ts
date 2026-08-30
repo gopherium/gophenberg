@@ -12,7 +12,16 @@ import type { ContentField } from '../content/types'
  * @returns The declared field.
  */
 function declared(kind: string, required = false): ContentField {
-	return { key: `a-${kind}`, label: kind, kind, relatesTo: '', many: false, required, settings: {} }
+	return {
+		key: `a-${kind}`,
+		label: kind,
+		kind,
+		relatesTo: '',
+		many: false,
+		required,
+		settings: {},
+		updatedAt: '2026-08-01T10:00:00Z',
+	}
 }
 
 test('writes an emptied control as the value that clears its key', () => {
@@ -62,7 +71,16 @@ test('marks a required field so the form can say so', () => {
  * @returns The declared field.
  */
 function carrying(kind: string, settings: Record<string, unknown>): ContentField {
-	return { key: `a-${kind}`, label: kind, kind, relatesTo: '', many: false, required: false, settings }
+	return {
+		key: `a-${kind}`,
+		label: kind,
+		kind,
+		relatesTo: '',
+		many: false,
+		required: false,
+		settings,
+		updatedAt: '2026-08-01T10:00:00Z',
+	}
 }
 
 test('shows the instructions a field carries under its control', () => {

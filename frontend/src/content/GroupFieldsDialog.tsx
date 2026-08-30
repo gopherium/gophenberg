@@ -478,6 +478,7 @@ function FieldSettings(props: Inside) {
 					storedSettings(offered, typed, props.field.settings),
 					pairs,
 				),
+				props.field.updatedAt,
 			),
 		onSuccess: async () => {
 			setOpen(false)
@@ -617,7 +618,8 @@ function ChoicesEditor(props: { pairs: ChoicePair[]; onChange: (pairs: ChoicePai
  */
 function RequireField(props: Inside) {
 	const flip = useMutation({
-		mutationFn: () => setFieldRequiredInGroup(props.group, props.field.key, !props.field.required),
+		mutationFn: () =>
+			setFieldRequiredInGroup(props.group, props.field.key, !props.field.required, props.field.updatedAt),
 		onSuccess: async () => {
 			const said = props.field.required
 				? __('%(field)s is optional again.', 'gophenberg')
@@ -652,7 +654,7 @@ function RenameField(props: Inside) {
 	const [label, setLabel] = useState(props.field.label)
 	const asking = sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })
 	const rename = useMutation({
-		mutationFn: () => renameFieldInGroup(props.group, props.field.key, label),
+		mutationFn: () => renameFieldInGroup(props.group, props.field.key, label, props.field.updatedAt),
 		onSuccess: async () => {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }))

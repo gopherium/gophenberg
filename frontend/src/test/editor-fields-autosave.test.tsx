@@ -27,7 +27,16 @@ const TYPE_WITH_FIELDS = {
 	active: true,
 	created_at: '2026-08-01T10:00:00Z',
 	updated_at: '2026-08-01T10:00:00Z',
-	fields: [{ key: 'color', label: 'Color', kind: 'text', many: false, required: false }],
+	fields: [
+		{
+			key: 'color',
+			label: 'Color',
+			kind: 'text',
+			many: false,
+			required: false,
+			updated_at: '2026-08-01T10:00:00Z',
+		},
+	],
 }
 
 beforeAll(async () => {

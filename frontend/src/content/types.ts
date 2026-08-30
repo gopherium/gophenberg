@@ -14,6 +14,7 @@ export const fieldSchema = z.object({
 	many: z.boolean(),
 	required: z.boolean(),
 	settings: z.record(z.string(), z.unknown()).optional(),
+	updated_at: z.string(),
 })
 
 const typeSchema = z.object({
@@ -47,6 +48,7 @@ export interface ContentField {
 	many: boolean
 	required: boolean
 	settings: Record<string, unknown>
+	updatedAt: string
 }
 
 /** A content type as the admin reads it. */
@@ -116,6 +118,7 @@ export function toField(row: z.infer<typeof fieldSchema>): ContentField {
 		many: row.many,
 		required: row.required,
 		settings: row.settings ?? {},
+		updatedAt: row.updated_at,
 	}
 }
 
