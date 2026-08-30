@@ -267,7 +267,7 @@ type fieldPatchRequest struct {
 	UpdatedAt *time.Time      `json:"updated_at"`
 }
 
-// handleGroupFieldPatch returns an http.HandlerFunc carrying a field's label and required flag.
+// handleGroupFieldPatch returns an http.HandlerFunc carrying a field's label, required flag and settings.
 func (s *server) handleGroupFieldPatch() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := groupIDOf(r)

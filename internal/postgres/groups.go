@@ -404,7 +404,7 @@ func (s *TypeStore) ReorderGroups(ctx context.Context, ids []int) error {
 	return nil
 }
 
-// UpdateFieldInGroup stores the field's label and required flag when the expectation still holds.
+// UpdateFieldInGroup stores the field's label, required flag and settings when the expectation still holds.
 func (s *TypeStore) UpdateFieldInGroup(
 	ctx context.Context, groupID int, f content.Field, expectedUpdatedAt time.Time,
 ) (content.Field, error) {

@@ -152,7 +152,7 @@ func (s *memoryTypes) CreateFieldInGroup(_ context.Context, groupID int, f conte
 	return content.Field{}, content.ErrGroupNotFound
 }
 
-// UpdateFieldInGroup stores the field's label and required flag when the expectation still holds.
+// UpdateFieldInGroup stores the field's label, required flag and settings when the expectation still holds.
 func (s *memoryTypes) UpdateFieldInGroup(
 	_ context.Context, groupID int, f content.Field, expectedUpdatedAt time.Time,
 ) (content.Field, error) {

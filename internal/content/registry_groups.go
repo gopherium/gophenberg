@@ -134,7 +134,7 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	return created, nil
 }
 
-// UpdateFieldInGroup carries the field's label and required flag when the expectation still holds.
+// UpdateFieldInGroup carries the field's label, required flag and settings when the expectation still holds.
 func (r *Registry) UpdateFieldInGroup(
 	ctx context.Context, groupID int, f Field, expectedUpdatedAt time.Time,
 ) (Field, error) {
