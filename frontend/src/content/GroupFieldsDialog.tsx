@@ -49,7 +49,7 @@ function holdsEdits(state: { isError: boolean; error: unknown }): boolean {
 /** What a field control reports back once its write settles. */
 interface Reporter {
 	onDone: (said: string) => Promise<void>
-	onRefused: (cause: unknown) => void
+	onRefused: (cause: unknown) => Promise<void>
 }
 
 /** The group a field control acts inside. */
@@ -90,10 +90,10 @@ export function GroupFieldsDialog(props: {
 	 * Reports why a field write was turned away, where the operator is looking.
 	 * @param cause - What the write failed with.
 	 */
-	function refused(cause: unknown) {
+	async function refused(cause: unknown) {
 		setNotice(groupErrorMessage(cause))
 		if (cause instanceof StaleWriteError) {
-			void client.invalidateQueries({ queryKey: groupsQueryKey })
+			await client.invalidateQueries({ queryKey: groupsQueryKey })
 		}
 	}
 
@@ -494,9 +494,9 @@ function FieldSettings(props: Inside) {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s settled.', 'gophenberg'), { field: props.field.label }))
 		},
-		onError: (cause) => {
+		onError: async (cause) => {
+			await props.onRefused(cause)
 			setOpen(false)
-			props.onRefused(cause)
 		},
 	})
 
@@ -671,9 +671,9 @@ function RenameField(props: Inside) {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }))
 		},
-		onError: (cause) => {
+		onError: async (cause) => {
+			await props.onRefused(cause)
 			setOpen(false)
-			props.onRefused(cause)
 		},
 	})
 	/**

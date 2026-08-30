@@ -482,6 +482,55 @@ test('reads the field afresh after a settings save lost to a concurrent edit', a
 	expect(sent[1]).toMatchObject({ updated_at: '2026-08-02T09:00:00Z' })
 })
 
+test('reads the field afresh even when the listing is slow to answer', async () => {
+	const sent: unknown[] = []
+	let stamp = '2026-08-01T10:00:00Z'
+	server.use(
+		http.get('/api/groups', async () => {
+			await new Promise((settle) => setTimeout(settle, 50))
+			return HttpResponse.json({
+				items: [
+					{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: stamp }, READING_TIME] },
+					EXTRAS,
+				],
+			})
+		}),
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent.push(await request.json())
+			if (sent.length > 1) {
+				return HttpResponse.json(SUBTITLE)
+			}
+			stamp = '2026-08-02T09:00:00Z'
+			return HttpResponse.json(
+				{ error: 'content: conflicting update', code: 'content_stale_update' },
+				{ status: 409 },
+			)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	await userEvent.click(
+		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
+			name: 'Save settings',
+		}),
+	)
+	await within(dialog).findByRole('alert')
+	await waitFor(() =>
+		expect(screen.queryByRole('dialog', { name: 'Settings of Subtitle' })).toBeNull(),
+	)
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	await userEvent.click(
+		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
+			name: 'Save settings',
+		}),
+	)
+
+	await waitFor(() => expect(sent).toHaveLength(2))
+	expect(sent[1]).toMatchObject({ updated_at: '2026-08-02T09:00:00Z' })
+})
+
 test('keeps the name typed when a rename is turned away', async () => {
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', () =>
