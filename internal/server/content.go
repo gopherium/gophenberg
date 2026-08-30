@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -347,32 +346,6 @@ func servedMediaOf(m media.Media) servedMedia {
 	}
 }
 
-// heldMediaID returns the value as a library identity, and whether it names one.
-func heldMediaID(value any) (int64, bool) {
-	switch held := value.(type) {
-	case float64:
-		return wholeMediaID(held)
-	case float32:
-		return wholeMediaID(float64(held))
-	case int64:
-		return held, held >= 1
-	case int32:
-		return int64(held), held >= 1
-	case int:
-		return int64(held), held >= 1
-	default:
-		return 0, false
-	}
-}
-
-// wholeMediaID returns the number as a library identity, and whether it names one whole file.
-func wholeMediaID(held float64) (int64, bool) {
-	if math.IsNaN(held) || held < 1 || held >= math.MaxInt64 || held != math.Trunc(held) {
-		return 0, false
-	}
-	return int64(held), true
-}
-
 // mediaIDsHeld returns every identity the values hold under the type's media fields.
 func mediaIDsHeld(t content.Type, values content.Values) []int64 {
 	var ids []int64
@@ -383,13 +356,13 @@ func mediaIDsHeld(t content.Type, values content.Values) []int64 {
 		if f.Many {
 			listed, _ := values[f.Key].([]any)
 			for _, member := range listed {
-				if id, ok := heldMediaID(member); ok {
+				if id, ok := content.MediaIdentity(member); ok {
 					ids = append(ids, id)
 				}
 			}
 			continue
 		}
-		if id, ok := heldMediaID(values[f.Key]); ok {
+		if id, ok := content.MediaIdentity(values[f.Key]); ok {
 			ids = append(ids, id)
 		}
 	}
@@ -428,7 +401,7 @@ func inlineMediaKey(f content.Field, values content.Values, byID map[int64]media
 
 // inlineMediaOne rewrites a field holding one file, deleting the key when it will not serve.
 func inlineMediaOne(key string, values content.Values, byID map[int64]media.Media) {
-	id, ok := heldMediaID(values[key])
+	id, ok := content.MediaIdentity(values[key])
 	m, found := byID[id]
 	if !ok || !found {
 		delete(values, key)
@@ -446,7 +419,7 @@ func inlineMediaList(key string, values content.Values, byID map[int64]media.Med
 	}
 	served := make([]servedMedia, 0, len(listed))
 	for _, member := range listed {
-		if id, ok := heldMediaID(member); ok {
+		if id, ok := content.MediaIdentity(member); ok {
 			if m, found := byID[id]; found {
 				served = append(served, servedMediaOf(m))
 			}
