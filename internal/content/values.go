@@ -5,6 +5,7 @@ package content
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"regexp"
 	"time"
@@ -207,7 +208,7 @@ func holdsShape(f Field, value any) bool {
 	case f.Kind == FieldKindChoice:
 		return isWord(value)
 	case f.Kind == FieldKindMedia && f.Many:
-		return holdsEvery(value, isNumber)
+		return holdsEvery(value, isMediaID)
 	default:
 		return holdsKind(value, f.Kind)
 	}
@@ -245,8 +246,10 @@ func holdsKind(value any, kind FieldKind) bool {
 	case FieldKindText:
 		_, ok := value.(string)
 		return ok
-	case FieldKindNumber, FieldKindMedia:
+	case FieldKindNumber:
 		return isNumber(value)
+	case FieldKindMedia:
+		return isMediaID(value)
 	case FieldKindBoolean:
 		_, ok := value.(bool)
 		return ok
@@ -261,6 +264,12 @@ func holdsKind(value any, kind FieldKind) bool {
 func isNumber(value any) bool {
 	_, held := settingNumber(value)
 	return held
+}
+
+// isMediaID reports whether the value is a whole number naming one library file.
+func isMediaID(value any) bool {
+	held, ok := settingNumber(value)
+	return ok && held >= 1 && held == math.Trunc(held) && !math.IsInf(held, 0)
 }
 
 // isDay reports whether the value is a day written as a date.
