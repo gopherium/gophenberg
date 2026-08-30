@@ -2,7 +2,7 @@
 
 import { env } from 'node:process'
 
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
 import { mediaFields, mediaItems, mediaUrl, relatedFields, relatedItems } from '../index.ts'
 import type { MediaValue, Post } from '../index.ts'
@@ -101,8 +101,18 @@ describe('the media fields an item carries', () => {
 })
 
 describe('the address a theme loads a file from', () => {
-	afterEach(() => {
+	const held = env.GOPHENBERG_ASSET_ORIGIN
+
+	beforeEach(() => {
 		delete env.GOPHENBERG_ASSET_ORIGIN
+	})
+
+	afterEach(() => {
+		if (held === undefined) {
+			delete env.GOPHENBERG_ASSET_ORIGIN
+			return
+		}
+		env.GOPHENBERG_ASSET_ORIGIN = held
 	})
 
 	test('loads from the theme origin when it shares one', () => {

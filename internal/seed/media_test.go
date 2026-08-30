@@ -67,7 +67,7 @@ func (s *countingMediaStore) ByID(context.Context, int64) (media.Media, error) {
 	return media.Media{}, media.ErrNotFound
 }
 
-// ByIDs answers no items, the seeder never reads by identity.
+// ByIDs answers no items.
 func (s *countingMediaStore) ByIDs(context.Context, []int64) ([]media.Media, error) {
 	return nil, nil
 }
