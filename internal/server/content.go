@@ -380,7 +380,8 @@ func mediaIDsHeld(t content.Type, values content.Values) []int64 {
 		if f.Kind != content.FieldKindMedia {
 			continue
 		}
-		if listed, many := values[f.Key].([]any); many {
+		if f.Many {
+			listed, _ := values[f.Key].([]any)
 			for _, member := range listed {
 				if id, ok := heldMediaID(member); ok {
 					ids = append(ids, id)
@@ -410,30 +411,23 @@ func (s *server) inlineMediaValues(r *http.Request, t content.Type, values conte
 	}
 	for _, f := range t.Fields {
 		if f.Kind == content.FieldKindMedia {
-			inlineMediaKey(f.Key, values, byID)
+			inlineMediaKey(f, values, byID)
 		}
 	}
 	return nil
 }
 
-// inlineMediaKey rewrites one field's value, deleting the key when nothing resolves.
-func inlineMediaKey(key string, values content.Values, byID map[int64]media.Media) {
-	if listed, many := values[key].([]any); many {
-		served := make([]servedMedia, 0, len(listed))
-		for _, member := range listed {
-			if id, ok := heldMediaID(member); ok {
-				if m, found := byID[id]; found {
-					served = append(served, servedMediaOf(m))
-				}
-			}
-		}
-		if len(served) == 0 {
-			delete(values, key)
-			return
-		}
-		values[key] = served
+// inlineMediaKey rewrites one field's value into the shape it declares, deleting what will not serve.
+func inlineMediaKey(f content.Field, values content.Values, byID map[int64]media.Media) {
+	if f.Many {
+		inlineMediaList(f.Key, values, byID)
 		return
 	}
+	inlineMediaOne(f.Key, values, byID)
+}
+
+// inlineMediaOne rewrites a field holding one file, deleting the key when it will not serve.
+func inlineMediaOne(key string, values content.Values, byID map[int64]media.Media) {
 	id, ok := heldMediaID(values[key])
 	m, found := byID[id]
 	if !ok || !found {
@@ -441,6 +435,28 @@ func inlineMediaKey(key string, values content.Values, byID map[int64]media.Medi
 		return
 	}
 	values[key] = servedMediaOf(m)
+}
+
+// inlineMediaList rewrites a field holding many files, deleting the key when none serve.
+func inlineMediaList(key string, values content.Values, byID map[int64]media.Media) {
+	listed, many := values[key].([]any)
+	if !many {
+		delete(values, key)
+		return
+	}
+	served := make([]servedMedia, 0, len(listed))
+	for _, member := range listed {
+		if id, ok := heldMediaID(member); ok {
+			if m, found := byID[id]; found {
+				served = append(served, servedMediaOf(m))
+			}
+		}
+	}
+	if len(served) == 0 {
+		delete(values, key)
+		return
+	}
+	values[key] = served
 }
 
 // respondTerm answers with the addressed item and the published content pointing at it.

@@ -105,12 +105,57 @@ func TestInlineMediaKeyDeletesWhatNamesNoFile(t *testing.T) {
 
 			values := content.Values{"cover": held}
 
-			inlineMediaKey("cover", values, map[int64]media.Media{})
+			inlineMediaKey(galleryField("cover", false), values, map[int64]media.Media{})
 
 			if raw, found := values["cover"]; found {
 				t.Errorf("values hold %v, want the key deleted rather than served", raw)
 			}
 		})
+	}
+}
+
+func TestInlineMediaKeyServesTheShapeTheFieldDeclares(t *testing.T) {
+	t.Parallel()
+
+	stored := map[int64]media.Media{7: {ID: 7, File: "2026/08/one.jpg", MimeType: "image/jpeg"}}
+
+	for name, test := range map[string]struct {
+		field content.Field
+		held  any
+	}{
+		"a cover holding a list":     {galleryField("cover", false), []any{float64(7)}},
+		"a gallery holding one item": {galleryField("gallery", true), float64(7)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			values := content.Values{test.field.Key: test.held}
+
+			inlineMediaKey(test.field, values, stored)
+
+			if raw, found := values[test.field.Key]; found {
+				t.Errorf("%s serves %v, want the key left out rather than the wrong shape",
+					test.field.Key, raw)
+			}
+		})
+	}
+}
+
+func TestInlineMediaKeyServesEachDeclaredShape(t *testing.T) {
+	t.Parallel()
+
+	stored := map[int64]media.Media{7: {ID: 7, File: "2026/08/one.jpg", MimeType: "image/jpeg"}}
+	cover := content.Values{"cover": float64(7)}
+	gallery := content.Values{"gallery": []any{float64(7)}}
+
+	inlineMediaKey(galleryField("cover", false), cover, stored)
+	inlineMediaKey(galleryField("gallery", true), gallery, stored)
+
+	if _, one := cover["cover"].(servedMedia); !one {
+		t.Errorf("cover serves %T, want one object", cover["cover"])
+	}
+	if listed, many := gallery["gallery"].([]servedMedia); !many || len(listed) != 1 {
+		t.Errorf("gallery serves %T, want a list of one", gallery["gallery"])
 	}
 }
 
@@ -137,7 +182,7 @@ func TestInlineMediaKeyDeletesAnEmptiedList(t *testing.T) {
 
 	values := content.Values{"gallery": []any{float64(9)}}
 
-	inlineMediaKey("gallery", values, map[int64]media.Media{})
+	inlineMediaKey(galleryField("gallery", true), values, map[int64]media.Media{})
 
 	if _, found := values["gallery"]; found {
 		t.Errorf("values = %v, want the emptied key deleted", values)
