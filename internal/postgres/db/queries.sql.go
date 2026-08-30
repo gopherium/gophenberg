@@ -1215,6 +1215,49 @@ func (q *Queries) ListMedia(ctx context.Context, arg ListMediaParams) ([]CoreMed
 	return items, nil
 }
 
+const listMediaByIDs = `-- name: ListMediaByIDs :many
+SELECT m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description,
+    m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at
+FROM core.media m
+WHERE m.id = ANY($1::bigint [])
+`
+
+func (q *Queries) ListMediaByIDs(ctx context.Context, ids []int64) ([]CoreMedia, error) {
+	rows, err := q.db.Query(ctx, listMediaByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CoreMedia
+	for rows.Next() {
+		var i CoreMedia
+		if err := rows.Scan(
+			&i.ID,
+			&i.MediaType,
+			&i.File,
+			&i.Title,
+			&i.AltText,
+			&i.Caption,
+			&i.Description,
+			&i.MimeType,
+			&i.Width,
+			&i.Height,
+			&i.Filesize,
+			&i.Sizes,
+			&i.AuthorID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRelatedContent = `-- name: ListRelatedContent :many
 SELECT c.id, c.type, c.status, c.slug, c.title, c.excerpt,
     c.author_id, c.published_at, c.created_at, c.updated_at, c.parent_id, c.path, c.fields

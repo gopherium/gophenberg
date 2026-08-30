@@ -63,6 +63,22 @@ func (s *MediaStore) ByID(ctx context.Context, id int64) (media.Media, error) {
 	return toMedia(row), nil
 }
 
+// ByIDs returns the media items stored under the identities, leaving out any that are gone.
+func (s *MediaStore) ByIDs(ctx context.Context, ids []int64) ([]media.Media, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	rows, err := s.queries.ListMediaByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list media by ids: %w", err)
+	}
+	listed := make([]media.Media, len(rows))
+	for i, row := range rows {
+		listed[i] = toMedia(row)
+	}
+	return listed, nil
+}
+
 // List returns the media items matching the filter, newest first, and the
 // total number matching it.
 func (s *MediaStore) List(ctx context.Context, f media.Filter) ([]media.Media, int, error) {

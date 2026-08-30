@@ -69,6 +69,19 @@ func (s *fakeMediaStore) ByID(_ context.Context, id int64) (media.Media, error) 
 	return m, nil
 }
 
+// ByIDs returns the stored items among the identities, leaving out any that are gone.
+func (s *fakeMediaStore) ByIDs(_ context.Context, ids []int64) ([]media.Media, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	listed := make([]media.Media, 0, len(ids))
+	for _, id := range ids {
+		if m, found := s.items[id]; found {
+			listed = append(listed, m)
+		}
+	}
+	return listed, nil
+}
+
 // List returns every stored item newest first with their count, or fails as told.
 func (s *fakeMediaStore) List(_ context.Context, f media.Filter) ([]media.Media, int, error) {
 	s.mu.Lock()

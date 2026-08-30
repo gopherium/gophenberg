@@ -45,6 +45,19 @@ func (s *memoryMedia) ByID(_ context.Context, id int64) (media.Media, error) {
 	return m, nil
 }
 
+// ByIDs returns the media items stored under the identities, leaving out any that are gone.
+func (s *memoryMedia) ByIDs(_ context.Context, ids []int64) ([]media.Media, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	listed := make([]media.Media, 0, len(ids))
+	for _, id := range ids {
+		if m, found := s.items[id]; found {
+			listed = append(listed, m)
+		}
+	}
+	return listed, nil
+}
+
 // List returns the media items matching the filter, newest first, and the
 // total number matching it.
 func (s *memoryMedia) List(_ context.Context, f media.Filter) ([]media.Media, int, error) {

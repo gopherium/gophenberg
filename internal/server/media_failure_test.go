@@ -60,6 +60,11 @@ func (s undeletableMediaStore) ByID(context.Context, int64) (media.Media, error)
 	return s.item, nil
 }
 
+// ByIDs reports the failure.
+func (s undeletableMediaStore) ByIDs(context.Context, []int64) ([]media.Media, error) {
+	return nil, s.err
+}
+
 // List answers nothing stored.
 func (s undeletableMediaStore) List(context.Context, media.Filter) ([]media.Media, int, error) {
 	return nil, 0, nil
