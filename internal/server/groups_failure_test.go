@@ -155,13 +155,15 @@ func TestGroupRoutesReportAStoreThatWillNotAnswer(t *testing.T) {
 		path   string
 		body   string
 	}{
-		"list":        {http.MethodGet, "/api/groups", ""},
-		"params":      {http.MethodGet, "/api/groups/params", ""},
-		"patch":       {http.MethodPatch, "/api/groups/1", `{"title": "Extras"}`},
-		"order":       {http.MethodPut, "/api/groups/order", `{"order": [1]}`},
-		"declare":     {http.MethodPost, "/api/groups/1/fields", `{"key": "a", "label": "A", "kind": "text"}`},
-		"move":        {http.MethodPost, "/api/groups/1/fields/a/move", `{"to_group": 2}`},
-		"fieldPatch":  {http.MethodPatch, "/api/groups/1/fields/a", `{"label": "A"}`},
+		"list":    {http.MethodGet, "/api/groups", ""},
+		"params":  {http.MethodGet, "/api/groups/params", ""},
+		"patch":   {http.MethodPatch, "/api/groups/1", `{"title": "Extras"}`},
+		"order":   {http.MethodPut, "/api/groups/order", `{"order": [1]}`},
+		"declare": {http.MethodPost, "/api/groups/1/fields", `{"key": "a", "label": "A", "kind": "text"}`},
+		"move":    {http.MethodPost, "/api/groups/1/fields/a/move", `{"to_group": 2}`},
+		"fieldPatch": {
+			http.MethodPatch, "/api/groups/1/fields/a", `{"label": "A", "updated_at": "2000-01-01T00:00:00Z"}`,
+		},
 		"fieldDelete": {http.MethodDelete, "/api/groups/1/fields/a", ""},
 		"fieldOrder":  {http.MethodPut, "/api/groups/1/fields/order", `{"order": ["a"]}`},
 	} {
@@ -188,7 +190,7 @@ func TestGroupFieldPatchReportsAFieldThatIsGone(t *testing.T) {
 	id := createGroup(t, handler, "Article details")
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/absent",
-		groupBody(t, map[string]any{"label": "Absent"}))
+		groupBody(t, map[string]any{"label": "Absent", "updated_at": "2000-01-01T00:00:00Z"}))
 
 	if code := errorCode(t, recorder); code != "field_not_found" {
 		t.Errorf("code = %q, want field_not_found, body %s", code, recorder.Body.String())
@@ -214,7 +216,7 @@ func TestGroupFieldPatchReportsAGroupThatIsGone(t *testing.T) {
 	handler, _, _, _ := typedPostServer(t)
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(4242)+"/fields/absent",
-		groupBody(t, map[string]any{"label": "Absent"}))
+		groupBody(t, map[string]any{"label": "Absent", "updated_at": "2000-01-01T00:00:00Z"}))
 
 	if code := errorCode(t, recorder); code != "group_not_found" {
 		t.Errorf("code = %q, want group_not_found, body %s", code, recorder.Body.String())
@@ -253,7 +255,7 @@ func TestGroupFieldPatchRefusesAnEmptyLabel(t *testing.T) {
 	}
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(second)+"/fields/subtitle",
-		groupBody(t, map[string]any{"label": ""}))
+		groupBody(t, map[string]any{"label": "", "updated_at": fieldTimestamp(t, declared)}))
 
 	if code := errorCode(t, recorder); code != "field_label_required" {
 		t.Errorf("code = %q, want field_label_required, body %s", code, recorder.Body.String())

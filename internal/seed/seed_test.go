@@ -87,7 +87,7 @@ func (stubTypeStore) MoveField(context.Context, int, string, int) (content.Field
 }
 
 // UpdateFieldInGroup hands the field back unstored.
-func (stubTypeStore) UpdateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
+func (stubTypeStore) UpdateFieldInGroup(_ context.Context, _ int, f content.Field, _ time.Time) (content.Field, error) {
 	return f, nil
 }
 
