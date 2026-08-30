@@ -87,14 +87,24 @@ func holdsEachOnce(f Field, value any) error {
 	}
 	seen := make(map[any]bool, len(members))
 	for _, member := range members {
-		if seen[member] {
+		named := namedOnce(f, member)
+		if seen[named] {
 			return Refuse(ErrFieldShape, "field_repeated",
 				fmt.Sprintf("%s: %s names the same one twice", ErrFieldShape, f.Key),
 				Details{"field": f.Key})
 		}
-		seen[member] = true
+		seen[named] = true
 	}
 	return nil
+}
+
+// namedOnce returns the member as the one thing it names, however a caller wrote it.
+func namedOnce(f Field, member any) any {
+	if f.Kind != FieldKindMedia {
+		return member
+	}
+	held, _ := settingNumber(member)
+	return int64(held)
 }
 
 // withinBounds reports whether the value sits inside the bounds its field's settings name.

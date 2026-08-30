@@ -115,6 +115,9 @@ func TestValuesShapeTheChoiceKindAndAManyMedia(t *testing.T) {
 		"a many media refuses the same item twice": {
 			shaped(t, content.FieldKindMedia, true, nil), []any{float64(1), float64(1)}, false,
 		},
+		"a many media refuses the same item written two ways": {
+			shaped(t, content.FieldKindMedia, true, nil), []any{float64(7), int64(7)}, false,
+		},
 		"a media refuses a part of an item": {
 			shaped(t, content.FieldKindMedia, false, nil), float64(1.5), false,
 		},
