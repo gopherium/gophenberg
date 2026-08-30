@@ -564,8 +564,10 @@ func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, groupID int, f con
 	return content.Field{}, content.ErrGroupNotFound
 }
 
-// UpdateFieldInGroup stores the field's label and required flag inside its group.
-func (s *fakeTypeStore) UpdateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
+// UpdateFieldInGroup stores the field's label, required flag and settings inside its group.
+func (s *fakeTypeStore) UpdateFieldInGroup(
+	_ context.Context, groupID int, f content.Field, _ time.Time,
+) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {

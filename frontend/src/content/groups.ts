@@ -86,13 +86,17 @@ function toGroup(row: z.infer<typeof groupSchema>): FieldGroup {
 	}
 }
 
+/** The failure a write reports when the stored field moved on before it landed. */
+export class StaleWriteError extends Error {}
+
 /**
  * Throws the reason a group write was refused, or the status it failed with.
  * @param response - The answer the server gave.
  */
 async function refuse(response: Response): Promise<never> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
-	throw new Error(errorText(parsed.success ? parsed.data : { error: '' }))
+	const said = errorText(parsed.success ? parsed.data : { error: '' })
+	throw response.status === 409 ? new StaleWriteError(said) : new Error(said)
 }
 
 /**
@@ -268,14 +272,16 @@ async function patchFieldInGroup(
  * @param id - The group declaring the field.
  * @param key - The field to relabel.
  * @param label - The label to carry.
+ * @param updatedAt - The timestamp the editor read.
  * @returns The stored field.
  */
 export async function renameFieldInGroup(
 	id: number,
 	key: string,
 	label: string,
+	updatedAt: string,
 ): Promise<ContentField> {
-	return patchFieldInGroup(id, key, { label })
+	return patchFieldInGroup(id, key, { label, updated_at: updatedAt })
 }
 
 /**
@@ -283,14 +289,16 @@ export async function renameFieldInGroup(
  * @param id - The group declaring the field.
  * @param key - The field to change.
  * @param settings - The settings to store.
+ * @param updatedAt - The timestamp the editor read.
  * @returns The stored field.
  */
 export async function setFieldSettingsInGroup(
 	id: number,
 	key: string,
 	settings: Record<string, unknown>,
+	updatedAt: string,
 ): Promise<ContentField> {
-	return patchFieldInGroup(id, key, { settings })
+	return patchFieldInGroup(id, key, { settings, updated_at: updatedAt })
 }
 
 /**
@@ -298,14 +306,16 @@ export async function setFieldSettingsInGroup(
  * @param id - The group declaring the field.
  * @param key - The field to change.
  * @param required - Whether the field gates publishing.
+ * @param updatedAt - The timestamp the editor read.
  * @returns The stored field.
  */
 export async function setFieldRequiredInGroup(
 	id: number,
 	key: string,
 	required: boolean,
+	updatedAt: string,
 ): Promise<ContentField> {
-	return patchFieldInGroup(id, key, { required })
+	return patchFieldInGroup(id, key, { required, updated_at: updatedAt })
 }
 
 /**

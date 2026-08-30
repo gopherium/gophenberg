@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
+import { groupsQueryKey } from '../content/groups'
 import { renderAt } from './render'
 
 const POST_TYPE = {
@@ -147,7 +148,9 @@ test('renames a field without moving what is stored under it', async () => {
 	await userEvent.type(box, 'Standfirst')
 	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
 
-	await waitFor(() => expect(sent).toEqual({ label: 'Standfirst' }))
+	await waitFor(() =>
+		expect(sent).toEqual({ label: 'Standfirst', updated_at: '2026-08-01T10:00:00Z' }),
+	)
 })
 
 test('requires a field that was optional', async () => {
@@ -163,7 +166,9 @@ test('requires a field that was optional', async () => {
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Require Subtitle' }))
 
-	await waitFor(() => expect(sent).toEqual({ required: true }))
+	await waitFor(() =>
+		expect(sent).toEqual({ required: true, updated_at: '2026-08-01T10:00:00Z' }),
+	)
 })
 
 test('deletes a field once the warning about its values is accepted', async () => {
@@ -333,7 +338,247 @@ test('makes a required field optional again', async () => {
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Make Reading time optional' }))
 
-	await waitFor(() => expect(sent).toEqual({ required: false }))
+	await waitFor(() =>
+		expect(sent).toEqual({ required: false, updated_at: '2026-08-01T10:00:00Z' }),
+	)
+})
+
+test('renames on the timestamp the dialog opened with, not one that landed while it was open', async () => {
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, label: 'Standfirst' })
+		}),
+	)
+	const client = renderAt('/field-groups')
+	const dialog = await openFields()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
+	const renaming = await screen.findByRole('dialog', { name: 'Rename Subtitle' })
+	const box = within(renaming).getByLabelText('Name')
+	await userEvent.clear(box)
+	await userEvent.type(box, 'Standfirst')
+
+	listing([
+		{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
+		EXTRAS,
+	])
+	await act(async () => {
+		await client.invalidateQueries({ queryKey: groupsQueryKey })
+	})
+	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({ label: 'Standfirst', updated_at: '2026-08-01T10:00:00Z' }),
+	)
+})
+
+test('settles on the timestamp the dialog opened with, not one that landed while it was open', async () => {
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE)
+		}),
+	)
+	const client = renderAt('/field-groups')
+	const dialog = await openFields()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+	await userEvent.type(within(settings).getByLabelText('Instructions'), 'Say who wrote it.')
+
+	listing([
+		{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
+		EXTRAS,
+	])
+	await act(async () => {
+		await client.invalidateQueries({ queryKey: groupsQueryKey })
+	})
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({
+			settings: { instructions: 'Say who wrote it.' },
+			updated_at: '2026-08-01T10:00:00Z',
+		}),
+	)
+})
+
+test('renames the same field twice in one sitting', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent.push(await request.json())
+			listing([
+				{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
+				EXTRAS,
+			])
+			return HttpResponse.json({ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
+	await userEvent.click(
+		within(await screen.findByRole('dialog', { name: 'Rename Subtitle' })).getByRole('button', {
+			name: 'Rename',
+		}),
+	)
+	await waitFor(() => expect(sent).toHaveLength(1))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
+	await userEvent.click(
+		within(await screen.findByRole('dialog', { name: 'Rename Subtitle' })).getByRole('button', {
+			name: 'Rename',
+		}),
+	)
+
+	await waitFor(() => expect(sent).toHaveLength(2))
+	expect(sent[1]).toMatchObject({ updated_at: '2026-08-02T09:00:00Z' })
+})
+
+test('reads the field afresh after a settings save lost to a concurrent edit', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent.push(await request.json())
+			if (sent.length > 1) {
+				return HttpResponse.json(SUBTITLE)
+			}
+			listing([
+				{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
+				EXTRAS,
+			])
+			return HttpResponse.json(
+				{ error: 'content: conflicting update', code: 'content_stale_update' },
+				{ status: 409 },
+			)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	await userEvent.type(
+		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByLabelText(
+			'Instructions',
+		),
+		'Say who wrote it.',
+	)
+	await userEvent.click(
+		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
+			name: 'Save settings',
+		}),
+	)
+	await within(dialog).findByRole('alert')
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	await userEvent.click(
+		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
+			name: 'Save settings',
+		}),
+	)
+
+	await waitFor(() => expect(sent).toHaveLength(2))
+	expect(sent[1]).toMatchObject({ updated_at: '2026-08-02T09:00:00Z' })
+})
+
+test('reads the field afresh even when the listing is slow to answer', async () => {
+	const sent: unknown[] = []
+	let stamp = '2026-08-01T10:00:00Z'
+	server.use(
+		http.get('/api/groups', async () => {
+			await new Promise((settle) => setTimeout(settle, 50))
+			return HttpResponse.json({
+				items: [
+					{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: stamp }, READING_TIME] },
+					EXTRAS,
+				],
+			})
+		}),
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent.push(await request.json())
+			if (sent.length > 1) {
+				return HttpResponse.json(SUBTITLE)
+			}
+			stamp = '2026-08-02T09:00:00Z'
+			return HttpResponse.json(
+				{ error: 'content: conflicting update', code: 'content_stale_update' },
+				{ status: 409 },
+			)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	await userEvent.click(
+		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
+			name: 'Save settings',
+		}),
+	)
+	await within(dialog).findByRole('alert')
+	await waitFor(() =>
+		expect(screen.queryByRole('dialog', { name: 'Settings of Subtitle' })).toBeNull(),
+	)
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	await userEvent.click(
+		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
+			name: 'Save settings',
+		}),
+	)
+
+	await waitFor(() => expect(sent).toHaveLength(2))
+	expect(sent[1]).toMatchObject({ updated_at: '2026-08-02T09:00:00Z' })
+})
+
+test('keeps the name typed when a rename is turned away', async () => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json(
+				{ error: 'content: field label required', code: 'field_label_required' },
+				{ status: 422 },
+			),
+		),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
+	const box = within(await screen.findByRole('dialog', { name: 'Rename Subtitle' })).getByLabelText(
+		'Name',
+	)
+	await userEvent.clear(box)
+	await userEvent.type(box, 'Standfirst')
+	await userEvent.click(
+		within(await screen.findByRole('dialog', { name: 'Rename Subtitle' })).getByRole('button', {
+			name: 'Rename',
+		}),
+	)
+	await within(dialog).findByRole('alert')
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
+
+	expect(
+		within(await screen.findByRole('dialog', { name: 'Rename Subtitle' })).getByLabelText('Name'),
+	).toHaveValue('Standfirst')
+})
+
+test('reports a rename that lost to a concurrent edit', async () => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json(
+				{ error: 'content: conflicting update', code: 'content_stale_update' },
+				{ status: 409 },
+			),
+		),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
+	const renaming = await screen.findByRole('dialog', { name: 'Rename Subtitle' })
+	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
+
+	expect(await within(dialog).findByRole('alert')).toHaveTextContent(/someone else saved/i)
 })
 
 test('closes the rename and reports why it was turned away', async () => {
@@ -497,7 +742,10 @@ test('offers the settings a text field takes and stores them', async () => {
 	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
 
 	await waitFor(() =>
-		expect(sent).toEqual({ settings: { instructions: 'Say who wrote it.', maxlength: 80 } }),
+		expect(sent).toEqual({
+			settings: { instructions: 'Say who wrote it.', maxlength: 80 },
+			updated_at: '2026-08-01T10:00:00Z',
+		}),
 	)
 })
 
@@ -519,7 +767,9 @@ test('offers a number field its own bounds', async () => {
 	await userEvent.type(within(settings).getByLabelText('Highest'), '10')
 	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
 
-	await waitFor(() => expect(sent).toEqual({ settings: { min: 1, max: 10 } }))
+	await waitFor(() =>
+		expect(sent).toEqual({ settings: { min: 1, max: 10 }, updated_at: '2026-08-01T10:00:00Z' }),
+	)
 })
 
 test('offers a media field nothing but instructions', async () => {
@@ -564,7 +814,9 @@ test('stores nothing for a setting left empty', async () => {
 	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
 	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
 
-	await waitFor(() => expect(sent).toEqual({ settings: {} }))
+	await waitFor(() =>
+		expect(sent).toEqual({ settings: {}, updated_at: '2026-08-01T10:00:00Z' }),
+	)
 })
 
 test('stores no settings when the dialog is abandoned', async () => {
@@ -651,7 +903,10 @@ test('keeps a setting the dialog does not offer', async () => {
 	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
 
 	await waitFor(() =>
-		expect(sent).toEqual({ settings: { placeholder: 'How many minutes', min: 1 } }),
+		expect(sent).toEqual({
+			settings: { placeholder: 'How many minutes', min: 1 },
+			updated_at: '2026-08-01T10:00:00Z',
+		}),
 	)
 })
 
@@ -754,7 +1009,10 @@ test('offers a choice field its choices and stores the pairs', async () => {
 	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
 
 	await waitFor(() =>
-		expect(sent).toEqual({ settings: { choices: [{ value: 'ipa', label: 'IPA' }] } }),
+		expect(sent).toEqual({
+			settings: { choices: [{ value: 'ipa', label: 'IPA' }] },
+			updated_at: '2026-08-01T10:00:00Z',
+		}),
 	)
 })
 
@@ -800,6 +1058,7 @@ test('shows the pairs a choice field already carries and drops a removed one', a
 	await waitFor(() =>
 		expect(sent).toEqual({
 			settings: { choices: [{ value: 'stouts', label: 'Stout Beer' }] },
+			updated_at: '2026-08-01T10:00:00Z',
 		}),
 	)
 })
@@ -851,7 +1110,9 @@ test('offers a choice field the flags its kind takes', async () => {
 	await userEvent.click(await screen.findByRole('option', { name: 'Yes' }))
 	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
 
-	await waitFor(() => expect(sent).toEqual({ settings: { allow_custom: true } }))
+	await waitFor(() =>
+		expect(sent).toEqual({ settings: { allow_custom: true }, updated_at: '2026-08-01T10:00:00Z' }),
+	)
 })
 
 test('offers a boolean field the value it starts on', async () => {
@@ -874,5 +1135,7 @@ test('offers a boolean field the value it starts on', async () => {
 	await userEvent.click(await screen.findByRole('option', { name: 'Yes' }))
 	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
 
-	await waitFor(() => expect(sent).toEqual({ settings: { default: true } }))
+	await waitFor(() =>
+		expect(sent).toEqual({ settings: { default: true }, updated_at: '2026-08-01T10:00:00Z' }),
+	)
 })

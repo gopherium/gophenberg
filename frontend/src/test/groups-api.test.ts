@@ -202,9 +202,9 @@ test('renames a field inside its group', async () => {
 		}),
 	)
 
-	const renamed = await renameFieldInGroup(3, 'subtitle', 'Renamed')
+	const renamed = await renameFieldInGroup(3, 'subtitle', 'Renamed', '2026-08-01T10:00:00Z')
 
-	expect(sent).toEqual({ label: 'Renamed' })
+	expect(sent).toEqual({ label: 'Renamed', updated_at: '2026-08-01T10:00:00Z' })
 	expect(renamed.label).toBe('Renamed')
 })
 
@@ -217,9 +217,9 @@ test('stores whether a field gates publishing', async () => {
 		}),
 	)
 
-	const eased = await setFieldRequiredInGroup(3, 'subtitle', false)
+	const eased = await setFieldRequiredInGroup(3, 'subtitle', false, '2026-08-01T10:00:00Z')
 
-	expect(sent).toEqual({ required: false })
+	expect(sent).toEqual({ required: false, updated_at: '2026-08-01T10:00:00Z' })
 	expect(eased.required).toBe(false)
 })
 
@@ -232,9 +232,9 @@ test('stores the settings a field carries', async () => {
 		}),
 	)
 
-	const bounded = await setFieldSettingsInGroup(3, 'subtitle', { maxlength: 80 })
+	const bounded = await setFieldSettingsInGroup(3, 'subtitle', { maxlength: 80 }, '2026-08-01T10:00:00Z')
 
-	expect(sent).toEqual({ settings: { maxlength: 80 } })
+	expect(sent).toEqual({ settings: { maxlength: 80 }, updated_at: '2026-08-01T10:00:00Z' })
 	expect(bounded.settings).toEqual({ maxlength: 80 })
 })
 
@@ -277,7 +277,12 @@ test.each([
 		'post',
 		'/api/groups/3/fields',
 	],
-	['renameFieldInGroup', () => renameFieldInGroup(3, 'a', 'B'), 'patch', '/api/groups/3/fields/a'],
+	[
+		'renameFieldInGroup',
+		() => renameFieldInGroup(3, 'a', 'B', '2026-08-01T10:00:00Z'),
+		'patch',
+		'/api/groups/3/fields/a',
+	],
 	['reorderFieldsInGroup', () => reorderFieldsInGroup(3, ['a']), 'put', '/api/groups/3/fields/order'],
 	['deleteFieldInGroup', () => deleteFieldInGroup(3, 'a'), 'delete', '/api/groups/3/fields/a'],
 	['moveField', () => moveField(3, 'a', 7), 'post', '/api/groups/3/fields/a/move'],

@@ -10,6 +10,8 @@ import { storedPost } from './postFixture'
 
 const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
+const STAMP = '2026-08-01T10:00:00Z'
+
 const TYPE_WITH_FIELDS = {
 	key: 'post',
 	singular_label: 'Post',
@@ -24,9 +26,9 @@ const TYPE_WITH_FIELDS = {
 	created_at: '2026-08-01T10:00:00Z',
 	updated_at: '2026-08-01T10:00:00Z',
 	fields: [
-		{ key: 'color', label: 'Color', kind: 'text', many: false, required: false },
-		{ key: 'doors', label: 'Doors', kind: 'number', many: false, required: false },
-		{ key: 'boxed', label: 'Boxed', kind: 'boolean', many: false, required: false },
+		{ key: 'color', label: 'Color', kind: 'text', many: false, required: false, updated_at: STAMP },
+		{ key: 'doors', label: 'Doors', kind: 'number', many: false, required: false, updated_at: STAMP },
+		{ key: 'boxed', label: 'Boxed', kind: 'boolean', many: false, required: false, updated_at: STAMP },
 	],
 }
 
@@ -76,12 +78,21 @@ test('shows no panel when the type declares no fields', async () => {
 function declaring(field: Record<string, unknown>) {
 	server.use(
 		http.get('/api/types', () =>
-			HttpResponse.json({ items: [{ ...TYPE_WITH_FIELDS, fields: [field] }] }),
+			HttpResponse.json({
+				items: [{ ...TYPE_WITH_FIELDS, fields: [{ updated_at: STAMP, ...field }] }],
+			}),
 		),
 	)
 }
 
-const A_TEXT_FIELD = { key: 'color', label: 'Color', kind: 'text', many: false, required: false }
+const A_TEXT_FIELD = {
+	key: 'color',
+	label: 'Color',
+	kind: 'text',
+	many: false,
+	required: false,
+	updated_at: STAMP,
+}
 
 test('shows the instructions a field carries under its control', async () => {
 	declaring({ ...A_TEXT_FIELD, settings: { instructions: 'Name the colour.' } })

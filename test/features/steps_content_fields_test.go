@@ -216,11 +216,16 @@ func theAdministratorRelabelsTheField(ctx context.Context, key, typeKey, label s
 	if err != nil {
 		return err
 	}
-	where, err := fieldPathOf(ctx, typeKey, key)
+	group, err := groupHoldingType(ctx, typeKey)
 	if err != nil {
 		return err
 	}
-	if err := w.patchJSON(where, fmt.Sprintf(`{"label":%q}`, label)); err != nil {
+	stamp, err := fieldStampIn(w, group, key)
+	if err != nil {
+		return err
+	}
+	where := fieldsPathIn(group) + "/" + key
+	if err := w.patchJSON(where, fmt.Sprintf(`{"label":%q,"updated_at":%q}`, label, stamp)); err != nil {
 		return err
 	}
 	return w.expect(http.StatusOK)
@@ -270,11 +275,16 @@ func theAdministratorMarksTheFieldRequired(ctx context.Context, key, typeKey str
 	if err != nil {
 		return err
 	}
-	where, err := fieldPathOf(ctx, typeKey, key)
+	group, err := groupHoldingType(ctx, typeKey)
 	if err != nil {
 		return err
 	}
-	if err := w.patchJSON(where, `{"required":true}`); err != nil {
+	stamp, err := fieldStampIn(w, group, key)
+	if err != nil {
+		return err
+	}
+	where := fieldsPathIn(group) + "/" + key
+	if err := w.patchJSON(where, fmt.Sprintf(`{"required":true,"updated_at":%q}`, stamp)); err != nil {
 		return err
 	}
 	return w.expect(http.StatusOK)

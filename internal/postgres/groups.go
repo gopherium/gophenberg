@@ -404,25 +404,47 @@ func (s *TypeStore) ReorderGroups(ctx context.Context, ids []int) error {
 	return nil
 }
 
-// UpdateFieldInGroup stores the field's label and required flag inside its group.
+// UpdateFieldInGroup stores the field's label, required flag and settings when the expectation still holds.
 func (s *TypeStore) UpdateFieldInGroup(
-	ctx context.Context, groupID int, f content.Field,
+	ctx context.Context, groupID int, f content.Field, expectedUpdatedAt time.Time,
 ) (content.Field, error) {
 	row, err := s.queries.UpdateContentField(ctx, db.UpdateContentFieldParams{
-		Label:     f.Label,
-		Required:  f.Required,
-		Settings:  settingsJSON(f.Settings),
-		UpdatedAt: f.UpdatedAt,
-		GroupID:   int32(groupID),
-		Key:       f.Key,
+		Label:             f.Label,
+		Required:          f.Required,
+		Settings:          settingsJSON(f.Settings),
+		UpdatedAt:         f.UpdatedAt,
+		ExpectedUpdatedAt: expectedUpdatedAt,
+		GroupID:           int32(groupID),
+		Key:               f.Key,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return content.Field{}, content.ErrFieldNotFound
+		if err := s.fieldStands(ctx, groupID, f.Key); err != nil {
+			return content.Field{}, err
+		}
+		return content.Field{}, content.ErrConflict
 	}
 	if err != nil {
 		return content.Field{}, fmt.Errorf("postgres: update content field: %w", err)
 	}
 	return toField(row), nil
+}
+
+// fieldStands reports whether the group still declares the field.
+func (s *TypeStore) fieldStands(ctx context.Context, groupID int, key string) error {
+	groups, err := groupsWithFields(ctx, s.queries)
+	if err != nil {
+		return err
+	}
+	held, found := groupByID(groups, groupID)
+	if !found {
+		return content.ErrGroupNotFound
+	}
+	for _, f := range held.Fields {
+		if f.Key == key {
+			return nil
+		}
+	}
+	return content.ErrFieldNotFound
 }
 
 // DeleteFieldInGroup removes the field and sweeps its values from the types its group matches.

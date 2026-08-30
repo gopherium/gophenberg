@@ -84,7 +84,9 @@ func (s *fakeTypeStore) MoveField(context.Context, int, string, int) (content.Fi
 }
 
 // UpdateFieldInGroup hands the field back unstored, since the fake models fields on their types.
-func (s *fakeTypeStore) UpdateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
+func (s *fakeTypeStore) UpdateFieldInGroup(
+	_ context.Context, _ int, f content.Field, _ time.Time,
+) (content.Field, error) {
 	return f, nil
 }
 

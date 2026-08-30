@@ -44,6 +44,7 @@ const ONE_CATEGORY = {
 	relates_to: 'category',
 	many: false,
 	required: false,
+	updated_at: '2026-08-01T10:00:00Z',
 }
 
 const MANY_CATEGORIES = { ...ONE_CATEGORY, key: 'categories', label: 'Categories', many: true }
@@ -208,6 +209,7 @@ test('holds the media a media field was pointed at', async () => {
 		relates_to: '',
 		many: false,
 		required: false,
+		updated_at: '2026-08-01T10:00:00Z',
 	}
 	server.use(
 		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([mediaField])] })),
@@ -257,6 +259,7 @@ test('clears the media a field held', async () => {
 		relates_to: '',
 		many: false,
 		required: false,
+		updated_at: '2026-08-01T10:00:00Z',
 	}
 	server.use(
 		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([mediaField])] })),
@@ -323,6 +326,7 @@ const GALLERY_FIELD = {
 	relates_to: '',
 	many: true,
 	required: false,
+	updated_at: '2026-08-01T10:00:00Z',
 }
 
 const SHORE_LISTING = {

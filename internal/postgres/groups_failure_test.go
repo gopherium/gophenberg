@@ -347,10 +347,27 @@ func TestUpdateFieldInGroupReportsALabelItCannotStore(t *testing.T) {
 
 	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{
 		Key: "subtitle", Label: "Renamed",
-	})
+	}, declared.UpdatedAt)
 
 	if err == nil {
 		t.Error("UpdateFieldInGroup() error = nil, want the refused write reported")
+	}
+}
+
+func TestUpdateFieldInGroupReportsAGroupListingItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
+
+	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{
+		Key: "subtitle", Label: "Renamed", UpdatedAt: declared.UpdatedAt,
+	}, declared.UpdatedAt.Add(-time.Hour))
+
+	if err == nil {
+		t.Error("UpdateFieldInGroup() error = nil, want the unreadable listing reported")
 	}
 }
 

@@ -436,7 +436,7 @@ WHERE core.content_fields.group_id = @group_id AND core.content_fields.key = ord
 -- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = @label, required = @required, settings = @settings, updated_at = @updated_at
-WHERE group_id = @group_id AND key = @key
+WHERE group_id = @group_id AND key = @key AND updated_at = @expected_updated_at
 RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings;
 
 -- name: DeleteContentField :execrows

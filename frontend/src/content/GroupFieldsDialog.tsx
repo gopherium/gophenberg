@@ -27,6 +27,7 @@ import {
 	reorderFieldsInGroup,
 	setFieldRequiredInGroup,
 	setFieldSettingsInGroup,
+	StaleWriteError,
 } from './groups'
 import { chosenOf } from './select'
 import { fieldKinds, kindLabel, pairsOf, pickedKind, slugifyKey } from './types'
@@ -36,10 +37,19 @@ import type { FieldGroup } from './groups'
 import type { Choice } from './select'
 import type { ContentField, ContentType } from './types'
 
+/**
+ * Reports whether a turned away write left edits the operator still has to mend.
+ * @param state - What the write reported.
+ * @returns Whether the dialog reopens on those edits.
+ */
+function holdsEdits(state: { isError: boolean; error: unknown }): boolean {
+	return state.isError && !(state.error instanceof StaleWriteError)
+}
+
 /** What a field control reports back once its write settles. */
 interface Reporter {
 	onDone: (said: string) => Promise<void>
-	onRefused: (cause: unknown) => void
+	onRefused: (cause: unknown) => Promise<void>
 }
 
 /** The group a field control acts inside. */
@@ -80,8 +90,11 @@ export function GroupFieldsDialog(props: {
 	 * Reports why a field write was turned away, where the operator is looking.
 	 * @param cause - What the write failed with.
 	 */
-	function refused(cause: unknown) {
+	async function refused(cause: unknown) {
 		setNotice(groupErrorMessage(cause))
+		if (cause instanceof StaleWriteError) {
+			await client.invalidateQueries({ queryKey: groupsQueryKey })
+		}
 	}
 
 	/**
@@ -467,25 +480,23 @@ function FieldSettings(props: Inside) {
 	const [open, setOpen] = useState(false)
 	const [typed, setTyped] = useState(() => typedSettings(offered, props.field.settings))
 	const [pairs, setPairs] = useState(() => pairsOf(props.field.settings))
+	const [opened, setOpened] = useState(props.field)
 	const asking = sprintf(__('Settings of %(field)s', 'gophenberg'), { field: props.field.label })
 	const save = useMutation({
 		mutationFn: () =>
 			setFieldSettingsInGroup(
 				props.group,
-				props.field.key,
-				pairedSettings(
-					props.field.kind,
-					storedSettings(offered, typed, props.field.settings),
-					pairs,
-				),
+				opened.key,
+				pairedSettings(opened.kind, storedSettings(offered, typed, opened.settings), pairs),
+				opened.updatedAt,
 			),
 		onSuccess: async () => {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s settled.', 'gophenberg'), { field: props.field.label }))
 		},
-		onError: (cause) => {
+		onError: async (cause) => {
+			await props.onRefused(cause)
 			setOpen(false)
-			props.onRefused(cause)
 		},
 	})
 
@@ -494,9 +505,10 @@ function FieldSettings(props: Inside) {
 	 * @param next - Whether the dialog is opening.
 	 */
 	function change(next: boolean) {
-		if (next && !save.isError) {
+		if (next && !holdsEdits(save)) {
 			setTyped(typedSettings(offered, props.field.settings))
 			setPairs(pairsOf(props.field.settings))
+			setOpened(props.field)
 		}
 		setOpen(next)
 	}
@@ -617,7 +629,8 @@ function ChoicesEditor(props: { pairs: ChoicePair[]; onChange: (pairs: ChoicePai
  */
 function RequireField(props: Inside) {
 	const flip = useMutation({
-		mutationFn: () => setFieldRequiredInGroup(props.group, props.field.key, !props.field.required),
+		mutationFn: () =>
+			setFieldRequiredInGroup(props.group, props.field.key, !props.field.required, props.field.updatedAt),
 		onSuccess: async () => {
 			const said = props.field.required
 				? __('%(field)s is optional again.', 'gophenberg')
@@ -650,24 +663,37 @@ function RequireField(props: Inside) {
 function RenameField(props: Inside) {
 	const [open, setOpen] = useState(false)
 	const [label, setLabel] = useState(props.field.label)
+	const [opened, setOpened] = useState(props.field)
 	const asking = sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })
 	const rename = useMutation({
-		mutationFn: () => renameFieldInGroup(props.group, props.field.key, label),
+		mutationFn: () => renameFieldInGroup(props.group, opened.key, label, opened.updatedAt),
 		onSuccess: async () => {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }))
 		},
-		onError: (cause) => {
+		onError: async (cause) => {
+			await props.onRefused(cause)
 			setOpen(false)
-			props.onRefused(cause)
 		},
 	})
+	/**
+	 * Opens the dialog on the stored name, or closes it on the edits.
+	 * @param next - Whether the dialog is opening.
+	 */
+	function change(next: boolean) {
+		if (next && !holdsEdits(rename)) {
+			setLabel(props.field.label)
+			setOpened(props.field)
+		}
+		setOpen(next)
+	}
+
 	return (
 		<>
-			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
+			<Button variant="outline" size="compact" aria-label={asking} onClick={() => change(true)}>
 				{__('Rename', 'gophenberg')}
 			</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
+			<Dialog.Root open={open} onOpenChange={change}>
 				<Dialog.Popup>
 					<Dialog.Header>
 						<Dialog.Title>{asking}</Dialog.Title>

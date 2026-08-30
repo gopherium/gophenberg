@@ -259,45 +259,61 @@ func (s *server) handleGroupFieldCreate() http.HandlerFunc {
 	}
 }
 
-// handleGroupFieldPatch returns an http.HandlerFunc carrying a field's label and required flag.
+// fieldPatchRequest is a field edit as the admin API reads it.
+type fieldPatchRequest struct {
+	Label     *string         `json:"label"`
+	Required  *bool           `json:"required"`
+	Settings  *map[string]any `json:"settings"`
+	UpdatedAt *time.Time      `json:"updated_at"`
+}
+
+// handleGroupFieldPatch returns an http.HandlerFunc carrying a field's label, required flag and settings.
 func (s *server) handleGroupFieldPatch() http.HandlerFunc {
-	type request struct {
-		Label    *string         `json:"label"`
-		Required *bool           `json:"required"`
-		Settings *map[string]any `json:"settings"`
-	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := groupIDOf(r)
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
-		req, err := decodeKnown[request](w, r)
+		req, err := decodeKnown[fieldPatchRequest](w, r)
 		if err != nil {
 			respondBodyError(w, err)
 			return
 		}
-		stored, err := s.heldGroupField(r, id)
-		if err != nil {
-			respondDomainError(w, err)
+		if req.UpdatedAt == nil {
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
+				Message: "missing updated_at", Code: "body_field_required", Meta: map[string]any{"field": "updated_at"},
+			})
 			return
 		}
-		if req.Label != nil {
-			stored.Label = *req.Label
-		}
-		if req.Required != nil {
-			stored.Required = *req.Required
-		}
-		if req.Settings != nil {
-			stored.Settings = *req.Settings
-		}
-		updated, err := s.types.UpdateFieldInGroup(r.Context(), id, stored)
+		updated, err := s.patchGroupField(r, id, req)
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
 		authkit.Respond(w, http.StatusOK, newFieldResponse(updated))
 	}
+}
+
+// patchGroupField applies the edit to the stored field once the expectation holds.
+func (s *server) patchGroupField(r *http.Request, id int, req fieldPatchRequest) (content.Field, error) {
+	stored, err := s.heldGroupField(r, id)
+	if err != nil {
+		return content.Field{}, err
+	}
+	if !req.UpdatedAt.Equal(stored.UpdatedAt) {
+		return content.Field{}, content.ErrConflict
+	}
+	if req.Label != nil {
+		stored.Label = *req.Label
+	}
+	if req.Required != nil {
+		stored.Required = *req.Required
+	}
+	if req.Settings != nil {
+		stored.Settings = *req.Settings
+	}
+	return s.types.UpdateFieldInGroup(r.Context(), id, stored, *req.UpdatedAt)
 }
 
 // heldGroupField returns the field the request path names inside its group.

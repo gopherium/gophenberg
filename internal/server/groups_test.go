@@ -5,11 +5,20 @@ package server_test
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
+
+// fieldTimestamp returns the updated_at the field response served.
+func fieldTimestamp(t *testing.T, recorder *httptest.ResponseRecorder) string {
+	t.Helper()
+	return decodeBody[struct {
+		UpdatedAt string `json:"updated_at"`
+	}](t, recorder).UpdatedAt
+}
 
 // groupBody returns the JSON body of a group request.
 func groupBody(t *testing.T, fields map[string]any) string {
@@ -273,7 +282,9 @@ func TestGroupFieldPatchCarriesTheLabelAndTheRequiredFlag(t *testing.T) {
 	}
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/subtitle",
-		groupBody(t, map[string]any{"label": "Renamed", "required": true}))
+		groupBody(t, map[string]any{
+			"label": "Renamed", "required": true, "updated_at": fieldTimestamp(t, declared),
+		}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -284,6 +295,54 @@ func TestGroupFieldPatchCarriesTheLabelAndTheRequiredFlag(t *testing.T) {
 	}](t, recorder)
 	if patched.Label != "Renamed" || !patched.Required {
 		t.Errorf("patched = %+v, want the new label and the required flag", patched)
+	}
+}
+
+func TestGroupFieldPatchRequiresTheTimestampTheEditorRead(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	declared := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field: status = %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/subtitle",
+		groupBody(t, map[string]any{"label": "Renamed"}))
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if code := decodeBody[struct {
+		Code string `json:"code"`
+	}](t, recorder).Code; code != "body_field_required" {
+		t.Errorf("code = %q, want body_field_required", code)
+	}
+}
+
+func TestGroupFieldPatchTurnsAwayAStaleTimestamp(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	declared := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field: status = %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/subtitle",
+		groupBody(t, map[string]any{"label": "Renamed", "updated_at": "2000-01-01T00:00:00Z"}))
+
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusConflict, recorder.Body.String())
+	}
+	if code := decodeBody[struct {
+		Code string `json:"code"`
+	}](t, recorder).Code; code != "content_stale_update" {
+		t.Errorf("code = %q, want content_stale_update", code)
 	}
 }
 
@@ -299,7 +358,9 @@ func TestGroupFieldPatchCarriesTheSettings(t *testing.T) {
 	}
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/subtitle",
-		groupBody(t, map[string]any{"settings": map[string]any{"maxlength": 80}}))
+		groupBody(t, map[string]any{
+			"settings": map[string]any{"maxlength": 80}, "updated_at": fieldTimestamp(t, declared),
+		}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -327,7 +388,9 @@ func TestGroupFieldPatchClearsTheSettings(t *testing.T) {
 	}
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/subtitle",
-		groupBody(t, map[string]any{"settings": map[string]any{}}))
+		groupBody(t, map[string]any{
+			"settings": map[string]any{}, "updated_at": fieldTimestamp(t, declared),
+		}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -369,7 +432,9 @@ func TestGroupFieldPatchRefusesSettingsTheDefinitionForbids(t *testing.T) {
 			}
 
 			recorder := doRequest(t, handler, http.MethodPatch, groupPath(id)+"/fields/subtitle",
-				groupBody(t, map[string]any{"settings": test.settings}))
+				groupBody(t, map[string]any{
+					"settings": test.settings, "updated_at": fieldTimestamp(t, declared),
+				}))
 
 			if recorder.Code != http.StatusUnprocessableEntity {
 				t.Fatalf("status = %d, want %d, body %s",

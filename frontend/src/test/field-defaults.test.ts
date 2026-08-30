@@ -13,7 +13,16 @@ import type { ContentField } from '../content/types'
  * @returns The declared field.
  */
 function declared(key: string, kind: string, settings: Record<string, unknown>): ContentField {
-	return { key, label: key, kind, relatesTo: '', many: false, required: false, settings }
+	return {
+		key,
+		label: key,
+		kind,
+		relatesTo: '',
+		many: false,
+		required: false,
+		settings,
+		updatedAt: '2026-08-01T10:00:00Z',
+	}
 }
 
 test('seeds the default a choice field names', () => {
