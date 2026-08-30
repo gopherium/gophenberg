@@ -86,13 +86,17 @@ function toGroup(row: z.infer<typeof groupSchema>): FieldGroup {
 	}
 }
 
+/** The failure a write reports when the stored field moved on before it landed. */
+export class StaleWriteError extends Error {}
+
 /**
  * Throws the reason a group write was refused, or the status it failed with.
  * @param response - The answer the server gave.
  */
 async function refuse(response: Response): Promise<never> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
-	throw new Error(errorText(parsed.success ? parsed.data : { error: '' }))
+	const said = errorText(parsed.success ? parsed.data : { error: '' })
+	throw response.status === 409 ? new StaleWriteError(said) : new Error(said)
 }
 
 /**

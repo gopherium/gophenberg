@@ -27,6 +27,7 @@ import {
 	reorderFieldsInGroup,
 	setFieldRequiredInGroup,
 	setFieldSettingsInGroup,
+	StaleWriteError,
 } from './groups'
 import { chosenOf } from './select'
 import { fieldKinds, kindLabel, pairsOf, pickedKind, slugifyKey } from './types'
@@ -35,6 +36,15 @@ import { typesQueryKey } from './nav'
 import type { FieldGroup } from './groups'
 import type { Choice } from './select'
 import type { ContentField, ContentType } from './types'
+
+/**
+ * Reports whether a turned away write left edits the operator still has to mend.
+ * @param state - What the write reported.
+ * @returns Whether the dialog reopens on those edits.
+ */
+function holdsEdits(state: { isError: boolean; error: unknown }): boolean {
+	return state.isError && !(state.error instanceof StaleWriteError)
+}
 
 /** What a field control reports back once its write settles. */
 interface Reporter {
@@ -82,6 +92,9 @@ export function GroupFieldsDialog(props: {
 	 */
 	function refused(cause: unknown) {
 		setNotice(groupErrorMessage(cause))
+		if (cause instanceof StaleWriteError) {
+			void client.invalidateQueries({ queryKey: groupsQueryKey })
+		}
 	}
 
 	/**
@@ -492,7 +505,7 @@ function FieldSettings(props: Inside) {
 	 * @param next - Whether the dialog is opening.
 	 */
 	function change(next: boolean) {
-		if (next && !save.isError) {
+		if (next && !holdsEdits(save)) {
 			setTyped(typedSettings(offered, props.field.settings))
 			setPairs(pairsOf(props.field.settings))
 			setOpened(props.field)
@@ -668,7 +681,7 @@ function RenameField(props: Inside) {
 	 * @param next - Whether the dialog is opening.
 	 */
 	function change(next: boolean) {
-		if (next && !rename.isError) {
+		if (next && !holdsEdits(rename)) {
 			setLabel(props.field.label)
 			setOpened(props.field)
 		}

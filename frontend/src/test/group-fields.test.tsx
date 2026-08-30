@@ -437,18 +437,25 @@ test('renames the same field twice in one sitting', async () => {
 	expect(sent[1]).toMatchObject({ updated_at: '2026-08-02T09:00:00Z' })
 })
 
-test('keeps carrying the timestamp it opened with after a save lost to a concurrent edit', async () => {
+test('reads the field afresh after a settings save lost to a concurrent edit', async () => {
 	const sent: unknown[] = []
 	server.use(
 		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
 			sent.push(await request.json())
+			if (sent.length > 1) {
+				return HttpResponse.json(SUBTITLE)
+			}
+			listing([
+				{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
+				EXTRAS,
+			])
 			return HttpResponse.json(
 				{ error: 'content: conflicting update', code: 'content_stale_update' },
 				{ status: 409 },
 			)
 		}),
 	)
-	const client = renderAt('/field-groups')
+	renderAt('/field-groups')
 	const dialog = await openFields()
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
 	await userEvent.type(
@@ -462,15 +469,8 @@ test('keeps carrying the timestamp it opened with after a save lost to a concurr
 			name: 'Save settings',
 		}),
 	)
-	await waitFor(() => expect(sent).toHaveLength(1))
+	await within(dialog).findByRole('alert')
 
-	listing([
-		{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
-		EXTRAS,
-	])
-	await act(async () => {
-		await client.invalidateQueries({ queryKey: groupsQueryKey })
-	})
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
 	await userEvent.click(
 		within(await screen.findByRole('dialog', { name: 'Settings of Subtitle' })).getByRole('button', {
@@ -479,7 +479,38 @@ test('keeps carrying the timestamp it opened with after a save lost to a concurr
 	)
 
 	await waitFor(() => expect(sent).toHaveLength(2))
-	expect(sent[1]).toMatchObject({ updated_at: '2026-08-01T10:00:00Z' })
+	expect(sent[1]).toMatchObject({ updated_at: '2026-08-02T09:00:00Z' })
+})
+
+test('keeps the name typed when a rename is turned away', async () => {
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', () =>
+			HttpResponse.json(
+				{ error: 'content: field label required', code: 'field_label_required' },
+				{ status: 422 },
+			),
+		),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
+	const box = within(await screen.findByRole('dialog', { name: 'Rename Subtitle' })).getByLabelText(
+		'Name',
+	)
+	await userEvent.clear(box)
+	await userEvent.type(box, 'Standfirst')
+	await userEvent.click(
+		within(await screen.findByRole('dialog', { name: 'Rename Subtitle' })).getByRole('button', {
+			name: 'Rename',
+		}),
+	)
+	await within(dialog).findByRole('alert')
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
+
+	expect(
+		within(await screen.findByRole('dialog', { name: 'Rename Subtitle' })).getByLabelText('Name'),
+	).toHaveValue('Standfirst')
 })
 
 test('reports a rename that lost to a concurrent edit', async () => {
