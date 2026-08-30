@@ -55,4 +55,11 @@ describe('what the starter shows of an item', () => {
 		expect(layout).toContain("item.mime_type.startsWith('image/')")
 		expect(layout).toContain('<a href={mediaUrl(item.src)}')
 	})
+
+	test('ties a caption to the file it describes', () => {
+		const captioned = layout.slice(layout.indexOf('<figure>'), layout.indexOf('</figure>'))
+
+		expect(captioned).toContain('figcaption')
+		expect(captioned).toContain('mediaUrl(item.src)')
+	})
 })
