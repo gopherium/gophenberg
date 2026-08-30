@@ -268,8 +268,25 @@ func isNumber(value any) bool {
 
 // isMediaID reports whether the value is a whole number the library can store as an identity.
 func isMediaID(value any) bool {
-	held, ok := settingNumber(value)
-	return ok && held >= 1 && held < math.MaxInt64 && held == math.Trunc(held)
+	switch held := value.(type) {
+	case int:
+		return held >= 1
+	case int32:
+		return held >= 1
+	case int64:
+		return held >= 1
+	case float32:
+		return storableIdentity(float64(held))
+	case float64:
+		return storableIdentity(held)
+	default:
+		return false
+	}
+}
+
+// storableIdentity reports whether the number is a whole identity the library can store.
+func storableIdentity(held float64) bool {
+	return held >= 1 && held < math.MaxInt64 && held == math.Trunc(held)
 }
 
 // isDay reports whether the value is a day written as a date.

@@ -4,6 +4,7 @@ package content_test
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"testing"
 
@@ -128,6 +129,27 @@ func TestValuesShapeTheChoiceKindAndAManyMedia(t *testing.T) {
 		},
 		"a media holds the largest item that stores": {
 			shaped(t, content.FieldKindMedia, false, nil), float64(9223372036854774784), true,
+		},
+		"a media holds the last identity a caller writes whole": {
+			shaped(t, content.FieldKindMedia, false, nil), int64(math.MaxInt64), true,
+		},
+		"a media refuses a whole identity before the first": {
+			shaped(t, content.FieldKindMedia, false, nil), int64(0), false,
+		},
+		"a media holds an identity a caller wrote plainly": {
+			shaped(t, content.FieldKindMedia, false, nil), 7, true,
+		},
+		"a media holds an identity a caller wrote narrowly": {
+			shaped(t, content.FieldKindMedia, false, nil), int32(7), true,
+		},
+		"a media holds an identity that arrived narrow": {
+			shaped(t, content.FieldKindMedia, false, nil), float32(7), true,
+		},
+		"a media refuses a plain identity before the first": {
+			shaped(t, content.FieldKindMedia, false, nil), -1, false,
+		},
+		"a media refuses a narrow identity before the first": {
+			shaped(t, content.FieldKindMedia, false, nil), int32(0), false,
 		},
 		"a many media refuses a part of an item": {
 			shaped(t, content.FieldKindMedia, true, nil), []any{float64(1), float64(2.5)}, false,

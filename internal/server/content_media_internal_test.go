@@ -35,6 +35,16 @@ func TestHeldMediaIDReadsEveryNumberShapeAWriteAccepts(t *testing.T) {
 	}
 }
 
+func TestHeldMediaIDNamesTheLastIdentityACallerWritesWhole(t *testing.T) {
+	t.Parallel()
+
+	id, ok := heldMediaID(int64(math.MaxInt64))
+
+	if !ok || id != math.MaxInt64 {
+		t.Errorf("heldMediaID(max) = %d, %v, want the identity read whole", id, ok)
+	}
+}
+
 func TestHeldMediaIDNamesNoFileFromAPartOfANumber(t *testing.T) {
 	t.Parallel()
 
