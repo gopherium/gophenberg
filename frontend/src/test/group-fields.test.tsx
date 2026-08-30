@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
+import { groupsQueryKey } from '../content/groups'
 import { renderAt } from './render'
 
 const POST_TYPE = {
@@ -339,6 +340,67 @@ test('makes a required field optional again', async () => {
 
 	await waitFor(() =>
 		expect(sent).toEqual({ required: false, updated_at: '2026-08-01T10:00:00Z' }),
+	)
+})
+
+test('renames on the timestamp the dialog opened with, not one that landed while it was open', async () => {
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, label: 'Standfirst' })
+		}),
+	)
+	const client = renderAt('/field-groups')
+	const dialog = await openFields()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
+	const renaming = await screen.findByRole('dialog', { name: 'Rename Subtitle' })
+	const box = within(renaming).getByLabelText('Name')
+	await userEvent.clear(box)
+	await userEvent.type(box, 'Standfirst')
+
+	listing([
+		{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
+		EXTRAS,
+	])
+	await act(async () => {
+		await client.invalidateQueries({ queryKey: groupsQueryKey })
+	})
+	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({ label: 'Standfirst', updated_at: '2026-08-01T10:00:00Z' }),
+	)
+})
+
+test('settles on the timestamp the dialog opened with, not one that landed while it was open', async () => {
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/subtitle', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE)
+		}),
+	)
+	const client = renderAt('/field-groups')
+	const dialog = await openFields()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+	await userEvent.type(within(settings).getByLabelText('Instructions'), 'Say who wrote it.')
+
+	listing([
+		{ ...DETAILS, fields: [{ ...SUBTITLE, updated_at: '2026-08-02T09:00:00Z' }, READING_TIME] },
+		EXTRAS,
+	])
+	await act(async () => {
+		await client.invalidateQueries({ queryKey: groupsQueryKey })
+	})
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({
+			settings: { instructions: 'Say who wrote it.' },
+			updated_at: '2026-08-01T10:00:00Z',
+		}),
 	)
 })
 

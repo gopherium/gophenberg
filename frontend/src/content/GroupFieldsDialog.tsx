@@ -467,18 +467,15 @@ function FieldSettings(props: Inside) {
 	const [open, setOpen] = useState(false)
 	const [typed, setTyped] = useState(() => typedSettings(offered, props.field.settings))
 	const [pairs, setPairs] = useState(() => pairsOf(props.field.settings))
+	const [opened, setOpened] = useState(props.field)
 	const asking = sprintf(__('Settings of %(field)s', 'gophenberg'), { field: props.field.label })
 	const save = useMutation({
 		mutationFn: () =>
 			setFieldSettingsInGroup(
 				props.group,
-				props.field.key,
-				pairedSettings(
-					props.field.kind,
-					storedSettings(offered, typed, props.field.settings),
-					pairs,
-				),
-				props.field.updatedAt,
+				opened.key,
+				pairedSettings(opened.kind, storedSettings(offered, typed, opened.settings), pairs),
+				opened.updatedAt,
 			),
 		onSuccess: async () => {
 			setOpen(false)
@@ -498,6 +495,7 @@ function FieldSettings(props: Inside) {
 		if (next && !save.isError) {
 			setTyped(typedSettings(offered, props.field.settings))
 			setPairs(pairsOf(props.field.settings))
+			setOpened(props.field)
 		}
 		setOpen(next)
 	}
@@ -652,9 +650,10 @@ function RequireField(props: Inside) {
 function RenameField(props: Inside) {
 	const [open, setOpen] = useState(false)
 	const [label, setLabel] = useState(props.field.label)
+	const [stamp] = useState(props.field.updatedAt)
 	const asking = sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })
 	const rename = useMutation({
-		mutationFn: () => renameFieldInGroup(props.group, props.field.key, label, props.field.updatedAt),
+		mutationFn: () => renameFieldInGroup(props.group, props.field.key, label, stamp),
 		onSuccess: async () => {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }))
