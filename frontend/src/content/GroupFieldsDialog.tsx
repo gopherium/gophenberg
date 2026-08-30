@@ -650,10 +650,10 @@ function RequireField(props: Inside) {
 function RenameField(props: Inside) {
 	const [open, setOpen] = useState(false)
 	const [label, setLabel] = useState(props.field.label)
-	const [stamp] = useState(props.field.updatedAt)
+	const [opened, setOpened] = useState(props.field)
 	const asking = sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })
 	const rename = useMutation({
-		mutationFn: () => renameFieldInGroup(props.group, props.field.key, label, stamp),
+		mutationFn: () => renameFieldInGroup(props.group, opened.key, label, opened.updatedAt),
 		onSuccess: async () => {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }))
@@ -663,12 +663,24 @@ function RenameField(props: Inside) {
 			props.onRefused(cause)
 		},
 	})
+	/**
+	 * Opens the dialog on the stored name, or closes it on the edits.
+	 * @param next - Whether the dialog is opening.
+	 */
+	function change(next: boolean) {
+		if (next && !rename.isError) {
+			setLabel(props.field.label)
+			setOpened(props.field)
+		}
+		setOpen(next)
+	}
+
 	return (
 		<>
-			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
+			<Button variant="outline" size="compact" aria-label={asking} onClick={() => change(true)}>
 				{__('Rename', 'gophenberg')}
 			</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
+			<Dialog.Root open={open} onOpenChange={change}>
 				<Dialog.Popup>
 					<Dialog.Header>
 						<Dialog.Title>{asking}</Dialog.Title>
