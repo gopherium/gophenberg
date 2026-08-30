@@ -50,4 +50,9 @@ describe('what the starter shows of an item', () => {
 		expect(layout).toContain('width={item.width}')
 		expect(layout).toContain('height={item.height}')
 	})
+
+	test('links a file that is not an image rather than showing a broken picture', () => {
+		expect(layout).toContain("item.mime_type.startsWith('image/')")
+		expect(layout).toContain('<a href={mediaUrl(item.src)}')
+	})
 })

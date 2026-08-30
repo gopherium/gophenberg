@@ -29,13 +29,17 @@ const pictured = mediaFields(post)
 				<ul class="gophenberg-media">
 					{field.items.map((item) => (
 						<li>
-							<img
-								src={mediaUrl(item.src)}
-								alt={item.alt_text}
-								width={item.width}
-								height={item.height}
-								loading="lazy"
-							/>
+							{item.mime_type.startsWith('image/') ? (
+								<img
+									src={mediaUrl(item.src)}
+									alt={item.alt_text}
+									width={item.width}
+									height={item.height}
+									loading="lazy"
+								/>
+							) : (
+								<a href={mediaUrl(item.src)}>{item.title || item.src}</a>
+							)}
 							{item.caption && <figcaption>{item.caption}</figcaption>}
 						</li>
 					))}
