@@ -3,12 +3,53 @@
 package postgres_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/postgres"
 )
+
+// lockTimedStore returns a store whose connections give up quickly on a held lock.
+func lockTimedStore(t *testing.T, pool *pgxpool.Pool) *postgres.TypeStore {
+	t.Helper()
+	cfg, err := pgxpool.ParseConfig(pool.Config().ConnString())
+	if err != nil {
+		t.Fatalf("parsing the pool address: %v", err)
+	}
+	cfg.ConnConfig.RuntimeParams["lock_timeout"] = "200ms"
+	timed, err := pgxpool.NewWithConfig(t.Context(), cfg)
+	if err != nil {
+		t.Fatalf("opening the timed pool: %v", err)
+	}
+	t.Cleanup(timed.Close)
+	return postgres.NewTypeStore(timed)
+}
+
+// holdFieldGroupsLock holds the field groups lock until the test ends.
+func holdFieldGroupsLock(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	conn, err := pool.Acquire(t.Context())
+	if err != nil {
+		t.Fatalf("acquiring a connection: %v", err)
+	}
+	if _, err := conn.Exec(t.Context(),
+		"SELECT pg_advisory_lock(hashtext('core.field_groups'))"); err != nil {
+		conn.Release()
+		t.Fatalf("holding the lock: %v", err)
+	}
+	t.Cleanup(func() {
+		if _, err := conn.Exec(context.Background(),
+			"SELECT pg_advisory_unlock(hashtext('core.field_groups'))"); err != nil {
+			t.Errorf("releasing the lock: %v", err)
+		}
+		conn.Release()
+	})
+}
 
 func TestListGroupsReportsGroupsItCannotRead(t *testing.T) {
 	t.Parallel()
@@ -384,5 +425,142 @@ func TestListReportsGroupsItCannotRead(t *testing.T) {
 
 	if _, err := store.List(t.Context()); err == nil {
 		t.Error("List() error = nil, want the unreadable groups reported")
+	}
+}
+
+func TestUpdateGroupReportsGroupsItCannotList(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	stored, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
+
+	stored.Title = "Renamed"
+	if _, err := store.UpdateGroup(t.Context(), stored); err == nil {
+		t.Error("UpdateGroup() error = nil, want the unreadable groups reported")
+	}
+}
+
+func TestUpdateGroupReportsTypesItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	stored, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
+
+	stored.Title = "Renamed"
+	if _, err := store.UpdateGroup(t.Context(), stored); err == nil {
+		t.Error("UpdateGroup() error = nil, want the unreadable types reported")
+	}
+}
+
+func TestCreateFieldInGroupReportsGroupsItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	stored, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
+
+	_, err = store.CreateFieldInGroup(t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""))
+
+	if err == nil {
+		t.Error("CreateFieldInGroup() error = nil, want the unreadable groups reported")
+	}
+}
+
+func TestCreateFieldInGroupReportsTypesItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	stored, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
+
+	_, err = store.CreateFieldInGroup(t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""))
+
+	if err == nil {
+		t.Error("CreateFieldInGroup() error = nil, want the unreadable types reported")
+	}
+}
+
+func TestDeleteFieldInGroupReportsContentItCannotSweep(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+	raiseOn(t, pool, "core.content", "UPDATE")
+
+	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle"); err == nil {
+		t.Error("DeleteFieldInGroup() error = nil, want the refused sweep reported")
+	}
+}
+
+func TestUpdateGroupReportsALockItCannotTake(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	stored, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	holdFieldGroupsLock(t, pool)
+	timed := lockTimedStore(t, pool)
+
+	stored.Title = "Renamed"
+	if _, err := timed.UpdateGroup(t.Context(), stored); err == nil {
+		t.Error("UpdateGroup() error = nil, want the held lock reported")
+	}
+}
+
+func TestCreateFieldInGroupReportsALockItCannotTake(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	stored, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	holdFieldGroupsLock(t, pool)
+	timed := lockTimedStore(t, pool)
+
+	_, err = timed.CreateFieldInGroup(t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""))
+
+	if err == nil {
+		t.Error("CreateFieldInGroup() error = nil, want the held lock reported")
+	}
+}
+
+func TestMoveFieldReportsAFieldItCannotCarry(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	storeType(t, store, "book")
+	declared := declareTypedField(t, store, "car", "subtitle")
+	resting, err := store.CreateGroup(t.Context(), content.Group{Title: "Resting", Location: locationOf("book")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	raiseOn(t, pool, "core.content_fields", "UPDATE")
+
+	_, err = store.MoveField(t.Context(), declared.GroupID, "subtitle", resting.ID)
+
+	if err == nil {
+		t.Error("MoveField() error = nil, want the refused carry reported")
 	}
 }
