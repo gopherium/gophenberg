@@ -397,12 +397,9 @@ func mediaIDsHeld(t content.Type, values content.Values) []int64 {
 
 // inlineMediaValues rewrites every media key into the files it names, dropping what is gone.
 func (s *server) inlineMediaValues(r *http.Request, t content.Type, values content.Values) error {
-	ids := mediaIDsHeld(t, values)
-	if len(ids) == 0 {
-		return nil
-	}
 	byID := map[int64]media.Media{}
-	if s.mediaStore != nil {
+	ids := mediaIDsHeld(t, values)
+	if len(ids) > 0 && s.mediaStore != nil {
 		listed, err := s.mediaStore.ByIDs(r.Context(), ids)
 		if err != nil {
 			return err
@@ -438,11 +435,8 @@ func inlineMediaKey(key string, values content.Values, byID map[int64]media.Medi
 		return
 	}
 	id, ok := heldMediaID(values[key])
-	if !ok {
-		return
-	}
 	m, found := byID[id]
-	if !found {
+	if !ok || !found {
 		delete(values, key)
 		return
 	}

@@ -92,15 +92,43 @@ func TestMediaIDsHeldSkipsWhatIsNotAnIdentity(t *testing.T) {
 	}
 }
 
-func TestInlineMediaKeyLeavesWhatIsNotAnIdentityAlone(t *testing.T) {
+func TestInlineMediaKeyDeletesWhatNamesNoFile(t *testing.T) {
 	t.Parallel()
 
-	values := content.Values{"cover": "not-an-identity"}
+	for name, held := range map[string]any{
+		"a word":            "not-an-identity",
+		"a part of an item": float64(1.5),
+		"nothing at all":    nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	inlineMediaKey("cover", values, map[int64]media.Media{})
+			values := content.Values{"cover": held}
 
-	if values["cover"] != "not-an-identity" {
-		t.Errorf("values = %v, want the stray value left alone", values)
+			inlineMediaKey("cover", values, map[int64]media.Media{})
+
+			if raw, found := values["cover"]; found {
+				t.Errorf("values hold %v, want the key deleted rather than served", raw)
+			}
+		})
+	}
+}
+
+func TestInlineMediaValuesClearsAFieldEvenWhenNothingResolves(t *testing.T) {
+	t.Parallel()
+
+	held := content.Type{Fields: []content.Field{
+		galleryField("cover", false),
+		galleryField("gallery", true),
+	}}
+	values := content.Values{"cover": "not-an-identity", "gallery": []any{"stray"}}
+
+	if err := (&server{}).inlineMediaValues(nil, held, values); err != nil {
+		t.Fatalf("inlineMediaValues() error = %v, want nil", err)
+	}
+
+	if len(values) != 0 {
+		t.Errorf("values = %v, want every media key the library cannot name deleted", values)
 	}
 }
 
