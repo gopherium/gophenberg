@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 // errTypeStoreDown stands for a type store the database cannot answer for.
@@ -80,7 +81,7 @@ func (unreadableTypeStore) MoveField(context.Context, int, string, int) (Field, 
 }
 
 // UpdateFieldInGroup reports the failure rather than storing the field.
-func (unreadableTypeStore) UpdateFieldInGroup(context.Context, int, Field) (Field, error) {
+func (unreadableTypeStore) UpdateFieldInGroup(context.Context, int, Field, time.Time) (Field, error) {
 	return Field{}, errTypeStoreDown
 }
 

@@ -134,8 +134,10 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	return created, nil
 }
 
-// UpdateFieldInGroup carries the field's label and required flag inside its group.
-func (r *Registry) UpdateFieldInGroup(ctx context.Context, groupID int, f Field) (Field, error) {
+// UpdateFieldInGroup carries the field's label and required flag when the expectation still holds.
+func (r *Registry) UpdateFieldInGroup(
+	ctx context.Context, groupID int, f Field, expectedUpdatedAt time.Time,
+) (Field, error) {
 	held, err := r.heldField(ctx, groupID, f.Key)
 	if err != nil {
 		return Field{}, err
@@ -145,7 +147,7 @@ func (r *Registry) UpdateFieldInGroup(ctx context.Context, groupID int, f Field)
 	if err := held.Validate(); err != nil {
 		return Field{}, err
 	}
-	updated, err := r.store.UpdateFieldInGroup(ctx, groupID, held)
+	updated, err := r.store.UpdateFieldInGroup(ctx, groupID, held, expectedUpdatedAt)
 	if err != nil {
 		return Field{}, err
 	}

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
@@ -118,7 +119,9 @@ func (s *groupingStore) CreateFieldInGroup(_ context.Context, groupID int, f con
 }
 
 // UpdateFieldInGroup stores the field's label and required flag inside its group.
-func (s *groupingStore) UpdateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
+func (s *groupingStore) UpdateFieldInGroup(
+	_ context.Context, groupID int, f content.Field, _ time.Time,
+) (content.Field, error) {
 	if s.updateFieldErr != nil {
 		return content.Field{}, s.updateFieldErr
 	}
@@ -284,11 +287,13 @@ func TestRegistryReportsAGroupStoreThatWillNotAnswer(t *testing.T) {
 		},
 		"UpdateFieldInGroup": func(r *content.Registry, s *groupingStore) error {
 			held := groupNaming(t, r, "Extras", namingPost())
-			if _, err := r.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+			created, err := r.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t))
+			if err != nil {
 				return err
 			}
 			s.updateFieldErr = errStoreDown
-			_, err := r.UpdateFieldInGroup(t.Context(), held.ID, content.Field{Key: "subtitle", Label: "Renamed"})
+			_, err = r.UpdateFieldInGroup(t.Context(),
+				held.ID, content.Field{Key: "subtitle", Label: "Renamed"}, created.UpdatedAt)
 			return err
 		},
 		"DeleteFieldInGroup": func(r *content.Registry, s *groupingStore) error {
@@ -387,7 +392,7 @@ func TestRegistryReportsAGroupsListItCannotRead(t *testing.T) {
 			return err
 		},
 		"UpdateFieldInGroup": func(r *content.Registry) error {
-			_, err := r.UpdateFieldInGroup(t.Context(), 1, content.Field{Key: "subtitle", Label: "Renamed"})
+			_, err := r.UpdateFieldInGroup(t.Context(), 1, content.Field{Key: "subtitle", Label: "Renamed"}, time.Time{})
 			return err
 		},
 		"DeleteFieldInGroup": func(r *content.Registry) error {
@@ -722,13 +727,14 @@ func TestRegistryRelabelsAFieldInsideItsGroup(t *testing.T) {
 
 	registry := content.NewRegistry(newGroupingStore())
 	held := groupNaming(t, registry, "Article details", namingPost())
-	if _, err := registry.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+	created, err := registry.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t))
+	if err != nil {
 		t.Fatalf("declaring the field: %v, want nil", err)
 	}
 
 	updated, err := registry.UpdateFieldInGroup(t.Context(), held.ID, content.Field{
 		Key: "subtitle", Label: "Renamed", Required: true,
-	})
+	}, created.UpdatedAt)
 
 	if err != nil {
 		t.Fatalf("UpdateFieldInGroup() error = %v, want nil", err)
@@ -744,7 +750,8 @@ func TestRegistryReportsRelabelingAFieldNoGroupHolds(t *testing.T) {
 	registry := content.NewRegistry(newGroupingStore())
 	held := groupNaming(t, registry, "Article details", namingPost())
 
-	_, err := registry.UpdateFieldInGroup(t.Context(), held.ID, content.Field{Key: "absent", Label: "Absent"})
+	_, err := registry.UpdateFieldInGroup(t.Context(),
+		held.ID, content.Field{Key: "absent", Label: "Absent"}, time.Time{})
 
 	if !errors.Is(err, content.ErrFieldNotFound) {
 		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrFieldNotFound)
@@ -800,11 +807,13 @@ func TestRegistryRefusesRelabelingAFieldToNothing(t *testing.T) {
 
 	registry := content.NewRegistry(newGroupingStore())
 	held := groupNaming(t, registry, "Article details", namingPost())
-	if _, err := registry.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+	created, err := registry.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t))
+	if err != nil {
 		t.Fatalf("declaring the field: %v, want nil", err)
 	}
 
-	_, err := registry.UpdateFieldInGroup(t.Context(), held.ID, content.Field{Key: "subtitle", Label: ""})
+	_, err = registry.UpdateFieldInGroup(t.Context(),
+		held.ID, content.Field{Key: "subtitle", Label: ""}, created.UpdatedAt)
 
 	if !errors.Is(err, content.ErrInvalidFieldLabel) {
 		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrInvalidFieldLabel)
