@@ -473,4 +473,65 @@ func TestMediaStoreReportsDatabaseFailures(t *testing.T) {
 	if _, err := store.Delete(t.Context(), created.ID); err == nil {
 		t.Error("Delete() on a closed pool error = nil, want a failure")
 	}
+	if _, err := store.ByIDs(t.Context(), []int64{created.ID}); err == nil {
+		t.Error("ByIDs() on a closed pool error = nil, want a failure")
+	}
+}
+
+func TestMediaStoreReadsSeveralByTheirIdentities(t *testing.T) {
+	t.Parallel()
+
+	store, author := newMediaStore(t)
+	first := mustCreateMedia(t, store, mustImage(t, "2026/08/first.jpg", "first", author))
+	second := mustCreateMedia(t, store, mustImage(t, "2026/08/second.jpg", "second", author))
+
+	listed, err := store.ByIDs(t.Context(), []int64{first.ID, second.ID})
+
+	if err != nil {
+		t.Fatalf("ByIDs() error = %v, want nil", err)
+	}
+	byID := make(map[int64]media.Media, len(listed))
+	for _, held := range listed {
+		byID[held.ID] = held
+	}
+	if len(byID) != 2 {
+		t.Fatalf("ByIDs() = %d items, want both", len(byID))
+	}
+	if byID[first.ID].File != "2026/08/first.jpg" || byID[first.ID].Title != "first" {
+		t.Errorf("first = %+v, want the stored file and title read back", byID[first.ID])
+	}
+	if len(byID[second.ID].Sizes) != 2 {
+		t.Errorf("second sizes = %v, want the renditions read back", byID[second.ID].Sizes)
+	}
+}
+
+func TestMediaStoreReadsFewerWhenAnIdentityIsGone(t *testing.T) {
+	t.Parallel()
+
+	store, author := newMediaStore(t)
+	kept := mustCreateMedia(t, store, mustImage(t, "2026/08/kept.jpg", "kept", author))
+
+	listed, err := store.ByIDs(t.Context(), []int64{kept.ID, kept.ID + 1000})
+
+	if err != nil {
+		t.Fatalf("ByIDs() error = %v, want nil", err)
+	}
+	if len(listed) != 1 || listed[0].ID != kept.ID {
+		t.Errorf("ByIDs() = %+v, want only the stored item", listed)
+	}
+}
+
+func TestMediaStoreReadsNothingFromNoIdentities(t *testing.T) {
+	t.Parallel()
+
+	store, _ := newMediaStore(t)
+
+	listed, err := store.ByIDs(t.Context(), nil)
+
+	if err != nil {
+		t.Fatalf("ByIDs() error = %v, want nil", err)
+	}
+	if len(listed) != 0 {
+		t.Errorf("ByIDs() = %+v, want nothing", listed)
+	}
 }

@@ -3,6 +3,7 @@
 package postgres_test
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -49,6 +50,24 @@ func TestTheStoreHoldsAChoiceField(t *testing.T) {
 	}
 	if !reflect.DeepEqual(held.Fields[0].Settings, declared.Settings) {
 		t.Errorf("listed settings = %v, want %v read back", held.Fields[0].Settings, declared.Settings)
+	}
+}
+
+func TestTheStoreNamesTheTargetAFieldPointsAtInVain(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	group, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	declared := fieldOn(t, "", "engine", content.FieldKindRelation, "nosuchtype")
+
+	_, err = store.CreateFieldInGroup(t.Context(), group.ID, declared)
+
+	if !errors.Is(err, content.ErrTargetUnknown) {
+		t.Errorf("CreateFieldInGroup() error = %v, want %v", err, content.ErrTargetUnknown)
 	}
 }
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Blocks } from '@gophenberg/astro/components'
-import { relatedFields } from '@gophenberg/astro'
+import { mediaFields, mediaUrl, relatedFields } from '@gophenberg/astro'
 
 import type { BlockComponentMap, Post } from '@gophenberg/astro'
 
@@ -16,6 +16,7 @@ interface Props {
 
 const { post, blocks, seo } = Astro.props
 const related = relatedFields(post)
+const pictured = mediaFields(post)
 ---
 
 <Base seo={seo} title={post.title}>
@@ -23,6 +24,30 @@ const related = relatedFields(post)
 		<h1>{post.title}</h1>
 		<time datetime={post.published_at}>{post.published_at.slice(0, 10)}</time>
 		<Blocks html={post.content} components={blocks} post={post} />
+		{
+			pictured.map((field) => (
+				<ul class="gophenberg-media">
+					{field.items.map((item) => (
+						<li>
+							<figure>
+								{item.mime_type.startsWith('image/') ? (
+									<img
+										src={mediaUrl(item.src)}
+										alt={item.alt_text}
+										width={item.width}
+										height={item.height}
+										loading="lazy"
+									/>
+								) : (
+									<a href={mediaUrl(item.src)}>{item.title || item.src}</a>
+								)}
+								{item.caption && <figcaption>{item.caption}</figcaption>}
+							</figure>
+						</li>
+					))}
+				</ul>
+			))
+		}
 		{
 			related.map((field) => (
 				<ul class="gophenberg-related">

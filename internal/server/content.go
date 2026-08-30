@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"github.com/gopherium/gouncer/authkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/publichtml"
 	"github.com/gopherium/gophenberg/internal/themehost"
 )
@@ -237,7 +239,7 @@ func (s *server) handleContentResolve() http.HandlerFunc {
 
 // respondResolvedItem answers with the addressed item, or reports it unchanged.
 func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, held content.Address) {
-	detail, err := s.publishedDetailOf(r, held.Item)
+	detail, err := s.publishedDetailOf(r, held.Type, held.Item)
 	if err != nil {
 		respondDomainError(w, err)
 		return
@@ -276,8 +278,8 @@ func namedTargets(held []content.Target) []relatedTarget {
 	return named
 }
 
-// publishedDetailOf returns the public view of an item with its targets named and addressed.
-func (s *server) publishedDetailOf(r *http.Request, c content.Content) (publishedDetail, error) {
+// publishedDetailOf returns the public view of an item with its targets and media resolved.
+func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Content) (publishedDetail, error) {
 	targets, err := s.content.TargetsOf(r.Context(), c.ID)
 	if err != nil {
 		return publishedDetail{}, err
@@ -290,11 +292,171 @@ func (s *server) publishedDetailOf(r *http.Request, c content.Content) (publishe
 	for key, listed := range targets {
 		values[key] = namedTargets(listed)
 	}
+	if err := s.inlineMediaValues(r, t, values); err != nil {
+		return publishedDetail{}, err
+	}
 	return publishedDetail{
 		publishedSummary: newPublishedSummary(c),
 		Content:          publichtml.Sanitize(c.Content),
 		Fields:           values,
 	}, nil
+}
+
+// servedRendition is one stored rendition as a public reader sees it.
+type servedRendition struct {
+	Src      string `json:"src"`
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+	MimeType string `json:"mime_type"`
+}
+
+// servedMedia is one library file as a public reader sees it.
+type servedMedia struct {
+	ID       int64                      `json:"id"`
+	Src      string                     `json:"src"`
+	Title    string                     `json:"title"`
+	AltText  string                     `json:"alt_text"`
+	Caption  string                     `json:"caption"`
+	MimeType string                     `json:"mime_type"`
+	Width    int                        `json:"width"`
+	Height   int                        `json:"height"`
+	Sizes    map[string]servedRendition `json:"sizes"`
+}
+
+// servedMediaOf returns the public view of one stored file.
+func servedMediaOf(m media.Media) servedMedia {
+	sizes := make(map[string]servedRendition, len(m.Sizes))
+	for slug, held := range m.Sizes {
+		sizes[slug] = servedRendition{
+			Src:      mediaPrefix + "/" + held.File,
+			Width:    held.Width,
+			Height:   held.Height,
+			MimeType: held.MimeType,
+		}
+	}
+	return servedMedia{
+		ID:       m.ID,
+		Src:      mediaPrefix + "/" + m.File,
+		Title:    m.Title,
+		AltText:  m.AltText,
+		Caption:  m.Caption,
+		MimeType: m.MimeType,
+		Width:    m.Width,
+		Height:   m.Height,
+		Sizes:    sizes,
+	}
+}
+
+// heldMediaID returns the value as a library identity, and whether it names one.
+func heldMediaID(value any) (int64, bool) {
+	switch held := value.(type) {
+	case float64:
+		return wholeMediaID(held)
+	case float32:
+		return wholeMediaID(float64(held))
+	case int64:
+		return held, held >= 1
+	case int32:
+		return int64(held), held >= 1
+	case int:
+		return int64(held), held >= 1
+	default:
+		return 0, false
+	}
+}
+
+// wholeMediaID returns the number as a library identity, and whether it names one whole file.
+func wholeMediaID(held float64) (int64, bool) {
+	if math.IsNaN(held) || held < 1 || held >= math.MaxInt64 || held != math.Trunc(held) {
+		return 0, false
+	}
+	return int64(held), true
+}
+
+// mediaIDsHeld returns every identity the values hold under the type's media fields.
+func mediaIDsHeld(t content.Type, values content.Values) []int64 {
+	var ids []int64
+	for _, f := range t.Fields {
+		if f.Kind != content.FieldKindMedia {
+			continue
+		}
+		if f.Many {
+			listed, _ := values[f.Key].([]any)
+			for _, member := range listed {
+				if id, ok := heldMediaID(member); ok {
+					ids = append(ids, id)
+				}
+			}
+			continue
+		}
+		if id, ok := heldMediaID(values[f.Key]); ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// inlineMediaValues rewrites every media key into the files it names, dropping what is gone.
+func (s *server) inlineMediaValues(r *http.Request, t content.Type, values content.Values) error {
+	byID := map[int64]media.Media{}
+	ids := mediaIDsHeld(t, values)
+	if len(ids) > 0 && s.mediaStore != nil {
+		listed, err := s.mediaStore.ByIDs(r.Context(), ids)
+		if err != nil {
+			return err
+		}
+		for _, m := range listed {
+			byID[m.ID] = m
+		}
+	}
+	for _, f := range t.Fields {
+		if f.Kind == content.FieldKindMedia {
+			inlineMediaKey(f, values, byID)
+		}
+	}
+	return nil
+}
+
+// inlineMediaKey rewrites one field's value into the shape it declares, deleting what will not serve.
+func inlineMediaKey(f content.Field, values content.Values, byID map[int64]media.Media) {
+	if f.Many {
+		inlineMediaList(f.Key, values, byID)
+		return
+	}
+	inlineMediaOne(f.Key, values, byID)
+}
+
+// inlineMediaOne rewrites a field holding one file, deleting the key when it will not serve.
+func inlineMediaOne(key string, values content.Values, byID map[int64]media.Media) {
+	id, ok := heldMediaID(values[key])
+	m, found := byID[id]
+	if !ok || !found {
+		delete(values, key)
+		return
+	}
+	values[key] = servedMediaOf(m)
+}
+
+// inlineMediaList rewrites a field holding many files, deleting the key when none serve.
+func inlineMediaList(key string, values content.Values, byID map[int64]media.Media) {
+	listed, many := values[key].([]any)
+	if !many {
+		delete(values, key)
+		return
+	}
+	served := make([]servedMedia, 0, len(listed))
+	for _, member := range listed {
+		if id, ok := heldMediaID(member); ok {
+			if m, found := byID[id]; found {
+				served = append(served, servedMediaOf(m))
+			}
+		}
+	}
+	if len(served) == 0 {
+		delete(values, key)
+		return
+	}
+	values[key] = served
 }
 
 // respondTerm answers with the addressed item and the published content pointing at it.
@@ -315,7 +477,7 @@ func (s *server) respondTerm(w http.ResponseWriter, r *http.Request, held conten
 	for i, c := range rows {
 		items[i] = newPublishedSummary(c)
 	}
-	detail, err := s.publishedDetailOf(r, held.Item)
+	detail, err := s.publishedDetailOf(r, held.Type, held.Item)
 	if err != nil {
 		respondDomainError(w, err)
 		return

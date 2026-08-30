@@ -384,6 +384,23 @@ func TestGroupFieldPatchRefusesSettingsTheDefinitionForbids(t *testing.T) {
 	}
 }
 
+func TestGroupWriteRefusesASecondBodyAfterTheFirst(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+
+	recorder := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+		`{"key":"subtitle","label":"Subtitle","kind":"text"}{"key":"second","label":"Second","kind":"text"}`)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if code := errorCode(t, recorder); code != "body_malformed" {
+		t.Errorf("code = %q, want body_malformed", code)
+	}
+}
+
 func TestGroupFieldDeleteTakesTheFieldAway(t *testing.T) {
 	t.Parallel()
 

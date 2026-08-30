@@ -67,6 +67,11 @@ func (s *countingMediaStore) ByID(context.Context, int64) (media.Media, error) {
 	return media.Media{}, media.ErrNotFound
 }
 
+// ByIDs answers no items.
+func (s *countingMediaStore) ByIDs(context.Context, []int64) ([]media.Media, error) {
+	return nil, nil
+}
+
 // List returns what the store holds matching the search, one page at a time.
 func (s *countingMediaStore) List(_ context.Context, f media.Filter) ([]media.Media, int, error) {
 	if s.listErr != nil {

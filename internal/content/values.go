@@ -5,6 +5,7 @@ package content
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"regexp"
 	"time"
@@ -86,14 +87,24 @@ func holdsEachOnce(f Field, value any) error {
 	}
 	seen := make(map[any]bool, len(members))
 	for _, member := range members {
-		if seen[member] {
+		named := namedOnce(f, member)
+		if seen[named] {
 			return Refuse(ErrFieldShape, "field_repeated",
 				fmt.Sprintf("%s: %s names the same one twice", ErrFieldShape, f.Key),
 				Details{"field": f.Key})
 		}
-		seen[member] = true
+		seen[named] = true
 	}
 	return nil
+}
+
+// namedOnce returns the member as the one thing it names, however a caller wrote it.
+func namedOnce(f Field, member any) any {
+	if f.Kind != FieldKindMedia {
+		return member
+	}
+	id, _ := mediaIdentity(member)
+	return id
 }
 
 // withinBounds reports whether the value sits inside the bounds its field's settings name.
@@ -207,7 +218,7 @@ func holdsShape(f Field, value any) bool {
 	case f.Kind == FieldKindChoice:
 		return isWord(value)
 	case f.Kind == FieldKindMedia && f.Many:
-		return holdsEvery(value, isNumber)
+		return holdsEvery(value, isMediaID)
 	default:
 		return holdsKind(value, f.Kind)
 	}
@@ -245,8 +256,10 @@ func holdsKind(value any, kind FieldKind) bool {
 	case FieldKindText:
 		_, ok := value.(string)
 		return ok
-	case FieldKindNumber, FieldKindMedia:
+	case FieldKindNumber:
 		return isNumber(value)
+	case FieldKindMedia:
+		return isMediaID(value)
 	case FieldKindBoolean:
 		_, ok := value.(bool)
 		return ok
@@ -261,6 +274,38 @@ func holdsKind(value any, kind FieldKind) bool {
 func isNumber(value any) bool {
 	_, held := settingNumber(value)
 	return held
+}
+
+// isMediaID reports whether the value is a whole number the library can store as an identity.
+func isMediaID(value any) bool {
+	_, ok := mediaIdentity(value)
+	return ok
+}
+
+// mediaIdentity returns the identity the value names, and whether the library can store it.
+func mediaIdentity(value any) (int64, bool) {
+	switch held := value.(type) {
+	case int:
+		return int64(held), held >= 1
+	case int32:
+		return int64(held), held >= 1
+	case int64:
+		return held, held >= 1
+	case float32:
+		return storableIdentity(float64(held))
+	case float64:
+		return storableIdentity(held)
+	default:
+		return 0, false
+	}
+}
+
+// storableIdentity returns the number as an identity, and whether the library can store it.
+func storableIdentity(held float64) (int64, bool) {
+	if held < 1 || held >= math.MaxInt64 || held != math.Trunc(held) {
+		return 0, false
+	}
+	return int64(held), true
 }
 
 // isDay reports whether the value is a day written as a date.

@@ -54,6 +54,10 @@ func TestFieldKinds(t *testing.T) {
 	runFeature(t, "features/field-kinds.feature", initializeFieldKinds)
 }
 
+func TestMediaValues(t *testing.T) {
+	runFeature(t, "features/media-values.feature", initializeMediaValues)
+}
+
 func TestRouteGate(t *testing.T) {
 	runFeature(t, "features/roles-route-gate.feature", initializeRouteGate)
 }

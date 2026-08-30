@@ -123,6 +123,7 @@ type world struct {
 	client         *http.Client
 	answer         *answer
 	pending        *activation
+	rememberedETag string
 }
 
 // provisionWorld gives a scenario its own themes directory.

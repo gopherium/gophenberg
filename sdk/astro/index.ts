@@ -14,6 +14,7 @@ export {
 export { defineTheme } from './theme.ts'
 export { gophenbergLoader } from './loader.ts'
 export { relatedFields, relatedItems } from './related.ts'
+export { mediaFields, mediaItems, mediaUrl } from './media.ts'
 
 export type { BlockComponentMap, BlockNode, BlockProps, BlockSegment, ParsedBlock } from './blocks.ts'
 export type { ClientOptions, ListQuery, ResolveOptions } from './client.ts'
@@ -21,6 +22,8 @@ export type {
 	ContentType,
 	ContentTypeField,
 	Handshake,
+	MediaRendition,
+	MediaValue,
 	Page,
 	Post,
 	PostSummary,
@@ -30,4 +33,5 @@ export type {
 export type { SiteAssetUrls } from './assets.ts'
 export type { LivePost, LoaderOptions, PostCollectionFilter, PostEntryFilter } from './loader.ts'
 export type { RelatedField } from './related.ts'
+export type { MediaField } from './media.ts'
 export type { GophenbergTheme, ThemeLayouts, ThemeSeo } from './theme.ts'
