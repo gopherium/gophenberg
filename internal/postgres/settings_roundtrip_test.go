@@ -72,7 +72,7 @@ func TestUpdateFieldInGroupCarriesSettings(t *testing.T) {
 	declared := declareTypedField(t, store, "car", "subtitle")
 	declared.Settings = map[string]any{"maxlength": float64(80)}
 
-	updated, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, declared)
+	updated, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, declared, declared.UpdatedAt)
 
 	if err != nil {
 		t.Fatalf("UpdateFieldInGroup() error = %v, want nil", err)

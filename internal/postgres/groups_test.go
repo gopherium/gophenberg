@@ -443,7 +443,7 @@ func TestUpdateFieldInGroupStoresTheLabelAndTheRequiredFlag(t *testing.T) {
 
 	updated, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{
 		Key: "subtitle", Label: "Renamed", Required: true, UpdatedAt: declared.UpdatedAt,
-	})
+	}, declared.UpdatedAt)
 
 	if err != nil {
 		t.Fatalf("UpdateFieldInGroup() error = %v, want nil", err)
@@ -460,10 +460,43 @@ func TestUpdateFieldInGroupReportsAFieldThatIsGone(t *testing.T) {
 	storeType(t, store, "car")
 	declared := declareTypedField(t, store, "car", "subtitle")
 
-	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{Key: "absent", Label: "Absent"})
+	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID,
+		content.Field{Key: "absent", Label: "Absent"}, declared.UpdatedAt)
 
 	if !errors.Is(err, content.ErrFieldNotFound) {
 		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrFieldNotFound)
+	}
+}
+
+func TestUpdateFieldInGroupTurnsAwayAStaleExpectation(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+
+	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{
+		Key: "subtitle", Label: "Renamed", UpdatedAt: time.Now().UTC(),
+	}, declared.UpdatedAt.Add(-time.Hour))
+
+	if !errors.Is(err, content.ErrConflict) {
+		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrConflict)
+	}
+}
+
+func TestUpdateFieldInGroupReportsAGroupThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+
+	_, err := store.UpdateFieldInGroup(t.Context(), 424242, content.Field{
+		Key: "subtitle", Label: "Renamed", UpdatedAt: declared.UpdatedAt,
+	}, declared.UpdatedAt)
+
+	if !errors.Is(err, content.ErrGroupNotFound) {
+		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrGroupNotFound)
 	}
 }
 

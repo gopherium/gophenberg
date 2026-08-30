@@ -2061,17 +2061,18 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (C
 const updateContentField = `-- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = $1, required = $2, settings = $3, updated_at = $4
-WHERE group_id = $5 AND key = $6
+WHERE group_id = $5 AND key = $6 AND updated_at = $7
 RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
 `
 
 type UpdateContentFieldParams struct {
-	Label     string
-	Required  bool
-	Settings  []byte
-	UpdatedAt time.Time
-	GroupID   int32
-	Key       string
+	Label             string
+	Required          bool
+	Settings          []byte
+	UpdatedAt         time.Time
+	GroupID           int32
+	Key               string
+	ExpectedUpdatedAt time.Time
 }
 
 func (q *Queries) UpdateContentField(ctx context.Context, arg UpdateContentFieldParams) (CoreContentField, error) {
@@ -2082,6 +2083,7 @@ func (q *Queries) UpdateContentField(ctx context.Context, arg UpdateContentField
 		arg.UpdatedAt,
 		arg.GroupID,
 		arg.Key,
+		arg.ExpectedUpdatedAt,
 	)
 	var i CoreContentField
 	err := row.Scan(
