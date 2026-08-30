@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -346,22 +347,30 @@ func servedMediaOf(m media.Media) servedMedia {
 	}
 }
 
-// heldMediaID returns the value as a library identity, and whether it is one.
+// heldMediaID returns the value as a library identity, and whether it names one.
 func heldMediaID(value any) (int64, bool) {
 	switch held := value.(type) {
 	case float64:
-		return int64(held), true
+		return wholeMediaID(held)
 	case float32:
-		return int64(held), true
+		return wholeMediaID(float64(held))
 	case int64:
-		return held, true
+		return held, held >= 1
 	case int32:
-		return int64(held), true
+		return int64(held), held >= 1
 	case int:
-		return int64(held), true
+		return int64(held), held >= 1
 	default:
 		return 0, false
 	}
+}
+
+// wholeMediaID returns the number as a library identity, and whether it names one whole file.
+func wholeMediaID(held float64) (int64, bool) {
+	if math.IsNaN(held) || math.IsInf(held, 0) || held < 1 || held != math.Trunc(held) {
+		return 0, false
+	}
+	return int64(held), true
 }
 
 // mediaIDsHeld returns every identity the values hold under the type's media fields.
@@ -388,20 +397,19 @@ func mediaIDsHeld(t content.Type, values content.Values) []int64 {
 
 // inlineMediaValues rewrites every media key into the files it names, dropping what is gone.
 func (s *server) inlineMediaValues(r *http.Request, t content.Type, values content.Values) error {
-	if s.mediaStore == nil {
-		return nil
-	}
 	ids := mediaIDsHeld(t, values)
 	if len(ids) == 0 {
 		return nil
 	}
-	listed, err := s.mediaStore.ByIDs(r.Context(), ids)
-	if err != nil {
-		return err
-	}
-	byID := make(map[int64]media.Media, len(listed))
-	for _, m := range listed {
-		byID[m.ID] = m
+	byID := map[int64]media.Media{}
+	if s.mediaStore != nil {
+		listed, err := s.mediaStore.ByIDs(r.Context(), ids)
+		if err != nil {
+			return err
+		}
+		for _, m := range listed {
+			byID[m.ID] = m
+		}
 	}
 	for _, f := range t.Fields {
 		if f.Kind == content.FieldKindMedia {

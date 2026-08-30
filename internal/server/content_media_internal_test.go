@@ -3,6 +3,7 @@
 package server
 
 import (
+	"math"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -31,6 +32,27 @@ func TestHeldMediaIDReadsEveryNumberShapeAWriteAccepts(t *testing.T) {
 	}
 	if _, ok := heldMediaID("seven"); ok {
 		t.Error("heldMediaID(word) = true, want no identity in a word")
+	}
+}
+
+func TestHeldMediaIDNamesNoFileFromAPartOfANumber(t *testing.T) {
+	t.Parallel()
+
+	for name, value := range map[string]any{
+		"a part of a number":   float64(1.5),
+		"a narrow part":        float32(1.5),
+		"nothing at all":       math.NaN(),
+		"a number without end": math.Inf(1),
+		"a number below one":   float64(0),
+		"a number before it":   float64(-3),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if id, ok := heldMediaID(value); ok {
+				t.Errorf("heldMediaID(%v) = %d, want no file named by it", value, id)
+			}
+		})
 	}
 }
 

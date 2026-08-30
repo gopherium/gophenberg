@@ -300,7 +300,7 @@ func TestResolveReportsAFailingMediaLibrary(t *testing.T) {
 	}
 }
 
-func TestResolveServesBareIdentitiesWithoutAMediaLibrary(t *testing.T) {
+func TestResolveLeavesOutMediaWithoutALibraryToResolveIt(t *testing.T) {
 	t.Parallel()
 
 	handler := authedTypeServer(t)
@@ -309,8 +309,7 @@ func TestResolveServesBareIdentitiesWithoutAMediaLibrary(t *testing.T) {
 
 	fields := resolvedFields(t, handler, slug)
 
-	var held float64
-	if err := json.Unmarshal(fields["cover"], &held); err != nil || held != 7 {
-		t.Errorf("cover = %s, want the stored identity untouched", fields["cover"])
+	if raw, found := fields["cover"]; found {
+		t.Errorf("cover = %s, want the field absent rather than a bare identity", raw)
 	}
 }
