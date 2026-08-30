@@ -11,7 +11,7 @@ npm-style tag stays invisible to the Go toolchain, unlike a
 `sdk/astro/vX.Y.Z` tag naming the directory as a module. Versions
 through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 
-## [Unreleased]
+## [0.10.0] - 2026-08-30
 
 ### Added
 
@@ -19,6 +19,8 @@ through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 - `mediaFields` and `mediaItems` read the library files a media field names.
 - `mediaUrl` addresses a library file from a theme serving its own origin.
 - `MediaValue` and `MediaRendition` type what a media field serves.
+
+## [0.9.0] - 2026-08-25
 
 ### Changed
 
