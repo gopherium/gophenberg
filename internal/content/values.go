@@ -103,8 +103,8 @@ func namedOnce(f Field, member any) any {
 	if f.Kind != FieldKindMedia {
 		return member
 	}
-	held, _ := settingNumber(member)
-	return int64(held)
+	id, _ := mediaIdentity(member)
+	return id
 }
 
 // withinBounds reports whether the value sits inside the bounds its field's settings name.
@@ -278,25 +278,34 @@ func isNumber(value any) bool {
 
 // isMediaID reports whether the value is a whole number the library can store as an identity.
 func isMediaID(value any) bool {
+	_, ok := mediaIdentity(value)
+	return ok
+}
+
+// mediaIdentity returns the identity the value names, and whether the library can store it.
+func mediaIdentity(value any) (int64, bool) {
 	switch held := value.(type) {
 	case int:
-		return held >= 1
+		return int64(held), held >= 1
 	case int32:
-		return held >= 1
+		return int64(held), held >= 1
 	case int64:
-		return held >= 1
+		return held, held >= 1
 	case float32:
 		return storableIdentity(float64(held))
 	case float64:
 		return storableIdentity(held)
 	default:
-		return false
+		return 0, false
 	}
 }
 
-// storableIdentity reports whether the number is a whole identity the library can store.
-func storableIdentity(held float64) bool {
-	return held >= 1 && held < math.MaxInt64 && held == math.Trunc(held)
+// storableIdentity returns the number as an identity, and whether the library can store it.
+func storableIdentity(held float64) (int64, bool) {
+	if held < 1 || held >= math.MaxInt64 || held != math.Trunc(held) {
+		return 0, false
+	}
+	return int64(held), true
 }
 
 // isDay reports whether the value is a day written as a date.

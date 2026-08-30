@@ -118,6 +118,10 @@ func TestValuesShapeTheChoiceKindAndAManyMedia(t *testing.T) {
 		"a many media refuses the same item written two ways": {
 			shaped(t, content.FieldKindMedia, true, nil), []any{float64(7), int64(7)}, false,
 		},
+		"a many media holds two neighbouring identities a caller wrote whole": {
+			shaped(t, content.FieldKindMedia, true, nil),
+			[]any{int64(math.MaxInt64), int64(math.MaxInt64 - 1)}, true,
+		},
 		"a media refuses a part of an item": {
 			shaped(t, content.FieldKindMedia, false, nil), float64(1.5), false,
 		},
