@@ -8,7 +8,6 @@ Feature: Serving media field values
     And a signed in administrator
     And the group "Extras" placed on "post"
 
-  @wip
   Scenario: A cover serves the file it points at
     Given the media field "cover" in "Extras"
     And the administrator uploads a 640 by 480 pixel JPEG named "sunrise.jpg"
@@ -18,18 +17,16 @@ Feature: Serving media field values
     Then the served field "cover" is one object addressing "sunrise.jpg"
     And the served field "cover" carries the size 640 by 480
 
-  @wip
   Scenario: The words on a file go public without the librarian's note
     Given the media field "cover" in "Extras"
     And the administrator uploads a 640 by 480 pixel JPEG named "sunrise.jpg"
-    And the administrator describes the image "sunrise"
     And the published post "Hello world"
     And the administrator saves the image named "sunrise" into "cover" of "Hello world"
+    And the administrator describes the image "sunrise"
     When a visitor resolves "/hello-world"
     Then the served field "cover" carries the saved title, alt text and caption
     And the served field "cover" carries no description
 
-  @wip
   Scenario: A gallery keeps its stored order
     Given the many media field "gallery" in "Extras"
     And the administrator uploads a 640 by 480 pixel JPEG named "beach.jpg"
@@ -39,7 +36,6 @@ Feature: Serving media field values
     When a visitor resolves "/hello-world"
     Then the served field "gallery" lists the addresses "cliff.jpg, beach.jpg" in that order
 
-  @wip
   Scenario: A file that is gone drops out of a gallery
     Given the many media field "gallery" in "Extras"
     And the administrator uploads a 640 by 480 pixel JPEG named "beach.jpg"
@@ -50,7 +46,6 @@ Feature: Serving media field values
     When a visitor resolves "/hello-world"
     Then the served field "gallery" lists the addresses "beach.jpg" in that order
 
-  @wip
   Scenario: A cover whose file is gone leaves the field out
     Given the media field "cover" in "Extras"
     And the administrator uploads a 640 by 480 pixel JPEG named "sunrise.jpg"
@@ -60,7 +55,6 @@ Feature: Serving media field values
     When a visitor resolves "/hello-world"
     Then the served fields carry no "cover"
 
-  @wip
   Scenario: A term's own item serves its media
     Given the type "category" labeled "Category" and "Categories" under "categories" serving term pages
     And the group "Category art" placed on "category"
@@ -71,7 +65,6 @@ Feature: Serving media field values
     When a visitor resolves "/categories/news"
     Then the served field "portrait" is one object addressing "banner.jpg"
 
-  @wip
   Scenario: Editing the words on a file changes the item's validator
     Given the media field "cover" in "Extras"
     And the administrator uploads a 640 by 480 pixel JPEG named "sunrise.jpg"
@@ -81,7 +74,6 @@ Feature: Serving media field values
     When the administrator describes the image "sunrise"
     Then resolving "/hello-world" answers a changed validator
 
-  @wip
   Scenario: An animated GIF serves its address and no renditions
     Given the media field "cover" in "Extras"
     And the administrator uploads an animated GIF named "wave.gif"
