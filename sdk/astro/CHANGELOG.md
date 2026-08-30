@@ -16,6 +16,9 @@ through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 ### Added
 
 - A content type's fields carry the settings the operator set on them.
+- `mediaFields` and `mediaItems` read the library files a media field names.
+- `mediaUrl` addresses a library file from a theme serving its own origin.
+- `MediaValue` and `MediaRendition` type what a media field serves.
 
 ### Changed
 

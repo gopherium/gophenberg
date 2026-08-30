@@ -25,6 +25,27 @@ export interface RelatedItem {
 	path: string
 }
 
+/** One stored rendition of a library file, as a reader sees it. */
+export interface MediaRendition {
+	src: string
+	width: number
+	height: number
+	mime_type: string
+}
+
+/** One library file a media field names, as a reader sees it. */
+export interface MediaValue {
+	id: number
+	src: string
+	title: string
+	alt_text: string
+	caption: string
+	mime_type: string
+	width: number
+	height: number
+	sizes: Record<string, MediaRendition>
+}
+
 /** One typed field a content type declares. */
 export interface ContentTypeField {
 	key: string
