@@ -159,14 +159,40 @@ identify each block.
 The `fields` object carries the item's values, keyed by field key.
 A text, number, date or yes-no field holds its value as it was
 typed. A choice field holds the stored value, and the label sits in
-that field's `choices`. A media field holds the library identity of
-the file, which no public route turns into an address. A field
-holding many, whether choice, media or relation, holds a list, and
-relation entries name and address the item they point at, so a
-theme links to it without another request. Only published targets
-of active types appear, so a draft category never leaks through a
-published post. A field nobody filled is absent, though a Many
-values choice emptied in the editor comes back as an empty list.
+that field's `choices`. A field holding many, whether choice, media
+or relation, holds a list, and relation entries name and address
+the item they point at, so a theme links to it without another
+request. Only published targets of active types appear, so a draft
+category never leaks through a published post. A field nobody
+filled is absent, though a Many values choice emptied in the editor
+comes back as an empty list.
+
+A media field serves the file itself, one object for a Media field
+and a list for a Gallery, ready to render:
+
+```json
+"cover": {
+  "id": 12,
+  "src": "/media/2026/08/sunrise.jpg",
+  "title": "Sunrise",
+  "alt_text": "Sunrise over the bay",
+  "caption": "Golden hour at the marina",
+  "mime_type": "image/jpeg",
+  "width": 3200,
+  "height": 1800,
+  "sizes": {
+    "large": {"src": "/media/2026/08/sunrise-1024x576.jpg", "width": 1024, "height": 576, "mime_type": "image/jpeg"}
+  }
+}
+```
+
+`src` is the one address every file carries. `sizes` maps the stored
+renditions for building responsive images, and it can be empty, for
+an animated GIF or a plain file, so never rely on a particular slug.
+A file that was deleted from the library drops out of a list, and a
+field whose only file is gone is absent, so a theme checks presence
+rather than trusting the editor. The library's description stays
+private.
 
 Archive addresses answer with a page instead. The root of a type is
 its `route_word`, the front page is the default type, and both
@@ -214,11 +240,13 @@ An item filed under the term through two different fields is listed
 once. Term pages paginate behind `/page/{n}` like archives, and a
 page suffix on an ordinary single item stays `404`.
 
-Item answers carry an `ETag`. Send it back as `If-None-Match` and an
-unchanged answer comes back as `304` with no body, worth doing if you
-poll. The tag covers the whole answer, so it also moves when the type
-or its fields change.
+Item answers carry an `ETag` computed over the whole served answer.
+Send it back as `If-None-Match` and an unchanged answer comes back
+as `304` with no body, worth doing if you poll. Because the tag
+covers everything served, it also moves when the type, a relation
+target, or the words on an inlined media file change, not only when
+the item itself is edited. Revalidation saves bandwidth, not server
+work, since the answer is rebuilt to compare.
 Cross-origin browser scripts cannot read the `ETag` header, so this is
-for servers and command lines. Term answers carry no `ETag`, because
-a term page changes when other items publish, which the term's own
-timestamp cannot witness.
+for servers and command lines. Term answers carry no `ETag` and rely
+on the shared cache windows alone.

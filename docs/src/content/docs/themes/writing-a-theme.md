@@ -151,8 +151,10 @@ const related = relatedFields(post)
 ```
 
 `relatedFields` returns relations only. A choice value comes back
-as the stored value and a media value as a library identity, both
-covered in the [content API](/reference/content-api/).
+as the stored value, and a media value as an object carrying `src`,
+`alt_text` and its `sizes`, so an image renders straight from the
+page answer. The shapes are covered in the
+[content API](/reference/content-api/).
 
 ## Trying it
 
