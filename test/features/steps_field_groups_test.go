@@ -22,7 +22,8 @@ type groupHeld struct {
 	Title  string `json:"title"`
 	Active bool   `json:"active"`
 	Fields []struct {
-		Key string `json:"key"`
+		Key       string `json:"key"`
+		UpdatedAt string `json:"updated_at"`
 	} `json:"fields"`
 }
 
@@ -46,6 +47,25 @@ func listGroups(w *world) (groupsListing, error) {
 		return listed, err
 	}
 	return listed, w.answer.decode(&listed)
+}
+
+// fieldStampIn returns the updated_at the group listing serves for the field.
+func fieldStampIn(w *world, groupID int, key string) (string, error) {
+	listed, err := listGroups(w)
+	if err != nil {
+		return "", err
+	}
+	for _, held := range listed.Items {
+		if held.ID != groupID {
+			continue
+		}
+		for _, f := range held.Fields {
+			if f.Key == key {
+				return f.UpdatedAt, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no field %q stands in group %d", key, groupID)
 }
 
 // groupNamed returns the stored group carrying the title.

@@ -108,3 +108,11 @@ Feature: Field settings
     When the editor autosaves "Hello world" holding the number 5 in "rating"
     Then the buffer it saved holds the number 5 in "rating"
     And saving the number 5 into "rating" of "Hello world" is refused
+
+  Scenario: An edit carrying yesterday's timestamp is turned away
+    Given the "number" field "rating" in "Extras" with settings:
+      """
+      {"min": 1}
+      """
+    When the administrator patches the settings of "rating" in "Extras" carrying yesterday's timestamp
+    Then the field edit is refused as stale

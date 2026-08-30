@@ -152,8 +152,10 @@ func (s *memoryTypes) CreateFieldInGroup(_ context.Context, groupID int, f conte
 	return content.Field{}, content.ErrGroupNotFound
 }
 
-// UpdateFieldInGroup stores the field's label and required flag inside its group.
-func (s *memoryTypes) UpdateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
+// UpdateFieldInGroup stores the field's label and required flag when the expectation still holds.
+func (s *memoryTypes) UpdateFieldInGroup(
+	_ context.Context, groupID int, f content.Field, expectedUpdatedAt time.Time,
+) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
@@ -162,6 +164,9 @@ func (s *memoryTypes) UpdateFieldInGroup(_ context.Context, groupID int, f conte
 		}
 		for j, stored := range held.Fields {
 			if stored.Key == f.Key {
+				if !expectedUpdatedAt.Equal(stored.UpdatedAt) {
+					return content.Field{}, content.ErrConflict
+				}
 				s.groups[i].Fields[j] = f
 				return f, nil
 			}

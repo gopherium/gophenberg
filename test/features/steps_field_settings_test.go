@@ -52,7 +52,34 @@ func theAdministratorPatchesSettings(ctx context.Context, key, title string, set
 		return err
 	}
 	where := groupsPath + "/" + strconv.Itoa(held.ID) + "/fields/" + key
-	return w.patchJSON(where, fmt.Sprintf(`{"settings":%s}`, settings.Content))
+	stamp, err := fieldStampIn(w, held.ID, key)
+	if err != nil {
+		return err
+	}
+	return w.patchJSON(where, fmt.Sprintf(`{"settings":%s,"updated_at":%q}`, settings.Content, stamp))
+}
+
+// theAdministratorPatchesSettingsStale carries a settings edit naming a timestamp the field has outgrown.
+func theAdministratorPatchesSettingsStale(ctx context.Context, key, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	where := groupsPath + "/" + strconv.Itoa(held.ID) + "/fields/" + key
+	return w.patchJSON(where, `{"settings":{"min":5},"updated_at":"2000-01-01T00:00:00Z"}`)
+}
+
+// theFieldEditIsRefusedAsStale asserts the last edit answered a conflict.
+func theFieldEditIsRefusedAsStale(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.expect(http.StatusConflict)
 }
 
 // theAdministratorRelabelsInGroup carries a new label for a field in the named group.
@@ -66,7 +93,11 @@ func theAdministratorRelabelsInGroup(ctx context.Context, key, title, label stri
 		return err
 	}
 	where := groupsPath + "/" + strconv.Itoa(held.ID) + "/fields/" + key
-	if err := w.patchJSON(where, fmt.Sprintf(`{"label":%q}`, label)); err != nil {
+	stamp, err := fieldStampIn(w, held.ID, key)
+	if err != nil {
+		return err
+	}
+	if err := w.patchJSON(where, fmt.Sprintf(`{"label":%q,"updated_at":%q}`, label, stamp)); err != nil {
 		return err
 	}
 	return w.expect(http.StatusOK)
@@ -218,6 +249,11 @@ func initializeFieldSettings(sc *godog.ScenarioContext) {
 		`^the administrator patches the settings of "([^"]*)" in "([^"]*)" to:$`,
 		theAdministratorPatchesSettings,
 	)
+	sc.When(
+		`^the administrator patches the settings of "([^"]*)" in "([^"]*)" carrying yesterday's timestamp$`,
+		theAdministratorPatchesSettingsStale,
+	)
+	sc.Then(`^the field edit is refused as stale$`, theFieldEditIsRefusedAsStale)
 	sc.When(`^the administrator relabels the field "([^"]*)" in "([^"]*)" as "([^"]*)"$`, theAdministratorRelabelsInGroup)
 	sc.When(`^the administrator saves "([^"]*)" into "([^"]*)" of "([^"]*)"$`, theAdministratorSavesInto)
 	sc.When(`^the administrator retitles "([^"]*)" as "([^"]*)"$`, theAdministratorRetitles)
