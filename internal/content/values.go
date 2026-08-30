@@ -103,7 +103,7 @@ func namedOnce(f Field, member any) any {
 	if f.Kind != FieldKindMedia {
 		return member
 	}
-	id, _ := mediaIdentity(member)
+	id, _ := MediaIdentity(member)
 	return id
 }
 
@@ -278,12 +278,12 @@ func isNumber(value any) bool {
 
 // isMediaID reports whether the value is a whole number the library can store as an identity.
 func isMediaID(value any) bool {
-	_, ok := mediaIdentity(value)
+	_, ok := MediaIdentity(value)
 	return ok
 }
 
-// mediaIdentity returns the identity the value names, and whether the library can store it.
-func mediaIdentity(value any) (int64, bool) {
+// MediaIdentity returns the identity the value names, and whether the library can store it.
+func MediaIdentity(value any) (int64, bool) {
 	switch held := value.(type) {
 	case int:
 		return int64(held), held >= 1
