@@ -123,6 +123,12 @@ func TestValuesShapeTheChoiceKindAndAManyMedia(t *testing.T) {
 		"a media refuses an item before the first": {
 			shaped(t, content.FieldKindMedia, false, nil), float64(-3), false,
 		},
+		"a media refuses an item past the last one storable": {
+			shaped(t, content.FieldKindMedia, false, nil), float64(9223372036854775808), false,
+		},
+		"a media holds the largest item that stores": {
+			shaped(t, content.FieldKindMedia, false, nil), float64(9223372036854774784), true,
+		},
 		"a many media refuses a part of an item": {
 			shaped(t, content.FieldKindMedia, true, nil), []any{float64(1), float64(2.5)}, false,
 		},

@@ -266,10 +266,10 @@ func isNumber(value any) bool {
 	return held
 }
 
-// isMediaID reports whether the value is a whole number naming one library file.
+// isMediaID reports whether the value is a whole number the library can store as an identity.
 func isMediaID(value any) bool {
 	held, ok := settingNumber(value)
-	return ok && held >= 1 && held == math.Trunc(held) && !math.IsInf(held, 0)
+	return ok && held >= 1 && held < math.MaxInt64 && held == math.Trunc(held)
 }
 
 // isDay reports whether the value is a day written as a date.

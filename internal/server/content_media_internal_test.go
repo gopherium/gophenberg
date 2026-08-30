@@ -39,12 +39,13 @@ func TestHeldMediaIDNamesNoFileFromAPartOfANumber(t *testing.T) {
 	t.Parallel()
 
 	for name, value := range map[string]any{
-		"a part of a number":   float64(1.5),
-		"a narrow part":        float32(1.5),
-		"nothing at all":       math.NaN(),
-		"a number without end": math.Inf(1),
-		"a number below one":   float64(0),
-		"a number before it":   float64(-3),
+		"a part of a number":                  float64(1.5),
+		"a narrow part":                       float32(1.5),
+		"nothing at all":                      math.NaN(),
+		"a number without end":                math.Inf(1),
+		"a number below one":                  float64(0),
+		"a number before it":                  float64(-3),
+		"a number past the last one storable": float64(9223372036854775808),
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

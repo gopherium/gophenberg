@@ -367,7 +367,7 @@ func heldMediaID(value any) (int64, bool) {
 
 // wholeMediaID returns the number as a library identity, and whether it names one whole file.
 func wholeMediaID(held float64) (int64, bool) {
-	if math.IsNaN(held) || math.IsInf(held, 0) || held < 1 || held != math.Trunc(held) {
+	if math.IsNaN(held) || held < 1 || held >= math.MaxInt64 || held != math.Trunc(held) {
 		return 0, false
 	}
 	return int64(held), true
