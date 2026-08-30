@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { readFileSync } from 'node:fs'
+
 import { describe, expect, expectTypeOf, test } from 'vitest'
 
 import type { GophenbergTheme } from '@gophenberg/astro'
@@ -28,5 +30,24 @@ describe('what the starter declares to the kit', () => {
 	test('names the site and its page size', () => {
 		expect(theme.seo.siteName).toBe('Gophenberg Starter')
 		expect(theme.pagination?.perPage).toBe(2)
+	})
+})
+
+describe('what the starter shows of an item', () => {
+	const layout = readFileSync(new URL('../src/layouts/Post.astro', import.meta.url), 'utf8')
+
+	test('renders the files a media field names', () => {
+		expect(layout).toContain('mediaFields')
+		expect(layout).toContain('mediaUrl')
+	})
+
+	test('addresses each file and describes it for a reader who cannot see it', () => {
+		expect(layout).toContain('alt={item.alt_text}')
+		expect(layout).toContain('src={mediaUrl(item.src)}')
+	})
+
+	test('gives an image its size so the page does not jump while it loads', () => {
+		expect(layout).toContain('width={item.width}')
+		expect(layout).toContain('height={item.height}')
 	})
 })
