@@ -204,6 +204,9 @@ msgstr ""
 msgid "Add field"
 msgstr ""
 
+msgid "Add field to %(field)s"
+msgstr ""
+
 msgid "Add media"
 msgstr ""
 

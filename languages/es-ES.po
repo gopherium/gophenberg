@@ -1608,6 +1608,10 @@ msgid "Add row"
 msgstr "Añadir fila"
 
 #, fuzzy
+msgid "Add field to %(field)s"
+msgstr "Añadir campo a %(field)s"
+
+#, fuzzy
 msgid "Remove row"
 msgstr "Quitar fila"
 
