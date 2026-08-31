@@ -42,6 +42,8 @@ test('offers a picker entry for every presentation a field starts as', () => {
 		'media',
 		'gallery',
 		'relation',
+		'section',
+		'repeater',
 	])
 })
 
@@ -66,6 +68,8 @@ test('maps a picker entry to the kind and the settings it starts with', () => {
 		many: false,
 		settings: { presentation: 'range' },
 	})
+	expect(pickedKind('section')).toEqual({ kind: 'section', many: false })
+	expect(pickedKind('repeater')).toEqual({ kind: 'repeater', many: false })
 	expect(pickedKind('gallery')).toEqual({ kind: 'media', many: true })
 	expect(pickedKind('text')).toEqual({ kind: 'text', many: false })
 	expect(pickedKind('relation')).toEqual({ kind: 'relation', many: false })

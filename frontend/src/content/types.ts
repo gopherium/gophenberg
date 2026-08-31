@@ -249,6 +249,8 @@ export function fieldKinds(): Choice[] {
 		{ label: _x('Media', 'field type', 'gophenberg'), value: 'media' },
 		{ label: _x('Gallery', 'field type', 'gophenberg'), value: 'gallery' },
 		{ label: __('Relation', 'gophenberg'), value: 'relation' },
+		{ label: _x('Section', 'field type', 'gophenberg'), value: 'section' },
+		{ label: _x('Repeater', 'field type', 'gophenberg'), value: 'repeater' },
 	]
 }
 
