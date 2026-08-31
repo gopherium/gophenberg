@@ -79,6 +79,9 @@ func settingChecks(kind FieldKind) map[string]func(value any) bool {
 		held[SettingPresentation] = settingOneOf("range")
 	case FieldKindBoolean:
 		held[SettingDefault] = settingBool
+	case FieldKindRepeater:
+		held[SettingMin] = settingWhole
+		held[SettingMax] = settingWhole
 	case FieldKindChoice:
 		held[SettingDefault] = settingChoiceDefault
 		held[SettingChoices] = settingChoicePairs
