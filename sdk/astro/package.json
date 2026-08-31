@@ -41,18 +41,18 @@
 		"typecheck": "tsc -b --force && astro check"
 	},
 	"peerDependencies": {
-		"astro": "^7.2.3"
+		"astro": "^7.2.9"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.10",
 		"@types/node": "^26.2.0",
 		"@vitest/coverage-v8": "^4.1.11",
-		"astro": "^7.2.3",
+		"astro": "^7.2.9",
 		"typescript": "~6.0.2",
 		"vitest": "^4.1.11"
 	},
 	"dependencies": {
-		"@astrojs/node": "^11.1.3",
+		"@astrojs/node": "^11.1.4",
 		"@wordpress/block-serialization-default-parser": "5.52.0"
 	}
 }

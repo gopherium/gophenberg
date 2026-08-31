@@ -8,11 +8,11 @@
 		"lint": "oxlint -c .oxlintrc.json frontend sdk plugins test"
 	},
 	"devDependencies": {
-		"eslint": "^10.8.1",
+		"eslint": "^10.9.0",
 		"eslint-plugin-jsdoc": "^63.3.3",
 		"eslint-plugin-sonarjs": "^4.2.0",
 		"eslint-plugin-tsdoc": "^0.5.2",
-		"knip": "^6.32.2",
+		"knip": "^6.32.3",
 		"oxlint": "^1.79.0",
 		"typescript-eslint": "^8.67.0"
 	}
