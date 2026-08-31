@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { CheckboxControl, RangeControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import {
+	Button,
+	CheckboxControl,
+	InputControl,
+	RadioControl,
+	RangeControl,
+	Stack,
+	Text,
+} from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type {
 	DataFormControlProps,
@@ -9,7 +17,7 @@ import type {
 	FormValidity,
 } from '@gophenberg/frontend-sdk/dataviews'
 import { __, sprintf } from '@wordpress/i18n'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
 
 import { errorTemplates } from '../i18n/errorTemplates'
@@ -186,12 +194,58 @@ function choiceControl(
 		return presentation === 'checkbox' ? checkboxesEdit(field) : undefined
 	}
 	if (presentation === 'radio' || presentation === 'checkbox') {
-		return 'radio'
+		return (field.settings.allow_custom === true ? radioEdit(field) : undefined) ?? 'radio'
 	}
 	if (presentation === 'buttons') {
 		return 'toggleGroup'
 	}
 	return undefined
+}
+
+/**
+ * Returns the radios a group taking custom answers is edited with, or nothing when it lists none.
+ * @param field - The declared field carrying the answers.
+ * @returns The radios component, or undefined.
+ */
+function radioEdit(field: ContentField): ComponentType<DataFormControlProps<FieldValues>> | undefined {
+	const offered = choiceElements(field)
+	if (offered === undefined) {
+		return undefined
+	}
+	/**
+	 * Renders the listed answers beside a box taking one the field does not list.
+	 * @param props - The item, the field, and what to call with a change.
+	 * @returns The radios and the other box.
+	 */
+	return function RadioEdit({ data, field: described, onChange }: DataFormControlProps<FieldValues>) {
+		const held = described.getValue({ item: data })
+		const word = typeof held === 'string' ? held : ''
+		const listed = offered.some((one) => one.value === word)
+		/**
+		 * Carries the answer the author settled on.
+		 * @param next - The answer to store.
+		 */
+		function carry(next: string) {
+			onChange(described.setValue({ item: data, value: next }))
+		}
+		return (
+			<Stack direction="column" gap="xs">
+				<RadioControl
+					label={described.label}
+					help={described.description}
+					options={offered}
+					selected={listed ? word : undefined}
+					onChange={carry}
+				/>
+				<InputControl
+					label={__('Other', 'gophenberg')}
+					autoComplete="off"
+					value={listed ? '' : word}
+					onValueChange={carry}
+				/>
+			</Stack>
+		)
+	}
 }
 
 /**
@@ -211,10 +265,18 @@ function checkboxesEdit(
 	 * @param props - The item, the field, and what to call with a change.
 	 * @returns The checkbox list element.
 	 */
+	const taking = field.settings.allow_custom === true
 	return function CheckboxesEdit({ data, field: described, onChange }: DataFormControlProps<FieldValues>) {
 		const held = wordsHeld(described.getValue({ item: data }))
 		const strays = held.filter((one) => !pairs.some((pair) => pair.value === one))
 		const offered = [...pairs, ...strays.map((one) => ({ value: one, label: one }))]
+		/**
+		 * Carries the answers the author settled on.
+		 * @param next - The answers to store.
+		 */
+		function carry(next: string[]) {
+			onChange(described.setValue({ item: data, value: next }))
+		}
 		return (
 			<Stack direction="column" gap="xs">
 				<Text variant="body-sm">{described.label}</Text>
@@ -225,18 +287,46 @@ function checkboxesEdit(
 						label={pair.label}
 						checked={held.includes(pair.value)}
 						onChange={(next) =>
-							onChange(
-								described.setValue({
-									item: data,
-									value: next ? [...held, pair.value] : held.filter((one) => one !== pair.value),
-								}),
-							)
+							carry(next ? [...held, pair.value] : held.filter((one) => one !== pair.value))
 						}
 					/>
 				))}
+				{taking && <OtherAdder onAdd={(word) => carry(held.includes(word) ? held : [...held, word])} />}
 			</Stack>
 		)
 	}
+}
+
+/**
+ * Renders the box adding an answer a field does not list.
+ * @param props - What to call with the answer typed.
+ * @returns The box and the button committing it.
+ */
+function OtherAdder(props: { onAdd: (word: string) => void }) {
+	const [typed, setTyped] = useState('')
+	return (
+		<Stack direction="row" gap="sm">
+			<InputControl
+				label={__('Other', 'gophenberg')}
+				autoComplete="off"
+				value={typed}
+				onValueChange={setTyped}
+			/>
+			<Button
+				variant="outline"
+				size="compact"
+				onClick={() => {
+					if (typed === '') {
+						return
+					}
+					props.onAdd(typed)
+					setTyped('')
+				}}
+			>
+				{__('Add', 'gophenberg')}
+			</Button>
+		</Stack>
+	)
 }
 
 /**

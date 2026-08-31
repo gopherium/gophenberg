@@ -172,6 +172,141 @@ test('leaves a sibling its own complaint while a number sits outside its max', a
 	expect((color as HTMLInputElement).validationMessage).not.toBe('')
 })
 
+test('shows a stored custom answer in the other box of a radio group', async () => {
+	declaring({
+		key: 'style',
+		label: 'Style',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'radio',
+			allow_custom: true,
+			choices: [
+				{ value: 'ipa', label: 'IPA' },
+				{ value: 'stout', label: 'Stout' },
+			],
+		},
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { style: 'homebrew' } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByLabelText('Other')).toHaveValue('homebrew')
+	expect(screen.getByRole('radio', { name: 'IPA' })).not.toBeChecked()
+	expect(screen.getByRole('radio', { name: 'Stout' })).not.toBeChecked()
+})
+
+test('empties the other box of a radio group once a listed answer is picked', async () => {
+	declaring({
+		key: 'style',
+		label: 'Style',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'radio',
+			allow_custom: true,
+			choices: [
+				{ value: 'ipa', label: 'IPA' },
+				{ value: 'stout', label: 'Stout' },
+			],
+		},
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { style: 'homebrew' } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	const ipa = await screen.findByRole('radio', { name: 'IPA' })
+
+	await userEvent.click(ipa)
+
+	expect(ipa).toBeChecked()
+	expect(screen.getByLabelText('Other')).toHaveValue('')
+})
+
+test('takes a custom answer typed into the other box of a radio group', async () => {
+	declaring({
+		key: 'style',
+		label: 'Style',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'radio',
+			allow_custom: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		},
+	})
+	renderAt(EDITOR_PATH)
+
+	await userEvent.type(await screen.findByLabelText('Other'), 'homebrew')
+
+	expect(screen.getByLabelText('Other')).toHaveValue('homebrew')
+	expect(screen.getByRole('radio', { name: 'IPA' })).not.toBeChecked()
+})
+
+test('adds a custom answer to a checkbox group taking them', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			allow_custom: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		},
+	})
+	renderAt(EDITOR_PATH)
+
+	await userEvent.type(await screen.findByLabelText('Other'), 'homebrew')
+	await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+	expect(await screen.findByRole('checkbox', { name: 'homebrew' })).toBeChecked()
+	expect(screen.getByLabelText('Other')).toHaveValue('')
+})
+
+test('adds nothing from an empty other box, and ticks a listed answer typed into it once', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			allow_custom: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		},
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { styles: ['ipa'] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	const adding = await screen.findByRole('button', { name: 'Add' })
+
+	await userEvent.click(adding)
+
+	expect(screen.getAllByRole('checkbox')).toHaveLength(1)
+
+	await userEvent.type(screen.getByLabelText('Other'), 'ipa')
+	await userEvent.click(adding)
+
+	expect(screen.getAllByRole('checkbox')).toHaveLength(1)
+	expect(screen.getByRole('checkbox', { name: 'IPA' })).toBeChecked()
+})
+
 test('shows a checkbox per listed answer and keeps a stored stray checked', async () => {
 	declaring({
 		key: 'styles',
