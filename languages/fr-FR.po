@@ -2021,3 +2021,35 @@ msgstr "Ajouter"
 #, fuzzy
 msgid "Other"
 msgstr "Autre"
+
+#, fuzzy
+msgid "Add row"
+msgstr "Ajouter une ligne"
+
+#, fuzzy
+msgid "Remove row"
+msgstr "Retirer la ligne"
+
+#, fuzzy
+msgid "%(field)s needs at least %(limit)s rows. Add one and save again."
+msgstr "%(field)s demande au moins %(limit)s lignes. Ajoutez-en une et enregistrez."
+
+#, fuzzy
+msgid "%(field)s takes at most %(limit)s rows. Remove one and save again."
+msgstr "%(field)s accepte au plus %(limit)s lignes. Retirez-en une et enregistrez."
+
+#, fuzzy
+msgid ""
+"A relation field stands on its own, not inside a section or a repeater. "
+"Declare it beside the container."
+msgstr ""
+"Un champ de relation existe seul, pas dans une section ni dans un "
+"répéteur. Déclarez-le à côté du conteneur."
+
+#, fuzzy
+msgid ""
+"This kind of field holds no fields inside it. Put the field in a section or "
+"a repeater instead."
+msgstr ""
+"Ce type de champ ne contient aucun champ. Placez le champ dans une section "
+"ou dans un répéteur."
