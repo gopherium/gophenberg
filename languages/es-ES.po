@@ -9,81 +9,6 @@ msgstr ""
 "Language: es\n"
 "Plural-Forms: nplurals=3; plural=((n == 1) ? 0 : ((n != 0 && n % 1000000 == 0) ? 1 : 2));\n"
 
-#, fuzzy
-msgid " and "
-msgstr " y "
-
-#, fuzzy
-msgid " or "
-msgstr " o "
-
-#, fuzzy
-msgid ""
-"%(field)s does not match the format its field asks for. Check it and save "
-"again."
-msgstr ""
-"%(field)s no tiene el formato que su campo requiere. Revísalo y guarda de "
-"nuevo."
-
-#, fuzzy
-msgid ""
-"%(field)s goes no higher than %(limit)s. Lower the value and save again."
-msgstr "%(field)s no pasa de %(limit)s. Baja el valor y guarda de nuevo."
-
-#, fuzzy
-msgid "%(field)s goes no lower than %(limit)s. Raise the value and save again."
-msgstr "%(field)s no baja de %(limit)s. Sube el valor y guarda de nuevo."
-
-#, fuzzy
-msgid "%(field)s moved."
-msgstr "%(field)s movido."
-
-#, fuzzy
-msgid "%(field)s names the same one twice. Remove the repeat and save again."
-msgstr ""
-"%(field)s nombra el mismo dos veces. Quita la repetición y guarda de nuevo."
-
-#, fuzzy
-msgid ""
-"%(field)s only takes one of its listed choices. Pick one and save again."
-msgstr ""
-"%(field)s solo admite una de las opciones de su lista. Elige una y guarda "
-"de nuevo."
-
-#, fuzzy
-msgid "%(field)s settled."
-msgstr "%(field)s ajustado."
-
-#, fuzzy
-msgid ""
-"%(field)s takes at most %(limit)s letters. Shorten what you wrote and save "
-"again."
-msgstr ""
-"%(field)s acepta como mucho %(limit)s letras. Acorta lo que has escrito y "
-"guarda de nuevo."
-
-#, fuzzy
-msgid "%(group)s created."
-msgstr "%(group)s creado."
-
-#, fuzzy
-msgid "%(group)s now appears where you said."
-msgstr "%(group)s ya aparece donde has dicho."
-
-#, fuzzy
-msgid "%(group)s removed."
-msgstr "%(group)s eliminado."
-
-#, fuzzy
-msgid "%(group)s updated."
-msgstr "%(group)s actualizado."
-
-#, fuzzy
-msgid ""
-"%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
-msgstr ""
-"%(key)s lo sirve %(winner)s, así que %(loser)s no lo muestra en %(where)s."
-
 msgid "%(name)s %(version)s is serving the public site."
 msgstr "%(name)s %(version)s está publicado en la web."
 
@@ -93,20 +18,8 @@ msgstr "%(name)s no se puede usar como nombre de tema. Nombra el archivo zip com
 msgid "%(name)s moves to /%(word)s. Every address of both types changes."
 msgstr "%(name)s pasa a /%(word)s. Cambian todas las direcciones de ambos tipos."
 
-#, fuzzy
-msgid "%(source)s is %(value)s"
-msgstr "%(source)s es %(value)s"
-
 msgid "(no title)"
 msgstr "(sin título)"
-
-#, fuzzy
-msgid ""
-"A %(kind)s field does not take a setting called %(setting)s. Remove it and "
-"try again."
-msgstr ""
-"Un campo %(kind)s no acepta un ajuste llamado %(setting)s. Quítalo y prueba "
-"de nuevo."
 
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
 msgstr "Un tipo de contenido necesita un nombre en singular y otro en plural, como Guía y Guías. Rellena ambos e inténtalo de nuevo."
@@ -116,14 +29,6 @@ msgstr "La clave de un campo tiene que empezar por una letra minúscula y conten
 
 msgid "A field needs a name. Type one and try again."
 msgstr "El campo necesita un nombre. Escribe uno e inténtalo de nuevo."
-
-#, fuzzy
-msgid ""
-"A field with that name already exists on the items this group reaches. Pick "
-"another name."
-msgstr ""
-"Ya existe un campo con ese nombre en los elementos que este grupo alcanza. "
-"Elige otro nombre."
 
 msgid "A relation field has to say which content type it points at. Pick that type and try again."
 msgstr "Un campo de relación tiene que indicar a qué tipo de contenido apunta. Elige ese tipo e inténtalo de nuevo."
@@ -149,23 +54,11 @@ msgstr "Activo"
 msgid "Add New"
 msgstr "Añadir nuevo"
 
-#, fuzzy
-msgid "Add New Group"
-msgstr "Añadir grupo nuevo"
-
 msgid "Add New Type"
 msgstr "Añadir tipo nuevo"
 
 msgid "Add block"
 msgstr "Añadir bloque"
-
-#, fuzzy
-msgid "Add choice"
-msgstr "Añadir opción"
-
-#, fuzzy
-msgid "Add condition"
-msgstr "Añadir condición"
 
 msgid "Add field"
 msgstr "Añadir campo"
@@ -173,27 +66,11 @@ msgstr "Añadir campo"
 msgid "Add media"
 msgstr "Añadir medio"
 
-#, fuzzy
-msgid "Add rule set"
-msgstr "Añadir conjunto de reglas"
-
 msgid "Add title"
 msgstr "Añadir título"
 
-#, fuzzy
-msgid "Add to %(field)s"
-msgstr "Añadir a %(field)s"
-
 msgid "Address"
 msgstr "Dirección"
-
-#, fuzzy
-msgid "Allow custom"
-msgstr "Permitir valores propios"
-
-#, fuzzy
-msgid "Allow empty"
-msgstr "Permitir vacío"
 
 msgid "Alt text"
 msgstr "Texto alternativo"
@@ -203,12 +80,6 @@ msgstr "Un elemento no puede apuntarse a sí mismo. Elige otro elemento para %(f
 
 msgid "An item cannot sit inside itself, or inside one of the items nested under it. Pick a parent outside this branch."
 msgstr "Un elemento no puede estar dentro de sí mismo, ni dentro de otro anidado bajo él. Elige un nivel superior fuera de esta rama."
-
-msgid "Another account wrote this, and only its author, an editor or an administrator may change it. You can still read it."
-msgstr "Otra cuenta escribió esto, y solo su autor, un editor o un administrador pueden cambiarlo. Todavía puedes leerlo."
-
-msgid "Another account wrote this, so you are reading it rather than editing it."
-msgstr "Otra cuenta escribió esto, así que lo estás leyendo, no editando."
 
 msgid "Another content type already answers under this route word. Pick a different word."
 msgstr "Ya hay otro tipo de contenido que responde con esta palabra de ruta de URL. Elige una palabra distinta."
@@ -221,10 +92,6 @@ msgstr "Ya hay otro tipo de contenido que usa esta clave. Dale a este tipo un no
 
 msgid "Another item of this content type already uses that address. Pick a different slug and save again."
 msgstr "Ya hay otro elemento de este tipo de contenido que usa esa dirección. Elige un slug distinto y guarda de nuevo."
-
-#, fuzzy
-msgid "Appears on"
-msgstr "Aparece en"
 
 msgid "April"
 msgstr "abril"
@@ -250,14 +117,6 @@ msgstr "Bloque"
 msgid "Broken"
 msgstr "Roto"
 
-#, fuzzy
-msgid "Bundles of fields, shown where their rules place them."
-msgstr "Conjuntos de campos, mostrados donde sus reglas los colocan."
-
-#, fuzzy
-msgid "Button group"
-msgstr "Grupo de botones"
-
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -267,23 +126,11 @@ msgstr "Leyenda"
 msgid "Change address"
 msgstr "Cambiar la dirección"
 
-#, fuzzy
-msgid "Checkbox group"
-msgstr "Grupo de casillas"
-
-#, fuzzy
-msgid "Choices"
-msgstr "Opciones"
-
 msgid "Choose the language the admin reads in."
 msgstr "Elige el idioma en el que se lee el panel de administración."
 
 msgid "Closed"
 msgstr "Cerrado"
-
-#, fuzzy
-msgid "Condition"
-msgstr "Condición"
 
 msgid "Content"
 msgstr "Contenido"
@@ -293,10 +140,6 @@ msgstr "Tipos de contenido"
 
 msgid "Content nests at most %(max)d levels deep, and this item would sit deeper. Pick a parent closer to the top."
 msgstr "El contenido se anida como mucho %(max)d niveles, y este elemento quedaría más abajo. Elige un nivel superior más cercano al inicio."
-
-#, fuzzy
-msgid "Content type"
-msgstr "Tipo de contenido"
 
 msgid "Could not create a draft."
 msgstr "No se ha podido crear el borrador."
@@ -331,14 +174,6 @@ msgstr[2] "No se han podido restaurar esas entradas."
 msgid "Could not save that post."
 msgstr "No se ha podido guardar esa entrada."
 
-#, fuzzy
-msgid "Create"
-msgstr "Crear"
-
-#, fuzzy
-msgid "Create a field group"
-msgstr "Crear un grupo de campos"
-
 msgid "Create user"
 msgstr "Crear usuario"
 
@@ -357,10 +192,6 @@ msgstr "Por defecto"
 msgid "Delete"
 msgstr "Borrar"
 
-#, fuzzy
-msgid "Delete %(group)s"
-msgstr "Eliminar %(group)s"
-
 msgid "Delete All"
 msgstr "Borrar todo"
 
@@ -369,10 +200,6 @@ msgstr "Borrar permanentemente"
 
 msgid "Delete the field"
 msgstr "Borrar el campo"
-
-#, fuzzy
-msgid "Delete the group"
-msgstr "Eliminar el grupo"
 
 msgid "Describe"
 msgstr "Describir"
@@ -416,10 +243,6 @@ msgstr "Activar"
 msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
 msgstr "Cambian todas las direcciones de este tipo. Los enlaces guardados en otro sitio hacia las direcciones antiguas dejan de funcionar."
 
-#, fuzzy
-msgid "Every content type"
-msgstr "Todos los tipos de contenido"
-
 msgid "Every item needs an author who exists. Pick one from the list and save again."
 msgstr "Cada elemento necesita un autor que exista. Elige uno de la lista y guarda de nuevo."
 
@@ -429,30 +252,14 @@ msgstr "Todos los tipos de contenido que hay en este sitio."
 msgid "Every post in the trash is removed for good. This cannot be undone."
 msgstr "Todas las entradas de la papelera se borran para siempre. Esto no se puede deshacer."
 
-#, fuzzy
-msgid ""
-"Every value stored under this field goes with it, in every item the group "
-"reaches and in the revisions behind them."
-msgstr ""
-"Todos los valores guardados en este campo se van con él, en cada elemento "
-"que el grupo alcanza y en las revisiones que hay detrás."
-
 msgid "Excerpt"
 msgstr "Extracto"
 
 msgid "February"
 msgstr "febrero"
 
-#, fuzzy
-msgid "Field Groups"
-msgstr "Grupos de campos"
-
 msgid "Fields"
 msgstr "Campos"
-
-#, fuzzy
-msgid "Fields of %(group)s"
-msgstr "Campos de %(group)s"
 
 msgid "File name"
 msgstr "Nombre del archivo"
@@ -496,16 +303,8 @@ msgstr "Gophenberg reserva esta dirección para sí mismo, así que tu contenido
 msgid "Gophenberg keeps this word for itself, so no content type can answer under it. Pick a different route word."
 msgstr "Gophenberg reserva esta palabra para sí mismo, así que ningún tipo de contenido puede usarla. Elige otra palabra de ruta de URL."
 
-#, fuzzy
-msgid "Group"
-msgstr "Grupo"
-
 msgid "Hand over the root"
 msgstr "Ceder la raíz"
-
-#, fuzzy
-msgid "Highest"
-msgstr "Máximo"
 
 msgid "Home"
 msgstr "Inicio"
@@ -513,23 +312,11 @@ msgstr "Inicio"
 msgid "Images"
 msgstr "Imágenes"
 
-#, fuzzy
-msgid "Inactive"
-msgstr "Inactivo"
-
 msgid "Install theme"
 msgstr "Instalar tema"
 
 msgid "Installed"
 msgstr "Instalado"
-
-#, fuzzy
-msgid "Instructions"
-msgstr "Instrucciones"
-
-#, fuzzy
-msgid "It starts on %(type)s, and the rules may be edited afterwards."
-msgstr "Empieza en %(type)s, y las reglas se pueden editar después."
 
 msgid "January"
 msgstr "enero"
@@ -542,14 +329,6 @@ msgstr "junio"
 
 msgid "Keep it"
 msgstr "Conservarlo"
-
-#, fuzzy
-msgid "Keep it here"
-msgstr "Dejarlo aquí"
-
-#, fuzzy
-msgid "Label"
-msgstr "Etiqueta"
 
 msgid "Language"
 msgstr "Idioma"
@@ -566,10 +345,6 @@ msgstr "Vista de lista"
 msgid "Loading content types."
 msgstr "Cargando los tipos de contenido."
 
-#, fuzzy
-msgid "Loading field groups."
-msgstr "Cargando los grupos de campos."
-
 msgid "Loading the post."
 msgstr "Cargando la entrada."
 
@@ -585,20 +360,8 @@ msgstr "Cargando los usuarios."
 msgid "Loading…"
 msgstr "Cargando…"
 
-#, fuzzy
-msgid "Longest"
-msgstr "Largo máximo"
-
-#, fuzzy
-msgid "Lowest"
-msgstr "Mínimo"
-
 msgid "Make default"
 msgstr "Establecer como predeterminado"
-
-#, fuzzy
-msgid "Many values"
-msgstr "Varios valores"
 
 msgid "March"
 msgstr "marzo"
@@ -615,28 +378,8 @@ msgstr "Mediano"
 msgid "Mobile"
 msgstr "Móvil"
 
-#, fuzzy
-msgid "Move"
-msgstr "Mover"
-
-#, fuzzy
-msgid "Move %(field)s elsewhere"
-msgstr "Mover %(field)s a otro sitio"
-
-#, fuzzy
-msgid "Move %(group)s down"
-msgstr "Bajar %(group)s"
-
-#, fuzzy
-msgid "Move %(group)s up"
-msgstr "Subir %(group)s"
-
 msgid "Move every address"
 msgstr "Mover todas las direcciones"
-
-#, fuzzy
-msgid "Move the field"
-msgstr "Mover el campo"
 
 msgid "Move to Trash"
 msgstr "Mover a la Papelera"
@@ -686,10 +429,6 @@ msgstr "Sin título"
 msgid "None"
 msgstr "Ninguno"
 
-#, fuzzy
-msgid "Not %(type)s"
-msgstr "Excepto %(type)s"
-
 msgid "Not found"
 msgstr "No encontrado"
 
@@ -704,10 +443,6 @@ msgstr "Todavía no hay nada publicado."
 
 msgid "November"
 msgstr "noviembre"
-
-#, fuzzy
-msgid "Nowhere"
-msgstr "En ningún sitio"
 
 msgid "Number"
 msgstr "Número"
@@ -754,10 +489,6 @@ msgstr "Contraseña"
 msgid "Pending"
 msgstr "Pendiente"
 
-#, fuzzy
-msgid "Placeholder"
-msgstr "Texto de ejemplo"
-
 msgid "Plural name"
 msgstr "Nombre en plural"
 
@@ -776,10 +507,6 @@ msgstr "Privado"
 msgid "Publish"
 msgstr "Publicar"
 
-#, fuzzy
-msgid "Radio group"
-msgstr "Grupo de botones de radio"
-
 msgid "Redo"
 msgstr "Rehacer"
 
@@ -791,14 +518,6 @@ msgstr "Registrar un tipo de contenido"
 
 msgid "Relation"
 msgstr "Relación"
-
-#, fuzzy
-msgid "Remove"
-msgstr "Quitar"
-
-#, fuzzy
-msgid "Remove Media %(id)d"
-msgstr "Quitar el medio %(id)d"
 
 msgid "Rename"
 msgstr "Renombrar"
@@ -812,31 +531,11 @@ msgstr "Revertir al renderizador integrado"
 msgid "Route word"
 msgstr "Palabra de ruta"
 
-#, fuzzy
-msgid "Rule %(number)d of set %(set)d"
-msgstr "Regla %(number)d del conjunto %(set)d"
-
-#, fuzzy
-msgid "Rule set %(number)d"
-msgstr "Conjunto de reglas %(number)d"
-
-#, fuzzy
-msgid "Rules"
-msgstr "Reglas"
-
 msgid "Save"
 msgstr "Guardar"
 
 msgid "Save draft"
 msgstr "Guardar el borrador"
-
-#, fuzzy
-msgid "Save rules"
-msgstr "Guardar las reglas"
-
-#, fuzzy
-msgid "Save settings"
-msgstr "Guardar los ajustes"
 
 msgid "Saved"
 msgstr "Guardado"
@@ -868,18 +567,6 @@ msgstr "septiembre"
 msgid "Serving"
 msgstr "Atendiendo"
 
-#, fuzzy
-msgid "Settings"
-msgstr "Ajustes"
-
-#, fuzzy
-msgid "Settings of %(field)s"
-msgstr "Ajustes de %(field)s"
-
-#, fuzzy
-msgid "Shadowed"
-msgstr "Eclipsado"
-
 msgid "Singular name"
 msgstr "Nombre en singular"
 
@@ -898,26 +585,14 @@ msgstr "Algo ha fallado dentro de Gophenberg. Inténtalo de nuevo en un momento,
 msgid "Something went wrong."
 msgstr "Algo ha ido mal."
 
-#, fuzzy
-msgid "Source"
-msgstr "Origen"
-
 msgid "Start writing."
 msgstr "Empieza a escribir."
-
-#, fuzzy
-msgid "Steps of"
-msgstr "Pasos de"
 
 msgid "Tablet"
 msgstr "Tableta"
 
 msgid "Text"
 msgstr "Texto"
-
-#, fuzzy
-msgid "Text area"
-msgstr "Área de texto"
 
 msgid "That email is already in use."
 msgstr "Ese correo electrónico ya está en uso."
@@ -955,24 +630,8 @@ msgstr "El renderizador integrado presta servicio al sitio público."
 msgid "The content type this field points at is not named in a shape Gophenberg accepts. Give it a key that starts with a lowercase letter and then holds only lowercase letters, numbers and hyphens."
 msgstr "El tipo de contenido al que apunta este campo no está nombrado con un formato que Gophenberg acepte. Dale una clave que empiece por una letra minúscula y contenga solo letras minúsculas, números y guiones."
 
-#, fuzzy
-msgid ""
-"The content types could not be loaded, so where these groups appear and "
-"which fields they shadow are not shown."
-msgstr ""
-"No se han podido cargar los tipos de contenido, así que no se muestra dónde "
-"aparecen estos grupos ni qué campos eclipsan."
-
 msgid "The content types could not be loaded."
 msgstr "No se han podido cargar los tipos de contenido."
-
-#, fuzzy
-msgid ""
-"The content types could not be refreshed, so where these groups appear and "
-"what they shadow may be out of date."
-msgstr ""
-"No se han podido actualizar los tipos de contenido, así que dónde aparecen "
-"estos grupos y qué eclipsan puede estar desactualizado."
 
 msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."
 msgstr "La entrada %(entry)s de este zip se escribiría fuera de la carpeta del tema, así que no se ha instalado nada. Vuelve a empaquetar el tema."
@@ -982,90 +641,6 @@ msgstr "El campo %(field)s no puede guardar el valor que se le ha dado. Comprueb
 
 msgid "The field %(field)s has to hold a value before this item can be published. Fill it in, or leave the item as a draft."
 msgstr "El campo %(field)s tiene que tener un valor antes de poder publicar este elemento. Rellénalo, o deja el elemento como borrador."
-
-#, fuzzy
-msgid "The field %(field)s in %(group)s still points at this content type. Delete that field first, then delete this type."
-msgstr "El campo %(field)s de %(group)s todavía apunta a este tipo de contenido. Borra antes ese campo y luego borra este tipo."
-
-#, fuzzy
-msgid "Every field group needs a title. Give it a name and save again."
-msgstr "Todo grupo de campos necesita un título. Ponle un nombre y guarda otra vez."
-
-#, fuzzy
-msgid "That field group no longer exists. Reload the page to see the groups your site holds now."
-msgstr "Ese grupo de campos ya no existe. Recarga la página para ver los grupos que tiene ahora tu sitio."
-
-#, fuzzy
-msgid "The field groups could not be loaded."
-msgstr "No se han podido cargar los grupos de campos."
-
-#, fuzzy
-msgid "The field groups could not be reached."
-msgstr "No se ha podido contactar con los grupos de campos."
-
-#, fuzzy
-msgid "The field keeps every value stored under it."
-msgstr "El campo conserva todos los valores guardados en él."
-
-#, fuzzy
-msgid ""
-"The fields this group holds go with it, and so do the values every item "
-"stored in them."
-msgstr ""
-"Los campos que contiene este grupo se van con él, y también los valores que "
-"cada elemento guardó en ellos."
-
-#, fuzzy
-msgid "The groups were reordered."
-msgstr "Los grupos se han reordenado."
-
-#, fuzzy
-msgid "The new order has to name every field group exactly once. Reload the page and move the groups again."
-msgstr "El nuevo orden tiene que nombrar cada grupo de campos exactamente una vez. Recarga la página y mueve los grupos otra vez."
-
-#, fuzzy
-msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead."
-msgstr "Una regla que vale para cualquier %(source)s no se puede convertir en exclusión. Déjala como está, o nombra los que quieras dejar fuera."
-
-#, fuzzy
-msgid "The rule on %(source)s names nothing to match. Pick a value, or remove the rule."
-msgstr "La regla sobre %(source)s no nombra nada con lo que coincidir. Elige un valor, o quita la regla."
-
-#, fuzzy
-msgid "The rules could not be loaded."
-msgstr "No se han podido cargar las reglas."
-
-#, fuzzy
-msgid ""
-"The setting %(setting)s cannot hold the value it was given. Check what this "
-"setting takes and try again."
-msgstr ""
-"El ajuste %(setting)s no puede contener el valor que se le dio. Comprueba "
-"qué acepta este ajuste y prueba de nuevo."
-
-#, fuzzy
-msgid ""
-"The setting %(setting)s falls outside the others. Keep min below max and "
-"the default inside the bounds."
-msgstr ""
-"El ajuste %(setting)s queda fuera de los demás. Mantén min por debajo de "
-"max y el valor por defecto dentro de los límites."
-
-#, fuzzy
-msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
-msgstr "La fuente %(source)s no ofrece %(operator)s. Elige una de las comparaciones que sí ofrece."
-
-#, fuzzy
-msgid "This group holds no fields yet."
-msgstr "Este grupo todavía no tiene campos."
-
-#, fuzzy
-msgid "This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed."
-msgstr "Esta regla lee una fuente llamada %(source)s, y nada en tu sitio declara ninguna. Puede que se haya quitado un plugin que la añadía."
-
-#, fuzzy
-msgid "Two rule sources are registered under the name %(param)s. A plugin is declaring a source your site already holds."
-msgstr "Hay dos fuentes de reglas registradas con el nombre %(param)s. Un plugin declara una fuente que tu sitio ya tiene."
 
 msgid "The field %(field)s points at one item only. Remove the extra choices and keep one."
 msgstr "El campo %(field)s apunta a un solo elemento. Quita las opciones de más y deja una."
@@ -1271,30 +846,14 @@ msgstr "Usuarios"
 msgid "Users could not be loaded."
 msgstr "No se han podido cargar los usuarios."
 
-#, fuzzy
-msgid "Value"
-msgstr "Valor"
-
 msgid "Version"
 msgstr "Versión"
 
 msgid "Videos"
 msgstr "Vídeos"
 
-#, fuzzy
-msgid "Web address"
-msgstr "Dirección web"
-
 msgid "Welcome to Gophenberg."
 msgstr "Te damos la bienvenida a Gophenberg."
-
-#, fuzzy
-msgid "Where %(group)s appears"
-msgstr "Dónde aparece %(group)s"
-
-#, fuzzy
-msgid "Without a rule this group appears nowhere."
-msgstr "Sin una regla este grupo no aparece en ningún sitio."
 
 msgid "Yes or no"
 msgstr "Sí o no"
@@ -1303,14 +862,10 @@ msgid "Your language"
 msgstr "Tu idioma"
 
 msgid "Your server pins the site to the theme %(name)s, so themes cannot be changed here. Ask whoever looks after your site to remove the pin."
-msgstr "Tu servidor fija el sitio al tema %(name)s, así que los temas no se pueden cambiar desde aquí. Pide a quien gestiona tu sitio que quite ese bloqueo."
+msgstr "Tu servidor bloque el sitio al tema %(name)s, así que los temas no se pueden cambiar desde aquí. Pide a quien gestiona tu sitio que quite ese bloqueo."
 
 msgid "Your site always needs one default content type, so this one cannot be turned off or deleted. Make another type the default first."
 msgstr "Tu sitio siempre necesita un tipo de contenido por defecto, así que este no se puede desactivar ni borrar. Haz antes que otro tipo sea el que está por defecto."
-
-#, fuzzy
-msgid "a content type"
-msgstr "un tipo de contenido"
 
 msgid "address"
 msgstr "dirección"
@@ -1338,14 +893,6 @@ msgstr "%(file)s es más grande de lo que una subida permite."
 
 msgid "%(file)s is not a file this block accepts."
 msgstr "%(file)s no es un archivo que este bloque acepte."
-
-#, fuzzy
-msgid "%(theme)s failed to start, so the built-in renderer is serving."
-msgstr "%(theme)s no pudo arrancar, así que el renderizador ha tomado el relevo."
-
-#, fuzzy
-msgid "%(theme)s is still starting, so the built-in renderer is serving."
-msgstr "%(theme)s todavía está arrancando, así que el renderizador ha tomado el relevo."
 
 msgid "%(theme)s is now serving the public site."
 msgstr "%(theme)s ya sirve el sitio público."
@@ -1449,30 +996,471 @@ msgstr "Buscar %(type)s"
 msgid "This type will answer under /%(word)s."
 msgstr "Este tipo responderá como /%(word)s."
 
-#, fuzzy
-msgctxt "field group"
-msgid "Status"
-msgstr "Estado"
+msgid "{day} {month} {year}"
+msgstr "{day} de {month} de {year}"
+
+msgid "Another account wrote this, and only its author, an editor or an administrator may change it. You can still read it."
+msgstr "Otra cuenta escribió esto, y solo su autor, un editor o un administrador pueden cambiarlo. Todavía puedes leerlo."
+
+msgid "Another account wrote this, so you are reading it rather than editing it."
+msgstr "Otra cuenta escribió esto, así que lo estás leyendo, no editando."
+
+msgid "The %(file)s inside %(name)s names its theme kit as %(declared)s, which is not a version number. Build the theme again, and the build will fill that in."
+msgstr "El %(file)s dentro de %(name)s identifica su kit de temas como %(declared)s, que no srive como número de versión. Compila el tema de nuevo y la compilación lo rellenará."
+
+msgid "The theme %(name)s was built on theme kit %(declared)s, and this site serves %(served)s. Build the theme again against a kit this site serves, then install it."
+msgstr "El tema %(name)s se compiló con el kit de temas %(declared)s y este sitio sirve %(served)s. Compila el tema de nuevo con un kit que este sitio sirva y después instálalo."
+
+msgid "%(field)s is optional again."
+msgstr "%(field)s vuelve a ser opcional."
+
+msgid "%(field)s is required now."
+msgstr "%(field)s ahora es obligatorio."
+
+msgid "Holds"
+msgstr "Contiene"
+
+msgid "Make %(field)s optional"
+msgstr "Hacer %(field)s opcional"
+
+msgid "Make optional"
+msgstr "Hacer opcional"
+
+msgid "Many targets"
+msgstr "Varios destinos"
+
+msgid "Move %(field)s down"
+msgstr "Bajar %(field)s"
+
+msgid "Move %(field)s up"
+msgstr "Subir %(field)s"
+
+msgid "No"
+msgstr "No"
+
+msgid "One target"
+msgstr "Un destino"
+
+msgid "Order stored."
+msgstr "Orden guardado."
+
+msgid "Require"
+msgstr "Hacer obligatorio"
+
+msgid "Require %(field)s"
+msgstr "Hacer %(field)s obligatorio"
+
+msgid "Required"
+msgstr "Obligatorio"
+
+msgid "The new order has to name every field of this content type exactly once. Reload the page and move the fields again."
+msgstr "El nuevo orden tiene que nombrar cada campo de este tipo de contenido exactamente una vez. Recarga la página y mueve los campos de nuevo."
+
+msgid "This request carried %(attribute)s, which fields do not take. Reload the page so the admin and the server agree again."
+msgstr "Esta petición llevaba %(attribute)s, que los campos no aceptan. Recarga la página para que la administración y el servidor vuelvan a coincidir."
+
+msgid "Yes"
+msgstr "Sí"
 
 #, fuzzy
-msgctxt "field type"
-msgid "Choice"
-msgstr "Elección"
+msgid " and "
+msgstr " y "
 
 #, fuzzy
-msgctxt "field type"
-msgid "Gallery"
-msgstr "Galería"
+msgid " or "
+msgstr " o "
 
 #, fuzzy
-msgctxt "field type"
-msgid "Range"
-msgstr "Rango"
+msgid "%(field)s does not match the format its field asks for. Check it and save again."
+msgstr "%(field)s no tiene el formato que su campo requiere. Revísalo y guarda de nuevo."
 
 #, fuzzy
-msgctxt "field type"
-msgid "Select"
-msgstr "Desplegable"
+msgid "%(field)s goes no higher than %(limit)s. Lower the value and save again."
+msgstr "%(field)s no pasa de %(limit)s. Baja el valor y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s goes no lower than %(limit)s. Raise the value and save again."
+msgstr "%(field)s no baja de %(limit)s. Sube el valor y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s moved."
+msgstr "%(field)s movido."
+
+#, fuzzy
+msgid "%(field)s names the same one twice. Remove the repeat and save again."
+msgstr "%(field)s nombra el mismo dos veces. Quita la repetición y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s only takes one of its listed choices. Pick one and save again."
+msgstr "%(field)s solo admite una de las opciones de su lista. Elige una y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s settled."
+msgstr "%(field)s ajustado."
+
+#, fuzzy
+msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again."
+msgstr "%(field)s acepta como mucho %(limit)s letras. Acorta lo que has escrito y guarda de nuevo."
+
+#, fuzzy
+msgid "%(group)s created."
+msgstr "%(group)s creado."
+
+#, fuzzy
+msgid "%(group)s now appears where you said."
+msgstr "%(group)s ya aparece donde has dicho."
+
+#, fuzzy
+msgid "%(group)s removed."
+msgstr "%(group)s eliminado."
+
+#, fuzzy
+msgid "%(group)s updated."
+msgstr "%(group)s actualizado."
+
+#, fuzzy
+msgid "%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
+msgstr "%(key)s lo sirve %(winner)s, así que %(loser)s no lo muestra en %(where)s."
+
+#, fuzzy
+msgid "%(source)s is %(value)s"
+msgstr "%(source)s es %(value)s"
+
+#, fuzzy
+msgid "%(theme)s failed to start, so the built-in renderer is serving."
+msgstr "%(theme)s no pudo arrancar, así que el renderizador ha tomado el relevo."
+
+#, fuzzy
+msgid "%(theme)s is still starting, so the built-in renderer is serving."
+msgstr "%(theme)s todavía está arrancando, así que el renderizador ha tomado el relevo."
+
+#, fuzzy
+msgid "A %(kind)s field does not take a setting called %(setting)s. Remove it and try again."
+msgstr "Un campo %(kind)s no acepta un ajuste llamado %(setting)s. Quítalo y prueba de nuevo."
+
+#, fuzzy
+msgid "A field with that name already exists on the items this group reaches. Pick another name."
+msgstr "Ya existe un campo con ese nombre en los elementos que este grupo alcanza. Elige otro nombre."
+
+#, fuzzy
+msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead."
+msgstr "Una regla que vale para cualquier %(source)s no se puede convertir en exclusión. Déjala como está, o nombra los que quieras dejar fuera."
+
+#, fuzzy
+msgid "Add New Group"
+msgstr "Añadir grupo nuevo"
+
+#, fuzzy
+msgid "Add choice"
+msgstr "Añadir opción"
+
+#, fuzzy
+msgid "Add condition"
+msgstr "Añadir condición"
+
+#, fuzzy
+msgid "Add rule set"
+msgstr "Añadir conjunto de reglas"
+
+#, fuzzy
+msgid "Add to %(field)s"
+msgstr "Añadir a %(field)s"
+
+#, fuzzy
+msgid "Allow custom"
+msgstr "Permitir valores propios"
+
+#, fuzzy
+msgid "Allow empty"
+msgstr "Permitir vacío"
+
+#, fuzzy
+msgid "Appears on"
+msgstr "Aparece en"
+
+#, fuzzy
+msgid "Bundles of fields, shown where their rules place them."
+msgstr "Conjuntos de campos, mostrados donde sus reglas los colocan."
+
+#, fuzzy
+msgid "Button group"
+msgstr "Grupo de botones"
+
+#, fuzzy
+msgid "Checkbox group"
+msgstr "Grupo de casillas"
+
+#, fuzzy
+msgid "Choices"
+msgstr "Opciones"
+
+#, fuzzy
+msgid "Condition"
+msgstr "Condición"
+
+#, fuzzy
+msgid "Content type"
+msgstr "Tipo de contenido"
+
+#, fuzzy
+msgid "Create"
+msgstr "Crear"
+
+#, fuzzy
+msgid "Create a field group"
+msgstr "Crear un grupo de campos"
+
+#, fuzzy
+msgid "Delete %(group)s"
+msgstr "Eliminar %(group)s"
+
+#, fuzzy
+msgid "Delete the group"
+msgstr "Eliminar el grupo"
+
+#, fuzzy
+msgid "Every content type"
+msgstr "Todos los tipos de contenido"
+
+#, fuzzy
+msgid "Every field group needs a title. Give it a name and save again."
+msgstr "Todo grupo de campos necesita un título. Ponle un nombre y guarda otra vez."
+
+#, fuzzy
+msgid "Every value stored under this field goes with it, in every item the group reaches and in the revisions behind them."
+msgstr "Todos los valores guardados en este campo se van con él, en cada elemento que el grupo alcanza y en las revisiones que hay detrás."
+
+#, fuzzy
+msgid "Field Groups"
+msgstr "Grupos de campos"
+
+#, fuzzy
+msgid "Fields of %(group)s"
+msgstr "Campos de %(group)s"
+
+#, fuzzy
+msgid "Group"
+msgstr "Grupo"
+
+#, fuzzy
+msgid "Highest"
+msgstr "Máximo"
+
+#, fuzzy
+msgid "Inactive"
+msgstr "Inactivo"
+
+#, fuzzy
+msgid "Instructions"
+msgstr "Instrucciones"
+
+#, fuzzy
+msgid "It starts on %(type)s, and the rules may be edited afterwards."
+msgstr "Empieza en %(type)s, y las reglas se pueden editar después."
+
+#, fuzzy
+msgid "Keep it here"
+msgstr "Dejarlo aquí"
+
+#, fuzzy
+msgid "Label"
+msgstr "Etiqueta"
+
+#, fuzzy
+msgid "Loading field groups."
+msgstr "Cargando los grupos de campos."
+
+#, fuzzy
+msgid "Longest"
+msgstr "Largo máximo"
+
+#, fuzzy
+msgid "Lowest"
+msgstr "Mínimo"
+
+#, fuzzy
+msgid "Many values"
+msgstr "Varios valores"
+
+#, fuzzy
+msgid "Move"
+msgstr "Mover"
+
+#, fuzzy
+msgid "Move %(field)s elsewhere"
+msgstr "Mover %(field)s a otro sitio"
+
+#, fuzzy
+msgid "Move %(group)s down"
+msgstr "Bajar %(group)s"
+
+#, fuzzy
+msgid "Move %(group)s up"
+msgstr "Subir %(group)s"
+
+#, fuzzy
+msgid "Move the field"
+msgstr "Mover el campo"
+
+#, fuzzy
+msgid "Not %(type)s"
+msgstr "Excepto %(type)s"
+
+#, fuzzy
+msgid "Nowhere"
+msgstr "En ningún sitio"
+
+#, fuzzy
+msgid "Placeholder"
+msgstr "Texto de ejemplo"
+
+#, fuzzy
+msgid "Radio group"
+msgstr "Grupo de botones de radio"
+
+#, fuzzy
+msgid "Remove"
+msgstr "Quitar"
+
+#, fuzzy
+msgid "Remove Media %(id)d"
+msgstr "Quitar el medio %(id)d"
+
+#, fuzzy
+msgid "Rule %(number)d of set %(set)d"
+msgstr "Regla %(number)d del conjunto %(set)d"
+
+#, fuzzy
+msgid "Rule set %(number)d"
+msgstr "Conjunto de reglas %(number)d"
+
+#, fuzzy
+msgid "Rules"
+msgstr "Reglas"
+
+#, fuzzy
+msgid "Save rules"
+msgstr "Guardar las reglas"
+
+#, fuzzy
+msgid "Save settings"
+msgstr "Guardar los ajustes"
+
+#, fuzzy
+msgid "Settings"
+msgstr "Ajustes"
+
+#, fuzzy
+msgid "Settings of %(field)s"
+msgstr "Ajustes de %(field)s"
+
+#, fuzzy
+msgid "Shadowed"
+msgstr "Eclipsado"
+
+#, fuzzy
+msgid "Source"
+msgstr "Origen"
+
+#, fuzzy
+msgid "Steps of"
+msgstr "Pasos de"
+
+#, fuzzy
+msgid "Text area"
+msgstr "Área de texto"
+
+#, fuzzy
+msgid "That field group no longer exists. Reload the page to see the groups your site holds now."
+msgstr "Ese grupo de campos ya no existe. Recarga la página para ver los grupos que tiene ahora tu sitio."
+
+#, fuzzy
+msgid "The content types could not be loaded, so where these groups appear and which fields they shadow are not shown."
+msgstr "No se han podido cargar los tipos de contenido, así que no se muestra dónde aparecen estos grupos ni qué campos eclipsan."
+
+#, fuzzy
+msgid "The content types could not be refreshed, so where these groups appear and what they shadow may be out of date."
+msgstr "No se han podido actualizar los tipos de contenido, así que dónde aparecen estos grupos y qué eclipsan puede estar desactualizado."
+
+#, fuzzy
+msgid "The field %(field)s in %(group)s still points at this content type. Delete that field first, then delete this type."
+msgstr "El campo %(field)s de %(group)s todavía apunta a este tipo de contenido. Borra antes ese campo y luego borra este tipo."
+
+#, fuzzy
+msgid "The field groups could not be loaded."
+msgstr "No se han podido cargar los grupos de campos."
+
+#, fuzzy
+msgid "The field groups could not be reached."
+msgstr "No se ha podido contactar con los grupos de campos."
+
+#, fuzzy
+msgid "The field keeps every value stored under it."
+msgstr "El campo conserva todos los valores guardados en él."
+
+#, fuzzy
+msgid "The fields this group holds go with it, and so do the values every item stored in them."
+msgstr "Los campos que contiene este grupo se van con él, y también los valores que cada elemento guardó en ellos."
+
+#, fuzzy
+msgid "The groups were reordered."
+msgstr "Los grupos se han reordenado."
+
+#, fuzzy
+msgid "The new order has to name every field group exactly once. Reload the page and move the groups again."
+msgstr "El nuevo orden tiene que nombrar cada grupo de campos exactamente una vez. Recarga la página y mueve los grupos otra vez."
+
+#, fuzzy
+msgid "The rule on %(source)s names nothing to match. Pick a value, or remove the rule."
+msgstr "La regla sobre %(source)s no nombra nada con lo que coincidir. Elige un valor, o quita la regla."
+
+#, fuzzy
+msgid "The rules could not be loaded."
+msgstr "No se han podido cargar las reglas."
+
+#, fuzzy
+msgid "The setting %(setting)s cannot hold the value it was given. Check what this setting takes and try again."
+msgstr "El ajuste %(setting)s no puede contener el valor que se le dio. Comprueba qué acepta este ajuste y prueba de nuevo."
+
+#, fuzzy
+msgid "The setting %(setting)s falls outside the others. Keep min below max and the default inside the bounds."
+msgstr "El ajuste %(setting)s queda fuera de los demás. Mantén min por debajo de max y el valor por defecto dentro de los límites."
+
+#, fuzzy
+msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
+msgstr "La fuente %(source)s no ofrece %(operator)s. Elige una de las comparaciones que sí ofrece."
+
+#, fuzzy
+msgid "This group holds no fields yet."
+msgstr "Este grupo todavía no tiene campos."
+
+#, fuzzy
+msgid "This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed."
+msgstr "Esta regla lee una fuente llamada %(source)s, y nada en tu sitio declara ninguna. Puede que se haya quitado un plugin que la añadía."
+
+#, fuzzy
+msgid "Two rule sources are registered under the name %(param)s. A plugin is declaring a source your site already holds."
+msgstr "Hay dos fuentes de reglas registradas con el nombre %(param)s. Un plugin declara una fuente que tu sitio ya tiene."
+
+#, fuzzy
+msgid "Value"
+msgstr "Valor"
+
+#, fuzzy
+msgid "Web address"
+msgstr "Dirección web"
+
+#, fuzzy
+msgid "Where %(group)s appears"
+msgstr "Dónde aparece %(group)s"
+
+#, fuzzy
+msgid "Without a rule this group appears nowhere."
+msgstr "Sin una regla este grupo no aparece en ningún sitio."
+
+#, fuzzy
+msgid "a content type"
+msgstr "un tipo de contenido"
 
 #, fuzzy
 msgid "is"
@@ -1482,8 +1470,9 @@ msgstr "es"
 msgid "is not"
 msgstr "no es"
 
-msgid "{day} {month} {year}"
-msgstr "{day} de {month} de {year}"
+msgctxt "account"
+msgid "Status"
+msgstr "Estado"
 
 msgctxt "account"
 msgid "Role"
@@ -1492,10 +1481,6 @@ msgstr "Rol"
 msgctxt "account"
 msgid "Role of %(name)s"
 msgstr "Rol de %(name)s"
-
-msgctxt "account"
-msgid "Status"
-msgstr "Estado"
 
 msgctxt "admin section"
 msgid "Media"
@@ -1533,6 +1518,26 @@ msgctxt "field type"
 msgid "Media"
 msgstr "Medio"
 
+#, fuzzy
+msgctxt "field type"
+msgid "Choice"
+msgstr "Elección"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Gallery"
+msgstr "Galería"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Range"
+msgstr "Rango"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Select"
+msgstr "Desplegable"
+
 msgctxt "media family"
 msgid "Kind"
 msgstr "Clase"
@@ -1540,22 +1545,6 @@ msgstr "Clase"
 msgctxt "person"
 msgid "Name"
 msgstr "Nombre"
-
-msgctxt "role"
-msgid "Administrator"
-msgstr "Administrador"
-
-msgctxt "role"
-msgid "Author"
-msgstr "Autor"
-
-msgctxt "role"
-msgid "Editor"
-msgstr "Editor"
-
-msgctxt "role"
-msgid "No role"
-msgstr "Sin rol"
 
 msgctxt "post"
 msgid "Status"
@@ -1585,78 +1574,23 @@ msgctxt "trash"
 msgid "Restore"
 msgstr "Restaurar"
 
-msgid ""
-"The %(file)s inside %(name)s names its theme kit as %(declared)s, which is "
-"not a version number. Build the theme again, and the build will fill that in."
-msgstr ""
-"El %(file)s dentro de %(name)s indica su kit de temas como %(declared)s, que "
-"no es un número de versión. Compila el tema de nuevo y la compilación lo "
-"rellenará."
+msgctxt "role"
+msgid "Administrator"
+msgstr "Administrador"
 
-msgid ""
-"The theme %(name)s was built on theme kit %(declared)s, and this site serves "
-"%(served)s. Build the theme again against a kit this site serves, then "
-"install it."
-msgstr ""
-"El tema %(name)s se compiló con el kit de temas %(declared)s y este sitio "
-"sirve %(served)s. Compila el tema de nuevo con un kit que este sitio sirva y "
-"después instálalo."
+msgctxt "role"
+msgid "Author"
+msgstr "Autor"
 
-msgid "%(field)s is optional again."
-msgstr "%(field)s vuelve a ser opcional."
+msgctxt "role"
+msgid "Editor"
+msgstr "Editor"
 
-msgid "%(field)s is required now."
-msgstr "%(field)s ahora es obligatorio."
+msgctxt "role"
+msgid "No role"
+msgstr "Sin rol"
 
-msgid "Holds"
-msgstr "Contiene"
-
-msgid "Make %(field)s optional"
-msgstr "Hacer %(field)s opcional"
-
-msgid "Make optional"
-msgstr "Hacer opcional"
-
-msgid "Require"
-msgstr "Hacer obligatorio"
-
-msgid "Many targets"
-msgstr "Varios destinos"
-
-msgid "Move %(field)s down"
-msgstr "Bajar %(field)s"
-
-msgid "Move %(field)s up"
-msgstr "Subir %(field)s"
-
-msgid "No"
-msgstr "No"
-
-msgid "One target"
-msgstr "Un destino"
-
-msgid "Order stored."
-msgstr "Orden guardado."
-
-msgid "Require %(field)s"
-msgstr "Hacer %(field)s obligatorio"
-
-msgid "Required"
-msgstr "Obligatorio"
-
-msgid ""
-"The new order has to name every field of this content type exactly once. "
-"Reload the page and move the fields again."
-msgstr ""
-"El nuevo orden tiene que nombrar cada campo de este tipo de contenido "
-"exactamente una vez. Recarga la página y mueve los campos de nuevo."
-
-msgid ""
-"This request carried %(attribute)s, which fields do not take. Reload the "
-"page so the admin and the server agree again."
-msgstr ""
-"Esta petición llevaba %(attribute)s, que los campos no aceptan. Recarga la "
-"página para que la administración y el servidor vuelvan a coincidir."
-
-msgid "Yes"
-msgstr "Sí"
+#, fuzzy
+msgctxt "field group"
+msgid "Status"
+msgstr "Estado"
