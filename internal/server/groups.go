@@ -5,6 +5,7 @@ package server
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -215,17 +216,20 @@ func (s *server) handleGroupOrder() http.HandlerFunc {
 	}
 }
 
+// fieldCreateRequest is a field declaration as the admin API reads it.
+type fieldCreateRequest struct {
+	Key       string         `json:"key"`
+	Label     string         `json:"label"`
+	Kind      string         `json:"kind"`
+	RelatesTo string         `json:"relates_to"`
+	Many      bool           `json:"many"`
+	Required  bool           `json:"required"`
+	Settings  map[string]any `json:"settings"`
+}
+
 // handleGroupFieldCreate returns an http.HandlerFunc declaring a field inside a group.
 func (s *server) handleGroupFieldCreate() http.HandlerFunc {
-	type request struct {
-		Key       string         `json:"key"`
-		Label     string         `json:"label"`
-		Kind      string         `json:"kind"`
-		RelatesTo string         `json:"relates_to"`
-		Many      bool           `json:"many"`
-		Required  bool           `json:"required"`
-		Settings  map[string]any `json:"settings"`
-	}
+	type request = fieldCreateRequest
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := groupIDOf(r)
 		if err != nil {
@@ -257,6 +261,96 @@ func (s *server) handleGroupFieldCreate() http.HandlerFunc {
 		}
 		authkit.Respond(w, http.StatusCreated, newFieldResponse(created))
 	}
+}
+
+// handleSubFieldCreate returns an http.HandlerFunc declaring a field inside a container.
+func (s *server) handleSubFieldCreate() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := groupIDOf(r)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		req, err := decodeKnown[fieldCreateRequest](w, r)
+		if err != nil {
+			respondBodyError(w, err)
+			return
+		}
+		parent, err := s.fieldAtPath(r, id)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		asked, err := content.NewSubField(content.Field{
+			Key:       req.Key,
+			Label:     req.Label,
+			Kind:      content.FieldKind(req.Kind),
+			RelatesTo: req.RelatesTo,
+			Many:      req.Many,
+			Required:  req.Required,
+			Settings:  req.Settings,
+		}, parent.Kind)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		created, err := s.types.CreateSubField(r.Context(), parent.ID, asked)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		authkit.Respond(w, http.StatusCreated, newFieldResponse(created))
+	}
+}
+
+// handleSubFieldDelete returns an http.HandlerFunc removing a field inside a container.
+func (s *server) handleSubFieldDelete() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := groupIDOf(r)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		held, err := s.fieldAtPath(r, id)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		if err := s.types.DeleteSubField(r.Context(), held.ID); err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// fieldAtPath returns the field the request path addresses inside its group, however deep it stands.
+func (s *server) fieldAtPath(r *http.Request, groupID int) (content.Field, error) {
+	groups, err := s.types.Groups(r.Context())
+	if err != nil {
+		return content.Field{}, err
+	}
+	for _, g := range groups {
+		if g.ID != groupID {
+			continue
+		}
+		return fieldDown(g.Fields, strings.Split(chi.URLParam(r, "fieldPath"), "."))
+	}
+	return content.Field{}, content.ErrGroupNotFound
+}
+
+// fieldDown returns the field the keys address among the declared ones.
+func fieldDown(declared []content.Field, keys []string) (content.Field, error) {
+	for _, f := range declared {
+		if f.Key != keys[0] {
+			continue
+		}
+		if len(keys) == 1 {
+			return f, nil
+		}
+		return fieldDown(f.Fields, keys[1:])
+	}
+	return content.Field{}, content.ErrFieldNotFound
 }
 
 // fieldPatchRequest is a field edit as the admin API reads it.
