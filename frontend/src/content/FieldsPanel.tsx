@@ -282,6 +282,7 @@ export function FieldsPanel({
 	const related = useMemo(() => relationFields(declared), [declared])
 	const pictured = useMemo(() => mediaFields(declared), [declared])
 	const descriptors = useMemo(() => fieldDescriptors(rendered), [rendered])
+	const complaints = useMemo(() => fieldValidity(rendered, buffer.fields), [rendered, buffer.fields])
 	if (rendered.length === 0 && related.length === 0 && pictured.length === 0) {
 		return null
 	}
@@ -292,6 +293,7 @@ export function FieldsPanel({
 					data={buffer.fields}
 					fields={descriptors}
 					form={{ fields: rendered.map((field) => field.key) }}
+					validity={complaints}
 					onChange={(edits: FieldValues) =>
 						buffer.setFields({ ...buffer.fields, ...clearedEdits(edits) })
 					}

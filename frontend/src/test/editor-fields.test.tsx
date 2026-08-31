@@ -94,6 +94,36 @@ const A_TEXT_FIELD = {
 	updated_at: STAMP,
 }
 
+test('names the ceiling under a number typed above its max', async () => {
+	declaring({
+		key: 'doors',
+		label: 'Doors',
+		kind: 'number',
+		many: false,
+		required: false,
+		settings: { max: 10 },
+	})
+	renderAt(EDITOR_PATH)
+
+	const control = await screen.findByLabelText('Doors')
+	await userEvent.type(control, '50')
+	await userEvent.tab()
+
+	expect(
+		await screen.findByText('Doors goes no higher than 10. Lower the value and save again.'),
+	).toBeInTheDocument()
+
+	await userEvent.clear(control)
+	await userEvent.type(control, '5')
+	await userEvent.tab()
+
+	await waitFor(() =>
+		expect(
+			screen.queryByText('Doors goes no higher than 10. Lower the value and save again.'),
+		).toBeNull(),
+	)
+})
+
 test('shows the instructions a field carries under its control', async () => {
 	declaring({ ...A_TEXT_FIELD, settings: { instructions: 'Name the colour.' } })
 	renderAt(EDITOR_PATH)
