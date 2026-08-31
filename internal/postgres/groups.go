@@ -504,6 +504,95 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 	return nil
 }
 
+// DeleteSubField removes the field standing inside a container, and the values every item held under it.
+func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		groups, err := groupsWithFields(ctx, queries)
+		if err != nil {
+			return err
+		}
+		held, path, found := fieldPathIn(groups, id)
+		if !found {
+			return content.ErrFieldNotFound
+		}
+		matched, err := typesMatchedBy(ctx, queries, held)
+		if err != nil {
+			return err
+		}
+		if _, err := queries.DeleteFieldByID(ctx, int32(id)); err != nil {
+			return err
+		}
+		return sweepPath(ctx, queries, path, matched)
+	})
+	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) {
+		return err
+	}
+	if err != nil {
+		return fmt.Errorf("postgres: delete sub field: %w", err)
+	}
+	return nil
+}
+
+// fieldPathIn returns the group holding the field and the keys addressing it from the top of that group.
+func fieldPathIn(groups []content.Group, id int) (content.Group, []string, bool) {
+	for _, group := range groups {
+		if path, found := pathToField(group.Fields, id); found {
+			return group, path, true
+		}
+	}
+	return content.Group{}, nil, false
+}
+
+// pathToField returns the keys addressing the field among the declared ones, however deep it stands.
+func pathToField(declared []content.Field, id int) ([]string, bool) {
+	for _, f := range declared {
+		if f.ID == id {
+			return []string{f.Key}, true
+		}
+		if inside, found := pathToField(f.Fields, id); found {
+			return append([]string{f.Key}, inside...), true
+		}
+	}
+	return nil, false
+}
+
+// sweepPath removes whatever stands at the path from every item and revision of the matched types.
+func sweepPath(ctx context.Context, queries *db.Queries, path []string, matched []string) error {
+	items, err := queries.ContentValuesHolding(ctx, db.ContentValuesHoldingParams{
+		Types: matched, Key: path[0],
+	})
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		if err := queries.SetContentValues(ctx, db.SetContentValuesParams{
+			ID: item.ID, Fields: item.Fields.Stripped(path),
+		}); err != nil {
+			return err
+		}
+	}
+	return sweepRevisionPath(ctx, queries, path, matched)
+}
+
+// sweepRevisionPath removes whatever stands at the path from every revision of the matched types.
+func sweepRevisionPath(ctx context.Context, queries *db.Queries, path []string, matched []string) error {
+	revisions, err := queries.RevisionValuesHolding(ctx, db.RevisionValuesHoldingParams{
+		Types: matched, Key: path[0],
+	})
+	if err != nil {
+		return err
+	}
+	for _, revision := range revisions {
+		if err := queries.SetRevisionValues(ctx, db.SetRevisionValuesParams{
+			ID: revision.ID, Fields: revision.Fields.Stripped(path),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ReorderFieldsInGroup stores the declaration order of a group's fields.
 func (s *TypeStore) ReorderFieldsInGroup(ctx context.Context, groupID int, keys []string) error {
 	err := s.queries.ReorderContentFields(ctx, db.ReorderContentFieldsParams{

@@ -106,6 +106,41 @@ func (q *Queries) ContentDepth(ctx context.Context, id uuid.UUID) (int32, error)
 	return column_1, err
 }
 
+const contentValuesHolding = `-- name: ContentValuesHolding :many
+SELECT id, fields FROM core.content
+WHERE type = ANY($1::text []) AND fields ? $2::text
+`
+
+type ContentValuesHoldingParams struct {
+	Types []string
+	Key   string
+}
+
+type ContentValuesHoldingRow struct {
+	ID     uuid.UUID
+	Fields content.Values
+}
+
+func (q *Queries) ContentValuesHolding(ctx context.Context, arg ContentValuesHoldingParams) ([]ContentValuesHoldingRow, error) {
+	rows, err := q.db.Query(ctx, contentValuesHolding, arg.Types, arg.Key)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ContentValuesHoldingRow
+	for rows.Next() {
+		var i ContentValuesHoldingRow
+		if err := rows.Scan(&i.ID, &i.Fields); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countChildren = `-- name: CountChildren :one
 SELECT count(*) FROM core.content p WHERE p.parent_id = $1
 `
@@ -666,6 +701,18 @@ DELETE FROM core.content_types AS t WHERE t.key = $1
 
 func (q *Queries) DeleteContentType(ctx context.Context, key string) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteContentType, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteFieldByID = `-- name: DeleteFieldByID :execrows
+DELETE FROM core.content_fields WHERE id = $1
+`
+
+func (q *Queries) DeleteFieldByID(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteFieldByID, id)
 	if err != nil {
 		return 0, err
 	}
@@ -1946,6 +1993,70 @@ func (q *Queries) RetypeContentPaths(ctx context.Context, arg RetypeContentPaths
 		arg.UpdatedAt,
 		arg.Key,
 	)
+	return err
+}
+
+const revisionValuesHolding = `-- name: RevisionValuesHolding :many
+SELECT r.id, r.fields FROM core.content_revisions r
+JOIN core.content c ON r.content_id = c.id
+WHERE c.type = ANY($1::text []) AND r.fields ? $2::text
+`
+
+type RevisionValuesHoldingParams struct {
+	Types []string
+	Key   string
+}
+
+type RevisionValuesHoldingRow struct {
+	ID     uuid.UUID
+	Fields content.Values
+}
+
+func (q *Queries) RevisionValuesHolding(ctx context.Context, arg RevisionValuesHoldingParams) ([]RevisionValuesHoldingRow, error) {
+	rows, err := q.db.Query(ctx, revisionValuesHolding, arg.Types, arg.Key)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RevisionValuesHoldingRow
+	for rows.Next() {
+		var i RevisionValuesHoldingRow
+		if err := rows.Scan(&i.ID, &i.Fields); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setContentValues = `-- name: SetContentValues :exec
+UPDATE core.content SET fields = $1 WHERE id = $2
+`
+
+type SetContentValuesParams struct {
+	Fields content.Values
+	ID     uuid.UUID
+}
+
+func (q *Queries) SetContentValues(ctx context.Context, arg SetContentValuesParams) error {
+	_, err := q.db.Exec(ctx, setContentValues, arg.Fields, arg.ID)
+	return err
+}
+
+const setRevisionValues = `-- name: SetRevisionValues :exec
+UPDATE core.content_revisions SET fields = $1 WHERE id = $2
+`
+
+type SetRevisionValuesParams struct {
+	Fields content.Values
+	ID     uuid.UUID
+}
+
+func (q *Queries) SetRevisionValues(ctx context.Context, arg SetRevisionValuesParams) error {
+	_, err := q.db.Exec(ctx, setRevisionValues, arg.Fields, arg.ID)
 	return err
 }
 
