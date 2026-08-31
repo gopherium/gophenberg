@@ -88,20 +88,21 @@ a **Value**, which is what gets stored, and a **Label**, which is
 what the editor reads. A field listing no answers takes whatever is
 typed, so add them first. **Many values** lets an item hold several
 answers, in a box you add them into. **Allow custom** lets the field
-take answers outside its list, which only a Many values box offers a
-way to type. **Allow empty** adds a None entry that clears the
+take answers outside its list. A Many values box, a Radio group and
+a Checkbox group each grow an Other box for typing one. A Select or
+a Button group offers no way to type, so pick another presentation
+when you need one. **Allow empty** adds a None entry that clears the
 field.
 
 **Longest**, **Lowest** and **Highest** are limits. Longest stops
-your typing. Anything else the field will not take is refused when
-you save, drafts included, and autosave keeps it meanwhile so you
-fix the value rather than lose it. That covers a number outside
-Lowest or Highest, an address that does not read as one, and an
-answer a choice does not list. The editor also names a number
-outside Lowest or Highest under its own control as you fill the
-item in, so you can mend it before saving rather than after.
-Tightening any of these leaves stored values alone, and is refused
-while the field's own Default falls outside.
+your typing. A number outside Lowest or Highest, and an answer a
+choice does not list, are named under the control as you fill the
+item in, so you can mend them where you wrote them. An address that
+does not read as one waits for the save. All three are refused when
+you save, drafts included, and autosave keeps the value meanwhile
+so you fix it rather than lose it. Tightening any of these leaves
+stored values alone, and is refused while the field's own Default
+falls outside.
 
 **Steps of** moves a Range field's slider one notch. A Range needs
 both Lowest and Highest before it draws a slider, and is a plain
