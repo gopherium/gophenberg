@@ -9,13 +9,11 @@ Feature: Container fields
     And a signed in administrator
     And the group "Extras" placed on "post"
 
-  @wip
   Scenario: A section serves its sub fields inside it
     Given the "section" field "author" in "Extras"
     When the administrator declares the "text" field "name" inside "author"
     Then the field "author" on "post" holds the sub field "name"
 
-  @wip
   Scenario: Two sections each hold a sub field of the same name
     Given the "section" field "author" in "Extras"
     And the "section" field "editor" in "Extras"
@@ -23,7 +21,6 @@ Feature: Container fields
     When the administrator declares the "text" field "name" inside "editor"
     Then the field "editor" on "post" holds the sub field "name"
 
-  @wip
   Scenario: A sub field the section does not declare is refused
     Given the "section" field "author" in "Extras"
     And the "text" field "name" inside "author"
@@ -34,7 +31,6 @@ Feature: Container fields
       """
     Then the request is refused
 
-  @wip
   Scenario: A section keeps the bounds its sub fields carry
     Given the "section" field "author" in "Extras"
     And the "number" field "rating" inside "author" with settings:
@@ -48,7 +44,6 @@ Feature: Container fields
       """
     Then the request is refused
 
-  @wip
   Scenario: A repeater stores the rows an author writes
     Given the "repeater" field "team" in "Extras"
     And the "text" field "name" inside "team"
@@ -59,7 +54,6 @@ Feature: Container fields
       """
     Then the post "Hello world" holds 2 rows in "team"
 
-  @wip
   Scenario: A repeater refuses fewer rows than it asks for
     Given the "repeater" field "team" in "Extras" with settings:
       """
@@ -73,7 +67,6 @@ Feature: Container fields
       """
     Then the request is refused
 
-  @wip
   Scenario: A repeater row holds a section of its own
     Given the "repeater" field "team" in "Extras"
     And the "section" field "contact" inside "team"
@@ -85,7 +78,6 @@ Feature: Container fields
       """
     Then the post "Hello world" holds 1 rows in "team"
 
-  @wip
   Scenario: A relation inside a container is refused
     Given the "section" field "author" in "Extras"
     When the administrator declares the "relation" field "wrote" inside "author"

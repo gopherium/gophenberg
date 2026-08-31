@@ -54,6 +54,10 @@ func TestFieldKinds(t *testing.T) {
 	runFeature(t, "features/field-kinds.feature", initializeFieldKinds)
 }
 
+func TestContainers(t *testing.T) {
+	runFeature(t, "features/containers.feature", initializeContainers)
+}
+
 func TestMediaValues(t *testing.T) {
 	runFeature(t, "features/media-values.feature", initializeMediaValues)
 }

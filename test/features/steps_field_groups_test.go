@@ -18,13 +18,17 @@ const groupsPath = "/api/groups"
 
 // groupHeld is one field group as a scenario reads it back.
 type groupHeld struct {
-	ID     int    `json:"id"`
-	Title  string `json:"title"`
-	Active bool   `json:"active"`
-	Fields []struct {
-		Key       string `json:"key"`
-		UpdatedAt string `json:"updated_at"`
-	} `json:"fields"`
+	ID     int         `json:"id"`
+	Title  string      `json:"title"`
+	Active bool        `json:"active"`
+	Fields []fieldHeld `json:"fields"`
+}
+
+// fieldHeld is a field definition as a scenario reads it back, holding the sub fields it declares.
+type fieldHeld struct {
+	Key       string      `json:"key"`
+	UpdatedAt string      `json:"updated_at"`
+	Fields    []fieldHeld `json:"fields"`
 }
 
 // groupsListing is the field group listing as a scenario reads it back.
