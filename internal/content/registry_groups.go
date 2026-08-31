@@ -134,6 +134,25 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	return created, nil
 }
 
+// CreateSubField declares the field inside the container the parent names.
+func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (Field, error) {
+	created, err := r.store.CreateSubField(ctx, parentID, f)
+	if err != nil {
+		return Field{}, err
+	}
+	r.invalidate()
+	return created, nil
+}
+
+// DeleteSubField removes the field standing inside a container, and the values every item held under it.
+func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
+	if err := r.store.DeleteSubField(ctx, id); err != nil {
+		return err
+	}
+	r.invalidate()
+	return nil
+}
+
 // UpdateFieldInGroup carries the field's label, required flag and settings when the expectation still holds.
 func (r *Registry) UpdateFieldInGroup(
 	ctx context.Context, groupID int, f Field, expectedUpdatedAt time.Time,

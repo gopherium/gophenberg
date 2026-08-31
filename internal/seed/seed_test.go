@@ -91,6 +91,16 @@ func (stubTypeStore) UpdateFieldInGroup(_ context.Context, _ int, f content.Fiel
 	return f, nil
 }
 
+// CreateSubField hands the field back unstored.
+func (stubTypeStore) CreateSubField(_ context.Context, _ int, f content.Field) (content.Field, error) {
+	return f, nil
+}
+
+// DeleteSubField removes no field.
+func (stubTypeStore) DeleteSubField(_ context.Context, _ int) error {
+	return nil
+}
+
 // DeleteFieldInGroup removes no field.
 func (stubTypeStore) DeleteFieldInGroup(context.Context, int, string) error { return nil }
 

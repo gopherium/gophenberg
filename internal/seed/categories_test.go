@@ -68,6 +68,16 @@ func (s *categoryTypeStore) Create(_ context.Context, t content.Type) (content.T
 	return t, nil
 }
 
+// CreateSubField hands the field back unstored, since the fake declares none inside a container.
+func (*categoryTypeStore) CreateSubField(_ context.Context, _ int, f content.Field) (content.Field, error) {
+	return f, nil
+}
+
+// DeleteSubField removes no field, since the fake declares none inside a container.
+func (*categoryTypeStore) DeleteSubField(_ context.Context, _ int) error {
+	return nil
+}
+
 // CreateField records the declaration, or reports the scripted failure.
 func (s *categoryTypeStore) CreateField(_ context.Context, f content.Field) (content.Field, error) {
 	if s.createFieldErr != nil {

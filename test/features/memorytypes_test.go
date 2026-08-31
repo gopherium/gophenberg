@@ -131,6 +131,72 @@ func (s *memoryTypes) ReorderGroups(_ context.Context, ids []int) error {
 	return nil
 }
 
+// CreateSubField declares the field inside the container the parent names.
+func (s *memoryTypes) CreateSubField(_ context.Context, parentID int, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.fieldIDs++
+	f.ID, f.ParentID = s.fieldIDs, parentID
+	for i, held := range s.groups {
+		grown, found := grownInside(held.Fields, parentID, f)
+		if !found {
+			continue
+		}
+		f.GroupID = held.ID
+		s.groups[i].Fields = grown
+		return f, nil
+	}
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// DeleteSubField removes the field standing inside a container.
+func (s *memoryTypes) DeleteSubField(_ context.Context, id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		pruned, found := prunedInside(held.Fields, id)
+		if !found {
+			continue
+		}
+		s.groups[i].Fields = pruned
+		return nil
+	}
+	return content.ErrFieldNotFound
+}
+
+// grownInside returns the declared fields with the new one placed inside the parent it names.
+func grownInside(declared []content.Field, parentID int, f content.Field) ([]content.Field, bool) {
+	grown := make([]content.Field, len(declared))
+	copy(grown, declared)
+	for i, held := range grown {
+		if held.ID == parentID {
+			grown[i].Fields = append(append([]content.Field{}, held.Fields...), f)
+			return grown, true
+		}
+		if inside, found := grownInside(held.Fields, parentID, f); found {
+			grown[i].Fields = inside
+			return grown, true
+		}
+	}
+	return declared, false
+}
+
+// prunedInside returns the declared fields without the one the identity names.
+func prunedInside(declared []content.Field, id int) ([]content.Field, bool) {
+	for i, held := range declared {
+		if held.ID == id {
+			return append(append([]content.Field{}, declared[:i]...), declared[i+1:]...), true
+		}
+		if inside, found := prunedInside(held.Fields, id); found {
+			pruned := make([]content.Field, len(declared))
+			copy(pruned, declared)
+			pruned[i].Fields = inside
+			return pruned, true
+		}
+	}
+	return declared, false
+}
+
 // CreateFieldInGroup declares the field inside the group.
 func (s *memoryTypes) CreateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
 	s.mu.Lock()

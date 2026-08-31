@@ -438,7 +438,9 @@ type fakeTypeStore struct {
 	types       []content.Type
 	groups      []content.Group
 	nextGroupID int
+	nextFieldID int
 	listErr     error
+	subErr      error
 }
 
 // newFakeTypeStore returns a registry holding the built-in post type.
@@ -557,11 +559,84 @@ func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, groupID int, f con
 		if held.ID != groupID {
 			continue
 		}
-		f.GroupID = groupID
+		s.nextFieldID++
+		f.ID, f.GroupID = s.nextFieldID, groupID
 		s.groups[i].Fields = append(held.Fields, f)
 		return f, nil
 	}
 	return content.Field{}, content.ErrGroupNotFound
+}
+
+// CreateSubField declares the field inside the container the parent names.
+func (s *fakeTypeStore) CreateSubField(_ context.Context, parentID int, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.subErr != nil {
+		return content.Field{}, s.subErr
+	}
+	s.nextFieldID++
+	f.ID, f.ParentID = s.nextFieldID, parentID
+	for i, held := range s.groups {
+		grown, found := fieldGrown(held.Fields, parentID, f)
+		if !found {
+			continue
+		}
+		f.GroupID = held.ID
+		s.groups[i].Fields = grown
+		return f, nil
+	}
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// DeleteSubField removes the field standing inside a container.
+func (s *fakeTypeStore) DeleteSubField(_ context.Context, id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.subErr != nil {
+		return s.subErr
+	}
+	for i, held := range s.groups {
+		pruned, found := fieldPruned(held.Fields, id)
+		if !found {
+			continue
+		}
+		s.groups[i].Fields = pruned
+		return nil
+	}
+	return content.ErrFieldNotFound
+}
+
+// fieldGrown returns the declared fields with the new one placed inside the parent it names.
+func fieldGrown(declared []content.Field, parentID int, f content.Field) ([]content.Field, bool) {
+	grown := make([]content.Field, len(declared))
+	copy(grown, declared)
+	for i, held := range grown {
+		if held.ID == parentID {
+			grown[i].Fields = append(append([]content.Field{}, held.Fields...), f)
+			return grown, true
+		}
+		if inside, found := fieldGrown(held.Fields, parentID, f); found {
+			grown[i].Fields = inside
+			return grown, true
+		}
+	}
+	return declared, false
+}
+
+// fieldPruned returns the declared fields without the one the identity names.
+func fieldPruned(declared []content.Field, id int) ([]content.Field, bool) {
+	for i, held := range declared {
+		if held.ID == id {
+			return append(append([]content.Field{}, declared[:i]...), declared[i+1:]...), true
+		}
+		if inside, found := fieldPruned(held.Fields, id); found {
+			pruned := make([]content.Field, len(declared))
+			copy(pruned, declared)
+			pruned[i].Fields = inside
+			return pruned, true
+		}
+	}
+	return declared, false
 }
 
 // UpdateFieldInGroup stores the field's label, required flag and settings inside its group.
