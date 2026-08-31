@@ -1453,6 +1453,14 @@ msgid "Range"
 msgstr ""
 
 msgctxt "field type"
+msgid "Repeater"
+msgstr ""
+
+msgctxt "field type"
+msgid "Section"
+msgstr ""
+
+msgctxt "field type"
 msgid "Select"
 msgstr ""
 

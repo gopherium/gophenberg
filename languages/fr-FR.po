@@ -2031,6 +2031,16 @@ msgid "Add field to %(field)s"
 msgstr "Ajouter un champ à %(field)s"
 
 #, fuzzy
+msgctxt "field type"
+msgid "Section"
+msgstr "Section"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Repeater"
+msgstr "Répéteur"
+
+#, fuzzy
 msgid "Remove row"
 msgstr "Retirer la ligne"
 
