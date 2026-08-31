@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { RangeControl, Stack } from '@gophenberg/frontend-sdk'
+import { CheckboxControl, RangeControl, Stack, Text } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type {
 	DataFormControlProps,
@@ -161,15 +161,8 @@ function choiceElements(field: ContentField) {
  * @returns The control name, the range component, or undefined.
  */
 function editControl(field: ContentField): string | ComponentType<DataFormControlProps<FieldValues>> | undefined {
-	if (field.kind === 'choice' && field.settings.multiple !== true) {
-		const presentation = worded(field.settings.presentation)
-		if (presentation === 'radio' || presentation === 'checkbox') {
-			return 'radio'
-		}
-		if (presentation === 'buttons') {
-			return 'toggleGroup'
-		}
-		return undefined
+	if (field.kind === 'choice') {
+		return choiceControl(field)
 	}
 	if (field.kind === 'text' && worded(field.settings.variant) === 'textarea') {
 		return 'textarea'
@@ -178,6 +171,81 @@ function editControl(field: ContentField): string | ComponentType<DataFormContro
 		return rangeEdit(field)
 	}
 	return undefined
+}
+
+/**
+ * Returns the control a choice field's presentation asks for, or nothing for the type's own.
+ * @param field - The declared choice field to place.
+ * @returns The control name, the checkboxes component, or undefined.
+ */
+function choiceControl(
+	field: ContentField,
+): string | ComponentType<DataFormControlProps<FieldValues>> | undefined {
+	const presentation = worded(field.settings.presentation)
+	if (field.settings.multiple === true) {
+		return presentation === 'checkbox' ? checkboxesEdit(field) : undefined
+	}
+	if (presentation === 'radio' || presentation === 'checkbox') {
+		return 'radio'
+	}
+	if (presentation === 'buttons') {
+		return 'toggleGroup'
+	}
+	return undefined
+}
+
+/**
+ * Returns the checkboxes a checkbox group is edited with, or nothing when it lists no answers.
+ * @param field - The declared field carrying the answers.
+ * @returns The checkboxes component, or undefined.
+ */
+function checkboxesEdit(
+	field: ContentField,
+): ComponentType<DataFormControlProps<FieldValues>> | undefined {
+	const pairs = pairsOf(field.settings)
+	if (pairs.length === 0) {
+		return undefined
+	}
+	/**
+	 * Renders one checkbox per answer a checkbox group offers.
+	 * @param props - The item, the field, and what to call with a change.
+	 * @returns The checkbox list element.
+	 */
+	return function CheckboxesEdit({ data, field: described, onChange }: DataFormControlProps<FieldValues>) {
+		const held = wordsHeld(described.getValue({ item: data }))
+		const strays = held.filter((one) => !pairs.some((pair) => pair.value === one))
+		const offered = [...pairs, ...strays.map((one) => ({ value: one, label: one }))]
+		return (
+			<Stack direction="column" gap="xs">
+				<Text variant="body-sm">{described.label}</Text>
+				{offered.map((pair) => (
+					<CheckboxControl
+						__nextHasNoMarginBottom
+						key={pair.value}
+						label={pair.label}
+						checked={held.includes(pair.value)}
+						onChange={(next) =>
+							onChange(
+								described.setValue({
+									item: data,
+									value: next ? [...held, pair.value] : held.filter((one) => one !== pair.value),
+								}),
+							)
+						}
+					/>
+				))}
+			</Stack>
+		)
+	}
+}
+
+/**
+ * Returns the string members a value holds.
+ * @param value - The buffered value.
+ * @returns The strings, empty for anything else.
+ */
+function wordsHeld(value: unknown): string[] {
+	return Array.isArray(value) ? value.filter((one): one is string => typeof one === 'string') : []
 }
 
 /**

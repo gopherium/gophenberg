@@ -172,6 +172,64 @@ test('leaves a sibling its own complaint while a number sits outside its max', a
 	expect((color as HTMLInputElement).validationMessage).not.toBe('')
 })
 
+test('shows a checkbox per listed answer and keeps a stored stray checked', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			choices: [
+				{ value: 'ipa', label: 'IPA' },
+				{ value: 'stout', label: 'Stout' },
+			],
+		},
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { styles: ['stout', 'homebrew'] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	const stout = await screen.findByRole('checkbox', { name: 'Stout' })
+	expect(stout).toBeChecked()
+	expect(screen.getByRole('checkbox', { name: 'homebrew' })).toBeChecked()
+	const ipa = screen.getByRole('checkbox', { name: 'IPA' })
+	expect(ipa).not.toBeChecked()
+
+	await userEvent.click(ipa)
+	await userEvent.click(stout)
+
+	expect(ipa).toBeChecked()
+	expect(stout).not.toBeChecked()
+})
+
+test('offers every checkbox unticked when the item holds no answer yet', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			choices: [
+				{ value: 'ipa', label: 'IPA' },
+				{ value: 'stout', label: 'Stout' },
+			],
+		},
+	})
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByRole('checkbox', { name: 'IPA' })).not.toBeChecked()
+	expect(screen.getByRole('checkbox', { name: 'Stout' })).not.toBeChecked()
+})
+
 test('shows the instructions a field carries under its control', async () => {
 	declaring({ ...A_TEXT_FIELD, settings: { instructions: 'Name the colour.' } })
 	renderAt(EDITOR_PATH)

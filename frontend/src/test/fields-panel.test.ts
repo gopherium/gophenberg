@@ -202,6 +202,24 @@ test('ignores a setting whose value is the wrong shape', () => {
 	expect(held[0].isValid).toEqual({ required: false })
 })
 
+test('hands a checkbox group its own control', () => {
+	const held = fieldDescriptors([
+		carrying('choice', {
+			presentation: 'checkbox',
+			multiple: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		}),
+	])
+
+	expect(typeof held[0].Edit).toBe('function')
+})
+
+test('leaves a checkbox group listing nothing on the many values box', () => {
+	const held = fieldDescriptors([carrying('choice', { presentation: 'checkbox', multiple: true })])
+
+	expect(held[0].Edit).toBeUndefined()
+})
+
 test('names the floor under a number below its min', () => {
 	const spoken = fieldValidity([carrying('number', { min: 5 })], { 'a-number': 2 })
 
