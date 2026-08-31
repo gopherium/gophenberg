@@ -2,7 +2,7 @@
 
 import { expect, test } from 'vitest'
 
-import { clearedEdits, editableFields, fieldDescriptors } from '../content/FieldsPanel'
+import { clearedEdits, editableFields, fieldDescriptors, fieldValidity } from '../content/FieldsPanel'
 import type { ContentField } from '../content/types'
 
 /**
@@ -200,4 +200,48 @@ test('ignores a setting whose value is the wrong shape', () => {
 	const held = fieldDescriptors([carrying('number', { min: 'low', max: true })])
 
 	expect(held[0].isValid).toEqual({ required: false })
+})
+
+test('names the floor under a number below its min', () => {
+	const spoken = fieldValidity([carrying('number', { min: 5 })], { 'a-number': 2 })
+
+	expect(spoken).toEqual({
+		'a-number': {
+			custom: {
+				type: 'invalid',
+				message: 'number goes no lower than 5. Raise the value and save again.',
+			},
+		},
+	})
+})
+
+test('names the ceiling over a number above its max', () => {
+	const spoken = fieldValidity([carrying('number', { max: 10 })], { 'a-number': 50 })
+
+	expect(spoken).toEqual({
+		'a-number': {
+			custom: {
+				type: 'invalid',
+				message: 'number goes no higher than 10. Lower the value and save again.',
+			},
+		},
+	})
+})
+
+test('holds no complaint for what the bounds allow', () => {
+	const bounded = [carrying('number', { min: 1, max: 10 })]
+
+	expect(fieldValidity(bounded, { 'a-number': 5 })).toBeUndefined()
+	expect(fieldValidity(bounded, { 'a-number': 1 })).toBeUndefined()
+	expect(fieldValidity(bounded, { 'a-number': 10 })).toBeUndefined()
+	expect(fieldValidity(bounded, {})).toBeUndefined()
+	expect(fieldValidity(bounded, { 'a-number': null })).toBeUndefined()
+	expect(fieldValidity(bounded, { 'a-number': 'five' })).toBeUndefined()
+})
+
+test('holds no complaint for an unbounded number or a bounded text', () => {
+	expect(fieldValidity([carrying('number', {})], { 'a-number': 50 })).toBeUndefined()
+	expect(
+		fieldValidity([carrying('text', { maxlength: 2 })], { 'a-text': 'far too long' }),
+	).toBeUndefined()
 })

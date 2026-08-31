@@ -97,9 +97,11 @@ your typing. Anything else the field will not take is refused when
 you save, drafts included, and autosave keeps it meanwhile so you
 fix the value rather than lose it. That covers a number outside
 Lowest or Highest, an address that does not read as one, and an
-answer a choice does not list. Tightening any of these leaves
-stored values alone, and is refused while the field's own Default
-falls outside.
+answer a choice does not list. The editor also names a number
+outside Lowest or Highest under its own control as you fill the
+item in, so you can mend it before saving rather than after.
+Tightening any of these leaves stored values alone, and is refused
+while the field's own Default falls outside.
 
 **Steps of** moves a Range field's slider one notch. A Range needs
 both Lowest and Highest before it draws a slider, and is a plain
