@@ -2013,3 +2013,11 @@ msgstr ""
 
 msgid "Yes"
 msgstr "Oui"
+
+#, fuzzy
+msgid "Add"
+msgstr "Ajouter"
+
+#, fuzzy
+msgid "Other"
+msgstr "Autre"

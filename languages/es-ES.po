@@ -1594,3 +1594,11 @@ msgstr "Sin rol"
 msgctxt "field group"
 msgid "Status"
 msgstr "Estado"
+
+#, fuzzy
+msgid "Add"
+msgstr "Anadir"
+
+#, fuzzy
+msgid "Other"
+msgstr "Otro"
