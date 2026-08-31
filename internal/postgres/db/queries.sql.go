@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addRelation = `-- name: AddRelation :exec
@@ -297,7 +298,7 @@ VALUES (
     (SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields WHERE group_id = $1),
     $8, $9, $10
 )
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 `
 
 type CreateContentFieldParams struct {
@@ -341,6 +342,7 @@ func (q *Queries) CreateContentField(ctx context.Context, arg CreateContentField
 		&i.GroupID,
 		&i.Settings,
 		&i.ParentFieldID,
+		&i.Depth,
 	)
 	return i, err
 }
@@ -547,6 +549,72 @@ func (q *Queries) CreateRevision(ctx context.Context, arg CreateRevisionParams) 
 	return err
 }
 
+const createSubContentField = `-- name: CreateSubContentField :one
+INSERT INTO core.content_fields (
+    group_id, parent_field_id, key, label, kind, relates_to, many, required,
+    position, created_at, updated_at, settings, depth
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8,
+    (
+        SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields
+        WHERE parent_field_id = $2
+    ),
+    $9, $10, $11, $12
+)
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
+`
+
+type CreateSubContentFieldParams struct {
+	GroupID       int32
+	ParentFieldID pgtype.Int4
+	Key           string
+	Label         string
+	Kind          string
+	RelatesTo     *string
+	Many          bool
+	Required      bool
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Settings      []byte
+	Depth         int32
+}
+
+func (q *Queries) CreateSubContentField(ctx context.Context, arg CreateSubContentFieldParams) (CoreContentField, error) {
+	row := q.db.QueryRow(ctx, createSubContentField,
+		arg.GroupID,
+		arg.ParentFieldID,
+		arg.Key,
+		arg.Label,
+		arg.Kind,
+		arg.RelatesTo,
+		arg.Many,
+		arg.Required,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.Settings,
+		arg.Depth,
+	)
+	var i CoreContentField
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Label,
+		&i.Kind,
+		&i.RelatesTo,
+		&i.Many,
+		&i.Required,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Position,
+		&i.GroupID,
+		&i.Settings,
+		&i.ParentFieldID,
+		&i.Depth,
+	)
+	return i, err
+}
+
 const deleteAutosave = `-- name: DeleteAutosave :exec
 DELETE FROM core.content_revisions AS r
 WHERE r.content_id = $1 AND r.author_id = $2 AND r.kind = 'autosave'
@@ -662,6 +730,33 @@ func (q *Queries) DeleteRevision(ctx context.Context, arg DeleteRevisionParams) 
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const fieldByID = `-- name: FieldByID :one
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
+FROM core.content_fields WHERE id = $1
+`
+
+func (q *Queries) FieldByID(ctx context.Context, id int32) (CoreContentField, error) {
+	row := q.db.QueryRow(ctx, fieldByID, id)
+	var i CoreContentField
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Label,
+		&i.Kind,
+		&i.RelatesTo,
+		&i.Many,
+		&i.Required,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Position,
+		&i.GroupID,
+		&i.Settings,
+		&i.ParentFieldID,
+		&i.Depth,
+	)
+	return i, err
 }
 
 const getAutosave = `-- name: GetAutosave :one
@@ -998,7 +1093,7 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 }
 
 const listContentFields = `-- name: ListContentFields :many
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 FROM core.content_fields ORDER BY group_id, position, id
 `
 
@@ -1025,6 +1120,7 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 			&i.GroupID,
 			&i.Settings,
 			&i.ParentFieldID,
+			&i.Depth,
 		); err != nil {
 			return nil, err
 		}
@@ -1037,7 +1133,7 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 }
 
 const listContentFieldsOfGroup = `-- name: ListContentFieldsOfGroup :many
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 FROM core.content_fields WHERE group_id = $1 ORDER BY position, id
 `
 
@@ -1064,6 +1160,7 @@ func (q *Queries) ListContentFieldsOfGroup(ctx context.Context, groupID int32) (
 			&i.GroupID,
 			&i.Settings,
 			&i.ParentFieldID,
+			&i.Depth,
 		); err != nil {
 			return nil, err
 		}
@@ -1621,7 +1718,7 @@ SET group_id = $1,
     ),
     updated_at = $2
 WHERE moved.group_id = $3 AND moved.key = $4 AND moved.parent_field_id IS NULL
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 `
 
 type MoveContentFieldParams struct {
@@ -1653,6 +1750,7 @@ func (q *Queries) MoveContentField(ctx context.Context, arg MoveContentFieldPara
 		&i.GroupID,
 		&i.Settings,
 		&i.ParentFieldID,
+		&i.Depth,
 	)
 	return i, err
 }
@@ -2068,7 +2166,7 @@ UPDATE core.content_fields
 SET label = $1, required = $2, settings = $3, updated_at = $4
 WHERE group_id = $5 AND key = $6 AND parent_field_id IS NULL
     AND updated_at = $7
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 `
 
 type UpdateContentFieldParams struct {
@@ -2106,6 +2204,7 @@ func (q *Queries) UpdateContentField(ctx context.Context, arg UpdateContentField
 		&i.GroupID,
 		&i.Settings,
 		&i.ParentFieldID,
+		&i.Depth,
 	)
 	return i, err
 }

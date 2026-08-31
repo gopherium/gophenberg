@@ -44,6 +44,7 @@ type CoreContentField struct {
 	GroupID       int32
 	Settings      []byte
 	ParentFieldID pgtype.Int4
+	Depth         int32
 }
 
 type CoreContentRelation struct {
