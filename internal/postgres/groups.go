@@ -41,6 +41,38 @@ func locationJSON(location content.Rules) []byte {
 	return raw
 }
 
+// fieldsByGroup returns the declared rows as trees of fields, keyed by the group holding them.
+func fieldsByGroup(declared []db.CoreContentField) map[int][]content.Field {
+	inside := map[int][]content.Field{}
+	for _, row := range declared {
+		if row.ParentFieldID.Valid {
+			at := int(row.ParentFieldID.Int32)
+			inside[at] = append(inside[at], toField(row))
+		}
+	}
+	held := map[int][]content.Field{}
+	for _, row := range declared {
+		if row.ParentFieldID.Valid {
+			continue
+		}
+		held[int(row.GroupID)] = append(held[int(row.GroupID)], grownField(toField(row), inside))
+	}
+	return held
+}
+
+// grownField returns the field carrying the sub fields standing under it, however deep they run.
+func grownField(f content.Field, inside map[int][]content.Field) content.Field {
+	if len(inside[f.ID]) == 0 {
+		return f
+	}
+	grown := make([]content.Field, 0, len(inside[f.ID]))
+	for _, sub := range inside[f.ID] {
+		grown = append(grown, grownField(sub, inside))
+	}
+	f.Fields = grown
+	return f
+}
+
 // groupsWithFields loads every group in position order with its fields attached.
 func groupsWithFields(ctx context.Context, queries *db.Queries) ([]content.Group, error) {
 	rows, err := queries.ListFieldGroups(ctx)
@@ -51,10 +83,7 @@ func groupsWithFields(ctx context.Context, queries *db.Queries) ([]content.Group
 	if err != nil {
 		return nil, fmt.Errorf("postgres: list content fields: %w", err)
 	}
-	held := make(map[int][]content.Field, len(rows))
-	for _, row := range declared {
-		held[int(row.GroupID)] = append(held[int(row.GroupID)], toField(row))
-	}
+	held := fieldsByGroup(declared)
 	groups := make([]content.Group, len(rows))
 	for i, row := range rows {
 		group, err := toGroup(row)

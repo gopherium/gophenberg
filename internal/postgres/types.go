@@ -337,6 +337,9 @@ func toField(row db.CoreContentField) content.Field {
 	if row.RelatesTo != nil {
 		f.RelatesTo = *row.RelatesTo
 	}
+	if row.ParentFieldID.Valid {
+		f.ParentID = int(row.ParentFieldID.Int32)
+	}
 	f.Settings = settingsOf(row.Settings)
 	return f
 }

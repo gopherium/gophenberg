@@ -59,6 +59,7 @@ const (
 type Field struct {
 	ID        int
 	GroupID   int
+	ParentID  int
 	TypeKey   string
 	Key       string
 	Label     string
