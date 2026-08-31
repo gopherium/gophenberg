@@ -283,6 +283,53 @@ test('holds no complaint for what the bounds allow', () => {
 	expect(fieldValidity(bounded, { 'a-number': 'five' })).toBeUndefined()
 })
 
+test('names an answer a choice field does not list', () => {
+	const listing = carrying('choice', { choices: [{ value: 'ipa', label: 'IPA' }] })
+
+	expect(fieldValidity([listing], { 'a-choice': 'homebrew' })).toEqual({
+		'a-choice': {
+			custom: {
+				type: 'invalid',
+				message: 'choice only takes one of its listed choices. Pick one and save again.',
+			},
+		},
+	})
+})
+
+test('names an answer a many values field does not list', () => {
+	const listing = carrying('choice', {
+		multiple: true,
+		choices: [{ value: 'ipa', label: 'IPA' }],
+	})
+
+	expect(fieldValidity([listing], { 'a-choice': ['ipa', 'homebrew'] })).toEqual({
+		'a-choice': {
+			custom: {
+				type: 'invalid',
+				message: 'choice only takes one of its listed choices. Pick one and save again.',
+			},
+		},
+	})
+})
+
+test('holds no complaint for a choice field that takes what it does not list', () => {
+	const taking = carrying('choice', {
+		allow_custom: true,
+		choices: [{ value: 'ipa', label: 'IPA' }],
+	})
+
+	expect(fieldValidity([taking], { 'a-choice': 'homebrew' })).toBeUndefined()
+})
+
+test('holds no complaint for a listed answer, an emptied one, or a field listing none', () => {
+	const listing = carrying('choice', { choices: [{ value: 'ipa', label: 'IPA' }] })
+
+	expect(fieldValidity([listing], { 'a-choice': 'ipa' })).toBeUndefined()
+	expect(fieldValidity([listing], { 'a-choice': '' })).toBeUndefined()
+	expect(fieldValidity([listing], { 'a-choice': 7 })).toBeUndefined()
+	expect(fieldValidity([carrying('choice', {})], { 'a-choice': 'homebrew' })).toBeUndefined()
+})
+
 test('holds no complaint for an unbounded number or a bounded text', () => {
 	expect(fieldValidity([carrying('number', {})], { 'a-number': 50 })).toBeUndefined()
 	expect(

@@ -76,7 +76,23 @@ export function editableFields(declared: ContentField[]): ContentField[] {
  * @returns The sentence, or undefined.
  */
 function boundBroken(field: ContentField, value: unknown): string | undefined {
-	if (field.kind !== 'number' || typeof value !== 'number') {
+	if (field.kind === 'number') {
+		return numberBroken(field, value)
+	}
+	if (field.kind === 'choice') {
+		return choiceBroken(field, value)
+	}
+	return undefined
+}
+
+/**
+ * Returns the sentence a number outside its bounds earns, or nothing when the value stands.
+ * @param field - The declared field the value sits under.
+ * @param value - The buffered value.
+ * @returns The sentence, or undefined.
+ */
+function numberBroken(field: ContentField, value: unknown): string | undefined {
+	if (typeof value !== 'number') {
 		return undefined
 	}
 	const low = field.settings.min
@@ -88,6 +104,27 @@ function boundBroken(field: ContentField, value: unknown): string | undefined {
 		return sprintf(errorTemplates().field_max, { field: field.label, limit: high } as never)
 	}
 	return undefined
+}
+
+/**
+ * Returns the sentence an answer the field does not list earns, or nothing when it stands.
+ * @param field - The declared field the value sits under.
+ * @param value - The buffered value.
+ * @returns The sentence, or undefined.
+ */
+function choiceBroken(field: ContentField, value: unknown): string | undefined {
+	const pairs = pairsOf(field.settings)
+	if (field.settings.allow_custom === true || pairs.length === 0) {
+		return undefined
+	}
+	const held = Array.isArray(value) ? value : [value]
+	const strays = held.filter(
+		(one) => typeof one === 'string' && one !== '' && !pairs.some((pair) => pair.value === one),
+	)
+	if (strays.length === 0) {
+		return undefined
+	}
+	return sprintf(errorTemplates().field_choice, { field: field.label } as never)
 }
 
 /**
@@ -266,7 +303,12 @@ function checkboxesEdit(
 	 * @returns The checkbox list element.
 	 */
 	const taking = field.settings.allow_custom === true
-	return function CheckboxesEdit({ data, field: described, onChange }: DataFormControlProps<FieldValues>) {
+	return function CheckboxesEdit({
+		data,
+		field: described,
+		onChange,
+		validity,
+	}: DataFormControlProps<FieldValues>) {
 		const held = wordsHeld(described.getValue({ item: data }))
 		const strays = held.filter((one) => !pairs.some((pair) => pair.value === one))
 		const offered = [...pairs, ...strays.map((one) => ({ value: one, label: one }))]
@@ -292,9 +334,26 @@ function checkboxesEdit(
 					/>
 				))}
 				{taking && <OtherAdder onAdd={(word) => carry(held.includes(word) ? held : [...held, word])} />}
+				<Complaint validity={validity} />
 			</Stack>
 		)
 	}
+}
+
+/**
+ * Renders the sentence a turned away value earns, or nothing while the value stands.
+ * @param props - The validity the control was handed.
+ * @returns The sentence element, or nothing.
+ */
+function Complaint(props: { validity: FieldValidity | undefined }) {
+	if (props.validity?.custom?.type !== 'invalid') {
+		return null
+	}
+	return (
+		<Text variant="body-sm" role="alert">
+			{props.validity.custom.message}
+		</Text>
+	)
 }
 
 /**

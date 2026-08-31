@@ -251,6 +251,63 @@ test('takes a custom answer typed into the other box of a radio group', async ()
 	expect(screen.getByRole('radio', { name: 'IPA' })).not.toBeChecked()
 })
 
+test('names an answer the many values box no longer lists', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: { multiple: true, choices: [{ value: 'ipa', label: 'IPA' }] },
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { styles: ['homebrew'] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByLabelText('Styles'))
+	await userEvent.tab()
+
+	expect(
+		await screen.findByText('Styles only takes one of its listed choices. Pick one and save again.'),
+	).toBeInTheDocument()
+})
+
+test('names an answer a checkbox group no longer lists', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		},
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { styles: ['homebrew'] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	expect(
+		await screen.findByText('Styles only takes one of its listed choices. Pick one and save again.'),
+	).toBeInTheDocument()
+
+	await userEvent.click(screen.getByRole('checkbox', { name: 'homebrew' }))
+
+	await waitFor(() =>
+		expect(
+			screen.queryByText('Styles only takes one of its listed choices. Pick one and save again.'),
+		).toBeNull(),
+	)
+})
+
 test('adds a custom answer to a checkbox group taking them', async () => {
 	declaring({
 		key: 'styles',
