@@ -11,6 +11,14 @@ npm-style tag stays invisible to the Go toolchain, unlike a
 `sdk/astro/vX.Y.Z` tag naming the directory as a module. Versions
 through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 
+## Unreleased
+
+### Added
+
+- `heldSection` reads the values a section holds under its key.
+- `heldRows` reads the rows a repeater holds, leaving out what is not one.
+- `heldValue` reads the value a path of keys and row numbers addresses.
+
 ## [0.10.0] - 2026-08-30
 
 ### Added
