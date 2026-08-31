@@ -101,6 +101,67 @@ func TestInlineMediaKeyServesEachDeclaredShape(t *testing.T) {
 	}
 }
 
+// containing returns a container field of the kind carrying the sub fields.
+func containing(key string, kind content.FieldKind, held ...content.Field) content.Field {
+	return content.Field{Key: key, Kind: kind, Fields: held}
+}
+
+func TestMediaIDsHeldReachesInsideContainers(t *testing.T) {
+	t.Parallel()
+
+	held := content.Type{Fields: []content.Field{
+		containing("author", content.FieldKindSection, galleryField("portrait", false)),
+		containing("team", content.FieldKindRepeater, galleryField("shots", true)),
+	}}
+	values := content.Values{
+		"author": map[string]any{"portrait": float64(7)},
+		"team": []any{
+			map[string]any{"shots": []any{float64(8)}},
+			map[string]any{"shots": []any{float64(9)}},
+		},
+	}
+
+	ids := mediaIDsHeld(held, values)
+
+	if len(ids) != 3 {
+		t.Errorf("mediaIDsHeld() = %v, want the three named inside the containers", ids)
+	}
+	stray := content.Values{"author": "not-a-section", "team": []any{"not-a-row"}}
+	if named := mediaIDsHeld(held, stray); named != nil {
+		t.Errorf("mediaIDsHeld(stray) = %v, want nothing named by what holds no sub fields", named)
+	}
+}
+
+func TestInlineMediaValuesClearsAStrayInsideEveryRow(t *testing.T) {
+	t.Parallel()
+
+	held := content.Type{Fields: []content.Field{
+		containing("author", content.FieldKindSection, galleryField("portrait", false)),
+		containing("team", content.FieldKindRepeater, galleryField("shots", true)),
+	}}
+	values := content.Values{
+		"author": map[string]any{"portrait": "not-an-identity"},
+		"team":   []any{map[string]any{"shots": []any{"stray"}}},
+	}
+
+	if err := (&server{}).inlineMediaValues(nil, held, values); err != nil {
+		t.Fatalf("inlineMediaValues() error = %v, want nil", err)
+	}
+
+	inside, _ := values["author"].(map[string]any)
+	if len(inside) != 0 {
+		t.Errorf("the section holds %v, want the stray portrait deleted", inside)
+	}
+	rows, _ := values["team"].([]any)
+	if len(rows) != 1 {
+		t.Fatalf("the rows are %v, want the one planted", rows)
+	}
+	row, _ := rows[0].(map[string]any)
+	if len(row) != 0 {
+		t.Errorf("the row holds %v, want the stray shots deleted", row)
+	}
+}
+
 func TestInlineMediaValuesClearsAFieldEvenWhenNothingResolves(t *testing.T) {
 	t.Parallel()
 
