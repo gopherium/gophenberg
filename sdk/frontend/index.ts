@@ -50,7 +50,7 @@ export {
 	chevronUp as upIcon,
 } from '@wordpress/icons'
 export { TextareaControl } from './TextareaControl'
-export { RangeControl } from '@wordpress/components'
+export { CheckboxControl, RangeControl } from '@wordpress/components'
 export {
 	ADMIN,
 	AUTHOR,
