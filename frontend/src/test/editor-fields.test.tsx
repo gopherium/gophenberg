@@ -460,6 +460,171 @@ test('offers every checkbox unticked when the item holds no answer yet', async (
 	expect(screen.getByRole('checkbox', { name: 'Stout' })).not.toBeChecked()
 })
 
+test('shows one control per sub field a section declares', async () => {
+	declaring({
+		key: 'author',
+		label: 'Author',
+		kind: 'section',
+		many: false,
+		required: false,
+		fields: [
+			{ key: 'name', label: 'Name', kind: 'text', many: false, required: false, updated_at: STAMP },
+			{ key: 'bio', label: 'Bio', kind: 'text', many: false, required: false, updated_at: STAMP },
+		],
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { author: { name: 'Maria Perez' } } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByLabelText('Name')).toHaveValue('Maria Perez')
+	expect(screen.getByLabelText('Bio')).toHaveValue('')
+})
+
+test('writes a sub field back inside the section that holds it', async () => {
+	declaring({
+		key: 'author',
+		label: 'Author',
+		kind: 'section',
+		many: false,
+		required: false,
+		fields: [
+			{ key: 'name', label: 'Name', kind: 'text', many: false, required: false, updated_at: STAMP },
+		],
+	})
+	renderAt(EDITOR_PATH)
+
+	await userEvent.type(await screen.findByLabelText('Name'), 'Kip')
+
+	expect(screen.getByLabelText('Name')).toHaveValue('Kip')
+})
+
+test('shows one row of controls per row a repeater holds', async () => {
+	declaring({
+		key: 'team',
+		label: 'Team',
+		kind: 'repeater',
+		many: false,
+		required: false,
+		fields: [
+			{ key: 'name', label: 'Name', kind: 'text', many: false, required: false, updated_at: STAMP },
+		],
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({
+				...storedPost,
+				fields: { team: [{ name: 'Maria Perez' }, { name: 'Kip' }] },
+			}),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	const boxes = await screen.findAllByLabelText('Name')
+	expect(boxes).toHaveLength(2)
+	expect(boxes[0]).toHaveValue('Maria Perez')
+	expect(boxes[1]).toHaveValue('Kip')
+})
+
+test('adds and removes the rows of a repeater', async () => {
+	declaring({
+		key: 'team',
+		label: 'Team',
+		kind: 'repeater',
+		many: false,
+		required: false,
+		fields: [
+			{ key: 'name', label: 'Name', kind: 'text', many: false, required: false, updated_at: STAMP },
+		],
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { team: [{ name: 'Maria Perez' }] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add row' }))
+
+	expect(screen.getAllByLabelText('Name')).toHaveLength(2)
+
+	await userEvent.click(screen.getAllByRole('button', { name: 'Remove row' })[0])
+
+	const left = screen.getAllByLabelText('Name')
+	expect(left).toHaveLength(1)
+	expect(left[0]).toHaveValue('')
+})
+
+test('writes a value back into the row that holds it', async () => {
+	declaring({
+		key: 'team',
+		label: 'Team',
+		kind: 'repeater',
+		many: false,
+		required: false,
+		fields: [
+			{ key: 'name', label: 'Name', kind: 'text', many: false, required: false, updated_at: STAMP },
+		],
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { team: [{ name: 'Maria Perez' }, {}] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	const boxes = await screen.findAllByLabelText('Name')
+
+	await userEvent.type(boxes[1], 'Kip')
+
+	expect(screen.getAllByLabelText('Name')[0]).toHaveValue('Maria Perez')
+	expect(screen.getAllByLabelText('Name')[1]).toHaveValue('Kip')
+})
+
+test('offers empty controls when a container holds nothing it can read', async () => {
+	declaring({
+		key: 'author',
+		label: 'Author',
+		kind: 'section',
+		many: false,
+		required: false,
+		fields: [
+			{ key: 'name', label: 'Name', kind: 'text', many: false, required: false, updated_at: STAMP },
+		],
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { author: 'not-a-section' } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByLabelText('Name')).toHaveValue('')
+})
+
+test('offers no rows when a repeater holds nothing it can read', async () => {
+	declaring({
+		key: 'team',
+		label: 'Team',
+		kind: 'repeater',
+		many: false,
+		required: false,
+		fields: [
+			{ key: 'name', label: 'Name', kind: 'text', many: false, required: false, updated_at: STAMP },
+		],
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { team: 'not-rows' } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByRole('button', { name: 'Add row' })).toBeInTheDocument()
+	expect(screen.queryByLabelText('Name')).toBeNull()
+})
+
 test('shows the instructions a field carries under its control', async () => {
 	declaring({ ...A_TEXT_FIELD, settings: { instructions: 'Name the colour.' } })
 	renderAt(EDITOR_PATH)

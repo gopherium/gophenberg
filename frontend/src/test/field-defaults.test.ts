@@ -21,6 +21,7 @@ function declared(key: string, kind: string, settings: Record<string, unknown>):
 		many: false,
 		required: false,
 		settings,
+		fields: [],
 		updatedAt: '2026-08-01T10:00:00Z',
 	}
 }

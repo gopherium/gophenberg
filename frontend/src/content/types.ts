@@ -6,16 +6,32 @@ import { z } from 'zod'
 import { errorText } from '../i18n/errors'
 import type { Choice } from './select'
 
-export const fieldSchema = z.object({
-	key: z.string(),
-	label: z.string(),
-	kind: z.string(),
-	relates_to: z.string().optional(),
-	many: z.boolean(),
-	required: z.boolean(),
-	settings: z.record(z.string(), z.unknown()).optional(),
-	updated_at: z.string(),
-})
+/** A field row as the API answers it, holding the sub fields a container declares. */
+export interface FieldRow {
+	key: string
+	label: string
+	kind: string
+	relates_to?: string
+	many: boolean
+	required: boolean
+	settings?: Record<string, unknown>
+	fields?: FieldRow[]
+	updated_at: string
+}
+
+export const fieldSchema: z.ZodType<FieldRow> = z.lazy(() =>
+	z.object({
+		key: z.string(),
+		label: z.string(),
+		kind: z.string(),
+		relates_to: z.string().optional(),
+		many: z.boolean(),
+		required: z.boolean(),
+		settings: z.record(z.string(), z.unknown()).optional(),
+		fields: z.array(fieldSchema).optional(),
+		updated_at: z.string(),
+	}),
+)
 
 const typeSchema = z.object({
 	key: z.string(),
@@ -48,6 +64,7 @@ export interface ContentField {
 	many: boolean
 	required: boolean
 	settings: Record<string, unknown>
+	fields: ContentField[]
 	updatedAt: string
 }
 
@@ -118,6 +135,7 @@ export function toField(row: z.infer<typeof fieldSchema>): ContentField {
 		many: row.many,
 		required: row.required,
 		settings: row.settings ?? {},
+		fields: (row.fields ?? []).map(toField),
 		updatedAt: row.updated_at,
 	}
 }

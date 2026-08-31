@@ -20,6 +20,7 @@ function declared(kind: string, required = false): ContentField {
 		many: false,
 		required,
 		settings: {},
+		fields: [],
 		updatedAt: '2026-08-01T10:00:00Z',
 	}
 }
@@ -79,6 +80,7 @@ function carrying(kind: string, settings: Record<string, unknown>): ContentField
 		many: false,
 		required: false,
 		settings,
+		fields: [],
 		updatedAt: '2026-08-01T10:00:00Z',
 	}
 }
