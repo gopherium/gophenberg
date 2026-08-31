@@ -391,7 +391,7 @@ SET group_id = @to_group,
         FROM core.content_fields AS landing WHERE landing.group_id = @to_group
     ),
     updated_at = @updated_at
-WHERE moved.group_id = @group_id AND moved.key = @key
+WHERE moved.group_id = @group_id AND moved.key = @key AND moved.parent_field_id IS NULL
 RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id;
 
 -- name: GroupByLocation :one
@@ -436,11 +436,13 @@ WHERE core.content_fields.group_id = @group_id AND core.content_fields.key = ord
 -- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = @label, required = @required, settings = @settings, updated_at = @updated_at
-WHERE group_id = @group_id AND key = @key AND updated_at = @expected_updated_at
+WHERE group_id = @group_id AND key = @key AND parent_field_id IS NULL
+    AND updated_at = @expected_updated_at
 RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id;
 
 -- name: DeleteContentField :execrows
-DELETE FROM core.content_fields WHERE group_id = @group_id AND key = @key;
+DELETE FROM core.content_fields
+WHERE group_id = @group_id AND key = @key AND parent_field_id IS NULL;
 
 -- name: LockDeclaredFieldKeys :many
 SELECT key FROM core.content_fields ORDER BY key

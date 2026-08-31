@@ -575,7 +575,8 @@ func (q *Queries) DeleteContent(ctx context.Context, id uuid.UUID) (int64, error
 }
 
 const deleteContentField = `-- name: DeleteContentField :execrows
-DELETE FROM core.content_fields WHERE group_id = $1 AND key = $2
+DELETE FROM core.content_fields
+WHERE group_id = $1 AND key = $2 AND parent_field_id IS NULL
 `
 
 type DeleteContentFieldParams struct {
@@ -1619,7 +1620,7 @@ SET group_id = $1,
         FROM core.content_fields AS landing WHERE landing.group_id = $1
     ),
     updated_at = $2
-WHERE moved.group_id = $3 AND moved.key = $4
+WHERE moved.group_id = $3 AND moved.key = $4 AND moved.parent_field_id IS NULL
 RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
 `
 
@@ -2065,7 +2066,8 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (C
 const updateContentField = `-- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = $1, required = $2, settings = $3, updated_at = $4
-WHERE group_id = $5 AND key = $6 AND updated_at = $7
+WHERE group_id = $5 AND key = $6 AND parent_field_id IS NULL
+    AND updated_at = $7
 RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
 `
 
