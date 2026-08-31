@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type CoreContent struct {
@@ -30,18 +31,19 @@ type CoreContent struct {
 }
 
 type CoreContentField struct {
-	ID        int32
-	Key       string
-	Label     string
-	Kind      string
-	RelatesTo *string
-	Many      bool
-	Required  bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Position  int32
-	GroupID   int32
-	Settings  []byte
+	ID            int32
+	Key           string
+	Label         string
+	Kind          string
+	RelatesTo     *string
+	Many          bool
+	Required      bool
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Position      int32
+	GroupID       int32
+	Settings      []byte
+	ParentFieldID pgtype.Int4
 }
 
 type CoreContentRelation struct {

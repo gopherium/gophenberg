@@ -35,7 +35,7 @@ const restrictViolationCode = "23001"
 const foreignKeyViolationCode = "23503"
 
 // fieldKeyConstraint names the unique index over one group's field keys.
-const fieldKeyConstraint = "content_fields_group_key_unique"
+const fieldKeyConstraint = "content_fields_scope_key_unique"
 
 // fieldGroupConstraint names the reference a field keeps to its group.
 const fieldGroupConstraint = "content_fields_group_fkey"

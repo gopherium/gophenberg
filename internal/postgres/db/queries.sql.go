@@ -297,7 +297,7 @@ VALUES (
     (SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields WHERE group_id = $1),
     $8, $9, $10
 )
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
 `
 
 type CreateContentFieldParams struct {
@@ -340,6 +340,7 @@ func (q *Queries) CreateContentField(ctx context.Context, arg CreateContentField
 		&i.Position,
 		&i.GroupID,
 		&i.Settings,
+		&i.ParentFieldID,
 	)
 	return i, err
 }
@@ -996,7 +997,7 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 }
 
 const listContentFields = `-- name: ListContentFields :many
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
 FROM core.content_fields ORDER BY group_id, position, id
 `
 
@@ -1022,6 +1023,7 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 			&i.Position,
 			&i.GroupID,
 			&i.Settings,
+			&i.ParentFieldID,
 		); err != nil {
 			return nil, err
 		}
@@ -1034,7 +1036,7 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 }
 
 const listContentFieldsOfGroup = `-- name: ListContentFieldsOfGroup :many
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
 FROM core.content_fields WHERE group_id = $1 ORDER BY position, id
 `
 
@@ -1060,6 +1062,7 @@ func (q *Queries) ListContentFieldsOfGroup(ctx context.Context, groupID int32) (
 			&i.Position,
 			&i.GroupID,
 			&i.Settings,
+			&i.ParentFieldID,
 		); err != nil {
 			return nil, err
 		}
@@ -1617,7 +1620,7 @@ SET group_id = $1,
     ),
     updated_at = $2
 WHERE moved.group_id = $3 AND moved.key = $4
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
 `
 
 type MoveContentFieldParams struct {
@@ -1648,6 +1651,7 @@ func (q *Queries) MoveContentField(ctx context.Context, arg MoveContentFieldPara
 		&i.Position,
 		&i.GroupID,
 		&i.Settings,
+		&i.ParentFieldID,
 	)
 	return i, err
 }
@@ -2062,7 +2066,7 @@ const updateContentField = `-- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = $1, required = $2, settings = $3, updated_at = $4
 WHERE group_id = $5 AND key = $6 AND updated_at = $7
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id
 `
 
 type UpdateContentFieldParams struct {
@@ -2099,6 +2103,7 @@ func (q *Queries) UpdateContentField(ctx context.Context, arg UpdateContentField
 		&i.Position,
 		&i.GroupID,
 		&i.Settings,
+		&i.ParentFieldID,
 	)
 	return i, err
 }
