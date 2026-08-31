@@ -4,12 +4,14 @@ package postgres_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
 // keyCollision reports whether the error is the unique key refused.
@@ -124,6 +126,157 @@ func TestMovingATopFieldLeavesASubFieldSharingItsKey(t *testing.T) {
 	}
 }
 
+func TestCreatingASubFieldStoresItUnderItsParent(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	specs := declareSection(t, store, "specs")
+
+	held, err := store.CreateSubField(
+		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+
+	if err != nil {
+		t.Fatalf("CreateSubField() error = %v, want nil", err)
+	}
+	if held.ParentID != specs.ID {
+		t.Errorf("ParentID = %d, want %d", held.ParentID, specs.ID)
+	}
+	if held.GroupID != specs.GroupID {
+		t.Errorf("GroupID = %d, want the parent's group %d", held.GroupID, specs.GroupID)
+	}
+}
+
+func TestCreatingASubFieldOrdersItAfterItsSiblings(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	specs := declareSection(t, store, "specs")
+	other := declareSection(t, store, "extras")
+	if _, err := store.CreateSubField(
+		t.Context(), other.ID, fieldOn(t, "", "away", content.FieldKindText, "")); err != nil {
+		t.Fatalf("declaring a sibling elsewhere: %v, want nil", err)
+	}
+
+	for _, key := range []string{"title", "colour"} {
+		if _, err := store.CreateSubField(
+			t.Context(), specs.ID, fieldOn(t, "", key, content.FieldKindText, "")); err != nil {
+			t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
+		}
+	}
+
+	groups, err := store.ListGroups(t.Context())
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v, want nil", err)
+	}
+	held, found := groupNumbered(groups, specs.GroupID)
+	if !found {
+		t.Fatalf("the group %d is not served", specs.GroupID)
+	}
+	inside := subFieldsOf(held, "specs")
+	if len(inside) != 2 {
+		t.Fatalf("specs holds %d sub fields, want the two declared inside it alone", len(inside))
+	}
+	if inside[0].Key != "title" || inside[1].Key != "colour" {
+		t.Errorf("specs holds %q then %q, want them in the order they were declared",
+			inside[0].Key, inside[1].Key)
+	}
+}
+
+// subFieldsOf returns the sub fields the group's named field holds.
+func subFieldsOf(held content.Group, key string) []content.Field {
+	for _, f := range held.Fields {
+		if f.Key == key {
+			return f.Fields
+		}
+	}
+	return nil
+}
+
+func TestCreatingASubFieldReportsAParentThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+
+	_, err := store.CreateSubField(
+		t.Context(), 424242, fieldOn(t, "", "title", content.FieldKindText, ""))
+
+	if !errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("CreateSubField() error = %v, want %v", err, content.ErrFieldNotFound)
+	}
+}
+
+func TestCreatingASubFieldRefusesAParentHoldingNone(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	plain := declareTypedField(t, store, "car", "subtitle")
+
+	_, err := store.CreateSubField(
+		t.Context(), plain.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+
+	if !errors.Is(err, content.ErrFieldShape) {
+		t.Errorf("CreateSubField() error = %v, want %v", err, content.ErrFieldShape)
+	}
+}
+
+func TestCreatingASubFieldRefusesAParentChainTooDeep(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	at := declareSection(t, store, "specs")
+	for depth := 2; depth <= content.MaxFieldDepth; depth++ {
+		grown, err := store.CreateSubField(
+			t.Context(), at.ID, sectionOn(t, fmt.Sprintf("held%d", depth)))
+		if err != nil {
+			t.Fatalf("nesting a container to depth %d: %v, want nil", depth, err)
+		}
+		at = grown
+	}
+
+	if _, err := store.CreateSubField(
+		t.Context(), at.ID, fieldOn(t, "", "title", content.FieldKindText, "")); err != nil {
+		t.Fatalf("a field inside the last container: %v, want the depth taken", err)
+	}
+	further, err := store.CreateSubField(t.Context(), at.ID, sectionOn(t, "further"))
+	if err != nil {
+		t.Fatalf("a container at the last depth: %v, want it taken", err)
+	}
+
+	_, err = store.CreateSubField(
+		t.Context(), further.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+
+	if !errors.Is(err, content.ErrFieldTooDeep) {
+		t.Errorf("CreateSubField() one container too deep error = %v, want %v", err, content.ErrFieldTooDeep)
+	}
+}
+
+// sectionOn returns a section field ready to nest under a parent.
+func sectionOn(t *testing.T, key string) content.Field {
+	t.Helper()
+	built, err := content.NewField(content.Field{Key: key, Label: key, Kind: content.FieldKindSection})
+	if err != nil {
+		t.Fatalf("NewField(section %s) error = %v, want nil", key, err)
+	}
+	return built
+}
+
+// declareSection stores a section at the top of the car type and returns it.
+func declareSection(t *testing.T, store *postgres.TypeStore, key string) content.Field {
+	t.Helper()
+	held := sectionOn(t, key)
+	held.TypeKey = "car"
+	stored, err := store.CreateField(t.Context(), held)
+	if err != nil {
+		t.Fatalf("CreateField(section %s) error = %v, want nil", key, err)
+	}
+	return stored
+}
+
 func TestAGroupServesItsSubFieldsInsideTheirParent(t *testing.T) {
 	t.Parallel()
 
@@ -183,5 +336,54 @@ func TestDeletingAParentFieldRowTakesEveryDescendant(t *testing.T) {
 
 	if held := fieldRowsHolding(t, pool, specs.GroupID, "title"); held != 0 {
 		t.Errorf("rows holding title = %d, want the grandchild gone with its line", held)
+	}
+}
+
+func TestCreatingASubFieldReportsALockItCannotTake(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	top := declareSection(t, store, "specs")
+	holdFieldGroupsLock(t, pool)
+	timed := lockTimedStore(t, pool)
+
+	_, err := timed.CreateSubField(
+		t.Context(), top.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+
+	if err == nil {
+		t.Error("CreateSubField() error = nil, want the lock it could not take reported")
+	}
+}
+
+func TestCreatingASubFieldReportsAParentItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	top := declareSection(t, store, "specs")
+	sabotage(t, pool, "ALTER TABLE core.content_fields RENAME COLUMN label TO retired")
+
+	_, err := store.CreateSubField(
+		t.Context(), top.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+
+	if err == nil {
+		t.Error("CreateSubField() error = nil, want the unreadable parent reported")
+	}
+}
+
+func TestCreatingASubFieldReportsAWriteItCannotMake(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	top := declareSection(t, store, "specs")
+	raiseOn(t, pool, "core.content_fields", "INSERT")
+
+	_, err := store.CreateSubField(
+		t.Context(), top.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+
+	if err == nil {
+		t.Error("CreateSubField() error = nil, want the refused write reported")
 	}
 }

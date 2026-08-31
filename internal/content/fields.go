@@ -12,6 +12,12 @@ import (
 // ErrFieldNotFound reports that the type declares no field under the key.
 var ErrFieldNotFound = errors.New("content: field not found")
 
+// ErrFieldTooDeep reports that a field would stand deeper than a container tree runs.
+var ErrFieldTooDeep = errors.New("content: field nested too deep")
+
+// MaxFieldDepth is how many containers a field may stand inside.
+const MaxFieldDepth = 32
+
 // ErrFieldTaken reports that the type already declares a field under the key.
 var ErrFieldTaken = errors.New("content: field key taken")
 

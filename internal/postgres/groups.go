@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
@@ -561,6 +562,68 @@ func (s *TypeStore) settledFieldWrite(
 		return err
 	}
 	return fieldWriteFailure(err)
+}
+
+// CreateSubField declares the field inside the container the parent names.
+func (s *TypeStore) CreateSubField(ctx context.Context, parentID int, f content.Field) (content.Field, error) {
+	var created content.Field
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := queries.LockFieldGroups(ctx); err != nil {
+			return fmt.Errorf("postgres: lock field groups: %w", err)
+		}
+		parent, err := standingParent(ctx, queries, parentID, f)
+		if err != nil {
+			return err
+		}
+		row, err := queries.CreateSubContentField(ctx, db.CreateSubContentFieldParams{
+			GroupID:       parent.GroupID,
+			ParentFieldID: pgtype.Int4{Int32: int32(parentID), Valid: true},
+			Key:           f.Key,
+			Label:         f.Label,
+			Kind:          string(f.Kind),
+			RelatesTo:     targetOf(f),
+			Many:          f.Many,
+			Required:      f.Required,
+			CreatedAt:     f.CreatedAt,
+			UpdatedAt:     f.UpdatedAt,
+			Settings:      settingsJSON(f.Settings),
+			Depth:         parent.Depth + 1,
+		})
+		if err != nil {
+			return err
+		}
+		created = toField(row)
+		return nil
+	})
+	if err == nil {
+		return created, nil
+	}
+	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrFieldShape) ||
+		errors.Is(err, content.ErrFieldTooDeep) {
+		return content.Field{}, err
+	}
+	return content.Field{}, fieldWriteFailure(err)
+}
+
+// standingParent returns the row the sub field may stand under, or the reason it may not.
+func standingParent(
+	ctx context.Context, queries *db.Queries, parentID int, f content.Field,
+) (db.CoreContentField, error) {
+	parent, err := queries.FieldByID(ctx, int32(parentID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return parent, content.ErrFieldNotFound
+	}
+	if err != nil {
+		return parent, err
+	}
+	if _, err := content.NewSubField(f, content.FieldKind(parent.Kind)); err != nil {
+		return parent, err
+	}
+	if parent.Depth+1 > int32(content.MaxFieldDepth) {
+		return parent, content.ErrFieldTooDeep
+	}
+	return parent, nil
 }
 
 // CreateFieldInGroup declares the field inside the group.
