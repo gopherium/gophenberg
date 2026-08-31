@@ -124,6 +124,54 @@ test('names the ceiling under a number typed above its max', async () => {
 	)
 })
 
+test('leaves a sibling its own complaint while a number sits outside its max', async () => {
+	server.use(
+		http.get('/api/types', () =>
+			HttpResponse.json({
+				items: [
+					{
+						...TYPE_WITH_FIELDS,
+						fields: [
+							{
+								key: 'doors',
+								label: 'Doors',
+								kind: 'number',
+								many: false,
+								required: false,
+								settings: { max: 10 },
+								updated_at: STAMP,
+							},
+							{
+								key: 'color',
+								label: 'Color',
+								kind: 'text',
+								many: false,
+								required: true,
+								settings: { maxlength: 8 },
+								updated_at: STAMP,
+							},
+						],
+					},
+				],
+			}),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	const doors = await screen.findByLabelText('Doors')
+	const color = screen.getByLabelText(/Color/)
+
+	await userEvent.type(doors, '50')
+	await userEvent.clear(color)
+	await userEvent.tab()
+
+	expect(
+		await screen.findByText('Doors goes no higher than 10. Lower the value and save again.'),
+	).toBeInTheDocument()
+	expect(color).toBeRequired()
+	expect(color).toHaveAttribute('maxlength', '8')
+	expect((color as HTMLInputElement).validationMessage).not.toBe('')
+})
+
 test('shows the instructions a field carries under its control', async () => {
 	declaring({ ...A_TEXT_FIELD, settings: { instructions: 'Name the colour.' } })
 	renderAt(EDITOR_PATH)
