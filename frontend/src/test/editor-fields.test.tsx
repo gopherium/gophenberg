@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
@@ -170,6 +170,294 @@ test('leaves a sibling its own complaint while a number sits outside its max', a
 	expect(color).toBeRequired()
 	expect(color).toHaveAttribute('maxlength', '8')
 	expect((color as HTMLInputElement).validationMessage).not.toBe('')
+})
+
+test('shows a stored custom answer in the other box of a radio group', async () => {
+	declaring({
+		key: 'style',
+		label: 'Style',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'radio',
+			allow_custom: true,
+			choices: [
+				{ value: 'ipa', label: 'IPA' },
+				{ value: 'stout', label: 'Stout' },
+			],
+		},
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { style: 'homebrew' } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByLabelText('Other')).toHaveValue('homebrew')
+	expect(screen.getByRole('radio', { name: 'IPA' })).not.toBeChecked()
+	expect(screen.getByRole('radio', { name: 'Stout' })).not.toBeChecked()
+})
+
+test('empties the other box of a radio group once a listed answer is picked', async () => {
+	declaring({
+		key: 'style',
+		label: 'Style',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'radio',
+			allow_custom: true,
+			choices: [
+				{ value: 'ipa', label: 'IPA' },
+				{ value: 'stout', label: 'Stout' },
+			],
+		},
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { style: 'homebrew' } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	const ipa = await screen.findByRole('radio', { name: 'IPA' })
+
+	await userEvent.click(ipa)
+
+	expect(ipa).toBeChecked()
+	expect(screen.getByLabelText('Other')).toHaveValue('')
+})
+
+test('takes a custom answer typed into the other box of a radio group', async () => {
+	declaring({
+		key: 'style',
+		label: 'Style',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'radio',
+			allow_custom: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		},
+	})
+	renderAt(EDITOR_PATH)
+
+	await userEvent.type(await screen.findByLabelText('Other'), 'homebrew')
+
+	expect(screen.getByLabelText('Other')).toHaveValue('homebrew')
+	expect(screen.getByRole('radio', { name: 'IPA' })).not.toBeChecked()
+})
+
+test('names an answer the many values box no longer lists', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: { multiple: true, choices: [{ value: 'ipa', label: 'IPA' }] },
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { styles: ['homebrew'] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByLabelText('Styles'))
+	await userEvent.tab()
+
+	expect(
+		await screen.findByText('Styles only takes one of its listed choices. Pick one and save again.'),
+	).toBeInTheDocument()
+})
+
+test('names an answer a checkbox group no longer lists', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		},
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { styles: ['homebrew'] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	expect(
+		await screen.findByText('Styles only takes one of its listed choices. Pick one and save again.'),
+	).toBeInTheDocument()
+
+	await userEvent.click(screen.getByRole('checkbox', { name: 'homebrew' }))
+
+	await waitFor(() =>
+		expect(
+			screen.queryByText('Styles only takes one of its listed choices. Pick one and save again.'),
+		).toBeNull(),
+	)
+})
+
+test('keeps the instructions a checkbox group carries under its choices', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			instructions: 'Tick every one that fits.',
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		},
+	})
+	renderAt(EDITOR_PATH)
+
+	const group = await screen.findByRole('group', { name: 'Styles' })
+
+	expect(within(group).getByText('Tick every one that fits.')).toBeInTheDocument()
+	expect(within(group).getByRole('checkbox', { name: 'IPA' })).toBeInTheDocument()
+})
+
+test('offers the other box on a radio group taking customs but listing none', async () => {
+	declaring({
+		key: 'style',
+		label: 'Style',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: { presentation: 'radio', allow_custom: true },
+	})
+	renderAt(EDITOR_PATH)
+
+	await userEvent.type(await screen.findByLabelText('Other'), 'homebrew')
+
+	expect(screen.getByLabelText('Other')).toHaveValue('homebrew')
+})
+
+test('adds a custom answer to a checkbox group taking them', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			allow_custom: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		},
+	})
+	renderAt(EDITOR_PATH)
+
+	await userEvent.type(await screen.findByLabelText('Other'), 'homebrew')
+	await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+	expect(await screen.findByRole('checkbox', { name: 'homebrew' })).toBeChecked()
+	expect(screen.getByLabelText('Other')).toHaveValue('')
+})
+
+test('adds nothing from an empty other box, and ticks a listed answer typed into it once', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			allow_custom: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		},
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { styles: ['ipa'] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	const adding = await screen.findByRole('button', { name: 'Add' })
+
+	await userEvent.click(adding)
+
+	expect(screen.getAllByRole('checkbox')).toHaveLength(1)
+
+	await userEvent.type(screen.getByLabelText('Other'), 'ipa')
+	await userEvent.click(adding)
+
+	expect(screen.getAllByRole('checkbox')).toHaveLength(1)
+	expect(screen.getByRole('checkbox', { name: 'IPA' })).toBeChecked()
+})
+
+test('shows a checkbox per listed answer and keeps a stored stray checked', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			choices: [
+				{ value: 'ipa', label: 'IPA' },
+				{ value: 'stout', label: 'Stout' },
+			],
+		},
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { styles: ['stout', 'homebrew'] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	const stout = await screen.findByRole('checkbox', { name: 'Stout' })
+	expect(stout).toBeChecked()
+	expect(screen.getByRole('checkbox', { name: 'homebrew' })).toBeChecked()
+	const ipa = screen.getByRole('checkbox', { name: 'IPA' })
+	expect(ipa).not.toBeChecked()
+
+	await userEvent.click(ipa)
+	await userEvent.click(stout)
+
+	expect(ipa).toBeChecked()
+	expect(stout).not.toBeChecked()
+})
+
+test('offers every checkbox unticked when the item holds no answer yet', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			choices: [
+				{ value: 'ipa', label: 'IPA' },
+				{ value: 'stout', label: 'Stout' },
+			],
+		},
+	})
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByRole('checkbox', { name: 'IPA' })).not.toBeChecked()
+	expect(screen.getByRole('checkbox', { name: 'Stout' })).not.toBeChecked()
 })
 
 test('shows the instructions a field carries under its control', async () => {

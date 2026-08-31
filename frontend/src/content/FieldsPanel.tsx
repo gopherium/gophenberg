@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { RangeControl, Stack } from '@gophenberg/frontend-sdk'
+import {
+	Button,
+	CheckboxControl,
+	InputControl,
+	RadioControl,
+	RangeControl,
+	Stack,
+	Text,
+} from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type {
 	DataFormControlProps,
@@ -9,7 +17,7 @@ import type {
 	FormValidity,
 } from '@gophenberg/frontend-sdk/dataviews'
 import { __, sprintf } from '@wordpress/i18n'
-import { useMemo } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
 
 import { errorTemplates } from '../i18n/errorTemplates'
@@ -62,13 +70,29 @@ export function editableFields(declared: ContentField[]): ContentField[] {
 }
 
 /**
- * Returns the sentence a number outside its bounds earns, or nothing when the value stands.
+ * Returns the sentence a value outside what its field takes earns, or nothing when it stands.
  * @param field - The declared field the value sits under.
  * @param value - The buffered value.
  * @returns The sentence, or undefined.
  */
 function boundBroken(field: ContentField, value: unknown): string | undefined {
-	if (field.kind !== 'number' || typeof value !== 'number') {
+	if (field.kind === 'number') {
+		return numberBroken(field, value)
+	}
+	if (field.kind === 'choice') {
+		return choiceBroken(field, value)
+	}
+	return undefined
+}
+
+/**
+ * Returns the sentence a number outside its bounds earns, or nothing when the value stands.
+ * @param field - The declared field the value sits under.
+ * @param value - The buffered value.
+ * @returns The sentence, or undefined.
+ */
+function numberBroken(field: ContentField, value: unknown): string | undefined {
+	if (typeof value !== 'number') {
 		return undefined
 	}
 	const low = field.settings.min
@@ -80,6 +104,27 @@ function boundBroken(field: ContentField, value: unknown): string | undefined {
 		return sprintf(errorTemplates().field_max, { field: field.label, limit: high } as never)
 	}
 	return undefined
+}
+
+/**
+ * Returns the sentence an answer the field does not list earns, or nothing when it stands.
+ * @param field - The declared field the value sits under.
+ * @param value - The buffered value.
+ * @returns The sentence, or undefined.
+ */
+function choiceBroken(field: ContentField, value: unknown): string | undefined {
+	const pairs = pairsOf(field.settings)
+	if (field.settings.allow_custom === true || pairs.length === 0) {
+		return undefined
+	}
+	const held = Array.isArray(value) ? value : [value]
+	const strays = held.filter(
+		(one) => typeof one === 'string' && one !== '' && !pairs.some((pair) => pair.value === one),
+	)
+	if (strays.length === 0) {
+		return undefined
+	}
+	return sprintf(errorTemplates().field_choice, { field: field.label } as never)
 }
 
 /**
@@ -161,15 +206,8 @@ function choiceElements(field: ContentField) {
  * @returns The control name, the range component, or undefined.
  */
 function editControl(field: ContentField): string | ComponentType<DataFormControlProps<FieldValues>> | undefined {
-	if (field.kind === 'choice' && field.settings.multiple !== true) {
-		const presentation = worded(field.settings.presentation)
-		if (presentation === 'radio' || presentation === 'checkbox') {
-			return 'radio'
-		}
-		if (presentation === 'buttons') {
-			return 'toggleGroup'
-		}
-		return undefined
+	if (field.kind === 'choice') {
+		return choiceControl(field)
 	}
 	if (field.kind === 'text' && worded(field.settings.variant) === 'textarea') {
 		return 'textarea'
@@ -178,6 +216,188 @@ function editControl(field: ContentField): string | ComponentType<DataFormContro
 		return rangeEdit(field)
 	}
 	return undefined
+}
+
+/**
+ * Returns the control a choice field's presentation asks for, or nothing for the type's own.
+ * @param field - The declared choice field to place.
+ * @returns The control name, the checkboxes component, or undefined.
+ */
+function choiceControl(
+	field: ContentField,
+): string | ComponentType<DataFormControlProps<FieldValues>> | undefined {
+	const presentation = worded(field.settings.presentation)
+	if (field.settings.multiple === true) {
+		return presentation === 'checkbox' ? checkboxesEdit(field) : undefined
+	}
+	if (presentation === 'radio' || presentation === 'checkbox') {
+		return field.settings.allow_custom === true ? radioEdit(field) : 'radio'
+	}
+	if (presentation === 'buttons') {
+		return 'toggleGroup'
+	}
+	return undefined
+}
+
+/**
+ * Returns the radios a group taking custom answers is edited with.
+ * @param field - The declared field carrying the answers.
+ * @returns The radios component.
+ */
+function radioEdit(field: ContentField): ComponentType<DataFormControlProps<FieldValues>> {
+	const offered = choiceElements(field) ?? []
+	/**
+	 * Renders the listed answers beside a box taking one the field does not list.
+	 * @param props - The item, the field, and what to call with a change.
+	 * @returns The radios and the other box.
+	 */
+	return function RadioEdit({ data, field: described, onChange }: DataFormControlProps<FieldValues>) {
+		const held = described.getValue({ item: data })
+		const word = typeof held === 'string' ? held : ''
+		const listed = offered.some((one) => one.value === word)
+		/**
+		 * Carries the answer the author settled on.
+		 * @param next - The answer to store.
+		 */
+		function carry(next: string) {
+			onChange(described.setValue({ item: data, value: next }))
+		}
+		return (
+			<Stack direction="column" gap="xs">
+				<RadioControl
+					label={described.label}
+					help={described.description}
+					options={offered}
+					selected={listed ? word : undefined}
+					onChange={carry}
+				/>
+				<InputControl
+					label={__('Other', 'gophenberg')}
+					autoComplete="off"
+					value={listed ? '' : word}
+					onValueChange={carry}
+				/>
+			</Stack>
+		)
+	}
+}
+
+/**
+ * Returns the checkboxes a checkbox group is edited with, or nothing when it lists no answers.
+ * @param field - The declared field carrying the answers.
+ * @returns The checkboxes component, or undefined.
+ */
+function checkboxesEdit(
+	field: ContentField,
+): ComponentType<DataFormControlProps<FieldValues>> | undefined {
+	const pairs = pairsOf(field.settings)
+	if (pairs.length === 0) {
+		return undefined
+	}
+	/**
+	 * Renders one checkbox per answer a checkbox group offers.
+	 * @param props - The item, the field, and what to call with a change.
+	 * @returns The checkbox list element.
+	 */
+	const taking = field.settings.allow_custom === true
+	return function CheckboxesEdit({
+		data,
+		field: described,
+		onChange,
+		validity,
+	}: DataFormControlProps<FieldValues>) {
+		const named = useId()
+		const held = wordsHeld(described.getValue({ item: data }))
+		const strays = held.filter((one) => !pairs.some((pair) => pair.value === one))
+		const offered = [...pairs, ...strays.map((one) => ({ value: one, label: one }))]
+		/**
+		 * Carries the answers the author settled on.
+		 * @param next - The answers to store.
+		 */
+		function carry(next: string[]) {
+			onChange(described.setValue({ item: data, value: next }))
+		}
+		return (
+			<Stack direction="column" gap="xs" role="group" aria-labelledby={named}>
+				<Text variant="body-sm" id={named}>
+					{described.label}
+				</Text>
+				{described.description !== undefined && (
+					<Text variant="body-sm">{described.description}</Text>
+				)}
+				{offered.map((pair) => (
+					<CheckboxControl
+						__nextHasNoMarginBottom
+						key={pair.value}
+						label={pair.label}
+						checked={held.includes(pair.value)}
+						onChange={(next) =>
+							carry(next ? [...held, pair.value] : held.filter((one) => one !== pair.value))
+						}
+					/>
+				))}
+				{taking && <OtherAdder onAdd={(word) => carry(held.includes(word) ? held : [...held, word])} />}
+				<Complaint validity={validity} />
+			</Stack>
+		)
+	}
+}
+
+/**
+ * Renders the sentence a turned away value earns, or nothing while the value stands.
+ * @param props - The validity the control was handed.
+ * @returns The sentence element, or nothing.
+ */
+function Complaint(props: { validity: FieldValidity | undefined }) {
+	if (props.validity?.custom?.type !== 'invalid') {
+		return null
+	}
+	return (
+		<Text variant="body-sm" role="alert">
+			{props.validity.custom.message}
+		</Text>
+	)
+}
+
+/**
+ * Renders the box adding an answer a field does not list.
+ * @param props - What to call with the answer typed.
+ * @returns The box and the button committing it.
+ */
+function OtherAdder(props: { onAdd: (word: string) => void }) {
+	const [typed, setTyped] = useState('')
+	return (
+		<Stack direction="row" gap="sm">
+			<InputControl
+				label={__('Other', 'gophenberg')}
+				autoComplete="off"
+				value={typed}
+				onValueChange={setTyped}
+			/>
+			<Button
+				variant="outline"
+				size="compact"
+				onClick={() => {
+					if (typed === '') {
+						return
+					}
+					props.onAdd(typed)
+					setTyped('')
+				}}
+			>
+				{__('Add', 'gophenberg')}
+			</Button>
+		</Stack>
+	)
+}
+
+/**
+ * Returns the string members a value holds.
+ * @param value - The buffered value.
+ * @returns The strings, empty for anything else.
+ */
+function wordsHeld(value: unknown): string[] {
+	return Array.isArray(value) ? value.filter((one): one is string => typeof one === 'string') : []
 }
 
 /**

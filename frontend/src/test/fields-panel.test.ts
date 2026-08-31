@@ -202,6 +202,50 @@ test('ignores a setting whose value is the wrong shape', () => {
 	expect(held[0].isValid).toEqual({ required: false })
 })
 
+test('hands a radio group taking custom answers its own control', () => {
+	const held = fieldDescriptors([
+		carrying('choice', {
+			presentation: 'radio',
+			allow_custom: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		}),
+	])
+
+	expect(typeof held[0].Edit).toBe('function')
+})
+
+test('hands a radio group taking customs its own control even listing nothing', () => {
+	const held = fieldDescriptors([carrying('choice', { presentation: 'radio', allow_custom: true })])
+
+	expect(typeof held[0].Edit).toBe('function')
+})
+
+test('leaves a radio group taking only its listed answers on the stock control', () => {
+	const held = fieldDescriptors([
+		carrying('choice', { presentation: 'radio', choices: [{ value: 'ipa', label: 'IPA' }] }),
+	])
+
+	expect(held[0].Edit).toBe('radio')
+})
+
+test('hands a checkbox group its own control', () => {
+	const held = fieldDescriptors([
+		carrying('choice', {
+			presentation: 'checkbox',
+			multiple: true,
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		}),
+	])
+
+	expect(typeof held[0].Edit).toBe('function')
+})
+
+test('leaves a checkbox group listing nothing on the many values box', () => {
+	const held = fieldDescriptors([carrying('choice', { presentation: 'checkbox', multiple: true })])
+
+	expect(held[0].Edit).toBeUndefined()
+})
+
 test('names the floor under a number below its min', () => {
 	const spoken = fieldValidity([carrying('number', { min: 5 })], { 'a-number': 2 })
 
@@ -237,6 +281,53 @@ test('holds no complaint for what the bounds allow', () => {
 	expect(fieldValidity(bounded, {})).toBeUndefined()
 	expect(fieldValidity(bounded, { 'a-number': null })).toBeUndefined()
 	expect(fieldValidity(bounded, { 'a-number': 'five' })).toBeUndefined()
+})
+
+test('names an answer a choice field does not list', () => {
+	const listing = carrying('choice', { choices: [{ value: 'ipa', label: 'IPA' }] })
+
+	expect(fieldValidity([listing], { 'a-choice': 'homebrew' })).toEqual({
+		'a-choice': {
+			custom: {
+				type: 'invalid',
+				message: 'choice only takes one of its listed choices. Pick one and save again.',
+			},
+		},
+	})
+})
+
+test('names an answer a many values field does not list', () => {
+	const listing = carrying('choice', {
+		multiple: true,
+		choices: [{ value: 'ipa', label: 'IPA' }],
+	})
+
+	expect(fieldValidity([listing], { 'a-choice': ['ipa', 'homebrew'] })).toEqual({
+		'a-choice': {
+			custom: {
+				type: 'invalid',
+				message: 'choice only takes one of its listed choices. Pick one and save again.',
+			},
+		},
+	})
+})
+
+test('holds no complaint for a choice field that takes what it does not list', () => {
+	const taking = carrying('choice', {
+		allow_custom: true,
+		choices: [{ value: 'ipa', label: 'IPA' }],
+	})
+
+	expect(fieldValidity([taking], { 'a-choice': 'homebrew' })).toBeUndefined()
+})
+
+test('holds no complaint for a listed answer, an emptied one, or a field listing none', () => {
+	const listing = carrying('choice', { choices: [{ value: 'ipa', label: 'IPA' }] })
+
+	expect(fieldValidity([listing], { 'a-choice': 'ipa' })).toBeUndefined()
+	expect(fieldValidity([listing], { 'a-choice': '' })).toBeUndefined()
+	expect(fieldValidity([listing], { 'a-choice': 7 })).toBeUndefined()
+	expect(fieldValidity([carrying('choice', {})], { 'a-choice': 'homebrew' })).toBeUndefined()
 })
 
 test('holds no complaint for an unbounded number or a bounded text', () => {

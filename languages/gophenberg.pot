@@ -168,6 +168,9 @@ msgstr ""
 msgid "Active"
 msgstr ""
 
+msgid "Add"
+msgstr ""
+
 msgid "Add %(type)s"
 msgstr ""
 
@@ -804,6 +807,9 @@ msgid "Open navigation"
 msgstr ""
 
 msgid "Order stored."
+msgstr ""
+
+msgid "Other"
 msgstr ""
 
 msgid "Parent"
