@@ -346,6 +346,50 @@ func TestGroupFieldPatchTurnsAwayAStaleTimestamp(t *testing.T) {
 	}
 }
 
+func TestGroupListingServesASubFieldInsideItsContainer(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	declared := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields",
+		groupBody(t, map[string]any{"key": "author", "label": "Author", "kind": "section"}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the section: status = %d, body %s", declared.Code, declared.Body.String())
+	}
+	inside := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields/author",
+		groupBody(t, map[string]any{"key": "name", "label": "Name", "kind": "text"}))
+	if inside.Code != http.StatusCreated {
+		t.Fatalf("declaring the sub field: status = %d, body %s", inside.Code, inside.Body.String())
+	}
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/groups", "")
+
+	listed := decodeBody[struct {
+		Items []struct {
+			ID     int `json:"id"`
+			Fields []struct {
+				Key    string `json:"key"`
+				Fields []struct {
+					Key string `json:"key"`
+				} `json:"fields"`
+			} `json:"fields"`
+		} `json:"items"`
+	}](t, recorder)
+	for _, group := range listed.Items {
+		if group.ID != id {
+			continue
+		}
+		if len(group.Fields) != 1 {
+			t.Fatalf("the group serves %d fields, want the sub field held inside", len(group.Fields))
+		}
+		if len(group.Fields[0].Fields) != 1 || group.Fields[0].Fields[0].Key != "name" {
+			t.Errorf("author holds %+v, want the name sub field", group.Fields[0].Fields)
+		}
+		return
+	}
+	t.Fatalf("the group %d is not listed", id)
+}
+
 func TestGroupFieldPatchCarriesTheSettings(t *testing.T) {
 	t.Parallel()
 
