@@ -86,7 +86,10 @@ func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.U
 	if err := seed.Pages(ctx, store, types, users); err != nil {
 		return err
 	}
-	return seed.Categories(ctx, store, types, users)
+	if err := seed.Categories(ctx, store, types, users); err != nil {
+		return err
+	}
+	return seed.Containers(ctx, types)
 }
 
 // seedDemoMedia stores the demo pictures when a media directory is configured.

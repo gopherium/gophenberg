@@ -509,6 +509,29 @@ func TestSeedReportsAnAccountItCannotStore(t *testing.T) {
 	}
 }
 
+func TestSeedReportsCategoriesItCannotStore(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	}
+	execSQL(t, databaseURL, "DELETE FROM core.content WHERE type = 'category'")
+	execSQL(t, databaseURL,
+		"ALTER TABLE core.content ADD CONSTRAINT no_categories CHECK (type <> 'category')")
+
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("opening the pool: %v", err)
+	}
+	defer pool.Close()
+
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+		t.Error("seedDemoContent() error = nil, want the refused category reported")
+	}
+}
+
 func TestSeedReportsPagesItCannotStore(t *testing.T) {
 	t.Parallel()
 

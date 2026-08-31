@@ -17,6 +17,7 @@ type categoryTypeStore struct {
 	stubTypeStore
 	createErr      error
 	createFieldErr error
+	subFieldErr    error
 	listErr        error
 	postless       bool
 	forgetful      bool
@@ -68,8 +69,13 @@ func (s *categoryTypeStore) Create(_ context.Context, t content.Type) (content.T
 	return t, nil
 }
 
-// CreateSubField hands the field back unstored, since the fake declares none inside a container.
-func (*categoryTypeStore) CreateSubField(_ context.Context, _ int, f content.Field) (content.Field, error) {
+// CreateSubField hands the field back unstored, or reports the scripted failure.
+func (s *categoryTypeStore) CreateSubField(
+	_ context.Context, _ int, f content.Field,
+) (content.Field, error) {
+	if s.subFieldErr != nil {
+		return content.Field{}, s.subFieldErr
+	}
 	return f, nil
 }
 
