@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
@@ -324,7 +324,10 @@ test('keeps the instructions a checkbox group carries under its choices', async 
 	})
 	renderAt(EDITOR_PATH)
 
-	expect(await screen.findByText('Tick every one that fits.')).toBeInTheDocument()
+	const group = await screen.findByRole('group', { name: 'Styles' })
+
+	expect(within(group).getByText('Tick every one that fits.')).toBeInTheDocument()
+	expect(within(group).getByRole('checkbox', { name: 'IPA' })).toBeInTheDocument()
 })
 
 test('offers the other box on a radio group taking customs but listing none', async () => {

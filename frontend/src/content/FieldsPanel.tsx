@@ -17,7 +17,7 @@ import type {
 	FormValidity,
 } from '@gophenberg/frontend-sdk/dataviews'
 import { __, sprintf } from '@wordpress/i18n'
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
 
 import { errorTemplates } from '../i18n/errorTemplates'
@@ -306,6 +306,7 @@ function checkboxesEdit(
 		onChange,
 		validity,
 	}: DataFormControlProps<FieldValues>) {
+		const named = useId()
 		const held = wordsHeld(described.getValue({ item: data }))
 		const strays = held.filter((one) => !pairs.some((pair) => pair.value === one))
 		const offered = [...pairs, ...strays.map((one) => ({ value: one, label: one }))]
@@ -317,8 +318,10 @@ function checkboxesEdit(
 			onChange(described.setValue({ item: data, value: next }))
 		}
 		return (
-			<Stack direction="column" gap="xs">
-				<Text variant="body-sm">{described.label}</Text>
+			<Stack direction="column" gap="xs" role="group" aria-labelledby={named}>
+				<Text variant="body-sm" id={named}>
+					{described.label}
+				</Text>
 				{described.description !== undefined && (
 					<Text variant="body-sm">{described.description}</Text>
 				)}
