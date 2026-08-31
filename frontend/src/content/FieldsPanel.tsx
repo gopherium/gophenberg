@@ -2,11 +2,17 @@
 
 import { RangeControl, Stack } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
-import type { DataFormControlProps, Field } from '@gophenberg/frontend-sdk/dataviews'
-import { __ } from '@wordpress/i18n'
+import type {
+	DataFormControlProps,
+	Field,
+	FieldValidity,
+	FormValidity,
+} from '@gophenberg/frontend-sdk/dataviews'
+import { __, sprintf } from '@wordpress/i18n'
 import { useMemo } from 'react'
 import type { ComponentType } from 'react'
 
+import { errorTemplates } from '../i18n/errorTemplates'
 import { GalleryField, MediaField, galleryHeld, mediaHeld } from './MediaField'
 import { RelationPicker, targetsHeld } from './RelationPicker'
 import { pairsOf } from './types'
@@ -53,6 +59,44 @@ function fieldType(field: ContentField): string | undefined {
  */
 export function editableFields(declared: ContentField[]): ContentField[] {
 	return declared.filter((field) => fieldType(field) !== undefined)
+}
+
+/**
+ * Returns the sentence a number outside its bounds earns, or nothing when the value stands.
+ * @param field - The declared field the value sits under.
+ * @param value - The buffered value.
+ * @returns The sentence, or undefined.
+ */
+function boundBroken(field: ContentField, value: unknown): string | undefined {
+	if (field.kind !== 'number' || typeof value !== 'number') {
+		return undefined
+	}
+	const low = field.settings.min
+	if (typeof low === 'number' && value < low) {
+		return sprintf(errorTemplates().field_min, { field: field.label, limit: low } as never)
+	}
+	const high = field.settings.max
+	if (typeof high === 'number' && value > high) {
+		return sprintf(errorTemplates().field_max, { field: field.label, limit: high } as never)
+	}
+	return undefined
+}
+
+/**
+ * Returns the bound complaints the buffered values earn, keyed by field key.
+ * @param declared - The fields the type declares.
+ * @param values - The buffered values under edit.
+ * @returns The complaints DataForm shows, or nothing when every value sits inside its bounds.
+ */
+export function fieldValidity(declared: ContentField[], values: FieldValues): FormValidity {
+	const spoken: Record<string, FieldValidity> = {}
+	for (const field of declared) {
+		const message = boundBroken(field, values[field.key])
+		if (message !== undefined) {
+			spoken[field.key] = { custom: { type: 'invalid', message } }
+		}
+	}
+	return Object.keys(spoken).length > 0 ? spoken : undefined
 }
 
 /**
