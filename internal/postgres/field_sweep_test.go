@@ -11,12 +11,12 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
-// valuesHeld returns the stored values of the planted row of the type.
-func valuesHeld(t *testing.T, pool *pgxpool.Pool, typeKey string) string {
+// valuesHeld returns the stored values of the planted car row.
+func valuesHeld(t *testing.T, pool *pgxpool.Pool) string {
 	t.Helper()
 	var held string
 	if err := pool.QueryRow(t.Context(),
-		`SELECT fields::text FROM core.content WHERE type = $1`, typeKey).Scan(&held); err != nil {
+		`SELECT fields::text FROM core.content WHERE type = $1`, "car").Scan(&held); err != nil {
 		t.Fatalf("reading the stored values: %v, want nil", err)
 	}
 	return held
@@ -55,7 +55,7 @@ func TestDeletingASubFieldSweepsItsValuesInsideASection(t *testing.T) {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
-	if held := valuesHeld(t, pool, "car"); held != `{"specs": {"colour": "red"}}` {
+	if held := valuesHeld(t, pool); held != `{"specs": {"colour": "red"}}` {
 		t.Errorf("stored values = %s, want the doors swept from inside the section", held)
 	}
 	if held := revisionValuesHeld(t, pool, "car"); held != `{"specs": {"colour": "red"}}` {
@@ -86,7 +86,7 @@ func TestDeletingASubFieldSweepsItsValuesFromEveryRow(t *testing.T) {
 	}
 
 	want := `{"team": [{"name": "Maria Perez"}, {"name": "Kip"}]}`
-	if held := valuesHeld(t, pool, "car"); held != want {
+	if held := valuesHeld(t, pool); held != want {
 		t.Errorf("stored values = %s, want the role swept from every row", held)
 	}
 }
@@ -112,7 +112,7 @@ func TestDeletingAContainerSweepsEverythingInsideIt(t *testing.T) {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
-	if held := valuesHeld(t, pool, "car"); held != `{"team": [{}]}` {
+	if held := valuesHeld(t, pool); held != `{"team": [{}]}` {
 		t.Errorf("stored values = %s, want the whole contact swept from the row", held)
 	}
 }
