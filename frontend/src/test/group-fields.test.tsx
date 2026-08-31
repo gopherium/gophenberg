@@ -111,6 +111,91 @@ test('says so when a group holds no fields yet', async () => {
 	expect(within(dialog).getByText('This group holds no fields yet.')).toBeInTheDocument()
 })
 
+test('lists the sub fields a container declares under it', async () => {
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'author',
+					label: 'Author',
+					kind: 'section',
+					fields: [{ ...SUBTITLE, key: 'name', label: 'Name' }],
+				},
+			],
+		},
+		EXTRAS,
+	])
+	renderAt('/field-groups')
+
+	const dialog = await openFields()
+
+	expect(within(dialog).getByRole('listitem', { name: 'Name' })).toBeInTheDocument()
+})
+
+test('declares a sub field inside the container it was opened from', async () => {
+	let sent: unknown
+	let where = ''
+	listing([
+		{
+			...DETAILS,
+			fields: [{ ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', fields: [] }],
+		},
+		EXTRAS,
+	])
+	server.use(
+		http.post('/api/groups/3/fields/author', async ({ request }) => {
+			sent = await request.json()
+			where = new URL(request.url).pathname
+			return HttpResponse.json({ ...SUBTITLE, key: 'name', label: 'Name' }, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Author' }))
+	const adding = await screen.findByRole('dialog', { name: 'Add field to Author' })
+	await userEvent.type(within(adding).getByLabelText('Name'), 'Full name')
+	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(sent).toMatchObject({ key: 'full-name', label: 'Full name' }))
+	expect(where).toBe('/api/groups/3/fields/author')
+})
+
+test('removes a sub field from the container that holds it', async () => {
+	let hit = ''
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'author',
+					label: 'Author',
+					kind: 'section',
+					fields: [{ ...SUBTITLE, key: 'name', label: 'Name' }],
+				},
+			],
+		},
+		EXTRAS,
+	])
+	server.use(
+		http.delete('/api/groups/3/inside/author.name', ({ request }) => {
+			hit = new URL(request.url).pathname
+			return new HttpResponse(null, { status: 204 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete Name' }))
+	const warning = await screen.findByRole('dialog', { name: 'Delete Name' })
+	await userEvent.click(within(warning).getByRole('button', { name: 'Delete the field' }))
+
+	await waitFor(() => expect(hit).toBe('/api/groups/3/inside/author.name'))
+})
+
 test('declares a field into the group it was opened from', async () => {
 	let sent: unknown
 	server.use(

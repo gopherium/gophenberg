@@ -19,7 +19,9 @@ import { useState } from 'react'
 
 import {
 	createFieldInGroup,
+	createSubField,
 	deleteFieldInGroup,
+	deleteSubField,
 	groupErrorMessage,
 	groupsQueryKey,
 	moveField,
@@ -56,6 +58,7 @@ interface Reporter {
 interface Inside extends Reporter {
 	group: number
 	field: ContentField
+	path?: string
 }
 
 /**
@@ -229,6 +232,14 @@ function FieldsBody(
 										onDone={props.onDone}
 										onRefused={props.onRefused}
 									/>
+									<SubFields
+										group={props.held.id}
+										types={props.types}
+										field={field}
+										path={field.key}
+										onDone={props.onDone}
+										onRefused={props.onRefused}
+									/>
 									<DeleteField
 										group={props.held.id}
 										field={field}
@@ -237,6 +248,13 @@ function FieldsBody(
 									/>
 								</Stack>
 							</Stack>
+							<HeldFields
+								group={props.held.id}
+								declared={field.fields}
+								at={field.key}
+								onDone={props.onDone}
+								onRefused={props.onRefused}
+							/>
 						</li>
 					))}
 				</ul>
@@ -256,7 +274,7 @@ function FieldsBody(
  * @param props - The group, the types a relation may point at, and what to report.
  * @returns The control element.
  */
-function AddField(props: Reporter & { group: number; types: ContentType[] }) {
+function AddField(props: Reporter & { group: number; types: ContentType[]; path?: string }) {
 	const [kinds] = useState(fieldKinds)
 	const targets = props.types.map((listed) => ({ label: listed.pluralLabel, value: listed.key }))
 	const [presences] = useState<Choice[]>([
@@ -276,8 +294,8 @@ function AddField(props: Reporter & { group: number; types: ContentType[] }) {
 	const picked = pickedKind(kind.value)
 	const relating = picked.kind === 'relation'
 	const add = useMutation({
-		mutationFn: () =>
-			createFieldInGroup(props.group, {
+		mutationFn: () => {
+			const asked = {
 				key: slugifyKey(label),
 				label,
 				kind: picked.kind,
@@ -285,7 +303,11 @@ function AddField(props: Reporter & { group: number; types: ContentType[] }) {
 				many: relating ? holding.value === 'many' : picked.many,
 				required: presence.value === 'required',
 				settings: picked.settings,
-			}),
+			}
+			return props.path === undefined
+				? createFieldInGroup(props.group, asked)
+				: createSubField(props.group, props.path, asked)
+		},
 		onSuccess: async () => {
 			setLabel('')
 			await props.onDone(sprintf(__('%(field)s declared.', 'gophenberg'), { field: label }))
@@ -784,6 +806,87 @@ function CarryField(props: Inside & { elsewhere: FieldGroup[] }) {
 }
 
 /**
+ * Renders the sub fields a container declares, however deep they run.
+ * @param props - The group, the sub fields, the path holding them, and what to report.
+ * @returns The list element, or nothing when the container declares none.
+ */
+function HeldFields(
+	props: Reporter & { group: number; declared: ContentField[]; at: string },
+) {
+	if (props.declared.length === 0) {
+		return null
+	}
+	return (
+		<ul className="gophenberg-fields__list">
+			{props.declared.map((field) => (
+				<li key={field.key} aria-label={field.label}>
+					<Stack direction="row" gap="sm" align="center" justify="space-between">
+						<Stack direction="row" gap="xs" align="center">
+							<Text>{field.label}</Text>
+							<Text variant="body-sm">{kindLabel(field.kind)}</Text>
+						</Stack>
+						<DeleteField
+							group={props.group}
+							field={field}
+							path={props.at + '.' + field.key}
+							onDone={props.onDone}
+							onRefused={props.onRefused}
+						/>
+					</Stack>
+					<HeldFields
+						group={props.group}
+						declared={field.fields}
+						at={props.at + '.' + field.key}
+						onDone={props.onDone}
+						onRefused={props.onRefused}
+					/>
+				</li>
+			))}
+		</ul>
+	)
+}
+
+/**
+ * Renders the control declaring a field inside the container.
+ * @param props - The group, the container, its path, the types, and what to report.
+ * @returns The control and its dialog, or nothing for a field holding none.
+ */
+function SubFields(props: Inside & { types: ContentType[]; path: string }) {
+	const [open, setOpen] = useState(false)
+	const asking = sprintf(__('Add field to %(field)s', 'gophenberg'), { field: props.field.label })
+	if (props.field.kind !== 'section' && props.field.kind !== 'repeater') {
+		return null
+	}
+	return (
+		<>
+			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
+				{__('Add field', 'gophenberg')}
+			</Button>
+			<Dialog.Root open={open} onOpenChange={setOpen}>
+				<Dialog.Popup>
+					<Dialog.Header>
+						<Dialog.Title>{asking}</Dialog.Title>
+						<Dialog.CloseIcon />
+					</Dialog.Header>
+					<Dialog.Content>
+						<AddField
+							group={props.group}
+							types={props.types}
+							path={props.path}
+							onDone={async (said) => {
+								setOpen(false)
+								await props.onDone(said)
+							}}
+							onRefused={props.onRefused}
+						/>
+					</Dialog.Content>
+				</Dialog.Popup>
+			</Dialog.Root>
+		</>
+	)
+}
+
+/**
  * Renders the control removing a field and everything stored under it.
  * @param props - The group, the field, and what to report.
  * @returns The control and its dialog.
@@ -796,7 +899,10 @@ function DeleteField(props: Inside) {
 		'gophenberg',
 	)
 	const remove = useMutation({
-		mutationFn: () => deleteFieldInGroup(props.group, props.field.key),
+		mutationFn: () =>
+			props.path === undefined
+				? deleteFieldInGroup(props.group, props.field.key)
+				: deleteSubField(props.group, props.path),
 		onSuccess: async () => {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s deleted.', 'gophenberg'), { field: props.field.label }))

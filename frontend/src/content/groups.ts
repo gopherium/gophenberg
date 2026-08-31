@@ -350,6 +350,49 @@ export async function deleteFieldInGroup(id: number, key: string): Promise<void>
 }
 
 /**
+ * Declares a field inside the container the path addresses.
+ * @param id - The group declaring the container.
+ * @param path - The dotted keys addressing the container.
+ * @param asked - The field to declare.
+ * @returns The stored field.
+ */
+export async function createSubField(
+	id: number,
+	path: string,
+	asked: NewField,
+): Promise<ContentField> {
+	const response = await fetch(`/api/groups/${id}/fields/${path}`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({
+			key: asked.key,
+			label: asked.label,
+			kind: asked.kind,
+			relates_to: asked.relatesTo,
+			many: asked.many,
+			required: asked.required,
+			settings: asked.settings,
+		}),
+	})
+	if (!response.ok) {
+		await refuse(response)
+	}
+	return toField(fieldSchema.parse(await response.json()))
+}
+
+/**
+ * Removes the field the path addresses inside its container, and the values every item held under it.
+ * @param id - The group declaring the container.
+ * @param path - The dotted keys addressing the field.
+ */
+export async function deleteSubField(id: number, path: string): Promise<void> {
+	const response = await fetch(`/api/groups/${id}/inside/${path}`, { method: 'DELETE' })
+	if (!response.ok) {
+		await refuse(response)
+	}
+}
+
+/**
  * Carries a field into another group, keeping the values it holds.
  * @param id - The group the field leaves.
  * @param key - The field to carry.
