@@ -308,6 +308,41 @@ test('names an answer a checkbox group no longer lists', async () => {
 	)
 })
 
+test('keeps the instructions a checkbox group carries under its choices', async () => {
+	declaring({
+		key: 'styles',
+		label: 'Styles',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: {
+			presentation: 'checkbox',
+			multiple: true,
+			instructions: 'Tick every one that fits.',
+			choices: [{ value: 'ipa', label: 'IPA' }],
+		},
+	})
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByText('Tick every one that fits.')).toBeInTheDocument()
+})
+
+test('offers the other box on a radio group taking customs but listing none', async () => {
+	declaring({
+		key: 'style',
+		label: 'Style',
+		kind: 'choice',
+		many: false,
+		required: false,
+		settings: { presentation: 'radio', allow_custom: true },
+	})
+	renderAt(EDITOR_PATH)
+
+	await userEvent.type(await screen.findByLabelText('Other'), 'homebrew')
+
+	expect(screen.getByLabelText('Other')).toHaveValue('homebrew')
+})
+
 test('adds a custom answer to a checkbox group taking them', async () => {
 	declaring({
 		key: 'styles',

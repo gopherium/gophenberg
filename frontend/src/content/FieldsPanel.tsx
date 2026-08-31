@@ -70,7 +70,7 @@ export function editableFields(declared: ContentField[]): ContentField[] {
 }
 
 /**
- * Returns the sentence a number outside its bounds earns, or nothing when the value stands.
+ * Returns the sentence a value outside what its field takes earns, or nothing when it stands.
  * @param field - The declared field the value sits under.
  * @param value - The buffered value.
  * @returns The sentence, or undefined.
@@ -231,7 +231,7 @@ function choiceControl(
 		return presentation === 'checkbox' ? checkboxesEdit(field) : undefined
 	}
 	if (presentation === 'radio' || presentation === 'checkbox') {
-		return (field.settings.allow_custom === true ? radioEdit(field) : undefined) ?? 'radio'
+		return field.settings.allow_custom === true ? radioEdit(field) : 'radio'
 	}
 	if (presentation === 'buttons') {
 		return 'toggleGroup'
@@ -240,15 +240,12 @@ function choiceControl(
 }
 
 /**
- * Returns the radios a group taking custom answers is edited with, or nothing when it lists none.
+ * Returns the radios a group taking custom answers is edited with.
  * @param field - The declared field carrying the answers.
- * @returns The radios component, or undefined.
+ * @returns The radios component.
  */
-function radioEdit(field: ContentField): ComponentType<DataFormControlProps<FieldValues>> | undefined {
-	const offered = choiceElements(field)
-	if (offered === undefined) {
-		return undefined
-	}
+function radioEdit(field: ContentField): ComponentType<DataFormControlProps<FieldValues>> {
+	const offered = choiceElements(field) ?? []
 	/**
 	 * Renders the listed answers beside a box taking one the field does not list.
 	 * @param props - The item, the field, and what to call with a change.
@@ -322,6 +319,9 @@ function checkboxesEdit(
 		return (
 			<Stack direction="column" gap="xs">
 				<Text variant="body-sm">{described.label}</Text>
+				{described.description !== undefined && (
+					<Text variant="body-sm">{described.description}</Text>
+				)}
 				{offered.map((pair) => (
 					<CheckboxControl
 						__nextHasNoMarginBottom

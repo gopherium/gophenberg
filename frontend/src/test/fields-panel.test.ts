@@ -214,10 +214,10 @@ test('hands a radio group taking custom answers its own control', () => {
 	expect(typeof held[0].Edit).toBe('function')
 })
 
-test('leaves a radio group listing nothing on the stock control', () => {
+test('hands a radio group taking customs its own control even listing nothing', () => {
 	const held = fieldDescriptors([carrying('choice', { presentation: 'radio', allow_custom: true })])
 
-	expect(held[0].Edit).toBe('radio')
+	expect(typeof held[0].Edit).toBe('function')
 })
 
 test('leaves a radio group taking only its listed answers on the stock control', () => {
