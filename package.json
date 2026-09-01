@@ -2,7 +2,7 @@
 	"name": "gophenberg",
 	"private": true,
 	"type": "module",
-	"packageManager": "pnpm@11.10.0",
+	"packageManager": "pnpm@12.2.1",
 	"scripts": {
 		"dev": "pnpm --filter @gophenberg/frontend dev",
 		"lint": "oxlint -c .oxlintrc.json frontend sdk plugins test"

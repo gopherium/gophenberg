@@ -19,7 +19,7 @@ peerDependencyRules:
 
 minimumReleaseAgeExclude:
   - '@gopherium/godmin@0.7.0'
-  - '@gopherium/gottext@0.3.0'
+  - '@gopherium/gottext@0.3.0 || 0.5.0'
   - '@wordpress/dataviews@17.3.0'
   - '@gopherium/react-auth@0.7.0'
   - '@wordpress/i18n@6.26.0'
