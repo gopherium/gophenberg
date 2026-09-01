@@ -85,6 +85,18 @@ func (unreadableTypeStore) DeleteSubField(context.Context, int) error {
 	return errTypeStoreDown
 }
 
+// UpdateSubField reports the failure rather than carrying the edit.
+func (unreadableTypeStore) UpdateSubField(
+	context.Context, int, Field, time.Time,
+) (Field, error) {
+	return Field{}, errTypeStoreDown
+}
+
+// ReorderSubFields reports the failure rather than standing the fields.
+func (unreadableTypeStore) ReorderSubFields(context.Context, int, []string) error {
+	return errTypeStoreDown
+}
+
 // MoveField reports the failure rather than carrying the field.
 func (unreadableTypeStore) MoveField(context.Context, int, string, int) (Field, error) {
 	return Field{}, errTypeStoreDown

@@ -44,6 +44,27 @@ func (s *groupingStore) DeleteSubField(_ context.Context, _ int) error {
 	return s.subDeleteErr
 }
 
+// UpdateSubField hands the field back unstored, or reports the scripted failure.
+func (s *groupingStore) UpdateSubField(
+	_ context.Context, _ int, f content.Field, _ time.Time,
+) (content.Field, error) {
+	if s.subUpdateErr != nil {
+		return content.Field{}, s.subUpdateErr
+	}
+	return f, nil
+}
+
+// ReorderSubFields stores no order, or reports the scripted failure.
+func (s *groupingStore) ReorderSubFields(_ context.Context, _ int, _ []string) error {
+	if s.subReorderErr != nil {
+		return s.subReorderErr
+	}
+	if s.failReadAfterOrder {
+		s.groupsErr = errStoreDown
+	}
+	return nil
+}
+
 // groupingStore holds field groups beside the types the fake registry serves.
 type groupingStore struct {
 	*fakeTypeStore
@@ -60,6 +81,8 @@ type groupingStore struct {
 	reorderFieldErr error
 	subCreateErr    error
 	subDeleteErr    error
+	subUpdateErr    error
+	subReorderErr   error
 
 	failReadAfterOrder bool
 }
