@@ -1235,6 +1235,9 @@ msgstr ""
 msgid "This content type still holds content, so it cannot be deleted. Move or delete its items first."
 msgstr ""
 
+msgid "This field would stand inside too many containers. Put it nearer the top and try again."
+msgstr ""
+
 msgid "This file could not be opened as a zip. Package the theme again and upload the new file."
 msgstr ""
 

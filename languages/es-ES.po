@@ -762,6 +762,10 @@ msgstr "Este tipo de contenido está desactivado, así que su contenido ni se si
 msgid "This content type still holds content, so it cannot be deleted. Move or delete its items first."
 msgstr "Este tipo de contenido todavía tiene contenido, así que no se puede borrar. Mueve o borra antes sus elementos."
 
+#, fuzzy
+msgid "This field would stand inside too many containers. Put it nearer the top and try again."
+msgstr "Este campo quedaría dentro de demasiados contenedores. Ponlo más cerca del nivel superior e inténtalo de nuevo."
+
 msgid "This file could not be opened as a zip. Package the theme again and upload the new file."
 msgstr "Este archivo no se ha podido abrir como zip. Vuelve a empaquetar el tema y sube el archivo nuevo."
 

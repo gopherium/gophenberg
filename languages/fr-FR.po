@@ -1443,6 +1443,10 @@ msgid "This content type still holds content, so it cannot be deleted. Move or d
 msgstr "Ce type de contenu contient encore du contenu, il ne peut donc pas être supprimé. Déplacez ou supprimez d'abord ses éléments."
 
 #, fuzzy
+msgid "This field would stand inside too many containers. Put it nearer the top and try again."
+msgstr "Ce champ se trouverait dans trop de conteneurs. Placez-le plus près du niveau supérieur et réessayez."
+
+#, fuzzy
 msgid "This file could not be opened as a zip. Package the theme again and upload the new file."
 msgstr "Ce fichier n'a pas pu être ouvert comme zip. Réempaquetez le thème et téléversez le nouveau fichier."
 

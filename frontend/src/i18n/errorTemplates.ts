@@ -131,6 +131,10 @@ export function errorTemplates(): Record<string, string> {
 			'A relation field stands on its own, not inside a section or a repeater. Declare it beside the container.',
 			DOMAIN,
 		),
+		field_too_deep: __(
+			'This field would stand inside too many containers. Put it nearer the top and try again.',
+			DOMAIN,
+		),
 		field_rows_max: __(
 			'%(field)s takes at most %(limit)s rows. Remove one and save again.',
 			DOMAIN,

@@ -6,6 +6,8 @@ import (
 	"context"
 	"net/http"
 	"testing"
+
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // declareSection stores the author section at the top of the group.
@@ -57,6 +59,26 @@ func TestSubFieldCreateRefusesWhatCannotStandInside(t *testing.T) {
 				t.Errorf("status = %d, want %d, body %s", recorder.Code, asked.want, recorder.Body.String())
 			}
 		})
+	}
+}
+
+func TestSubFieldCreateAnswersTheDepthAsAValidationFailure(t *testing.T) {
+	t.Parallel()
+
+	handler, _, types, _ := typedPostServer(t)
+	id := createGroup(t, handler, "Article details")
+	declareSection(t, handler, id)
+	types.subErr = content.ErrFieldTooDeep
+
+	recorder := doRequest(t, handler, http.MethodPost, groupPath(id)+"/fields/author",
+		groupBody(t, map[string]any{"key": "name", "label": "Name", "kind": "text"}))
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d, body %s",
+			recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+	if code := errorCode(t, recorder); code != "field_too_deep" {
+		t.Errorf("code = %q, want field_too_deep", code)
 	}
 }
 
