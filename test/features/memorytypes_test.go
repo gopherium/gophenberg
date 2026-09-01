@@ -164,6 +164,99 @@ func (s *memoryTypes) DeleteSubField(_ context.Context, id int) error {
 	return content.ErrFieldNotFound
 }
 
+// UpdateSubField carries the edit onto the field standing inside a container.
+func (s *memoryTypes) UpdateSubField(
+	_ context.Context, id int, f content.Field, expectedUpdatedAt time.Time,
+) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		edited, stored, err := editedInside(held.Fields, id, f, expectedUpdatedAt)
+		if err != nil {
+			return content.Field{}, err
+		}
+		if stored.ID == 0 {
+			continue
+		}
+		s.groups[i].Fields = edited
+		return stored, nil
+	}
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// editedInside returns the declared fields with the edit carried onto the one the identity names.
+func editedInside(
+	declared []content.Field, id int, f content.Field, expectedUpdatedAt time.Time,
+) ([]content.Field, content.Field, error) {
+	edited := make([]content.Field, len(declared))
+	copy(edited, declared)
+	for i, held := range edited {
+		if held.ID == id {
+			if !expectedUpdatedAt.Equal(held.UpdatedAt) {
+				return declared, content.Field{}, content.ErrConflict
+			}
+			held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
+			held.UpdatedAt = f.UpdatedAt
+			edited[i] = held
+			return edited, held, nil
+		}
+		inside, stored, err := editedInside(held.Fields, id, f, expectedUpdatedAt)
+		if err != nil {
+			return declared, content.Field{}, err
+		}
+		if stored.ID != 0 {
+			edited[i].Fields = inside
+			return edited, stored, nil
+		}
+	}
+	return declared, content.Field{}, nil
+}
+
+// ReorderSubFields stands the fields inside the container in the order the keys name.
+func (s *memoryTypes) ReorderSubFields(_ context.Context, parentID int, keys []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		stood, found := stoodInside(held.Fields, parentID, keys)
+		if !found {
+			continue
+		}
+		s.groups[i].Fields = stood
+		return nil
+	}
+	return content.ErrFieldNotFound
+}
+
+// stoodInside returns the declared fields with the container's own fields in the order the keys name.
+func stoodInside(declared []content.Field, parentID int, keys []string) ([]content.Field, bool) {
+	stood := make([]content.Field, len(declared))
+	copy(stood, declared)
+	for i, held := range stood {
+		if held.ID == parentID {
+			stood[i].Fields = orderedInside(held.Fields, keys)
+			return stood, true
+		}
+		if inside, found := stoodInside(held.Fields, parentID, keys); found {
+			stood[i].Fields = inside
+			return stood, true
+		}
+	}
+	return declared, false
+}
+
+// orderedInside returns the fields standing in the order the keys name.
+func orderedInside(declared []content.Field, keys []string) []content.Field {
+	stood := make([]content.Field, 0, len(declared))
+	for _, key := range keys {
+		for _, held := range declared {
+			if held.Key == key {
+				stood = append(stood, held)
+			}
+		}
+	}
+	return stood
+}
+
 // grownInside returns the declared fields with the new one placed inside the parent it names.
 func grownInside(declared []content.Field, parentID int, f content.Field) ([]content.Field, bool) {
 	grown := make([]content.Field, len(declared))
