@@ -29,6 +29,22 @@ func TestLoadRunConfigTakesTheLargestUploadCapItCanCarry(t *testing.T) {
 	}
 }
 
+func TestLoadRunConfigTakesTheMostStartAttemptsAllowed(t *testing.T) {
+	t.Parallel()
+
+	settings, err := loadRunConfig(testGetenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL":         unreachableDatabaseURL,
+		"GOPHENBERG_THEME_START_ATTEMPTS": "1000",
+	}))
+
+	if err != nil {
+		t.Fatalf("loadRunConfig() error = %v, want the most attempts allowed taken", err)
+	}
+	if settings.themeStartAttempts != 1000 {
+		t.Errorf("the start attempts = %d, want 1000", settings.themeStartAttempts)
+	}
+}
+
 func TestLoadRunConfigDefaultsTheTimingsToTodaysValues(t *testing.T) {
 	t.Parallel()
 
@@ -129,6 +145,9 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		},
 		"start attempts of more than anyone waits for": {
 			"GOPHENBERG_THEME_START_ATTEMPTS", strconv.Itoa(math.MaxInt32),
+		},
+		"start attempts one past the most allowed": {
+			"GOPHENBERG_THEME_START_ATTEMPTS", "1001",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

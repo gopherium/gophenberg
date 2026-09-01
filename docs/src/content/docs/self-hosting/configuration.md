@@ -22,7 +22,7 @@ environment variables win over it.
 | `GOPHENBERG_NODE_BIN` | No | `node` | The Node binary themes run on. The image sets its own |
 | `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` | No | `128` | The largest upload the media library takes, in megabytes |
 | `GOPHENBERG_THEME_READY_TIMEOUT` | No | `30s` | How long a starting theme has to answer before it is given up on |
-| `GOPHENBERG_THEME_START_ATTEMPTS` | No | `5` | How many times a theme that will not start is tried again |
+| `GOPHENBERG_THEME_START_ATTEMPTS` | No | `5` | How many times a theme that will not start is tried again, from 1 to 1000 |
 | `GOPHENBERG_THEME_BACKOFF` | No | `500ms` | How long to wait before the first retry, doubling after each one |
 | `GOPHENBERG_THEME_MAX_BACKOFF` | No | `30s` | The longest that wait grows to |
 | `GOPHENBERG_THEME_STOP_GRACE` | No | `3s` | How long a theme has to stop before it is killed |
@@ -77,9 +77,10 @@ The server refuses to start, and says why, when:
 - `GOPHENBERG_DATABASE_URL` is missing.
 - `GOPHENBERG_TRUSTED_PROXIES` is not valid CIDR notation.
 - `GOPHENBERG_FEED_ITEMS` is not a positive whole number.
-- `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` or `GOPHENBERG_THEME_START_ATTEMPTS`
-  is not a positive whole number, or names a number so large the server
-  could not hold it. Both refuse rather than quietly using another value.
+- `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` is not a positive whole number, or
+  names more megabytes than the server can count in bytes.
+- `GOPHENBERG_THEME_START_ATTEMPTS` is not a whole number from 1 to 1000.
+  Both of these refuse rather than quietly using another value.
 - Any of the theme timings is not a positive duration. Write them the
   way Go does, `30s`, `500ms`, `1m`.
 - `GOPHENBERG_THEME_MAX_BACKOFF` stands below
