@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -87,12 +88,13 @@ func run(
 		Themes:            themes,
 		Settings:          settingStore,
 		Readers:           postgres.NewUserSettingStore(pool),
+		ThemeTimeout:      settings.themeProxyTimeout,
 	}
 	if settings.webDir != "" {
 		cfg.Web = os.DirFS(settings.webDir)
 	}
 	if settings.mediaDir != "" {
-		cfg.Media = mediahost.New(mediahost.Config{Dir: settings.mediaDir})
+		cfg.Media = mediahost.New(mediaConfigFrom(settings))
 		cfg.MediaStore = postgres.NewMediaStore(pool)
 		cfg.MediaFiles = os.DirFS(settings.mediaDir)
 	}
@@ -135,6 +137,85 @@ type runConfig struct {
 	theme          string
 	nodeBin        string
 	mediaDir       string
+
+	themeReadyTimeout  time.Duration
+	themeBackoff       time.Duration
+	themeMaxBackoff    time.Duration
+	themeStopGrace     time.Duration
+	themeProxyTimeout  time.Duration
+	themeStartAttempts int
+	mediaUploadCap     int64
+}
+
+// timingsFrom reads the durations, the attempt count and the upload cap the environment names.
+func timingsFrom(getenv func(string) string) (runConfig, error) {
+	held := runConfig{}
+	for _, asked := range []struct {
+		key      string
+		fallback time.Duration
+		into     *time.Duration
+	}{
+		{"GOPHENBERG_THEME_READY_TIMEOUT", 30 * time.Second, &held.themeReadyTimeout},
+		{"GOPHENBERG_THEME_BACKOFF", 500 * time.Millisecond, &held.themeBackoff},
+		{"GOPHENBERG_THEME_MAX_BACKOFF", 30 * time.Second, &held.themeMaxBackoff},
+		{"GOPHENBERG_THEME_STOP_GRACE", 3 * time.Second, &held.themeStopGrace},
+		{"GOPHENBERG_THEME_PROXY_TIMEOUT", 10 * time.Second, &held.themeProxyTimeout},
+	} {
+		stood, err := standingDuration(getenv(asked.key), asked.key, asked.fallback)
+		if err != nil {
+			return runConfig{}, err
+		}
+		*asked.into = stood
+	}
+	if held.themeMaxBackoff < held.themeBackoff {
+		return runConfig{}, fmt.Errorf(
+			"GOPHENBERG_THEME_MAX_BACKOFF: must stand at or above GOPHENBERG_THEME_BACKOFF, got %v", held.themeMaxBackoff)
+	}
+	attempts, err := standingCount(getenv("GOPHENBERG_THEME_START_ATTEMPTS"), "GOPHENBERG_THEME_START_ATTEMPTS", 5)
+	if err != nil {
+		return runConfig{}, err
+	}
+	cap, err := standingCount(getenv("GOPHENBERG_MEDIA_UPLOAD_CAP_MB"), "GOPHENBERG_MEDIA_UPLOAD_CAP_MB", 128)
+	if err != nil {
+		return runConfig{}, err
+	}
+	held.themeStartAttempts, held.mediaUploadCap = attempts, int64(cap)<<20
+	return held, nil
+}
+
+// mediaConfigFrom returns the media library settings the environment named.
+func mediaConfigFrom(settings runConfig) mediahost.Config {
+	return mediahost.Config{Dir: settings.mediaDir, MaxSize: settings.mediaUploadCap}
+}
+
+// standingDuration returns the duration the raw value names, or the fallback when it names none.
+func standingDuration(raw, key string, fallback time.Duration) (time.Duration, error) {
+	if raw == "" {
+		return fallback, nil
+	}
+	stood, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("%s: must be a duration like 30s, got %q", key, raw)
+	}
+	if stood <= 0 {
+		return 0, fmt.Errorf("%s: must stand above zero, got %q", key, raw)
+	}
+	return stood, nil
+}
+
+// standingCount returns the whole number the raw value names, or the fallback when it names none.
+func standingCount(raw, key string, fallback int) (int, error) {
+	if raw == "" {
+		return fallback, nil
+	}
+	stood, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("%s: must be a whole number, got %q", key, raw)
+	}
+	if stood < 1 {
+		return 0, fmt.Errorf("%s: must stand above zero, got %q", key, raw)
+	}
+	return stood, nil
 }
 
 // loadRunConfig reads the server settings from the environment.
@@ -155,17 +236,20 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	if nodeBin == "" {
 		nodeBin = "node"
 	}
-	return runConfig{
-		databaseURL:    databaseURL,
-		addr:           addr,
-		webDir:         getenv("GOPHENBERG_WEB_DIR"),
-		siteTitle:      getenv("GOPHENBERG_SITE_TITLE"),
-		trustedProxies: trustedProxies,
-		themesDir:      getenv("GOPHENBERG_THEMES_DIR"),
-		theme:          getenv("GOPHENBERG_THEME"),
-		nodeBin:        nodeBin,
-		mediaDir:       getenv("GOPHENBERG_MEDIA_DIR"),
-	}, nil
+	settings, err := timingsFrom(getenv)
+	if err != nil {
+		return runConfig{}, err
+	}
+	settings.databaseURL = databaseURL
+	settings.addr = addr
+	settings.webDir = getenv("GOPHENBERG_WEB_DIR")
+	settings.siteTitle = getenv("GOPHENBERG_SITE_TITLE")
+	settings.trustedProxies = trustedProxies
+	settings.themesDir = getenv("GOPHENBERG_THEMES_DIR")
+	settings.theme = getenv("GOPHENBERG_THEME")
+	settings.nodeBin = nodeBin
+	settings.mediaDir = getenv("GOPHENBERG_MEDIA_DIR")
+	return settings, nil
 }
 
 // serveUntilDone serves HTTP until ctx is cancelled or serving fails, then
