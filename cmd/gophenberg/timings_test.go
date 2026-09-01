@@ -15,7 +15,7 @@ func TestLoadRunConfigTakesTheLargestUploadCapItCanCarry(t *testing.T) {
 
 	settings, err := loadRunConfig(testGetenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL":        unreachableDatabaseURL,
-		"GOPHENBERG_MEDIA_UPLOAD_CAP_MB": strconv.Itoa(math.MaxInt64 >> 20),
+		"GOPHENBERG_MEDIA_UPLOAD_CAP_MB": strconv.FormatInt(int64(math.MaxInt64>>20), 10),
 	}))
 
 	if err != nil {
@@ -122,7 +122,7 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		"an upload cap standing at zero":         {"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", "0"},
 		"an upload cap below zero":               {"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", "-8"},
 		"an upload cap of more bytes than there are": {
-			"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", strconv.Itoa(math.MaxInt64>>20 + 1),
+			"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", strconv.FormatInt(int64(math.MaxInt64>>20)+1, 10),
 		},
 		"an upload cap so large it wraps to nothing": {
 			"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", "17592186044416",

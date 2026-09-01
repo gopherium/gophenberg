@@ -177,13 +177,33 @@ func timingsFrom(getenv func(string) string) (runConfig, error) {
 	if err != nil {
 		return runConfig{}, err
 	}
-	cap, err := standingCount(
-		getenv("GOPHENBERG_MEDIA_UPLOAD_CAP_MB"), "GOPHENBERG_MEDIA_UPLOAD_CAP_MB", 128, math.MaxInt64>>20)
+	cap, err := standingMegabytes(getenv("GOPHENBERG_MEDIA_UPLOAD_CAP_MB"), "GOPHENBERG_MEDIA_UPLOAD_CAP_MB", 128)
 	if err != nil {
 		return runConfig{}, err
 	}
-	held.themeStartAttempts, held.mediaUploadCap = attempts, int64(cap)<<20
+	held.themeStartAttempts, held.mediaUploadCap = attempts, cap
 	return held, nil
+}
+
+// maxUploadCapMB is the most megabytes an upload cap may name and still be held in bytes.
+const maxUploadCapMB int64 = math.MaxInt64 >> 20
+
+// standingMegabytes returns the bytes the raw megabyte value names, or the fallback when it names none.
+func standingMegabytes(raw, key string, fallback int64) (int64, error) {
+	if raw == "" {
+		return fallback << 20, nil
+	}
+	stood, err := strconv.ParseInt(raw, 10, 64)
+	if errors.Is(err, strconv.ErrRange) || stood > maxUploadCapMB {
+		return 0, fmt.Errorf("%s: must stand at or below %d, got %q", key, maxUploadCapMB, raw)
+	}
+	if err != nil {
+		return 0, fmt.Errorf("%s: must be a whole number, got %q", key, raw)
+	}
+	if stood < 1 {
+		return 0, fmt.Errorf("%s: must stand above zero, got %q", key, raw)
+	}
+	return stood << 20, nil
 }
 
 // mediaConfigFrom returns the media library settings the environment named.
