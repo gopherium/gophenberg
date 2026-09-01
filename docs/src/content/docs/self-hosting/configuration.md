@@ -20,6 +20,13 @@ environment variables win over it.
 | `GOPHENBERG_MEDIA_DIR` | No | | The directory uploaded media is stored in and served from. The image sets `/media` |
 | `GOPHENBERG_THEME` | No | | Pins one theme, overriding the admin. Empty lets the admin choose |
 | `GOPHENBERG_NODE_BIN` | No | `node` | The Node binary themes run on. The image sets its own |
+| `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` | No | `128` | The largest upload the media library takes, in megabytes |
+| `GOPHENBERG_THEME_READY_TIMEOUT` | No | `30s` | How long a starting theme has to answer before it is given up on |
+| `GOPHENBERG_THEME_START_ATTEMPTS` | No | `5` | How many times a theme that will not start is tried again |
+| `GOPHENBERG_THEME_BACKOFF` | No | `500ms` | How long to wait before the first retry, doubling after each one |
+| `GOPHENBERG_THEME_MAX_BACKOFF` | No | `30s` | The longest that wait grows to |
+| `GOPHENBERG_THEME_STOP_GRACE` | No | `3s` | How long a theme has to stop before it is killed |
+| `GOPHENBERG_THEME_PROXY_TIMEOUT` | No | `10s` | How long a running theme has to start answering one request |
 | `GOPHENBERG_FEED_TITLE` | No | `Gophenberg` | The RSS channel title |
 | `GOPHENBERG_FEED_ITEMS` | No | `20` | How many posts the RSS feed carries |
 
@@ -70,6 +77,12 @@ The server refuses to start, and says why, when:
 - `GOPHENBERG_DATABASE_URL` is missing.
 - `GOPHENBERG_TRUSTED_PROXIES` is not valid CIDR notation.
 - `GOPHENBERG_FEED_ITEMS` is not a positive whole number.
+- `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` or `GOPHENBERG_THEME_START_ATTEMPTS`
+  is not a positive whole number.
+- Any of the theme timings is not a positive duration. Write them the
+  way Go does, `30s`, `500ms`, `1m`.
+- `GOPHENBERG_THEME_MAX_BACKOFF` stands below
+  `GOPHENBERG_THEME_BACKOFF`, which would leave no room to grow.
 - `GOPHENBERG_THEME` pins a theme that fails to load, see
   [installing a theme](/themes/installing-a-theme/). A theme chosen
   in the admin does not stop startup.
