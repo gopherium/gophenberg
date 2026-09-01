@@ -769,3 +769,34 @@ func TestMigrationCarriesFieldsIntoDefaultGroups(t *testing.T) {
 		t.Errorf("flattened fields = %v, want the migrated fields served as before", held.Fields)
 	}
 }
+
+func TestReorderingTheTopLeavesASubFieldSharingAKeyWhereItStands(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	specs := declareSection(t, store, "specs")
+	title := declareTypedField(t, store, "car", "title")
+	if _, err := store.CreateSubField(
+		t.Context(), specs.ID, fieldOn(t, "", "colour", content.FieldKindText, "")); err != nil {
+		t.Fatalf("declaring colour inside specs: %v, want nil", err)
+	}
+	sub, err := store.CreateSubField(
+		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+	if err != nil {
+		t.Fatalf("declaring title inside specs: %v, want nil", err)
+	}
+	standing := positionOf(t, pool, sub.ID)
+	if standing == 1 {
+		t.Fatalf("the sub field sits at 1, want it second inside its parent so a reorder could move it")
+	}
+
+	if err := store.ReorderFieldsInGroup(
+		t.Context(), title.GroupID, []string{"title", "specs"}); err != nil {
+		t.Fatalf("ReorderFieldsInGroup() error = %v, want nil", err)
+	}
+
+	if held := positionOf(t, pool, sub.ID); held != standing {
+		t.Errorf("the sub field sits at %d, want it left at %d by a reorder of the top", held, standing)
+	}
+}

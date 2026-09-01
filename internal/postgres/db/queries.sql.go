@@ -1870,6 +1870,7 @@ FROM (
     FROM unnest($2::text []) WITH ORDINALITY AS asked (key, ordinality)
 ) AS ordered
 WHERE core.content_fields.group_id = $1 AND core.content_fields.key = ordered.key
+    AND core.content_fields.parent_field_id IS NULL
 `
 
 type ReorderContentFieldsParams struct {
@@ -1894,6 +1895,26 @@ WHERE core.field_groups.id = ordered.id
 
 func (q *Queries) ReorderFieldGroups(ctx context.Context, ids []int32) error {
 	_, err := q.db.Exec(ctx, reorderFieldGroups, ids)
+	return err
+}
+
+const reorderSubContentFields = `-- name: ReorderSubContentFields :exec
+UPDATE core.content_fields
+SET position = ordered.position
+FROM (
+    SELECT key, ordinality AS position
+    FROM unnest($2::text []) WITH ORDINALITY AS asked (key, ordinality)
+) AS ordered
+WHERE core.content_fields.parent_field_id = $1 AND core.content_fields.key = ordered.key
+`
+
+type ReorderSubContentFieldsParams struct {
+	ParentFieldID pgtype.Int4
+	Keys          []string
+}
+
+func (q *Queries) ReorderSubContentFields(ctx context.Context, arg ReorderSubContentFieldsParams) error {
+	_, err := q.db.Exec(ctx, reorderSubContentFields, arg.ParentFieldID, arg.Keys)
 	return err
 }
 
@@ -2458,6 +2479,51 @@ func (q *Queries) UpdateMedia(ctx context.Context, arg UpdateMediaParams) (CoreM
 		&i.AuthorID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateSubContentField = `-- name: UpdateSubContentField :one
+UPDATE core.content_fields
+SET label = $1, required = $2, settings = $3, updated_at = $4
+WHERE id = $5 AND parent_field_id IS NOT NULL AND updated_at = $6
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
+`
+
+type UpdateSubContentFieldParams struct {
+	Label             string
+	Required          bool
+	Settings          []byte
+	UpdatedAt         time.Time
+	ID                int32
+	ExpectedUpdatedAt time.Time
+}
+
+func (q *Queries) UpdateSubContentField(ctx context.Context, arg UpdateSubContentFieldParams) (CoreContentField, error) {
+	row := q.db.QueryRow(ctx, updateSubContentField,
+		arg.Label,
+		arg.Required,
+		arg.Settings,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedUpdatedAt,
+	)
+	var i CoreContentField
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Label,
+		&i.Kind,
+		&i.RelatesTo,
+		&i.Many,
+		&i.Required,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Position,
+		&i.GroupID,
+		&i.Settings,
+		&i.ParentFieldID,
+		&i.Depth,
 	)
 	return i, err
 }

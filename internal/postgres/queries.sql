@@ -450,7 +450,8 @@ FROM (
     SELECT key, ordinality AS position
     FROM unnest(@keys::text []) WITH ORDINALITY AS asked (key, ordinality)
 ) AS ordered
-WHERE core.content_fields.group_id = @group_id AND core.content_fields.key = ordered.key;
+WHERE core.content_fields.group_id = @group_id AND core.content_fields.key = ordered.key
+    AND core.content_fields.parent_field_id IS NULL;
 
 -- name: UpdateContentField :one
 UPDATE core.content_fields
@@ -458,6 +459,21 @@ SET label = @label, required = @required, settings = @settings, updated_at = @up
 WHERE group_id = @group_id AND key = @key AND parent_field_id IS NULL
     AND updated_at = @expected_updated_at
 RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+
+-- name: UpdateSubContentField :one
+UPDATE core.content_fields
+SET label = @label, required = @required, settings = @settings, updated_at = @updated_at
+WHERE id = @id AND parent_field_id IS NOT NULL AND updated_at = @expected_updated_at
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+
+-- name: ReorderSubContentFields :exec
+UPDATE core.content_fields
+SET position = ordered.position
+FROM (
+    SELECT key, ordinality AS position
+    FROM unnest(@keys::text []) WITH ORDINALITY AS asked (key, ordinality)
+) AS ordered
+WHERE core.content_fields.parent_field_id = @parent_field_id AND core.content_fields.key = ordered.key;
 
 -- name: DeleteContentField :execrows
 DELETE FROM core.content_fields

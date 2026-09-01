@@ -126,6 +126,35 @@ func TestMovingATopFieldLeavesASubFieldSharingItsKey(t *testing.T) {
 	}
 }
 
+func TestCreateSubFieldStoresTheKeyTheDomainSettledOn(t *testing.T) {
+	t.Parallel()
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	specs := declareSection(t, store, "specs")
+
+	created, err := store.CreateSubField(t.Context(), specs.ID, content.Field{
+		Key: "  title  ", Label: "  Title  ", Kind: content.FieldKindText,
+	})
+
+	if err != nil {
+		t.Fatalf("CreateSubField() error = %v, want nil", err)
+	}
+	if created.Key != "title" || created.Label != "Title" {
+		t.Errorf("stored key %q label %q, want them trimmed to title and Title", created.Key, created.Label)
+	}
+}
+
+// positionOf returns the stored position of the field the identity names.
+func positionOf(t *testing.T, pool *pgxpool.Pool, id int) int {
+	t.Helper()
+	var held int
+	if err := pool.QueryRow(t.Context(),
+		`SELECT position FROM core.content_fields WHERE id = $1`, id).Scan(&held); err != nil {
+		t.Fatalf("reading the position: %v, want nil", err)
+	}
+	return held
+}
+
 func TestCreatingASubFieldStoresItUnderItsParent(t *testing.T) {
 	t.Parallel()
 

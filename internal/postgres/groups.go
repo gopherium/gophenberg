@@ -459,6 +459,38 @@ func (s *TypeStore) UpdateFieldInGroup(
 	return toField(row), nil
 }
 
+// UpdateSubField carries the edit onto the sub field the identity names.
+func (s *TypeStore) UpdateSubField(
+	ctx context.Context, id int, f content.Field, expectedUpdatedAt time.Time,
+) (content.Field, error) {
+	row, err := s.queries.UpdateSubContentField(ctx, db.UpdateSubContentFieldParams{
+		Label:             f.Label,
+		Required:          f.Required,
+		Settings:          settingsJSON(f.Settings),
+		UpdatedAt:         f.UpdatedAt,
+		ExpectedUpdatedAt: expectedUpdatedAt,
+		ID:                int32(id),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return content.Field{}, content.ErrConflict
+	}
+	if err != nil {
+		return content.Field{}, fmt.Errorf("postgres: update sub field: %w", err)
+	}
+	return toField(row), nil
+}
+
+// ReorderSubFields stands the sub fields of the container in the order the keys name.
+func (s *TypeStore) ReorderSubFields(ctx context.Context, parentID int, keys []string) error {
+	if err := s.queries.ReorderSubContentFields(ctx, db.ReorderSubContentFieldsParams{
+		ParentFieldID: pgtype.Int4{Int32: int32(parentID), Valid: true},
+		Keys:          keys,
+	}); err != nil {
+		return fmt.Errorf("postgres: reorder sub fields: %w", err)
+	}
+	return nil
+}
+
 // fieldStands reports whether the group still declares the field.
 func (s *TypeStore) fieldStands(ctx context.Context, groupID int, key string) error {
 	groups, err := groupsWithFields(ctx, s.queries)
@@ -661,22 +693,22 @@ func (s *TypeStore) CreateSubField(ctx context.Context, parentID int, f content.
 		if err := queries.LockFieldGroups(ctx); err != nil {
 			return fmt.Errorf("postgres: lock field groups: %w", err)
 		}
-		parent, err := standingParent(ctx, queries, parentID, f)
+		parent, settled, err := standingParent(ctx, queries, parentID, f)
 		if err != nil {
 			return err
 		}
 		row, err := queries.CreateSubContentField(ctx, db.CreateSubContentFieldParams{
 			GroupID:       parent.GroupID,
 			ParentFieldID: pgtype.Int4{Int32: int32(parentID), Valid: true},
-			Key:           f.Key,
-			Label:         f.Label,
-			Kind:          string(f.Kind),
-			RelatesTo:     targetOf(f),
-			Many:          f.Many,
-			Required:      f.Required,
-			CreatedAt:     f.CreatedAt,
-			UpdatedAt:     f.UpdatedAt,
-			Settings:      settingsJSON(f.Settings),
+			Key:           settled.Key,
+			Label:         settled.Label,
+			Kind:          string(settled.Kind),
+			RelatesTo:     targetOf(settled),
+			Many:          settled.Many,
+			Required:      settled.Required,
+			CreatedAt:     settled.CreatedAt,
+			UpdatedAt:     settled.UpdatedAt,
+			Settings:      settingsJSON(settled.Settings),
 			Depth:         parent.Depth + 1,
 		})
 		if err != nil {
@@ -695,24 +727,26 @@ func (s *TypeStore) CreateSubField(ctx context.Context, parentID int, f content.
 	return content.Field{}, fieldWriteFailure(err)
 }
 
-// standingParent returns the row the sub field may stand under, or the reason it may not.
+// standingParent returns the row the sub field may stand under and the field it settled on,
+// or the reason it may not stand there.
 func standingParent(
 	ctx context.Context, queries *db.Queries, parentID int, f content.Field,
-) (db.CoreContentField, error) {
+) (db.CoreContentField, content.Field, error) {
 	parent, err := queries.FieldByID(ctx, int32(parentID))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return parent, content.ErrFieldNotFound
+		return parent, f, content.ErrFieldNotFound
 	}
 	if err != nil {
-		return parent, err
+		return parent, f, err
 	}
-	if _, err := content.NewSubField(f, content.FieldKind(parent.Kind)); err != nil {
-		return parent, err
+	settled, err := content.NewSubField(f, content.FieldKind(parent.Kind))
+	if err != nil {
+		return parent, f, err
 	}
 	if parent.Depth+1 > int32(content.MaxFieldDepth) {
-		return parent, content.ErrFieldTooDeep
+		return parent, f, content.ErrFieldTooDeep
 	}
-	return parent, nil
+	return parent, settled, nil
 }
 
 // CreateFieldInGroup declares the field inside the group.
