@@ -262,3 +262,84 @@ func TestARelationRefusesATargetThatIsNotWritten(t *testing.T) {
 		t.Errorf("SplitValues() error = %v, want %v", err, content.ErrFieldShape)
 	}
 }
+
+// containerHolding returns a container of the kind, holding one required text sub field.
+func containerHolding(t *testing.T, kind content.FieldKind, required bool) content.Field {
+	t.Helper()
+	inside, err := content.NewSubField(content.Field{Key: "name", Label: "Name", Kind: content.FieldKindText,
+		Required: true}, kind)
+	if err != nil {
+		t.Fatalf("NewSubField() error = %v, want nil", err)
+	}
+	held, err := content.NewField(content.Field{TypeKey: content.TypePost, Key: "author", Label: "Author",
+		Kind: kind, Required: required})
+	if err != nil {
+		t.Fatalf("NewField() error = %v, want nil", err)
+	}
+	held.Fields = []content.Field{inside}
+	return held
+}
+
+func TestFilledReachesRequiredFieldsInsideAContainer(t *testing.T) {
+	t.Parallel()
+
+	for name, asked := range map[string]struct {
+		kind     content.FieldKind
+		required bool
+		value    any
+		want     error
+	}{
+		"a section standing empty": {
+			content.FieldKindSection, false, map[string]any{}, content.ErrFieldRequired,
+		},
+		"a section the author never opened": {
+			content.FieldKindSection, false, nil, nil,
+		},
+		"a required section standing empty": {
+			content.FieldKindSection, true, map[string]any{}, content.ErrFieldRequired,
+		},
+		"a section holding its answer": {
+			content.FieldKindSection, false, map[string]any{"name": "Maria Perez"}, nil,
+		},
+		"a repeater row missing its answer": {
+			content.FieldKindRepeater, false, []any{map[string]any{}}, content.ErrFieldRequired,
+		},
+		"a repeater standing empty": {
+			content.FieldKindRepeater, false, []any{}, nil,
+		},
+		"a repeater holding its answer": {
+			content.FieldKindRepeater, false, []any{map[string]any{"name": "Maria Perez"}}, nil,
+		},
+		"a section stored as a word, which the shape check refuses instead": {
+			content.FieldKindSection, false, "typed", nil,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			held := containerHolding(t, asked.kind, asked.required)
+			values := content.Values{}
+			if asked.value != nil {
+				values["author"] = asked.value
+			}
+
+			err := content.Filled(values, content.Relations{}, []content.Field{held})
+
+			if !errors.Is(err, asked.want) {
+				t.Errorf("Filled() error = %v, want %v", err, asked.want)
+			}
+		})
+	}
+}
+
+func TestFilledRefusesARequiredSectionNobodyAnswered(t *testing.T) {
+	t.Parallel()
+
+	held := containerHolding(t, content.FieldKindSection, true)
+
+	err := content.Filled(content.Values{"author": map[string]any{}}, content.Relations{}, []content.Field{held})
+
+	if code, _ := content.CodeOf(err); code != "field_required" {
+		t.Errorf("code = %q, want field_required, error %v", code, err)
+	}
+}

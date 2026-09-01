@@ -391,8 +391,8 @@ SET group_id = @to_group,
         FROM core.content_fields AS landing WHERE landing.group_id = @to_group
     ),
     updated_at = @updated_at
-WHERE moved.group_id = @group_id AND moved.key = @key
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings;
+WHERE moved.group_id = @group_id AND moved.key = @key AND moved.parent_field_id IS NULL
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
 
 -- name: GroupByLocation :one
 SELECT id, title, location, position, active, created_at, updated_at
@@ -406,11 +406,11 @@ SELECT pg_advisory_xact_lock(hashtext('core.field_groups'));
 SELECT key FROM core.content_types ORDER BY created_at, key;
 
 -- name: ListContentFields :many
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 FROM core.content_fields ORDER BY group_id, position, id;
 
 -- name: ListContentFieldsOfGroup :many
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 FROM core.content_fields WHERE group_id = @group_id ORDER BY position, id;
 
 -- name: CreateContentField :one
@@ -422,7 +422,26 @@ VALUES (
     (SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields WHERE group_id = @group_id),
     @created_at, @updated_at, @settings
 )
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings;
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+
+-- name: CreateSubContentField :one
+INSERT INTO core.content_fields (
+    group_id, parent_field_id, key, label, kind, relates_to, many, required,
+    position, created_at, updated_at, settings, depth
+)
+VALUES (
+    @group_id, @parent_field_id, @key, @label, @kind, @relates_to, @many, @required,
+    (
+        SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields
+        WHERE parent_field_id = @parent_field_id
+    ),
+    @created_at, @updated_at, @settings, @depth
+)
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+
+-- name: FieldByID :one
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
+FROM core.content_fields WHERE id = @id;
 
 -- name: ReorderContentFields :exec
 UPDATE core.content_fields
@@ -431,20 +450,56 @@ FROM (
     SELECT key, ordinality AS position
     FROM unnest(@keys::text []) WITH ORDINALITY AS asked (key, ordinality)
 ) AS ordered
-WHERE core.content_fields.group_id = @group_id AND core.content_fields.key = ordered.key;
+WHERE core.content_fields.group_id = @group_id AND core.content_fields.key = ordered.key
+    AND core.content_fields.parent_field_id IS NULL;
 
 -- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = @label, required = @required, settings = @settings, updated_at = @updated_at
-WHERE group_id = @group_id AND key = @key AND updated_at = @expected_updated_at
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings;
+WHERE group_id = @group_id AND key = @key AND parent_field_id IS NULL
+    AND updated_at = @expected_updated_at
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+
+-- name: UpdateSubContentField :one
+UPDATE core.content_fields
+SET label = @label, required = @required, settings = @settings, updated_at = @updated_at
+WHERE id = @id AND parent_field_id IS NOT NULL AND updated_at = @expected_updated_at
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+
+-- name: ReorderSubContentFields :exec
+UPDATE core.content_fields
+SET position = ordered.position
+FROM (
+    SELECT key, ordinality AS position
+    FROM unnest(@keys::text []) WITH ORDINALITY AS asked (key, ordinality)
+) AS ordered
+WHERE core.content_fields.parent_field_id = @parent_field_id AND core.content_fields.key = ordered.key;
 
 -- name: DeleteContentField :execrows
-DELETE FROM core.content_fields WHERE group_id = @group_id AND key = @key;
+DELETE FROM core.content_fields
+WHERE group_id = @group_id AND key = @key AND parent_field_id IS NULL;
 
 -- name: LockDeclaredFieldKeys :many
 SELECT key FROM core.content_fields ORDER BY key
 FOR KEY SHARE;
+
+-- name: ContentValuesHolding :many
+SELECT id, fields FROM core.content
+WHERE type = ANY(@types::text []) AND fields ? @key::text;
+
+-- name: SetContentValues :exec
+UPDATE core.content SET fields = @fields WHERE id = @id;
+
+-- name: RevisionValuesHolding :many
+SELECT r.id, r.fields FROM core.content_revisions r
+JOIN core.content c ON r.content_id = c.id
+WHERE c.type = ANY(@types::text []) AND r.fields ? @key::text;
+
+-- name: SetRevisionValues :exec
+UPDATE core.content_revisions SET fields = @fields WHERE id = @id;
+
+-- name: DeleteFieldByID :execrows
+DELETE FROM core.content_fields WHERE id = @id;
 
 -- name: ClearContentFieldValues :exec
 UPDATE core.content SET fields = fields - @key::text

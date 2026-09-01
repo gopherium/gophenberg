@@ -134,6 +134,97 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	return created, nil
 }
 
+// CreateSubField declares the field inside the container the parent names.
+func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (Field, error) {
+	created, err := r.store.CreateSubField(ctx, parentID, f)
+	if err != nil {
+		return Field{}, err
+	}
+	r.invalidate()
+	return created, nil
+}
+
+// UpdateSubField carries a label, a required flag and settings onto the field standing inside a container.
+func (r *Registry) UpdateSubField(
+	ctx context.Context, id int, f Field, expectedUpdatedAt time.Time,
+) (Field, error) {
+	held, err := r.fieldByID(ctx, id)
+	if err != nil {
+		return Field{}, err
+	}
+	held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
+	held.UpdatedAt = time.Now().UTC()
+	if err := held.Validate(); err != nil {
+		return Field{}, err
+	}
+	updated, err := r.store.UpdateSubField(ctx, id, held, expectedUpdatedAt)
+	if err != nil {
+		return Field{}, err
+	}
+	r.invalidate()
+	return updated, nil
+}
+
+// ReorderSubFields stands the fields inside the container in the order the keys name.
+func (r *Registry) ReorderSubFields(ctx context.Context, parentID int, keys []string) ([]Field, error) {
+	held, err := r.fieldByID(ctx, parentID)
+	if err != nil {
+		return nil, err
+	}
+	if !held.Kind.Holds() {
+		return nil, Refuse(ErrFieldShape, "field_parent_holds_none",
+			"content: the field holds no sub fields", Details{"field": held.Key})
+	}
+	if err := orderCovers(held.Fields, keys); err != nil {
+		return nil, err
+	}
+	if err := r.store.ReorderSubFields(ctx, parentID, keys); err != nil {
+		return nil, err
+	}
+	r.invalidate()
+	reordered, err := r.fieldByID(ctx, parentID)
+	if err != nil {
+		return nil, err
+	}
+	return reordered.Fields, nil
+}
+
+// fieldByID returns the declared field carrying the identity, however deep it stands.
+func (r *Registry) fieldByID(ctx context.Context, id int) (Field, error) {
+	groups, err := r.Groups(ctx)
+	if err != nil {
+		return Field{}, err
+	}
+	for _, g := range groups {
+		if held, found := fieldNumbered(g.Fields, id); found {
+			return held, nil
+		}
+	}
+	return Field{}, ErrFieldNotFound
+}
+
+// fieldNumbered returns the field carrying the identity among the fields or the ones they hold.
+func fieldNumbered(fields []Field, id int) (Field, bool) {
+	for _, f := range fields {
+		if f.ID == id {
+			return f, true
+		}
+		if held, found := fieldNumbered(f.Fields, id); found {
+			return held, true
+		}
+	}
+	return Field{}, false
+}
+
+// DeleteSubField removes the field standing inside a container, and the values every item held under it.
+func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
+	if err := r.store.DeleteSubField(ctx, id); err != nil {
+		return err
+	}
+	r.invalidate()
+	return nil
+}
+
 // UpdateFieldInGroup carries the field's label, required flag and settings when the expectation still holds.
 func (r *Registry) UpdateFieldInGroup(
 	ctx context.Context, groupID int, f Field, expectedUpdatedAt time.Time,

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addRelation = `-- name: AddRelation :exec
@@ -103,6 +104,41 @@ func (q *Queries) ContentDepth(ctx context.Context, id uuid.UUID) (int32, error)
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const contentValuesHolding = `-- name: ContentValuesHolding :many
+SELECT id, fields FROM core.content
+WHERE type = ANY($1::text []) AND fields ? $2::text
+`
+
+type ContentValuesHoldingParams struct {
+	Types []string
+	Key   string
+}
+
+type ContentValuesHoldingRow struct {
+	ID     uuid.UUID
+	Fields content.Values
+}
+
+func (q *Queries) ContentValuesHolding(ctx context.Context, arg ContentValuesHoldingParams) ([]ContentValuesHoldingRow, error) {
+	rows, err := q.db.Query(ctx, contentValuesHolding, arg.Types, arg.Key)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ContentValuesHoldingRow
+	for rows.Next() {
+		var i ContentValuesHoldingRow
+		if err := rows.Scan(&i.ID, &i.Fields); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const countChildren = `-- name: CountChildren :one
@@ -297,7 +333,7 @@ VALUES (
     (SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields WHERE group_id = $1),
     $8, $9, $10
 )
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 `
 
 type CreateContentFieldParams struct {
@@ -340,6 +376,8 @@ func (q *Queries) CreateContentField(ctx context.Context, arg CreateContentField
 		&i.Position,
 		&i.GroupID,
 		&i.Settings,
+		&i.ParentFieldID,
+		&i.Depth,
 	)
 	return i, err
 }
@@ -546,6 +584,72 @@ func (q *Queries) CreateRevision(ctx context.Context, arg CreateRevisionParams) 
 	return err
 }
 
+const createSubContentField = `-- name: CreateSubContentField :one
+INSERT INTO core.content_fields (
+    group_id, parent_field_id, key, label, kind, relates_to, many, required,
+    position, created_at, updated_at, settings, depth
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8,
+    (
+        SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields
+        WHERE parent_field_id = $2
+    ),
+    $9, $10, $11, $12
+)
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
+`
+
+type CreateSubContentFieldParams struct {
+	GroupID       int32
+	ParentFieldID pgtype.Int4
+	Key           string
+	Label         string
+	Kind          string
+	RelatesTo     *string
+	Many          bool
+	Required      bool
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Settings      []byte
+	Depth         int32
+}
+
+func (q *Queries) CreateSubContentField(ctx context.Context, arg CreateSubContentFieldParams) (CoreContentField, error) {
+	row := q.db.QueryRow(ctx, createSubContentField,
+		arg.GroupID,
+		arg.ParentFieldID,
+		arg.Key,
+		arg.Label,
+		arg.Kind,
+		arg.RelatesTo,
+		arg.Many,
+		arg.Required,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.Settings,
+		arg.Depth,
+	)
+	var i CoreContentField
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Label,
+		&i.Kind,
+		&i.RelatesTo,
+		&i.Many,
+		&i.Required,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Position,
+		&i.GroupID,
+		&i.Settings,
+		&i.ParentFieldID,
+		&i.Depth,
+	)
+	return i, err
+}
+
 const deleteAutosave = `-- name: DeleteAutosave :exec
 DELETE FROM core.content_revisions AS r
 WHERE r.content_id = $1 AND r.author_id = $2 AND r.kind = 'autosave'
@@ -574,7 +678,8 @@ func (q *Queries) DeleteContent(ctx context.Context, id uuid.UUID) (int64, error
 }
 
 const deleteContentField = `-- name: DeleteContentField :execrows
-DELETE FROM core.content_fields WHERE group_id = $1 AND key = $2
+DELETE FROM core.content_fields
+WHERE group_id = $1 AND key = $2 AND parent_field_id IS NULL
 `
 
 type DeleteContentFieldParams struct {
@@ -596,6 +701,18 @@ DELETE FROM core.content_types AS t WHERE t.key = $1
 
 func (q *Queries) DeleteContentType(ctx context.Context, key string) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteContentType, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteFieldByID = `-- name: DeleteFieldByID :execrows
+DELETE FROM core.content_fields WHERE id = $1
+`
+
+func (q *Queries) DeleteFieldByID(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteFieldByID, id)
 	if err != nil {
 		return 0, err
 	}
@@ -660,6 +777,33 @@ func (q *Queries) DeleteRevision(ctx context.Context, arg DeleteRevisionParams) 
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const fieldByID = `-- name: FieldByID :one
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
+FROM core.content_fields WHERE id = $1
+`
+
+func (q *Queries) FieldByID(ctx context.Context, id int32) (CoreContentField, error) {
+	row := q.db.QueryRow(ctx, fieldByID, id)
+	var i CoreContentField
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Label,
+		&i.Kind,
+		&i.RelatesTo,
+		&i.Many,
+		&i.Required,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Position,
+		&i.GroupID,
+		&i.Settings,
+		&i.ParentFieldID,
+		&i.Depth,
+	)
+	return i, err
 }
 
 const getAutosave = `-- name: GetAutosave :one
@@ -996,7 +1140,7 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 }
 
 const listContentFields = `-- name: ListContentFields :many
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 FROM core.content_fields ORDER BY group_id, position, id
 `
 
@@ -1022,6 +1166,8 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 			&i.Position,
 			&i.GroupID,
 			&i.Settings,
+			&i.ParentFieldID,
+			&i.Depth,
 		); err != nil {
 			return nil, err
 		}
@@ -1034,7 +1180,7 @@ func (q *Queries) ListContentFields(ctx context.Context) ([]CoreContentField, er
 }
 
 const listContentFieldsOfGroup = `-- name: ListContentFieldsOfGroup :many
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 FROM core.content_fields WHERE group_id = $1 ORDER BY position, id
 `
 
@@ -1060,6 +1206,8 @@ func (q *Queries) ListContentFieldsOfGroup(ctx context.Context, groupID int32) (
 			&i.Position,
 			&i.GroupID,
 			&i.Settings,
+			&i.ParentFieldID,
+			&i.Depth,
 		); err != nil {
 			return nil, err
 		}
@@ -1616,8 +1764,8 @@ SET group_id = $1,
         FROM core.content_fields AS landing WHERE landing.group_id = $1
     ),
     updated_at = $2
-WHERE moved.group_id = $3 AND moved.key = $4
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+WHERE moved.group_id = $3 AND moved.key = $4 AND moved.parent_field_id IS NULL
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 `
 
 type MoveContentFieldParams struct {
@@ -1648,6 +1796,8 @@ func (q *Queries) MoveContentField(ctx context.Context, arg MoveContentFieldPara
 		&i.Position,
 		&i.GroupID,
 		&i.Settings,
+		&i.ParentFieldID,
+		&i.Depth,
 	)
 	return i, err
 }
@@ -1720,6 +1870,7 @@ FROM (
     FROM unnest($2::text []) WITH ORDINALITY AS asked (key, ordinality)
 ) AS ordered
 WHERE core.content_fields.group_id = $1 AND core.content_fields.key = ordered.key
+    AND core.content_fields.parent_field_id IS NULL
 `
 
 type ReorderContentFieldsParams struct {
@@ -1744,6 +1895,26 @@ WHERE core.field_groups.id = ordered.id
 
 func (q *Queries) ReorderFieldGroups(ctx context.Context, ids []int32) error {
 	_, err := q.db.Exec(ctx, reorderFieldGroups, ids)
+	return err
+}
+
+const reorderSubContentFields = `-- name: ReorderSubContentFields :exec
+UPDATE core.content_fields
+SET position = ordered.position
+FROM (
+    SELECT key, ordinality AS position
+    FROM unnest($2::text []) WITH ORDINALITY AS asked (key, ordinality)
+) AS ordered
+WHERE core.content_fields.parent_field_id = $1 AND core.content_fields.key = ordered.key
+`
+
+type ReorderSubContentFieldsParams struct {
+	ParentFieldID pgtype.Int4
+	Keys          []string
+}
+
+func (q *Queries) ReorderSubContentFields(ctx context.Context, arg ReorderSubContentFieldsParams) error {
+	_, err := q.db.Exec(ctx, reorderSubContentFields, arg.ParentFieldID, arg.Keys)
 	return err
 }
 
@@ -1843,6 +2014,70 @@ func (q *Queries) RetypeContentPaths(ctx context.Context, arg RetypeContentPaths
 		arg.UpdatedAt,
 		arg.Key,
 	)
+	return err
+}
+
+const revisionValuesHolding = `-- name: RevisionValuesHolding :many
+SELECT r.id, r.fields FROM core.content_revisions r
+JOIN core.content c ON r.content_id = c.id
+WHERE c.type = ANY($1::text []) AND r.fields ? $2::text
+`
+
+type RevisionValuesHoldingParams struct {
+	Types []string
+	Key   string
+}
+
+type RevisionValuesHoldingRow struct {
+	ID     uuid.UUID
+	Fields content.Values
+}
+
+func (q *Queries) RevisionValuesHolding(ctx context.Context, arg RevisionValuesHoldingParams) ([]RevisionValuesHoldingRow, error) {
+	rows, err := q.db.Query(ctx, revisionValuesHolding, arg.Types, arg.Key)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RevisionValuesHoldingRow
+	for rows.Next() {
+		var i RevisionValuesHoldingRow
+		if err := rows.Scan(&i.ID, &i.Fields); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setContentValues = `-- name: SetContentValues :exec
+UPDATE core.content SET fields = $1 WHERE id = $2
+`
+
+type SetContentValuesParams struct {
+	Fields content.Values
+	ID     uuid.UUID
+}
+
+func (q *Queries) SetContentValues(ctx context.Context, arg SetContentValuesParams) error {
+	_, err := q.db.Exec(ctx, setContentValues, arg.Fields, arg.ID)
+	return err
+}
+
+const setRevisionValues = `-- name: SetRevisionValues :exec
+UPDATE core.content_revisions SET fields = $1 WHERE id = $2
+`
+
+type SetRevisionValuesParams struct {
+	Fields content.Values
+	ID     uuid.UUID
+}
+
+func (q *Queries) SetRevisionValues(ctx context.Context, arg SetRevisionValuesParams) error {
+	_, err := q.db.Exec(ctx, setRevisionValues, arg.Fields, arg.ID)
 	return err
 }
 
@@ -2061,8 +2296,9 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) (C
 const updateContentField = `-- name: UpdateContentField :one
 UPDATE core.content_fields
 SET label = $1, required = $2, settings = $3, updated_at = $4
-WHERE group_id = $5 AND key = $6 AND updated_at = $7
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings
+WHERE group_id = $5 AND key = $6 AND parent_field_id IS NULL
+    AND updated_at = $7
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
 `
 
 type UpdateContentFieldParams struct {
@@ -2099,6 +2335,8 @@ func (q *Queries) UpdateContentField(ctx context.Context, arg UpdateContentField
 		&i.Position,
 		&i.GroupID,
 		&i.Settings,
+		&i.ParentFieldID,
+		&i.Depth,
 	)
 	return i, err
 }
@@ -2241,6 +2479,51 @@ func (q *Queries) UpdateMedia(ctx context.Context, arg UpdateMediaParams) (CoreM
 		&i.AuthorID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateSubContentField = `-- name: UpdateSubContentField :one
+UPDATE core.content_fields
+SET label = $1, required = $2, settings = $3, updated_at = $4
+WHERE id = $5 AND parent_field_id IS NOT NULL AND updated_at = $6
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
+`
+
+type UpdateSubContentFieldParams struct {
+	Label             string
+	Required          bool
+	Settings          []byte
+	UpdatedAt         time.Time
+	ID                int32
+	ExpectedUpdatedAt time.Time
+}
+
+func (q *Queries) UpdateSubContentField(ctx context.Context, arg UpdateSubContentFieldParams) (CoreContentField, error) {
+	row := q.db.QueryRow(ctx, updateSubContentField,
+		arg.Label,
+		arg.Required,
+		arg.Settings,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedUpdatedAt,
+	)
+	var i CoreContentField
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Label,
+		&i.Kind,
+		&i.RelatesTo,
+		&i.Many,
+		&i.Required,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Position,
+		&i.GroupID,
+		&i.Settings,
+		&i.ParentFieldID,
+		&i.Depth,
 	)
 	return i, err
 }

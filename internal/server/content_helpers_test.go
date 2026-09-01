@@ -438,7 +438,9 @@ type fakeTypeStore struct {
 	types       []content.Type
 	groups      []content.Group
 	nextGroupID int
+	nextFieldID int
 	listErr     error
+	subErr      error
 }
 
 // newFakeTypeStore returns a registry holding the built-in post type.
@@ -557,11 +559,173 @@ func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, groupID int, f con
 		if held.ID != groupID {
 			continue
 		}
-		f.GroupID = groupID
+		s.nextFieldID++
+		f.ID, f.GroupID = s.nextFieldID, groupID
 		s.groups[i].Fields = append(held.Fields, f)
 		return f, nil
 	}
 	return content.Field{}, content.ErrGroupNotFound
+}
+
+// CreateSubField declares the field inside the container the parent names.
+func (s *fakeTypeStore) CreateSubField(_ context.Context, parentID int, f content.Field) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.subErr != nil {
+		return content.Field{}, s.subErr
+	}
+	s.nextFieldID++
+	f.ID, f.ParentID = s.nextFieldID, parentID
+	for i, held := range s.groups {
+		grown, found := fieldGrown(held.Fields, parentID, f)
+		if !found {
+			continue
+		}
+		f.GroupID = held.ID
+		s.groups[i].Fields = grown
+		return f, nil
+	}
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// DeleteSubField removes the field standing inside a container.
+func (s *fakeTypeStore) DeleteSubField(_ context.Context, id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.subErr != nil {
+		return s.subErr
+	}
+	for i, held := range s.groups {
+		pruned, found := fieldPruned(held.Fields, id)
+		if !found {
+			continue
+		}
+		s.groups[i].Fields = pruned
+		return nil
+	}
+	return content.ErrFieldNotFound
+}
+
+// fieldGrown returns the declared fields with the new one placed inside the parent it names.
+func fieldGrown(declared []content.Field, parentID int, f content.Field) ([]content.Field, bool) {
+	grown := make([]content.Field, len(declared))
+	copy(grown, declared)
+	for i, held := range grown {
+		if held.ID == parentID {
+			grown[i].Fields = append(append([]content.Field{}, held.Fields...), f)
+			return grown, true
+		}
+		if inside, found := fieldGrown(held.Fields, parentID, f); found {
+			grown[i].Fields = inside
+			return grown, true
+		}
+	}
+	return declared, false
+}
+
+// fieldPruned returns the declared fields without the one the identity names.
+func fieldPruned(declared []content.Field, id int) ([]content.Field, bool) {
+	for i, held := range declared {
+		if held.ID == id {
+			return append(append([]content.Field{}, declared[:i]...), declared[i+1:]...), true
+		}
+		if inside, found := fieldPruned(held.Fields, id); found {
+			pruned := make([]content.Field, len(declared))
+			copy(pruned, declared)
+			pruned[i].Fields = inside
+			return pruned, true
+		}
+	}
+	return declared, false
+}
+
+// UpdateSubField stores the edit onto the field standing inside a container.
+func (s *fakeTypeStore) UpdateSubField(
+	_ context.Context, id int, f content.Field, _ time.Time,
+) (content.Field, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.subErr != nil {
+		return content.Field{}, s.subErr
+	}
+	for i, held := range s.groups {
+		edited, stored, found := fieldEdited(held.Fields, id, f)
+		if !found {
+			continue
+		}
+		s.groups[i].Fields = edited
+		return stored, nil
+	}
+	return content.Field{}, content.ErrFieldNotFound
+}
+
+// fieldEdited returns the declared fields with the edit carried onto the one the identity names.
+func fieldEdited(
+	declared []content.Field, id int, f content.Field,
+) ([]content.Field, content.Field, bool) {
+	edited := make([]content.Field, len(declared))
+	copy(edited, declared)
+	for i, held := range edited {
+		if held.ID == id {
+			held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
+			held.UpdatedAt = f.UpdatedAt
+			edited[i] = held
+			return edited, held, true
+		}
+		if inside, stored, found := fieldEdited(held.Fields, id, f); found {
+			edited[i].Fields = inside
+			return edited, stored, true
+		}
+	}
+	return declared, content.Field{}, false
+}
+
+// ReorderSubFields stands the fields inside the container in the order the keys name.
+func (s *fakeTypeStore) ReorderSubFields(_ context.Context, parentID int, keys []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.subErr != nil {
+		return s.subErr
+	}
+	for i, held := range s.groups {
+		stood, found := fieldsStood(held.Fields, parentID, keys)
+		if !found {
+			continue
+		}
+		s.groups[i].Fields = stood
+		return nil
+	}
+	return content.ErrFieldNotFound
+}
+
+// fieldsStood returns the declared fields with the container's own fields in the order the keys name.
+func fieldsStood(declared []content.Field, parentID int, keys []string) ([]content.Field, bool) {
+	stood := make([]content.Field, len(declared))
+	copy(stood, declared)
+	for i, held := range stood {
+		if held.ID == parentID {
+			stood[i].Fields = fieldsInOrder(held.Fields, keys)
+			return stood, true
+		}
+		if inside, found := fieldsStood(held.Fields, parentID, keys); found {
+			stood[i].Fields = inside
+			return stood, true
+		}
+	}
+	return declared, false
+}
+
+// fieldsInOrder returns the fields standing in the order the keys name.
+func fieldsInOrder(declared []content.Field, keys []string) []content.Field {
+	stood := make([]content.Field, 0, len(declared))
+	for _, key := range keys {
+		for _, held := range declared {
+			if held.Key == key {
+				stood = append(stood, held)
+			}
+		}
+	}
+	return stood
 }
 
 // UpdateFieldInGroup stores the field's label, required flag and settings inside its group.

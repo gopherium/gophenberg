@@ -123,6 +123,26 @@ export function errorTemplates(): Record<string, string> {
 		),
 		field_max: __('%(field)s goes no higher than %(limit)s. Lower the value and save again.', DOMAIN),
 		field_min: __('%(field)s goes no lower than %(limit)s. Raise the value and save again.', DOMAIN),
+		field_parent_holds_none: __(
+			'This kind of field holds no fields inside it. Put the field in a section or a repeater instead.',
+			DOMAIN,
+		),
+		field_relation_inside: __(
+			'A relation field stands on its own, not inside a section or a repeater. Declare it beside the container.',
+			DOMAIN,
+		),
+		field_too_deep: __(
+			'This field would stand inside too many containers. Put it nearer the top and try again.',
+			DOMAIN,
+		),
+		field_rows_max: __(
+			'%(field)s takes at most %(limit)s rows. Remove one and save again.',
+			DOMAIN,
+		),
+		field_rows_min: __(
+			'%(field)s needs at least %(limit)s rows. Add one and save again.',
+			DOMAIN,
+		),
 		field_taken: __(
 			'A field with that name already exists on the items this group reaches. Pick another name.',
 			DOMAIN,

@@ -4,12 +4,19 @@ package content
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
 
 // ErrFieldNotFound reports that the type declares no field under the key.
 var ErrFieldNotFound = errors.New("content: field not found")
+
+// ErrFieldTooDeep reports that a field would stand deeper than a container tree runs.
+var ErrFieldTooDeep = errors.New("content: field nested too deep")
+
+// MaxFieldDepth is how many containers a field may stand inside.
+const MaxFieldDepth = 32
 
 // ErrFieldTaken reports that the type already declares a field under the key.
 var ErrFieldTaken = errors.New("content: field key taken")
@@ -50,12 +57,15 @@ const (
 	FieldKindMedia    FieldKind = "media"
 	FieldKindRelation FieldKind = "relation"
 	FieldKindChoice   FieldKind = "choice"
+	FieldKindSection  FieldKind = "section"
+	FieldKindRepeater FieldKind = "repeater"
 )
 
 // Field describes one typed field a group declares, flattened onto the types its group matches.
 type Field struct {
 	ID        int
 	GroupID   int
+	ParentID  int
 	TypeKey   string
 	Key       string
 	Label     string
@@ -64,6 +74,7 @@ type Field struct {
 	Many      bool
 	Required  bool
 	Settings  map[string]any
+	Fields    []Field
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -103,11 +114,32 @@ func (f Field) Validate() error {
 func validFieldKind(kind FieldKind) bool {
 	switch kind {
 	case FieldKindText, FieldKindNumber, FieldKindBoolean, FieldKindDate,
-		FieldKindMedia, FieldKindRelation, FieldKindChoice:
+		FieldKindMedia, FieldKindRelation, FieldKindChoice,
+		FieldKindSection, FieldKindRepeater:
 		return true
 	default:
 		return false
 	}
+}
+
+// Holds reports whether the kind carries sub fields of its own.
+func (k FieldKind) Holds() bool {
+	return k == FieldKindSection || k == FieldKindRepeater
+}
+
+// NewSubField returns a field definition ready to store inside the parent kind, or the reason it is not one.
+func NewSubField(f Field, parent FieldKind) (Field, error) {
+	if !parent.Holds() {
+		return Field{}, Refuse(ErrFieldShape, "field_parent_holds_none",
+			fmt.Sprintf("%s: %s holds no sub fields", ErrFieldShape, parent),
+			Details{"kind": string(parent)})
+	}
+	if f.Kind == FieldKindRelation {
+		return Field{}, Refuse(ErrFieldShape, "field_relation_inside",
+			fmt.Sprintf("%s: a relation stands outside a container", ErrFieldShape),
+			Details{"field": f.Key})
+	}
+	return NewField(f)
 }
 
 // holdsMany reports whether the kind takes many values under one key.

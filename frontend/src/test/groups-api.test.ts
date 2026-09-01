@@ -10,6 +10,8 @@ import {
 	deleteGroup,
 	listGroups,
 	listRuleSources,
+	createSubField,
+	deleteSubField,
 	moveField,
 	renameFieldInGroup,
 	reorderFieldsInGroup,
@@ -286,6 +288,13 @@ test.each([
 	['reorderFieldsInGroup', () => reorderFieldsInGroup(3, ['a']), 'put', '/api/groups/3/fields/order'],
 	['deleteFieldInGroup', () => deleteFieldInGroup(3, 'a'), 'delete', '/api/groups/3/fields/a'],
 	['moveField', () => moveField(3, 'a', 7), 'post', '/api/groups/3/fields/a/move'],
+	[
+		'createSubField',
+		() => createSubField(3, 'author', { key: 'a', label: 'A', kind: 'text' }),
+		'post',
+		'/api/groups/3/fields/author',
+	],
+	['deleteSubField', () => deleteSubField(3, 'author.a'), 'delete', '/api/groups/3/inside/author.a'],
 ] as const)('carries the reason %s was refused', async (_name, run, method, path) => {
 	server.use(
 		http[method](path, () =>

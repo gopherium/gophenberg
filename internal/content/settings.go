@@ -79,6 +79,9 @@ func settingChecks(kind FieldKind) map[string]func(value any) bool {
 		held[SettingPresentation] = settingOneOf("range")
 	case FieldKindBoolean:
 		held[SettingDefault] = settingBool
+	case FieldKindRepeater:
+		held[SettingMin] = settingWhole
+		held[SettingMax] = settingWhole
 	case FieldKindChoice:
 		held[SettingDefault] = settingChoiceDefault
 		held[SettingChoices] = settingChoicePairs
@@ -220,6 +223,8 @@ func settingsAgree(kind FieldKind, settings map[string]any) error {
 		return textSettingsAgree(settings)
 	case FieldKindChoice:
 		return choiceSettingsAgree(settings)
+	case FieldKindRepeater:
+		return boundsAgree(settings)
 	default:
 		return nil
 	}
@@ -273,13 +278,23 @@ func disagree(setting string) error {
 		fmt.Sprintf("%s: %s", ErrSettingBounds, setting), Details{"setting": setting})
 }
 
-// numberSettingsAgree reports whether min, max and the default sit together.
-func numberSettingsAgree(settings map[string]any) error {
+// boundsAgree reports whether the smallest bound sits at or below the largest.
+func boundsAgree(settings map[string]any) error {
 	low, hasLow := settingNumber(settings[SettingMin])
 	high, hasHigh := settingNumber(settings[SettingMax])
 	if hasLow && hasHigh && low > high {
 		return disagree(SettingMin)
 	}
+	return nil
+}
+
+// numberSettingsAgree reports whether min, max and the default sit together.
+func numberSettingsAgree(settings map[string]any) error {
+	if err := boundsAgree(settings); err != nil {
+		return err
+	}
+	low, hasLow := settingNumber(settings[SettingMin])
+	high, hasHigh := settingNumber(settings[SettingMax])
 	chosen, hasChosen := settingNumber(settings[SettingDefault])
 	if hasChosen && ((hasLow && chosen < low) || (hasHigh && chosen > high)) {
 		return disagree(SettingDefault)

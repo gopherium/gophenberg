@@ -58,7 +58,7 @@ stored under it.
 
 ## The kinds
 
-The picker offers fifteen entries storing seven kinds of value, so
+The picker offers seventeen entries storing nine kinds of value, so
 all four choice entries are listed as Choice.
 
 | Stores | Pick |
@@ -70,6 +70,8 @@ all four choice entries are listed as Choice.
 | One of a list | Select, Radio group, Checkbox group, Button group |
 | Items from the media library | Media, Gallery |
 | Links to items of another type | Relation |
+| Fields of its own | Section |
+| Rows of fields of its own | Repeater |
 
 **Email** and **Web address** are checked when you save, and a web
 address has to start with `http://` or `https://`. **Range** draws
@@ -107,6 +109,37 @@ falls outside.
 **Steps of** moves a Range field's slider one notch. A Range needs
 both Lowest and Highest before it draws a slider, and is a plain
 number box without them, where Steps of reaches nothing.
+
+## Fields inside fields
+
+A **Section** bundles fields under one name. An Author section might
+hold a Name, a Photo and a Bio, kept together in the editor and
+stored together on the item.
+
+A **Repeater** holds rows of fields. A Team repeater whose row has a
+Name and a Role lets an author add a row per person, in any order,
+with as many or as few as the work needs.
+
+Press **Add field** on a section or a repeater to declare a field
+inside it. The field is listed under its container, and every setting
+its kind takes works there exactly as it does at the top. Rename it,
+require it, settle it and move it up or down in the same way. Two
+containers may each hold a field of the same name, because a field is
+named inside the container that holds it.
+
+The one control a field inside a container does not offer is the move
+to another group, because a field there belongs to its container
+rather than to the group directly.
+
+A container may hold another container, up to 32 levels deep. A
+Repeater row can hold a Section, and that Section can hold a Repeater
+of its own. Deeper than 32 the field is refused, which is far more
+nesting than a page needs. Relations are the one kind that stands
+outside, so declare a Relation beside a container rather than in it.
+
+Deleting a field inside a container takes the values stored under it,
+in every item the group reaches and in the revisions behind them,
+exactly as deleting a field at the top does.
 
 ## Filling fields in
 

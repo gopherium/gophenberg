@@ -78,6 +78,26 @@ func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, _ int, f content.F
 	return f, nil
 }
 
+// CreateSubField hands the field back unstored, since the fake models fields on their types.
+func (s *fakeTypeStore) CreateSubField(_ context.Context, _ int, f content.Field) (content.Field, error) {
+	return f, nil
+}
+
+// DeleteSubField removes no field, since the fake models fields on their types.
+func (s *fakeTypeStore) DeleteSubField(_ context.Context, _ int) error {
+	return nil
+}
+
+// UpdateSubField hands the field back unstored.
+func (s *fakeTypeStore) UpdateSubField(
+	_ context.Context, _ int, f content.Field, _ time.Time,
+) (content.Field, error) {
+	return f, nil
+}
+
+// ReorderSubFields stores no order.
+func (s *fakeTypeStore) ReorderSubFields(context.Context, int, []string) error { return nil }
+
 // MoveField carries no field, since the fake models fields on their types.
 func (s *fakeTypeStore) MoveField(context.Context, int, string, int) (content.Field, error) {
 	return content.Field{}, content.ErrFieldNotFound

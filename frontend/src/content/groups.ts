@@ -319,10 +319,34 @@ export async function setFieldRequiredInGroup(
 }
 
 /**
+ * Stores the declaration order of the fields a container holds.
+ * @param id - The group declaring the container.
+ * @param path - The dotted path naming the container.
+ * @param keys - Every field key the container holds, in the order to store.
+ * @returns The reordered fields.
+ */
+export async function reorderSubFields(
+	id: number,
+	path: string,
+	keys: string[],
+): Promise<ContentField[]> {
+	const response = await fetch(`/api/groups/${id}/inside/${path}/order`, {
+		method: 'PUT',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ order: keys }),
+	})
+	if (!response.ok) {
+		await refuse(response)
+	}
+	const listed = z.object({ items: z.array(fieldSchema) }).parse(await response.json())
+	return listed.items.map(toField)
+}
+
+/**
  * Stores the declaration order of a group's fields.
  * @param id - The group whose fields are reordered.
  * @param keys - Every declared field key in the order to store.
- * @returns The reordered fields.
+ * @returns The fields in the stored order.
  */
 export async function reorderFieldsInGroup(id: number, keys: string[]): Promise<ContentField[]> {
 	const response = await fetch(`/api/groups/${id}/fields/order`, {
@@ -344,6 +368,49 @@ export async function reorderFieldsInGroup(id: number, keys: string[]): Promise<
  */
 export async function deleteFieldInGroup(id: number, key: string): Promise<void> {
 	const response = await fetch(`/api/groups/${id}/fields/${key}`, { method: 'DELETE' })
+	if (!response.ok) {
+		await refuse(response)
+	}
+}
+
+/**
+ * Declares a field inside the container the path addresses.
+ * @param id - The group declaring the container.
+ * @param path - The dotted keys addressing the container.
+ * @param asked - The field to declare.
+ * @returns The stored field.
+ */
+export async function createSubField(
+	id: number,
+	path: string,
+	asked: NewField,
+): Promise<ContentField> {
+	const response = await fetch(`/api/groups/${id}/fields/${path}`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({
+			key: asked.key,
+			label: asked.label,
+			kind: asked.kind,
+			relates_to: asked.relatesTo,
+			many: asked.many,
+			required: asked.required,
+			settings: asked.settings,
+		}),
+	})
+	if (!response.ok) {
+		await refuse(response)
+	}
+	return toField(fieldSchema.parse(await response.json()))
+}
+
+/**
+ * Removes the field the path addresses inside its container, and the values every item held under it.
+ * @param id - The group declaring the container.
+ * @param path - The dotted keys addressing the field.
+ */
+export async function deleteSubField(id: number, path: string): Promise<void> {
+	const response = await fetch(`/api/groups/${id}/inside/${path}`, { method: 'DELETE' })
 	if (!response.ok) {
 		await refuse(response)
 	}

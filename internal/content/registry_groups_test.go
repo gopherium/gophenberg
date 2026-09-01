@@ -11,6 +11,60 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
+func TestRegistryCarriesASubFieldInAndOutOfItsContainer(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+
+	held, err := registry.CreateSubField(t.Context(), 1, groupedTextField(t))
+	if err != nil {
+		t.Fatalf("CreateSubField() error = %v, want nil", err)
+	}
+	if held.Key != "subtitle" {
+		t.Errorf("held = %+v, want the sub field handed back", held)
+	}
+
+	if err := registry.DeleteSubField(t.Context(), 1); err != nil {
+		t.Errorf("DeleteSubField() error = %v, want nil", err)
+	}
+}
+
+// CreateSubField hands the field back, or reports the scripted failure.
+func (s *groupingStore) CreateSubField(
+	_ context.Context, _ int, f content.Field,
+) (content.Field, error) {
+	if s.subCreateErr != nil {
+		return content.Field{}, s.subCreateErr
+	}
+	return f, nil
+}
+
+// DeleteSubField removes no field, or reports the scripted failure.
+func (s *groupingStore) DeleteSubField(_ context.Context, _ int) error {
+	return s.subDeleteErr
+}
+
+// UpdateSubField hands the field back unstored, or reports the scripted failure.
+func (s *groupingStore) UpdateSubField(
+	_ context.Context, _ int, f content.Field, _ time.Time,
+) (content.Field, error) {
+	if s.subUpdateErr != nil {
+		return content.Field{}, s.subUpdateErr
+	}
+	return f, nil
+}
+
+// ReorderSubFields stores no order, or reports the scripted failure.
+func (s *groupingStore) ReorderSubFields(_ context.Context, _ int, _ []string) error {
+	if s.subReorderErr != nil {
+		return s.subReorderErr
+	}
+	if s.failReadAfterOrder {
+		s.groupsErr = errStoreDown
+	}
+	return nil
+}
+
 // groupingStore holds field groups beside the types the fake registry serves.
 type groupingStore struct {
 	*fakeTypeStore
@@ -25,6 +79,10 @@ type groupingStore struct {
 	updateFieldErr  error
 	deleteFieldErr  error
 	reorderFieldErr error
+	subCreateErr    error
+	subDeleteErr    error
+	subUpdateErr    error
+	subReorderErr   error
 
 	failReadAfterOrder bool
 }
@@ -277,6 +335,15 @@ func TestRegistryReportsAGroupStoreThatWillNotAnswer(t *testing.T) {
 			s.createFieldErr = errStoreDown
 			_, err := r.CreateFieldInGroup(t.Context(), stored.ID, groupedTextField(t))
 			return err
+		},
+		"CreateSubField": func(r *content.Registry, s *groupingStore) error {
+			s.subCreateErr = errStoreDown
+			_, err := r.CreateSubField(t.Context(), 1, groupedTextField(t))
+			return err
+		},
+		"DeleteSubField": func(r *content.Registry, s *groupingStore) error {
+			s.subDeleteErr = errStoreDown
+			return r.DeleteSubField(t.Context(), 1)
 		},
 		"MoveField": func(r *content.Registry, s *groupingStore) error {
 			from := groupNaming(t, r, "From", namingPost())

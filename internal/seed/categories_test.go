@@ -17,6 +17,7 @@ type categoryTypeStore struct {
 	stubTypeStore
 	createErr      error
 	createFieldErr error
+	subFieldErr    error
 	listErr        error
 	postless       bool
 	forgetful      bool
@@ -66,6 +67,33 @@ func (s *categoryTypeStore) Create(_ context.Context, t content.Type) (content.T
 	}
 	s.registered = !s.forgetful
 	return t, nil
+}
+
+// CreateSubField hands the field back unstored, or reports the scripted failure.
+func (s *categoryTypeStore) CreateSubField(
+	_ context.Context, _ int, f content.Field,
+) (content.Field, error) {
+	if s.subFieldErr != nil {
+		return content.Field{}, s.subFieldErr
+	}
+	return f, nil
+}
+
+// DeleteSubField removes no field, since the fake declares none inside a container.
+func (*categoryTypeStore) DeleteSubField(_ context.Context, _ int) error {
+	return nil
+}
+
+// UpdateSubField hands the field back unstored.
+func (*categoryTypeStore) UpdateSubField(
+	_ context.Context, _ int, f content.Field, _ time.Time,
+) (content.Field, error) {
+	return f, nil
+}
+
+// ReorderSubFields stores no order.
+func (*categoryTypeStore) ReorderSubFields(_ context.Context, _ int, _ []string) error {
+	return nil
 }
 
 // CreateField records the declaration, or reports the scripted failure.

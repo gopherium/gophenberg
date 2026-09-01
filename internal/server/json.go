@@ -114,6 +114,7 @@ var domainErrors = []struct {
 	{media.ErrNotFound, http.StatusNotFound, "media_not_found"},
 	{content.ErrConflict, http.StatusConflict, "content_stale_update"},
 	{media.ErrConflict, http.StatusConflict, "media_stale_update"},
+	{content.ErrFieldTooDeep, http.StatusUnprocessableEntity, "field_too_deep"},
 	{content.ErrInvalidType, http.StatusUnprocessableEntity, "type_unknown"},
 	{content.ErrInvalidAuthor, http.StatusUnprocessableEntity, "author_required"},
 	{media.ErrInvalidAuthor, http.StatusUnprocessableEntity, "author_required"},

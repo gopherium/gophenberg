@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
@@ -41,6 +42,38 @@ func locationJSON(location content.Rules) []byte {
 	return raw
 }
 
+// fieldsByGroup returns the declared rows as trees of fields, keyed by the group holding them.
+func fieldsByGroup(declared []db.CoreContentField) map[int][]content.Field {
+	inside := map[int][]content.Field{}
+	for _, row := range declared {
+		if row.ParentFieldID.Valid {
+			at := int(row.ParentFieldID.Int32)
+			inside[at] = append(inside[at], toField(row))
+		}
+	}
+	held := map[int][]content.Field{}
+	for _, row := range declared {
+		if row.ParentFieldID.Valid {
+			continue
+		}
+		held[int(row.GroupID)] = append(held[int(row.GroupID)], grownField(toField(row), inside))
+	}
+	return held
+}
+
+// grownField returns the field carrying the sub fields standing under it, however deep they run.
+func grownField(f content.Field, inside map[int][]content.Field) content.Field {
+	if len(inside[f.ID]) == 0 {
+		return f
+	}
+	grown := make([]content.Field, 0, len(inside[f.ID]))
+	for _, sub := range inside[f.ID] {
+		grown = append(grown, grownField(sub, inside))
+	}
+	f.Fields = grown
+	return f
+}
+
 // groupsWithFields loads every group in position order with its fields attached.
 func groupsWithFields(ctx context.Context, queries *db.Queries) ([]content.Group, error) {
 	rows, err := queries.ListFieldGroups(ctx)
@@ -51,10 +84,7 @@ func groupsWithFields(ctx context.Context, queries *db.Queries) ([]content.Group
 	if err != nil {
 		return nil, fmt.Errorf("postgres: list content fields: %w", err)
 	}
-	held := make(map[int][]content.Field, len(rows))
-	for _, row := range declared {
-		held[int(row.GroupID)] = append(held[int(row.GroupID)], toField(row))
-	}
+	held := fieldsByGroup(declared)
 	groups := make([]content.Group, len(rows))
 	for i, row := range rows {
 		group, err := toGroup(row)
@@ -429,6 +459,38 @@ func (s *TypeStore) UpdateFieldInGroup(
 	return toField(row), nil
 }
 
+// UpdateSubField carries the edit onto the sub field the identity names.
+func (s *TypeStore) UpdateSubField(
+	ctx context.Context, id int, f content.Field, expectedUpdatedAt time.Time,
+) (content.Field, error) {
+	row, err := s.queries.UpdateSubContentField(ctx, db.UpdateSubContentFieldParams{
+		Label:             f.Label,
+		Required:          f.Required,
+		Settings:          settingsJSON(f.Settings),
+		UpdatedAt:         f.UpdatedAt,
+		ExpectedUpdatedAt: expectedUpdatedAt,
+		ID:                int32(id),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return content.Field{}, content.ErrConflict
+	}
+	if err != nil {
+		return content.Field{}, fmt.Errorf("postgres: update sub field: %w", err)
+	}
+	return toField(row), nil
+}
+
+// ReorderSubFields stands the sub fields of the container in the order the keys name.
+func (s *TypeStore) ReorderSubFields(ctx context.Context, parentID int, keys []string) error {
+	if err := s.queries.ReorderSubContentFields(ctx, db.ReorderSubContentFieldsParams{
+		ParentFieldID: pgtype.Int4{Int32: int32(parentID), Valid: true},
+		Keys:          keys,
+	}); err != nil {
+		return fmt.Errorf("postgres: reorder sub fields: %w", err)
+	}
+	return nil
+}
+
 // fieldStands reports whether the group still declares the field.
 func (s *TypeStore) fieldStands(ctx context.Context, groupID int, key string) error {
 	groups, err := groupsWithFields(ctx, s.queries)
@@ -470,6 +532,95 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 	}
 	if err != nil {
 		return fmt.Errorf("postgres: delete content field: %w", err)
+	}
+	return nil
+}
+
+// DeleteSubField removes the field standing inside a container, and the values every item held under it.
+func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		groups, err := groupsWithFields(ctx, queries)
+		if err != nil {
+			return err
+		}
+		held, path, found := fieldPathIn(groups, id)
+		if !found {
+			return content.ErrFieldNotFound
+		}
+		matched, err := typesMatchedBy(ctx, queries, held)
+		if err != nil {
+			return err
+		}
+		if _, err := queries.DeleteFieldByID(ctx, int32(id)); err != nil {
+			return err
+		}
+		return sweepPath(ctx, queries, path, matched)
+	})
+	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) {
+		return err
+	}
+	if err != nil {
+		return fmt.Errorf("postgres: delete sub field: %w", err)
+	}
+	return nil
+}
+
+// fieldPathIn returns the group holding the field and the keys addressing it from the top of that group.
+func fieldPathIn(groups []content.Group, id int) (content.Group, []string, bool) {
+	for _, group := range groups {
+		if path, found := pathToField(group.Fields, id); found {
+			return group, path, true
+		}
+	}
+	return content.Group{}, nil, false
+}
+
+// pathToField returns the keys addressing the field among the declared ones, however deep it stands.
+func pathToField(declared []content.Field, id int) ([]string, bool) {
+	for _, f := range declared {
+		if f.ID == id {
+			return []string{f.Key}, true
+		}
+		if inside, found := pathToField(f.Fields, id); found {
+			return append([]string{f.Key}, inside...), true
+		}
+	}
+	return nil, false
+}
+
+// sweepPath removes whatever stands at the path from every item and revision of the matched types.
+func sweepPath(ctx context.Context, queries *db.Queries, path []string, matched []string) error {
+	items, err := queries.ContentValuesHolding(ctx, db.ContentValuesHoldingParams{
+		Types: matched, Key: path[0],
+	})
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		if err := queries.SetContentValues(ctx, db.SetContentValuesParams{
+			ID: item.ID, Fields: item.Fields.Stripped(path),
+		}); err != nil {
+			return err
+		}
+	}
+	return sweepRevisionPath(ctx, queries, path, matched)
+}
+
+// sweepRevisionPath removes whatever stands at the path from every revision of the matched types.
+func sweepRevisionPath(ctx context.Context, queries *db.Queries, path []string, matched []string) error {
+	revisions, err := queries.RevisionValuesHolding(ctx, db.RevisionValuesHoldingParams{
+		Types: matched, Key: path[0],
+	})
+	if err != nil {
+		return err
+	}
+	for _, revision := range revisions {
+		if err := queries.SetRevisionValues(ctx, db.SetRevisionValuesParams{
+			ID: revision.ID, Fields: revision.Fields.Stripped(path),
+		}); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -532,6 +683,70 @@ func (s *TypeStore) settledFieldWrite(
 		return err
 	}
 	return fieldWriteFailure(err)
+}
+
+// CreateSubField declares the field inside the container the parent names.
+func (s *TypeStore) CreateSubField(ctx context.Context, parentID int, f content.Field) (content.Field, error) {
+	var created content.Field
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := queries.LockFieldGroups(ctx); err != nil {
+			return fmt.Errorf("postgres: lock field groups: %w", err)
+		}
+		parent, settled, err := standingParent(ctx, queries, parentID, f)
+		if err != nil {
+			return err
+		}
+		row, err := queries.CreateSubContentField(ctx, db.CreateSubContentFieldParams{
+			GroupID:       parent.GroupID,
+			ParentFieldID: pgtype.Int4{Int32: int32(parentID), Valid: true},
+			Key:           settled.Key,
+			Label:         settled.Label,
+			Kind:          string(settled.Kind),
+			RelatesTo:     targetOf(settled),
+			Many:          settled.Many,
+			Required:      settled.Required,
+			CreatedAt:     settled.CreatedAt,
+			UpdatedAt:     settled.UpdatedAt,
+			Settings:      settingsJSON(settled.Settings),
+			Depth:         parent.Depth + 1,
+		})
+		if err != nil {
+			return err
+		}
+		created = toField(row)
+		return nil
+	})
+	if err == nil {
+		return created, nil
+	}
+	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrFieldShape) ||
+		errors.Is(err, content.ErrFieldTooDeep) {
+		return content.Field{}, err
+	}
+	return content.Field{}, fieldWriteFailure(err)
+}
+
+// standingParent returns the row the sub field may stand under and the field it settled on,
+// or the reason it may not stand there.
+func standingParent(
+	ctx context.Context, queries *db.Queries, parentID int, f content.Field,
+) (db.CoreContentField, content.Field, error) {
+	parent, err := queries.FieldByID(ctx, int32(parentID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return parent, f, content.ErrFieldNotFound
+	}
+	if err != nil {
+		return parent, f, err
+	}
+	settled, err := content.NewSubField(f, content.FieldKind(parent.Kind))
+	if err != nil {
+		return parent, f, err
+	}
+	if parent.Depth+1 > int32(content.MaxFieldDepth) {
+		return parent, f, content.ErrFieldTooDeep
+	}
+	return parent, settled, nil
 }
 
 // CreateFieldInGroup declares the field inside the group.

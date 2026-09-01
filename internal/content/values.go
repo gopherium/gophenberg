@@ -65,6 +65,9 @@ func valueStands(f Field, value any, bounded bool) error {
 	if value == nil {
 		return nil
 	}
+	if f.Kind.Holds() {
+		return heldStands(f, value, bounded)
+	}
 	if !holdsShape(f, value) {
 		return Refuse(ErrFieldShape, "field_shape_kind",
 			fmt.Sprintf("%s: %s holds %s", ErrFieldShape, f.Key, f.Kind),
@@ -77,6 +80,53 @@ func valueStands(f Field, value any, bounded bool) error {
 		return nil
 	}
 	return withinBounds(f, value)
+}
+
+// heldStands reports whether a container's value matches the sub fields it declares.
+func heldStands(f Field, value any, bounded bool) error {
+	if f.Kind == FieldKindSection {
+		return insideStands(f, value, bounded)
+	}
+	rows, listed := value.([]any)
+	if !listed {
+		return wrongShape(f)
+	}
+	for _, row := range rows {
+		if err := insideStands(f, row, bounded); err != nil {
+			return err
+		}
+	}
+	if !bounded {
+		return nil
+	}
+	return rowsWithinBounds(f, len(rows))
+}
+
+// insideStands reports whether one object matches the sub fields the container declares.
+func insideStands(f Field, value any, bounded bool) error {
+	inside, held := value.(map[string]any)
+	if !held {
+		return wrongShape(f)
+	}
+	return Values(inside).validate(f.Fields, bounded)
+}
+
+// wrongShape returns the error naming the shape the field holds.
+func wrongShape(f Field) error {
+	return Refuse(ErrFieldShape, "field_shape_kind",
+		fmt.Sprintf("%s: %s holds %s", ErrFieldShape, f.Key, f.Kind),
+		Details{"field": f.Key, "kind": string(f.Kind)})
+}
+
+// rowsWithinBounds reports whether the row count sits between the min and the max the field names.
+func rowsWithinBounds(f Field, held int) error {
+	if low, named := settingNumber(f.Settings[SettingMin]); named && float64(held) < low {
+		return outOfBounds(f, "field_rows_min", SettingMin, low)
+	}
+	if high, named := settingNumber(f.Settings[SettingMax]); named && float64(held) > high {
+		return outOfBounds(f, "field_rows_max", SettingMax, high)
+	}
+	return nil
 }
 
 // holdsEachOnce reports whether a list field names each of its members once.
@@ -341,6 +391,9 @@ func empty(value any) bool {
 	}
 	if members, ok := value.([]any); ok {
 		return len(members) == 0
+	}
+	if inside, ok := value.(map[string]any); ok {
+		return len(inside) == 0
 	}
 	written, ok := value.(string)
 	return ok && written == ""

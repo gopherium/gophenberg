@@ -45,6 +45,9 @@ msgstr ""
 msgid "%(field)s names the same one twice. Remove the repeat and save again."
 msgstr ""
 
+msgid "%(field)s needs at least %(limit)s rows. Add one and save again."
+msgstr ""
+
 msgid "%(field)s only takes one of its listed choices. Pick one and save again."
 msgstr ""
 
@@ -55,6 +58,9 @@ msgid "%(field)s settled."
 msgstr ""
 
 msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again."
+msgstr ""
+
+msgid "%(field)s takes at most %(limit)s rows. Remove one and save again."
 msgstr ""
 
 msgid "%(file)s is larger than one upload may be."
@@ -144,6 +150,9 @@ msgstr ""
 msgid "A relation field has to say which content type it points at. Pick that type and try again."
 msgstr ""
 
+msgid "A relation field stands on its own, not inside a section or a repeater. Declare it beside the container."
+msgstr ""
+
 msgid "A reload shows the admin in the language you chose."
 msgstr ""
 
@@ -195,7 +204,13 @@ msgstr ""
 msgid "Add field"
 msgstr ""
 
+msgid "Add field to %(field)s"
+msgstr ""
+
 msgid "Add media"
+msgstr ""
+
+msgid "Add row"
 msgstr ""
 
 msgid "Add rule set"
@@ -866,6 +881,9 @@ msgstr ""
 msgid "Remove Media %(id)d"
 msgstr ""
 
+msgid "Remove row"
+msgstr ""
+
 msgid "Rename"
 msgstr ""
 
@@ -1217,6 +1235,9 @@ msgstr ""
 msgid "This content type still holds content, so it cannot be deleted. Move or delete its items first."
 msgstr ""
 
+msgid "This field would stand inside too many containers. Put it nearer the top and try again."
+msgstr ""
+
 msgid "This file could not be opened as a zip. Package the theme again and upload the new file."
 msgstr ""
 
@@ -1245,6 +1266,9 @@ msgid "This item is not in the trash, so there is nothing to restore. Open it fr
 msgstr ""
 
 msgid "This item still holds items nested inside it. Move or delete those first."
+msgstr ""
+
+msgid "This kind of field holds no fields inside it. Put the field in a section or a repeater instead."
 msgstr ""
 
 msgid "This media item is not in the library, and someone may have deleted it. Reload the page to see what is there now."
@@ -1429,6 +1453,14 @@ msgstr ""
 
 msgctxt "field type"
 msgid "Range"
+msgstr ""
+
+msgctxt "field type"
+msgid "Repeater"
+msgstr ""
+
+msgctxt "field type"
+msgid "Section"
 msgstr ""
 
 msgctxt "field type"

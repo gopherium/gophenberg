@@ -145,6 +145,35 @@ export function fieldValidity(declared: ContentField[], values: FieldValues): Fo
 }
 
 /**
+ * Returns the fields holding sub fields of their own.
+ * @param declared - The fields the type declares.
+ * @returns The declared container fields.
+ */
+export function containerFields(declared: ContentField[]): ContentField[] {
+	return declared.filter((field) => field.kind === 'section' || field.kind === 'repeater')
+}
+
+/**
+ * Returns the values a container holds under its key.
+ * @param value - The buffered value.
+ * @returns The values, empty for anything else.
+ */
+function insideHeld(value: unknown): FieldValues {
+	return typeof value === 'object' && value !== null && !Array.isArray(value)
+		? (value as FieldValues)
+		: {}
+}
+
+/**
+ * Returns the rows a repeater holds under its key.
+ * @param value - The buffered value.
+ * @returns The rows, empty for anything else.
+ */
+function rowsHeld(value: unknown): FieldValues[] {
+	return Array.isArray(value) ? value.map(insideHeld) : []
+}
+
+/**
  * Returns the fields a relation picker edits.
  * @param declared - The fields the type declares.
  * @returns The declared relation fields.
@@ -484,6 +513,169 @@ export function clearedEdits(edits: FieldValues): FieldValues {
 	)
 }
 
+/** What a set of declared fields edits, and what to call with the values it holds. */
+interface Editing {
+	postId: string
+	declared: ContentField[]
+	values: FieldValues
+	onChange: (values: FieldValues) => void
+}
+
+/**
+ * Renders the controls a set of declared fields asks for, containers and all.
+ * @param props - The fields declared, the values they hold, and what to call with a change.
+ * @returns The controls element.
+ */
+function DeclaredFields({ postId, declared, values, onChange }: Editing) {
+	const rendered = useMemo(() => editableFields(declared), [declared])
+	const related = useMemo(() => relationFields(declared), [declared])
+	const pictured = useMemo(() => mediaFields(declared), [declared])
+	const contained = useMemo(() => containerFields(declared), [declared])
+	const descriptors = useMemo(() => fieldDescriptors(rendered), [rendered])
+	const complaints = useMemo(() => fieldValidity(rendered, values), [rendered, values])
+	return (
+		<Stack direction="column" gap="md">
+			{rendered.length > 0 && (
+				<DataForm
+					data={values}
+					fields={descriptors}
+					form={{ fields: rendered.map((field) => field.key) }}
+					validity={complaints}
+					onChange={(edits: FieldValues) => onChange({ ...values, ...clearedEdits(edits) })}
+				/>
+			)}
+			{contained.map((field) => (
+				<ContainerField
+					key={field.key}
+					postId={postId}
+					field={field}
+					value={values[field.key]}
+					onChange={(held) => onChange({ ...values, [field.key]: held })}
+				/>
+			))}
+			<RelatedAndPictured
+				postId={postId}
+				related={related}
+				pictured={pictured}
+				values={values}
+				onChange={onChange}
+			/>
+		</Stack>
+	)
+}
+
+/**
+ * Renders the section or the rows a container field asks for.
+ * @param props - The container declared, what it holds, and what to call with a change.
+ * @returns The container element.
+ */
+function ContainerField(props: {
+	postId: string
+	field: ContentField
+	value: unknown
+	onChange: (held: unknown) => void
+}) {
+	if (props.field.kind === 'section') {
+		return (
+			<Stack direction="column" gap="sm">
+				<Text variant="body-sm">{props.field.label}</Text>
+				<DeclaredFields
+					postId={props.postId}
+					declared={props.field.fields}
+					values={insideHeld(props.value)}
+					onChange={props.onChange}
+				/>
+			</Stack>
+		)
+	}
+	return <RepeaterRows postId={props.postId} field={props.field} onChange={props.onChange}
+		rows={rowsHeld(props.value)} />
+}
+
+/**
+ * Renders one set of controls per row a repeater holds, with the buttons growing and shrinking it.
+ * @param props - The repeater declared, the rows it holds, and what to call with a change.
+ * @returns The rows element.
+ */
+function RepeaterRows(props: {
+	postId: string
+	field: ContentField
+	rows: FieldValues[]
+	onChange: (held: unknown) => void
+}) {
+	return (
+		<Stack direction="column" gap="sm">
+			<Text variant="body-sm">{props.field.label}</Text>
+			{props.rows.map((row, at) => (
+				<Stack key={at} direction="column" gap="xs">
+					<DeclaredFields
+						postId={props.postId}
+						declared={props.field.fields}
+						values={row}
+						onChange={(held) =>
+							props.onChange(props.rows.map((one, index) => (index === at ? held : one)))
+						}
+					/>
+					<Button
+						variant="outline"
+						size="compact"
+						onClick={() => props.onChange(props.rows.filter((_, index) => index !== at))}
+					>
+						{__('Remove row', 'gophenberg')}
+					</Button>
+				</Stack>
+			))}
+			<Button variant="outline" size="compact" onClick={() => props.onChange([...props.rows, {}])}>
+				{__('Add row', 'gophenberg')}
+			</Button>
+		</Stack>
+	)
+}
+
+/**
+ * Renders the pickers the relation and media fields ask for.
+ * @param props - The fields declared, the values they hold, and what to call with a change.
+ * @returns The pickers element.
+ */
+function RelatedAndPictured(props: {
+	postId: string
+	related: ContentField[]
+	pictured: ContentField[]
+	values: FieldValues
+	onChange: (values: FieldValues) => void
+}) {
+	return (
+		<>
+			{props.related.map((field) => (
+				<RelationPicker
+					key={field.key}
+					field={field}
+					postId={props.postId}
+					targets={targetsHeld(props.values[field.key])}
+					onChange={(targets) => props.onChange({ ...props.values, [field.key]: targets })}
+				/>
+			))}
+			{props.pictured.map((field) =>
+				field.many ? (
+					<GalleryField
+						key={field.key}
+						field={field}
+						value={galleryHeld(props.values[field.key])}
+						onChange={(value) => props.onChange({ ...props.values, [field.key]: value })}
+					/>
+				) : (
+					<MediaField
+						key={field.key}
+						field={field}
+						value={mediaHeld(props.values[field.key])}
+						onChange={(value) => props.onChange({ ...props.values, [field.key]: value })}
+					/>
+				),
+			)}
+		</>
+	)
+}
+
 /**
  * Renders the panel editing the values of a type's declared fields.
  * @param props - The buffer the panel drives and the fields the type declares.
@@ -501,50 +693,16 @@ export function FieldsPanel({
 	const rendered = useMemo(() => editableFields(declared), [declared])
 	const related = useMemo(() => relationFields(declared), [declared])
 	const pictured = useMemo(() => mediaFields(declared), [declared])
-	const descriptors = useMemo(() => fieldDescriptors(rendered), [rendered])
-	const complaints = useMemo(() => fieldValidity(rendered, buffer.fields), [rendered, buffer.fields])
-	if (rendered.length === 0 && related.length === 0 && pictured.length === 0) {
+	const contained = useMemo(() => containerFields(declared), [declared])
+	if (rendered.length === 0 && related.length === 0 && pictured.length === 0 && contained.length === 0) {
 		return null
 	}
 	return (
-		<Stack direction="column" gap="md">
-			{rendered.length > 0 && (
-				<DataForm
-					data={buffer.fields}
-					fields={descriptors}
-					form={{ fields: rendered.map((field) => field.key) }}
-					validity={complaints}
-					onChange={(edits: FieldValues) =>
-						buffer.setFields({ ...buffer.fields, ...clearedEdits(edits) })
-					}
-				/>
-			)}
-			{related.map((field) => (
-				<RelationPicker
-					key={field.key}
-					field={field}
-					postId={postId}
-					targets={targetsHeld(buffer.fields[field.key])}
-					onChange={(targets) => buffer.setFields({ ...buffer.fields, [field.key]: targets })}
-				/>
-			))}
-			{pictured.map((field) =>
-				field.many ? (
-					<GalleryField
-						key={field.key}
-						field={field}
-						value={galleryHeld(buffer.fields[field.key])}
-						onChange={(value) => buffer.setFields({ ...buffer.fields, [field.key]: value })}
-					/>
-				) : (
-					<MediaField
-						key={field.key}
-						field={field}
-						value={mediaHeld(buffer.fields[field.key])}
-						onChange={(value) => buffer.setFields({ ...buffer.fields, [field.key]: value })}
-					/>
-				),
-			)}
-		</Stack>
+		<DeclaredFields
+			postId={postId}
+			declared={declared}
+			values={buffer.fields}
+			onChange={buffer.setFields}
+		/>
 	)
 }

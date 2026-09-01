@@ -348,25 +348,56 @@ func servedMediaOf(m media.Media) servedMedia {
 
 // mediaIDsHeld returns every identity the values hold under the type's media fields.
 func mediaIDsHeld(t content.Type, values content.Values) []int64 {
+	return mediaIDsUnder(t.Fields, values)
+}
+
+// mediaIDsUnder returns every identity the values hold under the declared media fields, however deep.
+func mediaIDsUnder(declared []content.Field, values content.Values) []int64 {
 	var ids []int64
-	for _, f := range t.Fields {
-		if f.Kind != content.FieldKindMedia {
+	for _, f := range declared {
+		if f.Kind.Holds() {
+			ids = append(ids, mediaIDsInside(f, values[f.Key])...)
 			continue
 		}
-		if f.Many {
-			listed, _ := values[f.Key].([]any)
-			for _, member := range listed {
-				if id, ok := content.MediaIdentity(member); ok {
-					ids = append(ids, id)
-				}
-			}
-			continue
+		if f.Kind == content.FieldKindMedia {
+			ids = append(ids, mediaIDsNamed(f, values[f.Key])...)
 		}
-		if id, ok := content.MediaIdentity(values[f.Key]); ok {
+	}
+	return ids
+}
+
+// mediaIDsNamed returns the identities one media field's value names.
+func mediaIDsNamed(f content.Field, value any) []int64 {
+	if !f.Many {
+		if id, ok := content.MediaIdentity(value); ok {
+			return []int64{id}
+		}
+		return nil
+	}
+	var ids []int64
+	listed, _ := value.([]any)
+	for _, member := range listed {
+		if id, ok := content.MediaIdentity(member); ok {
 			ids = append(ids, id)
 		}
 	}
 	return ids
+}
+
+// mediaIDsInside returns every identity a container's value holds under the sub fields it declares.
+func mediaIDsInside(f content.Field, value any) []int64 {
+	if rows, listed := value.([]any); listed {
+		var ids []int64
+		for _, row := range rows {
+			ids = append(ids, mediaIDsInside(f, row)...)
+		}
+		return ids
+	}
+	inside, held := value.(map[string]any)
+	if !held {
+		return nil
+	}
+	return mediaIDsUnder(f.Fields, inside)
 }
 
 // inlineMediaValues rewrites every media key into the files it names, dropping what is gone.
@@ -382,12 +413,34 @@ func (s *server) inlineMediaValues(r *http.Request, t content.Type, values conte
 			byID[m.ID] = m
 		}
 	}
-	for _, f := range t.Fields {
+	inlineMediaUnder(t.Fields, values, byID)
+	return nil
+}
+
+// inlineMediaUnder rewrites every media key the declared fields name, however deep it stands.
+func inlineMediaUnder(declared []content.Field, values content.Values, byID map[int64]media.Media) {
+	for _, f := range declared {
+		if f.Kind.Holds() {
+			inlineMediaInside(f, values[f.Key], byID)
+			continue
+		}
 		if f.Kind == content.FieldKindMedia {
 			inlineMediaKey(f, values, byID)
 		}
 	}
-	return nil
+}
+
+// inlineMediaInside rewrites the media keys a container's value holds under the sub fields it declares.
+func inlineMediaInside(f content.Field, value any, byID map[int64]media.Media) {
+	if rows, listed := value.([]any); listed {
+		for _, row := range rows {
+			inlineMediaInside(f, row, byID)
+		}
+		return
+	}
+	if inside, held := value.(map[string]any); held {
+		inlineMediaUnder(f.Fields, inside, byID)
+	}
 }
 
 // inlineMediaKey rewrites one field's value into the shape it declares, deleting what will not serve.
