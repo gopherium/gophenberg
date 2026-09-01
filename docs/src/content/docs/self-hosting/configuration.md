@@ -78,7 +78,8 @@ The server refuses to start, and says why, when:
 - `GOPHENBERG_TRUSTED_PROXIES` is not valid CIDR notation.
 - `GOPHENBERG_FEED_ITEMS` is not a positive whole number.
 - `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` or `GOPHENBERG_THEME_START_ATTEMPTS`
-  is not a positive whole number.
+  is not a positive whole number, or names a number so large the server
+  could not hold it. Both refuse rather than quietly using another value.
 - Any of the theme timings is not a positive duration. Write them the
   way Go does, `30s`, `500ms`, `1m`.
 - `GOPHENBERG_THEME_MAX_BACKOFF` stands below
