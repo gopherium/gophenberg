@@ -391,7 +391,8 @@ func (s *server) handleGroupFieldPatch() http.HandlerFunc {
 
 // patchGroupField applies the edit to the stored field once the expectation holds.
 func (s *server) patchGroupField(r *http.Request, id int, req fieldPatchRequest) (content.Field, error) {
-	stored, err := s.heldGroupField(r, id)
+	keys := strings.Split(chi.URLParam(r, "fieldKey"), ".")
+	stored, err := s.groupFieldDown(r, id, keys)
 	if err != nil {
 		return content.Field{}, err
 	}
@@ -407,11 +408,14 @@ func (s *server) patchGroupField(r *http.Request, id int, req fieldPatchRequest)
 	if req.Settings != nil {
 		stored.Settings = *req.Settings
 	}
-	return s.types.UpdateFieldInGroup(r.Context(), id, stored, *req.UpdatedAt)
+	if len(keys) == 1 {
+		return s.types.UpdateFieldInGroup(r.Context(), id, stored, *req.UpdatedAt)
+	}
+	return s.types.UpdateSubField(r.Context(), stored.ID, stored, *req.UpdatedAt)
 }
 
-// heldGroupField returns the field the request path names inside its group.
-func (s *server) heldGroupField(r *http.Request, groupID int) (content.Field, error) {
+// groupFieldDown returns the field the keys address inside the group, however deep it stands.
+func (s *server) groupFieldDown(r *http.Request, groupID int, keys []string) (content.Field, error) {
 	groups, err := s.types.Groups(r.Context())
 	if err != nil {
 		return content.Field{}, err
@@ -420,14 +424,43 @@ func (s *server) heldGroupField(r *http.Request, groupID int) (content.Field, er
 		if g.ID != groupID {
 			continue
 		}
-		for _, f := range g.Fields {
-			if f.Key == chi.URLParam(r, "fieldKey") {
-				return f, nil
-			}
-		}
-		return content.Field{}, content.ErrFieldNotFound
+		return fieldDown(g.Fields, keys)
 	}
 	return content.Field{}, content.ErrGroupNotFound
+}
+
+// handleSubFieldOrder returns an http.HandlerFunc standing the fields inside a container as asked.
+func (s *server) handleSubFieldOrder() http.HandlerFunc {
+	type request struct {
+		Order []string `json:"order"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := groupIDOf(r)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		req, err := decodeKnown[request](w, r)
+		if err != nil {
+			respondBodyError(w, err)
+			return
+		}
+		held, err := s.fieldAtPath(r, id)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		reordered, err := s.types.ReorderSubFields(r.Context(), held.ID, req.Order)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		items := make([]fieldResponse, len(reordered))
+		for i, f := range reordered {
+			items[i] = newFieldResponse(f)
+		}
+		authkit.Respond(w, http.StatusOK, fieldListResponse{Items: items})
+	}
 }
 
 // handleGroupFieldDelete returns an http.HandlerFunc removing a field and the values it held.

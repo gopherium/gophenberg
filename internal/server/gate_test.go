@@ -81,6 +81,7 @@ var adminRoutes = []route{
 	{http.MethodPost, "/api/groups/{id}/fields/{fieldKey}/move"},
 	{http.MethodPost, "/api/groups/{id}/fields/{fieldPath}"},
 	{http.MethodDelete, "/api/groups/{id}/inside/{fieldPath}"},
+	{http.MethodPut, "/api/groups/{id}/inside/{fieldPath}/order"},
 	{http.MethodPatch, "/api/settings"},
 	{http.MethodGet, "/api/themes"},
 	{http.MethodPost, "/api/themes"},
