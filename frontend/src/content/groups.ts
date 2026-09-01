@@ -319,10 +319,34 @@ export async function setFieldRequiredInGroup(
 }
 
 /**
+ * Stores the declaration order of the fields a container holds.
+ * @param id - The group declaring the container.
+ * @param path - The dotted path naming the container.
+ * @param keys - Every field key the container holds, in the order to store.
+ * @returns The reordered fields.
+ */
+export async function reorderSubFields(
+	id: number,
+	path: string,
+	keys: string[],
+): Promise<ContentField[]> {
+	const response = await fetch(`/api/groups/${id}/inside/${path}/order`, {
+		method: 'PUT',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ order: keys }),
+	})
+	if (!response.ok) {
+		await refuse(response)
+	}
+	const listed = z.object({ items: z.array(fieldSchema) }).parse(await response.json())
+	return listed.items.map(toField)
+}
+
+/**
  * Stores the declaration order of a group's fields.
  * @param id - The group whose fields are reordered.
  * @param keys - Every declared field key in the order to store.
- * @returns The reordered fields.
+ * @returns The fields in the stored order.
  */
 export async function reorderFieldsInGroup(id: number, keys: string[]): Promise<ContentField[]> {
 	const response = await fetch(`/api/groups/${id}/fields/order`, {

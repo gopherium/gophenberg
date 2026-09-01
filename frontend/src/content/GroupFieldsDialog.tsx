@@ -28,6 +28,7 @@ import {
 	renameFieldInGroup,
 	reorderFieldsInGroup,
 	setFieldRequiredInGroup,
+	reorderSubFields,
 	setFieldSettingsInGroup,
 	StaleWriteError,
 } from './groups'
@@ -250,6 +251,7 @@ function FieldsBody(
 							</Stack>
 							<HeldFields
 								group={props.held.id}
+								types={props.types}
 								declared={field.fields}
 								at={field.key}
 								onDone={props.onDone}
@@ -508,7 +510,7 @@ function FieldSettings(props: Inside) {
 		mutationFn: () =>
 			setFieldSettingsInGroup(
 				props.group,
-				opened.key,
+				props.path ?? opened.key,
 				pairedSettings(opened.kind, storedSettings(offered, typed, opened.settings), pairs),
 				opened.updatedAt,
 			),
@@ -652,7 +654,12 @@ function ChoicesEditor(props: { pairs: ChoicePair[]; onChange: (pairs: ChoicePai
 function RequireField(props: Inside) {
 	const flip = useMutation({
 		mutationFn: () =>
-			setFieldRequiredInGroup(props.group, props.field.key, !props.field.required, props.field.updatedAt),
+			setFieldRequiredInGroup(
+				props.group,
+				props.path ?? props.field.key,
+				!props.field.required,
+				props.field.updatedAt,
+			),
 		onSuccess: async () => {
 			const said = props.field.required
 				? __('%(field)s is optional again.', 'gophenberg')
@@ -688,7 +695,8 @@ function RenameField(props: Inside) {
 	const [opened, setOpened] = useState(props.field)
 	const asking = sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })
 	const rename = useMutation({
-		mutationFn: () => renameFieldInGroup(props.group, opened.key, label, opened.updatedAt),
+		mutationFn: () =>
+			renameFieldInGroup(props.group, props.path ?? opened.key, label, opened.updatedAt),
 		onSuccess: async () => {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }))
@@ -807,34 +815,108 @@ function CarryField(props: Inside & { elsewhere: FieldGroup[] }) {
 
 /**
  * Renders the sub fields a container declares, however deep they run.
- * @param props - The group, the sub fields, the path holding them, and what to report.
+ * @param props - The group, the types, the sub fields, the path holding them, and what to report.
  * @returns The list element, or nothing when the container declares none.
  */
 function HeldFields(
-	props: Reporter & { group: number; declared: ContentField[]; at: string },
+	props: Reporter & { group: number; types: ContentType[]; declared: ContentField[]; at: string },
 ) {
+	const reorder = useMutation({
+		mutationFn: (keys: string[]) => reorderSubFields(props.group, props.at, keys),
+		onSuccess: () => props.onDone(__('Order stored.', 'gophenberg')),
+		onError: props.onRefused,
+	})
+
+	/**
+	 * Returns the held keys with one field moved by an offset.
+	 * @param index - The field's place in the held order.
+	 * @param offset - How far the field moves.
+	 * @returns The keys in the asked order.
+	 */
+	function moved(index: number, offset: number): string[] {
+		const keys = props.declared.map((field) => field.key)
+		const [taken] = keys.splice(index, 1)
+		keys.splice(index + offset, 0, taken)
+		return keys
+	}
+
 	if (props.declared.length === 0) {
 		return null
 	}
 	return (
 		<ul className="gophenberg-fields__list">
-			{props.declared.map((field) => (
+			{props.declared.map((field, index) => (
 				<li key={field.key} aria-label={field.label}>
-					<Stack direction="row" gap="sm" align="center" justify="space-between">
-						<Stack direction="row" gap="xs" align="center">
-							<Text>{field.label}</Text>
-							<Text variant="body-sm">{kindLabel(field.kind)}</Text>
+					<Stack direction="column" gap="xs">
+						<Stack direction="row" gap="sm" align="center" justify="space-between">
+							<Stack direction="row" gap="xs" align="center">
+								<Text>{field.label}</Text>
+								<Text variant="body-sm">{kindLabel(field.kind)}</Text>
+								{field.required && <Badge>{__('Required', 'gophenberg')}</Badge>}
+							</Stack>
+							<Stack direction="row" gap="xs" align="center">
+								<IconButton
+									icon={upIcon}
+									label={sprintf(__('Move %(field)s up', 'gophenberg'), { field: field.label })}
+									size="compact"
+									variant="minimal"
+									tone="neutral"
+									disabled={reorder.isPending || index === 0}
+									onClick={() => reorder.mutate(moved(index, -1))}
+								/>
+								<IconButton
+									icon={downIcon}
+									label={sprintf(__('Move %(field)s down', 'gophenberg'), { field: field.label })}
+									size="compact"
+									variant="minimal"
+									tone="neutral"
+									disabled={reorder.isPending || index === props.declared.length - 1}
+									onClick={() => reorder.mutate(moved(index, 1))}
+								/>
+							</Stack>
 						</Stack>
-						<DeleteField
-							group={props.group}
-							field={field}
-							path={props.at + '.' + field.key}
-							onDone={props.onDone}
-							onRefused={props.onRefused}
-						/>
+						<Stack direction="row" gap="xs" align="center">
+							<RequireField
+								group={props.group}
+								field={field}
+								path={props.at + '.' + field.key}
+								onDone={props.onDone}
+								onRefused={props.onRefused}
+							/>
+							<RenameField
+								group={props.group}
+								field={field}
+								path={props.at + '.' + field.key}
+								onDone={props.onDone}
+								onRefused={props.onRefused}
+							/>
+							<FieldSettings
+								group={props.group}
+								field={field}
+								path={props.at + '.' + field.key}
+								onDone={props.onDone}
+								onRefused={props.onRefused}
+							/>
+							<SubFields
+								group={props.group}
+								types={props.types}
+								field={field}
+								path={props.at + '.' + field.key}
+								onDone={props.onDone}
+								onRefused={props.onRefused}
+							/>
+							<DeleteField
+								group={props.group}
+								field={field}
+								path={props.at + '.' + field.key}
+								onDone={props.onDone}
+								onRefused={props.onRefused}
+							/>
+						</Stack>
 					</Stack>
 					<HeldFields
 						group={props.group}
+						types={props.types}
 						declared={field.fields}
 						at={props.at + '.' + field.key}
 						onDone={props.onDone}

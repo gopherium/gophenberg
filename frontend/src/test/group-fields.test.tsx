@@ -163,6 +163,239 @@ test('declares a sub field inside the container it was opened from', async () =>
 	expect(where).toBe('/api/groups/3/fields/author')
 })
 
+test('declares a field inside a container standing inside another', async () => {
+	let where = ''
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'author',
+					label: 'Author',
+					kind: 'section',
+					fields: [{ ...SUBTITLE, key: 'address', label: 'Address', kind: 'section', fields: [] }],
+				},
+			],
+		},
+		EXTRAS,
+	])
+	server.use(
+		http.post('/api/groups/3/fields/author.address', ({ request }) => {
+			where = new URL(request.url).pathname
+			return HttpResponse.json({ ...SUBTITLE, key: 'street', label: 'Street' }, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Address' }))
+	const adding = await screen.findByRole('dialog', { name: 'Add field to Address' })
+	await userEvent.type(within(adding).getByLabelText('Name'), 'Street')
+	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(where).toBe('/api/groups/3/fields/author.address'))
+})
+
+test('requires a field standing inside a container', async () => {
+	let where = ''
+	let sent: unknown
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'author',
+					label: 'Author',
+					kind: 'section',
+					fields: [{ ...SUBTITLE, key: 'name', label: 'Name' }],
+				},
+			],
+		},
+		EXTRAS,
+	])
+	server.use(
+		http.patch('/api/groups/3/fields/author.name', async ({ request }) => {
+			where = new URL(request.url).pathname
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, key: 'name', label: 'Name', required: true })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Require Name' }))
+
+	await waitFor(() => expect(where).toBe('/api/groups/3/fields/author.name'))
+	expect(sent).toMatchObject({ required: true })
+})
+
+test('renames a field standing inside a container', async () => {
+	let where = ''
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'author',
+					label: 'Author',
+					kind: 'section',
+					fields: [{ ...SUBTITLE, key: 'name', label: 'Name' }],
+				},
+			],
+		},
+		EXTRAS,
+	])
+	server.use(
+		http.patch('/api/groups/3/fields/author.name', ({ request }) => {
+			where = new URL(request.url).pathname
+			return HttpResponse.json({ ...SUBTITLE, key: 'name', label: 'Full name' })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Name' }))
+	const renaming = await screen.findByRole('dialog', { name: 'Rename Name' })
+	await userEvent.clear(within(renaming).getByLabelText('Name'))
+	await userEvent.type(within(renaming).getByLabelText('Name'), 'Full name')
+	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
+
+	await waitFor(() => expect(where).toBe('/api/groups/3/fields/author.name'))
+})
+
+test('stands the fields inside a container in a new order', async () => {
+	let where = ''
+	let sent: unknown
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'author',
+					label: 'Author',
+					kind: 'section',
+					fields: [
+						{ ...SUBTITLE, key: 'name', label: 'Name' },
+						{ ...SUBTITLE, key: 'bio', label: 'Bio' },
+					],
+				},
+			],
+		},
+		EXTRAS,
+	])
+	server.use(
+		http.put('/api/groups/3/inside/author/order', async ({ request }) => {
+			where = new URL(request.url).pathname
+			sent = await request.json()
+			return HttpResponse.json({ items: [] })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Bio up' }))
+
+	await waitFor(() => expect(where).toBe('/api/groups/3/inside/author/order'))
+	expect(sent).toMatchObject({ order: ['bio', 'name'] })
+})
+
+test('marks a required field inside a container as required', async () => {
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'author',
+					label: 'Author',
+					kind: 'section',
+					fields: [{ ...SUBTITLE, key: 'name', label: 'Name', required: true }],
+				},
+			],
+		},
+		EXTRAS,
+	])
+	renderAt('/field-groups')
+
+	const dialog = await openFields()
+
+	const held = within(dialog).getByRole('listitem', { name: 'Name' })
+	expect(within(held).getByText('Required')).toBeInTheDocument()
+})
+
+test('stands a field inside a container further down', async () => {
+	let sent: unknown
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'author',
+					label: 'Author',
+					kind: 'section',
+					fields: [
+						{ ...SUBTITLE, key: 'name', label: 'Name' },
+						{ ...SUBTITLE, key: 'bio', label: 'Bio' },
+					],
+				},
+			],
+		},
+		EXTRAS,
+	])
+	server.use(
+		http.put('/api/groups/3/inside/author/order', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ items: [] })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Name down' }))
+
+	await waitFor(() => expect(sent).toMatchObject({ order: ['bio', 'name'] }))
+})
+
+test('reports a refused order inside a container', async () => {
+	listing([
+		{
+			...DETAILS,
+			fields: [
+				{
+					...SUBTITLE,
+					key: 'author',
+					label: 'Author',
+					kind: 'section',
+					fields: [
+						{ ...SUBTITLE, key: 'name', label: 'Name' },
+						{ ...SUBTITLE, key: 'bio', label: 'Bio' },
+					],
+				},
+			],
+		},
+		EXTRAS,
+	])
+	server.use(
+		http.put('/api/groups/3/inside/author/order', () =>
+			HttpResponse.json(
+				{ error: 'content: the order leaves declared fields out', code: 'field_order_incomplete' },
+				{ status: 422 },
+			),
+		),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Bio up' }))
+
+	expect(await within(dialog).findByRole('alert')).toHaveTextContent(/field/i)
+})
+
 test('removes a sub field from the container that holds it', async () => {
 	let hit = ''
 	listing([
