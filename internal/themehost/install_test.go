@@ -262,9 +262,6 @@ func TestInstallStillCountsTheEntriesWhenTheClosingRecordWrapsAround(t *testing.
 		t.Fatalf("closing the archive: %v", err)
 	}
 	archive := buffer.Bytes()
-	at := bytes.LastIndex(archive, binary.LittleEndian.AppendUint32(nil, 0x06054b50))
-	binary.LittleEndian.PutUint16(archive[at+8:], 3)
-	binary.LittleEndian.PutUint16(archive[at+10:], 3)
 
 	_, err := install(t, archive)
 

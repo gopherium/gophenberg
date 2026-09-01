@@ -16,7 +16,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @gophenberg/frontend build
 
 # Build the statically linked server binary.
-FROM golang:1.26 AS backend
+FROM golang:1.27 AS backend
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
