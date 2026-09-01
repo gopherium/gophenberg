@@ -392,6 +392,9 @@ func empty(value any) bool {
 	if members, ok := value.([]any); ok {
 		return len(members) == 0
 	}
+	if inside, ok := value.(map[string]any); ok {
+		return len(inside) == 0
+	}
 	written, ok := value.(string)
 	return ok && written == ""
 }

@@ -138,15 +138,38 @@ func (r Relations) Merge(patch Relations) Relations {
 // Filled reports whether every required field of the type holds a value.
 func Filled(values Values, relations Relations, fields []Field) error {
 	for _, f := range fields {
-		if !f.Required {
-			continue
-		}
-		if unfilled(values, relations, f) {
+		if f.Required && unfilled(values, relations, f) {
 			return Refuse(ErrFieldRequired, "field_required",
 				fmt.Sprintf("%s: %s", ErrFieldRequired, f.Key), Details{"field": f.Key})
 		}
+		if !f.Kind.Holds() {
+			continue
+		}
+		if err := filledInside(f, values[f.Key]); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+// filledInside reports whether every required field inside a stored container holds a value.
+func filledInside(f Field, value any) error {
+	if value == nil {
+		return nil
+	}
+	if rows, listed := value.([]any); listed {
+		for _, row := range rows {
+			if err := filledInside(f, row); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	inside, held := value.(map[string]any)
+	if !held {
+		return nil
+	}
+	return Filled(inside, Relations{}, f.Fields)
 }
 
 // unfilled reports whether the field stands empty on the item.
