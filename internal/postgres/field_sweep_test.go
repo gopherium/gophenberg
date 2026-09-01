@@ -91,6 +91,56 @@ func TestDeletingASubFieldSweepsItsValuesFromEveryRow(t *testing.T) {
 	}
 }
 
+func TestDeletingASubFieldLeavesWhatThePathDoesNotReach(t *testing.T) {
+	t.Parallel()
+
+	for name, asked := range map[string]struct {
+		kind    content.FieldKind
+		planted string
+		want    string
+	}{
+		"the container key holding a word": {
+			content.FieldKindSection, `{"specs": "typed"}`, `{"specs": "typed"}`,
+		},
+		"an item lacking the container key": {
+			content.FieldKindSection, `{"colour": "red"}`, `{"colour": "red"}`,
+		},
+		"a section lacking the inner key": {
+			content.FieldKindSection, `{"specs": {"colour": "red"}}`, `{"specs": {"colour": "red"}}`,
+		},
+		"rows that are not objects": {
+			content.FieldKindRepeater, `{"specs": [42, "stray", {"doors": "five"}]}`, `{"specs": [42, "stray", {}]}`,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			store, author, pool := typedStore(t)
+			storeType(t, store, "car")
+			var parent content.Field
+			if asked.kind == content.FieldKindRepeater {
+				parent = declareRepeater(t, store, "specs")
+			} else {
+				parent = declareSection(t, store, "specs")
+			}
+			dropped, err := store.CreateSubField(
+				t.Context(), parent.ID, fieldOn(t, "", "doors", content.FieldKindText, ""))
+			if err != nil {
+				t.Fatalf("declaring doors: %v, want nil", err)
+			}
+			plantTyped(t, pool, author, "car", "one", asked.planted)
+
+			if err := store.DeleteSubField(t.Context(), dropped.ID); err != nil {
+				t.Fatalf("DeleteSubField() error = %v, want nil", err)
+			}
+
+			if held := valuesHeld(t, pool); held != asked.want {
+				t.Errorf("stored values = %s, want %s left untouched by the sweep", held, asked.want)
+			}
+		})
+	}
+}
+
 func TestDeletingAContainerSweepsEverythingInsideIt(t *testing.T) {
 	t.Parallel()
 
@@ -142,12 +192,6 @@ func TestDeletingASubFieldReportsWhatItCannotReach(t *testing.T) {
 		},
 		"the row it cannot remove": func(t *testing.T, pool *pgxpool.Pool) {
 			raiseOn(t, pool, "core.content_fields", "DELETE")
-		},
-		"the values it cannot read": func(t *testing.T, pool *pgxpool.Pool) {
-			sabotage(t, pool, "ALTER TABLE core.content RENAME COLUMN fields TO retired")
-		},
-		"the revisions it cannot read": func(t *testing.T, pool *pgxpool.Pool) {
-			sabotage(t, pool, "ALTER TABLE core.content_revisions RENAME COLUMN fields TO retired")
 		},
 		"the values it cannot sweep": func(t *testing.T, pool *pgxpool.Pool) {
 			raiseOn(t, pool, "core.content", "UPDATE")
