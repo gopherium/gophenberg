@@ -213,6 +213,15 @@ func TestSettingsAgreeWithEachOther(t *testing.T) {
 		"min stays below max": {
 			content.FieldKindNumber, map[string]any{"min": float64(10), "max": float64(5)}, false,
 		},
+		"the fewest rows stay below the most": {
+			content.FieldKindRepeater, map[string]any{"min": float64(5), "max": float64(2)}, false,
+		},
+		"a row count may name one bound alone": {
+			content.FieldKindRepeater, map[string]any{"min": float64(5)}, true,
+		},
+		"a row count may sit on a single number": {
+			content.FieldKindRepeater, map[string]any{"min": float64(3), "max": float64(3)}, true,
+		},
 		"a default respects max": {
 			content.FieldKindNumber, map[string]any{"default": float64(50), "max": float64(10)}, false,
 		},
