@@ -84,14 +84,14 @@ func (*categoryTypeStore) DeleteSubField(_ context.Context, _ int) error {
 	return nil
 }
 
-// UpdateSubField carries no edit, since the fake declares none inside a container.
+// UpdateSubField hands the field back unstored.
 func (*categoryTypeStore) UpdateSubField(
 	_ context.Context, _ int, f content.Field, _ time.Time,
 ) (content.Field, error) {
 	return f, nil
 }
 
-// ReorderSubFields stores no order, since the fake declares none inside a container.
+// ReorderSubFields stores no order.
 func (*categoryTypeStore) ReorderSubFields(_ context.Context, _ int, _ []string) error {
 	return nil
 }
