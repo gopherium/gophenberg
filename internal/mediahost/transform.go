@@ -13,9 +13,6 @@ import (
 	xdraw "golang.org/x/image/draw"
 )
 
-// renditionQuality is the JPEG quality renditions are encoded at.
-const renditionQuality = 82
-
 // orient returns the image with the given EXIF orientation corrected.
 func orient(img image.Image, orientation int) image.Image {
 	switch orientation {
@@ -124,7 +121,7 @@ func encodeImage(img image.Image, format string) ([]byte, error) {
 	if format == "png" {
 		err = png.Encode(&buffer, img)
 	} else {
-		err = jpeg.Encode(&buffer, img, &jpeg.Options{Quality: renditionQuality})
+		err = jpeg.Encode(&buffer, img, &jpeg.Options{Quality: DefaultJPEGQuality})
 	}
 	if err != nil {
 		return nil, fmt.Errorf("encoding a %s rendition: %w", format, err)
