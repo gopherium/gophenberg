@@ -591,38 +591,14 @@ func pathToField(declared []content.Field, id int) ([]string, bool) {
 
 // sweepPath removes whatever stands at the path from every item and revision of the matched types.
 func sweepPath(ctx context.Context, queries *db.Queries, path []string, matched []string) error {
-	items, err := queries.ContentValuesHolding(ctx, db.ContentValuesHoldingParams{
-		Types: matched, Key: path[0],
-	})
-	if err != nil {
+	if err := queries.StripContentFieldPath(ctx, db.StripContentFieldPathParams{
+		Path: path, Types: matched, Key: path[0],
+	}); err != nil {
 		return err
 	}
-	for _, item := range items {
-		if err := queries.SetContentValues(ctx, db.SetContentValuesParams{
-			ID: item.ID, Fields: item.Fields.Stripped(path),
-		}); err != nil {
-			return err
-		}
-	}
-	return sweepRevisionPath(ctx, queries, path, matched)
-}
-
-// sweepRevisionPath removes whatever stands at the path from every revision of the matched types.
-func sweepRevisionPath(ctx context.Context, queries *db.Queries, path []string, matched []string) error {
-	revisions, err := queries.RevisionValuesHolding(ctx, db.RevisionValuesHoldingParams{
-		Types: matched, Key: path[0],
+	return queries.StripRevisionFieldPath(ctx, db.StripRevisionFieldPathParams{
+		Path: path, Types: matched, Key: path[0],
 	})
-	if err != nil {
-		return err
-	}
-	for _, revision := range revisions {
-		if err := queries.SetRevisionValues(ctx, db.SetRevisionValuesParams{
-			ID: revision.ID, Fields: revision.Fields.Stripped(path),
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // ReorderFieldsInGroup stores the declaration order of a group's fields.

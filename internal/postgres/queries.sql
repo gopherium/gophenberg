@@ -483,20 +483,16 @@ WHERE group_id = @group_id AND key = @key AND parent_field_id IS NULL;
 SELECT key FROM core.content_fields ORDER BY key
 FOR KEY SHARE;
 
--- name: ContentValuesHolding :many
-SELECT id, fields FROM core.content
+-- name: StripContentFieldPath :exec
+UPDATE core.content
+SET fields = core.strip_field_path(fields, @path::text [])
 WHERE type = ANY(@types::text []) AND fields ? @key::text;
 
--- name: SetContentValues :exec
-UPDATE core.content SET fields = @fields WHERE id = @id;
-
--- name: RevisionValuesHolding :many
-SELECT r.id, r.fields FROM core.content_revisions r
-JOIN core.content c ON r.content_id = c.id
-WHERE c.type = ANY(@types::text []) AND r.fields ? @key::text;
-
--- name: SetRevisionValues :exec
-UPDATE core.content_revisions SET fields = @fields WHERE id = @id;
+-- name: StripRevisionFieldPath :exec
+UPDATE core.content_revisions r
+SET fields = core.strip_field_path(r.fields, @path::text [])
+FROM core.content c
+WHERE r.content_id = c.id AND c.type = ANY(@types::text []) AND r.fields ? @key::text;
 
 -- name: DeleteFieldByID :execrows
 DELETE FROM core.content_fields WHERE id = @id;
