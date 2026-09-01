@@ -3,10 +3,31 @@
 package main
 
 import (
+	"math"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestLoadRunConfigTakesTheLargestUploadCapItCanCarry(t *testing.T) {
+	t.Parallel()
+
+	settings, err := loadRunConfig(testGetenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL":        unreachableDatabaseURL,
+		"GOPHENBERG_MEDIA_UPLOAD_CAP_MB": strconv.Itoa(math.MaxInt64 >> 20),
+	}))
+
+	if err != nil {
+		t.Fatalf("loadRunConfig() error = %v, want the largest carriable cap taken", err)
+	}
+	if want := int64(math.MaxInt64>>20) << 20; settings.mediaUploadCap != want {
+		t.Errorf("the upload cap = %d, want %d", settings.mediaUploadCap, want)
+	}
+	if settings.mediaUploadCap <= 0 {
+		t.Errorf("the upload cap = %d, want it above zero so the library keeps it", settings.mediaUploadCap)
+	}
+}
 
 func TestLoadRunConfigDefaultsTheTimingsToTodaysValues(t *testing.T) {
 	t.Parallel()
@@ -100,6 +121,15 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		"an upload cap that is not a number":     {"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", "big"},
 		"an upload cap standing at zero":         {"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", "0"},
 		"an upload cap below zero":               {"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", "-8"},
+		"an upload cap of more bytes than there are": {
+			"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", strconv.Itoa(math.MaxInt64>>20 + 1),
+		},
+		"an upload cap so large it wraps to nothing": {
+			"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", "17592186044416",
+		},
+		"start attempts of more than anyone waits for": {
+			"GOPHENBERG_THEME_START_ATTEMPTS", strconv.Itoa(math.MaxInt32),
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

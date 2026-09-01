@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -171,11 +172,13 @@ func timingsFrom(getenv func(string) string) (runConfig, error) {
 		return runConfig{}, fmt.Errorf(
 			"GOPHENBERG_THEME_MAX_BACKOFF: must stand at or above GOPHENBERG_THEME_BACKOFF, got %v", held.themeMaxBackoff)
 	}
-	attempts, err := standingCount(getenv("GOPHENBERG_THEME_START_ATTEMPTS"), "GOPHENBERG_THEME_START_ATTEMPTS", 5)
+	attempts, err := standingCount(
+		getenv("GOPHENBERG_THEME_START_ATTEMPTS"), "GOPHENBERG_THEME_START_ATTEMPTS", 5, maxStartAttempts)
 	if err != nil {
 		return runConfig{}, err
 	}
-	cap, err := standingCount(getenv("GOPHENBERG_MEDIA_UPLOAD_CAP_MB"), "GOPHENBERG_MEDIA_UPLOAD_CAP_MB", 128)
+	cap, err := standingCount(
+		getenv("GOPHENBERG_MEDIA_UPLOAD_CAP_MB"), "GOPHENBERG_MEDIA_UPLOAD_CAP_MB", 128, math.MaxInt64>>20)
 	if err != nil {
 		return runConfig{}, err
 	}
@@ -203,8 +206,11 @@ func standingDuration(raw, key string, fallback time.Duration) (time.Duration, e
 	return stood, nil
 }
 
+// maxStartAttempts is how many times a theme that will not start may be tried again.
+const maxStartAttempts = 1000
+
 // standingCount returns the whole number the raw value names, or the fallback when it names none.
-func standingCount(raw, key string, fallback int) (int, error) {
+func standingCount(raw, key string, fallback, ceiling int) (int, error) {
 	if raw == "" {
 		return fallback, nil
 	}
@@ -214,6 +220,9 @@ func standingCount(raw, key string, fallback int) (int, error) {
 	}
 	if stood < 1 {
 		return 0, fmt.Errorf("%s: must stand above zero, got %q", key, raw)
+	}
+	if stood > ceiling {
+		return 0, fmt.Errorf("%s: must stand at or below %d, got %q", key, ceiling, raw)
 	}
 	return stood, nil
 }
