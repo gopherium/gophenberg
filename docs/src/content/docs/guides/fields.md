@@ -122,14 +122,20 @@ with as many or as few as the work needs.
 
 Press **Add field** on a section or a repeater to declare a field
 inside it. The field is listed under its container, and every setting
-its kind takes works there exactly as it does at the top. Two
-containers may each hold a field of the same name, because a field
-is named inside the container that holds it.
+its kind takes works there exactly as it does at the top. Rename it,
+require it, settle it and move it up or down in the same way. Two
+containers may each hold a field of the same name, because a field is
+named inside the container that holds it.
 
-A container may hold another container, as deep as your content
-needs. A Repeater row can hold a Section, and that Section can hold a
-Repeater of its own. Relations are the one kind that stands outside,
-so declare a Relation beside a container rather than in it.
+The one control a field inside a container does not offer is the move
+to another group, because a field there belongs to its container
+rather than to the group directly.
+
+A container may hold another container, up to 32 levels deep. A
+Repeater row can hold a Section, and that Section can hold a Repeater
+of its own. Deeper than 32 the field is refused, which is far more
+nesting than a page needs. Relations are the one kind that stands
+outside, so declare a Relation beside a container rather than in it.
 
 Deleting a field inside a container takes the values stored under it,
 in every item the group reaches and in the revisions behind them,
