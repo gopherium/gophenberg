@@ -162,6 +162,7 @@ var domainErrors = []struct {
 	{content.ErrTargetType, http.StatusUnprocessableEntity, "target_wrong_type"},
 	{content.ErrSelfTarget, http.StatusUnprocessableEntity, "target_is_self"},
 	{content.ErrLocaleUnknown, http.StatusUnprocessableEntity, "locale_unknown"},
+	{content.ErrPerPageInvalid, http.StatusUnprocessableEntity, "per_page_invalid"},
 	{content.ErrGroupNotFound, http.StatusNotFound, "group_not_found"},
 	{content.ErrInvalidGroupTitle, http.StatusUnprocessableEntity, "group_title_required"},
 	{content.ErrGroupOrder, http.StatusUnprocessableEntity, "group_order_incomplete"},
