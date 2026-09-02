@@ -2071,3 +2071,44 @@ msgid ""
 msgstr ""
 "Ce type de champ ne contient aucun champ. Placez le champ dans une section "
 "ou dans un répéteur."
+
+#, fuzzy
+msgid "Posts per page"
+msgstr "Articles par page"
+
+#, fuzzy
+msgid "Picture quality"
+msgstr "Qualité d'image"
+
+#, fuzzy
+msgid "Choose how the site serves its content."
+msgstr "Choisissez comment le site sert son contenu."
+
+#, fuzzy
+msgid "A theme naming its own page size uses that instead."
+msgstr "Un thème qui indique sa propre taille de page utilise celle-ci à la place."
+
+#, fuzzy
+msgid ""
+"A higher quality stores larger files, and it applies to pictures uploaded "
+"from now on."
+msgstr ""
+"Une qualité plus élevée stocke des fichiers plus grands, et elle s'applique "
+"aux images téléversées à partir de maintenant."
+
+#, fuzzy
+msgid ""
+"A listing carries between 1 and %(max)d items, so %(value)s is not a size "
+"Gophenberg takes. Pick a number inside that range."
+msgstr ""
+"Une liste affiche entre 1 et %(max)d éléments, donc %(value)s n'est pas une "
+"taille que Gophenberg accepte. Choisissez un nombre dans cet intervalle."
+
+#, fuzzy
+msgid ""
+"Picture quality runs from 1 to %(max)d, so %(value)s is not a quality "
+"Gophenberg stores at. Pick a number inside that range."
+msgstr ""
+"La qualité d'image va de 1 à %(max)d, donc %(value)s n'est pas une qualité "
+"avec laquelle Gophenberg enregistre. Choisissez un nombre dans cet "
+"intervalle."
