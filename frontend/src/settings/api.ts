@@ -4,12 +4,6 @@ import { z } from 'zod'
 
 import { errorText } from '../i18n/errors'
 
-/** The number of items a listing carries when the site chose none. */
-const DEFAULT_PER_PAGE = 20
-
-/** The quality a stored picture is written at when the site chose none. */
-const DEFAULT_JPEG_QUALITY = 82
-
 const settingsSchema = z.object({
 	locale_default: z.string(),
 	content_per_page: z.number(),
@@ -28,28 +22,16 @@ export type SiteSettings = z.infer<typeof settingsSchema>
 /** The settings a request asks the site to store. */
 export type SettingsAsked = Partial<SiteSettings>
 
-/** What the site answers with while its settings cannot be read. */
-const compiledDefaults: SiteSettings = {
-	locale_default: '',
-	content_per_page: DEFAULT_PER_PAGE,
-	jpeg_quality: DEFAULT_JPEG_QUALITY,
-}
-
 /**
- * Returns the settings the site chose for itself, falling back to the compiled
- * defaults when they cannot be read.
+ * Returns the settings the site chose for itself, raising when they cannot be read.
  * @returns The site settings.
  */
 export async function fetchSiteSettings(): Promise<SiteSettings> {
-	try {
-		const response = await fetch('/api/settings')
-		if (!response.ok) {
-			return compiledDefaults
-		}
-		return settingsSchema.parse(await response.json())
-	} catch {
-		return compiledDefaults
+	const response = await fetch('/api/settings')
+	if (!response.ok) {
+		throw await errorFrom(response)
 	}
+	return settingsSchema.parse(await response.json())
 }
 
 /**

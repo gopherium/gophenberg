@@ -17,20 +17,22 @@ test('reads what the site chose for itself', async () => {
 	expect(held).toEqual({ locale_default: 'es-ES', content_per_page: 5, jpeg_quality: 30 })
 })
 
-test('falls back to the defaults when the settings cannot be read', async () => {
+test('refuses to answer when the settings cannot be read', async () => {
 	server.use(http.get('/api/settings', () => HttpResponse.json({ error: 'boom' }, { status: 500 })))
 
-	const held = await fetchSiteSettings()
-
-	expect(held).toEqual({ locale_default: '', content_per_page: 20, jpeg_quality: 82 })
+	await expect(fetchSiteSettings()).rejects.toThrow()
 })
 
-test('falls back to the defaults when the settings cannot be reached', async () => {
+test('refuses to answer when the settings cannot be reached', async () => {
 	server.use(http.get('/api/settings', () => HttpResponse.error()))
 
-	const held = await fetchSiteSettings()
+	await expect(fetchSiteSettings()).rejects.toThrow()
+})
 
-	expect(held.content_per_page).toBe(20)
+test('refuses to answer when the settings arrive in a shape it cannot read', async () => {
+	server.use(http.get('/api/settings', () => HttpResponse.json({ locale_default: '' })))
+
+	await expect(fetchSiteSettings()).rejects.toThrow()
 })
 
 test('stores only the values it was given', async () => {

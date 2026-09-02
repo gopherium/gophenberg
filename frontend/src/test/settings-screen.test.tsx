@@ -169,6 +169,23 @@ test('says why a refused value was not stored', async () => {
 	expect(await screen.findByRole('alert')).toHaveTextContent(/100/)
 })
 
+test('offers no boxes to save when the settings could not be read', async () => {
+	const sent: string[] = []
+	server.use(
+		http.get('/api/settings', () => HttpResponse.json({ error: 'boom' }, { status: 500 })),
+		http.patch('/api/settings', async ({ request }) => {
+			sent.push(JSON.stringify(await request.json()))
+			return HttpResponse.json({ locale_default: '', content_per_page: 20, jpeg_quality: 82 })
+		}),
+	)
+	renderAt(PATH, adminUser)
+
+	expect(await screen.findByRole('alert')).toBeInTheDocument()
+	expect(screen.queryByLabelText('Posts per page')).not.toBeInTheDocument()
+	expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+	expect(sent).toHaveLength(0)
+})
+
 test('keeps an author out of the settings', async () => {
 	renderAt(PATH, { ...defaultUser, role: 'author' })
 

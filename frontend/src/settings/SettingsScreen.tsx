@@ -4,6 +4,7 @@ import { Button, InputControl, Skeleton, Stack, Text } from '@gophenberg/fronten
 import { __ } from '@wordpress/i18n'
 import { ErrorNotice, Page } from '@gopherium/godmin'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { UseQueryResult } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { chooseSiteSettings, fetchSiteSettings } from './api'
@@ -99,6 +100,22 @@ function SettingsForm({ held }: { held: SiteSettings }) {
 }
 
 /**
+ * Returns what the screen shows for the settings it asked for.
+ * @param held - The query holding the site settings.
+ * @returns The element to render inside the page.
+ */
+function settingsBody(held: UseQueryResult<SiteSettings>) {
+	if (held.isError) {
+		return (
+			<ErrorNotice>
+				{__('The settings could not be read, so nothing can be changed here yet.', 'gophenberg')}
+			</ErrorNotice>
+		)
+	}
+	return held.data ? <SettingsForm held={held.data} /> : <Skeleton />
+}
+
+/**
  * Renders the screen where an administrator chooses how the site serves its content.
  * @returns The settings screen element.
  */
@@ -109,7 +126,7 @@ export function SettingsScreen() {
 			title={__('Settings', 'gophenberg')}
 			subtitle={__('Choose how the site serves its content.', 'gophenberg')}
 		>
-			{held.data ? <SettingsForm held={held.data} /> : <Skeleton />}
+			{settingsBody(held)}
 		</Page>
 	)
 }
