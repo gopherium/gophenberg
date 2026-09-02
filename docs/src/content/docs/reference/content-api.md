@@ -13,7 +13,9 @@ mobile app, a static site generator, another server.
 - Every response allows cross-origin reads
   (`Access-Control-Allow-Origin: *`).
 - Responses are cacheable: `Cache-Control: public, s-maxage=60,
-  stale-while-revalidate=300`.
+  stale-while-revalidate=300` unless the site is
+  [configured](/self-hosting/configuration/) with other windows. A
+  change an editor makes reaches readers once that window passes.
 - Errors are JSON: `{"error": "<message>"}` with the status code
   telling the kind.
 - Timestamps are UTC in RFC 3339.
