@@ -5,6 +5,7 @@ package server_test
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -135,5 +136,32 @@ func TestContentAPIResolvesATermAtThePageSizeTheSiteChose(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"per_page":5`) {
 		t.Errorf("body = %q, want the term paged as the site chose", recorder.Body.String())
+	}
+}
+
+func TestPublicSitePagesAtTheSizeTheSiteChose(t *testing.T) {
+	t.Parallel()
+
+	posts := newFakePostStore()
+	now := time.Now().UTC()
+	for i := range 6 {
+		posts.add(publishedFixture(t, "post-"+strconv.Itoa(i), blockMarkup, now.Add(-time.Duration(i)*time.Minute)))
+	}
+	handler := server.NewServer(server.Config{
+		Users:     newFakeUserStore(),
+		Content:   posts,
+		Types:     newFakeTypeStore(),
+		Settings:  settingsChoosing("5"),
+		SiteTitle: "A Test Site",
+		Version:   "1.2.3",
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if !strings.Contains(recorder.Body.String(), `href="/page/2"`) {
+		t.Errorf("body = %q, want six posts to run past the page of five the site chose", recorder.Body.String())
 	}
 }
