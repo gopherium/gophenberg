@@ -122,7 +122,7 @@ func respondSettingsError(w http.ResponseWriter, err error) {
 	var refused *mediahost.Error
 	if errors.As(err, &refused) {
 		authkit.RespondError(w, http.StatusUnprocessableEntity, authkit.ErrorResponse{
-			Message: refused.Reason, Code: refused.Code,
+			Message: refused.Reason, Code: refused.Code, Meta: refused.Meta,
 		})
 		return
 	}

@@ -208,6 +208,24 @@ func TestSettingsPatchRefusesAQualityOutsideItsBounds(t *testing.T) {
 	}
 }
 
+func TestSettingsPatchNamesTheHighestQualityItTakes(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := localeServer(t)
+
+	recorder := askLocale(handler, http.MethodPatch, "/api/settings", `{"jpeg_quality":101}`)
+
+	var answered struct {
+		Meta map[string]any `json:"meta"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answered); err != nil {
+		t.Fatalf("decoding the answer: %v", err)
+	}
+	if answered.Meta["max"] != float64(mediahost.MaxJPEGQuality) {
+		t.Errorf("meta max = %v, want %d", answered.Meta["max"], mediahost.MaxJPEGQuality)
+	}
+}
+
 func TestSettingsPatchStoresEveryNamedValueTogether(t *testing.T) {
 	t.Parallel()
 
