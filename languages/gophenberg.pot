@@ -1343,6 +1343,9 @@ msgstr ""
 msgid "Type"
 msgstr ""
 
+msgid "Type a whole number in both boxes before saving."
+msgstr ""
+
 msgid "Undo"
 msgstr ""
 

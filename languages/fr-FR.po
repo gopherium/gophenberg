@@ -2112,3 +2112,7 @@ msgstr ""
 "La qualité d'image va de 1 à %(max)d, donc %(value)s n'est pas une qualité "
 "avec laquelle Gophenberg enregistre. Choisissez un nombre dans cet "
 "intervalle."
+
+#, fuzzy
+msgid "Type a whole number in both boxes before saving."
+msgstr "Saisissez un nombre entier dans les deux cases avant d'enregistrer."

@@ -1692,3 +1692,7 @@ msgid ""
 msgstr ""
 "La calidad de imagen va de 1 a %(max)d, así que %(value)s no es una calidad "
 "con la que Gophenberg guarde. Elige un número dentro de ese rango."
+
+#, fuzzy
+msgid "Type a whole number in both boxes before saving."
+msgstr "Escribe un número entero en las dos casillas antes de guardar."
