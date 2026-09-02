@@ -55,18 +55,18 @@ func (s *server) handleSettingsPatch() http.HandlerFunc {
 			respondSettingsError(w, err)
 			return
 		}
+		held, err := s.chosenSettings(r.Context())
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
 		if len(values) > 0 {
 			if err := s.settings.Save(r.Context(), values); err != nil {
 				respondDomainError(w, err)
 				return
 			}
 		}
-		held, err := s.chosenSettings(r.Context())
-		if err != nil {
-			respondDomainError(w, err)
-			return
-		}
-		authkit.Respond(w, http.StatusOK, held)
+		authkit.Respond(w, http.StatusOK, settingsAfter(held, req))
 	}
 }
 
@@ -87,6 +87,20 @@ func (s *server) chosenSettings(ctx context.Context) (settingsResponse, error) {
 		JPEGQuality: mediahost.ResolveJPEGQuality(
 			held[mediahost.JPEGQualityKey], found[mediahost.JPEGQualityKey]),
 	}, nil
+}
+
+// settingsAfter returns what the site holds once the values the request names are stored.
+func settingsAfter(held settingsResponse, req settingsRequest) settingsResponse {
+	if req.LocaleDefault != nil {
+		held.LocaleDefault = *req.LocaleDefault
+	}
+	if req.ContentPerPage != nil {
+		held.ContentPerPage = *req.ContentPerPage
+	}
+	if req.JPEGQuality != nil {
+		held.JPEGQuality = *req.JPEGQuality
+	}
+	return held
 }
 
 // settingsAsked returns the values the request names, or the reason one of them stands refused.

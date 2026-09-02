@@ -208,6 +208,24 @@ func TestSettingsPatchRefusesAQualityOutsideItsBounds(t *testing.T) {
 	}
 }
 
+func TestSettingsPatchStoresNothingWhenTheSettingsCannotBeRead(t *testing.T) {
+	t.Parallel()
+
+	handler, settings := localeServer(t)
+	settings.lookupErr = context.DeadlineExceeded
+
+	recorder := askLocale(handler, http.MethodPatch, "/api/settings", `{"content_per_page":5}`)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d, body %s",
+			recorder.Code, http.StatusInternalServerError, recorder.Body.String())
+	}
+	settings.lookupErr = nil
+	if held, stored, _ := settings.Lookup(t.Context(), content.PerPageSettingKey); stored {
+		t.Errorf("the page size was stored as %q, want a refused answer to store nothing", held)
+	}
+}
+
 func TestSettingsPatchNamesTheHighestQualityItTakes(t *testing.T) {
 	t.Parallel()
 
