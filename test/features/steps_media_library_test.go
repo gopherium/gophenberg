@@ -77,7 +77,7 @@ func (w *world) seedMediaLibrary() error {
 		{"manual.pdf", pdfDocument()},
 	}
 	for _, seed := range seeds {
-		item, err := w.mediaFiles.Ingest(seed.name, seed.data, author)
+		item, err := w.mediaFiles.Ingest(context.Background(), seed.name, seed.data, author)
 		if err != nil {
 			return fmt.Errorf("seeding %q: %w", seed.name, err)
 		}
