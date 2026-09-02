@@ -3,9 +3,12 @@
 package main
 
 import (
+	"context"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/gopherium/gophenberg/internal/mediahost"
 )
 
 // timedConfig returns a run config carrying distinct timings the wiring must carry through.
@@ -60,12 +63,32 @@ func TestMediaConfigCarriesTheUploadCapTheEnvironmentNamed(t *testing.T) {
 
 	settings := timedConfig()
 
-	held := mediaConfigFrom(settings)
+	held := mediaConfigFrom(settings, nil)
 
 	if held.MaxSize != settings.mediaUploadCap {
 		t.Errorf("MaxSize = %d, want %d", held.MaxSize, settings.mediaUploadCap)
 	}
 	if held.Dir != settings.mediaDir {
 		t.Errorf("Dir = %q, want %q", held.Dir, settings.mediaDir)
+	}
+}
+
+// standingSettings answers nothing, standing in for the store the library reads.
+type standingSettings struct{}
+
+// Lookup answers no stored value.
+func (standingSettings) Lookup(context.Context, string) (string, bool, error) {
+	return "", false, nil
+}
+
+func TestMediaConfigCarriesTheSettingsTheLibraryReads(t *testing.T) {
+	t.Parallel()
+
+	store := standingSettings{}
+
+	held := mediaConfigFrom(timedConfig(), store)
+
+	if held.Settings != mediahost.Settings(store) {
+		t.Errorf("Settings = %v, want the store the library reads", held.Settings)
 	}
 }

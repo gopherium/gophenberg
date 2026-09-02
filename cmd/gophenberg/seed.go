@@ -100,7 +100,7 @@ func seedDemoMedia(
 	if dir == "" {
 		return nil
 	}
-	library := mediahost.New(mediahost.Config{Dir: dir})
+	library := mediahost.New(mediahost.Config{Dir: dir, Settings: postgres.NewSettingStore(pool)})
 	return seed.Media(ctx, library, postgres.NewMediaStore(pool), users)
 }
 

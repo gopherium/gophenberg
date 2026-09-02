@@ -95,7 +95,7 @@ func run(
 		cfg.Web = os.DirFS(settings.webDir)
 	}
 	if settings.mediaDir != "" {
-		cfg.Media = mediahost.New(mediaConfigFrom(settings))
+		cfg.Media = mediahost.New(mediaConfigFrom(settings, settingStore))
 		cfg.MediaStore = postgres.NewMediaStore(pool)
 		cfg.MediaFiles = os.DirFS(settings.mediaDir)
 	}
@@ -206,9 +206,9 @@ func standingMegabytes(raw, key string, fallback int64) (int64, error) {
 	return stood << 20, nil
 }
 
-// mediaConfigFrom returns the media library settings the environment named.
-func mediaConfigFrom(settings runConfig) mediahost.Config {
-	return mediahost.Config{Dir: settings.mediaDir, MaxSize: settings.mediaUploadCap}
+// mediaConfigFrom returns the media library settings the environment named and the site chose.
+func mediaConfigFrom(settings runConfig, store mediahost.Settings) mediahost.Config {
+	return mediahost.Config{Dir: settings.mediaDir, MaxSize: settings.mediaUploadCap, Settings: store}
 }
 
 // standingDuration returns the duration the raw value names, or the fallback when it names none.
