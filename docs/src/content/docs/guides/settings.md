@@ -33,8 +33,10 @@ higher number makes heavier files that look better. A number
 outside the range is refused the same way.
 
 It reaches only the copies written as JPEG, and only pictures
-uploaded after you change it. A picture sent as PNG or GIF gets PNG
-copies, which ignore the number entirely. Copies already on disk
+uploaded after you change it. A picture sent as PNG or as a still
+GIF gets PNG copies, which ignore the number entirely, and an
+animated GIF is stored as it arrived with no copies at all. Copies
+already on disk
 stay as they were, so lowering the number to save room frees
 nothing until new pictures arrive. A JPEG that arrives sideways is
 turned upright and stored again at the quality you chose, which
