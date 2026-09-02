@@ -12,13 +12,28 @@ import type { SiteSettings } from './api'
 /** The query naming the settings the site chose for itself. */
 const settingsQueryKey = ['site-settings']
 
+/** The fewest items a listing may carry. */
+const minPerPage = 1
+
+/** The most items a listing may carry. */
+const maxPerPage = 100
+
+/** The lowest quality a picture copy may be saved at. */
+const minQuality = 1
+
+/** The highest quality a picture copy may be saved at. */
+const maxQuality = 100
+
+/** What a box holds when it names a whole number. */
+const wholeNumber = /^-?\d+$/
+
 /**
- * Returns the number the typed text names, or nothing when it names none.
+ * Returns the whole number the typed text names, or nothing when it names none.
  * @param typed - The text an administrator typed.
  * @returns The number, or undefined.
  */
 function numberTyped(typed: string): number | undefined {
-	return typed === '' ? undefined : Number(typed)
+	return wholeNumber.test(typed) ? Number(typed) : undefined
 }
 
 /**
@@ -39,12 +54,23 @@ function SettingsForm({ held }: { held: SiteSettings }) {
 		},
 		onError: (err: Error) => setNotice(err.message),
 	})
+	const asked = { content_per_page: numberTyped(perPage), jpeg_quality: numberTyped(quality) }
+	const store = () => {
+		if (asked.content_per_page === undefined || asked.jpeg_quality === undefined) {
+			setNotice(__('Type a whole number in both boxes before saving.', 'gophenberg'))
+			return
+		}
+		save.mutate(asked)
+	}
 	return (
 		<Stack direction="column" gap="md">
 			{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
 			<InputControl
 				label={__('Posts per page', 'gophenberg')}
 				type="number"
+				min={minPerPage}
+				max={maxPerPage}
+				step={1}
 				autoComplete="off"
 				value={perPage}
 				onValueChange={setPerPage}
@@ -55,6 +81,9 @@ function SettingsForm({ held }: { held: SiteSettings }) {
 			<InputControl
 				label={__('Picture quality', 'gophenberg')}
 				type="number"
+				min={minQuality}
+				max={maxQuality}
+				step={1}
 				autoComplete="off"
 				value={quality}
 				onValueChange={setQuality}
@@ -62,15 +91,7 @@ function SettingsForm({ held }: { held: SiteSettings }) {
 			<Text variant="body-sm">
 				{__('A higher quality stores larger files, and it applies to pictures uploaded from now on.', 'gophenberg')}
 			</Text>
-			<Button
-				loading={save.isPending}
-				onClick={() =>
-					save.mutate({
-						content_per_page: numberTyped(perPage),
-						jpeg_quality: numberTyped(quality),
-					})
-				}
-			>
+			<Button loading={save.isPending} onClick={store}>
 				{__('Save', 'gophenberg')}
 			</Button>
 		</Stack>

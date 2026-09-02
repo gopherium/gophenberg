@@ -66,7 +66,7 @@ test('stores a picture quality an administrator typed', async () => {
 	await waitFor(() => expect(sent[0]).toContain('"jpeg_quality":30'))
 })
 
-test('leaves a setting alone when its box was emptied', async () => {
+test('stores nothing while a box stands empty', async () => {
 	const sent: string[] = []
 	server.use(
 		http.patch('/api/settings', async ({ request }) => {
@@ -79,7 +79,75 @@ test('leaves a setting alone when its box was emptied', async () => {
 	await userEvent.clear(await screen.findByLabelText('Posts per page'))
 	await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-	await waitFor(() => expect(sent[0]).toBe('{"jpeg_quality":82}'))
+	expect(await screen.findByRole('alert')).toHaveTextContent('whole number')
+	expect(sent).toHaveLength(0)
+})
+
+test('stores nothing while a quality box stands empty', async () => {
+	const sent: string[] = []
+	server.use(
+		http.patch('/api/settings', async ({ request }) => {
+			sent.push(JSON.stringify(await request.json()))
+			return HttpResponse.json({ locale_default: '', content_per_page: 20, jpeg_quality: 82 })
+		}),
+	)
+	renderAt(PATH, adminUser)
+
+	await userEvent.clear(await screen.findByLabelText('Picture quality'))
+	await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+	expect(await screen.findByRole('alert')).toHaveTextContent('whole number')
+	expect(sent).toHaveLength(0)
+})
+
+test('stores nothing when a page size is not a whole number', async () => {
+	const sent: string[] = []
+	server.use(
+		http.patch('/api/settings', async ({ request }) => {
+			sent.push(JSON.stringify(await request.json()))
+			return HttpResponse.json({ locale_default: '', content_per_page: 20, jpeg_quality: 82 })
+		}),
+	)
+	renderAt(PATH, adminUser)
+
+	const field = await screen.findByLabelText('Posts per page')
+	await userEvent.clear(field)
+	await userEvent.type(field, '2.5')
+	await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+	expect(await screen.findByRole('alert')).toHaveTextContent('whole number')
+	expect(sent).toHaveLength(0)
+})
+
+test('sends a number outside the range on, so the server names the range', async () => {
+	const sent: string[] = []
+	server.use(
+		http.patch('/api/settings', async ({ request }) => {
+			sent.push(JSON.stringify(await request.json()))
+			return HttpResponse.json(
+				{ error: 'per page invalid', code: 'per_page_invalid', meta: { value: '500', max: 100 } },
+				{ status: 422 },
+			)
+		}),
+	)
+	renderAt(PATH, adminUser)
+
+	const field = await screen.findByLabelText('Posts per page')
+	await userEvent.clear(field)
+	await userEvent.type(field, '500')
+	await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+	await waitFor(() => expect(sent[0]).toContain('"content_per_page":500'))
+})
+
+test('offers each box the bounds the server keeps', async () => {
+	renderAt(PATH, adminUser)
+
+	const size = await screen.findByLabelText('Posts per page')
+	expect(size).toHaveAttribute('min', '1')
+	expect(size).toHaveAttribute('max', '100')
+	expect(size).toHaveAttribute('step', '1')
+	expect(await screen.findByLabelText('Picture quality')).toHaveAttribute('max', '100')
 })
 
 test('says why a refused value was not stored', async () => {
