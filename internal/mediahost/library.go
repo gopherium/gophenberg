@@ -5,6 +5,7 @@ package mediahost
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -50,18 +51,27 @@ type rendition struct {
 	format string
 }
 
+// Settings answers what the site chose for the pictures it stores.
+type Settings interface {
+	// Lookup returns the value stored under key and whether the key is set at all.
+	Lookup(ctx context.Context, key string) (string, bool, error)
+}
+
 // Config carries what a library needs to own its directory.
 type Config struct {
 	// Dir is the directory uploads land in. Empty refuses every upload.
 	Dir string
 	// MaxSize bounds one upload in bytes. Zero applies [DefaultMaxSize].
 	MaxSize int64
+	// Settings answers the quality pictures encode at. Nil applies [DefaultJPEGQuality].
+	Settings Settings
 }
 
 // Library owns the media directory uploads land in.
 type Library struct {
-	dir     string
-	maxSize int64
+	dir      string
+	maxSize  int64
+	settings Settings
 }
 
 // New returns a [Library] over the configured directory.
@@ -70,7 +80,7 @@ func New(cfg Config) *Library {
 	if size <= 0 {
 		size = DefaultMaxSize
 	}
-	return &Library{dir: cfg.Dir, maxSize: size}
+	return &Library{dir: cfg.Dir, maxSize: size, settings: cfg.Settings}
 }
 
 // Dir returns the directory the library owns.
@@ -80,7 +90,9 @@ func (l *Library) Dir() string { return l.dir }
 func (l *Library) Cap() int64 { return l.maxSize }
 
 // Ingest validates an upload, stores its files, and returns the media item they make.
-func (l *Library) Ingest(name string, data []byte, authorID uuid.UUID) (media.Media, error) {
+func (l *Library) Ingest(
+	ctx context.Context, name string, data []byte, authorID uuid.UUID,
+) (media.Media, error) {
 	if l.dir == "" {
 		return media.Media{}, refuse("media_directory_unset", "no media directory is configured, set GOPHENBERG_MEDIA_DIR",
 			"the library holds no directory")
@@ -99,11 +111,25 @@ func (l *Library) Ingest(name string, data []byte, authorID uuid.UUID) (media.Me
 	if !k.image {
 		return l.store(name, k, data, 0, 0, nil, authorID)
 	}
-	return l.ingestImage(name, k, data, authorID)
+	return l.ingestImage(ctx, name, k, data, authorID)
+}
+
+// quality returns the quality pictures encode at, as the site chose or by default.
+func (l *Library) quality(ctx context.Context) int {
+	if l.settings == nil {
+		return DefaultJPEGQuality
+	}
+	held, found, err := l.settings.Lookup(ctx, JPEGQualityKey)
+	if err != nil {
+		return DefaultJPEGQuality
+	}
+	return ResolveJPEGQuality(held, found)
 }
 
 // ingestImage decodes an upload, uprights it, and stores it with its renditions.
-func (l *Library) ingestImage(name string, k kind, data []byte, authorID uuid.UUID) (media.Media, error) {
+func (l *Library) ingestImage(
+	ctx context.Context, name string, k kind, data []byte, authorID uuid.UUID,
+) (media.Media, error) {
 	cfg, err := decodeBudget(data)
 	if err != nil {
 		return media.Media{}, err
@@ -121,8 +147,9 @@ func (l *Library) ingestImage(name string, k kind, data []byte, authorID uuid.UU
 	if err != nil {
 		return media.Media{}, refuse("image_unreadable", "the image cannot be read", "decoding: %w", err)
 	}
-	img, data = uprightJPEG(k, img, data)
-	renditions := deriveRenditions(img, k)
+	quality := l.quality(ctx)
+	img, data = uprightJPEG(k, img, data, quality)
+	renditions := deriveRenditions(img, k, quality)
 	return l.store(name, k, data, img.Bounds().Dx(), img.Bounds().Dy(), renditions, authorID)
 }
 
@@ -152,7 +179,7 @@ func isAnimated(data []byte) (bool, error) {
 }
 
 // uprightJPEG applies a JPEG's orientation tag, re-encoding when the pixels moved.
-func uprightJPEG(k kind, img image.Image, data []byte) (image.Image, []byte) {
+func uprightJPEG(k kind, img image.Image, data []byte, quality int) (image.Image, []byte) {
 	if k.ext != "jpg" {
 		return img, data
 	}
@@ -161,50 +188,50 @@ func uprightJPEG(k kind, img image.Image, data []byte) (image.Image, []byte) {
 		return img, data
 	}
 	upright := orient(img, orientation)
-	return upright, mustEncode(upright, "jpeg")
+	return upright, mustEncode(upright, "jpeg", quality)
 }
 
 // deriveRenditions returns the derived copies an upright image needs.
-func deriveRenditions(img image.Image, k kind) []rendition {
+func deriveRenditions(img image.Image, k kind, quality int) []rendition {
 	format := renditionFormat(k.ext, img)
-	out := scaledFull(img, format)
-	out = fitRenditions(out, img, format)
-	return thumbRendition(out, img, format)
+	out := scaledFull(img, format, quality)
+	out = fitRenditions(out, img, format, quality)
+	return thumbRendition(out, img, format, quality)
 }
 
 // scaledFull returns the display copy of an image beyond the big image bound.
-func scaledFull(img image.Image, format string) []rendition {
+func scaledFull(img image.Image, format string, quality int) []rendition {
 	out := make([]rendition, 0, 4)
 	if img.Bounds().Dx() <= bigImageBound && img.Bounds().Dy() <= bigImageBound {
 		return out
 	}
-	return append(out, encodedRendition("full", resizeFit(img, bigImageBound), format))
+	return append(out, encodedRendition("full", resizeFit(img, bigImageBound), format, quality))
 }
 
 // fitRenditions appends the renditions bounded by their longest side.
-func fitRenditions(out []rendition, img image.Image, format string) []rendition {
+func fitRenditions(out []rendition, img image.Image, format string, quality int) []rendition {
 	for _, size := range fitBounds {
 		if img.Bounds().Dx() <= size.bound && img.Bounds().Dy() <= size.bound {
 			continue
 		}
-		out = append(out, encodedRendition(size.slug, resizeFit(img, size.bound), format))
+		out = append(out, encodedRendition(size.slug, resizeFit(img, size.bound), format, quality))
 	}
 	return out
 }
 
 // thumbRendition appends the square thumbnail crop of a large enough image.
-func thumbRendition(out []rendition, img image.Image, format string) []rendition {
+func thumbRendition(out []rendition, img image.Image, format string, quality int) []rendition {
 	if img.Bounds().Dx() <= thumbnailSize || img.Bounds().Dy() <= thumbnailSize {
 		return out
 	}
-	return append(out, encodedRendition("thumbnail", resizeCrop(img, thumbnailSize), format))
+	return append(out, encodedRendition("thumbnail", resizeCrop(img, thumbnailSize), format, quality))
 }
 
 // encodedRendition returns img encoded as the named rendition.
-func encodedRendition(slug string, img image.Image, format string) rendition {
+func encodedRendition(slug string, img image.Image, format string, quality int) rendition {
 	return rendition{
 		slug:   slug,
-		data:   mustEncode(img, format),
+		data:   mustEncode(img, format, quality),
 		width:  img.Bounds().Dx(),
 		height: img.Bounds().Dy(),
 		format: format,

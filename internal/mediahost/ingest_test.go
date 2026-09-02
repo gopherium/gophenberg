@@ -31,7 +31,7 @@ func newLibrary(t *testing.T) *mediahost.Library {
 // mustIngest stores an upload and returns the media item it produced.
 func mustIngest(t *testing.T, l *mediahost.Library, name string, data []byte) media.Media {
 	t.Helper()
-	m, err := l.Ingest(name, data, uuid.Must(uuid.NewV7()))
+	m, err := l.Ingest(t.Context(), name, data, uuid.Must(uuid.NewV7()))
 	if err != nil {
 		t.Fatalf("Ingest(%q) error = %v, want nil", name, err)
 	}
@@ -99,7 +99,7 @@ func TestIngestStoresAPhotoWithRenditions(t *testing.T) {
 	author := uuid.Must(uuid.NewV7())
 	photo := jpegImage(t, 2400, 1600)
 
-	m, err := library.Ingest("Harbor.JPG", photo, author)
+	m, err := library.Ingest(t.Context(), "Harbor.JPG", photo, author)
 
 	if err != nil {
 		t.Fatalf("Ingest() error = %v, want nil", err)
@@ -376,7 +376,7 @@ func TestIngestRefusesWhatItCannotTrust(t *testing.T) {
 			t.Parallel()
 			library := newLibrary(t)
 
-			_, err := library.Ingest(tc.file, tc.data, uuid.Must(uuid.NewV7()))
+			_, err := library.Ingest(t.Context(), tc.file, tc.data, uuid.Must(uuid.NewV7()))
 
 			wantRefused(t, err, tc.reason)
 			wantEmptyDir(t, library)
@@ -397,7 +397,7 @@ func TestIngestRefusesDimensionsBeyondAnyBudget(t *testing.T) {
 		{"a ribbon past the budget", 60_000_000, 3},
 	}
 	for _, tc := range astronomical {
-		_, err := library.Ingest("bomb.png", pixelSizedPNG(tc.width, tc.height), uuid.Must(uuid.NewV7()))
+		_, err := library.Ingest(t.Context(), "bomb.png", pixelSizedPNG(tc.width, tc.height), uuid.Must(uuid.NewV7()))
 
 		wantRefused(t, err, "the image is too large")
 	}
@@ -410,8 +410,8 @@ func TestIngestRefusesExecutableContentInDocuments(t *testing.T) {
 	library := newLibrary(t)
 	executable := append([]byte("MZ\x90\x00"), make([]byte, 64)...)
 
-	_, pdfErr := library.Ingest("manual.pdf", executable, uuid.Must(uuid.NewV7()))
-	_, zipErr := library.Ingest("bundle.zip", executable, uuid.Must(uuid.NewV7()))
+	_, pdfErr := library.Ingest(t.Context(), "manual.pdf", executable, uuid.Must(uuid.NewV7()))
+	_, zipErr := library.Ingest(t.Context(), "bundle.zip", executable, uuid.Must(uuid.NewV7()))
 
 	wantRefused(t, pdfErr, "the content does not match")
 	wantRefused(t, zipErr, "the content does not match")
@@ -436,7 +436,7 @@ func TestIngestRefusesAFrameBeyondTheBudget(t *testing.T) {
 	library := newLibrary(t)
 	animation := withFrameBeyondTheBudget(t, animatedGIF(t))
 
-	_, err := library.Ingest("loader.gif", animation, uuid.Must(uuid.NewV7()))
+	_, err := library.Ingest(t.Context(), "loader.gif", animation, uuid.Must(uuid.NewV7()))
 
 	wantRefused(t, err, "the image is too large")
 	wantEmptyDir(t, library)
@@ -448,7 +448,7 @@ func TestIngestRefusesAnAnimationMissingItsTrailer(t *testing.T) {
 	library := newLibrary(t)
 	animation := animatedGIF(t)
 
-	_, err := library.Ingest("loader.gif", animation[:len(animation)-1], uuid.Must(uuid.NewV7()))
+	_, err := library.Ingest(t.Context(), "loader.gif", animation[:len(animation)-1], uuid.Must(uuid.NewV7()))
 
 	wantRefused(t, err, "the image cannot be read")
 	wantEmptyDir(t, library)
@@ -459,7 +459,7 @@ func TestIngestRefusesAnUploadOverTheCap(t *testing.T) {
 
 	library := mediahost.New(mediahost.Config{Dir: t.TempDir(), MaxSize: 1 << 10})
 
-	_, err := library.Ingest("huge.jpg", bytes.Repeat([]byte{0}, 2<<10), uuid.Must(uuid.NewV7()))
+	_, err := library.Ingest(t.Context(), "huge.jpg", bytes.Repeat([]byte{0}, 2<<10), uuid.Must(uuid.NewV7()))
 
 	wantRefused(t, err, "the file is too large")
 	wantEmptyDir(t, library)
@@ -470,7 +470,7 @@ func TestIngestRefusesWithoutADirectory(t *testing.T) {
 
 	library := mediahost.New(mediahost.Config{})
 
-	_, err := library.Ingest("harbor.jpg", jpegImage(t, 4, 4), uuid.Must(uuid.NewV7()))
+	_, err := library.Ingest(t.Context(), "harbor.jpg", jpegImage(t, 4, 4), uuid.Must(uuid.NewV7()))
 
 	wantRefused(t, err, "no media directory is configured, set GOPHENBERG_MEDIA_DIR")
 }
@@ -495,7 +495,7 @@ func TestIngestReportsAnUnwritableDirectory(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
 	library := mediahost.New(mediahost.Config{Dir: dir})
 
-	_, err := library.Ingest("harbor.jpg", jpegImage(t, 4, 4), uuid.Must(uuid.NewV7()))
+	_, err := library.Ingest(t.Context(), "harbor.jpg", jpegImage(t, 4, 4), uuid.Must(uuid.NewV7()))
 
 	if err == nil {
 		t.Fatal("Ingest() into an unwritable directory error = nil, want a failure")
@@ -516,7 +516,7 @@ func TestIngestCleansUpWhenARenditionCannotBeWritten(t *testing.T) {
 		t.Fatalf("planting the blocking directory: %v", err)
 	}
 
-	_, err := library.Ingest("harbor.jpg", jpegImage(t, 800, 600), uuid.Must(uuid.NewV7()))
+	_, err := library.Ingest(t.Context(), "harbor.jpg", jpegImage(t, 800, 600), uuid.Must(uuid.NewV7()))
 
 	if err == nil {
 		t.Fatal("Ingest() over a blocked rendition path error = nil, want a failure")
@@ -573,8 +573,8 @@ func TestIngestRefusesTruncatedImages(t *testing.T) {
 	cutGIF := staticGIF(t, 400, 300)[:22]
 	cutPNG := pixelSizedPNG(10, 10)
 
-	_, gifErr := library.Ingest("cut.gif", cutGIF, uuid.Must(uuid.NewV7()))
-	_, pngErr := library.Ingest("cut.png", cutPNG, uuid.Must(uuid.NewV7()))
+	_, gifErr := library.Ingest(t.Context(), "cut.gif", cutGIF, uuid.Must(uuid.NewV7()))
+	_, pngErr := library.Ingest(t.Context(), "cut.png", cutPNG, uuid.Must(uuid.NewV7()))
 
 	wantRefused(t, gifErr, "the image cannot be read")
 	wantRefused(t, pngErr, "the image cannot be read")
@@ -598,7 +598,7 @@ func TestIngestRefusesAMissingAuthor(t *testing.T) {
 
 	library := newLibrary(t)
 
-	_, err := library.Ingest("harbor.jpg", jpegImage(t, 4, 4), uuid.Nil)
+	_, err := library.Ingest(t.Context(), "harbor.jpg", jpegImage(t, 4, 4), uuid.Nil)
 
 	if !errors.Is(err, media.ErrInvalidAuthor) {
 		t.Errorf("Ingest() without an author error = %v, want ErrInvalidAuthor", err)
@@ -611,7 +611,7 @@ func TestErrorNamesTheReasonAndUnwraps(t *testing.T) {
 
 	library := newLibrary(t)
 
-	_, err := library.Ingest("notes.txt", []byte("meeting notes"), uuid.Must(uuid.NewV7()))
+	_, err := library.Ingest(t.Context(), "notes.txt", []byte("meeting notes"), uuid.Must(uuid.NewV7()))
 
 	var refused *mediahost.Error
 	if !errors.As(err, &refused) {
