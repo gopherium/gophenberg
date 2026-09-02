@@ -2116,3 +2116,9 @@ msgstr ""
 #, fuzzy
 msgid "Type a whole number in both boxes before saving."
 msgstr "Saisissez un nombre entier dans les deux cases avant d'enregistrer."
+
+#, fuzzy
+msgid "The settings could not be read, so nothing can be changed here yet."
+msgstr ""
+"Les réglages n'ont pas pu être lus, donc rien ne peut encore être modifié "
+"ici."

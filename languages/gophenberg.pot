@@ -1172,6 +1172,9 @@ msgstr ""
 msgid "The setting %(setting)s falls outside the others. Keep min below max and the default inside the bounds."
 msgstr ""
 
+msgid "The settings could not be read, so nothing can be changed here yet."
+msgstr ""
+
 msgid "The site default"
 msgstr ""
 
