@@ -30,9 +30,6 @@ const mediaUploadField = "file"
 // mediaPrefix is the URL prefix uploads are served under.
 const mediaPrefix = "/media"
 
-// mediaCacheControl is how long a client may keep a served upload.
-const mediaCacheControl = "public, max-age=3600"
-
 // defaultMediaPerPage and maxMediaPerPage bound the media page size.
 const (
 	defaultMediaPerPage = 20
@@ -376,7 +373,7 @@ func (s *server) handleMediaDelete() http.HandlerFunc {
 }
 
 // mediaAssets returns the handler serving stored uploads to every visitor.
-func mediaAssets(files fs.FS) http.Handler {
+func mediaAssets(files fs.FS, header string) http.Handler {
 	fileServer := http.FileServerFS(files)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name, ok := mediaFileName(r.URL.Path)
@@ -389,7 +386,7 @@ func mediaAssets(files fs.FS) http.Handler {
 			respondNotFound(w, r)
 			return
 		}
-		w.Header().Set("Cache-Control", mediaCacheControl)
+		w.Header().Set("Cache-Control", header)
 		r = r.Clone(r.Context())
 		r.URL.Path = "/" + name
 		fileServer.ServeHTTP(w, r)

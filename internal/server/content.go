@@ -31,9 +31,6 @@ func contentAPIGeneration() int {
 	return generation
 }
 
-// contentCacheControl is how long a shared cache may serve a public read.
-const contentCacheControl = "public, s-maxage=60, stale-while-revalidate=300"
-
 // contentHandshake reports the versions a reader is talking to and the types it serves.
 type contentHandshake struct {
 	Gophenberg string       `json:"gophenberg"`
@@ -149,13 +146,15 @@ func newPublishedSummary(c content.Content) publishedSummary {
 	}
 }
 
-// contentHeaders returns middleware marking a response public and cacheable.
-func contentHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Cache-Control", contentCacheControl)
-		next.ServeHTTP(w, r)
-	})
+// contentHeaders returns middleware marking a response public and cacheable for the given window.
+func contentHeaders(header string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Cache-Control", header)
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // publicPerPage returns the page size public listings carry, as the site chose or by default.
