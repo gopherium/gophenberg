@@ -185,6 +185,10 @@ export function errorTemplates(): Record<string, string> {
 			'Something went wrong inside Gophenberg. Try again in a moment, and tell whoever looks after your site if it keeps happening.',
 			DOMAIN,
 		),
+		jpeg_quality_invalid: __(
+			'Picture quality runs from 1 to %(max)d, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range.',
+			DOMAIN,
+		),
 		kit_missing: __(
 			'The %(file)s inside %(name)s names its theme kit as %(declared)s, which is not a version number. Build the theme again, and the build will fill that in.',
 			DOMAIN,
@@ -254,6 +258,10 @@ export function errorTemplates(): Record<string, string> {
 		parent_trashed: __('The item you picked as parent is in the trash. Restore it, or pick another parent.', DOMAIN),
 		parent_wrong_type: __(
 			'The item you picked as parent holds another kind of content. Pick a parent of the same content type as this item.',
+			DOMAIN,
+		),
+		per_page_invalid: __(
+			'A listing carries between 1 and %(max)d items, so %(value)s is not a size Gophenberg takes. Pick a number inside that range.',
 			DOMAIN,
 		),
 		relation_target_key_malformed: __(

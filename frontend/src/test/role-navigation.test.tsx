@@ -8,7 +8,7 @@ import { beforeEach, expect, test } from 'vitest'
 import { renderAt } from './render'
 
 /** The gated screens, which only an administrator reaches. */
-const GATED = ['Users', 'Themes', 'Content Types']
+const GATED = ['Users', 'Themes', 'Content Types', 'Settings']
 
 /** The screens every signed in role reaches. */
 const OPEN = ['Media', 'Language']
