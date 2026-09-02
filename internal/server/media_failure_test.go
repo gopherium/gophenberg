@@ -37,7 +37,7 @@ type removingLibrary struct{}
 func (removingLibrary) Cap() int64 { return 1 << 20 }
 
 // Ingest stores nothing and answers an empty item.
-func (removingLibrary) Ingest(string, []byte, uuid.UUID) (media.Media, error) {
+func (removingLibrary) Ingest(context.Context, string, []byte, uuid.UUID) (media.Media, error) {
 	return media.Media{}, nil
 }
 

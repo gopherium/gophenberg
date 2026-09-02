@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -43,7 +44,7 @@ type MediaLibrary interface {
 	// Cap returns the most bytes one upload may carry.
 	Cap() int64
 	// Ingest validates an upload, stores its files, and returns the media item they make.
-	Ingest(name string, data []byte, authorID uuid.UUID) (media.Media, error)
+	Ingest(ctx context.Context, name string, data []byte, authorID uuid.UUID) (media.Media, error)
 	// Remove deletes the item's stored file and every rendition it owns.
 	Remove(m media.Media) error
 }
@@ -137,7 +138,7 @@ func (s *server) handleMediaUpload() http.HandlerFunc {
 			})
 			return
 		}
-		item, err := s.media.Ingest(header.Filename, data, authkit.IdentityFromContext(r.Context()).ID)
+		item, err := s.media.Ingest(r.Context(), header.Filename, data, authkit.IdentityFromContext(r.Context()).ID)
 		if err != nil {
 			respondMediaError(w, err)
 			return
