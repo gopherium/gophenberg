@@ -17,8 +17,10 @@ const JPEGQualityKey = "media.jpeg_quality"
 func ParseJPEGQuality(raw string) (int, error) {
 	quality, err := strconv.Atoi(raw)
 	if err != nil || quality < 1 || quality > MaxJPEGQuality {
-		return 0, refuse("jpeg_quality_invalid", "the picture quality is out of range",
+		refused := refuse("jpeg_quality_invalid", "the picture quality is out of range",
 			"quality %q is not a whole number from 1 to %d", raw, MaxJPEGQuality)
+		refused.Meta = map[string]any{"value": raw, "max": MaxJPEGQuality}
+		return 0, refused
 	}
 	return quality, nil
 }
