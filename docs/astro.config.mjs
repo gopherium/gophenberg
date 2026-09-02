@@ -39,6 +39,7 @@ export default defineConfig({
 						{ slug: 'guides/content-types' },
 						{ slug: 'guides/fields' },
 						{ slug: 'guides/users' },
+						{ slug: 'guides/settings' },
 					],
 				},
 				{

@@ -14,8 +14,8 @@ that.
 There are three roles.
 
 An **admin** runs the site. It manages accounts, installs and
-switches themes, reshapes the content model, writes the site
-settings, and changes anyone's work.
+switches themes, reshapes the content model, writes the
+[site settings](/guides/settings/), and changes anyone's work.
 
 An **editor** works everyone's content and media, including work
 another account wrote, but does not manage accounts, themes, types
