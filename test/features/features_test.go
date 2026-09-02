@@ -98,6 +98,10 @@ func TestContentServing(t *testing.T) {
 	runFeature(t, "features/content-serving.feature", initializeContentServing)
 }
 
+func TestSiteSettings(t *testing.T) {
+	runFeature(t, "features/site-settings.feature", initializeSiteSettings)
+}
+
 func TestThemeUpload(t *testing.T) {
 	runFeature(t, "features/theme-upload.feature", initializeUpload)
 }
