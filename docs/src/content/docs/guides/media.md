@@ -31,6 +31,12 @@ you sent it, and a set of smaller copies the editor can choose
 from. The copies are named Thumbnail, Medium, Large and Full Size,
 which is what the editor's Resolution setting lists.
 
+Copies saved as JPEG are saved at a quality of 82 out of 100,
+unless an administrator chose another number under **Settings**.
+A lower number makes lighter files that look rougher. The change
+applies to pictures uploaded after it, so copies already on disk
+stay as they were.
+
 Two things are corrected on the way in. A photo taken sideways is
 turned upright, so it is stored the way you saw it on the camera.
 A very large photo also gains a display copy bounded to 2560
