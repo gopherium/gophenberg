@@ -24,6 +24,11 @@ func timedConfig() runConfig {
 		themeProxyTimeout:  20 * time.Second,
 		themeStartAttempts: 9,
 		mediaUploadCap:     64 << 20,
+
+		cacheAssetMaxAge:                 2 * time.Hour,
+		cacheMediaMaxAge:                 90 * time.Second,
+		cacheContentSharedMaxAge:         30 * time.Second,
+		cacheContentStaleWhileRevalidate: 10 * time.Minute,
 	}
 }
 

@@ -184,3 +184,111 @@ func TestLoadRunConfigRefusesAMaxBackoffUnderTheBackoff(t *testing.T) {
 		t.Errorf("error = %v, want it to name GOPHENBERG_THEME_MAX_BACKOFF", err)
 	}
 }
+
+func TestLoadRunConfigDefaultsTheCacheWindows(t *testing.T) {
+	t.Parallel()
+
+	settings, err := loadRunConfig(testGetenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
+	}))
+
+	if err != nil {
+		t.Fatalf("loadRunConfig() error = %v, want nil", err)
+	}
+	for name, held := range map[string]struct {
+		stood time.Duration
+		want  time.Duration
+	}{
+		"the asset window":  {settings.cacheAssetMaxAge, time.Hour},
+		"the media window":  {settings.cacheMediaMaxAge, time.Hour},
+		"the shared window": {settings.cacheContentSharedMaxAge, time.Minute},
+		"the stale window":  {settings.cacheContentStaleWhileRevalidate, 5 * time.Minute},
+	} {
+		if held.stood != held.want {
+			t.Errorf("%s = %v, want %v", name, held.stood, held.want)
+		}
+	}
+}
+
+func TestLoadRunConfigReadsTheCacheWindowsFromTheEnvironment(t *testing.T) {
+	t.Parallel()
+
+	settings, err := loadRunConfig(testGetenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL":                         unreachableDatabaseURL,
+		"GOPHENBERG_CACHE_ASSET_MAX_AGE":                  "2h",
+		"GOPHENBERG_CACHE_MEDIA_MAX_AGE":                  "90s",
+		"GOPHENBERG_CACHE_CONTENT_SHARED_MAX_AGE":         "30s",
+		"GOPHENBERG_CACHE_CONTENT_STALE_WHILE_REVALIDATE": "10m",
+	}))
+
+	if err != nil {
+		t.Fatalf("loadRunConfig() error = %v, want nil", err)
+	}
+	for name, held := range map[string]struct {
+		stood time.Duration
+		want  time.Duration
+	}{
+		"the asset window":  {settings.cacheAssetMaxAge, 2 * time.Hour},
+		"the media window":  {settings.cacheMediaMaxAge, 90 * time.Second},
+		"the shared window": {settings.cacheContentSharedMaxAge, 30 * time.Second},
+		"the stale window":  {settings.cacheContentStaleWhileRevalidate, 10 * time.Minute},
+	} {
+		if held.stood != held.want {
+			t.Errorf("%s = %v, want %v", name, held.stood, held.want)
+		}
+	}
+}
+
+func TestLoadRunConfigRefusesACacheWindowItCannotServe(t *testing.T) {
+	t.Parallel()
+
+	for name, asked := range map[string]struct {
+		key   string
+		value string
+	}{
+		"a window that is not a duration": {"GOPHENBERG_CACHE_ASSET_MAX_AGE", "soon"},
+		"a window standing at zero":       {"GOPHENBERG_CACHE_ASSET_MAX_AGE", "0s"},
+		"a window below zero":             {"GOPHENBERG_CACHE_MEDIA_MAX_AGE", "-1s"},
+		"a window under a second":         {"GOPHENBERG_CACHE_MEDIA_MAX_AGE", "500ms"},
+		"a window of part seconds":        {"GOPHENBERG_CACHE_CONTENT_SHARED_MAX_AGE", "1500ms"},
+		"a stale window under a second":   {"GOPHENBERG_CACHE_CONTENT_STALE_WHILE_REVALIDATE", "10ms"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := loadRunConfig(testGetenv(map[string]string{
+				"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
+				asked.key:                 asked.value,
+			}))
+
+			if err == nil {
+				t.Fatalf("loadRunConfig() error = nil, want %s refused", asked.key)
+			}
+			if !strings.Contains(err.Error(), asked.key) {
+				t.Errorf("error = %v, want it to name %s", err, asked.key)
+			}
+		})
+	}
+}
+
+func TestCachePolicyCarriesEveryWindowTheEnvironmentNamed(t *testing.T) {
+	t.Parallel()
+
+	settings := timedConfig()
+
+	held := cachePolicyFrom(settings)
+
+	for name, asked := range map[string]struct {
+		stood time.Duration
+		want  time.Duration
+	}{
+		"AssetMaxAge":                 {held.AssetMaxAge, settings.cacheAssetMaxAge},
+		"MediaMaxAge":                 {held.MediaMaxAge, settings.cacheMediaMaxAge},
+		"ContentSharedMaxAge":         {held.ContentSharedMaxAge, settings.cacheContentSharedMaxAge},
+		"ContentStaleWhileRevalidate": {held.ContentStaleWhileRevalidate, settings.cacheContentStaleWhileRevalidate},
+	} {
+		if asked.stood != asked.want {
+			t.Errorf("%s = %v, want %v", name, asked.stood, asked.want)
+		}
+	}
+}

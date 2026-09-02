@@ -89,6 +89,7 @@ func run(
 		Themes:            themes,
 		Settings:          settingStore,
 		Readers:           postgres.NewUserSettingStore(pool),
+		Cache:             cachePolicyFrom(settings),
 		ThemeTimeout:      settings.themeProxyTimeout,
 	}
 	if settings.webDir != "" {
@@ -146,6 +147,56 @@ type runConfig struct {
 	themeProxyTimeout  time.Duration
 	themeStartAttempts int
 	mediaUploadCap     int64
+
+	cacheAssetMaxAge                 time.Duration
+	cacheMediaMaxAge                 time.Duration
+	cacheContentSharedMaxAge         time.Duration
+	cacheContentStaleWhileRevalidate time.Duration
+}
+
+// cacheWindowsFrom reads how long each kind of public answer may be kept.
+func cacheWindowsFrom(getenv func(string) string, held *runConfig) error {
+	for _, asked := range []struct {
+		key      string
+		fallback time.Duration
+		into     *time.Duration
+	}{
+		{"GOPHENBERG_CACHE_ASSET_MAX_AGE", server.DefaultAssetCacheMaxAge, &held.cacheAssetMaxAge},
+		{"GOPHENBERG_CACHE_MEDIA_MAX_AGE", server.DefaultMediaCacheMaxAge, &held.cacheMediaMaxAge},
+		{"GOPHENBERG_CACHE_CONTENT_SHARED_MAX_AGE", server.DefaultContentSharedMaxAge,
+			&held.cacheContentSharedMaxAge},
+		{"GOPHENBERG_CACHE_CONTENT_STALE_WHILE_REVALIDATE", server.DefaultContentStaleWhileRevalidate,
+			&held.cacheContentStaleWhileRevalidate},
+	} {
+		stood, err := standingSeconds(getenv(asked.key), asked.key, asked.fallback)
+		if err != nil {
+			return err
+		}
+		*asked.into = stood
+	}
+	return nil
+}
+
+// standingSeconds returns the whole seconds the raw value names, or the fallback when it names none.
+func standingSeconds(raw, key string, fallback time.Duration) (time.Duration, error) {
+	stood, err := standingDuration(raw, key, fallback)
+	if err != nil {
+		return 0, err
+	}
+	if stood%time.Second != 0 {
+		return 0, fmt.Errorf("%s: must be whole seconds like 1h or 90s, got %q", key, raw)
+	}
+	return stood, nil
+}
+
+// cachePolicyFrom returns how long each kind of public answer may be kept.
+func cachePolicyFrom(settings runConfig) server.CachePolicy {
+	return server.CachePolicy{
+		AssetMaxAge:                 settings.cacheAssetMaxAge,
+		MediaMaxAge:                 settings.cacheMediaMaxAge,
+		ContentSharedMaxAge:         settings.cacheContentSharedMaxAge,
+		ContentStaleWhileRevalidate: settings.cacheContentStaleWhileRevalidate,
+	}
 }
 
 // timingsFrom reads the durations, the attempt count and the upload cap the environment names.
@@ -182,6 +233,9 @@ func timingsFrom(getenv func(string) string) (runConfig, error) {
 		return runConfig{}, err
 	}
 	held.themeStartAttempts, held.mediaUploadCap = attempts, cap
+	if err := cacheWindowsFrom(getenv, &held); err != nil {
+		return runConfig{}, err
+	}
 	return held, nil
 }
 
