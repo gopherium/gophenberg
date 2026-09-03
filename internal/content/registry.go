@@ -176,7 +176,7 @@ func (r *Registry) Update(ctx context.Context, t Type) (Type, error) {
 	if !found {
 		return Type{}, ErrTypeNotFound
 	}
-	if err := pluginKeeps(stored, t); err != nil {
+	if err := pluginKeeps(ctx, stored, t); err != nil {
 		return Type{}, err
 	}
 	t.Origin = stored.Origin
@@ -223,8 +223,8 @@ func (r *Registry) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return err
 	}
-	if t.Origin != "" {
-		return OwnedBy(t.Origin)
+	if err := keptFrom(ctx, t.Origin); err != nil {
+		return err
 	}
 	if t.Default {
 		return ErrDefaultRequired

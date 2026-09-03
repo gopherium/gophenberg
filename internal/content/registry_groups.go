@@ -38,7 +38,7 @@ func (r *Registry) UpdateGroup(ctx context.Context, g Group) (Group, error) {
 	if err != nil {
 		return Group{}, err
 	}
-	if err := pluginKeepsGroup(stored, settled); err != nil {
+	if err := pluginKeepsGroup(ctx, stored, settled); err != nil {
 		return Group{}, err
 	}
 	settled.Origin = stored.Origin
@@ -76,8 +76,8 @@ func (r *Registry) DeleteGroup(ctx context.Context, id int) error {
 	if err != nil {
 		return err
 	}
-	if stored.Origin != "" {
-		return OwnedBy(stored.Origin)
+	if err := keptFrom(ctx, stored.Origin); err != nil {
+		return err
 	}
 	if err := r.store.DeleteGroup(ctx, id); err != nil {
 		return err
@@ -141,8 +141,8 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	if err != nil {
 		return Field{}, err
 	}
-	if target.Origin != "" {
-		return Field{}, OwnedBy(target.Origin)
+	if err := keptFrom(ctx, target.Origin); err != nil {
+		return Field{}, err
 	}
 	if f.Kind == FieldKindRelation {
 		if _, err := r.ByKey(ctx, f.RelatesTo); err != nil {
@@ -166,7 +166,7 @@ func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (F
 	if err != nil {
 		return Field{}, err
 	}
-	if err := pluginKeepsField(parent); err != nil {
+	if err := pluginKeepsField(ctx, parent); err != nil {
 		return Field{}, err
 	}
 	created, err := r.store.CreateSubField(ctx, parentID, f)
@@ -185,7 +185,7 @@ func (r *Registry) UpdateSubField(
 	if err != nil {
 		return Field{}, err
 	}
-	if err := pluginKeepsField(held); err != nil {
+	if err := pluginKeepsField(ctx, held); err != nil {
 		return Field{}, err
 	}
 	held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
@@ -258,7 +258,7 @@ func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
 	if err != nil {
 		return err
 	}
-	if err := pluginKeepsField(held); err != nil {
+	if err := pluginKeepsField(ctx, held); err != nil {
 		return err
 	}
 	if err := r.store.DeleteSubField(ctx, id); err != nil {
@@ -276,7 +276,7 @@ func (r *Registry) UpdateFieldInGroup(
 	if err != nil {
 		return Field{}, err
 	}
-	if err := pluginKeepsField(held); err != nil {
+	if err := pluginKeepsField(ctx, held); err != nil {
 		return Field{}, err
 	}
 	held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
@@ -298,7 +298,7 @@ func (r *Registry) DeleteFieldInGroup(ctx context.Context, groupID int, key stri
 	if err != nil {
 		return err
 	}
-	if err := pluginKeepsField(held); err != nil {
+	if err := pluginKeepsField(ctx, held); err != nil {
 		return err
 	}
 	if err := r.store.DeleteFieldInGroup(ctx, groupID, key); err != nil {
@@ -349,15 +349,15 @@ func (r *Registry) MoveField(ctx context.Context, groupID int, key string, toGro
 	if err != nil {
 		return Field{}, err
 	}
-	if err := pluginKeepsField(leaving); err != nil {
+	if err := pluginKeepsField(ctx, leaving); err != nil {
 		return Field{}, err
 	}
 	held, landing, err := r.groupAmong(ctx, toGroup)
 	if err != nil {
 		return Field{}, err
 	}
-	if landing.Origin != "" {
-		return Field{}, OwnedBy(landing.Origin)
+	if err := keptFrom(ctx, landing.Origin); err != nil {
+		return Field{}, err
 	}
 	if err := r.uncollided(ctx, held, landing, []string{key}, groupID); err != nil {
 		return Field{}, err
