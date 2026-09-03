@@ -44,6 +44,7 @@ type Item struct {
 	Title       string
 	Excerpt     string
 	Content     string
+	Fields      map[string]any
 	PublishedAt time.Time
 	UpdatedAt   time.Time
 }
