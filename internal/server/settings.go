@@ -55,18 +55,18 @@ func (s *server) handleSettingsPatch() http.HandlerFunc {
 			respondSettingsError(w, err)
 			return
 		}
-		held, err := s.chosenSettings(r.Context())
-		if err != nil {
-			respondDomainError(w, err)
-			return
-		}
 		if len(values) > 0 {
 			if err := s.settings.Save(r.Context(), values); err != nil {
 				respondDomainError(w, err)
 				return
 			}
 		}
-		authkit.Respond(w, http.StatusOK, s.settingsStanding(r.Context(), held, req))
+		held, err := s.chosenSettings(r.Context())
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		authkit.Respond(w, http.StatusOK, held)
 	}
 }
 
@@ -87,31 +87,6 @@ func (s *server) chosenSettings(ctx context.Context) (settingsResponse, error) {
 		JPEGQuality: mediahost.ResolveJPEGQuality(
 			held[mediahost.JPEGQualityKey], found[mediahost.JPEGQualityKey]),
 	}, nil
-}
-
-// settingsStanding returns what the site holds after the write, or what the request stored when it cannot be read.
-func (s *server) settingsStanding(
-	ctx context.Context, held settingsResponse, req settingsRequest,
-) settingsResponse {
-	stored, err := s.chosenSettings(ctx)
-	if err != nil {
-		return settingsAfter(held, req)
-	}
-	return stored
-}
-
-// settingsAfter returns what the site holds once the values the request names are stored.
-func settingsAfter(held settingsResponse, req settingsRequest) settingsResponse {
-	if req.LocaleDefault != nil {
-		held.LocaleDefault = *req.LocaleDefault
-	}
-	if req.ContentPerPage != nil {
-		held.ContentPerPage = *req.ContentPerPage
-	}
-	if req.JPEGQuality != nil {
-		held.JPEGQuality = *req.JPEGQuality
-	}
-	return held
 }
 
 // settingsAsked returns the values the request names, or the reason one of them stands refused.

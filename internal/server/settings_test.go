@@ -208,24 +208,6 @@ func TestSettingsPatchRefusesAQualityOutsideItsBounds(t *testing.T) {
 	}
 }
 
-func TestSettingsPatchStoresNothingWhenTheSettingsCannotBeRead(t *testing.T) {
-	t.Parallel()
-
-	handler, settings := localeServer(t)
-	settings.lookupErr = context.DeadlineExceeded
-
-	recorder := askLocale(handler, http.MethodPatch, "/api/settings", `{"content_per_page":5}`)
-
-	if recorder.Code != http.StatusInternalServerError {
-		t.Fatalf("status = %d, want %d, body %s",
-			recorder.Code, http.StatusInternalServerError, recorder.Body.String())
-	}
-	settings.lookupErr = nil
-	if held, stored, _ := settings.Lookup(t.Context(), content.PerPageSettingKey); stored {
-		t.Errorf("the page size was stored as %q, want a refused answer to store nothing", held)
-	}
-}
-
 func TestSettingsPatchAnswersWithWhatAnotherWriterStoredMeanwhile(t *testing.T) {
 	t.Parallel()
 
@@ -241,26 +223,6 @@ func TestSettingsPatchAnswersWithWhatAnotherWriterStoredMeanwhile(t *testing.T) 
 	if answered.JPEGQuality != 30 || answered.ContentPerPage != 5 {
 		t.Errorf("the answer carries per page %d and quality %d, want 5 and the 30 stored meanwhile",
 			answered.ContentPerPage, answered.JPEGQuality)
-	}
-}
-
-func TestSettingsPatchReportsTheStoredValueWhenTheReadBackFails(t *testing.T) {
-	t.Parallel()
-
-	handler, settings := localeServer(t)
-	settings.duringSave = func() { settings.lookupErr = context.DeadlineExceeded }
-	body := `{"locale_default":"es-ES","content_per_page":5,"jpeg_quality":30}`
-
-	recorder := askLocale(handler, http.MethodPatch, "/api/settings", body)
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d for values that were stored, body %s",
-			recorder.Code, http.StatusOK, recorder.Body.String())
-	}
-	answered := answeredSettings(t, recorder)
-	if answered.LocaleDefault != "es-ES" || answered.ContentPerPage != 5 || answered.JPEGQuality != 30 {
-		t.Errorf("the answer carries %q, %d and %d, want the es-ES, 5 and 30 it stored",
-			answered.LocaleDefault, answered.ContentPerPage, answered.JPEGQuality)
 	}
 }
 

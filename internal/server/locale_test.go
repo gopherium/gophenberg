@@ -44,7 +44,7 @@ func (s *storedSettings) Lookup(_ context.Context, key string) (string, bool, er
 	return held, found, nil
 }
 
-// Save stores what the site chose, running whatever the scenario put in the way first.
+// Save stores what the site chose.
 func (s *storedSettings) Save(_ context.Context, values map[string]string) error {
 	if s.saveErr != nil {
 		return s.saveErr
