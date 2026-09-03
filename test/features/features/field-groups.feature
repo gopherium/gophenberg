@@ -98,6 +98,14 @@ Feature: Grouping fields and placing them by rule
     And the administrator lists the field groups
     Then the group "Event details" is listed as declared by "events"
 
+  Scenario: The site's definitions download as a file without what plugins declared
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And the plugin "events" declared the group "Event details" for "post"
+    When the administrator downloads the definitions
+    Then the download holds the group "Article details" with the field "subtitle"
+    And the download leaves out the group "Event details"
+
   Scenario: Deleting a group takes its fields with it
     Given the group "Article details" for "post"
     And the "text" field "subtitle" labeled "Subtitle" in "Article details"
