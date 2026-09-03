@@ -96,6 +96,7 @@ func (s *TypeStore) ByKey(ctx context.Context, key string) (content.Type, error)
 // Create stores a new content type, or reports the key or route word already in use.
 func (s *TypeStore) Create(ctx context.Context, t content.Type) (content.Type, error) {
 	row, err := s.queries.CreateContentType(ctx, db.CreateContentTypeParams{
+		Origin:        originColumn(t.Origin),
 		Key:           t.Key,
 		SingularLabel: t.SingularLabel,
 		PluralLabel:   t.PluralLabel,
@@ -273,6 +274,7 @@ func (s *TypeStore) CreateField(ctx context.Context, f content.Field) (content.F
 		}
 		row, err := queries.CreateContentField(ctx, db.CreateContentFieldParams{
 			GroupID:   int32(target.ID),
+			Origin:    originColumn(f.Origin),
 			Key:       f.Key,
 			Label:     f.Label,
 			Kind:      string(f.Kind),

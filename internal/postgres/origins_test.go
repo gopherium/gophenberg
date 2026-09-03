@@ -94,6 +94,66 @@ func TestCreateGroupRefusesAKeyAnotherGroupHolds(t *testing.T) {
 	}
 }
 
+func TestCreateStoresTheOriginATypeCarries(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	built, err := content.NewType("event", "Event", "Events", "events")
+	if err != nil {
+		t.Fatalf("NewType() error = %v, want nil", err)
+	}
+	built.Origin = "events"
+
+	created, err := store.Create(t.Context(), built)
+
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	held, err := store.ByKey(t.Context(), "event")
+	if err != nil || created.Origin != "events" || held.Origin != "events" {
+		t.Errorf("created, held origin = %q, %q (%v), want events stored and read back", created.Origin, held.Origin, err)
+	}
+}
+
+func TestCreateFieldInGroupStoresTheOriginAFieldCarries(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "event")
+	group, err := store.CreateGroup(t.Context(), content.Group{
+		Key: "event-details", Title: "Event details", Location: locationOf("event"), Origin: "events",
+	})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	section := fieldOn(t, "", "schedule", content.FieldKindSection, "")
+	section.Origin = "events"
+
+	parent, err := store.CreateFieldInGroup(t.Context(), group.ID, section)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
+	}
+	inner := fieldOn(t, "", "starts-at", content.FieldKindDate, "")
+	inner.Origin = "events"
+	child, err := store.CreateSubField(t.Context(), parent.ID, inner)
+	if err != nil {
+		t.Fatalf("CreateSubField() error = %v, want nil", err)
+	}
+
+	if parent.Origin != "events" || child.Origin != "events" {
+		t.Errorf("origins = %q, %q, want events on the field and the sub field", parent.Origin, child.Origin)
+	}
+	listed, err := store.ListGroups(t.Context())
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v, want nil", err)
+	}
+	held, _ := groupOf(listed, group.ID)
+	if len(held.Fields) != 1 || held.Fields[0].Origin != "events" ||
+		len(held.Fields[0].Fields) != 1 || held.Fields[0].Fields[0].Origin != "events" {
+		t.Errorf("read back %+v, want events on the field and the sub field", held.Fields)
+	}
+}
+
 func TestCreateFieldRefusesToRaiseAFieldInsideAGroupAPluginDeclared(t *testing.T) {
 	t.Parallel()
 

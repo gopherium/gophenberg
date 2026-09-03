@@ -726,6 +726,7 @@ func (s *TypeStore) CreateSubField(ctx context.Context, parentID int, f content.
 		}
 		row, err := queries.CreateSubContentField(ctx, db.CreateSubContentFieldParams{
 			GroupID:       parent.GroupID,
+			Origin:        originColumn(settled.Origin),
 			ParentFieldID: pgtype.Int4{Int32: int32(parentID), Valid: true},
 			Key:           settled.Key,
 			Label:         settled.Label,
@@ -782,6 +783,7 @@ func (s *TypeStore) CreateFieldInGroup(ctx context.Context, groupID int, f conte
 	err := s.settledFieldWrite(ctx, groupID, f.Key, 0, func(queries *db.Queries) error {
 		row, err := queries.CreateContentField(ctx, db.CreateContentFieldParams{
 			GroupID:   int32(groupID),
+			Origin:    originColumn(f.Origin),
 			Key:       f.Key,
 			Label:     f.Label,
 			Kind:      string(f.Kind),
