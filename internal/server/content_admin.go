@@ -18,11 +18,8 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// defaultContentPerPage and maxContentPerPage bound the content page size.
-const (
-	defaultContentPerPage = 20
-	maxContentPerPage     = 100
-)
+// defaultAdminPerPage is how many items the admin listing carries when the query names none.
+const defaultAdminPerPage = 20
 
 // countedStatuses are the statuses the counts endpoint always reports.
 var countedStatuses = []content.Status{
@@ -105,7 +102,7 @@ func parseAdminContentFilter(query url.Values, contentType content.Type) (conten
 		OrderBy: content.OrderByDate,
 		Order:   content.OrderDesc,
 		Page:    1,
-		PerPage: defaultContentPerPage,
+		PerPage: defaultAdminPerPage,
 	}
 	if err := applyContentOrdering(query, &filter); err != nil {
 		return content.Filter{}, err
@@ -153,7 +150,7 @@ func applyContentPaging(query url.Values, filter *content.Filter) error {
 	}
 	if raw := query.Get("per_page"); raw != "" {
 		perPage, err := strconv.Atoi(raw)
-		if err != nil || perPage < 1 || perPage > maxContentPerPage {
+		if err != nil || perPage < 1 || perPage > content.MaxPerPage {
 			return fmt.Errorf("server: invalid per_page %q", raw)
 		}
 		filter.PerPage = perPage

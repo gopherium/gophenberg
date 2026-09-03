@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -29,9 +30,6 @@ func contentAPIGeneration() int {
 	generation, _ := strconv.Atoi(major)
 	return generation
 }
-
-// contentCacheControl is how long a shared cache may serve a public read.
-const contentCacheControl = "public, s-maxage=60, stale-while-revalidate=300"
 
 // contentHandshake reports the versions a reader is talking to and the types it serves.
 type contentHandshake struct {
@@ -148,23 +146,37 @@ func newPublishedSummary(c content.Content) publishedSummary {
 	}
 }
 
-// contentHeaders returns middleware marking a response public and cacheable.
-func contentHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Cache-Control", contentCacheControl)
-		next.ServeHTTP(w, r)
-	})
+// contentHeaders returns middleware marking a response public and cacheable for the given window.
+func contentHeaders(header string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Cache-Control", header)
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
-// parsePublishedFilter returns the published listing the query asks for.
-func parsePublishedFilter(query url.Values) (content.Filter, error) {
+// publicPerPage returns the page size public listings carry, as the site chose or by default.
+func (s *server) publicPerPage(ctx context.Context) int {
+	if s.settings == nil {
+		return content.DefaultPerPage
+	}
+	held, found, err := s.settings.Lookup(ctx, content.PerPageSettingKey)
+	if err != nil {
+		return content.DefaultPerPage
+	}
+	return content.ResolvePerPage(held, found)
+}
+
+// parsePublishedFilter returns the published listing the query asks for, paged at the given size.
+func parsePublishedFilter(query url.Values, perPage int) (content.Filter, error) {
 	filter := content.Filter{
 		Status:  content.StatusPublished,
 		OrderBy: content.OrderByDate,
 		Order:   content.OrderDesc,
 		Page:    1,
-		PerPage: defaultContentPerPage,
+		PerPage: perPage,
 	}
 	if raw := query.Get("type"); raw != "" {
 		filter.Type = raw
@@ -189,7 +201,7 @@ func applyPublishedPaging(query url.Values, filter *content.Filter) error {
 		if err != nil || perPage < 1 {
 			return fmt.Errorf("server: invalid per_page %q", raw)
 		}
-		filter.PerPage = min(perPage, maxContentPerPage)
+		filter.PerPage = min(perPage, content.MaxPerPage)
 	}
 	return nil
 }
@@ -487,7 +499,7 @@ func inlineMediaList(key string, values content.Values, byID map[int64]media.Med
 
 // respondTerm answers with the addressed item and the published content pointing at it.
 func (s *server) respondTerm(w http.ResponseWriter, r *http.Request, held content.Address) {
-	filter, err := parsePublishedFilter(r.URL.Query())
+	filter, err := parsePublishedFilter(r.URL.Query(), s.publicPerPage(r.Context()))
 	if err != nil {
 		authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 			Message: "invalid list parameters", Code: "list_parameters_invalid",
@@ -518,7 +530,7 @@ func (s *server) respondTerm(w http.ResponseWriter, r *http.Request, held conten
 
 // respondArchive answers with the page of published items a listing address holds.
 func (s *server) respondArchive(w http.ResponseWriter, r *http.Request, held content.Address) {
-	filter, err := parsePublishedFilter(r.URL.Query())
+	filter, err := parsePublishedFilter(r.URL.Query(), s.publicPerPage(r.Context()))
 	if err != nil {
 		authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 			Message: "invalid list parameters", Code: "list_parameters_invalid",
@@ -554,7 +566,7 @@ func (s *server) publishedPageOf(r *http.Request, filter content.Filter) (publis
 // handlePublishedList returns an http.HandlerFunc listing published items without their content.
 func (s *server) handlePublishedList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		filter, err := parsePublishedFilter(r.URL.Query())
+		filter, err := parsePublishedFilter(r.URL.Query(), s.publicPerPage(r.Context()))
 		if err != nil {
 			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "invalid list parameters", Code: "list_parameters_invalid",

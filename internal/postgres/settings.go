@@ -6,12 +6,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
+
+// lockedKeys returns the keys of a write in ascending order.
+func lockedKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	return keys
+}
 
 // SettingStore persists named values in the core schema.
 type SettingStore struct {
@@ -45,8 +56,8 @@ func (s *SettingStore) Save(ctx context.Context, values map[string]string) error
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	queries := s.queries.WithTx(tx)
-	for key, value := range values {
-		if err := queries.SetSetting(ctx, db.SetSettingParams{Key: key, Value: value}); err != nil {
+	for _, key := range lockedKeys(values) {
+		if err := queries.SetSetting(ctx, db.SetSettingParams{Key: key, Value: values[key]}); err != nil {
 			return fmt.Errorf("postgres: writing setting %q: %w", key, err)
 		}
 	}

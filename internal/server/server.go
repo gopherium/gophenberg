@@ -49,6 +49,8 @@ type Config struct {
 	MediaStore media.Store
 	// MediaFiles serves the stored uploads publicly. Nil leaves the media prefix reserved but empty.
 	MediaFiles fs.FS
+	// Cache is how long each kind of public answer may be kept. A zero window applies its default.
+	Cache CachePolicy
 	// ThemeTimeout is how long a theme has to begin answering. Zero applies the default.
 	ThemeTimeout time.Duration
 	// Version is the application version reported at /api/version.
@@ -74,13 +76,14 @@ func NewServer(cfg Config) http.Handler {
 		types: content.NewRegistry(cfg.Types),
 	}
 	s.addresses = content.NewResolver(cfg.Content, s.types)
+	headers := headersFor(cfg.Cache)
 	router := chi.NewRouter()
 	router.Use(trustForwarded(cfg.TrustedProxies))
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
 		Post("/api/auth/login", auth.Login)
 	router.Post("/api/auth/logout", auth.Logout)
 	router.Group(func(public chi.Router) {
-		public.Use(contentHeaders)
+		public.Use(contentHeaders(headers.content))
 		public.Get("/api/locale", s.handleLocaleGet())
 		public.Get("/api/content/v1", s.handleContentHandshake())
 		public.Get("/api/content/v1/items", s.handlePublishedList())
@@ -100,9 +103,9 @@ func NewServer(cfg Config) http.Handler {
 		guarded := pluginkit.Protect(handler, cfg.PluginPublicPaths[id], guardPlugin(auth))
 		router.Mount(prefix, http.StripPrefix(prefix, guarded))
 	}
-	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web))
+	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web, headers.asset))
 	if cfg.MediaFiles != nil {
-		router.With(identify(cfg.Version)).Handle(mediaPrefix+"/*", mediaAssets(cfg.MediaFiles))
+		router.With(identify(cfg.Version)).Handle(mediaPrefix+"/*", mediaAssets(cfg.MediaFiles, headers.media))
 	}
 	site := builtInSite(cfg, s.types)
 	renderer := identify(cfg.Version)(site)

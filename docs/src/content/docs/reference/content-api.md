@@ -13,7 +13,10 @@ mobile app, a static site generator, another server.
 - Every response allows cross-origin reads
   (`Access-Control-Allow-Origin: *`).
 - Responses are cacheable: `Cache-Control: public, s-maxage=60,
-  stale-while-revalidate=300`.
+  stale-while-revalidate=300` unless the site is
+  [configured](/self-hosting/configuration/) with other windows. A
+  change an editor makes reaches readers once that window passes,
+  and so does a change an administrator makes to the settings.
 - Errors are JSON: `{"error": "<message>"}` with the status code
   telling the kind.
 - Timestamps are UTC in RFC 3339.
@@ -85,7 +88,7 @@ curl "https://example.com/api/content/v1/items?type=post&page=1&per_page=20"
 | --- | --- | --- |
 | `type` | the default type | The content type to list |
 | `page` | `1` | Which page |
-| `per_page` | `20` | Items per page, capped at 100 |
+| `per_page` | the size the site chose | Items per page, capped at 100 |
 
 ```json
 {
@@ -107,8 +110,10 @@ curl "https://example.com/api/content/v1/items?type=post&page=1&per_page=20"
 }
 ```
 
-Listings never carry content, only summaries. Asking for a
-`per_page` above 100 quietly serves 100. A page or `per_page`
+Listings never carry content, only summaries. A listing carries 20
+items unless an administrator chose another number in the site
+settings, and naming `per_page` yourself wins over both. Asking for
+a `per_page` above 100 quietly serves 100. A page or `per_page`
 below 1, or not a whole number, answers
 `400 {"error":"invalid list parameters"}`. A type with nothing
 published serves an empty page, not an error.

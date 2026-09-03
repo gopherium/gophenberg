@@ -5,9 +5,6 @@ import { env } from 'node:process'
 import { contentApiPath } from './kit.ts'
 import type { Handshake, Page, PostSummary, Resolved } from './content.ts'
 
-/** The default page size, matching what the content API reports back. */
-const defaultPerPage = 20
-
 /** What a caller may narrow a listing by. */
 export interface ListQuery {
 	type?: string
@@ -46,10 +43,10 @@ export class GophenbergClient {
 	 * @returns The page the instance served.
 	 */
 	async listPosts(query: ListQuery = {}): Promise<Page<PostSummary>> {
-		const search = new URLSearchParams({
-			page: String(query.page ?? 1),
-			per_page: String(query.perPage ?? defaultPerPage),
-		})
+		const search = new URLSearchParams({ page: String(query.page ?? 1) })
+		if (query.perPage !== undefined) {
+			search.set('per_page', String(query.perPage))
+		}
 		if (query.type !== undefined) {
 			search.set('type', query.type)
 		}

@@ -143,18 +143,21 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 	items := newMemoryContent()
 	types := newMemoryTypes(items)
 	items.types = types
+	settings := &memorySettings{values: make(map[string]string)}
 	return context.WithValue(ctx, worldKey{}, &world{
 		themesDir:    themes,
 		gateDir:      gates,
 		mediaDir:     uploads,
 		library:      themehost.NewLibrary(themes),
-		settings:     &memorySettings{values: make(map[string]string)},
+		settings:     settings,
 		readers:      &memoryReaders{values: make(map[string]string)},
 		users:        newMemoryStore(),
 		contentItems: items,
 		contentTypes: types,
 		mediaStore:   newMemoryMedia(),
-		mediaFiles:   mediahost.New(mediahost.Config{Dir: uploads, MaxSize: mediaTestCap}),
+		mediaFiles: mediahost.New(mediahost.Config{
+			Dir: uploads, MaxSize: mediaTestCap, Settings: settings,
+		}),
 	}), nil
 }
 

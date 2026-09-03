@@ -1652,3 +1652,53 @@ msgid ""
 msgstr ""
 "Este tipo de campo no contiene campos dentro. Pon el campo en una sección o "
 "en un repetidor."
+
+#, fuzzy
+msgid "Posts per page"
+msgstr "Entradas por página"
+
+#, fuzzy
+msgid "Picture quality"
+msgstr "Calidad de imagen"
+
+#, fuzzy
+msgid "Choose how the site serves its content."
+msgstr "Elige cómo el sitio sirve su contenido."
+
+#, fuzzy
+msgid "A theme naming its own page size uses that instead."
+msgstr "Un tema que indica su propio tamaño de página usa ese en su lugar."
+
+#, fuzzy
+msgid ""
+"A higher quality stores larger files, and it applies to pictures uploaded "
+"from now on."
+msgstr ""
+"Una calidad más alta almacena archivos más grandes, y se aplica a las "
+"imágenes que subas a partir de ahora."
+
+#, fuzzy
+msgid ""
+"A listing carries between 1 and %(max)d items, so %(value)s is not a size "
+"Gophenberg takes. Pick a number inside that range."
+msgstr ""
+"Un listado muestra entre 1 y %(max)d elementos, así que %(value)s no es un "
+"tamaño que Gophenberg acepte. Elige un número dentro de ese rango."
+
+#, fuzzy
+msgid ""
+"Picture quality runs from 1 to %(max)d, so %(value)s is not a quality "
+"Gophenberg stores at. Pick a number inside that range."
+msgstr ""
+"La calidad de imagen va de 1 a %(max)d, así que %(value)s no es una calidad "
+"con la que Gophenberg guarde. Elige un número dentro de ese rango."
+
+#, fuzzy
+msgid "Type a whole number in both boxes before saving."
+msgstr "Escribe un número entero en las dos casillas antes de guardar."
+
+#, fuzzy
+msgid "The settings could not be read, so nothing can be changed here yet."
+msgstr ""
+"No se han podido leer los ajustes, así que todavía no se puede cambiar nada "
+"aquí."

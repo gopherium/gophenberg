@@ -6,6 +6,7 @@ import { usersNavItem } from '@gopherium/react-auth/wpds'
 import { languageNavItem } from '../i18n/nav'
 import { mediaNavItem } from '../media/nav'
 import { groupsNavItem, typesNavItem } from '../content/nav'
+import { settingsNavItem } from '../settings/nav'
 import { themesNavItem } from '../themes/nav'
 
 export const coreNav: NavItem[] = [
@@ -15,4 +16,5 @@ export const coreNav: NavItem[] = [
 	groupsNavItem,
 	usersNavItem,
 	languageNavItem,
+	settingsNavItem,
 ]

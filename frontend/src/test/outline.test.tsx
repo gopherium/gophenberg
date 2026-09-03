@@ -18,6 +18,7 @@ const FRAMED = [
 	'/users/new',
 	'/themes',
 	'/language',
+	'/settings',
 ]
 
 const VISITABLE = FRAMED.map((path) => path.replace('$typeKey', 'post'))

@@ -12,6 +12,8 @@ type Error struct {
 	Reason string
 	// Detail is what went wrong underneath, for the log.
 	Detail error
+	// Meta carries the values the message the client shows names.
+	Meta map[string]any
 }
 
 // Error returns the reason followed by the detail behind it.
@@ -21,6 +23,6 @@ func (e *Error) Error() string { return e.Reason + ": " + e.Detail.Error() }
 func (e *Error) Unwrap() error { return e.Detail }
 
 // refuse returns an error naming its code and reason over the formatted detail.
-func refuse(code, reason, format string, args ...any) error {
+func refuse(code, reason, format string, args ...any) *Error {
 	return &Error{Code: code, Reason: reason, Detail: fmt.Errorf(format, args...)}
 }

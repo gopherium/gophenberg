@@ -47,6 +47,11 @@ export default defineTheme({
 override single block types, covered in
 [rendering blocks](/themes/rendering-blocks/).
 
+`pagination` is optional too. Leave it out and listings carry the
+number of items the site chose in its
+[settings](/guides/settings/). Name a `perPage` and the theme
+decides instead, whatever the site chose.
+
 ## The routes come from the kit
 
 You write no pages for content. The integration injects the front

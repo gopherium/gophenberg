@@ -24,9 +24,6 @@ import (
 //go:embed templates
 var files embed.FS
 
-// postsPerPage is how many summaries a listing carries.
-const postsPerPage = 20
-
 // defaultTitle names the site when the configuration names none.
 const defaultTitle = "Gophenberg"
 
@@ -166,7 +163,8 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // serveTerm renders a term page, the item itself above what points at it.
 func (s *site) serveTerm(w http.ResponseWriter, r *http.Request, held content.Address) {
-	rows, total, err := s.posts.RelatedTo(r.Context(), held.Item.ID, held.Page, postsPerPage)
+	perPage := s.pageSize(r.Context())
+	rows, total, err := s.posts.RelatedTo(r.Context(), held.Item.ID, held.Page, perPage)
 	if err != nil {
 		serveError(w)
 		return
@@ -180,20 +178,21 @@ func (s *site) serveTerm(w http.ResponseWriter, r *http.Request, held content.Ad
 		Shell: shell,
 		Post:  newDetail(held.Item, shell.T),
 		Posts: summaries,
-		Older: olderLink(held.Item.Path, held.Page, total),
+		Older: olderLink(held.Item.Path, held.Page, total, perPage),
 		Newer: newerLink(held.Item.Path, held.Page),
 	})
 }
 
 // serveList renders one page of the published content of a type.
 func (s *site) serveList(w http.ResponseWriter, r *http.Request, listed content.Type, page int) {
+	perPage := s.pageSize(r.Context())
 	rows, total, err := s.posts.List(r.Context(), content.Filter{
 		Type:    listed.Key,
 		Status:  content.StatusPublished,
 		OrderBy: content.OrderByDate,
 		Order:   content.OrderDesc,
 		Page:    page,
-		PerPage: postsPerPage,
+		PerPage: perPage,
 	})
 	if err != nil {
 		serveError(w)
@@ -207,7 +206,7 @@ func (s *site) serveList(w http.ResponseWriter, r *http.Request, listed content.
 	s.render(w, indexTemplate, http.StatusOK, listData{
 		Shell: shell,
 		Posts: summaries,
-		Older: olderLink(listed.RouteWord, page, total),
+		Older: olderLink(listed.RouteWord, page, total, perPage),
 		Newer: newerLink(listed.RouteWord, page),
 	})
 }
@@ -236,6 +235,18 @@ func (s *site) serveNotFound(w http.ResponseWriter, r *http.Request) {
 // serveError reports that the site could not be rendered.
 func serveError(w http.ResponseWriter) {
 	http.Error(w, "the site is unavailable", http.StatusInternalServerError)
+}
+
+// pageSize returns how many summaries a listing carries, as the site chose or by default.
+func (s *site) pageSize(ctx context.Context) int {
+	if s.locale == nil {
+		return content.DefaultPerPage
+	}
+	held, found, err := s.locale.Lookup(ctx, content.PerPageSettingKey)
+	if err != nil {
+		return content.DefaultPerPage
+	}
+	return content.ResolvePerPage(held, found)
 }
 
 // language returns the language the site chose for itself, en-US when it chose none.
@@ -306,8 +317,8 @@ func publishedAt(p content.Content) time.Time {
 }
 
 // olderLink returns the address of the page after this one, empty at the last.
-func olderLink(routeWord string, page, total int) string {
-	if page >= (total+postsPerPage-1)/postsPerPage {
+func olderLink(routeWord string, page, total, perPage int) string {
+	if page >= (total+perPage-1)/perPage {
 		return ""
 	}
 	return numberedPage(routeWord, page+1)

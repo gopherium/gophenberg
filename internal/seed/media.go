@@ -27,7 +27,7 @@ const seedListSize = 100
 
 // MediaLibrary stores an upload's files and takes them back.
 type MediaLibrary interface {
-	Ingest(name string, data []byte, authorID uuid.UUID) (media.Media, error)
+	Ingest(ctx context.Context, name string, data []byte, authorID uuid.UUID) (media.Media, error)
 	Remove(m media.Media) error
 }
 
@@ -169,7 +169,7 @@ func storeDemoUpload(
 	if err != nil {
 		return err
 	}
-	item, err := library.Ingest(scripted.file, painted, authorID)
+	item, err := library.Ingest(ctx, scripted.file, painted, authorID)
 	if err != nil {
 		return fmt.Errorf("seed media ingest: %w", err)
 	}

@@ -28,10 +28,10 @@ type plainImage struct{ image.Image }
 func TestEncodeImageReportsWhatItCannotEncode(t *testing.T) {
 	t.Parallel()
 
-	if _, err := encodeImage(flatImage(1), "png"); err == nil {
+	if _, err := encodeImage(flatImage(1), "png", DefaultJPEGQuality); err == nil {
 		t.Error("encodeImage() error = nil, want the empty image refused")
 	}
-	if _, err := encodeImage(hugeImage(), "jpeg"); err == nil {
+	if _, err := encodeImage(hugeImage(), "jpeg", DefaultJPEGQuality); err == nil {
 		t.Error("encodeImage() error = nil, want the oversized image refused")
 	}
 }
@@ -63,7 +63,7 @@ func TestEncodedRenditionPanicsOnAnImageItCannotEncode(t *testing.T) {
 	t.Parallel()
 
 	defer wantEncodePanic(t, "encodedRendition()", "encoding a png rendition")
-	encodedRendition("full", flatImage(bigImageBound*2), "png")
+	encodedRendition("full", flatImage(bigImageBound*2), "png", DefaultJPEGQuality)
 }
 
 func TestUprightJPEGPanicsOnAnImageItCannotReEncode(t *testing.T) {
@@ -72,7 +72,7 @@ func TestUprightJPEGPanicsOnAnImageItCannotReEncode(t *testing.T) {
 	turned := jpegWithSegment(0xE1, append([]byte("Exif\x00\x00"), tiffBlock(shortEntry(0x0112, 6))...))
 
 	defer wantEncodePanic(t, "uprightJPEG()", "encoding a jpeg rendition")
-	uprightJPEG(kind{ext: "jpg", mime: "image/jpeg"}, hugeImage(), turned)
+	uprightJPEG(kind{ext: "jpg", mime: "image/jpeg"}, hugeImage(), turned, DefaultJPEGQuality)
 }
 
 func TestWriteExclusiveReportsWhatItCannotOpen(t *testing.T) {

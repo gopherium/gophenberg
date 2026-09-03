@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -29,9 +30,6 @@ const mediaUploadField = "file"
 // mediaPrefix is the URL prefix uploads are served under.
 const mediaPrefix = "/media"
 
-// mediaCacheControl is how long a client may keep a served upload.
-const mediaCacheControl = "public, max-age=3600"
-
 // defaultMediaPerPage and maxMediaPerPage bound the media page size.
 const (
 	defaultMediaPerPage = 20
@@ -43,7 +41,7 @@ type MediaLibrary interface {
 	// Cap returns the most bytes one upload may carry.
 	Cap() int64
 	// Ingest validates an upload, stores its files, and returns the media item they make.
-	Ingest(name string, data []byte, authorID uuid.UUID) (media.Media, error)
+	Ingest(ctx context.Context, name string, data []byte, authorID uuid.UUID) (media.Media, error)
 	// Remove deletes the item's stored file and every rendition it owns.
 	Remove(m media.Media) error
 }
@@ -137,7 +135,7 @@ func (s *server) handleMediaUpload() http.HandlerFunc {
 			})
 			return
 		}
-		item, err := s.media.Ingest(header.Filename, data, authkit.IdentityFromContext(r.Context()).ID)
+		item, err := s.media.Ingest(r.Context(), header.Filename, data, authkit.IdentityFromContext(r.Context()).ID)
 		if err != nil {
 			respondMediaError(w, err)
 			return
@@ -375,7 +373,7 @@ func (s *server) handleMediaDelete() http.HandlerFunc {
 }
 
 // mediaAssets returns the handler serving stored uploads to every visitor.
-func mediaAssets(files fs.FS) http.Handler {
+func mediaAssets(files fs.FS, header string) http.Handler {
 	fileServer := http.FileServerFS(files)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name, ok := mediaFileName(r.URL.Path)
@@ -388,7 +386,7 @@ func mediaAssets(files fs.FS) http.Handler {
 			respondNotFound(w, r)
 			return
 		}
-		w.Header().Set("Cache-Control", mediaCacheControl)
+		w.Header().Set("Cache-Control", header)
 		r = r.Clone(r.Context())
 		r.URL.Path = "/" + name
 		fileServer.ServeHTTP(w, r)
@@ -431,7 +429,7 @@ func respondMediaError(w http.ResponseWriter, err error) {
 	var refused *mediahost.Error
 	if errors.As(err, &refused) {
 		authkit.RespondError(w, http.StatusUnprocessableEntity, authkit.ErrorResponse{
-			Message: refused.Reason, Code: refused.Code,
+			Message: refused.Reason, Code: refused.Code, Meta: refused.Meta,
 		})
 		return
 	}

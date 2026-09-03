@@ -24,7 +24,9 @@ type recordingLibrary struct {
 }
 
 // Ingest records the upload and returns the media item it stands for.
-func (l *recordingLibrary) Ingest(name string, data []byte, authorID uuid.UUID) (media.Media, error) {
+func (l *recordingLibrary) Ingest(
+	_ context.Context, name string, data []byte, authorID uuid.UUID,
+) (media.Media, error) {
 	if l.err != nil {
 		return media.Media{}, l.err
 	}

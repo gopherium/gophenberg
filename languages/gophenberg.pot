@@ -147,6 +147,12 @@ msgstr ""
 msgid "A field with that name already exists on the items this group reaches. Pick another name."
 msgstr ""
 
+msgid "A higher quality stores larger files, and it applies to pictures uploaded from now on."
+msgstr ""
+
+msgid "A listing carries between 1 and %(max)d items, so %(value)s is not a size Gophenberg takes. Pick a number inside that range."
+msgstr ""
+
 msgid "A relation field has to say which content type it points at. Pick that type and try again."
 msgstr ""
 
@@ -160,6 +166,9 @@ msgid "A route word has to start with a lowercase letter and then hold only lowe
 msgstr ""
 
 msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead."
+msgstr ""
+
+msgid "A theme naming its own page size uses that instead."
 msgstr ""
 
 msgid "A type key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Change the key and try again."
@@ -316,6 +325,9 @@ msgid "Choices"
 msgstr ""
 
 msgid "Choose %(field)s"
+msgstr ""
+
+msgid "Choose how the site serves its content."
 msgstr ""
 
 msgid "Choose the language the admin reads in."
@@ -836,6 +848,12 @@ msgstr ""
 msgid "Pending"
 msgstr ""
 
+msgid "Picture quality"
+msgstr ""
+
+msgid "Picture quality runs from 1 to %(max)d, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range."
+msgstr ""
+
 msgid "Placeholder"
 msgstr ""
 
@@ -846,6 +864,9 @@ msgid "Points at"
 msgstr ""
 
 msgid "Post published."
+msgstr ""
+
+msgid "Posts per page"
 msgstr ""
 
 msgid "Preview"
@@ -1151,6 +1172,9 @@ msgstr ""
 msgid "The setting %(setting)s falls outside the others. Keep min below max and the default inside the bounds."
 msgstr ""
 
+msgid "The settings could not be read, so nothing can be changed here yet."
+msgstr ""
+
 msgid "The site default"
 msgstr ""
 
@@ -1320,6 +1344,9 @@ msgid "Two rule sources are registered under the name %(param)s. A plugin is dec
 msgstr ""
 
 msgid "Type"
+msgstr ""
+
+msgid "Type a whole number in both boxes before saving."
 msgstr ""
 
 msgid "Undo"

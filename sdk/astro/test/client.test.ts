@@ -93,7 +93,15 @@ describe('listPosts', () => {
 		const got = await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).listPosts()
 
 		expect(got).toEqual(page)
-		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=1&per_page=20')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=1')
+	})
+
+	test('names no page size so the one the site chose applies', async () => {
+		const { fetch, urls } = fetchReturning(page)
+
+		await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).listPosts()
+
+		expect(urls[0]).not.toContain('per_page')
 	})
 
 	test('passes the type and the paging the caller asked for', async () => {
@@ -212,7 +220,7 @@ describe('the address the client reads through', () => {
 
 		await new GophenbergClient({ baseUrl: 'https://example.com/', fetch }).listPosts()
 
-		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=1&per_page=20')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=1')
 	})
 
 	test('drops every trailing slash, however many were written', async () => {
@@ -220,6 +228,6 @@ describe('the address the client reads through', () => {
 
 		await new GophenbergClient({ baseUrl: 'https://example.com///', fetch }).listPosts()
 
-		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=1&per_page=20')
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=1')
 	})
 })

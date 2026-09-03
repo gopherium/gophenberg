@@ -27,6 +27,10 @@ environment variables win over it.
 | `GOPHENBERG_THEME_MAX_BACKOFF` | No | `30s` | The longest that wait grows to |
 | `GOPHENBERG_THEME_STOP_GRACE` | No | `3s` | How long a theme has to stop before it is killed |
 | `GOPHENBERG_THEME_PROXY_TIMEOUT` | No | `10s` | How long a running theme has to start answering one request |
+| `GOPHENBERG_CACHE_ASSET_MAX_AGE` | No | `1h` | How long a browser may keep a site stylesheet or icon. A proxy setting its own header wins |
+| `GOPHENBERG_CACHE_MEDIA_MAX_AGE` | No | `1h` | How long a browser may keep an uploaded file |
+| `GOPHENBERG_CACHE_CONTENT_SHARED_MAX_AGE` | No | `1m` | How long a shared cache may serve a content API answer, the language answer included |
+| `GOPHENBERG_CACHE_CONTENT_STALE_WHILE_REVALIDATE` | No | `5m` | How much longer that cache may serve the old answer while fetching a fresh one |
 | `GOPHENBERG_FEED_TITLE` | No | `Gophenberg` | The RSS channel title |
 | `GOPHENBERG_FEED_ITEMS` | No | `20` | How many posts the RSS feed carries |
 
@@ -81,6 +85,9 @@ The server refuses to start, and says why, when:
   names more megabytes than the server can count in bytes.
 - `GOPHENBERG_THEME_START_ATTEMPTS` is not a whole number from 1 to 1000.
   Both of these refuse rather than quietly using another value.
+- Any of the cache windows is not a positive whole number of seconds.
+  Write them as durations, `1h`, `90s`, `5m`. Part of a second is
+  refused, because the header counts in whole seconds.
 - Any of the theme timings is not a positive duration. Write them the
   way Go does, `30s`, `500ms`, `1m`.
 - `GOPHENBERG_THEME_MAX_BACKOFF` stands below
@@ -102,7 +109,7 @@ The server refuses to start, and says why, when:
 | `/api/...` | The admin's JSON API | Yes, apart from signing in and out |
 | `/api/content/v1/...` | The [public content API](/reference/content-api/) | No |
 | `/api/plugins/feed/rss.xml` | The [RSS feed](/reference/rss-feed/) | No |
-| `/gophenberg/...` | Site assets, cached for an hour | No |
+| `/gophenberg/...` | Site assets, cached for an hour unless set otherwise | No |
 | `/_gophenberg/...` | Reserved for internal use | Answers 404 |
 
 The last row answering 404 from outside is correct behavior, not
