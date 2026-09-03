@@ -18,6 +18,7 @@ import (
 // groupResponse is a field group as the admin API answers it.
 type groupResponse struct {
 	ID        int             `json:"id"`
+	Key       string          `json:"key"`
 	Title     string          `json:"title"`
 	Location  content.Rules   `json:"location"`
 	Position  int             `json:"position"`
@@ -62,6 +63,7 @@ func newGroupResponse(g content.Group) groupResponse {
 	}
 	return groupResponse{
 		ID:        g.ID,
+		Key:       g.Key,
 		Title:     g.Title,
 		Location:  location,
 		Position:  g.Position,
