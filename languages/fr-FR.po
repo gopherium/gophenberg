@@ -2128,6 +2128,10 @@ msgid "From %(plugin)s"
 msgstr "De %(plugin)s"
 
 #, fuzzy
+msgid "Export definitions"
+msgstr "Exporter les définitions"
+
+#, fuzzy
 msgid ""
 "The %(origin)s plugin declared this, so it can only be changed in that "
 "plugin. Turning it off is still yours to do."

@@ -510,6 +510,9 @@ msgstr ""
 msgid "Excerpt"
 msgstr ""
 
+msgid "Export definitions"
+msgstr ""
+
 msgid "February"
 msgstr ""
 
