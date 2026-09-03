@@ -25,6 +25,7 @@ type typeResponse struct {
 	PageKind      string          `json:"page_kind"`
 	Default       bool            `json:"default"`
 	Active        bool            `json:"active"`
+	Origin        string          `json:"origin,omitempty"`
 	Fields        []fieldResponse `json:"fields"`
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
@@ -61,6 +62,7 @@ func newTypeResponse(t content.Type) typeResponse {
 		PageKind:      string(t.PageKind),
 		Default:       t.Default,
 		Active:        t.Active,
+		Origin:        t.Origin,
 		Fields:        declaredFields(t),
 		CreatedAt:     t.CreatedAt.UTC(),
 		UpdatedAt:     t.UpdatedAt.UTC(),

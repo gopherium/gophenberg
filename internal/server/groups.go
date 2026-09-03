@@ -23,6 +23,7 @@ type groupResponse struct {
 	Location  content.Rules   `json:"location"`
 	Position  int             `json:"position"`
 	Active    bool            `json:"active"`
+	Origin    string          `json:"origin,omitempty"`
 	Fields    []fieldResponse `json:"fields"`
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`
@@ -68,6 +69,7 @@ func newGroupResponse(g content.Group) groupResponse {
 		Location:  location,
 		Position:  g.Position,
 		Active:    g.Active,
+		Origin:    g.Origin,
 		Fields:    fields,
 		CreatedAt: g.CreatedAt.UTC(),
 		UpdatedAt: g.UpdatedAt.UTC(),

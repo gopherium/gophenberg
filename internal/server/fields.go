@@ -16,6 +16,7 @@ type fieldResponse struct {
 	RelatesTo string          `json:"relates_to,omitempty"`
 	Many      bool            `json:"many"`
 	Required  bool            `json:"required"`
+	Origin    string          `json:"origin,omitempty"`
 	Settings  map[string]any  `json:"settings,omitempty"`
 	Fields    []fieldResponse `json:"fields,omitempty"`
 	CreatedAt time.Time       `json:"created_at"`
@@ -36,6 +37,7 @@ func newFieldResponse(f content.Field) fieldResponse {
 		RelatesTo: f.RelatesTo,
 		Many:      f.Many,
 		Required:  f.Required,
+		Origin:    f.Origin,
 		Settings:  f.Settings,
 		Fields:    newFieldResponses(f.Fields),
 		CreatedAt: f.CreatedAt.UTC(),
