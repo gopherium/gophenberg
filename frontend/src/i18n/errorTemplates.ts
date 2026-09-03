@@ -67,6 +67,10 @@ export function errorTemplates(): Record<string, string> {
 			'Your site always needs one default content type, so this one cannot be turned off or deleted. Make another type the default first.',
 			DOMAIN,
 		),
+		definition_read_only: __(
+			'The %(origin)s plugin declared this, so it can only be changed in that plugin. Turning it off is still yours to do.',
+			DOMAIN,
+		),
 		field_key_malformed: __(
 			'A field key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the field so its key comes out in that shape.',
 			DOMAIN,

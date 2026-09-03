@@ -20,6 +20,7 @@ const groupSchema = z.object({
 	location: z.array(z.array(ruleSchema)),
 	position: z.number(),
 	active: z.boolean(),
+	origin: z.string().optional(),
 	fields: z.array(fieldSchema),
 })
 
@@ -54,6 +55,7 @@ export interface FieldGroup {
 	location: Location
 	position: number
 	active: boolean
+	origin?: string
 	fields: ContentField[]
 }
 
@@ -83,6 +85,7 @@ function toGroup(row: z.infer<typeof groupSchema>): FieldGroup {
 		location: row.location,
 		position: row.position,
 		active: row.active,
+		origin: row.origin,
 		fields: row.fields.map(toField),
 	}
 }
