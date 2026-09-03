@@ -82,6 +82,22 @@ Feature: Grouping fields and placing them by rule
     When the administrator moves the field "subtitle" from "Article details" to "Extras"
     Then the field "subtitle" is served on "post"
 
+  Scenario: A group a plugin declared cannot be renamed
+    Given the plugin "events" declared the group "Event details" for "post"
+    When the administrator renames the group "Event details" to "Happenings"
+    Then the request is refused with the code "definition_read_only"
+
+  Scenario: A group a plugin declared cannot be deleted
+    Given the plugin "events" declared the group "Event details" for "post"
+    When the administrator deletes the group "Event details"
+    Then the request is refused with the code "definition_read_only"
+
+  Scenario: A group a plugin declared can still rest
+    Given the plugin "events" declared the group "Event details" for "post"
+    When the administrator rests the group "Event details"
+    And the administrator lists the field groups
+    Then the group "Event details" is listed as declared by "events"
+
   Scenario: Deleting a group takes its fields with it
     Given the group "Article details" for "post"
     And the "text" field "subtitle" labeled "Subtitle" in "Article details"
