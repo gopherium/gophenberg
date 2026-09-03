@@ -66,7 +66,7 @@ func (s *server) handleSettingsPatch() http.HandlerFunc {
 				return
 			}
 		}
-		authkit.Respond(w, http.StatusOK, settingsAfter(held, req))
+		authkit.Respond(w, http.StatusOK, s.settingsStanding(r.Context(), held, req))
 	}
 }
 
@@ -87,6 +87,17 @@ func (s *server) chosenSettings(ctx context.Context) (settingsResponse, error) {
 		JPEGQuality: mediahost.ResolveJPEGQuality(
 			held[mediahost.JPEGQualityKey], found[mediahost.JPEGQualityKey]),
 	}, nil
+}
+
+// settingsStanding returns what the site holds after the write, or what the request stored when it cannot be read.
+func (s *server) settingsStanding(
+	ctx context.Context, held settingsResponse, req settingsRequest,
+) settingsResponse {
+	stored, err := s.chosenSettings(ctx)
+	if err != nil {
+		return settingsAfter(held, req)
+	}
+	return stored
 }
 
 // settingsAfter returns what the site holds once the values the request names are stored.

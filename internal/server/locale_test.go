@@ -19,12 +19,13 @@ import (
 
 // storedSettings holds what a site and its readers chose, with per-method error injection.
 type storedSettings struct {
-	mu        sync.Mutex
-	site      map[string]string
-	reader    map[string]string
-	lookupErr error
-	readerErr error
-	saveErr   error
+	mu         sync.Mutex
+	site       map[string]string
+	reader     map[string]string
+	lookupErr  error
+	readerErr  error
+	saveErr    error
+	duringSave func()
 }
 
 // newStoredSettings returns an empty settings store.
@@ -43,10 +44,13 @@ func (s *storedSettings) Lookup(_ context.Context, key string) (string, bool, er
 	return held, found, nil
 }
 
-// Save stores what the site chose.
+// Save stores what the site chose, running whatever the scenario put in the way first.
 func (s *storedSettings) Save(_ context.Context, values map[string]string) error {
 	if s.saveErr != nil {
 		return s.saveErr
+	}
+	if s.duringSave != nil {
+		s.duringSave()
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
