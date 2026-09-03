@@ -1702,3 +1702,23 @@ msgid "The settings could not be read, so nothing can be changed here yet."
 msgstr ""
 "No se han podido leer los ajustes, así que todavía no se puede cambiar nada "
 "aquí."
+
+#, fuzzy
+msgid "From %(plugin)s"
+msgstr "De %(plugin)s"
+
+#, fuzzy
+msgid ""
+"The %(origin)s plugin declared this, so it can only be changed in that "
+"plugin. Turning it off is still yours to do."
+msgstr ""
+"El plugin %(origin)s lo declaró, así que solo se puede cambiar en ese "
+"plugin. Desactivarlo sigue estando en tu mano."
+
+#, fuzzy
+msgid ""
+"The %(plugin)s plugin declared these fields, so they change only in its "
+"code."
+msgstr ""
+"El plugin %(plugin)s declaró estos campos, así que solo cambian en su "
+"código."

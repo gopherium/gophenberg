@@ -540,6 +540,9 @@ msgstr ""
 msgid "Follow the browser"
 msgstr ""
 
+msgid "From %(plugin)s"
+msgstr ""
+
 msgid "Full Size"
 msgstr ""
 
@@ -1062,6 +1065,12 @@ msgid "The %(file)s inside %(name)s is not valid JSON, so it could not be read. 
 msgstr ""
 
 msgid "The %(file)s inside %(name)s names its theme kit as %(declared)s, which is not a version number. Build the theme again, and the build will fill that in."
+msgstr ""
+
+msgid "The %(origin)s plugin declared this, so it can only be changed in that plugin. Turning it off is still yours to do."
+msgstr ""
+
+msgid "The %(plugin)s plugin declared these fields, so they change only in its code."
 msgstr ""
 
 msgid "The browser kept an unsaved version of this post."
