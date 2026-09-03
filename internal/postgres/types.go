@@ -37,6 +37,9 @@ const foreignKeyViolationCode = "23503"
 // fieldKeyConstraint names the unique index over one group's field keys.
 const fieldKeyConstraint = "content_fields_scope_key_unique"
 
+// groupKeyConstraint names the unique constraint over field group keys.
+const groupKeyConstraint = "field_groups_key_unique"
+
 // fieldGroupConstraint names the reference a field keeps to its group.
 const fieldGroupConstraint = "content_fields_group_fkey"
 
@@ -321,6 +324,22 @@ func targetOf(f content.Field) *string {
 	return &f.RelatesTo
 }
 
+// originOf returns the origin a nullable column holds, empty for a definition the site made.
+func originOf(origin *string) string {
+	if origin == nil {
+		return ""
+	}
+	return *origin
+}
+
+// originColumn returns the origin as the nullable column holds it.
+func originColumn(origin string) *string {
+	if origin == "" {
+		return nil
+	}
+	return &origin
+}
+
 // toField maps a stored row to a domain field definition with UTC timestamps.
 func toField(row db.CoreContentField) content.Field {
 	f := content.Field{
@@ -331,6 +350,7 @@ func toField(row db.CoreContentField) content.Field {
 		Kind:      content.FieldKind(row.Kind),
 		Many:      row.Many,
 		Required:  row.Required,
+		Origin:    originOf(row.Origin),
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}
@@ -375,6 +395,7 @@ func toType(row db.CoreContentType) content.Type {
 		PageKind:      content.PageKind(row.PageKind),
 		Default:       row.IsDefault,
 		Active:        row.Active,
+		Origin:        originOf(row.Origin),
 		CreatedAt:     row.CreatedAt.UTC(),
 		UpdatedAt:     row.UpdatedAt.UTC(),
 	}

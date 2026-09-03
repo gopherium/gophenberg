@@ -17,9 +17,9 @@ func ensureGroup(db *sql.DB, typeKey string) (int64, error) {
 		return id, nil
 	}
 	err = db.QueryRow(
-		`INSERT INTO core.field_groups (title, location, created_at, updated_at)
-		VALUES ($1, $2, now(), now()) RETURNING id`,
-		typeKey+" fields", location,
+		`INSERT INTO core.field_groups (key, title, location, created_at, updated_at)
+		VALUES ($1, $2, $3, now(), now()) RETURNING id`,
+		typeKey+"-fields", typeKey+" fields", location,
 	).Scan(&id)
 	return id, err
 }

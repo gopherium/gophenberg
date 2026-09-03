@@ -78,8 +78,8 @@ func TestListGroupsReportsALocationItCannotRead(t *testing.T) {
 
 	store, _, pool := typedStore(t)
 	sabotage(t, pool,
-		"INSERT INTO core.field_groups (title, location, created_at, updated_at) "+
-			"VALUES ('Corrupt', '[1, 2]', now(), now())")
+		"INSERT INTO core.field_groups (key, title, location, created_at, updated_at) "+
+			"VALUES ('corrupt', 'Corrupt', '[1, 2]', now(), now())")
 
 	_, err := store.ListGroups(t.Context())
 
@@ -327,8 +327,8 @@ func TestContentWriteReportsALocationItCannotRead(t *testing.T) {
 	created := mustCreate(t, store, "Hello world", author)
 	created.UpdatedAt = time.Now().UTC()
 	sabotage(t, pool,
-		"INSERT INTO core.field_groups (title, location, created_at, updated_at) "+
-			"VALUES ('Corrupt', '[1, 2]', now(), now())")
+		"INSERT INTO core.field_groups (key, title, location, created_at, updated_at) "+
+			"VALUES ('corrupt', 'Corrupt', '[1, 2]', now(), now())")
 
 	_, err := store.Update(t.Context(), created, created.CreatedAt, nil, 0)
 
