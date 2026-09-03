@@ -94,6 +94,24 @@ func TestCreateGroupRefusesAKeyAnotherGroupHolds(t *testing.T) {
 	}
 }
 
+func TestCreateFieldRefusesToRaiseAFieldInsideAGroupAPluginDeclared(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "event")
+	if _, err := store.CreateGroup(t.Context(), content.Group{
+		Key: "event-details", Title: "Event details", Location: locationOf("event"), Origin: "events",
+	}); err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+
+	_, err := store.CreateField(t.Context(), fieldOn(t, "event", "venue", content.FieldKindText, ""))
+
+	if !errors.Is(err, content.ErrDefinitionReadOnly) {
+		t.Errorf("CreateField() error = %v, want %v", err, content.ErrDefinitionReadOnly)
+	}
+}
+
 func TestMigrationKeysExistingGroupsFromTheirTitles(t *testing.T) {
 	t.Parallel()
 

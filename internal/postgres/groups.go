@@ -195,6 +195,9 @@ func groupForWrite(ctx context.Context, queries *db.Queries, typeKey string) (co
 	if err != nil {
 		return content.Group{}, err
 	}
+	if ok && found.Origin != "" {
+		return content.Group{}, content.OwnedBy(found.Origin)
+	}
 	if ok {
 		return found, nil
 	}
