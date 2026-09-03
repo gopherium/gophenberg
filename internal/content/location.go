@@ -178,6 +178,25 @@ func offered(operators []string, operator string) bool {
 	return false
 }
 
+// Equal reports whether the rules match once both are normalized.
+func (r Rules) Equal(o Rules) bool {
+	mine, theirs := r.Normalize(), o.Normalize()
+	if len(mine) != len(theirs) {
+		return false
+	}
+	for i := range mine {
+		if len(mine[i]) != len(theirs[i]) {
+			return false
+		}
+		for j := range mine[i] {
+			if mine[i][j] != theirs[i][j] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // Normalize returns the rules without zero rules and empty groups, never nil.
 func (r Rules) Normalize() Rules {
 	normalized := Rules{}

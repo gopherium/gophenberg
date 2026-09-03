@@ -168,7 +168,19 @@ func (r *Registry) Update(ctx context.Context, t Type) (Type, error) {
 	if err := t.Validate(); err != nil {
 		return Type{}, err
 	}
-	if err := r.settled(ctx, t); err != nil {
+	types, err := r.All(ctx)
+	if err != nil {
+		return Type{}, err
+	}
+	stored, found := typeAmong(types, t.Key)
+	if !found {
+		return Type{}, ErrTypeNotFound
+	}
+	if err := pluginKeeps(stored, t); err != nil {
+		return Type{}, err
+	}
+	t.Origin = stored.Origin
+	if err := settled(types, t); err != nil {
 		return Type{}, err
 	}
 	updated, err := r.store.Update(ctx, t)
@@ -179,12 +191,18 @@ func (r *Registry) Update(ctx context.Context, t Type) (Type, error) {
 	return updated, nil
 }
 
-// settled reports whether the edit leaves the registry with one active default and one type per route word.
-func (r *Registry) settled(ctx context.Context, t Type) error {
-	types, err := r.All(ctx)
-	if err != nil {
-		return err
+// typeAmong returns the type carrying the key among the given ones.
+func typeAmong(types []Type, key string) (Type, bool) {
+	for _, t := range types {
+		if t.Key == key {
+			return t, true
+		}
 	}
+	return Type{}, false
+}
+
+// settled reports whether the edit leaves the registry with one active default and one type per route word.
+func settled(types []Type, t Type) error {
 	for _, stored := range types {
 		if stored.Key == t.Key {
 			if stored.Default && (!t.Default || !t.Active) {
@@ -204,6 +222,9 @@ func (r *Registry) Delete(ctx context.Context, key string) error {
 	t, err := r.ByKey(ctx, key)
 	if err != nil {
 		return err
+	}
+	if t.Origin != "" {
+		return OwnedBy(t.Origin)
 	}
 	if t.Default {
 		return ErrDefaultRequired

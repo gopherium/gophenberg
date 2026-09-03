@@ -34,7 +34,15 @@ func (r *Registry) UpdateGroup(ctx context.Context, g Group) (Group, error) {
 	if err != nil {
 		return Group{}, err
 	}
-	if err := r.freeOfCollisions(ctx, settled); err != nil {
+	held, stored, err := r.groupAmong(ctx, settled.ID)
+	if err != nil {
+		return Group{}, err
+	}
+	if err := pluginKeepsGroup(stored, settled); err != nil {
+		return Group{}, err
+	}
+	settled.Origin = stored.Origin
+	if err := r.freeOfCollisions(ctx, held, stored, settled); err != nil {
 		return Group{}, err
 	}
 	updated, err := r.store.UpdateGroup(ctx, settled)
@@ -64,6 +72,13 @@ func (r *Registry) settledGroup(ctx context.Context, g Group) (Group, error) {
 
 // DeleteGroup removes the group with its fields and their values, or reports it missing.
 func (r *Registry) DeleteGroup(ctx context.Context, id int) error {
+	stored, err := r.heldGroup(ctx, id)
+	if err != nil {
+		return err
+	}
+	if stored.Origin != "" {
+		return OwnedBy(stored.Origin)
+	}
 	if err := r.store.DeleteGroup(ctx, id); err != nil {
 		return err
 	}
@@ -122,12 +137,19 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	if err := f.Validate(); err != nil {
 		return Field{}, err
 	}
+	held, target, err := r.groupAmong(ctx, groupID)
+	if err != nil {
+		return Field{}, err
+	}
+	if target.Origin != "" {
+		return Field{}, OwnedBy(target.Origin)
+	}
 	if f.Kind == FieldKindRelation {
 		if _, err := r.ByKey(ctx, f.RelatesTo); err != nil {
 			return Field{}, ErrTargetUnknown
 		}
 	}
-	if err := r.keyFree(ctx, groupID, f.Key, 0); err != nil {
+	if err := r.uncollided(ctx, held, target, []string{f.Key}, 0); err != nil {
 		return Field{}, err
 	}
 	created, err := r.store.CreateFieldInGroup(ctx, groupID, f)
@@ -140,6 +162,13 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 
 // CreateSubField declares the field inside the container the parent names.
 func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (Field, error) {
+	parent, err := r.fieldByID(ctx, parentID)
+	if err != nil {
+		return Field{}, err
+	}
+	if err := pluginKeepsField(parent); err != nil {
+		return Field{}, err
+	}
 	created, err := r.store.CreateSubField(ctx, parentID, f)
 	if err != nil {
 		return Field{}, err
@@ -154,6 +183,9 @@ func (r *Registry) UpdateSubField(
 ) (Field, error) {
 	held, err := r.fieldByID(ctx, id)
 	if err != nil {
+		return Field{}, err
+	}
+	if err := pluginKeepsField(held); err != nil {
 		return Field{}, err
 	}
 	held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
@@ -222,6 +254,13 @@ func fieldNumbered(fields []Field, id int) (Field, bool) {
 
 // DeleteSubField removes the field standing inside a container, and the values every item held under it.
 func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
+	held, err := r.fieldByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := pluginKeepsField(held); err != nil {
+		return err
+	}
 	if err := r.store.DeleteSubField(ctx, id); err != nil {
 		return err
 	}
@@ -235,6 +274,9 @@ func (r *Registry) UpdateFieldInGroup(
 ) (Field, error) {
 	held, err := r.heldField(ctx, groupID, f.Key)
 	if err != nil {
+		return Field{}, err
+	}
+	if err := pluginKeepsField(held); err != nil {
 		return Field{}, err
 	}
 	held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
@@ -252,7 +294,11 @@ func (r *Registry) UpdateFieldInGroup(
 
 // DeleteFieldInGroup removes the field and its values from the types its group matches.
 func (r *Registry) DeleteFieldInGroup(ctx context.Context, groupID int, key string) error {
-	if _, err := r.heldField(ctx, groupID, key); err != nil {
+	held, err := r.heldField(ctx, groupID, key)
+	if err != nil {
+		return err
+	}
+	if err := pluginKeepsField(held); err != nil {
 		return err
 	}
 	if err := r.store.DeleteFieldInGroup(ctx, groupID, key); err != nil {
@@ -284,15 +330,8 @@ func (r *Registry) ReorderFieldsInGroup(ctx context.Context, groupID int, keys [
 
 // heldGroup returns the stored group carrying the identifier.
 func (r *Registry) heldGroup(ctx context.Context, groupID int) (Group, error) {
-	held, err := r.Groups(ctx)
-	if err != nil {
-		return Group{}, err
-	}
-	target, found := groupOf(held, groupID)
-	if !found {
-		return Group{}, ErrGroupNotFound
-	}
-	return target, nil
+	_, target, err := r.groupAmong(ctx, groupID)
+	return target, err
 }
 
 // heldField returns the stored field a group declares under the key.
@@ -306,7 +345,21 @@ func (r *Registry) heldField(ctx context.Context, groupID int, key string) (Fiel
 
 // MoveField carries the field into another group, keeping the values it holds.
 func (r *Registry) MoveField(ctx context.Context, groupID int, key string, toGroup int) (Field, error) {
-	if err := r.keyFree(ctx, toGroup, key, groupID); err != nil {
+	leaving, err := r.heldField(ctx, groupID, key)
+	if err != nil {
+		return Field{}, err
+	}
+	if err := pluginKeepsField(leaving); err != nil {
+		return Field{}, err
+	}
+	held, landing, err := r.groupAmong(ctx, toGroup)
+	if err != nil {
+		return Field{}, err
+	}
+	if landing.Origin != "" {
+		return Field{}, OwnedBy(landing.Origin)
+	}
+	if err := r.uncollided(ctx, held, landing, []string{key}, groupID); err != nil {
 		return Field{}, err
 	}
 	moved, err := r.store.MoveField(ctx, groupID, key, toGroup)
@@ -317,29 +370,21 @@ func (r *Registry) MoveField(ctx context.Context, groupID int, key string, toGro
 	return moved, nil
 }
 
-// keyFree reports whether the key is open on every type the group serves, ignoring the group it leaves.
-func (r *Registry) keyFree(ctx context.Context, groupID int, key string, leaving int) error {
+// groupAmong returns every stored group and the one carrying the identifier.
+func (r *Registry) groupAmong(ctx context.Context, groupID int) ([]Group, Group, error) {
 	held, err := r.Groups(ctx)
 	if err != nil {
-		return err
+		return nil, Group{}, err
 	}
 	target, found := groupOf(held, groupID)
 	if !found {
-		return ErrGroupNotFound
+		return nil, Group{}, ErrGroupNotFound
 	}
-	return r.uncollided(ctx, held, target, []string{key}, leaving)
+	return held, target, nil
 }
 
 // freeOfCollisions reports whether the group's own keys stay open once it holds the given location.
-func (r *Registry) freeOfCollisions(ctx context.Context, asked Group) error {
-	held, err := r.Groups(ctx)
-	if err != nil {
-		return err
-	}
-	stored, found := groupOf(held, asked.ID)
-	if !found {
-		return nil
-	}
+func (r *Registry) freeOfCollisions(ctx context.Context, held []Group, stored, asked Group) error {
 	keys := make([]string, 0, len(stored.Fields))
 	for _, f := range stored.Fields {
 		keys = append(keys, f.Key)
