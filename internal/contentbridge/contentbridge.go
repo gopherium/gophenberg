@@ -77,6 +77,7 @@ func toSDKItem(c content.Content) sdk.Item {
 		Title:       c.Title,
 		Excerpt:     c.Excerpt,
 		Content:     publichtml.Sanitize(c.Content),
+		Fields:      map[string]any(c.Fields),
 		PublishedAt: published,
 		UpdatedAt:   c.UpdatedAt,
 	}
