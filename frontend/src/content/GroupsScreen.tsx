@@ -20,6 +20,7 @@ import { useState } from 'react'
 import {
 	anyType,
 	createGroup,
+	definitionsDownloadPath,
 	deleteGroup,
 	groupErrorMessage,
 	groupsQueryKey,
@@ -255,7 +256,12 @@ export function GroupsScreen() {
 		<Page
 			title={__('Field Groups', 'gophenberg')}
 			subtitle={__('Bundles of fields, shown where their rules place them.', 'gophenberg')}
-			actions={<AddGroup types={types.data ?? []} onDone={done} onRefused={refused} />}
+			actions={
+				<>
+					<ExportDefinitions />
+					<AddGroup types={types.data ?? []} onDone={done} onRefused={refused} />
+				</>
+			}
 		>
 			<Stack direction="column" gap="md">
 				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
@@ -510,6 +516,18 @@ function RemoveGroup(props: Reporter & { held: FieldGroup }) {
 				</Dialog.Popup>
 			</Dialog.Root>
 		</>
+	)
+}
+
+/**
+ * Renders the link downloading the site's content definitions as a file.
+ * @returns The download link, dressed as a button.
+ */
+function ExportDefinitions() {
+	return (
+		<Button variant="outline" render={<a href={definitionsDownloadPath} download />}>
+			{__('Export definitions', 'gophenberg')}
+		</Button>
 	)
 }
 
