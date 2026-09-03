@@ -93,6 +93,10 @@ build compiles your plugin in. There is no list to edit by hand.
   record in a schema of your own.
 - **Configuration** arrives through `deps.Getenv`, the way the
   feed reads `GOPHENBERG_FEED_TITLE` and `GOPHENBERG_FEED_ITEMS`.
+- **Content declarations**: implement `DeclareTypes` and the
+  content types, field groups and fields your plugin needs exist
+  on every site it is compiled into. The
+  [plugin SDK](/extending/the-plugin-sdk/) page shows one.
 
 ## One honest boundary
 
