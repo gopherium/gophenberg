@@ -14,7 +14,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
-// lockedKeys returns the keys of a write in the one order every writer takes them.
+// lockedKeys returns the keys of a write in ascending order.
 func lockedKeys(values map[string]string) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
