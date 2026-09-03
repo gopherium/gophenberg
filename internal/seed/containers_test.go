@@ -41,6 +41,20 @@ func (s *holdingTypeStore) ByKey(ctx context.Context, key string) (content.Type,
 	return content.Type{}, content.ErrTypeNotFound
 }
 
+// ListGroups returns one group holding every declared field, with the rows declared inside each.
+func (s *holdingTypeStore) ListGroups(context.Context) ([]content.Group, error) {
+	fields := make([]content.Field, len(s.declared))
+	copy(fields, s.declared)
+	for i := range fields {
+		for _, row := range s.inside {
+			if row.ParentID == fields[i].ID {
+				fields[i].Fields = append(fields[i].Fields, row)
+			}
+		}
+	}
+	return []content.Group{{ID: 1, Key: "post-fields", Title: "Post fields", Fields: fields}}, nil
+}
+
 // CreateField records the declaration and hands it back.
 func (s *holdingTypeStore) CreateField(_ context.Context, f content.Field) (content.Field, error) {
 	f.ID = len(s.declared) + 1

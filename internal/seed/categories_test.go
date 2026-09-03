@@ -23,6 +23,7 @@ type categoryTypeStore struct {
 	forgetful      bool
 	registered     bool
 	fielded        bool
+	created        []content.Field
 }
 
 // List returns the post type, carrying the categories field once it is declared.
@@ -102,7 +103,14 @@ func (s *categoryTypeStore) CreateField(_ context.Context, f content.Field) (con
 		return content.Field{}, s.createFieldErr
 	}
 	s.fielded = true
+	f.ID = len(s.created) + 1
+	s.created = append(s.created, f)
 	return f, nil
+}
+
+// ListGroups returns one group holding every field the seeding declared through the store.
+func (s *categoryTypeStore) ListGroups(context.Context) ([]content.Group, error) {
+	return []content.Group{{ID: 1, Key: "post-fields", Title: "Post fields", Fields: s.created}}, nil
 }
 
 // filingStore is a content store recording what the category seeding stored and filed.
