@@ -70,6 +70,7 @@ var adminRoutes = []route{
 	{http.MethodPost, "/api/types"},
 	{http.MethodPatch, "/api/types/{key}"},
 	{http.MethodDelete, "/api/types/{key}"},
+	{http.MethodGet, "/api/definitions"},
 	{http.MethodPost, "/api/groups"},
 	{http.MethodPut, "/api/groups/order"},
 	{http.MethodPatch, "/api/groups/{id}"},
