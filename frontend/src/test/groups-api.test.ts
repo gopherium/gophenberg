@@ -33,6 +33,7 @@ const SUBTITLE_ROW = {
 
 const GROUP_ROW = {
 	id: 3,
+	key: 'article-details',
 	title: 'Article details',
 	location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
 	position: 1,

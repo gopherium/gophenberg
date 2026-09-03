@@ -15,6 +15,7 @@ const ruleSchema = z.object({
 
 const groupSchema = z.object({
 	id: z.number(),
+	key: z.string(),
 	title: z.string(),
 	location: z.array(z.array(ruleSchema)),
 	position: z.number(),

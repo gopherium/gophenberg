@@ -32,6 +32,7 @@ const RECIPE_TYPE = {
 
 const ON_POSTS = {
 	id: 3,
+	key: 'article-details',
 	title: 'Article details',
 	location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
 	position: 1,
