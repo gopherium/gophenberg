@@ -606,6 +606,20 @@ func TestRegistryCreatesAGroup(t *testing.T) {
 	}
 }
 
+func TestRegistryRefusesAGroupWithAKeyNotShapedLikeOne(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+
+	_, err := registry.CreateGroup(t.Context(), content.Group{
+		Key: "Bad Key!", Title: "Extras", Location: namingPost(),
+	})
+
+	if !errors.Is(err, content.ErrInvalidGroupKey) {
+		t.Errorf("CreateGroup() error = %v, want %v", err, content.ErrInvalidGroupKey)
+	}
+}
+
 func TestRegistryRefusesAGroupWithNoTitle(t *testing.T) {
 	t.Parallel()
 

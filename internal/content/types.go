@@ -81,6 +81,7 @@ type Type struct {
 	PageKind      PageKind
 	Default       bool
 	Active        bool
+	Origin        string
 	Fields        []Field
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
