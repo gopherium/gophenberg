@@ -146,50 +146,61 @@ func (r *Registrar) DeclareField(ctx context.Context, groupKey string, declared 
 func (r *Registrar) declareFields(
 	ctx context.Context, groupID int, held []content.Field, declared []sdk.FieldDeclaration,
 ) error {
-	for _, d := range declared {
-		stored, found := fieldByKey(held, d.Key)
-		if !found {
-			created, err := r.registry.CreateFieldInGroup(ctx, groupID, r.fieldOf(d))
-			if err != nil {
-				return err
-			}
-			if err := r.declareSubFields(ctx, created.ID, nil, d.Fields); err != nil {
-				return err
-			}
-			continue
-		}
-		carried, err := r.carry(stored, d, func(f content.Field) (content.Field, error) {
-			return r.registry.UpdateFieldInGroup(ctx, groupID, f, f.UpdatedAt)
-		})
-		if err != nil {
-			return err
-		}
-		if err := r.declareSubFields(ctx, carried.ID, stored.Fields, d.Fields); err != nil {
-			return err
-		}
+	standing, err := r.standing(held, declared, func(f content.Field) (content.Field, error) {
+		return r.registry.CreateFieldInGroup(ctx, groupID, f)
+	})
+	if err != nil {
+		return err
 	}
-	return nil
+	return r.carried(ctx, standing, declared, func(f content.Field) (content.Field, error) {
+		return r.registry.UpdateFieldInGroup(ctx, groupID, f, f.UpdatedAt)
+	})
 }
 
 // declareSubFields stores or carries each declared field inside the container the parent names.
 func (r *Registrar) declareSubFields(
 	ctx context.Context, parentID int, held []content.Field, declared []sdk.FieldDeclaration,
 ) error {
+	standing, err := r.standing(held, declared, func(f content.Field) (content.Field, error) {
+		return r.registry.CreateSubField(ctx, parentID, f)
+	})
+	if err != nil {
+		return err
+	}
+	return r.carried(ctx, standing, declared, func(f content.Field) (content.Field, error) {
+		return r.registry.UpdateSubField(ctx, f.ID, f, f.UpdatedAt)
+	})
+}
+
+// standing stores every declared field the level lacks, holding its conditions back until each sibling stands.
+func (r *Registrar) standing(
+	held []content.Field, declared []sdk.FieldDeclaration,
+	create func(content.Field) (content.Field, error),
+) ([]content.Field, error) {
+	standing := append([]content.Field(nil), held...)
 	for _, d := range declared {
-		stored, found := fieldByKey(held, d.Key)
-		if !found {
-			created, err := r.registry.CreateSubField(ctx, parentID, r.fieldOf(d))
-			if err != nil {
-				return err
-			}
-			if err := r.declareSubFields(ctx, created.ID, nil, d.Fields); err != nil {
-				return err
-			}
+		if _, found := fieldByKey(standing, d.Key); found {
 			continue
 		}
-		carried, err := r.carry(stored, d, func(f content.Field) (content.Field, error) {
-			return r.registry.UpdateSubField(ctx, f.ID, f, f.UpdatedAt)
-		})
+		wanted := r.fieldOf(d)
+		wanted.Settings = withheldConditions(wanted.Settings)
+		created, err := create(wanted)
+		if err != nil {
+			return nil, err
+		}
+		standing = append(standing, created)
+	}
+	return standing, nil
+}
+
+// carried writes what each declaration says onto the field standing under its key, then whatever it holds inside.
+func (r *Registrar) carried(
+	ctx context.Context, standing []content.Field, declared []sdk.FieldDeclaration,
+	update func(content.Field) (content.Field, error),
+) error {
+	for _, d := range declared {
+		stored, _ := fieldByKey(standing, d.Key)
+		carried, err := r.carry(stored, d, update)
 		if err != nil {
 			return err
 		}
@@ -210,11 +221,12 @@ func (r *Registrar) carry(
 	if stored.RelatesTo != declared.RelatesTo || stored.Many != declared.Many {
 		return content.Field{}, fmt.Errorf("%w: %s", ErrShapeChanged, declared.Key)
 	}
+	wanted := declaredSettings(declared)
 	if stored.Label == declared.Label && stored.Required == declared.Required &&
-		sameSettings(stored.Settings, declared.Settings) {
+		sameSettings(stored.Settings, wanted) {
 		return stored, nil
 	}
-	stored.Label, stored.Required, stored.Settings = declared.Label, declared.Required, declared.Settings
+	stored.Label, stored.Required, stored.Settings = declared.Label, declared.Required, wanted
 	return update(stored)
 }
 
@@ -260,7 +272,7 @@ func (r *Registrar) fieldOf(declared sdk.FieldDeclaration) content.Field {
 		RelatesTo: declared.RelatesTo,
 		Many:      declared.Many,
 		Required:  declared.Required,
-		Settings:  declared.Settings,
+		Settings:  declaredSettings(declared),
 		Origin:    r.origin,
 	}
 }

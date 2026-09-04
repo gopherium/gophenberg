@@ -108,6 +108,7 @@ func (r *run) createField(
 	ctx context.Context, groupID, parentID int, d FieldDefinition, planned Change,
 ) (int, error) {
 	wanted := fieldFrom(d)
+	wanted.Settings = withheldConditions(wanted.Settings)
 	if parentID == 0 {
 		created, err := r.registry.CreateFieldInGroup(ctx, groupID, wanted)
 		if err != nil {
@@ -130,6 +131,7 @@ func (r *run) carryField(
 ) (int, error) {
 	held := r.fieldAt(group, key)
 	wanted := fieldFrom(d)
+	wanted.Settings = withheldConditions(wanted.Settings)
 	if !strings.Contains(key, ".") {
 		if _, err := r.registry.UpdateFieldInGroup(ctx, groupID, wanted, held.UpdatedAt); err != nil {
 			return 0, err
@@ -142,6 +144,46 @@ func (r *run) carryField(
 	}
 	r.did(planned)
 	return held.ID, nil
+}
+
+// conditions writes the rules each field is shown under, now every sibling the file names stands.
+func (r *run) conditions(ctx context.Context) error {
+	for _, declared := range r.envelope.Groups {
+		stored := r.groupKeyed(declared.Key)
+		if err := r.conditionsUnder(ctx, stored.ID, declared.Key, "", declared.Fields); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// conditionsUnder writes the rules one level of fields is shown under, then the levels they hold inside.
+func (r *run) conditionsUnder(ctx context.Context, groupID int, group, path string, declared []FieldDefinition) error {
+	for _, d := range declared {
+		key := path + d.Key
+		if err := r.conditionsOn(ctx, groupID, group, key, d); err != nil {
+			return err
+		}
+		if err := r.conditionsUnder(ctx, groupID, group, key+".", d.Fields); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// conditionsOn writes the settings the file names onto a stored field when the site holds other ones.
+func (r *run) conditionsOn(ctx context.Context, groupID int, group, key string, d FieldDefinition) error {
+	held := r.fieldAt(group, key)
+	if held.ID == 0 || sameSettings(held.Settings, d.Settings) {
+		return nil
+	}
+	wanted := fieldFrom(d)
+	if !strings.Contains(key, ".") {
+		_, err := r.registry.UpdateFieldInGroup(ctx, groupID, wanted, held.UpdatedAt)
+		return err
+	}
+	_, err := r.registry.UpdateSubField(ctx, held.ID, wanted, held.UpdatedAt)
+	return err
 }
 
 // removeField takes away the field the change names, however deep it stands.
