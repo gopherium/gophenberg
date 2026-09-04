@@ -40,6 +40,55 @@ func (q *Queries) AddRelation(ctx context.Context, arg AddRelationParams) error 
 	return err
 }
 
+const adoptContentType = `-- name: AdoptContentType :execrows
+UPDATE core.content_types SET origin = NULL, updated_at = $1 WHERE key = $2
+`
+
+type AdoptContentTypeParams struct {
+	UpdatedAt time.Time
+	Key       string
+}
+
+func (q *Queries) AdoptContentType(ctx context.Context, arg AdoptContentTypeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, adoptContentType, arg.UpdatedAt, arg.Key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const adoptFieldGroup = `-- name: AdoptFieldGroup :execrows
+UPDATE core.field_groups SET origin = NULL, updated_at = $1 WHERE key = $2
+`
+
+type AdoptFieldGroupParams struct {
+	UpdatedAt time.Time
+	Key       string
+}
+
+func (q *Queries) AdoptFieldGroup(ctx context.Context, arg AdoptFieldGroupParams) (int64, error) {
+	result, err := q.db.Exec(ctx, adoptFieldGroup, arg.UpdatedAt, arg.Key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const adoptFieldsInGroup = `-- name: AdoptFieldsInGroup :exec
+UPDATE core.content_fields SET origin = NULL, updated_at = $1
+WHERE group_id IN (SELECT g.id FROM core.field_groups AS g WHERE g.key = $2)
+`
+
+type AdoptFieldsInGroupParams struct {
+	UpdatedAt time.Time
+	Key       string
+}
+
+func (q *Queries) AdoptFieldsInGroup(ctx context.Context, arg AdoptFieldsInGroupParams) error {
+	_, err := q.db.Exec(ctx, adoptFieldsInGroup, arg.UpdatedAt, arg.Key)
+	return err
+}
+
 const clearContentFieldValues = `-- name: ClearContentFieldValues :exec
 UPDATE core.content SET fields = fields - $1::text
 WHERE type = ANY($2::text []) AND fields ? $1::text
