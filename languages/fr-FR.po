@@ -2222,3 +2222,15 @@ msgstr "Deux groupes de champs de ce fichier partagent la clé %(key)s. Donnez u
 #, fuzzy
 msgid "What it points at changed, so its stored values go with it."
 msgstr "Ce qu'il vise a changé, donc ses valeurs enregistrées partent avec lui."
+
+#, fuzzy
+msgid "Apply"
+msgstr "Appliquer"
+
+#, fuzzy
+msgid "Done. The site now holds what the file describes."
+msgstr "Terminé. Le site contient maintenant ce que décrit le fichier."
+
+#, fuzzy
+msgid "These were left alone, because nobody confirmed losing them."
+msgstr "Ceux-ci ont été laissés tels quels, car personne n'a confirmé leur perte."

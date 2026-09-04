@@ -285,6 +285,9 @@ msgstr ""
 msgid "Appears on"
 msgstr ""
 
+msgid "Apply"
+msgstr ""
+
 msgid "April"
 msgstr ""
 
@@ -487,6 +490,9 @@ msgid "Dismiss"
 msgstr ""
 
 msgid "Document"
+msgstr ""
+
+msgid "Done. The site now holds what the file describes."
 msgstr ""
 
 msgid "Draft saved."
@@ -1293,6 +1299,9 @@ msgid "There is nothing at this address. Check the link, or go back to the dashb
 msgstr ""
 
 msgid "There is nothing to roll back to, because your site has not been through a theme change yet. Install a theme first, then a rollback has somewhere to go."
+msgstr ""
+
+msgid "These were left alone, because nobody confirmed losing them."
 msgstr ""
 
 msgid "This content type does not exist any more. Reload the page to see the types your site holds now."
