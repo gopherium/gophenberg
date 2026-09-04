@@ -218,15 +218,14 @@ export function ImportDefinitions() {
 	const [outcome, setOutcome] = useState<ImportOutcome | null>(null)
 	const client = useQueryClient()
 	const read = useMutation({
-		mutationFn: (chosen: File) => chosen.text().then(async (text) => {
-			setFile(text)
-			return planDefinitions(text)
-		}),
+		mutationFn: async (chosen: File) => {
+			const text = await chosen.text()
+			return { text, plan: await planDefinitions(text) }
+		},
 		onSuccess: (answered) => {
 			setNotice('')
-			setConfirmed([])
-			setOutcome(null)
-			setPlan(answered)
+			setFile(answered.text)
+			setPlan(answered.plan)
 		},
 		onError: (cause) => {
 			setPlan(null)
@@ -278,6 +277,9 @@ export function ImportDefinitions() {
 									const chosen = chosenDefinitions(event.target.files)
 									event.target.value = ''
 									if (chosen !== null) {
+										setPlan(null)
+										setOutcome(null)
+										setConfirmed([])
 										read.mutate(chosen)
 									}
 								}}

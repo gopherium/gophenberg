@@ -160,6 +160,22 @@ test('names what an import left alone', async () => {
 	).toBeInTheDocument()
 })
 
+test('drops the plan and the ticks the moment another file is chosen', async () => {
+	planning(() => HttpResponse.json(PLAN))
+
+	await importing('{"format":"1.0.0"}')
+	await screen.findByText('Add Event details')
+	await userEvent.click(screen.getByRole('checkbox', { name: /Remove Cook time/ }))
+	server.use(http.post('/api/definitions/plan', () => new Promise(() => {})))
+	await userEvent.upload(
+		screen.getByLabelText('Definitions file'),
+		new File(['{"format":"1.0.0","groups":[]}'], 'other.json', { type: 'application/json' }),
+	)
+
+	expect(screen.queryByText('Add Event details')).not.toBeInTheDocument()
+	expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument()
+})
+
 test('puts the plan away when the admin closes it', async () => {
 	planning(() => HttpResponse.json(PLAN))
 
