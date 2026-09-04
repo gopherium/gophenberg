@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -27,10 +28,12 @@ func toGroup(row db.CoreFieldGroup) (content.Group, error) {
 	}
 	return content.Group{
 		ID:        int(row.ID),
+		Key:       row.Key,
 		Title:     row.Title,
 		Location:  location,
 		Position:  int(row.Position),
 		Active:    row.Active,
+		Origin:    originOf(row.Origin),
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}, nil
@@ -192,6 +195,9 @@ func groupForWrite(ctx context.Context, queries *db.Queries, typeKey string) (co
 	if err != nil {
 		return content.Group{}, err
 	}
+	if ok && found.Origin != "" {
+		return content.Group{}, content.OwnedBy(found.Origin)
+	}
 	if ok {
 		return found, nil
 	}
@@ -204,6 +210,7 @@ func groupForWrite(ctx context.Context, queries *db.Queries, typeKey string) (co
 	}
 	now := time.Now().UTC()
 	row, err := queries.CreateFieldGroup(ctx, db.CreateFieldGroupParams{
+		Key:       typeKey + "-fields",
 		Title:     named.SingularLabel + " fields",
 		Location:  locationJSON(literalLocationOf(typeKey)),
 		CreatedAt: now, UpdatedAt: now,
@@ -221,14 +228,58 @@ func (s *TypeStore) ListGroups(ctx context.Context) ([]content.Group, error) {
 
 // CreateGroup stores a new field group at the end of the order.
 func (s *TypeStore) CreateGroup(ctx context.Context, g content.Group) (content.Group, error) {
-	now := time.Now().UTC()
-	row, err := s.queries.CreateFieldGroup(ctx, db.CreateFieldGroupParams{
-		Title: g.Title, Location: locationJSON(g.Location), CreatedAt: now, UpdatedAt: now,
+	var created content.Group
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := queries.LockFieldGroups(ctx); err != nil {
+			return fmt.Errorf("postgres: lock field groups: %w", err)
+		}
+		key, err := groupKeyFor(ctx, queries, g)
+		if err != nil {
+			return err
+		}
+		now := time.Now().UTC()
+		row, err := queries.CreateFieldGroup(ctx, db.CreateFieldGroupParams{
+			Key: key, Title: g.Title, Location: locationJSON(g.Location),
+			Origin: originColumn(g.Origin), CreatedAt: now, UpdatedAt: now,
+		})
+		if err != nil {
+			return groupWriteFailure(err)
+		}
+		created, err = toGroup(row)
+		return err
 	})
-	if err != nil {
-		return content.Group{}, fmt.Errorf("postgres: create field group: %w", err)
+	return created, err
+}
+
+// groupKeyFor returns the key the group asked for, or one minted from its title that no group holds.
+func groupKeyFor(ctx context.Context, queries *db.Queries, g content.Group) (string, error) {
+	if g.Key != "" {
+		return g.Key, nil
 	}
-	return toGroup(row)
+	held, err := queries.FieldGroupKeys(ctx)
+	if err != nil {
+		return "", fmt.Errorf("postgres: list field group keys: %w", err)
+	}
+	taken := make(map[string]bool, len(held))
+	for _, key := range held {
+		taken[key] = true
+	}
+	stem := content.GroupKeyFrom(g.Title)
+	key := stem
+	for n := 2; taken[key]; n++ {
+		key = fmt.Sprintf("%s-%d", stem, n)
+	}
+	return key, nil
+}
+
+// groupWriteFailure returns the error a group write carries, and wraps anything else.
+func groupWriteFailure(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == groupKeyConstraint {
+		return content.ErrGroupKeyTaken
+	}
+	return fmt.Errorf("postgres: create field group: %w", err)
 }
 
 // UpdateGroup stores the group's title, location and active flag.
@@ -675,6 +726,7 @@ func (s *TypeStore) CreateSubField(ctx context.Context, parentID int, f content.
 		}
 		row, err := queries.CreateSubContentField(ctx, db.CreateSubContentFieldParams{
 			GroupID:       parent.GroupID,
+			Origin:        originColumn(settled.Origin),
 			ParentFieldID: pgtype.Int4{Int32: int32(parentID), Valid: true},
 			Key:           settled.Key,
 			Label:         settled.Label,
@@ -731,6 +783,7 @@ func (s *TypeStore) CreateFieldInGroup(ctx context.Context, groupID int, f conte
 	err := s.settledFieldWrite(ctx, groupID, f.Key, 0, func(queries *db.Queries) error {
 		row, err := queries.CreateContentField(ctx, db.CreateContentFieldParams{
 			GroupID:   int32(groupID),
+			Origin:    originColumn(f.Origin),
 			Key:       f.Key,
 			Label:     f.Label,
 			Kind:      string(f.Kind),

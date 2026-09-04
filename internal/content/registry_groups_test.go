@@ -15,8 +15,15 @@ func TestRegistryCarriesASubFieldInAndOutOfItsContainer(t *testing.T) {
 	t.Parallel()
 
 	registry := content.NewRegistry(newGroupingStore())
+	group := groupNaming(t, registry, "Extras", namingPost())
+	parent, err := registry.CreateFieldInGroup(t.Context(), group.ID, content.Field{
+		Key: "details", Label: "Details", Kind: content.FieldKindSection,
+	})
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
+	}
 
-	held, err := registry.CreateSubField(t.Context(), 1, groupedTextField(t))
+	held, err := registry.CreateSubField(t.Context(), parent.ID, groupedTextField(t))
 	if err != nil {
 		t.Fatalf("CreateSubField() error = %v, want nil", err)
 	}
@@ -24,19 +31,26 @@ func TestRegistryCarriesASubFieldInAndOutOfItsContainer(t *testing.T) {
 		t.Errorf("held = %+v, want the sub field handed back", held)
 	}
 
-	if err := registry.DeleteSubField(t.Context(), 1); err != nil {
+	if err := registry.DeleteSubField(t.Context(), held.ID); err != nil {
 		t.Errorf("DeleteSubField() error = %v, want nil", err)
 	}
 }
 
 // CreateSubField hands the field back, or reports the scripted failure.
 func (s *groupingStore) CreateSubField(
-	_ context.Context, _ int, f content.Field,
+	_ context.Context, parentID int, f content.Field,
 ) (content.Field, error) {
 	if s.subCreateErr != nil {
 		return content.Field{}, s.subCreateErr
 	}
-	return f, nil
+	f.ID, f.ParentID = s.nextFieldID, parentID
+	s.nextFieldID++
+	for i := range s.groups {
+		if attachUnder(s.groups[i].Fields, parentID, f) {
+			return f, nil
+		}
+	}
+	return content.Field{}, content.ErrFieldNotFound
 }
 
 // DeleteSubField removes no field, or reports the scripted failure.
@@ -85,11 +99,38 @@ type groupingStore struct {
 	subReorderErr   error
 
 	failReadAfterOrder bool
+	nextFieldID        int
+}
+
+// sectionIn declares a section field inside the group and returns it.
+func sectionIn(t *testing.T, registry *content.Registry, groupID int) content.Field {
+	t.Helper()
+	parent, err := registry.CreateFieldInGroup(t.Context(), groupID, content.Field{
+		Key: "details", Label: "Details", Kind: content.FieldKindSection,
+	})
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(section) error = %v, want nil", err)
+	}
+	return parent
 }
 
 // newGroupingStore returns a store holding the built-in post type and no groups.
 func newGroupingStore() *groupingStore {
-	return &groupingStore{fakeTypeStore: newFakeTypeStore(), nextID: 1}
+	return &groupingStore{fakeTypeStore: newFakeTypeStore(), nextID: 1, nextFieldID: 1}
+}
+
+// attachUnder appends the field to the parent carrying the identity, however deep it stands.
+func attachUnder(fields []content.Field, parentID int, f content.Field) bool {
+	for i := range fields {
+		if fields[i].ID == parentID {
+			fields[i].Fields = append(fields[i].Fields, f)
+			return true
+		}
+		if attachUnder(fields[i].Fields, parentID, f) {
+			return true
+		}
+	}
+	return false
 }
 
 // ListGroups returns the held groups in position order.
@@ -168,6 +209,10 @@ func (s *groupingStore) CreateFieldInGroup(_ context.Context, groupID int, f con
 	for i, held := range s.groups {
 		if held.ID != groupID {
 			continue
+		}
+		if f.ID == 0 {
+			f.ID = s.nextFieldID
+			s.nextFieldID++
 		}
 		f.GroupID = groupID
 		s.groups[i].Fields = append(held.Fields, f)
@@ -321,8 +366,9 @@ func TestRegistryReportsAGroupStoreThatWillNotAnswer(t *testing.T) {
 			return err
 		},
 		"DeleteGroup": func(r *content.Registry, s *groupingStore) error {
+			stored := groupNaming(t, r, "Extras", namingPost())
 			s.deleteErr = errStoreDown
-			return r.DeleteGroup(t.Context(), 1)
+			return r.DeleteGroup(t.Context(), stored.ID)
 		},
 		"ReorderGroups": func(r *content.Registry, s *groupingStore) error {
 			stored := groupNaming(t, r, "Extras", namingPost())
@@ -337,17 +383,26 @@ func TestRegistryReportsAGroupStoreThatWillNotAnswer(t *testing.T) {
 			return err
 		},
 		"CreateSubField": func(r *content.Registry, s *groupingStore) error {
+			parent := sectionIn(t, r, groupNaming(t, r, "Extras", namingPost()).ID)
 			s.subCreateErr = errStoreDown
-			_, err := r.CreateSubField(t.Context(), 1, groupedTextField(t))
+			_, err := r.CreateSubField(t.Context(), parent.ID, groupedTextField(t))
 			return err
 		},
 		"DeleteSubField": func(r *content.Registry, s *groupingStore) error {
+			parent := sectionIn(t, r, groupNaming(t, r, "Extras", namingPost()).ID)
+			held, err := r.CreateSubField(t.Context(), parent.ID, groupedTextField(t))
+			if err != nil {
+				return err
+			}
 			s.subDeleteErr = errStoreDown
-			return r.DeleteSubField(t.Context(), 1)
+			return r.DeleteSubField(t.Context(), held.ID)
 		},
 		"MoveField": func(r *content.Registry, s *groupingStore) error {
 			from := groupNaming(t, r, "From", namingPost())
 			to := groupNaming(t, r, "To", namingPost())
+			if _, err := r.CreateFieldInGroup(t.Context(), from.ID, groupedTextField(t)); err != nil {
+				return err
+			}
 			s.moveErr = errStoreDown
 			_, err := r.MoveField(t.Context(), from.ID, "subtitle", to.ID)
 			return err
@@ -487,16 +542,30 @@ func TestRegistryRefusesAFieldItsGroupCannotHold(t *testing.T) {
 	t.Parallel()
 
 	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Extras", namingPost())
 
-	for name, asked := range map[string]content.Field{
-		"a malformed key":        {Key: "Not A Key", Label: "Bad", Kind: content.FieldKindText},
-		"an unregistered target": {Key: "cars", Label: "Cars", Kind: content.FieldKindRelation, RelatesTo: "vanished"},
+	for name, test := range map[string]struct {
+		asked content.Field
+		want  error
+	}{
+		"a malformed key": {
+			asked: content.Field{Key: "Not A Key", Label: "Bad", Kind: content.FieldKindText},
+		},
+		"an unregistered target": {
+			asked: content.Field{Key: "cars", Label: "Cars", Kind: content.FieldKindRelation, RelatesTo: "vanished"},
+			want:  content.ErrTargetUnknown,
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := registry.CreateFieldInGroup(t.Context(), 1, asked); err == nil {
-				t.Errorf("CreateFieldInGroup() = nil, want %s refused", name)
+			_, err := registry.CreateFieldInGroup(t.Context(), held.ID, test.asked)
+
+			if err == nil {
+				t.Fatalf("CreateFieldInGroup() = nil, want %s refused", name)
+			}
+			if test.want != nil && !errors.Is(err, test.want) {
+				t.Errorf("CreateFieldInGroup() error = %v, want %v", err, test.want)
 			}
 		})
 	}
@@ -603,6 +672,20 @@ func TestRegistryCreatesAGroup(t *testing.T) {
 	listed, err := registry.Groups(t.Context())
 	if err != nil || len(listed) != 1 {
 		t.Fatalf("Groups() = %v, %v, want the stored group listed", listed, err)
+	}
+}
+
+func TestRegistryRefusesAGroupWithAKeyNotShapedLikeOne(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+
+	_, err := registry.CreateGroup(t.Context(), content.Group{
+		Key: "Bad Key!", Title: "Extras", Location: namingPost(),
+	})
+
+	if !errors.Is(err, content.ErrInvalidGroupKey) {
+		t.Errorf("CreateGroup() error = %v, want %v", err, content.ErrInvalidGroupKey)
 	}
 }
 

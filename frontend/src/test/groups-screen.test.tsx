@@ -43,6 +43,7 @@ const SUBTITLE = {
 
 const DETAILS_GROUP = {
 	id: 3,
+	key: 'article-details',
 	title: 'Article details',
 	location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
 	position: 1,
@@ -55,6 +56,7 @@ const DETAILS_GROUP = {
 const EXTRAS_GROUP = {
 	...DETAILS_GROUP,
 	id: 4,
+	key: 'extras',
 	title: 'Extras',
 	position: 2,
 	fields: [],
@@ -113,6 +115,40 @@ test('marks a group that is inactive', async () => {
 	const row = within(table).getByRole('row', { name: /Article details/ })
 
 	expect(within(row).getByText('Inactive')).toBeInTheDocument()
+})
+
+test('names the plugin that declared a group and keeps its shape out of reach', async () => {
+	listing([{ ...DETAILS_GROUP, origin: 'events' }, EXTRAS_GROUP])
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const declared = within(table).getByRole('row', { name: /Article details/ })
+	const site = within(table).getByRole('row', { name: /Extras/ })
+
+	expect(within(declared).getByText('From events')).toBeInTheDocument()
+	expect(within(declared).queryByRole('button', { name: 'Rules' })).not.toBeInTheDocument()
+	expect(within(declared).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+	expect(within(declared).getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
+	expect(within(site).getByRole('button', { name: 'Rules' })).toBeInTheDocument()
+	expect(within(site).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+})
+
+test('shows the fields a plugin declared without offering to change them', async () => {
+	const venue = { ...SUBTITLE, key: 'venue', label: 'Venue' }
+	const details = { ...SUBTITLE, key: 'details', label: 'Details', kind: 'section', fields: [venue] }
+	listing([{ ...DETAILS_GROUP, origin: 'events', fields: [SUBTITLE, details] }])
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const declared = within(table).getByRole('row', { name: /Article details/ })
+
+	await userEvent.click(within(declared).getByRole('button', { name: 'Fields' }))
+
+	const dialog = await screen.findByRole('dialog')
+	expect(within(dialog).getByRole('listitem', { name: 'Subtitle' })).toBeInTheDocument()
+	expect(within(dialog).getByRole('listitem', { name: 'Venue' })).toBeInTheDocument()
+	const buttons = within(dialog).getAllByRole('button')
+	expect(buttons).toHaveLength(1)
+	expect(buttons[0]).toHaveAccessibleName('Close')
 })
 
 test('reports groups it could not load', async () => {

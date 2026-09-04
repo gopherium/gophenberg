@@ -261,27 +261,27 @@ RETURNING m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.descript
 
 -- name: ListContentTypes :many
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
-    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin
 FROM core.content_types t
 ORDER BY t.created_at, t.key;
 
 -- name: GetContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
-    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin
 FROM core.content_types t
 WHERE t.key = @key;
 
 -- name: CreateContentType :one
 INSERT INTO core.content_types (
     key, singular_label, plural_label, route_word, hierarchical, revisions,
-    revision_cap, page_kind, is_default, active, created_at, updated_at
+    revision_cap, page_kind, is_default, active, origin, created_at, updated_at
 )
 VALUES (
     @key, @singular_label, @plural_label, @route_word, @hierarchical, @revisions,
-    @revision_cap, @page_kind, @is_default, @active, @created_at, @updated_at
+    @revision_cap, @page_kind, @is_default, @active, @origin, @created_at, @updated_at
 )
 RETURNING key, singular_label, plural_label, route_word, hierarchical, revisions,
-    revision_cap, page_kind, is_default, active, created_at, updated_at;
+    revision_cap, page_kind, is_default, active, created_at, updated_at, origin;
 
 -- name: UpdateContentType :one
 UPDATE core.content_types AS t
@@ -290,7 +290,7 @@ SET singular_label = @singular_label, plural_label = @plural_label, route_word =
     page_kind = @page_kind, is_default = @is_default, active = @active, updated_at = @updated_at
 WHERE t.key = @key
 RETURNING t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
-    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at;
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin;
 
 -- name: DeleteContentType :execrows
 DELETE FROM core.content_types AS t WHERE t.key = @key;
@@ -332,7 +332,7 @@ FOR UPDATE;
 
 -- name: LockContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
-    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin
 FROM core.content_types t
 WHERE t.key = @key
 FOR UPDATE;
@@ -347,29 +347,29 @@ WHERE c.type = @key;
 
 -- name: LockDefaultContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
-    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin
 FROM core.content_types t
 WHERE t.is_default
 FOR UPDATE;
 
 -- name: ListFieldGroups :many
-SELECT id, title, location, position, active, created_at, updated_at
+SELECT id, title, location, position, active, created_at, updated_at, origin, key
 FROM core.field_groups ORDER BY position, id;
 
 -- name: CreateFieldGroup :one
-INSERT INTO core.field_groups (title, location, position, created_at, updated_at)
+INSERT INTO core.field_groups (key, title, location, position, origin, created_at, updated_at)
 VALUES (
-    @title, @location,
+    @key, @title, @location,
     (SELECT COALESCE(MAX(position), 0) + 1 FROM core.field_groups),
-    @created_at, @updated_at
+    @origin, @created_at, @updated_at
 )
-RETURNING id, title, location, position, active, created_at, updated_at;
+RETURNING id, title, location, position, active, created_at, updated_at, origin, key;
 
 -- name: UpdateFieldGroup :one
 UPDATE core.field_groups
 SET title = @title, location = @location, active = @active, updated_at = @updated_at
 WHERE id = @id
-RETURNING id, title, location, position, active, created_at, updated_at;
+RETURNING id, title, location, position, active, created_at, updated_at, origin, key;
 
 -- name: DeleteFieldGroup :execrows
 DELETE FROM core.field_groups WHERE id = @id;
@@ -392,42 +392,45 @@ SET group_id = @to_group,
     ),
     updated_at = @updated_at
 WHERE moved.group_id = @group_id AND moved.key = @key AND moved.parent_field_id IS NULL
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin;
 
 -- name: GroupByLocation :one
-SELECT id, title, location, position, active, created_at, updated_at
+SELECT id, title, location, position, active, created_at, updated_at, origin, key
 FROM core.field_groups WHERE location = @location
 ORDER BY position, id LIMIT 1;
 
 -- name: LockFieldGroups :exec
 SELECT pg_advisory_xact_lock(hashtext('core.field_groups'));
 
+-- name: FieldGroupKeys :many
+SELECT key FROM core.field_groups ORDER BY key;
+
 -- name: TypeKeys :many
 SELECT key FROM core.content_types ORDER BY created_at, key;
 
 -- name: ListContentFields :many
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin
 FROM core.content_fields ORDER BY group_id, position, id;
 
 -- name: ListContentFieldsOfGroup :many
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin
 FROM core.content_fields WHERE group_id = @group_id ORDER BY position, id;
 
 -- name: CreateContentField :one
 INSERT INTO core.content_fields (
-    group_id, key, label, kind, relates_to, many, required, position, created_at, updated_at, settings
+    group_id, key, label, kind, relates_to, many, required, position, created_at, updated_at, settings, origin
 )
 VALUES (
     @group_id, @key, @label, @kind, @relates_to, @many, @required,
     (SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields WHERE group_id = @group_id),
-    @created_at, @updated_at, @settings
+    @created_at, @updated_at, @settings, @origin
 )
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin;
 
 -- name: CreateSubContentField :one
 INSERT INTO core.content_fields (
     group_id, parent_field_id, key, label, kind, relates_to, many, required,
-    position, created_at, updated_at, settings, depth
+    position, created_at, updated_at, settings, depth, origin
 )
 VALUES (
     @group_id, @parent_field_id, @key, @label, @kind, @relates_to, @many, @required,
@@ -435,12 +438,12 @@ VALUES (
         SELECT COALESCE(MAX(position), 0) + 1 FROM core.content_fields
         WHERE parent_field_id = @parent_field_id
     ),
-    @created_at, @updated_at, @settings, @depth
+    @created_at, @updated_at, @settings, @depth, @origin
 )
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin;
 
 -- name: FieldByID :one
-SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth
+SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin
 FROM core.content_fields WHERE id = @id;
 
 -- name: ReorderContentFields :exec
@@ -458,13 +461,13 @@ UPDATE core.content_fields
 SET label = @label, required = @required, settings = @settings, updated_at = @updated_at
 WHERE group_id = @group_id AND key = @key AND parent_field_id IS NULL
     AND updated_at = @expected_updated_at
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin;
 
 -- name: UpdateSubContentField :one
 UPDATE core.content_fields
 SET label = @label, required = @required, settings = @settings, updated_at = @updated_at
 WHERE id = @id AND parent_field_id IS NOT NULL AND updated_at = @expected_updated_at
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth;
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin;
 
 -- name: ReorderSubContentFields :exec
 UPDATE core.content_fields

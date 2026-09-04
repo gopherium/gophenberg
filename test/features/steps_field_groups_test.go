@@ -21,6 +21,7 @@ type groupHeld struct {
 	ID     int         `json:"id"`
 	Title  string      `json:"title"`
 	Active bool        `json:"active"`
+	Origin string      `json:"origin"`
 	Fields []fieldHeld `json:"fields"`
 }
 
@@ -420,6 +421,8 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 	sc.Given(`^the type "([^"]*)" labeled "([^"]*)" and "([^"]*)" under "([^"]*)"$`, theTypeExists)
 	sc.Given(`^the group "([^"]*)" for "([^"]*)"$`, theGroupExists)
 	sc.Given(`^the resting group "([^"]*)" for "([^"]*)"$`, theRestingGroupExists)
+	sc.Given(`^the plugin "([^"]*)" declared the group "([^"]*)" for "([^"]*)"$`, thePluginDeclaredTheGroup)
+	sc.Then(`^the group "([^"]*)" is listed as declared by "([^"]*)"$`, theGroupIsListedAsDeclaredBy)
 	sc.Given(`^the "([^"]*)" field "([^"]*)" labeled "([^"]*)" in "([^"]*)"$`, theFieldExistsInGroup)
 	sc.When(`^the administrator lists the field groups$`, theAdministratorListsTheFieldGroups)
 	sc.When(`^the administrator creates the group "([^"]*)" for "([^"]*)"$`, theAdministratorCreatesTheGroupFor)

@@ -103,6 +103,23 @@ func TestReaderMapsPostsForPlugins(t *testing.T) {
 	}
 }
 
+func TestReaderCarriesFieldValuesForPlugins(t *testing.T) {
+	t.Parallel()
+
+	stored := publishedPost("A Published Post", "<p>Body</p>")
+	stored.Fields = content.Values{"venue": "Hall", "seats": float64(40)}
+	store := &recordingPostStore{posts: []content.Content{stored}}
+
+	got, err := contentbridge.New(store).ListPublished(t.Context(), content.TypePost, 20)
+
+	if err != nil {
+		t.Fatalf("ListPublished() error = %v, want nil", err)
+	}
+	if len(got) != 1 || got[0].Fields["venue"] != "Hall" || got[0].Fields["seats"] != float64(40) {
+		t.Errorf("ListPublished() = %+v, want the stored field values carried", got)
+	}
+}
+
 func TestReaderAsksOnlyForPublishedPosts(t *testing.T) {
 	t.Parallel()
 

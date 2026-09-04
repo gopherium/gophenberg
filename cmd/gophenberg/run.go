@@ -21,7 +21,9 @@ import (
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 	"github.com/gopherium/pluginkit"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/contentbridge"
+	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/server"
@@ -64,6 +66,12 @@ func run(
 		return fmt.Errorf("register plugins: %w", err)
 	}
 
+	typeStore := postgres.NewTypeStore(pool)
+	registry := content.NewRegistry(typeStore)
+	if err := declareTypes(ctx, registry, registered, logger); err != nil {
+		return fmt.Errorf("declare plugin types: %w", err)
+	}
+
 	host := pluginkit.NewHost(registered...)
 	if err := host.Start(ctx); err != nil {
 		return fmt.Errorf("start plugins: %w", err)
@@ -79,7 +87,8 @@ func run(
 	cfg := server.Config{
 		Users:             userStore,
 		Content:           contentStore,
-		Types:             postgres.NewTypeStore(pool),
+		Types:             typeStore,
+		Registry:          registry,
 		Plugins:           host.Routes(),
 		PluginPublicPaths: host.PublicPaths(),
 		Version:           version.Version(),
@@ -263,6 +272,27 @@ func standingMegabytes(raw, key string, fallback int64) (int64, error) {
 // mediaConfigFrom returns the media library settings the environment named and the site chose.
 func mediaConfigFrom(settings runConfig, store mediahost.Settings) mediahost.Config {
 	return mediahost.Config{Dir: settings.mediaDir, MaxSize: settings.mediaUploadCap, Settings: store}
+}
+
+// declareTypes hands every declaring plugin a registrar over the registry, logging what a plugin could not claim.
+func declareTypes(
+	ctx context.Context, registry *content.Registry, plugins []sdk.Plugin, logger *slog.Logger,
+) error {
+	for _, plugin := range plugins {
+		declarer, ok := plugin.(sdk.TypeDeclarer)
+		if !ok {
+			continue
+		}
+		registrar := definitions.New(registry, plugin.ID())
+		if err := declarer.DeclareTypes(ctx, registrar); err != nil {
+			return fmt.Errorf("plugin %s: %w", plugin.ID(), err)
+		}
+		if skipped := registrar.Skipped(); len(skipped) > 0 {
+			logger.Warn("plugin declarations skipped, another owner holds the key",
+				"plugin", plugin.ID(), "keys", skipped)
+		}
+	}
+	return nil
 }
 
 // standingDuration returns the duration the raw value names, or the fallback when it names none.

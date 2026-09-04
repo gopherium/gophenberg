@@ -45,6 +45,7 @@ type CoreContentField struct {
 	Settings      []byte
 	ParentFieldID pgtype.Int4
 	Depth         int32
+	Origin        *string
 }
 
 type CoreContentRelation struct {
@@ -81,6 +82,7 @@ type CoreContentType struct {
 	Active        bool
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	Origin        *string
 }
 
 type CoreFieldGroup struct {
@@ -91,6 +93,8 @@ type CoreFieldGroup struct {
 	Active    bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Origin    *string
+	Key       string
 }
 
 type CoreMedia struct {

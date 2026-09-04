@@ -155,6 +155,33 @@ test('removes a type the registry lets go', async () => {
 	await waitFor(() => expect(asked).toBe('/api/types/page'))
 })
 
+test('names the plugin that declared a type and keeps its shape out of reach', async () => {
+	const recipe = {
+		...PAGE_TYPE,
+		key: 'recipe',
+		singular_label: 'Recipe',
+		plural_label: 'Recipes',
+		route_word: 'recipes',
+	}
+	server.use(
+		http.get('/api/types', () =>
+			HttpResponse.json({ items: [POST_TYPE, { ...PAGE_TYPE, origin: 'events' }, recipe] }),
+		),
+	)
+	renderAt('/content-types')
+
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+	const declared = within(table).getByRole('row', { name: /Pages/ })
+	const site = within(table).getByRole('row', { name: /Recipes/ })
+
+	expect(within(declared).getByText('From events')).toBeInTheDocument()
+	for (const name of ['Change address', 'Make default', 'Delete']) {
+		expect(within(declared).queryByRole('button', { name })).not.toBeInTheDocument()
+		expect(within(site).getByRole('button', { name })).toBeInTheDocument()
+	}
+	expect(within(declared).getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
+})
+
 test('keeps the default type from being deleted or closed', async () => {
 	renderAt('/content-types')
 	const table = await screen.findByRole('region', { name: 'Content Types' })

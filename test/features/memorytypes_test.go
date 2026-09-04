@@ -81,10 +81,32 @@ func (s *memoryTypes) flattened(typeKey string, own []content.Field) []content.F
 func (s *memoryTypes) CreateGroup(_ context.Context, g content.Group) (content.Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if g.Key == "" {
+		g.Key = s.mintGroupKey(g.Title)
+	}
+	for _, held := range s.groups {
+		if held.Key == g.Key {
+			return content.Group{}, content.ErrGroupKeyTaken
+		}
+	}
 	s.nextGroupID++
 	g.ID, g.Active, g.Position = s.nextGroupID, true, len(s.groups)+1
 	s.groups = append(s.groups, g)
 	return g, nil
+}
+
+// mintGroupKey returns a key from the title that no stored group holds.
+func (s *memoryTypes) mintGroupKey(title string) string {
+	taken := make(map[string]bool, len(s.groups))
+	for _, held := range s.groups {
+		taken[held.Key] = true
+	}
+	stem := content.GroupKeyFrom(title)
+	key := stem
+	for n := 2; taken[key]; n++ {
+		key = fmt.Sprintf("%s-%d", stem, n)
+	}
+	return key
 }
 
 // UpdateGroup stores the group's title, location and resting flag.

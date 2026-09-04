@@ -2122,3 +2122,23 @@ msgid "The settings could not be read, so nothing can be changed here yet."
 msgstr ""
 "Les réglages n'ont pas pu être lus, donc rien ne peut encore être modifié "
 "ici."
+
+#, fuzzy
+msgid "From %(plugin)s"
+msgstr "De %(plugin)s"
+
+#, fuzzy
+msgid ""
+"The %(origin)s plugin declared this, so it can only be changed in that "
+"plugin. Turning it off is still yours to do."
+msgstr ""
+"L'extension %(origin)s l'a déclaré, donc il ne peut être modifié que dans "
+"cette extension. Le désactiver reste entre vos mains."
+
+#, fuzzy
+msgid ""
+"The %(plugin)s plugin declared these fields, so they change only in its "
+"code."
+msgstr ""
+"L'extension %(plugin)s a déclaré ces champs, donc ils ne changent que dans "
+"son code."

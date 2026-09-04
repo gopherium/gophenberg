@@ -140,6 +140,77 @@ function TypesBody(props: Reporter & { types: ContentType[]; loading: boolean; f
 }
 
 /**
+ * Returns the plugin that declared the type, empty when the site made it.
+ * @param registered - The type.
+ * @returns The plugin's id, or an empty string.
+ */
+function originOf(registered: ContentType): string {
+	return registered.origin ?? ''
+}
+
+/**
+ * Renders the badges naming what stands out about a type.
+ * @param props - The type.
+ * @returns The badges element.
+ */
+function TypeBadges(props: { registered: ContentType }) {
+	const { registered } = props
+	const origin = originOf(registered)
+	return (
+		<Stack direction="row" gap="xs">
+			{registered.isDefault && <Badge>{__('Default', 'gophenberg')}</Badge>}
+			{registered.hierarchical && <Badge>{__('Nests', 'gophenberg')}</Badge>}
+			{!registered.active && <Badge intent="draft">{__('Closed', 'gophenberg')}</Badge>}
+			{origin !== '' && <Badge>{sprintf(__('From %(plugin)s', 'gophenberg'), { plugin: origin })}</Badge>}
+		</Stack>
+	)
+}
+
+/**
+ * Renders the controls a type offers, holding back the ones its owner keeps.
+ * @param props - The type, the root holder, and what each control does.
+ * @returns The controls element.
+ */
+function TypeActions(props: {
+	registered: ContentType
+	holder?: ContentType
+	removing: boolean
+	onEdit: (asked: TypeEdit) => void
+	onRemove: () => void
+}) {
+	const { registered } = props
+	const shapeable = originOf(registered) === ''
+	const demotable = shapeable && !registered.isDefault
+	return (
+		<Stack direction="row" gap="xs">
+			{shapeable && <ChangeAddress registered={registered} onMove={(word) => props.onEdit({ routeWord: word })} />}
+			{demotable && (
+				<HandOverRoot
+					registered={registered}
+					holder={props.holder}
+					onHandOver={() => props.onEdit({ isDefault: true })}
+				/>
+			)}
+			{!registered.isDefault && registered.active && (
+				<Button variant="outline" onClick={() => props.onEdit({ active: false })}>
+					{__('Deactivate', 'gophenberg')}
+				</Button>
+			)}
+			{!registered.active && (
+				<Button variant="outline" onClick={() => props.onEdit({ active: true })}>
+					{__('Activate', 'gophenberg')}
+				</Button>
+			)}
+			{demotable && (
+				<Button variant="outline" loading={props.removing} onClick={props.onRemove}>
+					{__('Delete', 'gophenberg')}
+				</Button>
+			)}
+		</Stack>
+	)
+}
+
+/**
  * Renders one registered type and what may be done to it.
  * @param props - The type and the reporter.
  * @returns The row element.
@@ -168,38 +239,16 @@ function TypeRow(
 			</td>
 			<td>{addressOf(registered)}</td>
 			<td>
-				<Stack direction="row" gap="xs">
-					{registered.isDefault && <Badge>{__('Default', 'gophenberg')}</Badge>}
-					{registered.hierarchical && <Badge>{__('Nests', 'gophenberg')}</Badge>}
-					{!registered.active && <Badge intent="draft">{__('Closed', 'gophenberg')}</Badge>}
-				</Stack>
+				<TypeBadges registered={registered} />
 			</td>
 			<td>
-				<Stack direction="row" gap="xs">
-					<ChangeAddress registered={registered} onMove={(word) => edit.mutate({ routeWord: word })} />
-					{!registered.isDefault && (
-						<HandOverRoot
-							registered={registered}
-							holder={props.holder}
-							onHandOver={() => edit.mutate({ isDefault: true })}
-						/>
-					)}
-					{!registered.isDefault && registered.active && (
-						<Button variant="outline" onClick={() => edit.mutate({ active: false })}>
-							{__('Deactivate', 'gophenberg')}
-						</Button>
-					)}
-					{!registered.active && (
-						<Button variant="outline" onClick={() => edit.mutate({ active: true })}>
-							{__('Activate', 'gophenberg')}
-						</Button>
-					)}
-					{!registered.isDefault && (
-						<Button variant="outline" loading={remove.isPending} onClick={() => remove.mutate()}>
-							{__('Delete', 'gophenberg')}
-						</Button>
-					)}
-				</Stack>
+				<TypeActions
+					registered={registered}
+					holder={props.holder}
+					removing={remove.isPending}
+					onEdit={edit.mutate}
+					onRemove={remove.mutate}
+				/>
 			</td>
 		</tr>
 	)

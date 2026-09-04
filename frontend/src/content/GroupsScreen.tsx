@@ -30,6 +30,7 @@ import {
 } from './groups'
 import { typesQueryKey } from './nav'
 import { GroupFieldsDialog } from './GroupFieldsDialog'
+import { PluginFieldsDialog } from './PluginFieldsDialog'
 import { RulesDialog } from './RulesDialog'
 import { listTypes } from './types'
 import type { FieldGroup, GroupEdit, Location, LocationRule } from './groups'
@@ -366,6 +367,8 @@ function GroupRow(
 	},
 ) {
 	const { held } = props
+	const origin = held.origin ?? ''
+	const declared = origin !== ''
 	const edit = useMutation({
 		mutationFn: (asked: GroupEdit) => updateGroup(held.id, asked),
 		onSuccess: () => props.onDone(sprintf(__('%(group)s updated.', 'gophenberg'), { group: held.title })),
@@ -385,22 +388,29 @@ function GroupRow(
 				<Stack direction="row" gap="xs">
 					{!held.active && <Badge intent="draft">{__('Inactive', 'gophenberg')}</Badge>}
 					{props.shadowed && <Badge intent="high">{__('Shadowed', 'gophenberg')}</Badge>}
+					{declared && (
+						<Badge>{sprintf(__('From %(plugin)s', 'gophenberg'), { plugin: origin })}</Badge>
+					)}
 				</Stack>
 			</td>
 			<td>
 				<Stack direction="row" gap="xs">
 					<MoveGroup held={held} order={props.order} at={props.at} pending={move.isPending} onMove={move.mutate} />
-					<GroupFieldsDialog
-						held={held}
-						groups={props.groups}
-						types={props.types}
-						onDone={props.onDone}
-					/>
-					<RulesDialog held={held} onDone={props.onDone} />
+					{declared ? (
+						<PluginFieldsDialog held={held} origin={origin} />
+					) : (
+						<GroupFieldsDialog
+							held={held}
+							groups={props.groups}
+							types={props.types}
+							onDone={props.onDone}
+						/>
+					)}
+					{!declared && <RulesDialog held={held} onDone={props.onDone} />}
 					<Button variant="outline" onClick={() => edit.mutate({ active: !held.active })}>
 						{held.active ? __('Deactivate', 'gophenberg') : __('Activate', 'gophenberg')}
 					</Button>
-					<RemoveGroup held={held} onDone={props.onDone} onRefused={props.onRefused} />
+					{!declared && <RemoveGroup held={held} onDone={props.onDone} onRefused={props.onRefused} />}
 				</Stack>
 			</td>
 		</tr>

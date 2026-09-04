@@ -43,6 +43,7 @@ const SUBTITLE = {
 
 const DETAILS = {
 	id: 3,
+	key: 'article-details',
 	title: 'Article details',
 	location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
 	position: 1,
@@ -55,6 +56,7 @@ const DETAILS = {
 const EXTRAS = {
 	...DETAILS,
 	id: 4,
+	key: 'extras',
 	title: 'Extras',
 	position: 2,
 }

@@ -29,6 +29,8 @@ type Config struct {
 	Content content.Store
 	// Types persists the content type registry. Nil leaves the registry routes unhandled.
 	Types content.TypeStore
+	// Registry is the content registry the server shares with the host, built over Types when nil.
+	Registry *content.Registry
 	// Plugins maps a plugin id to its HTTP handler.
 	Plugins map[string]http.Handler
 	// PluginPublicPaths maps a plugin id to its session-exempt paths.
@@ -61,6 +63,14 @@ type Config struct {
 	Readers ReaderSettings
 }
 
+// registryOf returns the registry the configuration hands over, or one built over its type store.
+func registryOf(cfg Config) *content.Registry {
+	if cfg.Registry != nil {
+		return cfg.Registry
+	}
+	return content.NewRegistry(cfg.Types)
+}
+
 // NewServer returns the HTTP handler serving the CMS API. Every route
 // requires a login session except login, logout, and each plugin's
 // declared public paths.
@@ -73,7 +83,7 @@ func NewServer(cfg Config) http.Handler {
 		auth: auth, users: cfg.Users, content: cfg.Content, themes: cfg.Themes,
 		media: cfg.Media, mediaStore: cfg.MediaStore, version: cfg.Version,
 		settings: cfg.Settings, readers: cfg.Readers,
-		types: content.NewRegistry(cfg.Types),
+		types: registryOf(cfg),
 	}
 	s.addresses = content.NewResolver(cfg.Content, s.types)
 	headers := headersFor(cfg.Cache)

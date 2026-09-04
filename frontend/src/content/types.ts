@@ -14,6 +14,7 @@ export interface FieldRow {
 	relates_to?: string
 	many: boolean
 	required: boolean
+	origin?: string
 	settings?: Record<string, unknown>
 	fields?: FieldRow[]
 	updated_at: string
@@ -27,6 +28,7 @@ export const fieldSchema: z.ZodType<FieldRow> = z.lazy(() =>
 		relates_to: z.string().optional(),
 		many: z.boolean(),
 		required: z.boolean(),
+		origin: z.string().optional(),
 		settings: z.record(z.string(), z.unknown()).optional(),
 		fields: z.array(fieldSchema).optional(),
 		updated_at: z.string(),
@@ -44,6 +46,7 @@ const typeSchema = z.object({
 	page_kind: z.string(),
 	default: z.boolean(),
 	active: z.boolean(),
+	origin: z.string().optional(),
 	fields: z.array(fieldSchema).optional(),
 })
 
@@ -63,6 +66,7 @@ export interface ContentField {
 	relatesTo: string
 	many: boolean
 	required: boolean
+	origin?: string
 	settings: Record<string, unknown>
 	fields: ContentField[]
 	updatedAt: string
@@ -80,6 +84,7 @@ export interface ContentType {
 	pageKind: string
 	isDefault: boolean
 	active: boolean
+	origin?: string
 	fields: ContentField[]
 }
 
@@ -117,6 +122,7 @@ function toType(row: z.infer<typeof typeSchema>): ContentType {
 		pageKind: row.page_kind,
 		isDefault: row.default,
 		active: row.active,
+		origin: row.origin,
 		fields: (row.fields ?? []).map(toField),
 	}
 }
@@ -134,6 +140,7 @@ export function toField(row: z.infer<typeof fieldSchema>): ContentField {
 		relatesTo: row.relates_to ?? '',
 		many: row.many,
 		required: row.required,
+		origin: row.origin,
 		settings: row.settings ?? {},
 		fields: (row.fields ?? []).map(toField),
 		updatedAt: row.updated_at,

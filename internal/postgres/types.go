@@ -37,6 +37,9 @@ const foreignKeyViolationCode = "23503"
 // fieldKeyConstraint names the unique index over one group's field keys.
 const fieldKeyConstraint = "content_fields_scope_key_unique"
 
+// groupKeyConstraint names the unique constraint over field group keys.
+const groupKeyConstraint = "field_groups_key_unique"
+
 // fieldGroupConstraint names the reference a field keeps to its group.
 const fieldGroupConstraint = "content_fields_group_fkey"
 
@@ -93,6 +96,7 @@ func (s *TypeStore) ByKey(ctx context.Context, key string) (content.Type, error)
 // Create stores a new content type, or reports the key or route word already in use.
 func (s *TypeStore) Create(ctx context.Context, t content.Type) (content.Type, error) {
 	row, err := s.queries.CreateContentType(ctx, db.CreateContentTypeParams{
+		Origin:        originColumn(t.Origin),
 		Key:           t.Key,
 		SingularLabel: t.SingularLabel,
 		PluralLabel:   t.PluralLabel,
@@ -270,6 +274,7 @@ func (s *TypeStore) CreateField(ctx context.Context, f content.Field) (content.F
 		}
 		row, err := queries.CreateContentField(ctx, db.CreateContentFieldParams{
 			GroupID:   int32(target.ID),
+			Origin:    originColumn(f.Origin),
 			Key:       f.Key,
 			Label:     f.Label,
 			Kind:      string(f.Kind),
@@ -321,6 +326,22 @@ func targetOf(f content.Field) *string {
 	return &f.RelatesTo
 }
 
+// originOf returns the origin a nullable column holds, empty for a definition the site made.
+func originOf(origin *string) string {
+	if origin == nil {
+		return ""
+	}
+	return *origin
+}
+
+// originColumn returns the origin as the nullable column holds it.
+func originColumn(origin string) *string {
+	if origin == "" {
+		return nil
+	}
+	return &origin
+}
+
 // toField maps a stored row to a domain field definition with UTC timestamps.
 func toField(row db.CoreContentField) content.Field {
 	f := content.Field{
@@ -331,6 +352,7 @@ func toField(row db.CoreContentField) content.Field {
 		Kind:      content.FieldKind(row.Kind),
 		Many:      row.Many,
 		Required:  row.Required,
+		Origin:    originOf(row.Origin),
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}
@@ -375,6 +397,7 @@ func toType(row db.CoreContentType) content.Type {
 		PageKind:      content.PageKind(row.PageKind),
 		Default:       row.IsDefault,
 		Active:        row.Active,
+		Origin:        originOf(row.Origin),
 		CreatedAt:     row.CreatedAt.UTC(),
 		UpdatedAt:     row.UpdatedAt.UTC(),
 	}

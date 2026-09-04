@@ -73,6 +73,7 @@ type Field struct {
 	RelatesTo string
 	Many      bool
 	Required  bool
+	Origin    string
 	Settings  map[string]any
 	Fields    []Field
 	CreatedAt time.Time
