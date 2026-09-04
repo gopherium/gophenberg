@@ -98,6 +98,44 @@ Feature: Grouping fields and placing them by rule
     And the administrator lists the field groups
     Then the group "Event details" is listed as declared by "events"
 
+  Scenario: The site's definitions download as a file without what plugins declared
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And the plugin "events" declared the group "Event details" for "post"
+    When the administrator downloads the definitions
+    Then the download holds the group "Article details" with the field "subtitle"
+    And the download leaves out the group "Event details"
+
+  Scenario: The site's own definitions plan as nothing to change, and the site stands untouched
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    When the administrator plans the file the site exports
+    Then the plan holds no changes
+    When the administrator lists the field groups
+    Then the group "Article details" is listed
+
+  Scenario: A definitions file the administrator applies reshapes the site
+    Given the group "Article details" for "post"
+    When the administrator applies a file renaming the group "Article details" to "Article facts"
+    And the administrator lists the field groups
+    Then the group "Article facts" is listed
+
+  Scenario: An import takes nothing away that nobody confirmed
+    Given the group "Article details" for "post"
+    When the administrator applies a file holding no field groups
+    And the administrator lists the field groups
+    Then the group "Article details" is listed
+
+  Scenario: An import takes away the group whose loss the administrator confirmed
+    Given the group "Article details" for "post"
+    When the administrator applies a file giving up the group "article-details"
+    And the administrator lists the field groups
+    Then no field groups are listed
+
+  Scenario: A definitions file from a release the site cannot read is refused
+    When the administrator plans a file written in format "9.0.0"
+    Then the request is refused with the code "definitions_format_unsupported"
+
   Scenario: Deleting a group takes its fields with it
     Given the group "Article details" for "post"
     And the "text" field "subtitle" labeled "Subtitle" in "Article details"

@@ -170,3 +170,13 @@ func TestTeamRowsDeclareANameAndARole(t *testing.T) {
 		t.Errorf("the row declares %q then %q, want name then role", rows[0].Key, rows[1].Key)
 	}
 }
+
+// AdoptType takes a plugin's type over as the site's own.
+func (s *holdingTypeStore) AdoptType(context.Context, string) error {
+	return nil
+}
+
+// AdoptGroup takes a plugin's group over as the site's own.
+func (s *holdingTypeStore) AdoptGroup(context.Context, string) error {
+	return nil
+}

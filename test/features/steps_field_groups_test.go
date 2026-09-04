@@ -423,6 +423,18 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 	sc.Given(`^the resting group "([^"]*)" for "([^"]*)"$`, theRestingGroupExists)
 	sc.Given(`^the plugin "([^"]*)" declared the group "([^"]*)" for "([^"]*)"$`, thePluginDeclaredTheGroup)
 	sc.Then(`^the group "([^"]*)" is listed as declared by "([^"]*)"$`, theGroupIsListedAsDeclaredBy)
+	sc.When(`^the administrator downloads the definitions$`, theAdministratorDownloadsTheDefinitions)
+	sc.Then(`^the download holds the group "([^"]*)" with the field "([^"]*)"$`, theDownloadHoldsTheGroupWithTheField)
+	sc.Then(`^the download leaves out the group "([^"]*)"$`, theDownloadLeavesOutTheGroup)
+	sc.When(`^the administrator plans the file the site exports$`, theAdministratorPlansTheFileTheSiteExports)
+	sc.When(`^the administrator plans a file written in format "([^"]*)"$`, theAdministratorPlansAFileWrittenInFormat)
+	sc.Then(`^the plan holds no changes$`, thePlanHoldsNoChanges)
+	sc.When(`^the administrator applies a file renaming the group "([^"]*)" to "([^"]*)"$`,
+		theAdministratorAppliesAFileRenamingTheGroup)
+	sc.When(`^the administrator applies a file holding no field groups$`,
+		theAdministratorAppliesAFileHoldingNoGroups)
+	sc.When(`^the administrator applies a file giving up the group "([^"]*)"$`,
+		theAdministratorAppliesAFileGivingUpTheGroup)
 	sc.Given(`^the "([^"]*)" field "([^"]*)" labeled "([^"]*)" in "([^"]*)"$`, theFieldExistsInGroup)
 	sc.When(`^the administrator lists the field groups$`, theAdministratorListsTheFieldGroups)
 	sc.When(`^the administrator creates the group "([^"]*)" for "([^"]*)"$`, theAdministratorCreatesTheGroupFor)

@@ -280,3 +280,13 @@ func TestPostsReportsAMissingPostType(t *testing.T) {
 		t.Error("Posts() error = nil, want the missing post type reported")
 	}
 }
+
+// AdoptType takes a plugin's type over as the site's own.
+func (stubTypeStore) AdoptType(context.Context, string) error {
+	return nil
+}
+
+// AdoptGroup takes a plugin's group over as the site's own.
+func (stubTypeStore) AdoptGroup(context.Context, string) error {
+	return nil
+}

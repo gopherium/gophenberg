@@ -645,3 +645,13 @@ func TestRegistryHandsTheRootToAnotherType(t *testing.T) {
 		t.Fatalf("Update() handing over the root error = %v, want nil", err)
 	}
 }
+
+// AdoptType accepts the adoption without changing what the store holds.
+func (s *fakeTypeStore) AdoptType(context.Context, string) error {
+	return nil
+}
+
+// AdoptGroup accepts the adoption without changing what the store holds.
+func (s *fakeTypeStore) AdoptGroup(context.Context, string) error {
+	return nil
+}

@@ -28,8 +28,11 @@ import {
 	typeSource,
 	updateGroup,
 } from './groups'
+import { definitionsDownloadPath } from './definitions'
+import { DriftNotices } from './DriftNotices'
 import { typesQueryKey } from './nav'
 import { GroupFieldsDialog } from './GroupFieldsDialog'
+import { ImportDefinitions } from './ImportDefinitions'
 import { PluginFieldsDialog } from './PluginFieldsDialog'
 import { RulesDialog } from './RulesDialog'
 import { listTypes } from './types'
@@ -255,10 +258,17 @@ export function GroupsScreen() {
 		<Page
 			title={__('Field Groups', 'gophenberg')}
 			subtitle={__('Bundles of fields, shown where their rules place them.', 'gophenberg')}
-			actions={<AddGroup types={types.data ?? []} onDone={done} onRefused={refused} />}
+			actions={
+				<>
+					<ExportDefinitions />
+					<ImportDefinitions />
+					<AddGroup types={types.data ?? []} onDone={done} onRefused={refused} />
+				</>
+			}
 		>
 			<Stack direction="column" gap="md">
 				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
+				<DriftNotices onDone={done} onRefused={refused} />
 				{types.isError && (
 					<ErrorNotice>{types.data === undefined ? typesLost : typesStale}</ErrorNotice>
 				)}
@@ -510,6 +520,18 @@ function RemoveGroup(props: Reporter & { held: FieldGroup }) {
 				</Dialog.Popup>
 			</Dialog.Root>
 		</>
+	)
+}
+
+/**
+ * Renders the link downloading the site's content definitions as a file.
+ * @returns The download link, dressed as a button.
+ */
+function ExportDefinitions() {
+	return (
+		<Button variant="outline" render={<a href={definitionsDownloadPath} download />}>
+			{__('Export definitions', 'gophenberg')}
+		</Button>
 	)
 }
 

@@ -60,8 +60,8 @@ func (r *Registry) settledGroup(ctx context.Context, g Group) (Group, error) {
 		return Group{}, ErrInvalidGroupTitle
 	}
 	g.Key = strings.TrimSpace(g.Key)
-	if g.Key != "" && !typeWord.MatchString(g.Key) {
-		return Group{}, ErrInvalidGroupKey
+	if err := ValidGroupKey(g.Key); err != nil {
+		return Group{}, err
 	}
 	g.Location = g.Location.Normalize()
 	if err := g.Location.Validate(r.Params(ctx)); err != nil {

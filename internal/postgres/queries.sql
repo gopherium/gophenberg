@@ -374,6 +374,16 @@ RETURNING id, title, location, position, active, created_at, updated_at, origin,
 -- name: DeleteFieldGroup :execrows
 DELETE FROM core.field_groups WHERE id = @id;
 
+-- name: AdoptFieldGroup :execrows
+UPDATE core.field_groups SET origin = NULL, updated_at = @updated_at WHERE key = @key;
+
+-- name: AdoptFieldsInGroup :exec
+UPDATE core.content_fields SET origin = NULL, updated_at = @updated_at
+WHERE group_id IN (SELECT g.id FROM core.field_groups AS g WHERE g.key = @key);
+
+-- name: AdoptContentType :execrows
+UPDATE core.content_types SET origin = NULL, updated_at = @updated_at WHERE key = @key;
+
 -- name: ReorderFieldGroups :exec
 UPDATE core.field_groups
 SET position = ordered.position

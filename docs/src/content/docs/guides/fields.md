@@ -182,3 +182,40 @@ dialog says so before it happens.
 Deleting a whole group takes its fields with it, and their stored
 values too. If you only want the group to stop appearing, deactivate
 it instead.
+
+## Moving definitions between sites
+
+**Export definitions** downloads a file holding every content type
+and field group the site made, with the fields inside them. It
+carries no content and no plugin definitions, only the shapes your
+site defined.
+
+**Import definitions** reads that file back. It never applies
+straight away. It first shows you what would change, one line per
+type, group and field, split into what it would add, what it would
+change, and what it would take away.
+
+Anything that would take a definition away carries a tick box, and
+nothing is removed unless you tick it. That includes changes that
+look small: changing a field's kind, or moving a field to another
+group, both mean losing what is stored under it, so both ask.
+
+Two things an import never does. It never hands the site's root to
+another content type, because that changes every stored address.
+And it never touches a definition a plugin declared.
+
+## Fields a plugin brought
+
+A plugin can declare its own types, groups and fields. They appear
+here with a badge naming the plugin, and they are read only: the
+plugin's code is where they change.
+
+Two things can happen to them, and both show up as a notice on this
+screen:
+
+- **The plugin stopped declaring one.** The definition stays, and
+  the notice offers **Adopt**, which hands it to your site. After
+  that it edits and deletes like anything you made yourself.
+- **A plugin wants a key you already use.** Your own definition
+  keeps it and the plugin's is skipped. The notice names the plugin
+  so you can decide whether to rename yours.

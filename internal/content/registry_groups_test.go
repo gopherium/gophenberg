@@ -1079,3 +1079,13 @@ func TestRegistryReportsAMoveToAGroupThatIsGone(t *testing.T) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrGroupNotFound)
 	}
 }
+
+// AdoptType accepts the adoption without changing what the store holds.
+func (s *groupingStore) AdoptType(context.Context, string) error {
+	return nil
+}
+
+// AdoptGroup accepts the adoption without changing what the store holds.
+func (s *groupingStore) AdoptGroup(context.Context, string) error {
+	return nil
+}

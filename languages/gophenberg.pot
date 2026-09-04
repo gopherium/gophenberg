@@ -87,6 +87,12 @@ msgstr ""
 msgid "%(name)s %(version)s is serving the public site."
 msgstr ""
 
+msgid "%(name)s belongs to the site now."
+msgstr ""
+
+msgid "%(name)s came from the %(plugin)s plugin, which no longer declares it."
+msgstr ""
+
 msgid "%(name)s cannot be used as a theme name. Name the zip file after the theme, with no dot at the start and no slashes in it."
 msgstr ""
 
@@ -117,6 +123,12 @@ msgstr ""
 msgid "%(title)s goes to the trash. You can restore it from there."
 msgstr ""
 
+msgid "%(type)s answers on a new address, and stored links move with it."
+msgstr ""
+
+msgid "%(type)s becomes the type the site opens on, and the old one takes an address."
+msgstr ""
+
 msgid "%(type)s registered."
 msgstr ""
 
@@ -136,6 +148,9 @@ msgid "A %(kind)s field does not take a setting called %(setting)s. Remove it an
 msgstr ""
 
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
+msgstr ""
+
+msgid "A field group key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the group in the file so its key comes out in that shape."
 msgstr ""
 
 msgid "A field key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the field so its key comes out in that shape."
@@ -189,6 +204,9 @@ msgstr ""
 msgid "Add"
 msgstr ""
 
+msgid "Add %(name)s"
+msgstr ""
+
 msgid "Add %(type)s"
 msgstr ""
 
@@ -234,6 +252,9 @@ msgstr ""
 msgid "Address"
 msgstr ""
 
+msgid "Adopt"
+msgstr ""
+
 msgid "All %(type)s"
 msgstr ""
 
@@ -271,6 +292,9 @@ msgid "Another item of this content type already uses that address. Pick a diffe
 msgstr ""
 
 msgid "Appears on"
+msgstr ""
+
+msgid "Apply"
 msgstr ""
 
 msgid "April"
@@ -312,6 +336,9 @@ msgstr ""
 msgid "Caption"
 msgstr ""
 
+msgid "Change %(name)s"
+msgstr ""
+
 msgid "Change address"
 msgstr ""
 
@@ -334,6 +361,9 @@ msgid "Choose the language the admin reads in."
 msgstr ""
 
 msgid "Clear %(field)s"
+msgstr ""
+
+msgid "Close"
 msgstr ""
 
 msgid "Closed"
@@ -412,6 +442,9 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
+msgid "Definitions file"
+msgstr ""
+
 msgid "Delete"
 msgstr ""
 
@@ -468,6 +501,9 @@ msgstr ""
 msgid "Document"
 msgstr ""
 
+msgid "Done. The site now holds what the file describes."
+msgstr ""
+
 msgid "Draft saved."
 msgstr ""
 
@@ -510,10 +546,19 @@ msgstr ""
 msgid "Excerpt"
 msgstr ""
 
+msgid "Export definitions"
+msgstr ""
+
 msgid "February"
 msgstr ""
 
+msgid "Field"
+msgstr ""
+
 msgid "Field Groups"
+msgstr ""
+
+msgid "Field group"
 msgstr ""
 
 msgid "Fields"
@@ -561,6 +606,9 @@ msgstr ""
 msgid "Gophenberg has no autosave of yours for this item. Open the item to see the version that is stored."
 msgstr ""
 
+msgid "Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again."
+msgstr ""
+
 msgid "Gophenberg keeps this address for itself, so your content cannot answer there. Give the item a different slug."
 msgstr ""
 
@@ -588,6 +636,9 @@ msgstr ""
 msgid "Images"
 msgstr ""
 
+msgid "Import definitions"
+msgstr ""
+
 msgid "Inactive"
 msgstr ""
 
@@ -600,7 +651,13 @@ msgstr ""
 msgid "Instructions"
 msgstr ""
 
+msgid "It moves to another group, so its stored values do not follow."
+msgstr ""
+
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
+msgstr ""
+
+msgid "Its kind changed, so its stored values go with it."
 msgstr ""
 
 msgid "January"
@@ -899,6 +956,9 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
+msgid "Remove %(name)s"
+msgstr ""
+
 msgid "Remove %(title)s"
 msgstr ""
 
@@ -1070,6 +1130,9 @@ msgstr ""
 msgid "The %(origin)s plugin declared this, so it can only be changed in that plugin. Turning it off is still yours to do."
 msgstr ""
 
+msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key."
+msgstr ""
+
 msgid "The %(plugin)s plugin declared these fields, so they change only in its code."
 msgstr ""
 
@@ -1187,6 +1250,9 @@ msgstr ""
 msgid "The site default"
 msgstr ""
 
+msgid "The site may already hold part of this file. Import it again to see what is left."
+msgstr ""
+
 msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
 msgstr ""
 
@@ -1253,6 +1319,9 @@ msgstr ""
 msgid "There is nothing to roll back to, because your site has not been through a theme change yet. Install a theme first, then a rollback has somewhere to go."
 msgstr ""
 
+msgid "These were left alone, because nobody confirmed losing them."
+msgstr ""
+
 msgid "This content type does not exist any more. Reload the page to see the types your site holds now."
 msgstr ""
 
@@ -1268,6 +1337,9 @@ msgstr ""
 msgid "This content type still holds content, so it cannot be deleted. Move or delete its items first."
 msgstr ""
 
+msgid "This definitions file is larger than the %(max)d bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
+msgstr ""
+
 msgid "This field would stand inside too many containers. Put it nearer the top and try again."
 msgstr ""
 
@@ -1278,6 +1350,15 @@ msgid "This file is larger than the upload limit. Upload a smaller file."
 msgstr ""
 
 msgid "This file is named %(extension)s but it holds %(detected)s content. Upload it under a name that matches what is inside it."
+msgstr ""
+
+msgid "This file matches the site, so there is nothing to change."
+msgstr ""
+
+msgid "This file says it was written in format %(declared)s, which is not a version Gophenberg can read. Export the definitions again from the site they came from."
+msgstr ""
+
+msgid "This file was written in format %(declared)s, and this release reads %(served)s. Upgrade the site the file came from, or this one."
 msgstr ""
 
 msgid "This group holds no fields yet."
@@ -1349,6 +1430,9 @@ msgstr ""
 msgid "Title"
 msgstr ""
 
+msgid "Two field groups in this file share the key %(key)s. Give one of them a different key and import again."
+msgstr ""
+
 msgid "Two rule sources are registered under the name %(param)s. A plugin is declaring a source your site already holds."
 msgstr ""
 
@@ -1389,6 +1473,9 @@ msgid "Web address"
 msgstr ""
 
 msgid "Welcome to Gophenberg."
+msgstr ""
+
+msgid "What it points at changed, so its stored values go with it."
 msgstr ""
 
 msgid "Where %(group)s appears"

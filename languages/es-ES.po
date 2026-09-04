@@ -1708,6 +1708,10 @@ msgid "From %(plugin)s"
 msgstr "De %(plugin)s"
 
 #, fuzzy
+msgid "Export definitions"
+msgstr "Exportar definiciones"
+
+#, fuzzy
 msgid ""
 "The %(origin)s plugin declared this, so it can only be changed in that "
 "plugin. Turning it off is still yours to do."
@@ -1722,3 +1726,115 @@ msgid ""
 msgstr ""
 "El plugin %(plugin)s declaró estos campos, así que solo cambian en su "
 "código."
+
+#, fuzzy
+msgid "%(type)s answers on a new address, and stored links move with it."
+msgstr "%(type)s responde en una dirección nueva, y los enlaces guardados se mueven con ella."
+
+#, fuzzy
+msgid "%(type)s becomes the type the site opens on, and the old one takes an address."
+msgstr "%(type)s pasa a ser el tipo con el que abre el sitio, y el anterior toma una dirección."
+
+#, fuzzy
+msgid "A field group key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the group in the file so its key comes out in that shape."
+msgstr "La clave de un grupo de campos tiene que empezar por una letra minúscula y después llevar solo letras minúsculas, números y guiones. Cambia el nombre del grupo en el archivo para que su clave salga con esa forma."
+
+#, fuzzy
+msgid "Add %(name)s"
+msgstr "Añadir %(name)s"
+
+#, fuzzy
+msgid "Change %(name)s"
+msgstr "Cambiar %(name)s"
+
+#, fuzzy
+msgid "Close"
+msgstr "Cerrar"
+
+#, fuzzy
+msgid "Definitions file"
+msgstr "Archivo de definiciones"
+
+#, fuzzy
+msgid "Field"
+msgstr "Campo"
+
+#, fuzzy
+msgid "Field group"
+msgstr "Grupo de campos"
+
+#, fuzzy
+msgid "Import definitions"
+msgstr "Importar definiciones"
+
+#, fuzzy
+msgid "It moves to another group, so its stored values do not follow."
+msgstr "Se mueve a otro grupo, así que sus valores guardados no le siguen."
+
+#, fuzzy
+msgid "Its kind changed, so its stored values go with it."
+msgstr "Su tipo ha cambiado, así que sus valores guardados se van con él."
+
+#, fuzzy
+msgid "Remove %(name)s"
+msgstr "Quitar %(name)s"
+
+#, fuzzy
+msgid "This definitions file is larger than the %(max)d bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
+msgstr "Este archivo de definiciones es mayor que los %(max)d bytes que Gophenberg lee en una petición. Divídelo, o sube el límite con el que funciona tu sitio."
+
+#, fuzzy
+msgid "This file matches the site, so there is nothing to change."
+msgstr "Este archivo coincide con el sitio, así que no hay nada que cambiar."
+
+#, fuzzy
+msgid "This file says it was written in format %(declared)s, which is not a version Gophenberg can read. Export the definitions again from the site they came from."
+msgstr "Este archivo dice estar escrito en el formato %(declared)s, que no es una versión que Gophenberg pueda leer. Vuelve a exportar las definiciones desde el sitio del que vinieron."
+
+#, fuzzy
+msgid "This file was written in format %(declared)s, and this release reads %(served)s. Upgrade the site the file came from, or this one."
+msgstr "Este archivo está escrito en el formato %(declared)s, y esta versión lee %(served)s. Actualiza el sitio del que viene el archivo, o este."
+
+#, fuzzy
+msgid "Two field groups in this file share the key %(key)s. Give one of them a different key and import again."
+msgstr "Dos grupos de campos de este archivo comparten la clave %(key)s. Dale una clave distinta a uno de ellos e importa de nuevo."
+
+#, fuzzy
+msgid "What it points at changed, so its stored values go with it."
+msgstr "Aquello a lo que apunta ha cambiado, así que sus valores guardados se van con él."
+
+#, fuzzy
+msgid "Apply"
+msgstr "Aplicar"
+
+#, fuzzy
+msgid "Done. The site now holds what the file describes."
+msgstr "Hecho. El sitio ya tiene lo que describe el archivo."
+
+#, fuzzy
+msgid "These were left alone, because nobody confirmed losing them."
+msgstr "Estos se han dejado como estaban, porque nadie confirmó perderlos."
+
+#, fuzzy
+msgid "%(name)s belongs to the site now."
+msgstr "%(name)s ya pertenece al sitio."
+
+#, fuzzy
+msgid "%(name)s came from the %(plugin)s plugin, which no longer declares it."
+msgstr "%(name)s vino del plugin %(plugin)s, que ya no lo declara."
+
+#, fuzzy
+msgid "Adopt"
+msgstr "Adoptar"
+
+#, fuzzy
+msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key."
+msgstr "El plugin %(plugin)s también declara %(name)s, y el sitio se queda con la clave."
+
+#, fuzzy
+msgid "Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again."
+msgstr "Gophenberg no tiene ninguna clase de definición llamada %(subject)s, así que no se ha adoptado nada. Recarga la página para que el admin y el servidor vuelvan a coincidir."
+
+#, fuzzy
+msgid "The site may already hold part of this file. Import it again to see what is left."
+msgstr "Puede que el sitio ya tenga parte de este archivo. Impórtalo de nuevo para ver lo que queda."

@@ -133,7 +133,7 @@ func TestDeclareTypeSkipsAKeyTheSiteHolds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeclareType() error = %v, want a collision skipped rather than refused", err)
 	}
-	if skipped := registrar.Skipped(); !slices.Equal(skipped, []string{"event"}) {
+	if skipped := registrar.Skipped(); !slices.Equal(skipped, []definitions.Held{{Subject: "type", Key: "event"}}) {
 		t.Errorf("Skipped() = %v, want the event key recorded", skipped)
 	}
 	held, _ := registry.ByKey(t.Context(), "event")
@@ -266,7 +266,7 @@ func TestDeclareFieldSkipsAGroupTheSiteHolds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeclareField() error = %v, want the site's group skipped rather than refused", err)
 	}
-	if skipped := registrar.Skipped(); !slices.Equal(skipped, []string{"extras"}) {
+	if skipped := registrar.Skipped(); !slices.Equal(skipped, []definitions.Held{{Subject: "group", Key: "extras"}}) {
 		t.Errorf("Skipped() = %v, want the group key recorded", skipped)
 	}
 	if held := heldGroup(t, registry, "extras"); len(held.Fields) != 0 {
@@ -325,7 +325,8 @@ func TestDeclareGroupSkipsAKeyTheSiteHolds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeclareGroup() error = %v, want a collision skipped rather than refused", err)
 	}
-	if skipped := registrar.Skipped(); !slices.Equal(skipped, []string{"event-details"}) {
+	wanted := []definitions.Held{{Subject: "group", Key: "event-details"}}
+	if skipped := registrar.Skipped(); !slices.Equal(skipped, wanted) {
 		t.Errorf("Skipped() = %v, want the group key recorded", skipped)
 	}
 	if held := heldGroup(t, registry, "event-details"); held.Title != "Mine" || held.Origin != "" {

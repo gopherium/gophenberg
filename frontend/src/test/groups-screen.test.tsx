@@ -98,6 +98,15 @@ test('lists every group with where it appears and how many fields it holds', asy
 	expect(within(table).getByText('Extras')).toBeInTheDocument()
 })
 
+test('offers the definitions as a file download', async () => {
+	renderAt('/field-groups')
+
+	const link = await screen.findByRole('link', { name: 'Export definitions' })
+
+	expect(link).toHaveAttribute('href', '/api/definitions')
+	expect(link).toHaveAttribute('download')
+})
+
 test('says a group with no rules appears nowhere', async () => {
 	listing([{ ...DETAILS_GROUP, location: [] }])
 	renderAt('/field-groups')

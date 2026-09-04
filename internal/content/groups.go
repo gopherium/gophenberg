@@ -20,6 +20,14 @@ var ErrInvalidGroupKey = errors.New("content: invalid field group key")
 // ErrGroupKeyTaken reports a field group key another group already holds.
 var ErrGroupKeyTaken = errors.New("content: field group key already taken")
 
+// ValidGroupKey returns the reason a field group cannot carry the key, or nothing when it can.
+func ValidGroupKey(key string) error {
+	if key != "" && !typeWord.MatchString(key) {
+		return ErrInvalidGroupKey
+	}
+	return nil
+}
+
 // GroupKeyFrom returns the key a group title mints, shaped like every other key.
 func GroupKeyFrom(title string) string {
 	var b strings.Builder

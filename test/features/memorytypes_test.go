@@ -609,3 +609,39 @@ func (s *memoryTypes) serving(key string) bool {
 	}
 	return false
 }
+
+// AdoptType takes the plugin's type over as the site's own.
+func (s *memoryTypes) AdoptType(_ context.Context, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.types {
+		if s.types[i].Key == key {
+			s.types[i].Origin = ""
+			return nil
+		}
+	}
+	return content.ErrTypeNotFound
+}
+
+// AdoptGroup takes the plugin's group and its fields over as the site's own.
+func (s *memoryTypes) AdoptGroup(_ context.Context, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.groups {
+		if s.groups[i].Key != key {
+			continue
+		}
+		s.groups[i].Origin = ""
+		adoptFields(s.groups[i].Fields)
+		return nil
+	}
+	return content.ErrGroupNotFound
+}
+
+// adoptFields clears the plugin origin from the fields and from every field standing inside them.
+func adoptFields(fields []content.Field) {
+	for i := range fields {
+		fields[i].Origin = ""
+		adoptFields(fields[i].Fields)
+	}
+}

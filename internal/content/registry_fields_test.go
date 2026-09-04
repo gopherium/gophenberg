@@ -326,3 +326,13 @@ func TestRegistryRefusesAReorderRepeatingAField(t *testing.T) {
 		t.Fatalf("ReorderFieldsInGroup() error = %v, want %v", err, content.ErrFieldOrder)
 	}
 }
+
+// AdoptType accepts the adoption without changing what the store holds.
+func (s *groupedStore) AdoptType(context.Context, string) error {
+	return nil
+}
+
+// AdoptGroup accepts the adoption without changing what the store holds.
+func (s *groupedStore) AdoptGroup(context.Context, string) error {
+	return nil
+}
