@@ -86,6 +86,9 @@ func planTypes(plan *Plan, declared []TypeDefinition, stored []content.Type) {
 	for _, d := range declared {
 		held, ok := typeAmong(stored, d.Key)
 		if !ok {
+			if d.Default {
+				plan.warn(Warning{Code: WarningRootMoved, Key: d.Key})
+			}
 			plan.add(Change{Action: ActionCreate, Subject: SubjectType, Key: d.Key, Label: d.SingularLabel})
 			continue
 		}
