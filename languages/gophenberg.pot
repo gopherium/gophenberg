@@ -1250,6 +1250,9 @@ msgstr ""
 msgid "The site default"
 msgstr ""
 
+msgid "The site may already hold part of this file. Import it again to see what is left."
+msgstr ""
+
 msgid "The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer."
 msgstr ""
 

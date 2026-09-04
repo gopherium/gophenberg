@@ -2254,3 +2254,7 @@ msgstr "L'extension %(plugin)s déclare aussi %(name)s, et le site garde la clé
 #, fuzzy
 msgid "Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again."
 msgstr "Gophenberg ne connaît aucune sorte de définition nommée %(subject)s, rien n'a donc été repris. Rechargez la page pour que l'admin et le serveur se rejoignent à nouveau."
+
+#, fuzzy
+msgid "The site may already hold part of this file. Import it again to see what is left."
+msgstr "Le site contient peut-être déjà une partie de ce fichier. Importez-le à nouveau pour voir ce qu'il reste."
