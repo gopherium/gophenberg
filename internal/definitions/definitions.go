@@ -21,6 +21,9 @@ var ErrRouteWordChanged = errors.New("definitions: the route word of a declared 
 // ErrKindChanged reports a plugin declaring a field under a kind other than the stored one.
 var ErrKindChanged = errors.New("definitions: the kind of a declared field cannot change")
 
+// ErrShapeChanged reports a plugin declaring a field whose relation target or cardinality is not the stored one.
+var ErrShapeChanged = errors.New("definitions: the shape of a declared field cannot change")
+
 var _ sdk.TypeRegistrar = (*Registrar)(nil)
 
 // Registrar carries one plugin's declarations into the content registry, skipping what the site already holds.
@@ -181,6 +184,9 @@ func (r *Registrar) carry(
 ) (content.Field, error) {
 	if stored.Kind != content.FieldKind(declared.Kind) {
 		return content.Field{}, fmt.Errorf("%w: %s", ErrKindChanged, declared.Key)
+	}
+	if stored.RelatesTo != declared.RelatesTo || stored.Many != declared.Many {
+		return content.Field{}, fmt.Errorf("%w: %s", ErrShapeChanged, declared.Key)
 	}
 	if stored.Label == declared.Label && stored.Required == declared.Required &&
 		sameSettings(stored.Settings, declared.Settings) {

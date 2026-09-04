@@ -179,6 +179,56 @@ func TestDeclarationsReportAStoreThatWillNotWrite(t *testing.T) {
 	}
 }
 
+// linkedGroup is the event group with a relation field pointing at the post type beside its own.
+func linkedGroup() sdk.GroupDeclaration {
+	group := eventGroup()
+	group.Fields = append(group.Fields, sdk.FieldDeclaration{
+		Key: "about", Label: "About", Kind: "relation", RelatesTo: content.TypePost,
+	})
+	return group
+}
+
+// linking stores the event type and the group holding the relation, failing the test when either is refused.
+func linking(t *testing.T, registrar *definitions.Registrar) {
+	t.Helper()
+	if err := registrar.DeclareType(t.Context(), eventType()); err != nil {
+		t.Fatalf("DeclareType() error = %v, want nil", err)
+	}
+	if err := registrar.DeclareGroup(t.Context(), linkedGroup()); err != nil {
+		t.Fatalf("DeclareGroup() error = %v, want nil", err)
+	}
+}
+
+func TestDeclareGroupRefusesARelationPointedAtAnotherType(t *testing.T) {
+	t.Parallel()
+
+	_, registrar := declaringPool(t)
+	linking(t, registrar)
+	moved := linkedGroup()
+	moved.Fields[2].RelatesTo = "event"
+
+	err := registrar.DeclareGroup(t.Context(), moved)
+
+	if !errors.Is(err, definitions.ErrShapeChanged) {
+		t.Errorf("DeclareGroup(moved) error = %v, want %v", err, definitions.ErrShapeChanged)
+	}
+}
+
+func TestDeclareGroupRefusesAFieldToldToHoldManyAfterHoldingOne(t *testing.T) {
+	t.Parallel()
+
+	_, registrar := declaringPool(t)
+	linking(t, registrar)
+	widened := linkedGroup()
+	widened.Fields[2].Many = true
+
+	err := registrar.DeclareGroup(t.Context(), widened)
+
+	if !errors.Is(err, definitions.ErrShapeChanged) {
+		t.Errorf("DeclareGroup(widened) error = %v, want %v", err, definitions.ErrShapeChanged)
+	}
+}
+
 func TestDeclareGroupRefusesAKindChangeInsideASection(t *testing.T) {
 	t.Parallel()
 
