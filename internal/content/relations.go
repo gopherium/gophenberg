@@ -135,9 +135,13 @@ func (r Relations) Merge(patch Relations) Relations {
 	return merged
 }
 
-// Filled reports whether every required field of the type holds a value.
+// Filled reports whether every required field the conditions show holds a value.
 func Filled(values Values, relations Relations, fields []Field) error {
+	hidden := Hidden(fields, values)
 	for _, f := range fields {
+		if hidden[f.Key] {
+			continue
+		}
 		if f.Required && unfilled(values, relations, f) {
 			return Refuse(ErrFieldRequired, "field_required",
 				fmt.Sprintf("%s: %s", ErrFieldRequired, f.Key), Details{"field": f.Key})

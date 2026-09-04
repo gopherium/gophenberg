@@ -244,6 +244,39 @@ func sourcesPlaced(f Field, declared, placed map[string]bool) bool {
 	return true
 }
 
+// Shown returns the values with every key the conditions hide taken away, at any depth.
+func Shown(fields []Field, values Values) Values {
+	hidden := Hidden(fields, values)
+	shown := make(Values, len(values))
+	for key, value := range values {
+		if !hidden[key] {
+			shown[key] = value
+		}
+	}
+	for _, f := range fields {
+		if f.Kind.Holds() && shown[f.Key] != nil {
+			shown[f.Key] = shownInside(f, shown[f.Key])
+		}
+	}
+	return shown
+}
+
+// shownInside returns a container's value with every key its own rules hide taken away from each row.
+func shownInside(f Field, value any) any {
+	if rows, listed := value.([]any); listed {
+		held := make([]any, len(rows))
+		for i, row := range rows {
+			held[i] = shownInside(f, row)
+		}
+		return held
+	}
+	inside, held := value.(map[string]any)
+	if !held {
+		return value
+	}
+	return map[string]any(Shown(f.Fields, inside))
+}
+
 // Concealed reports the first submitted value standing under a field the scope hides, at any depth.
 func Concealed(fields []Field, scope, submitted Values) error {
 	hidden := Hidden(fields, scope)
