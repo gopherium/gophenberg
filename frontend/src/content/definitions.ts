@@ -57,6 +57,69 @@ export interface DefinitionsPlan {
 	warnings: PlanWarning[]
 }
 
+/** The path the definitions standing apart from the plugins are listed at. */
+const definitionsDriftPath = '/api/definitions/drift'
+
+/** The path the site takes a plugin's definition over at. */
+const definitionsAdoptPath = '/api/definitions/adopt'
+
+/** The key the drift is cached under. */
+export const driftQueryKey = ['definitions-drift']
+
+const straySchema = z.object({
+	subject: z.string(),
+	key: z.string(),
+	origin: z.string(),
+	label: z.string(),
+})
+
+const driftSchema = z.object({
+	orphans: z.array(straySchema),
+	collisions: z.array(straySchema),
+})
+
+/** One definition standing apart from what the plugins declare. */
+export interface Stray {
+	subject: string
+	key: string
+	origin: string
+	label: string
+}
+
+/** What the site holds that no plugin declares, and what a plugin wants that the site holds. */
+export interface Drift {
+	orphans: Stray[]
+	collisions: Stray[]
+}
+
+/**
+ * Returns the definitions standing apart from what the plugins declared at the last start.
+ * @returns The orphans and the collisions.
+ */
+export async function readDrift(): Promise<Drift> {
+	const response = await fetch(definitionsDriftPath)
+	if (!response.ok) {
+		throw new Error(`reading the definitions drift failed with status ${response.status}`)
+	}
+	return driftSchema.parse(await response.json())
+}
+
+/**
+ * Takes a plugin's definition over as the site's own.
+ * @param stray - The definition to take over.
+ */
+export async function adoptDefinition(stray: Stray): Promise<void> {
+	const response = await fetch(definitionsAdoptPath, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ subject: stray.subject, key: stray.key }),
+	})
+	if (!response.ok) {
+		const parsed = errorSchema.safeParse(await response.json().catch(() => null))
+		throw new Error(errorText(parsed.success ? parsed.data : { error: '' }))
+	}
+}
+
 /** One change an import may take away. */
 export interface Confirmed {
 	subject: string

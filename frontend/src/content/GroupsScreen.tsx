@@ -29,6 +29,7 @@ import {
 	updateGroup,
 } from './groups'
 import { definitionsDownloadPath } from './definitions'
+import { DriftNotices } from './DriftNotices'
 import { typesQueryKey } from './nav'
 import { GroupFieldsDialog } from './GroupFieldsDialog'
 import { ImportDefinitions } from './ImportDefinitions'
@@ -267,6 +268,7 @@ export function GroupsScreen() {
 		>
 			<Stack direction="column" gap="md">
 				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
+				<DriftNotices onDone={done} onRefused={refused} />
 				{types.isError && (
 					<ErrorNotice>{types.data === undefined ? typesLost : typesStale}</ErrorNotice>
 				)}
