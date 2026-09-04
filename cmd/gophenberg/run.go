@@ -68,7 +68,8 @@ func run(
 
 	typeStore := postgres.NewTypeStore(pool)
 	registry := content.NewRegistry(typeStore)
-	if err := declareTypes(ctx, registry, registered, logger); err != nil {
+	walked, err := declareTypes(ctx, registry, registered, logger)
+	if err != nil {
 		return fmt.Errorf("declare plugin types: %w", err)
 	}
 
@@ -102,6 +103,7 @@ func run(
 		ThemeTimeout:      settings.themeProxyTimeout,
 
 		DefinitionsImportCap: settings.definitionsImportCap,
+		Declarations:         walked,
 	}
 	if settings.webDir != "" {
 		cfg.Web = os.DirFS(settings.webDir)
@@ -308,7 +310,8 @@ func mediaConfigFrom(settings runConfig, store mediahost.Settings) mediahost.Con
 // declareTypes hands every declaring plugin a registrar over the registry, logging what a plugin could not claim.
 func declareTypes(
 	ctx context.Context, registry *content.Registry, plugins []sdk.Plugin, logger *slog.Logger,
-) error {
+) (definitions.Walked, error) {
+	walked := definitions.Walked{}
 	for _, plugin := range plugins {
 		declarer, ok := plugin.(sdk.TypeDeclarer)
 		if !ok {
@@ -316,14 +319,17 @@ func declareTypes(
 		}
 		registrar := definitions.New(registry, plugin.ID())
 		if err := declarer.DeclareTypes(ctx, registrar); err != nil {
-			return fmt.Errorf("plugin %s: %w", plugin.ID(), err)
+			return nil, fmt.Errorf("plugin %s: %w", plugin.ID(), err)
+		}
+		walked[plugin.ID()] = definitions.Walk{
+			Declared: registrar.Declared(), Skipped: registrar.Skipped(),
 		}
 		if skipped := registrar.Skipped(); len(skipped) > 0 {
 			logger.Warn("plugin declarations skipped, another owner holds the key",
 				"plugin", plugin.ID(), "keys", skipped)
 		}
 	}
-	return nil
+	return walked, nil
 }
 
 // standingDuration returns the duration the raw value names, or the fallback when it names none.
