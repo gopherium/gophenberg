@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gopherium/gophenberg/internal/server"
 )
 
 func TestLoadRunConfigTakesTheLargestUploadCapItCanCarry(t *testing.T) {
@@ -75,6 +77,26 @@ func TestLoadRunConfigDefaultsTheTimingsToTodaysValues(t *testing.T) {
 	if settings.mediaUploadCap != 128<<20 {
 		t.Errorf("the upload cap = %d, want %d", settings.mediaUploadCap, 128<<20)
 	}
+	if settings.definitionsImportCap != server.DefaultDefinitionsImportCap {
+		t.Errorf("the definitions cap = %d, want %d",
+			settings.definitionsImportCap, server.DefaultDefinitionsImportCap)
+	}
+}
+
+func TestLoadRunConfigTakesTheLargestDefinitionsCapTheBodyReaderAllows(t *testing.T) {
+	t.Parallel()
+
+	settings, err := loadRunConfig(testGetenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL":              unreachableDatabaseURL,
+		"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB": strconv.FormatInt(server.MaxDefinitionsImportCap>>10, 10),
+	}))
+
+	if err != nil {
+		t.Fatalf("loadRunConfig() error = %v, want the largest allowed cap taken", err)
+	}
+	if settings.definitionsImportCap != server.MaxDefinitionsImportCap {
+		t.Errorf("the definitions cap = %d, want %d", settings.definitionsImportCap, server.MaxDefinitionsImportCap)
+	}
 }
 
 func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
@@ -89,6 +111,8 @@ func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
 		"GOPHENBERG_THEME_PROXY_TIMEOUT":  "20s",
 		"GOPHENBERG_THEME_START_ATTEMPTS": "9",
 		"GOPHENBERG_MEDIA_UPLOAD_CAP_MB":  "64",
+
+		"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB": "512",
 	}))
 
 	if err != nil {
@@ -114,6 +138,9 @@ func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
 	if settings.mediaUploadCap != 64<<20 {
 		t.Errorf("the upload cap = %d, want %d", settings.mediaUploadCap, 64<<20)
 	}
+	if settings.definitionsImportCap != 512<<10 {
+		t.Errorf("the definitions cap = %d, want %d", settings.definitionsImportCap, 512<<10)
+	}
 }
 
 func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
@@ -137,6 +164,12 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		"an upload cap that is not a number":     {"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", "big"},
 		"an upload cap standing at zero":         {"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", "0"},
 		"an upload cap below zero":               {"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", "-8"},
+		"a definitions cap that is not a number": {"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", "roomy"},
+		"a definitions cap standing at zero":     {"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", "0"},
+		"a definitions cap below zero":           {"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", "-4"},
+		"a definitions cap past what the body reader allows": {
+			"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", strconv.FormatInt(server.MaxDefinitionsImportCap>>10+1, 10),
+		},
 		"an upload cap of more bytes than there are": {
 			"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", strconv.FormatInt(int64(math.MaxInt64>>20)+1, 10),
 		},

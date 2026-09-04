@@ -100,6 +100,8 @@ func run(
 		Readers:           postgres.NewUserSettingStore(pool),
 		Cache:             cachePolicyFrom(settings),
 		ThemeTimeout:      settings.themeProxyTimeout,
+
+		DefinitionsImportCap: settings.definitionsImportCap,
 	}
 	if settings.webDir != "" {
 		cfg.Web = os.DirFS(settings.webDir)
@@ -156,6 +158,8 @@ type runConfig struct {
 	themeProxyTimeout  time.Duration
 	themeStartAttempts int
 	mediaUploadCap     int64
+
+	definitionsImportCap int64
 
 	cacheAssetMaxAge                 time.Duration
 	cacheMediaMaxAge                 time.Duration
@@ -242,6 +246,12 @@ func timingsFrom(getenv func(string) string) (runConfig, error) {
 		return runConfig{}, err
 	}
 	held.themeStartAttempts, held.mediaUploadCap = attempts, cap
+	held.definitionsImportCap, err = standingKilobytes(
+		getenv(definitionsCapKey), definitionsCapKey,
+		server.DefaultDefinitionsImportCap>>10, server.MaxDefinitionsImportCap>>10)
+	if err != nil {
+		return runConfig{}, err
+	}
 	if err := cacheWindowsFrom(getenv, &held); err != nil {
 		return runConfig{}, err
 	}
@@ -267,6 +277,27 @@ func standingMegabytes(raw, key string, fallback int64) (int64, error) {
 		return 0, fmt.Errorf("%s: must stand above zero, got %q", key, raw)
 	}
 	return stood << 20, nil
+}
+
+// definitionsCapKey names the environment variable capping a definitions import.
+const definitionsCapKey = "GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB"
+
+// standingKilobytes returns the bytes the raw kilobyte value names, or the fallback when it names none.
+func standingKilobytes(raw, key string, fallback, ceiling int64) (int64, error) {
+	if raw == "" {
+		return fallback << 10, nil
+	}
+	stood, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%s: must be a whole number, got %q", key, raw)
+	}
+	if stood < 1 {
+		return 0, fmt.Errorf("%s: must stand above zero, got %q", key, raw)
+	}
+	if stood > ceiling {
+		return 0, fmt.Errorf("%s: must stand at or below %d, got %q", key, ceiling, raw)
+	}
+	return stood << 10, nil
 }
 
 // mediaConfigFrom returns the media library settings the environment named and the site chose.
