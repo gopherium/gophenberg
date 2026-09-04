@@ -74,7 +74,7 @@ func TestContentPatchRefusesAValueUnderAHiddenField(t *testing.T) {
 	}
 }
 
-func TestContentPatchClearsAHiddenFieldWithNull(t *testing.T) {
+func TestContentPatchRefusesClearingAFieldTheSameRequestHides(t *testing.T) {
 	t.Parallel()
 
 	handler := authedTypeServer(t)
@@ -82,7 +82,26 @@ func TestContentPatchClearsAHiddenFieldWithNull(t *testing.T) {
 	held := draftedPost(t, handler)
 	held = patchValues(t, handler, held, `{"on-sale":true,"sale-note":"half price"}`)
 
-	held = patchValues(t, handler, held, `{"on-sale":false,"sale-note":null}`)
+	body := fmt.Sprintf(`{"updated_at":%q,"fields":{"on-sale":false,"sale-note":null}}`, held.UpdatedAt)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+held.ID, body)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body)
+	}
+	if code := errorCode(t, recorder); code != "field_hidden" {
+		t.Errorf("code = %q, want field_hidden, body %s", code, recorder.Body)
+	}
+}
+
+func TestContentPatchClearsAShownFieldWithNull(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	saleFields(t, handler)
+	held := draftedPost(t, handler)
+	held = patchValues(t, handler, held, `{"on-sale":true,"sale-note":"half price"}`)
+
+	held = patchValues(t, handler, held, `{"sale-note":null}`)
 
 	if _, carried := held.Fields["sale-note"]; carried {
 		t.Errorf("fields = %v, want the cleared value gone", held.Fields)
@@ -176,7 +195,7 @@ func TestAutosaveHoldsNothingBackWhenTheItemNeverHeldIt(t *testing.T) {
 	}
 }
 
-func TestAutosaveKeepsBackNothingTheBufferCleared(t *testing.T) {
+func TestAutosaveRefusesABufferClearingAHiddenField(t *testing.T) {
 	t.Parallel()
 
 	handler := authedTypeServer(t)
@@ -186,12 +205,11 @@ func TestAutosaveKeepsBackNothingTheBufferCleared(t *testing.T) {
 
 	recorder := autosaving(t, handler, held, `{"on-sale":false,"sale-note":null}`)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body)
 	}
-	buffered := decodeBody[autosaveValuesBody](t, recorder)
-	if buffered.Fields["sale-note"] != nil {
-		t.Errorf("fields = %v, want the cleared value left cleared", buffered.Fields)
+	if code := errorCode(t, recorder); code != "field_hidden" {
+		t.Errorf("code = %q, want field_hidden, body %s", code, recorder.Body)
 	}
 }
 

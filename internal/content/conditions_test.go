@@ -310,9 +310,9 @@ func TestConcealedLetsVisibleValuesAndClearsThrough(t *testing.T) {
 	for name, tc := range map[string]struct {
 		scope, submitted content.Values
 	}{
-		"shown field":          {content.Values{"on_sale": true}, content.Values{"sale_price": 20.0}},
-		"hidden field cleared": {content.Values{"on_sale": false}, content.Values{"sale_price": nil}},
-		"hidden field absent":  {content.Values{"on_sale": false, "sale_price": 20.0}, content.Values{"on_sale": false}},
+		"shown field":         {content.Values{"on_sale": true}, content.Values{"sale_price": 20.0}},
+		"shown field cleared": {content.Values{"on_sale": true}, content.Values{"sale_price": nil}},
+		"hidden field absent": {content.Values{"on_sale": false, "sale_price": 20.0}, content.Values{"on_sale": false}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -321,6 +321,22 @@ func TestConcealedLetsVisibleValuesAndClearsThrough(t *testing.T) {
 				t.Errorf("Concealed() = %v, want nothing refused", err)
 			}
 		})
+	}
+}
+
+func TestConcealedRefusesAHiddenFieldARequestNamesAtAll(t *testing.T) {
+	t.Parallel()
+
+	fields := []content.Field{
+		sourceField("on-sale", content.FieldKindBoolean, nil),
+		conditioned("sale-price", content.FieldKindNumber, "on-sale", content.OperatorIs, "true"),
+	}
+	scope := content.Values{"on-sale": false}
+
+	err := content.Concealed(fields, scope, content.Values{"sale-price": nil})
+
+	if !errors.Is(err, content.ErrFieldHidden) {
+		t.Errorf("Concealed() = %v, want a hidden field refused even when the request clears it", err)
 	}
 }
 

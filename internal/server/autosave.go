@@ -246,9 +246,6 @@ func frozenValues(stored, buffer content.Values, fields []content.Field) content
 		frozen[key] = value
 	}
 	for key := range content.Hidden(fields, buffer) {
-		if _, named := buffer[key]; named {
-			continue
-		}
 		if value, held := stored[key]; held {
 			frozen[key] = value
 		}

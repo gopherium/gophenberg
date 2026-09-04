@@ -277,19 +277,16 @@ func shownInside(f Field, value any) any {
 	return map[string]any(Shown(f.Fields, inside))
 }
 
-// Concealed reports the first submitted value standing under a field the scope hides, at any depth.
+// Concealed reports the first field the scope hides that a request still names, at any depth.
 func Concealed(fields []Field, scope, submitted Values) error {
 	hidden := Hidden(fields, scope)
 	for _, f := range fields {
-		value := submitted[f.Key]
-		if value == nil {
-			continue
-		}
-		if hidden[f.Key] {
+		value, named := submitted[f.Key]
+		if named && hidden[f.Key] {
 			return Refuse(ErrFieldHidden, "field_hidden",
 				fmt.Sprintf("%s: %s", ErrFieldHidden, f.Key), Details{"field": f.Key})
 		}
-		if !f.Kind.Holds() {
+		if value == nil || !f.Kind.Holds() {
 			continue
 		}
 		if err := concealedInside(f, value); err != nil {
