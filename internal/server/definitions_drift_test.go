@@ -135,6 +135,51 @@ func TestAdoptTakesTheGroupOverAsTheSites(t *testing.T) {
 	}
 }
 
+func TestAdoptTakesTheFieldsInsideAContainerOverToo(t *testing.T) {
+	t.Parallel()
+
+	handler, types := walkedServer(t, definitions.Walked{})
+	group, err := types.CreateGroup(t.Context(), content.Group{
+		Key: "event-details", Title: "Event details", Origin: "events",
+	})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	section, err := types.CreateFieldInGroup(t.Context(), group.ID, content.Field{
+		Key: "schedule", Label: "Schedule", Kind: content.FieldKindSection, Origin: "events",
+	})
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
+	}
+	if _, err := types.CreateSubField(t.Context(), section.ID, content.Field{
+		Key: "doors", Label: "Doors", Kind: content.FieldKindDate, Origin: "events",
+	}); err != nil {
+		t.Fatalf("CreateSubField() error = %v, want nil", err)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPost, adoptPath, `{"subject":"group","key":"event-details"}`)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusNoContent, recorder.Body)
+	}
+	groups, err := types.ListGroups(t.Context())
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v, want nil", err)
+	}
+	for _, held := range groups {
+		if held.Key != "event-details" {
+			continue
+		}
+		if len(held.Fields) != 1 || len(held.Fields[0].Fields) != 1 {
+			t.Fatalf("the group holds %+v, want the section with its field inside", held.Fields)
+		}
+		if held.Fields[0].Fields[0].Origin != "" {
+			t.Errorf("the field inside names %q as its origin, want the site owning it too",
+				held.Fields[0].Fields[0].Origin)
+		}
+	}
+}
+
 func TestAdoptRefusesABodyItCannotRead(t *testing.T) {
 	t.Parallel()
 

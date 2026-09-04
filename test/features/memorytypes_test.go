@@ -632,10 +632,16 @@ func (s *memoryTypes) AdoptGroup(_ context.Context, key string) error {
 			continue
 		}
 		s.groups[i].Origin = ""
-		for j := range s.groups[i].Fields {
-			s.groups[i].Fields[j].Origin = ""
-		}
+		adoptFields(s.groups[i].Fields)
 		return nil
 	}
 	return content.ErrGroupNotFound
+}
+
+// adoptFields clears the plugin origin from the fields and from every field standing inside them.
+func adoptFields(fields []content.Field) {
+	for i := range fields {
+		fields[i].Origin = ""
+		adoptFields(fields[i].Fields)
+	}
 }
