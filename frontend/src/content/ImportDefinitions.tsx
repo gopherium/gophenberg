@@ -280,6 +280,8 @@ export function ImportDefinitions() {
 										setPlan(null)
 										setOutcome(null)
 										setConfirmed([])
+										setNotice('')
+										perform.reset()
 										read.mutate(chosen)
 									}
 								}}

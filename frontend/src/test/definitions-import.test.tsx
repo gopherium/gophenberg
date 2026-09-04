@@ -150,6 +150,28 @@ test('warns that part of the file may already have landed when an apply fails', 
 	).toBeInTheDocument()
 })
 
+test('drops a failed apply warning when another file is chosen', async () => {
+	planning(() => HttpResponse.json(PLAN))
+	server.use(
+		http.post('/api/definitions/apply', () =>
+			HttpResponse.json({ error: 'in use', code: 'type_in_use' }, { status: 422 }),
+		),
+	)
+	const said = 'The site may already hold part of this file. Import it again to see what is left.'
+
+	await importing('{"format":"1.0.0"}')
+	await userEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+	await screen.findByText(said)
+	server.use(http.post('/api/definitions/plan', () => new Promise(() => {})))
+	await userEvent.upload(
+		screen.getByLabelText('Definitions file'),
+		new File(['{"format":"1.0.0","groups":[]}'], 'other.json', { type: 'application/json' }),
+	)
+
+	expect(screen.queryByText(said)).not.toBeInTheDocument()
+	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
 test('says an import was turned away even when the answer carries no reason', async () => {
 	planning(() => HttpResponse.json(PLAN))
 	server.use(http.post('/api/definitions/apply', () => new HttpResponse('gateway said no', { status: 502 })))
