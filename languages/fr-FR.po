@@ -2258,3 +2258,19 @@ msgstr "Gophenberg ne connaît aucune sorte de définition nommée %(subject)s, 
 #, fuzzy
 msgid "The site may already hold part of this file. Import it again to see what is left."
 msgstr "Le site contient peut-être déjà une partie de ce fichier. Importez-le à nouveau pour voir ce qu'il reste."
+
+#, fuzzy
+msgid "The field %(field)s is hidden by its own rules right now, so it cannot hold a value. Show it again before filling it in."
+msgstr "Le champ %(field)s est masqué par ses propres règles pour le moment, il ne peut donc contenir aucune valeur. Affichez-le de nouveau avant de le remplir."
+
+#, fuzzy
+msgid "The field %(field)s cannot go, because %(by)s is only shown when %(field)s says so. Change the rules on %(by)s first."
+msgstr "Le champ %(field)s ne peut pas être retiré, car %(by)s ne s'affiche que lorsque %(field)s le demande. Modifiez d'abord les règles de %(by)s."
+
+#, fuzzy
+msgid "The rules on %(field)s lead back to %(field)s itself, so nothing can decide whether to show it. Point one of them at another field."
+msgstr "Les règles de %(field)s reviennent à %(field)s lui-même, rien ne peut donc décider de l'afficher. Faites pointer l'une d'elles vers un autre champ."
+
+#, fuzzy
+msgid "The field %(source)s cannot hold the value %(value)s, so no rule can compare it. Write a value of the kind %(source)s stores."
+msgstr "Le champ %(source)s ne peut pas contenir la valeur %(value)s, aucune règle ne peut donc la comparer. Écrivez une valeur du type que %(source)s enregistre."

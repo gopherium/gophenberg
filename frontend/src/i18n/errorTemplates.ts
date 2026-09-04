@@ -163,6 +163,14 @@ export function errorTemplates(): Record<string, string> {
 			'%(field)s needs at least %(limit)s rows. Add one and save again.',
 			DOMAIN,
 		),
+		field_hidden: __(
+			'The field %(field)s is hidden by its own rules right now, so it cannot hold a value. Show it again before filling it in.',
+			DOMAIN,
+		),
+		field_referenced: __(
+			'The field %(field)s cannot go, because %(by)s is only shown when %(field)s says so. Change the rules on %(by)s first.',
+			DOMAIN,
+		),
 		field_taken: __(
 			'A field with that name already exists on the items this group reaches. Pick another name.',
 			DOMAIN,
@@ -332,8 +340,16 @@ export function errorTemplates(): Record<string, string> {
 			'The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer.',
 			DOMAIN,
 		),
+		rule_cycle: __(
+			'The rules on %(field)s lead back to %(field)s itself, so nothing can decide whether to show it. Point one of them at another field.',
+			DOMAIN,
+		),
 		rule_source_unknown: __(
 			'This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed.',
+			DOMAIN,
+		),
+		rule_value_shape: __(
+			'The field %(source)s cannot hold the value %(value)s, so no rule can compare it. Write a value of the kind %(source)s stores.',
 			DOMAIN,
 		),
 		rule_value_missing: __(
