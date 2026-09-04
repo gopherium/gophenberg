@@ -49,6 +49,7 @@ export interface EditorBuffer {
  * Returns the editing buffer held over a stored post.
  * @param postId - The post being edited.
  * @param stored - The post as the server last reported it.
+ * @param declared - The fields the type declares, judging which values the rules show.
  * @returns The buffer and the handlers changing it.
  */
 export function useEditorBuffer(postId: string, stored: PostDetail, declared: ContentField[] = []): EditorBuffer {
