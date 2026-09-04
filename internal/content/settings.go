@@ -63,13 +63,14 @@ const SettingVariant = "variant"
 
 // settingChecks returns the settings the kind takes, each with its shape check.
 func settingChecks(kind FieldKind) map[string]func(value any) bool {
-	held := map[string]func(value any) bool{SettingInstructions: settingString}
+	held := map[string]func(value any) bool{SettingInstructions: settingString, SettingConditions: settingRules}
 	switch kind {
 	case FieldKindText:
 		held[SettingDefault] = settingString
 		held[SettingPlaceholder] = settingString
 		held[SettingMaxLength] = settingWhole
 		held[SettingVariant] = settingOneOf("email", "url", "textarea")
+		held[SettingListed] = settingBool
 	case FieldKindNumber:
 		held[SettingDefault] = settingNumeric
 		held[SettingPlaceholder] = settingString
@@ -77,8 +78,12 @@ func settingChecks(kind FieldKind) map[string]func(value any) bool {
 		held[SettingMax] = settingNumeric
 		held[SettingStep] = settingPositive
 		held[SettingPresentation] = settingOneOf("range")
+		held[SettingListed] = settingBool
 	case FieldKindBoolean:
 		held[SettingDefault] = settingBool
+		held[SettingListed] = settingBool
+	case FieldKindDate:
+		held[SettingListed] = settingBool
 	case FieldKindRepeater:
 		held[SettingMin] = settingWhole
 		held[SettingMax] = settingWhole
@@ -89,8 +94,49 @@ func settingChecks(kind FieldKind) map[string]func(value any) bool {
 		held[SettingPresentation] = settingOneOf("select", "checkbox", "radio", "buttons")
 		held[SettingAllowNull] = settingBool
 		held[SettingAllowCustom] = settingBool
+		held[SettingListed] = settingBool
 	}
 	return held
+}
+
+// settingRules reports whether the value is a non empty list of non empty groups of rule rows.
+func settingRules(value any) bool {
+	groups, ok := value.([]any)
+	if !ok || len(groups) == 0 {
+		return false
+	}
+	for _, group := range groups {
+		if !ruleGroup(group) {
+			return false
+		}
+	}
+	return true
+}
+
+// ruleGroup reports whether the value is a non empty list of rule rows.
+func ruleGroup(value any) bool {
+	rows, ok := value.([]any)
+	if !ok || len(rows) == 0 {
+		return false
+	}
+	for _, row := range rows {
+		if !ruleRow(row) {
+			return false
+		}
+	}
+	return true
+}
+
+// ruleRow reports whether the value is one rule of a source, an operator and a value, all words.
+func ruleRow(value any) bool {
+	row, ok := value.(map[string]any)
+	if !ok || len(row) != 3 {
+		return false
+	}
+	_, hasSource := row["source"].(string)
+	_, hasOperator := row["operator"].(string)
+	_, hasValue := row["value"].(string)
+	return hasSource && hasOperator && hasValue
 }
 
 // settingOneOf returns a check accepting one of the named words.
