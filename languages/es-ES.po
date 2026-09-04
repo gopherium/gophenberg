@@ -1814,3 +1814,19 @@ msgstr "Hecho. El sitio ya tiene lo que describe el archivo."
 #, fuzzy
 msgid "These were left alone, because nobody confirmed losing them."
 msgstr "Estos se han dejado como estaban, porque nadie confirmó perderlos."
+
+#, fuzzy
+msgid "%(name)s belongs to the site now."
+msgstr "%(name)s ya pertenece al sitio."
+
+#, fuzzy
+msgid "%(name)s came from the %(plugin)s plugin, which no longer declares it."
+msgstr "%(name)s vino del plugin %(plugin)s, que ya no lo declara."
+
+#, fuzzy
+msgid "Adopt"
+msgstr "Adoptar"
+
+#, fuzzy
+msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key."
+msgstr "El plugin %(plugin)s también declara %(name)s, y el sitio se queda con la clave."

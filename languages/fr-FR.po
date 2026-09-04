@@ -2234,3 +2234,19 @@ msgstr "Terminé. Le site contient maintenant ce que décrit le fichier."
 #, fuzzy
 msgid "These were left alone, because nobody confirmed losing them."
 msgstr "Ceux-ci ont été laissés tels quels, car personne n'a confirmé leur perte."
+
+#, fuzzy
+msgid "%(name)s belongs to the site now."
+msgstr "%(name)s appartient désormais au site."
+
+#, fuzzy
+msgid "%(name)s came from the %(plugin)s plugin, which no longer declares it."
+msgstr "%(name)s venait de l'extension %(plugin)s, qui ne le déclare plus."
+
+#, fuzzy
+msgid "Adopt"
+msgstr "Adopter"
+
+#, fuzzy
+msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key."
+msgstr "L'extension %(plugin)s déclare aussi %(name)s, et le site garde la clé."

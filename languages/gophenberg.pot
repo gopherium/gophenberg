@@ -87,6 +87,12 @@ msgstr ""
 msgid "%(name)s %(version)s is serving the public site."
 msgstr ""
 
+msgid "%(name)s belongs to the site now."
+msgstr ""
+
+msgid "%(name)s came from the %(plugin)s plugin, which no longer declares it."
+msgstr ""
+
 msgid "%(name)s cannot be used as a theme name. Name the zip file after the theme, with no dot at the start and no slashes in it."
 msgstr ""
 
@@ -244,6 +250,9 @@ msgid "Add to %(field)s"
 msgstr ""
 
 msgid "Address"
+msgstr ""
+
+msgid "Adopt"
 msgstr ""
 
 msgid "All %(type)s"
@@ -1116,6 +1125,9 @@ msgid "The %(file)s inside %(name)s names its theme kit as %(declared)s, which i
 msgstr ""
 
 msgid "The %(origin)s plugin declared this, so it can only be changed in that plugin. Turning it off is still yours to do."
+msgstr ""
+
+msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key."
 msgstr ""
 
 msgid "The %(plugin)s plugin declared these fields, so they change only in its code."
