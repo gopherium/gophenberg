@@ -406,3 +406,13 @@ func TestTheSeededCategoryFilesAPublishedPost(t *testing.T) {
 		}
 	}
 }
+
+// AdoptType takes a plugin's type over as the site's own.
+func (s *categoryTypeStore) AdoptType(context.Context, string) error {
+	return nil
+}
+
+// AdoptGroup takes a plugin's group over as the site's own.
+func (s *categoryTypeStore) AdoptGroup(context.Context, string) error {
+	return nil
+}
