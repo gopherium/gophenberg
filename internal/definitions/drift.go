@@ -4,9 +4,13 @@ package definitions
 
 import (
 	"context"
+	"errors"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
+
+// ErrSubjectUnknown reports a definition named as something the site does not hold.
+var ErrSubjectUnknown = errors.New("definitions: no definition answers to that subject")
 
 // Held is one definition named by what it is and the key it stands under.
 type Held struct {
@@ -68,10 +72,15 @@ func Adrift(ctx context.Context, registry *content.Registry, walked Walked) (Dri
 
 // Adopt takes the definition the naming points at over as the site's own.
 func Adopt(ctx context.Context, registry *content.Registry, held Held) error {
-	if held.Subject == SubjectType {
+	switch held.Subject {
+	case SubjectType:
 		return registry.AdoptType(ctx, held.Key)
+	case SubjectGroup:
+		return registry.AdoptGroup(ctx, held.Key)
+	default:
+		return content.Refuse(ErrSubjectUnknown, "definition_subject_unknown",
+			ErrSubjectUnknown.Error(), content.Details{"subject": held.Subject})
 	}
-	return registry.AdoptGroup(ctx, held.Key)
 }
 
 // orphaned reports whether a stored row belongs to a plugin that no longer declares it.

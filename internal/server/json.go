@@ -174,6 +174,7 @@ var domainErrors = []struct {
 	{content.ErrInvalidGroupTitle, http.StatusUnprocessableEntity, "group_title_required"},
 	{content.ErrInvalidGroupKey, http.StatusUnprocessableEntity, "group_key_malformed"},
 	{content.ErrGroupKeyTaken, http.StatusUnprocessableEntity, "group_key_taken"},
+	{definitions.ErrSubjectUnknown, http.StatusUnprocessableEntity, "definition_subject_unknown"},
 	{definitions.ErrFormatUnreadable, http.StatusUnprocessableEntity, "definitions_format_unreadable"},
 	{definitions.ErrFormatUnsupported, http.StatusUnprocessableEntity, "definitions_format_unsupported"},
 	{content.ErrGroupOrder, http.StatusUnprocessableEntity, "group_order_incomplete"},

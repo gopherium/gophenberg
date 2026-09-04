@@ -3,6 +3,7 @@
 package definitions_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -197,6 +198,28 @@ func TestDeclareTypeReportsAStoreThatWillNotHoldTheType(t *testing.T) {
 
 	if err := registrar.DeclareType(t.Context(), eventType()); err == nil {
 		t.Errorf("DeclareType() error = nil, want the refused write reported")
+	}
+}
+
+func TestAdoptRefusesASubjectNoDefinitionAnswersTo(t *testing.T) {
+	t.Parallel()
+
+	pool, registrar := declaringPool(t)
+	declared(t, registrar)
+	registry := content.NewRegistry(postgres.NewTypeStore(pool))
+
+	err := definitions.Adopt(t.Context(), registry,
+		definitions.Held{Subject: "banana", Key: "event-details"})
+
+	if !errors.Is(err, definitions.ErrSubjectUnknown) {
+		t.Fatalf("Adopt(banana) error = %v, want %v", err, definitions.ErrSubjectUnknown)
+	}
+	drift, err := definitions.Adrift(t.Context(), registry, definitions.Walked{})
+	if err != nil {
+		t.Fatalf("Adrift() error = %v, want nil", err)
+	}
+	if !strayAmong(drift.Orphans, "group", "event-details") {
+		t.Errorf("orphans = %+v, want the group left where it was", drift.Orphans)
 	}
 }
 
