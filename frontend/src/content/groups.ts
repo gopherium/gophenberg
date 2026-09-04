@@ -115,9 +115,6 @@ export function groupErrorMessage(cause: unknown): string {
 /** The key the stored field groups are cached under. */
 export const groupsQueryKey = ['field-groups']
 
-/** The path the site's content definitions download from. */
-export const definitionsDownloadPath = '/api/definitions'
-
 /** The key the rule sources are cached under. */
 export const ruleSourcesQueryKey = ['rule-sources']
 

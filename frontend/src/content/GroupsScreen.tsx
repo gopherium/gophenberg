@@ -20,7 +20,6 @@ import { useState } from 'react'
 import {
 	anyType,
 	createGroup,
-	definitionsDownloadPath,
 	deleteGroup,
 	groupErrorMessage,
 	groupsQueryKey,
@@ -29,8 +28,10 @@ import {
 	typeSource,
 	updateGroup,
 } from './groups'
+import { definitionsDownloadPath } from './definitions'
 import { typesQueryKey } from './nav'
 import { GroupFieldsDialog } from './GroupFieldsDialog'
+import { ImportDefinitions } from './ImportDefinitions'
 import { PluginFieldsDialog } from './PluginFieldsDialog'
 import { RulesDialog } from './RulesDialog'
 import { listTypes } from './types'
@@ -259,6 +260,7 @@ export function GroupsScreen() {
 			actions={
 				<>
 					<ExportDefinitions />
+					<ImportDefinitions />
 					<AddGroup types={types.data ?? []} onDone={done} onRefused={refused} />
 				</>
 			}
