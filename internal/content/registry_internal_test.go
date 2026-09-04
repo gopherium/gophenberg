@@ -134,3 +134,13 @@ func TestUntargetedReportsARegistryItCannotRead(t *testing.T) {
 		t.Errorf("untargeted() error = %v, want %v", err, errTypeStoreDown)
 	}
 }
+
+// AdoptType takes a plugin's type over as the site's own.
+func (unreadableTypeStore) AdoptType(context.Context, string) error {
+	return errTypeStoreDown
+}
+
+// AdoptGroup takes a plugin's group over as the site's own.
+func (unreadableTypeStore) AdoptGroup(context.Context, string) error {
+	return errTypeStoreDown
+}

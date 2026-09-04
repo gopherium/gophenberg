@@ -109,6 +109,8 @@ type TypeStore interface {
 	ReorderFieldsInGroup(ctx context.Context, groupID int, keys []string) error
 	MoveField(ctx context.Context, groupID int, key string, toGroup int) (Field, error)
 	CreateField(ctx context.Context, f Field) (Field, error)
+	AdoptType(ctx context.Context, key string) error
+	AdoptGroup(ctx context.Context, key string) error
 }
 
 // NewType returns a content type ready to store, or the reason it is not one.

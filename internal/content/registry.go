@@ -239,6 +239,24 @@ func (r *Registry) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+// AdoptType takes a plugin's content type over as the site's own.
+func (r *Registry) AdoptType(ctx context.Context, key string) error {
+	if err := r.store.AdoptType(ctx, key); err != nil {
+		return err
+	}
+	r.invalidate()
+	return nil
+}
+
+// AdoptGroup takes a plugin's field group and the fields inside it over as the site's own.
+func (r *Registry) AdoptGroup(ctx context.Context, key string) error {
+	if err := r.store.AdoptGroup(ctx, key); err != nil {
+		return err
+	}
+	r.invalidate()
+	return nil
+}
+
 // untargeted reports whether a relation field in any group still points at the type.
 func (r *Registry) untargeted(ctx context.Context, key string) error {
 	groups, err := r.store.ListGroups(ctx)

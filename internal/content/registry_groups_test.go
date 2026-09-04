@@ -1079,3 +1079,13 @@ func TestRegistryReportsAMoveToAGroupThatIsGone(t *testing.T) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrGroupNotFound)
 	}
 }
+
+// AdoptType takes a plugin's type over as the site's own.
+func (s *groupingStore) AdoptType(context.Context, string) error {
+	return nil
+}
+
+// AdoptGroup takes a plugin's group over as the site's own.
+func (s *groupingStore) AdoptGroup(context.Context, string) error {
+	return nil
+}

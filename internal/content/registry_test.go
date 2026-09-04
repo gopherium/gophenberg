@@ -645,3 +645,13 @@ func TestRegistryHandsTheRootToAnotherType(t *testing.T) {
 		t.Fatalf("Update() handing over the root error = %v, want nil", err)
 	}
 }
+
+// AdoptType takes a plugin's type over as the site's own.
+func (s *fakeTypeStore) AdoptType(context.Context, string) error {
+	return nil
+}
+
+// AdoptGroup takes a plugin's group over as the site's own.
+func (s *fakeTypeStore) AdoptGroup(context.Context, string) error {
+	return nil
+}

@@ -326,3 +326,13 @@ func TestRegistryRefusesAReorderRepeatingAField(t *testing.T) {
 		t.Fatalf("ReorderFieldsInGroup() error = %v, want %v", err, content.ErrFieldOrder)
 	}
 }
+
+// AdoptType takes a plugin's type over as the site's own.
+func (s *groupedStore) AdoptType(context.Context, string) error {
+	return nil
+}
+
+// AdoptGroup takes a plugin's group over as the site's own.
+func (s *groupedStore) AdoptGroup(context.Context, string) error {
+	return nil
+}
