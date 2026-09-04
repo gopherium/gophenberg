@@ -25,14 +25,16 @@ type Rule struct {
 
 // FieldDeclaration is a field as a plugin declares it, holding the fields a container declares inside.
 type FieldDeclaration struct {
-	Key       string
-	Label     string
-	Kind      string
-	RelatesTo string
-	Many      bool
-	Required  bool
-	Settings  map[string]any
-	Fields    []FieldDeclaration
+	Key        string
+	Label      string
+	Kind       string
+	RelatesTo  string
+	Many       bool
+	Required   bool
+	Listed     bool
+	Conditions [][]Rule
+	Settings   map[string]any
+	Fields     []FieldDeclaration
 }
 
 // GroupDeclaration is a field group as a plugin declares it, with the fields it holds.
