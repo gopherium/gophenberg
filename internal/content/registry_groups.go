@@ -152,6 +152,9 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	if err := r.uncollided(ctx, held, target, []string{f.Key}, 0); err != nil {
 		return Field{}, err
 	}
+	if err := Stands(target.Fields, f); err != nil {
+		return Field{}, err
+	}
 	created, err := r.store.CreateFieldInGroup(ctx, groupID, f)
 	if err != nil {
 		return Field{}, err
@@ -162,11 +165,14 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 
 // CreateSubField declares the field inside the container the parent names.
 func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (Field, error) {
-	parent, err := r.fieldByID(ctx, parentID)
+	parent, _, err := r.fieldByID(ctx, parentID)
 	if err != nil {
 		return Field{}, err
 	}
 	if err := pluginKeepsField(ctx, parent); err != nil {
+		return Field{}, err
+	}
+	if err := Stands(parent.Fields, f); err != nil {
 		return Field{}, err
 	}
 	created, err := r.store.CreateSubField(ctx, parentID, f)
@@ -181,7 +187,7 @@ func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (F
 func (r *Registry) UpdateSubField(
 	ctx context.Context, id int, f Field, expectedUpdatedAt time.Time,
 ) (Field, error) {
-	held, err := r.fieldByID(ctx, id)
+	held, beside, err := r.fieldByID(ctx, id)
 	if err != nil {
 		return Field{}, err
 	}
@@ -191,6 +197,9 @@ func (r *Registry) UpdateSubField(
 	held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
 	held.UpdatedAt = time.Now().UTC()
 	if err := held.Validate(); err != nil {
+		return Field{}, err
+	}
+	if err := Stands(beside, held); err != nil {
 		return Field{}, err
 	}
 	updated, err := r.store.UpdateSubField(ctx, id, held, expectedUpdatedAt)
@@ -203,7 +212,7 @@ func (r *Registry) UpdateSubField(
 
 // ReorderSubFields stands the fields inside the container in the order the keys name.
 func (r *Registry) ReorderSubFields(ctx context.Context, parentID int, keys []string) ([]Field, error) {
-	held, err := r.fieldByID(ctx, parentID)
+	held, _, err := r.fieldByID(ctx, parentID)
 	if err != nil {
 		return nil, err
 	}
@@ -218,47 +227,50 @@ func (r *Registry) ReorderSubFields(ctx context.Context, parentID int, keys []st
 		return nil, err
 	}
 	r.invalidate()
-	reordered, err := r.fieldByID(ctx, parentID)
+	reordered, _, err := r.fieldByID(ctx, parentID)
 	if err != nil {
 		return nil, err
 	}
 	return reordered.Fields, nil
 }
 
-// fieldByID returns the declared field carrying the identity, however deep it stands.
-func (r *Registry) fieldByID(ctx context.Context, id int) (Field, error) {
+// fieldByID returns the declared field carrying the identity and the level it stands on, however deep.
+func (r *Registry) fieldByID(ctx context.Context, id int) (Field, []Field, error) {
 	groups, err := r.Groups(ctx)
 	if err != nil {
-		return Field{}, err
+		return Field{}, nil, err
 	}
 	for _, g := range groups {
-		if held, found := fieldNumbered(g.Fields, id); found {
-			return held, nil
+		if held, beside, found := fieldNumbered(g.Fields, id); found {
+			return held, beside, nil
 		}
 	}
-	return Field{}, ErrFieldNotFound
+	return Field{}, nil, ErrFieldNotFound
 }
 
-// fieldNumbered returns the field carrying the identity among the fields or the ones they hold.
-func fieldNumbered(fields []Field, id int) (Field, bool) {
+// fieldNumbered returns the field carrying the identity and the level it stands on, however deep it stands.
+func fieldNumbered(fields []Field, id int) (Field, []Field, bool) {
 	for _, f := range fields {
 		if f.ID == id {
-			return f, true
+			return f, fields, true
 		}
-		if held, found := fieldNumbered(f.Fields, id); found {
-			return held, true
+		if held, beside, found := fieldNumbered(f.Fields, id); found {
+			return held, beside, true
 		}
 	}
-	return Field{}, false
+	return Field{}, nil, false
 }
 
 // DeleteSubField removes the field standing inside a container, and the values every item held under it.
 func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
-	held, err := r.fieldByID(ctx, id)
+	held, beside, err := r.fieldByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if err := pluginKeepsField(ctx, held); err != nil {
+		return err
+	}
+	if err := Unreferenced(beside, held.Key); err != nil {
 		return err
 	}
 	if err := r.store.DeleteSubField(ctx, id); err != nil {
@@ -272,7 +284,11 @@ func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
 func (r *Registry) UpdateFieldInGroup(
 	ctx context.Context, groupID int, f Field, expectedUpdatedAt time.Time,
 ) (Field, error) {
-	held, err := r.heldField(ctx, groupID, f.Key)
+	target, err := r.heldGroup(ctx, groupID)
+	if err != nil {
+		return Field{}, err
+	}
+	held, err := fieldAmong(target.Fields, f.Key)
 	if err != nil {
 		return Field{}, err
 	}
@@ -282,6 +298,9 @@ func (r *Registry) UpdateFieldInGroup(
 	held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
 	held.UpdatedAt = time.Now().UTC()
 	if err := held.Validate(); err != nil {
+		return Field{}, err
+	}
+	if err := Stands(target.Fields, held); err != nil {
 		return Field{}, err
 	}
 	updated, err := r.store.UpdateFieldInGroup(ctx, groupID, held, expectedUpdatedAt)
@@ -294,11 +313,18 @@ func (r *Registry) UpdateFieldInGroup(
 
 // DeleteFieldInGroup removes the field and its values from the types its group matches.
 func (r *Registry) DeleteFieldInGroup(ctx context.Context, groupID int, key string) error {
-	held, err := r.heldField(ctx, groupID, key)
+	target, err := r.heldGroup(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	held, err := fieldAmong(target.Fields, key)
 	if err != nil {
 		return err
 	}
 	if err := pluginKeepsField(ctx, held); err != nil {
+		return err
+	}
+	if err := Unreferenced(target.Fields, key); err != nil {
 		return err
 	}
 	if err := r.store.DeleteFieldInGroup(ctx, groupID, key); err != nil {
@@ -334,18 +360,13 @@ func (r *Registry) heldGroup(ctx context.Context, groupID int) (Group, error) {
 	return target, err
 }
 
-// heldField returns the stored field a group declares under the key.
-func (r *Registry) heldField(ctx context.Context, groupID int, key string) (Field, error) {
-	target, err := r.heldGroup(ctx, groupID)
+// MoveField carries the field into another group, keeping the values it holds.
+func (r *Registry) MoveField(ctx context.Context, groupID int, key string, toGroup int) (Field, error) {
+	source, err := r.heldGroup(ctx, groupID)
 	if err != nil {
 		return Field{}, err
 	}
-	return fieldAmong(target.Fields, key)
-}
-
-// MoveField carries the field into another group, keeping the values it holds.
-func (r *Registry) MoveField(ctx context.Context, groupID int, key string, toGroup int) (Field, error) {
-	leaving, err := r.heldField(ctx, groupID, key)
+	leaving, err := fieldAmong(source.Fields, key)
 	if err != nil {
 		return Field{}, err
 	}
@@ -360,6 +381,12 @@ func (r *Registry) MoveField(ctx context.Context, groupID int, key string, toGro
 		return Field{}, err
 	}
 	if err := r.uncollided(ctx, held, landing, []string{key}, groupID); err != nil {
+		return Field{}, err
+	}
+	if err := Unreferenced(source.Fields, key); err != nil {
+		return Field{}, err
+	}
+	if err := Stands(landing.Fields, leaving); err != nil {
 		return Field{}, err
 	}
 	moved, err := r.store.MoveField(ctx, groupID, key, toGroup)

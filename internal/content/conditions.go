@@ -22,6 +22,9 @@ var ErrFieldHidden = errors.New("content: field is hidden")
 // ErrRuleCycle reports conditions that lead back to the field they show.
 var ErrRuleCycle = errors.New("content: conditions loop")
 
+// ErrFieldReferenced reports a field a sibling's conditions read.
+var ErrFieldReferenced = errors.New("content: a sibling's conditions read the field")
+
 // decimal is the shape a number rule value takes.
 var decimal = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+)?$`)
 
@@ -292,6 +295,36 @@ func Referenced(fields []Field, key string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// Unreferenced reports whether a sibling's conditions read the key, refusing the removal when one does.
+func Unreferenced(fields []Field, key string) error {
+	by, found := Referenced(fields, key)
+	if !found {
+		return nil
+	}
+	return Refuse(ErrFieldReferenced, "field_referenced",
+		fmt.Sprintf("%s: %s reads %s", ErrFieldReferenced, by, key), Details{"field": key, "by": by})
+}
+
+// Stands reports whether a field's conditions close no loop and read siblings of its scope.
+func Stands(siblings []Field, f Field) error {
+	scope := besides(siblings, f)
+	if err := Acyclic(append(scope, f)); err != nil {
+		return err
+	}
+	return ConditionsOf(f).Validate(ScopeParams(scope))
+}
+
+// besides returns the fields other than the one named, so a field never stands as its own sibling.
+func besides(fields []Field, f Field) []Field {
+	kept := make([]Field, 0, len(fields))
+	for _, held := range fields {
+		if held.Key != f.Key {
+			kept = append(kept, held)
+		}
+	}
+	return kept
 }
 
 // Acyclic reports the first field whose conditions lead back to itself, if one does.
