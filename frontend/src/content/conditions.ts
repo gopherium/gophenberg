@@ -179,7 +179,18 @@ export function conditionsOf(field: ConditionField): ConditionRule[][] {
 	if (!Array.isArray(groups)) {
 		return []
 	}
-	return groups.map((group) => (Array.isArray(group) ? group.map(ruleOf) : []))
+	return groups
+		.map((group) => (Array.isArray(group) ? group.map(ruleOf).filter(named) : []))
+		.filter((group) => group.length > 0)
+}
+
+/**
+ * Returns whether a rule names anything at all.
+ * @param rule - The rule to weigh.
+ * @returns Whether any of its parts was written.
+ */
+function named(rule: ConditionRule): boolean {
+	return rule.source !== '' || rule.operator !== '' || rule.value !== ''
 }
 
 /**

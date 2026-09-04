@@ -26,16 +26,17 @@ test('reads no rules from a field that carries none', () => {
 })
 
 test('reads a group it cannot understand as holding no rules', () => {
-	expect(conditionsOf(textField({ conditions: ['not a group'] }))).toEqual([[]])
+	expect(conditionsOf(textField({ conditions: ['not a group'] }))).toEqual([])
 })
 
 test('reads the parts a stored rule leaves out as empty', () => {
-	const held = conditionsOf(textField({ conditions: [[{ source: 'on-sale' }, null]] }))
+	const held = conditionsOf(textField({ conditions: [[{ source: 'on-sale' }]] }))
 
-	expect(held).toEqual([[
-		{ source: 'on-sale', operator: '', value: '' },
-		{ source: '', operator: '', value: '' },
-	]])
+	expect(held).toEqual([[{ source: 'on-sale', operator: '', value: '' }]])
+})
+
+test('drops a rule naming nothing at all, and the group it empties', () => {
+	expect(conditionsOf(textField({ conditions: [[null]] }))).toEqual([])
 })
 
 test('reads whether a choice field takes several values', () => {

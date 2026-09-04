@@ -213,6 +213,26 @@
       "hidden": ["loop"]
     },
     {
+      "name": "a rule naming nothing at all shows the field",
+      "fields": [
+        {"key": "note", "kind": "text", "conditions": [[{"source": "", "operator": "", "value": ""}]]}
+      ],
+      "scope": {},
+      "hidden": []
+    },
+    {
+      "name": "a rule naming nothing at all leaves the rules beside it standing",
+      "fields": [
+        {"key": "on_sale", "kind": "boolean"},
+        {"key": "note", "kind": "text", "conditions": [[
+          {"source": "", "operator": "", "value": ""},
+          {"source": "on_sale", "operator": "==", "value": "true"}
+        ]]}
+      ],
+      "scope": {"on_sale": false},
+      "hidden": ["note"]
+    },
+    {
       "name": "a multiple choice holds its member",
       "fields": [
         {"key": "tags", "kind": "choice", "multiple": true},
