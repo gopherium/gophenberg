@@ -30,7 +30,8 @@ var _ sdk.TypeRegistrar = (*Registrar)(nil)
 type Registrar struct {
 	registry *content.Registry
 	origin   string
-	skipped  []string
+	skipped  []Held
+	declared []Held
 }
 
 // New returns a [Registrar] declaring on behalf of the plugin named by origin.
@@ -38,9 +39,24 @@ func New(registry *content.Registry, origin string) *Registrar {
 	return &Registrar{registry: registry, origin: origin}
 }
 
-// Skipped returns the keys the plugin declared that another owner already held, in declaration order.
-func (r *Registrar) Skipped() []string {
+// Skipped returns the definitions the plugin declared that another owner already held, in declaration order.
+func (r *Registrar) Skipped() []Held {
 	return slices.Clone(r.skipped)
+}
+
+// Declared returns the definitions the plugin declared and holds, in declaration order.
+func (r *Registrar) Declared() []Held {
+	return slices.Clone(r.declared)
+}
+
+// owns records a definition the plugin declared and holds.
+func (r *Registrar) owns(subject, key string) {
+	r.declared = append(r.declared, Held{Subject: subject, Key: key})
+}
+
+// notOurs records a definition the plugin declared that another owner already held.
+func (r *Registrar) notOurs(subject, key string) {
+	r.skipped = append(r.skipped, Held{Subject: subject, Key: key})
 }
 
 // DeclareType stores the type, carries its labels onto a stored one, or skips a key the plugin does not own.
@@ -52,20 +68,24 @@ func (r *Registrar) DeclareType(ctx context.Context, declared sdk.TypeDeclaratio
 	}
 	stored, err := r.registry.ByKey(ctx, declared.Key)
 	if errors.Is(err, content.ErrTypeNotFound) {
-		_, err = r.registry.Create(ctx, wanted)
-		return err
+		if _, err := r.registry.Create(ctx, wanted); err != nil {
+			return err
+		}
+		r.owns(SubjectType, declared.Key)
+		return nil
 	}
 	if err != nil {
 		return err
 	}
 	if stored.Origin != r.origin {
-		r.skipped = append(r.skipped, declared.Key)
+		r.notOurs(SubjectType, declared.Key)
 		return nil
 	}
 	if stored.RouteWord != wanted.RouteWord {
 		return fmt.Errorf("%w: %s", ErrRouteWordChanged, declared.Key)
 	}
 	wanted.Active, wanted.Default = stored.Active, stored.Default
+	r.owns(SubjectType, declared.Key)
 	if sameType(stored, wanted) {
 		return nil
 	}
@@ -88,12 +108,14 @@ func (r *Registrar) DeclareGroup(ctx context.Context, declared sdk.GroupDeclarat
 		if err != nil {
 			return err
 		}
+		r.owns(SubjectGroup, declared.Key)
 		return r.declareFields(ctx, created.ID, nil, declared.Fields)
 	}
 	if stored.Origin != r.origin {
-		r.skipped = append(r.skipped, declared.Key)
+		r.notOurs(SubjectGroup, declared.Key)
 		return nil
 	}
+	r.owns(SubjectGroup, declared.Key)
 	if stored.Title != declared.Title || !stored.Location.Equal(location) {
 		stored.Title, stored.Location = declared.Title, location
 		if _, err := r.registry.UpdateGroup(ctx, stored); err != nil {
@@ -114,7 +136,7 @@ func (r *Registrar) DeclareField(ctx context.Context, groupKey string, declared 
 		return content.ErrGroupNotFound
 	}
 	if stored.Origin != r.origin {
-		r.skipped = append(r.skipped, groupKey)
+		r.notOurs(SubjectGroup, groupKey)
 		return nil
 	}
 	return r.declareFields(ctx, stored.ID, stored.Fields, []sdk.FieldDeclaration{declared})
