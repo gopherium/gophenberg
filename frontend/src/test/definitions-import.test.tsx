@@ -13,7 +13,14 @@ const PLAN = {
 		{ action: 'create', subject: 'group', key: 'event-details', label: 'Event details' },
 		{ action: 'create', subject: 'field', key: 'venue', group: 'event-details', label: 'Venue' },
 		{ action: 'update', subject: 'type', key: 'recipe', label: 'Recipe' },
-		{ action: 'delete', subject: 'field', key: 'cook-time', label: 'Cook time', reason: 'kind_changed' },
+		{
+			action: 'delete',
+			subject: 'field',
+			key: 'cook-time',
+			group: 'recipe-details',
+			label: 'Cook time',
+			reason: 'kind_changed',
+		},
 		{ action: 'delete', subject: 'field', key: 'photos', label: 'Photos', reason: 'shape_changed' },
 		{ action: 'delete', subject: 'field', key: 'serves', label: 'Serves', reason: 'moved' },
 		{ action: 'delete', subject: 'type', key: 'note', label: 'Note', reason: 'removed' },
@@ -71,6 +78,86 @@ test('leaves the plan alone when the admin picks no file', async () => {
 	fireEvent.change(screen.getByLabelText('Definitions file'), { target: { files: [] } })
 
 	expect(screen.queryByText('Add Event details')).not.toBeInTheDocument()
+})
+
+test('applies a plan, carrying only the losses the admin confirmed', async () => {
+	let sent = ''
+	planning(() => HttpResponse.json(PLAN))
+	server.use(
+		http.post('/api/definitions/apply', async ({ request }) => {
+			sent = await request.text()
+			return HttpResponse.json({ applied: PLAN.changes.slice(0, 2), skipped: [] })
+		}),
+	)
+
+	await importing('{"format":"1.0.0"}')
+	await userEvent.click(await screen.findByRole('checkbox', { name: /Remove Cook time/ }))
+	await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
+
+	expect(await screen.findByText('Done. The site now holds what the file describes.')).toBeInTheDocument()
+	const body = JSON.parse(sent)
+	expect(body.confirm).toEqual([{ subject: 'field', key: 'cook-time', group: 'recipe-details' }])
+	expect(body.format).toBe('1.0.0')
+})
+
+test('carries nothing the admin ticked and then changed their mind about', async () => {
+	let sent = ''
+	planning(() => HttpResponse.json(PLAN))
+	server.use(
+		http.post('/api/definitions/apply', async ({ request }) => {
+			sent = await request.text()
+			return HttpResponse.json({ applied: [], skipped: [] })
+		}),
+	)
+
+	await importing('{"format":"1.0.0"}')
+	const box = await screen.findByRole('checkbox', { name: /Remove Cook time/ })
+	await userEvent.click(box)
+	await userEvent.click(box)
+	await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
+
+	await screen.findByText('Done. The site now holds what the file describes.')
+	expect(JSON.parse(sent).confirm).toEqual([])
+})
+
+test('says why an import was turned away', async () => {
+	planning(() => HttpResponse.json(PLAN))
+	server.use(
+		http.post('/api/definitions/apply', () =>
+			HttpResponse.json({ error: 'no', code: 'definition_read_only', meta: { origin: 'events' } }, { status: 422 }),
+		),
+	)
+
+	await importing('{"format":"1.0.0"}')
+	await userEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+
+	expect(await screen.findByRole('alert')).toHaveTextContent(/events/)
+})
+
+test('says an import was turned away even when the answer carries no reason', async () => {
+	planning(() => HttpResponse.json(PLAN))
+	server.use(http.post('/api/definitions/apply', () => new HttpResponse('gateway said no', { status: 502 })))
+
+	await importing('{"format":"1.0.0"}')
+	await userEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+
+	expect(await screen.findByRole('alert')).toBeInTheDocument()
+})
+
+test('names what an import left alone', async () => {
+	planning(() => HttpResponse.json(PLAN))
+	server.use(
+		http.post('/api/definitions/apply', () =>
+			HttpResponse.json({ applied: [], skipped: [PLAN.changes[3]] }),
+		),
+	)
+
+	await importing('{"format":"1.0.0"}')
+	await userEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+
+	expect(
+		await screen.findByText('These were left alone, because nobody confirmed losing them.'),
+	).toBeInTheDocument()
 })
 
 test('puts the plan away when the admin closes it', async () => {

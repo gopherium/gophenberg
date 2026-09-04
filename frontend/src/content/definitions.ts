@@ -10,6 +10,9 @@ export const definitionsDownloadPath = '/api/definitions'
 /** The path a definitions file is planned against the site at. */
 const definitionsPlanPath = '/api/definitions/plan'
 
+/** The path a definitions file is performed against the site at. */
+const definitionsApplyPath = '/api/definitions/apply'
+
 const changeSchema = z.object({
 	action: z.string(),
 	subject: z.string(),
@@ -52,6 +55,44 @@ export interface PlanWarning {
 export interface DefinitionsPlan {
 	changes: PlanChange[]
 	warnings: PlanWarning[]
+}
+
+/** One change an import may take away. */
+export interface Confirmed {
+	subject: string
+	key: string
+	group?: string
+}
+
+/** What an import did and what it left standing. */
+export interface ImportOutcome {
+	applied: PlanChange[]
+	skipped: PlanChange[]
+}
+
+const outcomeSchema = z.object({
+	applied: z.array(changeSchema),
+	skipped: z.array(changeSchema),
+})
+
+/**
+ * Performs a definitions file against the site, taking away only what the confirmations name.
+ * @param file - The definitions file exactly as it was written.
+ * @param confirm - The changes the admin agreed to have taken away.
+ * @returns What the import did.
+ */
+export async function applyDefinitions(file: string, confirm: Confirmed[]): Promise<ImportOutcome> {
+	const body = { ...(JSON.parse(file) as object), confirm }
+	const response = await fetch(definitionsApplyPath, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(body),
+	})
+	if (!response.ok) {
+		const parsed = errorSchema.safeParse(await response.json().catch(() => null))
+		throw new Error(errorText(parsed.success ? parsed.data : { error: '' }))
+	}
+	return outcomeSchema.parse(await response.json())
 }
 
 /**
