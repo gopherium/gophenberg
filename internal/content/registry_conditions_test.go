@@ -259,6 +259,38 @@ func TestMoveFieldTakesAFieldCarryingNoConditions(t *testing.T) {
 	}
 }
 
+func TestCreateFieldRefusesAConditionOnNoSibling(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	asked := readerOf("sale-note", "vanished", content.OperatorIs, "true")
+	asked.TypeKey = content.TypePost
+
+	_, err := registry.CreateField(t.Context(), asked)
+
+	if !errors.Is(err, content.ErrRuleSourceUnknown) {
+		t.Errorf("CreateField() error = %v, want %v", err, content.ErrRuleSourceUnknown)
+	}
+}
+
+func TestCreateFieldTakesAConditionOnAFieldTheTypeHolds(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	source := content.Field{
+		TypeKey: content.TypePost, Key: "on-sale", Label: "A Switch", Kind: content.FieldKindBoolean,
+	}
+	if _, err := registry.CreateField(t.Context(), source); err != nil {
+		t.Fatalf("declaring the source: %v, want nil", err)
+	}
+	asked := readerOf("sale-note", "on-sale", content.OperatorIs, "true")
+	asked.TypeKey = content.TypePost
+
+	if _, err := registry.CreateField(t.Context(), asked); err != nil {
+		t.Errorf("CreateField() error = %v, want the condition accepted", err)
+	}
+}
+
 func TestCreateSubFieldTakesAConditionOnARowSibling(t *testing.T) {
 	t.Parallel()
 

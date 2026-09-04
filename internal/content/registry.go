@@ -292,6 +292,9 @@ func (r *Registry) CreateField(ctx context.Context, f Field) (Field, error) {
 	if _, err := fieldOf(t, f.Key); err == nil {
 		return Field{}, ErrFieldTaken
 	}
+	if err := Stands(t.Fields, f); err != nil {
+		return Field{}, err
+	}
 	created, err := r.store.CreateField(ctx, f)
 	if err != nil {
 		return Field{}, err
