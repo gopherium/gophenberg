@@ -5,6 +5,7 @@ package features_test
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strconv"
 
 	"github.com/cucumber/godog"
@@ -21,6 +22,42 @@ func theAdministratorDeletesTheGroupField(ctx context.Context, key, title string
 		return err
 	}
 	return w.deleteAt(groupsPath + "/" + strconv.Itoa(held.ID) + "/fields/" + key)
+}
+
+// theAdministratorSavesTheValues carries the whole fields object the docstring names onto the post.
+func theAdministratorSavesTheValues(ctx context.Context, title string, values *godog.DocString) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return saveFieldValues(w, title, values.Content)
+}
+
+// thePostHoldsTheValues stores the values and asserts the item took them.
+func thePostHoldsTheValues(ctx context.Context, title string, values *godog.DocString) error {
+	if err := theAdministratorSavesTheValues(ctx, title, values); err != nil {
+		return err
+	}
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// theEditorAutosavesTheValues posts the whole fields object the docstring names as a buffer.
+func theEditorAutosavesTheValues(ctx context.Context, title string, values *godog.DocString) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	stored, err := freshPost(w, title)
+	if err != nil {
+		return err
+	}
+	body := fmt.Sprintf(`{"updated_at":%q,"title":%q,"content":"","excerpt":"","fields":%s}`,
+		stored.UpdatedAt, title, values.Content)
+	return w.postJSON(contentPath+"/"+stored.ID+"/autosave", body)
 }
 
 // theFieldIsGoneFrom asserts the registry serves the type no field under the key.
@@ -57,8 +94,16 @@ func initializeConditionalLogic(sc *godog.ScenarioContext) {
 		`^the administrator patches the settings of "([^"]*)" in "([^"]*)" to:$`,
 		theAdministratorPatchesSettings,
 	)
+	sc.Given(`^the post "([^"]*)"$`, thePostExists)
+	sc.Given(`^the post "([^"]*)" holding:$`, thePostHoldsTheValues)
 	sc.When(`^the administrator deletes the field "([^"]*)" from "([^"]*)"$`, theAdministratorDeletesTheGroupField)
+	sc.When(`^the administrator saves into "([^"]*)":$`, theAdministratorSavesTheValues)
+	sc.When(`^the editor autosaves "([^"]*)" holding:$`, theEditorAutosavesTheValues)
+	sc.When(`^the administrator publishes "([^"]*)"$`, theAdministratorPublishes)
+	sc.When(`^a visitor resolves "([^"]*)"$`, aVisitorResolves)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
+	sc.Then(`^the post "([^"]*)" holds "([^"]*)" in "([^"]*)"$`, thePostHolds)
+	sc.Then(`^the served fields carry no "([^"]*)"$`, theServedFieldsCarryNo)
 	sc.Then(`^the field "([^"]*)" on "([^"]*)" carries the setting "([^"]*)"$`, theFieldCarriesTheSetting)
 	sc.Then(`^the field "([^"]*)" is gone from "([^"]*)"$`, theFieldIsGoneFrom)
 }

@@ -75,3 +75,89 @@ Feature: Showing a field by rule
   Scenario: A field nobody reads is taken away
     When the administrator deletes the field "on-sale" from "Extras"
     Then the field "on-sale" is gone from "post"
+
+  Scenario: A value under a hidden field is refused
+    Given the "number" field "sale-price" in "Extras" with settings:
+      """
+      {"conditions": [[{"source": "on-sale", "operator": "==", "value": "true"}]]}
+      """
+    And the post "Winter sale"
+    When the administrator saves into "Winter sale":
+      """
+      {"on-sale": false, "sale-price": 20}
+      """
+    Then the request is refused with the code "field_hidden"
+
+  Scenario: A value under a shown field is stored
+    Given the "text" field "sale-note" in "Extras" with settings:
+      """
+      {"conditions": [[{"source": "on-sale", "operator": "==", "value": "true"}]]}
+      """
+    And the post "Winter sale"
+    When the administrator saves into "Winter sale":
+      """
+      {"on-sale": true, "sale-note": "half price"}
+      """
+    Then the post "Winter sale" holds "half price" in "sale-note"
+
+  Scenario: A value its field later hides stays where it stood
+    Given the "text" field "sale-note" in "Extras" with settings:
+      """
+      {"conditions": [[{"source": "on-sale", "operator": "==", "value": "true"}]]}
+      """
+    And the post "Winter sale"
+    And the post "Winter sale" holding:
+      """
+      {"on-sale": true, "sale-note": "half price"}
+      """
+    When the administrator saves into "Winter sale":
+      """
+      {"on-sale": false}
+      """
+    Then the post "Winter sale" holds "half price" in "sale-note"
+
+  Scenario: An autosave keeps a value the buffer left out
+    Given the "text" field "sale-note" in "Extras" with settings:
+      """
+      {"conditions": [[{"source": "on-sale", "operator": "==", "value": "true"}]]}
+      """
+    And the post "Winter sale"
+    And the post "Winter sale" holding:
+      """
+      {"on-sale": true, "sale-note": "half price"}
+      """
+    When the editor autosaves "Winter sale" holding:
+      """
+      {"on-sale": false}
+      """
+    Then the post "Winter sale" holds "half price" in "sale-note"
+
+  Scenario: An autosave carrying a hidden value is refused
+    Given the "number" field "sale-price" in "Extras" with settings:
+      """
+      {"conditions": [[{"source": "on-sale", "operator": "==", "value": "true"}]]}
+      """
+    And the post "Winter sale"
+    When the editor autosaves "Winter sale" holding:
+      """
+      {"on-sale": false, "sale-price": 20}
+      """
+    Then the request is refused with the code "field_hidden"
+
+  Scenario: A reader never sees a value the rules hide
+    Given the "text" field "sale-note" in "Extras" with settings:
+      """
+      {"conditions": [[{"source": "on-sale", "operator": "==", "value": "true"}]]}
+      """
+    And the post "Winter sale"
+    And the post "Winter sale" holding:
+      """
+      {"on-sale": true, "sale-note": "half price"}
+      """
+    And the post "Winter sale" holding:
+      """
+      {"on-sale": false}
+      """
+    When the administrator publishes "Winter sale"
+    And a visitor resolves "winter-sale"
+    Then the served fields carry no "sale-note"
