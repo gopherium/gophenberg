@@ -13,13 +13,19 @@ import (
 	"github.com/gopherium/gouncer/authkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/media"
 )
 
 // decodeKnown reads a single JSON request body into T, refusing attributes T does not declare.
 func decodeKnown[T any](w http.ResponseWriter, r *http.Request) (T, error) {
+	return decodeKnownCapped[T](w, r, authkit.MaxRequestBodyBytes)
+}
+
+// decodeKnownCapped reads a JSON request body of at most limit bytes into T, refusing attributes T does not declare.
+func decodeKnownCapped[T any](w http.ResponseWriter, r *http.Request, limit int64) (T, error) {
 	var v T
-	r.Body = http.MaxBytesReader(w, r.Body, authkit.MaxRequestBodyBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&v); err != nil {
@@ -166,6 +172,10 @@ var domainErrors = []struct {
 	{content.ErrPerPageInvalid, http.StatusUnprocessableEntity, "per_page_invalid"},
 	{content.ErrGroupNotFound, http.StatusNotFound, "group_not_found"},
 	{content.ErrInvalidGroupTitle, http.StatusUnprocessableEntity, "group_title_required"},
+	{content.ErrInvalidGroupKey, http.StatusUnprocessableEntity, "group_key_malformed"},
+	{content.ErrGroupKeyTaken, http.StatusUnprocessableEntity, "group_key_taken"},
+	{definitions.ErrFormatUnreadable, http.StatusUnprocessableEntity, "definitions_format_unreadable"},
+	{definitions.ErrFormatUnsupported, http.StatusUnprocessableEntity, "definitions_format_unsupported"},
 	{content.ErrGroupOrder, http.StatusUnprocessableEntity, "group_order_incomplete"},
 	{content.ErrRuleSourceUnknown, http.StatusUnprocessableEntity, "rule_source_unknown"},
 	{content.ErrRuleOperator, http.StatusUnprocessableEntity, "rule_operator"},

@@ -61,6 +61,8 @@ type Config struct {
 	Settings SiteSettings
 	// Readers persists the values one reader chooses. Nil leaves the locale preference unhandled.
 	Readers ReaderSettings
+	// DefinitionsImportCap is the largest definitions file an import takes. Zero applies its default.
+	DefinitionsImportCap int64
 }
 
 // registryOf returns the registry the configuration hands over, or one built over its type store.
@@ -83,7 +85,8 @@ func NewServer(cfg Config) http.Handler {
 		auth: auth, users: cfg.Users, content: cfg.Content, themes: cfg.Themes,
 		media: cfg.Media, mediaStore: cfg.MediaStore, version: cfg.Version,
 		settings: cfg.Settings, readers: cfg.Readers,
-		types: registryOf(cfg),
+		types:          registryOf(cfg),
+		definitionsCap: definitionsCapOf(cfg),
 	}
 	s.addresses = content.NewResolver(cfg.Content, s.types)
 	headers := headersFor(cfg.Cache)
@@ -182,6 +185,7 @@ func (s *server) mountAdmin(r chi.Router, admin *authkit.AdminHandlers, cfg Conf
 		r.Delete("/api/groups/{id}/inside/{fieldPath}", s.handleSubFieldDelete())
 		r.Put("/api/groups/{id}/inside/{fieldPath}/order", s.handleSubFieldOrder())
 		r.Get("/api/definitions", s.handleDefinitionsExport())
+		r.Post("/api/definitions/plan", s.handleDefinitionsPlan())
 	}
 	if cfg.Settings != nil {
 		r.Patch("/api/settings", s.handleSettingsPatch())
@@ -207,4 +211,6 @@ type server struct {
 	settings   SiteSettings
 	readers    ReaderSettings
 	version    string
+
+	definitionsCap int64
 }
