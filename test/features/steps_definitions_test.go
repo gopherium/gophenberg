@@ -70,6 +70,52 @@ func theDownloadHoldsTheGroupWithTheField(ctx context.Context, title, key string
 	return fmt.Errorf("the download holds no group %q", title)
 }
 
+// theAdministratorPlansTheFileTheSiteExports downloads the site's definitions and plans them straight back.
+func theAdministratorPlansTheFileTheSiteExports(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.get("/api/definitions"); err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusOK); err != nil {
+		return err
+	}
+	return w.postJSON("/api/definitions/plan", string(w.answer.body))
+}
+
+// theAdministratorPlansAFileWrittenInFormat plans an otherwise empty definitions file under the named format.
+func theAdministratorPlansAFileWrittenInFormat(ctx context.Context, format string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.postJSON("/api/definitions/plan", `{"format":"`+format+`","types":[],"groups":[]}`)
+}
+
+// thePlanHoldsNoChanges asserts the plan asks for nothing at all.
+func thePlanHoldsNoChanges(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusOK); err != nil {
+		return err
+	}
+	var planned struct {
+		Changes  []map[string]any `json:"changes"`
+		Warnings []map[string]any `json:"warnings"`
+	}
+	if err := w.answer.decode(&planned); err != nil {
+		return err
+	}
+	if len(planned.Changes) != 0 || len(planned.Warnings) != 0 {
+		return fmt.Errorf("the plan holds %v and warns %v, want nothing at all", planned.Changes, planned.Warnings)
+	}
+	return nil
+}
+
 // theDownloadLeavesOutTheGroup asserts the download carries no group under the title.
 func theDownloadLeavesOutTheGroup(ctx context.Context, title string) error {
 	w, err := worldOf(ctx)

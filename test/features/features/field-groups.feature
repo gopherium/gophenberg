@@ -106,6 +106,18 @@ Feature: Grouping fields and placing them by rule
     Then the download holds the group "Article details" with the field "subtitle"
     And the download leaves out the group "Event details"
 
+  Scenario: The site's own definitions plan as nothing to change, and the site stands untouched
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    When the administrator plans the file the site exports
+    Then the plan holds no changes
+    When the administrator lists the field groups
+    Then the group "Article details" is listed
+
+  Scenario: A definitions file from a release the site cannot read is refused
+    When the administrator plans a file written in format "9.0.0"
+    Then the request is refused with the code "definitions_format_unsupported"
+
   Scenario: Deleting a group takes its fields with it
     Given the group "Article details" for "post"
     And the "text" field "subtitle" labeled "Subtitle" in "Article details"
