@@ -58,6 +58,23 @@ func (s *server) handleDefinitionsPlan() http.HandlerFunc {
 	}
 }
 
+// handleDefinitionsApply returns an http.HandlerFunc performing a definitions file, taking away only what is confirmed.
+func (s *server) handleDefinitionsApply() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		asked, err := decodeKnownCapped[definitions.Import](w, r, s.definitionsCap)
+		if err != nil {
+			s.respondImportBodyError(w, err)
+			return
+		}
+		outcome, err := definitions.Apply(r.Context(), s.types, asked)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		authkit.Respond(w, http.StatusOK, outcome)
+	}
+}
+
 // respondImportBodyError writes a refused definitions body, naming the cap when the file ran past it.
 func (s *server) respondImportBodyError(w http.ResponseWriter, err error) {
 	var tooLarge *http.MaxBytesError

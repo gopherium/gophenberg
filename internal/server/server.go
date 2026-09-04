@@ -186,6 +186,7 @@ func (s *server) mountAdmin(r chi.Router, admin *authkit.AdminHandlers, cfg Conf
 		r.Put("/api/groups/{id}/inside/{fieldPath}/order", s.handleSubFieldOrder())
 		r.Get("/api/definitions", s.handleDefinitionsExport())
 		r.Post("/api/definitions/plan", s.handleDefinitionsPlan())
+		r.Post("/api/definitions/apply", s.handleDefinitionsApply())
 	}
 	if cfg.Settings != nil {
 		r.Patch("/api/settings", s.handleSettingsPatch())

@@ -14,6 +14,9 @@ import (
 // importPath is where a definitions file is planned against the site.
 const importPath = "/api/definitions/plan"
 
+// applyPath is where a definitions file is performed against the site.
+const applyPath = "/api/definitions/apply"
+
 // cappedServer returns a signed in admin handler whose definitions import takes at most the given bytes.
 func cappedServer(t *testing.T, cap int64) http.Handler {
 	t.Helper()
@@ -150,6 +153,67 @@ func TestDefinitionsImportPlansWhatAFileWouldChange(t *testing.T) {
 	}
 	if len(wanted) != 0 {
 		t.Errorf("plan = %+v, want a group and field created and the unnamed post type taken away", planned.Changes)
+	}
+}
+
+func TestDefinitionsApplyPerformsWhatTheAdminConfirmed(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	body := `{"format":"1.0.0","types":[{"key":"post","singular_label":"Post","plural_label":"Posts",` +
+		`"route_word":"","hierarchical":false,"revisions":true,"revision_cap":100,"page_kind":"single",` +
+		`"default":true,"active":true}],"groups":[{"key":"article-details","title":"Article details",` +
+		`"location":[],"active":true,"fields":[{"key":"subtitle","label":"Subtitle","kind":"text",` +
+		`"many":false,"required":false}]}],"confirm":[]}`
+
+	recorder := doRequest(t, handler, http.MethodPost, applyPath, body)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+	var answered struct {
+		Applied []struct {
+			Subject string `json:"subject"`
+			Key     string `json:"key"`
+		} `json:"applied"`
+		Skipped []map[string]any `json:"skipped"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answered); err != nil {
+		t.Fatalf("decoding the outcome: %v", err)
+	}
+	if len(answered.Applied) == 0 {
+		t.Fatalf("outcome = %+v, want the group and its field stored", answered)
+	}
+	listed := doRequest(t, handler, http.MethodGet, "/api/groups", "")
+	if !strings.Contains(listed.Body.String(), "article-details") {
+		t.Errorf("groups = %s, want the group the import stored", listed.Body)
+	}
+}
+
+func TestDefinitionsApplyRefusesAFormatItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+
+	recorder := doRequest(t, handler, http.MethodPost, applyPath, `{"format":"nineteen","confirm":[]}`)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body)
+	}
+	if code := errorCode(t, recorder); code != "definitions_format_unreadable" {
+		t.Errorf("code = %q, want definitions_format_unreadable", code)
+	}
+}
+
+func TestDefinitionsApplyRefusesABodyPastTheCap(t *testing.T) {
+	t.Parallel()
+
+	handler := cappedServer(t, 1<<10)
+
+	recorder := doRequest(t, handler, http.MethodPost, applyPath, envelopeOf("1.0.0", 4<<10))
+
+	if recorder.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusRequestEntityTooLarge, recorder.Body)
 	}
 }
 
