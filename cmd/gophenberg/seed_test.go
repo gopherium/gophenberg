@@ -553,3 +553,26 @@ func TestSeedReportsPagesItCannotStore(t *testing.T) {
 		t.Error("seedDemoContent() error = nil, want the refused page reported")
 	}
 }
+
+func TestSeedReportsContainersItCannotDeclare(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	}
+	execSQL(t, databaseURL, "DELETE FROM core.content_fields WHERE key IN ('team', 'name', 'role')")
+	execSQL(t, databaseURL,
+		"ALTER TABLE core.content_fields ADD CONSTRAINT no_team CHECK (key <> 'team')")
+
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("opening the pool: %v", err)
+	}
+	defer pool.Close()
+
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+		t.Error("seedDemoContent() error = nil, want the refused container reported")
+	}
+}
