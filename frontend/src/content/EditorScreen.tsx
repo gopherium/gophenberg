@@ -33,6 +33,7 @@ import { EditorHeader } from './EditorHeader'
 import { EditorSidebar } from './EditorSidebar'
 import { RestoreBanner } from './RestoreBanner'
 import { useAutosave } from './useAutosave'
+import { useContentType } from './useContentType'
 import { useEditorBuffer } from './useEditorBuffer'
 import { useEditorViews } from './useEditorViews'
 
@@ -71,7 +72,8 @@ export function EditorScreen() {
  * @returns The editor element.
  */
 function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
-	const buffer = useEditorBuffer(postId, stored)
+	const listed = useContentType()
+	const buffer = useEditorBuffer(postId, stored, listed.fields)
 	const views = useEditorViews()
 	useAutosave(postId, buffer)
 	return (

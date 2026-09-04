@@ -21,6 +21,7 @@ import { useId, useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
 
 import { errorTemplates } from '../i18n/errorTemplates'
+import { hiddenKeys } from './conditions'
 import { GalleryField, MediaField, galleryHeld, mediaHeld } from './MediaField'
 import { RelationPicker, targetsHeld } from './RelationPicker'
 import { pairsOf } from './types'
@@ -527,10 +528,12 @@ interface Editing {
  * @returns The controls element.
  */
 function DeclaredFields({ postId, declared, values, onChange }: Editing) {
-	const rendered = useMemo(() => editableFields(declared), [declared])
-	const related = useMemo(() => relationFields(declared), [declared])
-	const pictured = useMemo(() => mediaFields(declared), [declared])
-	const contained = useMemo(() => containerFields(declared), [declared])
+	const hidden = useMemo(() => [...hiddenKeys(declared, values)].sort().join(','), [declared, values])
+	const shown = useMemo(() => declared.filter((field) => !hidden.split(',').includes(field.key)), [declared, hidden])
+	const rendered = useMemo(() => editableFields(shown), [shown])
+	const related = useMemo(() => relationFields(shown), [shown])
+	const pictured = useMemo(() => mediaFields(shown), [shown])
+	const contained = useMemo(() => containerFields(shown), [shown])
 	const descriptors = useMemo(() => fieldDescriptors(rendered), [rendered])
 	const complaints = useMemo(() => fieldValidity(rendered, values), [rendered, values])
 	return (
@@ -690,10 +693,15 @@ export function FieldsPanel({
 	declared: ContentField[]
 	buffer: EditorBuffer
 }) {
-	const rendered = useMemo(() => editableFields(declared), [declared])
-	const related = useMemo(() => relationFields(declared), [declared])
-	const pictured = useMemo(() => mediaFields(declared), [declared])
-	const contained = useMemo(() => containerFields(declared), [declared])
+	const hidden = useMemo(
+		() => [...hiddenKeys(declared, buffer.fields)].sort().join(','),
+		[declared, buffer.fields],
+	)
+	const shown = useMemo(() => declared.filter((field) => !hidden.split(',').includes(field.key)), [declared, hidden])
+	const rendered = useMemo(() => editableFields(shown), [shown])
+	const related = useMemo(() => relationFields(shown), [shown])
+	const pictured = useMemo(() => mediaFields(shown), [shown])
+	const contained = useMemo(() => containerFields(shown), [shown])
 	if (rendered.length === 0 && related.length === 0 && pictured.length === 0 && contained.length === 0) {
 		return null
 	}

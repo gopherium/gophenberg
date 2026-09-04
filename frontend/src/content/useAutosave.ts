@@ -17,6 +17,7 @@ const AUTOSAVE_TARGET_POST = 'post'
 export function useAutosave(
 	postId: string,
 	buffer: AutosaveBuffer & {
+		shown: Record<string, unknown>
 		dirty: boolean
 		saving: boolean
 		version: string
@@ -39,7 +40,7 @@ export function useAutosave(
 			}
 			void autosavePost(
 				postId,
-				{ title: held.title, content: held.content, excerpt: held.excerpt, fields: held.fields },
+				{ title: held.title, content: held.content, excerpt: held.excerpt, fields: held.shown },
 				held.version,
 				keepalive,
 			)

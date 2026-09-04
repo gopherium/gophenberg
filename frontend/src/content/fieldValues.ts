@@ -44,5 +44,8 @@ function sameValue(held: unknown, other: unknown): boolean {
 			held.every((target, i) => target === other[i])
 		)
 	}
+	if (held === null || held === undefined) {
+		return other === null || other === undefined
+	}
 	return held === other
 }

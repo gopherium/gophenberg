@@ -9,6 +9,8 @@ import { useMemo, useState } from 'react'
 
 import { savePost } from './api'
 import type { PostChanges, PostDetail, SaveOutcome } from './api'
+import type { ContentField } from './types'
+import { shownValues } from './conditions'
 import { changedFieldValues, sameFieldValues } from './fieldValues'
 
 export interface EditorBuffer {
@@ -21,6 +23,7 @@ export interface EditorBuffer {
 	parentId: string | null
 	excerpt: string
 	fields: Record<string, unknown>
+	shown: Record<string, unknown>
 	dirty: boolean
 	saving: boolean
 	version: string
@@ -48,7 +51,7 @@ export interface EditorBuffer {
  * @param stored - The post as the server last reported it.
  * @returns The buffer and the handlers changing it.
  */
-export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffer {
+export function useEditorBuffer(postId: string, stored: PostDetail, declared: ContentField[] = []): EditorBuffer {
 	const client = useQueryClient()
 	const toaster = useToaster()
 	const [title, setTitle] = useState(stored.title)
@@ -58,6 +61,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 	const [excerpt, setExcerpt] = useState(stored.excerpt)
 	const [fields, setFields] = useState(stored.fields)
 	const [version, setVersion] = useState(stored.updatedAt)
+	const shown = useMemo(() => shownValues(declared, fields), [declared, fields])
 	const [saved, setSaved] = useState({
 		title: stored.title,
 		content: stored.content,
@@ -124,6 +128,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 			excerpt !== saved.excerpt ||
 			status !== saved.status ||
 			!sameFieldValues(fields, saved.fields),
+		shown,
 		saving: write.isPending,
 		version,
 		hasUndo: history.hasUndo,
@@ -157,7 +162,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 				excerpt,
 				status,
 				parent_id: parentId,
-				fields: changedFieldValues(fields, saved.fields),
+				fields: changedFieldValues(shown, saved.fields),
 			}),
 		publish: () =>
 			write.mutate({
@@ -167,7 +172,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail): EditorBuffe
 				excerpt,
 				status: 'published',
 				parent_id: parentId,
-				fields: changedFieldValues(fields, saved.fields),
+				fields: changedFieldValues(shown, saved.fields),
 			}),
 		adoptVersion: setVersion,
 	}

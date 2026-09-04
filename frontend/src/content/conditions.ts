@@ -269,6 +269,47 @@ function ruleHolds(rule: ConditionRule, sources: Set<string>, screen: Record<str
 }
 
 /**
+ * Returns the values with every key the conditions hide taken away, at any depth.
+ * @param fields - The fields of one scope, holding the fields their containers declare.
+ * @param values - The values the scope holds.
+ * @returns The values to send.
+ */
+export function shownValues(
+	fields: (ConditionField & { fields?: ConditionField[] })[],
+	values: Record<string, unknown>,
+): Record<string, unknown> {
+	const hidden = hiddenKeys(fields, values)
+	const shown: Record<string, unknown> = {}
+	for (const [key, value] of Object.entries(values)) {
+		if (!hidden.has(key)) {
+			shown[key] = value
+		}
+	}
+	for (const field of fields) {
+		if (field.fields !== undefined && field.fields.length > 0 && shown[field.key] !== undefined) {
+			shown[field.key] = shownInside(field.fields, shown[field.key])
+		}
+	}
+	return shown
+}
+
+/**
+ * Returns a container's value with every key its own rules hide taken away from each row.
+ * @param fields - The fields the container declares.
+ * @param value - The value the container holds.
+ * @returns The value to send.
+ */
+function shownInside(fields: ConditionField[], value: unknown): unknown {
+	if (Array.isArray(value)) {
+		return value.map((row) => shownInside(fields, row))
+	}
+	if (typeof value !== 'object' || value === null) {
+		return value
+	}
+	return shownValues(fields, value as Record<string, unknown>)
+}
+
+/**
  * Returns the keys of the fields their conditions hide on the scope, a hidden source reading as absent.
  * @param fields - The fields of one scope.
  * @param scope - The values the scope holds.
