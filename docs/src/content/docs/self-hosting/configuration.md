@@ -21,6 +21,7 @@ environment variables win over it.
 | `GOPHENBERG_THEME` | No | | Pins one theme, overriding the admin. Empty lets the admin choose |
 | `GOPHENBERG_NODE_BIN` | No | `node` | The Node binary themes run on. The image sets its own |
 | `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` | No | `128` | The largest upload the media library takes, in megabytes |
+| `GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB` | No | `256` | The largest definitions file an import takes, in kilobytes, from 1 to 1024 |
 | `GOPHENBERG_THEME_READY_TIMEOUT` | No | `30s` | How long a starting theme has to answer before it is given up on |
 | `GOPHENBERG_THEME_START_ATTEMPTS` | No | `5` | How many times a theme that will not start is tried again, from 1 to 1000 |
 | `GOPHENBERG_THEME_BACKOFF` | No | `500ms` | How long to wait before the first retry, doubling after each one |
@@ -83,6 +84,8 @@ The server refuses to start, and says why, when:
 - `GOPHENBERG_FEED_ITEMS` is not a positive whole number.
 - `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` is not a positive whole number, or
   names more megabytes than the server can count in bytes.
+- `GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB` is not a whole number from 1 to
+  1024, which is as much of a request body as the server reads.
 - `GOPHENBERG_THEME_START_ATTEMPTS` is not a whole number from 1 to 1000.
   Both of these refuse rather than quietly using another value.
 - Any of the cache windows is not a positive whole number of seconds.
