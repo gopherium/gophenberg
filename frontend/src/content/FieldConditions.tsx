@@ -76,6 +76,16 @@ function shapeOf(kind: string): string {
 }
 
 /**
+ * Returns the choice standing for a stored value.
+ * @param offered - The choices the select holds.
+ * @param value - The value stored.
+ * @returns The matching choice, or the raw value when nothing matches.
+ */
+function chosen(offered: Choice[], value: string): Choice {
+	return offered.find((one) => one.value === value) ?? { value, label: value }
+}
+
+/**
  * Renders one condition as the source, operator and value it reads.
  * @param props - The rule, where it sits, the sources, and what to do.
  * @returns The row element.
@@ -93,8 +103,6 @@ function ConditionRow(props: {
 		label: OPERATOR_LABELS[operator],
 	}))
 	const values = valuesOf(held)
-	const chosen = (offered: Choice[], value: string) =>
-		offered.find((one) => one.value === value) ?? { value, label: value }
 	return (
 		<Stack direction="row" gap="sm" align="end">
 			<SelectControl

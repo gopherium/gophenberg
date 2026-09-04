@@ -25,7 +25,7 @@ func declaredSettings(d sdk.FieldDeclaration) map[string]any {
 	return settings
 }
 
-// withheldConditions returns the settings without the rules a field is shown under, which a later pass writes.
+// withheldConditions returns the settings without the rules a field is shown under.
 func withheldConditions(settings map[string]any) map[string]any {
 	held := make(map[string]any, len(settings))
 	for name, value := range settings {

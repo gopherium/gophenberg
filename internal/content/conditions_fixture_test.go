@@ -53,7 +53,7 @@ func loadConditionsFixture(t *testing.T) conditionsFixture {
 	return fixture
 }
 
-// fieldOf returns the field a fixture entry declares.
+// declaredField returns the field a fixture entry declares.
 func declaredField(declared fixtureField) Field {
 	settings := map[string]any{}
 	if declared.Multiple {
