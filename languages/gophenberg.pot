@@ -606,6 +606,9 @@ msgstr ""
 msgid "Gophenberg has no autosave of yours for this item. Open the item to see the version that is stored."
 msgstr ""
 
+msgid "Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again."
+msgstr ""
+
 msgid "Gophenberg keeps this address for itself, so your content cannot answer there. Give the item a different slug."
 msgstr ""
 

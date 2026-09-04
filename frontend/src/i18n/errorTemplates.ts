@@ -71,6 +71,10 @@ export function errorTemplates(): Record<string, string> {
 			'The %(origin)s plugin declared this, so it can only be changed in that plugin. Turning it off is still yours to do.',
 			DOMAIN,
 		),
+		definition_subject_unknown: __(
+			'Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again.',
+			DOMAIN,
+		),
 		definitions_format_unreadable: __(
 			'This file says it was written in format %(declared)s, which is not a version Gophenberg can read. Export the definitions again from the site they came from.',
 			DOMAIN,

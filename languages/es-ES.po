@@ -1830,3 +1830,7 @@ msgstr "Adoptar"
 #, fuzzy
 msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key."
 msgstr "El plugin %(plugin)s también declara %(name)s, y el sitio se queda con la clave."
+
+#, fuzzy
+msgid "Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again."
+msgstr "Gophenberg no tiene ninguna clase de definición llamada %(subject)s, así que no se ha adoptado nada. Recarga la página para que el admin y el servidor vuelvan a coincidir."
