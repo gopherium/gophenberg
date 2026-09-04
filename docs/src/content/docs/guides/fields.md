@@ -160,6 +160,30 @@ A field can be marked **required**, as you declare it or with
 publishing, so an item goes public only once the field holds
 something.
 
+## Showing a field by rule
+
+A field can wait until another field says so. Press **Rules** beside
+it and add a condition: pick a field, pick a comparison, pick or type
+a value. The field then shows only while the rule holds, and the
+editor hides it the moment you change what it reads.
+
+Add more conditions to one set and every one of them has to hold. Add
+a second set and the field shows when either set holds.
+
+A rule reads the fields standing beside it. A field at the top of a
+group reads the group's other fields, and a field inside a section or
+a repeater row reads the others in that same row, row by row. A rule
+cannot read a field in another group, and it cannot lead back to
+itself.
+
+What a hidden field already holds stays where it is. Turn the switch
+back on and the value is still there. While the field is hidden its
+value is not required to publish, it never reaches visitors, and the
+editor stops sending it.
+
+Removing a field another field's rules read is refused, and so is
+moving it to another group. Change those rules first.
+
 ## Relations connect types
 
 A relation field points items of one type at items of another.

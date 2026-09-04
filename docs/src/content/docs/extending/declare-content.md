@@ -25,6 +25,10 @@ func (p *Plugin) DeclareTypes(ctx context.Context, types sdk.TypeRegistrar) erro
 		Location: [][]sdk.Rule{{{Source: "content_type", Operator: "==", Value: "event"}}},
 		Fields: []sdk.FieldDeclaration{
 			{Key: "venue", Label: "Venue", Kind: "text", Required: true},
+			{Key: "ticketed", Label: "Ticketed", Kind: "boolean"},
+			{Key: "price", Label: "Price", Kind: "number", Conditions: [][]sdk.Rule{
+				{{Source: "ticketed", Operator: "==", Value: "true"}},
+			}},
 			{Key: "schedule", Label: "Schedule", Kind: "section", Fields: []sdk.FieldDeclaration{
 				{Key: "starts-at", Label: "Starts at", Kind: "date"},
 			}},
@@ -32,6 +36,11 @@ func (p *Plugin) DeclareTypes(ctx context.Context, types sdk.TypeRegistrar) erro
 	})
 }
 ```
+
+`Conditions` says when a field shows, reading the fields standing
+beside it. Declare them in any order you like, the host writes the
+fields first and their conditions afterwards. `Listed: true` puts a
+field in the content list as a column.
 
 Keys follow the same shape everywhere in Gophenberg. Start with a
 lowercase letter, then lowercase letters, numbers and hyphens.
