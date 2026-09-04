@@ -182,4 +182,7 @@ var domainErrors = []struct {
 	{content.ErrRuleOperator, http.StatusUnprocessableEntity, "rule_operator"},
 	{content.ErrRuleValue, http.StatusUnprocessableEntity, "rule_value_missing"},
 	{content.ErrRuleAnyNegated, http.StatusUnprocessableEntity, "rule_any_negated"},
+	{content.ErrRuleCycle, http.StatusUnprocessableEntity, "rule_cycle"},
+	{content.ErrFieldHidden, http.StatusUnprocessableEntity, "field_hidden"},
+	{content.ErrFieldReferenced, http.StatusUnprocessableEntity, "field_referenced"},
 }
