@@ -2274,3 +2274,59 @@ msgstr "Les règles de %(field)s reviennent à %(field)s lui-même, rien ne peut
 #, fuzzy
 msgid "The field %(source)s cannot hold the value %(value)s, so no rule can compare it. Write a value of the kind %(source)s stores."
 msgstr "Le champ %(source)s ne peut pas contenir la valeur %(value)s, aucune règle ne peut donc la comparer. Écrivez une valeur du type que %(source)s enregistre."
+
+#, fuzzy
+msgid "%(field)s shows by its rules now."
+msgstr "%(field)s s'affiche désormais selon ses règles."
+
+#, fuzzy
+msgid "%(field)s stands in the list."
+msgstr "%(field)s figure dans la liste."
+
+#, fuzzy
+msgid "%(field)s stays out of the list."
+msgstr "%(field)s reste hors de la liste."
+
+#, fuzzy
+msgid "In list"
+msgstr "Dans la liste"
+
+#, fuzzy
+msgid "Keep %(field)s out of the list"
+msgstr "Garder %(field)s hors de la liste"
+
+#, fuzzy
+msgid "Out of list"
+msgstr "Hors de la liste"
+
+#, fuzzy
+msgid "Rules showing %(field)s"
+msgstr "Règles affichant %(field)s"
+
+#, fuzzy
+msgid "Show %(field)s in the list"
+msgstr "Afficher %(field)s dans la liste"
+
+#, fuzzy
+msgid "Without a rule this field always shows."
+msgstr "Sans aucune règle ce champ s'affiche toujours."
+
+#, fuzzy
+msgid "holds"
+msgstr "contient"
+
+#, fuzzy
+msgid "holds anything"
+msgstr "contient quelque chose"
+
+#, fuzzy
+msgid "is above"
+msgstr "est supérieur à"
+
+#, fuzzy
+msgid "is below"
+msgstr "est inférieur à"
+
+#, fuzzy
+msgid "is empty"
+msgstr "est vide"
