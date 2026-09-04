@@ -71,6 +71,18 @@ export function errorTemplates(): Record<string, string> {
 			'The %(origin)s plugin declared this, so it can only be changed in that plugin. Turning it off is still yours to do.',
 			DOMAIN,
 		),
+		definitions_format_unreadable: __(
+			'This file says it was written in format %(declared)s, which is not a version Gophenberg can read. Export the definitions again from the site they came from.',
+			DOMAIN,
+		),
+		definitions_format_unsupported: __(
+			'This file was written in format %(declared)s, and this release reads %(served)s. Upgrade the site the file came from, or this one.',
+			DOMAIN,
+		),
+		definitions_too_large: __(
+			'This definitions file is larger than the %(max)d bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with.',
+			DOMAIN,
+		),
 		field_key_malformed: __(
 			'A field key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the field so its key comes out in that shape.',
 			DOMAIN,
@@ -162,6 +174,14 @@ export function errorTemplates(): Record<string, string> {
 		file_too_large: __('This file is larger than the upload limit. Upload a smaller file.', DOMAIN),
 		file_type_not_allowed: __(
 			'Gophenberg does not accept %(extension)s files. Upload a picture, a video, an audio file, a PDF or a zip instead.',
+			DOMAIN,
+		),
+		group_key_malformed: __(
+			'A field group key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the group in the file so its key comes out in that shape.',
+			DOMAIN,
+		),
+		group_key_taken: __(
+			'Two field groups in this file share the key %(key)s. Give one of them a different key and import again.',
 			DOMAIN,
 		),
 		group_not_found: __(

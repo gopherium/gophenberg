@@ -117,6 +117,12 @@ msgstr ""
 msgid "%(title)s goes to the trash. You can restore it from there."
 msgstr ""
 
+msgid "%(type)s answers on a new address, and stored links move with it."
+msgstr ""
+
+msgid "%(type)s becomes the type the site opens on, and the old one takes an address."
+msgstr ""
+
 msgid "%(type)s registered."
 msgstr ""
 
@@ -136,6 +142,9 @@ msgid "A %(kind)s field does not take a setting called %(setting)s. Remove it an
 msgstr ""
 
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
+msgstr ""
+
+msgid "A field group key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the group in the file so its key comes out in that shape."
 msgstr ""
 
 msgid "A field key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the field so its key comes out in that shape."
@@ -187,6 +196,9 @@ msgid "Active"
 msgstr ""
 
 msgid "Add"
+msgstr ""
+
+msgid "Add %(name)s"
 msgstr ""
 
 msgid "Add %(type)s"
@@ -312,6 +324,9 @@ msgstr ""
 msgid "Caption"
 msgstr ""
 
+msgid "Change %(name)s"
+msgstr ""
+
 msgid "Change address"
 msgstr ""
 
@@ -334,6 +349,9 @@ msgid "Choose the language the admin reads in."
 msgstr ""
 
 msgid "Clear %(field)s"
+msgstr ""
+
+msgid "Close"
 msgstr ""
 
 msgid "Closed"
@@ -410,6 +428,9 @@ msgid "December"
 msgstr ""
 
 msgid "Default"
+msgstr ""
+
+msgid "Definitions file"
 msgstr ""
 
 msgid "Delete"
@@ -516,7 +537,13 @@ msgstr ""
 msgid "February"
 msgstr ""
 
+msgid "Field"
+msgstr ""
+
 msgid "Field Groups"
+msgstr ""
+
+msgid "Field group"
 msgstr ""
 
 msgid "Fields"
@@ -591,6 +618,9 @@ msgstr ""
 msgid "Images"
 msgstr ""
 
+msgid "Import definitions"
+msgstr ""
+
 msgid "Inactive"
 msgstr ""
 
@@ -603,7 +633,13 @@ msgstr ""
 msgid "Instructions"
 msgstr ""
 
+msgid "It moves to another group, so its stored values do not follow."
+msgstr ""
+
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
+msgstr ""
+
+msgid "Its kind changed, so its stored values go with it."
 msgstr ""
 
 msgid "January"
@@ -900,6 +936,9 @@ msgid "Relation"
 msgstr ""
 
 msgid "Remove"
+msgstr ""
+
+msgid "Remove %(name)s"
 msgstr ""
 
 msgid "Remove %(title)s"
@@ -1271,6 +1310,9 @@ msgstr ""
 msgid "This content type still holds content, so it cannot be deleted. Move or delete its items first."
 msgstr ""
 
+msgid "This definitions file is larger than the %(max)d bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
+msgstr ""
+
 msgid "This field would stand inside too many containers. Put it nearer the top and try again."
 msgstr ""
 
@@ -1281,6 +1323,15 @@ msgid "This file is larger than the upload limit. Upload a smaller file."
 msgstr ""
 
 msgid "This file is named %(extension)s but it holds %(detected)s content. Upload it under a name that matches what is inside it."
+msgstr ""
+
+msgid "This file matches the site, so there is nothing to change."
+msgstr ""
+
+msgid "This file says it was written in format %(declared)s, which is not a version Gophenberg can read. Export the definitions again from the site they came from."
+msgstr ""
+
+msgid "This file was written in format %(declared)s, and this release reads %(served)s. Upgrade the site the file came from, or this one."
 msgstr ""
 
 msgid "This group holds no fields yet."
@@ -1352,6 +1403,9 @@ msgstr ""
 msgid "Title"
 msgstr ""
 
+msgid "Two field groups in this file share the key %(key)s. Give one of them a different key and import again."
+msgstr ""
+
 msgid "Two rule sources are registered under the name %(param)s. A plugin is declaring a source your site already holds."
 msgstr ""
 
@@ -1392,6 +1446,9 @@ msgid "Web address"
 msgstr ""
 
 msgid "Welcome to Gophenberg."
+msgstr ""
+
+msgid "What it points at changed, so its stored values go with it."
 msgstr ""
 
 msgid "Where %(group)s appears"
