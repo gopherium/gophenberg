@@ -285,6 +285,14 @@ export function ImportDefinitions() {
 								}}
 							/>
 							{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
+							{perform.isError && (
+								<Text variant="body-sm">
+									{__(
+										'The site may already hold part of this file. Import it again to see what is left.',
+										'gophenberg',
+									)}
+								</Text>
+							)}
 							{plan !== null && (
 								<PlanView plan={plan} confirmed={confirmed} onConfirm={confirming} />
 							)}

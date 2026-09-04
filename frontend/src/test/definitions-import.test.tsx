@@ -134,6 +134,22 @@ test('says why an import was turned away', async () => {
 	expect(await screen.findByRole('alert')).toHaveTextContent(/events/)
 })
 
+test('warns that part of the file may already have landed when an apply fails', async () => {
+	planning(() => HttpResponse.json(PLAN))
+	server.use(
+		http.post('/api/definitions/apply', () =>
+			HttpResponse.json({ error: 'in use', code: 'type_in_use' }, { status: 422 }),
+		),
+	)
+
+	await importing('{"format":"1.0.0"}')
+	await userEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+
+	expect(
+		await screen.findByText('The site may already hold part of this file. Import it again to see what is left.'),
+	).toBeInTheDocument()
+})
+
 test('says an import was turned away even when the answer carries no reason', async () => {
 	planning(() => HttpResponse.json(PLAN))
 	server.use(http.post('/api/definitions/apply', () => new HttpResponse('gateway said no', { status: 502 })))
