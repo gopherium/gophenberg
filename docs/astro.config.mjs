@@ -65,6 +65,7 @@ export default defineConfig({
 					items: [
 						{ slug: 'extending/write-a-plugin' },
 						{ slug: 'extending/the-plugin-sdk' },
+						{ slug: 'extending/declare-content' },
 					],
 				},
 				{
