@@ -4,9 +4,12 @@ package features_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/gopherium/gophenberg/internal/definitions"
 )
 
 // downloadedGroup is one field group as the definitions download carries it.
@@ -92,6 +95,74 @@ func theAdministratorPlansAFileWrittenInFormat(ctx context.Context, format strin
 		return err
 	}
 	return w.postJSON("/api/definitions/plan", `{"format":"`+format+`","types":[],"groups":[]}`)
+}
+
+// exportedBySite returns the definitions the site downloads right now.
+func exportedBySite(ctx context.Context) (*world, definitions.Envelope, error) {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return nil, definitions.Envelope{}, err
+	}
+	if err := w.get("/api/definitions"); err != nil {
+		return nil, definitions.Envelope{}, err
+	}
+	if err := w.expect(http.StatusOK); err != nil {
+		return nil, definitions.Envelope{}, err
+	}
+	var envelope definitions.Envelope
+	if err := w.answer.decode(&envelope); err != nil {
+		return nil, definitions.Envelope{}, err
+	}
+	return w, envelope, nil
+}
+
+// applying performs the import against the running site.
+func applying(w *world, asked definitions.Import) error {
+	body, err := json.Marshal(asked)
+	if err != nil {
+		return fmt.Errorf("writing the import: %w", err)
+	}
+	if err := w.postJSON("/api/definitions/apply", string(body)); err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// theAdministratorAppliesAFileRenamingTheGroup applies the site's own definitions with one group retitled.
+func theAdministratorAppliesAFileRenamingTheGroup(ctx context.Context, title, renamed string) error {
+	w, envelope, err := exportedBySite(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range envelope.Groups {
+		if envelope.Groups[i].Title == title {
+			envelope.Groups[i].Title = renamed
+		}
+	}
+	return applying(w, definitions.Import{Envelope: envelope})
+}
+
+// theAdministratorAppliesAFileHoldingNoGroups applies the site's own definitions with every group left out.
+func theAdministratorAppliesAFileHoldingNoGroups(ctx context.Context) error {
+	w, envelope, err := exportedBySite(ctx)
+	if err != nil {
+		return err
+	}
+	envelope.Groups = nil
+	return applying(w, definitions.Import{Envelope: envelope})
+}
+
+// theAdministratorAppliesAFileGivingUpTheGroup applies the file with every group left out and one loss confirmed.
+func theAdministratorAppliesAFileGivingUpTheGroup(ctx context.Context, key string) error {
+	w, envelope, err := exportedBySite(ctx)
+	if err != nil {
+		return err
+	}
+	envelope.Groups = nil
+	return applying(w, definitions.Import{
+		Envelope: envelope,
+		Confirm:  []definitions.Confirmed{{Subject: "group", Key: key}},
+	})
 }
 
 // thePlanHoldsNoChanges asserts the plan asks for nothing at all.

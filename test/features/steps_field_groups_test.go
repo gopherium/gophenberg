@@ -429,6 +429,12 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator plans the file the site exports$`, theAdministratorPlansTheFileTheSiteExports)
 	sc.When(`^the administrator plans a file written in format "([^"]*)"$`, theAdministratorPlansAFileWrittenInFormat)
 	sc.Then(`^the plan holds no changes$`, thePlanHoldsNoChanges)
+	sc.When(`^the administrator applies a file renaming the group "([^"]*)" to "([^"]*)"$`,
+		theAdministratorAppliesAFileRenamingTheGroup)
+	sc.When(`^the administrator applies a file holding no field groups$`,
+		theAdministratorAppliesAFileHoldingNoGroups)
+	sc.When(`^the administrator applies a file giving up the group "([^"]*)"$`,
+		theAdministratorAppliesAFileGivingUpTheGroup)
 	sc.Given(`^the "([^"]*)" field "([^"]*)" labeled "([^"]*)" in "([^"]*)"$`, theFieldExistsInGroup)
 	sc.When(`^the administrator lists the field groups$`, theAdministratorListsTheFieldGroups)
 	sc.When(`^the administrator creates the group "([^"]*)" for "([^"]*)"$`, theAdministratorCreatesTheGroupFor)

@@ -114,6 +114,24 @@ Feature: Grouping fields and placing them by rule
     When the administrator lists the field groups
     Then the group "Article details" is listed
 
+  Scenario: A definitions file the administrator applies reshapes the site
+    Given the group "Article details" for "post"
+    When the administrator applies a file renaming the group "Article details" to "Article facts"
+    And the administrator lists the field groups
+    Then the group "Article facts" is listed
+
+  Scenario: An import takes nothing away that nobody confirmed
+    Given the group "Article details" for "post"
+    When the administrator applies a file holding no field groups
+    And the administrator lists the field groups
+    Then the group "Article details" is listed
+
+  Scenario: An import takes away the group whose loss the administrator confirmed
+    Given the group "Article details" for "post"
+    When the administrator applies a file giving up the group "article-details"
+    And the administrator lists the field groups
+    Then no field groups are listed
+
   Scenario: A definitions file from a release the site cannot read is refused
     When the administrator plans a file written in format "9.0.0"
     Then the request is refused with the code "definitions_format_unsupported"
