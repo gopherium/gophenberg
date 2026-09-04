@@ -57,17 +57,17 @@ func run(
 	defer reaper.Stop()
 
 	contentStore := postgres.NewContentStore(pool)
+	typeStore := postgres.NewTypeStore(pool)
+	registry := content.NewRegistry(typeStore)
 	registered, err := plugins(sdk.Deps{
 		DatabaseURL: settings.databaseURL,
-		Content:     contentbridge.New(contentStore),
+		Content:     contentbridge.New(contentStore, registry),
 		Getenv:      getenv,
 	})
 	if err != nil {
 		return fmt.Errorf("register plugins: %w", err)
 	}
 
-	typeStore := postgres.NewTypeStore(pool)
-	registry := content.NewRegistry(typeStore)
 	walked, err := declareTypes(ctx, registry, registered, logger)
 	if err != nil {
 		return fmt.Errorf("declare plugin types: %w", err)

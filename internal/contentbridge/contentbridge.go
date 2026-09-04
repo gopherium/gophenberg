@@ -15,14 +15,20 @@ import (
 
 var _ sdk.ContentReader = reader{}
 
+// Types reads the content type a published item stands under.
+type Types interface {
+	ByKey(ctx context.Context, key string) (content.Type, error)
+}
+
 // reader reads published content for plugins through the content store.
 type reader struct {
 	store content.Store
+	types Types
 }
 
-// New returns an [sdk.ContentReader] backed by store.
-func New(store content.Store) sdk.ContentReader {
-	return reader{store: store}
+// New returns an [sdk.ContentReader] backed by store, reading its field definitions through types.
+func New(store content.Store, types Types) sdk.ContentReader {
+	return reader{store: store, types: types}
 }
 
 // ListPublished returns the newest published items of the given type, capped at limit.
@@ -38,6 +44,10 @@ func (r reader) ListPublished(ctx context.Context, contentType string, limit int
 	if err != nil {
 		return nil, fmt.Errorf("contentbridge: list published content: %w", err)
 	}
+	t, err := r.types.ByKey(ctx, contentType)
+	if err != nil {
+		return nil, fmt.Errorf("contentbridge: read the type %s: %w", contentType, err)
+	}
 	published := make([]sdk.Item, 0, len(found))
 	for _, c := range found {
 		withContent, serving, err := r.stillPublished(ctx, c)
@@ -45,7 +55,7 @@ func (r reader) ListPublished(ctx context.Context, contentType string, limit int
 			return nil, fmt.Errorf("contentbridge: read published content %s: %w", c.ID, err)
 		}
 		if serving {
-			published = append(published, toSDKItem(withContent))
+			published = append(published, toSDKItem(withContent, t.Fields))
 		}
 	}
 	return published, nil
@@ -63,8 +73,8 @@ func (r reader) stillPublished(ctx context.Context, listed content.Content) (con
 	return current, current.ID == listed.ID, nil
 }
 
-// toSDKItem maps a stored content item to the shape plugins read.
-func toSDKItem(c content.Content) sdk.Item {
+// toSDKItem maps a stored content item to the shape plugins read, without the values its rules hide.
+func toSDKItem(c content.Content, fields []content.Field) sdk.Item {
 	published := c.UpdatedAt
 	if c.PublishedAt != nil {
 		published = *c.PublishedAt
@@ -77,7 +87,7 @@ func toSDKItem(c content.Content) sdk.Item {
 		Title:       c.Title,
 		Excerpt:     c.Excerpt,
 		Content:     publichtml.Sanitize(c.Content),
-		Fields:      map[string]any(c.Fields),
+		Fields:      map[string]any(content.Shown(fields, c.Fields)),
 		PublishedAt: published,
 		UpdatedAt:   c.UpdatedAt,
 	}
