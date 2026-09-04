@@ -75,6 +75,34 @@ func (s *server) handleDefinitionsApply() http.HandlerFunc {
 	}
 }
 
+// handleDefinitionsDrift returns an http.HandlerFunc listing what stands apart from the plugins' declarations.
+func (s *server) handleDefinitionsDrift() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		drift, err := definitions.Adrift(r.Context(), s.types, s.declarations)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		authkit.Respond(w, http.StatusOK, drift)
+	}
+}
+
+// handleDefinitionsAdopt returns an http.HandlerFunc taking a plugin's definition over as the site's own.
+func (s *server) handleDefinitionsAdopt() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		asked, err := decodeKnown[definitions.Held](w, r)
+		if err != nil {
+			respondBodyError(w, err)
+			return
+		}
+		if err := definitions.Adopt(r.Context(), s.types, asked); err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 // respondImportBodyError writes a refused definitions body, naming the cap when the file ran past it.
 func (s *server) respondImportBodyError(w http.ResponseWriter, err error) {
 	var tooLarge *http.MaxBytesError

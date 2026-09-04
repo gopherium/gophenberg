@@ -15,6 +15,7 @@ import (
 	"github.com/gopherium/pluginkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/role"
 )
@@ -63,6 +64,8 @@ type Config struct {
 	Readers ReaderSettings
 	// DefinitionsImportCap is the largest definitions file an import takes. Zero applies its default.
 	DefinitionsImportCap int64
+	// Declarations is what every plugin declared at the last boot, by the plugin that declared it.
+	Declarations definitions.Walked
 }
 
 // registryOf returns the registry the configuration hands over, or one built over its type store.
@@ -87,6 +90,7 @@ func NewServer(cfg Config) http.Handler {
 		settings: cfg.Settings, readers: cfg.Readers,
 		types:          registryOf(cfg),
 		definitionsCap: definitionsCapOf(cfg),
+		declarations:   cfg.Declarations,
 	}
 	s.addresses = content.NewResolver(cfg.Content, s.types)
 	headers := headersFor(cfg.Cache)
@@ -187,6 +191,8 @@ func (s *server) mountAdmin(r chi.Router, admin *authkit.AdminHandlers, cfg Conf
 		r.Get("/api/definitions", s.handleDefinitionsExport())
 		r.Post("/api/definitions/plan", s.handleDefinitionsPlan())
 		r.Post("/api/definitions/apply", s.handleDefinitionsApply())
+		r.Get("/api/definitions/drift", s.handleDefinitionsDrift())
+		r.Post("/api/definitions/adopt", s.handleDefinitionsAdopt())
 	}
 	if cfg.Settings != nil {
 		r.Patch("/api/settings", s.handleSettingsPatch())
@@ -214,4 +220,5 @@ type server struct {
 	version    string
 
 	definitionsCap int64
+	declarations   definitions.Walked
 }
