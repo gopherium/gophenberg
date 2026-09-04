@@ -327,12 +327,12 @@ func TestRegistryRefusesAReorderRepeatingAField(t *testing.T) {
 	}
 }
 
-// AdoptType takes a plugin's type over as the site's own.
+// AdoptType accepts the adoption without changing what the store holds.
 func (s *groupedStore) AdoptType(context.Context, string) error {
 	return nil
 }
 
-// AdoptGroup takes a plugin's group over as the site's own.
+// AdoptGroup accepts the adoption without changing what the store holds.
 func (s *groupedStore) AdoptGroup(context.Context, string) error {
 	return nil
 }
