@@ -36,7 +36,7 @@ type run struct {
 	envelope   Envelope
 	plan       Plan
 	agreed     map[Confirmed]bool
-	declined   map[string]bool
+	declined   map[Confirmed]bool
 	registered []content.Type
 	stored     []content.Group
 	outcome    Outcome
@@ -54,7 +54,7 @@ func Apply(ctx context.Context, registry *content.Registry, asked Import) (Outco
 	}
 	held := &run{
 		registry: registry, envelope: asked.Envelope, plan: plan, registered: types,
-		agreed: agreedTo(asked.Confirm), declined: map[string]bool{},
+		agreed: agreedTo(asked.Confirm), declined: map[Confirmed]bool{},
 		outcome: Outcome{Applied: []Change{}, Skipped: []Change{}},
 	}
 	for _, stage := range []func(context.Context) error{

@@ -220,21 +220,22 @@ func markMoved(changes []Change) {
 		if held.Subject != SubjectField || held.Action != ActionDelete || held.Reason != ReasonRemoved {
 			continue
 		}
-		if addedElsewhere(changes, held) {
+		if len(arrivals(changes, held)) > 0 {
 			changes[i].Reason = ReasonMoved
 		}
 	}
 }
 
-// addedElsewhere reports whether another group in the plan gains the field this one loses.
-func addedElsewhere(changes []Change, lost Change) bool {
-	for _, held := range changes {
-		if held.Subject == SubjectField && held.Action == ActionCreate &&
-			held.Key == lost.Key && held.Group != lost.Group {
-			return true
+// arrivals returns the creates another group gains for the field this change loses.
+func arrivals(changes []Change, lost Change) []Change {
+	held := make([]Change, 0, 1)
+	for _, c := range changes {
+		if c.Subject == SubjectField && c.Action == ActionCreate &&
+			c.Key == lost.Key && c.Group != lost.Group {
+			held = append(held, c)
 		}
 	}
-	return false
+	return held
 }
 
 // add records one change the import would make.

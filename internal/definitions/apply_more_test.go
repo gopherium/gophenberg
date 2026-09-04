@@ -81,6 +81,40 @@ func TestApplyLeavesAMoveNobodyConfirmed(t *testing.T) {
 	}
 }
 
+func TestApplyLeavesAnotherGroupsFieldAloneWhenAMoveIsDeclined(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	loose, found := storedGroup(t, registry, "loose-ends")
+	if !found {
+		t.Fatalf("the loose ends group is missing from the site")
+	}
+	if _, err := registry.CreateFieldInGroup(t.Context(), loose.ID, content.Field{
+		Key: "cook-time", Label: "Cook time", Kind: content.FieldKindText,
+	}); err != nil {
+		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
+	}
+	envelope := exported(t, registry)
+	recipe := groupNamed(t, envelope, "recipe-details")
+	moved := recipe.Fields[0]
+	recipe.Fields = recipe.Fields[1:]
+	envelope.Groups = append(envelope.Groups, definitions.GroupDefinition{
+		Key: "recipe-extras", Title: "Recipe extras", Active: true, Location: recipeRules(),
+		Fields: []definitions.FieldDefinition{moved},
+	})
+	groupNamed(t, envelope, "loose-ends").Fields[0].Label = "Timer"
+
+	applied(t, registry, importing(envelope))
+
+	held, found := storedField(t, registry, "loose-ends", "cook-time")
+	if !found || held.Label != "Timer" {
+		t.Errorf("the loose ends field = %+v, %v, want its own label carried", held, found)
+	}
+	if _, still := storedField(t, registry, "recipe-details", "cook-time"); !still {
+		t.Errorf("the recipe field left its group, want the unconfirmed move refused")
+	}
+}
+
 func TestApplyStandsGroupsAndFieldsInTheOrderTheFileLists(t *testing.T) {
 	t.Parallel()
 

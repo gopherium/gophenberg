@@ -10,14 +10,14 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// vacated takes away every field the file moved elsewhere, so its new group may hold the key.
+// vacated takes away every field the file moved elsewhere.
 func (r *run) vacated(ctx context.Context) error {
 	for _, c := range r.plan.Changes {
 		if c.Subject != SubjectField || c.Action != ActionDelete || c.Reason != ReasonMoved {
 			continue
 		}
 		if !r.allows(c) {
-			r.declined[c.Key] = true
+			r.declineArrivals(c)
 			r.left(c)
 			continue
 		}
@@ -27,6 +27,13 @@ func (r *run) vacated(ctx context.Context) error {
 		r.did(c)
 	}
 	return nil
+}
+
+// declineArrivals holds back the field every group would have gained from a move nobody confirmed.
+func (r *run) declineArrivals(lost Change) {
+	for _, held := range arrivals(r.plan.Changes, lost) {
+		r.declined[Confirmed{Subject: SubjectField, Key: held.Key, Group: held.Group}] = true
+	}
 }
 
 // fields stores the fields the envelope brings and carries what it changed onto the stored ones.
@@ -64,7 +71,7 @@ func (r *run) fieldsUnder(
 func (r *run) oneField(
 	ctx context.Context, groupID int, group, key string, parentID int, d FieldDefinition,
 ) (int, error) {
-	if r.declined[key] {
+	if r.declined[Confirmed{Subject: SubjectField, Key: key, Group: group}] {
 		return 0, nil
 	}
 	planned := r.plannedFor(SubjectField, group, key)
