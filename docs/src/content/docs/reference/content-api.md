@@ -209,6 +209,18 @@ category never leaks through a published post. A field nobody
 filled is absent, though a Many values choice emptied in the editor
 comes back as an empty list.
 
+A Section holds an object of its own fields' values, keyed the same
+way. A Repeater holds a list of such objects, one per row. Either
+may hold more of the same inside, as deep as the group declares:
+
+```json
+"author": { "name": "Maria Perez", "role": "Editor" },
+"team": [
+  { "name": "Maria Perez", "role": "Editor" },
+  { "name": "Ada Lovelace", "role": "Writer" }
+]
+```
+
 A media field serves the file itself, one object for a Media field
 and a list for a Gallery, ready to render:
 

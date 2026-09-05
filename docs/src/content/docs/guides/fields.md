@@ -147,6 +147,10 @@ Deleting a field inside a container takes the values stored under it,
 in every item the group reaches and in the revisions behind them,
 exactly as deleting a field at the top does.
 
+A theme reads these the same way it reads any field. The
+[theme guide](/themes/writing-a-theme/) shows the helpers that walk
+a section and a repeater's rows.
+
 ## Filling fields in
 
 The editor's Document panel shows one control per field reaching the

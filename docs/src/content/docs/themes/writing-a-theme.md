@@ -194,6 +194,28 @@ Giving `width` and `height` stops the page jumping as images
 arrive. `item.sizes` holds the other renditions when you want a
 `srcset`, and it can be empty, so check before reaching into it.
 
+A Section groups fields under one key, and a Repeater holds rows of
+them. The kit's `heldSection` helper reads the values a section
+holds, `heldRows` reads a repeater's rows, and `heldValue` follows a
+path of keys and row numbers to one value.
+
+```astro
+---
+import { heldRows, heldSection } from '@gophenberg/astro'
+const author = heldSection(post, 'author')
+const team = heldRows(post, 'team')
+---
+<p>{author?.name}</p>
+<ul>
+	{team.map((row) => <li>{row.name} works as {row.role}</li>)}
+</ul>
+```
+
+A section nobody filled in comes back as undefined, and `heldRows`
+answers an empty list when the repeater holds nothing. The
+[content API](/reference/content-api/) describes the shapes these
+values take.
+
 ## Trying it
 
 `astro dev` runs your theme against a running Gophenberg. It needs
