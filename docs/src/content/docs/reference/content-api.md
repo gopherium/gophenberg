@@ -124,8 +124,12 @@ published serves an empty page, not an error.
 Name a field and a value to list only the items holding it.
 
 ```sh
-curl "https://example.com/api/content/v1/items?type=post&field[on-sale]=true&field[colour]=red"
+curl --globoff "https://example.com/api/content/v1/items?type=post&field[on-sale]=true&field[colour]=red"
 ```
+
+`--globoff` tells curl the square brackets are part of the address
+rather than a range to expand. A browser, a script and every other
+client need nothing special.
 
 Name several and an item has to hold all of them. Five kinds can be
 named this way: text, number, boolean, date and choice. A media or
