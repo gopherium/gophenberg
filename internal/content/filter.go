@@ -38,8 +38,8 @@ func ParseFieldFilter(query url.Values, fields []Field) (map[string]any, error) 
 		if !isTerm {
 			continue
 		}
-		if len(raws) > 1 {
-			return nil, refuseTerm(key, "named more than once")
+		if len(raws) != 1 {
+			return nil, refuseTerm(key, "not named once with one value")
 		}
 		f, err := fieldAmong(fields, key)
 		if err != nil {

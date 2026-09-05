@@ -64,6 +64,7 @@ func TestParseFieldFilterRefusesATermItCannotRead(t *testing.T) {
 
 	cases := map[string]url.Values{
 		"a key named twice":           {"field[note]": {"a", "b"}},
+		"a key naming no value":       {"field[note]": {}},
 		"a key the type lacks":        {"field[missing]": {"a"}},
 		"a key inside a container":    {"field[name]": {"a"}},
 		"a kind no filter reads":      {"field[cover]": {"a"}},
