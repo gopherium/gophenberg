@@ -79,9 +79,9 @@ field holds a list, and a choice says the same thing through its
 whose items answer with a term page, covered below.
 
 A Section or a Repeater lists the fields it holds under its own
-`fields`, the same shape again, as deep as the group declares. The key
-is absent on a field holding none, so a reader can tell a container
-from a plain field by asking whether it lists any.
+`fields`, the same shape again, as deep as the group declares. Read
+`kind` to tell a container from a plain field, since the key is absent
+on any field holding none, a container nobody has filled in included.
 
 ```json
 {
