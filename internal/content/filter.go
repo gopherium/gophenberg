@@ -57,6 +57,16 @@ func ParseFieldFilter(query url.Values, fields []Field) (map[string]any, error) 
 	return terms, nil
 }
 
+// NamesFieldFilter reports whether the query names any field filter term.
+func NamesFieldFilter(query url.Values) bool {
+	for name := range query {
+		if _, isTerm := termKey(name); isTerm {
+			return true
+		}
+	}
+	return false
+}
+
 // termKey returns the key a field[<key>] parameter names and whether the name has that shape.
 func termKey(name string) (string, bool) {
 	rest, prefixed := strings.CutPrefix(name, fieldTermPrefix)

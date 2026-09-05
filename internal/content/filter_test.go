@@ -121,3 +121,19 @@ func TestListedValuesAnswersAnEmptyObjectWhenNothingIsListed(t *testing.T) {
 		t.Errorf("ListedValues() = %#v, want an empty object", listed)
 	}
 }
+
+func TestNamesFieldFilterReadsWhetherAQueryCarriesATerm(t *testing.T) {
+	t.Parallel()
+
+	for name, held := range map[string]bool{
+		"field[price]": true, "field[]": true, "price": false, "page": false, "field": false,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if named := content.NamesFieldFilter(url.Values{name: {"10"}}); named != held {
+				t.Errorf("NamesFieldFilter(%q) = %v, want %v", name, named, held)
+			}
+		})
+	}
+}

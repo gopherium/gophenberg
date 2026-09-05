@@ -52,9 +52,15 @@ type contentDetailResponse struct {
 	Fields  content.Values `json:"fields"`
 }
 
+// contentRow is one row of the admin listing, carrying the values its type marks for the list.
+type contentRow struct {
+	contentResponse
+	Fields content.Values `json:"fields"`
+}
+
 type contentListResponse struct {
-	Items []contentResponse `json:"items"`
-	Total int               `json:"total"`
+	Items []contentRow `json:"items"`
+	Total int          `json:"total"`
 }
 
 // newContentResponse builds a contentResponse from an item, normalizing timestamps to UTC.
@@ -117,6 +123,11 @@ func parseAdminContentFilter(query url.Values, contentType content.Type) (conten
 	if err := applyContentPaging(query, &filter); err != nil {
 		return content.Filter{}, err
 	}
+	terms, err := content.ParseFieldFilter(query, contentType.Fields)
+	if err != nil {
+		return content.Filter{}, err
+	}
+	filter.Fields = terms
 	return filter, nil
 }
 
@@ -183,9 +194,12 @@ func (s *server) handleContentList() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		items := make([]contentResponse, len(rows))
+		items := make([]contentRow, len(rows))
 		for i, c := range rows {
-			items[i] = newContentResponse(c, names[c.AuthorID])
+			items[i] = contentRow{
+				contentResponse: newContentResponse(c, names[c.AuthorID]),
+				Fields:          content.ListedValues(contentType.Fields, c.Fields),
+			}
 		}
 		authkit.Respond(w, http.StatusOK, contentListResponse{Items: items, Total: total})
 	}
