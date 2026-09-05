@@ -446,6 +446,18 @@ test('takes a field out of the admin list again', async () => {
 	)
 })
 
+test('offers no list flip inside a container, where the list never reaches', async () => {
+	const paid = { ...ON_SALE, key: 'paid', label: 'Paid' }
+	const crew = { ...ON_SALE, key: 'crew', label: 'Crew', kind: 'section', fields: [paid] }
+	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [{ ...DETAILS, fields: [crew] }] })))
+	renderAt('/field-groups')
+
+	const dialog = await openFields()
+
+	const row = within(dialog).getByRole('listitem', { name: 'Paid' })
+	expect(within(row).queryByRole('button', { name: /in the list/ })).not.toBeInTheDocument()
+})
+
 test('offers no list flip on a kind the list cannot show', async () => {
 	renderAt('/field-groups')
 

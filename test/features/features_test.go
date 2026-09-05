@@ -58,6 +58,10 @@ func TestConditionalLogic(t *testing.T) {
 	runFeature(t, "features/conditional-logic.feature", initializeConditionalLogic)
 }
 
+func TestFieldQuery(t *testing.T) {
+	runFeature(t, "features/field-query.feature", initializeFieldQuery)
+}
+
 func TestContainers(t *testing.T) {
 	runFeature(t, "features/containers.feature", initializeContainers)
 }

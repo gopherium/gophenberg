@@ -704,7 +704,7 @@ const LISTABLE = ['text', 'number', 'boolean', 'date', 'choice']
 /**
  * Renders the control flipping whether a field stands as a column on the admin list.
  * @param props - The group, the field, and what to report.
- * @returns The control element, or nothing for a kind the list cannot show.
+ * @returns The control element, or nothing where the list never reaches.
  */
 function ListField(props: Inside) {
 	const listed = props.field.settings.listed === true
@@ -724,7 +724,7 @@ function ListField(props: Inside) {
 		},
 		onError: props.onRefused,
 	})
-	if (!LISTABLE.includes(props.field.kind)) {
+	if (props.path !== undefined || !LISTABLE.includes(props.field.kind)) {
 		return null
 	}
 	const asking = listed

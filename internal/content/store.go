@@ -111,6 +111,7 @@ type Filter struct {
 	Order   Order
 	Page    int
 	PerPage int
+	Fields  map[string]any
 }
 
 // Store persists content items and their revisions.

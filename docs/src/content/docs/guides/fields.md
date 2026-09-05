@@ -110,6 +110,12 @@ falls outside.
 both Lowest and Highest before it draws a slider, and is a plain
 number box without them, where Steps of reaches nothing.
 
+**In list** puts the field in the content list as a column of its
+own. Press it on a text, number, switch, date or choice field at the
+top of a group. A switch or a choice field also gets a filter above
+the table, so you can narrow the list to the items holding one value.
+See [the content list](/guides/posts/).
+
 ## Fields inside fields
 
 A **Section** bundles fields under one name. An Author section might
@@ -178,8 +184,12 @@ itself.
 
 What a hidden field already holds stays where it is. Turn the switch
 back on and the value is still there. While the field is hidden its
-value is not required to publish, it never reaches visitors, and the
-editor stops sending it.
+value is not required to publish, and it never reaches visitors.
+
+A field inside a section or a repeater row keeps its value the same
+way, with one difference worth knowing. A row is saved whole, so the
+editor keeps sending what a hidden field in that row holds. Nothing
+is lost when you delete the row above it or drag it somewhere else.
 
 Removing a field another field's rules read is refused, and so is
 moving it to another group. Change those rules first.

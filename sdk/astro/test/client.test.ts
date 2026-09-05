@@ -116,6 +116,27 @@ describe('listPosts', () => {
 		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=3&per_page=5&type=page')
 	})
 
+	test('names each field the caller narrows by', async () => {
+		const { fetch, urls } = fetchReturning(page)
+
+		await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).listPosts({
+			fields: { price: 10, 'on-sale': true, colour: 'red' },
+		})
+
+		expect(urls[0]).toBe(
+			'https://example.com/api/content/v1/items?page=1&field%5Bprice%5D=10' +
+				'&field%5Bon-sale%5D=true&field%5Bcolour%5D=red',
+		)
+	})
+
+	test('names no field when the caller narrows by none', async () => {
+		const { fetch, urls } = fetchReturning(page)
+
+		await new GophenbergClient({ baseUrl: 'https://example.com', fetch }).listPosts({ fields: {} })
+
+		expect(urls[0]).toBe('https://example.com/api/content/v1/items?page=1')
+	})
+
 	test('reports a listing it could not read', async () => {
 		const { fetch } = fetchReturning({ error: 'boom' }, 500)
 

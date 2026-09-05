@@ -582,6 +582,12 @@ func (s *server) handlePublishedList() http.HandlerFunc {
 			}
 			filter.Type = listed.Key
 		}
+		if err := s.narrowByFields(r, &filter); err != nil {
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
+				Message: "invalid list parameters", Code: "list_parameters_invalid",
+			})
+			return
+		}
 		page, err := s.publishedPageOf(r, filter)
 		if err != nil {
 			respondDomainError(w, err)
@@ -589,6 +595,23 @@ func (s *server) handlePublishedList() http.HandlerFunc {
 		}
 		authkit.Respond(w, http.StatusOK, page)
 	}
+}
+
+// narrowByFields reads the field terms the query names into the filter, once its type is settled.
+func (s *server) narrowByFields(r *http.Request, filter *content.Filter) error {
+	if !content.NamesFieldFilter(r.URL.Query()) {
+		return nil
+	}
+	asked, err := s.types.ByKey(r.Context(), filter.Type)
+	if err != nil {
+		return err
+	}
+	terms, err := content.ParseFieldFilter(r.URL.Query(), asked.Fields)
+	if err != nil {
+		return err
+	}
+	filter.Fields = terms
+	return nil
 }
 
 // contentETag returns the validator standing for the answer a reader is served.

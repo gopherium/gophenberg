@@ -4,6 +4,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -191,44 +192,94 @@ func toContent(row db.CoreContent) content.Content {
 // total number matching it.
 func (s *ContentStore) List(ctx context.Context, f content.Filter) ([]content.Content, int, error) {
 	search := escapeLike(f.Search)
-	total, err := s.queries.CountContent(ctx, db.CountContentParams{
-		Type:   f.Type,
-		Status: string(f.Status),
-		Search: search,
-	})
+	total, err := s.countList(ctx, f, search)
 	if err != nil {
 		return nil, 0, fmt.Errorf("postgres: count content: %w", err)
 	}
-	rows, err := s.queries.ListContent(ctx, db.ListContentParams{
-		Type:      f.Type,
-		Status:    string(f.Status),
-		Search:    search,
-		OrderBy:   string(f.OrderBy),
-		OrderDir:  string(f.Order),
-		RowLimit:  int32(f.PerPage),
-		RowOffset: pageOffset(f.Page, f.PerPage),
-	})
+	rows, err := s.listRows(ctx, f, search)
 	if err != nil {
 		return nil, 0, fmt.Errorf("postgres: list content: %w", err)
 	}
 	items := make([]content.Content, len(rows))
 	for i, row := range rows {
-		items[i] = content.Content{
-			ID:          row.ID,
-			Type:        row.Type,
-			ParentID:    row.ParentID,
-			Path:        row.Path,
-			Status:      content.Status(row.Status),
-			Slug:        row.Slug,
-			Title:       row.Title,
-			Excerpt:     row.Excerpt,
-			AuthorID:    row.AuthorID,
-			PublishedAt: utcOrNil(row.PublishedAt),
-			CreatedAt:   row.CreatedAt.UTC(),
-			UpdatedAt:   row.UpdatedAt.UTC(),
-		}
+		items[i] = listedContent(row)
 	}
 	return items, int(total), nil
+}
+
+// countList returns how many items the filter matches, narrowing by field terms when it names any.
+func (s *ContentStore) countList(ctx context.Context, f content.Filter, search string) (int64, error) {
+	if len(f.Fields) == 0 {
+		return s.queries.CountContent(ctx, db.CountContentParams{
+			Type:   f.Type,
+			Status: string(f.Status),
+			Search: search,
+		})
+	}
+	return s.queries.CountContentByFields(ctx, db.CountContentByFieldsParams{
+		Type:        f.Type,
+		FieldFilter: termsJSON(f.Fields),
+		Status:      string(f.Status),
+		Search:      search,
+	})
+}
+
+// listRows returns the page the filter names, narrowing by field terms when it names any.
+func (s *ContentStore) listRows(ctx context.Context, f content.Filter, search string) ([]db.ListContentRow, error) {
+	if len(f.Fields) == 0 {
+		return s.queries.ListContent(ctx, db.ListContentParams{
+			Type:      f.Type,
+			Status:    string(f.Status),
+			Search:    search,
+			OrderBy:   string(f.OrderBy),
+			OrderDir:  string(f.Order),
+			RowLimit:  int32(f.PerPage),
+			RowOffset: pageOffset(f.Page, f.PerPage),
+		})
+	}
+	narrowed, err := s.queries.ListContentByFields(ctx, db.ListContentByFieldsParams{
+		Type:        f.Type,
+		FieldFilter: termsJSON(f.Fields),
+		Status:      string(f.Status),
+		Search:      search,
+		OrderBy:     string(f.OrderBy),
+		OrderDir:    string(f.Order),
+		RowLimit:    int32(f.PerPage),
+		RowOffset:   pageOffset(f.Page, f.PerPage),
+	})
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]db.ListContentRow, len(narrowed))
+	for i, row := range narrowed {
+		rows[i] = db.ListContentRow(row)
+	}
+	return rows, nil
+}
+
+// termsJSON returns the containment object the filter names as the jsonb parameter holds it.
+func termsJSON(terms map[string]any) []byte {
+	raw, _ := json.Marshal(terms)
+	return raw
+}
+
+// listedContent returns one listed row as the item it stands for.
+func listedContent(row db.ListContentRow) content.Content {
+	return content.Content{
+		ID:          row.ID,
+		Type:        row.Type,
+		ParentID:    row.ParentID,
+		Path:        row.Path,
+		Status:      content.Status(row.Status),
+		Slug:        row.Slug,
+		Title:       row.Title,
+		Excerpt:     row.Excerpt,
+		AuthorID:    row.AuthorID,
+		PublishedAt: utcOrNil(row.PublishedAt),
+		CreatedAt:   row.CreatedAt.UTC(),
+		UpdatedAt:   row.UpdatedAt.UTC(),
+		Fields:      row.Fields,
+	}
 }
 
 // Update stores the item's editable fields and any snapshot, settling its address among its siblings.

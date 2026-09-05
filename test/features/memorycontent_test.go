@@ -313,12 +313,50 @@ func (s *memoryContent) List(_ context.Context, f content.Filter) ([]content.Con
 	defer s.mu.Unlock()
 	matched := make([]content.Content, 0, len(s.items))
 	for _, stored := range s.items {
-		if stored.Type == f.Type && (f.Status == "" || stored.Status == f.Status) {
+		if stored.Type == f.Type && (f.Status == "" || stored.Status == f.Status) && narrowed(stored.Fields, f.Fields) {
 			matched = append(matched, stored)
 		}
 	}
 	slices.SortFunc(matched, func(a, b content.Content) int { return b.CreatedAt.Compare(a.CreatedAt) })
 	return paged(matched, f), len(matched), nil
+}
+
+// narrowed reports whether the stored values hold every term the filter names.
+func narrowed(values content.Values, terms map[string]any) bool {
+	for key, term := range terms {
+		if !holdsTerm(values[key], term) {
+			return false
+		}
+	}
+	return true
+}
+
+// holdsTerm reports whether a stored value carries the term, a list carrying it as a member.
+func holdsTerm(held, term any) bool {
+	wanted, listed := term.([]any)
+	if !listed {
+		return held == term
+	}
+	members, ok := held.([]any)
+	if !ok {
+		return false
+	}
+	for _, want := range wanted {
+		if !among(members, want) {
+			return false
+		}
+	}
+	return true
+}
+
+// among reports whether the members carry the wanted value.
+func among(members []any, wanted any) bool {
+	for _, member := range members {
+		if member == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 // paged returns the page of items the filter asks for.

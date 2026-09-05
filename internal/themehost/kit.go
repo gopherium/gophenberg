@@ -9,7 +9,7 @@ import (
 )
 
 // servedKits names the theme kit versions this release serves, oldest first.
-var servedKits = []string{"0.9.0", "0.10.0", "0.11.0"}
+var servedKits = []string{"0.9.0", "0.10.0", "0.11.0", "0.12.0"}
 
 // ServedKits returns the theme kit versions this release serves.
 func ServedKits() []string {

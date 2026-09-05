@@ -13,6 +13,11 @@ through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 
 ## Unreleased
 
+### Added
+
+- `listPosts` narrows a listing to the items holding a value, named as `fields`.
+- A live collection narrows by the same `fields`.
+
 ### Changed
 
 - `listPosts` asks for a page size only when the caller names one, so the size the site chose applies.

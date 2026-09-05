@@ -10,6 +10,7 @@ export interface ListQuery {
 	type?: string
 	page?: number
 	perPage?: number
+	fields?: Record<string, string | number | boolean>
 }
 
 /** What a caller may ask an archive for. */
@@ -49,6 +50,9 @@ export class GophenbergClient {
 		}
 		if (query.type !== undefined) {
 			search.set('type', query.type)
+		}
+		for (const [key, value] of Object.entries(query.fields ?? {})) {
+			search.set(`field[${key}]`, String(value))
 		}
 		const response = await this.read(`/items?${search}`)
 		return (await response.json()) as Page<PostSummary>

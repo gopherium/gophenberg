@@ -78,6 +78,14 @@ describe('loadCollection', () => {
 		expect(listPosts).toHaveBeenCalledWith({ type: 'page', page: 2, perPage: 5 })
 	})
 
+	test('narrows by the field values a page asked for', async () => {
+		const { loader, listPosts } = loaderOver({})
+
+		await loader.loadCollection({ collection: 'posts', filter: { fields: { price: 10 } } })
+
+		expect(listPosts).toHaveBeenCalledWith({ fields: { price: 10 } })
+	})
+
 	test('reports a listing it could not read', async () => {
 		const { loader } = loaderOver({
 			listPosts: async () => {

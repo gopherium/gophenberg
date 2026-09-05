@@ -34,6 +34,12 @@ func TestContentStoreReportsDatabaseFailures(t *testing.T) {
 	if _, _, err := store.List(t.Context(), content.Filter{Type: content.TypePost, Page: 1, PerPage: 10}); err == nil {
 		t.Error("List() on a closed pool error = nil, want a failure")
 	}
+	narrowed := content.Filter{
+		Type: content.TypePost, Page: 1, PerPage: 10, Fields: map[string]any{"price": float64(10)},
+	}
+	if _, _, err := store.List(t.Context(), narrowed); err == nil {
+		t.Error("List() narrowed by fields on a closed pool error = nil, want a failure")
+	}
 	if _, err := store.Update(t.Context(), stored, stored.UpdatedAt, nil, 0); err == nil {
 		t.Error("Update() on a closed pool error = nil, want a failure")
 	}

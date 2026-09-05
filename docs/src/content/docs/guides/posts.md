@@ -16,6 +16,12 @@ Title or Date to sort by it. A post's title links to its editor,
 unpublished posts carry a status badge, and an untitled post shows
 `(no title)`.
 
+A field the type marks **In list** gets a column of its own beside
+these, showing what each post holds under it. A switch reads Yes or
+No, a date reads in your language, and a choice reads its label
+rather than its stored value. These columns do not sort. Hide any of
+them from **View options**.
+
 The date cell reads `Published <date>` once a post has ever been
 published, and `Last Modified <date>` before that. A post you
 returned to draft keeps its publication date, so its badge and its
@@ -31,6 +37,12 @@ Private filter appears only when a private post exists.
 The search box waits for you to stop typing, then matches titles
 and post content, so a result can be matching something in its
 body.
+
+A switch or a choice field marked In list also gets a filter above
+the table. Pick a value and the list narrows to the posts holding
+it. Pick values on two fields and a post has to hold both. The
+status counts stay as they are, counting every post of that status
+rather than only the narrowed ones.
 
 ## Creating a post
 

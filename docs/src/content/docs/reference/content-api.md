@@ -89,6 +89,7 @@ curl "https://example.com/api/content/v1/items?type=post&page=1&per_page=20"
 | `type` | the default type | The content type to list |
 | `page` | `1` | Which page |
 | `per_page` | the size the site chose | Items per page, capped at 100 |
+| `field[<key>]` | nothing | Only items holding this value under the field |
 
 ```json
 {
@@ -117,6 +118,42 @@ a `per_page` above 100 quietly serves 100. A page or `per_page`
 below 1, or not a whole number, answers
 `400 {"error":"invalid list parameters"}`. A type with nothing
 published serves an empty page, not an error.
+
+### Narrowing by a field
+
+Name a field and a value to list only the items holding it.
+
+```sh
+curl --globoff "https://example.com/api/content/v1/items?type=post&field[on-sale]=true&field[colour]=red"
+```
+
+`--globoff` tells curl the square brackets are part of the address
+rather than a range to expand. A browser, a script and every other
+client need nothing special.
+
+Name several and an item has to hold all of them. Five kinds can be
+named this way: text, number, boolean, date and choice. A media or
+relation field cannot, and neither can a field standing inside a
+section or a repeater.
+
+The value is read as the kind the field declares. A number is written
+plainly, `10` or `-2.5`. A boolean is the word `true` or `false`. A
+date is `YYYY-MM-DD`. Text and a choice are matched whole, so `red`
+finds an item holding exactly `red`, not one holding `dark red`. A
+field holding several choices matches when the value is one of them.
+
+Four things answer `400 {"error":"invalid list parameters"}`: a field
+the type does not declare, a field of a kind that cannot be named, a
+value the kind cannot read, and the same field named twice.
+
+Two behaviours are worth knowing. A field the item never held does
+not match, so asking for `field[on-sale]=false` skips items saved
+before that field existed rather than treating them as false. And a
+value a field's own rules currently hide is still stored, so it still
+matches, even though the item's answer does not carry it.
+
+Only this listing reads the parameter. Term pages and archives ignore
+it, as they ignore any parameter they do not read.
 
 ## Resolving an address
 

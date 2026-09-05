@@ -191,6 +191,38 @@ func (q *Queries) CountContent(ctx context.Context, arg CountContentParams) (int
 	return count, err
 }
 
+const countContentByFields = `-- name: CountContentByFields :one
+SELECT count(*)
+FROM core.content p
+WHERE p.type = $1
+    AND p.fields @> $2::jsonb
+    AND ($3::text = '' OR p.status = $3)
+    AND (
+        $4::text = ''
+        OR p.title ILIKE '%' || $4 || '%'
+        OR p.content ILIKE '%' || $4 || '%'
+    )
+`
+
+type CountContentByFieldsParams struct {
+	Type        string
+	FieldFilter []byte
+	Status      string
+	Search      string
+}
+
+func (q *Queries) CountContentByFields(ctx context.Context, arg CountContentByFieldsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countContentByFields,
+		arg.Type,
+		arg.FieldFilter,
+		arg.Status,
+		arg.Search,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countContentByStatus = `-- name: CountContentByStatus :many
 SELECT p.status, count(*) AS total
 FROM core.content p
@@ -1171,6 +1203,99 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 	var items []ListContentRow
 	for rows.Next() {
 		var i ListContentRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Status,
+			&i.Slug,
+			&i.Title,
+			&i.Excerpt,
+			&i.AuthorID,
+			&i.PublishedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ParentID,
+			&i.Path,
+			&i.Fields,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listContentByFields = `-- name: ListContentByFields :many
+SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
+FROM core.content p
+WHERE p.type = $1
+    AND p.fields @> $2::jsonb
+    AND ($3::text = '' OR p.status = $3)
+    AND (
+        $4::text = ''
+        OR p.title ILIKE '%' || $4 || '%'
+        OR p.content ILIKE '%' || $4 || '%'
+    )
+ORDER BY
+    CASE WHEN $5::text = 'title' AND $6::text = 'asc' THEN p.title END ASC,
+    CASE WHEN $5::text = 'title' AND $6::text = 'desc' THEN p.title END DESC,
+    CASE WHEN $5::text <> 'title' AND $6::text = 'asc'
+        THEN COALESCE(p.published_at, p.created_at) END ASC,
+    CASE WHEN $5::text <> 'title' AND $6::text <> 'asc'
+        THEN COALESCE(p.published_at, p.created_at) END DESC,
+    p.id DESC
+LIMIT $8 OFFSET $7
+`
+
+type ListContentByFieldsParams struct {
+	Type        string
+	FieldFilter []byte
+	Status      string
+	Search      string
+	OrderBy     string
+	OrderDir    string
+	RowOffset   int32
+	RowLimit    int32
+}
+
+type ListContentByFieldsRow struct {
+	ID          uuid.UUID
+	Type        string
+	Status      string
+	Slug        string
+	Title       string
+	Excerpt     string
+	AuthorID    uuid.UUID
+	PublishedAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	ParentID    *uuid.UUID
+	Path        string
+	Fields      content.Values
+}
+
+func (q *Queries) ListContentByFields(ctx context.Context, arg ListContentByFieldsParams) ([]ListContentByFieldsRow, error) {
+	rows, err := q.db.Query(ctx, listContentByFields,
+		arg.Type,
+		arg.FieldFilter,
+		arg.Status,
+		arg.Search,
+		arg.OrderBy,
+		arg.OrderDir,
+		arg.RowOffset,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListContentByFieldsRow
+	for rows.Next() {
+		var i ListContentByFieldsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Type,

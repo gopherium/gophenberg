@@ -39,8 +39,9 @@ func (p *Plugin) DeclareTypes(ctx context.Context, types sdk.TypeRegistrar) erro
 
 `Conditions` says when a field shows, reading the fields standing
 beside it. Declare them in any order you like, the host writes the
-fields first and their conditions afterwards. `Listed: true` marks a
-field for the content list, which nothing reads yet.
+fields first and their conditions afterwards. `Listed: true` gives the
+field a column in the content list, and a filter above it when the
+field is a switch or a choice.
 
 Keys follow the same shape everywhere in Gophenberg. Start with a
 lowercase letter, then lowercase letters, numbers and hyphens.

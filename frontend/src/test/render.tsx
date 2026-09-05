@@ -21,6 +21,21 @@ export function renderAt(
 	user: User | null = adminUser,
 	version: string | null = '0.0.0',
 ) {
+	return renderRoutedAt(path, user, version).client
+}
+
+/**
+ * Renders the admin at the path and returns the query client and the router behind it.
+ * @param path - The address to render at.
+ * @param user - The signed in user, none for a signed out admin.
+ * @param version - The version the admin reports, none to leave it unasked.
+ * @returns The query client and the router.
+ */
+export function renderRoutedAt(
+	path: string,
+	user: User | null = adminUser,
+	version: string | null = '0.0.0',
+) {
 	const client = createAuthQueryClient({
 		queries: { retry: false, staleTime: Infinity },
 	})
@@ -38,5 +53,5 @@ export function renderAt(
 			</AdminToaster>
 		</QueryClientProvider>,
 	)
-	return client
+	return { client, router }
 }
