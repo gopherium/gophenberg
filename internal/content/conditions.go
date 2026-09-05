@@ -277,37 +277,16 @@ func shownInside(f Field, value any) any {
 	return map[string]any(Shown(f.Fields, inside))
 }
 
-// Concealed reports the first field the scope hides that a request still names, at any depth.
+// Concealed reports the first field of the scope that its rules hide and a request still names.
 func Concealed(fields []Field, scope, submitted Values) error {
 	hidden := Hidden(fields, scope)
 	for _, f := range fields {
-		value, named := submitted[f.Key]
-		if named && hidden[f.Key] {
+		if _, named := submitted[f.Key]; named && hidden[f.Key] {
 			return Refuse(ErrFieldHidden, "field_hidden",
 				fmt.Sprintf("%s: %s", ErrFieldHidden, f.Key), Details{"field": f.Key})
 		}
-		if value == nil || !f.Kind.Holds() {
-			continue
-		}
-		if err := concealedInside(f, value); err != nil {
-			return err
-		}
 	}
 	return nil
-}
-
-// concealedInside reports the first value a container hides, each row read as its own scope.
-func concealedInside(f Field, value any) error {
-	if rows, listed := value.([]any); listed {
-		for _, row := range rows {
-			if err := concealedInside(f, row); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	inside, _ := value.(map[string]any)
-	return Concealed(f.Fields, inside, inside)
 }
 
 // Referenced returns the sibling whose conditions read the key, and whether one does.

@@ -340,7 +340,7 @@ func TestConcealedRefusesAHiddenFieldARequestNamesAtAll(t *testing.T) {
 	}
 }
 
-func TestConcealedReadsEveryRowOfAContainerAsItsOwnScope(t *testing.T) {
+func TestConcealedLeavesWhatAContainerRowCarriesToTheRequest(t *testing.T) {
 	t.Parallel()
 
 	crew := content.Field{Key: "crew", Kind: content.FieldKindRepeater, Fields: []content.Field{
@@ -354,16 +354,12 @@ func TestConcealedReadsEveryRowOfAContainerAsItsOwnScope(t *testing.T) {
 		map[string]any{"paid": false, "fee": 100.0},
 	}
 
-	if err := content.Concealed(fields, content.Values{"crew": rows[:1]}, content.Values{"crew": rows[:1]}); err != nil {
-		t.Errorf("Concealed(shown row) = %v, want nothing refused", err)
-	}
-	err := content.Concealed(fields, content.Values{"crew": rows}, content.Values{"crew": rows})
-	if !errors.Is(err, content.ErrFieldHidden) {
-		t.Errorf("Concealed(hidden row value) = %v, want %v", err, content.ErrFieldHidden)
+	if err := content.Concealed(fields, content.Values{"crew": rows}, content.Values{"crew": rows}); err != nil {
+		t.Errorf("Concealed(hidden row value) = %v, want a row carried whole", err)
 	}
 	section := content.Values{"details": rows[1]}
-	if err := content.Concealed(fields, section, section); !errors.Is(err, content.ErrFieldHidden) {
-		t.Errorf("Concealed(hidden section value) = %v, want %v", err, content.ErrFieldHidden)
+	if err := content.Concealed(fields, section, section); err != nil {
+		t.Errorf("Concealed(hidden section value) = %v, want a section carried whole", err)
 	}
 }
 

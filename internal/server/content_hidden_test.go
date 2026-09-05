@@ -213,6 +213,35 @@ func TestAutosaveRefusesABufferClearingAHiddenField(t *testing.T) {
 	}
 }
 
+func TestContentPatchKeepsAHiddenValueARowStillCarries(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler, `{"key":"crew","label":"Crew","kind":"repeater"}`)
+	inside := fmt.Sprintf("/api/groups/%d/fields/crew", groupOver(t, handler, "post"))
+	for _, body := range []string{
+		`{"key":"paid","label":"Paid","kind":"boolean"}`,
+		`{"key":"fee","label":"Fee","kind":"text","settings":` +
+			`{"conditions":[[{"source":"paid","operator":"==","value":"true"}]]}}`,
+	} {
+		if recorder := doRequest(t, handler, http.MethodPost, inside, body); recorder.Code != http.StatusCreated {
+			t.Fatalf("declaring inside the container: %d: %s", recorder.Code, recorder.Body)
+		}
+	}
+	held := draftedPost(t, handler)
+	held = patchValues(t, handler, held, `{"crew":[{"paid":true,"fee":"ten"}]}`)
+
+	held = patchValues(t, handler, held, `{"crew":[{"paid":false,"fee":"ten"}]}`)
+
+	rows, listed := held.Fields["crew"].([]any)
+	if !listed || len(rows) != 1 {
+		t.Fatalf("fields = %v, want the row stored", held.Fields)
+	}
+	if rows[0].(map[string]any)["fee"] != "ten" {
+		t.Errorf("row = %v, want the hidden value the request carried", rows[0])
+	}
+}
+
 func TestPublicItemHidesAValueTheRulesConceal(t *testing.T) {
 	t.Parallel()
 

@@ -186,6 +186,41 @@ test('judges a field inside a row against that row alone', async () => {
 	expect(screen.getAllByLabelText('Fee')).toHaveLength(1)
 })
 
+test('sends a hidden value a row still carries, because a row travels whole', async () => {
+	const crew = {
+		key: 'crew',
+		label: 'Crew',
+		kind: 'repeater',
+		many: false,
+		required: false,
+		updated_at: STAMP,
+		fields: [
+			{ key: 'paid', label: 'Paid', kind: 'boolean', many: false, required: false, updated_at: STAMP },
+			{
+				key: 'fee',
+				label: 'Fee',
+				kind: 'text',
+				many: false,
+				required: false,
+				updated_at: STAMP,
+				settings: { conditions: [[{ source: 'paid', operator: '==', value: 'true' }]] },
+			},
+		],
+	}
+	declaring([crew])
+	holding({ crew: [{ paid: true, fee: 'ten' }] })
+	const sent = recordingSaves()
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByLabelText('Paid'))
+	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect((sent[0] as { fields: Record<string, unknown> }).fields).toEqual({
+		crew: [{ paid: false, fee: 'ten' }],
+	})
+})
+
 test('shows no panel at all when every field it holds is hidden', async () => {
 	declaring([SALE_NOTE])
 	holding({})

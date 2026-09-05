@@ -286,7 +286,7 @@ function ruleHolds(rule: ConditionRule, sources: Set<string>, screen: Record<str
  * @returns The values to send.
  */
 export function shownValues(
-	fields: (ConditionField & { fields?: ConditionField[] })[],
+	fields: ConditionField[],
 	values: Record<string, unknown>,
 ): Record<string, unknown> {
 	const hidden = hiddenKeys(fields, values)
@@ -296,28 +296,7 @@ export function shownValues(
 			shown[key] = value
 		}
 	}
-	for (const field of fields) {
-		if (field.fields !== undefined && field.fields.length > 0 && shown[field.key] !== undefined) {
-			shown[field.key] = shownInside(field.fields, shown[field.key])
-		}
-	}
 	return shown
-}
-
-/**
- * Returns a container's value with every key its own rules hide taken away from each row.
- * @param fields - The fields the container declares.
- * @param value - The value the container holds.
- * @returns The value to send.
- */
-function shownInside(fields: ConditionField[], value: unknown): unknown {
-	if (Array.isArray(value)) {
-		return value.map((row) => shownInside(fields, row))
-	}
-	if (typeof value !== 'object' || value === null) {
-		return value
-	}
-	return shownValues(fields, value as Record<string, unknown>)
 }
 
 /**
