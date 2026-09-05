@@ -56,6 +56,40 @@ WHERE p.type = @type
         OR p.content ILIKE '%' || @search || '%'
     );
 
+-- name: ListContentByFields :many
+SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
+FROM core.content p
+WHERE p.type = @type
+    AND p.fields @> @field_filter::jsonb
+    AND (@status::text = '' OR p.status = @status)
+    AND (
+        @search::text = ''
+        OR p.title ILIKE '%' || @search || '%'
+        OR p.content ILIKE '%' || @search || '%'
+    )
+ORDER BY
+    CASE WHEN @order_by::text = 'title' AND @order_dir::text = 'asc' THEN p.title END ASC,
+    CASE WHEN @order_by::text = 'title' AND @order_dir::text = 'desc' THEN p.title END DESC,
+    CASE WHEN @order_by::text <> 'title' AND @order_dir::text = 'asc'
+        THEN COALESCE(p.published_at, p.created_at) END ASC,
+    CASE WHEN @order_by::text <> 'title' AND @order_dir::text <> 'asc'
+        THEN COALESCE(p.published_at, p.created_at) END DESC,
+    p.id DESC
+LIMIT @row_limit OFFSET @row_offset;
+
+-- name: CountContentByFields :one
+SELECT count(*)
+FROM core.content p
+WHERE p.type = @type
+    AND p.fields @> @field_filter::jsonb
+    AND (@status::text = '' OR p.status = @status)
+    AND (
+        @search::text = ''
+        OR p.title ILIKE '%' || @search || '%'
+        OR p.content ILIKE '%' || @search || '%'
+    );
+
 -- name: UpdateContent :one
 UPDATE core.content AS p
 SET status = @status, slug = @slug, path = @path, parent_id = @parent_id, title = @title,
