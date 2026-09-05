@@ -137,6 +137,9 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	if err := f.Validate(); err != nil {
 		return Field{}, err
 	}
+	if err := f.standsAlone(); err != nil {
+		return Field{}, err
+	}
 	held, target, err := r.groupAmong(ctx, groupID)
 	if err != nil {
 		return Field{}, err

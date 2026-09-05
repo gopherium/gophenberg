@@ -280,6 +280,9 @@ func (r *Registry) CreateField(ctx context.Context, f Field) (Field, error) {
 	if err := f.Validate(); err != nil {
 		return Field{}, err
 	}
+	if err := f.standsAlone(); err != nil {
+		return Field{}, err
+	}
 	t, err := r.ByKey(ctx, f.TypeKey)
 	if err != nil {
 		return Field{}, err
