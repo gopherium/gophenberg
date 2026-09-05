@@ -56,13 +56,13 @@ export function PostsScreen() {
 	})
 	const columns = useMemo(() => postFields(listed), [listed])
 	const shown = columns.map((column) => column.id).join(',')
-	if (offered !== shown) {
-		const ids = shown.split(',')
-		setOffered(shown)
+	const settled = listed.key + ' ' + shown
+	if (offered !== settled) {
+		setOffered(settled)
 		setView((current) => ({
 			...current,
-			fields: ids.filter((id) => id !== 'title'),
-			filters: current.filters?.filter((filter) => ids.includes(filter.field)),
+			fields: shown.split(',').filter((id) => id !== 'title'),
+			filters: [],
 			page: 1,
 		}))
 	}

@@ -221,3 +221,32 @@ test('drops a filter the type it moves to never declared', async () => {
 	await waitFor(() => expect(asked.at(-1)).toContain('type=page'))
 	expect(asked.at(-1)).not.toContain('field%5Bon-sale%5D')
 })
+
+test('drops a filter the type it moves to declares under another kind', async () => {
+	const colour = field('shared', 'Shared', 'choice', {
+		listed: true,
+		choices: [{ value: 'red', label: 'Red' }],
+	})
+	const flag = field('shared', 'Shared', 'boolean', { listed: true })
+	const pageType = { ...POST_TYPE, key: 'page', plural_label: 'Pages', default: false, fields: [flag] }
+	const asked: string[] = []
+	server.use(
+		http.get('/api/types', () =>
+			HttpResponse.json({ items: [{ ...POST_TYPE, fields: [colour] }, pageType] }),
+		),
+		http.get('/api/content', ({ request }) => {
+			asked.push(new URL(request.url).search)
+			return HttpResponse.json({ items: [ITEM], total: 1 })
+		}),
+	)
+	const { router } = renderRoutedAt('/content/post')
+	await screen.findByRole('table')
+	await userEvent.click(screen.getAllByRole('button', { name: /Shared/ })[0])
+	await userEvent.click(await screen.findByRole('option', { name: 'Red' }))
+	await waitFor(() => expect(asked.some((search) => search.includes('field%5Bshared%5D=red'))).toBe(true))
+
+	await router.navigate({ to: '/content/$typeKey', params: { typeKey: 'page' } })
+
+	await waitFor(() => expect(asked.at(-1)).toContain('type=page'))
+	expect(asked.at(-1)).not.toContain('field%5Bshared%5D')
+})
