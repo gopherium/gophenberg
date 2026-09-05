@@ -55,6 +55,7 @@ export interface ContentTypeField {
 	many: boolean
 	required: boolean
 	settings?: Record<string, unknown>
+	fields?: ContentTypeField[]
 }
 
 /** A content type as the handshake advertises it. */
