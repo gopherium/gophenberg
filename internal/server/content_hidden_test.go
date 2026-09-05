@@ -3,6 +3,7 @@
 package server_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -239,6 +240,43 @@ func TestContentPatchKeepsAHiddenValueARowStillCarries(t *testing.T) {
 	}
 	if rows[0].(map[string]any)["fee"] != "ten" {
 		t.Errorf("row = %v, want the hidden value the request carried", rows[0])
+	}
+}
+
+func TestPublicItemHidesAValueARowConceals(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+	declaredOn(t, handler, `{"key":"crew","label":"Crew","kind":"repeater"}`)
+	inside := fmt.Sprintf("/api/groups/%d/fields/crew", groupOver(t, handler, "post"))
+	for _, body := range []string{
+		`{"key":"paid","label":"Paid","kind":"boolean"}`,
+		`{"key":"fee","label":"Fee","kind":"text","settings":` +
+			`{"conditions":[[{"source":"paid","operator":"==","value":"true"}]]}}`,
+	} {
+		if recorder := doRequest(t, handler, http.MethodPost, inside, body); recorder.Code != http.StatusCreated {
+			t.Fatalf("declaring inside the container: %d: %s", recorder.Code, recorder.Body)
+		}
+	}
+	held := draftedPost(t, handler)
+	held = patchValues(t, handler, held, `{"crew":[{"paid":false,"fee":"ten"}]}`)
+	publishing := fmt.Sprintf(`{"updated_at":%q,"status":"published"}`, held.UpdatedAt)
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+held.ID, publishing)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("publishing: %d: %s", recorder.Code, recorder.Body)
+	}
+
+	served := resolvedFields(t, handler, "hello-world")
+
+	var rows []map[string]any
+	if err := json.Unmarshal(served["crew"], &rows); err != nil {
+		t.Fatalf("decoding the served rows: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("served rows = %v, want the one row served", rows)
+	}
+	if _, carried := rows[0]["fee"]; carried {
+		t.Errorf("served row = %v, want the hidden value kept from the reader", rows[0])
 	}
 }
 
