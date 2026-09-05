@@ -57,8 +57,14 @@ export function PostsScreen() {
 	const columns = useMemo(() => postFields(listed), [listed])
 	const shown = columns.map((column) => column.id).join(',')
 	if (offered !== shown) {
+		const ids = shown.split(',')
 		setOffered(shown)
-		setView((current) => ({ ...current, fields: shown.split(',').filter((id) => id !== 'title') }))
+		setView((current) => ({
+			...current,
+			fields: ids.filter((id) => id !== 'title'),
+			filters: current.filters?.filter((filter) => ids.includes(filter.field)),
+			page: 1,
+		}))
 	}
 	const terms = fieldTerms(view.filters)
 	const posts = useQuery({
