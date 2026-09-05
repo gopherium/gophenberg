@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/cucumber/godog"
 )
@@ -147,6 +148,22 @@ func theReaderSettingsStoreCannotBeRead(ctx context.Context) error {
 	return nil
 }
 
+// theAnswerIsKeptOutOfSharedCaches asserts the last answer forbids every cache it does not belong to.
+func theAnswerIsKeptOutOfSharedCaches(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if w.answer == nil {
+		return fmt.Errorf("nothing was answered yet")
+	}
+	held := w.answer.header.Get("Cache-Control")
+	if !strings.Contains(held, "private") || !strings.Contains(held, "no-store") {
+		return fmt.Errorf("Cache-Control = %q, want the answer kept out of shared caches", held)
+	}
+	return nil
+}
+
 // initializeLocale registers the steps of the locale resolution feature.
 func initializeLocale(sc *godog.ScenarioContext) {
 	sc.Before(provisionWorld)
@@ -165,6 +182,7 @@ func initializeLocale(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator sets the site locale to "([^"]*)"$`, theAdministratorSetsTheSiteLocaleTo)
 	sc.When(`^the administrator sets their locale to "([^"]*)"$`, theAdministratorSetsTheirLocaleTo)
 	sc.Then(`^the locale answered is "([^"]*)"$`, theLocaleAnsweredIs)
+	sc.Then(`^the answer is kept out of shared caches$`, theAnswerIsKeptOutOfSharedCaches)
 	sc.Then(`^the locale is answered without an error$`, theLocaleIsAnsweredWithoutError)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 }

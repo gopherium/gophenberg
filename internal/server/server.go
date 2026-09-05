@@ -99,9 +99,9 @@ func NewServer(cfg Config) http.Handler {
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
 		Post("/api/auth/login", auth.Login)
 	router.Post("/api/auth/logout", auth.Logout)
+	router.With(contentHeaders(readerCacheControl)).Get("/api/locale", s.handleLocaleGet())
 	router.Group(func(public chi.Router) {
 		public.Use(contentHeaders(headers.content))
-		public.Get("/api/locale", s.handleLocaleGet())
 		public.Get("/api/content/v1", s.handleContentHandshake())
 		public.Get("/api/content/v1/items", s.handlePublishedList())
 		public.Get("/api/content/v1/resolve", s.handleContentResolve())

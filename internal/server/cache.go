@@ -19,6 +19,9 @@ const DefaultContentSharedMaxAge = time.Minute
 // DefaultContentStaleWhileRevalidate is how long a shared cache may serve a stale read by default.
 const DefaultContentStaleWhileRevalidate = 5 * time.Minute
 
+// readerCacheControl is what an answer resolved for one reader carries, so no cache it does not belong to holds it.
+const readerCacheControl = "private, no-store"
+
 // CachePolicy is how long each kind of public answer may be kept. Zero applies the default.
 type CachePolicy struct {
 	// AssetMaxAge is how long a client may keep a site asset.
