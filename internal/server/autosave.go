@@ -232,5 +232,23 @@ func (s *server) bufferedValues(
 	if err := scalars.ValidateShape(t.Fields); err != nil {
 		return nil, false, err
 	}
-	return scalars, scalars.Validate(t.Fields) == nil, nil
+	if err := content.Concealed(t.Fields, req.Fields, req.Fields); err != nil {
+		return nil, false, err
+	}
+	frozen := frozenValues(c.Fields, scalars, t.Fields)
+	return frozen, frozen.Validate(t.Fields) == nil, nil
+}
+
+// frozenValues returns the buffer holding the stored value again under every hidden key it left out.
+func frozenValues(stored, buffer content.Values, fields []content.Field) content.Values {
+	frozen := make(content.Values, len(buffer))
+	for key, value := range buffer {
+		frozen[key] = value
+	}
+	for key := range content.Hidden(fields, buffer) {
+		if value, held := stored[key]; held {
+			frozen[key] = value
+		}
+	}
+	return frozen
 }

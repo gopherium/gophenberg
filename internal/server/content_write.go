@@ -146,7 +146,7 @@ func (s *server) handleContentCreate() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		if err := req.Fields.Validate(contentType.Fields); err != nil {
+		if err := standingValues(contentType, req.Fields); err != nil {
 			respondDomainError(w, err)
 			return
 		}
@@ -300,6 +300,9 @@ func (s *server) applyValues(
 	}
 	merged := c.Fields.Merge(scalars)
 	held := c.Relations.Merge(targets)
+	if err := content.Concealed(t.Fields, merged, patch); err != nil {
+		return false, false, err
+	}
 	pointing := *c
 	pointing.Relations = held
 	if err := pointing.SelfTargeted(); err != nil {
@@ -329,6 +332,14 @@ func sameRelations(held, asked content.Relations) bool {
 		}
 	}
 	return true
+}
+
+// standingValues reports why the values a fresh item carries could not stand under its type.
+func standingValues(t content.Type, values content.Values) error {
+	if err := values.Validate(t.Fields); err != nil {
+		return err
+	}
+	return content.Concealed(t.Fields, values, values)
 }
 
 // sameValues reports whether two sets of field values hold the same things.

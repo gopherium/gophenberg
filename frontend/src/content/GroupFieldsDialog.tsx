@@ -32,6 +32,7 @@ import {
 	setFieldSettingsInGroup,
 	StaleWriteError,
 } from './groups'
+import { FieldConditions } from './FieldConditions'
 import { chosenOf } from './select'
 import { fieldKinds, kindLabel, pairsOf, pickedKind, slugifyKey } from './types'
 import type { ChoicePair } from './types'
@@ -211,6 +212,19 @@ function FieldsBody(
 									<RequireField
 										group={props.held.id}
 										field={field}
+										onDone={props.onDone}
+										onRefused={props.onRefused}
+									/>
+									<ListField
+										group={props.held.id}
+										field={field}
+										onDone={props.onDone}
+										onRefused={props.onRefused}
+									/>
+									<FieldConditions
+										group={props.held.id}
+										field={field}
+										siblings={declared}
 										onDone={props.onDone}
 										onRefused={props.onRefused}
 									/>
@@ -684,6 +698,51 @@ function RequireField(props: Inside) {
 	)
 }
 
+/** The kinds the admin list can show as a column. */
+const LISTABLE = ['text', 'number', 'boolean', 'date', 'choice']
+
+/**
+ * Renders the control flipping whether a field stands as a column on the admin list.
+ * @param props - The group, the field, and what to report.
+ * @returns The control element, or nothing for a kind the list cannot show.
+ */
+function ListField(props: Inside) {
+	const listed = props.field.settings.listed === true
+	const flip = useMutation({
+		mutationFn: () =>
+			setFieldSettingsInGroup(
+				props.group,
+				props.path ?? props.field.key,
+				{ ...props.field.settings, listed: !listed },
+				props.field.updatedAt,
+			),
+		onSuccess: async () => {
+			const said = listed
+				? __('%(field)s stays out of the list.', 'gophenberg')
+				: __('%(field)s stands in the list.', 'gophenberg')
+			await props.onDone(sprintf(said, { field: props.field.label }))
+		},
+		onError: props.onRefused,
+	})
+	if (!LISTABLE.includes(props.field.kind)) {
+		return null
+	}
+	const asking = listed
+		? sprintf(__('Keep %(field)s out of the list', 'gophenberg'), { field: props.field.label })
+		: sprintf(__('Show %(field)s in the list', 'gophenberg'), { field: props.field.label })
+	return (
+		<Button
+			variant="outline"
+			size="compact"
+			aria-label={asking}
+			loading={flip.isPending}
+			onClick={() => flip.mutate()}
+		>
+			{listed ? __('Out of list', 'gophenberg') : __('In list', 'gophenberg')}
+		</Button>
+	)
+}
+
 /**
  * Renders the control carrying a new label for a field.
  * @param props - The group, the field, and what to report.
@@ -879,6 +938,21 @@ function HeldFields(
 							<RequireField
 								group={props.group}
 								field={field}
+								path={props.at + '.' + field.key}
+								onDone={props.onDone}
+								onRefused={props.onRefused}
+							/>
+							<ListField
+								group={props.group}
+								field={field}
+								path={props.at + '.' + field.key}
+								onDone={props.onDone}
+								onRefused={props.onRefused}
+							/>
+							<FieldConditions
+								group={props.group}
+								field={field}
+								siblings={props.declared}
 								path={props.at + '.' + field.key}
 								onDone={props.onDone}
 								onRefused={props.onRefused}

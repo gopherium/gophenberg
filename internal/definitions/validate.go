@@ -129,6 +129,23 @@ func validateFields(declared []FieldDefinition, parent content.FieldKind, depth 
 			return err
 		}
 	}
+	return conditionsStand(declared)
+}
+
+// conditionsStand returns the first reason the conditions on one level of declared fields could not be stored.
+func conditionsStand(declared []FieldDefinition) error {
+	siblings := make([]content.Field, len(declared))
+	for i, d := range declared {
+		siblings[i] = fieldFrom(d)
+	}
+	if err := content.Acyclic(siblings); err != nil {
+		return err
+	}
+	for _, f := range siblings {
+		if err := content.Stands(siblings, f); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

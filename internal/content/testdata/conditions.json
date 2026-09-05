@@ -1,0 +1,245 @@
+{
+  "operators": [
+    {"kind": "text", "offers": ["==", "!=", "contains", "empty", "not_empty"]},
+    {"kind": "number", "offers": ["==", "!=", "<", ">", "empty", "not_empty"]},
+    {"kind": "date", "offers": ["==", "!=", "<", ">", "empty", "not_empty"]},
+    {"kind": "boolean", "offers": ["==", "!="]},
+    {"kind": "choice", "offers": ["==", "!=", "empty", "not_empty"]},
+    {"kind": "choice", "multiple": true, "offers": ["contains", "empty", "not_empty"]},
+    {"kind": "media", "offers": ["empty", "not_empty"]},
+    {"kind": "relation", "offers": []},
+    {"kind": "section", "offers": []},
+    {"kind": "repeater", "offers": []}
+  ],
+  "compare": [
+    {"operator": "==", "held": "news", "value": "news", "holds": true},
+    {"operator": "==", "held": "news", "value": "sport", "holds": false},
+    {"operator": "==", "held": 10, "value": "10", "holds": true},
+    {"operator": "==", "held": 10, "value": "10.0", "holds": true},
+    {"operator": "==", "held": 10, "value": "ten", "holds": false},
+    {"operator": "==", "held": true, "value": "true", "holds": true},
+    {"operator": "==", "held": false, "value": "false", "holds": true},
+    {"operator": "==", "held": true, "value": "false", "holds": false},
+    {"operator": "==", "held": ["a"], "value": "a", "holds": false},
+    {"operator": "==", "held": {}, "value": "x", "holds": false},
+    {"operator": "==", "held": null, "value": "", "holds": false},
+    {"operator": "==", "held": null, "value": "news", "holds": false},
+    {"operator": "!=", "held": "news", "value": "sport", "holds": true},
+    {"operator": "!=", "held": "news", "value": "news", "holds": false},
+    {"operator": "!=", "held": null, "value": "news", "holds": true},
+    {"operator": "!=", "held": 10, "value": "10", "holds": false},
+    {"operator": "<", "held": 5, "value": "10", "holds": true},
+    {"operator": "<", "held": 10, "value": "10", "holds": false},
+    {"operator": "<", "held": 15, "value": "10", "holds": false},
+    {"operator": "<", "held": 5, "value": "ten", "holds": false},
+    {"operator": "<", "held": "2026-01-01", "value": "2026-06-30", "holds": true},
+    {"operator": "<", "held": "2026-06-30", "value": "2026-01-01", "holds": false},
+    {"operator": "<", "held": "2026-06-30", "value": "2026-06-30", "holds": false},
+    {"operator": "<", "held": true, "value": "10", "holds": false},
+    {"operator": "<", "held": null, "value": "10", "holds": false},
+    {"operator": "<", "held": ["a"], "value": "b", "holds": false},
+    {"operator": ">", "held": 15, "value": "10", "holds": true},
+    {"operator": ">", "held": 10, "value": "10", "holds": false},
+    {"operator": ">", "held": 5, "value": "10", "holds": false},
+    {"operator": ">", "held": "2026-06-30", "value": "2026-01-01", "holds": true},
+    {"operator": ">", "held": "b", "value": "a", "holds": true},
+    {"operator": ">", "held": null, "value": "10", "holds": false},
+    {"operator": "contains", "held": "breaking news", "value": "news", "holds": true},
+    {"operator": "contains", "held": "news", "value": "sport", "holds": false},
+    {"operator": "contains", "held": ["a", "b"], "value": "b", "holds": true},
+    {"operator": "contains", "held": ["a"], "value": "b", "holds": false},
+    {"operator": "contains", "held": [1], "value": "1", "holds": false},
+    {"operator": "contains", "held": 10, "value": "1", "holds": false},
+    {"operator": "contains", "held": null, "value": "x", "holds": false},
+    {"operator": "contains", "held": true, "value": "true", "holds": false},
+    {"operator": "contains", "held": {}, "value": "x", "holds": false},
+    {"operator": "empty", "held": null, "value": "", "holds": true},
+    {"operator": "empty", "held": "", "value": "", "holds": true},
+    {"operator": "empty", "held": [], "value": "", "holds": true},
+    {"operator": "empty", "held": {}, "value": "", "holds": true},
+    {"operator": "empty", "held": "x", "value": "", "holds": false},
+    {"operator": "empty", "held": 0, "value": "", "holds": false},
+    {"operator": "empty", "held": false, "value": "", "holds": false},
+    {"operator": "empty", "held": ["a"], "value": "", "holds": false},
+    {"operator": "empty", "held": {"a": 1}, "value": "", "holds": false},
+    {"operator": "not_empty", "held": "x", "value": "", "holds": true},
+    {"operator": "not_empty", "held": null, "value": "", "holds": false},
+    {"operator": "not_empty", "held": [], "value": "", "holds": false},
+    {"operator": "~", "held": "x", "value": "x", "holds": false}
+  ],
+  "hidden": [
+    {
+      "name": "no conditions shows every field",
+      "fields": [{"key": "title", "kind": "text"}, {"key": "price", "kind": "number"}],
+      "scope": {"title": "Lamp"},
+      "hidden": []
+    },
+    {
+      "name": "a rule that holds shows the field",
+      "fields": [
+        {"key": "on_sale", "kind": "boolean"},
+        {"key": "sale_price", "kind": "number", "conditions": [[{"source": "on_sale", "operator": "==", "value": "true"}]]}
+      ],
+      "scope": {"on_sale": true},
+      "hidden": []
+    },
+    {
+      "name": "a rule that fails hides the field",
+      "fields": [
+        {"key": "on_sale", "kind": "boolean"},
+        {"key": "sale_price", "kind": "number", "conditions": [[{"source": "on_sale", "operator": "==", "value": "true"}]]}
+      ],
+      "scope": {"on_sale": false},
+      "hidden": ["sale_price"]
+    },
+    {
+      "name": "an absent boolean reads as false",
+      "fields": [
+        {"key": "on_sale", "kind": "boolean"},
+        {"key": "sale_price", "kind": "number", "conditions": [[{"source": "on_sale", "operator": "==", "value": "true"}]]},
+        {"key": "note", "kind": "text", "conditions": [[{"source": "on_sale", "operator": "==", "value": "false"}]]}
+      ],
+      "scope": {},
+      "hidden": ["sale_price"]
+    },
+    {
+      "name": "any group holding shows the field",
+      "fields": [
+        {"key": "kind", "kind": "text"},
+        {"key": "runtime", "kind": "number", "conditions": [
+          [{"source": "kind", "operator": "==", "value": "video"}],
+          [{"source": "kind", "operator": "==", "value": "audio"}]
+        ]}
+      ],
+      "scope": {"kind": "audio"},
+      "hidden": []
+    },
+    {
+      "name": "every rule of a group must hold",
+      "fields": [
+        {"key": "kind", "kind": "text"},
+        {"key": "length", "kind": "number"},
+        {"key": "runtime", "kind": "number", "conditions": [[
+          {"source": "kind", "operator": "==", "value": "video"},
+          {"source": "length", "operator": ">", "value": "0"}
+        ]]}
+      ],
+      "scope": {"kind": "video", "length": 0},
+      "hidden": ["runtime"]
+    },
+    {
+      "name": "an unknown source fails its group",
+      "fields": [
+        {"key": "runtime", "kind": "number", "conditions": [[{"source": "vanished", "operator": "==", "value": "video"}]]}
+      ],
+      "scope": {"vanished": "video"},
+      "hidden": ["runtime"]
+    },
+    {
+      "name": "a sibling that is not a source fails its group",
+      "fields": [
+        {"key": "author", "kind": "relation"},
+        {"key": "note", "kind": "text", "conditions": [[{"source": "author", "operator": "not_empty", "value": ""}]]}
+      ],
+      "scope": {"author": ["b3f1"]},
+      "hidden": ["note"]
+    },
+    {
+      "name": "a chain follows the source's visibility",
+      "fields": [
+        {"key": "has_discount", "kind": "boolean"},
+        {"key": "discount_type", "kind": "choice", "conditions": [[{"source": "has_discount", "operator": "==", "value": "true"}]]},
+        {"key": "discount_amount", "kind": "number", "conditions": [[{"source": "discount_type", "operator": "==", "value": "percent"}]]}
+      ],
+      "scope": {"has_discount": false, "discount_type": "percent"},
+      "hidden": ["discount_type", "discount_amount"]
+    },
+    {
+      "name": "a chain shows every link when the source holds",
+      "fields": [
+        {"key": "has_discount", "kind": "boolean"},
+        {"key": "discount_type", "kind": "choice", "conditions": [[{"source": "has_discount", "operator": "==", "value": "true"}]]},
+        {"key": "discount_amount", "kind": "number", "conditions": [[{"source": "discount_type", "operator": "==", "value": "percent"}]]}
+      ],
+      "scope": {"has_discount": true, "discount_type": "percent"},
+      "hidden": []
+    },
+    {
+      "name": "a chain reads the same whatever the declared order",
+      "fields": [
+        {"key": "discount_amount", "kind": "number", "conditions": [[{"source": "discount_type", "operator": "==", "value": "percent"}]]},
+        {"key": "discount_type", "kind": "choice", "conditions": [[{"source": "has_discount", "operator": "==", "value": "true"}]]},
+        {"key": "has_discount", "kind": "boolean"}
+      ],
+      "scope": {"has_discount": false, "discount_type": "percent"},
+      "hidden": ["discount_amount", "discount_type"]
+    },
+    {
+      "name": "a hidden source reads as absent",
+      "fields": [
+        {"key": "gate", "kind": "boolean"},
+        {"key": "summary", "kind": "text", "conditions": [[{"source": "gate", "operator": "==", "value": "true"}]]},
+        {"key": "fallback", "kind": "text", "conditions": [[{"source": "summary", "operator": "empty", "value": ""}]]}
+      ],
+      "scope": {"gate": false, "summary": "written"},
+      "hidden": ["summary"]
+    },
+    {
+      "name": "a shown source reads its value",
+      "fields": [
+        {"key": "gate", "kind": "boolean"},
+        {"key": "summary", "kind": "text", "conditions": [[{"source": "gate", "operator": "==", "value": "true"}]]},
+        {"key": "fallback", "kind": "text", "conditions": [[{"source": "summary", "operator": "empty", "value": ""}]]}
+      ],
+      "scope": {"gate": true, "summary": "written"},
+      "hidden": ["fallback"]
+    },
+    {
+      "name": "a cycle hides the fields caught in it",
+      "fields": [
+        {"key": "first", "kind": "text", "conditions": [[{"source": "second", "operator": "==", "value": "x"}]]},
+        {"key": "second", "kind": "text", "conditions": [[{"source": "first", "operator": "==", "value": "y"}]]},
+        {"key": "third", "kind": "text"}
+      ],
+      "scope": {"first": "y", "second": "x"},
+      "hidden": ["first", "second"]
+    },
+    {
+      "name": "a self reference hides the field",
+      "fields": [
+        {"key": "loop", "kind": "text", "conditions": [[{"source": "loop", "operator": "not_empty", "value": ""}]]}
+      ],
+      "scope": {"loop": "written"},
+      "hidden": ["loop"]
+    },
+    {
+      "name": "a rule naming nothing at all shows the field",
+      "fields": [
+        {"key": "note", "kind": "text", "conditions": [[{"source": "", "operator": "", "value": ""}]]}
+      ],
+      "scope": {},
+      "hidden": []
+    },
+    {
+      "name": "a rule naming nothing at all leaves the rules beside it standing",
+      "fields": [
+        {"key": "on_sale", "kind": "boolean"},
+        {"key": "note", "kind": "text", "conditions": [[
+          {"source": "", "operator": "", "value": ""},
+          {"source": "on_sale", "operator": "==", "value": "true"}
+        ]]}
+      ],
+      "scope": {"on_sale": false},
+      "hidden": ["note"]
+    },
+    {
+      "name": "a multiple choice holds its member",
+      "fields": [
+        {"key": "tags", "kind": "choice", "multiple": true},
+        {"key": "extra", "kind": "text", "conditions": [[{"source": "tags", "operator": "contains", "value": "news"}]]}
+      ],
+      "scope": {"tags": ["news", "sport"]},
+      "hidden": []
+    }
+  ]
+}

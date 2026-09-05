@@ -303,6 +303,7 @@ func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Co
 	for key, listed := range targets {
 		values[key] = namedTargets(listed)
 	}
+	values = content.Shown(t.Fields, values)
 	if err := s.inlineMediaValues(r, t, values); err != nil {
 		return publishedDetail{}, err
 	}

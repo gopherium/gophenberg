@@ -93,3 +93,15 @@ test('seeds a false a boolean field names', () => {
 test('seeds a zero a number field names', () => {
 	expect(seededValues([declared('rating', 'number', { default: 0 })])).toEqual({ rating: 0 })
 })
+
+test('seeds nothing under a field its own rules hide', () => {
+	const held = seededValues([
+		declared('on-sale', 'boolean', { default: false }),
+		declared('sale-note', 'text', {
+			default: 'half price',
+			conditions: [[{ source: 'on-sale', operator: '==', value: 'true' }]],
+		}),
+	])
+
+	expect(held).toEqual({ 'on-sale': false })
+})

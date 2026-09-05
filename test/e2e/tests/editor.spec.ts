@@ -224,3 +224,20 @@ test('walks an edit back with undo', async ({ page }) => {
 
 	await expect(canvas(page).getByText('First words.')).toBeHidden()
 })
+
+test('shows a field only while the rule it stands on holds', async ({ page }) => {
+	await openNewDraft(page)
+
+	await expect(page.getByLabel('Sale note')).toBeHidden()
+
+	await page.getByLabel('On sale').check()
+	await page.getByLabel('Sale note').fill('Half price all week')
+	await page.getByRole('button', { name: 'Save draft' }).click()
+	await expect(shown(page, 'Draft saved.')).toBeVisible()
+
+	await page.getByLabel('On sale').uncheck()
+	await expect(page.getByLabel('Sale note')).toBeHidden()
+
+	await page.getByLabel('On sale').check()
+	await expect(page.getByLabel('Sale note')).toHaveValue('Half price all week')
+})

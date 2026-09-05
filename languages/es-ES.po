@@ -1838,3 +1838,75 @@ msgstr "Gophenberg no tiene ninguna clase de definición llamada %(subject)s, as
 #, fuzzy
 msgid "The site may already hold part of this file. Import it again to see what is left."
 msgstr "Puede que el sitio ya tenga parte de este archivo. Impórtalo de nuevo para ver lo que queda."
+
+#, fuzzy
+msgid "The field %(field)s is hidden by its own rules right now, so it cannot hold a value. Show it again before filling it in."
+msgstr "El campo %(field)s está oculto por sus propias reglas ahora mismo, así que no puede guardar ningún valor. Vuelve a mostrarlo antes de rellenarlo."
+
+#, fuzzy
+msgid "The field %(field)s cannot go, because %(by)s is only shown when %(field)s says so. Change the rules on %(by)s first."
+msgstr "El campo %(field)s no se puede quitar, porque %(by)s solo se muestra cuando %(field)s lo indica. Cambia antes las reglas de %(by)s."
+
+#, fuzzy
+msgid "The rules on %(field)s lead back to %(field)s itself, so nothing can decide whether to show it. Point one of them at another field."
+msgstr "Las reglas de %(field)s vuelven al propio %(field)s, así que nada puede decidir si mostrarlo. Apunta una de ellas a otro campo."
+
+#, fuzzy
+msgid "The field %(source)s cannot hold the value %(value)s, so no rule can compare it. Write a value of the kind %(source)s stores."
+msgstr "El campo %(source)s no puede guardar el valor %(value)s, así que ninguna regla puede compararlo. Escribe un valor de la clase que %(source)s guarda."
+
+#, fuzzy
+msgid "%(field)s shows by its rules now."
+msgstr "%(field)s ahora se muestra según sus reglas."
+
+#, fuzzy
+msgid "%(field)s stands in the list."
+msgstr "%(field)s aparece en la lista."
+
+#, fuzzy
+msgid "%(field)s stays out of the list."
+msgstr "%(field)s se queda fuera de la lista."
+
+#, fuzzy
+msgid "In list"
+msgstr "En la lista"
+
+#, fuzzy
+msgid "Keep %(field)s out of the list"
+msgstr "Dejar %(field)s fuera de la lista"
+
+#, fuzzy
+msgid "Out of list"
+msgstr "Fuera de la lista"
+
+#, fuzzy
+msgid "Rules showing %(field)s"
+msgstr "Reglas que muestran %(field)s"
+
+#, fuzzy
+msgid "Show %(field)s in the list"
+msgstr "Mostrar %(field)s en la lista"
+
+#, fuzzy
+msgid "Without a rule this field always shows."
+msgstr "Sin ninguna regla este campo siempre se muestra."
+
+#, fuzzy
+msgid "holds"
+msgstr "contiene"
+
+#, fuzzy
+msgid "holds anything"
+msgstr "contiene algo"
+
+#, fuzzy
+msgid "is above"
+msgstr "es mayor que"
+
+#, fuzzy
+msgid "is below"
+msgstr "es menor que"
+
+#, fuzzy
+msgid "is empty"
+msgstr "está vacío"

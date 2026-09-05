@@ -57,6 +57,15 @@ msgstr ""
 msgid "%(field)s settled."
 msgstr ""
 
+msgid "%(field)s shows by its rules now."
+msgstr ""
+
+msgid "%(field)s stands in the list."
+msgstr ""
+
+msgid "%(field)s stays out of the list."
+msgstr ""
+
 msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again."
 msgstr ""
 
@@ -639,6 +648,9 @@ msgstr ""
 msgid "Import definitions"
 msgstr ""
 
+msgid "In list"
+msgstr ""
+
 msgid "Inactive"
 msgstr ""
 
@@ -667,6 +679,9 @@ msgid "July"
 msgstr ""
 
 msgid "June"
+msgstr ""
+
+msgid "Keep %(field)s out of the list"
 msgstr ""
 
 msgid "Keep it"
@@ -899,6 +914,9 @@ msgstr ""
 msgid "Other"
 msgstr ""
 
+msgid "Out of list"
+msgstr ""
+
 msgid "Parent"
 msgstr ""
 
@@ -1004,6 +1022,9 @@ msgstr ""
 msgid "Rules"
 msgstr ""
 
+msgid "Rules showing %(field)s"
+msgstr ""
+
 msgid "Save"
 msgstr ""
 
@@ -1056,6 +1077,9 @@ msgid "Settings of %(field)s"
 msgstr ""
 
 msgid "Shadowed"
+msgstr ""
+
+msgid "Show %(field)s in the list"
 msgstr ""
 
 msgid "Singular name"
@@ -1160,6 +1184,9 @@ msgstr ""
 msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."
 msgstr ""
 
+msgid "The field %(field)s cannot go, because %(by)s is only shown when %(field)s says so. Change the rules on %(by)s first."
+msgstr ""
+
 msgid "The field %(field)s cannot hold the value it was given. Check what kind of field it is and enter a value that matches."
 msgstr ""
 
@@ -1169,6 +1196,9 @@ msgstr ""
 msgid "The field %(field)s in %(group)s still points at this content type. Delete that field first, then delete this type."
 msgstr ""
 
+msgid "The field %(field)s is hidden by its own rules right now, so it cannot hold a value. Show it again before filling it in."
+msgstr ""
+
 msgid "The field %(field)s points at one item only. Remove the extra choices and keep one."
 msgstr ""
 
@@ -1176,6 +1206,9 @@ msgid "The field %(field)s points at other items, so it does not take a plain va
 msgstr ""
 
 msgid "The field %(field)s takes a list of items, and what arrived was not a list. Reload the page and pick the items again."
+msgstr ""
+
+msgid "The field %(source)s cannot hold the value %(value)s, so no rule can compare it. Write a value of the kind %(source)s stores."
 msgstr ""
 
 msgid "The field groups could not be loaded."
@@ -1224,6 +1257,9 @@ msgid "The rule on %(source)s names nothing to match. Pick a value, or remove th
 msgstr ""
 
 msgid "The rules could not be loaded."
+msgstr ""
+
+msgid "The rules on %(field)s lead back to %(field)s itself, so nothing can decide whether to show it. Point one of them at another field."
 msgstr ""
 
 msgid "The same item was picked twice for %(field)s. Pick each item once."
@@ -1481,6 +1517,9 @@ msgstr ""
 msgid "Where %(group)s appears"
 msgstr ""
 
+msgid "Without a rule this field always shows."
+msgstr ""
+
 msgid "Without a rule this group appears nowhere."
 msgstr ""
 
@@ -1505,7 +1544,22 @@ msgstr ""
 msgid "address"
 msgstr ""
 
+msgid "holds"
+msgstr ""
+
+msgid "holds anything"
+msgstr ""
+
 msgid "is"
+msgstr ""
+
+msgid "is above"
+msgstr ""
+
+msgid "is below"
+msgstr ""
+
+msgid "is empty"
 msgstr ""
 
 msgid "is not"

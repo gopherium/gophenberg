@@ -29,6 +29,21 @@ const OperatorIs = "=="
 // OperatorIsNot is the operator excluding a rule value.
 const OperatorIsNot = "!="
 
+// OperatorLess is the operator matching a value below the rule value.
+const OperatorLess = "<"
+
+// OperatorGreater is the operator matching a value above the rule value.
+const OperatorGreater = ">"
+
+// OperatorContains is the operator matching a value holding the rule value.
+const OperatorContains = "contains"
+
+// OperatorEmpty is the operator matching a value that is not set.
+const OperatorEmpty = "empty"
+
+// OperatorNotEmpty is the operator matching a value that is set.
+const OperatorNotEmpty = "not_empty"
+
 // AnyContentType is the rule value matching every content type.
 const AnyContentType = "*"
 
@@ -62,8 +77,10 @@ type Param interface {
 	Operators() []string
 	// Values returns the choices a rule builder offers for the param.
 	Values(ctx context.Context) ([]Choice, error)
-	// Matches reports whether the screen holds the value, before any operator inversion.
-	Matches(scr Screen, value string) bool
+	// Stands reports why a rule value does not stand beside the operator, if it does not.
+	Stands(operator, value string) error
+	// Holds reports whether the screen satisfies the operator and the value.
+	Holds(scr Screen, operator, value string) bool
 }
 
 // ParamRegistry holds the rule sources locations validate and match against.
@@ -122,11 +139,7 @@ func groupMatches(group []Rule, scr Screen, params *ParamRegistry) bool {
 		if !found {
 			return false
 		}
-		matched := p.Matches(scr, rule.Value)
-		if rule.Operator == OperatorIsNot {
-			matched = !matched
-		}
-		if !matched {
+		if !p.Holds(scr, rule.Operator, rule.Value) {
 			return false
 		}
 	}
@@ -157,15 +170,18 @@ func validateRule(rule Rule, params *ParamRegistry) error {
 			fmt.Sprintf("%s: %s", ErrRuleOperator, rule.Operator),
 			Details{"source": rule.Source, "operator": rule.Operator})
 	}
-	if rule.Value == "" {
-		return Refuse(ErrRuleValue, "rule_value_missing",
-			fmt.Sprintf("%s on %s", ErrRuleValue, rule.Source), Details{"source": rule.Source})
-	}
-	if rule.Value == AnyContentType && rule.Operator == OperatorIsNot {
-		return Refuse(ErrRuleAnyNegated, "rule_any_negated",
-			ErrRuleAnyNegated.Error(), Details{"source": rule.Source})
-	}
-	return nil
+	return p.Stands(rule.Operator, rule.Value)
+}
+
+// valueMissing reports a rule on the source holding no value.
+func valueMissing(source string) error {
+	return Refuse(ErrRuleValue, "rule_value_missing",
+		fmt.Sprintf("%s on %s", ErrRuleValue, source), Details{"source": source})
+}
+
+// needsValue reports whether the operator compares against a rule value.
+func needsValue(operator string) bool {
+	return operator != OperatorEmpty && operator != OperatorNotEmpty
 }
 
 // offered reports whether an operator is among the offered ones.
@@ -197,15 +213,19 @@ func (r Rules) Equal(o Rules) bool {
 	return true
 }
 
-// Normalize returns the rules without zero rules and empty groups, never nil.
+// Normalize returns the rules without zero rules, empty groups and values under valueless operators, never nil.
 func (r Rules) Normalize() Rules {
 	normalized := Rules{}
 	for _, group := range r {
 		kept := make([]Rule, 0, len(group))
 		for _, rule := range group {
-			if rule != (Rule{}) {
-				kept = append(kept, rule)
+			if rule == (Rule{}) {
+				continue
 			}
+			if !needsValue(rule.Operator) {
+				rule.Value = ""
+			}
+			kept = append(kept, rule)
 		}
 		if len(kept) > 0 {
 			normalized = append(normalized, kept)
@@ -241,10 +261,23 @@ func (p contentTypeParam) Values(ctx context.Context) ([]Choice, error) {
 	return p.choices(ctx)
 }
 
-// Matches reports whether the screen's content type is the value, with any matching every type.
-func (contentTypeParam) Matches(scr Screen, value string) bool {
-	if value == AnyContentType {
-		return true
+// Stands reports why a content type rule value does not stand beside the operator, if it does not.
+func (contentTypeParam) Stands(operator, value string) error {
+	if value == "" {
+		return valueMissing(ScreenContentType)
 	}
-	return scr[ScreenContentType] == value
+	if value == AnyContentType && operator == OperatorIsNot {
+		return Refuse(ErrRuleAnyNegated, "rule_any_negated",
+			ErrRuleAnyNegated.Error(), Details{"source": ScreenContentType})
+	}
+	return nil
+}
+
+// Holds reports whether the screen's content type satisfies the operator and the value, with any matching every type.
+func (contentTypeParam) Holds(scr Screen, operator, value string) bool {
+	matched := value == AnyContentType || scr[ScreenContentType] == value
+	if operator == OperatorIsNot {
+		return !matched
+	}
+	return matched
 }

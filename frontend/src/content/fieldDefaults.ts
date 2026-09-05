@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { hiddenKeys } from './conditions'
 import type { ContentField } from './types'
 
 /** The value a control starts a fresh item with. */
@@ -55,6 +56,10 @@ export function seededValues(declared: ContentField[]): Record<string, SeededVal
 		if (held !== undefined) {
 			values[field.key] = held
 		}
+	}
+	const hidden = hiddenKeys(declared, values)
+	for (const key of hidden) {
+		delete values[key]
 	}
 	return values
 }

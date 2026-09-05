@@ -195,6 +195,24 @@ func TestApplyReportsEveryWriteTheStoreRefuses(t *testing.T) {
 			renameOn(t, pool, "core.content_types", "INSERT", "core.field_groups")
 			return asked
 		},
+		"a condition it cannot write": func(
+			t *testing.T, pool *pgxpool.Pool, r *content.Registry,
+		) definitions.Import {
+			envelope := exported(t, r)
+			recipe := groupNamed(t, envelope, "recipe-details")
+			recipe.Fields = append(recipe.Fields, conditioned("note", "cook-time"))
+			raiseOn(t, pool, "core.content_fields", "UPDATE", "true")
+			return importing(envelope)
+		},
+		"a condition inside a container it cannot write": func(
+			t *testing.T, pool *pgxpool.Pool, r *content.Registry,
+		) definitions.Import {
+			envelope := exported(t, r)
+			steps := &groupNamed(t, envelope, "recipe-details").Fields[1]
+			steps.Fields = append(steps.Fields, conditioned("timing", steps.Fields[0].Key))
+			raiseOn(t, pool, "core.content_fields", "UPDATE", "NEW.parent_field_id IS NOT NULL")
+			return importing(envelope)
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
