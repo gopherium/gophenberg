@@ -78,6 +78,25 @@ field holds a list, and a choice says the same thing through its
 `multiple` setting instead. A `page_kind` of `archive` marks a type
 whose items answer with a term page, covered below.
 
+A Section or a Repeater lists the fields it holds under its own
+`fields`, the same shape again, as deep as the group declares. The key
+is absent on a field holding none, so a reader can tell a container
+from a plain field by asking whether it lists any.
+
+```json
+{
+  "key": "team",
+  "label": "Team",
+  "kind": "repeater",
+  "many": false,
+  "required": false,
+  "fields": [
+    { "key": "name", "label": "Name", "kind": "text", "many": false, "required": true },
+    { "key": "role", "label": "Role", "kind": "text", "many": false, "required": false }
+  ]
+}
+```
+
 ## Listing items
 
 ```sh
