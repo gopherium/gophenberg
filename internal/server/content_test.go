@@ -72,7 +72,7 @@ func TestContentAPIAnswersTheHandshakeWithoutASession(t *testing.T) {
 	if !strings.Contains(body, `"api":0`) {
 		t.Errorf("body = %q, want the api generation", body)
 	}
-	if !strings.Contains(body, `"kit":["0.9.0","0.10.0","0.11.0","0.12.0"]`) {
+	if !strings.Contains(body, `"kit":["0.9.0","0.10.0","0.11.0","0.12.0","0.13.0"]`) {
 		t.Errorf("body = %q, want the kit versions served", body)
 	}
 	if !strings.Contains(body, `"gophenberg"`) {
@@ -341,7 +341,7 @@ func TestContentAPIAdvertisesTheTypesItServes(t *testing.T) {
 	if handshake.API != 0 {
 		t.Errorf("api = %d, want 0", handshake.API)
 	}
-	if !slices.Equal(handshake.Kit, []string{"0.9.0", "0.10.0", "0.11.0", "0.12.0"}) {
+	if !slices.Equal(handshake.Kit, []string{"0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0"}) {
 		t.Errorf("kit = %v, want the kit versions this release serves", handshake.Kit)
 	}
 	if len(handshake.Types) != 1 {
@@ -353,6 +353,69 @@ func TestContentAPIAdvertisesTheTypesItServes(t *testing.T) {
 	}
 	if listed.PluralName != "Posts" || listed.PageKind != string(content.PageKindSingle) {
 		t.Errorf("type = %+v, want its labels and page kind", listed)
+	}
+}
+
+func TestContentAPIServesATypeWithoutFieldsAsAnEmptyList(t *testing.T) {
+	t.Parallel()
+
+	handler := contentServer(t)
+
+	recorder := getContent(t, handler, "/api/content/v1")
+
+	if !strings.Contains(recorder.Body.String(), `"fields":[]`) {
+		t.Errorf("body = %s, want a type carrying no fields to serve an empty list", recorder.Body)
+	}
+}
+
+func TestContentAPIServesTheFieldsAContainerHolds(t *testing.T) {
+	t.Parallel()
+
+	users := newFakeUserStore()
+	types := newFakeTypeStore()
+	crew := postType()
+	crew.Fields = []content.Field{{
+		Key: "crew", Label: "Crew", Kind: content.FieldKindRepeater,
+		Fields: []content.Field{
+			{Key: "name", Label: "Name", Kind: content.FieldKindText},
+			{Key: "role", Label: "Role", Kind: content.FieldKindChoice, Required: true},
+		},
+	}}
+	types.types = []content.Type{crew}
+	handler := server.NewServer(server.Config{Users: users, Content: newFakePostStore(), Types: types})
+
+	recorder := getContent(t, handler, "/api/content/v1")
+
+	var handshake struct {
+		Types []struct {
+			Fields []struct {
+				Key      string `json:"key"`
+				Kind     string `json:"kind"`
+				Required bool   `json:"required"`
+				Fields   []struct {
+					Key      string `json:"key"`
+					Label    string `json:"label"`
+					Kind     string `json:"kind"`
+					Required bool   `json:"required"`
+				} `json:"fields"`
+			} `json:"fields"`
+		} `json:"types"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &handshake); err != nil {
+		t.Fatalf("reading the handshake: %v", err)
+	}
+	if len(handshake.Types) != 1 || len(handshake.Types[0].Fields) != 1 {
+		t.Fatalf("types = %+v, want the one type carrying the container", handshake.Types)
+	}
+	held := handshake.Types[0].Fields[0]
+	if len(held.Fields) != 2 {
+		t.Fatalf("the container carries %d fields, want the two it holds", len(held.Fields))
+	}
+	if held.Fields[0].Key != "name" || held.Fields[0].Kind != string(content.FieldKindText) {
+		t.Errorf("the first held field = %+v, want the text it declares", held.Fields[0])
+	}
+	if held.Fields[1].Label != "Role" || !held.Fields[1].Required {
+		t.Errorf("the second held field = %+v, want its label and that it is required", held.Fields[1])
 	}
 }
 
