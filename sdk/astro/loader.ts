@@ -15,6 +15,7 @@ export interface PostCollectionFilter {
 	type?: string
 	page?: number
 	perPage?: number
+	fields?: Record<string, string | number | boolean>
 }
 
 /** How a page addresses one live post. */
