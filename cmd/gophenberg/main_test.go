@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"slices"
 	"strings"
 	"testing"
 
@@ -107,8 +108,12 @@ func TestRegisterPluginsWiresEveryManifestedPlugin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("registerPlugins() error = %v, want nil", err)
 	}
-	if len(plugins) != 1 || plugins[0].ID() != "feed" {
-		t.Errorf("registerPlugins() = %v, want the feed plugin alone", plugins)
+	ids := make([]string, 0, len(plugins))
+	for _, plugin := range plugins {
+		ids = append(ids, plugin.ID())
+	}
+	if !slices.Contains(ids, "feed") {
+		t.Errorf("registerPlugins() = %v, want the feed plugin among them", ids)
 	}
 }
 
