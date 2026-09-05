@@ -60,6 +60,7 @@ type servedField struct {
 	Many      bool           `json:"many"`
 	Required  bool           `json:"required"`
 	Settings  map[string]any `json:"settings,omitempty"`
+	Fields    []servedField  `json:"fields,omitempty"`
 }
 
 // newServedType returns the public view of a content type.
@@ -72,14 +73,14 @@ func newServedType(t content.Type) servedType {
 		Hierarchical: t.Hierarchical,
 		PageKind:     string(t.PageKind),
 		Default:      t.Default,
-		Fields:       servedFields(t),
+		Fields:       servedFields(t.Fields),
 	}
 }
 
-// servedFields returns the type's field definitions as a public reader sees them.
-func servedFields(t content.Type) []servedField {
-	fields := make([]servedField, len(t.Fields))
-	for i, f := range t.Fields {
+// servedFields returns field definitions as a public reader sees them, however deep they run.
+func servedFields(held []content.Field) []servedField {
+	fields := make([]servedField, len(held))
+	for i, f := range held {
 		fields[i] = servedField{
 			Key:       f.Key,
 			Label:     f.Label,
@@ -88,6 +89,7 @@ func servedFields(t content.Type) []servedField {
 			Many:      f.Many,
 			Required:  f.Required,
 			Settings:  f.Settings,
+			Fields:    servedFields(f.Fields),
 		}
 	}
 	return fields

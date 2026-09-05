@@ -11,12 +11,27 @@ import (
 
 // handshakeField mirrors the served field shape a theme reads from the public handshake.
 type handshakeField struct {
-	Key       string `json:"key"`
-	Label     string `json:"label"`
-	Kind      string `json:"kind"`
-	RelatesTo string `json:"relates_to,omitempty"`
-	Many      bool   `json:"many"`
-	Required  bool   `json:"required"`
+	Key       string           `json:"key"`
+	Label     string           `json:"label"`
+	Kind      string           `json:"kind"`
+	RelatesTo string           `json:"relates_to,omitempty"`
+	Many      bool             `json:"many"`
+	Required  bool             `json:"required"`
+	Settings  map[string]any   `json:"settings,omitempty"`
+	Fields    []handshakeField `json:"fields,omitempty"`
+}
+
+// handshakeFields returns the served view of field definitions, however deep they run.
+func handshakeFields(held []content.Field) []handshakeField {
+	served := make([]handshakeField, len(held))
+	for i, f := range held {
+		served[i] = handshakeField{
+			Key: f.Key, Label: f.Label, Kind: string(f.Kind),
+			RelatesTo: f.RelatesTo, Many: f.Many, Required: f.Required,
+			Settings: f.Settings, Fields: handshakeFields(f.Fields),
+		}
+	}
+	return served
 }
 
 // handshakeFieldsOf returns the served view of a stored type's fields.
@@ -26,14 +41,7 @@ func handshakeFieldsOf(t *testing.T, listed []content.Type, typeKey string) stri
 		if held.Key != typeKey {
 			continue
 		}
-		served := make([]handshakeField, len(held.Fields))
-		for i, f := range held.Fields {
-			served[i] = handshakeField{
-				Key: f.Key, Label: f.Label, Kind: string(f.Kind),
-				RelatesTo: f.RelatesTo, Many: f.Many, Required: f.Required,
-			}
-		}
-		raw, err := json.Marshal(served)
+		raw, err := json.Marshal(handshakeFields(held.Fields))
 		if err != nil {
 			t.Fatalf("marshaling the served fields of %s: %v", typeKey, err)
 		}
@@ -41,6 +49,16 @@ func handshakeFieldsOf(t *testing.T, listed []content.Type, typeKey string) stri
 	}
 	t.Fatalf("type %s is not listed", typeKey)
 	return ""
+}
+
+// mustField returns the field the domain settles on, failing the test when it refuses one.
+func mustField(t *testing.T, seed content.Field) content.Field {
+	t.Helper()
+	built, err := content.NewField(seed)
+	if err != nil {
+		t.Fatalf("NewField(%s) error = %v, want nil", seed.Key, err)
+	}
+	return built
 }
 
 func TestStoredFieldsServeTheGoldenHandshakeShape(t *testing.T) {
@@ -71,6 +89,18 @@ func TestStoredFieldsServeTheGoldenHandshakeShape(t *testing.T) {
 		}
 	}
 
+	crew, err := store.CreateField(ctx, mustField(t, content.Field{
+		TypeKey: "book", Key: "crew", Label: "Crew", Kind: content.FieldKindRepeater,
+	}))
+	if err != nil {
+		t.Fatalf("CreateField(crew) error = %v, want nil", err)
+	}
+	if _, err := store.CreateSubField(ctx, crew.ID, mustField(t, content.Field{
+		Key: "name", Label: "Name", Kind: content.FieldKindText, Required: true,
+	})); err != nil {
+		t.Fatalf("CreateSubField(name) error = %v, want nil", err)
+	}
+
 	listed, err := store.List(ctx)
 
 	if err != nil {
@@ -81,7 +111,9 @@ func TestStoredFieldsServeTheGoldenHandshakeShape(t *testing.T) {
 	if got := handshakeFieldsOf(t, listed, "car"); got != carGolden {
 		t.Errorf("car fields = %s, want the golden %s", got, carGolden)
 	}
-	bookGolden := `[{"key":"pages","label":"Pages","kind":"number","many":false,"required":false}]`
+	bookGolden := `[{"key":"pages","label":"Pages","kind":"number","many":false,"required":false},` +
+		`{"key":"crew","label":"Crew","kind":"repeater","many":false,"required":false,` +
+		`"fields":[{"key":"name","label":"Name","kind":"text","many":false,"required":true}]}]`
 	if got := handshakeFieldsOf(t, listed, "book"); got != bookGolden {
 		t.Errorf("book fields = %s, want the golden %s", got, bookGolden)
 	}
