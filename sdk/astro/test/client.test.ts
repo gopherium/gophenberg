@@ -52,6 +52,19 @@ test('a type carries the settings an operator set on its fields', () => {
 	expect(field.settings?.step).toBe(5)
 })
 
+test('a container carries the fields it holds', () => {
+	const field: ContentTypeField = {
+		key: 'crew',
+		label: 'Crew',
+		kind: 'repeater',
+		many: false,
+		required: false,
+		fields: [{ key: 'name', label: 'Name', kind: 'text', many: false, required: false }],
+	}
+
+	expect(field.fields?.[0].key).toBe('name')
+})
+
 test('a field carrying no settings leaves the key absent', () => {
 	const field: ContentTypeField = {
 		key: 'subtitle',
