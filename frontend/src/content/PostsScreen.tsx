@@ -5,7 +5,7 @@ import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { __, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, Page } from '@gopherium/godmin'
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { usePostActions, useRefresh } from './actions'
 import type { PostNotice } from './actions'
@@ -38,6 +38,7 @@ const INITIAL_VIEW: View = {
 export function PostsScreen() {
 	const listed = useContentType()
 	const [view, setView] = useState<View>(INITIAL_VIEW)
+	const [offered, setOffered] = useState('')
 	const [status, setStatus] = useState('')
 	const [notice, setNotice] = useState<PostNotice | null>(null)
 	const [selection, setSelection] = useState<string[]>([])
@@ -55,9 +56,10 @@ export function PostsScreen() {
 	})
 	const columns = useMemo(() => postFields(listed), [listed])
 	const shown = columns.map((column) => column.id).join(',')
-	useEffect(() => {
+	if (offered !== shown) {
+		setOffered(shown)
 		setView((current) => ({ ...current, fields: shown.split(',').filter((id) => id !== 'title') }))
-	}, [shown])
+	}
 	const terms = fieldTerms(view.filters)
 	const posts = useQuery({
 		queryKey: ['posts', listed.key, status, view.search, view.page, view.sort, terms],
