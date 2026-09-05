@@ -33,6 +33,11 @@ Feature: The admin speaks the reader's language
     And the administrator asks for the locale
     Then the locale answered is "es-ES"
 
+  Scenario: The language answer is kept out of shared caches
+    Given no site default locale
+    When a visitor asks for the locale preferring "es-ES"
+    Then the answer is kept out of shared caches
+
   Scenario: An unknown locale is refused with a code
     Given a signed in administrator
     When the administrator sets their locale to "xx-XX"

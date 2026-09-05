@@ -90,14 +90,14 @@ func TestCacheWindowsCarryWhatTheDeploymentNamed(t *testing.T) {
 	}
 }
 
-func TestTheLocaleAnswerRidesTheContentWindow(t *testing.T) {
+func TestTheLocaleAnswerStaysOutOfSharedCaches(t *testing.T) {
 	t.Parallel()
 
 	handler := cachingServer(t, server.CachePolicy{ContentSharedMaxAge: 30 * time.Second})
 
 	held := cacheControlAt(t, handler, "/api/locale")
 
-	if held != "public, s-maxage=30, stale-while-revalidate=300" {
-		t.Errorf("Cache-Control = %q, want the locale answer to ride the content window", held)
+	if held != "private, no-store" {
+		t.Errorf("Cache-Control = %q, want the locale answer kept out of shared caches", held)
 	}
 }

@@ -146,7 +146,7 @@ func newPublishedSummary(c content.Content) publishedSummary {
 	}
 }
 
-// contentHeaders returns middleware marking a response public and cacheable for the given window.
+// contentHeaders returns middleware allowing cross-origin reads and carrying the given cache directive.
 func contentHeaders(header string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
