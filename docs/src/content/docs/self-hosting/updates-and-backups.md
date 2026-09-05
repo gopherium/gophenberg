@@ -21,27 +21,29 @@ Migrations run automatically when the new version starts. While
 Gophenberg is below 1.0, read the release notes first, since a
 release can change behavior.
 
-Updating to %VERSION% runs one migration on start. It carries the
-[fields](/guides/fields/) each type declares into a field group and
-places that group on the type they came from, so every type serves
-the same fields it served before. Back up the database before the
-first start on this release, as before any update. Public addresses
-do not change shape.
+Updating to %VERSION% runs seven migrations on start. Fields gain a
+settings column, field kinds open up beyond the built-in list, a
+field can stand inside another field, each field records how deep it
+stands, the database learns to strip a deleted field's values in one
+pass, types and groups and fields record where they came from, and
+the values items hold gain an index so a listing can be narrowed by
+them. Back up the database before the first start on this release,
+as before any update. Public addresses do not change shape.
 
-Rolling this release back is not free. Fields now live in
-[field groups](/guides/fields/), and the rollback puts each field
-back on the single content type its group names. A group placed on
-every type, on several types, or by a rule that excludes one loses
-its field definitions, because there is no single type to give them
-back to. The values those fields held stay in the database, but the
-definitions do not return if you migrate forward again. Take a
-backup before rolling back past this release.
+Rolling this release back is not free. The rollback deletes every
+field whose kind is not one of the six the older release knew, so a
+Choice, a Section and a Repeater all go, and it deletes every field
+standing inside another field. Every field's settings go with them,
+and so does the record of which plugin declared what. The values
+those fields held stay in the database, but the definitions do not
+come back if you migrate forward again. Take a backup before rolling
+back past this release.
 
 This release serves themes built on `@gophenberg/astro`
-%KIT_VERSION%, and refuses any other, naming what it found. Rebuild
-and reinstall your theme against that kit before updating. Which
-kits an update serves is in the release notes, and
-[theme compatibility](/themes/compatibility/) explains how long a
+%KIT_VERSION%, and the older kits it still answers. Ask a site which
+ones through [the handshake](/reference/content-api/), and rebuild
+your theme against one of them before updating.
+[Theme compatibility](/themes/compatibility/) explains how long a
 built theme keeps working.
 
 ## What to back up
