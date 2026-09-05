@@ -26,6 +26,7 @@ const postSchema = z.object({
 	published_at: z.string().nullable().optional(),
 	created_at: z.string().optional(),
 	updated_at: z.string().optional(),
+	fields: z.record(z.string(), z.unknown()).optional(),
 })
 
 const detailSchema = postSchema.extend({
@@ -57,6 +58,7 @@ export interface Post {
 	publishedAt: string | null
 	createdAt: string
 	updatedAt: string
+	fields?: Record<string, unknown>
 }
 
 export interface PostPage {
@@ -72,6 +74,7 @@ export interface PostQuery {
 	perPage?: number
 	orderBy?: string
 	order?: string
+	fields?: Record<string, string>
 }
 
 export type PostCounts = Record<string, number>
@@ -96,6 +99,7 @@ function toPost(row: z.infer<typeof postSchema>): Post {
 		publishedAt: row.published_at ?? null,
 		createdAt: row.created_at ?? '',
 		updatedAt: row.updated_at ?? '',
+		fields: row.fields ?? {},
 	}
 }
 
@@ -308,30 +312,40 @@ export async function deletePost(id: string): Promise<void> {
 }
 
 /**
+ * Returns the query parameters a listing request carries.
+ * @param query - The filters, sort and page to ask for.
+ * @returns The parameters.
+ */
+function listingParams(query: PostQuery): URLSearchParams {
+	const params = new URLSearchParams({ per_page: String(query.perPage ?? POSTS_PER_PAGE) })
+	const named: Record<string, string | undefined> = {
+		type: query.type,
+		status: query.status,
+		search: query.search,
+		orderby: query.orderBy,
+		order: query.order,
+	}
+	for (const [name, value] of Object.entries(named)) {
+		if (value) {
+			params.set(name, value)
+		}
+	}
+	if (query.page && query.page > 1) {
+		params.set('page', String(query.page))
+	}
+	for (const [key, value] of Object.entries(query.fields ?? {})) {
+		params.set(`field[${key}]`, value)
+	}
+	return params
+}
+
+/**
  * Returns one page of posts matching the query.
  * @param query - The filters, sort and page to ask for.
  * @returns The page and the total number of matches.
  */
 export async function listPosts(query: PostQuery): Promise<PostPage> {
-	const params = new URLSearchParams({ per_page: String(query.perPage ?? POSTS_PER_PAGE) })
-	if (query.type) {
-		params.set('type', query.type)
-	}
-	if (query.status) {
-		params.set('status', query.status)
-	}
-	if (query.search) {
-		params.set('search', query.search)
-	}
-	if (query.page && query.page > 1) {
-		params.set('page', String(query.page))
-	}
-	if (query.orderBy) {
-		params.set('orderby', query.orderBy)
-	}
-	if (query.order) {
-		params.set('order', query.order)
-	}
+	const params = listingParams(query)
 	const response = await fetch(`/api/content?${params}`)
 	if (!response.ok) {
 		throw new Error(`listing posts failed with status ${response.status}`)

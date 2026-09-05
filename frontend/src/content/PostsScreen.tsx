@@ -5,14 +5,14 @@ import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { __, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, Page } from '@gopherium/godmin'
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { usePostActions, useRefresh } from './actions'
 import type { PostNotice } from './actions'
 import { fetchPostCounts, listPosts } from './api'
 import type { PostCounts, PostPage } from './api'
 import { EmptyTrash } from './EmptyTrash'
-import { postFields } from './fields'
+import { fieldTerms, postFields } from './fields'
 import { PostsNotice } from './PostsNotice'
 import { StatusGhost, StatusViews } from './StatusViews'
 import { useContentType } from './useContentType'
@@ -53,8 +53,14 @@ export function PostsScreen() {
 		queryKey: ['post-counts', listed.key],
 		queryFn: () => fetchPostCounts(listed.key),
 	})
+	const columns = useMemo(() => postFields(listed), [listed])
+	const shown = columns.map((column) => column.id).join(',')
+	useEffect(() => {
+		setView((current) => ({ ...current, fields: shown.split(',').filter((id) => id !== 'title') }))
+	}, [shown])
+	const terms = fieldTerms(view.filters)
 	const posts = useQuery({
-		queryKey: ['posts', listed.key, status, view.search, view.page, view.sort],
+		queryKey: ['posts', listed.key, status, view.search, view.page, view.sort, terms],
 		queryFn: () =>
 			listPosts({
 				type: listed.key,
@@ -63,6 +69,7 @@ export function PostsScreen() {
 				page: view.page,
 				orderBy: view.sort?.field,
 				order: view.sort?.direction,
+				fields: terms,
 			}),
 	})
 	/**
@@ -103,7 +110,7 @@ export function PostsScreen() {
 				>
 					<DataViews
 						data={page.items}
-						fields={postFields}
+						fields={columns}
 						actions={actions}
 						view={view}
 						onChangeView={setView}

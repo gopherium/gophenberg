@@ -7,6 +7,11 @@ import { Link } from '@tanstack/react-router'
 
 import { formatDate } from '@gopherium/gottext'
 import type { Post } from './api'
+import { pairsOf } from './types'
+import type { ContentField, ContentType } from './types'
+
+/** What a column id carries before the key of the field it shows. */
+export const fieldColumnPrefix = 'field.'
 
 /**
  * Returns the label shown beside the title of a post that is not published.
@@ -81,7 +86,7 @@ function DateCell({ item }: { item: Post }) {
 	)
 }
 
-export const postFields: Field<Post>[] = [
+const builtInFields: Field<Post>[] = [
 	{
 		id: 'title',
 		label: __('Title', 'gophenberg'),
@@ -92,3 +97,101 @@ export const postFields: Field<Post>[] = [
 	{ id: 'author', label: __('Author', 'gophenberg'), render: AuthorCell, enableSorting: false },
 	{ id: 'date', label: _x('Date', 'column', 'gophenberg'), render: DateCell, enableSorting: true },
 ]
+
+/**
+ * Returns the value a listed field holds on a post, as the column shows it.
+ * @param declared - The field the column stands for.
+ * @param held - The value the post holds under it.
+ * @returns The text of the cell.
+ */
+function shownValue(declared: ContentField, held: unknown): string {
+	if (held === undefined || held === null) {
+		return ''
+	}
+	if (declared.kind === 'boolean') {
+		return held === true ? __('Yes', 'gophenberg') : __('No', 'gophenberg')
+	}
+	if (declared.kind === 'date' && typeof held === 'string') {
+		return formatDate(held)
+	}
+	if (declared.kind === 'choice') {
+		return chosenLabels(declared, held)
+	}
+	return String(held)
+}
+
+/**
+ * Returns the labels a choice field gives the values a post holds.
+ * @param declared - The choice field the column stands for.
+ * @param held - The value or values the post holds.
+ * @returns The labels, joined by a comma when the field holds several.
+ */
+function chosenLabels(declared: ContentField, held: unknown): string {
+	const pairs = pairsOf(declared.settings)
+	const chosen = Array.isArray(held) ? held : [held]
+	return chosen
+		.map((one) => pairs.find((pair) => pair.value === one)?.label ?? String(one))
+		.join(', ')
+}
+
+/**
+ * Returns the elements a column offers as a filter, none for a kind that offers no chip.
+ * @param declared - The field the column stands for.
+ * @returns The elements, or nothing when the kind offers no chip.
+ */
+function filterElements(declared: ContentField) {
+	if (declared.kind === 'boolean') {
+		return [
+			{ value: 'true', label: __('Yes', 'gophenberg') },
+			{ value: 'false', label: __('No', 'gophenberg') },
+		]
+	}
+	if (declared.kind === 'choice') {
+		const pairs = pairsOf(declared.settings)
+		return pairs.length > 0 ? pairs : undefined
+	}
+	return undefined
+}
+
+/**
+ * Returns the column showing what a listed field holds.
+ * @param declared - The field the column stands for.
+ * @returns The column.
+ */
+function fieldColumn(declared: ContentField): Field<Post> {
+	const elements = filterElements(declared)
+	return {
+		id: `${fieldColumnPrefix}${declared.key}`,
+		label: declared.label,
+		enableSorting: false,
+		getValue: ({ item }: { item: Post }) => shownValue(declared, item.fields?.[declared.key]),
+		...(elements === undefined ? {} : { elements, filterBy: { operators: ['is' as const], isPrimary: true } }),
+	}
+}
+
+/**
+ * Returns the terms a view's chips narrow the listing by, keyed by the field each names.
+ * @param filters - The filters the view carries.
+ * @returns The terms, keyed by field key.
+ */
+export function fieldTerms(
+	filters: { field: string, value: unknown }[] | undefined,
+): Record<string, string> {
+	const terms: Record<string, string> = {}
+	for (const filter of filters ?? []) {
+		if (filter.field.startsWith(fieldColumnPrefix) && filter.value !== undefined) {
+			terms[filter.field.slice(fieldColumnPrefix.length)] = String(filter.value)
+		}
+	}
+	return terms
+}
+
+/**
+ * Returns the columns a content type's listing shows, one per field it marks for the list.
+ * @param listed - The type being listed.
+ * @returns The columns.
+ */
+export function postFields(listed: ContentType): Field<Post>[] {
+	const marked = listed.fields.filter((declared) => declared.settings.listed === true)
+	return [...builtInFields, ...marked.map(fieldColumn)]
+}

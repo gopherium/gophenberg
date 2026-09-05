@@ -5,6 +5,7 @@ import type { ReactElement } from 'react'
 import { afterEach, expect, test } from 'vitest'
 
 import { postFields } from '../content/fields'
+import { placeholderType } from '../content/useContentType'
 import { DEFAULT_LOCALE } from '../i18n/catalog'
 import { rememberLocale } from '@gopherium/gottext'
 import { mediaFields } from '../media/fields'
@@ -64,7 +65,7 @@ const item: MediaItem = {
 test('shows a post date in the language the reader settled on', () => {
 	rememberLocale('es-ES')
 
-	renderDate(postFields, post)
+	renderDate(postFields(placeholderType('post')), post)
 
 	expect(screen.getByText(/16\/8\/2026/)).toBeInTheDocument()
 })
