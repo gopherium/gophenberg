@@ -2330,3 +2330,49 @@ msgstr "est inférieur à"
 #, fuzzy
 msgid "is empty"
 msgstr "est vide"
+
+#, fuzzy
+msgid "A flexible content field holds layouts, and %(field)s is not one. Add a layout first, then declare the field inside that layout."
+msgstr "Un champ de contenu flexible contient des dispositions, et %(field)s n'en est pas une. Ajoutez d'abord une disposition, puis déclarez le champ dans cette disposition."
+
+#, fuzzy
+msgid "A layout stands inside a flexible content field only. Put %(field)s inside one of those instead."
+msgstr "Une disposition ne se place que dans un champ de contenu flexible. Placez %(field)s dans l'un d'eux."
+
+#, fuzzy
+msgid "A layout stands inside a flexible content field, never on its own. Declare a flexible content field first, then add %(field)s inside it."
+msgstr "Une disposition se place dans un champ de contenu flexible, jamais seule. Déclarez d'abord un champ de contenu flexible, puis ajoutez %(field)s dedans."
+
+#, fuzzy
+msgid "A row of %(field)s has to name the layout it takes. Pick a layout for the row, or remove the row."
+msgstr "Une ligne de %(field)s doit nommer la disposition qu'elle prend. Choisissez une disposition pour la ligne, ou retirez la ligne."
+
+#, fuzzy
+msgid "A row of %(field)s takes one layout and no more. Reload the page and build the row again."
+msgstr "Une ligne de %(field)s prend une seule disposition. Rechargez la page et reconstruisez la ligne."
+
+#, fuzzy
+msgid "Add layout"
+msgstr "Ajouter une disposition"
+
+#, fuzzy
+msgid "Add layout to %(field)s"
+msgstr "Ajouter une disposition à %(field)s"
+
+#, fuzzy
+msgid "Fewest rows"
+msgstr "Minimum de lignes"
+
+#, fuzzy
+msgid "Most rows"
+msgstr "Maximum de lignes"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Flexible content"
+msgstr "Contenu flexible"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Layout"
+msgstr "Disposition"

@@ -1910,3 +1910,49 @@ msgstr "es menor que"
 #, fuzzy
 msgid "is empty"
 msgstr "está vacío"
+
+#, fuzzy
+msgid "A flexible content field holds layouts, and %(field)s is not one. Add a layout first, then declare the field inside that layout."
+msgstr "Un campo de contenido flexible contiene diseños, y %(field)s no lo es. Añade primero un diseño y después declara el campo dentro de ese diseño."
+
+#, fuzzy
+msgid "A layout stands inside a flexible content field only. Put %(field)s inside one of those instead."
+msgstr "Un diseño solo va dentro de un campo de contenido flexible. Pon %(field)s dentro de uno de ellos."
+
+#, fuzzy
+msgid "A layout stands inside a flexible content field, never on its own. Declare a flexible content field first, then add %(field)s inside it."
+msgstr "Un diseño va dentro de un campo de contenido flexible, nunca por su cuenta. Declara primero un campo de contenido flexible y después añade %(field)s dentro."
+
+#, fuzzy
+msgid "A row of %(field)s has to name the layout it takes. Pick a layout for the row, or remove the row."
+msgstr "Una fila de %(field)s tiene que nombrar el diseño que toma. Elige un diseño para la fila, o quita la fila."
+
+#, fuzzy
+msgid "A row of %(field)s takes one layout and no more. Reload the page and build the row again."
+msgstr "Una fila de %(field)s toma un solo diseño. Recarga la página y crea la fila otra vez."
+
+#, fuzzy
+msgid "Add layout"
+msgstr "Añadir diseño"
+
+#, fuzzy
+msgid "Add layout to %(field)s"
+msgstr "Añadir diseño a %(field)s"
+
+#, fuzzy
+msgid "Fewest rows"
+msgstr "Mínimo de filas"
+
+#, fuzzy
+msgid "Most rows"
+msgstr "Máximo de filas"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Flexible content"
+msgstr "Contenido flexible"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Layout"
+msgstr "Diseño"

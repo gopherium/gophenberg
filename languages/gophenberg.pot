@@ -171,7 +171,16 @@ msgstr ""
 msgid "A field with that name already exists on the items this group reaches. Pick another name."
 msgstr ""
 
+msgid "A flexible content field holds layouts, and %(field)s is not one. Add a layout first, then declare the field inside that layout."
+msgstr ""
+
 msgid "A higher quality stores larger files, and it applies to pictures uploaded from now on."
+msgstr ""
+
+msgid "A layout stands inside a flexible content field only. Put %(field)s inside one of those instead."
+msgstr ""
+
+msgid "A layout stands inside a flexible content field, never on its own. Declare a flexible content field first, then add %(field)s inside it."
 msgstr ""
 
 msgid "A listing carries between 1 and %(max)d items, so %(value)s is not a size Gophenberg takes. Pick a number inside that range."
@@ -187,6 +196,12 @@ msgid "A reload shows the admin in the language you chose."
 msgstr ""
 
 msgid "A route word has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Change it and try again."
+msgstr ""
+
+msgid "A row of %(field)s has to name the layout it takes. Pick a layout for the row, or remove the row."
+msgstr ""
+
+msgid "A row of %(field)s takes one layout and no more. Reload the page and build the row again."
 msgstr ""
 
 msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead."
@@ -241,6 +256,12 @@ msgid "Add field"
 msgstr ""
 
 msgid "Add field to %(field)s"
+msgstr ""
+
+msgid "Add layout"
+msgstr ""
+
+msgid "Add layout to %(field)s"
 msgstr ""
 
 msgid "Add media"
@@ -561,6 +582,9 @@ msgstr ""
 msgid "February"
 msgstr ""
 
+msgid "Fewest rows"
+msgstr ""
+
 msgid "Field"
 msgstr ""
 
@@ -763,6 +787,9 @@ msgid "Medium"
 msgstr ""
 
 msgid "Mobile"
+msgstr ""
+
+msgid "Most rows"
 msgstr ""
 
 msgid "Move"
@@ -1617,11 +1644,19 @@ msgid "Date"
 msgstr ""
 
 msgctxt "field type"
+msgid "Flexible content"
+msgstr ""
+
+msgctxt "field type"
 msgid "Gallery"
 msgstr ""
 
 msgctxt "field type"
 msgid "Kind"
+msgstr ""
+
+msgctxt "field type"
+msgid "Layout"
 msgstr ""
 
 msgctxt "field type"
