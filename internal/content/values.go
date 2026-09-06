@@ -105,7 +105,7 @@ func heldStands(f Field, value any, bounded bool) error {
 	return layoutsWithinBounds(f, rows)
 }
 
-// rowStands reports whether one row matches what the container declares, a flexible row naming one layout first.
+// rowStands reports whether one row matches what the container declares.
 func rowStands(f Field, row any, bounded bool) error {
 	if f.Kind == FieldKindFlexible {
 		if err := namesOneLayout(f, row, bounded); err != nil {
