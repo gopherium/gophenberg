@@ -18,6 +18,7 @@ type holdingTypeStore struct {
 	numbered int
 }
 
+// nextID returns an identity no stored field carries yet.
 func (s *holdingTypeStore) nextID() int {
 	s.numbered++
 	return s.numbered
