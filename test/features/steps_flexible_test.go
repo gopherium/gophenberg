@@ -11,7 +11,7 @@ import (
 	"github.com/cucumber/godog"
 )
 
-// theAdministratorDeletesTheFieldInside asks the registry to take a field away from inside a container.
+// theAdministratorDeletesTheFieldInside takes a field away from inside a container.
 func theAdministratorDeletesTheFieldInside(ctx context.Context, key, parent string) error {
 	w, err := worldOf(ctx)
 	if err != nil {
