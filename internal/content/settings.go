@@ -61,6 +61,12 @@ const SettingAllowCustom = "allow_custom"
 // SettingVariant names the flavor a text field is edited and checked as.
 const SettingVariant = "variant"
 
+// SettingSourceGroup names the group holding the relation a backlinks field reads.
+const SettingSourceGroup = "source_group"
+
+// SettingSourceField names the path reaching the relation a backlinks field reads.
+const SettingSourceField = "source_field"
+
 // settingChecks returns the settings the kind takes, each with its shape check.
 func settingChecks(kind FieldKind) map[string]func(value any) bool {
 	held := map[string]func(value any) bool{SettingInstructions: settingString, SettingConditions: settingRules}
@@ -87,6 +93,9 @@ func settingChecks(kind FieldKind) map[string]func(value any) bool {
 	case FieldKindRepeater, FieldKindFlexible, FieldKindLayout:
 		held[SettingMin] = settingWhole
 		held[SettingMax] = settingWhole
+	case FieldKindBacklinks:
+		held[SettingSourceGroup] = settingKey
+		held[SettingSourceField] = settingPath
 	case FieldKindChoice:
 		held[SettingDefault] = settingChoiceDefault
 		held[SettingChoices] = settingChoicePairs
@@ -193,6 +202,26 @@ func settingChoiceDefault(value any) bool {
 func settingString(value any) bool {
 	_, held := value.(string)
 	return held
+}
+
+// settingKey reports whether the value is a key the registry stores fields and groups under.
+func settingKey(value any) bool {
+	held, ok := value.(string)
+	return ok && typeWord.MatchString(held)
+}
+
+// settingPath reports whether the value is a listing of key segments reaching a field.
+func settingPath(value any) bool {
+	segments, ok := value.([]any)
+	if !ok || len(segments) == 0 {
+		return false
+	}
+	for _, segment := range segments {
+		if !settingKey(segment) {
+			return false
+		}
+	}
+	return true
 }
 
 // settingBool reports whether the value is a boolean.

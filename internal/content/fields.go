@@ -61,6 +61,8 @@ const (
 	FieldKindRepeater FieldKind = "repeater"
 	FieldKindFlexible FieldKind = "flexible"
 	FieldKindLayout   FieldKind = "layout"
+
+	FieldKindBacklinks FieldKind = "backlinks"
 )
 
 // Field describes one typed field a group declares, flattened onto the types its group matches.
@@ -136,7 +138,8 @@ func validFieldKind(kind FieldKind) bool {
 	switch kind {
 	case FieldKindText, FieldKindNumber, FieldKindBoolean, FieldKindDate,
 		FieldKindMedia, FieldKindRelation, FieldKindChoice,
-		FieldKindSection, FieldKindRepeater, FieldKindFlexible, FieldKindLayout:
+		FieldKindSection, FieldKindRepeater, FieldKindFlexible, FieldKindLayout,
+		FieldKindBacklinks:
 		return true
 	default:
 		return false
@@ -163,6 +166,11 @@ func NewSubField(f Field, parent FieldKind) (Field, error) {
 	if f.Kind == FieldKindRelation {
 		return Field{}, Refuse(ErrFieldShape, "field_relation_inside",
 			fmt.Sprintf("%s: a relation stands outside a container", ErrFieldShape),
+			Details{"field": f.Key})
+	}
+	if f.Kind == FieldKindBacklinks {
+		return Field{}, Refuse(ErrFieldShape, "field_backlinks_inside",
+			fmt.Sprintf("%s: a backlinks stands outside a container", ErrFieldShape),
 			Details{"field": f.Key})
 	}
 	if f.Kind == FieldKindLayout && parent != FieldKindFlexible {

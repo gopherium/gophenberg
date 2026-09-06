@@ -51,6 +51,11 @@ func SplitValues(patch Values, fields []Field) (Values, Relations, error) {
 			return nil, nil, Refuse(ErrUnknownField, "field_unknown",
 				fmt.Sprintf("%s: %s", ErrUnknownField, key), Details{"field": key})
 		}
+		if f.Kind == FieldKindBacklinks {
+			return nil, nil, Refuse(ErrFieldShape, "field_shape_value",
+				fmt.Sprintf("%s: %s is read rather than written", ErrFieldShape, f.Key),
+				Details{"field": f.Key})
+		}
 		if f.Kind != FieldKindRelation {
 			scalars[key] = value
 			continue
