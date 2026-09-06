@@ -92,6 +92,9 @@ func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.U
 	if err := seed.Containers(ctx, types); err != nil {
 		return err
 	}
+	if err := seed.Flexible(ctx, types); err != nil {
+		return err
+	}
 	return seed.Conditions(ctx, types)
 }
 
