@@ -258,7 +258,39 @@ export function fieldKinds(): Choice[] {
 		{ label: __('Relation', 'gophenberg'), value: 'relation' },
 		{ label: _x('Section', 'field type', 'gophenberg'), value: 'section' },
 		{ label: _x('Repeater', 'field type', 'gophenberg'), value: 'repeater' },
+		{ label: _x('Flexible content', 'field type', 'gophenberg'), value: 'flexible' },
+		{ label: _x('Layout', 'field type', 'gophenberg'), value: 'layout' },
 	]
+}
+
+/**
+ * Returns the kinds a field may take inside the container it is declared under.
+ * @param parent - The kind the container holds, absent at the top of a group.
+ * @returns The kinds to offer.
+ */
+export function kindsInside(parent?: string): Choice[] {
+	if (parent === 'flexible') {
+		return fieldKinds().filter((held) => held.value === 'layout')
+	}
+	return fieldKinds().filter((held) => held.value !== 'layout')
+}
+
+/**
+ * Reports whether a field of this kind declares fields inside it.
+ * @param kind - The kind the field holds.
+ * @returns Whether the kind holds sub fields.
+ */
+export function holdsFields(kind: string): boolean {
+	return kind === 'section' || kind === 'repeater' || kind === 'flexible' || kind === 'layout'
+}
+
+/**
+ * Reports whether a field of this kind holds rows its settings bound.
+ * @param kind - The kind the field holds.
+ * @returns Whether the kind takes a row count.
+ */
+export function holdsRows(kind: string): boolean {
+	return kind === 'repeater' || kind === 'flexible' || kind === 'layout'
 }
 
 /** One choice a field offers: the value it stores and the label it shows. */

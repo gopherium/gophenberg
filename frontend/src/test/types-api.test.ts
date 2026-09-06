@@ -6,8 +6,10 @@ import { expect, test } from 'vitest'
 import {
 	createType,
 	deleteType,
-	fieldKinds,
+	holdsFields,
+	holdsRows,
 	kindLabel,
+	kindsInside,
 	listTypes,
 	pickedKind,
 	slugifyKey,
@@ -22,11 +24,13 @@ test('reduces a label to the key it declares', () => {
 test('names a field kind the admin has no word for by the kind itself', () => {
 	expect(kindLabel('text')).toBe('Text')
 	expect(kindLabel('choice')).toBe('Choice')
+	expect(kindLabel('flexible')).toBe('Flexible content')
+	expect(kindLabel('layout')).toBe('Layout')
 	expect(kindLabel('sundial')).toBe('sundial')
 })
 
 test('offers a picker entry for every presentation a field starts as', () => {
-	expect(fieldKinds().map((held) => held.value)).toEqual([
+	expect(kindsInside().map((held) => held.value)).toEqual([
 		'text',
 		'textarea',
 		'email',
@@ -44,7 +48,22 @@ test('offers a picker entry for every presentation a field starts as', () => {
 		'relation',
 		'section',
 		'repeater',
+		'flexible',
 	])
+})
+
+test('offers a layout and nothing else inside a flexible content field', () => {
+	expect(kindsInside('flexible').map((held) => held.value)).toEqual(['layout'])
+})
+
+test('names the kinds that declare fields inside them', () => {
+	expect(['section', 'repeater', 'flexible', 'layout'].every(holdsFields)).toBe(true)
+	expect(holdsFields('text')).toBe(false)
+})
+
+test('names the kinds whose settings bound a row count', () => {
+	expect(['repeater', 'flexible', 'layout'].every(holdsRows)).toBe(true)
+	expect(holdsRows('section')).toBe(false)
 })
 
 test('maps a picker entry to the kind and the settings it starts with', () => {
