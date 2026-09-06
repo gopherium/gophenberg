@@ -239,7 +239,7 @@ export async function deleteType(key: string): Promise<void> {
  * Returns the kinds a field may be declared as, in the order the admin offers them.
  * @returns The kinds, each under the label the admin shows.
  */
-export function fieldKinds(): Choice[] {
+function fieldKinds(): Choice[] {
 	return [
 		{ label: __('Text', 'gophenberg'), value: 'text' },
 		{ label: __('Text area', 'gophenberg'), value: 'textarea' },
