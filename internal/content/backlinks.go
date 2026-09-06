@@ -48,6 +48,48 @@ func BacklinksSource(
 	return source, nil
 }
 
+// SourceKept reports whether no backlinks field reads the named field, refusing the removal when one does.
+func SourceKept(groups []Group, groupKey, fieldKey string) error {
+	for _, g := range groups {
+		for _, f := range g.Fields {
+			if !reads(f, groupKey, fieldKey) {
+				continue
+			}
+			return Refuse(ErrFieldReferenced, "field_referenced",
+				fmt.Sprintf("%s: %s reads %s", ErrFieldReferenced, f.Key, fieldKey),
+				Details{"field": fieldKey, "by": f.Key})
+		}
+	}
+	return nil
+}
+
+// freeOfReaders reports whether neither a sibling's conditions nor a backlinks field reads the named field.
+func freeOfReaders(groups []Group, held Group, key string) error {
+	if err := Unreferenced(held.Fields, key); err != nil {
+		return err
+	}
+	return SourceKept(groups, held.Key, key)
+}
+
+// GroupKept reports whether no backlinks field reads a field of the group, refusing the removal when one does.
+func GroupKept(groups []Group, held Group) error {
+	for _, f := range held.Fields {
+		if err := SourceKept(groups, held.Key, f.Key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// reads reports whether the field is a backlinks naming the group key and the field key as its source.
+func reads(f Field, groupKey, fieldKey string) bool {
+	if f.Kind != FieldKindBacklinks || SourceGroupOf(f) != groupKey {
+		return false
+	}
+	path := SourceFieldOf(f)
+	return len(path) > 0 && path[0] == fieldKey
+}
+
 // relationNamed returns the relation the group key and the path reach, or reports it absent.
 func relationNamed(groups []Group, groupKey string, path []string) (Field, bool) {
 	if groupKey == "" || len(path) == 0 {

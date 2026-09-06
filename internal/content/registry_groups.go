@@ -42,6 +42,9 @@ func (r *Registry) UpdateGroup(ctx context.Context, g Group) (Group, error) {
 		return Group{}, err
 	}
 	settled.Origin = stored.Origin
+	if err := r.sourcesStand(ctx, held, settled, stored.Fields); err != nil {
+		return Group{}, err
+	}
 	if err := r.freeOfCollisions(ctx, held, stored, settled); err != nil {
 		return Group{}, err
 	}
@@ -72,11 +75,14 @@ func (r *Registry) settledGroup(ctx context.Context, g Group) (Group, error) {
 
 // DeleteGroup removes the group with its fields and their values, or reports it missing.
 func (r *Registry) DeleteGroup(ctx context.Context, id int) error {
-	stored, err := r.heldGroup(ctx, id)
+	groups, stored, err := r.groupAmong(ctx, id)
 	if err != nil {
 		return err
 	}
 	if err := keptFrom(ctx, stored.Origin); err != nil {
+		return err
+	}
+	if err := GroupKept(groups, stored); err != nil {
 		return err
 	}
 	if err := r.store.DeleteGroup(ctx, id); err != nil {
@@ -317,7 +323,7 @@ func (r *Registry) UpdateFieldInGroup(
 
 // DeleteFieldInGroup removes the field and its values from the types its group matches.
 func (r *Registry) DeleteFieldInGroup(ctx context.Context, groupID int, key string) error {
-	target, err := r.heldGroup(ctx, groupID)
+	groups, target, err := r.groupAmong(ctx, groupID)
 	if err != nil {
 		return err
 	}
@@ -328,7 +334,7 @@ func (r *Registry) DeleteFieldInGroup(ctx context.Context, groupID int, key stri
 	if err := pluginKeepsField(ctx, held); err != nil {
 		return err
 	}
-	if err := Unreferenced(target.Fields, key); err != nil {
+	if err := freeOfReaders(groups, target, key); err != nil {
 		return err
 	}
 	if err := r.store.DeleteFieldInGroup(ctx, groupID, key); err != nil {
@@ -387,10 +393,7 @@ func (r *Registry) MoveField(ctx context.Context, groupID int, key string, toGro
 	if err := r.uncollided(ctx, held, landing, []string{key}, groupID); err != nil {
 		return Field{}, err
 	}
-	if err := Unreferenced(source.Fields, key); err != nil {
-		return Field{}, err
-	}
-	if err := Stands(landing.Fields, leaving); err != nil {
+	if err := r.landingHolds(ctx, held, source, landing, leaving); err != nil {
 		return Field{}, err
 	}
 	moved, err := r.store.MoveField(ctx, groupID, key, toGroup)
@@ -409,6 +412,29 @@ func (r *Registry) pointsSomewhere(ctx context.Context, held []Group, target Gro
 		}
 	}
 	return r.sourceStands(ctx, held, target, f)
+}
+
+// landingHolds reports whether the field may leave the group it stands in and stand in the one it lands on.
+func (r *Registry) landingHolds(
+	ctx context.Context, held []Group, source, landing Group, leaving Field,
+) error {
+	if err := freeOfReaders(held, source, leaving.Key); err != nil {
+		return err
+	}
+	if err := r.sourceStands(ctx, held, landing, leaving); err != nil {
+		return err
+	}
+	return Stands(landing.Fields, leaving)
+}
+
+// sourcesStand reports whether every backlinks field among them still reads its source from the group.
+func (r *Registry) sourcesStand(ctx context.Context, held []Group, target Group, fields []Field) error {
+	for _, f := range fields {
+		if err := r.sourceStands(ctx, held, target, f); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // sourceStands reports whether a backlinks field names a relation this registry can read.

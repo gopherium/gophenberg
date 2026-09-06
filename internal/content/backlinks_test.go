@@ -297,6 +297,122 @@ func TestRegistryRefusesABacklinksWhoseSourceMovesAway(t *testing.T) {
 	}
 }
 
+// readableSource declares a car type, a group holding a relation pointing at posts, and returns both groups.
+func readableSource(t *testing.T, registry *content.Registry) (content.Group, content.Group) {
+	t.Helper()
+	if _, err := registry.Create(t.Context(), content.Type{
+		Key: "car", SingularLabel: "Car", PluralLabel: "Cars", Active: true,
+		PageKind: content.PageKindSingle, RouteWord: "cars",
+	}); err != nil {
+		t.Fatalf("Create(car) error = %v, want nil", err)
+	}
+	cars, err := registry.CreateGroup(t.Context(), content.Group{
+		Key: "cars", Title: "Cars", Location: namingType("car"), Active: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateGroup(cars) error = %v, want nil", err)
+	}
+	if _, err := registry.CreateFieldInGroup(t.Context(), cars.ID, content.Field{
+		Key: "maker", Label: "Maker", Kind: content.FieldKindRelation, RelatesTo: content.TypePost,
+	}); err != nil {
+		t.Fatalf("CreateFieldInGroup(maker) error = %v, want nil", err)
+	}
+	makers := groupNaming(t, registry, "Makers", namingPost())
+	if _, err := registry.CreateFieldInGroup(
+		t.Context(), makers.ID, backlinksField(namingSource())); err != nil {
+		t.Fatalf("CreateFieldInGroup(backlinks) error = %v, want nil", err)
+	}
+	return cars, makers
+}
+
+func TestRegistryKeepsTheSourceABacklinksReads(t *testing.T) {
+	t.Parallel()
+
+	for name, run := range map[string]func(*content.Registry, content.Group) error{
+		"deleting the relation": func(r *content.Registry, cars content.Group) error {
+			return r.DeleteFieldInGroup(t.Context(), cars.ID, "maker")
+		},
+		"deleting the group holding it": func(r *content.Registry, cars content.Group) error {
+			return r.DeleteGroup(t.Context(), cars.ID)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			registry := content.NewRegistry(newGroupingStore())
+			cars, _ := readableSource(t, registry)
+
+			err := run(registry, cars)
+
+			if codeOf(err) != "field_referenced" {
+				t.Errorf("error = %v, want field_referenced", err)
+			}
+		})
+	}
+}
+
+func TestRegistryFreesARelationNoBacklinksNames(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	readableSource(t, registry)
+	vans, err := registry.CreateGroup(t.Context(), content.Group{
+		Key: "vans", Title: "Vans", Location: namingPost(), Active: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateGroup(vans) error = %v, want nil", err)
+	}
+	if _, err := registry.CreateFieldInGroup(t.Context(), vans.ID, content.Field{
+		Key: "maker", Label: "Maker", Kind: content.FieldKindRelation, RelatesTo: content.TypePost,
+	}); err != nil {
+		t.Fatalf("CreateFieldInGroup(maker) error = %v, want nil", err)
+	}
+
+	if err := registry.DeleteFieldInGroup(t.Context(), vans.ID, "maker"); err != nil {
+		t.Errorf("DeleteFieldInGroup() error = %v, want the relation nobody reads taken away", err)
+	}
+}
+
+func TestRegistryKeepsABacklinksOnTheTypeItsSourcePointsAt(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	_, makers := readableSource(t, registry)
+	makers.Location = namingType("car")
+
+	_, err := registry.UpdateGroup(t.Context(), makers)
+
+	if codeOf(err) != "backlinks_source_elsewhere" {
+		t.Errorf("UpdateGroup() error = %v, want backlinks_source_elsewhere", err)
+	}
+}
+
+func TestRegistryKeepsAMovedBacklinksReadingItsSource(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	cars, makers := readableSource(t, registry)
+
+	_, err := registry.MoveField(t.Context(), makers.ID, "linked-from", cars.ID)
+
+	if codeOf(err) != "backlinks_source_elsewhere" {
+		t.Errorf("MoveField() error = %v, want backlinks_source_elsewhere", err)
+	}
+}
+
+func TestRegistryKeepsTheSourceWhereTheBacklinksLooksForIt(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	cars, makers := readableSource(t, registry)
+
+	_, err := registry.MoveField(t.Context(), cars.ID, "maker", makers.ID)
+
+	if codeOf(err) != "field_referenced" {
+		t.Errorf("MoveField() error = %v, want field_referenced", err)
+	}
+}
+
 func TestBacklinksTakesNoSubmittedValue(t *testing.T) {
 	t.Parallel()
 
