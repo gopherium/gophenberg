@@ -885,6 +885,47 @@ test('seeds a new repeater row with the defaults its fields name', async () => {
 	expect(screen.getByLabelText('Name')).toHaveValue('Nobody')
 })
 
+const A_CUSTOM_CHOICE = {
+	key: 'style',
+	label: 'Style',
+	kind: 'choice',
+	many: false,
+	required: false,
+	updated_at: STAMP,
+	settings: {
+		presentation: 'checkbox',
+		multiple: true,
+		allow_custom: true,
+		choices: [{ value: 'ipa', label: 'IPA' }],
+	},
+}
+
+test('carries an uncommitted answer with the row it was typed into', async () => {
+	declaringFlexible([{ ...HERO_LAYOUT, fields: [A_CUSTOM_CHOICE] }])
+	holdingRows([{ hero: { style: ['ipa'] } }, { hero: { style: [] } }])
+	renderAt(EDITOR_PATH)
+	const boxes = await screen.findAllByLabelText('Other')
+
+	await userEvent.type(boxes[0], 'homebrew')
+	await userEvent.click(screen.getAllByRole('button', { name: 'Move row down' })[0])
+
+	expect(screen.getAllByLabelText('Other')[1]).toHaveValue('homebrew')
+	expect(screen.getAllByLabelText('Other')[0]).toHaveValue('')
+})
+
+test('carries an uncommitted answer with its row when an earlier row goes', async () => {
+	declaringFlexible([{ ...HERO_LAYOUT, fields: [A_CUSTOM_CHOICE] }])
+	holdingRows([{ hero: { style: [] } }, { hero: { style: [] } }, { hero: { style: [] } }])
+	renderAt(EDITOR_PATH)
+	const boxes = await screen.findAllByLabelText('Other')
+
+	await userEvent.type(boxes[2], 'homebrew')
+	await userEvent.click(screen.getAllByRole('button', { name: 'Remove row' })[0])
+
+	expect(screen.getAllByLabelText('Other')[1]).toHaveValue('homebrew')
+	expect(screen.getAllByLabelText('Other')[0]).toHaveValue('')
+})
+
 test('offers no rows when a flexible holds nothing it can read', async () => {
 	declaringFlexible()
 	server.use(
