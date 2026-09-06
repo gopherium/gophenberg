@@ -154,8 +154,9 @@ bound how many rows may pick that one layout, counted across the
 whole field.
 
 Deleting a layout takes its rows with it, in every item the group
-reaches, because a row without its layout carries nothing anyone can
-read.
+reaches and in the revisions behind them, because a row without its
+layout carries nothing anyone can read. Going back to an earlier
+revision does not bring those rows back.
 
 The one control a field inside a container does not offer is the move
 to another group, because a field there belongs to its container

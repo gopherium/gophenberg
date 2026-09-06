@@ -237,9 +237,10 @@ const features = heldLayouts(post, 'features')
 
 Name every layout you draw and return nothing for the rest, as above,
 since a layout added later arrives as a name the theme has never
-seen. `heldLayouts` answers an empty list when the
-field holds nothing, and leaves out any row that does not name
-exactly one layout. `heldValue` reaches inside a row the same way it
+seen. `heldLayouts` answers an empty list when the field holds
+nothing. It keeps a row only when the row names exactly one layout
+and holds that layout's values under it, and leaves out anything
+else. `heldValue` reaches inside a row the same way it
 reaches inside a repeater, so
 `heldValue(post, ['features', 0, 'hero', 'headline'])` reads the
 first row's headline. The
