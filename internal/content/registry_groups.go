@@ -147,10 +147,8 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	if err := keptFrom(ctx, target.Origin); err != nil {
 		return Field{}, err
 	}
-	if f.Kind == FieldKindRelation {
-		if _, err := r.ByKey(ctx, f.RelatesTo); err != nil {
-			return Field{}, ErrTargetUnknown
-		}
+	if err := r.pointsSomewhere(ctx, held, target, f); err != nil {
+		return Field{}, err
 	}
 	if err := r.uncollided(ctx, held, target, []string{f.Key}, 0); err != nil {
 		return Field{}, err
@@ -287,7 +285,7 @@ func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
 func (r *Registry) UpdateFieldInGroup(
 	ctx context.Context, groupID int, f Field, expectedUpdatedAt time.Time,
 ) (Field, error) {
-	target, err := r.heldGroup(ctx, groupID)
+	groups, target, err := r.groupAmong(ctx, groupID)
 	if err != nil {
 		return Field{}, err
 	}
@@ -301,6 +299,9 @@ func (r *Registry) UpdateFieldInGroup(
 	held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
 	held.UpdatedAt = time.Now().UTC()
 	if err := held.Validate(); err != nil {
+		return Field{}, err
+	}
+	if err := r.sourceStands(ctx, groups, target, held); err != nil {
 		return Field{}, err
 	}
 	if err := Stands(target.Fields, held); err != nil {
@@ -398,6 +399,29 @@ func (r *Registry) MoveField(ctx context.Context, groupID int, key string, toGro
 	}
 	r.invalidate()
 	return moved, nil
+}
+
+// pointsSomewhere reports whether a field naming another type or field names one the registry holds.
+func (r *Registry) pointsSomewhere(ctx context.Context, held []Group, target Group, f Field) error {
+	if f.Kind == FieldKindRelation {
+		if _, err := r.ByKey(ctx, f.RelatesTo); err != nil {
+			return ErrTargetUnknown
+		}
+	}
+	return r.sourceStands(ctx, held, target, f)
+}
+
+// sourceStands reports whether a backlinks field names a relation this registry can read.
+func (r *Registry) sourceStands(ctx context.Context, held []Group, target Group, f Field) error {
+	if f.Kind != FieldKindBacklinks {
+		return nil
+	}
+	types, err := r.All(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = BacklinksSource(held, types, target, f, r.Params(ctx))
+	return err
 }
 
 // groupAmong returns every stored group and the one carrying the identifier.

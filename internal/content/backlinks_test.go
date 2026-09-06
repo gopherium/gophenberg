@@ -95,6 +95,208 @@ func TestBacklinksRefusesASourceOfTheWrongShape(t *testing.T) {
 	}
 }
 
+// namingType returns a location matching the one content type.
+func namingType(key string) content.Rules {
+	return content.Rules{{{
+		Source: content.ScreenContentType, Operator: content.OperatorIs, Value: key,
+	}}}
+}
+
+// sourceGroups returns the group holding a relation pointing at posts, beside the group reading it.
+func sourceGroups(relatesTo string) []content.Group {
+	return []content.Group{
+		{
+			ID: 1, Key: "cars", Title: "Cars", Active: true, Location: namingType("car"),
+			Fields: []content.Field{
+				{Key: "maker", Label: "Maker", Kind: content.FieldKindRelation, RelatesTo: relatesTo},
+				{Key: "note", Label: "Note", Kind: content.FieldKindText},
+			},
+		},
+	}
+}
+
+// readingGroup returns the group a backlinks field stands in, placed on posts.
+func readingGroup() content.Group {
+	return content.Group{ID: 2, Key: "makers", Title: "Makers", Active: true, Location: namingType(content.TypePost)}
+}
+
+func TestBacklinksReadsTheRelationItsSourceNames(t *testing.T) {
+	t.Parallel()
+
+	types := []content.Type{{Key: content.TypePost, Active: true}, {Key: "car", Active: true}}
+
+	held, err := content.BacklinksSource(sourceGroups(content.TypePost), types, readingGroup(),
+		backlinksField(namingSource()), content.DefaultParamRegistry(nil))
+
+	if err != nil {
+		t.Fatalf("BacklinksSource() error = %v, want nil", err)
+	}
+	if held.Key != "maker" {
+		t.Errorf("source = %q, want the maker relation", held.Key)
+	}
+}
+
+func TestBacklinksRefusesASourceItCannotFind(t *testing.T) {
+	t.Parallel()
+
+	types := []content.Type{{Key: content.TypePost, Active: true}, {Key: "car", Active: true}}
+	for name, settings := range map[string]map[string]any{
+		"a group nobody declared": {
+			content.SettingSourceGroup: "vans", content.SettingSourceField: []any{"maker"},
+		},
+		"a field the group lacks": {
+			content.SettingSourceGroup: "cars", content.SettingSourceField: []any{"driver"},
+		},
+		"a field that is not a relation": {
+			content.SettingSourceGroup: "cars", content.SettingSourceField: []any{"note"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := content.BacklinksSource(
+				sourceGroups(content.TypePost), types, readingGroup(), backlinksField(settings), content.DefaultParamRegistry(nil))
+
+			if codeOf(err) != "backlinks_source_unknown" {
+				t.Errorf("BacklinksSource() error = %v, want backlinks_source_unknown", err)
+			}
+		})
+	}
+}
+
+func TestBacklinksRefusesASourcePointingSomewhereElse(t *testing.T) {
+	t.Parallel()
+
+	types := []content.Type{{Key: content.TypePost, Active: true}, {Key: "car", Active: true}}
+
+	_, err := content.BacklinksSource(
+		sourceGroups("car"), types, readingGroup(), backlinksField(namingSource()), content.DefaultParamRegistry(nil))
+
+	if codeOf(err) != "backlinks_source_elsewhere" {
+		t.Errorf("BacklinksSource() error = %v, want backlinks_source_elsewhere", err)
+	}
+}
+
+func TestBacklinksReadsTheSourceSettingsItCarries(t *testing.T) {
+	t.Parallel()
+
+	held := backlinksField(namingSource())
+
+	if content.SourceGroupOf(held) != "cars" {
+		t.Errorf("SourceGroupOf() = %q, want cars", content.SourceGroupOf(held))
+	}
+	if path := content.SourceFieldOf(held); len(path) != 1 || path[0] != "maker" {
+		t.Errorf("SourceFieldOf() = %v, want the one maker segment", path)
+	}
+}
+
+func TestBacklinksReadsNoPathFromASegmentThatIsNotAKey(t *testing.T) {
+	t.Parallel()
+
+	held := backlinksField(map[string]any{content.SettingSourceField: []any{"maker", 3.0}})
+
+	if path := content.SourceFieldOf(held); path != nil {
+		t.Errorf("SourceFieldOf() = %v, want nothing", path)
+	}
+}
+
+func TestBacklinksRefusesASourceItCannotAddress(t *testing.T) {
+	t.Parallel()
+
+	types := []content.Type{{Key: content.TypePost, Active: true}, {Key: "car", Active: true}}
+	groups := []content.Group{{
+		ID: 1, Key: "cars", Title: "Cars", Active: true, Location: namingType("car"),
+		Fields: []content.Field{{
+			Key: "details", Label: "Details", Kind: content.FieldKindSection,
+			Fields: []content.Field{{Key: "note", Label: "Note", Kind: content.FieldKindText}},
+		}},
+	}}
+	for name, settings := range map[string]map[string]any{
+		"a path reaching inside a container": {
+			content.SettingSourceGroup: "cars",
+			content.SettingSourceField: []any{"details", "note"},
+		},
+		"a path reaching nothing inside a container": {
+			content.SettingSourceGroup: "cars",
+			content.SettingSourceField: []any{"details", "absent"},
+		},
+		"no group named at all": {content.SettingSourceField: []any{"maker"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := content.BacklinksSource(groups, types, readingGroup(),
+				backlinksField(settings), content.DefaultParamRegistry(nil))
+
+			if codeOf(err) != "backlinks_source_unknown" {
+				t.Errorf("BacklinksSource() error = %v, want backlinks_source_unknown", err)
+			}
+		})
+	}
+}
+
+func TestBacklinksRefusesASourcePointingAtAnUnregisteredType(t *testing.T) {
+	t.Parallel()
+
+	types := []content.Type{{Key: content.TypePost, Active: true}}
+
+	_, err := content.BacklinksSource(sourceGroups("van"), types, readingGroup(),
+		backlinksField(namingSource()), content.DefaultParamRegistry(nil))
+
+	if codeOf(err) != "backlinks_source_elsewhere" {
+		t.Errorf("BacklinksSource() error = %v, want backlinks_source_elsewhere", err)
+	}
+}
+
+func TestRegistryRefusesABacklinksNamingASourceItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	group := groupNaming(t, registry, "Makers", namingPost())
+
+	_, err := registry.CreateFieldInGroup(t.Context(), group.ID, backlinksField(namingSource()))
+
+	if codeOf(err) != "backlinks_source_unknown" {
+		t.Errorf("CreateFieldInGroup(backlinks) error = %v, want backlinks_source_unknown", err)
+	}
+}
+
+func TestRegistryReportsTheTypesItCannotReadForABacklinks(t *testing.T) {
+	t.Parallel()
+
+	store := newGroupingStore()
+	registry := content.NewRegistry(store)
+	group := groupNaming(t, registry, "Makers", namingPost())
+	store.listErr = errStoreDown
+
+	_, err := registry.CreateFieldInGroup(t.Context(), group.ID, backlinksField(namingSource()))
+
+	if !errors.Is(err, errStoreDown) {
+		t.Errorf("CreateFieldInGroup(backlinks) error = %v, want %v", err, errStoreDown)
+	}
+}
+
+func TestRegistryRefusesABacklinksWhoseSourceMovesAway(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	group := groupNaming(t, registry, "Makers", namingPost())
+	stored, err := registry.CreateFieldInGroup(t.Context(), group.ID, content.Field{
+		Key: "note", Label: "Note", Kind: content.FieldKindText,
+	})
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(text) error = %v, want nil", err)
+	}
+	stored.Kind = content.FieldKindBacklinks
+	stored.Settings = namingSource()
+
+	_, err = registry.UpdateFieldInGroup(t.Context(), group.ID, stored, stored.UpdatedAt)
+
+	if err == nil {
+		t.Error("UpdateFieldInGroup() error = nil, want the unreadable source reported")
+	}
+}
+
 func TestBacklinksTakesNoSubmittedValue(t *testing.T) {
 	t.Parallel()
 
