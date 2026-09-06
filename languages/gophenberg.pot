@@ -228,6 +228,9 @@ msgstr ""
 msgid "Add"
 msgstr ""
 
+msgid "Add %(layout)s"
+msgstr ""
+
 msgid "Add %(name)s"
 msgstr ""
 
@@ -814,6 +817,12 @@ msgid "Move %(title)s to the trash?"
 msgstr ""
 
 msgid "Move every address"
+msgstr ""
+
+msgid "Move row down"
+msgstr ""
+
+msgid "Move row up"
 msgstr ""
 
 msgid "Move the field"

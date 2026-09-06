@@ -2376,3 +2376,15 @@ msgstr "Contenu flexible"
 msgctxt "field type"
 msgid "Layout"
 msgstr "Disposition"
+
+#, fuzzy
+msgid "Add %(layout)s"
+msgstr "Ajouter %(layout)s"
+
+#, fuzzy
+msgid "Move row up"
+msgstr "Monter la ligne"
+
+#, fuzzy
+msgid "Move row down"
+msgstr "Descendre la ligne"

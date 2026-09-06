@@ -1956,3 +1956,15 @@ msgstr "Contenido flexible"
 msgctxt "field type"
 msgid "Layout"
 msgstr "Diseño"
+
+#, fuzzy
+msgid "Add %(layout)s"
+msgstr "Añadir %(layout)s"
+
+#, fuzzy
+msgid "Move row up"
+msgstr "Subir la fila"
+
+#, fuzzy
+msgid "Move row down"
+msgstr "Bajar la fila"
