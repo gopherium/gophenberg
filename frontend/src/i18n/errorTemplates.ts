@@ -147,6 +147,18 @@ export function errorTemplates(): Record<string, string> {
 			'This kind of field holds no fields inside it. Put the field in a section or a repeater instead.',
 			DOMAIN,
 		),
+		field_layout_alone: __(
+			'A layout stands inside a flexible content field, never on its own. Declare a flexible content field first, then add %(field)s inside it.',
+			DOMAIN,
+		),
+		field_layout_outside: __(
+			'A layout stands inside a flexible content field only. Put %(field)s inside one of those instead.',
+			DOMAIN,
+		),
+		field_flexible_takes_layouts: __(
+			'A flexible content field holds layouts, and %(field)s is not one. Add a layout first, then declare the field inside that layout.',
+			DOMAIN,
+		),
 		field_relation_inside: __(
 			'A relation field stands on its own, not inside a section or a repeater. Declare it beside the container.',
 			DOMAIN,
@@ -161,6 +173,14 @@ export function errorTemplates(): Record<string, string> {
 		),
 		field_rows_min: __(
 			'%(field)s needs at least %(limit)s rows. Add one and save again.',
+			DOMAIN,
+		),
+		field_layout_missing: __(
+			'A row of %(field)s has to name the layout it takes. Pick a layout for the row, or remove the row.',
+			DOMAIN,
+		),
+		field_layout_several: __(
+			'A row of %(field)s takes one layout and no more. Reload the page and build the row again.',
 			DOMAIN,
 		),
 		field_hidden: __(

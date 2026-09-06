@@ -632,6 +632,314 @@ test('shows the instructions a field carries under its control', async () => {
 	expect(await screen.findByText('Name the colour.')).toBeInTheDocument()
 })
 
+const HERO_LAYOUT = {
+	key: 'hero',
+	label: 'Hero',
+	kind: 'layout',
+	many: false,
+	required: false,
+	updated_at: STAMP,
+	fields: [
+		{ key: 'headline', label: 'Headline', kind: 'text', many: false, required: false, updated_at: STAMP },
+	],
+}
+
+const QUOTE_LAYOUT = {
+	key: 'quote',
+	label: 'Quote',
+	kind: 'layout',
+	many: false,
+	required: false,
+	updated_at: STAMP,
+	fields: [
+		{ key: 'saying', label: 'Saying', kind: 'text', many: false, required: false, updated_at: STAMP },
+	],
+}
+
+/**
+ * Serves a type declaring one flexible content field over the given layouts.
+ * @param layouts - The layouts the flexible declares.
+ */
+function declaringFlexible(layouts: Record<string, unknown>[] = [HERO_LAYOUT, QUOTE_LAYOUT]) {
+	declaring({
+		key: 'features',
+		label: 'Features',
+		kind: 'flexible',
+		many: false,
+		required: false,
+		fields: layouts,
+	})
+}
+
+/**
+ * Serves the post holding the given rows under the flexible content field.
+ * @param rows - The rows the post holds.
+ */
+function holdingRows(rows: unknown[]) {
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { features: rows } }),
+		),
+	)
+}
+
+test('shows the fields of the layout each row of a flexible names', async () => {
+	declaringFlexible()
+	holdingRows([{ hero: { headline: 'Welcome' } }, { quote: { saying: 'Maria Perez' } }])
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByLabelText('Headline')).toHaveValue('Welcome')
+	expect(screen.getByLabelText('Saying')).toHaveValue('Maria Perez')
+	expect(screen.getByText('Hero')).toBeInTheDocument()
+	expect(screen.getByText('Quote')).toBeInTheDocument()
+})
+
+test('adds a row of the layout the button names', async () => {
+	declaringFlexible()
+	holdingRows([])
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add Quote' }))
+
+	expect(screen.getByLabelText('Saying')).toHaveValue('')
+	expect(screen.queryByLabelText('Headline')).toBeNull()
+})
+
+test('writes a value back into the layout row that holds it', async () => {
+	declaringFlexible()
+	holdingRows([{ hero: { headline: 'Welcome' } }, { hero: {} }])
+	renderAt(EDITOR_PATH)
+	const boxes = await screen.findAllByLabelText('Headline')
+
+	await userEvent.type(boxes[1], 'Again')
+
+	expect(screen.getAllByLabelText('Headline')[0]).toHaveValue('Welcome')
+	expect(screen.getAllByLabelText('Headline')[1]).toHaveValue('Again')
+})
+
+test('adds a row of a layout beside the rows already held', async () => {
+	declaringFlexible()
+	holdingRows([{ hero: { headline: 'Welcome' } }])
+	renderAt(EDITOR_PATH)
+	await screen.findByLabelText('Headline')
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add Quote' }))
+
+	expect(screen.getByLabelText('Headline')).toHaveValue('Welcome')
+	expect(screen.getByLabelText('Saying')).toHaveValue('')
+})
+
+test('says so for a row naming a layout the flexible does not declare', async () => {
+	declaringFlexible()
+	holdingRows([{ banner: { headline: 'Stale' } }])
+	renderAt(EDITOR_PATH)
+
+	expect(
+		await screen.findByText(
+			'A row of Features has to name the layout it takes. Pick a layout for the row, or remove the row.',
+		),
+	).toBeInTheDocument()
+	expect(screen.queryByLabelText('Headline')).toBeNull()
+	expect(screen.getByRole('button', { name: 'Remove row' })).toBeInTheDocument()
+})
+
+test('takes a row of a flexible away', async () => {
+	declaringFlexible()
+	holdingRows([{ hero: { headline: 'Welcome' } }, { quote: { saying: 'Maria Perez' } }])
+	renderAt(EDITOR_PATH)
+	await screen.findByLabelText('Headline')
+
+	await userEvent.click(screen.getAllByRole('button', { name: 'Remove row' })[0])
+
+	expect(screen.queryByLabelText('Headline')).toBeNull()
+	expect(screen.getByLabelText('Saying')).toHaveValue('Maria Perez')
+})
+
+test('moves a row of a flexible down and back up', async () => {
+	declaringFlexible()
+	holdingRows([{ hero: { headline: 'Welcome' } }, { hero: { headline: 'Again' } }])
+	renderAt(EDITOR_PATH)
+	await screen.findAllByLabelText('Headline')
+
+	await userEvent.click(screen.getAllByRole('button', { name: 'Move row down' })[0])
+
+	expect(screen.getAllByLabelText('Headline')[0]).toHaveValue('Again')
+
+	await userEvent.click(screen.getAllByRole('button', { name: 'Move row up' })[1])
+
+	expect(screen.getAllByLabelText('Headline')[0]).toHaveValue('Welcome')
+})
+
+test('moves a row of a flexible past a row of another layout', async () => {
+	declaringFlexible()
+	holdingRows([{ hero: { headline: 'Welcome' } }, { quote: { saying: 'Maria Perez' } }])
+	renderAt(EDITOR_PATH)
+	await screen.findByLabelText('Headline')
+
+	await userEvent.click(screen.getAllByRole('button', { name: 'Move row down' })[0])
+
+	const named = screen.getAllByText(/^(Hero|Quote)$/).map((held) => held.textContent)
+	expect(named).toEqual(['Quote', 'Hero'])
+	expect(screen.getByLabelText('Saying')).toHaveValue('Maria Perez')
+	expect(screen.getByLabelText('Headline')).toHaveValue('Welcome')
+})
+
+test('leaves the first row of a flexible no way up and the last none down', async () => {
+	declaringFlexible()
+	holdingRows([{ hero: { headline: 'Welcome' } }, { hero: { headline: 'Again' } }])
+	renderAt(EDITOR_PATH)
+	await screen.findAllByLabelText('Headline')
+
+	expect(screen.getAllByRole('button', { name: 'Move row up' })[0]).toHaveAttribute(
+		'aria-disabled',
+		'true',
+	)
+	expect(screen.getAllByRole('button', { name: 'Move row down' })[1]).toHaveAttribute(
+		'aria-disabled',
+		'true',
+	)
+
+	await userEvent.click(screen.getAllByRole('button', { name: 'Move row up' })[0])
+
+	expect(screen.getAllByLabelText('Headline')[0]).toHaveValue('Welcome')
+	expect(screen.getAllByLabelText('Headline')[1]).toHaveValue('Again')
+})
+
+test('seeds a new row with the defaults its layout names', async () => {
+	declaringFlexible([
+		{
+			...HERO_LAYOUT,
+			fields: [
+				{
+					key: 'headline',
+					label: 'Headline',
+					kind: 'text',
+					many: false,
+					required: false,
+					updated_at: STAMP,
+					settings: { default: 'Untitled' },
+				},
+			],
+		},
+	])
+	holdingRows([])
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add Hero' }))
+
+	expect(screen.getByLabelText('Headline')).toHaveValue('Untitled')
+})
+
+test('moves a row of a repeater down', async () => {
+	declaring({
+		key: 'team',
+		label: 'Team',
+		kind: 'repeater',
+		many: false,
+		required: false,
+		fields: [
+			{ key: 'name', label: 'Name', kind: 'text', many: false, required: false, updated_at: STAMP },
+		],
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { team: [{ name: 'Maria Perez' }, { name: 'Kip' }] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	await screen.findAllByLabelText('Name')
+
+	await userEvent.click(screen.getAllByRole('button', { name: 'Move row down' })[0])
+
+	expect(screen.getAllByLabelText('Name')[0]).toHaveValue('Kip')
+})
+
+test('seeds a new repeater row with the defaults its fields name', async () => {
+	declaring({
+		key: 'team',
+		label: 'Team',
+		kind: 'repeater',
+		many: false,
+		required: false,
+		fields: [
+			{
+				key: 'name',
+				label: 'Name',
+				kind: 'text',
+				many: false,
+				required: false,
+				updated_at: STAMP,
+				settings: { default: 'Nobody' },
+			},
+		],
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { team: [] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add row' }))
+
+	expect(screen.getByLabelText('Name')).toHaveValue('Nobody')
+})
+
+const A_CUSTOM_CHOICE = {
+	key: 'style',
+	label: 'Style',
+	kind: 'choice',
+	many: false,
+	required: false,
+	updated_at: STAMP,
+	settings: {
+		presentation: 'checkbox',
+		multiple: true,
+		allow_custom: true,
+		choices: [{ value: 'ipa', label: 'IPA' }],
+	},
+}
+
+test('carries an uncommitted answer with the row it was typed into', async () => {
+	declaringFlexible([{ ...HERO_LAYOUT, fields: [A_CUSTOM_CHOICE] }])
+	holdingRows([{ hero: { style: ['ipa'] } }, { hero: { style: [] } }])
+	renderAt(EDITOR_PATH)
+	const boxes = await screen.findAllByLabelText('Other')
+
+	await userEvent.type(boxes[0], 'homebrew')
+	await userEvent.click(screen.getAllByRole('button', { name: 'Move row down' })[0])
+
+	expect(screen.getAllByLabelText('Other')[1]).toHaveValue('homebrew')
+	expect(screen.getAllByLabelText('Other')[0]).toHaveValue('')
+})
+
+test('carries an uncommitted answer with its row when an earlier row goes', async () => {
+	declaringFlexible([{ ...HERO_LAYOUT, fields: [A_CUSTOM_CHOICE] }])
+	holdingRows([{ hero: { style: [] } }, { hero: { style: [] } }, { hero: { style: [] } }])
+	renderAt(EDITOR_PATH)
+	const boxes = await screen.findAllByLabelText('Other')
+
+	await userEvent.type(boxes[2], 'homebrew')
+	await userEvent.click(screen.getAllByRole('button', { name: 'Remove row' })[0])
+
+	expect(screen.getAllByLabelText('Other')[1]).toHaveValue('homebrew')
+	expect(screen.getAllByLabelText('Other')[0]).toHaveValue('')
+})
+
+test('offers no rows when a flexible holds nothing it can read', async () => {
+	declaringFlexible()
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { features: 'not-rows' } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByRole('button', { name: 'Add Hero' })).toBeInTheDocument()
+	expect(screen.queryByLabelText('Headline')).toBeNull()
+	expect(screen.queryByRole('button', { name: 'Remove row' })).toBeNull()
+})
+
 test('shows the placeholder a field carries in its empty control', async () => {
 	declaring({ ...A_TEXT_FIELD, settings: { placeholder: 'red' } })
 	renderAt(EDITOR_PATH)

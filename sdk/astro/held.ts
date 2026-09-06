@@ -32,6 +32,44 @@ export function heldRows(post: Post, key: string): HeldValues[] {
 	return held.filter((row): row is HeldValues => asSection(row) !== undefined)
 }
 
+/** One row of a flexible content field: the layout it takes and the values that layout holds. */
+export interface HeldLayout {
+	layout: string
+	values: HeldValues
+}
+
+/**
+ * Returns the rows a flexible content field holds, empty when the item carries none under the key.
+ * @param post - The item to read.
+ * @param key - The flexible content field's key.
+ * @returns The rows, each naming its layout, leaving out what names none.
+ */
+export function heldLayouts(post: Post, key: string): HeldLayout[] {
+	const held = post.fields[key]
+	if (!Array.isArray(held)) {
+		return []
+	}
+	return held.flatMap((row) => asLayout(row) ?? [])
+}
+
+/**
+ * Returns the row as the layout it takes and the values under it, or nothing when it names no one layout.
+ * @param row - The row to read.
+ * @returns The layout and its values, or nothing.
+ */
+function asLayout(row: unknown): HeldLayout | undefined {
+	const inside = asSection(row)
+	if (inside === undefined) {
+		return undefined
+	}
+	const named = Object.keys(inside)
+	if (named.length !== 1) {
+		return undefined
+	}
+	const values = asSection(inside[named[0]])
+	return values === undefined ? undefined : { layout: named[0], values }
+}
+
 /**
  * Returns the value the address reaches, or nothing when the item carries none there.
  * @param post - The item to read.

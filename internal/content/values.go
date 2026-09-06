@@ -84,7 +84,7 @@ func valueStands(f Field, value any, bounded bool) error {
 
 // heldStands reports whether a container's value matches the sub fields it declares.
 func heldStands(f Field, value any, bounded bool) error {
-	if f.Kind == FieldKindSection {
+	if f.Kind.holdsOne() {
 		return insideStands(f, value, bounded)
 	}
 	rows, listed := value.([]any)
@@ -92,14 +92,63 @@ func heldStands(f Field, value any, bounded bool) error {
 		return wrongShape(f)
 	}
 	for _, row := range rows {
-		if err := insideStands(f, row, bounded); err != nil {
+		if err := rowStands(f, row, bounded); err != nil {
 			return err
 		}
 	}
 	if !bounded {
 		return nil
 	}
-	return rowsWithinBounds(f, len(rows))
+	if err := rowsWithinBounds(f, len(rows)); err != nil {
+		return err
+	}
+	return layoutsWithinBounds(f, rows)
+}
+
+// rowStands reports whether one row matches what the container declares.
+func rowStands(f Field, row any, bounded bool) error {
+	if f.Kind == FieldKindFlexible {
+		if err := namesOneLayout(f, row, bounded); err != nil {
+			return err
+		}
+	}
+	return insideStands(f, row, bounded)
+}
+
+// namesOneLayout reports whether a flexible row carries one layout key, a bare row parked when unbounded.
+func namesOneLayout(f Field, row any, bounded bool) error {
+	inside, held := row.(map[string]any)
+	if !held {
+		return wrongShape(f)
+	}
+	if len(inside) > 1 {
+		return Refuse(ErrFieldShape, "field_layout_several",
+			fmt.Sprintf("%s: a row of %s names one layout", ErrFieldShape, f.Key), Details{"field": f.Key})
+	}
+	if len(inside) == 0 && bounded {
+		return Refuse(ErrFieldShape, "field_layout_missing",
+			fmt.Sprintf("%s: a row of %s names no layout", ErrFieldShape, f.Key), Details{"field": f.Key})
+	}
+	return nil
+}
+
+// layoutsWithinBounds reports whether each layout's row count sits inside the bounds the layout names.
+func layoutsWithinBounds(f Field, rows []any) error {
+	if f.Kind != FieldKindFlexible {
+		return nil
+	}
+	counts := map[string]int{}
+	for _, row := range rows {
+		for key := range row.(map[string]any) {
+			counts[key]++
+		}
+	}
+	for _, held := range f.Fields {
+		if err := rowsWithinBounds(held, counts[held.Key]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // insideStands reports whether one object matches the sub fields the container declares.

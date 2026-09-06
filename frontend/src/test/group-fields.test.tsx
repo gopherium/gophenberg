@@ -51,6 +51,22 @@ const DETAILS = {
 	updated_at: '2026-08-01T10:00:00Z',
 }
 
+const FEATURES = {
+	...SUBTITLE,
+	key: 'features',
+	label: 'Features',
+	kind: 'flexible',
+	fields: [],
+}
+
+const HERO = {
+	...SUBTITLE,
+	key: 'hero',
+	label: 'Hero',
+	kind: 'layout',
+	fields: [],
+}
+
 const EXTRAS = {
 	...DETAILS,
 	id: 4,
@@ -1458,4 +1474,155 @@ test('offers a boolean field the value it starts on', async () => {
 	await waitFor(() =>
 		expect(sent).toEqual({ settings: { default: true }, updated_at: '2026-08-01T10:00:00Z' }),
 	)
+})
+
+test('offers flexible content at the top of a group and no bare layout', async () => {
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
+
+	expect(await screen.findByRole('option', { name: 'Flexible content' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Layout' })).not.toBeInTheDocument()
+})
+
+test('offers a layout alone inside a flexible content field', async () => {
+	listing([{ ...DETAILS, fields: [FEATURES] }, EXTRAS])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add layout to Features' }))
+	const adding = await screen.findByRole('dialog', { name: 'Add layout to Features' })
+	await userEvent.click(within(adding).getByRole('combobox', { name: 'Kind' }))
+
+	expect(await screen.findByRole('option', { name: 'Layout' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Text' })).not.toBeInTheDocument()
+})
+
+test('declares a layout inside the flexible content field it was opened from', async () => {
+	let sent: unknown
+	listing([{ ...DETAILS, fields: [FEATURES] }, EXTRAS])
+	server.use(
+		http.post('/api/groups/3/fields/features', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(HERO, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add layout to Features' }))
+	const adding = await screen.findByRole('dialog', { name: 'Add layout to Features' })
+	await userEvent.type(within(adding).getByLabelText('Name'), 'Hero')
+	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(sent).toMatchObject({ key: 'hero', label: 'Hero', kind: 'layout' }))
+})
+
+test('lists a flexible content field with the layouts and fields beneath it', async () => {
+	listing([
+		{
+			...DETAILS,
+			fields: [{ ...FEATURES, fields: [{ ...HERO, fields: [{ ...SUBTITLE, key: 'title', label: 'Title' }] }] }],
+		},
+		EXTRAS,
+	])
+	renderAt('/field-groups')
+
+	const dialog = await openFields()
+
+	const flexible = within(dialog).getByRole('listitem', { name: 'Features' })
+	const layout = within(dialog).getByRole('listitem', { name: 'Hero' })
+	expect(within(flexible).getByText('Flexible content')).toBeInTheDocument()
+	expect(within(layout).getByText('Layout')).toBeInTheDocument()
+	expect(within(dialog).getByRole('listitem', { name: 'Title' })).toBeInTheDocument()
+})
+
+test('declares a field inside a layout of a flexible content field', async () => {
+	let where = ''
+	listing([{ ...DETAILS, fields: [{ ...FEATURES, fields: [HERO] }] }, EXTRAS])
+	server.use(
+		http.post('/api/groups/3/fields/features.hero', ({ request }) => {
+			where = new URL(request.url).pathname
+			return HttpResponse.json({ ...SUBTITLE, key: 'title', label: 'Title' }, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Hero' }))
+	const adding = await screen.findByRole('dialog', { name: 'Add field to Hero' })
+	await userEvent.type(within(adding).getByLabelText('Name'), 'Title')
+	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() => expect(where).toBe('/api/groups/3/fields/features.hero'))
+})
+
+test('offers a repeater the count of rows it takes and stores it', async () => {
+	listing([
+		{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'team', label: 'Team', kind: 'repeater', fields: [] }] },
+	])
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/team', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Team' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Team' })
+	await userEvent.type(within(settings).getByLabelText('Fewest rows'), '1')
+	await userEvent.type(within(settings).getByLabelText('Most rows'), '4')
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({ settings: { min: 1, max: 4 }, updated_at: '2026-08-01T10:00:00Z' }),
+	)
+})
+
+test('offers a layout the count of rows it takes and stores it', async () => {
+	listing([{ ...DETAILS, fields: [{ ...FEATURES, fields: [HERO] }] }])
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/features.hero', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(HERO)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Hero' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Hero' })
+	await userEvent.type(within(settings).getByLabelText('Most rows'), '2')
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({ settings: { max: 2 }, updated_at: '2026-08-01T10:00:00Z' }),
+	)
+})
+
+test('offers a flexible content field the count of rows it takes', async () => {
+	listing([{ ...DETAILS, fields: [FEATURES] }])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Features' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Features' })
+
+	expect(within(settings).getByLabelText('Fewest rows')).toBeInTheDocument()
+	expect(within(settings).getByLabelText('Most rows')).toBeInTheDocument()
+})
+
+test('offers a text field no count of rows', async () => {
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
+
+	expect(within(settings).queryByLabelText('Most rows')).not.toBeInTheDocument()
 })

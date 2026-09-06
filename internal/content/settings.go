@@ -84,7 +84,7 @@ func settingChecks(kind FieldKind) map[string]func(value any) bool {
 		held[SettingListed] = settingBool
 	case FieldKindDate:
 		held[SettingListed] = settingBool
-	case FieldKindRepeater:
+	case FieldKindRepeater, FieldKindFlexible, FieldKindLayout:
 		held[SettingMin] = settingWhole
 		held[SettingMax] = settingWhole
 	case FieldKindChoice:
@@ -269,7 +269,7 @@ func settingsAgree(kind FieldKind, settings map[string]any) error {
 		return textSettingsAgree(settings)
 	case FieldKindChoice:
 		return choiceSettingsAgree(settings)
-	case FieldKindRepeater:
+	case FieldKindRepeater, FieldKindFlexible, FieldKindLayout:
 		return boundsAgree(settings)
 	default:
 		return nil

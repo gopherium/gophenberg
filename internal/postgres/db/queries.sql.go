@@ -2286,6 +2286,23 @@ func (q *Queries) StripContentFieldPath(ctx context.Context, arg StripContentFie
 	return err
 }
 
+const stripContentLayout = `-- name: StripContentLayout :exec
+UPDATE core.content
+SET fields = core.strip_layout(fields, $1::text [])
+WHERE type = ANY($2::text []) AND fields ? $3::text
+`
+
+type StripContentLayoutParams struct {
+	Path  []string
+	Types []string
+	Key   string
+}
+
+func (q *Queries) StripContentLayout(ctx context.Context, arg StripContentLayoutParams) error {
+	_, err := q.db.Exec(ctx, stripContentLayout, arg.Path, arg.Types, arg.Key)
+	return err
+}
+
 const stripRevisionFieldPath = `-- name: StripRevisionFieldPath :exec
 UPDATE core.content_revisions r
 SET fields = core.strip_field_path(r.fields, $1::text [])
@@ -2301,6 +2318,24 @@ type StripRevisionFieldPathParams struct {
 
 func (q *Queries) StripRevisionFieldPath(ctx context.Context, arg StripRevisionFieldPathParams) error {
 	_, err := q.db.Exec(ctx, stripRevisionFieldPath, arg.Path, arg.Types, arg.Key)
+	return err
+}
+
+const stripRevisionLayout = `-- name: StripRevisionLayout :exec
+UPDATE core.content_revisions r
+SET fields = core.strip_layout(r.fields, $1::text [])
+FROM core.content c
+WHERE r.content_id = c.id AND c.type = ANY($2::text []) AND r.fields ? $3::text
+`
+
+type StripRevisionLayoutParams struct {
+	Path  []string
+	Types []string
+	Key   string
+}
+
+func (q *Queries) StripRevisionLayout(ctx context.Context, arg StripRevisionLayoutParams) error {
+	_, err := q.db.Exec(ctx, stripRevisionLayout, arg.Path, arg.Types, arg.Key)
 	return err
 }
 

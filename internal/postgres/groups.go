@@ -595,16 +595,19 @@ func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
 		if err != nil {
 			return err
 		}
-		held, path, found := fieldPathIn(groups, id)
+		group, dropped, path, found := fieldPathIn(groups, id)
 		if !found {
 			return content.ErrFieldNotFound
 		}
-		matched, err := typesMatchedBy(ctx, queries, held)
+		matched, err := typesMatchedBy(ctx, queries, group)
 		if err != nil {
 			return err
 		}
 		if _, err := queries.DeleteFieldByID(ctx, int32(id)); err != nil {
 			return err
+		}
+		if dropped.Kind == content.FieldKindLayout {
+			return sweepLayout(ctx, queries, path, matched)
 		}
 		return sweepPath(ctx, queries, path, matched)
 	})
@@ -617,27 +620,27 @@ func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
 	return nil
 }
 
-// fieldPathIn returns the group holding the field and the keys addressing it from the top of that group.
-func fieldPathIn(groups []content.Group, id int) (content.Group, []string, bool) {
+// fieldPathIn returns the group holding the field, the field, and the keys addressing it from the group.
+func fieldPathIn(groups []content.Group, id int) (content.Group, content.Field, []string, bool) {
 	for _, group := range groups {
-		if path, found := pathToField(group.Fields, id); found {
-			return group, path, true
+		if held, path, found := pathToField(group.Fields, id); found {
+			return group, held, path, true
 		}
 	}
-	return content.Group{}, nil, false
+	return content.Group{}, content.Field{}, nil, false
 }
 
-// pathToField returns the keys addressing the field among the declared ones, however deep it stands.
-func pathToField(declared []content.Field, id int) ([]string, bool) {
+// pathToField returns the field and the keys addressing it among the declared ones, however deep it stands.
+func pathToField(declared []content.Field, id int) (content.Field, []string, bool) {
 	for _, f := range declared {
 		if f.ID == id {
-			return []string{f.Key}, true
+			return f, []string{f.Key}, true
 		}
-		if inside, found := pathToField(f.Fields, id); found {
-			return append([]string{f.Key}, inside...), true
+		if held, inside, found := pathToField(f.Fields, id); found {
+			return held, append([]string{f.Key}, inside...), true
 		}
 	}
-	return nil, false
+	return content.Field{}, nil, false
 }
 
 // sweepPath removes whatever stands at the path from every item and revision of the matched types.
@@ -648,6 +651,18 @@ func sweepPath(ctx context.Context, queries *db.Queries, path []string, matched 
 		return err
 	}
 	return queries.StripRevisionFieldPath(ctx, db.StripRevisionFieldPathParams{
+		Path: path, Types: matched, Key: path[0],
+	})
+}
+
+// sweepLayout removes the rows a layout held from every item and revision of the matched types.
+func sweepLayout(ctx context.Context, queries *db.Queries, path []string, matched []string) error {
+	if err := queries.StripContentLayout(ctx, db.StripContentLayoutParams{
+		Path: path, Types: matched, Key: path[0],
+	}); err != nil {
+		return err
+	}
+	return queries.StripRevisionLayout(ctx, db.StripRevisionLayoutParams{
 		Path: path, Types: matched, Key: path[0],
 	})
 }

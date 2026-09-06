@@ -34,7 +34,15 @@ import {
 } from './groups'
 import { FieldConditions } from './FieldConditions'
 import { chosenOf } from './select'
-import { fieldKinds, kindLabel, pairsOf, pickedKind, slugifyKey } from './types'
+import {
+	holdsFields,
+	holdsRows,
+	kindLabel,
+	kindsInside,
+	pairsOf,
+	pickedKind,
+	slugifyKey,
+} from './types'
 import type { ChoicePair } from './types'
 import { typesQueryKey } from './nav'
 import type { FieldGroup } from './groups'
@@ -290,8 +298,10 @@ function FieldsBody(
  * @param props - The group, the types a relation may point at, and what to report.
  * @returns The control element.
  */
-function AddField(props: Reporter & { group: number; types: ContentType[]; path?: string }) {
-	const [kinds] = useState(fieldKinds)
+function AddField(
+	props: Reporter & { group: number; types: ContentType[]; path?: string; parent?: string },
+) {
+	const [kinds] = useState(() => kindsInside(props.parent))
 	const targets = props.types.map((listed) => ({ label: listed.pluralLabel, value: listed.key }))
 	const [presences] = useState<Choice[]>([
 		{ label: __('No', 'gophenberg'), value: 'optional' },
@@ -411,6 +421,10 @@ function settingsOffered(kind: string): SettingControl[] {
 		held.push({ name: 'multiple', label: __('Many values', 'gophenberg'), shape: 'choice' })
 		held.push({ name: 'allow_custom', label: __('Allow custom', 'gophenberg'), shape: 'choice' })
 		held.push({ name: 'allow_null', label: __('Allow empty', 'gophenberg'), shape: 'choice' })
+	}
+	if (holdsRows(kind)) {
+		held.push({ name: 'min', label: __('Fewest rows', 'gophenberg'), shape: 'number' })
+		held.push({ name: 'max', label: __('Most rows', 'gophenberg'), shape: 'number' })
 	}
 	return held
 }
@@ -1009,14 +1023,20 @@ function HeldFields(
  */
 function SubFields(props: Inside & { types: ContentType[]; path: string }) {
 	const [open, setOpen] = useState(false)
-	const asking = sprintf(__('Add field to %(field)s', 'gophenberg'), { field: props.field.label })
-	if (props.field.kind !== 'section' && props.field.kind !== 'repeater') {
+	const layouts = props.field.kind === 'flexible'
+	const asking = sprintf(
+		layouts
+			? __('Add layout to %(field)s', 'gophenberg')
+			: __('Add field to %(field)s', 'gophenberg'),
+		{ field: props.field.label },
+	)
+	if (!holdsFields(props.field.kind)) {
 		return null
 	}
 	return (
 		<>
 			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
-				{__('Add field', 'gophenberg')}
+				{layouts ? __('Add layout', 'gophenberg') : __('Add field', 'gophenberg')}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
 				<Dialog.Popup>
@@ -1029,6 +1049,7 @@ function SubFields(props: Inside & { types: ContentType[]; path: string }) {
 							group={props.group}
 							types={props.types}
 							path={props.path}
+							parent={props.field.kind}
 							onDone={async (said) => {
 								setOpen(false)
 								await props.onDone(said)

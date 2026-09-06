@@ -81,6 +81,20 @@ func TestRegistryRefusesAFieldOnAnUnknownType(t *testing.T) {
 	}
 }
 
+func TestRegistryRefusesALayoutOnAType(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+	f := colorField(t)
+	f.Key, f.Kind = "hero", content.FieldKindLayout
+
+	_, err := registry.CreateField(t.Context(), f)
+
+	if !errors.Is(err, content.ErrFieldShape) {
+		t.Fatalf("CreateField() error = %v, want %v", err, content.ErrFieldShape)
+	}
+}
+
 func TestRegistryRefusesATakenFieldKey(t *testing.T) {
 	t.Parallel()
 

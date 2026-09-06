@@ -2,7 +2,13 @@
 
 import { expect, test } from 'vitest'
 
-import { clearedEdits, editableFields, fieldDescriptors, fieldValidity } from '../content/FieldsPanel'
+import {
+	clearedEdits,
+	containerFields,
+	editableFields,
+	fieldDescriptors,
+	fieldValidity,
+} from '../content/FieldsPanel'
 import type { ContentField } from '../content/types'
 
 /**
@@ -48,6 +54,22 @@ test('leaves the kinds a picker owns to the part that builds them', () => {
 	const held = [declared('media'), declared('relation'), declared('text')]
 
 	expect(editableFields(held).map((field) => field.kind)).toEqual(['text'])
+})
+
+test('renders the kinds the panel lays out as containers, a layout not among them', () => {
+	const held = [
+		declared('section'),
+		declared('repeater'),
+		declared('flexible'),
+		declared('layout'),
+		declared('text'),
+	]
+
+	expect(containerFields(held).map((field) => field.kind)).toEqual([
+		'section',
+		'repeater',
+		'flexible',
+	])
 })
 
 test('gives every kind its own field type', () => {

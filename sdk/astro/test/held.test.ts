@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from 'vitest'
 
-import { heldRows, heldSection, heldValue } from '../index.ts'
+import { heldLayouts, heldRows, heldSection, heldValue } from '../index.ts'
 import type { Post } from '../index.ts'
 
 /**
@@ -62,6 +62,50 @@ describe('the rows a repeater holds', () => {
 		const post = posting({ team: [{ name: 'Maria Perez' }, 'stray', null] })
 
 		expect(heldRows(post, 'team')).toEqual([{ name: 'Maria Perez' }])
+	})
+})
+
+describe('the rows a flexible content field holds', () => {
+	test('names the layout each row takes and reads the values under it', () => {
+		const post = posting({
+			features: [{ hero: { headline: 'Welcome' } }, { quote: { saying: 'Said here.' } }],
+		})
+
+		expect(heldLayouts(post, 'features')).toEqual([
+			{ layout: 'hero', values: { headline: 'Welcome' } },
+			{ layout: 'quote', values: { saying: 'Said here.' } },
+		])
+	})
+
+	test('reads a layout holding no values yet', () => {
+		expect(heldLayouts(posting({ features: [{ hero: {} }] }), 'features')).toEqual([
+			{ layout: 'hero', values: {} },
+		])
+	})
+
+	test('holds no rows for a key the item does not carry', () => {
+		expect(heldLayouts(posting({}), 'features')).toEqual([])
+	})
+
+	test('holds no rows for a value that is not a list of them', () => {
+		expect(heldLayouts(posting({ features: 'Welcome' }), 'features')).toEqual([])
+	})
+
+	test('leaves out a row that does not name exactly one layout', () => {
+		const post = posting({
+			features: [
+				{ hero: { headline: 'Welcome' } },
+				{},
+				{ hero: {}, quote: {} },
+				{ hero: 'Welcome' },
+				'stray',
+				null,
+			],
+		})
+
+		expect(heldLayouts(post, 'features')).toEqual([
+			{ layout: 'hero', values: { headline: 'Welcome' } },
+		])
 	})
 })
 

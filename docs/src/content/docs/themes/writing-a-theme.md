@@ -212,7 +212,38 @@ const team = heldRows(post, 'team')
 ```
 
 A section nobody filled in comes back as undefined, and `heldRows`
-answers an empty list when the repeater holds nothing. The
+answers an empty list when the repeater holds nothing.
+
+A Flexible content field holds rows too, but each row picks one of
+the layouts the field offers and carries only that layout's fields.
+`heldLayouts` reads those rows, naming the layout each one picked so
+the theme can draw it its own way.
+
+```astro
+---
+import { heldLayouts } from '@gophenberg/astro'
+const features = heldLayouts(post, 'features')
+---
+{features.map(({ layout, values }) => {
+	if (layout === 'hero') {
+		return <h2>{values.headline}</h2>
+	}
+	if (layout === 'quote') {
+		return <blockquote>{values.saying}</blockquote>
+	}
+	return null
+})}
+```
+
+Name every layout you draw and return nothing for the rest, as above,
+since a layout added later arrives as a name the theme has never
+seen. `heldLayouts` answers an empty list when the field holds
+nothing. It keeps a row only when the row names exactly one layout
+and holds that layout's values under it, and leaves out anything
+else. `heldValue` reaches inside a row the same way it
+reaches inside a repeater, so
+`heldValue(post, ['features', 0, 'hero', 'headline'])` reads the
+first row's headline. The
 [content API](/reference/content-api/) describes the shapes these
 values take.
 

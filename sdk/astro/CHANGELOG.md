@@ -15,6 +15,12 @@ through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 
 ### Added
 
+- `heldLayouts` reads the rows a flexible content field holds, each naming its layout.
+
+## [0.13.0] - 2026-09-06
+
+### Added
+
 - `ContentTypeField` carries the `fields` a section or a repeater holds.
 
 ## [0.12.0] - 2026-09-05

@@ -555,6 +555,10 @@ func TestRegistryRefusesAFieldItsGroupCannotHold(t *testing.T) {
 			asked: content.Field{Key: "cars", Label: "Cars", Kind: content.FieldKindRelation, RelatesTo: "vanished"},
 			want:  content.ErrTargetUnknown,
 		},
+		"a layout standing alone": {
+			asked: content.Field{Key: "hero", Label: "Hero", Kind: content.FieldKindLayout},
+			want:  content.ErrFieldShape,
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

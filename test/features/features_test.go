@@ -62,6 +62,10 @@ func TestFieldQuery(t *testing.T) {
 	runFeature(t, "features/field-query.feature", initializeFieldQuery)
 }
 
+func TestFlexibleContent(t *testing.T) {
+	runFeature(t, "features/flexible-content.feature", initializeFlexible)
+}
+
 func TestContainers(t *testing.T) {
 	runFeature(t, "features/containers.feature", initializeContainers)
 }

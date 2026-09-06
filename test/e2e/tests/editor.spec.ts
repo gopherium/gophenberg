@@ -6,6 +6,7 @@ import type { Page } from '@playwright/test'
 const RUN = Math.random().toString(36).slice(2, 8)
 const TITLE = `A post the golden path wrote ${RUN}`
 const TRASH_TITLE = `A post the golden path trashed ${RUN}`
+const FLEXIBLE_TITLE = `A post the golden path built in rows ${RUN}`
 const PARAGRAPH = 'The paragraph the golden path typed.'
 const HEADING = 'The heading the golden path typed'
 
@@ -240,4 +241,23 @@ test('shows a field only while the rule it stands on holds', async ({ page }) =>
 
 	await page.getByLabel('On sale').check()
 	await expect(page.getByLabel('Sale note')).toHaveValue('Half price all week')
+})
+
+test('keeps the rows a flexible content field holds under the layouts they take', async ({ page }) => {
+	await openNewDraft(page)
+	await page.getByRole('textbox', { name: 'Title' }).fill(FLEXIBLE_TITLE)
+
+	await page.getByRole('button', { name: 'Add Hero' }).click()
+	await page.getByLabel('Headline').fill('Everything starts with a block')
+	await page.getByRole('button', { name: 'Add Quote' }).click()
+	await page.getByLabel('Saying').fill('Worth keeping around')
+	await page.getByLabel('Said by').fill('Maria Perez')
+	await page.getByRole('button', { name: 'Save draft' }).click()
+	await expect(shown(page, 'Draft saved.')).toBeVisible()
+
+	await page.reload()
+
+	await expect(page.getByLabel('Headline')).toHaveValue('Everything starts with a block')
+	await expect(page.getByLabel('Saying')).toHaveValue('Worth keeping around')
+	await expect(page.getByLabel('Said by')).toHaveValue('Maria Perez')
 })

@@ -541,6 +541,17 @@ SET fields = core.strip_field_path(r.fields, @path::text [])
 FROM core.content c
 WHERE r.content_id = c.id AND c.type = ANY(@types::text []) AND r.fields ? @key::text;
 
+-- name: StripContentLayout :exec
+UPDATE core.content
+SET fields = core.strip_layout(fields, @path::text [])
+WHERE type = ANY(@types::text []) AND fields ? @key::text;
+
+-- name: StripRevisionLayout :exec
+UPDATE core.content_revisions r
+SET fields = core.strip_layout(r.fields, @path::text [])
+FROM core.content c
+WHERE r.content_id = c.id AND c.type = ANY(@types::text []) AND r.fields ? @key::text;
+
 -- name: DeleteFieldByID :execrows
 DELETE FROM core.content_fields WHERE id = @id;
 

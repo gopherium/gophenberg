@@ -15,6 +15,13 @@ type holdingTypeStore struct {
 	stubTypeStore
 	declared []content.Field
 	inside   []content.Field
+	numbered int
+}
+
+// nextID returns an identity no stored field carries yet.
+func (s *holdingTypeStore) nextID() int {
+	s.numbered++
+	return s.numbered
 }
 
 // List returns the post type carrying the fields declared on it so far.
@@ -41,23 +48,32 @@ func (s *holdingTypeStore) ByKey(ctx context.Context, key string) (content.Type,
 	return content.Type{}, content.ErrTypeNotFound
 }
 
-// ListGroups returns one group holding every declared field, with the rows declared inside each.
+// ListGroups returns one group holding every declared field, with the fields declared inside each.
 func (s *holdingTypeStore) ListGroups(context.Context) ([]content.Group, error) {
 	fields := make([]content.Field, len(s.declared))
 	copy(fields, s.declared)
 	for i := range fields {
-		for _, row := range s.inside {
-			if row.ParentID == fields[i].ID {
-				fields[i].Fields = append(fields[i].Fields, row)
-			}
-		}
+		fields[i].Fields = s.standingUnder(fields[i].ID)
 	}
 	return []content.Group{{ID: 1, Key: "post-fields", Title: "Post fields", Fields: fields}}, nil
 }
 
+// standingUnder returns the declarations standing under the parent, however deep they run.
+func (s *holdingTypeStore) standingUnder(parentID int) []content.Field {
+	var inside []content.Field
+	for _, row := range s.inside {
+		if row.ParentID != parentID {
+			continue
+		}
+		row.Fields = s.standingUnder(row.ID)
+		inside = append(inside, row)
+	}
+	return inside
+}
+
 // CreateField records the declaration and hands it back.
 func (s *holdingTypeStore) CreateField(_ context.Context, f content.Field) (content.Field, error) {
-	f.ID = len(s.declared) + 1
+	f.ID = s.nextID()
 	s.declared = append(s.declared, f)
 	return f, nil
 }
@@ -67,6 +83,7 @@ func (s *holdingTypeStore) CreateSubField(
 	_ context.Context, parentID int, f content.Field,
 ) (content.Field, error) {
 	f.ParentID = parentID
+	f.ID = s.nextID()
 	s.inside = append(s.inside, f)
 	return f, nil
 }

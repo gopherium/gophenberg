@@ -59,6 +59,8 @@ const (
 	FieldKindChoice   FieldKind = "choice"
 	FieldKindSection  FieldKind = "section"
 	FieldKindRepeater FieldKind = "repeater"
+	FieldKindFlexible FieldKind = "flexible"
+	FieldKindLayout   FieldKind = "layout"
 )
 
 // Field describes one typed field a group declares, flattened onto the types its group matches.
@@ -80,8 +82,26 @@ type Field struct {
 	UpdatedAt time.Time
 }
 
-// NewField returns a field definition ready to store, or the reason it is not one.
+// NewField returns a field definition ready to store at the top of a group, or the reason it is not one.
 func NewField(f Field) (Field, error) {
+	if err := f.standsAlone(); err != nil {
+		return Field{}, err
+	}
+	return built(f)
+}
+
+// standsAlone reports the reason the field may not stand at the top of a group, or nothing when it may.
+func (f Field) standsAlone() error {
+	if f.Kind == FieldKindLayout {
+		return Refuse(ErrFieldShape, "field_layout_alone",
+			fmt.Sprintf("%s: a layout stands under a flexible", ErrFieldShape),
+			Details{"field": f.Key})
+	}
+	return nil
+}
+
+// built returns the field trimmed, stamped and validated, or the reason it may not be stored.
+func built(f Field) (Field, error) {
 	f.TypeKey = strings.TrimSpace(f.TypeKey)
 	f.Key = strings.TrimSpace(f.Key)
 	f.Label = strings.TrimSpace(f.Label)
@@ -116,7 +136,7 @@ func validFieldKind(kind FieldKind) bool {
 	switch kind {
 	case FieldKindText, FieldKindNumber, FieldKindBoolean, FieldKindDate,
 		FieldKindMedia, FieldKindRelation, FieldKindChoice,
-		FieldKindSection, FieldKindRepeater:
+		FieldKindSection, FieldKindRepeater, FieldKindFlexible, FieldKindLayout:
 		return true
 	default:
 		return false
@@ -125,7 +145,12 @@ func validFieldKind(kind FieldKind) bool {
 
 // Holds reports whether the kind carries sub fields of its own.
 func (k FieldKind) Holds() bool {
-	return k == FieldKindSection || k == FieldKindRepeater
+	return k.holdsOne() || k == FieldKindRepeater || k == FieldKindFlexible
+}
+
+// holdsOne reports whether the kind holds one object of sub field values rather than rows of them.
+func (k FieldKind) holdsOne() bool {
+	return k == FieldKindSection || k == FieldKindLayout
 }
 
 // NewSubField returns a field definition ready to store inside the parent kind, or the reason it is not one.
@@ -140,7 +165,17 @@ func NewSubField(f Field, parent FieldKind) (Field, error) {
 			fmt.Sprintf("%s: a relation stands outside a container", ErrFieldShape),
 			Details{"field": f.Key})
 	}
-	return NewField(f)
+	if f.Kind == FieldKindLayout && parent != FieldKindFlexible {
+		return Field{}, Refuse(ErrFieldShape, "field_layout_outside",
+			fmt.Sprintf("%s: a layout stands under a flexible, not a %s", ErrFieldShape, parent),
+			Details{"field": f.Key, "kind": string(parent)})
+	}
+	if parent == FieldKindFlexible && f.Kind != FieldKindLayout {
+		return Field{}, Refuse(ErrFieldShape, "field_flexible_takes_layouts",
+			fmt.Sprintf("%s: a flexible holds layouts, not a %s", ErrFieldShape, f.Kind),
+			Details{"field": f.Key, "kind": string(f.Kind)})
+	}
+	return built(f)
 }
 
 // holdsMany reports whether the kind takes many values under one key.
