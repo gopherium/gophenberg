@@ -3,11 +3,14 @@
 import {
 	Button,
 	CheckboxControl,
+	IconButton,
 	InputControl,
 	RadioControl,
 	RangeControl,
 	Stack,
 	Text,
+	downIcon,
+	upIcon,
 } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type {
@@ -22,6 +25,7 @@ import type { ComponentType } from 'react'
 
 import { errorTemplates } from '../i18n/errorTemplates'
 import { hiddenKeys } from './conditions'
+import { seededValues } from './fieldDefaults'
 import { GalleryField, MediaField, galleryHeld, mediaHeld } from './MediaField'
 import { RelationPicker, targetsHeld } from './RelationPicker'
 import { pairsOf } from './types'
@@ -146,12 +150,14 @@ export function fieldValidity(declared: ContentField[], values: FieldValues): Fo
 }
 
 /**
- * Returns the fields holding sub fields of their own.
+ * Returns the fields the panel lays out as a container of its own.
  * @param declared - The fields the type declares.
  * @returns The declared container fields.
  */
 export function containerFields(declared: ContentField[]): ContentField[] {
-	return declared.filter((field) => field.kind === 'section' || field.kind === 'repeater')
+	return declared.filter(
+		(field) => field.kind === 'section' || field.kind === 'repeater' || field.kind === 'flexible',
+	)
 }
 
 /**
@@ -591,8 +597,67 @@ function ContainerField(props: {
 			</Stack>
 		)
 	}
+	if (props.field.kind === 'flexible') {
+		return <FlexibleRows postId={props.postId} field={props.field} onChange={props.onChange}
+			rows={rowsHeld(props.value)} />
+	}
 	return <RepeaterRows postId={props.postId} field={props.field} onChange={props.onChange}
 		rows={rowsHeld(props.value)} />
+}
+
+/**
+ * Returns the rows with the one at the place moved by an offset.
+ * @param rows - The rows the container holds.
+ * @param at - The row's place among them.
+ * @param offset - How far the row moves.
+ * @returns The rows in the asked order.
+ */
+function movedRow(rows: FieldValues[], at: number, offset: number): FieldValues[] {
+	const held = [...rows]
+	const [taken] = held.splice(at, 1)
+	held.splice(at + offset, 0, taken)
+	return held
+}
+
+/**
+ * Renders the controls moving a row among its siblings and taking it away.
+ * @param props - The rows held, the row's place among them, and what to call with a change.
+ * @returns The controls element.
+ */
+function RowControls(props: {
+	rows: FieldValues[]
+	at: number
+	onChange: (held: unknown) => void
+}) {
+	return (
+		<Stack direction="row" gap="xs" align="center">
+			<IconButton
+				icon={upIcon}
+				label={__('Move row up', 'gophenberg')}
+				size="compact"
+				variant="minimal"
+				tone="neutral"
+				disabled={props.at === 0}
+				onClick={() => props.onChange(movedRow(props.rows, props.at, -1))}
+			/>
+			<IconButton
+				icon={downIcon}
+				label={__('Move row down', 'gophenberg')}
+				size="compact"
+				variant="minimal"
+				tone="neutral"
+				disabled={props.at === props.rows.length - 1}
+				onClick={() => props.onChange(movedRow(props.rows, props.at, 1))}
+			/>
+			<Button
+				variant="outline"
+				size="compact"
+				onClick={() => props.onChange(props.rows.filter((_, index) => index !== props.at))}
+			>
+				{__('Remove row', 'gophenberg')}
+			</Button>
+		</Stack>
+	)
 }
 
 /**
@@ -619,18 +684,97 @@ function RepeaterRows(props: {
 							props.onChange(props.rows.map((one, index) => (index === at ? held : one)))
 						}
 					/>
-					<Button
-						variant="outline"
-						size="compact"
-						onClick={() => props.onChange(props.rows.filter((_, index) => index !== at))}
-					>
-						{__('Remove row', 'gophenberg')}
-					</Button>
+					<RowControls rows={props.rows} at={at} onChange={props.onChange} />
 				</Stack>
 			))}
-			<Button variant="outline" size="compact" onClick={() => props.onChange([...props.rows, {}])}>
+			<Button
+				variant="outline"
+				size="compact"
+				onClick={() => props.onChange([...props.rows, seededValues(props.field.fields)])}
+			>
 				{__('Add row', 'gophenberg')}
 			</Button>
+		</Stack>
+	)
+}
+
+/**
+ * Renders one set of controls per row a flexible holds, each under the layout the row names.
+ * @param props - The flexible declared, the rows it holds, and what to call with a change.
+ * @returns The rows element.
+ */
+function FlexibleRows(props: {
+	postId: string
+	field: ContentField
+	rows: FieldValues[]
+	onChange: (held: unknown) => void
+}) {
+	return (
+		<Stack direction="column" gap="sm">
+			<Text variant="body-sm">{props.field.label}</Text>
+			{props.rows.map((_, at) => (
+				<LayoutRow
+					key={at}
+					postId={props.postId}
+					field={props.field}
+					rows={props.rows}
+					at={at}
+					onChange={props.onChange}
+				/>
+			))}
+			<Stack direction="row" gap="xs" align="center">
+				{props.field.fields.map((layout) => (
+					<Button
+						key={layout.key}
+						variant="outline"
+						size="compact"
+						onClick={() =>
+							props.onChange([...props.rows, { [layout.key]: seededValues(layout.fields) }])
+						}
+					>
+						{sprintf(__('Add %(layout)s', 'gophenberg'), { layout: layout.label })}
+					</Button>
+				))}
+			</Stack>
+		</Stack>
+	)
+}
+
+/**
+ * Renders the fields of the layout one row of a flexible names.
+ * @param props - The flexible declared, the rows it holds, the row's place, and what to call with a change.
+ * @returns The row element.
+ */
+function LayoutRow(props: {
+	postId: string
+	field: ContentField
+	rows: FieldValues[]
+	at: number
+	onChange: (held: unknown) => void
+}) {
+	const named = Object.keys(props.rows[props.at])[0]
+	const layout = props.field.fields.find((held) => held.key === named)
+	return (
+		<Stack direction="column" gap="xs">
+			<Text variant="body-sm">
+				{layout?.label ??
+					sprintf(errorTemplates().field_layout_missing, { field: props.field.label } as never)}
+			</Text>
+			{layout !== undefined && (
+				<DeclaredFields
+					postId={props.postId}
+					declared={layout.fields}
+					values={insideHeld(props.rows[props.at][layout.key])}
+					onChange={(held) =>
+						props.onChange(
+							props.rows.map((one, index) =>
+								index === props.at ? { [layout.key]: held } : one,
+							),
+						)
+					}
+				/>
+			)}
+			<RowControls rows={props.rows} at={props.at} onChange={props.onChange} />
 		</Stack>
 	)
 }
