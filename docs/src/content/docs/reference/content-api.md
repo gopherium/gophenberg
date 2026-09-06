@@ -97,6 +97,32 @@ on any field holding none, a container nobody has filled in included.
 }
 ```
 
+A Flexible content field lists its layouts under `fields` the same
+way, each one a field of kind `layout` carrying the fields that
+layout holds.
+
+```json
+{
+  "key": "features",
+  "label": "Features",
+  "kind": "flexible",
+  "many": false,
+  "required": false,
+  "fields": [
+    {
+      "key": "hero",
+      "label": "Hero",
+      "kind": "layout",
+      "many": false,
+      "required": false,
+      "fields": [
+        { "key": "headline", "label": "Headline", "kind": "text", "many": false, "required": false }
+      ]
+    }
+  ]
+}
+```
+
 ## Listing items
 
 ```sh
@@ -152,8 +178,8 @@ client need nothing special.
 
 Name several and an item has to hold all of them. Five kinds can be
 named this way: text, number, boolean, date and choice. A media or
-relation field cannot, and neither can a field standing inside a
-section or a repeater.
+relation field cannot, and neither can a container itself or a field
+standing inside a section, a repeater or a layout.
 
 The value is read as the kind the field declares. A number is written
 plainly, `10` or `-2.5`. A boolean is the word `true` or `false`. A
@@ -239,6 +265,21 @@ may hold more of the same inside, as deep as the group declares:
   { "name": "Ada Lovelace", "role": "Writer" }
 ]
 ```
+
+A Flexible content field holds a list of rows too, but each row is an
+object carrying exactly one key, the key of the layout that row
+picked, and under it the values that layout holds:
+
+```json
+"features": [
+  { "hero": { "headline": "Everything starts with a block" } },
+  { "quote": { "saying": "Worth keeping around", "said-by": "Maria Perez" } }
+]
+```
+
+Read the row's one key to know which layout to draw. Two layouts may
+each declare a field of the same name, so read a value under its
+layout rather than across the rows.
 
 A media field serves the file itself, one object for a Media field
 and a list for a Gallery, ready to render:

@@ -21,20 +21,22 @@ Migrations run automatically when the new version starts. While
 Gophenberg is below 1.0, read the release notes first, since a
 release can change behavior.
 
-Updating to %VERSION% runs seven migrations on start. Fields gain a
+Updating to %VERSION% runs eight migrations on start. Fields gain a
 settings column, field kinds open up beyond the built-in list, a
 field can stand inside another field, each field records how deep it
 stands, the database learns to strip a deleted field's values in one
-pass, types and groups and fields record where they came from, and
-the values items hold gain an index so a listing can be narrowed by
-them. Back up the database before the first start on this release,
-as before any update. Public addresses do not change shape.
+pass, types and groups and fields record where they came from, the
+values items hold gain an index so a listing can be narrowed by them,
+and the database learns to take away the rows of a deleted layout.
+Back up the database before the first start on this release, as
+before any update. Public addresses do not change shape.
 
 Rolling this release back is not free. The rollback deletes every
 field whose kind is not one of the six the older release knew, so a
-Choice, a Section and a Repeater all go, and it deletes every field
-standing inside another field. Every field's settings go with them,
-and so does the record of which plugin declared what. The values
+Choice, a Section, a Repeater, a Flexible content field and a Layout
+all go, and it deletes every field standing inside another field.
+Every field's settings go with them, and so does the record of which
+plugin declared what. The values
 those fields held stay in the database, but the definitions do not
 come back if you migrate forward again. Take a backup before rolling
 back past this release.

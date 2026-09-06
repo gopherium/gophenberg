@@ -58,7 +58,7 @@ stored under it.
 
 ## The kinds
 
-The picker offers seventeen entries storing nine kinds of value, so
+The picker offers eighteen entries storing ten kinds of value, so
 all four choice entries are listed as Choice.
 
 | Stores | Pick |
@@ -72,6 +72,7 @@ all four choice entries are listed as Choice.
 | Links to items of another type | Relation |
 | Fields of its own | Section |
 | Rows of fields of its own | Repeater |
+| Rows that each pick a shape | Flexible content |
 
 **Email** and **Web address** are checked when you save, and a web
 address has to start with `http://` or `https://`. **Range** draws
@@ -126,12 +127,35 @@ A **Repeater** holds rows of fields. A Team repeater whose row has a
 Name and a Role lets an author add a row per person, in any order,
 with as many or as few as the work needs.
 
+A **Flexible content** field also holds rows, but each row picks one
+of the shapes the field offers, and those shapes are called layouts.
+A Features field offering a Hero layout and a Quote layout lets an
+author build a page as a hero, then a quote, then another hero, in
+whatever order the page needs. Each row carries only the fields of
+the layout it picked.
+
 Press **Add field** on a section or a repeater to declare a field
 inside it. The field is listed under its container, and every setting
 its kind takes works there exactly as it does at the top. Rename it,
 require it, settle it and move it up or down in the same way. Two
 containers may each hold a field of the same name, because a field is
 named inside the container that holds it.
+
+A flexible content field takes layouts rather than fields, so it
+offers **Add layout** instead. Press it to name a layout, then press
+**Add field** on that layout to declare what its rows carry. Two
+layouts may each hold a field of the same name for the same reason
+two containers may. A layout stands nowhere but inside a flexible
+content field, and a field stands nowhere directly under one.
+
+**Fewest rows** and **Most rows** bound how many rows a repeater or a
+flexible content field takes. Set them on a layout instead and they
+bound how many rows may pick that one layout, counted across the
+whole field.
+
+Deleting a layout takes its rows with it, in every item the group
+reaches, because a row without its layout carries nothing anyone can
+read.
 
 The one control a field inside a container does not offer is the move
 to another group, because a field there belongs to its container
