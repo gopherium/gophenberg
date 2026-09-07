@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
-import { fetchPostCounts, listEveryPost, listPosts } from '../content/api'
+import { fetchPost, fetchPostCounts, listEveryPost, listPosts } from '../content/api'
 
 const ROW = {
 	id: '019fb000-0000-7000-8000-000000000001',
@@ -157,4 +157,31 @@ test('counts the type it was asked for', async () => {
 	await fetchPostCounts('page')
 
 	expect(new URLSearchParams(queries[0]).get('type')).toBe('page')
+})
+
+test('reads how many items point at the one it fetched', async () => {
+	server.use(
+		http.get(`/api/content/${ROW.id}`, () =>
+			HttpResponse.json({
+				...ROW,
+				content: '',
+				fields: { 'linked-from': [] },
+				field_totals: { 'linked-from': 47 },
+			}),
+		),
+	)
+
+	const post = await fetchPost(ROW.id)
+
+	expect(post.fieldTotals).toEqual({ 'linked-from': 47 })
+})
+
+test('counts nothing pointing at an item the server said nothing about', async () => {
+	server.use(
+		http.get(`/api/content/${ROW.id}`, () => HttpResponse.json({ ...ROW, content: '' })),
+	)
+
+	const post = await fetchPost(ROW.id)
+
+	expect(post.fieldTotals).toEqual({})
 })

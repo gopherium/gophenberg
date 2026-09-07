@@ -32,6 +32,7 @@ const postSchema = z.object({
 const detailSchema = postSchema.extend({
 	content: z.string(),
 	fields: z.record(z.string(), z.unknown()).optional(),
+	field_totals: z.record(z.string(), z.number()).optional(),
 })
 
 const pageSchema = z.object({ items: z.array(postSchema), total: z.number() })
@@ -124,6 +125,7 @@ export async function createPost(type = 'post', fields: Record<string, unknown> 
 export interface PostDetail extends Post {
 	content: string
 	fields: Record<string, unknown>
+	fieldTotals: Record<string, number>
 }
 
 export interface PostChanges {
@@ -147,7 +149,12 @@ export type SaveOutcome =
  * @returns The post with its content.
  */
 function toDetail(row: z.infer<typeof detailSchema>): PostDetail {
-	return { ...toPost(row), content: row.content, fields: row.fields ?? {} }
+	return {
+		...toPost(row),
+		content: row.content,
+		fields: row.fields ?? {},
+		fieldTotals: row.field_totals ?? {},
+	}
 }
 
 /**
