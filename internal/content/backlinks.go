@@ -90,6 +90,11 @@ func reads(f Field, groupKey, fieldKey string) bool {
 	return len(path) > 0 && path[0] == fieldKey
 }
 
+// SourceRelation returns the relation a backlinks field names, or reports that no group holds it.
+func SourceRelation(groups []Group, f Field) (Field, bool) {
+	return relationNamed(groups, SourceGroupOf(f), SourceFieldOf(f))
+}
+
 // relationNamed returns the relation the group key and the path reach, or reports it absent.
 func relationNamed(groups []Group, groupKey string, path []string) (Field, bool) {
 	if groupKey == "" || len(path) == 0 {
