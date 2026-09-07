@@ -161,6 +161,53 @@ func TestRelationMigrationsServeTheTermPageFromAnIndex(t *testing.T) {
 	}
 }
 
+func TestRelationMigrationsServeTheBacklinksPageFromTheSameIndex(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+	fromID, toID, fieldID := relatableContent(t, db)
+	if err := insertRelation(db, fromID, fieldID, toID); err != nil {
+		t.Fatalf("inserting the relation: %v, want nil", err)
+	}
+	if _, err := db.Exec(`SET enable_seqscan = off`); err != nil {
+		t.Fatalf("asking the planner for an index: %v, want nil", err)
+	}
+	rows, err := db.Query(`EXPLAIN (FORMAT TEXT) `+backlinksPageQuery, toID, fieldID, 20, 0)
+	if err != nil {
+		t.Fatalf("planning the backlinks scan: %v, want nil", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	plan := ""
+	for rows.Next() {
+		var line string
+		if err := rows.Scan(&line); err != nil {
+			t.Fatalf("reading the plan: %v, want nil", err)
+		}
+		plan += line + "\n"
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("reading the plan: %v, want nil", err)
+	}
+	if !strings.Contains(plan, "content_relations_target_idx") {
+		t.Errorf("the backlinks plan is %q, want the target index to find the pointers", plan)
+	}
+}
+
+// backlinksPageQuery is the listing a backlinks field runs, as internal/postgres/queries.sql holds it.
+const backlinksPageQuery = `SELECT c.id, c.type, c.title, c.path
+FROM (
+    SELECT DISTINCT r.sort_at, r.from_id
+    FROM core.content_relations r
+    JOIN core.content pointing ON pointing.id = r.from_id
+    JOIN core.content_types pointer ON pointer.key = pointing.type
+    WHERE r.to_id = $1 AND r.field_id = $2 AND r.visible AND pointer.active
+    ORDER BY r.sort_at DESC, r.from_id
+    LIMIT $3 OFFSET $4
+) held
+JOIN core.content c ON c.id = held.from_id
+ORDER BY held.sort_at DESC, held.from_id`
+
 // termPageQuery is the listing a term page runs, as internal/postgres/queries.sql holds it.
 const termPageQuery = `SELECT c.id, c.type, c.status, c.slug, c.title, c.excerpt,
     c.author_id, c.published_at, c.created_at, c.updated_at, c.parent_id, c.path, c.fields

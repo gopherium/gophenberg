@@ -123,6 +123,32 @@ func (s *ContentStore) RelatedTo(
 	return items, int(total), nil
 }
 
+// PointingAt returns the published items pointing at the target through the field, and how many there are.
+func (s *ContentStore) PointingAt(
+	ctx context.Context, target uuid.UUID, field, page, perPage int,
+) ([]content.Pointer, int, error) {
+	total, err := s.queries.CountPointingAt(ctx, db.CountPointingAtParams{
+		Target: target, Field: int32(field),
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("postgres: count pointing at: %w", err)
+	}
+	rows, err := s.queries.PointingAt(ctx, db.PointingAtParams{
+		Target:    target,
+		Field:     int32(field),
+		RowLimit:  int32(perPage),
+		RowOffset: pageOffset(page, perPage),
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("postgres: list pointing at: %w", err)
+	}
+	held := make([]content.Pointer, len(rows))
+	for i, row := range rows {
+		held[i] = content.Pointer{ID: row.ID, Type: row.Type, Title: row.Title, Path: row.Path}
+	}
+	return held, int(total), nil
+}
+
 // TargetsOf returns the published targets of active types the item points at, keyed by field key.
 func (s *ContentStore) TargetsOf(ctx context.Context, from uuid.UUID) (content.Targets, error) {
 	rows, err := s.queries.ListRelationSummaries(ctx, from)
