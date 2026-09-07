@@ -22,6 +22,9 @@ func validate(
 		return err
 	}
 	mergedTypes, mergedGroups := merged(envelope, types, groups)
+	if err := sourcesRead(mergedTypes, mergedGroups, registry.Params(ctx)); err != nil {
+		return err
+	}
 	return collisionFree(mergedTypes, mergedGroups, registry.Params(ctx))
 }
 
@@ -228,6 +231,21 @@ func groupFrom(d GroupDefinition) content.Group {
 		held.Fields = append(held.Fields, fieldFrom(f))
 	}
 	return held
+}
+
+// sourcesRead returns the reason a backlinks field the import leaves behind reads no relation, or nothing.
+func sourcesRead(types []content.Type, groups []content.Group, params *content.ParamRegistry) error {
+	for _, held := range groups {
+		for _, f := range held.Fields {
+			if f.Kind != content.FieldKindBacklinks {
+				continue
+			}
+			if _, err := content.BacklinksSource(groups, types, held, f, params); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // collisionFree returns the reason two groups the import leaves behind would hold one field key, or nothing.
