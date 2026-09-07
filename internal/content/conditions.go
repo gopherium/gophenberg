@@ -23,7 +23,7 @@ var ErrFieldHidden = errors.New("content: field is hidden")
 var ErrRuleCycle = errors.New("content: conditions loop")
 
 // ErrFieldReferenced reports a field a sibling's conditions read.
-var ErrFieldReferenced = errors.New("content: a sibling's conditions read the field")
+var ErrFieldReferenced = errors.New("content: another field reads this one")
 
 // decimal is the shape a number rule value takes.
 var decimal = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+)?$`)
