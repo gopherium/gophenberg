@@ -4,6 +4,7 @@ import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
 import {
+	backlinkSources,
 	createFieldInGroup,
 	createGroup,
 	deleteFieldInGroup,
@@ -20,6 +21,7 @@ import {
 	setFieldSettingsInGroup,
 	updateGroup,
 } from '../content/groups'
+import type { FieldGroup } from '../content/groups'
 
 const SUBTITLE_ROW = {
 	key: 'subtitle',
@@ -50,6 +52,7 @@ test('reads every stored group with its rules and fields', async () => {
 
 	expect(groups).toHaveLength(1)
 	expect(groups[0].id).toBe(3)
+	expect(groups[0].key).toBe('article-details')
 	expect(groups[0].title).toBe('Article details')
 	expect(groups[0].active).toBe(true)
 	expect(groups[0].location).toEqual([[{ source: 'content_type', operator: '==', value: 'post' }]])
@@ -331,4 +334,71 @@ test('carries a field into another group', async () => {
 
 	expect(sent).toEqual({ to_group: 7 })
 	expect(moved.key).toBe('subtitle')
+})
+
+const MAKER = { key: 'maker', label: 'Maker', kind: 'relation' }
+
+const OWNER = { key: 'owner', label: 'Owner', kind: 'relation' }
+
+const NOTE = { key: 'note', label: 'Note', kind: 'text' }
+
+/**
+ * Returns a group standing under the key, holding the given fields.
+ * @param key - The key the group is stored under.
+ * @param fields - The fields the group holds.
+ * @returns The group the helpers read.
+ */
+function groupOf(key: string, fields: { key: string; label: string; kind: string }[]): FieldGroup {
+	return {
+		id: 1,
+		key,
+		title: key,
+		location: [],
+		position: 1,
+		active: true,
+		fields: fields.map((held) => ({
+			...held,
+			relatesTo: '',
+			many: false,
+			required: false,
+			settings: {},
+			fields: [],
+			updatedAt: '',
+		})),
+	}
+}
+
+test('offers a backlinks field only the groups holding a relation', () => {
+	const sources = backlinkSources([groupOf('cars', [MAKER]), groupOf('extras', [NOTE])], '', '')
+
+	expect(sources.groups).toEqual([{ label: 'cars', value: 'cars' }])
+})
+
+test('offers a backlinks field the relations of the group it was pointed at', () => {
+	const held = [groupOf('cars', [MAKER, OWNER]), groupOf('vans', [NOTE, OWNER])]
+
+	const sources = backlinkSources(held, 'vans', '')
+
+	expect(sources.fields).toEqual([{ label: 'Owner', value: 'owner' }])
+	expect(sources.group).toEqual({ label: 'vans', value: 'vans' })
+})
+
+test('stands a backlinks field on the first group and relation nothing was picked from', () => {
+	const sources = backlinkSources([groupOf('cars', [MAKER, OWNER])], '', '')
+
+	expect(sources.group.value).toBe('cars')
+	expect(sources.field.value).toBe('maker')
+})
+
+test('stands a backlinks field on the relation it was pointed at', () => {
+	const sources = backlinkSources([groupOf('cars', [MAKER, OWNER])], 'cars', 'owner')
+
+	expect(sources.field).toEqual({ label: 'Owner', value: 'owner' })
+})
+
+test('names no source when no group holds a relation at all', () => {
+	const sources = backlinkSources([groupOf('extras', [NOTE])], '', '')
+
+	expect(sources.group.value).toBe('')
+	expect(sources.field.value).toBe('')
 })

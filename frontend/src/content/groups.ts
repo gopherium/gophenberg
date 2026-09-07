@@ -6,6 +6,7 @@ import { __ } from '@wordpress/i18n'
 import { errorText } from '../i18n/errors'
 import { fieldSchema, toField } from './types'
 import type { ContentField, NewField } from './types'
+import type { Choice } from './select'
 
 const ruleSchema = z.object({
 	source: z.string(),
@@ -51,12 +52,62 @@ export type Location = LocationRule[][]
 /** A field group as the admin reads it. */
 export interface FieldGroup {
 	id: number
+	key: string
 	title: string
 	location: Location
 	position: number
 	active: boolean
 	origin?: string
 	fields: ContentField[]
+}
+
+/** The source a backlinks field reads, with the groups and relations on offer. */
+export interface BacklinkSources {
+	groups: Choice[]
+	fields: Choice[]
+	group: Choice
+	field: Choice
+}
+
+/** The choice standing for a source nothing was picked for. */
+const noSource: Choice = { label: '', value: '' }
+
+/**
+ * Reports whether the field points at content of another type.
+ * @param field - The field to weigh.
+ * @returns Whether it is a relation.
+ */
+function relates(field: ContentField): boolean {
+	return field.kind === 'relation'
+}
+
+/**
+ * Returns the groups and relations a backlinks field may read, and the pair it stands on.
+ * @param groups - The groups the admin declared.
+ * @param group - The group key picked, empty for the first on offer.
+ * @param field - The relation key picked, empty for the first on offer.
+ * @returns The choices both pickers offer and the pair held.
+ */
+export function backlinkSources(groups: FieldGroup[], group: string, field: string): BacklinkSources {
+	const relating = groups.filter((held) => held.fields.some(relates))
+	const offered = relating.map((held) => ({ label: held.title, value: held.key }))
+	const held = relating.find((one) => one.key === group) ?? relating[0]
+	const fields = (held?.fields ?? []).filter(relates).map((one) => ({ label: one.label, value: one.key }))
+	return {
+		groups: offered,
+		fields,
+		group: offered.find((one) => one.value === group) ?? offered[0] ?? noSource,
+		field: fields.find((one) => one.value === field) ?? fields[0] ?? noSource,
+	}
+}
+
+/**
+ * Returns the settings naming the relation a backlinks field reads.
+ * @param sources - The pair the pickers stand on.
+ * @returns The settings to send.
+ */
+export function backlinkSettings(sources: BacklinkSources): Record<string, unknown> {
+	return { source_group: sources.group.value, source_field: [sources.field.value] }
 }
 
 /** One source a location rule may read, with the choices it offers. */
@@ -81,6 +132,7 @@ export interface GroupEdit {
 function toGroup(row: z.infer<typeof groupSchema>): FieldGroup {
 	return {
 		id: row.id,
+		key: row.key,
 		title: row.title,
 		location: row.location,
 		position: row.position,
