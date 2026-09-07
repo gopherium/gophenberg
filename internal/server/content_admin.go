@@ -48,8 +48,9 @@ type contentResponse struct {
 
 type contentDetailResponse struct {
 	contentResponse
-	Content string         `json:"content"`
-	Fields  content.Values `json:"fields"`
+	Content     string         `json:"content"`
+	Fields      content.Values `json:"fields"`
+	FieldTotals map[string]int `json:"field_totals,omitempty"`
 }
 
 // contentRow is one row of the admin listing, carrying the values its type marks for the list.
@@ -252,9 +253,16 @@ func (s *server) respondContent(w http.ResponseWriter, r *http.Request, status i
 		respondDomainError(w, err)
 		return
 	}
+	values := payloadValues(c)
+	totals, err := s.pointingAt(r.Context(), c.Type, c, values)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
 	authkit.Respond(w, status, contentDetailResponse{
 		contentResponse: newContentResponse(c, names[c.AuthorID]),
 		Content:         c.Content,
-		Fields:          payloadValues(c),
+		Fields:          values,
+		FieldTotals:     totals,
 	})
 }

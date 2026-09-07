@@ -37,8 +37,9 @@ func authedTypeServer(t *testing.T) http.Handler {
 	t.Helper()
 	users := newFakeUserStore()
 	addAda(t, users)
-	return authedServerWithStores(t,
-		server.Config{Users: users, Content: newFakePostStore(), Types: newFakeTypeStore()})
+	posts, types := newFakePostStore(), newFakeTypeStore()
+	posts.declared = types
+	return authedServerWithStores(t, server.Config{Users: users, Content: posts, Types: types})
 }
 
 func TestTypeRoutesAreAbsentWithoutARegistry(t *testing.T) {

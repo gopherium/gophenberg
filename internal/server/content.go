@@ -118,8 +118,9 @@ type publishedSummary struct {
 // publishedDetail adds the sanitized block markup and the field values to a summary.
 type publishedDetail struct {
 	publishedSummary
-	Content string         `json:"content"`
-	Fields  content.Values `json:"fields"`
+	Content     string         `json:"content"`
+	Fields      content.Values `json:"fields"`
+	FieldTotals map[string]int `json:"field_totals,omitempty"`
 }
 
 // publishedPage is one page of published summaries with the total behind it.
@@ -291,6 +292,79 @@ func namedTargets(held []content.Target) []relatedTarget {
 	return named
 }
 
+// backlinksPage is how many pointing items one answer carries under a backlinks field.
+const backlinksPage = 20
+
+// pointingItem is one item pointing at another, named as a relation target and typed besides.
+type pointingItem struct {
+	relatedTarget
+	Type string `json:"type"`
+}
+
+// namedPointers returns the pointing items a payload carries under one backlinks field.
+func namedPointers(held []content.Pointer) []pointingItem {
+	named := make([]pointingItem, len(held))
+	for i, pointer := range held {
+		named[i] = pointingItem{
+			relatedTarget: relatedTarget{
+				ID: pointer.ID.String(), Title: pointer.Title, Path: pointer.Path,
+			},
+			Type: pointer.Type,
+		}
+	}
+	return named
+}
+
+// pointingAt writes the items pointing at the content under each backlinks key the type declares.
+func (s *server) pointingAt(
+	ctx context.Context, typeKey string, c content.Content, values content.Values,
+) (map[string]int, error) {
+	reading, err := s.backlinksOn(ctx, typeKey)
+	if err != nil || len(reading) == 0 {
+		return nil, err
+	}
+	totals := make(map[string]int, len(reading))
+	for key, source := range reading {
+		held, total, err := s.content.PointingAt(ctx, c.ID, source, 1, backlinksPage)
+		if err != nil {
+			return nil, err
+		}
+		values[key] = namedPointers(held)
+		totals[key] = total
+	}
+	return totals, nil
+}
+
+// backlinksOn returns the source field each backlinks field of the type reads, keyed by the field's key.
+func (s *server) backlinksOn(ctx context.Context, typeKey string) (map[string]int, error) {
+	groups, err := s.types.Groups(ctx)
+	if err != nil {
+		return nil, err
+	}
+	params := s.types.Params(ctx)
+	screen := content.Screen{content.ScreenContentType: typeKey}
+	reading := make(map[string]int)
+	for _, g := range groups {
+		if !g.Active || !g.Location.Match(screen, params) {
+			continue
+		}
+		readSources(groups, g, reading)
+	}
+	return reading, nil
+}
+
+// readSources writes the source field each backlinks field of the group reads, leaving out what reads none.
+func readSources(groups []content.Group, g content.Group, reading map[string]int) {
+	for _, f := range g.Fields {
+		if f.Kind != content.FieldKindBacklinks {
+			continue
+		}
+		if source, found := content.SourceRelation(groups, f); found {
+			reading[f.Key] = source.ID
+		}
+	}
+}
+
 // publishedDetailOf returns the public view of an item with its targets and media resolved.
 func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Content) (publishedDetail, error) {
 	targets, err := s.content.TargetsOf(r.Context(), c.ID)
@@ -305,6 +379,10 @@ func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Co
 	for key, listed := range targets {
 		values[key] = namedTargets(listed)
 	}
+	totals, err := s.pointingAt(r.Context(), t.Key, c, values)
+	if err != nil {
+		return publishedDetail{}, err
+	}
 	values = content.Shown(t.Fields, values)
 	if err := s.inlineMediaValues(r, t, values); err != nil {
 		return publishedDetail{}, err
@@ -313,6 +391,7 @@ func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Co
 		publishedSummary: newPublishedSummary(c),
 		Content:          publichtml.Sanitize(c.Content),
 		Fields:           values,
+		FieldTotals:      totals,
 	}, nil
 }
 

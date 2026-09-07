@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
 	"slices"
@@ -44,7 +45,7 @@ type fakePostStore struct {
 	targetsErr   error
 	relatedErr   error
 	pointingErr  error
-	pointers     map[int]string
+	declared     *fakeTypeStore
 	byIDErrFor   map[uuid.UUID]error
 
 	revisions         []content.Revision
@@ -505,8 +506,24 @@ func (s *fakeTypeStore) CreateGroup(_ context.Context, g content.Group) (content
 	defer s.mu.Unlock()
 	s.nextGroupID++
 	g.ID, g.Active, g.Position = s.nextGroupID+len(s.types), true, len(s.groups)+1
+	if g.Key == "" {
+		g.Key = s.freeGroupKey(content.GroupKeyFrom(g.Title))
+	}
 	s.groups = append(s.groups, g)
 	return g, nil
+}
+
+// freeGroupKey returns the stem, numbered upward until no stored group carries it.
+func (s *fakeTypeStore) freeGroupKey(stem string) string {
+	taken := make(map[string]bool, len(s.groups))
+	for _, held := range s.groups {
+		taken[held.Key] = true
+	}
+	key := stem
+	for n := 2; taken[key]; n++ {
+		key = fmt.Sprintf("%s-%d", stem, n)
+	}
+	return key
 }
 
 // UpdateGroup stores the group's title, location and resting flag.
@@ -941,7 +958,7 @@ func (s *fakePostStore) PointingAt(
 	if s.pointingErr != nil {
 		return nil, 0, s.pointingErr
 	}
-	key, named := s.pointers[field]
+	key, named := s.fieldKeyed(field)
 	if !named {
 		return nil, 0, nil
 	}
@@ -953,6 +970,25 @@ func (s *fakePostStore) PointingAt(
 	}
 	to := min(from+perPage, total)
 	return held[from:to], total, nil
+}
+
+// fieldKeyed returns the key the field identity names, or reports that no declared field carries it.
+func (s *fakePostStore) fieldKeyed(field int) (string, bool) {
+	if s.declared == nil {
+		return "", false
+	}
+	groups, err := s.declared.ListGroups(context.Background())
+	if err != nil {
+		return "", false
+	}
+	for _, g := range groups {
+		for _, f := range g.Fields {
+			if f.ID == field {
+				return f.Key, true
+			}
+		}
+	}
+	return "", false
 }
 
 // pointersTo returns the published items pointing at the target through the field key, newest first.
