@@ -290,9 +290,10 @@ export function shownValues(
 	values: Record<string, unknown>,
 ): Record<string, unknown> {
 	const hidden = hiddenKeys(fields, values)
+	const read = new Set(fields.filter((f) => f.kind === 'backlinks').map((f) => f.key))
 	const shown: Record<string, unknown> = {}
 	for (const [key, value] of Object.entries(values)) {
-		if (!hidden.has(key)) {
+		if (!hidden.has(key) && !read.has(key)) {
 			shown[key] = value
 		}
 	}
