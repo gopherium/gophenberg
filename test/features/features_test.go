@@ -66,6 +66,10 @@ func TestFlexibleContent(t *testing.T) {
 	runFeature(t, "features/flexible-content.feature", initializeFlexible)
 }
 
+func TestBacklinks(t *testing.T) {
+	runFeature(t, "features/backlinks.feature", initializeBacklinks)
+}
+
 func TestContainers(t *testing.T) {
 	runFeature(t, "features/containers.feature", initializeContainers)
 }

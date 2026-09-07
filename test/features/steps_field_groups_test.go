@@ -19,6 +19,7 @@ const groupsPath = "/api/groups"
 // groupHeld is one field group as a scenario reads it back.
 type groupHeld struct {
 	ID     int         `json:"id"`
+	Key    string      `json:"key"`
 	Title  string      `json:"title"`
 	Active bool        `json:"active"`
 	Origin string      `json:"origin"`
