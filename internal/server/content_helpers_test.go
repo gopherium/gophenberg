@@ -43,6 +43,8 @@ type fakePostStore struct {
 	depthErr     error
 	targetsErr   error
 	relatedErr   error
+	pointingErr  error
+	pointers     map[int]string
 	byIDErrFor   map[uuid.UUID]error
 
 	revisions         []content.Revision
@@ -930,6 +932,44 @@ func (s *fakePostStore) TargetsOf(_ context.Context, from uuid.UUID) (content.Ta
 		}
 	}
 	return targets, nil
+}
+
+// PointingAt returns the published items pointing at the target through the field, and how many there are.
+func (s *fakePostStore) PointingAt(
+	_ context.Context, target uuid.UUID, field, page, perPage int,
+) ([]content.Pointer, int, error) {
+	if s.pointingErr != nil {
+		return nil, 0, s.pointingErr
+	}
+	key, named := s.pointers[field]
+	if !named {
+		return nil, 0, nil
+	}
+	held := s.pointersTo(target, key)
+	total := len(held)
+	from := (page - 1) * perPage
+	if from >= total {
+		return nil, total, nil
+	}
+	to := min(from+perPage, total)
+	return held[from:to], total, nil
+}
+
+// pointersTo returns the published items pointing at the target through the field key, newest first.
+func (s *fakePostStore) pointersTo(target uuid.UUID, key string) []content.Pointer {
+	held := make([]content.Pointer, 0, len(s.posts))
+	for _, item := range s.posts {
+		if item.Status != content.StatusPublished || !slices.Contains(item.Relations[key], target) {
+			continue
+		}
+		held = append(held, content.Pointer{
+			ID: item.ID, Type: item.Type, Title: item.Title, Path: item.Path,
+		})
+	}
+	slices.SortFunc(held, func(one, other content.Pointer) int {
+		return strings.Compare(other.ID.String(), one.ID.String())
+	})
+	return held
 }
 
 // AdoptType takes the plugin's type over as the site's own.

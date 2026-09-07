@@ -484,6 +484,59 @@ func sortedAt(c content.Content) time.Time {
 	return c.CreatedAt
 }
 
+// PointingAt returns the published items pointing at the target through the field, and how many there are.
+func (s *memoryContent) PointingAt(
+	ctx context.Context, target uuid.UUID, field, page, perPage int,
+) ([]content.Pointer, int, error) {
+	key, named := s.fieldKeyed(ctx, field)
+	if !named {
+		return nil, 0, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	held := make([]content.Pointer, 0, len(s.items))
+	for _, item := range s.items {
+		if item.Status != content.StatusPublished || !slices.Contains(item.Relations[key], target) {
+			continue
+		}
+		held = append(held, content.Pointer{
+			ID: item.ID, Type: item.Type, Title: item.Title, Path: item.Path,
+		})
+	}
+	slices.SortFunc(held, func(one, other content.Pointer) int {
+		return strings.Compare(other.ID.String(), one.ID.String())
+	})
+	return pagedPointers(held, page, perPage), len(held), nil
+}
+
+// fieldKeyed returns the key the field identity names, or reports that no declared field carries it.
+func (s *memoryContent) fieldKeyed(ctx context.Context, field int) (string, bool) {
+	if s.types == nil {
+		return "", false
+	}
+	groups, err := s.types.ListGroups(ctx)
+	if err != nil {
+		return "", false
+	}
+	for _, g := range groups {
+		for _, f := range g.Fields {
+			if f.ID == field {
+				return f.Key, true
+			}
+		}
+	}
+	return "", false
+}
+
+// pagedPointers returns the page of pointers the numbers ask for.
+func pagedPointers(held []content.Pointer, page, perPage int) []content.Pointer {
+	from := (page - 1) * perPage
+	if from >= len(held) {
+		return nil
+	}
+	return held[from:min(from+perPage, len(held))]
+}
+
 // TargetsOf returns the published targets of active types the item points at.
 func (s *memoryContent) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
 	s.mu.Lock()
