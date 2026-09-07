@@ -18,6 +18,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import {
+	backlinkSettings,
+	backlinkSources,
 	createFieldInGroup,
 	createSubField,
 	deleteFieldInGroup,
@@ -45,7 +47,7 @@ import {
 } from './types'
 import type { ChoicePair } from './types'
 import { typesQueryKey } from './nav'
-import type { FieldGroup } from './groups'
+import type { BacklinkSources, FieldGroup } from './groups'
 import type { Choice } from './select'
 import type { ContentField, ContentType } from './types'
 
@@ -286,6 +288,7 @@ function FieldsBody(
 			<AddField
 				group={props.held.id}
 				types={props.types}
+				groups={props.groups}
 				onDone={props.onDone}
 				onRefused={props.onRefused}
 			/>
@@ -294,12 +297,47 @@ function FieldsBody(
 }
 
 /**
+ * Renders the pickers naming the group and the relation a backlinks field reads.
+ * @param props - The sources on offer and what to report when one is picked.
+ * @returns The pickers element.
+ */
+function SourceOfLinks(props: {
+	sources: BacklinkSources
+	onGroup: (key: string) => void
+	onField: (key: string) => void
+}) {
+	const { groups, fields, group, field } = props.sources
+	return (
+		<>
+			<SelectControl
+				label={__('Reads from', 'gophenberg')}
+				items={groups}
+				value={group}
+				onValueChange={(item) => props.onGroup(chosenOf(item, groups, group).value)}
+			/>
+			<SelectControl
+				label={__('Through', 'gophenberg')}
+				items={fields}
+				value={field}
+				onValueChange={(item) => props.onField(chosenOf(item, fields, field).value)}
+			/>
+		</>
+	)
+}
+
+/**
  * Renders the control declaring a new field into the group.
- * @param props - The group, the types a relation may point at, and what to report.
+ * @param props - The group, the groups a backlinks field reads, the types, and what to report.
  * @returns The control element.
  */
 function AddField(
-	props: Reporter & { group: number; types: ContentType[]; path?: string; parent?: string },
+	props: Reporter & {
+		group: number
+		types: ContentType[]
+		groups?: FieldGroup[]
+		path?: string
+		parent?: string
+	},
 ) {
 	const [kinds] = useState(() => kindsInside(props.parent))
 	const targets = props.types.map((listed) => ({ label: listed.pluralLabel, value: listed.key }))
@@ -316,9 +354,14 @@ function AddField(
 	const [targetKey, setTargetKey] = useState('')
 	const [presence, setPresence] = useState(presences[0])
 	const [holding, setHolding] = useState(holdings[0])
+	const [sourceKey, setSourceKey] = useState('')
+	const [throughKey, setThroughKey] = useState('')
 	const target = targets.find((held) => held.value === targetKey) ?? targets[0]
 	const picked = pickedKind(kind.value)
 	const relating = picked.kind === 'relation'
+	const reading = picked.kind === 'backlinks'
+	const sources = backlinkSources(props.groups ?? [], sourceKey, throughKey)
+	const blocked = relating ? target === undefined : reading && sources.field.value === ''
 	const add = useMutation({
 		mutationFn: () => {
 			const asked = {
@@ -328,7 +371,7 @@ function AddField(
 				relatesTo: relating ? target?.value : undefined,
 				many: relating ? holding.value === 'many' : picked.many,
 				required: presence.value === 'required',
-				settings: picked.settings,
+				settings: reading ? backlinkSettings(sources) : picked.settings,
 			}
 			return props.path === undefined
 				? createFieldInGroup(props.group, asked)
@@ -370,17 +413,16 @@ function AddField(
 					onValueChange={(item) => setHolding(chosenOf(item, holdings, holding))}
 				/>
 			)}
+			{reading && (
+				<SourceOfLinks sources={sources} onGroup={setSourceKey} onField={setThroughKey} />
+			)}
 			<SelectControl
 				label={__('Required', 'gophenberg')}
 				items={presences}
 				value={presence}
 				onValueChange={(item) => setPresence(chosenOf(item, presences, presence))}
 			/>
-			<Button
-				loading={add.isPending}
-				disabled={relating && target === undefined}
-				onClick={() => add.mutate()}
-			>
+			<Button loading={add.isPending} disabled={blocked} onClick={() => add.mutate()}>
 				{__('Add field', 'gophenberg')}
 			</Button>
 		</Stack>
