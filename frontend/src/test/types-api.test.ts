@@ -26,6 +26,7 @@ test('names a field kind the admin has no word for by the kind itself', () => {
 	expect(kindLabel('choice')).toBe('Choice')
 	expect(kindLabel('flexible')).toBe('Flexible content')
 	expect(kindLabel('layout')).toBe('Layout')
+	expect(kindLabel('backlinks')).toBe('Linked from')
 	expect(kindLabel('sundial')).toBe('sundial')
 })
 
@@ -46,6 +47,7 @@ test('offers a picker entry for every presentation a field starts as', () => {
 		'media',
 		'gallery',
 		'relation',
+		'backlinks',
 		'section',
 		'repeater',
 		'flexible',
@@ -54,6 +56,10 @@ test('offers a picker entry for every presentation a field starts as', () => {
 
 test('offers a layout and nothing else inside a flexible content field', () => {
 	expect(kindsInside('flexible').map((held) => held.value)).toEqual(['layout'])
+})
+
+test('offers no linked from field inside a container', () => {
+	expect(kindsInside('repeater').map((held) => held.value)).not.toContain('backlinks')
 })
 
 test('names the kinds that declare fields inside them', () => {
