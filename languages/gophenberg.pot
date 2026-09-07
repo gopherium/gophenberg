@@ -51,6 +51,12 @@ msgstr ""
 msgid "%(field)s only takes one of its listed choices. Pick one and save again."
 msgstr ""
 
+msgid "%(field)s reads a relation field that is not there. Pick a group and a relation field it holds."
+msgstr ""
+
+msgid "%(field)s reads a relation pointing at %(type)s, so it would list nothing here. Pick a relation pointing at the items this group is shown on."
+msgstr ""
+
 msgid "%(field)s renamed."
 msgstr ""
 
@@ -154,6 +160,9 @@ msgid "(no title)"
 msgstr ""
 
 msgid "A %(kind)s field does not take a setting called %(setting)s. Remove it and try again."
+msgstr ""
+
+msgid "A Linked from field stands on its own, not inside a section or a repeater. Declare %(field)s beside the container."
 msgstr ""
 
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
@@ -1220,7 +1229,7 @@ msgstr ""
 msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."
 msgstr ""
 
-msgid "The field %(field)s cannot go, because %(by)s is only shown when %(field)s says so. Change the rules on %(by)s first."
+msgid "The field %(field)s cannot go, because %(by)s reads it. Change %(by)s first."
 msgstr ""
 
 msgid "The field %(field)s cannot hold the value it was given. Check what kind of field it is and enter a value that matches."

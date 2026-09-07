@@ -188,7 +188,19 @@ export function errorTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		field_referenced: __(
-			'The field %(field)s cannot go, because %(by)s is only shown when %(field)s says so. Change the rules on %(by)s first.',
+			'The field %(field)s cannot go, because %(by)s reads it. Change %(by)s first.',
+			DOMAIN,
+		),
+		field_backlinks_inside: __(
+			'A Linked from field stands on its own, not inside a section or a repeater. Declare %(field)s beside the container.',
+			DOMAIN,
+		),
+		backlinks_source_unknown: __(
+			'%(field)s reads a relation field that is not there. Pick a group and a relation field it holds.',
+			DOMAIN,
+		),
+		backlinks_source_elsewhere: __(
+			'%(field)s reads a relation pointing at %(type)s, so it would list nothing here. Pick a relation pointing at the items this group is shown on.',
 			DOMAIN,
 		),
 		field_taken: __(

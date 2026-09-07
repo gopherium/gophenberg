@@ -1844,8 +1844,8 @@ msgid "The field %(field)s is hidden by its own rules right now, so it cannot ho
 msgstr "El campo %(field)s está oculto por sus propias reglas ahora mismo, así que no puede guardar ningún valor. Vuelve a mostrarlo antes de rellenarlo."
 
 #, fuzzy
-msgid "The field %(field)s cannot go, because %(by)s is only shown when %(field)s says so. Change the rules on %(by)s first."
-msgstr "El campo %(field)s no se puede quitar, porque %(by)s solo se muestra cuando %(field)s lo indica. Cambia antes las reglas de %(by)s."
+msgid "The field %(field)s cannot go, because %(by)s reads it. Change %(by)s first."
+msgstr "El campo %(field)s no se puede quitar, porque %(by)s lo lee. Cambia antes %(by)s."
 
 #, fuzzy
 msgid "The rules on %(field)s lead back to %(field)s itself, so nothing can decide whether to show it. Point one of them at another field."
@@ -1968,3 +1968,15 @@ msgstr "Subir la fila"
 #, fuzzy
 msgid "Move row down"
 msgstr "Bajar la fila"
+
+#, fuzzy
+msgid "A Linked from field stands on its own, not inside a section or a repeater. Declare %(field)s beside the container."
+msgstr "Un campo Enlazado desde va por su cuenta, no dentro de una sección ni de un repetidor. Declara %(field)s junto al contenedor."
+
+#, fuzzy
+msgid "%(field)s reads a relation field that is not there. Pick a group and a relation field it holds."
+msgstr "%(field)s lee un campo de relación que no existe. Elige un grupo y un campo de relación que contenga."
+
+#, fuzzy
+msgid "%(field)s reads a relation pointing at %(type)s, so it would list nothing here. Pick a relation pointing at the items this group is shown on."
+msgstr "%(field)s lee una relación que apunta a %(type)s, así que aquí no mostraría nada. Elige una relación que apunte a los elementos donde se muestra este grupo."
