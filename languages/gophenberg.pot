@@ -738,6 +738,9 @@ msgstr ""
 msgid "Last Modified"
 msgstr ""
 
+msgid "Linked from"
+msgstr ""
+
 msgid "List view"
 msgstr ""
 
@@ -902,6 +905,9 @@ msgstr ""
 msgid "Not serving"
 msgstr ""
 
+msgid "Nothing points here yet."
+msgstr ""
+
 msgid "Nothing published here yet."
 msgstr ""
 
@@ -1002,6 +1008,9 @@ msgid "Publish"
 msgstr ""
 
 msgid "Radio group"
+msgstr ""
+
+msgid "Reads from"
 msgstr ""
 
 msgid "Redo"
@@ -1125,6 +1134,9 @@ msgid "Shadowed"
 msgstr ""
 
 msgid "Show %(field)s in the list"
+msgstr ""
+
+msgid "Showing %(held)d of %(total)d."
 msgstr ""
 
 msgid "Singular name"
@@ -1503,6 +1515,9 @@ msgid "This type will answer under /%(word)s."
 msgstr ""
 
 msgid "This zip holds %(entries)d files, more than the %(max)d a theme may carry. Package only the built theme."
+msgstr ""
+
+msgid "Through"
 msgstr ""
 
 msgid "Thumbnail"

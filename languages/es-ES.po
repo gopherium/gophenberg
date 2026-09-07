@@ -339,6 +339,10 @@ msgstr "Grande"
 msgid "Last Modified"
 msgstr "Última modificación"
 
+#, fuzzy
+msgid "Linked from"
+msgstr "Enlazado desde"
+
 msgid "List view"
 msgstr "Vista de lista"
 
@@ -435,6 +439,10 @@ msgstr "No encontrado"
 msgid "Not serving"
 msgstr "No está sirviendo"
 
+#, fuzzy
+msgid "Nothing points here yet."
+msgstr "Todavía no apunta nada aquí."
+
 msgid "Nothing published here yet."
 msgstr "Todavía no hay nada publicado aquí."
 
@@ -506,6 +514,10 @@ msgstr "Privado"
 
 msgid "Publish"
 msgstr "Publicar"
+
+#, fuzzy
+msgid "Reads from"
+msgstr "Lee de"
 
 msgid "Redo"
 msgstr "Rehacer"
@@ -822,6 +834,10 @@ msgstr "Este tema pasa del límite de %(max)d bytes, comprimido o sin comprimir.
 
 msgid "This zip holds %(entries)d files, more than the %(max)d a theme may carry. Package only the built theme."
 msgstr "Este zip lleva %(entries)d archivos, más de los %(max)d que puede llevar un tema. Empaqueta solo el tema ya construido."
+
+#, fuzzy
+msgid "Through"
+msgstr "A través de"
 
 msgid "Thumbnail"
 msgstr "Miniatura"
@@ -1886,6 +1902,10 @@ msgstr "Reglas que muestran %(field)s"
 #, fuzzy
 msgid "Show %(field)s in the list"
 msgstr "Mostrar %(field)s en la lista"
+
+#, fuzzy
+msgid "Showing %(held)d of %(total)d."
+msgstr "Mostrando %(held)d de %(total)d."
 
 #, fuzzy
 msgid "Without a rule this field always shows."
