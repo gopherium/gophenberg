@@ -412,3 +412,89 @@ test('removes one item from the gallery and clears an emptied one', async () => 
 	await waitFor(() => expect(sent).toHaveLength(1))
 	expect(sent[0]).toMatchObject({ fields: { gallery: null } })
 })
+
+const LINKED_FROM = {
+	key: 'linked-from',
+	label: 'Linked from',
+	kind: 'backlinks',
+	many: false,
+	required: false,
+	settings: { source_group: 'cars', source_field: ['maker'] },
+	updated_at: '2026-08-01T10:00:00Z',
+}
+
+const POINTERS = [
+	{ id: NEWS.id, title: 'News', path: 'news', type: 'category' },
+	{ id: GUIDES.id, title: 'Guides', path: 'guides', type: 'page' },
+]
+
+/**
+ * Serves a post pointed at by the given items under the linked from field.
+ * @param pointers - The items pointing at the post.
+ * @param totals - How many point at it in all.
+ */
+function pointedAtBy(pointers: unknown[], totals: Record<string, number>) {
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([LINKED_FROM])] })),
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({
+				...storedPost,
+				fields: { 'linked-from': pointers },
+				field_totals: totals,
+			}),
+		),
+	)
+}
+
+test('lists what points at the item under the field reading them', async () => {
+	pointedAtBy(POINTERS, { 'linked-from': 2 })
+	renderAt(EDITOR_PATH)
+
+	const listed = await screen.findByRole('list', { name: 'Linked from' })
+
+	expect(within(listed).getByRole('link', { name: 'News' })).toHaveAttribute(
+		'href',
+		`/admin/content/category/${NEWS.id}/edit`,
+	)
+	expect(within(listed).getByRole('link', { name: 'Guides' })).toHaveAttribute(
+		'href',
+		`/admin/content/page/${GUIDES.id}/edit`,
+	)
+})
+
+test('says how many point at the item when more do than the page carries', async () => {
+	pointedAtBy(POINTERS, { 'linked-from': 47 })
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByText('Showing 2 of 47.')).toBeInTheDocument()
+})
+
+test('says nothing about the count when the page carries every pointer', async () => {
+	pointedAtBy(POINTERS, { 'linked-from': 2 })
+	renderAt(EDITOR_PATH)
+
+	await screen.findByRole('list', { name: 'Linked from' })
+
+	expect(screen.queryByText(/^Showing /)).not.toBeInTheDocument()
+})
+
+test('says so when nothing points at the item yet', async () => {
+	pointedAtBy([], { 'linked-from': 0 })
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByText('Nothing points here yet.')).toBeInTheDocument()
+})
+
+test('counts nothing over the page when the server sent no totals at all', async () => {
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([LINKED_FROM])] })),
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { 'linked-from': POINTERS } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	await screen.findByRole('list', { name: 'Linked from' })
+
+	expect(screen.queryByText(/^Showing /)).not.toBeInTheDocument()
+})

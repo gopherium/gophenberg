@@ -23,6 +23,7 @@ export interface EditorBuffer {
 	parentId: string | null
 	excerpt: string
 	fields: Record<string, unknown>
+	totals: Record<string, number>
 	shown: Record<string, unknown>
 	dirty: boolean
 	saving: boolean
@@ -61,6 +62,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail, declared: Co
 	const [parentId, setParentId] = useState(stored.parentId)
 	const [excerpt, setExcerpt] = useState(stored.excerpt)
 	const [fields, setFields] = useState(stored.fields)
+	const [totals, setTotals] = useState(stored.fieldTotals)
 	const [version, setVersion] = useState(stored.updatedAt)
 	const shown = useMemo(() => shownValues(declared, fields), [declared, fields])
 	const [saved, setSaved] = useState({
@@ -109,6 +111,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail, declared: Co
 		setParentId(written.parentId)
 		setExcerpt(written.excerpt)
 		setFields(written.fields)
+		setTotals(written.fieldTotals)
 		setVersion(written.updatedAt)
 	}
 	return {
@@ -121,6 +124,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail, declared: Co
 		parentId,
 		excerpt,
 		fields,
+		totals,
 		dirty:
 			title !== saved.title ||
 			content !== saved.content ||
