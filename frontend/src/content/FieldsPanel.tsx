@@ -211,7 +211,7 @@ export function pointingFields(declared: ContentField[]): ContentField[] {
 /** The readers deciding whether a set of declared fields lays anything out at all. */
 const LAID_OUT = [editableFields, relationFields, mediaFields, pointingFields, containerFields]
 
-/** The counts a container carries, which are none, since no container holds a backlinks field. */
+/** The counts a container carries. */
 const noTotals: Record<string, number> = {}
 
 /**
