@@ -58,8 +58,8 @@ stored under it.
 
 ## The kinds
 
-The picker offers eighteen entries storing ten kinds of value, so
-all four choice entries are listed as Choice.
+The picker offers nineteen entries. Eighteen of them store ten
+kinds of value, so all four choice entries are listed as Choice.
 
 | Stores | Pick |
 | --- | --- |
@@ -77,6 +77,10 @@ all four choice entries are listed as Choice.
 **Email** and **Web address** are checked when you save, and a web
 address has to start with `http://` or `https://`. **Range** draws
 a slider. **Gallery** is a Media field holding several items.
+
+The nineteenth entry, **Linked from**, stores nothing of its own.
+It reads a relation and lists the items pointing this way. Reading
+a relation backwards, below, says how.
 
 ## The settings
 
@@ -179,9 +183,12 @@ a section and a repeater's rows.
 ## Filling fields in
 
 The editor's Document panel shows one control per field reaching the
-item, under the excerpt, in group order. Values save with the item
-and travel with revisions, so restoring an old revision also
-restores the values it held.
+item, under the excerpt. The plain controls come first, then
+Sections, Repeaters and Flexible content fields, then the relation
+and media pickers, and last the Linked from lists. Each of those
+sets follows group order. Values save with the item and travel with
+revisions, so restoring an old revision also restores the values it
+held.
 
 A **Media** field holds one item and a **Gallery** holds several,
 both picked from the [media library](/guides/media/). A Gallery
@@ -211,6 +218,11 @@ a repeater row reads the others in that same row, row by row. A rule
 cannot read a field in another group, and it cannot lead back to
 itself.
 
+Not every kind can be read. A rule reads a text, number, switch,
+date, choice or media field. A relation, a container and a **Linked
+from** field can each be shown by a rule but never read by one, so
+they are not offered when you pick what a rule reads.
+
 What a hidden field already holds stays where it is. Turn the switch
 back on and the value is still there. While the field is hidden its
 value is not required to publish, and it never reaches visitors.
@@ -235,6 +247,37 @@ The editor then offers a picker listing the items of that type. A
 type whose items should list what points at them declares the
 archive page kind, covered in
 [content types](/guides/content-types/).
+
+## Reading a relation backwards
+
+A relation points one way. **Linked from** reads it the other way,
+and lists every item whose relation points at the one you are
+editing. On a category it answers the question the relation cannot,
+which is which posts were filed here.
+
+Declaring one asks two things. **Reads from** is the group holding
+the relation, and **Through** is the relation in it. Only groups
+holding a relation are offered, so declare the relation first.
+
+The Linked from field then has to sit in a group placed on the type
+that relation points at. Categories work this way. The relation
+sits on Posts and points at Categories, so the Linked from field
+sits on Categories.
+
+The list shows the twenty newest published items and says how many
+point in all when more do than it shows. Nothing in the editor asks
+for the ones behind them. Only published items of active types are
+listed, so a draft pointing this way waits until it is published.
+Each entry links to its own editor.
+
+Nobody fills a Linked from field in, so it takes no value from you
+and sends none back when you save. It stands at the top of a group
+rather than inside a Section, a Repeater or a Flexible content
+field.
+
+Removing the relation a Linked from field reads is refused, and so
+is moving it to another group or deleting the group holding it.
+Change the Linked from field first.
 
 ## Deleting a field
 
