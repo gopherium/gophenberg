@@ -11,6 +11,20 @@ import (
 	"github.com/google/uuid"
 )
 
+// indexedConn returns one connection whose planner is asked to reach for an index.
+func indexedConn(t *testing.T, db *sql.DB) *sql.Conn {
+	t.Helper()
+	held, err := db.Conn(t.Context())
+	if err != nil {
+		t.Fatalf("taking a connection: %v, want nil", err)
+	}
+	t.Cleanup(func() { _ = held.Close() })
+	if _, err := held.ExecContext(t.Context(), `SET enable_seqscan = off`); err != nil {
+		t.Fatalf("asking the planner for an index: %v, want nil", err)
+	}
+	return held
+}
+
 // insertRelation stores one relation row pointing from one item at another.
 func insertRelation(db *sql.DB, fromID uuid.UUID, fieldID int, toID uuid.UUID) error {
 	_, err := db.Exec(
@@ -133,10 +147,8 @@ func TestRelationMigrationsServeTheTermPageFromAnIndex(t *testing.T) {
 		t.Fatalf("inserting the relation: %v, want nil", err)
 	}
 
-	if _, err := db.Exec(`SET enable_seqscan = off`); err != nil {
-		t.Fatalf("asking the planner for an index: %v, want nil", err)
-	}
-	rows, err := db.Query(`EXPLAIN (FORMAT TEXT) `+termPageQuery, toID, 20, 0)
+	held := indexedConn(t, db)
+	rows, err := held.QueryContext(t.Context(), `EXPLAIN (FORMAT TEXT) `+termPageQuery, toID, 20, 0)
 	if err != nil {
 		t.Fatalf("planning the term page scan: %v, want nil", err)
 	}
@@ -169,10 +181,9 @@ func TestRelationMigrationsServeTheBacklinksPageFromTheSameIndex(t *testing.T) {
 	if err := insertRelation(db, fromID, fieldID, toID); err != nil {
 		t.Fatalf("inserting the relation: %v, want nil", err)
 	}
-	if _, err := db.Exec(`SET enable_seqscan = off`); err != nil {
-		t.Fatalf("asking the planner for an index: %v, want nil", err)
-	}
-	rows, err := db.Query(`EXPLAIN (FORMAT TEXT) `+backlinksPageQuery, toID, fieldID, 20, 0)
+	held := indexedConn(t, db)
+	rows, err := held.QueryContext(
+		t.Context(), `EXPLAIN (FORMAT TEXT) `+backlinksPageQuery, toID, fieldID, 20, 0)
 	if err != nil {
 		t.Fatalf("planning the backlinks scan: %v, want nil", err)
 	}
