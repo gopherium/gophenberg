@@ -91,6 +91,68 @@ func TestResolveListsTheItemsPointingAtOne(t *testing.T) {
 	}
 }
 
+// resolvedTotals returns the counts a resolved item carries beside its fields.
+func resolvedTotals(t *testing.T, handler http.Handler, slug string) map[string]int {
+	t.Helper()
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/resolve?path="+slug, "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("resolving %q: %d: %s", slug, recorder.Code, recorder.Body.String())
+	}
+	answered := decodeBody[struct {
+		Item struct {
+			FieldTotals map[string]int `json:"field_totals"`
+		} `json:"item"`
+	}](t, recorder)
+	return answered.Item.FieldTotals
+}
+
+// pointedAtHiddenPost declares a backlinks field on posts that a switch shows, and points a category at one.
+func pointedAtHiddenPost(t *testing.T) (http.Handler, contentValuesBody) {
+	t.Helper()
+	handler := termTypeServer(t)
+	declaredOnType(t, handler, "category",
+		`{"key":"picks","label":"Picks","kind":"relation","relates_to":"post","many":true}`)
+	declaredOn(t, handler, `{"key":"on-sale","label":"On sale","kind":"boolean"}`)
+	declaredOn(t, handler, fmt.Sprintf(
+		`{"key":"linked-from","label":"Linked from","kind":"backlinks","settings":`+
+			`{"source_group":%q,"source_field":["picks"],`+
+			`"conditions":[[{"source":"on-sale","operator":"==","value":"true"}]]}}`,
+		groupKeyOver(t, handler, "category")))
+	post := publishItemAt(t, handler, draftedPost(t, handler))
+	picked := patchValues(t, handler, storedCategoryItem(t, handler), fmt.Sprintf(`{"picks":[%q]}`, post.ID))
+	publishItemAt(t, handler, picked)
+	return handler, post
+}
+
+func TestResolveCountsNoPointersForAFieldTheRulesHide(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := pointedAtHiddenPost(t)
+
+	served := resolvedFields(t, handler, "hello-world")
+	totals := resolvedTotals(t, handler, "hello-world")
+
+	if _, shown := served["linked-from"]; shown {
+		t.Fatalf("fields = %v, want the hidden field left out", served)
+	}
+	if _, counted := totals["linked-from"]; counted {
+		t.Errorf("field_totals = %v, want no count for a field nobody may see", totals)
+	}
+}
+
+func TestResolveCountsThePointersOfAFieldTheRulesShow(t *testing.T) {
+	t.Parallel()
+
+	handler, post := pointedAtHiddenPost(t)
+	publishItemAt(t, handler, patchValues(t, handler, post, `{"on-sale":true}`))
+
+	totals := resolvedTotals(t, handler, "hello-world")
+
+	if totals["linked-from"] != 1 {
+		t.Errorf("field_totals = %v, want the one pointer counted while the field shows", totals)
+	}
+}
+
 func TestResolveHidesAPointerNobodyPublished(t *testing.T) {
 	t.Parallel()
 
@@ -209,6 +271,70 @@ func TestContentReportsThePointersTheEditorCannotBeShown(t *testing.T) {
 
 	if recorder.Code == http.StatusOK {
 		t.Errorf("status = %d, want the read it cannot run reported", recorder.Code)
+	}
+}
+
+// namedCategory stores one published category under the title and points it at the item.
+func namedCategory(t *testing.T, handler http.Handler, title, at string) {
+	t.Helper()
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content",
+		fmt.Sprintf(`{"type":"category","title":%q}`, title))
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("storing %q: %d: %s", title, recorder.Code, recorder.Body.String())
+	}
+	held := decodeBody[contentValuesBody](t, recorder)
+	publishItemAt(t, handler, patchValues(t, handler, held, fmt.Sprintf(`{"picks":[%q]}`, at)))
+}
+
+func TestContentAnswersOnePageOfPointersAndCountsThemAll(t *testing.T) {
+	t.Parallel()
+
+	handler := pointedAtPost(t)
+	post := publishItemAt(t, handler, draftedPost(t, handler))
+	for i := range 22 {
+		namedCategory(t, handler, fmt.Sprintf("Filed under %d", i), post.ID)
+	}
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/"+post.ID, "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	answer := decodeBody[struct {
+		Fields      map[string][]struct{} `json:"fields"`
+		FieldTotals map[string]int        `json:"field_totals"`
+	}](t, recorder)
+	if len(answer.Fields["linked-from"]) != 20 {
+		t.Errorf("linked-from holds %d, want one page of twenty", len(answer.Fields["linked-from"]))
+	}
+	if answer.FieldTotals["linked-from"] != 22 {
+		t.Errorf("field_totals = %v, want every pointer counted behind the page", answer.FieldTotals)
+	}
+}
+
+func TestContentKeepsAWriteThatLandedWhenThePointersCannotBeRead(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := pointedAtPostWithStores(t)
+	held := draftedPost(t, handler)
+	posts.pointingErr = errRegistryDown
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+held.ID,
+		fmt.Sprintf(`{"updated_at":%q,"title":"A second look"}`, held.UpdatedAt))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want the stored write reported as stored: %s",
+			recorder.Code, recorder.Body.String())
+	}
+	answer := decodeBody[struct {
+		Title       string         `json:"title"`
+		FieldTotals map[string]int `json:"field_totals"`
+	}](t, recorder)
+	if answer.Title != "A second look" {
+		t.Errorf("title = %q, want the write the server kept", answer.Title)
+	}
+	if len(answer.FieldTotals) != 0 {
+		t.Errorf("field_totals = %v, want no counts when the read behind them failed", answer.FieldTotals)
 	}
 }
 

@@ -391,8 +391,22 @@ func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Co
 		publishedSummary: newPublishedSummary(c),
 		Content:          publichtml.Sanitize(c.Content),
 		Fields:           values,
-		FieldTotals:      totals,
+		FieldTotals:      totalsShown(totals, values),
 	}, nil
+}
+
+// totalsShown returns the counts of the backlinks fields the rules left standing.
+func totalsShown(totals map[string]int, values content.Values) map[string]int {
+	shown := make(map[string]int, len(totals))
+	for key, total := range totals {
+		if _, held := values[key]; held {
+			shown[key] = total
+		}
+	}
+	if len(shown) == 0 {
+		return nil
+	}
+	return shown
 }
 
 // servedRendition is one stored rendition as a public reader sees it.
