@@ -19,10 +19,11 @@ names its own page size uses that instead, and a program reading
 the content API can ask for a different number on the request, up
 to the same 100.
 
-Two lists do not follow it. The list of posts you work in inside the
-admin stays at 20 a page whatever you choose here. The
+Three lists do not follow it. The list of posts you work in inside
+the admin stays at 20 a page whatever you choose here. The
 [RSS feed](/reference/rss-feed/) carries its own number, which
-whoever runs the server sets.
+whoever runs the server sets. A **Linked from** field, covered in
+[fields](/guides/fields/), shows 20 and nothing asks for more.
 
 ## Picture quality
 
