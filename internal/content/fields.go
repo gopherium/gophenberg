@@ -63,6 +63,7 @@ const (
 	FieldKindLayout   FieldKind = "layout"
 
 	FieldKindBacklinks FieldKind = "backlinks"
+	FieldKindLink      FieldKind = "link"
 )
 
 // Field describes one typed field a group declares, flattened onto the types its group matches.
@@ -139,7 +140,7 @@ func validFieldKind(kind FieldKind) bool {
 	case FieldKindText, FieldKindNumber, FieldKindBoolean, FieldKindDate,
 		FieldKindMedia, FieldKindRelation, FieldKindChoice,
 		FieldKindSection, FieldKindRepeater, FieldKindFlexible, FieldKindLayout,
-		FieldKindBacklinks:
+		FieldKindBacklinks, FieldKindLink:
 		return true
 	default:
 		return false
