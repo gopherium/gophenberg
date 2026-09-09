@@ -444,3 +444,87 @@ func TestSplitValuesRefusesABacklinksValue(t *testing.T) {
 		t.Errorf("SplitValues() error = %v, want field_shape_value", err)
 	}
 }
+
+func TestSourceRelationFindsTheRelationABacklinksNames(t *testing.T) {
+	t.Parallel()
+
+	held, found := content.SourceRelation(sourceGroups(content.TypePost), backlinksField(namingSource()))
+
+	if !found {
+		t.Fatalf("SourceRelation() found = false, want the relation the source names")
+	}
+	if held.Key != "maker" || held.Kind != content.FieldKindRelation {
+		t.Errorf("SourceRelation() = %+v, want the maker relation", held)
+	}
+}
+
+func TestSourceRelationFindsNothingWhenNoGroupHoldsTheSource(t *testing.T) {
+	t.Parallel()
+
+	for name, field := range map[string]content.Field{
+		"a group nobody declared": backlinksField(map[string]any{
+			content.SettingSourceGroup: "vans",
+			content.SettingSourceField: []any{"maker"},
+		}),
+		"a field the group does not hold": backlinksField(map[string]any{
+			content.SettingSourceGroup: "cars",
+			content.SettingSourceField: []any{"driver"},
+		}),
+		"a field that is no relation": backlinksField(map[string]any{
+			content.SettingSourceGroup: "cars",
+			content.SettingSourceField: []any{"note"},
+		}),
+		"a source nobody named": backlinksField(nil),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			held, found := content.SourceRelation(sourceGroups(content.TypePost), field)
+
+			if found {
+				t.Errorf("SourceRelation() = %+v, want nothing found", held)
+			}
+		})
+	}
+}
+
+// groupKeyed stores a group under the key and the title, placed where the location names.
+func groupKeyed(
+	t *testing.T, registry *content.Registry, key, title string, location content.Rules,
+) content.Group {
+	t.Helper()
+	created, err := registry.CreateGroup(t.Context(),
+		content.Group{Key: key, Title: title, Location: location})
+	if err != nil {
+		t.Fatalf("CreateGroup(%s) error = %v, want nil", key, err)
+	}
+	return created
+}
+
+func TestRegistryRefusesAnEditBreakingTheSourceABacklinksReads(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	cars := groupKeyed(t, registry, "cars", "Cars", namingType("car"))
+	makers := groupKeyed(t, registry, "makers", "Makers", namingPost())
+	relation := content.Field{
+		Key: "maker", Label: "Maker", Kind: content.FieldKindRelation, RelatesTo: content.TypePost,
+	}
+	if _, err := registry.CreateFieldInGroup(t.Context(), cars.ID, relation); err != nil {
+		t.Fatalf("declaring the relation: %v, want nil", err)
+	}
+	reading, err := registry.CreateFieldInGroup(t.Context(), makers.ID, backlinksField(namingSource()))
+	if err != nil {
+		t.Fatalf("declaring the backlinks: %v, want nil", err)
+	}
+
+	reading.Settings = map[string]any{
+		content.SettingSourceGroup: "vans",
+		content.SettingSourceField: []any{"maker"},
+	}
+	_, err = registry.UpdateFieldInGroup(t.Context(), makers.ID, reading, reading.UpdatedAt)
+
+	if codeOf(err) != "backlinks_source_unknown" {
+		t.Errorf("UpdateFieldInGroup(backlinks) error = %v, want backlinks_source_unknown", err)
+	}
+}
