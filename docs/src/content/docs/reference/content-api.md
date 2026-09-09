@@ -78,6 +78,13 @@ field holds a list, and a choice says the same thing through its
 `multiple` setting instead. A `page_kind` of `archive` marks a type
 whose items answer with a term page, covered below.
 
+A field of kind `backlinks` is the Linked from field, which reads a
+relation the other way. Its `settings` name the relation it reads,
+`source_group` being the field group holding that relation and
+`source_field` the list of keys reaching it inside that group. Its
+`relates_to` is empty and its `many` is false, yet its value is
+always a list, so read the kind rather than `many` for this one.
+
 A Section or a Repeater lists the fields it holds under its own
 `fields`, the same shape again, as deep as the group declares. Read
 `kind` to tell a container from a plain field, since the key is absent
@@ -253,6 +260,38 @@ request. Only published targets of active types appear, so a draft
 category never leaks through a published post. A field nobody
 filled is absent, though a Many values choice emptied in the editor
 comes back as an empty list.
+
+A Linked from field reads a relation the other way and holds the
+items pointing at this one, newest published first. Each entry
+names and addresses the pointing item the way a relation entry
+does, and carries its `type` besides, since items of several types
+may point through one relation:
+
+```json
+"posts-filed-here": [
+  {
+    "id": "0198f2c1-0000-7000-8000-000000000001",
+    "title": "Hello world",
+    "path": "hello-world",
+    "type": "post"
+  }
+]
+```
+
+Only published items of active types are listed, so a draft
+pointing this way is held back, and a field nothing points at comes
+back as an empty list rather than being absent. At most twenty
+entries travel under one such field, and no query asks for the ones
+behind them. A `field_totals` object beside `fields` says how many
+point in all, keyed by the same field key, so a theme can say what
+it is not showing:
+
+```json
+"field_totals": { "posts-filed-here": 47 }
+```
+
+`field_totals` is absent when the type declares no Linked from
+field.
 
 A Section holds an object of its own fields' values, keyed the same
 way. A Repeater holds a list of such objects, one per row. Either
