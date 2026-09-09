@@ -156,7 +156,7 @@ func (s *server) handleContentCreate() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		s.respondContent(w, r, http.StatusCreated, created)
+		s.respondWritten(w, r, http.StatusCreated, created)
 	}
 }
 
@@ -218,7 +218,7 @@ func (s *server) handleContentPatch() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		s.respondContent(w, r, http.StatusOK, updated)
+		s.respondWritten(w, r, http.StatusOK, updated)
 	}
 }
 
@@ -466,7 +466,7 @@ func (s *server) handleContentDelete() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		s.respondContent(w, r, http.StatusOK, trashed)
+		s.respondWritten(w, r, http.StatusOK, trashed)
 	}
 }
 
@@ -494,6 +494,6 @@ func (s *server) handleContentRestore() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		s.respondContent(w, r, http.StatusOK, restored)
+		s.respondWritten(w, r, http.StatusOK, restored)
 	}
 }

@@ -246,8 +246,20 @@ func (s *server) handleContentCounts() http.HandlerFunc {
 	}
 }
 
-// respondContent writes one item with its author name resolved.
+// respondContent writes one item with its author name resolved, refusing when its pointers cannot be read.
 func (s *server) respondContent(w http.ResponseWriter, r *http.Request, status int, c content.Content) {
+	s.answerContent(w, r, status, c, true)
+}
+
+// respondWritten writes one item a write already stored, its pointer counts absent when that read fails.
+func (s *server) respondWritten(w http.ResponseWriter, r *http.Request, status int, c content.Content) {
+	s.answerContent(w, r, status, c, false)
+}
+
+// answerContent writes one item as the editor reads it, refusing an unreadable pointer count only when asked.
+func (s *server) answerContent(
+	w http.ResponseWriter, r *http.Request, status int, c content.Content, refusing bool,
+) {
 	names, err := s.authorNames(r.Context())
 	if err != nil {
 		respondDomainError(w, err)
@@ -255,7 +267,7 @@ func (s *server) respondContent(w http.ResponseWriter, r *http.Request, status i
 	}
 	values := payloadValues(c)
 	totals, err := s.pointingAt(r.Context(), c.Type, c, values)
-	if err != nil {
+	if err != nil && refusing {
 		respondDomainError(w, err)
 		return
 	}
