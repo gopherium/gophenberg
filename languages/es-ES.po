@@ -488,6 +488,10 @@ msgstr "Solo el tipo de contenido que está en la raíz de tu sitio puede ir sin
 msgid "Open navigation"
 msgstr "Abrir la navegación"
 
+#, fuzzy
+msgid "Open %(field)s in a new tab"
+msgstr "Abrir %(field)s en una pestaña nueva"
+
 msgid "Parent"
 msgstr "Elemento Superior"
 
@@ -902,6 +906,10 @@ msgstr[2] "%(count)d entradas movidas a la papelera."
 msgid "%(field)s declared."
 msgstr "%(field)s declarado."
 
+#, fuzzy
+msgid "%(field)s address"
+msgstr "Dirección de %(field)s"
+
 msgid "%(field)s deleted."
 msgstr "%(field)s borrado."
 
@@ -910,6 +918,10 @@ msgstr "%(field)s renombrado."
 
 msgid "%(file)s is larger than one upload may be."
 msgstr "%(file)s es más grande de lo que una subida permite."
+
+#, fuzzy
+msgid "%(field)s title"
+msgstr "Título de %(field)s"
 
 msgid "%(file)s is not a file this block accepts."
 msgstr "%(file)s no es un archivo que este bloque acepte."
@@ -994,6 +1006,14 @@ msgstr "Medio %(id)d"
 
 msgid "Move %(title)s to the trash?"
 msgstr "¿Mover %(title)s a la papelera?"
+
+#, fuzzy
+msgid "Move %(name)s down"
+msgstr "Bajar %(name)s"
+
+#, fuzzy
+msgid "Move %(name)s up"
+msgstr "Subir %(name)s"
 
 msgid "Move these %(count)d post to the trash?"
 msgid_plural "Move these %(count)d posts to the trash?"
@@ -1121,6 +1141,10 @@ msgstr "%(field)s ajustado."
 #, fuzzy
 msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again."
 msgstr "%(field)s acepta como mucho %(limit)s letras. Acorta lo que has escrito y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s takes at most %(limit)s files. Remove one and save again."
+msgstr "%(field)s acepta como mucho %(limit)s archivos. Quita uno y guarda de nuevo."
 
 #, fuzzy
 msgid "%(group)s created."
@@ -1343,10 +1367,6 @@ msgid "Remove"
 msgstr "Quitar"
 
 #, fuzzy
-msgid "Remove Media %(id)d"
-msgstr "Quitar el medio %(id)d"
-
-#, fuzzy
 msgid "Rule %(number)d of set %(set)d"
 msgstr "Regla %(number)d del conjunto %(set)d"
 
@@ -1530,6 +1550,11 @@ msgctxt "field type"
 msgid "Date"
 msgstr "Fecha"
 
+#, fuzzy
+msgctxt "field type"
+msgid "Color"
+msgstr "Color"
+
 msgctxt "field type"
 msgid "Kind"
 msgstr "Tipo"
@@ -1537,6 +1562,11 @@ msgstr "Tipo"
 msgctxt "field type"
 msgid "Media"
 msgstr "Medio"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Link"
+msgstr "Enlace"
 
 #, fuzzy
 msgctxt "field type"
@@ -1648,6 +1678,10 @@ msgstr "Quitar fila"
 #, fuzzy
 msgid "%(field)s needs at least %(limit)s rows. Add one and save again."
 msgstr "%(field)s necesita al menos %(limit)s filas. Añade una y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s needs at least %(limit)s files. Add one and save again."
+msgstr "%(field)s necesita al menos %(limit)s archivos. Añade uno y guarda de nuevo."
 
 #, fuzzy
 msgid "%(field)s takes at most %(limit)s rows. Remove one and save again."
@@ -1964,8 +1998,16 @@ msgid "Fewest rows"
 msgstr "Mínimo de filas"
 
 #, fuzzy
+msgid "Fewest files"
+msgstr "Mínimo de archivos"
+
+#, fuzzy
 msgid "Most rows"
 msgstr "Máximo de filas"
+
+#, fuzzy
+msgid "Most files"
+msgstr "Máximo de archivos"
 
 #, fuzzy
 msgctxt "field type"

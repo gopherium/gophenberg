@@ -915,6 +915,10 @@ msgid "Open navigation"
 msgstr "Ouvrir la navigation"
 
 #, fuzzy
+msgid "Open %(field)s in a new tab"
+msgstr "Ouvrir %(field)s dans un nouvel onglet"
+
+#, fuzzy
 msgid "Parent"
 msgstr "Parent"
 
@@ -981,10 +985,6 @@ msgstr "Relation"
 #, fuzzy
 msgid "Remove"
 msgstr "Retirer"
-
-#, fuzzy
-msgid "Remove Media %(id)d"
-msgstr "Retirer le média %(id)d"
 
 #, fuzzy
 msgid "Rename"
@@ -1642,6 +1642,10 @@ msgid "%(field)s declared."
 msgstr "%(field)s déclaré."
 
 #, fuzzy
+msgid "%(field)s address"
+msgstr "Adresse de %(field)s"
+
+#, fuzzy
 msgid "%(field)s deleted."
 msgstr "%(field)s supprimé."
 
@@ -1652,6 +1656,10 @@ msgstr "%(field)s renommé."
 #, fuzzy
 msgid "%(file)s is larger than one upload may be."
 msgstr "%(file)s dépasse la taille maximale d'un téléversement."
+
+#, fuzzy
+msgid "%(field)s title"
+msgstr "Titre de %(field)s"
 
 #, fuzzy
 msgid "%(file)s is not a file this block accepts."
@@ -1773,6 +1781,14 @@ msgid "Move %(title)s to the trash?"
 msgstr "Déplacer %(title)s dans la corbeille ?"
 
 #, fuzzy
+msgid "Move %(name)s down"
+msgstr "Descendre %(name)s"
+
+#, fuzzy
+msgid "Move %(name)s up"
+msgstr "Monter %(name)s"
+
+#, fuzzy
 msgid "Move these %(count)d post to the trash?"
 msgid_plural "Move these %(count)d posts to the trash?"
 msgstr[0] "Déplacer ce %(count)d article dans la corbeille ?"
@@ -1886,6 +1902,11 @@ msgstr "Date"
 
 #, fuzzy
 msgctxt "field type"
+msgid "Color"
+msgstr "Couleur"
+
+#, fuzzy
+msgctxt "field type"
 msgid "Kind"
 msgstr "Genre"
 
@@ -1893,6 +1914,11 @@ msgstr "Genre"
 msgctxt "field type"
 msgid "Media"
 msgstr "Média"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Link"
+msgstr "Lien"
 
 #, fuzzy
 msgctxt "media family"
@@ -2067,6 +2093,14 @@ msgstr "Retirer la ligne"
 #, fuzzy
 msgid "%(field)s needs at least %(limit)s rows. Add one and save again."
 msgstr "%(field)s demande au moins %(limit)s lignes. Ajoutez-en une et enregistrez."
+
+#, fuzzy
+msgid "%(field)s needs at least %(limit)s files. Add one and save again."
+msgstr "%(field)s demande au moins %(limit)s fichiers. Ajoutez-en un et enregistrez."
+
+#, fuzzy
+msgid "%(field)s takes at most %(limit)s files. Remove one and save again."
+msgstr "%(field)s accepte au plus %(limit)s fichiers. Retirez-en un et enregistrez."
 
 #, fuzzy
 msgid "%(field)s takes at most %(limit)s rows. Remove one and save again."
@@ -2384,8 +2418,16 @@ msgid "Fewest rows"
 msgstr "Minimum de lignes"
 
 #, fuzzy
+msgid "Fewest files"
+msgstr "Minimum de fichiers"
+
+#, fuzzy
 msgid "Most rows"
 msgstr "Maximum de lignes"
+
+#, fuzzy
+msgid "Most files"
+msgstr "Maximum de fichiers"
 
 #, fuzzy
 msgctxt "field type"

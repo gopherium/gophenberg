@@ -18,6 +18,9 @@ msgid_plural "%(count)d posts moved to the trash."
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "%(field)s address"
+msgstr ""
+
 msgid "%(field)s declared."
 msgstr ""
 
@@ -43,6 +46,9 @@ msgid "%(field)s moved."
 msgstr ""
 
 msgid "%(field)s names the same one twice. Remove the repeat and save again."
+msgstr ""
+
+msgid "%(field)s needs at least %(limit)s files. Add one and save again."
 msgstr ""
 
 msgid "%(field)s needs at least %(limit)s rows. Add one and save again."
@@ -72,10 +78,16 @@ msgstr ""
 msgid "%(field)s stays out of the list."
 msgstr ""
 
+msgid "%(field)s takes at most %(limit)s files. Remove one and save again."
+msgstr ""
+
 msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again."
 msgstr ""
 
 msgid "%(field)s takes at most %(limit)s rows. Remove one and save again."
+msgstr ""
+
+msgid "%(field)s title"
 msgstr ""
 
 msgid "%(file)s is larger than one upload may be."
@@ -594,6 +606,9 @@ msgstr ""
 msgid "February"
 msgstr ""
 
+msgid "Fewest files"
+msgstr ""
+
 msgid "Fewest rows"
 msgstr ""
 
@@ -804,6 +819,9 @@ msgstr ""
 msgid "Mobile"
 msgstr ""
 
+msgid "Most files"
+msgstr ""
+
 msgid "Most rows"
 msgstr ""
 
@@ -823,6 +841,12 @@ msgid "Move %(group)s down"
 msgstr ""
 
 msgid "Move %(group)s up"
+msgstr ""
+
+msgid "Move %(name)s down"
+msgstr ""
+
+msgid "Move %(name)s up"
 msgstr ""
 
 msgid "Move %(title)s to the trash?"
@@ -956,6 +980,9 @@ msgstr ""
 msgid "Only the content type at the root of your site may go without a route word. Give this type one and try again."
 msgstr ""
 
+msgid "Open %(field)s in a new tab"
+msgstr ""
+
 msgid "Open navigation"
 msgstr ""
 
@@ -1032,9 +1059,6 @@ msgid "Remove %(name)s"
 msgstr ""
 
 msgid "Remove %(title)s"
-msgstr ""
-
-msgid "Remove Media %(id)d"
 msgstr ""
 
 msgid "Remove row"
@@ -1673,6 +1697,10 @@ msgid "Choice"
 msgstr ""
 
 msgctxt "field type"
+msgid "Color"
+msgstr ""
+
+msgctxt "field type"
 msgid "Date"
 msgstr ""
 
@@ -1690,6 +1718,10 @@ msgstr ""
 
 msgctxt "field type"
 msgid "Layout"
+msgstr ""
+
+msgctxt "field type"
+msgid "Link"
 msgstr ""
 
 msgctxt "field type"
