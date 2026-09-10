@@ -34,6 +34,7 @@ function isRelatedItem(held: unknown): held is RelatedItem {
 	}
 	const named = held as Record<string, unknown>
 	return (
+		Object.keys(named).length === 3 &&
 		typeof named.id === 'string' &&
 		typeof named.title === 'string' &&
 		typeof named.path === 'string'
