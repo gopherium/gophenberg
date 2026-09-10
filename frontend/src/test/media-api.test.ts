@@ -92,6 +92,25 @@ test('asks for the files a gallery holds by identity in one call', async () => {
 	expect(held.map((item) => item.title)).toEqual(['Harbor at dawn'])
 })
 
+test('asks in pages when a gallery holds more files than one request carries', async () => {
+	const asked: string[] = []
+	server.use(
+		http.get('/api/media', ({ request }) => {
+			const ids = new URL(request.url).searchParams.get('ids') ?? ''
+			asked.push(ids)
+			return HttpResponse.json({
+				items: ids.split(',').map((id) => ({ ...HARBOR, id: Number(id) })),
+				total: ids.split(',').length,
+			})
+		}),
+	)
+
+	const held = await listMediaByIDs(Array.from({ length: 250 }, (_, at) => at + 1))
+
+	expect(asked.map((page) => page.split(',').length)).toEqual([100, 100, 50])
+	expect(held.map((item) => item.id)).toEqual(Array.from({ length: 250 }, (_, at) => at + 1))
+})
+
 test('reports the files it could not read by identity', async () => {
 	server.use(http.get('/api/media', () => new HttpResponse(null, { status: 500 })))
 

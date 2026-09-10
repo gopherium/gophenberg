@@ -6,6 +6,9 @@ import { errorText } from '../i18n/errors'
 
 const MEDIA_PER_PAGE = 20
 
+/** How many identities one request for named files may carry, as the server caps them. */
+const MEDIA_IDS_PER_CALL = 100
+
 const renditionSchema = z.object({
 	file: z.string(),
 	width: z.number(),
@@ -217,9 +220,19 @@ export async function listMedia(query: MediaQuery): Promise<MediaPage> {
  * @returns The files, none when no identity was named.
  */
 export async function listMediaByIDs(ids: number[]): Promise<MediaItem[]> {
-	if (ids.length === 0) {
-		return []
+	const held: MediaItem[] = []
+	for (let from = 0; from < ids.length; from += MEDIA_IDS_PER_CALL) {
+		held.push(...(await namedMedia(ids.slice(from, from + MEDIA_IDS_PER_CALL))))
 	}
+	return held
+}
+
+/**
+ * Returns the stored files one request may name.
+ * @param ids - The identities to ask for, at most one call's worth.
+ * @returns The files the library holds among them.
+ */
+async function namedMedia(ids: number[]): Promise<MediaItem[]> {
 	const params = new URLSearchParams({ ids: ids.join(',') })
 	const response = await fetch(`/api/media?${params}`)
 	if (!response.ok) {
