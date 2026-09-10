@@ -157,6 +157,48 @@ func TestValuesNamesTargetsAndServesFiles(t *testing.T) {
 	}
 }
 
+func TestValuesLeavesTheStoredItemAsItWasRead(t *testing.T) {
+	t.Parallel()
+
+	held := postType(
+		content.Field{Key: "cover", Kind: content.FieldKindMedia},
+		content.Field{
+			Key: "author", Kind: content.FieldKindSection,
+			Fields: []content.Field{{Key: "portrait", Kind: content.FieldKindMedia}},
+		},
+		content.Field{
+			Key: "team", Kind: content.FieldKindRepeater,
+			Fields: []content.Field{{Key: "shot", Kind: content.FieldKindMedia}},
+		},
+	)
+	stored := anItem(content.Values{
+		"cover":  float64(12),
+		"author": map[string]any{"portrait": float64(12)},
+		"team":   []any{map[string]any{"shot": float64(12)}},
+	})
+	stores := served.Stores{
+		Links:   fakeLinks{},
+		Library: fakeLibrary{held: []media.Media{{ID: 12, File: "a.jpg"}}},
+	}
+
+	if _, _, err := served.Values(t.Context(), stores, held, stored); err != nil {
+		t.Fatalf("Values() error = %v, want nil", err)
+	}
+
+	if stored.Fields["cover"] != float64(12) {
+		t.Errorf("cover = %#v, want the identity the item was read with", stored.Fields["cover"])
+	}
+	inside, _ := stored.Fields["author"].(map[string]any)
+	if inside["portrait"] != float64(12) {
+		t.Errorf("the section holds %#v, want the identity it was read with", inside["portrait"])
+	}
+	rows, _ := stored.Fields["team"].([]any)
+	row, _ := rows[0].(map[string]any)
+	if row["shot"] != float64(12) {
+		t.Errorf("the row holds %#v, want the identity it was read with", row["shot"])
+	}
+}
+
 func TestValuesKeepsBackWhatTheRulesHide(t *testing.T) {
 	t.Parallel()
 
