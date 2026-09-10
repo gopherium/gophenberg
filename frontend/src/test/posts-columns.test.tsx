@@ -71,6 +71,8 @@ const ITEM = {
 		since: '2026-09-05',
 		colour: 'red',
 		note: 'unlisted',
+		source: { url: 'https://example.com/a', title: 'A page', new_tab: false },
+		homepage: { url: 'https://example.com', title: '', new_tab: false },
 	},
 }
 
@@ -120,6 +122,25 @@ test('reads each value the way its kind is written', async () => {
 	expect(row).toHaveTextContent('10')
 	expect(row).toHaveTextContent('Yes')
 	expect(row).toHaveTextContent('Red')
+})
+
+test('shows a listed link by its title', async () => {
+	declaring([field('source', 'Source', 'link', { listed: true })])
+	renderAt('/content/post')
+
+	const row = within(await screen.findByRole('table')).getAllByRole('row')[1]
+
+	expect(row).toHaveTextContent('A page')
+	expect(row).not.toHaveTextContent('object')
+})
+
+test('shows a listed link by its address when it carries no title', async () => {
+	declaring([field('homepage', 'Homepage', 'link', { listed: true })])
+	renderAt('/content/post')
+
+	const row = within(await screen.findByRole('table')).getAllByRole('row')[1]
+
+	expect(row).toHaveTextContent('https://example.com')
 })
 
 test('names a column by its key so a field called title never takes the title column', async () => {
