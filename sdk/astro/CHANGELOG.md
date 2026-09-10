@@ -11,6 +11,17 @@ npm-style tag stays invisible to the Go toolchain, unlike a
 `sdk/astro/vX.Y.Z` tag naming the directory as a module. Versions
 through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 
+## [0.15.0] - 2026-09-10
+
+### Added
+
+- `linkValue` and `linkFields` read the address a link field points at.
+- `pointingItems` and `pointingFields` read the items pointing at one through a relation.
+
+### Fixed
+
+- `relatedItems` no longer reads an item pointing this way as one a relation points at.
+
 ## [0.14.0] - 2026-09-06
 
 ### Added

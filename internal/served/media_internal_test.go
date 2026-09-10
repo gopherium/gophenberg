@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package server
+package served
 
 import (
 	"testing"
@@ -27,10 +27,10 @@ func TestMediaIDsHeldSkipsWhatIsNotAnIdentity(t *testing.T) {
 		"subtitle": "words",
 	}
 
-	ids := mediaIDsHeld(held, values)
+	ids := MediaIDs(held, values)
 
 	if len(ids) != 2 || ids[0] != 3 || ids[1] != 4 {
-		t.Errorf("mediaIDsHeld() = %v, want only the identities the values hold", ids)
+		t.Errorf("MediaIDs() = %v, want only the identities the values hold", ids)
 	}
 }
 
@@ -47,7 +47,7 @@ func TestInlineMediaKeyDeletesWhatNamesNoFile(t *testing.T) {
 
 			values := content.Values{"cover": held}
 
-			inlineMediaKey(galleryField("cover", false), values, map[int64]media.Media{})
+			inlineKey(galleryField("cover", false), values, map[int64]media.Media{})
 
 			if raw, found := values["cover"]; found {
 				t.Errorf("values hold %v, want the key deleted rather than served", raw)
@@ -73,7 +73,7 @@ func TestInlineMediaKeyServesTheShapeTheFieldDeclares(t *testing.T) {
 
 			values := content.Values{test.field.Key: test.held}
 
-			inlineMediaKey(test.field, values, stored)
+			inlineKey(test.field, values, stored)
 
 			if raw, found := values[test.field.Key]; found {
 				t.Errorf("%s serves %v, want the key left out rather than the wrong shape",
@@ -90,13 +90,13 @@ func TestInlineMediaKeyServesEachDeclaredShape(t *testing.T) {
 	cover := content.Values{"cover": float64(7)}
 	gallery := content.Values{"gallery": []any{float64(7)}}
 
-	inlineMediaKey(galleryField("cover", false), cover, stored)
-	inlineMediaKey(galleryField("gallery", true), gallery, stored)
+	inlineKey(galleryField("cover", false), cover, stored)
+	inlineKey(galleryField("gallery", true), gallery, stored)
 
-	if _, one := cover["cover"].(servedMedia); !one {
+	if _, one := cover["cover"].(File); !one {
 		t.Errorf("cover serves %T, want one object", cover["cover"])
 	}
-	if listed, many := gallery["gallery"].([]servedMedia); !many || len(listed) != 1 {
+	if listed, many := gallery["gallery"].([]File); !many || len(listed) != 1 {
 		t.Errorf("gallery serves %T, want a list of one", gallery["gallery"])
 	}
 }
@@ -121,14 +121,14 @@ func TestMediaIDsHeldReachesInsideContainers(t *testing.T) {
 		},
 	}
 
-	ids := mediaIDsHeld(held, values)
+	ids := MediaIDs(held, values)
 
 	if len(ids) != 3 {
-		t.Errorf("mediaIDsHeld() = %v, want the three named inside the containers", ids)
+		t.Errorf("MediaIDs() = %v, want the three named inside the containers", ids)
 	}
 	stray := content.Values{"author": "not-a-section", "team": []any{"not-a-row"}}
-	if named := mediaIDsHeld(held, stray); named != nil {
-		t.Errorf("mediaIDsHeld(stray) = %v, want nothing named by what holds no sub fields", named)
+	if named := MediaIDs(held, stray); named != nil {
+		t.Errorf("MediaIDs(stray) = %v, want nothing named by what holds no sub fields", named)
 	}
 }
 
@@ -144,8 +144,8 @@ func TestInlineMediaValuesClearsAStrayInsideEveryRow(t *testing.T) {
 		"team":   []any{map[string]any{"shots": []any{"stray"}}},
 	}
 
-	if err := (&server{}).inlineMediaValues(nil, held, values); err != nil {
-		t.Fatalf("inlineMediaValues() error = %v, want nil", err)
+	if err := InlineMedia(t.Context(), nil, held, values); err != nil {
+		t.Fatalf("InlineMedia() error = %v, want nil", err)
 	}
 
 	inside, _ := values["author"].(map[string]any)
@@ -171,8 +171,8 @@ func TestInlineMediaValuesClearsAFieldEvenWhenNothingResolves(t *testing.T) {
 	}}
 	values := content.Values{"cover": "not-an-identity", "gallery": []any{"stray"}}
 
-	if err := (&server{}).inlineMediaValues(nil, held, values); err != nil {
-		t.Fatalf("inlineMediaValues() error = %v, want nil", err)
+	if err := InlineMedia(t.Context(), nil, held, values); err != nil {
+		t.Fatalf("InlineMedia() error = %v, want nil", err)
 	}
 
 	if len(values) != 0 {
@@ -185,7 +185,7 @@ func TestInlineMediaKeyDeletesAnEmptiedList(t *testing.T) {
 
 	values := content.Values{"gallery": []any{float64(9)}}
 
-	inlineMediaKey(galleryField("gallery", true), values, map[int64]media.Media{})
+	inlineKey(galleryField("gallery", true), values, map[int64]media.Media{})
 
 	if _, found := values["gallery"]; found {
 		t.Errorf("values = %v, want the emptied key deleted", values)

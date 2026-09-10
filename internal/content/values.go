@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -220,6 +221,24 @@ func withinBounds(f Field, value any) error {
 	if held, ok := value.(string); ok && f.Kind == FieldKindText {
 		return textWithinBounds(f, held)
 	}
+	if f.Kind == FieldKindMedia {
+		return mediaWithinBounds(f, value)
+	}
+	return nil
+}
+
+// mediaWithinBounds reports whether the number of files sits between the min and the max the field names.
+func mediaWithinBounds(f Field, value any) error {
+	members, listed := value.([]any)
+	if !listed {
+		return nil
+	}
+	if low, named := settingNumber(f.Settings[SettingMin]); named && float64(len(members)) < low {
+		return outOfBounds(f, "field_items_min", SettingMin, low)
+	}
+	if high, named := settingNumber(f.Settings[SettingMax]); named && float64(len(members)) > high {
+		return outOfBounds(f, "field_items_max", SettingMax, high)
+	}
 	return nil
 }
 
@@ -285,6 +304,9 @@ func textFormat(f Field, held string) error {
 	return nil
 }
 
+// colorDigits matches a hash followed by six or eight hexadecimal digits.
+var colorDigits = regexp.MustCompile(`^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$`)
+
 // readsAsVariant reports whether the text reads as the named variant.
 func readsAsVariant(variant, held string) bool {
 	if variant == "email" {
@@ -292,6 +314,9 @@ func readsAsVariant(variant, held string) bool {
 	}
 	if variant == "url" {
 		return webAddress(held)
+	}
+	if variant == "color" {
+		return colorDigits.MatchString(held)
 	}
 	return true
 }
@@ -364,9 +389,55 @@ func holdsKind(value any, kind FieldKind) bool {
 		return ok
 	case FieldKindDate:
 		return isDay(value)
+	case FieldKindLink:
+		return isLink(value)
 	default:
 		return false
 	}
+}
+
+// LinkURL names the address a link field points at.
+const LinkURL = "url"
+
+// LinkTitle names the words a link field is read under.
+const LinkTitle = "title"
+
+// LinkNewTab names whether a link field opens away from the page.
+const LinkNewTab = "new_tab"
+
+// isLink reports whether the value carries exactly the three members a link holds.
+func isLink(value any) bool {
+	held, ok := value.(map[string]any)
+	if !ok || len(held) != 3 {
+		return false
+	}
+	address, written := held[LinkURL].(string)
+	if !written || !linkAddress(address) {
+		return false
+	}
+	if _, written := held[LinkTitle].(string); !written {
+		return false
+	}
+	_, answered := held[LinkNewTab].(bool)
+	return answered
+}
+
+// linkAddress reports whether the text reads as an address a link may point at.
+func linkAddress(held string) bool {
+	if held == "" {
+		return true
+	}
+	if strings.HasPrefix(held, "/") {
+		return true
+	}
+	parsed, err := url.Parse(held)
+	if err != nil {
+		return false
+	}
+	if parsed.Scheme == "mailto" {
+		return parsed.Opaque != ""
+	}
+	return webAddress(held)
 }
 
 // isNumber reports whether the value is a number, however it was decoded.
@@ -442,8 +513,17 @@ func empty(value any) bool {
 		return len(members) == 0
 	}
 	if inside, ok := value.(map[string]any); ok {
-		return len(inside) == 0
+		return emptyInside(inside)
 	}
 	written, ok := value.(string)
 	return ok && written == ""
+}
+
+// emptyInside reports whether an object reads as empty, a link being empty when it points nowhere.
+func emptyInside(inside map[string]any) bool {
+	if len(inside) == 0 {
+		return true
+	}
+	address, written := inside[LinkURL].(string)
+	return written && address == "" && isLink(inside)
 }

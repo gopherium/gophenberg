@@ -7,6 +7,7 @@ import {
 	deleteMedia,
 	describeMedia,
 	listMedia,
+	listMediaByIDs,
 	mediaSrc,
 	uploadMedia,
 } from '../media/api'
@@ -74,6 +75,61 @@ test('asks for the first page without naming it', async () => {
 	await listMedia({})
 
 	expect(asked).toBe('?per_page=20')
+})
+
+test('asks for the files a gallery holds by identity in one call', async () => {
+	let asked = ''
+	server.use(
+		http.get('/api/media', ({ request }) => {
+			asked = new URL(request.url).search
+			return HttpResponse.json({ items: [HARBOR], total: 1 })
+		}),
+	)
+
+	const held = await listMediaByIDs([7, 9])
+
+	expect(asked).toBe('?ids=7%2C9')
+	expect(held.map((item) => item.title)).toEqual(['Harbor at dawn'])
+})
+
+test('asks in pages when a gallery holds more files than one request carries', async () => {
+	const asked: string[] = []
+	server.use(
+		http.get('/api/media', ({ request }) => {
+			const ids = new URL(request.url).searchParams.get('ids') ?? ''
+			asked.push(ids)
+			return HttpResponse.json({
+				items: ids.split(',').map((id) => ({ ...HARBOR, id: Number(id) })),
+				total: ids.split(',').length,
+			})
+		}),
+	)
+
+	const held = await listMediaByIDs(Array.from({ length: 250 }, (_, at) => at + 1))
+
+	expect(asked.map((page) => page.split(',').length)).toEqual([100, 100, 50])
+	expect(held.map((item) => item.id)).toEqual(Array.from({ length: 250 }, (_, at) => at + 1))
+})
+
+test('reports the files it could not read by identity', async () => {
+	server.use(http.get('/api/media', () => new HttpResponse(null, { status: 500 })))
+
+	await expect(listMediaByIDs([7])).rejects.toThrow(/500/)
+})
+
+test('asks for no file when a gallery holds none', async () => {
+	let called = false
+	server.use(
+		http.get('/api/media', () => {
+			called = true
+			return HttpResponse.json({ items: [], total: 0 })
+		}),
+	)
+
+	const held = await listMediaByIDs([])
+
+	expect(held).toEqual([])
+	expect(called).toBe(false)
 })
 
 test('asks for the first page without naming it', async () => {

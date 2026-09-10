@@ -25,6 +25,18 @@ export interface RelatedItem {
 	path: string
 }
 
+/** One item pointing at this one through a relation, as a reader sees it. */
+export interface Pointer extends RelatedItem {
+	type: string
+}
+
+/** The address a link field points at, as a reader sees it. */
+export interface LinkValue {
+	url: string
+	title: string
+	new_tab: boolean
+}
+
 /** One stored rendition of a library file, as a reader sees it. */
 export interface MediaRendition {
 	src: string

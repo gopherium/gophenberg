@@ -175,6 +175,14 @@ export function errorTemplates(): Record<string, string> {
 			'%(field)s needs at least %(limit)s rows. Add one and save again.',
 			DOMAIN,
 		),
+		field_items_max: __(
+			'%(field)s takes at most %(limit)s files. Remove one and save again.',
+			DOMAIN,
+		),
+		field_items_min: __(
+			'%(field)s needs at least %(limit)s files. Add one and save again.',
+			DOMAIN,
+		),
 		field_layout_missing: __(
 			'A row of %(field)s has to name the layout it takes. Pick a layout for the row, or remove the row.',
 			DOMAIN,

@@ -27,6 +27,7 @@ import { errorTemplates } from '../i18n/errorTemplates'
 import { hiddenKeys } from './conditions'
 import { seededValues } from './fieldDefaults'
 import { GalleryField, MediaField, galleryHeld, mediaHeld } from './MediaField'
+import { LinkField, linkHeld } from './LinkField'
 import { PointersList, pointersHeld } from './PointersList'
 import { RelationPicker, targetsHeld } from './RelationPicker'
 import { pairsOf } from './types'
@@ -48,6 +49,7 @@ const TYPES: Record<string, string> = {
 const VARIANTS: Record<string, string> = {
 	email: 'email',
 	url: 'url',
+	color: 'color',
 }
 
 /**
@@ -208,8 +210,24 @@ export function pointingFields(declared: ContentField[]): ContentField[] {
 	return declared.filter((field) => field.kind === 'backlinks')
 }
 
+/**
+ * Returns the fields a link control edits.
+ * @param declared - The fields the type declares.
+ * @returns The declared link fields.
+ */
+export function linkFields(declared: ContentField[]): ContentField[] {
+	return declared.filter((field) => field.kind === 'link')
+}
+
 /** The readers deciding whether a set of declared fields lays anything out at all. */
-const LAID_OUT = [editableFields, relationFields, mediaFields, pointingFields, containerFields]
+const LAID_OUT = [
+	editableFields,
+	relationFields,
+	mediaFields,
+	linkFields,
+	pointingFields,
+	containerFields,
+]
 
 /** The counts a container carries. */
 const noTotals: Record<string, number> = {}
@@ -557,6 +575,7 @@ function DeclaredFields({ postId, declared, values, totals, onChange }: Editing)
 	const related = useMemo(() => relationFields(shown), [shown])
 	const pictured = useMemo(() => mediaFields(shown), [shown])
 	const pointing = useMemo(() => pointingFields(shown), [shown])
+	const linked = useMemo(() => linkFields(shown), [shown])
 	const contained = useMemo(() => containerFields(shown), [shown])
 	const descriptors = useMemo(() => fieldDescriptors(rendered), [rendered])
 	const complaints = useMemo(() => fieldValidity(rendered, values), [rendered, values])
@@ -587,6 +606,14 @@ function DeclaredFields({ postId, declared, values, totals, onChange }: Editing)
 				values={values}
 				onChange={onChange}
 			/>
+			{linked.map((field) => (
+				<LinkField
+					key={field.key}
+					field={field}
+					value={linkHeld(values[field.key])}
+					onChange={(held) => onChange({ ...values, [field.key]: held })}
+				/>
+			))}
 			{pointing.map((field) => (
 				<PointersList
 					key={field.key}

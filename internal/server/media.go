@@ -214,14 +214,43 @@ func mediaID(r *http.Request) (int64, error) {
 	return strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 }
 
-// handleMediaList returns the handler listing media as a page with its total.
+// mediaIDs reads the ids query parameter into the identities it names, at most one page of them.
+func mediaIDs(query url.Values) ([]int64, error) {
+	if len(query) != 1 || len(query["ids"]) != 1 {
+		return nil, fmt.Errorf("server: ids stands alone among the list parameters, once")
+	}
+	raw := strings.Split(query.Get("ids"), ",")
+	if len(raw) > maxMediaPerPage {
+		return nil, fmt.Errorf("server: %d ids asked for, more than one page carries", len(raw))
+	}
+	ids := make([]int64, 0, len(raw))
+	for _, held := range raw {
+		id, err := strconv.ParseInt(strings.TrimSpace(held), 10, 64)
+		if err != nil || id < 1 {
+			return nil, fmt.Errorf("server: invalid media id %q", held)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// respondInvalidList answers that the list parameters could not be read.
+func respondInvalidList(w http.ResponseWriter) {
+	authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
+		Message: "invalid list parameters", Code: "list_parameters_invalid",
+	})
+}
+
+// handleMediaList returns the handler listing media as a page with its total, or the files named by identity.
 func (s *server) handleMediaList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Has("ids") {
+			s.respondMediaByIDs(w, r)
+			return
+		}
 		filter, err := parseMediaFilter(r.URL.Query())
 		if err != nil {
-			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
-				Message: "invalid list parameters", Code: "list_parameters_invalid",
-			})
+			respondInvalidList(w)
 			return
 		}
 		rows, total, err := s.mediaStore.List(r.Context(), filter)
@@ -235,6 +264,31 @@ func (s *server) handleMediaList() http.HandlerFunc {
 		}
 		authkit.Respond(w, http.StatusOK, mediaListResponse{Items: items, Total: total})
 	}
+}
+
+// respondMediaByIDs answers the stored files the query names, in the order it names them.
+func (s *server) respondMediaByIDs(w http.ResponseWriter, r *http.Request) {
+	ids, err := mediaIDs(r.URL.Query())
+	if err != nil {
+		respondInvalidList(w)
+		return
+	}
+	rows, err := s.mediaStore.ByIDs(r.Context(), ids)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
+	byID := make(map[int64]media.Media, len(rows))
+	for _, m := range rows {
+		byID[m.ID] = m
+	}
+	items := make([]mediaView, 0, len(ids))
+	for _, id := range ids {
+		if m, found := byID[id]; found {
+			items = append(items, newMediaView(m))
+		}
+	}
+	authkit.Respond(w, http.StatusOK, mediaListResponse{Items: items, Total: len(items)})
 }
 
 // handleMediaGet returns the handler answering one media item.

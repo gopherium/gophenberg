@@ -437,14 +437,19 @@ interface SettingControl {
 }
 
 /**
- * Returns the settings a kind takes, in the order the controls show them.
- * @param kind - The kind the field holds.
+ * Returns the settings a field takes, in the order the controls show them.
+ * @param field - The declared field to tune.
  * @returns The settings to offer.
  */
-function settingsOffered(kind: string): SettingControl[] {
+function settingsOffered(field: ContentField): SettingControl[] {
+	const kind = field.kind
 	const held: SettingControl[] = [
 		{ name: 'instructions', label: __('Instructions', 'gophenberg'), shape: 'text' },
 	]
+	if (kind === 'media' && field.many) {
+		held.push({ name: 'min', label: __('Fewest files', 'gophenberg'), shape: 'number' })
+		held.push({ name: 'max', label: __('Most files', 'gophenberg'), shape: 'number' })
+	}
 	if (kind === 'text') {
 		held.push({ name: 'default', label: __('Default', 'gophenberg'), shape: 'text' })
 		held.push({ name: 'placeholder', label: __('Placeholder', 'gophenberg'), shape: 'text' })
@@ -569,7 +574,7 @@ function settingHeld(shape: SettingControl['shape'], written: string): unknown {
  * @returns The control and its dialog.
  */
 function FieldSettings(props: Inside) {
-	const offered = settingsOffered(props.field.kind)
+	const offered = settingsOffered(props.field)
 	const answers = settingAnswers()
 	const [open, setOpen] = useState(false)
 	const [typed, setTyped] = useState(() => typedSettings(offered, props.field.settings))

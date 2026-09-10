@@ -19,8 +19,8 @@ import (
 	"github.com/gopherium/gouncer/authkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
-	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/publichtml"
+	"github.com/gopherium/gophenberg/internal/served"
 	"github.com/gopherium/gophenberg/internal/themehost"
 )
 
@@ -217,17 +217,17 @@ func (s *server) handleContentHandshake() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		served := make([]servedType, 0, len(registered))
+		offered := make([]servedType, 0, len(registered))
 		for _, t := range registered {
 			if t.Active {
-				served = append(served, newServedType(t))
+				offered = append(offered, newServedType(t))
 			}
 		}
 		authkit.Respond(w, http.StatusOK, contentHandshake{
 			Gophenberg: s.version,
 			API:        contentAPIGeneration(),
 			Kit:        themehost.ServedKits(),
-			Types:      served,
+			Types:      offered,
 		})
 	}
 }
@@ -276,129 +276,10 @@ func (s *server) respondResolvedItem(w http.ResponseWriter, r *http.Request, hel
 	authkit.Respond(w, http.StatusOK, answer)
 }
 
-// relatedTarget is one item a relation field points at, as a public reader sees it.
-type relatedTarget struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	Path  string `json:"path"`
-}
-
-// namedTargets returns the targets a public payload carries under one relation field.
-func namedTargets(held []content.Target) []relatedTarget {
-	named := make([]relatedTarget, len(held))
-	for i, target := range held {
-		named[i] = relatedTarget{ID: target.ID.String(), Title: target.Title, Path: target.Path}
-	}
-	return named
-}
-
-// backlinksPage is how many pointing items one answer carries under a backlinks field.
-const backlinksPage = 20
-
-// pointingItem is one item pointing at another, named as a relation target and typed besides.
-type pointingItem struct {
-	relatedTarget
-	Type string `json:"type"`
-}
-
-// namedPointers returns the pointing items a payload carries under one backlinks field.
-func namedPointers(held []content.Pointer) []pointingItem {
-	named := make([]pointingItem, len(held))
-	for i, pointer := range held {
-		named[i] = pointingItem{
-			relatedTarget: relatedTarget{
-				ID: pointer.ID.String(), Title: pointer.Title, Path: pointer.Path,
-			},
-			Type: pointer.Type,
-		}
-	}
-	return named
-}
-
-// pointingAt writes the items pointing at the content under each backlinks key the type declares.
-func (s *server) pointingAt(
-	ctx context.Context, typeKey string, c content.Content, values content.Values,
-) (map[string]int, error) {
-	return s.pointingShown(ctx, typeKey, c, values, nil)
-}
-
-// pointingShown writes the pointing items under each backlinks key the type declares and the rules leave standing.
-func (s *server) pointingShown(
-	ctx context.Context, typeKey string, c content.Content, values content.Values, hidden map[string]bool,
-) (map[string]int, error) {
-	reading, err := s.backlinksOn(ctx, typeKey)
-	if err != nil || len(reading) == 0 {
-		return nil, err
-	}
-	totals := make(map[string]int, len(reading))
-	pointing := make(content.Values, len(reading))
-	for key, source := range reading {
-		if hidden[key] {
-			continue
-		}
-		held, total, err := s.content.PointingAt(ctx, c.ID, source, 1, backlinksPage)
-		if err != nil {
-			return nil, err
-		}
-		pointing[key] = namedPointers(held)
-		totals[key] = total
-	}
-	for key, held := range pointing {
-		values[key] = held
-	}
-	return totals, nil
-}
-
-// backlinksOn returns the source field each backlinks field of the type reads, keyed by the field's key.
-func (s *server) backlinksOn(ctx context.Context, typeKey string) (map[string]int, error) {
-	groups, err := s.types.Groups(ctx)
-	if err != nil {
-		return nil, err
-	}
-	params := s.types.Params(ctx)
-	screen := content.Screen{content.ScreenContentType: typeKey}
-	reading := make(map[string]int)
-	for _, g := range groups {
-		if !g.Active || !g.Location.Match(screen, params) {
-			continue
-		}
-		readSources(groups, g, reading)
-	}
-	return reading, nil
-}
-
-// readSources writes the source field each backlinks field of the group reads, leaving out what reads none.
-func readSources(groups []content.Group, g content.Group, reading map[string]int) {
-	for _, f := range g.Fields {
-		if f.Kind != content.FieldKindBacklinks {
-			continue
-		}
-		if source, found := content.SourceRelation(groups, f); found {
-			reading[f.Key] = source.ID
-		}
-	}
-}
-
 // publishedDetailOf returns the public view of an item with its targets and media resolved.
 func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Content) (publishedDetail, error) {
-	targets, err := s.content.TargetsOf(r.Context(), c.ID)
+	values, totals, err := served.Values(r.Context(), s.publicStores(), t, c)
 	if err != nil {
-		return publishedDetail{}, err
-	}
-	held := heldValues(c.Fields)
-	values := make(content.Values, len(held)+len(targets))
-	for key, value := range held {
-		values[key] = value
-	}
-	for key, listed := range targets {
-		values[key] = namedTargets(listed)
-	}
-	totals, err := s.pointingShown(r.Context(), t.Key, c, values, content.Hidden(t.Fields, values))
-	if err != nil {
-		return publishedDetail{}, err
-	}
-	values = content.Shown(t.Fields, values)
-	if err := s.inlineMediaValues(r, t, values); err != nil {
 		return publishedDetail{}, err
 	}
 	return publishedDetail{
@@ -409,188 +290,9 @@ func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Co
 	}, nil
 }
 
-// servedRendition is one stored rendition as a public reader sees it.
-type servedRendition struct {
-	Src      string `json:"src"`
-	Width    int    `json:"width"`
-	Height   int    `json:"height"`
-	MimeType string `json:"mime_type"`
-}
-
-// servedMedia is one library file as a public reader sees it.
-type servedMedia struct {
-	ID       int64                      `json:"id"`
-	Src      string                     `json:"src"`
-	Title    string                     `json:"title"`
-	AltText  string                     `json:"alt_text"`
-	Caption  string                     `json:"caption"`
-	MimeType string                     `json:"mime_type"`
-	Width    int                        `json:"width"`
-	Height   int                        `json:"height"`
-	Sizes    map[string]servedRendition `json:"sizes"`
-}
-
-// servedMediaOf returns the public view of one stored file.
-func servedMediaOf(m media.Media) servedMedia {
-	sizes := make(map[string]servedRendition, len(m.Sizes))
-	for slug, held := range m.Sizes {
-		sizes[slug] = servedRendition{
-			Src:      mediaPrefix + "/" + held.File,
-			Width:    held.Width,
-			Height:   held.Height,
-			MimeType: held.MimeType,
-		}
-	}
-	return servedMedia{
-		ID:       m.ID,
-		Src:      mediaPrefix + "/" + m.File,
-		Title:    m.Title,
-		AltText:  m.AltText,
-		Caption:  m.Caption,
-		MimeType: m.MimeType,
-		Width:    m.Width,
-		Height:   m.Height,
-		Sizes:    sizes,
-	}
-}
-
-// mediaIDsHeld returns every identity the values hold under the type's media fields.
-func mediaIDsHeld(t content.Type, values content.Values) []int64 {
-	return mediaIDsUnder(t.Fields, values)
-}
-
-// mediaIDsUnder returns every identity the values hold under the declared media fields, however deep.
-func mediaIDsUnder(declared []content.Field, values content.Values) []int64 {
-	var ids []int64
-	for _, f := range declared {
-		if f.Kind.Holds() {
-			ids = append(ids, mediaIDsInside(f, values[f.Key])...)
-			continue
-		}
-		if f.Kind == content.FieldKindMedia {
-			ids = append(ids, mediaIDsNamed(f, values[f.Key])...)
-		}
-	}
-	return ids
-}
-
-// mediaIDsNamed returns the identities one media field's value names.
-func mediaIDsNamed(f content.Field, value any) []int64 {
-	if !f.Many {
-		if id, ok := content.MediaIdentity(value); ok {
-			return []int64{id}
-		}
-		return nil
-	}
-	var ids []int64
-	listed, _ := value.([]any)
-	for _, member := range listed {
-		if id, ok := content.MediaIdentity(member); ok {
-			ids = append(ids, id)
-		}
-	}
-	return ids
-}
-
-// mediaIDsInside returns every identity a container's value holds under the sub fields it declares.
-func mediaIDsInside(f content.Field, value any) []int64 {
-	if rows, listed := value.([]any); listed {
-		var ids []int64
-		for _, row := range rows {
-			ids = append(ids, mediaIDsInside(f, row)...)
-		}
-		return ids
-	}
-	inside, held := value.(map[string]any)
-	if !held {
-		return nil
-	}
-	return mediaIDsUnder(f.Fields, inside)
-}
-
-// inlineMediaValues rewrites every media key into the files it names, dropping what is gone.
-func (s *server) inlineMediaValues(r *http.Request, t content.Type, values content.Values) error {
-	byID := map[int64]media.Media{}
-	ids := mediaIDsHeld(t, values)
-	if len(ids) > 0 && s.mediaStore != nil {
-		listed, err := s.mediaStore.ByIDs(r.Context(), ids)
-		if err != nil {
-			return err
-		}
-		for _, m := range listed {
-			byID[m.ID] = m
-		}
-	}
-	inlineMediaUnder(t.Fields, values, byID)
-	return nil
-}
-
-// inlineMediaUnder rewrites every media key the declared fields name, however deep it stands.
-func inlineMediaUnder(declared []content.Field, values content.Values, byID map[int64]media.Media) {
-	for _, f := range declared {
-		if f.Kind.Holds() {
-			inlineMediaInside(f, values[f.Key], byID)
-			continue
-		}
-		if f.Kind == content.FieldKindMedia {
-			inlineMediaKey(f, values, byID)
-		}
-	}
-}
-
-// inlineMediaInside rewrites the media keys a container's value holds under the sub fields it declares.
-func inlineMediaInside(f content.Field, value any, byID map[int64]media.Media) {
-	if rows, listed := value.([]any); listed {
-		for _, row := range rows {
-			inlineMediaInside(f, row, byID)
-		}
-		return
-	}
-	if inside, held := value.(map[string]any); held {
-		inlineMediaUnder(f.Fields, inside, byID)
-	}
-}
-
-// inlineMediaKey rewrites one field's value into the shape it declares, deleting what will not serve.
-func inlineMediaKey(f content.Field, values content.Values, byID map[int64]media.Media) {
-	if f.Many {
-		inlineMediaList(f.Key, values, byID)
-		return
-	}
-	inlineMediaOne(f.Key, values, byID)
-}
-
-// inlineMediaOne rewrites a field holding one file, deleting the key when it will not serve.
-func inlineMediaOne(key string, values content.Values, byID map[int64]media.Media) {
-	id, ok := content.MediaIdentity(values[key])
-	m, found := byID[id]
-	if !ok || !found {
-		delete(values, key)
-		return
-	}
-	values[key] = servedMediaOf(m)
-}
-
-// inlineMediaList rewrites a field holding many files, deleting the key when none serve.
-func inlineMediaList(key string, values content.Values, byID map[int64]media.Media) {
-	listed, many := values[key].([]any)
-	if !many {
-		delete(values, key)
-		return
-	}
-	served := make([]servedMedia, 0, len(listed))
-	for _, member := range listed {
-		if id, ok := content.MediaIdentity(member); ok {
-			if m, found := byID[id]; found {
-				served = append(served, servedMediaOf(m))
-			}
-		}
-	}
-	if len(served) == 0 {
-		delete(values, key)
-		return
-	}
-	values[key] = served
+// publicStores returns the readers a public answer is shaped through.
+func (s *server) publicStores() served.Stores {
+	return served.Stores{Links: s.content, Groups: s.types, Library: s.mediaStore}
 }
 
 // respondTerm answers with the addressed item and the published content pointing at it.

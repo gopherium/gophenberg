@@ -83,7 +83,7 @@ func SourceOperators(kind FieldKind, multiple bool) []string {
 			return []string{OperatorContains, OperatorEmpty, OperatorNotEmpty}
 		}
 		return []string{OperatorIs, OperatorIsNot, OperatorEmpty, OperatorNotEmpty}
-	case FieldKindMedia:
+	case FieldKindMedia, FieldKindLink:
 		return []string{OperatorEmpty, OperatorNotEmpty}
 	default:
 		return nil

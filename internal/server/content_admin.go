@@ -16,6 +16,7 @@ import (
 	"github.com/gopherium/gouncer/authkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/served"
 )
 
 // defaultAdminPerPage is how many items the admin listing carries when the query names none.
@@ -266,7 +267,12 @@ func (s *server) answerContent(
 		return
 	}
 	values := payloadValues(c)
-	totals, err := s.pointingAt(r.Context(), c.Type, c, values)
+	t, err := s.types.ByKey(r.Context(), c.Type)
+	if err != nil {
+		respondDomainError(w, err)
+		return
+	}
+	totals, err := served.Pointing(r.Context(), s.publicStores(), t, c, values, nil)
 	if err != nil && refusing {
 		respondDomainError(w, err)
 		return

@@ -14,6 +14,8 @@ export {
 export { defineTheme } from './theme.ts'
 export { gophenbergLoader } from './loader.ts'
 export { relatedFields, relatedItems } from './related.ts'
+export { pointingFields, pointingItems } from './pointing.ts'
+export { linkFields, linkValue } from './link.ts'
 export { mediaFields, mediaItems, mediaUrl } from './media.ts'
 export { heldLayouts, heldRows, heldSection, heldValue } from './held.ts'
 
@@ -23,9 +25,11 @@ export type {
 	ContentType,
 	ContentTypeField,
 	Handshake,
+	LinkValue,
 	MediaRendition,
 	MediaValue,
 	Page,
+	Pointer,
 	Post,
 	PostSummary,
 	RelatedItem,
@@ -34,6 +38,8 @@ export type {
 export type { SiteAssetUrls } from './assets.ts'
 export type { LivePost, LoaderOptions, PostCollectionFilter, PostEntryFilter } from './loader.ts'
 export type { RelatedField } from './related.ts'
+export type { PointingField } from './pointing.ts'
+export type { LinkField } from './link.ts'
 export type { HeldLayout, HeldStep, HeldValues } from './held.ts'
 export type { MediaField } from './media.ts'
 export type { GophenbergTheme, ThemeLayouts, ThemeSeo } from './theme.ts'

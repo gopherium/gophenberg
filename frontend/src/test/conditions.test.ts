@@ -8,6 +8,7 @@ import {
 	hiddenKeys,
 	multipleOf,
 	needsValue,
+	operatorsFor,
 	shownValues,
 } from '../content/conditions'
 import type { ConditionField } from '../content/conditions'
@@ -90,4 +91,29 @@ test('sends back no value for a field the server only ever reads', () => {
 	const held = shownValues(fields, { note: 'Kept', 'linked-from': [{ id: '1' }] })
 
 	expect(held).toEqual({ note: 'Kept' })
+})
+
+test('lets a rule read a link only for whether it is filled', () => {
+	expect(operatorsFor('link', false)).toEqual(['empty', 'not_empty'])
+})
+
+test('reads a link pointing nowhere as empty whatever else it holds', () => {
+	const fields: ConditionField[] = [
+		{ key: 'source', kind: 'link', settings: {} },
+		{ key: 'note', kind: 'text', settings: { conditions: [[{ source: 'source', operator: 'not_empty', value: '' }]] } },
+	]
+
+	expect([...hiddenKeys(fields, { source: { url: '', title: 'A page', new_tab: true } })]).toEqual(['note'])
+	expect([...hiddenKeys(fields, { source: { url: '/about', title: '', new_tab: false } })]).toEqual([])
+})
+
+test('reads an object that is nearly a link as any other filled object', () => {
+	for (const nearly of [
+		{ url: 1, title: 'A', new_tab: false },
+		{ url: '', title: 1, new_tab: false },
+		{ url: '', title: 'A', new_tab: 'yes' },
+		{ url: '', title: 'A', new_tab: false, rel: 'me' },
+	]) {
+		expect(compare('empty', nearly, '')).toBe(false)
+	}
 })

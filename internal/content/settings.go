@@ -75,7 +75,7 @@ func settingChecks(kind FieldKind) map[string]func(value any) bool {
 		held[SettingDefault] = settingString
 		held[SettingPlaceholder] = settingString
 		held[SettingMaxLength] = settingWhole
-		held[SettingVariant] = settingOneOf("email", "url", "textarea")
+		held[SettingVariant] = settingOneOf("email", "url", "textarea", "color")
 		held[SettingListed] = settingBool
 	case FieldKindNumber:
 		held[SettingDefault] = settingNumeric
@@ -93,6 +93,11 @@ func settingChecks(kind FieldKind) map[string]func(value any) bool {
 	case FieldKindRepeater, FieldKindFlexible, FieldKindLayout:
 		held[SettingMin] = settingWhole
 		held[SettingMax] = settingWhole
+	case FieldKindMedia:
+		held[SettingMin] = settingWhole
+		held[SettingMax] = settingWhole
+	case FieldKindLink:
+		held[SettingListed] = settingBool
 	case FieldKindBacklinks:
 		held[SettingSourceGroup] = settingKey
 		held[SettingSourceField] = settingPath
@@ -298,7 +303,7 @@ func settingsAgree(kind FieldKind, settings map[string]any) error {
 		return textSettingsAgree(settings)
 	case FieldKindChoice:
 		return choiceSettingsAgree(settings)
-	case FieldKindRepeater, FieldKindFlexible, FieldKindLayout:
+	case FieldKindRepeater, FieldKindFlexible, FieldKindLayout, FieldKindMedia:
 		return boundsAgree(settings)
 	default:
 		return nil

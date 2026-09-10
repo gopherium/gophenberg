@@ -159,6 +159,42 @@ const related = relatedFields(post)
 back as the stored value. The shapes are covered in the
 [content API](/reference/content-api/).
 
+A Linked from field reads a relation the other way, and
+`pointingFields` picks those out. Its entries carry a `type` beside
+the `id`, `title` and `path` a relation entry holds, because items of
+several types can point through one relation:
+
+```astro
+---
+import { pointingFields } from '@gophenberg/astro'
+
+const pointing = pointingFields(post)
+---
+```
+
+A Link field holds one address rather than a list, and `linkFields`
+picks those out, leaving out a Link that points nowhere:
+
+```astro
+---
+import { linkFields } from '@gophenberg/astro'
+
+const links = linkFields(post)
+---
+
+{
+	links.map((field) => (
+		<a href={field.link.url} target={field.link.new_tab ? '_blank' : undefined}>
+			{field.link.title === '' ? field.link.url : field.link.title}
+		</a>
+	))
+}
+```
+
+Each helper reads one kind and never another, so a Linked from field
+never arrives through `relatedFields`, and a Link never arrives
+through either.
+
 Media fields work the same way through `mediaFields`, which reads a
 Media field and a Gallery alike, so one loop renders either:
 

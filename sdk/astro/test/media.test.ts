@@ -4,7 +4,15 @@ import { env } from 'node:process'
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
-import { mediaFields, mediaItems, mediaUrl, relatedFields, relatedItems } from '../index.ts'
+import {
+	linkFields,
+	linkValue,
+	mediaFields,
+	mediaItems,
+	mediaUrl,
+	relatedFields,
+	relatedItems,
+} from '../index.ts'
 import type { MediaValue, Post } from '../index.ts'
 
 /**
@@ -76,6 +84,20 @@ describe('the guards stay apart', () => {
 	test('an item a relation points at is never read as a file', () => {
 		expect(mediaItems([NEWS])).toBeUndefined()
 		expect(mediaFields(posting({ categories: [NEWS] }))).toEqual([])
+	})
+
+	test('a link is never read as a file or as an item a relation points at', () => {
+		const source = { url: 'https://example.com/a', title: 'A page', new_tab: false }
+
+		expect(mediaItems(source)).toBeUndefined()
+		expect(relatedItems([source])).toBeUndefined()
+		expect(mediaFields(posting({ source }))).toEqual([])
+		expect(relatedFields(posting({ source }))).toEqual([])
+	})
+
+	test('a file is never read as a link', () => {
+		expect(linkValue(SUNRISE)).toBeUndefined()
+		expect(linkFields(posting({ cover: SUNRISE }))).toEqual([])
 	})
 })
 

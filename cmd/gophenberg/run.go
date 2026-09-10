@@ -24,6 +24,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/contentbridge"
 	"github.com/gopherium/gophenberg/internal/definitions"
+	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/server"
@@ -59,9 +60,13 @@ func run(
 	contentStore := postgres.NewContentStore(pool)
 	typeStore := postgres.NewTypeStore(pool)
 	registry := content.NewRegistry(typeStore)
+	var library media.Store
+	if settings.mediaDir != "" {
+		library = postgres.NewMediaStore(pool)
+	}
 	registered, err := plugins(sdk.Deps{
 		DatabaseURL: settings.databaseURL,
-		Content:     contentbridge.New(contentStore, registry),
+		Content:     contentbridge.New(contentStore, registry, library),
 		Getenv:      getenv,
 	})
 	if err != nil {
@@ -110,7 +115,7 @@ func run(
 	}
 	if settings.mediaDir != "" {
 		cfg.Media = mediahost.New(mediaConfigFrom(settings, settingStore))
-		cfg.MediaStore = postgres.NewMediaStore(pool)
+		cfg.MediaStore = library
 		cfg.MediaFiles = os.DirFS(settings.mediaDir)
 	}
 

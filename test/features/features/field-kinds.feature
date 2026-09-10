@@ -1,8 +1,10 @@
 Feature: Field kinds
   A choice field offers a list of value and label pairs and takes only
   what it lists unless custom values are allowed. Text fields carry a
-  variant that checks an email or a web address on save. A media field
-  can hold many items. The registry alone says which kinds exist.
+  variant that checks an email, a web address or a color on save. A link
+  holds an address, a title and whether it opens away from the page. A
+  media field can hold many items, between the counts it names. The
+  registry alone says which kinds exist.
 
   Background:
     Given a running Gophenberg with the default content types
@@ -92,3 +94,57 @@ Feature: Field kinds
     When the editor autosaves "Hello world" holding "porter" in "style"
     Then the buffer it saved holds "porter" in "style"
     And saving "porter" into "style" of "Hello world" is refused
+
+  Scenario: A link is stored whole
+    Given the "link" field "source" in "Extras" with settings:
+      """
+      {}
+      """
+    And the post "Hello world"
+    When the administrator saves the object {"url": "https://example.com/a", "title": "A page", "new_tab": true} into "source" of "Hello world"
+    Then the post "Hello world" holds the object {"url": "https://example.com/a", "title": "A page", "new_tab": true} in "source"
+
+  Scenario: A link on a scheme the field refuses is refused on save
+    Given the "link" field "source" in "Extras" with settings:
+      """
+      {}
+      """
+    And the post "Hello world"
+    When the administrator saves the object {"url": "javascript:alert(1)", "title": "A page", "new_tab": false} into "source" of "Hello world"
+    Then the request is refused
+
+  Scenario: A color is stored
+    Given the "text" field "shade" in "Extras" with settings:
+      """
+      {"variant": "color"}
+      """
+    And the post "Hello world"
+    When the administrator saves "#3366ffcc" into "shade" of "Hello world"
+    Then the post "Hello world" holds "#3366ffcc" in "shade"
+
+  Scenario: A color that is not one is refused on save
+    Given the "text" field "shade" in "Extras" with settings:
+      """
+      {"variant": "color"}
+      """
+    And the post "Hello world"
+    When the administrator saves "rebeccapurple" into "shade" of "Hello world"
+    Then the request is refused
+
+  Scenario: A gallery holding fewer files than its lowest count is refused on save
+    Given the many media field "gallery" in "Extras" with settings:
+      """
+      {"min": 2}
+      """
+    And the post "Hello world"
+    When the administrator saves the list [1] into "gallery" of "Hello world"
+    Then the request is refused
+
+  Scenario: A gallery holding more files than its highest count is refused on save
+    Given the many media field "gallery" in "Extras" with settings:
+      """
+      {"max": 1}
+      """
+    And the post "Hello world"
+    When the administrator saves the list [1, 2] into "gallery" of "Hello world"
+    Then the request is refused

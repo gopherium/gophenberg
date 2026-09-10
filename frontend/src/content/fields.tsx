@@ -117,7 +117,20 @@ function shownValue(declared: ContentField, held: unknown): string {
 	if (declared.kind === 'choice') {
 		return chosenLabels(declared, held)
 	}
+	if (declared.kind === 'link') {
+		return linkTitle(held)
+	}
 	return String(held)
+}
+
+/**
+ * Returns the words a link is read under, its address when it carries none.
+ * @param held - The value the post holds.
+ * @returns The title, or the address.
+ */
+function linkTitle(held: unknown): string {
+	const link = held as { url: string; title: string }
+	return link.title === '' ? link.url : link.title
 }
 
 /**

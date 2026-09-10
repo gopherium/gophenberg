@@ -21,6 +21,19 @@ func bounded(t *testing.T, key string, kind content.FieldKind, settings map[stri
 	return built
 }
 
+// gallery returns a media field holding several files under the settings.
+func gallery(t *testing.T, settings map[string]any) content.Field {
+	t.Helper()
+	built, err := content.NewField(content.Field{
+		TypeKey: content.TypePost, Key: "gallery", Label: "Gallery",
+		Kind: content.FieldKindMedia, Many: true, Settings: settings,
+	})
+	if err != nil {
+		t.Fatalf("NewField(gallery) error = %v, want nil", err)
+	}
+	return built
+}
+
 func TestValuesRefuseWhatTheBoundsForbid(t *testing.T) {
 	t.Parallel()
 
@@ -73,6 +86,30 @@ func TestValuesRefuseWhatTheBoundsForbid(t *testing.T) {
 		"a url that is not one": {
 			bounded(t, "homepage", content.FieldKindText, map[string]any{"variant": "url"}),
 			"gophenberg", "field_format",
+		},
+		"a color carrying no hash": {
+			bounded(t, "shade", content.FieldKindText, map[string]any{"variant": "color"}),
+			"3366ff", "field_format",
+		},
+		"a color of three digits": {
+			bounded(t, "shade", content.FieldKindText, map[string]any{"variant": "color"}),
+			"#36f", "field_format",
+		},
+		"a color of letters no digit names": {
+			bounded(t, "shade", content.FieldKindText, map[string]any{"variant": "color"}),
+			"#gggggg", "field_format",
+		},
+		"a color named as a word": {
+			bounded(t, "shade", content.FieldKindText, map[string]any{"variant": "color"}),
+			"rebeccapurple", "field_format",
+		},
+		"fewer pictures than min": {
+			gallery(t, map[string]any{"min": float64(2)}),
+			[]any{float64(7)}, "field_items_min",
+		},
+		"more pictures than max": {
+			gallery(t, map[string]any{"max": float64(2)}),
+			[]any{float64(7), float64(8), float64(9)}, "field_items_max",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -169,6 +206,21 @@ func TestValuesAcceptWhatTheBoundsAllow(t *testing.T) {
 		"a url that is one": {
 			bounded(t, "homepage", content.FieldKindText,
 				map[string]any{"variant": "url"}), "https://example.com/beers",
+		},
+		"a color of six digits": {
+			bounded(t, "shade", content.FieldKindText, map[string]any{"variant": "color"}), "#3366ff",
+		},
+		"a color of eight digits carrying its alpha": {
+			bounded(t, "shade", content.FieldKindText, map[string]any{"variant": "color"}), "#3366ffcc",
+		},
+		"a color written in capitals": {
+			bounded(t, "shade", content.FieldKindText, map[string]any{"variant": "color"}), "#3366FF",
+		},
+		"pictures sitting on min": {
+			gallery(t, map[string]any{"min": float64(2)}), []any{float64(7), float64(8)},
+		},
+		"pictures sitting on max": {
+			gallery(t, map[string]any{"max": float64(2)}), []any{float64(7), float64(8)},
 		},
 		"a textarea holds any words": {
 			bounded(t, "notes", content.FieldKindText,
