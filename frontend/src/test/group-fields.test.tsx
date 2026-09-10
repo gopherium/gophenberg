@@ -1744,3 +1744,37 @@ test('offers no linked from field inside a container', async () => {
 
 	expect(screen.queryByRole('option', { name: 'Linked from' })).not.toBeInTheDocument()
 })
+
+test('offers a gallery the count of files it takes and stores it', async () => {
+	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'gallery', label: 'Gallery', kind: 'media', many: true }] }])
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3/fields/gallery', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Gallery' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Gallery' })
+	await userEvent.type(within(settings).getByLabelText('Fewest files'), '2')
+	await userEvent.type(within(settings).getByLabelText('Most files'), '6')
+	await userEvent.click(within(settings).getByRole('button', { name: 'Save settings' }))
+
+	await waitFor(() =>
+		expect(sent).toEqual({ settings: { min: 2, max: 6 }, updated_at: '2026-08-01T10:00:00Z' }),
+	)
+})
+
+test('offers a media field holding one file no count', async () => {
+	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'cover', label: 'Cover', kind: 'media' }] }])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Cover' }))
+	const settings = await screen.findByRole('dialog', { name: 'Settings of Cover' })
+
+	expect(within(settings).queryByLabelText('Fewest files')).not.toBeInTheDocument()
+})
