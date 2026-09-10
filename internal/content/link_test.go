@@ -161,6 +161,42 @@ func TestALinkRefusesASettingItDoesNotRead(t *testing.T) {
 	}
 }
 
+func TestAGalleryRefusesACountItCouldNeverSatisfy(t *testing.T) {
+	t.Parallel()
+
+	_, err := content.NewField(content.Field{
+		TypeKey: content.TypePost, Key: "gallery", Label: "Gallery",
+		Kind: content.FieldKindMedia, Many: true,
+		Settings: map[string]any{"min": float64(5), "max": float64(2)},
+	})
+
+	if err == nil {
+		t.Fatal("NewField() error = nil, want the lowest count above the highest refused")
+	}
+}
+
+func TestOneFileTakesNoCountAtAll(t *testing.T) {
+	t.Parallel()
+
+	for name, settings := range map[string]map[string]any{
+		"a fewest it can never hold": {"min": float64(2)},
+		"a most it can never reach":  {"max": float64(2)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := content.NewField(content.Field{
+				TypeKey: content.TypePost, Key: "cover", Label: "Cover",
+				Kind: content.FieldKindMedia, Settings: settings,
+			})
+
+			if err == nil {
+				t.Error("NewField() error = nil, want a count refused on a field holding one file")
+			}
+		})
+	}
+}
+
 func TestARuleReadsALinkOnlyForWhetherItIsFilled(t *testing.T) {
 	t.Parallel()
 

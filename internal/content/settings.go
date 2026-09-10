@@ -303,7 +303,7 @@ func settingsAgree(kind FieldKind, settings map[string]any) error {
 		return textSettingsAgree(settings)
 	case FieldKindChoice:
 		return choiceSettingsAgree(settings)
-	case FieldKindRepeater, FieldKindFlexible, FieldKindLayout:
+	case FieldKindRepeater, FieldKindFlexible, FieldKindLayout, FieldKindMedia:
 		return boundsAgree(settings)
 	default:
 		return nil

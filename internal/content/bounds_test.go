@@ -222,9 +222,6 @@ func TestValuesAcceptWhatTheBoundsAllow(t *testing.T) {
 		"pictures sitting on max": {
 			gallery(t, map[string]any{"max": float64(2)}), []any{float64(7), float64(8)},
 		},
-		"one picture where the bounds count items": {
-			bounded(t, "cover", content.FieldKindMedia, map[string]any{"max": float64(2)}), float64(7),
-		},
 		"a textarea holds any words": {
 			bounded(t, "notes", content.FieldKindText,
 				map[string]any{"variant": "textarea"}), "several lines of notes",

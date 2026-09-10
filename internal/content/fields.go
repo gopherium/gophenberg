@@ -131,7 +131,25 @@ func (f Field) Validate() error {
 	if err := ValidateSettings(f.Kind, f.Settings); err != nil {
 		return err
 	}
+	if err := f.validateCounts(); err != nil {
+		return err
+	}
 	return f.validateRelation()
+}
+
+// validateCounts reports whether the field counts items it can hold more than one of.
+func (f Field) validateCounts() error {
+	if f.Kind != FieldKindMedia || f.Many {
+		return nil
+	}
+	for _, name := range []string{SettingMin, SettingMax} {
+		if _, named := settingNumber(f.Settings[name]); named {
+			return Refuse(ErrSettingUnknown, "setting_unknown",
+				fmt.Sprintf("%s: %s on one %s", ErrSettingUnknown, name, f.Kind),
+				Details{"setting": name, "kind": string(f.Kind)})
+		}
+	}
+	return nil
 }
 
 // validFieldKind reports whether the CMS holds values of the kind.
