@@ -212,6 +212,23 @@ export async function listMedia(query: MediaQuery): Promise<MediaPage> {
 }
 
 /**
+ * Returns the stored files the identities name, in that order, leaving out any the library no longer holds.
+ * @param ids - The identities a field holds.
+ * @returns The files, none when no identity was named.
+ */
+export async function listMediaByIDs(ids: number[]): Promise<MediaItem[]> {
+	if (ids.length === 0) {
+		return []
+	}
+	const params = new URLSearchParams({ ids: ids.join(',') })
+	const response = await fetch(`/api/media?${params}`)
+	if (!response.ok) {
+		throw new Error(`listing media by identity failed with status ${response.status}`)
+	}
+	return pageSchema.parse(await response.json()).items.map(toMedia)
+}
+
+/**
  * Stores an uploaded file in the media library.
  * @param file - The file the administrator chose.
  * @returns The stored item, or the reason it was refused.

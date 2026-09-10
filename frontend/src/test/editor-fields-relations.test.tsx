@@ -349,24 +349,87 @@ const SHORE_LISTING = {
 	total: 1,
 }
 
-test('adds a picked item to the gallery a field holds', async () => {
+const HARBOR = {
+	...SHORE_LISTING.items[0],
+	id: 12,
+	file: '2026/08/harbor.jpg',
+	title: 'Harbor',
+	alt_text: 'Boats at rest',
+}
+
+const DEED = {
+	...SHORE_LISTING.items[0],
+	id: 9,
+	type: 'document',
+	file: '2026/08/deed.pdf',
+	title: 'Deed',
+	alt_text: '',
+	mime_type: 'application/pdf',
+}
+
+const PIER = {
+	...SHORE_LISTING.items[0],
+	id: 20,
+	file: '2026/08/pier.jpg',
+	title: 'Pier',
+	alt_text: '',
+}
+
+const LIBRARY = [HARBOR, SHORE_LISTING.items[0], DEED, PIER]
+
+/**
+ * Serves the gallery field, a stored post holding the given files, and the library naming them.
+ * @param held - The identities the gallery holds.
+ * @returns The bodies the editor sent back and the library queries it made.
+ */
+function galleryOf(held: number[]) {
 	const sent: Record<string, unknown>[] = []
+	const asked: string[] = []
 	server.use(
 		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([GALLERY_FIELD])] })),
 		http.get(`/api/content/${storedPost.id}`, () =>
-			HttpResponse.json({ ...storedPost, fields: { gallery: [12] } }),
+			HttpResponse.json({ ...storedPost, fields: { gallery: held } }),
 		),
-		http.get('/api/media', () => HttpResponse.json(SHORE_LISTING)),
+		http.get('/api/media', ({ request }) => {
+			const query = new URL(request.url).searchParams
+			asked.push(query.toString())
+			const ids = query.get('ids')
+			if (ids === null) {
+				return HttpResponse.json({ items: LIBRARY, total: LIBRARY.length })
+			}
+			const named = LIBRARY.filter((item) => ids.split(',').includes(String(item.id)))
+			return HttpResponse.json({ items: named, total: named.length })
+		}),
 		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
 			sent.push((await request.json()) as Record<string, unknown>)
-			return HttpResponse.json({ ...storedPost, fields: { gallery: [12, 15] } })
+			return HttpResponse.json({ ...storedPost, fields: { gallery: held } })
 		}),
 	)
+	return { sent, asked }
+}
+
+test('shows each file a gallery holds by its picture and name, read in one call', async () => {
+	const { asked } = galleryOf([12, 15])
 	renderAt(EDITOR_PATH)
 
-	expect(await screen.findByText('Media 12')).toBeInTheDocument()
-	await userEvent.click(screen.getByRole('button', { name: 'Add to Gallery' }))
-	await userEvent.click(await screen.findByText('Shore'))
+	const listed = await screen.findByRole('list', { name: 'Gallery' })
+
+	expect(await within(listed).findByRole('img', { name: 'Boats at rest' })).toHaveAttribute(
+		'src',
+		'/media/2026/08/harbor.jpg',
+	)
+	expect(within(listed).getByText('Shore')).toBeInTheDocument()
+	expect(asked.filter((query) => query.includes('ids='))).toEqual(['ids=12%2C15'])
+})
+
+test('adds every file picked at once to the gallery a field holds', async () => {
+	const { sent } = galleryOf([])
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add to Gallery' }))
+	const picker = await screen.findByRole('dialog', { name: 'Media Library' })
+	await userEvent.click(await within(picker).findByText('Harbor'))
+	await userEvent.click(within(picker).getByText('Shore'))
 	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
@@ -375,42 +438,86 @@ test('adds a picked item to the gallery a field holds', async () => {
 })
 
 test('never adds the item the gallery already holds', async () => {
-	server.use(
-		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([GALLERY_FIELD])] })),
-		http.get(`/api/content/${storedPost.id}`, () =>
-			HttpResponse.json({ ...storedPost, fields: { gallery: [15] } }),
-		),
-		http.get('/api/media', () => HttpResponse.json(SHORE_LISTING)),
-	)
+	galleryOf([15])
 	renderAt(EDITOR_PATH)
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add to Gallery' }))
-	await userEvent.click(await screen.findByText('Shore'))
+	const picker = await screen.findByRole('dialog', { name: 'Media Library' })
+	await userEvent.click(await within(picker).findByText('Shore'))
 	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
 
-	expect(screen.getAllByText('Media 15')).toHaveLength(1)
+	const listed = screen.getByRole('list', { name: 'Gallery' })
+	expect(within(listed).getAllByRole('listitem')).toHaveLength(1)
+})
+
+test('moves a file up the gallery', async () => {
+	const { sent } = galleryOf([12, 15])
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Move Shore up' }))
+
+	expect(screen.getByRole('button', { name: 'Move Shore up' })).toHaveAttribute('aria-disabled', 'true')
+	expect(screen.getByRole('button', { name: 'Move Harbor down' })).toHaveAttribute('aria-disabled', 'true')
+	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toMatchObject({ fields: { gallery: [15, 12] } })
+})
+
+test('moves a file down the gallery', async () => {
+	const { sent } = galleryOf([12, 15])
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Move Harbor down' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toMatchObject({ fields: { gallery: [15, 12] } })
 })
 
 test('removes one item from the gallery and clears an emptied one', async () => {
-	const sent: Record<string, unknown>[] = []
-	server.use(
-		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([GALLERY_FIELD])] })),
-		http.get(`/api/content/${storedPost.id}`, () =>
-			HttpResponse.json({ ...storedPost, fields: { gallery: [12, 15] } }),
-		),
-		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
-			sent.push((await request.json()) as Record<string, unknown>)
-			return HttpResponse.json({ ...storedPost, fields: {} })
-		}),
-	)
+	const { sent } = galleryOf([12, 15])
 	renderAt(EDITOR_PATH)
 
-	await userEvent.click(await screen.findByRole('button', { name: 'Remove Media 12' }))
-	await userEvent.click(screen.getByRole('button', { name: 'Remove Media 15' }))
+	await userEvent.click(await screen.findByRole('button', { name: 'Remove Harbor' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Remove Shore' }))
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
 	await waitFor(() => expect(sent).toHaveLength(1))
 	expect(sent[0]).toMatchObject({ fields: { gallery: null } })
+})
+
+test('names a file the library no longer holds by its identity', async () => {
+	galleryOf([12, 99])
+	renderAt(EDITOR_PATH)
+
+	const listed = await screen.findByRole('list', { name: 'Gallery' })
+
+	expect(await within(listed).findByText('Harbor')).toBeInTheDocument()
+	expect(within(listed).getByText('Media 99')).toBeInTheDocument()
+	expect(within(listed).getByRole('button', { name: 'Remove Media 99' })).toBeInTheDocument()
+})
+
+test('names a picture without alt text by its title', async () => {
+	galleryOf([20])
+	renderAt(EDITOR_PATH)
+
+	const listed = await screen.findByRole('list', { name: 'Gallery' })
+
+	expect(await within(listed).findByRole('img', { name: 'Pier' })).toHaveAttribute(
+		'src',
+		'/media/2026/08/pier.jpg',
+	)
+})
+
+test('shows a file that is no picture by its name alone', async () => {
+	galleryOf([9])
+	renderAt(EDITOR_PATH)
+
+	const listed = await screen.findByRole('list', { name: 'Gallery' })
+
+	expect(await within(listed).findByText('Deed')).toBeInTheDocument()
+	expect(within(listed).queryByRole('img')).not.toBeInTheDocument()
 })
 
 const LINKED_FROM = {
