@@ -33,6 +33,29 @@ func theManyMediaFieldExists(ctx context.Context, key, title string) error {
 	return nil
 }
 
+// theManyMediaFieldWithSettingsExists declares a media field holding many, carrying the settings.
+func theManyMediaFieldWithSettingsExists(
+	ctx context.Context, key, title string, settings *godog.DocString,
+) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	body := fmt.Sprintf(`{"key":%q,"label":%q,"kind":"media","many":true,"settings":%s}`,
+		key, key, settings.Content)
+	if err := w.postJSON(groupsPath+"/"+strconv.Itoa(held.ID)+"/fields", body); err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusCreated); err != nil {
+		return fmt.Errorf("declaring the many media %q with settings: %w", key, err)
+	}
+	return nil
+}
+
 // theAdministratorSavesTheList sends one list field value to the remembered post.
 func theAdministratorSavesTheList(ctx context.Context, list, key, title string) error {
 	w, err := worldOf(ctx)
@@ -40,6 +63,38 @@ func theAdministratorSavesTheList(ctx context.Context, list, key, title string) 
 		return err
 	}
 	return saveFieldValues(w, title, fmt.Sprintf(`{%q:%s}`, key, list))
+}
+
+// theAdministratorSavesTheObject sends one object field value to the remembered post.
+func theAdministratorSavesTheObject(ctx context.Context, object, key, title string) error {
+	return theAdministratorSavesTheList(ctx, object, key, title)
+}
+
+// thePostHoldsTheObject asserts the stored post carries the object value.
+func thePostHoldsTheObject(ctx context.Context, title, object, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	stored, err := freshPost(w, title)
+	if err != nil {
+		return err
+	}
+	raw, found := stored.Fields[key]
+	if !found {
+		return fmt.Errorf("the post %q holds no %q, want %s", title, key, object)
+	}
+	var held, wanted map[string]any
+	if err := json.Unmarshal(raw, &held); err != nil {
+		return fmt.Errorf("the post %q holds %s in %q, want the object %s", title, raw, key, object)
+	}
+	if err := json.Unmarshal([]byte(object), &wanted); err != nil {
+		return fmt.Errorf("reading the wanted object %s: %w", object, err)
+	}
+	if !reflect.DeepEqual(held, wanted) {
+		return fmt.Errorf("the post %q holds %v in %q, want %v", title, held, key, wanted)
+	}
+	return nil
 }
 
 // thePostHoldsTheWord asserts the stored post carries the text value.
@@ -154,6 +209,10 @@ func initializeFieldKinds(sc *godog.ScenarioContext) {
 		theFieldWithSettingsExists,
 	)
 	sc.Given(`^the many media field "([^"]*)" in "([^"]*)"$`, theManyMediaFieldExists)
+	sc.Given(
+		`^the many media field "([^"]*)" in "([^"]*)" with settings:$`,
+		theManyMediaFieldWithSettingsExists,
+	)
 	sc.When(
 		`^the administrator declares the "([^"]*)" field "([^"]*)" in "([^"]*)" with settings:$`,
 		declareFieldWithSettings,
@@ -163,6 +222,10 @@ func initializeFieldKinds(sc *godog.ScenarioContext) {
 		`^the administrator saves the list (\[.*\]) into "([^"]*)" of "([^"]*)"$`,
 		theAdministratorSavesTheList,
 	)
+	sc.When(
+		`^the administrator saves the object (\{.*\}) into "([^"]*)" of "([^"]*)"$`,
+		theAdministratorSavesTheObject,
+	)
 	sc.When(`^the editor autosaves "([^"]*)" holding "([^"]*)" in "([^"]*)"$`, theEditorAutosavesTheWord)
 	sc.Then(`^the field "([^"]*)" on "([^"]*)" carries the setting "([^"]*)"$`, theFieldCarriesTheSetting)
 	sc.Then(`^the request is refused$`, theRequestIsRefused)
@@ -170,6 +233,10 @@ func initializeFieldKinds(sc *godog.ScenarioContext) {
 	sc.Then(
 		`^the post "([^"]*)" holds the list (\[.*\]) in "([^"]*)"$`,
 		thePostHoldsTheList,
+	)
+	sc.Then(
+		`^the post "([^"]*)" holds the object (\{.*\}) in "([^"]*)"$`,
+		thePostHoldsTheObject,
 	)
 	sc.Then(`^the buffer it saved holds "([^"]*)" in "([^"]*)"$`, theBufferHoldsTheWord)
 	sc.Then(`^saving "([^"]*)" into "([^"]*)" of "([^"]*)" is refused$`, savingTheWordIsRefused)
