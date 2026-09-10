@@ -216,8 +216,8 @@ func mediaID(r *http.Request) (int64, error) {
 
 // mediaIDs reads the ids query parameter into the identities it names, at most one page of them.
 func mediaIDs(query url.Values) ([]int64, error) {
-	if len(query) != 1 {
-		return nil, fmt.Errorf("server: ids stands alone among the list parameters")
+	if len(query) != 1 || len(query["ids"]) != 1 {
+		return nil, fmt.Errorf("server: ids stands alone among the list parameters, once")
 	}
 	raw := strings.Split(query.Get("ids"), ",")
 	if len(raw) > maxMediaPerPage {

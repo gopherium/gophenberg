@@ -824,6 +824,7 @@ func TestListingMediaByIdentityRefusesWhatItCannotRead(t *testing.T) {
 		"more identities than a page carries": "ids=" + strings.Repeat("1,", 100) + "1",
 		"a search beside the identities":      "ids=1&search=harbor",
 		"a page beside the identities":        "ids=1&page=2",
+		"the identities asked for twice":      "ids=1&ids=2",
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
