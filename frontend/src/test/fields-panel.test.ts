@@ -189,6 +189,10 @@ test('leaves a choice with no pairs listing nothing', () => {
 	expect(held[0].elements).toBeUndefined()
 })
 
+test('gives a color its own control', () => {
+	expect(fieldDescriptors([carrying('text', { variant: 'color' })])[0].type).toBe('color')
+})
+
 test('gives a text variant its own input', () => {
 	const contact = fieldDescriptors([carrying('text', { variant: 'email' })])
 	const homepage = fieldDescriptors([carrying('text', { variant: 'url' })])
