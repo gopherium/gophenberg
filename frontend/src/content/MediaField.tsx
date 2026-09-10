@@ -88,7 +88,7 @@ export function moved(ids: number[], id: number, by: number): number[] {
 }
 
 /**
- * Returns the name a gallery shows a file under, its identity when the library no longer names it.
+ * Returns the name a gallery shows a file under, its identity when the library names it none.
  * @param id - The identity the gallery holds.
  * @param item - The stored file, when the library holds it.
  * @returns The name.
@@ -144,6 +144,7 @@ export function GalleryField(props: {
 	return (
 		<Stack direction="column" gap="xs">
 			<FieldLabel field={props.field} />
+			{held.isError && <Text variant="body-sm">{__('These files could not be read.', 'gophenberg')}</Text>}
 			<ul className="gophenberg-editor__gallery" aria-label={props.field.label}>
 				{props.value.map((id, at) => {
 					const name = fileName(id, byID.get(id))

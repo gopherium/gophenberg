@@ -487,6 +487,24 @@ test('removes one item from the gallery and clears an emptied one', async () => 
 	expect(sent[0]).toMatchObject({ fields: { gallery: null } })
 })
 
+test('says so when the files a gallery holds cannot be read', async () => {
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([GALLERY_FIELD])] })),
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { gallery: [12] } }),
+		),
+		http.get('/api/media', () => new HttpResponse(null, { status: 500 })),
+	)
+	renderAt(EDITOR_PATH)
+
+	const listed = await screen.findByRole('list', { name: 'Gallery' })
+
+	expect(await screen.findByText('These files could not be read.')).toBeInTheDocument()
+	expect(within(listed).getByText('Media 12')).toBeInTheDocument()
+	expect(within(listed).getByRole('button', { name: 'Remove Media 12' })).toBeInTheDocument()
+	expect(within(listed).queryByRole('img')).not.toBeInTheDocument()
+})
+
 test('names a file the library no longer holds by its identity', async () => {
 	galleryOf([12, 99])
 	renderAt(EDITOR_PATH)
