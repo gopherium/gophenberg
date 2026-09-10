@@ -46,6 +46,15 @@ test('leaves a placeholder alone when the data it names is absent', () => {
 	expect(held).toBe('content: unknown field: colour')
 })
 
+test('names the count a gallery bound refuses with', () => {
+	const fewest = errorText({ error: '', code: 'field_items_min', meta: { field: 'Gallery', limit: 2 } })
+	const most = errorText({ error: '', code: 'field_items_max', meta: { field: 'Gallery', limit: 4 } })
+
+	expect(fewest).toContain('Gallery')
+	expect(fewest).toContain('2')
+	expect(most).toContain('4')
+})
+
 test('carries a message for every code the server can answer with', () => {
 	const script = join(repositoryRoot(), 'frontend', 'scripts', 'emittedCodes.sh')
 	const emitted = execFileSync('sh', [script], { cwd: repositoryRoot(), encoding: 'utf8' })
