@@ -107,9 +107,18 @@ func resolvedTotals(t *testing.T, handler http.Handler, slug string) map[string]
 }
 
 // pointedAtHiddenPost declares a backlinks field on posts that a switch shows, and points a category at one.
-func pointedAtHiddenPost(t *testing.T) (http.Handler, contentValuesBody) {
+func pointedAtHiddenPost(t *testing.T) (http.Handler, contentValuesBody, *fakePostStore) {
 	t.Helper()
-	handler := termTypeServer(t)
+	users := newFakeUserStore()
+	addAda(t, users)
+	posts, types := newFakePostStore(), newFakeTypeStore()
+	posts.declared = types
+	handler := authedServerWithStores(t, server.Config{Users: users, Content: posts, Types: types})
+	declaredRelation(t, handler)
+	if recorder := doRequest(t, handler, http.MethodPatch, "/api/types/category",
+		`{"page_kind":"archive"}`); recorder.Code != http.StatusOK {
+		t.Fatalf("serving term pages: %d: %s", recorder.Code, recorder.Body.String())
+	}
 	declaredOnType(t, handler, "category",
 		`{"key":"picks","label":"Picks","kind":"relation","relates_to":"post","many":true}`)
 	declaredOn(t, handler, `{"key":"on-sale","label":"On sale","kind":"boolean"}`)
@@ -121,13 +130,26 @@ func pointedAtHiddenPost(t *testing.T) (http.Handler, contentValuesBody) {
 	post := publishItemAt(t, handler, draftedPost(t, handler))
 	picked := patchValues(t, handler, storedCategoryItem(t, handler), fmt.Sprintf(`{"picks":[%q]}`, post.ID))
 	publishItemAt(t, handler, picked)
-	return handler, post
+	return handler, post, posts
+}
+
+func TestResolveServesAnItemWhoseHiddenPointersCannotBeRead(t *testing.T) {
+	t.Parallel()
+
+	handler, _, posts := pointedAtHiddenPost(t)
+	posts.pointingErr = errRegistryDown
+
+	served := resolvedFields(t, handler, "hello-world")
+
+	if _, shown := served["linked-from"]; shown {
+		t.Errorf("fields = %v, want the hidden field left out rather than read at all", served)
+	}
 }
 
 func TestResolveCountsNoPointersForAFieldTheRulesHide(t *testing.T) {
 	t.Parallel()
 
-	handler, _ := pointedAtHiddenPost(t)
+	handler, _, _ := pointedAtHiddenPost(t)
 
 	served := resolvedFields(t, handler, "hello-world")
 	totals := resolvedTotals(t, handler, "hello-world")
@@ -143,7 +165,7 @@ func TestResolveCountsNoPointersForAFieldTheRulesHide(t *testing.T) {
 func TestResolveCountsThePointersOfAFieldTheRulesShow(t *testing.T) {
 	t.Parallel()
 
-	handler, post := pointedAtHiddenPost(t)
+	handler, post, _ := pointedAtHiddenPost(t)
 	publishItemAt(t, handler, patchValues(t, handler, post, `{"on-sale":true}`))
 
 	totals := resolvedTotals(t, handler, "hello-world")

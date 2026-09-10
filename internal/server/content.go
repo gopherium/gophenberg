@@ -319,6 +319,13 @@ func namedPointers(held []content.Pointer) []pointingItem {
 func (s *server) pointingAt(
 	ctx context.Context, typeKey string, c content.Content, values content.Values,
 ) (map[string]int, error) {
+	return s.pointingShown(ctx, typeKey, c, values, nil)
+}
+
+// pointingShown writes the pointing items under each backlinks key the type declares and the rules leave standing.
+func (s *server) pointingShown(
+	ctx context.Context, typeKey string, c content.Content, values content.Values, hidden map[string]bool,
+) (map[string]int, error) {
 	reading, err := s.backlinksOn(ctx, typeKey)
 	if err != nil || len(reading) == 0 {
 		return nil, err
@@ -326,6 +333,9 @@ func (s *server) pointingAt(
 	totals := make(map[string]int, len(reading))
 	pointing := make(content.Values, len(reading))
 	for key, source := range reading {
+		if hidden[key] {
+			continue
+		}
 		held, total, err := s.content.PointingAt(ctx, c.ID, source, 1, backlinksPage)
 		if err != nil {
 			return nil, err
@@ -383,7 +393,7 @@ func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Co
 	for key, listed := range targets {
 		values[key] = namedTargets(listed)
 	}
-	totals, err := s.pointingAt(r.Context(), t.Key, c, values)
+	totals, err := s.pointingShown(r.Context(), t.Key, c, values, content.Hidden(t.Fields, values))
 	if err != nil {
 		return publishedDetail{}, err
 	}
@@ -395,22 +405,8 @@ func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Co
 		publishedSummary: newPublishedSummary(c),
 		Content:          publichtml.Sanitize(c.Content),
 		Fields:           values,
-		FieldTotals:      totalsShown(totals, values),
+		FieldTotals:      totals,
 	}, nil
-}
-
-// totalsShown returns the counts of the backlinks fields the rules left standing.
-func totalsShown(totals map[string]int, values content.Values) map[string]int {
-	shown := make(map[string]int, len(totals))
-	for key, total := range totals {
-		if _, held := values[key]; held {
-			shown[key] = total
-		}
-	}
-	if len(shown) == 0 {
-		return nil
-	}
-	return shown
 }
 
 // servedRendition is one stored rendition as a public reader sees it.
