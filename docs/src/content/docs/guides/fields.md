@@ -58,27 +58,42 @@ stored under it.
 
 ## The kinds
 
-The picker offers nineteen entries. Eighteen of them store ten
+The picker offers twenty one entries. Twenty of them store eleven
 kinds of value, so all four choice entries are listed as Choice.
 
 | Stores | Pick |
 | --- | --- |
-| A line of text | Text, Text area, Email, Web address |
+| A line of text | Text, Text area, Email, Web address, Color |
 | A number | Number, Range |
 | A check | Yes or no |
 | A day | Date |
 | One of a list | Select, Radio group, Checkbox group, Button group |
 | Items from the media library | Media, Gallery |
+| An address away from this site | Link |
 | Links to items of another type | Relation |
 | Fields of its own | Section |
 | Rows of fields of its own | Repeater |
 | Rows that each pick a shape | Flexible content |
 
 **Email** and **Web address** are checked when you save, and a web
-address has to start with `http://` or `https://`. **Range** draws
-a slider. **Gallery** is a Media field holding several items.
+address has to start with `http://` or `https://`. **Color** stores
+a hash and six digits, or eight when the one you pick is partly
+see through, and offers a color control rather than a text box.
+**Range** draws a slider. **Gallery** is a Media field holding
+several items.
 
-The nineteenth entry, **Linked from**, stores nothing of its own.
+**Link** holds three things at once: the address, the words it is
+read under, and whether it opens in a new tab. The address may be a
+web address, an email one written as `mailto:someone@example.com`,
+or a path on this site beginning with a slash. Anything else is
+refused when you save. The field is empty until you write an
+address, so a required Link blocks publishing until it points
+somewhere.
+
+There is no icon field, and a Media field holding an SVG does the
+same job while keeping every icon in one library.
+
+The twenty first entry, **Linked from**, stores nothing of its own.
 It reads a relation and lists the items pointing this way. Reading
 a relation backwards, below, says how.
 
@@ -114,6 +129,10 @@ falls outside.
 **Steps of** moves a Range field's slider one notch. A Range needs
 both Lowest and Highest before it draws a slider, and is a plain
 number box without them, where Steps of reaches nothing.
+
+**Fewest files** and **Most files** bound a Gallery. They count
+files, not letters, and they are checked when you save, drafts
+included.
 
 **In list** puts the field in the content list as a column of its
 own. Press it on a text, number, switch, date or choice field at the
@@ -192,7 +211,11 @@ held.
 
 A **Media** field holds one item and a **Gallery** holds several,
 both picked from the [media library](/guides/media/). A Gallery
-lists what it holds, and ignores an item it already has.
+shows each file it holds by its picture and its name, and ignores an
+item it already has. Pick several files in one visit to the library
+and they all arrive together. **Move up** and **Move down** order
+them, and that order is what a theme reads. A file taken out of the
+library shows by its number so you can still remove it.
 
 Autosave does not keep relations, which are stored apart from the
 item. Press **Save draft** after changing what an item points at.

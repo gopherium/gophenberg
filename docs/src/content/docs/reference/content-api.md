@@ -293,6 +293,23 @@ it is not showing:
 `field_totals` is absent when the type declares no Linked from
 field.
 
+A Link field holds an object of exactly three members, the address
+it points at, the words it is read under, and whether it opens away
+from the page:
+
+```json
+"source": { "url": "https://example.com/a", "title": "A page", "new_tab": true }
+```
+
+The address is a web address, an email one beginning `mailto:`, or a
+path on the site beginning with a slash. The title may be empty, so
+fall back to the address when you draw the words. A Link nobody
+filled in is absent like any other empty field.
+
+A Color field is a text field, so it holds its value as a string of
+a hash and six hexadecimal digits, or eight when the last two carry
+transparency.
+
 A Section holds an object of its own fields' values, keyed the same
 way. A Repeater holds a list of such objects, one per row. Either
 may hold more of the same inside, as deep as the group declares:
@@ -346,6 +363,25 @@ A file that was deleted from the library drops out of a list, and a
 field whose only file is gone is absent, so a theme checks presence
 rather than trusting the editor. The library's description stays
 private.
+
+## Who escapes a value
+
+Every value in `fields` is data, and whoever renders it escapes it.
+Nothing in `fields` is escaped on the way out, because escaping it
+here would escape it twice in a template that already does the work,
+and an ampersand in a product name would reach the reader as an
+escape code rather than a character. Astro escapes what you place
+inside braces, and Go's `html/template` escapes what you pass it, so
+the ordinary way of writing a template is already the safe one.
+
+One member is the exception. An item's `content` is HTML, and the
+server sanitizes it before serving it, which is why a theme places
+it with `set:html` in Astro or the equivalent in another renderer.
+Never reach for that on anything else.
+
+The values a plugin reads through the SDK are the same values, shaped
+the same way and escaped by the same rule, so a plugin and a theme
+that read one item see one thing.
 
 Archive addresses answer with a page instead. The root of a type is
 its `route_word`, the front page is the default type, and both
