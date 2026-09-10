@@ -27,6 +27,7 @@ import { errorTemplates } from '../i18n/errorTemplates'
 import { hiddenKeys } from './conditions'
 import { seededValues } from './fieldDefaults'
 import { GalleryField, MediaField, galleryHeld, mediaHeld } from './MediaField'
+import { PointersList, pointersHeld } from './PointersList'
 import { RelationPicker, targetsHeld } from './RelationPicker'
 import { pairsOf } from './types'
 import type { ContentField } from './types'
@@ -197,6 +198,21 @@ export function relationFields(declared: ContentField[]): ContentField[] {
 export function mediaFields(declared: ContentField[]): ContentField[] {
 	return declared.filter((field) => field.kind === 'media')
 }
+
+/**
+ * Returns the fields listing what points at the item.
+ * @param declared - The fields the type declares.
+ * @returns The declared backlinks fields.
+ */
+export function pointingFields(declared: ContentField[]): ContentField[] {
+	return declared.filter((field) => field.kind === 'backlinks')
+}
+
+/** The readers deciding whether a set of declared fields lays anything out at all. */
+const LAID_OUT = [editableFields, relationFields, mediaFields, pointingFields, containerFields]
+
+/** The counts a container carries. */
+const noTotals: Record<string, number> = {}
 
 /**
  * Returns the DataViews field descriptors for the declared fields.
@@ -525,6 +541,7 @@ interface Editing {
 	postId: string
 	declared: ContentField[]
 	values: FieldValues
+	totals: Record<string, number>
 	onChange: (values: FieldValues) => void
 }
 
@@ -533,12 +550,13 @@ interface Editing {
  * @param props - The fields declared, the values they hold, and what to call with a change.
  * @returns The controls element.
  */
-function DeclaredFields({ postId, declared, values, onChange }: Editing) {
+function DeclaredFields({ postId, declared, values, totals, onChange }: Editing) {
 	const hidden = useMemo(() => [...hiddenKeys(declared, values)].sort().join(','), [declared, values])
 	const shown = useMemo(() => declared.filter((field) => !hidden.split(',').includes(field.key)), [declared, hidden])
 	const rendered = useMemo(() => editableFields(shown), [shown])
 	const related = useMemo(() => relationFields(shown), [shown])
 	const pictured = useMemo(() => mediaFields(shown), [shown])
+	const pointing = useMemo(() => pointingFields(shown), [shown])
 	const contained = useMemo(() => containerFields(shown), [shown])
 	const descriptors = useMemo(() => fieldDescriptors(rendered), [rendered])
 	const complaints = useMemo(() => fieldValidity(rendered, values), [rendered, values])
@@ -569,6 +587,14 @@ function DeclaredFields({ postId, declared, values, onChange }: Editing) {
 				values={values}
 				onChange={onChange}
 			/>
+			{pointing.map((field) => (
+				<PointersList
+					key={field.key}
+					field={field}
+					pointers={pointersHeld(values[field.key])}
+					total={totals[field.key] ?? 0}
+				/>
+			))}
 		</Stack>
 	)
 }
@@ -592,6 +618,7 @@ function ContainerField(props: {
 					postId={props.postId}
 					declared={props.field.fields}
 					values={insideHeld(props.value)}
+					totals={noTotals}
 					onChange={props.onChange}
 				/>
 			</Stack>
@@ -712,6 +739,7 @@ function RepeaterRows(props: {
 						postId={props.postId}
 						declared={props.field.fields}
 						values={row}
+						totals={noTotals}
 						onChange={(held) =>
 							props.onChange(props.rows.map((one, index) => (index === at ? held : one)))
 						}
@@ -811,6 +839,7 @@ function LayoutRow(props: {
 					postId={props.postId}
 					declared={layout.fields}
 					values={insideHeld(props.row[layout.key])}
+					totals={noTotals}
 					onChange={(held) => props.onChange({ [layout.key]: held })}
 				/>
 			)}
@@ -887,11 +916,7 @@ export function FieldsPanel({
 		[declared, buffer.fields],
 	)
 	const shown = useMemo(() => declared.filter((field) => !hidden.split(',').includes(field.key)), [declared, hidden])
-	const rendered = useMemo(() => editableFields(shown), [shown])
-	const related = useMemo(() => relationFields(shown), [shown])
-	const pictured = useMemo(() => mediaFields(shown), [shown])
-	const contained = useMemo(() => containerFields(shown), [shown])
-	if (rendered.length === 0 && related.length === 0 && pictured.length === 0 && contained.length === 0) {
+	if (LAID_OUT.every((held) => held(shown).length === 0)) {
 		return null
 	}
 	return (
@@ -899,6 +924,7 @@ export function FieldsPanel({
 			postId={postId}
 			declared={declared}
 			values={buffer.fields}
+			totals={buffer.totals}
 			onChange={buffer.setFields}
 		/>
 	)

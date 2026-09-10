@@ -57,7 +57,7 @@ func (v Values) validate(fields []Field, bounded bool) error {
 
 // valueStands reports whether one value matches its field, checking the bounds only when asked.
 func valueStands(f Field, value any, bounded bool) error {
-	if f.Kind == FieldKindRelation {
+	if f.Kind == FieldKindRelation || f.Kind == FieldKindBacklinks {
 		return Refuse(ErrFieldShape, "field_shape_value",
 			fmt.Sprintf("%s: %s holds targets rather than a value", ErrFieldShape, f.Key),
 			Details{"field": f.Key})

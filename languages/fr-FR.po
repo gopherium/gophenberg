@@ -675,6 +675,10 @@ msgid "Last Modified"
 msgstr "Dernière modification"
 
 #, fuzzy
+msgid "Linked from"
+msgstr "Lié depuis"
+
+#, fuzzy
 msgid "List view"
 msgstr "Vue en liste"
 
@@ -843,6 +847,10 @@ msgid "Not serving"
 msgstr "Hors service"
 
 #, fuzzy
+msgid "Nothing points here yet."
+msgstr "Rien ne pointe encore ici."
+
+#, fuzzy
 msgid "Nothing published here yet."
 msgstr "Rien n'est encore publié ici."
 
@@ -949,6 +957,10 @@ msgstr "Publier"
 #, fuzzy
 msgid "Radio group"
 msgstr "Groupe de boutons radio"
+
+#, fuzzy
+msgid "Reads from"
+msgstr "Lit depuis"
 
 #, fuzzy
 msgid "Redo"
@@ -1521,6 +1533,10 @@ msgstr "Ce thème dépasse la limite de %(max)d octets, compressé ou non. Retir
 #, fuzzy
 msgid "This zip holds %(entries)d files, more than the %(max)d a theme may carry. Package only the built theme."
 msgstr "Ce zip contient %(entries)d fichiers, plus que les %(max)d qu'un thème peut contenir. Empaquetez seulement le thème construit."
+
+#, fuzzy
+msgid "Through"
+msgstr "Via"
 
 #, fuzzy
 msgid "Thumbnail"
@@ -2264,8 +2280,8 @@ msgid "The field %(field)s is hidden by its own rules right now, so it cannot ho
 msgstr "Le champ %(field)s est masqué par ses propres règles pour le moment, il ne peut donc contenir aucune valeur. Affichez-le de nouveau avant de le remplir."
 
 #, fuzzy
-msgid "The field %(field)s cannot go, because %(by)s is only shown when %(field)s says so. Change the rules on %(by)s first."
-msgstr "Le champ %(field)s ne peut pas être retiré, car %(by)s ne s'affiche que lorsque %(field)s le demande. Modifiez d'abord les règles de %(by)s."
+msgid "The field %(field)s cannot go, because %(by)s reads it. Change %(by)s first."
+msgstr "Le champ %(field)s ne peut pas être retiré, car %(by)s le lit. Modifiez d'abord %(by)s."
 
 #, fuzzy
 msgid "The rules on %(field)s lead back to %(field)s itself, so nothing can decide whether to show it. Point one of them at another field."
@@ -2306,6 +2322,10 @@ msgstr "Règles affichant %(field)s"
 #, fuzzy
 msgid "Show %(field)s in the list"
 msgstr "Afficher %(field)s dans la liste"
+
+#, fuzzy
+msgid "Showing %(held)d of %(total)d."
+msgstr "Affichage de %(held)d sur %(total)d."
 
 #, fuzzy
 msgid "Without a rule this field always shows."
@@ -2388,3 +2408,15 @@ msgstr "Monter la ligne"
 #, fuzzy
 msgid "Move row down"
 msgstr "Descendre la ligne"
+
+#, fuzzy
+msgid "A Linked from field stands on its own, not inside a section or a repeater. Declare %(field)s beside the container."
+msgstr "Un champ Lié depuis se place seul, ni dans une section ni dans un répéteur. Déclarez %(field)s à côté du conteneur."
+
+#, fuzzy
+msgid "%(field)s reads a relation field that is not there. Pick a group and a relation field it holds."
+msgstr "%(field)s lit un champ de relation qui n'existe pas. Choisissez un groupe et un champ de relation qu'il contient."
+
+#, fuzzy
+msgid "%(field)s reads a relation pointing at %(type)s, so it would list nothing here. Pick a relation pointing at the items this group is shown on."
+msgstr "%(field)s lit une relation qui pointe vers %(type)s, elle n'afficherait donc rien ici. Choisissez une relation qui pointe vers les éléments où ce groupe s'affiche."

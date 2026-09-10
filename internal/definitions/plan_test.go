@@ -21,6 +21,40 @@ func planningSite(t *testing.T) *content.Registry {
 	return registry
 }
 
+func TestCompareReadsABacklinksSourceTheSameFileBringsLater(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	envelope.Types = append(envelope.Types, definitions.TypeDefinition{
+		Key: "wine", SingularLabel: "Wine", PluralLabel: "Wines",
+		RouteWord: "wines", PageKind: "single", Active: true,
+	})
+	envelope.Groups = append(envelope.Groups,
+		definitions.GroupDefinition{
+			Key: "recipe-links", Title: "Recipe links", Active: true, Location: recipeRules(),
+			Fields: []definitions.FieldDefinition{{
+				Key: "linked-from", Label: "Linked from", Kind: "backlinks",
+				Settings: map[string]any{
+					"source_group": "wines", "source_field": []any{"pairs-with"},
+				},
+			}},
+		},
+		definitions.GroupDefinition{
+			Key: "wines", Title: "Wines", Active: true, Location: content.Rules{{{
+				Source: content.ScreenContentType, Operator: content.OperatorIs, Value: "wine",
+			}}},
+			Fields: []definitions.FieldDefinition{{
+				Key: "pairs-with", Label: "Pairs with", Kind: "relation", RelatesTo: "recipe",
+			}},
+		},
+	)
+
+	if _, err := definitions.Compare(t.Context(), registry, envelope); err != nil {
+		t.Errorf("Compare() error = %v, want the source the same file declares read", err)
+	}
+}
+
 // exported returns the envelope the site would download right now.
 func exported(t *testing.T, registry *content.Registry) definitions.Envelope {
 	t.Helper()
@@ -562,6 +596,18 @@ func TestCompareRefusesAnEnvelopeTheSiteCouldNotStore(t *testing.T) {
 				}},
 			}}},
 			content.ErrTargetUnknown,
+		},
+		"a backlinks naming a group the file never brings": {
+			definitions.Envelope{Format: definitions.Format, Groups: []definitions.GroupDefinition{{
+				Key: "recipe-details", Title: "Recipe details", Active: true,
+				Location: recipeRules(), Fields: []definitions.FieldDefinition{{
+					Key: "linked-from", Label: "Linked from", Kind: "backlinks",
+					Settings: map[string]any{
+						"source_group": "wines", "source_field": []any{"pairs-with"},
+					},
+				}},
+			}}},
+			content.ErrBacklinksSource,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

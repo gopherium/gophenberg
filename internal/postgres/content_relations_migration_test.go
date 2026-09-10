@@ -11,6 +11,20 @@ import (
 	"github.com/google/uuid"
 )
 
+// indexedConn returns one connection whose planner is asked to reach for an index.
+func indexedConn(t *testing.T, db *sql.DB) *sql.Conn {
+	t.Helper()
+	held, err := db.Conn(t.Context())
+	if err != nil {
+		t.Fatalf("taking a connection: %v, want nil", err)
+	}
+	t.Cleanup(func() { _ = held.Close() })
+	if _, err := held.ExecContext(t.Context(), `SET enable_seqscan = off`); err != nil {
+		t.Fatalf("asking the planner for an index: %v, want nil", err)
+	}
+	return held
+}
+
 // insertRelation stores one relation row pointing from one item at another.
 func insertRelation(db *sql.DB, fromID uuid.UUID, fieldID int, toID uuid.UUID) error {
 	_, err := db.Exec(
@@ -133,10 +147,8 @@ func TestRelationMigrationsServeTheTermPageFromAnIndex(t *testing.T) {
 		t.Fatalf("inserting the relation: %v, want nil", err)
 	}
 
-	if _, err := db.Exec(`SET enable_seqscan = off`); err != nil {
-		t.Fatalf("asking the planner for an index: %v, want nil", err)
-	}
-	rows, err := db.Query(`EXPLAIN (FORMAT TEXT) `+termPageQuery, toID, 20, 0)
+	held := indexedConn(t, db)
+	rows, err := held.QueryContext(t.Context(), `EXPLAIN (FORMAT TEXT) `+termPageQuery, toID, 20, 0)
 	if err != nil {
 		t.Fatalf("planning the term page scan: %v, want nil", err)
 	}
@@ -160,6 +172,52 @@ func TestRelationMigrationsServeTheTermPageFromAnIndex(t *testing.T) {
 		t.Errorf("the term page plan is %q, want the page limited before the rows are read", plan)
 	}
 }
+
+func TestRelationMigrationsServeTheBacklinksPageFromTheSameIndex(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+	fromID, toID, fieldID := relatableContent(t, db)
+	if err := insertRelation(db, fromID, fieldID, toID); err != nil {
+		t.Fatalf("inserting the relation: %v, want nil", err)
+	}
+	held := indexedConn(t, db)
+	rows, err := held.QueryContext(
+		t.Context(), `EXPLAIN (FORMAT TEXT) `+backlinksPageQuery, toID, fieldID, 20, 0)
+	if err != nil {
+		t.Fatalf("planning the backlinks scan: %v, want nil", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	plan := ""
+	for rows.Next() {
+		var line string
+		if err := rows.Scan(&line); err != nil {
+			t.Fatalf("reading the plan: %v, want nil", err)
+		}
+		plan += line + "\n"
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("reading the plan: %v, want nil", err)
+	}
+	if !strings.Contains(plan, "content_relations_target_idx") {
+		t.Errorf("the backlinks plan is %q, want the target index to find the pointers", plan)
+	}
+}
+
+// backlinksPageQuery is the listing a backlinks field runs, as internal/postgres/queries.sql holds it.
+const backlinksPageQuery = `SELECT c.id, c.type, c.title, c.path
+FROM (
+    SELECT DISTINCT r.sort_at, r.from_id
+    FROM core.content_relations r
+    JOIN core.content pointing ON pointing.id = r.from_id
+    JOIN core.content_types pointer ON pointer.key = pointing.type
+    WHERE r.to_id = $1 AND r.field_id = $2 AND r.visible AND pointer.active
+    ORDER BY r.sort_at DESC, r.from_id
+    LIMIT $3 OFFSET $4
+) held
+JOIN core.content c ON c.id = held.from_id
+ORDER BY held.sort_at DESC, held.from_id`
 
 // termPageQuery is the listing a term page runs, as internal/postgres/queries.sql holds it.
 const termPageQuery = `SELECT c.id, c.type, c.status, c.slug, c.title, c.excerpt,

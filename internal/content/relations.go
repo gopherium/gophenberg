@@ -37,6 +37,14 @@ type Target struct {
 // Targets holds the items a content item points at, named and addressed, keyed by field key.
 type Targets map[string][]Target
 
+// Pointer names one item pointing at another through a relation field, as a public reader sees it.
+type Pointer struct {
+	ID    uuid.UUID
+	Type  string
+	Title string
+	Path  string
+}
+
 // SplitValues divides a patch into the scalar values and the targets its type declares.
 func SplitValues(patch Values, fields []Field) (Values, Relations, error) {
 	declared := make(map[string]Field, len(fields))
@@ -50,6 +58,11 @@ func SplitValues(patch Values, fields []Field) (Values, Relations, error) {
 		if !found {
 			return nil, nil, Refuse(ErrUnknownField, "field_unknown",
 				fmt.Sprintf("%s: %s", ErrUnknownField, key), Details{"field": key})
+		}
+		if f.Kind == FieldKindBacklinks {
+			return nil, nil, Refuse(ErrFieldShape, "field_shape_value",
+				fmt.Sprintf("%s: %s is read rather than written", ErrFieldShape, f.Key),
+				Details{"field": f.Key})
 		}
 		if f.Kind != FieldKindRelation {
 			scalars[key] = value

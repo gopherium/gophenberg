@@ -2,7 +2,14 @@
 
 import { expect, test } from 'vitest'
 
-import { compare, conditionsOf, hiddenKeys, multipleOf, needsValue } from '../content/conditions'
+import {
+	compare,
+	conditionsOf,
+	hiddenKeys,
+	multipleOf,
+	needsValue,
+	shownValues,
+} from '../content/conditions'
 import type { ConditionField } from '../content/conditions'
 
 /**
@@ -72,4 +79,15 @@ test('leaves a field alone when its rules read a sibling that holds', () => {
 	]
 
 	expect([...hiddenKeys(fields, { 'on-sale': true })]).toEqual([])
+})
+
+test('sends back no value for a field the server only ever reads', () => {
+	const fields: ConditionField[] = [
+		{ key: 'note', kind: 'text', settings: {} },
+		{ key: 'linked-from', kind: 'backlinks', settings: {} },
+	]
+
+	const held = shownValues(fields, { note: 'Kept', 'linked-from': [{ id: '1' }] })
+
+	expect(held).toEqual({ note: 'Kept' })
 })

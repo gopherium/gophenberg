@@ -1626,3 +1626,121 @@ test('offers a text field no count of rows', async () => {
 
 	expect(within(settings).queryByLabelText('Most rows')).not.toBeInTheDocument()
 })
+
+const VANS = {
+	...DETAILS,
+	id: 5,
+	key: 'vans',
+	title: 'Vans',
+	position: 3,
+	fields: [{ ...SUBTITLE, key: 'driver', label: 'Driver', kind: 'relation', relates_to: 'post' }],
+}
+
+const CARS = {
+	...DETAILS,
+	id: 6,
+	key: 'cars',
+	title: 'Cars',
+	position: 4,
+	fields: [
+		{ ...SUBTITLE, key: 'maker', label: 'Maker', kind: 'relation', relates_to: 'post' },
+		{ ...SUBTITLE, key: 'owner', label: 'Owner', kind: 'relation', relates_to: 'post' },
+		{ ...SUBTITLE, key: 'note', label: 'Note', kind: 'text' },
+	],
+}
+
+/**
+ * Opens the kind picker on the linked from entry.
+ * @param dialog - The dialog the fields stand in.
+ */
+async function pickLinkedFrom(dialog: HTMLElement) {
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Kind' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Linked from' }))
+}
+
+test('declares a linked from field reading a relation another group holds', async () => {
+	let sent: unknown
+	listing([DETAILS, EXTRAS, VANS, CARS])
+	server.use(
+		http.post('/api/groups/3/fields', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json({ ...SUBTITLE, key: 'linked-from', kind: 'backlinks' }, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.type(within(dialog).getByLabelText('Name'), 'Linked from')
+	await pickLinkedFrom(dialog)
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Reads from' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Cars' }))
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Through' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Owner' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
+
+	await waitFor(() =>
+		expect(sent).toMatchObject({
+			key: 'linked-from',
+			kind: 'backlinks',
+			settings: { source_group: 'cars', source_field: ['owner'] },
+		}),
+	)
+})
+
+test('offers a linked from field only the groups holding a relation', async () => {
+	listing([DETAILS, EXTRAS, VANS, CARS])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await pickLinkedFrom(dialog)
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Reads from' }))
+
+	expect(await screen.findByRole('option', { name: 'Vans' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Extras' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Article details' })).not.toBeInTheDocument()
+})
+
+test('offers a linked from field only the relations of the group it reads', async () => {
+	listing([DETAILS, EXTRAS, VANS, CARS])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await pickLinkedFrom(dialog)
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Reads from' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Cars' }))
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Through' }))
+
+	expect(await screen.findByRole('option', { name: 'Maker' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Note' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Driver' })).not.toBeInTheDocument()
+})
+
+test('holds back a linked from field when no group holds a relation', async () => {
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await pickLinkedFrom(dialog)
+
+	expect(within(dialog).getByRole('button', { name: 'Add field' })).toHaveAttribute(
+		'aria-disabled',
+		'true',
+	)
+})
+
+test('offers no linked from field inside a container', async () => {
+	listing([
+		{
+			...DETAILS,
+			fields: [{ ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', fields: [] }],
+		},
+		CARS,
+	])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Author' }))
+	const adding = await screen.findByRole('dialog', { name: 'Add field to Author' })
+	await userEvent.click(within(adding).getByRole('combobox', { name: 'Kind' }))
+
+	expect(screen.queryByRole('option', { name: 'Linked from' })).not.toBeInTheDocument()
+})

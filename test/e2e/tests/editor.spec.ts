@@ -261,3 +261,13 @@ test('keeps the rows a flexible content field holds under the layouts they take'
 	await expect(page.getByLabel('Saying')).toHaveValue('Worth keeping around')
 	await expect(page.getByLabel('Said by')).toHaveValue('Maria Perez')
 })
+
+test('lists the posts filed under a category through the field reading them', async ({ page }) => {
+	await page.goto('/admin/content/category')
+	await page.getByRole('link', { name: 'News' }).click()
+	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue('News')
+
+	const filed = page.getByRole('list', { name: 'Posts filed here' })
+
+	await expect(filed.getByRole('link', { name: 'Welcome to Gophenberg' })).toBeVisible()
+})

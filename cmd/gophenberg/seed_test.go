@@ -599,3 +599,92 @@ func TestSeedReportsAFlexibleItCannotDeclare(t *testing.T) {
 		t.Error("seedDemoContent() error = nil, want the refused flexible reported")
 	}
 }
+
+func TestSeedReportsAConditionItCannotDeclare(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	}
+	execSQL(t, databaseURL, "DELETE FROM core.content_fields WHERE key IN ('on-sale', 'sale-note')")
+	execSQL(t, databaseURL,
+		"ALTER TABLE core.content_fields ADD CONSTRAINT no_on_sale CHECK (key <> 'on-sale')")
+
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("opening the pool: %v", err)
+	}
+	defer pool.Close()
+
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+		t.Error("seedDemoContent() error = nil, want the refused condition reported")
+	}
+}
+
+func TestSeedStandsTheBacklinksFieldOnARelationTheRegistryResolves(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	}
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("opening the pool: %v", err)
+	}
+	defer pool.Close()
+	types := content.NewRegistry(postgres.NewTypeStore(pool))
+
+	held, groups, listed := seededBacklinks(t, types)
+
+	holder, found := groupHolding(groups, held.Key)
+	if !found {
+		t.Fatalf("no group holds %s, so nothing would list what points at a category", held.Key)
+	}
+	source, err := content.BacklinksSource(groups, listed, holder, held, types.Params(t.Context()))
+	if err != nil {
+		t.Fatalf("BacklinksSource() error = %v, want the relation the seeded field reads", err)
+	}
+	if source.Key != seed.CategoriesFieldKey {
+		t.Errorf("BacklinksSource() = %q, want %q", source.Key, seed.CategoriesFieldKey)
+	}
+}
+
+// seededBacklinks returns the seeded backlinks field with the stored groups and types behind it.
+func seededBacklinks(t *testing.T, types *content.Registry) (content.Field, []content.Group, []content.Type) {
+	t.Helper()
+	categoryType, err := types.ByKey(t.Context(), seed.CategoryTypeKey)
+	if err != nil {
+		t.Fatalf("ByKey() error = %v, want the seeded category type", err)
+	}
+	groups, err := types.Groups(t.Context())
+	if err != nil {
+		t.Fatalf("Groups() error = %v, want the seeded groups", err)
+	}
+	listed, err := types.All(t.Context())
+	if err != nil {
+		t.Fatalf("All() error = %v, want the seeded types", err)
+	}
+	for _, f := range categoryType.Fields {
+		if f.Key == seed.PostsFiledFieldKey {
+			return f, groups, listed
+		}
+	}
+	t.Fatalf("the category carries %+v, want the seeded %s", categoryType.Fields, seed.PostsFiledFieldKey)
+	return content.Field{}, nil, nil
+}
+
+// groupHolding returns the group declaring the field key, or reports that none does.
+func groupHolding(groups []content.Group, key string) (content.Group, bool) {
+	for _, g := range groups {
+		for _, f := range g.Fields {
+			if f.Key == key {
+				return g, true
+			}
+		}
+	}
+	return content.Group{}, false
+}

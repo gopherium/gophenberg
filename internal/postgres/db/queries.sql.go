@@ -286,6 +286,26 @@ func (q *Queries) CountMedia(ctx context.Context, arg CountMediaParams) (int64, 
 	return count, err
 }
 
+const countPointingAt = `-- name: CountPointingAt :one
+SELECT count(DISTINCT r.from_id)
+FROM core.content_relations r
+JOIN core.content c ON c.id = r.from_id
+JOIN core.content_types t ON t.key = c.type
+WHERE r.to_id = $1 AND r.field_id = $2 AND r.visible AND t.active
+`
+
+type CountPointingAtParams struct {
+	Target uuid.UUID
+	Field  int32
+}
+
+func (q *Queries) CountPointingAt(ctx context.Context, arg CountPointingAtParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countPointingAt, arg.Target, arg.Field)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countRelatedContent = `-- name: CountRelatedContent :one
 SELECT count(DISTINCT r.from_id)
 FROM core.content_relations r
@@ -2017,6 +2037,65 @@ type MoveDescendantsParams struct {
 func (q *Queries) MoveDescendants(ctx context.Context, arg MoveDescendantsParams) error {
 	_, err := q.db.Exec(ctx, moveDescendants, arg.UpdatedAt, arg.ID, arg.Path)
 	return err
+}
+
+const pointingAt = `-- name: PointingAt :many
+SELECT c.id, c.type, c.title, c.path
+FROM (
+    SELECT DISTINCT r.sort_at, r.from_id
+    FROM core.content_relations r
+    JOIN core.content pointing ON pointing.id = r.from_id
+    JOIN core.content_types pointer ON pointer.key = pointing.type
+    WHERE r.to_id = $1 AND r.field_id = $2 AND r.visible AND pointer.active
+    ORDER BY r.sort_at DESC, r.from_id
+    LIMIT $4 OFFSET $3
+) held
+JOIN core.content c ON c.id = held.from_id
+ORDER BY held.sort_at DESC, held.from_id
+`
+
+type PointingAtParams struct {
+	Target    uuid.UUID
+	Field     int32
+	RowOffset int32
+	RowLimit  int32
+}
+
+type PointingAtRow struct {
+	ID    uuid.UUID
+	Type  string
+	Title string
+	Path  string
+}
+
+func (q *Queries) PointingAt(ctx context.Context, arg PointingAtParams) ([]PointingAtRow, error) {
+	rows, err := q.db.Query(ctx, pointingAt,
+		arg.Target,
+		arg.Field,
+		arg.RowOffset,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PointingAtRow
+	for rows.Next() {
+		var i PointingAtRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Title,
+			&i.Path,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const pruneRevisions = `-- name: PruneRevisions :exec

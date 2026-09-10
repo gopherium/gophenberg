@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
 	"slices"
@@ -43,6 +44,9 @@ type fakePostStore struct {
 	depthErr     error
 	targetsErr   error
 	relatedErr   error
+	pointingErr  error
+	pointingLeft int
+	declared     *fakeTypeStore
 	byIDErrFor   map[uuid.UUID]error
 
 	revisions         []content.Revision
@@ -503,8 +507,24 @@ func (s *fakeTypeStore) CreateGroup(_ context.Context, g content.Group) (content
 	defer s.mu.Unlock()
 	s.nextGroupID++
 	g.ID, g.Active, g.Position = s.nextGroupID+len(s.types), true, len(s.groups)+1
+	if g.Key == "" {
+		g.Key = s.freeGroupKey(content.GroupKeyFrom(g.Title))
+	}
 	s.groups = append(s.groups, g)
 	return g, nil
+}
+
+// freeGroupKey returns the stem, numbered upward until no stored group carries it.
+func (s *fakeTypeStore) freeGroupKey(stem string) string {
+	taken := make(map[string]bool, len(s.groups))
+	for _, held := range s.groups {
+		taken[held.Key] = true
+	}
+	key := stem
+	for n := 2; taken[key]; n++ {
+		key = fmt.Sprintf("%s-%d", stem, n)
+	}
+	return key
 }
 
 // UpdateGroup stores the group's title, location and resting flag.
@@ -930,6 +950,66 @@ func (s *fakePostStore) TargetsOf(_ context.Context, from uuid.UUID) (content.Ta
 		}
 	}
 	return targets, nil
+}
+
+// PointingAt returns the published items pointing at the target through the field, and how many there are.
+func (s *fakePostStore) PointingAt(
+	_ context.Context, target uuid.UUID, field, page, perPage int,
+) ([]content.Pointer, int, error) {
+	if s.pointingErr != nil && s.pointingLeft == 0 {
+		return nil, 0, s.pointingErr
+	}
+	if s.pointingLeft > 0 {
+		s.pointingLeft--
+	}
+	key, named := s.fieldKeyed(field)
+	if !named {
+		return nil, 0, nil
+	}
+	held := s.pointersTo(target, key)
+	total := len(held)
+	from := (page - 1) * perPage
+	if from >= total {
+		return nil, total, nil
+	}
+	to := min(from+perPage, total)
+	return held[from:to], total, nil
+}
+
+// fieldKeyed returns the key the field identity names, or reports that no declared field carries it.
+func (s *fakePostStore) fieldKeyed(field int) (string, bool) {
+	if s.declared == nil {
+		return "", false
+	}
+	groups, err := s.declared.ListGroups(context.Background())
+	if err != nil {
+		return "", false
+	}
+	for _, g := range groups {
+		for _, f := range g.Fields {
+			if f.ID == field {
+				return f.Key, true
+			}
+		}
+	}
+	return "", false
+}
+
+// pointersTo returns the published items pointing at the target through the field key, newest first.
+func (s *fakePostStore) pointersTo(target uuid.UUID, key string) []content.Pointer {
+	held := make([]content.Pointer, 0, len(s.posts))
+	for _, item := range s.posts {
+		if item.Status != content.StatusPublished || !slices.Contains(item.Relations[key], target) {
+			continue
+		}
+		held = append(held, content.Pointer{
+			ID: item.ID, Type: item.Type, Title: item.Title, Path: item.Path,
+		})
+	}
+	slices.SortFunc(held, func(one, other content.Pointer) int {
+		return strings.Compare(other.ID.String(), one.ID.String())
+	})
+	return held
 }
 
 // AdoptType takes the plugin's type over as the site's own.

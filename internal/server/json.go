@@ -185,4 +185,5 @@ var domainErrors = []struct {
 	{content.ErrRuleCycle, http.StatusUnprocessableEntity, "rule_cycle"},
 	{content.ErrFieldHidden, http.StatusUnprocessableEntity, "field_hidden"},
 	{content.ErrFieldReferenced, http.StatusUnprocessableEntity, "field_referenced"},
+	{content.ErrBacklinksSource, http.StatusUnprocessableEntity, "backlinks_source_unknown"},
 }

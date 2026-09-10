@@ -256,6 +256,7 @@ function fieldKinds(): Choice[] {
 		{ label: _x('Media', 'field type', 'gophenberg'), value: 'media' },
 		{ label: _x('Gallery', 'field type', 'gophenberg'), value: 'gallery' },
 		{ label: __('Relation', 'gophenberg'), value: 'relation' },
+		{ label: __('Linked from', 'gophenberg'), value: 'backlinks' },
 		{ label: _x('Section', 'field type', 'gophenberg'), value: 'section' },
 		{ label: _x('Repeater', 'field type', 'gophenberg'), value: 'repeater' },
 		{ label: _x('Flexible content', 'field type', 'gophenberg'), value: 'flexible' },
@@ -271,6 +272,9 @@ function fieldKinds(): Choice[] {
 export function kindsInside(parent?: string): Choice[] {
 	if (parent === 'flexible') {
 		return fieldKinds().filter((held) => held.value === 'layout')
+	}
+	if (parent !== undefined) {
+		return fieldKinds().filter((held) => held.value !== 'layout' && held.value !== 'backlinks')
 	}
 	return fieldKinds().filter((held) => held.value !== 'layout')
 }
