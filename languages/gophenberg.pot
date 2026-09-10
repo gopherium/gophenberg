@@ -1436,6 +1436,9 @@ msgstr ""
 msgid "There is nothing to roll back to, because your site has not been through a theme change yet. Install a theme first, then a rollback has somewhere to go."
 msgstr ""
 
+msgid "These files could not be read."
+msgstr ""
+
 msgid "These were left alone, because nobody confirmed losing them."
 msgstr ""
 

@@ -1391,6 +1391,10 @@ msgid "The user could not be created."
 msgstr "L'utilisateur n'a pas pu être créé."
 
 #, fuzzy
+msgid "These files could not be read."
+msgstr "Ces fichiers n'ont pas pu être lus."
+
+#, fuzzy
 msgid "Theme"
 msgstr "Thème"
 

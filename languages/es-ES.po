@@ -730,6 +730,10 @@ msgstr "El tema %(name)s es el elegido, pero no está instalado, así que el ren
 msgid "The user could not be created."
 msgstr "No se ha podido crear el usuario."
 
+#, fuzzy
+msgid "These files could not be read."
+msgstr "No se han podido leer estos archivos."
+
 msgid "Theme"
 msgstr "Tema"
 
