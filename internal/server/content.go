@@ -324,13 +324,17 @@ func (s *server) pointingAt(
 		return nil, err
 	}
 	totals := make(map[string]int, len(reading))
+	pointing := make(content.Values, len(reading))
 	for key, source := range reading {
 		held, total, err := s.content.PointingAt(ctx, c.ID, source, 1, backlinksPage)
 		if err != nil {
 			return nil, err
 		}
-		values[key] = namedPointers(held)
+		pointing[key] = namedPointers(held)
 		totals[key] = total
+	}
+	for key, held := range pointing {
+		values[key] = held
 	}
 	return totals, nil
 }

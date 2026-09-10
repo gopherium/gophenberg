@@ -29,14 +29,14 @@ func pointedAtPostWithStores(t *testing.T) (http.Handler, *fakePostStore, *fakeT
 		`{"key":"picks","label":"Picks","kind":"relation","relates_to":"post","many":true}`)
 	declaredOn(t, handler, fmt.Sprintf(
 		`{"key":"linked-from","label":"Linked from","kind":"backlinks","settings":`+
-			`{"source_group":%q,"source_field":["picks"]}}`, groupKeyOver(t, handler, "category")))
+			`{"source_group":%q,"source_field":["picks"]}}`, groupKeyOver(t, handler)))
 	return handler, posts, types
 }
 
-// groupKeyOver returns the key of the group placed on the type, raising one when nothing is placed there.
-func groupKeyOver(t *testing.T, handler http.Handler, typeKey string) string {
+// groupKeyOver returns the key of the group placed on categories, raising one when nothing is placed there.
+func groupKeyOver(t *testing.T, handler http.Handler) string {
 	t.Helper()
-	id := groupOver(t, handler, typeKey)
+	id := groupOver(t, handler, "category")
 	listed := decodeBody[struct {
 		Items []struct {
 			ID  int    `json:"id"`
@@ -60,7 +60,7 @@ func pointedAtPost(t *testing.T) http.Handler {
 		`{"key":"picks","label":"Picks","kind":"relation","relates_to":"post","many":true}`)
 	declaredOn(t, handler, fmt.Sprintf(
 		`{"key":"linked-from","label":"Linked from","kind":"backlinks","settings":`+
-			`{"source_group":%q,"source_field":["picks"]}}`, groupKeyOver(t, handler, "category")))
+			`{"source_group":%q,"source_field":["picks"]}}`, groupKeyOver(t, handler)))
 	return handler
 }
 
@@ -117,7 +117,7 @@ func pointedAtHiddenPost(t *testing.T) (http.Handler, contentValuesBody) {
 		`{"key":"linked-from","label":"Linked from","kind":"backlinks","settings":`+
 			`{"source_group":%q,"source_field":["picks"],`+
 			`"conditions":[[{"source":"on-sale","operator":"==","value":"true"}]]}}`,
-		groupKeyOver(t, handler, "category")))
+		groupKeyOver(t, handler)))
 	post := publishItemAt(t, handler, draftedPost(t, handler))
 	picked := patchValues(t, handler, storedCategoryItem(t, handler), fmt.Sprintf(`{"picks":[%q]}`, post.ID))
 	publishItemAt(t, handler, picked)
@@ -309,6 +309,37 @@ func TestContentAnswersOnePageOfPointersAndCountsThemAll(t *testing.T) {
 	}
 	if answer.FieldTotals["linked-from"] != 22 {
 		t.Errorf("field_totals = %v, want every pointer counted behind the page", answer.FieldTotals)
+	}
+}
+
+func TestContentResolvesNoPointerAtAllWhenOneOfThemCannotBeRead(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := pointedAtPostWithStores(t)
+	declaredOn(t, handler, fmt.Sprintf(
+		`{"key":"also-linked","label":"Also linked","kind":"backlinks","settings":`+
+			`{"source_group":%q,"source_field":["picks"]}}`, groupKeyOver(t, handler)))
+	held := draftedPost(t, handler)
+	posts.pointingErr, posts.pointingLeft = errRegistryDown, 1
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+held.ID,
+		fmt.Sprintf(`{"updated_at":%q,"title":"A second look"}`, held.UpdatedAt))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want the stored write reported as stored: %s",
+			recorder.Code, recorder.Body.String())
+	}
+	answer := decodeBody[struct {
+		Fields      map[string]json.RawMessage `json:"fields"`
+		FieldTotals map[string]int             `json:"field_totals"`
+	}](t, recorder)
+	for _, key := range []string{"linked-from", "also-linked"} {
+		if _, resolved := answer.Fields[key]; resolved {
+			t.Errorf("fields[%q] = %s, want no half read pointers served", key, answer.Fields[key])
+		}
+	}
+	if len(answer.FieldTotals) != 0 {
+		t.Errorf("field_totals = %v, want no counts beside pointers nobody read", answer.FieldTotals)
 	}
 }
 

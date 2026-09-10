@@ -60,7 +60,8 @@ func groupFilingCategories(ctx context.Context, types *content.Registry) (string
 	}
 	for _, g := range groups {
 		for _, f := range g.Fields {
-			if f.Key == CategoriesFieldKey && f.Kind == content.FieldKindRelation {
+			if f.Key == CategoriesFieldKey && f.Kind == content.FieldKindRelation &&
+				f.RelatesTo == CategoryTypeKey {
 				return g.Key, nil
 			}
 		}

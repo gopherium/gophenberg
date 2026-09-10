@@ -45,6 +45,7 @@ type fakePostStore struct {
 	targetsErr   error
 	relatedErr   error
 	pointingErr  error
+	pointingLeft int
 	declared     *fakeTypeStore
 	byIDErrFor   map[uuid.UUID]error
 
@@ -955,8 +956,11 @@ func (s *fakePostStore) TargetsOf(_ context.Context, from uuid.UUID) (content.Ta
 func (s *fakePostStore) PointingAt(
 	_ context.Context, target uuid.UUID, field, page, perPage int,
 ) ([]content.Pointer, int, error) {
-	if s.pointingErr != nil {
+	if s.pointingErr != nil && s.pointingLeft == 0 {
 		return nil, 0, s.pointingErr
+	}
+	if s.pointingLeft > 0 {
+		s.pointingLeft--
 	}
 	key, named := s.fieldKeyed(field)
 	if !named {
