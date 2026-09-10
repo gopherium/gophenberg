@@ -39,6 +39,23 @@ func TestPostDetailReportsAuthorLookupFailures(t *testing.T) {
 	}
 }
 
+func TestPostDetailReportsATypeItCannotReadBesideTheItem(t *testing.T) {
+	t.Parallel()
+
+	users := newFakeUserStore()
+	addAda(t, users)
+	posts, types := newFakePostStore(), newFakeTypeStore()
+	stored := posts.add(newPost(t, "Stored", uuid.Must(uuid.NewV7())))
+	handler := authedServerWithStores(t, server.Config{Users: users, Content: posts, Types: types})
+	types.listErr = errRegistryDown
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/"+stored.ID.String(), "")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+}
+
 func TestPostListRefusesTypesTheRegistryDoesNotServe(t *testing.T) {
 	t.Parallel()
 
