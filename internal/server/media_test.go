@@ -37,6 +37,7 @@ type fakeMediaStore struct {
 	lastFilter  media.Filter
 	createErr   error
 	listErr     error
+	byIDsErr    error
 	updateErr   error
 }
 
@@ -73,6 +74,9 @@ func (s *fakeMediaStore) ByID(_ context.Context, id int64) (media.Media, error) 
 func (s *fakeMediaStore) ByIDs(_ context.Context, ids []int64) ([]media.Media, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.byIDsErr != nil {
+		return nil, s.byIDsErr
+	}
 	listed := make([]media.Media, 0, len(ids))
 	for _, id := range ids {
 		if m, found := s.items[id]; found {
@@ -779,5 +783,77 @@ func TestUploadingMediaNeedsASession(t *testing.T) {
 
 	if recorder.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestListingMediaByIdentityAnswersExactlyThoseFiles(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeMediaStore()
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
+	first := storedMediaItem(t, handler)
+	storedMediaItem(t, handler)
+	third := storedMediaItem(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodGet,
+		fmt.Sprintf("/api/media?ids=%d,%d,9999", third.ID, first.ID), "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := decodeBody[struct {
+		Items []mediaBody `json:"items"`
+		Total int         `json:"total"`
+	}](t, recorder)
+	if body.Total != 2 || len(body.Items) != 2 {
+		t.Fatalf("listing = %d items with total %d, want the two files that exist", len(body.Items), body.Total)
+	}
+	if body.Items[0].ID != third.ID || body.Items[1].ID != first.ID {
+		t.Errorf("listing = %d then %d, want the files in the order they were asked for",
+			body.Items[0].ID, body.Items[1].ID)
+	}
+}
+
+func TestListingMediaByIdentityRefusesWhatItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	for name, query := range map[string]string{
+		"an identity that is no number":       "ids=1,x",
+		"an identity below one":               "ids=0",
+		"no identity at all":                  "ids=",
+		"more identities than a page carries": "ids=" + strings.Repeat("1,", 100) + "1",
+		"a search beside the identities":      "ids=1&search=harbor",
+		"a page beside the identities":        "ids=1&page=2",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), newFakeMediaStore())
+
+			recorder := doRequest(t, handler, http.MethodGet, "/api/media?"+query, "")
+
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+			}
+			if code := decodeBody[struct {
+				Code string `json:"code"`
+			}](t, recorder).Code; code != "list_parameters_invalid" {
+				t.Errorf("code = %q, want list_parameters_invalid", code)
+			}
+		})
+	}
+}
+
+func TestListingMediaByIdentityReportsALibraryItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeMediaStore()
+	store.byIDsErr = errors.New("the library is down")
+	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/media?ids=1", "")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
 	}
 }
