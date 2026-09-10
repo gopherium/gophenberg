@@ -48,10 +48,18 @@ test('offers a picker entry for every presentation a field starts as', () => {
 		'gallery',
 		'relation',
 		'backlinks',
+		'link',
+		'color',
 		'section',
 		'repeater',
 		'flexible',
 	])
+})
+
+test('names the link kind and reads a color as a text variant', () => {
+	expect(kindLabel('link')).toBe('Link')
+	expect(pickedKind('link')).toEqual({ kind: 'link', many: false })
+	expect(pickedKind('color')).toEqual({ kind: 'text', many: false, settings: { variant: 'color' } })
 })
 
 test('offers a layout and nothing else inside a flexible content field', () => {

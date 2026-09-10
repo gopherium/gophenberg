@@ -257,6 +257,8 @@ function fieldKinds(): Choice[] {
 		{ label: _x('Gallery', 'field type', 'gophenberg'), value: 'gallery' },
 		{ label: __('Relation', 'gophenberg'), value: 'relation' },
 		{ label: __('Linked from', 'gophenberg'), value: 'backlinks' },
+		{ label: _x('Link', 'field type', 'gophenberg'), value: 'link' },
+		{ label: _x('Color', 'field type', 'gophenberg'), value: 'color' },
 		{ label: _x('Section', 'field type', 'gophenberg'), value: 'section' },
 		{ label: _x('Repeater', 'field type', 'gophenberg'), value: 'repeater' },
 		{ label: _x('Flexible content', 'field type', 'gophenberg'), value: 'flexible' },
@@ -346,6 +348,7 @@ export function pickedKind(value: string): PickedKind {
 		},
 		buttons: { kind: 'choice', many: false, settings: { presentation: 'buttons' } },
 		gallery: { kind: 'media', many: true },
+		color: { kind: 'text', many: false, settings: { variant: 'color' } },
 	}
 	return settled[value] ?? { kind: value, many: false }
 }
