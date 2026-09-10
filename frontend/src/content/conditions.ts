@@ -65,10 +65,26 @@ export function operatorsFor(kind: string, multiple: boolean): string[] {
 			? [OPERATOR_CONTAINS, OPERATOR_EMPTY, OPERATOR_NOT_EMPTY]
 			: [OPERATOR_IS, OPERATOR_IS_NOT, OPERATOR_EMPTY, OPERATOR_NOT_EMPTY]
 	}
-	if (kind === 'media') {
+	if (kind === 'media' || kind === 'link') {
 		return [OPERATOR_EMPTY, OPERATOR_NOT_EMPTY]
 	}
 	return []
+}
+
+/**
+ * Returns whether a value carries exactly the three members a link holds.
+ * @param held - The value the item holds.
+ * @returns Whether it is a link.
+ */
+function isLink(held: object): held is { url: string; title: string; new_tab: boolean } {
+	const keys = Object.keys(held)
+	const link = held as Record<string, unknown>
+	return (
+		keys.length === 3 &&
+		typeof link.url === 'string' &&
+		typeof link.title === 'string' &&
+		typeof link.new_tab === 'boolean'
+	)
 }
 
 /**
@@ -84,7 +100,7 @@ function empty(held: unknown): boolean {
 		return held.length === 0
 	}
 	if (typeof held === 'object') {
-		return Object.keys(held).length === 0
+		return isLink(held) ? held.url === '' : Object.keys(held).length === 0
 	}
 	return held === ''
 }
