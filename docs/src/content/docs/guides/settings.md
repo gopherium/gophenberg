@@ -9,21 +9,21 @@ on the **Settings** screen, which only an admin reaches.
 ## Posts per page
 
 **Posts per page** is how many items a public listing carries. It
-counts for the front page, for every archive, and for the listings
-the [content API](/reference/content-api/) answers. It starts at 20
-and takes a whole number from 1 to 100. A number outside that range
-is refused, and the screen says why.
+counts for the front page, for every archive, for the listings the
+[content API](/reference/content-api/) answers, and for the items a
+**Linked from** field lists. It starts at 20 and takes a whole
+number from 1 to 100. A number outside that range is refused, and
+the screen says why.
 
 This is the site's default rather than the last word. A theme that
 names its own page size uses that instead, and a program reading
 the content API can ask for a different number on the request, up
 to the same 100.
 
-Three lists do not follow it. The list of posts you work in inside
+Two lists do not follow it. The list of posts you work in inside
 the admin stays at 20 a page whatever you choose here. The
 [RSS feed](/reference/rss-feed/) carries its own number, which
-whoever runs the server sets. A **Linked from** field, covered in
-[fields](/guides/fields/), shows 20 and nothing asks for more.
+whoever runs the server sets.
 
 ## Picture quality
 

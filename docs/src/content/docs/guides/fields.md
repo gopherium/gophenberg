@@ -69,7 +69,7 @@ kinds of value, so all four choice entries are listed as Choice.
 | A day | Date |
 | One of a list | Select, Radio group, Checkbox group, Button group |
 | Items from the media library | Media, Gallery |
-| An address away from this site | Link |
+| An address on this site or away from it | Link |
 | Links to items of another type | Relation |
 | Fields of its own | Section |
 | Rows of fields of its own | Repeater |
@@ -85,10 +85,11 @@ several items.
 **Link** holds three things at once: the address, the words it is
 read under, and whether it opens in a new tab. The address may be a
 web address, an email one written as `mailto:someone@example.com`,
-or a path on this site beginning with a slash. Anything else is
-refused when you save. The field is empty until you write an
-address, so a required Link blocks publishing until it points
-somewhere.
+or a path on this site beginning with a slash. A path beginning
+with two slashes, or with a slash and a backslash, is refused, since
+a browser opens it on another site. Anything else is refused when
+you save. The field is empty until you write an address, so a
+required Link blocks publishing until it points somewhere.
 
 There is no icon field, and a Media field holding an SVG does the
 same job while keeping every icon in one library.
@@ -188,8 +189,8 @@ rather than to the group directly.
 A container may hold another container, up to 32 levels deep. A
 Repeater row can hold a Section, and that Section can hold a Repeater
 of its own. Deeper than 32 the field is refused, which is far more
-nesting than a page needs. Relations are the one kind that stands
-outside, so declare a Relation beside a container rather than in it.
+nesting than a page needs. Relations and Linked from fields stand
+outside, so declare them beside a container rather than in it.
 
 Deleting a field inside a container takes the values stored under it,
 in every item the group reaches and in the revisions behind them,
@@ -223,7 +224,8 @@ item. Press **Save draft** after changing what an item points at.
 A field can be marked **required**, as you declare it or with
 **Require** afterwards. It never blocks a draft save, only
 publishing, so an item goes public only once the field holds
-something.
+something. A Linked from field and a layout hold no value of their
+own, so neither can be required.
 
 ## Showing a field by rule
 
@@ -242,9 +244,10 @@ cannot read a field in another group, and it cannot lead back to
 itself.
 
 Not every kind can be read. A rule reads a text, number, switch,
-date, choice or media field. A relation, a container and a **Linked
-from** field can each be shown by a rule but never read by one, so
-they are not offered when you pick what a rule reads.
+date, choice, media or link field, a link only for whether it is
+filled. A relation, a container and a **Linked from** field can
+each be shown by a rule but never read by one, so they are not
+offered when you pick what a rule reads.
 
 What a hidden field already holds stays where it is. Turn the switch
 back on and the value is still there. While the field is hidden its
@@ -287,9 +290,10 @@ that relation points at. Categories work this way. The relation
 sits on Posts and points at Categories, so the Linked from field
 sits on Categories.
 
-The list shows the twenty newest published items and says how many
-point in all when more do than it shows. Nothing in the editor asks
-for the ones behind them. Only published items of active types are
+The list shows the newest published items, as many as the site's
+**Posts per page** setting allows, and says how many point in all
+when more do than it shows. Nothing in the editor asks for the ones
+behind them. Only published items of active types are
 listed, so a draft pointing this way waits until it is published.
 Each entry links to its own editor.
 
