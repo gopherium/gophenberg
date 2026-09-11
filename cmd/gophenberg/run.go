@@ -64,9 +64,10 @@ func run(
 	if settings.mediaDir != "" {
 		library = postgres.NewMediaStore(pool)
 	}
+	settingStore := postgres.NewSettingStore(pool)
 	registered, err := plugins(sdk.Deps{
 		DatabaseURL: settings.databaseURL,
-		Content:     contentbridge.New(contentStore, registry, library),
+		Content:     contentbridge.New(contentStore, registry, library, settingStore),
 		Getenv:      getenv,
 	})
 	if err != nil {
@@ -83,7 +84,6 @@ func run(
 		return fmt.Errorf("start plugins: %w", err)
 	}
 
-	settingStore := postgres.NewSettingStore(pool)
 	themes, stopTheme, err := startTheme(ctx, settings, settingStore, logger)
 	if err != nil {
 		return err
