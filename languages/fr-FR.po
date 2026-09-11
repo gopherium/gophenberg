@@ -39,6 +39,12 @@ msgstr ""
 "de nouveau."
 
 #, fuzzy
+msgid "%(field)s holds no value of its own, so it cannot be required. Make it optional."
+msgstr ""
+"%(field)s ne contient aucune valeur propre, il ne peut donc pas être "
+"obligatoire. Rendez-le facultatif."
+
+#, fuzzy
 msgid "%(field)s moved."
 msgstr "%(field)s déplacé."
 
