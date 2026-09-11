@@ -36,3 +36,7 @@ Feature: Linked from
   Scenario: Taking away the relation a backlinks reads is refused
     When the administrator deletes the field "categories" on "post"
     Then the request is refused with the code "field_referenced"
+
+  Scenario: A backlinks is never required
+    When the administrator requires "linked-from"
+    Then the request is refused with the code "field_never_required"

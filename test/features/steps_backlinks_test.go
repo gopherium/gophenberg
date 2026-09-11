@@ -161,6 +161,7 @@ func initializeBacklinks(sc *godog.ScenarioContext) {
 		`^the administrator deletes the field "([^"]*)" on "([^"]*)"$`,
 		theAdministratorAsksToDeleteTheField,
 	)
+	sc.When(`^the administrator requires "([^"]*)"$`, theAdministratorRequires)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 	sc.Then(`^the category "([^"]*)" is pointed at by "([^"]*)"$`, theItemIsPointedAtBy)
 	sc.Then(`^the category "([^"]*)" is pointed at by nobody$`, theItemIsPointedAtByNobody)

@@ -111,6 +111,7 @@ func initializeFlexible(sc *godog.ScenarioContext) {
 		`^the administrator deletes the field "([^"]*)" inside "([^"]*)"$`,
 		theAdministratorDeletesTheFieldInside,
 	)
+	sc.When(`^the administrator requires "([^"]*)"$`, theAdministratorRequires)
 	sc.Then(`^the request is refused$`, theRequestIsRefused)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 	sc.Then(
