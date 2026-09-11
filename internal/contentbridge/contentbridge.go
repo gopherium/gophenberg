@@ -5,6 +5,7 @@ package contentbridge
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -94,6 +95,10 @@ func (r reader) toSDKItem(ctx context.Context, t content.Type, c content.Content
 	if err != nil {
 		return sdk.Item{}, err
 	}
+	plain, err := plainValues(values)
+	if err != nil {
+		return sdk.Item{}, err
+	}
 	published := c.UpdatedAt
 	if c.PublishedAt != nil {
 		published = *c.PublishedAt
@@ -106,8 +111,19 @@ func (r reader) toSDKItem(ctx context.Context, t content.Type, c content.Content
 		Title:       c.Title,
 		Excerpt:     c.Excerpt,
 		Content:     publichtml.Sanitize(c.Content),
-		Fields:      map[string]any(values),
+		Fields:      plain,
 		PublishedAt: published,
 		UpdatedAt:   c.UpdatedAt,
 	}, nil
+}
+
+// plainValues returns the values as encoding/json decodes them, the shape the content API serves.
+func plainValues(values content.Values) (map[string]any, error) {
+	encoded, err := json.Marshal(values)
+	if err != nil {
+		return nil, fmt.Errorf("contentbridge: encode field values: %w", err)
+	}
+	var plain map[string]any
+	err = json.Unmarshal(encoded, &plain)
+	return plain, err
 }

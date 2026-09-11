@@ -5,6 +5,7 @@ package contentbridge_test
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/contentbridge"
 	"github.com/gopherium/gophenberg/internal/media"
-	"github.com/gopherium/gophenberg/internal/served"
 )
 
 // recordingPostStore serves posts and records the filter it was asked for.
@@ -462,11 +462,12 @@ func TestReaderNamesTheTargetsARelationPointsAt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
 	}
-	held, listed := got[0].Fields["maker"].([]served.Target)
+	held, listed := got[0].Fields["maker"].([]any)
 	if !listed || len(held) != 1 {
 		t.Fatalf("fields[maker] = %#v, want the target named as a theme reads it", got[0].Fields["maker"])
 	}
-	if held[0].Title != "News" || held[0].Path != "categories/news" || held[0].ID != target.String() {
+	named, _ := held[0].(map[string]any)
+	if named["title"] != "News" || named["path"] != "categories/news" || named["id"] != target.String() {
 		t.Errorf("fields[maker] = %+v, want the target named and addressed", held[0])
 	}
 }
@@ -485,12 +486,26 @@ func TestReaderServesTheFileAMediaFieldNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
 	}
-	held, inlined := got[0].Fields["cover"].(served.File)
+	held, inlined := got[0].Fields["cover"].(map[string]any)
 	if !inlined {
 		t.Fatalf("fields[cover] = %#v, want the file a theme reads", got[0].Fields["cover"])
 	}
-	if held.Src != "/media/2026/08/sunrise.jpg" || held.Title != "Sunrise" {
-		t.Errorf("fields[cover] = %+v, want the stored file addressed", held)
+	if held["src"] != "/media/2026/08/sunrise.jpg" || held["title"] != "Sunrise" || held["id"] != float64(12) {
+		t.Errorf("fields[cover] = %+v, want the stored file addressed as JSON reads it", held)
+	}
+}
+
+func TestReaderRefusesAValueNoAnswerCanCarry(t *testing.T) {
+	t.Parallel()
+
+	stored := publishedPost("A Published Post", "<p>Body</p>")
+	stored.Fields = content.Values{"seats": math.NaN()}
+	store := &recordingPostStore{posts: []content.Content{stored}}
+
+	_, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 20)
+
+	if err == nil {
+		t.Fatal("ListPublished() error = nil, want a value no answer can carry refused")
 	}
 }
 

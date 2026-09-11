@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/contentbridge"
 	"github.com/gopherium/gophenberg/internal/media"
-	"github.com/gopherium/gophenberg/internal/served"
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
@@ -67,22 +67,15 @@ func TestBothPublicSeamsAnswerTheSameFields(t *testing.T) {
 	}
 }
 
-// sameServedValue reports whether a plugin reads one key exactly as the public answer serves it.
+// sameServedValue reports whether a plugin reads one key exactly as the public answer decodes.
 func sameServedValue(t *testing.T, key string, bridged any, answered json.RawMessage) {
 	t.Helper()
-	held, err := json.Marshal(bridged)
-	if err != nil {
-		t.Fatalf("reading what the plugin holds under %s: %v", key, err)
-	}
-	var one, other any
-	if err := json.Unmarshal(held, &one); err != nil {
-		t.Fatalf("reading what the plugin holds under %s: %v", key, err)
-	}
-	if err := json.Unmarshal(answered, &other); err != nil {
+	var decoded any
+	if err := json.Unmarshal(answered, &decoded); err != nil {
 		t.Fatalf("reading what the theme reads under %s: %v", key, err)
 	}
-	if fmt.Sprintf("%v", one) != fmt.Sprintf("%v", other) {
-		t.Errorf("under %s the plugin reads %s and the theme reads %s", key, held, answered)
+	if !reflect.DeepEqual(bridged, decoded) {
+		t.Errorf("under %s the plugin reads %#v and the theme reads %s", key, bridged, answered)
 	}
 }
 
@@ -139,8 +132,12 @@ func TestAPluginReadsTheItemsPointingAtOneAsAThemeDoes(t *testing.T) {
 
 	bridged := bridgedFields(t, posts, types, nil)
 
-	held, listed := bridged["linked-from"].([]served.Pointer)
-	if !listed || len(held) != 1 || held[0].Title != "News" || held[0].Type != "category" {
-		t.Errorf("the plugin reads %#v, want the category pointing at the post", bridged["linked-from"])
+	held, listed := bridged["linked-from"].([]any)
+	if !listed || len(held) != 1 {
+		t.Fatalf("the plugin reads %#v, want the category pointing at the post", bridged["linked-from"])
+	}
+	pointer, _ := held[0].(map[string]any)
+	if pointer["title"] != "News" || pointer["type"] != "category" {
+		t.Errorf("the plugin reads %+v, want the category pointing at the post", held[0])
 	}
 }
