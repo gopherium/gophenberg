@@ -41,6 +41,32 @@ func (s fakeLinks) PointingAt(
 	return s.pointers, s.total, nil
 }
 
+// pagedLinks records the page size it was asked for.
+type pagedLinks struct {
+	fakeLinks
+	asked int
+}
+
+// PointingAt records the page size and answers with the built pointers.
+func (s *pagedLinks) PointingAt(
+	_ context.Context, _ uuid.UUID, _, _, perPage int,
+) ([]content.Pointer, int, error) {
+	s.asked = perPage
+	return s.pointers, s.total, nil
+}
+
+// fakeSettings answers with the values it was built with.
+type fakeSettings struct {
+	held map[string]string
+	err  error
+}
+
+// Lookup returns the value stored under key and whether the key is set at all.
+func (s fakeSettings) Lookup(_ context.Context, key string) (string, bool, error) {
+	held, found := s.held[key]
+	return held, found, s.err
+}
+
 // fakeGroups answers with the groups it was built with.
 type fakeGroups struct {
 	held []content.Group
@@ -300,6 +326,39 @@ func TestValuesListsWhatPointsAtTheItem(t *testing.T) {
 	}
 	if totals["linked-from"] != 3 {
 		t.Errorf("totals = %v, want every pointer counted behind the page", totals)
+	}
+}
+
+func TestPointingListsAsManyAsTheSiteChose(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		settings served.Settings
+		want     int
+	}{
+		"the size the site chose":            {fakeSettings{held: map[string]string{content.PerPageSettingKey: "5"}}, 5},
+		"the default where none was chosen":  {fakeSettings{}, content.DefaultPerPage},
+		"the default where none can be read": {fakeSettings{err: errStoreDown}, content.DefaultPerPage},
+		"the default where no store answers": {nil, content.DefaultPerPage},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			links := &pagedLinks{}
+			stores := served.Stores{
+				Links: links, Groups: fakeGroups{held: readingGroups()}, Settings: test.settings,
+			}
+			held := postType(content.Field{Key: "linked-from", Kind: content.FieldKindBacklinks})
+
+			_, err := served.Pointing(t.Context(), stores, held, anItem(nil), content.Values{}, nil)
+
+			if err != nil {
+				t.Fatalf("Pointing() error = %v, want nil", err)
+			}
+			if links.asked != test.want {
+				t.Errorf("the store was asked for %d pointers, want %d", links.asked, test.want)
+			}
+		})
 	}
 }
 
