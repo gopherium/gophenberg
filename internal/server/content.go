@@ -162,14 +162,7 @@ func contentHeaders(header string) func(http.Handler) http.Handler {
 
 // publicPerPage returns the page size public listings carry, as the site chose or by default.
 func (s *server) publicPerPage(ctx context.Context) int {
-	if s.settings == nil {
-		return content.DefaultPerPage
-	}
-	held, found, err := s.settings.Lookup(ctx, content.PerPageSettingKey)
-	if err != nil {
-		return content.DefaultPerPage
-	}
-	return content.ResolvePerPage(held, found)
+	return served.PerPage(ctx, s.settings)
 }
 
 // parsePublishedFilter returns the published listing the query asks for, paged at the given size.
@@ -292,7 +285,7 @@ func (s *server) publishedDetailOf(r *http.Request, t content.Type, c content.Co
 
 // publicStores returns the readers a public answer is shaped through.
 func (s *server) publicStores() served.Stores {
-	return served.Stores{Links: s.content, Groups: s.types, Library: s.mediaStore}
+	return served.Stores{Links: s.content, Groups: s.types, Library: s.mediaStore, Settings: s.settings}
 }
 
 // respondTerm answers with the addressed item and the published content pointing at it.
