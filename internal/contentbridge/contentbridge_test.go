@@ -24,6 +24,8 @@ type recordingPostStore struct {
 	current      []content.Content
 	filter       content.Filter
 	targets      content.Targets
+	pointers     []content.Pointer
+	perPage      int
 	listErr      error
 	publishedErr error
 	targetsErr   error
@@ -32,6 +34,23 @@ type recordingPostStore struct {
 // TargetsOf returns the targets the stored relations name.
 func (s *recordingPostStore) TargetsOf(context.Context, uuid.UUID) (content.Targets, error) {
 	return s.targets, s.targetsErr
+}
+
+// PointingAt records the page size asked for and returns the stored pointers.
+func (s *recordingPostStore) PointingAt(
+	_ context.Context, _ uuid.UUID, _, _, perPage int,
+) ([]content.Pointer, int, error) {
+	s.perPage = perPage
+	return s.pointers, len(s.pointers), nil
+}
+
+// heldSettings answers with the values it holds.
+type heldSettings map[string]string
+
+// Lookup returns the value stored under key and whether the key is set at all.
+func (s heldSettings) Lookup(_ context.Context, key string) (string, bool, error) {
+	held, found := s[key]
+	return held, found, nil
 }
 
 // List records the filter and returns the stored posts without their content.
@@ -93,7 +112,7 @@ func TestReaderMapsPostsForPlugins(t *testing.T) {
 	stored := publishedPost("A Published Post", "<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->")
 	store := &recordingPostStore{posts: []content.Content{stored}}
 
-	got, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), content.TypePost, 20)
+	got, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 20)
 
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
@@ -119,7 +138,7 @@ func TestReaderCarriesFieldValuesForPlugins(t *testing.T) {
 	stored.Fields = content.Values{"venue": "Hall", "seats": float64(40)}
 	store := &recordingPostStore{posts: []content.Content{stored}}
 
-	got, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), content.TypePost, 20)
+	got, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 20)
 
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
@@ -134,7 +153,7 @@ func TestReaderAsksOnlyForPublishedPosts(t *testing.T) {
 
 	store := &recordingPostStore{}
 
-	if _, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), "page", 5); err != nil {
+	if _, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), "page", 5); err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
 	}
 
@@ -151,7 +170,8 @@ func TestReaderAsksForTheNewestFirst(t *testing.T) {
 
 	store := &recordingPostStore{}
 
-	if _, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), content.TypePost, 5); err != nil {
+	_, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 5)
+	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
 	}
 
@@ -166,7 +186,8 @@ func TestReaderCapsWhatItAsksFor(t *testing.T) {
 
 	store := &recordingPostStore{}
 
-	if _, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), content.TypePost, 7); err != nil {
+	_, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 7)
+	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
 	}
 
@@ -180,7 +201,7 @@ func TestReaderReportsAListingItCouldNotRead(t *testing.T) {
 
 	store := &recordingPostStore{listErr: errors.New("database down")}
 
-	_, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), content.TypePost, 5)
+	_, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 5)
 
 	if err == nil {
 		t.Fatal("ListPublished() error = nil, want the listing failure")
@@ -195,7 +216,7 @@ func TestReaderReportsContentItCouldNotRead(t *testing.T) {
 		publishedErr: errors.New("database down"),
 	}
 
-	_, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), content.TypePost, 5)
+	_, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 5)
 
 	if err == nil {
 		t.Fatal("ListPublished() error = nil, want the content failure")
@@ -209,7 +230,7 @@ func TestReaderSanitizesContentBeforeTheSeam(t *testing.T) {
 		`<!-- wp:paragraph --><p onclick="steal()">Body</p><script>alert(1)</script><!-- /wp:paragraph -->`)
 	store := &recordingPostStore{posts: []content.Content{stored}}
 
-	got, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), content.TypePost, 5)
+	got, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 5)
 
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
@@ -229,7 +250,7 @@ func TestReaderSkipsAPostUnpublishedWhileItWasReading(t *testing.T) {
 	leaving := publishedPostAt("Leaving", "<!-- wp:paragraph --><p>Gone</p><!-- /wp:paragraph -->", "leaving")
 	store := &recordingPostStore{posts: []content.Content{staying, leaving}, current: []content.Content{staying}}
 
-	got, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), content.TypePost, 5)
+	got, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 5)
 
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
@@ -249,7 +270,7 @@ func TestReaderSkipsAPostWhoseSlugAnotherPostTook(t *testing.T) {
 	claimed := publishedPostAt("Claimed", "<!-- wp:paragraph --><p>New</p><!-- /wp:paragraph -->", "hello")
 	store := &recordingPostStore{posts: []content.Content{listed}, current: []content.Content{claimed}}
 
-	got, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), content.TypePost, 5)
+	got, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 5)
 
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
@@ -268,7 +289,7 @@ func TestReaderTellsApartTwoItemsSharingASlug(t *testing.T) {
 	beside.Path = "pages/careers/team"
 	store := &recordingPostStore{posts: []content.Content{under, beside}}
 
-	items, err := contentbridge.New(store, typedFields{}, nil).ListPublished(t.Context(), content.TypePost, 10)
+	items, err := contentbridge.New(store, typedFields{}, nil, nil).ListPublished(t.Context(), content.TypePost, 10)
 	if err != nil {
 		t.Fatalf("Published() error = %v, want nil", err)
 	}
@@ -284,6 +305,7 @@ func TestReaderTellsApartTwoItemsSharingASlug(t *testing.T) {
 // typedFields returns a type whose fields are the ones given.
 type typedFields struct {
 	fields []content.Field
+	groups []content.Group
 	err    error
 }
 
@@ -295,8 +317,35 @@ func (s typedFields) ByKey(_ context.Context, key string) (content.Type, error) 
 	return content.Type{Key: key, Fields: s.fields}, nil
 }
 
-// Groups returns no field group, since these fields stand on the type itself.
-func (typedFields) Groups(context.Context) ([]content.Group, error) { return nil, nil }
+// Groups returns the field groups it was built with, none when the fields stand on the type itself.
+func (s typedFields) Groups(context.Context) ([]content.Group, error) { return s.groups, nil }
+
+// readingGroups returns the group holding a relation beside the group on posts reading it backwards.
+func readingGroups() []content.Group {
+	return []content.Group{
+		{
+			ID: 1, Key: "cars", Title: "Cars", Active: true,
+			Location: content.Rules{{{
+				Source: content.ScreenContentType, Operator: content.OperatorIs, Value: "car",
+			}}},
+			Fields: []content.Field{
+				{ID: 7, Key: "maker", Kind: content.FieldKindRelation, RelatesTo: content.TypePost},
+			},
+		},
+		{
+			ID: 2, Key: "makers", Title: "Makers", Active: true,
+			Location: content.Rules{{{
+				Source: content.ScreenContentType, Operator: content.OperatorIs, Value: content.TypePost,
+			}}},
+			Fields: []content.Field{
+				{Key: "linked-from", Kind: content.FieldKindBacklinks, Settings: map[string]any{
+					content.SettingSourceGroup: "cars",
+					content.SettingSourceField: []any{"maker"},
+				}},
+			},
+		},
+	}
+}
 
 // Params returns the registry a location reads its sources through.
 func (typedFields) Params(context.Context) *content.ParamRegistry {
@@ -351,7 +400,7 @@ func TestListPublishedKeepsAHiddenValueFromPlugins(t *testing.T) {
 	held.Fields = content.Values{"on-sale": false, "sale-note": "half price"}
 	store := &recordingPostStore{posts: []content.Content{held}}
 
-	got, err := contentbridge.New(store, typedFields{fields: switchedFields()}, nil).
+	got, err := contentbridge.New(store, typedFields{fields: switchedFields()}, nil, nil).
 		ListPublished(t.Context(), content.TypePost, 5)
 
 	if err != nil {
@@ -376,6 +425,27 @@ func relatedFields() []content.Field {
 	}
 }
 
+func TestReaderListsAsManyPointersAsTheSiteChose(t *testing.T) {
+	t.Parallel()
+
+	stored := publishedPost("A Published Post", "<p>Body</p>")
+	store := &recordingPostStore{posts: []content.Content{stored}}
+	types := typedFields{
+		fields: []content.Field{{Key: "linked-from", Kind: content.FieldKindBacklinks}},
+		groups: readingGroups(),
+	}
+
+	_, err := contentbridge.New(store, types, nil, heldSettings{content.PerPageSettingKey: "3"}).
+		ListPublished(t.Context(), content.TypePost, 20)
+
+	if err != nil {
+		t.Fatalf("ListPublished() error = %v, want nil", err)
+	}
+	if store.perPage != 3 {
+		t.Errorf("the store was asked for %d pointers, want the 3 the site chose", store.perPage)
+	}
+}
+
 func TestReaderNamesTheTargetsARelationPointsAt(t *testing.T) {
 	t.Parallel()
 
@@ -386,7 +456,7 @@ func TestReaderNamesTheTargetsARelationPointsAt(t *testing.T) {
 		targets: content.Targets{"maker": {{ID: target, Title: "News", Path: "categories/news"}}},
 	}
 
-	got, err := contentbridge.New(store, typedFields{fields: relatedFields()}, nil).
+	got, err := contentbridge.New(store, typedFields{fields: relatedFields()}, nil, nil).
 		ListPublished(t.Context(), content.TypePost, 20)
 
 	if err != nil {
@@ -409,7 +479,7 @@ func TestReaderServesTheFileAMediaFieldNames(t *testing.T) {
 	store := &recordingPostStore{posts: []content.Content{stored}}
 	library := storedFiles(media.Media{ID: 12, File: "2026/08/sunrise.jpg", Title: "Sunrise"})
 
-	got, err := contentbridge.New(store, typedFields{fields: relatedFields()}, library).
+	got, err := contentbridge.New(store, typedFields{fields: relatedFields()}, library, nil).
 		ListPublished(t.Context(), content.TypePost, 20)
 
 	if err != nil {
@@ -432,7 +502,7 @@ func TestReaderReportsTheLinksItCannotShape(t *testing.T) {
 		targetsErr: errors.New("the store is down"),
 	}
 
-	_, err := contentbridge.New(store, typedFields{fields: relatedFields()}, nil).
+	_, err := contentbridge.New(store, typedFields{fields: relatedFields()}, nil, nil).
 		ListPublished(t.Context(), content.TypePost, 5)
 
 	if err == nil {
@@ -448,7 +518,7 @@ func TestListPublishedReportsATypeItCannotRead(t *testing.T) {
 
 	store := &recordingPostStore{posts: []content.Content{publishedPost("Hello world", "<p>Hi</p>")}}
 
-	_, err := contentbridge.New(store, typedFields{err: content.ErrTypeNotFound}, nil).
+	_, err := contentbridge.New(store, typedFields{err: content.ErrTypeNotFound}, nil, nil).
 		ListPublished(t.Context(), content.TypePost, 5)
 
 	if !errors.Is(err, content.ErrTypeNotFound) {

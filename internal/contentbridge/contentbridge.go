@@ -25,19 +25,20 @@ type Types interface {
 
 // reader reads published content for plugins through the content store.
 type reader struct {
-	store   content.Store
-	types   Types
-	library served.Library
+	store    content.Store
+	types    Types
+	library  served.Library
+	settings served.Settings
 }
 
-// New returns an [sdk.ContentReader] backed by store, reading its field definitions through types.
-func New(store content.Store, types Types, library served.Library) sdk.ContentReader {
-	return reader{store: store, types: types, library: library}
+// New returns an [sdk.ContentReader] over store, with definitions from types and the site's choices from settings.
+func New(store content.Store, types Types, library served.Library, settings served.Settings) sdk.ContentReader {
+	return reader{store: store, types: types, library: library, settings: settings}
 }
 
 // stores returns the readers a public answer is shaped through.
 func (r reader) stores() served.Stores {
-	return served.Stores{Links: r.store, Groups: r.types, Library: r.library}
+	return served.Stores{Links: r.store, Groups: r.types, Library: r.library, Settings: r.settings}
 }
 
 // ListPublished returns the newest published items of the given type, capped at limit.

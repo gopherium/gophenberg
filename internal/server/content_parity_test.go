@@ -20,7 +20,7 @@ func bridgedFields(
 	t *testing.T, posts content.Store, types content.TypeStore, library media.Store,
 ) map[string]any {
 	t.Helper()
-	reader := contentbridge.New(posts, content.NewRegistry(types), library)
+	reader := contentbridge.New(posts, content.NewRegistry(types), library, nil)
 	held, err := reader.ListPublished(t.Context(), content.TypePost, 10)
 	if err != nil {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
