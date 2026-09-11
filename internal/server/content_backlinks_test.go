@@ -25,12 +25,37 @@ func pointedAtPostWithStores(t *testing.T) (http.Handler, *fakePostStore, *fakeT
 		`{"page_kind":"archive"}`); recorder.Code != http.StatusOK {
 		t.Fatalf("serving term pages: %d: %s", recorder.Code, recorder.Body.String())
 	}
+	readingPicks(t, handler)
+	return handler, posts, types
+}
+
+// readingPicks declares the picks relation on categories and the backlinks on posts reading it.
+func readingPicks(t *testing.T, handler http.Handler) {
+	t.Helper()
 	declaredOnType(t, handler, "category",
 		`{"key":"picks","label":"Picks","kind":"relation","relates_to":"post","many":true}`)
 	declaredOn(t, handler, fmt.Sprintf(
 		`{"key":"linked-from","label":"Linked from","kind":"backlinks","settings":`+
 			`{"source_group":%q,"source_field":["picks"]}}`, groupKeyOver(t, handler)))
-	return handler, posts, types
+}
+
+// pointedAtPostChoosing returns a handler reading pointers at posts on a site choosing the page size.
+func pointedAtPostChoosing(t *testing.T, perPage string) http.Handler {
+	t.Helper()
+	users := newFakeUserStore()
+	addAda(t, users)
+	posts, types := newFakePostStore(), newFakeTypeStore()
+	posts.declared = types
+	handler := authedServerWithStores(t, server.Config{
+		Users: users, Content: posts, Types: types, Settings: settingsChoosing(perPage),
+	})
+	declaredRelation(t, handler)
+	if recorder := doRequest(t, handler, http.MethodPatch, "/api/types/category",
+		`{"page_kind":"archive"}`); recorder.Code != http.StatusOK {
+		t.Fatalf("serving term pages: %d: %s", recorder.Code, recorder.Body.String())
+	}
+	readingPicks(t, handler)
+	return handler
 }
 
 // groupKeyOver returns the key of the group placed on categories, raising one when nothing is placed there.
@@ -56,11 +81,7 @@ func groupKeyOver(t *testing.T, handler http.Handler) string {
 func pointedAtPost(t *testing.T) http.Handler {
 	t.Helper()
 	handler := termTypeServer(t)
-	declaredOnType(t, handler, "category",
-		`{"key":"picks","label":"Picks","kind":"relation","relates_to":"post","many":true}`)
-	declaredOn(t, handler, fmt.Sprintf(
-		`{"key":"linked-from","label":"Linked from","kind":"backlinks","settings":`+
-			`{"source_group":%q,"source_field":["picks"]}}`, groupKeyOver(t, handler)))
+	readingPicks(t, handler)
 	return handler
 }
 
@@ -331,6 +352,37 @@ func TestContentAnswersOnePageOfPointersAndCountsThemAll(t *testing.T) {
 	}
 	if answer.FieldTotals["linked-from"] != 22 {
 		t.Errorf("field_totals = %v, want every pointer counted behind the page", answer.FieldTotals)
+	}
+}
+
+func TestContentAnswersAsManyPointersAsTheSiteChose(t *testing.T) {
+	t.Parallel()
+
+	handler := pointedAtPostChoosing(t, "2")
+	post := publishItemAt(t, handler, draftedPost(t, handler))
+	for i := range 3 {
+		namedCategory(t, handler, fmt.Sprintf("Filed under %d", i), post.ID)
+	}
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/"+post.ID, "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	answer := decodeBody[struct {
+		Fields      map[string][]struct{} `json:"fields"`
+		FieldTotals map[string]int        `json:"field_totals"`
+	}](t, recorder)
+	if len(answer.Fields["linked-from"]) != 2 || answer.FieldTotals["linked-from"] != 3 {
+		t.Errorf("the editor lists %d of %d, want the 2 the site chose out of 3",
+			len(answer.Fields["linked-from"]), answer.FieldTotals["linked-from"])
+	}
+	var served []struct{}
+	if err := json.Unmarshal(resolvedFields(t, handler, "hello-world")["linked-from"], &served); err != nil {
+		t.Fatalf("reading the served pointers: %v", err)
+	}
+	if len(served) != 2 {
+		t.Errorf("the public answer lists %d, want the 2 the site chose", len(served))
 	}
 }
 

@@ -36,6 +36,9 @@ msgstr ""
 msgid "%(field)s goes no lower than %(limit)s. Raise the value and save again."
 msgstr ""
 
+msgid "%(field)s holds no value of its own, so it cannot be required. Make it optional."
+msgstr ""
+
 msgid "%(field)s is optional again."
 msgstr ""
 

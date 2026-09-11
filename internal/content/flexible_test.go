@@ -67,6 +67,18 @@ func TestNewFieldRefusesALayoutStandingAlone(t *testing.T) {
 	}
 }
 
+func TestARequiredLayoutIsRefused(t *testing.T) {
+	t.Parallel()
+
+	_, err := content.NewSubField(content.Field{
+		Key: "hero", Label: "Hero", Kind: content.FieldKindLayout, Required: true,
+	}, content.FieldKindFlexible)
+
+	if !errors.Is(err, content.ErrFieldShape) || codeOf(err) != "field_never_required" {
+		t.Errorf("NewSubField(required layout) error = %v, want field_never_required", err)
+	}
+}
+
 func TestNewSubFieldTakesALayoutUnderAFlexible(t *testing.T) {
 	t.Parallel()
 

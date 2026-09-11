@@ -24,10 +24,11 @@ type listedField struct {
 
 // fieldedContent is one content item with its field values as the admin API reports it.
 type fieldedContent struct {
-	ID        string                     `json:"id"`
-	Title     string                     `json:"title"`
-	UpdatedAt string                     `json:"updated_at"`
-	Fields    map[string]json.RawMessage `json:"fields"`
+	ID          string                     `json:"id"`
+	Title       string                     `json:"title"`
+	UpdatedAt   string                     `json:"updated_at"`
+	Fields      map[string]json.RawMessage `json:"fields"`
+	FieldTotals map[string]int             `json:"field_totals"`
 }
 
 // groupOverType returns the group a type's fields are declared into, raising it once.

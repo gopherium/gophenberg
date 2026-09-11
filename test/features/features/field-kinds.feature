@@ -113,6 +113,15 @@ Feature: Field kinds
     When the administrator saves the object {"url": "javascript:alert(1)", "title": "A page", "new_tab": false} into "source" of "Hello world"
     Then the request is refused
 
+  Scenario: A link on a path that leaves the site is refused on save
+    Given the "link" field "source" in "Extras" with settings:
+      """
+      {}
+      """
+    And the post "Hello world"
+    When the administrator saves the object {"url": "//example.com/a", "title": "A page", "new_tab": false} into "source" of "Hello world"
+    Then the request is refused
+
   Scenario: A color is stored
     Given the "text" field "shade" in "Extras" with settings:
       """

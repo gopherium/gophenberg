@@ -34,6 +34,16 @@ Feature: The settings the site chose for itself
     When a visitor lists the published content
     Then the listing offers pages of 20
 
+  Scenario: A Linked from field lists the number of items the site chose
+    Given the type "category" labeled "Category" and "Categories" under "categories"
+    And the "relation" field "categories" on "post" targeting "category" holding many
+    And the "backlinks" field "linked-from" on "category" reading "categories" on "post"
+    And the published category "News"
+    And the published post "First" filed under "News"
+    And the published post "Second" filed under "News"
+    When the administrator sets the page size to 1
+    Then the category "News" is pointed at by 1 of 2
+
   Scenario Outline: A page size the site cannot use is refused
     When the administrator sets the page size to <size>
     Then the request is refused with the code "per_page_invalid"

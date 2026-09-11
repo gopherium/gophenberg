@@ -128,6 +128,9 @@ func (f Field) Validate() error {
 	if !validFieldKind(f.Kind) {
 		return ErrInvalidFieldKind
 	}
+	if err := f.validateRequired(); err != nil {
+		return err
+	}
 	if err := ValidateSettings(f.Kind, f.Settings); err != nil {
 		return err
 	}
@@ -135,6 +138,21 @@ func (f Field) Validate() error {
 		return err
 	}
 	return f.validateRelation()
+}
+
+// validateRequired reports whether the required flag stands on a kind holding a value of its own.
+func (f Field) validateRequired() error {
+	if !f.Required || f.Kind.filled() {
+		return nil
+	}
+	return Refuse(ErrFieldShape, "field_never_required",
+		fmt.Sprintf("%s: a %s holds no value to require", ErrFieldShape, f.Kind),
+		Details{"field": f.Key, "kind": string(f.Kind)})
+}
+
+// filled reports whether the kind holds a value of its own that a person fills in.
+func (k FieldKind) filled() bool {
+	return k != FieldKindBacklinks && k != FieldKindLayout
 }
 
 // validateCounts reports whether the field counts items it can hold more than one of.

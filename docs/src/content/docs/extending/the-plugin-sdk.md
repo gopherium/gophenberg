@@ -39,9 +39,12 @@ HTML filter applied that the public API uses, block markers intact.
 `Title` and `Excerpt` arrive as stored, so if your plugin serves
 HTML, escaping everything but `Content` is your job.
 
-`Fields` holds the item's field values keyed by field key, exactly
-as stored. They are data, not markup, so escape them too before
-serving them as HTML. A relation field is not among them.
+`Fields` holds the item's field values keyed by field key, shaped
+the way the [content API](/reference/content-api/) serves them and
+decoded the way `encoding/json` decodes them. A media value is an
+object naming the file, a relation lists the items it points at,
+and a Linked from field lists the items pointing this way. They are
+data, not markup, so escape them too before serving them as HTML.
 
 ## Declaring content
 

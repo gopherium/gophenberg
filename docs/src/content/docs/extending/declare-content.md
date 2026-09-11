@@ -103,7 +103,8 @@ items, err := deps.Content.ListPublished(ctx, "event", 10)
 venue := items[0].Fields["venue"]
 ```
 
-`Fields` holds the values keyed by field key, exactly as stored.
-They are data, not markup, so escape them before serving them as
-HTML. The [plugin SDK](/extending/the-plugin-sdk/) page covers the
-rest of what `Deps` gives you.
+`Fields` holds the values keyed by field key, shaped the way the
+content API serves them. They are data, not markup, so escape them
+before serving them as HTML. The
+[plugin SDK](/extending/the-plugin-sdk/) page covers the rest of
+what `Deps` gives you.

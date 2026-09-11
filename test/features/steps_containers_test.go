@@ -15,16 +15,37 @@ import (
 
 // containerPath returns the group and the dotted path addressing the field the key names.
 func containerPath(w *world, key string) (int, string, error) {
+	groupID, path, _, err := declaredField(w, key)
+	return groupID, path, err
+}
+
+// declaredField returns the group, the dotted path and the listing entry of the field the key names.
+func declaredField(w *world, key string) (int, string, fieldHeld, error) {
 	listed, err := listGroups(w)
 	if err != nil {
-		return 0, "", err
+		return 0, "", fieldHeld{}, err
 	}
 	for _, group := range listed.Items {
 		if path, found := pathAmong(group.Fields, key); found {
-			return group.ID, path, nil
+			held, _ := fieldAmong(group.Fields, key)
+			return group.ID, path, held, nil
 		}
 	}
-	return 0, "", fmt.Errorf("no declared field is keyed %q", key)
+	return 0, "", fieldHeld{}, fmt.Errorf("no declared field is keyed %q", key)
+}
+
+// theAdministratorRequires asks the registry to make the field gate publishing, wherever it stands.
+func theAdministratorRequires(ctx context.Context, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	groupID, path, held, err := declaredField(w, key)
+	if err != nil {
+		return err
+	}
+	body := fmt.Sprintf(`{"required":true,"updated_at":%q}`, held.UpdatedAt)
+	return w.patchJSON(groupsPath+"/"+strconv.Itoa(groupID)+"/fields/"+path, body)
 }
 
 // pathAmong returns the dotted path addressing the field the key names, however deep it stands.

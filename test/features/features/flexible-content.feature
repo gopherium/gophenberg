@@ -37,6 +37,11 @@ Feature: Flexible content
     When the administrator declares the "text" field "title" inside "features"
     Then the request is refused
 
+  Scenario: A layout is never required
+    Given the "layout" field "hero" inside "features"
+    When the administrator requires "hero"
+    Then the request is refused with the code "field_never_required"
+
   Scenario: Rows of different layouts are stored together
     Given the "layout" field "hero" inside "features"
     And the "layout" field "quote" inside "features"

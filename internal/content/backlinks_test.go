@@ -52,6 +52,19 @@ func TestBacklinksInsideAContainerIsRefused(t *testing.T) {
 	}
 }
 
+func TestARequiredBacklinksIsRefused(t *testing.T) {
+	t.Parallel()
+
+	held := backlinksField(namingSource())
+	held.Required = true
+
+	_, err := content.NewField(held)
+
+	if !errors.Is(err, content.ErrFieldShape) || codeOf(err) != "field_never_required" {
+		t.Errorf("NewField(required backlinks) error = %v, want field_never_required", err)
+	}
+}
+
 func TestBacklinksTakesOnlyItsSourceSettings(t *testing.T) {
 	t.Parallel()
 

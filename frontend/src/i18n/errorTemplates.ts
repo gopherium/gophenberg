@@ -203,6 +203,10 @@ export function errorTemplates(): Record<string, string> {
 			'A Linked from field stands on its own, not inside a section or a repeater. Declare %(field)s beside the container.',
 			DOMAIN,
 		),
+		field_never_required: __(
+			'%(field)s holds no value of its own, so it cannot be required. Make it optional.',
+			DOMAIN,
+		),
 		backlinks_source_unknown: __(
 			'%(field)s reads a relation field that is not there. Pick a group and a relation field it holds.',
 			DOMAIN,

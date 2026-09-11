@@ -5,6 +5,7 @@ package contentbridge
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -25,19 +26,20 @@ type Types interface {
 
 // reader reads published content for plugins through the content store.
 type reader struct {
-	store   content.Store
-	types   Types
-	library served.Library
+	store    content.Store
+	types    Types
+	library  served.Library
+	settings served.Settings
 }
 
-// New returns an [sdk.ContentReader] backed by store, reading its field definitions through types.
-func New(store content.Store, types Types, library served.Library) sdk.ContentReader {
-	return reader{store: store, types: types, library: library}
+// New returns an [sdk.ContentReader] over store, with definitions from types and the site's choices from settings.
+func New(store content.Store, types Types, library served.Library, settings served.Settings) sdk.ContentReader {
+	return reader{store: store, types: types, library: library, settings: settings}
 }
 
 // stores returns the readers a public answer is shaped through.
 func (r reader) stores() served.Stores {
-	return served.Stores{Links: r.store, Groups: r.types, Library: r.library}
+	return served.Stores{Links: r.store, Groups: r.types, Library: r.library, Settings: r.settings}
 }
 
 // ListPublished returns the newest published items of the given type, capped at limit.
@@ -93,6 +95,10 @@ func (r reader) toSDKItem(ctx context.Context, t content.Type, c content.Content
 	if err != nil {
 		return sdk.Item{}, err
 	}
+	plain, err := plainValues(values)
+	if err != nil {
+		return sdk.Item{}, err
+	}
 	published := c.UpdatedAt
 	if c.PublishedAt != nil {
 		published = *c.PublishedAt
@@ -105,8 +111,19 @@ func (r reader) toSDKItem(ctx context.Context, t content.Type, c content.Content
 		Title:       c.Title,
 		Excerpt:     c.Excerpt,
 		Content:     publichtml.Sanitize(c.Content),
-		Fields:      map[string]any(values),
+		Fields:      plain,
 		PublishedAt: published,
 		UpdatedAt:   c.UpdatedAt,
 	}, nil
+}
+
+// plainValues returns the values as encoding/json decodes them, the shape the content API serves.
+func plainValues(values content.Values) (map[string]any, error) {
+	encoded, err := json.Marshal(values)
+	if err != nil {
+		return nil, fmt.Errorf("contentbridge: encode field values: %w", err)
+	}
+	var plain map[string]any
+	err = json.Unmarshal(encoded, &plain)
+	return plain, err
 }

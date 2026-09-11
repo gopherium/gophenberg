@@ -10,20 +10,35 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// BacklinksPage is how many pointing items one public answer carries under a backlinks field.
-const BacklinksPage = 20
-
 // Reader reads the stored links a public answer carries beside the item's own values.
 type Reader interface {
 	TargetsOf(ctx context.Context, from uuid.UUID) (content.Targets, error)
 	PointingAt(ctx context.Context, target uuid.UUID, field, page, perPage int) ([]content.Pointer, int, error)
 }
 
+// Settings reads the values the site chose for itself.
+type Settings interface {
+	Lookup(ctx context.Context, key string) (string, bool, error)
+}
+
 // Stores are the readers a public answer is shaped through.
 type Stores struct {
-	Links   Reader
-	Groups  Groups
-	Library Library
+	Links    Reader
+	Groups   Groups
+	Library  Library
+	Settings Settings
+}
+
+// PerPage returns how many items a public answer lists at once, as the site chose or by default.
+func PerPage(ctx context.Context, settings Settings) int {
+	if settings == nil {
+		return content.DefaultPerPage
+	}
+	held, found, err := settings.Lookup(ctx, content.PerPageSettingKey)
+	if err != nil {
+		return content.DefaultPerPage
+	}
+	return content.ResolvePerPage(held, found)
 }
 
 // Values returns the item's values as every public seam serves them, beside the pointer counts.
@@ -72,11 +87,12 @@ func Pointing(
 	}
 	totals := make(map[string]int, len(reading))
 	held := make(content.Values, len(reading))
+	perPage := PerPage(ctx, stores.Settings)
 	for key, source := range reading {
 		if hidden[key] {
 			continue
 		}
-		found, total, err := stores.Links.PointingAt(ctx, c.ID, source, 1, BacklinksPage)
+		found, total, err := stores.Links.PointingAt(ctx, c.ID, source, 1, perPage)
 		if err != nil {
 			return nil, err
 		}

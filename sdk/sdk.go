@@ -34,8 +34,8 @@ type Deps struct {
 	Getenv      func(string) string
 }
 
-// Item is a published content item as plugins see it: the Content
-// field holds Gutenberg-serialized block HTML, sanitized for public delivery.
+// Item is a published content item as plugins see it: the Content field holds sanitized block HTML, and
+// Fields holds the values the content API serves, decoded the way encoding/json decodes them.
 type Item struct {
 	ID          uuid.UUID
 	Type        string

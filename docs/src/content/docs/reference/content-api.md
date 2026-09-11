@@ -280,9 +280,10 @@ may point through one relation:
 
 Only published items of active types are listed, so a draft
 pointing this way is held back, and a field nothing points at comes
-back as an empty list rather than being absent. At most twenty
-entries travel under one such field, and no query asks for the ones
-behind them. A `field_totals` object beside `fields` says how many
+back as an empty list rather than being absent. As many entries
+travel under one such field as the site's page size allows, and no
+query asks for the ones behind them. A `field_totals` object beside
+`fields` says how many
 point in all, keyed by the same field key, so a theme can say what
 it is not showing:
 
@@ -302,9 +303,9 @@ from the page:
 ```
 
 The address is a web address, an email one beginning `mailto:`, or a
-path on the site beginning with a slash. The title may be empty, so
-fall back to the address when you draw the words. A Link nobody
-filled in is absent like any other empty field.
+path on the site beginning with one slash, never two. The title may
+be empty, so fall back to the address when you draw the words. A
+Link nobody filled in is absent like any other empty field.
 
 A Color field is a text field, so it holds its value as a string of
 a hash and six hexadecimal digits, or eight when the last two carry
@@ -364,25 +365,6 @@ field whose only file is gone is absent, so a theme checks presence
 rather than trusting the editor. The library's description stays
 private.
 
-## Who escapes a value
-
-Every value in `fields` is data, and whoever renders it escapes it.
-Nothing in `fields` is escaped on the way out, because escaping it
-here would escape it twice in a template that already does the work,
-and an ampersand in a product name would reach the reader as an
-escape code rather than a character. Astro escapes what you place
-inside braces, and Go's `html/template` escapes what you pass it, so
-the ordinary way of writing a template is already the safe one.
-
-One member is the exception. An item's `content` is HTML, and the
-server sanitizes it before serving it, which is why a theme places
-it with `set:html` in Astro or the equivalent in another renderer.
-Never reach for that on anything else.
-
-The values a plugin reads through the SDK are the same values, shaped
-the same way and escaped by the same rule, so a plugin and a theme
-that read one item see one thing.
-
 Archive addresses answer with a page instead. The root of a type is
 its `route_word`, the front page is the default type, and both
 paginate behind `/page/{n}`.
@@ -404,6 +386,25 @@ genuinely filed at `pages/page/2` is served instead of the second
 archive page. Nothing published at an address answers
 `404 {"error":"content: not found"}`, and so does a page number below
 one.
+
+## Who escapes a value
+
+Every value in `fields` is data, and whoever renders it escapes it.
+Nothing in `fields` is escaped on the way out, because escaping it
+here would escape it twice in a template that already does the work,
+and an ampersand in a product name would reach the reader as an
+escape code rather than a character. Astro escapes what you place
+inside braces, and Go's `html/template` escapes what you pass it, so
+the ordinary way of writing a template is already the safe one.
+
+One member is the exception. An item's `content` is HTML, and the
+server sanitizes it before serving it, which is why a theme places
+it with `set:html` in Astro or the equivalent in another renderer.
+Never reach for that on anything else.
+
+The values a plugin reads through the SDK are the same values, shaped
+the same way and escaped by the same rule, so a plugin and a theme
+that read one item see one thing.
 
 ## Term pages
 
