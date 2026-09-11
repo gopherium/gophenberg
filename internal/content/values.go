@@ -427,17 +427,22 @@ func linkAddress(held string) bool {
 	if held == "" {
 		return true
 	}
-	if strings.HasPrefix(held, "/") {
-		return true
-	}
 	parsed, err := url.Parse(held)
 	if err != nil {
 		return false
+	}
+	if strings.HasPrefix(held, "/") {
+		return onSite(held)
 	}
 	if parsed.Scheme == "mailto" {
 		return parsed.Opaque != ""
 	}
 	return webAddress(held)
+}
+
+// onSite reports whether the path stays on this site rather than leaving through a second slash.
+func onSite(held string) bool {
+	return !strings.HasPrefix(held, "//") && !strings.HasPrefix(held, `/\`)
 }
 
 // isNumber reports whether the value is a number, however it was decoded.
