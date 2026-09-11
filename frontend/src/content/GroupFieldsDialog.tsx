@@ -43,6 +43,7 @@ import {
 	kindsInside,
 	pairsOf,
 	pickedKind,
+	requirable,
 	slugifyKey,
 } from './types'
 import type { ChoicePair } from './types'
@@ -370,7 +371,7 @@ function AddField(
 				kind: picked.kind,
 				relatesTo: relating ? target?.value : undefined,
 				many: relating ? holding.value === 'many' : picked.many,
-				required: presence.value === 'required',
+				required: requirable(picked.kind) && presence.value === 'required',
 				settings: reading ? backlinkSettings(sources) : picked.settings,
 			}
 			return props.path === undefined
@@ -416,12 +417,14 @@ function AddField(
 			{reading && (
 				<SourceOfLinks sources={sources} onGroup={setSourceKey} onField={setThroughKey} />
 			)}
-			<SelectControl
-				label={__('Required', 'gophenberg')}
-				items={presences}
-				value={presence}
-				onValueChange={(item) => setPresence(chosenOf(item, presences, presence))}
-			/>
+			{requirable(picked.kind) && (
+				<SelectControl
+					label={__('Required', 'gophenberg')}
+					items={presences}
+					value={presence}
+					onValueChange={(item) => setPresence(chosenOf(item, presences, presence))}
+				/>
+			)}
 			<Button loading={add.isPending} disabled={blocked} onClick={() => add.mutate()}>
 				{__('Add field', 'gophenberg')}
 			</Button>
@@ -746,6 +749,9 @@ function RequireField(props: Inside) {
 	const asking = props.field.required
 		? sprintf(__('Make %(field)s optional', 'gophenberg'), { field: props.field.label })
 		: sprintf(__('Require %(field)s', 'gophenberg'), { field: props.field.label })
+	if (!requirable(props.field.kind)) {
+		return null
+	}
 	return (
 		<Button
 			variant="outline"

@@ -267,6 +267,15 @@ function fieldKinds(): Choice[] {
 }
 
 /**
+ * Reports whether a field of this kind holds a value of its own that publishing can wait for.
+ * @param kind - The kind the field holds.
+ * @returns Whether the field can be required.
+ */
+export function requirable(kind: string): boolean {
+	return kind !== 'backlinks' && kind !== 'layout'
+}
+
+/**
  * Returns the kinds a field may take inside the container it is declared under.
  * @param parent - The kind the container holds, absent at the top of a group.
  * @returns The kinds to offer.
