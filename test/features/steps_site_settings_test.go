@@ -4,6 +4,7 @@ package features_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -163,6 +164,27 @@ func twoStoredPictures(ctx context.Context) (media.Media, media.Media, error) {
 	return items[1], items[0], nil
 }
 
+// theItemIsPointedAtByOf asserts the item lists a page of the items pointing at it and counts them all.
+func theItemIsPointedAtByOf(ctx context.Context, title string, shown, total int) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	stored, err := freshPost(w, title)
+	if err != nil {
+		return err
+	}
+	var held []pointerHeld
+	if err := json.Unmarshal(stored.Fields["linked-from"], &held); err != nil {
+		return fmt.Errorf("%q holds %s in linked-from, want a list of pointers", title, stored.Fields["linked-from"])
+	}
+	counted := stored.FieldTotals["linked-from"]
+	if len(held) != shown || counted != total {
+		return fmt.Errorf("%q is pointed at by %d of %d, want %d of %d", title, len(held), counted, shown, total)
+	}
+	return nil
+}
+
 // initializeSiteSettings registers the steps of the site settings feature.
 func initializeSiteSettings(sc *godog.ScenarioContext) {
 	sc.Before(provisionWorld)
@@ -170,6 +192,17 @@ func initializeSiteSettings(sc *godog.ScenarioContext) {
 	sc.Given(`^a running Gophenberg with the default content types$`, aRunningGophenbergWithTheDefaultContentTypes)
 	sc.Given(`^a signed in administrator$`, aSignedInAdministrator)
 	sc.Given(`^the published post "([^"]*)"$`, thePublishedPost)
+	sc.Given(`^the type "([^"]*)" labeled "([^"]*)" and "([^"]*)" under "([^"]*)"$`, theTypeExists)
+	sc.Given(
+		`^the "relation" field "([^"]*)" on "([^"]*)" targeting "([^"]*)" holding "?([a-z]+)"?$`,
+		theRelationFieldHolding,
+	)
+	sc.Given(
+		`^the "backlinks" field "([^"]*)" on "([^"]*)" reading "([^"]*)" on "([^"]*)"$`,
+		theBacklinksFieldReading,
+	)
+	sc.Given(`^the published category "([^"]*)"$`, thePublishedCategory)
+	sc.Given(`^the published post "([^"]*)" filed under "([^"]*)"$`, thePublishedPostFiledUnder)
 	sc.When(`^the administrator sets the page size to (\d+)$`, theAdministratorSetsThePageSizeTo)
 	sc.When(`^the administrator sets the picture quality to (\d+)$`, theAdministratorSetsThePictureQualityTo)
 	sc.When(`^a visitor lists the published content$`, aVisitorListsThePublishedContent)
@@ -182,4 +215,5 @@ func initializeSiteSettings(sc *godog.ScenarioContext) {
 	sc.Then(`^the copies of the second picture weigh less$`, theCopiesOfTheSecondPictureWeighLess)
 	sc.Then(`^both pictures keep the same original$`, bothPicturesKeepTheSameOriginal)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
+	sc.Then(`^the category "([^"]*)" is pointed at by (\d+) of (\d+)$`, theItemIsPointedAtByOf)
 }
