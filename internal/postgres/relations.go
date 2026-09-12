@@ -30,7 +30,7 @@ func resolveTargets(
 	kept := content.HeldIdentities(declared, before)
 	resolved := make([]content.FieldTargets, 0, len(held))
 	for _, ft := range held {
-		targets, err := targetsAllowed(ctx, queries, ft, kept)
+		targets, err := targetsAllowed(ctx, queries, ft, kept[ft.Field.ID])
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +88,7 @@ func carryTargets(
 	return nil
 }
 
-// targetsAllowed returns the targets the index may hold, refusing one the item never held that nothing stores.
+// targetsAllowed returns the targets the index may hold, refusing one the field never held that nothing stores.
 func targetsAllowed(
 	ctx context.Context, queries *db.Queries, ft content.FieldTargets, kept map[uuid.UUID]bool,
 ) ([]uuid.UUID, error) {

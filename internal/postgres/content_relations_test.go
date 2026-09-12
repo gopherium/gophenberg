@@ -221,6 +221,41 @@ func TestContentStoreRefusesAFreshItemTargetingNothing(t *testing.T) {
 	}
 }
 
+func TestContentStoreRefusesAGoneTargetMovedToAnotherRelation(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := relatingStore(t)
+	types := postgres.NewTypeStore(pool)
+	built, err := content.NewField(content.Field{
+		TypeKey: "post", Key: "related", Label: "Related",
+		Kind: content.FieldKindRelation, RelatesTo: content.TypePost, Many: true,
+	})
+	if err != nil {
+		t.Fatalf("NewField(related) error = %v, want nil", err)
+	}
+	if _, err := types.CreateField(t.Context(), built); err != nil {
+		t.Fatalf("declaring the second relation: %v, want nil", err)
+	}
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	filed := fileUnder(t, store, mustCreate(t, store, "Filed", author), news.ID)
+	if err := store.Delete(t.Context(), news.ID); err != nil {
+		t.Fatalf("Delete() error = %v, want nil", err)
+	}
+	moved, err := store.ByID(t.Context(), filed.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	version := moved.UpdatedAt
+	moved.Fields = content.Values{"related": namedTargets([]uuid.UUID{news.ID})}
+	moved.UpdatedAt = time.Now().UTC()
+
+	_, err = store.Update(t.Context(), moved, version, nil, 0)
+
+	if !errors.Is(err, content.ErrTargetNotFound) {
+		t.Fatalf("Update() error = %v, want %v, since this field never held it", err, content.ErrTargetNotFound)
+	}
+}
+
 func TestContentStoreHidesTheRelationsOfADraft(t *testing.T) {
 	t.Parallel()
 
