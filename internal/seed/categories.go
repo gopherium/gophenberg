@@ -164,7 +164,7 @@ func fileUnderCategory(ctx context.Context, store content.Store, postID, categor
 		return fmt.Errorf("seed filed post lookup: %w", err)
 	}
 	version := held.UpdatedAt
-	held.Relations = held.Relations.Merge(content.Relations{CategoriesFieldKey: {categoryID}})
+	held.Fields = held.Fields.Merge(content.Values{CategoriesFieldKey: []any{categoryID.String()}})
 	held.UpdatedAt = time.Now().UTC()
 	if _, err := store.Update(ctx, held, version, nil, 0); err != nil {
 		return fmt.Errorf("seed filed post: %w", err)

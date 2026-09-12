@@ -270,9 +270,9 @@ func TestCategoriesFilesTheSeededPostUnderTheCategory(t *testing.T) {
 	if len(store.filed) != 1 {
 		t.Fatalf("filed %d posts, want the one the demo files", len(store.filed))
 	}
-	held := store.filed[0].Relations[CategoriesFieldKey]
-	if len(held) != 1 || held[0] != uuid.MustParse(demoCategories()[0].id) {
-		t.Errorf("the post points at %v, want the seeded category", held)
+	held, named := store.filed[0].Fields[CategoriesFieldKey].([]any)
+	if !named || len(held) != 1 || held[0] != demoCategories()[0].id {
+		t.Errorf("the post points at %v, want the seeded category", store.filed[0].Fields[CategoriesFieldKey])
 	}
 }
 
