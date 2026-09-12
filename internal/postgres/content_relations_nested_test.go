@@ -3,6 +3,7 @@
 package postgres_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -202,7 +203,7 @@ func TestContentStoreRefusesATargetOfTheWrongTypeInsideARow(t *testing.T) {
 
 	_, err := store.Update(t.Context(), post, version, nil, 0)
 
-	if err == nil {
-		t.Fatal("Update() error = nil, want a target of the wrong type refused inside a row")
+	if !errors.Is(err, content.ErrTargetType) {
+		t.Fatalf("Update() error = %v, want %v", err, content.ErrTargetType)
 	}
 }
