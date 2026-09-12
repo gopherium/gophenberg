@@ -473,26 +473,19 @@ func identitiesHeld(value any) []uuid.UUID {
 	return held
 }
 
-// TargetsOf returns the published targets the item points at, keyed by field key.
-func (r *fakeReader) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
-	targets := make(content.Targets)
-	for _, held := range r.posts {
-		if held.ID != from {
-			continue
-		}
-		for key, value := range held.Fields {
-			for _, id := range identitiesHeld(value) {
-				for _, pointed := range r.posts {
-					if pointed.ID == id && pointed.Status == content.StatusPublished {
-						targets[key] = append(targets[key], content.Target{
-							ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
-						})
-					}
-				}
+// TargetsByIDs returns the published items the identities name.
+func (r *fakeReader) TargetsByIDs(_ context.Context, ids []uuid.UUID) ([]content.Target, error) {
+	held := make([]content.Target, 0, len(ids))
+	for _, id := range ids {
+		for _, pointed := range r.posts {
+			if pointed.ID == id && pointed.Status == content.StatusPublished {
+				held = append(held, content.Target{
+					ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
+				})
 			}
 		}
 	}
-	return targets, nil
+	return held, nil
 }
 
 // fakeLocale answers the language the site chose, with scripted failure and absence.
