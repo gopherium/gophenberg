@@ -222,8 +222,10 @@ library shows by its number so you can still remove it.
 
 Autosave keeps what an item points at, the same as every other
 value it holds. An item that was deleted stays in the picker of
-whatever pointed at it, so you can take it out, and a reader of the
-site is never shown it.
+whatever pointed at it, shown by its number so you can take it out,
+and a reader of the site is never shown it. It stays until you take
+it out yourself, the same as a file taken out of the library, and
+saving the item again in the meantime is never blocked by it.
 
 A field can be marked **required**, as you declare it or with
 **Require** afterwards. It never blocks a draft save, only
