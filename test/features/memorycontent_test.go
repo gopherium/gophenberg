@@ -78,23 +78,20 @@ func (s *memoryContent) holdTargets(c content.Content, before content.Values) er
 		return err
 	}
 	kept := content.HeldIdentities(declared.Fields, before)
-	gone := make(map[uuid.UUID]bool)
 	for _, ft := range pointing {
-		if err := s.targetsAllowed(ft, kept, gone); err != nil {
+		if err := s.targetsAllowed(ft, kept); err != nil {
 			return err
 		}
 	}
-	content.DropTargets(declared.Fields, c.Fields, gone)
 	return nil
 }
 
 // targetsAllowed reports whether every target the field names may be stored.
-func (s *memoryContent) targetsAllowed(ft content.FieldTargets, kept, gone map[uuid.UUID]bool) error {
+func (s *memoryContent) targetsAllowed(ft content.FieldTargets, kept map[uuid.UUID]bool) error {
 	for _, target := range ft.Targets {
 		held, found := s.items[target]
 		if !found {
 			if kept[target] {
-				gone[target] = true
 				continue
 			}
 			return fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)

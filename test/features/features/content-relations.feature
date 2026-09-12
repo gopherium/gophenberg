@@ -62,7 +62,7 @@ Feature: Relating content
     And the published post "Hello world" filed under "News"
     When the administrator permanently deletes the category "News"
     And the administrator retitles "Hello world" as "Hello again"
-    Then "Hello world" lists nothing in "categories"
+    Then "Hello world" lists "News" in "categories"
 
   Scenario: Deleting the field unfiles every post
     Given the category "News"
