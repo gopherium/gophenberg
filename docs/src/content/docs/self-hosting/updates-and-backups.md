@@ -21,25 +21,40 @@ Migrations run automatically when the new version starts. While
 Gophenberg is below 1.0, read the release notes first, since a
 release can change behavior.
 
-Updating to %VERSION% runs eight migrations on start. Fields gain a
-settings column, field kinds open up beyond the built-in list, a
-field can stand inside another field, each field records how deep it
-stands, the database learns to strip a deleted field's values in one
-pass, types and groups and fields record where they came from, the
-values items hold gain an index so a listing can be narrowed by them,
-and the database learns to take away the rows of a deleted layout.
-Back up the database before the first start on this release, as
-before any update. Public addresses do not change shape.
+Updating to %VERSION% from the release before it runs two migrations
+on start. The database learns to take away the rows of a deleted
+layout in one pass, and the index that finds the items pointing at
+one is rebuilt to carry the field each points through, so a Linked
+from list is found without reading the relation rows. Updating from
+further back also runs the migrations of every release you skip, so
+read each of their notes. Back up the database before the first
+start on this release, as before any update. Public addresses do
+not change shape.
 
-Rolling this release back is not free. The rollback deletes every
-field whose kind is not one of the six the older release knew, so a
-Choice, a Section, a Repeater, a Flexible content field and a Layout
-all go, and it deletes every field standing inside another field.
-Every field's settings go with them, and so does the record of which
-plugin declared what. The values
-those fields held stay in the database, but the definitions do not
-come back if you migrate forward again. Take a backup before rolling
-back past this release.
+Rolling back to the release before this one deletes nothing.
+Gophenberg only ever migrates forward, so put the older image tag
+back and start it. It runs on this release's database as it stands.
+What you built here stays stored, but that release does not know a
+Flexible content field, a Layout, a Linked from field or a Link
+field. It hides them in the editor, refuses to save a change to
+them, stops keeping drafts of an item that holds one, and serves
+their values as stored or not at all. It reads a Color as plain text
+and ignores the file counts on a Gallery. It also refuses a theme
+built on a kit it does not serve, so rebuild the theme on an older
+kit first. Updating again brings everything back.
+
+Going back further is not something Gophenberg does for you. An
+older image still starts on this database and deletes nothing, but
+it knows only the six original kinds, and an image two releases
+back can no longer create a field group. Restore the backup you
+took before updating instead. Only running the migrations backwards
+by hand deletes fields, and that is a one way trip. It deletes every
+field whose kind is not one of the six, every field standing inside
+another field, every field's settings, and the record of which
+plugin declared what, and it leaves every Gallery as a single Media
+field holding a list of files it cannot read. The values those
+fields held stay in the database, but the definitions do not come
+back if you migrate forward again.
 
 This release serves themes built on `@gophenberg/astro`
 %KIT_VERSION%, and the older kits it still answers. Ask a site which
