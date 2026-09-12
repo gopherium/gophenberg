@@ -565,6 +565,9 @@ SET fields = r.fields - @key::text
 FROM core.content c
 WHERE r.content_id = c.id AND c.type = ANY(@types::text []) AND r.fields ? @key::text;
 
+-- name: ValuesOfContent :one
+SELECT fields FROM core.content WHERE id = @id;
+
 -- name: TypesOfContent :many
 SELECT id, type FROM core.content WHERE id = ANY(@ids::uuid[]);
 

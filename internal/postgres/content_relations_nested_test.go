@@ -14,8 +14,8 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
-// rowsPointing declares a repeater on posts holding a relation that points at categories.
-func rowsPointing(t *testing.T, pool *pgxpool.Pool) {
+// rowsPointing declares a repeater on posts holding a relation that points at categories, and returns it.
+func rowsPointing(t *testing.T, pool *pgxpool.Pool) content.Field {
 	t.Helper()
 	types := postgres.NewTypeStore(pool)
 	rows, err := content.NewField(content.Field{

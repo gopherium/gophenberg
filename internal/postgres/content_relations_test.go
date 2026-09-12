@@ -207,6 +207,20 @@ func TestContentStoreRefusesATargetNothingHolds(t *testing.T) {
 	}
 }
 
+func TestContentStoreRefusesAFreshItemTargetingNothing(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := relatingStore(t)
+	built := mustPost(t, "Filed at once", author)
+	built.Fields = content.Values{"categories": namedTargets([]uuid.UUID{uuid.Must(uuid.NewV7())})}
+
+	_, err := store.Create(t.Context(), built)
+
+	if !errors.Is(err, content.ErrTargetNotFound) {
+		t.Fatalf("Create() error = %v, want %v", err, content.ErrTargetNotFound)
+	}
+}
+
 func TestContentStoreHidesTheRelationsOfADraft(t *testing.T) {
 	t.Parallel()
 

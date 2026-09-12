@@ -15,17 +15,37 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
-// writeRelations indexes the targets the item's values point at and refreshes what a term page reads.
-func writeRelations(ctx context.Context, queries *db.Queries, matching []int32, c content.Content) error {
+// resolveTargets returns the targets the index may hold, cleaning the values of a target that is gone.
+func resolveTargets(
+	ctx context.Context, queries *db.Queries, matching []int32, c content.Content, before content.Values,
+) ([]content.FieldTargets, error) {
 	declared, err := fieldsOfGroups(ctx, queries, matching)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	held, err := content.HeldTargets(declared, c.Fields)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	kept := content.HeldIdentities(declared, before)
+	gone := make(map[uuid.UUID]bool)
+	resolved := make([]content.FieldTargets, 0, len(held))
 	for _, ft := range held {
+		targets, err := targetsAllowed(ctx, queries, ft, kept, gone)
+		if err != nil {
+			return nil, err
+		}
+		resolved = append(resolved, content.FieldTargets{Field: ft.Field, Targets: targets})
+	}
+	content.DropTargets(declared, c.Fields, gone)
+	return resolved, nil
+}
+
+// writeRelations indexes the targets the item's values point at and refreshes what a term page reads.
+func writeRelations(
+	ctx context.Context, queries *db.Queries, c content.Content, resolved []content.FieldTargets,
+) error {
+	for _, ft := range resolved {
 		if err := carryTargets(ctx, queries, c, ft); err != nil {
 			return err
 		}
@@ -51,9 +71,6 @@ func fieldsOfGroups(ctx context.Context, queries *db.Queries, matching []int32) 
 func carryTargets(
 	ctx context.Context, queries *db.Queries, c content.Content, ft content.FieldTargets,
 ) error {
-	if err := targetsAllowed(ctx, queries, ft); err != nil {
-		return err
-	}
 	fieldID := int32(ft.Field.ID)
 	err := queries.ClearRelationsOfField(ctx, db.ClearRelationsOfFieldParams{FromID: c.ID, FieldID: fieldID})
 	if err != nil {
@@ -73,29 +90,37 @@ func carryTargets(
 	return nil
 }
 
-// targetsAllowed reports whether every target exists and is the type the field points at.
-func targetsAllowed(ctx context.Context, queries *db.Queries, ft content.FieldTargets) error {
+// targetsAllowed returns the targets the index may hold, naming as gone the ones the item held until now.
+func targetsAllowed(
+	ctx context.Context, queries *db.Queries, ft content.FieldTargets, kept, gone map[uuid.UUID]bool,
+) ([]uuid.UUID, error) {
 	if len(ft.Targets) == 0 {
-		return nil
+		return nil, nil
 	}
 	rows, err := queries.TypesOfContent(ctx, ft.Targets)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	held := make(map[uuid.UUID]string, len(rows))
 	for _, row := range rows {
 		held[row.ID] = row.Type
 	}
+	indexed := make([]uuid.UUID, 0, len(ft.Targets))
 	for _, target := range ft.Targets {
 		stored, found := held[target]
 		if !found {
-			return fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)
+			if kept[target] {
+				gone[target] = true
+				continue
+			}
+			return nil, fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)
 		}
 		if stored != ft.Field.RelatesTo {
-			return fmt.Errorf("%w: %s holds %s", content.ErrTargetType, ft.Field.Key, stored)
+			return nil, fmt.Errorf("%w: %s holds %s", content.ErrTargetType, ft.Field.Key, stored)
 		}
+		indexed = append(indexed, target)
 	}
-	return nil
+	return indexed, nil
 }
 
 // RelatedTo returns the published content of active types pointing at the target, newest first.

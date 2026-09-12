@@ -2793,3 +2793,14 @@ func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) 
 	)
 	return i, err
 }
+
+const valuesOfContent = `-- name: ValuesOfContent :one
+SELECT fields FROM core.content WHERE id = $1
+`
+
+func (q *Queries) ValuesOfContent(ctx context.Context, id uuid.UUID) (content.Values, error) {
+	row := q.db.QueryRow(ctx, valuesOfContent, id)
+	var fields content.Values
+	err := row.Scan(&fields)
+	return fields, err
+}

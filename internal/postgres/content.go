@@ -113,7 +113,11 @@ func (s *ContentStore) createDeclared(
 			return err
 		}
 		row = created
-		return writeRelations(ctx, queries, matching, toContent(created))
+		resolved, err := resolveTargets(ctx, queries, matching, toContent(created), nil)
+		if err != nil {
+			return err
+		}
+		return writeRelations(ctx, queries, toContent(created), resolved)
 	})
 	if err != nil {
 		return content.Content{}, writeFailure(err)
@@ -329,7 +333,7 @@ func (s *ContentStore) update(
 		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
 			return err
 		}
-		matching, err := declaredValues(ctx, queries, c)
+		resolved, err := resolvedTargets(ctx, queries, c)
 		if err != nil {
 			return err
 		}
@@ -351,7 +355,7 @@ func (s *ContentStore) update(
 			return err
 		}
 		updated = toContent(row)
-		if err := writeRelations(ctx, queries, matching, c); err != nil {
+		if err := writeRelations(ctx, queries, c, resolved); err != nil {
 			return err
 		}
 		if err := queries.MoveDescendants(ctx, db.MoveDescendantsParams{
@@ -382,6 +386,33 @@ func writeContent(ctx context.Context, queries *db.Queries, p db.UpdateContentPa
 		return db.CoreContent{}, err
 	}
 	return db.CoreContent{}, content.ErrConflict
+}
+
+// resolvedTargets cleans the item's values of a target that is gone and returns what the index may hold.
+func resolvedTargets(
+	ctx context.Context, queries *db.Queries, c content.Content,
+) ([]content.FieldTargets, error) {
+	matching, err := declaredValues(ctx, queries, c)
+	if err != nil {
+		return nil, err
+	}
+	before, err := valuesBefore(ctx, queries, c.ID)
+	if err != nil {
+		return nil, err
+	}
+	return resolveTargets(ctx, queries, matching, c, before)
+}
+
+// valuesBefore returns the values the item holds until this write replaces them.
+func valuesBefore(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Values, error) {
+	held, err := queries.ValuesOfContent(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return held, nil
 }
 
 // declaredValues returns the groups matching the item's type once every held value is declared.
