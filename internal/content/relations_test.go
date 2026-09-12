@@ -273,63 +273,23 @@ func rowsRelating(t *testing.T) []content.Field {
 	return append(relatable(t, true), rows)
 }
 
-func TestDropTargetsTakesTheGoneIdentityOutOfEveryRelation(t *testing.T) {
+func TestHeldIdentitiesReachesATargetInsideARow(t *testing.T) {
 	t.Parallel()
 
-	gone, kept := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	top, inside := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	values := content.Values{
 		"color":      "red",
-		"categories": []any{gone.String(), kept.String()},
+		"categories": []any{top.String()},
 		"team": []any{
-			map[string]any{"filed": []any{gone.String()}},
-			map[string]any{"filed": []any{kept.String(), gone.String()}},
+			map[string]any{"filed": []any{inside.String()}},
+			map[string]any{},
 		},
 	}
 
-	content.DropTargets(rowsRelating(t), values, map[uuid.UUID]bool{gone: true})
+	held := content.HeldIdentities(rowsRelating(t), values)
 
-	if held := content.HeldIdentities(rowsRelating(t), values); len(held) != 1 || !held[kept] {
-		t.Errorf("the values name %v, want only the target that is still there", held)
-	}
-	if values["color"] != "red" {
-		t.Errorf("color = %v, want the scalar beside the relations left alone", values["color"])
-	}
-	rows, listed := values["team"].([]any)
-	if !listed || len(rows) != 2 {
-		t.Fatalf("team = %v, want both rows kept", values["team"])
-	}
-	if first, _ := rows[0].(map[string]any); len(first["filed"].([]any)) != 0 {
-		t.Errorf("the first row names %v, want a row whose only target is gone left empty", first["filed"])
-	}
-}
-
-func TestDropTargetsLeavesARelationNobodyFilledIn(t *testing.T) {
-	t.Parallel()
-
-	gone := uuid.Must(uuid.NewV7())
-	values := content.Values{"team": []any{map[string]any{}}}
-
-	content.DropTargets(rowsRelating(t), values, map[uuid.UUID]bool{gone: true})
-
-	if held, found := values["categories"]; found {
-		t.Errorf("categories = %v, want a relation nobody filled in left absent", held)
-	}
-	row, _ := values["team"].([]any)[0].(map[string]any)
-	if held, found := row["filed"]; found {
-		t.Errorf("the row holds %v in filed, want a relation nobody filled in left absent", held)
-	}
-}
-
-func TestDropTargetsLeavesTheValuesAloneWhenNothingIsGone(t *testing.T) {
-	t.Parallel()
-
-	target := uuid.Must(uuid.NewV7())
-	values := content.Values{"categories": []any{target.String()}}
-
-	content.DropTargets(rowsRelating(t), values, nil)
-
-	if held := content.HeldIdentities(rowsRelating(t), values); len(held) != 1 || !held[target] {
-		t.Errorf("the values name %v, want the target kept", held)
+	if len(held) != 2 || !held[top] || !held[inside] {
+		t.Errorf("HeldIdentities() = %v, want the target at the top and the one inside the row", held)
 	}
 }
 
