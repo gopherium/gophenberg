@@ -209,8 +209,7 @@ item, under the excerpt. The plain controls come first, then
 Sections, Repeaters and Flexible content fields, then the relation
 and media pickers, and last the Linked from lists. Each of those
 sets follows group order. Values save with the item and travel with
-revisions, so restoring an old revision also restores the values it
-held.
+its revisions.
 
 A **Media** field holds one item and a **Gallery** holds several,
 both picked from the [media library](/guides/media/). A Gallery
