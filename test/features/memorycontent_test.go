@@ -79,7 +79,7 @@ func (s *memoryContent) holdTargets(c content.Content, before content.Values) er
 	}
 	kept := content.HeldIdentities(declared.Fields, before)
 	for _, ft := range pointing {
-		if err := s.targetsAllowed(ft, kept); err != nil {
+		if err := s.targetsAllowed(ft, kept[ft.Field.ID]); err != nil {
 			return err
 		}
 	}
