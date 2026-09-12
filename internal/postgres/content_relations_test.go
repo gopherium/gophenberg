@@ -549,40 +549,38 @@ func TestContentStoreWritesRelationsWhileTheFieldIsDeleted(t *testing.T) {
 	}
 }
 
-func TestContentStoreNamesTheTargetsAnItemPointsAt(t *testing.T) {
+func TestContentStoreNamesTheTargetsTheIdentitiesPointAt(t *testing.T) {
 	t.Parallel()
 
 	store, author, _ := relatingStore(t)
 	news := publishItem(t, store, storedCategory(t, store, "News", author))
-	filed := fileUnder(t, store, mustCreate(t, store, "A Filed Post", author), news.ID)
 
-	held, err := store.TargetsOf(t.Context(), filed.ID)
+	held, err := store.TargetsByIDs(t.Context(), []uuid.UUID{news.ID})
 
 	if err != nil {
-		t.Fatalf("TargetsOf() error = %v, want nil", err)
+		t.Fatalf("TargetsByIDs() error = %v, want nil", err)
 	}
-	listed := held["categories"]
-	if len(listed) != 1 {
-		t.Fatalf("TargetsOf() = %v, want the one category it is filed under", held)
+	if len(held) != 1 {
+		t.Fatalf("TargetsByIDs() = %v, want the one published category", held)
 	}
-	if listed[0].ID != news.ID || listed[0].Title != "News" || listed[0].Path == "" {
-		t.Errorf("target = %+v, want the category named and addressed", listed[0])
+	if held[0].ID != news.ID || held[0].Title != "News" || held[0].Path == "" {
+		t.Errorf("target = %+v, want the category named and addressed", held[0])
 	}
 }
 
-func TestContentStoreNamesNoTargetsForAnItemPointingNowhere(t *testing.T) {
+func TestContentStoreNamesNoTargetNobodyPublished(t *testing.T) {
 	t.Parallel()
 
 	store, author, _ := relatingStore(t)
-	alone := mustCreate(t, store, "Points Nowhere", author)
+	draft := storedCategory(t, store, "News", author)
 
-	held, err := store.TargetsOf(t.Context(), alone.ID)
+	held, err := store.TargetsByIDs(t.Context(), []uuid.UUID{draft.ID, uuid.Must(uuid.NewV7())})
 
 	if err != nil {
-		t.Fatalf("TargetsOf() error = %v, want nil", err)
+		t.Fatalf("TargetsByIDs() error = %v, want nil", err)
 	}
 	if len(held) != 0 {
-		t.Errorf("TargetsOf() = %v, want nothing pointed at", held)
+		t.Errorf("TargetsByIDs() = %v, want neither a draft nor an identity nothing holds", held)
 	}
 }
 
@@ -592,7 +590,7 @@ func TestContentStoreReportsTargetsItCannotRead(t *testing.T) {
 	store, _, pool := relatingStore(t)
 	pool.Close()
 
-	if _, err := store.TargetsOf(t.Context(), uuid.New()); err == nil {
-		t.Error("TargetsOf() error = nil, want the closed pool reported")
+	if _, err := store.TargetsByIDs(t.Context(), []uuid.UUID{uuid.New()}); err == nil {
+		t.Error("TargetsByIDs() error = nil, want the closed pool reported")
 	}
 }

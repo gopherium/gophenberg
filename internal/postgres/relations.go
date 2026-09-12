@@ -161,22 +161,17 @@ func (s *ContentStore) PointingAt(
 	return held, int(total), nil
 }
 
-// TargetsOf returns the published targets of active types the item points at, keyed by field key.
-func (s *ContentStore) TargetsOf(ctx context.Context, from uuid.UUID) (content.Targets, error) {
-	rows, err := s.queries.ListRelationSummaries(ctx, from)
+// TargetsByIDs returns the published items of active types the identities name.
+func (s *ContentStore) TargetsByIDs(ctx context.Context, ids []uuid.UUID) ([]content.Target, error) {
+	rows, err := s.queries.SummariesOfTargets(ctx, ids)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: list relation summaries: %w", err)
+		return nil, fmt.Errorf("postgres: list target summaries: %w", err)
 	}
-	if len(rows) == 0 {
-		return nil, nil
+	held := make([]content.Target, len(rows))
+	for i, row := range rows {
+		held[i] = content.Target{ID: row.ID, Title: row.Title, Path: row.Path}
 	}
-	targets := make(content.Targets)
-	for _, row := range rows {
-		targets[row.Key] = append(targets[row.Key], content.Target{
-			ID: row.ID, Title: row.Title, Path: row.Path,
-		})
-	}
-	return targets, nil
+	return held, nil
 }
 
 // isTargetGone reports whether err is a relation pointing at an item that was removed.
