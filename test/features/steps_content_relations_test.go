@@ -366,6 +366,7 @@ func initializeContentRelations(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator clears "([^"]*)" of "([^"]*)"$`, theAdministratorClears)
 	sc.When(`^the administrator permanently deletes the category "([^"]*)"$`, theAdministratorPermanentlyDeletes)
 	sc.When(`^the administrator deletes the field "([^"]*)" on "([^"]*)"$`, theAdministratorDeletesTheField)
+	sc.When(`^the administrator retitles "([^"]*)" as "([^"]*)"$`, theAdministratorRetitles)
 	sc.Then(`^"([^"]*)" lists "([^"]*)" in "([^"]*)"$`, theItemListsOne)
 	sc.Then(`^"([^"]*)" lists "([^"]*)" then "([^"]*)" in "([^"]*)"$`, theItemListsTwoInOrder)
 	sc.Then(`^"([^"]*)" lists nothing in "([^"]*)"$`, theItemListsNothing)

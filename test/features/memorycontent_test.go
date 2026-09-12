@@ -65,7 +65,7 @@ func identitiesIn(value any) []uuid.UUID {
 }
 
 // holdTargets reports whether every target exists and is the type its field points at.
-func (s *memoryContent) holdTargets(c content.Content) error {
+func (s *memoryContent) holdTargets(c content.Content, before content.Values) error {
 	if s.types == nil {
 		return nil
 	}
@@ -77,15 +77,30 @@ func (s *memoryContent) holdTargets(c content.Content) error {
 	if err != nil {
 		return err
 	}
+	kept := content.HeldIdentities(declared.Fields, before)
+	gone := make(map[uuid.UUID]bool)
 	for _, ft := range pointing {
-		for _, target := range ft.Targets {
-			held, found := s.items[target]
-			if !found {
-				return fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)
+		if err := s.targetsAllowed(ft, kept, gone); err != nil {
+			return err
+		}
+	}
+	content.DropTargets(declared.Fields, c.Fields, gone)
+	return nil
+}
+
+// targetsAllowed reports whether every target the field names may be stored.
+func (s *memoryContent) targetsAllowed(ft content.FieldTargets, kept, gone map[uuid.UUID]bool) error {
+	for _, target := range ft.Targets {
+		held, found := s.items[target]
+		if !found {
+			if kept[target] {
+				gone[target] = true
+				continue
 			}
-			if held.Type != ft.Field.RelatesTo {
-				return fmt.Errorf("%w: %s holds %s", content.ErrTargetType, ft.Field.Key, held.Type)
-			}
+			return fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)
+		}
+		if held.Type != ft.Field.RelatesTo {
+			return fmt.Errorf("%w: %s holds %s", content.ErrTargetType, ft.Field.Key, held.Type)
 		}
 	}
 	return nil
@@ -391,7 +406,7 @@ func (s *memoryContent) Update(
 	if !stored.UpdatedAt.Equal(expectedUpdatedAt) {
 		return content.Content{}, content.ErrConflict
 	}
-	if err := s.holdTargets(c); err != nil {
+	if err := s.holdTargets(c, stored.Fields); err != nil {
 		return content.Content{}, err
 	}
 	prefix := content.AddressPrefix(c.Path, c.Slug)

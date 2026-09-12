@@ -57,6 +57,13 @@ Feature: Relating content
     When the administrator permanently deletes the category "News"
     Then a visitor reading "Hello world" is shown nothing in "categories"
 
+  Scenario: Editing a post whose category was deleted still saves
+    Given the published category "News"
+    And the published post "Hello world" filed under "News"
+    When the administrator permanently deletes the category "News"
+    And the administrator retitles "Hello world" as "Hello again"
+    Then "Hello world" lists nothing in "categories"
+
   Scenario: Deleting the field unfiles every post
     Given the category "News"
     And the post "Hello world" filed under "News"
