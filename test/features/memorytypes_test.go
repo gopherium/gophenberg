@@ -553,26 +553,6 @@ func (s *memoryTypes) CreateField(_ context.Context, f content.Field) (content.F
 	return content.Field{}, content.ErrTypeNotFound
 }
 
-// targeted reports whether the field of the type may point at an item of the stored type.
-func (s *memoryTypes) targeted(typeKey, key, stored string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, held := range s.types {
-		if held.Key != typeKey {
-			continue
-		}
-		for _, f := range s.flattened(typeKey, held.Fields) {
-			if f.Key == key {
-				if f.RelatesTo != stored {
-					return fmt.Errorf("%w: %s holds %s", content.ErrTargetType, key, stored)
-				}
-				return nil
-			}
-		}
-	}
-	return nil
-}
-
 // Delete removes the type, or reports it missing or still holding content.
 func (s *memoryTypes) Delete(ctx context.Context, key string) error {
 	if s.holdsContent(ctx, key) {
