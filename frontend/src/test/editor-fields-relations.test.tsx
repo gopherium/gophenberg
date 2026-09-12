@@ -610,6 +610,56 @@ test('says so when nothing points at the item yet', async () => {
 	expect(await screen.findByText('Nothing points here yet.')).toBeInTheDocument()
 })
 
+const ROWS_HOLDING_A_RELATION = {
+	key: 'team',
+	label: 'Team',
+	kind: 'repeater',
+	many: false,
+	required: false,
+	updated_at: '2026-08-01T10:00:00Z',
+	fields: [{ ...ONE_CATEGORY, key: 'filed', label: 'Filed' }],
+}
+
+test('picks a target inside a row of a repeater', async () => {
+	const sent: Record<string, unknown>[] = []
+	server.use(
+		http.get('/api/types', () =>
+			HttpResponse.json({ items: [typeDeclaring([ROWS_HOLDING_A_RELATION])] }),
+		),
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { team: [{}] } }),
+		),
+		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
+			sent.push((await request.json()) as Record<string, unknown>)
+			return HttpResponse.json({ ...storedPost, fields: { team: [{ filed: [NEWS.id] }] } })
+		}),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByLabelText('Filed'))
+	await userEvent.click(await screen.findByRole('option', { name: 'News' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+	await waitFor(() => expect(sent).toHaveLength(1))
+	expect(sent[0]).toMatchObject({ fields: { team: [{ filed: [NEWS.id] }] } })
+})
+
+test('shows the target a row already points at', async () => {
+	server.use(
+		http.get('/api/types', () =>
+			HttpResponse.json({ items: [typeDeclaring([ROWS_HOLDING_A_RELATION])] }),
+		),
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { team: [{ filed: [NEWS.id] }] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	const picker = await screen.findByLabelText('Filed')
+
+	await waitFor(() => expect(picker).toHaveTextContent('News'))
+})
+
 test('counts nothing over the page when the server sent no totals at all', async () => {
 	server.use(
 		http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([LINKED_FROM])] })),

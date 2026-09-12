@@ -255,25 +255,6 @@ func TestValuesAcceptAClearedKey(t *testing.T) {
 	}
 }
 
-func TestValuesRefuseTargetsAmongTheScalars(t *testing.T) {
-	t.Parallel()
-
-	relation, err := content.NewField(content.Field{
-		TypeKey: "post", Key: "categories", Label: "Categories",
-		Kind: content.FieldKindRelation, RelatesTo: "category", Many: true,
-	})
-	if err != nil {
-		t.Fatalf("NewField() error = %v, want nil", err)
-	}
-	held := content.Values{"categories": []any{"019fb000-0000-7000-8000-000000000001"}}
-
-	err = held.Validate([]content.Field{relation})
-
-	if !errors.Is(err, content.ErrFieldShape) {
-		t.Fatalf("Validate() error = %v, want %v", err, content.ErrFieldShape)
-	}
-}
-
 func TestValuesMergeSetsAndClears(t *testing.T) {
 	t.Parallel()
 
@@ -321,7 +302,7 @@ func TestValuesFilledPassesWhenNothingIsRequired(t *testing.T) {
 
 	held := content.Values{}
 
-	if err := content.Filled(held, nil, declared(t)); err != nil {
+	if err := content.Filled(held, declared(t)); err != nil {
 		t.Fatalf("Filled() error = %v, want nil", err)
 	}
 }
@@ -339,7 +320,7 @@ func TestValuesFilledRefusesAnEmptyRequiredField(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			err := content.Filled(held, nil, []content.Field{required})
+			err := content.Filled(held, []content.Field{required})
 
 			if !errors.Is(err, content.ErrFieldRequired) {
 				t.Fatalf("Filled() error = %v, want %v", err, content.ErrFieldRequired)
@@ -363,7 +344,7 @@ func TestValuesFilledRefusesAnEmptiedRequiredList(t *testing.T) {
 	}
 	held := content.Values{"gallery": []any{}}
 
-	if err := content.Filled(held, nil, []content.Field{gallery}); !errors.Is(err, content.ErrFieldRequired) {
+	if err := content.Filled(held, []content.Field{gallery}); !errors.Is(err, content.ErrFieldRequired) {
 		t.Fatalf("Filled() error = %v, want %v, an emptied list holds nothing", err, content.ErrFieldRequired)
 	}
 }
@@ -380,7 +361,7 @@ func TestValuesFilledAcceptsAFalseFlag(t *testing.T) {
 	}
 	held := content.Values{"boxed": false}
 
-	if err := content.Filled(held, nil, []content.Field{flag}); err != nil {
+	if err := content.Filled(held, []content.Field{flag}); err != nil {
 		t.Fatalf("Filled() error = %v, want a false flag to count as filled", err)
 	}
 }
@@ -397,7 +378,7 @@ func TestValuesFilledAcceptsAZero(t *testing.T) {
 	}
 	held := content.Values{"doors": float64(0)}
 
-	if err := content.Filled(held, nil, []content.Field{count}); err != nil {
+	if err := content.Filled(held, []content.Field{count}); err != nil {
 		t.Fatalf("Filled() error = %v, want a zero to count as filled", err)
 	}
 }

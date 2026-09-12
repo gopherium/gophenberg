@@ -200,11 +200,6 @@ func NewSubField(f Field, parent FieldKind) (Field, error) {
 			fmt.Sprintf("%s: %s holds no sub fields", ErrFieldShape, parent),
 			Details{"kind": string(parent)})
 	}
-	if f.Kind == FieldKindRelation {
-		return Field{}, Refuse(ErrFieldShape, "field_relation_inside",
-			fmt.Sprintf("%s: a relation stands outside a container", ErrFieldShape),
-			Details{"field": f.Key})
-	}
 	if f.Kind == FieldKindBacklinks {
 		return Field{}, Refuse(ErrFieldShape, "field_backlinks_inside",
 			fmt.Sprintf("%s: a backlinks stands outside a container", ErrFieldShape),

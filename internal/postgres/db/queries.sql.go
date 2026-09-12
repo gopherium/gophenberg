@@ -1685,119 +1685,6 @@ func (q *Queries) ListRelatedContent(ctx context.Context, arg ListRelatedContent
 	return items, nil
 }
 
-const listRelationFieldsOfGroups = `-- name: ListRelationFieldsOfGroups :many
-SELECT id, key, relates_to, many FROM core.content_fields
-WHERE group_id = ANY($1::integer []) AND kind = 'relation'
-ORDER BY id
-`
-
-type ListRelationFieldsOfGroupsRow struct {
-	ID        int32
-	Key       string
-	RelatesTo *string
-	Many      bool
-}
-
-func (q *Queries) ListRelationFieldsOfGroups(ctx context.Context, ids []int32) ([]ListRelationFieldsOfGroupsRow, error) {
-	rows, err := q.db.Query(ctx, listRelationFieldsOfGroups, ids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListRelationFieldsOfGroupsRow
-	for rows.Next() {
-		var i ListRelationFieldsOfGroupsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Key,
-			&i.RelatesTo,
-			&i.Many,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listRelationSummaries = `-- name: ListRelationSummaries :many
-SELECT f.key, c.id, c.title, c.path
-FROM core.content_relations r
-JOIN core.content_fields f ON f.id = r.field_id
-JOIN core.content c ON c.id = r.to_id
-JOIN core.content_types t ON t.key = c.type
-WHERE r.from_id = $1 AND c.status = 'published' AND t.active
-ORDER BY f.key, r.position
-`
-
-type ListRelationSummariesRow struct {
-	Key   string
-	ID    uuid.UUID
-	Title string
-	Path  string
-}
-
-func (q *Queries) ListRelationSummaries(ctx context.Context, fromID uuid.UUID) ([]ListRelationSummariesRow, error) {
-	rows, err := q.db.Query(ctx, listRelationSummaries, fromID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListRelationSummariesRow
-	for rows.Next() {
-		var i ListRelationSummariesRow
-		if err := rows.Scan(
-			&i.Key,
-			&i.ID,
-			&i.Title,
-			&i.Path,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listRelationTargets = `-- name: ListRelationTargets :many
-SELECT f.key, r.to_id
-FROM core.content_relations r
-JOIN core.content_fields f ON f.id = r.field_id
-WHERE r.from_id = $1
-ORDER BY f.key, r.position
-`
-
-type ListRelationTargetsRow struct {
-	Key  string
-	ToID uuid.UUID
-}
-
-func (q *Queries) ListRelationTargets(ctx context.Context, fromID uuid.UUID) ([]ListRelationTargetsRow, error) {
-	rows, err := q.db.Query(ctx, listRelationTargets, fromID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListRelationTargetsRow
-	for rows.Next() {
-		var i ListRelationTargetsRow
-		if err := rows.Scan(&i.Key, &i.ToID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listRevisions = `-- name: ListRevisions :many
 SELECT r.id, r.content_id, r.kind, r.author_id, r.title, r.excerpt, r.created_at
 FROM core.content_revisions r
@@ -2418,6 +2305,39 @@ func (q *Queries) StripRevisionLayout(ctx context.Context, arg StripRevisionLayo
 	return err
 }
 
+const summariesOfTargets = `-- name: SummariesOfTargets :many
+SELECT c.id, c.title, c.path
+FROM core.content c
+JOIN core.content_types t ON t.key = c.type
+WHERE c.id = ANY($1::uuid []) AND c.status = 'published' AND t.active
+`
+
+type SummariesOfTargetsRow struct {
+	ID    uuid.UUID
+	Title string
+	Path  string
+}
+
+func (q *Queries) SummariesOfTargets(ctx context.Context, ids []uuid.UUID) ([]SummariesOfTargetsRow, error) {
+	rows, err := q.db.Query(ctx, summariesOfTargets, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SummariesOfTargetsRow
+	for rows.Next() {
+		var i SummariesOfTargetsRow
+		if err := rows.Scan(&i.ID, &i.Title, &i.Path); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const trashContent = `-- name: TrashContent :one
 UPDATE core.content AS p
 SET status = 'trash', slug = p.slug || $1::text, path = p.path || $1::text,
@@ -2872,4 +2792,15 @@ func (q *Queries) UpsertAutosave(ctx context.Context, arg UpsertAutosaveParams) 
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const valuesOfContent = `-- name: ValuesOfContent :one
+SELECT fields FROM core.content WHERE id = $1
+`
+
+func (q *Queries) ValuesOfContent(ctx context.Context, id uuid.UUID) (content.Values, error) {
+	row := q.db.QueryRow(ctx, valuesOfContent, id)
+	var fields content.Values
+	err := row.Scan(&fields)
+	return fields, err
 }

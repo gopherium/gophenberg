@@ -159,10 +159,6 @@ export function errorTemplates(): Record<string, string> {
 			'A flexible content field holds layouts, and %(field)s is not one. Add a layout first, then declare the field inside that layout.',
 			DOMAIN,
 		),
-		field_relation_inside: __(
-			'A relation field stands on its own, not inside a section or a repeater. Declare it beside the container.',
-			DOMAIN,
-		),
 		field_too_deep: __(
 			'This field would stand inside too many containers. Put it nearer the top and try again.',
 			DOMAIN,

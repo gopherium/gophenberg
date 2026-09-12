@@ -224,6 +224,33 @@ func theItemListsTwoInOrder(ctx context.Context, title, first, second, key strin
 	return theItemListsTargets(ctx, title, key, []string{first, second})
 }
 
+// aVisitorIsShownNothingIn asserts the public answer for the item carries no value under the key.
+func aVisitorIsShownNothingIn(ctx context.Context, title, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	stored, err := freshPost(w, title)
+	if err != nil {
+		return err
+	}
+	if err := aVisitorResolves(ctx, "/"+stored.Path); err != nil {
+		return err
+	}
+	var answer struct {
+		Item struct {
+			Fields map[string]json.RawMessage `json:"fields"`
+		} `json:"item"`
+	}
+	if err := w.answer.decode(&answer); err != nil {
+		return err
+	}
+	if held, shown := answer.Item.Fields[key]; shown {
+		return fmt.Errorf("a visitor is shown %s in %q, want nothing", held, key)
+	}
+	return nil
+}
+
 // theItemListsNothing asserts the item points at no target through the field.
 func theItemListsNothing(ctx context.Context, title, key string) error {
 	w, err := worldOf(ctx)
@@ -317,6 +344,8 @@ func initializeContentRelations(sc *godog.ScenarioContext) {
 	sc.Given(`^the categories "([^"]*)" and "([^"]*)"$`, theCategoriesExist)
 	sc.Given(`^the engine-type "([^"]*)"$`, theEngineTypeExists)
 	sc.Given(`^the post "([^"]*)"$`, thePostExists)
+	sc.Given(`^the published category "([^"]*)"$`, thePublishedCategory)
+	sc.Given(`^the published post "([^"]*)" filed under "([^"]*)"$`, thePublishedPostFiledUnder)
 	sc.Given(`^the post "([^"]*)" filed under "([^"]*)"$`, thePostFiledUnder)
 	sc.Given(`^the post "([^"]*)" filed in "([^"]*)" under "([^"]*)"$`, thePostFiledInFieldUnder)
 	sc.When(`^the administrator files "([^"]*)" under "([^"]*)"$`, theAdministratorFilesUnderOne)
@@ -337,9 +366,11 @@ func initializeContentRelations(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator clears "([^"]*)" of "([^"]*)"$`, theAdministratorClears)
 	sc.When(`^the administrator permanently deletes the category "([^"]*)"$`, theAdministratorPermanentlyDeletes)
 	sc.When(`^the administrator deletes the field "([^"]*)" on "([^"]*)"$`, theAdministratorDeletesTheField)
+	sc.When(`^the administrator retitles "([^"]*)" as "([^"]*)"$`, theAdministratorRetitles)
 	sc.Then(`^"([^"]*)" lists "([^"]*)" in "([^"]*)"$`, theItemListsOne)
 	sc.Then(`^"([^"]*)" lists "([^"]*)" then "([^"]*)" in "([^"]*)"$`, theItemListsTwoInOrder)
 	sc.Then(`^"([^"]*)" lists nothing in "([^"]*)"$`, theItemListsNothing)
+	sc.Then(`^a visitor reading "([^"]*)" is shown nothing in "([^"]*)"$`, aVisitorIsShownNothingIn)
 	sc.Then(`^"([^"]*)" lists no field "([^"]*)"$`, thePostHoldsNoField)
 	sc.Then(`^the car "([^"]*)" lists "([^"]*)" in "([^"]*)"$`, theItemListsOne)
 	sc.Then(`^publishing a car holding no engine is refused$`, publishingWithoutTheRequiredTargetIsRefused)

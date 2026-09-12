@@ -40,60 +40,60 @@ func TestEveryServedKitCarriesANumericMajor(t *testing.T) {
 	}
 }
 
-func TestSameRelationsReadsTwoSetsOfTargets(t *testing.T) {
+func TestSameValuesReadsTwoSetsOfTargets(t *testing.T) {
 	t.Parallel()
 
-	oneTarget, otherTarget := uuid.New(), uuid.New()
+	oneTarget, otherTarget := uuid.New().String(), uuid.New().String()
 
 	for _, testCase := range []struct {
 		name  string
-		held  content.Relations
-		asked content.Relations
+		held  content.Values
+		asked content.Values
 		want  bool
 	}{
-		{name: "two empty sets", held: content.Relations{}, asked: content.Relations{}, want: true},
+		{name: "two empty sets", held: content.Values{}, asked: content.Values{}, want: true},
 		{
 			name:  "the same key holding the same target",
-			held:  content.Relations{"author": {oneTarget}},
-			asked: content.Relations{"author": {oneTarget}},
+			held:  content.Values{"author": []any{oneTarget}},
+			asked: content.Values{"author": []any{oneTarget}},
 			want:  true,
 		},
 		{
 			name:  "the same length holding a different target",
-			held:  content.Relations{"author": {oneTarget}},
-			asked: content.Relations{"author": {otherTarget}},
+			held:  content.Values{"author": []any{oneTarget}},
+			asked: content.Values{"author": []any{otherTarget}},
 			want:  false,
 		},
 		{
 			name:  "the same length holding the same targets in a different order",
-			held:  content.Relations{"author": {oneTarget, otherTarget}},
-			asked: content.Relations{"author": {otherTarget, oneTarget}},
+			held:  content.Values{"author": []any{oneTarget, otherTarget}},
+			asked: content.Values{"author": []any{otherTarget, oneTarget}},
 			want:  false,
 		},
 		{
 			name:  "the same length under a different key",
-			held:  content.Relations{"author": {oneTarget}},
-			asked: content.Relations{"editor": {oneTarget}},
+			held:  content.Values{"author": []any{oneTarget}},
+			asked: content.Values{"editor": []any{oneTarget}},
 			want:  false,
 		},
 		{
 			name:  "the same key holding one target against two",
-			held:  content.Relations{"author": {oneTarget}},
-			asked: content.Relations{"author": {oneTarget, otherTarget}},
+			held:  content.Values{"author": []any{oneTarget}},
+			asked: content.Values{"author": []any{oneTarget, otherTarget}},
 			want:  false,
 		},
 		{
 			name:  "a different number of keys",
-			held:  content.Relations{"author": {oneTarget}},
-			asked: content.Relations{"author": {oneTarget}, "editor": {otherTarget}},
+			held:  content.Values{"author": []any{oneTarget}},
+			asked: content.Values{"author": []any{oneTarget}, "editor": []any{otherTarget}},
 			want:  false,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := sameRelations(testCase.held, testCase.asked); got != testCase.want {
-				t.Errorf("sameRelations(%v, %v) = %t, want %t", testCase.held, testCase.asked, got, testCase.want)
+			if got := sameValues(testCase.held, testCase.asked); got != testCase.want {
+				t.Errorf("sameValues(%v, %v) = %t, want %t", testCase.held, testCase.asked, got, testCase.want)
 			}
 		})
 	}

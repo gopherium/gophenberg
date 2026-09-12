@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"slices"
 	"strings"
 	"time"
 
@@ -272,7 +271,7 @@ func (s *server) applyEdit(
 	if err != nil {
 		return false, false, err
 	}
-	valued, related, err := s.applyValues(r, c, req.Fields)
+	valued, err := s.applyValues(r, c, req.Fields)
 	if err != nil {
 		return false, false, err
 	}
@@ -280,58 +279,37 @@ func (s *server) applyEdit(
 	if err != nil {
 		return false, false, err
 	}
-	return changed || valued || related || nested, snapshotted || valued, nil
+	return changed || valued || nested, snapshotted || valued, nil
 }
 
-// applyValues merges what the request carries and gates publishing, reporting which halves moved.
-func (s *server) applyValues(
-	r *http.Request, c *content.Content, patch content.Values,
-) (valued, related bool, err error) {
+// applyValues merges what the request carries and gates publishing, reporting whether the values moved.
+func (s *server) applyValues(r *http.Request, c *content.Content, patch content.Values) (bool, error) {
 	t, err := s.types.Active(r.Context(), c.Type)
 	if err != nil {
-		return false, false, err
+		return false, err
 	}
-	scalars, targets, err := content.SplitValues(patch, t.Fields)
-	if err != nil {
-		return false, false, err
+	if err := patch.Validate(t.Fields); err != nil {
+		return false, err
 	}
-	if err := scalars.Validate(t.Fields); err != nil {
-		return false, false, err
-	}
-	merged := c.Fields.Merge(scalars)
-	held := c.Relations.Merge(targets)
+	merged := c.Fields.Merge(patch)
 	if err := content.Concealed(t.Fields, merged, patch); err != nil {
-		return false, false, err
+		return false, err
 	}
 	pointing := *c
-	pointing.Relations = held
-	if err := pointing.SelfTargeted(); err != nil {
-		return false, false, err
+	pointing.Fields = merged
+	if err := pointing.SelfTargeted(t.Fields); err != nil {
+		return false, err
 	}
 	if c.Status == content.StatusPublished {
-		if err := content.Filled(merged, held, t.Fields); err != nil {
-			return false, false, err
+		if err := content.Filled(merged, t.Fields); err != nil {
+			return false, err
 		}
 	}
-	valued, related = !sameValues(c.Fields, merged), !sameRelations(c.Relations, held)
-	if !valued && !related {
-		return false, false, nil
+	if sameValues(c.Fields, merged) {
+		return false, nil
 	}
-	c.Fields, c.Relations, c.UpdatedAt = merged, held, time.Now().UTC()
-	return valued, related, nil
-}
-
-// sameRelations reports whether two sets of targets hold the same items in the same order.
-func sameRelations(held, asked content.Relations) bool {
-	if len(held) != len(asked) {
-		return false
-	}
-	for key, targets := range held {
-		if !slices.Equal(targets, asked[key]) {
-			return false
-		}
-	}
-	return true
+	c.Fields, c.UpdatedAt = merged, time.Now().UTC()
+	return true, nil
 }
 
 // standingValues reports why the values a fresh item carries could not stand under its type.
@@ -355,20 +333,9 @@ func heldValues(v content.Values) content.Values {
 	return v
 }
 
-// payloadValues returns the item's scalar values with its targets named beside them.
+// payloadValues returns the values an answer carries for the item.
 func payloadValues(c content.Content) content.Values {
-	held := make(content.Values, len(c.Fields)+len(c.Relations))
-	for key, value := range c.Fields {
-		held[key] = value
-	}
-	for key, targets := range c.Relations {
-		named := make([]string, len(targets))
-		for i, target := range targets {
-			named[i] = target.String()
-		}
-		held[key] = named
-	}
-	return held
+	return heldValues(c.Fields)
 }
 
 // nestAsked moves the item under the parent the request names, reporting whether it moved.

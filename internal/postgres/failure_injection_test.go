@@ -88,18 +88,6 @@ func TestRelatedContentReportsAListingItCannotRead(t *testing.T) {
 	}
 }
 
-func TestByIDReportsRelationsItCannotRead(t *testing.T) {
-	t.Parallel()
-
-	store, author, pool := relatingStore(t)
-	held := mustCreate(t, store, "A Post", author)
-	sabotage(t, pool, "ALTER TABLE core.content_relations DROP COLUMN position CASCADE")
-
-	if _, err := store.ByID(t.Context(), held.ID); err == nil {
-		t.Error("ByID() error = nil, want the unreadable relations reported")
-	}
-}
-
 func TestUpdateReportsRelationFieldsItCannotRead(t *testing.T) {
 	t.Parallel()
 
@@ -109,7 +97,7 @@ func TestUpdateReportsRelationFieldsItCannotRead(t *testing.T) {
 	sabotage(t, pool, "ALTER TABLE core.content_fields DROP COLUMN relates_to CASCADE")
 
 	version := held.UpdatedAt
-	held.Relations = content.Relations{"categories": {news.ID}}
+	held.Fields = content.Values{"categories": namedTargets([]uuid.UUID{news.ID})}
 	held.UpdatedAt = time.Now().UTC()
 
 	if _, err := store.Update(t.Context(), held, version, nil, 0); err == nil {
@@ -126,7 +114,7 @@ func TestUpdateReportsRelationsItCannotClear(t *testing.T) {
 	sabotage(t, pool, "DROP TABLE core.content_relations CASCADE")
 
 	version := held.UpdatedAt
-	held.Relations = content.Relations{"categories": {news.ID}}
+	held.Fields = content.Values{"categories": namedTargets([]uuid.UUID{news.ID})}
 	held.UpdatedAt = time.Now().UTC()
 
 	if _, err := store.Update(t.Context(), held, version, nil, 0); err == nil {
@@ -143,7 +131,7 @@ func TestUpdateReportsATargetItCannotStore(t *testing.T) {
 	raiseOn(t, pool, "core.content_relations", "INSERT")
 
 	version := held.UpdatedAt
-	held.Relations = content.Relations{"categories": {news.ID}}
+	held.Fields = content.Values{"categories": namedTargets([]uuid.UUID{news.ID})}
 	held.UpdatedAt = time.Now().UTC()
 
 	if _, err := store.Update(t.Context(), held, version, nil, 0); err == nil {
@@ -163,7 +151,7 @@ func TestUpdateReportsATargetRemovedMidWrite(t *testing.T) {
 		"FOR EACH ROW EXECUTE FUNCTION sabotage_vanish()")
 
 	version := held.UpdatedAt
-	held.Relations = content.Relations{"categories": {news.ID}}
+	held.Fields = content.Values{"categories": namedTargets([]uuid.UUID{news.ID})}
 	held.UpdatedAt = time.Now().UTC()
 
 	_, err := store.Update(t.Context(), held, version, nil, 0)
@@ -391,19 +379,19 @@ func TestDeleteFieldInGroupReportsRevisionValuesItCannotClear(t *testing.T) {
 	}
 }
 
-func TestContentUpdateReportsRelationsItCannotReRead(t *testing.T) {
+func TestContentUpdateReportsTheFieldsItCannotRead(t *testing.T) {
 	t.Parallel()
 
 	store, author, pool := newContentStoreWithPool(t)
 	held := mustCreate(t, store, "A Post", author)
-	sabotage(t, pool, "ALTER TABLE core.content_relations DROP COLUMN position CASCADE")
+	sabotage(t, pool, "ALTER TABLE core.content_fields DROP COLUMN kind CASCADE")
 
 	version := held.UpdatedAt
 	held.Title = "Edited"
 	held.UpdatedAt = time.Now().UTC()
 
 	if _, err := store.Update(t.Context(), held, version, nil, 0); err == nil {
-		t.Error("Update() error = nil, want the unreadable relations reported")
+		t.Error("Update() error = nil, want the unreadable field list reported")
 	}
 }
 

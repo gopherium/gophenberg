@@ -28,10 +28,6 @@ func TestSubFieldCreateRefusesWhatCannotStandInside(t *testing.T) {
 		body map[string]any
 		want int
 	}{
-		"a relation": {
-			"author", map[string]any{"key": "wrote", "label": "Wrote", "kind": "relation", "relates_to": "post"},
-			http.StatusUnprocessableEntity,
-		},
 		"a malformed key": {
 			"author", map[string]any{"key": "Not A Key", "label": "Bad", "kind": "text"},
 			http.StatusUnprocessableEntity,

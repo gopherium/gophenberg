@@ -25,6 +25,7 @@ type listedField struct {
 // fieldedContent is one content item with its field values as the admin API reports it.
 type fieldedContent struct {
 	ID          string                     `json:"id"`
+	Path        string                     `json:"path"`
 	Title       string                     `json:"title"`
 	UpdatedAt   string                     `json:"updated_at"`
 	Fields      map[string]json.RawMessage `json:"fields"`

@@ -156,8 +156,25 @@ const related = relatedFields(post)
 ```
 
 `relatedFields` returns relations only, and a choice value comes
-back as the stored value. The shapes are covered in the
-[content API](/reference/content-api/).
+back as the stored value. It reads the fields standing at the top of
+a group. For a relation inside a Section or a Repeater row, read the
+row first and hand its value to `relatedItems`, which names the
+items one value points at:
+
+```astro
+---
+import { heldRows, relatedItems } from '@gophenberg/astro'
+const team = heldRows(post, 'team')
+---
+
+{
+	team.map((row) =>
+		relatedItems(row.filed)?.map((item) => <a href={`/${item.path}`}>{item.title}</a>),
+	)
+}
+```
+
+The shapes are covered in the [content API](/reference/content-api/).
 
 A Linked from field reads a relation the other way, and
 `pointingFields` picks those out. Its entries carry a `type` beside

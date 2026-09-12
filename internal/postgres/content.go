@@ -104,15 +104,23 @@ func (s *ContentStore) createDeclared(
 	var row db.CoreContent
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		if err := valuesDeclared(ctx, queries, c); err != nil {
+		matching, err := declaredValues(ctx, queries, c)
+		if err != nil {
 			return err
 		}
 		created, err := queries.CreateContent(ctx, params)
+		if err != nil {
+			return err
+		}
 		row = created
-		return err
+		resolved, err := resolveTargets(ctx, queries, matching, toContent(created), nil)
+		if err != nil {
+			return err
+		}
+		return writeRelations(ctx, queries, toContent(created), resolved)
 	})
 	if err != nil {
-		return content.Content{}, fmt.Errorf("postgres: create content: %w", err)
+		return content.Content{}, writeFailure(err)
 	}
 	return toContent(row), nil
 }
@@ -152,12 +160,7 @@ func byID(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Conte
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: get content: %w", err)
 	}
-	held := toContent(row)
-	held.Relations, err = readRelations(ctx, queries, id)
-	if err != nil {
-		return content.Content{}, err
-	}
-	return held, nil
+	return toContent(row), nil
 }
 
 // storedValues returns the values a write holds, never nil so the column stays an object.
@@ -330,7 +333,7 @@ func (s *ContentStore) update(
 		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
 			return err
 		}
-		matching, err := declaredValues(ctx, queries, c)
+		resolved, err := resolvedTargets(ctx, queries, c)
 		if err != nil {
 			return err
 		}
@@ -352,11 +355,7 @@ func (s *ContentStore) update(
 			return err
 		}
 		updated = toContent(row)
-		if err := writeRelations(ctx, queries, matching, c); err != nil {
-			return err
-		}
-		updated.Relations, err = readRelations(ctx, queries, c.ID)
-		if err != nil {
+		if err := writeRelations(ctx, queries, c, resolved); err != nil {
 			return err
 		}
 		if err := queries.MoveDescendants(ctx, db.MoveDescendantsParams{
@@ -372,7 +371,7 @@ func (s *ContentStore) update(
 		return snapshotRevision(ctx, queries, *snapshot, revisionCap)
 	})
 	if err != nil {
-		return content.Content{}, updateFailure(err)
+		return content.Content{}, writeFailure(err)
 	}
 	return updated, nil
 }
@@ -387,6 +386,33 @@ func writeContent(ctx context.Context, queries *db.Queries, p db.UpdateContentPa
 		return db.CoreContent{}, err
 	}
 	return db.CoreContent{}, content.ErrConflict
+}
+
+// resolvedTargets cleans the item's values of a target that is gone and returns what the index may hold.
+func resolvedTargets(
+	ctx context.Context, queries *db.Queries, c content.Content,
+) ([]content.FieldTargets, error) {
+	matching, err := declaredValues(ctx, queries, c)
+	if err != nil {
+		return nil, err
+	}
+	before, err := valuesBefore(ctx, queries, c.ID)
+	if err != nil {
+		return nil, err
+	}
+	return resolveTargets(ctx, queries, matching, c, before)
+}
+
+// valuesBefore returns the values the item holds until this write replaces them.
+func valuesBefore(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Values, error) {
+	held, err := queries.ValuesOfContent(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return held, nil
 }
 
 // declaredValues returns the groups matching the item's type once every held value is declared.
@@ -415,8 +441,8 @@ func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content)
 	return nil
 }
 
-// updateFailure returns the error the update carries, and wraps anything else.
-func updateFailure(err error) error {
+// writeFailure returns the error the write carries, and wraps anything else.
+func writeFailure(err error) error {
 	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) || isSlugTaken(err) {
 		return err
 	}
@@ -458,11 +484,7 @@ func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.T
 			return err
 		}
 		trashed = toContent(row)
-		if err := queries.RefreshRelationVisibility(ctx, id); err != nil {
-			return err
-		}
-		trashed.Relations, err = readRelations(ctx, queries, id)
-		return err
+		return queries.RefreshRelationVisibility(ctx, id)
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -512,11 +534,7 @@ func (s *ContentStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time
 			return err
 		}
 		restored = toContent(row)
-		if err := queries.RefreshRelationVisibility(ctx, id); err != nil {
-			return err
-		}
-		restored.Relations, err = readRelations(ctx, queries, id)
-		return err
+		return queries.RefreshRelationVisibility(ctx, id)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return content.Content{}, content.ErrNotFound

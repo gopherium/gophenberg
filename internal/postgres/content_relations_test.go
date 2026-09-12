@@ -47,6 +47,38 @@ func relatingStore(t *testing.T) (*postgres.ContentStore, uuid.UUID, *pgxpool.Po
 	return store, author, pool
 }
 
+// namedTargets returns the identities as a relation value stores them.
+func namedTargets(targets []uuid.UUID) []any {
+	named := make([]any, len(targets))
+	for i, target := range targets {
+		named[i] = target.String()
+	}
+	return named
+}
+
+// heldTargets returns the identities the item's categories value names.
+func heldTargets(t *testing.T, c content.Content) []uuid.UUID {
+	t.Helper()
+	key := "categories"
+	listed, named := c.Fields[key].([]any)
+	if !named {
+		return nil
+	}
+	held := make([]uuid.UUID, 0, len(listed))
+	for _, raw := range listed {
+		written, ok := raw.(string)
+		if !ok {
+			t.Fatalf("%q holds %v, want identities", key, raw)
+		}
+		id, err := uuid.Parse(written)
+		if err != nil {
+			t.Fatalf("%q holds %q, want an identity", key, written)
+		}
+		held = append(held, id)
+	}
+	return held
+}
+
 // storedCategory stores one category item and returns it.
 func storedCategory(t *testing.T, store *postgres.ContentStore, title string, author uuid.UUID) content.Content {
 	t.Helper()
@@ -67,7 +99,7 @@ func fileUnder(
 ) content.Content {
 	t.Helper()
 	version := post.UpdatedAt
-	post.Relations = content.Relations{"categories": targets}
+	post.Fields = content.Values{"categories": namedTargets(targets)}
 	post.UpdatedAt = time.Now().UTC()
 	updated, err := store.Update(t.Context(), post, version, nil, 0)
 	if err != nil {
@@ -100,17 +132,17 @@ func TestContentStoreCarriesRelations(t *testing.T) {
 
 	updated := fileUnder(t, store, post, guides.ID, news.ID)
 
-	held := updated.Relations["categories"]
+	held := heldTargets(t, updated)
 	if len(held) != 2 || held[0] != guides.ID || held[1] != news.ID {
-		t.Fatalf("Update() relations = %v, want both targets in the order given", held)
+		t.Fatalf("Update() targets = %v, want both in the order given", held)
 	}
 	read, err := store.ByID(t.Context(), post.ID)
 	if err != nil {
 		t.Fatalf("ByID() error = %v, want nil", err)
 	}
-	stored := read.Relations["categories"]
+	stored := heldTargets(t, read)
 	if len(stored) != 2 || stored[0] != guides.ID || stored[1] != news.ID {
-		t.Errorf("ByID() relations = %v, want the author's order kept", stored)
+		t.Errorf("ByID() targets = %v, want the author's order kept", stored)
 	}
 }
 
@@ -124,9 +156,9 @@ func TestContentStoreReplacesTheTargetsItHeld(t *testing.T) {
 
 	updated := fileUnder(t, store, post, guides.ID)
 
-	held := updated.Relations["categories"]
+	held := heldTargets(t, updated)
 	if len(held) != 1 || held[0] != guides.ID {
-		t.Errorf("Update() relations = %v, want the targets replaced", held)
+		t.Errorf("Update() targets = %v, want them replaced", held)
 	}
 }
 
@@ -139,8 +171,8 @@ func TestContentStoreClearsTheTargetsItHeld(t *testing.T) {
 
 	updated := fileUnder(t, store, post)
 
-	if len(updated.Relations["categories"]) != 0 {
-		t.Errorf("Update() relations = %v, want the field cleared", updated.Relations)
+	if held := heldTargets(t, updated); len(held) != 0 {
+		t.Errorf("Update() targets = %v, want the field cleared", held)
 	}
 }
 
@@ -150,7 +182,7 @@ func TestContentStoreRefusesATargetOfTheWrongType(t *testing.T) {
 	store, author, _ := relatingStore(t)
 	other := mustCreate(t, store, "Second post", author)
 	post := mustCreate(t, store, "Hello world", author)
-	post.Relations = content.Relations{"categories": {other.ID}}
+	post.Fields = content.Values{"categories": namedTargets([]uuid.UUID{other.ID})}
 	post.UpdatedAt = time.Now().UTC()
 
 	_, err := store.Update(t.Context(), post, post.CreatedAt, nil, 0)
@@ -165,13 +197,62 @@ func TestContentStoreRefusesATargetNothingHolds(t *testing.T) {
 
 	store, author, _ := relatingStore(t)
 	post := mustCreate(t, store, "Hello world", author)
-	post.Relations = content.Relations{"categories": {uuid.Must(uuid.NewV7())}}
+	post.Fields = content.Values{"categories": namedTargets([]uuid.UUID{uuid.Must(uuid.NewV7())})}
 	post.UpdatedAt = time.Now().UTC()
 
 	_, err := store.Update(t.Context(), post, post.CreatedAt, nil, 0)
 
 	if !errors.Is(err, content.ErrTargetNotFound) {
 		t.Fatalf("Update() error = %v, want %v", err, content.ErrTargetNotFound)
+	}
+}
+
+func TestContentStoreRefusesAFreshItemTargetingNothing(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := relatingStore(t)
+	built := mustPost(t, "Filed at once", author)
+	built.Fields = content.Values{"categories": namedTargets([]uuid.UUID{uuid.Must(uuid.NewV7())})}
+
+	_, err := store.Create(t.Context(), built)
+
+	if !errors.Is(err, content.ErrTargetNotFound) {
+		t.Fatalf("Create() error = %v, want %v", err, content.ErrTargetNotFound)
+	}
+}
+
+func TestContentStoreRefusesAGoneTargetMovedToAnotherRelation(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := relatingStore(t)
+	types := postgres.NewTypeStore(pool)
+	built, err := content.NewField(content.Field{
+		TypeKey: "post", Key: "related", Label: "Related",
+		Kind: content.FieldKindRelation, RelatesTo: content.TypePost, Many: true,
+	})
+	if err != nil {
+		t.Fatalf("NewField(related) error = %v, want nil", err)
+	}
+	if _, err := types.CreateField(t.Context(), built); err != nil {
+		t.Fatalf("declaring the second relation: %v, want nil", err)
+	}
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	filed := fileUnder(t, store, mustCreate(t, store, "Filed", author), news.ID)
+	if err := store.Delete(t.Context(), news.ID); err != nil {
+		t.Fatalf("Delete() error = %v, want nil", err)
+	}
+	moved, err := store.ByID(t.Context(), filed.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	version := moved.UpdatedAt
+	moved.Fields = content.Values{"related": namedTargets([]uuid.UUID{news.ID})}
+	moved.UpdatedAt = time.Now().UTC()
+
+	_, err = store.Update(t.Context(), moved, version, nil, 0)
+
+	if !errors.Is(err, content.ErrTargetNotFound) {
+		t.Fatalf("Update() error = %v, want %v, since this field never held it", err, content.ErrTargetNotFound)
 	}
 }
 
@@ -280,8 +361,8 @@ func TestContentStoreAnswersTrashWithItsRelations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Trash() error = %v, want nil", err)
 	}
-	if held := trashed.Relations["categories"]; len(held) != 1 || held[0] != news.ID {
-		t.Errorf("Trash() relations = %v, want the targets the item still holds", trashed.Relations)
+	if held := heldTargets(t, trashed); len(held) != 1 || held[0] != news.ID {
+		t.Errorf("Trash() targets = %v, want the ones the item still holds", held)
 	}
 }
 
@@ -301,8 +382,8 @@ func TestContentStoreAnswersRestoreWithItsRelations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Restore() error = %v, want nil", err)
 	}
-	if held := restored.Relations["categories"]; len(held) != 1 || held[0] != news.ID {
-		t.Errorf("Restore() relations = %v, want the targets the item still holds", restored.Relations)
+	if held := heldTargets(t, restored); len(held) != 1 || held[0] != news.ID {
+		t.Errorf("Restore() targets = %v, want the ones the item still holds", held)
 	}
 }
 
@@ -312,7 +393,7 @@ func TestContentStoreRefusesATargetDeletedMidWrite(t *testing.T) {
 	store, author, pool := relatingStore(t)
 	news := storedCategory(t, store, "News", author)
 	post := mustCreate(t, store, "Hello world", author)
-	post.Relations = content.Relations{"categories": {news.ID}}
+	post.Fields = content.Values{"categories": namedTargets([]uuid.UUID{news.ID})}
 	post.UpdatedAt = time.Now().UTC()
 	if _, err := pool.Exec(t.Context(), `DELETE FROM core.content WHERE id = $1`, news.ID); err != nil {
 		t.Fatalf("removing the target: %v, want nil", err)
@@ -395,7 +476,10 @@ func TestContentStoreListsAnItemFiledTwiceOnce(t *testing.T) {
 	news := publishItem(t, store, storedCategory(t, store, "News", author))
 	post := fileUnder(t, store, mustCreate(t, store, "Hello world", author), news.ID)
 	version := post.UpdatedAt
-	post.Relations = content.Relations{"categories": {news.ID}, "series": {news.ID}}
+	post.Fields = content.Values{
+		"categories": namedTargets([]uuid.UUID{news.ID}),
+		"series":     namedTargets([]uuid.UUID{news.ID}),
+	}
 	post.UpdatedAt = time.Now().UTC()
 	filed, err := store.Update(t.Context(), post, version, nil, 0)
 	if err != nil {
@@ -482,7 +566,7 @@ func TestContentStoreWritesRelationsWhileTheFieldIsDeleted(t *testing.T) {
 			}
 		}
 		post := mustCreate(t, store, fmt.Sprintf("Hello world %d", round), author)
-		post.Relations = content.Relations{"categories": {news.ID}}
+		post.Fields = content.Values{"categories": namedTargets([]uuid.UUID{news.ID})}
 		post.UpdatedAt = time.Now().UTC()
 		filed, err := store.Update(t.Context(), post, post.CreatedAt, nil, 0)
 		if err != nil {
@@ -514,40 +598,38 @@ func TestContentStoreWritesRelationsWhileTheFieldIsDeleted(t *testing.T) {
 	}
 }
 
-func TestContentStoreNamesTheTargetsAnItemPointsAt(t *testing.T) {
+func TestContentStoreNamesTheTargetsTheIdentitiesPointAt(t *testing.T) {
 	t.Parallel()
 
 	store, author, _ := relatingStore(t)
 	news := publishItem(t, store, storedCategory(t, store, "News", author))
-	filed := fileUnder(t, store, mustCreate(t, store, "A Filed Post", author), news.ID)
 
-	held, err := store.TargetsOf(t.Context(), filed.ID)
+	held, err := store.TargetsByIDs(t.Context(), []uuid.UUID{news.ID})
 
 	if err != nil {
-		t.Fatalf("TargetsOf() error = %v, want nil", err)
+		t.Fatalf("TargetsByIDs() error = %v, want nil", err)
 	}
-	listed := held["categories"]
-	if len(listed) != 1 {
-		t.Fatalf("TargetsOf() = %v, want the one category it is filed under", held)
+	if len(held) != 1 {
+		t.Fatalf("TargetsByIDs() = %v, want the one published category", held)
 	}
-	if listed[0].ID != news.ID || listed[0].Title != "News" || listed[0].Path == "" {
-		t.Errorf("target = %+v, want the category named and addressed", listed[0])
+	if held[0].ID != news.ID || held[0].Title != "News" || held[0].Path == "" {
+		t.Errorf("target = %+v, want the category named and addressed", held[0])
 	}
 }
 
-func TestContentStoreNamesNoTargetsForAnItemPointingNowhere(t *testing.T) {
+func TestContentStoreNamesNoTargetNobodyPublished(t *testing.T) {
 	t.Parallel()
 
 	store, author, _ := relatingStore(t)
-	alone := mustCreate(t, store, "Points Nowhere", author)
+	draft := storedCategory(t, store, "News", author)
 
-	held, err := store.TargetsOf(t.Context(), alone.ID)
+	held, err := store.TargetsByIDs(t.Context(), []uuid.UUID{draft.ID, uuid.Must(uuid.NewV7())})
 
 	if err != nil {
-		t.Fatalf("TargetsOf() error = %v, want nil", err)
+		t.Fatalf("TargetsByIDs() error = %v, want nil", err)
 	}
 	if len(held) != 0 {
-		t.Errorf("TargetsOf() = %v, want nothing pointed at", held)
+		t.Errorf("TargetsByIDs() = %v, want neither a draft nor an identity nothing holds", held)
 	}
 }
 
@@ -557,7 +639,7 @@ func TestContentStoreReportsTargetsItCannotRead(t *testing.T) {
 	store, _, pool := relatingStore(t)
 	pool.Close()
 
-	if _, err := store.TargetsOf(t.Context(), uuid.New()); err == nil {
-		t.Error("TargetsOf() error = nil, want the closed pool reported")
+	if _, err := store.TargetsByIDs(t.Context(), []uuid.UUID{uuid.New()}); err == nil {
+		t.Error("TargetsByIDs() error = nil, want the closed pool reported")
 	}
 }

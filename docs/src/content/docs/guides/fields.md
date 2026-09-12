@@ -189,8 +189,10 @@ rather than to the group directly.
 A container may hold another container, up to 32 levels deep. A
 Repeater row can hold a Section, and that Section can hold a Repeater
 of its own. Deeper than 32 the field is refused, which is far more
-nesting than a page needs. Relations and Linked from fields stand
-outside, so declare them beside a container rather than in it.
+nesting than a page needs. A Relation stands inside one as happily
+as a text field does, so a Repeater row can point at an item of its
+own. Only a Linked from field stands outside, so declare that one
+beside the container rather than in it.
 
 Deleting a field inside a container takes the values stored under it,
 in every item the group reaches and in the revisions behind them,
@@ -218,8 +220,12 @@ and they all arrive together. **Move up** and **Move down** order
 them, and that order is what a theme reads. A file taken out of the
 library shows by its number so you can still remove it.
 
-Autosave does not keep relations, which are stored apart from the
-item. Press **Save draft** after changing what an item points at.
+Autosave keeps what an item points at, the same as every other
+value it holds. An item that was deleted stays in the picker of
+whatever pointed at it, shown by its number so you can take it out,
+and a reader of the site is never shown it. It stays until you take
+it out yourself, the same as a file taken out of the library, and
+saving the item again in the meantime is never blocked by it.
 
 A field can be marked **required**, as you declare it or with
 **Require** afterwards. It never blocks a draft save, only

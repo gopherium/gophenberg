@@ -60,7 +60,7 @@ func fileUnderNews(t *testing.T, pool *pgxpool.Pool, path string) {
 		t.Fatalf("reading %q: %v", path, err)
 	}
 	version := held.UpdatedAt
-	held.Relations = held.Relations.Merge(content.Relations{seed.CategoriesFieldKey: {news.ID}})
+	held.Fields = held.Fields.Merge(content.Values{seed.CategoriesFieldKey: []any{news.ID.String()}})
 	held.UpdatedAt = time.Now().UTC()
 	if _, err := store.Update(t.Context(), held, version, nil, 0); err != nil {
 		t.Fatalf("filing %q under the demo category: %v", path, err)

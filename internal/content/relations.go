@@ -5,6 +5,7 @@ package content
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 )
@@ -24,8 +25,11 @@ var ErrSelfTarget = errors.New("content: an item cannot point at itself")
 // ErrTargetType reports that a relation names an item of the wrong type.
 var ErrTargetType = errors.New("content: target is not the type the field points at")
 
-// Relations holds the items a content item points at, keyed by field key.
-type Relations map[string][]uuid.UUID
+// FieldTargets names one relation field beside the items its values point at.
+type FieldTargets struct {
+	Field   Field
+	Targets []uuid.UUID
+}
 
 // Target names one item a relation field points at, as a public reader sees it.
 type Target struct {
@@ -45,36 +49,84 @@ type Pointer struct {
 	Path  string
 }
 
-// SplitValues divides a patch into the scalar values and the targets its type declares.
-func SplitValues(patch Values, fields []Field) (Values, Relations, error) {
-	declared := make(map[string]Field, len(fields))
-	for _, f := range fields {
-		declared[f.Key] = f
+// HeldTargets returns every relation field the fields declare beside the targets the values point at.
+func HeldTargets(fields []Field, values Values) ([]FieldTargets, error) {
+	var held []FieldTargets
+	if err := targetsUnder(fields, values, &held); err != nil {
+		return nil, err
 	}
-	scalars := make(Values, len(patch))
-	relations := make(Relations)
-	for key, value := range patch {
-		f, found := declared[key]
-		if !found {
-			return nil, nil, Refuse(ErrUnknownField, "field_unknown",
-				fmt.Sprintf("%s: %s", ErrUnknownField, key), Details{"field": key})
+	return held, nil
+}
+
+// HeldIdentities returns the identities the values name, keyed by the relation field naming them.
+func HeldIdentities(fields []Field, values Values) map[int]map[uuid.UUID]bool {
+	held, err := HeldTargets(fields, values)
+	if err != nil {
+		return nil
+	}
+	identities := make(map[int]map[uuid.UUID]bool, len(held))
+	for _, ft := range held {
+		named := make(map[uuid.UUID]bool, len(ft.Targets))
+		for _, target := range ft.Targets {
+			named[target] = true
 		}
-		if f.Kind == FieldKindBacklinks {
-			return nil, nil, Refuse(ErrFieldShape, "field_shape_value",
-				fmt.Sprintf("%s: %s is read rather than written", ErrFieldShape, f.Key),
-				Details{"field": f.Key})
-		}
-		if f.Kind != FieldKindRelation {
-			scalars[key] = value
+		identities[ft.Field.ID] = named
+	}
+	return identities
+}
+
+// targetsUnder gathers the targets each relation field holds, descending into every container.
+func targetsUnder(fields []Field, values Values, held *[]FieldTargets) error {
+	for _, f := range fields {
+		if f.Kind == FieldKindRelation {
+			targets, err := targetsOf(f, values[f.Key])
+			if err != nil {
+				return err
+			}
+			gather(held, f, targets)
 			continue
 		}
-		targets, err := targetsOf(f, value)
-		if err != nil {
-			return nil, nil, err
+		if !f.Kind.Holds() {
+			continue
 		}
-		relations[key] = targets
+		if err := targetsInside(f, values[f.Key], held); err != nil {
+			return err
+		}
 	}
-	return scalars, relations, nil
+	return nil
+}
+
+// targetsInside gathers the targets the rows or the object a container holds point at.
+func targetsInside(f Field, value any, held *[]FieldTargets) error {
+	if rows, listed := value.([]any); listed {
+		for _, row := range rows {
+			if err := targetsInside(f, row, held); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	inside, standing := value.(map[string]any)
+	if !standing {
+		inside = Values{}
+	}
+	return targetsUnder(f.Fields, inside, held)
+}
+
+// gather adds the targets to the field's own, keeping each one once in the order they were named.
+func gather(held *[]FieldTargets, f Field, targets []uuid.UUID) {
+	for i, ft := range *held {
+		if ft.Field.ID != f.ID {
+			continue
+		}
+		for _, target := range targets {
+			if !slices.Contains((*held)[i].Targets, target) {
+				(*held)[i].Targets = append((*held)[i].Targets, target)
+			}
+		}
+		return
+	}
+	*held = append(*held, FieldTargets{Field: f, Targets: targets})
 }
 
 // targetsOf returns the identities a relation value names, or the reason it names none.
@@ -123,39 +175,29 @@ func targetID(f Field, raw any) (uuid.UUID, error) {
 	return target, nil
 }
 
-// SelfTargeted reports whether any relation field of the item points at the item itself.
-func (c Content) SelfTargeted() error {
-	for key, targets := range c.Relations {
-		for _, target := range targets {
-			if target == c.ID {
-				return Refuse(ErrSelfTarget, "target_is_self",
-					fmt.Sprintf("%s: %s", ErrSelfTarget, key), Details{"field": key})
-			}
+// SelfTargeted reports whether any relation the item's values name points at the item itself.
+func (c Content) SelfTargeted(fields []Field) error {
+	held, err := HeldTargets(fields, c.Fields)
+	if err != nil {
+		return err
+	}
+	for _, ft := range held {
+		if slices.Contains(ft.Targets, c.ID) {
+			return Refuse(ErrSelfTarget, "target_is_self",
+				fmt.Sprintf("%s: %s", ErrSelfTarget, ft.Field.Key), Details{"field": ft.Field.Key})
 		}
 	}
 	return nil
 }
 
-// Merge returns the stored targets with the patch applied, where a named field replaces its targets.
-func (r Relations) Merge(patch Relations) Relations {
-	merged := make(Relations, len(r)+len(patch))
-	for key, targets := range r {
-		merged[key] = targets
-	}
-	for key, targets := range patch {
-		merged[key] = targets
-	}
-	return merged
-}
-
 // Filled reports whether every required field the conditions show holds a value.
-func Filled(values Values, relations Relations, fields []Field) error {
+func Filled(values Values, fields []Field) error {
 	hidden := Hidden(fields, values)
 	for _, f := range fields {
 		if hidden[f.Key] {
 			continue
 		}
-		if f.Required && unfilled(values, relations, f) {
+		if f.Required && empty(values[f.Key]) {
 			return Refuse(ErrFieldRequired, "field_required",
 				fmt.Sprintf("%s: %s", ErrFieldRequired, f.Key), Details{"field": f.Key})
 		}
@@ -186,13 +228,5 @@ func filledInside(f Field, value any) error {
 	if !held {
 		return nil
 	}
-	return Filled(inside, Relations{}, f.Fields)
-}
-
-// unfilled reports whether the field stands empty on the item.
-func unfilled(values Values, relations Relations, f Field) bool {
-	if f.Kind == FieldKindRelation {
-		return len(relations[f.Key]) == 0
-	}
-	return empty(values[f.Key])
+	return Filled(inside, f.Fields)
 }

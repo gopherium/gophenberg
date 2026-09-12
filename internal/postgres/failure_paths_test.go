@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
@@ -57,6 +59,26 @@ func TestTrashReportsChildrenItCannotCount(t *testing.T) {
 	}
 }
 
+func TestUpdateReportsTheValuesItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := relatingStore(t)
+	held := mustCreate(t, store, "A Post", author)
+	sabotage(t, pool, "ALTER TABLE core.content DROP COLUMN fields")
+
+	version := held.UpdatedAt
+	held.UpdatedAt = time.Now().UTC()
+
+	_, err := store.Update(t.Context(), held, version, nil, 0)
+
+	if err == nil {
+		t.Fatal("Update() error = nil, want the unreadable values reported")
+	}
+	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) {
+		t.Errorf("Update() error = %v, want the read failure rather than a write verdict", err)
+	}
+}
+
 func TestUpdateReportsATargetTypeItCannotRead(t *testing.T) {
 	t.Parallel()
 
@@ -67,7 +89,7 @@ func TestUpdateReportsATargetTypeItCannotRead(t *testing.T) {
 	sabotage(t, pool, "UPDATE core.content SET type = NULL WHERE type = 'category'")
 
 	version := held.UpdatedAt
-	held.Relations = content.Relations{"categories": {news.ID}}
+	held.Fields = content.Values{"categories": namedTargets([]uuid.UUID{news.ID})}
 	held.UpdatedAt = time.Now().UTC()
 
 	_, err := store.Update(t.Context(), held, version, nil, 0)

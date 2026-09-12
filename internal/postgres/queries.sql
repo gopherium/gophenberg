@@ -565,17 +565,8 @@ SET fields = r.fields - @key::text
 FROM core.content c
 WHERE r.content_id = c.id AND c.type = ANY(@types::text []) AND r.fields ? @key::text;
 
--- name: ListRelationFieldsOfGroups :many
-SELECT id, key, relates_to, many FROM core.content_fields
-WHERE group_id = ANY(@ids::integer []) AND kind = 'relation'
-ORDER BY id;
-
--- name: ListRelationTargets :many
-SELECT f.key, r.to_id
-FROM core.content_relations r
-JOIN core.content_fields f ON f.id = r.field_id
-WHERE r.from_id = @from_id
-ORDER BY f.key, r.position;
+-- name: ValuesOfContent :one
+SELECT fields FROM core.content WHERE id = @id;
 
 -- name: TypesOfContent :many
 SELECT id, type FROM core.content WHERE id = ANY(@ids::uuid[]);
@@ -639,11 +630,8 @@ JOIN core.content c ON c.id = r.from_id
 JOIN core.content_types t ON t.key = c.type
 WHERE r.to_id = @target AND r.field_id = @field AND r.visible AND t.active;
 
--- name: ListRelationSummaries :many
-SELECT f.key, c.id, c.title, c.path
-FROM core.content_relations r
-JOIN core.content_fields f ON f.id = r.field_id
-JOIN core.content c ON c.id = r.to_id
+-- name: SummariesOfTargets :many
+SELECT c.id, c.title, c.path
+FROM core.content c
 JOIN core.content_types t ON t.key = c.type
-WHERE r.from_id = @from_id AND c.status = 'published' AND t.active
-ORDER BY f.key, r.position;
+WHERE c.id = ANY(@ids::uuid []) AND c.status = 'published' AND t.active;

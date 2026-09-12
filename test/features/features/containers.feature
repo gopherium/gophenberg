@@ -78,7 +78,33 @@ Feature: Container fields
       """
     Then the post "Hello world" holds 1 rows in "team"
 
-  Scenario: A relation inside a container is refused
+  Scenario: Two rows of a repeater point at one item
+    Given the "repeater" field "team" in "Extras"
+    And the "relation" field "wrote" inside "team"
+    And the post "Hello world"
+    And the post "Second post"
+    When the administrator points two rows of "wrote" inside "team" of "Hello world" at "Second post"
+    Then the post "Hello world" holds 2 rows in "team"
+
+  Scenario: A required relation inside a row gates publishing
+    Given the "repeater" field "team" in "Extras"
+    And the required "relation" field "wrote" inside "team"
+    And the post "Hello world"
+    When the administrator saves the rows of "team" of "Hello world" as:
+      """
+      [{"wrote": []}]
+      """
+    Then publishing "Hello world" is refused
+
+  Scenario: A relation stands inside a container
     Given the "section" field "author" in "Extras"
     When the administrator declares the "relation" field "wrote" inside "author"
-    Then the request is refused
+    Then the field "author" on "post" holds the sub field "wrote"
+
+  Scenario: A section points at an item through its relation
+    Given the "section" field "author" in "Extras"
+    And the "relation" field "wrote" inside "author"
+    And the post "Hello world"
+    And the post "Second post"
+    When the administrator points "wrote" inside "author" of "Hello world" at "Second post"
+    Then "Hello world" lists "Second post" in "wrote" inside "author"

@@ -12,7 +12,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// relatable returns a text field and a many relation field to split a patch against.
+// relatable returns a text field and a relation field to check a patch against.
 func relatable(t *testing.T, many bool) []content.Field {
 	t.Helper()
 	color, err := content.NewField(content.Field{
@@ -31,7 +31,7 @@ func relatable(t *testing.T, many bool) []content.Field {
 	return []content.Field{color, categories}
 }
 
-func TestSplitValuesDividesScalarsFromTargets(t *testing.T) {
+func TestValuesCarryTargetsBesideTheScalars(t *testing.T) {
 	t.Parallel()
 
 	first, second := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
@@ -40,139 +40,88 @@ func TestSplitValuesDividesScalarsFromTargets(t *testing.T) {
 		"categories": []any{first.String(), second.String()},
 	}
 
-	scalars, relations, err := content.SplitValues(patch, relatable(t, true))
-
-	if err != nil {
-		t.Fatalf("SplitValues() error = %v, want nil", err)
-	}
-	if len(scalars) != 1 || scalars["color"] != "red" {
-		t.Errorf("SplitValues() scalars = %v, want the text value alone", scalars)
-	}
-	held := relations["categories"]
-	if len(held) != 2 || held[0] != first || held[1] != second {
-		t.Errorf("SplitValues() relations = %v, want both targets in order", held)
+	if err := patch.Validate(relatable(t, true)); err != nil {
+		t.Fatalf("Validate() error = %v, want the targets carried beside the text value", err)
 	}
 }
 
-func TestSplitValuesReadsANullAsAClearedRelation(t *testing.T) {
+func TestValuesReadANullRelationAsCleared(t *testing.T) {
 	t.Parallel()
 
 	patch := content.Values{"categories": nil}
 
-	_, relations, err := content.SplitValues(patch, relatable(t, true))
-
-	if err != nil {
-		t.Fatalf("SplitValues() error = %v, want nil", err)
-	}
-	held, named := relations["categories"]
-	if !named || len(held) != 0 {
-		t.Errorf("SplitValues() relations = %v, want the field named with no targets", relations)
+	if err := patch.Validate(relatable(t, true)); err != nil {
+		t.Fatalf("Validate() error = %v, want a cleared relation accepted", err)
 	}
 }
 
-func TestSplitValuesRefusesAnUnknownKey(t *testing.T) {
+func TestValuesRefuseATargetThatIsNotAList(t *testing.T) {
 	t.Parallel()
 
-	_, _, err := content.SplitValues(content.Values{"finish": "matte"}, relatable(t, true))
-
-	if !errors.Is(err, content.ErrUnknownField) {
-		t.Fatalf("SplitValues() error = %v, want %v", err, content.ErrUnknownField)
-	}
-}
-
-func TestSplitValuesRefusesATargetThatIsNotAList(t *testing.T) {
-	t.Parallel()
-
-	_, _, err := content.SplitValues(content.Values{"categories": "news"}, relatable(t, true))
+	err := content.Values{"categories": "news"}.Validate(relatable(t, true))
 
 	if !errors.Is(err, content.ErrFieldShape) {
-		t.Fatalf("SplitValues() error = %v, want %v", err, content.ErrFieldShape)
+		t.Fatalf("Validate() error = %v, want %v", err, content.ErrFieldShape)
 	}
 }
 
-func TestSplitValuesRefusesATargetThatIsNotAnIdentity(t *testing.T) {
+func TestValuesRefuseATargetThatIsNotAnIdentity(t *testing.T) {
 	t.Parallel()
 
-	patch := content.Values{"categories": []any{"news"}}
+	for name, value := range map[string]any{
+		"a word":     []any{"news"},
+		"a number":   []any{42},
+		"nothing at": []any{nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	_, _, err := content.SplitValues(patch, relatable(t, true))
+			err := content.Values{"categories": value}.Validate(relatable(t, true))
 
-	if !errors.Is(err, content.ErrFieldShape) {
-		t.Fatalf("SplitValues() error = %v, want %v", err, content.ErrFieldShape)
+			if !errors.Is(err, content.ErrFieldShape) {
+				t.Fatalf("Validate() error = %v, want %v", err, content.ErrFieldShape)
+			}
+		})
 	}
 }
 
-func TestSplitValuesRefusesASecondTargetOnAOneField(t *testing.T) {
+func TestValuesRefuseASecondTargetOnAOneField(t *testing.T) {
 	t.Parallel()
 
 	patch := content.Values{
 		"categories": []any{uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()},
 	}
 
-	_, _, err := content.SplitValues(patch, relatable(t, false))
+	err := patch.Validate(relatable(t, false))
 
 	if !errors.Is(err, content.ErrTooManyTargets) {
-		t.Fatalf("SplitValues() error = %v, want %v", err, content.ErrTooManyTargets)
+		t.Fatalf("Validate() error = %v, want %v", err, content.ErrTooManyTargets)
 	}
 	if !strings.Contains(err.Error(), "categories") {
-		t.Errorf("SplitValues() error = %q, want the field named", err)
+		t.Errorf("Validate() error = %q, want the field named", err)
 	}
 }
 
-func TestSplitValuesAcceptsOneTargetOnAOneField(t *testing.T) {
+func TestValuesAcceptOneTargetOnAOneField(t *testing.T) {
 	t.Parallel()
 
 	patch := content.Values{"categories": []any{uuid.Must(uuid.NewV7()).String()}}
 
-	_, relations, err := content.SplitValues(patch, relatable(t, false))
-
-	if err != nil {
-		t.Fatalf("SplitValues() error = %v, want nil", err)
-	}
-	if len(relations["categories"]) != 1 {
-		t.Errorf("SplitValues() relations = %v, want the one target", relations)
+	if err := patch.Validate(relatable(t, false)); err != nil {
+		t.Fatalf("Validate() error = %v, want the one target accepted", err)
 	}
 }
 
-func TestSplitValuesRefusesARepeatedTarget(t *testing.T) {
+func TestValuesRefuseARepeatedTarget(t *testing.T) {
 	t.Parallel()
 
 	same := uuid.Must(uuid.NewV7()).String()
 	patch := content.Values{"categories": []any{same, same}}
 
-	_, _, err := content.SplitValues(patch, relatable(t, true))
+	err := patch.Validate(relatable(t, true))
 
 	if !errors.Is(err, content.ErrRepeatedTarget) {
-		t.Fatalf("SplitValues() error = %v, want %v", err, content.ErrRepeatedTarget)
-	}
-}
-
-func TestRelationsMergeReplacesANamedField(t *testing.T) {
-	t.Parallel()
-
-	first, second := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
-	stored := content.Relations{"categories": {first}, "series": {second}}
-
-	merged := stored.Merge(content.Relations{"categories": {second}})
-
-	if len(merged["categories"]) != 1 || merged["categories"][0] != second {
-		t.Errorf("Merge() categories = %v, want the named field replaced", merged["categories"])
-	}
-	if len(merged["series"]) != 1 || merged["series"][0] != second {
-		t.Errorf("Merge() series = %v, want the absent field left alone", merged["series"])
-	}
-}
-
-func TestRelationsMergeLeavesTheStoredTargetsAlone(t *testing.T) {
-	t.Parallel()
-
-	first, second := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
-	stored := content.Relations{"categories": {first}}
-
-	stored.Merge(content.Relations{"categories": {second}})
-
-	if stored["categories"][0] != first {
-		t.Errorf("the stored targets hold %v, want the merge to have left them alone", stored["categories"])
+		t.Fatalf("Validate() error = %v, want %v", err, content.ErrRepeatedTarget)
 	}
 }
 
@@ -188,14 +137,14 @@ func TestFilledCountsAnEmptyRelationAsEmpty(t *testing.T) {
 	}
 	fields := []content.Field{required}
 
-	for name, held := range map[string]content.Relations{
+	for name, held := range map[string]content.Values{
 		"the field is absent": {},
-		"the field is empty":  {"engine": {}},
+		"the field is empty":  {"engine": []any{}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			err := content.Filled(content.Values{}, held, fields)
+			err := content.Filled(held, fields)
 
 			if !errors.Is(err, content.ErrFieldRequired) {
 				t.Fatalf("Filled() error = %v, want %v", err, content.ErrFieldRequired)
@@ -214,9 +163,9 @@ func TestFilledAcceptsAHeldTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewField() error = %v, want nil", err)
 	}
-	held := content.Relations{"engine": {uuid.Must(uuid.NewV7())}}
+	held := content.Values{"engine": []any{uuid.Must(uuid.NewV7()).String()}}
 
-	if err := content.Filled(content.Values{}, held, []content.Field{required}); err != nil {
+	if err := content.Filled(held, []content.Field{required}); err != nil {
 		t.Fatalf("Filled() error = %v, want a held target to count as filled", err)
 	}
 }
@@ -224,10 +173,14 @@ func TestFilledAcceptsAHeldTarget(t *testing.T) {
 func TestSelfTargetedRefusesAnItemPointingAtItself(t *testing.T) {
 	t.Parallel()
 
+	fields := []content.Field{{
+		TypeKey: content.TypePost, Key: "related", Label: "Related",
+		Kind: content.FieldKindRelation, RelatesTo: content.TypePost, Many: true,
+	}}
 	held := content.Content{ID: uuid.Must(uuid.NewV7()), Type: content.TypePost}
-	held.Relations = content.Relations{"related": {held.ID}}
+	held.Fields = content.Values{"related": []any{held.ID.String()}}
 
-	err := held.SelfTargeted()
+	err := held.SelfTargeted(fields)
 
 	if !errors.Is(err, content.ErrSelfTarget) {
 		t.Fatalf("SelfTargeted() error = %v, want %v", err, content.ErrSelfTarget)
@@ -240,26 +193,99 @@ func TestSelfTargetedRefusesAnItemPointingAtItself(t *testing.T) {
 func TestSelfTargetedAcceptsAnotherItemOfItsOwnType(t *testing.T) {
 	t.Parallel()
 
+	fields := []content.Field{{
+		TypeKey: content.TypePost, Key: "related", Label: "Related",
+		Kind: content.FieldKindRelation, RelatesTo: content.TypePost, Many: true,
+	}}
 	held := content.Content{ID: uuid.Must(uuid.NewV7()), Type: content.TypePost}
-	held.Relations = content.Relations{"related": {uuid.Must(uuid.NewV7())}}
+	held.Fields = content.Values{"related": []any{uuid.Must(uuid.NewV7()).String()}}
 
-	if err := held.SelfTargeted(); err != nil {
+	if err := held.SelfTargeted(fields); err != nil {
 		t.Fatalf("SelfTargeted() error = %v, want a sibling of the same type accepted", err)
 	}
 }
 
-func TestARelationRefusesATargetThatIsNotWritten(t *testing.T) {
+func TestSelfTargetedReportsAValueNoRelationHolds(t *testing.T) {
 	t.Parallel()
 
 	fields := []content.Field{{
-		TypeKey: content.TypePost, Key: "categories", Label: "Categories",
-		Kind: content.FieldKindRelation, RelatesTo: "category", Many: true,
+		TypeKey: content.TypePost, Key: "related", Label: "Related",
+		Kind: content.FieldKindRelation, RelatesTo: content.TypePost, Many: true,
 	}}
+	held := content.Content{ID: uuid.Must(uuid.NewV7()), Fields: content.Values{"related": "news"}}
 
-	_, _, err := content.SplitValues(content.Values{"categories": []any{42}}, fields)
+	if err := held.SelfTargeted(fields); !errors.Is(err, content.ErrFieldShape) {
+		t.Errorf("SelfTargeted() error = %v, want %v", err, content.ErrFieldShape)
+	}
+}
 
-	if !errors.Is(err, content.ErrFieldShape) {
-		t.Errorf("SplitValues() error = %v, want %v", err, content.ErrFieldShape)
+// relationsKeyed returns a relation at the top and one inside a repeater, each carrying its own identity.
+func relationsKeyed() []content.Field {
+	return []content.Field{
+		{ID: 1, TypeKey: "post", Key: "color", Label: "Color", Kind: content.FieldKindText},
+		{ID: 2, TypeKey: "post", Key: "categories", Label: "Categories",
+			Kind: content.FieldKindRelation, RelatesTo: "category", Many: true},
+		{ID: 3, TypeKey: "post", Key: "team", Label: "Team", Kind: content.FieldKindRepeater,
+			Fields: []content.Field{{ID: 4, Key: "filed", Label: "Filed",
+				Kind: content.FieldKindRelation, RelatesTo: "category", Many: true}}},
+	}
+}
+
+func TestHeldIdentitiesNamesEveryTargetTheValuesPointAt(t *testing.T) {
+	t.Parallel()
+
+	first, second := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	values := content.Values{
+		"color":      "red",
+		"categories": []any{first.String(), second.String()},
+	}
+
+	held := content.HeldIdentities(relationsKeyed(), values)
+
+	if len(held[2]) != 2 || !held[2][first] || !held[2][second] {
+		t.Errorf("HeldIdentities() = %v, want both targets named under the field naming them", held)
+	}
+}
+
+func TestHeldIdentitiesNamesNothingForValuesPointingNowhere(t *testing.T) {
+	t.Parallel()
+
+	for name, values := range map[string]content.Values{
+		"values nobody filled in":     nil,
+		"a relation standing empty":   {"categories": []any{}},
+		"a value no relation holds":   {"categories": "news"},
+		"a scalar beside no relation": {"color": "red"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if held := content.HeldIdentities(relationsKeyed(), values); len(held[2]) != 0 {
+				t.Errorf("HeldIdentities() = %v, want nothing named", held)
+			}
+		})
+	}
+}
+
+func TestHeldIdentitiesKeepsEachFieldsTargetsApart(t *testing.T) {
+	t.Parallel()
+
+	top, inside := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	values := content.Values{
+		"color":      "red",
+		"categories": []any{top.String()},
+		"team": []any{
+			map[string]any{"filed": []any{inside.String()}},
+			map[string]any{},
+		},
+	}
+
+	held := content.HeldIdentities(relationsKeyed(), values)
+
+	if !held[2][top] || !held[4][inside] {
+		t.Errorf("HeldIdentities() = %v, want each field naming the target it holds", held)
+	}
+	if held[2][inside] || held[4][top] {
+		t.Errorf("HeldIdentities() = %v, want no field naming a target another field holds", held)
 	}
 }
 
@@ -323,7 +349,7 @@ func TestFilledReachesRequiredFieldsInsideAContainer(t *testing.T) {
 				values["author"] = asked.value
 			}
 
-			err := content.Filled(values, content.Relations{}, []content.Field{held})
+			err := content.Filled(values, []content.Field{held})
 
 			if !errors.Is(err, asked.want) {
 				t.Errorf("Filled() error = %v, want %v", err, asked.want)
@@ -337,7 +363,7 @@ func TestFilledRefusesARequiredSectionNobodyAnswered(t *testing.T) {
 
 	held := containerHolding(t, content.FieldKindSection, true)
 
-	err := content.Filled(content.Values{"author": map[string]any{}}, content.Relations{}, []content.Field{held})
+	err := content.Filled(content.Values{"author": map[string]any{}}, []content.Field{held})
 
 	if code, _ := content.CodeOf(err); code != "field_required" {
 		t.Errorf("code = %q, want field_required, error %v", code, err)

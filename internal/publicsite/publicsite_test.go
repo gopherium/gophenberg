@@ -60,8 +60,8 @@ func (r *fakeReader) RelatedTo(
 		if p.Status != content.StatusPublished {
 			continue
 		}
-		for _, targets := range p.Relations {
-			if slices.Contains(targets, target) {
+		for _, value := range p.Fields {
+			if slices.Contains(identitiesHeld(value), target) {
 				p.Content = ""
 				matched = append(matched, p)
 				break
@@ -433,7 +433,7 @@ func TestSiteRendersATermPageWithItsRelatedContent(t *testing.T) {
 	filed := content.Content{
 		ID: uuid.Must(uuid.NewV7()), Type: content.TypePost, Status: content.StatusPublished,
 		Path: "hello-world", Slug: "hello-world", Title: "Hello world",
-		Relations: content.Relations{"categories": {news.ID}},
+		Fields: content.Values{"categories": []any{news.ID.String()}},
 	}
 	reader := &fakeReader{posts: []content.Content{news, filed}}
 	handler := publicsite.New(publicsite.Config{
@@ -454,26 +454,38 @@ func TestSiteRendersATermPageWithItsRelatedContent(t *testing.T) {
 	}
 }
 
-// TargetsOf returns the published targets the item points at, keyed by field key.
-func (r *fakeReader) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
-	targets := make(content.Targets)
-	for _, held := range r.posts {
-		if held.ID != from {
+// identitiesHeld returns every identity a stored value names.
+func identitiesHeld(value any) []uuid.UUID {
+	listed, named := value.([]any)
+	if !named {
+		return nil
+	}
+	held := make([]uuid.UUID, 0, len(listed))
+	for _, raw := range listed {
+		written, ok := raw.(string)
+		if !ok {
 			continue
 		}
-		for key, listed := range held.Relations {
-			for _, id := range listed {
-				for _, pointed := range r.posts {
-					if pointed.ID == id && pointed.Status == content.StatusPublished {
-						targets[key] = append(targets[key], content.Target{
-							ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
-						})
-					}
-				}
+		if id, err := uuid.Parse(written); err == nil {
+			held = append(held, id)
+		}
+	}
+	return held
+}
+
+// TargetsByIDs returns the published items the identities name.
+func (r *fakeReader) TargetsByIDs(_ context.Context, ids []uuid.UUID) ([]content.Target, error) {
+	held := make([]content.Target, 0, len(ids))
+	for _, id := range ids {
+		for _, pointed := range r.posts {
+			if pointed.ID == id && pointed.Status == content.StatusPublished {
+				held = append(held, content.Target{
+					ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
+				})
 			}
 		}
 	}
-	return targets, nil
+	return held, nil
 }
 
 // fakeLocale answers the language the site chose, with scripted failure and absence.

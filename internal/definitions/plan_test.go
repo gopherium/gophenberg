@@ -55,6 +55,29 @@ func TestCompareReadsABacklinksSourceTheSameFileBringsLater(t *testing.T) {
 	}
 }
 
+func TestCompareCarriesARelationStandingInsideAContainer(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	envelope.Groups = append(envelope.Groups, definitions.GroupDefinition{
+		Key: "recipe-team", Title: "Recipe team", Active: true, Location: recipeRules(),
+		Fields: []definitions.FieldDefinition{{
+			Key: "team", Label: "Team", Kind: "repeater",
+			Fields: []definitions.FieldDefinition{{
+				Key: "wrote", Label: "Wrote", Kind: "relation", RelatesTo: "recipe", Many: true,
+			}},
+		}},
+	})
+
+	plan := compared(t, registry, envelope)
+
+	held, planned := changeFor(plan, definitions.SubjectField, "team.wrote")
+	if !planned || held.Action != definitions.ActionCreate || held.Group != "recipe-team" {
+		t.Errorf("the wrote change = %+v, %v, want a relation created inside the rows", held, planned)
+	}
+}
+
 // exported returns the envelope the site would download right now.
 func exported(t *testing.T, registry *content.Registry) definitions.Envelope {
 	t.Helper()

@@ -10,9 +10,9 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// Reader reads the stored links a public answer carries beside the item's own values.
+// Reader reads the items a public answer names beside the item's own values.
 type Reader interface {
-	TargetsOf(ctx context.Context, from uuid.UUID) (content.Targets, error)
+	TargetsByIDs(ctx context.Context, ids []uuid.UUID) ([]content.Target, error)
 	PointingAt(ctx context.Context, target uuid.UUID, field, page, perPage int) ([]content.Pointer, int, error)
 }
 
@@ -45,10 +45,7 @@ func PerPage(ctx context.Context, settings Settings) int {
 func Values(
 	ctx context.Context, stores Stores, t content.Type, c content.Content,
 ) (content.Values, map[string]int, error) {
-	values, err := linked(ctx, stores.Links, c)
-	if err != nil {
-		return nil, nil, err
-	}
+	values := c.Fields.Merge(nil)
 	totals, err := Pointing(ctx, stores, t, c, values, content.Hidden(t.Fields, values))
 	if err != nil {
 		return nil, nil, err
@@ -57,23 +54,10 @@ func Values(
 	if err := InlineMedia(ctx, stores.Library, t, shown); err != nil {
 		return nil, nil, err
 	}
+	if err := InlineTargets(ctx, stores.Links, t, shown); err != nil {
+		return nil, nil, err
+	}
 	return shown, totals, nil
-}
-
-// linked returns the item's stored values with the targets its relations name beside them.
-func linked(ctx context.Context, links Reader, c content.Content) (content.Values, error) {
-	targets, err := links.TargetsOf(ctx, c.ID)
-	if err != nil {
-		return nil, err
-	}
-	values := make(content.Values, len(c.Fields)+len(targets))
-	for key, value := range c.Fields {
-		values[key] = value
-	}
-	for key, listed := range targets {
-		values[key] = NamedTargets(listed)
-	}
-	return values, nil
 }
 
 // Pointing writes the items pointing at the content under each backlinks key the hidden set leaves standing.

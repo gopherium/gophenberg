@@ -213,9 +213,6 @@ msgstr ""
 msgid "A relation field has to say which content type it points at. Pick that type and try again."
 msgstr ""
 
-msgid "A relation field stands on its own, not inside a section or a repeater. Declare it beside the container."
-msgstr ""
-
 msgid "A reload shows the admin in the language you chose."
 msgstr ""
 

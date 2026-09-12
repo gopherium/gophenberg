@@ -41,19 +41,63 @@ func newMemoryContent() *memoryContent {
 	}
 }
 
+// identitiesIn returns every identity a stored value names, descending into containers.
+func identitiesIn(value any) []uuid.UUID {
+	switch held := value.(type) {
+	case []any:
+		var found []uuid.UUID
+		for _, member := range held {
+			found = append(found, identitiesIn(member)...)
+		}
+		return found
+	case map[string]any:
+		var found []uuid.UUID
+		for _, member := range held {
+			found = append(found, identitiesIn(member)...)
+		}
+		return found
+	case string:
+		if id, err := uuid.Parse(held); err == nil {
+			return []uuid.UUID{id}
+		}
+	}
+	return nil
+}
+
 // holdTargets reports whether every target exists and is the type its field points at.
-func (s *memoryContent) holdTargets(c content.Content) error {
-	for key, targets := range c.Relations {
-		for _, target := range targets {
-			held, found := s.items[target]
-			if !found {
-				return fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)
+func (s *memoryContent) holdTargets(c content.Content, before content.Values) error {
+	if s.types == nil {
+		return nil
+	}
+	declared, err := s.types.ByKey(context.Background(), c.Type)
+	if err != nil {
+		return nil
+	}
+	pointing, err := content.HeldTargets(declared.Fields, c.Fields)
+	if err != nil {
+		return err
+	}
+	kept := content.HeldIdentities(declared.Fields, before)
+	for _, ft := range pointing {
+		if err := s.targetsAllowed(ft, kept[ft.Field.ID]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// targetsAllowed reports whether every target the field names may be stored.
+func (s *memoryContent) targetsAllowed(ft content.FieldTargets, kept map[uuid.UUID]bool) error {
+	for _, target := range ft.Targets {
+		held, found := s.items[target]
+		if !found {
+			if kept[target] {
+				continue
 			}
-			if s.types != nil {
-				if err := s.types.targeted(c.Type, key, held.Type); err != nil {
-					return err
-				}
-			}
+			return fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)
+		}
+		if held.Type != ft.Field.RelatesTo {
+			return fmt.Errorf("%w: %s holds %s", content.ErrTargetType, ft.Field.Key, held.Type)
 		}
 	}
 	return nil
@@ -67,25 +111,7 @@ func (s *memoryContent) clearRelation(typeKey, key string) {
 		if stored.Type != typeKey {
 			continue
 		}
-		delete(stored.Relations, key)
-		s.items[id] = stored
-	}
-}
-
-// unfileTarget drops every pointer at the removed item.
-func (s *memoryContent) unfileTarget(gone uuid.UUID) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for id, stored := range s.items {
-		for key, targets := range stored.Relations {
-			kept := make([]uuid.UUID, 0, len(targets))
-			for _, target := range targets {
-				if target != gone {
-					kept = append(kept, target)
-				}
-			}
-			stored.Relations[key] = kept
-		}
+		delete(stored.Fields, key)
 		s.items[id] = stored
 	}
 }
@@ -162,18 +188,14 @@ func (s *memoryContent) Autosave(
 	return parked, nil
 }
 
-// Delete removes the item outright, unfiling everything that pointed at it.
+// Delete removes the item outright, leaving what pointed at it to drop the identity on read.
 func (s *memoryContent) Delete(_ context.Context, id uuid.UUID) error {
 	s.mu.Lock()
-	_, found := s.items[id]
-	if found {
-		delete(s.items, id)
-	}
-	s.mu.Unlock()
-	if !found {
+	defer s.mu.Unlock()
+	if _, found := s.items[id]; !found {
 		return content.ErrNotFound
 	}
-	s.unfileTarget(id)
+	delete(s.items, id)
 	return nil
 }
 
@@ -381,7 +403,7 @@ func (s *memoryContent) Update(
 	if !stored.UpdatedAt.Equal(expectedUpdatedAt) {
 		return content.Content{}, content.ErrConflict
 	}
-	if err := s.holdTargets(c); err != nil {
+	if err := s.holdTargets(c, stored.Fields); err != nil {
 		return content.Content{}, err
 	}
 	prefix := content.AddressPrefix(c.Path, c.Slug)
@@ -447,7 +469,7 @@ func (s *memoryContent) RelatedTo(
 	defer s.mu.Unlock()
 	matched := make([]content.Content, 0, len(s.items))
 	for _, stored := range s.items {
-		if stored.Status != content.StatusPublished || !pointsAt(stored.Relations, target) {
+		if stored.Status != content.StatusPublished || !pointsAt(stored.Fields, target) {
 			continue
 		}
 		if s.types != nil && !s.types.serving(stored.Type) {
@@ -464,13 +486,11 @@ func (s *memoryContent) RelatedTo(
 	return paged(matched, content.Filter{Page: page, PerPage: perPage}), len(matched), nil
 }
 
-// pointsAt reports whether any of the item's fields names the target.
-func pointsAt(held content.Relations, target uuid.UUID) bool {
-	for _, targets := range held {
-		for _, listed := range targets {
-			if listed == target {
-				return true
-			}
+// pointsAt reports whether any value the item holds names the target.
+func pointsAt(held content.Values, target uuid.UUID) bool {
+	for _, value := range held {
+		if slices.Contains(identitiesIn(value), target) {
+			return true
 		}
 	}
 	return false
@@ -496,7 +516,7 @@ func (s *memoryContent) PointingAt(
 	defer s.mu.Unlock()
 	held := make([]content.Pointer, 0, len(s.items))
 	for _, item := range s.items {
-		if item.Status != content.StatusPublished || !slices.Contains(item.Relations[key], target) {
+		if item.Status != content.StatusPublished || !slices.Contains(identitiesIn(item.Fields[key]), target) {
 			continue
 		}
 		held = append(held, content.Pointer{
@@ -537,28 +557,20 @@ func pagedPointers(held []content.Pointer, page, perPage int) []content.Pointer 
 	return held[from:min(from+perPage, len(held))]
 }
 
-// TargetsOf returns the published targets of active types the item points at.
-func (s *memoryContent) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
+// TargetsByIDs returns the published items of active types the identities name.
+func (s *memoryContent) TargetsByIDs(_ context.Context, ids []uuid.UUID) ([]content.Target, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	held, found := s.items[from]
-	if !found {
-		return nil, nil
-	}
-	targets := make(content.Targets)
-	for key, listed := range held.Relations {
-		for _, id := range listed {
-			pointed, stored := s.items[id]
-			if !stored || pointed.Status != content.StatusPublished {
-				continue
-			}
-			if s.types != nil && !s.types.serving(pointed.Type) {
-				continue
-			}
-			targets[key] = append(targets[key], content.Target{
-				ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
-			})
+	held := make([]content.Target, 0, len(ids))
+	for _, id := range ids {
+		pointed, stored := s.items[id]
+		if !stored || pointed.Status != content.StatusPublished {
+			continue
 		}
+		if s.types != nil && !s.types.serving(pointed.Type) {
+			continue
+		}
+		held = append(held, content.Target{ID: pointed.ID, Title: pointed.Title, Path: pointed.Path})
 	}
-	return targets, nil
+	return held, nil
 }
