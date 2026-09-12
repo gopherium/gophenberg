@@ -225,13 +225,10 @@ func (s *server) bufferedValues(
 	if err != nil {
 		return nil, false, err
 	}
-	scalars, _, err := content.SplitValues(req.Fields, t.Fields)
-	if err != nil {
+	if err := req.Fields.ValidateShape(t.Fields); err != nil {
 		return nil, false, err
 	}
-	if err := scalars.ValidateShape(t.Fields); err != nil {
-		return nil, false, err
-	}
+	scalars := req.Fields
 	if err := content.Concealed(t.Fields, req.Fields, req.Fields); err != nil {
 		return nil, false, err
 	}

@@ -666,7 +666,7 @@ func TestContentPatchLeavesTheVersionWhenTheTargetsDidNotMove(t *testing.T) {
 	}
 }
 
-func TestContentPatchKeepsNoRevisionForATargetMove(t *testing.T) {
+func TestContentPatchKeepsARevisionForATargetMove(t *testing.T) {
 	t.Parallel()
 
 	handler := authedTypeServer(t)
@@ -682,8 +682,8 @@ func TestContentPatchKeepsNoRevisionForATargetMove(t *testing.T) {
 			ID string `json:"id"`
 		} `json:"items"`
 	}](t, listed)
-	if len(revisions.Items) != 0 {
-		t.Errorf("the item holds %d revisions, want none for a change a snapshot cannot carry",
+	if len(revisions.Items) != 1 {
+		t.Errorf("the item holds %d revisions, want the one carrying what it pointed at before",
 			len(revisions.Items))
 	}
 }

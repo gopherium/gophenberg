@@ -186,7 +186,7 @@ func (s *fakePostStore) RelatedTo(
 	}
 	matched := make([]content.Content, 0, len(s.posts))
 	for _, p := range s.ordered() {
-		if p.Status != content.StatusPublished || !pointsAt(p.Relations, target) {
+		if p.Status != content.StatusPublished || !pointsAt(p.Fields, target) {
 			continue
 		}
 		p.Content = ""
@@ -916,16 +916,37 @@ func (failingUserStore) ListUsers(_ context.Context) ([]gouncer.User, error) {
 	return nil, context.DeadlineExceeded
 }
 
-// pointsAt reports whether any of the item's fields names the target.
-func pointsAt(held content.Relations, target uuid.UUID) bool {
-	for _, targets := range held {
-		for _, listed := range targets {
-			if listed == target {
-				return true
-			}
+// pointsAt reports whether any value the item holds names the target, however deep it stands.
+func pointsAt(held content.Values, target uuid.UUID) bool {
+	for _, value := range held {
+		if slices.Contains(identitiesIn(value), target) {
+			return true
 		}
 	}
 	return false
+}
+
+// identitiesIn returns every identity a stored value names, descending into containers.
+func identitiesIn(value any) []uuid.UUID {
+	switch held := value.(type) {
+	case []any:
+		var found []uuid.UUID
+		for _, member := range held {
+			found = append(found, identitiesIn(member)...)
+		}
+		return found
+	case map[string]any:
+		var found []uuid.UUID
+		for _, member := range held {
+			found = append(found, identitiesIn(member)...)
+		}
+		return found
+	case string:
+		if id, err := uuid.Parse(held); err == nil {
+			return []uuid.UUID{id}
+		}
+	}
+	return nil
 }
 
 // TargetsOf returns the published targets of active types the item points at.
@@ -938,8 +959,12 @@ func (s *fakePostStore) TargetsOf(_ context.Context, from uuid.UUID) (content.Ta
 		return nil, nil
 	}
 	targets := make(content.Targets)
-	for key, listed := range held.Relations {
-		for _, id := range listed {
+	for key, value := range held.Fields {
+		listed, named := value.([]any)
+		if !named {
+			continue
+		}
+		for _, id := range identitiesIn(listed) {
 			pointed, stored := s.posts[id]
 			if !stored || pointed.Status != content.StatusPublished {
 				continue
@@ -999,7 +1024,7 @@ func (s *fakePostStore) fieldKeyed(field int) (string, bool) {
 func (s *fakePostStore) pointersTo(target uuid.UUID, key string) []content.Pointer {
 	held := make([]content.Pointer, 0, len(s.posts))
 	for _, item := range s.posts {
-		if item.Status != content.StatusPublished || !slices.Contains(item.Relations[key], target) {
+		if item.Status != content.StatusPublished || !slices.Contains(identitiesIn(item.Fields[key]), target) {
 			continue
 		}
 		held = append(held, content.Pointer{

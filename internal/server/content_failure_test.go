@@ -33,7 +33,7 @@ func termFixture(t *testing.T) (content.Content, content.Content) {
 	term.Type = "category"
 	term.Path = "categories/news"
 	filed := publishedFixture(t, "a-filed-post", blockMarkup, now)
-	filed.Relations = content.Relations{"categories": {term.ID}}
+	filed.Fields = content.Values{"categories": []any{term.ID.String()}}
 	return term, filed
 }
 
