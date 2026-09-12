@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from 'vitest'
 
-import { relatedFields, relatedItems } from '../index.ts'
+import { heldRows, relatedFields, relatedItems } from '../index.ts'
 import type { Post } from '../index.ts'
 
 /**
@@ -61,5 +61,12 @@ describe('the relations a post carries', () => {
 		const held = relatedFields(posting({ series: [guides], categories: [NEWS] }))
 
 		expect(held.map((field) => field.key)).toEqual(['categories', 'series'])
+	})
+
+	test('leaves a relation inside a row to the helper that reads rows', () => {
+		const post = posting({ team: [{ filed: [NEWS] }] })
+
+		expect(relatedFields(post)).toEqual([])
+		expect(heldRows(post, 'team').map((row) => relatedItems(row.filed))).toEqual([[NEWS]])
 	})
 })
