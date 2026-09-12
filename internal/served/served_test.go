@@ -5,6 +5,7 @@ package served_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -19,16 +20,25 @@ var errStoreDown = errors.New("the store is down")
 
 // fakeLinks answers with the targets and pointers it was built with.
 type fakeLinks struct {
-	targets     content.Targets
+	targets     []content.Target
 	pointers    []content.Pointer
 	total       int
 	targetsErr  error
 	pointingErr error
 }
 
-// TargetsOf returns the targets the stored relations name.
-func (s fakeLinks) TargetsOf(context.Context, uuid.UUID) (content.Targets, error) {
-	return s.targets, s.targetsErr
+// TargetsByIDs returns the stored targets the identities name, leaving out what it does not hold.
+func (s fakeLinks) TargetsByIDs(_ context.Context, ids []uuid.UUID) ([]content.Target, error) {
+	if s.targetsErr != nil {
+		return nil, s.targetsErr
+	}
+	held := make([]content.Target, 0, len(ids))
+	for _, target := range s.targets {
+		if slices.Contains(ids, target.ID) {
+			held = append(held, target)
+		}
+	}
+	return held, nil
 }
 
 // PointingAt returns the items pointing at the target through the field.
@@ -159,12 +169,13 @@ func TestValuesNamesTargetsAndServesFiles(t *testing.T) {
 		content.Field{Key: "cover", Kind: content.FieldKindMedia},
 	)
 	stores := served.Stores{
-		Links:   fakeLinks{targets: content.Targets{"maker": {{ID: target, Title: "News"}}}},
+		Links:   fakeLinks{targets: []content.Target{{ID: target, Title: "News"}}},
 		Library: fakeLibrary{held: []media.Media{{ID: 12, File: "a.jpg"}}},
 	}
 
-	values, totals, err := served.Values(
-		t.Context(), stores, held, anItem(content.Values{"venue": "Hall", "cover": float64(12)}))
+	values, totals, err := served.Values(t.Context(), stores, held, anItem(content.Values{
+		"venue": "Hall", "cover": float64(12), "maker": []any{target.String()},
+	}))
 
 	if err != nil {
 		t.Fatalf("Values() error = %v, want nil", err)
@@ -252,7 +263,6 @@ func TestValuesReportsWhatItCannotRead(t *testing.T) {
 	t.Parallel()
 
 	for name, stores := range map[string]served.Stores{
-		"the targets it cannot read": {Links: fakeLinks{targetsErr: errStoreDown}},
 		"the files it cannot read": {
 			Links: fakeLinks{}, Library: fakeLibrary{err: errStoreDown},
 		},
