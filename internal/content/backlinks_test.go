@@ -440,7 +440,7 @@ func TestBacklinksTakesNoSubmittedValue(t *testing.T) {
 	}
 }
 
-func TestSplitValuesRefusesABacklinksValue(t *testing.T) {
+func TestHeldTargetsRefusesABacklinksValue(t *testing.T) {
 	t.Parallel()
 
 	built, err := content.NewField(backlinksField(namingSource()))
@@ -448,13 +448,11 @@ func TestSplitValuesRefusesABacklinksValue(t *testing.T) {
 		t.Fatalf("NewField(backlinks) error = %v, want nil", err)
 	}
 
-	_, _, err = content.SplitValues(
-		content.Values{"linked-from": []any{"019fb000-0000-7000-8000-000000000001"}},
-		[]content.Field{built},
-	)
+	err = content.Values{"linked-from": []any{"019fb000-0000-7000-8000-000000000001"}}.
+		Validate([]content.Field{built})
 
 	if codeOf(err) != "field_shape_value" {
-		t.Errorf("SplitValues() error = %v, want field_shape_value", err)
+		t.Errorf("Validate() error = %v, want field_shape_value", err)
 	}
 }
 

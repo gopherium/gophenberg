@@ -113,7 +113,7 @@ func TestALinkWithoutAnAddressIsEmpty(t *testing.T) {
 			field.Required = true
 			held := content.Values{"source": test.value}
 
-			err := content.Filled(held, nil, []content.Field{field})
+			err := content.Filled(held, []content.Field{field})
 
 			if test.filled && err != nil {
 				t.Errorf("Filled() error = %v, want the link counted as filled", err)

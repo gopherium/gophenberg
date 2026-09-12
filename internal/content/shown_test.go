@@ -25,7 +25,7 @@ func TestFilledLetsAHiddenRequiredFieldStandEmpty(t *testing.T) {
 
 	fields := switchedOn(content.FieldKindText, "sale-note")
 
-	err := content.Filled(content.Values{"on-sale": false}, content.Relations{}, fields)
+	err := content.Filled(content.Values{"on-sale": false}, fields)
 
 	if err != nil {
 		t.Errorf("Filled() = %v, want a hidden required field left alone", err)
@@ -37,7 +37,7 @@ func TestFilledStillRequiresAShownField(t *testing.T) {
 
 	fields := switchedOn(content.FieldKindText, "sale-note")
 
-	err := content.Filled(content.Values{"on-sale": true}, content.Relations{}, fields)
+	err := content.Filled(content.Values{"on-sale": true}, fields)
 
 	if !errors.Is(err, content.ErrFieldRequired) {
 		t.Errorf("Filled() = %v, want %v", err, content.ErrFieldRequired)
@@ -53,7 +53,7 @@ func TestFilledLeavesTheFieldsInsideAHiddenContainerAlone(t *testing.T) {
 	}}
 	values := content.Values{"on-sale": false, "sale-details": map[string]any{}}
 
-	err := content.Filled(values, content.Relations{}, fields)
+	err := content.Filled(values, fields)
 
 	if err != nil {
 		t.Errorf("Filled() = %v, want a hidden container's required fields left alone", err)
@@ -70,7 +70,7 @@ func TestFilledRequiresTheFieldsInsideAShownContainer(t *testing.T) {
 	}}
 	values := content.Values{"on-sale": true, "sale-details": map[string]any{}}
 
-	err := content.Filled(values, content.Relations{}, fields)
+	err := content.Filled(values, fields)
 
 	if !errors.Is(err, content.ErrFieldRequired) {
 		t.Errorf("Filled() = %v, want %v", err, content.ErrFieldRequired)

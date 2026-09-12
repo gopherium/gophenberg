@@ -44,7 +44,6 @@ type Content struct {
 	Status      Status
 	AuthorID    uuid.UUID
 	Fields      Values
-	Relations   Relations
 	PublishedAt *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
