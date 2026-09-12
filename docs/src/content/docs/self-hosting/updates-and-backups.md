@@ -21,34 +21,43 @@ Migrations run automatically when the new version starts. While
 Gophenberg is below 1.0, read the release notes first, since a
 release can change behavior.
 
-Updating to %VERSION% from the release before it runs two migrations
-on start. The database learns to take away the rows of a deleted
-layout in one pass, and the index that finds the items pointing at
-one is rebuilt to carry the field each points through, so a Linked
-from list is found without reading the relation rows. Updating from
-further back also runs the migrations of every release you skip, so
-read each of their notes. Back up the database before the first
-start on this release, as before any update. Public addresses do
-not change shape.
+Updating to %VERSION% from the release before it runs one migration
+on start. What every item points at is copied out of the relation
+index and into the item's own values, under the field's key and in
+the order it was stored, so a relation now lives with its item and
+the index is rebuilt from it on every save. Updating from further
+back also runs the migrations of every release you skip, so read
+each of their notes. Back up the database before the first start on
+this release, as before any update. Public addresses do not change
+shape, and a theme reads the same shapes it read before.
+
+A revision or an autosave written before this release holds no
+relation values, because the release before kept those in the index
+alone. Taking up an autosave parked before the update leaves what
+the item points at alone.
 
 Rolling back to the release before this one deletes nothing.
 Gophenberg only ever migrates forward, so put the older image tag
-back and start it. It runs on this release's database as it stands.
-What you built here stays stored, but that release does not know a
-Flexible content field, a Layout, a Linked from field or a Link
-field. It hides them in the editor, refuses to save a change to
-them, stops keeping drafts of an item that holds one, and serves
-their values as stored or not at all. It reads a Color as plain text
-and ignores the file counts on a Gallery. It also refuses a theme
-built on a kit it does not serve, so rebuild the theme on an older
-kit first. Updating again brings everything back.
+back and start it. It runs on this release's database as it stands,
+and it serves the same theme kit, so no theme needs rebuilding. That
+release reads what an item points at from the index, which this
+release keeps current, so every relation still shows. It writes a
+changed relation to the index alone, while this release reads the
+item's own values, so updating again puts back what each item
+pointed at before the rollback and a relation changed in between is
+lost. That release also does not know a relation standing inside a
+Section, a Repeater or a Flexible content field, so it refuses to
+save a change to any container holding one. Updating again brings
+everything back.
 
 Going back further is not something Gophenberg does for you. An
-older image still starts on this database and deletes nothing, but
-it knows only the six original kinds, and an image two releases
-back can no longer create a field group. Restore the backup you
-took before updating instead. Only running the migrations backwards
-by hand deletes fields, and that is a one way trip. It deletes every
+older image still starts on this database and deletes nothing. Two
+releases back does not know the field kinds the release before this
+one added, serves an older theme kit, and shares the relation caveat
+above. Three releases back knows only the six original kinds and
+can no longer create a field group. Restore the backup you took
+before updating instead. Only running the migrations backwards by
+hand deletes fields, and that is a one way trip. It deletes every
 field whose kind is not one of the six, every field standing inside
 another field, every field's settings, and the record of which
 plugin declared what, and it leaves every Gallery as a single Media
