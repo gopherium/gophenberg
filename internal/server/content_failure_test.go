@@ -12,15 +12,28 @@ import (
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
+// filingField returns the relation field a post and a category are filed through.
+func filingField() content.Field {
+	return content.Field{
+		ID: 11, Key: "categories", Label: "Categories",
+		Kind: content.FieldKindRelation, RelatesTo: "category", Many: true,
+	}
+}
+
 // contentServerOver returns a public handler over a store the caller has prepared.
 func contentServerOver(store *fakePostStore, posts ...content.Content) http.Handler {
 	for _, p := range posts {
 		store.add(p)
 	}
-	types := newFakeTypeStore()
+	types := &fakeTypeStore{types: []content.Type{{
+		Key: content.TypePost, SingularLabel: "Post", PluralLabel: "Posts",
+		Revisions: true, RevisionCap: 100, PageKind: content.PageKindSingle,
+		Default: true, Active: true, Fields: []content.Field{filingField()},
+	}}}
 	types.register(content.Type{
 		Key: "category", SingularLabel: "Category", PluralLabel: "Categories",
 		RouteWord: "categories", PageKind: content.PageKindArchive, Active: true,
+		Fields: []content.Field{filingField()},
 	})
 	return server.NewServer(server.Config{Users: newFakeUserStore(), Content: store, Types: types})
 }
@@ -34,6 +47,7 @@ func termFixture(t *testing.T) (content.Content, content.Content) {
 	term.Path = "categories/news"
 	filed := publishedFixture(t, "a-filed-post", blockMarkup, now)
 	filed.Fields = content.Values{"categories": []any{term.ID.String()}}
+	term.Fields = content.Values{"categories": []any{filed.ID.String()}}
 	return term, filed
 }
 
@@ -41,10 +55,11 @@ func TestContentAPIReportsAnItemWhoseTargetsItCannotRead(t *testing.T) {
 	t.Parallel()
 
 	store := newFakePostStore()
-	handler := contentServerOver(store, publishedFixture(t, "hello-world", blockMarkup, time.Now().UTC()))
+	term, filed := termFixture(t)
+	handler := contentServerOver(store, term, filed)
 	store.targetsErr = context.DeadlineExceeded
 
-	recorder := getContent(t, handler, "/api/content/v1/resolve?path=/hello-world")
+	recorder := getContent(t, handler, "/api/content/v1/resolve?path=/a-filed-post")
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)

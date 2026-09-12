@@ -949,32 +949,20 @@ func identitiesIn(value any) []uuid.UUID {
 	return nil
 }
 
-// TargetsOf returns the published targets of active types the item points at.
-func (s *fakePostStore) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
+// TargetsByIDs returns the published items of active types the identities name.
+func (s *fakePostStore) TargetsByIDs(_ context.Context, ids []uuid.UUID) ([]content.Target, error) {
 	if s.targetsErr != nil {
 		return nil, s.targetsErr
 	}
-	held, found := s.posts[from]
-	if !found {
-		return nil, nil
-	}
-	targets := make(content.Targets)
-	for key, value := range held.Fields {
-		listed, named := value.([]any)
-		if !named {
+	held := make([]content.Target, 0, len(ids))
+	for _, id := range ids {
+		pointed, stored := s.posts[id]
+		if !stored || pointed.Status != content.StatusPublished {
 			continue
 		}
-		for _, id := range identitiesIn(listed) {
-			pointed, stored := s.posts[id]
-			if !stored || pointed.Status != content.StatusPublished {
-				continue
-			}
-			targets[key] = append(targets[key], content.Target{
-				ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
-			})
-		}
+		held = append(held, content.Target{ID: pointed.ID, Title: pointed.Title, Path: pointed.Path})
 	}
-	return targets, nil
+	return held, nil
 }
 
 // PointingAt returns the published items pointing at the target through the field, and how many there are.
