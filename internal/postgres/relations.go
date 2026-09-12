@@ -15,40 +15,54 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
-// writeRelations stores the targets the item points at and refreshes what a term page reads.
+// writeRelations indexes the targets the item's values point at and refreshes what a term page reads.
 func writeRelations(ctx context.Context, queries *db.Queries, matching []int32, c content.Content) error {
-	declared, err := queries.ListRelationFieldsOfGroups(ctx, matching)
+	declared, err := fieldsOfGroups(ctx, queries, matching)
 	if err != nil {
 		return err
 	}
-	for _, f := range declared {
-		targets, named := c.Relations[f.Key]
-		if !named {
-			continue
-		}
-		if err := carryTargets(ctx, queries, c, f, targets); err != nil {
+	held, err := content.HeldTargets(declared, c.Fields)
+	if err != nil {
+		return err
+	}
+	for _, ft := range held {
+		if err := carryTargets(ctx, queries, c, ft); err != nil {
 			return err
 		}
 	}
 	return queries.RefreshRelationVisibility(ctx, c.ID)
 }
 
-// carryTargets replaces the targets one relation field holds.
+// fieldsOfGroups returns the fields the matching groups declare, however deep they stand.
+func fieldsOfGroups(ctx context.Context, queries *db.Queries, matching []int32) ([]content.Field, error) {
+	rows, err := queries.ListContentFields(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list content fields: %w", err)
+	}
+	held := fieldsByGroup(rows)
+	var declared []content.Field
+	for _, id := range matching {
+		declared = append(declared, held[int(id)]...)
+	}
+	return declared, nil
+}
+
+// carryTargets replaces the rows indexing what one relation field points at.
 func carryTargets(
-	ctx context.Context, queries *db.Queries, c content.Content,
-	f db.ListRelationFieldsOfGroupsRow, targets []uuid.UUID,
+	ctx context.Context, queries *db.Queries, c content.Content, ft content.FieldTargets,
 ) error {
-	if err := targetsAllowed(ctx, queries, f, targets); err != nil {
+	if err := targetsAllowed(ctx, queries, ft); err != nil {
 		return err
 	}
-	err := queries.ClearRelationsOfField(ctx, db.ClearRelationsOfFieldParams{FromID: c.ID, FieldID: f.ID})
+	fieldID := int32(ft.Field.ID)
+	err := queries.ClearRelationsOfField(ctx, db.ClearRelationsOfFieldParams{FromID: c.ID, FieldID: fieldID})
 	if err != nil {
 		return err
 	}
-	for i, target := range targets {
+	for i, target := range ft.Targets {
 		err := queries.AddRelation(ctx, db.AddRelationParams{
 			FromID:   c.ID,
-			FieldID:  f.ID,
+			FieldID:  fieldID,
 			ToID:     target,
 			Position: int32(i + 1),
 		})
@@ -60,13 +74,11 @@ func carryTargets(
 }
 
 // targetsAllowed reports whether every target exists and is the type the field points at.
-func targetsAllowed(
-	ctx context.Context, queries *db.Queries, f db.ListRelationFieldsOfGroupsRow, targets []uuid.UUID,
-) error {
-	if len(targets) == 0 {
+func targetsAllowed(ctx context.Context, queries *db.Queries, ft content.FieldTargets) error {
+	if len(ft.Targets) == 0 {
 		return nil
 	}
-	rows, err := queries.TypesOfContent(ctx, targets)
+	rows, err := queries.TypesOfContent(ctx, ft.Targets)
 	if err != nil {
 		return err
 	}
@@ -74,13 +86,13 @@ func targetsAllowed(
 	for _, row := range rows {
 		held[row.ID] = row.Type
 	}
-	for _, target := range targets {
+	for _, target := range ft.Targets {
 		stored, found := held[target]
 		if !found {
 			return fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)
 		}
-		if f.RelatesTo == nil || stored != *f.RelatesTo {
-			return fmt.Errorf("%w: %s holds %s", content.ErrTargetType, f.Key, stored)
+		if stored != ft.Field.RelatesTo {
+			return fmt.Errorf("%w: %s holds %s", content.ErrTargetType, ft.Field.Key, stored)
 		}
 	}
 	return nil
@@ -174,20 +186,4 @@ func isTargetGone(err error) bool {
 		return false
 	}
 	return strings.HasPrefix(pgErr.ConstraintName, "content_relations_")
-}
-
-// readRelations returns the targets the item points at, keyed by field key.
-func readRelations(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Relations, error) {
-	rows, err := queries.ListRelationTargets(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("postgres: list relation targets: %w", err)
-	}
-	if len(rows) == 0 {
-		return nil, nil
-	}
-	relations := make(content.Relations)
-	for _, row := range rows {
-		relations[row.Key] = append(relations[row.Key], row.ToID)
-	}
-	return relations, nil
 }

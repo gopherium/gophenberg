@@ -565,18 +565,6 @@ SET fields = r.fields - @key::text
 FROM core.content c
 WHERE r.content_id = c.id AND c.type = ANY(@types::text []) AND r.fields ? @key::text;
 
--- name: ListRelationFieldsOfGroups :many
-SELECT id, key, relates_to, many FROM core.content_fields
-WHERE group_id = ANY(@ids::integer []) AND kind = 'relation'
-ORDER BY id;
-
--- name: ListRelationTargets :many
-SELECT f.key, r.to_id
-FROM core.content_relations r
-JOIN core.content_fields f ON f.id = r.field_id
-WHERE r.from_id = @from_id
-ORDER BY f.key, r.position;
-
 -- name: TypesOfContent :many
 SELECT id, type FROM core.content WHERE id = ANY(@ids::uuid[]);
 

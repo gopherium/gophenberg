@@ -104,15 +104,19 @@ func (s *ContentStore) createDeclared(
 	var row db.CoreContent
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		if err := valuesDeclared(ctx, queries, c); err != nil {
+		matching, err := declaredValues(ctx, queries, c)
+		if err != nil {
 			return err
 		}
 		created, err := queries.CreateContent(ctx, params)
+		if err != nil {
+			return err
+		}
 		row = created
-		return err
+		return writeRelations(ctx, queries, matching, toContent(created))
 	})
 	if err != nil {
-		return content.Content{}, fmt.Errorf("postgres: create content: %w", err)
+		return content.Content{}, writeFailure(err)
 	}
 	return toContent(row), nil
 }
@@ -152,12 +156,7 @@ func byID(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Conte
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: get content: %w", err)
 	}
-	held := toContent(row)
-	held.Relations, err = readRelations(ctx, queries, id)
-	if err != nil {
-		return content.Content{}, err
-	}
-	return held, nil
+	return toContent(row), nil
 }
 
 // storedValues returns the values a write holds, never nil so the column stays an object.
@@ -355,10 +354,6 @@ func (s *ContentStore) update(
 		if err := writeRelations(ctx, queries, matching, c); err != nil {
 			return err
 		}
-		updated.Relations, err = readRelations(ctx, queries, c.ID)
-		if err != nil {
-			return err
-		}
 		if err := queries.MoveDescendants(ctx, db.MoveDescendantsParams{
 			ID:        c.ID,
 			Path:      path,
@@ -372,7 +367,7 @@ func (s *ContentStore) update(
 		return snapshotRevision(ctx, queries, *snapshot, revisionCap)
 	})
 	if err != nil {
-		return content.Content{}, updateFailure(err)
+		return content.Content{}, writeFailure(err)
 	}
 	return updated, nil
 }
@@ -415,8 +410,8 @@ func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content)
 	return nil
 }
 
-// updateFailure returns the error the update carries, and wraps anything else.
-func updateFailure(err error) error {
+// writeFailure returns the error the write carries, and wraps anything else.
+func writeFailure(err error) error {
 	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) || isSlugTaken(err) {
 		return err
 	}
@@ -458,11 +453,7 @@ func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.T
 			return err
 		}
 		trashed = toContent(row)
-		if err := queries.RefreshRelationVisibility(ctx, id); err != nil {
-			return err
-		}
-		trashed.Relations, err = readRelations(ctx, queries, id)
-		return err
+		return queries.RefreshRelationVisibility(ctx, id)
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -512,11 +503,7 @@ func (s *ContentStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time
 			return err
 		}
 		restored = toContent(row)
-		if err := queries.RefreshRelationVisibility(ctx, id); err != nil {
-			return err
-		}
-		restored.Relations, err = readRelations(ctx, queries, id)
-		return err
+		return queries.RefreshRelationVisibility(ctx, id)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return content.Content{}, content.ErrNotFound

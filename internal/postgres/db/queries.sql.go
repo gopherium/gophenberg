@@ -1685,44 +1685,6 @@ func (q *Queries) ListRelatedContent(ctx context.Context, arg ListRelatedContent
 	return items, nil
 }
 
-const listRelationFieldsOfGroups = `-- name: ListRelationFieldsOfGroups :many
-SELECT id, key, relates_to, many FROM core.content_fields
-WHERE group_id = ANY($1::integer []) AND kind = 'relation'
-ORDER BY id
-`
-
-type ListRelationFieldsOfGroupsRow struct {
-	ID        int32
-	Key       string
-	RelatesTo *string
-	Many      bool
-}
-
-func (q *Queries) ListRelationFieldsOfGroups(ctx context.Context, ids []int32) ([]ListRelationFieldsOfGroupsRow, error) {
-	rows, err := q.db.Query(ctx, listRelationFieldsOfGroups, ids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListRelationFieldsOfGroupsRow
-	for rows.Next() {
-		var i ListRelationFieldsOfGroupsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Key,
-			&i.RelatesTo,
-			&i.Many,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listRelationSummaries = `-- name: ListRelationSummaries :many
 SELECT f.key, c.id, c.title, c.path
 FROM core.content_relations r
@@ -1755,39 +1717,6 @@ func (q *Queries) ListRelationSummaries(ctx context.Context, fromID uuid.UUID) (
 			&i.Title,
 			&i.Path,
 		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listRelationTargets = `-- name: ListRelationTargets :many
-SELECT f.key, r.to_id
-FROM core.content_relations r
-JOIN core.content_fields f ON f.id = r.field_id
-WHERE r.from_id = $1
-ORDER BY f.key, r.position
-`
-
-type ListRelationTargetsRow struct {
-	Key  string
-	ToID uuid.UUID
-}
-
-func (q *Queries) ListRelationTargets(ctx context.Context, fromID uuid.UUID) ([]ListRelationTargetsRow, error) {
-	rows, err := q.db.Query(ctx, listRelationTargets, fromID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListRelationTargetsRow
-	for rows.Next() {
-		var i ListRelationTargetsRow
-		if err := rows.Scan(&i.Key, &i.ToID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

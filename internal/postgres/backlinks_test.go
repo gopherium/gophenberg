@@ -60,7 +60,7 @@ func pointedThrough(
 ) content.Content {
 	t.Helper()
 	version := post.UpdatedAt
-	post.Relations = content.Relations{key: targets}
+	post.Fields = content.Values{key: namedTargets(targets)}
 	post.UpdatedAt = time.Now().UTC()
 	updated, err := store.Update(t.Context(), post, version, nil, 0)
 	if err != nil {

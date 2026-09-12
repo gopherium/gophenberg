@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
@@ -67,7 +69,7 @@ func TestUpdateReportsATargetTypeItCannotRead(t *testing.T) {
 	sabotage(t, pool, "UPDATE core.content SET type = NULL WHERE type = 'category'")
 
 	version := held.UpdatedAt
-	held.Relations = content.Relations{"categories": {news.ID}}
+	held.Fields = content.Values{"categories": namedTargets([]uuid.UUID{news.ID})}
 	held.UpdatedAt = time.Now().UTC()
 
 	_, err := store.Update(t.Context(), held, version, nil, 0)
