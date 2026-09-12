@@ -34,9 +34,11 @@ func rowsPointing(t *testing.T, pool *pgxpool.Pool) {
 	if err != nil {
 		t.Fatalf("NewSubField(filed) error = %v, want nil", err)
 	}
-	if _, err := types.CreateSubField(t.Context(), stored.ID, inside); err != nil {
+	declared, err := types.CreateSubField(t.Context(), stored.ID, inside)
+	if err != nil {
 		t.Fatalf("declaring the relation inside the rows: %v, want nil", err)
 	}
+	return declared
 }
 
 // rowsFiledUnder returns the rows value pointing at every target through the relation inside it.
@@ -155,6 +157,60 @@ func TestContentStoreKeepsTheIdentityOfADeletedTargetStored(t *testing.T) {
 	}
 	if len(named) != 0 {
 		t.Errorf("TargetsByIDs() = %v, want nothing named for an item that is gone", named)
+	}
+}
+
+func TestContentStoreStoresAnEditBesideADeletedTarget(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := relatingStore(t)
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	filed := fileUnder(t, store, mustCreate(t, store, "Filed", author), news.ID)
+	if err := store.Delete(t.Context(), news.ID); err != nil {
+		t.Fatalf("Delete() error = %v, want nil", err)
+	}
+	renamed, err := store.ByID(t.Context(), filed.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	version := renamed.UpdatedAt
+	renamed.Title = "Filed again"
+	renamed.UpdatedAt = time.Now().UTC()
+
+	saved, err := store.Update(t.Context(), renamed, version, nil, 0)
+
+	if err != nil {
+		t.Fatalf("Update() error = %v, want an edit stored beside a target that was deleted", err)
+	}
+	if saved.Title != "Filed again" {
+		t.Errorf("Title = %q, want the edit kept", saved.Title)
+	}
+}
+
+func TestContentStoreCleansADeletedTargetOnTheNextSave(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := relatingStore(t)
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	guides := publishItem(t, store, storedCategory(t, store, "Guides", author))
+	filed := fileUnder(t, store, mustCreate(t, store, "Filed", author), news.ID, guides.ID)
+	if err := store.Delete(t.Context(), news.ID); err != nil {
+		t.Fatalf("Delete() error = %v, want nil", err)
+	}
+	renamed, err := store.ByID(t.Context(), filed.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	version := renamed.UpdatedAt
+	renamed.UpdatedAt = time.Now().UTC()
+
+	saved, err := store.Update(t.Context(), renamed, version, nil, 0)
+
+	if err != nil {
+		t.Fatalf("Update() error = %v, want the save stored", err)
+	}
+	if held := heldTargets(t, saved); len(held) != 1 || held[0] != guides.ID {
+		t.Errorf("the item holds %v, want only %v once the deleted target is cleaned", held, guides.ID)
 	}
 }
 

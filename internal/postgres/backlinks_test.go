@@ -96,6 +96,35 @@ func TestContentStoreListsWhatPointsThroughOneField(t *testing.T) {
 	}
 }
 
+func TestContentStoreListsWhatPointsThroughARelationInsideARow(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := relatingStore(t)
+	inside := rowsPointing(t, pool)
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	post := mustCreate(t, store, "Filed", author)
+	post.Fields = rowsFiledUnder(news.ID)
+	version := post.UpdatedAt
+	post.UpdatedAt = time.Now().UTC()
+	filed, err := store.Update(t.Context(), post, version, nil, 0)
+	if err != nil {
+		t.Fatalf("filing the post through the row: %v, want nil", err)
+	}
+	filed = publishItem(t, store, filed)
+
+	held, total, err := store.PointingAt(t.Context(), news.ID, inside.ID, 1, 20)
+
+	if err != nil {
+		t.Fatalf("PointingAt() error = %v, want nil", err)
+	}
+	if total != 1 || len(held) != 1 {
+		t.Fatalf("PointingAt() = %d of %d, want the post pointing from inside its row", len(held), total)
+	}
+	if held[0].ID != filed.ID || held[0].Title != "Filed" {
+		t.Errorf("PointingAt() = %+v, want the filed post named", held[0])
+	}
+}
+
 func TestContentStoreHidesAnUnpublishedPointer(t *testing.T) {
 	t.Parallel()
 
