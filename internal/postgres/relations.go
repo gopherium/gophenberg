@@ -28,16 +28,14 @@ func resolveTargets(
 		return nil, err
 	}
 	kept := content.HeldIdentities(declared, before)
-	gone := make(map[uuid.UUID]bool)
 	resolved := make([]content.FieldTargets, 0, len(held))
 	for _, ft := range held {
-		targets, err := targetsAllowed(ctx, queries, ft, kept, gone)
+		targets, err := targetsAllowed(ctx, queries, ft, kept)
 		if err != nil {
 			return nil, err
 		}
 		resolved = append(resolved, content.FieldTargets{Field: ft.Field, Targets: targets})
 	}
-	content.DropTargets(declared, c.Fields, gone)
 	return resolved, nil
 }
 
@@ -90,9 +88,9 @@ func carryTargets(
 	return nil
 }
 
-// targetsAllowed returns the targets the index may hold, naming as gone the ones the item held until now.
+// targetsAllowed returns the targets the index may hold, refusing one the item never held that nothing stores.
 func targetsAllowed(
-	ctx context.Context, queries *db.Queries, ft content.FieldTargets, kept, gone map[uuid.UUID]bool,
+	ctx context.Context, queries *db.Queries, ft content.FieldTargets, kept map[uuid.UUID]bool,
 ) ([]uuid.UUID, error) {
 	if len(ft.Targets) == 0 {
 		return nil, nil
@@ -110,7 +108,6 @@ func targetsAllowed(
 		stored, found := held[target]
 		if !found {
 			if kept[target] {
-				gone[target] = true
 				continue
 			}
 			return nil, fmt.Errorf("%w: %s", content.ErrTargetNotFound, target)
