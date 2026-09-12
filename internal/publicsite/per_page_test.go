@@ -135,7 +135,7 @@ func TestSiteServesATermAtThePageSizeTheSiteChose(t *testing.T) {
 	filed := make([]content.Content, 0, 7)
 	for i := range 6 {
 		post := publishedPost("Filed", "filed", blockMarkup, now.Add(-time.Duration(i)*time.Minute))
-		post.Relations = content.Relations{"categories": {term.ID}}
+		post.Fields = content.Values{"categories": []any{term.ID.String()}}
 		filed = append(filed, post)
 	}
 	handler, _ := sitePaging(settingsPaging("5"), append(filed, term)...)
