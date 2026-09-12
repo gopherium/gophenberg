@@ -104,29 +104,6 @@ func (s *memoryContent) clearRelation(typeKey, key string) {
 	}
 }
 
-// unfileTarget drops every pointer at the removed item.
-func (s *memoryContent) unfileTarget(gone uuid.UUID) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for id, stored := range s.items {
-		for key, value := range stored.Fields {
-			listed, named := value.([]any)
-			if !named {
-				continue
-			}
-			kept := make([]any, 0, len(listed))
-			for _, raw := range listed {
-				if written, ok := raw.(string); ok && written == gone.String() {
-					continue
-				}
-				kept = append(kept, raw)
-			}
-			stored.Fields[key] = kept
-		}
-		s.items[id] = stored
-	}
-}
-
 // clearField sweeps the field's values from the type's items and their snapshots.
 func (s *memoryContent) clearField(typeKey, key string) {
 	s.mu.Lock()
@@ -199,18 +176,14 @@ func (s *memoryContent) Autosave(
 	return parked, nil
 }
 
-// Delete removes the item outright, unfiling everything that pointed at it.
+// Delete removes the item outright, leaving what pointed at it to drop the identity on read.
 func (s *memoryContent) Delete(_ context.Context, id uuid.UUID) error {
 	s.mu.Lock()
-	_, found := s.items[id]
-	if found {
-		delete(s.items, id)
-	}
-	s.mu.Unlock()
-	if !found {
+	defer s.mu.Unlock()
+	if _, found := s.items[id]; !found {
 		return content.ErrNotFound
 	}
-	s.unfileTarget(id)
+	delete(s.items, id)
 	return nil
 }
 

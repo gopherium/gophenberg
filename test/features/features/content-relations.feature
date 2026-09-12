@@ -51,11 +51,11 @@ Feature: Relating content
     When the administrator clears "categories" of "Hello world"
     Then "Hello world" lists nothing in "categories"
 
-  Scenario: Permanently deleting a category unfiles its posts
-    Given the category "News"
-    And the post "Hello world" filed under "News"
+  Scenario: Permanently deleting a category leaves its posts pointing nowhere
+    Given the published category "News"
+    And the published post "Hello world" filed under "News"
     When the administrator permanently deletes the category "News"
-    Then "Hello world" lists nothing in "categories"
+    Then a visitor reading "Hello world" is shown nothing in "categories"
 
   Scenario: Deleting the field unfiles every post
     Given the category "News"
