@@ -173,6 +173,37 @@ func theContainerExists(ctx context.Context, kind, key, title string) error {
 	return theFieldWithSettingsExists(ctx, kind, key, title, &godog.DocString{Content: "{}"})
 }
 
+// theAdministratorPointsInsideAt saves the relation inside the container of the post pointing at the target.
+func theAdministratorPointsInsideAt(ctx context.Context, key, parent, title, target string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held, found := w.nested[target]
+	if !found {
+		return fmt.Errorf("the scenario stored nothing titled %q", target)
+	}
+	return saveFieldValues(w, title, fmt.Sprintf(`{%q:{%q:[%q]}}`, parent, key, held.ID))
+}
+
+// theItemListsInside asserts the item points at the named target through the relation inside the container.
+func theItemListsInside(ctx context.Context, title, target, key, parent string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	stored, err := freshPost(w, title)
+	if err != nil {
+		return err
+	}
+	var inside map[string][]string
+	if err := json.Unmarshal(stored.Fields[parent], &inside); err != nil {
+		return fmt.Errorf("%q holds %s in %q, want an object holding a list of targets",
+			title, stored.Fields[parent], parent)
+	}
+	return sameTargets(w, inside[key], []string{target}, title, parent+"."+key)
+}
+
 // initializeContainers binds the container steps to the running scenario.
 func initializeContainers(sc *godog.ScenarioContext) {
 	sc.Before(provisionWorld)
@@ -204,9 +235,14 @@ func initializeContainers(sc *godog.ScenarioContext) {
 		`^the administrator saves the rows of "([^"]*)" of "([^"]*)" as:$`,
 		theAdministratorSavesTheSection,
 	)
+	sc.When(
+		`^the administrator points "([^"]*)" inside "([^"]*)" of "([^"]*)" at "([^"]*)"$`,
+		theAdministratorPointsInsideAt,
+	)
 	sc.Then(
 		`^the field "([^"]*)" on "([^"]*)" holds the sub field "([^"]*)"$`,
 		theFieldHoldsTheSubField,
 	)
 	sc.Then(`^the post "([^"]*)" holds (\d+) rows in "([^"]*)"$`, thePostHoldsRowsIn)
+	sc.Then(`^"([^"]*)" lists "([^"]*)" in "([^"]*)" inside "([^"]*)"$`, theItemListsInside)
 }

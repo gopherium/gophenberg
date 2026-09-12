@@ -78,7 +78,15 @@ Feature: Container fields
       """
     Then the post "Hello world" holds 1 rows in "team"
 
-  Scenario: A relation inside a container is refused
+  Scenario: A relation stands inside a container
     Given the "section" field "author" in "Extras"
     When the administrator declares the "relation" field "wrote" inside "author"
-    Then the request is refused
+    Then the field "author" on "post" holds the sub field "wrote"
+
+  Scenario: A section points at an item through its relation
+    Given the "section" field "author" in "Extras"
+    And the "relation" field "wrote" inside "author"
+    And the post "Hello world"
+    And the post "Second post"
+    When the administrator points "wrote" inside "author" of "Hello world" at "Second post"
+    Then "Hello world" lists "Second post" in "wrote" inside "author"
