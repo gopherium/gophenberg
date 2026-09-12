@@ -58,17 +58,19 @@ func HeldTargets(fields []Field, values Values) ([]FieldTargets, error) {
 	return held, nil
 }
 
-// HeldIdentities returns every identity the values name through the fields' relations.
-func HeldIdentities(fields []Field, values Values) map[uuid.UUID]bool {
+// HeldIdentities returns the identities the values name, keyed by the relation field naming them.
+func HeldIdentities(fields []Field, values Values) map[int]map[uuid.UUID]bool {
 	held, err := HeldTargets(fields, values)
 	if err != nil {
 		return nil
 	}
-	identities := make(map[uuid.UUID]bool, len(held))
+	identities := make(map[int]map[uuid.UUID]bool, len(held))
 	for _, ft := range held {
+		named := make(map[uuid.UUID]bool, len(ft.Targets))
 		for _, target := range ft.Targets {
-			identities[target] = true
+			named[target] = true
 		}
+		identities[ft.Field.ID] = named
 	}
 	return identities
 }

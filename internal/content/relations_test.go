@@ -219,6 +219,18 @@ func TestSelfTargetedReportsAValueNoRelationHolds(t *testing.T) {
 	}
 }
 
+// relationsKeyed returns a relation at the top and one inside a repeater, each carrying its own identity.
+func relationsKeyed() []content.Field {
+	return []content.Field{
+		{ID: 1, TypeKey: "post", Key: "color", Label: "Color", Kind: content.FieldKindText},
+		{ID: 2, TypeKey: "post", Key: "categories", Label: "Categories",
+			Kind: content.FieldKindRelation, RelatesTo: "category", Many: true},
+		{ID: 3, TypeKey: "post", Key: "team", Label: "Team", Kind: content.FieldKindRepeater,
+			Fields: []content.Field{{ID: 4, Key: "filed", Label: "Filed",
+				Kind: content.FieldKindRelation, RelatesTo: "category", Many: true}}},
+	}
+}
+
 func TestHeldIdentitiesNamesEveryTargetTheValuesPointAt(t *testing.T) {
 	t.Parallel()
 
@@ -228,10 +240,10 @@ func TestHeldIdentitiesNamesEveryTargetTheValuesPointAt(t *testing.T) {
 		"categories": []any{first.String(), second.String()},
 	}
 
-	held := content.HeldIdentities(relatable(t, true), values)
+	held := content.HeldIdentities(relationsKeyed(), values)
 
-	if len(held) != 2 || !held[first] || !held[second] {
-		t.Errorf("HeldIdentities() = %v, want both targets named", held)
+	if len(held[2]) != 2 || !held[2][first] || !held[2][second] {
+		t.Errorf("HeldIdentities() = %v, want both targets named under the field naming them", held)
 	}
 }
 
@@ -247,33 +259,14 @@ func TestHeldIdentitiesNamesNothingForValuesPointingNowhere(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			if held := content.HeldIdentities(relatable(t, true), values); len(held) != 0 {
+			if held := content.HeldIdentities(relationsKeyed(), values); len(held[2]) != 0 {
 				t.Errorf("HeldIdentities() = %v, want nothing named", held)
 			}
 		})
 	}
 }
 
-// rowsRelating returns a repeater holding one relation, beside a relation at the top.
-func rowsRelating(t *testing.T) []content.Field {
-	t.Helper()
-	inside, err := content.NewSubField(content.Field{
-		Key: "filed", Label: "Filed", Kind: content.FieldKindRelation, RelatesTo: "category", Many: true,
-	}, content.FieldKindRepeater)
-	if err != nil {
-		t.Fatalf("NewSubField() error = %v, want nil", err)
-	}
-	rows, err := content.NewField(content.Field{
-		TypeKey: "post", Key: "team", Label: "Team", Kind: content.FieldKindRepeater,
-	})
-	if err != nil {
-		t.Fatalf("NewField() error = %v, want nil", err)
-	}
-	rows.Fields = []content.Field{inside}
-	return append(relatable(t, true), rows)
-}
-
-func TestHeldIdentitiesReachesATargetInsideARow(t *testing.T) {
+func TestHeldIdentitiesKeepsEachFieldsTargetsApart(t *testing.T) {
 	t.Parallel()
 
 	top, inside := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
@@ -286,10 +279,13 @@ func TestHeldIdentitiesReachesATargetInsideARow(t *testing.T) {
 		},
 	}
 
-	held := content.HeldIdentities(rowsRelating(t), values)
+	held := content.HeldIdentities(relationsKeyed(), values)
 
-	if len(held) != 2 || !held[top] || !held[inside] {
-		t.Errorf("HeldIdentities() = %v, want the target at the top and the one inside the row", held)
+	if !held[2][top] || !held[4][inside] {
+		t.Errorf("HeldIdentities() = %v, want each field naming the target it holds", held)
+	}
+	if held[2][inside] || held[4][top] {
+		t.Errorf("HeldIdentities() = %v, want no field naming a target another field holds", held)
 	}
 }
 
