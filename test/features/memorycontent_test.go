@@ -572,28 +572,20 @@ func pagedPointers(held []content.Pointer, page, perPage int) []content.Pointer 
 	return held[from:min(from+perPage, len(held))]
 }
 
-// TargetsOf returns the published targets of active types the item points at.
-func (s *memoryContent) TargetsOf(_ context.Context, from uuid.UUID) (content.Targets, error) {
+// TargetsByIDs returns the published items of active types the identities name.
+func (s *memoryContent) TargetsByIDs(_ context.Context, ids []uuid.UUID) ([]content.Target, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	held, found := s.items[from]
-	if !found {
-		return nil, nil
-	}
-	targets := make(content.Targets)
-	for key, value := range held.Fields {
-		for _, id := range identitiesIn(value) {
-			pointed, stored := s.items[id]
-			if !stored || pointed.Status != content.StatusPublished {
-				continue
-			}
-			if s.types != nil && !s.types.serving(pointed.Type) {
-				continue
-			}
-			targets[key] = append(targets[key], content.Target{
-				ID: pointed.ID, Title: pointed.Title, Path: pointed.Path,
-			})
+	held := make([]content.Target, 0, len(ids))
+	for _, id := range ids {
+		pointed, stored := s.items[id]
+		if !stored || pointed.Status != content.StatusPublished {
+			continue
 		}
+		if s.types != nil && !s.types.serving(pointed.Type) {
+			continue
+		}
+		held = append(held, content.Target{ID: pointed.ID, Title: pointed.Title, Path: pointed.Path})
 	}
-	return targets, nil
+	return held, nil
 }
