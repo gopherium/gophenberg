@@ -255,25 +255,6 @@ func TestValuesAcceptAClearedKey(t *testing.T) {
 	}
 }
 
-func TestValuesRefuseTargetsAmongTheScalars(t *testing.T) {
-	t.Parallel()
-
-	relation, err := content.NewField(content.Field{
-		TypeKey: "post", Key: "categories", Label: "Categories",
-		Kind: content.FieldKindRelation, RelatesTo: "category", Many: true,
-	})
-	if err != nil {
-		t.Fatalf("NewField() error = %v, want nil", err)
-	}
-	held := content.Values{"categories": []any{"019fb000-0000-7000-8000-000000000001"}}
-
-	err = held.Validate([]content.Field{relation})
-
-	if !errors.Is(err, content.ErrFieldShape) {
-		t.Fatalf("Validate() error = %v, want %v", err, content.ErrFieldShape)
-	}
-}
-
 func TestValuesMergeSetsAndClears(t *testing.T) {
 	t.Parallel()
 

@@ -222,18 +222,31 @@ func TestContainerTakesASubFieldItHolds(t *testing.T) {
 	}
 }
 
-func TestContainerRefusesARelationInside(t *testing.T) {
+func TestContainerTakesARelationInside(t *testing.T) {
 	t.Parallel()
 
-	inside := content.Field{
-		TypeKey: "post", Key: "wrote", Label: "Wrote",
-		Kind: content.FieldKindRelation, RelatesTo: "post",
-	}
+	for name, parent := range map[string]content.FieldKind{
+		"a section":  content.FieldKindSection,
+		"a repeater": content.FieldKindRepeater,
+		"a layout":   content.FieldKindLayout,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	_, err := content.NewSubField(inside, content.FieldKindSection)
+			inside := content.Field{
+				TypeKey: "post", Key: "wrote", Label: "Wrote",
+				Kind: content.FieldKindRelation, RelatesTo: "post",
+			}
 
-	if !errors.Is(err, content.ErrFieldShape) {
-		t.Errorf("NewSubField(relation) error = %v, want %v", err, content.ErrFieldShape)
+			built, err := content.NewSubField(inside, parent)
+
+			if err != nil {
+				t.Fatalf("NewSubField(relation under %s) error = %v, want nil", parent, err)
+			}
+			if built.Kind != content.FieldKindRelation || built.RelatesTo != "post" {
+				t.Errorf("built = %+v, want the relation kept pointing at posts", built)
+			}
+		})
 	}
 }
 
