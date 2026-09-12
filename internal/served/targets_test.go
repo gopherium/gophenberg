@@ -97,6 +97,22 @@ func TestValuesLeavesOutATargetNobodyServes(t *testing.T) {
 	}
 }
 
+func TestValuesLeavesOutARelationPointingNowhere(t *testing.T) {
+	t.Parallel()
+
+	stores := served.Stores{Links: fakeLinks{}}
+	stored := anItem(content.Values{"categories": []any{}})
+
+	values, _, err := served.Values(t.Context(), stores, pointingType(), stored)
+
+	if err != nil {
+		t.Fatalf("Values() error = %v, want nil", err)
+	}
+	if _, held := values["categories"]; held {
+		t.Errorf("categories = %#v, want a relation pointing nowhere left out", values["categories"])
+	}
+}
+
 func TestValuesReportsTheTargetsItCannotRead(t *testing.T) {
 	t.Parallel()
 

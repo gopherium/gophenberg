@@ -12,17 +12,16 @@ import (
 
 // InlineTargets rewrites every relation key the type declares into the items it names, dropping what is gone.
 func InlineTargets(ctx context.Context, links Reader, t content.Type, values content.Values) error {
+	byID := map[uuid.UUID]content.Target{}
 	ids := targetsUnder(t.Fields, values)
-	if len(ids) == 0 {
-		return nil
-	}
-	held, err := links.TargetsByIDs(ctx, ids)
-	if err != nil {
-		return err
-	}
-	byID := make(map[uuid.UUID]content.Target, len(held))
-	for _, target := range held {
-		byID[target.ID] = target
+	if len(ids) > 0 {
+		held, err := links.TargetsByIDs(ctx, ids)
+		if err != nil {
+			return err
+		}
+		for _, target := range held {
+			byID[target.ID] = target
+		}
 	}
 	nameUnder(t.Fields, values, byID)
 	return nil
