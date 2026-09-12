@@ -126,6 +126,134 @@ func TestMovingATopFieldLeavesASubFieldSharingItsKey(t *testing.T) {
 	}
 }
 
+// declaredInside declares a sub field of the kind under the parent through the store and returns it.
+func declaredInside(
+	t *testing.T, store *postgres.TypeStore, parent content.Field, key string, kind content.FieldKind,
+) content.Field {
+	t.Helper()
+	built, err := content.NewSubField(content.Field{Key: key, Label: key, Kind: kind}, parent.Kind)
+	if err != nil {
+		t.Fatalf("NewSubField(%s) error = %v, want nil", key, err)
+	}
+	stored, err := store.CreateSubField(t.Context(), parent.ID, built)
+	if err != nil {
+		t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
+	}
+	return stored
+}
+
+// groupOfField returns the group the field row sits in.
+func groupOfField(t *testing.T, pool *pgxpool.Pool, id int) int {
+	t.Helper()
+	var held int
+	if err := pool.QueryRow(t.Context(),
+		`SELECT group_id FROM core.content_fields WHERE id = $1`, id).Scan(&held); err != nil {
+		t.Fatalf("reading the group of field %d: %v, want nil", id, err)
+	}
+	return held
+}
+
+func TestMovingASectionCarriesASubFieldTwoLevelsDown(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, err := store.CreateGroup(t.Context(), content.Group{Title: "Details", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Details) error = %v, want nil", err)
+	}
+	section, err := store.CreateFieldInGroup(
+		t.Context(), source.ID, fieldOn(t, "", "author", content.FieldKindSection, ""))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(author) error = %v, want nil", err)
+	}
+	rows := declaredInside(t, store, section, "rows", content.FieldKindRepeater)
+	title := declaredInside(t, store, rows, "title", content.FieldKindText)
+	landing, err := store.CreateGroup(t.Context(), content.Group{Title: "Elsewhere", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Elsewhere) error = %v, want nil", err)
+	}
+
+	if _, err := store.MoveField(t.Context(), source.ID, "author", landing.ID); err != nil {
+		t.Fatalf("MoveField(author) error = %v, want nil", err)
+	}
+
+	if held := groupOfField(t, pool, title.ID); held != landing.ID {
+		t.Errorf("the field two levels down sits in group %d, want it carried into %d", held, landing.ID)
+	}
+}
+
+// movedSection holds a section declared in one group and moved into another, with the sub field it carries.
+type movedSection struct {
+	source, landing content.Group
+	section, sub    content.Field
+}
+
+// moveSection declares a section holding one text sub field in a group and moves it into a second group.
+func moveSection(t *testing.T, store *postgres.TypeStore) movedSection {
+	t.Helper()
+	source, err := store.CreateGroup(t.Context(), content.Group{Title: "Details", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Details) error = %v, want nil", err)
+	}
+	section, err := store.CreateFieldInGroup(
+		t.Context(), source.ID, fieldOn(t, "", "author", content.FieldKindSection, ""))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(author) error = %v, want nil", err)
+	}
+	sub := declaredInside(t, store, section, "name", content.FieldKindText)
+	landing, err := store.CreateGroup(t.Context(), content.Group{Title: "Elsewhere", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Elsewhere) error = %v, want nil", err)
+	}
+	if _, err := store.MoveField(t.Context(), source.ID, "author", landing.ID); err != nil {
+		t.Fatalf("MoveField(author) error = %v, want nil", err)
+	}
+	return movedSection{source: source, landing: landing, section: section, sub: sub}
+}
+
+func TestMovingASectionCarriesItsSubFieldsAlong(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	moved := moveSection(t, store)
+
+	var carried int
+	if err := pool.QueryRow(t.Context(),
+		`SELECT group_id FROM core.content_fields WHERE id = $1`, moved.sub.ID).Scan(&carried); err != nil {
+		t.Fatalf("reading the sub field: %v, want nil", err)
+	}
+	if carried != moved.landing.ID {
+		t.Errorf("the sub field sits in group %d, want it carried into %d with its section",
+			carried, moved.landing.ID)
+	}
+}
+
+func TestDeletingTheGroupASectionLeftKeepsTheSectionWhole(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	moved := moveSection(t, store)
+
+	if err := store.DeleteGroup(t.Context(), moved.source.ID); err != nil {
+		t.Fatalf("DeleteGroup() error = %v, want the group the section left gone", err)
+	}
+
+	if held := groupHolding(t, store, "author"); held != moved.landing.ID {
+		t.Errorf("author is declared by group %d, want %d", held, moved.landing.ID)
+	}
+	var kept int
+	if err := pool.QueryRow(t.Context(),
+		`SELECT count(*) FROM core.content_fields WHERE parent_field_id = $1`, moved.section.ID).Scan(&kept); err != nil {
+		t.Fatalf("counting the section's sub fields: %v, want nil", err)
+	}
+	if kept != 1 {
+		t.Errorf("the section holds %d sub fields after the delete, want its one kept", kept)
+	}
+}
+
 func TestCreateSubFieldStoresTheKeyTheDomainSettledOn(t *testing.T) {
 	t.Parallel()
 	store, _, _ := typedStore(t)
