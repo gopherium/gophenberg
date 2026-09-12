@@ -219,6 +219,120 @@ func TestSelfTargetedReportsAValueNoRelationHolds(t *testing.T) {
 	}
 }
 
+func TestHeldIdentitiesNamesEveryTargetTheValuesPointAt(t *testing.T) {
+	t.Parallel()
+
+	first, second := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	values := content.Values{
+		"color":      "red",
+		"categories": []any{first.String(), second.String()},
+	}
+
+	held := content.HeldIdentities(relatable(t, true), values)
+
+	if len(held) != 2 || !held[first] || !held[second] {
+		t.Errorf("HeldIdentities() = %v, want both targets named", held)
+	}
+}
+
+func TestHeldIdentitiesNamesNothingForValuesPointingNowhere(t *testing.T) {
+	t.Parallel()
+
+	for name, values := range map[string]content.Values{
+		"values nobody filled in":     nil,
+		"a relation standing empty":   {"categories": []any{}},
+		"a value no relation holds":   {"categories": "news"},
+		"a scalar beside no relation": {"color": "red"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if held := content.HeldIdentities(relatable(t, true), values); len(held) != 0 {
+				t.Errorf("HeldIdentities() = %v, want nothing named", held)
+			}
+		})
+	}
+}
+
+// rowsRelating returns a repeater holding one relation, beside a relation at the top.
+func rowsRelating(t *testing.T) []content.Field {
+	t.Helper()
+	inside, err := content.NewSubField(content.Field{
+		Key: "filed", Label: "Filed", Kind: content.FieldKindRelation, RelatesTo: "category", Many: true,
+	}, content.FieldKindRepeater)
+	if err != nil {
+		t.Fatalf("NewSubField() error = %v, want nil", err)
+	}
+	rows, err := content.NewField(content.Field{
+		TypeKey: "post", Key: "team", Label: "Team", Kind: content.FieldKindRepeater,
+	})
+	if err != nil {
+		t.Fatalf("NewField() error = %v, want nil", err)
+	}
+	rows.Fields = []content.Field{inside}
+	return append(relatable(t, true), rows)
+}
+
+func TestDropTargetsTakesTheGoneIdentityOutOfEveryRelation(t *testing.T) {
+	t.Parallel()
+
+	gone, kept := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	values := content.Values{
+		"color":      "red",
+		"categories": []any{gone.String(), kept.String()},
+		"team": []any{
+			map[string]any{"filed": []any{gone.String()}},
+			map[string]any{"filed": []any{kept.String(), gone.String()}},
+		},
+	}
+
+	content.DropTargets(rowsRelating(t), values, map[uuid.UUID]bool{gone: true})
+
+	if held := content.HeldIdentities(rowsRelating(t), values); len(held) != 1 || !held[kept] {
+		t.Errorf("the values name %v, want only the target that is still there", held)
+	}
+	if values["color"] != "red" {
+		t.Errorf("color = %v, want the scalar beside the relations left alone", values["color"])
+	}
+	rows, listed := values["team"].([]any)
+	if !listed || len(rows) != 2 {
+		t.Fatalf("team = %v, want both rows kept", values["team"])
+	}
+	if first, _ := rows[0].(map[string]any); len(first["filed"].([]any)) != 0 {
+		t.Errorf("the first row names %v, want a row whose only target is gone left empty", first["filed"])
+	}
+}
+
+func TestDropTargetsLeavesARelationNobodyFilledIn(t *testing.T) {
+	t.Parallel()
+
+	gone := uuid.Must(uuid.NewV7())
+	values := content.Values{"team": []any{map[string]any{}}}
+
+	content.DropTargets(rowsRelating(t), values, map[uuid.UUID]bool{gone: true})
+
+	if held, found := values["categories"]; found {
+		t.Errorf("categories = %v, want a relation nobody filled in left absent", held)
+	}
+	row, _ := values["team"].([]any)[0].(map[string]any)
+	if held, found := row["filed"]; found {
+		t.Errorf("the row holds %v in filed, want a relation nobody filled in left absent", held)
+	}
+}
+
+func TestDropTargetsLeavesTheValuesAloneWhenNothingIsGone(t *testing.T) {
+	t.Parallel()
+
+	target := uuid.Must(uuid.NewV7())
+	values := content.Values{"categories": []any{target.String()}}
+
+	content.DropTargets(rowsRelating(t), values, nil)
+
+	if held := content.HeldIdentities(rowsRelating(t), values); len(held) != 1 || !held[target] {
+		t.Errorf("the values name %v, want the target kept", held)
+	}
+}
+
 // containerHolding returns a container of the kind, holding one required text sub field.
 func containerHolding(t *testing.T, kind content.FieldKind, required bool) content.Field {
 	t.Helper()

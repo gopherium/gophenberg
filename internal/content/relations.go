@@ -58,6 +58,74 @@ func HeldTargets(fields []Field, values Values) ([]FieldTargets, error) {
 	return held, nil
 }
 
+// HeldIdentities returns every identity the values name through the fields' relations.
+func HeldIdentities(fields []Field, values Values) map[uuid.UUID]bool {
+	held, err := HeldTargets(fields, values)
+	if err != nil {
+		return nil
+	}
+	identities := make(map[uuid.UUID]bool, len(held))
+	for _, ft := range held {
+		for _, target := range ft.Targets {
+			identities[target] = true
+		}
+	}
+	return identities
+}
+
+// DropTargets takes the gone identities out of every relation value the fields declare.
+func DropTargets(fields []Field, values Values, gone map[uuid.UUID]bool) {
+	if len(gone) == 0 {
+		return
+	}
+	dropUnder(fields, values, gone)
+}
+
+// dropUnder takes the gone identities out of the values, descending into every container.
+func dropUnder(fields []Field, values map[string]any, gone map[uuid.UUID]bool) {
+	for _, f := range fields {
+		if f.Kind == FieldKindRelation {
+			if kept, listed := withoutGone(values[f.Key], gone); listed {
+				values[f.Key] = kept
+			}
+			continue
+		}
+		if !f.Kind.Holds() {
+			continue
+		}
+		dropInside(f, values[f.Key], gone)
+	}
+}
+
+// dropInside takes the gone identities out of the rows or the object a container holds.
+func dropInside(f Field, value any, gone map[uuid.UUID]bool) {
+	if rows, listed := value.([]any); listed {
+		for _, row := range rows {
+			dropInside(f, row, gone)
+		}
+		return
+	}
+	if inside, standing := value.(map[string]any); standing {
+		dropUnder(f.Fields, inside, gone)
+	}
+}
+
+// withoutGone returns the relation value without the gone identities, reporting whether it names a list.
+func withoutGone(value any, gone map[uuid.UUID]bool) ([]any, bool) {
+	listed, named := value.([]any)
+	if !named {
+		return nil, false
+	}
+	kept := make([]any, 0, len(listed))
+	for _, raw := range listed {
+		written, _ := raw.(string)
+		if id, err := uuid.Parse(written); err != nil || !gone[id] {
+			kept = append(kept, raw)
+		}
+	}
+	return kept, true
+}
+
 // targetsUnder gathers the targets each relation field holds, descending into every container.
 func targetsUnder(fields []Field, values Values, held *[]FieldTargets) error {
 	for _, f := range fields {
