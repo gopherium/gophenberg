@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -23,7 +24,7 @@ type recordingPostStore struct {
 	posts        []content.Content
 	current      []content.Content
 	filter       content.Filter
-	targets      content.Targets
+	targets      []content.Target
 	pointers     []content.Pointer
 	perPage      int
 	listErr      error
@@ -31,9 +32,18 @@ type recordingPostStore struct {
 	targetsErr   error
 }
 
-// TargetsOf returns the targets the stored relations name.
-func (s *recordingPostStore) TargetsOf(context.Context, uuid.UUID) (content.Targets, error) {
-	return s.targets, s.targetsErr
+// TargetsByIDs returns the stored targets the identities name.
+func (s *recordingPostStore) TargetsByIDs(_ context.Context, ids []uuid.UUID) ([]content.Target, error) {
+	if s.targetsErr != nil {
+		return nil, s.targetsErr
+	}
+	held := make([]content.Target, 0, len(ids))
+	for _, target := range s.targets {
+		if slices.Contains(ids, target.ID) {
+			held = append(held, target)
+		}
+	}
+	return held, nil
 }
 
 // PointingAt records the page size asked for and returns the stored pointers.
@@ -449,11 +459,12 @@ func TestReaderListsAsManyPointersAsTheSiteChose(t *testing.T) {
 func TestReaderNamesTheTargetsARelationPointsAt(t *testing.T) {
 	t.Parallel()
 
-	stored := publishedPost("A Published Post", "<p>Body</p>")
 	target := uuid.Must(uuid.NewV7())
+	stored := publishedPost("A Published Post", "<p>Body</p>")
+	stored.Fields = content.Values{"maker": []any{target.String()}}
 	store := &recordingPostStore{
 		posts:   []content.Content{stored},
-		targets: content.Targets{"maker": {{ID: target, Title: "News", Path: "categories/news"}}},
+		targets: []content.Target{{ID: target, Title: "News", Path: "categories/news"}},
 	}
 
 	got, err := contentbridge.New(store, typedFields{fields: relatedFields()}, nil, nil).
@@ -512,8 +523,10 @@ func TestReaderRefusesAValueNoAnswerCanCarry(t *testing.T) {
 func TestReaderReportsTheLinksItCannotShape(t *testing.T) {
 	t.Parallel()
 
+	pointing := publishedPost("A Post", "<p>Body</p>")
+	pointing.Fields = content.Values{"maker": []any{uuid.Must(uuid.NewV7()).String()}}
 	store := &recordingPostStore{
-		posts:      []content.Content{publishedPost("A Post", "<p>Body</p>")},
+		posts:      []content.Content{pointing},
 		targetsErr: errors.New("the store is down"),
 	}
 
