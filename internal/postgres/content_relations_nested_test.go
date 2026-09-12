@@ -130,6 +130,33 @@ func TestContentStoreForgetsTheTargetsARowNoLongerPointsAt(t *testing.T) {
 	}
 }
 
+func TestContentStoreKeepsTheIdentityOfADeletedTargetStored(t *testing.T) {
+	t.Parallel()
+
+	store, author, _ := relatingStore(t)
+	news := publishItem(t, store, storedCategory(t, store, "News", author))
+	filed := fileUnder(t, store, mustCreate(t, store, "Filed", author), news.ID)
+
+	if err := store.Delete(t.Context(), news.ID); err != nil {
+		t.Fatalf("Delete() error = %v, want nil", err)
+	}
+
+	read, err := store.ByID(t.Context(), filed.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	if held := heldTargets(t, read); len(held) != 1 || held[0] != news.ID {
+		t.Errorf("the item holds %v, want the identity kept until its next save", held)
+	}
+	named, err := store.TargetsByIDs(t.Context(), []uuid.UUID{news.ID})
+	if err != nil {
+		t.Fatalf("TargetsByIDs() error = %v, want nil", err)
+	}
+	if len(named) != 0 {
+		t.Errorf("TargetsByIDs() = %v, want nothing named for an item that is gone", named)
+	}
+}
+
 func TestContentStoreReportsAValueNoRelationHolds(t *testing.T) {
 	t.Parallel()
 
