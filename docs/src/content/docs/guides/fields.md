@@ -218,8 +218,8 @@ and they all arrive together. **Move up** and **Move down** order
 them, and that order is what a theme reads. A file taken out of the
 library shows by its number so you can still remove it.
 
-Autosave does not keep relations, which are stored apart from the
-item. Press **Save draft** after changing what an item points at.
+Autosave keeps what an item points at, the same as every other
+value it holds.
 
 A field can be marked **required**, as you declare it or with
 **Require** afterwards. It never blocks a draft save, only
