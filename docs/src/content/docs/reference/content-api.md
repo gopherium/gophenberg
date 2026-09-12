@@ -257,9 +257,12 @@ that field's `choices`. A field holding many, whether choice, media
 or relation, holds a list, and relation entries name and address
 the item they point at, so a theme links to it without another
 request. Only published targets of active types appear, so a draft
-category never leaks through a published post. A field nobody
-filled is absent, though a Many values choice emptied in the editor
-comes back as an empty list.
+category never leaks through a published post, and an item that was
+deleted drops out of the list. A relation standing inside a Section
+or a Repeater row holds the same entries in that row. A field nobody
+filled is absent, and so is a relation whose targets have all
+dropped out, though a Many values choice emptied in the editor comes
+back as an empty list.
 
 A Linked from field reads a relation the other way and holds the
 items pointing at this one, newest published first. Each entry
