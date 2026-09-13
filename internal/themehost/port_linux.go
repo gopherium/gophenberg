@@ -12,7 +12,7 @@ import (
 // loopbackAddr is the loopback host as the four bytes a socket binds.
 var loopbackAddr = netip.MustParseAddr(loopbackHost).As4()
 
-// heldPort is a loopback port bound without listening, which the theme may still listen on.
+// heldPort is a loopback port reserved for a theme.
 type heldPort struct {
 	fd   int
 	port int
