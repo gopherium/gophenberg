@@ -127,9 +127,9 @@ func TestSupervisorServesOnceTheThemeReportsReady(t *testing.T) {
 		t.Errorf("body = %q, want the stub's answer", body)
 	}
 	for _, want := range []string{"theme starting", "theme ready"} {
-		if !strings.Contains(logs.String(), want) {
-			t.Errorf("logs = %q, want a line saying %q", logs.String(), want)
-		}
+		waitFor(t, "a log line saying "+want, func() bool {
+			return strings.Contains(logs.String(), want)
+		})
 	}
 }
 
