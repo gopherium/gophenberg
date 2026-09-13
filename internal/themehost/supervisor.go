@@ -229,7 +229,7 @@ func (s *Supervisor) awaitReady(ctx context.Context, port int, exited <-chan str
 		if stopped(exited) {
 			return false
 		}
-		if ready(ctx, probe) {
+		if ready(ctx, probe, deadline) {
 			s.mu.Lock()
 			s.healthy = true
 			s.mu.Unlock()
@@ -278,8 +278,10 @@ func (s *Supervisor) terminate(command *exec.Cmd, waited chan error) error {
 	}
 }
 
-// ready reports whether a probe answered that the theme is serving.
-func ready(ctx context.Context, probe string) bool {
+// ready reports whether a probe answered before the deadline that the theme is serving.
+func ready(ctx context.Context, probe string, deadline time.Time) bool {
+	ctx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, probe, nil)
 	if err != nil {
 		return false
