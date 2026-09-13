@@ -47,6 +47,10 @@ Three rows deserve a warning:
   it at a volume that survives a restart, and back it up alongside
   the database.
 
+Every cache window applies only to an answer that succeeded. An
+address nothing holds, a file that is missing or a request the server
+refused is never kept by any cache, however the windows are set.
+
 ## Which theme serves
 
 Two things can name a theme, and they do not carry equal weight:
