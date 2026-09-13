@@ -100,6 +100,8 @@ func TestAFailedPublicAnswerIsNeverCached(t *testing.T) {
 		"a page size out of range": "/api/content/v1/items?per_page=0",
 		"a missing site asset":     "/gophenberg/missing.css",
 		"a missing upload":         "/media/missing.jpg",
+		"a content path no route":  "/api/content/v1/nowhere",
+		"a language path no route": "/api/locale/nowhere",
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -112,6 +114,58 @@ func TestAFailedPublicAnswerIsNeverCached(t *testing.T) {
 			}
 			if held := recorder.Header().Get("Cache-Control"); held != "no-store" {
 				t.Errorf("Cache-Control = %q, want no cache to keep a failed answer", held)
+			}
+		})
+	}
+}
+
+func TestAPublicAPIPathNoRouteHoldsAnswersTheReservedNotFound(t *testing.T) {
+	t.Parallel()
+
+	handler := cachingServer(t, server.CachePolicy{})
+
+	for _, path := range []string{"/api/content/v1/nowhere", "/api/locale/nowhere"} {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+
+			if recorder.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want the path answered as not found", recorder.Code)
+			}
+			if code := errorCode(t, recorder); code != "route_not_found" {
+				t.Errorf("code = %q, want the reserved answer every unknown API path gets", code)
+			}
+		})
+	}
+}
+
+func TestAMethodThePublicRoutesRefuseIsNeverCached(t *testing.T) {
+	t.Parallel()
+
+	handler := cachingServer(t, server.CachePolicy{})
+
+	for _, asked := range []struct{ method, path string }{
+		{http.MethodPost, "/api/content/v1/items"},
+		{http.MethodHead, "/api/content/v1/items"},
+		{http.MethodHead, "/api/content/v1"},
+		{http.MethodHead, "/api/locale"},
+	} {
+		t.Run(asked.method+" "+asked.path, func(t *testing.T) {
+			t.Parallel()
+
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, httptest.NewRequest(asked.method, asked.path, nil))
+
+			if recorder.Code != http.StatusMethodNotAllowed {
+				t.Fatalf("status = %d, want the method refused", recorder.Code)
+			}
+			if held := recorder.Header().Get("Cache-Control"); held != "no-store" {
+				t.Errorf("Cache-Control = %q, want no cache to keep a refused method", held)
+			}
+			if allowed := recorder.Header().Get("Allow"); allowed != http.MethodGet {
+				t.Errorf("Allow = %q, want the refusal to name the method the route takes", allowed)
 			}
 		})
 	}
