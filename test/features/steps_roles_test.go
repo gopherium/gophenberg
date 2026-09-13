@@ -97,4 +97,5 @@ func initializeRouteGate(sc *godog.ScenarioContext) {
 	sc.When(`^the account asks for the content types$`, theAccountAsksForTheContentTypes)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 	sc.Then(`^the request is answered$`, theRequestIsAnswered)
+	sc.Then(`^the answer is kept out of shared caches$`, theAnswerIsKeptOutOfSharedCaches)
 }

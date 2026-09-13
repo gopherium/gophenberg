@@ -45,3 +45,9 @@ Feature: A role decides which routes an account reaches
     Given a signed in author
     When the account asks for the content types
     Then the request is answered
+
+  Scenario: An answer to a signed in account is kept out of shared caches
+    Given a signed in author
+    When the account asks for the content list
+    Then the request is answered
+    And the answer is kept out of shared caches

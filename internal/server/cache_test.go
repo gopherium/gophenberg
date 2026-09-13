@@ -9,15 +9,24 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/gopherium/gouncer/authkit/testkit"
+
+	"github.com/gopherium/gophenberg/internal/role"
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
 // cachingServer returns a handler serving assets, media and the content API under the given windows.
 func cachingServer(t *testing.T, cache server.CachePolicy) http.Handler {
 	t.Helper()
+	return cachingServerWith(t, newFakeUserStore(), cache)
+}
+
+// cachingServerWith returns a handler serving the given accounts beside the public routes under the windows.
+func cachingServerWith(t *testing.T, users *testkit.Store, cache server.CachePolicy) http.Handler {
+	t.Helper()
 	posts := newFakePostStore()
 	return server.NewServer(server.Config{
-		Users:      newFakeUserStore(),
+		Users:      users,
 		Content:    posts,
 		Types:      newFakeTypeStore(),
 		Version:    "1.2.3",
@@ -168,6 +177,121 @@ func TestAMethodThePublicRoutesRefuseIsNeverCached(t *testing.T) {
 				t.Errorf("Allow = %q, want the refusal to name the method the route takes", allowed)
 			}
 		})
+	}
+}
+
+// signedInAda logs the stock administrator in and returns the session to send.
+func signedInAda(t *testing.T, handler http.Handler) *http.Cookie {
+	t.Helper()
+	recorder := doLogin(t, handler, `{"email":"ada@example.com","password":"correct horse battery"}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("login status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	return sessionCookie(t, recorder)
+}
+
+func TestAnAuthenticatedAnswerStaysOutOfSharedCaches(t *testing.T) {
+	t.Parallel()
+
+	users := newFakeUserStore()
+	addAda(t, users)
+	handler := cachingServerWith(t, users, server.CachePolicy{ContentSharedMaxAge: 30 * time.Second})
+	cookie := signedInAda(t, handler)
+
+	for name, path := range map[string]string{
+		"the session":      "/api/auth/session",
+		"the content list": "/api/content",
+		"the type list":    "/api/types",
+		"the user list":    "/api/users",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			request := httptest.NewRequest(http.MethodGet, path, nil)
+			request.AddCookie(cookie)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, request)
+
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+			}
+			if held := recorder.Header().Get("Cache-Control"); held != "private, no-store" {
+				t.Errorf("Cache-Control = %q, want the answer kept out of every cache it does not belong to", held)
+			}
+		})
+	}
+}
+
+func TestARefusedSessionIsNeverCached(t *testing.T) {
+	t.Parallel()
+
+	handler := cachingServer(t, server.CachePolicy{})
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/content", nil))
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+	if held := recorder.Header().Get("Cache-Control"); held != "no-store" {
+		t.Errorf("Cache-Control = %q, want no cache to keep a refused session", held)
+	}
+}
+
+func TestAPluginAnswerToASignedInAccountStaysOutOfSharedCaches(t *testing.T) {
+	t.Parallel()
+
+	handler, cookie := pluginServerFor(t, role.Author)
+	request := httptest.NewRequest(http.MethodGet, "/api/plugins/reporter/anything", nil)
+	request.AddCookie(cookie)
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if held := recorder.Header().Get("Cache-Control"); held != "private, no-store" {
+		t.Errorf("Cache-Control = %q, want the plugin's answer kept out of every cache it does not belong to", held)
+	}
+}
+
+func TestAPluginRefusingASessionIsNeverCached(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := pluginServerFor(t, role.Author)
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/plugins/reporter/anything", nil))
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+	if held := recorder.Header().Get("Cache-Control"); held != "no-store" {
+		t.Errorf("Cache-Control = %q, want no cache to keep a refused session", held)
+	}
+}
+
+func TestAPluginPublicPathKeepsTheCachingThePluginSets(t *testing.T) {
+	t.Parallel()
+
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Plugins: map[string]http.Handler{"feed": http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Cache-Control", "public, max-age=60")
+			_, _ = w.Write([]byte("<rss/>"))
+		})},
+		PluginPublicPaths: map[string][]string{"feed": {"/rss"}},
+	})
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/plugins/feed/rss", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if held := recorder.Header().Get("Cache-Control"); held != "public, max-age=60" {
+		t.Errorf("Cache-Control = %q, want a public path to keep what the plugin set", held)
 	}
 }
 

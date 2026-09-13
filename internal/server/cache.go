@@ -46,12 +46,22 @@ func (c *cacheStamp) WriteHeader(status int) {
 	c.ResponseWriter.WriteHeader(status)
 }
 
+// Unwrap returns the writer the stamp wraps.
+func (c *cacheStamp) Unwrap() http.ResponseWriter {
+	return c.ResponseWriter
+}
+
 // Write sends the body, stamping a success first when no status went out.
 func (c *cacheStamp) Write(body []byte) (int, error) {
 	if !c.stamped {
 		c.WriteHeader(http.StatusOK)
 	}
 	return c.ResponseWriter.Write(body)
+}
+
+// readerOnly returns middleware keeping every answer out of any cache it does not belong to.
+func readerOnly(next http.Handler) http.Handler {
+	return cacheStamped(next, readerCacheControl)
 }
 
 // cacheStamped returns next answering through a writer that stamps the header the answer earns.
