@@ -6,6 +6,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func TestReadyRefusesAProbeAddressThatIsNotAURL(t *testing.T) {
@@ -25,7 +26,7 @@ func TestReadyRefusesAProbeAddressThatIsNotAURL(t *testing.T) {
 			if _, err := http.NewRequestWithContext(context.Background(), http.MethodGet, tc.probe, nil); err == nil {
 				t.Fatalf("NewRequestWithContext(%q) built a request, want the address refused first", tc.probe)
 			}
-			if got := ready(context.Background(), tc.probe); got {
+			if got := ready(context.Background(), tc.probe, time.Now().Add(time.Second)); got {
 				t.Errorf("ready(%q) = true, want false for an address that is not a URL", tc.probe)
 			}
 		})

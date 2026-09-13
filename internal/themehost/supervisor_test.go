@@ -127,9 +127,9 @@ func TestSupervisorServesOnceTheThemeReportsReady(t *testing.T) {
 		t.Errorf("body = %q, want the stub's answer", body)
 	}
 	for _, want := range []string{"theme starting", "theme ready"} {
-		if !strings.Contains(logs.String(), want) {
-			t.Errorf("logs = %q, want a line saying %q", logs.String(), want)
-		}
+		waitFor(t, "a log line saying "+want, func() bool {
+			return strings.Contains(logs.String(), want)
+		})
 	}
 }
 
@@ -264,6 +264,22 @@ func TestTheSupervisorSaysWhenItsStartFailed(t *testing.T) {
 		t.Error("StartFailed() = true, want false while the supervisor is still trying")
 	}
 	waitFor(t, "the supervisor to record the failed start", supervisor.StartFailed)
+}
+
+func TestSupervisorFailsTheStartOfAThemeThatAcceptsItsProbeButNeverAnswers(t *testing.T) {
+	t.Parallel()
+
+	var themeDir string
+	supervisor, _ := startSupervisor(t, "mute", func(config *themehost.SupervisorConfig) {
+		config.ReadyTimeout = 3 * time.Second
+		config.MaxAttempts = 1
+		themeDir = config.Theme.Dir
+	})
+
+	waitFor(t, "the supervisor to fail a theme whose probe is never answered", supervisor.StartFailed)
+	if _, err := os.Stat(filepath.Join(themeDir, "server", "accepted")); err != nil {
+		t.Errorf("the theme never accepted a probe (%v), want the start failed while a probe went unanswered", err)
+	}
 }
 
 func TestAStoppedSupervisorHasNotFailedItsStart(t *testing.T) {

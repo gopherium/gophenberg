@@ -4,7 +4,6 @@ package themehost
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -158,11 +157,13 @@ func (s *Supervisor) supervise(ctx context.Context) {
 
 // attempt runs the theme once and reports whether it ever served.
 func (s *Supervisor) attempt(ctx context.Context) bool {
-	port, err := freePort()
+	held, err := reservePort()
 	if err != nil {
 		s.config.Logger.Error("theme exited", "theme", s.config.Theme.Name, "reason", err)
 		return false
 	}
+	defer held.release()
+	port := held.port
 	command := s.spawn(port)
 	if err := command.Start(); err != nil {
 		s.config.Logger.Error("theme exited", "theme", s.config.Theme.Name, "reason", err)
@@ -228,7 +229,7 @@ func (s *Supervisor) awaitReady(ctx context.Context, port int, exited <-chan str
 		if stopped(exited) {
 			return false
 		}
-		if ready(ctx, probe) {
+		if ready(ctx, probe, deadline) {
 			s.mu.Lock()
 			s.healthy = true
 			s.mu.Unlock()
@@ -277,8 +278,10 @@ func (s *Supervisor) terminate(command *exec.Cmd, waited chan error) error {
 	}
 }
 
-// ready reports whether a probe answered that the theme is serving.
-func ready(ctx context.Context, probe string) bool {
+// ready reports whether a probe answered before the deadline that the theme is serving.
+func ready(ctx context.Context, probe string, deadline time.Time) bool {
+	ctx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, probe, nil)
 	if err != nil {
 		return false
@@ -289,16 +292,6 @@ func ready(ctx context.Context, probe string) bool {
 	}
 	defer func() { _ = response.Body.Close() }()
 	return response.StatusCode == http.StatusOK
-}
-
-// freePort returns a port nothing is listening on.
-func freePort() (int, error) {
-	listener, err := net.Listen("tcp", net.JoinHostPort(loopbackHost, "0"))
-	if err != nil {
-		return 0, fmt.Errorf("themehost: finding a free port: %w", err)
-	}
-	defer func() { _ = listener.Close() }()
-	return listener.Addr().(*net.TCPAddr).Port, nil
 }
 
 // sleep waits for a duration and reports whether the wait finished.
