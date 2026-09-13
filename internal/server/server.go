@@ -122,7 +122,7 @@ func NewServer(cfg Config) http.Handler {
 	}
 	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web, headers.asset))
 	if cfg.MediaFiles != nil {
-		router.With(identify(cfg.Version)).Handle(mediaPrefix+"/*", mediaAssets(cfg.MediaFiles, headers.media))
+		router.With(identify(cfg.Version)).Handle(mediaPrefix+"/*", cacheStamped(mediaAssets(cfg.MediaFiles), headers.media))
 	}
 	site := builtInSite(cfg, s.types)
 	renderer := identify(cfg.Version)(site)

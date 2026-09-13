@@ -36,6 +36,11 @@ Feature: Serving media files
     When a visitor requests that hidden file
     Then the request reports the file does not exist
 
+  Scenario: A missing file is never cached
+    When a visitor requests an unknown media path
+    Then the request reports the file does not exist
+    And the answer is never cached
+
   Scenario: The media prefix never falls through to a theme
     Given "driftwood" is installed and active
     When a visitor requests an unknown media path
