@@ -456,6 +456,16 @@ SELECT key FROM core.content_types ORDER BY created_at, key;
 SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin
 FROM core.content_fields ORDER BY group_id, position, id;
 
+-- name: MoveContentFieldDescendants :exec
+WITH RECURSIVE inside AS (
+    SELECT held.id FROM core.content_fields AS held WHERE held.parent_field_id = @id::integer
+    UNION ALL
+    SELECT below.id FROM core.content_fields AS below JOIN inside ON below.parent_field_id = inside.id
+)
+UPDATE core.content_fields AS moved
+SET group_id = @to_group
+WHERE moved.id IN (SELECT inside.id FROM inside);
+
 -- name: ListContentFieldsOfGroup :many
 SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin
 FROM core.content_fields WHERE group_id = @group_id ORDER BY position, id;

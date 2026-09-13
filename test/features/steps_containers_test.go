@@ -276,6 +276,11 @@ func initializeContainers(sc *godog.ScenarioContext) {
 		theAdministratorDeclaresInside,
 	)
 	sc.When(
+		`^the administrator moves the field "([^"]*)" from "([^"]*)" to "([^"]*)"$`,
+		theAdministratorMovesTheField,
+	)
+	sc.When(`^the administrator deletes the group "([^"]*)"$`, theAdministratorDeletesTheGroup)
+	sc.When(
 		`^the administrator saves the section "([^"]*)" of "([^"]*)" as:$`,
 		theAdministratorSavesTheSection,
 	)

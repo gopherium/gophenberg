@@ -1899,6 +1899,27 @@ func (q *Queries) MoveContentField(ctx context.Context, arg MoveContentFieldPara
 	return i, err
 }
 
+const moveContentFieldDescendants = `-- name: MoveContentFieldDescendants :exec
+WITH RECURSIVE inside AS (
+    SELECT held.id FROM core.content_fields AS held WHERE held.parent_field_id = $2::integer
+    UNION ALL
+    SELECT below.id FROM core.content_fields AS below JOIN inside ON below.parent_field_id = inside.id
+)
+UPDATE core.content_fields AS moved
+SET group_id = $1
+WHERE moved.id IN (SELECT inside.id FROM inside)
+`
+
+type MoveContentFieldDescendantsParams struct {
+	ToGroup int32
+	ID      int32
+}
+
+func (q *Queries) MoveContentFieldDescendants(ctx context.Context, arg MoveContentFieldDescendantsParams) error {
+	_, err := q.db.Exec(ctx, moveContentFieldDescendants, arg.ToGroup, arg.ID)
+	return err
+}
+
 const moveDescendants = `-- name: MoveDescendants :exec
 WITH RECURSIVE moved AS (
     SELECT c.id, $3::text AS path

@@ -695,7 +695,9 @@ func (s *TypeStore) MoveField(
 			return err
 		}
 		moved = toField(row)
-		return nil
+		return queries.MoveContentFieldDescendants(ctx, db.MoveContentFieldDescendantsParams{
+			ID: row.ID, ToGroup: int32(toGroup),
+		})
 	})
 	if err != nil {
 		return content.Field{}, err

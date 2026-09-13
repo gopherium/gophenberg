@@ -108,3 +108,11 @@ Feature: Container fields
     And the post "Second post"
     When the administrator points "wrote" inside "author" of "Hello world" at "Second post"
     Then "Hello world" lists "Second post" in "wrote" inside "author"
+
+  Scenario: Moving a section carries its sub fields with it
+    Given the "section" field "author" in "Extras"
+    And the "text" field "name" inside "author"
+    And the group "Elsewhere" placed on "post"
+    When the administrator moves the field "author" from "Extras" to "Elsewhere"
+    And the administrator deletes the group "Extras"
+    Then the field "author" on "post" holds the sub field "name"
