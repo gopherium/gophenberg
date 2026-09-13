@@ -99,12 +99,15 @@ func NewServer(cfg Config) http.Handler {
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
 		Post("/api/auth/login", auth.Login)
 	router.Post("/api/auth/logout", auth.Logout)
-	router.With(contentHeaders(readerCacheControl)).Get("/api/locale", s.handleLocaleGet())
-	router.Group(func(public chi.Router) {
+	router.Route("/api/locale", func(locale chi.Router) {
+		locale.Use(contentHeaders(readerCacheControl))
+		locale.Get("/", s.handleLocaleGet())
+	})
+	router.Route("/api/content/v1", func(public chi.Router) {
 		public.Use(contentHeaders(headers.content))
-		public.Get("/api/content/v1", s.handleContentHandshake())
-		public.Get("/api/content/v1/items", s.handlePublishedList())
-		public.Get("/api/content/v1/resolve", s.handleContentResolve())
+		public.Get("/", s.handleContentHandshake())
+		public.Get("/items", s.handlePublishedList())
+		public.Get("/resolve", s.handleContentResolve())
 	})
 	router.Group(func(protected chi.Router) {
 		protected.Use(auth.RequireSession)
@@ -122,7 +125,7 @@ func NewServer(cfg Config) http.Handler {
 	}
 	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web, headers.asset))
 	if cfg.MediaFiles != nil {
-		router.With(identify(cfg.Version)).Handle(mediaPrefix+"/*", mediaAssets(cfg.MediaFiles, headers.media))
+		router.With(identify(cfg.Version)).Handle(mediaPrefix+"/*", cacheStamped(mediaAssets(cfg.MediaFiles), headers.media))
 	}
 	site := builtInSite(cfg, s.types)
 	renderer := identify(cfg.Version)(site)

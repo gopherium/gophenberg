@@ -427,7 +427,7 @@ func (s *server) handleMediaDelete() http.HandlerFunc {
 }
 
 // mediaAssets returns the handler serving stored uploads to every visitor.
-func mediaAssets(files fs.FS, header string) http.Handler {
+func mediaAssets(files fs.FS) http.Handler {
 	fileServer := http.FileServerFS(files)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name, ok := mediaFileName(r.URL.Path)
@@ -440,7 +440,6 @@ func mediaAssets(files fs.FS, header string) http.Handler {
 			respondNotFound(w, r)
 			return
 		}
-		w.Header().Set("Cache-Control", header)
 		r = r.Clone(r.Context())
 		r.URL.Path = "/" + name
 		fileServer.ServeHTTP(w, r)

@@ -149,13 +149,13 @@ func newPublishedSummary(c content.Content) publishedSummary {
 	}
 }
 
-// contentHeaders returns middleware allowing cross-origin reads and carrying the given cache directive.
+// contentHeaders returns middleware allowing cross-origin reads and stamping the cache directive an answer earns.
 func contentHeaders(header string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
+		stamped := cacheStamped(next, header)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Cache-Control", header)
-			next.ServeHTTP(w, r)
+			stamped.ServeHTTP(w, r)
 		})
 	}
 }

@@ -118,6 +118,30 @@ func theAddressAnswersNotFound(ctx context.Context, address string) error {
 	return w.expect(http.StatusNotFound)
 }
 
+// aVisitorResolvesNothingAt asks the resolver about an address nothing holds.
+func aVisitorResolvesNothingAt(ctx context.Context, address string) error {
+	w, err := visit(ctx, "/api/content/v1/resolve?path="+address)
+	if err != nil {
+		return err
+	}
+	return w.expect(http.StatusNotFound)
+}
+
+// theAnswerIsNeverCached asserts the last answer forbids every cache from keeping it.
+func theAnswerIsNeverCached(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if w.answer == nil {
+		return fmt.Errorf("nothing was answered yet")
+	}
+	if held := w.answer.header.Get("Cache-Control"); held != "no-store" {
+		return fmt.Errorf("Cache-Control = %q, want no cache to keep a failed answer", held)
+	}
+	return nil
+}
+
 // initializeContentServing registers the steps of the content serving feature.
 func initializeContentServing(sc *godog.ScenarioContext) {
 	sc.Before(provisionWorld)
@@ -136,8 +160,10 @@ func initializeContentServing(sc *godog.ScenarioContext) {
 	sc.Then(`^"([^"]*)" answers with "([^"]*)"$`, theAddressAnswersWith)
 	sc.Then(`^"([^"]*)" lists "([^"]*)"$`, theAddressLists)
 	sc.Then(`^"([^"]*)" answers not found$`, theAddressAnswersNotFound)
+	sc.Then(`^the answer is never cached$`, theAnswerIsNeverCached)
 	sc.When(`^a visitor reads the content handshake$`, aVisitorReadsTheContentHandshake)
 	sc.When(`^a visitor resolves "([^"]*)"$`, aVisitorResolves)
+	sc.When(`^a visitor resolves "([^"]*)" and finds nothing$`, aVisitorResolvesNothingAt)
 	sc.Then(`^it carries api (\d+)$`, itCarriesAPI)
 	sc.Then(`^it serves kit "([^"]*)"$`, itServesKit)
 	sc.Then(`^it lists "([^"]*)" as the default type at the root$`, itListsTheDefaultTypeAtTheRoot)
