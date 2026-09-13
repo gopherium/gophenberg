@@ -83,7 +83,9 @@ build compiles your plugin in. There is no list to edit by hand.
 ## What the host gives you
 
 - **Routes** mount at `/api/plugins/hello`, prefix stripped, and
-  require a login by default.
+  require a login by default. Every answer on those routes is
+  marked `private, no-store`, so no cache keeps it, whatever
+  header your plugin sets. Public paths keep your own header.
 - **Public paths**: declare `PublicPaths() []string` and those
   exact paths answer without a session, for every method. Exact
   match, never a prefix. This is how the feed serves
