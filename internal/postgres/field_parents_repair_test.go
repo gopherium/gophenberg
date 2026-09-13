@@ -12,7 +12,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
-// plantTwin stores a field row of the kind under the parent, as a move that left fields behind could.
+// plantTwin stores a field row of the kind under the parent in the group and returns its identity.
 func plantTwin(t *testing.T, pool *pgxpool.Pool, groupID, parentID int, key, kind string, depth int) int {
 	t.Helper()
 	var relatesTo *string
@@ -44,7 +44,7 @@ func fieldsKeyed(t *testing.T, pool *pgxpool.Pool, key string) int {
 	return held
 }
 
-// rerunRepair rolls the schema back to before the repair and migrates forward again.
+// rerunRepair runs the repair migration again on the database behind the pool.
 func rerunRepair(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	url := pool.Config().ConnString()
