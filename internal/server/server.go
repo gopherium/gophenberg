@@ -110,12 +110,12 @@ func NewServer(cfg Config) http.Handler {
 		public.Get("/resolve", s.handleContentResolve())
 	})
 	router.Group(func(protected chi.Router) {
-		protected.Use(auth.RequireSession)
+		protected.Use(readerOnly, auth.RequireSession)
 		protected.Get("/api/auth/session", auth.Session)
 		s.mountOpen(protected, cfg)
 	})
 	router.Group(func(privileged chi.Router) {
-		privileged.Use(auth.RequireSession, auth.RequirePrivilege)
+		privileged.Use(readerOnly, auth.RequireSession, auth.RequirePrivilege)
 		s.mountAdmin(privileged, admin, cfg)
 	})
 	for id, handler := range cfg.Plugins {

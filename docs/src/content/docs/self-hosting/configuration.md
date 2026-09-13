@@ -49,7 +49,10 @@ Three rows deserve a warning:
 
 Every cache window applies only to an answer that succeeded. An
 address nothing holds, a file that is missing or a request the server
-refused is never kept by any cache, however the windows are set.
+refused is never kept by any cache, however the windows are set. An
+answer to a signed in account is never shared either. It is marked
+private, so only that person's own browser may keep it, and told not
+to be stored at all.
 
 ## Which theme serves
 
