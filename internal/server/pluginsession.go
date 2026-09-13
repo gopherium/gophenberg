@@ -11,11 +11,10 @@ import (
 	"github.com/gopherium/gophenberg/sdk"
 )
 
-// guardPlugin returns the middleware a plugin mount is wrapped in, requiring a
-// session and filing it on the seam plugins read.
+// guardPlugin returns the middleware requiring and filing a session on a plugin route, kept out of every cache.
 func guardPlugin(auth *authkit.Handlers) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return auth.RequireSession(fileSession(next))
+		return readerOnly(auth.RequireSession(fileSession(next)))
 	}
 }
 
