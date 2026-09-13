@@ -90,6 +90,33 @@ func TestCacheWindowsCarryWhatTheDeploymentNamed(t *testing.T) {
 	}
 }
 
+func TestAFailedPublicAnswerIsNeverCached(t *testing.T) {
+	t.Parallel()
+
+	handler := cachingServer(t, server.CachePolicy{})
+
+	for name, path := range map[string]string{
+		"an address nothing holds": "/api/content/v1/resolve?path=/nowhere/at/all",
+		"a page size out of range": "/api/content/v1/items?per_page=0",
+		"a missing site asset":     "/gophenberg/missing.css",
+		"a missing upload":         "/media/missing.jpg",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+
+			if recorder.Code < http.StatusBadRequest {
+				t.Fatalf("status = %d, want a failed answer to test against", recorder.Code)
+			}
+			if held := recorder.Header().Get("Cache-Control"); held != "no-store" {
+				t.Errorf("Cache-Control = %q, want no cache to keep a failed answer", held)
+			}
+		})
+	}
+}
+
 func TestTheLocaleAnswerStaysOutOfSharedCaches(t *testing.T) {
 	t.Parallel()
 
