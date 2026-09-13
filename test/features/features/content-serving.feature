@@ -40,6 +40,10 @@ Feature: Serving content by address
   Scenario: An unknown address answers not found
     Then "/nowhere/at/all" answers not found
 
+  Scenario: An answer that failed is never cached
+    When a visitor resolves "/nowhere/at/all" and finds nothing
+    Then the answer is never cached
+
   Scenario: A page number below the first answers not found
     Then "/page/0" answers not found
 

@@ -211,6 +211,7 @@ func initializeMediaServing(sc *godog.ScenarioContext) {
 	sc.Then(`^the file is served with the content type "([^"]*)"$`, theFileIsServedWithTheContentType)
 	sc.Then(`^the response allows public caching$`, theResponseAllowsPublicCaching)
 	sc.Then(`^the request reports the file does not exist$`, theRequestReportsTheFileDoesNotExist)
+	sc.Then(`^the answer is never cached$`, theAnswerIsNeverCached)
 	sc.Then(`^the request is refused$`, theRequestIsRefused)
 	sc.Then(`^the answer does not carry the theme's page$`, theAnswerDoesNotCarryTheThemesPage)
 }
