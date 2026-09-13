@@ -22,41 +22,47 @@ Gophenberg is below 1.0, read the release notes first, since a
 release can change behavior.
 
 Updating to %VERSION% from the release before it runs one migration
-on start. What every item points at is copied out of the relation
-index and into the item's own values, under the field's key and in
-the order it was stored, so a relation now lives with its item and
-the index is rebuilt from it on every save. Updating from further
-back also runs the migrations of every release you skip, so read
-each of their notes. Back up the database before the first start on
-this release, as before any update. Public addresses do not change
-shape, and a theme reads the same shapes it read before.
+on start. It repairs sites where a Section or a Repeater was moved to
+another field group. Until now only the container moved, and the
+fields inside it stayed in the old group, which then could not be
+deleted. The migration puts each of those fields back with its
+container. Where a container ended up with two fields of the same
+name, both are left alone, and the old group stays until you remove
+one of them in the editor. Nothing is deleted, and no stored value
+is touched. Updating from further back also runs the migrations of
+every release you skip, so read each of their notes. Back up the
+database before the first start on this release, as before any
+update. Public addresses do not change shape, and a theme reads the
+same shapes it read before.
 
-A revision or an autosave written before this release holds no
-relation values, because the release before kept those in the index
-alone. Taking up an autosave parked before the update leaves what
-the item points at alone.
+This release also changes what caches may keep. A failed answer,
+whether from the content API, a site asset or an upload, is now
+marked so that no cache keeps it. An answer to a signed in account is
+marked private and never stored. There is nothing to set. A proxy in
+front of the site that follows its cache headers stops holding error
+answers.
 
 Rolling back to the release before this one deletes nothing.
 Gophenberg only ever migrates forward, so put the older image tag
 back and start it. It runs on this release's database as it stands,
-and it serves the same theme kit, so no theme needs rebuilding. That
-release reads what an item points at from the index, which this
-release keeps current, so every relation still shows. It writes a
-changed relation to the index alone, while this release reads the
-item's own values, so updating again puts back what each item
-pointed at before the rollback and a relation changed in between is
-lost. That release also does not know a relation standing inside a
-Section, a Repeater or a Flexible content field, so it refuses to
-save a change to any container holding one. Updating again brings
-everything back.
+and it serves the same theme kit, so no theme needs rebuilding. The
+repair is recorded as done and never runs again. So a container
+moved while rolled back leaves its fields behind once more, and
+updating again does not mend that. Moving that container once more
+on this release does. That release also goes back to the old cache
+headers. Updating again brings everything else back.
 
 Going back further is not something Gophenberg does for you. An
 older image still starts on this database and deletes nothing. Two
-releases back does not know the field kinds the release before this
-one added, serves an older theme kit, and shares the relation caveat
-above. Three releases back knows only the six original kinds and
-can no longer create a field group. Restore the backup you took
-before updating instead. Only running the migrations backwards by
+releases back does not know a relation standing inside a Section, a
+Repeater or a Flexible content field, so it refuses to save a change
+to any container holding one. It also reads what an item points at
+from an index while this release reads the item's own values, so a
+relation changed there is lost when you update again. Three releases
+back shares both, does not know the newer field kinds, and serves an
+older theme kit. Four releases back knows only the six original
+kinds and can no longer create a field group. Restore the backup you
+took before updating instead. Only running the migrations backwards by
 hand deletes fields, and that is a one way trip. It deletes every
 field whose kind is not one of the six, every field standing inside
 another field, every field's settings, and the record of which
