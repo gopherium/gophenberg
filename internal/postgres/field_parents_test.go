@@ -126,7 +126,7 @@ func TestMovingATopFieldLeavesASubFieldSharingItsKey(t *testing.T) {
 	}
 }
 
-// declaredInside declares a sub field of the kind under the parent through the store and returns it.
+// declaredInside declares a sub field of the kind under the parent and returns it.
 func declaredInside(
 	t *testing.T, store *postgres.TypeStore, parent content.Field, key string, kind content.FieldKind,
 ) content.Field {
