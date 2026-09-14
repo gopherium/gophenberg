@@ -380,35 +380,55 @@ func TestCreatingASubFieldRefusesAParentHoldingNone(t *testing.T) {
 	}
 }
 
-func TestCreatingASubFieldRefusesAParentChainTooDeep(t *testing.T) {
+// sectionChainOnCar returns the deepest section of a chain nested depth levels under a top section of the car type.
+func sectionChainOnCar(t *testing.T, store *postgres.TypeStore, registry *content.Registry, depth int) content.Field {
+	t.Helper()
+	at := declareSection(t, store, "specs")
+	for level := 1; level <= depth; level++ {
+		grown, err := registry.CreateSubField(t.Context(), at.ID, sectionOn(t, fmt.Sprintf("held%d", level)))
+		if err != nil {
+			t.Fatalf("nesting a container at depth %d: %v, want nil", level, err)
+		}
+		at = grown
+	}
+	return at
+}
+
+func TestCreatingASubFieldRefusesAParentChainPastTheDefaultDepth(t *testing.T) {
 	t.Parallel()
 
 	store, _, _ := typedStore(t)
 	storeType(t, store, "car")
-	at := declareSection(t, store, "specs")
-	for depth := 2; depth <= content.MaxFieldDepth; depth++ {
-		grown, err := store.CreateSubField(
-			t.Context(), at.ID, sectionOn(t, fmt.Sprintf("held%d", depth)))
-		if err != nil {
-			t.Fatalf("nesting a container to depth %d: %v, want nil", depth, err)
-		}
-		at = grown
-	}
+	registry := content.NewRegistry(store)
+	deepest := sectionChainOnCar(t, store, registry, content.DefaultFieldDepth)
 
-	if _, err := store.CreateSubField(
-		t.Context(), at.ID, fieldOn(t, "", "title", content.FieldKindText, "")); err != nil {
-		t.Fatalf("a field inside the last container: %v, want the depth taken", err)
-	}
-	further, err := store.CreateSubField(t.Context(), at.ID, sectionOn(t, "further"))
-	if err != nil {
-		t.Fatalf("a container at the last depth: %v, want it taken", err)
-	}
-
-	_, err = store.CreateSubField(
-		t.Context(), further.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+	_, err := registry.CreateSubField(t.Context(), deepest.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
 
 	if !errors.Is(err, content.ErrFieldTooDeep) {
 		t.Errorf("CreateSubField() one container too deep error = %v, want %v", err, content.ErrFieldTooDeep)
+	}
+}
+
+func TestCreatingASubFieldTakesAChainPastTheDefaultWhenTheLimitAllowsIt(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	registry := content.NewRegistry(store).WithFieldDepth(content.DefaultFieldDepth + 1)
+	deepest := sectionChainOnCar(t, store, registry, content.DefaultFieldDepth)
+
+	title, err := registry.CreateSubField(t.Context(), deepest.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+
+	if err != nil {
+		t.Fatalf("CreateSubField() within a raised limit error = %v, want nil", err)
+	}
+	var depth int
+	if err := pool.QueryRow(t.Context(),
+		`SELECT depth FROM core.content_fields WHERE id = $1`, title.ID).Scan(&depth); err != nil {
+		t.Fatalf("reading the stored depth: %v, want nil", err)
+	}
+	if depth != content.DefaultFieldDepth+1 {
+		t.Errorf("stored depth = %d, want %d", depth, content.DefaultFieldDepth+1)
 	}
 }
 

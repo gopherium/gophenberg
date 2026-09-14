@@ -307,4 +307,16 @@ func initializeContainers(sc *godog.ScenarioContext) {
 	)
 	sc.Then(`^the post "([^"]*)" holds (\d+) rows in "([^"]*)"$`, thePostHoldsRowsIn)
 	sc.Then(`^"([^"]*)" lists "([^"]*)" in "([^"]*)" inside "([^"]*)"$`, theItemListsInside)
+	sc.Given(`^fields may stand inside (\d+) containers? at most$`, fieldsMayStandInside)
+	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
+}
+
+// fieldsMayStandInside limits how many containers a field may stand inside on the running site.
+func fieldsMayStandInside(ctx context.Context, limit int) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	w.registry.WithFieldDepth(limit)
+	return nil
 }

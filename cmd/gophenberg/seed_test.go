@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -321,6 +322,32 @@ func TestSeedValidatesItsEnvironment(t *testing.T) {
 	}
 }
 
+func TestSeedReportsAFieldDepthItCannotStand(t *testing.T) {
+	t.Parallel()
+
+	err := seedDemoData(t.Context(), testGetenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
+		"GOPHENBERG_FIELD_DEPTH":  "0",
+	}), io.Discard)
+
+	if err == nil || !strings.Contains(err.Error(), "GOPHENBERG_FIELD_DEPTH") {
+		t.Errorf("seedDemoData() error = %v, want GOPHENBERG_FIELD_DEPTH refused", err)
+	}
+}
+
+func TestSeedReportsDemoFieldsDeeperThanTheFieldDepthAllows(t *testing.T) {
+	t.Parallel()
+
+	err := seedDemoData(t.Context(), testGetenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
+		"GOPHENBERG_FIELD_DEPTH":  "1",
+	}), io.Discard)
+
+	if !errors.Is(err, content.ErrFieldTooDeep) {
+		t.Errorf("seedDemoData() error = %v, want the demo layouts refused past one container", err)
+	}
+}
+
 func TestSeedReportsMigrationFailures(t *testing.T) {
 	t.Parallel()
 
@@ -487,7 +514,7 @@ func TestSeedReportsContentItCannotRegister(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the missing registry reported")
 	}
 }
@@ -527,7 +554,7 @@ func TestSeedReportsCategoriesItCannotStore(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused category reported")
 	}
 }
@@ -549,7 +576,7 @@ func TestSeedReportsPagesItCannotStore(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused page reported")
 	}
 }
@@ -572,7 +599,7 @@ func TestSeedReportsContainersItCannotDeclare(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused container reported")
 	}
 }
@@ -595,7 +622,7 @@ func TestSeedReportsAFlexibleItCannotDeclare(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused flexible reported")
 	}
 }
@@ -618,7 +645,7 @@ func TestSeedReportsAConditionItCannotDeclare(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool)); err == nil {
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused condition reported")
 	}
 }

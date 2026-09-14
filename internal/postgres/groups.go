@@ -765,8 +765,7 @@ func (s *TypeStore) CreateSubField(ctx context.Context, parentID int, f content.
 	if err == nil {
 		return created, nil
 	}
-	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrFieldShape) ||
-		errors.Is(err, content.ErrFieldTooDeep) {
+	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrFieldShape) {
 		return content.Field{}, err
 	}
 	return content.Field{}, fieldWriteFailure(err)
@@ -787,9 +786,6 @@ func standingParent(
 	settled, err := content.NewSubField(f, content.FieldKind(parent.Kind))
 	if err != nil {
 		return parent, f, err
-	}
-	if parent.Depth+1 > int32(content.MaxFieldDepth) {
-		return parent, f, content.ErrFieldTooDeep
 	}
 	return parent, settled, nil
 }

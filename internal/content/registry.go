@@ -17,6 +17,7 @@ type Registry struct {
 	order      []Type
 	loaded     bool
 	generation int
+	fieldDepth int
 }
 
 // NewRegistry returns a [Registry] reading through store.
@@ -28,6 +29,24 @@ func NewRegistry(store TypeStore) *Registry {
 func (r *Registry) WithParams(params *ParamRegistry) *Registry {
 	r.locations = params
 	return r
+}
+
+// WithFieldDepth returns the registry letting a field stand inside at most limit containers.
+func (r *Registry) WithFieldDepth(limit int) *Registry {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.fieldDepth = limit
+	return r
+}
+
+// FieldDepth returns how many containers a field may stand inside, the default when none was given.
+func (r *Registry) FieldDepth() int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.fieldDepth == 0 {
+		return DefaultFieldDepth
+	}
+	return r.fieldDepth
 }
 
 // Params returns the rule sources locations evaluate against, the built in ones by default.

@@ -47,6 +47,22 @@ func TestLoadRunConfigTakesTheMostStartAttemptsAllowed(t *testing.T) {
 	}
 }
 
+func TestLoadRunConfigTakesTheDeepestFieldNestingAllowed(t *testing.T) {
+	t.Parallel()
+
+	settings, err := loadRunConfig(testGetenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
+		"GOPHENBERG_FIELD_DEPTH":  "1000",
+	}))
+
+	if err != nil {
+		t.Fatalf("loadRunConfig() error = %v, want the deepest nesting allowed taken", err)
+	}
+	if settings.fieldDepth != 1000 {
+		t.Errorf("the field depth = %d, want 1000", settings.fieldDepth)
+	}
+}
+
 func TestLoadRunConfigDefaultsTheTimingsToTodaysValues(t *testing.T) {
 	t.Parallel()
 
@@ -81,6 +97,9 @@ func TestLoadRunConfigDefaultsTheTimingsToTodaysValues(t *testing.T) {
 		t.Errorf("the definitions cap = %d, want %d",
 			settings.definitionsImportCap, server.DefaultDefinitionsImportCap)
 	}
+	if settings.fieldDepth != 32 {
+		t.Errorf("the field depth = %d, want 32", settings.fieldDepth)
+	}
 }
 
 func TestLoadRunConfigTakesTheLargestDefinitionsCapTheBodyReaderAllows(t *testing.T) {
@@ -113,6 +132,7 @@ func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
 		"GOPHENBERG_MEDIA_UPLOAD_CAP_MB":  "64",
 
 		"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB": "512",
+		"GOPHENBERG_FIELD_DEPTH":               "48",
 	}))
 
 	if err != nil {
@@ -140,6 +160,9 @@ func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
 	}
 	if settings.definitionsImportCap != 512<<10 {
 		t.Errorf("the definitions cap = %d, want %d", settings.definitionsImportCap, 512<<10)
+	}
+	if settings.fieldDepth != 48 {
+		t.Errorf("the field depth = %d, want 48", settings.fieldDepth)
 	}
 }
 
@@ -182,6 +205,10 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		"start attempts one past the most allowed": {
 			"GOPHENBERG_THEME_START_ATTEMPTS", "1001",
 		},
+		"a field depth that is not a number":    {"GOPHENBERG_FIELD_DEPTH", "deep"},
+		"a field depth standing at zero":        {"GOPHENBERG_FIELD_DEPTH", "0"},
+		"a field depth below zero":              {"GOPHENBERG_FIELD_DEPTH", "-3"},
+		"a field depth one past the most taken": {"GOPHENBERG_FIELD_DEPTH", "1001"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
