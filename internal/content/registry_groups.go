@@ -172,7 +172,7 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 
 // CreateSubField declares the field inside the container the parent names.
 func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (Field, error) {
-	parent, _, err := r.fieldByID(ctx, parentID)
+	parent, _, depth, err := r.fieldByID(ctx, parentID)
 	if err != nil {
 		return Field{}, err
 	}
@@ -181,6 +181,9 @@ func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (F
 	}
 	if err := Stands(parent.Fields, f); err != nil {
 		return Field{}, err
+	}
+	if depth+1 > r.FieldDepth() {
+		return Field{}, ErrFieldTooDeep
 	}
 	created, err := r.store.CreateSubField(ctx, parentID, f)
 	if err != nil {
@@ -194,7 +197,7 @@ func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (F
 func (r *Registry) UpdateSubField(
 	ctx context.Context, id int, f Field, expectedUpdatedAt time.Time,
 ) (Field, error) {
-	held, beside, err := r.fieldByID(ctx, id)
+	held, beside, _, err := r.fieldByID(ctx, id)
 	if err != nil {
 		return Field{}, err
 	}
@@ -219,7 +222,7 @@ func (r *Registry) UpdateSubField(
 
 // ReorderSubFields stands the fields inside the container in the order the keys name.
 func (r *Registry) ReorderSubFields(ctx context.Context, parentID int, keys []string) ([]Field, error) {
-	held, _, err := r.fieldByID(ctx, parentID)
+	held, _, _, err := r.fieldByID(ctx, parentID)
 	if err != nil {
 		return nil, err
 	}
@@ -234,43 +237,43 @@ func (r *Registry) ReorderSubFields(ctx context.Context, parentID int, keys []st
 		return nil, err
 	}
 	r.invalidate()
-	reordered, _, err := r.fieldByID(ctx, parentID)
+	reordered, _, _, err := r.fieldByID(ctx, parentID)
 	if err != nil {
 		return nil, err
 	}
 	return reordered.Fields, nil
 }
 
-// fieldByID returns the declared field carrying the identity and the level it stands on, however deep.
-func (r *Registry) fieldByID(ctx context.Context, id int) (Field, []Field, error) {
+// fieldByID returns the declared field carrying the identity, the level it stands on and how many containers hold it.
+func (r *Registry) fieldByID(ctx context.Context, id int) (Field, []Field, int, error) {
 	groups, err := r.Groups(ctx)
 	if err != nil {
-		return Field{}, nil, err
+		return Field{}, nil, 0, err
 	}
 	for _, g := range groups {
-		if held, beside, found := fieldNumbered(g.Fields, id); found {
-			return held, beside, nil
+		if held, beside, depth, found := fieldNumbered(g.Fields, id, 0); found {
+			return held, beside, depth, nil
 		}
 	}
-	return Field{}, nil, ErrFieldNotFound
+	return Field{}, nil, 0, ErrFieldNotFound
 }
 
-// fieldNumbered returns the field carrying the identity and the level it stands on, however deep it stands.
-func fieldNumbered(fields []Field, id int) (Field, []Field, bool) {
+// fieldNumbered returns the field carrying the identity, the level it stands on and how many containers hold it.
+func fieldNumbered(fields []Field, id, depth int) (Field, []Field, int, bool) {
 	for _, f := range fields {
 		if f.ID == id {
-			return f, fields, true
+			return f, fields, depth, true
 		}
-		if held, beside, found := fieldNumbered(f.Fields, id); found {
-			return held, beside, true
+		if held, beside, below, found := fieldNumbered(f.Fields, id, depth+1); found {
+			return held, beside, below, true
 		}
 	}
-	return Field{}, nil, false
+	return Field{}, nil, 0, false
 }
 
 // DeleteSubField removes the field standing inside a container, and the values every item held under it.
 func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
-	held, beside, err := r.fieldByID(ctx, id)
+	held, beside, _, err := r.fieldByID(ctx, id)
 	if err != nil {
 		return err
 	}
