@@ -380,7 +380,7 @@ func TestCreatingASubFieldRefusesAParentHoldingNone(t *testing.T) {
 	}
 }
 
-// sectionChainOnCar nests sections under a top section of the car type through the registry and returns the deepest.
+// sectionChainOnCar returns the deepest section of a chain nested depth levels under a top section of the car type.
 func sectionChainOnCar(t *testing.T, store *postgres.TypeStore, registry *content.Registry, depth int) content.Field {
 	t.Helper()
 	at := declareSection(t, store, "specs")
