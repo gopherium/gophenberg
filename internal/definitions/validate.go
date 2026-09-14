@@ -88,11 +88,26 @@ func validateGroups(
 		if err := d.Location.Normalize().Validate(registry.Params(ctx)); err != nil {
 			return err
 		}
-		if err := validateFields(d.Fields, "", 0, targets); err != nil {
+		held, _ := groupAmongStored(stored, d.Key)
+		at := nesting{limit: registry.FieldDepth(), stored: held.Fields}
+		if err := validateFields(d.Fields, "", at, targets); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// nesting is how deep a declared level stands, how deep the site lets it, and the stored fields beside it.
+type nesting struct {
+	depth  int
+	limit  int
+	stored []content.Field
+}
+
+// keptField returns the stored field the declaration leaves standing as it is, and whether one does.
+func keptField(stored []content.Field, d FieldDefinition) (content.Field, bool) {
+	held, ok := fieldByKey(stored, d.Key)
+	return held, ok && replacedFor(d, held) == ""
 }
 
 // groupStands returns the reason a declared group could not be stored on its own terms, or nothing when it could.
@@ -117,7 +132,7 @@ func groupStands(d GroupDefinition, stored []content.Group, seen map[string]bool
 }
 
 // validateFields returns the first reason a declared field could not be stored, or nothing when all could.
-func validateFields(declared []FieldDefinition, parent content.FieldKind, depth int, targets map[string]bool) error {
+func validateFields(declared []FieldDefinition, parent content.FieldKind, at nesting, targets map[string]bool) error {
 	seen := make(map[string]bool, len(declared))
 	for _, d := range declared {
 		if seen[d.Key] {
@@ -125,10 +140,12 @@ func validateFields(declared []FieldDefinition, parent content.FieldKind, depth 
 				content.ErrFieldTaken.Error(), content.Details{"field": d.Key})
 		}
 		seen[d.Key] = true
-		if err := fieldStands(d, parent, depth, targets); err != nil {
+		if err := fieldStands(d, parent, at, targets); err != nil {
 			return err
 		}
-		if err := validateFields(d.Fields, content.FieldKind(d.Kind), depth+1, targets); err != nil {
+		held, _ := keptField(at.stored, d)
+		inside := nesting{depth: at.depth + 1, limit: at.limit, stored: held.Fields}
+		if err := validateFields(d.Fields, content.FieldKind(d.Kind), inside, targets); err != nil {
 			return err
 		}
 	}
@@ -153,8 +170,8 @@ func conditionsStand(declared []FieldDefinition) error {
 }
 
 // fieldStands returns the reason a declared field could not be stored where it sits, or nothing when it could.
-func fieldStands(d FieldDefinition, parent content.FieldKind, depth int, targets map[string]bool) error {
-	if depth > content.MaxFieldDepth {
+func fieldStands(d FieldDefinition, parent content.FieldKind, at nesting, targets map[string]bool) error {
+	if _, kept := keptField(at.stored, d); at.depth > at.limit && !kept {
 		return content.Refuse(content.ErrFieldTooDeep, "field_too_deep",
 			content.ErrFieldTooDeep.Error(), content.Details{"field": d.Key})
 	}

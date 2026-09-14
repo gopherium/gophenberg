@@ -327,26 +327,115 @@ func TestCompareRefusesAGroupWithNoKeyAtAll(t *testing.T) {
 	}
 }
 
-func TestCompareRefusesFieldsNestedDeeperThanTheSiteStores(t *testing.T) {
-	t.Parallel()
-
-	registry := planningSite(t)
+// nestedEnvelope returns a file declaring a text field standing inside the given number of sections.
+func nestedEnvelope(containers int) definitions.Envelope {
 	deepest := definitions.FieldDefinition{Key: "note", Label: "Note", Kind: "text"}
-	for range content.MaxFieldDepth + 1 {
+	for range containers {
 		deepest = definitions.FieldDefinition{
 			Key: "wrap", Label: "Wrap", Kind: "section", Fields: []definitions.FieldDefinition{deepest},
 		}
 	}
-
-	_, err := definitions.Compare(t.Context(), registry, definitions.Envelope{
+	return definitions.Envelope{
 		Format: definitions.Format,
 		Groups: []definitions.GroupDefinition{{
 			Key: "deep-ends", Title: "Deep ends", Fields: []definitions.FieldDefinition{deepest},
 		}},
-	})
+	}
+}
+
+func TestCompareRefusesFieldsNestedDeeperThanTheSiteStores(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+
+	_, err := definitions.Compare(t.Context(), registry, nestedEnvelope(content.DefaultFieldDepth+1))
 
 	if !errors.Is(err, content.ErrFieldTooDeep) {
 		t.Errorf("Compare() error = %v, want %v", err, content.ErrFieldTooDeep)
+	}
+}
+
+func TestCompareRefusesFieldsNestedPastTheLimitTheSiteNames(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t).WithFieldDepth(2)
+
+	_, err := definitions.Compare(t.Context(), registry, nestedEnvelope(3))
+
+	if !errors.Is(err, content.ErrFieldTooDeep) {
+		t.Errorf("Compare() error = %v, want %v", err, content.ErrFieldTooDeep)
+	}
+}
+
+// deepestWrap returns the innermost section of the nested group in the envelope.
+func deepestWrap(t *testing.T, envelope definitions.Envelope) *definitions.FieldDefinition {
+	t.Helper()
+	for i := range envelope.Groups {
+		if envelope.Groups[i].Key != "deep-ends" {
+			continue
+		}
+		at := &envelope.Groups[i].Fields[0]
+		for len(at.Fields) > 0 && at.Fields[0].Kind == "section" {
+			at = &at.Fields[0]
+		}
+		return at
+	}
+	t.Fatalf("the envelope holds no deep-ends group")
+	return nil
+}
+
+func TestCompareKeepsFieldsStoredDeeperThanALoweredLimit(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	applied(t, registry, importing(nestedEnvelope(3)))
+	registry.WithFieldDepth(2)
+
+	if _, err := definitions.Compare(t.Context(), registry, exported(t, registry)); err != nil {
+		t.Errorf("Compare() of the site's own export under a lowered limit error = %v, want nil", err)
+	}
+}
+
+func TestCompareRefusesANewFieldInsideAContainerStoredAtALoweredLimit(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	applied(t, registry, importing(nestedEnvelope(3)))
+	registry.WithFieldDepth(2)
+	envelope := exported(t, registry)
+	wrap := deepestWrap(t, envelope)
+	wrap.Fields = append(wrap.Fields, definitions.FieldDefinition{Key: "extra", Label: "Extra", Kind: "text"})
+
+	_, err := definitions.Compare(t.Context(), registry, envelope)
+
+	if !errors.Is(err, content.ErrFieldTooDeep) {
+		t.Errorf("Compare() with a new field past the lowered limit error = %v, want %v", err, content.ErrFieldTooDeep)
+	}
+}
+
+func TestCompareRefusesAStoredDeepFieldTheFileWouldReplaceUnderALoweredLimit(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	applied(t, registry, importing(nestedEnvelope(3)))
+	registry.WithFieldDepth(2)
+	envelope := exported(t, registry)
+	deepestWrap(t, envelope).Fields[0].Kind = "number"
+
+	_, err := definitions.Compare(t.Context(), registry, envelope)
+
+	if !errors.Is(err, content.ErrFieldTooDeep) {
+		t.Errorf("Compare() replacing a field past the lowered limit error = %v, want %v", err, content.ErrFieldTooDeep)
+	}
+}
+
+func TestCompareTakesFieldsNestedPastTheDefaultWhenTheSiteAllowsIt(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t).WithFieldDepth(content.DefaultFieldDepth + 1)
+
+	if _, err := definitions.Compare(t.Context(), registry, nestedEnvelope(content.DefaultFieldDepth+1)); err != nil {
+		t.Errorf("Compare() within a raised limit error = %v, want nil", err)
 	}
 }
 
