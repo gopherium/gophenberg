@@ -188,11 +188,22 @@ rather than to the group directly.
 
 A container may hold another container, up to 32 levels deep. A
 Repeater row can hold a Section, and that Section can hold a Repeater
-of its own. Deeper than 32 the field is refused, which is far more
-nesting than a page needs. A Relation stands inside one as happily
-as a text field does, so a Repeater row can point at an item of its
-own. Only a Linked from field stands outside, so declare that one
-beside the container rather than in it.
+of its own. Deeper than that the field is refused, which is far more
+nesting than a page needs.
+
+The operator can change that limit with `GOPHENBERG_FIELD_DEPTH`, see
+[configuration](/self-hosting/configuration/). A layout counts as one
+level, so a field inside a Flexible content layout already stands two
+deep, and a limit below 2 leaves layouts unable to hold a field. A
+lower limit leaves the fields already stored deeper as they are, and
+they can still be edited. It refuses only new ones. An imported file
+may still name the deep fields the site already stores, but a field it
+adds or replaces past the limit is refused.
+
+A Relation stands inside a container as happily as a text field does,
+so a Repeater row can point at an item of its own. Only a Linked from
+field stands outside, so declare that one beside the container rather
+than in it.
 
 Deleting a field inside a container takes the values stored under it,
 in every item the group reaches and in the revisions behind them,
