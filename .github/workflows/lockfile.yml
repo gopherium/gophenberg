@@ -1,0 +1,54 @@
+name: lockfile
+
+on:
+  pull_request:
+    paths: ["package.json", "**/package.json"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lockfile-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.LOCKFILE_APP_ID }}
+          private-key: ${{ secrets.LOCKFILE_APP_KEY }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ steps.app.outputs.token }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Resolve each bumped range into the lockfile
+        run: |
+          git diff "$BASE...HEAD" --unified=0 -- '*package.json' \
+            | { grep -oE '^\+[[:space:]]+"[^"]+":[[:space:]]*"[^"]+"' || true; } \
+            | sed -E 's/^\+[[:space:]]+"([^"]+)":[[:space:]]*"([^"]+)"/\1@\2/' \
+            | sort -u > "$RUNNER_TEMP/bumps"
+          while read -r spec; do
+            pnpm update "$spec" --lockfile-only --no-save -r
+          done < "$RUNNER_TEMP/bumps"
+          pnpm install --frozen-lockfile --lockfile-only
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+      - id: moved
+        run: echo "any=$(git status --porcelain pnpm-lock.yaml | head -c1)" >> "$GITHUB_OUTPUT"
+      - if: steps.moved.outputs.any != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore(deps): sync the lockfile with the bumps"
+          git push
