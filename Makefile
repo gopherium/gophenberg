@@ -48,6 +48,9 @@ bump:
 
 bump-kit:
 	@test -n "$(V)" || (echo "usage: make bump-kit V=0.2.0" && exit 1)
+	@current="$$(node -p "require('./sdk/astro/package.json').version")" && \
+		{ git rev-parse -q --verify "refs/tags/astro@$$current" >/dev/null || \
+		{ echo "astro@$$current carries no tag. Release it, or fetch the tags, before bumping the kit."; exit 1; }; }
 	cd sdk/astro && npm version "$(V)" --no-git-tag-version --allow-same-version
 
 dev: db-up
