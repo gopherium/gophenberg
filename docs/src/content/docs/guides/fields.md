@@ -186,10 +186,10 @@ The one control a field inside a container does not offer is the move
 to another group, because a field there belongs to its container
 rather than to the group directly.
 
-A container may hold another container, up to 32 levels deep. A
-Repeater row can hold a Section, and that Section can hold a Repeater
-of its own. Deeper than that the field is refused, which is far more
-nesting than a page needs.
+A container may hold another container, up to 32 levels deep by
+default. A Repeater row can hold a Section, and that Section can hold
+a Repeater of its own. Deeper than that the field is refused, which is
+far more nesting than a page needs.
 
 The operator can change that limit with `GOPHENBERG_FIELD_DEPTH`, see
 [configuration](/self-hosting/configuration/). A layout counts as one
