@@ -820,20 +820,24 @@ function FlexibleRows(props: {
 					onRemove={() => handles.removed(at)}
 				/>
 			))}
-			<Stack direction="row" gap="xs" align="center">
-				{props.field.fields.map((layout) => (
-					<Button
-						key={layout.key}
-						variant="outline"
-						size="compact"
-						onClick={() =>
-							props.onChange([...props.rows, { [layout.key]: seededValues(layout.fields) }])
-						}
-					>
-						{sprintf(__('Add %(layout)s', 'gophenberg'), { layout: layout.label })}
-					</Button>
-				))}
-			</Stack>
+			{props.field.fields.length === 0 ? (
+				<Text>{__('This field holds no layouts yet.', 'gophenberg')}</Text>
+			) : (
+				<Stack direction="row" gap="xs" align="center">
+					{props.field.fields.map((layout) => (
+						<Button
+							key={layout.key}
+							variant="outline"
+							size="compact"
+							onClick={() =>
+								props.onChange([...props.rows, { [layout.key]: seededValues(layout.fields) }])
+							}
+						>
+							{sprintf(__('Add %(layout)s', 'gophenberg'), { layout: layout.label })}
+						</Button>
+					))}
+				</Stack>
+			)}
 		</Stack>
 	)
 }

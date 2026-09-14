@@ -783,6 +783,10 @@ msgid "This content type still holds content, so it cannot be deleted. Move or d
 msgstr "Este tipo de contenido todavía tiene contenido, así que no se puede borrar. Mueve o borra antes sus elementos."
 
 #, fuzzy
+msgid "This field holds no layouts yet."
+msgstr "Este campo todavía no tiene diseños."
+
+#, fuzzy
 msgid "This field would stand inside too many containers. Put it nearer the top and try again."
 msgstr "Este campo quedaría dentro de demasiados contenedores. Ponlo más cerca del nivel superior e inténtalo de nuevo."
 
