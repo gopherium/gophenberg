@@ -717,6 +717,23 @@ test('writes a value back into the layout row that holds it', async () => {
 	expect(screen.getAllByLabelText('Headline')[1]).toHaveValue('Again')
 })
 
+test('says a flexible content field holds no layouts yet', async () => {
+	declaringFlexible([])
+	holdingRows([])
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByText('This field holds no layouts yet.')).toBeInTheDocument()
+})
+
+test('offers the layout buttons without the empty notice once a layout is declared', async () => {
+	declaringFlexible([HERO_LAYOUT])
+	holdingRows([])
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByRole('button', { name: 'Add Hero' })).toBeInTheDocument()
+	expect(screen.queryByText('This field holds no layouts yet.')).toBeNull()
+})
+
 test('adds a row of a layout beside the rows already held', async () => {
 	declaringFlexible()
 	holdingRows([{ hero: { headline: 'Welcome' } }])
