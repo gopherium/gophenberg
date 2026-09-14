@@ -109,6 +109,13 @@ Feature: Container fields
     When the administrator points "wrote" inside "author" of "Hello world" at "Second post"
     Then "Hello world" lists "Second post" in "wrote" inside "author"
 
+  Scenario: A site that limits nesting refuses a field standing too deep
+    Given fields may stand inside 1 container at most
+    And the "section" field "author" in "Extras"
+    And the "section" field "address" inside "author"
+    When the administrator declares the "text" field "street" inside "address"
+    Then the request is refused with the code "field_too_deep"
+
   Scenario: Moving a section carries its sub fields with it
     Given the "section" field "author" in "Extras"
     And the "text" field "name" inside "author"

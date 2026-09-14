@@ -102,6 +102,7 @@ type world struct {
 	users          *memoryStore
 	contentItems   *memoryContent
 	contentTypes   *memoryTypes
+	registry       *content.Registry
 	car            listedContent
 	nested         map[string]nestedContent
 	lastStored     nestedContent
@@ -235,10 +236,12 @@ func (w *world) start(ctx context.Context) error {
 	if w.site != nil {
 		return nil
 	}
+	w.registry = content.NewRegistry(w.contentTypes)
 	w.site = httptest.NewTLSServer(server.NewServer(server.Config{
 		Users:      w.users,
 		Content:    w.contentStore(),
 		Types:      w.contentTypes,
+		Registry:   w.registry,
 		Themes:     currentManager{w},
 		Theme:      currentManager{w},
 		Media:      w.mediaFiles,
