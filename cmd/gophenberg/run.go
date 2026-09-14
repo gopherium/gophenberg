@@ -59,7 +59,7 @@ func run(
 
 	contentStore := postgres.NewContentStore(pool)
 	typeStore := postgres.NewTypeStore(pool)
-	registry := content.NewRegistry(typeStore)
+	registry := registryFrom(settings, typeStore)
 	var library media.Store
 	if settings.mediaDir != "" {
 		library = postgres.NewMediaStore(pool)
@@ -167,6 +167,7 @@ type runConfig struct {
 	mediaUploadCap     int64
 
 	definitionsImportCap int64
+	fieldDepth           int
 
 	cacheAssetMaxAge                 time.Duration
 	cacheMediaMaxAge                 time.Duration
@@ -355,6 +356,22 @@ func standingDuration(raw, key string, fallback time.Duration) (time.Duration, e
 // maxStartAttempts is how many times a theme that will not start may be tried again.
 const maxStartAttempts = 1000
 
+// fieldDepthKey names the environment variable limiting how many containers a field may stand inside.
+const fieldDepthKey = "GOPHENBERG_FIELD_DEPTH"
+
+// maxFieldDepth is the most containers a site may let a field stand inside.
+const maxFieldDepth = 1000
+
+// fieldDepthFrom returns how many containers a field may stand inside, as the environment names it.
+func fieldDepthFrom(getenv func(string) string) (int, error) {
+	return standingCount(getenv(fieldDepthKey), fieldDepthKey, content.DefaultFieldDepth, maxFieldDepth)
+}
+
+// registryFrom returns the type registry over the store, holding the nesting limit the settings name.
+func registryFrom(settings runConfig, store content.TypeStore) *content.Registry {
+	return content.NewRegistry(store).WithFieldDepth(settings.fieldDepth)
+}
+
 // standingCount returns the whole number the raw value names, or the fallback when it names none.
 func standingCount(raw, key string, fallback, ceiling int) (int, error) {
 	if raw == "" {
@@ -393,6 +410,9 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	}
 	settings, err := timingsFrom(getenv)
 	if err != nil {
+		return runConfig{}, err
+	}
+	if settings.fieldDepth, err = fieldDepthFrom(getenv); err != nil {
 		return runConfig{}, err
 	}
 	settings.databaseURL = databaseURL

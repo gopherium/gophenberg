@@ -144,6 +144,53 @@ func TestRunReportsADeclarationTheRegistryRefuses(t *testing.T) {
 	}
 }
 
+// nestingPlugin declares one content type and a group holding a text field inside a section inside a section.
+type nestingPlugin struct {
+	declaringPlugin
+}
+
+// DeclareTypes declares the event type and a group nesting its street two containers deep.
+func (nestingPlugin) DeclareTypes(ctx context.Context, types sdk.TypeRegistrar) error {
+	if err := types.DeclareType(ctx, sdk.TypeDeclaration{
+		Key: "event", SingularLabel: "Event", PluralLabel: "Events", RouteWord: "events",
+	}); err != nil {
+		return err
+	}
+	street := sdk.FieldDeclaration{Key: "street", Label: "Street", Kind: "text"}
+	address := sdk.FieldDeclaration{
+		Key: "address", Label: "Address", Kind: "section", Fields: []sdk.FieldDeclaration{street},
+	}
+	return types.DeclareGroup(ctx, sdk.GroupDeclaration{
+		Key:      "event-venue",
+		Title:    "Event venue",
+		Location: [][]sdk.Rule{{{Source: "content_type", Operator: "==", Value: "event"}}},
+		Fields: []sdk.FieldDeclaration{
+			{Key: "venue", Label: "Venue", Kind: "section", Fields: []sdk.FieldDeclaration{address}},
+		},
+	})
+}
+
+func TestRunReportsADeclaredFieldDeeperThanTheFieldDepthAllows(t *testing.T) {
+	t.Parallel()
+
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
+		"GOPHENBERG_FIELD_DEPTH":  "1",
+		"GOPHENBERG_ADDR":         "localhost:0",
+		"GOPHENBERG_WEB_DIR":      t.TempDir(),
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	err := run(ctx, testGetenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
+		return []sdk.Plugin{nestingPlugin{}}, nil
+	})
+
+	if !errors.Is(err, content.ErrFieldTooDeep) {
+		t.Errorf("run() error = %v, want %v in its chain", err, content.ErrFieldTooDeep)
+	}
+}
+
 // noWriter discards what is written to it.
 type noWriter struct{}
 

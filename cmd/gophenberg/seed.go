@@ -14,7 +14,6 @@ import (
 	"github.com/gopherium/gouncer/authkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 
-	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/role"
@@ -26,6 +25,10 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	databaseURL := getenv("GOPHENBERG_DATABASE_URL")
 	if databaseURL == "" {
 		return errors.New("GOPHENBERG_DATABASE_URL is required")
+	}
+	depth, err := fieldDepthFrom(getenv)
+	if err != nil {
+		return err
 	}
 	pool, err := pgxpool.New(ctx, databaseURL)
 	if err != nil {
@@ -48,7 +51,7 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	if err := seedAccountsWithRoles(ctx, users); err != nil {
 		return err
 	}
-	if err := seedDemoContent(ctx, pool, users); err != nil {
+	if err := seedDemoContent(ctx, pool, users, depth); err != nil {
 		return err
 	}
 	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {
@@ -73,9 +76,9 @@ func seedAccountsWithRoles(ctx context.Context, users gouncer.Store) error {
 	return nil
 }
 
-// seedDemoContent registers the demo types and stores the content they hold.
-func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.UserStore) error {
-	types := content.NewRegistry(postgres.NewTypeStore(pool))
+// seedDemoContent registers the demo types and stores the content they hold, nesting no deeper than depth.
+func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.UserStore, depth int) error {
+	types := registryFrom(runConfig{fieldDepth: depth}, postgres.NewTypeStore(pool))
 	if err := seed.Types(ctx, types); err != nil {
 		return err
 	}

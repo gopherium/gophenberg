@@ -24,6 +24,7 @@ func timedConfig() runConfig {
 		themeProxyTimeout:  20 * time.Second,
 		themeStartAttempts: 9,
 		mediaUploadCap:     64 << 20,
+		fieldDepth:         7,
 
 		cacheAssetMaxAge:                 2 * time.Hour,
 		cacheMediaMaxAge:                 90 * time.Second,
@@ -75,6 +76,18 @@ func TestMediaConfigCarriesTheUploadCapTheEnvironmentNamed(t *testing.T) {
 	}
 	if held.Dir != settings.mediaDir {
 		t.Errorf("Dir = %q, want %q", held.Dir, settings.mediaDir)
+	}
+}
+
+func TestRegistryFromCarriesTheFieldDepthTheEnvironmentNamed(t *testing.T) {
+	t.Parallel()
+
+	settings := timedConfig()
+
+	held := registryFrom(settings, nil)
+
+	if held.FieldDepth() != settings.fieldDepth {
+		t.Errorf("FieldDepth() = %d, want %d", held.FieldDepth(), settings.fieldDepth)
 	}
 }
 
