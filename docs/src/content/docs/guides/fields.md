@@ -175,7 +175,8 @@ content field, and a field stands nowhere directly under one.
 **Fewest rows** and **Most rows** bound how many rows a repeater or a
 flexible content field takes. Set them on a layout instead and they
 bound how many rows may pick that one layout, counted across the
-whole field.
+whole field. Once a field or a layout holds its most rows, the editor
+turns its Add button off.
 
 Deleting a layout takes its rows with it, in every item the group
 reaches and in the revisions behind them, because a row without its
