@@ -1460,6 +1460,9 @@ msgstr ""
 msgid "This definitions file is larger than the %(max)d bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
 msgstr ""
 
+msgid "This field holds no layouts yet."
+msgstr ""
+
 msgid "This field would stand inside too many containers. Put it nearer the top and try again."
 msgstr ""
 
