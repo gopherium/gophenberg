@@ -103,7 +103,7 @@ jobs:
           cache: pnpm
           cache-dependency-path: docs/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - run: pnpm run build
 
   e2e:
     runs-on: ubuntu-latest
