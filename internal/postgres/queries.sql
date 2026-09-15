@@ -479,6 +479,9 @@ SET parent_field_id = @parent_id::integer,
     )
 WHERE moved.id = @id;
 
+-- name: LockFieldsOfGroup :exec
+SELECT id FROM core.content_fields WHERE group_id = @group_id FOR UPDATE;
+
 -- name: CopyContentRelations :exec
 INSERT INTO core.content_relations (from_id, field_id, to_id, position, sort_at, visible)
 SELECT r.from_id, @kept::integer, r.to_id, r.position, r.sort_at, r.visible

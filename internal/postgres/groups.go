@@ -345,25 +345,7 @@ func groupStandsAlone(ctx context.Context, queries *db.Queries, g content.Group)
 // DeleteGroup removes the group, its fields and their stored values in one transaction.
 func (s *TypeStore) DeleteGroup(ctx context.Context, id int) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
-		groups, err := groupsWithFields(ctx, queries)
-		if err != nil {
-			return err
-		}
-		held, found := groupByID(groups, id)
-		if !found {
-			return content.ErrGroupNotFound
-		}
-		if err := deleteFieldsOf(ctx, queries, groups, held); err != nil {
-			return err
-		}
-		if err := settleFieldsOf(ctx, queries, groups, held.ID); err != nil {
-			return err
-		}
-		if _, err := queries.DeleteFieldGroup(ctx, int32(id)); err != nil {
-			return err
-		}
-		return nil
+		return deleteGroupRows(ctx, s.queries.WithTx(tx), id)
 	})
 	if errors.Is(err, content.ErrGroupNotFound) {
 		return err
@@ -372,6 +354,32 @@ func (s *TypeStore) DeleteGroup(ctx context.Context, id int) error {
 		return fmt.Errorf("postgres: delete field group: %w", err)
 	}
 	return nil
+}
+
+// deleteGroupRows removes the group row once its fields are locked, deleted and settled.
+func deleteGroupRows(ctx context.Context, queries *db.Queries, id int) error {
+	if err := queries.LockFieldGroups(ctx); err != nil {
+		return err
+	}
+	if err := queries.LockFieldsOfGroup(ctx, int32(id)); err != nil {
+		return err
+	}
+	groups, err := groupsWithFields(ctx, queries)
+	if err != nil {
+		return err
+	}
+	held, found := groupByID(groups, id)
+	if !found {
+		return content.ErrGroupNotFound
+	}
+	if err := deleteFieldsOf(ctx, queries, groups, held); err != nil {
+		return err
+	}
+	if err := settleFieldsOf(ctx, queries, groups, held.ID); err != nil {
+		return err
+	}
+	_, err = queries.DeleteFieldGroup(ctx, int32(id))
+	return err
 }
 
 // deleteFieldsOf removes the group's fields and sweeps their values from the types no other group serves them on.
@@ -637,6 +645,9 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
+		if err := queries.LockFieldGroups(ctx); err != nil {
+			return err
+		}
 		groups, err := groupsWithFields(ctx, queries)
 		if err != nil {
 			return err

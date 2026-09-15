@@ -1884,6 +1884,15 @@ func (q *Queries) LockFieldGroups(ctx context.Context) error {
 	return err
 }
 
+const lockFieldsOfGroup = `-- name: LockFieldsOfGroup :exec
+SELECT id FROM core.content_fields WHERE group_id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockFieldsOfGroup(ctx context.Context, groupID int32) error {
+	_, err := q.db.Exec(ctx, lockFieldsOfGroup, groupID)
+	return err
+}
+
 const moveContentField = `-- name: MoveContentField :one
 UPDATE core.content_fields AS moved
 SET group_id = $1,
