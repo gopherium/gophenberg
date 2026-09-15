@@ -389,50 +389,39 @@ func deleteFieldsOf(ctx context.Context, queries *db.Queries, groups []content.G
 	return nil
 }
 
-// settleFieldsOf carries the leaving group's fields standing inside other groups into them, dropping the twinned ones.
+// settleFieldsOf keeps the fields the leaving group stores inside other groups' containers.
 func settleFieldsOf(ctx context.Context, queries *db.Queries, groups []content.Group, leaving int) error {
-	for _, g := range groups {
-		if g.ID == leaving {
-			continue
-		}
-		if err := settleInside(ctx, queries, g.Fields, leaving, g.ID); err != nil {
+	for _, step := range content.SettledFields(groups, leaving) {
+		if err := settleField(ctx, queries, step); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// settleInside carries the declared fields the leaving group stores into the other, dropping each one a sibling names.
-func settleInside(ctx context.Context, queries *db.Queries, declared []content.Field, leaving, into int) error {
-	for _, f := range declared {
-		if f.GroupID == leaving && namedTwice(declared, f) {
-			if _, err := queries.DeleteFieldByID(ctx, int32(f.ID)); err != nil {
-				return err
-			}
-			continue
-		}
-		if f.GroupID == leaving {
-			if err := queries.CarryContentField(ctx, db.CarryContentFieldParams{
-				ToGroup: int32(into), ID: int32(f.ID),
-			}); err != nil {
-				return err
-			}
-		}
-		if err := settleInside(ctx, queries, f.Fields, leaving, into); err != nil {
+// settleField applies one settling change to the field rows and the items they index.
+func settleField(ctx context.Context, queries *db.Queries, step content.Settling) error {
+	if step.Kept != 0 {
+		if err := queries.CopyContentRelations(ctx, db.CopyContentRelationsParams{
+			Kept: int32(step.Kept), Dropped: int32(step.ID),
+		}); err != nil {
 			return err
 		}
 	}
-	return nil
-}
-
-// namedTwice reports whether another declared field carries the field's key.
-func namedTwice(declared []content.Field, f content.Field) bool {
-	for _, held := range declared {
-		if held.Key == f.Key && held.ID != f.ID {
-			return true
-		}
+	switch {
+	case step.Drop:
+		_, err := queries.DeleteFieldByID(ctx, int32(step.ID))
+		return err
+	case step.Parent != 0:
+		return queries.ReparentContentField(ctx, db.ReparentContentFieldParams{
+			ParentID: int32(step.Parent), ToGroup: int32(step.Group), ID: int32(step.ID),
+		})
+	case step.Group != 0:
+		return queries.CarryContentField(ctx, db.CarryContentFieldParams{
+			ToGroup: int32(step.Group), ID: int32(step.ID),
+		})
 	}
-	return false
+	return nil
 }
 
 // groupByID returns the group holding the identifier, and whether one does.

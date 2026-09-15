@@ -169,6 +169,24 @@ func (q *Queries) ContentDepth(ctx context.Context, id uuid.UUID) (int32, error)
 	return column_1, err
 }
 
+const copyContentRelations = `-- name: CopyContentRelations :exec
+INSERT INTO core.content_relations (from_id, field_id, to_id, position, sort_at, visible)
+SELECT r.from_id, $1::integer, r.to_id, r.position, r.sort_at, r.visible
+FROM core.content_relations r
+WHERE r.field_id = $2::integer
+ON CONFLICT (from_id, field_id, to_id) DO NOTHING
+`
+
+type CopyContentRelationsParams struct {
+	Kept    int32
+	Dropped int32
+}
+
+func (q *Queries) CopyContentRelations(ctx context.Context, arg CopyContentRelationsParams) error {
+	_, err := q.db.Exec(ctx, copyContentRelations, arg.Kept, arg.Dropped)
+	return err
+}
+
 const countChildren = `-- name: CountChildren :one
 SELECT count(*) FROM core.content p WHERE p.parent_id = $1
 `
@@ -2106,6 +2124,28 @@ type ReorderSubContentFieldsParams struct {
 
 func (q *Queries) ReorderSubContentFields(ctx context.Context, arg ReorderSubContentFieldsParams) error {
 	_, err := q.db.Exec(ctx, reorderSubContentFields, arg.ParentFieldID, arg.Keys)
+	return err
+}
+
+const reparentContentField = `-- name: ReparentContentField :exec
+UPDATE core.content_fields AS moved
+SET parent_field_id = $1::integer,
+    group_id = $2,
+    position = (
+        SELECT COALESCE(MAX(landing.position), 0) + 1
+        FROM core.content_fields AS landing WHERE landing.parent_field_id = $1::integer
+    )
+WHERE moved.id = $3
+`
+
+type ReparentContentFieldParams struct {
+	ParentID int32
+	ToGroup  int32
+	ID       int32
+}
+
+func (q *Queries) ReparentContentField(ctx context.Context, arg ReparentContentFieldParams) error {
+	_, err := q.db.Exec(ctx, reparentContentField, arg.ParentID, arg.ToGroup, arg.ID)
 	return err
 }
 

@@ -516,6 +516,41 @@ func TestDeleteGroupReportsATwinItCannotDrop(t *testing.T) {
 	}
 }
 
+func TestDeleteGroupReportsAFieldItCannotFold(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, _, section := sectionAcrossGroups(t, store)
+	declaredInside(t, store, section, "profile", content.FieldKindSection)
+	twin := plantTwin(t, pool, source.ID, section.ID, "profile", string(content.FieldKindSection), 1)
+	plantTwin(t, pool, source.ID, twin, "bio", string(content.FieldKindText), 2)
+	raiseOn(t, pool, "core.content_fields", "UPDATE")
+
+	err := store.DeleteGroup(t.Context(), source.ID)
+
+	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
+		t.Errorf("DeleteGroup() error = %v, want the failing fold reported", err)
+	}
+}
+
+func TestDeleteGroupReportsAnIndexItCannotCopy(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, _, section := sectionAcrossGroups(t, store)
+	declaredInside(t, store, section, "name", content.FieldKindText)
+	plantTwin(t, pool, source.ID, section.ID, "name", string(content.FieldKindText), 1)
+	raiseOn(t, pool, "core.content_relations", "INSERT")
+
+	err := store.DeleteGroup(t.Context(), source.ID)
+
+	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
+		t.Errorf("DeleteGroup() error = %v, want the failing index copy reported", err)
+	}
+}
+
 func TestDeleteGroupReportsAFieldItCannotCarry(t *testing.T) {
 	t.Parallel()
 
