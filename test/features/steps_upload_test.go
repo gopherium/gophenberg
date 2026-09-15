@@ -184,9 +184,22 @@ func theDirectoryHoldsNoTrace(ctx context.Context) error {
 	return nil
 }
 
+// theDirectoryCannotBeWrittenTo takes write permission away from the managed themes directory.
+func theDirectoryCannotBeWrittenTo(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if os.Geteuid() == 0 {
+		return godog.ErrSkip
+	}
+	return os.Chmod(w.themesDir, 0o500)
+}
+
 // initializeUpload binds the steps of the upload feature.
 func initializeUpload(sc *godog.ScenarioContext) {
 	registerSharedSteps(sc)
+	sc.Given(`^the managed themes directory cannot be written to$`, theDirectoryCannotBeWrittenTo)
 	sc.When(`^the administrator uploads a valid theme archive named "([^"]*)"$`, uploadsAValidArchive)
 	sc.When(`^the administrator uploads a newer valid theme archive named "([^"]*)"$`, uploadsANewerValidArchive)
 	sc.When(`^the administrator uploads a theme archive named "([^"]*)" that (.+)$`, uploadsAFlawedArchive)
