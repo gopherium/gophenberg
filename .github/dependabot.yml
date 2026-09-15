@@ -26,3 +26,15 @@ updates:
       - dependency-name: "@wordpress/*"
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+  - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 2
+      semver-major-days: 30
+      semver-minor-days: 7
+    groups:
+      docs:
+        patterns:
+          - "*"
