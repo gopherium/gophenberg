@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, Skeleton, Stack } from '@gophenberg/frontend-sdk'
-import { __, _x } from '@wordpress/i18n'
+import { __, _x, sprintf } from '@wordpress/i18n'
 
 import type { PostCounts } from './api'
 
@@ -92,7 +92,10 @@ export function StatusViews({
 					aria-pressed={view.status === current}
 					onClick={() => onSelect(view.status)}
 				>
-					{view.label} ({countFor(counts, view.status)})
+					{sprintf(__('%(label)s (%(count)d)', 'gophenberg'), {
+						label: view.label,
+						count: countFor(counts, view.status),
+					})}
 				</Button>
 			))}
 		</Stack>

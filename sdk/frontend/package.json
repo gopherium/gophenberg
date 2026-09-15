@@ -30,10 +30,10 @@
 		"react": "^19.2.8"
 	},
 	"devDependencies": {
-		"@tanstack/react-router": "^1.170.35",
+		"@tanstack/react-router": "^1.170.36",
 		"@testing-library/jest-dom": "^7.0.0",
 		"@testing-library/react": "^16.3.3",
-		"@types/node": "^26.4.1",
+		"@types/node": "^26.5.0",
 		"@types/react": "^19.2.18",
 		"@wordpress/data": "10.52.0",
 		"@wordpress/rich-text": "7.52.0",

@@ -31,7 +31,7 @@ export function useRefreshMedia(): () => Promise<unknown> {
  * @param message - The reason the server gave, when it gave one.
  * @returns The sentence to show, empty when the save succeeded.
  */
-export function describeFailure(kind: string, message: string): string {
+function describeFailure(kind: string, message: string): string {
 	if (kind === 'stale') {
 		return __('This item changed while you were describing it. Reload and try again.', 'gophenberg')
 	}

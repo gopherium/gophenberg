@@ -188,7 +188,7 @@ function rowsHeld(value: unknown): FieldValues[] {
  * @param declared - The fields the type declares.
  * @returns The declared relation fields.
  */
-export function relationFields(declared: ContentField[]): ContentField[] {
+function relationFields(declared: ContentField[]): ContentField[] {
 	return declared.filter((field) => field.kind === 'relation')
 }
 
@@ -197,7 +197,7 @@ export function relationFields(declared: ContentField[]): ContentField[] {
  * @param declared - The fields the type declares.
  * @returns The declared media fields.
  */
-export function mediaFields(declared: ContentField[]): ContentField[] {
+function mediaFields(declared: ContentField[]): ContentField[] {
 	return declared.filter((field) => field.kind === 'media')
 }
 
@@ -206,7 +206,7 @@ export function mediaFields(declared: ContentField[]): ContentField[] {
  * @param declared - The fields the type declares.
  * @returns The declared backlinks fields.
  */
-export function pointingFields(declared: ContentField[]): ContentField[] {
+function pointingFields(declared: ContentField[]): ContentField[] {
 	return declared.filter((field) => field.kind === 'backlinks')
 }
 
@@ -215,7 +215,7 @@ export function pointingFields(declared: ContentField[]): ContentField[] {
  * @param declared - The fields the type declares.
  * @returns The declared link fields.
  */
-export function linkFields(declared: ContentField[]): ContentField[] {
+function linkFields(declared: ContentField[]): ContentField[] {
 	return declared.filter((field) => field.kind === 'link')
 }
 
