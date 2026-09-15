@@ -5,6 +5,7 @@ package themehost_test
 import (
 	"bytes"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -163,6 +164,53 @@ func TestTheLibraryRefusesAnUploadWithNoDirectoryToInstallInto(t *testing.T) {
 	}
 	if refused.Reason != "no themes directory is configured, set GOPHENBERG_THEMES_DIR" {
 		t.Errorf("Reason = %q, want it to name the missing setting", refused.Reason)
+	}
+}
+
+func TestTheLibraryRefusesAnUploadIntoADirectoryItCannotWriteTo(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	denyWrite(t, dir)
+	library := themehost.NewLibrary(dir)
+	archive := validArchive(t, "aurora")
+
+	err := library.Install("aurora", bytes.NewReader(archive), int64(len(archive)))
+
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Install() = %v, want it refused in words the admin can read", err)
+	}
+	if refused.Code != "themes_directory_readonly" {
+		t.Errorf("Code = %q, want themes_directory_readonly", refused.Code)
+	}
+	if refused.Reason != "the themes directory cannot be written to, make GOPHENBERG_THEMES_DIR writable" {
+		t.Errorf("Reason = %q, want it to name the setting to make writable", refused.Reason)
+	}
+	if refused.Held["setting"] != "GOPHENBERG_THEMES_DIR" {
+		t.Errorf("Held = %v, want the setting named for the translation", refused.Held)
+	}
+	if !errors.Is(err, fs.ErrPermission) {
+		t.Errorf("Install() = %v, want the permission error kept underneath", err)
+	}
+}
+
+func TestTheLibraryRefusesAnUploadIntoADirectoryItCannotCreateWithoutPermission(t *testing.T) {
+	t.Parallel()
+
+	parent := t.TempDir()
+	denyWrite(t, parent)
+	library := themehost.NewLibrary(filepath.Join(parent, "themes"))
+	archive := validArchive(t, "aurora")
+
+	err := library.Install("aurora", bytes.NewReader(archive), int64(len(archive)))
+
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Install() = %v, want it refused in words the admin can read", err)
+	}
+	if refused.Code != "themes_directory_readonly" {
+		t.Errorf("Code = %q, want themes_directory_readonly", refused.Code)
 	}
 }
 
