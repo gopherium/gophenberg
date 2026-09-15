@@ -3,7 +3,7 @@
 import { Stack, Text } from '@gophenberg/frontend-sdk'
 import { AccountPanel } from '@gopherium/react-auth/wpds'
 import { Link, useRouterState } from '@tanstack/react-router'
-import { __ } from '@wordpress/i18n'
+import { __, sprintf } from '@wordpress/i18n'
 
 import { MainMenu } from './menu/MainMenu'
 import { useAppVersion } from './version'
@@ -30,7 +30,7 @@ export function RailContent() {
 			<AccountPanel className="gophenberg-rail__account" />
 			{version ? (
 				<Text className="gophenberg-rail__version">
-					v{version}
+					{sprintf(__('v%(version)s', 'gophenberg'), { version })}
 				</Text>
 			) : null}
 		</>

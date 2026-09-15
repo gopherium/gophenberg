@@ -3,7 +3,8 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import '../index.css'
 import { renderAt } from './render'
@@ -57,6 +58,10 @@ beforeEach(() => {
 	server.use(http.get('/api/content/counts', () => HttpResponse.json(COUNTS)))
 })
 
+afterEach(() => {
+	resetLocaleData({}, 'gophenberg')
+})
+
 test('holds the filter row space with chip ghosts until the counts arrive', async () => {
 	serveList()
 	server.use(http.get('/api/content/counts', () => new Promise(() => {})))
@@ -89,6 +94,14 @@ test('leaves the chips their own pulse without a delay of the row', async () => 
 	const row = chip.parentElement as Element
 	expect(getComputedStyle(row).animation).toBe('')
 	expect(getComputedStyle(row).opacity).not.toBe('0')
+})
+
+test('shapes each status count the way the catalogue the reader loaded says', async () => {
+	setLocaleData({ '%(label)s (%(count)d)': ['%(count)d %(label)s'] }, 'gophenberg')
+	renderAt('/content/post')
+
+	expect(await screen.findByRole('button', { name: '7 All' })).toBeInTheDocument()
+	expect(screen.getByRole('button', { name: '3 Published' })).toBeInTheDocument()
 })
 
 test('counts the posts each status view covers', async () => {
