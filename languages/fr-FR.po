@@ -1537,7 +1537,7 @@ msgid "This request left out %(field)s, which Gophenberg needs. Reload the page 
 msgstr "Cette requête a omis %(field)s, dont Gophenberg a besoin. Rechargez la page et réessayez."
 
 #, fuzzy
-msgid "This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder %(setting)s points at writable. A read-only mount is the usual cause."
+msgid "This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder that %(setting)s points at writable. A read-only mount is the usual cause."
 msgstr "Ce site ne peut pas écrire dans son dossier de thèmes, aucun thème ne peut donc être installé. Demandez à la personne qui s'occupe de votre site de rendre accessible en écriture le dossier vers lequel pointe %(setting)s. Un montage en lecture seule en est la cause habituelle."
 
 #, fuzzy

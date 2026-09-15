@@ -1535,7 +1535,7 @@ msgstr ""
 msgid "This rule reads a source called %(source)s, and nothing on your site declares one. A plugin that added it may have been removed."
 msgstr ""
 
-msgid "This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder %(setting)s points at writable. A read-only mount is the usual cause."
+msgid "This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder that %(setting)s points at writable. A read-only mount is the usual cause."
 msgstr ""
 
 msgid "This site has nowhere to keep themes, so no theme can be installed. Ask whoever looks after your site to point %(setting)s at a folder the server can write to."
