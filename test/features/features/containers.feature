@@ -116,10 +116,29 @@ Feature: Container fields
     When the administrator declares the "text" field "street" inside "address"
     Then the request is refused with the code "field_too_deep"
 
+  Scenario: Deleting a group carries the field it still stores inside another group's container
+    Given the group "Elsewhere" placed on "post"
+    And the "section" field "author" in "Elsewhere"
+    And the "text" field "name" inside "author"
+    And the field "name" inside "author" is still stored under the group "Extras"
+    When the administrator deletes the group "Extras"
+    Then the group "Extras" is no longer listed
+    And the field "author" on "post" holds the sub field "name" once
+
+  Scenario: Deleting a group drops the twin it still stores inside another group's container
+    Given the group "Elsewhere" placed on "post"
+    And the "section" field "author" in "Elsewhere"
+    And the "text" field "name" inside "author"
+    And a second field "name" inside "author" is still stored under the group "Extras"
+    When the administrator deletes the group "Extras"
+    Then the group "Extras" is no longer listed
+    And the field "author" on "post" holds the sub field "name" once
+
   Scenario: Moving a section carries its sub fields with it
     Given the "section" field "author" in "Extras"
     And the "text" field "name" inside "author"
     And the group "Elsewhere" placed on "post"
     When the administrator moves the field "author" from "Extras" to "Elsewhere"
     And the administrator deletes the group "Extras"
-    Then the field "author" on "post" holds the sub field "name"
+    Then the group "Extras" is no longer listed
+    And the field "author" on "post" holds the sub field "name"

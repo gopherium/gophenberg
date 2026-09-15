@@ -173,6 +173,21 @@ func theGroupIsListed(ctx context.Context, title string) error {
 	return err
 }
 
+// theGroupIsNoLongerListed asserts the delete went through and the group is gone from the listing.
+func theGroupIsNoLongerListed(ctx context.Context, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusNoContent); err != nil {
+		return err
+	}
+	if _, err := groupNamed(w, title); err == nil {
+		return fmt.Errorf("the group %q is still listed, want it gone", title)
+	}
+	return nil
+}
+
 // theGroupAppearsOn asserts the group's fields reach the named content type.
 func theGroupAppearsOn(ctx context.Context, title, typeKey string) error {
 	w, err := worldOf(ctx)
@@ -467,6 +482,7 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator lists the rule sources$`, theAdministratorListsTheRuleSources)
 	sc.Then(`^no field groups are listed$`, noFieldGroupsAreListed)
 	sc.Then(`^the group "([^"]*)" is listed$`, theGroupIsListed)
+	sc.Then(`^the group "([^"]*)" is no longer listed$`, theGroupIsNoLongerListed)
 	sc.Then(`^the group "([^"]*)" appears on "([^"]*)"$`, theGroupAppearsOn)
 	sc.Then(`^the field "([^"]*)" is served on "([^"]*)"$`, theFieldIsServedOn)
 	sc.Then(`^the field "([^"]*)" is not served on "([^"]*)"$`, theFieldIsNotServedOn)

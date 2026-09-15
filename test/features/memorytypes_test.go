@@ -124,17 +124,47 @@ func (s *memoryTypes) UpdateGroup(_ context.Context, g content.Group) (content.G
 	return content.Group{}, content.ErrGroupNotFound
 }
 
-// DeleteGroup removes the group and every field it holds.
+// DeleteGroup removes the group and every field it holds, settling the fields it stores inside other groups.
 func (s *memoryTypes) DeleteGroup(_ context.Context, id int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
-		if held.ID == id {
-			s.groups = append(s.groups[:i], s.groups[i+1:]...)
-			return nil
+		if held.ID != id {
+			continue
 		}
+		s.groups = append(s.groups[:i], s.groups[i+1:]...)
+		for j, other := range s.groups {
+			s.groups[j].Fields = settledInside(other.Fields, id, other.ID)
+		}
+		return nil
 	}
 	return content.ErrGroupNotFound
+}
+
+// settledInside returns the declared fields with those the leaving group stores carried into the other, twins dropped.
+func settledInside(declared []content.Field, leaving, into int) []content.Field {
+	settled := make([]content.Field, 0, len(declared))
+	for _, f := range declared {
+		if f.GroupID == leaving && namedTwice(declared, f) {
+			continue
+		}
+		if f.GroupID == leaving {
+			f.GroupID = into
+		}
+		f.Fields = settledInside(f.Fields, leaving, into)
+		settled = append(settled, f)
+	}
+	return settled
+}
+
+// namedTwice reports whether another declared field carries the field's key.
+func namedTwice(declared []content.Field, f content.Field) bool {
+	for _, held := range declared {
+		if held.Key == f.Key && held.ID != f.ID {
+			return true
+		}
+	}
+	return false
 }
 
 // ReorderGroups stores the given order on the groups.
@@ -160,11 +190,11 @@ func (s *memoryTypes) CreateSubField(_ context.Context, parentID int, f content.
 	s.fieldIDs++
 	f.ID, f.ParentID = s.fieldIDs, parentID
 	for i, held := range s.groups {
+		f.GroupID = held.ID
 		grown, found := grownInside(held.Fields, parentID, f)
 		if !found {
 			continue
 		}
-		f.GroupID = held.ID
 		s.groups[i].Fields = grown
 		return f, nil
 	}
@@ -277,6 +307,60 @@ func orderedInside(declared []content.Field, keys []string) []content.Field {
 		}
 	}
 	return stood
+}
+
+// storedUnder returns the field and every field inside it stored under the group.
+func storedUnder(f content.Field, groupID int) content.Field {
+	f.GroupID = groupID
+	inside := make([]content.Field, len(f.Fields))
+	for i, held := range f.Fields {
+		inside[i] = storedUnder(held, groupID)
+	}
+	f.Fields = inside
+	return f
+}
+
+// storeFieldUnder stores the sub field inside the named parent under the group, reporting whether one stands there.
+func (s *memoryTypes) storeFieldUnder(key, parent string, groupID int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		for j, container := range held.Fields {
+			if container.Key != parent {
+				continue
+			}
+			for k, inside := range container.Fields {
+				if inside.Key == key {
+					s.groups[i].Fields[j].Fields[k].GroupID = groupID
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// twinFieldUnder stores a twin of the sub field inside the parent under the group, reporting whether one stands there.
+func (s *memoryTypes) twinFieldUnder(key, parent string, groupID int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, held := range s.groups {
+		for j, container := range held.Fields {
+			if container.Key != parent {
+				continue
+			}
+			for _, inside := range container.Fields {
+				if inside.Key != key {
+					continue
+				}
+				s.fieldIDs++
+				inside.ID, inside.GroupID = s.fieldIDs, groupID
+				s.groups[i].Fields[j].Fields = append(container.Fields, inside)
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // grownInside returns the declared fields with the new one placed inside the parent it names.
@@ -452,7 +536,7 @@ func (s *memoryTypes) MoveField(_ context.Context, groupID int, key string, toGr
 	if carried.Key == "" {
 		return content.Field{}, content.ErrFieldNotFound
 	}
-	carried.GroupID = toGroup
+	carried = storedUnder(carried, toGroup)
 	s.groups[landing].Fields = append(s.groups[landing].Fields, carried)
 	return carried, nil
 }

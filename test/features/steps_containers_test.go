@@ -280,6 +280,7 @@ func initializeContainers(sc *godog.ScenarioContext) {
 		theAdministratorMovesTheField,
 	)
 	sc.When(`^the administrator deletes the group "([^"]*)"$`, theAdministratorDeletesTheGroup)
+	sc.Then(`^the group "([^"]*)" is no longer listed$`, theGroupIsNoLongerListed)
 	sc.When(
 		`^the administrator saves the section "([^"]*)" of "([^"]*)" as:$`,
 		theAdministratorSavesTheSection,
@@ -308,7 +309,82 @@ func initializeContainers(sc *godog.ScenarioContext) {
 	sc.Then(`^the post "([^"]*)" holds (\d+) rows in "([^"]*)"$`, thePostHoldsRowsIn)
 	sc.Then(`^"([^"]*)" lists "([^"]*)" in "([^"]*)" inside "([^"]*)"$`, theItemListsInside)
 	sc.Given(`^fields may stand inside (\d+) containers? at most$`, fieldsMayStandInside)
+	sc.Given(
+		`^the field "([^"]*)" inside "([^"]*)" is still stored under the group "([^"]*)"$`,
+		theFieldInsideIsStillStoredUnder,
+	)
+	sc.Given(
+		`^a second field "([^"]*)" inside "([^"]*)" is still stored under the group "([^"]*)"$`,
+		aSecondFieldInsideIsStillStoredUnder,
+	)
+	sc.Then(
+		`^the field "([^"]*)" on "([^"]*)" holds the sub field "([^"]*)" once$`,
+		theFieldHoldsTheSubFieldOnce,
+	)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
+}
+
+// theFieldInsideIsStillStoredUnder leaves the sub field stored under the group, as a move before the repair did.
+func theFieldInsideIsStillStoredUnder(ctx context.Context, key, parent, title string) error {
+	return storedUnderGroup(ctx, key, parent, title, (*memoryTypes).storeFieldUnder)
+}
+
+// aSecondFieldInsideIsStillStoredUnder stores a twin of the sub field under the group, as a move before the repair did.
+func aSecondFieldInsideIsStillStoredUnder(ctx context.Context, key, parent, title string) error {
+	return storedUnderGroup(ctx, key, parent, title, (*memoryTypes).twinFieldUnder)
+}
+
+// storedUnderGroup runs the store write on the sub field inside the parent with the identity of the named group.
+func storedUnderGroup(
+	ctx context.Context, key, parent, title string, write func(*memoryTypes, string, string, int) bool,
+) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	if !write(w.contentTypes, key, parent, held.ID) {
+		return fmt.Errorf("no field %q stands inside %q", key, parent)
+	}
+	return nil
+}
+
+// theFieldHoldsTheSubFieldOnce asserts exactly one field of the key stands right inside the container.
+func theFieldHoldsTheSubFieldOnce(ctx context.Context, key, typeKey, sub string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	listed, err := listGroups(w)
+	if err != nil {
+		return err
+	}
+	for _, group := range listed.Items {
+		for _, f := range group.Fields {
+			if f.Key != key {
+				continue
+			}
+			if held := keyedAmong(f.Fields, sub); held != 1 {
+				return fmt.Errorf("the field %q on %q holds %d sub fields %q, want one", key, typeKey, held, sub)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("no declared field is keyed %q", key)
+}
+
+// keyedAmong counts the declared fields carrying the key.
+func keyedAmong(declared []fieldHeld, key string) int {
+	held := 0
+	for _, f := range declared {
+		if f.Key == key {
+			held++
+		}
+	}
+	return held
 }
 
 // fieldsMayStandInside limits how many containers a field may stand inside on the running site.
