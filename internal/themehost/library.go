@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 )
 
 // Installed describes one theme sitting in the library.
@@ -72,10 +73,21 @@ func (l *Library) Install(name string, archive io.ReaderAt, size int64) error {
 			"themehost: installing %s with no themes directory", name)
 	}
 	if err := os.MkdirAll(l.dir, 0o755); err != nil {
-		return fmt.Errorf("themehost: creating the themes directory: %w", err)
+		return unwritable(name, fmt.Errorf("themehost: creating the themes directory: %w", err))
 	}
 	_, err := Install(l.dir, name, archive, size)
-	return err
+	return unwritable(name, err)
+}
+
+// unwritable returns the error as a refusal when the themes directory denied a write, or as it is.
+func unwritable(name string, err error) error {
+	if !errors.Is(err, fs.ErrPermission) && !errors.Is(err, syscall.EROFS) {
+		return err
+	}
+	return refuseHolding("themes_directory_readonly",
+		"the themes directory cannot be written to, make GOPHENBERG_THEMES_DIR writable",
+		map[string]any{"setting": "GOPHENBERG_THEMES_DIR"},
+		"themehost: installing %s into a themes directory that denies writes: %w", name, err)
 }
 
 // describe returns what the library reports about one installed directory.
