@@ -41,7 +41,7 @@
 		"typecheck": "tsc -b --force && astro check"
 	},
 	"peerDependencies": {
-		"astro": "^7.3.2"
+		"astro": "^7.2.9"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.10",
