@@ -345,35 +345,89 @@ func groupStandsAlone(ctx context.Context, queries *db.Queries, g content.Group)
 // DeleteGroup removes the group, its fields and their stored values in one transaction.
 func (s *TypeStore) DeleteGroup(ctx context.Context, id int) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
-		groups, err := groupsWithFields(ctx, queries)
-		if err != nil {
-			return err
-		}
-		held, found := groupByID(groups, id)
-		if !found {
-			return content.ErrGroupNotFound
-		}
-		types, err := storedTypes(ctx, queries)
-		if err != nil {
-			return err
-		}
-		for _, f := range held.Fields {
-			swept := sweptByDelete(groups, types, held.ID, f.Key)
-			if err := deleteFieldRow(ctx, queries, held.ID, f.Key, swept); err != nil {
-				return err
-			}
-		}
-		if _, err := queries.DeleteFieldGroup(ctx, int32(id)); err != nil {
-			return err
-		}
-		return nil
+		return deleteGroupRows(ctx, s.queries.WithTx(tx), id)
 	})
 	if errors.Is(err, content.ErrGroupNotFound) {
 		return err
 	}
 	if err != nil {
 		return fmt.Errorf("postgres: delete field group: %w", err)
+	}
+	return nil
+}
+
+// deleteGroupRows removes the group row once its fields are locked, deleted and settled.
+func deleteGroupRows(ctx context.Context, queries *db.Queries, id int) error {
+	if err := queries.LockFieldGroups(ctx); err != nil {
+		return err
+	}
+	if err := queries.LockFieldsOfGroup(ctx, int32(id)); err != nil {
+		return err
+	}
+	groups, err := groupsWithFields(ctx, queries)
+	if err != nil {
+		return err
+	}
+	held, found := groupByID(groups, id)
+	if !found {
+		return content.ErrGroupNotFound
+	}
+	if err := deleteFieldsOf(ctx, queries, groups, held); err != nil {
+		return err
+	}
+	if err := settleFieldsOf(ctx, queries, groups, held.ID); err != nil {
+		return err
+	}
+	_, err = queries.DeleteFieldGroup(ctx, int32(id))
+	return err
+}
+
+// deleteFieldsOf removes the group's fields and sweeps their values from the types no other group serves them on.
+func deleteFieldsOf(ctx context.Context, queries *db.Queries, groups []content.Group, held content.Group) error {
+	types, err := storedTypes(ctx, queries)
+	if err != nil {
+		return err
+	}
+	for _, f := range held.Fields {
+		swept := sweptByDelete(groups, types, held.ID, f.Key)
+		if err := deleteFieldRow(ctx, queries, held.ID, f.Key, swept); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// settleFieldsOf keeps the fields the leaving group stores inside other groups' containers.
+func settleFieldsOf(ctx context.Context, queries *db.Queries, groups []content.Group, leaving int) error {
+	for _, step := range content.SettledFields(groups, leaving) {
+		if err := settleField(ctx, queries, step); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// settleField applies one settling change to the field rows and the items they index.
+func settleField(ctx context.Context, queries *db.Queries, step content.Settling) error {
+	if step.Kept != 0 {
+		if err := queries.CopyContentRelations(ctx, db.CopyContentRelationsParams{
+			Kept: int32(step.Kept), Dropped: int32(step.ID),
+		}); err != nil {
+			return err
+		}
+	}
+	switch {
+	case step.Drop:
+		_, err := queries.DeleteFieldByID(ctx, int32(step.ID))
+		return err
+	case step.Parent != 0:
+		return queries.ReparentContentField(ctx, db.ReparentContentFieldParams{
+			ParentID: int32(step.Parent), ToGroup: int32(step.Group), ID: int32(step.ID),
+		})
+	case step.Group != 0:
+		return queries.CarryContentField(ctx, db.CarryContentFieldParams{
+			ToGroup: int32(step.Group), ID: int32(step.ID),
+		})
 	}
 	return nil
 }
@@ -591,6 +645,9 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
+		if err := queries.LockFieldGroups(ctx); err != nil {
+			return err
+		}
 		groups, err := groupsWithFields(ctx, queries)
 		if err != nil {
 			return err

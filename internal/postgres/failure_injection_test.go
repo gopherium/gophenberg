@@ -499,6 +499,177 @@ func TestDeleteFieldInGroupReportsADefinitionItCannotRemove(t *testing.T) {
 	}
 }
 
+func TestDeleteGroupReportsATwinItCannotDrop(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, _, section := sectionAcrossGroups(t, store)
+	declaredInside(t, store, section, "name", content.FieldKindText)
+	plantTwin(t, pool, source.ID, section.ID, "name", string(content.FieldKindText), 1)
+	raiseOn(t, pool, "core.content_fields", "DELETE")
+
+	err := store.DeleteGroup(t.Context(), source.ID)
+
+	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
+		t.Errorf("DeleteGroup() error = %v, want the failing twin removal reported", err)
+	}
+}
+
+// lockTimedTypes returns a type store whose statements give up on a held lock, and its database address.
+func lockTimedTypes(t *testing.T) (*postgres.TypeStore, string) {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("skipping database test in short mode")
+	}
+	cfg := pgtestdb.Custom(t, testdb.Config(), testdb.Migrator())
+	pcfg, err := pgxpool.ParseConfig(cfg.URL())
+	if err != nil {
+		t.Fatalf("parsing the pool config: %v", err)
+	}
+	pcfg.ConnConfig.RuntimeParams["lock_timeout"] = "200ms"
+	pool, err := pgxpool.NewWithConfig(t.Context(), pcfg)
+	if err != nil {
+		t.Fatalf("connecting the pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	return postgres.NewTypeStore(pool), cfg.URL()
+}
+
+// holdInRival runs the statement in a rival transaction left open until the test ends.
+func holdInRival(t *testing.T, url, statement string) {
+	t.Helper()
+	rival, err := pgxpool.New(t.Context(), url)
+	if err != nil {
+		t.Fatalf("connecting the rival: %v", err)
+	}
+	t.Cleanup(rival.Close)
+	tx, err := rival.Begin(t.Context())
+	if err != nil {
+		t.Fatalf("starting the rival transaction: %v", err)
+	}
+	t.Cleanup(func() { _ = tx.Rollback(context.Background()) })
+	if _, err := tx.Exec(t.Context(), statement); err != nil {
+		t.Fatalf("holding %q: %v", statement, err)
+	}
+}
+
+// holdFieldGroupLock holds the field group lock in a rival transaction until the test ends.
+func holdFieldGroupLock(t *testing.T, url string) {
+	t.Helper()
+	holdInRival(t, url, "SELECT pg_advisory_xact_lock(hashtext('core.field_groups'))")
+}
+
+func TestDeleteGroupReportsAFieldGroupLockItCannotTake(t *testing.T) {
+	t.Parallel()
+
+	types, url := lockTimedTypes(t)
+	group, err := types.CreateGroup(t.Context(), content.Group{Title: "Details", Location: locationOf("post")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	holdFieldGroupLock(t, url)
+
+	if err := types.DeleteGroup(t.Context(), group.ID); err == nil {
+		t.Error("DeleteGroup() error = nil, want the held field group lock reported")
+	}
+}
+
+func TestDeleteGroupReportsFieldRowsASaveHolds(t *testing.T) {
+	t.Parallel()
+
+	types, url := lockTimedTypes(t)
+	group, err := types.CreateGroup(t.Context(), content.Group{Title: "Details", Location: locationOf("post")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	if _, err := types.CreateFieldInGroup(
+		t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, "")); err != nil {
+		t.Fatalf("CreateFieldInGroup(subtitle) error = %v, want nil", err)
+	}
+	holdInRival(t, url, "SELECT key FROM core.content_fields FOR KEY SHARE")
+
+	if err := types.DeleteGroup(t.Context(), group.ID); err == nil {
+		t.Error("DeleteGroup() error = nil, want the field rows a save holds reported")
+	}
+}
+
+func TestDeleteSubFieldReportsAFieldGroupLockItCannotTake(t *testing.T) {
+	t.Parallel()
+
+	types, url := lockTimedTypes(t)
+	group, err := types.CreateGroup(t.Context(), content.Group{Title: "Details", Location: locationOf("post")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	section, err := types.CreateFieldInGroup(
+		t.Context(), group.ID, fieldOn(t, "", "author", content.FieldKindSection, ""))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(author) error = %v, want nil", err)
+	}
+	name := declaredInside(t, types, section, "name", content.FieldKindText)
+	holdFieldGroupLock(t, url)
+
+	if err := types.DeleteSubField(t.Context(), name.ID); err == nil {
+		t.Error("DeleteSubField() error = nil, want the held field group lock reported")
+	}
+}
+
+func TestDeleteGroupReportsAFieldItCannotFold(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, _, section := sectionAcrossGroups(t, store)
+	declaredInside(t, store, section, "profile", content.FieldKindSection)
+	twin := plantTwin(t, pool, source.ID, section.ID, "profile", string(content.FieldKindSection), 1)
+	plantTwin(t, pool, source.ID, twin, "bio", string(content.FieldKindText), 2)
+	raiseOn(t, pool, "core.content_fields", "UPDATE")
+
+	err := store.DeleteGroup(t.Context(), source.ID)
+
+	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
+		t.Errorf("DeleteGroup() error = %v, want the failing fold reported", err)
+	}
+}
+
+func TestDeleteGroupReportsAnIndexItCannotCopy(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, _, section := sectionAcrossGroups(t, store)
+	declaredInside(t, store, section, "name", content.FieldKindText)
+	plantTwin(t, pool, source.ID, section.ID, "name", string(content.FieldKindText), 1)
+	raiseOn(t, pool, "core.content_relations", "INSERT")
+
+	err := store.DeleteGroup(t.Context(), source.ID)
+
+	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
+		t.Errorf("DeleteGroup() error = %v, want the failing index copy reported", err)
+	}
+}
+
+func TestDeleteGroupReportsAFieldItCannotCarry(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, _, section := sectionAcrossGroups(t, store)
+	name := declaredInside(t, store, section, "name", content.FieldKindText)
+	if _, err := pool.Exec(t.Context(),
+		`UPDATE core.content_fields SET group_id = $1 WHERE id = $2`, source.ID, name.ID); err != nil {
+		t.Fatalf("leaving the field behind, as a move before the repair did: %v, want nil", err)
+	}
+	raiseOn(t, pool, "core.content_fields", "UPDATE")
+
+	err := store.DeleteGroup(t.Context(), source.ID)
+
+	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
+		t.Errorf("DeleteGroup() error = %v, want the failing carry reported", err)
+	}
+}
+
 func TestCreateFieldReportsADefinitionItCannotStore(t *testing.T) {
 	t.Parallel()
 
