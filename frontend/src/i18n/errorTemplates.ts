@@ -479,7 +479,7 @@ export function errorTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		themes_directory_readonly: __(
-			'This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder %(setting)s points at writable. A read-only mount is the usual cause.',
+			'This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder that %(setting)s points at writable. A read-only mount is the usual cause.',
 			DOMAIN,
 		),
 		themes_directory_unset: __(
