@@ -466,6 +466,9 @@ UPDATE core.content_fields AS moved
 SET group_id = @to_group
 WHERE moved.id IN (SELECT inside.id FROM inside);
 
+-- name: CarryContentField :exec
+UPDATE core.content_fields SET group_id = @to_group WHERE id = @id;
+
 -- name: ListContentFieldsOfGroup :many
 SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin
 FROM core.content_fields WHERE group_id = @group_id ORDER BY position, id;

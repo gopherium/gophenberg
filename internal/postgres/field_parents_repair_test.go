@@ -142,6 +142,82 @@ func TestMigrationsKeepWhatARelationLeftTwicePointsAt(t *testing.T) {
 	}
 }
 
+// sectionAcrossGroups stores two groups on the car type and a section in the second, returning them in that order.
+func sectionAcrossGroups(t *testing.T, store *postgres.TypeStore) (content.Group, content.Group, content.Field) {
+	t.Helper()
+	source, err := store.CreateGroup(t.Context(), content.Group{Title: "Details", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Details) error = %v, want nil", err)
+	}
+	landing, err := store.CreateGroup(t.Context(), content.Group{Title: "Elsewhere", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Elsewhere) error = %v, want nil", err)
+	}
+	section, err := store.CreateFieldInGroup(
+		t.Context(), landing.ID, fieldOn(t, "", "author", content.FieldKindSection, ""))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(author) error = %v, want nil", err)
+	}
+	return source, landing, section
+}
+
+func TestDeletingAGroupDropsTheTwinItStoresInsideAnotherGroupsContainer(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, landing, section := sectionAcrossGroups(t, store)
+	name := declaredInside(t, store, section, "name", content.FieldKindText)
+	plantTwin(t, pool, source.ID, section.ID, "name", string(content.FieldKindText), 1)
+	plantTyped(t, pool, author, "car", "one-car", `{"author": {"name": "Maria Perez"}}`)
+
+	if err := store.DeleteGroup(t.Context(), source.ID); err != nil {
+		t.Fatalf("DeleteGroup(Details) error = %v, want nil", err)
+	}
+
+	if held := fieldsKeyed(t, pool, "name"); held != 1 {
+		t.Fatalf("%d fields keyed name, want only the twin the section's own group stores", held)
+	}
+	if held := groupOfField(t, pool, name.ID); held != landing.ID {
+		t.Errorf("name sits in group %d, want the twin declared inside the section kept in %d", held, landing.ID)
+	}
+	if held := storedFields(t, pool, "one-car"); held != `{"author": {"name": "Maria Perez"}}` {
+		t.Errorf("car fields = %s, want the value the kept twin reads left alone", held)
+	}
+}
+
+func TestDeletingAGroupCarriesTheFieldsItStoresInsideAnotherGroupsContainer(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, landing, section := sectionAcrossGroups(t, store)
+	rows := declaredInside(t, store, section, "rows", content.FieldKindRepeater)
+	title := declaredInside(t, store, rows, "title", content.FieldKindText)
+	if _, err := pool.Exec(t.Context(),
+		`UPDATE core.content_fields SET group_id = $1 WHERE id = $2 OR id = $3`,
+		source.ID, rows.ID, title.ID); err != nil {
+		t.Fatalf("leaving the repeater behind, as a move before the repair did: %v, want nil", err)
+	}
+	plantTyped(t, pool, author, "car", "one-car", `{"author": {"rows": [{"title": "Maria Perez"}]}}`)
+
+	if err := store.DeleteGroup(t.Context(), source.ID); err != nil {
+		t.Fatalf("DeleteGroup(Details) error = %v, want nil", err)
+	}
+
+	for _, carried := range []struct {
+		what string
+		id   int
+	}{{"the repeater", rows.ID}, {"the field inside the repeater", title.ID}} {
+		if held := groupOfField(t, pool, carried.id); held != landing.ID {
+			t.Errorf("%s sits in group %d, want it carried into %d with its section", carried.what, held, landing.ID)
+		}
+	}
+	if held := storedFields(t, pool, "one-car"); held != `{"author": {"rows": [{"title": "Maria Perez"}]}}` {
+		t.Errorf("car fields = %s, want the rows the carried fields read left alone", held)
+	}
+}
+
 func TestMigrationsCarrySubFieldsIntoTheirContainersGroup(t *testing.T) {
 	t.Parallel()
 

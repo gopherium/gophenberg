@@ -89,6 +89,20 @@ func (q *Queries) AdoptFieldsInGroup(ctx context.Context, arg AdoptFieldsInGroup
 	return err
 }
 
+const carryContentField = `-- name: CarryContentField :exec
+UPDATE core.content_fields SET group_id = $1 WHERE id = $2
+`
+
+type CarryContentFieldParams struct {
+	ToGroup int32
+	ID      int32
+}
+
+func (q *Queries) CarryContentField(ctx context.Context, arg CarryContentFieldParams) error {
+	_, err := q.db.Exec(ctx, carryContentField, arg.ToGroup, arg.ID)
+	return err
+}
+
 const clearContentFieldValues = `-- name: ClearContentFieldValues :exec
 UPDATE core.content SET fields = fields - $1::text
 WHERE type = ANY($2::text []) AND fields ? $1::text

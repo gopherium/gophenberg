@@ -499,6 +499,43 @@ func TestDeleteFieldInGroupReportsADefinitionItCannotRemove(t *testing.T) {
 	}
 }
 
+func TestDeleteGroupReportsATwinItCannotDrop(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, _, section := sectionAcrossGroups(t, store)
+	declaredInside(t, store, section, "name", content.FieldKindText)
+	plantTwin(t, pool, source.ID, section.ID, "name", string(content.FieldKindText), 1)
+	raiseOn(t, pool, "core.content_fields", "DELETE")
+
+	err := store.DeleteGroup(t.Context(), source.ID)
+
+	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
+		t.Errorf("DeleteGroup() error = %v, want the failing twin removal reported", err)
+	}
+}
+
+func TestDeleteGroupReportsAFieldItCannotCarry(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, _, section := sectionAcrossGroups(t, store)
+	name := declaredInside(t, store, section, "name", content.FieldKindText)
+	if _, err := pool.Exec(t.Context(),
+		`UPDATE core.content_fields SET group_id = $1 WHERE id = $2`, source.ID, name.ID); err != nil {
+		t.Fatalf("leaving the field behind, as a move before the repair did: %v, want nil", err)
+	}
+	raiseOn(t, pool, "core.content_fields", "UPDATE")
+
+	err := store.DeleteGroup(t.Context(), source.ID)
+
+	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
+		t.Errorf("DeleteGroup() error = %v, want the failing carry reported", err)
+	}
+}
+
 func TestCreateFieldReportsADefinitionItCannotStore(t *testing.T) {
 	t.Parallel()
 

@@ -354,15 +354,11 @@ func (s *TypeStore) DeleteGroup(ctx context.Context, id int) error {
 		if !found {
 			return content.ErrGroupNotFound
 		}
-		types, err := storedTypes(ctx, queries)
-		if err != nil {
+		if err := deleteFieldsOf(ctx, queries, groups, held); err != nil {
 			return err
 		}
-		for _, f := range held.Fields {
-			swept := sweptByDelete(groups, types, held.ID, f.Key)
-			if err := deleteFieldRow(ctx, queries, held.ID, f.Key, swept); err != nil {
-				return err
-			}
+		if err := settleFieldsOf(ctx, queries, groups, held.ID); err != nil {
+			return err
 		}
 		if _, err := queries.DeleteFieldGroup(ctx, int32(id)); err != nil {
 			return err
@@ -376,6 +372,67 @@ func (s *TypeStore) DeleteGroup(ctx context.Context, id int) error {
 		return fmt.Errorf("postgres: delete field group: %w", err)
 	}
 	return nil
+}
+
+// deleteFieldsOf removes the group's fields and sweeps their values from the types no other group serves them on.
+func deleteFieldsOf(ctx context.Context, queries *db.Queries, groups []content.Group, held content.Group) error {
+	types, err := storedTypes(ctx, queries)
+	if err != nil {
+		return err
+	}
+	for _, f := range held.Fields {
+		swept := sweptByDelete(groups, types, held.ID, f.Key)
+		if err := deleteFieldRow(ctx, queries, held.ID, f.Key, swept); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// settleFieldsOf carries the leaving group's fields standing inside other groups into them, dropping the twinned ones.
+func settleFieldsOf(ctx context.Context, queries *db.Queries, groups []content.Group, leaving int) error {
+	for _, g := range groups {
+		if g.ID == leaving {
+			continue
+		}
+		if err := settleInside(ctx, queries, g.Fields, leaving, g.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// settleInside carries the declared fields the leaving group stores into the other, dropping each one a sibling names.
+func settleInside(ctx context.Context, queries *db.Queries, declared []content.Field, leaving, into int) error {
+	for _, f := range declared {
+		if f.GroupID == leaving && namedTwice(declared, f) {
+			if _, err := queries.DeleteFieldByID(ctx, int32(f.ID)); err != nil {
+				return err
+			}
+			continue
+		}
+		if f.GroupID == leaving {
+			if err := queries.CarryContentField(ctx, db.CarryContentFieldParams{
+				ToGroup: int32(into), ID: int32(f.ID),
+			}); err != nil {
+				return err
+			}
+		}
+		if err := settleInside(ctx, queries, f.Fields, leaving, into); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// namedTwice reports whether another declared field carries the field's key.
+func namedTwice(declared []content.Field, f content.Field) bool {
+	for _, held := range declared {
+		if held.Key == f.Key && held.ID != f.ID {
+			return true
+		}
+	}
+	return false
 }
 
 // groupByID returns the group holding the identifier, and whether one does.
