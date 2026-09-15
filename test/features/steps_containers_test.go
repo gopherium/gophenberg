@@ -349,8 +349,14 @@ func theGroupIsNoLongerListed(ctx context.Context, title string) error {
 	if err := w.expect(http.StatusNoContent); err != nil {
 		return err
 	}
-	if _, err := groupNamed(w, title); err == nil {
-		return fmt.Errorf("the group %q is still listed, want it gone", title)
+	listed, err := listGroups(w)
+	if err != nil {
+		return err
+	}
+	for _, held := range listed.Items {
+		if held.Title == title {
+			return fmt.Errorf("the group %q is still listed, want it gone", title)
+		}
 	}
 	return nil
 }
