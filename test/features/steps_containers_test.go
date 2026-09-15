@@ -340,6 +340,21 @@ func aSecondFieldInsideIsStillStoredUnder(ctx context.Context, key, parent, titl
 	return storedUnderGroup(ctx, key, parent, title, (*memoryTypes).twinFieldUnder)
 }
 
+// theGroupIsNoLongerListed asserts the delete went through and the group is gone from the listing.
+func theGroupIsNoLongerListed(ctx context.Context, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusNoContent); err != nil {
+		return err
+	}
+	if _, err := groupNamed(w, title); err == nil {
+		return fmt.Errorf("the group %q is still listed, want it gone", title)
+	}
+	return nil
+}
+
 // theSecondFieldInsideHolds stores a field of the kind inside the twin of the sub field the parent holds.
 func theSecondFieldInsideHolds(ctx context.Context, key, parent, kind, inside string) error {
 	w, err := worldOf(ctx)
