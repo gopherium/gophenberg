@@ -72,6 +72,10 @@ A refused upload leaves nothing behind. You cannot replace the
 theme that is active, so deactivate it first or upload it under
 another name.
 
+An upload is also refused when the server cannot write to the
+themes directory, and the admin says so. A read-only mount is the
+usual cause.
+
 ## Pinning a theme instead
 
 You can also unpack a theme into a directory named after it inside
