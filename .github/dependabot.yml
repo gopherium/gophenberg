@@ -12,6 +12,7 @@ updates:
       interval: weekly
   - package-ecosystem: npm
     directory: /
+    versioning-strategy: increase-if-necessary
     schedule:
       interval: weekly
     cooldown:
