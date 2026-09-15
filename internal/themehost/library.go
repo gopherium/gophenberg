@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 )
 
 // Installed describes one theme sitting in the library.
@@ -80,7 +81,7 @@ func (l *Library) Install(name string, archive io.ReaderAt, size int64) error {
 
 // unwritable returns the error as a refusal when the themes directory denied a write, or as it is.
 func unwritable(name string, err error) error {
-	if !errors.Is(err, fs.ErrPermission) {
+	if !errors.Is(err, fs.ErrPermission) && !errors.Is(err, syscall.EROFS) {
 		return err
 	}
 	return refuseHolding("themes_directory_readonly",
