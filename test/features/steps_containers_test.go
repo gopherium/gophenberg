@@ -330,12 +330,12 @@ func initializeContainers(sc *godog.ScenarioContext) {
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 }
 
-// theFieldInsideIsStillStoredUnder leaves the sub field stored under the group, as a move before the repair did.
+// theFieldInsideIsStillStoredUnder stores the sub field inside the parent under the named group.
 func theFieldInsideIsStillStoredUnder(ctx context.Context, key, parent, title string) error {
 	return storedUnderGroup(ctx, key, parent, title, (*memoryTypes).storeFieldUnder)
 }
 
-// aSecondFieldInsideIsStillStoredUnder stores a twin of the sub field under the group, as a move before the repair did.
+// aSecondFieldInsideIsStillStoredUnder stores a twin of the sub field inside the parent under the named group.
 func aSecondFieldInsideIsStillStoredUnder(ctx context.Context, key, parent, title string) error {
 	return storedUnderGroup(ctx, key, parent, title, (*memoryTypes).twinFieldUnder)
 }
