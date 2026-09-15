@@ -56,7 +56,7 @@ export function chosenPreview(
  * @param buffer - The buffer the header drives.
  * @returns The label of the control and the write it runs.
  */
-export function primaryControl(buffer: EditorBuffer): { label: string, write: () => void } {
+function primaryControl(buffer: EditorBuffer): { label: string, write: () => void } {
 	if (buffer.savedStatus === 'published') {
 		return { label: __('Update', 'gophenberg'), write: buffer.save }
 	}

@@ -11,7 +11,7 @@ import { pairsOf } from './types'
 import type { ContentField, ContentType } from './types'
 
 /** What a column id carries before the key of the field it shows. */
-export const fieldColumnPrefix = 'field.'
+const fieldColumnPrefix = 'field.'
 
 /**
  * Returns the label shown beside the title of a post that is not published.

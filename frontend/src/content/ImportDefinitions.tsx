@@ -90,7 +90,7 @@ function warningSentence(warning: PlanWarning): string {
  * @param change - The change to name.
  * @returns The confirmation naming it.
  */
-export function confirmationFor(change: PlanChange): Confirmed {
+function confirmationFor(change: PlanChange): Confirmed {
 	return { subject: change.subject, key: change.key, group: change.group }
 }
 

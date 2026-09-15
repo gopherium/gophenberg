@@ -36,7 +36,7 @@ const BOOLEANS: Choice[] = [
  * @param field - The field the conditions belong to.
  * @returns The fields offered as sources.
  */
-export function conditionSources(siblings: ContentField[], field: ContentField): ContentField[] {
+function conditionSources(siblings: ContentField[], field: ContentField): ContentField[] {
 	return siblings.filter(
 		(held) => held.key !== field.key && operatorsFor(held.kind, multipleOf(held)).length > 0,
 	)

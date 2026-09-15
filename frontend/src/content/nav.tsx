@@ -53,7 +53,7 @@ export const groupsNavItem: NavItem = {
  * @param registered - The type the entry stands for.
  * @returns The nav entry for that type.
  */
-export function typeNavItem(registered: ContentType): NavItem {
+function typeNavItem(registered: ContentType): NavItem {
 	return {
 		label: registered.pluralLabel,
 		to: `/content/${registered.key}`,
