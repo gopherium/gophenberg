@@ -746,6 +746,126 @@ test('adds a row of a layout beside the rows already held', async () => {
 	expect(screen.getByLabelText('Saying')).toHaveValue('')
 })
 
+test('turns the Add button of a layout off once its rows reach the layout limit', async () => {
+	declaringFlexible([{ ...HERO_LAYOUT, settings: { max: 1 } }, QUOTE_LAYOUT])
+	holdingRows([{ hero: { headline: 'Welcome' } }])
+	renderAt(EDITOR_PATH)
+	await screen.findByLabelText('Headline')
+
+	expect(screen.getByRole('button', { name: 'Add Hero' })).toHaveAttribute('aria-disabled', 'true')
+	expect(screen.getByRole('button', { name: 'Add Quote' })).not.toHaveAttribute('aria-disabled', 'true')
+})
+
+test('turns every layout button off once the rows reach the field limit', async () => {
+	declaring({
+		key: 'features',
+		label: 'Features',
+		kind: 'flexible',
+		many: false,
+		required: false,
+		settings: { max: 1 },
+		fields: [HERO_LAYOUT, QUOTE_LAYOUT],
+	})
+	holdingRows([{ quote: { saying: 'Maria Perez' } }])
+	renderAt(EDITOR_PATH)
+	await screen.findByLabelText('Saying')
+
+	expect(screen.getByRole('button', { name: 'Add Hero' })).toHaveAttribute('aria-disabled', 'true')
+	expect(screen.getByRole('button', { name: 'Add Quote' })).toHaveAttribute('aria-disabled', 'true')
+})
+
+test('turns the Add row button off once the rows reach the repeater limit', async () => {
+	declaring({
+		key: 'team',
+		label: 'Team',
+		kind: 'repeater',
+		many: false,
+		required: false,
+		settings: { max: 2 },
+		fields: [
+			{ key: 'name', label: 'Name', kind: 'text', many: false, required: false, updated_at: STAMP },
+		],
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { team: [{ name: 'Maria' }, { name: 'Perez' }] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	await screen.findAllByLabelText('Name')
+
+	expect(screen.getByRole('button', { name: 'Add row' })).toHaveAttribute('aria-disabled', 'true')
+})
+
+test('turns the Add row button off at the repeater limit and back on once a row goes', async () => {
+	declaring({
+		key: 'team',
+		label: 'Team',
+		kind: 'repeater',
+		many: false,
+		required: false,
+		settings: { max: 2 },
+		fields: [
+			{ key: 'name', label: 'Name', kind: 'text', many: false, required: false, updated_at: STAMP },
+		],
+	})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, fields: { team: [{ name: 'Maria Perez' }] } }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	const adding = await screen.findByRole('button', { name: 'Add row' })
+	expect(adding).not.toHaveAttribute('aria-disabled', 'true')
+
+	await userEvent.click(adding)
+
+	expect(screen.getByRole('button', { name: 'Add row' })).toHaveAttribute('aria-disabled', 'true')
+
+	await userEvent.click(screen.getAllByRole('button', { name: 'Remove row' })[1])
+
+	expect(screen.getByRole('button', { name: 'Add row' })).not.toHaveAttribute('aria-disabled', 'true')
+})
+
+test('turns a layout button off at the layout limit and back on once its row goes', async () => {
+	declaringFlexible([{ ...HERO_LAYOUT, settings: { max: 1 } }, QUOTE_LAYOUT])
+	holdingRows([])
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add Hero' }))
+
+	expect(screen.getByRole('button', { name: 'Add Hero' })).toHaveAttribute('aria-disabled', 'true')
+	expect(screen.getByRole('button', { name: 'Add Quote' })).not.toHaveAttribute('aria-disabled', 'true')
+
+	await userEvent.click(screen.getByRole('button', { name: 'Remove row' }))
+
+	expect(screen.getByRole('button', { name: 'Add Hero' })).not.toHaveAttribute('aria-disabled', 'true')
+})
+
+test('turns every layout button off at the field limit and back on once a row goes', async () => {
+	declaring({
+		key: 'features',
+		label: 'Features',
+		kind: 'flexible',
+		many: false,
+		required: false,
+		settings: { max: 1 },
+		fields: [HERO_LAYOUT, QUOTE_LAYOUT],
+	})
+	holdingRows([])
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Add Quote' }))
+
+	expect(screen.getByRole('button', { name: 'Add Hero' })).toHaveAttribute('aria-disabled', 'true')
+	expect(screen.getByRole('button', { name: 'Add Quote' })).toHaveAttribute('aria-disabled', 'true')
+
+	await userEvent.click(screen.getByRole('button', { name: 'Remove row' }))
+
+	expect(screen.getByRole('button', { name: 'Add Hero' })).not.toHaveAttribute('aria-disabled', 'true')
+	expect(screen.getByRole('button', { name: 'Add Quote' })).not.toHaveAttribute('aria-disabled', 'true')
+})
+
 test('says so for a row naming a layout the flexible does not declare', async () => {
 	declaringFlexible()
 	holdingRows([{ banner: { headline: 'Stale' } }])

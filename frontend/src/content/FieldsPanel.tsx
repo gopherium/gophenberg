@@ -524,6 +524,27 @@ function counted(held: unknown): number | undefined {
 }
 
 /**
+ * Reports whether the rows have reached the most the field or layout takes.
+ * @param field - The field or layout whose most rows bound the count.
+ * @param held - How many rows count against it.
+ * @returns True once the rows reach the limit, and false when none is named.
+ */
+function full(field: ContentField, held: number): boolean {
+	const most = counted(field.settings.max)
+	return most !== undefined && held >= most
+}
+
+/**
+ * Returns how many rows pick the layout.
+ * @param rows - The rows the flexible holds.
+ * @param key - The layout's key.
+ * @returns The count of rows naming the layout.
+ */
+function rowsNaming(rows: FieldValues[], key: string): number {
+	return rows.filter((row) => Object.keys(row)[0] === key).length
+}
+
+/**
  * Returns the validation rules a field's bounds set on its control.
  * @param field - The declared field to read.
  * @returns The rules the control validates against.
@@ -782,6 +803,7 @@ function RepeaterRows(props: {
 			<Button
 				variant="outline"
 				size="compact"
+				disabled={full(props.field, props.rows.length)}
 				onClick={() => props.onChange([...props.rows, seededValues(props.field.fields)])}
 			>
 				{__('Add row', 'gophenberg')}
@@ -829,6 +851,10 @@ function FlexibleRows(props: {
 							key={layout.key}
 							variant="outline"
 							size="compact"
+							disabled={
+								full(props.field, props.rows.length) ||
+								full(layout, rowsNaming(props.rows, layout.key))
+							}
 							onClick={() =>
 								props.onChange([...props.rows, { [layout.key]: seededValues(layout.fields) }])
 							}
