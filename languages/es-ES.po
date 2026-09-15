@@ -1179,6 +1179,10 @@ msgid "%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where
 msgstr "%(key)s lo sirve %(winner)s, así que %(loser)s no lo muestra en %(where)s."
 
 #, fuzzy
+msgid "%(label)s (%(count)d)"
+msgstr "%(label)s (%(count)d)"
+
+#, fuzzy
 msgid "%(source)s is %(value)s"
 msgstr "%(source)s es %(value)s"
 
@@ -1521,6 +1525,10 @@ msgstr "es"
 #, fuzzy
 msgid "is not"
 msgstr "no es"
+
+#, fuzzy
+msgid "v%(version)s"
+msgstr "v%(version)s"
 
 msgctxt "account"
 msgid "Status"

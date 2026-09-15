@@ -90,6 +90,10 @@ msgid "%(group)s updated."
 msgstr "%(group)s mis à jour."
 
 #, fuzzy
+msgid "%(label)s (%(count)d)"
+msgstr "%(label)s (%(count)d)"
+
+#, fuzzy
 msgid ""
 "%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
 msgstr ""
@@ -1861,6 +1865,10 @@ msgstr "est"
 #, fuzzy
 msgid "is not"
 msgstr "n'est pas"
+
+#, fuzzy
+msgid "v%(version)s"
+msgstr "v%(version)s"
 
 #, fuzzy
 msgid "{day} {month} {year}"
