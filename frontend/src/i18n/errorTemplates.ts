@@ -478,6 +478,10 @@ export function errorTemplates(): Record<string, string> {
 			'The theme %(name)s could not be read, so it cannot serve your site. Upload it again, or choose another theme.',
 			DOMAIN,
 		),
+		themes_directory_readonly: __(
+			'This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder %(setting)s points at writable. A read-only mount is the usual cause.',
+			DOMAIN,
+		),
 		themes_directory_unset: __(
 			'This site has nowhere to keep themes, so no theme can be installed. Ask whoever looks after your site to point %(setting)s at a folder the server can write to.',
 			DOMAIN,
