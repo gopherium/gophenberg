@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/cucumber/godog"
+
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // containerPath returns the group and the dotted path addressing the field the key names.
@@ -317,6 +319,10 @@ func initializeContainers(sc *godog.ScenarioContext) {
 		`^a second field "([^"]*)" inside "([^"]*)" is still stored under the group "([^"]*)"$`,
 		aSecondFieldInsideIsStillStoredUnder,
 	)
+	sc.Given(
+		`^the second "([^"]*)" inside "([^"]*)" holds the "([^"]*)" field "([^"]*)"$`,
+		theSecondFieldInsideHolds,
+	)
 	sc.Then(
 		`^the field "([^"]*)" on "([^"]*)" holds the sub field "([^"]*)" once$`,
 		theFieldHoldsTheSubFieldOnce,
@@ -332,6 +338,19 @@ func theFieldInsideIsStillStoredUnder(ctx context.Context, key, parent, title st
 // aSecondFieldInsideIsStillStoredUnder stores a twin of the sub field under the group, as a move before the repair did.
 func aSecondFieldInsideIsStillStoredUnder(ctx context.Context, key, parent, title string) error {
 	return storedUnderGroup(ctx, key, parent, title, (*memoryTypes).twinFieldUnder)
+}
+
+// theSecondFieldInsideHolds stores a field of the kind inside the twin of the sub field the parent holds.
+func theSecondFieldInsideHolds(ctx context.Context, key, parent, kind, inside string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held := content.Field{Key: inside, Label: inside, Kind: content.FieldKind(kind)}
+	if !w.contentTypes.growTwin(key, parent, held) {
+		return fmt.Errorf("no second field %q stands inside %q", key, parent)
+	}
+	return nil
 }
 
 // storedUnderGroup runs the store write on the sub field inside the parent with the identity of the named group.
