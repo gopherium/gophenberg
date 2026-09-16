@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gopherium/gophenberg/internal/definitions"
@@ -163,6 +164,32 @@ func theAdministratorAppliesAFileGivingUpTheGroup(ctx context.Context, key strin
 		Envelope: envelope,
 		Confirm:  []definitions.Confirmed{{Subject: "group", Key: key}},
 	})
+}
+
+// theAdministratorAppliesTheSitesFileGivingUpInside applies the site's own file giving up the sub field.
+func theAdministratorAppliesTheSitesFileGivingUpInside(ctx context.Context, key, parent string) error {
+	w, envelope, err := exportedBySite(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range envelope.Groups {
+		for j := range envelope.Groups[i].Fields {
+			container := &envelope.Groups[i].Fields[j]
+			if container.Key != parent {
+				continue
+			}
+			container.Fields = slices.DeleteFunc(container.Fields, func(f definitions.FieldDefinition) bool {
+				return f.Key == key
+			})
+			return applying(w, definitions.Import{
+				Envelope: envelope,
+				Confirm: []definitions.Confirmed{
+					{Subject: "field", Key: parent + "." + key, Group: envelope.Groups[i].Key},
+				},
+			})
+		}
+	}
+	return fmt.Errorf("the site's file holds no container %q", parent)
 }
 
 // thePlanHoldsNoChanges asserts the plan asks for nothing at all.

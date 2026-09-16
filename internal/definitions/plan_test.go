@@ -5,6 +5,7 @@ package definitions_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -19,6 +20,57 @@ func planningSite(t *testing.T) *content.Registry {
 	registry := content.NewRegistry(postgres.NewTypeStore(pool))
 	siteDefined(t, registry)
 	return registry
+}
+
+// siteWithNoteStoredTwice returns the planning site with a second note inside steps, stored under the loose ends group.
+func siteWithNoteStoredTwice(t *testing.T) *content.Registry {
+	t.Helper()
+	pool, _ := declaringPool(t)
+	registry := content.NewRegistry(postgres.NewTypeStore(pool))
+	siteDefined(t, registry)
+	if _, err := pool.Exec(t.Context(),
+		`INSERT INTO core.content_fields (group_id, parent_field_id, key, label, kind, depth, created_at, updated_at)
+		SELECT loose.id, steps.id, 'note', 'Note', 'text', 1, now(), now()
+		FROM core.field_groups AS loose, core.content_fields AS steps
+		WHERE loose.key = 'loose-ends' AND steps.key = 'steps'`); err != nil {
+		t.Fatalf("planting a second note inside steps: %v", err)
+	}
+	return registry
+}
+
+// withoutNote takes every note out of the steps section the recipe group exports.
+func withoutNote(t *testing.T, envelope definitions.Envelope) {
+	t.Helper()
+	recipe := groupNamed(t, envelope, "recipe-details")
+	for i := range recipe.Fields {
+		if recipe.Fields[i].Key == "steps" {
+			recipe.Fields[i].Fields = slices.DeleteFunc(recipe.Fields[i].Fields, func(f definitions.FieldDefinition) bool {
+				return f.Key == "note"
+			})
+			return
+		}
+	}
+	t.Fatal("the recipe group exports no steps section")
+}
+
+func TestComparePlansOneRemovalForASubFieldStoredTwice(t *testing.T) {
+	t.Parallel()
+
+	registry := siteWithNoteStoredTwice(t)
+	envelope := exported(t, registry)
+	withoutNote(t, envelope)
+
+	plan := compared(t, registry, envelope)
+
+	removals := 0
+	for _, c := range plan.Changes {
+		if c.Subject == "field" && c.Action == "delete" && c.Key == "steps.note" {
+			removals++
+		}
+	}
+	if removals != 1 {
+		t.Errorf("the plan removes steps.note %d times, want once for every copy", removals)
+	}
 }
 
 func TestCompareReadsABacklinksSourceTheSameFileBringsLater(t *testing.T) {

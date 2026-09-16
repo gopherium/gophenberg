@@ -89,6 +89,17 @@ func TestApplyReportsEveryWriteTheStoreRefuses(t *testing.T) {
 				Confirm:  []definitions.Confirmed{{Subject: "field", Key: "cook-time", Group: "recipe-details"}},
 			}
 		},
+		"a sub field it cannot take away": func(
+			t *testing.T, pool *pgxpool.Pool, r *content.Registry,
+		) definitions.Import {
+			envelope := exported(t, r)
+			withoutNote(t, envelope)
+			raiseOn(t, pool, "core.content_fields", "DELETE", "OLD.parent_field_id IS NOT NULL")
+			return definitions.Import{
+				Envelope: envelope,
+				Confirm:  []definitions.Confirmed{{Subject: "field", Key: "steps.note", Group: "recipe-details"}},
+			}
+		},
 		"a field whose kind it cannot replace": func(
 			t *testing.T, pool *pgxpool.Pool, r *content.Registry,
 		) definitions.Import {
