@@ -274,6 +274,43 @@ func TestInstallStillCountsTheEntriesWhenTheClosingRecordWrapsAround(t *testing.
 	}
 }
 
+func TestInstallCountsTheEntriesAnArchiveHoldsPastTheCountItStates(t *testing.T) {
+	t.Parallel()
+
+	const held = 65536 + 5
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	for i := range held {
+		header := &zip.FileHeader{Name: fmt.Sprintf("client/%d", i), Method: zip.Store}
+		if _, err := writer.CreateHeader(header); err != nil {
+			t.Fatalf("adding entry %d: %v", i, err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("closing the archive: %v", err)
+	}
+	archive := buffer.Bytes()
+	closing := archive[len(archive)-22:]
+	if binary.LittleEndian.Uint32(closing) != 0x06054b50 {
+		t.Fatal("the archive does not end on its closing record")
+	}
+	binary.LittleEndian.PutUint16(closing[8:], 5)
+	binary.LittleEndian.PutUint16(closing[10:], 5)
+
+	_, err := install(t, archive)
+
+	var refused *themehost.Error
+	if !errors.As(err, &refused) {
+		t.Fatalf("Install() = %v, want the entries the archive really holds counted", err)
+	}
+	if refused.Code != "archive_too_many_entries" {
+		t.Errorf("Code = %q, want archive_too_many_entries", refused.Code)
+	}
+	if refused.Held["entries"] != held {
+		t.Errorf("entries = %v, want the %d the archive holds rather than the 5 it states", refused.Held["entries"], held)
+	}
+}
+
 func TestInstallFindsTheClosingRecordBehindTrailingJunk(t *testing.T) {
 	t.Parallel()
 
