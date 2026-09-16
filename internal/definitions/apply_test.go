@@ -4,6 +4,7 @@ package definitions_test
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -161,6 +162,29 @@ func TestApplyTakesAwayWhatTheAdminConfirmed(t *testing.T) {
 	}
 }
 
+func TestApplyTakesAwayAConfirmedFieldOthersStandAfter(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	recipe := groupNamed(t, envelope, "recipe-details")
+	recipe.Fields = recipe.Fields[1:]
+
+	applied(t, registry, definitions.Import{
+		Envelope: envelope,
+		Confirm:  []definitions.Confirmed{{Subject: "field", Key: "cook-time", Group: "recipe-details"}},
+	})
+
+	stored, _ := storedGroup(t, registry, "recipe-details")
+	kept := make([]string, 0, len(stored.Fields))
+	for _, held := range stored.Fields {
+		kept = append(kept, held.Key)
+	}
+	if !slices.Equal(kept, []string{"steps"}) {
+		t.Errorf("recipe-details holds %v, want only steps once cook-time is taken away", kept)
+	}
+}
+
 func TestApplyTakesAwayEveryCopyOfARemovedSubField(t *testing.T) {
 	t.Parallel()
 
@@ -181,6 +205,37 @@ func TestApplyTakesAwayEveryCopyOfARemovedSubField(t *testing.T) {
 		if held.Key == "note" {
 			t.Errorf("a note still stands inside steps, want every copy taken away")
 		}
+	}
+}
+
+func TestApplyTakesAwayEveryCopyOfARemovedSubFieldBesideAnother(t *testing.T) {
+	t.Parallel()
+
+	registry := siteWithNoteStoredTwice(t)
+	steps, found := storedField(t, registry, "recipe-details", "steps")
+	if !found {
+		t.Fatal("the steps section is missing from the site")
+	}
+	if _, err := registry.CreateSubField(t.Context(), steps.ID, content.Field{
+		Key: "timing", Label: "Timing", Kind: content.FieldKindText,
+	}); err != nil {
+		t.Fatalf("CreateSubField() error = %v, want nil", err)
+	}
+	envelope := exported(t, registry)
+	withoutNote(t, envelope)
+
+	applied(t, registry, definitions.Import{
+		Envelope: envelope,
+		Confirm:  []definitions.Confirmed{{Subject: "field", Key: "steps.note", Group: "recipe-details"}},
+	})
+
+	steps, _ = storedField(t, registry, "recipe-details", "steps")
+	kept := make([]string, 0, len(steps.Fields))
+	for _, held := range steps.Fields {
+		kept = append(kept, held.Key)
+	}
+	if !slices.Equal(kept, []string{"timing"}) {
+		t.Errorf("steps holds %v, want only timing once every note is taken away", kept)
 	}
 }
 
