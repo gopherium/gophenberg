@@ -161,6 +161,29 @@ func TestApplyTakesAwayWhatTheAdminConfirmed(t *testing.T) {
 	}
 }
 
+func TestApplyTakesAwayEveryCopyOfARemovedSubField(t *testing.T) {
+	t.Parallel()
+
+	registry := siteWithNoteStoredTwice(t)
+	envelope := exported(t, registry)
+	withoutNote(t, envelope)
+
+	applied(t, registry, definitions.Import{
+		Envelope: envelope,
+		Confirm:  []definitions.Confirmed{{Subject: "field", Key: "steps.note", Group: "recipe-details"}},
+	})
+
+	steps, found := storedField(t, registry, "recipe-details", "steps")
+	if !found {
+		t.Fatal("the steps section is gone, want only its notes taken away")
+	}
+	for _, held := range steps.Fields {
+		if held.Key == "note" {
+			t.Errorf("a note still stands inside steps, want every copy taken away")
+		}
+	}
+}
+
 func TestApplyReplacesAFieldWhoseKindChanged(t *testing.T) {
 	t.Parallel()
 

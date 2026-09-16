@@ -167,13 +167,16 @@ func planFields(plan *Plan, group, path string, declared []FieldDefinition, stor
 		}
 		planFieldCarry(plan, group, path, d, held)
 	}
+	removed := make(map[string]bool)
 	for _, held := range stored {
-		if !fieldDeclared(declared, held.Key) {
-			plan.add(Change{
-				Action: ActionDelete, Subject: SubjectField, Key: path + held.Key,
-				Group: group, Label: held.Label, Reason: ReasonRemoved,
-			})
+		if fieldDeclared(declared, held.Key) || removed[held.Key] {
+			continue
 		}
+		removed[held.Key] = true
+		plan.add(Change{
+			Action: ActionDelete, Subject: SubjectField, Key: path + held.Key,
+			Group: group, Label: held.Label, Reason: ReasonRemoved,
+		})
 	}
 }
 

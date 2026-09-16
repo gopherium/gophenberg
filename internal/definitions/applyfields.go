@@ -191,7 +191,24 @@ func (r *run) removeField(ctx context.Context, c Change) error {
 	if !strings.Contains(c.Key, ".") {
 		return r.registry.DeleteFieldInGroup(ctx, r.groupKeyed(c.Group).ID, c.Key)
 	}
-	return r.registry.DeleteSubField(ctx, r.fieldAt(c.Group, c.Key).ID)
+	for _, held := range r.fieldsAt(c.Group, c.Key) {
+		if err := r.registry.DeleteSubField(ctx, held.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// fieldsAt returns every stored field the dotted path names inside the group, empty when the site holds none.
+func (r *run) fieldsAt(group, path string) []content.Field {
+	at := strings.LastIndex(path, ".")
+	held := make([]content.Field, 0, 1)
+	for _, f := range r.fieldAt(group, path[:at]).Fields {
+		if f.Key == path[at+1:] {
+			held = append(held, f)
+		}
+	}
+	return held
 }
 
 // fieldAt returns the stored field the dotted path names inside the group, zero when the site holds none.
