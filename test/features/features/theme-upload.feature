@@ -38,6 +38,12 @@ Feature: Installing a theme from the admin
       | contains an entry escaping its directory | the archive is unsafe            |
       | carries more files than the cap          | the archive holds too many files |
 
+  Scenario: A themes directory the server cannot write to is refused with a reason
+    Given the managed themes directory cannot be written to
+    When the administrator uploads a valid theme archive named "aurora"
+    Then the upload is refused explaining the themes directory cannot be written to, make GOPHENBERG_THEMES_DIR writable
+    And the theme list does not show "aurora"
+
   Scenario: Replacing the active theme is refused
     Given "aurora" is installed and active
     When the administrator uploads a valid theme archive named "aurora"
