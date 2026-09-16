@@ -327,6 +327,14 @@ func initializeContainers(sc *godog.ScenarioContext) {
 		`^the field "([^"]*)" on "([^"]*)" holds the sub field "([^"]*)" once$`,
 		theFieldHoldsTheSubFieldOnce,
 	)
+	sc.When(
+		`^the administrator applies the site's own file giving up "([^"]*)" inside "([^"]*)"$`,
+		theAdministratorAppliesTheSitesFileGivingUpInside,
+	)
+	sc.Then(
+		`^the field "([^"]*)" on "([^"]*)" holds no sub field "([^"]*)"$`,
+		theFieldHoldsNoSubField,
+	)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 }
 
@@ -409,6 +417,30 @@ func theFieldHoldsTheSubFieldOnce(ctx context.Context, key, typeKey, sub string)
 			}
 			if held := keyedAmong(f.Fields, sub); held != 1 {
 				return fmt.Errorf("the field %q on %q holds %d sub fields %q, want one", key, typeKey, held, sub)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("no declared field is keyed %q", key)
+}
+
+// theFieldHoldsNoSubField asserts no field of the key stands right inside the container.
+func theFieldHoldsNoSubField(ctx context.Context, key, typeKey, sub string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	listed, err := listGroups(w)
+	if err != nil {
+		return err
+	}
+	for _, group := range listed.Items {
+		for _, f := range group.Fields {
+			if f.Key != key {
+				continue
+			}
+			if held := keyedAmong(f.Fields, sub); held != 0 {
+				return fmt.Errorf("the field %q on %q holds %d sub fields %q, want none", key, typeKey, held, sub)
 			}
 			return nil
 		}
