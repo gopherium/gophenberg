@@ -23,7 +23,7 @@ services:
     image: postgres:18
     environment:
       POSTGRES_DB: gophenberg
-      POSTGRES_PASSWORD: change-me
+      POSTGRES_PASSWORD: 'change-me'
     volumes:
       - db-data:/var/lib/postgresql
     healthcheck:
@@ -56,7 +56,13 @@ volumes:
 
 Three values to change:
 
-- **The password**, in both places it appears.
+- **The password**, in both places it appears. Keep the
+  `POSTGRES_PASSWORD` value in single quotes, so a password such as
+  `0012345678` is not read as a number. A long password of only
+  letters and digits is simplest, because it needs nothing more.
+  Otherwise write a `$` as `$$` in both places, a `'` as `''` in
+  `POSTGRES_PASSWORD`, and in `GOPHENBERG_DATABASE_URL` also write an
+  `@` as `%40`, a `/` as `%2F`, a `%` as `%25` and a space as `%20`.
 - **The image tag.** Pin the newest version from the
   [tags page](https://github.com/gopherium/gophenberg/tags), never
   `latest`.
