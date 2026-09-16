@@ -46,4 +46,4 @@ The plugin lifecycle host and wiring generator come from
 
 ## License
 
-Apache-2.0 ([LICENSE](LICENSE)). Every file carries an `SPDX-License-Identifier: Apache-2.0` header. Built frontend bundles include GPL-2.0-or-later `@wordpress/*` packages and are conveyed under GPLv3 terms. See the [README](README.md).
+Apache-2.0 ([LICENSE](LICENSE)). Hand-written source files carry an `SPDX-License-Identifier: Apache-2.0` header. Built frontend bundles include GPL-2.0-or-later `@wordpress/*` packages and are conveyed under GPLv3 terms. See the [README](README.md).
