@@ -237,6 +237,15 @@ test('tells an author where to type in an empty post', async ({ page }) => {
 	)
 })
 
+test('moves focus into the block list when it opens', async ({ page }) => {
+	await openNewDraft(page)
+	await writeThePost(page)
+
+	await page.getByRole('button', { name: 'List view' }).click()
+
+	await expect(page.locator('.gophenberg-editor__outline :focus')).toHaveCount(1)
+})
+
 test('shows a field only while the rule it stands on holds', async ({ page }) => {
 	await openNewDraft(page)
 
