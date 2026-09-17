@@ -1121,10 +1121,6 @@ msgid "Source"
 msgstr "Source"
 
 #, fuzzy
-msgid "Start writing."
-msgstr "Commencez à écrire."
-
-#, fuzzy
 msgid "Steps of"
 msgstr "Pas de"
 

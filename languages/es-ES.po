@@ -601,9 +601,6 @@ msgstr "Algo ha fallado dentro de Gophenberg. Inténtalo de nuevo en un momento,
 msgid "Something went wrong."
 msgstr "Algo ha ido mal."
 
-msgid "Start writing."
-msgstr "Empieza a escribir."
-
 msgid "Tablet"
 msgstr "Tableta"
 

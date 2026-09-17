@@ -1190,9 +1190,6 @@ msgstr ""
 msgid "Source"
 msgstr ""
 
-msgid "Start writing."
-msgstr ""
-
 msgid "Steps of"
 msgstr ""
 
