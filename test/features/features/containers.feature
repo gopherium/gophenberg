@@ -153,6 +153,16 @@ Feature: Container fields
     When the administrator applies the site's own file giving up "name" inside "author"
     Then the field "author" on "post" holds no sub field "name"
 
+  Scenario: An import giving up a sub field stored twice beside another field takes every copy away
+    Given the group "Elsewhere" placed on "post"
+    And the "section" field "author" in "Elsewhere"
+    And the "text" field "name" inside "author"
+    And the "text" field "bio" inside "author"
+    And a second field "name" inside "author" is still stored under the group "Extras"
+    When the administrator applies the site's own file giving up "name" inside "author"
+    Then the field "author" on "post" holds no sub field "name"
+    And the field "author" on "post" holds the sub field "bio"
+
   Scenario: Moving a section carries its sub fields with it
     Given the "section" field "author" in "Extras"
     And the "text" field "name" inside "author"
