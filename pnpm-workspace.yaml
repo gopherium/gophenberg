@@ -25,6 +25,3 @@ minimumReleaseAgeExclude:
 allowBuilds:
   esbuild: false
   msw: false
-
-patchedDependencies:
-  '@wordpress/element@8.4.0': patches/@wordpress__element@8.4.0.patch

@@ -5,7 +5,6 @@ FROM node:26-slim AS frontend
 RUN npm install -g pnpm@12.2.1
 WORKDIR /app
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY patches ./patches
 COPY frontend ./frontend
 COPY sdk/frontend ./sdk/frontend
 COPY sdk/astro/package.json ./sdk/astro/package.json
