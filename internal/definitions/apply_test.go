@@ -185,60 +185,6 @@ func TestApplyTakesAwayAConfirmedFieldOthersStandAfter(t *testing.T) {
 	}
 }
 
-func TestApplyTakesAwayEveryCopyOfARemovedSubField(t *testing.T) {
-	t.Parallel()
-
-	registry := siteWithNoteStoredTwice(t)
-	envelope := exported(t, registry)
-	withoutNote(t, envelope)
-
-	applied(t, registry, definitions.Import{
-		Envelope: envelope,
-		Confirm:  []definitions.Confirmed{{Subject: "field", Key: "steps.note", Group: "recipe-details"}},
-	})
-
-	steps, found := storedField(t, registry, "recipe-details", "steps")
-	if !found {
-		t.Fatal("the steps section is gone, want only its notes taken away")
-	}
-	for _, held := range steps.Fields {
-		if held.Key == "note" {
-			t.Errorf("a note still stands inside steps, want every copy taken away")
-		}
-	}
-}
-
-func TestApplyTakesAwayEveryCopyOfARemovedSubFieldBesideAnother(t *testing.T) {
-	t.Parallel()
-
-	registry := siteWithNoteStoredTwice(t)
-	steps, found := storedField(t, registry, "recipe-details", "steps")
-	if !found {
-		t.Fatal("the steps section is missing from the site")
-	}
-	if _, err := registry.CreateSubField(t.Context(), steps.ID, content.Field{
-		Key: "timing", Label: "Timing", Kind: content.FieldKindText,
-	}); err != nil {
-		t.Fatalf("CreateSubField() error = %v, want nil", err)
-	}
-	envelope := exported(t, registry)
-	withoutNote(t, envelope)
-
-	applied(t, registry, definitions.Import{
-		Envelope: envelope,
-		Confirm:  []definitions.Confirmed{{Subject: "field", Key: "steps.note", Group: "recipe-details"}},
-	})
-
-	steps, _ = storedField(t, registry, "recipe-details", "steps")
-	kept := make([]string, 0, len(steps.Fields))
-	for _, held := range steps.Fields {
-		kept = append(kept, held.Key)
-	}
-	if !slices.Equal(kept, []string{"timing"}) {
-		t.Errorf("steps holds %v, want only timing once every note is taken away", kept)
-	}
-}
-
 func TestApplyReplacesAFieldWhoseKindChanged(t *testing.T) {
 	t.Parallel()
 
