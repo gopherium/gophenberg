@@ -90,7 +90,7 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 						<div className="gophenberg-editor__main">
 							{views.listOpen ? (
 								<div className="gophenberg-editor__outline">
-									<ListView />
+									<ListView focusOnMount />
 								</div>
 							) : null}
 							<div className="gophenberg-editor__content">
