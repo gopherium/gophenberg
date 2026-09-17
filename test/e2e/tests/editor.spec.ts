@@ -226,6 +226,17 @@ test('walks an edit back with undo', async ({ page }) => {
 	await expect(canvas(page).getByText('First words.')).toBeHidden()
 })
 
+test('tells an author where to type in an empty post', async ({ page }) => {
+	await openNewDraft(page)
+
+	const hint = canvas(page).locator('[data-rich-text-placeholder]')
+
+	await expect(hint).toBeAttached()
+	expect(await hint.evaluate((node) => getComputedStyle(node, '::after').content)).toBe(
+		'"Type / to choose a block"',
+	)
+})
+
 test('shows a field only while the rule it stands on holds', async ({ page }) => {
 	await openNewDraft(page)
 
