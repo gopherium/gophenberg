@@ -10,9 +10,6 @@ import {
 } from '../media/editorMedia'
 
 export const EDITOR_SETTINGS = {
-	get bodyPlaceholder() {
-		return __('Start writing.', 'gophenberg')
-	},
 	__experimentalBlockPatterns: [],
 	mediaUpload: editorMediaUpload,
 	allowedMimeTypes: ALLOWED_MIME_TYPES,
