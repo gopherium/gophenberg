@@ -25,6 +25,13 @@ const CANVAS_TYPOGRAPHY = `
 	ol {
 		list-style-type: decimal;
 	}
+	.rich-text [data-rich-text-placeholder] {
+		pointer-events: none;
+	}
+	.rich-text [data-rich-text-placeholder]::after {
+		content: attr(data-rich-text-placeholder);
+		opacity: 0.62;
+	}
 `
 
 const CANVAS_COLUMN = `

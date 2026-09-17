@@ -40,6 +40,14 @@ test('holds the blocks in a readable column', () => {
 	expect(css).toMatch(/margin-left:\s*auto/)
 })
 
+test('shows the hint an empty block carries', () => {
+	const css = CANVAS_STYLES.map((entry) => entry.css).join('\n')
+
+	expect(css).toMatch(
+		/\[data-rich-text-placeholder\]::after\s*\{[^}]*content:\s*attr\(data-rich-text-placeholder\)/,
+	)
+})
+
 test('lets a wide block run wider and a full block run edge to edge', () => {
 	const css = CANVAS_STYLES.map((entry) => entry.css).join('\n')
 
