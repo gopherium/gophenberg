@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { StyleProvider } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
@@ -206,6 +207,28 @@ test('says the library is empty when nothing was uploaded', async () => {
 	await openPicker()
 
 	expect(await screen.findByText(/no media/i)).toBeInTheDocument()
+})
+
+test('styles the search box on the admin page when a block in the canvas opens the library', async () => {
+	const canvas = document.implementation.createHTMLDocument('canvas')
+	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+	render(
+		<QueryClientProvider client={client}>
+			<StyleProvider document={canvas}>
+				<MediaLibraryPicker
+					onSelect={() => {}}
+					render={({ open }) => <button onClick={open}>Media Library</button>}
+				/>
+			</StyleProvider>
+		</QueryClientProvider>,
+	)
+	await userEvent.click(screen.getByRole('button', { name: 'Media Library' }))
+
+	const search = await screen.findByRole('searchbox', { name: 'Search media' })
+	const backdrop = search.parentElement?.querySelector('.components-input-control__backdrop')
+
+	expect(backdrop).toBeInstanceOf(HTMLElement)
+	expect(getComputedStyle(backdrop as HTMLElement).position).toBe('absolute')
 })
 
 test('narrows the library to what the block accepts', () => {
