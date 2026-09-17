@@ -83,7 +83,7 @@ test('places a picture already in the library through the media library picker',
 		createdPosts.push(postId)
 	}
 
-	await canvas(page).getByRole('button', { name: 'Add default block' }).click()
+	await canvas(page).getByRole('document', { name: 'Add default block' }).click()
 	await page.keyboard.type('/image')
 	await page.keyboard.press('Enter')
 	await canvas(page).getByRole('button', { name: 'Media Library' }).click()
@@ -106,7 +106,7 @@ test('places an uploaded picture in a post and publishes it', async ({ page }) =
 	}
 	await page.getByRole('textbox', { name: 'Title' }).fill(POST_TITLE)
 
-	await canvas(page).getByRole('button', { name: 'Add default block' }).click()
+	await canvas(page).getByRole('document', { name: 'Add default block' }).click()
 	await page.keyboard.type('/image')
 	await page.keyboard.press('Enter')
 	const chooserOpens = page.waitForEvent('filechooser')

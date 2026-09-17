@@ -30,11 +30,11 @@ function shown(page: Page, message: string) {
 }
 
 /**
- * Starts writing in the canvas, which opens with no block to type into.
+ * Starts writing in the canvas, which opens on the empty paragraph it shows before any block is stored.
  * @param page - The page to drive.
  */
 async function startWriting(page: Page) {
-	await canvas(page).getByRole('button', { name: 'Add default block' }).click()
+	await canvas(page).getByRole('document', { name: 'Add default block' }).click()
 }
 
 const created: string[] = []
