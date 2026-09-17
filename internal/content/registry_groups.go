@@ -179,6 +179,9 @@ func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (F
 	if err := pluginKeepsField(ctx, parent); err != nil {
 		return Field{}, err
 	}
+	if _, err := fieldAmong(parent.Fields, f.Key); err == nil {
+		return Field{}, ErrFieldTaken
+	}
 	if err := Stands(parent.Fields, f); err != nil {
 		return Field{}, err
 	}
