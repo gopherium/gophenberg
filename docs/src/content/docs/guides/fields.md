@@ -163,7 +163,8 @@ inside it. The field is listed under its container, and every setting
 its kind takes works there exactly as it does at the top. Rename it,
 require it, settle it and move it up or down in the same way. Two
 containers may each hold a field of the same name, because a field is
-named inside the container that holds it.
+named inside the container that holds it. One container holds each
+name once, so a second field of that name inside it is refused.
 
 A flexible content field takes layouts rather than fields, so it
 offers **Add layout** instead. Press it to name a layout, then press

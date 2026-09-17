@@ -11,8 +11,6 @@ import (
 	"strings"
 
 	"github.com/cucumber/godog"
-
-	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // containerPath returns the group and the dotted path addressing the field the key names.
@@ -315,25 +313,9 @@ func initializeContainers(sc *godog.ScenarioContext) {
 		`^the field "([^"]*)" inside "([^"]*)" is still stored under the group "([^"]*)"$`,
 		theFieldInsideIsStillStoredUnder,
 	)
-	sc.Given(
-		`^a second field "([^"]*)" inside "([^"]*)" is still stored under the group "([^"]*)"$`,
-		aSecondFieldInsideIsStillStoredUnder,
-	)
-	sc.Given(
-		`^the second "([^"]*)" inside "([^"]*)" holds the "([^"]*)" field "([^"]*)"$`,
-		theSecondFieldInsideHolds,
-	)
 	sc.Then(
 		`^the field "([^"]*)" on "([^"]*)" holds the sub field "([^"]*)" once$`,
 		theFieldHoldsTheSubFieldOnce,
-	)
-	sc.When(
-		`^the administrator applies the site's own file giving up "([^"]*)" inside "([^"]*)"$`,
-		theAdministratorAppliesTheSitesFileGivingUpInside,
-	)
-	sc.Then(
-		`^the field "([^"]*)" on "([^"]*)" holds no sub field "([^"]*)"$`,
-		theFieldHoldsNoSubField,
 	)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 }
@@ -341,11 +323,6 @@ func initializeContainers(sc *godog.ScenarioContext) {
 // theFieldInsideIsStillStoredUnder stores the sub field inside the parent under the named group.
 func theFieldInsideIsStillStoredUnder(ctx context.Context, key, parent, title string) error {
 	return storedUnderGroup(ctx, key, parent, title, (*memoryTypes).storeFieldUnder)
-}
-
-// aSecondFieldInsideIsStillStoredUnder stores a twin of the sub field inside the parent under the named group.
-func aSecondFieldInsideIsStillStoredUnder(ctx context.Context, key, parent, title string) error {
-	return storedUnderGroup(ctx, key, parent, title, (*memoryTypes).twinFieldUnder)
 }
 
 // theGroupIsNoLongerListed asserts the delete went through and the group is gone from the listing.
@@ -365,19 +342,6 @@ func theGroupIsNoLongerListed(ctx context.Context, title string) error {
 		if held.Title == title {
 			return fmt.Errorf("the group %q is still listed, want it gone", title)
 		}
-	}
-	return nil
-}
-
-// theSecondFieldInsideHolds stores a field of the kind inside the twin of the sub field the parent holds.
-func theSecondFieldInsideHolds(ctx context.Context, key, parent, kind, inside string) error {
-	w, err := worldOf(ctx)
-	if err != nil {
-		return err
-	}
-	held := content.Field{Key: inside, Label: inside, Kind: content.FieldKind(kind)}
-	if !w.contentTypes.growTwin(key, parent, held) {
-		return fmt.Errorf("no second field %q stands inside %q", key, parent)
 	}
 	return nil
 }
@@ -417,30 +381,6 @@ func theFieldHoldsTheSubFieldOnce(ctx context.Context, key, typeKey, sub string)
 			}
 			if held := keyedAmong(f.Fields, sub); held != 1 {
 				return fmt.Errorf("the field %q on %q holds %d sub fields %q, want one", key, typeKey, held, sub)
-			}
-			return nil
-		}
-	}
-	return fmt.Errorf("no declared field is keyed %q", key)
-}
-
-// theFieldHoldsNoSubField asserts no field of the key stands right inside the container.
-func theFieldHoldsNoSubField(ctx context.Context, key, typeKey, sub string) error {
-	w, err := worldOf(ctx)
-	if err != nil {
-		return err
-	}
-	listed, err := listGroups(w)
-	if err != nil {
-		return err
-	}
-	for _, group := range listed.Items {
-		for _, f := range group.Fields {
-			if f.Key != key {
-				continue
-			}
-			if held := keyedAmong(f.Fields, sub); held != 0 {
-				return fmt.Errorf("the field %q on %q holds %d sub fields %q, want none", key, typeKey, held, sub)
 			}
 			return nil
 		}

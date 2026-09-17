@@ -28,6 +28,20 @@ func storeHoldingASection() *groupingStore {
 	return store
 }
 
+func TestCreateSubFieldRefusesAKeyTheContainerAlreadyHolds(t *testing.T) {
+	t.Parallel()
+
+	types := content.NewRegistry(storeHoldingASection())
+
+	_, err := types.CreateSubField(t.Context(), 7, content.Field{
+		Key: "name", Label: "Name again", Kind: content.FieldKindText,
+	})
+
+	if !errors.Is(err, content.ErrFieldTaken) {
+		t.Errorf("CreateSubField() error = %v, want %v", err, content.ErrFieldTaken)
+	}
+}
+
 func TestUpdateSubFieldCarriesTheEditOntoTheStoredField(t *testing.T) {
 	t.Parallel()
 

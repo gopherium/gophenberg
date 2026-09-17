@@ -499,23 +499,6 @@ func TestDeleteFieldInGroupReportsADefinitionItCannotRemove(t *testing.T) {
 	}
 }
 
-func TestDeleteGroupReportsATwinItCannotDrop(t *testing.T) {
-	t.Parallel()
-
-	store, _, pool := typedStore(t)
-	storeType(t, store, "car")
-	source, _, section := sectionAcrossGroups(t, store)
-	declaredInside(t, store, section, "name", content.FieldKindText)
-	plantTwin(t, pool, source.ID, section.ID, "name", string(content.FieldKindText), 1)
-	raiseOn(t, pool, "core.content_fields", "DELETE")
-
-	err := store.DeleteGroup(t.Context(), source.ID)
-
-	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
-		t.Errorf("DeleteGroup() error = %v, want the failing twin removal reported", err)
-	}
-}
-
 // lockTimedTypes returns a type store whose statements give up on a held lock, and its database address.
 func lockTimedTypes(t *testing.T) (*postgres.TypeStore, string) {
 	t.Helper()
@@ -612,41 +595,6 @@ func TestDeleteSubFieldReportsAFieldGroupLockItCannotTake(t *testing.T) {
 
 	if err := types.DeleteSubField(t.Context(), name.ID); err == nil {
 		t.Error("DeleteSubField() error = nil, want the held field group lock reported")
-	}
-}
-
-func TestDeleteGroupReportsAFieldItCannotFold(t *testing.T) {
-	t.Parallel()
-
-	store, _, pool := typedStore(t)
-	storeType(t, store, "car")
-	source, _, section := sectionAcrossGroups(t, store)
-	declaredInside(t, store, section, "profile", content.FieldKindSection)
-	twin := plantTwin(t, pool, source.ID, section.ID, "profile", string(content.FieldKindSection), 1)
-	plantTwin(t, pool, source.ID, twin, "bio", string(content.FieldKindText), 2)
-	raiseOn(t, pool, "core.content_fields", "UPDATE")
-
-	err := store.DeleteGroup(t.Context(), source.ID)
-
-	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
-		t.Errorf("DeleteGroup() error = %v, want the failing fold reported", err)
-	}
-}
-
-func TestDeleteGroupReportsAnIndexItCannotCopy(t *testing.T) {
-	t.Parallel()
-
-	store, _, pool := typedStore(t)
-	storeType(t, store, "car")
-	source, _, section := sectionAcrossGroups(t, store)
-	declaredInside(t, store, section, "name", content.FieldKindText)
-	plantTwin(t, pool, source.ID, section.ID, "name", string(content.FieldKindText), 1)
-	raiseOn(t, pool, "core.content_relations", "INSERT")
-
-	err := store.DeleteGroup(t.Context(), source.ID)
-
-	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
-		t.Errorf("DeleteGroup() error = %v, want the failing index copy reported", err)
 	}
 }
 

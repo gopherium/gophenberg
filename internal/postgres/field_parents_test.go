@@ -153,6 +153,37 @@ func groupOfField(t *testing.T, pool *pgxpool.Pool, id int) int {
 	return held
 }
 
+func TestGroupsReadASubFieldsGroupFromItsContainer(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	source, landing, section := sectionAcrossGroups(t, store)
+	name := declaredInside(t, store, section, "name", content.FieldKindText)
+	if _, err := pool.Exec(t.Context(),
+		`UPDATE core.content_fields SET group_id = $1 WHERE id = $2`, source.ID, name.ID); err != nil {
+		t.Fatalf("leaving the sub field behind, as a move before the repair did: %v, want nil", err)
+	}
+
+	groups, err := store.ListGroups(t.Context())
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v, want nil", err)
+	}
+
+	for _, g := range groups {
+		for _, f := range g.Fields {
+			if f.ID != section.ID {
+				continue
+			}
+			if len(f.Fields) != 1 || f.Fields[0].GroupID != landing.ID {
+				t.Fatalf("the section holds %+v, want name read in the section's group %d", f.Fields, landing.ID)
+			}
+			return
+		}
+	}
+	t.Fatal("no group lists the section")
+}
+
 func TestMovingASectionCarriesASubFieldTwoLevelsDown(t *testing.T) {
 	t.Parallel()
 

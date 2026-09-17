@@ -21,6 +21,12 @@ Feature: Container fields
     When the administrator declares the "text" field "name" inside "editor"
     Then the field "editor" on "post" holds the sub field "name"
 
+  Scenario: A second sub field of a name inside one section is refused
+    Given the "section" field "author" in "Extras"
+    And the "text" field "name" inside "author"
+    When the administrator declares the "text" field "name" inside "author"
+    Then the request is refused with the code "field_taken"
+
   Scenario: A sub field the section does not declare is refused
     Given the "section" field "author" in "Extras"
     And the "text" field "name" inside "author"
@@ -124,44 +130,6 @@ Feature: Container fields
     When the administrator deletes the group "Extras"
     Then the group "Extras" is no longer listed
     And the field "author" on "post" holds the sub field "name" once
-
-  Scenario: Deleting a group drops the twin it still stores inside another group's container
-    Given the group "Elsewhere" placed on "post"
-    And the "section" field "author" in "Elsewhere"
-    And the "text" field "name" inside "author"
-    And a second field "name" inside "author" is still stored under the group "Extras"
-    When the administrator deletes the group "Extras"
-    Then the group "Extras" is no longer listed
-    And the field "author" on "post" holds the sub field "name" once
-
-  Scenario: Deleting a group keeps what only its twin container holds
-    Given the group "Elsewhere" placed on "post"
-    And the "section" field "author" in "Elsewhere"
-    And the "section" field "profile" inside "author"
-    And a second field "profile" inside "author" is still stored under the group "Extras"
-    And the second "profile" inside "author" holds the "text" field "bio"
-    When the administrator deletes the group "Extras"
-    Then the group "Extras" is no longer listed
-    And the field "author" on "post" holds the sub field "profile" once
-    And the field "author" on "post" holds the sub field "bio"
-
-  Scenario: An import giving up a sub field stored twice takes every copy away
-    Given the group "Elsewhere" placed on "post"
-    And the "section" field "author" in "Elsewhere"
-    And the "text" field "name" inside "author"
-    And a second field "name" inside "author" is still stored under the group "Extras"
-    When the administrator applies the site's own file giving up "name" inside "author"
-    Then the field "author" on "post" holds no sub field "name"
-
-  Scenario: An import giving up a sub field stored twice beside another field takes every copy away
-    Given the group "Elsewhere" placed on "post"
-    And the "section" field "author" in "Elsewhere"
-    And the "text" field "name" inside "author"
-    And the "text" field "bio" inside "author"
-    And a second field "name" inside "author" is still stored under the group "Extras"
-    When the administrator applies the site's own file giving up "name" inside "author"
-    Then the field "author" on "post" holds no sub field "name"
-    And the field "author" on "post" holds the sub field "bio"
 
   Scenario: Moving a section carries its sub fields with it
     Given the "section" field "author" in "Extras"

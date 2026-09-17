@@ -124,7 +124,7 @@ func (s *memoryTypes) UpdateGroup(_ context.Context, g content.Group) (content.G
 	return content.Group{}, content.ErrGroupNotFound
 }
 
-// DeleteGroup removes the group and every field it holds, keeping the fields it stores inside other groups.
+// DeleteGroup removes the group and every field it holds, carrying what it stores inside other groups' containers.
 func (s *memoryTypes) DeleteGroup(_ context.Context, id int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -132,105 +132,24 @@ func (s *memoryTypes) DeleteGroup(_ context.Context, id int) error {
 		if held.ID != id {
 			continue
 		}
-		before := append([]content.Group{}, s.groups...)
-		steps := content.SettledFields(s.groups, id)
 		s.groups = append(s.groups[:i], s.groups[i+1:]...)
-		for _, step := range steps {
-			s.settle(step)
+		for j, kept := range s.groups {
+			s.groups[j].Fields = carriedInto(kept.Fields, kept.ID)
 		}
-		return s.refuseLeftover(before, id)
+		return nil
 	}
 	return content.ErrGroupNotFound
 }
 
-// refuseLeftover restores the groups and reports a field still stored under the deleted group.
-func (s *memoryTypes) refuseLeftover(before []content.Group, id int) error {
-	for _, held := range s.groups {
-		if stray, found := fieldStoredUnder(held.Fields, id); found {
-			s.groups = before
-			return fmt.Errorf("memory: field %d is still stored under the deleted group %d", stray, id)
-		}
-	}
-	return nil
-}
-
-// fieldStoredUnder returns the identity of a declared field stored under the group, however deep it stands.
-func fieldStoredUnder(declared []content.Field, groupID int) (int, bool) {
-	for _, f := range declared {
-		if f.GroupID == groupID {
-			return f.ID, true
-		}
-		if id, found := fieldStoredUnder(f.Fields, groupID); found {
-			return id, true
-		}
-	}
-	return 0, false
-}
-
-// settle applies one settling change to the stored fields.
-func (s *memoryTypes) settle(step content.Settling) {
-	switch {
-	case step.Drop:
-		s.prune(step.ID)
-	case step.Parent != 0:
-		moved := s.fieldByID(step.ID)
-		s.prune(step.ID)
-		moved.ParentID, moved.GroupID = step.Parent, step.Group
-		for i, held := range s.groups {
-			if grown, found := grownInside(held.Fields, step.Parent, moved); found {
-				s.groups[i].Fields = grown
-			}
-		}
-	case step.Group != 0:
-		for i, held := range s.groups {
-			s.groups[i].Fields = regroupedInside(held.Fields, step.ID, step.Group)
-		}
-	}
-}
-
-// prune removes the field the identity names, wherever it stands.
-func (s *memoryTypes) prune(id int) {
-	for i, held := range s.groups {
-		if pruned, found := prunedInside(held.Fields, id); found {
-			s.groups[i].Fields = pruned
-		}
-	}
-}
-
-// fieldByID returns the stored field the identity names with every field inside it.
-func (s *memoryTypes) fieldByID(id int) content.Field {
-	for _, held := range s.groups {
-		if f, found := fieldInside(held.Fields, id); found {
-			return f
-		}
-	}
-	return content.Field{}
-}
-
-// fieldInside returns the declared field the identity names, however deep it stands.
-func fieldInside(declared []content.Field, id int) (content.Field, bool) {
-	for _, held := range declared {
-		if held.ID == id {
-			return held, true
-		}
-		if f, found := fieldInside(held.Fields, id); found {
-			return f, true
-		}
-	}
-	return content.Field{}, false
-}
-
-// regroupedInside returns the declared fields with the one the identity names stored under the group.
-func regroupedInside(declared []content.Field, id, group int) []content.Field {
-	regrouped := make([]content.Field, len(declared))
+// carriedInto returns the declared fields, and every field inside them, stored under the group.
+func carriedInto(declared []content.Field, groupID int) []content.Field {
+	carried := make([]content.Field, len(declared))
 	for i, held := range declared {
-		if held.ID == id {
-			held.GroupID = group
-		}
-		held.Fields = regroupedInside(held.Fields, id, group)
-		regrouped[i] = held
+		held.GroupID = groupID
+		held.Fields = carriedInto(held.Fields, groupID)
+		carried[i] = held
 	}
-	return regrouped
+	return carried
 }
 
 // ReorderGroups stores the given order on the groups.
@@ -400,53 +319,6 @@ func (s *memoryTypes) storeFieldUnder(key, parent string, groupID int) bool {
 					s.groups[i].Fields[j].Fields[k].GroupID = groupID
 					return true
 				}
-			}
-		}
-	}
-	return false
-}
-
-// twinFieldUnder stores a twin of the sub field inside the parent under the group, reporting whether one stands there.
-func (s *memoryTypes) twinFieldUnder(key, parent string, groupID int) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i, held := range s.groups {
-		for j, container := range held.Fields {
-			if container.Key != parent {
-				continue
-			}
-			for _, inside := range container.Fields {
-				if inside.Key != key {
-					continue
-				}
-				s.fieldIDs++
-				inside.ID, inside.GroupID, inside.Fields = s.fieldIDs, groupID, nil
-				s.groups[i].Fields[j].Fields = append(container.Fields, inside)
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// growTwin stores the field inside the last sub field of the key inside the parent, reporting whether one stands.
-func (s *memoryTypes) growTwin(key, parent string, f content.Field) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i, held := range s.groups {
-		for j, container := range held.Fields {
-			if container.Key != parent {
-				continue
-			}
-			for k := len(container.Fields) - 1; k >= 0; k-- {
-				twin := container.Fields[k]
-				if twin.Key != key {
-					continue
-				}
-				s.fieldIDs++
-				f.ID, f.GroupID, f.ParentID = s.fieldIDs, twin.GroupID, twin.ID
-				s.groups[i].Fields[j].Fields[k].Fields = append(append([]content.Field{}, twin.Fields...), f)
-				return true
 			}
 		}
 	}
