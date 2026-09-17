@@ -53,6 +53,6 @@
 	},
 	"dependencies": {
 		"@astrojs/node": "^11.1.5",
-		"@wordpress/block-serialization-default-parser": "5.52.0"
+		"@wordpress/block-serialization-default-parser": "5.55.0"
 	}
 }
