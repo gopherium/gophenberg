@@ -64,13 +64,14 @@ func fieldsByGroup(declared []db.CoreContentField) map[int][]content.Field {
 	return held
 }
 
-// grownField returns the field carrying the sub fields standing under it, however deep they run.
+// grownField returns the field carrying the sub fields standing under it in its group, however deep they run.
 func grownField(f content.Field, inside map[int][]content.Field) content.Field {
 	if len(inside[f.ID]) == 0 {
 		return f
 	}
 	grown := make([]content.Field, 0, len(inside[f.ID]))
 	for _, sub := range inside[f.ID] {
+		sub.GroupID = f.GroupID
 		grown = append(grown, grownField(sub, inside))
 	}
 	f.Fields = grown
@@ -356,12 +357,9 @@ func (s *TypeStore) DeleteGroup(ctx context.Context, id int) error {
 	return nil
 }
 
-// deleteGroupRows removes the group row once its fields are locked, deleted and settled.
+// deleteGroupRows removes the group and its own fields, carrying what it stores inside other groups' containers.
 func deleteGroupRows(ctx context.Context, queries *db.Queries, id int) error {
 	if err := queries.LockFieldGroups(ctx); err != nil {
-		return err
-	}
-	if err := queries.LockFieldsOfGroup(ctx, int32(id)); err != nil {
 		return err
 	}
 	groups, err := groupsWithFields(ctx, queries)
@@ -372,10 +370,10 @@ func deleteGroupRows(ctx context.Context, queries *db.Queries, id int) error {
 	if !found {
 		return content.ErrGroupNotFound
 	}
-	if err := deleteFieldsOf(ctx, queries, groups, held); err != nil {
+	if err := queries.CarryStrayFieldsOfGroup(ctx, int32(id)); err != nil {
 		return err
 	}
-	if err := settleFieldsOf(ctx, queries, groups, held.ID); err != nil {
+	if err := deleteFieldsOf(ctx, queries, groups, held); err != nil {
 		return err
 	}
 	_, err = queries.DeleteFieldGroup(ctx, int32(id))
@@ -393,41 +391,6 @@ func deleteFieldsOf(ctx context.Context, queries *db.Queries, groups []content.G
 		if err := deleteFieldRow(ctx, queries, held.ID, f.Key, swept); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-// settleFieldsOf keeps the fields the leaving group stores inside other groups' containers.
-func settleFieldsOf(ctx context.Context, queries *db.Queries, groups []content.Group, leaving int) error {
-	for _, step := range content.SettledFields(groups, leaving) {
-		if err := settleField(ctx, queries, step); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// settleField applies one settling change to the field rows and the items they index.
-func settleField(ctx context.Context, queries *db.Queries, step content.Settling) error {
-	if step.Kept != 0 {
-		if err := queries.CopyContentRelations(ctx, db.CopyContentRelationsParams{
-			Kept: int32(step.Kept), Dropped: int32(step.ID),
-		}); err != nil {
-			return err
-		}
-	}
-	switch {
-	case step.Drop:
-		_, err := queries.DeleteFieldByID(ctx, int32(step.ID))
-		return err
-	case step.Parent != 0:
-		return queries.ReparentContentField(ctx, db.ReparentContentFieldParams{
-			ParentID: int32(step.Parent), ToGroup: int32(step.Group), ID: int32(step.ID),
-		})
-	case step.Group != 0:
-		return queries.CarryContentField(ctx, db.CarryContentFieldParams{
-			ToGroup: int32(step.Group), ID: int32(step.ID),
-		})
 	}
 	return nil
 }

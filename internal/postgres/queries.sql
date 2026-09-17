@@ -466,28 +466,17 @@ UPDATE core.content_fields AS moved
 SET group_id = @to_group
 WHERE moved.id IN (SELECT inside.id FROM inside);
 
--- name: CarryContentField :exec
-UPDATE core.content_fields SET group_id = @to_group WHERE id = @id;
-
--- name: ReparentContentField :exec
-UPDATE core.content_fields AS moved
-SET parent_field_id = @parent_id::integer,
-    group_id = @to_group,
-    position = (
-        SELECT COALESCE(MAX(landing.position), 0) + 1
-        FROM core.content_fields AS landing WHERE landing.parent_field_id = @parent_id::integer
-    )
-WHERE moved.id = @id;
-
--- name: LockFieldsOfGroup :exec
-SELECT id FROM core.content_fields WHERE group_id = @group_id FOR UPDATE;
-
--- name: CopyContentRelations :exec
-INSERT INTO core.content_relations (from_id, field_id, to_id, position, sort_at, visible)
-SELECT r.from_id, @kept::integer, r.to_id, r.position, r.sort_at, r.visible
-FROM core.content_relations r
-WHERE r.field_id = @dropped::integer
-ON CONFLICT (from_id, field_id, to_id) DO NOTHING;
+-- name: CarryStrayFieldsOfGroup :exec
+WITH RECURSIVE rooted AS (
+    SELECT top.id, top.group_id FROM core.content_fields AS top WHERE top.parent_field_id IS NULL
+    UNION ALL
+    SELECT below.id, rooted.group_id
+    FROM core.content_fields AS below JOIN rooted ON below.parent_field_id = rooted.id
+)
+UPDATE core.content_fields AS carried
+SET group_id = rooted.group_id
+FROM rooted
+WHERE carried.id = rooted.id AND carried.group_id = @group_id AND rooted.group_id <> @group_id;
 
 -- name: ListContentFieldsOfGroup :many
 SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin

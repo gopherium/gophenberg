@@ -89,17 +89,21 @@ func (q *Queries) AdoptFieldsInGroup(ctx context.Context, arg AdoptFieldsInGroup
 	return err
 }
 
-const carryContentField = `-- name: CarryContentField :exec
-UPDATE core.content_fields SET group_id = $1 WHERE id = $2
+const carryStrayFieldsOfGroup = `-- name: CarryStrayFieldsOfGroup :exec
+WITH RECURSIVE rooted AS (
+    SELECT top.id, top.group_id FROM core.content_fields AS top WHERE top.parent_field_id IS NULL
+    UNION ALL
+    SELECT below.id, rooted.group_id
+    FROM core.content_fields AS below JOIN rooted ON below.parent_field_id = rooted.id
+)
+UPDATE core.content_fields AS carried
+SET group_id = rooted.group_id
+FROM rooted
+WHERE carried.id = rooted.id AND carried.group_id = $1 AND rooted.group_id <> $1
 `
 
-type CarryContentFieldParams struct {
-	ToGroup int32
-	ID      int32
-}
-
-func (q *Queries) CarryContentField(ctx context.Context, arg CarryContentFieldParams) error {
-	_, err := q.db.Exec(ctx, carryContentField, arg.ToGroup, arg.ID)
+func (q *Queries) CarryStrayFieldsOfGroup(ctx context.Context, groupID int32) error {
+	_, err := q.db.Exec(ctx, carryStrayFieldsOfGroup, groupID)
 	return err
 }
 
@@ -167,24 +171,6 @@ func (q *Queries) ContentDepth(ctx context.Context, id uuid.UUID) (int32, error)
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
-}
-
-const copyContentRelations = `-- name: CopyContentRelations :exec
-INSERT INTO core.content_relations (from_id, field_id, to_id, position, sort_at, visible)
-SELECT r.from_id, $1::integer, r.to_id, r.position, r.sort_at, r.visible
-FROM core.content_relations r
-WHERE r.field_id = $2::integer
-ON CONFLICT (from_id, field_id, to_id) DO NOTHING
-`
-
-type CopyContentRelationsParams struct {
-	Kept    int32
-	Dropped int32
-}
-
-func (q *Queries) CopyContentRelations(ctx context.Context, arg CopyContentRelationsParams) error {
-	_, err := q.db.Exec(ctx, copyContentRelations, arg.Kept, arg.Dropped)
-	return err
 }
 
 const countChildren = `-- name: CountChildren :one
@@ -1884,15 +1870,6 @@ func (q *Queries) LockFieldGroups(ctx context.Context) error {
 	return err
 }
 
-const lockFieldsOfGroup = `-- name: LockFieldsOfGroup :exec
-SELECT id FROM core.content_fields WHERE group_id = $1 FOR UPDATE
-`
-
-func (q *Queries) LockFieldsOfGroup(ctx context.Context, groupID int32) error {
-	_, err := q.db.Exec(ctx, lockFieldsOfGroup, groupID)
-	return err
-}
-
 const moveContentField = `-- name: MoveContentField :one
 UPDATE core.content_fields AS moved
 SET group_id = $1,
@@ -2133,28 +2110,6 @@ type ReorderSubContentFieldsParams struct {
 
 func (q *Queries) ReorderSubContentFields(ctx context.Context, arg ReorderSubContentFieldsParams) error {
 	_, err := q.db.Exec(ctx, reorderSubContentFields, arg.ParentFieldID, arg.Keys)
-	return err
-}
-
-const reparentContentField = `-- name: ReparentContentField :exec
-UPDATE core.content_fields AS moved
-SET parent_field_id = $1::integer,
-    group_id = $2,
-    position = (
-        SELECT COALESCE(MAX(landing.position), 0) + 1
-        FROM core.content_fields AS landing WHERE landing.parent_field_id = $1::integer
-    )
-WHERE moved.id = $3
-`
-
-type ReparentContentFieldParams struct {
-	ParentID int32
-	ToGroup  int32
-	ID       int32
-}
-
-func (q *Queries) ReparentContentField(ctx context.Context, arg ReparentContentFieldParams) error {
-	_, err := q.db.Exec(ctx, reparentContentField, arg.ParentID, arg.ToGroup, arg.ID)
 	return err
 }
 
