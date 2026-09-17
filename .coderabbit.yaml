@@ -24,6 +24,11 @@ reviews:
       instructions: >-
         Migrations carry only the goose directive comments they need and one SPDX line. Never ask
         for any other comment to be added to a migration.
+    - path: "**/*.{feature,md,mdx}"
+      instructions: >-
+        Only hand-written source code carries an SPDX header. Gherkin feature files and Markdown
+        pages are specs and documentation, and none of them carries one, so never ask for an SPDX
+        or license header in these files.
     - path: "**/*.json"
       instructions: >-
         JSON has no comment syntax, so never ask for an SPDX or license header in a JSON file.
