@@ -96,6 +96,28 @@ test('places a picture already in the library through the media library picker',
 	await expect(canvas(page).locator('img[src^="/media/"]')).toBeVisible()
 })
 
+test('frames the media library search box when an image block opens the library', async ({ page }) => {
+	await page.goto('/admin/content/post')
+	await page.getByRole('button', { name: 'Add New' }).click()
+	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
+	const postId = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
+	if (postId !== undefined) {
+		createdPosts.push(postId)
+	}
+
+	await canvas(page).getByRole('document', { name: 'Add default block' }).click()
+	await page.keyboard.type('/image')
+	await page.keyboard.press('Enter')
+	await canvas(page).getByRole('button', { name: 'Media Library' }).click()
+
+	const library = page.getByRole('dialog')
+	await library.getByRole('searchbox', { name: 'Search media' }).focus()
+	const frame = library.locator('.components-input-control__backdrop')
+
+	await expect(frame).toHaveCSS('position', 'absolute')
+	expect((await frame.boundingBox())?.height).toBeGreaterThan(0)
+})
+
 test('places an uploaded picture in a post and publishes it', async ({ page }) => {
 	await page.goto('/admin/content/post')
 	await page.getByRole('button', { name: 'Add New' }).click()
