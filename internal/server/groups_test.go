@@ -581,6 +581,112 @@ func TestGroupFieldMoveCarriesTheFieldAcross(t *testing.T) {
 	}
 }
 
+// groupTree is the field group listing as a move test reads it back, the fields nested as declared.
+type groupTree struct {
+	Items []struct {
+		ID     int `json:"id"`
+		Fields []struct {
+			Key    string `json:"key"`
+			Fields []struct {
+				Key string `json:"key"`
+			} `json:"fields"`
+		} `json:"fields"`
+	} `json:"items"`
+}
+
+// insideOf returns the keys the container holds inside the group, as the listing serves them.
+func insideOf(t *testing.T, handler http.Handler, groupID int, container string) []string {
+	t.Helper()
+	listed := decodeBody[groupTree](t, doRequest(t, handler, http.MethodGet, "/api/groups", ""))
+	for _, g := range listed.Items {
+		for _, f := range g.Fields {
+			if g.ID != groupID || f.Key != container {
+				continue
+			}
+			keys := make([]string, 0, len(f.Fields))
+			for _, inside := range f.Fields {
+				keys = append(keys, inside.Key)
+			}
+			return keys
+		}
+	}
+	t.Fatalf("the group %d holds no container %q", groupID, container)
+	return nil
+}
+
+func TestGroupFieldMoveCarriesTheFieldInsideAContainer(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	from := createGroup(t, handler, "Article details")
+	for _, body := range []map[string]any{
+		{"key": "details", "label": "Details", "kind": "section"},
+		{"key": "subtitle", "label": "Subtitle", "kind": "text"},
+	} {
+		if declared := doRequest(t, handler, http.MethodPost, groupPath(from)+"/fields",
+			groupBody(t, body)); declared.Code != http.StatusCreated {
+			t.Fatalf("declaring %v: status = %d", body["key"], declared.Code)
+		}
+	}
+
+	recorder := doRequest(t, handler, http.MethodPost, groupPath(from)+"/fields/subtitle/move",
+		groupBody(t, map[string]any{"to_group": from, "to_parent": "details"}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if held := insideOf(t, handler, from, "details"); len(held) != 1 || held[0] != "subtitle" {
+		t.Errorf("the section holds %v, want the moved field alone", held)
+	}
+}
+
+func TestGroupFieldMoveReportsAKeyTheContainerHolds(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	from := createGroup(t, handler, "Article details")
+	for path, body := range map[string]map[string]any{
+		"/fields":         {"key": "details", "label": "Details", "kind": "section"},
+		"/fields/details": {"key": "subtitle", "label": "Subtitle", "kind": "text"},
+	} {
+		if declared := doRequest(t, handler, http.MethodPost, groupPath(from)+path,
+			groupBody(t, body)); declared.Code != http.StatusCreated {
+			t.Fatalf("declaring %v: status = %d, body %s", body["key"], declared.Code, declared.Body.String())
+		}
+	}
+	declared := doRequest(t, handler, http.MethodPost, groupPath(from)+"/fields",
+		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the top subtitle: status = %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPost, groupPath(from)+"/fields/subtitle/move",
+		groupBody(t, map[string]any{"to_group": from, "to_parent": "details"}))
+
+	if code := errorCode(t, recorder); code != "field_taken" {
+		t.Errorf("code = %q, want field_taken, body %s", code, recorder.Body.String())
+	}
+}
+
+func TestGroupFieldMoveReportsAParentThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	from := createGroup(t, handler, "Article details")
+	declared := doRequest(t, handler, http.MethodPost, groupPath(from)+"/fields",
+		groupBody(t, map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}))
+	if declared.Code != http.StatusCreated {
+		t.Fatalf("declaring the field: status = %d", declared.Code)
+	}
+
+	recorder := doRequest(t, handler, http.MethodPost, groupPath(from)+"/fields/subtitle/move",
+		groupBody(t, map[string]any{"to_group": from, "to_parent": "absent"}))
+
+	if code := errorCode(t, recorder); code != "field_not_found" {
+		t.Errorf("code = %q, want field_not_found, body %s", code, recorder.Body.String())
+	}
+}
+
 func TestGroupParamsAnswerTheSourcesARuleCanRead(t *testing.T) {
 	t.Parallel()
 

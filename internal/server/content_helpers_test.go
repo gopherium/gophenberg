@@ -809,34 +809,51 @@ func (s *fakeTypeStore) ReorderFieldsInGroup(_ context.Context, groupID int, key
 	return content.ErrGroupNotFound
 }
 
-// MoveField carries the field into another group.
-func (s *fakeTypeStore) MoveField(_ context.Context, groupID int, key string, toGroup int) (content.Field, error) {
+// MoveField carries the field to the top of the group, or inside the container the parent names.
+func (s *fakeTypeStore) MoveField(_ context.Context, id, toGroup, toParent int) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var carried content.Field
-	for i, held := range s.groups {
-		if held.ID != groupID {
-			continue
-		}
-		for at, f := range held.Fields {
-			if f.Key == key {
-				carried = f
-				s.groups[i].Fields = append(held.Fields[:at], held.Fields[at+1:]...)
-				break
-			}
+	found := false
+	for i := range s.groups {
+		if s.groups[i].Fields, carried, found = carriedOut(s.groups[i].Fields, id); found {
+			break
 		}
 	}
-	if carried.Key == "" {
+	if !found {
 		return content.Field{}, content.ErrFieldNotFound
 	}
-	carried.GroupID = toGroup
+	carried.GroupID, carried.ParentID = toGroup, toParent
 	for i, held := range s.groups {
-		if held.ID == toGroup {
+		if held.ID != toGroup {
+			continue
+		}
+		if toParent == 0 {
 			s.groups[i].Fields = append(held.Fields, carried)
 			return carried, nil
 		}
+		grown, found := fieldGrown(held.Fields, toParent, carried)
+		if !found {
+			return content.Field{}, content.ErrFieldNotFound
+		}
+		s.groups[i].Fields = grown
+		return carried, nil
 	}
 	return content.Field{}, content.ErrGroupNotFound
+}
+
+// carriedOut returns the fields without the one carrying the identity, and that field, however deep it stood.
+func carriedOut(fields []content.Field, id int) ([]content.Field, content.Field, bool) {
+	for i := range fields {
+		if fields[i].ID == id {
+			return append(fields[:i:i], fields[i+1:]...), fields[i], true
+		}
+		if inside, held, found := carriedOut(fields[i].Fields, id); found {
+			fields[i].Fields = inside
+			return fields, held, true
+		}
+	}
+	return fields, content.Field{}, false
 }
 
 // ListGroups returns the stored groups beside one per type holding the fields it declares.

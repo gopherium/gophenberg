@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -330,7 +331,12 @@ func (s *server) handleSubFieldDelete() http.HandlerFunc {
 
 // fieldAtPath returns the field the request path addresses inside its group, however deep it stands.
 func (s *server) fieldAtPath(r *http.Request, groupID int) (content.Field, error) {
-	groups, err := s.types.Groups(r.Context())
+	return s.fieldIn(r.Context(), groupID, chi.URLParam(r, "fieldPath"))
+}
+
+// fieldIn returns the field the dotted path addresses inside the group, however deep it stands.
+func (s *server) fieldIn(ctx context.Context, groupID int, path string) (content.Field, error) {
+	groups, err := s.types.Groups(ctx)
 	if err != nil {
 		return content.Field{}, err
 	}
@@ -338,9 +344,18 @@ func (s *server) fieldAtPath(r *http.Request, groupID int) (content.Field, error
 		if g.ID != groupID {
 			continue
 		}
-		return fieldDown(g.Fields, strings.Split(chi.URLParam(r, "fieldPath"), "."))
+		return fieldDown(g.Fields, strings.Split(path, "."))
 	}
 	return content.Field{}, content.ErrGroupNotFound
+}
+
+// parentIn returns the identity of the container the dotted path names inside the group, zero for its top.
+func (s *server) parentIn(ctx context.Context, groupID int, path string) (int, error) {
+	if path == "" {
+		return 0, nil
+	}
+	held, err := s.fieldIn(ctx, groupID, path)
+	return held.ID, err
 }
 
 // fieldDown returns the field the keys address among the declared ones.
@@ -512,10 +527,11 @@ func (s *server) handleGroupFieldOrder() http.HandlerFunc {
 	}
 }
 
-// handleGroupFieldMove returns an http.HandlerFunc carrying a field into another group.
+// handleGroupFieldMove returns an http.HandlerFunc carrying a field to the top of a group or inside a container of it.
 func (s *server) handleGroupFieldMove() http.HandlerFunc {
 	type request struct {
-		ToGroup int `json:"to_group"`
+		ToGroup  int    `json:"to_group"`
+		ToParent string `json:"to_parent"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := groupIDOf(r)
@@ -528,7 +544,17 @@ func (s *server) handleGroupFieldMove() http.HandlerFunc {
 			respondBodyError(w, err)
 			return
 		}
-		moved, err := s.types.MoveField(r.Context(), id, chi.URLParam(r, "fieldKey"), req.ToGroup)
+		leaving, err := s.fieldAtPath(r, id)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		parent, err := s.parentIn(r.Context(), req.ToGroup, req.ToParent)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		moved, err := s.types.MoveField(r.Context(), leaving.ID, req.ToGroup, parent)
 		if err != nil {
 			respondDomainError(w, err)
 			return
