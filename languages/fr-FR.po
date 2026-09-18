@@ -2336,6 +2336,10 @@ msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key.
 msgstr "L'extension %(plugin)s déclare aussi %(name)s, et le site garde la clé."
 
 #, fuzzy
+msgid "The %(plugin)s plugin declares %(name)s flat, and the site keeps it nesting while its items sit inside one another."
+msgstr "L'extension %(plugin)s déclare %(name)s sans imbrication, et le site continue de l'imbriquer tant que ses éléments se trouvent les uns dans les autres."
+
+#, fuzzy
 msgid "Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again."
 msgstr "Gophenberg ne connaît aucune sorte de définition nommée %(subject)s, rien n'a donc été repris. Rechargez la page pour que l'admin et le serveur se rejoignent à nouveau."
 

@@ -1256,6 +1256,9 @@ msgstr ""
 msgid "The %(plugin)s plugin declared these fields, so they change only in its code."
 msgstr ""
 
+msgid "The %(plugin)s plugin declares %(name)s flat, and the site keeps it nesting while its items sit inside one another."
+msgstr ""
+
 msgid "The browser kept an unsaved version of this post."
 msgstr ""
 

@@ -52,7 +52,8 @@ nesting** turns it off, and is refused while any item of the type
 still sits inside another, the ones in the trash included. Move those
 to the top level first. An imported definitions file meets the same
 rule: a type it marks flat keeps nesting while its items nest, and the
-plan says so before you apply it.
+plan says so before you apply it. A plugin that marks its own type
+flat meets it too, and the type keeps nesting until those items move.
 
 ## Turning a type off
 
