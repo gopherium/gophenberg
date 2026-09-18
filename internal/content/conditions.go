@@ -312,6 +312,11 @@ func Unreferenced(fields []Field, key string) error {
 	if !found {
 		return nil
 	}
+	return ReadBy(key, by)
+}
+
+// ReadBy returns the refusal to take a field away while the named one reads it.
+func ReadBy(key, by string) error {
 	return Refuse(ErrFieldReferenced, "field_referenced",
 		fmt.Sprintf("%s: %s reads %s", ErrFieldReferenced, by, key), Details{"field": key, "by": by})
 }

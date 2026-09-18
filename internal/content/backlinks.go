@@ -55,12 +55,34 @@ func SourceKept(groups []Group, groupKey, fieldKey string) error {
 			if !reads(f, groupKey, fieldKey) {
 				continue
 			}
-			return Refuse(ErrFieldReferenced, "field_referenced",
-				fmt.Sprintf("%s: %s reads %s", ErrFieldReferenced, f.Key, fieldKey),
-				Details{"field": fieldKey, "by": f.Key})
+			return ReadBy(fieldKey, f.Key)
 		}
 	}
 	return nil
+}
+
+// Settled names the readers a caller answers for itself, by field identity, so a removal overlooks them.
+type Settled map[int]bool
+
+// among returns the fields the caller leaves for the registry to judge.
+func (s Settled) among(fields []Field) []Field {
+	kept := make([]Field, 0, len(fields))
+	for _, f := range fields {
+		if !s[f.ID] {
+			kept = append(kept, f)
+		}
+	}
+	return kept
+}
+
+// across returns the groups holding only the top level fields the caller leaves for the registry to judge.
+func (s Settled) across(groups []Group) []Group {
+	kept := make([]Group, len(groups))
+	for i, g := range groups {
+		g.Fields = s.among(g.Fields)
+		kept[i] = g
+	}
+	return kept
 }
 
 // freeOfReaders reports whether neither a sibling's conditions nor a backlinks field reads the named field.

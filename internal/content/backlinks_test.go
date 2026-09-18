@@ -338,6 +338,24 @@ func readableSource(t *testing.T, registry *content.Registry) (content.Group, co
 	return cars, makers
 }
 
+// backlinksIn returns the stored backlinks field the group holds, failing the test when it holds none.
+func backlinksIn(t *testing.T, registry *content.Registry, groupID int) content.Field {
+	t.Helper()
+	groups, err := registry.Groups(t.Context())
+	if err != nil {
+		t.Fatalf("Groups() error = %v, want nil", err)
+	}
+	for _, g := range groups {
+		for _, f := range g.Fields {
+			if g.ID == groupID && f.Kind == content.FieldKindBacklinks {
+				return f
+			}
+		}
+	}
+	t.Fatalf("the group %d holds no backlinks field", groupID)
+	return content.Field{}
+}
+
 func TestRegistryKeepsTheSourceABacklinksReads(t *testing.T) {
 	t.Parallel()
 
@@ -359,6 +377,32 @@ func TestRegistryKeepsTheSourceABacklinksReads(t *testing.T) {
 
 			if codeOf(err) != "field_referenced" {
 				t.Errorf("error = %v, want field_referenced", err)
+			}
+		})
+	}
+}
+
+func TestRegistryOverlooksABacklinksTheCallerSettles(t *testing.T) {
+	t.Parallel()
+
+	for name, run := range map[string]func(*content.Registry, content.Group, content.Settled) error{
+		"deleting the relation": func(r *content.Registry, cars content.Group, settled content.Settled) error {
+			return r.DeleteFieldInGroupSettled(t.Context(), cars.ID, "maker", settled)
+		},
+		"deleting the group holding it": func(r *content.Registry, cars content.Group, settled content.Settled) error {
+			return r.DeleteGroupSettled(t.Context(), cars.ID, settled)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			registry := content.NewRegistry(newGroupingStore())
+			cars, makers := readableSource(t, registry)
+
+			err := run(registry, cars, content.Settled{backlinksIn(t, registry, makers.ID).ID: true})
+
+			if err != nil {
+				t.Errorf("error = %v, want the settled backlinks overlooked", err)
 			}
 		})
 	}

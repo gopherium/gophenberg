@@ -75,6 +75,11 @@ func (r *Registry) settledGroup(ctx context.Context, g Group) (Group, error) {
 
 // DeleteGroup removes the group with its fields and their values, or reports it missing.
 func (r *Registry) DeleteGroup(ctx context.Context, id int) error {
+	return r.DeleteGroupSettled(ctx, id, nil)
+}
+
+// DeleteGroupSettled removes the group with its fields and their values, overlooking the readers the caller settles.
+func (r *Registry) DeleteGroupSettled(ctx context.Context, id int, settled Settled) error {
 	groups, stored, err := r.groupAmong(ctx, id)
 	if err != nil {
 		return err
@@ -82,7 +87,7 @@ func (r *Registry) DeleteGroup(ctx context.Context, id int) error {
 	if err := keptFrom(ctx, stored.Origin); err != nil {
 		return err
 	}
-	if err := GroupKept(groups, stored); err != nil {
+	if err := GroupKept(settled.across(groups), stored); err != nil {
 		return err
 	}
 	if err := r.store.DeleteGroup(ctx, id); err != nil {
@@ -276,6 +281,11 @@ func fieldNumbered(fields []Field, id, depth int) (Field, []Field, int, bool) {
 
 // DeleteSubField removes the field standing inside a container, and the values every item held under it.
 func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
+	return r.DeleteSubFieldSettled(ctx, id, nil)
+}
+
+// DeleteSubFieldSettled removes the field standing inside a container, overlooking the readers the caller settles.
+func (r *Registry) DeleteSubFieldSettled(ctx context.Context, id int, settled Settled) error {
 	held, beside, _, err := r.fieldByID(ctx, id)
 	if err != nil {
 		return err
@@ -283,7 +293,7 @@ func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
 	if err := pluginKeepsField(ctx, held); err != nil {
 		return err
 	}
-	if err := Unreferenced(beside, held.Key); err != nil {
+	if err := Unreferenced(settled.among(beside), held.Key); err != nil {
 		return err
 	}
 	if err := r.store.DeleteSubField(ctx, id); err != nil {
@@ -329,6 +339,11 @@ func (r *Registry) UpdateFieldInGroup(
 
 // DeleteFieldInGroup removes the field and its values from the types its group matches.
 func (r *Registry) DeleteFieldInGroup(ctx context.Context, groupID int, key string) error {
+	return r.DeleteFieldInGroupSettled(ctx, groupID, key, nil)
+}
+
+// DeleteFieldInGroupSettled removes the field and its values, overlooking the readers the caller settles.
+func (r *Registry) DeleteFieldInGroupSettled(ctx context.Context, groupID int, key string, settled Settled) error {
 	groups, target, err := r.groupAmong(ctx, groupID)
 	if err != nil {
 		return err
@@ -340,7 +355,8 @@ func (r *Registry) DeleteFieldInGroup(ctx context.Context, groupID int, key stri
 	if err := pluginKeepsField(ctx, held); err != nil {
 		return err
 	}
-	if err := freeOfReaders(groups, target, key); err != nil {
+	target.Fields = settled.among(target.Fields)
+	if err := freeOfReaders(settled.across(groups), target, key); err != nil {
 		return err
 	}
 	if err := r.store.DeleteFieldInGroup(ctx, groupID, key); err != nil {

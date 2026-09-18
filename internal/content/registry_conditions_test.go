@@ -173,6 +173,42 @@ func TestDeleteFieldInGroupRefusesAFieldASiblingReads(t *testing.T) {
 	}
 }
 
+func TestDeleteFieldInGroupSettledOverlooksAReaderTheCallerSettles(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupWithSwitch(t, registry)
+	reader, err := registry.CreateFieldInGroup(t.Context(), held.ID,
+		readerOf("sale-note", "on-sale", content.OperatorIs, "true"))
+	if err != nil {
+		t.Fatalf("declaring the reader: %v, want nil", err)
+	}
+
+	err = registry.DeleteFieldInGroupSettled(t.Context(), held.ID, "on-sale", content.Settled{reader.ID: true})
+
+	if err != nil {
+		t.Errorf("DeleteFieldInGroupSettled() error = %v, want the settled reader overlooked", err)
+	}
+}
+
+func TestDeleteFieldInGroupSettledRefusesAReaderTheCallerLeftOut(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupWithSwitch(t, registry)
+	other := switchIn(t, registry, held.ID, "on-hold")
+	if _, err := registry.CreateFieldInGroup(t.Context(), held.ID,
+		readerOf("sale-note", "on-sale", content.OperatorIs, "true")); err != nil {
+		t.Fatalf("declaring the reader: %v, want nil", err)
+	}
+
+	err := registry.DeleteFieldInGroupSettled(t.Context(), held.ID, "on-sale", content.Settled{other.ID: true})
+
+	if !errors.Is(err, content.ErrFieldReferenced) {
+		t.Errorf("DeleteFieldInGroupSettled() error = %v, want %v", err, content.ErrFieldReferenced)
+	}
+}
+
 func TestDeleteFieldInGroupTakesAFieldNobodyReads(t *testing.T) {
 	t.Parallel()
 
@@ -369,6 +405,31 @@ func TestDeleteSubFieldRefusesAFieldARowSiblingReads(t *testing.T) {
 
 	if !errors.Is(err, content.ErrFieldReferenced) {
 		t.Errorf("DeleteSubField() error = %v, want %v", err, content.ErrFieldReferenced)
+	}
+}
+
+func TestDeleteSubFieldSettledOverlooksARowSiblingTheCallerSettles(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Article details", namingPost())
+	parent := sectionIn(t, registry, held.ID)
+	source, err := registry.CreateSubField(t.Context(), parent.ID, content.Field{
+		Key: "paid", Label: "Paid", Kind: content.FieldKindBoolean,
+	})
+	if err != nil {
+		t.Fatalf("declaring the sub source: %v, want nil", err)
+	}
+	reader, err := registry.CreateSubField(t.Context(), parent.ID,
+		readerOf("fee", "paid", content.OperatorIs, "true"))
+	if err != nil {
+		t.Fatalf("declaring the sub reader: %v, want nil", err)
+	}
+
+	err = registry.DeleteSubFieldSettled(t.Context(), source.ID, content.Settled{reader.ID: true})
+
+	if err != nil {
+		t.Errorf("DeleteSubFieldSettled() error = %v, want the settled reader overlooked", err)
 	}
 }
 
