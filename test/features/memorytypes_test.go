@@ -546,13 +546,20 @@ func (s *memoryTypes) Create(_ context.Context, t content.Type) (content.Type, e
 }
 
 // Update stores the edited type and carries its content to the route word, or
-// reports it missing.
-func (s *memoryTypes) Update(_ context.Context, t content.Type) (content.Type, error) {
+// reports it missing or still nesting.
+func (s *memoryTypes) Update(ctx context.Context, t content.Type) (content.Type, error) {
+	nested, err := s.Nested(ctx, t.Key)
+	if err != nil {
+		return content.Type{}, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, stored := range s.types {
 		if stored.Key != t.Key {
 			continue
+		}
+		if stored.Hierarchical && !t.Hierarchical && nested > 0 {
+			return content.Type{}, content.NestingInUse(t.Key, nested)
 		}
 		if t.Default && !stored.Default {
 			s.handRootOver()
@@ -613,6 +620,24 @@ func (s *memoryTypes) Delete(ctx context.Context, key string) error {
 		}
 	}
 	return content.ErrTypeNotFound
+}
+
+// Nested returns how many items of the type the scenario's content store holds under a parent.
+func (s *memoryTypes) Nested(ctx context.Context, key string) (int, error) {
+	if s.content == nil {
+		return 0, nil
+	}
+	items, _, err := s.content.List(ctx, content.Filter{Type: key})
+	if err != nil {
+		return 0, err
+	}
+	held := 0
+	for _, stored := range items {
+		if stored.ParentID != nil {
+			held++
+		}
+	}
+	return held, nil
 }
 
 // holdsContent reports whether the scenario's content store holds items of the type.

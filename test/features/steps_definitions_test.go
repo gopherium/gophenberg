@@ -375,6 +375,55 @@ func theSitesFilePointsAt(ctx context.Context, key, title, source, sourceTitle s
 	return nil
 }
 
+// theSitesFileStopsTheTypeNesting marks one type of the file as flat.
+func theSitesFileStopsTheTypeNesting(ctx context.Context, key string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range w.file.Types {
+		if w.file.Types[i].Key == key {
+			w.file.Types[i].Hierarchical = false
+			return nil
+		}
+	}
+	return fmt.Errorf("the file holds no type %q", key)
+}
+
+// theAdministratorPlansTheFile asks what the file the scenario built would change, whatever the site answers.
+func theAdministratorPlansTheFile(ctx context.Context) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(w.file.Envelope)
+	if err != nil {
+		return fmt.Errorf("writing the file: %w", err)
+	}
+	return w.postJSON("/api/definitions/plan", string(body))
+}
+
+// thePlanWarnsThatKeepsNesting asserts the plan warns the type keeps nesting.
+func thePlanWarnsThatKeepsNesting(ctx context.Context, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusOK); err != nil {
+		return err
+	}
+	var planned definitions.Plan
+	if err := w.answer.decode(&planned); err != nil {
+		return err
+	}
+	for _, held := range planned.Warnings {
+		if held.Code == "nesting_kept" && held.Key == key {
+			return nil
+		}
+	}
+	return fmt.Errorf("the plan warns %v, want %q kept nesting", planned.Warnings, key)
+}
+
 // theAdministratorConfirmsTheLossOf names one field of a stored group the import may take away.
 func theAdministratorConfirmsTheLossOf(ctx context.Context, key, title string) error {
 	w, err := siteFile(ctx)
@@ -455,7 +504,10 @@ func initializeImportFile(sc *godog.ScenarioContext) {
 	sc.Given(`^the site's file retitles "([^"]*)" as "([^"]*)"$`, theSitesFileRetitles)
 	sc.Given(`^the site's file points "([^"]*)" in "([^"]*)" at "([^"]*)" in "([^"]*)"$`, theSitesFilePointsAt)
 	sc.Given(`^the administrator confirms the loss of "([^"]*)" in "([^"]*)"$`, theAdministratorConfirmsTheLossOf)
+	sc.Given(`^the site's file stops the type "([^"]*)" nesting$`, theSitesFileStopsTheTypeNesting)
+	sc.When(`^the administrator plans the file$`, theAdministratorPlansTheFile)
 	sc.When(`^the administrator imports the file$`, theAdministratorImportsTheFile)
+	sc.Then(`^the plan warns that "([^"]*)" keeps nesting$`, thePlanWarnsThatKeepsNesting)
 	sc.Then(`^the import is applied$`, theImportIsApplied)
 	sc.Then(`^no group is titled "([^"]*)"$`, noGroupIsTitled)
 	sc.Then(`^the group "([^"]*)" holds "([^"]*)"$`, theGroupHolds)

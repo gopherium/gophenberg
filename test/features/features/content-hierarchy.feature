@@ -1,6 +1,8 @@
 Feature: Content hierarchy
   A hierarchical type nests items under a parent and the address is the chain
-  of their names. A flat type refuses parents outright.
+  of their names. A flat type refuses parents outright. A type may be told to
+  nest at any time, and stops nesting only once none of its items sits inside
+  another.
 
   Background:
     Given a running Gophenberg with the default content types
@@ -83,3 +85,58 @@ Feature: Content hierarchy
     And the page "Team" filed under "About"
     When the administrator files the type "page" under "sections"
     Then the page "Team" answers at "sections/about/team"
+
+  Scenario: A flat type is told to nest after it is registered
+    Given the post "Hello World"
+    When the administrator lets the type "post" nest
+    And the administrator files a post under "Hello World"
+    Then the post answers at "hello-world/nested"
+
+  Scenario: A type stops nesting while none of its items sits inside another
+    Given the page "About"
+    When the administrator stops the type "page" nesting
+    Then the type "page" no longer nests
+
+  Scenario: A type whose items sit inside one another keeps nesting
+    Given the page "About"
+    And the page "Team" filed under "About"
+    When the administrator stops the type "page" nesting
+    Then the request is refused with the code "type_nesting_in_use"
+    And the error names "page" under "type"
+    And the type "page" still nests
+
+  Scenario: A nested item in the trash still keeps its type nesting
+    Given the page "About"
+    And the page "Team" filed under "About"
+    When the administrator deletes "Team"
+    And the administrator stops the type "page" nesting
+    Then the request is refused with the code "type_nesting_in_use"
+
+  Scenario: A type stops nesting once its nested items moved to the top
+    Given the page "About"
+    And the page "Team" filed under "About"
+    And the page "Team" moved to the top level
+    When the administrator stops the type "page" nesting
+    Then the type "page" no longer nests
+
+  Scenario: A plan warns that a type whose items nest keeps nesting
+    Given the page "About"
+    And the page "Team" filed under "About"
+    And the site's file stops the type "page" nesting
+    When the administrator plans the file
+    Then the plan warns that "page" keeps nesting
+
+  Scenario: An import leaves a type nesting while its items sit inside one another
+    Given the page "About"
+    And the page "Team" filed under "About"
+    And the site's file stops the type "page" nesting
+    When the administrator imports the file
+    Then the import is applied
+    And the type "page" still nests
+
+  Scenario: An import stops a type nesting while none of its items sits inside another
+    Given the page "About"
+    And the site's file stops the type "page" nesting
+    When the administrator imports the file
+    Then the import is applied
+    And the type "page" no longer nests
