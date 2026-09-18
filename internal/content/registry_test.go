@@ -17,6 +17,7 @@ var errStoreDown = errors.New("the registry is unreachable")
 // fakeTypeStore holds content types in memory and counts what it was asked to read.
 type fakeTypeStore struct {
 	types     []content.Type
+	nested    map[string]int
 	fieldIDs  int
 	listCalls int
 	listErr   error
@@ -147,6 +148,11 @@ func (s *fakeTypeStore) Update(_ context.Context, t content.Type) (content.Type,
 		}
 	}
 	return content.Type{}, content.ErrTypeNotFound
+}
+
+// Nested returns how many items the test says sit inside another under the type.
+func (s *fakeTypeStore) Nested(_ context.Context, key string) (int, error) {
+	return s.nested[key], nil
 }
 
 // Delete removes the type carrying the key.

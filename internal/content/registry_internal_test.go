@@ -40,6 +40,11 @@ func (unreadableTypeStore) Delete(context.Context, string) error {
 	return errTypeStoreDown
 }
 
+// Nested reports the failure rather than counting the nested items.
+func (unreadableTypeStore) Nested(context.Context, string) (int, error) {
+	return 0, errTypeStoreDown
+}
+
 // CreateField reports the failure rather than declaring the field.
 func (unreadableTypeStore) CreateField(context.Context, Field) (Field, error) {
 	return Field{}, errTypeStoreDown

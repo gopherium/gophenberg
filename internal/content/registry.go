@@ -210,6 +210,11 @@ func (r *Registry) Update(ctx context.Context, t Type) (Type, error) {
 	return updated, nil
 }
 
+// Nested returns how many items of the type sit inside another.
+func (r *Registry) Nested(ctx context.Context, key string) (int, error) {
+	return r.store.Nested(ctx, key)
+}
+
 // typeAmong returns the type carrying the key among the given ones.
 func typeAmong(types []Type, key string) (Type, bool) {
 	for _, t := range types {
