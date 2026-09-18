@@ -41,7 +41,7 @@ function collisionSentence(stray: Stray): string {
 function nestingKeptSentence(stray: Stray): string {
 	return sprintf(
 		__(
-			'The %(plugin)s plugin declares %(name)s flat, and the site keeps it nesting while its items sit inside one another.',
+			'The %(plugin)s plugin declares %(name)s flat, and the site keeps it nesting while its items sit inside another.',
 			'gophenberg',
 		),
 		{ name: stray.label, plugin: stray.origin },

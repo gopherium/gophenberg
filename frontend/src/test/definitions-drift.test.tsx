@@ -27,7 +27,7 @@ test('names a type a plugin declared flat that the site keeps nesting', async ()
 
 	expect(
 		await screen.findByText(
-			'The events plugin declares Event flat, and the site keeps it nesting while its items sit inside one another.',
+			'The events plugin declares Event flat, and the site keeps it nesting while its items sit inside another.',
 		),
 	).toBeInTheDocument()
 })
