@@ -28,6 +28,7 @@ const PLAN = {
 	warnings: [
 		{ code: 'route_word_changed', key: 'recipe' },
 		{ code: 'root_moved', key: 'recipe' },
+		{ code: 'nesting_kept', key: 'recipe' },
 	],
 }
 
@@ -61,6 +62,9 @@ test('shows what a chosen definitions file would change', async () => {
 		screen.getByText('It moves to another group, so its stored values do not follow.'),
 	).toBeInTheDocument()
 	expect(screen.getByText('recipe answers on a new address, and stored links move with it.')).toBeInTheDocument()
+	expect(
+		screen.getByText('recipe keeps nesting, because some of its items sit inside another.'),
+	).toBeInTheDocument()
 	expect(
 		screen.getByText('recipe becomes the type the site opens on, and the old one takes an address.'),
 	).toBeInTheDocument()
@@ -186,7 +190,13 @@ test('names what an import left alone', async () => {
 	planning(() => HttpResponse.json(PLAN))
 	server.use(
 		http.post('/api/definitions/apply', () =>
-			HttpResponse.json({ applied: [], skipped: [PLAN.changes[3]] }),
+			HttpResponse.json({
+				applied: [],
+				skipped: [
+					PLAN.changes[3],
+					{ action: 'update', subject: 'type', key: 'recipe', label: 'Recipe', reason: 'nesting_kept' },
+				],
+			}),
 		),
 	)
 
@@ -196,6 +206,7 @@ test('names what an import left alone', async () => {
 	expect(
 		await screen.findByText('These were left alone, because nobody confirmed losing them.'),
 	).toBeInTheDocument()
+	expect(screen.getByText('Its items sit inside one another, so it keeps nesting.')).toBeInTheDocument()
 })
 
 test('drops the plan and the ticks the moment another file is chosen', async () => {

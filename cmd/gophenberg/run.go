@@ -328,7 +328,11 @@ func declareTypes(
 			return nil, fmt.Errorf("plugin %s: %w", plugin.ID(), err)
 		}
 		walked[plugin.ID()] = definitions.Walk{
-			Declared: registrar.Declared(), Skipped: registrar.Skipped(),
+			Declared: registrar.Declared(), Skipped: registrar.Skipped(), Kept: registrar.Kept(),
+		}
+		if kept := registrar.Kept(); len(kept) > 0 {
+			logger.Warn("plugin declarations kept as they stand, the site's content holds them",
+				"plugin", plugin.ID(), "keys", kept)
 		}
 		if skipped := registrar.Skipped(); len(skipped) > 0 {
 			logger.Warn("plugin declarations skipped, another owner holds the key",

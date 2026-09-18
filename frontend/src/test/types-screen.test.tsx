@@ -179,7 +179,74 @@ test('names the plugin that declared a type and keeps its shape out of reach', a
 		expect(within(declared).queryByRole('button', { name })).not.toBeInTheDocument()
 		expect(within(site).getByRole('button', { name })).toBeInTheDocument()
 	}
+	expect(within(declared).queryByRole('button', { name: 'Stop nesting' })).not.toBeInTheDocument()
 	expect(within(declared).getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
+})
+
+test('stops a type nesting', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...PAGE_TYPE, hierarchical: false })
+		}),
+		http.get('/api/types', () =>
+			HttpResponse.json({ items: [POST_TYPE, { ...PAGE_TYPE, hierarchical: sent.length === 0 }] }),
+		),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Stop nesting' }))
+
+	await waitFor(() => expect(sent[0]).toEqual({ hierarchical: false }))
+	expect(await within(pages).findByRole('button', { name: 'Let items nest' })).toBeInTheDocument()
+	expect(within(pages).queryByText('Nests')).not.toBeInTheDocument()
+})
+
+test('lets a flat type nest', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/types/post', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...POST_TYPE, hierarchical: true })
+		}),
+		http.get('/api/types', () =>
+			HttpResponse.json({ items: [{ ...POST_TYPE, hierarchical: sent.length > 0 }, PAGE_TYPE] }),
+		),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const posts = within(table).getByRole('row', { name: /Posts/ })
+	await userEvent.click(within(posts).getByRole('button', { name: 'Let items nest' }))
+
+	await waitFor(() => expect(sent[0]).toEqual({ hierarchical: true }))
+	expect(await within(posts).findByRole('button', { name: 'Stop nesting' })).toBeInTheDocument()
+	expect(within(posts).getByText('Nests')).toBeInTheDocument()
+})
+
+test('says how many items keep a type nesting', async () => {
+	server.use(
+		http.patch('/api/types/page', () =>
+			HttpResponse.json(
+				{
+					error: 'content: items of the type still nest: 2 in page',
+					code: 'type_nesting_in_use',
+					meta: { type: 'page', items: 2 },
+				},
+				{ status: 422 },
+			),
+		),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Stop nesting' }))
+
+	expect(await screen.findByText(/2 of its items sit inside another/)).toBeInTheDocument()
 })
 
 test('keeps the default type from being deleted or closed', async () => {

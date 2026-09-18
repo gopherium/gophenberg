@@ -275,6 +275,35 @@ func TestTypePatchRefusesASecondTypeAtTheRoot(t *testing.T) {
 	}
 }
 
+func TestTypePatchKeepsATypeNestingWhileItsItemsNest(t *testing.T) {
+	t.Parallel()
+
+	users := newFakeUserStore()
+	addAda(t, users)
+	posts, types := newFakePostStore(), newFakeTypeStore()
+	posts.declared = types
+	types.register(pageType())
+	types.nested = map[string]int{"page": 2}
+	handler := authedServerWithStores(t, server.Config{Users: users, Content: posts, Types: types})
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/page", `{"hierarchical":false}`)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d: %s",
+			recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+	answered := decodeBody[struct {
+		Code string         `json:"code"`
+		Meta map[string]any `json:"meta"`
+	}](t, recorder)
+	if answered.Code != "type_nesting_in_use" {
+		t.Errorf("code = %q, want type_nesting_in_use", answered.Code)
+	}
+	if answered.Meta["type"] != "page" || answered.Meta["items"] != float64(2) {
+		t.Errorf("meta = %v, want the type and its two nested items named", answered.Meta)
+	}
+}
+
 func TestTypePatchTakesAnArchivePageKind(t *testing.T) {
 	t.Parallel()
 

@@ -2216,6 +2216,26 @@ msgid "%(type)s answers on a new address, and stored links move with it."
 msgstr "%(type)s répond à une nouvelle adresse, et les liens enregistrés la suivent."
 
 #, fuzzy
+msgid "%(type)s keeps nesting while %(items)s of its items sit inside another. Move those to the top level first, the ones in the trash included."
+msgstr "%(type)s continue de s'imbriquer tant que %(items)s de ses éléments se trouvent dans un autre. Déplacez-les d'abord au niveau supérieur, ceux de la corbeille compris."
+
+#, fuzzy
+msgid "%(type)s keeps nesting, because some of its items sit inside another."
+msgstr "%(type)s continue de s'imbriquer, car certains de ses éléments se trouvent dans un autre."
+
+#, fuzzy
+msgid "Its items sit inside one another, so it keeps nesting."
+msgstr "Ses éléments se trouvent les uns dans les autres, donc il continue de s'imbriquer."
+
+#, fuzzy
+msgid "Let items nest"
+msgstr "Autoriser l'imbrication"
+
+#, fuzzy
+msgid "Stop nesting"
+msgstr "Arrêter l'imbrication"
+
+#, fuzzy
 msgid "%(type)s becomes the type the site opens on, and the old one takes an address."
 msgstr "%(type)s devient le type sur lequel le site ouvre, et l'ancien prend une adresse."
 
@@ -2314,6 +2334,10 @@ msgstr "Adopter"
 #, fuzzy
 msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key."
 msgstr "L'extension %(plugin)s déclare aussi %(name)s, et le site garde la clé."
+
+#, fuzzy
+msgid "The %(plugin)s plugin declares %(name)s flat, and the site keeps it nesting while its items sit inside another."
+msgstr "L'extension %(plugin)s déclare %(name)s sans imbrication, et le site continue de l'imbriquer tant que ses éléments se trouvent dans un autre."
 
 #, fuzzy
 msgid "Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again."

@@ -162,6 +162,12 @@ msgstr ""
 msgid "%(type)s becomes the type the site opens on, and the old one takes an address."
 msgstr ""
 
+msgid "%(type)s keeps nesting while %(items)s of its items sit inside another. Move those to the top level first, the ones in the trash included."
+msgstr ""
+
+msgid "%(type)s keeps nesting, because some of its items sit inside another."
+msgstr ""
+
 msgid "%(type)s registered."
 msgstr ""
 
@@ -723,6 +729,9 @@ msgstr ""
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
 msgstr ""
 
+msgid "Its items sit inside one another, so it keeps nesting."
+msgstr ""
+
 msgid "Its kind changed, so its stored values go with it."
 msgstr ""
 
@@ -754,6 +763,9 @@ msgid "Large"
 msgstr ""
 
 msgid "Last Modified"
+msgstr ""
+
+msgid "Let items nest"
 msgstr ""
 
 msgid "Linked from"
@@ -1193,6 +1205,9 @@ msgstr ""
 msgid "Steps of"
 msgstr ""
 
+msgid "Stop nesting"
+msgstr ""
+
 msgid "Tablet"
 msgstr ""
 
@@ -1239,6 +1254,9 @@ msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key.
 msgstr ""
 
 msgid "The %(plugin)s plugin declared these fields, so they change only in its code."
+msgstr ""
+
+msgid "The %(plugin)s plugin declares %(name)s flat, and the site keeps it nesting while its items sit inside another."
 msgstr ""
 
 msgid "The browser kept an unsaved version of this post."

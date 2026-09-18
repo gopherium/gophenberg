@@ -508,6 +508,10 @@ export function errorTemplates(): Record<string, string> {
 			'This content type does not exist any more. Reload the page to see the types your site holds now.',
 			DOMAIN,
 		),
+		type_nesting_in_use: __(
+			'%(type)s keeps nesting while %(items)s of its items sit inside another. Move those to the top level first, the ones in the trash included.',
+			DOMAIN,
+		),
 		type_not_hierarchical: __(
 			'This content type does not nest, so one of its items cannot sit inside another. Mark the type as Nests first.',
 			DOMAIN,

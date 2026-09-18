@@ -5,6 +5,7 @@ package content
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"regexp"
 	"strings"
@@ -34,6 +35,15 @@ var ErrDefaultRequired = errors.New("content: the default type must stay")
 
 // ErrTypeInUse reports that the content type still holds content.
 var ErrTypeInUse = errors.New("content: type still holds content")
+
+// ErrNestingInUse reports that items of the content type still sit inside one another.
+var ErrNestingInUse = errors.New("content: items of the type still nest")
+
+// NestingInUse returns the refusal to stop the type nesting while the counted items sit inside others.
+func NestingInUse(key string, items int) error {
+	return Refuse(ErrNestingInUse, "type_nesting_in_use",
+		fmt.Sprintf("%s: %d in %s", ErrNestingInUse, items, key), Details{"type": key, "items": items})
+}
 
 // ErrTypeInactive reports that the content type is not active.
 var ErrTypeInactive = errors.New("content: type is not active")
@@ -94,6 +104,7 @@ type TypeStore interface {
 	Create(ctx context.Context, t Type) (Type, error)
 	Update(ctx context.Context, t Type) (Type, error)
 	Delete(ctx context.Context, key string) error
+	Nested(ctx context.Context, key string) (int, error)
 	ListGroups(ctx context.Context) ([]Group, error)
 	CreateGroup(ctx context.Context, g Group) (Group, error)
 	UpdateGroup(ctx context.Context, g Group) (Group, error)

@@ -134,6 +134,15 @@ func (s *TypeStore) Update(ctx context.Context, t content.Type) (content.Type, e
 	return updated, nil
 }
 
+// Nested returns how many items of the type sit inside another, the ones in the trash included.
+func (s *TypeStore) Nested(ctx context.Context, key string) (int, error) {
+	held, err := s.queries.CountNestedContent(ctx, key)
+	if err != nil {
+		return 0, fmt.Errorf("postgres: count nested content: %w", err)
+	}
+	return int(held), nil
+}
+
 // updateParams returns the row the type writes over its stored one.
 func updateParams(t content.Type) db.UpdateContentTypeParams {
 	return db.UpdateContentTypeParams{
@@ -174,11 +183,9 @@ func (s *TypeStore) writeType(ctx context.Context, tx pgx.Tx, t content.Type) (c
 	if err != nil {
 		return content.Type{}, err
 	}
-	if t.Default && !was.IsDefault {
-		if err := handRootOver(ctx, tx, queries, t.UpdatedAt); err != nil {
-			return content.Type{}, err
-		}
-		t.RouteWord = ""
+	t, err = readied(ctx, tx, queries, t, was)
+	if err != nil {
+		return content.Type{}, err
 	}
 	row, err := queries.UpdateContentType(ctx, updateParams(t))
 	if err != nil {
@@ -190,11 +197,42 @@ func (s *TypeStore) writeType(ctx context.Context, tx pgx.Tx, t content.Type) (c
 	return toType(row), carryContent(ctx, tx, queries, t, was.RouteWord)
 }
 
+// readied returns the edit ready to write over the locked row, refusing what the site's content keeps.
+func readied(
+	ctx context.Context, tx pgx.Tx, queries *db.Queries, t content.Type, was db.CoreContentType,
+) (content.Type, error) {
+	if was.Hierarchical && !t.Hierarchical {
+		if err := flattenable(ctx, queries, t.Key); err != nil {
+			return content.Type{}, err
+		}
+	}
+	if t.Default && !was.IsDefault {
+		if err := handRootOver(ctx, tx, queries, t.UpdatedAt); err != nil {
+			return content.Type{}, err
+		}
+		t.RouteWord = ""
+	}
+	return t, nil
+}
+
+// flattenable returns the reason the locked type may not stop nesting, if there is one.
+func flattenable(ctx context.Context, queries *db.Queries, key string) error {
+	held, err := queries.CountNestedContent(ctx, key)
+	if err != nil {
+		return err
+	}
+	if held > 0 {
+		return content.NestingInUse(key, int(held))
+	}
+	return nil
+}
+
 // updateTypeFailure returns the error the type update carries, and wraps anything else.
 func updateTypeFailure(err error) error {
 	if errors.Is(err, content.ErrTypeNotFound) ||
 		errors.Is(err, content.ErrRouteWordReserved) ||
-		errors.Is(err, content.ErrInvalidRouteWord) {
+		errors.Is(err, content.ErrInvalidRouteWord) ||
+		errors.Is(err, content.ErrNestingInUse) {
 		return err
 	}
 	if taken := takenBy(err); taken != nil {

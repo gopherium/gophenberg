@@ -165,6 +165,35 @@ func TestAdriftNamesTheGroupKeyAPluginCouldNotClaim(t *testing.T) {
 	}
 }
 
+func TestAdriftNamesTheTypeAPluginCouldNotFlatten(t *testing.T) {
+	t.Parallel()
+
+	pool, registrar := declaringPool(t)
+	nesting := eventType()
+	nesting.Hierarchical = true
+	if err := registrar.DeclareType(t.Context(), nesting); err != nil {
+		t.Fatalf("DeclareType() error = %v, want nil", err)
+	}
+	registry := content.NewRegistry(postgres.NewTypeStore(pool))
+
+	drift, err := definitions.Adrift(t.Context(), registry, definitions.Walked{
+		"events": {
+			Declared: []definitions.Held{{Subject: "type", Key: "event"}},
+			Kept:     []definitions.Held{{Subject: "type", Key: "event"}},
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("Adrift() error = %v, want nil", err)
+	}
+	if !strayAmong(drift.NestingKept, "type", "event") {
+		t.Fatalf("nesting kept = %+v, want the type the plugin could not flatten", drift.NestingKept)
+	}
+	if drift.NestingKept[0].Origin != "events" || drift.NestingKept[0].Label != "Event" {
+		t.Errorf("nesting kept = %+v, want the plugin and the stored label named", drift.NestingKept[0])
+	}
+}
+
 func TestAdoptTakesEitherKindOfDefinitionOver(t *testing.T) {
 	t.Parallel()
 

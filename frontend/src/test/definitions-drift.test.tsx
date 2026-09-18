@@ -8,12 +8,29 @@ import { expect, test } from 'vitest'
 import { renderAt } from './render'
 
 /** Serves the given drift from the drift endpoint. */
-function drifting(orphans: unknown[], collisions: unknown[]) {
-	server.use(http.get('/api/definitions/drift', () => HttpResponse.json({ orphans, collisions })))
+function drifting(orphans: unknown[], collisions: unknown[], nestingKept: unknown[] = []) {
+	server.use(
+		http.get('/api/definitions/drift', () =>
+			HttpResponse.json({ orphans, collisions, nesting_kept: nestingKept }),
+		),
+	)
 }
 
 const ORPHAN = { subject: 'group', key: 'event-details', origin: 'events', label: 'Event details' }
 const COLLISION = { subject: 'group', key: 'extras', origin: 'events', label: 'Extras' }
+const NESTING_KEPT = { subject: 'type', key: 'event', origin: 'events', label: 'Event' }
+
+test('names a type a plugin declared flat that the site keeps nesting', async () => {
+	drifting([], [], [NESTING_KEPT])
+
+	renderAt('/field-groups')
+
+	expect(
+		await screen.findByText(
+			'The events plugin declares Event flat, and the site keeps it nesting while its items sit inside another.',
+		),
+	).toBeInTheDocument()
+})
 
 test('names a group whose plugin no longer declares it', async () => {
 	drifting([ORPHAN], [])

@@ -440,6 +440,7 @@ var errRegistryDown = errors.New("the registry is unreachable")
 type fakeTypeStore struct {
 	mu          sync.Mutex
 	types       []content.Type
+	nested      map[string]int
 	groups      []content.Group
 	nextGroupID int
 	nextFieldID int
@@ -875,17 +876,28 @@ func (s *fakeTypeStore) Create(_ context.Context, t content.Type) (content.Type,
 	return t, nil
 }
 
-// Update stores the edited type.
+// Update stores the edited type, keeping it nesting while the test says its items nest.
 func (s *fakeTypeStore) Update(_ context.Context, t content.Type) (content.Type, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, stored := range s.types {
-		if stored.Key == t.Key {
-			s.types[i] = t
-			return t, nil
+		if stored.Key != t.Key {
+			continue
 		}
+		if stored.Hierarchical && !t.Hierarchical && s.nested[t.Key] > 0 {
+			return content.Type{}, content.NestingInUse(t.Key, s.nested[t.Key])
+		}
+		s.types[i] = t
+		return t, nil
 	}
 	return content.Type{}, content.ErrTypeNotFound
+}
+
+// Nested returns how many items the test says sit inside another under the type.
+func (s *fakeTypeStore) Nested(_ context.Context, key string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.nested[key], nil
 }
 
 // Delete removes the type carrying the key.

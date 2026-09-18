@@ -30,10 +30,11 @@ const (
 	ReasonMoved        = "moved"
 )
 
-// The changes an import reaches beyond the definitions to make.
+// The changes an import reaches beyond the definitions, the ones it makes and the ones it leaves.
 const (
 	WarningRootMoved        = "root_moved"
 	WarningRouteWordChanged = "route_word_changed"
+	WarningNestingKept      = "nesting_kept"
 )
 
 // Plan is what an import would change about the site's definitions, with nothing applied.
@@ -74,15 +75,40 @@ func Compare(ctx context.Context, registry *content.Registry, envelope Envelope)
 	if err := validate(ctx, registry, envelope, types, groups); err != nil {
 		return Plan{}, err
 	}
+	kept, err := nestingKept(ctx, registry, envelope.Types, types)
+	if err != nil {
+		return Plan{}, err
+	}
 	plan := Plan{Changes: []Change{}, Warnings: []Warning{}}
-	planTypes(&plan, envelope.Types, types)
+	planTypes(&plan, envelope.Types, types, kept)
 	planGroups(&plan, envelope.Groups, groups)
 	markMoved(plan.Changes)
 	return plan, nil
 }
 
+// nestingKept returns the keys of the stored types the envelope would stop nesting while their items nest.
+func nestingKept(
+	ctx context.Context, registry *content.Registry, declared []TypeDefinition, stored []content.Type,
+) (map[string]bool, error) {
+	kept := make(map[string]bool, len(declared))
+	for _, d := range declared {
+		held, ok := typeAmong(stored, d.Key)
+		if !ok || !held.Hierarchical || d.Hierarchical {
+			continue
+		}
+		nested, err := registry.Nested(ctx, d.Key)
+		if err != nil {
+			return nil, err
+		}
+		if nested > 0 {
+			kept[d.Key] = true
+		}
+	}
+	return kept, nil
+}
+
 // planTypes adds what the envelope's types would change about the ones the site owns.
-func planTypes(plan *Plan, declared []TypeDefinition, stored []content.Type) {
+func planTypes(plan *Plan, declared []TypeDefinition, stored []content.Type, kept map[string]bool) {
 	for _, d := range declared {
 		held, ok := typeAmong(stored, d.Key)
 		if !ok {
@@ -91,6 +117,9 @@ func planTypes(plan *Plan, declared []TypeDefinition, stored []content.Type) {
 			}
 			plan.add(Change{Action: ActionCreate, Subject: SubjectType, Key: d.Key, Label: d.SingularLabel})
 			continue
+		}
+		if kept[d.Key] {
+			plan.warn(Warning{Code: WarningNestingKept, Key: d.Key})
 		}
 		planTypeCarry(plan, d, held)
 	}

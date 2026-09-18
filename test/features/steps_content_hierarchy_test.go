@@ -206,6 +206,95 @@ func theAdministratorFilesTheTypeUnder(ctx context.Context, key, routeWord strin
 	return w.expect(http.StatusOK)
 }
 
+// nestingAsked asks the type to nest or to stop nesting, keeping the answer.
+func nestingAsked(ctx context.Context, key string, nests bool) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.patchJSON(typesPath+"/"+key, fmt.Sprintf(`{"hierarchical":%t}`, nests))
+}
+
+// theAdministratorLetsTheTypeNest asks the type to nest, keeping the answer.
+func theAdministratorLetsTheTypeNest(ctx context.Context, key string) error {
+	return nestingAsked(ctx, key, true)
+}
+
+// theAdministratorStopsTheTypeNesting asks the type to stop nesting, keeping the answer.
+func theAdministratorStopsTheTypeNesting(ctx context.Context, key string) error {
+	return nestingAsked(ctx, key, false)
+}
+
+// thePageMovedToTheTopLevel takes the stored page out from under its parent.
+func thePageMovedToTheTopLevel(ctx context.Context, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	moving, found := w.nested[title]
+	if !found {
+		return fmt.Errorf("the scenario stored no page titled %q", title)
+	}
+	body := fmt.Sprintf(`{"updated_at":%q,"parent_id":null}`, moving.UpdatedAt)
+	if err := w.patchJSON(contentPath+"/"+moving.ID, body); err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// typeNesting reports whether the registry lists the type as nesting.
+func typeNesting(ctx context.Context, key string) (bool, error) {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return false, err
+	}
+	if err := w.get(typesPath); err != nil {
+		return false, err
+	}
+	if err := w.expect(http.StatusOK); err != nil {
+		return false, fmt.Errorf("listing the types: %w", err)
+	}
+	var listed struct {
+		Items []struct {
+			Key          string `json:"key"`
+			Hierarchical bool   `json:"hierarchical"`
+		} `json:"items"`
+	}
+	if err := w.answer.decode(&listed); err != nil {
+		return false, err
+	}
+	for _, held := range listed.Items {
+		if held.Key == key {
+			return held.Hierarchical, nil
+		}
+	}
+	return false, fmt.Errorf("the registry lists no type %q", key)
+}
+
+// theTypeStillNests asserts the registry lists the type as nesting.
+func theTypeStillNests(ctx context.Context, key string) error {
+	nests, err := typeNesting(ctx, key)
+	if err != nil {
+		return err
+	}
+	if !nests {
+		return fmt.Errorf("the type %q no longer nests, want it nesting", key)
+	}
+	return nil
+}
+
+// theTypeNoLongerNests asserts the registry lists the type as flat.
+func theTypeNoLongerNests(ctx context.Context, key string) error {
+	nests, err := typeNesting(ctx, key)
+	if err != nil {
+		return err
+	}
+	if nests {
+		return fmt.Errorf("the type %q still nests, want it flat", key)
+	}
+	return nil
+}
+
 // aChainOfTenNestedPages stores pages nested to the limit.
 func aChainOfTenNestedPages(ctx context.Context) error {
 	w, err := worldOf(ctx)
@@ -300,7 +389,16 @@ func initializeContentHierarchy(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator deletes "([^"]*)"$`, theAdministratorDeletes)
 	sc.When(`^the administrator marks "([^"]*)" as trashed$`, theAdministratorMarksTrashed)
 	sc.When(`^the administrator files the type "([^"]*)" under "([^"]*)"$`, theAdministratorFilesTheTypeUnder)
+	sc.Given(`^the page "([^"]*)" moved to the top level$`, thePageMovedToTheTopLevel)
+	sc.When(`^the administrator lets the type "([^"]*)" nest$`, theAdministratorLetsTheTypeNest)
+	sc.When(`^the administrator stops the type "([^"]*)" nesting$`, theAdministratorStopsTheTypeNesting)
 	sc.Then(`^the page "([^"]*)" answers at "([^"]*)"$`, thePageAnswersAt)
 	sc.Then(`^the page answers at "([^"]*)"$`, thePageAnswersAtAddress)
+	sc.Then(`^the post answers at "([^"]*)"$`, thePageAnswersAtAddress)
 	sc.Then(`^the request is refused$`, theRequestIsRefused)
+	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
+	sc.Then(`^the error names "([^"]*)" under "([^"]*)"$`, theErrorNamesUnder)
+	sc.Then(`^the type "([^"]*)" still nests$`, theTypeStillNests)
+	sc.Then(`^the type "([^"]*)" no longer nests$`, theTypeNoLongerNests)
+	initializeImportFile(sc)
 }

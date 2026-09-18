@@ -4,12 +4,16 @@ package definitions
 
 import (
 	"context"
+	"errors"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // ReasonRootKept names the root an import left where the site already had it.
 const ReasonRootKept = "root_kept"
+
+// ReasonNestingKept names the nesting an import left on a type whose items sit inside one another.
+const ReasonNestingKept = "nesting_kept"
 
 // Import is a definitions file with the changes the admin agreed to have taken away.
 type Import struct {
@@ -123,10 +127,10 @@ func (r *run) plannedFor(subject, group, key string) []Change {
 	return held
 }
 
-// rootMoves reports whether the plan would hand the site's root to the type.
-func (r *run) rootMoves(key string) bool {
+// warned reports whether the plan carries the warning for the type.
+func (r *run) warned(code, key string) bool {
 	for _, held := range r.plan.Warnings {
-		if held.Code == WarningRootMoved && held.Key == key {
+		if held.Code == code && held.Key == key {
 			return true
 		}
 	}
@@ -147,15 +151,16 @@ func (r *run) types(ctx context.Context) error {
 	return nil
 }
 
-// oneType stores or carries one type, leaving the root where the site already has it.
+// oneType stores or carries one type, leaving the root and the nesting where the site's content keeps them.
 func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Change) error {
 	wanted := typeFrom(declared)
-	if r.rootMoves(declared.Key) {
-		r.left(Change{
-			Action: planned.Action, Subject: SubjectType, Key: declared.Key,
-			Label: declared.SingularLabel, Reason: ReasonRootKept,
-		})
+	if r.warned(WarningRootMoved, declared.Key) {
+		r.left(r.kept(planned, declared, ReasonRootKept))
 		wanted = r.beside(wanted, declared, planned.Action)
+	}
+	if r.warned(WarningNestingKept, declared.Key) {
+		r.left(r.kept(planned, declared, ReasonNestingKept))
+		wanted.Hierarchical = true
 	}
 	if planned.Action == ActionCreate {
 		if _, err := r.registry.Create(ctx, wanted); err != nil {
@@ -164,11 +169,33 @@ func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Chan
 		r.did(planned)
 		return nil
 	}
-	if _, err := r.registry.Update(ctx, wanted); err != nil {
+	if err := r.carryType(ctx, wanted, declared, planned); err != nil {
 		return err
 	}
 	r.did(planned)
 	return nil
+}
+
+// carryType stores the edited type, leaving its nesting on when an item nested under it while the import ran.
+func (r *run) carryType(
+	ctx context.Context, wanted content.Type, declared TypeDefinition, planned Change,
+) error {
+	_, err := r.registry.Update(ctx, wanted)
+	if !errors.Is(err, content.ErrNestingInUse) {
+		return err
+	}
+	r.left(r.kept(planned, declared, ReasonNestingKept))
+	wanted.Hierarchical = true
+	_, err = r.registry.Update(ctx, wanted)
+	return err
+}
+
+// kept returns the change the import leaves undone on the type, naming why.
+func (r *run) kept(planned Change, declared TypeDefinition, reason string) Change {
+	return Change{
+		Action: planned.Action, Subject: SubjectType, Key: declared.Key,
+		Label: declared.SingularLabel, Reason: reason,
+	}
 }
 
 // beside returns the type standing next to the site's own root rather than in its place.
