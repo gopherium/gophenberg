@@ -184,6 +184,7 @@ function TypeActions(props: {
 	return (
 		<Stack direction="row" gap="xs">
 			{shapeable && <ChangeAddress registered={registered} onMove={(word) => props.onEdit({ routeWord: word })} />}
+			{shapeable && <NestingControl registered={registered} onEdit={props.onEdit} />}
 			{demotable && (
 				<HandOverRoot
 					registered={registered}
@@ -207,6 +208,20 @@ function TypeActions(props: {
 				</Button>
 			)}
 		</Stack>
+	)
+}
+
+/**
+ * Renders the control letting a type's items nest, or stopping them.
+ * @param props - The type and what to do with the flag.
+ * @returns The control element.
+ */
+function NestingControl(props: { registered: ContentType; onEdit: (asked: TypeEdit) => void }) {
+	const nests = props.registered.hierarchical
+	return (
+		<Button variant="outline" onClick={() => props.onEdit({ hierarchical: !nests })}>
+			{nests ? __('Stop nesting', 'gophenberg') : __('Let items nest', 'gophenberg')}
+		</Button>
 	)
 }
 

@@ -226,6 +226,7 @@ test('sends every field an edit names', async () => {
 		singularLabel: 'Section',
 		pluralLabel: 'Sections',
 		routeWord: 'sections',
+		hierarchical: false,
 		isDefault: true,
 		active: true,
 	})
@@ -234,9 +235,24 @@ test('sends every field an edit names', async () => {
 		singular_label: 'Section',
 		plural_label: 'Sections',
 		route_word: 'sections',
+		hierarchical: false,
 		default: true,
 		active: true,
 	})
+})
+
+test('sends the nesting flag on its own', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(PAGE_ROW)
+		}),
+	)
+
+	await updateType('page', { hierarchical: true })
+
+	expect(sent[0]).toEqual({ hierarchical: true })
 })
 
 test('reports a removal the registry could not take', async () => {

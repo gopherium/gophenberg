@@ -101,6 +101,7 @@ export interface TypeEdit {
 	singularLabel?: string
 	pluralLabel?: string
 	routeWord?: string
+	hierarchical?: boolean
 	isDefault?: boolean
 	active?: boolean
 }
@@ -206,6 +207,9 @@ export async function updateType(key: string, edit: TypeEdit): Promise<ContentTy
 	}
 	if (edit.routeWord !== undefined) {
 		body.route_word = edit.routeWord
+	}
+	if (edit.hierarchical !== undefined) {
+		body.hierarchical = edit.hierarchical
 	}
 	if (edit.isDefault !== undefined) {
 		body.default = edit.isDefault
