@@ -54,6 +54,9 @@ func (stubTypeStore) Update(context.Context, content.Type) (content.Type, error)
 // Delete refuses to remove a type in a seeding run.
 func (stubTypeStore) Delete(context.Context, string) error { return content.ErrTypeNotFound }
 
+// Nested counts no nested items in a seeding run.
+func (stubTypeStore) Nested(context.Context, string) (int, error) { return 0, nil }
+
 // ReorderFields refuses to reorder fields in a seeding run.
 // ListGroups returns no field groups.
 func (stubTypeStore) ListGroups(context.Context) ([]content.Group, error) {
