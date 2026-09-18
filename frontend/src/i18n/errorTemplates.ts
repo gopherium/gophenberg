@@ -211,6 +211,10 @@ export function errorTemplates(): Record<string, string> {
 			'%(field)s reads a relation pointing at %(type)s, so it would list nothing here. Pick a relation pointing at the items this group is shown on.',
 			DOMAIN,
 		),
+		field_moves_inside_itself: __(
+			'%(field)s cannot move inside itself. Pick a container that is not one of its own.',
+			DOMAIN,
+		),
 		field_taken: __(
 			'A field with that name already exists on the items this group reaches. Pick another name.',
 			DOMAIN,

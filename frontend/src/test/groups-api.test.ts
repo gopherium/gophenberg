@@ -336,6 +336,20 @@ test('carries a field into another group', async () => {
 	expect(moved.key).toBe('subtitle')
 })
 
+test('carries a field inside a container', async () => {
+	let sent: unknown
+	server.use(
+		http.post('/api/groups/3/fields/author.name/move', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE_ROW)
+		}),
+	)
+
+	await moveField(3, 'author.name', 3, 'specs')
+
+	expect(sent).toEqual({ to_group: 3, to_parent: 'specs' })
+})
+
 const MAKER = { key: 'maker', label: 'Maker', kind: 'relation' }
 
 const OWNER = { key: 'owner', label: 'Owner', kind: 'relation' }

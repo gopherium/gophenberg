@@ -76,6 +76,16 @@ const EXTRAS = {
 	fields: [],
 }
 
+const NAME = { ...SUBTITLE, key: 'name', label: 'Name' }
+
+const AUTHOR = { ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', fields: [NAME] }
+
+const NESTED = { ...DETAILS, fields: [SUBTITLE, READING_TIME, AUTHOR] }
+
+const BOX = { ...SUBTITLE, key: 'box', label: 'Box', kind: 'section', fields: [] }
+
+const CRATED = { ...EXTRAS, fields: [BOX] }
+
 /**
  * Serves the given groups from the listing endpoint.
  * @param groups - The groups the listing answers with.
@@ -570,8 +580,9 @@ test('carries a field over to another group', async () => {
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
 	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Group'))
+	await userEvent.click(within(moving).getByLabelText('Destination'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Extras' }))
+	expect(within(moving).getByText('The field keeps every value stored under it.')).toBeInTheDocument()
 	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
 
 	await waitFor(() => expect(sent).toEqual({ to_group: 4 }))
@@ -584,6 +595,78 @@ test('offers nowhere to carry a field when the group is the only one', async () 
 	const dialog = await openFields()
 
 	expect(within(dialog).queryByRole('button', { name: 'Move Subtitle elsewhere' })).not.toBeInTheDocument()
+})
+
+test('offers every container beside the other groups as a place to carry a field', async () => {
+	listing([NESTED, CRATED])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
+	await userEvent.click(within(moving).getByLabelText('Destination'))
+
+	expect(await screen.findByRole('option', { name: 'Extras' })).toBeInTheDocument()
+	expect(screen.getByRole('option', { name: 'Extras: Box' })).toBeInTheDocument()
+	expect(screen.getByRole('option', { name: 'Article details: Author' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Article details' })).not.toBeInTheDocument()
+})
+
+test('carries a field inside a container and says its values stay behind', async () => {
+	let sent: unknown
+	server.use(
+		http.post('/api/groups/3/fields/subtitle/move', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE)
+		}),
+	)
+	listing([NESTED, EXTRAS])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
+	await userEvent.click(within(moving).getByLabelText('Destination'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Article details: Author' }))
+	expect(within(moving).getByText('The values stored under it do not follow.')).toBeInTheDocument()
+	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
+
+	await waitFor(() => expect(sent).toEqual({ to_group: 3, to_parent: 'author' }))
+})
+
+test('carries a field out of a container to the top of its group', async () => {
+	let sent: unknown
+	server.use(
+		http.post('/api/groups/3/fields/author.name/move', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(NAME)
+		}),
+	)
+	listing([NESTED, EXTRAS])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Name elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Name elsewhere' })
+	await userEvent.click(within(moving).getByLabelText('Destination'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Article details' }))
+	expect(within(moving).getByText('The values stored under it do not follow.')).toBeInTheDocument()
+	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
+
+	await waitFor(() => expect(sent).toEqual({ to_group: 3 }))
+})
+
+test('never offers a container inside the field being carried', async () => {
+	listing([NESTED, EXTRAS])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Author elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Author elsewhere' })
+	await userEvent.click(within(moving).getByLabelText('Destination'))
+
+	expect(await screen.findByRole('option', { name: 'Extras' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Article details: Author' })).not.toBeInTheDocument()
 })
 
 test('reports a refused field where the operator is looking', async () => {

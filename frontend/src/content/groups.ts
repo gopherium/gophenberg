@@ -473,17 +473,22 @@ export async function deleteSubField(id: number, path: string): Promise<void> {
 }
 
 /**
- * Carries a field into another group, keeping the values it holds.
+ * Carries a field to the top of a group, or inside one of its containers.
  * @param id - The group the field leaves.
- * @param key - The field to carry.
+ * @param path - The dotted path of the field to carry.
  * @param toGroup - The group the field lands in.
+ * @param toParent - The dotted path of the container it lands in, empty for the group's top.
  * @returns The stored field.
  */
-export async function moveField(id: number, key: string, toGroup: number): Promise<ContentField> {
-	const response = await fetch(`/api/groups/${id}/fields/${key}/move`, {
+export async function moveField(id: number, path: string, toGroup: number, toParent = ''): Promise<ContentField> {
+	const body: Record<string, unknown> = { to_group: toGroup }
+	if (toParent !== '') {
+		body.to_parent = toParent
+	}
+	const response = await fetch(`/api/groups/${id}/fields/${path}/move`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ to_group: toGroup }),
+		body: JSON.stringify(body),
 	})
 	if (!response.ok) {
 		await refuse(response)
