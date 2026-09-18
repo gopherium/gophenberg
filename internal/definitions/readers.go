@@ -4,7 +4,6 @@ package definitions
 
 import (
 	"context"
-	"slices"
 	"strings"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -78,19 +77,12 @@ func (r *run) readersOf(g content.Group, path string, level []content.Field, gon
 	through := strings.Split(path+gone.Key, ".")
 	for _, other := range r.stored {
 		for _, f := range other.Fields {
-			if readsThrough(f, g.Key, through) {
+			if content.ReadsThrough(f, g.Key, through) {
 				held = append(held, storedReader{group: other.Key, path: f.Key, field: f})
 			}
 		}
 	}
 	return held
-}
-
-// readsThrough reports whether the field is a backlinks whose source runs through the path inside the group.
-func readsThrough(f content.Field, group string, path []string) bool {
-	source := content.SourceFieldOf(f)
-	return f.Kind == content.FieldKindBacklinks && content.SourceGroupOf(f) == group &&
-		len(source) >= len(path) && slices.Equal(source[:len(path)], path)
 }
 
 // takes reports whether the import takes the stored field away, alone or with its group.
