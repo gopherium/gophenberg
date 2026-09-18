@@ -37,6 +37,8 @@ type run struct {
 	plan       Plan
 	agreed     map[Confirmed]bool
 	declined   map[Confirmed]bool
+	taken      map[Confirmed]bool
+	settled    content.Settled
 	registered []content.Type
 	stored     []content.Group
 	outcome    Outcome
@@ -52,12 +54,14 @@ func Apply(ctx context.Context, registry *content.Registry, asked Import) (Outco
 	if err != nil {
 		return Outcome{}, err
 	}
+	agreed := agreedTo(asked.Confirm)
 	held := &run{
 		registry: registry, envelope: asked.Envelope, plan: plan, registered: types,
-		agreed: agreedTo(asked.Confirm), declined: map[Confirmed]bool{},
+		agreed: agreed, declined: map[Confirmed]bool{}, taken: takenBy(plan, agreed),
 		outcome: Outcome{Applied: []Change{}, Skipped: []Change{}},
 	}
 	for _, stage := range []func(context.Context) error{
+		held.refresh, held.settle,
 		held.types, held.refresh, held.groups, held.refresh, held.vacated, held.fields,
 		held.refresh, held.conditions, held.removals, held.refresh, held.orders,
 	} {

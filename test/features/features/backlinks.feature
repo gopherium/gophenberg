@@ -1,7 +1,8 @@
 Feature: Linked from
   A Backlinks field lists the items pointing at this one through a relation
   field it names. The list is read at request time and never written, so the
-  two sides of a link can never disagree.
+  two sides of a link can never disagree. An import judges each relation it
+  takes away by what the whole file leaves behind.
 
   Background:
     Given a running Gophenberg with the default content types
@@ -40,3 +41,39 @@ Feature: Linked from
   Scenario: A backlinks is never required
     When the administrator requires "linked-from"
     Then the request is refused with the code "field_never_required"
+
+  Scenario: An import giving up a relation and the backlinks reading it takes both away
+    Given the site's file leaves out "categories" in "post fields"
+    And the site's file leaves out "linked-from" in "category fields"
+    And the administrator confirms the loss of "categories" in "post fields"
+    And the administrator confirms the loss of "linked-from" in "category fields"
+    When the administrator imports the file
+    Then the import is applied
+    And the field "categories" is gone from "post"
+    And the field "linked-from" is gone from "category"
+
+  Scenario: An import keeping the backlinks of a relation it gives up writes nothing
+    Given the site's file retitles "post fields" as "Post extras"
+    And the site's file leaves out "categories" in "post fields"
+    And the site's file leaves out "linked-from" in "category fields"
+    And the administrator confirms the loss of "categories" in "post fields"
+    When the administrator imports the file
+    Then the request is refused with the code "field_referenced"
+    And no group is titled "Post extras"
+    And the group "post fields" holds "categories"
+
+  Scenario: An import moving a relation points its backlinks at the new place
+    Given the site's file moves "categories" from "post fields" into a new group "Filing"
+    And the site's file points "linked-from" in "category fields" at "categories" in "Filing"
+    And the administrator confirms the loss of "categories" in "post fields"
+    When the administrator imports the file
+    Then the import is applied
+    And the group "Filing" holds "categories"
+    And the field "linked-from" on "category" reads "categories" in "Filing"
+
+  Scenario: An import reshaping a relation its backlinks reads keeps the backlinks
+    Given the site's file makes "categories" in "post fields" hold one
+    And the administrator confirms the loss of "categories" in "post fields"
+    When the administrator imports the file
+    Then the import is applied
+    And the group "category fields" holds "linked-from"

@@ -351,6 +351,12 @@ nothing is removed unless you tick it. That includes changes that
 look small: changing a field's kind, or moving a field to another
 group, both mean losing what is stored under it, so both ask.
 
+Say you tick a field that another field reads, through its rules or
+as a Linked from list. If the file also takes that reader away or
+moves it, tick the reader too. Leave its box empty and the import
+stops before it changes anything, naming the field that still reads
+it.
+
 Two things an import never does. It never hands the site's root to
 another content type, because that changes every stored address.
 And it never touches a definition a plugin declared.

@@ -9,6 +9,8 @@ import (
 	"net/http"
 
 	"github.com/cucumber/godog"
+
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // theBacklinksFieldReading registers a backlinks field reading a relation declared on another type.
@@ -62,6 +64,34 @@ func sourceGroupKey(ctx context.Context, typeKey string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no group carries the identity %d", id)
+}
+
+// theBacklinksReads asserts the stored backlinks field on the type reads the relation inside the titled group.
+func theBacklinksReads(ctx context.Context, key, typeKey, source, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	group, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	listed, err := fieldsOnType(w, typeKey)
+	if err != nil {
+		return err
+	}
+	for _, held := range listed {
+		if held.Key != key {
+			continue
+		}
+		reads, _ := held.Settings[content.SettingSourceGroup].(string)
+		path, _ := held.Settings[content.SettingSourceField].([]any)
+		if reads != group.Key || len(path) != 1 || path[0] != source {
+			return fmt.Errorf("the field %q reads %v in %q, want %q in %q", key, path, reads, source, group.Key)
+		}
+		return nil
+	}
+	return fmt.Errorf("the type %q lists no field %q", typeKey, key)
 }
 
 // theItemIsPointedAtBy asserts the item lists the one pointing at it under its backlinks field.
@@ -165,5 +195,8 @@ func initializeBacklinks(sc *godog.ScenarioContext) {
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 	sc.Then(`^the category "([^"]*)" is pointed at by "([^"]*)"$`, theItemIsPointedAtBy)
 	sc.Then(`^the category "([^"]*)" is pointed at by nobody$`, theItemIsPointedAtByNobody)
+	sc.Then(`^the field "([^"]*)" is gone from "([^"]*)"$`, theFieldIsGoneFrom)
+	sc.Then(`^the field "([^"]*)" on "([^"]*)" reads "([^"]*)" in "([^"]*)"$`, theBacklinksReads)
+	initializeImportFile(sc)
 	_ = http.StatusOK
 }

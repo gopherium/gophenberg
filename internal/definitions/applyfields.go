@@ -36,15 +36,28 @@ func (r *run) declineArrivals(lost Change) {
 	}
 }
 
-// fields stores the fields the envelope brings and carries what it changed onto the stored ones.
+// fields stores the fields the envelope brings and carries what it changed onto the stored ones, backlinks last.
 func (r *run) fields(ctx context.Context) error {
-	for _, declared := range r.envelope.Groups {
-		stored := r.groupKeyed(declared.Key)
-		if err := r.fieldsUnder(ctx, stored.ID, declared.Key, "", 0, declared.Fields); err != nil {
-			return err
+	for _, late := range []bool{false, true} {
+		for _, declared := range r.envelope.Groups {
+			stored := r.groupKeyed(declared.Key)
+			if err := r.fieldsUnder(ctx, stored.ID, declared.Key, "", 0, pass(declared.Fields, late)); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+// pass returns the declared fields one pass stores, the backlinks when late and every other kind before them.
+func pass(declared []FieldDefinition, late bool) []FieldDefinition {
+	held := make([]FieldDefinition, 0, len(declared))
+	for _, d := range declared {
+		if (d.Kind == string(content.FieldKindBacklinks)) == late {
+			held = append(held, d)
+		}
+	}
+	return held
 }
 
 // fieldsUnder stores or carries the fields declared at one level, then the ones standing inside them.
@@ -189,9 +202,9 @@ func (r *run) conditionsOn(ctx context.Context, groupID int, group, key string, 
 // removeField takes away the field the change names, however deep it stands.
 func (r *run) removeField(ctx context.Context, c Change) error {
 	if !strings.Contains(c.Key, ".") {
-		return r.registry.DeleteFieldInGroup(ctx, r.groupKeyed(c.Group).ID, c.Key)
+		return r.registry.DeleteFieldInGroupSettled(ctx, r.groupKeyed(c.Group).ID, c.Key, r.settled)
 	}
-	return r.registry.DeleteSubField(ctx, r.fieldAt(c.Group, c.Key).ID)
+	return r.registry.DeleteSubFieldSettled(ctx, r.fieldAt(c.Group, c.Key).ID, r.settled)
 }
 
 // fieldAt returns the stored field the dotted path names inside the group, zero when the site holds none.
@@ -338,5 +351,5 @@ func (r *run) remove(ctx context.Context, c Change) error {
 	if c.Subject == SubjectType {
 		return r.registry.Delete(ctx, c.Key)
 	}
-	return r.registry.DeleteGroup(ctx, r.groupKeyed(c.Key).ID)
+	return r.registry.DeleteGroupSettled(ctx, r.groupKeyed(c.Key).ID, r.settled)
 }

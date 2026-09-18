@@ -106,4 +106,5 @@ func initializeConditionalLogic(sc *godog.ScenarioContext) {
 	sc.Then(`^the served fields carry no "([^"]*)"$`, theServedFieldsCarryNo)
 	sc.Then(`^the field "([^"]*)" on "([^"]*)" carries the setting "([^"]*)"$`, theFieldCarriesTheSetting)
 	sc.Then(`^the field "([^"]*)" is gone from "([^"]*)"$`, theFieldIsGoneFrom)
+	initializeImportFile(sc)
 }
