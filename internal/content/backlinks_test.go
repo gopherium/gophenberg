@@ -450,7 +450,7 @@ func TestRegistryKeepsAMovedBacklinksReadingItsSource(t *testing.T) {
 	registry := content.NewRegistry(newGroupingStore())
 	cars, makers := readableSource(t, registry)
 
-	_, err := registry.MoveField(t.Context(), makers.ID, "linked-from", cars.ID)
+	_, err := registry.MoveField(t.Context(), backlinksIn(t, registry, makers.ID).ID, cars.ID, 0)
 
 	if codeOf(err) != "backlinks_source_elsewhere" {
 		t.Errorf("MoveField() error = %v, want backlinks_source_elsewhere", err)
@@ -463,7 +463,7 @@ func TestRegistryKeepsTheSourceWhereTheBacklinksLooksForIt(t *testing.T) {
 	registry := content.NewRegistry(newGroupingStore())
 	cars, makers := readableSource(t, registry)
 
-	_, err := registry.MoveField(t.Context(), cars.ID, "maker", makers.ID)
+	_, err := registry.MoveField(t.Context(), topFieldIn(t, registry, cars.ID, "maker").ID, makers.ID, 0)
 
 	if codeOf(err) != "field_referenced" {
 		t.Errorf("MoveField() error = %v, want field_referenced", err)

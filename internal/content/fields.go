@@ -195,27 +195,35 @@ func (k FieldKind) holdsOne() bool {
 
 // NewSubField returns a field definition ready to store inside the parent kind, or the reason it is not one.
 func NewSubField(f Field, parent FieldKind) (Field, error) {
+	if err := f.standsInside(parent); err != nil {
+		return Field{}, err
+	}
+	return built(f)
+}
+
+// standsInside reports the reason the field may not stand inside the parent kind, or nothing when it may.
+func (f Field) standsInside(parent FieldKind) error {
 	if !parent.Holds() {
-		return Field{}, Refuse(ErrFieldShape, "field_parent_holds_none",
+		return Refuse(ErrFieldShape, "field_parent_holds_none",
 			fmt.Sprintf("%s: %s holds no sub fields", ErrFieldShape, parent),
 			Details{"kind": string(parent)})
 	}
 	if f.Kind == FieldKindBacklinks {
-		return Field{}, Refuse(ErrFieldShape, "field_backlinks_inside",
+		return Refuse(ErrFieldShape, "field_backlinks_inside",
 			fmt.Sprintf("%s: a backlinks stands outside a container", ErrFieldShape),
 			Details{"field": f.Key})
 	}
 	if f.Kind == FieldKindLayout && parent != FieldKindFlexible {
-		return Field{}, Refuse(ErrFieldShape, "field_layout_outside",
+		return Refuse(ErrFieldShape, "field_layout_outside",
 			fmt.Sprintf("%s: a layout stands under a flexible, not a %s", ErrFieldShape, parent),
 			Details{"field": f.Key, "kind": string(parent)})
 	}
 	if parent == FieldKindFlexible && f.Kind != FieldKindLayout {
-		return Field{}, Refuse(ErrFieldShape, "field_flexible_takes_layouts",
+		return Refuse(ErrFieldShape, "field_flexible_takes_layouts",
 			fmt.Sprintf("%s: a flexible holds layouts, not a %s", ErrFieldShape, f.Kind),
 			Details{"field": f.Key, "kind": string(f.Kind)})
 	}
-	return built(f)
+	return nil
 }
 
 // holdsMany reports whether the kind takes many values under one key.

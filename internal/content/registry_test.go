@@ -100,7 +100,7 @@ func (s *fakeTypeStore) UpdateSubField(
 func (s *fakeTypeStore) ReorderSubFields(context.Context, int, []string) error { return nil }
 
 // MoveField carries no field, since the fake models fields on their types.
-func (s *fakeTypeStore) MoveField(context.Context, int, string, int) (content.Field, error) {
+func (s *fakeTypeStore) MoveField(context.Context, int, int, int) (content.Field, error) {
 	return content.Field{}, content.ErrFieldNotFound
 }
 

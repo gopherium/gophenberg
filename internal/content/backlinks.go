@@ -5,6 +5,7 @@ package content
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
 
 // ErrBacklinksSource reports that a backlinks field names no relation it can read.
@@ -50,15 +51,26 @@ func BacklinksSource(
 
 // SourceKept reports whether no backlinks field reads the named field, refusing the removal when one does.
 func SourceKept(groups []Group, groupKey, fieldKey string) error {
+	return SourceKeptAlong(groups, groupKey, []string{fieldKey})
+}
+
+// SourceKeptAlong reports whether no backlinks field reads through the path, refusing the move when one does.
+func SourceKeptAlong(groups []Group, groupKey string, path []string) error {
 	for _, g := range groups {
 		for _, f := range g.Fields {
-			if !reads(f, groupKey, fieldKey) {
-				continue
+			if ReadsThrough(f, groupKey, path) {
+				return ReadBy(path[len(path)-1], f.Key)
 			}
-			return ReadBy(fieldKey, f.Key)
 		}
 	}
 	return nil
+}
+
+// ReadsThrough reports whether the field is a backlinks whose source runs through the path inside the group.
+func ReadsThrough(f Field, group string, path []string) bool {
+	source := SourceFieldOf(f)
+	return f.Kind == FieldKindBacklinks && SourceGroupOf(f) == group &&
+		len(source) >= len(path) && slices.Equal(source[:len(path)], path)
 }
 
 // Settled names the readers a caller answers for itself, by field identity, so a removal overlooks them.
@@ -101,15 +113,6 @@ func GroupKept(groups []Group, held Group) error {
 		}
 	}
 	return nil
-}
-
-// reads reports whether the field is a backlinks naming the group key and the field key as its source.
-func reads(f Field, groupKey, fieldKey string) bool {
-	if f.Kind != FieldKindBacklinks || SourceGroupOf(f) != groupKey {
-		return false
-	}
-	path := SourceFieldOf(f)
-	return len(path) > 0 && path[0] == fieldKey
 }
 
 // SourceRelation returns the relation a backlinks field names, or reports that no group holds it.

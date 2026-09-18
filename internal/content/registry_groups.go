@@ -392,38 +392,162 @@ func (r *Registry) heldGroup(ctx context.Context, groupID int) (Group, error) {
 	return target, err
 }
 
-// MoveField carries the field into another group, keeping the values it holds.
-func (r *Registry) MoveField(ctx context.Context, groupID int, key string, toGroup int) (Field, error) {
-	source, err := r.heldGroup(ctx, groupID)
+// MoveField carries the field to the top of the group, or inside the container the parent names, leaving its values.
+func (r *Registry) MoveField(ctx context.Context, id, toGroup, toParent int) (Field, error) {
+	move, err := r.moveOf(ctx, id, toGroup, toParent)
 	if err != nil {
 		return Field{}, err
 	}
-	leaving, err := fieldAmong(source.Fields, key)
-	if err != nil {
+	if move.settled() {
+		return move.from.field, nil
+	}
+	if err := r.moveAllowed(ctx, move); err != nil {
 		return Field{}, err
 	}
-	if err := pluginKeepsField(ctx, leaving); err != nil {
-		return Field{}, err
-	}
-	held, landing, err := r.groupAmong(ctx, toGroup)
-	if err != nil {
-		return Field{}, err
-	}
-	if err := keptFrom(ctx, landing.Origin); err != nil {
-		return Field{}, err
-	}
-	if err := r.uncollided(ctx, held, landing, []string{key}, groupID); err != nil {
-		return Field{}, err
-	}
-	if err := r.landingHolds(ctx, held, source, landing, leaving); err != nil {
-		return Field{}, err
-	}
-	moved, err := r.store.MoveField(ctx, groupID, key, toGroup)
+	moved, err := r.store.MoveField(ctx, id, toGroup, toParent)
 	if err != nil {
 		return Field{}, err
 	}
 	r.invalidate()
 	return moved, nil
+}
+
+// fieldMove is one field leaving its place for another, with everything the refusals read.
+type fieldMove struct {
+	held    []Group
+	source  Group
+	from    placement
+	landing Group
+	parent  Field
+	depth   int
+}
+
+// moveOf resolves where the field stands and where it is asked to stand.
+func (r *Registry) moveOf(ctx context.Context, id, toGroup, toParent int) (fieldMove, error) {
+	held, err := r.Groups(ctx)
+	if err != nil {
+		return fieldMove{}, err
+	}
+	source, from, found := placedInGroups(held, id)
+	if !found {
+		return fieldMove{}, ErrFieldNotFound
+	}
+	landing, found := groupOf(held, toGroup)
+	if !found {
+		return fieldMove{}, ErrGroupNotFound
+	}
+	move := fieldMove{held: held, source: source, from: from, landing: landing}
+	if toParent == 0 {
+		return move, nil
+	}
+	parent, _, depth, found := fieldNumbered(landing.Fields, toParent, 0)
+	if !found {
+		return fieldMove{}, ErrFieldNotFound
+	}
+	move.parent, move.depth = parent, depth+1
+	return move, nil
+}
+
+// settled reports whether the field already stands where it is asked to.
+func (m fieldMove) settled() bool {
+	return m.landing.ID == m.source.ID && m.parent.ID == m.from.parentID
+}
+
+// siblings returns the fields the moved one would stand beside.
+func (m fieldMove) siblings() []Field {
+	if m.parent.ID != 0 {
+		return m.parent.Fields
+	}
+	return m.landing.Fields
+}
+
+// moveAllowed returns the first reason the field may not leave its place for the other, or nothing.
+func (r *Registry) moveAllowed(ctx context.Context, m fieldMove) error {
+	if err := m.owned(ctx); err != nil {
+		return err
+	}
+	if err := m.placeable(r.FieldDepth()); err != nil {
+		return err
+	}
+	if err := r.keyFree(ctx, m); err != nil {
+		return err
+	}
+	if err := m.unread(); err != nil {
+		return err
+	}
+	if err := r.sourceStands(ctx, m.held, m.landing, m.from.field); err != nil {
+		return err
+	}
+	return Stands(m.siblings(), m.from.field)
+}
+
+// owned returns the reason a plugin keeps the field or its destination, or nothing when the site may move it.
+func (m fieldMove) owned(ctx context.Context) error {
+	if err := pluginKeepsField(ctx, m.from.field); err != nil {
+		return err
+	}
+	if err := keptFrom(ctx, m.landing.Origin); err != nil {
+		return err
+	}
+	return pluginKeepsField(ctx, m.parent)
+}
+
+// placeable returns the reason the field cannot stand at the destination, or nothing when it can.
+func (m fieldMove) placeable(limit int) error {
+	if err := m.outsideItself(); err != nil {
+		return err
+	}
+	if err := m.standing(); err != nil {
+		return err
+	}
+	if m.depth+height(m.from.field) > limit {
+		return ErrFieldTooDeep
+	}
+	return nil
+}
+
+// outsideItself returns the refusal to stand the field inside its own tree, or nothing when it lands elsewhere.
+func (m fieldMove) outsideItself() error {
+	if m.parent.ID == 0 {
+		return nil
+	}
+	_, inside := placedAmong(m.from.field.Fields, m.parent.ID, m.from.field.ID)
+	if m.parent.ID != m.from.field.ID && !inside {
+		return nil
+	}
+	return Refuse(ErrFieldInsideItself, "field_moves_inside_itself",
+		fmt.Sprintf("%s: %s", ErrFieldInsideItself, m.from.field.Key), Details{"field": m.from.field.Key})
+}
+
+// standing returns the reason the field's kind cannot stand at the destination, or nothing when it can.
+func (m fieldMove) standing() error {
+	if m.parent.ID == 0 {
+		return m.from.field.standsAlone()
+	}
+	return m.from.field.standsInside(m.parent.Kind)
+}
+
+// keyFree returns the reason the destination already answers to the field's key, or nothing when it is free.
+func (r *Registry) keyFree(ctx context.Context, m fieldMove) error {
+	if _, err := fieldAmong(without(m.siblings(), m.from.field.ID), m.from.field.Key); err == nil {
+		return ErrFieldTaken
+	}
+	if m.parent.ID != 0 {
+		return nil
+	}
+	leaving := 0
+	if m.from.parentID == 0 {
+		leaving = m.source.ID
+	}
+	return r.uncollided(ctx, m.held, m.landing, []string{m.from.field.Key}, leaving)
+}
+
+// unread returns the reason a sibling left behind or a backlinks still reads the field, or nothing.
+func (m fieldMove) unread() error {
+	if err := Unreferenced(m.from.beside, m.from.field.Key); err != nil {
+		return err
+	}
+	return SourceKeptAlong(m.held, m.source.Key, m.from.path)
 }
 
 // pointsSomewhere reports whether a field naming another type or field names one the registry holds.
@@ -434,19 +558,6 @@ func (r *Registry) pointsSomewhere(ctx context.Context, held []Group, target Gro
 		}
 	}
 	return r.sourceStands(ctx, held, target, f)
-}
-
-// landingHolds reports whether the field may leave the group it stands in and stand in the one it lands on.
-func (r *Registry) landingHolds(
-	ctx context.Context, held []Group, source, landing Group, leaving Field,
-) error {
-	if err := freeOfReaders(held, source, leaving.Key); err != nil {
-		return err
-	}
-	if err := r.sourceStands(ctx, held, landing, leaving); err != nil {
-		return err
-	}
-	return Stands(landing.Fields, leaving)
 }
 
 // sourcesStand reports whether every backlinks field among them still reads its source from the group.

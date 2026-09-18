@@ -237,10 +237,10 @@ func TestMoveFieldReportsAKeyTheGroupNeverHeld(t *testing.T) {
 	t.Parallel()
 
 	registry := content.NewRegistry(newGroupingStore())
-	held := groupNaming(t, registry, "Article details", namingPost())
+	groupNaming(t, registry, "Article details", namingPost())
 	landing := groupNaming(t, registry, "Extras", namingPost())
 
-	_, err := registry.MoveField(t.Context(), held.ID, "vanished", landing.ID)
+	_, err := registry.MoveField(t.Context(), 4242, landing.ID, 0)
 
 	if !errors.Is(err, content.ErrFieldNotFound) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldNotFound)
@@ -258,7 +258,7 @@ func TestMoveFieldRefusesAFieldASiblingReads(t *testing.T) {
 	}
 	landing := groupNaming(t, registry, "Extras", namingPost())
 
-	_, err := registry.MoveField(t.Context(), held.ID, "on-sale", landing.ID)
+	_, err := registry.MoveField(t.Context(), topFieldIn(t, registry, held.ID, "on-sale").ID, landing.ID, 0)
 
 	if !errors.Is(err, content.ErrFieldReferenced) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldReferenced)
@@ -276,7 +276,7 @@ func TestMoveFieldRefusesAConditionTheLandingGroupCannotAnswer(t *testing.T) {
 	}
 	landing := groupNaming(t, registry, "Extras", namingPost())
 
-	_, err := registry.MoveField(t.Context(), held.ID, "sale-note", landing.ID)
+	_, err := registry.MoveField(t.Context(), topFieldIn(t, registry, held.ID, "sale-note").ID, landing.ID, 0)
 
 	if !errors.Is(err, content.ErrRuleSourceUnknown) {
 		t.Errorf("MoveField() error = %v, want the condition refused against the landing group", err)
@@ -290,7 +290,9 @@ func TestMoveFieldTakesAFieldCarryingNoConditions(t *testing.T) {
 	held := groupWithSwitch(t, registry)
 	landing := groupNaming(t, registry, "Extras", namingPost())
 
-	if _, err := registry.MoveField(t.Context(), held.ID, "on-sale", landing.ID); err != nil {
+	moving := topFieldIn(t, registry, held.ID, "on-sale")
+
+	if _, err := registry.MoveField(t.Context(), moving.ID, landing.ID, 0); err != nil {
 		t.Errorf("MoveField() error = %v, want the move allowed", err)
 	}
 }

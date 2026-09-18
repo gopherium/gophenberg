@@ -103,7 +103,7 @@ func (unreadableTypeStore) ReorderSubFields(context.Context, int, []string) erro
 }
 
 // MoveField reports the failure rather than carrying the field.
-func (unreadableTypeStore) MoveField(context.Context, int, string, int) (Field, error) {
+func (unreadableTypeStore) MoveField(context.Context, int, int, int) (Field, error) {
 	return Field{}, errTypeStoreDown
 }
 
