@@ -47,6 +47,13 @@ carries the chain of its parents: `/pages/about/team` is the page
 Nesting goes at most ten levels deep. An item holding children cannot
 be trashed until its children move or go first.
 
+**Let items nest** turns nesting on for a type, at any time. **Stop
+nesting** turns it off, and is refused while any item of the type
+still sits inside another, the ones in the trash included. Move those
+to the top level first. An imported definitions file meets the same
+rule: a type it marks flat keeps nesting while its items nest, and the
+plan says so before you apply it.
+
 ## Turning a type off
 
 **Deactivate** hides a type without deleting anything. Its menu entry,
