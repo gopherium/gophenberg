@@ -626,10 +626,7 @@ func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
 		if _, err := queries.DeleteFieldByID(ctx, int32(id)); err != nil {
 			return err
 		}
-		if dropped.Kind == content.FieldKindLayout {
-			return sweepLayout(ctx, queries, path, matched)
-		}
-		return sweepPath(ctx, queries, path, matched)
+		return sweepField(ctx, queries, dropped, path, matched)
 	})
 	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) {
 		return err
@@ -661,6 +658,14 @@ func pathToField(declared []content.Field, id int) (content.Field, []string, boo
 		}
 	}
 	return content.Field{}, nil, false
+}
+
+// sweepField removes what the field held at the path from every item and revision of the matched types.
+func sweepField(ctx context.Context, queries *db.Queries, f content.Field, path, matched []string) error {
+	if f.Kind == content.FieldKindLayout {
+		return sweepLayout(ctx, queries, path, matched)
+	}
+	return sweepPath(ctx, queries, path, matched)
 }
 
 // sweepPath removes whatever stands at the path from every item and revision of the matched types.
@@ -699,30 +704,131 @@ func (s *TypeStore) ReorderFieldsInGroup(ctx context.Context, groupID int, keys 
 	return nil
 }
 
-// MoveField carries the field into another group, keeping the values it holds.
-func (s *TypeStore) MoveField(
-	ctx context.Context, groupID int, key string, toGroup int,
-) (content.Field, error) {
+// MoveField carries the field to the top of the group, or inside the container the parent names, leaving its values.
+func (s *TypeStore) MoveField(ctx context.Context, id, toGroup, toParent int) (content.Field, error) {
 	var moved content.Field
-	err := s.settledFieldWrite(ctx, toGroup, key, groupID, func(queries *db.Queries) error {
-		row, err := queries.MoveContentField(ctx, db.MoveContentFieldParams{
-			ToGroup: int32(toGroup), UpdatedAt: time.Now().UTC(), GroupID: int32(groupID), Key: key,
-		})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return content.ErrFieldNotFound
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := queries.LockFieldGroups(ctx); err != nil {
+			return fmt.Errorf("postgres: lock field groups: %w", err)
 		}
+		move, err := movePlanned(ctx, queries, id, toGroup, toParent)
 		if err != nil {
 			return err
 		}
-		moved = toField(row)
-		return queries.MoveContentFieldDescendants(ctx, db.MoveContentFieldDescendantsParams{
-			ID: row.ID, ToGroup: int32(toGroup),
-		})
+		if err := move.keyFree(ctx, queries); err != nil {
+			return err
+		}
+		moved, err = move.write(ctx, queries)
+		return err
+	})
+	if err == nil {
+		return moved, nil
+	}
+	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) ||
+		errors.Is(err, content.ErrFieldTaken) {
+		return content.Field{}, err
+	}
+	return content.Field{}, fieldWriteFailure(err)
+}
+
+// fieldMove is one field leaving its place for another, as the store carries it.
+type fieldMove struct {
+	id, toGroup, toParent int
+	leaving               content.Field
+	source                content.Group
+	path                  []string
+	depth                 int
+}
+
+// movePlanned resolves where the field stands and where it is asked to stand, both read under the lock.
+func movePlanned(ctx context.Context, queries *db.Queries, id, toGroup, toParent int) (fieldMove, error) {
+	groups, err := groupsWithFields(ctx, queries)
+	if err != nil {
+		return fieldMove{}, err
+	}
+	source, leaving, path, found := fieldPathIn(groups, id)
+	if !found {
+		return fieldMove{}, content.ErrFieldNotFound
+	}
+	landing, found := groupByID(groups, toGroup)
+	if !found {
+		return fieldMove{}, content.ErrGroupNotFound
+	}
+	move := fieldMove{id: id, toGroup: toGroup, toParent: toParent, leaving: leaving, source: source, path: path}
+	if toParent == 0 {
+		return move, nil
+	}
+	_, above, found := pathToField(landing.Fields, toParent)
+	if !found {
+		return fieldMove{}, content.ErrFieldNotFound
+	}
+	move.depth = len(above)
+	return move, nil
+}
+
+// keyFree re-checks the key against the rival groups when the field lands at a group's top.
+func (m fieldMove) keyFree(ctx context.Context, queries *db.Queries) error {
+	if m.toParent != 0 {
+		return nil
+	}
+	leaving := 0
+	if m.leaving.ParentID == 0 {
+		leaving = m.source.ID
+	}
+	return keyFreeInGroup(ctx, queries, m.toGroup, m.leaving.Key, leaving)
+}
+
+// write reparents the field, recounts the depth below it and sweeps what its old path held.
+func (m fieldMove) write(ctx context.Context, queries *db.Queries) (content.Field, error) {
+	row, err := queries.ReparentContentField(ctx, db.ReparentContentFieldParams{
+		ID: int32(m.id), ToGroup: int32(m.toGroup), ToParent: parentColumn(m.toParent),
+		UpdatedAt: time.Now().UTC(),
 	})
 	if err != nil {
 		return content.Field{}, err
 	}
-	return moved, nil
+	if err := queries.RecountContentFieldDepth(ctx, db.RecountContentFieldDepthParams{
+		ID: int32(m.id), Depth: int32(m.depth), ToGroup: int32(m.toGroup),
+	}); err != nil {
+		return content.Field{}, err
+	}
+	if m.leaving.ParentID == m.toParent {
+		return toField(row), nil
+	}
+	return toField(row), m.sweep(ctx, queries)
+}
+
+// sweep takes what the field held at its old path out of every item and revision, its relation rows included.
+func (m fieldMove) sweep(ctx context.Context, queries *db.Queries) error {
+	matched, err := typesMatchedBy(ctx, queries, m.source)
+	if err != nil {
+		return err
+	}
+	if err := sweepField(ctx, queries, m.leaving, m.path, matched); err != nil {
+		return err
+	}
+	fields := relationsBelow(m.leaving, nil)
+	if len(fields) == 0 {
+		return nil
+	}
+	return queries.DeleteRelationsOfFields(ctx, db.DeleteRelationsOfFieldsParams{Types: matched, Fields: fields})
+}
+
+// parentColumn returns the parent as the nullable column holds it, null for a group's top.
+func parentColumn(parentID int) pgtype.Int4 {
+	return pgtype.Int4{Int32: int32(parentID), Valid: parentID != 0}
+}
+
+// relationsBelow appends the identities of the relation fields the field is or holds, however deep.
+func relationsBelow(f content.Field, held []int32) []int32 {
+	if f.Kind == content.FieldKindRelation {
+		held = append(held, int32(f.ID))
+	}
+	for _, inside := range f.Fields {
+		held = relationsBelow(inside, held)
+	}
+	return held
 }
 
 // settledFieldWrite runs the write once the key is held free of every rival group sharing a type.

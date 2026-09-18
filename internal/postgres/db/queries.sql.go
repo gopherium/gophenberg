@@ -871,6 +871,22 @@ func (q *Queries) DeleteMedia(ctx context.Context, id int64) (CoreMedia, error) 
 	return i, err
 }
 
+const deleteRelationsOfFields = `-- name: DeleteRelationsOfFields :exec
+DELETE FROM core.content_relations AS r
+USING core.content AS c
+WHERE r.from_id = c.id AND c.type = ANY($1::text []) AND r.field_id = ANY($2::integer [])
+`
+
+type DeleteRelationsOfFieldsParams struct {
+	Types  []string
+	Fields []int32
+}
+
+func (q *Queries) DeleteRelationsOfFields(ctx context.Context, arg DeleteRelationsOfFieldsParams) error {
+	_, err := q.db.Exec(ctx, deleteRelationsOfFields, arg.Types, arg.Fields)
+	return err
+}
+
 const deleteRevision = `-- name: DeleteRevision :execrows
 DELETE FROM core.content_revisions AS r
 WHERE r.content_id = $1 AND r.id = $2
@@ -1892,74 +1908,6 @@ func (q *Queries) LockTypeNesting(ctx context.Context, key string) (bool, error)
 	return hierarchical, err
 }
 
-const moveContentField = `-- name: MoveContentField :one
-UPDATE core.content_fields AS moved
-SET group_id = $1,
-    position = (
-        SELECT COALESCE(MAX(landing.position), 0) + 1
-        FROM core.content_fields AS landing WHERE landing.group_id = $1
-    ),
-    updated_at = $2
-WHERE moved.group_id = $3 AND moved.key = $4 AND moved.parent_field_id IS NULL
-RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin
-`
-
-type MoveContentFieldParams struct {
-	ToGroup   int32
-	UpdatedAt time.Time
-	GroupID   int32
-	Key       string
-}
-
-func (q *Queries) MoveContentField(ctx context.Context, arg MoveContentFieldParams) (CoreContentField, error) {
-	row := q.db.QueryRow(ctx, moveContentField,
-		arg.ToGroup,
-		arg.UpdatedAt,
-		arg.GroupID,
-		arg.Key,
-	)
-	var i CoreContentField
-	err := row.Scan(
-		&i.ID,
-		&i.Key,
-		&i.Label,
-		&i.Kind,
-		&i.RelatesTo,
-		&i.Many,
-		&i.Required,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.Position,
-		&i.GroupID,
-		&i.Settings,
-		&i.ParentFieldID,
-		&i.Depth,
-		&i.Origin,
-	)
-	return i, err
-}
-
-const moveContentFieldDescendants = `-- name: MoveContentFieldDescendants :exec
-WITH RECURSIVE inside AS (
-    SELECT held.id FROM core.content_fields AS held WHERE held.parent_field_id = $2::integer
-    UNION ALL
-    SELECT below.id FROM core.content_fields AS below JOIN inside ON below.parent_field_id = inside.id
-)
-UPDATE core.content_fields AS moved
-SET group_id = $1
-WHERE moved.id IN (SELECT inside.id FROM inside)
-`
-
-type MoveContentFieldDescendantsParams struct {
-	ToGroup int32
-	ID      int32
-}
-
-func (q *Queries) MoveContentFieldDescendants(ctx context.Context, arg MoveContentFieldDescendantsParams) error {
-	_, err := q.db.Exec(ctx, moveContentFieldDescendants, arg.ToGroup, arg.ID)
-	return err
-}
-
 const moveDescendants = `-- name: MoveDescendants :exec
 WITH RECURSIVE moved AS (
     SELECT c.id, $3::text AS path
@@ -2067,6 +2015,30 @@ func (q *Queries) PruneRevisions(ctx context.Context, arg PruneRevisionsParams) 
 	return err
 }
 
+const recountContentFieldDepth = `-- name: RecountContentFieldDepth :exec
+WITH RECURSIVE rooted AS (
+    SELECT top.id, $2::integer AS depth FROM core.content_fields AS top WHERE top.id = $3
+    UNION ALL
+    SELECT below.id, rooted.depth + 1
+    FROM core.content_fields AS below JOIN rooted ON below.parent_field_id = rooted.id
+)
+UPDATE core.content_fields AS held
+SET depth = rooted.depth, group_id = $1
+FROM rooted
+WHERE held.id = rooted.id
+`
+
+type RecountContentFieldDepthParams struct {
+	ToGroup int32
+	Depth   int32
+	ID      int32
+}
+
+func (q *Queries) RecountContentFieldDepth(ctx context.Context, arg RecountContentFieldDepthParams) error {
+	_, err := q.db.Exec(ctx, recountContentFieldDepth, arg.ToGroup, arg.Depth, arg.ID)
+	return err
+}
+
 const refreshRelationVisibility = `-- name: RefreshRelationVisibility :exec
 UPDATE core.content_relations r
 SET sort_at = coalesce(c.published_at, c.created_at), visible = (c.status = 'published')
@@ -2133,6 +2105,56 @@ type ReorderSubContentFieldsParams struct {
 func (q *Queries) ReorderSubContentFields(ctx context.Context, arg ReorderSubContentFieldsParams) error {
 	_, err := q.db.Exec(ctx, reorderSubContentFields, arg.ParentFieldID, arg.Keys)
 	return err
+}
+
+const reparentContentField = `-- name: ReparentContentField :one
+UPDATE core.content_fields AS moved
+SET group_id = $1,
+    parent_field_id = $2::integer,
+    position = (
+        SELECT COALESCE(MAX(landing.position), 0) + 1
+        FROM core.content_fields AS landing
+        WHERE landing.group_id = $1
+            AND landing.parent_field_id IS NOT DISTINCT FROM $2::integer
+    ),
+    updated_at = $3
+WHERE moved.id = $4
+RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin
+`
+
+type ReparentContentFieldParams struct {
+	ToGroup   int32
+	ToParent  pgtype.Int4
+	UpdatedAt time.Time
+	ID        int32
+}
+
+func (q *Queries) ReparentContentField(ctx context.Context, arg ReparentContentFieldParams) (CoreContentField, error) {
+	row := q.db.QueryRow(ctx, reparentContentField,
+		arg.ToGroup,
+		arg.ToParent,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	var i CoreContentField
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Label,
+		&i.Kind,
+		&i.RelatesTo,
+		&i.Many,
+		&i.Required,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Position,
+		&i.GroupID,
+		&i.Settings,
+		&i.ParentFieldID,
+		&i.Depth,
+		&i.Origin,
+	)
+	return i, err
 }
 
 const restoreContent = `-- name: RestoreContent :one
