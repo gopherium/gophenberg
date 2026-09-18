@@ -31,6 +31,7 @@ type Registrar struct {
 	registry *content.Registry
 	origin   string
 	skipped  []Held
+	kept     []Held
 	declared []Held
 }
 
@@ -57,6 +58,16 @@ func (r *Registrar) owns(subject, key string) {
 // notOurs records a definition the plugin declared that another owner already held.
 func (r *Registrar) notOurs(subject, key string) {
 	r.skipped = append(r.skipped, Held{Subject: subject, Key: key})
+}
+
+// Kept returns the definitions the plugin declared that the site's content keeps as they stand.
+func (r *Registrar) Kept() []Held {
+	return slices.Clone(r.kept)
+}
+
+// keeps records a definition the plugin declared that the site's content keeps as it stands.
+func (r *Registrar) keeps(subject, key string) {
+	r.kept = append(r.kept, Held{Subject: subject, Key: key})
 }
 
 // DeclareType stores the type, carries its labels onto a stored one, or skips a key the plugin does not own.
@@ -89,6 +100,17 @@ func (r *Registrar) DeclareType(ctx context.Context, declared sdk.TypeDeclaratio
 	if sameType(stored, wanted) {
 		return nil
 	}
+	return r.carryType(ctx, wanted, declared.Key)
+}
+
+// carryType stores the declared type, leaving its nesting on while items of it sit inside one another.
+func (r *Registrar) carryType(ctx context.Context, wanted content.Type, key string) error {
+	_, err := r.registry.Update(ctx, wanted)
+	if !errors.Is(err, content.ErrNestingInUse) {
+		return err
+	}
+	r.keeps(SubjectType, key)
+	wanted.Hierarchical = true
 	_, err = r.registry.Update(ctx, wanted)
 	return err
 }

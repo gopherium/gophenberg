@@ -18,10 +18,11 @@ type Held struct {
 	Key     string `json:"key"`
 }
 
-// Walk is what one plugin declared at a boot and what another owner already held.
+// Walk is what one plugin declared at a boot, what another owner already held and what the site's content kept.
 type Walk struct {
 	Declared []Held
 	Skipped  []Held
+	Kept     []Held
 }
 
 // Walked is what every plugin declared at a boot, by the plugin that declared it.
@@ -35,10 +36,12 @@ type Stray struct {
 	Label   string `json:"label"`
 }
 
-// Drift is what the site holds that no plugin declares, and what a plugin declares that the site holds.
+// Drift is what the site holds that no plugin declares, what a plugin declares that the site holds,
+// and what the site's content keeps as it stands.
 type Drift struct {
-	Orphans    []Stray `json:"orphans"`
-	Collisions []Stray `json:"collisions"`
+	Orphans     []Stray `json:"orphans"`
+	Collisions  []Stray `json:"collisions"`
+	NestingKept []Stray `json:"nesting_kept"`
 }
 
 // Adrift returns the definitions standing apart from what the plugins declared at the last boot.
@@ -51,7 +54,7 @@ func Adrift(ctx context.Context, registry *content.Registry, walked Walked) (Dri
 	if err != nil {
 		return Drift{}, err
 	}
-	drift := Drift{Orphans: []Stray{}, Collisions: []Stray{}}
+	drift := Drift{Orphans: []Stray{}, Collisions: []Stray{}, NestingKept: []Stray{}}
 	for _, held := range types {
 		if orphaned(walked, SubjectType, held.Key, held.Origin) {
 			drift.Orphans = append(drift.Orphans, Stray{
@@ -67,6 +70,7 @@ func Adrift(ctx context.Context, registry *content.Registry, walked Walked) (Dri
 		}
 	}
 	drift.Collisions = collided(walked, types, groups)
+	drift.NestingKept = nestingKeptFrom(walked, types, groups)
 	return drift, nil
 }
 
@@ -101,6 +105,20 @@ func collided(walked Walked, types []content.Type, groups []content.Group) []Str
 	held := make([]Stray, 0, len(walked))
 	for origin, walk := range walked {
 		for _, one := range walk.Skipped {
+			held = append(held, Stray{
+				Subject: one.Subject, Key: one.Key, Origin: origin,
+				Label: labelOf(one, types, groups),
+			})
+		}
+	}
+	return held
+}
+
+// nestingKeptFrom returns the types a plugin declared flat that the site's nested items keep nesting.
+func nestingKeptFrom(walked Walked, types []content.Type, groups []content.Group) []Stray {
+	held := make([]Stray, 0, len(walked))
+	for origin, walk := range walked {
+		for _, one := range walk.Kept {
 			held = append(held, Stray{
 				Subject: one.Subject, Key: one.Key, Origin: origin,
 				Label: labelOf(one, types, groups),

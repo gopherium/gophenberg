@@ -30,7 +30,7 @@ const (
 	ReasonMoved        = "moved"
 )
 
-// The changes an import reaches beyond the definitions to make, or leaves because the site's content stands in the way.
+// The changes an import reaches beyond the definitions, the ones it makes and the ones it leaves.
 const (
 	WarningRootMoved        = "root_moved"
 	WarningRouteWordChanged = "route_word_changed"

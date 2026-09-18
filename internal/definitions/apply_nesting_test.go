@@ -3,7 +3,6 @@
 package definitions_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -32,6 +31,15 @@ func authorOn(t *testing.T, pool *pgxpool.Pool) uuid.UUID {
 // nestingSite returns the planning site with its recipe type nesting, the content store and an author.
 func nestingSite(t *testing.T) (*content.Registry, *postgres.ContentStore, uuid.UUID) {
 	t.Helper()
+	registry, items, author, _ := nestingSiteWithPool(t)
+	return registry, items, author
+}
+
+// nestingSiteWithPool returns the nesting site together with the pool it stands on.
+func nestingSiteWithPool(
+	t *testing.T,
+) (*content.Registry, *postgres.ContentStore, uuid.UUID, *pgxpool.Pool) {
+	t.Helper()
 	pool, registry := definedSite(t)
 	recipe, err := registry.ByKey(t.Context(), "recipe")
 	if err != nil {
@@ -41,7 +49,7 @@ func nestingSite(t *testing.T) (*content.Registry, *postgres.ContentStore, uuid.
 	if _, err := registry.Update(t.Context(), recipe); err != nil {
 		t.Fatalf("Update(recipe) error = %v, want the type nesting", err)
 	}
-	return registry, postgres.NewContentStore(pool), authorOn(t, pool)
+	return registry, postgres.NewContentStore(pool), authorOn(t, pool), pool
 }
 
 // filed stores an item of the type under the parent and returns it.
@@ -224,10 +232,36 @@ func TestDeclareTypeKeepsAPluginTypeNestingWhileItsItemsNest(t *testing.T) {
 	items, author := postgres.NewContentStore(pool), authorOn(t, pool)
 	gala := filed(t, items, event, nil, "Gala", author)
 	filed(t, items, event, &gala, "After party", author)
+	flat := eventType()
+	flat.SingularLabel = "Gathering"
 
-	err = registrar.DeclareType(t.Context(), eventType())
-
-	if !errors.Is(err, content.ErrNestingInUse) {
-		t.Errorf("DeclareType(flat) error = %v, want %v", err, content.ErrNestingInUse)
+	if err := registrar.DeclareType(t.Context(), flat); err != nil {
+		t.Fatalf("DeclareType(flat) error = %v, want the declaration standing around the nested items", err)
 	}
+
+	after := content.NewRegistry(postgres.NewTypeStore(pool))
+	if !storedNesting(t, after, "event") {
+		t.Errorf("the event type stopped nesting, want it kept for the items sitting inside another")
+	}
+	held, _ := after.ByKey(t.Context(), "event")
+	if held.SingularLabel != "Gathering" {
+		t.Errorf("the event type is labeled %q, want the plugin's label carried anyway", held.SingularLabel)
+	}
+	if !heldNames(registrar.Kept(), definitions.SubjectType, "event") {
+		t.Errorf("kept = %+v, want the type the plugin could not flatten named there", registrar.Kept())
+	}
+	if len(registrar.Skipped()) != 0 {
+		t.Errorf("skipped = %+v, want the plugin's own type left out of what another owner holds",
+			registrar.Skipped())
+	}
+}
+
+// heldNames reports whether the definitions name the subject and key.
+func heldNames(held []definitions.Held, subject, key string) bool {
+	for _, one := range held {
+		if one.Subject == subject && one.Key == key {
+			return true
+		}
+	}
+	return false
 }

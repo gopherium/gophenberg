@@ -4,6 +4,7 @@ package definitions
 
 import (
 	"context"
+	"errors"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
@@ -168,11 +169,25 @@ func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Chan
 		r.did(planned)
 		return nil
 	}
-	if _, err := r.registry.Update(ctx, wanted); err != nil {
+	if err := r.carryType(ctx, wanted, declared, planned); err != nil {
 		return err
 	}
 	r.did(planned)
 	return nil
+}
+
+// carryType stores the edited type, leaving its nesting on when an item nested under it while the import ran.
+func (r *run) carryType(
+	ctx context.Context, wanted content.Type, declared TypeDefinition, planned Change,
+) error {
+	_, err := r.registry.Update(ctx, wanted)
+	if !errors.Is(err, content.ErrNestingInUse) {
+		return err
+	}
+	r.left(r.kept(planned, declared, ReasonNestingKept))
+	wanted.Hierarchical = true
+	_, err = r.registry.Update(ctx, wanted)
+	return err
 }
 
 // kept returns the change the import leaves undone on the type, naming why.
