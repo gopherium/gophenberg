@@ -125,11 +125,12 @@ func TestFilingUnderAParentWaitsForTheTypeEditAndMeetsItsAnswer(t *testing.T) {
 		`SELECT key FROM core.content_types WHERE key = 'page' FOR UPDATE`); err != nil {
 		t.Fatalf("locking the type row: %v", err)
 	}
+	team := stalePage(t, &about, "Team", author)
 	created := make(chan error, 1)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		_, err := items.Create(ctx, stalePage(t, &about, "Team", author))
+		_, err := items.Create(ctx, team)
 		created <- err
 	}()
 	waitingOn(t, pool, "%FROM core.content_types%FOR SHARE%")
