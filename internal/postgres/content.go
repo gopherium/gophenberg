@@ -87,8 +87,8 @@ func (s *ContentStore) create(
 		UpdatedAt:   c.UpdatedAt,
 		Fields:      storedValues(c.Fields),
 	}
-	if len(c.Fields) > 0 {
-		return s.createDeclared(ctx, c, params)
+	if len(c.Fields) > 0 || c.ParentID != nil {
+		return s.createHeld(ctx, c, params)
 	}
 	row, err := s.queries.CreateContent(ctx, params)
 	if err != nil {
@@ -97,13 +97,16 @@ func (s *ContentStore) create(
 	return toContent(row), nil
 }
 
-// createDeclared stores the item once every value it carries names a field a group still declares.
-func (s *ContentStore) createDeclared(
+// createHeld stores the item once its type still nests and every value it carries names a declared field.
+func (s *ContentStore) createHeld(
 	ctx context.Context, c content.Content, params db.CreateContentParams,
 ) (content.Content, error) {
 	var row db.CoreContent
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
+		if err := nestable(ctx, queries, c); err != nil {
+			return err
+		}
 		matching, err := declaredValues(ctx, queries, c)
 		if err != nil {
 			return err
@@ -333,6 +336,9 @@ func (s *ContentStore) update(
 		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
 			return err
 		}
+		if err := nestable(ctx, queries, c); err != nil {
+			return err
+		}
 		resolved, err := resolvedTargets(ctx, queries, c)
 		if err != nil {
 			return err
@@ -423,6 +429,21 @@ func declaredValues(ctx context.Context, queries *db.Queries, c content.Content)
 	return matchingGroupIDs(ctx, queries, c.Type)
 }
 
+// nestable returns the reason the item's type no longer takes it under a parent, holding the type as it stands.
+func nestable(ctx context.Context, queries *db.Queries, c content.Content) error {
+	if c.ParentID == nil {
+		return nil
+	}
+	nests, err := queries.LockTypeNesting(ctx, c.Type)
+	if err != nil {
+		return err
+	}
+	if !nests {
+		return content.ErrNotHierarchical
+	}
+	return nil
+}
+
 // valuesDeclared refuses a value whose field no group declares at all.
 func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content) error {
 	keys, err := queries.LockDeclaredFieldKeys(ctx)
@@ -446,7 +467,7 @@ func writeFailure(err error) error {
 	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) || isSlugTaken(err) {
 		return err
 	}
-	if errors.Is(err, content.ErrUnknownField) {
+	if errors.Is(err, content.ErrUnknownField) || errors.Is(err, content.ErrNotHierarchical) {
 		return err
 	}
 	if errors.Is(err, content.ErrTargetNotFound) || errors.Is(err, content.ErrTargetType) {

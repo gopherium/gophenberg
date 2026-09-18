@@ -117,6 +117,12 @@ WHERE p.id = moved.id AND p.id <> @id;
 -- name: CountChildren :one
 SELECT count(*) FROM core.content p WHERE p.parent_id = @id;
 
+-- name: CountNestedContent :one
+SELECT count(*) FROM core.content p WHERE p.type = @type AND p.parent_id IS NOT NULL;
+
+-- name: LockTypeNesting :one
+SELECT t.hierarchical FROM core.content_types t WHERE t.key = @key FOR SHARE;
+
 -- name: SiblingSlugTaken :one
 SELECT EXISTS (
     SELECT 1 FROM core.content p

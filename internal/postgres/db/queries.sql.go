@@ -304,6 +304,17 @@ func (q *Queries) CountMedia(ctx context.Context, arg CountMediaParams) (int64, 
 	return count, err
 }
 
+const countNestedContent = `-- name: CountNestedContent :one
+SELECT count(*) FROM core.content p WHERE p.type = $1 AND p.parent_id IS NOT NULL
+`
+
+func (q *Queries) CountNestedContent(ctx context.Context, type_ string) (int64, error) {
+	row := q.db.QueryRow(ctx, countNestedContent, type_)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countPointingAt = `-- name: CountPointingAt :one
 SELECT count(DISTINCT r.from_id)
 FROM core.content_relations r
@@ -1868,6 +1879,17 @@ SELECT pg_advisory_xact_lock(hashtext('core.field_groups'))
 func (q *Queries) LockFieldGroups(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockFieldGroups)
 	return err
+}
+
+const lockTypeNesting = `-- name: LockTypeNesting :one
+SELECT t.hierarchical FROM core.content_types t WHERE t.key = $1 FOR SHARE
+`
+
+func (q *Queries) LockTypeNesting(ctx context.Context, key string) (bool, error) {
+	row := q.db.QueryRow(ctx, lockTypeNesting, key)
+	var hierarchical bool
+	err := row.Scan(&hierarchical)
+	return hierarchical, err
 }
 
 const moveContentField = `-- name: MoveContentField :one
