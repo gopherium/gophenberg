@@ -36,15 +36,28 @@ func (r *run) declineArrivals(lost Change) {
 	}
 }
 
-// fields stores the fields the envelope brings and carries what it changed onto the stored ones.
+// fields stores the fields the envelope brings and carries what it changed onto the stored ones, backlinks last.
 func (r *run) fields(ctx context.Context) error {
-	for _, declared := range r.envelope.Groups {
-		stored := r.groupKeyed(declared.Key)
-		if err := r.fieldsUnder(ctx, stored.ID, declared.Key, "", 0, declared.Fields); err != nil {
-			return err
+	for _, late := range []bool{false, true} {
+		for _, declared := range r.envelope.Groups {
+			stored := r.groupKeyed(declared.Key)
+			if err := r.fieldsUnder(ctx, stored.ID, declared.Key, "", 0, pass(declared.Fields, late)); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+// pass returns the declared fields one pass stores, the backlinks when late and every other kind before them.
+func pass(declared []FieldDefinition, late bool) []FieldDefinition {
+	held := make([]FieldDefinition, 0, len(declared))
+	for _, d := range declared {
+		if (d.Kind == string(content.FieldKindBacklinks)) == late {
+			held = append(held, d)
+		}
+	}
+	return held
 }
 
 // fieldsUnder stores or carries the fields declared at one level, then the ones standing inside them.

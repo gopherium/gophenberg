@@ -69,6 +69,7 @@ Feature: Linked from
     When the administrator imports the file
     Then the import is applied
     And the group "Filing" holds "categories"
+    And the field "linked-from" on "category" reads "categories" in "Filing"
 
   Scenario: An import reshaping a relation its backlinks reads keeps the backlinks
     Given the site's file makes "categories" in "post fields" hold one
