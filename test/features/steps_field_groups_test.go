@@ -28,9 +28,10 @@ type groupHeld struct {
 
 // fieldHeld is a field definition as a scenario reads it back, holding the sub fields it declares.
 type fieldHeld struct {
-	Key       string      `json:"key"`
-	UpdatedAt string      `json:"updated_at"`
-	Fields    []fieldHeld `json:"fields"`
+	Key       string         `json:"key"`
+	UpdatedAt string         `json:"updated_at"`
+	Settings  map[string]any `json:"settings"`
+	Fields    []fieldHeld    `json:"fields"`
 }
 
 // groupsListing is the field group listing as a scenario reads it back.

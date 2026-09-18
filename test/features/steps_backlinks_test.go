@@ -196,6 +196,8 @@ func initializeBacklinks(sc *godog.ScenarioContext) {
 	sc.Then(`^the category "([^"]*)" is pointed at by "([^"]*)"$`, theItemIsPointedAtBy)
 	sc.Then(`^the category "([^"]*)" is pointed at by nobody$`, theItemIsPointedAtByNobody)
 	sc.Then(`^the field "([^"]*)" is gone from "([^"]*)"$`, theFieldIsGoneFrom)
+	sc.Given(`^the "([^"]*)" field "([^"]*)" in "([^"]*)"$`, theContainerExists)
+	sc.When(`^the administrator moves the field "([^"]*)" inside "([^"]*)"$`, theAdministratorMovesTheFieldInside)
 	sc.Then(`^the field "([^"]*)" on "([^"]*)" reads "([^"]*)" in "([^"]*)"$`, theBacklinksReads)
 	initializeImportFile(sc)
 	_ = http.StatusOK

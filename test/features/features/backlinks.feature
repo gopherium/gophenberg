@@ -42,6 +42,16 @@ Feature: Linked from
     When the administrator requires "linked-from"
     Then the request is refused with the code "field_never_required"
 
+  Scenario: A Linked from field cannot move inside a container
+    Given the "section" field "filing" in "category fields"
+    When the administrator moves the field "linked-from" inside "filing"
+    Then the request is refused with the code "field_backlinks_inside"
+
+  Scenario: A relation a Linked from reads cannot move into a container
+    Given the "section" field "filing" in "post fields"
+    When the administrator moves the field "categories" inside "filing"
+    Then the request is refused with the code "field_referenced"
+
   Scenario: An import giving up a relation and the backlinks reading it takes both away
     Given the site's file leaves out "categories" in "post fields"
     And the site's file leaves out "linked-from" in "category fields"

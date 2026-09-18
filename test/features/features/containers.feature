@@ -139,3 +139,89 @@ Feature: Container fields
     And the administrator deletes the group "Extras"
     Then the group "Extras" is no longer listed
     And the field "author" on "post" holds the sub field "name"
+
+  Scenario: A field moves into a container
+    Given the "section" field "author" in "Extras"
+    And the "text" field "name" in "Extras"
+    When the administrator moves the field "name" inside "author"
+    Then the field "author" on "post" holds the sub field "name"
+    And the field "name" is not served on "post"
+
+  Scenario: A field moves out of a container to the top of its group
+    Given the "section" field "author" in "Extras"
+    And the "text" field "name" inside "author"
+    When the administrator moves the field "name" to the top of "Extras"
+    Then the field "name" is served on "post"
+    And the field "author" on "post" holds no sub field "name"
+
+  Scenario: A field moved into a container keeps the settings it carried
+    Given the "section" field "offer" in "Extras"
+    And the "number" field "sale-price" in "Extras" with settings:
+      """
+      {"listed": true}
+      """
+    When the administrator moves the field "sale-price" inside "offer"
+    Then the field "offer" on "post" holds the sub field "sale-price"
+    And the sub field "sale-price" inside "offer" carries the setting "listed"
+
+  Scenario: The values under a moved field do not follow it
+    Given the "section" field "author" in "Extras"
+    And the "text" field "name" in "Extras"
+    And the post "Hello world"
+    And the post "Hello world" holding:
+      """
+      {"name": "Maria Perez"}
+      """
+    When the administrator moves the field "name" inside "author"
+    Then the post "Hello world" holds no field "name"
+
+  Scenario: A container carries its own sub fields into another container
+    Given the "section" field "author" in "Extras"
+    And the "section" field "address" in "Extras"
+    And the "text" field "street" inside "address"
+    When the administrator moves the field "address" inside "author"
+    Then the field "author" on "post" holds the sub field "address"
+    And the field "author" on "post" holds the sub field "street"
+
+  Scenario: A field moved deeper than the site allows is refused
+    Given fields may stand inside 1 container at most
+    And the "section" field "author" in "Extras"
+    And the "section" field "address" in "Extras"
+    And the "text" field "street" inside "address"
+    When the administrator moves the field "address" inside "author"
+    Then the request is refused with the code "field_too_deep"
+    And the field "address" is served on "post"
+
+  Scenario: A container moved inside itself is refused
+    Given the "section" field "author" in "Extras"
+    And the "section" field "address" inside "author"
+    When the administrator moves the field "author" inside "address"
+    Then the request is refused with the code "field_moves_inside_itself"
+    And the field "author" on "post" holds the sub field "address"
+
+  Scenario: A field moved onto a name the container already holds is refused
+    Given the "section" field "author" in "Extras"
+    And the "text" field "name" inside "author"
+    And the "text" field "name" in "Extras"
+    When the administrator moves the field "name" inside "author"
+    Then the request is refused with the code "field_taken"
+
+  Scenario: A field a sibling reads cannot leave the container
+    Given the "section" field "offer" in "Extras"
+    And the "boolean" field "on-sale" inside "offer"
+    And the "number" field "sale-price" inside "offer" with settings:
+      """
+      {"conditions": [[{"source": "on-sale", "operator": "==", "value": "true"}]]}
+      """
+    When the administrator moves the field "on-sale" to the top of "Extras"
+    Then the request is refused with the code "field_referenced"
+
+  Scenario: A field whose own rules no sibling answers cannot move
+    Given the "boolean" field "on-sale" in "Extras"
+    And the "section" field "offer" in "Extras"
+    And the "number" field "sale-price" in "Extras" with settings:
+      """
+      {"conditions": [[{"source": "on-sale", "operator": "==", "value": "true"}]]}
+      """
+    When the administrator moves the field "sale-price" inside "offer"
+    Then the request is refused with the code "rule_source_unknown"

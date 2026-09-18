@@ -111,6 +111,75 @@ func declareInside(ctx context.Context, kind, key, parent, settings string) erro
 	return w.postJSON(groupsPath+"/"+strconv.Itoa(groupID)+"/fields/"+path, body)
 }
 
+// movingField asks the registry to carry the field the key names to the destination the body describes.
+func movingField(ctx context.Context, key, body string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	groupID, path, _, err := declaredField(w, key)
+	if err != nil {
+		return err
+	}
+	return w.postJSON(groupsPath+"/"+strconv.Itoa(groupID)+"/fields/"+path+"/move", body)
+}
+
+// theAdministratorMovesTheFieldInside asks for the field to stand inside the container the key names.
+func theAdministratorMovesTheFieldInside(ctx context.Context, key, parent string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	landing, inside, _, err := declaredField(w, parent)
+	if err != nil {
+		return err
+	}
+	return movingField(ctx, key, fmt.Sprintf(`{"to_group":%d,"to_parent":%q}`, landing, inside))
+}
+
+// theAdministratorMovesTheFieldToTheTop asks for the field to stand at the top of the group the title names.
+func theAdministratorMovesTheFieldToTheTop(ctx context.Context, key, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	landing, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	return movingField(ctx, key, fmt.Sprintf(`{"to_group":%d}`, landing.ID))
+}
+
+// theFieldHoldsNoSubField asserts the served field declares no sub field under the key.
+func theFieldHoldsNoSubField(ctx context.Context, key, typeKey, sub string) error {
+	if err := theFieldHoldsTheSubField(ctx, key, typeKey, sub); err == nil {
+		return fmt.Errorf("the field %q on %q still holds the sub field %q", key, typeKey, sub)
+	}
+	return nil
+}
+
+// theSubFieldCarriesTheSetting asserts the field standing inside the container carries the setting.
+func theSubFieldCarriesTheSetting(ctx context.Context, key, parent, setting string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	_, _, held, err := declaredField(w, parent)
+	if err != nil {
+		return err
+	}
+	for _, f := range held.Fields {
+		if f.Key != key {
+			continue
+		}
+		if _, found := f.Settings[setting]; !found {
+			return fmt.Errorf("the sub field %q carries the settings %v, want %q among them", key, f.Settings, setting)
+		}
+		return nil
+	}
+	return fmt.Errorf("the container %q holds no sub field %q", parent, key)
+}
+
 // theFieldHoldsTheSubField asserts the served field declares the sub field inside it.
 func theFieldHoldsTheSubField(ctx context.Context, key, typeKey, sub string) error {
 	w, err := worldOf(ctx)
@@ -318,6 +387,20 @@ func initializeContainers(sc *godog.ScenarioContext) {
 		theFieldHoldsTheSubFieldOnce,
 	)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
+	sc.Given(`^the post "([^"]*)" holding:$`, thePostHoldsTheValues)
+	sc.When(`^the administrator moves the field "([^"]*)" inside "([^"]*)"$`, theAdministratorMovesTheFieldInside)
+	sc.When(
+		`^the administrator moves the field "([^"]*)" to the top of "([^"]*)"$`,
+		theAdministratorMovesTheFieldToTheTop,
+	)
+	sc.Then(`^the field "([^"]*)" is served on "([^"]*)"$`, theFieldIsServedOn)
+	sc.Then(`^the field "([^"]*)" is not served on "([^"]*)"$`, theFieldIsNotServedOn)
+	sc.Then(`^the field "([^"]*)" on "([^"]*)" holds no sub field "([^"]*)"$`, theFieldHoldsNoSubField)
+	sc.Then(
+		`^the sub field "([^"]*)" inside "([^"]*)" carries the setting "([^"]*)"$`,
+		theSubFieldCarriesTheSetting,
+	)
+	sc.Then(`^the post "([^"]*)" holds no field "([^"]*)"$`, thePostHoldsNoField)
 }
 
 // theFieldInsideIsStillStoredUnder stores the sub field inside the parent under the named group.
