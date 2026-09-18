@@ -249,6 +249,10 @@ func TestApplyReplacesASubFieldItsRowSiblingKeepsReading(t *testing.T) {
 	if !slices.Contains(kinds, content.FieldKindNumber) || len(kinds) != 2 {
 		t.Errorf("the steps section holds kinds %v, want the number note beside the tip reading it", kinds)
 	}
+	tip := fieldNamed(t, content.Group{Fields: held.Fields}, "tip")
+	if rules := content.ConditionsOf(tip); len(rules) != 1 || rules[0][0].Source != "note" {
+		t.Errorf("ConditionsOf(tip) = %v, want the rule reading the replaced note kept", rules)
+	}
 }
 
 func TestApplyRefusesABacklinksWhoseGroupRemovalWasDeclined(t *testing.T) {
@@ -322,9 +326,33 @@ func TestApplyRefusesAKeptBacklinksBeforeWritingAnything(t *testing.T) {
 	}
 }
 
-func TestApplyRefusesABacklinksLeftReadingARelationTakenFromASection(t *testing.T) {
+func TestApplyTakesAwayASectionAndTheBacklinksReadingARelationInsideIt(t *testing.T) {
 	t.Parallel()
 
+	registry := sectionLinkingSite(t)
+	envelope := exported(t, registry)
+	leftOut(groupNamed(t, envelope, "recipe-details"), "steps")
+	leftOut(groupNamed(t, envelope, "loose-ends"), "linked-from")
+
+	applied(t, registry, definitions.Import{
+		Envelope: envelope,
+		Confirm: []definitions.Confirmed{
+			{Subject: "field", Key: "steps", Group: "recipe-details"},
+			{Subject: "field", Key: "linked-from", Group: "loose-ends"},
+		},
+	})
+
+	if _, found := storedField(t, registry, "recipe-details", "steps"); found {
+		t.Errorf("the steps section stands, want it taken away with the backlinks reading inside it")
+	}
+	if _, found := storedField(t, registry, "loose-ends", "linked-from"); found {
+		t.Errorf("the linked from field stands, want it taken away with the section it reads into")
+	}
+}
+
+// sectionLinkingSite returns the planning site with a relation inside the steps section and a backlinks reading it.
+func sectionLinkingSite(t *testing.T) *content.Registry {
+	t.Helper()
 	registry := planningSite(t)
 	steps, _ := storedField(t, registry, "recipe-details", "steps")
 	if _, err := registry.CreateSubField(t.Context(), steps.ID, content.Field{
@@ -345,6 +373,13 @@ func TestApplyRefusesABacklinksLeftReadingARelationTakenFromASection(t *testing.
 	}); err != nil {
 		t.Fatalf("CreateFieldInGroup(linked-from) error = %v, want nil", err)
 	}
+	return registry
+}
+
+func TestApplyRefusesABacklinksLeftReadingARelationTakenFromASection(t *testing.T) {
+	t.Parallel()
+
+	registry := sectionLinkingSite(t)
 	envelope := exported(t, registry)
 	section := declaredIn(t, groupNamed(t, envelope, "recipe-details"), "steps")
 	section.Fields = slices.DeleteFunc(section.Fields, func(f definitions.FieldDefinition) bool {
