@@ -165,5 +165,7 @@ func initializeBacklinks(sc *godog.ScenarioContext) {
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 	sc.Then(`^the category "([^"]*)" is pointed at by "([^"]*)"$`, theItemIsPointedAtBy)
 	sc.Then(`^the category "([^"]*)" is pointed at by nobody$`, theItemIsPointedAtByNobody)
+	sc.Then(`^the field "([^"]*)" is gone from "([^"]*)"$`, theFieldIsGoneFrom)
+	initializeImportFile(sc)
 	_ = http.StatusOK
 }

@@ -6,9 +6,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 
+	"github.com/cucumber/godog"
+
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/definitions"
 )
 
@@ -118,14 +123,19 @@ func exportedBySite(ctx context.Context) (*world, definitions.Envelope, error) {
 
 // applying performs the import against the running site.
 func applying(w *world, asked definitions.Import) error {
+	if err := postingImport(w, asked); err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// postingImport sends the import to the running site, whatever it answers.
+func postingImport(w *world, asked definitions.Import) error {
 	body, err := json.Marshal(asked)
 	if err != nil {
 		return fmt.Errorf("writing the import: %w", err)
 	}
-	if err := w.postJSON("/api/definitions/apply", string(body)); err != nil {
-		return err
-	}
-	return w.expect(http.StatusOK)
+	return w.postJSON("/api/definitions/apply", string(body))
 }
 
 // theAdministratorAppliesAFileRenamingTheGroup applies the site's own definitions with one group retitled.
@@ -203,4 +213,250 @@ func theDownloadLeavesOutTheGroup(ctx context.Context, title string) error {
 		}
 	}
 	return nil
+}
+
+// siteFile returns the world holding the file the scenario builds, starting from what the site downloads.
+func siteFile(ctx context.Context) (*world, error) {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if w.file != nil {
+		return w, nil
+	}
+	_, envelope, err := exportedBySite(ctx)
+	if err != nil {
+		return nil, err
+	}
+	w.file = &definitions.Import{Envelope: envelope}
+	return w, nil
+}
+
+// groupInFile returns the file's group the stored title names, or the one the file itself titles so.
+func groupInFile(w *world, title string) (*definitions.GroupDefinition, error) {
+	key := ""
+	if stored, err := groupNamed(w, title); err == nil {
+		key = stored.Key
+	}
+	for i := range w.file.Groups {
+		held := &w.file.Groups[i]
+		if (key != "" && held.Key == key) || held.Title == title {
+			return held, nil
+		}
+	}
+	return nil, fmt.Errorf("the file holds no group titled %q", title)
+}
+
+// fieldInFile returns the field the file's group holds under the key.
+func fieldInFile(ctx context.Context, key, title string) (*definitions.FieldDefinition, error) {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return nil, err
+	}
+	group, err := groupInFile(w, title)
+	if err != nil {
+		return nil, err
+	}
+	for i := range group.Fields {
+		if group.Fields[i].Key == key {
+			return &group.Fields[i], nil
+		}
+	}
+	return nil, fmt.Errorf("the file's group %q holds no field %q", title, key)
+}
+
+// theSitesFileLeavesOut takes one field out of the file's group.
+func theSitesFileLeavesOut(ctx context.Context, key, title string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	group, err := groupInFile(w, title)
+	if err != nil {
+		return err
+	}
+	held := len(group.Fields)
+	group.Fields = slices.DeleteFunc(group.Fields, func(f definitions.FieldDefinition) bool {
+		return f.Key == key
+	})
+	if len(group.Fields) == held {
+		return fmt.Errorf("the file's group %q holds no field %q", title, key)
+	}
+	return nil
+}
+
+// theSitesFileMoves takes one field out of the file's group and stands it in a new group placed alike.
+func theSitesFileMoves(ctx context.Context, key, from, title string) error {
+	moved, err := fieldInFile(ctx, key, from)
+	if err != nil {
+		return err
+	}
+	carried := *moved
+	if err := theSitesFileLeavesOut(ctx, key, from); err != nil {
+		return err
+	}
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	source, err := groupInFile(w, from)
+	if err != nil {
+		return err
+	}
+	w.file.Groups = append(w.file.Groups, definitions.GroupDefinition{
+		Key: strings.ToLower(strings.ReplaceAll(title, " ", "-")), Title: title,
+		Location: source.Location, Active: true, Fields: []definitions.FieldDefinition{carried},
+	})
+	return nil
+}
+
+// theSitesFileClearsTheConditionsOf takes the rules off one field of the file.
+func theSitesFileClearsTheConditionsOf(ctx context.Context, key, title string) error {
+	held, err := fieldInFile(ctx, key, title)
+	if err != nil {
+		return err
+	}
+	delete(held.Settings, content.SettingConditions)
+	return nil
+}
+
+// theSitesFileTurnsInto gives one field of the file another kind.
+func theSitesFileTurnsInto(ctx context.Context, key, title, kind string) error {
+	held, err := fieldInFile(ctx, key, title)
+	if err != nil {
+		return err
+	}
+	held.Kind = kind
+	return nil
+}
+
+// theSitesFileMakesHoldOne turns one relation of the file into a single link.
+func theSitesFileMakesHoldOne(ctx context.Context, key, title string) error {
+	held, err := fieldInFile(ctx, key, title)
+	if err != nil {
+		return err
+	}
+	held.Many = false
+	return nil
+}
+
+// theSitesFileRetitles gives the file's group another title.
+func theSitesFileRetitles(ctx context.Context, title, renamed string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	group, err := groupInFile(w, title)
+	if err != nil {
+		return err
+	}
+	group.Title = renamed
+	return nil
+}
+
+// theSitesFilePointsAt names another relation as the one a backlinks field of the file reads.
+func theSitesFilePointsAt(ctx context.Context, key, title, source, sourceTitle string) error {
+	held, err := fieldInFile(ctx, key, title)
+	if err != nil {
+		return err
+	}
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	group, err := groupInFile(w, sourceTitle)
+	if err != nil {
+		return err
+	}
+	settings := maps.Clone(held.Settings)
+	settings[content.SettingSourceGroup] = group.Key
+	settings[content.SettingSourceField] = []any{source}
+	held.Settings = settings
+	return nil
+}
+
+// theAdministratorConfirmsTheLossOf names one field of a stored group the import may take away.
+func theAdministratorConfirmsTheLossOf(ctx context.Context, key, title string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	stored, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	w.file.Confirm = append(w.file.Confirm, definitions.Confirmed{
+		Subject: definitions.SubjectField, Key: key, Group: stored.Key,
+	})
+	return nil
+}
+
+// theAdministratorImportsTheFile applies the file the scenario built, whatever the site answers.
+func theAdministratorImportsTheFile(ctx context.Context) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	return postingImport(w, *w.file)
+}
+
+// theImportIsApplied asserts the site took the whole import.
+func theImportIsApplied(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// noGroupIsTitled asserts the site holds no group under the title.
+func noGroupIsTitled(ctx context.Context, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	listed, err := listGroups(w)
+	if err != nil {
+		return err
+	}
+	for _, held := range listed.Items {
+		if held.Title == title {
+			return fmt.Errorf("a group is titled %q, want none", title)
+		}
+	}
+	return nil
+}
+
+// theGroupHolds asserts the stored group carrying the title holds the field.
+func theGroupHolds(ctx context.Context, title, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	stored, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	for _, f := range stored.Fields {
+		if f.Key == key {
+			return nil
+		}
+	}
+	return fmt.Errorf("the group %q holds no field %q", title, key)
+}
+
+// initializeImportFile binds the steps building a changed copy of the site's file and importing it.
+func initializeImportFile(sc *godog.ScenarioContext) {
+	sc.Given(`^the site's file leaves out "([^"]*)" in "([^"]*)"$`, theSitesFileLeavesOut)
+	sc.Given(`^the site's file moves "([^"]*)" from "([^"]*)" into a new group "([^"]*)"$`, theSitesFileMoves)
+	sc.Given(`^the site's file clears the conditions of "([^"]*)" in "([^"]*)"$`, theSitesFileClearsTheConditionsOf)
+	sc.Given(`^the site's file turns "([^"]*)" in "([^"]*)" into a "([^"]*)" field$`, theSitesFileTurnsInto)
+	sc.Given(`^the site's file makes "([^"]*)" in "([^"]*)" hold one$`, theSitesFileMakesHoldOne)
+	sc.Given(`^the site's file retitles "([^"]*)" as "([^"]*)"$`, theSitesFileRetitles)
+	sc.Given(`^the site's file points "([^"]*)" in "([^"]*)" at "([^"]*)" in "([^"]*)"$`, theSitesFilePointsAt)
+	sc.Given(`^the administrator confirms the loss of "([^"]*)" in "([^"]*)"$`, theAdministratorConfirmsTheLossOf)
+	sc.When(`^the administrator imports the file$`, theAdministratorImportsTheFile)
+	sc.Then(`^the import is applied$`, theImportIsApplied)
+	sc.Then(`^no group is titled "([^"]*)"$`, noGroupIsTitled)
+	sc.Then(`^the group "([^"]*)" holds "([^"]*)"$`, theGroupHolds)
 }

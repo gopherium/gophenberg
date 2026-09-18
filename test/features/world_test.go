@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/internal/themehost"
@@ -125,6 +126,7 @@ type world struct {
 	answer         *answer
 	pending        *activation
 	rememberedETag string
+	file           *definitions.Import
 }
 
 // provisionWorld gives a scenario its own themes directory.
