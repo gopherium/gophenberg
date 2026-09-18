@@ -189,9 +189,9 @@ func (r *run) conditionsOn(ctx context.Context, groupID int, group, key string, 
 // removeField takes away the field the change names, however deep it stands.
 func (r *run) removeField(ctx context.Context, c Change) error {
 	if !strings.Contains(c.Key, ".") {
-		return r.registry.DeleteFieldInGroup(ctx, r.groupKeyed(c.Group).ID, c.Key)
+		return r.registry.DeleteFieldInGroupSettled(ctx, r.groupKeyed(c.Group).ID, c.Key, r.settled)
 	}
-	return r.registry.DeleteSubField(ctx, r.fieldAt(c.Group, c.Key).ID)
+	return r.registry.DeleteSubFieldSettled(ctx, r.fieldAt(c.Group, c.Key).ID, r.settled)
 }
 
 // fieldAt returns the stored field the dotted path names inside the group, zero when the site holds none.
@@ -338,5 +338,5 @@ func (r *run) remove(ctx context.Context, c Change) error {
 	if c.Subject == SubjectType {
 		return r.registry.Delete(ctx, c.Key)
 	}
-	return r.registry.DeleteGroup(ctx, r.groupKeyed(c.Key).ID)
+	return r.registry.DeleteGroupSettled(ctx, r.groupKeyed(c.Key).ID, r.settled)
 }
