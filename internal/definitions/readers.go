@@ -93,26 +93,10 @@ func readsThrough(f content.Field, group string, path []string) bool {
 		len(source) >= len(path) && slices.Equal(source[:len(path)], path)
 }
 
-// takes reports whether the import takes the stored field away, alone, with its group or with a container above it.
+// takes reports whether the import takes the stored field away, alone or with its group.
 func (r *run) takes(group, path string) bool {
-	if r.taken[Confirmed{Subject: SubjectGroup, Key: group}] {
-		return true
-	}
-	for at := path; at != ""; at = containerOf(at) {
-		if r.taken[Confirmed{Subject: SubjectField, Key: at, Group: group}] {
-			return true
-		}
-	}
-	return false
-}
-
-// containerOf returns the dotted path of the container holding the field, empty at the top of its group.
-func containerOf(path string) string {
-	cut := strings.LastIndex(path, ".")
-	if cut < 0 {
-		return ""
-	}
-	return path[:cut]
+	return r.taken[Confirmed{Subject: SubjectGroup, Key: group}] ||
+		r.taken[Confirmed{Subject: SubjectField, Key: path, Group: group}]
 }
 
 // declares reports whether the file stands a field at the dotted path inside the group.
