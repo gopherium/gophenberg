@@ -190,6 +190,9 @@ test('stops a type nesting', async () => {
 			sent.push(await request.json())
 			return HttpResponse.json({ ...PAGE_TYPE, hierarchical: false })
 		}),
+		http.get('/api/types', () =>
+			HttpResponse.json({ items: [POST_TYPE, { ...PAGE_TYPE, hierarchical: sent.length === 0 }] }),
+		),
 	)
 	renderAt('/content-types')
 	const table = await screen.findByRole('region', { name: 'Content Types' })
@@ -198,7 +201,8 @@ test('stops a type nesting', async () => {
 	await userEvent.click(within(pages).getByRole('button', { name: 'Stop nesting' }))
 
 	await waitFor(() => expect(sent[0]).toEqual({ hierarchical: false }))
-	expect(within(pages).queryByRole('button', { name: 'Let items nest' })).not.toBeInTheDocument()
+	expect(await within(pages).findByRole('button', { name: 'Let items nest' })).toBeInTheDocument()
+	expect(within(pages).queryByText('Nests')).not.toBeInTheDocument()
 })
 
 test('lets a flat type nest', async () => {
@@ -208,6 +212,9 @@ test('lets a flat type nest', async () => {
 			sent.push(await request.json())
 			return HttpResponse.json({ ...POST_TYPE, hierarchical: true })
 		}),
+		http.get('/api/types', () =>
+			HttpResponse.json({ items: [{ ...POST_TYPE, hierarchical: sent.length > 0 }, PAGE_TYPE] }),
+		),
 	)
 	renderAt('/content-types')
 	const table = await screen.findByRole('region', { name: 'Content Types' })
@@ -216,7 +223,8 @@ test('lets a flat type nest', async () => {
 	await userEvent.click(within(posts).getByRole('button', { name: 'Let items nest' }))
 
 	await waitFor(() => expect(sent[0]).toEqual({ hierarchical: true }))
-	expect(within(posts).queryByRole('button', { name: 'Stop nesting' })).not.toBeInTheDocument()
+	expect(await within(posts).findByRole('button', { name: 'Stop nesting' })).toBeInTheDocument()
+	expect(within(posts).getByText('Nests')).toBeInTheDocument()
 })
 
 test('says how many items keep a type nesting', async () => {

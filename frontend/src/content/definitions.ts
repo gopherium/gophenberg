@@ -76,6 +76,7 @@ const straySchema = z.object({
 const driftSchema = z.object({
 	orphans: z.array(straySchema),
 	collisions: z.array(straySchema),
+	nesting_kept: z.array(straySchema),
 })
 
 /** One definition standing apart from what the plugins declare. */
@@ -86,15 +87,16 @@ export interface Stray {
 	label: string
 }
 
-/** What the site holds that no plugin declares, and what a plugin wants that the site holds. */
+/** What the site holds that no plugin declares, what a plugin wants that the site holds, and what its content keeps. */
 export interface Drift {
 	orphans: Stray[]
 	collisions: Stray[]
+	nesting_kept: Stray[]
 }
 
 /**
  * Returns the definitions standing apart from what the plugins declared at the last start.
- * @returns The orphans and the collisions.
+ * @returns The orphans, the collisions and the types the site's content keeps nesting.
  */
 export async function readDrift(): Promise<Drift> {
 	const response = await fetch(definitionsDriftPath)

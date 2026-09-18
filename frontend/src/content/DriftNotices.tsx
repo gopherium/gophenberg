@@ -34,6 +34,21 @@ function collisionSentence(stray: Stray): string {
 }
 
 /**
+ * Returns the sentence naming a type a plugin declared flat that the site keeps nesting.
+ * @param stray - The type whose nesting the site keeps.
+ * @returns The sentence to show.
+ */
+function nestingKeptSentence(stray: Stray): string {
+	return sprintf(
+		__(
+			'The %(plugin)s plugin declares %(name)s flat, and the site keeps it nesting while its items sit inside one another.',
+			'gophenberg',
+		),
+		{ name: stray.label, plugin: stray.origin },
+	)
+}
+
+/**
  * Renders the notices for what stands apart from the plugins, and the control taking an orphan over.
  * @param props - The reporters of what an adoption did or why it was turned away.
  * @returns The notices, or nothing when every definition stands where it belongs.
@@ -76,6 +91,11 @@ export function DriftNotices(props: { onDone: (said: string) => void; onRefused:
 			{held.collisions.map((stray) => (
 				<Notice.Root key={`collision:${stray.subject}:${stray.key}`} intent="warning">
 					<Notice.Description>{collisionSentence(stray)}</Notice.Description>
+				</Notice.Root>
+			))}
+			{held.nesting_kept.map((stray) => (
+				<Notice.Root key={`nesting:${stray.subject}:${stray.key}`} intent="warning">
+					<Notice.Description>{nestingKeptSentence(stray)}</Notice.Description>
 				</Notice.Root>
 			))}
 		</>
