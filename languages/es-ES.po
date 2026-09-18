@@ -1795,6 +1795,26 @@ msgid "%(type)s answers on a new address, and stored links move with it."
 msgstr "%(type)s responde en una dirección nueva, y los enlaces guardados se mueven con ella."
 
 #, fuzzy
+msgid "%(type)s keeps nesting while %(items)s of its items sit inside another. Move those to the top level first, the ones in the trash included."
+msgstr "%(type)s sigue anidando mientras %(items)s de sus elementos están dentro de otro. Muévelos primero al nivel superior, incluidos los de la papelera."
+
+#, fuzzy
+msgid "%(type)s keeps nesting, because some of its items sit inside another."
+msgstr "%(type)s sigue anidando, porque algunos de sus elementos están dentro de otro."
+
+#, fuzzy
+msgid "Its items sit inside one another, so it keeps nesting."
+msgstr "Sus elementos están unos dentro de otros, así que sigue anidando."
+
+#, fuzzy
+msgid "Let items nest"
+msgstr "Permitir anidar"
+
+#, fuzzy
+msgid "Stop nesting"
+msgstr "Dejar de anidar"
+
+#, fuzzy
 msgid "%(type)s becomes the type the site opens on, and the old one takes an address."
 msgstr "%(type)s pasa a ser el tipo con el que abre el sitio, y el anterior toma una dirección."
 
