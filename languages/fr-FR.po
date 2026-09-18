@@ -2216,6 +2216,18 @@ msgid "%(type)s answers on a new address, and stored links move with it."
 msgstr "%(type)s répond à une nouvelle adresse, et les liens enregistrés la suivent."
 
 #, fuzzy
+msgid "%(field)s cannot move inside itself. Pick a container that is not one of its own."
+msgstr "%(field)s ne peut pas être déplacé à l'intérieur de lui-même. Choisissez un conteneur qui n'est pas l'un des siens."
+
+#, fuzzy
+msgid "Destination"
+msgstr "Destination"
+
+#, fuzzy
+msgid "The values stored under it do not follow."
+msgstr "Les valeurs enregistrées dessous ne le suivent pas."
+
+#, fuzzy
 msgid "%(type)s keeps nesting while %(items)s of its items sit inside another. Move those to the top level first, the ones in the trash included."
 msgstr "%(type)s continue de s'imbriquer tant que %(items)s de ses éléments se trouvent dans un autre. Déplacez-les d'abord au niveau supérieur, ceux de la corbeille compris."
 
