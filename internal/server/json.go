@@ -141,6 +141,7 @@ var domainErrors = []struct {
 	{content.ErrDefaultRequired, http.StatusUnprocessableEntity, "default_type_required"},
 	{content.ErrDefinitionReadOnly, http.StatusUnprocessableEntity, "definition_read_only"},
 	{content.ErrTypeInUse, http.StatusUnprocessableEntity, "type_in_use"},
+	{content.ErrNestingInUse, http.StatusUnprocessableEntity, "type_nesting_in_use"},
 	{content.ErrTypeInactive, http.StatusUnprocessableEntity, "type_inactive"},
 	{content.ErrInvalidKey, http.StatusUnprocessableEntity, "type_key_malformed"},
 	{content.ErrInvalidRouteWord, http.StatusUnprocessableEntity, "route_word_malformed"},
