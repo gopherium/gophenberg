@@ -65,6 +65,9 @@ function reasonSentence(reason: string | undefined): string {
 	if (reason === 'moved') {
 		return __('It moves to another group, so its stored values do not follow.', 'gophenberg')
 	}
+	if (reason === 'nesting_kept') {
+		return __('Its items sit inside one another, so it keeps nesting.', 'gophenberg')
+	}
 	return ''
 }
 
@@ -79,6 +82,11 @@ function warningSentence(warning: PlanWarning): string {
 			__('%(type)s becomes the type the site opens on, and the old one takes an address.', 'gophenberg'),
 			{ type: warning.key },
 		)
+	}
+	if (warning.code === 'nesting_kept') {
+		return sprintf(__('%(type)s keeps nesting, because some of its items sit inside another.', 'gophenberg'), {
+			type: warning.key,
+		})
 	}
 	return sprintf(__('%(type)s answers on a new address, and stored links move with it.', 'gophenberg'), {
 		type: warning.key,
