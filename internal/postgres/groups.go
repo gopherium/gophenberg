@@ -596,7 +596,7 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 		if err != nil {
 			return err
 		}
-		return deleteFieldRow(ctx, queries, groupID, key, servedOn(groups, matched, groupID, key))
+		return deleteFieldRow(ctx, queries, groupID, key, servedOn(groups, matched, groupID, []string{key}))
 	})
 	if errors.Is(err, content.ErrGroupNotFound) {
 		return err
@@ -629,7 +629,7 @@ func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
 		if _, err := queries.DeleteFieldByID(ctx, int32(id)); err != nil {
 			return err
 		}
-		return sweepField(ctx, queries, dropped, path, servedOn(groups, matched, group.ID, path[0]))
+		return sweepField(ctx, queries, dropped, path, servedOn(groups, matched, group.ID, path))
 	})
 	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) {
 		return err
@@ -815,7 +815,7 @@ func (m fieldMove) sweep(ctx context.Context, queries *db.Queries) error {
 	if err != nil {
 		return err
 	}
-	swept := servedOn(m.groups, matched, m.source.ID, m.path[0])
+	swept := servedOn(m.groups, matched, m.source.ID, m.path)
 	if err := sweepField(ctx, queries, m.leaving, m.path, swept); err != nil {
 		return err
 	}
@@ -826,25 +826,39 @@ func (m fieldMove) sweep(ctx context.Context, queries *db.Queries) error {
 	return queries.DeleteRelationsOfFields(ctx, db.DeleteRelationsOfFieldsParams{Types: matched, Fields: fields})
 }
 
-// servedOn returns the matched type keys on which the group serves the top key, or no active group does.
-func servedOn(groups []content.Group, matched []string, groupID int, key string) []string {
+// servedOn returns the matched type keys on which no other active group serves the whole path.
+func servedOn(groups []content.Group, matched []string, groupID int, path []string) []string {
 	held := make([]string, 0, len(matched))
 	for _, typeKey := range matched {
-		if by := servingGroup(groups, typeKey, key); by == 0 || by == groupID {
+		by, found := servingGroup(groups, typeKey, path[0])
+		if !found || by.ID == groupID || !declares(by.Fields, path) {
 			held = append(held, typeKey)
 		}
 	}
 	return held
 }
 
-// servingGroup returns the identity of the active group serving the top key on the type, 0 when none does.
-func servingGroup(groups []content.Group, typeKey, key string) int {
+// servingGroup returns the active group serving the top key on the type, if any does.
+func servingGroup(groups []content.Group, typeKey, key string) (content.Group, bool) {
 	for _, g := range groups {
 		if g.Active && holdsKey(g, key) && g.Location.Match(screenOf(typeKey), locationParams) {
-			return g.ID
+			return g, true
 		}
 	}
-	return 0
+	return content.Group{}, false
+}
+
+// declares reports whether a field stands at the path among the fields.
+func declares(fields []content.Field, path []string) bool {
+	if len(path) == 0 {
+		return true
+	}
+	for _, f := range fields {
+		if f.Key == path[0] {
+			return declares(f.Fields, path[1:])
+		}
+	}
+	return false
 }
 
 // parentColumn returns the parent as the nullable column holds it, null for a group's top.
