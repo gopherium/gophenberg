@@ -979,7 +979,8 @@ function CarryField(props: Inside & { groups: FieldGroup[] }) {
 function CarryDialog(props: Inside & { at: string; landings: Landing[]; first: Landing }) {
 	const { at, landings } = props
 	const [open, setOpen] = useState(false)
-	const [landing, setLanding] = useState(props.first)
+	const [picked, setPicked] = useState(props.first)
+	const landing = landings.find((held) => held.value === picked.value) ?? props.first
 	const asking = sprintf(__('Move %(field)s elsewhere', 'gophenberg'), { field: props.field.label })
 	const carry = useMutation({
 		mutationFn: () => {
@@ -1018,7 +1019,7 @@ function CarryDialog(props: Inside & { at: string; landings: Landing[]; first: L
 								label={__('Destination', 'gophenberg')}
 								items={landings}
 								value={landing}
-								onValueChange={(item) => setLanding(chosenOf(item, landings, landing))}
+								onValueChange={(item) => setPicked(chosenOf(item, landings, landing))}
 							/>
 						</Stack>
 					</Dialog.Content>

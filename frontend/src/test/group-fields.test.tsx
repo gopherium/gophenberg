@@ -594,6 +594,34 @@ test('carries a field over to another group', async () => {
 	await waitFor(() => expect(sent).toEqual({ to_group: 4 }))
 })
 
+test('carries a field to the first place still on offer once the container it would land in is gone', async () => {
+	let sent: unknown
+	server.use(
+		http.delete('/api/groups/3/fields/author', () => {
+			listing([DETAILS, EXTRAS])
+			return new HttpResponse(null, { status: 204 })
+		}),
+		http.post('/api/groups/3/fields/subtitle/move', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(SUBTITLE)
+		}),
+	)
+	listing([NESTED, EXTRAS])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete Author' }))
+	const warning = await screen.findByRole('dialog', { name: 'Delete Author' })
+	await userEvent.click(within(warning).getByRole('button', { name: 'Delete the field' }))
+	await waitFor(() => expect(within(dialog).queryByRole('listitem', { name: 'Author' })).not.toBeInTheDocument())
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
+	expect(within(moving).getByText('The field keeps every value stored under it.')).toBeInTheDocument()
+	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
+
+	await waitFor(() => expect(sent).toEqual({ to_group: 4 }))
+})
+
 test('offers nowhere to carry a field when the group is the only one', async () => {
 	listing([DETAILS])
 	renderAt('/field-groups')
