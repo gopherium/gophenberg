@@ -704,7 +704,7 @@ func (s *TypeStore) ReorderFieldsInGroup(ctx context.Context, groupID int, keys 
 	return nil
 }
 
-// MoveField carries the field to the top of the group, or inside the container the parent names, leaving its values.
+// MoveField carries the field to the top of a group or inside a container, sweeping its values when it leaves one.
 func (s *TypeStore) MoveField(ctx context.Context, id, toGroup, toParent int) (content.Field, error) {
 	var moved content.Field
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
