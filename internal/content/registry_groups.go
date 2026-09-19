@@ -508,15 +508,10 @@ func (m fieldMove) placeable(limit int) error {
 
 // outsideItself returns the refusal to stand the field inside its own tree, or nothing when it lands elsewhere.
 func (m fieldMove) outsideItself() error {
-	if m.parent.ID == 0 {
+	if m.parent.ID == 0 || !Inside(m.from.field, m.parent.ID) {
 		return nil
 	}
-	_, inside := placedAmong(m.from.field.Fields, m.parent.ID, m.from.field.ID)
-	if m.parent.ID != m.from.field.ID && !inside {
-		return nil
-	}
-	return Refuse(ErrFieldInsideItself, "field_moves_inside_itself",
-		fmt.Sprintf("%s: %s", ErrFieldInsideItself, m.from.field.Key), Details{"field": m.from.field.Key})
+	return MovesInsideItself(m.from.field.Key)
 }
 
 // standing returns the reason the field's kind cannot stand at the destination, or nothing when it can.

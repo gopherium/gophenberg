@@ -2,10 +2,28 @@
 
 package content
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // ErrFieldInsideItself reports a field asked to stand inside its own tree.
 var ErrFieldInsideItself = errors.New("content: a field cannot stand inside itself")
+
+// MovesInsideItself returns the refusal to stand the field inside its own tree.
+func MovesInsideItself(key string) error {
+	return Refuse(ErrFieldInsideItself, "field_moves_inside_itself",
+		fmt.Sprintf("%s: %s", ErrFieldInsideItself, key), Details{"field": key})
+}
+
+// Inside reports whether the field carrying the identity is the other one or stands below it.
+func Inside(held Field, id int) bool {
+	if held.ID == id {
+		return true
+	}
+	_, found := placedAmong(held.Fields, id, held.ID)
+	return found
+}
 
 // placement is where a field stands: the field, its siblings, the container holding it and the keys reaching it.
 type placement struct {
