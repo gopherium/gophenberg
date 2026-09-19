@@ -381,7 +381,7 @@ A plugin can declare its own types, groups and fields. They appear
 here with a badge naming the plugin, and they are read only: the
 plugin's code is where they change.
 
-Two things can happen to them, and both show up as a notice on this
+Three things can happen to them, and each shows up as a notice on this
 screen:
 
 - **The plugin stopped declaring one.** The definition stays, and
@@ -390,3 +390,6 @@ screen:
 - **A plugin wants a key you already use.** Your own definition
   keeps it and the plugin's is skipped. The notice names the plugin
   so you can decide whether to rename yours.
+- **A plugin turns nesting off on a type whose items nest.** The type
+  keeps nesting until those items move to the top level, the ones in
+  the trash included, and the site starts again.

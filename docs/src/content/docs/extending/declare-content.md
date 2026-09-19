@@ -83,6 +83,12 @@ screen names the clash so the site owner can see it.
 That rule is why you should pick keys nobody else would: prefix
 them with your plugin's own name if you expect company.
 
+A type you declare without `Hierarchical: true` does not nest. If any
+of its items still sits inside another, the ones in the trash
+included, the site keeps the type nesting. It still starts, the start
+log warns, and the **Field Groups** screen says so. Once those items
+move to the top level, the next start turns nesting off.
+
 ## When a plugin stops declaring
 
 Stop declaring a definition and the rows stay where they are, with
