@@ -122,7 +122,7 @@ func revisionsHolding(t *testing.T, pool *pgxpool.Pool, key string) int {
 	return held
 }
 
-// rested turns the group the title names off, so its fields stop being served.
+// rested turns off the group the title names and returns it.
 func rested(t *testing.T, store *postgres.TypeStore, title string) content.Group {
 	t.Helper()
 	groups, err := store.ListGroups(t.Context())

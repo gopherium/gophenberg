@@ -704,7 +704,7 @@ func (s *TypeStore) ReorderFieldsInGroup(ctx context.Context, groupID int, keys 
 	return nil
 }
 
-// MoveField carries the field to the top of a group or inside a container, sweeping its values when it leaves one.
+// MoveField carries the field to a group's top or into a container, sweeping its values when it enters or leaves one.
 func (s *TypeStore) MoveField(ctx context.Context, id, toGroup, toParent int) (content.Field, error) {
 	var moved content.Field
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -742,7 +742,7 @@ type fieldMove struct {
 	depth                 int
 }
 
-// movePlanned resolves where the field stands and where it is asked to stand, both read under the lock.
+// movePlanned resolves where the field stands and where it is asked to stand.
 func movePlanned(ctx context.Context, queries *db.Queries, id, toGroup, toParent int) (fieldMove, error) {
 	groups, err := groupsWithFields(ctx, queries)
 	if err != nil {
