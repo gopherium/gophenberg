@@ -119,6 +119,63 @@ func revisionsHolding(t *testing.T, pool *pgxpool.Pool, key string) int {
 	return held
 }
 
+// rested turns the group the title names off, so its fields stop being served.
+func rested(t *testing.T, store *postgres.TypeStore, title string) content.Group {
+	t.Helper()
+	groups, err := store.ListGroups(t.Context())
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v, want nil", err)
+	}
+	for _, held := range groups {
+		if held.Title != title {
+			continue
+		}
+		held.Active = false
+		idle, err := store.UpdateGroup(t.Context(), held)
+		if err != nil {
+			t.Fatalf("resting %q: %v, want nil", title, err)
+		}
+		return idle
+	}
+	t.Fatalf("no stored group is titled %q", title)
+	return content.Group{}
+}
+
+// rivalOnTruck stores a truck group holding a section under the key, then registers truck.
+func rivalOnTruck(t *testing.T, store *postgres.TypeStore, key string) {
+	t.Helper()
+	trucks, err := store.CreateGroup(t.Context(), content.Group{Title: "Trucks", Location: locationOf("truck")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Trucks) error = %v, want nil", err)
+	}
+	if _, err := store.CreateFieldInGroup(t.Context(), trucks.ID, sectionOn(t, key)); err != nil {
+		t.Fatalf("CreateFieldInGroup(trucks %s) error = %v, want nil", key, err)
+	}
+	storeType(t, store, "truck")
+}
+
+// servingEverything stores a group matching every type and returns it.
+func servingEverything(t *testing.T, store *postgres.TypeStore) content.Group {
+	t.Helper()
+	everywhere, err := store.CreateGroup(t.Context(),
+		content.Group{Title: "Everywhere", Location: locationOf(content.AnyContentType)})
+	if err != nil {
+		t.Fatalf("CreateGroup(Everywhere) error = %v, want nil", err)
+	}
+	return everywhere
+}
+
+// valuesSlugged returns the stored values of the item carrying the slug.
+func valuesSlugged(t *testing.T, pool *pgxpool.Pool, slug string) string {
+	t.Helper()
+	var held string
+	if err := pool.QueryRow(t.Context(),
+		`SELECT fields::text FROM core.content WHERE slug = $1`, slug).Scan(&held); err != nil {
+		t.Fatalf("reading the values of %s: %v, want nil", slug, err)
+	}
+	return held
+}
+
 func TestMovingAFieldIntoAContainerReparentsItAndRecountsItsDepth(t *testing.T) {
 	t.Parallel()
 
@@ -291,6 +348,119 @@ func TestMovingASectionSweepsTheRelationsInsideIt(t *testing.T) {
 
 	if held := relationRowsOf(t, pool, maker.ID); held != 0 {
 		t.Errorf("%d relation rows survive the move, want the rows of the relation inside the section swept", held)
+	}
+}
+
+func TestMovingAShadowedFieldKeepsTheValuesTheServedFieldHolds(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	declareTypedField(t, store, "car", "title")
+	shadow, err := store.CreateGroup(t.Context(), content.Group{Title: "Shadow", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Shadow) error = %v, want nil", err)
+	}
+	idle := rested(t, store, "Shadow")
+	specs, err := store.CreateFieldInGroup(t.Context(), idle.ID, sectionOn(t, "specs"))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
+	}
+	shadowed, err := store.CreateFieldInGroup(
+		t.Context(), shadow.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(shadow title) error = %v, want nil", err)
+	}
+	plantTyped(t, pool, author, "car", "one", `{"title": "served words"}`)
+	plantAutosave(t, pool, author, "one", `{"title": "typed words"}`)
+
+	if _, err := store.MoveField(t.Context(), shadowed.ID, idle.ID, specs.ID); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{"title": "served words"}` {
+		t.Errorf("stored values = %s, want the served field's value kept", held)
+	}
+	if held := revisionsHolding(t, pool, "title"); held != 2 {
+		t.Errorf("%d revisions hold the title, want the revision and the autosave both kept", held)
+	}
+}
+
+func TestMovingAFieldOfARestingGroupSweepsTheValuesNoGroupServes(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	resting, err := store.CreateGroup(t.Context(), content.Group{Title: "Resting", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Resting) error = %v, want nil", err)
+	}
+	specs, err := store.CreateFieldInGroup(t.Context(), resting.ID, sectionOn(t, "specs"))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
+	}
+	title, err := store.CreateFieldInGroup(
+		t.Context(), resting.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
+	}
+	rested(t, store, "Resting")
+	plantTyped(t, pool, author, "car", "one", `{"title": "old words"}`)
+
+	if _, err := store.MoveField(t.Context(), title.ID, resting.ID, specs.ID); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{}` {
+		t.Errorf("stored values = %s, want the title swept since no group serves it", held)
+	}
+}
+
+func TestMovingAFieldOutOfAContainerItsGroupServesSweepsItWhereARivalHoldsTheContainer(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	everywhere := servingEverything(t, store)
+	specs, err := store.CreateFieldInGroup(t.Context(), everywhere.ID, sectionOn(t, "specs"))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
+	}
+	color := declaredInside(t, store, specs, "color", content.FieldKindText)
+	rivalOnTruck(t, store, "specs")
+	plantTyped(t, pool, author, "truck", "one", `{"specs": {"color": "red"}}`)
+
+	if _, err := store.MoveField(t.Context(), color.ID, everywhere.ID, 0); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesSlugged(t, pool, "one"); held != `{"specs": {}}` {
+		t.Errorf("stored values = %s, want the color swept from the specs the moving group serves", held)
+	}
+}
+
+func TestMovingAFieldItsGroupServesIntoAContainerSweepsItWhereARivalHoldsTheKey(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	everywhere := servingEverything(t, store)
+	specs, err := store.CreateFieldInGroup(t.Context(), everywhere.ID, sectionOn(t, "specs"))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
+	}
+	title, err := store.CreateFieldInGroup(
+		t.Context(), everywhere.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
+	}
+	rivalOnTruck(t, store, "title")
+	plantTyped(t, pool, author, "truck", "one", `{"title": "served words"}`)
+
+	if _, err := store.MoveField(t.Context(), title.ID, everywhere.ID, specs.ID); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesSlugged(t, pool, "one"); held != `{}` {
+		t.Errorf("stored values = %s, want the title swept, the rival section never taking it over", held)
 	}
 }
 

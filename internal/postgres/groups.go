@@ -737,6 +737,7 @@ type fieldMove struct {
 	id, toGroup, toParent int
 	leaving               content.Field
 	source                content.Group
+	groups                []content.Group
 	path                  []string
 	depth                 int
 }
@@ -755,7 +756,10 @@ func movePlanned(ctx context.Context, queries *db.Queries, id, toGroup, toParent
 	if !found {
 		return fieldMove{}, content.ErrGroupNotFound
 	}
-	move := fieldMove{id: id, toGroup: toGroup, toParent: toParent, leaving: leaving, source: source, path: path}
+	move := fieldMove{
+		id: id, toGroup: toGroup, toParent: toParent,
+		leaving: leaving, source: source, path: path, groups: groups,
+	}
 	if toParent == 0 {
 		return move, nil
 	}
@@ -808,7 +812,7 @@ func (m fieldMove) sweep(ctx context.Context, queries *db.Queries) error {
 	if err != nil {
 		return err
 	}
-	if err := sweepField(ctx, queries, m.leaving, m.path, matched); err != nil {
+	if err := sweepField(ctx, queries, m.leaving, m.path, m.served(matched)); err != nil {
 		return err
 	}
 	fields := relationsBelow(m.leaving, nil)
@@ -816,6 +820,27 @@ func (m fieldMove) sweep(ctx context.Context, queries *db.Queries) error {
 		return nil
 	}
 	return queries.DeleteRelationsOfFields(ctx, db.DeleteRelationsOfFieldsParams{Types: matched, Fields: fields})
+}
+
+// served returns the matched type keys on which no other group serves the key the path starts from.
+func (m fieldMove) served(matched []string) []string {
+	held := make([]string, 0, len(matched))
+	for _, key := range matched {
+		if by := servingGroup(m.groups, key, m.path[0]); by == 0 || by == m.source.ID {
+			held = append(held, key)
+		}
+	}
+	return held
+}
+
+// servingGroup returns the identity of the active group serving the top key on the type, 0 when none does.
+func servingGroup(groups []content.Group, typeKey, key string) int {
+	for _, g := range groups {
+		if g.Active && holdsKey(g, key) && g.Location.Match(screenOf(typeKey), locationParams) {
+			return g.ID
+		}
+	}
+	return 0
 }
 
 // parentColumn returns the parent as the nullable column holds it, null for a group's top.
