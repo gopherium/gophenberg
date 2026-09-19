@@ -402,7 +402,7 @@ func (s *memoryTypes) UpdateFieldInGroup(
 	return content.Field{}, content.ErrFieldNotFound
 }
 
-// DeleteFieldInGroup removes the field from its group.
+// DeleteFieldInGroup removes the field from its group and its values from the types the group served it on.
 func (s *memoryTypes) DeleteFieldInGroup(_ context.Context, groupID int, key string) error {
 	reached, dropped := s.dropFieldInGroup(groupID, key)
 	if !dropped {
@@ -417,7 +417,7 @@ func (s *memoryTypes) DeleteFieldInGroup(_ context.Context, groupID int, key str
 	return nil
 }
 
-// dropFieldInGroup removes the declaration, reporting the types the group reached.
+// dropFieldInGroup removes the declaration, reporting the types the group served the key on.
 func (s *memoryTypes) dropFieldInGroup(groupID int, key string) ([]string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -429,11 +429,39 @@ func (s *memoryTypes) dropFieldInGroup(groupID int, key string) ([]string, bool)
 			if stored.Key != key {
 				continue
 			}
+			served := s.servedOn(s.typesMatchedBy(held), held.ID, key)
 			s.groups[i].Fields = append(held.Fields[:j], held.Fields[j+1:]...)
-			return s.typesMatchedBy(held), true
+			return served, true
 		}
 	}
 	return nil, false
+}
+
+// servedOn returns the type keys on which the group serves the key, or no active group does.
+func (s *memoryTypes) servedOn(typeKeys []string, groupID int, key string) []string {
+	held := make([]string, 0, len(typeKeys))
+	for _, typeKey := range typeKeys {
+		if by := s.servingGroup(typeKey, key); by == 0 || by == groupID {
+			held = append(held, typeKey)
+		}
+	}
+	return held
+}
+
+// servingGroup returns the identity of the active group serving the key on the type, 0 when none does.
+func (s *memoryTypes) servingGroup(typeKey, key string) int {
+	screen := content.Screen{content.ScreenContentType: typeKey}
+	for _, g := range s.groups {
+		if !g.Active || !g.Location.Match(screen, memoryParams) {
+			continue
+		}
+		for _, f := range g.Fields {
+			if f.Key == key {
+				return g.ID
+			}
+		}
+	}
+	return 0
 }
 
 // typesMatchedBy returns the keys of the types the group's location reaches.

@@ -143,6 +143,16 @@ Feature: Grouping fields and placing them by rule
     Then no field groups are listed
     And the field "subtitle" is not served on "post"
 
+  Scenario: Deleting a resting group's field keeps the value another group serves
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And the resting group "Extras" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Extras"
+    And a published post "Hello world" holding "A short tagline" in "subtitle"
+    When the administrator deletes the field "subtitle" from "Extras"
+    Then the group "Extras" no longer holds the field "subtitle"
+    And the post "Hello world" holds "A short tagline" in "subtitle"
+
   Scenario: The order the groups are read in decides which field comes first
     Given the group "Article details" for "post"
     And the "text" field "subtitle" labeled "Subtitle" in "Article details"
