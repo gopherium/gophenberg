@@ -55,8 +55,9 @@ changing one group's rules parts them.
 
 **Move** carries a field to another group, into a container of any
 group, or out of one to a group's top. Between the tops of two groups
-every value stays where it is. Into or out of a container the stored
-values do not follow, and the dialog says so before you confirm.
+every value stays where it is. Into or out of a container the values
+stored at the old place are deleted from every item and revision, and
+the dialog says so before you confirm.
 
 ## The kinds
 
@@ -187,11 +188,17 @@ layout carries nothing anyone can read. Going back to an earlier
 revision does not bring those rows back.
 
 A field inside a container moves like any other, to the top of a
-group or into another container, and its stored values stay behind.
-The move is refused where the field would stand inside itself, deeper
-than the site allows, on a name the destination already holds, where
-a sibling it leaves still reads it, or where its own rules would name
-no sibling.
+group or into another container, and the values stored at its old
+place are deleted. The move is refused when:
+
+- the field would stand inside itself, or deeper than the site allows
+- the destination already holds that name, or another active group on
+  the same content holds it at the top
+- its kind cannot stand at the destination
+- a field it leaves behind still reads it, or its own rules read a
+  field that would not stand beside it
+- a Linked from field reads it, or reads a relation inside it
+- a plugin owns the field or the destination
 
 A container may hold another container, up to 32 levels deep by
 default. A Repeater row can hold a Section, and that Section can hold
@@ -282,7 +289,7 @@ editor keeps sending what a hidden field in that row holds. Nothing
 is lost when you delete the row above it or drag it somewhere else.
 
 Removing a field another field's rules read is refused, and so is
-moving it to another group. Change those rules first.
+moving it away from that field. Change those rules first.
 
 ## Relations connect types
 
