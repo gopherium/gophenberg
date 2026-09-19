@@ -562,6 +562,22 @@ func TestCreateFieldInGroupReportsALockItCannotTake(t *testing.T) {
 	}
 }
 
+func TestDeleteFieldInGroupReportsALockItCannotTake(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	declared := declareTypedField(t, store, "car", "subtitle")
+	holdFieldGroupsLock(t, pool)
+	timed := lockTimedStore(t, pool)
+
+	err := timed.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle")
+
+	if err == nil {
+		t.Error("DeleteFieldInGroup() error = nil, want the held lock reported")
+	}
+}
+
 func TestMoveFieldReportsAFieldItCannotCarry(t *testing.T) {
 	t.Parallel()
 

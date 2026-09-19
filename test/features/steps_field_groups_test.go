@@ -174,6 +174,27 @@ func theGroupIsListed(ctx context.Context, title string) error {
 	return err
 }
 
+// theGroupNoLongerHoldsTheField asserts the delete went through and the group lists no field under the key.
+func theGroupNoLongerHoldsTheField(ctx context.Context, title, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusNoContent); err != nil {
+		return err
+	}
+	stored, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	for _, f := range stored.Fields {
+		if f.Key == key {
+			return fmt.Errorf("the group %q still holds the field %q", title, key)
+		}
+	}
+	return nil
+}
+
 // theGroupAppearsOn asserts the group's fields reach the named content type.
 func theGroupAppearsOn(ctx context.Context, title, typeKey string) error {
 	w, err := worldOf(ctx)
@@ -460,6 +481,8 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator rests the group "([^"]*)"$`, theAdministratorRestsTheGroup)
 	sc.When(`^the administrator wakes the group "([^"]*)"$`, theAdministratorWakesTheGroup)
 	sc.When(`^the administrator deletes the group "([^"]*)"$`, theAdministratorDeletesTheGroup)
+	sc.When(`^the administrator deletes the field "([^"]*)" from "([^"]*)"$`, theAdministratorDeletesTheGroupField)
+	sc.Given(`^a published post "([^"]*)" holding "([^"]*)" in "([^"]*)"$`, aPublishedPostHolding)
 	sc.When(
 		`^the administrator moves the field "([^"]*)" from "([^"]*)" to "([^"]*)"$`,
 		theAdministratorMovesTheField,
@@ -468,6 +491,8 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator lists the rule sources$`, theAdministratorListsTheRuleSources)
 	sc.Then(`^no field groups are listed$`, noFieldGroupsAreListed)
 	sc.Then(`^the group "([^"]*)" is listed$`, theGroupIsListed)
+	sc.Then(`^the group "([^"]*)" no longer holds the field "([^"]*)"$`, theGroupNoLongerHoldsTheField)
+	sc.Then(`^the post "([^"]*)" holds "([^"]*)" in "([^"]*)"$`, thePostHolds)
 	sc.Then(`^the group "([^"]*)" appears on "([^"]*)"$`, theGroupAppearsOn)
 	sc.Then(`^the field "([^"]*)" is served on "([^"]*)"$`, theFieldIsServedOn)
 	sc.Then(`^the field "([^"]*)" is not served on "([^"]*)"$`, theFieldIsNotServedOn)

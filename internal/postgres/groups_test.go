@@ -535,6 +535,82 @@ func TestDeleteFieldInGroupReportsAGroupThatIsGone(t *testing.T) {
 	}
 }
 
+func TestDeletingARestingGroupsFieldKeepsTheValueTheServedFieldHolds(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	declareTypedField(t, store, "car", "title")
+	if _, err := store.CreateGroup(t.Context(), content.Group{Title: "Shadow", Location: locationOf("car")}); err != nil {
+		t.Fatalf("CreateGroup(Shadow) error = %v, want nil", err)
+	}
+	idle := rested(t, store, "Shadow")
+	if _, err := store.CreateFieldInGroup(
+		t.Context(), idle.ID, fieldOn(t, "", "title", content.FieldKindText, "")); err != nil {
+		t.Fatalf("CreateFieldInGroup(shadow title) error = %v, want nil", err)
+	}
+	plantTyped(t, pool, author, "car", "one", `{"title": "served words"}`)
+	plantAutosave(t, pool, author, "one", `{"title": "typed words"}`)
+
+	if err := store.DeleteFieldInGroup(t.Context(), idle.ID, "title"); err != nil {
+		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{"title": "served words"}` {
+		t.Errorf("stored values = %s, want the served field's value kept", held)
+	}
+	if held := revisionsHolding(t, pool, "title"); held != 2 {
+		t.Errorf("%d revisions hold the title, want the revision and the autosave both kept", held)
+	}
+}
+
+func TestDeletingAShadowedGroupsFieldKeepsTheValueTheServingGroupHolds(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	everywhere := servingEverything(t, store)
+	specs, err := store.CreateFieldInGroup(t.Context(), everywhere.ID, sectionOn(t, "specs"))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
+	}
+	declaredInside(t, store, specs, "color", content.FieldKindText)
+	trucks := rivalOnTruck(t, store, "specs")
+	plantTyped(t, pool, author, "truck", "one", `{"specs": {"color": "red"}}`)
+
+	if err := store.DeleteFieldInGroup(t.Context(), trucks.ID, "specs"); err != nil {
+		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
+	}
+
+	if held := valuesSlugged(t, pool, "one"); held != `{"specs": {"color": "red"}}` {
+		t.Errorf("stored values = %s, want the specs the serving group holds kept", held)
+	}
+}
+
+func TestDeletingARestingGroupsFieldSweepsTheValuesNoGroupServes(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	resting, err := store.CreateGroup(t.Context(), content.Group{Title: "Resting", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Resting) error = %v, want nil", err)
+	}
+	if _, err := store.CreateFieldInGroup(
+		t.Context(), resting.ID, fieldOn(t, "", "title", content.FieldKindText, "")); err != nil {
+		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
+	}
+	rested(t, store, "Resting")
+	plantTyped(t, pool, author, "car", "one", `{"title": "old words"}`)
+
+	if err := store.DeleteFieldInGroup(t.Context(), resting.ID, "title"); err != nil {
+		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{}` {
+		t.Errorf("stored values = %s, want the title swept since no group serves it", held)
+	}
+}
+
 func TestReorderFieldsInGroupSettlesTheOrder(t *testing.T) {
 	t.Parallel()
 

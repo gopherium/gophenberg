@@ -577,10 +577,13 @@ func (s *TypeStore) fieldStands(ctx context.Context, groupID int, key string) er
 	return content.ErrFieldNotFound
 }
 
-// DeleteFieldInGroup removes the field and sweeps its values from the types its group matches.
+// DeleteFieldInGroup removes the field and sweeps its values from the types its group serves the key on.
 func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key string) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
+		if err := queries.LockFieldGroups(ctx); err != nil {
+			return err
+		}
 		groups, err := groupsWithFields(ctx, queries)
 		if err != nil {
 			return err
@@ -593,7 +596,7 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 		if err != nil {
 			return err
 		}
-		return deleteFieldRow(ctx, queries, groupID, key, matched)
+		return deleteFieldRow(ctx, queries, groupID, key, servedOn(groups, matched, groupID, []string{key}))
 	})
 	if errors.Is(err, content.ErrGroupNotFound) {
 		return err
@@ -604,7 +607,7 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 	return nil
 }
 
-// DeleteSubField removes the field standing inside a container, and the values every item held under it.
+// DeleteSubField removes the field standing inside a container, and its values on the types its group serves.
 func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
@@ -626,7 +629,7 @@ func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
 		if _, err := queries.DeleteFieldByID(ctx, int32(id)); err != nil {
 			return err
 		}
-		return sweepField(ctx, queries, dropped, path, matched)
+		return sweepField(ctx, queries, dropped, path, servedOn(groups, matched, group.ID, path))
 	})
 	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) {
 		return err
@@ -812,7 +815,8 @@ func (m fieldMove) sweep(ctx context.Context, queries *db.Queries) error {
 	if err != nil {
 		return err
 	}
-	if err := sweepField(ctx, queries, m.leaving, m.path, m.served(matched)); err != nil {
+	swept := servedOn(m.groups, matched, m.source.ID, m.path)
+	if err := sweepField(ctx, queries, m.leaving, m.path, swept); err != nil {
 		return err
 	}
 	fields := relationsBelow(m.leaving, nil)
@@ -822,25 +826,39 @@ func (m fieldMove) sweep(ctx context.Context, queries *db.Queries) error {
 	return queries.DeleteRelationsOfFields(ctx, db.DeleteRelationsOfFieldsParams{Types: matched, Fields: fields})
 }
 
-// served returns the matched type keys on which no other group serves the key the path starts from.
-func (m fieldMove) served(matched []string) []string {
+// servedOn returns the matched type keys on which no other active group serves the whole path.
+func servedOn(groups []content.Group, matched []string, groupID int, path []string) []string {
 	held := make([]string, 0, len(matched))
-	for _, key := range matched {
-		if by := servingGroup(m.groups, key, m.path[0]); by == 0 || by == m.source.ID {
-			held = append(held, key)
+	for _, typeKey := range matched {
+		by, found := servingGroup(groups, typeKey, path[0])
+		if !found || by.ID == groupID || !declares(by.Fields, path) {
+			held = append(held, typeKey)
 		}
 	}
 	return held
 }
 
-// servingGroup returns the identity of the active group serving the top key on the type, 0 when none does.
-func servingGroup(groups []content.Group, typeKey, key string) int {
+// servingGroup returns the active group serving the top key on the type, if any does.
+func servingGroup(groups []content.Group, typeKey, key string) (content.Group, bool) {
 	for _, g := range groups {
 		if g.Active && holdsKey(g, key) && g.Location.Match(screenOf(typeKey), locationParams) {
-			return g.ID
+			return g, true
 		}
 	}
-	return 0
+	return content.Group{}, false
+}
+
+// declares reports whether a field stands at the path among the fields.
+func declares(fields []content.Field, path []string) bool {
+	if len(path) == 0 {
+		return true
+	}
+	for _, f := range fields {
+		if f.Key == path[0] {
+			return declares(f.Fields, path[1:])
+		}
+	}
+	return false
 }
 
 // parentColumn returns the parent as the nullable column holds it, null for a group's top.

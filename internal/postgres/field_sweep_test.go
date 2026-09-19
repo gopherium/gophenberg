@@ -63,6 +63,52 @@ func TestDeletingASubFieldSweepsItsValuesInsideASection(t *testing.T) {
 	}
 }
 
+func TestDeletingARestingGroupsSubFieldKeepsTheValueTheServedFieldHolds(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	specs := declareSection(t, store, "specs")
+	declaredInside(t, store, specs, "color", content.FieldKindText)
+	twin := restingTwinOf(t, store, "specs")
+	dropped := declaredInside(t, store, twin, "color", content.FieldKindText)
+	plantTyped(t, pool, author, "car", "one", `{"specs": {"color": "red"}}`)
+
+	if err := store.DeleteSubField(t.Context(), dropped.ID); err != nil {
+		t.Fatalf("DeleteSubField() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{"specs": {"color": "red"}}` {
+		t.Errorf("stored values = %s, want the color the served section holds kept", held)
+	}
+	if held := revisionValuesHeld(t, pool); held != `{"specs": {"color": "red"}}` {
+		t.Errorf("revision values = %s, want the color kept there too", held)
+	}
+}
+
+func TestDeletingARestingGroupsSubFieldSweepsTheValueTheServedSectionLacks(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	specs := declareSection(t, store, "specs")
+	declaredInside(t, store, specs, "size", content.FieldKindText)
+	twin := restingTwinOf(t, store, "specs")
+	dropped := declaredInside(t, store, twin, "color", content.FieldKindText)
+	plantTyped(t, pool, author, "car", "one", `{"specs": {"color": "red", "size": "big"}}`)
+
+	if err := store.DeleteSubField(t.Context(), dropped.ID); err != nil {
+		t.Fatalf("DeleteSubField() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{"specs": {"size": "big"}}` {
+		t.Errorf("stored values = %s, want the color swept since the served section lacks it", held)
+	}
+	if held := revisionValuesHeld(t, pool); held != `{"specs": {"size": "big"}}` {
+		t.Errorf("revision values = %s, want the color swept there too", held)
+	}
+}
+
 func TestDeletingASubFieldSweepsItsValuesFromEveryRow(t *testing.T) {
 	t.Parallel()
 

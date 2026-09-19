@@ -144,8 +144,22 @@ func rested(t *testing.T, store *postgres.TypeStore, title string) content.Group
 	return content.Group{}
 }
 
-// rivalOnTruck stores a truck group holding a section under the key, then registers truck.
-func rivalOnTruck(t *testing.T, store *postgres.TypeStore, key string) {
+// restingTwinOf stores a resting group on car holding a section under the key and returns the section.
+func restingTwinOf(t *testing.T, store *postgres.TypeStore, key string) content.Field {
+	t.Helper()
+	if _, err := store.CreateGroup(t.Context(), content.Group{Title: "Shadow", Location: locationOf("car")}); err != nil {
+		t.Fatalf("CreateGroup(Shadow) error = %v, want nil", err)
+	}
+	idle := rested(t, store, "Shadow")
+	twin, err := store.CreateFieldInGroup(t.Context(), idle.ID, sectionOn(t, key))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(shadow %s) error = %v, want nil", key, err)
+	}
+	return twin
+}
+
+// rivalOnTruck stores a truck group holding a section under the key, registers truck and returns the group.
+func rivalOnTruck(t *testing.T, store *postgres.TypeStore, key string) content.Group {
 	t.Helper()
 	trucks, err := store.CreateGroup(t.Context(), content.Group{Title: "Trucks", Location: locationOf("truck")})
 	if err != nil {
@@ -155,6 +169,7 @@ func rivalOnTruck(t *testing.T, store *postgres.TypeStore, key string) {
 		t.Fatalf("CreateFieldInGroup(trucks %s) error = %v, want nil", key, err)
 	}
 	storeType(t, store, "truck")
+	return trucks
 }
 
 // servingEverything stores a group matching every type and returns it.
@@ -416,6 +431,26 @@ func TestMovingAFieldOfARestingGroupSweepsTheValuesNoGroupServes(t *testing.T) {
 
 	if held := valuesHeld(t, pool); held != `{}` {
 		t.Errorf("stored values = %s, want the title swept since no group serves it", held)
+	}
+}
+
+func TestMovingARestingGroupsSubFieldOutSweepsTheValueTheServedSectionLacks(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	specs := declareSection(t, store, "specs")
+	declaredInside(t, store, specs, "size", content.FieldKindText)
+	twin := restingTwinOf(t, store, "specs")
+	color := declaredInside(t, store, twin, "color", content.FieldKindText)
+	plantTyped(t, pool, author, "car", "one", `{"specs": {"color": "red", "size": "big"}}`)
+
+	if _, err := store.MoveField(t.Context(), color.ID, twin.GroupID, 0); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{"specs": {"size": "big"}}` {
+		t.Errorf("stored values = %s, want the color swept since the served section lacks it", held)
 	}
 }
 
