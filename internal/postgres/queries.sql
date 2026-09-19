@@ -453,7 +453,7 @@ WITH RECURSIVE rooted AS (
     UNION ALL
     SELECT below.id, rooted.depth + 1
     FROM core.content_fields AS below JOIN rooted ON below.parent_field_id = rooted.id
-)
+) CYCLE id SET looped USING trail
 UPDATE core.content_fields AS held
 SET depth = rooted.depth, group_id = @to_group
 FROM rooted

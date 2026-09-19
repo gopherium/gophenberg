@@ -726,7 +726,7 @@ func (s *TypeStore) MoveField(ctx context.Context, id, toGroup, toParent int) (c
 		return moved, nil
 	}
 	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) ||
-		errors.Is(err, content.ErrFieldTaken) {
+		errors.Is(err, content.ErrFieldTaken) || errors.Is(err, content.ErrFieldInsideItself) {
 		return content.Field{}, err
 	}
 	return content.Field{}, fieldWriteFailure(err)
@@ -762,6 +762,9 @@ func movePlanned(ctx context.Context, queries *db.Queries, id, toGroup, toParent
 	_, above, found := pathToField(landing.Fields, toParent)
 	if !found {
 		return fieldMove{}, content.ErrFieldNotFound
+	}
+	if content.Inside(leaving, toParent) {
+		return fieldMove{}, content.MovesInsideItself(leaving.Key)
 	}
 	move.depth = len(above)
 	return move, nil

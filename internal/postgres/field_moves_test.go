@@ -349,6 +349,23 @@ func TestMovingAFieldOutToAKeyARivalGroupServesReportsFieldTaken(t *testing.T) {
 	}
 }
 
+func TestMovingAContainerIntoItsOwnTreeIsRefusedByTheStore(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+	storeType(t, store, "car")
+	specs := declareSection(t, store, "specs")
+	inner := declaredInside(t, store, specs, "inner", content.FieldKindSection)
+
+	for name, parent := range map[string]int{"itself": specs.ID, "a container inside it": inner.ID} {
+		_, err := store.MoveField(t.Context(), specs.ID, specs.GroupID, parent)
+
+		if !errors.Is(err, content.ErrFieldInsideItself) {
+			t.Errorf("moving into %s: error = %v, want %v", name, err, content.ErrFieldInsideItself)
+		}
+	}
+}
+
 func TestMovingAFieldReportsAParentTheLandingGroupDoesNotHold(t *testing.T) {
 	t.Parallel()
 
