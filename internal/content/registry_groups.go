@@ -392,7 +392,7 @@ func (r *Registry) heldGroup(ctx context.Context, groupID int) (Group, error) {
 	return target, err
 }
 
-// MoveField carries the field to the top of a group or inside a container, sweeping its values when it leaves one.
+// MoveField carries the field to a group's top or into a container, sweeping its values when it enters or leaves one.
 func (r *Registry) MoveField(ctx context.Context, id, toGroup, toParent int) (Field, error) {
 	move, err := r.moveOf(ctx, id, toGroup, toParent)
 	if err != nil {
