@@ -457,7 +457,7 @@ WITH RECURSIVE rooted AS (
 UPDATE core.content_fields AS held
 SET depth = rooted.depth, group_id = @to_group
 FROM rooted
-WHERE held.id = rooted.id;
+WHERE held.id = rooted.id AND NOT rooted.looped;
 
 -- name: DeleteRelationsOfFields :exec
 DELETE FROM core.content_relations AS r

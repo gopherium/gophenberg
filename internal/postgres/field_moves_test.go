@@ -3,15 +3,18 @@
 package postgres_test
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres"
+	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
 // fieldRow is where a stored field row stands: its group, its parent and its depth.
@@ -532,6 +535,34 @@ func TestMovingAContainerIntoItsOwnTreeIsRefusedByTheStore(t *testing.T) {
 
 		if !errors.Is(err, content.ErrFieldInsideItself) {
 			t.Errorf("moving into %s: error = %v, want %v", name, err, content.ErrFieldInsideItself)
+		}
+	}
+}
+
+func TestRecountingAPlantedCycleEndsWithEveryFieldAtItsFirstDepth(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	specs := declareSection(t, store, "specs")
+	inner := declaredInside(t, store, specs, "inner", content.FieldKindSection)
+	if _, err := pool.Exec(t.Context(),
+		`UPDATE core.content_fields SET parent_field_id = $1 WHERE id = $2`, inner.ID, specs.ID); err != nil {
+		t.Fatalf("planting the cycle: %v, want nil", err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+
+	err := db.New(pool).RecountContentFieldDepth(ctx, db.RecountContentFieldDepthParams{
+		ToGroup: int32(specs.GroupID), Depth: 0, ID: int32(specs.ID),
+	})
+
+	if err != nil {
+		t.Fatalf("RecountContentFieldDepth() error = %v, want nil", err)
+	}
+	for id, want := range map[int]int{specs.ID: 0, inner.ID: 1} {
+		if held := rowOf(t, pool, id); held.depth != want {
+			t.Errorf("field %d depth = %d, want %d", id, held.depth, want)
 		}
 	}
 }

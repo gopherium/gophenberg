@@ -2025,7 +2025,7 @@ WITH RECURSIVE rooted AS (
 UPDATE core.content_fields AS held
 SET depth = rooted.depth, group_id = $1
 FROM rooted
-WHERE held.id = rooted.id
+WHERE held.id = rooted.id AND NOT rooted.looped
 `
 
 type RecountContentFieldDepthParams struct {
