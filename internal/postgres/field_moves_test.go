@@ -144,8 +144,8 @@ func rested(t *testing.T, store *postgres.TypeStore, title string) content.Group
 	return content.Group{}
 }
 
-// rivalOnTruck stores a truck group holding a section under the key, then registers truck.
-func rivalOnTruck(t *testing.T, store *postgres.TypeStore, key string) {
+// rivalOnTruck stores a truck group holding a section under the key, registers truck and returns the group.
+func rivalOnTruck(t *testing.T, store *postgres.TypeStore, key string) content.Group {
 	t.Helper()
 	trucks, err := store.CreateGroup(t.Context(), content.Group{Title: "Trucks", Location: locationOf("truck")})
 	if err != nil {
@@ -155,6 +155,7 @@ func rivalOnTruck(t *testing.T, store *postgres.TypeStore, key string) {
 		t.Fatalf("CreateFieldInGroup(trucks %s) error = %v, want nil", key, err)
 	}
 	storeType(t, store, "truck")
+	return trucks
 }
 
 // servingEverything stores a group matching every type and returns it.
