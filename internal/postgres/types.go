@@ -37,6 +37,14 @@ const foreignKeyViolationCode = "23503"
 // fieldKeyConstraint names the unique index over one group's field keys.
 const fieldKeyConstraint = "content_fields_scope_key_unique"
 
+// containerKeyConstraint names the index holding each key once inside a container.
+const containerKeyConstraint = "content_fields_container_key_unique"
+
+// keyConstraint reports whether the constraint holds a field key once at its level.
+func keyConstraint(name string) bool {
+	return name == fieldKeyConstraint || name == containerKeyConstraint
+}
+
 // groupKeyConstraint names the unique constraint over field group keys.
 const groupKeyConstraint = "field_groups_key_unique"
 
@@ -340,7 +348,7 @@ func (s *TypeStore) CreateField(ctx context.Context, f content.Field) (content.F
 func fieldWriteFailure(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-		if pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == fieldKeyConstraint {
+		if pgErr.Code == uniqueViolationCode && keyConstraint(pgErr.ConstraintName) {
 			return content.ErrFieldTaken
 		}
 		if pgErr.Code == foreignKeyViolationCode && pgErr.ConstraintName == fieldTargetConstraint {

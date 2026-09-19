@@ -560,18 +560,14 @@ func TestMoveFieldCarriesTheFieldAndKeepsItsValues(t *testing.T) {
 
 	store, author, pool := typedStore(t)
 	storeType(t, store, "car")
-	declareTypedField(t, store, "car", "subtitle")
+	subtitle := declareTypedField(t, store, "car", "subtitle")
 	plantTyped(t, pool, author, "car", "one-car", `{"subtitle": "kept words"}`)
 	extras, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
 	if err != nil {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
-	groups, err := store.ListGroups(t.Context())
-	if err != nil || len(groups) != 2 {
-		t.Fatalf("ListGroups() = %v, %v, want both groups", groups, err)
-	}
 
-	moved, err := store.MoveField(t.Context(), groups[0].ID, "subtitle", extras.ID)
+	moved, err := store.MoveField(t.Context(), subtitle.ID, extras.ID, 0)
 
 	if err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
@@ -599,7 +595,7 @@ func TestMoveFieldReportsAFieldThatIsGone(t *testing.T) {
 		t.Fatalf("ListGroups() = %v, %v, want the one raised group", groups, err)
 	}
 
-	_, err = store.MoveField(t.Context(), groups[0].ID, "absent", groups[0].ID)
+	_, err = store.MoveField(t.Context(), 4242, groups[0].ID, 0)
 
 	if !errors.Is(err, content.ErrFieldNotFound) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldNotFound)
@@ -611,13 +607,9 @@ func TestMoveFieldReportsAGroupThatIsGone(t *testing.T) {
 
 	store, _, _ := typedStore(t)
 	storeType(t, store, "car")
-	declareTypedField(t, store, "car", "subtitle")
-	groups, err := store.ListGroups(t.Context())
-	if err != nil || len(groups) != 1 {
-		t.Fatalf("ListGroups() = %v, %v, want the one raised group", groups, err)
-	}
+	subtitle := declareTypedField(t, store, "car", "subtitle")
 
-	_, err = store.MoveField(t.Context(), groups[0].ID, "subtitle", 4242)
+	_, err := store.MoveField(t.Context(), subtitle.ID, 4242, 0)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrGroupNotFound)

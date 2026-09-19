@@ -53,8 +53,10 @@ A new content type can make two groups meet on a key. The first
 group serves the field, the other is marked **Shadowed**, and
 changing one group's rules parts them.
 
-**Move** carries a field into another group, keeping every value
-stored under it.
+**Move** carries a field to another group, into a container of any
+group, or out of one to a group's top. Between the tops of two groups
+every value stays where it is. Into or out of a container the stored
+values do not follow, and the dialog says so before you confirm.
 
 ## The kinds
 
@@ -184,9 +186,12 @@ reaches and in the revisions behind them, because a row without its
 layout carries nothing anyone can read. Going back to an earlier
 revision does not bring those rows back.
 
-The one control a field inside a container does not offer is the move
-to another group, because a field there belongs to its container
-rather than to the group directly.
+A field inside a container moves like any other, to the top of a
+group or into another container, and its stored values stay behind.
+The move is refused where the field would stand inside itself, deeper
+than the site allows, on a name the destination already holds, where
+a sibling it leaves still reads it, or where its own rules would name
+no sibling.
 
 A container may hold another container, up to 32 levels deep by
 default. A Repeater row can hold a Section, and that Section can hold

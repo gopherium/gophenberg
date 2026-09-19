@@ -200,9 +200,9 @@ Feature: Container fields
     And the field "author" on "post" holds the sub field "address"
 
   Scenario: A field moved onto a name the container already holds is refused
-    Given the "section" field "author" in "Extras"
+    Given the "text" field "name" in "Extras"
+    And the "section" field "author" in "Extras"
     And the "text" field "name" inside "author"
-    And the "text" field "name" in "Extras"
     When the administrator moves the field "name" inside "author"
     Then the request is refused with the code "field_taken"
 

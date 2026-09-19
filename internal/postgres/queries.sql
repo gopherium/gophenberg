@@ -433,16 +433,36 @@ FROM (
 ) AS ordered
 WHERE core.field_groups.id = ordered.id;
 
--- name: MoveContentField :one
+-- name: ReparentContentField :one
 UPDATE core.content_fields AS moved
 SET group_id = @to_group,
+    parent_field_id = sqlc.narg(to_parent)::integer,
     position = (
         SELECT COALESCE(MAX(landing.position), 0) + 1
-        FROM core.content_fields AS landing WHERE landing.group_id = @to_group
+        FROM core.content_fields AS landing
+        WHERE landing.group_id = @to_group
+            AND landing.parent_field_id IS NOT DISTINCT FROM sqlc.narg(to_parent)::integer
     ),
     updated_at = @updated_at
-WHERE moved.group_id = @group_id AND moved.key = @key AND moved.parent_field_id IS NULL
+WHERE moved.id = @id
 RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin;
+
+-- name: RecountContentFieldDepth :exec
+WITH RECURSIVE rooted AS (
+    SELECT top.id, @depth::integer AS depth FROM core.content_fields AS top WHERE top.id = @id
+    UNION ALL
+    SELECT below.id, rooted.depth + 1
+    FROM core.content_fields AS below JOIN rooted ON below.parent_field_id = rooted.id
+) CYCLE id SET looped USING trail
+UPDATE core.content_fields AS held
+SET depth = rooted.depth, group_id = @to_group
+FROM rooted
+WHERE held.id = rooted.id AND NOT rooted.looped;
+
+-- name: DeleteRelationsOfFields :exec
+DELETE FROM core.content_relations AS r
+USING core.content AS c
+WHERE r.from_id = c.id AND c.type = ANY(@types::text []) AND r.field_id = ANY(@fields::integer []);
 
 -- name: GroupByLocation :one
 SELECT id, title, location, position, active, created_at, updated_at, origin, key
@@ -461,16 +481,6 @@ SELECT key FROM core.content_types ORDER BY created_at, key;
 -- name: ListContentFields :many
 SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin
 FROM core.content_fields ORDER BY group_id, position, id;
-
--- name: MoveContentFieldDescendants :exec
-WITH RECURSIVE inside AS (
-    SELECT held.id FROM core.content_fields AS held WHERE held.parent_field_id = @id::integer
-    UNION ALL
-    SELECT below.id FROM core.content_fields AS below JOIN inside ON below.parent_field_id = inside.id
-)
-UPDATE core.content_fields AS moved
-SET group_id = @to_group
-WHERE moved.id IN (SELECT inside.id FROM inside);
 
 -- name: CarryStrayFieldsOfGroup :exec
 WITH RECURSIVE rooted AS (

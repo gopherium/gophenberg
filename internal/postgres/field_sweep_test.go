@@ -22,13 +22,13 @@ func valuesHeld(t *testing.T, pool *pgxpool.Pool) string {
 	return held
 }
 
-// revisionValuesHeld returns the stored values of the planted revision of the type.
-func revisionValuesHeld(t *testing.T, pool *pgxpool.Pool, typeKey string) string {
+// revisionValuesHeld returns the stored values of the planted car revision.
+func revisionValuesHeld(t *testing.T, pool *pgxpool.Pool) string {
 	t.Helper()
 	var held string
 	if err := pool.QueryRow(t.Context(),
 		`SELECT r.fields::text FROM core.content_revisions r
-		JOIN core.content c ON r.content_id = c.id WHERE c.type = $1`, typeKey).Scan(&held); err != nil {
+		JOIN core.content c ON r.content_id = c.id WHERE c.type = $1`, "car").Scan(&held); err != nil {
 		t.Fatalf("reading the stored revision values: %v, want nil", err)
 	}
 	return held
@@ -58,7 +58,7 @@ func TestDeletingASubFieldSweepsItsValuesInsideASection(t *testing.T) {
 	if held := valuesHeld(t, pool); held != `{"specs": {"colour": "red"}}` {
 		t.Errorf("stored values = %s, want the doors swept from inside the section", held)
 	}
-	if held := revisionValuesHeld(t, pool, "car"); held != `{"specs": {"colour": "red"}}` {
+	if held := revisionValuesHeld(t, pool); held != `{"specs": {"colour": "red"}}` {
 		t.Errorf("revision values = %s, want the doors swept there too", held)
 	}
 }

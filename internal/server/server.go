@@ -187,7 +187,7 @@ func (s *server) mountAdmin(r chi.Router, admin *authkit.AdminHandlers, cfg Conf
 		r.Put("/api/groups/{id}/fields/order", s.handleGroupFieldOrder())
 		r.Patch("/api/groups/{id}/fields/{fieldKey}", s.handleGroupFieldPatch())
 		r.Delete("/api/groups/{id}/fields/{fieldKey}", s.handleGroupFieldDelete())
-		r.Post("/api/groups/{id}/fields/{fieldKey}/move", s.handleGroupFieldMove())
+		r.Post("/api/groups/{id}/fields/{fieldPath}/move", s.handleGroupFieldMove())
 		r.Post("/api/groups/{id}/fields/{fieldPath}", s.handleSubFieldCreate())
 		r.Delete("/api/groups/{id}/inside/{fieldPath}", s.handleSubFieldDelete())
 		r.Put("/api/groups/{id}/inside/{fieldPath}/order", s.handleSubFieldOrder())

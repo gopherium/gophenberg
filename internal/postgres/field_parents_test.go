@@ -112,7 +112,7 @@ func TestMovingATopFieldLeavesASubFieldSharingItsKey(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 
-	if _, err := store.MoveField(t.Context(), title.GroupID, "title", landing.ID); err != nil {
+	if _, err := store.MoveField(t.Context(), title.ID, landing.ID, 0); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -205,7 +205,7 @@ func TestMovingASectionCarriesASubFieldTwoLevelsDown(t *testing.T) {
 		t.Fatalf("CreateGroup(Elsewhere) error = %v, want nil", err)
 	}
 
-	if _, err := store.MoveField(t.Context(), source.ID, "author", landing.ID); err != nil {
+	if _, err := store.MoveField(t.Context(), section.ID, landing.ID, 0); err != nil {
 		t.Fatalf("MoveField(author) error = %v, want nil", err)
 	}
 
@@ -237,7 +237,7 @@ func moveSection(t *testing.T, store *postgres.TypeStore) movedSection {
 	if err != nil {
 		t.Fatalf("CreateGroup(Elsewhere) error = %v, want nil", err)
 	}
-	if _, err := store.MoveField(t.Context(), source.ID, "author", landing.ID); err != nil {
+	if _, err := store.MoveField(t.Context(), section.ID, landing.ID, 0); err != nil {
 		t.Fatalf("MoveField(author) error = %v, want nil", err)
 	}
 	return movedSection{source: source, landing: landing, section: section, sub: sub}

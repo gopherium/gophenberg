@@ -121,6 +121,7 @@ var domainErrors = []struct {
 	{content.ErrConflict, http.StatusConflict, "content_stale_update"},
 	{media.ErrConflict, http.StatusConflict, "media_stale_update"},
 	{content.ErrFieldTooDeep, http.StatusUnprocessableEntity, "field_too_deep"},
+	{content.ErrFieldInsideItself, http.StatusUnprocessableEntity, "field_moves_inside_itself"},
 	{content.ErrInvalidType, http.StatusUnprocessableEntity, "type_unknown"},
 	{content.ErrInvalidAuthor, http.StatusUnprocessableEntity, "author_required"},
 	{media.ErrInvalidAuthor, http.StatusUnprocessableEntity, "author_required"},

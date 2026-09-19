@@ -287,35 +287,50 @@ func (s *groupingStore) ReorderFieldsInGroup(_ context.Context, groupID int, key
 	return content.ErrGroupNotFound
 }
 
-// MoveField carries the field into another group.
-func (s *groupingStore) MoveField(_ context.Context, groupID int, key string, toGroup int) (content.Field, error) {
+// MoveField carries the field to the top of the group, or inside the container the parent names.
+func (s *groupingStore) MoveField(_ context.Context, id, toGroup, toParent int) (content.Field, error) {
 	if s.moveErr != nil {
 		return content.Field{}, s.moveErr
 	}
 	var carried content.Field
-	for i, held := range s.groups {
-		if held.ID != groupID {
-			continue
-		}
-		for at, f := range held.Fields {
-			if f.Key != key {
-				continue
-			}
-			carried = f
-			s.groups[i].Fields = append(held.Fields[:at], held.Fields[at+1:]...)
+	found := false
+	for i := range s.groups {
+		if s.groups[i].Fields, carried, found = detached(s.groups[i].Fields, id); found {
+			break
 		}
 	}
-	if carried.Key == "" {
+	if !found {
 		return content.Field{}, content.ErrFieldNotFound
 	}
-	carried.GroupID = toGroup
+	carried.GroupID, carried.ParentID = toGroup, toParent
 	for i, held := range s.groups {
-		if held.ID == toGroup {
+		if held.ID != toGroup {
+			continue
+		}
+		if toParent == 0 {
 			s.groups[i].Fields = append(held.Fields, carried)
 			return carried, nil
 		}
+		if attachUnder(s.groups[i].Fields, toParent, carried) {
+			return carried, nil
+		}
+		return content.Field{}, content.ErrFieldNotFound
 	}
 	return content.Field{}, content.ErrGroupNotFound
+}
+
+// detached returns the fields without the one carrying the identity, and that field, however deep it stood.
+func detached(fields []content.Field, id int) ([]content.Field, content.Field, bool) {
+	for i := range fields {
+		if fields[i].ID == id {
+			return append(fields[:i:i], fields[i+1:]...), fields[i], true
+		}
+		if inside, held, found := detached(fields[i].Fields, id); found {
+			fields[i].Fields = inside
+			return fields, held, true
+		}
+	}
+	return fields, content.Field{}, false
 }
 
 // namingPost returns a location matching the built-in post type.
@@ -400,11 +415,12 @@ func TestRegistryReportsAGroupStoreThatWillNotAnswer(t *testing.T) {
 		"MoveField": func(r *content.Registry, s *groupingStore) error {
 			from := groupNaming(t, r, "From", namingPost())
 			to := groupNaming(t, r, "To", namingPost())
-			if _, err := r.CreateFieldInGroup(t.Context(), from.ID, groupedTextField(t)); err != nil {
+			created, err := r.CreateFieldInGroup(t.Context(), from.ID, groupedTextField(t))
+			if err != nil {
 				return err
 			}
 			s.moveErr = errStoreDown
-			_, err := r.MoveField(t.Context(), from.ID, "subtitle", to.ID)
+			_, err = r.MoveField(t.Context(), created.ID, to.ID, 0)
 			return err
 		},
 		"UpdateFieldInGroup": func(r *content.Registry, s *groupingStore) error {
@@ -506,7 +522,7 @@ func TestRegistryReportsAGroupsListItCannotRead(t *testing.T) {
 			return err
 		},
 		"MoveField": func(r *content.Registry) error {
-			_, err := r.MoveField(t.Context(), 1, "subtitle", 2)
+			_, err := r.MoveField(t.Context(), 1, 2, 0)
 			return err
 		},
 		"UpdateGroup": func(r *content.Registry) error {
@@ -1026,11 +1042,12 @@ func TestRegistryMovesAFieldToAnotherGroup(t *testing.T) {
 	registry := content.NewRegistry(newGroupingStore())
 	from := groupNaming(t, registry, "Article details", namingPost())
 	to := groupNaming(t, registry, "Extras", namingPost())
-	if _, err := registry.CreateFieldInGroup(t.Context(), from.ID, groupedTextField(t)); err != nil {
+	created, err := registry.CreateFieldInGroup(t.Context(), from.ID, groupedTextField(t))
+	if err != nil {
 		t.Fatalf("declaring the field: %v, want nil", err)
 	}
 
-	moved, err := registry.MoveField(t.Context(), from.ID, "subtitle", to.ID)
+	moved, err := registry.MoveField(t.Context(), created.ID, to.ID, 0)
 
 	if err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
@@ -1054,14 +1071,15 @@ func TestRegistryRefusesAMoveIntoACollision(t *testing.T) {
 	shared := groupNaming(t, registry, "Everywhere", content.Rules{{{
 		Source: content.ScreenContentType, Operator: content.OperatorIs, Value: content.AnyContentType,
 	}}})
-	if _, err := registry.CreateFieldInGroup(t.Context(), cars.ID, groupedTextField(t)); err != nil {
+	leaving, err := registry.CreateFieldInGroup(t.Context(), cars.ID, groupedTextField(t))
+	if err != nil {
 		t.Fatalf("declaring the car field: %v, want nil", err)
 	}
 	if _, err := registry.CreateFieldInGroup(t.Context(), posts.ID, groupedTextField(t)); err != nil {
 		t.Fatalf("declaring the post field: %v, want nil", err)
 	}
 
-	_, err := registry.MoveField(t.Context(), cars.ID, "subtitle", shared.ID)
+	_, err = registry.MoveField(t.Context(), leaving.ID, shared.ID, 0)
 
 	if !errors.Is(err, content.ErrFieldTaken) {
 		t.Errorf("MoveField() error = %v, want the move into a shared group refused", err)
@@ -1073,11 +1091,12 @@ func TestRegistryReportsAMoveToAGroupThatIsGone(t *testing.T) {
 
 	registry := content.NewRegistry(newGroupingStore())
 	from := groupNaming(t, registry, "Article details", namingPost())
-	if _, err := registry.CreateFieldInGroup(t.Context(), from.ID, groupedTextField(t)); err != nil {
+	created, err := registry.CreateFieldInGroup(t.Context(), from.ID, groupedTextField(t))
+	if err != nil {
 		t.Fatalf("declaring the field: %v, want nil", err)
 	}
 
-	_, err := registry.MoveField(t.Context(), from.ID, "subtitle", 4242)
+	_, err = registry.MoveField(t.Context(), created.ID, 4242, 0)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrGroupNotFound)

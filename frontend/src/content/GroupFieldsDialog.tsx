@@ -45,6 +45,7 @@ import {
 	pickedKind,
 	requirable,
 	slugifyKey,
+	standsInside,
 } from './types'
 import type { ChoicePair } from './types'
 import { typesQueryKey } from './nav'
@@ -254,7 +255,7 @@ function FieldsBody(
 									<CarryField
 										group={props.held.id}
 										field={field}
-										elsewhere={props.groups.filter((listed) => listed.id !== props.held.id)}
+										groups={props.groups}
 										onDone={props.onDone}
 										onRefused={props.onRefused}
 									/>
@@ -276,6 +277,7 @@ function FieldsBody(
 							</Stack>
 							<HeldFields
 								group={props.held.id}
+								groups={props.groups}
 								types={props.types}
 								declared={field.fields}
 								at={field.key}
@@ -879,18 +881,112 @@ function RenameField(props: Inside) {
 	)
 }
 
+/** Where a field may come to stand: a group's top, or a container inside one, named for the select. */
+interface Landing {
+	label: string
+	value: string
+}
+
 /**
- * Renders the control carrying a field into another group.
- * @param props - The group, the field, the groups it may land in, and what to report.
+ * Returns the containers the site keeps among the fields with the dotted path reaching each, however deep they stand.
+ * @param fields - The fields to look through.
+ * @param above - The dotted path holding the fields, empty at a group's top.
+ * @returns The containers and their paths.
+ */
+function containersOf(fields: ContentField[], above: string): { label: string; path: string; kind: string }[] {
+	const held: { label: string; path: string; kind: string }[] = []
+	for (const field of fields) {
+		if (!holdsFields(field.kind) || (field.origin ?? '') !== '') {
+			continue
+		}
+		const path = above === '' ? field.key : `${above}.${field.key}`
+		held.push({ label: field.label, path, kind: field.kind }, ...containersOf(field.fields, path))
+	}
+	return held
+}
+
+/**
+ * Returns whether a container may take the field: not its own place, not itself, and not one of its own.
+ * @param own - Whether the container stands in the field's own group.
+ * @param path - The container's dotted path.
+ * @param at - The field's dotted path.
+ * @param parent - The dotted path of the container holding the field, empty at a group's top.
+ * @returns Whether the container is offered.
+ */
+function takes(own: boolean, path: string, at: string, parent: string): boolean {
+	if (!own) {
+		return true
+	}
+	return path !== parent && path !== at && !path.startsWith(`${at}.`)
+}
+
+/**
+ * Returns the places a field may be carried to: the top and every container of each group the site keeps, its own
+ * place left out.
+ * @param groups - The groups with their fields.
+ * @param group - The group the field stands in.
+ * @param at - The field's dotted path.
+ * @param kind - The kind of the field being carried.
+ * @returns The landings in group order, each group's top before its containers.
+ */
+function landingsFor(groups: FieldGroup[], group: number, at: string, kind: string): Landing[] {
+	const parent = at.includes('.') ? at.slice(0, at.lastIndexOf('.')) : ''
+	const held: Landing[] = []
+	for (const listed of groups.filter((listed) => (listed.origin ?? '') === '')) {
+		const own = listed.id === group
+		if ((!own || parent !== '') && standsInside(kind)) {
+			held.push({ label: listed.title, value: String(listed.id) })
+		}
+		for (const container of containersOf(listed.fields, '')) {
+			if (takes(own, container.path, at, parent) && standsInside(kind, container.kind)) {
+				held.push({ label: `${listed.title}: ${container.label}`, value: `${listed.id}:${container.path}` })
+			}
+		}
+	}
+	return held
+}
+
+/**
+ * Renders the control carrying a field to a group's top or into a container.
+ * @param props - The group, the field, its path, every group it may land in, and what to report.
  * @returns The control and its dialog, or nothing when there is nowhere to carry it.
  */
-function CarryField(props: Inside & { elsewhere: FieldGroup[] }) {
-	const landings = props.elsewhere.map((listed) => ({ label: listed.title, value: String(listed.id) }))
+function CarryField(props: Inside & { groups: FieldGroup[] }) {
+	const at = props.path ?? props.field.key
+	const landings = landingsFor(props.groups, props.group, at, props.field.kind)
+	const first = landings[0]
+	if (first === undefined) {
+		return null
+	}
+	return (
+		<CarryDialog
+			group={props.group}
+			field={props.field}
+			at={at}
+			landings={landings}
+			first={first}
+			onDone={props.onDone}
+			onRefused={props.onRefused}
+		/>
+	)
+}
+
+/**
+ * Renders the dialog choosing where a field lands and carrying it there.
+ * @param props - The group, the field, its path, the landings on offer, the first of them, and what to report.
+ * @returns The control and its dialog.
+ */
+function CarryDialog(props: Inside & { at: string; landings: Landing[]; first: Landing }) {
+	const { at, landings } = props
 	const [open, setOpen] = useState(false)
-	const [landing, setLanding] = useState(landings[0])
+	const [picked, setPicked] = useState(props.first)
+	const landing = landings.find((held) => held.value === picked.value) ?? props.first
 	const asking = sprintf(__('Move %(field)s elsewhere', 'gophenberg'), { field: props.field.label })
 	const carry = useMutation({
-		mutationFn: () => moveField(props.group, props.field.key, Number(landing?.value)),
+		mutationFn: () => {
+			const [toGroup, toParent] = landing.value.split(':')
+			return moveField(props.group, at, Number(toGroup), toParent)
+		},
 		onSuccess: async () => {
 			setOpen(false)
 			await props.onDone(sprintf(__('%(field)s moved.', 'gophenberg'), { field: props.field.label }))
@@ -900,9 +996,7 @@ function CarryField(props: Inside & { elsewhere: FieldGroup[] }) {
 			props.onRefused(cause)
 		},
 	})
-	if (landing === undefined) {
-		return null
-	}
+	const follows = !at.includes('.') && !landing.value.includes(':')
 	return (
 		<>
 			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
@@ -916,12 +1010,16 @@ function CarryField(props: Inside & { elsewhere: FieldGroup[] }) {
 					</Dialog.Header>
 					<Dialog.Content>
 						<Stack direction="column" gap="md">
-							<Text>{__('The field keeps every value stored under it.', 'gophenberg')}</Text>
+							<Text>
+								{follows
+									? __('The field keeps every value stored under it.', 'gophenberg')
+									: __('The values stored under it do not follow.', 'gophenberg')}
+							</Text>
 							<SelectControl
-								label={__('Group', 'gophenberg')}
+								label={__('Destination', 'gophenberg')}
 								items={landings}
 								value={landing}
-								onValueChange={(item) => setLanding(chosenOf(item, landings, landing))}
+								onValueChange={(item) => setPicked(chosenOf(item, landings, landing))}
 							/>
 						</Stack>
 					</Dialog.Content>
@@ -941,11 +1039,17 @@ function CarryField(props: Inside & { elsewhere: FieldGroup[] }) {
 
 /**
  * Renders the sub fields a container declares, however deep they run.
- * @param props - The group, the types, the sub fields, the path holding them, and what to report.
+ * @param props - The group, every group, the types, the sub fields, the path holding them, and what to report.
  * @returns The list element, or nothing when the container declares none.
  */
 function HeldFields(
-	props: Reporter & { group: number; types: ContentType[]; declared: ContentField[]; at: string },
+	props: Reporter & {
+		group: number
+		groups: FieldGroup[]
+		types: ContentType[]
+		declared: ContentField[]
+		at: string
+	},
 ) {
 	const reorder = useMutation({
 		mutationFn: (keys: string[]) => reorderSubFields(props.group, props.at, keys),
@@ -1038,6 +1142,14 @@ function HeldFields(
 								onDone={props.onDone}
 								onRefused={props.onRefused}
 							/>
+							<CarryField
+								group={props.group}
+								field={field}
+								path={props.at + '.' + field.key}
+								groups={props.groups}
+								onDone={props.onDone}
+								onRefused={props.onRefused}
+							/>
 							<SubFields
 								group={props.group}
 								types={props.types}
@@ -1057,6 +1169,7 @@ function HeldFields(
 					</Stack>
 					<HeldFields
 						group={props.group}
+						groups={props.groups}
 						types={props.types}
 						declared={field.fields}
 						at={props.at + '.' + field.key}

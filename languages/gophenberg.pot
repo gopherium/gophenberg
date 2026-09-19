@@ -21,6 +21,9 @@ msgstr[1] ""
 msgid "%(field)s address"
 msgstr ""
 
+msgid "%(field)s cannot move inside itself. Pick a container that is not one of its own."
+msgstr ""
+
 msgid "%(field)s declared."
 msgstr ""
 
@@ -544,6 +547,9 @@ msgid "Description"
 msgstr ""
 
 msgid "Desktop"
+msgstr ""
+
+msgid "Destination"
 msgstr ""
 
 msgid "Dimensions"
@@ -1419,6 +1425,9 @@ msgid "The theme %(name)s was built on theme kit %(declared)s, and this site ser
 msgstr ""
 
 msgid "The user could not be created."
+msgstr ""
+
+msgid "The values stored under it do not follow."
 msgstr ""
 
 msgid "Theme"

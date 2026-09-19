@@ -73,7 +73,7 @@ func TestDeletingASubFieldSweepsItOnlyFromItsOwnLayout(t *testing.T) {
 	if held := valuesHeld(t, pool); held != want {
 		t.Errorf("stored values = %s, want the caption swept from the hero rows alone", held)
 	}
-	if held := revisionValuesHeld(t, pool, "car"); held != want {
+	if held := revisionValuesHeld(t, pool); held != want {
 		t.Errorf("revision values = %s, want the same sweep in the revision", held)
 	}
 }
@@ -99,7 +99,7 @@ func TestDeletingALayoutTakesItsRowsAway(t *testing.T) {
 	if held := valuesHeld(t, pool); held != want {
 		t.Errorf("stored values = %s, want the hero rows gone rather than emptied", held)
 	}
-	if held := revisionValuesHeld(t, pool, "car"); held != want {
+	if held := revisionValuesHeld(t, pool); held != want {
 		t.Errorf("revision values = %s, want the hero rows gone there too", held)
 	}
 }

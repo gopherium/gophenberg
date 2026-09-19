@@ -116,6 +116,44 @@ func (s *memoryContent) clearRelation(typeKey, key string) {
 	}
 }
 
+// sweepPath takes what stands at the path out of every item of the types, their revisions and their autosaves.
+func (s *memoryContent) sweepPath(typeKeys []string, path []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, stored := range s.items {
+		if !slices.Contains(typeKeys, stored.Type) {
+			continue
+		}
+		strippedAt(stored.Fields, path)
+		for i := range s.revisions[id] {
+			strippedAt(s.revisions[id][i].Fields, path)
+		}
+		for held, parked := range s.autosaves {
+			if held.contentID == id {
+				strippedAt(parked.Fields, path)
+			}
+		}
+	}
+}
+
+// strippedAt removes what stands at the path inside the values, walking into every row on the way.
+func strippedAt(values map[string]any, path []string) {
+	if len(path) == 1 {
+		delete(values, path[0])
+		return
+	}
+	switch inside := values[path[0]].(type) {
+	case map[string]any:
+		strippedAt(inside, path[1:])
+	case []any:
+		for _, row := range inside {
+			if held, ok := row.(map[string]any); ok {
+				strippedAt(held, path[1:])
+			}
+		}
+	}
+}
+
 // clearField sweeps the field's values from the type's items and their snapshots.
 func (s *memoryContent) clearField(typeKey, key string) {
 	s.mu.Lock()

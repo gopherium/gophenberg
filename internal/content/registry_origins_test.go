@@ -101,7 +101,7 @@ func TestRegistryRefusesToChangeAFieldAPluginDeclared(t *testing.T) {
 		"add a field":     firstErr(registry.CreateFieldInGroup(t.Context(), group.ID, extra)),
 		"edit":            firstErr(registry.UpdateFieldInGroup(t.Context(), group.ID, venue, venue.UpdatedAt)),
 		"delete":          registry.DeleteFieldInGroup(t.Context(), group.ID, "venue"),
-		"move out":        firstErr(registry.MoveField(t.Context(), group.ID, "venue", site.ID)),
+		"move out":        firstErr(registry.MoveField(t.Context(), venue.ID, site.ID, 0)),
 		"add a sub field": firstErr(registry.CreateSubField(t.Context(), venue.ID, inner)),
 		"edit deep":       firstErr(registry.UpdateSubField(t.Context(), venue.ID, venue, time.Time{})),
 		"delete deep":     registry.DeleteSubField(t.Context(), venue.ID),
@@ -119,13 +119,14 @@ func TestRegistryRefusesToMoveASiteFieldIntoAPluginGroup(t *testing.T) {
 	registry := content.NewRegistry(store)
 	group := pluginGroup(t, store)
 	site := groupNaming(t, registry, "Extras", namingPost())
-	if _, err := registry.CreateFieldInGroup(t.Context(), site.ID, content.Field{
+	created, err := registry.CreateFieldInGroup(t.Context(), site.ID, content.Field{
 		Key: "subtitle", Label: "Subtitle", Kind: content.FieldKindText,
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}
 
-	_, err := registry.MoveField(t.Context(), site.ID, "subtitle", group.ID)
+	_, err = registry.MoveField(t.Context(), created.ID, group.ID, 0)
 
 	if !errors.Is(err, content.ErrDefinitionReadOnly) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrDefinitionReadOnly)
@@ -190,7 +191,7 @@ func TestRegistryReportsGroupsItCannotReadBeforeAWrite(t *testing.T) {
 		},
 		"DeleteSubField": func(r *content.Registry) error { return r.DeleteSubField(t.Context(), 1) },
 		"MoveField": func(r *content.Registry) error {
-			return firstErr(r.MoveField(t.Context(), 1, "subtitle", 2))
+			return firstErr(r.MoveField(t.Context(), 1, 2, 0))
 		},
 		"UpdateGroup": func(r *content.Registry) error {
 			edited := content.Group{ID: 1, Title: "Extras", Location: namingPost()}

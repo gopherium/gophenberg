@@ -469,8 +469,8 @@ func (s *memoryTypes) ReorderFieldsInGroup(_ context.Context, groupID int, keys 
 	return content.ErrGroupNotFound
 }
 
-// MoveField carries the field into another group.
-func (s *memoryTypes) MoveField(_ context.Context, groupID int, key string, toGroup int) (content.Field, error) {
+// MoveField carries the field to the top of the group, or inside the container the parent names, sweeping its old path.
+func (s *memoryTypes) MoveField(_ context.Context, id, toGroup, toParent int) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	landing := -1
@@ -482,25 +482,56 @@ func (s *memoryTypes) MoveField(_ context.Context, groupID int, key string, toGr
 	if landing < 0 {
 		return content.Field{}, content.ErrGroupNotFound
 	}
-	var carried content.Field
-	for i, held := range s.groups {
-		if held.ID != groupID {
-			continue
-		}
-		for at, f := range held.Fields {
-			if f.Key == key {
-				carried = f
-				s.groups[i].Fields = append(held.Fields[:at], held.Fields[at+1:]...)
-				break
-			}
-		}
-	}
-	if carried.Key == "" {
+	if toParent != 0 && !holdsIdentity(s.groups[landing].Fields, toParent) {
 		return content.Field{}, content.ErrFieldNotFound
 	}
-	carried = storedUnder(carried, toGroup)
-	s.groups[landing].Fields = append(s.groups[landing].Fields, carried)
-	return carried, nil
+	source, carried, path, found := s.takenOut(id)
+	if !found {
+		return content.Field{}, content.ErrFieldNotFound
+	}
+	moved := storedUnder(carried, toGroup)
+	moved.ParentID = toParent
+	if toParent == 0 {
+		s.groups[landing].Fields = append(s.groups[landing].Fields, moved)
+	} else {
+		s.groups[landing].Fields, _ = grownInside(s.groups[landing].Fields, toParent, moved)
+	}
+	if s.content != nil && carried.ParentID != toParent {
+		s.content.sweepPath(s.typesMatchedBy(source), path)
+	}
+	return moved, nil
+}
+
+// takenOut removes the field carrying the identity from its group, returning the group, the field and its path.
+func (s *memoryTypes) takenOut(id int) (content.Group, content.Field, []string, bool) {
+	for i, held := range s.groups {
+		carried, path, found := placedInside(held.Fields, id)
+		if !found {
+			continue
+		}
+		s.groups[i].Fields, _ = prunedInside(held.Fields, id)
+		return held, carried, path, true
+	}
+	return content.Group{}, content.Field{}, nil, false
+}
+
+// placedInside returns the field carrying the identity and the keys reaching it, however deep it stands.
+func placedInside(declared []content.Field, id int) (content.Field, []string, bool) {
+	for _, held := range declared {
+		if held.ID == id {
+			return held, []string{held.Key}, true
+		}
+		if inside, path, found := placedInside(held.Fields, id); found {
+			return inside, append([]string{held.Key}, path...), true
+		}
+	}
+	return content.Field{}, nil, false
+}
+
+// holdsIdentity reports whether a field carrying the identity stands among the fields, however deep.
+func holdsIdentity(declared []content.Field, id int) bool {
+	_, _, found := placedInside(declared, id)
+	return found
 }
 
 // ListGroups returns the stored groups beside one per type already holding fields.
