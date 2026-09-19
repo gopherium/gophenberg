@@ -333,7 +333,8 @@ Change the Linked from field first.
 
 **Delete** removes the field and everything stored under it, in
 every item the group reaches and in the revisions behind them. The
-dialog says so before it happens.
+dialog says so before it happens. Where another active group serves
+a field of the same name, its value stays.
 
 Deleting a whole group takes its fields with it, and their stored
 values too. If you only want the group to stop appearing, deactivate
