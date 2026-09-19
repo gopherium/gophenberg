@@ -280,18 +280,28 @@ export function requirable(kind: string): boolean {
 }
 
 /**
+ * Reports whether a field of this kind may stand inside the container.
+ * @param kind - The kind the field holds.
+ * @param parent - The kind the container holds, absent at the top of a group.
+ * @returns Whether the field may stand there.
+ */
+export function standsInside(kind: string, parent?: string): boolean {
+	if (parent === 'flexible') {
+		return kind === 'layout'
+	}
+	if (parent !== undefined) {
+		return kind !== 'layout' && kind !== 'backlinks'
+	}
+	return kind !== 'layout'
+}
+
+/**
  * Returns the kinds a field may take inside the container it is declared under.
  * @param parent - The kind the container holds, absent at the top of a group.
  * @returns The kinds to offer.
  */
 export function kindsInside(parent?: string): Choice[] {
-	if (parent === 'flexible') {
-		return fieldKinds().filter((held) => held.value === 'layout')
-	}
-	if (parent !== undefined) {
-		return fieldKinds().filter((held) => held.value !== 'layout' && held.value !== 'backlinks')
-	}
-	return fieldKinds().filter((held) => held.value !== 'layout')
+	return fieldKinds().filter((held) => standsInside(held.value, parent))
 }
 
 /**

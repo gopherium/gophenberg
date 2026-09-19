@@ -86,6 +86,12 @@ const BOX = { ...SUBTITLE, key: 'box', label: 'Box', kind: 'section', fields: []
 
 const CRATED = { ...EXTRAS, fields: [BOX] }
 
+const QUOTE = { ...SUBTITLE, key: 'quote', label: 'Quote', kind: 'layout', fields: [] }
+
+const BLOCKS = { ...SUBTITLE, key: 'blocks', label: 'Blocks', kind: 'flexible', fields: [QUOTE] }
+
+const LINKED = { ...SUBTITLE, key: 'linked-from', label: 'Linked from', kind: 'backlinks' }
+
 /**
  * Serves the given groups from the listing endpoint.
  * @param groups - The groups the listing answers with.
@@ -654,6 +660,78 @@ test('carries a field out of a container to the top of its group', async () => {
 	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
 
 	await waitFor(() => expect(sent).toEqual({ to_group: 3 }))
+})
+
+test('never offers a container to a Linked from field', async () => {
+	listing([{ ...DETAILS, fields: [LINKED, AUTHOR] }, CRATED])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Linked from elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Linked from elsewhere' })
+	await userEvent.click(within(moving).getByLabelText('Destination'))
+
+	expect(await screen.findByRole('option', { name: 'Extras' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Article details: Author' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Extras: Box' })).not.toBeInTheDocument()
+})
+
+test('offers a layout nothing but another flexible content field', async () => {
+	const gallery = { ...SUBTITLE, key: 'gallery', label: 'Gallery', kind: 'flexible', fields: [] }
+	listing([{ ...DETAILS, fields: [BLOCKS, AUTHOR] }, { ...EXTRAS, fields: [gallery, BOX] }])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Quote elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Quote elsewhere' })
+	await userEvent.click(within(moving).getByLabelText('Destination'))
+
+	expect(await screen.findByRole('option', { name: 'Extras: Gallery' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Article details: Author' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Extras: Box' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Extras' })).not.toBeInTheDocument()
+})
+
+test('never offers a flexible content field to anything but a layout', async () => {
+	listing([{ ...DETAILS, fields: [SUBTITLE, BLOCKS] }, EXTRAS])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
+	await userEvent.click(within(moving).getByLabelText('Destination'))
+
+	expect(await screen.findByRole('option', { name: 'Extras' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Article details: Blocks' })).not.toBeInTheDocument()
+})
+
+test('offers a choice field every place a field of its own may stand', async () => {
+	listing([{ ...DETAILS, fields: [{ ...SUBTITLE, key: 'style', label: 'Style', kind: 'choice' }] }, CRATED])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Style elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Style elsewhere' })
+	await userEvent.click(within(moving).getByLabelText('Destination'))
+
+	expect(await screen.findByRole('option', { name: 'Extras' })).toBeInTheDocument()
+	expect(screen.getByRole('option', { name: 'Extras: Box' })).toBeInTheDocument()
+})
+
+test('never offers a group or a container a plugin keeps', async () => {
+	const kept = { ...BOX, key: 'kept', label: 'Kept', origin: 'forms' }
+	listing([{ ...NESTED, fields: [SUBTITLE, AUTHOR, kept] }, { ...CRATED, origin: 'forms' }])
+	renderAt('/field-groups')
+	const dialog = await openFields()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
+	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
+	await userEvent.click(within(moving).getByLabelText('Destination'))
+
+	expect(await screen.findByRole('option', { name: 'Article details: Author' })).toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Article details: Kept' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Extras' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('option', { name: 'Extras: Box' })).not.toBeInTheDocument()
 })
 
 test('never offers a container inside the field being carried', async () => {

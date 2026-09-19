@@ -45,6 +45,7 @@ import {
 	pickedKind,
 	requirable,
 	slugifyKey,
+	standsInside,
 } from './types'
 import type { ChoicePair } from './types'
 import { typesQueryKey } from './nav'
@@ -887,19 +888,19 @@ interface Landing {
 }
 
 /**
- * Returns the containers among the fields with the dotted path reaching each, however deep they stand.
+ * Returns the containers the site keeps among the fields with the dotted path reaching each, however deep they stand.
  * @param fields - The fields to look through.
  * @param above - The dotted path holding the fields, empty at a group's top.
  * @returns The containers and their paths.
  */
-function containersOf(fields: ContentField[], above: string): { label: string; path: string }[] {
-	const held: { label: string; path: string }[] = []
+function containersOf(fields: ContentField[], above: string): { label: string; path: string; kind: string }[] {
+	const held: { label: string; path: string; kind: string }[] = []
 	for (const field of fields) {
-		if (!holdsFields(field.kind)) {
+		if (!holdsFields(field.kind) || (field.origin ?? '') !== '') {
 			continue
 		}
 		const path = above === '' ? field.key : `${above}.${field.key}`
-		held.push({ label: field.label, path }, ...containersOf(field.fields, path))
+		held.push({ label: field.label, path, kind: field.kind }, ...containersOf(field.fields, path))
 	}
 	return held
 }
@@ -920,22 +921,24 @@ function takes(own: boolean, path: string, at: string, parent: string): boolean 
 }
 
 /**
- * Returns the places a field may be carried to: every group's top and every container, its own place left out.
+ * Returns the places a field may be carried to: the top and every container of each group the site keeps, its own
+ * place left out.
  * @param groups - The groups with their fields.
  * @param group - The group the field stands in.
  * @param at - The field's dotted path.
+ * @param kind - The kind of the field being carried.
  * @returns The landings in group order, each group's top before its containers.
  */
-function landingsFor(groups: FieldGroup[], group: number, at: string): Landing[] {
+function landingsFor(groups: FieldGroup[], group: number, at: string, kind: string): Landing[] {
 	const parent = at.includes('.') ? at.slice(0, at.lastIndexOf('.')) : ''
 	const held: Landing[] = []
-	for (const listed of groups) {
+	for (const listed of groups.filter((listed) => (listed.origin ?? '') === '')) {
 		const own = listed.id === group
-		if (!own || parent !== '') {
+		if ((!own || parent !== '') && standsInside(kind)) {
 			held.push({ label: listed.title, value: String(listed.id) })
 		}
 		for (const container of containersOf(listed.fields, '')) {
-			if (takes(own, container.path, at, parent)) {
+			if (takes(own, container.path, at, parent) && standsInside(kind, container.kind)) {
 				held.push({ label: `${listed.title}: ${container.label}`, value: `${listed.id}:${container.path}` })
 			}
 		}
@@ -950,7 +953,7 @@ function landingsFor(groups: FieldGroup[], group: number, at: string): Landing[]
  */
 function CarryField(props: Inside & { groups: FieldGroup[] }) {
 	const at = props.path ?? props.field.key
-	const landings = landingsFor(props.groups, props.group, at)
+	const landings = landingsFor(props.groups, props.group, at, props.field.kind)
 	const first = landings[0]
 	if (first === undefined) {
 		return null
