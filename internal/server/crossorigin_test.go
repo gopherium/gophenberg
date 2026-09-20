@@ -54,6 +54,7 @@ func TestCrossOriginBrowserWritesAreRefused(t *testing.T) {
 		{name: "sibling subdomain", fetchSite: "same-site", origin: "https://sibling.example"},
 		{name: "origin fallback", origin: "https://attacker.example"},
 		{name: "insecure origin fallback", origin: "http://cms.example", https: true},
+		{name: "opaque origin", origin: "null"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -74,14 +75,17 @@ func TestCrossOriginBrowserWritesAreRefused(t *testing.T) {
 			if *calls != 0 {
 				t.Fatalf("plugin writes = %d, want none", *calls)
 			}
+			if control := recorder.Header().Get("Cache-Control"); control != "no-store" {
+				t.Errorf("Cache-Control = %q, want no-store", control)
+			}
 			var body struct {
 				Code string `json:"code"`
 			}
 			if err := json.NewDecoder(recorder.Body).Decode(&body); err != nil {
 				t.Fatalf("decoding response body: %v", err)
 			}
-			if body.Code != "cross_origin_forbidden" {
-				t.Errorf("error code = %q, want cross_origin_forbidden", body.Code)
+			if body.Code != "request_cross_origin" {
+				t.Errorf("error code = %q, want request_cross_origin", body.Code)
 			}
 		})
 	}

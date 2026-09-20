@@ -13,8 +13,9 @@ import (
 // crossOriginProtection rejects unsafe browser requests that did not originate from the public site.
 func crossOriginProtection() func(http.Handler) http.Handler {
 	deny := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Cache-Control", uncachedControl)
 		authkit.RespondError(w, http.StatusForbidden, authkit.ErrorResponse{
-			Message: "cross-origin browser write forbidden", Code: "cross_origin_forbidden",
+			Message: "cross-origin request refused", Code: "request_cross_origin",
 		})
 	})
 	protection := http.NewCrossOriginProtection()
