@@ -51,6 +51,9 @@ func sameRequestOrigin(r *http.Request) bool {
 		return false
 	}
 	scheme, host := publicRequestOrigin(r)
+	if scheme == "" {
+		scheme = origin.Scheme
+	}
 	public := &url.URL{Scheme: scheme, Host: host}
 	return strings.EqualFold(origin.Scheme, public.Scheme) &&
 		strings.EqualFold(origin.Hostname(), public.Hostname()) &&
@@ -74,9 +77,9 @@ func validOrigin(parsed *url.URL) bool {
 		parsed.RawQuery == "" && parsed.Fragment == ""
 }
 
-// publicRequestOrigin returns the request scheme and host seen by the browser.
+// publicRequestOrigin returns the request scheme and host seen by the browser, the scheme empty when nothing names it.
 func publicRequestOrigin(r *http.Request) (string, string) {
-	scheme := "http"
+	scheme := ""
 	if r.TLS != nil {
 		scheme = "https"
 	}
