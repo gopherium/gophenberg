@@ -54,6 +54,8 @@ func TestCrossOriginBrowserWritesAreRefused(t *testing.T) {
 		{name: "sibling subdomain", fetchSite: "same-site", origin: "https://sibling.example"},
 		{name: "origin fallback", origin: "https://attacker.example"},
 		{name: "insecure origin fallback", origin: "http://cms.example", https: true},
+		{name: "unknown public scheme with HTTP origin", origin: "http://cms.example"},
+		{name: "unknown public scheme with HTTPS origin", origin: "https://cms.example"},
 		{name: "opaque origin", origin: "null"},
 	}
 	for _, tc := range cases {
@@ -103,8 +105,6 @@ func TestCrossOriginProtectionKeepsLegitimateTraffic(t *testing.T) {
 	}{
 		{name: "same origin browser write", method: http.MethodPost, fetchSite: "same-origin", origin: "https://cms.example"},
 		{name: "same origin fallback", method: http.MethodPost, origin: "https://cms.example", https: true},
-		{name: "same origin fallback over plain http", method: http.MethodPost, origin: "http://cms.example"},
-		{name: "same origin fallback with TLS ended upstream", method: http.MethodPost, origin: "https://cms.example"},
 		{name: "server write", method: http.MethodPost},
 		{name: "cross origin read", method: http.MethodGet, fetchSite: "cross-site", origin: "https://reader.example"},
 	}

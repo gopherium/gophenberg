@@ -52,7 +52,7 @@ func sameRequestOrigin(r *http.Request) bool {
 	}
 	scheme, host := publicRequestOrigin(r)
 	if scheme == "" {
-		scheme = origin.Scheme
+		return false
 	}
 	public := &url.URL{Scheme: scheme, Host: host}
 	return strings.EqualFold(origin.Scheme, public.Scheme) &&
