@@ -57,19 +57,15 @@ func sameRequestOrigin(r *http.Request) bool {
 		effectiveOriginPort(origin) == effectiveOriginPort(public)
 }
 
-// effectiveOriginPort returns the explicit port or the default for an HTTP scheme.
+// effectiveOriginPort returns the explicit port or the default for the scheme.
 func effectiveOriginPort(origin *url.URL) string {
 	if port := origin.Port(); port != "" {
 		return port
 	}
-	switch strings.ToLower(origin.Scheme) {
-	case "http":
-		return "80"
-	case "https":
+	if strings.EqualFold(origin.Scheme, "https") {
 		return "443"
-	default:
-		return ""
 	}
+	return "80"
 }
 
 // validOrigin reports whether parsed is the scheme-and-authority form browsers send in Origin.

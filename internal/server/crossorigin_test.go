@@ -103,6 +103,7 @@ func TestCrossOriginProtectionKeepsLegitimateTraffic(t *testing.T) {
 	}{
 		{name: "same origin browser write", method: http.MethodPost, fetchSite: "same-origin", origin: "https://cms.example"},
 		{name: "same origin fallback", method: http.MethodPost, origin: "https://cms.example", https: true},
+		{name: "same origin fallback over plain http", method: http.MethodPost, origin: "http://cms.example"},
 		{name: "server write", method: http.MethodPost},
 		{name: "cross origin read", method: http.MethodGet, fetchSite: "cross-site", origin: "https://reader.example"},
 	}
