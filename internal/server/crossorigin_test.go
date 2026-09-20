@@ -182,6 +182,27 @@ func TestCrossOriginFallbackUsesTrustedForwardedOrigin(t *testing.T) {
 	}
 }
 
+func TestCrossOriginFallbackIgnoresForwardedHeadersFromAnUntrustedPeer(t *testing.T) {
+	t.Parallel()
+
+	handler, calls := crossOriginServer()
+	request := browserRequest(http.MethodPost, "/api/plugins/form/submit", "", "https://cms.example")
+	request.Host = "gophenberg:8081"
+	request.RemoteAddr = "203.0.113.5:1234"
+	request.Header.Set("X-Forwarded-Host", "cms.example")
+	request.Header.Set("X-Forwarded-Proto", "https")
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusForbidden)
+	}
+	if *calls != 0 {
+		t.Errorf("plugin calls = %d, want none", *calls)
+	}
+}
+
 func TestCrossOriginLogoutCannotEndASession(t *testing.T) {
 	t.Parallel()
 
