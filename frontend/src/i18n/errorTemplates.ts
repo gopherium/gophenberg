@@ -356,6 +356,10 @@ export function errorTemplates(): Record<string, string> {
 			'There is no content type called %(value)s. Pick a type your site holds, or register it first.',
 			DOMAIN,
 		),
+		request_cross_origin: __(
+			'This request came from a page on another site, so it was refused. Open the admin on this site and try again.',
+			DOMAIN,
+		),
 		restore_not_trashed: __(
 			'This item is not in the trash, so there is nothing to restore. Open it from the list to work on it as it is.',
 			DOMAIN,
