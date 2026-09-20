@@ -645,13 +645,16 @@ func TestGroupFieldMoveReportsAKeyTheContainerHolds(t *testing.T) {
 
 	handler, _, _, _ := typedPostServer(t)
 	from := createGroup(t, handler, "Article details")
-	for path, body := range map[string]map[string]any{
-		"/fields":         {"key": "details", "label": "Details", "kind": "section"},
-		"/fields/details": {"key": "subtitle", "label": "Subtitle", "kind": "text"},
+	for _, step := range []struct {
+		path string
+		body map[string]any
+	}{
+		{"/fields", map[string]any{"key": "details", "label": "Details", "kind": "section"}},
+		{"/fields/details", map[string]any{"key": "subtitle", "label": "Subtitle", "kind": "text"}},
 	} {
-		if declared := doRequest(t, handler, http.MethodPost, groupPath(from)+path,
-			groupBody(t, body)); declared.Code != http.StatusCreated {
-			t.Fatalf("declaring %v: status = %d, body %s", body["key"], declared.Code, declared.Body.String())
+		if declared := doRequest(t, handler, http.MethodPost, groupPath(from)+step.path,
+			groupBody(t, step.body)); declared.Code != http.StatusCreated {
+			t.Fatalf("declaring %v: status = %d, body %s", step.body["key"], declared.Code, declared.Body.String())
 		}
 	}
 	declared := doRequest(t, handler, http.MethodPost, groupPath(from)+"/fields",
