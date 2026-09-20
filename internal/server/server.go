@@ -96,6 +96,7 @@ func NewServer(cfg Config) http.Handler {
 	headers := headersFor(cfg.Cache)
 	router := chi.NewRouter()
 	router.Use(trustForwarded(cfg.TrustedProxies))
+	router.Use(crossOriginProtection(cfg.TrustedProxies))
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
 		Post("/api/auth/login", auth.Login)
 	router.Post("/api/auth/logout", auth.Logout)

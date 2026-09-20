@@ -37,8 +37,8 @@ func aRunningGophenberg(ctx context.Context) error {
 	return w.start(ctx)
 }
 
-// aSignedInAdministrator gives the scenario an authenticated admin client.
-func aSignedInAdministrator(ctx context.Context) error {
+// theAdministratorAccountExists stores the administrator the scenarios sign in as.
+func theAdministratorAccountExists(ctx context.Context) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
@@ -46,6 +46,18 @@ func aSignedInAdministrator(ctx context.Context) error {
 	_, err = authkit.EnsureAdmin(ctx, w.users, adminEmail, "Maria Perez", adminPassword, role.Admin)
 	if err != nil {
 		return fmt.Errorf("creating the administrator: %w", err)
+	}
+	return nil
+}
+
+// aSignedInAdministrator gives the scenario an authenticated admin client.
+func aSignedInAdministrator(ctx context.Context) error {
+	if err := theAdministratorAccountExists(ctx); err != nil {
+		return err
+	}
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
 	}
 	body := fmt.Sprintf(`{"email":%q,"password":%q}`, adminEmail, adminPassword)
 	if err := w.postJSON("/api/auth/login", body); err != nil {

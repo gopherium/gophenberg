@@ -71,15 +71,20 @@ func (w *world) send(method, path, contentType string, body io.Reader) (*answer,
 	if contentType != "" {
 		request.Header.Set("Content-Type", contentType)
 	}
-	response, err := w.client.Do(request)
+	return w.answerFrom(w.client, request)
+}
+
+// answerFrom sends the request through the client and returns what came back.
+func (w *world) answerFrom(client *http.Client, request *http.Request) (*answer, error) {
+	response, err := client.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("sending %s %s: %w", method, path, err)
+		return nil, fmt.Errorf("sending %s %s: %w", request.Method, request.URL.Path, err)
 	}
 	defer func() { _ = response.Body.Close() }()
 
 	read, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading the answer to %s %s: %w", method, path, err)
+		return nil, fmt.Errorf("reading the answer to %s %s: %w", request.Method, request.URL.Path, err)
 	}
 	return &answer{status: response.StatusCode, body: read, header: response.Header}, nil
 }
