@@ -2091,3 +2091,7 @@ msgstr "%(field)s lee un campo de relación que no existe. Elige un grupo y un c
 #, fuzzy
 msgid "%(field)s reads a relation pointing at %(type)s, so it would list nothing here. Pick a relation pointing at the items this group is shown on."
 msgstr "%(field)s lee una relación que apunta a %(type)s, así que aquí no mostraría nada. Elige una relación que apunte a los elementos donde se muestra este grupo."
+
+#, fuzzy
+msgid "This request came from a page on another site, so it was refused. Open the admin on this site and try again."
+msgstr "Esta petición vino de una página de otro sitio, así que se rechazó. Abre la administración en este sitio e inténtalo de nuevo."

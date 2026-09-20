@@ -1550,6 +1550,9 @@ msgstr ""
 msgid "This post goes to the trash. You can restore it from there."
 msgstr ""
 
+msgid "This request came from a page on another site, so it was refused. Open the admin on this site and try again."
+msgstr ""
+
 msgid "This request carried %(attribute)s, which fields do not take. Reload the page so the admin and the server agree again."
 msgstr ""
 
