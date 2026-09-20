@@ -77,10 +77,13 @@ address, and the headers naming the real visitor and the real
 `https` address can be written by anyone. Gophenberg believes them
 only from addresses inside `GOPHENBERG_TRUSTED_PROXIES`.
 
-Leaving it unset behind a proxy causes two quiet problems: any
-absolute address a theme builds comes out as `http`, and the login
+Leaving it unset behind a proxy causes three quiet problems: any
+absolute address a theme builds comes out as `http`, the login
 rate limiter sees all visitors as one client, so a few failed
-logins by anyone can lock out everyone.
+logins by anyone can lock out everyone, and a browser too old to
+say where a request came from is refused when it saves anything.
+Your proxy should also pass `X-Forwarded-Proto`, which Caddy and
+nginx both do, or those browsers are refused the same way.
 
 ## What stops startup
 
