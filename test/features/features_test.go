@@ -141,3 +141,7 @@ func TestThemeActivation(t *testing.T) {
 func TestThemeRollback(t *testing.T) {
 	runFeature(t, "features/theme-rollback.feature", initializeRollback)
 }
+
+func TestCrossOriginWrites(t *testing.T) {
+	runFeature(t, "features/cross-origin-writes.feature", initializeCrossOrigin)
+}

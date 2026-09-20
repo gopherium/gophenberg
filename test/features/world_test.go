@@ -117,6 +117,9 @@ type world struct {
 	mediaFilesGone []string
 	lastUpload     []byte
 	visitor        *http.Client
+	plugins        map[string]http.Handler
+	publicPaths    map[string][]string
+	forms          map[string]*formPlugin
 	manager        *themehost.Manager
 	node           string
 	pinned         string
@@ -239,7 +242,7 @@ func (w *world) start(ctx context.Context) error {
 		return nil
 	}
 	w.registry = content.NewRegistry(w.contentTypes)
-	w.site = httptest.NewTLSServer(server.NewServer(server.Config{
+	cfg := server.Config{
 		Users:      w.users,
 		Content:    w.contentStore(),
 		Types:      w.contentTypes,
@@ -254,7 +257,9 @@ func (w *world) start(ctx context.Context) error {
 		Readers:    w.readers,
 		Version:    "0.0.0-test",
 		Web:        fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Admin</title>")}},
-	}))
+	}
+	cfg.Plugins, cfg.PluginPublicPaths = w.plugins, w.publicPaths
+	w.site = httptest.NewTLSServer(server.NewServer(cfg))
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return fmt.Errorf("building the cookie jar: %w", err)
