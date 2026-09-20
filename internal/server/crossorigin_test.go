@@ -138,10 +138,10 @@ func TestCrossOriginFallbackRejectsATrustedProxyWithoutAPublicScheme(t *testing.
 		t.Run(origin, func(t *testing.T) {
 			t.Parallel()
 
-			handler, calls := crossOriginServer("192.0.2.0/24")
+			handler, calls := crossOriginServer("10.0.0.0/8")
 			request := browserRequest(http.MethodPost, "/api/plugins/form/submit", "", origin)
 			request.Host = "gophenberg:8081"
-			request.RemoteAddr = "192.0.2.10:1234"
+			request.RemoteAddr = "10.0.0.2:1234"
 			request.Header.Set("X-Forwarded-Host", "cms.example")
 			recorder := httptest.NewRecorder()
 
@@ -188,10 +188,10 @@ func TestCrossOriginFallbackUsesTrustedForwardedOrigin(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler, calls := crossOriginServer("192.0.2.0/24")
+			handler, calls := crossOriginServer("10.0.0.0/8")
 			request := browserRequest(http.MethodPost, "/api/plugins/form/submit", "", tc.origin)
 			request.Host = "gophenberg:8081"
-			request.RemoteAddr = "192.0.2.10:1234"
+			request.RemoteAddr = "10.0.0.2:1234"
 			request.Header.Set("X-Forwarded-Host", tc.forwardedHost)
 			request.Header.Set("X-Forwarded-Proto", "https")
 			recorder := httptest.NewRecorder()
