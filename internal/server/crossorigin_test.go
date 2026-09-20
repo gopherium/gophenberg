@@ -54,8 +54,7 @@ func TestCrossOriginBrowserWritesAreRefused(t *testing.T) {
 		{name: "sibling subdomain", fetchSite: "same-site", origin: "https://sibling.example"},
 		{name: "origin fallback", origin: "https://attacker.example"},
 		{name: "insecure origin fallback", origin: "http://cms.example", https: true},
-		{name: "unknown public scheme with HTTP origin", origin: "http://cms.example"},
-		{name: "unknown public scheme with HTTPS origin", origin: "https://cms.example"},
+		{name: "direct HTTP rejects HTTPS origin", origin: "https://cms.example"},
 		{name: "opaque origin", origin: "null"},
 	}
 	for _, tc := range cases {
@@ -105,6 +104,7 @@ func TestCrossOriginProtectionKeepsLegitimateTraffic(t *testing.T) {
 	}{
 		{name: "same origin browser write", method: http.MethodPost, fetchSite: "same-origin", origin: "https://cms.example"},
 		{name: "same origin fallback", method: http.MethodPost, origin: "https://cms.example", https: true},
+		{name: "same origin fallback over plain HTTP", method: http.MethodPost, origin: "http://cms.example"},
 		{name: "server write", method: http.MethodPost},
 		{name: "cross origin read", method: http.MethodGet, fetchSite: "cross-site", origin: "https://reader.example"},
 	}
@@ -126,6 +126,32 @@ func TestCrossOriginProtectionKeepsLegitimateTraffic(t *testing.T) {
 			}
 			if *calls != 1 {
 				t.Errorf("plugin calls = %d, want one", *calls)
+			}
+		})
+	}
+}
+
+func TestCrossOriginFallbackRejectsATrustedProxyWithoutAPublicScheme(t *testing.T) {
+	t.Parallel()
+
+	for _, origin := range []string{"http://cms.example", "https://cms.example"} {
+		t.Run(origin, func(t *testing.T) {
+			t.Parallel()
+
+			handler, calls := crossOriginServer("192.0.2.0/24")
+			request := browserRequest(http.MethodPost, "/api/plugins/form/submit", "", origin)
+			request.Host = "gophenberg:8081"
+			request.RemoteAddr = "192.0.2.10:1234"
+			request.Header.Set("X-Forwarded-Host", "cms.example")
+			recorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(recorder, request)
+
+			if recorder.Code != http.StatusForbidden {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusForbidden)
+			}
+			if *calls != 0 {
+				t.Errorf("plugin calls = %d, want none", *calls)
 			}
 		})
 	}
