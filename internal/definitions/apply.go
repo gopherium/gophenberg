@@ -61,11 +61,11 @@ func Apply(ctx context.Context, registry *content.Registry, asked Import) (Outco
 	agreed := agreedTo(asked.Confirm)
 	held := &run{
 		registry: registry, envelope: asked.Envelope, plan: plan, registered: types,
-		agreed: agreed, declined: map[Confirmed]bool{}, taken: takenBy(plan, agreed),
+		agreed: agreed, declined: declinedBy(plan, agreed), taken: takenBy(plan, agreed),
 		outcome: Outcome{Applied: []Change{}, Skipped: []Change{}},
 	}
 	for _, stage := range []func(context.Context) error{
-		held.refresh, held.settle,
+		held.refresh, held.settle, held.heldBack, held.standing, held.leaving,
 		held.types, held.refresh, held.groups, held.refresh, held.vacated, held.fields,
 		held.refresh, held.conditions, held.removals, held.refresh, held.orders,
 	} {
@@ -242,7 +242,7 @@ func (r *run) oneGroup(ctx context.Context, declared GroupDefinition, planned Ch
 	if wanted.ID == 0 {
 		wanted.ID = r.groupKeyed(declared.Key).ID
 	}
-	if _, err := r.registry.UpdateGroup(ctx, wanted); err != nil {
+	if _, err := r.registry.UpdateGroupSettled(ctx, wanted, r.repointed(declared)); err != nil {
 		return err
 	}
 	r.did(planned)

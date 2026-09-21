@@ -10,6 +10,24 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
+// leaving takes away every group the admin agreed to lose, before the fields the file stands elsewhere land.
+func (r *run) leaving(ctx context.Context) error {
+	for _, c := range r.plan.Changes {
+		if c.Subject != SubjectGroup || c.Action != ActionDelete {
+			continue
+		}
+		if !r.allows(c) {
+			r.left(c)
+			continue
+		}
+		if err := r.registry.DeleteGroupSettled(ctx, r.groupKeyed(c.Key).ID, r.settled); err != nil {
+			return err
+		}
+		r.did(c)
+	}
+	return nil
+}
+
 // vacated takes away every field the file moved elsewhere.
 func (r *run) vacated(ctx context.Context) error {
 	for _, c := range r.plan.Changes {
@@ -17,7 +35,6 @@ func (r *run) vacated(ctx context.Context) error {
 			continue
 		}
 		if !r.allows(c) {
-			r.declineArrivals(c)
 			r.left(c)
 			continue
 		}
@@ -27,13 +44,6 @@ func (r *run) vacated(ctx context.Context) error {
 		r.did(c)
 	}
 	return nil
-}
-
-// declineArrivals holds back the field every group would have gained from a move nobody confirmed.
-func (r *run) declineArrivals(lost Change) {
-	for _, held := range arrivals(r.plan.Changes, lost) {
-		r.declined[Confirmed{Subject: SubjectField, Key: held.Key, Group: held.Group}] = true
-	}
 }
 
 // fields stores the fields the envelope brings and carries what it changed onto the stored ones, backlinks last.
@@ -323,9 +333,9 @@ func declaredByKey(declared []FieldDefinition, key string) (FieldDefinition, boo
 	return FieldDefinition{}, false
 }
 
-// removals takes away what the file dropped and the admin agreed to lose.
+// removals takes away the fields and the types the file dropped and the admin agreed to lose.
 func (r *run) removals(ctx context.Context) error {
-	for _, subject := range []string{SubjectField, SubjectGroup, SubjectType} {
+	for _, subject := range []string{SubjectField, SubjectType} {
 		for _, c := range r.plan.Changes {
 			if c.Subject != subject || c.Action != ActionDelete || c.Reason != ReasonRemoved {
 				continue
@@ -343,13 +353,10 @@ func (r *run) removals(ctx context.Context) error {
 	return nil
 }
 
-// remove takes away the one definition the change names.
+// remove takes away the one field or type the change names.
 func (r *run) remove(ctx context.Context, c Change) error {
 	if c.Subject == SubjectField {
 		return r.removeField(ctx, c)
 	}
-	if c.Subject == SubjectType {
-		return r.registry.Delete(ctx, c.Key)
-	}
-	return r.registry.DeleteGroupSettled(ctx, r.groupKeyed(c.Key).ID, r.settled)
+	return r.registry.Delete(ctx, c.Key)
 }
