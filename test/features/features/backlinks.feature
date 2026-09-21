@@ -109,3 +109,12 @@ Feature: Linked from
     When the administrator imports the file
     Then the import is applied
     And the group "category fields" holds "linked-from"
+
+  Scenario: An import moving a Linked from's group to the type its relation now points at is applied
+    Given the type "tag" labeled "Tag" and "Tags" under "tags"
+    And the site's file makes "categories" in "post fields" point at "tag"
+    And the site's file places "category fields" on "tag"
+    And the administrator confirms the loss of "categories" in "post fields"
+    When the administrator imports the file
+    Then the import is applied
+    And the field "linked-from" on "tag" reads "categories" in "post fields"

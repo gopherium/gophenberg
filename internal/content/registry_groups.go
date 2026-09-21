@@ -30,6 +30,11 @@ func (r *Registry) CreateGroup(ctx context.Context, g Group) (Group, error) {
 
 // UpdateGroup stores the group's title, location and active flag, or reports why it stands as it is.
 func (r *Registry) UpdateGroup(ctx context.Context, g Group) (Group, error) {
+	return r.UpdateGroupSettled(ctx, g, nil)
+}
+
+// UpdateGroupSettled stores the group's title, location and active flag, overlooking the backlinks the caller settles.
+func (r *Registry) UpdateGroupSettled(ctx context.Context, g Group, readers Settled) (Group, error) {
 	settled, err := r.settledGroup(ctx, g)
 	if err != nil {
 		return Group{}, err
@@ -42,7 +47,7 @@ func (r *Registry) UpdateGroup(ctx context.Context, g Group) (Group, error) {
 		return Group{}, err
 	}
 	settled.Origin = stored.Origin
-	if err := r.sourcesStand(ctx, held, settled, stored.Fields); err != nil {
+	if err := r.sourcesStand(ctx, held, settled, readers.among(stored.Fields)); err != nil {
 		return Group{}, err
 	}
 	if err := r.freeOfCollisions(ctx, held, stored, settled); err != nil {

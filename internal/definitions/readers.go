@@ -28,6 +28,92 @@ func takenBy(plan Plan, agreed map[Confirmed]bool) map[Confirmed]bool {
 	return taken
 }
 
+// declinedBy returns the arrivals of every move the admin left unconfirmed, held back from their new groups.
+func declinedBy(plan Plan, agreed map[Confirmed]bool) map[Confirmed]bool {
+	declined := map[Confirmed]bool{}
+	for _, c := range plan.Changes {
+		if c.Reason != ReasonMoved || agreed[Confirmed{Subject: c.Subject, Key: c.Key, Group: c.Group}] {
+			continue
+		}
+		for _, arrived := range arrivals(plan.Changes, c) {
+			declined[Confirmed{Subject: SubjectField, Key: arrived.Key, Group: arrived.Group}] = true
+		}
+	}
+	return declined
+}
+
+// heldBack refuses, before any write, a declared field reading an arrival whose move nobody confirmed.
+func (r *run) heldBack(context.Context) error {
+	for _, d := range r.envelope.Groups {
+		if err := r.heldBackLevel(d.Key, "", d.Fields); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// heldBackLevel judges one level of declared fields against the held back arrivals, then the levels inside.
+func (r *run) heldBackLevel(group, path string, level []FieldDefinition) error {
+	for _, d := range level {
+		key := path + d.Key
+		if r.declined[Confirmed{Subject: SubjectField, Key: key, Group: group}] {
+			continue
+		}
+		if source, reads := r.readsHeldBack(group, path, fieldFrom(d)); reads {
+			return content.ReadBy(source, d.Key)
+		}
+		if err := r.heldBackLevel(group, key+".", d.Fields); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// readsHeldBack returns the held back arrival the field reads, beside it by a rule or anywhere as a backlinks.
+func (r *run) readsHeldBack(group, path string, f content.Field) (string, bool) {
+	for _, c := range r.plan.Changes {
+		if !r.declined[Confirmed{Subject: SubjectField, Key: c.Key, Group: c.Group}] {
+			continue
+		}
+		steps := strings.Split(c.Key, ".")
+		source := steps[len(steps)-1]
+		if content.ReadsThrough(f, c.Group, steps) {
+			return source, true
+		}
+		if c.Group != group || c.Key != path+source {
+			continue
+		}
+		if _, reads := content.Referenced([]content.Field{f}, source); reads {
+			return source, true
+		}
+	}
+	return "", false
+}
+
+// repointed names the group's stored backlinks the import answers for itself, so its move overlooks them.
+func (r *run) repointed(declared GroupDefinition) content.Settled {
+	held := content.Settled{}
+	for _, f := range r.groupKeyed(declared.Key).Fields {
+		if f.Kind == content.FieldKindBacklinks && r.answersFor(declared, f) {
+			held[f.ID] = true
+		}
+	}
+	return held
+}
+
+// answersFor reports whether the import takes the backlinks away, points it elsewhere or replaces its relation.
+func (r *run) answersFor(declared GroupDefinition, f content.Field) bool {
+	if r.takes(declared.Key, f.Key) {
+		return true
+	}
+	d, found := declaredByKey(declared.Fields, f.Key)
+	if !found {
+		return false
+	}
+	source := strings.Join(content.SourceFieldOf(f), ".")
+	return !sameSettings(f.Settings, d.Settings) || r.takes(content.SourceGroupOf(f), source)
+}
+
 // settle names the stored readers the import answers for, refusing before any write a reader it leaves behind.
 func (r *run) settle(context.Context) error {
 	r.settled = content.Settled{}

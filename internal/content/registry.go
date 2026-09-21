@@ -281,12 +281,17 @@ func (r *Registry) AdoptGroup(ctx context.Context, key string) error {
 	return nil
 }
 
-// untargeted reports whether a relation field in any group, however deep it stands, still points at the type.
+// untargeted reports whether a stored relation field, however deep it stands, still points at the type.
 func (r *Registry) untargeted(ctx context.Context, key string) error {
 	groups, err := r.store.ListGroups(ctx)
 	if err != nil {
 		return err
 	}
+	return Untargeted(groups, key)
+}
+
+// Untargeted reports whether a relation field among the groups, however deep it stands, still points at the type.
+func Untargeted(groups []Group, key string) error {
 	for _, g := range groups {
 		if f, found := targeting(g.Fields, key); found {
 			return Refuse(ErrTypeTargeted, "type_targeted",

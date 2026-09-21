@@ -375,6 +375,83 @@ func theSitesFilePointsAt(ctx context.Context, key, title, source, sourceTitle s
 	return nil
 }
 
+// theSitesFileAddsTheFieldWithSettings stands a new field carrying the settings in the file's group.
+func theSitesFileAddsTheFieldWithSettings(
+	ctx context.Context, kind, key, title string, settings *godog.DocString,
+) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	group, err := groupInFile(w, title)
+	if err != nil {
+		return err
+	}
+	var held map[string]any
+	if err := json.Unmarshal([]byte(settings.Content), &held); err != nil {
+		return fmt.Errorf("reading the settings: %w", err)
+	}
+	group.Fields = append(group.Fields, definitions.FieldDefinition{Key: key, Label: key, Kind: kind, Settings: held})
+	return nil
+}
+
+// theSitesFileLeavesOutTheType takes one type out of the file.
+func theSitesFileLeavesOutTheType(ctx context.Context, key string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	held := len(w.file.Types)
+	w.file.Types = slices.DeleteFunc(w.file.Types, func(d definitions.TypeDefinition) bool {
+		return d.Key == key
+	})
+	if len(w.file.Types) == held {
+		return fmt.Errorf("the file holds no type %q", key)
+	}
+	return nil
+}
+
+// theSitesFileLeavesOutTheGroup takes one group out of the file.
+func theSitesFileLeavesOutTheGroup(ctx context.Context, title string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	group, err := groupInFile(w, title)
+	if err != nil {
+		return err
+	}
+	key := group.Key
+	w.file.Groups = slices.DeleteFunc(w.file.Groups, func(d definitions.GroupDefinition) bool {
+		return d.Key == key
+	})
+	return nil
+}
+
+// theSitesFileMakesPointAt names another type as the one a relation of the file points at.
+func theSitesFileMakesPointAt(ctx context.Context, key, title, typeKey string) error {
+	held, err := fieldInFile(ctx, key, title)
+	if err != nil {
+		return err
+	}
+	held.RelatesTo = typeKey
+	return nil
+}
+
+// theSitesFilePlacesOn places the file's group on the named type alone.
+func theSitesFilePlacesOn(ctx context.Context, title, typeKey string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	group, err := groupInFile(w, title)
+	if err != nil {
+		return err
+	}
+	group.Location = content.Rules{{{Source: content.ScreenContentType, Operator: content.OperatorIs, Value: typeKey}}}
+	return nil
+}
+
 // theSitesFileStopsTheTypeNesting marks one type of the file as flat.
 func theSitesFileStopsTheTypeNesting(ctx context.Context, key string) error {
 	w, err := siteFile(ctx)
@@ -437,6 +514,30 @@ func theAdministratorConfirmsTheLossOf(ctx context.Context, key, title string) e
 	w.file.Confirm = append(w.file.Confirm, definitions.Confirmed{
 		Subject: definitions.SubjectField, Key: key, Group: stored.Key,
 	})
+	return nil
+}
+
+// theAdministratorConfirmsTheLossOfTheType names one stored type the import may take away.
+func theAdministratorConfirmsTheLossOfTheType(ctx context.Context, key string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	w.file.Confirm = append(w.file.Confirm, definitions.Confirmed{Subject: definitions.SubjectType, Key: key})
+	return nil
+}
+
+// theAdministratorConfirmsTheLossOfTheGroup names one stored group the import may take away whole.
+func theAdministratorConfirmsTheLossOfTheGroup(ctx context.Context, title string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	stored, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	w.file.Confirm = append(w.file.Confirm, definitions.Confirmed{Subject: definitions.SubjectGroup, Key: stored.Key})
 	return nil
 }
 
@@ -504,7 +605,17 @@ func initializeImportFile(sc *godog.ScenarioContext) {
 	sc.Given(`^the site's file retitles "([^"]*)" as "([^"]*)"$`, theSitesFileRetitles)
 	sc.Given(`^the site's file points "([^"]*)" in "([^"]*)" at "([^"]*)" in "([^"]*)"$`, theSitesFilePointsAt)
 	sc.Given(`^the administrator confirms the loss of "([^"]*)" in "([^"]*)"$`, theAdministratorConfirmsTheLossOf)
+	sc.Given(`^the administrator confirms the loss of the type "([^"]*)"$`, theAdministratorConfirmsTheLossOfTheType)
+	sc.Given(`^the administrator confirms the loss of the group "([^"]*)"$`, theAdministratorConfirmsTheLossOfTheGroup)
 	sc.Given(`^the site's file stops the type "([^"]*)" nesting$`, theSitesFileStopsTheTypeNesting)
+	sc.Given(
+		`^the site's file adds the "([^"]*)" field "([^"]*)" to "([^"]*)" with settings:$`,
+		theSitesFileAddsTheFieldWithSettings,
+	)
+	sc.Given(`^the site's file leaves out the type "([^"]*)"$`, theSitesFileLeavesOutTheType)
+	sc.Given(`^the site's file leaves out the group "([^"]*)"$`, theSitesFileLeavesOutTheGroup)
+	sc.Given(`^the site's file makes "([^"]*)" in "([^"]*)" point at "([^"]*)"$`, theSitesFileMakesPointAt)
+	sc.Given(`^the site's file places "([^"]*)" on "([^"]*)"$`, theSitesFilePlacesOn)
 	sc.When(`^the administrator plans the file$`, theAdministratorPlansTheFile)
 	sc.When(`^the administrator imports the file$`, theAdministratorImportsTheFile)
 	sc.Then(`^the plan warns that "([^"]*)" keeps nesting$`, thePlanWarnsThatKeepsNesting)

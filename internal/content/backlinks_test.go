@@ -521,6 +521,21 @@ func TestRegistryKeepsABacklinksOnTheTypeItsSourcePointsAt(t *testing.T) {
 	}
 }
 
+func TestRegistryMovesAGroupWhoseBacklinksTheCallerSettles(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	_, makers := readableSource(t, registry)
+	makers.Location = namingType("car")
+	settled := content.Settled{backlinksIn(t, registry, makers.ID).ID: true}
+
+	_, err := registry.UpdateGroupSettled(t.Context(), makers, settled)
+
+	if err != nil {
+		t.Errorf("UpdateGroupSettled() error = %v, want the move taken with the backlinks answered for", err)
+	}
+}
+
 func TestRegistryKeepsAMovedBacklinksReadingItsSource(t *testing.T) {
 	t.Parallel()
 

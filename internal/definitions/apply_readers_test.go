@@ -31,35 +31,42 @@ func readingSite(t *testing.T) *content.Registry {
 	return registry
 }
 
-// linkingSite returns the planning site with a relation between recipes and a backlinks reading it, in two groups.
-func linkingSite(t *testing.T) *content.Registry {
+// recipeGroup stores an active group on recipes under the key and the title, holding the fields in order.
+func recipeGroup(t *testing.T, registry *content.Registry, key, title string, fields ...content.Field) {
+	t.Helper()
+	created, err := registry.CreateGroup(t.Context(), content.Group{
+		Key: key, Title: title, Location: recipeRules(), Active: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateGroup(%s) error = %v, want nil", key, err)
+	}
+	for _, f := range fields {
+		if _, err := registry.CreateFieldInGroup(t.Context(), created.ID, f); err != nil {
+			t.Fatalf("CreateFieldInGroup(%s) error = %v, want nil", f.Key, err)
+		}
+	}
+}
+
+// pairingSite returns the planning site with a group holding a relation between recipes.
+func pairingSite(t *testing.T) *content.Registry {
 	t.Helper()
 	registry := planningSite(t)
-	links, err := registry.CreateGroup(t.Context(), content.Group{
-		Key: "recipe-links", Title: "Recipe links", Location: recipeRules(), Active: true,
-	})
-	if err != nil {
-		t.Fatalf("CreateGroup(recipe-links) error = %v, want nil", err)
-	}
-	if _, err := registry.CreateFieldInGroup(t.Context(), links.ID, content.Field{
+	recipeGroup(t, registry, "recipe-links", "Recipe links", content.Field{
 		Key: "pairs-with", Label: "Pairs with", Kind: content.FieldKindRelation, RelatesTo: "recipe",
-	}); err != nil {
-		t.Fatalf("CreateFieldInGroup(pairs-with) error = %v, want nil", err)
-	}
-	backlinks, err := registry.CreateGroup(t.Context(), content.Group{
-		Key: "recipe-backlinks", Title: "Recipe backlinks", Location: recipeRules(), Active: true,
 	})
-	if err != nil {
-		t.Fatalf("CreateGroup(recipe-backlinks) error = %v, want nil", err)
-	}
-	if _, err := registry.CreateFieldInGroup(t.Context(), backlinks.ID, content.Field{
+	return registry
+}
+
+// linkingSite returns the pairing site with a second group holding a backlinks reading the relation.
+func linkingSite(t *testing.T) *content.Registry {
+	t.Helper()
+	registry := pairingSite(t)
+	recipeGroup(t, registry, "recipe-backlinks", "Recipe backlinks", content.Field{
 		Key: "linked-from", Label: "Linked from", Kind: content.FieldKindBacklinks,
 		Settings: map[string]any{
 			content.SettingSourceGroup: "recipe-links", content.SettingSourceField: []any{"pairs-with"},
 		},
-	}); err != nil {
-		t.Fatalf("CreateFieldInGroup(linked-from) error = %v, want nil", err)
-	}
+	})
 	return registry
 }
 

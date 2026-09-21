@@ -502,4 +502,5 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 		theSourceIsOfferedWithAChoiceFor,
 	)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
+	initializeImportFile(sc)
 }

@@ -372,6 +372,16 @@ moves it, tick the reader too. Leave its box empty and the import
 stops before it changes anything, naming the field that still reads
 it.
 
+The rest of the file is judged the same way, against what it leaves
+behind once your ticks are counted. A field the file adds beside a
+move you left unticked cannot read the field that stayed put. A
+content type you tick stays while a relation the file keeps points
+at it. A field the file adds to a group is refused while another
+group on the same type still holds that key, unless you tick that
+group away, because a group you tick goes before the file's other
+groups land. Each refusal names what stands in the way, and nothing
+is written.
+
 Two things an import never does. It never hands the site's root to
 another content type, because that changes every stored address.
 And it never touches a definition a plugin declared.
