@@ -1863,6 +1863,14 @@ msgid "Import definitions"
 msgstr "Importar definiciones"
 
 #, fuzzy
+msgid "It moves here from another group and keeps its stored values."
+msgstr "Se mueve aquí desde otro grupo y conserva sus valores guardados."
+
+#, fuzzy
+msgid "It moves to another group and keeps its stored values."
+msgstr "Se mueve a otro grupo y conserva sus valores guardados."
+
+#, fuzzy
 msgid "It moves to another group, so its stored values do not follow."
 msgstr "Se mueve a otro grupo, así que sus valores guardados no le siguen."
 
