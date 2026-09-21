@@ -203,6 +203,25 @@ func TestRegistryKeepsATypeARelationInsideASectionTargets(t *testing.T) {
 	}
 }
 
+func TestUntargetedNamesTheRelationAndTheGroupHoldingIt(t *testing.T) {
+	t.Parallel()
+
+	groups := []content.Group{{Title: "Extras", Fields: []content.Field{{
+		Key: "specs", Kind: content.FieldKindSection,
+		Fields: []content.Field{{Key: "cars", Kind: content.FieldKindRelation, RelatesTo: "car"}},
+	}}}}
+
+	err := content.Untargeted(groups, "car")
+
+	var refused *content.Error
+	if !errors.As(err, &refused) || refused.Held["field"] != "cars" || refused.Held["group"] != "Extras" {
+		t.Errorf("Untargeted(car) error = %v, want the relation inside the section and its group named", err)
+	}
+	if err := content.Untargeted(groups, "van"); err != nil {
+		t.Errorf("Untargeted(van) error = %v, want nil for a type nothing points at", err)
+	}
+}
+
 func TestRegistryRefusesDeletingATypeARestingGroupStillTargets(t *testing.T) {
 	t.Parallel()
 
