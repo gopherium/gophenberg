@@ -22,12 +22,13 @@ const (
 	SubjectField = "field"
 )
 
-// The reasons a planned change takes a definition away.
+// The reasons a planned change takes a definition away, or moves it with the values stored under it.
 const (
 	ReasonRemoved      = "removed"
 	ReasonKindChanged  = "kind_changed"
 	ReasonShapeChanged = "shape_changed"
 	ReasonMoved        = "moved"
+	ReasonCarried      = "carried"
 )
 
 // The changes an import reaches beyond the definitions, the ones it makes and the ones it leaves.
@@ -43,7 +44,7 @@ type Plan struct {
 	Warnings []Warning `json:"warnings"`
 }
 
-// Change is one definition an import would add, carry over, or take away.
+// Change is one definition an import would add, carry over, or take away, naming the group a moved field comes from.
 type Change struct {
 	Action  string `json:"action"`
 	Subject string `json:"subject"`
@@ -51,6 +52,7 @@ type Change struct {
 	Group   string `json:"group,omitempty"`
 	Label   string `json:"label"`
 	Reason  string `json:"reason,omitempty"`
+	From    string `json:"from,omitempty"`
 }
 
 // Warning is what an import would change beyond the definitions themselves.
@@ -83,6 +85,7 @@ func Compare(ctx context.Context, registry *content.Registry, envelope Envelope)
 	planTypes(&plan, envelope.Types, types, kept)
 	planGroups(&plan, envelope.Groups, groups)
 	markMoved(plan.Changes)
+	markCarried(&plan, envelope, typesJoined(envelope.Types, types), groups, registry.Params(ctx))
 	return plan, nil
 }
 

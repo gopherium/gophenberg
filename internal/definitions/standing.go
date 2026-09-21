@@ -28,14 +28,9 @@ func (r *run) standing(ctx context.Context) error {
 // typesAfter returns the types the import leaves standing, the ones the admin gave up left out.
 func (r *run) typesAfter() []content.Type {
 	held := make([]content.Type, 0, len(r.registered)+len(r.envelope.Types))
-	for _, t := range r.registered {
+	for _, t := range typesJoined(r.envelope.Types, r.registered) {
 		if !r.taken[Confirmed{Subject: SubjectType, Key: t.Key}] {
 			held = append(held, t)
-		}
-	}
-	for _, d := range r.envelope.Types {
-		if _, stored := typeAmong(r.registered, d.Key); !stored {
-			held = append(held, typeFrom(d))
 		}
 	}
 	return held

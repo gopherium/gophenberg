@@ -310,10 +310,7 @@ func TestApplyStandsAFieldInANewGroupWhileTakingItsOldGroupAway(t *testing.T) {
 
 	registry := notingSite(t)
 
-	outcome := applied(t, registry, definitions.Import{
-		Envelope: rebuiltFile(t, registry),
-		Confirm:  []definitions.Confirmed{{Subject: "group", Key: "recipe-links"}},
-	})
+	outcome := applied(t, registry, confirmingGroup(rebuiltFile(t, registry), "recipe-links"))
 
 	if _, found := storedField(t, registry, "recipe-pairs", "wine-note"); !found {
 		t.Errorf("the recipe pairs group holds no wine note, want it standing once the old group went")

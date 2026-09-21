@@ -137,6 +137,31 @@ func TestApplyReportsEveryWriteTheStoreRefuses(t *testing.T) {
 				Confirm:  []definitions.Confirmed{{Subject: "group", Key: "loose-ends"}},
 			}
 		},
+		"a field it cannot take away from a group handing the others on": func(
+			t *testing.T, pool *pgxpool.Pool, r *content.Registry,
+		) definitions.Import {
+			envelope := exported(t, r)
+			rebuilt(t, &envelope)
+			leftOut(groupNamed(t, envelope, "recipe-facts"), "steps")
+			raiseOn(t, pool, "core.content_fields", "DELETE", "true")
+			return confirmingGroup(envelope, "recipe-details")
+		},
+		"a field it cannot move on with its values": func(
+			t *testing.T, pool *pgxpool.Pool, r *content.Registry,
+		) definitions.Import {
+			envelope := exported(t, r)
+			rebuilt(t, &envelope)
+			raiseOn(t, pool, "core.content_fields", "UPDATE", "true")
+			return confirmingGroup(envelope, "recipe-details")
+		},
+		"a group it cannot take away once its fields moved on": func(
+			t *testing.T, pool *pgxpool.Pool, r *content.Registry,
+		) definitions.Import {
+			envelope := exported(t, r)
+			rebuilt(t, &envelope)
+			raiseOn(t, pool, "core.field_groups", "DELETE", "true")
+			return confirmingGroup(envelope, "recipe-details")
+		},
 		"a type it cannot take away": func(
 			t *testing.T, pool *pgxpool.Pool, r *content.Registry,
 		) definitions.Import {
