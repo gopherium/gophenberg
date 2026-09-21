@@ -159,6 +159,18 @@ func TestCompareFindsNothingToDoForTheSitesOwnExport(t *testing.T) {
 	}
 }
 
+func TestCompareFindsNothingToDoForTheOwnExportOfASiteReadingInsideASection(t *testing.T) {
+	t.Parallel()
+
+	registry := sectionLinkingSite(t)
+
+	plan := compared(t, registry, exported(t, registry))
+
+	if len(plan.Changes) != 0 || len(plan.Warnings) != 0 {
+		t.Errorf("plan = %+v, want an export of the site to ask for nothing", plan)
+	}
+}
+
 func TestComparePlansWhatAFileAddsToTheSite(t *testing.T) {
 	t.Parallel()
 

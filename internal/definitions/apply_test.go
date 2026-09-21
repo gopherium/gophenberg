@@ -83,6 +83,18 @@ func TestApplyChangesNothingForTheSitesOwnExport(t *testing.T) {
 	}
 }
 
+func TestApplyChangesNothingForTheOwnExportOfASiteReadingInsideASection(t *testing.T) {
+	t.Parallel()
+
+	registry := sectionLinkingSite(t)
+
+	outcome := applied(t, registry, importing(exported(t, registry)))
+
+	if len(outcome.Applied) != 0 || len(outcome.Skipped) != 0 {
+		t.Fatalf("outcome = %+v, want an export of the site to change nothing", outcome)
+	}
+}
+
 func TestApplyAddsTheTypeGroupAndFieldsAFileBrings(t *testing.T) {
 	t.Parallel()
 

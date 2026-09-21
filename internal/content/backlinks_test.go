@@ -382,6 +382,57 @@ func TestRegistryKeepsTheSourceABacklinksReads(t *testing.T) {
 	}
 }
 
+func TestRegistryKeepsTheSourceABacklinksReadsInsideASection(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	if _, err := registry.Create(t.Context(), carType(t)); err != nil {
+		t.Fatalf("Create(car) error = %v, want nil", err)
+	}
+	cars, err := registry.CreateGroup(t.Context(), content.Group{
+		Key: "cars", Title: "Cars", Location: namingType("car"), Active: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateGroup(cars) error = %v, want nil", err)
+	}
+	specs, err := registry.CreateFieldInGroup(t.Context(), cars.ID, content.Field{
+		Key: "specs", Label: "Specs", Kind: content.FieldKindSection,
+	})
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
+	}
+	engine, err := registry.CreateSubField(t.Context(), specs.ID, content.Field{
+		Key: "engine", Label: "Engine", Kind: content.FieldKindRelation, RelatesTo: content.TypePost,
+	})
+	if err != nil {
+		t.Fatalf("CreateSubField(engine) error = %v, want nil", err)
+	}
+	makers := groupNaming(t, registry, "Makers", namingPost())
+	if _, err := registry.CreateFieldInGroup(t.Context(), makers.ID, backlinksField(map[string]any{
+		content.SettingSourceGroup: cars.Key, content.SettingSourceField: []any{"specs", "engine"},
+	})); err != nil {
+		t.Fatalf("CreateFieldInGroup(backlinks) error = %v, want nil", err)
+	}
+
+	err = registry.DeleteSubField(t.Context(), engine.ID)
+
+	if codeOf(err) != "field_referenced" {
+		t.Errorf("DeleteSubField() error = %v, want field_referenced", err)
+	}
+}
+
+func TestRegistryReportsASubFieldToDeleteThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+
+	err := registry.DeleteSubField(t.Context(), 4242)
+
+	if !errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("DeleteSubField() error = %v, want %v", err, content.ErrFieldNotFound)
+	}
+}
+
 func TestRegistryOverlooksABacklinksTheCallerSettles(t *testing.T) {
 	t.Parallel()
 
@@ -427,6 +478,32 @@ func TestRegistryFreesARelationNoBacklinksNames(t *testing.T) {
 
 	if err := registry.DeleteFieldInGroup(t.Context(), vans.ID, "maker"); err != nil {
 		t.Errorf("DeleteFieldInGroup() error = %v, want the relation nobody reads taken away", err)
+	}
+}
+
+func TestRegistryLetsAGroupGoWithTheBacklinksReadingIt(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	makers, err := registry.CreateGroup(t.Context(), content.Group{
+		Key: "makers", Title: "Makers", Location: namingPost(), Active: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateGroup(makers) error = %v, want nil", err)
+	}
+	if _, err := registry.CreateFieldInGroup(t.Context(), makers.ID, content.Field{
+		Key: "maker", Label: "Maker", Kind: content.FieldKindRelation, RelatesTo: content.TypePost,
+	}); err != nil {
+		t.Fatalf("CreateFieldInGroup(maker) error = %v, want nil", err)
+	}
+	if _, err := registry.CreateFieldInGroup(t.Context(), makers.ID, backlinksField(map[string]any{
+		content.SettingSourceGroup: "makers", content.SettingSourceField: []any{"maker"},
+	})); err != nil {
+		t.Fatalf("CreateFieldInGroup(backlinks) error = %v, want nil", err)
+	}
+
+	if err := registry.DeleteGroup(t.Context(), makers.ID); err != nil {
+		t.Errorf("DeleteGroup() error = %v, want the group gone with the backlinks reading it", err)
 	}
 }
 

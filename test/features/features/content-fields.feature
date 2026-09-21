@@ -34,6 +34,15 @@ Feature: Managing content fields
     When the administrator deletes the type "category"
     Then the request is refused
 
+  Scenario: Deleting a type a relation inside a section points at is refused
+    Given the type "tag" labeled "Tag" and "Tags" under "tags"
+    And the "text" field "color" labeled "Color" on "post"
+    And the "section" field "filing" in "post fields"
+    And the "relation" field "tagged" inside "filing" targeting "tag"
+    When the administrator deletes the type "tag"
+    Then the request is refused with the code "type_targeted"
+    And the type "tag" is listed as active
+
   Scenario: A stored value survives a relabel
     Given the "text" field "color" labeled "Color" on "post"
     And a published post "Hello world" holding "red" in "color"

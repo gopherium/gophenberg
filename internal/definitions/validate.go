@@ -243,11 +243,21 @@ func merged(envelope Envelope, types []content.Type, groups []content.Group) ([]
 
 // groupFrom returns the field group the declaration stands for, its own fields attached.
 func groupFrom(d GroupDefinition) content.Group {
-	held := content.Group{Key: d.Key, Title: d.Title, Location: d.Location.Normalize(), Active: d.Active}
-	for _, f := range d.Fields {
-		held.Fields = append(held.Fields, fieldFrom(f))
+	return content.Group{
+		Key: d.Key, Title: d.Title, Location: d.Location.Normalize(), Active: d.Active,
+		Fields: fieldTreeFrom(d.Fields),
 	}
-	return held
+}
+
+// fieldTreeFrom returns the content fields the declarations stand for, the ones inside a container attached.
+func fieldTreeFrom(declared []FieldDefinition) []content.Field {
+	var fields []content.Field
+	for _, d := range declared {
+		f := fieldFrom(d)
+		f.Fields = fieldTreeFrom(d.Fields)
+		fields = append(fields, f)
+	}
+	return fields
 }
 
 // sourcesRead returns the reason a backlinks field the import leaves behind reads no relation, or nothing.

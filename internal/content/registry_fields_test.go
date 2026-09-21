@@ -179,6 +179,30 @@ func (s *groupedStore) ListGroups(context.Context) ([]content.Group, error) {
 	return s.groups, nil
 }
 
+func TestRegistryKeepsATypeARelationInsideASectionTargets(t *testing.T) {
+	t.Parallel()
+
+	store := &groupedStore{fakeTypeStore: newFakeTypeStore(), groups: []content.Group{{
+		ID: 1, Title: "Extras", Active: true,
+		Fields: []content.Field{{
+			Key: "specs", Label: "Specs", Kind: content.FieldKindSection,
+			Fields: []content.Field{{
+				Key: "cars", Label: "Cars", Kind: content.FieldKindRelation, RelatesTo: "car", Many: true,
+			}},
+		}},
+	}}}
+	registry := content.NewRegistry(store)
+	if _, err := registry.Create(t.Context(), carType(t)); err != nil {
+		t.Fatalf("registering the car type: %v, want nil", err)
+	}
+
+	err := registry.Delete(t.Context(), "car")
+
+	if !errors.Is(err, content.ErrTypeTargeted) {
+		t.Fatalf("Delete() error = %v, want the relation inside the section still guarding", err)
+	}
+}
+
 func TestRegistryRefusesDeletingATypeARestingGroupStillTargets(t *testing.T) {
 	t.Parallel()
 

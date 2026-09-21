@@ -332,9 +332,10 @@ and sends none back when you save. It stands at the top of a group
 rather than inside a Section, a Repeater or a Flexible content
 field.
 
-Removing the relation a Linked from field reads is refused, and so
-is moving it to another group or deleting the group holding it.
-Change the Linked from field first.
+Removing the relation a Linked from field reads is refused, wherever
+it stands, and so is moving it to another group. Deleting the group
+holding it is refused too, unless the Linked from field goes with
+it. Change the Linked from field first.
 
 ## Deleting a field
 
