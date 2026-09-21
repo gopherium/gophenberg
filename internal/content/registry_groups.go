@@ -406,11 +406,17 @@ func (r *Registry) heldGroup(ctx context.Context, groupID int) (Group, error) {
 
 // MoveField carries the field to a group's top or into a container, sweeping its values when it enters or leaves one.
 func (r *Registry) MoveField(ctx context.Context, id, toGroup, toParent int) (Field, error) {
+	return r.MoveFieldSettled(ctx, id, toGroup, toParent, nil)
+}
+
+// MoveFieldSettled carries the field, overlooking the settled readers and, when the field is settled, its own rules.
+func (r *Registry) MoveFieldSettled(ctx context.Context, id, toGroup, toParent int, settled Settled) (Field, error) {
 	move, err := r.moveOf(ctx, id, toGroup, toParent)
 	if err != nil {
 		return Field{}, err
 	}
-	if move.settled() {
+	move.settled = settled
+	if move.stands() {
 		return move.from.field, nil
 	}
 	if err := r.moveAllowed(ctx, move); err != nil {
@@ -432,6 +438,7 @@ type fieldMove struct {
 	landing Group
 	parent  Field
 	depth   int
+	settled Settled
 }
 
 // moveOf resolves where the field stands and where it is asked to stand.
@@ -460,8 +467,8 @@ func (r *Registry) moveOf(ctx context.Context, id, toGroup, toParent int) (field
 	return move, nil
 }
 
-// settled reports whether the field already stands where it is asked to.
-func (m fieldMove) settled() bool {
+// stands reports whether the field already stands where it is asked to.
+func (m fieldMove) stands() bool {
 	return m.landing.ID == m.source.ID && m.parent.ID == m.from.parentID
 }
 
@@ -489,6 +496,9 @@ func (r *Registry) moveAllowed(ctx context.Context, m fieldMove) error {
 	}
 	if err := r.sourceStands(ctx, m.held, m.landing, m.from.field); err != nil {
 		return err
+	}
+	if m.settled[m.from.field.ID] {
+		return nil
 	}
 	return Stands(m.siblings(), m.from.field)
 }
@@ -551,10 +561,10 @@ func (r *Registry) keyFree(ctx context.Context, m fieldMove) error {
 
 // unread returns the reason a sibling left behind or a backlinks still reads the field, or nothing.
 func (m fieldMove) unread() error {
-	if err := Unreferenced(m.from.beside, m.from.field.Key); err != nil {
+	if err := Unreferenced(m.settled.among(m.from.beside), m.from.field.Key); err != nil {
 		return err
 	}
-	return SourceKeptAlong(m.held, m.source.Key, m.from.path)
+	return SourceKeptAlong(m.settled.across(m.held), m.source.Key, m.from.path)
 }
 
 // pointsSomewhere reports whether a field naming another type or field names one the registry holds.

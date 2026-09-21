@@ -306,6 +306,51 @@ func TestMoveFieldRefusesAFieldARowSiblingReads(t *testing.T) {
 	}
 }
 
+func TestMoveFieldSettledOverlooksAReaderTheCallerAnswersFor(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupWithSwitch(t, registry)
+	reader, err := registry.CreateFieldInGroup(t.Context(), held.ID,
+		readerOf("sale-note", "on-sale", content.OperatorIs, "true"))
+	if err != nil {
+		t.Fatalf("declaring the reader: %v, want nil", err)
+	}
+	extras := groupNaming(t, registry, "Extras", namingPost())
+	source := topFieldIn(t, registry, held.ID, "on-sale")
+	if _, err := registry.MoveField(t.Context(), source.ID, extras.ID, 0); !errors.Is(err, content.ErrFieldReferenced) {
+		t.Fatalf("MoveField() error = %v, want %v before the reader is answered for", err, content.ErrFieldReferenced)
+	}
+
+	moved, err := registry.MoveFieldSettled(t.Context(), source.ID, extras.ID, 0, content.Settled{reader.ID: true})
+
+	if err != nil || moved.GroupID != extras.ID {
+		t.Errorf("MoveFieldSettled() = %+v, %v, want the field moved past the reader the caller answers for", moved, err)
+	}
+}
+
+func TestMoveFieldSettledOverlooksTheRulesOfAFieldTheCallerAnswersFor(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupWithSwitch(t, registry)
+	reader, err := registry.CreateFieldInGroup(t.Context(), held.ID,
+		readerOf("sale-note", "on-sale", content.OperatorIs, "true"))
+	if err != nil {
+		t.Fatalf("declaring the reader: %v, want nil", err)
+	}
+	extras := groupNaming(t, registry, "Extras", namingPost())
+	if _, err := registry.MoveField(t.Context(), reader.ID, extras.ID, 0); !errors.Is(err, content.ErrRuleSourceUnknown) {
+		t.Fatalf("MoveField() error = %v, want %v before the rules are answered for", err, content.ErrRuleSourceUnknown)
+	}
+
+	moved, err := registry.MoveFieldSettled(t.Context(), reader.ID, extras.ID, 0, content.Settled{reader.ID: true})
+
+	if err != nil || moved.GroupID != extras.ID {
+		t.Errorf("MoveFieldSettled() = %+v, %v, want the field moved with the rules the caller answers for", moved, err)
+	}
+}
+
 func TestMoveFieldRefusesAConditionTheNewSiblingsCannotAnswer(t *testing.T) {
 	t.Parallel()
 
