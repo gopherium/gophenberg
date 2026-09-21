@@ -12,8 +12,8 @@
 	},
 	"dependencies": {
 		"@astrojs/markdown-remark": "^7.3.1",
-		"@astrojs/starlight": "^0.42.1",
-		"astro": "^7.3.2",
+		"@astrojs/starlight": "^0.42.2",
+		"astro": "^7.3.3",
 		"sharp": "^0.35.4"
 	},
 	"packageManager": "pnpm@11.10.0",
