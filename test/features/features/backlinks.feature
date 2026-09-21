@@ -52,6 +52,28 @@ Feature: Linked from
     When the administrator moves the field "categories" inside "filing"
     Then the request is refused with the code "field_referenced"
 
+  Scenario: A relation a Linked from reads cannot be deleted from inside a section
+    Given the "section" field "filing" in "post fields"
+    And the "relation" field "pairs-with" inside "filing" targeting "category"
+    And the "backlinks" field "paired-from" on "category" reading "pairs-with" inside "filing" on "post"
+    When the administrator deletes the field "pairs-with" inside "filing"
+    Then the request is refused with the code "field_referenced"
+    And the field "filing" on "post" holds the sub field "pairs-with"
+
+  Scenario: A group holding a relation and the Linked from reading it goes away whole
+    Given the "relation" field "related" on "category" targeting "category" holding many
+    And the "backlinks" field "related-from" on "category" reading "related" on "category"
+    When the administrator deletes the group "category fields"
+    Then no group is titled "category fields"
+
+  Scenario: A site reading a relation inside a section imports its own export
+    Given the "section" field "filing" in "post fields"
+    And the "relation" field "pairs-with" inside "filing" targeting "category"
+    And the "backlinks" field "paired-from" on "category" reading "pairs-with" inside "filing" on "post"
+    When the administrator imports the file
+    Then the import is applied
+    And the group "category fields" holds "paired-from"
+
   Scenario: An import giving up a relation and the backlinks reading it takes both away
     Given the site's file leaves out "categories" in "post fields"
     And the site's file leaves out "linked-from" in "category fields"

@@ -561,6 +561,13 @@ func initializeContentFields(sc *godog.ScenarioContext) {
 	sc.Given(`^the "([^"]*)" field "([^"]*)" labeled "([^"]*)" on "([^"]*)"$`, theFieldExists)
 	sc.Given(`^the required "([^"]*)" field "([^"]*)" labeled "([^"]*)" on "([^"]*)"$`, theRequiredFieldExists)
 	sc.Given(`^the "relation" field "([^"]*)" on "([^"]*)" targeting "([^"]*)"$`, theRelationFieldExists)
+	sc.Given(`^the "([^"]*)" field "([^"]*)" in "([^"]*)"$`, theContainerExists)
+	sc.Given(
+		`^the "relation" field "([^"]*)" inside "([^"]*)" targeting "([^"]*)"$`,
+		theRelationFieldInsideTargeting,
+	)
+	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
+	sc.Then(`^the type "([^"]*)" is listed as active$`, theTypeIsListedAsActive)
 	sc.Given(`^the post "([^"]*)"$`, thePostExists)
 	sc.Given(`^a published post "([^"]*)" holding "([^"]*)" in "([^"]*)"$`, aPublishedPostHolding)
 	sc.When(`^the administrator lists the fields of "([^"]*)"$`, theAdministratorListsTheFieldsOf)

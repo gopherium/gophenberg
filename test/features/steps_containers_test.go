@@ -111,6 +111,23 @@ func declareInside(ctx context.Context, kind, key, parent, settings string) erro
 	return w.postJSON(groupsPath+"/"+strconv.Itoa(groupID)+"/fields/"+path, body)
 }
 
+// theRelationFieldInsideTargeting declares a relation inside the container pointing at the type.
+func theRelationFieldInsideTargeting(ctx context.Context, key, parent, target string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	groupID, path, err := containerPath(w, parent)
+	if err != nil {
+		return err
+	}
+	body := fmt.Sprintf(`{"key":%q,"label":%q,"kind":"relation","relates_to":%q,"settings":{}}`, key, key, target)
+	if err := w.postJSON(groupsPath+"/"+strconv.Itoa(groupID)+"/fields/"+path, body); err != nil {
+		return err
+	}
+	return w.expect(http.StatusCreated)
+}
+
 // movingField asks the registry to carry the field the key names to the destination the body describes.
 func movingField(ctx context.Context, key, body string) error {
 	w, err := worldOf(ctx)

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/cucumber/godog"
 
@@ -22,6 +23,30 @@ func theBacklinksFieldReading(ctx context.Context, key, typeKey, source, sourceT
 	return addField(ctx, typeKey, fmt.Sprintf(
 		`{"key":%q,"label":%q,"kind":"backlinks","settings":{"source_group":%q,"source_field":[%q]}}`,
 		key, key, group, source))
+}
+
+// theBacklinksFieldReadingInside registers a backlinks field reading a relation inside a container on another type.
+func theBacklinksFieldReadingInside(ctx context.Context, key, typeKey, source, container, sourceType string) error {
+	group, err := sourceGroupKey(ctx, sourceType)
+	if err != nil {
+		return err
+	}
+	return addField(ctx, typeKey, fmt.Sprintf(
+		`{"key":%q,"label":%q,"kind":"backlinks","settings":{"source_group":%q,"source_field":[%q,%q]}}`,
+		key, key, group, container, source))
+}
+
+// theAdministratorAsksToDeleteTheFieldInside asks the registry to take a sub field away, whatever it answers.
+func theAdministratorAsksToDeleteTheFieldInside(ctx context.Context, key, _ string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	groupID, path, err := containerPath(w, key)
+	if err != nil {
+		return err
+	}
+	return w.deleteAt(groupsPath + "/" + strconv.Itoa(groupID) + "/inside/" + path)
 }
 
 // theAdministratorDeclaresABacklinksReading asks for a backlinks field naming a source nobody declared.
@@ -197,8 +222,22 @@ func initializeBacklinks(sc *godog.ScenarioContext) {
 	sc.Then(`^the category "([^"]*)" is pointed at by nobody$`, theItemIsPointedAtByNobody)
 	sc.Then(`^the field "([^"]*)" is gone from "([^"]*)"$`, theFieldIsGoneFrom)
 	sc.Given(`^the "([^"]*)" field "([^"]*)" in "([^"]*)"$`, theContainerExists)
+	sc.Given(
+		`^the "relation" field "([^"]*)" inside "([^"]*)" targeting "([^"]*)"$`,
+		theRelationFieldInsideTargeting,
+	)
+	sc.Given(
+		`^the "backlinks" field "([^"]*)" on "([^"]*)" reading "([^"]*)" inside "([^"]*)" on "([^"]*)"$`,
+		theBacklinksFieldReadingInside,
+	)
 	sc.When(`^the administrator moves the field "([^"]*)" inside "([^"]*)"$`, theAdministratorMovesTheFieldInside)
+	sc.When(
+		`^the administrator deletes the field "([^"]*)" inside "([^"]*)"$`,
+		theAdministratorAsksToDeleteTheFieldInside,
+	)
+	sc.When(`^the administrator deletes the group "([^"]*)"$`, theAdministratorDeletesTheGroup)
 	sc.Then(`^the field "([^"]*)" on "([^"]*)" reads "([^"]*)" in "([^"]*)"$`, theBacklinksReads)
+	sc.Then(`^the field "([^"]*)" on "([^"]*)" holds the sub field "([^"]*)"$`, theFieldHoldsTheSubField)
 	initializeImportFile(sc)
 	_ = http.StatusOK
 }
