@@ -30,7 +30,7 @@ jobs:
           node-version: 26
       - run: make cover GOTESTFLAGS=-race
       - run: go vet ./...
-      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      - uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           files: .covdata/cover.out
           flags: backend
@@ -62,7 +62,7 @@ jobs:
       - run: pnpm exec knip
         working-directory: ${{ github.workspace }}
       - run: pnpm cover
-      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      - uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           files: frontend/coverage/lcov.info
           flags: frontend
@@ -73,7 +73,7 @@ jobs:
         working-directory: ${{ github.workspace }}
       - run: pnpm --filter @gophenberg/astro cover
         working-directory: ${{ github.workspace }}
-      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      - uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           files: sdk/astro/coverage/lcov.info
           flags: kit
