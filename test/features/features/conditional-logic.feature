@@ -213,3 +213,14 @@ Feature: Showing a field by rule
     When the administrator imports the file
     Then the import is applied
     And the field "sale-price" on "post" carries the setting "conditions"
+
+  Scenario: An import whose move the administrator declines writes no reader of the field it held back
+    Given the site's file moves "on-sale" from "Extras" into a new group "Offers"
+    And the site's file adds the "text" field "sale-note" to "Offers" with settings:
+      """
+      {"conditions": [[{"source": "on-sale", "operator": "==", "value": "true"}]]}
+      """
+    When the administrator imports the file
+    Then the request is refused with the code "field_referenced"
+    And no group is titled "Offers"
+    And the group "Extras" holds "on-sale"

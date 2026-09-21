@@ -132,6 +132,27 @@ Feature: Grouping fields and placing them by rule
     And the administrator lists the field groups
     Then no field groups are listed
 
+  Scenario: An import moving a field into a new group while giving up its old group whole is applied
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And the site's file moves "subtitle" from "Article details" into a new group "Article facts"
+    And the site's file leaves out the group "Article details"
+    And the administrator confirms the loss of the group "Article details"
+    When the administrator imports the file
+    Then the import is applied
+    And the group "Article facts" holds "subtitle"
+    And no group is titled "Article details"
+
+  Scenario: An import standing a field in a new group while its old group stays writes nothing
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And the site's file moves "subtitle" from "Article details" into a new group "Article facts"
+    And the site's file leaves out the group "Article details"
+    When the administrator imports the file
+    Then the request is refused with the code "field_taken"
+    And no group is titled "Article facts"
+    And the group "Article details" holds "subtitle"
+
   Scenario: A definitions file from a release the site cannot read is refused
     When the administrator plans a file written in format "9.0.0"
     Then the request is refused with the code "definitions_format_unsupported"

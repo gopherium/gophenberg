@@ -78,3 +78,12 @@ Feature: Relating content
     When the administrator files the car "Ford Focus" under "V8"
     Then the car "Ford Focus" lists "V8" in "engine"
     And publishing a car holding no engine is refused
+
+  Scenario: An import giving up a type a relation it keeps still points at writes nothing
+    Given the site's file leaves out the type "category"
+    And the site's file retitles "post fields" as "Post filing"
+    And the administrator confirms the loss of the type "category"
+    When the administrator imports the file
+    Then the request is refused with the code "type_targeted"
+    And no group is titled "Post filing"
+    And the type "category" is listed as active

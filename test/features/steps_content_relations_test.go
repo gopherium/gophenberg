@@ -378,4 +378,7 @@ func initializeContentRelations(sc *godog.ScenarioContext) {
 	sc.Then(`^the request is refused as unfindable$`, theRequestIsRefusedAsUnfindable)
 	sc.Then(`^the request is refused because the field holds one target$`, theRequestIsRefusedAsOverfilled)
 	sc.Then(`^the request is refused because the target is the wrong type$`, theRequestIsRefusedAsMistyped)
+	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
+	sc.Then(`^the type "([^"]*)" is listed as active$`, theTypeIsListedAsActive)
+	initializeImportFile(sc)
 }
