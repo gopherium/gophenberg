@@ -126,19 +126,40 @@ func (s *memoryTypes) UpdateGroup(_ context.Context, g content.Group) (content.G
 
 // DeleteGroup removes the group and every field it holds, carrying what it stores inside other groups' containers.
 func (s *memoryTypes) DeleteGroup(_ context.Context, id int) error {
+	served, dropped := s.dropGroup(id)
+	if !dropped {
+		return content.ErrGroupNotFound
+	}
+	for key, typeKeys := range served {
+		for _, typeKey := range typeKeys {
+			s.content.clearField(typeKey, key)
+			s.content.clearRelation(typeKey, key)
+		}
+	}
+	return nil
+}
+
+// dropGroup removes the group with its fields, reporting the types it alone served each top level key on.
+func (s *memoryTypes) dropGroup(id int) (map[string][]string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
 		if held.ID != id {
 			continue
 		}
+		served := map[string][]string{}
+		for _, f := range held.Fields {
+			if s.content != nil {
+				served[f.Key] = s.servedOn(s.typesMatchedBy(held), held.ID, f.Key)
+			}
+		}
 		s.groups = append(s.groups[:i], s.groups[i+1:]...)
 		for j, kept := range s.groups {
 			s.groups[j].Fields = carriedInto(kept.Fields, kept.ID)
 		}
-		return nil
+		return served, true
 	}
-	return content.ErrGroupNotFound
+	return nil, false
 }
 
 // carriedInto returns the declared fields, and every field inside them, stored under the group.
