@@ -281,22 +281,33 @@ func (r *Registry) AdoptGroup(ctx context.Context, key string) error {
 	return nil
 }
 
-// untargeted reports whether a relation field in any group still points at the type.
+// untargeted reports whether a relation field in any group, however deep it stands, still points at the type.
 func (r *Registry) untargeted(ctx context.Context, key string) error {
 	groups, err := r.store.ListGroups(ctx)
 	if err != nil {
 		return err
 	}
 	for _, g := range groups {
-		for _, f := range g.Fields {
-			if f.RelatesTo == key {
-				return Refuse(ErrTypeTargeted, "type_targeted",
-					fmt.Sprintf("%s (%s in %s)", ErrTypeTargeted, f.Key, g.Title),
-					Details{"field": f.Key, "group": g.Title})
-			}
+		if f, found := targeting(g.Fields, key); found {
+			return Refuse(ErrTypeTargeted, "type_targeted",
+				fmt.Sprintf("%s (%s in %s)", ErrTypeTargeted, f.Key, g.Title),
+				Details{"field": f.Key, "group": g.Title})
 		}
 	}
 	return nil
+}
+
+// targeting returns the first field among the fields or inside them that points at the type.
+func targeting(fields []Field, key string) (Field, bool) {
+	for _, f := range fields {
+		if f.RelatesTo == key {
+			return f, true
+		}
+		if held, found := targeting(f.Fields, key); found {
+			return held, true
+		}
+	}
+	return Field{}, false
 }
 
 // CreateField declares the field on its type, or reports why the registry refuses it.
