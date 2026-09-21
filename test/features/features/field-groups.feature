@@ -143,6 +143,41 @@ Feature: Grouping fields and placing them by rule
     And the group "Article facts" holds "subtitle"
     And no group is titled "Article details"
 
+  Scenario: An import moving a field to another group on the same content keeps its values
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And a published post "Hello world" holding "A short tagline" in "subtitle"
+    And the site's file moves "subtitle" from "Article details" into a new group "Article facts"
+    And the administrator confirms the loss of "subtitle" in "Article details"
+    When the administrator imports the file
+    Then the import is applied
+    And the group "Article facts" holds "subtitle"
+    And the post "Hello world" holds "A short tagline" in "subtitle"
+
+  Scenario: An import rebuilding a group under a new key keeps the values it carries over
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And a published post "Hello world" holding "A short tagline" in "subtitle"
+    And the site's file moves "subtitle" from "Article details" into a new group "Article facts"
+    And the site's file leaves out the group "Article details"
+    And the administrator confirms the loss of the group "Article details"
+    When the administrator imports the file
+    Then the import is applied
+    And no group is titled "Article details"
+    And the post "Hello world" holds "A short tagline" in "subtitle"
+
+  Scenario: An import moving a field to a group on other content lets its values go
+    Given the type "recipe" labeled "Recipe" and "Recipes" under "recipes"
+    And the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And a published post "Hello world" holding "A short tagline" in "subtitle"
+    And the site's file moves "subtitle" from "Article details" into a new group "Recipe facts"
+    And the site's file places "Recipe facts" on "recipe"
+    And the administrator confirms the loss of "subtitle" in "Article details"
+    When the administrator imports the file
+    Then the import is applied
+    And the post "Hello world" holds no field "subtitle"
+
   Scenario: An import standing a field in a new group while its old group stays writes nothing
     Given the group "Article details" for "post"
     And the "text" field "subtitle" labeled "Subtitle" in "Article details"
