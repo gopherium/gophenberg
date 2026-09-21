@@ -481,6 +481,32 @@ func TestRegistryFreesARelationNoBacklinksNames(t *testing.T) {
 	}
 }
 
+func TestRegistryLetsAGroupGoWithTheBacklinksReadingIt(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	makers, err := registry.CreateGroup(t.Context(), content.Group{
+		Key: "makers", Title: "Makers", Location: namingPost(), Active: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateGroup(makers) error = %v, want nil", err)
+	}
+	if _, err := registry.CreateFieldInGroup(t.Context(), makers.ID, content.Field{
+		Key: "maker", Label: "Maker", Kind: content.FieldKindRelation, RelatesTo: content.TypePost,
+	}); err != nil {
+		t.Fatalf("CreateFieldInGroup(maker) error = %v, want nil", err)
+	}
+	if _, err := registry.CreateFieldInGroup(t.Context(), makers.ID, backlinksField(map[string]any{
+		content.SettingSourceGroup: "makers", content.SettingSourceField: []any{"maker"},
+	})); err != nil {
+		t.Fatalf("CreateFieldInGroup(backlinks) error = %v, want nil", err)
+	}
+
+	if err := registry.DeleteGroup(t.Context(), makers.ID); err != nil {
+		t.Errorf("DeleteGroup() error = %v, want the group gone with the backlinks reading it", err)
+	}
+}
+
 func TestRegistryKeepsABacklinksOnTheTypeItsSourcePointsAt(t *testing.T) {
 	t.Parallel()
 

@@ -105,10 +105,11 @@ func freeOfReaders(groups []Group, held Group, key string) error {
 	return SourceKept(groups, held.Key, key)
 }
 
-// GroupKept reports whether no backlinks field reads a field of the group, refusing the removal when one does.
+// GroupKept reports whether no backlinks field outside the group reads its fields, refusing the removal when one does.
 func GroupKept(groups []Group, held Group) error {
+	others := slices.DeleteFunc(slices.Clone(groups), func(g Group) bool { return g.ID == held.ID })
 	for _, f := range held.Fields {
-		if err := SourceKept(groups, held.Key, f.Key); err != nil {
+		if err := SourceKept(others, held.Key, f.Key); err != nil {
 			return err
 		}
 	}
