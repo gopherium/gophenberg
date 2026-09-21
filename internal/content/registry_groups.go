@@ -286,14 +286,21 @@ func (r *Registry) DeleteSubField(ctx context.Context, id int) error {
 
 // DeleteSubFieldSettled removes the field standing inside a container, overlooking the readers the caller settles.
 func (r *Registry) DeleteSubFieldSettled(ctx context.Context, id int, settled Settled) error {
-	held, beside, _, err := r.fieldByID(ctx, id)
+	groups, err := r.Groups(ctx)
 	if err != nil {
 		return err
 	}
-	if err := pluginKeepsField(ctx, held); err != nil {
+	source, at, found := placedInGroups(groups, id)
+	if !found {
+		return ErrFieldNotFound
+	}
+	if err := pluginKeepsField(ctx, at.field); err != nil {
 		return err
 	}
-	if err := Unreferenced(settled.among(beside), held.Key); err != nil {
+	if err := Unreferenced(settled.among(at.beside), at.field.Key); err != nil {
+		return err
+	}
+	if err := SourceKeptAlong(settled.across(groups), source.Key, at.path); err != nil {
 		return err
 	}
 	if err := r.store.DeleteSubField(ctx, id); err != nil {
