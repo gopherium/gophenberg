@@ -35,7 +35,7 @@ const errorSchema = z.object({
 	meta: z.record(z.string(), z.unknown()).optional(),
 })
 
-/** One definition an import would add, carry over, or take away. */
+/** One definition an import would add, carry over, or take away, naming the group a moved field comes from. */
 export interface PlanChange {
 	action: string
 	subject: string
@@ -43,6 +43,7 @@ export interface PlanChange {
 	group?: string
 	label: string
 	reason?: string
+	from?: string
 }
 
 /** One change an import would make beyond the definitions themselves. */

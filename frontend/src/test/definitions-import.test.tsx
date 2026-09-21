@@ -23,6 +23,23 @@ const PLAN = {
 		},
 		{ action: 'delete', subject: 'field', key: 'photos', label: 'Photos', reason: 'shape_changed' },
 		{ action: 'delete', subject: 'field', key: 'serves', label: 'Serves', reason: 'moved' },
+		{
+			action: 'create',
+			subject: 'field',
+			key: 'prep-time',
+			group: 'recipe-facts',
+			label: 'Prep time',
+			reason: 'carried',
+			from: 'recipe-details',
+		},
+		{
+			action: 'delete',
+			subject: 'field',
+			key: 'prep-time',
+			group: 'recipe-details',
+			label: 'Prep time',
+			reason: 'carried',
+		},
 		{ action: 'delete', subject: 'type', key: 'note', label: 'Note', reason: 'removed' },
 	],
 	warnings: [
@@ -61,6 +78,8 @@ test('shows what a chosen definitions file would change', async () => {
 	expect(
 		screen.getByText('It moves to another group, so its stored values do not follow.'),
 	).toBeInTheDocument()
+	expect(screen.getByText('It moves to another group and keeps its stored values.')).toBeInTheDocument()
+	expect(screen.getByText('It moves here from another group and keeps its stored values.')).toBeInTheDocument()
 	expect(screen.getByText('recipe answers on a new address, and stored links move with it.')).toBeInTheDocument()
 	expect(
 		screen.getByText('recipe keeps nesting, because some of its items sit inside another.'),

@@ -51,21 +51,26 @@ function subjectWord(subject: string): string {
 }
 
 /**
- * Returns the sentence naming why a definition cannot simply be carried over.
- * @param reason - The reason the plan named, if it named one.
+ * Returns the sentence naming what happens to the values stored under a definition, when the plan says.
+ * @param change - The change the plan named.
  * @returns The sentence to show, or nothing when the plan named no reason.
  */
-function reasonSentence(reason: string | undefined): string {
-	if (reason === 'kind_changed') {
+function reasonSentence(change: PlanChange): string {
+	if (change.reason === 'kind_changed') {
 		return __('Its kind changed, so its stored values go with it.', 'gophenberg')
 	}
-	if (reason === 'shape_changed') {
+	if (change.reason === 'shape_changed') {
 		return __('What it points at changed, so its stored values go with it.', 'gophenberg')
 	}
-	if (reason === 'moved') {
+	if (change.reason === 'moved') {
 		return __('It moves to another group, so its stored values do not follow.', 'gophenberg')
 	}
-	if (reason === 'nesting_kept') {
+	if (change.reason === 'carried') {
+		return change.action === 'delete'
+			? __('It moves to another group and keeps its stored values.', 'gophenberg')
+			: __('It moves here from another group and keeps its stored values.', 'gophenberg')
+	}
+	if (change.reason === 'nesting_kept') {
 		return __('Its items sit inside one another, so it keeps nesting.', 'gophenberg')
 	}
 	return ''
@@ -118,7 +123,7 @@ function sameConfirmation(one: Confirmed, other: Confirmed): boolean {
  * @returns The line element.
  */
 function PlanRow(props: { change: PlanChange }) {
-	const said = reasonSentence(props.change.reason)
+	const said = reasonSentence(props.change)
 	return (
 		<Stack direction="column" gap="xs">
 			<Stack direction="row" gap="sm" align="center">
@@ -136,7 +141,7 @@ function PlanRow(props: { change: PlanChange }) {
  * @returns The line element.
  */
 function LosingRow(props: { change: PlanChange; confirmed: boolean; onChange: (agreed: boolean) => void }) {
-	const said = reasonSentence(props.change.reason)
+	const said = reasonSentence(props.change)
 	return (
 		<Stack direction="column" gap="xs">
 			<Stack direction="row" gap="sm" align="center">
