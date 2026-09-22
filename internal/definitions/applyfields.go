@@ -47,13 +47,14 @@ func (r *run) handsOn(group string) bool {
 // emptied takes away the fields the group keeps to itself, holding the group until the others have moved.
 func (r *run) emptied(ctx context.Context, c Change) error {
 	g := r.groupKeyed(c.Key)
+	dropped := make([]string, 0, len(g.Fields))
 	for _, f := range g.Fields {
-		if _, carried := r.landingOf(g.Key, f.Key); carried {
-			continue
+		if _, carried := r.landingOf(g.Key, f.Key); !carried {
+			dropped = append(dropped, f.Key)
 		}
-		if err := r.registry.DeleteFieldInGroupSettled(ctx, g.ID, f.Key, r.settled); err != nil {
-			return err
-		}
+	}
+	if err := r.registry.DeleteFieldsOfGroupSettled(ctx, g.ID, dropped, r.settled); err != nil {
+		return err
 	}
 	r.handing = append(r.handing, c)
 	return nil

@@ -19,30 +19,40 @@ import (
 func valuedSite(t *testing.T) (*content.Registry, *pgxpool.Pool, uuid.UUID) {
 	t.Helper()
 	pool, registry := definedSite(t)
+	id := plantedOn(t, pool, registry, "recipe",
+		content.Values{"cook-time": "45", "steps": map[string]any{"note": "Stir well"}})
+	return registry, pool, id
+}
+
+// plantedOn stores an item of the type holding the values and snapshots it into a revision, returning its identity.
+func plantedOn(
+	t *testing.T, pool *pgxpool.Pool, registry *content.Registry, typeKey string, values content.Values,
+) uuid.UUID {
+	t.Helper()
 	items, author := postgres.NewContentStore(pool), authorOn(t, pool)
-	recipe, err := registry.ByKey(t.Context(), "recipe")
+	held, err := registry.ByKey(t.Context(), typeKey)
 	if err != nil {
-		t.Fatalf("ByKey(recipe) error = %v, want nil", err)
+		t.Fatalf("ByKey(%s) error = %v, want nil", typeKey, err)
 	}
-	built, err := content.New(recipe, nil, "Bread", author)
+	built, err := content.New(held, nil, "Planted "+typeKey, author)
 	if err != nil {
-		t.Fatalf("New(Bread) error = %v, want nil", err)
+		t.Fatalf("New(%s) error = %v, want nil", typeKey, err)
 	}
-	built.Fields = content.Values{"cook-time": "45", "steps": map[string]any{"note": "Stir well"}}
+	built.Fields = values
 	stored, err := items.Create(t.Context(), built)
 	if err != nil {
-		t.Fatalf("Create(Bread) error = %v, want nil", err)
+		t.Fatalf("Create(%s) error = %v, want nil", typeKey, err)
 	}
 	snapshot, err := content.NewRevision(stored, content.RevisionKindRevision, author)
 	if err != nil {
 		t.Fatalf("NewRevision() error = %v, want nil", err)
 	}
 	edited := stored
-	edited.Title, edited.UpdatedAt = "Bread loaf", time.Now().UTC()
+	edited.Title, edited.UpdatedAt = "Edited "+typeKey, time.Now().UTC()
 	if _, err := items.Update(t.Context(), edited, stored.UpdatedAt, &snapshot, 0); err != nil {
-		t.Fatalf("Update(Bread) error = %v, want nil", err)
+		t.Fatalf("Update(%s) error = %v, want nil", typeKey, err)
 	}
-	return registry, pool, stored.ID
+	return stored.ID
 }
 
 // heldValues returns the item's fields and the fields of every revision behind it, as Postgres holds them.
@@ -441,6 +451,33 @@ func TestApplyTakesAwayWhatARebuiltGroupKeepsToItself(t *testing.T) {
 	rebuilt, _ := storedGroup(t, registry, "recipe-facts")
 	if keys := keysOfFields(rebuilt.Fields); len(keys) != 1 || keys[0] != "cook-time" {
 		t.Errorf("the rebuilt group holds %v, want the cook time alone", keys)
+	}
+}
+
+func TestApplySweepsWhatARebuiltGroupKeepsToItselfFromContentItNoLongerReaches(t *testing.T) {
+	t.Parallel()
+
+	pool, registry := definedSite(t)
+	wine, err := content.NewType("wine", "Wine", "Wines", "wines")
+	if err != nil {
+		t.Fatalf("NewType(wine) error = %v, want nil", err)
+	}
+	if _, err := registry.Create(t.Context(), wine); err != nil {
+		t.Fatalf("Create(wine) error = %v, want nil", err)
+	}
+	stale := plantedOn(t, pool, registry, "wine", content.Values{"steps": map[string]any{"note": "Left over"}})
+	envelope := exported(t, registry)
+	rebuilt(t, &envelope)
+	leftOut(groupNamed(t, envelope, "recipe-facts"), "steps")
+
+	applied(t, registry, confirmingGroup(envelope, "recipe-details"))
+
+	item, revisions := heldValues(t, pool, stale)
+	if _, held := item["steps"]; held {
+		t.Errorf("the wine item holds %v, want the section the group gave up swept as a group removal sweeps", item)
+	}
+	if _, held := revisions[0]["steps"]; held {
+		t.Errorf("the wine revision holds %v, want the section the group gave up swept", revisions[0])
 	}
 }
 
