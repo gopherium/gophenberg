@@ -58,36 +58,36 @@ func (s *fakeTypeStore) ListGroups(context.Context) ([]content.Group, error) {
 	return groups, nil
 }
 
-// CreateGroup stores no group, since the fake models fields on their types.
+// CreateGroup stores no group.
 func (s *fakeTypeStore) CreateGroup(_ context.Context, g content.Group) (content.Group, error) {
 	return g, nil
 }
 
-// UpdateGroup stores no group, since the fake models fields on their types.
+// UpdateGroup stores no group.
 func (s *fakeTypeStore) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
 	return g, nil
 }
 
-// DeleteGroup removes no group, since the fake models fields on their types.
+// DeleteGroup removes no group.
 func (s *fakeTypeStore) DeleteGroup(context.Context, int) error { return nil }
 
 // DeleteFieldsOfGroup removes no field.
 func (s *fakeTypeStore) DeleteFieldsOfGroup(context.Context, int, []string) error { return nil }
 
-// ReorderGroups stores no order, since the fake models fields on their types.
+// ReorderGroups stores no order.
 func (s *fakeTypeStore) ReorderGroups(context.Context, []int) error { return nil }
 
-// CreateFieldInGroup declares no field, since the fake models fields on their types.
+// CreateFieldInGroup declares no field.
 func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
 	return f, nil
 }
 
-// CreateSubField hands the field back unstored, since the fake models fields on their types.
+// CreateSubField hands the field back unstored.
 func (s *fakeTypeStore) CreateSubField(_ context.Context, _ int, f content.Field) (content.Field, error) {
 	return f, nil
 }
 
-// DeleteSubField removes no field, since the fake models fields on their types.
+// DeleteSubField removes no field.
 func (s *fakeTypeStore) DeleteSubField(_ context.Context, _ int) error {
 	return nil
 }
@@ -102,22 +102,22 @@ func (s *fakeTypeStore) UpdateSubField(
 // ReorderSubFields stores no order.
 func (s *fakeTypeStore) ReorderSubFields(context.Context, int, []string) error { return nil }
 
-// MoveField carries no field, since the fake models fields on their types.
+// MoveField carries no field.
 func (s *fakeTypeStore) MoveField(context.Context, int, int, int) (content.Field, error) {
 	return content.Field{}, content.ErrFieldNotFound
 }
 
-// UpdateFieldInGroup hands the field back unstored, since the fake models fields on their types.
+// UpdateFieldInGroup hands the field back unstored.
 func (s *fakeTypeStore) UpdateFieldInGroup(
 	_ context.Context, _ int, f content.Field, _ time.Time,
 ) (content.Field, error) {
 	return f, nil
 }
 
-// DeleteFieldInGroup removes no field, since the fake models fields on their types.
+// DeleteFieldInGroup removes no field.
 func (s *fakeTypeStore) DeleteFieldInGroup(context.Context, int, string) error { return nil }
 
-// ReorderFieldsInGroup stores no order, since the fake models fields on their types.
+// ReorderFieldsInGroup stores no order.
 func (s *fakeTypeStore) ReorderFieldsInGroup(context.Context, int, []string) error { return nil }
 
 // ByKey returns the stored type carrying the key.
