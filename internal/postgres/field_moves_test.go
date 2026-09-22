@@ -409,6 +409,65 @@ func TestMovingAFieldBetweenTopsSparesTheValueAnotherGroupServesWhereItLeaves(t 
 	}
 }
 
+func TestMovingAFieldIntoARestingGroupOnTheSameContentKeepsItsValuesForTheWake(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	title := titleIn(t, store, groupOn(t, store, "Car extras", "car").ID)
+	groupOn(t, store, "Car notes", "car")
+	notes := rested(t, store, "Car notes")
+	plantTyped(t, pool, author, "car", "one", `{"title": "kept words"}`)
+
+	if _, err := store.MoveField(t.Context(), title.ID, notes.ID, 0); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{"title": "kept words"}` {
+		t.Errorf("stored values = %s, want the title kept for the resting group to serve once woken", held)
+	}
+	if held := revisionValuesHeld(t, pool); held != `{"title": "kept words"}` {
+		t.Errorf("revision values = %s, want the title kept for the resting group to serve once woken", held)
+	}
+}
+
+func TestMovingAShadowedRelationOffContentDropsOnlyItsOwnIndexRows(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "book")
+	maker := fieldOn(t, "", "maker", content.FieldKindRelation, "book")
+	serving, err := store.CreateFieldInGroup(t.Context(), groupOn(t, store, "Car facts", "car").ID, maker)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(facts maker) error = %v, want nil", err)
+	}
+	shadowed, err := store.CreateFieldInGroup(t.Context(), groupOn(t, store, "Car extras", "car").ID, maker)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(extras maker) error = %v, want nil", err)
+	}
+	storeType(t, store, "car")
+	books := groupOn(t, store, "Book extras", "book")
+	plantTyped(t, pool, author, "car", "pointing", `{"maker": ["00000000-0000-0000-0000-000000000000"]}`)
+	plantTyped(t, pool, author, "book", "pointed", `{}`)
+	for _, id := range []int{serving.ID, shadowed.ID} {
+		plantRelation(t, pool, plantedID(t, pool, "pointing"), plantedID(t, pool, "pointed"), id)
+	}
+
+	if _, err := store.MoveField(t.Context(), shadowed.ID, books.ID, 0); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesSlugged(t, pool, "pointing"); !strings.Contains(held, "maker") {
+		t.Errorf("stored values = %s, want the relation kept where the car facts group serves it", held)
+	}
+	if held := relationRowsOf(t, pool, serving.ID); held != 1 {
+		t.Errorf("the serving relation indexes %d rows, want its own row kept", held)
+	}
+	if held := relationRowsOf(t, pool, shadowed.ID); held != 0 {
+		t.Errorf("the moved relation indexes %d rows on content it left, want none", held)
+	}
+}
+
 func TestMovingARelationBetweenTopsSweepsItsIndexRowsWhereTheNewGroupMisses(t *testing.T) {
 	t.Parallel()
 
