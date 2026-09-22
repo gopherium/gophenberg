@@ -242,6 +242,16 @@ func (s *groupingStore) UpdateFieldInGroup(
 	return content.Field{}, content.ErrFieldNotFound
 }
 
+// DeleteFieldsOfGroup removes every named field from its group.
+func (s *groupingStore) DeleteFieldsOfGroup(ctx context.Context, groupID int, keys []string) error {
+	for _, key := range keys {
+		if err := s.DeleteFieldInGroup(ctx, groupID, key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // DeleteFieldInGroup removes the field from its group.
 func (s *groupingStore) DeleteFieldInGroup(_ context.Context, groupID int, key string) error {
 	if s.deleteFieldErr != nil {
@@ -944,6 +954,72 @@ func TestRegistryDeletesAFieldInsideItsGroup(t *testing.T) {
 	groups, err := registry.Groups(t.Context())
 	if err != nil || len(groups) != 1 || len(groups[0].Fields) != 0 {
 		t.Errorf("Groups() = %v, %v, want the field gone from its group", groups, err)
+	}
+}
+
+func TestRegistryDeletesTheNamedFieldsOfAGroupAndKeepsTheGroup(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Article details", namingPost())
+	for _, key := range []string{"subtitle", "footnote", "byline"} {
+		if _, err := registry.CreateFieldInGroup(t.Context(), held.ID, content.Field{
+			Key: key, Label: "A Field", Kind: content.FieldKindText,
+		}); err != nil {
+			t.Fatalf("declaring %s: %v, want nil", key, err)
+		}
+	}
+
+	err := registry.DeleteFieldsOfGroupSettled(t.Context(), held.ID, []string{"subtitle", "byline"}, nil)
+
+	if err != nil {
+		t.Fatalf("DeleteFieldsOfGroupSettled() error = %v, want nil", err)
+	}
+	if left := topFieldsOf(t, registry, held.ID); len(left) != 1 || left[0].Key != "footnote" {
+		t.Errorf("the group holds %v, want only the field left unnamed", left)
+	}
+}
+
+func TestRegistryRefusesToDeleteAFieldTheGroupDoesNotHold(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Article details", namingPost())
+
+	err := registry.DeleteFieldsOfGroupSettled(t.Context(), held.ID, []string{"subtitle"}, nil)
+
+	if !errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("DeleteFieldsOfGroupSettled() error = %v, want %v", err, content.ErrFieldNotFound)
+	}
+}
+
+func TestRegistryReportsTheNamedFieldsOfAGroupThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+
+	err := registry.DeleteFieldsOfGroupSettled(t.Context(), 404, []string{"subtitle"}, nil)
+
+	if !errors.Is(err, content.ErrGroupNotFound) {
+		t.Errorf("DeleteFieldsOfGroupSettled() error = %v, want %v", err, content.ErrGroupNotFound)
+	}
+}
+
+func TestRegistryReportsAStoreThatWillNotDeleteTheNamedFields(t *testing.T) {
+	t.Parallel()
+
+	store := newGroupingStore()
+	registry := content.NewRegistry(store)
+	held := groupNaming(t, registry, "Article details", namingPost())
+	if _, err := registry.CreateFieldInGroup(t.Context(), held.ID, groupedTextField(t)); err != nil {
+		t.Fatalf("declaring the field: %v, want nil", err)
+	}
+	store.deleteFieldErr = errStoreDown
+
+	err := registry.DeleteFieldsOfGroupSettled(t.Context(), held.ID, []string{"subtitle"}, nil)
+
+	if !errors.Is(err, errStoreDown) {
+		t.Errorf("DeleteFieldsOfGroupSettled() error = %v, want %v", err, errStoreDown)
 	}
 }
 

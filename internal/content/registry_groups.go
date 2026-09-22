@@ -360,6 +360,38 @@ func (r *Registry) DeleteFieldInGroupSettled(ctx context.Context, groupID int, k
 	if err != nil {
 		return err
 	}
+	if err := leavesFreely(ctx, groups, target, key, settled); err != nil {
+		return err
+	}
+	if err := r.store.DeleteFieldInGroup(ctx, groupID, key); err != nil {
+		return err
+	}
+	r.invalidate()
+	return nil
+}
+
+// DeleteFieldsOfGroupSettled removes the named fields and their values as deleting the group would, keeping the group.
+func (r *Registry) DeleteFieldsOfGroupSettled(
+	ctx context.Context, groupID int, keys []string, settled Settled,
+) error {
+	groups, target, err := r.groupAmong(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		if err := leavesFreely(ctx, groups, target, key, settled); err != nil {
+			return err
+		}
+	}
+	if err := r.store.DeleteFieldsOfGroup(ctx, groupID, keys); err != nil {
+		return err
+	}
+	r.invalidate()
+	return nil
+}
+
+// leavesFreely reports whether the group's field may go, overlooking the readers the caller settles.
+func leavesFreely(ctx context.Context, groups []Group, target Group, key string, settled Settled) error {
 	held, err := fieldAmong(target.Fields, key)
 	if err != nil {
 		return err
@@ -368,14 +400,7 @@ func (r *Registry) DeleteFieldInGroupSettled(ctx context.Context, groupID int, k
 		return err
 	}
 	target.Fields = settled.among(target.Fields)
-	if err := freeOfReaders(settled.across(groups), target, key); err != nil {
-		return err
-	}
-	if err := r.store.DeleteFieldInGroup(ctx, groupID, key); err != nil {
-		return err
-	}
-	r.invalidate()
-	return nil
+	return freeOfReaders(settled.across(groups), target, key)
 }
 
 // ReorderFieldsInGroup stores the declaration order of a group's fields.

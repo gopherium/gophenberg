@@ -70,6 +70,11 @@ func (unreadableTypeStore) DeleteGroup(context.Context, int) error {
 	return errTypeStoreDown
 }
 
+// DeleteFieldsOfGroup reports the failure rather than removing the fields.
+func (unreadableTypeStore) DeleteFieldsOfGroup(context.Context, int, []string) error {
+	return errTypeStoreDown
+}
+
 // ReorderGroups reports the failure rather than storing the order.
 func (unreadableTypeStore) ReorderGroups(context.Context, []int) error {
 	return errTypeStoreDown
