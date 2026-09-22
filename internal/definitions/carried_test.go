@@ -377,6 +377,28 @@ func TestApplyKeepsTheValuesARebuiltGroupHandsOn(t *testing.T) {
 	}
 }
 
+func TestApplyRefusesARebuildWhoseOldGroupNobodyConfirmedBeforeWritingAnything(t *testing.T) {
+	t.Parallel()
+
+	registry, pool, id := valuedSite(t)
+	envelope := exported(t, registry)
+	rebuilt(t, &envelope)
+	landed := changeIn(compared(t, registry, envelope), "create", "recipe-facts", "cook-time")
+	if landed.Reason != "carried" {
+		t.Fatalf("the create = %+v, want the rebuild planned as carried", landed)
+	}
+
+	_, err := definitions.Apply(t.Context(), registry, importing(envelope))
+
+	if !refusedWith(err, "field_taken", "cook-time", "Recipe details") {
+		t.Errorf("Apply() error = %v, want the rebuild refused while the unticked group still holds the key", err)
+	}
+	if _, found := storedGroup(t, registry, "recipe-facts"); found {
+		t.Errorf("the rebuilt group stands, want the refused import to have written nothing")
+	}
+	keepsCookTime(t, pool, id)
+}
+
 func TestApplyLetsGoTheValuesOfAFieldMovedOntoOtherContent(t *testing.T) {
 	t.Parallel()
 
