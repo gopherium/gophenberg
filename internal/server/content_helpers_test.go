@@ -787,6 +787,16 @@ func (s *fakeTypeStore) DeleteFieldInGroup(_ context.Context, groupID int, key s
 	return content.ErrFieldNotFound
 }
 
+// DeleteFieldsOfGroup removes every named field from its group.
+func (s *fakeTypeStore) DeleteFieldsOfGroup(ctx context.Context, groupID int, keys []string) error {
+	for _, key := range keys {
+		if err := s.DeleteFieldInGroup(ctx, groupID, key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ReorderFieldsInGroup stores the given order on the group's fields.
 func (s *fakeTypeStore) ReorderFieldsInGroup(_ context.Context, groupID int, keys []string) error {
 	s.mu.Lock()
