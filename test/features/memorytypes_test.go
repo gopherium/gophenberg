@@ -139,6 +139,16 @@ func (s *memoryTypes) DeleteGroup(_ context.Context, id int) error {
 	return nil
 }
 
+// DeleteFieldsOfGroup removes every named field from its group and sweeps its values.
+func (s *memoryTypes) DeleteFieldsOfGroup(ctx context.Context, groupID int, keys []string) error {
+	for _, key := range keys {
+		if err := s.DeleteFieldInGroup(ctx, groupID, key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // dropGroup removes the group with its fields, reporting the types it alone served each top level key on.
 func (s *memoryTypes) dropGroup(id int) (map[string][]string, bool) {
 	s.mu.Lock()
