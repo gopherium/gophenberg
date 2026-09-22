@@ -55,9 +55,11 @@ changing one group's rules parts them.
 
 **Move** carries a field to another group, into a container of any
 group, or out of one to a group's top. Between the tops of two groups
-every value stays where it is. Into or out of a container the values
-stored at the old place are deleted from every item and revision, and
-the dialog says so before you confirm.
+the values stay on the content both groups reach, and go from the
+content the new group does not reach, unless another group still
+serves the field there. Into or out of a container the values stored
+at the old place are deleted from every item and revision. The dialog
+says which before you confirm.
 
 ## The kinds
 
