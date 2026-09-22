@@ -351,6 +351,27 @@ func saveFieldValues(w *world, title, fields string) error {
 	return w.patchJSON(contentPath+"/"+stored.ID, body)
 }
 
+// anItemHolding stores an item of the type carrying the value.
+func anItemHolding(ctx context.Context, typeKey, title, value, key string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := storeItem(w, typeKey, title, ""); err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusCreated); err != nil {
+		return fmt.Errorf("storing the %s %q: %w", typeKey, title, err)
+	}
+	if err := saveFieldValues(w, title, fmt.Sprintf(`{%q:%q}`, key, value)); err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusOK); err != nil {
+		return fmt.Errorf("filling %q of %q: %w", key, title, err)
+	}
+	return nil
+}
+
 // aPublishedPostHolding stores a post carrying the value and publishes it.
 func aPublishedPostHolding(ctx context.Context, title, value, key string) error {
 	w, err := worldOf(ctx)

@@ -90,6 +90,17 @@ Feature: Grouping fields and placing them by rule
     When the administrator moves the field "subtitle" from "Article details" to "Extras"
     Then the post "Hello world" holds "A short tagline" in "subtitle"
 
+  Scenario: Moving a field off content another group still serves there keeps its values
+    Given the group "Recipe extras" for "recipe"
+    And the "text" field "subtitle" labeled "Subtitle" in "Recipe extras"
+    And the group "Recipe facts" for "recipe"
+    And the "text" field "subtitle" labeled "Subtitle" in "Recipe facts"
+    And the type "recipe" labeled "Recipe" and "Recipes" under "recipes"
+    And the group "Article details" for "post"
+    And the recipe "Bread" holding "A short tagline" in "subtitle"
+    When the administrator moves the field "subtitle" from "Recipe facts" to "Article details"
+    Then the recipe "Bread" holds "A short tagline" in "subtitle"
+
   Scenario: Moving a field to a group on other content lets the values it leaves behind go
     Given the type "recipe" labeled "Recipe" and "Recipes" under "recipes"
     And the group "Article details" for "post"
