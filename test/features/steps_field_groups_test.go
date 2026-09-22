@@ -493,6 +493,7 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 	sc.Then(`^the group "([^"]*)" is listed$`, theGroupIsListed)
 	sc.Then(`^the group "([^"]*)" no longer holds the field "([^"]*)"$`, theGroupNoLongerHoldsTheField)
 	sc.Then(`^the post "([^"]*)" holds "([^"]*)" in "([^"]*)"$`, thePostHolds)
+	sc.Then(`^the post "([^"]*)" holds no field "([^"]*)"$`, thePostHoldsNoField)
 	sc.Then(`^the group "([^"]*)" appears on "([^"]*)"$`, theGroupAppearsOn)
 	sc.Then(`^the field "([^"]*)" is served on "([^"]*)"$`, theFieldIsServedOn)
 	sc.Then(`^the field "([^"]*)" is not served on "([^"]*)"$`, theFieldIsNotServedOn)

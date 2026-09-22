@@ -10,7 +10,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// leaving takes away every group the admin agreed to lose, before the fields the file stands elsewhere land.
+// leaving takes away every group the admin agreed to lose, keeping one handing fields on until they have moved.
 func (r *run) leaving(ctx context.Context) error {
 	for _, c := range r.plan.Changes {
 		if c.Subject != SubjectGroup || c.Action != ActionDelete {
@@ -18,6 +18,12 @@ func (r *run) leaving(ctx context.Context) error {
 		}
 		if !r.allows(c) {
 			r.left(c)
+			continue
+		}
+		if r.handsOn(c.Key) {
+			if err := r.emptied(ctx, c); err != nil {
+				return err
+			}
 			continue
 		}
 		if err := r.registry.DeleteGroupSettled(ctx, r.groupKeyed(c.Key).ID, r.settled); err != nil {
@@ -28,17 +34,89 @@ func (r *run) leaving(ctx context.Context) error {
 	return nil
 }
 
-// vacated takes away every field the file moved elsewhere.
+// handsOn reports whether the plan moves a field out of the group with its values.
+func (r *run) handsOn(group string) bool {
+	for _, c := range r.plan.Changes {
+		if c.Reason == ReasonCarried && c.From == group {
+			return true
+		}
+	}
+	return false
+}
+
+// emptied takes away the fields the group keeps to itself, holding the group until the others have moved.
+func (r *run) emptied(ctx context.Context, c Change) error {
+	g := r.groupKeyed(c.Key)
+	dropped := make([]string, 0, len(g.Fields))
+	for _, f := range g.Fields {
+		if _, carried := r.landingOf(g.Key, f.Key); !carried {
+			dropped = append(dropped, f.Key)
+		}
+	}
+	if err := r.registry.DeleteFieldsOfGroupSettled(ctx, g.ID, dropped, r.settled); err != nil {
+		return err
+	}
+	r.handing = append(r.handing, c)
+	return nil
+}
+
+// landingOf returns the create another group gains for the field the group hands on, reporting false for none.
+func (r *run) landingOf(group, key string) (Change, bool) {
+	for _, c := range r.plan.Changes {
+		if c.Action == ActionCreate && c.Reason == ReasonCarried && c.From == group && c.Key == key {
+			return c, true
+		}
+	}
+	return Change{}, false
+}
+
+// vacated takes away every field the file moved elsewhere, carrying the ones that keep their values.
 func (r *run) vacated(ctx context.Context) error {
 	for _, c := range r.plan.Changes {
-		if c.Subject != SubjectField || c.Action != ActionDelete || c.Reason != ReasonMoved {
+		if c.Subject != SubjectField || c.Action != ActionDelete || !movedAway(c) {
 			continue
 		}
 		if !r.allows(c) {
 			r.left(c)
 			continue
 		}
-		if err := r.removeField(ctx, c); err != nil {
+		if err := r.vacate(ctx, c); err != nil {
+			return err
+		}
+		r.did(c)
+	}
+	return r.handedOver(ctx)
+}
+
+// vacate moves the field the change names with its values when they are carried, taking it away otherwise.
+func (r *run) vacate(ctx context.Context, c Change) error {
+	if c.Reason != ReasonCarried {
+		return r.removeField(ctx, c)
+	}
+	return r.carry(ctx, c.Group, c.Key)
+}
+
+// carry moves the field to the group the plan lands it in, answering for its readers and its rules itself.
+func (r *run) carry(ctx context.Context, group, key string) error {
+	landing, _ := r.landingOf(group, key)
+	held := r.fieldAt(group, key)
+	answering := content.Settled{held.ID: true}
+	for id := range r.settled {
+		answering[id] = true
+	}
+	_, err := r.registry.MoveFieldSettled(ctx, held.ID, r.groupKeyed(landing.Group).ID, 0, answering)
+	return err
+}
+
+// handedOver moves the fields every held group hands on, then takes the group away.
+func (r *run) handedOver(ctx context.Context) error {
+	for _, c := range r.handing {
+		for _, f := range r.groupKeyed(c.Key).Fields {
+			if err := r.carry(ctx, c.Key, f.Key); err != nil {
+				return err
+			}
+		}
+		if err := r.registry.DeleteGroupSettled(ctx, r.groupKeyed(c.Key).ID, r.settled); err != nil {
 			return err
 		}
 		r.did(c)
@@ -104,10 +182,31 @@ func (r *run) oneField(
 	if len(planned) == 2 {
 		return r.replaceField(ctx, groupID, parentID, d, planned)
 	}
+	if planned[0].Action == ActionCreate && r.fieldAt(group, key).ID != 0 {
+		return r.carriedField(ctx, groupID, group, key, d, planned[0])
+	}
 	if planned[0].Action == ActionCreate {
-		return r.createField(ctx, groupID, parentID, d, planned[0])
+		return r.createField(ctx, groupID, parentID, d, afresh(planned[0]))
 	}
 	return r.carryField(ctx, groupID, group, key, d, planned[0])
+}
+
+// afresh returns the planned create without the origin of a move, for a field the import stands anew.
+func afresh(c Change) Change {
+	c.Reason, c.From = "", ""
+	return c
+}
+
+// carriedField carries what the file names onto a field that moved in with its values, when it differs.
+func (r *run) carriedField(
+	ctx context.Context, groupID int, group, key string, d FieldDefinition, planned Change,
+) (int, error) {
+	held := r.fieldAt(group, key)
+	if sameStoredField(d, held) {
+		r.did(planned)
+		return held.ID, nil
+	}
+	return r.carryField(ctx, groupID, group, key, d, planned)
 }
 
 // replaceField takes a field away and stands the file's own in its place, when the admin agreed to lose it.

@@ -32,7 +32,7 @@ func takenBy(plan Plan, agreed map[Confirmed]bool) map[Confirmed]bool {
 func declinedBy(plan Plan, agreed map[Confirmed]bool) map[Confirmed]bool {
 	declined := map[Confirmed]bool{}
 	for _, c := range plan.Changes {
-		if c.Reason != ReasonMoved || agreed[Confirmed{Subject: c.Subject, Key: c.Key, Group: c.Group}] {
+		if !movedAway(c) || agreed[Confirmed{Subject: c.Subject, Key: c.Key, Group: c.Group}] {
 			continue
 		}
 		for _, arrived := range arrivals(plan.Changes, c) {

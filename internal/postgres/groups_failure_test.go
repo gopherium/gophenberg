@@ -155,6 +155,21 @@ func TestDeleteGroupReportsTypesItCannotRead(t *testing.T) {
 	}
 }
 
+func TestDeleteFieldsOfGroupReportsTypesItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	stored, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
+
+	if err := store.DeleteFieldsOfGroup(t.Context(), stored.ID, []string{"subtitle"}); err == nil {
+		t.Error("DeleteFieldsOfGroup() error = nil, want the unreadable types reported")
+	}
+}
+
 func TestDeleteGroupReportsAGroupItCannotRemove(t *testing.T) {
 	t.Parallel()
 

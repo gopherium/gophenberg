@@ -43,6 +43,7 @@ type run struct {
 	declined   map[Confirmed]bool
 	taken      map[Confirmed]bool
 	settled    content.Settled
+	handing    []Change
 	registered []content.Type
 	stored     []content.Group
 	outcome    Outcome
@@ -66,7 +67,7 @@ func Apply(ctx context.Context, registry *content.Registry, asked Import) (Outco
 	}
 	for _, stage := range []func(context.Context) error{
 		held.refresh, held.settle, held.heldBack, held.standing, held.leaving,
-		held.types, held.refresh, held.groups, held.refresh, held.vacated, held.fields,
+		held.types, held.refresh, held.groups, held.refresh, held.vacated, held.refresh, held.fields,
 		held.refresh, held.conditions, held.removals, held.refresh, held.orders,
 	} {
 		if err := stage(ctx); err != nil {

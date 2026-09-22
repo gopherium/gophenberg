@@ -76,6 +76,9 @@ func (stubTypeStore) UpdateGroup(_ context.Context, g content.Group) (content.Gr
 // DeleteGroup removes no group.
 func (stubTypeStore) DeleteGroup(context.Context, int) error { return nil }
 
+// DeleteFieldsOfGroup removes no field.
+func (stubTypeStore) DeleteFieldsOfGroup(context.Context, int, []string) error { return nil }
+
 // ReorderGroups stores no order.
 func (stubTypeStore) ReorderGroups(context.Context, []int) error { return nil }
 

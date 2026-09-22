@@ -729,6 +729,12 @@ msgstr ""
 msgid "Instructions"
 msgstr ""
 
+msgid "It moves here from another group and keeps its stored values."
+msgstr ""
+
+msgid "It moves to another group and keeps its stored values."
+msgstr ""
+
 msgid "It moves to another group, so its stored values do not follow."
 msgstr ""
 

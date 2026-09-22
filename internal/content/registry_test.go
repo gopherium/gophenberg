@@ -71,6 +71,9 @@ func (s *fakeTypeStore) UpdateGroup(_ context.Context, g content.Group) (content
 // DeleteGroup removes no group, since the fake models fields on their types.
 func (s *fakeTypeStore) DeleteGroup(context.Context, int) error { return nil }
 
+// DeleteFieldsOfGroup removes no field.
+func (s *fakeTypeStore) DeleteFieldsOfGroup(context.Context, int, []string) error { return nil }
+
 // ReorderGroups stores no order, since the fake models fields on their types.
 func (s *fakeTypeStore) ReorderGroups(context.Context, []int) error { return nil }
 

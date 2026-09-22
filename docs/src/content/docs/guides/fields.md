@@ -363,8 +363,14 @@ change, and what it would take away.
 
 Anything that would take a definition away carries a tick box, and
 nothing is removed unless you tick it. That includes changes that
-look small: changing a field's kind, or moving a field to another
-group, both mean losing what is stored under it, so both ask.
+look small. Changing a field's kind loses what is stored under it,
+so it asks. Moving a field to another group asks too, and its line
+says whether the values follow. They do when the field keeps its
+kind and the new group reaches the same content, the way **Move**
+keeps them. They go when the field changes kind or moves onto other
+content. The same holds for a group you tick away whose fields the
+file declares again in another group: those fields move there,
+values and all, and the rest go with the group.
 
 Say you tick a field that another field reads, through its rules or
 as a Linked from list. If the file also takes that reader away or
