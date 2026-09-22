@@ -5,6 +5,7 @@ package features_test
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -555,10 +556,21 @@ func (s *memoryTypes) MoveField(_ context.Context, id, toGroup, toParent int) (c
 	} else {
 		s.groups[landing].Fields, _ = grownInside(s.groups[landing].Fields, toParent, moved)
 	}
-	if s.content != nil && carried.ParentID != toParent {
-		s.content.sweepPath(s.typesMatchedBy(source), path)
+	if s.content != nil {
+		s.content.sweepPath(s.sweptByMove(source, s.groups[landing], carried.ParentID != toParent), path)
 	}
 	return moved, nil
+}
+
+// sweptByMove returns the types a moved field's old values leave, only those the landing misses between two tops.
+func (s *memoryTypes) sweptByMove(source, landing content.Group, containerChanged bool) []string {
+	matched := s.typesMatchedBy(source)
+	if containerChanged {
+		return matched
+	}
+	return slices.DeleteFunc(matched, func(key string) bool {
+		return landing.Location.Match(content.Screen{content.ScreenContentType: key}, memoryParams)
+	})
 }
 
 // takenOut removes the field carrying the identity from its group, returning the group, the field and its path.
