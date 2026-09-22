@@ -588,7 +588,9 @@ test('carries a field over to another group', async () => {
 	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
 	await userEvent.click(within(moving).getByLabelText('Destination'))
 	await userEvent.click(await screen.findByRole('option', { name: 'Extras' }))
-	expect(within(moving).getByText('The field keeps every value stored under it.')).toBeInTheDocument()
+	expect(
+		within(moving).getByText('The field keeps its values on the content both groups reach.'),
+	).toBeInTheDocument()
 	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
 
 	await waitFor(() => expect(sent).toEqual({ to_group: 4 }))
@@ -616,7 +618,9 @@ test('carries a field to the first place still on offer once the container it wo
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
 	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	expect(within(moving).getByText('The field keeps every value stored under it.')).toBeInTheDocument()
+	expect(
+		within(moving).getByText('The field keeps its values on the content both groups reach.'),
+	).toBeInTheDocument()
 	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
 
 	await waitFor(() => expect(sent).toEqual({ to_group: 4 }))
