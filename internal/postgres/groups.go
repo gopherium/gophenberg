@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -359,16 +360,9 @@ func (s *TypeStore) DeleteGroup(ctx context.Context, id int) error {
 
 // deleteGroupRows removes the group and its own fields, carrying what it stores inside other groups' containers.
 func deleteGroupRows(ctx context.Context, queries *db.Queries, id int) error {
-	if err := queries.LockFieldGroups(ctx); err != nil {
-		return err
-	}
-	groups, err := groupsWithFields(ctx, queries)
+	groups, held, err := lockedGroup(ctx, queries, id)
 	if err != nil {
 		return err
-	}
-	held, found := groupByID(groups, id)
-	if !found {
-		return content.ErrGroupNotFound
 	}
 	if err := queries.CarryStrayFieldsOfGroup(ctx, int32(id)); err != nil {
 		return err
@@ -378,6 +372,44 @@ func deleteGroupRows(ctx context.Context, queries *db.Queries, id int) error {
 	}
 	_, err = queries.DeleteFieldGroup(ctx, int32(id))
 	return err
+}
+
+// lockedGroup locks the field groups and returns every stored group with the one carrying the identifier.
+func lockedGroup(ctx context.Context, queries *db.Queries, id int) ([]content.Group, content.Group, error) {
+	if err := queries.LockFieldGroups(ctx); err != nil {
+		return nil, content.Group{}, err
+	}
+	groups, err := groupsWithFields(ctx, queries)
+	if err != nil {
+		return nil, content.Group{}, err
+	}
+	held, found := groupByID(groups, id)
+	if !found {
+		return nil, content.Group{}, content.ErrGroupNotFound
+	}
+	return groups, held, nil
+}
+
+// DeleteFieldsOfGroup removes the group's named top level fields, sweeping their values as a group delete does.
+func (s *TypeStore) DeleteFieldsOfGroup(ctx context.Context, groupID int, keys []string) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		groups, held, err := lockedGroup(ctx, queries, groupID)
+		if err != nil {
+			return err
+		}
+		held.Fields = slices.DeleteFunc(slices.Clone(held.Fields), func(f content.Field) bool {
+			return !slices.Contains(keys, f.Key)
+		})
+		return deleteFieldsOf(ctx, queries, groups, held)
+	})
+	if errors.Is(err, content.ErrGroupNotFound) {
+		return err
+	}
+	if err != nil {
+		return fmt.Errorf("postgres: delete fields of group: %w", err)
+	}
+	return nil
 }
 
 // deleteFieldsOf removes the group's fields and sweeps their values from the types no other group serves them on.

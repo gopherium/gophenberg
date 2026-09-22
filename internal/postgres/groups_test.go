@@ -226,6 +226,59 @@ func TestDeleteGroupSweepsAValueLeftOnATypeItStoppedMatching(t *testing.T) {
 	}
 }
 
+func TestDeleteFieldsOfGroupSweepsAValueLeftOnATypeItStoppedMatching(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	storeType(t, store, "book")
+	group, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	for _, key := range []string{"subtitle", "footnote"} {
+		if _, err := store.CreateFieldInGroup(
+			t.Context(), group.ID, fieldOn(t, "", key, content.FieldKindText, ""),
+		); err != nil {
+			t.Fatalf("CreateFieldInGroup(%s) error = %v, want nil", key, err)
+		}
+	}
+	plantTyped(t, pool, author, "car", "left-behind", `{"subtitle": "must go", "footnote": "stays"}`)
+	group.Location = locationOf("book")
+	if _, err := store.UpdateGroup(t.Context(), group); err != nil {
+		t.Fatalf("UpdateGroup() error = %v, want nil", err)
+	}
+
+	if err := store.DeleteFieldsOfGroup(t.Context(), group.ID, []string{"subtitle"}); err != nil {
+		t.Fatalf("DeleteFieldsOfGroup() error = %v, want nil", err)
+	}
+
+	var held string
+	if err := pool.QueryRow(t.Context(),
+		`SELECT fields::text FROM core.content WHERE slug = 'left-behind'`,
+	).Scan(&held); err != nil {
+		t.Fatalf("reading the former car row: %v, want nil", err)
+	}
+	if strings.Contains(held, "must go") || !strings.Contains(held, "stays") {
+		t.Errorf("fields = %s, want the named field's value gone and the other one left", held)
+	}
+	if id := groupHolding(t, store, "footnote"); id != group.ID {
+		t.Errorf("the footnote stands in the group %d, want the group kept with it", id)
+	}
+}
+
+func TestDeleteFieldsOfGroupReportsAGroupThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := typedStore(t)
+
+	err := store.DeleteFieldsOfGroup(t.Context(), 12345, []string{"subtitle"})
+
+	if !errors.Is(err, content.ErrGroupNotFound) {
+		t.Errorf("DeleteFieldsOfGroup() = %v, want %v", err, content.ErrGroupNotFound)
+	}
+}
+
 func TestDeleteGroupSparesAValueAnotherGroupStillServes(t *testing.T) {
 	t.Parallel()
 
