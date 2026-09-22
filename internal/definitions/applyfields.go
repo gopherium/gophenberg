@@ -186,9 +186,15 @@ func (r *run) oneField(
 		return r.carriedField(ctx, groupID, group, key, d, planned[0])
 	}
 	if planned[0].Action == ActionCreate {
-		return r.createField(ctx, groupID, parentID, d, planned[0])
+		return r.createField(ctx, groupID, parentID, d, afresh(planned[0]))
 	}
 	return r.carryField(ctx, groupID, group, key, d, planned[0])
+}
+
+// afresh returns the planned create without the origin of a move, for a field the import stands anew.
+func afresh(c Change) Change {
+	c.Reason, c.From = "", ""
+	return c
 }
 
 // carriedField carries what the file names onto a field that moved in with its values, when it differs.

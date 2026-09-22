@@ -497,3 +497,29 @@ func TestApplyLeavesACarriedMoveNobodyConfirmed(t *testing.T) {
 		t.Errorf("skipped = %+v, want the unconfirmed move named there", outcome.Skipped)
 	}
 }
+
+func TestApplyReportsAFieldCreatedBesideAGroupItLeftAsCreatedAfresh(t *testing.T) {
+	t.Parallel()
+
+	registry, pool, id := valuedSite(t)
+	details, _ := storedGroup(t, registry, "recipe-details")
+	details.Active = false
+	if _, err := registry.UpdateGroup(t.Context(), details); err != nil {
+		t.Fatalf("UpdateGroup(recipe-details) error = %v, want it resting", err)
+	}
+	envelope := exported(t, registry)
+	rebuilt(t, &envelope)
+	groupNamed(t, envelope, "recipe-facts").Active = true
+
+	outcome := applied(t, registry, importing(envelope))
+
+	for _, held := range outcome.Applied {
+		if held.Reason == "carried" || held.From != "" {
+			t.Errorf("applied %+v, want nothing reported as carried from a group that stays", held)
+		}
+	}
+	if _, found := storedField(t, registry, "recipe-details", "cook-time"); !found {
+		t.Errorf("the resting group lost its cook time, want the unconfirmed removal left undone")
+	}
+	keepsCookTime(t, pool, id)
+}
