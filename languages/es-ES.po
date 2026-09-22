@@ -1452,8 +1452,8 @@ msgid "The field groups could not be reached."
 msgstr "No se ha podido contactar con los grupos de campos."
 
 #, fuzzy
-msgid "The field keeps every value stored under it."
-msgstr "El campo conserva todos los valores guardados en él."
+msgid "The field keeps its values on the content both groups reach."
+msgstr "El campo conserva sus valores en el contenido al que llegan ambos grupos."
 
 #, fuzzy
 msgid "The fields this group holds go with it, and so do the values every item stored in them."

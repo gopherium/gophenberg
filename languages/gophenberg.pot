@@ -1328,7 +1328,7 @@ msgstr ""
 msgid "The field groups could not be reached."
 msgstr ""
 
-msgid "The field keeps every value stored under it."
+msgid "The field keeps its values on the content both groups reach."
 msgstr ""
 
 msgid "The fields this group holds go with it, and so do the values every item stored in them."

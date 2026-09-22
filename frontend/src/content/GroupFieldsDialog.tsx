@@ -1012,7 +1012,7 @@ function CarryDialog(props: Inside & { at: string; landings: Landing[]; first: L
 						<Stack direction="column" gap="md">
 							<Text>
 								{follows
-									? __('The field keeps every value stored under it.', 'gophenberg')
+									? __('The field keeps its values on the content both groups reach.', 'gophenberg')
 									: __('The values stored under it do not follow.', 'gophenberg')}
 							</Text>
 							<SelectControl

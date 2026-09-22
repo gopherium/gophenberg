@@ -5,6 +5,7 @@ package features_test
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -160,7 +161,7 @@ func (s *memoryTypes) dropGroup(id int) (map[string][]string, bool) {
 		served := map[string][]string{}
 		for _, f := range held.Fields {
 			if s.content != nil {
-				served[f.Key] = s.servedOn(s.typesMatchedBy(held), held.ID, f.Key)
+				served[f.Key] = s.servedAlong(s.typesMatchedBy(held), held.ID, []string{f.Key})
 			}
 		}
 		s.groups = append(s.groups[:i], s.groups[i+1:]...)
@@ -460,7 +461,7 @@ func (s *memoryTypes) dropFieldInGroup(groupID int, key string) ([]string, bool)
 			if stored.Key != key {
 				continue
 			}
-			served := s.servedOn(s.typesMatchedBy(held), held.ID, key)
+			served := s.servedAlong(s.typesMatchedBy(held), held.ID, []string{key})
 			s.groups[i].Fields = append(held.Fields[:j], held.Fields[j+1:]...)
 			return served, true
 		}
@@ -468,19 +469,20 @@ func (s *memoryTypes) dropFieldInGroup(groupID int, key string) ([]string, bool)
 	return nil, false
 }
 
-// servedOn returns the type keys on which the group serves the key, or no active group does.
-func (s *memoryTypes) servedOn(typeKeys []string, groupID int, key string) []string {
+// servedAlong returns the type keys on which the group serves the path, or no other active group serves it whole.
+func (s *memoryTypes) servedAlong(typeKeys []string, groupID int, path []string) []string {
 	held := make([]string, 0, len(typeKeys))
 	for _, typeKey := range typeKeys {
-		if by := s.servingGroup(typeKey, key); by == 0 || by == groupID {
+		by, found := s.servingGroup(typeKey, path[0])
+		if !found || by.ID == groupID || !declaresAlong(by.Fields, path) {
 			held = append(held, typeKey)
 		}
 	}
 	return held
 }
 
-// servingGroup returns the identity of the active group serving the key on the type, 0 when none does.
-func (s *memoryTypes) servingGroup(typeKey, key string) int {
+// servingGroup returns the active group serving the top key on the type, if any does.
+func (s *memoryTypes) servingGroup(typeKey, key string) (content.Group, bool) {
 	screen := content.Screen{content.ScreenContentType: typeKey}
 	for _, g := range s.groups {
 		if !g.Active || !g.Location.Match(screen, memoryParams) {
@@ -488,11 +490,24 @@ func (s *memoryTypes) servingGroup(typeKey, key string) int {
 		}
 		for _, f := range g.Fields {
 			if f.Key == key {
-				return g.ID
+				return g, true
 			}
 		}
 	}
-	return 0
+	return content.Group{}, false
+}
+
+// declaresAlong reports whether a field stands at the path among the fields.
+func declaresAlong(fields []content.Field, path []string) bool {
+	if len(path) == 0 {
+		return true
+	}
+	for _, f := range fields {
+		if f.Key == path[0] {
+			return declaresAlong(f.Fields, path[1:])
+		}
+	}
+	return false
 }
 
 // typesMatchedBy returns the keys of the types the group's location reaches.
@@ -544,10 +559,12 @@ func (s *memoryTypes) MoveField(_ context.Context, id, toGroup, toParent int) (c
 	if toParent != 0 && !holdsIdentity(s.groups[landing].Fields, toParent) {
 		return content.Field{}, content.ErrFieldNotFound
 	}
-	source, carried, path, found := s.takenOut(id)
+	source, carried, path, found := s.placedIn(id)
 	if !found {
 		return content.Field{}, content.ErrFieldNotFound
 	}
+	swept := s.sweptByMove(source, s.groups[landing], carried.ParentID != toParent, path)
+	s.takenOut(id)
 	moved := storedUnder(carried, toGroup)
 	moved.ParentID = toParent
 	if toParent == 0 {
@@ -555,23 +572,38 @@ func (s *memoryTypes) MoveField(_ context.Context, id, toGroup, toParent int) (c
 	} else {
 		s.groups[landing].Fields, _ = grownInside(s.groups[landing].Fields, toParent, moved)
 	}
-	if s.content != nil && carried.ParentID != toParent {
-		s.content.sweepPath(s.typesMatchedBy(source), path)
+	if s.content != nil {
+		s.content.sweepPath(swept, path)
 	}
 	return moved, nil
 }
 
-// takenOut removes the field carrying the identity from its group, returning the group, the field and its path.
-func (s *memoryTypes) takenOut(id int) (content.Group, content.Field, []string, bool) {
-	for i, held := range s.groups {
-		carried, path, found := placedInside(held.Fields, id)
-		if !found {
-			continue
+// sweptByMove returns the types a moved field's old values leave, only those the landing misses between two tops.
+func (s *memoryTypes) sweptByMove(source, landing content.Group, containerChanged bool, path []string) []string {
+	matched := s.typesMatchedBy(source)
+	if !containerChanged {
+		matched = slices.DeleteFunc(matched, func(key string) bool {
+			return landing.Location.Match(content.Screen{content.ScreenContentType: key}, memoryParams)
+		})
+	}
+	return s.servedAlong(matched, source.ID, path)
+}
+
+// placedIn returns the group holding the field carrying the identity, the field and its path.
+func (s *memoryTypes) placedIn(id int) (content.Group, content.Field, []string, bool) {
+	for _, held := range s.groups {
+		if carried, path, found := placedInside(held.Fields, id); found {
+			return held, carried, path, true
 		}
-		s.groups[i].Fields, _ = prunedInside(held.Fields, id)
-		return held, carried, path, true
 	}
 	return content.Group{}, content.Field{}, nil, false
+}
+
+// takenOut removes the field carrying the identity from its group.
+func (s *memoryTypes) takenOut(id int) {
+	for i, held := range s.groups {
+		s.groups[i].Fields, _ = prunedInside(held.Fields, id)
+	}
 }
 
 // placedInside returns the field carrying the identity and the keys reaching it, however deep it stands.

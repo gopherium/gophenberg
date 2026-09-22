@@ -1237,8 +1237,8 @@ msgid "The field groups could not be reached."
 msgstr "Les groupes de champs n'ont pas pu être joints."
 
 #, fuzzy
-msgid "The field keeps every value stored under it."
-msgstr "Le champ conserve toutes les valeurs qui y sont enregistrées."
+msgid "The field keeps its values on the content both groups reach."
+msgstr "Le champ garde ses valeurs sur le contenu que les deux groupes atteignent."
 
 #, fuzzy
 msgid ""

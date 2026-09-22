@@ -821,7 +821,7 @@ func (m fieldMove) keyFree(ctx context.Context, queries *db.Queries) error {
 	return keyFreeInGroup(ctx, queries, m.toGroup, m.leaving.Key, leaving)
 }
 
-// write reparents the field, recounts the depth below it and sweeps what its old path held.
+// write reparents the field, recounts the depth below it and sweeps what its old path held where nothing serves it.
 func (m fieldMove) write(ctx context.Context, queries *db.Queries) (content.Field, error) {
 	row, err := queries.ReparentContentField(ctx, db.ReparentContentFieldParams{
 		ID: int32(m.id), ToGroup: int32(m.toGroup), ToParent: parentColumn(m.toParent),
@@ -835,17 +835,28 @@ func (m fieldMove) write(ctx context.Context, queries *db.Queries) (content.Fiel
 	}); err != nil {
 		return content.Field{}, err
 	}
-	if m.leaving.ParentID == m.toParent {
-		return toField(row), nil
-	}
-	return toField(row), m.sweep(ctx, queries)
-}
-
-// sweep takes what the field held at its old path out of every item and revision, its relation rows included.
-func (m fieldMove) sweep(ctx context.Context, queries *db.Queries) error {
 	matched, err := typesMatchedBy(ctx, queries, m.source)
 	if err != nil {
-		return err
+		return content.Field{}, err
+	}
+	if m.leaving.ParentID == m.toParent {
+		matched = m.behind(matched)
+	}
+	return toField(row), m.sweep(ctx, queries, matched)
+}
+
+// behind returns the matched types the landing group does not reach.
+func (m fieldMove) behind(matched []string) []string {
+	landing, _ := groupByID(m.groups, m.toGroup)
+	return slices.DeleteFunc(matched, func(key string) bool {
+		return landing.Location.Match(screenOf(key), locationParams)
+	})
+}
+
+// sweep takes what the field held at its old path out of the matched types, their relation rows included.
+func (m fieldMove) sweep(ctx context.Context, queries *db.Queries, matched []string) error {
+	if len(matched) == 0 {
+		return nil
 	}
 	swept := servedOn(m.groups, matched, m.source.ID, m.path)
 	if err := sweepField(ctx, queries, m.leaving, m.path, swept); err != nil {

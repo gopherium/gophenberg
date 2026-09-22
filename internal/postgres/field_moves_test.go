@@ -325,6 +325,174 @@ func TestMovingAFieldBetweenGroupTopsKeepsItsValues(t *testing.T) {
 	}
 }
 
+// groupOn stores an active group placed on the type and returns it.
+func groupOn(t *testing.T, store *postgres.TypeStore, title, typeKey string) content.Group {
+	t.Helper()
+	held, err := store.CreateGroup(t.Context(), content.Group{Title: title, Location: locationOf(typeKey)})
+	if err != nil {
+		t.Fatalf("CreateGroup(%s) error = %v, want nil", title, err)
+	}
+	return held
+}
+
+// titleIn stores a text field keyed title at the top of the group and returns it.
+func titleIn(t *testing.T, store *postgres.TypeStore, groupID int) content.Field {
+	t.Helper()
+	held, err := store.CreateFieldInGroup(t.Context(), groupID, fieldOn(t, "", "title", content.FieldKindText, ""))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
+	}
+	return held
+}
+
+func TestMovingAFieldBetweenTopsKeepsTheValuesOnContentBothGroupsReach(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	title := titleIn(t, store, groupOn(t, store, "Car extras", "car").ID)
+	notes := groupOn(t, store, "Car notes", "car")
+	plantTyped(t, pool, author, "car", "one", `{"title": "kept words"}`)
+
+	if _, err := store.MoveField(t.Context(), title.ID, notes.ID, 0); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{"title": "kept words"}` {
+		t.Errorf("stored values = %s, want the title kept on the content both groups reach", held)
+	}
+	if held := revisionValuesHeld(t, pool); held != `{"title": "kept words"}` {
+		t.Errorf("revision values = %s, want the title kept on the content both groups reach", held)
+	}
+}
+
+func TestMovingAFieldBetweenTopsSweepsTheValuesOnContentTheNewGroupMisses(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	storeType(t, store, "book")
+	title := titleIn(t, store, groupOn(t, store, "Car extras", "car").ID)
+	books := groupOn(t, store, "Book extras", "book")
+	plantTyped(t, pool, author, "car", "one", `{"title": "old words"}`)
+
+	if _, err := store.MoveField(t.Context(), title.ID, books.ID, 0); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{}` {
+		t.Errorf("stored values = %s, want the title swept from the content the book group misses", held)
+	}
+	if held := revisionValuesHeld(t, pool); held != `{}` {
+		t.Errorf("revision values = %s, want the title swept from the content the book group misses", held)
+	}
+	standsUnder(t, pool, title.ID, books.ID, 0, 0)
+}
+
+func TestMovingAFieldBetweenTopsSparesTheValueAnotherGroupServesWhereItLeaves(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	titleIn(t, store, groupOn(t, store, "Car facts", "car").ID)
+	title := titleIn(t, store, groupOn(t, store, "Car extras", "car").ID)
+	storeType(t, store, "car")
+	storeType(t, store, "book")
+	books := groupOn(t, store, "Book extras", "book")
+	plantTyped(t, pool, author, "car", "one", `{"title": "served words"}`)
+
+	if _, err := store.MoveField(t.Context(), title.ID, books.ID, 0); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{"title": "served words"}` {
+		t.Errorf("stored values = %s, want the title kept where the car facts group still serves it", held)
+	}
+}
+
+func TestMovingAFieldIntoARestingGroupOnTheSameContentKeepsItsValuesForTheWake(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	title := titleIn(t, store, groupOn(t, store, "Car extras", "car").ID)
+	groupOn(t, store, "Car notes", "car")
+	notes := rested(t, store, "Car notes")
+	plantTyped(t, pool, author, "car", "one", `{"title": "kept words"}`)
+
+	if _, err := store.MoveField(t.Context(), title.ID, notes.ID, 0); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesHeld(t, pool); held != `{"title": "kept words"}` {
+		t.Errorf("stored values = %s, want the title kept for the resting group to serve once woken", held)
+	}
+	if held := revisionValuesHeld(t, pool); held != `{"title": "kept words"}` {
+		t.Errorf("revision values = %s, want the title kept for the resting group to serve once woken", held)
+	}
+}
+
+func TestMovingAShadowedRelationOffContentDropsOnlyItsOwnIndexRows(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "book")
+	maker := fieldOn(t, "", "maker", content.FieldKindRelation, "book")
+	serving, err := store.CreateFieldInGroup(t.Context(), groupOn(t, store, "Car facts", "car").ID, maker)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(facts maker) error = %v, want nil", err)
+	}
+	shadowed, err := store.CreateFieldInGroup(t.Context(), groupOn(t, store, "Car extras", "car").ID, maker)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(extras maker) error = %v, want nil", err)
+	}
+	storeType(t, store, "car")
+	books := groupOn(t, store, "Book extras", "book")
+	plantTyped(t, pool, author, "car", "pointing", `{"maker": ["00000000-0000-0000-0000-000000000000"]}`)
+	plantTyped(t, pool, author, "book", "pointed", `{}`)
+	for _, id := range []int{serving.ID, shadowed.ID} {
+		plantRelation(t, pool, plantedID(t, pool, "pointing"), plantedID(t, pool, "pointed"), id)
+	}
+
+	if _, err := store.MoveField(t.Context(), shadowed.ID, books.ID, 0); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := valuesSlugged(t, pool, "pointing"); !strings.Contains(held, "maker") {
+		t.Errorf("stored values = %s, want the relation kept where the car facts group serves it", held)
+	}
+	if held := relationRowsOf(t, pool, serving.ID); held != 1 {
+		t.Errorf("the serving relation indexes %d rows, want its own row kept", held)
+	}
+	if held := relationRowsOf(t, pool, shadowed.ID); held != 0 {
+		t.Errorf("the moved relation indexes %d rows on content it left, want none", held)
+	}
+}
+
+func TestMovingARelationBetweenTopsSweepsItsIndexRowsWhereTheNewGroupMisses(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := typedStore(t)
+	storeType(t, store, "car")
+	storeType(t, store, "book")
+	cars := groupOn(t, store, "Car extras", "car")
+	maker, err := store.CreateFieldInGroup(t.Context(), cars.ID, fieldOn(t, "", "maker", content.FieldKindRelation, "car"))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(maker) error = %v, want nil", err)
+	}
+	books := groupOn(t, store, "Book extras", "book")
+	plantTyped(t, pool, author, "car", "one", `{"maker": ["00000000-0000-0000-0000-000000000000"]}`)
+	plantTyped(t, pool, author, "car", "two", `{}`)
+	plantRelation(t, pool, plantedID(t, pool, "one"), plantedID(t, pool, "two"), maker.ID)
+
+	if _, err := store.MoveField(t.Context(), maker.ID, books.ID, 0); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if held := relationRowsOf(t, pool, maker.ID); held != 0 {
+		t.Errorf("%d relation rows survive the move, want the index swept where the book group misses", held)
+	}
+}
+
 func TestMovingARelationSweepsItsIndexRows(t *testing.T) {
 	t.Parallel()
 
