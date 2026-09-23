@@ -42,7 +42,7 @@ func TestContentStoreFreezesTheValuesOfAGroupThatStoppedMatching(t *testing.T) {
 	}
 	resting := groups[0]
 	resting.Active = false
-	if _, err := types.UpdateGroup(t.Context(), resting); err != nil {
+	if _, err := types.UpdateGroup(t.Context(), resting, nil); err != nil {
 		t.Fatalf("resting the group: %v, want nil", err)
 	}
 
