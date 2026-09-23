@@ -55,7 +55,7 @@ volumes:
   media:
 ```
 
-Three values to change:
+Four values to change:
 
 - **The password**, in both places it appears. Keep the
   `POSTGRES_PASSWORD` value in single quotes, so a password such as
