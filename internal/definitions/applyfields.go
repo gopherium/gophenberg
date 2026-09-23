@@ -173,6 +173,7 @@ func (r *run) oneField(
 	ctx context.Context, groupID int, group, key string, parentID int, d FieldDefinition,
 ) (int, error) {
 	if r.declined[Confirmed{Subject: SubjectField, Key: key, Group: group}] {
+		r.leftAlong(group, key)
 		return 0, nil
 	}
 	planned := r.plannedFor(SubjectField, group, key)
@@ -214,8 +215,7 @@ func (r *run) replaceField(
 	ctx context.Context, groupID int, parentID int, d FieldDefinition, planned []Change,
 ) (int, error) {
 	if !r.allows(planned[0]) {
-		r.left(planned[0])
-		r.left(planned[1])
+		r.leftAlong(planned[0].Group, planned[0].Key)
 		return 0, nil
 	}
 	if err := r.removeField(ctx, planned[0]); err != nil {
@@ -223,6 +223,15 @@ func (r *run) replaceField(
 	}
 	r.did(planned[0])
 	return r.createField(ctx, groupID, parentID, d, planned[1])
+}
+
+// leftAlong records every change the plan holds for the field and the fields inside it as left undone.
+func (r *run) leftAlong(group, key string) {
+	for _, c := range r.plan.Changes {
+		if c.Subject == SubjectField && c.Group == group && (c.Key == key || strings.HasPrefix(c.Key, key+".")) {
+			r.left(c)
+		}
+	}
 }
 
 // createField stores one field the file brings, inside its container when it stands in one.
@@ -346,7 +355,9 @@ func (r *run) orders(ctx context.Context) error {
 func (r *run) orderGroups(ctx context.Context) error {
 	wanted := make([]int, 0, len(r.stored))
 	for _, declared := range r.envelope.Groups {
-		wanted = append(wanted, r.groupKeyed(declared.Key).ID)
+		if held, found := groupAmongStored(r.stored, declared.Key); found {
+			wanted = append(wanted, held.ID)
+		}
 	}
 	held := make([]int, 0, len(r.stored))
 	for _, g := range r.stored {

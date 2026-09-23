@@ -5,6 +5,7 @@ package definitions
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
@@ -217,11 +218,22 @@ func (r *run) groups(ctx context.Context) error {
 		if len(planned) == 0 || planned[0].Action == ActionDelete {
 			continue
 		}
+		if planned[0].Action == ActionCreate && r.heldBackWhole(declared) {
+			r.left(planned[0])
+			continue
+		}
 		if err := r.oneGroup(ctx, declared, planned[0]); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// heldBackWhole reports whether the file declares the group only for fields the import holds back.
+func (r *run) heldBackWhole(declared GroupDefinition) bool {
+	return len(declared.Fields) > 0 && !slices.ContainsFunc(declared.Fields, func(d FieldDefinition) bool {
+		return !r.declined[Confirmed{Subject: SubjectField, Key: d.Key, Group: declared.Key}]
+	})
 }
 
 // oneGroup stores or carries one group, resting it when the file says it rests.
