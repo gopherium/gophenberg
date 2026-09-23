@@ -322,6 +322,12 @@ that relation points at. Categories work this way. The relation
 sits on Posts and points at Categories, so the Linked from field
 sits on Categories.
 
+**Rules** on that group also lists its Linked from fields, each with
+its own **Reads from** and **Through**. To move the group onto other
+content, change the rules and point each Linked from field at a
+relation on that content in the same save. Both changes are checked
+together, and when either one does not fit, nothing is saved.
+
 The list shows the newest published items, as many as the site's
 **Posts per page** setting allows, and says how many point in all
 when more do than it shows. Nothing in the editor asks for the ones
@@ -337,7 +343,8 @@ field.
 Removing the relation a Linked from field reads is refused, wherever
 it stands, and so is moving it to another group. Deleting the group
 holding it is refused too, unless the Linked from field goes with
-it. Change the Linked from field first.
+it. Point the Linked from field at another relation first, from
+**Rules** on its group.
 
 ## Deleting a field
 
