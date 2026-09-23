@@ -1640,6 +1640,9 @@ msgstr ""
 msgid "Welcome to Gophenberg."
 msgstr ""
 
+msgid "What each Linked from field reads"
+msgstr ""
+
 msgid "What it points at changed, so its stored values go with it."
 msgstr ""
 
