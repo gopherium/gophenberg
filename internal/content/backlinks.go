@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"time"
 )
 
 // ErrBacklinksSource reports that a backlinks field names no relation it can read.
@@ -28,6 +29,12 @@ func (s Source) into(settings map[string]any) map[string]any {
 	}
 	held[SettingSourceGroup], held[SettingSourceField] = s.Group, path
 	return held
+}
+
+// Repoint names the relation a backlinks field is to read, with the stamp the field carried when the caller read it.
+type Repoint struct {
+	Source
+	UpdatedAt time.Time
 }
 
 // SourceGroupOf returns the group key a backlinks field names its source in.

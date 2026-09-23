@@ -41,13 +41,13 @@ func (r *Registry) UpdateGroupSettled(ctx context.Context, g Group, readers Sett
 }
 
 // UpdateGroupRepointed stores the group's title, location and active flag with its backlinks reading the sources named.
-func (r *Registry) UpdateGroupRepointed(ctx context.Context, g Group, sources map[string]Source) (Group, error) {
+func (r *Registry) UpdateGroupRepointed(ctx context.Context, g Group, sources map[string]Repoint) (Group, error) {
 	return r.updateGroup(ctx, g, nil, sources)
 }
 
 // updateGroup stores the group and the backlinks it points anew once every field stands as the edit leaves it.
 func (r *Registry) updateGroup(
-	ctx context.Context, g Group, readers Settled, sources map[string]Source,
+	ctx context.Context, g Group, readers Settled, sources map[string]Repoint,
 ) (Group, error) {
 	settled, err := r.settledGroup(ctx, g)
 	if err != nil {
@@ -81,7 +81,7 @@ func (r *Registry) updateGroup(
 }
 
 // repointedAmong returns the named fields carrying their new sources, or the reason one cannot take its source.
-func repointedAmong(ctx context.Context, fields []Field, sources map[string]Source) ([]Field, error) {
+func repointedAmong(ctx context.Context, fields []Field, sources map[string]Repoint) ([]Field, error) {
 	repointed := make([]Field, 0, len(sources))
 	for _, key := range slices.Sorted(maps.Keys(sources)) {
 		held, err := fieldAmong(fields, key)
@@ -90,6 +90,9 @@ func repointedAmong(ctx context.Context, fields []Field, sources map[string]Sour
 		}
 		if err := pluginKeepsField(ctx, held); err != nil {
 			return nil, err
+		}
+		if !sources[key].UpdatedAt.Equal(held.UpdatedAt) {
+			return nil, ErrConflict
 		}
 		held.Settings = sources[key].into(held.Settings)
 		if err := held.Validate(); err != nil {

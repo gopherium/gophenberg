@@ -105,8 +105,8 @@ func TestRegistryRefusesToChangeAFieldAPluginDeclared(t *testing.T) {
 		"add a sub field": firstErr(registry.CreateSubField(t.Context(), venue.ID, inner)),
 		"edit deep":       firstErr(registry.UpdateSubField(t.Context(), venue.ID, venue, time.Time{})),
 		"delete deep":     registry.DeleteSubField(t.Context(), venue.ID),
-		"point anew": firstErr(registry.UpdateGroupRepointed(t.Context(), group, map[string]content.Source{
-			"venue": {Group: "cars", Field: []string{"maker"}},
+		"point anew": firstErr(registry.UpdateGroupRepointed(t.Context(), group, map[string]content.Repoint{
+			"venue": {Source: content.Source{Group: "cars", Field: []string{"maker"}}},
 		})),
 	} {
 		if !errors.Is(err, content.ErrDefinitionReadOnly) {

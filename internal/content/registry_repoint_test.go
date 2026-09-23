@@ -6,6 +6,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
@@ -20,9 +21,15 @@ func twinOnCars(t *testing.T, registry *content.Registry, cars content.Group) {
 	}
 }
 
-// readingOnCars returns the source naming one relation of the cars group for the field the key names.
-func readingOnCars(key, relation string) map[string]content.Source {
-	return map[string]content.Source{key: {Group: "cars", Field: []string{relation}}}
+// readingOnCars returns the source naming one relation of the cars group, stamped as the group's field stands now.
+func readingOnCars(
+	t *testing.T, registry *content.Registry, groupID int, key, relation string,
+) map[string]content.Repoint {
+	t.Helper()
+	return map[string]content.Repoint{key: {
+		Source:    content.Source{Group: "cars", Field: []string{relation}},
+		UpdatedAt: topFieldIn(t, registry, groupID, key).UpdatedAt,
+	}}
 }
 
 // locationOf returns the stored location of the group carrying the identity.
@@ -49,7 +56,9 @@ func TestRegistryMovesAGroupWithItsBacklinksPointedAnew(t *testing.T) {
 	twinOnCars(t, registry, cars)
 	makers.Location = namingType("car")
 
-	if _, err := registry.UpdateGroupRepointed(t.Context(), makers, readingOnCars("linked-from", "twin")); err != nil {
+	if _, err := registry.UpdateGroupRepointed(
+		t.Context(), makers, readingOnCars(t, registry, makers.ID, "linked-from", "twin"),
+	); err != nil {
 		t.Fatalf("UpdateGroupRepointed() error = %v, want the move taken with its backlinks", err)
 	}
 
@@ -68,10 +77,37 @@ func TestRegistryWritesNothingWhenABacklinksIsPointedAtNothing(t *testing.T) {
 	_, makers := readableSource(t, registry)
 	makers.Location = namingType("car")
 
-	_, err := registry.UpdateGroupRepointed(t.Context(), makers, readingOnCars("linked-from", "nothing"))
+	_, err := registry.UpdateGroupRepointed(
+		t.Context(), makers, readingOnCars(t, registry, makers.ID, "linked-from", "nothing"),
+	)
 
 	if codeOf(err) != "backlinks_source_unknown" {
 		t.Errorf("UpdateGroupRepointed() error = %v, want backlinks_source_unknown", err)
+	}
+	if path := content.SourceFieldOf(backlinksIn(t, registry, makers.ID)); !slices.Equal(path, []string{"maker"}) {
+		t.Errorf("SourceFieldOf() = %v, want the backlinks still reading the maker", path)
+	}
+	if !locationOf(t, registry, makers.ID).Equal(namingPost()) {
+		t.Errorf("location = %v, want the group still on posts", locationOf(t, registry, makers.ID))
+	}
+}
+
+func TestRegistryRefusesToPointAFieldChangedSinceItWasRead(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	cars, makers := readableSource(t, registry)
+	twinOnCars(t, registry, cars)
+	makers.Location = namingType("car")
+	asked := readingOnCars(t, registry, makers.ID, "linked-from", "twin")
+	stale := asked["linked-from"]
+	stale.UpdatedAt = stale.UpdatedAt.Add(-time.Minute)
+	asked["linked-from"] = stale
+
+	_, err := registry.UpdateGroupRepointed(t.Context(), makers, asked)
+
+	if !errors.Is(err, content.ErrConflict) {
+		t.Errorf("UpdateGroupRepointed() error = %v, want %v", err, content.ErrConflict)
 	}
 	if path := content.SourceFieldOf(backlinksIn(t, registry, makers.ID)); !slices.Equal(path, []string{"maker"}) {
 		t.Errorf("SourceFieldOf() = %v, want the backlinks still reading the maker", path)
@@ -87,7 +123,9 @@ func TestRegistryRefusesToPointAFieldTheGroupLacks(t *testing.T) {
 	registry := content.NewRegistry(newGroupingStore())
 	_, makers := readableSource(t, registry)
 
-	_, err := registry.UpdateGroupRepointed(t.Context(), makers, readingOnCars("ghost", "maker"))
+	_, err := registry.UpdateGroupRepointed(t.Context(), makers, map[string]content.Repoint{
+		"ghost": {Source: content.Source{Group: "cars", Field: []string{"maker"}}},
+	})
 
 	if !errors.Is(err, content.ErrFieldNotFound) {
 		t.Errorf("UpdateGroupRepointed() error = %v, want %v", err, content.ErrFieldNotFound)
@@ -105,7 +143,9 @@ func TestRegistryRefusesToPointAFieldThatReadsNoRelation(t *testing.T) {
 		t.Fatalf("CreateFieldInGroup(note) error = %v, want nil", err)
 	}
 
-	_, err := registry.UpdateGroupRepointed(t.Context(), makers, readingOnCars("note", "maker"))
+	_, err := registry.UpdateGroupRepointed(
+		t.Context(), makers, readingOnCars(t, registry, makers.ID, "note", "maker"),
+	)
 
 	if codeOf(err) != "setting_unknown" {
 		t.Errorf("UpdateGroupRepointed() error = %v, want setting_unknown", err)
@@ -128,7 +168,9 @@ func TestRegistryKeepsTheSettingsABacklinksCarriesBesideItsSource(t *testing.T) 
 	}
 	makers.Location = namingType("car")
 
-	if _, err := registry.UpdateGroupRepointed(t.Context(), makers, readingOnCars("linked-from", "twin")); err != nil {
+	if _, err := registry.UpdateGroupRepointed(
+		t.Context(), makers, readingOnCars(t, registry, makers.ID, "linked-from", "twin"),
+	); err != nil {
 		t.Fatalf("UpdateGroupRepointed() error = %v, want nil", err)
 	}
 
