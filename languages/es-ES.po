@@ -2107,3 +2107,7 @@ msgstr "Esta petición vino de una página de otro sitio, así que se rechazó. 
 #, fuzzy
 msgid "What each Linked from field reads"
 msgstr "Qué lee cada campo Enlazado desde"
+
+#, fuzzy
+msgid "It reads a relation inside a container, and only an import can point it elsewhere."
+msgstr "Lee una relación dentro de un contenedor, y solo una importación puede apuntarlo a otro sitio."
