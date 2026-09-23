@@ -93,8 +93,10 @@ build compiles your plugin in. There is no list to edit by hand.
   match, never a prefix. This is how the feed serves
   `/api/plugins/feed/rss.xml` publicly. A write a browser sends
   from a page on another site is refused before it reaches you,
-  with the code `request_cross_origin`. A read never is, so a
-  public path must not change anything on a GET.
+  with the code `request_cross_origin`. When the site names its
+  public address, so is any write sent to another address, a
+  webhook included. A read never is, so a public path must not
+  change anything on a GET.
 - **Migrations**: implement `Migrate(ctx) error` and it runs
   before anything starts. Keep your tables and your migration
   record in a schema of your own.
