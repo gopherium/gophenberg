@@ -61,7 +61,7 @@ func (unreadableTypeStore) CreateGroup(context.Context, Group) (Group, error) {
 }
 
 // UpdateGroup reports the failure rather than storing the group.
-func (unreadableTypeStore) UpdateGroup(context.Context, Group) (Group, error) {
+func (unreadableTypeStore) UpdateGroup(context.Context, Group, []Field) (Group, error) {
 	return Group{}, errTypeStoreDown
 }
 

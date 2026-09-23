@@ -5,6 +5,7 @@ package content_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -154,8 +155,10 @@ func (s *groupingStore) CreateGroup(_ context.Context, g content.Group) (content
 	return g, nil
 }
 
-// UpdateGroup stores the group's title, location and active flag.
-func (s *groupingStore) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
+// UpdateGroup stores the group's title, location and active flag with the fields it points anew.
+func (s *groupingStore) UpdateGroup(
+	_ context.Context, g content.Group, repointed []content.Field,
+) (content.Group, error) {
 	if s.updateErr != nil {
 		return content.Group{}, s.updateErr
 	}
@@ -164,6 +167,12 @@ func (s *groupingStore) UpdateGroup(_ context.Context, g content.Group) (content
 			continue
 		}
 		held.Title, held.Location, held.Active = g.Title, g.Location, g.Active
+		for _, f := range repointed {
+			at := slices.IndexFunc(held.Fields, func(stored content.Field) bool { return stored.Key == f.Key })
+			if at >= 0 {
+				held.Fields[at] = f
+			}
+		}
 		s.groups[i] = held
 		return held, nil
 	}

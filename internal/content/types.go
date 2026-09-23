@@ -107,7 +107,7 @@ type TypeStore interface {
 	Nested(ctx context.Context, key string) (int, error)
 	ListGroups(ctx context.Context) ([]Group, error)
 	CreateGroup(ctx context.Context, g Group) (Group, error)
-	UpdateGroup(ctx context.Context, g Group) (Group, error)
+	UpdateGroup(ctx context.Context, g Group, repointed []Field) (Group, error)
 	DeleteGroup(ctx context.Context, id int) error
 	DeleteFieldsOfGroup(ctx context.Context, groupID int, keys []string) error
 	ReorderGroups(ctx context.Context, ids []int) error

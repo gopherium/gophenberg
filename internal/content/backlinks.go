@@ -5,11 +5,30 @@ package content
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 )
 
 // ErrBacklinksSource reports that a backlinks field names no relation it can read.
 var ErrBacklinksSource = errors.New("content: backlinks source unusable")
+
+// Source names the relation a backlinks field reads, by the group holding it and the key segments reaching it.
+type Source struct {
+	Group string   `json:"source_group"`
+	Field []string `json:"source_field"`
+}
+
+// into returns the settings with the source written over the one they named.
+func (s Source) into(settings map[string]any) map[string]any {
+	held := make(map[string]any, len(settings)+2)
+	maps.Copy(held, settings)
+	path := make([]any, len(s.Field))
+	for i, segment := range s.Field {
+		path[i] = segment
+	}
+	held[SettingSourceGroup], held[SettingSourceField] = s.Group, path
+	return held
+}
 
 // SourceGroupOf returns the group key a backlinks field names its source in.
 func SourceGroupOf(f Field) string {

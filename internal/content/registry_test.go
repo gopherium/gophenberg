@@ -64,7 +64,7 @@ func (s *fakeTypeStore) CreateGroup(_ context.Context, g content.Group) (content
 }
 
 // UpdateGroup stores no group.
-func (s *fakeTypeStore) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
+func (s *fakeTypeStore) UpdateGroup(_ context.Context, g content.Group, _ []content.Field) (content.Group, error) {
 	return g, nil
 }
 
