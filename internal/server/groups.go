@@ -149,12 +149,13 @@ func (s *server) handleGroupCreate() http.HandlerFunc {
 	}
 }
 
-// handleGroupPatch returns an http.HandlerFunc carrying a group's title, location and resting flag.
+// handleGroupPatch returns an http.HandlerFunc carrying a group's title, location, resting flag and backlinks sources.
 func (s *server) handleGroupPatch() http.HandlerFunc {
 	type request struct {
-		Title    *string        `json:"title"`
-		Location *content.Rules `json:"location"`
-		Active   *bool          `json:"active"`
+		Title     *string                   `json:"title"`
+		Location  *content.Rules            `json:"location"`
+		Active    *bool                     `json:"active"`
+		Backlinks map[string]content.Source `json:"backlinks"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		stored, err := s.storedGroup(r)
@@ -176,7 +177,7 @@ func (s *server) handleGroupPatch() http.HandlerFunc {
 		if req.Active != nil {
 			stored.Active = *req.Active
 		}
-		updated, err := s.types.UpdateGroup(r.Context(), stored)
+		updated, err := s.types.UpdateGroupRepointed(r.Context(), stored, req.Backlinks)
 		if err != nil {
 			respondDomainError(w, err)
 			return
