@@ -16,8 +16,9 @@ type sourcedGroups struct {
 		ID     int    `json:"id"`
 		Key    string `json:"key"`
 		Fields []struct {
-			Key      string         `json:"key"`
-			Settings map[string]any `json:"settings"`
+			Key       string         `json:"key"`
+			UpdatedAt string         `json:"updated_at"`
+			Settings  map[string]any `json:"settings"`
 		} `json:"fields"`
 	} `json:"items"`
 }
@@ -29,10 +30,10 @@ func categoryLocation() []any {
 	}}}
 }
 
-// readingRelation returns the backlinks body pointing linked-from at one relation of the group the key names.
-func readingRelation(group, relation string) map[string]any {
+// readingRelation returns the backlinks body pointing linked-from at one relation, stamped as the editor read it.
+func readingRelation(group, relation, stamp string) map[string]any {
 	return map[string]any{"linked-from": map[string]any{
-		"source_group": group, "source_field": []any{relation},
+		"source_group": group, "source_field": []any{relation}, "updated_at": stamp,
 	}}
 }
 
@@ -50,20 +51,20 @@ func postGroupOf(t *testing.T, handler http.Handler) (int, string) {
 	return 0, ""
 }
 
-// sourceOf returns the key segments the group's linked-from reads, as the listing answers them.
-func sourceOf(t *testing.T, handler http.Handler, groupID int) []any {
+// linkedFromOf returns the key segments the group's linked-from reads and the stamp it carries, as listed.
+func linkedFromOf(t *testing.T, handler http.Handler, groupID int) ([]any, string) {
 	t.Helper()
 	listed := decodeBody[sourcedGroups](t, doRequest(t, handler, http.MethodGet, "/api/groups", ""))
 	for _, held := range listed.Items {
 		for _, f := range held.Fields {
 			if held.ID == groupID && f.Key == "linked-from" {
 				path, _ := f.Settings[content.SettingSourceField].([]any)
-				return path
+				return path, f.UpdatedAt
 			}
 		}
 	}
 	t.Fatalf("the group %d holds no linked-from", groupID)
-	return nil
+	return nil, ""
 }
 
 func TestGroupPatchPointsItsBacklinksAnewAsItMoves(t *testing.T) {
@@ -71,15 +72,16 @@ func TestGroupPatchPointsItsBacklinksAnewAsItMoves(t *testing.T) {
 
 	handler, _, _ := pointedAtPostWithStores(t)
 	id, key := postGroupOf(t, handler)
+	_, stamp := linkedFromOf(t, handler, id)
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{
-		"location": categoryLocation(), "backlinks": readingRelation(key, "categories"),
+		"location": categoryLocation(), "backlinks": readingRelation(key, "categories", stamp),
 	}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
-	if path := sourceOf(t, handler, id); !slices.Equal(path, []any{"categories"}) {
+	if path, _ := linkedFromOf(t, handler, id); !slices.Equal(path, []any{"categories"}) {
 		t.Errorf("source = %v, want linked-from reading the categories relation", path)
 	}
 }
@@ -89,15 +91,54 @@ func TestGroupPatchRefusesABacklinksPointedAtNothing(t *testing.T) {
 
 	handler, _, _ := pointedAtPostWithStores(t)
 	id, key := postGroupOf(t, handler)
+	_, stamp := linkedFromOf(t, handler, id)
 
 	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{
-		"location": categoryLocation(), "backlinks": readingRelation(key, "nothing"),
+		"location": categoryLocation(), "backlinks": readingRelation(key, "nothing", stamp),
 	}))
 
 	if code := errorCode(t, recorder); code != "backlinks_source_unknown" {
 		t.Errorf("code = %q, want backlinks_source_unknown, body %s", code, recorder.Body.String())
 	}
-	if path := sourceOf(t, handler, id); !slices.Equal(path, []any{"picks"}) {
+	if path, _ := linkedFromOf(t, handler, id); !slices.Equal(path, []any{"picks"}) {
+		t.Errorf("source = %v, want linked-from still reading the picks", path)
+	}
+}
+
+func TestGroupPatchRefusesABacklinksWithoutTheStampItsEditorRead(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _ := pointedAtPostWithStores(t)
+	id, key := postGroupOf(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{
+		"backlinks": map[string]any{"linked-from": map[string]any{
+			"source_group": key, "source_field": []any{"categories"},
+		}},
+	}))
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if code := errorCode(t, recorder); code != "body_field_required" {
+		t.Errorf("code = %q, want body_field_required", code)
+	}
+}
+
+func TestGroupPatchRefusesABacklinksChangedSinceItsEditorRead(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _ := pointedAtPostWithStores(t)
+	id, key := postGroupOf(t, handler)
+
+	recorder := doRequest(t, handler, http.MethodPatch, groupPath(id), groupBody(t, map[string]any{
+		"location": categoryLocation(), "backlinks": readingRelation(key, "categories", "2026-01-01T00:00:00Z"),
+	}))
+
+	if code := errorCode(t, recorder); code != "content_stale_update" {
+		t.Errorf("code = %q, want content_stale_update, body %s", code, recorder.Body.String())
+	}
+	if path, _ := linkedFromOf(t, handler, id); !slices.Equal(path, []any{"picks"}) {
 		t.Errorf("source = %v, want linked-from still reading the picks", path)
 	}
 }

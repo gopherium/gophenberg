@@ -149,13 +149,31 @@ func (s *server) handleGroupCreate() http.HandlerFunc {
 	}
 }
 
+// backlinksPatch is a backlinks field pointed anew as the admin API reads it, with the stamp its editor read.
+type backlinksPatch struct {
+	content.Source
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+// repointsOf returns the sources the request points backlinks at, and whether one lacks the stamp its editor read.
+func repointsOf(asked map[string]backlinksPatch) (map[string]content.Repoint, bool) {
+	repoints := make(map[string]content.Repoint, len(asked))
+	for key, held := range asked {
+		if held.UpdatedAt == nil {
+			return nil, true
+		}
+		repoints[key] = content.Repoint{Source: held.Source, UpdatedAt: *held.UpdatedAt}
+	}
+	return repoints, false
+}
+
 // handleGroupPatch returns an http.HandlerFunc carrying a group's title, location, resting flag and backlinks sources.
 func (s *server) handleGroupPatch() http.HandlerFunc {
 	type request struct {
 		Title     *string                   `json:"title"`
 		Location  *content.Rules            `json:"location"`
 		Active    *bool                     `json:"active"`
-		Backlinks map[string]content.Source `json:"backlinks"`
+		Backlinks map[string]backlinksPatch `json:"backlinks"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		stored, err := s.storedGroup(r)
@@ -177,7 +195,14 @@ func (s *server) handleGroupPatch() http.HandlerFunc {
 		if req.Active != nil {
 			stored.Active = *req.Active
 		}
-		updated, err := s.types.UpdateGroupRepointed(r.Context(), stored, req.Backlinks)
+		repoints, stampless := repointsOf(req.Backlinks)
+		if stampless {
+			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
+				Message: "missing updated_at", Code: "body_field_required", Meta: map[string]any{"field": "updated_at"},
+			})
+			return
+		}
+		updated, err := s.types.UpdateGroupRepointed(r.Context(), stored, repoints)
 		if err != nil {
 			respondDomainError(w, err)
 			return
