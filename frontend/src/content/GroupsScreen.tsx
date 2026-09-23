@@ -416,7 +416,14 @@ function GroupRow(
 							onDone={props.onDone}
 						/>
 					)}
-					{!declared && <RulesDialog held={held} groups={props.groups} onDone={props.onDone} />}
+					{!declared && (
+						<RulesDialog
+							held={held}
+							groups={props.groups}
+							onDone={props.onDone}
+							onRefused={props.onRefused}
+						/>
+					)}
 					<Button variant="outline" onClick={() => edit.mutate({ active: !held.active })}>
 						{held.active ? __('Deactivate', 'gophenberg') : __('Activate', 'gophenberg')}
 					</Button>

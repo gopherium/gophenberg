@@ -130,10 +130,15 @@ function pointedAnew(
 
 /**
  * Renders the control editing where a group appears.
- * @param props - The group, the groups a relation may stand in, and the reporter.
+ * @param props - The group, the groups a relation may stand in, and the reporters.
  * @returns The control and its dialog.
  */
-export function RulesDialog(props: { held: FieldGroup; groups: FieldGroup[]; onDone: (said: string) => void }) {
+export function RulesDialog(props: {
+	held: FieldGroup
+	groups: FieldGroup[]
+	onDone: (said: string) => void
+	onRefused: (cause: unknown) => void
+}) {
 	const [open, setOpen] = useState(false)
 	const [notice, setNotice] = useState('')
 	const [draft, setDraft] = useState<Location>(props.held.location)
@@ -150,11 +155,13 @@ export function RulesDialog(props: { held: FieldGroup; groups: FieldGroup[]; onD
 			}))
 		},
 		onError: async (cause) => {
-			setNotice(groupErrorMessage(cause))
-			if (cause instanceof StaleWriteError) {
-				setPicked({})
-				await client.invalidateQueries({ queryKey: groupsQueryKey })
+			if (!(cause instanceof StaleWriteError)) {
+				setNotice(groupErrorMessage(cause))
+				return
 			}
+			setOpen(false)
+			props.onRefused(cause)
+			await client.invalidateQueries({ queryKey: groupsQueryKey })
 		},
 	})
 

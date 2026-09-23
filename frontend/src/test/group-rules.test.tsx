@@ -699,13 +699,14 @@ test('shows a Linked from reading inside a container without pickers and leaves 
 	)
 })
 
-test('drops the Linked from picks and reads the groups afresh when someone saved first', async () => {
+test('closes on a save someone else beat and reopens on the rules and sources they stored', async () => {
 	let listed = [READING, CARS, VANS]
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: listed })))
 	server.use(
 		http.patch('/api/groups/3', () => {
 			const moved = { ...READING.fields[0], settings: { source_group: 'vans', source_field: ['driver'] } }
-			listed = [{ ...READING, fields: [moved] }, CARS, VANS]
+			const recipes = [[{ source: 'content_type', operator: '==', value: 'recipe' }]]
+			listed = [{ ...READING, location: recipes, fields: [moved] }, CARS, VANS]
 			return HttpResponse.json(
 				{ error: 'content: conflicting update', code: 'content_stale_update' },
 				{ status: 409 },
@@ -715,19 +716,26 @@ test('drops the Linked from picks and reads the groups afresh when someone saved
 	renderAt('/field-groups')
 	const dialog = await openRules()
 
+	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	await userEvent.click(within(rule).getByLabelText('Value'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Any content type' }))
 	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
 	await userEvent.click(within(reading).getByRole('combobox', { name: 'Through' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
 
 	expect(await screen.findByRole('alert')).toHaveTextContent(/someone else saved/i)
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	const table = screen.getByRole('region', { name: 'Field Groups' })
 	await waitFor(() =>
-		expect(
-			within(within(dialog).getByRole('group', { name: 'Linked from' })).getByRole('combobox', {
-				name: 'Reads from',
-			}),
-		).toHaveTextContent('Vans'),
+		expect(within(table).getByRole('row', { name: /Article details/ })).toHaveTextContent('Recipes'),
 	)
+	const reopened = await openRules()
+
+	const stored = within(reopened).getByRole('group', { name: 'Rule 1 of set 1' })
+	expect(within(stored).getByLabelText('Value')).toHaveTextContent('Recipes')
+	const again = within(reopened).getByRole('group', { name: 'Linked from' })
+	expect(within(again).getByRole('combobox', { name: 'Reads from' })).toHaveTextContent('Vans')
 })
 
 test('forgets a Linked from pick when the dialog is dismissed', async () => {
