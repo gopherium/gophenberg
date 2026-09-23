@@ -110,19 +110,40 @@ func (s *memoryTypes) mintGroupKey(title string) string {
 	return key
 }
 
-// UpdateGroup stores the group's title, location and resting flag.
-func (s *memoryTypes) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
+// UpdateGroup stores the group's title, location and resting flag with the fields it points anew.
+func (s *memoryTypes) UpdateGroup(
+	_ context.Context, g content.Group, repointed []content.Field,
+) (content.Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
 		if held.ID != g.ID {
 			continue
 		}
-		held.Title, held.Location, held.Active = g.Title, g.Location, g.Active
+		fields, err := repointedIn(held.Fields, repointed)
+		if err != nil {
+			return content.Group{}, err
+		}
+		held.Title, held.Location, held.Active, held.Fields = g.Title, g.Location, g.Active, fields
 		s.groups[i] = held
 		return held, nil
 	}
 	return content.Group{}, content.ErrGroupNotFound
+}
+
+// repointedIn returns the fields with each one pointed anew in its place, or a conflict when one changed since read.
+func repointedIn(fields, repointed []content.Field) ([]content.Field, error) {
+	held := slices.Clone(fields)
+	now := time.Now().UTC()
+	for _, f := range repointed {
+		at := slices.IndexFunc(held, func(stored content.Field) bool { return stored.Key == f.Key })
+		if at < 0 || !held[at].UpdatedAt.Equal(f.UpdatedAt) {
+			return nil, content.ErrConflict
+		}
+		f.UpdatedAt = now
+		held[at] = f
+	}
+	return held, nil
 }
 
 // DeleteGroup removes the group and every field it holds, carrying what it stores inside other groups' containers.
