@@ -326,7 +326,10 @@ sits on Categories.
 its own **Reads from** and **Through**. To move the group onto other
 content, change the rules and point each Linked from field at a
 relation on that content in the same save. Both changes are checked
-together, and when either one does not fit, nothing is saved.
+together, and when either one does not fit, nothing is saved. A
+Linked from field that reads a relation inside a Section or a
+Repeater gets no pickers there, and only an import can point it
+elsewhere.
 
 The list shows the newest published items, as many as the site's
 **Posts per page** setting allows, and says how many point in all
