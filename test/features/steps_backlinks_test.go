@@ -67,13 +67,51 @@ func theAdministratorPlacesTheGroupReading(ctx context.Context, title, typeKey, 
 	if err != nil {
 		return err
 	}
+	placed, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	stamp, err := stampReadOf(w, placed.ID, key)
+	if err != nil {
+		return err
+	}
 	held, err := groupNamed(w, holder)
 	if err != nil {
 		return err
 	}
-	return patchGroup(ctx, title, fmt.Sprintf(
-		`{"location":%s,"backlinks":{%q:{"source_group":%q,"source_field":[%q]}}}`,
-		namingType(typeKey), key, held.Key, source))
+	return w.patchJSON(groupsPath+"/"+strconv.Itoa(placed.ID), fmt.Sprintf(
+		`{"location":%s,"backlinks":{%q:{"source_group":%q,"source_field":[%q],"updated_at":%q}}}`,
+		namingType(typeKey), key, held.Key, source, stamp))
+}
+
+// stampReadOf returns the stamp the administrator read the field at, the stored one unless they read it earlier.
+func stampReadOf(w *world, groupID int, key string) (string, error) {
+	if stamp, found := w.readStamps[key]; found {
+		return stamp, nil
+	}
+	return fieldStampIn(w, groupID, key)
+}
+
+// someoneRenamedTheFieldAfterItWasRead keeps the stamp the administrator read the field at, then renames it.
+func someoneRenamedTheFieldAfterItWasRead(ctx context.Context, key, title string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	held, err := groupNamed(w, title)
+	if err != nil {
+		return err
+	}
+	stamp, err := fieldStampIn(w, held.ID, key)
+	if err != nil {
+		return err
+	}
+	w.readStamps[key] = stamp
+	if err := w.patchJSON(fieldsPathIn(held.ID)+"/"+key,
+		fmt.Sprintf(`{"label":"Renamed","updated_at":%q}`, stamp)); err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
 }
 
 // theAdministratorAsksToDeleteTheField asks the registry to take a field away, whatever it answers.
@@ -257,6 +295,10 @@ func initializeBacklinks(sc *godog.ScenarioContext) {
 	)
 	sc.When(`^the administrator deletes the group "([^"]*)"$`, theAdministratorDeletesTheGroup)
 	sc.When(`^the administrator places "([^"]*)" on "([^"]*)"$`, theAdministratorPlacesTheGroup)
+	sc.Given(
+		`^someone renamed "([^"]*)" in "([^"]*)" after the administrator read it$`,
+		someoneRenamedTheFieldAfterItWasRead,
+	)
 	sc.When(
 		`^the administrator places "([^"]*)" on "([^"]*)" with "([^"]*)" reading "([^"]*)" in "([^"]*)"$`,
 		theAdministratorPlacesTheGroupReading,

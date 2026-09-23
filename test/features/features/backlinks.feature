@@ -85,6 +85,14 @@ Feature: Linked from
     Then the request is refused with the code "backlinks_source_unknown"
     And the field "linked-from" on "category" reads "categories" in "post fields"
 
+  Scenario: A save pointing a Linked from someone changed meanwhile writes nothing
+    Given the type "tag" labeled "Tag" and "Tags" under "tags"
+    And the "relation" field "tags" on "post" targeting "tag" holding many
+    And someone renamed "linked-from" in "category fields" after the administrator read it
+    When the administrator places "category fields" on "tag" with "linked-from" reading "tags" in "post fields"
+    Then the request is refused with the code "content_stale_update"
+    And the field "linked-from" on "category" reads "categories" in "post fields"
+
   Scenario: A site reading a relation inside a section imports its own export
     Given the "section" field "filing" in "post fields"
     And the "relation" field "pairs-with" inside "filing" targeting "category"

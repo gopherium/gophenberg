@@ -131,6 +131,7 @@ type world struct {
 	client         *http.Client
 	answer         *answer
 	imported       *answer
+	readStamps     map[string]string
 	pending        *activation
 	rememberedETag string
 	file           *definitions.Import
@@ -161,6 +162,7 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 		library:      themehost.NewLibrary(themes),
 		settings:     settings,
 		readers:      &memoryReaders{values: make(map[string]string)},
+		readStamps:   make(map[string]string),
 		users:        newMemoryStore(),
 		contentItems: items,
 		contentTypes: types,
