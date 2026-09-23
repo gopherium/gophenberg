@@ -206,6 +206,17 @@ Feature: Grouping fields and placing them by rule
     Then the import is applied
     And the post "Hello world" holds no field "subtitle"
 
+  Scenario: An import whose move is left unticked leaves out the new group and says so
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And the site's file moves "subtitle" from "Article details" into a new group "Article facts"
+    When the administrator imports the file
+    Then the import is applied
+    And no group is titled "Article facts"
+    And the group "Article details" holds "subtitle"
+    And the import left the group "Article facts" undone
+    And the import left the field "subtitle" in "Article facts" undone
+
   Scenario: An import standing a field in a new group while its old group stays writes nothing
     Given the group "Article details" for "post"
     And the "text" field "subtitle" labeled "Subtitle" in "Article details"

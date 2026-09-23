@@ -130,6 +130,7 @@ type world struct {
 	site           *httptest.Server
 	client         *http.Client
 	answer         *answer
+	imported       *answer
 	pending        *activation
 	rememberedETag string
 	file           *definitions.Import

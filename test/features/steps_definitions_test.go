@@ -547,7 +547,67 @@ func theAdministratorImportsTheFile(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return postingImport(w, *w.file)
+	if err := postingImport(w, *w.file); err != nil {
+		return err
+	}
+	w.imported = w.answer
+	return nil
+}
+
+// leftUndone returns what the last import said it left undone.
+func leftUndone(w *world) ([]definitions.Change, error) {
+	if w.imported == nil {
+		return nil, fmt.Errorf("the scenario imported no file")
+	}
+	var outcome definitions.Outcome
+	if err := w.imported.decode(&outcome); err != nil {
+		return nil, err
+	}
+	return outcome.Skipped, nil
+}
+
+// theImportLeftTheGroupUndone asserts the last import names the file's group among what it left undone.
+func theImportLeftTheGroupUndone(ctx context.Context, title string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	group, err := groupInFile(w, title)
+	if err != nil {
+		return err
+	}
+	skipped, err := leftUndone(w)
+	if err != nil {
+		return err
+	}
+	for _, held := range skipped {
+		if held.Subject == definitions.SubjectGroup && held.Key == group.Key {
+			return nil
+		}
+	}
+	return fmt.Errorf("the import left %+v undone, want the group %q among them", skipped, group.Key)
+}
+
+// theImportLeftTheFieldUndone asserts the last import names the field it would have added to the group as undone.
+func theImportLeftTheFieldUndone(ctx context.Context, key, title string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	group, err := groupInFile(w, title)
+	if err != nil {
+		return err
+	}
+	skipped, err := leftUndone(w)
+	if err != nil {
+		return err
+	}
+	for _, held := range skipped {
+		if held.Subject == definitions.SubjectField && held.Key == key && held.Group == group.Key {
+			return nil
+		}
+	}
+	return fmt.Errorf("the import left %+v undone, want the field %q in %q among them", skipped, key, group.Key)
 }
 
 // theImportIsApplied asserts the site took the whole import.
@@ -620,6 +680,8 @@ func initializeImportFile(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator imports the file$`, theAdministratorImportsTheFile)
 	sc.Then(`^the plan warns that "([^"]*)" keeps nesting$`, thePlanWarnsThatKeepsNesting)
 	sc.Then(`^the import is applied$`, theImportIsApplied)
+	sc.Then(`^the import left the group "([^"]*)" undone$`, theImportLeftTheGroupUndone)
+	sc.Then(`^the import left the field "([^"]*)" in "([^"]*)" undone$`, theImportLeftTheFieldUndone)
 	sc.Then(`^no group is titled "([^"]*)"$`, noGroupIsTitled)
 	sc.Then(`^the group "([^"]*)" holds "([^"]*)"$`, theGroupHolds)
 }
