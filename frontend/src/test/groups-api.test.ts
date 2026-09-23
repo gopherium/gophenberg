@@ -14,6 +14,7 @@ import {
 	createSubField,
 	deleteSubField,
 	moveField,
+	pickOf,
 	renameFieldInGroup,
 	reorderFieldsInGroup,
 	reorderGroups,
@@ -125,6 +126,21 @@ test('carries an edited title and rules together', async () => {
 	await updateGroup(3, { title: 'Renamed', location: [] })
 
 	expect(sent).toEqual({ title: 'Renamed', location: [] })
+})
+
+test('carries the sources a group edit points its Linked from fields at', async () => {
+	let sent: unknown
+	server.use(
+		http.patch('/api/groups/3', async ({ request }) => {
+			sent = await request.json()
+			return HttpResponse.json(GROUP_ROW)
+		}),
+	)
+	const backlinks = { 'linked-from': { source_group: 'cars', source_field: ['owner'] } }
+
+	await updateGroup(3, { location: [], backlinks })
+
+	expect(sent).toEqual({ location: [], backlinks })
 })
 
 test('removes a group', async () => {
@@ -415,4 +431,30 @@ test('names no source when no group holds a relation at all', () => {
 
 	expect(sources.group.value).toBe('')
 	expect(sources.field.value).toBe('')
+})
+
+/**
+ * Returns a Linked from field carrying the settings given.
+ * @param settings - The settings the field carries.
+ * @returns The field the pickers start from.
+ */
+function linkedFrom(settings: Record<string, unknown>) {
+	const [held] = groupOf('readers', [{ key: 'linked-from', label: 'Linked from', kind: 'backlinks' }]).fields
+	return { ...held, settings }
+}
+
+test('starts the pickers of a Linked from field on the relation it reads', () => {
+	expect(pickOf(linkedFrom({ source_group: 'cars', source_field: ['maker'] }))).toEqual({
+		group: 'cars',
+		field: 'maker',
+	})
+})
+
+test('starts the pickers empty on a Linked from field naming no source', () => {
+	expect(pickOf(linkedFrom({}))).toEqual({ group: '', field: '' })
+})
+
+test('starts the pickers empty on a source of the wrong shape', () => {
+	expect(pickOf(linkedFrom({ source_group: 7, source_field: 'maker' }))).toEqual({ group: '', field: '' })
+	expect(pickOf(linkedFrom({ source_group: 'cars', source_field: [7] }))).toEqual({ group: 'cars', field: '' })
 })

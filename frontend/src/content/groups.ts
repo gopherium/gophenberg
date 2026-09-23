@@ -110,6 +110,27 @@ export function backlinkSettings(sources: BacklinkSources): Record<string, unkno
 	return { source_group: sources.group.value, source_field: [sources.field.value] }
 }
 
+/** The group and the relation a backlinks field reads, by their keys. */
+export interface BacklinkPick {
+	group: string
+	field: string
+}
+
+/**
+ * Returns the pair a backlinks field reads, as its pickers start on it.
+ * @param field - The backlinks field.
+ * @returns The group key and the first key along the path to the relation.
+ */
+export function pickOf(field: ContentField): BacklinkPick {
+	const group = field.settings.source_group
+	const path = Array.isArray(field.settings.source_field) ? field.settings.source_field : []
+	const [first] = path
+	return {
+		group: typeof group === 'string' ? group : '',
+		field: typeof first === 'string' ? first : '',
+	}
+}
+
 /** One source a location rule may read, with the choices it offers. */
 export interface RuleSource {
 	source: string
@@ -122,6 +143,7 @@ export interface GroupEdit {
 	title?: string
 	location?: Location
 	active?: boolean
+	backlinks?: Record<string, Record<string, unknown>>
 }
 
 /**
@@ -222,6 +244,9 @@ export async function updateGroup(id: number, edit: GroupEdit): Promise<FieldGro
 	}
 	if (edit.active !== undefined) {
 		body.active = edit.active
+	}
+	if (edit.backlinks !== undefined) {
+		body.backlinks = edit.backlinks
 	}
 	const response = await fetch(`/api/groups/${id}`, {
 		method: 'PATCH',

@@ -542,3 +542,146 @@ test('names every condition an operator stands for', () => {
 	expect(operatorLabel('!=')).toBe('is not')
 	expect(operatorLabel('~=')).toBe('~=')
 })
+
+const MAKER = {
+	key: 'maker',
+	label: 'Maker',
+	kind: 'relation',
+	relates_to: 'post',
+	many: false,
+	required: false,
+	created_at: '2026-08-01T10:00:00Z',
+	updated_at: '2026-08-01T10:00:00Z',
+}
+
+const CARS = {
+	...ON_POSTS,
+	id: 6,
+	key: 'cars',
+	title: 'Cars',
+	position: 2,
+	fields: [MAKER, { ...MAKER, key: 'rival', label: 'Rival', relates_to: 'recipe' }],
+}
+
+const VANS = {
+	...ON_POSTS,
+	id: 7,
+	key: 'vans',
+	title: 'Vans',
+	position: 3,
+	fields: [{ ...MAKER, key: 'driver', label: 'Driver', relates_to: 'recipe' }],
+}
+
+const READING = {
+	...ON_POSTS,
+	fields: [
+		{
+			...MAKER,
+			key: 'linked-from',
+			label: 'Linked from',
+			kind: 'backlinks',
+			relates_to: '',
+			settings: { source_group: 'cars', source_field: ['maker'] },
+		},
+	],
+}
+
+/** Serves every given group from the listing endpoint. */
+function listingAll(groups: unknown[]) {
+	server.use(http.get('/api/groups', () => HttpResponse.json({ items: groups })))
+}
+
+test('offers no source to pick for a group without a Linked from field', async () => {
+	listingAll([ON_POSTS, CARS])
+	renderAt('/field-groups')
+
+	const dialog = await openRules()
+
+	expect(within(dialog).queryByRole('combobox', { name: 'Reads from' })).not.toBeInTheDocument()
+})
+
+test('shows the relation each Linked from field reads', async () => {
+	listingAll([READING, CARS])
+	renderAt('/field-groups')
+
+	const dialog = await openRules()
+	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+
+	expect(within(reading).getByRole('combobox', { name: 'Reads from' })).toHaveTextContent('Cars')
+	expect(within(reading).getByRole('combobox', { name: 'Through' })).toHaveTextContent('Maker')
+})
+
+test('points a Linked from field at the relation picked as the group moves', async () => {
+	const sent: { body?: unknown } = {}
+	listingAll([READING, CARS])
+	recording(sent)
+	renderAt('/field-groups')
+	const dialog = await openRules()
+
+	const rule = within(dialog).getByRole('group', { name: 'Rule 1 of set 1' })
+	await userEvent.click(within(rule).getByLabelText('Value'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
+	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	await userEvent.click(within(reading).getByRole('combobox', { name: 'Through' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+
+	await waitFor(() =>
+		expect(sent.body).toEqual({
+			location: [[{ source: 'content_type', operator: '==', value: 'recipe' }]],
+			backlinks: { 'linked-from': { source_group: 'cars', source_field: ['rival'] } },
+		}),
+	)
+})
+
+test('points a Linked from field at the first relation of the group picked', async () => {
+	const sent: { body?: unknown } = {}
+	listingAll([READING, CARS, VANS])
+	recording(sent)
+	renderAt('/field-groups')
+	const dialog = await openRules()
+
+	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	await userEvent.click(within(reading).getByRole('combobox', { name: 'Reads from' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Vans' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+
+	await waitFor(() =>
+		expect(sent.body).toEqual({
+			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
+			backlinks: { 'linked-from': { source_group: 'vans', source_field: ['driver'] } },
+		}),
+	)
+})
+
+test('leaves a Linked from field nobody touched out of the save', async () => {
+	const sent: { body?: unknown } = {}
+	listingAll([READING, CARS])
+	recording(sent)
+	renderAt('/field-groups')
+	const dialog = await openRules()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+
+	await waitFor(() =>
+		expect(sent.body).toEqual({
+			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
+		}),
+	)
+})
+
+test('forgets a Linked from pick when the dialog is dismissed', async () => {
+	listingAll([READING, CARS])
+	renderAt('/field-groups')
+	const dialog = await openRules()
+
+	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	await userEvent.click(within(reading).getByRole('combobox', { name: 'Through' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	const reopened = await openRules()
+
+	const again = within(reopened).getByRole('group', { name: 'Linked from' })
+	expect(within(again).getByRole('combobox', { name: 'Through' })).toHaveTextContent('Maker')
+})
