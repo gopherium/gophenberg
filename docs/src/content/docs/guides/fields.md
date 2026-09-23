@@ -374,6 +374,11 @@ content. The same holds for a group you tick away whose fields the
 file declares again in another group: those fields move there,
 values and all, and the rest go with the group.
 
+A move you leave unticked keeps the field in its old group, and the
+file's copy of it is not added. A new group the file declares only
+for such fields is not created either. When the import is done, it
+lists everything it left alone, those included.
+
 Say you tick a field that another field reads, through its rules or
 as a Linked from list. If the file also takes that reader away or
 moves it, tick the reader too. Leave its box empty and the import
