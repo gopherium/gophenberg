@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -99,6 +100,8 @@ func run(
 		PluginPublicPaths: host.PublicPaths(),
 		Version:           version.Version(),
 		TrustedProxies:    settings.trustedProxies,
+		PublicURL:         settings.publicURL,
+		Logger:            logger,
 		SiteTitle:         settings.siteTitle,
 		Theme:             themes.Holder(),
 		Themes:            themes,
@@ -153,6 +156,7 @@ type runConfig struct {
 	webDir         string
 	siteTitle      string
 	trustedProxies []string
+	publicURL      *url.URL
 	themesDir      string
 	theme          string
 	nodeBin        string
@@ -408,6 +412,10 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	if err != nil {
 		return runConfig{}, err
 	}
+	publicURL, err := server.ParsePublicURL(getenv("GOPHENBERG_PUBLIC_URL"))
+	if err != nil {
+		return runConfig{}, fmt.Errorf("GOPHENBERG_PUBLIC_URL: %w", err)
+	}
 	nodeBin := getenv("GOPHENBERG_NODE_BIN")
 	if nodeBin == "" {
 		nodeBin = "node"
@@ -424,6 +432,7 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	settings.webDir = getenv("GOPHENBERG_WEB_DIR")
 	settings.siteTitle = getenv("GOPHENBERG_SITE_TITLE")
 	settings.trustedProxies = trustedProxies
+	settings.publicURL = publicURL
 	settings.themesDir = getenv("GOPHENBERG_THEMES_DIR")
 	settings.theme = getenv("GOPHENBERG_THEME")
 	settings.nodeBin = nodeBin

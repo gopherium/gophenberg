@@ -16,6 +16,7 @@ environment variables win over it.
 | `GOPHENBERG_WEB_DIR` | No | | Where the built admin and the public stylesheets live. The image sets `/web` |
 | `GOPHENBERG_SITE_TITLE` | No | `Gophenberg` | The site name shown by the built-in renderer |
 | `GOPHENBERG_TRUSTED_PROXIES` | No | | Comma-separated CIDR ranges allowed to set forwarded headers |
+| `GOPHENBERG_PUBLIC_URL` | No | | The address people reach the site at, such as `https://example.com`. When set, a write sent to any other address is refused |
 | `GOPHENBERG_THEMES_DIR` | No | | The directory themes are installed in, which uploads write to. The image sets `/themes` |
 | `GOPHENBERG_MEDIA_DIR` | No | | The directory uploaded media is stored in and served from. The image sets `/media` |
 | `GOPHENBERG_THEME` | No | | Pins one theme, overriding the admin. Empty lets the admin choose |
@@ -83,7 +84,36 @@ rate limiter sees all visitors as one client, so a few failed
 logins by anyone can lock out everyone, and a browser too old to
 say where a request came from is refused when it saves anything.
 Your proxy should also pass `X-Forwarded-Proto`, which Caddy and
-nginx both do, or those browsers are refused the same way.
+nginx both do, or those browsers are refused the same way. Naming
+the site's public address, below, spares those browsers either way.
+
+## The public address
+
+Set `GOPHENBERG_PUBLIC_URL` to the address people type to reach the
+site, such as `https://example.com`, with nothing after the host.
+Gophenberg then takes a write only when it was sent to that address,
+and a browser's write only when its page stands at that address too.
+That changes two things:
+
+- A browser too old to say where a request came from is judged
+  against that address, so it can save behind any proxy.
+- Another domain pointed at your server's address can no longer make
+  a visitor's browser post to the site.
+
+Every write has to go through that address, including the ones a
+script or another server sends, so a program that writes to
+Gophenberg at its internal address is refused once the setting is
+on. Reads are never refused. Behind a proxy, the proxy has to pass
+the host the visitor typed, in the `Host` header or in
+`X-Forwarded-Host` from an address inside
+`GOPHENBERG_TRUSTED_PROXIES`. Caddy passes it as it is. With nginx,
+add `proxy_set_header Host $host`.
+
+The server logs every write it refuses and names the reason: `host`
+when the write was sent to another address, `origin` when its page
+stood at another address, `fetch-site` when the browser said the page
+was on another site, and `scheme` when a proxy did not say whether the
+visitor used `http` or `https`.
 
 ## What stops startup
 
@@ -91,6 +121,8 @@ The server refuses to start, and says why, when:
 
 - `GOPHENBERG_DATABASE_URL` is missing.
 - `GOPHENBERG_TRUSTED_PROXIES` is not valid CIDR notation.
+- `GOPHENBERG_PUBLIC_URL` is not an `http` or `https` address naming
+  only a host.
 - `GOPHENBERG_FEED_ITEMS` is not a positive whole number.
 - `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` is not a positive whole number, or
   names more megabytes than the server can count in bytes.

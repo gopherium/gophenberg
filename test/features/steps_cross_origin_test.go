@@ -27,23 +27,37 @@ func (p *formPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// browserOrigin is what a browser tells the server about the page a request comes from.
+// pageSites names every site a scenario's browser page can stand on.
+const pageSites = "this site|another site|a sibling site|a domain pointed at this server"
+
+// browserOrigin is what a browser tells the server about the page a request comes from, and where it sends it.
 type browserOrigin struct {
 	origin    string
 	fetchSite string
+	host      string
 }
 
 // originOf returns the headers a browser sends for a page on the named site.
 func (w *world) originOf(site string) (browserOrigin, error) {
 	switch site {
 	case "this site":
-		return browserOrigin{origin: w.site.URL, fetchSite: "same-origin"}, nil
+		return browserOrigin{origin: w.ownOrigin(), fetchSite: "same-origin"}, nil
 	case "another site":
 		return browserOrigin{origin: "https://elsewhere.example", fetchSite: "cross-site"}, nil
 	case "a sibling site":
 		return browserOrigin{origin: "https://www.example.com", fetchSite: "same-site"}, nil
+	case "a domain pointed at this server":
+		return browserOrigin{origin: "https://rebound.example", fetchSite: "same-origin", host: "rebound.example"}, nil
 	}
 	return browserOrigin{}, fmt.Errorf("no browser stands on %q", site)
+}
+
+// ownOrigin returns the address the site's own pages stand at, the public one when the site names it.
+func (w *world) ownOrigin() string {
+	if w.publicURL != "" {
+		return w.publicURL
+	}
+	return w.site.URL
 }
 
 // browserOf returns a client holding no session, as a visitor's browser would.
@@ -73,6 +87,9 @@ func (w *world) sentAs(
 	if from.fetchSite != "" {
 		request.Header.Set("Sec-Fetch-Site", from.fetchSite)
 	}
+	if from.host != "" {
+		request.Host = from.host
+	}
 	got, err := w.answerFrom(client, request)
 	if err != nil {
 		return err
@@ -98,6 +115,54 @@ func aRunningGophenbergServingThePlugin(ctx context.Context, id, path string) er
 	return w.start(ctx)
 }
 
+// aRunningGophenbergAtThePublicAddress starts a site naming its public address and serving one plugin form.
+func aRunningGophenbergAtThePublicAddress(ctx context.Context, address, id, path string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	w.publicURL = address
+	return aRunningGophenbergServingThePlugin(ctx, id, path)
+}
+
+// anOlderBrowserPostsAFormFrom posts a form carrying only the origin of a page on the site named.
+func anOlderBrowserPostsAFormFrom(ctx context.Context, path, site string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	from, err := w.originOf(site)
+	if err != nil {
+		return err
+	}
+	from.fetchSite = ""
+	return w.sentAs(w.browserOf(), http.MethodPost, path, "application/x-www-form-urlencoded", signupForm(), from)
+}
+
+// anotherServerPostsAFormAt posts a form with no browser headers to another address of the server.
+func anotherServerPostsAFormAt(ctx context.Context, path, address string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	return w.sentAs(w.browserOf(), http.MethodPost, path, "application/x-www-form-urlencoded", signupForm(),
+		browserOrigin{host: address})
+}
+
+// theServerLoggedAWriteRefused asserts the server logged a refused write carrying the reason.
+func theServerLoggedAWriteRefused(ctx context.Context, reason string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	for _, line := range strings.Split(w.logs.String(), "\n") {
+		if strings.Contains(line, `msg="write refused"`) && strings.Contains(line, "reason="+reason) {
+			return nil
+		}
+	}
+	return fmt.Errorf("the server logged %q, want a write refused for the reason %q", w.logs.String(), reason)
+}
+
 // aPagePostsAForm posts a form from a page on the named site through a visitor's browser.
 func aPagePostsAForm(ctx context.Context, site, path string) error {
 	w, err := worldOf(ctx)
@@ -111,16 +176,6 @@ func aPagePostsAForm(ctx context.Context, site, path string) error {
 	return w.sentAs(w.browserOf(), http.MethodPost, path, "application/x-www-form-urlencoded", signupForm(), from)
 }
 
-// anOlderBrowserPostsAForm posts a form from a page on another site, naming only its origin.
-func anOlderBrowserPostsAForm(ctx context.Context, path string) error {
-	w, err := worldOf(ctx)
-	if err != nil {
-		return err
-	}
-	from := browserOrigin{origin: "https://elsewhere.example"}
-	return w.sentAs(w.browserOf(), http.MethodPost, path, "application/x-www-form-urlencoded", signupForm(), from)
-}
-
 // anotherServerPostsAForm posts a form with no browser headers at all.
 func anotherServerPostsAForm(ctx context.Context, path string) error {
 	w, err := worldOf(ctx)
@@ -131,13 +186,13 @@ func anotherServerPostsAForm(ctx context.Context, path string) error {
 		w.browserOf(), http.MethodPost, path, "application/x-www-form-urlencoded", signupForm(), browserOrigin{})
 }
 
-// aPageOnAnotherSiteReads reads a path from a page on another site through a visitor's browser.
-func aPageOnAnotherSiteReads(ctx context.Context, path string) error {
+// aPageReads reads a path from a page on the named site through a visitor's browser.
+func aPageReads(ctx context.Context, site, path string) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
 	}
-	from, err := w.originOf("another site")
+	from, err := w.originOf(site)
 	if err != nil {
 		return err
 	}
@@ -220,14 +275,22 @@ func initializeCrossOrigin(sc *godog.ScenarioContext) {
 		`^a running Gophenberg serving the plugin "([^"]*)" with the public form "([^"]*)"$`,
 		aRunningGophenbergServingThePlugin,
 	)
-	sc.Given(`^the administrator account exists$`, theAdministratorAccountExists)
-	sc.When(
-		`^a page on (this site|another site|a sibling site) posts a form to "([^"]*)" through the visitor's browser$`,
-		aPagePostsAForm,
+	sc.Given(
+		`^a running Gophenberg at the public address "([^"]*)" serving the plugin "([^"]*)" with the public form "([^"]*)"$`,
+		aRunningGophenbergAtThePublicAddress,
 	)
-	sc.When(`^an older browser posts a form to "([^"]*)" from a page on another site$`, anOlderBrowserPostsAForm)
+	sc.Given(`^the administrator account exists$`, theAdministratorAccountExists)
+	sc.When(`^a page on (`+pageSites+`) posts a form to "([^"]*)" through the visitor's browser$`, aPagePostsAForm)
+	sc.When(
+		`^an older browser posts a form to "([^"]*)" from a page on (this site|another site)$`,
+		anOlderBrowserPostsAFormFrom,
+	)
 	sc.When(`^another server posts a form to "([^"]*)"$`, anotherServerPostsAForm)
-	sc.When(`^a page on another site reads "([^"]*)" through the visitor's browser$`, aPageOnAnotherSiteReads)
+	sc.When(`^another server posts a form to "([^"]*)" at the address "([^"]*)"$`, anotherServerPostsAFormAt)
+	sc.When(
+		`^a page on (another site|a domain pointed at this server) reads "([^"]*)" through the visitor's browser$`,
+		aPageReads,
+	)
 	sc.When(
 		`^a page on (this site|another site|a sibling site) sets the page size to (\d+) through the administrator's browser$`,
 		aPageSetsThePageSize,
@@ -246,4 +309,5 @@ func initializeCrossOrigin(sc *godog.ScenarioContext) {
 	sc.Then(`^the listing offers pages of (\d+)$`, theListingOffersPagesOf)
 	sc.Then(`^the administrator is still signed in$`, theAdministratorIsStillSignedIn)
 	sc.Then(`^the plugin "([^"]*)" received (\d+) forms?$`, thePluginReceivedForms)
+	sc.Then(`^the server logged a write refused for the reason "([^"]*)"$`, theServerLoggedAWriteRefused)
 }

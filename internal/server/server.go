@@ -5,7 +5,9 @@ package server
 
 import (
 	"io/fs"
+	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -42,6 +44,10 @@ type Config struct {
 	SiteTitle string
 	// TrustedProxies lists the CIDR ranges trusted to set X-Forwarded-For.
 	TrustedProxies []string
+	// PublicURL is the address visitors reach the site at. Nil judges each write by the request itself.
+	PublicURL *url.URL
+	// Logger receives what the server reports about the writes it refuses. Nil discards it.
+	Logger *slog.Logger
 	// Theme serves the public site while it is healthy. Nil leaves the built-in renderer serving.
 	Theme Theme
 	// Themes is the managed themes directory. Nil leaves the theme routes unhandled.
@@ -96,7 +102,7 @@ func NewServer(cfg Config) http.Handler {
 	headers := headersFor(cfg.Cache)
 	router := chi.NewRouter()
 	router.Use(trustForwarded(cfg.TrustedProxies))
-	router.Use(crossOriginProtection(cfg.TrustedProxies))
+	router.Use(crossOriginProtection(cfg.TrustedProxies, cfg.PublicURL, cfg.Logger))
 	router.With(ratelimit.Middleware(ratelimit.Config{TrustedProxies: cfg.TrustedProxies})).
 		Post("/api/auth/login", auth.Login)
 	router.Post("/api/auth/logout", auth.Logout)

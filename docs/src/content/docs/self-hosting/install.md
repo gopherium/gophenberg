@@ -39,6 +39,7 @@ services:
       GOPHENBERG_DATABASE_URL: postgres://postgres:change-me@db:5432/gophenberg?sslmode=disable
       GOPHENBERG_SITE_TITLE: My Site
       GOPHENBERG_TRUSTED_PROXIES: 172.16.0.0/12
+      GOPHENBERG_PUBLIC_URL: https://example.com
     volumes:
       - themes:/themes
       - media:/media
@@ -54,7 +55,7 @@ volumes:
   media:
 ```
 
-Three values to change:
+Four values to change:
 
 - **The password**, in both places it appears. Keep the
   `POSTGRES_PASSWORD` value in single quotes, so a password such as
@@ -70,6 +71,9 @@ Three values to change:
   connects from, in CIDR notation. The value above fits a proxy in
   Docker and a proxy on the host, which reaches the container
   through the same Docker bridge.
+- **`GOPHENBERG_PUBLIC_URL`**, your own domain as people type it.
+  Every write sent to another address is refused, see
+  [the public address](/self-hosting/configuration/#the-public-address).
 
 The healthcheck and the `condition` keep Gophenberg from starting
 before the database is ready on first boot. The `themes` volume is

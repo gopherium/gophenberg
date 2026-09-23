@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -120,6 +121,8 @@ type world struct {
 	plugins        map[string]http.Handler
 	publicPaths    map[string][]string
 	forms          map[string]*formPlugin
+	publicURL      string
+	logs           *logBook
 	manager        *themehost.Manager
 	node           string
 	pinned         string
@@ -259,6 +262,13 @@ func (w *world) start(ctx context.Context) error {
 		Web:        fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Admin</title>")}},
 	}
 	cfg.Plugins, cfg.PluginPublicPaths = w.plugins, w.publicPaths
+	w.logs = &logBook{}
+	cfg.Logger = slog.New(slog.NewTextHandler(w.logs, nil))
+	public, err := server.ParsePublicURL(w.publicURL)
+	if err != nil {
+		return fmt.Errorf("naming the public address: %w", err)
+	}
+	cfg.PublicURL = public
 	w.site = httptest.NewTLSServer(server.NewServer(cfg))
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -266,7 +276,46 @@ func (w *world) start(ctx context.Context) error {
 	}
 	w.client = w.site.Client()
 	w.client.Jar = jar
+	if public != nil {
+		w.client.Transport = typedAt{listener: w.site.Listener.Addr().String(), host: public.Host, base: w.client.Transport}
+	}
 	return nil
+}
+
+// typedAt sends a request meant for the test listener as if the browser had typed the public address.
+type typedAt struct {
+	listener string
+	host     string
+	base     http.RoundTripper
+}
+
+// RoundTrip names the public host on a request addressed to the listener and sends it.
+func (t typedAt) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.Host == t.listener {
+		r = r.Clone(r.Context())
+		r.Host = t.host
+	}
+	return t.base.RoundTrip(r)
+}
+
+// logBook holds what the server logged during one scenario.
+type logBook struct {
+	mu   sync.Mutex
+	held bytes.Buffer
+}
+
+// Write keeps one log line.
+func (b *logBook) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.held.Write(p)
+}
+
+// String returns every line kept so far.
+func (b *logBook) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.held.String()
 }
 
 // boot builds the manager the server runs on and starts the theme it was left serving.
