@@ -27,5 +27,5 @@ func ParsePublicURL(raw string) (*url.URL, error) {
 // publicAddress reports whether the address names an http or https host and nothing after it.
 func publicAddress(held url.URL) bool {
 	held.Path = strings.TrimSuffix(held.Path, "/")
-	return (held.Scheme == "http" || held.Scheme == "https") && validOrigin(&held)
+	return (held.Scheme == "http" || held.Scheme == "https") && held.Hostname() != "" && validOrigin(&held)
 }

@@ -98,7 +98,7 @@ func TestParsePublicURLRefusesWhatNamesNoSiteAddress(t *testing.T) {
 	for _, raw := range []string{
 		"cms.example", "ftp://cms.example", "https://", "https://visitor@cms.example",
 		"https://cms.example/blog", "https://cms.example/?page=1", "https://cms.example/#top",
-		"https://cms.example:port", "::not an address",
+		"https://cms.example:port", "::not an address", "https://:443", "https://:", "http://:8081/",
 	} {
 		address, err := server.ParsePublicURL(raw)
 
