@@ -12,6 +12,11 @@ Feature: A write from another site is refused
     Then the request is refused with the code "request_cross_origin"
     And the plugin "signup" received 0 forms
 
+  Scenario: A refused write is logged with its reason
+    When a page on another site posts a form to "/api/plugins/signup/subscribe" through the visitor's browser
+    Then the request is refused with the code "request_cross_origin"
+    And the server logged a write refused for the reason "fetch-site"
+
   Scenario: A browser post from a sibling site to a public plugin form is refused
     When a page on a sibling site posts a form to "/api/plugins/signup/subscribe" through the visitor's browser
     Then the request is refused with the code "request_cross_origin"

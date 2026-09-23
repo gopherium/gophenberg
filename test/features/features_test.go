@@ -145,3 +145,7 @@ func TestThemeRollback(t *testing.T) {
 func TestCrossOriginWrites(t *testing.T) {
 	runFeature(t, "features/cross-origin-writes.feature", initializeCrossOrigin)
 }
+
+func TestPublicAddress(t *testing.T) {
+	runFeature(t, "features/public-address.feature", initializeCrossOrigin)
+}
