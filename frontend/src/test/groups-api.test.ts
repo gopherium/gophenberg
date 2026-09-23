@@ -454,6 +454,10 @@ test('starts the pickers empty on a Linked from field naming no source', () => {
 	expect(pickOf(linkedFrom({}))).toEqual({ group: '', field: '' })
 })
 
+test('starts no pickers on a Linked from field reading a relation inside a container', () => {
+	expect(pickOf(linkedFrom({ source_group: 'cars', source_field: ['specs', 'engine'] }))).toBeNull()
+})
+
 test('starts the pickers empty on a source of the wrong shape', () => {
 	expect(pickOf(linkedFrom({ source_group: 7, source_field: 'maker' }))).toEqual({ group: '', field: '' })
 	expect(pickOf(linkedFrom({ source_group: 'cars', source_field: [7] }))).toEqual({ group: 'cars', field: '' })

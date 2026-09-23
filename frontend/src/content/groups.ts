@@ -117,13 +117,16 @@ export interface BacklinkPick {
 }
 
 /**
- * Returns the pair a backlinks field reads, as its pickers start on it.
+ * Returns the pair a backlinks field reads as its pickers start on it, or nothing for a relation inside a container.
  * @param field - The backlinks field.
- * @returns The group key and the first key along the path to the relation.
+ * @returns The group key and the relation key, or null when the path runs through a container.
  */
-export function pickOf(field: ContentField): BacklinkPick {
+export function pickOf(field: ContentField): BacklinkPick | null {
 	const group = field.settings.source_group
 	const path = Array.isArray(field.settings.source_field) ? field.settings.source_field : []
+	if (path.length > 1) {
+		return null
+	}
 	const [first] = path
 	return {
 		group: typeof group === 'string' ? group : '',

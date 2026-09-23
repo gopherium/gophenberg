@@ -3,16 +3,18 @@
 import { Button, Dialog, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
 import { ErrorNotice } from '@gopherium/godmin'
 import { __, sprintf } from '@wordpress/i18n'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import {
 	backlinkSettings,
 	backlinkSources,
 	groupErrorMessage,
+	groupsQueryKey,
 	listRuleSources,
 	pickOf,
 	ruleSourcesQueryKey,
+	StaleWriteError,
 	typeSource,
 	updateGroup,
 } from './groups'
@@ -20,6 +22,12 @@ import { SourceOfLinks } from './SourceOfLinks'
 import { chosenOf } from './select'
 import type { BacklinkPick, FieldGroup, Location, LocationRule, RuleSource } from './groups'
 import type { Choice } from './select'
+import type { ContentField } from './types'
+
+/** A Linked from source the operator picked, with the stamp its field carried when they picked it. */
+interface Touched extends BacklinkPick {
+	updatedAt: string
+}
 
 /**
  * Returns the phrase a rule operator is offered under.
@@ -106,14 +114,17 @@ function withoutRule(held: Location, at: { set: number; rule: number }): Locatio
  */
 function pointedAnew(
 	groups: FieldGroup[],
-	picked: Record<string, BacklinkPick>,
+	picked: Record<string, Touched>,
 ): Record<string, Record<string, unknown>> | undefined {
 	const touched = Object.entries(picked)
 	if (touched.length === 0) {
 		return undefined
 	}
 	return Object.fromEntries(
-		touched.map(([key, pick]) => [key, backlinkSettings(backlinkSources(groups, pick.group, pick.field))]),
+		touched.map(([key, pick]) => [
+			key,
+			{ ...backlinkSettings(backlinkSources(groups, pick.group, pick.field)), updated_at: pick.updatedAt },
+		]),
 	)
 }
 
@@ -126,7 +137,8 @@ export function RulesDialog(props: { held: FieldGroup; groups: FieldGroup[]; onD
 	const [open, setOpen] = useState(false)
 	const [notice, setNotice] = useState('')
 	const [draft, setDraft] = useState<Location>(props.held.location)
-	const [picked, setPicked] = useState<Record<string, BacklinkPick>>({})
+	const [picked, setPicked] = useState<Record<string, Touched>>({})
+	const client = useQueryClient()
 	const sources = useQuery({ queryKey: ruleSourcesQueryKey, queryFn: listRuleSources })
 	const save = useMutation({
 		mutationFn: () =>
@@ -137,7 +149,13 @@ export function RulesDialog(props: { held: FieldGroup; groups: FieldGroup[]; onD
 				group: props.held.title,
 			}))
 		},
-		onError: (cause) => setNotice(groupErrorMessage(cause)),
+		onError: async (cause) => {
+			setNotice(groupErrorMessage(cause))
+			if (cause instanceof StaleWriteError) {
+				setPicked({})
+				await client.invalidateQueries({ queryKey: groupsQueryKey })
+			}
+		},
 	})
 
 	/**
@@ -179,7 +197,9 @@ export function RulesDialog(props: { held: FieldGroup; groups: FieldGroup[]; onD
 								held={props.held}
 								groups={props.groups}
 								picked={picked}
-								onPick={(key, pick) => setPicked((was) => ({ ...was, [key]: pick }))}
+								onPick={(field, pick) =>
+									setPicked((was) => ({ ...was, [field.key]: { ...pick, updatedAt: field.updatedAt } }))
+								}
 							/>
 						</Stack>
 					</Dialog.Content>
@@ -205,8 +225,8 @@ export function RulesDialog(props: { held: FieldGroup; groups: FieldGroup[]; onD
 function LinkedSources(props: {
 	held: FieldGroup
 	groups: FieldGroup[]
-	picked: Record<string, BacklinkPick>
-	onPick: (key: string, pick: BacklinkPick) => void
+	picked: Record<string, Touched>
+	onPick: (field: ContentField, pick: BacklinkPick) => void
 }) {
 	const reading = props.held.fields.filter((field) => field.kind === 'backlinks')
 	if (reading.length === 0) {
@@ -220,13 +240,22 @@ function LinkedSources(props: {
 				return (
 					<Stack key={field.key} direction="column" gap="sm" role="group" aria-label={field.label}>
 						<Text variant="body-sm">{field.label}</Text>
-						<Stack direction="row" gap="sm" align="end">
-							<SourceOfLinks
-								sources={backlinkSources(props.groups, pick.group, pick.field)}
-								onGroup={(group) => props.onPick(field.key, { ...pick, group })}
-								onField={(through) => props.onPick(field.key, { ...pick, field: through })}
-							/>
-						</Stack>
+						{pick === null ? (
+							<Text variant="body-sm">
+								{__(
+									'It reads a relation inside a container, and only an import can point it elsewhere.',
+									'gophenberg',
+								)}
+							</Text>
+						) : (
+							<Stack direction="row" gap="sm" align="end">
+								<SourceOfLinks
+									sources={backlinkSources(props.groups, pick.group, pick.field)}
+									onGroup={(group) => props.onPick(field, { ...pick, group })}
+									onField={(through) => props.onPick(field, { ...pick, field: through })}
+								/>
+							</Stack>
+						)}
 					</Stack>
 				)
 			})}

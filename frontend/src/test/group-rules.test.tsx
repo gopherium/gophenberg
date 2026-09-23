@@ -629,7 +629,9 @@ test('points a Linked from field at the relation picked as the group moves', asy
 	await waitFor(() =>
 		expect(sent.body).toEqual({
 			location: [[{ source: 'content_type', operator: '==', value: 'recipe' }]],
-			backlinks: { 'linked-from': { source_group: 'cars', source_field: ['rival'] } },
+			backlinks: {
+				'linked-from': { source_group: 'cars', source_field: ['rival'], updated_at: '2026-08-01T10:00:00Z' },
+			},
 		}),
 	)
 })
@@ -649,7 +651,9 @@ test('points a Linked from field at the first relation of the group picked', asy
 	await waitFor(() =>
 		expect(sent.body).toEqual({
 			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
-			backlinks: { 'linked-from': { source_group: 'vans', source_field: ['driver'] } },
+			backlinks: {
+				'linked-from': { source_group: 'vans', source_field: ['driver'], updated_at: '2026-08-01T10:00:00Z' },
+			},
 		}),
 	)
 })
@@ -667,6 +671,62 @@ test('leaves a Linked from field nobody touched out of the save', async () => {
 		expect(sent.body).toEqual({
 			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
 		}),
+	)
+})
+
+test('shows a Linked from reading inside a container without pickers and leaves it out of the save', async () => {
+	const sent: { body?: unknown } = {}
+	listingAll([
+		{
+			...READING,
+			fields: [{ ...READING.fields[0], settings: { source_group: 'cars', source_field: ['specs', 'engine'] } }],
+		},
+		CARS,
+	])
+	recording(sent)
+	renderAt('/field-groups')
+	const dialog = await openRules()
+
+	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	expect(within(reading).getByText(/inside a container/i)).toBeInTheDocument()
+	expect(within(reading).queryByRole('combobox', { name: 'Reads from' })).not.toBeInTheDocument()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+
+	await waitFor(() =>
+		expect(sent.body).toEqual({
+			location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
+		}),
+	)
+})
+
+test('drops the Linked from picks and reads the groups afresh when someone saved first', async () => {
+	let listed = [READING, CARS, VANS]
+	server.use(http.get('/api/groups', () => HttpResponse.json({ items: listed })))
+	server.use(
+		http.patch('/api/groups/3', () => {
+			const moved = { ...READING.fields[0], settings: { source_group: 'vans', source_field: ['driver'] } }
+			listed = [{ ...READING, fields: [moved] }, CARS, VANS]
+			return HttpResponse.json(
+				{ error: 'content: conflicting update', code: 'content_stale_update' },
+				{ status: 409 },
+			)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openRules()
+
+	const reading = within(dialog).getByRole('group', { name: 'Linked from' })
+	await userEvent.click(within(reading).getByRole('combobox', { name: 'Through' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+
+	expect(await screen.findByRole('alert')).toHaveTextContent(/someone else saved/i)
+	await waitFor(() =>
+		expect(
+			within(within(dialog).getByRole('group', { name: 'Linked from' })).getByRole('combobox', {
+				name: 'Reads from',
+			}),
+		).toHaveTextContent('Vans'),
 	)
 })
 
