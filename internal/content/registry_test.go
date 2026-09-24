@@ -83,7 +83,7 @@ func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, _ int, f content.F
 }
 
 // CreateSubField hands the field back unstored.
-func (s *fakeTypeStore) CreateSubField(_ context.Context, _ int, f content.Field) (content.Field, error) {
+func (s *fakeTypeStore) CreateSubField(_ context.Context, _ int, f content.Field, _ int) (content.Field, error) {
 	return f, nil
 }
 
@@ -103,7 +103,7 @@ func (s *fakeTypeStore) UpdateSubField(
 func (s *fakeTypeStore) ReorderSubFields(context.Context, int, []string) error { return nil }
 
 // MoveField carries no field.
-func (s *fakeTypeStore) MoveField(context.Context, int, int, int) (content.Field, error) {
+func (s *fakeTypeStore) MoveField(context.Context, int, int, int, int) (content.Field, error) {
 	return content.Field{}, content.ErrFieldNotFound
 }
 

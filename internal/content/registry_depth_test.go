@@ -113,3 +113,53 @@ func TestRegistryTakesASubFieldPastTheDefaultWhenTheLimitAllowsIt(t *testing.T) 
 		t.Errorf("CreateSubField() within a raised limit error = %v, want nil", err)
 	}
 }
+
+func TestWithinDepthTakesAFieldStandingAtTheLimit(t *testing.T) {
+	t.Parallel()
+
+	if err := content.WithinDepth(sectionKeyed("leaf"), 2, 2); err != nil {
+		t.Errorf("WithinDepth() at the limit error = %v, want nil", err)
+	}
+}
+
+func TestWithinDepthRefusesAContainerWhoseFieldsPassTheLimit(t *testing.T) {
+	t.Parallel()
+
+	holding := sectionKeyed("outer")
+	holding.Fields = []content.Field{sectionKeyed("inner")}
+
+	if err := content.WithinDepth(holding, 2, 2); !errors.Is(err, content.ErrFieldTooDeep) {
+		t.Errorf("WithinDepth() one level past the limit error = %v, want %v", err, content.ErrFieldTooDeep)
+	}
+}
+
+func TestRegistryHandsTheStoreTheDepthLimit(t *testing.T) {
+	t.Parallel()
+
+	store := newGroupingStore()
+	registry := content.NewRegistry(store).WithFieldDepth(4)
+	group := groupNaming(t, registry, "Extras", namingPost())
+	outer, err := registry.CreateFieldInGroup(t.Context(), group.ID, sectionKeyed("outer"))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(outer) error = %v, want nil", err)
+	}
+	if _, err := registry.CreateSubField(t.Context(), outer.ID, sectionKeyed("inner")); err != nil {
+		t.Fatalf("CreateSubField(inner) error = %v, want nil", err)
+	}
+	if store.limit != 4 {
+		t.Errorf("the store took a sub field under the limit %d, want 4", store.limit)
+	}
+	store.limit = 0
+	loose, err := registry.CreateFieldInGroup(t.Context(), group.ID, sectionKeyed("loose"))
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(loose) error = %v, want nil", err)
+	}
+
+	if _, err := registry.MoveField(t.Context(), loose.ID, group.ID, outer.ID); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	if store.limit != 4 {
+		t.Errorf("the store took a move under the limit %d, want 4", store.limit)
+	}
+}

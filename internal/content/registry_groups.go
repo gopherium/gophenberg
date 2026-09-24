@@ -248,10 +248,10 @@ func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (F
 	if err := Stands(parent.Fields, f); err != nil {
 		return Field{}, err
 	}
-	if depth+1 > r.FieldDepth() {
-		return Field{}, ErrFieldTooDeep
+	if err := WithinDepth(f, depth+1, r.FieldDepth()); err != nil {
+		return Field{}, err
 	}
-	created, err := r.store.CreateSubField(ctx, parentID, f)
+	created, err := r.store.CreateSubField(ctx, parentID, f, r.FieldDepth())
 	if err != nil {
 		return Field{}, err
 	}
@@ -500,7 +500,7 @@ func (r *Registry) MoveFieldSettled(ctx context.Context, id, toGroup, toParent i
 	if err := r.moveAllowed(ctx, move); err != nil {
 		return Field{}, err
 	}
-	moved, err := r.store.MoveField(ctx, id, toGroup, toParent)
+	moved, err := r.store.MoveField(ctx, id, toGroup, toParent, r.FieldDepth())
 	if err != nil {
 		return Field{}, err
 	}
@@ -600,10 +600,7 @@ func (m fieldMove) placeable(limit int) error {
 	if err := m.standing(); err != nil {
 		return err
 	}
-	if m.depth+height(m.from.field) > limit {
-		return ErrFieldTooDeep
-	}
-	return nil
+	return WithinDepth(m.from.field, m.depth, limit)
 }
 
 // outsideItself returns the refusal to stand the field inside its own tree, or nothing when it lands elsewhere.
