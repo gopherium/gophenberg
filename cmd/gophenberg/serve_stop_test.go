@@ -35,9 +35,10 @@ func (l *gatedListener) Accept() (net.Conn, error) {
 	return nil, errListenerGone
 }
 
-// stoppingPlugin notes when the host stops it.
+// stoppingPlugin notes when the host starts stopping it, then sends its probe.
 type stoppingPlugin struct {
-	stopped *atomic.Bool
+	stopping *atomic.Bool
+	probe    func()
 }
 
 // ID returns the plugin's identifier.
@@ -50,16 +51,17 @@ func (stoppingPlugin) Start(context.Context) error {
 	return nil
 }
 
-// Stop notes that the host stopped the plugin.
+// Stop notes that the host is stopping the plugin, then sends the probe.
 func (p stoppingPlugin) Stop(context.Context) error {
-	p.stopped.Store(true)
+	p.stopping.Store(true)
+	p.probe()
 	return nil
 }
 
 func TestAFailedServeClosesOpenConnectionsBeforeThePluginsStop(t *testing.T) {
 	t.Parallel()
 
-	var stopped, servedAfterStop atomic.Bool
+	var stopping, servedWhileStopping atomic.Bool
 	inner, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatalf("listening: %v", err)
@@ -68,13 +70,19 @@ func TestAFailedServeClosesOpenConnectionsBeforeThePluginsStop(t *testing.T) {
 	httpServer := &http.Server{
 		ReadHeaderTimeout: time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			if stopped.Load() {
-				servedAfterStop.Store(true)
+			if stopping.Load() {
+				servedWhileStopping.Store(true)
 			}
 			w.WriteHeader(http.StatusNoContent)
 		}),
 	}
-	host := pluginkit.NewHost(stoppingPlugin{stopped: &stopped})
+	client := &http.Client{Transport: &http.Transport{}, Timeout: 5 * time.Second}
+	probe := "http://" + inner.Addr().String() + "/"
+	host := pluginkit.NewHost(stoppingPlugin{stopping: &stopping, probe: func() {
+		if held, err := client.Get(probe); err == nil {
+			_ = held.Body.Close()
+		}
+	}})
 	if err := host.Start(t.Context()); err != nil {
 		t.Fatalf("Start() error = %v, want nil", err)
 	}
@@ -91,8 +99,6 @@ func TestAFailedServeClosesOpenConnectionsBeforeThePluginsStop(t *testing.T) {
 		_ = inner.Close()
 		<-finished
 	})
-	client := &http.Client{Transport: &http.Transport{}, Timeout: 5 * time.Second}
-	probe := "http://" + inner.Addr().String() + "/"
 	first, err := client.Get(probe)
 	if err != nil {
 		t.Fatalf("the first request: %v, want it served", err)
@@ -104,14 +110,11 @@ func TestAFailedServeClosesOpenConnectionsBeforeThePluginsStop(t *testing.T) {
 	if !errors.Is(served, errListenerGone) {
 		t.Errorf("serveUntilDone() error = %v, want %v", served, errListenerGone)
 	}
-	if !stopped.Load() {
+	if !stopping.Load() {
 		t.Fatal("the plugins never stopped, want the host stopped once serving failed")
 	}
-	if second, err := client.Get(probe); err == nil {
-		_ = second.Body.Close()
-	}
 
-	if servedAfterStop.Load() {
-		t.Error("a request reached the server after the plugins stopped, want every open connection closed first")
+	if servedWhileStopping.Load() {
+		t.Error("a request reached the server while the plugins stopped, want every open connection closed first")
 	}
 }
