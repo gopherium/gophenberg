@@ -153,7 +153,7 @@ func TestAdoptTakesTheFieldsInsideAContainerOverToo(t *testing.T) {
 	}
 	if _, err := types.CreateSubField(t.Context(), section.ID, content.Field{
 		Key: "doors", Label: "Doors", Kind: content.FieldKindDate, Origin: "events",
-	}); err != nil {
+	}, content.DefaultFieldDepth); err != nil {
 		t.Fatalf("CreateSubField() error = %v, want nil", err)
 	}
 

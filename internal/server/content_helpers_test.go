@@ -597,7 +597,9 @@ func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, groupID int, f con
 }
 
 // CreateSubField declares the field inside the container the parent names.
-func (s *fakeTypeStore) CreateSubField(_ context.Context, parentID int, f content.Field) (content.Field, error) {
+func (s *fakeTypeStore) CreateSubField(
+	_ context.Context, parentID int, f content.Field, _ int,
+) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.subErr != nil {
@@ -828,7 +830,7 @@ func (s *fakeTypeStore) ReorderFieldsInGroup(_ context.Context, groupID int, key
 }
 
 // MoveField carries the field to the top of the group, or inside the container the parent names.
-func (s *fakeTypeStore) MoveField(_ context.Context, id, toGroup, toParent int) (content.Field, error) {
+func (s *fakeTypeStore) MoveField(_ context.Context, id, toGroup, toParent, _ int) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var carried content.Field
