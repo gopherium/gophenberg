@@ -17,6 +17,7 @@ type memoryTypes struct {
 	mu          sync.Mutex
 	types       []content.Type
 	groups      []content.Group
+	frozen      []content.Group
 	nextGroupID int
 	fieldIDs    int
 	content     *memoryContent
@@ -221,10 +222,17 @@ func (s *memoryTypes) ReorderGroups(_ context.Context, ids []int) error {
 	return nil
 }
 
-// CreateSubField declares the field inside the container the parent names.
-func (s *memoryTypes) CreateSubField(_ context.Context, parentID int, f content.Field) (content.Field, error) {
+// CreateSubField declares the field inside the container the parent names, within the limit.
+func (s *memoryTypes) CreateSubField(
+	_ context.Context, parentID int, f content.Field, limit int,
+) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if _, _, path, found := s.placedIn(parentID); found {
+		if err := content.WithinDepth(f, len(path), limit); err != nil {
+			return content.Field{}, err
+		}
+	}
 	s.fieldIDs++
 	f.ID, f.ParentID = s.fieldIDs, parentID
 	for i, held := range s.groups {
@@ -565,7 +573,7 @@ func (s *memoryTypes) ReorderFieldsInGroup(_ context.Context, groupID int, keys 
 }
 
 // MoveField carries the field to the top of the group, or inside the container the parent names, sweeping its old path.
-func (s *memoryTypes) MoveField(_ context.Context, id, toGroup, toParent int) (content.Field, error) {
+func (s *memoryTypes) MoveField(_ context.Context, id, toGroup, toParent, limit int) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	landing := -1
@@ -584,6 +592,9 @@ func (s *memoryTypes) MoveField(_ context.Context, id, toGroup, toParent int) (c
 	if !found {
 		return content.Field{}, content.ErrFieldNotFound
 	}
+	if err := content.WithinDepth(carried, landingDepth(s.groups[landing].Fields, toParent), limit); err != nil {
+		return content.Field{}, err
+	}
 	swept := s.sweptByMove(source, s.groups[landing], carried.ParentID != toParent, path)
 	s.takenOut(id)
 	moved := storedUnder(carried, toGroup)
@@ -597,6 +608,15 @@ func (s *memoryTypes) MoveField(_ context.Context, id, toGroup, toParent int) (c
 		s.content.sweepPath(swept, path)
 	}
 	return moved, nil
+}
+
+// landingDepth returns how many containers a field landing under the parent stands inside, none at a group's top.
+func landingDepth(fields []content.Field, toParent int) int {
+	if toParent == 0 {
+		return 0
+	}
+	_, above, _ := placedInside(fields, toParent)
+	return len(above)
 }
 
 // sweptByMove returns the types a moved field's old values leave, only those the landing misses between two tops.
@@ -646,10 +666,52 @@ func holdsIdentity(declared []content.Field, id int) bool {
 	return found
 }
 
-// ListGroups returns the stored groups beside one per type already holding fields.
+// ListGroups returns the stored groups beside one per type already holding fields, as frozen while a view is held.
 func (s *memoryTypes) ListGroups(context.Context) ([]content.Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.frozen != nil {
+		return clonedGroups(s.frozen), nil
+	}
+	return s.listing(), nil
+}
+
+// freeze holds the groups as they stand now for every listing until thaw.
+func (s *memoryTypes) freeze() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.frozen = clonedGroups(s.listing())
+}
+
+// thaw lets every listing read the stored groups again.
+func (s *memoryTypes) thaw() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.frozen = nil
+}
+
+// clonedGroups returns the groups with every field copied, however deep, so later writes leave the copy alone.
+func clonedGroups(groups []content.Group) []content.Group {
+	held := make([]content.Group, len(groups))
+	for i, g := range groups {
+		g.Fields = clonedFields(g.Fields)
+		held[i] = g
+	}
+	return held
+}
+
+// clonedFields returns the fields copied together with the fields inside them.
+func clonedFields(fields []content.Field) []content.Field {
+	held := make([]content.Field, len(fields))
+	for i, f := range fields {
+		f.Fields = clonedFields(f.Fields)
+		held[i] = f
+	}
+	return held
+}
+
+// listing returns the stored groups beside one per type already holding fields.
+func (s *memoryTypes) listing() []content.Group {
 	groups := make([]content.Group, 0, len(s.types)+len(s.groups))
 	for i, t := range s.types {
 		if len(t.Fields) == 0 {
@@ -659,7 +721,7 @@ func (s *memoryTypes) ListGroups(context.Context) ([]content.Group, error) {
 			ID: -(i + 1), Title: t.SingularLabel + " fields", Active: true, Fields: t.Fields,
 		})
 	}
-	return append(groups, s.groups...), nil
+	return append(groups, s.groups...)
 }
 
 // ByKey returns the stored type carrying the key, or [content.ErrTypeNotFound].

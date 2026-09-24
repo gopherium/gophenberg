@@ -146,10 +146,10 @@ type refusingSubFieldStore struct {
 
 // CreateSubField stores the declaration until the count is reached, then reports the scripted failure.
 func (s *refusingSubFieldStore) CreateSubField(
-	ctx context.Context, parentID int, f content.Field,
+	ctx context.Context, parentID int, f content.Field, limit int,
 ) (content.Field, error) {
 	if len(s.inside) >= s.after {
 		return content.Field{}, errStub
 	}
-	return s.holdingTypeStore.CreateSubField(ctx, parentID, f)
+	return s.holdingTypeStore.CreateSubField(ctx, parentID, f, limit)
 }

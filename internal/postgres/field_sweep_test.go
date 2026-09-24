@@ -41,11 +41,11 @@ func TestDeletingASubFieldSweepsItsValuesInsideASection(t *testing.T) {
 	storeType(t, store, "car")
 	specs := declareSection(t, store, "specs")
 	if _, err := store.CreateSubField(
-		t.Context(), specs.ID, fieldOn(t, "", "colour", content.FieldKindText, "")); err != nil {
+		t.Context(), specs.ID, fieldOn(t, "", "colour", content.FieldKindText, ""), deepEnough); err != nil {
 		t.Fatalf("declaring colour: %v, want nil", err)
 	}
 	dropped, err := store.CreateSubField(
-		t.Context(), specs.ID, fieldOn(t, "", "doors", content.FieldKindText, ""))
+		t.Context(), specs.ID, fieldOn(t, "", "doors", content.FieldKindText, ""), deepEnough)
 	if err != nil {
 		t.Fatalf("declaring doors: %v, want nil", err)
 	}
@@ -116,11 +116,11 @@ func TestDeletingASubFieldSweepsItsValuesFromEveryRow(t *testing.T) {
 	storeType(t, store, "car")
 	team := declareRepeater(t, store, "team")
 	if _, err := store.CreateSubField(
-		t.Context(), team.ID, fieldOn(t, "", "name", content.FieldKindText, "")); err != nil {
+		t.Context(), team.ID, fieldOn(t, "", "name", content.FieldKindText, ""), deepEnough); err != nil {
 		t.Fatalf("declaring name: %v, want nil", err)
 	}
 	dropped, err := store.CreateSubField(
-		t.Context(), team.ID, fieldOn(t, "", "role", content.FieldKindText, ""))
+		t.Context(), team.ID, fieldOn(t, "", "role", content.FieldKindText, ""), deepEnough)
 	if err != nil {
 		t.Fatalf("declaring role: %v, want nil", err)
 	}
@@ -170,7 +170,7 @@ func TestDeletingASubFieldLeavesWhatThePathDoesNotReach(t *testing.T) {
 				parent = declareSection(t, store, "specs")
 			}
 			dropped, err := store.CreateSubField(
-				t.Context(), parent.ID, fieldOn(t, "", "doors", content.FieldKindText, ""))
+				t.Context(), parent.ID, fieldOn(t, "", "doors", content.FieldKindText, ""), deepEnough)
 			if err != nil {
 				t.Fatalf("declaring doors: %v, want nil", err)
 			}
@@ -193,12 +193,12 @@ func TestDeletingAContainerSweepsEverythingInsideIt(t *testing.T) {
 	store, author, pool := typedStore(t)
 	storeType(t, store, "car")
 	team := declareRepeater(t, store, "team")
-	inner, err := store.CreateSubField(t.Context(), team.ID, sectionOn(t, "contact"))
+	inner, err := store.CreateSubField(t.Context(), team.ID, sectionOn(t, "contact"), deepEnough)
 	if err != nil {
 		t.Fatalf("declaring contact: %v, want nil", err)
 	}
 	if _, err := store.CreateSubField(
-		t.Context(), inner.ID, fieldOn(t, "", "phone", content.FieldKindText, "")); err != nil {
+		t.Context(), inner.ID, fieldOn(t, "", "phone", content.FieldKindText, ""), deepEnough); err != nil {
 		t.Fatalf("declaring phone: %v, want nil", err)
 	}
 	plantTyped(t, pool, author, "car", "one",
@@ -253,7 +253,7 @@ func TestDeletingASubFieldReportsWhatItCannotReach(t *testing.T) {
 			storeType(t, store, "car")
 			specs := declareSection(t, store, "specs")
 			dropped, err := store.CreateSubField(
-				t.Context(), specs.ID, fieldOn(t, "", "doors", content.FieldKindText, ""))
+				t.Context(), specs.ID, fieldOn(t, "", "doors", content.FieldKindText, ""), deepEnough)
 			if err != nil {
 				t.Fatalf("declaring doors: %v, want nil", err)
 			}

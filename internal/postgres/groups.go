@@ -762,15 +762,16 @@ func (s *TypeStore) ReorderFieldsInGroup(ctx context.Context, groupID int, keys 
 	return nil
 }
 
-// MoveField carries the field to a group's top or into a container, sweeping its values when it enters or leaves one.
-func (s *TypeStore) MoveField(ctx context.Context, id, toGroup, toParent int) (content.Field, error) {
+// MoveField carries the field to a group's top or into a container within the limit, sweeping its values when it
+// enters or leaves one.
+func (s *TypeStore) MoveField(ctx context.Context, id, toGroup, toParent, limit int) (content.Field, error) {
 	var moved content.Field
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
 		if err := queries.LockFieldGroups(ctx); err != nil {
 			return fmt.Errorf("postgres: lock field groups: %w", err)
 		}
-		move, err := movePlanned(ctx, queries, id, toGroup, toParent)
+		move, err := movePlanned(ctx, queries, id, toGroup, toParent, limit)
 		if err != nil {
 			return err
 		}
@@ -783,11 +784,20 @@ func (s *TypeStore) MoveField(ctx context.Context, id, toGroup, toParent int) (c
 	if err == nil {
 		return moved, nil
 	}
-	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) ||
-		errors.Is(err, content.ErrFieldTaken) || errors.Is(err, content.ErrFieldInsideItself) {
-		return content.Field{}, err
+	return content.Field{}, moveFailure(err)
+}
+
+// moveFailure returns the refusal a field move carries, and wraps anything else.
+func moveFailure(err error) error {
+	for _, refusal := range []error{
+		content.ErrFieldNotFound, content.ErrGroupNotFound, content.ErrFieldTaken,
+		content.ErrFieldInsideItself, content.ErrFieldTooDeep,
+	} {
+		if errors.Is(err, refusal) {
+			return err
+		}
 	}
-	return content.Field{}, fieldWriteFailure(err)
+	return fieldWriteFailure(err)
 }
 
 // fieldMove is one field leaving its place for another, as the store carries it.
@@ -800,8 +810,8 @@ type fieldMove struct {
 	depth                 int
 }
 
-// movePlanned resolves where the field stands and where it is asked to stand.
-func movePlanned(ctx context.Context, queries *db.Queries, id, toGroup, toParent int) (fieldMove, error) {
+// movePlanned resolves where the field stands and where it is asked to stand, refusing a landing past the limit.
+func movePlanned(ctx context.Context, queries *db.Queries, id, toGroup, toParent, limit int) (fieldMove, error) {
 	groups, err := groupsWithFields(ctx, queries)
 	if err != nil {
 		return fieldMove{}, err
@@ -818,17 +828,19 @@ func movePlanned(ctx context.Context, queries *db.Queries, id, toGroup, toParent
 		id: id, toGroup: toGroup, toParent: toParent,
 		leaving: leaving, source: source, path: path, groups: groups,
 	}
-	if toParent == 0 {
-		return move, nil
+	if toParent != 0 {
+		_, above, found := pathToField(landing.Fields, toParent)
+		if !found {
+			return fieldMove{}, content.ErrFieldNotFound
+		}
+		if content.Inside(leaving, toParent) {
+			return fieldMove{}, content.MovesInsideItself(leaving.Key)
+		}
+		move.depth = len(above)
 	}
-	_, above, found := pathToField(landing.Fields, toParent)
-	if !found {
-		return fieldMove{}, content.ErrFieldNotFound
+	if err := content.WithinDepth(leaving, move.depth, limit); err != nil {
+		return fieldMove{}, err
 	}
-	if content.Inside(leaving, toParent) {
-		return fieldMove{}, content.MovesInsideItself(leaving.Key)
-	}
-	move.depth = len(above)
 	return move, nil
 }
 
@@ -967,15 +979,17 @@ func (s *TypeStore) settledFieldWrite(
 	return fieldWriteFailure(err)
 }
 
-// CreateSubField declares the field inside the container the parent names.
-func (s *TypeStore) CreateSubField(ctx context.Context, parentID int, f content.Field) (content.Field, error) {
+// CreateSubField declares the field inside the container the parent names, within the limit.
+func (s *TypeStore) CreateSubField(
+	ctx context.Context, parentID int, f content.Field, limit int,
+) (content.Field, error) {
 	var created content.Field
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
 		if err := queries.LockFieldGroups(ctx); err != nil {
 			return fmt.Errorf("postgres: lock field groups: %w", err)
 		}
-		parent, settled, err := standingParent(ctx, queries, parentID, f)
+		parent, settled, err := standingParent(ctx, queries, parentID, f, limit)
 		if err != nil {
 			return err
 		}
@@ -1003,7 +1017,8 @@ func (s *TypeStore) CreateSubField(ctx context.Context, parentID int, f content.
 	if err == nil {
 		return created, nil
 	}
-	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrFieldShape) {
+	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrFieldShape) ||
+		errors.Is(err, content.ErrFieldTooDeep) {
 		return content.Field{}, err
 	}
 	return content.Field{}, fieldWriteFailure(err)
@@ -1012,7 +1027,7 @@ func (s *TypeStore) CreateSubField(ctx context.Context, parentID int, f content.
 // standingParent returns the row the sub field may stand under and the field it settled on,
 // or the reason it may not stand there.
 func standingParent(
-	ctx context.Context, queries *db.Queries, parentID int, f content.Field,
+	ctx context.Context, queries *db.Queries, parentID int, f content.Field, limit int,
 ) (db.CoreContentField, content.Field, error) {
 	parent, err := queries.FieldByID(ctx, int32(parentID))
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -1023,6 +1038,9 @@ func standingParent(
 	}
 	settled, err := content.NewSubField(f, content.FieldKind(parent.Kind))
 	if err != nil {
+		return parent, f, err
+	}
+	if err := content.WithinDepth(settled, int(parent.Depth)+1, limit); err != nil {
 		return parent, f, err
 	}
 	return parent, settled, nil

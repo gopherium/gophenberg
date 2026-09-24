@@ -88,7 +88,7 @@ func (stubTypeStore) CreateFieldInGroup(_ context.Context, _ int, f content.Fiel
 }
 
 // MoveField carries no field.
-func (stubTypeStore) MoveField(context.Context, int, int, int) (content.Field, error) {
+func (stubTypeStore) MoveField(context.Context, int, int, int, int) (content.Field, error) {
 	return content.Field{}, content.ErrFieldNotFound
 }
 
@@ -98,7 +98,7 @@ func (stubTypeStore) UpdateFieldInGroup(_ context.Context, _ int, f content.Fiel
 }
 
 // CreateSubField hands the field back unstored.
-func (stubTypeStore) CreateSubField(_ context.Context, _ int, f content.Field) (content.Field, error) {
+func (stubTypeStore) CreateSubField(_ context.Context, _ int, f content.Field, _ int) (content.Field, error) {
 	return f, nil
 }
 

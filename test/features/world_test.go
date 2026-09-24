@@ -131,6 +131,7 @@ type world struct {
 	client         *http.Client
 	answer         *answer
 	imported       *answer
+	answers        []*answer
 	readStamps     map[string]string
 	pending        *activation
 	rememberedETag string

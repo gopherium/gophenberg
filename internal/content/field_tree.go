@@ -68,6 +68,14 @@ func without(fields []Field, id int) []Field {
 	return kept
 }
 
+// WithinDepth reports whether the field and the fields inside it stay within the limit at the depth, refusing when not.
+func WithinDepth(f Field, depth, limit int) error {
+	if depth+height(f) > limit {
+		return ErrFieldTooDeep
+	}
+	return nil
+}
+
 // height returns how many container levels stand below the field.
 func height(f Field) int {
 	deepest := 0

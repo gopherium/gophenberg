@@ -37,10 +37,11 @@ func TestRegistryCarriesASubFieldInAndOutOfItsContainer(t *testing.T) {
 	}
 }
 
-// CreateSubField hands the field back, or reports the scripted failure.
+// CreateSubField hands the field back with the limit it was given noted, or reports the scripted failure.
 func (s *groupingStore) CreateSubField(
-	_ context.Context, parentID int, f content.Field,
+	_ context.Context, parentID int, f content.Field, limit int,
 ) (content.Field, error) {
+	s.limit = limit
 	if s.subCreateErr != nil {
 		return content.Field{}, s.subCreateErr
 	}
@@ -101,6 +102,7 @@ type groupingStore struct {
 
 	failReadAfterOrder bool
 	nextFieldID        int
+	limit              int
 }
 
 // sectionIn declares a section field inside the group and returns it.
@@ -306,8 +308,9 @@ func (s *groupingStore) ReorderFieldsInGroup(_ context.Context, groupID int, key
 	return content.ErrGroupNotFound
 }
 
-// MoveField carries the field to the top of the group, or inside the container the parent names.
-func (s *groupingStore) MoveField(_ context.Context, id, toGroup, toParent int) (content.Field, error) {
+// MoveField carries the field to the top of the group or inside the container the parent names, noting the limit.
+func (s *groupingStore) MoveField(_ context.Context, id, toGroup, toParent, limit int) (content.Field, error) {
+	s.limit = limit
 	if s.moveErr != nil {
 		return content.Field{}, s.moveErr
 	}

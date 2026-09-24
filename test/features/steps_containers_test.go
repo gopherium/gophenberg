@@ -395,6 +395,17 @@ func initializeContainers(sc *godog.ScenarioContext) {
 	sc.Then(`^the post "([^"]*)" holds (\d+) rows in "([^"]*)"$`, thePostHoldsRowsIn)
 	sc.Then(`^"([^"]*)" lists "([^"]*)" in "([^"]*)" inside "([^"]*)"$`, theItemListsInside)
 	sc.Given(`^fields may stand inside (\d+) containers? at most$`, fieldsMayStandInside)
+	sc.When(
+		`^the administrator moves "([^"]*)" inside "([^"]*)" and "([^"]*)" inside "([^"]*)" at the same moment$`,
+		theAdministratorMovesBothAtOnce,
+	)
+	sc.When(
+		`^the administrator moves "([^"]*)" inside "([^"]*)" and declares the "([^"]*)" field "([^"]*)" `+
+			`inside "([^"]*)" at the same moment$`,
+		theAdministratorMovesAndDeclaresAtOnce,
+	)
+	sc.Then(`^the second request is refused with the code "([^"]*)"$`, theSecondRequestIsRefusedWithTheCode)
+	sc.Then(`^no field stands inside more than (\d+) containers?$`, noFieldStandsInsideMoreThan)
 	sc.Given(
 		`^the field "([^"]*)" inside "([^"]*)" is still stored under the group "([^"]*)"$`,
 		theFieldInsideIsStillStoredUnder,
@@ -507,4 +518,81 @@ func fieldsMayStandInside(ctx context.Context, limit int) error {
 	}
 	w.registry.WithFieldDepth(limit)
 	return nil
+}
+
+// judgedTogether sends the requests one after the other, each judged on the fields as they stood before the first.
+func judgedTogether(ctx context.Context, requests ...func() error) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	w.contentTypes.freeze()
+	defer w.contentTypes.thaw()
+	w.answers = nil
+	for _, request := range requests {
+		if err := request(); err != nil {
+			return err
+		}
+		w.answers = append(w.answers, w.answer)
+	}
+	return nil
+}
+
+// theAdministratorMovesBothAtOnce moves two fields inside two containers at the same moment.
+func theAdministratorMovesBothAtOnce(ctx context.Context, key, parent, other, otherParent string) error {
+	return judgedTogether(ctx,
+		func() error { return theAdministratorMovesTheFieldInside(ctx, key, parent) },
+		func() error { return theAdministratorMovesTheFieldInside(ctx, other, otherParent) },
+	)
+}
+
+// theAdministratorMovesAndDeclaresAtOnce moves a field inside a container and declares another at the same moment.
+func theAdministratorMovesAndDeclaresAtOnce(ctx context.Context, key, parent, kind, declared, into string) error {
+	return judgedTogether(ctx,
+		func() error { return theAdministratorMovesTheFieldInside(ctx, key, parent) },
+		func() error { return theAdministratorDeclaresInside(ctx, kind, declared, into) },
+	)
+}
+
+// theSecondRequestIsRefusedWithTheCode asserts the first request landed and the second was refused with the code.
+func theSecondRequestIsRefusedWithTheCode(ctx context.Context, code string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if len(w.answers) != 2 {
+		return fmt.Errorf("%d requests answered, want two", len(w.answers))
+	}
+	if w.answers[0].status >= http.StatusBadRequest {
+		return fmt.Errorf("the first request answered %d, want it taken", w.answers[0].status)
+	}
+	w.answer = w.answers[1]
+	return theRequestIsRefusedWithTheCode(ctx, code)
+}
+
+// noFieldStandsInsideMoreThan asserts no declared field stands inside more containers than the limit.
+func noFieldStandsInsideMoreThan(ctx context.Context, limit int) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	listed, err := listGroups(w)
+	if err != nil {
+		return err
+	}
+	for _, group := range listed.Items {
+		if deepest := deepestAmong(group.Fields, 0); deepest > limit {
+			return fmt.Errorf("a field in %q stands inside %d containers, want %d at most", group.Title, deepest, limit)
+		}
+	}
+	return nil
+}
+
+// deepestAmong returns how many containers the deepest of the fields stands inside, from the depth they start at.
+func deepestAmong(fields []fieldHeld, depth int) int {
+	deepest := 0
+	for _, f := range fields {
+		deepest = max(deepest, depth, deepestAmong(f.Fields, depth+1))
+	}
+	return deepest
 }

@@ -33,7 +33,7 @@ func declareLayout(t *testing.T, store *postgres.TypeStore, parentID int, key st
 	if err != nil {
 		t.Fatalf("NewSubField(layout %s) error = %v, want nil", key, err)
 	}
-	stored, err := store.CreateSubField(t.Context(), parentID, built)
+	stored, err := store.CreateSubField(t.Context(), parentID, built, deepEnough)
 	if err != nil {
 		t.Fatalf("CreateSubField(layout %s) error = %v, want nil", key, err)
 	}
@@ -43,7 +43,7 @@ func declareLayout(t *testing.T, store *postgres.TypeStore, parentID int, key st
 // declareUnder stores a text sub field under the parent.
 func declareUnder(t *testing.T, store *postgres.TypeStore, parentID int, key string) content.Field {
 	t.Helper()
-	stored, err := store.CreateSubField(t.Context(), parentID, fieldOn(t, "", key, content.FieldKindText, ""))
+	stored, err := store.CreateSubField(t.Context(), parentID, fieldOn(t, "", key, content.FieldKindText, ""), deepEnough)
 	if err != nil {
 		t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
 	}
@@ -137,7 +137,7 @@ func TestDeletingALayoutInsideARepeaterTakesItsRowsAway(t *testing.T) {
 	store, author, pool := typedStore(t)
 	storeType(t, store, "car")
 	team := declareRepeater(t, store, "team")
-	features, err := store.CreateSubField(t.Context(), team.ID, mustFlexible(t, "features"))
+	features, err := store.CreateSubField(t.Context(), team.ID, mustFlexible(t, "features"), deepEnough)
 	if err != nil {
 		t.Fatalf("CreateSubField(flexible) error = %v, want nil", err)
 	}

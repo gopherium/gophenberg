@@ -135,7 +135,7 @@ func TestCreateFieldInGroupStoresTheOriginAFieldCarries(t *testing.T) {
 	}
 	inner := fieldOn(t, "", "starts-at", content.FieldKindDate, "")
 	inner.Origin = "events"
-	child, err := store.CreateSubField(t.Context(), parent.ID, inner)
+	child, err := store.CreateSubField(t.Context(), parent.ID, inner, deepEnough)
 	if err != nil {
 		t.Fatalf("CreateSubField() error = %v, want nil", err)
 	}

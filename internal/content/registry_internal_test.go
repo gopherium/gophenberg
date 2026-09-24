@@ -86,7 +86,7 @@ func (unreadableTypeStore) CreateFieldInGroup(context.Context, int, Field) (Fiel
 }
 
 // CreateSubField reports the failure rather than storing the field.
-func (unreadableTypeStore) CreateSubField(context.Context, int, Field) (Field, error) {
+func (unreadableTypeStore) CreateSubField(context.Context, int, Field, int) (Field, error) {
 	return Field{}, errTypeStoreDown
 }
 
@@ -108,7 +108,7 @@ func (unreadableTypeStore) ReorderSubFields(context.Context, int, []string) erro
 }
 
 // MoveField reports the failure rather than carrying the field.
-func (unreadableTypeStore) MoveField(context.Context, int, int, int) (Field, error) {
+func (unreadableTypeStore) MoveField(context.Context, int, int, int, int) (Field, error) {
 	return Field{}, errTypeStoreDown
 }
 
