@@ -81,7 +81,7 @@ func (s *categoryTypeStore) CreateSubField(
 }
 
 // DeleteSubField removes no field, since the fake declares none inside a container.
-func (*categoryTypeStore) DeleteSubField(_ context.Context, _ int) error {
+func (*categoryTypeStore) DeleteSubField(_ context.Context, _ int, _ content.Recheck) error {
 	return nil
 }
 
