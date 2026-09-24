@@ -107,19 +107,21 @@ type TypeStore interface {
 	Nested(ctx context.Context, key string) (int, error)
 	ListGroups(ctx context.Context) ([]Group, error)
 	CreateGroup(ctx context.Context, g Group) (Group, error)
-	UpdateGroup(ctx context.Context, g Group, repointed []Field) (Group, error)
-	DeleteGroup(ctx context.Context, id int) error
-	DeleteFieldsOfGroup(ctx context.Context, groupID int, keys []string) error
+	UpdateGroup(ctx context.Context, g Group, repointed []Field, recheck Recheck) (Group, error)
+	DeleteGroup(ctx context.Context, id int, recheck Recheck) error
+	DeleteFieldsOfGroup(ctx context.Context, groupID int, keys []string, recheck Recheck) error
 	ReorderGroups(ctx context.Context, ids []int) error
-	CreateFieldInGroup(ctx context.Context, groupID int, f Field) (Field, error)
+	CreateFieldInGroup(ctx context.Context, groupID int, f Field, recheck Recheck) (Field, error)
 	CreateSubField(ctx context.Context, parentID int, f Field, limit int) (Field, error)
-	DeleteSubField(ctx context.Context, id int) error
+	DeleteSubField(ctx context.Context, id int, recheck Recheck) error
 	UpdateSubField(ctx context.Context, id int, f Field, expectedUpdatedAt time.Time) (Field, error)
 	ReorderSubFields(ctx context.Context, parentID int, keys []string) error
-	UpdateFieldInGroup(ctx context.Context, groupID int, f Field, expectedUpdatedAt time.Time) (Field, error)
-	DeleteFieldInGroup(ctx context.Context, groupID int, key string) error
+	UpdateFieldInGroup(
+		ctx context.Context, groupID int, f Field, expectedUpdatedAt time.Time, recheck Recheck,
+	) (Field, error)
+	DeleteFieldInGroup(ctx context.Context, groupID int, key string, recheck Recheck) error
 	ReorderFieldsInGroup(ctx context.Context, groupID int, keys []string) error
-	MoveField(ctx context.Context, id, toGroup, toParent, limit int) (Field, error)
+	MoveField(ctx context.Context, id, toGroup, toParent, limit int, recheck Recheck) (Field, error)
 	CreateField(ctx context.Context, f Field) (Field, error)
 	AdoptType(ctx context.Context, key string) error
 	AdoptGroup(ctx context.Context, key string) error

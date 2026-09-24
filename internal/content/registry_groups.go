@@ -65,14 +65,14 @@ func (r *Registry) updateGroup(
 	if err != nil {
 		return Group{}, err
 	}
-	standing := readers.among(withRepointed(stored.Fields, repointed))
-	if err := r.sourcesStand(ctx, held, settled, standing); err != nil {
+	recheck := groupRecheck(settled, readers, repointed, r.Params(ctx))
+	if err := r.judgedOn(ctx, held, recheck); err != nil {
 		return Group{}, err
 	}
 	if err := r.freeOfCollisions(ctx, held, stored, settled); err != nil {
 		return Group{}, err
 	}
-	updated, err := r.store.UpdateGroup(ctx, settled, repointed)
+	updated, err := r.store.UpdateGroup(ctx, settled, repointed, recheck)
 	if err != nil {
 		return Group{}, err
 	}
@@ -145,10 +145,11 @@ func (r *Registry) DeleteGroupSettled(ctx context.Context, id int, settled Settl
 	if err := keptFrom(ctx, stored.Origin); err != nil {
 		return err
 	}
-	if err := GroupKept(settled.across(groups), stored); err != nil {
+	recheck := groupGoneRecheck(stored.ID, settled)
+	if err := r.judgedOn(ctx, groups, recheck); err != nil {
 		return err
 	}
-	if err := r.store.DeleteGroup(ctx, id); err != nil {
+	if err := r.store.DeleteGroup(ctx, id, recheck); err != nil {
 		return err
 	}
 	r.invalidate()
@@ -225,7 +226,7 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	if err := Stands(target.Fields, f); err != nil {
 		return Field{}, err
 	}
-	created, err := r.store.CreateFieldInGroup(ctx, groupID, f)
+	created, err := r.store.CreateFieldInGroup(ctx, groupID, f, declaredRecheck(groupID, f, r.Params(ctx)))
 	if err != nil {
 		return Field{}, err
 	}
@@ -348,20 +349,11 @@ func (r *Registry) DeleteSubFieldSettled(ctx context.Context, id int, settled Se
 	if err != nil {
 		return err
 	}
-	source, at, found := placedInGroups(groups, id)
-	if !found {
-		return ErrFieldNotFound
-	}
-	if err := pluginKeepsField(ctx, at.field); err != nil {
+	recheck := subFieldRecheck(ctx, id, settled)
+	if err := r.judgedOn(ctx, groups, recheck); err != nil {
 		return err
 	}
-	if err := Unreferenced(settled.among(at.beside), at.field.Key); err != nil {
-		return err
-	}
-	if err := SourceKeptAlong(settled.across(groups), source.Key, at.path); err != nil {
-		return err
-	}
-	if err := r.store.DeleteSubField(ctx, id); err != nil {
+	if err := r.store.DeleteSubField(ctx, id, recheck); err != nil {
 		return err
 	}
 	r.invalidate()
@@ -388,13 +380,11 @@ func (r *Registry) UpdateFieldInGroup(
 	if err := held.Validate(); err != nil {
 		return Field{}, err
 	}
-	if err := r.sourceStands(ctx, groups, target, held); err != nil {
+	recheck := declaredRecheck(groupID, held, r.Params(ctx))
+	if err := r.judgedOn(ctx, groups, recheck); err != nil {
 		return Field{}, err
 	}
-	if err := Stands(target.Fields, held); err != nil {
-		return Field{}, err
-	}
-	updated, err := r.store.UpdateFieldInGroup(ctx, groupID, held, expectedUpdatedAt)
+	updated, err := r.store.UpdateFieldInGroup(ctx, groupID, held, expectedUpdatedAt, recheck)
 	if err != nil {
 		return Field{}, err
 	}
@@ -409,14 +399,15 @@ func (r *Registry) DeleteFieldInGroup(ctx context.Context, groupID int, key stri
 
 // DeleteFieldInGroupSettled removes the field and its values, overlooking the readers the caller settles.
 func (r *Registry) DeleteFieldInGroupSettled(ctx context.Context, groupID int, key string, settled Settled) error {
-	groups, target, err := r.groupAmong(ctx, groupID)
+	groups, err := r.Groups(ctx)
 	if err != nil {
 		return err
 	}
-	if err := leavesFreely(ctx, groups, target, key, settled); err != nil {
+	recheck := fieldsRecheck(ctx, groupID, []string{key}, settled)
+	if err := r.judgedOn(ctx, groups, recheck); err != nil {
 		return err
 	}
-	if err := r.store.DeleteFieldInGroup(ctx, groupID, key); err != nil {
+	if err := r.store.DeleteFieldInGroup(ctx, groupID, key, recheck); err != nil {
 		return err
 	}
 	r.invalidate()
@@ -427,16 +418,15 @@ func (r *Registry) DeleteFieldInGroupSettled(ctx context.Context, groupID int, k
 func (r *Registry) DeleteFieldsOfGroupSettled(
 	ctx context.Context, groupID int, keys []string, settled Settled,
 ) error {
-	groups, target, err := r.groupAmong(ctx, groupID)
+	groups, err := r.Groups(ctx)
 	if err != nil {
 		return err
 	}
-	for _, key := range keys {
-		if err := leavesFreely(ctx, groups, target, key, settled); err != nil {
-			return err
-		}
+	recheck := fieldsRecheck(ctx, groupID, keys, settled)
+	if err := r.judgedOn(ctx, groups, recheck); err != nil {
+		return err
 	}
-	if err := r.store.DeleteFieldsOfGroup(ctx, groupID, keys); err != nil {
+	if err := r.store.DeleteFieldsOfGroup(ctx, groupID, keys, recheck); err != nil {
 		return err
 	}
 	r.invalidate()
@@ -500,7 +490,8 @@ func (r *Registry) MoveFieldSettled(ctx context.Context, id, toGroup, toParent i
 	if err := r.moveAllowed(ctx, move); err != nil {
 		return Field{}, err
 	}
-	moved, err := r.store.MoveField(ctx, id, toGroup, toParent, r.FieldDepth())
+	recheck := moveRecheck(id, toGroup, toParent, settled, r.Params(ctx))
+	moved, err := r.store.MoveField(ctx, id, toGroup, toParent, r.FieldDepth(), recheck)
 	if err != nil {
 		return Field{}, err
 	}
@@ -525,6 +516,11 @@ func (r *Registry) moveOf(ctx context.Context, id, toGroup, toParent int) (field
 	if err != nil {
 		return fieldMove{}, err
 	}
+	return moveAmong(held, id, toGroup, toParent)
+}
+
+// moveAmong resolves among the groups where the field stands and where it is asked to stand.
+func moveAmong(held []Group, id, toGroup, toParent int) (fieldMove, error) {
 	source, from, found := placedInGroups(held, id)
 	if !found {
 		return fieldMove{}, ErrFieldNotFound
@@ -569,10 +565,19 @@ func (r *Registry) moveAllowed(ctx context.Context, m fieldMove) error {
 	if err := r.keyFree(ctx, m); err != nil {
 		return err
 	}
+	types, err := r.All(ctx)
+	if err != nil {
+		return err
+	}
+	return m.standsAfter(types, r.Params(ctx))
+}
+
+// standsAfter returns the reason the move leaves a reader behind or the field misses what it reads where it lands.
+func (m fieldMove) standsAfter(types []Type, params *ParamRegistry) error {
 	if err := m.unread(); err != nil {
 		return err
 	}
-	if err := r.sourceStands(ctx, m.held, m.landing, m.from.field); err != nil {
+	if err := sourceAmong(m.held, types, m.landing, m.from.field, params); err != nil {
 		return err
 	}
 	if m.settled[m.from.field.ID] {
@@ -650,16 +655,6 @@ func (r *Registry) pointsSomewhere(ctx context.Context, held []Group, target Gro
 		}
 	}
 	return r.sourceStands(ctx, held, target, f)
-}
-
-// sourcesStand reports whether every backlinks field among them still reads its source from the group.
-func (r *Registry) sourcesStand(ctx context.Context, held []Group, target Group, fields []Field) error {
-	for _, f := range fields {
-		if err := r.sourceStands(ctx, held, target, f); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // sourceStands reports whether a backlinks field names a relation this registry can read.

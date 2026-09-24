@@ -64,21 +64,27 @@ func (s *fakeTypeStore) CreateGroup(_ context.Context, g content.Group) (content
 }
 
 // UpdateGroup stores no group.
-func (s *fakeTypeStore) UpdateGroup(_ context.Context, g content.Group, _ []content.Field) (content.Group, error) {
+func (s *fakeTypeStore) UpdateGroup(
+	_ context.Context, g content.Group, _ []content.Field, _ content.Recheck,
+) (content.Group, error) {
 	return g, nil
 }
 
 // DeleteGroup removes no group.
-func (s *fakeTypeStore) DeleteGroup(context.Context, int) error { return nil }
+func (s *fakeTypeStore) DeleteGroup(context.Context, int, content.Recheck) error { return nil }
 
 // DeleteFieldsOfGroup removes no field.
-func (s *fakeTypeStore) DeleteFieldsOfGroup(context.Context, int, []string) error { return nil }
+func (s *fakeTypeStore) DeleteFieldsOfGroup(context.Context, int, []string, content.Recheck) error {
+	return nil
+}
 
 // ReorderGroups stores no order.
 func (s *fakeTypeStore) ReorderGroups(context.Context, []int) error { return nil }
 
 // CreateFieldInGroup declares no field.
-func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
+func (s *fakeTypeStore) CreateFieldInGroup(
+	_ context.Context, _ int, f content.Field, _ content.Recheck,
+) (content.Field, error) {
 	return f, nil
 }
 
@@ -88,7 +94,7 @@ func (s *fakeTypeStore) CreateSubField(_ context.Context, _ int, f content.Field
 }
 
 // DeleteSubField removes no field.
-func (s *fakeTypeStore) DeleteSubField(_ context.Context, _ int) error {
+func (s *fakeTypeStore) DeleteSubField(_ context.Context, _ int, _ content.Recheck) error {
 	return nil
 }
 
@@ -103,19 +109,21 @@ func (s *fakeTypeStore) UpdateSubField(
 func (s *fakeTypeStore) ReorderSubFields(context.Context, int, []string) error { return nil }
 
 // MoveField carries no field.
-func (s *fakeTypeStore) MoveField(context.Context, int, int, int, int) (content.Field, error) {
+func (s *fakeTypeStore) MoveField(context.Context, int, int, int, int, content.Recheck) (content.Field, error) {
 	return content.Field{}, content.ErrFieldNotFound
 }
 
 // UpdateFieldInGroup hands the field back unstored.
 func (s *fakeTypeStore) UpdateFieldInGroup(
-	_ context.Context, _ int, f content.Field, _ time.Time,
+	_ context.Context, _ int, f content.Field, _ time.Time, _ content.Recheck,
 ) (content.Field, error) {
 	return f, nil
 }
 
 // DeleteFieldInGroup removes no field.
-func (s *fakeTypeStore) DeleteFieldInGroup(context.Context, int, string) error { return nil }
+func (s *fakeTypeStore) DeleteFieldInGroup(context.Context, int, string, content.Recheck) error {
+	return nil
+}
 
 // ReorderFieldsInGroup stores no order.
 func (s *fakeTypeStore) ReorderFieldsInGroup(context.Context, int, []string) error { return nil }

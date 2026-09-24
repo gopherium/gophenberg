@@ -21,7 +21,7 @@ func pluginGroup(t *testing.T, store *groupingStore) content.Group {
 	}
 	field, err := store.CreateFieldInGroup(t.Context(), group.ID, content.Field{
 		ID: 7, Key: "venue", Label: "Venue", Kind: content.FieldKindText, Origin: "events",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}
