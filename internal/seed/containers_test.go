@@ -80,7 +80,7 @@ func (s *holdingTypeStore) CreateField(_ context.Context, f content.Field) (cont
 
 // CreateSubField records the declaration inside a container and hands it back.
 func (s *holdingTypeStore) CreateSubField(
-	_ context.Context, parentID int, f content.Field,
+	_ context.Context, parentID int, f content.Field, _ int,
 ) (content.Field, error) {
 	f.ParentID = parentID
 	f.ID = s.nextID()

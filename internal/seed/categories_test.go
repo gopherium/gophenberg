@@ -72,7 +72,7 @@ func (s *categoryTypeStore) Create(_ context.Context, t content.Type) (content.T
 
 // CreateSubField hands the field back unstored, or reports the scripted failure.
 func (s *categoryTypeStore) CreateSubField(
-	_ context.Context, _ int, f content.Field,
+	_ context.Context, _ int, f content.Field, _ int,
 ) (content.Field, error) {
 	if s.subFieldErr != nil {
 		return content.Field{}, s.subFieldErr
