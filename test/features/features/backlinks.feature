@@ -93,6 +93,24 @@ Feature: Linked from
     Then the request is refused with the code "content_stale_update"
     And the field "linked-from" on "category" reads "categories" in "post fields"
 
+  Scenario: A Linked from declared on a relation deleted at the same moment is refused
+    Given the "relation" field "tags" on "post" targeting "category" holding many
+    When the administrator deletes the field "tags" on "post" and declares the backlinks "tagged-from" on "category" reading "tags" on "post" at the same moment
+    Then the second request is refused with the code "backlinks_source_unknown"
+    And the field "tagged-from" is not served on "category"
+
+  Scenario: A relation deleted at the same moment a Linked from is declared on it is refused
+    Given the "relation" field "tags" on "post" targeting "category" holding many
+    When the administrator declares the backlinks "tagged-from" on "category" reading "tags" on "post" and deletes the field "tags" on "post" at the same moment
+    Then the second request is refused with the code "field_referenced"
+    And the field "tagged-from" on "category" reads "tags" in "post fields"
+
+  Scenario: A Linked from pointed at a relation deleted at the same moment is refused
+    Given the "relation" field "tags" on "post" targeting "category" holding many
+    When the administrator deletes the field "tags" on "post" and points "linked-from" in "category fields" at "tags" in "post fields" at the same moment
+    Then the second request is refused with the code "backlinks_source_unknown"
+    And the field "linked-from" on "category" reads "categories" in "post fields"
+
   Scenario: A site reading a relation inside a section imports its own export
     Given the "section" field "filing" in "post fields"
     And the "relation" field "pairs-with" inside "filing" targeting "category"

@@ -61,27 +61,79 @@ func theAdministratorPlacesTheGroup(ctx context.Context, title, typeKey string) 
 	return patchGroup(ctx, title, fmt.Sprintf(`{"location":%s}`, namingType(typeKey)))
 }
 
+// pointingBody returns the group the title names and the backlinks body pointing its key at a relation of the holder.
+func pointingBody(w *world, title, key, source, holder string) (int, string, error) {
+	placed, err := groupNamed(w, title)
+	if err != nil {
+		return 0, "", err
+	}
+	stamp, err := stampReadOf(w, placed.ID, key)
+	if err != nil {
+		return 0, "", err
+	}
+	held, err := groupNamed(w, holder)
+	if err != nil {
+		return 0, "", err
+	}
+	return placed.ID, fmt.Sprintf(`{%q:{"source_group":%q,"source_field":[%q],"updated_at":%q}}`,
+		key, held.Key, source, stamp), nil
+}
+
 // theAdministratorPlacesTheGroupReading asks in one save for the group on the type and its backlinks on a relation.
 func theAdministratorPlacesTheGroupReading(ctx context.Context, title, typeKey, key, source, holder string) error {
 	w, err := worldOf(ctx)
 	if err != nil {
 		return err
 	}
-	placed, err := groupNamed(w, title)
+	id, backlinks, err := pointingBody(w, title, key, source, holder)
 	if err != nil {
 		return err
 	}
-	stamp, err := stampReadOf(w, placed.ID, key)
+	return w.patchJSON(groupsPath+"/"+strconv.Itoa(id),
+		fmt.Sprintf(`{"location":%s,"backlinks":%s}`, namingType(typeKey), backlinks))
+}
+
+// theAdministratorPointsTheBacklinks asks in one save for the group's backlinks on a relation, the group staying put.
+func theAdministratorPointsTheBacklinks(ctx context.Context, key, title, source, holder string) error {
+	w, err := worldOf(ctx)
 	if err != nil {
 		return err
 	}
-	held, err := groupNamed(w, holder)
+	id, backlinks, err := pointingBody(w, title, key, source, holder)
 	if err != nil {
 		return err
 	}
-	return w.patchJSON(groupsPath+"/"+strconv.Itoa(placed.ID), fmt.Sprintf(
-		`{"location":%s,"backlinks":{%q:{"source_group":%q,"source_field":[%q],"updated_at":%q}}}`,
-		namingType(typeKey), key, held.Key, source, stamp))
+	return w.patchJSON(groupsPath+"/"+strconv.Itoa(id), fmt.Sprintf(`{"backlinks":%s}`, backlinks))
+}
+
+// theAdministratorDeletesAndDeclaresAtOnce deletes a field and declares a backlinks reading it at the same moment.
+func theAdministratorDeletesAndDeclaresAtOnce(
+	ctx context.Context, key, typeKey, reader, readerType, source, sourceType string,
+) error {
+	return judgedTogether(ctx,
+		func() error { return theAdministratorAsksToDeleteTheField(ctx, key, typeKey) },
+		func() error { return theBacklinksFieldReading(ctx, reader, readerType, source, sourceType) },
+	)
+}
+
+// theAdministratorDeclaresAndDeletesAtOnce declares a backlinks and deletes the field it reads at the same moment.
+func theAdministratorDeclaresAndDeletesAtOnce(
+	ctx context.Context, reader, readerType, source, sourceType, key, typeKey string,
+) error {
+	return judgedTogether(ctx,
+		func() error { return theBacklinksFieldReading(ctx, reader, readerType, source, sourceType) },
+		func() error { return theAdministratorAsksToDeleteTheField(ctx, key, typeKey) },
+	)
+}
+
+// theAdministratorDeletesAndPointsAtOnce deletes a field and points a group's backlinks at it at the same moment.
+func theAdministratorDeletesAndPointsAtOnce(
+	ctx context.Context, key, typeKey, reader, title, source, holder string,
+) error {
+	return judgedTogether(ctx,
+		func() error { return theAdministratorAsksToDeleteTheField(ctx, key, typeKey) },
+		func() error { return theAdministratorPointsTheBacklinks(ctx, reader, title, source, holder) },
+	)
 }
 
 // stampReadOf returns the stamp the administrator read the field at, the stored one unless they read it earlier.
@@ -305,6 +357,22 @@ func initializeBacklinks(sc *godog.ScenarioContext) {
 	)
 	sc.Then(`^the field "([^"]*)" on "([^"]*)" reads "([^"]*)" in "([^"]*)"$`, theBacklinksReads)
 	sc.Then(`^the field "([^"]*)" is not served on "([^"]*)"$`, theFieldIsNotServedOn)
+	sc.When(
+		`^the administrator deletes the field "([^"]*)" on "([^"]*)" and declares the backlinks "([^"]*)" `+
+			`on "([^"]*)" reading "([^"]*)" on "([^"]*)" at the same moment$`,
+		theAdministratorDeletesAndDeclaresAtOnce,
+	)
+	sc.When(
+		`^the administrator declares the backlinks "([^"]*)" on "([^"]*)" reading "([^"]*)" on "([^"]*)" `+
+			`and deletes the field "([^"]*)" on "([^"]*)" at the same moment$`,
+		theAdministratorDeclaresAndDeletesAtOnce,
+	)
+	sc.When(
+		`^the administrator deletes the field "([^"]*)" on "([^"]*)" and points "([^"]*)" in "([^"]*)" `+
+			`at "([^"]*)" in "([^"]*)" at the same moment$`,
+		theAdministratorDeletesAndPointsAtOnce,
+	)
+	sc.Then(`^the second request is refused with the code "([^"]*)"$`, theSecondRequestIsRefusedWithTheCode)
 	sc.Then(`^the field "([^"]*)" on "([^"]*)" holds the sub field "([^"]*)"$`, theFieldHoldsTheSubField)
 	initializeImportFile(sc)
 	_ = http.StatusOK
