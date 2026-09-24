@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -77,11 +78,19 @@ func TestAFailedServeClosesOpenConnectionsBeforeThePluginsStop(t *testing.T) {
 	if err := host.Start(t.Context()); err != nil {
 		t.Fatalf("Start() error = %v, want nil", err)
 	}
-	done := make(chan error, 1)
+	var served error
+	finished := make(chan struct{})
 	go func() {
+		defer close(finished)
 		serve := func() error { return httpServer.Serve(listener) }
-		done <- serveUntilDone(t.Context(), httpServer, serve, host, slog.New(slog.DiscardHandler))
+		served = serveUntilDone(t.Context(), httpServer, serve, host, slog.New(slog.DiscardHandler))
 	}()
+	openGate := sync.OnceFunc(func() { close(listener.gate) })
+	t.Cleanup(func() {
+		openGate()
+		_ = inner.Close()
+		<-finished
+	})
 	client := &http.Client{Transport: &http.Transport{}, Timeout: 5 * time.Second}
 	probe := "http://" + inner.Addr().String() + "/"
 	first, err := client.Get(probe)
@@ -90,9 +99,13 @@ func TestAFailedServeClosesOpenConnectionsBeforeThePluginsStop(t *testing.T) {
 	}
 	_ = first.Body.Close()
 
-	close(listener.gate)
-	if err := <-done; !errors.Is(err, errListenerGone) {
-		t.Errorf("serveUntilDone() error = %v, want %v", err, errListenerGone)
+	openGate()
+	<-finished
+	if !errors.Is(served, errListenerGone) {
+		t.Errorf("serveUntilDone() error = %v, want %v", served, errListenerGone)
+	}
+	if !stopped.Load() {
+		t.Fatal("the plugins never stopped, want the host stopped once serving failed")
 	}
 	if second, err := client.Get(probe); err == nil {
 		_ = second.Body.Close()
