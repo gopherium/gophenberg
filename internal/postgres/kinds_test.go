@@ -29,7 +29,7 @@ func TestTheStoreHoldsAChoiceField(t *testing.T) {
 		"presentation": "radio",
 	}
 
-	created, err := store.CreateFieldInGroup(t.Context(), group.ID, declared)
+	created, err := store.CreateFieldInGroup(t.Context(), group.ID, declared, nil)
 
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
@@ -64,7 +64,7 @@ func TestTheStoreNamesTheTargetAFieldPointsAtInVain(t *testing.T) {
 	}
 	declared := fieldOn(t, "", "engine", content.FieldKindRelation, "nosuchtype")
 
-	_, err = store.CreateFieldInGroup(t.Context(), group.ID, declared)
+	_, err = store.CreateFieldInGroup(t.Context(), group.ID, declared, nil)
 
 	if !errors.Is(err, content.ErrTargetUnknown) {
 		t.Errorf("CreateFieldInGroup() error = %v, want %v", err, content.ErrTargetUnknown)
@@ -83,7 +83,7 @@ func TestTheStoreHoldsAManyMedia(t *testing.T) {
 	declared := fieldOn(t, "", "gallery", content.FieldKindMedia, "")
 	declared.Many = true
 
-	created, err := store.CreateFieldInGroup(t.Context(), group.ID, declared)
+	created, err := store.CreateFieldInGroup(t.Context(), group.ID, declared, nil)
 
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
@@ -114,13 +114,13 @@ func TestRollingBackPastOpenKindsDropsWhatTheOldCheckRefuses(t *testing.T) {
 		fieldOn(t, "", "style", content.FieldKindChoice, ""),
 		fieldOn(t, "", "subtitle", content.FieldKindText, ""),
 	} {
-		if _, err := store.CreateFieldInGroup(t.Context(), group.ID, declared); err != nil {
+		if _, err := store.CreateFieldInGroup(t.Context(), group.ID, declared, nil); err != nil {
 			t.Fatalf("CreateFieldInGroup(%s) error = %v, want nil", declared.Key, err)
 		}
 	}
 	gallery := fieldOn(t, "", "gallery", content.FieldKindMedia, "")
 	gallery.Many = true
-	if _, err := store.CreateFieldInGroup(t.Context(), group.ID, gallery); err != nil {
+	if _, err := store.CreateFieldInGroup(t.Context(), group.ID, gallery, nil); err != nil {
 		t.Fatalf("CreateFieldInGroup(gallery) error = %v, want nil", err)
 	}
 	url := pool.Config().ConnString()

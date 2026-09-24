@@ -134,7 +134,7 @@ func rested(t *testing.T, store *postgres.TypeStore, title string) content.Group
 			continue
 		}
 		held.Active = false
-		idle, err := store.UpdateGroup(t.Context(), held, nil)
+		idle, err := store.UpdateGroup(t.Context(), held, nil, nil)
 		if err != nil {
 			t.Fatalf("resting %q: %v, want nil", title, err)
 		}
@@ -151,7 +151,7 @@ func restingTwinOf(t *testing.T, store *postgres.TypeStore, key string) content.
 		t.Fatalf("CreateGroup(Shadow) error = %v, want nil", err)
 	}
 	idle := rested(t, store, "Shadow")
-	twin, err := store.CreateFieldInGroup(t.Context(), idle.ID, sectionOn(t, key))
+	twin, err := store.CreateFieldInGroup(t.Context(), idle.ID, sectionOn(t, key), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(shadow %s) error = %v, want nil", key, err)
 	}
@@ -165,7 +165,7 @@ func rivalOnTruck(t *testing.T, store *postgres.TypeStore, key string) content.G
 	if err != nil {
 		t.Fatalf("CreateGroup(Trucks) error = %v, want nil", err)
 	}
-	if _, err := store.CreateFieldInGroup(t.Context(), trucks.ID, sectionOn(t, key)); err != nil {
+	if _, err := store.CreateFieldInGroup(t.Context(), trucks.ID, sectionOn(t, key), nil); err != nil {
 		t.Fatalf("CreateFieldInGroup(trucks %s) error = %v, want nil", key, err)
 	}
 	storeType(t, store, "truck")
@@ -202,7 +202,7 @@ func TestMovingAFieldIntoAContainerReparentsItAndRecountsItsDepth(t *testing.T) 
 	specs := declareSection(t, store, "specs")
 	title := declareTypedField(t, store, "car", "title")
 
-	moved, err := store.MoveField(t.Context(), title.ID, specs.GroupID, specs.ID, deepEnough)
+	moved, err := store.MoveField(t.Context(), title.ID, specs.GroupID, specs.ID, deepEnough, nil)
 
 	if err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
@@ -223,14 +223,14 @@ func TestMovingAContainerRecountsTheDepthOfEverythingBelowIt(t *testing.T) {
 	leaf := declaredInside(t, store, inner, "leaf", content.FieldKindText)
 	box := declareSection(t, store, "box")
 
-	if _, err := store.MoveField(t.Context(), specs.ID, box.GroupID, box.ID, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), specs.ID, box.GroupID, box.ID, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField(into box) error = %v, want nil", err)
 	}
 	standsUnder(t, pool, specs.ID, box.GroupID, box.ID, 1)
 	standsUnder(t, pool, inner.ID, box.GroupID, specs.ID, 2)
 	standsUnder(t, pool, leaf.ID, box.GroupID, inner.ID, 3)
 
-	if _, err := store.MoveField(t.Context(), specs.ID, box.GroupID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), specs.ID, box.GroupID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField(to the top) error = %v, want nil", err)
 	}
 	standsUnder(t, pool, specs.ID, box.GroupID, 0, 0)
@@ -246,7 +246,7 @@ func TestMovingAFieldOutOfAContainerStandsItAfterTheTopFields(t *testing.T) {
 	specs := declareSection(t, store, "specs")
 	doors := declaredInside(t, store, specs, "doors", content.FieldKindText)
 
-	moved, err := store.MoveField(t.Context(), doors.ID, specs.GroupID, 0, deepEnough)
+	moved, err := store.MoveField(t.Context(), doors.ID, specs.GroupID, 0, deepEnough, nil)
 
 	if err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
@@ -270,7 +270,7 @@ func TestMovingAFieldIntoAContainerSweepsTheValuesItHeld(t *testing.T) {
 	plantTyped(t, pool, author, "car", "one", `{"subtitle": "kept words"}`)
 	plantAutosave(t, pool, author, "one", `{"subtitle": "typed words"}`)
 
-	if _, err := store.MoveField(t.Context(), subtitle.ID, specs.GroupID, specs.ID, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), subtitle.ID, specs.GroupID, specs.ID, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -292,7 +292,7 @@ func TestMovingAFieldOutOfAContainerSweepsItFromInsideIt(t *testing.T) {
 	doors := declaredInside(t, store, specs, "doors", content.FieldKindText)
 	plantTyped(t, pool, author, "car", "one", `{"specs": {"colour": "red", "doors": "five"}}`)
 
-	if _, err := store.MoveField(t.Context(), doors.ID, specs.GroupID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), doors.ID, specs.GroupID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -316,7 +316,7 @@ func TestMovingAFieldBetweenGroupTopsKeepsItsValues(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 
-	if _, err := store.MoveField(t.Context(), subtitle.ID, extras.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), subtitle.ID, extras.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -338,7 +338,7 @@ func groupOn(t *testing.T, store *postgres.TypeStore, title, typeKey string) con
 // titleIn stores a text field keyed title at the top of the group and returns it.
 func titleIn(t *testing.T, store *postgres.TypeStore, groupID int) content.Field {
 	t.Helper()
-	held, err := store.CreateFieldInGroup(t.Context(), groupID, fieldOn(t, "", "title", content.FieldKindText, ""))
+	held, err := store.CreateFieldInGroup(t.Context(), groupID, fieldOn(t, "", "title", content.FieldKindText, ""), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
 	}
@@ -354,7 +354,7 @@ func TestMovingAFieldBetweenTopsKeepsTheValuesOnContentBothGroupsReach(t *testin
 	notes := groupOn(t, store, "Car notes", "car")
 	plantTyped(t, pool, author, "car", "one", `{"title": "kept words"}`)
 
-	if _, err := store.MoveField(t.Context(), title.ID, notes.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), title.ID, notes.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -376,7 +376,7 @@ func TestMovingAFieldBetweenTopsSweepsTheValuesOnContentTheNewGroupMisses(t *tes
 	books := groupOn(t, store, "Book extras", "book")
 	plantTyped(t, pool, author, "car", "one", `{"title": "old words"}`)
 
-	if _, err := store.MoveField(t.Context(), title.ID, books.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), title.ID, books.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -400,7 +400,7 @@ func TestMovingAFieldBetweenTopsSparesTheValueAnotherGroupServesWhereItLeaves(t 
 	books := groupOn(t, store, "Book extras", "book")
 	plantTyped(t, pool, author, "car", "one", `{"title": "served words"}`)
 
-	if _, err := store.MoveField(t.Context(), title.ID, books.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), title.ID, books.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -419,7 +419,7 @@ func TestMovingAFieldIntoARestingGroupOnTheSameContentKeepsItsValuesForTheWake(t
 	notes := rested(t, store, "Car notes")
 	plantTyped(t, pool, author, "car", "one", `{"title": "kept words"}`)
 
-	if _, err := store.MoveField(t.Context(), title.ID, notes.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), title.ID, notes.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -437,11 +437,11 @@ func TestMovingAShadowedRelationOffContentDropsOnlyItsOwnIndexRows(t *testing.T)
 	store, author, pool := typedStore(t)
 	storeType(t, store, "book")
 	maker := fieldOn(t, "", "maker", content.FieldKindRelation, "book")
-	serving, err := store.CreateFieldInGroup(t.Context(), groupOn(t, store, "Car facts", "car").ID, maker)
+	serving, err := store.CreateFieldInGroup(t.Context(), groupOn(t, store, "Car facts", "car").ID, maker, nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(facts maker) error = %v, want nil", err)
 	}
-	shadowed, err := store.CreateFieldInGroup(t.Context(), groupOn(t, store, "Car extras", "car").ID, maker)
+	shadowed, err := store.CreateFieldInGroup(t.Context(), groupOn(t, store, "Car extras", "car").ID, maker, nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(extras maker) error = %v, want nil", err)
 	}
@@ -453,7 +453,7 @@ func TestMovingAShadowedRelationOffContentDropsOnlyItsOwnIndexRows(t *testing.T)
 		plantRelation(t, pool, plantedID(t, pool, "pointing"), plantedID(t, pool, "pointed"), id)
 	}
 
-	if _, err := store.MoveField(t.Context(), shadowed.ID, books.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), shadowed.ID, books.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -475,7 +475,8 @@ func TestMovingARelationBetweenTopsSweepsItsIndexRowsWhereTheNewGroupMisses(t *t
 	storeType(t, store, "car")
 	storeType(t, store, "book")
 	cars := groupOn(t, store, "Car extras", "car")
-	maker, err := store.CreateFieldInGroup(t.Context(), cars.ID, fieldOn(t, "", "maker", content.FieldKindRelation, "car"))
+	maker, err := store.CreateFieldInGroup(
+		t.Context(), cars.ID, fieldOn(t, "", "maker", content.FieldKindRelation, "car"), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(maker) error = %v, want nil", err)
 	}
@@ -484,7 +485,7 @@ func TestMovingARelationBetweenTopsSweepsItsIndexRowsWhereTheNewGroupMisses(t *t
 	plantTyped(t, pool, author, "car", "two", `{}`)
 	plantRelation(t, pool, plantedID(t, pool, "one"), plantedID(t, pool, "two"), maker.ID)
 
-	if _, err := store.MoveField(t.Context(), maker.ID, books.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), maker.ID, books.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -507,7 +508,7 @@ func TestMovingARelationSweepsItsIndexRows(t *testing.T) {
 	plantTyped(t, pool, author, "car", "two", `{}`)
 	plantRelation(t, pool, plantedID(t, pool, "one"), plantedID(t, pool, "two"), maker.ID)
 
-	if _, err := store.MoveField(t.Context(), maker.ID, specs.GroupID, specs.ID, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), maker.ID, specs.GroupID, specs.ID, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -528,7 +529,7 @@ func TestMovingASectionSweepsTheRelationsInsideIt(t *testing.T) {
 	plantTyped(t, pool, author, "car", "two", `{}`)
 	plantRelation(t, pool, plantedID(t, pool, "one"), plantedID(t, pool, "two"), maker.ID)
 
-	if _, err := store.MoveField(t.Context(), specs.ID, box.GroupID, box.ID, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), specs.ID, box.GroupID, box.ID, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -548,19 +549,19 @@ func TestMovingAShadowedFieldKeepsTheValuesTheServedFieldHolds(t *testing.T) {
 		t.Fatalf("CreateGroup(Shadow) error = %v, want nil", err)
 	}
 	idle := rested(t, store, "Shadow")
-	specs, err := store.CreateFieldInGroup(t.Context(), idle.ID, sectionOn(t, "specs"))
+	specs, err := store.CreateFieldInGroup(t.Context(), idle.ID, sectionOn(t, "specs"), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
 	}
 	shadowed, err := store.CreateFieldInGroup(
-		t.Context(), shadow.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), shadow.ID, fieldOn(t, "", "title", content.FieldKindText, ""), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(shadow title) error = %v, want nil", err)
 	}
 	plantTyped(t, pool, author, "car", "one", `{"title": "served words"}`)
 	plantAutosave(t, pool, author, "one", `{"title": "typed words"}`)
 
-	if _, err := store.MoveField(t.Context(), shadowed.ID, idle.ID, specs.ID, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), shadowed.ID, idle.ID, specs.ID, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -581,19 +582,19 @@ func TestMovingAFieldOfARestingGroupSweepsTheValuesNoGroupServes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateGroup(Resting) error = %v, want nil", err)
 	}
-	specs, err := store.CreateFieldInGroup(t.Context(), resting.ID, sectionOn(t, "specs"))
+	specs, err := store.CreateFieldInGroup(t.Context(), resting.ID, sectionOn(t, "specs"), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
 	}
 	title, err := store.CreateFieldInGroup(
-		t.Context(), resting.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), resting.ID, fieldOn(t, "", "title", content.FieldKindText, ""), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
 	}
 	rested(t, store, "Resting")
 	plantTyped(t, pool, author, "car", "one", `{"title": "old words"}`)
 
-	if _, err := store.MoveField(t.Context(), title.ID, resting.ID, specs.ID, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), title.ID, resting.ID, specs.ID, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -613,7 +614,7 @@ func TestMovingARestingGroupsSubFieldOutSweepsTheValueTheServedSectionLacks(t *t
 	color := declaredInside(t, store, twin, "color", content.FieldKindText)
 	plantTyped(t, pool, author, "car", "one", `{"specs": {"color": "red", "size": "big"}}`)
 
-	if _, err := store.MoveField(t.Context(), color.ID, twin.GroupID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), color.ID, twin.GroupID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -627,7 +628,7 @@ func TestMovingAFieldOutOfAContainerItsGroupServesSweepsItWhereARivalHoldsTheCon
 
 	store, author, pool := typedStore(t)
 	everywhere := servingEverything(t, store)
-	specs, err := store.CreateFieldInGroup(t.Context(), everywhere.ID, sectionOn(t, "specs"))
+	specs, err := store.CreateFieldInGroup(t.Context(), everywhere.ID, sectionOn(t, "specs"), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
 	}
@@ -635,7 +636,7 @@ func TestMovingAFieldOutOfAContainerItsGroupServesSweepsItWhereARivalHoldsTheCon
 	rivalOnTruck(t, store, "specs")
 	plantTyped(t, pool, author, "truck", "one", `{"specs": {"color": "red"}}`)
 
-	if _, err := store.MoveField(t.Context(), color.ID, everywhere.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), color.ID, everywhere.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -649,19 +650,19 @@ func TestMovingAFieldItsGroupServesIntoAContainerSweepsItWhereARivalHoldsTheKey(
 
 	store, author, pool := typedStore(t)
 	everywhere := servingEverything(t, store)
-	specs, err := store.CreateFieldInGroup(t.Context(), everywhere.ID, sectionOn(t, "specs"))
+	specs, err := store.CreateFieldInGroup(t.Context(), everywhere.ID, sectionOn(t, "specs"), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
 	}
 	title, err := store.CreateFieldInGroup(
-		t.Context(), everywhere.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), everywhere.ID, fieldOn(t, "", "title", content.FieldKindText, ""), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
 	}
 	rivalOnTruck(t, store, "title")
 	plantTyped(t, pool, author, "truck", "one", `{"title": "served words"}`)
 
-	if _, err := store.MoveField(t.Context(), title.ID, everywhere.ID, specs.ID, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), title.ID, everywhere.ID, specs.ID, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -679,7 +680,7 @@ func TestMovingAFieldOntoAKeyTheContainerHoldsReportsFieldTaken(t *testing.T) {
 	declaredInside(t, store, specs, "title", content.FieldKindText)
 	title := declareTypedField(t, store, "car", "title")
 
-	_, err := store.MoveField(t.Context(), title.ID, specs.GroupID, specs.ID, deepEnough)
+	_, err := store.MoveField(t.Context(), title.ID, specs.GroupID, specs.ID, deepEnough, nil)
 
 	if !errors.Is(err, content.ErrFieldTaken) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldTaken)
@@ -695,7 +696,7 @@ func TestMovingAFieldOntoAKeyTheTopHoldsReportsFieldTaken(t *testing.T) {
 	inside := declaredInside(t, store, specs, "title", content.FieldKindText)
 	declareTypedField(t, store, "car", "title")
 
-	_, err := store.MoveField(t.Context(), inside.ID, specs.GroupID, 0, deepEnough)
+	_, err := store.MoveField(t.Context(), inside.ID, specs.GroupID, 0, deepEnough, nil)
 
 	if !errors.Is(err, content.ErrFieldTaken) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldTaken)
@@ -714,11 +715,11 @@ func TestMovingAFieldOutToAKeyARivalGroupServesReportsFieldTaken(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 	if _, err := store.CreateFieldInGroup(
-		t.Context(), extras.ID, fieldOn(t, "", "title", content.FieldKindText, "")); err != nil {
+		t.Context(), extras.ID, fieldOn(t, "", "title", content.FieldKindText, ""), nil); err != nil {
 		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
 	}
 
-	_, err = store.MoveField(t.Context(), inside.ID, specs.GroupID, 0, deepEnough)
+	_, err = store.MoveField(t.Context(), inside.ID, specs.GroupID, 0, deepEnough, nil)
 
 	if !errors.Is(err, content.ErrFieldTaken) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldTaken)
@@ -734,7 +735,7 @@ func TestMovingAContainerIntoItsOwnTreeIsRefusedByTheStore(t *testing.T) {
 	inner := declaredInside(t, store, specs, "inner", content.FieldKindSection)
 
 	for name, parent := range map[string]int{"itself": specs.ID, "a container inside it": inner.ID} {
-		_, err := store.MoveField(t.Context(), specs.ID, specs.GroupID, parent, deepEnough)
+		_, err := store.MoveField(t.Context(), specs.ID, specs.GroupID, parent, deepEnough, nil)
 
 		if !errors.Is(err, content.ErrFieldInsideItself) {
 			t.Errorf("moving into %s: error = %v, want %v", name, err, content.ErrFieldInsideItself)
@@ -782,7 +783,7 @@ func TestMovingAFieldReportsAParentTheLandingGroupDoesNotHold(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 
-	_, err = store.MoveField(t.Context(), title.ID, extras.ID, specs.ID, deepEnough)
+	_, err = store.MoveField(t.Context(), title.ID, extras.ID, specs.ID, deepEnough, nil)
 
 	if !errors.Is(err, content.ErrFieldNotFound) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldNotFound)
@@ -799,7 +800,7 @@ func TestMovingAFieldReportsALockItCannotTake(t *testing.T) {
 	holdFieldGroupsLock(t, pool)
 	timed := lockTimedStore(t, pool)
 
-	_, err := timed.MoveField(t.Context(), title.ID, specs.GroupID, specs.ID, deepEnough)
+	_, err := timed.MoveField(t.Context(), title.ID, specs.GroupID, specs.ID, deepEnough, nil)
 
 	if err == nil || !strings.Contains(err.Error(), "lock field groups") {
 		t.Errorf("MoveField() error = %v, want the held lock reported", err)
@@ -831,7 +832,7 @@ func TestMovingAFieldReportsWhatItCannotRead(t *testing.T) {
 			title := declareTypedField(t, store, "car", "title")
 			broken(t, pool)
 
-			_, err := store.MoveField(t.Context(), title.ID, specs.GroupID, specs.ID, deepEnough)
+			_, err := store.MoveField(t.Context(), title.ID, specs.GroupID, specs.ID, deepEnough, nil)
 
 			if err == nil {
 				t.Errorf("MoveField() error = nil, want %s reported", name)
@@ -862,7 +863,7 @@ func TestMovingAFieldReportsWhatItCannotWrite(t *testing.T) {
 			plantTyped(t, pool, author, "car", "one", `{"maker": []}`)
 			raiseOn(t, pool, table.table, table.operation)
 
-			_, err = store.MoveField(t.Context(), maker.ID, specs.GroupID, specs.ID, deepEnough)
+			_, err = store.MoveField(t.Context(), maker.ID, specs.GroupID, specs.ID, deepEnough, nil)
 
 			if err == nil {
 				t.Errorf("MoveField() error = nil, want %s reported", name)

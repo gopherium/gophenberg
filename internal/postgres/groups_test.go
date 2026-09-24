@@ -164,6 +164,7 @@ func TestByKeyServesOneFieldWhenTwoGroupsCarryTheKey(t *testing.T) {
 		}
 		if _, err := store.CreateFieldInGroup(
 			t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""),
+			nil,
 		); err != nil {
 			t.Fatalf("CreateFieldInGroup(%q) error = %v, want nil", title, err)
 		}
@@ -202,16 +203,17 @@ func TestDeleteGroupSweepsAValueLeftOnATypeItStoppedMatching(t *testing.T) {
 	}
 	if _, err := store.CreateFieldInGroup(
 		t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""),
+		nil,
 	); err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}
 	plantTyped(t, pool, author, "car", "left-behind", `{"subtitle": "must go"}`)
 	group.Location = locationOf("book")
-	if _, err := store.UpdateGroup(t.Context(), group, nil); err != nil {
+	if _, err := store.UpdateGroup(t.Context(), group, nil, nil); err != nil {
 		t.Fatalf("UpdateGroup() error = %v, want nil", err)
 	}
 
-	if err := store.DeleteGroup(t.Context(), group.ID); err != nil {
+	if err := store.DeleteGroup(t.Context(), group.ID, nil); err != nil {
 		t.Fatalf("DeleteGroup() error = %v, want nil", err)
 	}
 
@@ -239,17 +241,18 @@ func TestDeleteFieldsOfGroupSweepsAValueLeftOnATypeItStoppedMatching(t *testing.
 	for _, key := range []string{"subtitle", "footnote"} {
 		if _, err := store.CreateFieldInGroup(
 			t.Context(), group.ID, fieldOn(t, "", key, content.FieldKindText, ""),
+			nil,
 		); err != nil {
 			t.Fatalf("CreateFieldInGroup(%s) error = %v, want nil", key, err)
 		}
 	}
 	plantTyped(t, pool, author, "car", "left-behind", `{"subtitle": "must go", "footnote": "stays"}`)
 	group.Location = locationOf("book")
-	if _, err := store.UpdateGroup(t.Context(), group, nil); err != nil {
+	if _, err := store.UpdateGroup(t.Context(), group, nil, nil); err != nil {
 		t.Fatalf("UpdateGroup() error = %v, want nil", err)
 	}
 
-	if err := store.DeleteFieldsOfGroup(t.Context(), group.ID, []string{"subtitle"}); err != nil {
+	if err := store.DeleteFieldsOfGroup(t.Context(), group.ID, []string{"subtitle"}, nil); err != nil {
 		t.Fatalf("DeleteFieldsOfGroup() error = %v, want nil", err)
 	}
 
@@ -272,7 +275,7 @@ func TestDeleteFieldsOfGroupReportsAGroupThatIsGone(t *testing.T) {
 
 	store, _, _ := typedStore(t)
 
-	err := store.DeleteFieldsOfGroup(t.Context(), 12345, []string{"subtitle"})
+	err := store.DeleteFieldsOfGroup(t.Context(), 12345, []string{"subtitle"}, nil)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("DeleteFieldsOfGroup() = %v, want %v", err, content.ErrGroupNotFound)
@@ -293,6 +296,7 @@ func TestDeleteGroupSparesAValueAnotherGroupStillServes(t *testing.T) {
 		}
 		if _, err := store.CreateFieldInGroup(
 			t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""),
+			nil,
 		); err != nil {
 			t.Fatalf("CreateFieldInGroup(%q) error = %v, want nil", title, err)
 		}
@@ -302,7 +306,7 @@ func TestDeleteGroupSparesAValueAnotherGroupStillServes(t *testing.T) {
 	holding("Book extras", "book")
 	plantTyped(t, pool, author, "book", "kept", `{"subtitle": "must remain"}`)
 
-	if err := store.DeleteGroup(t.Context(), cars.ID); err != nil {
+	if err := store.DeleteGroup(t.Context(), cars.ID, nil); err != nil {
 		t.Fatalf("DeleteGroup() error = %v, want nil", err)
 	}
 
@@ -334,6 +338,7 @@ func TestUpdateGroupRefusesOneOfTwoMovesOntoTheSameType(t *testing.T) {
 		}
 		if _, err := store.CreateFieldInGroup(
 			t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""),
+			nil,
 		); err != nil {
 			t.Fatalf("CreateFieldInGroup(%q) error = %v, want nil", title, err)
 		}
@@ -342,11 +347,11 @@ func TestUpdateGroupRefusesOneOfTwoMovesOntoTheSameType(t *testing.T) {
 	}
 	first, second := moving("Cars", "car"), moving("Books", "book")
 
-	if _, err := store.UpdateGroup(t.Context(), first, nil); err != nil {
+	if _, err := store.UpdateGroup(t.Context(), first, nil, nil); err != nil {
 		t.Fatalf("UpdateGroup(first) error = %v, want nil", err)
 	}
 
-	_, err := store.UpdateGroup(t.Context(), second, nil)
+	_, err := store.UpdateGroup(t.Context(), second, nil, nil)
 
 	if !errors.Is(err, content.ErrFieldTaken) {
 		t.Fatalf("UpdateGroup(second) error = %v, want %v", err, content.ErrFieldTaken)
@@ -383,7 +388,7 @@ func TestUpdateGroupWaitsForAGroupWriteAlreadyUnderway(t *testing.T) {
 
 	group.Title = "Motors"
 	done := make(chan error, 1)
-	go func() { _, err := store.UpdateGroup(context.Background(), group, nil); done <- err }()
+	go func() { _, err := store.UpdateGroup(context.Background(), group, nil, nil); done <- err }()
 
 	select {
 	case err := <-done:
@@ -410,6 +415,7 @@ func TestByKeyFlattensTheFieldsOfMatchingGroups(t *testing.T) {
 	}
 	if _, err := store.CreateFieldInGroup(
 		t.Context(), extras.ID, fieldOn(t, "", "trim", content.FieldKindText, ""),
+		nil,
 	); err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}
@@ -440,7 +446,7 @@ func TestAGroupThatStopsMatchingStopsServingItsFields(t *testing.T) {
 	idle := groups[0]
 	idle.Active = false
 
-	if _, err := store.UpdateGroup(t.Context(), idle, nil); err != nil {
+	if _, err := store.UpdateGroup(t.Context(), idle, nil, nil); err != nil {
 		t.Fatalf("UpdateGroup() error = %v, want nil", err)
 	}
 
@@ -472,6 +478,7 @@ func TestTheAnyRuleServesAGroupOnEveryType(t *testing.T) {
 	}
 	if _, err := store.CreateFieldInGroup(
 		t.Context(), shared.ID, fieldOn(t, "", "footer", content.FieldKindText, ""),
+		nil,
 	); err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}
@@ -496,7 +503,7 @@ func TestUpdateFieldInGroupStoresTheLabelAndTheRequiredFlag(t *testing.T) {
 
 	updated, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{
 		Key: "subtitle", Label: "Renamed", Required: true, UpdatedAt: declared.UpdatedAt,
-	}, declared.UpdatedAt)
+	}, declared.UpdatedAt, nil)
 
 	if err != nil {
 		t.Fatalf("UpdateFieldInGroup() error = %v, want nil", err)
@@ -514,7 +521,7 @@ func TestUpdateFieldInGroupReportsAFieldThatIsGone(t *testing.T) {
 	declared := declareTypedField(t, store, "car", "subtitle")
 
 	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID,
-		content.Field{Key: "absent", Label: "Absent"}, declared.UpdatedAt)
+		content.Field{Key: "absent", Label: "Absent"}, declared.UpdatedAt, nil)
 
 	if !errors.Is(err, content.ErrFieldNotFound) {
 		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrFieldNotFound)
@@ -530,7 +537,7 @@ func TestUpdateFieldInGroupTurnsAwayAStaleExpectation(t *testing.T) {
 
 	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{
 		Key: "subtitle", Label: "Renamed", UpdatedAt: time.Now().UTC(),
-	}, declared.UpdatedAt.Add(-time.Hour))
+	}, declared.UpdatedAt.Add(-time.Hour), nil)
 
 	if !errors.Is(err, content.ErrConflict) {
 		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrConflict)
@@ -546,7 +553,7 @@ func TestUpdateFieldInGroupReportsAGroupThatIsGone(t *testing.T) {
 
 	_, err := store.UpdateFieldInGroup(t.Context(), 424242, content.Field{
 		Key: "subtitle", Label: "Renamed", UpdatedAt: declared.UpdatedAt,
-	}, declared.UpdatedAt)
+	}, declared.UpdatedAt, nil)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("UpdateFieldInGroup() error = %v, want %v", err, content.ErrGroupNotFound)
@@ -564,7 +571,7 @@ func TestDeleteFieldInGroupSweepsTheValuesOfItsMatchedTypes(t *testing.T) {
 	plantTyped(t, pool, author, "car", "one-car", `{"subtitle": "car words"}`)
 	plantTyped(t, pool, author, "book", "one-book", `{"subtitle": "book words"}`)
 
-	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle"); err != nil {
+	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle", nil); err != nil {
 		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
 	}
 
@@ -581,7 +588,7 @@ func TestDeleteFieldInGroupReportsAGroupThatIsGone(t *testing.T) {
 
 	store, _, _ := typedStore(t)
 
-	err := store.DeleteFieldInGroup(t.Context(), 4242, "subtitle")
+	err := store.DeleteFieldInGroup(t.Context(), 4242, "subtitle", nil)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("DeleteFieldInGroup() error = %v, want %v", err, content.ErrGroupNotFound)
@@ -599,13 +606,13 @@ func TestDeletingARestingGroupsFieldKeepsTheValueTheServedFieldHolds(t *testing.
 	}
 	idle := rested(t, store, "Shadow")
 	if _, err := store.CreateFieldInGroup(
-		t.Context(), idle.ID, fieldOn(t, "", "title", content.FieldKindText, "")); err != nil {
+		t.Context(), idle.ID, fieldOn(t, "", "title", content.FieldKindText, ""), nil); err != nil {
 		t.Fatalf("CreateFieldInGroup(shadow title) error = %v, want nil", err)
 	}
 	plantTyped(t, pool, author, "car", "one", `{"title": "served words"}`)
 	plantAutosave(t, pool, author, "one", `{"title": "typed words"}`)
 
-	if err := store.DeleteFieldInGroup(t.Context(), idle.ID, "title"); err != nil {
+	if err := store.DeleteFieldInGroup(t.Context(), idle.ID, "title", nil); err != nil {
 		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
 	}
 
@@ -622,7 +629,7 @@ func TestDeletingAShadowedGroupsFieldKeepsTheValueTheServingGroupHolds(t *testin
 
 	store, author, pool := typedStore(t)
 	everywhere := servingEverything(t, store)
-	specs, err := store.CreateFieldInGroup(t.Context(), everywhere.ID, sectionOn(t, "specs"))
+	specs, err := store.CreateFieldInGroup(t.Context(), everywhere.ID, sectionOn(t, "specs"), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(specs) error = %v, want nil", err)
 	}
@@ -630,7 +637,7 @@ func TestDeletingAShadowedGroupsFieldKeepsTheValueTheServingGroupHolds(t *testin
 	trucks := rivalOnTruck(t, store, "specs")
 	plantTyped(t, pool, author, "truck", "one", `{"specs": {"color": "red"}}`)
 
-	if err := store.DeleteFieldInGroup(t.Context(), trucks.ID, "specs"); err != nil {
+	if err := store.DeleteFieldInGroup(t.Context(), trucks.ID, "specs", nil); err != nil {
 		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
 	}
 
@@ -649,13 +656,13 @@ func TestDeletingARestingGroupsFieldSweepsTheValuesNoGroupServes(t *testing.T) {
 		t.Fatalf("CreateGroup(Resting) error = %v, want nil", err)
 	}
 	if _, err := store.CreateFieldInGroup(
-		t.Context(), resting.ID, fieldOn(t, "", "title", content.FieldKindText, "")); err != nil {
+		t.Context(), resting.ID, fieldOn(t, "", "title", content.FieldKindText, ""), nil); err != nil {
 		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
 	}
 	rested(t, store, "Resting")
 	plantTyped(t, pool, author, "car", "one", `{"title": "old words"}`)
 
-	if err := store.DeleteFieldInGroup(t.Context(), resting.ID, "title"); err != nil {
+	if err := store.DeleteFieldInGroup(t.Context(), resting.ID, "title", nil); err != nil {
 		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
 	}
 
@@ -696,7 +703,7 @@ func TestMoveFieldCarriesTheFieldAndKeepsItsValues(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 
-	moved, err := store.MoveField(t.Context(), subtitle.ID, extras.ID, 0, deepEnough)
+	moved, err := store.MoveField(t.Context(), subtitle.ID, extras.ID, 0, deepEnough, nil)
 
 	if err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
@@ -724,7 +731,7 @@ func TestMoveFieldReportsAFieldThatIsGone(t *testing.T) {
 		t.Fatalf("ListGroups() = %v, %v, want the one raised group", groups, err)
 	}
 
-	_, err = store.MoveField(t.Context(), 4242, groups[0].ID, 0, deepEnough)
+	_, err = store.MoveField(t.Context(), 4242, groups[0].ID, 0, deepEnough, nil)
 
 	if !errors.Is(err, content.ErrFieldNotFound) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldNotFound)
@@ -738,7 +745,7 @@ func TestMoveFieldReportsAGroupThatIsGone(t *testing.T) {
 	storeType(t, store, "car")
 	subtitle := declareTypedField(t, store, "car", "subtitle")
 
-	_, err := store.MoveField(t.Context(), subtitle.ID, 4242, 0, deepEnough)
+	_, err := store.MoveField(t.Context(), subtitle.ID, 4242, 0, deepEnough, nil)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrGroupNotFound)
@@ -756,7 +763,7 @@ func TestDeleteFieldInGroupSweepsOnlyTheTypesItMatches(t *testing.T) {
 	plantTyped(t, pool, author, "car", "one-car", `{"subtitle": "car words"}`)
 	plantTyped(t, pool, author, "book", "one-book", `{"subtitle": "book words"}`)
 
-	if err := store.DeleteFieldInGroup(t.Context(), carField.GroupID, "subtitle"); err != nil {
+	if err := store.DeleteFieldInGroup(t.Context(), carField.GroupID, "subtitle", nil); err != nil {
 		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
 	}
 
@@ -781,7 +788,7 @@ func TestDeleteGroupTakesItsFieldsAndValuesInOneSweep(t *testing.T) {
 		t.Fatalf("ListGroups() = %v, %v, want the one raised group", groups, err)
 	}
 
-	if err := store.DeleteGroup(t.Context(), groups[0].ID); err != nil {
+	if err := store.DeleteGroup(t.Context(), groups[0].ID, nil); err != nil {
 		t.Fatalf("DeleteGroup() error = %v, want nil", err)
 	}
 
@@ -802,7 +809,7 @@ func TestDeleteGroupReportsAMissingGroup(t *testing.T) {
 
 	store, _, _ := typedStore(t)
 
-	err := store.DeleteGroup(t.Context(), 12345)
+	err := store.DeleteGroup(t.Context(), 12345, nil)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("DeleteGroup() = %v, want %v", err, content.ErrGroupNotFound)
@@ -821,6 +828,7 @@ func TestReorderGroupsSettlesTheFlattenedOrder(t *testing.T) {
 	}
 	if _, err := store.CreateFieldInGroup(
 		t.Context(), extras.ID, fieldOn(t, "", "trim", content.FieldKindText, ""),
+		nil,
 	); err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}

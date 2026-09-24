@@ -88,7 +88,7 @@ func TestMoveFieldRefusesALandingPastTheLimit(t *testing.T) {
 	holder := declareSection(t, store, "holder")
 	sectionInside(t, store, holder, "inner")
 
-	_, err := store.MoveField(t.Context(), holder.ID, outer.GroupID, outer.ID, 1)
+	_, err := store.MoveField(t.Context(), holder.ID, outer.GroupID, outer.ID, 1, nil)
 
 	if !errors.Is(err, content.ErrFieldTooDeep) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldTooDeep)

@@ -372,7 +372,7 @@ func TestDeleteFieldInGroupReportsRevisionValuesItCannotClear(t *testing.T) {
 	group := groupHolding(t, types, "categories")
 	raiseOn(t, pool, "core.content_revisions", "UPDATE")
 
-	err := types.DeleteFieldInGroup(t.Context(), group, "categories")
+	err := types.DeleteFieldInGroup(t.Context(), group, "categories", nil)
 
 	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
 		t.Errorf("DeleteFieldInGroup() error = %v, want the failing revision sweep reported", err)
@@ -492,7 +492,7 @@ func TestDeleteFieldInGroupReportsADefinitionItCannotRemove(t *testing.T) {
 	group := groupHolding(t, types, "categories")
 	raiseOn(t, pool, "core.content_fields", "DELETE")
 
-	err := types.DeleteFieldInGroup(t.Context(), group, "categories")
+	err := types.DeleteFieldInGroup(t.Context(), group, "categories", nil)
 
 	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
 		t.Errorf("DeleteFieldInGroup() error = %v, want the failing removal reported", err)
@@ -553,7 +553,7 @@ func TestDeleteGroupReportsAFieldGroupLockItCannotTake(t *testing.T) {
 	}
 	holdFieldGroupLock(t, url)
 
-	if err := types.DeleteGroup(t.Context(), group.ID); err == nil {
+	if err := types.DeleteGroup(t.Context(), group.ID, nil); err == nil {
 		t.Error("DeleteGroup() error = nil, want the held field group lock reported")
 	}
 }
@@ -567,12 +567,12 @@ func TestDeleteGroupReportsFieldRowsASaveHolds(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 	if _, err := types.CreateFieldInGroup(
-		t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, "")); err != nil {
+		t.Context(), group.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""), nil); err != nil {
 		t.Fatalf("CreateFieldInGroup(subtitle) error = %v, want nil", err)
 	}
 	holdInRival(t, url, "SELECT key FROM core.content_fields FOR KEY SHARE")
 
-	if err := types.DeleteGroup(t.Context(), group.ID); err == nil {
+	if err := types.DeleteGroup(t.Context(), group.ID, nil); err == nil {
 		t.Error("DeleteGroup() error = nil, want the field rows a save holds reported")
 	}
 }
@@ -586,14 +586,14 @@ func TestDeleteSubFieldReportsAFieldGroupLockItCannotTake(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 	section, err := types.CreateFieldInGroup(
-		t.Context(), group.ID, fieldOn(t, "", "author", content.FieldKindSection, ""))
+		t.Context(), group.ID, fieldOn(t, "", "author", content.FieldKindSection, ""), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(author) error = %v, want nil", err)
 	}
 	name := declaredInside(t, types, section, "name", content.FieldKindText)
 	holdFieldGroupLock(t, url)
 
-	if err := types.DeleteSubField(t.Context(), name.ID); err == nil {
+	if err := types.DeleteSubField(t.Context(), name.ID, nil); err == nil {
 		t.Error("DeleteSubField() error = nil, want the held field group lock reported")
 	}
 }
@@ -611,7 +611,7 @@ func TestDeleteGroupReportsAFieldItCannotCarry(t *testing.T) {
 	}
 	raiseOn(t, pool, "core.content_fields", "UPDATE")
 
-	err := store.DeleteGroup(t.Context(), source.ID)
+	err := store.DeleteGroup(t.Context(), source.ID, nil)
 
 	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
 		t.Errorf("DeleteGroup() error = %v, want the failing carry reported", err)

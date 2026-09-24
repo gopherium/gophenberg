@@ -51,7 +51,7 @@ func TestDeletingASubFieldSweepsItsValuesInsideASection(t *testing.T) {
 	}
 	plantTyped(t, pool, author, "car", "one", `{"specs": {"colour": "red", "doors": "five"}}`)
 
-	if err := store.DeleteSubField(t.Context(), dropped.ID); err != nil {
+	if err := store.DeleteSubField(t.Context(), dropped.ID, nil); err != nil {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
@@ -74,7 +74,7 @@ func TestDeletingARestingGroupsSubFieldKeepsTheValueTheServedFieldHolds(t *testi
 	dropped := declaredInside(t, store, twin, "color", content.FieldKindText)
 	plantTyped(t, pool, author, "car", "one", `{"specs": {"color": "red"}}`)
 
-	if err := store.DeleteSubField(t.Context(), dropped.ID); err != nil {
+	if err := store.DeleteSubField(t.Context(), dropped.ID, nil); err != nil {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
@@ -97,7 +97,7 @@ func TestDeletingARestingGroupsSubFieldSweepsTheValueTheServedSectionLacks(t *te
 	dropped := declaredInside(t, store, twin, "color", content.FieldKindText)
 	plantTyped(t, pool, author, "car", "one", `{"specs": {"color": "red", "size": "big"}}`)
 
-	if err := store.DeleteSubField(t.Context(), dropped.ID); err != nil {
+	if err := store.DeleteSubField(t.Context(), dropped.ID, nil); err != nil {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
@@ -127,7 +127,7 @@ func TestDeletingASubFieldSweepsItsValuesFromEveryRow(t *testing.T) {
 	plantTyped(t, pool, author, "car", "one",
 		`{"team": [{"name": "Maria Perez", "role": "lead"}, {"name": "Kip", "role": "smith"}]}`)
 
-	if err := store.DeleteSubField(t.Context(), dropped.ID); err != nil {
+	if err := store.DeleteSubField(t.Context(), dropped.ID, nil); err != nil {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
@@ -176,7 +176,7 @@ func TestDeletingASubFieldLeavesWhatThePathDoesNotReach(t *testing.T) {
 			}
 			plantTyped(t, pool, author, "car", "one", asked.planted)
 
-			if err := store.DeleteSubField(t.Context(), dropped.ID); err != nil {
+			if err := store.DeleteSubField(t.Context(), dropped.ID, nil); err != nil {
 				t.Fatalf("DeleteSubField() error = %v, want nil", err)
 			}
 
@@ -204,7 +204,7 @@ func TestDeletingAContainerSweepsEverythingInsideIt(t *testing.T) {
 	plantTyped(t, pool, author, "car", "one",
 		`{"team": [{"contact": {"phone": "184467235"}}]}`)
 
-	if err := store.DeleteSubField(t.Context(), inner.ID); err != nil {
+	if err := store.DeleteSubField(t.Context(), inner.ID, nil); err != nil {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
@@ -219,7 +219,7 @@ func TestDeletingASubFieldReportsOneThatIsGone(t *testing.T) {
 	store, _, _ := typedStore(t)
 	storeType(t, store, "car")
 
-	err := store.DeleteSubField(t.Context(), 424242)
+	err := store.DeleteSubField(t.Context(), 424242, nil)
 
 	if err == nil {
 		t.Error("DeleteSubField() error = nil, want the field that is gone reported")
@@ -260,7 +260,7 @@ func TestDeletingASubFieldReportsWhatItCannotReach(t *testing.T) {
 			plantTyped(t, pool, author, "car", "one", `{"specs": {"doors": "five"}}`)
 			sabotaged(t, pool)
 
-			if err := store.DeleteSubField(t.Context(), dropped.ID); err == nil {
+			if err := store.DeleteSubField(t.Context(), dropped.ID, nil); err == nil {
 				t.Error("DeleteSubField() error = nil, want the failure reported")
 			}
 		})

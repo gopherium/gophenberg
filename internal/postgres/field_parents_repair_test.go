@@ -89,7 +89,7 @@ func TestMigrationsKeepTheFieldsInsideAContainerLeftTwice(t *testing.T) {
 		t.Fatalf("CreateGroup(Details) error = %v, want nil", err)
 	}
 	author, err := store.CreateFieldInGroup(
-		t.Context(), source.ID, fieldOn(t, "", "author", content.FieldKindSection, ""))
+		t.Context(), source.ID, fieldOn(t, "", "author", content.FieldKindSection, ""), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(author) error = %v, want nil", err)
 	}
@@ -407,7 +407,7 @@ func sectionAcrossGroups(t *testing.T, store *postgres.TypeStore) (content.Group
 		t.Fatalf("CreateGroup(Elsewhere) error = %v, want nil", err)
 	}
 	section, err := store.CreateFieldInGroup(
-		t.Context(), landing.ID, fieldOn(t, "", "author", content.FieldKindSection, ""))
+		t.Context(), landing.ID, fieldOn(t, "", "author", content.FieldKindSection, ""), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(author) error = %v, want nil", err)
 	}
@@ -482,7 +482,7 @@ func TestDeletingAGroupCarriesTheFieldsItStoresInsideAnotherGroupsContainer(t *t
 	}
 	plantTyped(t, pool, author, "car", "one-car", `{"author": {"rows": [{"title": "Maria Perez"}]}}`)
 
-	if err := store.DeleteGroup(t.Context(), source.ID); err != nil {
+	if err := store.DeleteGroup(t.Context(), source.ID, nil); err != nil {
 		t.Fatalf("DeleteGroup(Details) error = %v, want nil", err)
 	}
 
@@ -509,7 +509,7 @@ func TestMigrationsCarrySubFieldsIntoTheirContainersGroup(t *testing.T) {
 		t.Fatalf("CreateGroup(Details) error = %v, want nil", err)
 	}
 	section, err := store.CreateFieldInGroup(
-		t.Context(), source.ID, fieldOn(t, "", "author", content.FieldKindSection, ""))
+		t.Context(), source.ID, fieldOn(t, "", "author", content.FieldKindSection, ""), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(author) error = %v, want nil", err)
 	}

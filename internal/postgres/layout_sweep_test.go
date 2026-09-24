@@ -65,7 +65,7 @@ func TestDeletingASubFieldSweepsItOnlyFromItsOwnLayout(t *testing.T) {
 		`{"features": [{"hero": {"title": "A", "caption": "drop"}}, `+
 			`{"quote": {"caption": "keep"}}, {"hero": {"title": "C", "caption": "drop too"}}]}`)
 
-	if err := store.DeleteSubField(t.Context(), dropped.ID); err != nil {
+	if err := store.DeleteSubField(t.Context(), dropped.ID, nil); err != nil {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
@@ -91,7 +91,7 @@ func TestDeletingALayoutTakesItsRowsAway(t *testing.T) {
 	plantTyped(t, pool, author, "car", "one",
 		`{"features": [{"hero": {"title": "A"}}, {"quote": {"title": "B"}}, {"hero": {"title": "C"}}]}`)
 
-	if err := store.DeleteSubField(t.Context(), hero.ID); err != nil {
+	if err := store.DeleteSubField(t.Context(), hero.ID, nil); err != nil {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
@@ -113,7 +113,7 @@ func TestDeletingALayoutTakesTheFieldsItHeld(t *testing.T) {
 	hero := declareLayout(t, store, features.ID, "hero")
 	declareUnder(t, store, hero.ID, "title")
 
-	if err := store.DeleteSubField(t.Context(), hero.ID); err != nil {
+	if err := store.DeleteSubField(t.Context(), hero.ID, nil); err != nil {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
@@ -148,7 +148,7 @@ func TestDeletingALayoutInsideARepeaterTakesItsRowsAway(t *testing.T) {
 	plantTyped(t, pool, author, "car", "one",
 		`{"team": [{"features": [{"hero": {"title": "A"}}, {"quote": {"title": "B"}}]}]}`)
 
-	if err := store.DeleteSubField(t.Context(), hero.ID); err != nil {
+	if err := store.DeleteSubField(t.Context(), hero.ID, nil); err != nil {
 		t.Fatalf("DeleteSubField() error = %v, want nil", err)
 	}
 
@@ -169,7 +169,7 @@ func TestDeletingALayoutReportsASweepItCannotRun(t *testing.T) {
 	plantTyped(t, pool, author, "car", "one", `{"features": [{"hero": {"title": "A"}}]}`)
 	sabotage(t, pool, "DROP FUNCTION core.strip_layout(jsonb, text [])")
 
-	err := store.DeleteSubField(t.Context(), hero.ID)
+	err := store.DeleteSubField(t.Context(), hero.ID, nil)
 
 	if err == nil {
 		t.Error("DeleteSubField() error = nil, want the sweep it cannot run reported")
