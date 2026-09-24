@@ -69,31 +69,39 @@ func (stubTypeStore) CreateGroup(_ context.Context, g content.Group) (content.Gr
 }
 
 // UpdateGroup hands the group back unstored.
-func (stubTypeStore) UpdateGroup(_ context.Context, g content.Group, _ []content.Field) (content.Group, error) {
+func (stubTypeStore) UpdateGroup(
+	_ context.Context, g content.Group, _ []content.Field, _ content.Recheck,
+) (content.Group, error) {
 	return g, nil
 }
 
 // DeleteGroup removes no group.
-func (stubTypeStore) DeleteGroup(context.Context, int) error { return nil }
+func (stubTypeStore) DeleteGroup(context.Context, int, content.Recheck) error { return nil }
 
 // DeleteFieldsOfGroup removes no field.
-func (stubTypeStore) DeleteFieldsOfGroup(context.Context, int, []string) error { return nil }
+func (stubTypeStore) DeleteFieldsOfGroup(context.Context, int, []string, content.Recheck) error {
+	return nil
+}
 
 // ReorderGroups stores no order.
 func (stubTypeStore) ReorderGroups(context.Context, []int) error { return nil }
 
 // CreateFieldInGroup hands the field back undeclared.
-func (stubTypeStore) CreateFieldInGroup(_ context.Context, _ int, f content.Field) (content.Field, error) {
+func (stubTypeStore) CreateFieldInGroup(
+	_ context.Context, _ int, f content.Field, _ content.Recheck,
+) (content.Field, error) {
 	return f, nil
 }
 
 // MoveField carries no field.
-func (stubTypeStore) MoveField(context.Context, int, int, int, int) (content.Field, error) {
+func (stubTypeStore) MoveField(context.Context, int, int, int, int, content.Recheck) (content.Field, error) {
 	return content.Field{}, content.ErrFieldNotFound
 }
 
 // UpdateFieldInGroup hands the field back unstored.
-func (stubTypeStore) UpdateFieldInGroup(_ context.Context, _ int, f content.Field, _ time.Time) (content.Field, error) {
+func (stubTypeStore) UpdateFieldInGroup(
+	_ context.Context, _ int, f content.Field, _ time.Time, _ content.Recheck,
+) (content.Field, error) {
 	return f, nil
 }
 
@@ -103,7 +111,7 @@ func (stubTypeStore) CreateSubField(_ context.Context, _ int, f content.Field, _
 }
 
 // DeleteSubField removes no field.
-func (stubTypeStore) DeleteSubField(_ context.Context, _ int) error {
+func (stubTypeStore) DeleteSubField(_ context.Context, _ int, _ content.Recheck) error {
 	return nil
 }
 
@@ -120,7 +128,9 @@ func (stubTypeStore) ReorderSubFields(_ context.Context, _ int, _ []string) erro
 }
 
 // DeleteFieldInGroup removes no field.
-func (stubTypeStore) DeleteFieldInGroup(context.Context, int, string) error { return nil }
+func (stubTypeStore) DeleteFieldInGroup(context.Context, int, string, content.Recheck) error {
+	return nil
+}
 
 // ReorderFieldsInGroup stores no order.
 func (stubTypeStore) ReorderFieldsInGroup(context.Context, int, []string) error { return nil }

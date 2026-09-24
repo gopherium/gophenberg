@@ -42,7 +42,7 @@ func TestContentStoreFreezesTheValuesOfAGroupThatStoppedMatching(t *testing.T) {
 	}
 	resting := groups[0]
 	resting.Active = false
-	if _, err := types.UpdateGroup(t.Context(), resting, nil); err != nil {
+	if _, err := types.UpdateGroup(t.Context(), resting, nil, nil); err != nil {
 		t.Fatalf("resting the group: %v, want nil", err)
 	}
 
@@ -98,7 +98,7 @@ func TestContentStoreRefusesAValueWhoseFieldIsGone(t *testing.T) {
 	created.Fields = content.Values{"color": "red"}
 	created.UpdatedAt = time.Now().UTC()
 	types := postgres.NewTypeStore(pool)
-	if err := types.DeleteFieldInGroup(t.Context(), groupHolding(t, types, "color"), "color"); err != nil {
+	if err := types.DeleteFieldInGroup(t.Context(), groupHolding(t, types, "color"), "color", nil); err != nil {
 		t.Fatalf("deleting the field: %v, want nil", err)
 	}
 
@@ -167,7 +167,7 @@ func TestDeleteFieldInGroupWaitsForAContentWriteHoldingTheDefinition(t *testing.
 	}
 	swept := make(chan error, 1)
 
-	go func() { swept <- types.DeleteFieldInGroup(context.Background(), group, "color") }()
+	go func() { swept <- types.DeleteFieldInGroup(context.Background(), group, "color", nil) }()
 
 	select {
 	case err := <-swept:

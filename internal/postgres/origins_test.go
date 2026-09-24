@@ -129,7 +129,7 @@ func TestCreateFieldInGroupStoresTheOriginAFieldCarries(t *testing.T) {
 	section := fieldOn(t, "", "schedule", content.FieldKindSection, "")
 	section.Origin = "events"
 
-	parent, err := store.CreateFieldInGroup(t.Context(), group.ID, section)
+	parent, err := store.CreateFieldInGroup(t.Context(), group.ID, section, nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}

@@ -530,7 +530,7 @@ func (s *fakeTypeStore) freeGroupKey(stem string) string {
 
 // UpdateGroup stores the group's title, location and resting flag with the fields it points anew.
 func (s *fakeTypeStore) UpdateGroup(
-	_ context.Context, g content.Group, repointed []content.Field,
+	_ context.Context, g content.Group, repointed []content.Field, _ content.Recheck,
 ) (content.Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -552,7 +552,7 @@ func (s *fakeTypeStore) UpdateGroup(
 }
 
 // DeleteGroup removes the group and every field it holds.
-func (s *fakeTypeStore) DeleteGroup(_ context.Context, id int) error {
+func (s *fakeTypeStore) DeleteGroup(_ context.Context, id int, _ content.Recheck) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
@@ -581,7 +581,9 @@ func (s *fakeTypeStore) ReorderGroups(_ context.Context, ids []int) error {
 }
 
 // CreateFieldInGroup declares the field inside the group.
-func (s *fakeTypeStore) CreateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
+func (s *fakeTypeStore) CreateFieldInGroup(
+	_ context.Context, groupID int, f content.Field, _ content.Recheck,
+) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
@@ -620,7 +622,7 @@ func (s *fakeTypeStore) CreateSubField(
 }
 
 // DeleteSubField removes the field standing inside a container.
-func (s *fakeTypeStore) DeleteSubField(_ context.Context, id int) error {
+func (s *fakeTypeStore) DeleteSubField(_ context.Context, id int, _ content.Recheck) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.subErr != nil {
@@ -761,7 +763,7 @@ func fieldsInOrder(declared []content.Field, keys []string) []content.Field {
 
 // UpdateFieldInGroup stores the field's label, required flag and settings inside its group.
 func (s *fakeTypeStore) UpdateFieldInGroup(
-	_ context.Context, groupID int, f content.Field, _ time.Time,
+	_ context.Context, groupID int, f content.Field, _ time.Time, _ content.Recheck,
 ) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -780,7 +782,7 @@ func (s *fakeTypeStore) UpdateFieldInGroup(
 }
 
 // DeleteFieldInGroup removes the field from its group.
-func (s *fakeTypeStore) DeleteFieldInGroup(_ context.Context, groupID int, key string) error {
+func (s *fakeTypeStore) DeleteFieldInGroup(_ context.Context, groupID int, key string, _ content.Recheck) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
@@ -798,9 +800,11 @@ func (s *fakeTypeStore) DeleteFieldInGroup(_ context.Context, groupID int, key s
 }
 
 // DeleteFieldsOfGroup removes every named field from its group.
-func (s *fakeTypeStore) DeleteFieldsOfGroup(ctx context.Context, groupID int, keys []string) error {
+func (s *fakeTypeStore) DeleteFieldsOfGroup(
+	ctx context.Context, groupID int, keys []string, _ content.Recheck,
+) error {
 	for _, key := range keys {
-		if err := s.DeleteFieldInGroup(ctx, groupID, key); err != nil {
+		if err := s.DeleteFieldInGroup(ctx, groupID, key, nil); err != nil {
 			return err
 		}
 	}
@@ -830,7 +834,9 @@ func (s *fakeTypeStore) ReorderFieldsInGroup(_ context.Context, groupID int, key
 }
 
 // MoveField carries the field to the top of the group, or inside the container the parent names.
-func (s *fakeTypeStore) MoveField(_ context.Context, id, toGroup, toParent, _ int) (content.Field, error) {
+func (s *fakeTypeStore) MoveField(
+	_ context.Context, id, toGroup, toParent, _ int, _ content.Recheck,
+) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var carried content.Field

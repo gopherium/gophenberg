@@ -61,17 +61,17 @@ func (unreadableTypeStore) CreateGroup(context.Context, Group) (Group, error) {
 }
 
 // UpdateGroup reports the failure rather than storing the group.
-func (unreadableTypeStore) UpdateGroup(context.Context, Group, []Field) (Group, error) {
+func (unreadableTypeStore) UpdateGroup(context.Context, Group, []Field, Recheck) (Group, error) {
 	return Group{}, errTypeStoreDown
 }
 
 // DeleteGroup reports the failure rather than removing the group.
-func (unreadableTypeStore) DeleteGroup(context.Context, int) error {
+func (unreadableTypeStore) DeleteGroup(context.Context, int, Recheck) error {
 	return errTypeStoreDown
 }
 
 // DeleteFieldsOfGroup reports the failure rather than removing the fields.
-func (unreadableTypeStore) DeleteFieldsOfGroup(context.Context, int, []string) error {
+func (unreadableTypeStore) DeleteFieldsOfGroup(context.Context, int, []string, Recheck) error {
 	return errTypeStoreDown
 }
 
@@ -81,7 +81,7 @@ func (unreadableTypeStore) ReorderGroups(context.Context, []int) error {
 }
 
 // CreateFieldInGroup reports the failure rather than declaring the field.
-func (unreadableTypeStore) CreateFieldInGroup(context.Context, int, Field) (Field, error) {
+func (unreadableTypeStore) CreateFieldInGroup(context.Context, int, Field, Recheck) (Field, error) {
 	return Field{}, errTypeStoreDown
 }
 
@@ -91,7 +91,7 @@ func (unreadableTypeStore) CreateSubField(context.Context, int, Field, int) (Fie
 }
 
 // DeleteSubField reports the failure rather than removing the field.
-func (unreadableTypeStore) DeleteSubField(context.Context, int) error {
+func (unreadableTypeStore) DeleteSubField(context.Context, int, Recheck) error {
 	return errTypeStoreDown
 }
 
@@ -108,17 +108,17 @@ func (unreadableTypeStore) ReorderSubFields(context.Context, int, []string) erro
 }
 
 // MoveField reports the failure rather than carrying the field.
-func (unreadableTypeStore) MoveField(context.Context, int, int, int, int) (Field, error) {
+func (unreadableTypeStore) MoveField(context.Context, int, int, int, int, Recheck) (Field, error) {
 	return Field{}, errTypeStoreDown
 }
 
 // UpdateFieldInGroup reports the failure rather than storing the field.
-func (unreadableTypeStore) UpdateFieldInGroup(context.Context, int, Field, time.Time) (Field, error) {
+func (unreadableTypeStore) UpdateFieldInGroup(context.Context, int, Field, time.Time, Recheck) (Field, error) {
 	return Field{}, errTypeStoreDown
 }
 
 // DeleteFieldInGroup reports the failure rather than removing the field.
-func (unreadableTypeStore) DeleteFieldInGroup(context.Context, int, string) error {
+func (unreadableTypeStore) DeleteFieldInGroup(context.Context, int, string, Recheck) error {
 	return errTypeStoreDown
 }
 

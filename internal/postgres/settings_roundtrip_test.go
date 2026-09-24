@@ -22,7 +22,7 @@ func TestFieldSettingsSurviveTheStore(t *testing.T) {
 	declared := fieldOn(t, "", "rating", content.FieldKindNumber, "")
 	declared.Settings = map[string]any{"min": float64(1), "max": float64(10), "instructions": "One to ten."}
 
-	created, err := store.CreateFieldInGroup(t.Context(), group.ID, declared)
+	created, err := store.CreateFieldInGroup(t.Context(), group.ID, declared, nil)
 
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
@@ -72,7 +72,7 @@ func TestUpdateFieldInGroupCarriesSettings(t *testing.T) {
 	declared := declareTypedField(t, store, "car", "subtitle")
 	declared.Settings = map[string]any{"maxlength": float64(80)}
 
-	updated, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, declared, declared.UpdatedAt)
+	updated, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, declared, declared.UpdatedAt, nil)
 
 	if err != nil {
 		t.Fatalf("UpdateFieldInGroup() error = %v, want nil", err)
@@ -101,7 +101,7 @@ func TestRollingBackPastSettingsLeavesTheFieldStanding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
-	if _, err := store.CreateFieldInGroup(t.Context(), group.ID, declared); err != nil {
+	if _, err := store.CreateFieldInGroup(t.Context(), group.ID, declared, nil); err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}
 	url := pool.Config().ConnString()

@@ -588,7 +588,7 @@ func TestContentStoreWritesRelationsWhileTheFieldIsDeleted(t *testing.T) {
 			defer wg.Done()
 			<-start
 			time.Sleep(time.Duration(round) * 100 * time.Microsecond)
-			swept = types.DeleteFieldInGroup(t.Context(), group, "categories")
+			swept = types.DeleteFieldInGroup(t.Context(), group, "categories", nil)
 		}()
 		close(start)
 		wg.Wait()

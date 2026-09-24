@@ -106,7 +106,7 @@ func TestDeletingASubFieldKeepsAConcurrentAutosaveEdit(t *testing.T) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		deleted <- typeStore.DeleteSubField(ctx, doors.ID)
+		deleted <- typeStore.DeleteSubField(ctx, doors.ID, nil)
 	}()
 	sweepBlockedOnRevisions(t, pool)
 

@@ -26,7 +26,7 @@ func readersOn(t *testing.T, store *postgres.TypeStore, typeKey, relation string
 	if err != nil {
 		t.Fatalf("NewField(backlinks) error = %v, want nil", err)
 	}
-	stored, err := store.CreateFieldInGroup(t.Context(), group.ID, built)
+	stored, err := store.CreateFieldInGroup(t.Context(), group.ID, built, nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(backlinks) error = %v, want nil", err)
 	}
@@ -64,7 +64,7 @@ func TestUpdateGroupPointsItsBacklinksAnewInTheSameWrite(t *testing.T) {
 	group.Location = locationOf("book")
 	field.Settings = readingSource("twin")
 
-	if _, err := store.UpdateGroup(t.Context(), group, []content.Field{field}); err != nil {
+	if _, err := store.UpdateGroup(t.Context(), group, []content.Field{field}, nil); err != nil {
 		t.Fatalf("UpdateGroup() error = %v, want nil", err)
 	}
 
@@ -88,7 +88,7 @@ func TestUpdateGroupWritesNothingWhenAPointedFieldMovedOn(t *testing.T) {
 	field.Settings = readingSource("twin")
 	field.UpdatedAt = field.UpdatedAt.Add(-time.Minute)
 
-	_, err := store.UpdateGroup(t.Context(), group, []content.Field{field})
+	_, err := store.UpdateGroup(t.Context(), group, []content.Field{field}, nil)
 
 	if !errors.Is(err, content.ErrConflict) {
 		t.Errorf("UpdateGroup() error = %v, want %v", err, content.ErrConflict)
@@ -108,7 +108,7 @@ func TestUpdateGroupReportsAPointedFieldItCannotStore(t *testing.T) {
 	raiseOn(t, pool, "core.content_fields", "UPDATE")
 	group.Location = locationOf("book")
 
-	_, err := store.UpdateGroup(t.Context(), group, []content.Field{field})
+	_, err := store.UpdateGroup(t.Context(), group, []content.Field{field}, nil)
 
 	if err == nil || errors.Is(err, content.ErrConflict) {
 		t.Errorf("UpdateGroup() error = %v, want the refused write reported", err)

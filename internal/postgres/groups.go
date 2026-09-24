@@ -286,13 +286,16 @@ func groupWriteFailure(err error) error {
 
 // UpdateGroup stores the group's title, location and active flag with the settings of the fields it points anew.
 func (s *TypeStore) UpdateGroup(
-	ctx context.Context, g content.Group, repointed []content.Field,
+	ctx context.Context, g content.Group, repointed []content.Field, recheck content.Recheck,
 ) (content.Group, error) {
 	var updated content.Group
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
 		if err := queries.LockFieldGroups(ctx); err != nil {
 			return fmt.Errorf("postgres: lock field groups: %w", err)
+		}
+		if err := rechecked(ctx, queries, recheck); err != nil {
+			return err
 		}
 		if err := groupStandsAlone(ctx, queries, g); err != nil {
 			return err
@@ -339,7 +342,7 @@ func repoint(ctx context.Context, queries *db.Queries, groupID int, fields []con
 
 // updateGroupFailure returns the error a group update carries, and wraps anything else.
 func updateGroupFailure(err error) error {
-	if errors.Is(err, content.ErrGroupNotFound) || errors.Is(err, content.ErrFieldTaken) {
+	if errors.Is(err, content.ErrGroupNotFound) || errors.Is(err, content.ErrFieldTaken) || fromCheck(err) {
 		return err
 	}
 	return fmt.Errorf("postgres: update field group: %w", err)
@@ -367,12 +370,12 @@ func groupStandsAlone(ctx context.Context, queries *db.Queries, g content.Group)
 	return content.Uncollided(types, groups, g, keys, 0, locationParams)
 }
 
-// DeleteGroup removes the group, its fields and their stored values in one transaction.
-func (s *TypeStore) DeleteGroup(ctx context.Context, id int) error {
+// DeleteGroup removes the group, its fields and their stored values in one transaction, once the check passes.
+func (s *TypeStore) DeleteGroup(ctx context.Context, id int, recheck content.Recheck) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		return deleteGroupRows(ctx, s.queries.WithTx(tx), id)
+		return deleteGroupRows(ctx, s.queries.WithTx(tx), id, recheck)
 	})
-	if errors.Is(err, content.ErrGroupNotFound) {
+	if errors.Is(err, content.ErrGroupNotFound) || fromCheck(err) {
 		return err
 	}
 	if err != nil {
@@ -382,8 +385,8 @@ func (s *TypeStore) DeleteGroup(ctx context.Context, id int) error {
 }
 
 // deleteGroupRows removes the group and its own fields, carrying what it stores inside other groups' containers.
-func deleteGroupRows(ctx context.Context, queries *db.Queries, id int) error {
-	groups, held, err := lockedGroup(ctx, queries, id)
+func deleteGroupRows(ctx context.Context, queries *db.Queries, id int, recheck content.Recheck) error {
+	groups, held, err := lockedGroup(ctx, queries, id, recheck)
 	if err != nil {
 		return err
 	}
@@ -397,9 +400,14 @@ func deleteGroupRows(ctx context.Context, queries *db.Queries, id int) error {
 	return err
 }
 
-// lockedGroup locks the field groups and returns every stored group with the one carrying the identifier.
-func lockedGroup(ctx context.Context, queries *db.Queries, id int) ([]content.Group, content.Group, error) {
+// lockedGroup locks the field groups and returns every stored group with the identified one, once the check passes.
+func lockedGroup(
+	ctx context.Context, queries *db.Queries, id int, recheck content.Recheck,
+) ([]content.Group, content.Group, error) {
 	if err := queries.LockFieldGroups(ctx); err != nil {
+		return nil, content.Group{}, err
+	}
+	if err := rechecked(ctx, queries, recheck); err != nil {
 		return nil, content.Group{}, err
 	}
 	groups, err := groupsWithFields(ctx, queries)
@@ -413,11 +421,47 @@ func lockedGroup(ctx context.Context, queries *db.Queries, id int) ([]content.Gr
 	return groups, held, nil
 }
 
+// recheckError carries what the caller's check raised under the lock, reading as the check wrote it.
+type recheckError struct{ err error }
+
+// Error returns the message the check wrote.
+func (e recheckError) Error() string { return e.err.Error() }
+
+// Unwrap returns what the check raised.
+func (e recheckError) Unwrap() error { return e.err }
+
+// rechecked runs the caller's check on the groups and types stored, once the field groups are locked.
+func rechecked(ctx context.Context, queries *db.Queries, recheck content.Recheck) error {
+	if recheck == nil {
+		return nil
+	}
+	groups, err := groupsWithFields(ctx, queries)
+	if err != nil {
+		return err
+	}
+	types, err := storedTypes(ctx, queries)
+	if err != nil {
+		return err
+	}
+	if err := recheck(groups, types); err != nil {
+		return recheckError{err}
+	}
+	return nil
+}
+
+// fromCheck reports whether the error is what the caller's check raised under the lock.
+func fromCheck(err error) bool {
+	var held recheckError
+	return errors.As(err, &held)
+}
+
 // DeleteFieldsOfGroup removes the group's named top level fields, sweeping their values as a group delete does.
-func (s *TypeStore) DeleteFieldsOfGroup(ctx context.Context, groupID int, keys []string) error {
+func (s *TypeStore) DeleteFieldsOfGroup(
+	ctx context.Context, groupID int, keys []string, recheck content.Recheck,
+) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		groups, held, err := lockedGroup(ctx, queries, groupID)
+		groups, held, err := lockedGroup(ctx, queries, groupID, recheck)
 		if err != nil {
 			return err
 		}
@@ -426,7 +470,7 @@ func (s *TypeStore) DeleteFieldsOfGroup(ctx context.Context, groupID int, keys [
 		})
 		return deleteFieldsOf(ctx, queries, groups, held)
 	})
-	if errors.Is(err, content.ErrGroupNotFound) {
+	if errors.Is(err, content.ErrGroupNotFound) || fromCheck(err) {
 		return err
 	}
 	if err != nil {
@@ -557,29 +601,41 @@ func (s *TypeStore) ReorderGroups(ctx context.Context, ids []int) error {
 	return nil
 }
 
-// UpdateFieldInGroup stores the field's label, required flag and settings when the expectation still holds.
+// UpdateFieldInGroup stores the field's label, required flag and settings when the expectation and the check hold.
 func (s *TypeStore) UpdateFieldInGroup(
-	ctx context.Context, groupID int, f content.Field, expectedUpdatedAt time.Time,
+	ctx context.Context, groupID int, f content.Field, expectedUpdatedAt time.Time, recheck content.Recheck,
 ) (content.Field, error) {
-	row, err := s.queries.UpdateContentField(ctx, db.UpdateContentFieldParams{
-		Label:             f.Label,
-		Required:          f.Required,
-		Settings:          settingsJSON(f.Settings),
-		UpdatedAt:         f.UpdatedAt,
-		ExpectedUpdatedAt: expectedUpdatedAt,
-		GroupID:           int32(groupID),
-		Key:               f.Key,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		if err := s.fieldStands(ctx, groupID, f.Key); err != nil {
-			return content.Field{}, err
+	var updated content.Field
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := queries.LockFieldGroups(ctx); err != nil {
+			return fmt.Errorf("postgres: lock field groups: %w", err)
 		}
-		return content.Field{}, content.ErrConflict
-	}
-	if err != nil {
-		return content.Field{}, fmt.Errorf("postgres: update content field: %w", err)
-	}
-	return toField(row), nil
+		if err := rechecked(ctx, queries, recheck); err != nil {
+			return err
+		}
+		row, err := queries.UpdateContentField(ctx, db.UpdateContentFieldParams{
+			Label:             f.Label,
+			Required:          f.Required,
+			Settings:          settingsJSON(f.Settings),
+			UpdatedAt:         f.UpdatedAt,
+			ExpectedUpdatedAt: expectedUpdatedAt,
+			GroupID:           int32(groupID),
+			Key:               f.Key,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			if err := fieldStands(ctx, queries, groupID, f.Key); err != nil {
+				return err
+			}
+			return content.ErrConflict
+		}
+		if err != nil {
+			return fmt.Errorf("postgres: update content field: %w", err)
+		}
+		updated = toField(row)
+		return nil
+	})
+	return updated, err
 }
 
 // UpdateSubField carries the edit onto the sub field the identity names.
@@ -615,8 +671,8 @@ func (s *TypeStore) ReorderSubFields(ctx context.Context, parentID int, keys []s
 }
 
 // fieldStands reports whether the group still declares the field.
-func (s *TypeStore) fieldStands(ctx context.Context, groupID int, key string) error {
-	groups, err := groupsWithFields(ctx, s.queries)
+func fieldStands(ctx context.Context, queries *db.Queries, groupID int, key string) error {
+	groups, err := groupsWithFields(ctx, queries)
 	if err != nil {
 		return err
 	}
@@ -633,10 +689,13 @@ func (s *TypeStore) fieldStands(ctx context.Context, groupID int, key string) er
 }
 
 // DeleteFieldInGroup removes the field and sweeps its values from the types its group serves the key on.
-func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key string) error {
+func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key string, recheck content.Recheck) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
 		if err := queries.LockFieldGroups(ctx); err != nil {
+			return err
+		}
+		if err := rechecked(ctx, queries, recheck); err != nil {
 			return err
 		}
 		groups, err := groupsWithFields(ctx, queries)
@@ -653,7 +712,7 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 		}
 		return deleteFieldRow(ctx, queries, groupID, key, servedOn(groups, matched, groupID, []string{key}))
 	})
-	if errors.Is(err, content.ErrGroupNotFound) {
+	if errors.Is(err, content.ErrGroupNotFound) || fromCheck(err) {
 		return err
 	}
 	if err != nil {
@@ -663,36 +722,43 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 }
 
 // DeleteSubField removes the field standing inside a container, and its values on the types its group serves.
-func (s *TypeStore) DeleteSubField(ctx context.Context, id int) error {
+func (s *TypeStore) DeleteSubField(ctx context.Context, id int, recheck content.Recheck) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
-		if err := queries.LockFieldGroups(ctx); err != nil {
-			return err
-		}
-		groups, err := groupsWithFields(ctx, queries)
-		if err != nil {
-			return err
-		}
-		group, dropped, path, found := fieldPathIn(groups, id)
-		if !found {
-			return content.ErrFieldNotFound
-		}
-		matched, err := typesMatchedBy(ctx, queries, group)
-		if err != nil {
-			return err
-		}
-		if _, err := queries.DeleteFieldByID(ctx, int32(id)); err != nil {
-			return err
-		}
-		return sweepField(ctx, queries, dropped, path, servedOn(groups, matched, group.ID, path))
+		return deleteSubFieldRows(ctx, s.queries.WithTx(tx), id, recheck)
 	})
-	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) {
+	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) || fromCheck(err) {
 		return err
 	}
 	if err != nil {
 		return fmt.Errorf("postgres: delete sub field: %w", err)
 	}
 	return nil
+}
+
+// deleteSubFieldRows removes the sub field once the check passes, sweeping its values where no other group serves them.
+func deleteSubFieldRows(ctx context.Context, queries *db.Queries, id int, recheck content.Recheck) error {
+	if err := queries.LockFieldGroups(ctx); err != nil {
+		return err
+	}
+	if err := rechecked(ctx, queries, recheck); err != nil {
+		return err
+	}
+	groups, err := groupsWithFields(ctx, queries)
+	if err != nil {
+		return err
+	}
+	group, dropped, path, found := fieldPathIn(groups, id)
+	if !found {
+		return content.ErrFieldNotFound
+	}
+	matched, err := typesMatchedBy(ctx, queries, group)
+	if err != nil {
+		return err
+	}
+	if _, err := queries.DeleteFieldByID(ctx, int32(id)); err != nil {
+		return err
+	}
+	return sweepField(ctx, queries, dropped, path, servedOn(groups, matched, group.ID, path))
 }
 
 // fieldPathIn returns the group holding the field, the field, and the keys addressing it from the group.
@@ -764,12 +830,17 @@ func (s *TypeStore) ReorderFieldsInGroup(ctx context.Context, groupID int, keys 
 
 // MoveField carries the field to a group's top or into a container within the limit, sweeping its values when it
 // enters or leaves one.
-func (s *TypeStore) MoveField(ctx context.Context, id, toGroup, toParent, limit int) (content.Field, error) {
+func (s *TypeStore) MoveField(
+	ctx context.Context, id, toGroup, toParent, limit int, recheck content.Recheck,
+) (content.Field, error) {
 	var moved content.Field
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
 		if err := queries.LockFieldGroups(ctx); err != nil {
 			return fmt.Errorf("postgres: lock field groups: %w", err)
+		}
+		if err := rechecked(ctx, queries, recheck); err != nil {
+			return err
 		}
 		move, err := movePlanned(ctx, queries, id, toGroup, toParent, limit)
 		if err != nil {
@@ -789,6 +860,9 @@ func (s *TypeStore) MoveField(ctx context.Context, id, toGroup, toParent, limit 
 
 // moveFailure returns the refusal a field move carries, and wraps anything else.
 func moveFailure(err error) error {
+	if fromCheck(err) {
+		return err
+	}
 	for _, refusal := range []error{
 		content.ErrFieldNotFound, content.ErrGroupNotFound, content.ErrFieldTaken,
 		content.ErrFieldInsideItself, content.ErrFieldTooDeep,
@@ -955,14 +1029,17 @@ func relationsBelow(f content.Field, held []int32) []int32 {
 	return held
 }
 
-// settledFieldWrite runs the write once the key is held free of every rival group sharing a type.
+// settledFieldWrite runs the write once the check passes and the key is held free of every rival group sharing a type.
 func (s *TypeStore) settledFieldWrite(
-	ctx context.Context, groupID int, key string, leaving int, write func(*db.Queries) error,
+	ctx context.Context, groupID int, key string, leaving int, recheck content.Recheck, write func(*db.Queries) error,
 ) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
 		if err := queries.LockFieldGroups(ctx); err != nil {
 			return fmt.Errorf("postgres: lock field groups: %w", err)
+		}
+		if err := rechecked(ctx, queries, recheck); err != nil {
+			return err
 		}
 		if err := keyFreeInGroup(ctx, queries, groupID, key, leaving); err != nil {
 			return err
@@ -973,7 +1050,7 @@ func (s *TypeStore) settledFieldWrite(
 		return nil
 	}
 	if errors.Is(err, content.ErrFieldNotFound) || errors.Is(err, content.ErrGroupNotFound) ||
-		errors.Is(err, content.ErrFieldTaken) {
+		errors.Is(err, content.ErrFieldTaken) || fromCheck(err) {
 		return err
 	}
 	return fieldWriteFailure(err)
@@ -1047,9 +1124,11 @@ func standingParent(
 }
 
 // CreateFieldInGroup declares the field inside the group.
-func (s *TypeStore) CreateFieldInGroup(ctx context.Context, groupID int, f content.Field) (content.Field, error) {
+func (s *TypeStore) CreateFieldInGroup(
+	ctx context.Context, groupID int, f content.Field, recheck content.Recheck,
+) (content.Field, error) {
 	var created content.Field
-	err := s.settledFieldWrite(ctx, groupID, f.Key, 0, func(queries *db.Queries) error {
+	err := s.settledFieldWrite(ctx, groupID, f.Key, 0, recheck, func(queries *db.Queries) error {
 		row, err := queries.CreateContentField(ctx, db.CreateContentFieldParams{
 			GroupID:   int32(groupID),
 			Origin:    originColumn(f.Origin),

@@ -55,9 +55,24 @@ func (s *groupingStore) CreateSubField(
 	return content.Field{}, content.ErrFieldNotFound
 }
 
-// DeleteSubField removes no field, or reports the scripted failure.
-func (s *groupingStore) DeleteSubField(_ context.Context, _ int) error {
+// DeleteSubField removes no field, or reports the refused check or the scripted failure.
+func (s *groupingStore) DeleteSubField(_ context.Context, _ int, recheck content.Recheck) error {
+	if err := s.rechecked(recheck); err != nil {
+		return err
+	}
 	return s.subDeleteErr
+}
+
+// rechecked lands what another admin does meanwhile, then runs the caller's check on the groups and types held.
+func (s *groupingStore) rechecked(recheck content.Recheck) error {
+	if meanwhile := s.meanwhile; meanwhile != nil {
+		s.meanwhile = nil
+		meanwhile(s)
+	}
+	if recheck == nil {
+		return nil
+	}
+	return recheck(s.groups, s.types)
 }
 
 // UpdateSubField hands the field back unstored, or reports the scripted failure.
@@ -103,6 +118,7 @@ type groupingStore struct {
 	failReadAfterOrder bool
 	nextFieldID        int
 	limit              int
+	meanwhile          func(*groupingStore)
 }
 
 // sectionIn declares a section field inside the group and returns it.
@@ -159,8 +175,11 @@ func (s *groupingStore) CreateGroup(_ context.Context, g content.Group) (content
 
 // UpdateGroup stores the group's title, location and active flag with the fields it points anew.
 func (s *groupingStore) UpdateGroup(
-	_ context.Context, g content.Group, repointed []content.Field,
+	_ context.Context, g content.Group, repointed []content.Field, recheck content.Recheck,
 ) (content.Group, error) {
+	if err := s.rechecked(recheck); err != nil {
+		return content.Group{}, err
+	}
 	if s.updateErr != nil {
 		return content.Group{}, s.updateErr
 	}
@@ -182,7 +201,10 @@ func (s *groupingStore) UpdateGroup(
 }
 
 // DeleteGroup removes the group and every field it holds.
-func (s *groupingStore) DeleteGroup(_ context.Context, id int) error {
+func (s *groupingStore) DeleteGroup(_ context.Context, id int, recheck content.Recheck) error {
+	if err := s.rechecked(recheck); err != nil {
+		return err
+	}
 	if s.deleteErr != nil {
 		return s.deleteErr
 	}
@@ -213,7 +235,12 @@ func (s *groupingStore) ReorderGroups(_ context.Context, ids []int) error {
 }
 
 // CreateFieldInGroup declares the field inside the group.
-func (s *groupingStore) CreateFieldInGroup(_ context.Context, groupID int, f content.Field) (content.Field, error) {
+func (s *groupingStore) CreateFieldInGroup(
+	_ context.Context, groupID int, f content.Field, recheck content.Recheck,
+) (content.Field, error) {
+	if err := s.rechecked(recheck); err != nil {
+		return content.Field{}, err
+	}
 	if s.createFieldErr != nil {
 		return content.Field{}, s.createFieldErr
 	}
@@ -234,8 +261,11 @@ func (s *groupingStore) CreateFieldInGroup(_ context.Context, groupID int, f con
 
 // UpdateFieldInGroup stores the field's label and required flag inside its group.
 func (s *groupingStore) UpdateFieldInGroup(
-	_ context.Context, groupID int, f content.Field, _ time.Time,
+	_ context.Context, groupID int, f content.Field, _ time.Time, recheck content.Recheck,
 ) (content.Field, error) {
+	if err := s.rechecked(recheck); err != nil {
+		return content.Field{}, err
+	}
 	if s.updateFieldErr != nil {
 		return content.Field{}, s.updateFieldErr
 	}
@@ -254,9 +284,14 @@ func (s *groupingStore) UpdateFieldInGroup(
 }
 
 // DeleteFieldsOfGroup removes every named field from its group.
-func (s *groupingStore) DeleteFieldsOfGroup(ctx context.Context, groupID int, keys []string) error {
+func (s *groupingStore) DeleteFieldsOfGroup(
+	ctx context.Context, groupID int, keys []string, recheck content.Recheck,
+) error {
+	if err := s.rechecked(recheck); err != nil {
+		return err
+	}
 	for _, key := range keys {
-		if err := s.DeleteFieldInGroup(ctx, groupID, key); err != nil {
+		if err := s.DeleteFieldInGroup(ctx, groupID, key, nil); err != nil {
 			return err
 		}
 	}
@@ -264,7 +299,10 @@ func (s *groupingStore) DeleteFieldsOfGroup(ctx context.Context, groupID int, ke
 }
 
 // DeleteFieldInGroup removes the field from its group.
-func (s *groupingStore) DeleteFieldInGroup(_ context.Context, groupID int, key string) error {
+func (s *groupingStore) DeleteFieldInGroup(_ context.Context, groupID int, key string, recheck content.Recheck) error {
+	if err := s.rechecked(recheck); err != nil {
+		return err
+	}
 	if s.deleteFieldErr != nil {
 		return s.deleteFieldErr
 	}
@@ -309,8 +347,13 @@ func (s *groupingStore) ReorderFieldsInGroup(_ context.Context, groupID int, key
 }
 
 // MoveField carries the field to the top of the group or inside the container the parent names, noting the limit.
-func (s *groupingStore) MoveField(_ context.Context, id, toGroup, toParent, limit int) (content.Field, error) {
+func (s *groupingStore) MoveField(
+	_ context.Context, id, toGroup, toParent, limit int, recheck content.Recheck,
+) (content.Field, error) {
 	s.limit = limit
+	if err := s.rechecked(recheck); err != nil {
+		return content.Field{}, err
+	}
 	if s.moveErr != nil {
 		return content.Field{}, s.moveErr
 	}

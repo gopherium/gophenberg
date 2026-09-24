@@ -86,7 +86,7 @@ func TestDeletingATopFieldLeavesASubFieldSharingItsKey(t *testing.T) {
 		t.Fatalf("planting title under specs: %v, want nil", err)
 	}
 
-	if err := store.DeleteFieldInGroup(t.Context(), title.GroupID, "title"); err != nil {
+	if err := store.DeleteFieldInGroup(t.Context(), title.GroupID, "title", nil); err != nil {
 		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
 	}
 
@@ -112,7 +112,7 @@ func TestMovingATopFieldLeavesASubFieldSharingItsKey(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 
-	if _, err := store.MoveField(t.Context(), title.ID, landing.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), title.ID, landing.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -194,7 +194,7 @@ func TestMovingASectionCarriesASubFieldTwoLevelsDown(t *testing.T) {
 		t.Fatalf("CreateGroup(Details) error = %v, want nil", err)
 	}
 	section, err := store.CreateFieldInGroup(
-		t.Context(), source.ID, fieldOn(t, "", "author", content.FieldKindSection, ""))
+		t.Context(), source.ID, fieldOn(t, "", "author", content.FieldKindSection, ""), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(author) error = %v, want nil", err)
 	}
@@ -205,7 +205,7 @@ func TestMovingASectionCarriesASubFieldTwoLevelsDown(t *testing.T) {
 		t.Fatalf("CreateGroup(Elsewhere) error = %v, want nil", err)
 	}
 
-	if _, err := store.MoveField(t.Context(), section.ID, landing.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), section.ID, landing.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField(author) error = %v, want nil", err)
 	}
 
@@ -228,7 +228,7 @@ func moveSection(t *testing.T, store *postgres.TypeStore) movedSection {
 		t.Fatalf("CreateGroup(Details) error = %v, want nil", err)
 	}
 	section, err := store.CreateFieldInGroup(
-		t.Context(), source.ID, fieldOn(t, "", "author", content.FieldKindSection, ""))
+		t.Context(), source.ID, fieldOn(t, "", "author", content.FieldKindSection, ""), nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup(author) error = %v, want nil", err)
 	}
@@ -237,7 +237,7 @@ func moveSection(t *testing.T, store *postgres.TypeStore) movedSection {
 	if err != nil {
 		t.Fatalf("CreateGroup(Elsewhere) error = %v, want nil", err)
 	}
-	if _, err := store.MoveField(t.Context(), section.ID, landing.ID, 0, deepEnough); err != nil {
+	if _, err := store.MoveField(t.Context(), section.ID, landing.ID, 0, deepEnough, nil); err != nil {
 		t.Fatalf("MoveField(author) error = %v, want nil", err)
 	}
 	return movedSection{source: source, landing: landing, section: section, sub: sub}
@@ -268,7 +268,7 @@ func TestDeletingTheGroupASectionLeftKeepsTheSectionWhole(t *testing.T) {
 	storeType(t, store, "car")
 	moved := moveSection(t, store)
 
-	if err := store.DeleteGroup(t.Context(), moved.source.ID); err != nil {
+	if err := store.DeleteGroup(t.Context(), moved.source.ID, nil); err != nil {
 		t.Fatalf("DeleteGroup() error = %v, want the group the section left gone", err)
 	}
 

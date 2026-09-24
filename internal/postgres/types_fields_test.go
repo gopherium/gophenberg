@@ -167,7 +167,7 @@ func TestDeleteFieldInGroupSweepsRevisionValues(t *testing.T) {
 	}
 	plantValues(t, pool, author, "planted", `{"color": "red", "other": 1}`)
 
-	if err := types.DeleteFieldInGroup(t.Context(), declared.GroupID, "color"); err != nil {
+	if err := types.DeleteFieldInGroup(t.Context(), declared.GroupID, "color", nil); err != nil {
 		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
 	}
 

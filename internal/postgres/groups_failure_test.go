@@ -106,7 +106,7 @@ func TestUpdateGroupReportsAGroupThatIsGone(t *testing.T) {
 
 	store, _, _ := typedStore(t)
 
-	_, err := store.UpdateGroup(t.Context(), content.Group{ID: 4242, Title: "Vanished"}, nil)
+	_, err := store.UpdateGroup(t.Context(), content.Group{ID: 4242, Title: "Vanished"}, nil, nil)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("UpdateGroup() error = %v, want %v", err, content.ErrGroupNotFound)
@@ -124,7 +124,7 @@ func TestUpdateGroupReportsAGroupItCannotStore(t *testing.T) {
 	raiseOn(t, pool, "core.field_groups", "UPDATE")
 
 	stored.Title = "Renamed"
-	if _, err := store.UpdateGroup(t.Context(), stored, nil); err == nil {
+	if _, err := store.UpdateGroup(t.Context(), stored, nil, nil); err == nil {
 		t.Error("UpdateGroup() error = nil, want the refused write reported")
 	}
 }
@@ -135,7 +135,7 @@ func TestDeleteGroupReportsGroupsItCannotRead(t *testing.T) {
 	store, _, pool := typedStore(t)
 	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
 
-	if err := store.DeleteGroup(t.Context(), 1); err == nil {
+	if err := store.DeleteGroup(t.Context(), 1, nil); err == nil {
 		t.Error("DeleteGroup() error = nil, want the unreadable groups reported")
 	}
 }
@@ -150,7 +150,7 @@ func TestDeleteGroupReportsTypesItCannotRead(t *testing.T) {
 	}
 	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
 
-	if err := store.DeleteGroup(t.Context(), stored.ID); err == nil {
+	if err := store.DeleteGroup(t.Context(), stored.ID, nil); err == nil {
 		t.Error("DeleteGroup() error = nil, want the unreadable types reported")
 	}
 }
@@ -165,7 +165,7 @@ func TestDeleteFieldsOfGroupReportsTypesItCannotRead(t *testing.T) {
 	}
 	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
 
-	if err := store.DeleteFieldsOfGroup(t.Context(), stored.ID, []string{"subtitle"}); err == nil {
+	if err := store.DeleteFieldsOfGroup(t.Context(), stored.ID, []string{"subtitle"}, nil); err == nil {
 		t.Error("DeleteFieldsOfGroup() error = nil, want the unreadable types reported")
 	}
 }
@@ -180,7 +180,7 @@ func TestDeleteGroupReportsAGroupItCannotRemove(t *testing.T) {
 	}
 	raiseOn(t, pool, "core.field_groups", "DELETE")
 
-	if err := store.DeleteGroup(t.Context(), stored.ID); err == nil {
+	if err := store.DeleteGroup(t.Context(), stored.ID, nil); err == nil {
 		t.Error("DeleteGroup() error = nil, want the refused removal reported")
 	}
 }
@@ -197,7 +197,7 @@ func TestDeleteGroupReportsFieldValuesItCannotSweep(t *testing.T) {
 	}
 	raiseOn(t, pool, "core.content_fields", "DELETE")
 
-	if err := store.DeleteGroup(t.Context(), groups[0].ID); err == nil {
+	if err := store.DeleteGroup(t.Context(), groups[0].ID, nil); err == nil {
 		t.Error("DeleteGroup() error = nil, want the refused field removal reported")
 	}
 }
@@ -220,6 +220,7 @@ func TestCreateFieldInGroupReportsAGroupThatIsGone(t *testing.T) {
 
 	_, err := store.CreateFieldInGroup(
 		t.Context(), 4242, fieldOn(t, "", "orphan", content.FieldKindText, ""),
+		nil,
 	)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
@@ -362,7 +363,7 @@ func TestUpdateFieldInGroupReportsALabelItCannotStore(t *testing.T) {
 
 	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{
 		Key: "subtitle", Label: "Renamed",
-	}, declared.UpdatedAt)
+	}, declared.UpdatedAt, nil)
 
 	if err == nil {
 		t.Error("UpdateFieldInGroup() error = nil, want the refused write reported")
@@ -379,7 +380,7 @@ func TestUpdateFieldInGroupReportsAGroupListingItCannotRead(t *testing.T) {
 
 	_, err := store.UpdateFieldInGroup(t.Context(), declared.GroupID, content.Field{
 		Key: "subtitle", Label: "Renamed", UpdatedAt: declared.UpdatedAt,
-	}, declared.UpdatedAt.Add(-time.Hour))
+	}, declared.UpdatedAt.Add(-time.Hour), nil)
 
 	if err == nil {
 		t.Error("UpdateFieldInGroup() error = nil, want the unreadable listing reported")
@@ -392,7 +393,7 @@ func TestDeleteFieldInGroupReportsGroupsItCannotRead(t *testing.T) {
 	store, _, pool := typedStore(t)
 	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
 
-	if err := store.DeleteFieldInGroup(t.Context(), 1, "subtitle"); err == nil {
+	if err := store.DeleteFieldInGroup(t.Context(), 1, "subtitle", nil); err == nil {
 		t.Error("DeleteFieldInGroup() error = nil, want the unreadable groups reported")
 	}
 }
@@ -405,7 +406,7 @@ func TestDeleteFieldInGroupReportsTypesItCannotRead(t *testing.T) {
 	declared := declareTypedField(t, store, "car", "subtitle")
 	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
 
-	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle"); err == nil {
+	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle", nil); err == nil {
 		t.Error("DeleteFieldInGroup() error = nil, want the unreadable types reported")
 	}
 }
@@ -419,7 +420,7 @@ func TestDeleteFieldInGroupReportsValuesItCannotSweep(t *testing.T) {
 	plantTyped(t, pool, author, "car", "one-car", `{"subtitle": "car words"}`)
 	raiseOn(t, pool, "core.content_fields", "DELETE")
 
-	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle"); err == nil {
+	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle", nil); err == nil {
 		t.Error("DeleteFieldInGroup() error = nil, want the refused removal reported")
 	}
 }
@@ -471,7 +472,7 @@ func TestUpdateGroupReportsGroupsItCannotList(t *testing.T) {
 	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
 
 	stored.Title = "Renamed"
-	if _, err := store.UpdateGroup(t.Context(), stored, nil); err == nil {
+	if _, err := store.UpdateGroup(t.Context(), stored, nil, nil); err == nil {
 		t.Error("UpdateGroup() error = nil, want the unreadable groups reported")
 	}
 }
@@ -487,7 +488,7 @@ func TestUpdateGroupReportsTypesItCannotRead(t *testing.T) {
 	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
 
 	stored.Title = "Renamed"
-	if _, err := store.UpdateGroup(t.Context(), stored, nil); err == nil {
+	if _, err := store.UpdateGroup(t.Context(), stored, nil, nil); err == nil {
 		t.Error("UpdateGroup() error = nil, want the unreadable types reported")
 	}
 }
@@ -503,7 +504,7 @@ func TestCreateFieldInGroupReportsGroupsItCannotRead(t *testing.T) {
 	}
 	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
 
-	_, err = store.CreateFieldInGroup(t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""))
+	_, err = store.CreateFieldInGroup(t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""), nil)
 
 	if err == nil {
 		t.Error("CreateFieldInGroup() error = nil, want the unreadable groups reported")
@@ -521,7 +522,7 @@ func TestCreateFieldInGroupReportsTypesItCannotRead(t *testing.T) {
 	}
 	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
 
-	_, err = store.CreateFieldInGroup(t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""))
+	_, err = store.CreateFieldInGroup(t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""), nil)
 
 	if err == nil {
 		t.Error("CreateFieldInGroup() error = nil, want the unreadable types reported")
@@ -536,7 +537,7 @@ func TestDeleteFieldInGroupReportsContentItCannotSweep(t *testing.T) {
 	declared := declareTypedField(t, store, "car", "subtitle")
 	raiseOn(t, pool, "core.content", "UPDATE")
 
-	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle"); err == nil {
+	if err := store.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle", nil); err == nil {
 		t.Error("DeleteFieldInGroup() error = nil, want the refused sweep reported")
 	}
 }
@@ -553,7 +554,7 @@ func TestUpdateGroupReportsALockItCannotTake(t *testing.T) {
 	timed := lockTimedStore(t, pool)
 
 	stored.Title = "Renamed"
-	if _, err := timed.UpdateGroup(t.Context(), stored, nil); err == nil {
+	if _, err := timed.UpdateGroup(t.Context(), stored, nil, nil); err == nil {
 		t.Error("UpdateGroup() error = nil, want the held lock reported")
 	}
 }
@@ -570,7 +571,7 @@ func TestCreateFieldInGroupReportsALockItCannotTake(t *testing.T) {
 	holdFieldGroupsLock(t, pool)
 	timed := lockTimedStore(t, pool)
 
-	_, err = timed.CreateFieldInGroup(t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""))
+	_, err = timed.CreateFieldInGroup(t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""), nil)
 
 	if err == nil {
 		t.Error("CreateFieldInGroup() error = nil, want the held lock reported")
@@ -586,7 +587,7 @@ func TestDeleteFieldInGroupReportsALockItCannotTake(t *testing.T) {
 	holdFieldGroupsLock(t, pool)
 	timed := lockTimedStore(t, pool)
 
-	err := timed.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle")
+	err := timed.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle", nil)
 
 	if err == nil {
 		t.Error("DeleteFieldInGroup() error = nil, want the held lock reported")
@@ -606,7 +607,7 @@ func TestMoveFieldReportsAFieldItCannotCarry(t *testing.T) {
 	}
 	raiseOn(t, pool, "core.content_fields", "UPDATE")
 
-	_, err = store.MoveField(t.Context(), declared.ID, resting.ID, 0, deepEnough)
+	_, err = store.MoveField(t.Context(), declared.ID, resting.ID, 0, deepEnough, nil)
 
 	if err == nil {
 		t.Error("MoveField() error = nil, want the refused carry reported")
