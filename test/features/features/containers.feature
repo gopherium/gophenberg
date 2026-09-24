@@ -192,6 +192,23 @@ Feature: Container fields
     Then the request is refused with the code "field_too_deep"
     And the field "address" is served on "post"
 
+  Scenario: Two moves at the same moment that together nest too deep leave the second refused
+    Given fields may stand inside 1 container at most
+    And the "section" field "author" in "Extras"
+    And the "section" field "address" in "Extras"
+    And the "text" field "street" in "Extras"
+    When the administrator moves "author" inside "address" and "street" inside "author" at the same moment
+    Then the second request is refused with the code "field_too_deep"
+    And no field stands inside more than 1 container
+
+  Scenario: A move and a new sub field at the same moment that together nest too deep leave the second refused
+    Given fields may stand inside 1 container at most
+    And the "section" field "author" in "Extras"
+    And the "section" field "address" in "Extras"
+    When the administrator moves "author" inside "address" and declares the "text" field "name" inside "author" at the same moment
+    Then the second request is refused with the code "field_too_deep"
+    And no field stands inside more than 1 container
+
   Scenario: A container moved inside itself is refused
     Given the "section" field "author" in "Extras"
     And the "section" field "address" inside "author"

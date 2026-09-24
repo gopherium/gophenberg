@@ -17,6 +17,7 @@ type memoryTypes struct {
 	mu          sync.Mutex
 	types       []content.Type
 	groups      []content.Group
+	frozen      []content.Group
 	nextGroupID int
 	fieldIDs    int
 	content     *memoryContent
@@ -646,10 +647,52 @@ func holdsIdentity(declared []content.Field, id int) bool {
 	return found
 }
 
-// ListGroups returns the stored groups beside one per type already holding fields.
+// ListGroups returns the stored groups beside one per type already holding fields, as frozen while a view is held.
 func (s *memoryTypes) ListGroups(context.Context) ([]content.Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.frozen != nil {
+		return clonedGroups(s.frozen), nil
+	}
+	return s.listing(), nil
+}
+
+// freeze holds the groups as they stand now for every listing until thaw.
+func (s *memoryTypes) freeze() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.frozen = clonedGroups(s.listing())
+}
+
+// thaw lets every listing read the stored groups again.
+func (s *memoryTypes) thaw() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.frozen = nil
+}
+
+// clonedGroups returns the groups with every field copied, however deep, so later writes leave the copy alone.
+func clonedGroups(groups []content.Group) []content.Group {
+	held := make([]content.Group, len(groups))
+	for i, g := range groups {
+		g.Fields = clonedFields(g.Fields)
+		held[i] = g
+	}
+	return held
+}
+
+// clonedFields returns the fields copied together with the fields inside them.
+func clonedFields(fields []content.Field) []content.Field {
+	held := make([]content.Field, len(fields))
+	for i, f := range fields {
+		f.Fields = clonedFields(f.Fields)
+		held[i] = f
+	}
+	return held
+}
+
+// listing returns the stored groups beside one per type already holding fields.
+func (s *memoryTypes) listing() []content.Group {
 	groups := make([]content.Group, 0, len(s.types)+len(s.groups))
 	for i, t := range s.types {
 		if len(t.Fields) == 0 {
@@ -659,7 +702,7 @@ func (s *memoryTypes) ListGroups(context.Context) ([]content.Group, error) {
 			ID: -(i + 1), Title: t.SingularLabel + " fields", Active: true, Fields: t.Fields,
 		})
 	}
-	return append(groups, s.groups...), nil
+	return append(groups, s.groups...)
 }
 
 // ByKey returns the stored type carrying the key, or [content.ErrTypeNotFound].
