@@ -118,6 +118,39 @@ func TestCreateSubFieldRefusesAFieldPastTheLimit(t *testing.T) {
 	}
 }
 
+// queuedInTurn queues the writes on the field groups lock one after the other, lets them go, and returns each answer.
+func queuedInTurn(t *testing.T, pool *pgxpool.Pool, writes ...func() error) []error {
+	t.Helper()
+	release := sessionLock(t, pool)
+	answered := make([]error, len(writes))
+	var done sync.WaitGroup
+	for i, write := range writes {
+		done.Go(func() { answered[i] = write() })
+		writersQueued(t, pool, i+1)
+	}
+	release()
+	done.Wait()
+	return answered
+}
+
+// secondRefusedWithin asserts the first write landed, the second was refused as too deep and no field passes the limit.
+func secondRefusedWithin(t *testing.T, pool *pgxpool.Pool, answered []error, limit int) {
+	t.Helper()
+	if answered[0] != nil {
+		t.Errorf("the first write error = %v, want nil", answered[0])
+	}
+	if !errors.Is(answered[1], content.ErrFieldTooDeep) {
+		t.Errorf("the second write error = %v, want %v", answered[1], content.ErrFieldTooDeep)
+	}
+	var deepest int
+	if err := pool.QueryRow(t.Context(), `SELECT max(depth) FROM core.content_fields`).Scan(&deepest); err != nil {
+		t.Fatalf("reading the deepest field: %v, want nil", err)
+	}
+	if deepest > limit {
+		t.Errorf("a field stands at depth %d, want %d at most", deepest, limit)
+	}
+}
+
 func TestTwoMovesAtTheSameMomentLeaveNoFieldPastTheLimit(t *testing.T) {
 	t.Parallel()
 
@@ -127,38 +160,41 @@ func TestTwoMovesAtTheSameMomentLeaveNoFieldPastTheLimit(t *testing.T) {
 	author := declareSection(t, store, "author")
 	address := declareSection(t, store, "address")
 	street := declareTypedField(t, store, "car", "street")
-	release := sessionLock(t, pool)
-	moves := []struct{ id, into int }{{author.ID, address.ID}, {street.ID, author.ID}}
-	answered := make(chan error, len(moves))
-	for _, move := range moves {
-		go func() {
-			_, err := registry.MoveField(t.Context(), move.id, author.GroupID, move.into)
-			answered <- err
-		}()
-	}
-	writersQueued(t, pool, len(moves))
 
-	release()
+	answered := queuedInTurn(t, pool,
+		func() error {
+			_, err := registry.MoveField(t.Context(), author.ID, author.GroupID, address.ID)
+			return err
+		},
+		func() error {
+			_, err := registry.MoveField(t.Context(), street.ID, author.GroupID, author.ID)
+			return err
+		},
+	)
 
-	refused := 0
-	for range moves {
-		err := <-answered
-		if errors.Is(err, content.ErrFieldTooDeep) {
-			refused++
-			continue
-		}
-		if err != nil {
-			t.Errorf("MoveField() error = %v, want nil or %v", err, content.ErrFieldTooDeep)
-		}
-	}
-	if refused != 1 {
-		t.Errorf("%d moves refused, want the one landing second", refused)
-	}
-	var deepest int
-	if err := pool.QueryRow(t.Context(), `SELECT max(depth) FROM core.content_fields`).Scan(&deepest); err != nil {
-		t.Fatalf("reading the deepest field: %v, want nil", err)
-	}
-	if deepest > 1 {
-		t.Errorf("a field stands at depth %d, want 1 at most", deepest)
-	}
+	secondRefusedWithin(t, pool, answered, 1)
+}
+
+func TestAMoveAndANewSubFieldAtTheSameMomentLeaveNoFieldPastTheLimit(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	registry := content.NewRegistry(store).WithFieldDepth(1)
+	author := declareSection(t, store, "author")
+	address := declareSection(t, store, "address")
+	name := fieldOn(t, "", "name", content.FieldKindText, "")
+
+	answered := queuedInTurn(t, pool,
+		func() error {
+			_, err := registry.MoveField(t.Context(), author.ID, author.GroupID, address.ID)
+			return err
+		},
+		func() error {
+			_, err := registry.CreateSubField(t.Context(), author.ID, name)
+			return err
+		},
+	)
+
+	secondRefusedWithin(t, pool, answered, 1)
 }
