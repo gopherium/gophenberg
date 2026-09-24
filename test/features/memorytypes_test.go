@@ -175,20 +175,9 @@ func (s *memoryTypes) DeleteGroup(_ context.Context, id int, recheck content.Rec
 
 // DeleteFieldsOfGroup removes every named field from its group once the check passes, and sweeps its values.
 func (s *memoryTypes) DeleteFieldsOfGroup(
-	ctx context.Context, groupID int, keys []string, recheck content.Recheck,
+	_ context.Context, groupID int, keys []string, recheck content.Recheck,
 ) error {
-	s.mu.Lock()
-	err := s.rechecked(recheck)
-	s.mu.Unlock()
-	if err != nil {
-		return err
-	}
-	for _, key := range keys {
-		if err := s.DeleteFieldInGroup(ctx, groupID, key, nil); err != nil {
-			return err
-		}
-	}
-	return nil
+	return s.deleteFields(groupID, keys, recheck)
 }
 
 // dropGroup removes the group once the check passes, reporting the types it alone served each top level key on.
@@ -498,12 +487,20 @@ func (s *memoryTypes) UpdateFieldInGroup(
 
 // DeleteFieldInGroup removes the field once the check passes, and its values from the types its group served it on.
 func (s *memoryTypes) DeleteFieldInGroup(_ context.Context, groupID int, key string, recheck content.Recheck) error {
-	reached, err := s.dropFieldInGroup(groupID, key, recheck)
+	return s.deleteFields(groupID, []string{key}, recheck)
+}
+
+// deleteFields removes the named fields once the check passes, then their values from the types their group served.
+func (s *memoryTypes) deleteFields(groupID int, keys []string, recheck content.Recheck) error {
+	reached, err := s.dropFieldsInGroup(groupID, keys, recheck)
 	if err != nil {
 		return err
 	}
-	if s.content != nil {
-		for _, typeKey := range reached {
+	if s.content == nil {
+		return nil
+	}
+	for key, typeKeys := range reached {
+		for _, typeKey := range typeKeys {
 			s.content.clearField(typeKey, key)
 			s.content.clearRelation(typeKey, key)
 		}
@@ -511,27 +508,38 @@ func (s *memoryTypes) DeleteFieldInGroup(_ context.Context, groupID int, key str
 	return nil
 }
 
-// dropFieldInGroup removes the declaration once the check passes, reporting the types the group served the key on.
-func (s *memoryTypes) dropFieldInGroup(groupID int, key string, recheck content.Recheck) ([]string, error) {
+// dropFieldsInGroup removes the named declarations in one hold of the mutex once the check passes, keyed to types.
+func (s *memoryTypes) dropFieldsInGroup(
+	groupID int, keys []string, recheck content.Recheck,
+) (map[string][]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.rechecked(recheck); err != nil {
 		return nil, err
 	}
-	for i, held := range s.groups {
-		if held.ID != groupID {
-			continue
-		}
-		for j, stored := range held.Fields {
-			if stored.Key != key {
-				continue
-			}
-			served := s.servedAlong(s.typesMatchedBy(held), held.ID, []string{key})
-			s.groups[i].Fields = append(held.Fields[:j], held.Fields[j+1:]...)
-			return served, nil
+	at := slices.IndexFunc(s.groups, func(g content.Group) bool { return g.ID == groupID })
+	if at < 0 || !holdsEvery(s.groups[at].Fields, keys) {
+		return nil, content.ErrFieldNotFound
+	}
+	reached := make(map[string][]string, len(keys))
+	for _, key := range keys {
+		held := s.groups[at]
+		reached[key] = s.servedAlong(s.typesMatchedBy(held), held.ID, []string{key})
+		s.groups[at].Fields = slices.DeleteFunc(slices.Clone(held.Fields), func(f content.Field) bool {
+			return f.Key == key
+		})
+	}
+	return reached, nil
+}
+
+// holdsEvery reports whether a top level field stands under each key.
+func holdsEvery(fields []content.Field, keys []string) bool {
+	for _, key := range keys {
+		if !slices.ContainsFunc(fields, func(f content.Field) bool { return f.Key == key }) {
+			return false
 		}
 	}
-	return nil, content.ErrFieldNotFound
+	return true
 }
 
 // servedAlong returns the type keys on which the group serves the path, or no other active group serves it whole.
