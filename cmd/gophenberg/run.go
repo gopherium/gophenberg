@@ -129,7 +129,7 @@ func run(
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
-	return serveUntilDone(ctx, httpServer, host, logger)
+	return serveUntilDone(ctx, httpServer, httpServer.ListenAndServe, host, logger)
 }
 
 // openDatabase returns a migrated connection pool for the database at url.
@@ -440,32 +440,31 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	return settings, nil
 }
 
-// serveUntilDone serves HTTP until ctx is cancelled or serving fails, then
-// stops the plugin host.
+// serveUntilDone serves until ctx ends or serving fails, then shuts the server down and stops the plugin host.
 func serveUntilDone(
 	ctx context.Context,
 	httpServer *http.Server,
+	serve func() error,
 	host *pluginkit.Host,
 	logger *slog.Logger,
 ) error {
 	serveErr := make(chan error, 1)
 	go func() {
-		serveErr <- httpServer.ListenAndServe()
+		serveErr <- serve()
 	}()
 	logger.Info("listening", "addr", httpServer.Addr)
 
+	var failed error
 	select {
 	case err := <-serveErr:
-		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		return errors.Join(fmt.Errorf("http server: %w", err), host.Stop(stopCtx))
+		failed = fmt.Errorf("http server: %w", err)
 	case <-ctx.Done():
+		logger.Info("shutting down")
 	}
 
-	logger.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return errors.Join(httpServer.Shutdown(shutdownCtx), host.Stop(shutdownCtx))
+	return errors.Join(failed, httpServer.Shutdown(shutdownCtx), host.Stop(shutdownCtx))
 }
 
 // parseTrustedProxies parses raw into trusted-proxy CIDR ranges.
