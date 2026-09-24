@@ -15,12 +15,12 @@ func TestNestedValuesSurviveTheRealStore(t *testing.T) {
 	store, author, pool := typedStore(t)
 	storeType(t, store, "car")
 	team := declareRepeater(t, store, "team")
-	contact, err := store.CreateSubField(t.Context(), team.ID, sectionOn(t, "contact"))
+	contact, err := store.CreateSubField(t.Context(), team.ID, sectionOn(t, "contact"), deepEnough)
 	if err != nil {
 		t.Fatalf("declaring the section: %v, want nil", err)
 	}
 	if _, err := store.CreateSubField(
-		t.Context(), contact.ID, fieldOn(t, "", "phone", content.FieldKindText, "")); err != nil {
+		t.Context(), contact.ID, fieldOn(t, "", "phone", content.FieldKindText, ""), deepEnough); err != nil {
 		t.Fatalf("declaring the phone: %v, want nil", err)
 	}
 	held := content.Values{"team": []any{

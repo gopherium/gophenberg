@@ -24,7 +24,7 @@ func specsDoorsOnPost(t *testing.T, store *postgres.TypeStore) content.Field {
 		t.Fatalf("CreateField(section specs) error = %v, want nil", err)
 	}
 	doors, err := store.CreateSubField(
-		t.Context(), stored.ID, fieldOn(t, "", "doors", content.FieldKindText, ""))
+		t.Context(), stored.ID, fieldOn(t, "", "doors", content.FieldKindText, ""), deepEnough)
 	if err != nil {
 		t.Fatalf("CreateSubField(doors) error = %v, want nil", err)
 	}

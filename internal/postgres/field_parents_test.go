@@ -112,7 +112,7 @@ func TestMovingATopFieldLeavesASubFieldSharingItsKey(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 
-	if _, err := store.MoveField(t.Context(), title.ID, landing.ID, 0); err != nil {
+	if _, err := store.MoveField(t.Context(), title.ID, landing.ID, 0, deepEnough); err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
 	}
 
@@ -135,7 +135,7 @@ func declaredInside(
 	if err != nil {
 		t.Fatalf("NewSubField(%s) error = %v, want nil", key, err)
 	}
-	stored, err := store.CreateSubField(t.Context(), parent.ID, built)
+	stored, err := store.CreateSubField(t.Context(), parent.ID, built, deepEnough)
 	if err != nil {
 		t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
 	}
@@ -205,7 +205,7 @@ func TestMovingASectionCarriesASubFieldTwoLevelsDown(t *testing.T) {
 		t.Fatalf("CreateGroup(Elsewhere) error = %v, want nil", err)
 	}
 
-	if _, err := store.MoveField(t.Context(), section.ID, landing.ID, 0); err != nil {
+	if _, err := store.MoveField(t.Context(), section.ID, landing.ID, 0, deepEnough); err != nil {
 		t.Fatalf("MoveField(author) error = %v, want nil", err)
 	}
 
@@ -237,7 +237,7 @@ func moveSection(t *testing.T, store *postgres.TypeStore) movedSection {
 	if err != nil {
 		t.Fatalf("CreateGroup(Elsewhere) error = %v, want nil", err)
 	}
-	if _, err := store.MoveField(t.Context(), section.ID, landing.ID, 0); err != nil {
+	if _, err := store.MoveField(t.Context(), section.ID, landing.ID, 0, deepEnough); err != nil {
 		t.Fatalf("MoveField(author) error = %v, want nil", err)
 	}
 	return movedSection{source: source, landing: landing, section: section, sub: sub}
@@ -293,7 +293,7 @@ func TestCreateSubFieldStoresTheKeyTheDomainSettledOn(t *testing.T) {
 
 	created, err := store.CreateSubField(t.Context(), specs.ID, content.Field{
 		Key: "  title  ", Label: "  Title  ", Kind: content.FieldKindText,
-	})
+	}, deepEnough)
 
 	if err != nil {
 		t.Fatalf("CreateSubField() error = %v, want nil", err)
@@ -322,7 +322,7 @@ func TestCreatingASubFieldStoresItUnderItsParent(t *testing.T) {
 	specs := declareSection(t, store, "specs")
 
 	held, err := store.CreateSubField(
-		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 
 	if err != nil {
 		t.Fatalf("CreateSubField() error = %v, want nil", err)
@@ -343,13 +343,13 @@ func TestCreatingASubFieldOrdersItAfterItsSiblings(t *testing.T) {
 	specs := declareSection(t, store, "specs")
 	other := declareSection(t, store, "extras")
 	if _, err := store.CreateSubField(
-		t.Context(), other.ID, fieldOn(t, "", "away", content.FieldKindText, "")); err != nil {
+		t.Context(), other.ID, fieldOn(t, "", "away", content.FieldKindText, ""), deepEnough); err != nil {
 		t.Fatalf("declaring a sibling elsewhere: %v, want nil", err)
 	}
 
 	for _, key := range []string{"title", "colour"} {
 		if _, err := store.CreateSubField(
-			t.Context(), specs.ID, fieldOn(t, "", key, content.FieldKindText, "")); err != nil {
+			t.Context(), specs.ID, fieldOn(t, "", key, content.FieldKindText, ""), deepEnough); err != nil {
 			t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
 		}
 	}
@@ -389,7 +389,7 @@ func TestCreatingASubFieldReportsAParentThatIsGone(t *testing.T) {
 	storeType(t, store, "car")
 
 	_, err := store.CreateSubField(
-		t.Context(), 424242, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), 424242, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 
 	if !errors.Is(err, content.ErrFieldNotFound) {
 		t.Errorf("CreateSubField() error = %v, want %v", err, content.ErrFieldNotFound)
@@ -404,7 +404,7 @@ func TestCreatingASubFieldRefusesAParentHoldingNone(t *testing.T) {
 	plain := declareTypedField(t, store, "car", "subtitle")
 
 	_, err := store.CreateSubField(
-		t.Context(), plain.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), plain.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 
 	if !errors.Is(err, content.ErrFieldShape) {
 		t.Errorf("CreateSubField() error = %v, want %v", err, content.ErrFieldShape)
@@ -557,7 +557,7 @@ func TestCreatingASubFieldReportsALockItCannotTake(t *testing.T) {
 	timed := lockTimedStore(t, pool)
 
 	_, err := timed.CreateSubField(
-		t.Context(), top.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), top.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 
 	if err == nil {
 		t.Error("CreateSubField() error = nil, want the lock it could not take reported")
@@ -573,7 +573,7 @@ func TestCreatingASubFieldReportsAParentItCannotRead(t *testing.T) {
 	sabotage(t, pool, "ALTER TABLE core.content_fields RENAME COLUMN label TO retired")
 
 	_, err := store.CreateSubField(
-		t.Context(), top.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), top.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 
 	if err == nil {
 		t.Error("CreateSubField() error = nil, want the unreadable parent reported")
@@ -589,7 +589,7 @@ func TestCreatingASubFieldReportsAWriteItCannotMake(t *testing.T) {
 	raiseOn(t, pool, "core.content_fields", "INSERT")
 
 	_, err := store.CreateSubField(
-		t.Context(), top.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), top.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 
 	if err == nil {
 		t.Error("CreateSubField() error = nil, want the refused write reported")

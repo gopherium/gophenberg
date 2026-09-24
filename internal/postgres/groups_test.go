@@ -696,7 +696,7 @@ func TestMoveFieldCarriesTheFieldAndKeepsItsValues(t *testing.T) {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 
-	moved, err := store.MoveField(t.Context(), subtitle.ID, extras.ID, 0)
+	moved, err := store.MoveField(t.Context(), subtitle.ID, extras.ID, 0, deepEnough)
 
 	if err != nil {
 		t.Fatalf("MoveField() error = %v, want nil", err)
@@ -724,7 +724,7 @@ func TestMoveFieldReportsAFieldThatIsGone(t *testing.T) {
 		t.Fatalf("ListGroups() = %v, %v, want the one raised group", groups, err)
 	}
 
-	_, err = store.MoveField(t.Context(), 4242, groups[0].ID, 0)
+	_, err = store.MoveField(t.Context(), 4242, groups[0].ID, 0, deepEnough)
 
 	if !errors.Is(err, content.ErrFieldNotFound) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldNotFound)
@@ -738,7 +738,7 @@ func TestMoveFieldReportsAGroupThatIsGone(t *testing.T) {
 	storeType(t, store, "car")
 	subtitle := declareTypedField(t, store, "car", "subtitle")
 
-	_, err := store.MoveField(t.Context(), subtitle.ID, 4242, 0)
+	_, err := store.MoveField(t.Context(), subtitle.ID, 4242, 0, deepEnough)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("MoveField() error = %v, want %v", err, content.ErrGroupNotFound)
@@ -899,11 +899,11 @@ func TestReorderingTheTopLeavesASubFieldSharingAKeyWhereItStands(t *testing.T) {
 	specs := declareSection(t, store, "specs")
 	title := declareTypedField(t, store, "car", "title")
 	if _, err := store.CreateSubField(
-		t.Context(), specs.ID, fieldOn(t, "", "colour", content.FieldKindText, "")); err != nil {
+		t.Context(), specs.ID, fieldOn(t, "", "colour", content.FieldKindText, ""), deepEnough); err != nil {
 		t.Fatalf("declaring colour inside specs: %v, want nil", err)
 	}
 	sub, err := store.CreateSubField(
-		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 	if err != nil {
 		t.Fatalf("declaring title inside specs: %v, want nil", err)
 	}

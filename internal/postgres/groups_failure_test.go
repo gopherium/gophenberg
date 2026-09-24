@@ -606,7 +606,7 @@ func TestMoveFieldReportsAFieldItCannotCarry(t *testing.T) {
 	}
 	raiseOn(t, pool, "core.content_fields", "UPDATE")
 
-	_, err = store.MoveField(t.Context(), declared.ID, resting.ID, 0)
+	_, err = store.MoveField(t.Context(), declared.ID, resting.ID, 0, deepEnough)
 
 	if err == nil {
 		t.Error("MoveField() error = nil, want the refused carry reported")

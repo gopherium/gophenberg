@@ -17,7 +17,7 @@ func TestUpdatingASubFieldCarriesItsLabelRequiredAndSettings(t *testing.T) {
 	storeType(t, store, "car")
 	specs := declareSection(t, store, "specs")
 	sub, err := store.CreateSubField(
-		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 	if err != nil {
 		t.Fatalf("CreateSubField() error = %v, want nil", err)
 	}
@@ -46,7 +46,7 @@ func TestUpdatingASubFieldRefusesAStaleStamp(t *testing.T) {
 	storeType(t, store, "car")
 	specs := declareSection(t, store, "specs")
 	sub, err := store.CreateSubField(
-		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 	if err != nil {
 		t.Fatalf("CreateSubField() error = %v, want nil", err)
 	}
@@ -84,7 +84,7 @@ func TestUpdatingASubFieldReportsAStoreThatWillNotWrite(t *testing.T) {
 	storeType(t, store, "car")
 	specs := declareSection(t, store, "specs")
 	sub, err := store.CreateSubField(
-		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 	if err != nil {
 		t.Fatalf("CreateSubField() error = %v, want nil", err)
 	}
@@ -104,7 +104,7 @@ func TestReorderingInsideAContainerReportsAStoreThatWillNotWrite(t *testing.T) {
 	storeType(t, store, "car")
 	specs := declareSection(t, store, "specs")
 	if _, err := store.CreateSubField(
-		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, "")); err != nil {
+		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough); err != nil {
 		t.Fatalf("CreateSubField() error = %v, want nil", err)
 	}
 	raiseOn(t, pool, "core.content_fields", "UPDATE")
@@ -125,7 +125,7 @@ func TestReorderingInsideAContainerStandsTheSubFieldsAsAsked(t *testing.T) {
 	held := map[string]int{}
 	for _, key := range []string{"title", "colour", "trim"} {
 		stored, err := store.CreateSubField(
-			t.Context(), specs.ID, fieldOn(t, "", key, content.FieldKindText, ""))
+			t.Context(), specs.ID, fieldOn(t, "", key, content.FieldKindText, ""), deepEnough)
 		if err != nil {
 			t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
 		}
@@ -152,12 +152,12 @@ func TestReorderingInsideAContainerLeavesAnotherContainerAlone(t *testing.T) {
 	extras := declareSection(t, store, "extras")
 	for _, key := range []string{"title", "colour"} {
 		if _, err := store.CreateSubField(
-			t.Context(), specs.ID, fieldOn(t, "", key, content.FieldKindText, "")); err != nil {
+			t.Context(), specs.ID, fieldOn(t, "", key, content.FieldKindText, ""), deepEnough); err != nil {
 			t.Fatalf("declaring %s inside specs: %v, want nil", key, err)
 		}
 	}
 	away, err := store.CreateSubField(
-		t.Context(), extras.ID, fieldOn(t, "", "title", content.FieldKindText, ""))
+		t.Context(), extras.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 	if err != nil {
 		t.Fatalf("declaring title inside extras: %v, want nil", err)
 	}

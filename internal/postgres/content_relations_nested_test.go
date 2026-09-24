@@ -34,7 +34,7 @@ func rowsPointing(t *testing.T, pool *pgxpool.Pool) content.Field {
 	if err != nil {
 		t.Fatalf("NewSubField(filed) error = %v, want nil", err)
 	}
-	declared, err := types.CreateSubField(t.Context(), stored.ID, inside)
+	declared, err := types.CreateSubField(t.Context(), stored.ID, inside, deepEnough)
 	if err != nil {
 		t.Fatalf("declaring the relation inside the rows: %v, want nil", err)
 	}

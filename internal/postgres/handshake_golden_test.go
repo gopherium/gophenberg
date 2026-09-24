@@ -97,7 +97,7 @@ func TestStoredFieldsServeTheGoldenHandshakeShape(t *testing.T) {
 	}
 	if _, err := store.CreateSubField(ctx, crew.ID, mustField(t, content.Field{
 		Key: "name", Label: "Name", Kind: content.FieldKindText, Required: true,
-	})); err != nil {
+	}), deepEnough); err != nil {
 		t.Fatalf("CreateSubField(name) error = %v, want nil", err)
 	}
 
