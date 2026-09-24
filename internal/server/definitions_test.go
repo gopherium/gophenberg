@@ -40,7 +40,7 @@ func TestDefinitionsExportDownloadsWhatTheSiteDefined(t *testing.T) {
 	}
 	if _, err := types.CreateFieldInGroup(t.Context(), details.ID, content.Field{
 		Key: "subtitle", Label: "Subtitle", Kind: content.FieldKindText,
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}
 	if _, err := types.Create(t.Context(), content.Type{

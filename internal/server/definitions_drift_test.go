@@ -147,7 +147,7 @@ func TestAdoptTakesTheFieldsInsideAContainerOverToo(t *testing.T) {
 	}
 	section, err := types.CreateFieldInGroup(t.Context(), group.ID, content.Field{
 		Key: "schedule", Label: "Schedule", Kind: content.FieldKindSection, Origin: "events",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}
