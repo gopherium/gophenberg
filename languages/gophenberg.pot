@@ -738,6 +738,9 @@ msgstr ""
 msgid "It moves to another group, so its stored values do not follow."
 msgstr ""
 
+msgid "It reads a relation inside a container, and only an import can point it elsewhere."
+msgstr ""
+
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
 msgstr ""
 
@@ -1638,6 +1641,9 @@ msgid "Web address"
 msgstr ""
 
 msgid "Welcome to Gophenberg."
+msgstr ""
+
+msgid "What each Linked from field reads"
 msgstr ""
 
 msgid "What it points at changed, so its stored values go with it."

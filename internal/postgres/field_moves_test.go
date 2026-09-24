@@ -134,7 +134,7 @@ func rested(t *testing.T, store *postgres.TypeStore, title string) content.Group
 			continue
 		}
 		held.Active = false
-		idle, err := store.UpdateGroup(t.Context(), held)
+		idle, err := store.UpdateGroup(t.Context(), held, nil)
 		if err != nil {
 			t.Fatalf("resting %q: %v, want nil", title, err)
 		}

@@ -284,8 +284,10 @@ func groupWriteFailure(err error) error {
 	return fmt.Errorf("postgres: create field group: %w", err)
 }
 
-// UpdateGroup stores the group's title, location and active flag.
-func (s *TypeStore) UpdateGroup(ctx context.Context, g content.Group) (content.Group, error) {
+// UpdateGroup stores the group's title, location and active flag with the settings of the fields it points anew.
+func (s *TypeStore) UpdateGroup(
+	ctx context.Context, g content.Group, repointed []content.Field,
+) (content.Group, error) {
 	var updated content.Group
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
@@ -295,14 +297,18 @@ func (s *TypeStore) UpdateGroup(ctx context.Context, g content.Group) (content.G
 		if err := groupStandsAlone(ctx, queries, g); err != nil {
 			return err
 		}
+		now := time.Now().UTC()
 		row, err := queries.UpdateFieldGroup(ctx, db.UpdateFieldGroupParams{
 			Title: g.Title, Location: locationJSON(g.Location), Active: g.Active,
-			UpdatedAt: time.Now().UTC(), ID: int32(g.ID),
+			UpdatedAt: now, ID: int32(g.ID),
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return content.ErrGroupNotFound
 		}
 		if err != nil {
+			return err
+		}
+		if err := repoint(ctx, queries, g.ID, repointed, now); err != nil {
 			return err
 		}
 		updated, err = toGroup(row)
@@ -312,6 +318,23 @@ func (s *TypeStore) UpdateGroup(ctx context.Context, g content.Group) (content.G
 		return content.Group{}, updateGroupFailure(err)
 	}
 	return updated, nil
+}
+
+// repoint stores the settings of each field pointed anew, refusing one that changed since it was read.
+func repoint(ctx context.Context, queries *db.Queries, groupID int, fields []content.Field, now time.Time) error {
+	for _, f := range fields {
+		_, err := queries.UpdateContentField(ctx, db.UpdateContentFieldParams{
+			Label: f.Label, Required: f.Required, Settings: settingsJSON(f.Settings),
+			UpdatedAt: now, ExpectedUpdatedAt: f.UpdatedAt, GroupID: int32(groupID), Key: f.Key,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return content.ErrConflict
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // updateGroupFailure returns the error a group update carries, and wraps anything else.

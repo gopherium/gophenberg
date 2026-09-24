@@ -106,7 +106,7 @@ func TestUpdateGroupReportsAGroupThatIsGone(t *testing.T) {
 
 	store, _, _ := typedStore(t)
 
-	_, err := store.UpdateGroup(t.Context(), content.Group{ID: 4242, Title: "Vanished"})
+	_, err := store.UpdateGroup(t.Context(), content.Group{ID: 4242, Title: "Vanished"}, nil)
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("UpdateGroup() error = %v, want %v", err, content.ErrGroupNotFound)
@@ -124,7 +124,7 @@ func TestUpdateGroupReportsAGroupItCannotStore(t *testing.T) {
 	raiseOn(t, pool, "core.field_groups", "UPDATE")
 
 	stored.Title = "Renamed"
-	if _, err := store.UpdateGroup(t.Context(), stored); err == nil {
+	if _, err := store.UpdateGroup(t.Context(), stored, nil); err == nil {
 		t.Error("UpdateGroup() error = nil, want the refused write reported")
 	}
 }
@@ -471,7 +471,7 @@ func TestUpdateGroupReportsGroupsItCannotList(t *testing.T) {
 	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
 
 	stored.Title = "Renamed"
-	if _, err := store.UpdateGroup(t.Context(), stored); err == nil {
+	if _, err := store.UpdateGroup(t.Context(), stored, nil); err == nil {
 		t.Error("UpdateGroup() error = nil, want the unreadable groups reported")
 	}
 }
@@ -487,7 +487,7 @@ func TestUpdateGroupReportsTypesItCannotRead(t *testing.T) {
 	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
 
 	stored.Title = "Renamed"
-	if _, err := store.UpdateGroup(t.Context(), stored); err == nil {
+	if _, err := store.UpdateGroup(t.Context(), stored, nil); err == nil {
 		t.Error("UpdateGroup() error = nil, want the unreadable types reported")
 	}
 }
@@ -553,7 +553,7 @@ func TestUpdateGroupReportsALockItCannotTake(t *testing.T) {
 	timed := lockTimedStore(t, pool)
 
 	stored.Title = "Renamed"
-	if _, err := timed.UpdateGroup(t.Context(), stored); err == nil {
+	if _, err := timed.UpdateGroup(t.Context(), stored, nil); err == nil {
 		t.Error("UpdateGroup() error = nil, want the held lock reported")
 	}
 }

@@ -35,6 +35,7 @@ import {
 	StaleWriteError,
 } from './groups'
 import { FieldConditions } from './FieldConditions'
+import { SourceOfLinks } from './SourceOfLinks'
 import { chosenOf } from './select'
 import {
 	holdsFields,
@@ -49,7 +50,7 @@ import {
 } from './types'
 import type { ChoicePair } from './types'
 import { typesQueryKey } from './nav'
-import type { BacklinkSources, FieldGroup } from './groups'
+import type { FieldGroup } from './groups'
 import type { Choice } from './select'
 import type { ContentField, ContentType } from './types'
 
@@ -296,35 +297,6 @@ function FieldsBody(
 				onRefused={props.onRefused}
 			/>
 		</Stack>
-	)
-}
-
-/**
- * Renders the pickers naming the group and the relation a backlinks field reads.
- * @param props - The sources on offer and what to report when one is picked.
- * @returns The pickers element.
- */
-function SourceOfLinks(props: {
-	sources: BacklinkSources
-	onGroup: (key: string) => void
-	onField: (key: string) => void
-}) {
-	const { groups, fields, group, field } = props.sources
-	return (
-		<>
-			<SelectControl
-				label={__('Reads from', 'gophenberg')}
-				items={groups}
-				value={group}
-				onValueChange={(item) => props.onGroup(chosenOf(item, groups, group).value)}
-			/>
-			<SelectControl
-				label={__('Through', 'gophenberg')}
-				items={fields}
-				value={field}
-				onValueChange={(item) => props.onField(chosenOf(item, fields, field).value)}
-			/>
-		</>
 	)
 }
 

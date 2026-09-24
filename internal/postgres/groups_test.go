@@ -207,7 +207,7 @@ func TestDeleteGroupSweepsAValueLeftOnATypeItStoppedMatching(t *testing.T) {
 	}
 	plantTyped(t, pool, author, "car", "left-behind", `{"subtitle": "must go"}`)
 	group.Location = locationOf("book")
-	if _, err := store.UpdateGroup(t.Context(), group); err != nil {
+	if _, err := store.UpdateGroup(t.Context(), group, nil); err != nil {
 		t.Fatalf("UpdateGroup() error = %v, want nil", err)
 	}
 
@@ -245,7 +245,7 @@ func TestDeleteFieldsOfGroupSweepsAValueLeftOnATypeItStoppedMatching(t *testing.
 	}
 	plantTyped(t, pool, author, "car", "left-behind", `{"subtitle": "must go", "footnote": "stays"}`)
 	group.Location = locationOf("book")
-	if _, err := store.UpdateGroup(t.Context(), group); err != nil {
+	if _, err := store.UpdateGroup(t.Context(), group, nil); err != nil {
 		t.Fatalf("UpdateGroup() error = %v, want nil", err)
 	}
 
@@ -342,11 +342,11 @@ func TestUpdateGroupRefusesOneOfTwoMovesOntoTheSameType(t *testing.T) {
 	}
 	first, second := moving("Cars", "car"), moving("Books", "book")
 
-	if _, err := store.UpdateGroup(t.Context(), first); err != nil {
+	if _, err := store.UpdateGroup(t.Context(), first, nil); err != nil {
 		t.Fatalf("UpdateGroup(first) error = %v, want nil", err)
 	}
 
-	_, err := store.UpdateGroup(t.Context(), second)
+	_, err := store.UpdateGroup(t.Context(), second, nil)
 
 	if !errors.Is(err, content.ErrFieldTaken) {
 		t.Fatalf("UpdateGroup(second) error = %v, want %v", err, content.ErrFieldTaken)
@@ -383,7 +383,7 @@ func TestUpdateGroupWaitsForAGroupWriteAlreadyUnderway(t *testing.T) {
 
 	group.Title = "Motors"
 	done := make(chan error, 1)
-	go func() { _, err := store.UpdateGroup(context.Background(), group); done <- err }()
+	go func() { _, err := store.UpdateGroup(context.Background(), group, nil); done <- err }()
 
 	select {
 	case err := <-done:
@@ -440,7 +440,7 @@ func TestAGroupThatStopsMatchingStopsServingItsFields(t *testing.T) {
 	idle := groups[0]
 	idle.Active = false
 
-	if _, err := store.UpdateGroup(t.Context(), idle); err != nil {
+	if _, err := store.UpdateGroup(t.Context(), idle, nil); err != nil {
 		t.Fatalf("UpdateGroup() error = %v, want nil", err)
 	}
 

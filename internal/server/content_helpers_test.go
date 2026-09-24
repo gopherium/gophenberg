@@ -528,8 +528,10 @@ func (s *fakeTypeStore) freeGroupKey(stem string) string {
 	return key
 }
 
-// UpdateGroup stores the group's title, location and resting flag.
-func (s *fakeTypeStore) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
+// UpdateGroup stores the group's title, location and resting flag with the fields it points anew.
+func (s *fakeTypeStore) UpdateGroup(
+	_ context.Context, g content.Group, repointed []content.Field,
+) (content.Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
@@ -537,6 +539,12 @@ func (s *fakeTypeStore) UpdateGroup(_ context.Context, g content.Group) (content
 			continue
 		}
 		held.Title, held.Location, held.Active = g.Title, g.Location, g.Active
+		for _, f := range repointed {
+			at := slices.IndexFunc(held.Fields, func(stored content.Field) bool { return stored.Key == f.Key })
+			if at >= 0 {
+				held.Fields[at] = f
+			}
+		}
 		s.groups[i] = held
 		return held, nil
 	}

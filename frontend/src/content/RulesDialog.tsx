@@ -3,13 +3,31 @@
 import { Button, Dialog, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
 import { ErrorNotice } from '@gopherium/godmin'
 import { __, sprintf } from '@wordpress/i18n'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { groupErrorMessage, listRuleSources, ruleSourcesQueryKey, typeSource, updateGroup } from './groups'
+import {
+	backlinkSettings,
+	backlinkSources,
+	groupErrorMessage,
+	groupsQueryKey,
+	listRuleSources,
+	pickOf,
+	ruleSourcesQueryKey,
+	StaleWriteError,
+	typeSource,
+	updateGroup,
+} from './groups'
+import { SourceOfLinks } from './SourceOfLinks'
 import { chosenOf } from './select'
-import type { FieldGroup, Location, LocationRule, RuleSource } from './groups'
+import type { BacklinkPick, FieldGroup, Location, LocationRule, RuleSource } from './groups'
 import type { Choice } from './select'
+import type { ContentField } from './types'
+
+/** A Linked from source the operator picked, with the stamp its field carried when they picked it. */
+interface Touched extends BacklinkPick {
+	updatedAt: string
+}
 
 /**
  * Returns the phrase a rule operator is offered under.
@@ -89,24 +107,62 @@ function withoutRule(held: Location, at: { set: number; rule: number }): Locatio
 }
 
 /**
+ * Returns the settings naming what each Linked from field the operator touched now reads.
+ * @param groups - The groups a relation may stand in.
+ * @param picked - The pairs the operator picked, by field key.
+ * @returns The settings to send, or nothing when no field was touched.
+ */
+function pointedAnew(
+	groups: FieldGroup[],
+	picked: Record<string, Touched>,
+): Record<string, Record<string, unknown>> | undefined {
+	const touched = Object.entries(picked)
+	if (touched.length === 0) {
+		return undefined
+	}
+	return Object.fromEntries(
+		touched.map(([key, pick]) => [
+			key,
+			{ ...backlinkSettings(backlinkSources(groups, pick.group, pick.field)), updated_at: pick.updatedAt },
+		]),
+	)
+}
+
+/**
  * Renders the control editing where a group appears.
- * @param props - The group and the reporter.
+ * @param props - The group, the groups a relation may stand in, and the reporters.
  * @returns The control and its dialog.
  */
-export function RulesDialog(props: { held: FieldGroup; onDone: (said: string) => void }) {
+export function RulesDialog(props: {
+	held: FieldGroup
+	groups: FieldGroup[]
+	onDone: (said: string) => void
+	onRefused: (cause: unknown) => void
+}) {
 	const [open, setOpen] = useState(false)
 	const [notice, setNotice] = useState('')
 	const [draft, setDraft] = useState<Location>(props.held.location)
+	const [picked, setPicked] = useState<Record<string, Touched>>({})
+	const client = useQueryClient()
 	const sources = useQuery({ queryKey: ruleSourcesQueryKey, queryFn: listRuleSources })
 	const save = useMutation({
-		mutationFn: () => updateGroup(props.held.id, { location: draft }),
+		mutationFn: () =>
+			updateGroup(props.held.id, { location: draft, backlinks: pointedAnew(props.groups, picked) }),
 		onSuccess: () => {
 			setOpen(false)
 			props.onDone(sprintf(__('%(group)s now appears where you said.', 'gophenberg'), {
 				group: props.held.title,
 			}))
 		},
-		onError: (cause) => setNotice(groupErrorMessage(cause)),
+		onError: async (cause) => {
+			if (!(cause instanceof StaleWriteError)) {
+				setNotice(groupErrorMessage(cause))
+				return
+			}
+			setOpen(false)
+			props.onRefused(cause)
+			await client.invalidateQueries({ queryKey: groupsQueryKey })
+		},
 	})
 
 	/**
@@ -116,6 +172,7 @@ export function RulesDialog(props: { held: FieldGroup; onDone: (said: string) =>
 	function change(next: boolean) {
 		if (next) {
 			setDraft(props.held.location)
+			setPicked({})
 			setNotice('')
 		}
 		setOpen(next)
@@ -143,6 +200,14 @@ export function RulesDialog(props: { held: FieldGroup; onDone: (said: string) =>
 								failed={sources.isError}
 								onDraft={setDraft}
 							/>
+							<LinkedSources
+								held={props.held}
+								groups={props.groups}
+								picked={picked}
+								onPick={(field, pick) =>
+									setPicked((was) => ({ ...was, [field.key]: { ...pick, updatedAt: field.updatedAt } }))
+								}
+							/>
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
@@ -156,6 +221,52 @@ export function RulesDialog(props: { held: FieldGroup; onDone: (said: string) =>
 				</Dialog.Popup>
 			</Dialog.Root>
 		</>
+	)
+}
+
+/**
+ * Renders the pickers naming what each Linked from field of the group reads.
+ * @param props - The group, the groups a relation may stand in, the pairs picked so far, and what to call with a pick.
+ * @returns The pickers element, or nothing when the group holds no Linked from field.
+ */
+function LinkedSources(props: {
+	held: FieldGroup
+	groups: FieldGroup[]
+	picked: Record<string, Touched>
+	onPick: (field: ContentField, pick: BacklinkPick) => void
+}) {
+	const reading = props.held.fields.filter((field) => field.kind === 'backlinks')
+	if (reading.length === 0) {
+		return null
+	}
+	return (
+		<Stack direction="column" gap="sm">
+			<Text>{__('What each Linked from field reads', 'gophenberg')}</Text>
+			{reading.map((field) => {
+				const pick = props.picked[field.key] ?? pickOf(field)
+				return (
+					<Stack key={field.key} direction="column" gap="sm" role="group" aria-label={field.label}>
+						<Text variant="body-sm">{field.label}</Text>
+						{pick === null ? (
+							<Text variant="body-sm">
+								{__(
+									'It reads a relation inside a container, and only an import can point it elsewhere.',
+									'gophenberg',
+								)}
+							</Text>
+						) : (
+							<Stack direction="row" gap="sm" align="end">
+								<SourceOfLinks
+									sources={backlinkSources(props.groups, pick.group, pick.field)}
+									onGroup={(group) => props.onPick(field, { ...pick, group })}
+									onField={(through) => props.onPick(field, { ...pick, field: through })}
+								/>
+							</Stack>
+						)}
+					</Stack>
+				)
+			})}
+		</Stack>
 	)
 }
 

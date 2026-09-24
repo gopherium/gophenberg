@@ -69,7 +69,7 @@ func (stubTypeStore) CreateGroup(_ context.Context, g content.Group) (content.Gr
 }
 
 // UpdateGroup hands the group back unstored.
-func (stubTypeStore) UpdateGroup(_ context.Context, g content.Group) (content.Group, error) {
+func (stubTypeStore) UpdateGroup(_ context.Context, g content.Group, _ []content.Field) (content.Group, error) {
 	return g, nil
 }
 

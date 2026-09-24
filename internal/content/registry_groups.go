@@ -5,6 +5,8 @@ package content
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 )
@@ -35,6 +37,18 @@ func (r *Registry) UpdateGroup(ctx context.Context, g Group) (Group, error) {
 
 // UpdateGroupSettled stores the group's title, location and active flag, overlooking the backlinks the caller settles.
 func (r *Registry) UpdateGroupSettled(ctx context.Context, g Group, readers Settled) (Group, error) {
+	return r.updateGroup(ctx, g, readers, nil)
+}
+
+// UpdateGroupRepointed stores the group's title, location and active flag with its backlinks reading the sources named.
+func (r *Registry) UpdateGroupRepointed(ctx context.Context, g Group, sources map[string]Repoint) (Group, error) {
+	return r.updateGroup(ctx, g, nil, sources)
+}
+
+// updateGroup stores the group and the backlinks it points anew once every field stands as the edit leaves it.
+func (r *Registry) updateGroup(
+	ctx context.Context, g Group, readers Settled, sources map[string]Repoint,
+) (Group, error) {
 	settled, err := r.settledGroup(ctx, g)
 	if err != nil {
 		return Group{}, err
@@ -47,18 +61,57 @@ func (r *Registry) UpdateGroupSettled(ctx context.Context, g Group, readers Sett
 		return Group{}, err
 	}
 	settled.Origin = stored.Origin
-	if err := r.sourcesStand(ctx, held, settled, readers.among(stored.Fields)); err != nil {
+	repointed, err := repointedAmong(ctx, stored.Fields, sources)
+	if err != nil {
+		return Group{}, err
+	}
+	standing := readers.among(withRepointed(stored.Fields, repointed))
+	if err := r.sourcesStand(ctx, held, settled, standing); err != nil {
 		return Group{}, err
 	}
 	if err := r.freeOfCollisions(ctx, held, stored, settled); err != nil {
 		return Group{}, err
 	}
-	updated, err := r.store.UpdateGroup(ctx, settled)
+	updated, err := r.store.UpdateGroup(ctx, settled, repointed)
 	if err != nil {
 		return Group{}, err
 	}
 	r.invalidate()
 	return updated, nil
+}
+
+// repointedAmong returns the named fields carrying their new sources, or the reason one cannot take its source.
+func repointedAmong(ctx context.Context, fields []Field, sources map[string]Repoint) ([]Field, error) {
+	repointed := make([]Field, 0, len(sources))
+	for _, key := range slices.Sorted(maps.Keys(sources)) {
+		held, err := fieldAmong(fields, key)
+		if err != nil {
+			return nil, err
+		}
+		if err := pluginKeepsField(ctx, held); err != nil {
+			return nil, err
+		}
+		if !sources[key].UpdatedAt.Equal(held.UpdatedAt) {
+			return nil, ErrConflict
+		}
+		held.Settings = sources[key].into(held.Settings)
+		if err := held.Validate(); err != nil {
+			return nil, err
+		}
+		repointed = append(repointed, held)
+	}
+	return repointed, nil
+}
+
+// withRepointed returns the fields with each one pointed anew standing in its place.
+func withRepointed(fields, repointed []Field) []Field {
+	held := slices.Clone(fields)
+	for i, f := range held {
+		if at := slices.IndexFunc(repointed, func(p Field) bool { return p.Key == f.Key }); at >= 0 {
+			held[i] = repointed[at]
+		}
+	}
+	return held
 }
 
 // settledGroup returns the group ready to store, or the reason it is not one.

@@ -66,6 +66,33 @@ Feature: Linked from
     When the administrator deletes the group "category fields"
     Then no group is titled "category fields"
 
+  Scenario: One save moves a Linked from's group and points it at a relation on the new type
+    Given the type "tag" labeled "Tag" and "Tags" under "tags"
+    And the "relation" field "tags" on "post" targeting "tag" holding many
+    When the administrator places "category fields" on "tag" with "linked-from" reading "tags" in "post fields"
+    Then the field "linked-from" on "tag" reads "tags" in "post fields"
+    And the field "linked-from" is not served on "category"
+
+  Scenario: Moving a Linked from's group off the type its relation points at is refused
+    Given the type "tag" labeled "Tag" and "Tags" under "tags"
+    When the administrator places "category fields" on "tag"
+    Then the request is refused with the code "backlinks_source_elsewhere"
+    And the field "linked-from" on "category" reads "categories" in "post fields"
+
+  Scenario: A save pointing a Linked from at a relation nobody declared writes nothing
+    Given the type "tag" labeled "Tag" and "Tags" under "tags"
+    When the administrator places "category fields" on "tag" with "linked-from" reading "nothing" in "post fields"
+    Then the request is refused with the code "backlinks_source_unknown"
+    And the field "linked-from" on "category" reads "categories" in "post fields"
+
+  Scenario: A save pointing a Linked from someone changed meanwhile writes nothing
+    Given the type "tag" labeled "Tag" and "Tags" under "tags"
+    And the "relation" field "tags" on "post" targeting "tag" holding many
+    And someone renamed "linked-from" in "category fields" after the administrator read it
+    When the administrator places "category fields" on "tag" with "linked-from" reading "tags" in "post fields"
+    Then the request is refused with the code "content_stale_update"
+    And the field "linked-from" on "category" reads "categories" in "post fields"
+
   Scenario: A site reading a relation inside a section imports its own export
     Given the "section" field "filing" in "post fields"
     And the "relation" field "pairs-with" inside "filing" targeting "category"
