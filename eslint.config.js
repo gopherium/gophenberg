@@ -5,7 +5,7 @@ import tseslint from 'typescript-eslint'
 
 export default [
 	{
-		ignores: ['**/.astro/**', '**/coverage/**', '**/dist/**', '**/node_modules/**'],
+		ignores: ['**/.astro/**', '**/.stryker-tmp/**', '**/coverage/**', '**/dist/**', '**/node_modules/**'],
 	},
 	{
 		files: [

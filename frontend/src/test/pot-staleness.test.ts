@@ -12,6 +12,9 @@ const ROOT = repositoryRoot()
 
 const FIXTURE = ['frontend/testdata/potfixture/*.tsx']
 
+/** Whether a mutation run rewrote the sources the template is read from. */
+const MUTATION_RUN = process.env.STRYKER_MUTATOR_WORKER !== undefined
+
 test('writes the same template bytes on every run', () => {
 	expect(pot(potConfig()).equals(pot(potConfig()))).toBe(true)
 })
@@ -34,7 +37,7 @@ test('carries a plural pair with both its empty forms', () => {
 	expect(pot(potConfig(FIXTURE)).toString('utf8')).toContain('msgid_plural "%d items held"')
 })
 
-test('regenerates the committed template byte for byte', () => {
+test.skipIf(MUTATION_RUN)('regenerates the committed template byte for byte', () => {
 	const committed = readFileSync(join(ROOT, 'languages', 'gophenberg.pot'), 'utf8')
 
 	expect(pot(potConfig()).toString('utf8')).toBe(committed)

@@ -55,6 +55,7 @@ export default defineConfig({
 		},
 	},
 	test: {
+		root: fileURLToPath(new URL('.', import.meta.url)),
 		environment: 'jsdom',
 		env: { TZ: 'UTC' },
 		css: { include: [/index\.css$/, /src\/content\/editor\.css$/, /src\/media\/media\.css$/] },

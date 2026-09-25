@@ -1,0 +1,37 @@
+{
+	"$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+	"testRunner": "vitest",
+	"plugins": ["@stryker-mutator/vitest-runner"],
+	"vitest": {
+		"configFile": "frontend/vite.config.ts"
+	},
+	"mutate": [
+		"frontend/src/**/*.{ts,tsx}",
+		"frontend/scripts/**/*.ts",
+		"sdk/frontend/**/*.{ts,tsx}",
+		"plugins/*/frontend/**/*.{ts,tsx}",
+		"!**/*.test.{ts,tsx}",
+		"!**/test/**",
+		"!**/*.d.ts",
+		"!frontend/src/main.tsx",
+		"!frontend/src/i18n/catalog.ts",
+		"!frontend/scripts/{write-pot,write-catalogs,sync-translations,push-translations,retire-translations}.ts",
+		"!sdk/frontend/scripts/build-site-assets.ts"
+	],
+	"ignorePatterns": [
+		"/*",
+		"!/frontend",
+		"!/sdk",
+		"!/plugins",
+		"!/internal",
+		"!/cmd",
+		"!/languages",
+		"!/package.json",
+		"!/pnpm-workspace.yaml",
+		"!/pnpm-lock.yaml",
+		"/frontend/dist",
+		"/frontend/coverage",
+		"/sdk/astro"
+	],
+	"reporters": ["clear-text", "progress", "html", "json"]
+}

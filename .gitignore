@@ -10,6 +10,8 @@ test/theme/dist/
 .e2e-archive/
 .brick-held/
 .covdata/
+/reports/
+.stryker-tmp/
 .dev-media/
 node_modules/
 .env

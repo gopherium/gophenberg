@@ -10,6 +10,7 @@
 		"dev": "vite",
 		"lint": "pnpm -w lint",
 		"lint:css": "stylelint 'src/**/*.css'",
+		"mutate": "cd .. && stryker run frontend/stryker.config.json",
 		"pot": "node scripts/write-pot.ts",
 		"preview": "vite preview",
 		"translations": "node scripts/sync-translations.ts",
@@ -32,6 +33,8 @@
 		"zod": "^4.6.4"
 	},
 	"devDependencies": {
+		"@stryker-mutator/core": "^10.0.0",
+		"@stryker-mutator/vitest-runner": "^10.0.0",
 		"@testing-library/react": "^16.3.3",
 		"@testing-library/user-event": "^14.6.7",
 		"@types/gettext-parser": "9.0.0",
