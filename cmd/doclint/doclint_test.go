@@ -95,6 +95,45 @@ func TestCollectViolationsSkipsIgnoredDirectories(t *testing.T) {
 	}
 }
 
+func TestCollectViolationsSkipsDotDirectories(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	hidden := filepath.Join(root, ".stryker-tmp", "sandbox")
+	if err := os.MkdirAll(hidden, 0o755); err != nil {
+		t.Fatalf("creating .stryker-tmp: %v", err)
+	}
+	write(t, hidden, "copied.go", "package x\n\nfunc Bare() {}\n")
+
+	violations, err := collectViolations(root)
+
+	if err != nil {
+		t.Fatalf("collectViolations() error = %v, want nil", err)
+	}
+	if len(violations) != 0 {
+		t.Errorf("violations = %v, want none from a dot directory", violations)
+	}
+}
+
+func TestCollectViolationsWalksARootNamedWithADot(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join(t.TempDir(), ".checkout")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("creating .checkout: %v", err)
+	}
+	write(t, root, "bad.go", "package x\n\nfunc Bare() {}\n")
+
+	violations, err := collectViolations(root)
+
+	if err != nil {
+		t.Fatalf("collectViolations() error = %v, want nil", err)
+	}
+	if len(violations) != 1 {
+		t.Errorf("violations = %v, want the one undocumented func under the root", violations)
+	}
+}
+
 func TestCollectViolationsReportsUnparseableFiles(t *testing.T) {
 	t.Parallel()
 

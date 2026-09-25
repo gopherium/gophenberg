@@ -29,7 +29,7 @@ func collectViolations(root string) ([]violation, error) {
 			return err
 		}
 		if entry.IsDir() {
-			if entry.Name() == "node_modules" || entry.Name() == ".git" {
+			if skipsDir(root, path, entry.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -48,6 +48,11 @@ func collectViolations(root string) ([]violation, error) {
 		return nil, fmt.Errorf("doclint: %w", err)
 	}
 	return violations, nil
+}
+
+// skipsDir reports whether the walk from root leaves out path, a vendored or dot directory.
+func skipsDir(root, path, name string) bool {
+	return name == "node_modules" || (path != root && strings.HasPrefix(name, "."))
 }
 
 // violationsInFile returns the undocumented functions in one Go file,
