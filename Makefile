@@ -1,4 +1,5 @@
-.PHONY: peers dev seed test test-race cover cover-html lint fmt generate outdated db-up db-down pot catalogs translations \
+.PHONY: peers dev seed test test-race cover cover-html mutate lint fmt generate outdated db-up db-down pot catalogs \
+	translations \
 	translations-push translations-retire \
 	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump bump-kit \
 	brick-link brick-sync brick-pack brick-unlink
@@ -113,6 +114,16 @@ cover:
 
 cover-html: cover
 	go tool cover -html=$(COVERDATA)/cover.out
+
+MUTATE_PKG ?= .
+MUTATE_FLAGS ?=
+MUTATE_REPORT = $(CURDIR)/reports/mutation/gremlins.json
+
+mutate: db-up
+	mkdir -p $(dir $(MUTATE_REPORT))
+	work="$$(mktemp -d)" && trap 'rm -rf "$$work"' EXIT && \
+		git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | tar -xf - -C "$$work" && \
+		cd "$$work" && go tool gremlins unleash -o $(MUTATE_REPORT) $(MUTATE_FLAGS) $(MUTATE_PKG)
 
 E2E_DB ?= gophenberg_e2e
 E2E_DATABASE_URL ?= postgres://postgres:gophenberg@localhost:5435/$(E2E_DB)?sslmode=disable

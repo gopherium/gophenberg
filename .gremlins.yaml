@@ -1,0 +1,12 @@
+unleash:
+  workers: 3
+  output-statuses: lct
+  exclude-files:
+    - '(^|/)db/(db|models|queries\.sql)\.go$'
+    - '(^|/)testdb\.go$'
+    - '(^|/)plugins_gen\.go$'
+mutants:
+  invert-logical:
+    enabled: true
+  invert-loopctrl:
+    enabled: true
