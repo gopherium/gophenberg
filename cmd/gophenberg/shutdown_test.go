@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -115,6 +116,77 @@ func holdRequest(t *testing.T, addr string) {
 		}
 	}()
 	t.Cleanup(func() { <-answered })
+}
+
+func TestRunStopsThePluginsWhenThePinnedThemeCannotLoad(t *testing.T) {
+	t.Parallel()
+
+	plugin := newHoldingPlugin()
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
+		"GOPHENBERG_ADDR":                "localhost:0",
+		"GOPHENBERG_THEMES_DIR":          t.TempDir(),
+		"GOPHENBERG_THEME":               "missing",
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE": "4s",
+	}
+
+	err := run(t.Context(), testGetenv(env), io.Discard,
+		func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil })
+
+	if err == nil || !strings.Contains(err.Error(), "missing") {
+		t.Fatalf("run() error = %v, want the pinned theme reported", err)
+	}
+	stoppedLiveWithin(t, plugin, 4*time.Second)
+}
+
+// cancellingPlugin ends the run's context as it starts, standing in for a signal that arrives during the boot.
+type cancellingPlugin struct {
+	*holdingPlugin
+	cancel context.CancelFunc
+}
+
+// Start ends the run's context and starts nothing.
+func (p cancellingPlugin) Start(context.Context) error {
+	p.cancel()
+	return nil
+}
+
+func TestRunStopsThePluginsUnderALiveContextWhenASignalEndsTheBoot(t *testing.T) {
+	t.Parallel()
+
+	plugin := newHoldingPlugin()
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
+		"GOPHENBERG_ADDR":                "localhost:0",
+		"GOPHENBERG_THEMES_DIR":          t.TempDir(),
+		"GOPHENBERG_THEME":               "missing",
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE": "4s",
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	err := run(ctx, testGetenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
+		return []sdk.Plugin{cancellingPlugin{holdingPlugin: plugin, cancel: cancel}}, nil
+	})
+
+	if err == nil {
+		t.Fatal("run() error = nil, want the failed boot reported")
+	}
+	stoppedLiveWithin(t, plugin, 4*time.Second)
+}
+
+// stoppedLiveWithin asserts the plugin stopped under a live context bounded by the grace.
+func stoppedLiveWithin(t *testing.T, plugin *holdingPlugin, grace time.Duration) {
+	t.Helper()
+	select {
+	case seen := <-plugin.stopped:
+		if !seen.live || seen.left <= 0 || seen.left > grace {
+			t.Errorf("the plugin stopped with live = %v and %v left, want a live context under its own %v grace",
+				seen.live, seen.left, grace)
+		}
+	default:
+		t.Error("the plugin never stopped, want the plugins stopped once the theme failed to start")
+	}
 }
 
 func TestRunCancelsARequestStillRunningAtTheGraceBeforeThePluginsStop(t *testing.T) {
