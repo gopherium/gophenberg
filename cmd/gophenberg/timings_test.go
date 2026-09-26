@@ -89,6 +89,7 @@ func TestLoadRunConfigDefaultsTheTimingsToTodaysValues(t *testing.T) {
 		"the shutdown grace":        {settings.serving.Grace, 10 * time.Second},
 		"the shutdown cancel grace": {settings.serving.CancelGrace, 5 * time.Second},
 		"the plugins' stop grace":   {settings.serving.StopGrace, 5 * time.Second},
+		"the upload timeout":        {settings.uploadTimeout, server.DefaultUploadTimeout},
 	} {
 		if held.stood != held.want {
 			t.Errorf("%s = %v, want %v", name, held.stood, held.want)
@@ -147,6 +148,7 @@ func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
 		"GOPHENBERG_SHUTDOWN_GRACE":           "4m",
 		"GOPHENBERG_SHUTDOWN_CANCEL_GRACE":    "15s",
 		"GOPHENBERG_SHUTDOWN_STOP_GRACE":      "20s",
+		"GOPHENBERG_UPLOAD_TIMEOUT":           "7m",
 	}))
 
 	if err != nil {
@@ -168,6 +170,7 @@ func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
 		"the shutdown grace":        {settings.serving.Grace, 4 * time.Minute},
 		"the shutdown cancel grace": {settings.serving.CancelGrace, 15 * time.Second},
 		"the plugins' stop grace":   {settings.serving.StopGrace, 20 * time.Second},
+		"the upload timeout":        {settings.uploadTimeout, 7 * time.Minute},
 	} {
 		if held.stood != held.want {
 			t.Errorf("%s = %v, want %v", name, held.stood, held.want)
@@ -238,6 +241,9 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		"a shutdown grace standing at zero":            {"GOPHENBERG_SHUTDOWN_GRACE", "0s"},
 		"a shutdown cancel grace below zero":           {"GOPHENBERG_SHUTDOWN_CANCEL_GRACE", "-1s"},
 		"a plugins' stop grace standing at zero":       {"GOPHENBERG_SHUTDOWN_STOP_GRACE", "0s"},
+		"an upload timeout that is not a duration":     {"GOPHENBERG_UPLOAD_TIMEOUT", "slow"},
+		"an upload timeout standing at zero":           {"GOPHENBERG_UPLOAD_TIMEOUT", "0s"},
+		"an upload timeout below zero":                 {"GOPHENBERG_UPLOAD_TIMEOUT", "-5m"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

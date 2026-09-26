@@ -108,7 +108,7 @@ func newMediaView(m media.Media) mediaView {
 // handleMediaUpload returns the handler storing an uploaded media file.
 func (s *server) handleMediaUpload() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := extendUploadDeadline(w); err != nil {
+		if err := extendUploadDeadline(w, s.uploadTimeout); err != nil {
 			authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
 				Message: "internal error", Code: "internal",
 			})

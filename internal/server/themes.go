@@ -18,8 +18,16 @@ import (
 // uploadField is the multipart field an uploaded theme archive arrives in.
 const uploadField = "theme"
 
-// uploadDeadline is how long an upload has to arrive, past the server's read timeout.
-const uploadDeadline = 5 * time.Minute
+// DefaultUploadTimeout is how long a media or theme upload has to arrive when nothing else is named.
+const DefaultUploadTimeout = 5 * time.Minute
+
+// uploadTimeoutOf returns the upload timeout the configuration names, or the default when it names none.
+func uploadTimeoutOf(cfg Config) time.Duration {
+	if cfg.UploadTimeout == 0 {
+		return DefaultUploadTimeout
+	}
+	return cfg.UploadTimeout
+}
 
 // uploadEnvelope is how much multipart framing an upload may carry around the archive.
 const uploadEnvelope = 64 << 10
@@ -94,7 +102,7 @@ func (s *server) handleThemeList() http.HandlerFunc {
 // handleThemeUpload returns the handler installing an uploaded theme archive.
 func (s *server) handleThemeUpload() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := extendUploadDeadline(w); err != nil {
+		if err := extendUploadDeadline(w, s.uploadTimeout); err != nil {
 			authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
 				Message: "internal error", Code: "internal",
 			})
@@ -170,9 +178,9 @@ func (s *server) handleThemeRollback() http.HandlerFunc {
 	}
 }
 
-// extendUploadDeadline gives an upload longer than the server's read timeout allows.
-func extendUploadDeadline(w http.ResponseWriter) error {
-	err := http.NewResponseController(w).SetReadDeadline(time.Now().Add(uploadDeadline))
+// extendUploadDeadline gives an upload the timeout to arrive in place of the server's read timeout.
+func extendUploadDeadline(w http.ResponseWriter, timeout time.Duration) error {
+	err := http.NewResponseController(w).SetReadDeadline(time.Now().Add(timeout))
 	if errors.Is(err, http.ErrNotSupported) {
 		return nil
 	}

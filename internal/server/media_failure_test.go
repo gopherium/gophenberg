@@ -155,7 +155,7 @@ func TestUploadingMediaMasksARefusedReadDeadline(t *testing.T) {
 
 	store := newFakeMediaStore()
 	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
-	contentType, body := multipartFile(t, "file", "harbor.jpg", smallJPEG(t))
+	contentType, body := multipartFile(t, "harbor.jpg", smallJPEG(t))
 	request := httptest.NewRequest(http.MethodPost, "/api/media", body)
 	request.Header.Set("Content-Type", contentType)
 	recorder := httptest.NewRecorder()
@@ -178,7 +178,7 @@ func TestUploadingMediaRefusesAStoredFileThatCannotBeRead(t *testing.T) {
 
 	store := newFakeMediaStore()
 	handler := mediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store)
-	contentType, body := multipartFile(t, "file", "harbor.jpg", smallJPEG(t))
+	contentType, body := multipartFile(t, "harbor.jpg", smallJPEG(t))
 	request := httptest.NewRequest(http.MethodPost, "/api/media", nil)
 	request.Header.Set("Content-Type", contentType)
 	request.MultipartForm = unreadableUploadForm(t, contentType, body)

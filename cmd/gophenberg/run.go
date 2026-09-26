@@ -112,6 +112,7 @@ func run(
 		ThemeTimeout:      settings.themeProxyTimeout,
 
 		DefinitionsImportCap: settings.definitionsImportCap,
+		UploadTimeout:        settings.uploadTimeout,
 		Declarations:         walked,
 	}
 	if settings.webDir != "" {
@@ -163,6 +164,7 @@ type runConfig struct {
 	themeProxyTimeout  time.Duration
 	themeStartAttempts int
 	mediaUploadCap     int64
+	uploadTimeout      time.Duration
 
 	definitionsImportCap int64
 	fieldDepth           int
@@ -256,6 +258,7 @@ func timingsFrom(getenv func(string) string) (runConfig, error) {
 		{"GOPHENBERG_THEME_MAX_BACKOFF", 30 * time.Second, &held.themeMaxBackoff},
 		{"GOPHENBERG_THEME_STOP_GRACE", 3 * time.Second, &held.themeStopGrace},
 		{"GOPHENBERG_THEME_PROXY_TIMEOUT", 10 * time.Second, &held.themeProxyTimeout},
+		{"GOPHENBERG_UPLOAD_TIMEOUT", server.DefaultUploadTimeout, &held.uploadTimeout},
 	} {
 		stood, err := standingDuration(getenv(asked.key), asked.key, asked.fallback)
 		if err != nil {

@@ -180,12 +180,12 @@ func smallJPEG(t *testing.T) []byte {
 	return buffer.Bytes()
 }
 
-// multipartFile returns a multipart body carrying data under the given field.
-func multipartFile(t *testing.T, field, filename string, data []byte) (string, io.Reader) {
+// multipartFile returns a multipart body carrying data under the media upload's file field.
+func multipartFile(t *testing.T, filename string, data []byte) (string, io.Reader) {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	part, err := writer.CreateFormFile(field, filename)
+	part, err := writer.CreateFormFile("file", filename)
 	if err != nil {
 		t.Fatalf("building the upload: %v", err)
 	}
@@ -201,7 +201,7 @@ func multipartFile(t *testing.T, field, filename string, data []byte) (string, i
 // sendMediaUpload posts a multipart file to the media route.
 func sendMediaUpload(t *testing.T, handler http.Handler, filename string, data []byte) *httptest.ResponseRecorder {
 	t.Helper()
-	contentType, body := multipartFile(t, "file", filename, data)
+	contentType, body := multipartFile(t, filename, data)
 	request := httptest.NewRequest(http.MethodPost, "/api/media", body)
 	request.Header.Set("Content-Type", contentType)
 	recorder := httptest.NewRecorder()
