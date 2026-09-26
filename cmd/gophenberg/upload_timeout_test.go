@@ -36,11 +36,24 @@ func photoUpload(t *testing.T) (string, []byte) {
 	return form.FormDataContentType(), body.Bytes()
 }
 
-// uploadStatus posts the photo, pausing halfway through its body, and returns the status, zero on a broken connection.
-func uploadStatus(t *testing.T, client *http.Client, base string, pause time.Duration) int {
+// uploadOutcome is how an upload ended, and how long after its request went out.
+type uploadOutcome struct {
+	status int
+	took   time.Duration
+	err    error
+}
+
+// sendUpload posts the photo, pausing halfway through its body, and returns how the upload ended.
+func sendUpload(t *testing.T, client *http.Client, base string, pause time.Duration) uploadOutcome {
 	t.Helper()
 	contentType, body := photoUpload(t)
 	reader, writer := io.Pipe()
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, base+"/api/media", reader)
+	if err != nil {
+		t.Fatalf("building the upload request: %v", err)
+	}
+	request.Header.Set("Content-Type", contentType)
+	request.ContentLength = int64(len(body))
 	go func() {
 		half := len(body) / 2
 		_, _ = writer.Write(body[:half])
@@ -48,18 +61,13 @@ func uploadStatus(t *testing.T, client *http.Client, base string, pause time.Dur
 		_, _ = writer.Write(body[half:])
 		_ = writer.Close()
 	}()
-	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, base+"/api/media", reader)
-	if err != nil {
-		t.Fatalf("building the upload request: %v", err)
-	}
-	request.Header.Set("Content-Type", contentType)
-	request.ContentLength = int64(len(body))
+	sent := time.Now()
 	response, err := client.Do(request)
 	if err != nil {
-		return 0
+		return uploadOutcome{took: time.Since(sent), err: err}
 	}
 	defer func() { _ = response.Body.Close() }()
-	return response.StatusCode
+	return uploadOutcome{status: response.StatusCode, took: time.Since(sent)}
 }
 
 func TestRunCutsAnUploadThatStallsPastTheUploadTimeout(t *testing.T) {
@@ -84,14 +92,16 @@ func TestRunCutsAnUploadThatStallsPastTheUploadTimeout(t *testing.T) {
 	awaitServer(t, base)
 	client := loggedInClient(t, base)
 
-	if status := uploadStatus(t, client, base, 0); status != http.StatusCreated {
-		t.Fatalf("an upload sent at once answered %d, want %d", status, http.StatusCreated)
+	if whole := sendUpload(t, client, base, 0); whole.err != nil || whole.status != http.StatusCreated {
+		t.Fatalf("an upload sent at once answered %d, %v, want %d", whole.status, whole.err, http.StatusCreated)
 	}
-	asked := time.Now()
-	status := uploadStatus(t, client, base, 1500*time.Millisecond)
-	if cut := time.Since(asked); status == http.StatusCreated || cut < 300*time.Millisecond || cut > time.Second {
-		t.Errorf("an upload that paused for 1.5s answered %d after %v, want it cut soon after the 300ms upload timeout",
-			status, cut)
+	cut := sendUpload(t, client, base, 1500*time.Millisecond)
+	if cut.err != nil || cut.status != http.StatusBadRequest {
+		t.Errorf("an upload that paused for 1.5s answered %d, %v, want the %d the upload timeout gives",
+			cut.status, cut.err, http.StatusBadRequest)
+	}
+	if cut.took < 300*time.Millisecond || cut.took > time.Second {
+		t.Errorf("the paused upload ended %v after it went out, want soon after the 300ms upload timeout", cut.took)
 	}
 
 	cancel()
