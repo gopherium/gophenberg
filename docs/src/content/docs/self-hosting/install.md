@@ -35,6 +35,7 @@ services:
   gophenberg:
     image: ghcr.io/gopherium/gophenberg:%VERSION%
     restart: unless-stopped
+    stop_grace_period: 30s
     environment:
       GOPHENBERG_DATABASE_URL: postgres://postgres:change-me@db:5432/gophenberg?sslmode=disable
       GOPHENBERG_SITE_TITLE: My Site
@@ -78,7 +79,9 @@ Four values to change:
 The healthcheck and the `condition` keep Gophenberg from starting
 before the database is ready on first boot. The `themes` volume is
 where themes you upload in the admin are kept, so it has to stay
-writable.
+writable. The `stop_grace_period` gives a stop time to finish before
+Docker kills the server, see
+[stopping the server](/self-hosting/configuration/#stopping-the-server).
 
 ## 2. Start it and create your login
 

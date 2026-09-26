@@ -34,6 +34,12 @@ environment variables win over it.
 | `GOPHENBERG_CACHE_MEDIA_MAX_AGE` | No | `1h` | How long a browser may keep an uploaded file |
 | `GOPHENBERG_CACHE_CONTENT_SHARED_MAX_AGE` | No | `1m` | How long a shared cache may serve a content API answer. The language answer is never shared, since it is resolved per reader |
 | `GOPHENBERG_CACHE_CONTENT_STALE_WHILE_REVALIDATE` | No | `5m` | How much longer that cache may serve the old answer while fetching a fresh one |
+| `GOPHENBERG_HTTP_READ_HEADER_TIMEOUT` | No | `10s` | How long a visitor has to send a request's headers |
+| `GOPHENBERG_HTTP_READ_TIMEOUT` | No | `30s` | How long a visitor has to send a whole request |
+| `GOPHENBERG_HTTP_IDLE_TIMEOUT` | No | `2m` | How long an idle connection waits for its next request |
+| `GOPHENBERG_SHUTDOWN_GRACE` | No | `10s` | How long a stop gives running requests to finish, see [stopping the server](#stopping-the-server) |
+| `GOPHENBERG_SHUTDOWN_CANCEL_GRACE` | No | `5s` | How long the requests cancelled after that grace get to end |
+| `GOPHENBERG_SHUTDOWN_STOP_GRACE` | No | `5s` | How long the plugins get to stop after that |
 | `GOPHENBERG_FEED_TITLE` | No | `Gophenberg` | The RSS channel title |
 | `GOPHENBERG_FEED_ITEMS` | No | `20` | How many posts the RSS feed carries |
 
@@ -115,6 +121,34 @@ stood at another address, `fetch-site` when the browser said the page
 was on another site, and `scheme` when a proxy did not say whether the
 visitor used `http` or `https`.
 
+## Stopping the server
+
+A stop begins when the server receives `SIGTERM`, or `Ctrl-C` in a
+terminal. From then on it takes no new request, and it:
+
+1. Gives the requests still running `GOPHENBERG_SHUTDOWN_GRACE` to
+   finish.
+2. Cancels the ones still running after that, gives them
+   `GOPHENBERG_SHUTDOWN_CANCEL_GRACE` to end, and then closes their
+   connections.
+3. Gives the plugins `GOPHENBERG_SHUTDOWN_STOP_GRACE` to stop.
+4. Gives the theme `GOPHENBERG_THEME_STOP_GRACE` to stop.
+
+Whatever sends the signal also waits, and kills the server when its
+own wait runs out. Docker waits 10 seconds unless the compose file
+sets `stop_grace_period`. Kubernetes waits
+`terminationGracePeriodSeconds`, 30 seconds unless set. Keep that wait
+longer than the four settings above added together, 23 seconds at
+their defaults, or the kill lands in the middle of the stop.
+
+For a planned stop that needs a long wrap-up, raise both clocks. For
+example, set `GOPHENBERG_SHUTDOWN_GRACE=4m` and
+`stop_grace_period: 5m`. While it wraps up, the server takes no new
+request, so on a site that runs one copy that time is downtime.
+
+A stop can also come with no warning, from a power cut or a kill, and
+then none of these steps runs.
+
 ## What stops startup
 
 The server refuses to start, and says why, when:
@@ -134,8 +168,8 @@ The server refuses to start, and says why, when:
 - Any of the cache windows is not a positive whole number of seconds.
   Write them as durations, `1h`, `90s`, `5m`. Part of a second is
   refused, because the header counts in whole seconds.
-- Any of the theme timings is not a positive duration. Write them the
-  way Go does, `30s`, `500ms`, `1m`.
+- Any of the theme timings, HTTP timeouts or shutdown graces is not a
+  positive duration. Write them the way Go does, `30s`, `500ms`, `1m`.
 - `GOPHENBERG_THEME_MAX_BACKOFF` stands below
   `GOPHENBERG_THEME_BACKOFF`, which would leave no room to grow.
 - `GOPHENBERG_THEME` pins a theme that fails to load, see
