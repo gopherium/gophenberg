@@ -122,10 +122,11 @@ MUTATE_REPORT = $(CURDIR)/reports/mutation/gremlins.json
 
 mutate: db-up
 	mkdir -p $(dir $(MUTATE_REPORT))
-	work="$$(mktemp -d)" && trap 'rm -rf "$$work"' EXIT && \
-		git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | tar -xf - -C "$$work" && \
-		cp -R .git "$$work/.git" && cd "$$work" && ulimit -v $(MUTATE_VMEM) && \
-		GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.noprefix GIT_CONFIG_VALUE_0=false \
+	work="$$(mktemp -d)" && trap 'pkill -KILL -f "$$work/"; chmod -R u+w "$$work"; rm -rf "$$work"' EXIT && \
+		mkdir "$$work/src" "$$work/tmp" && \
+		git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | tar -xf - -C "$$work/src" && \
+		cp -R .git "$$work/src/.git" && cd "$$work/src" && ulimit -v $(MUTATE_VMEM) && \
+		TMPDIR="$$work/tmp" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.noprefix GIT_CONFIG_VALUE_0=false \
 		go tool gremlins unleash -o $(MUTATE_REPORT) $(MUTATE_FLAGS) $(MUTATE_PKG)
 
 E2E_DB ?= gophenberg_e2e
