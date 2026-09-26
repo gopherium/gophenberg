@@ -166,8 +166,9 @@ func TestRunCancelsARequestStillRunningAtTheGraceBeforeThePluginsStop(t *testing
 		if !errors.Is(end.cause, gonsole.ErrGraceRanOut) {
 			t.Errorf("the held request ended with %v, want %v", end.cause, gonsole.ErrGraceRanOut)
 		}
-		if waited := end.at.Sub(signalled); waited > 5*time.Second {
-			t.Errorf("the held request was cancelled %v after the signal, want the 50ms grace honoured", waited)
+		if waited := end.at.Sub(signalled); waited < 50*time.Millisecond || waited > time.Second {
+			t.Errorf("the held request was cancelled %v after the signal, want soon after the 50ms grace ran out",
+				waited)
 		}
 	default:
 		t.Error("the held request still ran once run() returned, want it cancelled at the grace")
