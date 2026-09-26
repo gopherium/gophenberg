@@ -171,6 +171,11 @@ func TestSanitizeRefusesForgedDelimiters(t *testing.T) {
 			content: `<!-- wp:image --><img src="x.png" alt="<!-- wp:z " onerror=alert(1) -->"><!-- /wp:image -->`,
 			gone:    "onerror",
 		},
+		{
+			name:    "delimiter with attributes spanning an attribute value",
+			content: `<p title="<!-- wp:z {" onmouseover=alert(1) x="} -->">hi</p>`,
+			gone:    "onmouseover",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -184,6 +189,35 @@ func TestSanitizeRefusesForgedDelimiters(t *testing.T) {
 			}
 			if strings.Contains(rendered, tc.gone) {
 				t.Errorf("Render() = %q, want %q gone", rendered, tc.gone)
+			}
+		})
+	}
+}
+
+func TestSanitizeKeepsEachDelimiterInPlaceWhenDroppedMarkupHeldOne(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "delimiter inside a script between a block's delimiters",
+			content: `<!-- wp:paragraph --><p>a</p><script><!-- wp:x --></script><!-- /wp:paragraph -->`,
+		},
+		{
+			name:    "delimiter inside a script after the last block",
+			content: `<!-- wp:paragraph --><p>a</p><!-- /wp:paragraph --><script><!-- wp:x --></script>`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := publichtml.Sanitize(tc.content)
+
+			if want := "<!-- wp:paragraph --><p>a</p><!-- /wp:paragraph -->"; got != want {
+				t.Errorf("Sanitize() = %q, want %q", got, want)
 			}
 		})
 	}

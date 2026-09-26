@@ -7,9 +7,11 @@ import (
 	"crypto/rand"
 	"html/template"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
+	"golang.org/x/net/html"
 )
 
 // blockDelimiter matches the comment delimiters the editor wraps blocks in, whose attributes carry
@@ -46,25 +48,26 @@ func newPolicy() *bluemonday.Policy {
 // Sanitize returns content carrying only markup a public page may serve, block delimiters intact.
 func Sanitize(content string) string {
 	mark := "gophenberg" + strings.ToLower(rand.Text())
-	delimiters := make([]string, 0, strings.Count(content, "<!-- "))
-	swapped := blockDelimiter.ReplaceAllStringFunc(content, func(delimiter string) string {
-		delimiters = append(delimiters, delimiter)
-		return mark
-	})
-	return restore(policy.Sanitize(swapped), mark, delimiters)
+	swapped, marked := swapDelimiters(content, mark)
+	return marked.Replace(policy.Sanitize(swapped))
 }
 
-// restore returns cleaned with each mark put back as the delimiter it stood for.
-func restore(cleaned, mark string, delimiters []string) string {
-	parts := strings.Split(cleaned, mark)
-	var restored strings.Builder
-	for i, part := range parts {
-		restored.WriteString(part)
-		if i < len(parts)-1 && i < len(delimiters) {
-			restored.WriteString(delimiters[i])
+// swapDelimiters returns content with each delimiter comment swapped for a numbered mark, and the replacer undoing it.
+func swapDelimiters(content, mark string) (string, *strings.Replacer) {
+	var swapped strings.Builder
+	var pairs []string
+	tokens := html.NewTokenizer(strings.NewReader(content))
+	for kind := tokens.Next(); kind != html.ErrorToken; kind = tokens.Next() {
+		raw := string(tokens.Raw())
+		if kind != html.CommentToken || blockDelimiter.FindString(raw) != raw {
+			swapped.WriteString(raw)
+			continue
 		}
+		numbered := mark + strconv.Itoa(len(pairs)) + "-"
+		pairs = append(pairs, numbered, raw)
+		swapped.WriteString(numbered)
 	}
-	return restored.String()
+	return swapped.String(), strings.NewReplacer(pairs...)
 }
 
 // Render returns content as public page markup, with the block delimiters removed.
