@@ -61,6 +61,9 @@ Some things work differently after this update:
   from field reading it can now be deleted in one step. A site whose
   Linked from field reads a relation inside a Section can now import
   its own export.
+- Every start deletes the files of an upload that a stop cut short, and
+  logs each one. Run one Gophenberg per media folder, see
+  [uploads a stop cut short](/self-hosting/configuration/#uploads-a-stop-cut-short).
 
 Updating from further back also runs the migrations of every release
 you skip, so read each of their notes. Coming from three releases back
@@ -121,6 +124,8 @@ rebuilding. While you run it:
   delete a group holding both a relation
   and the Linked from field reading it. A site whose Linked from field
   reads a relation inside a Section cannot import its own export.
+- A stop in the middle of an upload leaves its files in the media
+  folder, and updating again does not delete them.
 
 Updating again runs no migration, and what you changed while rolled
 back stays as it is.

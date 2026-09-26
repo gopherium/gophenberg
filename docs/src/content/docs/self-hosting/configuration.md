@@ -150,6 +150,24 @@ request, so on a site that runs one copy that time is downtime.
 A stop can also come with no warning, from a power cut or a kill, and
 then none of these steps runs.
 
+## Uploads a stop cut short
+
+A stop in the middle of an upload can leave its files in the media
+folder with no item in the library pointing at them. Every start
+deletes those files before the site serves, and logs each one as
+`unsaved upload deleted`. A file an item points at is never deleted.
+A file the server cannot delete, such as one in a folder it may not
+write to, is logged as `unsaved uploads kept for the next start`, and
+the next start tries again.
+
+To know which files those are, every upload leaves a note in a
+`.uploading` folder inside the media folder until its item is saved.
+That folder is never served. Leave it where it is.
+
+Run one Gophenberg per media folder. A start treats every note it
+finds as an upload a stop cut short, so a second copy sharing the
+folder could lose an upload it is saving at that moment.
+
 ## What stops startup
 
 The server refuses to start, and says why, when:
