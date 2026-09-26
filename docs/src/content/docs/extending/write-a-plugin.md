@@ -29,6 +29,11 @@ A plugin is a directory under `plugins/` with a `plugin.json`:
 
 At least one of `backend` and `frontend` is required.
 
+A few ids are refused because they would clash with names in the
+generated wiring, such as a Go keyword, `err` or `plugins`. The
+[pluginkit docs](https://docs.gopherium.org/plugins/wiring-and-manifests/#ids-the-generator-refuses)
+list them all.
+
 ## 2. The package
 
 The entry point is `Register(deps sdk.Deps) (sdk.Plugin, error)`,
