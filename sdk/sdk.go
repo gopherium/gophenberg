@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gopherium/pluginkit"
+	"github.com/gopherium/framework/pluginkit"
 )
 
 // Plugin is an independently addable unit of functionality with a
