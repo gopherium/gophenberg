@@ -18,10 +18,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/framework/gonsole"
+	"github.com/gopherium/framework/pluginkit"
 	"github.com/gopherium/gouncer/authkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/gopherium/gouncer/authkit/ratelimit"
-	"github.com/gopherium/pluginkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/contentbridge"
@@ -73,17 +73,17 @@ func run(
 		Content:     contentbridge.New(contentStore, registry, library, settingStore),
 		Getenv:      getenv,
 	})
+	host := pluginkit.NewHost(registered...)
 	if err != nil {
-		return fmt.Errorf("register plugins: %w", err)
+		return errors.Join(fmt.Errorf("register plugins: %w", err), stopPlugins(ctx, host, settings.serving.StopGrace))
 	}
 
 	walked, err := declareTypes(ctx, registry, registered, logger)
 	if err != nil {
-		return fmt.Errorf("declare plugin types: %w", err)
+		return errors.Join(fmt.Errorf("declare plugin types: %w", err), stopPlugins(ctx, host, settings.serving.StopGrace))
 	}
 
-	host := pluginkit.NewHost(registered...)
-	if err := host.Start(ctx); err != nil {
+	if err := host.Start(ctx, settings.serving.StopGrace); err != nil {
 		return fmt.Errorf("start plugins: %w", err)
 	}
 

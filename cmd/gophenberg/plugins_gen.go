@@ -5,17 +5,23 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+
 	feed "github.com/gopherium/gophenberg/plugins/feed"
 
-	"github.com/gopherium/gophenberg/sdk"
+	sdk "github.com/gopherium/gophenberg/sdk"
 )
 
+// registerPlugins registers every compiled plugin, answering the ones that registered and an error naming each failure.
 func registerPlugins(deps sdk.Deps) ([]sdk.Plugin, error) {
 	plugins := make([]sdk.Plugin, 0, 1)
+	var failed []error
 	feedPlugin, err := feed.Register(deps)
 	if err != nil {
-		return nil, err
+		failed = append(failed, fmt.Errorf("plugin feed: %w", err))
+	} else {
+		plugins = append(plugins, feedPlugin)
 	}
-	plugins = append(plugins, feedPlugin)
-	return plugins, nil
+	return plugins, errors.Join(failed...)
 }

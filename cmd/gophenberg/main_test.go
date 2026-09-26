@@ -92,11 +92,11 @@ func TestRegisterPluginsReportsAPluginThatRefusesItsEnvironment(t *testing.T) {
 
 	plugins, err := registerPlugins(sdk.Deps{Getenv: testGetenv(env)})
 
-	if err == nil {
-		t.Fatal("registerPlugins() error = nil, want the feed cap refused")
+	if err == nil || !strings.Contains(err.Error(), "plugin feed: ") {
+		t.Fatalf("registerPlugins() error = %v, want the feed cap refused and the plugin named", err)
 	}
-	if plugins != nil {
-		t.Errorf("registerPlugins() = %v, want nil on failure", plugins)
+	if len(plugins) != 0 {
+		t.Errorf("registerPlugins() = %v, want no plugin registered beside the failure", plugins)
 	}
 }
 

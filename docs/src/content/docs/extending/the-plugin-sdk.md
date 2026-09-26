@@ -25,6 +25,13 @@ interfaces add capabilities the host discovers automatically:
 answer without a login, and `TypeDeclarer` for content types,
 field groups and fields the plugin brings with it.
 
+`Register` only checks the plugin's settings and builds it. It
+never touches the network or the database. `Start` does that.
+`Stop` must work even when `Start` never ran, and return by the
+time its context ends. When a plugin fails to register or to
+declare its types, Gophenberg stops every plugin that registered.
+When one fails to start, it stops the ones already started.
+
 ## Reading content
 
 ```go

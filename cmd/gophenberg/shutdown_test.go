@@ -21,6 +21,9 @@ import (
 // heldPath is the public route on which the holding plugin holds every request until it is cancelled.
 const heldPath = "/held"
 
+// stopGrace is the stop grace every shutdown test sets.
+const stopGrace = 4 * time.Second
+
 // heldEnd is how and when a held request ended.
 type heldEnd struct {
 	cause error
@@ -127,7 +130,7 @@ func TestRunStopsThePluginsWhenThePinnedThemeCannotLoad(t *testing.T) {
 		"GOPHENBERG_ADDR":                "localhost:0",
 		"GOPHENBERG_THEMES_DIR":          t.TempDir(),
 		"GOPHENBERG_THEME":               "missing",
-		"GOPHENBERG_SHUTDOWN_STOP_GRACE": "4s",
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
 	}
 
 	err := run(t.Context(), testGetenv(env), io.Discard,
@@ -136,7 +139,7 @@ func TestRunStopsThePluginsWhenThePinnedThemeCannotLoad(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "missing") {
 		t.Fatalf("run() error = %v, want the pinned theme reported", err)
 	}
-	stoppedLiveWithin(t, plugin, 4*time.Second)
+	stoppedLiveWithin(t, plugin)
 }
 
 // cancellingPlugin ends the run's context as it starts, standing in for a signal that arrives during the boot.
@@ -160,7 +163,7 @@ func TestRunStopsThePluginsUnderALiveContextWhenASignalEndsTheBoot(t *testing.T)
 		"GOPHENBERG_ADDR":                "localhost:0",
 		"GOPHENBERG_THEMES_DIR":          t.TempDir(),
 		"GOPHENBERG_THEME":               "missing",
-		"GOPHENBERG_SHUTDOWN_STOP_GRACE": "4s",
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -172,20 +175,90 @@ func TestRunStopsThePluginsUnderALiveContextWhenASignalEndsTheBoot(t *testing.T)
 	if err == nil {
 		t.Fatal("run() error = nil, want the failed boot reported")
 	}
-	stoppedLiveWithin(t, plugin, 4*time.Second)
+	stoppedLiveWithin(t, plugin)
 }
 
-// stoppedLiveWithin asserts the plugin stopped under a live context bounded by the grace.
-func stoppedLiveWithin(t *testing.T, plugin *holdingPlugin, grace time.Duration) {
+func TestRunStopsThePluginsThatRegisteredWhenAnotherFails(t *testing.T) {
+	t.Parallel()
+
+	errRegister := errors.New("register exploded")
+	plugin := newHoldingPlugin()
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
+	}
+
+	err := run(t.Context(), testGetenv(env), io.Discard,
+		func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, errRegister })
+
+	if !errors.Is(err, errRegister) {
+		t.Fatalf("run() error = %v, want %v in its chain", err, errRegister)
+	}
+	stoppedLiveWithin(t, plugin)
+}
+
+// refusingDeclarer is a holding plugin whose type declaration fails.
+type refusingDeclarer struct {
+	*holdingPlugin
+	err error
+}
+
+// DeclareTypes fails with the error the plugin was built with.
+func (p refusingDeclarer) DeclareTypes(context.Context, sdk.TypeRegistrar) error {
+	return p.err
+}
+
+func TestRunStopsThePluginsWhenTheirTypesCannotBeDeclared(t *testing.T) {
+	t.Parallel()
+
+	errDeclare := errors.New("declare exploded")
+	plugin := newHoldingPlugin()
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
+	}
+
+	err := run(t.Context(), testGetenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
+		return []sdk.Plugin{refusingDeclarer{holdingPlugin: plugin, err: errDeclare}}, nil
+	})
+
+	if !errors.Is(err, errDeclare) {
+		t.Fatalf("run() error = %v, want %v in its chain", err, errDeclare)
+	}
+	stoppedLiveWithin(t, plugin)
+}
+
+func TestRunStopsTheStartedPluginsWithinTheStopGraceWhenOneFailsToStart(t *testing.T) {
+	t.Parallel()
+
+	errBoot := errors.New("boot exploded")
+	plugin := newHoldingPlugin()
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
+	}
+
+	err := run(t.Context(), testGetenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
+		return []sdk.Plugin{plugin, failingPlugin{err: errBoot}}, nil
+	})
+
+	if !errors.Is(err, errBoot) {
+		t.Fatalf("run() error = %v, want %v in its chain", err, errBoot)
+	}
+	stoppedLiveWithin(t, plugin)
+}
+
+// stoppedLiveWithin asserts the plugin stopped under a live context with close to the whole stop grace left.
+func stoppedLiveWithin(t *testing.T, plugin *holdingPlugin) {
 	t.Helper()
 	select {
 	case seen := <-plugin.stopped:
-		if !seen.live || seen.left <= 0 || seen.left > grace {
+		if !seen.live || seen.left <= stopGrace-time.Second || seen.left > stopGrace {
 			t.Errorf("the plugin stopped with live = %v and %v left, want a live context under its own %v grace",
-				seen.live, seen.left, grace)
+				seen.live, seen.left, stopGrace)
 		}
 	default:
-		t.Error("the plugin never stopped, want the plugins stopped once the theme failed to start")
+		t.Error("the plugin never stopped, want the plugins stopped once the boot failed")
 	}
 }
 
@@ -199,7 +272,7 @@ func TestRunCancelsARequestStillRunningAtTheGraceBeforeThePluginsStop(t *testing
 		"GOPHENBERG_ADDR":                  addr,
 		"GOPHENBERG_SHUTDOWN_GRACE":        "50ms",
 		"GOPHENBERG_SHUTDOWN_CANCEL_GRACE": "3s",
-		"GOPHENBERG_SHUTDOWN_STOP_GRACE":   "4s",
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE":   stopGrace.String(),
 	}
 	ctx, signal := context.WithCancel(t.Context())
 	defer signal()
@@ -249,8 +322,8 @@ func TestRunCancelsARequestStillRunningAtTheGraceBeforeThePluginsStop(t *testing
 	if !seen.heldEnded {
 		t.Error("the plugin began stopping while the held request still ran, want the request ended first")
 	}
-	if !seen.live || seen.left <= 0 || seen.left > 4*time.Second {
-		t.Errorf("the plugin stopped with live = %v and %v left, want a live context under its own 4s grace",
-			seen.live, seen.left)
+	if !seen.live || seen.left <= 0 || seen.left > stopGrace {
+		t.Errorf("the plugin stopped with live = %v and %v left, want a live context under its own %v grace",
+			seen.live, seen.left, stopGrace)
 	}
 }

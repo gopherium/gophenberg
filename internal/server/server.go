@@ -12,9 +12,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/gopherium/framework/pluginkit"
 	"github.com/gopherium/gouncer/authkit"
 	"github.com/gopherium/gouncer/authkit/ratelimit"
-	"github.com/gopherium/pluginkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/definitions"

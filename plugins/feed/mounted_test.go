@@ -7,12 +7,16 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/gopherium/pluginkit"
+	"github.com/gopherium/framework/pluginkit"
 
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/sdk"
 )
+
+// stopGrace is the stop budget the tests hand Start.
+const stopGrace = time.Minute
 
 func TestFeedAnswersThroughTheServerWithoutASession(t *testing.T) {
 	t.Parallel()
@@ -88,7 +92,7 @@ func TestFeedStartsAndStopsWithItsHost(t *testing.T) {
 
 	host := pluginkit.NewHost(mustRegister(t, &stubPosts{}, map[string]string{}))
 
-	if err := host.Start(t.Context()); err != nil {
+	if err := host.Start(t.Context(), stopGrace); err != nil {
 		t.Fatalf("Start() error = %v, want nil", err)
 	}
 
