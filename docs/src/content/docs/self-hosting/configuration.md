@@ -22,6 +22,7 @@ environment variables win over it.
 | `GOPHENBERG_THEME` | No | | Pins one theme, overriding the admin. Empty lets the admin choose |
 | `GOPHENBERG_NODE_BIN` | No | `node` | The Node binary themes run on. The image sets its own |
 | `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` | No | `128` | The largest upload the media library takes, in megabytes |
+| `GOPHENBERG_UPLOAD_TIMEOUT` | No | `5m` | How long a media or theme upload has to arrive, in place of `GOPHENBERG_HTTP_READ_TIMEOUT` |
 | `GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB` | No | `256` | The largest definitions file an import takes, in kilobytes, from 1 to 1024 |
 | `GOPHENBERG_FIELD_DEPTH` | No | `32` | How many containers a field may stand inside, from 1 to 1000. A Flexible content layout counts as one |
 | `GOPHENBERG_THEME_READY_TIMEOUT` | No | `30s` | How long a starting theme has to answer before it is given up on |
@@ -168,8 +169,9 @@ The server refuses to start, and says why, when:
 - Any of the cache windows is not a positive whole number of seconds.
   Write them as durations, `1h`, `90s`, `5m`. Part of a second is
   refused, because the header counts in whole seconds.
-- Any of the theme timings, HTTP timeouts or shutdown graces is not a
-  positive duration. Write them the way Go does, `30s`, `500ms`, `1m`.
+- Any of the theme timings, HTTP timeouts, shutdown graces or the upload
+  timeout is not a positive duration. Write them the way Go does, `30s`,
+  `500ms`, `1m`.
 - `GOPHENBERG_THEME_MAX_BACKOFF` stands below
   `GOPHENBERG_THEME_BACKOFF`, which would leave no room to grow.
 - `GOPHENBERG_THEME` pins a theme that fails to load, see
