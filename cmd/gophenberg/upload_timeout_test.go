@@ -87,8 +87,11 @@ func TestRunCutsAnUploadThatStallsPastTheUploadTimeout(t *testing.T) {
 	if status := uploadStatus(t, client, base, 0); status != http.StatusCreated {
 		t.Fatalf("an upload sent at once answered %d, want %d", status, http.StatusCreated)
 	}
-	if status := uploadStatus(t, client, base, 1500*time.Millisecond); status == http.StatusCreated {
-		t.Errorf("an upload that paused for 1.5s answered %d, want it cut at the 300ms upload timeout", status)
+	asked := time.Now()
+	status := uploadStatus(t, client, base, 1500*time.Millisecond)
+	if cut := time.Since(asked); status == http.StatusCreated || cut < 300*time.Millisecond || cut > time.Second {
+		t.Errorf("an upload that paused for 1.5s answered %d after %v, want it cut soon after the 300ms upload timeout",
+			status, cut)
 	}
 
 	cancel()
