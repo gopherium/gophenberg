@@ -117,6 +117,7 @@ type world struct {
 	readers        *memoryReaders
 	mediaFilesGone []string
 	lastUpload     []byte
+	scratch        *scratchFolder
 	visitor        *http.Client
 	plugins        map[string]http.Handler
 	publicPaths    map[string][]string
