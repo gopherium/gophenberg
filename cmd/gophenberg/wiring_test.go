@@ -5,8 +5,11 @@ package main
 import (
 	"context"
 	"io"
+	"net/http"
 	"testing"
 	"time"
+
+	"github.com/gopherium/framework/gonsole"
 
 	"github.com/gopherium/gophenberg/internal/mediahost"
 )
@@ -30,6 +33,38 @@ func timedConfig() runConfig {
 		cacheMediaMaxAge:                 90 * time.Second,
 		cacheContentSharedMaxAge:         30 * time.Second,
 		cacheContentStaleWhileRevalidate: 10 * time.Minute,
+
+		serving: gonsole.Timeouts{
+			ReadHeader: 4 * time.Second, Read: 40 * time.Second, Idle: 90 * time.Second,
+			Grace: 4 * time.Minute, CancelGrace: 15 * time.Second, StopGrace: 20 * time.Second,
+		},
+	}
+}
+
+func TestHTTPServerCarriesEveryTimeoutTheEnvironmentNamed(t *testing.T) {
+	t.Parallel()
+
+	settings := timedConfig()
+
+	held := httpServerFrom(settings, http.NotFoundHandler())
+
+	for name, asked := range map[string]struct {
+		stood time.Duration
+		want  time.Duration
+	}{
+		"ReadHeaderTimeout": {held.ReadHeaderTimeout, settings.serving.ReadHeader},
+		"ReadTimeout":       {held.ReadTimeout, settings.serving.Read},
+		"IdleTimeout":       {held.IdleTimeout, settings.serving.Idle},
+	} {
+		if asked.stood != asked.want {
+			t.Errorf("%s = %v, want %v", name, asked.stood, asked.want)
+		}
+	}
+	if held.Addr != settings.addr {
+		t.Errorf("Addr = %q, want %q", held.Addr, settings.addr)
+	}
+	if held.Handler == nil {
+		t.Error("Handler = nil, want the site's handler served")
 	}
 }
 
