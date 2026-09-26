@@ -5,6 +5,7 @@ package mediahost
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -243,7 +244,7 @@ func (l *Library) store(
 	name string, k kind, original []byte, width, height int, renditions []rendition, authorID uuid.UUID,
 ) (media.Media, error) {
 	subdir := time.Now().UTC().Format("2006/01")
-	rel, err := l.claim(subdir, stemOf(name), k.ext, original)
+	rel, err := l.claim(subdir, stemOf(name), k.ext, original, "")
 	if err != nil {
 		return media.Media{}, fmt.Errorf("mediahost: store %q: %w", name, err)
 	}
@@ -273,7 +274,7 @@ func (l *Library) writeRenditions(
 	stem := strings.TrimSuffix(path.Base(rel), path.Ext(rel))
 	written := make([]string, 0, len(renditions))
 	for _, r := range renditions {
-		target, err := l.claim(path.Dir(rel), renditionStem(stem, r), formatExt(r.format), r.data)
+		target, err := l.claim(path.Dir(rel), renditionStem(stem, r), formatExt(r.format), r.data, rel)
 		if err != nil {
 			return nil, written, err
 		}
@@ -302,14 +303,14 @@ func renditionStem(stem string, r rendition) string {
 	return fmt.Sprintf("%s-%dx%d", stem, r.width, r.height)
 }
 
-// claim writes the upload under the first free name derived from stem.
-func (l *Library) claim(subdir, stem, ext string, data []byte) (string, error) {
+// claim notes and writes the upload under the first free name from stem, for the item at main or at that name.
+func (l *Library) claim(subdir, stem, ext string, data []byte, main string) (string, error) {
 	if err := os.MkdirAll(l.abs(subdir), 0o755); err != nil {
 		return "", err
 	}
 	for attempt := 1; attempt <= maxNameAttempts; attempt++ {
 		rel := path.Join(subdir, numberedStem(stem, attempt)+"."+ext)
-		err := writeExclusive(l.abs(rel), data)
+		err := l.writeNoted(rel, data, cmp.Or(main, rel))
 		if errors.Is(err, os.ErrExist) {
 			continue
 		}
@@ -341,8 +342,20 @@ func writeExclusive(target string, data []byte) error {
 	return f.Close()
 }
 
-// Remove deletes the item's stored file and every rendition it owns.
+// Remove deletes the item's stored file and every rendition it owns, with any note still held on them.
 func (l *Library) Remove(m media.Media) error {
+	var failures []error
+	for _, file := range filesOf(m) {
+		if err := os.Remove(l.abs(file)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			failures = append(failures, err)
+		}
+		l.unnote(file)
+	}
+	return errors.Join(failures...)
+}
+
+// filesOf returns the item's stored file and every rendition file it owns.
+func filesOf(m media.Media) []string {
 	files := make([]string, 0, len(m.Sizes)+1)
 	files = append(files, m.File)
 	for _, r := range m.Sizes {
@@ -350,19 +363,14 @@ func (l *Library) Remove(m media.Media) error {
 			files = append(files, r.File)
 		}
 	}
-	var failures []error
-	for _, file := range files {
-		if err := os.Remove(l.abs(file)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			failures = append(failures, err)
-		}
-	}
-	return errors.Join(failures...)
+	return files
 }
 
-// removeFiles deletes library relative files, ignoring what is already gone.
+// removeFiles deletes library relative files and their notes, ignoring what is already gone.
 func (l *Library) removeFiles(files ...string) {
 	for _, file := range files {
 		_ = os.Remove(l.abs(file))
+		l.unnote(file)
 	}
 }
 

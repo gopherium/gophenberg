@@ -46,7 +46,7 @@ func TestClaimGivesUpOnceEveryNameIsTaken(t *testing.T) {
 		}
 	}
 
-	rel, err := library.claim(month, "taken", "jpg", []byte("data"))
+	rel, err := library.claim(month, "taken", "jpg", []byte("data"), "")
 
 	if err == nil {
 		t.Fatalf("claim() with every name taken = %q, nil, want a failure", rel)
@@ -57,6 +57,25 @@ func TestClaimGivesUpOnceEveryNameIsTaken(t *testing.T) {
 	}
 	if rel != "" {
 		t.Errorf("claim() name = %q, want no name once it gives up", rel)
+	}
+}
+
+func TestClaimReportsALibraryThatCannotHoldNotes(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, notesDir), nil, 0o644); err != nil {
+		t.Fatalf("planting a file where the notes folder belongs: %v", err)
+	}
+	library := New(Config{Dir: dir})
+
+	rel, err := library.claim("2006/01", "harbor", "jpg", []byte("data"), "")
+
+	if err == nil {
+		t.Fatalf("claim() = %q, nil, want the missing notes folder reported", rel)
+	}
+	if _, statErr := os.Stat(library.abs("2006/01/harbor.jpg")); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("Stat() of the upload = %v, want nothing written without a note", statErr)
 	}
 }
 

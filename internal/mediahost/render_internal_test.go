@@ -4,6 +4,7 @@ package mediahost
 
 import (
 	"image"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,11 +110,17 @@ func TestStoreRemovesTheFilesOfAnItemItCannotBuild(t *testing.T) {
 	if err == nil {
 		t.Fatal("store() error = nil, want the item refused")
 	}
-	held, walkErr := filepath.Glob(filepath.Join(dir, "*", "*", "*"))
+	var held []string
+	walkErr := filepath.WalkDir(dir, func(at string, entry fs.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() {
+			held = append(held, at)
+		}
+		return err
+	})
 	if walkErr != nil {
 		t.Fatalf("walking the library: %v", walkErr)
 	}
 	if len(held) != 0 {
-		t.Errorf("the library holds %v, want the written files removed", held)
+		t.Errorf("the library holds %v, want the written files and their notes removed", held)
 	}
 }
