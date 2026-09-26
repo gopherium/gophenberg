@@ -178,6 +178,56 @@ func TestRunStopsThePluginsUnderALiveContextWhenASignalEndsTheBoot(t *testing.T)
 	stoppedLiveWithin(t, plugin)
 }
 
+func TestRunStopsThePluginsThatRegisteredWhenAnotherFails(t *testing.T) {
+	t.Parallel()
+
+	errRegister := errors.New("register exploded")
+	plugin := newHoldingPlugin()
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
+	}
+
+	err := run(t.Context(), testGetenv(env), io.Discard,
+		func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, errRegister })
+
+	if !errors.Is(err, errRegister) {
+		t.Fatalf("run() error = %v, want %v in its chain", err, errRegister)
+	}
+	stoppedLiveWithin(t, plugin)
+}
+
+// refusingDeclarer is a holding plugin whose type declaration fails.
+type refusingDeclarer struct {
+	*holdingPlugin
+	err error
+}
+
+// DeclareTypes fails with the error the plugin was built with.
+func (p refusingDeclarer) DeclareTypes(context.Context, sdk.TypeRegistrar) error {
+	return p.err
+}
+
+func TestRunStopsThePluginsWhenTheirTypesCannotBeDeclared(t *testing.T) {
+	t.Parallel()
+
+	errDeclare := errors.New("declare exploded")
+	plugin := newHoldingPlugin()
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
+	}
+
+	err := run(t.Context(), testGetenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
+		return []sdk.Plugin{refusingDeclarer{holdingPlugin: plugin, err: errDeclare}}, nil
+	})
+
+	if !errors.Is(err, errDeclare) {
+		t.Fatalf("run() error = %v, want %v in its chain", err, errDeclare)
+	}
+	stoppedLiveWithin(t, plugin)
+}
+
 func TestRunStopsTheStartedPluginsWithinTheStopGraceWhenOneFailsToStart(t *testing.T) {
 	t.Parallel()
 

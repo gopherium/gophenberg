@@ -73,16 +73,16 @@ func run(
 		Content:     contentbridge.New(contentStore, registry, library, settingStore),
 		Getenv:      getenv,
 	})
+	host := pluginkit.NewHost(registered...)
 	if err != nil {
-		return fmt.Errorf("register plugins: %w", err)
+		return errors.Join(fmt.Errorf("register plugins: %w", err), stopPlugins(ctx, host, settings.serving.StopGrace))
 	}
 
 	walked, err := declareTypes(ctx, registry, registered, logger)
 	if err != nil {
-		return fmt.Errorf("declare plugin types: %w", err)
+		return errors.Join(fmt.Errorf("declare plugin types: %w", err), stopPlugins(ctx, host, settings.serving.StopGrace))
 	}
 
-	host := pluginkit.NewHost(registered...)
 	if err := host.Start(ctx, settings.serving.StopGrace); err != nil {
 		return fmt.Errorf("start plugins: %w", err)
 	}
