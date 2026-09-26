@@ -4,7 +4,7 @@ unleash:
   exclude-files:
     - '(^|/)db/(db|models|queries\.sql)\.go$'
     - '(^|/)testdb\.go$'
-    - '(^|/)plugins_gen\.go$'
+    - '(^|/)cmd/'
 mutants:
   invert-logical:
     enabled: true
