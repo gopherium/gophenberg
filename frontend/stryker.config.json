@@ -1,6 +1,7 @@
 {
 	"$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
 	"testRunner": "vitest",
+	"concurrency": 4,
 	"plugins": ["@stryker-mutator/vitest-runner"],
 	"vitest": {
 		"configFile": "frontend/vite.config.ts"
