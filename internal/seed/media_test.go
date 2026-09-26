@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -16,9 +17,10 @@ import (
 	"github.com/gopherium/gophenberg/internal/media"
 )
 
-// recordingLibrary remembers what it was asked to ingest and remove.
+// recordingLibrary remembers what it was asked to ingest, finish and remove.
 type recordingLibrary struct {
 	ingested []string
+	finished []string
 	removed  []string
 	err      error
 }
@@ -37,6 +39,11 @@ func (l *recordingLibrary) Ingest(
 	}
 	m.Filesize = int64(len(data))
 	return m, nil
+}
+
+// Finish records the upload marked finished.
+func (l *recordingLibrary) Finish(m media.Media) {
+	l.finished = append(l.finished, m.File)
 }
 
 // Remove records the files handed back for cleanup.
@@ -119,6 +126,25 @@ func TestMediaStoresEveryScriptedUpload(t *testing.T) {
 	}
 }
 
+func TestMediaMarksEveryStoredUploadFinished(t *testing.T) {
+	t.Parallel()
+
+	library := &recordingLibrary{}
+	store := &countingMediaStore{}
+
+	if err := Media(t.Context(), library, store, stubUserStore{id: uuid.New()}); err != nil {
+		t.Fatalf("Media() error = %v, want nil", err)
+	}
+
+	stored := make([]string, len(store.stored))
+	for i, item := range store.stored {
+		stored[i] = item.File
+	}
+	if !slices.Equal(library.finished, stored) {
+		t.Errorf("finished %v, want every stored upload %v", library.finished, stored)
+	}
+}
+
 func TestMediaSkipsWhatItAlreadyStored(t *testing.T) {
 	t.Parallel()
 
@@ -180,6 +206,9 @@ func TestMediaRemovesTheFilesOfAStoreThatRefused(t *testing.T) {
 
 	if len(library.removed) != 1 {
 		t.Errorf("removed %d uploads, want the orphaned files cleaned up", len(library.removed))
+	}
+	if len(library.finished) != 0 {
+		t.Errorf("finished %v, want no upload marked finished when its item was never stored", library.finished)
 	}
 }
 
