@@ -44,6 +44,9 @@ func (removingLibrary) Ingest(context.Context, string, []byte, uuid.UUID) (media
 // Remove reports the stored files as gone.
 func (removingLibrary) Remove(media.Media) error { return nil }
 
+// Finish marks nothing, since the library stores nothing.
+func (removingLibrary) Finish(media.Media) {}
+
 // undeletableMediaStore answers one stored item and fails whatever else it is asked.
 type undeletableMediaStore struct {
 	item media.Media

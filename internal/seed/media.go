@@ -25,9 +25,10 @@ const demoMediaQuality = 82
 // seedListSize bounds the listing one title probe reads.
 const seedListSize = 100
 
-// MediaLibrary stores an upload's files and takes them back.
+// MediaLibrary stores an upload's files, marks them finished and takes them back.
 type MediaLibrary interface {
 	Ingest(ctx context.Context, name string, data []byte, authorID uuid.UUID) (media.Media, error)
+	Finish(m media.Media)
 	Remove(m media.Media) error
 }
 
@@ -177,8 +178,10 @@ func storeDemoUpload(
 	item.AltText = scripted.altText
 	item.Caption = scripted.caption
 	item.Description = scripted.description
-	if _, err := store.Create(ctx, item); err != nil {
+	created, err := store.Create(ctx, item)
+	if err != nil {
 		return errors.Join(fmt.Errorf("seed media: %w", err), library.Remove(item))
 	}
+	library.Finish(created)
 	return nil
 }

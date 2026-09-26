@@ -79,6 +79,19 @@ func (s *MediaStore) ByIDs(ctx context.Context, ids []int64) ([]media.Media, err
 	return listed, nil
 }
 
+// Saved reports which of the files a stored item holds as its own file.
+func (s *MediaStore) Saved(ctx context.Context, files []string) (map[string]bool, error) {
+	held, err := s.queries.ListSavedMediaFiles(ctx, files)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list saved media files: %w", err)
+	}
+	saved := make(map[string]bool, len(held))
+	for _, file := range held {
+		saved[file] = true
+	}
+	return saved, nil
+}
+
 // List returns the media items matching the filter, newest first, and the
 // total number matching it.
 func (s *MediaStore) List(ctx context.Context, f media.Filter) ([]media.Media, int, error) {

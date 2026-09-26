@@ -1775,6 +1775,32 @@ func (q *Queries) ListRevisions(ctx context.Context, contentID uuid.UUID) ([]Lis
 	return items, nil
 }
 
+const listSavedMediaFiles = `-- name: ListSavedMediaFiles :many
+SELECT m.file
+FROM core.media m
+WHERE m.file = ANY($1::text [])
+`
+
+func (q *Queries) ListSavedMediaFiles(ctx context.Context, files []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listSavedMediaFiles, files)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var file string
+		if err := rows.Scan(&file); err != nil {
+			return nil, err
+		}
+		items = append(items, file)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockContent = `-- name: LockContent :one
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
