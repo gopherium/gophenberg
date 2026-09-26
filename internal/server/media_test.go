@@ -270,6 +270,24 @@ func TestUploadingMediaStoresItAndAnswersTheItem(t *testing.T) {
 	}
 }
 
+func TestUploadingMediaLeavesNothingForRecoveryOnceSaved(t *testing.T) {
+	t.Parallel()
+
+	library := mediahost.New(mediahost.Config{Dir: t.TempDir()})
+	handler := mediaServer(t, library, newFakeMediaStore())
+
+	recorder := sendMediaUpload(t, handler, "harbor.jpg", smallJPEG(t))
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d (%s), want %d", recorder.Code, recorder.Body.String(), http.StatusCreated)
+	}
+	deleted, err := library.Recover(t.Context(), time.Now().Add(time.Minute),
+		func(context.Context, []string) (map[string]bool, error) { return map[string]bool{}, nil })
+	if err != nil || len(deleted) != 0 {
+		t.Errorf("Recover() = %v, %v, want the saved upload marked finished", deleted, err)
+	}
+}
+
 func TestUploadingMediaRefusesWhatTheLibraryRefuses(t *testing.T) {
 	t.Parallel()
 
@@ -730,8 +748,16 @@ func TestServingMediaHidesWhatIsNotAStoredFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".secret"), []byte("keep out"), 0o644); err != nil {
 		t.Fatalf("planting the hidden file: %v", err)
 	}
+	note := filepath.Join(dir, ".uploading", filepath.FromSlash(created.File))
+	if err := os.MkdirAll(filepath.Dir(note), 0o755); err != nil {
+		t.Fatalf("making the notes folder: %v", err)
+	}
+	if err := os.WriteFile(note, []byte(created.File), 0o644); err != nil {
+		t.Fatalf("planting an upload note: %v", err)
+	}
 
 	hidden := []string{
+		"/media/.uploading/" + created.File,
 		"/media/2030/01/nothing.jpg",
 		"/media/" + filepath.ToSlash(filepath.Dir(created.File)),
 		"/media/" + filepath.ToSlash(filepath.Dir(created.File)) + "/",

@@ -44,6 +44,8 @@ type MediaLibrary interface {
 	Ingest(ctx context.Context, name string, data []byte, authorID uuid.UUID) (media.Media, error)
 	// Remove deletes the item's stored file and every rendition it owns.
 	Remove(m media.Media) error
+	// Finish marks the upload of a saved item finished.
+	Finish(m media.Media)
 }
 
 // renditionView is one derived copy of an image as the admin sees it.
@@ -148,6 +150,7 @@ func (s *server) handleMediaUpload() http.HandlerFunc {
 			})
 			return
 		}
+		s.media.Finish(created)
 		authkit.Respond(w, http.StatusCreated, newMediaView(created))
 	}
 }
