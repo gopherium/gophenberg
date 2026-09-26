@@ -70,6 +70,8 @@ type Config struct {
 	Readers ReaderSettings
 	// DefinitionsImportCap is the largest definitions file an import takes. Zero applies its default.
 	DefinitionsImportCap int64
+	// UploadTimeout is how long a media or theme upload has to arrive. Zero applies its default.
+	UploadTimeout time.Duration
 	// Declarations is what every plugin declared at the last boot, by the plugin that declared it.
 	Declarations definitions.Walked
 }
@@ -96,6 +98,7 @@ func NewServer(cfg Config) http.Handler {
 		settings: cfg.Settings, readers: cfg.Readers,
 		types:          registryOf(cfg),
 		definitionsCap: definitionsCapOf(cfg),
+		uploadTimeout:  uploadTimeoutOf(cfg),
 		declarations:   cfg.Declarations,
 	}
 	s.addresses = content.NewResolver(cfg.Content, s.types)
@@ -230,5 +233,6 @@ type server struct {
 	version    string
 
 	definitionsCap int64
+	uploadTimeout  time.Duration
 	declarations   definitions.Walked
 }
