@@ -82,6 +82,13 @@ func TestLoadRunConfigDefaultsTheTimingsToTodaysValues(t *testing.T) {
 		"the max backoff":   {settings.themeMaxBackoff, 30 * time.Second},
 		"the stop grace":    {settings.themeStopGrace, 3 * time.Second},
 		"the proxy timeout": {settings.themeProxyTimeout, 10 * time.Second},
+
+		"the read header timeout":   {settings.serving.ReadHeader, 10 * time.Second},
+		"the read timeout":          {settings.serving.Read, 30 * time.Second},
+		"the idle timeout":          {settings.serving.Idle, 120 * time.Second},
+		"the shutdown grace":        {settings.serving.Grace, 10 * time.Second},
+		"the shutdown cancel grace": {settings.serving.CancelGrace, 5 * time.Second},
+		"the plugins' stop grace":   {settings.serving.StopGrace, 5 * time.Second},
 	} {
 		if held.stood != held.want {
 			t.Errorf("%s = %v, want %v", name, held.stood, held.want)
@@ -133,6 +140,13 @@ func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
 
 		"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB": "512",
 		"GOPHENBERG_FIELD_DEPTH":               "48",
+
+		"GOPHENBERG_HTTP_READ_HEADER_TIMEOUT": "4s",
+		"GOPHENBERG_HTTP_READ_TIMEOUT":        "40s",
+		"GOPHENBERG_HTTP_IDLE_TIMEOUT":        "90s",
+		"GOPHENBERG_SHUTDOWN_GRACE":           "4m",
+		"GOPHENBERG_SHUTDOWN_CANCEL_GRACE":    "15s",
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE":      "20s",
 	}))
 
 	if err != nil {
@@ -147,6 +161,13 @@ func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
 		"the max backoff":   {settings.themeMaxBackoff, time.Minute},
 		"the stop grace":    {settings.themeStopGrace, 5 * time.Second},
 		"the proxy timeout": {settings.themeProxyTimeout, 20 * time.Second},
+
+		"the read header timeout":   {settings.serving.ReadHeader, 4 * time.Second},
+		"the read timeout":          {settings.serving.Read, 40 * time.Second},
+		"the idle timeout":          {settings.serving.Idle, 90 * time.Second},
+		"the shutdown grace":        {settings.serving.Grace, 4 * time.Minute},
+		"the shutdown cancel grace": {settings.serving.CancelGrace, 15 * time.Second},
+		"the plugins' stop grace":   {settings.serving.StopGrace, 20 * time.Second},
 	} {
 		if held.stood != held.want {
 			t.Errorf("%s = %v, want %v", name, held.stood, held.want)
@@ -209,6 +230,14 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		"a field depth standing at zero":        {"GOPHENBERG_FIELD_DEPTH", "0"},
 		"a field depth below zero":              {"GOPHENBERG_FIELD_DEPTH", "-3"},
 		"a field depth one past the most taken": {"GOPHENBERG_FIELD_DEPTH", "1001"},
+
+		"a read header timeout that is not a duration": {"GOPHENBERG_HTTP_READ_HEADER_TIMEOUT", "later"},
+		"a read timeout below zero":                    {"GOPHENBERG_HTTP_READ_TIMEOUT", "-30s"},
+		"an idle timeout standing at zero":             {"GOPHENBERG_HTTP_IDLE_TIMEOUT", "0s"},
+		"a shutdown grace that is not a duration":      {"GOPHENBERG_SHUTDOWN_GRACE", "soon"},
+		"a shutdown grace standing at zero":            {"GOPHENBERG_SHUTDOWN_GRACE", "0s"},
+		"a shutdown cancel grace below zero":           {"GOPHENBERG_SHUTDOWN_CANCEL_GRACE", "-1s"},
+		"a plugins' stop grace standing at zero":       {"GOPHENBERG_SHUTDOWN_STOP_GRACE", "0s"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

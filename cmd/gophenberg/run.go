@@ -17,6 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/gouncer/authkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/gopherium/gouncer/authkit/ratelimit"
@@ -122,14 +123,7 @@ func run(
 		cfg.MediaFiles = os.DirFS(settings.mediaDir)
 	}
 
-	httpServer := &http.Server{
-		Addr:              settings.addr,
-		Handler:           server.NewServer(cfg),
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		IdleTimeout:       120 * time.Second,
-	}
-	return serveUntilDone(ctx, httpServer, httpServer.ListenAndServe, host, logger)
+	return gonsole.Serve(ctx, httpServerFrom(settings, server.NewServer(cfg)), settings.serving, host.Stop, logger)
 }
 
 // openDatabase returns a migrated connection pool for the database at url.
@@ -177,6 +171,24 @@ type runConfig struct {
 	cacheMediaMaxAge                 time.Duration
 	cacheContentSharedMaxAge         time.Duration
 	cacheContentStaleWhileRevalidate time.Duration
+
+	serving gonsole.Timeouts
+}
+
+// servingDefaults are the HTTP timeouts and shutdown graces a site runs under when its environment names none.
+var servingDefaults = gonsole.Timeouts{
+	ReadHeader: 10 * time.Second, Read: 30 * time.Second, Idle: 120 * time.Second,
+	Grace: 10 * time.Second, CancelGrace: 5 * time.Second, StopGrace: 5 * time.Second,
+}
+
+// servingFrom returns the HTTP timeouts and shutdown graces the environment names.
+func servingFrom(getenv func(string) string) (gonsole.Timeouts, error) {
+	return gonsole.Env{Prefix: "GOPHENBERG_", Getenv: getenv}.Timeouts(servingDefaults)
+}
+
+// httpServerFrom returns the HTTP server for the handler at the address and under the timeouts the settings name.
+func httpServerFrom(settings runConfig, handler http.Handler) *http.Server {
+	return gonsole.NewServer(settings.addr, handler, settings.serving)
 }
 
 // cacheWindowsFrom reads how long each kind of public answer may be kept.
@@ -427,6 +439,9 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	if settings.fieldDepth, err = fieldDepthFrom(getenv); err != nil {
 		return runConfig{}, err
 	}
+	if settings.serving, err = servingFrom(getenv); err != nil {
+		return runConfig{}, err
+	}
 	settings.databaseURL = databaseURL
 	settings.addr = addr
 	settings.webDir = getenv("GOPHENBERG_WEB_DIR")
@@ -438,33 +453,6 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	settings.nodeBin = nodeBin
 	settings.mediaDir = getenv("GOPHENBERG_MEDIA_DIR")
 	return settings, nil
-}
-
-// serveUntilDone serves until ctx ends or serving fails, then shuts the server down and stops the plugin host.
-func serveUntilDone(
-	ctx context.Context,
-	httpServer *http.Server,
-	serve func() error,
-	host *pluginkit.Host,
-	logger *slog.Logger,
-) error {
-	serveErr := make(chan error, 1)
-	go func() {
-		serveErr <- serve()
-	}()
-	logger.Info("listening", "addr", httpServer.Addr)
-
-	var failed error
-	select {
-	case err := <-serveErr:
-		failed = fmt.Errorf("http server: %w", err)
-	case <-ctx.Done():
-		logger.Info("shutting down")
-	}
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	return errors.Join(failed, httpServer.Shutdown(shutdownCtx), host.Stop(shutdownCtx))
 }
 
 // parseTrustedProxies parses raw into trusted-proxy CIDR ranges.
