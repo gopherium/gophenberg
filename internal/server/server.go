@@ -46,7 +46,7 @@ type Config struct {
 	TrustedProxies []string
 	// PublicURL is the address visitors reach the site at. Nil judges each write by the request itself.
 	PublicURL *url.URL
-	// Logger receives what the server reports about the writes it refuses. Nil discards it.
+	// Logger receives the writes the server refuses and the upload files it cannot remove. Nil discards it.
 	Logger *slog.Logger
 	// Theme serves the public site while it is healthy. Nil leaves the built-in renderer serving.
 	Theme Theme
@@ -84,6 +84,14 @@ func registryOf(cfg Config) *content.Registry {
 	return content.NewRegistry(cfg.Types)
 }
 
+// loggerOf returns the logger the configuration names, or one that discards when it names none.
+func loggerOf(cfg Config) *slog.Logger {
+	if cfg.Logger == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return cfg.Logger
+}
+
 // NewServer returns the HTTP handler serving the CMS API. Every route
 // requires a login session except login, logout, and each plugin's
 // declared public paths.
@@ -100,6 +108,7 @@ func NewServer(cfg Config) http.Handler {
 		definitionsCap: definitionsCapOf(cfg),
 		uploadTimeout:  uploadTimeoutOf(cfg),
 		declarations:   cfg.Declarations,
+		logger:         loggerOf(cfg),
 	}
 	s.addresses = content.NewResolver(cfg.Content, s.types)
 	headers := headersFor(cfg.Cache)
@@ -235,4 +244,5 @@ type server struct {
 	definitionsCap int64
 	uploadTimeout  time.Duration
 	declarations   definitions.Walked
+	logger         *slog.Logger
 }

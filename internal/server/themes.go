@@ -110,7 +110,7 @@ func (s *server) handleThemeUpload() http.HandlerFunc {
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, themehost.MaxSize+uploadEnvelope)
 		file, header, err := r.FormFile(uploadField)
-		defer removeUploadScratch(r)
+		defer s.removeUploadScratch(r)
 		if err != nil {
 			respondUploadError(w, err)
 			return
@@ -188,10 +188,13 @@ func extendUploadDeadline(w http.ResponseWriter, timeout time.Duration) error {
 	return err
 }
 
-// removeUploadScratch deletes the scratch files the request's multipart form wrote.
-func removeUploadScratch(r *http.Request) {
-	if r.MultipartForm != nil {
-		_ = r.MultipartForm.RemoveAll()
+// removeUploadScratch deletes the scratch files the request's multipart form wrote and logs any it cannot.
+func (s *server) removeUploadScratch(r *http.Request) {
+	if r.MultipartForm == nil {
+		return
+	}
+	if err := r.MultipartForm.RemoveAll(); err != nil {
+		s.logger.WarnContext(r.Context(), "upload scratch files left behind", "path", r.URL.Path, "err", err)
 	}
 }
 
