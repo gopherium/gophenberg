@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gopherium/pluginkit/wire"
+	"github.com/gopherium/framework/pluginkit/wire"
 )
 
 // config parameterizes the shared wiring generator for Gophenberg.
