@@ -117,13 +117,16 @@ cover-html: cover
 
 MUTATE_PKG ?= .
 MUTATE_FLAGS ?=
+MUTATE_VMEM ?= 12582912
 MUTATE_REPORT = $(CURDIR)/reports/mutation/gremlins.json
 
 mutate: db-up
 	mkdir -p $(dir $(MUTATE_REPORT))
 	work="$$(mktemp -d)" && trap 'rm -rf "$$work"' EXIT && \
 		git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | tar -xf - -C "$$work" && \
-		cd "$$work" && go tool gremlins unleash -o $(MUTATE_REPORT) $(MUTATE_FLAGS) $(MUTATE_PKG)
+		cp -R .git "$$work/.git" && cd "$$work" && ulimit -v $(MUTATE_VMEM) && \
+		GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.noprefix GIT_CONFIG_VALUE_0=false \
+		go tool gremlins unleash -o $(MUTATE_REPORT) $(MUTATE_FLAGS) $(MUTATE_PKG)
 
 E2E_DB ?= gophenberg_e2e
 E2E_DATABASE_URL ?= postgres://postgres:gophenberg@localhost:5435/$(E2E_DB)?sslmode=disable
