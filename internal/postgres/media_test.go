@@ -476,6 +476,25 @@ func TestMediaStoreReportsDatabaseFailures(t *testing.T) {
 	if _, err := store.ByIDs(t.Context(), []int64{created.ID}); err == nil {
 		t.Error("ByIDs() on a closed pool error = nil, want a failure")
 	}
+	if _, err := store.Saved(t.Context(), []string{created.File}); err == nil {
+		t.Error("Saved() on a closed pool error = nil, want a failure")
+	}
+}
+
+func TestMediaStoreSavedNamesOnlyTheFilesAStoredItemHolds(t *testing.T) {
+	t.Parallel()
+
+	store, author := newMediaStore(t)
+	mustCreateMedia(t, store, mustImage(t, "2026/08/harbor.jpg", "harbor", author))
+
+	saved, err := store.Saved(t.Context(), []string{"2026/08/harbor.jpg", "2026/08/cliff.jpg"})
+
+	if err != nil {
+		t.Fatalf("Saved() error = %v, want nil", err)
+	}
+	if want := map[string]bool{"2026/08/harbor.jpg": true}; !maps.Equal(saved, want) {
+		t.Errorf("Saved() = %v, want %v", saved, want)
+	}
 }
 
 func TestMediaStoreReadsSeveralByTheirIdentities(t *testing.T) {

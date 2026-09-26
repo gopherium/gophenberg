@@ -248,6 +248,11 @@ SELECT m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description
 FROM core.media m
 WHERE m.id = ANY(@ids::bigint []);
 
+-- name: ListSavedMediaFiles :many
+SELECT m.file
+FROM core.media m
+WHERE m.file = ANY(@files::text []);
+
 -- name: ListMedia :many
 SELECT m.id, m.media_type, m.file, m.title, m.alt_text, m.caption, m.description,
     m.mime_type, m.width, m.height, m.filesize, m.sizes, m.author_id, m.created_at, m.updated_at
