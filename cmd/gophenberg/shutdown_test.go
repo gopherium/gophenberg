@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -115,6 +116,35 @@ func holdRequest(t *testing.T, addr string) {
 		}
 	}()
 	t.Cleanup(func() { <-answered })
+}
+
+func TestRunStopsThePluginsWhenThePinnedThemeCannotLoad(t *testing.T) {
+	t.Parallel()
+
+	plugin := newHoldingPlugin()
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
+		"GOPHENBERG_ADDR":                "localhost:0",
+		"GOPHENBERG_THEMES_DIR":          t.TempDir(),
+		"GOPHENBERG_THEME":               "missing",
+		"GOPHENBERG_SHUTDOWN_STOP_GRACE": "4s",
+	}
+
+	err := run(t.Context(), testGetenv(env), io.Discard,
+		func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil })
+
+	if err == nil || !strings.Contains(err.Error(), "missing") {
+		t.Fatalf("run() error = %v, want the pinned theme reported", err)
+	}
+	select {
+	case seen := <-plugin.stopped:
+		if !seen.live || seen.left <= 0 || seen.left > 4*time.Second {
+			t.Errorf("the plugin stopped with live = %v and %v left, want a live context under its own 4s grace",
+				seen.live, seen.left)
+		}
+	default:
+		t.Error("the plugin never stopped, want the plugins stopped once the theme failed to start")
+	}
 }
 
 func TestRunCancelsARequestStillRunningAtTheGraceBeforeThePluginsStop(t *testing.T) {

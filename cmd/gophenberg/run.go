@@ -88,7 +88,7 @@ func run(
 
 	themes, stopTheme, err := startTheme(ctx, settings, settingStore, logger)
 	if err != nil {
-		return err
+		return errors.Join(err, stopPlugins(ctx, host, settings.serving.StopGrace))
 	}
 	defer stopTheme()
 
@@ -189,6 +189,13 @@ func servingFrom(getenv func(string) string) (gonsole.Timeouts, error) {
 // httpServerFrom returns the HTTP server for the handler at the address and under the timeouts the settings name.
 func httpServerFrom(settings runConfig, handler http.Handler) *http.Server {
 	return gonsole.NewServer(settings.addr, handler, settings.serving)
+}
+
+// stopPlugins stops the plugin host within the grace, whether or not ctx has ended.
+func stopPlugins(ctx context.Context, host *pluginkit.Host, grace time.Duration) error {
+	stopping, cancel := context.WithTimeout(context.WithoutCancel(ctx), grace)
+	defer cancel()
+	return host.Stop(stopping)
 }
 
 // cacheWindowsFrom reads how long each kind of public answer may be kept.
