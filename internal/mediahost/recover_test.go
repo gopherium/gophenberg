@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -217,6 +218,55 @@ func TestRecoverReportsAFileItCannotDeleteAndTriesAgainLater(t *testing.T) {
 	again, err := library.Recover(t.Context(), soon(), nothingSaved)
 	if err != nil || !slices.Equal(again, []string{m.File}) {
 		t.Errorf("a later Recover() = %v, %v, want the file deleted once it can be", again, err)
+	}
+}
+
+func TestRemoveKeepsTheNoteOfAFileItCannotDeleteForRecoverToRetry(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+	m := mustIngest(t, library, "notes.pdf", pdfDocument())
+	unlock := lockFolder(t, library, filepath.ToSlash(filepath.Dir(m.File)))
+	if err := library.Remove(m); err == nil {
+		t.Fatal("Remove() = nil, want the file it could not delete reported")
+	}
+	unlock()
+
+	deleted, err := library.Recover(t.Context(), soon(), nothingSaved)
+
+	if err != nil || !slices.Equal(deleted, []string{m.File}) {
+		t.Errorf("Recover() = %v, %v, want the file Remove could not delete tried again", deleted, err)
+	}
+}
+
+func TestRecoverReportsTheNoteOfASavedItemItCannotClear(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+	m := mustIngest(t, library, "notes.pdf", pdfDocument())
+	lockFolder(t, library, path.Join(".uploading", path.Dir(m.File)))
+
+	deleted, err := library.Recover(t.Context(), soon(), savedAs(m.File))
+
+	if err == nil || len(deleted) != 0 {
+		t.Errorf("Recover() = %v, %v, want the note it could not clear reported and nothing deleted", deleted, err)
+	}
+	if !stillStored(t, library, m.File) {
+		t.Errorf("%s is gone, want a saved item's file kept", m.File)
+	}
+}
+
+func TestRecoverReportsTheNoteOfADeletedFileItCannotClear(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+	m := mustIngest(t, library, "notes.pdf", pdfDocument())
+	lockFolder(t, library, path.Join(".uploading", path.Dir(m.File)))
+
+	deleted, err := library.Recover(t.Context(), soon(), nothingSaved)
+
+	if err == nil || !slices.Equal(deleted, []string{m.File}) {
+		t.Errorf("Recover() = %v, %v, want the file deleted and the note it could not clear reported", deleted, err)
 	}
 }
 

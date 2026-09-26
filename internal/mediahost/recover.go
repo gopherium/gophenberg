@@ -41,21 +41,33 @@ func (l *Library) writeNoted(rel string, data []byte, main string) error {
 		return err
 	}
 	if err := writeExclusive(l.abs(rel), data); err != nil {
-		l.unnote(rel)
+		_ = l.unnote(rel)
 		return err
 	}
 	return nil
 }
 
 // unnote removes the note held on a library relative file, ignoring one already gone.
-func (l *Library) unnote(rel string) {
-	_ = os.Remove(l.notePath(rel))
+func (l *Library) unnote(rel string) error {
+	if err := os.Remove(l.notePath(rel)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+// drop deletes a library relative file and then its note, keeping the note while the file stays.
+func (l *Library) drop(rel string) error {
+	if err := os.Remove(l.abs(rel)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	_ = l.unnote(rel)
+	return nil
 }
 
 // Finish marks the upload of a saved item finished.
 func (l *Library) Finish(m media.Media) {
 	for _, file := range filesOf(m) {
-		l.unnote(file)
+		_ = l.unnote(file)
 	}
 }
 
@@ -86,15 +98,13 @@ func (l *Library) Recover(ctx context.Context, before time.Time, saved Saved) ([
 // settle clears the note of a saved item, or deletes an unsaved upload's file first, reporting whether it deleted one.
 func (l *Library) settle(n noted, saved bool) (bool, error) {
 	if saved {
-		l.unnote(n.file)
-		return false, nil
+		return false, l.unnote(n.file)
 	}
 	err := os.Remove(l.abs(n.file))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return false, err
 	}
-	l.unnote(n.file)
-	return err == nil, nil
+	return err == nil, l.unnote(n.file)
 }
 
 // notedBefore returns the files uploads noted before the cutoff, nothing when no upload was ever noted.

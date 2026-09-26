@@ -342,14 +342,13 @@ func writeExclusive(target string, data []byte) error {
 	return f.Close()
 }
 
-// Remove deletes the item's stored file and every rendition it owns, with any note still held on them.
+// Remove deletes the item's stored file and every rendition it owns, with the notes of the ones it deletes.
 func (l *Library) Remove(m media.Media) error {
 	var failures []error
 	for _, file := range filesOf(m) {
-		if err := os.Remove(l.abs(file)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := l.drop(file); err != nil {
 			failures = append(failures, err)
 		}
-		l.unnote(file)
 	}
 	return errors.Join(failures...)
 }
@@ -366,11 +365,10 @@ func filesOf(m media.Media) []string {
 	return files
 }
 
-// removeFiles deletes library relative files and their notes, ignoring what is already gone.
+// removeFiles deletes library relative files as far as it can, with the notes of the ones it deletes.
 func (l *Library) removeFiles(files ...string) {
 	for _, file := range files {
-		_ = os.Remove(l.abs(file))
-		l.unnote(file)
+		_ = l.drop(file)
 	}
 }
 

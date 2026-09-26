@@ -79,6 +79,30 @@ func TestClaimReportsALibraryThatCannotHoldNotes(t *testing.T) {
 	}
 }
 
+func TestRemoveFilesKeepsTheNoteOfAFileItCannotDelete(t *testing.T) {
+	t.Parallel()
+
+	if os.Geteuid() == 0 {
+		t.Skip("running as root, which deletes from a folder whatever its mode says")
+	}
+	library := New(Config{Dir: t.TempDir()})
+	rel, err := library.claim("2006/01", "harbor", "jpg", []byte("data"), "")
+	if err != nil {
+		t.Fatalf("claim() error = %v, want nil", err)
+	}
+	folder := library.abs("2006/01")
+	if err := os.Chmod(folder, 0o555); err != nil {
+		t.Fatalf("locking the folder: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(folder, 0o755) })
+
+	library.removeFiles(rel)
+
+	if _, err := os.Stat(library.notePath(rel)); err != nil {
+		t.Errorf("Stat() of the note = %v, want the note kept while its file stays", err)
+	}
+}
+
 func TestWriteExclusiveNamesTheDirectoryHoldingTheTarget(t *testing.T) {
 	t.Parallel()
 
