@@ -110,6 +110,7 @@ func (s *server) handleThemeUpload() http.HandlerFunc {
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, themehost.MaxSize+uploadEnvelope)
 		file, header, err := r.FormFile(uploadField)
+		defer removeUploadScratch(r)
 		if err != nil {
 			respondUploadError(w, err)
 			return
@@ -185,6 +186,13 @@ func extendUploadDeadline(w http.ResponseWriter, timeout time.Duration) error {
 		return nil
 	}
 	return err
+}
+
+// removeUploadScratch deletes the scratch files the request's multipart form wrote.
+func removeUploadScratch(r *http.Request) {
+	if r.MultipartForm != nil {
+		_ = r.MultipartForm.RemoveAll()
+	}
 }
 
 // themeNameOf returns the theme name an uploaded file installs under.
