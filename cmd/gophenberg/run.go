@@ -62,9 +62,10 @@ func run(
 	contentStore := postgres.NewContentStore(pool)
 	typeStore := postgres.NewTypeStore(pool)
 	registry := registryFrom(settings, typeStore)
+	mediaStore := postgres.NewMediaStore(pool)
 	var library media.Store
 	if settings.mediaDir != "" {
-		library = postgres.NewMediaStore(pool)
+		library = mediaStore
 	}
 	settingStore := postgres.NewSettingStore(pool)
 	registered, err := plugins(sdk.Deps{
@@ -119,7 +120,7 @@ func run(
 		cfg.Web = os.DirFS(settings.webDir)
 	}
 	if settings.mediaDir != "" {
-		cfg.Media = mediahost.New(mediaConfigFrom(settings, settingStore))
+		cfg.Media = recoveredLibrary(ctx, mediaConfigFrom(settings, settingStore), mediaStore.Saved, logger)
 		cfg.MediaStore = library
 		cfg.MediaFiles = os.DirFS(settings.mediaDir)
 	}
@@ -337,6 +338,21 @@ func standingKilobytes(raw, key string, fallback, ceiling int64) (int64, error) 
 // mediaConfigFrom returns the media library settings the environment named and the site chose.
 func mediaConfigFrom(settings runConfig, store mediahost.Settings) mediahost.Config {
 	return mediahost.Config{Dir: settings.mediaDir, MaxSize: settings.mediaUploadCap, Settings: store}
+}
+
+// recoveredLibrary returns the media library once it deletes the files of the uploads a stop left unsaved.
+func recoveredLibrary(
+	ctx context.Context, cfg mediahost.Config, saved mediahost.Saved, logger *slog.Logger,
+) *mediahost.Library {
+	library := mediahost.New(cfg)
+	deleted, err := library.Recover(ctx, time.Now(), saved)
+	for _, file := range deleted {
+		logger.Info("unsaved upload deleted", "file", file)
+	}
+	if err != nil {
+		logger.Warn("unsaved uploads kept for the next start", "error", err)
+	}
+	return library
 }
 
 // declareTypes hands every declaring plugin a registrar over the registry, logging what a plugin could not claim.
