@@ -3,8 +3,9 @@
 import { godminDedupe, godminSingleCopy, godminStylesheetFirst } from '@gopherium/godmin/vite'
 import react from '@vitejs/plugin-react'
 import dsTokenFallbacks from '@wordpress/theme/vite-plugins/vite-ds-token-fallbacks'
-import { defineConfig } from 'vite'
+import { defineConfig, searchForWorkspaceRoot } from 'vite'
 import { defaultExclude } from 'vitest/config'
+import { realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import { adminBasepath } from './src/basepath.js'
@@ -34,6 +35,15 @@ const mediaWorkerStubs = {
 	),
 }
 
+/** The folder this config sits in. */
+const frontendDir = fileURLToPath(new URL('.', import.meta.url))
+
+/** The package store every dependency resolves into, with any symlink followed. */
+const packageStore = realpathSync(fileURLToPath(new URL('../node_modules', import.meta.url)))
+
+/** The frontend SDK sources beside this config. */
+const sdkSources = fileURLToPath(new URL('../sdk/frontend', import.meta.url))
+
 export default defineConfig({
 	base: adminBasepath + '/',
 	plugins: [react(), dsTokenFallbacks(), godminSingleCopy(), godminStylesheetFirst()],
@@ -53,9 +63,11 @@ export default defineConfig({
 			'/api': backend,
 			'/media': backend,
 		},
+		fs: { allow: [searchForWorkspaceRoot(frontendDir), packageStore] },
 	},
 	test: {
-		root: fileURLToPath(new URL('.', import.meta.url)),
+		root: frontendDir,
+		alias: { '@gophenberg/frontend-sdk': sdkSources },
 		environment: 'jsdom',
 		env: { TZ: 'UTC' },
 		css: { include: [/index\.css$/, /src\/content\/editor\.css$/, /src\/media\/media\.css$/] },

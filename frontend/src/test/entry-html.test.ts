@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { join } from 'node:path'
 
 import { expect, test } from 'vitest'
 
-const entry = readFileSync(resolve('index.html'), 'utf8')
+const entry = readFileSync(join(import.meta.dirname, '..', '..', 'index.html'), 'utf8')
 
 test('stands a ghost in the root before any script runs', () => {
 	const root = entry.slice(entry.indexOf('<div id="root"'))

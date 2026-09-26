@@ -7,13 +7,11 @@ import { expect, test } from 'vitest'
 import { messages, pot } from '@gopherium/gottext/build'
 
 import { potConfig, repositoryRoot } from '../../scripts/config.ts'
+import { MUTATION_RUN } from './mutation.ts'
 
 const ROOT = repositoryRoot()
 
 const FIXTURE = ['frontend/testdata/potfixture/*.tsx']
-
-/** Whether a mutation run rewrote the sources the template is read from. */
-const MUTATION_RUN = process.env.STRYKER_MUTATOR_WORKER !== undefined
 
 test('writes the same template bytes on every run', () => {
 	expect(pot(potConfig()).equals(pot(potConfig()))).toBe(true)

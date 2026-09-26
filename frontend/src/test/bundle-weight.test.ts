@@ -3,6 +3,8 @@
 import { build } from 'vite'
 import { expect, test } from 'vitest'
 
+import { MUTATION_RUN } from './mutation.ts'
+
 const CHUNK_CEILING = 4_000_000
 
 type Emitted =
@@ -18,7 +20,7 @@ function weightOf(emitted: Emitted): number {
 	return emitted.type === 'chunk' ? emitted.code.length : emitted.source.length
 }
 
-test('ships no chunk heavy enough to weigh a deployment down', async () => {
+test.skipIf(MUTATION_RUN)('ships no chunk heavy enough to weigh a deployment down', async () => {
 	const built = (await build({
 		logLevel: 'silent',
 		build: { write: false },

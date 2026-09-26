@@ -4,7 +4,8 @@
 	"concurrency": 4,
 	"plugins": ["@stryker-mutator/vitest-runner"],
 	"vitest": {
-		"configFile": "frontend/vite.config.ts"
+		"configFile": "frontend/vite.config.ts",
+		"related": false
 	},
 	"mutate": [
 		"frontend/src/**/*.{ts,tsx}",
