@@ -103,6 +103,7 @@ export default defineConfig({
 				'scripts/sync-translations.ts',
 				'scripts/push-translations.ts',
 				'scripts/retire-translations.ts',
+				'scripts/mutate-changed.ts',
 				'../sdk/frontend/scripts/build-site-assets.ts',
 				'**/*.d.ts',
 				'**/test/**',

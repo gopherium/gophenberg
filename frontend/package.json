@@ -11,6 +11,7 @@
 		"lint": "pnpm -w lint",
 		"lint:css": "stylelint 'src/**/*.css'",
 		"mutate": "cd .. && stryker run frontend/stryker.config.json",
+		"mutate:changed": "node scripts/mutate-changed.ts",
 		"pot": "node scripts/write-pot.ts",
 		"preview": "vite preview",
 		"translations": "node scripts/sync-translations.ts",
