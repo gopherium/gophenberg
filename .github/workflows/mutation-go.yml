@@ -1,0 +1,35 @@
+name: mutation-go
+
+on:
+  pull_request:
+    paths:
+      - '**.go'
+      - go.mod
+      - go.sum
+      - Makefile
+      - .gremlins.yaml
+      - .github/workflows/mutation-go.yml
+
+jobs:
+  gremlins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+      - run: make mutate MUTATE_FLAGS="--diff $BASE"
+        env:
+          BASE: origin/${{ github.base_ref }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: gremlins-report
+          path: reports/mutation/
+          retention-days: 7
+          if-no-files-found: ignore
