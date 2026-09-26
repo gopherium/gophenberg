@@ -31,7 +31,7 @@ func (l *Library) notePath(rel string) string {
 	return l.abs(path.Join(notesDir, rel))
 }
 
-// writeNoted notes the file for the item stored at main, then writes it, taking the note back when the write fails.
+// writeNoted notes the file for the item stored at main and writes it, giving back the note of a path another holds.
 func (l *Library) writeNoted(rel string, data []byte, main string) error {
 	note := l.notePath(rel)
 	if err := os.MkdirAll(filepath.Dir(note), 0o755); err != nil {
@@ -41,7 +41,9 @@ func (l *Library) writeNoted(rel string, data []byte, main string) error {
 		return err
 	}
 	if err := writeExclusive(l.abs(rel), data); err != nil {
-		_ = l.unnote(rel)
+		if errors.Is(err, os.ErrExist) || errors.Is(err, errHeldByDirectory) {
+			_ = l.unnote(rel)
+		}
 		return err
 	}
 	return nil

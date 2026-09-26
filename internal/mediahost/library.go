@@ -322,12 +322,15 @@ func (l *Library) claim(subdir, stem, ext string, data []byte, main string) (str
 	return "", fmt.Errorf("no free name for %q after %d attempts", stem, maxNameAttempts)
 }
 
+// errHeldByDirectory reports a path a directory holds.
+var errHeldByDirectory = errors.New("held by a directory")
+
 // writeExclusive writes data to a path no file holds yet.
 func writeExclusive(target string, data []byte) error {
 	f, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if errors.Is(err, os.ErrExist) {
 		if info, statErr := os.Stat(target); statErr == nil && info.IsDir() {
-			return fmt.Errorf("%s is held by a directory", target)
+			return fmt.Errorf("%s is %w", target, errHeldByDirectory)
 		}
 		return err
 	}
