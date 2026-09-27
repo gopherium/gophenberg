@@ -33,6 +33,17 @@ beforeEach(() => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [builtInType] })))
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [] })))
 	server.use(http.get('/api/groups/params', () => HttpResponse.json({ items: [] })))
+	server.use(http.get('/api/content/:id/autosave', () => HttpResponse.json({}, { status: 404 })))
+	server.use(
+		http.post('/api/content/:id/autosave', async ({ request, params }) =>
+			HttpResponse.json({
+				...((await request.json()) as Record<string, unknown>),
+				target: 'autosave',
+				content_id: params.id,
+				saved_at: '2026-08-01T12:00:00Z',
+			}),
+		),
+	)
 })
 
 afterAll(() => {
