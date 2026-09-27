@@ -302,6 +302,25 @@ func TestSiteWalksOlderPages(t *testing.T) {
 	}
 }
 
+func TestSiteOffersNoNewerPageOnTheFirst(t *testing.T) {
+	t.Parallel()
+
+	about := publishedPost("About", "pages/about", blockMarkup, time.Now().UTC())
+	about.Type = "page"
+	handler, _ := siteWith(append(manyPosts(25), about)...)
+
+	for _, path := range []string{"/", "/pages"} {
+		recorder := get(t, handler, path)
+
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("GET %s status = %d, want %d", path, recorder.Code, http.StatusOK)
+		}
+		if body := recorder.Body.String(); strings.Contains(body, "gophenberg-site__newer") {
+			t.Errorf("GET %s body = %q, want no newer page before the first", path, body)
+		}
+	}
+}
+
 func TestSiteRefusesAPageBelowTheFirst(t *testing.T) {
 	t.Parallel()
 
