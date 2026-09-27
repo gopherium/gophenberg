@@ -54,7 +54,6 @@ Feature: Uploading media files
       | decodes to more pixels than the budget      | the image is too large       |
       | is a corrupt image                          | the image cannot be read     |
 
-  @wip
   Scenario Outline: A refused upload names what the administrator can change
     When the administrator uploads a file that <flaw>
     Then the request is refused with the code "<code>"
@@ -71,7 +70,6 @@ Feature: Uploading media files
       | decodes to more pixels than the budget       | image_pixel_budget_exceeded | max       | 80000000   |
       | is an animation with a frame past the budget | image_frame_too_large       | max       | 80000000   |
 
-  @wip
   Scenario: A file named without an extension is refused without naming one
     When the administrator uploads a file that carries no extension
     Then the request is refused with the code "file_type_not_allowed"
