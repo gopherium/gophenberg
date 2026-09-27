@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -46,9 +47,16 @@ func (a *answer) errorDetails() map[string]any {
 	return envelope.Meta
 }
 
-// errorDetail returns the value a JSON error response carries under a meta key.
-func (a *answer) errorDetail(key string) any {
-	return a.errorDetails()[key]
+// errorDetail returns the value a JSON error response carries under a meta key, as text.
+func (a *answer) errorDetail(key string) string {
+	switch held := a.errorDetails()[key].(type) {
+	case nil:
+		return ""
+	case float64:
+		return strconv.FormatFloat(held, 'f', -1, 64)
+	default:
+		return fmt.Sprint(held)
+	}
 }
 
 // decode reads the answer's body into target.

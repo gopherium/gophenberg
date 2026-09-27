@@ -54,6 +54,27 @@ Feature: Uploading media files
       | decodes to more pixels than the budget      | the image is too large       |
       | is a corrupt image                          | the image cannot be read     |
 
+  Scenario Outline: A refused upload names what the administrator can change
+    When the administrator uploads a file that <flaw>
+    Then the request is refused with the code "<code>"
+    And the error names "<value>" under "<detail>"
+
+    Examples:
+      | flaw                                         | code                        | detail    | value      |
+      | carries a type outside the allowed set       | file_type_not_allowed       | extension | txt        |
+      | is an SVG document                           | file_type_not_allowed       | extension | svg        |
+      | names a JPEG but carries executable content  | file_content_mismatch       | extension | jpg        |
+      | names a JPEG but carries executable content  | file_content_mismatch       | detected  | text/plain |
+      | decodes to more pixels than the budget       | image_pixel_budget_exceeded | width     | 20000      |
+      | decodes to more pixels than the budget       | image_pixel_budget_exceeded | height    | 20000      |
+      | decodes to more pixels than the budget       | image_pixel_budget_exceeded | max       | 80000000   |
+      | is an animation with a frame past the budget | image_frame_too_large       | max       | 80000000   |
+
+  Scenario: A file named without an extension is refused without naming one
+    When the administrator uploads a file that carries no extension
+    Then the request is refused with the code "file_type_not_allowed"
+    And the error carries no data
+
   Scenario: Uploading without a session is refused
     Given no administrator is signed in
     When a visitor posts a file to the media endpoint
