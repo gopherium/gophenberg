@@ -377,6 +377,35 @@ func TestApplyKeepsTheValuesARebuiltGroupHandsOn(t *testing.T) {
 	}
 }
 
+func TestApplyTakesAwayAConfirmedGroupListedAfterOneThatHandsItsFieldsOn(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	rebuilt(t, &envelope)
+	envelope.Groups = []definitions.GroupDefinition{*groupNamed(t, envelope, "recipe-facts")}
+
+	outcome := applied(t, registry, definitions.Import{
+		Envelope: envelope,
+		Confirm: []definitions.Confirmed{
+			{Subject: "group", Key: "recipe-details"},
+			{Subject: "group", Key: "loose-ends"},
+		},
+	})
+
+	if _, found := storedGroup(t, registry, "loose-ends"); found {
+		t.Errorf("the loose ends group stands, want the confirmed delete after the handing group done")
+	}
+	if _, found := storedField(t, registry, "recipe-facts", "cook-time"); !found {
+		t.Errorf("the rebuilt group holds no cook time, want it handed on")
+	}
+	for _, key := range []string{"recipe-details", "loose-ends"} {
+		if !named(outcome.Applied, "group", key) {
+			t.Errorf("applied = %+v, want the removal of %s named there", outcome.Applied, key)
+		}
+	}
+}
+
 func TestApplyRefusesARebuildWhoseOldGroupNobodyConfirmedBeforeWritingAnything(t *testing.T) {
 	t.Parallel()
 

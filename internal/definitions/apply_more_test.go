@@ -57,6 +57,32 @@ func TestApplyMovesAFieldTheAdminConfirmed(t *testing.T) {
 	}
 }
 
+func TestApplyMovesAConfirmedFieldListedAfterAMoveNobodyConfirmed(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	recipe := groupNamed(t, envelope, "recipe-details")
+	loose := groupNamed(t, envelope, "loose-ends")
+	loose.Fields = append(loose.Fields, recipe.Fields...)
+	recipe.Fields = recipe.Fields[:0]
+
+	applied(t, registry, definitions.Import{
+		Envelope: envelope,
+		Confirm:  []definitions.Confirmed{{Subject: "field", Key: "steps", Group: "recipe-details"}},
+	})
+
+	if _, found := storedField(t, registry, "recipe-details", "steps"); found {
+		t.Errorf("the steps section stands in the recipe group, want the confirmed move to have taken it out")
+	}
+	if _, found := storedField(t, registry, "loose-ends", "steps"); !found {
+		t.Errorf("the steps section is missing from the loose ends group, want the confirmed move to land it")
+	}
+	if _, found := storedField(t, registry, "recipe-details", "cook-time"); !found {
+		t.Errorf("the cook time field left the recipe group, want the unconfirmed move left undone")
+	}
+}
+
 func TestApplyLeavesAMoveNobodyConfirmed(t *testing.T) {
 	t.Parallel()
 

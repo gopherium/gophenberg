@@ -50,6 +50,26 @@ func TestApplyLeavesOutANewGroupEveryFieldOfWhichIsHeldBack(t *testing.T) {
 	}
 }
 
+func TestApplyCreatesANewGroupListedAfterOneEveryFieldOfWhichIsHeldBack(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := carriedFile(t, registry, recipeRules())
+	envelope.Groups = append(envelope.Groups, definitions.GroupDefinition{
+		Key: "event-details", Title: "Event details", Active: true,
+		Fields: []definitions.FieldDefinition{{Key: "venue", Label: "Venue", Kind: "text"}},
+	})
+
+	outcome := applied(t, registry, importing(envelope))
+
+	if _, found := storedField(t, registry, "event-details", "venue"); !found {
+		t.Errorf("the event details group holds no venue, want the group listed after the held back one stored")
+	}
+	if !leftUndoneAt(outcome.Skipped, "create", "group", "", "recipe-facts") {
+		t.Errorf("skipped = %+v, want the group left out named there", outcome.Skipped)
+	}
+}
+
 func TestApplyCreatesANewGroupThatAlsoGainsAFreshField(t *testing.T) {
 	t.Parallel()
 

@@ -251,6 +251,52 @@ func TestDeclareGroupCarriesASubFieldAndItsSettings(t *testing.T) {
 	}
 }
 
+func TestDeclareGroupAddsAFieldDeclaredAfterTheStoredOnes(t *testing.T) {
+	t.Parallel()
+
+	registry, registrar := declaringRegistry(t)
+	if err := registrar.DeclareType(t.Context(), eventType()); err != nil {
+		t.Fatalf("DeclareType() error = %v, want nil", err)
+	}
+	if err := registrar.DeclareGroup(t.Context(), eventGroup()); err != nil {
+		t.Fatalf("DeclareGroup(first) error = %v, want nil", err)
+	}
+	grown := eventGroup()
+	grown.Fields = append(grown.Fields, sdk.FieldDeclaration{Key: "seats", Label: "Seats", Kind: "number"})
+
+	if err := registrar.DeclareGroup(t.Context(), grown); err != nil {
+		t.Fatalf("DeclareGroup(grown) error = %v, want nil", err)
+	}
+
+	held := heldGroup(t, registry, "event-details")
+	if keys := keysOfFields(held.Fields); !slices.Equal(keys, []string{"venue", "schedule", "seats"}) {
+		t.Errorf("fields = %v, want seats added after the stored venue and schedule", keys)
+	}
+}
+
+func TestDeclareGroupClearsEverySettingAFieldNoLongerDeclares(t *testing.T) {
+	t.Parallel()
+
+	registry, registrar := declaringRegistry(t)
+	if err := registrar.DeclareType(t.Context(), eventType()); err != nil {
+		t.Fatalf("DeclareType() error = %v, want nil", err)
+	}
+	placed := eventGroup()
+	placed.Fields[0].Settings = map[string]any{content.SettingPlaceholder: "Where it happens"}
+	if err := registrar.DeclareGroup(t.Context(), placed); err != nil {
+		t.Fatalf("DeclareGroup(placed) error = %v, want nil", err)
+	}
+
+	if err := registrar.DeclareGroup(t.Context(), eventGroup()); err != nil {
+		t.Fatalf("DeclareGroup(bare) error = %v, want nil", err)
+	}
+
+	held := heldGroup(t, registry, "event-details")
+	if settings := held.Fields[0].Settings; len(settings) != 0 {
+		t.Errorf("venue settings = %v, want every setting the plugin stopped declaring cleared", settings)
+	}
+}
+
 func TestDeclareFieldSkipsAGroupTheSiteHolds(t *testing.T) {
 	t.Parallel()
 

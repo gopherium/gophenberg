@@ -174,6 +174,48 @@ func TestApplyTakesAwayWhatTheAdminConfirmed(t *testing.T) {
 	}
 }
 
+func TestApplyTakesAwayAConfirmedGroupListedAfterADeleteNobodyConfirmed(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	envelope.Groups = envelope.Groups[:0]
+
+	outcome := applied(t, registry, confirmingGroup(envelope, "loose-ends"))
+
+	if _, found := storedGroup(t, registry, "loose-ends"); found {
+		t.Errorf("the loose ends group stands, want the confirmed delete to have taken it")
+	}
+	if _, found := storedGroup(t, registry, "recipe-details"); !found {
+		t.Errorf("the recipe group is gone, want the unconfirmed delete left undone")
+	}
+	if !named(outcome.Applied, "group", "loose-ends") {
+		t.Errorf("applied = %+v, want the confirmed delete named there", outcome.Applied)
+	}
+}
+
+func TestApplyTakesAwayAConfirmedFieldListedAfterARemovalNobodyConfirmed(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	recipe := groupNamed(t, envelope, "recipe-details")
+	recipe.Fields = recipe.Fields[:0]
+
+	outcome := applied(t, registry, definitions.Import{
+		Envelope: envelope,
+		Confirm:  []definitions.Confirmed{{Subject: "field", Key: "steps", Group: "recipe-details"}},
+	})
+
+	stored, _ := storedGroup(t, registry, "recipe-details")
+	if kept := keysOfFields(stored.Fields); !slices.Equal(kept, []string{"cook-time"}) {
+		t.Errorf("recipe-details holds %v, want only cook-time once the confirmed steps is taken away", kept)
+	}
+	if !named(outcome.Applied, "field", "steps") {
+		t.Errorf("applied = %+v, want the confirmed removal named there", outcome.Applied)
+	}
+}
+
 func TestApplyTakesAwayAConfirmedFieldOthersStandAfter(t *testing.T) {
 	t.Parallel()
 
@@ -311,6 +353,53 @@ func TestApplyLeavesTheRootWhereTheSiteHasIt(t *testing.T) {
 	recipe, err := registry.ByKey(t.Context(), "recipe")
 	if err != nil || recipe.SingularLabel != "Dish" {
 		t.Errorf("the recipe type = %+v, %v, want its label carried even so", recipe, err)
+	}
+}
+
+func TestApplyCarriesARouteWordChangeWithoutKeepingTheRootOrTheNesting(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].RouteWord = "dishes"
+		}
+	}
+
+	outcome := applied(t, registry, importing(envelope))
+
+	if len(outcome.Skipped) != 0 {
+		t.Errorf("skipped = %+v, want a route word change to leave nothing undone", outcome.Skipped)
+	}
+	recipe, err := registry.ByKey(t.Context(), "recipe")
+	if err != nil || recipe.RouteWord != "dishes" || recipe.Hierarchical {
+		t.Errorf("the recipe type = %+v, %v, want the new route word carried and the type left flat", recipe, err)
+	}
+}
+
+func TestApplyLeavesTheRootWhenTheFileOnlyTakesItFromTheRootType(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == content.TypePost {
+			envelope.Types[i].Default, envelope.Types[i].RouteWord = false, "posts"
+		}
+	}
+
+	outcome := applied(t, registry, importing(envelope))
+
+	kept := slices.ContainsFunc(outcome.Skipped, func(held definitions.Change) bool {
+		return held.Subject == "type" && held.Key == content.TypePost && held.Reason == definitions.ReasonRootKept
+	})
+	if !kept {
+		t.Errorf("skipped = %+v, want the post type named with the root kept", outcome.Skipped)
+	}
+	post, err := registry.ByKey(t.Context(), content.TypePost)
+	if err != nil || !post.Default {
+		t.Errorf("the post type = %+v, %v, want it still holding the root", post, err)
 	}
 }
 
