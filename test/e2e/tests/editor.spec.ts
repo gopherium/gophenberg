@@ -95,6 +95,21 @@ test('writes, saves, publishes, trashes and restores a post', async ({ page }) =
 	await expect(page.getByRole('link', { name: TITLE })).toBeVisible()
 })
 
+test('keeps the words of a draft the author left for the posts list', async ({ page }) => {
+	const title = `A draft the golden path left ${RUN}`
+	await openNewDraft(page)
+	await page.getByRole('textbox', { name: 'Title' }).fill(title)
+
+	await page.getByRole('link', { name: 'Back to posts' }).click()
+	await expect(page.getByRole('button', { name: 'Add New' })).toBeVisible()
+	await page.goBack()
+
+	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(title)
+	await page.getByRole('textbox', { name: 'Title' }).fill(`${title} again`)
+	await page.getByRole('button', { name: 'Save draft' }).click()
+	await expect(shown(page, 'Draft saved.')).toBeVisible()
+})
+
 test('publishes what was written without a draft save first', async ({ page }) => {
 	await openNewDraft(page)
 	await writeThePost(page)
