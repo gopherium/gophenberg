@@ -82,6 +82,7 @@ export function LanguageScreen() {
 						label={__('The site default', 'gophenberg')}
 						items={siteOptions}
 						value={siteChosen}
+						placeholder={followBrowser.label}
 						onValueChange={(item) => item?.value != null && theirs.mutate(item.value)}
 					/>
 				)}

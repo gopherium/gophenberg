@@ -30,6 +30,14 @@ test('offers every language the site answers in', async () => {
 	expect(await screen.findByRole('option', { name: 'es-ES' })).toBeInTheDocument()
 })
 
+test('names the browser as the site default when the site chose none', async () => {
+	renderAt(PATH)
+
+	const siteDefault = await screen.findByLabelText('The site default')
+
+	await waitFor(() => expect(siteDefault).toHaveTextContent('Follow the browser'))
+})
+
 test('stores the language a reader chose', async () => {
 	const sent: string[] = []
 	server.use(
