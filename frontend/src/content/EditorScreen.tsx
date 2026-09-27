@@ -63,7 +63,7 @@ export function EditorScreen() {
 	if (!sessionMayChange(session, post.data.authorId)) {
 		return <PostReadView stored={post.data} />
 	}
-	return <Editor postId={postId} stored={post.data} />
+	return <Editor key={postId} postId={postId} stored={post.data} />
 }
 
 /**
