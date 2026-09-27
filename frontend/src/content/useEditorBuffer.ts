@@ -65,16 +65,17 @@ export function useEditorBuffer(postId: string, stored: PostDetail, declared: Co
 	const [totals, setTotals] = useState(stored.fieldTotals)
 	const [version, setVersion] = useState(stored.updatedAt)
 	const shown = useMemo(() => shownValues(declared, fields), [declared, fields])
-	const [saved, setSaved] = useState({
+	const [opening] = useState(() => parse(stored.content))
+	const [saved, setSaved] = useState(() => ({
 		title: stored.title,
-		content: stored.content,
+		content: serialize(opening),
 		slug: stored.slug,
 		parentId: stored.parentId,
 		excerpt: stored.excerpt,
 		status: stored.status,
 		fields: stored.fields,
-	})
-	const history = useStateWithHistory<Block[]>(parse(stored.content))
+	}))
+	const history = useStateWithHistory<Block[]>(opening)
 	const blocks = history.value as Block[]
 	const content = useMemo(() => serialize(blocks), [blocks])
 	const write = useMutation({
