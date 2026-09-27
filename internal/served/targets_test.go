@@ -72,6 +72,33 @@ func TestValuesNamesTheTargetsARowPointsAt(t *testing.T) {
 	}
 }
 
+func TestValuesNamesARelationDeclaredAfterAContainer(t *testing.T) {
+	t.Parallel()
+
+	target := uuid.Must(uuid.NewV7())
+	stores := served.Stores{Links: fakeLinks{targets: []content.Target{
+		{ID: target, Title: "News", Path: "categories/news"},
+	}}}
+	held := postType(
+		content.Field{
+			Key: "team", Kind: content.FieldKindRepeater,
+			Fields: []content.Field{{Key: "role", Kind: content.FieldKindText}},
+		},
+		content.Field{Key: "categories", Kind: content.FieldKindRelation, RelatesTo: "category", Many: true},
+	)
+	stored := anItem(content.Values{"categories": []any{target.String()}})
+
+	values, _, err := served.Values(t.Context(), stores, held, stored)
+
+	if err != nil {
+		t.Fatalf("Values() error = %v, want nil", err)
+	}
+	named, ok := values["categories"].([]served.Target)
+	if !ok || len(named) != 1 || named[0].ID != target.String() {
+		t.Errorf("categories = %#v, want the target named past the container", values["categories"])
+	}
+}
+
 func TestValuesLeavesOutATargetNobodyServes(t *testing.T) {
 	t.Parallel()
 

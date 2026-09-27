@@ -38,9 +38,10 @@ func TestInlineMediaKeyDeletesWhatNamesNoFile(t *testing.T) {
 	t.Parallel()
 
 	for name, held := range map[string]any{
-		"a word":            "not-an-identity",
-		"a part of an item": float64(1.5),
-		"nothing at all":    nil,
+		"a word":                  "not-an-identity",
+		"a part of an item":       float64(1.5),
+		"nothing at all":          nil,
+		"a file the library lost": float64(9),
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
