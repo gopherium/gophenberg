@@ -22,8 +22,8 @@ Nothing is overwritten.
 
 ## Autosave
 
-Once a minute, and when you leave the page, the editor sends
-unsaved work to the server. On a published post it is parked
+Once a minute, when you leave the editor, and when you close the
+page, the editor sends unsaved work to the server. On a published post it is parked
 separately, so readers never see half-finished edits. On your own
 draft it is written into the draft itself, which is not public
 either way.
