@@ -65,6 +65,9 @@ func TestALinkRefusesAShapeItDoesNotHold(t *testing.T) {
 		"an address on a scheme it refuses": linkValue(
 			"javascript:alert(1)", "A page", false,
 		),
+		"an address naming a host on a scheme it refuses": linkValue(
+			"javascript://example.com/%0Aalert(1)", "A page", false,
+		),
 		"an address that is a bare word path": linkValue("about", "About", false),
 		"a path leaving for another site":     linkValue("//example.com/a", "A page", false),
 		"a path leaving behind a backslash":   linkValue(`/\example.com/a`, "A page", false),

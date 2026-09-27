@@ -133,6 +133,22 @@ func TestRepeaterRefusesFewerRowsThanItAsksFor(t *testing.T) {
 	}
 }
 
+func TestRepeaterTakesMoreRowsThanItAsksFor(t *testing.T) {
+	t.Parallel()
+
+	team := holding(t, content.FieldKindRepeater, "team", map[string]any{"min": float64(1)},
+		leaf(t, content.FieldKindText, "name", nil))
+
+	held := content.Values{"team": []any{
+		map[string]any{"name": "Maria Perez"},
+		map[string]any{"name": "Maria Perez"},
+	}}
+
+	if err := held.Validate([]content.Field{team}); err != nil {
+		t.Errorf("Validate() error = %v, want the rows above the min taken", err)
+	}
+}
+
 func TestRepeaterRefusesMoreRowsThanItTakes(t *testing.T) {
 	t.Parallel()
 

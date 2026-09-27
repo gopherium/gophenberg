@@ -44,6 +44,23 @@ func TestFilledStillRequiresAShownField(t *testing.T) {
 	}
 }
 
+func TestFilledStillRequiresAFieldDeclaredAfterAHiddenOne(t *testing.T) {
+	t.Parallel()
+
+	fields := append(switchedOn(content.FieldKindText, "sale-note"), content.Field{
+		Key: "title", Label: "Title", Kind: content.FieldKindText, Required: true,
+	})
+
+	err := content.Filled(content.Values{"on-sale": false}, fields)
+
+	if !errors.Is(err, content.ErrFieldRequired) {
+		t.Fatalf("Filled() = %v, want %v", err, content.ErrFieldRequired)
+	}
+	if details, _ := content.DetailsOf(err); details["field"] != "title" {
+		t.Errorf("DetailsOf() = %v, want the title named", details)
+	}
+}
+
 func TestFilledLeavesTheFieldsInsideAHiddenContainerAlone(t *testing.T) {
 	t.Parallel()
 

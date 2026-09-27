@@ -87,6 +87,14 @@ func TestValuesRefuseWhatTheBoundsForbid(t *testing.T) {
 			bounded(t, "homepage", content.FieldKindText, map[string]any{"variant": "url"}),
 			"gophenberg", "field_format",
 		},
+		"a url naming a host on a scheme that is no web one": {
+			bounded(t, "homepage", content.FieldKindText, map[string]any{"variant": "url"}),
+			"javascript://example.com/%0Aalert(1)", "field_format",
+		},
+		"a url no parser can read": {
+			bounded(t, "homepage", content.FieldKindText, map[string]any{"variant": "url"}),
+			"http://example.com/\x7f", "field_format",
+		},
 		"a color carrying no hash": {
 			bounded(t, "shade", content.FieldKindText, map[string]any{"variant": "color"}),
 			"3366ff", "field_format",

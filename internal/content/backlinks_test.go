@@ -149,6 +149,23 @@ func TestBacklinksReadsTheRelationItsSourceNames(t *testing.T) {
 	}
 }
 
+func TestBacklinksReadsASourceHeldInALaterGroup(t *testing.T) {
+	t.Parallel()
+
+	types := []content.Type{{Key: content.TypePost, Active: true}, {Key: "car", Active: true}}
+	groups := []content.Group{readingGroup(), sourceGroups(content.TypePost)[0]}
+
+	held, err := content.BacklinksSource(groups, types, readingGroup(),
+		backlinksField(namingSource()), content.DefaultParamRegistry(nil))
+
+	if err != nil {
+		t.Fatalf("BacklinksSource() error = %v, want nil", err)
+	}
+	if held.Key != "maker" {
+		t.Errorf("source = %q, want the maker relation", held.Key)
+	}
+}
+
 func TestBacklinksRefusesASourceItCannotFind(t *testing.T) {
 	t.Parallel()
 
