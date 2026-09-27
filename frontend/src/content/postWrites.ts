@@ -40,11 +40,21 @@ export function holdWrite<T>(client: QueryClient, postId: string, write: Promise
 }
 
 /**
+ * Returns the writes still held for a post, or nothing when none is in flight.
+ * @param client - The query client the writes belong to.
+ * @param postId - The post to look at.
+ * @returns A promise settling once they have answered, or nothing.
+ */
+export function heldWrites(client: QueryClient, postId: string): Promise<unknown> | undefined {
+	return writesOf(client).get(postId)
+}
+
+/**
  * Returns a promise settling once every write held for a post has answered.
  * @param client - The query client the writes belong to.
  * @param postId - The post to wait for.
  * @returns The promise.
  */
 export function writesSettled(client: QueryClient, postId: string): Promise<unknown> {
-	return writesOf(client).get(postId) ?? Promise.resolve()
+	return heldWrites(client, postId) ?? Promise.resolve()
 }

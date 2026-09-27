@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react'
 
 import { autosavePost } from './api'
 import type { Autosave, AutosaveBuffer, AutosaveOutcome, PostDetail } from './api'
-import { holdWrite, writesSettled } from './postWrites'
+import { heldWrites, holdWrite } from './postWrites'
 
 const AUTOSAVE_INTERVAL = 60000
 
@@ -86,9 +86,10 @@ function leave(client: QueryClient, postId: string, held: Parkable): void {
 	}
 	const words = wordsOf(held)
 	const version = held.version
-	const write = held.saving
-		? writesSettled(client, postId).then(() => autosavePost(postId, words, version))
-		: autosavePost(postId, words, version)
+	const earlier = heldWrites(client, postId)
+	const write = earlier === undefined
+		? autosavePost(postId, words, version)
+		: earlier.then(() => autosavePost(postId, words, version))
 	send(client, postId, held, write)
 	void client.resetQueries({ queryKey: ['post', postId], exact: true })
 	void client.resetQueries({ queryKey: ['post-autosave', postId], exact: true })

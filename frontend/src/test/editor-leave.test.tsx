@@ -44,6 +44,7 @@ interface Served {
 	patches: Record<string, unknown>[]
 	getGate: Promise<void> | null
 	parkGate: Promise<void> | null
+	parkGates: Promise<void>[]
 	patchGate: Promise<void> | null
 	failParks: boolean
 }
@@ -132,6 +133,7 @@ function serve(post: Record<string, unknown>): Served {
 		patches: [],
 		getGate: null,
 		parkGate: null,
+		parkGates: [],
 		patchGate: null,
 		failParks: false,
 	}
@@ -148,7 +150,7 @@ function serve(post: Record<string, unknown>): Served {
 		http.post(`/api/content/${id}/autosave`, async ({ request }) => {
 			const body = (await request.json()) as Record<string, unknown>
 			served.parks.push({ body, keepalive: request.keepalive })
-			await served.parkGate
+			await (served.parkGates.shift() ?? served.parkGate)
 			return parked(served, body)
 		}),
 		http.patch(`/api/content/${id}`, async ({ request }) => {
@@ -347,15 +349,39 @@ test('waits for a timed park still in flight when the author left', async () => 
 	await waitFor(() => expect(held.parks).toHaveLength(1))
 	await userEvent.type(titleField(), '?')
 	await openAnotherPost(router)
-	await waitFor(() => expect(held.parks).toHaveLength(2))
+	expect(held.parks).toHaveLength(1)
 
 	await comeBack(router)
 
 	expect(await screen.findByText('Loading the post.')).toBeInTheDocument()
 	parkGate.release()
+	await waitFor(() => expect(held.parks).toHaveLength(2))
 	await waitFor(() => expect(titleField()).toHaveValue('Welcome to Gophenberg!'))
 	await userEvent.click(await screen.findByRole('button', { name: 'Restore' }))
 	await waitFor(() => expect(titleField()).toHaveValue('Welcome to Gophenberg!?'))
+})
+
+test('keeps the words sent on leaving over a timed park that answers later', async () => {
+	const held = serve({ ...storedPost, status: 'published' })
+	serve(OTHER_POST)
+	const timedGate = gate()
+	const leaveGate = gate()
+	held.parkGates = [timedGate.held, leaveGate.held]
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
+	await tick(60000)
+	await waitFor(() => expect(held.parks).toHaveLength(1))
+	await userEvent.type(titleField(), '?')
+	await openAnotherPost(router)
+
+	leaveGate.release()
+	await tick(50)
+	timedGate.release()
+
+	await waitFor(() => expect(held.parks).toHaveLength(2))
+	await waitFor(() => expect(held.row).toMatchObject({ title: 'Welcome to Gophenberg!?' }))
+	await tick(50)
+	expect(held.row).toMatchObject({ title: 'Welcome to Gophenberg!?' })
 })
 
 test('drops a read that was in flight when the author left', async () => {
