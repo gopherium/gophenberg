@@ -384,6 +384,31 @@ test('keeps the words sent on leaving over a timed park that answers later', asy
 	expect(held.row).toMatchObject({ title: 'Welcome to Gophenberg!?' })
 })
 
+test('sends the waiting words at once when the page unloads before the park before them answers', async () => {
+	const held = serve({ ...storedPost, status: 'published' })
+	serve(OTHER_POST)
+	const timedGate = gate()
+	held.parkGates = [timedGate.held]
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
+	await tick(60000)
+	await waitFor(() => expect(held.parks).toHaveLength(1))
+	await userEvent.type(titleField(), '?')
+	await openAnotherPost(router)
+	expect(held.parks).toHaveLength(1)
+
+	await act(async () => {
+		window.dispatchEvent(new Event('beforeunload'))
+		await Promise.resolve()
+	})
+
+	await waitFor(() => expect(held.parks).toHaveLength(2))
+	expect(held.parks[1]).toMatchObject({ body: { title: 'Welcome to Gophenberg!?' }, keepalive: true })
+	timedGate.release()
+	await tick(50)
+	expect(held.parks).toHaveLength(2)
+})
+
 test('drops a read that was in flight when the author left', async () => {
 	const held = serve(OWN_DRAFT)
 	serve(OTHER_POST)

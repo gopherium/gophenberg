@@ -86,13 +86,32 @@ function leave(client: QueryClient, postId: string, held: Parkable): void {
 	}
 	const words = wordsOf(held)
 	const version = held.version
+	const park = (keepalive: boolean) => autosavePost(postId, words, version, keepalive)
 	const earlier = heldWrites(client, postId)
-	const write = earlier === undefined
-		? autosavePost(postId, words, version)
-		: earlier.then(() => autosavePost(postId, words, version))
-	send(client, postId, held, write)
+	send(client, postId, held, earlier === undefined ? park(false) : afterEarlier(earlier, park))
 	void client.resetQueries({ queryKey: ['post', postId], exact: true })
 	void client.resetQueries({ queryKey: ['post-autosave', postId], exact: true })
+}
+
+/**
+ * Parks words once the writes before them answer, or at once if the page unloads first.
+ * @param earlier - The writes to wait for.
+ * @param park - Sends the words, asking the request to outlive the page or not.
+ * @returns The autosave, sent once.
+ */
+function afterEarlier(
+	earlier: Promise<unknown>,
+	park: (keepalive: boolean) => Promise<AutosaveOutcome>,
+): Promise<AutosaveOutcome> {
+	let unloading: Promise<AutosaveOutcome> | undefined
+	const flush = () => {
+		unloading = park(true)
+	}
+	window.addEventListener('beforeunload', flush)
+	return earlier.then(() => {
+		window.removeEventListener('beforeunload', flush)
+		return unloading ?? park(false)
+	})
 }
 
 /**
