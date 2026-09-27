@@ -8,7 +8,8 @@ import { __ } from '@wordpress/i18n'
 import { useMemo, useState } from 'react'
 
 import { savePost } from './api'
-import type { PostChanges, PostDetail, SaveOutcome } from './api'
+import type { Autosave, PostChanges, PostDetail, SaveOutcome } from './api'
+import { holdWrite } from './postWrites'
 import type { ContentField } from './types'
 import { shownValues } from './conditions'
 import { changedFieldValues, sameFieldValues } from './fieldValues'
@@ -43,7 +44,7 @@ export interface EditorBuffer {
 	redo: () => void
 	save: () => void
 	publish: () => void
-	adoptVersion: (version: string) => void
+	adoptParked: (parked: Autosave) => void
 }
 
 /**
@@ -79,12 +80,12 @@ export function useEditorBuffer(postId: string, stored: PostDetail, declared: Co
 	const blocks = history.value as Block[]
 	const content = useMemo(() => serialize(blocks), [blocks])
 	const write = useMutation({
-		mutationFn: (changes: PostChanges) => savePost(postId, changes, version),
+		mutationFn: (changes: PostChanges) => holdWrite(client, postId, savePost(postId, changes, version)),
 		onSuccess: async (outcome, changes) => {
 			toaster.show(reportOf(outcome, changes))
 			if (outcome.kind === 'saved') {
 				adopt(outcome.post)
-				client.setQueryData(['post', postId], outcome.post)
+				client.setQueryData<PostDetail>(['post', postId], (cached) => cached && outcome.post)
 				await Promise.all([
 					client.invalidateQueries({ queryKey: ['posts'] }),
 					client.invalidateQueries({ queryKey: ['post-counts'] }),
@@ -180,7 +181,16 @@ export function useEditorBuffer(postId: string, stored: PostDetail, declared: Co
 				parent_id: parentId,
 				fields: changedFieldValues(shown, saved.fields),
 			}),
-		adoptVersion: setVersion,
+		adoptParked: (parked: Autosave) => {
+			setSaved((held) => ({
+				...held,
+				title: parked.title,
+				content: parked.content,
+				excerpt: parked.excerpt,
+				fields: { ...held.fields, ...parked.fields },
+			}))
+			setVersion(parked.savedAt)
+		},
 	}
 }
 

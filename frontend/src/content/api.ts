@@ -220,9 +220,8 @@ export interface Autosave extends AutosaveBuffer {
 	savedAt: string
 }
 
-export interface AutosaveOutcome {
+export interface AutosaveOutcome extends Autosave {
 	target: string
-	savedAt: string
 }
 
 const autosaveSchema = z.object({
@@ -235,16 +234,11 @@ const autosaveSchema = z.object({
 })
 
 /**
- * Returns the autosave the server holds for a post.
- * @param id - The post to read the autosave of.
- * @returns The autosave, or nothing when the server holds none.
+ * Returns the autosave an answer describes.
+ * @param row - The answer as the server wrote it.
+ * @returns The autosave.
  */
-export async function fetchAutosave(id: string): Promise<Autosave | null> {
-	const response = await fetch(`/api/content/${id}/autosave`)
-	if (!response.ok) {
-		return null
-	}
-	const row = autosaveSchema.parse(await response.json())
+function toAutosave(row: z.infer<typeof autosaveSchema>): Autosave {
 	return {
 		title: row.title,
 		content: row.content,
@@ -255,12 +249,25 @@ export async function fetchAutosave(id: string): Promise<Autosave | null> {
 }
 
 /**
+ * Returns the autosave the server holds for a post.
+ * @param id - The post to read the autosave of.
+ * @returns The autosave, or nothing when the server holds none.
+ */
+export async function fetchAutosave(id: string): Promise<Autosave | null> {
+	const response = await fetch(`/api/content/${id}/autosave`)
+	if (!response.ok) {
+		return null
+	}
+	return toAutosave(autosaveSchema.parse(await response.json()))
+}
+
+/**
  * Parks the given buffer as the caller's autosave of a post.
  * @param id - The post the buffer belongs to.
  * @param buffer - The words to park.
  * @param version - The updatedAt the buffer was prepared against.
  * @param keepalive - Whether the request should outlive the page.
- * @returns Where the buffer landed and the time the server stamped it.
+ * @returns Where the buffer landed, the words it holds there and the time the server stamped it.
  */
 export async function autosavePost(
 	id: string,
@@ -278,7 +285,7 @@ export async function autosavePost(
 		throw new Error(`autosaving a post failed with status ${response.status}`)
 	}
 	const row = autosaveSchema.parse(await response.json())
-	return { target: row.target, savedAt: row.saved_at }
+	return { ...toAutosave(row), target: row.target }
 }
 
 /**

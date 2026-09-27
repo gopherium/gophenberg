@@ -97,11 +97,15 @@ test('states its version when parking a buffer', async () => {
 	expect(parked[0].body).toMatchObject({ updated_at: storedPost.updated_at })
 })
 
-test('takes the version of an autosave that reached the post', async () => {
+test('takes the version and the words of an autosave that reached the post', async () => {
 	autosaveLands('post', WRITTEN_AT)
 	renderAt(EDITOR_PATH)
 	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
 	await tick(60000)
+	await waitFor(() =>
+		expect(screen.getByRole('button', { name: 'Save draft' })).toHaveAttribute('aria-disabled', 'true'),
+	)
+	await userEvent.type(screen.getByRole('textbox', { name: 'Title' }), '?')
 
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
