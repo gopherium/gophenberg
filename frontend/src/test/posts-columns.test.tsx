@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, onTestFinished, test } from 'vitest'
+import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { fieldTerms } from '../content/fields'
 import { renderAt, renderRoutedAt } from './render'
@@ -125,9 +125,9 @@ test('reads each value the way its kind is written', async () => {
 })
 
 test('shows a date field on the day it holds west of UTC', async () => {
-	process.env.TZ = 'America/New_York'
+	vi.stubEnv('TZ', 'America/New_York')
 	onTestFinished(() => {
-		process.env.TZ = 'UTC'
+		vi.unstubAllEnvs()
 	})
 	declaring([SINCE])
 	renderAt('/content/post')
