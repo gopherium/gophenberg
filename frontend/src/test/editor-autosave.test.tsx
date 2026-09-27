@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
@@ -55,6 +55,18 @@ test('saves a dirty post once its interval comes round', async () => {
 
 	await waitFor(() => expect(parks).toHaveLength(1))
 	expect(parks[0].body).toMatchObject({ title: 'Welcome to Gophenberg!' })
+	expect(parks[0].keepalive).toBe(false)
+})
+
+test('stops its timer once the editor has closed', async () => {
+	renderAt(EDITOR_PATH)
+	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
+	cleanup()
+	await waitFor(() => expect(parks).toHaveLength(1))
+
+	await tick(120000)
+
+	expect(parks).toHaveLength(1)
 })
 
 test('holds off until the interval comes round', async () => {
