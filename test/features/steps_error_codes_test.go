@@ -92,7 +92,7 @@ func theErrorNamesUnder(ctx context.Context, want, key string) error {
 		return err
 	}
 	if got := w.answer.errorDetail(key); got != want {
-		return fmt.Errorf("the error carries %v under %q, want %q", got, key, want)
+		return fmt.Errorf("the error carries %q under %q, want %q", got, key, want)
 	}
 	return nil
 }
