@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test } from 'vitest'
+import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { fieldTerms } from '../content/fields'
 import { renderAt, renderRoutedAt } from './render'
@@ -122,6 +122,19 @@ test('reads each value the way its kind is written', async () => {
 	expect(row).toHaveTextContent('10')
 	expect(row).toHaveTextContent('Yes')
 	expect(row).toHaveTextContent('Red')
+})
+
+test('shows a date field on the day it holds west of UTC', async () => {
+	vi.stubEnv('TZ', 'America/New_York')
+	onTestFinished(() => {
+		vi.unstubAllEnvs()
+	})
+	declaring([SINCE])
+	renderAt('/content/post')
+
+	const row = within(await screen.findByRole('table')).getAllByRole('row')[1]
+
+	expect(row).toHaveTextContent('9/5/2026')
 })
 
 test('shows a listed link by its title', async () => {

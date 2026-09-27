@@ -112,7 +112,7 @@ function shownValue(declared: ContentField, held: unknown): string {
 		return held === true ? __('Yes', 'gophenberg') : __('No', 'gophenberg')
 	}
 	if (declared.kind === 'date' && typeof held === 'string') {
-		return formatDate(held)
+		return formatDate(held, { timeZone: 'UTC' })
 	}
 	if (declared.kind === 'choice') {
 		return chosenLabels(declared, held)
