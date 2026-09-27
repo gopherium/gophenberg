@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"image"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -380,6 +381,52 @@ func TestIngestRefusesWhatItCannotTrust(t *testing.T) {
 
 			wantRefused(t, err, tc.reason)
 			wantEmptyDir(t, library)
+		})
+	}
+}
+
+func TestIngestRefusalCarriesTheValuesItsMessageNames(t *testing.T) {
+	t.Parallel()
+
+	named := []struct {
+		name string
+		file string
+		data []byte
+		code string
+		meta map[string]any
+	}{
+		{"a text file", "notes.txt", []byte("meeting notes"), "file_type_not_allowed", map[string]any{"extension": "txt"}},
+		{"a name without extension", "README", []byte("hello"), "file_type_not_allowed", nil},
+		{
+			"executable content named jpeg", "harbor.jpg", []byte("MZ\x90\x00"), "file_content_mismatch",
+			map[string]any{"extension": "jpg", "detected": "application/octet-stream"},
+		},
+		{
+			"a pixel bomb", "bomb.png", pixelSizedPNG(20_000, 20_000), "image_pixel_budget_exceeded",
+			map[string]any{"width": 20_000, "height": 20_000, "max": 80_000_000},
+		},
+		{
+			"an animation with a frame past the budget", "loader.gif", withFrameBeyondTheBudget(t, animatedGIF(t)),
+			"image_frame_too_large", map[string]any{"max": 80_000_000},
+		},
+		{"a picture holding no pixels", "blank.gif", []byte("GIF89a\x00\x00\x00\x00\x00\x00\x00;"), "image_unreadable", nil},
+	}
+	for _, tc := range named {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := newLibrary(t).Ingest(t.Context(), tc.file, tc.data, uuid.Must(uuid.NewV7()))
+
+			var refused *mediahost.Error
+			if !errors.As(err, &refused) {
+				t.Fatalf("error = %v, want it refused with the code %q", err, tc.code)
+			}
+			if refused.Code != tc.code {
+				t.Errorf("code = %q, want %q", refused.Code, tc.code)
+			}
+			if !maps.Equal(refused.Meta, tc.meta) {
+				t.Errorf("meta = %v, want %v", refused.Meta, tc.meta)
+			}
 		})
 	}
 }

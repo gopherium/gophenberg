@@ -160,9 +160,15 @@ func decodeBudget(data []byte) (image.Config, error) {
 	if err != nil {
 		return image.Config{}, refuse("image_unreadable", "the image cannot be read", "reading the header: %w", err)
 	}
-	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width > maxPixels/cfg.Height {
-		return image.Config{}, refuse("image_frame_too_large", "the image is too large",
+	if cfg.Width <= 0 || cfg.Height <= 0 {
+		return image.Config{}, refuse("image_unreadable", "the image cannot be read",
+			"the header declares %dx%d pixels", cfg.Width, cfg.Height)
+	}
+	if cfg.Width > maxPixels/cfg.Height {
+		refused := refuse("image_pixel_budget_exceeded", "the image is too large",
 			"%dx%d exceeds the %d pixel budget", cfg.Width, cfg.Height, maxPixels)
+		refused.Meta = map[string]any{"width": cfg.Width, "height": cfg.Height, "max": maxPixels}
+		return image.Config{}, refused
 	}
 	return cfg, nil
 }
@@ -171,7 +177,9 @@ func decodeBudget(data []byte) (image.Config, error) {
 func isAnimated(data []byte) (bool, error) {
 	frames, err := gifFrames(data)
 	if errors.Is(err, errGIFFrameTooLarge) {
-		return false, refuse("image_frame_too_large", "the image is too large", "walking the animation: %w", err)
+		refused := refuse("image_frame_too_large", "the image is too large", "walking the animation: %w", err)
+		refused.Meta = map[string]any{"max": maxPixels}
+		return false, refused
 	}
 	if err != nil {
 		return false, refuse("image_unreadable", "the image cannot be read", "reading the animation: %w", err)
