@@ -144,6 +144,23 @@ func TestContentAPIRejectsMalformedPaging(t *testing.T) {
 	}
 }
 
+func TestContentAPIServesTheFirstPageWhenAsked(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	handler := contentServer(t, publishedFixture(t, "only", blockMarkup, now))
+
+	recorder := getContent(t, handler, "/api/content/v1/items?page=1")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"page":1`) || !strings.Contains(body, `"total":1`) {
+		t.Errorf("body = %q, want the first page holding the one item", body)
+	}
+}
+
 func TestContentAPIServesAPageBeyondTheLastAsEmpty(t *testing.T) {
 	t.Parallel()
 

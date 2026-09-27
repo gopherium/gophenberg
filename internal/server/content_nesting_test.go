@@ -186,6 +186,28 @@ func TestContentPatchReturnsAnItemToTheRoot(t *testing.T) {
 	}
 }
 
+func TestContentPatchKeepsTheParentWhenTheBodyOmitsIt(t *testing.T) {
+	t.Parallel()
+
+	handler := authedNestingServer(t)
+	about := createPage(t, handler, "About", "")
+	team := createPage(t, handler, "Team", about.body.ID.String())
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+team.body.ID.String(),
+		versionedBody(t, team.body.UpdatedAt, map[string]any{"title": "Our Team"}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := decodeBody[postBody](t, recorder)
+	if body.ParentID == nil || *body.ParentID != about.body.ID {
+		t.Errorf("parent = %v, want %v kept", body.ParentID, about.body.ID)
+	}
+	if body.Path != "pages/about/team" {
+		t.Errorf("path = %q, want pages/about/team kept", body.Path)
+	}
+}
+
 func TestContentPatchRefusesNestingAnItemInsideItself(t *testing.T) {
 	t.Parallel()
 

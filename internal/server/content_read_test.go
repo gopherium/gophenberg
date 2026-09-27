@@ -165,6 +165,18 @@ func TestPostListRejectsInvalidParameters(t *testing.T) {
 	}
 }
 
+func TestPostListAcceptsTheLargestPageSize(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _ := authedPostServer(t)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content?per_page=100", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+}
+
 func TestPostListReportsStoreFailures(t *testing.T) {
 	t.Parallel()
 
