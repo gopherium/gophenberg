@@ -410,6 +410,7 @@ func TestIngestRefusalCarriesTheValuesItsMessageNames(t *testing.T) {
 			"image_frame_too_large", map[string]any{"max": 80_000_000},
 		},
 		{"a picture holding no pixels", "blank.gif", []byte("GIF89a\x00\x00\x00\x00\x00\x00\x00;"), "image_unreadable", nil},
+		{"a picture holding no rows", "flat.gif", []byte("GIF89a\x01\x00\x00\x00\x00\x00\x00;"), "image_unreadable", nil},
 	}
 	for _, tc := range named {
 		t.Run(tc.name, func(t *testing.T) {
@@ -428,6 +429,17 @@ func TestIngestRefusalCarriesTheValuesItsMessageNames(t *testing.T) {
 				t.Errorf("meta = %v, want %v", refused.Meta, tc.meta)
 			}
 		})
+	}
+}
+
+func TestIngestTakesAPictureExactlyAtThePixelBudget(t *testing.T) {
+	t.Parallel()
+
+	_, err := newLibrary(t).Ingest(t.Context(), "edge.png", pixelSizedPNG(10_000, 8_000), uuid.Must(uuid.NewV7()))
+
+	var refused *mediahost.Error
+	if errors.As(err, &refused) && refused.Code == "image_pixel_budget_exceeded" {
+		t.Errorf("error = %v, want a picture of exactly the budget let past the budget check", err)
 	}
 }
 
