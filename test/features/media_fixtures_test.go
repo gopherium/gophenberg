@@ -93,6 +93,13 @@ func pixelBombPNG() []byte {
 	return append(bomb, pngChunk("IHDR", header)...)
 }
 
+// oversizedFrameGIF returns a GIF whose one frame declares far more pixels than the budget.
+func oversizedFrameGIF() []byte {
+	screen := append([]byte("GIF89a"), 1, 0, 1, 0, 0x00, 0, 0)
+	frame := []byte{0x2C, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 2, 1, 0, 0, 0x3B}
+	return append(screen, frame...)
+}
+
 // pngChunk returns a PNG chunk of the given type and body.
 func pngChunk(kind string, body []byte) []byte {
 	chunk := make([]byte, 0, len(body)+12)
@@ -107,6 +114,8 @@ func flawedUpload(flaw string) (string, []byte, error) {
 	switch flaw {
 	case "carries a type outside the allowed set":
 		return "notes.txt", []byte("meeting notes"), nil
+	case "carries no extension":
+		return "notes", []byte("meeting notes"), nil
 	case "is an SVG document":
 		return "drawing.svg", []byte(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`), nil
 	case "names a JPEG but carries executable content":
@@ -115,6 +124,8 @@ func flawedUpload(flaw string) (string, []byte, error) {
 		return "huge.jpg", bytes.Repeat([]byte{0}, 3<<20), nil
 	case "decodes to more pixels than the budget":
 		return "bomb.png", pixelBombPNG(), nil
+	case "is an animation with a frame past the budget":
+		return "loader.gif", oversizedFrameGIF(), nil
 	case "is a corrupt image":
 		return "broken.jpg", append([]byte{0xFF, 0xD8, 0xFF, 0xE0}, []byte("not a picture")...), nil
 	default:
