@@ -5,7 +5,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
-import { adminUser, renderAt } from './render'
+import { adminUser, renderAt, renderRoutedAt } from './render'
 
 const PATH = '/language'
 
@@ -28,6 +28,15 @@ test('offers every language the site answers in', async () => {
 	await userEvent.click(await screen.findByLabelText('Your language'))
 
 	expect(await screen.findByRole('option', { name: 'es-ES' })).toBeInTheDocument()
+})
+
+test('names the browser as the site default when the site chose none', async () => {
+	const { client } = renderRoutedAt(PATH)
+
+	await screen.findByLabelText('The site default')
+	await waitFor(() => expect(client.getQueryData(['site-locale'])).toBe(''))
+
+	await waitFor(() => expect(screen.getByLabelText('The site default')).toHaveTextContent('Follow the browser'))
 })
 
 test('stores the language a reader chose', async () => {
