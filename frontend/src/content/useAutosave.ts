@@ -86,6 +86,11 @@ function leave(client: QueryClient, postId: string, held: Parkable): void {
 	}
 	const words = wordsOf(held)
 	const version = held.version
+	/**
+	 * Sends the words the editor closed with.
+	 * @param keepalive - Whether the request should outlive the page.
+	 * @returns Where the words landed.
+	 */
 	const park = (keepalive: boolean) => autosavePost(postId, words, version, keepalive)
 	const earlier = heldWrites(client, postId)
 	send(client, postId, held, earlier === undefined ? park(false) : afterEarlier(earlier, park))
@@ -105,7 +110,7 @@ function afterEarlier(
 ): Promise<AutosaveOutcome> {
 	let unloading: Promise<AutosaveOutcome> | undefined
 	const flush = () => {
-		unloading = park(true)
+		unloading ??= park(true)
 	}
 	window.addEventListener('beforeunload', flush)
 	return earlier.then(() => {

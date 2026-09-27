@@ -399,10 +399,13 @@ test('sends the waiting words at once when the page unloads before the park befo
 
 	await act(async () => {
 		window.dispatchEvent(new Event('beforeunload'))
+		window.dispatchEvent(new Event('beforeunload'))
 		await Promise.resolve()
 	})
 
 	await waitFor(() => expect(held.parks).toHaveLength(2))
+	await tick(50)
+	expect(held.parks).toHaveLength(2)
 	expect(held.parks[1]).toMatchObject({ body: { title: 'Welcome to Gophenberg!?' }, keepalive: true })
 	timedGate.release()
 	await tick(50)
