@@ -117,31 +117,36 @@ func TestOrientPlacesEveryOrientationUpright(t *testing.T) {
 
 	red := color.RGBA{R: 255, A: 255}
 	green := color.RGBA{G: 255, A: 255}
+	blue := color.RGBA{B: 255, A: 255}
 	source := image.NewRGBA(image.Rect(0, 0, 2, 2))
 	source.Set(0, 0, red)
 	source.Set(1, 0, green)
-	source.Set(0, 1, color.RGBA{B: 255, A: 255})
+	source.Set(0, 1, blue)
 	source.Set(1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 
-	corners := map[int][2][2]int{
-		1: {{0, 0}, {1, 0}},
-		2: {{1, 0}, {0, 0}},
-		3: {{1, 1}, {0, 1}},
-		4: {{0, 1}, {1, 1}},
-		5: {{0, 0}, {0, 1}},
-		6: {{1, 0}, {1, 1}},
-		7: {{1, 1}, {1, 0}},
-		8: {{0, 1}, {0, 0}},
+	corners := map[int][3][2]int{
+		1: {{0, 0}, {1, 0}, {0, 1}},
+		2: {{1, 0}, {0, 0}, {1, 1}},
+		3: {{1, 1}, {0, 1}, {1, 0}},
+		4: {{0, 1}, {1, 1}, {0, 0}},
+		5: {{0, 0}, {0, 1}, {1, 0}},
+		6: {{1, 0}, {1, 1}, {0, 0}},
+		7: {{1, 1}, {1, 0}, {0, 1}},
+		8: {{0, 1}, {0, 0}, {1, 1}},
 	}
 	for orientation, want := range corners {
 		got := orient(source, orientation)
 		redAt := got.At(want[0][0], want[0][1])
 		greenAt := got.At(want[1][0], want[1][1])
+		blueAt := got.At(want[2][0], want[2][1])
 		if redAt != red {
 			t.Errorf("orientation %d places %v at %v, want the red corner", orientation, redAt, want[0])
 		}
 		if greenAt != green {
 			t.Errorf("orientation %d places %v at %v, want the green corner", orientation, greenAt, want[1])
+		}
+		if blueAt != blue {
+			t.Errorf("orientation %d places %v at %v, want the blue corner", orientation, blueAt, want[2])
 		}
 	}
 }

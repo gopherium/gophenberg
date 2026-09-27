@@ -37,6 +37,7 @@ func TestGIFFramesRefusesWhatItCannotWalk(t *testing.T) {
 		"a frame with no width":   bareGIF(0x2C, 0, 0, 0, 0, 0, 0, 1, 0, 0x00, 2, 1, 0, 0, 0x3B),
 		"a frame with no height":  bareGIF(0x2C, 0, 0, 0, 0, 1, 0, 0, 0, 0x00, 2, 1, 0, 0, 0x3B),
 		"a frame cut at its data": bareGIF(0x2C, 0, 0, 0, 0, 1, 0, 1, 0, 0x00),
+		"a frame over the budget": bareGIF(0x2C, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 2, 1, 0, 0, 0x3B),
 	}
 	for name, data := range unwalkable {
 		if _, err := gifFrames(data); err == nil {
