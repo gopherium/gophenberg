@@ -6,6 +6,7 @@ import { Page } from '@gopherium/godmin'
 import { __ } from '@wordpress/i18n'
 
 import type { PostDetail } from './api'
+import { TrashedNotice } from './TrashedNotice'
 
 /**
  * Renders a post the session may not edit as a reading view without a form.
@@ -16,11 +17,7 @@ export function PostReadView({ stored, mine }: { stored: PostDetail, mine: boole
 	return (
 		<Page title={stored.title === '' ? __('(no title)', 'gophenberg') : stored.title}>
 			{mine ? (
-				<Notice.Root intent="warning">
-					<Notice.Description>
-						{__('This item is in the trash. Restore it first to work on it again.', 'gophenberg')}
-					</Notice.Description>
-				</Notice.Root>
+				<TrashedNotice postId={stored.id} />
 			) : (
 				<Notice.Root intent="info">
 					<Notice.Description>
