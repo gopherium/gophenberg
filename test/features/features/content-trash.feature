@@ -12,28 +12,24 @@ Feature: The trash
     And the editor autosaves "Hello world" as "Hello again"
     Then the request is refused with the code "content_trashed"
 
-  @wip
   Scenario: A post in the trash keeps its title
     Given the post "Hello world"
     When the administrator trashes "Hello world"
     And the editor saves "Hello world" as "Hello again"
     Then the request is refused with the code "content_trashed"
 
-  @wip
   Scenario: A post in the trash is not published
     Given the post "Hello world"
     When the administrator trashes "Hello world"
     And the administrator publishes "Hello world"
     Then the request is refused with the code "content_trashed"
 
-  @wip
   Scenario: A post in the trash keeps its address
     Given the post "Hello world"
     When the administrator trashes "Hello world"
     And the administrator renames "Hello world" to "hello-world"
     Then the request is refused with the code "content_trashed"
 
-  @wip
   Scenario: A post in the trash keeps its values
     Given the "text" field "subtitle" labeled "Subtitle" on "post"
     And the post "Hello world"
@@ -41,7 +37,6 @@ Feature: The trash
     And the administrator saves "Draft words" into "subtitle" of "Hello world"
     Then the request is refused with the code "content_trashed"
 
-  @wip
   Scenario: A page in the trash keeps its place
     Given the type "page" labeled "Page" and "Pages" under "pages" that nests
     And the page "About"
