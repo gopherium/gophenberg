@@ -46,7 +46,7 @@ interface Served {
 	parkGate: Promise<void> | null
 	parkGates: Promise<void>[]
 	patchGate: Promise<void> | null
-	failParks: boolean
+	failParks: number
 }
 
 type Router = ReturnType<typeof renderRoutedAt>['router']
@@ -86,7 +86,8 @@ function nextStamp(): string {
  * @returns The answer.
  */
 function parked(served: Served, body: Record<string, unknown>) {
-	if (served.failParks) {
+	if (served.failParks > 0) {
+		served.failParks -= 1
 		return HttpResponse.json({ error: 'internal error' }, { status: 500 })
 	}
 	const words = { title: body.title, content: body.content, excerpt: body.excerpt }
@@ -135,7 +136,7 @@ function serve(post: Record<string, unknown>): Served {
 		parkGate: null,
 		parkGates: [],
 		patchGate: null,
-		failParks: false,
+		failParks: 0,
 	}
 	const id = String(post.id)
 	server.use(
@@ -412,6 +413,91 @@ test('sends the waiting words at once when the page unloads before the park befo
 	expect(held.parks).toHaveLength(2)
 })
 
+test('sends the waiting words after all when the unload save failed and the page stayed', async () => {
+	const held = serve({ ...storedPost, status: 'published' })
+	serve(OTHER_POST)
+	const timedGate = gate()
+	held.parkGates = [timedGate.held]
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
+	await tick(60000)
+	await waitFor(() => expect(held.parks).toHaveLength(1))
+	await userEvent.type(titleField(), '?')
+	await openAnotherPost(router)
+	held.failParks = 1
+	await act(async () => {
+		window.dispatchEvent(new Event('beforeunload'))
+		await Promise.resolve()
+	})
+	await waitFor(() => expect(held.parks).toHaveLength(2))
+	await tick(50)
+
+	timedGate.release()
+
+	await waitFor(() => expect(held.parks).toHaveLength(3))
+	expect(held.parks[2]).toMatchObject({ body: { title: 'Welcome to Gophenberg!?' }, keepalive: false })
+	await waitFor(() => expect(held.row).toMatchObject({ title: 'Welcome to Gophenberg!?' }))
+})
+
+test('sends the waiting words after all when the unload save fails once the earlier park answered', async () => {
+	const held = serve({ ...storedPost, status: 'published' })
+	serve(OTHER_POST)
+	const timedGate = gate()
+	const unloadGate = gate()
+	held.parkGates = [timedGate.held, unloadGate.held]
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
+	await tick(60000)
+	await waitFor(() => expect(held.parks).toHaveLength(1))
+	await userEvent.type(titleField(), '?')
+	await openAnotherPost(router)
+	await act(async () => {
+		window.dispatchEvent(new Event('beforeunload'))
+		await Promise.resolve()
+	})
+	await waitFor(() => expect(held.parks).toHaveLength(2))
+	timedGate.release()
+	await waitFor(() => expect(held.row).toMatchObject({ title: 'Welcome to Gophenberg!' }))
+	held.failParks = 1
+
+	unloadGate.release()
+
+	await waitFor(() => expect(held.parks).toHaveLength(3))
+	expect(held.parks[2]).toMatchObject({ body: { title: 'Welcome to Gophenberg!?' }, keepalive: false })
+	await waitFor(() => expect(held.row).toMatchObject({ title: 'Welcome to Gophenberg!?' }))
+})
+
+test('tries again when the page unloads after an unload save failed', async () => {
+	const held = serve({ ...storedPost, status: 'published' })
+	serve(OTHER_POST)
+	const timedGate = gate()
+	held.parkGates = [timedGate.held]
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
+	await tick(60000)
+	await waitFor(() => expect(held.parks).toHaveLength(1))
+	await userEvent.type(titleField(), '?')
+	await openAnotherPost(router)
+	held.failParks = 1
+	await act(async () => {
+		window.dispatchEvent(new Event('beforeunload'))
+		await Promise.resolve()
+	})
+	await waitFor(() => expect(held.parks).toHaveLength(2))
+	await tick(50)
+
+	await act(async () => {
+		window.dispatchEvent(new Event('beforeunload'))
+		await Promise.resolve()
+	})
+
+	await waitFor(() => expect(held.parks).toHaveLength(3))
+	expect(held.parks[2]).toMatchObject({ body: { title: 'Welcome to Gophenberg!?' }, keepalive: true })
+	timedGate.release()
+	await tick(50)
+	expect(held.parks).toHaveLength(3)
+})
+
 test('drops a read that was in flight when the author left', async () => {
 	const held = serve(OWN_DRAFT)
 	serve(OTHER_POST)
@@ -434,7 +520,7 @@ test('drops a read that was in flight when the author left', async () => {
 test('shows the post as stored when the leave park fails', async () => {
 	const held = serve(OWN_DRAFT)
 	serve(OTHER_POST)
-	held.failParks = true
+	held.failParks = 1
 	const { router } = renderRoutedAt(EDITOR_PATH)
 	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
 	await openAnotherPost(router)

@@ -110,12 +110,19 @@ function afterEarlier(
 ): Promise<AutosaveOutcome> {
 	let unloading: Promise<AutosaveOutcome> | undefined
 	const flush = () => {
-		unloading ??= park(true)
+		if (unloading !== undefined) {
+			return
+		}
+		const attempt = park(true)
+		unloading = attempt
+		attempt.catch(() => {
+			unloading = undefined
+		})
 	}
 	window.addEventListener('beforeunload', flush)
 	return earlier.then(() => {
 		window.removeEventListener('beforeunload', flush)
-		return unloading ?? park(false)
+		return unloading === undefined ? park(false) : unloading.catch(() => park(false))
 	})
 }
 
