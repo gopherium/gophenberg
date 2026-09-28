@@ -19,6 +19,7 @@ export function TrashedNotice({ postId }: { postId: string }) {
 		mutationFn: () => restorePost(postId),
 		onSuccess: () =>
 			Promise.all([client.invalidateQueries({ queryKey: ['post', postId], exact: true }), refresh()]),
+		onError: () => client.invalidateQueries({ queryKey: ['post', postId], exact: true }),
 	})
 	const message = restore.isError
 		? __('Could not restore that post.', 'gophenberg')
