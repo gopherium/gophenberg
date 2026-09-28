@@ -57,6 +57,8 @@ export function RestoreBanner({
 	const kept = useQuery({
 		queryKey: ['post-autosave', postId],
 		queryFn: () => writesSettled(client, postId).then(() => fetchAutosave(postId)),
+		staleTime: 'static',
+		gcTime: 0,
 	})
 	const offer = offerable(kept.data, stored)
 	if (offer === null || taken) {
