@@ -12,11 +12,20 @@ if (base === undefined) {
 }
 
 const root = repositoryRoot()
-const git = (args: string[]): string => execFileSync('git', args, { cwd: root, encoding: 'utf8' })
+
+/**
+ * Returns what git prints for the arguments, run at the repository root.
+ * @param args - The git arguments.
+ * @returns The output, however long it is.
+ */
+const git = (args: string[]): string => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: Infinity })
 const roots = ['frontend/src', 'frontend/scripts', 'sdk/frontend', 'plugins']
 const diff = git([
+	'-c',
+	'core.quotePath=false',
 	'diff',
 	'--unified=0',
+	'--inter-hunk-context=0',
 	'--no-color',
 	'--no-ext-diff',
 	'--src-prefix=a/',
@@ -27,7 +36,7 @@ const diff = git([
 	'--',
 	...roots,
 ])
-const untracked = git(['ls-files', '--others', '--exclude-standard', '--', ...roots]).split('\n').filter(Boolean)
+const untracked = git(['ls-files', '-z', '--others', '--exclude-standard', '--', ...roots]).split('\0').filter(Boolean)
 const targets = mutateTargets(diff, untracked, strykerPatterns())
 
 if (targets.length === 0) {
