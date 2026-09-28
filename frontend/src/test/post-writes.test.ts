@@ -20,7 +20,7 @@ function pendingWrite(): { write: Promise<void>, answer: () => void } {
 /**
  * Lets every promise already settled run its callbacks.
  */
-async function settle() {w
+async function settle() {
 	await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
