@@ -45,7 +45,6 @@ Feature: The trash
     And the administrator files "Team" under "About"
     Then the request is refused with the code "content_trashed"
 
-  @wip
   Scenario: A post sent to the trash holds no parked words
     Given the published post "Hello world"
     And the editor parked "Hello again" on "Hello world"
