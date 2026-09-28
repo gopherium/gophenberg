@@ -84,6 +84,58 @@ test('reads a removed line starting with dashes as content, not as a file header
 	expect(mutateTargets(diff, [], PATTERNS)).toEqual(['frontend/src/users/screen.tsx:2-2'])
 })
 
+test('reads a removed line and an added line shaped like file headers as content', () => {
+	const diff = [
+		diffOf('frontend/src/users/screen.tsx', '@@ -1 +1,2 @@'),
+		'--- a/frontend/src/users/other.tsx',
+		'+++ b/frontend/src/users/other.tsx',
+		'@@ -9 +10 @@',
+		'+later',
+	].join('\n')
+
+	expect(mutateTargets(diff, [], PATTERNS)).toEqual([
+		'frontend/src/users/screen.tsx:1-2',
+		'frontend/src/users/screen.tsx:10-10',
+	])
+})
+
+test('reads a hunk header with counts of several digits', () => {
+	const diff = diffOf('frontend/src/users/screen.tsx', '@@ -40,12 +40,15 @@')
+
+	expect(mutateTargets(diff, [], PATTERNS)).toEqual(['frontend/src/users/screen.tsx:40-54'])
+})
+
+test('reads an added line holding hunk header text as content', () => {
+	const diff = [diffOf('frontend/src/users/screen.tsx', '@@ -1 +1 @@'), "+const hunk = '@@ -9 +10 @@'"].join('\n')
+
+	expect(mutateTargets(diff, [], PATTERNS)).toEqual(['frontend/src/users/screen.tsx:1-1'])
+})
+
+test('reads a file name with a space without the tab git ends it with', () => {
+	const diff = [
+		'diff --git a/frontend/src/users/my screen.tsx b/frontend/src/users/my screen.tsx',
+		'--- a/frontend/src/users/my screen.tsx\t',
+		'+++ b/frontend/src/users/my screen.tsx\t',
+		'@@ -5 +5 @@',
+		'+changed',
+	].join('\n')
+
+	expect(mutateTargets(diff, [], PATTERNS)).toEqual(['frontend/src/users/my screen.tsx:5-5'])
+})
+
+test('gives no lines of a file whose name git quotes to the file before it', () => {
+	const diff = [
+		diffOf('frontend/src/users/screen.tsx', '@@ -2 +2 @@'),
+		'diff --git "a/frontend/src/users/tab\\tname.tsx" "b/frontend/src/users/tab\\tname.tsx"',
+		'--- "a/frontend/src/users/tab\\tname.tsx"',
+		'+++ "b/frontend/src/users/tab\\tname.tsx"',
+		'@@ -7 +7 @@',
+		'+changed',
+	].join('\n')
+
+	expect(mutateTargets(diff, [], PATTERNS)).toEqual(['frontend/src/users/screen.tsx:2-2'])
+})
+
 test('keeps a changed source file a pattern names', () => {
 	expect(mutatedFiles(['frontend/src/users/screen.tsx'], PATTERNS)).toEqual(['frontend/src/users/screen.tsx'])
 })

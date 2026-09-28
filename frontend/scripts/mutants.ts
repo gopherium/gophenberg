@@ -46,15 +46,18 @@ export function mutateTargets(diff: string, untracked: string[], patterns: strin
 function changedLines(diff: string): Map<string, string[]> {
 	const ranges = new Map<string, string[]>()
 	let file = ''
-	let previous = ''
+	let header = false
 	for (const line of diff.split('\n')) {
 		const hunk = HUNK.exec(line)
-		if (line.startsWith('+++ b/') && previous.startsWith('--- ')) {
-			file = line.slice('+++ b/'.length)
+		if (line.startsWith('diff --git ')) {
+			file = ''
+			header = true
+		} else if (header && line.startsWith('+++ b/')) {
+			file = line.slice('+++ b/'.length).replace(/\t$/, '')
 		} else if (hunk !== null) {
+			header = false
 			addRange(ranges, file, Number(hunk[1]), Number(hunk[2] ?? '1'))
 		}
-		previous = line
 	}
 	return ranges
 }
