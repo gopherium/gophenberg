@@ -590,6 +590,9 @@ test('keeps the values it did not park when a timed park writes a field into the
 			fields: { color: 'blue', sources: ['kept'] },
 		}),
 	)
+	await waitFor(() =>
+		expect(screen.getByRole('button', { name: 'Save draft' })).toHaveAttribute('aria-disabled', 'true'),
+	)
 })
 
 test('lists the title a park wrote into the post', async () => {
