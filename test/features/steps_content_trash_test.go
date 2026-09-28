@@ -30,7 +30,7 @@ func initializeContentTrash(sc *godog.ScenarioContext) {
 	sc.Given(`^a running Gophenberg with the default content types$`, aRunningGophenbergWithTheDefaultContentTypes)
 	sc.Given(`^a signed in administrator$`, aSignedInAdministrator)
 	sc.Given(`^the post "([^"]*)"$`, thePostExists)
-	sc.When(`^the administrator trashes "([^"]*)"$`, theAdministratorTrashes)
+	sc.When(`^the administrator trashes "([^"]*)"$`, theAdministratorDeletes)
 	sc.When(`^the editor autosaves "([^"]*)" as "([^"]*)"$`, theEditorAutosavesAs)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 }
