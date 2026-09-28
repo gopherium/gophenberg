@@ -32,7 +32,7 @@ function Undo({ undoIds, report }: { undoIds: string[], report: ReportNotice }) 
 		onSuccess: async (outcomes) => {
 			const refused = outcomes.filter((outcome) => outcome.status === 'rejected')
 			report(refused.length === 0 ? null : refusedNotice(refused.length))
-			await refresh()
+			await refresh(undoIds)
 		},
 	})
 	return (

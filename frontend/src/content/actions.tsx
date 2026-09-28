@@ -65,16 +65,17 @@ function trashedNote(count: number): string {
 }
 
 /**
- * Returns the handler that reloads the listing and the status counts.
- * @returns The reload handler.
+ * Returns the handler that reloads the listing and the status counts and forgets the cached copy of each post moved.
+ * @returns The reload handler, taking the ids of the posts that moved into or out of the trash.
  */
-export function useRefresh(): () => Promise<unknown> {
+export function useRefresh(): (moved?: string[]) => Promise<unknown> {
 	const client = useQueryClient()
 	return useCallback(
-		() =>
+		(moved: string[] = []) =>
 			Promise.all([
 				client.invalidateQueries({ queryKey: ['posts'] }),
 				client.invalidateQueries({ queryKey: ['post-counts'] }),
+				...moved.map((id) => client.removeQueries({ queryKey: ['post', id], exact: true })),
 			]),
 		[client],
 	)
@@ -82,7 +83,7 @@ export function useRefresh(): () => Promise<unknown> {
 
 /**
  * Renders a confirmation body over the given work.
- * @param props - The question, the failure to report, the button label and the work to run.
+ * @param props - The question, the failure to report, the button label, the work to run and the posts it moves.
  * @returns The confirmation body.
  */
 function Confirm({
@@ -92,6 +93,7 @@ function Confirm({
 	run,
 	closeModal,
 	done,
+	moved = [],
 }: {
 	question: string
 	failure: string
@@ -99,13 +101,14 @@ function Confirm({
 	run: () => Promise<unknown>
 	closeModal?: () => void
 	done?: () => void
+	moved?: string[]
 }) {
 	const refresh = useRefresh()
 	const action = useMutation({
 		mutationFn: run,
 		onSuccess: async () => {
 			done?.()
-			await refresh()
+			await refresh(moved)
 			closeModal?.()
 		},
 		onError: () => {
@@ -152,6 +155,7 @@ function TrashConfirm({
 					: __('Could not move every post to trash.', 'gophenberg')
 			}
 			confirmLabel={__('Move to Trash', 'gophenberg')}
+			moved={items.map((post) => post.id)}
 			run={async () => {
 				const settled = await Promise.allSettled(items.map((post) => trashPost(post.id)))
 				if (settled.some((outcome) => outcome.status === 'rejected')) {
@@ -184,6 +188,7 @@ function DeleteConfirm({ items, closeModal }: RenderModalProps<Post>) {
 			})}
 			failure={__('Could not delete that post.', 'gophenberg')}
 			confirmLabel={__('Delete Permanently', 'gophenberg')}
+			moved={[target.id]}
 			run={() => deletePost(target.id)}
 			closeModal={closeModal}
 		/>
@@ -212,7 +217,7 @@ export function usePostActions(status: string, report: ReportNotice): Action<Pos
 						restorePost(post.id)
 							.then(() => {
 								report(null)
-								return refresh()
+								return refresh([post.id])
 							})
 							.catch(() =>
 							report({

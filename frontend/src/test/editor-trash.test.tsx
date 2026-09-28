@@ -222,6 +222,26 @@ test('refreshes the status counts after a restore from the reading view', async 
 	await waitFor(() => expect(countsAsked).toHaveLength(2))
 })
 
+test('opens the editor when the restore finds the post already out of the trash', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	let held: Record<string, unknown> = { ...storedPost, status: 'trash' }
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(held)),
+		http.post(`/api/content/${storedPost.id}/restore`, () => {
+			held = { ...storedPost, updated_at: RESTORED_AT }
+			return HttpResponse.json(
+				{ error: 'content: only a trashed item can be restored', code: 'restore_not_trashed' },
+				{ status: 422 },
+			)
+		}),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Restore' }))
+
+	expect(await screen.findByRole('textbox', { name: 'Title' })).toBeInTheDocument()
+})
+
 test('reports a restore the reading view could not make', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
@@ -237,6 +257,31 @@ test('reports a restore the reading view could not make', async () => {
 	await userEvent.click(await screen.findByRole('button', { name: 'Restore' }))
 
 	expect(await screen.findByText(/could not restore that post/i)).toBeInTheDocument()
+})
+
+test('opens a post trashed from the editor as a reading view', async () => {
+	let held: Record<string, unknown> = storedPost
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(held)),
+		http.delete(`/api/content/${storedPost.id}`, () => {
+			held = { ...storedPost, status: 'trash' }
+			return HttpResponse.json(held)
+		}),
+	)
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	await userEvent.click(await screen.findByRole('button', { name: 'Move to trash' }))
+	await userEvent.click(await screen.findByRole('button', { name: 'Move to trash' }))
+	await screen.findByRole('heading', { name: 'Posts', level: 1 })
+
+	await act(async () => {
+		await router.navigate({
+			to: '/content/$typeKey/$postId/edit',
+			params: { typeKey: 'post', postId: storedPost.id },
+		})
+	})
+
+	expect(await screen.findByText(/This item is in the trash/)).toBeInTheDocument()
+	expect(screen.queryByRole('textbox', { name: 'Title' })).not.toBeInTheDocument()
 })
 
 test('reports a trash the server refused', async () => {

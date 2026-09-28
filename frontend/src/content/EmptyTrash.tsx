@@ -7,19 +7,20 @@ import { emptyTrash } from './api'
 
 /**
  * Renders the control removing every trashed post for good.
- * @param props - The handler reloading the listing once the trash is empty.
+ * @param props - The handler reloading the listing once the trash is empty, given the posts removed.
  * @returns The empty trash control.
  */
-export function EmptyTrash({ onEmptied }: { onEmptied: () => Promise<unknown> }) {
+export function EmptyTrash({ onEmptied }: { onEmptied: (removed: string[]) => Promise<unknown> }) {
 	return (
 		<AlertDialog.Root
 			onConfirm={async () => {
+				let removed: string[]
 				try {
-					await emptyTrash()
+					removed = await emptyTrash()
 				} catch {
 					return { close: false, error: __('Could not empty the trash.', 'gophenberg') }
 				}
-				await onEmptied()
+				await onEmptied(removed)
 			}}
 		>
 			<AlertDialog.Trigger>{__('Empty Trash', 'gophenberg')}</AlertDialog.Trigger>

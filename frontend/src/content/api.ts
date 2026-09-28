@@ -387,14 +387,17 @@ export async function listEveryPost(query: PostQuery): Promise<Post[]> {
 
 /**
  * Removes every trashed post for good.
+ * @returns The ids of the posts removed.
  */
-export async function emptyTrash(): Promise<void> {
+export async function emptyTrash(): Promise<string[]> {
+	const removed: string[] = []
 	for (let round = 0; round < MAX_EMPTY_ROUNDS; round += 1) {
 		const page = await listPosts({ status: 'trash' })
 		if (page.items.length === 0) {
-			return
+			return removed
 		}
 		await Promise.all(page.items.map((post) => deletePost(post.id)))
+		removed.push(...page.items.map((post) => post.id))
 	}
 	throw new Error('emptying the trash did not finish')
 }
