@@ -85,6 +85,9 @@ func TestInstallRefusesToReplaceTheThemeServingTheSite(t *testing.T) {
 	if refused.Reason != "the theme is active" {
 		t.Errorf("Reason = %q, want the active theme named", refused.Reason)
 	}
+	if refused.Held["name"] != "aurora" {
+		t.Errorf("Held = %v, want the active theme named for the translation", refused.Held)
+	}
 }
 
 func TestTheManagerRefusesThemeChangesUnderAnOperatorPin(t *testing.T) {
@@ -110,6 +113,9 @@ func TestTheManagerRefusesThemeChangesUnderAnOperatorPin(t *testing.T) {
 			}
 			if refused.Reason != "the theme is pinned by the operator" {
 				t.Errorf("%s() reason = %q, want the operator pin named", name, refused.Reason)
+			}
+			if refused.Held["name"] != "aurora" {
+				t.Errorf("%s() held = %v, want the pinned theme named for the translation", name, refused.Held)
 			}
 		})
 	}
@@ -199,6 +205,9 @@ func TestActivateReportsAThemeThatNeverAnswersItsProbe(t *testing.T) {
 	}
 	if refused.Reason != "the theme did not start" {
 		t.Errorf("Reason = %q, want the start failure named", refused.Reason)
+	}
+	if refused.Held["name"] != "aurora" {
+		t.Errorf("Held = %v, want the theme that did not start named for the translation", refused.Held)
 	}
 	if manager.Holder().Healthy() {
 		t.Error("a theme is serving, want the site left on the built-in renderer")

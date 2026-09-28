@@ -114,7 +114,7 @@ func (m *Manager) Install(ctx context.Context, name string, archive io.ReaderAt,
 		return err
 	}
 	if name == active {
-		return refuse("theme_active", "the theme is active",
+		return refuseHolding("theme_active", "the theme is active", map[string]any{"name": name},
 			"themehost: %s is serving the public site, deactivate it before replacing it", name)
 	}
 	return m.cfg.Library.Install(name, archive, size)
@@ -233,7 +233,8 @@ func (m *Manager) start(ctx context.Context, name string) (*Supervisor, error) {
 	supervisor := m.supervise(loaded)
 	if err := supervisor.Await(ctx); err != nil {
 		m.retire(supervisor)
-		return nil, refuse("theme_start_failed", "the theme did not start", "themehost: %s did not start: %w", name, err)
+		return nil, refuseHolding("theme_start_failed", "the theme did not start", map[string]any{"name": name},
+			"themehost: %s did not start: %w", name, err)
 	}
 	return supervisor, nil
 }
@@ -277,7 +278,7 @@ func (m *Manager) operatorAllows() error {
 	if m.cfg.Pinned == "" {
 		return nil
 	}
-	return refuse("theme_pinned", "the theme is pinned by the operator",
+	return refuseHolding("theme_pinned", "the theme is pinned by the operator", map[string]any{"name": m.cfg.Pinned},
 		"themehost: the environment pins the theme to %s", m.cfg.Pinned)
 }
 
