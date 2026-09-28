@@ -50,7 +50,6 @@ Feature: Installing a theme from the admin
     Then the upload is refused explaining the theme is active
     And the public site is still served through "aurora"
 
-  @wip
   Scenario: Refusing to replace the active theme names it
     Given "aurora" is installed and active
     When the administrator uploads a valid theme archive named "aurora"

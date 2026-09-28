@@ -33,7 +33,6 @@ Feature: Activating a theme
     And the public site is still served through "driftwood"
     And the theme list still shows "driftwood" as active
 
-  @wip
   Scenario: A theme that never becomes ready is named in the refusal
     Given "driftwood" is installed and active
     And an installed theme "brokenboot" that passes validation but never starts
@@ -73,7 +72,6 @@ Feature: Activating a theme
     Then the request is refused explaining the theme is pinned by the operator
     And the public site is still served through "driftwood"
 
-  @wip
   Scenario: The operator pin names the pinned theme in the refusal
     Given the server was started with an operator pinned theme "driftwood"
     And a valid theme "aurora" is installed
