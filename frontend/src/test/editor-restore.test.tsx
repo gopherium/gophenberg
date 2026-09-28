@@ -232,6 +232,14 @@ test('makes no offer when the window comes back after the first read failed', as
 	expect(screen.queryByText(/unsaved version/i)).not.toBeInTheDocument()
 })
 
+test('asks the server for kept words when an earlier answer is still cached', async () => {
+	serveAutosave(NEWER)
+	const client = renderAt(EDITOR_PATH)
+	client.setQueryData(['post-autosave', storedPost.id], null)
+
+	expect(await screen.findByText(/unsaved version/i)).toBeInTheDocument()
+})
+
 test('asks the server for kept words again when the editor opens again', async () => {
 	server.use(http.get(`/api/content/${OTHER_POST.id}`, () => HttpResponse.json(OTHER_POST)))
 	const asked = serveKeptWordsLater(noKeptWords)
