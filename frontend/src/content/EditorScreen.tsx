@@ -65,8 +65,9 @@ export function EditorScreen() {
 	if (post.data === undefined) {
 		return <LoadingScreen label={__('Loading the post.', 'gophenberg')} />
 	}
-	if (!sessionMayChange(session, post.data.authorId)) {
-		return <PostReadView stored={post.data} />
+	const mine = sessionMayChange(session, post.data.authorId)
+	if (!mine || post.data.status === 'trash') {
+		return <PostReadView stored={post.data} mine={mine} />
 	}
 	return <Editor key={postId} postId={postId} stored={post.data} />
 }

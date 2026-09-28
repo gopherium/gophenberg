@@ -163,6 +163,22 @@ test('reads an untitled foreign post under a stand in title, its excerpt beside 
 	expect(screen.getByText('A few words about it.')).toBeInTheDocument()
 })
 
+test('reads a trashed post another account wrote as a foreign post', async () => {
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, status: 'trash', author_id: FOREIGN }),
+		),
+		http.get(`/api/content/${storedPost.id}/autosave`, () =>
+			HttpResponse.json({}, { status: 404 }),
+		),
+	)
+	renderAt(`/content/post/${storedPost.id}/edit`, maria)
+
+	expect(await screen.findByText(/another account wrote this/i)).toBeInTheDocument()
+	expect(screen.queryByText(/This item is in the trash/)).toBeNull()
+	expect(screen.queryByRole('button', { name: 'Restore' })).toBeNull()
+})
+
 test('opens an author s own post as the editor', async () => {
 	serveEditor(maria.id)
 	renderAt(`/content/post/${storedPost.id}/edit`, maria)

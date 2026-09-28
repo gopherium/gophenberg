@@ -134,6 +134,20 @@ test('reports an undo the server refused', async () => {
 	expect(await screen.findByText(/could not restore that post/i)).toBeInTheDocument()
 })
 
+test('opens a trashed post as a reading view', async () => {
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, status: 'trash' }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByText(/This item is in the trash/)).toBeInTheDocument()
+	expect(screen.queryByRole('textbox', { name: 'Title' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('button', { name: 'Move to trash' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('button', { name: /save draft|publish/i })).not.toBeInTheDocument()
+})
+
 test('reports a trash the server refused', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(
