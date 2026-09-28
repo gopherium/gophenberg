@@ -3,7 +3,7 @@
 import { execFileSync } from 'node:child_process'
 
 import { repositoryRoot } from './config.ts'
-import { mutatedFiles, strykerPatterns } from './mutants.ts'
+import { mutateTargets, strykerPatterns } from './mutants.ts'
 
 const base = process.argv[2]
 if (base === undefined) {
@@ -12,18 +12,37 @@ if (base === undefined) {
 }
 
 const root = repositoryRoot()
-const git = (args: string[]): string[] =>
-	execFileSync('git', args, { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean)
-const changed = [
-	...git(['diff', '--name-only', '--diff-filter=d', '--merge-base', base]),
-	...git(['ls-files', '--others', '--exclude-standard']),
-]
-const files = mutatedFiles(changed, strykerPatterns())
 
-if (files.length === 0) {
-	console.log('no changed source file to mutate')
+/**
+ * Returns what git prints for the arguments, run at the repository root.
+ * @param args - The git arguments.
+ * @returns The output, however long it is.
+ */
+const git = (args: string[]): string => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: Infinity })
+const roots = ['frontend/src', 'frontend/scripts', 'sdk/frontend', 'plugins']
+const diff = git([
+	'-c',
+	'core.quotePath=false',
+	'diff',
+	'--unified=0',
+	'--inter-hunk-context=0',
+	'--no-color',
+	'--no-ext-diff',
+	'--src-prefix=a/',
+	'--dst-prefix=b/',
+	'--diff-filter=d',
+	'--merge-base',
+	base,
+	'--',
+	...roots,
+])
+const untracked = git(['ls-files', '-z', '--others', '--exclude-standard', '--', ...roots]).split('\0').filter(Boolean)
+const targets = mutateTargets(diff, untracked, strykerPatterns())
+
+if (targets.length === 0) {
+	console.log('no changed source line to mutate')
 } else {
-	execFileSync('stryker', ['run', 'frontend/stryker.config.json', '--mutate', files.join(',')], {
+	execFileSync('stryker', ['run', 'frontend/stryker.config.json', '--ignoreStatic', '--mutate', targets.join(',')], {
 		cwd: root,
 		stdio: 'inherit',
 	})
