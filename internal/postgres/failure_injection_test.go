@@ -456,6 +456,31 @@ func TestTrashReportsAnItemItCannotMark(t *testing.T) {
 	}
 }
 
+func TestTrashReportsParkedWordsItCannotSweep(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	raiseOn(t, pool, "core.content_revisions", "DELETE")
+
+	if _, err := store.Trash(t.Context(), held.ID, time.Now().UTC()); err == nil {
+		t.Error("Trash() error = nil, want the failing sweep reported")
+	}
+}
+
+func TestSaveAutosaveReportsAnItemItCannotLock(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	autosave := mustAutosave(t, held, author)
+	sabotage(t, pool, "ALTER TABLE core.content DROP COLUMN parent_id CASCADE")
+
+	if _, err := store.SaveAutosave(t.Context(), autosave); err == nil {
+		t.Error("SaveAutosave() error = nil, want the unreadable lock reported")
+	}
+}
+
 func TestTrashReportsAnItemItCannotLock(t *testing.T) {
 	t.Parallel()
 

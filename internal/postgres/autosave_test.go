@@ -3,6 +3,7 @@
 package postgres_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -203,6 +204,131 @@ func TestContentStoreDeleteAutosaveToleratesAMissingBuffer(t *testing.T) {
 
 	if err := store.DeleteAutosave(t.Context(), created.ID, author); err != nil {
 		t.Errorf("DeleteAutosave() error = %v, want nil", err)
+	}
+}
+
+func TestContentStoreTrashLeavesNoParkedWords(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	created := mustCreate(t, store, "Parked", author)
+	other := addAuthor(t, pool, "Other Author")
+	parkers := []uuid.UUID{author, other}
+	for _, parker := range parkers {
+		if _, err := store.SaveAutosave(t.Context(), mustAutosave(t, created, parker)); err != nil {
+			t.Fatalf("SaveAutosave() error = %v, want nil", err)
+		}
+	}
+	snapshot, err := content.NewRevision(created, content.RevisionKindRevision, author)
+	if err != nil {
+		t.Fatalf("NewRevision() error = %v, want nil", err)
+	}
+	edited := created
+	edited.Title = "Edited"
+	edited.UpdatedAt = time.Now().UTC()
+	if _, err := store.Update(t.Context(), edited, created.UpdatedAt, &snapshot, 100); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+
+	if _, err := store.Trash(t.Context(), created.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+
+	for _, parker := range parkers {
+		if _, err := store.Autosave(t.Context(), created.ID, parker); !errors.Is(err, content.ErrRevisionNotFound) {
+			t.Errorf("Autosave() error = %v, want the parked words gone with the trash", err)
+		}
+	}
+	revisions, err := store.Revisions(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("Revisions() error = %v, want nil", err)
+	}
+	if len(revisions) != 1 || revisions[0].Kind != content.RevisionKindRevision {
+		t.Errorf("revisions = %+v, want only the snapshot kept", revisions)
+	}
+}
+
+func TestTrashQueuedBehindAnAutosaveSweepsIt(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	created := mustCreate(t, store, "Contended", author)
+	rival := rivalTransaction(t, pool)
+	if _, err := rival.Exec(t.Context(),
+		`INSERT INTO core.content_revisions (id, content_id, kind, author_id, title, content, excerpt, fields, created_at)
+		VALUES ($1, $2, 'autosave', $3, 'Parked', '', '', '{}', now())`,
+		uuid.Must(uuid.NewV7()), created.ID, author); err != nil {
+		t.Fatalf("parking the rival words: %v", err)
+	}
+	trashed := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, err := store.Trash(ctx, created.ID, time.Now().UTC())
+		trashed <- err
+	}()
+	waitingOn(t, pool, "%FROM core.content p%FOR UPDATE%")
+
+	if err := rival.Commit(t.Context()); err != nil {
+		t.Fatalf("committing the rival words: %v", err)
+	}
+
+	if err := <-trashed; err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+	if _, err := store.Autosave(t.Context(), created.ID, author); !errors.Is(err, content.ErrRevisionNotFound) {
+		t.Errorf("Autosave() error = %v, want the words parked before the trash swept", err)
+	}
+}
+
+func TestContentStoreSaveAutosaveRefusesAnItemInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	store, author := newContentStore(t)
+	created := mustCreate(t, store, "Trashed", author)
+	if _, err := store.Trash(t.Context(), created.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+
+	_, err := store.SaveAutosave(t.Context(), mustAutosave(t, created, author))
+
+	if !errors.Is(err, content.ErrTrashed) {
+		t.Errorf("SaveAutosave() error = %v, want %v", err, content.ErrTrashed)
+	}
+	if _, err := store.Autosave(t.Context(), created.ID, author); !errors.Is(err, content.ErrRevisionNotFound) {
+		t.Errorf("Autosave() error = %v, want nothing parked on a post in the trash", err)
+	}
+}
+
+func TestAutosaveQueuedBehindATrashIsRefused(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	created := mustCreate(t, store, "Contended", author)
+	rival := rivalTransaction(t, pool)
+	if _, err := rival.Exec(t.Context(),
+		`SELECT id FROM core.content WHERE id = $1 FOR UPDATE`, created.ID); err != nil {
+		t.Fatalf("locking the post: %v", err)
+	}
+	if _, err := rival.Exec(t.Context(),
+		`UPDATE core.content SET status = 'trash' WHERE id = $1`, created.ID); err != nil {
+		t.Fatalf("trashing the post: %v", err)
+	}
+	parked := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, err := store.SaveAutosave(ctx, mustAutosave(t, created, author))
+		parked <- err
+	}()
+	waitingOn(t, pool, "%FROM core.content p%FOR UPDATE%")
+
+	if err := rival.Commit(t.Context()); err != nil {
+		t.Fatalf("committing the trash: %v", err)
+	}
+
+	if err := <-parked; !errors.Is(err, content.ErrTrashed) {
+		t.Errorf("SaveAutosave() error = %v, want the trash that landed first refusing it", err)
 	}
 }
 
