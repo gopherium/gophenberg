@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeAll, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
-import { renderAt } from './render'
+import { OTHER_POST, comeBack, openAnotherPost } from './anotherPost'
+import { collectParks } from './parks'
+import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
 
 const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
@@ -27,6 +29,10 @@ beforeAll(async () => {
 
 beforeEach(() => {
 	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)))
+})
+
+afterEach(() => {
+	vi.useRealTimers()
 })
 
 /**
@@ -150,4 +156,99 @@ test('drops the offer once it is taken', async () => {
 	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
 
 	await waitFor(() => expect(screen.queryByText(/unsaved version/i)).not.toBeInTheDocument())
+})
+
+/**
+ * Serves the given answer on the first read of the kept words and the newer words on every read after it.
+ * @param first - The answer to the first read.
+ * @returns The reads made so far.
+ */
+function serveKeptWordsLater(first: () => Response): string[] {
+	const asked: string[] = []
+	server.use(
+		http.get(`/api/content/${storedPost.id}/autosave`, () => {
+			asked.push('read')
+			return asked.length === 1 ? first() : HttpResponse.json(NEWER)
+		}),
+	)
+	return asked
+}
+
+/**
+ * Answers that the server keeps no words.
+ * @returns The answer.
+ */
+function noKeptWords(): Response {
+	return HttpResponse.json({}, { status: 404 })
+}
+
+/**
+ * Advances the clock inside a React update.
+ * @param ms - The milliseconds to advance.
+ */
+async function tick(ms: number) {
+	await act(async () => {
+		await vi.advanceTimersByTimeAsync(ms)
+	})
+}
+
+/**
+ * Brings the window back in front of the author and moves the clock on a second.
+ */
+async function windowComesBack() {
+	act(() => {
+		window.dispatchEvent(new Event('visibilitychange'))
+	})
+	await tick(1000)
+}
+
+test('makes no offer when the window comes back in the middle of an edit', async () => {
+	vi.useFakeTimers({ shouldAdvanceTime: true })
+	const parks = collectParks()
+	const asked = serveKeptWordsLater(noKeptWords)
+	const client = renderAt(EDITOR_PATH)
+	client.setQueryDefaults(['post-autosave'], { staleTime: 0 })
+	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
+	await tick(60000)
+	await waitFor(() => expect(parks).toHaveLength(1))
+
+	await windowComesBack()
+
+	expect(asked).toHaveLength(1)
+	expect(screen.queryByText(/unsaved version/i)).not.toBeInTheDocument()
+})
+
+test('makes no offer when the window comes back after the first read failed', async () => {
+	vi.useFakeTimers({ shouldAdvanceTime: true })
+	const asked = serveKeptWordsLater(() => HttpResponse.error())
+	renderAt(EDITOR_PATH)
+	await screen.findByRole('textbox', { name: 'Title' })
+	await waitFor(() => expect(asked).toHaveLength(1))
+	await tick(1000)
+
+	await windowComesBack()
+
+	expect(asked).toHaveLength(1)
+	expect(screen.queryByText(/unsaved version/i)).not.toBeInTheDocument()
+})
+
+test('asks the server for kept words when an earlier answer is still cached', async () => {
+	serveAutosave(NEWER)
+	const client = renderAt(EDITOR_PATH)
+	client.setQueryData(['post-autosave', storedPost.id], null)
+
+	expect(await screen.findByText(/unsaved version/i)).toBeInTheDocument()
+})
+
+test('asks the server for kept words again when the editor opens again', async () => {
+	server.use(http.get(`/api/content/${OTHER_POST.id}`, () => HttpResponse.json(OTHER_POST)))
+	const asked = serveKeptWordsLater(noKeptWords)
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	await screen.findByRole('textbox', { name: 'Title' })
+	await waitFor(() => expect(asked).toHaveLength(1))
+	await openAnotherPost(router)
+
+	await comeBack(router)
+
+	expect(await screen.findByText(/unsaved version/i)).toBeInTheDocument()
 })

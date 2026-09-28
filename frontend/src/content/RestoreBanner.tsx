@@ -3,7 +3,7 @@
 import { Notice } from '@gophenberg/frontend-sdk'
 import { __ } from '@wordpress/i18n'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 
 import { fetchAutosave } from './api'
 import type { Autosave, PostDetail } from './api'
@@ -53,10 +53,13 @@ export function RestoreBanner({
 	onRestore: (kept: Autosave) => void
 }) {
 	const [taken, setTaken] = useState(false)
+	const opening = useId()
 	const client = useQueryClient()
 	const kept = useQuery({
-		queryKey: ['post-autosave', postId],
+		queryKey: ['post-autosave', postId, opening],
 		queryFn: () => writesSettled(client, postId).then(() => fetchAutosave(postId)),
+		staleTime: 'static',
+		gcTime: 0,
 	})
 	const offer = offerable(kept.data, stored)
 	if (offer === null || taken) {

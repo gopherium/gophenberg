@@ -95,7 +95,6 @@ function leave(client: QueryClient, postId: string, held: Parkable): void {
 	const earlier = heldWrites(client, postId)
 	send(client, postId, held, earlier === undefined ? park(false) : afterEarlier(earlier, park))
 	void client.resetQueries({ queryKey: ['post', postId], exact: true })
-	void client.resetQueries({ queryKey: ['post-autosave', postId], exact: true })
 }
 
 /**
