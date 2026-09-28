@@ -63,6 +63,7 @@ export function errorTemplates(): Record<string, string> {
 			'Someone else saved changes to this item while you were editing, so yours were not saved. Copy your text somewhere safe, then reload the item and put your changes back in.',
 			DOMAIN,
 		),
+		content_trashed: __('This item is in the trash. Restore it first to work on it again.', DOMAIN),
 		default_type_required: __(
 			'Your site always needs one default content type, so this one cannot be turned off or deleted. Make another type the default first.',
 			DOMAIN,

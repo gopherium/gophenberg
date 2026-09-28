@@ -134,6 +134,7 @@ var domainErrors = []struct {
 	{content.ErrReservedAddress, http.StatusUnprocessableEntity, "address_reserved"},
 	{content.ErrHoldsChildren, http.StatusUnprocessableEntity, "content_holds_children"},
 	{content.ErrParentTrashed, http.StatusUnprocessableEntity, "parent_trashed"},
+	{content.ErrTrashed, http.StatusUnprocessableEntity, "content_trashed"},
 	{content.ErrCycle, http.StatusUnprocessableEntity, "parent_cycle"},
 	{content.ErrTypeTaken, http.StatusUnprocessableEntity, "type_key_taken"},
 	{content.ErrRouteWordTaken, http.StatusUnprocessableEntity, "route_word_taken"},

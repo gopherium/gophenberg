@@ -446,6 +446,33 @@ func TestAutosaveGetReportsAnAbsentBuffer(t *testing.T) {
 	}
 }
 
+func TestAutosaveRefusesAPostInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	trashed := newPost(t, "Trashed", ada.ID)
+	trashed.Status = content.StatusTrash
+	posts.add(trashed)
+
+	recorder := doRequest(
+		t, handler, http.MethodPost, "/api/content/"+trashed.ID.String()+"/autosave",
+		autosavePayload(t, trashed.UpdatedAt),
+	)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusUnprocessableEntity)
+	}
+	body := decodeBody[struct {
+		Code string `json:"code"`
+	}](t, recorder)
+	if body.Code != "content_trashed" {
+		t.Errorf("code = %q, want content_trashed", body.Code)
+	}
+	if parked := autosavesOf(posts); len(parked) != 0 {
+		t.Errorf("autosaves = %+v, want nothing parked on a post in the trash", parked)
+	}
+}
+
 func TestAutosaveRejectsUnknownAndMalformedRequests(t *testing.T) {
 	t.Parallel()
 
