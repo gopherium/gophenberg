@@ -113,7 +113,12 @@ func (s *server) handleRevisionDelete() http.HandlerFunc {
 		if !ok {
 			return
 		}
-		if _, err := s.ownedContent(r, contentID); err != nil {
+		stored, err := s.ownedContent(r, contentID)
+		if err != nil {
+			respondDomainError(w, err)
+			return
+		}
+		if err := stored.Editable(); err != nil {
 			respondDomainError(w, err)
 			return
 		}
