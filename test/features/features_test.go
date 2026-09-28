@@ -110,6 +110,10 @@ func TestContentHierarchy(t *testing.T) {
 	runFeature(t, "features/content-hierarchy.feature", initializeContentHierarchy)
 }
 
+func TestContentTrash(t *testing.T) {
+	runFeature(t, "features/content-trash.feature", initializeContentTrash)
+}
+
 func TestContentServing(t *testing.T) {
 	runFeature(t, "features/content-serving.feature", initializeContentServing)
 }
