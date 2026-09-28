@@ -1535,6 +1535,9 @@ msgstr ""
 msgid "This item is already in the trash. Restore it first to work on it again."
 msgstr ""
 
+msgid "This item is in the trash. Restore it first to work on it again."
+msgstr ""
+
 msgid "This item is not in the trash, so there is nothing to restore. Open it from the list to work on it as it is."
 msgstr ""
 
