@@ -5,6 +5,8 @@ import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
+import { collectParks } from './parks'
+import type { Park } from './parks'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
@@ -12,7 +14,7 @@ const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 const AUTOSAVE_INTERVAL = 60000
 
-const autosaved: Record<string, unknown>[] = []
+let parks: Park[] = []
 
 const TYPE_WITH_FIELDS = {
 	key: 'post',
@@ -44,27 +46,14 @@ beforeAll(async () => {
 }, 120000)
 
 beforeEach(() => {
-	autosaved.length = 0
 	vi.useFakeTimers({ shouldAdvanceTime: true })
 	server.use(
 		http.get('/api/types', () => HttpResponse.json({ items: [TYPE_WITH_FIELDS] })),
 		http.get(`/api/content/${storedPost.id}`, () =>
 			HttpResponse.json({ ...storedPost, fields: { color: 'red' } }),
 		),
-		http.get(`/api/content/${storedPost.id}/autosave`, () => HttpResponse.json({}, { status: 404 })),
-		http.post(`/api/content/${storedPost.id}/autosave`, async ({ request }) => {
-			autosaved.push((await request.json()) as Record<string, unknown>)
-			return HttpResponse.json({
-				target: 'autosave',
-				content_id: storedPost.id,
-				title: storedPost.title,
-				content: storedPost.content,
-				excerpt: '',
-				fields: { color: 'blue' },
-				saved_at: '2026-08-01T12:00:00Z',
-			})
-		}),
 	)
+	parks = collectParks({ fields: { color: 'blue' } })
 })
 
 afterEach(() => {
@@ -89,8 +78,8 @@ test('parks the field values the buffer holds', async () => {
 	await userEvent.type(control, 'blue')
 	await tick(AUTOSAVE_INTERVAL)
 
-	await waitFor(() => expect(autosaved).toHaveLength(1))
-	expect(autosaved[0]).toMatchObject({ fields: { color: 'blue' } })
+	await waitFor(() => expect(parks).toHaveLength(1))
+	expect(parks[0].body).toMatchObject({ fields: { color: 'blue' } })
 })
 
 test('parks a field edit even when no word moved', async () => {
@@ -101,8 +90,8 @@ test('parks a field edit even when no word moved', async () => {
 	await userEvent.type(control, 'green')
 	await tick(AUTOSAVE_INTERVAL)
 
-	await waitFor(() => expect(autosaved).toHaveLength(1))
-	expect(autosaved[0]).toMatchObject({ title: storedPost.title, fields: { color: 'green' } })
+	await waitFor(() => expect(parks).toHaveLength(1))
+	expect(parks[0].body).toMatchObject({ title: storedPost.title, fields: { color: 'green' } })
 })
 
 test('brings the parked field values back when the buffer is restored', async () => {

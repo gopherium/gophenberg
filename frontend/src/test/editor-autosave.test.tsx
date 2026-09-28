@@ -1,39 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
+import { collectParks } from './parks'
+import type { Park } from './parks'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
 const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
-const autosaved: Record<string, unknown>[] = []
+let parks: Park[] = []
 
 beforeAll(async () => {
 	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
-	autosaved.length = 0
 	vi.useFakeTimers({ shouldAdvanceTime: true })
-	server.use(
-		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)),
-		http.get(`/api/content/${storedPost.id}/autosave`, () => HttpResponse.json({}, { status: 404 })),
-		http.post(`/api/content/${storedPost.id}/autosave`, async ({ request }) => {
-			autosaved.push((await request.json()) as Record<string, unknown>)
-			return HttpResponse.json({
-				target: 'autosave',
-				content_id: storedPost.id,
-				title: storedPost.title,
-				content: storedPost.content,
-				excerpt: '',
-				saved_at: '2026-08-01T12:00:00Z',
-			})
-		}),
-	)
+	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)))
+	parks = collectParks()
 })
 
 afterEach(() => {
@@ -56,7 +44,7 @@ test('leaves an untouched post alone', async () => {
 
 	await tick(60000)
 
-	expect(autosaved).toEqual([])
+	expect(parks).toEqual([])
 })
 
 test('saves a dirty post once its interval comes round', async () => {
@@ -65,8 +53,20 @@ test('saves a dirty post once its interval comes round', async () => {
 
 	await tick(60000)
 
-	await waitFor(() => expect(autosaved).toHaveLength(1))
-	expect(autosaved[0]).toMatchObject({ title: 'Welcome to Gophenberg!' })
+	await waitFor(() => expect(parks).toHaveLength(1))
+	expect(parks[0].body).toMatchObject({ title: 'Welcome to Gophenberg!' })
+	expect(parks[0].keepalive).toBe(false)
+})
+
+test('stops its timer once the editor has closed', async () => {
+	renderAt(EDITOR_PATH)
+	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
+	cleanup()
+	await waitFor(() => expect(parks).toHaveLength(1))
+
+	await tick(120000)
+
+	expect(parks).toHaveLength(1)
 })
 
 test('holds off until the interval comes round', async () => {
@@ -75,7 +75,7 @@ test('holds off until the interval comes round', async () => {
 
 	await tick(59000)
 
-	expect(autosaved).toEqual([])
+	expect(parks).toEqual([])
 })
 
 test('stops saving a post that was written by hand', async () => {
@@ -91,7 +91,7 @@ test('stops saving a post that was written by hand', async () => {
 
 	await tick(60000)
 
-	expect(autosaved).toEqual([])
+	expect(parks).toEqual([])
 })
 
 test('flushes the words when the page is leaving', async () => {
@@ -103,8 +103,9 @@ test('flushes the words when the page is leaving', async () => {
 		await Promise.resolve()
 	})
 
-	await waitFor(() => expect(autosaved).toHaveLength(1))
-	expect(autosaved[0]).toMatchObject({ title: 'Welcome to Gophenberg!' })
+	await waitFor(() => expect(parks).toHaveLength(1))
+	expect(parks[0].body).toMatchObject({ title: 'Welcome to Gophenberg!' })
+	expect(parks[0].keepalive).toBe(true)
 })
 
 test('leaves the editor standing when the server refuses an autosave', async () => {
@@ -127,8 +128,8 @@ test('keeps saving while the post stays dirty', async () => {
 	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
 
 	await tick(60000)
-	await waitFor(() => expect(autosaved).toHaveLength(1))
+	await waitFor(() => expect(parks).toHaveLength(1))
 	await tick(60000)
 
-	await waitFor(() => expect(autosaved).toHaveLength(2))
+	await waitFor(() => expect(parks).toHaveLength(2))
 })

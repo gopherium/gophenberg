@@ -18,7 +18,7 @@ import {
 } from '@gophenberg/frontend-sdk/editor'
 import { useSession } from '@gopherium/react-auth'
 import { __, _x } from '@wordpress/i18n'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
 import './editor.css'
@@ -28,6 +28,7 @@ import { MediaLibraryPicker } from '../media/MediaLibraryPicker'
 import { fetchPost } from './api'
 import type { PostDetail } from './api'
 import { PostReadView } from './PostReadView'
+import { writesSettled } from './postWrites'
 import { EDITOR_SETTINGS, canvasClass } from './editorSetup'
 import { EditorHeader } from './EditorHeader'
 import { EditorSidebar } from './EditorSidebar'
@@ -49,7 +50,11 @@ registerMediaCategories(MEDIA_CATEGORIES)
 export function EditorScreen() {
 	const { postId } = useParams({ from: '/content/$typeKey/$postId/edit' })
 	const session = useSession().data
-	const post = useQuery({ queryKey: ['post', postId], queryFn: () => fetchPost(postId) })
+	const client = useQueryClient()
+	const post = useQuery({
+		queryKey: ['post', postId],
+		queryFn: () => writesSettled(client, postId).then(() => fetchPost(postId)),
+	})
 	if (post.isError) {
 		return (
 			<Notice.Root intent="error" role="alert">

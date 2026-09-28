@@ -16,11 +16,12 @@ beforeAll(() => {
 
 /**
  * Returns a buffer held over the stored fixture.
+ * @param content - The markup the post is stored with.
  * @returns The rendered hook result.
  */
-function renderBuffer() {
+function renderBuffer(content: string = storedPost.content) {
 	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-	return renderHook(() => useEditorBuffer(storedPost.id, { ...storedPost, publishedAt: null } as never), {
+	return renderHook(() => useEditorBuffer(storedPost.id, { ...storedPost, content, publishedAt: null } as never), {
 		wrapper: ({ children }) => (
 			<QueryClientProvider client={client}>
 				<AdminToaster>{children}</AdminToaster>
@@ -43,6 +44,12 @@ test('opens with no history to walk', () => {
 
 	expect(result.current.hasUndo).toBe(false)
 	expect(result.current.hasRedo).toBe(false)
+})
+
+test('opens a post whose markup does not round trip with nothing to save', () => {
+	const { result } = renderBuffer('<!-- wp:paragraph --><p>Tight</p><!-- /wp:paragraph -->')
+
+	expect(result.current.dirty).toBe(false)
 })
 
 test('records a committed change as a step it can walk back', () => {

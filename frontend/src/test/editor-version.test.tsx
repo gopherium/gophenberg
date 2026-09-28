@@ -5,6 +5,8 @@ import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
+import { collectParks } from './parks'
+import type { Park } from './parks'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
@@ -12,24 +14,21 @@ const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 const WRITTEN_AT = '2026-07-28T11:00:00Z'
 
-const patched: Record<string, unknown>[] = []
-
-const parked: Record<string, unknown>[] = []
+let patched: Record<string, unknown>[] = []
 
 beforeAll(async () => {
 	await import('../content/EditorScreen')
 }, 120000)
 
 beforeEach(() => {
-	patched.length = 0
-	parked.length = 0
+	const sink: Record<string, unknown>[] = []
+	patched = sink
 	vi.useFakeTimers({ shouldAdvanceTime: true })
 	server.use(
 		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)),
-		http.get(`/api/content/${storedPost.id}/autosave`, () => HttpResponse.json({}, { status: 404 })),
 		http.patch(`/api/content/${storedPost.id}`, async ({ request }) => {
 			const body = (await request.json()) as Record<string, unknown>
-			patched.push(body)
+			sink.push(body)
 			return HttpResponse.json({ ...storedPost, ...body, updated_at: WRITTEN_AT })
 		}),
 	)
@@ -53,21 +52,10 @@ async function tick(ms: number) {
  * Answers autosaves with the given target and saved time.
  * @param target - Where the server parked the buffer.
  * @param savedAt - The time the server reported.
+ * @returns The autosaves this test sent.
  */
-function autosaveLands(target: string, savedAt: string) {
-	server.use(
-		http.post(`/api/content/${storedPost.id}/autosave`, async ({ request }) => {
-			parked.push((await request.json()) as Record<string, unknown>)
-			return HttpResponse.json({
-				target,
-				content_id: storedPost.id,
-				title: 'Welcome to Gophenberg!',
-				content: storedPost.content,
-				excerpt: '',
-				saved_at: savedAt,
-			})
-		}),
-	)
+function autosaveLands(target: string, savedAt: string): Park[] {
+	return collectParks({ target, title: 'Welcome to Gophenberg!', saved_at: savedAt })
 }
 
 /**
@@ -99,21 +87,25 @@ test('states the version the server wrote back', async () => {
 })
 
 test('states its version when parking a buffer', async () => {
-	autosaveLands('autosave', WRITTEN_AT)
+	const parked = autosaveLands('autosave', WRITTEN_AT)
 	renderAt(EDITOR_PATH)
 	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
 
 	await tick(60000)
 
 	await waitFor(() => expect(parked).toHaveLength(1))
-	expect(parked[0]).toMatchObject({ updated_at: storedPost.updated_at })
+	expect(parked[0].body).toMatchObject({ updated_at: storedPost.updated_at })
 })
 
-test('takes the version of an autosave that reached the post', async () => {
+test('takes the version and the words of an autosave that reached the post', async () => {
 	autosaveLands('post', WRITTEN_AT)
 	renderAt(EDITOR_PATH)
 	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
 	await tick(60000)
+	await waitFor(() =>
+		expect(screen.getByRole('button', { name: 'Save draft' })).toHaveAttribute('aria-disabled', 'true'),
+	)
+	await userEvent.type(screen.getByRole('textbox', { name: 'Title' }), '?')
 
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 

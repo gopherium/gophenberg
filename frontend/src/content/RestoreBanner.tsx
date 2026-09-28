@@ -2,12 +2,13 @@
 
 import { Notice } from '@gophenberg/frontend-sdk'
 import { __ } from '@wordpress/i18n'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { fetchAutosave } from './api'
 import type { Autosave, PostDetail } from './api'
 import { sameFieldValues } from './fieldValues'
+import { writesSettled } from './postWrites'
 
 /**
  * Reports whether the post already holds the kept words.
@@ -52,9 +53,10 @@ export function RestoreBanner({
 	onRestore: (kept: Autosave) => void
 }) {
 	const [taken, setTaken] = useState(false)
+	const client = useQueryClient()
 	const kept = useQuery({
 		queryKey: ['post-autosave', postId],
-		queryFn: () => fetchAutosave(postId),
+		queryFn: () => writesSettled(client, postId).then(() => fetchAutosave(postId)),
 	})
 	const offer = offerable(kept.data, stored)
 	if (offer === null || taken) {
