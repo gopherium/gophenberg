@@ -5,9 +5,10 @@ import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
+import { OTHER_POST, comeBack, openAnotherPost } from './anotherPost'
 import type { Park } from './parks'
 import { adminUser, renderRoutedAt } from './render'
-import { storedPost, storedPostWithId } from './postFixture'
+import { storedPost } from './postFixture'
 import { warmPostsScreen } from './warm'
 
 warmPostsScreen()
@@ -15,8 +16,6 @@ warmPostsScreen()
 const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 const OWN_DRAFT = { ...storedPost, author_id: adminUser.id }
-
-const OTHER_POST = { ...storedPostWithId('019fb000-0000-7000-8000-000000000002'), title: 'Another post' }
 
 const TYPE_WITH_COLOR = {
 	key: 'post',
@@ -48,8 +47,6 @@ interface Served {
 	patchGate: Promise<void> | null
 	failParks: number
 }
-
-type Router = ReturnType<typeof renderRoutedAt>['router']
 
 let stamp = 0
 
@@ -201,30 +198,6 @@ function titleField(): HTMLElement {
 async function tick(ms: number) {
 	await act(async () => {
 		await vi.advanceTimersByTimeAsync(ms)
-	})
-}
-
-/**
- * Leaves the editor for another post and waits until that post shows.
- * @param router - The router the admin runs on.
- */
-async function openAnotherPost(router: Router) {
-	await act(async () => {
-		await router.navigate({
-			to: '/content/$typeKey/$postId/edit',
-			params: { typeKey: 'post', postId: OTHER_POST.id },
-		})
-	})
-	await waitFor(() => expect(titleField()).toHaveValue(OTHER_POST.title))
-}
-
-/**
- * Goes back to the page the author came from.
- * @param router - The router the admin runs on.
- */
-async function comeBack(router: Router) {
-	await act(async () => {
-		router.history.back()
 	})
 }
 
