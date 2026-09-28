@@ -6,7 +6,6 @@ Feature: The trash
     Given a running Gophenberg with the default content types
     And a signed in administrator
 
-  @wip
   Scenario: A post in the trash takes no autosave
     Given the post "Hello world"
     When the administrator trashes "Hello world"

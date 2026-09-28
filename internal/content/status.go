@@ -13,6 +13,9 @@ var ErrInvalidStatus = errors.New("content: invalid status")
 // ErrInvalidTransition reports that a status change is not allowed.
 var ErrInvalidTransition = errors.New("content: invalid status transition")
 
+// ErrTrashed reports that the item is in the trash.
+var ErrTrashed = errors.New("content: the item is in the trash")
+
 // Status is the publication state of a content item.
 type Status string
 
