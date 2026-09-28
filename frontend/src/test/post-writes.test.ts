@@ -57,6 +57,15 @@ test('holds nothing for a post once every write to it answered', async () => {
 	expect(heldWrites(client, 'post')).toBeUndefined()
 })
 
+test('holds nothing for a post once a write to it was refused', async () => {
+	const client = new QueryClient()
+	holdWrite(client, 'post', Promise.reject(new Error('refused'))).catch(() => {})
+
+	await settle()
+
+	expect(heldWrites(client, 'post')).toBeUndefined()
+})
+
 test('keeps the writes of each query client apart', () => {
 	const held = new QueryClient()
 	holdWrite(held, 'post', pendingWrite().write)
