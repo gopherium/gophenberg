@@ -249,4 +249,5 @@ func initializeActivation(sc *godog.ScenarioContext) {
 	sc.Then(`^the server starts and the public site is served by the built-in renderer$`, theServerStartsOnTheRenderer)
 	sc.Then(`^the theme list shows "([^"]*)" as broken$`, theThemeListShowsBroken)
 	sc.Then(`^the request is refused explaining the theme is pinned by the operator$`, theRequestIsRefusedAsPinned)
+	sc.Then(`^the error names "([^"]*)" under "([^"]*)"$`, theErrorNamesUnder)
 }

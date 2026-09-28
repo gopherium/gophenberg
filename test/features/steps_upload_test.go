@@ -204,6 +204,7 @@ func initializeUpload(sc *godog.ScenarioContext) {
 	sc.When(`^the administrator uploads a newer valid theme archive named "([^"]*)"$`, uploadsANewerValidArchive)
 	sc.When(`^the administrator uploads a theme archive named "([^"]*)" that (.+)$`, uploadsAFlawedArchive)
 	sc.Then(`^the upload is refused explaining (.+)$`, theUploadIsRefused)
+	sc.Then(`^the error names "([^"]*)" under "([^"]*)"$`, theErrorNamesUnder)
 	sc.Then(`^the theme list shows "([^"]*)" as installed$`, theThemeListShowsInstalled)
 	sc.Then(`^the theme list shows "([^"]*)" as installed once at version "([^"]*)"$`,
 		theThemeListShowsInstalledOnce)

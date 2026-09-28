@@ -50,6 +50,12 @@ Feature: Installing a theme from the admin
     Then the upload is refused explaining the theme is active
     And the public site is still served through "aurora"
 
+  Scenario: Refusing to replace the active theme names it
+    Given "aurora" is installed and active
+    When the administrator uploads a valid theme archive named "aurora"
+    Then the upload is refused explaining the theme is active
+    And the error names "aurora" under "name"
+
   Scenario: Replacing an inactive theme updates it
     Given "aurora" is installed and not active
     When the administrator uploads a newer valid theme archive named "aurora"

@@ -33,6 +33,13 @@ Feature: Activating a theme
     And the public site is still served through "driftwood"
     And the theme list still shows "driftwood" as active
 
+  Scenario: A theme that never becomes ready is named in the refusal
+    Given "driftwood" is installed and active
+    And an installed theme "brokenboot" that passes validation but never starts
+    When the administrator activates "brokenboot"
+    Then the activation fails explaining the theme did not start
+    And the error names "brokenboot" under "name"
+
   Scenario: Deactivating returns the site to the built-in renderer
     Given "aurora" is installed and active
     When the administrator deactivates the theme
@@ -64,3 +71,10 @@ Feature: Activating a theme
     When the administrator tries to activate "aurora"
     Then the request is refused explaining the theme is pinned by the operator
     And the public site is still served through "driftwood"
+
+  Scenario: The operator pin names the pinned theme in the refusal
+    Given the server was started with an operator pinned theme "driftwood"
+    And a valid theme "aurora" is installed
+    When the administrator tries to activate "aurora"
+    Then the request is refused explaining the theme is pinned by the operator
+    And the error names "driftwood" under "name"
