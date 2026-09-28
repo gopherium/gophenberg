@@ -221,10 +221,13 @@ func (s *server) handleContentPatch() http.HandlerFunc {
 	}
 }
 
-// versionedContent returns the stored item when it still holds version, or [content.ErrConflict].
+// versionedContent returns the stored item when it is out of the trash and still holds version.
 func (s *server) versionedContent(r *http.Request, id uuid.UUID, version time.Time) (content.Content, error) {
 	stored, err := s.content.ByID(r.Context(), id)
 	if err != nil {
+		return content.Content{}, err
+	}
+	if err := stored.Editable(); err != nil {
 		return content.Content{}, err
 	}
 	if !version.Equal(stored.UpdatedAt) {

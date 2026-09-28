@@ -369,6 +369,112 @@ func TestPostRestoreReturnsATrashedPostToDraft(t *testing.T) {
 	}
 }
 
+// trashedPost returns a post of the author that sits in the trash.
+func trashedPost(t *testing.T, author uuid.UUID) content.Content {
+	t.Helper()
+	trashed := newPost(t, "Trashed", author)
+	trashed.Status = content.StatusTrash
+	trashed.Slug += "-trashed-abcd1234"
+	trashed.Path += "-trashed-abcd1234"
+	return trashed
+}
+
+func TestPostPatchRefusesAPostInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	edits := map[string]map[string]any{
+		"title":         {"title": "Edited"},
+		"content":       {"content": "<!-- wp:paragraph --><p>Edited</p><!-- /wp:paragraph -->"},
+		"excerpt":       {"excerpt": "Edited"},
+		"slug":          {"slug": "trashed"},
+		"publish":       {"status": "published"},
+		"held status":   {"status": "trash"},
+		"field values":  {"fields": map[string]any{"color": "red"}},
+		"parent":        {"parent_id": uuid.Must(uuid.NewV7()).String()},
+		"nothing asked": {},
+	}
+	for name, edit := range edits {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			handler, posts, ada := authedPostServer(t)
+			stored := posts.add(trashedPost(t, ada.ID))
+
+			recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
+				versionedBody(t, stored.UpdatedAt, edit))
+
+			if recorder.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+			}
+			if code := decodeBody[struct {
+				Code string `json:"code"`
+			}](t, recorder).Code; code != "content_trashed" {
+				t.Errorf("code = %q, want content_trashed", code)
+			}
+			held := posts.posts[stored.ID]
+			if held.Title != stored.Title || held.Slug != stored.Slug || held.Status != content.StatusTrash {
+				t.Errorf("stored = %q at %q as %s, want the trashed post untouched", held.Title, held.Slug, held.Status)
+			}
+			if len(posts.revisions) != 0 {
+				t.Errorf("revisions = %d, want no snapshot of a post in the trash", len(posts.revisions))
+			}
+		})
+	}
+}
+
+func TestPostPatchNamesTheTrashBeforeAStaleVersion(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(trashedPost(t, ada.ID))
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
+		versionedBody(t, stored.UpdatedAt.Add(-time.Minute), map[string]any{"slug": "trashed"}))
+
+	if code := decodeBody[struct {
+		Code string `json:"code"`
+	}](t, recorder).Code; code != "content_trashed" {
+		t.Errorf("code = %q, want content_trashed rather than a stale version", code)
+	}
+}
+
+func TestPostPatchEditsAPostRestoredFromTheTrash(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(trashedPost(t, ada.ID))
+	restore := doRequest(t, handler, http.MethodPost, "/api/content/"+stored.ID.String()+"/restore", "")
+	if restore.Code != http.StatusOK {
+		t.Fatalf("restore status = %d, want %d: %s", restore.Code, http.StatusOK, restore.Body.String())
+	}
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/content/"+stored.ID.String(),
+		versionedBody(t, posts.posts[stored.ID].UpdatedAt, map[string]any{"title": "Edited"}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if title := posts.posts[stored.ID].Title; title != "Edited" {
+		t.Errorf("stored title = %q, want the restored post edited", title)
+	}
+}
+
+func TestPostDeleteForceRemovesAPostInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(trashedPost(t, ada.ID))
+
+	recorder := doRequest(t, handler, http.MethodDelete, "/api/content/"+stored.ID.String()+"?force=true", "")
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusNoContent, recorder.Body.String())
+	}
+	if _, ok := posts.posts[stored.ID]; ok {
+		t.Error("the post is still stored, want a post in the trash deleted for good")
+	}
+}
+
 func TestPostRestoreRejectsPostsThatAreNotTrashed(t *testing.T) {
 	t.Parallel()
 
