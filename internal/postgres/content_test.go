@@ -3,6 +3,7 @@
 package postgres_test
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"strings"
@@ -430,6 +431,89 @@ func TestContentStoreRestoreKeepsTheRenamedSlugWhenTheOriginalIsTaken(t *testing
 	}
 	if restored.Slug != trashed.Slug {
 		t.Errorf("Slug = %q, want the renamed %q kept", restored.Slug, trashed.Slug)
+	}
+}
+
+func TestContentStoreRestoreRefusesAnItemOutOfTheTrash(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	created := mustCreate(t, store, "Hello World", author)
+	if _, err := pool.Exec(t.Context(),
+		`UPDATE core.content SET status = 'published', published_at = now() WHERE id = $1`, created.ID); err != nil {
+		t.Fatalf("publishing the post: %v", err)
+	}
+
+	_, err := store.Restore(t.Context(), created.ID, time.Now().UTC())
+
+	var refused *content.Error
+	if !errors.As(err, &refused) || err != error(refused) || refused.Code != "restore_not_trashed" {
+		t.Errorf("Restore() error = %v, want the bare restore_not_trashed refusal", err)
+	}
+	held, err := store.ByID(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	if held.Status != content.StatusPublished {
+		t.Errorf("Status = %q, want the published post left published", held.Status)
+	}
+}
+
+func TestRestoreQueuedBehindARestoreThatPublishedIsRefused(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	created := mustCreate(t, store, "Hello World", author)
+	if _, err := store.Trash(t.Context(), created.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+	rival := rivalTransaction(t, pool)
+	if _, err := rival.Exec(t.Context(),
+		`SELECT id FROM core.content WHERE id = $1 FOR UPDATE`, created.ID); err != nil {
+		t.Fatalf("locking the post: %v", err)
+	}
+	if _, err := rival.Exec(t.Context(),
+		`UPDATE core.content SET status = 'published', published_at = now() WHERE id = $1`, created.ID); err != nil {
+		t.Fatalf("restoring and publishing the post: %v", err)
+	}
+	restored := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, err := store.Restore(ctx, created.ID, time.Now().UTC())
+		restored <- err
+	}()
+	waitingOn(t, pool, "%core.content%")
+
+	if err := rival.Commit(t.Context()); err != nil {
+		t.Fatalf("committing the publish: %v", err)
+	}
+
+	if err := <-restored; !errors.Is(err, content.ErrInvalidTransition) {
+		t.Errorf("Restore() error = %v, want the post published first refusing a late restore", err)
+	}
+	held, err := store.ByID(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	if held.Status != content.StatusPublished {
+		t.Errorf("Status = %q, want the published post left published", held.Status)
+	}
+}
+
+func TestRestoreReportsAnItemItCannotLock(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	created := mustCreate(t, store, "Hello World", author)
+	if _, err := store.Trash(t.Context(), created.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+	sabotage(t, pool, "ALTER TABLE core.content DROP COLUMN parent_id CASCADE")
+
+	if _, err := store.Restore(t.Context(), created.ID, time.Now().UTC()); err == nil ||
+		!strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("Restore() error = %v, want the unreadable lock reported", err)
 	}
 }
 

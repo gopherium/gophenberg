@@ -596,12 +596,14 @@ func leavable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
 	return nil
 }
 
-// Restore returns a trashed content item to draft. It recovers the original
-// slug, or leaves the trashed one in place when the original is taken.
+// Restore returns a trashed item to draft under its original slug when free, and refuses one out of the trash.
 func (s *ContentStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	var restored content.Content
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
+		if err := restorable(ctx, queries, id); err != nil {
+			return err
+		}
 		row, err := restoredRow(ctx, queries, tx, id, updatedAt)
 		if err != nil {
 			return err
@@ -612,10 +614,23 @@ func (s *ContentStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time
 	if errors.Is(err, pgx.ErrNoRows) {
 		return content.Content{}, content.ErrNotFound
 	}
+	if errors.Is(err, content.ErrInvalidTransition) {
+		return content.Content{}, err
+	}
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: restore content: %w", err)
 	}
 	return restored, nil
+}
+
+// restorable locks the item, reporting why it cannot leave the trash.
+func restorable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
+	row, err := queries.LockContent(ctx, id)
+	if err != nil {
+		return err
+	}
+	held := toContent(row)
+	return held.Restore()
 }
 
 // restoredRow returns the item to draft under its original slug, or under the trashed one when that is taken.
