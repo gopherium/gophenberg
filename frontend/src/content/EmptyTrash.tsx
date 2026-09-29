@@ -14,13 +14,11 @@ export function EmptyTrash({ onEmptied }: { onEmptied: (removed: string[]) => Pr
 	return (
 		<AlertDialog.Root
 			onConfirm={async () => {
-				let removed: string[]
-				try {
-					removed = await emptyTrash()
-				} catch {
+				const emptied = await emptyTrash()
+				await onEmptied(emptied.removed)
+				if (!emptied.finished) {
 					return { close: false, error: __('Could not empty the trash.', 'gophenberg') }
 				}
-				await onEmptied(removed)
 			}}
 		>
 			<AlertDialog.Trigger>{__('Empty Trash', 'gophenberg')}</AlertDialog.Trigger>

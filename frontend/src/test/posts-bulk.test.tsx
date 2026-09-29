@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
-import { renderAt } from './render'
+import { renderAt, renderRoutedAt } from './render'
+import { storedPost } from './postFixture'
 import { warmPostsScreen } from './warm'
 
 warmPostsScreen()
+
+beforeAll(async () => {
+	await import('../content/EditorScreen')
+}, 120000)
 
 const FIRST = {
 	id: '019fb000-0000-7000-8000-000000000001',
@@ -143,6 +148,45 @@ test('reloads the list when an undo is only partly refused', async () => {
 	expect(await screen.findByText(/could not restore that post/i)).toBeInTheDocument()
 	await waitFor(() => expect(restored).toEqual([FIRST.id]))
 	await waitFor(() => expect(screen.getByText('Welcome to Gophenberg')).toBeInTheDocument())
+})
+
+test('forgets the cached copy of a post a partly refused batch still moved', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(
+		http.get(`/api/content/${FIRST.id}`, () =>
+			HttpResponse.json({
+				...storedPost,
+				...FIRST,
+				status: listed.some((post) => post.id === FIRST.id) ? 'published' : 'trash',
+			}),
+		),
+		http.delete('/api/content/:id', ({ params }) => {
+			if (String(params.id) === SECOND.id) {
+				return HttpResponse.json({}, { status: 500 })
+			}
+			listed = listed.filter((post) => post.id !== String(params.id))
+			return HttpResponse.json({ ...FIRST, status: 'trash' })
+		}),
+	)
+	const { router } = renderRoutedAt(`/content/post/${FIRST.id}/edit`)
+	await screen.findByRole('textbox', { name: 'Title' })
+	await act(async () => {
+		await router.navigate({ to: '/content/$typeKey', params: { typeKey: 'post' } })
+	})
+	await selectBoth()
+	await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+	const dialog = await screen.findByRole('dialog')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }))
+	await screen.findByText(/could not move/i)
+
+	await act(async () => {
+		await router.navigate({
+			to: '/content/$typeKey/$postId/edit',
+			params: { typeKey: 'post', postId: FIRST.id },
+		})
+	})
+
+	expect(await screen.findByText(/This item is in the trash/)).toBeInTheDocument()
 })
 
 test('reports a batch the server partly refused and reloads the list', async () => {

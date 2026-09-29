@@ -112,7 +112,7 @@ function Confirm({
 			closeModal?.()
 		},
 		onError: () => {
-			void refresh()
+			void refresh(moved)
 		},
 	})
 	return (
