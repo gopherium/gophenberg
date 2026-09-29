@@ -237,6 +237,84 @@ func TestAMoveQueuedBehindAnOppositeMoveIsRefused(t *testing.T) {
 	}
 }
 
+// movingToTheTop moves the page to the top level inside the rival transaction, leaving it uncommitted.
+func movingToTheTop(t *testing.T, rival pgx.Tx, page content.Content) {
+	t.Helper()
+	if _, err := rival.Exec(t.Context(),
+		`UPDATE core.content SET parent_id = NULL, path = 'pages/' || slug WHERE id = $1`, page.ID); err != nil {
+		t.Fatalf("moving the page to the top: %v", err)
+	}
+}
+
+func TestCreateUnderAParentMovedMeanwhileTakesItsNewAddress(t *testing.T) {
+	t.Parallel()
+
+	items, _, author, pool := nestingStoresWithPool(t)
+	guide := mustNest(t, items, nil, "Guide", author)
+	about := mustNest(t, items, &guide, "About", author)
+	rival := rivalTransaction(t, pool)
+	movingToTheTop(t, rival, about)
+	careers := stalePage(t, &about, "Careers", author)
+	created := make(chan error, 1)
+	var stored content.Content
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		var err error
+		stored, err = items.Create(ctx, careers)
+		created <- err
+	}()
+	waitingOn(t, pool, "%core.content%")
+
+	if err := rival.Commit(t.Context()); err != nil {
+		t.Fatalf("committing the move: %v", err)
+	}
+
+	if err := <-created; err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	if stored.Path != "pages/about/careers" {
+		t.Errorf("Path = %q, want the address under the parent where it now stands", stored.Path)
+	}
+}
+
+func TestMoveUnderAParentMovedMeanwhileTakesItsNewAddress(t *testing.T) {
+	t.Parallel()
+
+	items, _, author, pool := nestingStoresWithPool(t)
+	guide := mustNest(t, items, nil, "Guide", author)
+	about := mustNest(t, items, &guide, "About", author)
+	team := mustNest(t, items, nil, "Team", author)
+	rival := rivalTransaction(t, pool)
+	movingToTheTop(t, rival, about)
+	moved, err := content.Reparent(pageType(), team, &about, 0)
+	if err != nil {
+		t.Fatalf("Reparent() error = %v, want nil", err)
+	}
+	moved.UpdatedAt = team.UpdatedAt.Add(time.Second)
+	filed := make(chan error, 1)
+	var stored content.Content
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		var err error
+		stored, err = items.Update(ctx, moved, team.UpdatedAt, nil, 0)
+		filed <- err
+	}()
+	waitingOn(t, pool, "%core.content%")
+
+	if err := rival.Commit(t.Context()); err != nil {
+		t.Fatalf("committing the move: %v", err)
+	}
+
+	if err := <-filed; err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+	if stored.Path != "pages/about/team" {
+		t.Errorf("Path = %q, want the address under the parent where it now stands", stored.Path)
+	}
+}
+
 func TestMovingReportsATypeRowItCannotHold(t *testing.T) {
 	t.Parallel()
 

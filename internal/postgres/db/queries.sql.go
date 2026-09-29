@@ -1943,7 +1943,7 @@ WITH RECURSIVE chain AS (
     FROM core.content up
     JOIN chain ON up.id = chain.parent_id
 ) CYCLE id SET looped USING trail
-SELECT p.status,
+SELECT p.status, p.path,
     EXISTS (SELECT 1 FROM chain WHERE chain.id = $1::uuid AND NOT chain.looped) AS holds_child
 FROM core.content p
 WHERE p.id = $2
@@ -1957,13 +1957,14 @@ type LockParentParams struct {
 
 type LockParentRow struct {
 	Status     string
+	Path       string
 	HoldsChild bool
 }
 
 func (q *Queries) LockParent(ctx context.Context, arg LockParentParams) (LockParentRow, error) {
 	row := q.db.QueryRow(ctx, lockParent, arg.ChildID, arg.ID)
 	var i LockParentRow
-	err := row.Scan(&i.Status, &i.HoldsChild)
+	err := row.Scan(&i.Status, &i.Path, &i.HoldsChild)
 	return i, err
 }
 

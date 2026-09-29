@@ -389,7 +389,7 @@ WITH RECURSIVE chain AS (
     FROM core.content up
     JOIN chain ON up.id = chain.parent_id
 ) CYCLE id SET looped USING trail
-SELECT p.status,
+SELECT p.status, p.path,
     EXISTS (SELECT 1 FROM chain WHERE chain.id = @child_id::uuid AND NOT chain.looped) AS holds_child
 FROM core.content p
 WHERE p.id = @id
