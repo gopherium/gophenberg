@@ -385,18 +385,33 @@ export async function listEveryPost(query: PostQuery): Promise<Post[]> {
 	return held
 }
 
+/** What emptying the trash removed, and whether the trash is empty now. */
+export interface Emptied {
+	removed: string[]
+	finished: boolean
+}
+
 /**
- * Removes every trashed post for good.
+ * Removes every trashed post for good, as far as the server lets it.
+ * @returns The ids of the posts removed and whether the trash is empty now.
  */
-export async function emptyTrash(): Promise<void> {
+export async function emptyTrash(): Promise<Emptied> {
+	const removed: string[] = []
 	for (let round = 0; round < MAX_EMPTY_ROUNDS; round += 1) {
-		const page = await listPosts({ status: 'trash' })
-		if (page.items.length === 0) {
-			return
+		const page = await listPosts({ status: 'trash' }).catch(() => null)
+		if (page === null) {
+			return { removed, finished: false }
 		}
-		await Promise.all(page.items.map((post) => deletePost(post.id)))
+		if (page.items.length === 0) {
+			return { removed, finished: true }
+		}
+		const outcomes = await Promise.allSettled(page.items.map((post) => deletePost(post.id)))
+		removed.push(...page.items.filter((_, index) => outcomes[index].status === 'fulfilled').map((post) => post.id))
+		if (outcomes.some((outcome) => outcome.status === 'rejected')) {
+			return { removed, finished: false }
+		}
 	}
-	throw new Error('emptying the trash did not finish')
+	return { removed, finished: false }
 }
 
 /**

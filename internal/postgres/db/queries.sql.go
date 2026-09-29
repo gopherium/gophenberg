@@ -775,6 +775,16 @@ func (q *Queries) DeleteAutosave(ctx context.Context, arg DeleteAutosaveParams) 
 	return err
 }
 
+const deleteAutosavesOfContent = `-- name: DeleteAutosavesOfContent :exec
+DELETE FROM core.content_revisions AS r
+WHERE r.content_id = $1 AND r.kind = 'autosave'
+`
+
+func (q *Queries) DeleteAutosavesOfContent(ctx context.Context, contentID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteAutosavesOfContent, contentID)
+	return err
+}
+
 const deleteContent = `-- name: DeleteContent :execrows
 DELETE FROM core.content AS p WHERE p.id = $1
 `

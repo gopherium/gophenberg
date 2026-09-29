@@ -69,6 +69,14 @@ func (c *Content) canTransition(to Status) bool {
 	return true
 }
 
+// Editable reports [ErrTrashed] when the item is in the trash.
+func (c Content) Editable() error {
+	if c.Status == StatusTrash {
+		return ErrTrashed
+	}
+	return nil
+}
+
 // Restore returns a trashed content item to draft, or reports [ErrInvalidTransition].
 func (c *Content) Restore() error {
 	if c.Status != StatusTrash {

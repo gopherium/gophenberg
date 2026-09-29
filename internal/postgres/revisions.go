@@ -9,19 +9,21 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
-// contentConstraint is the revision foreign key onto its content item.
-const contentConstraint = "content_revisions_content_id_fkey"
-
-// isContentGone reports whether err is a violation of the revision's content foreign key.
-func isContentGone(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.ConstraintName == contentConstraint
+// editableUnderLock locks the item, reporting [content.ErrNotFound] or [content.ErrTrashed] when it may not be written.
+func editableUnderLock(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
+	row, err := queries.LockContent(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return content.ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	return toContent(row).Editable()
 }
 
 // Revisions returns the item's revisions newest first, without their content.
@@ -67,32 +69,55 @@ func (s *ContentStore) RevisionByID(ctx context.Context, contentID, revisionID u
 	}, nil
 }
 
-// DeleteRevision removes the item's revision, or reports [content.ErrRevisionNotFound].
+// DeleteRevision removes the item's revision, reporting [content.ErrRevisionNotFound] or [content.ErrTrashed].
 func (s *ContentStore) DeleteRevision(ctx context.Context, contentID, revisionID uuid.UUID) error {
-	rows, err := s.queries.DeleteRevision(ctx, db.DeleteRevisionParams{ContentID: contentID, ID: revisionID})
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := editableUnderLock(ctx, queries, contentID); err != nil {
+			return err
+		}
+		rows, err := queries.DeleteRevision(ctx, db.DeleteRevisionParams{ContentID: contentID, ID: revisionID})
+		if err != nil {
+			return err
+		}
+		if rows == 0 {
+			return content.ErrRevisionNotFound
+		}
+		return nil
+	})
+	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrTrashed) ||
+		errors.Is(err, content.ErrRevisionNotFound) {
+		return err
+	}
 	if err != nil {
 		return fmt.Errorf("postgres: delete revision: %w", err)
-	}
-	if rows == 0 {
-		return content.ErrRevisionNotFound
 	}
 	return nil
 }
 
-// SaveAutosave stores the author's autosave of the item, replacing any earlier one.
+// SaveAutosave stores the author's autosave of the item, replacing any earlier one, unless the item is in the trash.
 func (s *ContentStore) SaveAutosave(ctx context.Context, autosave content.Revision) (content.Revision, error) {
-	row, err := s.queries.UpsertAutosave(ctx, db.UpsertAutosaveParams{
-		ID:        autosave.ID,
-		ContentID: autosave.ContentID,
-		AuthorID:  autosave.AuthorID,
-		Title:     autosave.Title,
-		Content:   autosave.Content,
-		Excerpt:   autosave.Excerpt,
-		Fields:    storedValues(autosave.Fields),
-		CreatedAt: autosave.CreatedAt,
+	var row db.UpsertAutosaveRow
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := editableUnderLock(ctx, queries, autosave.ContentID); err != nil {
+			return err
+		}
+		var err error
+		row, err = queries.UpsertAutosave(ctx, db.UpsertAutosaveParams{
+			ID:        autosave.ID,
+			ContentID: autosave.ContentID,
+			AuthorID:  autosave.AuthorID,
+			Title:     autosave.Title,
+			Content:   autosave.Content,
+			Excerpt:   autosave.Excerpt,
+			Fields:    storedValues(autosave.Fields),
+			CreatedAt: autosave.CreatedAt,
+		})
+		return err
 	})
-	if isContentGone(err) {
-		return content.Revision{}, content.ErrNotFound
+	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrTrashed) {
+		return content.Revision{}, err
 	}
 	if err != nil {
 		return content.Revision{}, fmt.Errorf("postgres: save autosave: %w", err)

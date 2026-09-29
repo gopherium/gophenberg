@@ -3,9 +3,9 @@
 import { AlertDialog } from '@gophenberg/frontend-sdk'
 import { __, sprintf } from '@wordpress/i18n'
 import { useToaster } from '@gopherium/godmin'
-import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
+import { useRefresh } from './actions'
 import { restorePost, trashPost } from './api'
 
 /**
@@ -15,17 +15,8 @@ import { restorePost, trashPost } from './api'
  */
 export function TrashPost({ postId, title }: { postId: string, title: string }) {
 	const navigate = useNavigate()
-	const client = useQueryClient()
+	const refresh = useRefresh()
 	const toaster = useToaster()
-	/**
-	 * Reloads the listing and the status counts.
-	 */
-	async function reload() {
-		await Promise.all([
-			client.invalidateQueries({ queryKey: ['posts'] }),
-			client.invalidateQueries({ queryKey: ['post-counts'] }),
-		])
-	}
 	/**
 	 * Trashes the post, leaves for the listing and offers to take it back.
 	 * @returns The error to report, or nothing once the post is trashed.
@@ -37,12 +28,12 @@ export function TrashPost({ postId, title }: { postId: string, title: string }) 
 			return { close: false, error: __('Could not move that post to trash.', 'gophenberg') }
 		}
 		await navigate({ to: '/content/$typeKey' })
-		await reload()
+		await refresh([postId])
 		toaster.show(__('Moved to the trash.', 'gophenberg'), {
 			label: __('Undo', 'gophenberg'),
 			onAct: () => {
 				restorePost(postId)
-					.then(reload)
+					.then(() => refresh([postId]))
 					.catch(() => toaster.show(__('Could not restore that post.', 'gophenberg')))
 			},
 		})

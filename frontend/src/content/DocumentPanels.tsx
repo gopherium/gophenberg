@@ -37,7 +37,6 @@ function statusLabels(): Record<string, string> {
 		pending: __('Pending', 'gophenberg'),
 		private: __('Private', 'gophenberg'),
 		published: _x('Published', 'post status', 'gophenberg'),
-		trash: _x('Trash', 'post status', 'gophenberg'),
 	}
 }
 

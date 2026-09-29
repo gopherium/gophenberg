@@ -456,6 +456,57 @@ func TestTrashReportsAnItemItCannotMark(t *testing.T) {
 	}
 }
 
+func TestTrashReportsParkedWordsItCannotSweep(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	raiseOn(t, pool, "core.content_revisions", "DELETE")
+
+	if _, err := store.Trash(t.Context(), held.ID, time.Now().UTC()); err == nil {
+		t.Error("Trash() error = nil, want the failing sweep reported")
+	}
+}
+
+func TestSaveAutosaveReportsAnItemItCannotLock(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	autosave := mustAutosave(t, held, author)
+	sabotage(t, pool, "ALTER TABLE core.content DROP COLUMN parent_id CASCADE")
+
+	if _, err := store.SaveAutosave(t.Context(), autosave); err == nil {
+		t.Error("SaveAutosave() error = nil, want the unreadable lock reported")
+	}
+}
+
+func TestDeleteRevisionReportsAnItemItCannotLock(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	sabotage(t, pool, "ALTER TABLE core.content DROP COLUMN parent_id CASCADE")
+
+	if err := store.DeleteRevision(t.Context(), held.ID, uuid.Must(uuid.NewV7())); err == nil {
+		t.Error("DeleteRevision() error = nil, want the unreadable lock reported")
+	}
+}
+
+func TestDeleteRevisionReportsARevisionItCannotRemove(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	raiseOn(t, pool, "core.content_revisions", "DELETE")
+
+	err := store.DeleteRevision(t.Context(), held.ID, uuid.Must(uuid.NewV7()))
+
+	if err == nil || errors.Is(err, content.ErrRevisionNotFound) {
+		t.Errorf("DeleteRevision() error = %v, want the failing delete reported", err)
+	}
+}
+
 func TestTrashReportsAnItemItCannotLock(t *testing.T) {
 	t.Parallel()
 

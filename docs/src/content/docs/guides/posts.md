@@ -65,3 +65,6 @@ In the Trash view, each row offers two actions:
 
 Both work one post at a time. **Empty Trash**, which only appears
 here, clears everything at once.
+
+Opening a trashed post from its title shows it read only. Its
+**Restore** control brings it back as a draft and opens the editor.

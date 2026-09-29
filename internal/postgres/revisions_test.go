@@ -3,6 +3,7 @@
 package postgres_test
 
 import (
+	"context"
 	"errors"
 	"math"
 	"strconv"
@@ -304,6 +305,78 @@ func TestContentStoreDeleteRevision(t *testing.T) {
 	}
 	if len(remaining) != 0 {
 		t.Errorf("revisions = %d, want none after deletion", len(remaining))
+	}
+}
+
+func TestContentStoreDeleteRevisionRefusesAnItemInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	store, author := newContentStore(t)
+	created := mustCreate(t, store, "Revised", author)
+	if _, err := store.Update(
+		t.Context(), editTitle(created, "Edited"), created.UpdatedAt, mustSnapshot(t, created, author), 0,
+	); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+	revisions, err := store.Revisions(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("Revisions() error = %v, want nil", err)
+	}
+	if _, err := store.Trash(t.Context(), created.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+
+	err = store.DeleteRevision(t.Context(), created.ID, revisions[0].ID)
+
+	if !errors.Is(err, content.ErrTrashed) {
+		t.Errorf("DeleteRevision() error = %v, want %v", err, content.ErrTrashed)
+	}
+	remaining, err := store.Revisions(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("Revisions() error = %v, want nil", err)
+	}
+	if len(remaining) != 1 {
+		t.Errorf("revisions = %d, want the revision of a post in the trash kept", len(remaining))
+	}
+}
+
+func TestRevisionDeleteQueuedBehindATrashIsRefused(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	created := mustCreate(t, store, "Contended", author)
+	if _, err := store.Update(
+		t.Context(), editTitle(created, "Edited"), created.UpdatedAt, mustSnapshot(t, created, author), 0,
+	); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+	revisions, err := store.Revisions(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("Revisions() error = %v, want nil", err)
+	}
+	rival := rivalTransaction(t, pool)
+	if _, err := rival.Exec(t.Context(),
+		`SELECT id FROM core.content WHERE id = $1 FOR UPDATE`, created.ID); err != nil {
+		t.Fatalf("locking the post: %v", err)
+	}
+	if _, err := rival.Exec(t.Context(),
+		`UPDATE core.content SET status = 'trash' WHERE id = $1`, created.ID); err != nil {
+		t.Fatalf("trashing the post: %v", err)
+	}
+	removed := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		removed <- store.DeleteRevision(ctx, created.ID, revisions[0].ID)
+	}()
+	waitingOn(t, pool, "%FROM core.content p%FOR UPDATE%")
+
+	if err := rival.Commit(t.Context()); err != nil {
+		t.Fatalf("committing the trash: %v", err)
+	}
+
+	if err := <-removed; !errors.Is(err, content.ErrTrashed) {
+		t.Errorf("DeleteRevision() error = %v, want the trash that landed first refusing it", err)
 	}
 }
 

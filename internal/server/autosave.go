@@ -95,8 +95,8 @@ func (s *server) handleAutosaveSave() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		if stored.Status == content.StatusTrash {
-			respondDomainError(w, content.ErrTrashed)
+		if err := stored.Editable(); err != nil {
+			respondDomainError(w, err)
 			return
 		}
 		scalars, bounded, err := s.bufferedValues(r, stored, req)

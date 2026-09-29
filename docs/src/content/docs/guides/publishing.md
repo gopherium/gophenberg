@@ -26,7 +26,7 @@ Once a minute, when you leave the editor, and when you close the
 page, the editor sends unsaved work to the server. On a published post it is parked
 separately, so readers never see half-finished edits. On your own
 draft it is written into the draft itself, which is not public
-either way. A post in the trash takes no autosave.
+either way. A post in the trash takes no autosave and no edits.
 
 If the server holds newer parked work than the post, opening it
 shows a banner with **Restore**, which loads the kept words as

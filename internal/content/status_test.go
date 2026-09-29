@@ -177,6 +177,34 @@ func TestRestoreReturnsATrashedPostToDraft(t *testing.T) {
 	}
 }
 
+func TestEditableRefusesAnItemInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	p := newDraft(t)
+	p.Status = content.StatusTrash
+
+	if err := p.Editable(); !errors.Is(err, content.ErrTrashed) {
+		t.Errorf("Editable() error = %v, want %v", err, content.ErrTrashed)
+	}
+}
+
+func TestEditableAllowsAnItemOutOfTheTrash(t *testing.T) {
+	t.Parallel()
+
+	statuses := []content.Status{
+		content.StatusDraft, content.StatusPending, content.StatusPrivate,
+		content.StatusScheduled, content.StatusPublished,
+	}
+	for _, status := range statuses {
+		p := newDraft(t)
+		p.Status = status
+
+		if err := p.Editable(); err != nil {
+			t.Errorf("Editable() on %s error = %v, want nil", status, err)
+		}
+	}
+}
+
 func TestRestoreRejectsPostsThatAreNotTrashed(t *testing.T) {
 	t.Parallel()
 

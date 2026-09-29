@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
-import { renderAt } from './render'
+import { renderAt, renderRoutedAt } from './render'
+import { storedPost } from './postFixture'
 import { warmPostsScreen } from './warm'
 
 warmPostsScreen()
+
+beforeAll(async () => {
+	await import('../content/EditorScreen')
+}, 120000)
 
 const TRASHED = {
 	id: '019fb000-0000-7000-8000-000000000003',
@@ -122,6 +127,43 @@ test('keeps the trash when the confirm is dismissed', async () => {
 
 	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(deleted).toEqual([])
+})
+
+test('forgets the posts an interrupted empty trash still removed', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(
+		http.get(`/api/content/${TRASHED.id}`, () =>
+			bin.some((post) => post.id === TRASHED.id)
+				? HttpResponse.json({ ...storedPost, ...TRASHED })
+				: HttpResponse.json({}, { status: 404 }),
+		),
+		http.delete('/api/content/:id', ({ request, params }) => {
+			if (String(params.id) === SECOND.id) {
+				return HttpResponse.json({}, { status: 500 })
+			}
+			deleted.push(new URL(request.url))
+			bin = bin.filter((post) => post.id !== String(params.id))
+			return new HttpResponse(null, { status: 204 })
+		}),
+	)
+	const { router } = renderRoutedAt(`/content/post/${TRASHED.id}/edit`)
+	await screen.findByText(/This item is in the trash/)
+	await act(async () => {
+		await router.navigate({ to: '/content/$typeKey', params: { typeKey: 'post' } })
+	})
+	await openTrashView()
+	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(await screen.findByRole('button', { name: 'Delete All' }))
+	await screen.findByText(/could not empty the trash/i)
+
+	await act(async () => {
+		await router.navigate({
+			to: '/content/$typeKey/$postId/edit',
+			params: { typeKey: 'post', postId: TRASHED.id },
+		})
+	})
+
+	expect(await screen.findByText('Could not load that post.')).toBeInTheDocument()
 })
 
 test('reports an empty trash the server refused', async () => {

@@ -6,6 +6,7 @@ import type { Page } from '@playwright/test'
 const RUN = Math.random().toString(36).slice(2, 8)
 const TITLE = `A post the golden path wrote ${RUN}`
 const TRASH_TITLE = `A post the golden path trashed ${RUN}`
+const READ_TITLE = `A post the golden path read in the trash ${RUN}`
 const FLEXIBLE_TITLE = `A post the golden path built in rows ${RUN}`
 const PARAGRAPH = 'The paragraph the golden path typed.'
 const HEADING = 'The heading the golden path typed'
@@ -228,6 +229,30 @@ test('takes a post back out of the trash from the editor', async ({ page }) => {
 
 	await page.getByRole('button', { name: /^Draft/ }).click()
 	await expect(page.getByRole('link', { name: TRASH_TITLE })).toBeVisible()
+})
+
+test('reads a trashed post and restores it into the editor', async ({ page }) => {
+	await openNewDraft(page)
+	await page.getByRole('textbox', { name: 'Title' }).fill(READ_TITLE)
+	await page.getByRole('button', { name: 'Save draft' }).click()
+	await expect(shown(page, 'Draft saved.')).toBeVisible()
+	await page.getByRole('button', { name: 'Move to trash' }).click()
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Move to trash' }).click()
+	await expect(shown(page, 'Moved to the trash.')).toBeVisible()
+
+	await page.getByRole('button', { name: /^Trash/ }).click()
+	await page.getByRole('link', { name: READ_TITLE }).click()
+
+	await expect(shown(page, 'This item is in the trash. Restore it first to work on it again.')).toBeVisible()
+	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveCount(0)
+	await expect(page.getByRole('button', { name: 'Move to trash' })).toHaveCount(0)
+
+	await page.getByRole('button', { name: 'Restore' }).click()
+
+	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(READ_TITLE)
+	await page.getByRole('textbox', { name: 'Title' }).fill(`${READ_TITLE} again`)
+	await page.getByRole('button', { name: 'Save draft' }).click()
+	await expect(shown(page, 'Draft saved.')).toBeVisible()
 })
 
 test('walks an edit back with undo', async ({ page }) => {

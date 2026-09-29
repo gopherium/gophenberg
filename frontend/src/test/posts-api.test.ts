@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
-import { fetchPost, fetchPostCounts, listEveryPost, listPosts } from '../content/api'
+import { emptyTrash, fetchPost, fetchPostCounts, listEveryPost, listPosts } from '../content/api'
 
 const ROW = {
 	id: '019fb000-0000-7000-8000-000000000001',
@@ -143,6 +143,30 @@ test('stops at the reading ceiling when a listing never reaches its total', asyn
 	const held = await listEveryPost({ type: 'category' })
 
 	expect(held).toHaveLength(100)
+})
+
+test('stops emptying the trash with nothing removed when the listing is refused', async () => {
+	server.use(http.get('/api/content', () => HttpResponse.json({}, { status: 500 })))
+
+	const emptied = await emptyTrash()
+
+	expect(emptied).toEqual({ removed: [], finished: false })
+})
+
+test('stops emptying a trash that never runs out and reports what it removed', async () => {
+	const deleted: string[] = []
+	server.use(
+		http.get('/api/content', () => HttpResponse.json({ items: [{ ...ROW, status: 'trash' }], total: 1 })),
+		http.delete('/api/content/:id', ({ params }) => {
+			deleted.push(String(params.id))
+			return new HttpResponse(null, { status: 204 })
+		}),
+	)
+
+	const emptied = await emptyTrash()
+
+	expect(emptied.finished).toBe(false)
+	expect(emptied.removed).toEqual(deleted)
 })
 
 test('counts the type it was asked for', async () => {

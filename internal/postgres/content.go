@@ -488,7 +488,7 @@ func (s *ContentStore) Depth(ctx context.Context, id uuid.UUID) (int, error) {
 	return int(levels), nil
 }
 
-// Trash marks the content item trashed and frees its address for reuse.
+// Trash marks the content item trashed, frees its address for reuse and drops its parked words.
 func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	var trashed content.Content
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -505,6 +505,9 @@ func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.T
 			return err
 		}
 		trashed = toContent(row)
+		if err := queries.DeleteAutosavesOfContent(ctx, id); err != nil {
+			return err
+		}
 		return queries.RefreshRelationVisibility(ctx, id)
 	})
 	if err != nil {

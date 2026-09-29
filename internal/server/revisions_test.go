@@ -250,6 +250,31 @@ func TestRevisionDeleteRemovesIt(t *testing.T) {
 	}
 }
 
+func TestRevisionDeleteRefusesAPostInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	stored := posts.add(trashedPost(t, ada.ID))
+	revision := mustRevision(t, stored, "Kept", ada.ID)
+	posts.revisions = append(posts.revisions, revision)
+
+	recorder := doRequest(
+		t, handler, http.MethodDelete, "/api/content/"+stored.ID.String()+"/revisions/"+revision.ID.String(), "",
+	)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+	if code := decodeBody[struct {
+		Code string `json:"code"`
+	}](t, recorder).Code; code != "content_trashed" {
+		t.Errorf("code = %q, want content_trashed", code)
+	}
+	if len(posts.revisions) != 1 {
+		t.Errorf("revisions = %d, want the revision of a post in the trash kept", len(posts.revisions))
+	}
+}
+
 func TestRevisionRoutesRejectUnknownAndMalformedIDs(t *testing.T) {
 	t.Parallel()
 
