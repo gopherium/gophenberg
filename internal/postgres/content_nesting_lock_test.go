@@ -228,46 +228,96 @@ func TestAStaleEditAfterTheItemMovedReportsAConflict(t *testing.T) {
 func TestAMoveQueuedBehindAnOppositeMoveIsRefused(t *testing.T) {
 	t.Parallel()
 
+	for _, held := range []string{"FOR NO KEY UPDATE", "FOR SHARE"} {
+		t.Run(held, func(t *testing.T) {
+			t.Parallel()
+
+			items, _, author, pool := nestingStoresWithPool(t)
+			about := mustNest(t, items, nil, "About", author)
+			team := mustNest(t, items, nil, "Team", author)
+			rival := rivalTransaction(t, pool)
+			if _, err := rival.Exec(t.Context(),
+				`SELECT key FROM core.content_types WHERE key = 'page' `+held); err != nil {
+				t.Fatalf("holding the type %s: %v", held, err)
+			}
+			if _, err := rival.Exec(t.Context(),
+				`UPDATE core.content SET parent_id = $1, path = 'pages/about/team' WHERE id = $2`,
+				about.ID, team.ID); err != nil {
+				t.Fatalf("filing Team under About: %v", err)
+			}
+			moved, err := content.Reparent(pageType(), about, &team, 0)
+			if err != nil {
+				t.Fatalf("Reparent() on the stale Team error = %v, want nil", err)
+			}
+			moved.UpdatedAt = about.UpdatedAt.Add(time.Second)
+			refused := make(chan error, 1)
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				_, err := items.Update(ctx, moved, about.UpdatedAt, nil, 0)
+				refused <- err
+			}()
+			waitingOn(t, pool, "%core.content_types%")
+
+			if err := rival.Commit(t.Context()); err != nil {
+				t.Fatalf("committing the opposite move: %v", err)
+			}
+
+			if err := <-refused; !errors.Is(err, content.ErrCycle) {
+				t.Errorf("Update() error = %v, want the opposite move that landed first refusing it", err)
+			}
+			stored, err := items.ByID(t.Context(), about.ID)
+			if err != nil {
+				t.Fatalf("ByID() error = %v, want nil", err)
+			}
+			if stored.ParentID != nil {
+				t.Errorf("About sits under %v, want it left at the top", *stored.ParentID)
+			}
+		})
+	}
+}
+
+func TestAPageCreatedAtTheTopDoesNotWaitForAMove(t *testing.T) {
+	t.Parallel()
+
 	items, _, author, pool := nestingStoresWithPool(t)
 	about := mustNest(t, items, nil, "About", author)
 	team := mustNest(t, items, nil, "Team", author)
 	rival := rivalTransaction(t, pool)
 	if _, err := rival.Exec(t.Context(),
-		`SELECT key FROM core.content_types WHERE key = 'page' FOR UPDATE`); err != nil {
-		t.Fatalf("holding the type as a move does: %v", err)
+		`SELECT id FROM core.content WHERE id = $1 FOR UPDATE`, about.ID); err != nil {
+		t.Fatalf("holding the parent: %v", err)
 	}
-	if _, err := rival.Exec(t.Context(),
-		`UPDATE core.content SET parent_id = $1, path = 'pages/about/team' WHERE id = $2`,
-		about.ID, team.ID); err != nil {
-		t.Fatalf("filing Team under About: %v", err)
-	}
-	moved, err := content.Reparent(pageType(), about, &team, 0)
+	moved, err := content.Reparent(pageType(), team, &about, 0)
 	if err != nil {
-		t.Fatalf("Reparent() on the stale Team error = %v, want nil", err)
+		t.Fatalf("Reparent() error = %v, want nil", err)
 	}
-	moved.UpdatedAt = about.UpdatedAt.Add(time.Second)
-	refused := make(chan error, 1)
+	moved.UpdatedAt = team.UpdatedAt.Add(time.Second)
+	filed := make(chan error, 1)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		_, err := items.Update(ctx, moved, about.UpdatedAt, nil, 0)
-		refused <- err
+		_, err := items.Update(ctx, moved, team.UpdatedAt, nil, 0)
+		filed <- err
 	}()
-	waitingOn(t, pool, "%core.content_types%")
+	waitingOn(t, pool, "%FOR KEY SHARE OF p%")
+	careers := stalePage(t, nil, "Careers", author)
+	created := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, err := items.Create(ctx, careers)
+		created <- err
+	}()
 
-	if err := rival.Commit(t.Context()); err != nil {
-		t.Fatalf("committing the opposite move: %v", err)
+	if err := finishes(t, created, 10*time.Second); err != nil {
+		t.Errorf("Create() error = %v, want nil", err)
 	}
-
-	if err := <-refused; !errors.Is(err, content.ErrCycle) {
-		t.Errorf("Update() error = %v, want the opposite move that landed first refusing it", err)
+	if err := rival.Rollback(t.Context()); err != nil {
+		t.Fatalf("releasing the parent: %v", err)
 	}
-	stored, err := items.ByID(t.Context(), about.ID)
-	if err != nil {
-		t.Fatalf("ByID() error = %v, want nil", err)
-	}
-	if stored.ParentID != nil {
-		t.Errorf("About sits under %v, want it left at the top", *stored.ParentID)
+	if err := <-filed; err != nil {
+		t.Errorf("Update() error = %v, want the move saved once the parent is free", err)
 	}
 }
 

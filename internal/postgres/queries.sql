@@ -123,6 +123,9 @@ SELECT count(*) FROM core.content p WHERE p.type = @type AND p.parent_id IS NOT 
 -- name: LockTypeNesting :one
 SELECT t.hierarchical FROM core.content_types t WHERE t.key = @key FOR SHARE;
 
+-- name: LockTypeForMove :one
+SELECT t.hierarchical FROM core.content_types t WHERE t.key = @key FOR NO KEY UPDATE;
+
 -- name: SiblingSlugTaken :one
 SELECT EXISTS (
     SELECT 1 FROM core.content p

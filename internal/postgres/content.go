@@ -480,11 +480,11 @@ func movable(
 
 // movedUnder returns the address of the new parent, holding the type against every other move.
 func movedUnder(ctx context.Context, queries *db.Queries, c content.Content) (string, error) {
-	kind, err := queries.LockContentType(ctx, c.Type)
+	nests, err := queries.LockTypeForMove(ctx, c.Type)
 	if err != nil {
 		return "", err
 	}
-	if !kind.Hierarchical {
+	if !nests {
 		return "", content.ErrNotHierarchical
 	}
 	return parentHolds(ctx, queries, *c.ParentID, c.ID)

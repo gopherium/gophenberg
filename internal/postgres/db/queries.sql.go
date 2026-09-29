@@ -1968,6 +1968,17 @@ func (q *Queries) LockParent(ctx context.Context, arg LockParentParams) (LockPar
 	return i, err
 }
 
+const lockTypeForMove = `-- name: LockTypeForMove :one
+SELECT t.hierarchical FROM core.content_types t WHERE t.key = $1 FOR NO KEY UPDATE
+`
+
+func (q *Queries) LockTypeForMove(ctx context.Context, key string) (bool, error) {
+	row := q.db.QueryRow(ctx, lockTypeForMove, key)
+	var hierarchical bool
+	err := row.Scan(&hierarchical)
+	return hierarchical, err
+}
+
 const lockTypeNesting = `-- name: LockTypeNesting :one
 SELECT t.hierarchical FROM core.content_types t WHERE t.key = $1 FOR SHARE
 `
