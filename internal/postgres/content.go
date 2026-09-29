@@ -104,9 +104,11 @@ func (s *ContentStore) createHeld(
 	var row db.CoreContent
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		if err := fileable(ctx, queries, c); err != nil {
+		prefix, err := fileable(ctx, queries, c, content.AddressPrefix(params.Path, params.Slug))
+		if err != nil {
 			return err
 		}
+		params.Path = content.AddressUnder(prefix, params.Slug)
 		matching, err := declaredValues(ctx, queries, c)
 		if err != nil {
 			return err
@@ -329,16 +331,17 @@ func (s *ContentStore) update(
 	ctx context.Context, c content.Content, slug string, expectedUpdatedAt time.Time,
 	snapshot *content.Revision, revisionCap int,
 ) (content.Content, error) {
-	path := content.AddressUnder(content.AddressPrefix(c.Path, c.Slug), slug)
 	var updated content.Content
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
 		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
 			return err
 		}
-		if err := movable(ctx, queries, c); err != nil {
+		prefix, err := movable(ctx, queries, c, expectedUpdatedAt, content.AddressPrefix(c.Path, c.Slug))
+		if err != nil {
 			return err
 		}
+		path := content.AddressUnder(prefix, slug)
 		resolved, err := resolvedTargets(ctx, queries, c)
 		if err != nil {
 			return err
@@ -444,48 +447,65 @@ func nestable(ctx context.Context, queries *db.Queries, c content.Content) error
 	return nil
 }
 
-// fileable returns the reason a new item cannot sit under its parent, holding the type and the parent as they stand.
-func fileable(ctx context.Context, queries *db.Queries, c content.Content) error {
+// fileable returns the address prefix a new item takes, holding the type and its parent as they stand.
+func fileable(ctx context.Context, queries *db.Queries, c content.Content, prefix string) (string, error) {
 	if err := nestable(ctx, queries, c); err != nil {
-		return err
+		return "", err
 	}
 	if c.ParentID == nil {
-		return nil
+		return prefix, nil
 	}
-	return parentHolds(ctx, queries, *c.ParentID)
+	return parentHolds(ctx, queries, *c.ParentID, c.ID)
 }
 
-// movable returns the reason an edit cannot keep the item where it asks, holding the type and any new parent.
-func movable(ctx context.Context, queries *db.Queries, c content.Content) error {
-	if err := nestable(ctx, queries, c); err != nil {
-		return err
-	}
+// movable returns the address prefix an edit files the item under, holding the type and any new parent.
+func movable(
+	ctx context.Context, queries *db.Queries, c content.Content, expected time.Time, prefix string,
+) (string, error) {
 	if c.ParentID == nil {
-		return nil
+		return prefix, nil
 	}
 	stored, err := byID(ctx, queries, c.ID)
 	if err != nil {
-		return err
+		return "", err
+	}
+	if !stored.UpdatedAt.Equal(expected) {
+		return "", content.ErrConflict
 	}
 	if stored.ParentID != nil && *stored.ParentID == *c.ParentID {
-		return nil
+		return prefix, nestable(ctx, queries, c)
 	}
-	return parentHolds(ctx, queries, *c.ParentID)
+	return movedUnder(ctx, queries, c)
 }
 
-// parentHolds locks the parent, reporting [content.ErrParentType] when it is gone or [content.ErrParentTrashed].
-func parentHolds(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
-	status, err := queries.LockParent(ctx, id)
+// movedUnder returns the address of the new parent, holding the type against every other move.
+func movedUnder(ctx context.Context, queries *db.Queries, c content.Content) (string, error) {
+	nests, err := queries.LockTypeForMove(ctx, c.Type)
+	if err != nil {
+		return "", err
+	}
+	if !nests {
+		return "", content.ErrNotHierarchical
+	}
+	return parentHolds(ctx, queries, *c.ParentID, c.ID)
+}
+
+// parentHolds locks the parent and returns its address, refusing one gone, in the trash, or under the item.
+func parentHolds(ctx context.Context, queries *db.Queries, id, child uuid.UUID) (string, error) {
+	parent, err := queries.LockParent(ctx, db.LockParentParams{ID: id, ChildID: child})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return content.ErrParentType
+		return "", content.ErrParentType
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
-	if content.Status(status) == content.StatusTrash {
-		return content.ErrParentTrashed
+	if content.Status(parent.Status) == content.StatusTrash {
+		return "", content.ErrParentTrashed
 	}
-	return nil
+	if parent.HoldsChild {
+		return "", content.ErrCycle
+	}
+	return parent.Path, nil
 }
 
 // valuesDeclared refuses a value whose field no group declares at all.
@@ -510,6 +530,7 @@ func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content)
 var writeRefusals = []error{
 	content.ErrNotFound, content.ErrConflict, content.ErrUnknownField, content.ErrNotHierarchical,
 	content.ErrTargetNotFound, content.ErrTargetType, content.ErrParentType, content.ErrParentTrashed,
+	content.ErrCycle,
 }
 
 // writeFailure returns the error the write carries, and wraps anything else.

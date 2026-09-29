@@ -232,6 +232,12 @@ test('takes a post back out of the trash from the editor', async ({ page }) => {
 })
 
 test('reads a trashed post and restores it into the editor', async ({ page }) => {
+	const statuses: number[] = []
+	page.on('response', (response) => {
+		if (response.request().method() === 'PATCH') {
+			statuses.push(response.status())
+		}
+	})
 	await openNewDraft(page)
 	await page.getByRole('textbox', { name: 'Title' }).fill(READ_TITLE)
 	await page.getByRole('button', { name: 'Save draft' }).click()
@@ -252,7 +258,7 @@ test('reads a trashed post and restores it into the editor', async ({ page }) =>
 	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(READ_TITLE)
 	await page.getByRole('textbox', { name: 'Title' }).fill(`${READ_TITLE} again`)
 	await page.getByRole('button', { name: 'Save draft' }).click()
-	await expect(shown(page, 'Draft saved.')).toBeVisible()
+	await expect.poll(() => statuses).toEqual([200, 200])
 })
 
 test('walks an edit back with undo', async ({ page }) => {
