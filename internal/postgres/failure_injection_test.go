@@ -493,6 +493,20 @@ func TestDeleteRevisionReportsAnItemItCannotLock(t *testing.T) {
 	}
 }
 
+func TestDeleteRevisionReportsARevisionItCannotRemove(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	raiseOn(t, pool, "core.content_revisions", "DELETE")
+
+	err := store.DeleteRevision(t.Context(), held.ID, uuid.Must(uuid.NewV7()))
+
+	if err == nil || errors.Is(err, content.ErrRevisionNotFound) {
+		t.Errorf("DeleteRevision() error = %v, want the failing delete reported", err)
+	}
+}
+
 func TestTrashReportsAnItemItCannotLock(t *testing.T) {
 	t.Parallel()
 
