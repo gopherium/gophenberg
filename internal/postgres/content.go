@@ -462,16 +462,21 @@ func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content)
 	return nil
 }
 
+// writeRefusals lists the domain errors a failed write reports unchanged.
+var writeRefusals = []error{
+	content.ErrNotFound, content.ErrConflict, content.ErrUnknownField, content.ErrNotHierarchical,
+	content.ErrTargetNotFound, content.ErrTargetType,
+}
+
 // writeFailure returns the error the write carries, and wraps anything else.
 func writeFailure(err error) error {
-	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) || isSlugTaken(err) {
+	if isSlugTaken(err) {
 		return err
 	}
-	if errors.Is(err, content.ErrUnknownField) || errors.Is(err, content.ErrNotHierarchical) {
-		return err
-	}
-	if errors.Is(err, content.ErrTargetNotFound) || errors.Is(err, content.ErrTargetType) {
-		return err
+	for _, domain := range writeRefusals {
+		if errors.Is(err, domain) {
+			return err
+		}
 	}
 	if isTargetGone(err) {
 		return content.ErrTargetNotFound
