@@ -14,8 +14,8 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
-// parkable locks the item, reporting [content.ErrNotFound] or [content.ErrTrashed] when it takes no parked words.
-func parkable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
+// editableUnderLock locks the item, reporting [content.ErrNotFound] or [content.ErrTrashed] when it may not be written.
+func editableUnderLock(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
 	row, err := queries.LockContent(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return content.ErrNotFound
@@ -69,14 +69,28 @@ func (s *ContentStore) RevisionByID(ctx context.Context, contentID, revisionID u
 	}, nil
 }
 
-// DeleteRevision removes the item's revision, or reports [content.ErrRevisionNotFound].
+// DeleteRevision removes the item's revision, reporting [content.ErrRevisionNotFound] or [content.ErrTrashed].
 func (s *ContentStore) DeleteRevision(ctx context.Context, contentID, revisionID uuid.UUID) error {
-	rows, err := s.queries.DeleteRevision(ctx, db.DeleteRevisionParams{ContentID: contentID, ID: revisionID})
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if err := editableUnderLock(ctx, queries, contentID); err != nil {
+			return err
+		}
+		rows, err := queries.DeleteRevision(ctx, db.DeleteRevisionParams{ContentID: contentID, ID: revisionID})
+		if err != nil {
+			return err
+		}
+		if rows == 0 {
+			return content.ErrRevisionNotFound
+		}
+		return nil
+	})
+	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrTrashed) ||
+		errors.Is(err, content.ErrRevisionNotFound) {
+		return err
+	}
 	if err != nil {
 		return fmt.Errorf("postgres: delete revision: %w", err)
-	}
-	if rows == 0 {
-		return content.ErrRevisionNotFound
 	}
 	return nil
 }
@@ -86,7 +100,7 @@ func (s *ContentStore) SaveAutosave(ctx context.Context, autosave content.Revisi
 	var row db.UpsertAutosaveRow
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		if err := parkable(ctx, queries, autosave.ContentID); err != nil {
+		if err := editableUnderLock(ctx, queries, autosave.ContentID); err != nil {
 			return err
 		}
 		var err error

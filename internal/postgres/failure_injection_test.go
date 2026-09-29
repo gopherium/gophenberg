@@ -481,6 +481,18 @@ func TestSaveAutosaveReportsAnItemItCannotLock(t *testing.T) {
 	}
 }
 
+func TestDeleteRevisionReportsAnItemItCannotLock(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	sabotage(t, pool, "ALTER TABLE core.content DROP COLUMN parent_id CASCADE")
+
+	if err := store.DeleteRevision(t.Context(), held.ID, uuid.Must(uuid.NewV7())); err == nil {
+		t.Error("DeleteRevision() error = nil, want the unreadable lock reported")
+	}
+}
+
 func TestTrashReportsAnItemItCannotLock(t *testing.T) {
 	t.Parallel()
 
