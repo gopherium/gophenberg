@@ -191,6 +191,40 @@ func TestUpdateRefusesToMoveAnItemUnderOneItHolds(t *testing.T) {
 	}
 }
 
+func TestAStaleEditAfterTheItemMovedReportsAConflict(t *testing.T) {
+	t.Parallel()
+
+	items, _, author := nestingStores(t)
+	about := mustNest(t, items, nil, "About", author)
+	team := mustNest(t, items, &about, "Team", author)
+	lifted, err := content.Reparent(pageType(), team, nil, 0)
+	if err != nil {
+		t.Fatalf("Reparent() to the top error = %v, want nil", err)
+	}
+	lifted.UpdatedAt = team.UpdatedAt.Add(time.Second)
+	lifted, err = items.Update(t.Context(), lifted, team.UpdatedAt, nil, 0)
+	if err != nil {
+		t.Fatalf("moving Team to the top: %v", err)
+	}
+	filed, err := content.Reparent(pageType(), about, &lifted, 0)
+	if err != nil {
+		t.Fatalf("Reparent() under Team error = %v, want nil", err)
+	}
+	filed.UpdatedAt = about.UpdatedAt.Add(time.Second)
+	if _, err := items.Update(t.Context(), filed, about.UpdatedAt, nil, 0); err != nil {
+		t.Fatalf("filing About under Team: %v", err)
+	}
+	edited := team
+	edited.Title = "Team retitled"
+	edited.UpdatedAt = team.UpdatedAt.Add(2 * time.Second)
+
+	_, err = items.Update(t.Context(), edited, team.UpdatedAt, nil, 0)
+
+	if !errors.Is(err, content.ErrConflict) {
+		t.Errorf("Update() error = %v, want the stale copy reported as %v", err, content.ErrConflict)
+	}
+}
+
 func TestAMoveQueuedBehindAnOppositeMoveIsRefused(t *testing.T) {
 	t.Parallel()
 

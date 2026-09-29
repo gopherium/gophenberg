@@ -337,7 +337,7 @@ func (s *ContentStore) update(
 		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
 			return err
 		}
-		prefix, err := movable(ctx, queries, c, content.AddressPrefix(c.Path, c.Slug))
+		prefix, err := movable(ctx, queries, c, expectedUpdatedAt, content.AddressPrefix(c.Path, c.Slug))
 		if err != nil {
 			return err
 		}
@@ -459,13 +459,18 @@ func fileable(ctx context.Context, queries *db.Queries, c content.Content, prefi
 }
 
 // movable returns the address prefix an edit files the item under, holding the type and any new parent.
-func movable(ctx context.Context, queries *db.Queries, c content.Content, prefix string) (string, error) {
+func movable(
+	ctx context.Context, queries *db.Queries, c content.Content, expected time.Time, prefix string,
+) (string, error) {
 	if c.ParentID == nil {
 		return prefix, nil
 	}
 	stored, err := byID(ctx, queries, c.ID)
 	if err != nil {
 		return "", err
+	}
+	if !stored.UpdatedAt.Equal(expected) {
+		return "", content.ErrConflict
 	}
 	if stored.ParentID != nil && *stored.ParentID == *c.ParentID {
 		return prefix, nestable(ctx, queries, c)
