@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -64,40 +65,112 @@ func TestMainBinaryFailsWithoutDatabaseURL(t *testing.T) {
 func TestMainBinaryServesUntilTerminated(t *testing.T) {
 	t.Parallel()
 
+	for testName, args := range map[string][]string{"no command": nil, "the serve command": {"serve"}} {
+		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
+
+			binary, env := coverBinary(t)
+			cmd := exec.Command(binary, args...)
+			cmd.Dir = t.TempDir()
+			cmd.Env = append(env,
+				"GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t),
+				"GOPHENBERG_ADDR=localhost:0",
+			)
+			stderr, err := cmd.StderrPipe()
+			if err != nil {
+				t.Fatalf("stderr pipe: %v", err)
+			}
+			if err := cmd.Start(); err != nil {
+				t.Fatalf("starting binary: %v", err)
+			}
+
+			scanner := bufio.NewScanner(stderr)
+			listening := false
+			for scanner.Scan() {
+				if strings.Contains(scanner.Text(), "listening") {
+					listening = true
+					break
+				}
+			}
+			if !listening {
+				_ = cmd.Process.Kill()
+				t.Fatal("binary never reported listening")
+			}
+			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+				t.Fatalf("signalling: %v", err)
+			}
+			go func() { _, _ = io.Copy(io.Discard, stderr) }()
+
+			if err := cmd.Wait(); err != nil {
+				t.Fatalf("binary exit: %v, want a clean shutdown", err)
+			}
+		})
+	}
+}
+
+func TestMainBinaryPrintsOnlyTheSeedAnswer(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		args   []string
+		code   int
+		stdout string
+		stderr string
+	}{
+		"help":            {[]string{"seed", "-h"}, 0, seedUsage, ""},
+		"an unknown flag": {[]string{"seed", "-now"}, 2, "", "gophenberg: seed: flag provided but not defined: -now\n"},
+	}
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
+
+			binary, env := coverBinary(t)
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			defer cancel()
+			var stdout, stderr bytes.Buffer
+			cmd := exec.CommandContext(ctx, binary, tc.args...)
+			cmd.Dir = t.TempDir()
+			cmd.Env = env
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			err := cmd.Run()
+
+			var exitErr *exec.ExitError
+			if err != nil && !errors.As(err, &exitErr) {
+				t.Fatalf("gophenberg %q: %v", tc.args, err)
+			}
+			if cmd.ProcessState.ExitCode() != tc.code || stdout.String() != tc.stdout || stderr.String() != tc.stderr {
+				t.Errorf("gophenberg %q = %d, stdout %q, stderr %q, want %d, %q and %q", tc.args,
+					cmd.ProcessState.ExitCode(), stdout.String(), stderr.String(), tc.code, tc.stdout, tc.stderr)
+			}
+		})
+	}
+}
+
+func TestMainBinaryRefusesAnUnknownCommandBeforeServing(t *testing.T) {
+	t.Parallel()
+
 	binary, env := coverBinary(t)
-	cmd := exec.Command(binary)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, binary, "hepl")
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(env,
 		"GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t),
 		"GOPHENBERG_ADDR=localhost:0",
 	)
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		t.Fatalf("stderr pipe: %v", err)
-	}
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("starting binary: %v", err)
-	}
+	cmd.Stderr = &stderr
 
-	scanner := bufio.NewScanner(stderr)
-	listening := false
-	for scanner.Scan() {
-		if strings.Contains(scanner.Text(), "listening") {
-			listening = true
-			break
-		}
-	}
-	if !listening {
-		_ = cmd.Process.Kill()
-		t.Fatal("binary never reported listening")
-	}
-	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		t.Fatalf("signalling: %v", err)
-	}
-	go func() { _, _ = io.Copy(io.Discard, stderr) }()
+	err := cmd.Run()
 
-	if err := cmd.Wait(); err != nil {
-		t.Fatalf("binary exit: %v, want a clean shutdown", err)
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 2 {
+		t.Fatalf("gophenberg hepl: %v with stderr %q, want exit code 2 before any serving", err, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), `unknown command "hepl"`) {
+		t.Errorf("stderr = %q, want it to name the unknown command", stderr.String())
 	}
 }
 
