@@ -5,6 +5,7 @@ package postgres_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
 // rivalTransaction opens a transaction on its own connection, rolled back when the test ends.
@@ -98,6 +100,245 @@ func TestUpdateRefusesAParentOnceTheTypeStoppedNesting(t *testing.T) {
 
 	if !errors.Is(err, content.ErrNotHierarchical) {
 		t.Errorf("Update() error = %v, want %v", err, content.ErrNotHierarchical)
+	}
+}
+
+func TestCreateRefusesAParentInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	items, _, author := nestingStores(t)
+	about := mustNest(t, items, nil, "About", author)
+	if _, err := items.Trash(t.Context(), about.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+
+	_, err := items.Create(t.Context(), stalePage(t, &about, "Team", author))
+
+	if err == nil || err.Error() != content.ErrParentTrashed.Error() {
+		t.Errorf("Create() error = %v, want the bare %v", err, content.ErrParentTrashed)
+	}
+}
+
+func TestUpdateRefusesToMoveUnderAParentInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	items, _, author := nestingStores(t)
+	about := mustNest(t, items, nil, "About", author)
+	team := mustNest(t, items, nil, "Team", author)
+	if _, err := items.Trash(t.Context(), about.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+	moved, err := content.Reparent(pageType(), team, &about, 0)
+	if err != nil {
+		t.Fatalf("Reparent() error = %v, want nil", err)
+	}
+	moved.UpdatedAt = team.UpdatedAt.Add(time.Second)
+
+	_, err = items.Update(t.Context(), moved, team.UpdatedAt, nil, 0)
+
+	if !errors.Is(err, content.ErrParentTrashed) {
+		t.Errorf("Update() error = %v, want %v", err, content.ErrParentTrashed)
+	}
+}
+
+func TestUpdateRefusesToMoveBetweenParentsUnderOneInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	items, _, author := nestingStores(t)
+	about := mustNest(t, items, nil, "About", author)
+	archive := mustNest(t, items, nil, "Archive", author)
+	team := mustNest(t, items, &about, "Team", author)
+	if _, err := items.Trash(t.Context(), archive.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+	moved, err := content.Reparent(pageType(), team, &archive, 0)
+	if err != nil {
+		t.Fatalf("Reparent() error = %v, want nil", err)
+	}
+	moved.UpdatedAt = team.UpdatedAt.Add(time.Second)
+
+	_, err = items.Update(t.Context(), moved, team.UpdatedAt, nil, 0)
+
+	if !errors.Is(err, content.ErrParentTrashed) {
+		t.Errorf("Update() error = %v, want %v", err, content.ErrParentTrashed)
+	}
+}
+
+func TestMovingAnItemDeletedForGoodReportsItMissing(t *testing.T) {
+	t.Parallel()
+
+	items, _, author := nestingStores(t)
+	about := mustNest(t, items, nil, "About", author)
+	team := mustNest(t, items, nil, "Team", author)
+	if err := items.Delete(t.Context(), team.ID); err != nil {
+		t.Fatalf("Delete() error = %v, want nil", err)
+	}
+	moved, err := content.Reparent(pageType(), team, &about, 0)
+	if err != nil {
+		t.Fatalf("Reparent() error = %v, want nil", err)
+	}
+	moved.UpdatedAt = team.UpdatedAt.Add(time.Second)
+
+	_, err = items.Update(t.Context(), moved, team.UpdatedAt, nil, 0)
+
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("Update() error = %v, want %v", err, content.ErrNotFound)
+	}
+}
+
+func TestCreateRefusesAParentDeletedForGood(t *testing.T) {
+	t.Parallel()
+
+	items, _, author := nestingStores(t)
+	about := mustNest(t, items, nil, "About", author)
+	if err := items.Delete(t.Context(), about.ID); err != nil {
+		t.Fatalf("Delete() error = %v, want nil", err)
+	}
+
+	_, err := items.Create(t.Context(), stalePage(t, &about, "Orphan", author))
+
+	if err == nil || err.Error() != content.ErrParentType.Error() {
+		t.Errorf("Create() error = %v, want the bare %v", err, content.ErrParentType)
+	}
+}
+
+func TestFilingUnderAParentWaitsForItsTrashAndIsRefused(t *testing.T) {
+	t.Parallel()
+
+	items, _, author, pool := nestingStoresWithPool(t)
+	about := mustNest(t, items, nil, "About", author)
+	rival := rivalTransaction(t, pool)
+	if _, err := rival.Exec(t.Context(),
+		`SELECT id FROM core.content WHERE id = $1 FOR UPDATE`, about.ID); err != nil {
+		t.Fatalf("locking the parent: %v", err)
+	}
+	if _, err := rival.Exec(t.Context(),
+		`UPDATE core.content SET status = 'trash' WHERE id = $1`, about.ID); err != nil {
+		t.Fatalf("trashing the parent: %v", err)
+	}
+	team := stalePage(t, &about, "Team", author)
+	filed := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, err := items.Create(ctx, team)
+		filed <- err
+	}()
+	waitingOn(t, pool, "%core.content%")
+
+	if err := rival.Commit(t.Context()); err != nil {
+		t.Fatalf("committing the trash: %v", err)
+	}
+
+	if err := <-filed; !errors.Is(err, content.ErrParentTrashed) {
+		t.Errorf("Create() error = %v, want the parent trashed first refusing the child", err)
+	}
+}
+
+// finishes waits for the write and reports whether it answered before the deadline.
+func finishes(t *testing.T, done <-chan error, within time.Duration) error {
+	t.Helper()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(within):
+		t.Fatalf("the write was still waiting after %v, want it free of the held lock", within)
+		return nil
+	}
+}
+
+func TestClearingAFieldWaitsForNoChildBeingFiledUnderTheItem(t *testing.T) {
+	t.Parallel()
+
+	items, types, author, pool := nestingStoresWithPool(t)
+	field, err := types.CreateField(t.Context(), fieldOn(t, "page", "subtitle", content.FieldKindText, ""))
+	if err != nil {
+		t.Fatalf("CreateField() error = %v, want nil", err)
+	}
+	built, err := content.New(pageType(), nil, "Part", author)
+	if err != nil {
+		t.Fatalf("New() error = %v, want nil", err)
+	}
+	built.Fields = content.Values{"subtitle": "Held words"}
+	part, err := items.Create(t.Context(), built)
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	rival := rivalTransaction(t, pool)
+	if _, err := db.New(rival).LockParent(t.Context(), part.ID); err != nil {
+		t.Fatalf("holding the parent as a child is filed: %v", err)
+	}
+	deleted := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		deleted <- types.DeleteFieldInGroup(ctx, field.GroupID, "subtitle", nil)
+	}()
+
+	if err := finishes(t, deleted, 10*time.Second); err != nil {
+		t.Errorf("DeleteFieldInGroup() error = %v, want nil", err)
+	}
+}
+
+func TestEditingANestedItemTakesNoLockOnAnUnchangedParent(t *testing.T) {
+	t.Parallel()
+
+	items, _, author, pool := nestingStoresWithPool(t)
+	part := mustNest(t, items, nil, "Part", author)
+	chapter := mustNest(t, items, &part, "Chapter", author)
+	rival := rivalTransaction(t, pool)
+	if _, err := rival.Exec(t.Context(),
+		`SELECT id FROM core.content WHERE id = $1 FOR UPDATE`, part.ID); err != nil {
+		t.Fatalf("holding the parent as an ancestor save does: %v", err)
+	}
+	edited := chapter
+	edited.Title = "Chapter retitled"
+	edited.UpdatedAt = chapter.UpdatedAt.Add(time.Second)
+	saved := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, err := items.Update(ctx, edited, chapter.UpdatedAt, nil, 0)
+		saved <- err
+	}()
+
+	if err := finishes(t, saved, 10*time.Second); err != nil {
+		t.Errorf("Update() error = %v, want nil", err)
+	}
+}
+
+func TestEditingAnItemLeftUnderATrashedParentStillSaves(t *testing.T) {
+	t.Parallel()
+
+	items, _, author, pool := nestingStoresWithPool(t)
+	part := mustNest(t, items, nil, "Part", author)
+	chapter := mustNest(t, items, &part, "Chapter", author)
+	if _, err := pool.Exec(t.Context(),
+		`UPDATE core.content SET status = 'trash' WHERE id = $1`, part.ID); err != nil {
+		t.Fatalf("stranding the child under a trashed parent: %v", err)
+	}
+	edited := chapter
+	edited.Title = "Chapter retitled"
+	edited.UpdatedAt = chapter.UpdatedAt.Add(time.Second)
+
+	_, err := items.Update(t.Context(), edited, chapter.UpdatedAt, nil, 0)
+
+	if err != nil {
+		t.Errorf("Update() error = %v, want the child saved where it stands", err)
+	}
+}
+
+func TestCreateReportsAParentItCannotHold(t *testing.T) {
+	t.Parallel()
+
+	items, _, author, pool := nestingStoresWithPool(t)
+	about := mustNest(t, items, nil, "About", author)
+	sabotage(t, pool, "ALTER TABLE core.content RENAME COLUMN status TO standing")
+
+	_, err := items.Create(t.Context(), stalePage(t, &about, "Team", author))
+
+	if err == nil || !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("Create() error = %v, want the failing parent read reported as such", err)
 	}
 }
 

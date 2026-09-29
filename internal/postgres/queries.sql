@@ -379,6 +379,12 @@ FROM core.content p
 WHERE p.id = @id
 FOR UPDATE;
 
+-- name: LockParent :one
+SELECT p.status
+FROM core.content p
+WHERE p.id = @id
+FOR KEY SHARE;
+
 -- name: LockContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
     t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin

@@ -1933,6 +1933,20 @@ func (q *Queries) LockFieldGroups(ctx context.Context) error {
 	return err
 }
 
+const lockParent = `-- name: LockParent :one
+SELECT p.status
+FROM core.content p
+WHERE p.id = $1
+FOR KEY SHARE
+`
+
+func (q *Queries) LockParent(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, lockParent, id)
+	var status string
+	err := row.Scan(&status)
+	return status, err
+}
+
 const lockTypeNesting = `-- name: LockTypeNesting :one
 SELECT t.hierarchical FROM core.content_types t WHERE t.key = $1 FOR SHARE
 `

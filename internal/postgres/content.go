@@ -104,7 +104,7 @@ func (s *ContentStore) createHeld(
 	var row db.CoreContent
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		if err := nestable(ctx, queries, c); err != nil {
+		if err := fileable(ctx, queries, c); err != nil {
 			return err
 		}
 		matching, err := declaredValues(ctx, queries, c)
@@ -336,7 +336,7 @@ func (s *ContentStore) update(
 		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
 			return err
 		}
-		if err := nestable(ctx, queries, c); err != nil {
+		if err := movable(ctx, queries, c); err != nil {
 			return err
 		}
 		resolved, err := resolvedTargets(ctx, queries, c)
@@ -444,6 +444,50 @@ func nestable(ctx context.Context, queries *db.Queries, c content.Content) error
 	return nil
 }
 
+// fileable returns the reason a new item cannot sit under its parent, holding the type and the parent as they stand.
+func fileable(ctx context.Context, queries *db.Queries, c content.Content) error {
+	if err := nestable(ctx, queries, c); err != nil {
+		return err
+	}
+	if c.ParentID == nil {
+		return nil
+	}
+	return parentHolds(ctx, queries, *c.ParentID)
+}
+
+// movable returns the reason an edit cannot keep the item where it asks, holding the type and any new parent.
+func movable(ctx context.Context, queries *db.Queries, c content.Content) error {
+	if err := nestable(ctx, queries, c); err != nil {
+		return err
+	}
+	if c.ParentID == nil {
+		return nil
+	}
+	stored, err := byID(ctx, queries, c.ID)
+	if err != nil {
+		return err
+	}
+	if stored.ParentID != nil && *stored.ParentID == *c.ParentID {
+		return nil
+	}
+	return parentHolds(ctx, queries, *c.ParentID)
+}
+
+// parentHolds locks the parent, reporting [content.ErrParentType] when it is gone or [content.ErrParentTrashed].
+func parentHolds(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
+	status, err := queries.LockParent(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return content.ErrParentType
+	}
+	if err != nil {
+		return err
+	}
+	if content.Status(status) == content.StatusTrash {
+		return content.ErrParentTrashed
+	}
+	return nil
+}
+
 // valuesDeclared refuses a value whose field no group declares at all.
 func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content) error {
 	keys, err := queries.LockDeclaredFieldKeys(ctx)
@@ -462,16 +506,21 @@ func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content)
 	return nil
 }
 
+// writeRefusals lists the domain errors a failed write reports unchanged.
+var writeRefusals = []error{
+	content.ErrNotFound, content.ErrConflict, content.ErrUnknownField, content.ErrNotHierarchical,
+	content.ErrTargetNotFound, content.ErrTargetType, content.ErrParentType, content.ErrParentTrashed,
+}
+
 // writeFailure returns the error the write carries, and wraps anything else.
 func writeFailure(err error) error {
-	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) || isSlugTaken(err) {
+	if isSlugTaken(err) {
 		return err
 	}
-	if errors.Is(err, content.ErrUnknownField) || errors.Is(err, content.ErrNotHierarchical) {
-		return err
-	}
-	if errors.Is(err, content.ErrTargetNotFound) || errors.Is(err, content.ErrTargetType) {
-		return err
+	for _, domain := range writeRefusals {
+		if errors.Is(err, domain) {
+			return err
+		}
 	}
 	if isTargetGone(err) {
 		return content.ErrTargetNotFound
@@ -547,12 +596,14 @@ func leavable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
 	return nil
 }
 
-// Restore returns a trashed content item to draft. It recovers the original
-// slug, or leaves the trashed one in place when the original is taken.
+// Restore returns a trashed item to draft under its original slug when free, and refuses one out of the trash.
 func (s *ContentStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	var restored content.Content
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
+		if err := restorable(ctx, queries, id); err != nil {
+			return err
+		}
 		row, err := restoredRow(ctx, queries, tx, id, updatedAt)
 		if err != nil {
 			return err
@@ -563,10 +614,23 @@ func (s *ContentStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time
 	if errors.Is(err, pgx.ErrNoRows) {
 		return content.Content{}, content.ErrNotFound
 	}
+	if errors.Is(err, content.ErrInvalidTransition) {
+		return content.Content{}, err
+	}
 	if err != nil {
 		return content.Content{}, fmt.Errorf("postgres: restore content: %w", err)
 	}
 	return restored, nil
+}
+
+// restorable locks the item, reporting why it cannot leave the trash.
+func restorable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
+	row, err := queries.LockContent(ctx, id)
+	if err != nil {
+		return err
+	}
+	held := toContent(row)
+	return held.Restore()
 }
 
 // restoredRow returns the item to draft under its original slug, or under the trashed one when that is taken.
