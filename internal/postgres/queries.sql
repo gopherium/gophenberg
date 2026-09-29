@@ -380,10 +380,20 @@ WHERE p.id = @id
 FOR UPDATE;
 
 -- name: LockParent :one
-SELECT p.status
+WITH RECURSIVE chain AS (
+    SELECT c.id, c.parent_id
+    FROM core.content c
+    WHERE c.id = @id
+  UNION ALL
+    SELECT up.id, up.parent_id
+    FROM core.content up
+    JOIN chain ON up.id = chain.parent_id
+) CYCLE id SET looped USING trail
+SELECT p.status,
+    EXISTS (SELECT 1 FROM chain WHERE chain.id = @child_id::uuid AND NOT chain.looped) AS holds_child
 FROM core.content p
 WHERE p.id = @id
-FOR KEY SHARE;
+FOR KEY SHARE OF p;
 
 -- name: LockContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,

@@ -1934,17 +1934,37 @@ func (q *Queries) LockFieldGroups(ctx context.Context) error {
 }
 
 const lockParent = `-- name: LockParent :one
-SELECT p.status
+WITH RECURSIVE chain AS (
+    SELECT c.id, c.parent_id
+    FROM core.content c
+    WHERE c.id = $2
+  UNION ALL
+    SELECT up.id, up.parent_id
+    FROM core.content up
+    JOIN chain ON up.id = chain.parent_id
+) CYCLE id SET looped USING trail
+SELECT p.status,
+    EXISTS (SELECT 1 FROM chain WHERE chain.id = $1::uuid AND NOT chain.looped) AS holds_child
 FROM core.content p
-WHERE p.id = $1
-FOR KEY SHARE
+WHERE p.id = $2
+FOR KEY SHARE OF p
 `
 
-func (q *Queries) LockParent(ctx context.Context, id uuid.UUID) (string, error) {
-	row := q.db.QueryRow(ctx, lockParent, id)
-	var status string
-	err := row.Scan(&status)
-	return status, err
+type LockParentParams struct {
+	ChildID uuid.UUID
+	ID      uuid.UUID
+}
+
+type LockParentRow struct {
+	Status     string
+	HoldsChild bool
+}
+
+func (q *Queries) LockParent(ctx context.Context, arg LockParentParams) (LockParentRow, error) {
+	row := q.db.QueryRow(ctx, lockParent, arg.ChildID, arg.ID)
+	var i LockParentRow
+	err := row.Scan(&i.Status, &i.HoldsChild)
+	return i, err
 }
 
 const lockTypeNesting = `-- name: LockTypeNesting :one

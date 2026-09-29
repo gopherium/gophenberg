@@ -164,6 +164,99 @@ func TestUpdateRefusesToMoveBetweenParentsUnderOneInTheTrash(t *testing.T) {
 	}
 }
 
+func TestUpdateRefusesToMoveAnItemUnderOneItHolds(t *testing.T) {
+	t.Parallel()
+
+	items, _, author := nestingStores(t)
+	about := mustNest(t, items, nil, "About", author)
+	team := mustNest(t, items, nil, "Team", author)
+	filed, err := content.Reparent(pageType(), team, &about, 0)
+	if err != nil {
+		t.Fatalf("Reparent() error = %v, want nil", err)
+	}
+	filed.UpdatedAt = team.UpdatedAt.Add(time.Second)
+	if _, err := items.Update(t.Context(), filed, team.UpdatedAt, nil, 0); err != nil {
+		t.Fatalf("filing Team under About: %v", err)
+	}
+	moved, err := content.Reparent(pageType(), about, &team, 0)
+	if err != nil {
+		t.Fatalf("Reparent() on the stale Team error = %v, want nil", err)
+	}
+	moved.UpdatedAt = about.UpdatedAt.Add(time.Second)
+
+	_, err = items.Update(t.Context(), moved, about.UpdatedAt, nil, 0)
+
+	if err == nil || err.Error() != content.ErrCycle.Error() {
+		t.Errorf("Update() error = %v, want the bare %v", err, content.ErrCycle)
+	}
+}
+
+func TestAMoveQueuedBehindAnOppositeMoveIsRefused(t *testing.T) {
+	t.Parallel()
+
+	items, _, author, pool := nestingStoresWithPool(t)
+	about := mustNest(t, items, nil, "About", author)
+	team := mustNest(t, items, nil, "Team", author)
+	rival := rivalTransaction(t, pool)
+	if _, err := rival.Exec(t.Context(),
+		`SELECT key FROM core.content_types WHERE key = 'page' FOR UPDATE`); err != nil {
+		t.Fatalf("holding the type as a move does: %v", err)
+	}
+	if _, err := rival.Exec(t.Context(),
+		`UPDATE core.content SET parent_id = $1, path = 'pages/about/team' WHERE id = $2`,
+		about.ID, team.ID); err != nil {
+		t.Fatalf("filing Team under About: %v", err)
+	}
+	moved, err := content.Reparent(pageType(), about, &team, 0)
+	if err != nil {
+		t.Fatalf("Reparent() on the stale Team error = %v, want nil", err)
+	}
+	moved.UpdatedAt = about.UpdatedAt.Add(time.Second)
+	refused := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, err := items.Update(ctx, moved, about.UpdatedAt, nil, 0)
+		refused <- err
+	}()
+	waitingOn(t, pool, "%core.content_types%")
+
+	if err := rival.Commit(t.Context()); err != nil {
+		t.Fatalf("committing the opposite move: %v", err)
+	}
+
+	if err := <-refused; !errors.Is(err, content.ErrCycle) {
+		t.Errorf("Update() error = %v, want the opposite move that landed first refusing it", err)
+	}
+	stored, err := items.ByID(t.Context(), about.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	if stored.ParentID != nil {
+		t.Errorf("About sits under %v, want it left at the top", *stored.ParentID)
+	}
+}
+
+func TestMovingReportsATypeRowItCannotHold(t *testing.T) {
+	t.Parallel()
+
+	items, _, author, pool := nestingStoresWithPool(t)
+	about := mustNest(t, items, nil, "About", author)
+	team := mustNest(t, items, nil, "Team", author)
+	moved, err := content.Reparent(pageType(), team, &about, 0)
+	if err != nil {
+		t.Fatalf("Reparent() error = %v, want nil", err)
+	}
+	moved.UpdatedAt = team.UpdatedAt.Add(time.Second)
+	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN hierarchical TO nests")
+
+	_, err = items.Update(t.Context(), moved, team.UpdatedAt, nil, 0)
+
+	if err == nil || !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("Update() error = %v, want the failing type read reported as such", err)
+	}
+}
+
 func TestMovingAnItemDeletedForGoodReportsItMissing(t *testing.T) {
 	t.Parallel()
 
@@ -265,7 +358,9 @@ func TestClearingAFieldWaitsForNoChildBeingFiledUnderTheItem(t *testing.T) {
 		t.Fatalf("Create() error = %v, want nil", err)
 	}
 	rival := rivalTransaction(t, pool)
-	if _, err := db.New(rival).LockParent(t.Context(), part.ID); err != nil {
+	if _, err := db.New(rival).LockParent(t.Context(), db.LockParentParams{
+		ID: part.ID, ChildID: uuid.Must(uuid.NewV7()),
+	}); err != nil {
 		t.Fatalf("holding the parent as a child is filed: %v", err)
 	}
 	deleted := make(chan error, 1)
