@@ -26,6 +26,7 @@ func program(getenv func(string) string, plugins func(sdk.Deps) ([]sdk.Plugin, e
 		Migrations: migrations(),
 		Seed:       seedSite,
 		Commands:   accounts.Commands(accounts.Config{Roles: fixedRoles}),
+		Plugins:    loadPlugins(plugins),
 	}
 }
 
