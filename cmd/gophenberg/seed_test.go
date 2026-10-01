@@ -357,6 +357,18 @@ func TestSeedYesValidatesItsEnvironment(t *testing.T) {
 	}
 }
 
+func TestSeedYesReadsAPaddedDatabaseAddress(t *testing.T) {
+	t.Parallel()
+
+	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": "  " + emptyDatabaseURL(t) + "  "})
+
+	got := testkit.Run(t, program(env, noPlugins), "", "seed", "-yes")
+
+	if got.Code != gonsole.ExitDone {
+		t.Errorf("seed -yes over a padded address = %d with stderr %q, want 0", got.Code, got.Stderr)
+	}
+}
+
 func TestSeedYesReportsMigrationFailures(t *testing.T) {
 	t.Parallel()
 

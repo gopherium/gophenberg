@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -22,9 +21,9 @@ import (
 
 // seedDemoData stores the demo data set in a migrated database.
 func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Writer) error {
-	databaseURL := getenv("GOPHENBERG_DATABASE_URL")
-	if databaseURL == "" {
-		return errors.New("GOPHENBERG_DATABASE_URL is required")
+	databaseURL, err := settingsEnv(getenv).Required("DATABASE_URL")
+	if err != nil {
+		return err
 	}
 	depth, err := fieldDepthFrom(getenv)
 	if err != nil {
@@ -90,7 +89,7 @@ func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.U
 func seedDemoMedia(
 	ctx context.Context, getenv func(string) string, pool *pgxpool.Pool, users gouncer.Store,
 ) error {
-	dir := getenv("GOPHENBERG_MEDIA_DIR")
+	dir := settingsEnv(getenv).Value("MEDIA_DIR")
 	if dir == "" {
 		return nil
 	}
