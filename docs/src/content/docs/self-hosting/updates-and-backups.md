@@ -14,18 +14,29 @@ your back:
 ```sh
 # 1. edit compose.yaml: change the image tag to the new version
 docker compose pull
+docker compose run --rm -T gophenberg check
 docker compose up -d
 ```
 
-Migrations run automatically when the new version starts. While
-Gophenberg is below 1.0, read the release notes first, since a
-release can change behavior.
+`check` reads your settings with the new version while the old one
+still serves, and names the first one it refuses, see
+[what stops startup](/self-hosting/configuration/#what-stops-startup).
+Migrations run automatically when the new version starts, and
+`docker compose run --rm -T gophenberg migrate` applies them without
+starting the server. Two copies that migrate at once never apply the
+same migration twice, the second waits for the first and then finds
+nothing left to do. While Gophenberg is below 1.0, read the release
+notes first, since a release can change behavior.
 
-Updating to %VERSION% from the release before this one runs no
-migration, so the database stays as it is when the server starts. This
-release serves the same theme kits as the release before it, so no
-theme needs rebuilding. Back up the database before the first start
-on this release, as before any update.
+Updating to %VERSION% from the release before this one runs one
+migration when the server starts, or when you run `migrate`. It adds
+the `gonsole` schema, which keeps a record of each account change
+applied with `-as`, and changes no row you wrote. Until it runs,
+`account:records` and the commands that take `-as` refuse with
+`the command records are missing, run migrate first`. This release
+serves the same theme kits as the release before it, so no theme
+needs rebuilding. Back up the database before the first start on
+this release, as before any update.
 
 Some things work differently after this update:
 
@@ -64,6 +75,20 @@ Some things work differently after this update:
 - Every start deletes the files of an upload that a stop cut short, and
   logs each one. Run one Gophenberg per media folder, see
   [uploads a stop cut short](/self-hosting/configuration/#uploads-a-stop-cut-short).
+- A run with no command lists the commands and stops, instead of
+  serving. The image runs `serve` when it is given no command, so
+  the compose file from [Install](/self-hosting/install/) keeps
+  serving. A setup that passes the image its own arguments has to name
+  `serve` first.
+- `createadmin` is now `account:create-admin`, and `grantrole` is now
+  `account:grant-role`. The old names stop with exit code 2.
+  `account:create-admin` takes only the roles `admin`, `editor` and
+  `author`.
+- `seed` and `account:grant-role` only say what they would change
+  until you add `-yes`. `account:grant-role` also needs `-as` with the
+  address of an enabled admin, and records each change it applies.
+  Update any script that calls them, see
+  [the commands page](/self-hosting/commands/).
 
 Updating from further back also runs the migrations of every release
 you skip, so read each of their notes. Coming from three releases back
@@ -126,6 +151,11 @@ rebuilding. While you run it:
   reads a relation inside a Section cannot import its own export.
 - A stop in the middle of an upload leaves its files in the media
   folder, and updating again does not delete them.
+- It takes the old command names, `createadmin` and `grantrole`, and a
+  plain `seed`, which stores the demo data at once with no dry run. It
+  serves when given no command, and when given `serve`.
+- It ignores the `gonsole` schema and keeps no record of the account
+  changes it makes. The records kept before the rollback stay.
 
 Updating again runs no migration, and what you changed while rolled
 back stays as it is.
@@ -201,7 +231,8 @@ built theme keeps working.
 
 ## What to back up
 
-**The database**, which holds everything you wrote:
+**The database**, which holds everything you wrote, and the record of
+each account change applied with `-as`:
 
 ```sh
 docker compose exec -T db pg_dump -U postgres -Fc gophenberg > gophenberg.dump
@@ -240,8 +271,10 @@ their source projects.
 
 ## Restoring
 
-Restore into a database Gophenberg has never started against,
-because startup creates tables that make the restore fail:
+Restore into a database Gophenberg has never touched, because the
+tables it creates make the restore fail. Starting the server creates
+them, and so do `migrate`, `seed -yes` and `account:create-admin`, so
+run none of them before the restore:
 
 ```sh
 docker compose up -d db
