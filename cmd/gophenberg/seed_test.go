@@ -105,7 +105,8 @@ func TestSeedReportsEachDemoAccountItCreatedOrKept(t *testing.T) {
 		t.Fatalf("second seedDemoData() error = %v, want nil", err)
 	}
 
-	closing := "seeded demo data, the accounts created above sign in with " + seed.AdminPassword + "\n"
+	closing := "seeded demo data, an account created above signs in with " + seed.AdminPassword +
+		", a kept account keeps its own password\n"
 	created := "created " + seed.AdminEmail + "\ncreated " + seed.EditorEmail + "\ncreated " + seed.AuthorEmail + "\n"
 	kept := "kept " + seed.AdminEmail + "\nkept " + seed.EditorEmail + "\nkept " + seed.AuthorEmail + "\n"
 	if first.String() != created+closing {

@@ -44,7 +44,8 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintln(stdout, "seeded demo data, the accounts created above sign in with "+seed.AdminPassword)
+	_, err = fmt.Fprintln(stdout, "seeded demo data, an account created above signs in with "+seed.AdminPassword+
+		", a kept account keeps its own password")
 	return err
 }
 
