@@ -32,6 +32,7 @@ type Deps struct {
 	DatabaseURL string
 	Content     ContentReader
 	Getenv      func(string) string
+	Env         Env
 }
 
 // Item is a published content item as plugins see it: the Content field holds sanitized block HTML, and
