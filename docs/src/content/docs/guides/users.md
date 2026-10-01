@@ -52,6 +52,26 @@ administrator from locking everyone out.
 
 Changing a password is not something the admin offers.
 
+**Managing accounts from a shell** works too. `account:role` sets
+one account's role, and `account:disable` and `account:enable`
+switch one account off and back on. Each one names your own account
+with `-as`, and that account must be an enabled admin, or the
+command refuses before changing anything. Each one only says what it
+would change until you add `-yes`. `account:role` and
+`account:disable` refuse to leave the site without an enabled admin.
+With the Docker setup from [Install](/self-hosting/install/), this
+makes an author an editor:
+
+```sh
+docker compose run --rm -T gophenberg \
+  account:role -as admin@example.com -yes author@example.com editor
+```
+
+Every change applied this way is kept on record, naming who ran it.
+`account:records` lists them, the newest first, and `account:list`
+shows every account with its role. Every flag is on
+[the commands page](/self-hosting/commands/).
+
 ## Upgrading a site that ran an earlier version
 
 Two steps, in this order, and only on a site that ran a version
@@ -94,14 +114,25 @@ leaves the database as it was. Every account keeps the role it held.
 **Second, give a role to the accounts that hold none.**
 
 Accounts made before roles existed hold no role, so they can do
-nothing until one is given. The `grantrole` command gives a role to
-every account that holds none, and says how many it changed.
+nothing until one is given. The `account:grant-role` command gives a
+role to every account that holds none, and says how many it changed.
+
+Like `account:role`, `account:disable` and `account:enable`, it names
+the admin running it with `-as`. While no account holds a role, there
+is no admin to name, so create one first with `account:create-admin`,
+which takes no `-as`, using an address none of the existing accounts
+has. It waits for you to type the password. Then give the role,
+acting as that admin:
 
 ```sh
-docker compose run --rm -T gophenberg grantrole -role admin
+docker compose run --rm -T gophenberg \
+  account:create-admin -email admin@example.com -name "Maria Perez" -role admin
+docker compose run --rm -T gophenberg \
+  account:grant-role -role admin -yes -as admin@example.com
 ```
 
-Run it once after upgrading. It only touches accounts holding no
+Without `-yes`, `account:grant-role` only says how many accounts it
+would change. Run it once after upgrading. It only touches accounts holding no
 role, so running it again changes nothing, and an account that
 already holds a role keeps it.
 
