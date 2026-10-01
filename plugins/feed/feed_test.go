@@ -107,6 +107,31 @@ func TestFeedRegistersUnderItsOwnID(t *testing.T) {
 	}
 }
 
+func TestRegisterOpensNothingEvenWithAnUnreachableDatabase(t *testing.T) {
+	t.Parallel()
+
+	started := time.Now()
+	_, err := feed.Register(sdk.Deps{
+		DatabaseURL: "postgres://postgres@192.0.2.1:5432/none?connect_timeout=5",
+		Content:     &stubPosts{},
+		Getenv:      testEnv(map[string]string{}),
+	})
+
+	if took := time.Since(started); err != nil || took > time.Second {
+		t.Errorf("Register() = %v after %v, want it back within a second having opened nothing", err, took)
+	}
+}
+
+func TestStopNeedsNoStart(t *testing.T) {
+	t.Parallel()
+
+	plugin := mustRegister(t, &stubPosts{}, map[string]string{})
+
+	if err := plugin.Stop(t.Context()); err != nil {
+		t.Errorf("Stop() without Start() = %v, want nil", err)
+	}
+}
+
 func TestFeedServesRSSAReaderCanParse(t *testing.T) {
 	t.Parallel()
 
