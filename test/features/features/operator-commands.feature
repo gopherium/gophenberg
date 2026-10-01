@@ -7,14 +7,12 @@ Feature: Operators run Gophenberg from one command line
   Background:
     Given the settings point at an empty database
 
-  @wip
   Scenario: A run with no command lists every command
     When the operator runs gophenberg with no command
     Then the command succeeds
     And the answer lists the commands "serve", "migrate", "seed" and "account:create-admin"
     And the database holds no schema
 
-  @wip
   Scenario Outline: A command name from before the command line is refused
     When the operator runs "<name>"
     Then the command exits with code 2
@@ -25,21 +23,18 @@ Feature: Operators run Gophenberg from one command line
       | createadmin |
       | grantrole   |
 
-  @wip
   Scenario: A help page answers without a database
     Given the settings name no database
     When the operator asks for the help page of "account:role"
     Then the command succeeds
     And the answer describes "account:role"
 
-  @wip
   Scenario: Seeding only previews until it is confirmed
     When the operator runs "seed"
     Then the command succeeds
     And the answer says nothing changed until it is confirmed
     And the database holds no demo content
 
-  @wip
   Scenario: The first administrator is created from the command line
     When the operator creates the administrator "admin@example.com" with a password on standard input
     Then the command succeeds

@@ -18,24 +18,24 @@ func TestMainBinaryGrantRoleReachesEveryAccountHoldingNone(t *testing.T) {
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	databaseURL := emptyDatabaseURL(t)
 	provision := exec.CommandContext(t.Context(),
-		binary, "createadmin", "-email", "admin@example.com", "-name", "Admin", "-role", "admin",
+		binary, "account:create-admin", "-email", "admin@example.com", "-name", "Admin", "-role", "admin",
 	)
 	provision.Dir = t.TempDir()
 	provision.Env = append(env, "GOPHENBERG_DATABASE_URL="+databaseURL)
 	provision.Stdin = strings.NewReader("correct horse battery\n")
 	if err := provision.Run(); err != nil {
-		t.Fatalf("createadmin: %v", err)
+		t.Fatalf("account:create-admin: %v", err)
 	}
 	execSQL(t, databaseURL, "UPDATE auth.users SET role = ''")
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(t.Context(), binary, "grantrole", "-role", "admin")
+	cmd := exec.CommandContext(t.Context(), binary, "account:grant-role", "-role", "admin", "-yes")
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(env, "GOPHENBERG_DATABASE_URL="+databaseURL)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("grantrole: %v, stderr: %s", err, stderr.String())
+		t.Fatalf("account:grant-role: %v, stderr: %s", err, stderr.String())
 	}
 
 	if !strings.Contains(stdout.String(), "to 1 account") {
@@ -48,7 +48,7 @@ func TestMainBinaryGrantRoleFailsWithoutDatabaseURL(t *testing.T) {
 
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(t.Context(), binary, "grantrole", "-role", "admin")
+	cmd := exec.CommandContext(t.Context(), binary, "account:grant-role", "-role", "admin", "-yes")
 	cmd.Dir = t.TempDir()
 	cmd.Env = env
 	cmd.Stderr = &stderr
@@ -57,7 +57,7 @@ func TestMainBinaryGrantRoleFailsWithoutDatabaseURL(t *testing.T) {
 
 	var exitErr *exec.ExitError
 	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
-		t.Fatalf("grantrole without a database url: %v, want exit code 1", err)
+		t.Fatalf("account:grant-role without a database url: %v, want exit code 1", err)
 	}
 	if !strings.Contains(stderr.String(), "GOPHENBERG_DATABASE_URL") {
 		t.Errorf("stderr = %q, want it to name the missing variable", stderr.String())

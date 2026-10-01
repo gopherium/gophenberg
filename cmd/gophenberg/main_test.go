@@ -3,11 +3,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"flag"
-	"fmt"
 	"io"
 	"net"
 	"slices"
@@ -274,128 +271,6 @@ func TestRunServesMediaWhenADirectoryIsConfigured(t *testing.T) {
 
 	if err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, noPlugins); err != nil {
 		t.Fatalf("run() error = %v, want a clean shutdown", err)
-	}
-}
-
-func TestDispatchPrintsTheCommandsWhenAskedForHelp(t *testing.T) {
-	t.Parallel()
-
-	for _, asked := range []string{"help", "-h", "-help", "--help"} {
-		t.Run(asked, func(t *testing.T) {
-			t.Parallel()
-
-			var stdout, stderr bytes.Buffer
-			code := dispatch(t.Context(), []string{asked}, strings.NewReader(""), &stdout, &stderr)
-
-			if code != 0 || stderr.Len() != 0 {
-				t.Fatalf("dispatch(%q) = %d with stderr %q, want 0 and nothing on stderr", asked, code, stderr.String())
-			}
-			for _, line := range []string{
-				"gophenberg serve", "gophenberg createadmin", "gophenberg grantrole", "gophenberg seed",
-				"gophenberg help", "Pass -h to a subcommand for its own flags.",
-			} {
-				if !strings.Contains(stdout.String(), line) {
-					t.Errorf("dispatch(%q) printed %q, want it to hold %q", asked, stdout.String(), line)
-				}
-			}
-		})
-	}
-}
-
-func TestDispatchRefusesAMisusedCommandBeforeTouchingAnything(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]struct {
-		args []string
-		want string
-	}{
-		"an unknown command": {
-			[]string{"hepl"}, `gophenberg: unknown command "hepl", want createadmin, grantrole, seed or serve` + "\n",
-		},
-		"serve with an argument":         {[]string{"serve", "now"}, "gophenberg: serve takes no arguments\n"},
-		"seed with an argument":          {[]string{"seed", "now"}, "gophenberg: seed takes no arguments\n"},
-		"seed with the end of its flags": {[]string{"seed", "--"}, "gophenberg: seed takes no arguments\n"},
-		"seed with a flag it does not know": {
-			[]string{"seed", "-now"}, "gophenberg: seed: flag provided but not defined: -now\n",
-		},
-	}
-	for testName, tc := range tests {
-		t.Run(testName, func(t *testing.T) {
-			t.Parallel()
-
-			var stdout, stderr bytes.Buffer
-			code := dispatch(t.Context(), tc.args, strings.NewReader(""), &stdout, &stderr)
-
-			if code != 2 || stderr.String() != tc.want || stdout.Len() != 0 {
-				t.Errorf("dispatch(%q) = %d, stdout %q, stderr %q, want 2 and %q", tc.args, code, stdout.String(),
-					stderr.String(), tc.want)
-			}
-		})
-	}
-}
-
-func TestDispatchPrintsTheSeedHelpWithoutSeeding(t *testing.T) {
-	t.Parallel()
-
-	var stdout, stderr bytes.Buffer
-	code := dispatch(t.Context(), []string{"seed", "-h"}, strings.NewReader(""), &stdout, &stderr)
-
-	if code != 0 || !strings.Contains(stdout.String(), "gophenberg seed") || stderr.Len() != 0 {
-		t.Errorf("dispatch(seed -h) = %d, stdout %q, stderr %q, want 0 and the seed help", code, stdout.String(),
-			stderr.String())
-	}
-}
-
-func TestDispatchPrintsTheAccountCommandFlagsWithoutADatabase(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]struct {
-		args []string
-		want string
-	}{
-		"createadmin": {[]string{"createadmin", "-h"}, "Usage of createadmin:"},
-		"grantrole":   {[]string{"grantrole", "--help"}, "Usage of grantrole:"},
-	}
-	for testName, tc := range tests {
-		t.Run(testName, func(t *testing.T) {
-			t.Parallel()
-
-			var stdout, stderr bytes.Buffer
-			code := dispatch(t.Context(), tc.args, strings.NewReader(""), &stdout, &stderr)
-
-			if code != 0 || !strings.Contains(stdout.String(), tc.want) || stderr.Len() != 0 {
-				t.Errorf("dispatch(%q) = %d, stdout %q, stderr %q, want 0 and its flags", tc.args, code,
-					stdout.String(), stderr.String())
-			}
-		})
-	}
-}
-
-func TestReportAnswersTheExitCodeOfAnError(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]struct {
-		err    error
-		code   int
-		stderr string
-	}{
-		"no error":               {nil, 0, ""},
-		"a help request":         {fmt.Errorf("createadmin: %w", flag.ErrHelp), 0, ""},
-		"a failure":              {errors.New("database unreachable"), 1, "gophenberg: database unreachable\n"},
-		"a refused command line": {misuse{"seed takes no arguments"}, 2, "gophenberg: seed takes no arguments\n"},
-	}
-	for testName, tc := range tests {
-		t.Run(testName, func(t *testing.T) {
-			t.Parallel()
-
-			var stderr bytes.Buffer
-			code := report(tc.err, &stderr)
-
-			if code != tc.code || stderr.String() != tc.stderr {
-				t.Errorf("report(%v) = %d with stderr %q, want %d and %q", tc.err, code, stderr.String(), tc.code,
-					tc.stderr)
-			}
-		})
 	}
 }
 
