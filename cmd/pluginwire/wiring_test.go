@@ -3,12 +3,36 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gopherium/framework/pluginkit/wire"
 )
+
+func TestConfigRefusesAPluginIDTheCommandLineKeeps(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []string{"help", "list", "version", "check", "serve", "migrate", "seed", "account"} {
+		t.Run(id, func(t *testing.T) {
+			t.Parallel()
+
+			root := t.TempDir()
+			writePlugin(t, root, "about",
+				`{"id": "about", "name": "About", "backend": "github.com/gopherium/gophenberg/plugins/about"}`)
+			writePlugin(t, root, id, fmt.Sprintf(
+				`{"id": %q, "name": "Taken", "backend": "github.com/gopherium/gophenberg/plugins/%s"}`, id, id))
+
+			err := wire.Run(root, config)
+
+			if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("id %q is reserved", id)) {
+				t.Errorf("wire.Run() error = %v, want the id %q refused as reserved", err, id)
+			}
+		})
+	}
+}
 
 func TestRepositoryWiringIsUpToDate(t *testing.T) {
 	t.Parallel()
