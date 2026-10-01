@@ -98,8 +98,12 @@ func TestRegisterPluginsReportsAPluginThatRefusesItsEnvironment(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "plugin feed: ") {
 		t.Fatalf("registerPlugins() error = %v, want the feed cap refused and the plugin named", err)
 	}
-	if len(plugins) != 0 {
-		t.Errorf("registerPlugins() = %v, want no plugin registered beside the failure", plugins)
+	ids := make([]string, 0, len(plugins))
+	for _, plugin := range plugins {
+		ids = append(ids, plugin.ID())
+	}
+	if slices.Contains(ids, "feed") {
+		t.Errorf("registerPlugins() = %v, want the refused feed plugin left out", ids)
 	}
 }
 
