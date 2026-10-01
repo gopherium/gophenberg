@@ -37,3 +37,4 @@ ENV GOPHENBERG_NODE_BIN=/nodejs/bin/node
 EXPOSE 8081
 USER nonroot:nonroot
 ENTRYPOINT ["/gophenberg"]
+CMD ["serve"]
