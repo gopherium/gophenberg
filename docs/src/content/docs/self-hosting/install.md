@@ -88,13 +88,33 @@ Docker kills the server, see
 ```sh
 docker compose up -d
 docker compose run --rm -T gophenberg \
-  createadmin -email admin@example.com -name "Maria Perez" -role admin
+  account:create-admin -email admin@example.com -name "Maria Perez" -role admin
 ```
 
 Migrations run at startup, so there is no setup step.
-`createadmin` waits for you to type the password, keeping it out
-of your shell history. The `-role` flag says what the account may do,
-and `admin` is the role that can reach everything.
+`account:create-admin` prints `Password:` and reads the password
+from its input, keeping it out of your shell history. Type it and
+press Enter, or pipe it in, for example from a file only you can
+read by adding `< password.txt` at the end of the command. The
+`-role` flag says what the account may do, and takes `admin`,
+`editor` or `author`. Give the first account `admin`, the role that
+can reach everything, because only an admin can manage the other
+accounts.
+
+The image runs `serve` when it is given no command, which is what
+`docker compose up` does. Any other command runs the way the one
+above does, in a container of its own that `--rm` removes when the
+command ends. For example, this lists every command:
+
+```sh
+docker compose run --rm -T gophenberg list
+```
+
+If your setup passes the image its own arguments, such as a
+`command:` line in the compose file, name `serve` first. Run with
+no command at all, Gophenberg only lists its commands and stops.
+Every command and its flags are on
+[the commands page](/self-hosting/commands/).
 
 That is everything a new site needs. Upgrading a site that ran an
 earlier version needs two manual steps first, renaming the role

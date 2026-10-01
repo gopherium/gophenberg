@@ -32,7 +32,9 @@ At least one of `backend` and `frontend` is required.
 A few ids are refused because they would clash with names in the
 generated wiring, such as a Go keyword, `err` or `plugins`. The
 [pluginkit docs](https://docs.gopherium.org/plugins/wiring-and-manifests/#ids-the-generator-refuses)
-list them all.
+list them all. The id also names the plugin's commands, so
+`help`, `list`, `version`, `check`, `serve`, `migrate`, `seed` and
+`account` are refused too. Those names belong to the command line.
 
 ## 2. The package
 
@@ -76,6 +78,11 @@ func (p *Plugin) Routes() http.Handler {
 }
 ```
 
+`Register` reads settings and builds the plugin, nothing more.
+Commands such as `list` and `check` register every plugin and stop
+it again without starting it, so open connections in `Start`, and
+make `Stop` work when `Start` never ran.
+
 ## 3. Wire it in
 
 ```sh
@@ -84,6 +91,8 @@ make generate
 
 This regenerates the wiring from every manifest, and the next
 build compiles your plugin in. There is no list to edit by hand.
+Then `gophenberg check` registers your plugin and checks its
+settings and command names without touching the database.
 
 ## What the host gives you
 
@@ -103,10 +112,21 @@ build compiles your plugin in. There is no list to edit by hand.
   webhook included. A read never is, so a public path must not
   change anything on a GET.
 - **Migrations**: implement `Migrate(ctx) error` and it runs
-  before anything starts. Keep your tables and your migration
-  record in a schema of your own.
-- **Configuration** arrives through `deps.Getenv`, the way the
-  feed reads `GOPHENBERG_FEED_TITLE` and `GOPHENBERG_FEED_ITEMS`.
+  before anything starts, and again on `gophenberg migrate` and
+  `gophenberg seed -yes`. Keep your tables and your migration
+  record in a schema of your own. If you run goose, turn on its
+  session locker with `goose.WithSessionLocker` and
+  `lock.NewPostgresSessionLocker()`. Every core schema step waits
+  for that same Postgres lock, so two processes never apply your
+  migrations together.
+- **Configuration** arrives through `deps.Env`, which reads the
+  settings under the `GOPHENBERG_` prefix. The feed reads
+  `GOPHENBERG_FEED_TITLE` and `GOPHENBERG_FEED_ITEMS` through
+  `deps.Env.Within("FEED_")`. `deps.Getenv` still reads any other
+  environment variable.
+- **Commands**: implement `Commands() []sdk.Command` and the
+  `gophenberg` command line offers them as `hello:<command>`. The
+  [plugin SDK](/extending/the-plugin-sdk/#commands) page shows one.
 - **Content declarations**: implement `DeclareTypes` and the
   content types, field groups and fields your plugin needs exist
   on every site it is compiled into. The

@@ -11,11 +11,12 @@ require (
 	github.com/cucumber/godog v0.16.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/google/uuid v1.6.0
-	github.com/gopherium/framework/gonsole v0.2.0
+	github.com/gopherium/framework/gonsole v0.3.0
+	github.com/gopherium/framework/gonsole/auth v0.2.1
 	github.com/gopherium/framework/pluginkit v0.6.0
 	github.com/gopherium/gouncer v0.4.0
 	github.com/gopherium/gouncer/authkit v0.15.0
-	github.com/gopherium/gouncer/authkit/postgres v0.11.0
+	github.com/gopherium/gouncer/authkit/postgres v0.11.2
 	github.com/gopherium/gouncer/authkit/ratelimit v0.3.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1

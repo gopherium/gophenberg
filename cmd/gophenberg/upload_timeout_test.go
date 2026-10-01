@@ -83,7 +83,7 @@ func TestRunCutsAnUploadThatStallsPastTheUploadTimeout(t *testing.T) {
 		"GOPHENBERG_MEDIA_DIR":      t.TempDir(),
 		"GOPHENBERG_UPLOAD_TIMEOUT": "300ms",
 	}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())

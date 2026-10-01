@@ -55,10 +55,10 @@ bump-kit:
 	cd sdk/astro && npm version "$(V)" --no-git-tag-version --allow-same-version
 
 dev: db-up
-	go run ./cmd/gophenberg
+	go run ./cmd/gophenberg serve
 
 seed: db-up
-	go run ./cmd/gophenberg seed
+	go run ./cmd/gophenberg seed -yes
 
 test:
 	go test ./...
@@ -184,7 +184,7 @@ e2e-serve: db-up e2e-theme e2e-media
 	GOPHENBERG_WEB_DIR=frontend/dist GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" \
 		GOPHENBERG_THEMES_DIR="$(E2E_THEMES_DIR)" \
 		GOPHENBERG_MEDIA_DIR="$(E2E_MEDIA_DIR)" \
-		./gophenberg
+		./gophenberg serve
 
 e2e-db-reset: db-up
 	docker compose exec -T postgres psql -U postgres -v ON_ERROR_STOP=1 \
@@ -193,12 +193,12 @@ e2e-db-reset: db-up
 
 e2e-seed: db-up e2e-build
 	printf '%s\n' "$(E2E_PASSWORD)" | \
-		GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" ./gophenberg createadmin \
+		GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" ./gophenberg account:create-admin \
 		-email "$(E2E_EMAIL)" -name "$(E2E_NAME)" -role admin
 	printf '%s\n' "$(E2E_PASSWORD)" | \
-		GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" ./gophenberg createadmin \
+		GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" ./gophenberg account:create-admin \
 		-email "$(E2E_PROOF_EMAIL)" -name "$(E2E_PROOF_NAME)" -role admin
-	GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" ./gophenberg seed
+	GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" ./gophenberg seed -yes
 
 e2e-reset: e2e-db-reset e2e-seed
 

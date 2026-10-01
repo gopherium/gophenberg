@@ -25,7 +25,7 @@ func TestMainBinaryFailsWithoutDatabaseURL(t *testing.T) {
 
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(t.Context(), binary)
+	cmd := exec.CommandContext(t.Context(), binary, "serve")
 	cmd.Dir = t.TempDir()
 	cmd.Env = env
 	cmd.Stderr = &stderr
@@ -34,44 +34,63 @@ func TestMainBinaryFailsWithoutDatabaseURL(t *testing.T) {
 
 	var exitErr *exec.ExitError
 	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
-		t.Fatalf("gophenberg without a database url: %v, want exit code 1", err)
+		t.Fatalf("gophenberg serve without a database url: %v, want exit code 1", err)
 	}
 	if !strings.Contains(stderr.String(), "GOPHENBERG_DATABASE_URL") {
 		t.Errorf("stderr = %q, want it to name the missing variable", stderr.String())
 	}
 }
 
+func TestMainBinaryListsTheCommandsWhenNoneIsNamed(t *testing.T) {
+	t.Parallel()
+
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
+	databaseURL := emptyDatabaseURL(t)
+	var stdout, stderr bytes.Buffer
+	cmd := exec.CommandContext(t.Context(), binary)
+	cmd.Dir = t.TempDir()
+	cmd.Env = append(env, "GOPHENBERG_DATABASE_URL="+databaseURL)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+
+	want := testkit.Run(t, program(testkit.Getenv(nil), noPlugins), "")
+	if err != nil || stdout.String() != want.Stdout || stderr.String() != "" {
+		t.Errorf("gophenberg = %v, stdout %q, stderr %q, want 0 and the listing", err, stdout.String(), stderr.String())
+	}
+	for _, schema := range []string{"auth", "core"} {
+		if schemaHeld(t, databaseURL, schema) {
+			t.Errorf("the %s schema exists after a bare run, want nothing served or migrated", schema)
+		}
+	}
+}
+
 func TestMainBinaryServesUntilTerminated(t *testing.T) {
 	t.Parallel()
 
-	for testName, args := range map[string][]string{"no command": nil, "the serve command": {"serve"}} {
-		t.Run(testName, func(t *testing.T) {
-			t.Parallel()
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
+	cmd := exec.CommandContext(t.Context(), binary, "serve")
+	cmd.Dir = t.TempDir()
+	cmd.Env = append(env,
+		"GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t),
+		"GOPHENBERG_ADDR=localhost:0",
+	)
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		t.Fatalf("stderr pipe: %v", err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("starting binary: %v", err)
+	}
 
-			binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
-			cmd := exec.CommandContext(t.Context(), binary, args...)
-			cmd.Dir = t.TempDir()
-			cmd.Env = append(env,
-				"GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t),
-				"GOPHENBERG_ADDR=localhost:0",
-			)
-			stderr, err := cmd.StderrPipe()
-			if err != nil {
-				t.Fatalf("stderr pipe: %v", err)
-			}
-			if err := cmd.Start(); err != nil {
-				t.Fatalf("starting binary: %v", err)
-			}
+	testkit.WaitForListening(t, stderr)
+	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		t.Fatalf("signalling: %v", err)
+	}
 
-			testkit.WaitForListening(t, stderr)
-			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-				t.Fatalf("signalling: %v", err)
-			}
-
-			if err := cmd.Wait(); err != nil {
-				t.Fatalf("binary exit: %v, want a clean shutdown", err)
-			}
-		})
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("binary exit: %v, want a clean shutdown", err)
 	}
 }
 
@@ -79,13 +98,11 @@ func TestMainBinaryPrintsOnlyTheSeedAnswer(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
-		args   []string
-		code   int
-		stdout string
-		stderr string
+		args []string
+		code int
 	}{
-		"help":            {[]string{"seed", "-h"}, 0, seedUsage, ""},
-		"an unknown flag": {[]string{"seed", "-now"}, 2, "", "gophenberg: seed: flag provided but not defined: -now\n"},
+		"help":            {[]string{"seed", "-h"}, 0},
+		"an unknown flag": {[]string{"seed", "-now"}, 2},
 	}
 	for testName, tc := range tests {
 		t.Run(testName, func(t *testing.T) {
@@ -107,9 +124,11 @@ func TestMainBinaryPrintsOnlyTheSeedAnswer(t *testing.T) {
 			if err != nil && !errors.As(err, &exitErr) {
 				t.Fatalf("gophenberg %q: %v", tc.args, err)
 			}
-			if cmd.ProcessState.ExitCode() != tc.code || stdout.String() != tc.stdout || stderr.String() != tc.stderr {
-				t.Errorf("gophenberg %q = %d, stdout %q, stderr %q, want %d, %q and %q", tc.args,
-					cmd.ProcessState.ExitCode(), stdout.String(), stderr.String(), tc.code, tc.stdout, tc.stderr)
+			want := testkit.Run(t, program(testkit.Getenv(nil), noPlugins), "", tc.args...)
+			if code := cmd.ProcessState.ExitCode(); code != tc.code || want.Code != tc.code ||
+				stdout.String() != want.Stdout || stderr.String() != want.Stderr {
+				t.Errorf("gophenberg %q = %d, stdout %q, stderr %q, want %d and the in process %q and %q", tc.args,
+					code, stdout.String(), stderr.String(), tc.code, want.Stdout, want.Stderr)
 			}
 		})
 	}
@@ -121,11 +140,12 @@ func TestMainBinaryRefusesAnUnknownCommandBeforeServing(t *testing.T) {
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
+	databaseURL := emptyDatabaseURL(t)
 	var stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, binary, "hepl")
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(env,
-		"GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t),
+		"GOPHENBERG_DATABASE_URL="+databaseURL,
 		"GOPHENBERG_ADDR=localhost:0",
 	)
 	cmd.Stderr = &stderr
@@ -139,6 +159,9 @@ func TestMainBinaryRefusesAnUnknownCommandBeforeServing(t *testing.T) {
 	if !strings.Contains(stderr.String(), `unknown command "hepl"`) {
 		t.Errorf("stderr = %q, want it to name the unknown command", stderr.String())
 	}
+	if schemaHeld(t, databaseURL, "core") {
+		t.Error("the core schema exists after an unknown command, want nothing migrated")
+	}
 }
 
 func TestMainBinaryCreateAdminProvisionsAUser(t *testing.T) {
@@ -147,7 +170,7 @@ func TestMainBinaryCreateAdminProvisionsAUser(t *testing.T) {
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(t.Context(),
-		binary, "createadmin", "-email", "admin@example.com", "-name", "Admin", "-role", "admin",
+		binary, "account:create-admin", "-email", "admin@example.com", "-name", "Admin", "-role", "admin",
 	)
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(env, "GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t))
@@ -156,7 +179,7 @@ func TestMainBinaryCreateAdminProvisionsAUser(t *testing.T) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("createadmin: %v, stderr: %s", err, stderr.String())
+		t.Fatalf("account:create-admin: %v, stderr: %s", err, stderr.String())
 	}
 
 	if !strings.Contains(stdout.String(), "created user admin@example.com") {
@@ -169,7 +192,8 @@ func TestMainBinaryCreateAdminFailsWithoutDatabaseURL(t *testing.T) {
 
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(t.Context(), binary, "createadmin", "-email", "admin@example.com", "-name", "Admin")
+	cmd := exec.CommandContext(t.Context(),
+		binary, "account:create-admin", "-email", "admin@example.com", "-name", "Admin", "-role", "admin")
 	cmd.Dir = t.TempDir()
 	cmd.Env = env
 	cmd.Stderr = &stderr
@@ -178,7 +202,7 @@ func TestMainBinaryCreateAdminFailsWithoutDatabaseURL(t *testing.T) {
 
 	var exitErr *exec.ExitError
 	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
-		t.Fatalf("createadmin without a database url: %v, want exit code 1", err)
+		t.Fatalf("account:create-admin without a database url: %v, want exit code 1", err)
 	}
 	if !strings.Contains(stderr.String(), "GOPHENBERG_DATABASE_URL") {
 		t.Errorf("stderr = %q, want it to name the missing variable", stderr.String())
@@ -190,7 +214,7 @@ func TestMainBinarySeedsTheDemoData(t *testing.T) {
 
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(t.Context(), binary, "seed")
+	cmd := exec.CommandContext(t.Context(), binary, "seed", "-yes")
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(env, "GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t))
 	cmd.Stdout = &stdout
@@ -210,7 +234,7 @@ func TestMainBinarySeedFailsWithoutDatabaseURL(t *testing.T) {
 
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(t.Context(), binary, "seed")
+	cmd := exec.CommandContext(t.Context(), binary, "seed", "-yes")
 	cmd.Dir = t.TempDir()
 	cmd.Env = env
 	cmd.Stderr = &stderr
@@ -219,7 +243,7 @@ func TestMainBinarySeedFailsWithoutDatabaseURL(t *testing.T) {
 
 	var exitErr *exec.ExitError
 	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
-		t.Fatalf("seed without a database url: %v, want exit code 1", err)
+		t.Fatalf("seed -yes without a database url: %v, want exit code 1", err)
 	}
 	if !strings.Contains(stderr.String(), "GOPHENBERG_DATABASE_URL") {
 		t.Errorf("stderr = %q, want it to name the missing variable", stderr.String())
@@ -232,7 +256,7 @@ func TestMainBinaryAnswersTheSiteDefaultLocale(t *testing.T) {
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	url := emptyDatabaseURL(t)
 	addr := testkit.FreeAddr(t)
-	cmd := exec.CommandContext(t.Context(), binary)
+	cmd := exec.CommandContext(t.Context(), binary, "serve")
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(env,
 		"GOPHENBERG_DATABASE_URL="+url,

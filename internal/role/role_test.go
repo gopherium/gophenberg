@@ -11,6 +11,27 @@ import (
 	"github.com/gopherium/gophenberg/internal/role"
 )
 
+func TestKnownListsTheRolesInDeclarationOrder(t *testing.T) {
+	t.Parallel()
+
+	known := role.Known()
+
+	if want := []string{role.Admin, role.Editor, role.Author}; !slices.Equal(known, want) {
+		t.Errorf("Known() = %v, want %v", known, want)
+	}
+}
+
+func TestKnownCannotBeChangedByItsCaller(t *testing.T) {
+	t.Parallel()
+
+	known := role.Known()
+	known[0] = "owner"
+
+	if again := role.Known(); again[0] != role.Admin {
+		t.Errorf("Known() = %v after a caller wrote to it, want %q first", again, role.Admin)
+	}
+}
+
 func TestPrivilegedNamesAdminAlone(t *testing.T) {
 	t.Parallel()
 

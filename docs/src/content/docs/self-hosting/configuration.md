@@ -5,7 +5,13 @@ description: Every environment variable, what the binary serves where, and what 
 
 Gophenberg is configured entirely through environment variables. A
 `.env` file in the working directory is read at startup, and real
-environment variables win over it.
+environment variables win over it. Every command reads the same
+settings, the `.env` file included, so `migrate` or an account
+command run beside the server finds the database the server uses.
+
+Every value is trimmed of the spaces around it. A padded value works
+as if it had none, and a value made only of spaces counts as unset,
+so it takes the default.
 
 ## The variables
 
@@ -40,7 +46,9 @@ environment variables win over it.
 | `GOPHENBERG_HTTP_IDLE_TIMEOUT` | No | `2m` | How long an idle connection waits for its next request |
 | `GOPHENBERG_SHUTDOWN_GRACE` | No | `10s` | How long a stop gives running requests to finish, see [stopping the server](#stopping-the-server) |
 | `GOPHENBERG_SHUTDOWN_CANCEL_GRACE` | No | `5s` | How long the requests cancelled after that grace get to end |
-| `GOPHENBERG_SHUTDOWN_STOP_GRACE` | No | `5s` | How long the plugins get to stop after that |
+| `GOPHENBERG_SHUTDOWN_STOP_GRACE` | No | `5s` | How long the plugins get to stop after that, and after any other command |
+| `GOPHENBERG_COMMAND_RECORD_TIMEOUT` | No | `5s` | How long an account command has to store the record of a change it applied, see [the commands](/self-hosting/commands/) |
+| `GOPHENBERG_COMMAND_RECORDS_LIMIT` | No | `50` | How many records `account:records` lists when its `-limit` flag names no other |
 | `GOPHENBERG_FEED_TITLE` | No | `Gophenberg` | The RSS channel title |
 | `GOPHENBERG_FEED_ITEMS` | No | `20` | How many posts the RSS feed carries |
 
@@ -142,6 +150,10 @@ sets `stop_grace_period`. Kubernetes waits
 longer than the four settings above added together, 23 seconds at
 their defaults, or the kill lands in the middle of the stop.
 
+The plugins get the same `GOPHENBERG_SHUTDOWN_STOP_GRACE` to stop
+after every other command that loads them, such as `migrate` or
+`seed -yes`, not only after serving.
+
 For a planned stop that needs a long wrap-up, raise both clocks. For
 example, set `GOPHENBERG_SHUTDOWN_GRACE=4m` and
 `stop_grace_period: 5m`. While it wraps up, the server takes no new
@@ -195,6 +207,21 @@ The server refuses to start, and says why, when:
 - `GOPHENBERG_THEME` pins a theme that fails to load, see
   [installing a theme](/themes/installing-a-theme/). A theme chosen
   in the admin does not stop startup.
+
+`GOPHENBERG_COMMAND_RECORD_TIMEOUT` has to be a positive duration and
+`GOPHENBERG_COMMAND_RECORDS_LIMIT` a positive whole number. A bad one
+does not stop the server, but the account commands that read it
+refuse to run.
+
+Run `check` before every rollout, with the new image and the settings
+it will run with. It reads every setting, the two above included,
+and loads the plugins, without starting anything or touching the
+database. It answers `settings, plugins and command names are valid`,
+or names the settings it refuses and exits with code 1:
+
+```sh
+docker compose run --rm -T gophenberg check
+```
 
 ## What the binary serves where
 

@@ -64,15 +64,15 @@ func samplePost(title, content string) sdk.Item {
 	}
 }
 
-// testEnv returns a getenv double carrying the given values.
-func testEnv(values map[string]string) func(string) string {
-	return func(key string) string { return values[key] }
+// settingsOf returns a settings reader carrying the given values under the program prefix.
+func settingsOf(values map[string]string) sdk.Env {
+	return sdk.Env{Prefix: "GOPHENBERG_", Getenv: func(key string) string { return values[key] }}
 }
 
 // mustRegister registers the feed plugin over the given posts and environment.
 func mustRegister(t *testing.T, posts sdk.ContentReader, values map[string]string) sdk.Plugin {
 	t.Helper()
-	plugin, err := feed.Register(sdk.Deps{Content: posts, Getenv: testEnv(values)})
+	plugin, err := feed.Register(sdk.Deps{Content: posts, Env: settingsOf(values)})
 	if err != nil {
 		t.Fatalf("Register() error = %v, want nil", err)
 	}
@@ -104,6 +104,54 @@ func TestFeedRegistersUnderItsOwnID(t *testing.T) {
 
 	if plugin.ID() != "feed" {
 		t.Errorf("ID() = %q, want %q", plugin.ID(), "feed")
+	}
+}
+
+func TestRegisterReadsItsSettingsThroughEnv(t *testing.T) {
+	t.Parallel()
+
+	posts := &stubPosts{}
+	env := settingsOf(map[string]string{
+		"GOPHENBERG_FEED_TITLE": "  Field Notes  ",
+		"GOPHENBERG_FEED_ITEMS": " 5 ",
+	})
+
+	plugin, err := feed.Register(sdk.Deps{Content: posts, Env: env})
+
+	if err != nil {
+		t.Fatalf("Register() error = %v, want the padded settings read trimmed", err)
+	}
+	var parsed channel
+	if err := xml.Unmarshal(serve(t, plugin).Body.Bytes(), &parsed); err != nil {
+		t.Fatalf("parsing the feed: %v", err)
+	}
+	if parsed.Title != "Field Notes" || posts.limit != 5 {
+		t.Errorf("channel %q over %d posts, want %q over 5", parsed.Title, posts.limit, "Field Notes")
+	}
+}
+
+func TestRegisterOpensNothingEvenWithAnUnreachableDatabase(t *testing.T) {
+	t.Parallel()
+
+	started := time.Now()
+	_, err := feed.Register(sdk.Deps{
+		DatabaseURL: "postgres://postgres@192.0.2.1:5432/none?connect_timeout=5",
+		Content:     &stubPosts{},
+		Env:         settingsOf(map[string]string{}),
+	})
+
+	if took := time.Since(started); err != nil || took > time.Second {
+		t.Errorf("Register() = %v after %v, want it back within a second having opened nothing", err, took)
+	}
+}
+
+func TestStopNeedsNoStart(t *testing.T) {
+	t.Parallel()
+
+	plugin := mustRegister(t, &stubPosts{}, map[string]string{})
+
+	if err := plugin.Stop(t.Context()); err != nil {
+		t.Errorf("Stop() without Start() = %v, want nil", err)
 	}
 }
 
@@ -298,7 +346,7 @@ func TestRegisterRejectsAMalformedItemsCap(t *testing.T) {
 	for _, raw := range []string{"banana", "0", "-3", "2.5"} {
 		values := map[string]string{"GOPHENBERG_FEED_ITEMS": raw}
 
-		plugin, err := feed.Register(sdk.Deps{Content: &stubPosts{}, Getenv: testEnv(values)})
+		plugin, err := feed.Register(sdk.Deps{Content: &stubPosts{}, Env: settingsOf(values)})
 
 		if err == nil {
 			t.Errorf("Register() with cap %q error = nil, want it loudly refused", raw)

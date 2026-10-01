@@ -119,7 +119,7 @@ func TestRegistryFromCarriesTheFieldDepthTheEnvironmentNamed(t *testing.T) {
 
 	settings := timedConfig()
 
-	held := registryFrom(settings, nil)
+	held := registryFrom(settings.fieldDepth, nil)
 
 	if held.FieldDepth() != settings.fieldDepth {
 		t.Errorf("FieldDepth() = %d, want %d", held.FieldDepth(), settings.fieldDepth)

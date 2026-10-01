@@ -18,6 +18,7 @@ var config = wire.Config{
 	GoWiringPath: "cmd/gophenberg/plugins_gen.go",
 	TSWiringPath: "frontend/src/plugins/index.ts",
 	License:      "Apache-2.0",
+	Reserved:     []string{"help", "list", "version", "check", "serve", "migrate", "seed", "account"},
 }
 
 // main regenerates the plugin wiring files.

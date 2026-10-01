@@ -38,33 +38,59 @@ const ManageSettings Capability = "manage_settings"
 // ChangeOthersWork is the capability changing content and media another account wrote.
 const ChangeOthersWork Capability = "change_others_work"
 
-// carried maps each role onto the capabilities it holds.
-var carried = map[string][]Capability{
-	Admin:  {ManageUsers, ManageThemes, ManageTypes, ManageSettings, ChangeOthersWork},
-	Editor: {ChangeOthersWork},
-	Author: {},
+// grant is one role and the capabilities it holds.
+type grant struct {
+	role         string
+	capabilities []Capability
+}
+
+// carried lists every role in declaration order with the capabilities it holds.
+var carried = []grant{
+	{Admin, []Capability{ManageUsers, ManageThemes, ManageTypes, ManageSettings, ChangeOthersWork}},
+	{Editor, []Capability{ChangeOthersWork}},
+	{Author, nil},
+}
+
+// Known returns every role an account may hold, in declaration order.
+func Known() []string {
+	known := make([]string, 0, len(carried))
+	for _, entry := range carried {
+		known = append(known, entry.role)
+	}
+	return known
 }
 
 // Can reports whether a role holds the capability, an unknown role holding none.
 func Can(role string, capability Capability) bool {
-	return slices.Contains(carried[role], capability)
+	return slices.Contains(capabilitiesOf(role), capability)
 }
 
 // CapabilitiesOf returns the capabilities a role carries, named for a caller outside this package.
 func CapabilitiesOf(role string) []string {
-	held := make([]string, 0, len(carried[role]))
-	for _, capability := range carried[role] {
+	own := capabilitiesOf(role)
+	held := make([]string, 0, len(own))
+	for _, capability := range own {
 		held = append(held, string(capability))
 	}
 	return held
 }
 
+// capabilitiesOf returns the capabilities the table gives role, none for an unknown role.
+func capabilitiesOf(role string) []Capability {
+	for _, entry := range carried {
+		if entry.role == role {
+			return entry.capabilities
+		}
+	}
+	return nil
+}
+
 // Privileged returns the roles that administer accounts.
 func Privileged() gouncer.Roles {
 	var roles gouncer.Roles
-	for role := range carried {
-		if Can(role, ManageUsers) {
-			roles = append(roles, role)
+	for _, entry := range carried {
+		if slices.Contains(entry.capabilities, ManageUsers) {
+			roles = append(roles, entry.role)
 		}
 	}
 	slices.Sort(roles)

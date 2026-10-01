@@ -4,14 +4,13 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	accounts "github.com/gopherium/framework/gonsole/auth"
 	"github.com/gopherium/gouncer"
-	"github.com/gopherium/gouncer/authkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 
 	"github.com/gopherium/gophenberg/internal/mediahost"
@@ -20,11 +19,11 @@ import (
 	"github.com/gopherium/gophenberg/internal/seed"
 )
 
-// seedDemoData migrates the database and stores the demo data set.
+// seedDemoData stores the demo data set in a migrated database.
 func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Writer) error {
-	databaseURL := getenv("GOPHENBERG_DATABASE_URL")
-	if databaseURL == "" {
-		return errors.New("GOPHENBERG_DATABASE_URL is required")
+	databaseURL, err := settingsEnv(getenv).Required("DATABASE_URL")
+	if err != nil {
+		return err
 	}
 	depth, err := fieldDepthFrom(getenv)
 	if err != nil {
@@ -35,20 +34,8 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 		return fmt.Errorf("parse database url: %w", err)
 	}
 	defer pool.Close()
-	if err := authkitpg.Migrate(ctx, databaseURL); err != nil {
-		return err
-	}
-	if err := postgres.Migrate(ctx, databaseURL); err != nil {
-		return err
-	}
 	users := authkitpg.NewUserStore(pool)
-	created, err := authkit.EnsureAdmin(
-		ctx, users, seed.AdminEmail, seed.AdminName, seed.AdminPassword, role.Admin,
-	)
-	if err != nil {
-		return err
-	}
-	if err := seedAccountsWithRoles(ctx, users); err != nil {
+	if err := accounts.EnsureAccounts(ctx, users, demoAccounts(), stdout); err != nil {
 		return err
 	}
 	if err := seedDemoContent(ctx, pool, users, depth); err != nil {
@@ -57,28 +44,23 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {
 		return err
 	}
-	reportSeeded(stdout, created)
-	return nil
+	_, err = fmt.Fprintln(stdout, "seeded demo data, an account created above signs in with "+seed.AdminPassword+
+		", a kept account keeps its own password")
+	return err
 }
 
-// seedAccountsWithRoles stores one demo account under each role other than admin.
-func seedAccountsWithRoles(ctx context.Context, users gouncer.Store) error {
-	accounts := []struct{ email, name, role string }{
-		{seed.EditorEmail, seed.EditorName, role.Editor},
-		{seed.AuthorEmail, seed.AuthorName, role.Author},
+// demoAccounts returns the demo account of each role, the admin first, all under one password.
+func demoAccounts() []accounts.Account {
+	return []accounts.Account{
+		{Email: seed.AdminEmail, Name: seed.AdminName, Password: seed.AdminPassword, Role: role.Admin},
+		{Email: seed.EditorEmail, Name: seed.EditorName, Password: seed.AdminPassword, Role: role.Editor},
+		{Email: seed.AuthorEmail, Name: seed.AuthorName, Password: seed.AdminPassword, Role: role.Author},
 	}
-	for _, account := range accounts {
-		_, err := authkit.EnsureAdmin(ctx, users, account.email, account.name, seed.AdminPassword, account.role)
-		if err != nil {
-			return fmt.Errorf("seeding the %s account: %w", account.role, err)
-		}
-	}
-	return nil
 }
 
 // seedDemoContent registers the demo types and stores the content they hold, nesting no deeper than depth.
 func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.UserStore, depth int) error {
-	types := registryFrom(runConfig{fieldDepth: depth}, postgres.NewTypeStore(pool))
+	types := registryFrom(depth, postgres.NewTypeStore(pool))
 	if err := seed.Types(ctx, types); err != nil {
 		return err
 	}
@@ -108,22 +90,10 @@ func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.U
 func seedDemoMedia(
 	ctx context.Context, getenv func(string) string, pool *pgxpool.Pool, users gouncer.Store,
 ) error {
-	dir := getenv("GOPHENBERG_MEDIA_DIR")
+	dir := settingsEnv(getenv).Value("MEDIA_DIR")
 	if dir == "" {
 		return nil
 	}
 	library := mediahost.New(mediahost.Config{Dir: dir, Settings: postgres.NewSettingStore(pool)})
 	return seed.Media(ctx, library, postgres.NewMediaStore(pool), users)
-}
-
-// reportSeeded writes what the seeding stored and how to log in.
-func reportSeeded(stdout io.Writer, created bool) {
-	_, _ = fmt.Fprintln(stdout, "seeded demo data")
-	if created {
-		_, _ = fmt.Fprintln(stdout, "login: "+seed.AdminEmail+" / "+seed.AdminPassword)
-	} else {
-		_, _ = fmt.Fprintln(stdout, seed.AdminEmail+" already exists, its password is unchanged")
-	}
-	_, _ = fmt.Fprintln(stdout, "also seeded: "+seed.EditorEmail+" and "+seed.AuthorEmail+", same password")
-	_, _ = fmt.Fprintln(stdout, "development only, never seed a production database")
 }
