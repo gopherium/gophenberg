@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	accounts "github.com/gopherium/framework/gonsole/auth"
 	"github.com/gopherium/gouncer"
-	"github.com/gopherium/gouncer/authkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 
 	"github.com/gopherium/gophenberg/internal/mediahost"
@@ -36,13 +36,7 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	}
 	defer pool.Close()
 	users := authkitpg.NewUserStore(pool)
-	created, err := authkit.EnsureAdmin(
-		ctx, users, seed.AdminEmail, seed.AdminName, seed.AdminPassword, role.Admin,
-	)
-	if err != nil {
-		return err
-	}
-	if err := seedAccountsWithRoles(ctx, users); err != nil {
+	if err := accounts.EnsureAccounts(ctx, users, demoAccounts(), stdout); err != nil {
 		return err
 	}
 	if err := seedDemoContent(ctx, pool, users, depth); err != nil {
@@ -51,23 +45,17 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 	if err := seedDemoMedia(ctx, getenv, pool, users); err != nil {
 		return err
 	}
-	reportSeeded(stdout, created)
-	return nil
+	_, err = fmt.Fprintln(stdout, "seeded demo data, the accounts created above sign in with "+seed.AdminPassword)
+	return err
 }
 
-// seedAccountsWithRoles stores one demo account under each role other than admin.
-func seedAccountsWithRoles(ctx context.Context, users gouncer.Store) error {
-	accounts := []struct{ email, name, role string }{
-		{seed.EditorEmail, seed.EditorName, role.Editor},
-		{seed.AuthorEmail, seed.AuthorName, role.Author},
+// demoAccounts returns the demo account of each role, the admin first, all under one password.
+func demoAccounts() []accounts.Account {
+	return []accounts.Account{
+		{Email: seed.AdminEmail, Name: seed.AdminName, Password: seed.AdminPassword, Role: role.Admin},
+		{Email: seed.EditorEmail, Name: seed.EditorName, Password: seed.AdminPassword, Role: role.Editor},
+		{Email: seed.AuthorEmail, Name: seed.AuthorName, Password: seed.AdminPassword, Role: role.Author},
 	}
-	for _, account := range accounts {
-		_, err := authkit.EnsureAdmin(ctx, users, account.email, account.name, seed.AdminPassword, account.role)
-		if err != nil {
-			return fmt.Errorf("seeding the %s account: %w", account.role, err)
-		}
-	}
-	return nil
 }
 
 // seedDemoContent registers the demo types and stores the content they hold, nesting no deeper than depth.
@@ -108,15 +96,4 @@ func seedDemoMedia(
 	}
 	library := mediahost.New(mediahost.Config{Dir: dir, Settings: postgres.NewSettingStore(pool)})
 	return seed.Media(ctx, library, postgres.NewMediaStore(pool), users)
-}
-
-// reportSeeded writes what the seeding stored and how to log in.
-func reportSeeded(stdout io.Writer, created bool) {
-	_, _ = fmt.Fprintln(stdout, "seeded demo data")
-	if created {
-		_, _ = fmt.Fprintln(stdout, "login: "+seed.AdminEmail+" / "+seed.AdminPassword)
-	} else {
-		_, _ = fmt.Fprintln(stdout, seed.AdminEmail+" already exists, its password is unchanged")
-	}
-	_, _ = fmt.Fprintln(stdout, "also seeded: "+seed.EditorEmail+" and "+seed.AuthorEmail+", same password")
 }

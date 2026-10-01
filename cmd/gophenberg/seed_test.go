@@ -8,12 +8,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/framework/gonsole"
+	accounts "github.com/gopherium/framework/gonsole/auth"
 	"github.com/gopherium/framework/gonsole/testkit"
 	"github.com/gopherium/gouncer"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
@@ -87,6 +89,30 @@ func TestSeedCarriesAnAdminAcrossFromBeforeRolesExisted(t *testing.T) {
 	}
 	if held.PasswordHash != before.PasswordHash {
 		t.Error("password hash changed, want the repair to touch only the role")
+	}
+}
+
+func TestSeedReportsEachDemoAccountItCreatedOrKept(t *testing.T) {
+	t.Parallel()
+
+	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t)})
+	var first, again strings.Builder
+	if err := seedMigrated(t.Context(), env, &first); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
+	}
+
+	if err := seedDemoData(t.Context(), env, &again); err != nil {
+		t.Fatalf("second seedDemoData() error = %v, want nil", err)
+	}
+
+	closing := "seeded demo data, the accounts created above sign in with " + seed.AdminPassword + "\n"
+	created := "created " + seed.AdminEmail + "\ncreated " + seed.EditorEmail + "\ncreated " + seed.AuthorEmail + "\n"
+	kept := "kept " + seed.AdminEmail + "\nkept " + seed.EditorEmail + "\nkept " + seed.AuthorEmail + "\n"
+	if first.String() != created+closing {
+		t.Errorf("first seed printed %q, want %q", first.String(), created+closing)
+	}
+	if again.String() != kept+closing {
+		t.Errorf("second seed printed %q, want %q", again.String(), kept+closing)
 	}
 }
 
@@ -203,7 +229,7 @@ func TestSeedIsIdempotent(t *testing.T) {
 			t.Errorf("counts[%q] = %d after reseeding, want %d", status, second[status], total)
 		}
 	}
-	if !strings.Contains(stdout.String(), "already exists") {
+	if !strings.Contains(stdout.String(), "kept "+seed.AdminEmail) {
 		t.Errorf("output = %q, want it to report the existing admin", stdout.String())
 	}
 }
@@ -522,16 +548,29 @@ func (refusingUserStore) CreateUser(context.Context, gouncer.User) error {
 	return context.DeadlineExceeded
 }
 
-func TestSeedNamesTheRoleItCouldNotStore(t *testing.T) {
+func TestSeedNamesTheDemoAccountItCouldNotStore(t *testing.T) {
 	t.Parallel()
 
-	err := seedAccountsWithRoles(t.Context(), refusingUserStore{})
+	err := accounts.EnsureAccounts(t.Context(), refusingUserStore{}, demoAccounts(), io.Discard)
 
-	if err == nil {
-		t.Fatal("seedAccountsWithRoles() error = nil, want a failure")
+	if err == nil || !strings.Contains(err.Error(), seed.AdminEmail) {
+		t.Errorf("EnsureAccounts() error = %v, want the admin demo account named", err)
 	}
-	if !strings.Contains(err.Error(), role.Editor) {
-		t.Errorf("error = %v, want it to name the role it was seeding", err)
+}
+
+func TestDemoAccountsHoldEveryRoleUnderOnePassword(t *testing.T) {
+	t.Parallel()
+
+	var roles []string
+	for _, account := range demoAccounts() {
+		roles = append(roles, account.Role)
+		if account.Password != seed.AdminPassword {
+			t.Errorf("%s signs in with %q, want the demo password", account.Email, account.Password)
+		}
+	}
+
+	if !slices.Equal(roles, role.Known()) {
+		t.Errorf("demo accounts hold %v, want one account under each of %v", roles, role.Known())
 	}
 }
 
