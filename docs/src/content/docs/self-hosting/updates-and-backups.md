@@ -30,56 +30,34 @@ notes first, since a release can change behavior.
 
 Updating to %VERSION% from the release before this one runs one
 migration when the server starts, or when you run `migrate`. It adds
-the `gonsole` schema, which keeps a record of each account change
-applied with `-as`, and changes no row you wrote. Until it runs,
-`account:records` and the commands that take `-as` refuse with
-`the command records are missing, run migrate first`. This release
-serves the same theme kits as the release before it, so no theme
-needs rebuilding. Back up the database before the first start on
-this release, as before any update.
+the `gonsole` schema, with one table that keeps a record of each
+account change applied with `-as`. It changes no row you wrote. The
+database account needs the right to create a schema, the same right
+the site used when it first started. If the migration fails, the
+server stops at start, and the older image still starts on that
+database. Until it runs, `account:records` and the commands that take
+`-as` refuse with `the command records are missing, run migrate first`.
+This release serves the same theme kits as the release before it, so
+no theme needs rebuilding. Back up the database before the first
+start on this release, as before any update.
 
 Some things work differently after this update:
 
-- A browser that saves anything from a page on another site is
-  refused with the code `request_cross_origin`. That covers the admin,
-  signing in and out, and the forms a plugin serves, so a plugin form
-  has to sit on this site's own pages. A program that is not a browser,
-  such as a script calling the API, is not affected as long as it sends
-  no `Origin` header. Behind a reverse proxy, set
-  `GOPHENBERG_TRUSTED_PROXIES` and let the proxy pass
-  `X-Forwarded-Proto`, or a browser too old to say where a request came
-  from is refused on this site too. See
-  [configuration](/self-hosting/configuration/).
-- **Move** between the tops of two groups deletes the field's values
-  from the content the new group does not reach, in every item and
-  revision, unless another active group still serves the field there.
-  The release before this one left those values hidden, and a field of
-  the same name added to that content later picked them up. This
-  release does not clean up values an older release left behind that
-  way.
-- An import that moves a field to another group, or drops a group and
-  declares its fields again in another one, moves the field the way
-  **Move** does. Its values stay when the field keeps its kind and the
-  new group reaches the same content. Before, the import deleted them.
-  The review screen says on each line whether the values follow.
-- An import is judged against everything the file leaves behind once
-  your ticks are counted, so it is refused before it writes anything
-  or applied in full. The release before this one wrote part of some
-  files and then stopped. A group you tick is now taken away before the
-  file's other groups land.
-- A relation inside a Section that a Linked from field reads can no
-  longer be deleted. A group holding both a relation and the Linked
-  from field reading it can now be deleted in one step. A site whose
-  Linked from field reads a relation inside a Section can now import
-  its own export.
-- Every start deletes the files of an upload that a stop cut short, and
-  logs each one. Run one Gophenberg per media folder, see
-  [uploads a stop cut short](/self-hosting/configuration/#uploads-a-stop-cut-short).
 - A run with no command lists the commands and stops, instead of
-  serving. The image runs `serve` when it is given no command, so
-  the compose file from [Install](/self-hosting/install/) keeps
-  serving. A setup that passes the image its own arguments has to name
+  serving. A word that is not a command stops with exit code 2 before
+  it touches the database. The release before this one started the
+  full server for any word it did not know. The image runs `serve`
+  when it is given no command, so the compose file from
+  [Install](/self-hosting/install/) keeps serving. A setup that passes
+  the image its own arguments, or runs the binary itself, has to name
   `serve` first.
+- A stop takes up to 23 seconds at the default settings. It gives the
+  running requests `GOPHENBERG_SHUTDOWN_GRACE` to finish, cancels the
+  rest, and then gives the plugins and the theme their own time.
+  Docker kills the server after 10 seconds unless the compose file
+  sets `stop_grace_period`, so set it above 23 seconds, as the compose
+  file from [Install](/self-hosting/install/) does with `30s`. See
+  [stopping the server](/self-hosting/configuration/#stopping-the-server).
 - `createadmin` is now `account:create-admin`, and `grantrole` is now
   `account:grant-role`. The old names stop with exit code 2.
   `account:create-admin` takes only the roles `admin`, `editor` and
@@ -89,21 +67,76 @@ Some things work differently after this update:
   address of an enabled admin, and records each change it applies.
   Update any script that calls them, see
   [the commands page](/self-hosting/commands/).
+- Every setting is trimmed of the spaces around it, and a value made
+  only of spaces counts as unset, so it takes the default. The HTTP
+  timeouts and the time an upload has to arrive are now settings. Their
+  defaults are the fixed values the release before this one used. See
+  [configuration](/self-hosting/configuration/).
+- The new `GOPHENBERG_PUBLIC_URL` names the address people reach the
+  site at. Left unset, it changes nothing. Once set, every write sent
+  to another address is refused, a script writing to the server's
+  internal address included, and nginx needs
+  `proxy_set_header Host $host`. Every refused write is now logged as
+  `write refused`, with its reason, whether the setting is set or not.
+  See [the public address](/self-hosting/configuration/#the-public-address).
+- Every start deletes the files of an upload that a stop cut short, and
+  logs each one. Run one Gophenberg per media folder, see
+  [uploads a stop cut short](/self-hosting/configuration/#uploads-a-stop-cut-short).
+  An upload over 32 MB no longer leaves a scratch file of its own size
+  in the temporary folder.
+- A still picture over the pixel limit is refused with
+  `image_pixel_budget_exceeded`, where the release before this one
+  answered `image_frame_too_large`. A picture that declares no pixels
+  is refused with `image_unreadable`. A program that reads those codes
+  through the API needs updating.
+- A post in the trash is read only. An edit, an autosave or a revision
+  delete on it is refused with `content_trashed`, and the admin opens
+  it with a **Restore** button. Moving a post to the trash deletes the
+  unsaved work parked on it, from every author.
+- Changes made at the same moment no longer slip past the checks on a
+  page's place. A restore that lands while another admin restores and
+  publishes the same post is refused with `restore_not_trashed`,
+  instead of turning it back into a draft. A page filed under a parent
+  that moves to the trash at that moment is refused with
+  `parent_trashed`. Of two opposite page moves, the second is refused
+  with `parent_cycle`, instead of nesting the pages inside each other.
+- **Rules** on a group can move the group onto other content and point
+  each of its Linked from fields anew in the same save. The release
+  before this one needed such a field deleted and declared again. An
+  import with a move you left unticked lists that field, and
+  everything inside it, as left alone. It no longer creates a group
+  that would stand empty.
+- On a site that builds its own plugins, commands such as `list` and
+  `check` register every plugin and stop it again without starting
+  it, so a plugin has to open nothing before it starts, and its `Stop`
+  has to work when `Start` never ran. A plugin that imports only the
+  `sdk` package builds unchanged. See
+  [the plugin SDK](/extending/the-plugin-sdk/).
 
 Updating from further back also runs the migrations of every release
-you skip, so read each of their notes. Coming from three releases back
+you skip, so read each of their notes. Coming from four releases back
 or older, write any `@` inside the password in
 `GOPHENBERG_DATABASE_URL` as `%40`, or the server does not start. The
 `%40` form works on those releases too, so change the address first
 and update after.
+
+Coming from two releases back or older, a browser that saves anything
+from a page on another site is refused with `request_cross_origin`,
+so a plugin form has to sit on this site's own pages. Behind a reverse
+proxy, set `GOPHENBERG_PUBLIC_URL`, or set
+`GOPHENBERG_TRUSTED_PROXIES` and let the proxy pass
+`X-Forwarded-Proto`. Without one of them, a browser too old to say
+where a request came from is refused on this site too.
+**Move** also deletes the values a field leaves on the content its
+new group does not reach, where those releases left them hidden.
 
 If a type stopped nesting on an older release while its items still
 sat inside other items, this release refuses to save those items.
 Press **Let items nest** on that type. For a type a plugin declared,
 move those items to the top level instead.
 
-Coming from two releases back, the update also runs that release's
-one migration when the server starts. On most sites it only adds a
+Coming from three releases back or older, the update also runs the
+migration that two releases back added. On most sites it only adds a
 database index, a rule that stops one container from holding two
 fields of the same name, and changes no row. It never changes what
 your items, revisions and autosaves store. The migration runs as one
@@ -111,7 +144,7 @@ step. If it fails, the server stops at start and the database stays
 as it was, so the older image starts again.
 
 The migration does more on a site where one container held two fields
-of the same name. That can only happen where a release four back or
+of the same name. That can only happen where a release five back or
 older moved a Section, a Repeater or a Flexible content field to
 another group without the fields inside it. The migration keeps one
 copy. It keeps the copy stored in the same group as the top-level
@@ -134,28 +167,55 @@ copies by hand first, because on that release it clears the values
 both copies read.
 
 Rolling back to the release before this one deletes nothing. Put the
-older image tag back and start it. It runs on this release's database
-as it stands. Accounts keep signing in, and the database password
-needs no change. It serves the same theme kits, so no theme needs
-rebuilding. While you run it:
+older image tag back, the newest patch of that release, and start it.
+It runs on this release's database as it stands. Accounts keep
+signing in, and the database password needs no change. It serves the
+same theme kits, so no theme needs rebuilding. It does not bring back
+what this release deleted, such as the work parked on a post moved to
+the trash. While you run it:
 
-- It accepts what a browser saves from a page on another site.
-- Its **Move** leaves a field's values hidden on the content the new
-  group does not reach, and updating again does not clean them up.
-- Its imports delete the values of a field they move to another group,
-  and some imports write part of the file before they refuse the rest.
-- It lets you delete a relation inside a Section that a Linked from
-  field reads, which leaves that field reading nothing. It refuses to
-  delete a group holding both a relation
-  and the Linked from field reading it. A site whose Linked from field
-  reads a relation inside a Section cannot import its own export.
-- A stop in the middle of an upload leaves its files in the media
-  folder, and updating again does not delete them.
-- It takes the old command names, `createadmin` and `grantrole`, and a
-  plain `seed`, which stores the demo data at once with no dry run. It
-  serves when given no command, and when given `serve`.
+- It knows three commands, `createadmin`, `grantrole` and `seed`.
+  `seed` stores the demo data at once, with no dry run, and
+  `grantrole` refuses `-as` and `-yes`. Any other word, `serve`,
+  `check`, `migrate`, `list` and every `account:` command included,
+  starts the full server and runs its migrations. Under
+  `docker compose run`, that server keeps running until you stop it.
 - It ignores the `gonsole` schema and keeps no record of the account
-  changes it makes. The records kept before the rollback stay.
+  changes it makes. The records kept before the rollback stay. The
+  roles and disabled accounts set with the `account:` commands still
+  hold.
+- It ignores the settings this release added. Its HTTP timeouts and
+  the time an upload has to arrive are fixed at this release's
+  defaults. A stop gives the requests and the plugins one window of 10
+  seconds together, and never cancels a running request.
+- It reads every setting as it is written, spaces included. A value
+  this release took only because it trimmed the spaces around it can
+  stop it from starting, or be read as another value, and a value made
+  only of spaces counts as set. Take those spaces out before you roll
+  back.
+- It ignores `GOPHENBERG_PUBLIC_URL` and logs no refused write. Where
+  that setting was on, a browser too old to say where a request came from
+  is refused again behind a proxy that does not pass
+  `X-Forwarded-Proto`. Another domain pointed at your server can again
+  make a visitor's browser post to the site.
+- A stop in the middle of an upload leaves its files in the media
+  folder, and updating again does not delete them. An upload over
+  32 MB leaves a scratch file of its own size in the temporary folder,
+  and a refused upload answers the old codes.
+- A post in the trash takes edits, autosaves and revision deletes
+  again. A restore that lands while another admin restores and
+  publishes the same post can turn it back into a draft, a page filed
+  as its parent moves to the trash can land under it, and two opposite
+  page moves made at the same moment can nest the pages inside each
+  other.
+- Leaving the editor for another admin screen loses the unsaved words.
+  Going Back to a post can show another post's content, which an
+  autosave can then store as the first post's unsaved work.
+- Two admins saving at the same moment can take a field deeper than
+  `GOPHENBERG_FIELD_DEPTH`, or leave a Linked from field reading a
+  relation that is gone. Moving a group with a Linked from field needs
+  that field deleted and declared again, and an import with a move you
+  left unticked creates a group that stands empty.
 
 Updating again runs no migration, and what you changed while rolled
 back stays as it is.
@@ -173,7 +233,20 @@ deletes nothing. Each older release also has the problems of every
 newer one, the release before this one included, unless its own line
 says otherwise:
 
-- Two releases back cannot move a field into or out of a container,
+- Two releases back accepts what a browser saves from a page on
+  another site. Its **Move** leaves a field's values hidden on the
+  content the new group does not reach, and updating again does not
+  clean them up. Its imports delete the values of a field they move to
+  another group, and some imports write part of the file before they
+  refuse the rest. It lets you delete a relation inside a Section that
+  a Linked from field reads, which leaves that field reading nothing.
+  It refuses to delete a group holding both a relation and the Linked
+  from field reading it. A site whose Linked from field reads a
+  relation inside a Section cannot import its own export. It also lets
+  a block delimiter inside an allowed attribute hide an event handler
+  from the content sanitizer, which the newest patch of the release
+  before this one fixed.
+- Three releases back cannot move a field into or out of a container,
   and fields a newer release moved stay where they are. It has no
   buttons to let a type nest or stop nesting, and it lets the API or
   an import turn nesting off while items still sit inside other items.
@@ -183,35 +256,35 @@ says otherwise:
   update again, so move its nested items to the top level. Deleting a
   field from a group that is turned off or **Shadowed** clears the
   values another active group serves at the same place.
-- Three releases back ignores `GOPHENBERG_FIELD_DEPTH` and holds the
+- Four releases back ignores `GOPHENBERG_FIELD_DEPTH` and holds the
   limit at 32. It refuses a new field more than 32 deep, and any
   import file that holds one.
-- Four releases back moves a Section, a Repeater or a Flexible
+- Five releases back moves a Section, a Repeater or a Flexible
   content field to another group without the fields inside it. After
   such a move, adding a field to that container under the name of a
   field left behind fails with an internal error. Deleting the old
   group fails the same way. It also lets a shared cache keep a failed
   content API answer, and does not mark answers to a signed in account
   as private.
-- Five releases back does not know a relation inside a container. Its
+- Six releases back does not know a relation inside a container. Its
   editor refuses to save a change to a container holding one, and a
   change sent through the API that leaves the relation out deletes its
   value. It keeps what an item points at in a separate list, while
   newer releases read the item itself, so a relation you change there
   is lost when you update again.
-- Six releases back does not know the newer field kinds. It shows
+- Seven releases back does not know the newer field kinds. It shows
   their values but refuses a change to one. It runs only themes built
   on theme kit 0.12.0 or older. A newer theme does not load, and the
   site shows the built-in pages instead. If `GOPHENBERG_THEME` names
   that theme, the server does not start.
-- Seven releases back knows only the six original kinds and does not
+- Eight releases back knows only the six original kinds and does not
   know containers at all. It cannot create a field group. Deleting a
   field there also deletes every field of that name inside the group's
   containers, and deleting a group also deletes its fields that stand
   inside other groups' containers. It runs only themes built on theme
   kit 0.9.0.
 
-Running the migrations backwards by hand, as seven releases back would
+Running the migrations backwards by hand, as eight releases back would
 need, deletes definitions, and that is a one way trip. It deletes
 every field whose kind is not one of the six, every field standing
 inside another field, every field's settings, and the record of which
