@@ -14,23 +14,43 @@ It is small on purpose, and this page is all of it.
 | --- | --- |
 | `DatabaseURL` | The PostgreSQL connection string. A plugin opens its own connection and owns its own schema |
 | `Content` | A read view of published content |
-| `Getenv` | Reads environment variables, for the plugin's own configuration |
+| `Env` | Reads the settings under the `GOPHENBERG_` prefix, for the plugin's own configuration |
+| `Getenv` | Reads any environment variable by its full name, as it is set |
+
+`Env` takes a setting's name without the prefix and trims the
+spaces around its value. `Value` returns the text, empty when the
+setting is unset, and `Required` refuses an empty one. `Duration`,
+`Count` and `Flag` read a duration above zero, a whole number above
+zero, or true or false, and return the default you pass when the
+setting is empty. `Within` narrows the prefix, so
+`deps.Env.Within("FEED_").Count("ITEMS", 20)` reads
+`GOPHENBERG_FEED_ITEMS`. Every error names the full setting, such
+as `GOPHENBERG_FEED_ITEMS: must be a whole number, got "banana"`,
+so `Register` can return it as it is.
 
 ## The lifecycle interfaces
 
-`sdk.Plugin` is required: `ID`, `Start`, `Stop`. Four optional
+`sdk.Plugin` is required: `ID`, `Start`, `Stop`. Five optional
 interfaces add capabilities the host discovers automatically:
 `Migrator` for database migrations, `RouteProvider` for HTTP under
 `/api/plugins/{id}`, `PublicPathProvider` for the exact paths that
-answer without a login, and `TypeDeclarer` for content types,
-field groups and fields the plugin brings with it.
+answer without a login, `TypeDeclarer` for content types, field
+groups and fields the plugin brings with it, and `CommandProvider`
+for [commands](#commands) on the `gophenberg` command line.
 
 `Register` only checks the plugin's settings and builds it. It
-never touches the network or the database. `Start` does that.
-`Stop` must work even when `Start` never ran, and return by the
-time its context ends. When a plugin fails to register or to
-declare its types, Gophenberg stops every plugin that registered.
-When one fails to start, it stops the ones already started.
+opens nothing, no connection, no file and no goroutine. `Start`
+does that. Commands such as `list`, `check` and `migrate` register
+every plugin and stop it again without ever starting it. Only
+`serve` starts the plugins. So `Stop` must work even when `Start`
+never ran, and return by the time its context ends. When `list` or
+`help` registers the plugins, `DatabaseURL` can be empty.
+
+When a plugin fails to register or to declare its types, Gophenberg
+stops every plugin that registered. When one fails to start, it
+stops the ones already started. On the command line, a plugin that
+fails to register shows under "Not loaded:" in `gophenberg list`,
+and `check`, `migrate` and `seed -yes` fail.
 
 ## Reading content
 
@@ -86,6 +106,80 @@ with a badge naming the plugin and offers no way to change or delete
 it, though it can still be turned off. If the site already holds a
 type or group under the same key, the plugin's declaration is
 skipped and the start log says so.
+
+## Commands
+
+A plugin that implements `CommandProvider` offers commands on the
+`gophenberg` command line. Each command's name is the plugin id, a
+colon, then the command:
+
+```go
+func (p plugin) Commands() []sdk.Command {
+	return []sdk.Command{{
+		Name:    "hello:greet",
+		Summary: "print a greeting for one name",
+		Args:    []string{"name"},
+		Run: func(ctx context.Context, call sdk.Call) error {
+			name := strings.TrimSpace(call.Args[0])
+			if name == "" {
+				return sdk.Misuse(errors.New("hello:greet wants a name that is not blank"))
+			}
+			_, err := fmt.Fprintf(call.Stdout, "hello, %s\n", name)
+			return err
+		},
+	}}
+}
+```
+
+`gophenberg list` shows it under the plugin id,
+`gophenberg help hello:greet` prints its page, and
+`gophenberg hello:greet Maria` runs it.
+
+| Field | What it is |
+| --- | --- |
+| `Name` | `<plugin id>:<command>`, in lowercase words joined by hyphens |
+| `Summary` | The one line the listing prints beside the name |
+| `Args` | The names of the positional arguments, in order, each one required |
+| `Flags` | Declares the command's own flags on a `flag.FlagSet`. The flags `h`, `help`, `yes`, `json` and `as` belong to the command line |
+| `Writes` | Makes the command a dry run until `-yes` |
+| `JSON` | Offers `-json` |
+| `Capability` | One of the capabilities the built-in roles carry, such as `manage_users`, which adds `-as <email>` |
+| `Run` | Does the work |
+
+`Run` receives a `sdk.Call`. `Args` holds the arguments, `Flags`
+maps each of the command's own flags the line set to its value as
+text, and `Env` reads the settings the same way `deps.Env` does.
+`Stdout` takes the answer, `Stderr` takes progress and warnings,
+and `Stdin` holds any input. `call.JSON` reports whether `-json` was
+passed, `call.Encode` writes one JSON document to `Stdout`, and
+`call.DatabaseURL` returns the database address. `Start` never ran,
+so a command opens what it needs inside `Run` and closes it before
+it returns.
+
+A command that sets `Writes` runs on every call, but `call.Apply`
+stays false until `-yes`. The command line does not stop a write,
+so `Run` checks `call.Apply` and, until it is true, prints what it
+would change and changes nothing. The command line then adds
+`dry run, nothing changed, pass -yes to apply` on stderr.
+
+A command that names a `Capability` is refused before `Run` unless
+the `-as` account exists, is enabled and activated, and holds a
+role with that capability. Each run it applies is stored as one
+record, which `gophenberg account:records` lists. Plugins cannot add
+capabilities. Name one the roles already carry, `manage_users`,
+`manage_themes`, `manage_types`, `manage_settings` or
+`change_others_work`, or every account is refused.
+
+An error from `Run` exits with code 1. Wrap it in `sdk.Misuse` when
+the command line itself is wrong, a bad argument value for example.
+It then exits with code 2 and prints the command's help under the
+error. A missing argument or an unknown flag is already refused that
+way. A command that breaks a rule, such as a name outside its
+plugin's id, a malformed or repeated name, an empty summary, no
+`Run`, or a flag the command line owns, is dropped, and
+`gophenberg check` names it. The
+[commands](/self-hosting/commands/) page shows all of this from the
+operator's side.
 
 ## What the SDK withholds
 
