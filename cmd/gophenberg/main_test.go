@@ -82,12 +82,38 @@ func TestRunReportsPluginRegistrationFailure(t *testing.T) {
 	}
 }
 
+func TestRunHandsThePluginsTheirSettingsReader(t *testing.T) {
+	t.Parallel()
+
+	env := map[string]string{
+		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
+		"GOPHENBERG_FEED_ITEMS":   "7",
+	}
+	errStop := errors.New("stopped after the registration")
+	var handed sdk.Deps
+
+	err := run(t.Context(), testkit.Getenv(env), io.Discard, func(deps sdk.Deps) ([]sdk.Plugin, error) {
+		handed = deps
+		return nil, errStop
+	})
+
+	if !errors.Is(err, errStop) {
+		t.Fatalf("run() error = %v, want the registration to stop it", err)
+	}
+	if handed.Env.Getenv == nil {
+		t.Fatal("run() handed the plugins no settings reader")
+	}
+	if items := handed.Env.Within("FEED_").Value("ITEMS"); items != "7" {
+		t.Errorf("Env reads FEED_ITEMS as %q, want 7 under the program prefix", items)
+	}
+}
+
 func TestRegisterPluginsReportsAPluginThatRefusesItsEnvironment(t *testing.T) {
 	t.Parallel()
 
 	env := map[string]string{"GOPHENBERG_FEED_ITEMS": "banana"}
 
-	plugins, err := registerPlugins(sdk.Deps{Getenv: testkit.Getenv(env)})
+	plugins, err := registerPlugins(sdk.Deps{Getenv: testkit.Getenv(env), Env: settingsEnv(testkit.Getenv(env))})
 
 	if err == nil || !strings.Contains(err.Error(), "plugin feed: ") {
 		t.Fatalf("registerPlugins() error = %v, want the feed cap refused and the plugin named", err)
@@ -104,7 +130,7 @@ func TestRegisterPluginsReportsAPluginThatRefusesItsEnvironment(t *testing.T) {
 func TestRegisterPluginsWiresEveryManifestedPlugin(t *testing.T) {
 	t.Parallel()
 
-	plugins, err := registerPlugins(sdk.Deps{Getenv: testkit.Getenv(nil)})
+	plugins, err := registerPlugins(sdk.Deps{Getenv: testkit.Getenv(nil), Env: settingsEnv(testkit.Getenv(nil))})
 
 	if err != nil {
 		t.Fatalf("registerPlugins() error = %v, want nil", err)

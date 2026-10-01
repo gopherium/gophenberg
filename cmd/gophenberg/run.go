@@ -72,6 +72,7 @@ func run(
 		DatabaseURL: settings.databaseURL,
 		Content:     contentbridge.New(contentStore, registry, library, settingStore),
 		Getenv:      getenv,
+		Env:         settingsEnv(getenv),
 	})
 	host := pluginkit.NewHost(registered...)
 	if err != nil {
@@ -186,7 +187,12 @@ var servingDefaults = gonsole.Timeouts{
 
 // servingFrom returns the HTTP timeouts and shutdown graces the environment names.
 func servingFrom(getenv func(string) string) (gonsole.Timeouts, error) {
-	return gonsole.Env{Prefix: "GOPHENBERG_", Getenv: getenv}.Timeouts(servingDefaults)
+	return settingsEnv(getenv).Timeouts(servingDefaults)
+}
+
+// settingsEnv returns the reader of the settings under the program prefix.
+func settingsEnv(getenv func(string) string) gonsole.Env {
+	return gonsole.Env{Prefix: "GOPHENBERG_", Getenv: getenv}
 }
 
 // httpServerFrom returns the HTTP server for the handler at the address and under the timeouts the settings name.
