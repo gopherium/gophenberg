@@ -22,6 +22,7 @@ func program(getenv func(string) string, plugins func(sdk.Deps) ([]sdk.Plugin, e
 		Env:        settingsEnv(getenv),
 		Database:   "DATABASE_URL",
 		Serve:      serve(plugins),
+		Validate:   validate,
 		Migrations: migrations(),
 		Seed:       seedSite,
 		Commands:   accounts.Commands(accounts.Config{Roles: fixedRoles}),
@@ -33,6 +34,12 @@ func serve(plugins func(sdk.Deps) ([]sdk.Plugin, error)) func(context.Context, g
 	return func(ctx context.Context, call gonsole.Call) error {
 		return run(ctx, call.Env.Getenv, call.Stderr, plugins)
 	}
+}
+
+// validate reads every setting the site serves under, naming the first it cannot stand.
+func validate(_ context.Context, call gonsole.Call) error {
+	_, err := loadRunConfig(call.Env.Getenv)
+	return err
 }
 
 // seedSite stores the demo data in the database the call's settings name.

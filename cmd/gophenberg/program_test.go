@@ -88,6 +88,33 @@ func TestProgramAnswersEveryHelpPageWithoutADatabase(t *testing.T) {
 	}
 }
 
+func TestCheckNamesAMalformedSetting(t *testing.T) {
+	t.Parallel()
+
+	env := testkit.Getenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL":         unreachableDatabaseURL,
+		"GOPHENBERG_THEME_START_ATTEMPTS": "many",
+	})
+
+	got := testkit.Run(t, program(env, noPlugins), "", "check")
+
+	if got.Code != gonsole.ExitFailed || !strings.Contains(got.Stderr, "GOPHENBERG_THEME_START_ATTEMPTS") {
+		t.Errorf("check = %d with stderr %q, want 1 and the setting named", got.Code, got.Stderr)
+	}
+}
+
+func TestCheckPassesAValidSiteWithoutReachingTheDatabase(t *testing.T) {
+	t.Parallel()
+
+	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL})
+
+	got := testkit.Run(t, program(env, noPlugins), "", "check")
+
+	if got.Code != gonsole.ExitDone || got.Stdout != "settings, plugins and command names are valid\n" {
+		t.Errorf("check = %d, stdout %q, stderr %q, want 0 and every setting valid", got.Code, got.Stdout, got.Stderr)
+	}
+}
+
 func TestProgramSeedOnlyPreviewsUntilYes(t *testing.T) {
 	t.Parallel()
 
