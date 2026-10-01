@@ -10,24 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-)
 
-// coverBinary returns the path of the doclint cover binary and the environment to run it with.
-func coverBinary(t *testing.T) (string, []string) {
-	t.Helper()
-	bindir := os.Getenv("GOPHENBERG_COVER_BINDIR")
-	gocoverdir := os.Getenv("GOPHENBERG_COVER_GOCOVERDIR")
-	if bindir == "" || gocoverdir == "" {
-		t.Skip("skipping binary test: run via make cover")
-	}
-	var env []string
-	for _, entry := range os.Environ() {
-		if !strings.HasPrefix(entry, "GOPHENBERG_") && !strings.HasPrefix(entry, "GOCOVERDIR=") {
-			env = append(env, entry)
-		}
-	}
-	return filepath.Join(bindir, "doclint"), append(env, "GOCOVERDIR="+gocoverdir)
-}
+	"github.com/gopherium/framework/gonsole/testkit"
+)
 
 // writeFixture stores source as the named file under dir.
 func writeFixture(t *testing.T, dir, name, source string) {
@@ -40,11 +25,11 @@ func writeFixture(t *testing.T, dir, name, source string) {
 func TestMainBinaryPassesOnDocumentedTree(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "doclint")
 	dir := t.TempDir()
 	writeFixture(t, dir, "documented.go", "package fixture\n\n// Documented does nothing.\nfunc Documented() {}\n")
 	var stderr bytes.Buffer
-	cmd := exec.Command(binary)
+	cmd := exec.CommandContext(t.Context(), binary)
 	cmd.Dir = dir
 	cmd.Env = env
 	cmd.Stderr = &stderr
@@ -57,11 +42,11 @@ func TestMainBinaryPassesOnDocumentedTree(t *testing.T) {
 func TestMainBinaryFailsOnUndocumentedFunction(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "doclint")
 	dir := t.TempDir()
 	writeFixture(t, dir, "undocumented.go", "package fixture\n\nfunc Undocumented() {}\n")
 	var stderr bytes.Buffer
-	cmd := exec.Command(binary)
+	cmd := exec.CommandContext(t.Context(), binary)
 	cmd.Dir = dir
 	cmd.Env = env
 	cmd.Stderr = &stderr
