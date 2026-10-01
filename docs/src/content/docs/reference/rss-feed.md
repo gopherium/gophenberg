@@ -34,4 +34,14 @@ is set correctly for your proxy.
 | `GOPHENBERG_FEED_ITEMS` | `20` | How many posts the feed carries |
 
 `GOPHENBERG_FEED_ITEMS` must be a positive whole number. Anything
-else stops the server at startup.
+else stops the server at startup, and makes `check`, `migrate` and
+`seed -yes` fail too. With `banana` as the value, `check` prints:
+
+```text
+gophenberg: plugin feed: GOPHENBERG_FEED_ITEMS: must be a whole number, got "banana"
+```
+
+The command listing still works. It shows the feed under
+**Not loaded**, with the same reason. Run
+[`gophenberg check`](/self-hosting/commands/) before a rollout to
+catch a bad value before the server does.
