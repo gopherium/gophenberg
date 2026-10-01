@@ -19,7 +19,7 @@ docker compose up -d
 ```
 
 `check` reads your settings with the new version while the old one
-still serves, and names the first one it refuses, see
+still serves, and names the ones it refuses, see
 [what stops startup](/self-hosting/configuration/#what-stops-startup).
 Migrations run automatically when the new version starts, and
 `docker compose run --rm -T gophenberg migrate` applies them without

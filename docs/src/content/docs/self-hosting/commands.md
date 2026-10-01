@@ -191,8 +191,9 @@ gophenberg check
 
 Reads every setting, registers the plugins and checks the command
 names, without touching the database. It prints
-`settings, plugins and command names are valid`, or names the first
-bad setting and exits with code 1. Run it before a rollout.
+`settings, plugins and command names are valid`, or names what it
+refuses, one line each, and exits with code 1. Run it before a
+rollout.
 
 ### help
 

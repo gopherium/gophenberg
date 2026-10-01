@@ -217,7 +217,7 @@ Run `check` before every rollout, with the new image and the settings
 it will run with. It reads every setting, the two above included,
 and loads the plugins, without starting anything or touching the
 database. It answers `settings, plugins and command names are valid`,
-or names the first setting it refuses and exits with code 1:
+or names the settings it refuses and exits with code 1:
 
 ```sh
 docker compose run --rm -T gophenberg check
