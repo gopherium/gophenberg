@@ -27,7 +27,7 @@ func TestServedPostsAnswerAnAuthenticatedCaller(t *testing.T) {
 		"GOPHENBERG_ADDR":         address,
 		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 	}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -56,7 +56,7 @@ func TestServedPublicSiteAnswersWithoutASession(t *testing.T) {
 		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 		"GOPHENBERG_SITE_TITLE":   "Maria's Journal",
 	}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())

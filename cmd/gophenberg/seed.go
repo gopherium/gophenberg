@@ -20,7 +20,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/seed"
 )
 
-// seedDemoData migrates the database and stores the demo data set.
+// seedDemoData stores the demo data set in a migrated database.
 func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Writer) error {
 	databaseURL := getenv("GOPHENBERG_DATABASE_URL")
 	if databaseURL == "" {
@@ -35,9 +35,6 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 		return fmt.Errorf("parse database url: %w", err)
 	}
 	defer pool.Close()
-	if err := migrate(ctx, databaseURL); err != nil {
-		return err
-	}
 	users := authkitpg.NewUserStore(pool)
 	created, err := authkit.EnsureAdmin(
 		ctx, users, seed.AdminEmail, seed.AdminName, seed.AdminPassword, role.Admin,
@@ -122,5 +119,4 @@ func reportSeeded(stdout io.Writer, created bool) {
 		_, _ = fmt.Fprintln(stdout, seed.AdminEmail+" already exists, its password is unchanged")
 	}
 	_, _ = fmt.Fprintln(stdout, "also seeded: "+seed.EditorEmail+" and "+seed.AuthorEmail+", same password")
-	_, _ = fmt.Fprintln(stdout, "development only, never seed a production database")
 }

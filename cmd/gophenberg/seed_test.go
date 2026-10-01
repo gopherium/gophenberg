@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/gonsole/testkit"
 	"github.com/gopherium/gouncer"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
@@ -29,8 +30,8 @@ func TestSeedGivesTheAdminTheAdminRole(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 	pool, err := pgxpool.New(t.Context(), databaseURL)
 	if err != nil {
@@ -73,8 +74,8 @@ func TestSeedCarriesAnAdminAcrossFromBeforeRolesExisted(t *testing.T) {
 		t.Fatalf("storing the account that predates roles: %v", err)
 	}
 
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 
 	held, err := users.UserByEmail(t.Context(), seed.AdminEmail)
@@ -95,8 +96,8 @@ func TestSeedStoresAnAccountUnderEveryRole(t *testing.T) {
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
 	var stdout strings.Builder
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), &stdout); err != nil {
-		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), &stdout); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 	pool, err := pgxpool.New(t.Context(), databaseURL)
 	if err != nil {
@@ -160,8 +161,8 @@ func TestSeedStoresTheDemoPosts(t *testing.T) {
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
 	var stdout strings.Builder
 
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), &stdout); err != nil {
-		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), &stdout); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 
 	counts := seededCounts(t, databaseURL)
@@ -179,9 +180,6 @@ func TestSeedStoresTheDemoPosts(t *testing.T) {
 	if !strings.Contains(stdout.String(), seed.AdminEmail) {
 		t.Errorf("output = %q, want the admin credentials", stdout.String())
 	}
-	if !strings.Contains(stdout.String(), "development only") {
-		t.Errorf("output = %q, want the development warning", stdout.String())
-	}
 }
 
 func TestSeedIsIdempotent(t *testing.T) {
@@ -189,14 +187,14 @@ func TestSeedIsIdempotent(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 	first := seededCounts(t, databaseURL)
 	var stdout strings.Builder
 
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), &stdout); err != nil {
-		t.Fatalf("second seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), &stdout); err != nil {
+		t.Fatalf("second seedMigrated() error = %v, want nil", err)
 	}
 
 	second := seededCounts(t, databaseURL)
@@ -217,8 +215,8 @@ func TestSeedStoresTheDemoMediaWhenADirectoryIsConfigured(t *testing.T) {
 	dir := t.TempDir()
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL, "GOPHENBERG_MEDIA_DIR": dir}
 
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 
 	pool, err := pgxpool.New(t.Context(), databaseURL)
@@ -256,10 +254,10 @@ func TestSeedReportsAFailingMediaDirectory(t *testing.T) {
 	}
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL, "GOPHENBERG_MEDIA_DIR": blocked}
 
-	err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard)
+	err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard)
 
 	if err == nil {
-		t.Error("seedDemoData() into a blocked media directory error = nil, want a failure")
+		t.Error("seedMigrated() into a blocked media directory error = nil, want a failure")
 	}
 }
 
@@ -268,8 +266,8 @@ func TestSeedStoresBlockContent(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 	pool, err := pgxpool.New(t.Context(), databaseURL)
 	if err != nil {
@@ -299,7 +297,15 @@ func TestSeedStoresBlockContent(t *testing.T) {
 	}
 }
 
-func TestSeedValidatesItsEnvironment(t *testing.T) {
+// seedMigrated applies every schema step to the database getenv names, then stores the demo data.
+func seedMigrated(ctx context.Context, getenv func(string) string, stdout io.Writer) error {
+	if err := migrate(ctx, getenv("GOPHENBERG_DATABASE_URL")); err != nil {
+		return err
+	}
+	return seedDemoData(ctx, getenv, stdout)
+}
+
+func TestSeedYesValidatesItsEnvironment(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]map[string]string{
@@ -316,10 +322,53 @@ func TestSeedValidatesItsEnvironment(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			t.Parallel()
 
-			if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err == nil {
-				t.Fatal("seedDemoData() error = nil, want a failure")
+			got := testkit.Run(t, program(testkit.Getenv(env), noPlugins), "", "seed", "-yes")
+
+			if got.Code != gonsole.ExitFailed {
+				t.Errorf("seed -yes = %d with stderr %q, want 1", got.Code, got.Stderr)
 			}
 		})
+	}
+}
+
+func TestSeedYesReportsMigrationFailures(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	execSQL(t, databaseURL, "CREATE SCHEMA core")
+	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL})
+
+	got := testkit.Run(t, program(env, noPlugins), "", "seed", "-yes")
+
+	if got.Code != gonsole.ExitFailed {
+		t.Errorf("seed -yes over a conflicting schema = %d with stderr %q, want 1", got.Code, got.Stderr)
+	}
+}
+
+func TestSeedLeavesTheSchemaToTheCommandLine(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+
+	err := seedDemoData(t.Context(), testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}), io.Discard)
+
+	if held := schemaHeld(t, databaseURL, "core"); err == nil || held {
+		t.Errorf("seedDemoData() over an empty database = %v with the core schema held %v, want a failure and no schema",
+			err, held)
+	}
+}
+
+func TestSeedLeavesTheDevelopmentWarningToTheCommandLine(t *testing.T) {
+	t.Parallel()
+
+	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t)})
+
+	got := testkit.Run(t, program(env, noPlugins), "", "seed", "-yes")
+
+	if got.Code != gonsole.ExitDone || strings.Count(got.Stdout+got.Stderr, "development only") != 1 ||
+		!strings.Contains(got.Stderr, "demo data is for development only") {
+		t.Errorf("seed -yes = %d, stdout %q, stderr %q, want 0 and one development warning on stderr",
+			got.Code, got.Stdout, got.Stderr)
 	}
 }
 
@@ -339,26 +388,13 @@ func TestSeedReportsAFieldDepthItCannotStand(t *testing.T) {
 func TestSeedReportsDemoFieldsDeeperThanTheFieldDepthAllows(t *testing.T) {
 	t.Parallel()
 
-	err := seedDemoData(t.Context(), testkit.Getenv(map[string]string{
+	err := seedMigrated(t.Context(), testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
 		"GOPHENBERG_FIELD_DEPTH":  "1",
 	}), io.Discard)
 
 	if !errors.Is(err, content.ErrFieldTooDeep) {
-		t.Errorf("seedDemoData() error = %v, want the demo layouts refused past one container", err)
-	}
-}
-
-func TestSeedReportsMigrationFailures(t *testing.T) {
-	t.Parallel()
-
-	databaseURL := emptyDatabaseURL(t)
-	execSQL(t, databaseURL, "CREATE SCHEMA core")
-
-	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err == nil {
-		t.Error("seed() over a conflicting schema error = nil, want a failure")
+		t.Errorf("seedMigrated() error = %v, want the demo layouts refused past one container", err)
 	}
 }
 
@@ -367,12 +403,12 @@ func TestSeedReportsAdminFailures(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DROP TABLE auth.users CASCADE")
 
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err == nil {
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err == nil {
 		t.Error("seed() without the users table error = nil, want a failure")
 	}
 }
@@ -382,12 +418,12 @@ func TestSeedReportsContentFailures(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DROP TABLE core.content CASCADE")
 
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err == nil {
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err == nil {
 		t.Error("seed() without the content table error = nil, want a failure")
 	}
 }
@@ -430,8 +466,8 @@ func TestSeedRegistersThePageType(t *testing.T) {
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
 	var stdout strings.Builder
 
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), &stdout); err != nil {
-		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), &stdout); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 
 	registered := seededTypes(t, databaseURL)
@@ -459,8 +495,8 @@ func TestSeedStoresAPageHoldingAChild(t *testing.T) {
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
 	var stdout strings.Builder
 
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), &stdout); err != nil {
-		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), &stdout); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 
 	if got := seededAddress(t, databaseURL, "About"); got != "pages/about" {
@@ -504,8 +540,8 @@ func TestSeedReportsContentItCannotRegister(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DROP TABLE core.content_types CASCADE")
 
@@ -525,15 +561,15 @@ func TestSeedReportsAnAccountItCannotStore(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DELETE FROM auth.users WHERE email = '"+seed.EditorEmail+"'")
 	execSQL(t, databaseURL,
 		"ALTER TABLE auth.users ADD CONSTRAINT no_editor CHECK (email <> '"+seed.EditorEmail+"')")
 
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err == nil {
-		t.Error("seedDemoData() error = nil, want the refused account reported")
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err == nil {
+		t.Error("seedMigrated() error = nil, want the refused account reported")
 	}
 }
 
@@ -542,8 +578,8 @@ func TestSeedReportsCategoriesItCannotStore(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DELETE FROM core.content WHERE type = 'category'")
 	execSQL(t, databaseURL,
@@ -565,8 +601,8 @@ func TestSeedReportsPagesItCannotStore(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DELETE FROM core.content WHERE type = 'page'")
 	execSQL(t, databaseURL, "ALTER TABLE core.content ADD CONSTRAINT no_pages CHECK (type <> 'page')")
@@ -587,8 +623,8 @@ func TestSeedReportsContainersItCannotDeclare(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DELETE FROM core.content_fields WHERE key IN ('team', 'name', 'role')")
 	execSQL(t, databaseURL,
@@ -610,8 +646,8 @@ func TestSeedReportsAFlexibleItCannotDeclare(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DELETE FROM core.content_fields WHERE key IN ('features', 'hero', 'quote')")
 	execSQL(t, databaseURL,
@@ -633,8 +669,8 @@ func TestSeedReportsAConditionItCannotDeclare(t *testing.T) {
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("first seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
 	execSQL(t, databaseURL, "DELETE FROM core.content_fields WHERE key IN ('on-sale', 'sale-note')")
 	execSQL(t, databaseURL,
@@ -656,8 +692,8 @@ func TestSeedStandsTheBacklinksFieldOnARelationTheRegistryResolves(t *testing.T)
 
 	databaseURL := emptyDatabaseURL(t)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
-		t.Fatalf("seedDemoData() error = %v, want nil", err)
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
 	pool, err := pgxpool.New(t.Context(), databaseURL)
 	if err != nil {

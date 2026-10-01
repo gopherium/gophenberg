@@ -30,7 +30,7 @@ const leftDocument = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n
 func seededPool(t *testing.T, databaseURL string) (*pgxpool.Pool, uuid.UUID) {
 	t.Helper()
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
 		t.Fatalf("seeding the demo data: %v", err)
 	}
 	pool, err := pgxpool.New(t.Context(), databaseURL)
