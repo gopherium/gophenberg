@@ -2,12 +2,16 @@
 
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/gopherium/framework/gonsole/testkit"
+)
 
 func TestLoadRunConfigReadsTheMediaDirectory(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 		"GOPHENBERG_MEDIA_DIR":    "/srv/media",
 	}))
@@ -23,7 +27,7 @@ func TestLoadRunConfigReadsTheMediaDirectory(t *testing.T) {
 func TestLoadRunConfigLeavesMediaOffWithoutADirectory(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 	}))
 

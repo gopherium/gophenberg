@@ -9,13 +9,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gopherium/framework/gonsole/testkit"
+
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
 func TestLoadRunConfigTakesTheLargestUploadCapItCanCarry(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL":        unreachableDatabaseURL,
 		"GOPHENBERG_MEDIA_UPLOAD_CAP_MB": strconv.FormatInt(int64(math.MaxInt64>>20), 10),
 	}))
@@ -34,7 +36,7 @@ func TestLoadRunConfigTakesTheLargestUploadCapItCanCarry(t *testing.T) {
 func TestLoadRunConfigTakesTheMostStartAttemptsAllowed(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL":         unreachableDatabaseURL,
 		"GOPHENBERG_THEME_START_ATTEMPTS": "1000",
 	}))
@@ -50,7 +52,7 @@ func TestLoadRunConfigTakesTheMostStartAttemptsAllowed(t *testing.T) {
 func TestLoadRunConfigTakesTheDeepestFieldNestingAllowed(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 		"GOPHENBERG_FIELD_DEPTH":  "1000",
 	}))
@@ -66,7 +68,7 @@ func TestLoadRunConfigTakesTheDeepestFieldNestingAllowed(t *testing.T) {
 func TestLoadRunConfigDefaultsTheTimingsToTodaysValues(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 	}))
 
@@ -113,7 +115,7 @@ func TestLoadRunConfigDefaultsTheTimingsToTodaysValues(t *testing.T) {
 func TestLoadRunConfigTakesTheLargestDefinitionsCapTheBodyReaderAllows(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL":              unreachableDatabaseURL,
 		"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB": strconv.FormatInt(server.MaxDefinitionsImportCap>>10, 10),
 	}))
@@ -129,7 +131,7 @@ func TestLoadRunConfigTakesTheLargestDefinitionsCapTheBodyReaderAllows(t *testin
 func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL":         unreachableDatabaseURL,
 		"GOPHENBERG_THEME_READY_TIMEOUT":  "45s",
 		"GOPHENBERG_THEME_BACKOFF":        "250ms",
@@ -248,7 +250,7 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := loadRunConfig(testGetenv(map[string]string{
+			_, err := loadRunConfig(testkit.Getenv(map[string]string{
 				"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 				asked.key:                 asked.value,
 			}))
@@ -266,7 +268,7 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 func TestLoadRunConfigRefusesAMaxBackoffUnderTheBackoff(t *testing.T) {
 	t.Parallel()
 
-	_, err := loadRunConfig(testGetenv(map[string]string{
+	_, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL":      unreachableDatabaseURL,
 		"GOPHENBERG_THEME_BACKOFF":     "10s",
 		"GOPHENBERG_THEME_MAX_BACKOFF": "1s",
@@ -283,7 +285,7 @@ func TestLoadRunConfigRefusesAMaxBackoffUnderTheBackoff(t *testing.T) {
 func TestLoadRunConfigDefaultsTheCacheWindows(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 	}))
 
@@ -308,7 +310,7 @@ func TestLoadRunConfigDefaultsTheCacheWindows(t *testing.T) {
 func TestLoadRunConfigReadsTheCacheWindowsFromTheEnvironment(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL":                         unreachableDatabaseURL,
 		"GOPHENBERG_CACHE_ASSET_MAX_AGE":                  "2h",
 		"GOPHENBERG_CACHE_MEDIA_MAX_AGE":                  "90s",
@@ -351,7 +353,7 @@ func TestLoadRunConfigRefusesACacheWindowItCannotServe(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := loadRunConfig(testGetenv(map[string]string{
+			_, err := loadRunConfig(testkit.Getenv(map[string]string{
 				"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 				asked.key:                 asked.value,
 			}))

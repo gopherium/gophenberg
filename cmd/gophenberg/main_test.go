@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gopherium/framework/gonsole/testkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/peterldowns/pgtestdb"
@@ -24,13 +25,6 @@ import (
 )
 
 const unreachableDatabaseURL = "postgres://postgres:gophenberg@localhost:9/postgres?sslmode=disable&connect_timeout=1"
-
-// testGetenv returns a getenv double backed by env.
-func testGetenv(env map[string]string) func(string) string {
-	return func(key string) string {
-		return env[key]
-	}
-}
 
 // emptyDatabaseURL returns the URL of a fresh unmigrated test database.
 func emptyDatabaseURL(t *testing.T) string {
@@ -64,7 +58,7 @@ func TestRunValidatesItsEnvironment(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			t.Parallel()
 
-			err := run(t.Context(), testGetenv(env), io.Discard, noPlugins)
+			err := run(t.Context(), testkit.Getenv(env), io.Discard, noPlugins)
 
 			if err == nil {
 				t.Fatal("run() error = nil, want a failure")
@@ -79,7 +73,7 @@ func TestRunReportsPluginRegistrationFailure(t *testing.T) {
 	errRegister := errors.New("register exploded")
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t)}
 
-	err := run(t.Context(), testGetenv(env), io.Discard, func(_ sdk.Deps) ([]sdk.Plugin, error) {
+	err := run(t.Context(), testkit.Getenv(env), io.Discard, func(_ sdk.Deps) ([]sdk.Plugin, error) {
 		return nil, errRegister
 	})
 
@@ -93,7 +87,7 @@ func TestRegisterPluginsReportsAPluginThatRefusesItsEnvironment(t *testing.T) {
 
 	env := map[string]string{"GOPHENBERG_FEED_ITEMS": "banana"}
 
-	plugins, err := registerPlugins(sdk.Deps{Getenv: testGetenv(env)})
+	plugins, err := registerPlugins(sdk.Deps{Getenv: testkit.Getenv(env)})
 
 	if err == nil || !strings.Contains(err.Error(), "plugin feed: ") {
 		t.Fatalf("registerPlugins() error = %v, want the feed cap refused and the plugin named", err)
@@ -110,7 +104,7 @@ func TestRegisterPluginsReportsAPluginThatRefusesItsEnvironment(t *testing.T) {
 func TestRegisterPluginsWiresEveryManifestedPlugin(t *testing.T) {
 	t.Parallel()
 
-	plugins, err := registerPlugins(sdk.Deps{Getenv: testGetenv(nil)})
+	plugins, err := registerPlugins(sdk.Deps{Getenv: testkit.Getenv(nil)})
 
 	if err != nil {
 		t.Fatalf("registerPlugins() error = %v, want nil", err)
@@ -130,7 +124,7 @@ func TestRunReportsPluginStartFailure(t *testing.T) {
 	errBoot := errors.New("boot exploded")
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t)}
 
-	err := run(t.Context(), testGetenv(env), io.Discard, func(_ sdk.Deps) ([]sdk.Plugin, error) {
+	err := run(t.Context(), testkit.Getenv(env), io.Discard, func(_ sdk.Deps) ([]sdk.Plugin, error) {
 		return []sdk.Plugin{failingPlugin{err: errBoot}}, nil
 	})
 
@@ -150,7 +144,7 @@ func TestRunStartsAndShutsDownCleanly(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	if err := run(ctx, testGetenv(env), cancelOnListen{cancel: cancel}, noPlugins); err != nil {
+	if err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, noPlugins); err != nil {
 		t.Fatalf("run() error = %v, want a clean shutdown", err)
 	}
 }
@@ -168,7 +162,7 @@ func TestRunReportsCoreMigrationFailure(t *testing.T) {
 	forgetCoreMigrations(t, databaseURL)
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
 
-	err := run(t.Context(), testGetenv(env), io.Discard, noPlugins)
+	err := run(t.Context(), testkit.Getenv(env), io.Discard, noPlugins)
 
 	if err == nil {
 		t.Fatal("run() error = nil, want a core migration failure")
@@ -201,7 +195,7 @@ func TestRunReportsServeFailure(t *testing.T) {
 		"GOPHENBERG_ADDR":         listener.Addr().String(),
 	}
 
-	runErr := run(t.Context(), testGetenv(env), io.Discard, noPlugins)
+	runErr := run(t.Context(), testkit.Getenv(env), io.Discard, noPlugins)
 
 	if runErr == nil {
 		t.Fatal("run() error = nil, want an address-in-use failure")
@@ -252,7 +246,7 @@ func TestRunServesMediaWhenADirectoryIsConfigured(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	if err := run(ctx, testGetenv(env), cancelOnListen{cancel: cancel}, noPlugins); err != nil {
+	if err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, noPlugins); err != nil {
 		t.Fatalf("run() error = %v, want a clean shutdown", err)
 	}
 }
@@ -389,7 +383,7 @@ func TestRunReportsAPinnedThemeItCannotLoad(t *testing.T) {
 		"GOPHENBERG_THEME":        "missing",
 	}
 
-	err := run(t.Context(), testGetenv(env), io.Discard, noPlugins)
+	err := run(t.Context(), testkit.Getenv(env), io.Discard, noPlugins)
 
 	if err == nil {
 		t.Fatal("run() error = nil, want the pinned theme reported")

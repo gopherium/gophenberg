@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/gopherium/framework/gonsole/testkit"
 )
 
 // lockedLog keeps what the server logs while the test reads it back.
@@ -35,7 +37,7 @@ func (l *lockedLog) String() string {
 func TestLoadRunConfigReadsThePublicAddress(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 		"GOPHENBERG_PUBLIC_URL":   "https://cms.example/",
 	}))
@@ -51,7 +53,7 @@ func TestLoadRunConfigReadsThePublicAddress(t *testing.T) {
 func TestLoadRunConfigLeavesThePublicAddressUnsetByDefault(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 	}))
 
@@ -66,7 +68,7 @@ func TestLoadRunConfigLeavesThePublicAddressUnsetByDefault(t *testing.T) {
 func TestLoadRunConfigRefusesAPublicAddressWithAPath(t *testing.T) {
 	t.Parallel()
 
-	_, err := loadRunConfig(testGetenv(map[string]string{
+	_, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 		"GOPHENBERG_PUBLIC_URL":   "https://cms.example/blog",
 	}))
@@ -79,7 +81,7 @@ func TestLoadRunConfigRefusesAPublicAddressWithAPath(t *testing.T) {
 func TestRunRefusesAndLogsAWriteSentAwayFromThePublicAddress(t *testing.T) {
 	t.Parallel()
 
-	address := freeAddress(t)
+	address := testkit.FreeAddr(t)
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
 		"GOPHENBERG_ADDR":         address,
@@ -90,7 +92,7 @@ func TestRunRefusesAndLogsAWriteSentAwayFromThePublicAddress(t *testing.T) {
 	defer cancel()
 	logs := &lockedLog{}
 	done := make(chan error, 1)
-	go func() { done <- run(ctx, testGetenv(env), logs, noPlugins) }()
+	go func() { done <- run(ctx, testkit.Getenv(env), logs, noPlugins) }()
 	base := "http://" + address
 	awaitServer(t, base)
 

@@ -3,50 +3,29 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
-	"net"
 	"net/http"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/gopherium/framework/gonsole/testkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// coverBinary returns the path of the gophenberg cover binary and the environment to run it with.
-func coverBinary(t *testing.T) (string, []string) {
-	t.Helper()
-	bindir := os.Getenv("GOPHENBERG_COVER_BINDIR")
-	gocoverdir := os.Getenv("GOPHENBERG_COVER_GOCOVERDIR")
-	if bindir == "" || gocoverdir == "" {
-		t.Skip("skipping binary test: run via make cover")
-	}
-	var env []string
-	for _, entry := range os.Environ() {
-		if !strings.HasPrefix(entry, "GOPHENBERG_") && !strings.HasPrefix(entry, "GOCOVERDIR=") {
-			env = append(env, entry)
-		}
-	}
-	return filepath.Join(bindir, "gophenberg"), append(env, "GOCOVERDIR="+gocoverdir)
-}
-
 func TestMainBinaryFailsWithoutDatabaseURL(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stderr bytes.Buffer
-	cmd := exec.Command(binary)
+	cmd := exec.CommandContext(t.Context(), binary)
 	cmd.Dir = t.TempDir()
 	cmd.Env = env
 	cmd.Stderr = &stderr
@@ -69,8 +48,8 @@ func TestMainBinaryServesUntilTerminated(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			t.Parallel()
 
-			binary, env := coverBinary(t)
-			cmd := exec.Command(binary, args...)
+			binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
+			cmd := exec.CommandContext(t.Context(), binary, args...)
 			cmd.Dir = t.TempDir()
 			cmd.Env = append(env,
 				"GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t),
@@ -84,22 +63,10 @@ func TestMainBinaryServesUntilTerminated(t *testing.T) {
 				t.Fatalf("starting binary: %v", err)
 			}
 
-			scanner := bufio.NewScanner(stderr)
-			listening := false
-			for scanner.Scan() {
-				if strings.Contains(scanner.Text(), "listening") {
-					listening = true
-					break
-				}
-			}
-			if !listening {
-				_ = cmd.Process.Kill()
-				t.Fatal("binary never reported listening")
-			}
+			testkit.WaitForListening(t, stderr)
 			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 				t.Fatalf("signalling: %v", err)
 			}
-			go func() { _, _ = io.Copy(io.Discard, stderr) }()
 
 			if err := cmd.Wait(); err != nil {
 				t.Fatalf("binary exit: %v, want a clean shutdown", err)
@@ -124,7 +91,7 @@ func TestMainBinaryPrintsOnlyTheSeedAnswer(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			t.Parallel()
 
-			binary, env := coverBinary(t)
+			binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 			defer cancel()
 			var stdout, stderr bytes.Buffer
@@ -151,7 +118,7 @@ func TestMainBinaryPrintsOnlyTheSeedAnswer(t *testing.T) {
 func TestMainBinaryRefusesAnUnknownCommandBeforeServing(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 	var stderr bytes.Buffer
@@ -177,9 +144,9 @@ func TestMainBinaryRefusesAnUnknownCommandBeforeServing(t *testing.T) {
 func TestMainBinaryCreateAdminProvisionsAUser(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(
+	cmd := exec.CommandContext(t.Context(),
 		binary, "createadmin", "-email", "admin@example.com", "-name", "Admin", "-role", "admin",
 	)
 	cmd.Dir = t.TempDir()
@@ -200,9 +167,9 @@ func TestMainBinaryCreateAdminProvisionsAUser(t *testing.T) {
 func TestMainBinaryCreateAdminFailsWithoutDatabaseURL(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stderr bytes.Buffer
-	cmd := exec.Command(binary, "createadmin", "-email", "admin@example.com", "-name", "Admin")
+	cmd := exec.CommandContext(t.Context(), binary, "createadmin", "-email", "admin@example.com", "-name", "Admin")
 	cmd.Dir = t.TempDir()
 	cmd.Env = env
 	cmd.Stderr = &stderr
@@ -221,9 +188,9 @@ func TestMainBinaryCreateAdminFailsWithoutDatabaseURL(t *testing.T) {
 func TestMainBinarySeedsTheDemoData(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(binary, "seed")
+	cmd := exec.CommandContext(t.Context(), binary, "seed")
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(env, "GOPHENBERG_DATABASE_URL="+emptyDatabaseURL(t))
 	cmd.Stdout = &stdout
@@ -241,9 +208,9 @@ func TestMainBinarySeedsTheDemoData(t *testing.T) {
 func TestMainBinarySeedFailsWithoutDatabaseURL(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stderr bytes.Buffer
-	cmd := exec.Command(binary, "seed")
+	cmd := exec.CommandContext(t.Context(), binary, "seed")
 	cmd.Dir = t.TempDir()
 	cmd.Env = env
 	cmd.Stderr = &stderr
@@ -262,14 +229,14 @@ func TestMainBinarySeedFailsWithoutDatabaseURL(t *testing.T) {
 func TestMainBinaryAnswersTheSiteDefaultLocale(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	url := emptyDatabaseURL(t)
-	port := freePort(t)
-	cmd := exec.Command(binary)
+	addr := testkit.FreeAddr(t)
+	cmd := exec.CommandContext(t.Context(), binary)
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(env,
 		"GOPHENBERG_DATABASE_URL="+url,
-		"GOPHENBERG_ADDR=localhost:"+port,
+		"GOPHENBERG_ADDR="+addr,
 	)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -282,42 +249,14 @@ func TestMainBinaryAnswersTheSiteDefaultLocale(t *testing.T) {
 		_ = cmd.Process.Signal(syscall.SIGTERM)
 		_ = cmd.Wait()
 	}()
-	waitForListening(t, stderr)
+	testkit.WaitForListening(t, stderr)
 	storeSiteLocale(t, url, "es-ES")
 
-	answered := readLocale(t, "http://localhost:"+port+"/api/locale")
+	answered := readLocale(t, "http://"+addr+"/api/locale")
 
 	if answered != "es-ES" {
 		t.Errorf("the binary answers %q, want the stored site default, so run.go wires the settings store", answered)
 	}
-}
-
-// freePort returns a port nothing is listening on.
-func freePort(t *testing.T) string {
-	t.Helper()
-	listener, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		t.Fatalf("finding a free port: %v", err)
-	}
-	defer func() { _ = listener.Close() }()
-	_, port, err := net.SplitHostPort(listener.Addr().String())
-	if err != nil {
-		t.Fatalf("reading the free port: %v", err)
-	}
-	return port
-}
-
-// waitForListening blocks until the binary reports it is serving.
-func waitForListening(t *testing.T, stderr io.Reader) {
-	t.Helper()
-	scanner := bufio.NewScanner(stderr)
-	for scanner.Scan() {
-		if strings.Contains(scanner.Text(), "listening") {
-			go func() { _, _ = io.Copy(io.Discard, stderr) }()
-			return
-		}
-	}
-	t.Fatal("binary never reported listening")
 }
 
 // storeSiteLocale writes the site default language straight into the database.

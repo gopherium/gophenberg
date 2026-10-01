@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/framework/gonsole/testkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 
 	"github.com/gopherium/gophenberg/internal/media"
@@ -29,7 +30,7 @@ const leftDocument = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n
 func seededPool(t *testing.T, databaseURL string) (*pgxpool.Pool, uuid.UUID) {
 	t.Helper()
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
 		t.Fatalf("seeding the demo data: %v", err)
 	}
 	pool, err := pgxpool.New(t.Context(), databaseURL)
@@ -75,7 +76,7 @@ func startAndStop(t *testing.T, databaseURL, dir string) string {
 	logs := &lockedLog{}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	if err := run(ctx, testGetenv(env), io.MultiWriter(logs, cancelOnListen{cancel: cancel}), noPlugins); err != nil {
+	if err := run(ctx, testkit.Getenv(env), io.MultiWriter(logs, cancelOnListen{cancel: cancel}), noPlugins); err != nil {
 		t.Fatalf("run() error = %v, want a clean shutdown", err)
 	}
 	return logs.String()

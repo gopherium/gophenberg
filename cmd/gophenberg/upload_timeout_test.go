@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/gopherium/framework/gonsole/testkit"
 )
 
 // photoUpload returns a multipart body carrying a small photo under the media library's file field.
@@ -73,7 +75,7 @@ func sendUpload(t *testing.T, client *http.Client, base string, pause time.Durat
 func TestRunCutsAnUploadThatStallsPastTheUploadTimeout(t *testing.T) {
 	t.Parallel()
 
-	address := freeAddress(t)
+	address := testkit.FreeAddr(t)
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL":   emptyDatabaseURL(t),
 		"GOPHENBERG_ADDR":           address,
@@ -81,13 +83,13 @@ func TestRunCutsAnUploadThatStallsPastTheUploadTimeout(t *testing.T) {
 		"GOPHENBERG_MEDIA_DIR":      t.TempDir(),
 		"GOPHENBERG_UPLOAD_TIMEOUT": "300ms",
 	}
-	if err := seedDemoData(t.Context(), testGetenv(env), new(bytes.Buffer)); err != nil {
+	if err := seedDemoData(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { done <- run(ctx, testGetenv(env), io.Discard, noPlugins) }()
+	go func() { done <- run(ctx, testkit.Getenv(env), io.Discard, noPlugins) }()
 	base := "http://" + address
 	awaitServer(t, base)
 	client := loggedInClient(t, base)

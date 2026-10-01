@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gopherium/framework/gonsole/testkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -76,7 +77,7 @@ func TestRunListsForPluginsAsManyPointersAsTheSiteChose(t *testing.T) {
 		"GOPHENBERG_ADDR":         "localhost:0",
 		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 	}
-	if err := seedDemoData(t.Context(), testGetenv(env), io.Discard); err != nil {
+	if err := seedDemoData(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
 		t.Fatalf("seeding the demo data: %v", err)
 	}
 	pool, err := pgxpool.New(t.Context(), databaseURL)
@@ -93,7 +94,7 @@ func TestRunListsForPluginsAsManyPointersAsTheSiteChose(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	err = run(ctx, testGetenv(env), cancelOnListen{cancel: cancel}, func(deps sdk.Deps) ([]sdk.Plugin, error) {
+	err = run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, func(deps sdk.Deps) ([]sdk.Plugin, error) {
 		reading.content = deps.Content
 		return []sdk.Plugin{reading}, nil
 	})

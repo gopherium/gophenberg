@@ -8,14 +8,16 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/gopherium/framework/gonsole/testkit"
 )
 
 func TestMainBinaryGrantRoleReachesEveryAccountHoldingNone(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	databaseURL := emptyDatabaseURL(t)
-	provision := exec.Command(
+	provision := exec.CommandContext(t.Context(),
 		binary, "createadmin", "-email", "admin@example.com", "-name", "Admin", "-role", "admin",
 	)
 	provision.Dir = t.TempDir()
@@ -26,7 +28,7 @@ func TestMainBinaryGrantRoleReachesEveryAccountHoldingNone(t *testing.T) {
 	}
 	execSQL(t, databaseURL, "UPDATE auth.users SET role = ''")
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(binary, "grantrole", "-role", "admin")
+	cmd := exec.CommandContext(t.Context(), binary, "grantrole", "-role", "admin")
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(env, "GOPHENBERG_DATABASE_URL="+databaseURL)
 	cmd.Stdout = &stdout
@@ -44,9 +46,9 @@ func TestMainBinaryGrantRoleReachesEveryAccountHoldingNone(t *testing.T) {
 func TestMainBinaryGrantRoleFailsWithoutDatabaseURL(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
 	var stderr bytes.Buffer
-	cmd := exec.Command(binary, "grantrole", "-role", "admin")
+	cmd := exec.CommandContext(t.Context(), binary, "grantrole", "-role", "admin")
 	cmd.Dir = t.TempDir()
 	cmd.Env = env
 	cmd.Stderr = &stderr

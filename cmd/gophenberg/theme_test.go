@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gopherium/framework/gonsole/testkit"
+
 	"github.com/gopherium/gophenberg/internal/themehost"
 )
 
@@ -45,7 +47,7 @@ func writeThemeDir(t *testing.T, name string) string {
 func TestLoadRunConfigReadsTheThemeRuntimeSettings(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 		"GOPHENBERG_THEMES_DIR":   "/srv/themes",
 		"GOPHENBERG_THEME":        "starter",
@@ -69,7 +71,7 @@ func TestLoadRunConfigReadsTheThemeRuntimeSettings(t *testing.T) {
 func TestLoadRunConfigServesTheRendererWhenNoThemeIsNamed(t *testing.T) {
 	t.Parallel()
 
-	settings, err := loadRunConfig(testGetenv(map[string]string{
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
 	}))
 

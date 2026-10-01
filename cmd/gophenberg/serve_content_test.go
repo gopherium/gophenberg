@@ -7,12 +7,13 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gopherium/framework/gonsole/testkit"
 
 	"github.com/gopherium/gophenberg/internal/seed"
 )
@@ -20,19 +21,19 @@ import (
 func TestServedPostsAnswerAnAuthenticatedCaller(t *testing.T) {
 	t.Parallel()
 
-	address := freeAddress(t)
+	address := testkit.FreeAddr(t)
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
 		"GOPHENBERG_ADDR":         address,
 		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 	}
-	if err := seedDemoData(t.Context(), testGetenv(env), new(bytes.Buffer)); err != nil {
+	if err := seedDemoData(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { done <- run(ctx, testGetenv(env), io.Discard, noPlugins) }()
+	go func() { done <- run(ctx, testkit.Getenv(env), io.Discard, noPlugins) }()
 	base := "http://" + address
 	awaitServer(t, base)
 	client := loggedInClient(t, base)
@@ -48,20 +49,20 @@ func TestServedPostsAnswerAnAuthenticatedCaller(t *testing.T) {
 func TestServedPublicSiteAnswersWithoutASession(t *testing.T) {
 	t.Parallel()
 
-	address := freeAddress(t)
+	address := testkit.FreeAddr(t)
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
 		"GOPHENBERG_ADDR":         address,
 		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 		"GOPHENBERG_SITE_TITLE":   "Maria's Journal",
 	}
-	if err := seedDemoData(t.Context(), testGetenv(env), new(bytes.Buffer)); err != nil {
+	if err := seedDemoData(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { done <- run(ctx, testGetenv(env), io.Discard, noPlugins) }()
+	go func() { done <- run(ctx, testkit.Getenv(env), io.Discard, noPlugins) }()
 	base := "http://" + address
 	awaitServer(t, base)
 
@@ -94,20 +95,6 @@ func getBody(t *testing.T, url string) string {
 		t.Fatalf("reading %s: %v", url, err)
 	}
 	return string(body)
-}
-
-// freeAddress returns a loopback address nothing is listening on.
-func freeAddress(t *testing.T) string {
-	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("reserving a port: %v", err)
-	}
-	address := listener.Addr().String()
-	if err := listener.Close(); err != nil {
-		t.Fatalf("releasing the reserved port: %v", err)
-	}
-	return address
 }
 
 // awaitServer blocks until the server at base answers, failing if it never does.

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gopherium/framework/gonsole"
+	"github.com/gopherium/framework/gonsole/testkit"
 
 	"github.com/gopherium/gophenberg/sdk"
 )
@@ -133,7 +134,7 @@ func TestRunStopsThePluginsWhenThePinnedThemeCannotLoad(t *testing.T) {
 		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
 	}
 
-	err := run(t.Context(), testGetenv(env), io.Discard,
+	err := run(t.Context(), testkit.Getenv(env), io.Discard,
 		func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil })
 
 	if err == nil || !strings.Contains(err.Error(), "missing") {
@@ -168,7 +169,7 @@ func TestRunStopsThePluginsUnderALiveContextWhenASignalEndsTheBoot(t *testing.T)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	err := run(ctx, testGetenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
+	err := run(ctx, testkit.Getenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
 		return []sdk.Plugin{cancellingPlugin{holdingPlugin: plugin, cancel: cancel}}, nil
 	})
 
@@ -188,7 +189,7 @@ func TestRunStopsThePluginsThatRegisteredWhenAnotherFails(t *testing.T) {
 		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
 	}
 
-	err := run(t.Context(), testGetenv(env), io.Discard,
+	err := run(t.Context(), testkit.Getenv(env), io.Discard,
 		func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, errRegister })
 
 	if !errors.Is(err, errRegister) {
@@ -218,7 +219,7 @@ func TestRunStopsThePluginsWhenTheirTypesCannotBeDeclared(t *testing.T) {
 		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
 	}
 
-	err := run(t.Context(), testGetenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
+	err := run(t.Context(), testkit.Getenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
 		return []sdk.Plugin{refusingDeclarer{holdingPlugin: plugin, err: errDeclare}}, nil
 	})
 
@@ -238,7 +239,7 @@ func TestRunStopsTheStartedPluginsWithinTheStopGraceWhenOneFailsToStart(t *testi
 		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
 	}
 
-	err := run(t.Context(), testGetenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
+	err := run(t.Context(), testkit.Getenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
 		return []sdk.Plugin{plugin, failingPlugin{err: errBoot}}, nil
 	})
 
@@ -266,7 +267,7 @@ func TestRunCancelsARequestStillRunningAtTheGraceBeforeThePluginsStop(t *testing
 	t.Parallel()
 
 	plugin := newHoldingPlugin()
-	addr := "localhost:" + freePort(t)
+	addr := testkit.FreeAddr(t)
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL":          emptyDatabaseURL(t),
 		"GOPHENBERG_ADDR":                  addr,
@@ -279,7 +280,7 @@ func TestRunCancelsARequestStillRunningAtTheGraceBeforeThePluginsStop(t *testing
 	listening := make(chan struct{})
 	finished := make(chan error, 1)
 	go func() {
-		finished <- run(ctx, testGetenv(env), closeOnListen{listening: listening, once: &sync.Once{}},
+		finished <- run(ctx, testkit.Getenv(env), closeOnListen{listening: listening, once: &sync.Once{}},
 			func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil })
 	}()
 	select {

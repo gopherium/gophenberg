@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/framework/gonsole/testkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -63,7 +64,7 @@ func TestRunDeclaresWhatPluginsDeclare(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	err := run(ctx, testGetenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
+	err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
 		return []sdk.Plugin{declaringPlugin{groupKey: "event-details"}}, nil
 	})
 
@@ -117,7 +118,7 @@ func TestRunLeavesTheSitesOwnTypeToTheSiteWhenAPluginDeclaresItsKey(t *testing.T
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	err = run(ctx, testGetenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
+	err = run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
 		return []sdk.Plugin{declaringPlugin{groupKey: "event-details"}}, nil
 	})
 
@@ -135,7 +136,7 @@ func TestRunReportsADeclarationTheRegistryRefuses(t *testing.T) {
 
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t)}
 
-	err := run(t.Context(), testGetenv(env), noWriter{}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
+	err := run(t.Context(), testkit.Getenv(env), noWriter{}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
 		return []sdk.Plugin{declaringPlugin{groupKey: "Not A Key"}}, nil
 	})
 
@@ -182,7 +183,7 @@ func TestRunReportsADeclaredFieldDeeperThanTheFieldDepthAllows(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	err := run(ctx, testGetenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
+	err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
 		return []sdk.Plugin{nestingPlugin{}}, nil
 	})
 
