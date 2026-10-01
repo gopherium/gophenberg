@@ -35,10 +35,7 @@ func seedDemoData(ctx context.Context, getenv func(string) string, stdout io.Wri
 		return fmt.Errorf("parse database url: %w", err)
 	}
 	defer pool.Close()
-	if err := authkitpg.Migrate(ctx, databaseURL); err != nil {
-		return err
-	}
-	if err := postgres.Migrate(ctx, databaseURL); err != nil {
+	if err := migrate(ctx, databaseURL); err != nil {
 		return err
 	}
 	users := authkitpg.NewUserStore(pool)
@@ -78,7 +75,7 @@ func seedAccountsWithRoles(ctx context.Context, users gouncer.Store) error {
 
 // seedDemoContent registers the demo types and stores the content they hold, nesting no deeper than depth.
 func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.UserStore, depth int) error {
-	types := registryFrom(runConfig{fieldDepth: depth}, postgres.NewTypeStore(pool))
+	types := registryFrom(depth, postgres.NewTypeStore(pool))
 	if err := seed.Types(ctx, types); err != nil {
 		return err
 	}

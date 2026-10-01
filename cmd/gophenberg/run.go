@@ -14,20 +14,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/pluginkit"
 	"github.com/gopherium/gouncer/authkit"
-	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 
 	"github.com/gopherium/gophenberg/internal/content"
-	"github.com/gopherium/gophenberg/internal/contentbridge"
 	"github.com/gopherium/gophenberg/internal/definitions"
-	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/mediahost"
-	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/internal/version"
 	"github.com/gopherium/gophenberg/sdk"
@@ -47,38 +41,25 @@ func run(
 		return err
 	}
 
-	pool, err := openDatabase(ctx, settings.databaseURL)
+	built, err := compose(ctx, composeOf(settings, getenv), plugins)
 	if err != nil {
 		return err
 	}
-	defer pool.Close()
+	defer built.pool.Close()
+	host := pluginkit.NewHost(built.registered...)
+	if built.failed != nil {
+		return errors.Join(
+			fmt.Errorf("register plugins: %w", built.failed), stopPlugins(ctx, host, settings.serving.StopGrace))
+	}
+	if err := migrate(ctx, settings.databaseURL); err != nil {
+		return errors.Join(err, stopPlugins(ctx, host, settings.serving.StopGrace))
+	}
 
-	userStore := authkitpg.NewUserStore(pool)
-	reaper := authkit.NewReaper(userStore, authkit.ReaperConfig{Logger: logger})
+	reaper := authkit.NewReaper(built.users, authkit.ReaperConfig{Logger: logger})
 	reaper.Start()
 	defer reaper.Stop()
 
-	contentStore := postgres.NewContentStore(pool)
-	typeStore := postgres.NewTypeStore(pool)
-	registry := registryFrom(settings, typeStore)
-	mediaStore := postgres.NewMediaStore(pool)
-	var library media.Store
-	if settings.mediaDir != "" {
-		library = mediaStore
-	}
-	settingStore := postgres.NewSettingStore(pool)
-	registered, err := plugins(sdk.Deps{
-		DatabaseURL: settings.databaseURL,
-		Content:     contentbridge.New(contentStore, registry, library, settingStore),
-		Getenv:      getenv,
-		Env:         settingsEnv(getenv),
-	})
-	host := pluginkit.NewHost(registered...)
-	if err != nil {
-		return errors.Join(fmt.Errorf("register plugins: %w", err), stopPlugins(ctx, host, settings.serving.StopGrace))
-	}
-
-	walked, err := declareTypes(ctx, registry, registered, logger)
+	walked, err := declareTypes(ctx, built.registry, built.registered, logger)
 	if err != nil {
 		return errors.Join(fmt.Errorf("declare plugin types: %w", err), stopPlugins(ctx, host, settings.serving.StopGrace))
 	}
@@ -87,17 +68,32 @@ func run(
 		return fmt.Errorf("start plugins: %w", err)
 	}
 
-	themes, stopTheme, err := startTheme(ctx, settings, settingStore, logger)
+	themes, stopTheme, err := startTheme(ctx, settings, built.settings, logger)
 	if err != nil {
 		return errors.Join(err, stopPlugins(ctx, host, settings.serving.StopGrace))
 	}
 	defer stopTheme()
 
+	cfg := serverConfig(settings, built, host, walked, logger)
+	cfg.Theme, cfg.Themes = themes.Holder(), themes
+	if settings.mediaDir != "" {
+		cfg.Media = recoveredLibrary(ctx, mediaConfigFrom(settings, built.settings), built.media.Saved, logger)
+		cfg.MediaStore = built.library
+		cfg.MediaFiles = os.DirFS(settings.mediaDir)
+	}
+
+	return gonsole.Serve(ctx, httpServerFrom(settings, server.NewServer(cfg)), settings.serving, host.Stop, logger)
+}
+
+// serverConfig returns the server settings over what compose built, the theme and the media left to the caller.
+func serverConfig(
+	settings runConfig, built site, host *pluginkit.Host, walked definitions.Walked, logger *slog.Logger,
+) server.Config {
 	cfg := server.Config{
-		Users:             userStore,
-		Content:           contentStore,
-		Types:             typeStore,
-		Registry:          registry,
+		Users:             built.users,
+		Content:           built.content,
+		Types:             built.types,
+		Registry:          built.registry,
 		Plugins:           host.Routes(),
 		PluginPublicPaths: host.PublicPaths(),
 		Version:           version.Version(),
@@ -105,10 +101,8 @@ func run(
 		PublicURL:         settings.publicURL,
 		Logger:            logger,
 		SiteTitle:         settings.siteTitle,
-		Theme:             themes.Holder(),
-		Themes:            themes,
-		Settings:          settingStore,
-		Readers:           postgres.NewUserSettingStore(pool),
+		Settings:          built.settings,
+		Readers:           built.readers,
 		Cache:             cachePolicyFrom(settings),
 		ThemeTimeout:      settings.themeProxyTimeout,
 
@@ -119,30 +113,7 @@ func run(
 	if settings.webDir != "" {
 		cfg.Web = os.DirFS(settings.webDir)
 	}
-	if settings.mediaDir != "" {
-		cfg.Media = recoveredLibrary(ctx, mediaConfigFrom(settings, settingStore), mediaStore.Saved, logger)
-		cfg.MediaStore = library
-		cfg.MediaFiles = os.DirFS(settings.mediaDir)
-	}
-
-	return gonsole.Serve(ctx, httpServerFrom(settings, server.NewServer(cfg)), settings.serving, host.Stop, logger)
-}
-
-// openDatabase returns a migrated connection pool for the database at url.
-func openDatabase(ctx context.Context, url string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, url)
-	if err != nil {
-		return nil, fmt.Errorf("parse database url: %w", err)
-	}
-	if err := authkitpg.Migrate(ctx, url); err != nil {
-		pool.Close()
-		return nil, err
-	}
-	if err := postgres.Migrate(ctx, url); err != nil {
-		pool.Close()
-		return nil, err
-	}
-	return pool, nil
+	return cfg
 }
 
 // runConfig carries the environment-derived settings of the server.
@@ -354,9 +325,9 @@ func fieldDepthFrom(getenv func(string) string) (int, error) {
 	return settingsEnv(getenv).Count("FIELD_DEPTH", content.DefaultFieldDepth, gonsole.AtMost(maxFieldDepth))
 }
 
-// registryFrom returns the type registry over the store, holding the nesting limit the settings name.
-func registryFrom(settings runConfig, store content.TypeStore) *content.Registry {
-	return content.NewRegistry(store).WithFieldDepth(settings.fieldDepth)
+// registryFrom returns the type registry over the store, holding the nesting limit depth names.
+func registryFrom(depth int, store content.TypeStore) *content.Registry {
+	return content.NewRegistry(store).WithFieldDepth(depth)
 }
 
 // loadRunConfig reads the server settings from the environment.
