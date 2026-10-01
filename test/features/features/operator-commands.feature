@@ -40,7 +40,6 @@ Feature: Operators run Gophenberg from one command line
     Then the command succeeds
     And the account "admin@example.com" holds the role "admin"
 
-  @wip
   Scenario Outline: An account change is refused when <case>
     Given the administrator "admin@example.com"
     And the author "author@example.com"
@@ -56,7 +55,6 @@ Feature: Operators run Gophenberg from one command line
       | the acting account is an editor   | editor@example.com | 1    |
       | no account answers to the address | nobody@example.com | 1    |
 
-  @wip
   Scenario: An applied account change is kept on record
     Given the administrator "admin@example.com"
     And the author "author@example.com"
@@ -65,7 +63,6 @@ Feature: Operators run Gophenberg from one command line
     And the account "author@example.com" holds the role "editor"
     And the records list "account:role" applied by "admin@example.com"
 
-  @wip
   Scenario: A preview of an account change records nothing
     Given the administrator "admin@example.com"
     And the author "author@example.com"

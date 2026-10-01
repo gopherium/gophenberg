@@ -47,7 +47,66 @@ func initializeOperatorCommands(t *testing.T) func(*godog.ScenarioContext) {
 		sc.Then(`^the database holds no schema$`, s.holdsNoSchema)
 		sc.Then(`^the database holds no demo content$`, s.holdsNoDemoContent)
 		sc.Then(`^the account "([^"]*)" holds the role "([^"]*)"$`, s.holdsRole)
+		sc.Given(`^the (administrator|author|editor) "([^"]*)"$`, s.holdAccount)
+		sc.When(`^the operator gives "([^"]*)" the role "([^"]*)" acting as "([^"]*)"$`, s.giveRole)
+		sc.When(`^the operator previews giving "([^"]*)" the role "([^"]*)" acting as "([^"]*)"$`, s.previewRole)
+		sc.Then(`^the account "([^"]*)" still holds the role "([^"]*)"$`, s.holdsRole)
+		sc.Then(`^no account change is on record$`, s.recordsNothing)
+		sc.Then(`^the records list "([^"]*)" applied by "([^"]*)"$`, s.recordsChange)
 	}
+}
+
+// holdAccount creates the account at email under the role a scenario calls kind.
+func (s *operatorScenario) holdAccount(kind, email string) error {
+	held := map[string]string{"administrator": "admin", "author": "author", "editor": "editor"}[kind]
+	s.run(typedPassword+"\n", "account:create-admin", "-email", email, "-name", "Holder", "-role", held)
+	return s.succeeds()
+}
+
+// giveRole gives the account at email the role, acting as actor when one is named.
+func (s *operatorScenario) giveRole(email, role, actor string) {
+	s.changeRole(email, role, actor, "-yes")
+}
+
+// previewRole previews giving the account at email the role, acting as actor.
+func (s *operatorScenario) previewRole(email, role, actor string) {
+	s.changeRole(email, role, actor)
+}
+
+// changeRole runs account:role for the account at email, adding -as actor when one is named.
+func (s *operatorScenario) changeRole(email, role, actor string, flags ...string) {
+	args := append([]string{"account:role", email, role}, flags...)
+	if actor != "" {
+		args = append(args, "-as", actor)
+	}
+	s.run("", args...)
+}
+
+// records returns the lines account:records lists.
+func (s *operatorScenario) records() ([]string, error) {
+	listed := testkit.Run(s.t, program(testkit.Getenv(s.env), registerPlugins), "", "account:records")
+	if listed.Code != 0 {
+		return nil, fmt.Errorf("account:records exited with %d and stderr %q", listed.Code, listed.Stderr)
+	}
+	return strings.FieldsFunc(listed.Stdout, func(r rune) bool { return r == '\n' }), nil
+}
+
+// recordsNothing fails when any account change is on record.
+func (s *operatorScenario) recordsNothing() error {
+	held, err := s.records()
+	if err != nil || len(held) != 0 {
+		return fmt.Errorf("records %q (%v), want none", held, err)
+	}
+	return nil
+}
+
+// recordsChange fails unless the records list the command applied by actor.
+func (s *operatorScenario) recordsChange(command, actor string) error {
+	held, err := s.records()
+	if err != nil || len(held) != 1 || !strings.Contains(held[0], actor+"  "+command) {
+		return fmt.Errorf("records %q (%v), want the one %s %s applied", held, err, command, actor)
+	}
+	return nil
 }
 
 // pointAtAnEmptyDatabase points the settings at a fresh database holding no schema.

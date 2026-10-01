@@ -14,6 +14,7 @@ import (
 
 // program returns the gophenberg command line over getenv and the compiled plugins.
 func program(getenv func(string) string, plugins func(sdk.Deps) ([]sdk.Plugin, error)) gonsole.Program {
+	accountCommands := accountConfig()
 	return gonsole.Program{
 		Name:       "gophenberg",
 		Title:      "Gophenberg",
@@ -22,11 +23,13 @@ func program(getenv func(string) string, plugins func(sdk.Deps) ([]sdk.Plugin, e
 		Env:        settingsEnv(getenv),
 		Database:   "DATABASE_URL",
 		Serve:      serve(plugins),
-		Validate:   validate,
+		Validate:   validate(accountCommands),
 		Migrations: migrations(),
 		Seed:       seedSite,
-		Commands:   accounts.Commands(accounts.Config{Roles: fixedRoles}),
+		Commands:   append(accounts.Commands(accountCommands), accounts.Records(accountCommands)),
 		Plugins:    loadPlugins(plugins),
+		Authorize:  accounts.Authorize(accountCommands),
+		Record:     accounts.Record(accountCommands),
 	}
 }
 
@@ -37,10 +40,14 @@ func serve(plugins func(sdk.Deps) ([]sdk.Plugin, error)) func(context.Context, g
 	}
 }
 
-// validate reads every setting the site serves under, naming the first it cannot stand.
-func validate(_ context.Context, call gonsole.Call) error {
-	_, err := loadRunConfig(call.Env.Getenv)
-	return err
+// validate returns the check of every setting the site serves under and the account hooks of cfg read.
+func validate(cfg accounts.Config) func(context.Context, gonsole.Call) error {
+	return func(_ context.Context, call gonsole.Call) error {
+		if _, err := loadRunConfig(call.Env.Getenv); err != nil {
+			return err
+		}
+		return cfg.Validate(call.Env)
+	}
 }
 
 // seedSite stores the demo data in the database the call's settings name.

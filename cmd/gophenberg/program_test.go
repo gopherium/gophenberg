@@ -15,7 +15,8 @@ import (
 // listedCommands are the names the listing of the command line holds, in the order it prints them.
 var listedCommands = []string{
 	"check", "help", "list", "migrate", "seed", "serve", "version",
-	"account:create-admin", "account:disable", "account:enable", "account:grant-role", "account:list", "account:role",
+	"account:create-admin", "account:disable", "account:enable", "account:grant-role", "account:list",
+	"account:records", "account:role",
 }
 
 func TestProgramListsEveryCommandWhenNoneIsNamed(t *testing.T) {
@@ -46,6 +47,7 @@ func TestProgramListsEveryCommandWhenNoneIsNamed(t *testing.T) {
 		"  account:enable        enable one disabled account",
 		"  account:grant-role    give a role to every account holding none",
 		"  account:list          list every account with its role",
+		"  account:records       list who applied which change, the newest first",
 		"  account:role          set one account's role",
 		"",
 		"Every command is described at https://docs.gophenberg.org/self-hosting/commands/",
@@ -100,6 +102,21 @@ func TestCheckNamesAMalformedSetting(t *testing.T) {
 
 	if got.Code != gonsole.ExitFailed || !strings.Contains(got.Stderr, "GOPHENBERG_THEME_START_ATTEMPTS") {
 		t.Errorf("check = %d with stderr %q, want 1 and the setting named", got.Code, got.Stderr)
+	}
+}
+
+func TestCheckNamesAMalformedRecordSetting(t *testing.T) {
+	t.Parallel()
+
+	env := testkit.Getenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL":           unreachableDatabaseURL,
+		"GOPHENBERG_COMMAND_RECORD_TIMEOUT": "soon",
+	})
+
+	got := testkit.Run(t, program(env, noPlugins), "", "check")
+
+	if got.Code != gonsole.ExitFailed || !strings.Contains(got.Stderr, "GOPHENBERG_COMMAND_RECORD_TIMEOUT") {
+		t.Errorf("check = %d with stderr %q, want 1 and the record setting named", got.Code, got.Stderr)
 	}
 }
 
