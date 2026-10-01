@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gopherium/framework/gonsole/testkit"
 )
 
 // writePlugin lays out a plugin directory under root, with a manifest when one is given.
@@ -27,27 +29,10 @@ func writePlugin(t *testing.T, root, dir, manifestJSON string) {
 	}
 }
 
-// coverBinary returns the path of the pluginwire cover binary and the environment to run it with.
-func coverBinary(t *testing.T) (string, []string) {
-	t.Helper()
-	bindir := os.Getenv("GOPHENBERG_COVER_BINDIR")
-	gocoverdir := os.Getenv("GOPHENBERG_COVER_GOCOVERDIR")
-	if bindir == "" || gocoverdir == "" {
-		t.Skip("skipping binary test: run via make cover")
-	}
-	var env []string
-	for _, entry := range os.Environ() {
-		if !strings.HasPrefix(entry, "GOPHENBERG_") && !strings.HasPrefix(entry, "GOCOVERDIR=") {
-			env = append(env, entry)
-		}
-	}
-	return filepath.Join(bindir, "pluginwire"), append(env, "GOCOVERDIR="+gocoverdir)
-}
-
 func TestMainBinaryGeneratesWiring(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "pluginwire")
 	root := t.TempDir()
 	writePlugin(t, root, "demo", `{
 		"id": "demo",
@@ -60,7 +45,7 @@ func TestMainBinaryGeneratesWiring(t *testing.T) {
 		}
 	}
 	var stderr bytes.Buffer
-	cmd := exec.Command(binary)
+	cmd := exec.CommandContext(t.Context(), binary)
 	cmd.Dir = root
 	cmd.Env = env
 	cmd.Stderr = &stderr
@@ -79,9 +64,9 @@ func TestMainBinaryGeneratesWiring(t *testing.T) {
 func TestMainBinaryFailsWithoutPluginsDirectory(t *testing.T) {
 	t.Parallel()
 
-	binary, env := coverBinary(t)
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "pluginwire")
 	var stderr bytes.Buffer
-	cmd := exec.Command(binary)
+	cmd := exec.CommandContext(t.Context(), binary)
 	cmd.Dir = t.TempDir()
 	cmd.Env = env
 	cmd.Stderr = &stderr
