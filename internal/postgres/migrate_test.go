@@ -3,13 +3,18 @@
 package postgres_test
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"io/fs"
+	"sync"
 	"testing"
+	"time"
 
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/peterldowns/pgtestdb"
 	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/testdb"
@@ -98,6 +103,65 @@ func TestMigrateRollsBackAndReapplies(t *testing.T) {
 	}
 	if !schemaExists(t, db, "core") {
 		t.Error("core schema not found after reapply")
+	}
+}
+
+// accountsMigrated returns the address of a fresh database holding the auth schema the core schema needs.
+func accountsMigrated(t *testing.T) string {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("skipping database test in short mode")
+	}
+	cfg := pgtestdb.Custom(t, testdb.Config(), pgtestdb.NoopMigrator{})
+	if err := authkitpg.Migrate(t.Context(), cfg.URL()); err != nil {
+		t.Fatalf("auth Migrate() error = %v, want nil", err)
+	}
+	return cfg.URL()
+}
+
+func TestMigrateWaitsForTheMigrationLock(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := accountsMigrated(t)
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		t.Fatalf("opening database: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	holder, err := db.Conn(t.Context())
+	if err != nil {
+		t.Fatalf("taking a connection: %v", err)
+	}
+	defer func() { _ = holder.Close() }()
+	if _, err := holder.ExecContext(t.Context(), "SELECT pg_advisory_lock($1)", lock.DefaultLockID); err != nil {
+		t.Fatalf("holding the migration lock: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+	defer cancel()
+
+	err = postgres.Migrate(ctx, databaseURL)
+
+	if created := schemaExists(t, db, "core"); !errors.Is(err, context.DeadlineExceeded) || created {
+		t.Errorf("Migrate() = %v with the core schema created %v, want the deadline and nothing applied", err, created)
+	}
+}
+
+func TestMigrateLetsRunsAtOnceAllSucceed(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := accountsMigrated(t)
+	failures := make(chan error, 4)
+	var runs sync.WaitGroup
+	for range 4 {
+		runs.Go(func() { failures <- postgres.Migrate(t.Context(), databaseURL) })
+	}
+	runs.Wait()
+	close(failures)
+
+	for err := range failures {
+		if err != nil {
+			t.Errorf("Migrate() error = %v, want every run to succeed", err)
+		}
 	}
 }
 
