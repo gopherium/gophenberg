@@ -357,6 +357,31 @@ func TestSeedYesValidatesItsEnvironment(t *testing.T) {
 	}
 }
 
+func TestSeedNamesAnAddressItCannotUse(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		env  map[string]string
+		want string
+	}{
+		"no database address": {map[string]string{}, "GOPHENBERG_DATABASE_URL is required"},
+		"a database address it cannot parse": {
+			map[string]string{"GOPHENBERG_DATABASE_URL": "not a url \x00"}, "parse database url",
+		},
+	}
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
+
+			err := seedDemoData(t.Context(), testkit.Getenv(tc.env), io.Discard)
+
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("seedDemoData() error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestSeedYesReadsAPaddedDatabaseAddress(t *testing.T) {
 	t.Parallel()
 

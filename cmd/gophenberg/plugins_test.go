@@ -119,6 +119,40 @@ func TestRegisterPluginsCommands(t *testing.T) {
 	}
 }
 
+func TestLoadPluginsNamesWhatItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		env      map[string]string
+		describe bool
+		want     string
+	}{
+		"a stop grace that is not a duration": {
+			map[string]string{"GOPHENBERG_SHUTDOWN_STOP_GRACE": "soon"}, true, "GOPHENBERG_SHUTDOWN_STOP_GRACE",
+		},
+		"a field depth past the most allowed": {
+			map[string]string{"GOPHENBERG_FIELD_DEPTH": "1001"}, true, "GOPHENBERG_FIELD_DEPTH",
+		},
+		"no database address outside describe mode": {map[string]string{}, false, "GOPHENBERG_DATABASE_URL"},
+		"a database address it cannot parse": {
+			map[string]string{"GOPHENBERG_DATABASE_URL": "not a url \x00"}, false, "parse database url",
+		},
+	}
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
+
+			call := gonsole.Call{Env: settingsEnv(testkit.Getenv(tc.env)), Describe: tc.describe}
+
+			_, err := loadPlugins(registerPlugins)(t.Context(), call)
+
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("loadPlugins() error = %v, want %s named", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestSeedYesAppliesAPluginSchemaAndStopsIt(t *testing.T) {
 	t.Parallel()
 
