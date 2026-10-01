@@ -14,6 +14,60 @@ import (
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
+func TestRunConfigTrimsEverySetting(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		key  string
+		raw  string
+		read func(runConfig) string
+		want string
+	}{
+		{"GOPHENBERG_DATABASE_URL", " " + unreachableDatabaseURL + " ",
+			func(c runConfig) string { return c.databaseURL }, unreachableDatabaseURL},
+		{"GOPHENBERG_ADDR", " 127.0.0.1:9000 ", func(c runConfig) string { return c.addr }, "127.0.0.1:9000"},
+		{"GOPHENBERG_WEB_DIR", " /srv/web ", func(c runConfig) string { return c.webDir }, "/srv/web"},
+		{"GOPHENBERG_SITE_TITLE", " Field Notes ", func(c runConfig) string { return c.siteTitle }, "Field Notes"},
+		{"GOPHENBERG_TRUSTED_PROXIES", " 192.0.2.0/24 ",
+			func(c runConfig) string { return strings.Join(c.trustedProxies, ",") }, "192.0.2.0/24"},
+		{"GOPHENBERG_PUBLIC_URL", " https://www.example.com ",
+			func(c runConfig) string { return c.publicURL.String() }, "https://www.example.com"},
+		{"GOPHENBERG_THEMES_DIR", " /srv/themes ", func(c runConfig) string { return c.themesDir }, "/srv/themes"},
+		{"GOPHENBERG_THEME", " aurora ", func(c runConfig) string { return c.theme }, "aurora"},
+		{"GOPHENBERG_NODE_BIN", " /usr/bin/node ", func(c runConfig) string { return c.nodeBin }, "/usr/bin/node"},
+		{"GOPHENBERG_MEDIA_DIR", " /srv/media ", func(c runConfig) string { return c.mediaDir }, "/srv/media"},
+		{"GOPHENBERG_THEME_READY_TIMEOUT", " 45s ",
+			func(c runConfig) string { return c.themeReadyTimeout.String() }, "45s"},
+		{"GOPHENBERG_THEME_START_ATTEMPTS", " 7 ",
+			func(c runConfig) string { return strconv.Itoa(c.themeStartAttempts) }, "7"},
+		{"GOPHENBERG_MEDIA_UPLOAD_CAP_MB", " 64 ",
+			func(c runConfig) string { return strconv.FormatInt(c.mediaUploadCap, 10) }, strconv.Itoa(64 << 20)},
+		{"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", " 512 ",
+			func(c runConfig) string { return strconv.FormatInt(c.definitionsImportCap, 10) }, strconv.Itoa(512 << 10)},
+		{"GOPHENBERG_FIELD_DEPTH", " 4 ", func(c runConfig) string { return strconv.Itoa(c.fieldDepth) }, "4"},
+		{"GOPHENBERG_CACHE_ASSET_MAX_AGE", " 1h ",
+			func(c runConfig) string { return c.cacheAssetMaxAge.String() }, "1h0m0s"},
+		{"GOPHENBERG_SHUTDOWN_GRACE", " 20s ", func(c runConfig) string { return c.serving.Grace.String() }, "20s"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			t.Parallel()
+
+			settings, err := loadRunConfig(testkit.Getenv(map[string]string{
+				"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
+				tt.key:                    tt.raw,
+			}))
+
+			if err != nil {
+				t.Fatalf("loadRunConfig() error = %v, want %q read trimmed", err, tt.raw)
+			}
+			if got := tt.read(settings); got != tt.want {
+				t.Errorf("%s = %q, want %q", tt.key, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestLoadRunConfigTakesTheLargestUploadCapItCanCarry(t *testing.T) {
 	t.Parallel()
 

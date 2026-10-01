@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -185,11 +184,6 @@ var servingDefaults = gonsole.Timeouts{
 	Grace: 10 * time.Second, CancelGrace: 5 * time.Second, StopGrace: 5 * time.Second,
 }
 
-// servingFrom returns the HTTP timeouts and shutdown graces the environment names.
-func servingFrom(getenv func(string) string) (gonsole.Timeouts, error) {
-	return settingsEnv(getenv).Timeouts(servingDefaults)
-}
-
 // settingsEnv returns the reader of the settings under the program prefix.
 func settingsEnv(getenv func(string) string) gonsole.Env {
 	return gonsole.Env{Prefix: "GOPHENBERG_", Getenv: getenv}
@@ -208,20 +202,19 @@ func stopPlugins(ctx context.Context, host *pluginkit.Host, grace time.Duration)
 }
 
 // cacheWindowsFrom reads how long each kind of public answer may be kept.
-func cacheWindowsFrom(getenv func(string) string, held *runConfig) error {
+func cacheWindowsFrom(env gonsole.Env, held *runConfig) error {
 	for _, asked := range []struct {
-		key      string
+		name     string
 		fallback time.Duration
 		into     *time.Duration
 	}{
-		{"GOPHENBERG_CACHE_ASSET_MAX_AGE", server.DefaultAssetCacheMaxAge, &held.cacheAssetMaxAge},
-		{"GOPHENBERG_CACHE_MEDIA_MAX_AGE", server.DefaultMediaCacheMaxAge, &held.cacheMediaMaxAge},
-		{"GOPHENBERG_CACHE_CONTENT_SHARED_MAX_AGE", server.DefaultContentSharedMaxAge,
-			&held.cacheContentSharedMaxAge},
-		{"GOPHENBERG_CACHE_CONTENT_STALE_WHILE_REVALIDATE", server.DefaultContentStaleWhileRevalidate,
+		{"CACHE_ASSET_MAX_AGE", server.DefaultAssetCacheMaxAge, &held.cacheAssetMaxAge},
+		{"CACHE_MEDIA_MAX_AGE", server.DefaultMediaCacheMaxAge, &held.cacheMediaMaxAge},
+		{"CACHE_CONTENT_SHARED_MAX_AGE", server.DefaultContentSharedMaxAge, &held.cacheContentSharedMaxAge},
+		{"CACHE_CONTENT_STALE_WHILE_REVALIDATE", server.DefaultContentStaleWhileRevalidate,
 			&held.cacheContentStaleWhileRevalidate},
 	} {
-		stood, err := standingSeconds(getenv(asked.key), asked.key, asked.fallback)
+		stood, err := standingSeconds(env, asked.name, asked.fallback)
 		if err != nil {
 			return err
 		}
@@ -230,14 +223,14 @@ func cacheWindowsFrom(getenv func(string) string, held *runConfig) error {
 	return nil
 }
 
-// standingSeconds returns the whole seconds the raw value names, or the fallback when it names none.
-func standingSeconds(raw, key string, fallback time.Duration) (time.Duration, error) {
-	stood, err := standingDuration(raw, key, fallback)
+// standingSeconds returns the whole seconds the setting names, or the fallback when it names none.
+func standingSeconds(env gonsole.Env, name string, fallback time.Duration) (time.Duration, error) {
+	stood, err := env.Duration(name, fallback)
 	if err != nil {
 		return 0, err
 	}
 	if stood%time.Second != 0 {
-		return 0, fmt.Errorf("%s: must be whole seconds like 1h or 90s, got %q", key, raw)
+		return 0, fmt.Errorf("%s: must be whole seconds like 1h or 90s, got %q", env.Key(name), env.Value(name))
 	}
 	return stood, nil
 }
@@ -253,21 +246,21 @@ func cachePolicyFrom(settings runConfig) server.CachePolicy {
 }
 
 // timingsFrom reads the durations, the attempt count and the upload cap the environment names.
-func timingsFrom(getenv func(string) string) (runConfig, error) {
+func timingsFrom(env gonsole.Env) (runConfig, error) {
 	held := runConfig{}
 	for _, asked := range []struct {
-		key      string
+		name     string
 		fallback time.Duration
 		into     *time.Duration
 	}{
-		{"GOPHENBERG_THEME_READY_TIMEOUT", 30 * time.Second, &held.themeReadyTimeout},
-		{"GOPHENBERG_THEME_BACKOFF", 500 * time.Millisecond, &held.themeBackoff},
-		{"GOPHENBERG_THEME_MAX_BACKOFF", 30 * time.Second, &held.themeMaxBackoff},
-		{"GOPHENBERG_THEME_STOP_GRACE", 3 * time.Second, &held.themeStopGrace},
-		{"GOPHENBERG_THEME_PROXY_TIMEOUT", 10 * time.Second, &held.themeProxyTimeout},
-		{"GOPHENBERG_UPLOAD_TIMEOUT", server.DefaultUploadTimeout, &held.uploadTimeout},
+		{"THEME_READY_TIMEOUT", 30 * time.Second, &held.themeReadyTimeout},
+		{"THEME_BACKOFF", 500 * time.Millisecond, &held.themeBackoff},
+		{"THEME_MAX_BACKOFF", 30 * time.Second, &held.themeMaxBackoff},
+		{"THEME_STOP_GRACE", 3 * time.Second, &held.themeStopGrace},
+		{"THEME_PROXY_TIMEOUT", 10 * time.Second, &held.themeProxyTimeout},
+		{"UPLOAD_TIMEOUT", server.DefaultUploadTimeout, &held.uploadTimeout},
 	} {
-		stood, err := standingDuration(getenv(asked.key), asked.key, asked.fallback)
+		stood, err := env.Duration(asked.name, asked.fallback)
 		if err != nil {
 			return runConfig{}, err
 		}
@@ -277,23 +270,22 @@ func timingsFrom(getenv func(string) string) (runConfig, error) {
 		return runConfig{}, fmt.Errorf(
 			"GOPHENBERG_THEME_MAX_BACKOFF: must stand at or above GOPHENBERG_THEME_BACKOFF, got %v", held.themeMaxBackoff)
 	}
-	attempts, err := standingCount(
-		getenv("GOPHENBERG_THEME_START_ATTEMPTS"), "GOPHENBERG_THEME_START_ATTEMPTS", 5, maxStartAttempts)
+	attempts, err := env.Count("THEME_START_ATTEMPTS", 5, gonsole.AtMost(maxStartAttempts))
 	if err != nil {
 		return runConfig{}, err
 	}
-	cap, err := standingMegabytes(getenv("GOPHENBERG_MEDIA_UPLOAD_CAP_MB"), "GOPHENBERG_MEDIA_UPLOAD_CAP_MB", 128)
+	uploadCap, err := env.Count("MEDIA_UPLOAD_CAP_MB", 128, gonsole.AtMost(maxUploadCapMB))
 	if err != nil {
 		return runConfig{}, err
 	}
-	held.themeStartAttempts, held.mediaUploadCap = attempts, cap
-	held.definitionsImportCap, err = standingKilobytes(
-		getenv(definitionsCapKey), definitionsCapKey,
-		server.DefaultDefinitionsImportCap>>10, server.MaxDefinitionsImportCap>>10)
+	importCap, err := env.Count("DEFINITIONS_IMPORT_CAP_KB", int(server.DefaultDefinitionsImportCap>>10),
+		gonsole.AtMost(server.MaxDefinitionsImportCap>>10))
 	if err != nil {
 		return runConfig{}, err
 	}
-	if err := cacheWindowsFrom(getenv, &held); err != nil {
+	held.themeStartAttempts = attempts
+	held.mediaUploadCap, held.definitionsImportCap = int64(uploadCap)<<20, int64(importCap)<<10
+	if err := cacheWindowsFrom(env, &held); err != nil {
 		return runConfig{}, err
 	}
 	return held, nil
@@ -301,45 +293,6 @@ func timingsFrom(getenv func(string) string) (runConfig, error) {
 
 // maxUploadCapMB is the most megabytes an upload cap may name and still be held in bytes.
 const maxUploadCapMB int64 = math.MaxInt64 >> 20
-
-// standingMegabytes returns the bytes the raw megabyte value names, or the fallback when it names none.
-func standingMegabytes(raw, key string, fallback int64) (int64, error) {
-	if raw == "" {
-		return fallback << 20, nil
-	}
-	stood, err := strconv.ParseInt(raw, 10, 64)
-	if errors.Is(err, strconv.ErrRange) || stood > maxUploadCapMB {
-		return 0, fmt.Errorf("%s: must stand at or below %d, got %q", key, maxUploadCapMB, raw)
-	}
-	if err != nil {
-		return 0, fmt.Errorf("%s: must be a whole number, got %q", key, raw)
-	}
-	if stood < 1 {
-		return 0, fmt.Errorf("%s: must stand above zero, got %q", key, raw)
-	}
-	return stood << 20, nil
-}
-
-// definitionsCapKey names the environment variable capping a definitions import.
-const definitionsCapKey = "GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB"
-
-// standingKilobytes returns the bytes the raw kilobyte value names, or the fallback when it names none.
-func standingKilobytes(raw, key string, fallback, ceiling int64) (int64, error) {
-	if raw == "" {
-		return fallback << 10, nil
-	}
-	stood, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("%s: must be a whole number, got %q", key, raw)
-	}
-	if stood < 1 {
-		return 0, fmt.Errorf("%s: must stand above zero, got %q", key, raw)
-	}
-	if stood > ceiling {
-		return 0, fmt.Errorf("%s: must stand at or below %d, got %q", key, ceiling, raw)
-	}
-	return stood << 10, nil
-}
 
 // mediaConfigFrom returns the media library settings the environment named and the site chose.
 func mediaConfigFrom(settings runConfig, store mediahost.Settings) mediahost.Config {
@@ -390,33 +343,15 @@ func declareTypes(
 	return walked, nil
 }
 
-// standingDuration returns the duration the raw value names, or the fallback when it names none.
-func standingDuration(raw, key string, fallback time.Duration) (time.Duration, error) {
-	if raw == "" {
-		return fallback, nil
-	}
-	stood, err := time.ParseDuration(raw)
-	if err != nil {
-		return 0, fmt.Errorf("%s: must be a duration like 30s, got %q", key, raw)
-	}
-	if stood <= 0 {
-		return 0, fmt.Errorf("%s: must stand above zero, got %q", key, raw)
-	}
-	return stood, nil
-}
-
 // maxStartAttempts is how many times a theme that will not start may be tried again.
 const maxStartAttempts = 1000
-
-// fieldDepthKey names the environment variable limiting how many containers a field may stand inside.
-const fieldDepthKey = "GOPHENBERG_FIELD_DEPTH"
 
 // maxFieldDepth is the most containers a site may let a field stand inside.
 const maxFieldDepth = 1000
 
 // fieldDepthFrom returns how many containers a field may stand inside, as the environment names it.
 func fieldDepthFrom(getenv func(string) string) (int, error) {
-	return standingCount(getenv(fieldDepthKey), fieldDepthKey, content.DefaultFieldDepth, maxFieldDepth)
+	return settingsEnv(getenv).Count("FIELD_DEPTH", content.DefaultFieldDepth, gonsole.AtMost(maxFieldDepth))
 }
 
 // registryFrom returns the type registry over the store, holding the nesting limit the settings name.
@@ -424,74 +359,48 @@ func registryFrom(settings runConfig, store content.TypeStore) *content.Registry
 	return content.NewRegistry(store).WithFieldDepth(settings.fieldDepth)
 }
 
-// standingCount returns the whole number the raw value names, or the fallback when it names none.
-func standingCount(raw, key string, fallback, ceiling int) (int, error) {
-	if raw == "" {
-		return fallback, nil
-	}
-	stood, err := strconv.Atoi(raw)
-	if err != nil {
-		return 0, fmt.Errorf("%s: must be a whole number, got %q", key, raw)
-	}
-	if stood < 1 {
-		return 0, fmt.Errorf("%s: must stand above zero, got %q", key, raw)
-	}
-	if stood > ceiling {
-		return 0, fmt.Errorf("%s: must stand at or below %d, got %q", key, ceiling, raw)
-	}
-	return stood, nil
-}
-
 // loadRunConfig reads the server settings from the environment.
 func loadRunConfig(getenv func(string) string) (runConfig, error) {
-	databaseURL := getenv("GOPHENBERG_DATABASE_URL")
-	if databaseURL == "" {
-		return runConfig{}, errors.New("GOPHENBERG_DATABASE_URL is required")
-	}
-	addr := getenv("GOPHENBERG_ADDR")
-	if addr == "" {
-		addr = "localhost:8081"
-	}
-	trustedProxies, err := parseTrustedProxies(getenv("GOPHENBERG_TRUSTED_PROXIES"))
+	env := settingsEnv(getenv)
+	databaseURL, err := env.Required("DATABASE_URL")
 	if err != nil {
 		return runConfig{}, err
 	}
-	publicURL, err := server.ParsePublicURL(getenv("GOPHENBERG_PUBLIC_URL"))
+	trustedProxies, err := gonsole.Parse(env, "TRUSTED_PROXIES", nil, ratelimit.ParseTrustedProxies)
 	if err != nil {
-		return runConfig{}, fmt.Errorf("GOPHENBERG_PUBLIC_URL: %w", err)
+		return runConfig{}, err
 	}
-	nodeBin := getenv("GOPHENBERG_NODE_BIN")
-	if nodeBin == "" {
-		nodeBin = "node"
+	publicURL, err := gonsole.Parse(env, "PUBLIC_URL", nil, server.ParsePublicURL)
+	if err != nil {
+		return runConfig{}, err
 	}
-	settings, err := timingsFrom(getenv)
+	settings, err := timingsFrom(env)
 	if err != nil {
 		return runConfig{}, err
 	}
 	if settings.fieldDepth, err = fieldDepthFrom(getenv); err != nil {
 		return runConfig{}, err
 	}
-	if settings.serving, err = servingFrom(getenv); err != nil {
+	if settings.serving, err = env.Timeouts(servingDefaults); err != nil {
 		return runConfig{}, err
 	}
 	settings.databaseURL = databaseURL
-	settings.addr = addr
-	settings.webDir = getenv("GOPHENBERG_WEB_DIR")
-	settings.siteTitle = getenv("GOPHENBERG_SITE_TITLE")
+	settings.addr = valueOr(env, "ADDR", "localhost:8081")
+	settings.webDir = env.Value("WEB_DIR")
+	settings.siteTitle = env.Value("SITE_TITLE")
 	settings.trustedProxies = trustedProxies
 	settings.publicURL = publicURL
-	settings.themesDir = getenv("GOPHENBERG_THEMES_DIR")
-	settings.theme = getenv("GOPHENBERG_THEME")
-	settings.nodeBin = nodeBin
-	settings.mediaDir = getenv("GOPHENBERG_MEDIA_DIR")
+	settings.themesDir = env.Value("THEMES_DIR")
+	settings.theme = env.Value("THEME")
+	settings.nodeBin = valueOr(env, "NODE_BIN", "node")
+	settings.mediaDir = env.Value("MEDIA_DIR")
 	return settings, nil
 }
 
-// parseTrustedProxies parses raw into trusted-proxy CIDR ranges.
-func parseTrustedProxies(raw string) ([]string, error) {
-	prefixes, err := ratelimit.ParseTrustedProxies(raw)
-	if err != nil {
-		return nil, fmt.Errorf("GOPHENBERG_TRUSTED_PROXIES: %w", err)
+// valueOr returns the setting's value, or fallback when it is empty.
+func valueOr(env gonsole.Env, name, fallback string) string {
+	if value := env.Value(name); value != "" {
+		return value
 	}
-	return prefixes, nil
+	return fallback
 }
