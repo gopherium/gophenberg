@@ -11,8 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// accountsSite returns the settings of a fresh database the command line migrated, holding an admin, an editor and
-// an author.
+// accountsSite returns the settings of a migrated database holding an admin, an editor and an author.
 func accountsSite(t *testing.T) func(string) string {
 	t.Helper()
 	getenv := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t)})
