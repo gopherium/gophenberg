@@ -17,9 +17,9 @@ async function saveDraft(page: Page) {
 }
 
 /**
- * Reads whether the message clears the editor footer and how far it sits from the centre of the writing area.
+ * Reads how far the message floats above the editor footer and from the centre of the writing area.
  * @param toast - The raised message.
- * @returns The clearance and the distance from the centre in whole pixels.
+ * @returns Both distances in whole pixels.
  */
 function placement(toast: Locator) {
 	return toast.evaluate((element) => {
@@ -28,7 +28,7 @@ function placement(toast: Locator) {
 		const outline = document.querySelector('.gophenberg-editor__outline')
 		const start = outline === null ? rect('.gophenberg-editor__main').left : outline.getBoundingClientRect().right
 		return {
-			clearOfFoot: rect('.gophenberg-editor__foot').top - box.bottom >= 16,
+			aboveFoot: Math.round(rect('.gophenberg-editor__foot').top - box.bottom),
 			offCentre: Math.round(Math.abs((box.left + box.right) / 2 - (start + rect('.gophenberg-editor__sidebar').left) / 2)),
 		}
 	})
@@ -55,7 +55,7 @@ test.afterEach(async ({ page }) => {
 test('floats a message raised in the editor clear of its footer, over the writing area', async ({ page }) => {
 	const toast = await saveDraft(page)
 
-	await expect.poll(() => placement(toast)).toEqual({ clearOfFoot: true, offCentre: 0 })
+	await expect.poll(() => placement(toast)).toEqual({ aboveFoot: 16, offCentre: 0 })
 })
 
 test('keeps a message over the writing area while the list view is open', async ({ page }) => {
@@ -64,5 +64,5 @@ test('keeps a message over the writing area while the list view is open', async 
 
 	const toast = await saveDraft(page)
 
-	await expect.poll(() => placement(toast)).toEqual({ clearOfFoot: true, offCentre: 0 })
+	await expect.poll(() => placement(toast)).toEqual({ aboveFoot: 16, offCentre: 0 })
 })
