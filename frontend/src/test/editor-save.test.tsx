@@ -178,7 +178,7 @@ test('reports the post saved and holds the next save back', async () => {
 
 	expect(await screen.findByText('Saved')).toBeInTheDocument()
 	await waitFor(() =>
-		expect(screen.getByRole('button', { name: /save/i })).toHaveAttribute('aria-disabled', 'true'),
+		expect(screen.getByRole('button', { name: 'Save draft' })).toHaveAttribute('aria-disabled', 'true'),
 	)
 })
 

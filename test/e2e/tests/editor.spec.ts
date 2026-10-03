@@ -87,7 +87,7 @@ test('writes, saves, publishes, trashes and restores a post', async ({ page }) =
 		HEADING,
 	)
 
-	await page.getByRole('button', { name: 'Publish' }).click()
+	await page.getByRole('button', { name: 'Publish', exact: true }).click()
 	await expect(shown(page, 'Post published.')).toBeVisible()
 	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
 
@@ -115,7 +115,7 @@ test('publishes what was written without a draft save first', async ({ page }) =
 	await openNewDraft(page)
 	await writeThePost(page)
 
-	await page.getByRole('button', { name: 'Publish' }).click()
+	await page.getByRole('button', { name: 'Publish', exact: true }).click()
 	await expect(shown(page, 'Post published.')).toBeVisible()
 
 	await page.reload()
@@ -127,7 +127,7 @@ test('keeps an edit made to an already published post', async ({ page }) => {
 	const added = `The words the update added ${RUN}.`
 	await openNewDraft(page)
 	await writeThePost(page)
-	await page.getByRole('button', { name: 'Publish' }).click()
+	await page.getByRole('button', { name: 'Publish', exact: true }).click()
 	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
 
 	await canvas(page).getByText(PARAGRAPH).click()
@@ -152,7 +152,7 @@ test('round-trips every field of the editor without a full reload', async ({ pag
 	}
 	await openNewDraft(page)
 	await writeThePost(page, written)
-	await page.getByRole('button', { name: 'Publish' }).click()
+	await page.getByRole('button', { name: 'Publish', exact: true }).click()
 	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
 
 	await page.getByRole('link', { name: 'Back to posts' }).click()
@@ -170,7 +170,7 @@ test('round-trips every field of the editor without a full reload', async ({ pag
 	await page.getByRole('combobox', { name: 'Status' }).click()
 	await page.getByRole('option', { name: 'Pending' }).click()
 	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
-	expect(await page.getByRole('button', { name: 'Publish' }).count()).toBe(0)
+	expect(await page.getByRole('button', { name: 'Publish', exact: true }).count()).toBe(0)
 	await page.getByRole('button', { name: 'Update' }).click()
 	await expect(shown(page, 'Draft saved.')).toBeVisible()
 
@@ -182,7 +182,7 @@ test('round-trips every field of the editor without a full reload', async ({ pag
 	await expect(page.getByRole('textbox', { name: 'Slug' })).toHaveValue(edited.slug)
 	await expect(page.getByRole('textbox', { name: 'Excerpt' })).toHaveValue(edited.excerpt)
 	await expect(page.getByRole('combobox', { name: 'Status' })).toHaveText('Pending')
-	await expect(page.getByRole('button', { name: 'Publish' })).toBeVisible()
+	await expect(page.getByRole('button', { name: 'Publish', exact: true })).toBeVisible()
 	await expect(canvas(page).getByText(edited.paragraph)).toBeVisible()
 
 	await page.reload()
@@ -227,7 +227,7 @@ test('takes a post back out of the trash from the editor', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Undo' }).click()
 
-	await page.getByRole('button', { name: /^Draft/ }).click()
+	await page.getByRole('group', { name: 'Filter by status' }).getByRole('button', { name: /^Draft/ }).click()
 	await expect(page.getByRole('link', { name: TRASH_TITLE })).toBeVisible()
 })
 
