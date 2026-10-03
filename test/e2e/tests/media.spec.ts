@@ -146,7 +146,7 @@ test('places an uploaded picture in a post and publishes it', async ({ page }) =
 	await placed.click()
 	await expect(placed).toBeVisible()
 
-	await page.getByRole('button', { name: 'Publish' }).click()
+	await page.getByRole('button', { name: 'Publish', exact: true }).click()
 	await expect(page.locator('#root').getByText('Post published.')).toBeVisible()
 
 	const addressed = await page.request.get(`/api/content/${postId}`)
