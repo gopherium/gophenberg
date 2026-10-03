@@ -2,7 +2,7 @@
 
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, expect, test } from 'vitest'
+import { expect, test } from 'vitest'
 
 import { mismatched } from '@gopherium/gottext/build'
 
@@ -50,12 +50,13 @@ function catalogues(): [string, string][] {
 		.map((named) => [named.replace(/\.po$/, ''), readFileSync(join(where, named), 'utf8')])
 }
 
-describe('every shipped catalogue', () => {
+/** Every catalogue the repository ships, paired with its locale. */
+const SHIPPED = catalogues()
+
+test.each(SHIPPED)('every shipped catalogue answers %s with the placeholders its messages name', (_locale, source) => {
 	const template = readFileSync(join(repositoryRoot(), 'languages', 'gophenberg.pot'), 'utf8')
 
-	test.each(catalogues())('answers %s with the placeholders its messages name', (_locale, source) => {
-		expect(mismatched(source, template)).toEqual([])
-	})
+	expect(mismatched(source, template)).toEqual([])
 })
 
 test('names a translation carrying a placeholder the message does not', () => {

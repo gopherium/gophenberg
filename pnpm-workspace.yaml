@@ -16,6 +16,7 @@ peerDependencyRules:
     react-dom: '19'
     '@types/react': '19'
     typescript: '6'
+    vitest: '5'
 
 minimumReleaseAgeExclude:
   - '@gopherium/godmin'
