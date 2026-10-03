@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
+:root:has(.gophenberg-editor) .godmin-toasts {
+	inset-inline-end: 280px;
+	bottom: 46px;
+}
+
 .gophenberg-editor {
 	display: flex;
 	flex-direction: column;
@@ -44,7 +49,8 @@
 }
 
 .gophenberg-editor__foot {
-	flex: 0 0 auto;
+	flex: 0 0 30px;
+	box-sizing: border-box;
 	padding: 4px 12px;
 	border-top-width: 1px;
 	border-top-style: solid;
