@@ -42,20 +42,20 @@ test('holds a raised message wide enough to read it', async ({ page }) => {
 			)
 		}
 		const held = element.closest('.godmin-toasts') as HTMLElement
+		const box = element.closest('.godmin-toast') as HTMLElement
 		const widest = [...held.querySelectorAll('*')].reduce(
 			(most, child) => Math.max(most, child.getBoundingClientRect().width),
 			0,
 		)
-		const dismiss = [...held.querySelectorAll('button')].find((button) => button.textContent === 'Dismiss')
-		const lineHeight = dismiss === undefined ? 0 : Number.parseFloat(getComputedStyle(dismiss).lineHeight)
 		return {
 			region: held.getBoundingClientRect().width,
 			widest,
-			textHeight: dismiss === undefined ? 0 : dismiss.getBoundingClientRect().height - inset(dismiss),
-			lineHeight,
+			textHeight: box.getBoundingClientRect().height - inset(box),
+			lineHeight: Number.parseFloat(getComputedStyle(box).lineHeight),
 		}
 	})
 
 	expect(measured.region).toBeGreaterThanOrEqual(measured.widest)
+	expect(measured.lineHeight).toBeGreaterThan(0)
 	expect(measured.textHeight).toBeLessThan(measured.lineHeight * 2)
 })

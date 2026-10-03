@@ -12,7 +12,7 @@ test('pads the canvas and keeps the rail beside it on a desktop', async ({ page 
 	const padding = await page
 		.locator('.godmin-layout__canvas')
 		.evaluate((canvas) => getComputedStyle(canvas).padding)
-	expect(padding).toBe('24px')
+	expect(padding).toBe('16px 24px')
 })
 
 test('reads every rail row clearly against the chrome', async ({ page }) => {
