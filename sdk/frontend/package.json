@@ -39,6 +39,6 @@
 		"@wordpress/rich-text": "7.55.0",
 		"msw": "^2.15.0",
 		"vite": "^8.2.2",
-		"vitest": "^4.1.11"
+		"vitest": "^5.0.3"
 	}
 }
