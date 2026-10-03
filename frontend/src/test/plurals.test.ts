@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { po } from 'gettext-parser'
-import { describe, expect, test } from 'vitest'
+import { expect, test } from 'vitest'
 
 import { repositoryRoot } from '../../scripts/config.ts'
 
@@ -12,6 +12,9 @@ const RULES: Record<string, string> = {
 	'es-ES': 'nplurals=3; plural=((n == 1) ? 0 : ((n != 0 && n % 1000000 == 0) ? 1 : 2));',
 	'fr-FR': 'nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;',
 }
+
+/** Every language the site answers in. */
+const LOCALES = Object.keys(RULES)
 
 /**
  * Returns a catalogue as the repository ships it.
@@ -31,27 +34,25 @@ function formsOf(rule: string): number {
 	return Number(/nplurals\s*=\s*(\d+)/.exec(rule)?.[1] ?? 0)
 }
 
-describe.each(Object.keys(RULES))('the %s catalogue', (locale) => {
-	test('is written under the plural rule its language uses', () => {
-		expect(po.parse(catalogOf(locale)).headers['Plural-Forms']).toBe(RULES[locale])
-	})
+test.each(LOCALES)('the %s catalogue is written under the plural rule its language uses', (locale) => {
+	expect(po.parse(catalogOf(locale)).headers['Plural-Forms']).toBe(RULES[locale])
+})
 
-	test('answers every plural message in every form its rule declares', () => {
-		const wanted = formsOf(RULES[locale])
-		const short: string[] = []
-		for (const entries of Object.values(po.parse(catalogOf(locale)).translations)) {
-			for (const [msgid, entry] of Object.entries(entries)) {
-				if (entry.msgid_plural === undefined) {
-					continue
-				}
-				if (entry.msgstr.length !== wanted || entry.msgstr.some((form) => form === '')) {
-					short.push(msgid)
-				}
+test.each(LOCALES)('the %s catalogue answers every plural message in every form its rule declares', (locale) => {
+	const wanted = formsOf(RULES[locale])
+	const short: string[] = []
+	for (const entries of Object.values(po.parse(catalogOf(locale)).translations)) {
+		for (const [msgid, entry] of Object.entries(entries)) {
+			if (entry.msgid_plural === undefined) {
+				continue
+			}
+			if (entry.msgstr.length !== wanted || entry.msgstr.some((form) => form === '')) {
+				short.push(msgid)
 			}
 		}
+	}
 
-		expect(short).toEqual([])
-	})
+	expect(short).toEqual([])
 })
 
 test('reads the number of forms a rule declares', () => {
