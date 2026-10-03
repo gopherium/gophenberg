@@ -93,8 +93,8 @@ export default defineConfig({
 			include: [
 				'src/**',
 				'scripts/**/*.ts',
-				'../sdk/frontend/**/*.{ts,tsx}',
-				'../plugins/*/frontend/**/*.{ts,tsx}',
+				'**/sdk/frontend/**/*.{ts,tsx}',
+				'**/plugins/*/frontend/**/*.{ts,tsx}',
 			],
 			exclude: [
 				'src/main.tsx',
@@ -104,7 +104,7 @@ export default defineConfig({
 				'scripts/push-translations.ts',
 				'scripts/retire-translations.ts',
 				'scripts/mutate-changed.ts',
-				'../sdk/frontend/scripts/build-site-assets.ts',
+				'**/sdk/frontend/scripts/build-site-assets.ts',
 				'**/*.d.ts',
 				'**/test/**',
 				'**/node_modules/**',
