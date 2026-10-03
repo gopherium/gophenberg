@@ -5,6 +5,10 @@
 	bottom: 46px;
 }
 
+:root:has(.gophenberg-editor__outline) .godmin-toasts {
+	inset-inline-start: 280px;
+}
+
 .gophenberg-editor {
 	display: flex;
 	flex-direction: column;
