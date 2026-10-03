@@ -34,10 +34,22 @@ function placement(toast: Locator) {
 	})
 }
 
+const created: string[] = []
+
 test.beforeEach(async ({ page }) => {
 	await page.goto('/admin/content/post')
 	await page.getByRole('button', { name: 'Add New' }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
+	const id = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
+	if (id !== undefined) {
+		created.push(id)
+	}
+})
+
+test.afterEach(async ({ page }) => {
+	for (const id of created.splice(0)) {
+		await page.request.delete(`/api/content/${id}?force=true`)
+	}
 })
 
 test('floats a message raised in the editor clear of its footer, over the writing area', async ({ page }) => {
