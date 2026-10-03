@@ -33,6 +33,8 @@ updates:
     ignore:
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "jsdom"
+        versions: [">=30.1.0"]
   - package-ecosystem: npm
     directory: /docs
     schedule:
