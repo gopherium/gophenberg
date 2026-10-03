@@ -57,12 +57,12 @@ test('names the back link in the language the reader loaded', async () => {
 	expect(await screen.findByRole('link', { name: 'Atras' })).toBeInTheDocument()
 })
 
-test('names the dismiss control in the language the reader loaded', async () => {
+test('describes how to dismiss a toast in the language the reader loaded', async () => {
 	renderToast()
 
 	await userEvent.click(screen.getByRole('button', { name: 'raise' }))
 
 	expect(
-		await screen.findByRole('button', { name: 'Descartar' }),
-	).toBeInTheDocument()
+		await screen.findByRole('button', { name: 'Saved.' }),
+	).toHaveAccessibleDescription('Descartar')
 })
