@@ -102,6 +102,15 @@ test('announces a creation the server turned down', async () => {
 	expect(await screen.findByRole('alert')).toHaveTextContent('The user could not be created.')
 })
 
+test('marks the role a new user starts with as the chosen one', async () => {
+	renderAt('/users/new')
+
+	await userEvent.click(await screen.findByRole('combobox', { name: 'Role' }))
+
+	expect(await screen.findByRole('option', { name: 'Author' })).toHaveAttribute('aria-selected', 'true')
+	expect(screen.getByRole('option', { name: 'Administrator' })).toHaveAttribute('aria-selected', 'false')
+})
+
 test('reports why an account could not be created', () => {
 	expect(createFailureMessage(new EmailTakenError('taken'))).toBe(
 		'That email is already in use.',
