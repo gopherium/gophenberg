@@ -512,8 +512,8 @@ msgid "Every content type"
 msgstr "Tous les types de contenu"
 
 #, fuzzy
-msgid "Every item in the trash is removed for good. This cannot be undone."
-msgstr "Tous les éléments de la corbeille sont supprimés définitivement. Cette action est irréversible."
+msgid "Every item in the %(type)s trash is removed for good. This cannot be undone."
+msgstr "Tous les éléments de la corbeille des %(type)s sont supprimés définitivement. Cette action est irréversible."
 
 #, fuzzy
 msgid "Every item needs an author who exists. Pick one from the list and save again."
