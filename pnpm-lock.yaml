@@ -232,8 +232,8 @@ importers:
         specifier: ^11.1.5
         version: 11.1.6(astro@7.3.5(@types/node@26.6.3)(jiti@2.7.0)(yaml@2.9.0))(supports-color@10.2.2)
       '@wordpress/block-serialization-default-parser':
-        specifier: 5.55.0
-        version: 5.55.0
+        specifier: 5.56.0
+        version: 5.56.0
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.10
@@ -2885,6 +2885,10 @@ packages:
   '@wordpress/block-serialization-default-parser@5.55.0':
     resolution: {integrity: sha512-1VxsFa72StKmVKFnmxBYg9adcWUdTqIgbPubtelOgeYi0LXVRrJNXKG89JP3GXnE2Hk1iK3TbtZJj956E+ANRA==}
     engines: {node: '>=18.12.0', npm: '>=8.19.2'}
+
+  '@wordpress/block-serialization-default-parser@5.56.0':
+    resolution: {integrity: sha512-ZS2DpbXSFke+Hqld0l2oB8SxNj49AC6MidE0CKA0MYk5Xd/eBeDUNt/JqjpVJlWcdiO+7kVCe8VP7YPOkON64A==}
+    engines: {node: '>=18.12.0'}
 
   '@wordpress/blocks@16.0.0':
     resolution: {integrity: sha512-wDL8R5VuJK0vvavZbvSUjWagPB5Vt9bmNQo1G8OAoAjl/JUCICjU9BvZWM8XK/BXSS95qcb5l3H3UIca5onuwQ==}
@@ -8427,6 +8431,8 @@ snapshots:
       - vite
 
   '@wordpress/block-serialization-default-parser@5.55.0': {}
+
+  '@wordpress/block-serialization-default-parser@5.56.0': {}
 
   '@wordpress/blocks@16.0.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
