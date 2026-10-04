@@ -243,14 +243,15 @@ msgstr "Activar"
 msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
 msgstr "Cambian todas las direcciones de este tipo. Los enlaces guardados en otro sitio hacia las direcciones antiguas dejan de funcionar."
 
+#, fuzzy
+msgid "Every item in the %(type)s trash is removed for good. This cannot be undone."
+msgstr "Todos los elementos de la papelera de %(type)s se borran para siempre. Esto no se puede deshacer."
+
 msgid "Every item needs an author who exists. Pick one from the list and save again."
 msgstr "Cada elemento necesita un autor que exista. Elige uno de la lista y guarda de nuevo."
 
 msgid "Every kind of content this site holds."
 msgstr "Todos los tipos de contenido que hay en este sitio."
-
-msgid "Every post in the trash is removed for good. This cannot be undone."
-msgstr "Todas las entradas de la papelera se borran para siempre. Esto no se puede deshacer."
 
 msgid "Excerpt"
 msgstr "Extracto"
