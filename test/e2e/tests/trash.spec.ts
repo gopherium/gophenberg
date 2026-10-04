@@ -38,5 +38,7 @@ test('empties only the trash of the type on screen', async ({ page }) => {
 
 	await expect(page.getByRole('alertdialog')).toBeHidden()
 	expect((await page.request.get(`/api/content/${item}`)).status()).toBe(404)
-	expect((await page.request.get(`/api/content/${post}`)).status()).toBe(200)
+	const left = await page.request.get(`/api/content/${post}`)
+	expect(left.status()).toBe(200)
+	expect(((await left.json()) as { status: string }).status).toBe('trash')
 })
