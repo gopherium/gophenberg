@@ -600,7 +600,7 @@ msgstr ""
 msgid "Every field group needs a title. Give it a name and save again."
 msgstr ""
 
-msgid "Every item in the trash is removed for good. This cannot be undone."
+msgid "Every item in the %(type)s trash is removed for good. This cannot be undone."
 msgstr ""
 
 msgid "Every item needs an author who exists. Pick one from the list and save again."

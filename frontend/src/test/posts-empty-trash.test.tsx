@@ -89,14 +89,14 @@ test('asks to confirm before emptying the trash', async () => {
 	expect(deleted).toEqual([])
 })
 
-test('warns that every item in the trash goes for good, whatever its type', async () => {
+test('warns that every item in the trash of the type on screen goes for good', async () => {
 	renderAt('/content/post')
 	await openTrashView()
 
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 
 	expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-		'Every item in the trash is removed for good. This cannot be undone.',
+		'Every item in the posts trash is removed for good. This cannot be undone.',
 	)
 })
 
@@ -176,6 +176,7 @@ test('empties only the trash of the type on screen', async () => {
 	await userEvent.click(await screen.findByRole('button', { name: 'Trash (1)' }))
 	await screen.findByText('Old Page')
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
+	expect(await screen.findByRole('alertdialog')).toHaveTextContent('Every item in the pages trash is removed for good.')
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Delete All' }))
 
