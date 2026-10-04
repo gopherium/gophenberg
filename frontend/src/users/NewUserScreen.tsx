@@ -49,6 +49,7 @@ export function NewUserScreen() {
 		},
 	})
 	const incomplete = email.trim() === '' || name.trim() === '' || password === ''
+	const roles = roleOptions()
 	return (
 		<Page title={__('New user', 'gophenberg')}>
 			<form
@@ -80,8 +81,8 @@ export function NewUserScreen() {
 					/>
 					<SelectControl
 						label={_x('Role', 'account', 'gophenberg')}
-						items={roleOptions()}
-						value={roleOptions().find((option) => option.value === role)}
+						items={roles}
+						value={roles.find((option) => option.value === role)}
 						onValueChange={(item) => item?.value != null && setRole(item.value)}
 					/>
 					<Button
