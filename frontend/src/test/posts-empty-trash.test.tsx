@@ -89,6 +89,17 @@ test('asks to confirm before emptying the trash', async () => {
 	expect(deleted).toEqual([])
 })
 
+test('warns that every item in the trash goes for good, whatever its type', async () => {
+	renderAt('/content/post')
+	await openTrashView()
+
+	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
+
+	expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+		'Every item in the trash is removed for good. This cannot be undone.',
+	)
+})
+
 test('deletes every trashed post once confirmed', async () => {
 	renderAt('/content/post')
 	await openTrashView()

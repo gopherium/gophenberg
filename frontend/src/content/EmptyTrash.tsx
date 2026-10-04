@@ -25,7 +25,7 @@ export function EmptyTrash({ type, onEmptied }: { type: string, onEmptied: (remo
 			<AlertDialog.Popup
 				intent="irreversible"
 				title={__('Empty Trash', 'gophenberg')}
-				description={__('Every post in the trash is removed for good. This cannot be undone.', 'gophenberg')}
+				description={__('Every item in the trash is removed for good. This cannot be undone.', 'gophenberg')}
 				confirmButtonText={__('Delete All', 'gophenberg')}
 			/>
 		</AlertDialog.Root>
