@@ -94,7 +94,7 @@ export function PostsScreen() {
 	return (
 		<Page
 			title={listed.pluralLabel}
-			actions={status === 'trash' ? <EmptyTrash onEmptied={refresh} /> : undefined}
+			actions={status === 'trash' ? <EmptyTrash type={listed.key} onEmptied={refresh} /> : undefined}
 		>
 			<StatusRow
 				counts={counts.data}

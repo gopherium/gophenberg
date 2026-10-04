@@ -6,15 +6,15 @@ import { __ } from '@wordpress/i18n'
 import { emptyTrash } from './api'
 
 /**
- * Renders the control removing every trashed post for good.
- * @param props - The handler reloading the listing once the trash is empty, given the posts removed.
+ * Renders the control removing every trashed post of a type for good.
+ * @param props - The type whose trash to empty, and the handler reloading the listing, given the posts removed.
  * @returns The empty trash control.
  */
-export function EmptyTrash({ onEmptied }: { onEmptied: (removed: string[]) => Promise<unknown> }) {
+export function EmptyTrash({ type, onEmptied }: { type: string, onEmptied: (removed: string[]) => Promise<unknown> }) {
 	return (
 		<AlertDialog.Root
 			onConfirm={async () => {
-				const emptied = await emptyTrash()
+				const emptied = await emptyTrash(type)
 				await onEmptied(emptied.removed)
 				if (!emptied.finished) {
 					return { close: false, error: __('Could not empty the trash.', 'gophenberg') }
