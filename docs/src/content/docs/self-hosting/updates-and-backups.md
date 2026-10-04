@@ -28,7 +28,13 @@ same migration twice, the second waits for the first and then finds
 nothing left to do. While Gophenberg is below 1.0, read the release
 notes first, since a release can change behavior.
 
-Updating to %VERSION% from the release before this one runs one
+Updating to %VERSION% from an earlier %FEATURE_VERSION% release runs no
+migration, changes no setting and needs no theme rebuild. It fixes
+**Empty Trash**, which on any list but Posts deleted the trashed posts
+for good and left the trash on screen as it was. Rolling back within
+%FEATURE_VERSION% deletes nothing, and brings that defect back.
+
+Updating to %FEATURE_VERSION% from the release before it runs one
 migration when the server starts, or when you run `migrate`. It adds
 the `gonsole` schema, with one table that keeps a record of each
 account change applied with `-as`. It changes no row you wrote. The
