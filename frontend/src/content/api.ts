@@ -392,13 +392,14 @@ export interface Emptied {
 }
 
 /**
- * Removes every trashed post for good, as far as the server lets it.
+ * Removes every trashed post of a type for good, as far as the server lets it.
+ * @param type - The content type whose trash to empty.
  * @returns The ids of the posts removed and whether the trash is empty now.
  */
-export async function emptyTrash(): Promise<Emptied> {
+export async function emptyTrash(type: string): Promise<Emptied> {
 	const removed: string[] = []
 	for (let round = 0; round < MAX_EMPTY_ROUNDS; round += 1) {
-		const page = await listPosts({ status: 'trash' }).catch(() => null)
+		const page = await listPosts({ type, status: 'trash' }).catch(() => null)
 		if (page === null) {
 			return { removed, finished: false }
 		}

@@ -118,6 +118,60 @@ test('empties a trash holding more than one page', async () => {
 	expect(deleted).toHaveLength(25)
 })
 
+test('empties only the trash of the type on screen', async () => {
+	const postType = {
+		key: 'post',
+		singular_label: 'Post',
+		plural_label: 'Posts',
+		route_word: '',
+		hierarchical: false,
+		revisions: true,
+		revision_cap: 100,
+		page_kind: 'single',
+		default: true,
+		active: true,
+		created_at: '2026-08-01T10:00:00Z',
+		updated_at: '2026-08-01T10:00:00Z',
+	}
+	const pageType = {
+		...postType,
+		key: 'page',
+		singular_label: 'Page',
+		plural_label: 'Pages',
+		route_word: 'pages',
+		default: false,
+	}
+	const trashedPage = { ...TRASHED, id: '019fb000-0000-7000-8000-000000000005', type: 'page', title: 'Old Page' }
+	const trashes: Record<string, { id: string, title: string }[]> = { post: [TRASHED], page: [trashedPage] }
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [postType, pageType] })),
+		http.get('/api/content', ({ request }) => {
+			const query = new URL(request.url).searchParams
+			const matching = query.get('status') === 'trash' ? trashes[query.get('type') ?? 'post'] : []
+			return HttpResponse.json({ items: matching, total: matching.length })
+		}),
+		http.get('/api/content/counts', ({ request }) => {
+			const held = trashes[new URL(request.url).searchParams.get('type') ?? 'post']
+			return HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 0, trash: held.length })
+		}),
+		http.delete('/api/content/:id', ({ params }) => {
+			for (const key of Object.keys(trashes)) {
+				trashes[key] = trashes[key].filter((item) => item.id !== String(params.id))
+			}
+			return new HttpResponse(null, { status: 204 })
+		}),
+	)
+	renderAt('/content/page')
+	await userEvent.click(await screen.findByRole('button', { name: 'Trash (1)' }))
+	await screen.findByText('Old Page')
+	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Delete All' }))
+
+	await waitFor(() => expect(trashes.page).toEqual([]))
+	expect(trashes.post).toEqual([TRASHED])
+})
+
 test('keeps the trash when the confirm is dismissed', async () => {
 	renderAt('/content/post')
 	await openTrashView()

@@ -148,9 +148,33 @@ test('stops at the reading ceiling when a listing never reaches its total', asyn
 test('stops emptying the trash with nothing removed when the listing is refused', async () => {
 	server.use(http.get('/api/content', () => HttpResponse.json({}, { status: 500 })))
 
-	const emptied = await emptyTrash()
+	const emptied = await emptyTrash('post')
 
 	expect(emptied).toEqual({ removed: [], finished: false })
+})
+
+test('asks for the trash of the type it empties on every round', async () => {
+	const queries: URLSearchParams[] = []
+	let held = 2
+	server.use(
+		http.get('/api/content', ({ request }) => {
+			queries.push(new URL(request.url).searchParams)
+			const items = held > 0 ? [{ ...ROW, id: `${ROW.id.slice(0, -1)}${held}`, status: 'trash' }] : []
+			return HttpResponse.json({ items, total: items.length })
+		}),
+		http.delete('/api/content/:id', () => {
+			held -= 1
+			return new HttpResponse(null, { status: 204 })
+		}),
+	)
+
+	await emptyTrash('page')
+
+	expect(queries.map((query) => [query.get('type'), query.get('status')])).toEqual([
+		['page', 'trash'],
+		['page', 'trash'],
+		['page', 'trash'],
+	])
 })
 
 test('stops emptying a trash that never runs out and reports what it removed', async () => {
@@ -163,7 +187,7 @@ test('stops emptying a trash that never runs out and reports what it removed', a
 		}),
 	)
 
-	const emptied = await emptyTrash()
+	const emptied = await emptyTrash('post')
 
 	expect(emptied.finished).toBe(false)
 	expect(emptied.removed).toEqual(deleted)
