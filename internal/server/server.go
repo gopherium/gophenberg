@@ -176,6 +176,7 @@ func (s *server) mountOpen(r chi.Router, cfg Config) {
 	r.Get("/api/content/{id}/revisions/{revisionID}", s.handleRevisionGet())
 	r.Delete("/api/content/{id}/revisions/{revisionID}", s.handleRevisionDelete())
 	r.Get("/api/version", s.handleVersion())
+	r.Get("/api/authors", s.handleAuthorList())
 	if cfg.Readers != nil {
 		r.Patch("/api/locale", s.handleLocalePatch())
 	}

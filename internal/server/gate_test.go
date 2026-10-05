@@ -52,6 +52,7 @@ var everyoneRoutes = []route{
 	{http.MethodGet, "/api/content/{id}/revisions/{revisionID}"},
 	{http.MethodDelete, "/api/content/{id}/revisions/{revisionID}"},
 	{http.MethodGet, "/api/version"},
+	{http.MethodGet, "/api/authors"},
 	{http.MethodPatch, "/api/locale"},
 	{http.MethodGet, "/api/settings"},
 	{http.MethodGet, "/api/media"},
