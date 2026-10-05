@@ -13,6 +13,7 @@ const NESTING_TYPE = {
 	key: 'page',
 	singular_label: 'Page',
 	plural_label: 'Pages',
+	description: '',
 	route_word: 'pages',
 	hierarchical: true,
 	revisions: true,

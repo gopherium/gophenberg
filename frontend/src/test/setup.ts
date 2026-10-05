@@ -19,6 +19,7 @@ const builtInType = {
 	key: 'post',
 	singular_label: 'Post',
 	plural_label: 'Posts',
+	description: 'Manage the posts on this site.',
 	route_word: '',
 	hierarchical: false,
 	revisions: true,

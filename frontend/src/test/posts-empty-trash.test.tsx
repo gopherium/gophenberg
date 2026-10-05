@@ -134,6 +134,7 @@ test('empties only the trash of the type on screen', async () => {
 		key: 'post',
 		singular_label: 'Post',
 		plural_label: 'Posts',
+		description: '',
 		route_word: '',
 		hierarchical: false,
 		revisions: true,

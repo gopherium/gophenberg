@@ -47,6 +47,7 @@ test('names a registered type by the label the registry carries', async () => {
 						key: 'guide',
 						singular_label: 'Guide',
 						plural_label: 'Guides',
+						description: '',
 						route_word: 'guides',
 						hierarchical: false,
 						revisions: true,
