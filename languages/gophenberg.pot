@@ -195,6 +195,9 @@ msgstr ""
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
 msgstr ""
 
+msgid "A descriptive summary of the content type."
+msgstr ""
+
 msgid "A field group key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the group in the file so its key comes out in that shape."
 msgstr ""
 
@@ -541,6 +544,9 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "Describe"
+msgstr ""
+
+msgid "Describe %(type)s"
 msgstr ""
 
 msgid "Description"

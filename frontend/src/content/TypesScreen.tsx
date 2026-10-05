@@ -182,9 +182,14 @@ function TypeActions(props: {
 	const shapeable = originOf(registered) === ''
 	const demotable = shapeable && !registered.isDefault
 	return (
-		<Stack direction="row" gap="xs">
-			{shapeable && <ChangeAddress registered={registered} onMove={(word) => props.onEdit({ routeWord: word })} />}
-			{shapeable && <NestingControl registered={registered} onEdit={props.onEdit} />}
+		<Stack direction="row" gap="xs" wrap="wrap" className="gophenberg-types__actions">
+			{shapeable && (
+				<>
+					<DescribeType registered={registered} onDescribe={(text) => props.onEdit({ description: text })} />
+					<ChangeAddress registered={registered} onMove={(word) => props.onEdit({ routeWord: word })} />
+					<NestingControl registered={registered} onEdit={props.onEdit} />
+				</>
+			)}
 			{demotable && (
 				<HandOverRoot
 					registered={registered}
@@ -332,6 +337,61 @@ function HandOverRoot(props: {
 }
 
 /**
+ * Renders the dialog changing what a type's description says.
+ * @param props - The type and what to do with the new description.
+ * @returns The control and its dialog.
+ */
+function DescribeType(props: { registered: ContentType; onDescribe: (text: string) => void }) {
+	const [open, setOpen] = useState(false)
+	const [text, setText] = useState(props.registered.description)
+	return (
+		<>
+			<Button
+				variant="outline"
+				onClick={() => {
+					setText(props.registered.description)
+					setOpen(true)
+				}}
+			>
+				{__('Describe', 'gophenberg')}
+			</Button>
+			<Dialog.Root open={open} onOpenChange={setOpen}>
+				<Dialog.Popup>
+					<Dialog.Header>
+						<Dialog.Title>
+							{sprintf(__('Describe %(type)s', 'gophenberg'), { type: props.registered.pluralLabel })}
+						</Dialog.Title>
+						<Dialog.CloseIcon />
+					</Dialog.Header>
+					<Dialog.Content>
+						<InputControl
+							label={__('Description', 'gophenberg')}
+							description={__('A descriptive summary of the content type.', 'gophenberg')}
+							autoComplete="off"
+							value={text}
+							onValueChange={setText}
+						/>
+					</Dialog.Content>
+					<Dialog.Footer>
+						<Button variant="outline" onClick={() => setOpen(false)}>
+							{__('Cancel', 'gophenberg')}
+						</Button>
+						<Button
+							onClick={() => {
+								setOpen(false)
+								props.onDescribe(text)
+							}}
+						>
+							{__('Save', 'gophenberg')}
+						</Button>
+					</Dialog.Footer>
+				</Dialog.Popup>
+			</Dialog.Root>
+		</>
+	)
+}
+
+/**
  * Renders the confirmation a route word change passes through.
  * @param props - The type and what to do with the new word.
  * @returns The control and its dialog.
@@ -395,18 +455,21 @@ function AddType(props: Reporter) {
 	const [open, setOpen] = useState(false)
 	const [singular, setSingular] = useState('')
 	const [plural, setPlural] = useState('')
+	const [description, setDescription] = useState('')
 	const add = useMutation({
 		mutationFn: () =>
 			createType({
 				key: slugify(singular),
 				singularLabel: singular,
 				pluralLabel: plural,
+				description,
 				routeWord: slugify(plural),
 			}),
 		onSuccess: () => {
 			setOpen(false)
 			setSingular('')
 			setPlural('')
+			setDescription('')
 			props.onDone(sprintf(__('%(type)s registered.', 'gophenberg'), { type: plural }))
 		},
 		onError: (cause) => {
@@ -433,16 +496,21 @@ function AddType(props: Reporter) {
 							/>
 							<InputControl
 								label={__('Plural name', 'gophenberg')}
+								description={sprintf(
+									__('This type will answer under /%(word)s.', 'gophenberg'),
+									{ word: slugify(plural) || __('address', 'gophenberg') },
+								)}
 								autoComplete="off"
 								value={plural}
 								onValueChange={setPlural}
 							/>
-							<Text variant="body-sm">
-								{sprintf(
-									__('This type will answer under /%(word)s.', 'gophenberg'),
-									{ word: slugify(plural) || __('address', 'gophenberg') },
-								)}
-							</Text>
+							<InputControl
+								label={__('Description', 'gophenberg')}
+								description={__('A descriptive summary of the content type.', 'gophenberg')}
+								autoComplete="off"
+								value={description}
+								onValueChange={setDescription}
+							/>
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>

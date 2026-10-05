@@ -5,6 +5,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test } from 'vitest'
 
+import '../index.css'
 import { errorMessage } from '../content/TypesScreen'
 import { renderAt } from './render'
 
@@ -12,6 +13,7 @@ const POST_TYPE = {
 	key: 'post',
 	singular_label: 'Post',
 	plural_label: 'Posts',
+	description: 'Manage the posts on this site.',
 	route_word: '',
 	hierarchical: false,
 	revisions: true,
@@ -27,6 +29,7 @@ const PAGE_TYPE = {
 	key: 'page',
 	singular_label: 'Page',
 	plural_label: 'Pages',
+	description: 'Manage the pages on this site.',
 	route_word: 'pages',
 	hierarchical: true,
 	default: false,
@@ -69,6 +72,7 @@ test('registers a type from the labels it was given', async () => {
 	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
 	await userEvent.type(screen.getByLabelText('Singular name'), 'Guide')
 	await userEvent.type(screen.getByLabelText('Plural name'), 'Guides')
+	await userEvent.type(screen.getByLabelText('Description'), 'Manage the guides on this site.')
 	await userEvent.click(screen.getByRole('button', { name: 'Register' }))
 
 	await waitFor(() =>
@@ -76,9 +80,193 @@ test('registers a type from the labels it was given', async () => {
 			key: 'guide',
 			singular_label: 'Guide',
 			plural_label: 'Guides',
+			description: 'Manage the guides on this site.',
 			route_word: 'guides',
 		}),
 	)
+})
+
+test('registers a type with no description', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.post('/api/types', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(PAGE_TYPE, { status: 201 })
+		}),
+	)
+	renderAt('/content-types')
+	await screen.findByRole('region', { name: 'Content Types' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
+	await userEvent.type(screen.getByLabelText('Singular name'), 'Guide')
+	await userEvent.type(screen.getByLabelText('Plural name'), 'Guides')
+	await userEvent.click(screen.getByRole('button', { name: 'Register' }))
+
+	await waitFor(() =>
+		expect(sent[0]).toEqual({
+			key: 'guide',
+			singular_label: 'Guide',
+			plural_label: 'Guides',
+			description: '',
+			route_word: 'guides',
+		}),
+	)
+})
+
+test('empties the description field once a type is registered', async () => {
+	server.use(http.post('/api/types', () => HttpResponse.json(PAGE_TYPE, { status: 201 })))
+	renderAt('/content-types')
+	await screen.findByRole('region', { name: 'Content Types' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
+	await userEvent.type(screen.getByLabelText('Singular name'), 'Guide')
+	await userEvent.type(screen.getByLabelText('Plural name'), 'Guides')
+	await userEvent.type(screen.getByLabelText('Description'), 'Manage the guides on this site.')
+	await userEvent.click(screen.getByRole('button', { name: 'Register' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
+
+	expect(await screen.findByLabelText('Description')).toHaveValue('')
+})
+
+test('ties the address hint to the plural name of a new type', async () => {
+	renderAt('/content-types')
+	await screen.findByRole('region', { name: 'Content Types' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
+
+	expect(await screen.findByLabelText('Plural name')).toHaveAccessibleDescription(
+		'This type will answer under /address.',
+	)
+
+	await userEvent.type(screen.getByLabelText('Plural name'), 'Guides')
+
+	expect(screen.getByLabelText('Plural name')).toHaveAccessibleDescription('This type will answer under /guides.')
+})
+
+test('explains the description field of a new type', async () => {
+	renderAt('/content-types')
+	await screen.findByRole('region', { name: 'Content Types' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
+
+	expect(await screen.findByLabelText('Description')).toHaveAccessibleDescription(
+		'A descriptive summary of the content type.',
+	)
+})
+
+test('names the type in the title of the Describe dialog', async () => {
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const posts = within(table).getByRole('row', { name: /Posts/ })
+	await userEvent.click(within(posts).getByRole('button', { name: 'Describe' }))
+
+	expect(await screen.findByRole('dialog', { name: 'Describe Posts' })).toBeInTheDocument()
+})
+
+test('explains the description field of the Describe dialog', async () => {
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+
+	expect(within(dialog).getByLabelText('Description')).toHaveAccessibleDescription(
+		'A descriptive summary of the content type.',
+	)
+})
+
+test('describes a type', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...PAGE_TYPE, description: 'Every page this site keeps.' })
+		}),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	const field = within(dialog).getByLabelText('Description')
+
+	expect(field).toHaveValue('Manage the pages on this site.')
+
+	await userEvent.clear(field)
+	await userEvent.type(field, 'Every page this site keeps.')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+	await waitFor(() => expect(sent[0]).toEqual({ description: 'Every page this site keeps.' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+test('changes no description when the dialog is cancelled', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(PAGE_TYPE)
+		}),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.type(within(dialog).getByLabelText('Description'), ' Kept by the team.')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Describe Pages' })
+
+	expect(within(reopened).getByLabelText('Description')).toHaveValue('Manage the pages on this site.')
+	expect(sent).toHaveLength(0)
+})
+
+test('wraps the actions of a type onto more lines and keeps every label whole', async () => {
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	expect(within(table).getByRole('columnheader', { name: 'Actions' })).not.toHaveClass('godmin-table__actions')
+	for (const name of [/Posts/, /Pages/]) {
+		const actions = within(within(table).getByRole('row', { name })).getByRole('button', { name: 'Describe' })
+			.parentElement as HTMLElement
+		expect(actions.closest('td')).not.toHaveClass('godmin-table__actions')
+		expect(actions).toHaveStyle({ flexWrap: 'wrap' })
+		expect(actions).toHaveClass('gophenberg-types__actions')
+		for (const button of within(actions).getAllByRole('button')) {
+			expect(getComputedStyle(button).whiteSpace).toBe('nowrap')
+		}
+	}
+})
+
+test('changes no description when the dialog is dismissed', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(PAGE_TYPE)
+		}),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.type(within(dialog).getByLabelText('Description'), ' Kept by the team.')
+	await userEvent.keyboard('{Escape}')
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Describe Pages' })
+
+	expect(within(reopened).getByLabelText('Description')).toHaveValue('Manage the pages on this site.')
+	expect(sent).toHaveLength(0)
 })
 
 test('carries the reason the registry refused a type', async () => {
@@ -176,7 +364,7 @@ test('names the plugin that declared a type and keeps its shape out of reach', a
 	const site = within(table).getByRole('row', { name: /Recipes/ })
 
 	expect(within(declared).getByText('From events')).toBeInTheDocument()
-	for (const name of ['Change address', 'Make default', 'Delete']) {
+	for (const name of ['Describe', 'Change address', 'Make default', 'Delete']) {
 		expect(within(declared).queryByRole('button', { name })).not.toBeInTheDocument()
 		expect(within(site).getByRole('button', { name })).toBeInTheDocument()
 	}

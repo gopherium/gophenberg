@@ -39,6 +39,7 @@ const typeSchema = z.object({
 	key: z.string(),
 	singular_label: z.string(),
 	plural_label: z.string(),
+	description: z.string(),
 	route_word: z.string(),
 	hierarchical: z.boolean(),
 	revisions: z.boolean(),
@@ -77,6 +78,7 @@ export interface ContentType {
 	key: string
 	singularLabel: string
 	pluralLabel: string
+	description: string
 	routeWord: string
 	hierarchical: boolean
 	revisions: boolean
@@ -93,6 +95,7 @@ export interface NewType {
 	key: string
 	singularLabel: string
 	pluralLabel: string
+	description: string
 	routeWord: string
 }
 
@@ -100,6 +103,7 @@ export interface NewType {
 export interface TypeEdit {
 	singularLabel?: string
 	pluralLabel?: string
+	description?: string
 	routeWord?: string
 	hierarchical?: boolean
 	isDefault?: boolean
@@ -116,6 +120,7 @@ function toType(row: z.infer<typeof typeSchema>): ContentType {
 		key: row.key,
 		singularLabel: row.singular_label,
 		pluralLabel: row.plural_label,
+		description: row.description,
 		routeWord: row.route_word,
 		hierarchical: row.hierarchical,
 		revisions: row.revisions,
@@ -171,7 +176,7 @@ export async function listTypes(): Promise<ContentType[]> {
 
 /**
  * Registers a content type.
- * @param asked - The key, labels and route word to register.
+ * @param asked - The key, labels, description and route word to register.
  * @returns The stored type.
  */
 export async function createType(asked: NewType): Promise<ContentType> {
@@ -182,6 +187,7 @@ export async function createType(asked: NewType): Promise<ContentType> {
 			key: asked.key,
 			singular_label: asked.singularLabel,
 			plural_label: asked.pluralLabel,
+			description: asked.description,
 			route_word: asked.routeWord,
 		}),
 	})
@@ -204,6 +210,9 @@ export async function updateType(key: string, edit: TypeEdit): Promise<ContentTy
 	}
 	if (edit.pluralLabel !== undefined) {
 		body.plural_label = edit.pluralLabel
+	}
+	if (edit.description !== undefined) {
+		body.description = edit.description
 	}
 	if (edit.routeWord !== undefined) {
 		body.route_word = edit.routeWord
