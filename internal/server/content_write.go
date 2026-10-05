@@ -114,6 +114,8 @@ func (s *server) handleContentCreate() http.HandlerFunc {
 	type request struct {
 		Type     string         `json:"type"`
 		Title    string         `json:"title"`
+		Content  string         `json:"content"`
+		Excerpt  string         `json:"excerpt"`
 		ParentID *uuid.UUID     `json:"parent_id"`
 		Fields   content.Values `json:"fields"`
 	}
@@ -149,7 +151,7 @@ func (s *server) handleContentCreate() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		c.Fields = req.Fields
+		c.Fields, c.Content, c.Excerpt = req.Fields, req.Content, req.Excerpt
 		created, err := s.content.Create(r.Context(), c)
 		if err != nil {
 			respondDomainError(w, err)
