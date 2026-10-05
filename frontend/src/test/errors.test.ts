@@ -61,6 +61,12 @@ test('writes a number an error carries in the site format', () => {
 	expect(held).toContain('between 1 and 1.000 items, so 5000 is not')
 })
 
+test('writes a limit an error carries with every decimal it holds', () => {
+	const held = errorText({ error: '', code: 'field_min', meta: { field: 'Rate', limit: 0.0001 } })
+
+	expect(held).toContain('0,0001')
+})
+
 test('carries a message for every code the server can answer with', () => {
 	const script = join(repositoryRoot(), 'frontend', 'scripts', 'emittedCodes.sh')
 	const emitted = execFileSync('sh', [script], { cwd: repositoryRoot(), encoding: 'utf8' })

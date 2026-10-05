@@ -5,7 +5,8 @@ import type { Field } from '@gophenberg/frontend-sdk/dataviews'
 import { __, _x } from '@wordpress/i18n'
 import { Link } from '@tanstack/react-router'
 
-import { formatDate, formatNumber } from '@gopherium/gottext'
+import { formatDate } from '@gopherium/gottext'
+import { everyDecimal } from '../i18n/numbers'
 import type { Post } from './api'
 import { pairsOf } from './types'
 import type { ContentField, ContentType } from './types'
@@ -98,9 +99,6 @@ const builtInFields: Field<Post>[] = [
 	{ id: 'date', label: _x('Date', 'column', 'gophenberg'), render: DateCell, enableSorting: true },
 ]
 
-/** How a listed number is written, to every decimal it holds. */
-const NUMBER_STYLE: Intl.NumberFormatOptions = { maximumFractionDigits: 20 }
-
 /**
  * Returns the value a listed field holds on a post, as the column shows it.
  * @param declared - The field the column stands for.
@@ -139,7 +137,7 @@ function writtenDay(held: unknown): string {
  * @returns The number, or the value.
  */
 function writtenNumber(held: unknown): string {
-	return typeof held === 'number' ? formatNumber(held, NUMBER_STYLE) : String(held)
+	return typeof held === 'number' ? everyDecimal(held) : String(held)
 }
 
 /**

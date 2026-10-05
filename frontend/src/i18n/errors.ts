@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
 
 import { errorTemplates } from './errorTemplates'
+import { everyDecimal } from './numbers'
 
 /** What the server answers when it turns a request away. */
 export interface Refused {
@@ -45,7 +45,7 @@ function filled(template: string, meta: Record<string, unknown>): boolean {
  */
 function writtenMeta(meta: Record<string, unknown>): Record<string, unknown> {
 	return Object.fromEntries(
-		Object.entries(meta).map(([name, value]) => [name, typeof value === 'number' ? formatNumber(value) : value]),
+		Object.entries(meta).map(([name, value]) => [name, typeof value === 'number' ? everyDecimal(value) : value]),
 	)
 }
 

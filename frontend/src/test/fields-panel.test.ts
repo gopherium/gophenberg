@@ -321,6 +321,19 @@ test('writes the bounds a number breaks in the site format', () => {
 	})
 })
 
+test('writes a bound with every decimal it holds', () => {
+	const bounded = [carrying('number', { min: 0.0001 })]
+
+	expect(fieldValidity(bounded, { 'a-number': 0.00001 })).toEqual({
+		'a-number': {
+			custom: {
+				type: 'invalid',
+				message: 'number goes no lower than 0,0001. Raise the value and save again.',
+			},
+		},
+	})
+})
+
 test('holds no complaint for what the bounds allow', () => {
 	const bounded = [carrying('number', { min: 1, max: 10 })]
 
