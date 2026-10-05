@@ -669,7 +669,7 @@ func TestContentAPIListsTheRegistryDefaultRatherThanTheBuiltInType(t *testing.T)
 	moved := postType()
 	moved.Default = false
 	guides := postType()
-	guides.Key, guides.PluralLabel, guides.Default = "guide", "Guides", true
+	guides.Key, guides.PluralLabel, guides.Default, guides.Description = "guide", "Guides", true, ""
 	types.types = []content.Type{moved, guides}
 	guide := publishedFixture(t, "a-guide", blockMarkup, time.Now().UTC())
 	guide.Type = "guide"

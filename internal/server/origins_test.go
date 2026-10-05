@@ -38,6 +38,32 @@ func TestGroupPatchRefusesAGroupAPluginDeclaredNamingThePlugin(t *testing.T) {
 	}
 }
 
+func TestTypePatchRefusesToDescribeATypeAPluginDeclared(t *testing.T) {
+	t.Parallel()
+
+	handler, _, types, _ := typedPostServer(t)
+	types.register(content.Type{
+		Key: "event", SingularLabel: "Event", PluralLabel: "Events", RouteWord: "events",
+		PageKind: content.PageKindSingle, Active: true, Origin: "events",
+	})
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/event", `{"description":"Gatherings near you."}`)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusUnprocessableEntity, recorder.Body.String())
+	}
+	var answered struct {
+		Code string         `json:"code"`
+		Meta map[string]any `json:"meta"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answered); err != nil {
+		t.Fatalf("decoding the answer: %v", err)
+	}
+	if answered.Code != "definition_read_only" || answered.Meta["origin"] != "events" {
+		t.Errorf("answer = %+v, want definition_read_only naming events", answered)
+	}
+}
+
 func TestGroupListCarriesThePluginThatDeclaredAGroup(t *testing.T) {
 	t.Parallel()
 

@@ -14,12 +14,13 @@ import (
 
 // listedType is one content type as the admin registry reports it.
 type listedType struct {
-	Key           string `json:"key"`
-	SingularLabel string `json:"singular_label"`
-	PluralLabel   string `json:"plural_label"`
-	RouteWord     string `json:"route_word"`
-	Default       bool   `json:"default"`
-	Active        bool   `json:"active"`
+	Key           string  `json:"key"`
+	SingularLabel string  `json:"singular_label"`
+	PluralLabel   string  `json:"plural_label"`
+	Description   *string `json:"description"`
+	RouteWord     string  `json:"route_word"`
+	Default       bool    `json:"default"`
+	Active        bool    `json:"active"`
 }
 
 // listedContent is one content item as the admin listing reports it.
@@ -123,6 +124,24 @@ func theAdministratorCreatesTheType(ctx context.Context, key, singular, plural, 
 		`{"key":%q,"singular_label":%q,"plural_label":%q,"route_word":%q}`, key, singular, plural, routeWord,
 	)
 	return w.postJSON(typesPath, body)
+}
+
+// theAdministratorCreatesTheDescribedType asks the registry to hold a new kind of content with a description.
+func theAdministratorCreatesTheDescribedType(
+	ctx context.Context, key, singular, plural, routeWord, description string,
+) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(map[string]string{
+		"key": key, "singular_label": singular, "plural_label": plural,
+		"route_word": routeWord, "description": description,
+	})
+	if err != nil {
+		return fmt.Errorf("building the type: %w", err)
+	}
+	return w.postJSON(typesPath, string(body))
 }
 
 // theTypeExists registers a kind of content the scenario builds on.
@@ -263,6 +282,41 @@ func theTypeAnswersUnder(ctx context.Context, key, routeWord string) error {
 	return nil
 }
 
+// theAdministratorDescribesTheType asks the registry to carry a new description for a type.
+func theAdministratorDescribesTheType(ctx context.Context, key, description string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(map[string]string{"description": description})
+	if err != nil {
+		return fmt.Errorf("building the description: %w", err)
+	}
+	if err := w.patchJSON(typesPath+"/"+key, string(body)); err != nil {
+		return err
+	}
+	return w.expect(http.StatusOK)
+}
+
+// theTypeCarriesTheDescription asserts the registry answers with the given description.
+func theTypeCarriesTheDescription(ctx context.Context, key, description string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	found, err := typeNamed(w, key)
+	if err != nil {
+		return err
+	}
+	if found.Description == nil {
+		return fmt.Errorf("the type %q serves no description, want %q", key, description)
+	}
+	if *found.Description != description {
+		return fmt.Errorf("the type %q carries the description %q, want %q", key, *found.Description, description)
+	}
+	return nil
+}
+
 // theAdministratorDeactivatesTheType asks the registry to stop serving a type.
 func theAdministratorDeactivatesTheType(ctx context.Context, key string) error {
 	w, err := worldOf(ctx)
@@ -339,6 +393,12 @@ func initializeContentTypes(sc *godog.ScenarioContext) {
 		`^the administrator creates the type "([^"]*)" labeled "([^"]*)" and "([^"]*)" under "([^"]*)"$`,
 		theAdministratorCreatesTheType,
 	)
+	sc.When(
+		`^the administrator creates the type "([^"]*)" labeled "([^"]*)" and "([^"]*)" under "([^"]*)"`+
+			` described as "([^"]*)"$`,
+		theAdministratorCreatesTheDescribedType,
+	)
+	sc.When(`^the administrator describes "([^"]*)" as "([^"]*)"$`, theAdministratorDescribesTheType)
 	sc.When(`^the administrator sends "([^"]*)" to the root$`, theAdministratorSendsTheTypeToTheRoot)
 	sc.When(`^the administrator makes "([^"]*)" the default type$`, theAdministratorMakesTheTypeDefault)
 	sc.When(`^the administrator relabels "([^"]*)" as "([^"]*)" and "([^"]*)"$`, theAdministratorRelabelsTheType)
@@ -352,6 +412,7 @@ func initializeContentTypes(sc *godog.ScenarioContext) {
 	sc.Then(`^the request is refused$`, theRequestIsRefused)
 	sc.Then(`^the type "([^"]*)" carries the labels "([^"]*)" and "([^"]*)"$`, theTypeCarriesTheLabels)
 	sc.Then(`^the type "([^"]*)" answers under "([^"]*)"$`, theTypeAnswersUnder)
+	sc.Then(`^the type "([^"]*)" carries the description "([^"]*)"$`, theTypeCarriesTheDescription)
 	sc.Then(`^editing the car "([^"]*)" is refused$`, editingTheCarIsRefused)
 	sc.Then(`^reactivating the type "([^"]*)" allows the edit again$`, reactivatingTheTypeAllowsTheEditAgain)
 }
