@@ -552,6 +552,30 @@ func TestSeedRegistersThePageType(t *testing.T) {
 	}
 }
 
+func TestSeedDescribesTheTypesItRegisters(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
+	}
+
+	described := map[string]string{}
+	for _, listed := range seededTypes(t, databaseURL) {
+		described[listed.Key] = listed.Description
+	}
+	want := map[string]string{
+		content.TypePost:     "Manage the posts on this site.",
+		seed.PageTypeKey:     "Manage the pages on this site.",
+		seed.CategoryTypeKey: "Manage the categories on this site.",
+	}
+	if !maps.Equal(described, want) {
+		t.Errorf("descriptions = %v, want %v", described, want)
+	}
+}
+
 func TestSeedStoresAPageHoldingAChild(t *testing.T) {
 	t.Parallel()
 

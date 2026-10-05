@@ -81,6 +81,7 @@ func PageType() content.Type {
 		Key:           PageTypeKey,
 		SingularLabel: "Page",
 		PluralLabel:   "Pages",
+		Description:   "Manage the pages on this site.",
 		RouteWord:     "pages",
 		Hierarchical:  true,
 		Revisions:     true,

@@ -28,10 +28,11 @@ func (s *filingTypeStore) List(context.Context) ([]content.Type, error) {
 		Key: content.TypePost, SingularLabel: "Post", PluralLabel: "Posts",
 		Revisions: true, RevisionCap: 100, PageKind: content.PageKindSingle,
 		Default: true, Active: true, Fields: []content.Field{CategoriesField()},
+		Description: "Manage the posts on this site.",
 	}, {
 		Key: CategoryTypeKey, SingularLabel: "Category", PluralLabel: "Categories",
 		Revisions: true, RevisionCap: 100, PageKind: content.PageKindArchive,
-		Active: true, Fields: s.declared,
+		Active: true, Fields: s.declared, Description: "Manage the categories on this site.",
 	}}, nil
 }
 
