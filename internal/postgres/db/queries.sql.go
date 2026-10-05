@@ -339,6 +339,17 @@ func (q *Queries) CountRelatedContent(ctx context.Context, target uuid.UUID) (in
 	return count, err
 }
 
+const countTrash = `-- name: CountTrash :one
+SELECT count(*) FROM core.content p WHERE p.type = $1 AND p.status = 'trash'
+`
+
+func (q *Queries) CountTrash(ctx context.Context, type_ string) (int64, error) {
+	row := q.db.QueryRow(ctx, countTrash, type_)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createContent = `-- name: CreateContent :one
 
 INSERT INTO core.content (
@@ -898,6 +909,25 @@ type DeleteRevisionParams struct {
 
 func (q *Queries) DeleteRevision(ctx context.Context, arg DeleteRevisionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteRevision, arg.ContentID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTrash = `-- name: DeleteTrash :execrows
+DELETE FROM core.content AS p
+WHERE p.type = $1 AND p.status = 'trash'
+    AND ($2::uuid IS NULL OR p.author_id = $2::uuid)
+`
+
+type DeleteTrashParams struct {
+	Type     string
+	AuthorID *uuid.UUID
+}
+
+func (q *Queries) DeleteTrash(ctx context.Context, arg DeleteTrashParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTrash, arg.Type, arg.AuthorID)
 	if err != nil {
 		return 0, err
 	}

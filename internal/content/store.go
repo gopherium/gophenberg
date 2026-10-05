@@ -139,6 +139,7 @@ type Store interface {
 	Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Content, error)
 	Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (Content, error)
 	Delete(ctx context.Context, id uuid.UUID) error
+	EmptyTrash(ctx context.Context, contentType string, author *uuid.UUID) (deleted, kept int, err error)
 	Counts(ctx context.Context, contentType string) (map[Status]int, error)
 	Revisions(ctx context.Context, contentID uuid.UUID) ([]Revision, error)
 	RevisionByID(ctx context.Context, contentID, revisionID uuid.UUID) (Revision, error)

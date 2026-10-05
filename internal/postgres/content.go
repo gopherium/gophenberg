@@ -706,6 +706,25 @@ func (s *ContentStore) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// EmptyTrash deletes the type's trash, only the author's when one is named, and counts what it deleted and left.
+func (s *ContentStore) EmptyTrash(ctx context.Context, contentType string, author *uuid.UUID) (int, int, error) {
+	var deleted, kept int64
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		var err error
+		deleted, err = queries.DeleteTrash(ctx, db.DeleteTrashParams{Type: contentType, AuthorID: author})
+		if err != nil {
+			return err
+		}
+		kept, err = queries.CountTrash(ctx, contentType)
+		return err
+	})
+	if err != nil {
+		return 0, 0, fmt.Errorf("postgres: empty the trash: %w", err)
+	}
+	return int(deleted), int(kept), nil
+}
+
 // pageOffset returns the row offset of a page, bounded to what the query accepts.
 func pageOffset(page, perPage int) int32 {
 	if perPage > 0 && page-1 > math.MaxInt32/perPage {

@@ -210,6 +210,14 @@ RETURNING p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
 -- name: DeleteContent :execrows
 DELETE FROM core.content AS p WHERE p.id = @id;
 
+-- name: DeleteTrash :execrows
+DELETE FROM core.content AS p
+WHERE p.type = @type AND p.status = 'trash'
+    AND (sqlc.narg(author_id)::uuid IS NULL OR p.author_id = sqlc.narg(author_id)::uuid);
+
+-- name: CountTrash :one
+SELECT count(*) FROM core.content p WHERE p.type = @type AND p.status = 'trash';
+
 -- name: CountContentByStatus :many
 SELECT p.status, count(*) AS total
 FROM core.content p

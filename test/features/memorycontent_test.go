@@ -240,6 +240,25 @@ func (s *memoryContent) Delete(_ context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// EmptyTrash removes the trashed items of the type, only the author's when one is named, counting what it left.
+func (s *memoryContent) EmptyTrash(_ context.Context, contentType string, author *uuid.UUID) (int, int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	deleted, kept := 0, 0
+	for id, stored := range s.items {
+		if stored.Type != contentType || stored.Status != content.StatusTrash {
+			continue
+		}
+		if author != nil && stored.AuthorID != *author {
+			kept++
+			continue
+		}
+		delete(s.items, id)
+		deleted++
+	}
+	return deleted, kept, nil
+}
+
 // DeleteAutosave removes the author's autosave of the item.
 func (s *memoryContent) DeleteAutosave(_ context.Context, contentID, authorID uuid.UUID) error {
 	s.mu.Lock()

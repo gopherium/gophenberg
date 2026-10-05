@@ -165,6 +165,7 @@ func (s *server) mountOpen(r chi.Router, cfg Config) {
 	}
 	r.Get("/api/content", s.handleContentList())
 	r.Post("/api/content", s.handleContentCreate())
+	r.Delete("/api/content/trash", s.handleTrashEmpty())
 	r.Get("/api/content/counts", s.handleContentCounts())
 	r.Get("/api/content/{id}", s.handleContentGet())
 	r.Patch("/api/content/{id}", s.handleContentPatch())

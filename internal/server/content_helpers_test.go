@@ -40,6 +40,7 @@ type fakePostStore struct {
 	trashErr     error
 	restoreErr   error
 	deleteErr    error
+	emptyErr     error
 	countsErr    error
 	childrenErr  error
 	depthErr     error
@@ -259,6 +260,26 @@ func (s *fakePostStore) Delete(_ context.Context, id uuid.UUID) error {
 	}
 	delete(s.posts, id)
 	return nil
+}
+
+// EmptyTrash removes the trashed posts of the type, only the author's when one is named, counting what it left.
+func (s *fakePostStore) EmptyTrash(_ context.Context, typeKey string, author *uuid.UUID) (int, int, error) {
+	if s.emptyErr != nil {
+		return 0, 0, s.emptyErr
+	}
+	deleted, kept := 0, 0
+	for id, p := range s.posts {
+		if p.Type != typeKey || p.Status != content.StatusTrash {
+			continue
+		}
+		if author != nil && p.AuthorID != *author {
+			kept++
+			continue
+		}
+		delete(s.posts, id)
+		deleted++
+	}
+	return deleted, kept, nil
 }
 
 // Revisions returns the post's stored revisions newest first, without content.

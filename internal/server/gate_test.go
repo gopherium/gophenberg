@@ -41,6 +41,7 @@ var everyoneRoutes = []route{
 	{http.MethodGet, "/api/groups/params"},
 	{http.MethodGet, "/api/content"},
 	{http.MethodPost, "/api/content"},
+	{http.MethodDelete, "/api/content/trash"},
 	{http.MethodGet, "/api/content/counts"},
 	{http.MethodGet, "/api/content/{id}"},
 	{http.MethodPatch, "/api/content/{id}"},
