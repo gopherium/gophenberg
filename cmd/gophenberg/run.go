@@ -358,6 +358,9 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	if settings.serving, err = env.Timeouts(servingDefaults); err != nil {
 		return runConfig{}, err
 	}
+	if settings.lists, err = listSettingsFrom(env); err != nil {
+		return runConfig{}, err
+	}
 	settings.databaseURL = databaseURL
 	settings.addr = valueOr(env, "ADDR", "localhost:8081")
 	settings.webDir = env.Value("WEB_DIR")
