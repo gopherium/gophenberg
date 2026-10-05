@@ -88,7 +88,7 @@ const (
 // ParseOrderBy returns the column named by raw, or [ErrInvalidOrderBy].
 func ParseOrderBy(raw string) (OrderBy, error) {
 	switch OrderBy(raw) {
-	case OrderByDate, OrderByTitle:
+	case OrderByDate, OrderByTitle, OrderByAuthor, OrderBySlug, OrderByParent:
 		return OrderBy(raw), nil
 	default:
 		return "", ErrInvalidOrderBy

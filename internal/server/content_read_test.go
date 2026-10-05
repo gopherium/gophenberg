@@ -298,11 +298,12 @@ func TestPostListRejectsInvalidSortParameters(t *testing.T) {
 	handler, _, _ := authedPostServer(t)
 
 	for _, query := range []string{
-		"?orderby=author",
+		"?orderby=status",
 		"?orderby=",
 		"?order=sideways",
 		"?order=",
 		"?orderby=title&order=random",
+		"?orderby_hierarchy=maybe",
 	} {
 		recorder := doRequest(t, handler, http.MethodGet, "/api/content"+query, "")
 
@@ -324,6 +325,11 @@ func TestPostListAcceptsEverySortPair(t *testing.T) {
 		"?orderby=title&order=desc",
 		"?orderby=date&order=asc",
 		"?orderby=date&order=desc",
+		"?orderby=author&order=asc",
+		"?orderby=slug&order=desc",
+		"?orderby=parent&order=asc",
+		"?orderby=title&order=asc&orderby_hierarchy=true",
+		"?orderby_hierarchy=false",
 	} {
 		recorder := doRequest(t, handler, http.MethodGet, "/api/content"+query, "")
 
@@ -342,6 +348,38 @@ func TestPostListPassesTheSortToTheStore(t *testing.T) {
 
 	if posts.lastFilter.OrderBy != content.OrderByTitle || posts.lastFilter.Order != content.OrderAsc {
 		t.Errorf("filter = %+v, want title ascending", posts.lastFilter)
+	}
+}
+
+func TestPostListPassesEveryNewSortToTheStore(t *testing.T) {
+	t.Parallel()
+
+	for query, want := range map[string]content.OrderBy{
+		"?orderby=author": content.OrderByAuthor,
+		"?orderby=slug":   content.OrderBySlug,
+		"?orderby=parent": content.OrderByParent,
+	} {
+		handler, posts, _ := authedPostServer(t)
+
+		doRequest(t, handler, http.MethodGet, "/api/content"+query, "")
+
+		if posts.lastFilter.OrderBy != want {
+			t.Errorf("GET /api/content%s sorted by %q, want %q", query, posts.lastFilter.OrderBy, want)
+		}
+	}
+}
+
+func TestPostListNestsChildrenOnlyWhenAsked(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+
+	doRequest(t, handler, http.MethodGet, "/api/content?orderby_hierarchy=true", "")
+	nested := posts.lastFilter.Hierarchy
+	doRequest(t, handler, http.MethodGet, "/api/content", "")
+
+	if !nested || posts.lastFilter.Hierarchy {
+		t.Errorf("hierarchy = %t when asked and %t when not, want true then false", nested, posts.lastFilter.Hierarchy)
 	}
 }
 

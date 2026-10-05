@@ -12,7 +12,9 @@ import (
 func TestParseOrderByAcceptsEverySortableColumn(t *testing.T) {
 	t.Parallel()
 
-	for _, want := range []content.OrderBy{content.OrderByDate, content.OrderByTitle} {
+	for _, want := range []content.OrderBy{
+		content.OrderByDate, content.OrderByTitle, content.OrderByAuthor, content.OrderBySlug, content.OrderByParent,
+	} {
 		got, err := content.ParseOrderBy(string(want))
 
 		if err != nil {
@@ -27,7 +29,7 @@ func TestParseOrderByAcceptsEverySortableColumn(t *testing.T) {
 func TestParseOrderByRejectsUnknownColumns(t *testing.T) {
 	t.Parallel()
 
-	for _, in := range []string{"", "author", "Title", "status", "id"} {
+	for _, in := range []string{"", "Author", "Title", "status", "id", "modified"} {
 		if _, err := content.ParseOrderBy(in); !errors.Is(err, content.ErrInvalidOrderBy) {
 			t.Errorf("ParseOrderBy(%q) error = %v, want %v", in, err, content.ErrInvalidOrderBy)
 		}

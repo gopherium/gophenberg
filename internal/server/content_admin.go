@@ -193,7 +193,7 @@ func applyContentDates(query url.Values, filter *content.Filter) error {
 	return nil
 }
 
-// applyContentOrdering reads the orderby and order query parameters into filter.
+// applyContentOrdering reads the orderby, order and orderby_hierarchy query parameters into filter.
 func applyContentOrdering(query url.Values, filter *content.Filter) error {
 	if raw, ok := query["orderby"]; ok {
 		orderBy, err := content.ParseOrderBy(raw[0])
@@ -208,6 +208,13 @@ func applyContentOrdering(query url.Values, filter *content.Filter) error {
 			return err
 		}
 		filter.Order = order
+	}
+	if raw := query.Get("orderby_hierarchy"); raw != "" {
+		nested, err := strconv.ParseBool(raw)
+		if err != nil {
+			return fmt.Errorf("server: invalid orderby_hierarchy %q", raw)
+		}
+		filter.Hierarchy = nested
 	}
 	return nil
 }
