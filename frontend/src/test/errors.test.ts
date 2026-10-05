@@ -55,6 +55,18 @@ test('names the count a gallery bound refuses with', () => {
 	expect(most).toContain('4')
 })
 
+test('writes a number an error carries in the site format', () => {
+	const held = errorText({ error: '', code: 'per_page_invalid', meta: { value: '5000', max: 1000 } })
+
+	expect(held).toContain('between 1 and 1.000 items, so 5000 is not')
+})
+
+test('writes a limit an error carries with every decimal it holds', () => {
+	const held = errorText({ error: '', code: 'field_min', meta: { field: 'Rate', limit: 0.0001 } })
+
+	expect(held).toContain('0,0001')
+})
+
 test('carries a message for every code the server can answer with', () => {
 	const script = join(repositoryRoot(), 'frontend', 'scripts', 'emittedCodes.sh')
 	const emitted = execFileSync('sh', [script], { cwd: repositoryRoot(), encoding: 'utf8' })

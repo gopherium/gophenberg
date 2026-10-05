@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
 import { adminUser, renderAt, renderRoutedAt } from './render'
+import { siteSettings } from './siteSettings'
 
 const PATH = '/language'
 
@@ -18,7 +19,7 @@ beforeEach(() => {
 		http.get('/api/locale', () =>
 			HttpResponse.json({ locale: 'en-US', supported: ['en-US', 'es-ES'] }),
 		),
-		http.get('/api/settings', () => HttpResponse.json({ locale_default: '' })),
+		http.get('/api/settings', () => HttpResponse.json({ ...siteSettings, locale_default: '' })),
 	)
 })
 

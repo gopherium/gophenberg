@@ -18,7 +18,7 @@ unpublished posts carry a status badge, and an untitled post shows
 
 A field the type marks **In list** gets a column of its own beside
 these, showing what each post holds under it. A switch reads Yes or
-No, a date reads in your language, and a choice reads its label
+No, a date reads in the site's format, and a choice reads its label
 rather than its stored value. These columns do not sort. Hide any of
 them from **View options**.
 
@@ -27,6 +27,11 @@ published, and `Last Modified <date>` before that. A post you
 returned to draft keeps its publication date, so its badge and its
 date can disagree. Ordering follows that same date, so editing an
 old draft does not move it up the list.
+
+Dates and counts follow the format the site runs with, whatever
+language you read the admin in, so every reader sees 04/10/2026 and
+1.234 by default. Whoever runs the site picks that format, see
+[the admin lists](/self-hosting/configuration/#the-admin-lists).
 
 ## Filtering and searching
 

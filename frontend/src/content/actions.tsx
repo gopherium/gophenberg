@@ -2,6 +2,7 @@
 
 import { Button, Notice, Stack, Text, sessionMayChange } from '@gophenberg/frontend-sdk'
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
+import { formatNumber } from '@gopherium/gottext'
 import { useSession } from '@gopherium/react-auth'
 import { __, _n, _x, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -38,12 +39,12 @@ function trashQuestion(items: Post[]): string {
 		return sprintf(__('Move %(title)s to the trash?', 'gophenberg'), { title: nameOf(items[0]) })
 	}
 	const many = _n(
-		'Move these %(count)d post to the trash?',
-		'Move these %(count)d posts to the trash?',
+		'Move these %(count)s post to the trash?',
+		'Move these %(count)s posts to the trash?',
 		items.length,
 		'gophenberg',
 	)
-	return sprintf(many, { count: items.length })
+	return sprintf(many, { count: formatNumber(items.length) })
 }
 
 /**
@@ -56,12 +57,12 @@ function trashedNote(count: number): string {
 		return __('Moved to the trash.', 'gophenberg')
 	}
 	const many = _n(
-		'%(count)d post moved to the trash.',
-		'%(count)d posts moved to the trash.',
+		'%(count)s post moved to the trash.',
+		'%(count)s posts moved to the trash.',
 		count,
 		'gophenberg',
 	)
-	return sprintf(many, { count })
+	return sprintf(many, { count: formatNumber(count) })
 }
 
 /**

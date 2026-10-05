@@ -97,7 +97,7 @@ test('leaves the chips their own pulse without a delay of the row', async () => 
 })
 
 test('shapes each status count the way the catalogue the reader loaded says', async () => {
-	setLocaleData({ '%(label)s (%(count)d)': ['%(count)d %(label)s'] }, 'gophenberg')
+	setLocaleData({ '%(label)s (%(count)s)': ['%(count)s %(label)s'] }, 'gophenberg')
 	renderAt('/content/post')
 
 	expect(await screen.findByRole('button', { name: '7 All' })).toBeInTheDocument()
@@ -112,6 +112,14 @@ test('counts the posts each status view covers', async () => {
 	expect(screen.getByRole('button', { name: 'Draft (2)' })).toBeInTheDocument()
 	expect(screen.getByRole('button', { name: 'Pending (1)' })).toBeInTheDocument()
 	expect(screen.getByRole('button', { name: 'Trash (1)' })).toBeInTheDocument()
+})
+
+test('groups a status count of thousands in the site format', async () => {
+	server.use(http.get('/api/content/counts', () => HttpResponse.json({ published: 1234 })))
+	renderAt('/content/post')
+
+	expect(await screen.findByRole('button', { name: 'Published (1.234)' })).toBeInTheDocument()
+	expect(screen.getByRole('button', { name: 'All (1.234)' })).toBeInTheDocument()
 })
 
 test('hides the private view while no post is private', async () => {

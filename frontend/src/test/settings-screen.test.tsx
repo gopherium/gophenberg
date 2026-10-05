@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
 import { adminUser, renderAt } from './render'
+import { siteSettings } from './siteSettings'
 
 const PATH = '/settings'
 
@@ -17,7 +18,7 @@ beforeAll(async () => {
 beforeEach(() => {
 	server.use(
 		http.get('/api/settings', () =>
-			HttpResponse.json({ locale_default: '', content_per_page: 20, jpeg_quality: 82 }),
+			HttpResponse.json({ ...siteSettings, locale_default: '', content_per_page: 20, jpeg_quality: 82 }),
 		),
 	)
 })

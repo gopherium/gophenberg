@@ -94,7 +94,7 @@ export function moved(ids: number[], id: number, by: number): number[] {
  * @returns The name.
  */
 function fileName(id: number, item: MediaItem | undefined): string {
-	return item === undefined ? sprintf(__('Media %(id)d', 'gophenberg'), { id }) : item.title
+	return item === undefined ? sprintf(__('Media %(id)s', 'gophenberg'), { id: String(id) }) : item.title
 }
 
 /**
@@ -215,7 +215,7 @@ export function MediaField(props: {
 			<Text>
 				{props.value === undefined
 					? __('No media chosen', 'gophenberg')
-					: sprintf(__('Media %(id)d', 'gophenberg'), { id: props.value })}
+					: sprintf(__('Media %(id)s', 'gophenberg'), { id: String(props.value) })}
 			</Text>
 			<MediaLibraryPicker
 				value={props.value}

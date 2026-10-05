@@ -588,10 +588,10 @@ test('lists what points at the item under the field reading them', async () => {
 })
 
 test('says how many point at the item when more do than the page carries', async () => {
-	pointedAtBy(POINTERS, { 'linked-from': 47 })
+	pointedAtBy(POINTERS, { 'linked-from': 1234 })
 	renderAt(EDITOR_PATH)
 
-	expect(await screen.findByText('Showing 2 of 47.')).toBeInTheDocument()
+	expect(await screen.findByText('Showing 2 of 1.234.')).toBeInTheDocument()
 })
 
 test('says nothing about the count when the page carries every pointer', async () => {

@@ -124,6 +124,62 @@ test('reads each value the way its kind is written', async () => {
 	expect(row).toHaveTextContent('Red')
 })
 
+test('writes a listed number in the site format to every decimal it holds', async () => {
+	declaring([PRICE])
+	server.use(
+		http.get('/api/content', () =>
+			HttpResponse.json({ items: [{ ...ITEM, fields: { price: 1234.5678 } }], total: 1 }),
+		),
+	)
+	renderAt('/content/post')
+
+	const row = within(await screen.findByRole('table')).getAllByRole('row')[1]
+
+	expect(row).toHaveTextContent('1.234,5678')
+})
+
+test('shows a number field still holding text as the text it holds', async () => {
+	declaring([PRICE])
+	server.use(
+		http.get('/api/content', () =>
+			HttpResponse.json({ items: [{ ...ITEM, fields: { price: 'about 12' } }], total: 1 }),
+		),
+	)
+	renderAt('/content/post')
+
+	const row = within(await screen.findByRole('table')).getAllByRole('row')[1]
+
+	expect(row).toHaveTextContent('about 12')
+})
+
+test('shows a listed text field as the text it holds', async () => {
+	declaring([field('note', 'Note', 'text', { listed: true })])
+	server.use(
+		http.get('/api/content', () =>
+			HttpResponse.json({ items: [{ ...ITEM, fields: { note: 'Hand made' } }], total: 1 }),
+		),
+	)
+	renderAt('/content/post')
+
+	const row = within(await screen.findByRole('table')).getAllByRole('row')[1]
+
+	expect(row).toHaveTextContent('Hand made')
+})
+
+test('shows a date field holding something other than a day as it stands', async () => {
+	declaring([SINCE])
+	server.use(
+		http.get('/api/content', () =>
+			HttpResponse.json({ items: [{ ...ITEM, fields: { since: 20260905 } }], total: 1 }),
+		),
+	)
+	renderAt('/content/post')
+
+	const row = within(await screen.findByRole('table')).getAllByRole('row')[1]
+
+	expect(row).toHaveTextContent('20260905')
+})
+
 test('shows a date field on the day it holds west of UTC', async () => {
 	vi.stubEnv('TZ', 'America/New_York')
 	onTestFinished(() => {
@@ -134,7 +190,7 @@ test('shows a date field on the day it holds west of UTC', async () => {
 
 	const row = within(await screen.findByRole('table')).getAllByRole('row')[1]
 
-	expect(row).toHaveTextContent('9/5/2026')
+	expect(row).toHaveTextContent('05/09/2026')
 })
 
 test('shows a listed link by its title', async () => {

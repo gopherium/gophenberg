@@ -13,8 +13,8 @@ msgstr ""
 msgid " or "
 msgstr ""
 
-msgid "%(count)d post moved to the trash."
-msgid_plural "%(count)d posts moved to the trash."
+msgid "%(count)s post moved to the trash."
+msgid_plural "%(count)s posts moved to the trash."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -117,7 +117,7 @@ msgstr ""
 msgid "%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
 msgstr ""
 
-msgid "%(label)s (%(count)d)"
+msgid "%(label)s (%(count)s)"
 msgstr ""
 
 msgid "%(name)s %(version)s is serving the public site."
@@ -219,7 +219,7 @@ msgstr ""
 msgid "A layout stands inside a flexible content field, never on its own. Declare a flexible content field first, then add %(field)s inside it."
 msgstr ""
 
-msgid "A listing carries between 1 and %(max)d items, so %(value)s is not a size Gophenberg takes. Pick a number inside that range."
+msgid "A listing carries between 1 and %(max)s items, so %(value)s is not a size Gophenberg takes. Pick a number inside that range."
 msgstr ""
 
 msgid "A relation field has to say which content type it points at. Pick that type and try again."
@@ -444,7 +444,7 @@ msgstr ""
 msgid "Content Types"
 msgstr ""
 
-msgid "Content nests at most %(max)d levels deep, and this item would sit deeper. Pick a parent closer to the top."
+msgid "Content nests at most %(max)s levels deep, and this item would sit deeper. Pick a parent closer to the top."
 msgstr ""
 
 msgid "Content type"
@@ -535,8 +535,8 @@ msgstr ""
 msgid "Delete the group"
 msgstr ""
 
-msgid "Delete this %(count)d item for good? This cannot be undone."
-msgid_plural "Delete these %(count)d items for good? This cannot be undone."
+msgid "Delete this %(count)s item for good? This cannot be undone."
+msgid_plural "Delete these %(count)s items for good? This cannot be undone."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -837,7 +837,7 @@ msgstr ""
 msgid "May"
 msgstr ""
 
-msgid "Media %(id)d"
+msgid "Media %(id)s"
 msgstr ""
 
 msgid "Media Library"
@@ -894,8 +894,8 @@ msgstr ""
 msgid "Move the field"
 msgstr ""
 
-msgid "Move these %(count)d post to the trash?"
-msgid_plural "Move these %(count)d posts to the trash?"
+msgid "Move these %(count)s post to the trash?"
+msgid_plural "Move these %(count)s posts to the trash?"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -983,7 +983,7 @@ msgstr ""
 msgid "Older posts"
 msgstr ""
 
-msgid "One frame of this animation holds more than %(max)d pixels, which is more than Gophenberg opens. Upload a smaller animation."
+msgid "One frame of this animation holds more than %(max)s pixels, which is more than Gophenberg opens. Upload a smaller animation."
 msgstr ""
 
 msgid "One of the filters on this list is not one Gophenberg understands. Clear the filters and try again."
@@ -1037,7 +1037,7 @@ msgstr ""
 msgid "Picture quality"
 msgstr ""
 
-msgid "Picture quality runs from 1 to %(max)d, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range."
+msgid "Picture quality runs from 1 to %(max)s, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range."
 msgstr ""
 
 msgid "Placeholder"
@@ -1121,10 +1121,10 @@ msgstr ""
 msgid "Route word"
 msgstr ""
 
-msgid "Rule %(number)d of set %(set)d"
+msgid "Rule %(number)s of set %(set)s"
 msgstr ""
 
-msgid "Rule set %(number)d"
+msgid "Rule set %(number)s"
 msgstr ""
 
 msgid "Rules"
@@ -1190,7 +1190,7 @@ msgstr ""
 msgid "Show %(field)s in the list"
 msgstr ""
 
-msgid "Showing %(held)d of %(total)d."
+msgid "Showing %(held)s of %(total)s."
 msgstr ""
 
 msgid "Singular name"
@@ -1493,7 +1493,7 @@ msgstr ""
 msgid "This content type still holds content, so it cannot be deleted. Move or delete its items first."
 msgstr ""
 
-msgid "This definitions file is larger than the %(max)d bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
+msgid "This definitions file is larger than the %(max)s bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
 msgstr ""
 
 msgid "This field holds no layouts yet."
@@ -1553,7 +1553,7 @@ msgstr ""
 msgid "This picture could not be read, so nothing was stored. The file may be damaged, so open it on your computer and upload it again."
 msgstr ""
 
-msgid "This picture is %(width)d by %(height)d pixels, over the limit of %(max)d pixels in all. Make it smaller and upload it again."
+msgid "This picture is %(width)s by %(height)s pixels, over the limit of %(max)s pixels in all. Make it smaller and upload it again."
 msgstr ""
 
 msgid "This post changed elsewhere. Reload before saving again."
@@ -1583,13 +1583,13 @@ msgstr ""
 msgid "This site has nowhere to store uploads, so nothing can be uploaded. Ask whoever looks after your site to point %(setting)s at a folder the server can write to."
 msgstr ""
 
-msgid "This theme is over the limit of %(max)d bytes, packed or unpacked. Leave out what the theme does not need and package it again."
+msgid "This theme is over the limit of %(max)s bytes, packed or unpacked. Leave out what the theme does not need and package it again."
 msgstr ""
 
 msgid "This type will answer under /%(word)s."
 msgstr ""
 
-msgid "This zip holds %(entries)d files, more than the %(max)d a theme may carry. Package only the built theme."
+msgid "This zip holds %(entries)s files, more than the %(max)s a theme may carry. Package only the built theme."
 msgstr ""
 
 msgid "Through"

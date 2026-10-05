@@ -6,6 +6,7 @@ import { __, _x } from '@wordpress/i18n'
 import { Link } from '@tanstack/react-router'
 
 import { formatDate } from '@gopherium/gottext'
+import { everyDecimal } from '../i18n/numbers'
 import type { Post } from './api'
 import { pairsOf } from './types'
 import type { ContentField, ContentType } from './types'
@@ -108,19 +109,35 @@ function shownValue(declared: ContentField, held: unknown): string {
 	if (held === undefined || held === null) {
 		return ''
 	}
-	if (declared.kind === 'boolean') {
-		return held === true ? __('Yes', 'gophenberg') : __('No', 'gophenberg')
-	}
-	if (declared.kind === 'date' && typeof held === 'string') {
-		return formatDate(held, { timeZone: 'UTC' })
-	}
-	if (declared.kind === 'choice') {
-		return chosenLabels(declared, held)
-	}
-	if (declared.kind === 'link') {
-		return linkTitle(held)
-	}
-	return String(held)
+	const write = valueWriters[declared.kind]
+	return write === undefined ? String(held) : write(held, declared)
+}
+
+/**
+ * Returns the word a switch is read under.
+ * @param held - The value the post holds.
+ * @returns Yes when the switch is on, No otherwise.
+ */
+function switchWord(held: unknown): string {
+	return held === true ? __('Yes', 'gophenberg') : __('No', 'gophenberg')
+}
+
+/**
+ * Returns a day as the site writes it, or the value as it stands when it is not a day.
+ * @param held - The value the post holds.
+ * @returns The day, or the value.
+ */
+function writtenDay(held: unknown): string {
+	return typeof held === 'string' ? formatDate(held) : String(held)
+}
+
+/**
+ * Returns a number as the site writes it, or the value as it stands when it is not a number.
+ * @param held - The value the post holds.
+ * @returns The number, or the value.
+ */
+function writtenNumber(held: unknown): string {
+	return typeof held === 'number' ? everyDecimal(held) : String(held)
 }
 
 /**
@@ -135,16 +152,25 @@ function linkTitle(held: unknown): string {
 
 /**
  * Returns the labels a choice field gives the values a post holds.
- * @param declared - The choice field the column stands for.
  * @param held - The value or values the post holds.
+ * @param declared - The choice field the column stands for.
  * @returns The labels, joined by a comma when the field holds several.
  */
-function chosenLabels(declared: ContentField, held: unknown): string {
+function chosenLabels(held: unknown, declared: ContentField): string {
 	const pairs = pairsOf(declared.settings)
 	const chosen = Array.isArray(held) ? held : [held]
 	return chosen
 		.map((one) => pairs.find((pair) => pair.value === one)?.label ?? String(one))
 		.join(', ')
+}
+
+/** The writer of a listed value, keyed by the kind of field holding it. */
+const valueWriters: Record<string, ((held: unknown, declared: ContentField) => string) | undefined> = {
+	boolean: switchWord,
+	date: writtenDay,
+	number: writtenNumber,
+	choice: chosenLabels,
+	link: linkTitle,
 }
 
 /**

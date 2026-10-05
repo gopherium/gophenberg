@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Stack, Text } from '@gophenberg/frontend-sdk'
+import { formatNumber } from '@gopherium/gottext'
 import { Link } from '@tanstack/react-router'
 import { __, sprintf } from '@wordpress/i18n'
 
@@ -69,10 +70,10 @@ export function PointersList(props: { field: ContentField; pointers: Pointer[]; 
 			)}
 			{props.total > props.pointers.length && (
 				<Text variant="body-sm">
-					{sprintf(__('Showing %(held)d of %(total)d.', 'gophenberg'), {
-						held: props.pointers.length,
-						total: props.total,
-					} as never)}
+					{sprintf(__('Showing %(held)s of %(total)s.', 'gophenberg'), {
+						held: formatNumber(props.pointers.length),
+						total: formatNumber(props.total),
+					})}
 				</Text>
 			)}
 		</Stack>

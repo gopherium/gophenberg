@@ -4,9 +4,15 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
 
-import { mismatched } from '@gopherium/gottext/build'
+import { mismatched, unformatted } from '@gopherium/gottext/build'
 
 import { repositoryRoot } from '../../scripts/config.ts'
+
+test('writes every number the template holds through text the format locale wrote', () => {
+	const template = readFileSync(join(repositoryRoot(), 'languages', 'gophenberg.pot'), 'utf8')
+
+	expect(unformatted(template)).toEqual([])
+})
 
 test('passes a translation keeping the bare placeholder its message names', () => {
 	const naming = 'msgid "Disable %s"\nmsgstr ""\n'

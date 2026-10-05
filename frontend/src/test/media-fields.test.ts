@@ -35,12 +35,12 @@ test('humanizes a file size in binary steps', () => {
 	expect(fileSize(512)).toBe('512 B')
 	expect(fileSize(51200)).toBe('50 KB')
 	expect(fileSize(5 * 1024 * 1024)).toBe('5 MB')
-	expect(fileSize(2.5 * 1024 * 1024 * 1024)).toBe('2.5 GB')
+	expect(fileSize(2.5 * 1024 * 1024 * 1024)).toBe('2,5 GB')
 	expect(fileSize(1024)).toBe('1 KB')
 })
 
 test('rounds a file size to two decimals', () => {
-	expect(fileSize(3.14159 * 1024 * 1024)).toBe('3.14 MB')
+	expect(fileSize(3.14159 * 1024 * 1024)).toBe('3,14 MB')
 })
 
 test('says nothing about a size it was never told', () => {

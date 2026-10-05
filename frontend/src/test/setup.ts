@@ -3,12 +3,13 @@
 import { configure } from '@testing-library/react'
 import { http, HttpResponse, installTestEnvironment, server } from '@gophenberg/frontend-sdk/testing'
 import { DOMAIN as BRICK_DOMAIN } from '@gopherium/react-auth'
-import { rememberLocale } from '@gopherium/gottext'
+import { rememberFormatLocale, rememberLocale } from '@gopherium/gottext'
 import { resetLocaleData } from '@wordpress/i18n'
 import { afterAll, beforeEach } from 'vitest'
 
 import { DEFAULT_LOCALE } from '../i18n/catalog'
 import { DOMAIN } from '../i18n/start'
+import { siteSettings } from './siteSettings'
 
 installTestEnvironment()
 configure({ asyncUtilTimeout: 2000 })
@@ -30,6 +31,8 @@ const builtInType = {
 }
 
 beforeEach(() => {
+	rememberFormatLocale(siteSettings.format_locale)
+	server.use(http.get('/api/settings', () => HttpResponse.json(siteSettings)))
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [builtInType] })))
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [] })))
 	server.use(http.get('/api/groups/params', () => HttpResponse.json({ items: [] })))

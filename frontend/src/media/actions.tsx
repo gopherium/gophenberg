@@ -3,6 +3,7 @@
 import { Button, Notice, Stack, Text, sessionMayChange } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
+import { formatNumber } from '@gopherium/gottext'
 import { useSession } from '@gopherium/react-auth'
 import { __, _n, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -100,12 +101,12 @@ export function deleteQuestion(items: MediaItem[]): string {
 	}
 	return sprintf(
 		_n(
-			'Delete this %(count)d item for good? This cannot be undone.',
-			'Delete these %(count)d items for good? This cannot be undone.',
+			'Delete this %(count)s item for good? This cannot be undone.',
+			'Delete these %(count)s items for good? This cannot be undone.',
 			items.length,
 			'gophenberg',
 		),
-		{ count: items.length },
+		{ count: formatNumber(items.length) },
 	)
 }
 

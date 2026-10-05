@@ -308,14 +308,14 @@ test('shows the size and shape of a picture', async () => {
 	renderAt('/media')
 
 	expect(await screen.findByText('1600 × 1000')).toBeInTheDocument()
-	expect(screen.getByText('248.05 KB')).toBeInTheDocument()
+	expect(screen.getByText('248,05 KB')).toBeInTheDocument()
 })
 
 test('says nothing about the shape of a file that has none', async () => {
 	listing([MANUAL])
 	renderAt('/media')
 
-	expect(await screen.findByText('11.72 KB')).toBeInTheDocument()
+	expect(await screen.findByText('11,72 KB')).toBeInTheDocument()
 	expect(screen.queryByText(/×/)).not.toBeInTheDocument()
 })
 
@@ -328,7 +328,7 @@ test('describes every stored file when the library is laid out as a table', asyn
 
 	expect(await screen.findByText('harbor.jpg')).toBeInTheDocument()
 	expect(screen.getByText('image/jpeg')).toBeInTheDocument()
-	expect(screen.getByText(new Date(HARBOR.created_at).toLocaleDateString())).toBeInTheDocument()
+	expect(screen.getByText('10/08/2026')).toBeInTheDocument()
 })
 
 test('dates a media item that carries no timestamp', async () => {
@@ -365,4 +365,12 @@ test('asks about every item a delete was asked over', () => {
 	expect(deleteQuestion(two)).toContain('Delete these 2 items for good?')
 	expect(deleteFailure(one)).toBe('Could not delete that item.')
 	expect(deleteFailure(two)).toBe('Could not delete every item.')
+})
+
+test('groups the count a delete asks about in the site format', () => {
+	const many = Array.from({ length: 1234 }, () => ({ title: 'Manual', file: 'b.pdf' })) as Parameters<
+		typeof deleteQuestion
+	>[0]
+
+	expect(deleteQuestion(many)).toContain('Delete these 1.234 items for good?')
 })

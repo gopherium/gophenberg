@@ -8,6 +8,7 @@ import { beforeEach, expect, test, vi } from 'vitest'
 import { placementOf } from '../content/GroupsScreen'
 import { groupErrorMessage } from '../content/groups'
 import { renderAt } from './render'
+import { siteSettings } from './siteSettings'
 
 const POST_TYPE = {
 	key: 'post',
@@ -96,6 +97,18 @@ test('lists every group with where it appears and how many fields it holds', asy
 	expect(within(details).getByText('Posts')).toBeInTheDocument()
 	expect(within(details).getByText('1')).toBeInTheDocument()
 	expect(within(table).getByText('Extras')).toBeInTheDocument()
+})
+
+test('writes how many fields a group holds in the site format', async () => {
+	server.use(
+		http.get('/api/settings', () => HttpResponse.json({ ...siteSettings, format_locale: 'es-ES-u-nu-deva' })),
+	)
+	renderAt('/field-groups')
+
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+
+	const details = within(table).getByRole('row', { name: /Article details/ })
+	expect(within(details).getByText('१')).toBeInTheDocument()
 })
 
 test('offers the definitions as a file download', async () => {
