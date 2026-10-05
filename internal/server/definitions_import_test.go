@@ -156,6 +156,21 @@ func TestDefinitionsImportPlansWhatAFileWouldChange(t *testing.T) {
 	}
 }
 
+func TestDefinitionsImportTakesADescriptionOnAType(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	body := `{"format":"1.0.0","types":[{"key":"post","singular_label":"Post","plural_label":"Posts",` +
+		`"description":"Stories from the team.","route_word":"","hierarchical":false,"revisions":true,` +
+		`"revision_cap":100,"page_kind":"single","default":true,"active":true}],"groups":[]}`
+
+	recorder := doRequest(t, handler, http.MethodPost, importPath, body)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+}
+
 func TestDefinitionsApplyPerformsWhatTheAdminConfirmed(t *testing.T) {
 	t.Parallel()
 

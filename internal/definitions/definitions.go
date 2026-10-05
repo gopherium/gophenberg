@@ -273,6 +273,7 @@ func (r *Registrar) typeOf(declared sdk.TypeDeclaration) (content.Type, error) {
 		return content.Type{}, err
 	}
 	built.Hierarchical, built.Revisions, built.Origin = declared.Hierarchical, declared.Revisions, r.origin
+	built.Description = declared.Description
 	if declared.RevisionCap > 0 {
 		built.RevisionCap = declared.RevisionCap
 	}
@@ -325,7 +326,8 @@ func rulesOf(declared [][]sdk.Rule) content.Rules {
 func sameType(a, b content.Type) bool {
 	return a.SingularLabel == b.SingularLabel && a.PluralLabel == b.PluralLabel &&
 		a.Hierarchical == b.Hierarchical && a.Revisions == b.Revisions &&
-		a.RevisionCap == b.RevisionCap && a.PageKind == b.PageKind
+		a.RevisionCap == b.RevisionCap && a.PageKind == b.PageKind &&
+		a.Description == b.Description
 }
 
 // sameSettings reports whether two settings hold the same values once written as JSON.

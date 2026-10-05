@@ -37,7 +37,7 @@ func declaringRegistry(t *testing.T) (*content.Registry, *definitions.Registrar)
 func eventType() sdk.TypeDeclaration {
 	return sdk.TypeDeclaration{
 		Key: "event", SingularLabel: "Event", PluralLabel: "Events", RouteWord: "events",
-		Revisions: true, RevisionCap: 20, PageKind: "single",
+		Revisions: true, RevisionCap: 20, PageKind: "single", Description: "Gatherings near you.",
 	}
 }
 
@@ -87,6 +87,29 @@ func TestDeclareTypeStoresTheTypeUnderThePluginsOrigin(t *testing.T) {
 	}
 	if held.Origin != "events" || held.Default || !held.Active || held.RevisionCap != 20 {
 		t.Errorf("held = %+v, want an open events type that is never the default", held)
+	}
+	if held.Description != "Gatherings near you." {
+		t.Errorf("Description = %q, want the declared one", held.Description)
+	}
+}
+
+func TestDeclareTypeCarriesAChangedDescription(t *testing.T) {
+	t.Parallel()
+
+	registry, registrar := declaringRegistry(t)
+	if err := registrar.DeclareType(t.Context(), eventType()); err != nil {
+		t.Fatalf("DeclareType() error = %v, want nil", err)
+	}
+	redescribed := eventType()
+	redescribed.Description = "Meetups and talks."
+
+	if err := registrar.DeclareType(t.Context(), redescribed); err != nil {
+		t.Fatalf("DeclareType(redescribed) error = %v, want the description carried", err)
+	}
+
+	held, err := registry.ByKey(t.Context(), "event")
+	if err != nil || held.Description != "Meetups and talks." {
+		t.Errorf("held = %+v, %v, want the new description", held, err)
 	}
 }
 

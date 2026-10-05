@@ -23,6 +23,7 @@ func siteDefined(t *testing.T, registry *content.Registry) {
 	if err != nil {
 		t.Fatalf("NewType() error = %v, want nil", err)
 	}
+	recipe.Description = "Dishes from the kitchen."
 	if _, err := registry.Create(t.Context(), recipe); err != nil {
 		t.Fatalf("Create() error = %v, want nil", err)
 	}
@@ -107,6 +108,29 @@ func TestExportCarriesWhatTheSiteDefinedAndLeavesPluginRowsOut(t *testing.T) {
 	}
 	if !reflect.DeepEqual(group.Fields, want) {
 		t.Errorf("fields = %+v, want %+v", group.Fields, want)
+	}
+}
+
+func TestExportCarriesEachTypesDescription(t *testing.T) {
+	t.Parallel()
+
+	pool, _ := declaringPool(t)
+	registry := content.NewRegistry(postgres.NewTypeStore(pool))
+	siteDefined(t, registry)
+
+	envelope, err := definitions.Export(t.Context(), registry)
+
+	if err != nil {
+		t.Fatalf("Export() error = %v, want nil", err)
+	}
+	for key, want := range map[string]string{
+		content.TypePost: "Manage the posts on this site.",
+		"recipe":         "Dishes from the kitchen.",
+	} {
+		exported, held := typeKeyed(envelope.Types, key)
+		if !held || exported.Description == nil || *exported.Description != want {
+			t.Errorf("%s = %+v, %v, want the description %q", key, exported, held, want)
+		}
 	}
 }
 

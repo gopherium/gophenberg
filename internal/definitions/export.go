@@ -20,16 +20,17 @@ type Envelope struct {
 
 // TypeDefinition is one content type as the envelope carries it.
 type TypeDefinition struct {
-	Key           string `json:"key"`
-	SingularLabel string `json:"singular_label"`
-	PluralLabel   string `json:"plural_label"`
-	RouteWord     string `json:"route_word"`
-	Hierarchical  bool   `json:"hierarchical"`
-	Revisions     bool   `json:"revisions"`
-	RevisionCap   int    `json:"revision_cap"`
-	PageKind      string `json:"page_kind"`
-	Default       bool   `json:"default"`
-	Active        bool   `json:"active"`
+	Key           string  `json:"key"`
+	SingularLabel string  `json:"singular_label"`
+	PluralLabel   string  `json:"plural_label"`
+	Description   *string `json:"description,omitempty"`
+	RouteWord     string  `json:"route_word"`
+	Hierarchical  bool    `json:"hierarchical"`
+	Revisions     bool    `json:"revisions"`
+	RevisionCap   int     `json:"revision_cap"`
+	PageKind      string  `json:"page_kind"`
+	Default       bool    `json:"default"`
+	Active        bool    `json:"active"`
 }
 
 // GroupDefinition is one field group as the envelope carries it, its fields in stored order.
@@ -81,6 +82,7 @@ func Export(ctx context.Context, registry *content.Registry) (Envelope, error) {
 func typeDefinition(t content.Type) TypeDefinition {
 	return TypeDefinition{
 		Key: t.Key, SingularLabel: t.SingularLabel, PluralLabel: t.PluralLabel, RouteWord: t.RouteWord,
+		Description:  new(t.Description),
 		Hierarchical: t.Hierarchical, Revisions: t.Revisions, RevisionCap: t.RevisionCap,
 		PageKind: string(t.PageKind), Default: t.Default, Active: t.Active,
 	}
