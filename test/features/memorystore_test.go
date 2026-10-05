@@ -83,6 +83,18 @@ func (m *memoryStore) DeleteSession(_ context.Context, tokenHash []byte) error {
 	return nil
 }
 
+// nameOf returns the name of the account carrying the id, empty when none does.
+func (m *memoryStore) nameOf(id uuid.UUID) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, user := range m.users {
+		if user.ID == id {
+			return user.Name
+		}
+	}
+	return ""
+}
+
 // ListUsers returns every account in email order.
 func (m *memoryStore) ListUsers(_ context.Context) ([]gouncer.User, error) {
 	m.mu.Lock()

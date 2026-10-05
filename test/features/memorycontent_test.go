@@ -3,6 +3,8 @@
 package features_test
 
 import (
+	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -24,6 +26,7 @@ type memoryContent struct {
 	revisions map[uuid.UUID][]content.Revision
 	autosaves map[autosaveKey]content.Revision
 	types     *memoryTypes
+	accounts  *memoryStore
 }
 
 // autosaveKey names one author's parked buffer over one item.
@@ -237,6 +240,25 @@ func (s *memoryContent) Delete(_ context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// EmptyTrash removes the trashed items of the type, only the author's when one is named, counting what it left.
+func (s *memoryContent) EmptyTrash(_ context.Context, contentType string, author *uuid.UUID) (int, int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	deleted, kept := 0, 0
+	for id, stored := range s.items {
+		if stored.Type != contentType || stored.Status != content.StatusTrash {
+			continue
+		}
+		if author != nil && stored.AuthorID != *author {
+			kept++
+			continue
+		}
+		delete(s.items, id)
+		deleted++
+	}
+	return deleted, kept, nil
+}
+
 // DeleteAutosave removes the author's autosave of the item.
 func (s *memoryContent) DeleteAutosave(_ context.Context, contentID, authorID uuid.UUID) error {
 	s.mu.Lock()
@@ -367,18 +389,116 @@ func (s *memoryContent) Children(_ context.Context, id uuid.UUID) (int, error) {
 	return held, nil
 }
 
-// List returns the items the filter matches, newest first, with their total.
-func (s *memoryContent) List(_ context.Context, f content.Filter) ([]content.Content, int, error) {
+// List returns the items the filter matches, sorted, nested and paged as it asks, with their total.
+func (s *memoryContent) List(_ context.Context, f content.Filter) ([]content.ListedItem, int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	matched := make([]content.Content, 0, len(s.items))
+	matched := make([]content.ListedItem, 0, len(s.items))
 	for _, stored := range s.items {
-		if stored.Type == f.Type && (f.Status == "" || stored.Status == f.Status) && narrowed(stored.Fields, f.Fields) {
-			matched = append(matched, stored)
+		if stored.Type == f.Type && keeps(f, stored) && narrowed(stored.Fields, f.Fields) {
+			matched = append(matched, content.ListedItem{Content: stored, AuthorName: s.accounts.nameOf(stored.AuthorID)})
 		}
 	}
-	slices.SortFunc(matched, func(a, b content.Content) int { return b.CreatedAt.Compare(a.CreatedAt) })
+	slices.SortFunc(matched, func(a, b content.ListedItem) int {
+		return cmp.Or(listOrder(f, s.items, a, b), bytes.Compare(b.ID[:], a.ID[:]))
+	})
+	if f.Hierarchy {
+		matched = nestedUnderParents(matched)
+	}
 	return paged(matched, f), len(matched), nil
+}
+
+// keeps reports whether the item stands within the statuses, authors, dates and words the filter narrows to.
+func keeps(f content.Filter, item content.Content) bool {
+	at := listDate(item)
+	switch {
+	case len(f.Statuses) > 0 && !slices.Contains(f.Statuses, item.Status):
+		return false
+	case len(f.Authors) > 0 && !slices.Contains(f.Authors, item.AuthorID):
+		return false
+	case slices.Contains(f.ExcludeAuthors, item.AuthorID):
+		return false
+	case f.Before != nil && !at.Before(*f.Before), f.After != nil && !at.After(*f.After):
+		return false
+	}
+	search := strings.ToLower(f.Search)
+	return strings.Contains(strings.ToLower(item.Title), search) || strings.Contains(strings.ToLower(item.Content), search)
+}
+
+// listDate returns the date a listing shows, sorts and narrows an item by.
+func listDate(item content.Content) time.Time {
+	if item.PublishedAt != nil {
+		return *item.PublishedAt
+	}
+	return item.UpdatedAt
+}
+
+// listOrder compares two listed items by the column and in the direction the filter names.
+func listOrder(f content.Filter, held map[uuid.UUID]content.Content, a, b content.ListedItem) int {
+	var by int
+	switch f.OrderBy {
+	case content.OrderByTitle:
+		by = collated(a.Title, b.Title)
+	case content.OrderByAuthor:
+		by = collated(a.AuthorName, b.AuthorName)
+	case content.OrderBySlug:
+		by = collated(a.Slug, b.Slug)
+	case content.OrderByParent:
+		by = parentWritten(held, a.Content).Compare(parentWritten(held, b.Content))
+	default:
+		by = listDate(a.Content).Compare(listDate(b.Content))
+	}
+	if f.Order != content.OrderAsc {
+		return -by
+	}
+	return by
+}
+
+// collated compares two words the way the database collation does, case first set aside.
+func collated(a, b string) int {
+	return cmp.Or(strings.Compare(strings.ToLower(a), strings.ToLower(b)), strings.Compare(a, b))
+}
+
+// parentWritten returns when the item's parent was written, the zero time standing for no parent.
+func parentWritten(held map[uuid.UUID]content.Content, item content.Content) time.Time {
+	if item.ParentID == nil {
+		return time.Time{}
+	}
+	return held[*item.ParentID].CreatedAt
+}
+
+// nestedUnderParents returns the sorted items each under its parent, the children of a parent left out last.
+func nestedUnderParents(sorted []content.ListedItem) []content.ListedItem {
+	present := make(map[uuid.UUID]bool, len(sorted))
+	for _, item := range sorted {
+		present[item.ID] = true
+	}
+	children := make(map[uuid.UUID][]content.ListedItem)
+	var tops []content.ListedItem
+	var strays []uuid.UUID
+	for _, item := range sorted {
+		if item.ParentID == nil {
+			tops = append(tops, item)
+			continue
+		}
+		if !present[*item.ParentID] && len(children[*item.ParentID]) == 0 {
+			strays = append(strays, *item.ParentID)
+		}
+		children[*item.ParentID] = append(children[*item.ParentID], item)
+	}
+	ordered := make([]content.ListedItem, 0, len(sorted))
+	var walk func([]content.ListedItem)
+	walk = func(items []content.ListedItem) {
+		for _, item := range items {
+			ordered = append(ordered, item)
+			walk(children[item.ID])
+		}
+	}
+	walk(tops)
+	for _, parent := range strays {
+		walk(children[parent])
+	}
+	return ordered
 }
 
 // narrowed reports whether the stored values hold every term the filter names.
@@ -420,7 +540,7 @@ func among(members []any, wanted any) bool {
 }
 
 // paged returns the page of items the filter asks for.
-func paged(matched []content.Content, f content.Filter) []content.Content {
+func paged[T any](matched []T, f content.Filter) []T {
 	if f.PerPage <= 0 {
 		return matched
 	}

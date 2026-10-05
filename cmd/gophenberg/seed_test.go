@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -194,15 +195,13 @@ func TestSeedStoresTheDemoPosts(t *testing.T) {
 
 	counts := seededCounts(t, databaseURL)
 	want := map[content.Status]int{
-		content.StatusPublished: 3,
-		content.StatusDraft:     1,
-		content.StatusPending:   1,
-		content.StatusTrash:     1,
+		content.StatusPublished: 23,
+		content.StatusDraft:     5,
+		content.StatusPending:   6,
+		content.StatusTrash:     2,
 	}
-	for status, total := range want {
-		if counts[status] != total {
-			t.Errorf("counts[%q] = %d, want %d", status, counts[status], total)
-		}
+	if !maps.Equal(counts, want) {
+		t.Errorf("counts = %v, want %v", counts, want)
 	}
 	if !strings.Contains(stdout.String(), seed.AdminEmail) {
 		t.Errorf("output = %q, want the admin credentials", stdout.String())
@@ -302,15 +301,16 @@ func TestSeedStoresBlockContent(t *testing.T) {
 	}
 	defer pool.Close()
 
-	posts, _, err := postgres.NewContentStore(pool).List(
-		t.Context(), content.Filter{Type: content.TypePost, Status: content.StatusPublished, Page: 1, PerPage: 10},
+	posts, total, err := postgres.NewContentStore(pool).List(
+		t.Context(),
+		content.Filter{Type: content.TypePost, Statuses: []content.Status{content.StatusPublished}, Page: 1, PerPage: 10},
 	)
 
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
 	}
-	if len(posts) != 3 {
-		t.Fatalf("published posts = %d, want 3", len(posts))
+	if total != 23 || len(posts) != 10 {
+		t.Fatalf("published posts = %d of %d, want a full page of 23", len(posts), total)
 	}
 	stored, err := postgres.NewContentStore(pool).ByID(t.Context(), posts[0].ID)
 	if err != nil {
@@ -569,6 +569,91 @@ func TestSeedStoresAPageHoldingAChild(t *testing.T) {
 	if got := seededAddress(t, databaseURL, "Team"); got != "pages/about/team" {
 		t.Errorf("Team answers at %q, want %q", got, "pages/about/team")
 	}
+	if got := seededAddress(t, databaseURL, "Volunteers"); got != "pages/about/team/volunteers" {
+		t.Errorf("Volunteers answers at %q, want %q", got, "pages/about/team/volunteers")
+	}
+}
+
+func TestSeedListsThePostsOfEveryDemoAccountByName(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	if err := seedMigrated(t.Context(), testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}),
+		io.Discard); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
+	}
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("connecting pool: %v", err)
+	}
+	defer pool.Close()
+
+	posts, _, err := postgres.NewContentStore(pool).List(t.Context(), content.Filter{
+		Type: content.TypePost, OrderBy: content.OrderByAuthor, Order: content.OrderAsc, Page: 1, PerPage: 100,
+	})
+
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	var named []string
+	for _, post := range posts {
+		if !slices.Contains(named, post.AuthorName) {
+			named = append(named, post.AuthorName)
+		}
+	}
+	if want := []string{seed.AdminName, seed.AuthorName, seed.EditorName}; !slices.Equal(named, want) {
+		t.Errorf("authors = %v, want every demo account in name order %v", named, want)
+	}
+}
+
+func TestSeedKeepsAPageInTheTrashBesideThePosts(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	if err := seedMigrated(t.Context(), testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}),
+		io.Discard); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
+	}
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("connecting pool: %v", err)
+	}
+	defer pool.Close()
+
+	counts, err := postgres.NewContentStore(pool).Counts(t.Context(), seed.PageTypeKey)
+
+	if err != nil {
+		t.Fatalf("Counts() error = %v, want nil", err)
+	}
+	if counts[content.StatusTrash] != 1 || counts[content.StatusPublished] != 3 {
+		t.Errorf("page counts = %v, want three published pages and one in the trash", counts)
+	}
+}
+
+func TestSeedFeaturesSomePostsThroughAListedSwitch(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	if err := seedMigrated(t.Context(), testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}),
+		io.Discard); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
+	}
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("connecting pool: %v", err)
+	}
+	defer pool.Close()
+
+	_, featured, err := postgres.NewContentStore(pool).List(t.Context(), content.Filter{
+		Type: content.TypePost, Fields: map[string]any{seed.FeaturedFieldKey: true}, Page: 1, PerPage: 10,
+	})
+
+	if err != nil {
+		t.Fatalf("List() error = %v, want nil", err)
+	}
+	if featured != 5 {
+		t.Errorf("featured posts = %d, want 5", featured)
+	}
 }
 
 // refusingUserStore is a user store that refuses to store an account.
@@ -641,6 +726,8 @@ func TestSeedReportsAnAccountItCannotStore(t *testing.T) {
 	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
 		t.Fatalf("first seedMigrated() error = %v, want nil", err)
 	}
+	execSQL(t, databaseURL, "DELETE FROM core.content WHERE author_id = "+
+		"(SELECT id FROM auth.users WHERE email = '"+seed.EditorEmail+"')")
 	execSQL(t, databaseURL, "DELETE FROM auth.users WHERE email = '"+seed.EditorEmail+"'")
 	execSQL(t, databaseURL,
 		"ALTER TABLE auth.users ADD CONSTRAINT no_editor CHECK (email <> '"+seed.EditorEmail+"')")
@@ -761,6 +848,29 @@ func TestSeedReportsAConditionItCannotDeclare(t *testing.T) {
 
 	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
 		t.Error("seedDemoContent() error = nil, want the refused condition reported")
+	}
+}
+
+func TestSeedReportsAFeaturedSwitchItCannotDeclare(t *testing.T) {
+	t.Parallel()
+
+	databaseURL := emptyDatabaseURL(t)
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("first seedMigrated() error = %v, want nil", err)
+	}
+	execSQL(t, databaseURL, "DELETE FROM core.content_fields WHERE key = '"+seed.FeaturedFieldKey+"'")
+	execSQL(t, databaseURL,
+		"ALTER TABLE core.content_fields ADD CONSTRAINT no_featured CHECK (key <> '"+seed.FeaturedFieldKey+"')")
+
+	pool, err := pgxpool.New(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("opening the pool: %v", err)
+	}
+	defer pool.Close()
+
+	if err := seedDemoContent(t.Context(), pool, authkitpg.NewUserStore(pool), content.DefaultFieldDepth); err == nil {
+		t.Error("seedDemoContent() error = nil, want the refused switch reported")
 	}
 }
 

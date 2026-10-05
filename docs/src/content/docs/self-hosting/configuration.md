@@ -31,6 +31,12 @@ so it takes the default.
 | `GOPHENBERG_UPLOAD_TIMEOUT` | No | `5m` | How long a media or theme upload has to arrive, in place of `GOPHENBERG_HTTP_READ_TIMEOUT` |
 | `GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB` | No | `256` | The largest definitions file an import takes, in kilobytes, from 1 to 1024 |
 | `GOPHENBERG_FIELD_DEPTH` | No | `32` | How many containers a field may stand inside, from 1 to 1000. A Flexible content layout counts as one |
+| `GOPHENBERG_LIST_PAGE_SIZES` | No | `10,20,50,100` | The page sizes an admin list offers in its Items per page menu, from 2 to 6 of them, see [the admin lists](#the-admin-lists) |
+| `GOPHENBERG_LIST_PAGE_SIZE` | No | `20` | The page size an admin list opens at, one of the sizes above |
+| `GOPHENBERG_LIST_PAGE_CAP` | No | `100` | The most items one admin list page carries. A request for more gets this many |
+| `GOPHENBERG_TOAST_DURATION` | No | `6s` | How long a confirmation message stays on screen, in whole milliseconds from `1ms` to `2147483647ms` |
+| `GOPHENBERG_TOAST_NAME_LENGTH` | No | `45` | How many characters of an item's name a confirmation message shows before it cuts the name short |
+| `GOPHENBERG_FORMAT_LOCALE` | No | `es-ES` | The locale the admin writes dates, times and numbers in, whatever language its screens are in |
 | `GOPHENBERG_THEME_READY_TIMEOUT` | No | `30s` | How long a starting theme has to answer before it is given up on |
 | `GOPHENBERG_THEME_START_ATTEMPTS` | No | `5` | How many times in a row a theme that will not start is started before it is given up on, from 1 to 1000 |
 | `GOPHENBERG_THEME_BACKOFF` | No | `500ms` | How long to wait before the first retry, doubling after each one |
@@ -69,6 +75,27 @@ address nothing holds, a file that is missing or a request the server
 refused is never kept by any cache, however the windows are set. An
 answer to a signed in account is never kept by any cache either, not
 even that person's own browser.
+
+## The admin lists
+
+The server reads six settings when it starts. It serves five of them
+to the admin and keeps the page cap to itself, and no screen can
+change them. They shape every list the same way:
+
+- **The page sizes.** The Items per page menu offers the sizes in
+  `GOPHENBERG_LIST_PAGE_SIZES`, and a list opens at
+  `GOPHENBERG_LIST_PAGE_SIZE`. The menu only shows for 2 to 6 sizes,
+  so the server refuses any other count rather than hide it.
+- **The page cap.** No list page carries more than
+  `GOPHENBERG_LIST_PAGE_CAP` items, whatever a request asks for. The
+  largest page size has to fit under it.
+- **The confirmation messages.** `GOPHENBERG_TOAST_DURATION` sets how
+  long a message after an action stays on screen.
+  `GOPHENBERG_TOAST_NAME_LENGTH` sets how many characters of an item's
+  name such a message shows before it cuts the name short with "…".
+- **The format.** `GOPHENBERG_FORMAT_LOCALE` sets the locale for
+  dates, times and numbers, whatever language a person reads the
+  admin in. The tag `es-ES` writes 04/10/2026, 14:05 and 1.234,56.
 
 ## Which theme serves
 
@@ -204,6 +231,17 @@ The server refuses to start, and says why, when:
   `500ms`, `1m`.
 - `GOPHENBERG_THEME_MAX_BACKOFF` stands below
   `GOPHENBERG_THEME_BACKOFF`, which would leave no room to grow.
+- `GOPHENBERG_LIST_PAGE_SIZES` lists fewer than 2 or more than 6
+  sizes, lists a size twice or out of order, or names a size above
+  `GOPHENBERG_LIST_PAGE_CAP`.
+- `GOPHENBERG_LIST_PAGE_SIZE` is not one of those sizes.
+- `GOPHENBERG_LIST_PAGE_CAP` is not a whole number from 1 to
+  2147483647, or stands below the largest page size.
+- `GOPHENBERG_TOAST_DURATION` is not a whole number of milliseconds
+  from `1ms` to `2147483647ms`, the longest a browser timer holds.
+- `GOPHENBERG_TOAST_NAME_LENGTH` is not a positive whole number.
+- `GOPHENBERG_FORMAT_LOCALE` is not a language tag such as `es-ES` or
+  `en-GB`.
 - `GOPHENBERG_THEME` pins a theme that fails to load, see
   [installing a theme](/themes/installing-a-theme/). A theme chosen
   in the admin does not stop startup.

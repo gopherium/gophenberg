@@ -36,6 +36,39 @@ func TestPostCreateStoresADraftAuthoredByTheRequester(t *testing.T) {
 	}
 }
 
+func TestPostCreateStoresTheContentAndTheExcerptItCarries(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/content",
+		`{"title":"Hello World (Copy)","excerpt":"A short summary","content":"<p>The body</p>"}`)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusCreated, recorder.Body.String())
+	}
+	body := decodeBody[postBody](t, recorder)
+	if body.Excerpt != "A short summary" || body.Content != "<p>The body</p>" {
+		t.Errorf("answered %q and %q, want the excerpt and the content carried", body.Excerpt, body.Content)
+	}
+	stored := posts.posts[body.ID]
+	if stored.Excerpt != "A short summary" || stored.Content != "<p>The body</p>" || stored.Status != content.StatusDraft {
+		t.Errorf("stored %+v, want a draft holding the excerpt and the content", stored)
+	}
+}
+
+func TestPostCreateLeavesTheContentAndTheExcerptEmptyWhenTheyAreAbsent(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+
+	body := decodeBody[postBody](t, doRequest(t, handler, http.MethodPost, "/api/content", `{"title":"Hello"}`))
+
+	if stored := posts.posts[body.ID]; stored.Excerpt != "" || stored.Content != "" {
+		t.Errorf("stored %q and %q, want both empty", stored.Excerpt, stored.Content)
+	}
+}
+
 func TestPostCreateRejectsUnknownTypesAndMalformedBodies(t *testing.T) {
 	t.Parallel()
 

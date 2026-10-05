@@ -74,6 +74,8 @@ type Config struct {
 	UploadTimeout time.Duration
 	// Declarations is what every plugin declared at the last boot, by the plugin that declared it.
 	Declarations definitions.Walked
+	// Lists is what the admin lists read once. A zero value serves its default.
+	Lists ListSettings
 }
 
 // registryOf returns the registry the configuration hands over, or one built over its type store.
@@ -109,6 +111,7 @@ func NewServer(cfg Config) http.Handler {
 		uploadTimeout:  uploadTimeoutOf(cfg),
 		declarations:   cfg.Declarations,
 		logger:         loggerOf(cfg),
+		lists:          listsOf(cfg),
 	}
 	s.addresses = content.NewResolver(cfg.Content, s.types)
 	headers := headersFor(cfg.Cache)
@@ -162,6 +165,7 @@ func (s *server) mountOpen(r chi.Router, cfg Config) {
 	}
 	r.Get("/api/content", s.handleContentList())
 	r.Post("/api/content", s.handleContentCreate())
+	r.Delete("/api/content/trash", s.handleTrashEmpty())
 	r.Get("/api/content/counts", s.handleContentCounts())
 	r.Get("/api/content/{id}", s.handleContentGet())
 	r.Patch("/api/content/{id}", s.handleContentPatch())
@@ -173,6 +177,7 @@ func (s *server) mountOpen(r chi.Router, cfg Config) {
 	r.Get("/api/content/{id}/revisions/{revisionID}", s.handleRevisionGet())
 	r.Delete("/api/content/{id}/revisions/{revisionID}", s.handleRevisionDelete())
 	r.Get("/api/version", s.handleVersion())
+	r.Get("/api/authors", s.handleAuthorList())
 	if cfg.Readers != nil {
 		r.Patch("/api/locale", s.handleLocalePatch())
 	}
@@ -245,4 +250,5 @@ type server struct {
 	uploadTimeout  time.Duration
 	declarations   definitions.Walked
 	logger         *slog.Logger
+	lists          ListSettings
 }

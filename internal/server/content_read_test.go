@@ -153,7 +153,7 @@ func TestPostListRejectsInvalidParameters(t *testing.T) {
 		"?page=-1",
 		"?page=many",
 		"?per_page=0",
-		"?per_page=101",
+		"?per_page=-5",
 		"?per_page=lots",
 		"?status=publsh",
 	} {
@@ -190,24 +190,25 @@ func TestPostListReportsStoreFailures(t *testing.T) {
 	}
 }
 
-func TestPostListReportsAuthorLookupFailures(t *testing.T) {
+func TestPostListNamesTheAuthorsWithoutReadingEveryAccount(t *testing.T) {
 	t.Parallel()
 
 	users := newFakeUserStore()
-	addAda(t, users)
-	handler := server.NewServer(server.Config{
-		Users: failingUserStore{Store: users}, Content: newFakePostStore(), Types: newFakeTypeStore(),
-	})
-	cookie := loginCookie(t, handler)
-	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.AddCookie(cookie)
-		handler.ServeHTTP(w, r)
+	ada := addAda(t, users)
+	posts := newFakePostStore()
+	posts.add(newPost(t, "Hello World", ada.ID))
+	posts.authors = map[uuid.UUID]string{ada.ID: "Name On The Row"}
+	handler := authedServerWithStores(t, server.Config{
+		Users: failingUserStore{Store: users}, Content: posts, Types: newFakeTypeStore(),
 	})
 
-	recorder := doRequest(t, authed, http.MethodGet, "/api/content", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content", "")
 
-	if recorder.Code != http.StatusInternalServerError {
-		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d without the accounts read: %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+	if body := decodeBody[postListBody](t, recorder); body.Items[0].AuthorName != "Name On The Row" {
+		t.Errorf("author = %q, want the name the listed row carries", body.Items[0].AuthorName)
 	}
 }
 
@@ -297,11 +298,12 @@ func TestPostListRejectsInvalidSortParameters(t *testing.T) {
 	handler, _, _ := authedPostServer(t)
 
 	for _, query := range []string{
-		"?orderby=author",
+		"?orderby=status",
 		"?orderby=",
 		"?order=sideways",
 		"?order=",
 		"?orderby=title&order=random",
+		"?orderby_hierarchy=maybe",
 	} {
 		recorder := doRequest(t, handler, http.MethodGet, "/api/content"+query, "")
 
@@ -323,6 +325,11 @@ func TestPostListAcceptsEverySortPair(t *testing.T) {
 		"?orderby=title&order=desc",
 		"?orderby=date&order=asc",
 		"?orderby=date&order=desc",
+		"?orderby=author&order=asc",
+		"?orderby=slug&order=desc",
+		"?orderby=parent&order=asc",
+		"?orderby=title&order=asc&orderby_hierarchy=true",
+		"?orderby_hierarchy=false",
 	} {
 		recorder := doRequest(t, handler, http.MethodGet, "/api/content"+query, "")
 
@@ -341,6 +348,38 @@ func TestPostListPassesTheSortToTheStore(t *testing.T) {
 
 	if posts.lastFilter.OrderBy != content.OrderByTitle || posts.lastFilter.Order != content.OrderAsc {
 		t.Errorf("filter = %+v, want title ascending", posts.lastFilter)
+	}
+}
+
+func TestPostListPassesEveryNewSortToTheStore(t *testing.T) {
+	t.Parallel()
+
+	for query, want := range map[string]content.OrderBy{
+		"?orderby=author": content.OrderByAuthor,
+		"?orderby=slug":   content.OrderBySlug,
+		"?orderby=parent": content.OrderByParent,
+	} {
+		handler, posts, _ := authedPostServer(t)
+
+		doRequest(t, handler, http.MethodGet, "/api/content"+query, "")
+
+		if posts.lastFilter.OrderBy != want {
+			t.Errorf("GET /api/content%s sorted by %q, want %q", query, posts.lastFilter.OrderBy, want)
+		}
+	}
+}
+
+func TestPostListNestsChildrenOnlyWhenAsked(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+
+	doRequest(t, handler, http.MethodGet, "/api/content?orderby_hierarchy=true", "")
+	nested := posts.lastFilter.Hierarchy
+	doRequest(t, handler, http.MethodGet, "/api/content", "")
+
+	if !nested || posts.lastFilter.Hierarchy {
+		t.Errorf("hierarchy = %t when asked and %t when not, want true then false", nested, posts.lastFilter.Hierarchy)
 	}
 }
 

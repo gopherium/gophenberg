@@ -4,7 +4,9 @@ package seed
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -58,7 +60,14 @@ type nestingStore struct {
 	content.Store
 	held    map[uuid.UUID]content.Content
 	created []content.Content
+	trashed []uuid.UUID
 	byIDErr error
+}
+
+// Trash records the page sent to the trash.
+func (s *nestingStore) Trash(_ context.Context, id uuid.UUID, _ time.Time) (content.Content, error) {
+	s.trashed = append(s.trashed, id)
+	return s.held[id], nil
 }
 
 // newNestingStore returns a store holding nothing.
@@ -162,10 +171,33 @@ func TestPagesStoresEveryScriptedPageUnderItsParent(t *testing.T) {
 	if store.created[1].ParentID == nil || *store.created[1].ParentID != store.created[0].ID {
 		t.Errorf("the nested page hangs from %v, want %v", store.created[1].ParentID, store.created[0].ID)
 	}
+	if store.created[2].Path != "pages/about/team/volunteers" {
+		t.Errorf("the third level answers at %q, want %q", store.created[2].Path, "pages/about/team/volunteers")
+	}
+	if third, top := store.created[2].PublishedAt, store.created[0].PublishedAt; !third.Before(*top) {
+		t.Errorf("the third level went out at %v, want it older than the top page's %v so the newest list keeps About",
+			third, top)
+	}
 	for _, stored := range store.created {
 		if stored.Status != content.StatusPublished {
 			t.Errorf("%q is %q, want it published", stored.Title, stored.Status)
 		}
+	}
+	if len(store.trashed) != 1 || store.held[store.trashed[0]].Title != "Old Pricing" {
+		t.Errorf("trashed %v, want the old pricing page alone", store.trashed)
+	}
+}
+
+func TestStoreDemoPageReportsATrashFailure(t *testing.T) {
+	t.Parallel()
+
+	scripted := demoPage{id: "019fb000-0000-7000-8000-0000000000ee", title: "Refused", trashed: true}
+
+	err := storeDemoPage(t.Context(), stubPostStore{byIDErr: content.ErrNotFound, trashErr: errStub},
+		PageType(), scripted, uuid.New())
+
+	if !errors.Is(err, errStub) {
+		t.Errorf("storeDemoPage() error = %v, want %v", err, errStub)
 	}
 }
 

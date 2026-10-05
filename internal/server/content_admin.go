@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -18,9 +19,6 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/served"
 )
-
-// defaultAdminPerPage is how many items the admin listing carries when the query names none.
-const defaultAdminPerPage = 20
 
 // countedStatuses are the statuses the counts endpoint always reports.
 var countedStatuses = []content.Status{
@@ -61,8 +59,9 @@ type contentRow struct {
 }
 
 type contentListResponse struct {
-	Items []contentRow `json:"items"`
-	Total int          `json:"total"`
+	Items   []contentRow `json:"items"`
+	Total   int          `json:"total"`
+	PerPage int          `json:"per_page"`
 }
 
 // newContentResponse builds a contentResponse from an item, normalizing timestamps to UTC.
@@ -103,27 +102,21 @@ func (s *server) authorNames(ctx context.Context) (map[uuid.UUID]string, error) 
 }
 
 // parseAdminContentFilter reads the list query parameters into a filter over the given type.
-func parseAdminContentFilter(query url.Values, contentType content.Type) (content.Filter, error) {
+func (s *server) parseAdminContentFilter(query url.Values, contentType content.Type) (content.Filter, error) {
 	filter := content.Filter{
 		Type:    contentType.Key,
 		Search:  query.Get("search"),
 		OrderBy: content.OrderByDate,
 		Order:   content.OrderDesc,
 		Page:    1,
-		PerPage: defaultAdminPerPage,
+		PerPage: s.lists.PageSize,
 	}
-	if err := applyContentOrdering(query, &filter); err != nil {
-		return content.Filter{}, err
-	}
-	if raw := query.Get("status"); raw != "" {
-		status, err := content.ParseStatus(raw)
-		if err != nil {
+	for _, apply := range []func(url.Values, *content.Filter) error{
+		applyContentOrdering, applyContentStatuses, applyContentAuthors, applyContentDates, s.applyContentPaging,
+	} {
+		if err := apply(query, &filter); err != nil {
 			return content.Filter{}, err
 		}
-		filter.Status = status
-	}
-	if err := applyContentPaging(query, &filter); err != nil {
-		return content.Filter{}, err
 	}
 	terms, err := content.ParseFieldFilter(query, contentType.Fields)
 	if err != nil {
@@ -133,7 +126,72 @@ func parseAdminContentFilter(query url.Values, contentType content.Type) (conten
 	return filter, nil
 }
 
-// applyContentOrdering reads the orderby and order query parameters into filter.
+// applyContentStatuses reads the status query parameter, one status or a comma list, into filter.
+func applyContentStatuses(query url.Values, filter *content.Filter) error {
+	raw := query.Get("status")
+	if raw == "" {
+		return nil
+	}
+	statuses, err := content.ParseStatuses(raw)
+	if err != nil {
+		return err
+	}
+	filter.Statuses = statuses
+	return nil
+}
+
+// applyContentAuthors reads the author and author_exclude query parameters, comma lists of account ids, into filter.
+func applyContentAuthors(query url.Values, filter *content.Filter) error {
+	authors, err := accountIDs(query.Get("author"))
+	if err != nil {
+		return err
+	}
+	excluded, err := accountIDs(query.Get("author_exclude"))
+	if err != nil {
+		return err
+	}
+	filter.Authors, filter.ExcludeAuthors = authors, excluded
+	return nil
+}
+
+// accountIDs returns the account ids a comma list names, none for an empty list.
+func accountIDs(raw string) ([]uuid.UUID, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	entries := strings.Split(raw, ",")
+	ids := make([]uuid.UUID, len(entries))
+	for i, entry := range entries {
+		id, err := uuid.Parse(strings.TrimSpace(entry))
+		if err != nil {
+			return nil, fmt.Errorf("server: invalid account id %q", entry)
+		}
+		ids[i] = id
+	}
+	return ids, nil
+}
+
+// applyContentDates reads the before and after query parameters, RFC 3339 instants, into filter.
+func applyContentDates(query url.Values, filter *content.Filter) error {
+	for _, bound := range []struct {
+		name string
+		into **time.Time
+	}{{"before", &filter.Before}, {"after", &filter.After}} {
+		raw := query.Get(bound.name)
+		if raw == "" {
+			continue
+		}
+		at, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			return fmt.Errorf("server: invalid %s %q", bound.name, raw)
+		}
+		utc := at.UTC()
+		*bound.into = &utc
+	}
+	return nil
+}
+
+// applyContentOrdering reads the orderby, order and orderby_hierarchy query parameters into filter.
 func applyContentOrdering(query url.Values, filter *content.Filter) error {
 	if raw, ok := query["orderby"]; ok {
 		orderBy, err := content.ParseOrderBy(raw[0])
@@ -149,11 +207,18 @@ func applyContentOrdering(query url.Values, filter *content.Filter) error {
 		}
 		filter.Order = order
 	}
+	if raw := query.Get("orderby_hierarchy"); raw != "" {
+		nested, err := strconv.ParseBool(raw)
+		if err != nil {
+			return fmt.Errorf("server: invalid orderby_hierarchy %q", raw)
+		}
+		filter.Hierarchy = nested
+	}
 	return nil
 }
 
-// applyContentPaging reads the page and per_page query parameters into filter.
-func applyContentPaging(query url.Values, filter *content.Filter) error {
+// applyContentPaging reads the page and per_page query parameters into filter, a page past the cap cut to it.
+func (s *server) applyContentPaging(query url.Values, filter *content.Filter) error {
 	if raw := query.Get("page"); raw != "" {
 		page, err := strconv.Atoi(raw)
 		if err != nil || page < 1 {
@@ -163,10 +228,10 @@ func applyContentPaging(query url.Values, filter *content.Filter) error {
 	}
 	if raw := query.Get("per_page"); raw != "" {
 		perPage, err := strconv.Atoi(raw)
-		if err != nil || perPage < 1 || perPage > content.MaxPerPage {
+		if err != nil || perPage < 1 {
 			return fmt.Errorf("server: invalid per_page %q", raw)
 		}
-		filter.PerPage = perPage
+		filter.PerPage = min(perPage, s.lists.PageCap)
 	}
 	return nil
 }
@@ -179,7 +244,7 @@ func (s *server) handleContentList() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		filter, err := parseAdminContentFilter(r.URL.Query(), contentType)
+		filter, err := s.parseAdminContentFilter(r.URL.Query(), contentType)
 		if err != nil {
 			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "invalid list parameters", Code: "list_parameters_invalid",
@@ -191,19 +256,14 @@ func (s *server) handleContentList() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		names, err := s.authorNames(r.Context())
-		if err != nil {
-			respondDomainError(w, err)
-			return
-		}
 		items := make([]contentRow, len(rows))
 		for i, c := range rows {
 			items[i] = contentRow{
-				contentResponse: newContentResponse(c, names[c.AuthorID]),
+				contentResponse: newContentResponse(c.Content, c.AuthorName),
 				Fields:          content.ListedValues(contentType.Fields, c.Fields),
 			}
 		}
-		authkit.Respond(w, http.StatusOK, contentListResponse{Items: items, Total: total})
+		authkit.Respond(w, http.StatusOK, contentListResponse{Items: items, Total: total, PerPage: filter.PerPage})
 	}
 }
 

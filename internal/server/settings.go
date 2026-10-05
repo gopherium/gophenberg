@@ -3,10 +3,12 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gopherium/gouncer/authkit"
 
@@ -14,11 +16,60 @@ import (
 	"github.com/gopherium/gophenberg/internal/mediahost"
 )
 
-// settingsResponse names the values the site chose for itself.
+// The list settings served when the environment names none.
+const (
+	DefaultListPageSize    = 20
+	DefaultListPageCap     = 100
+	DefaultToastDuration   = 6 * time.Second
+	DefaultToastNameLength = 45
+	DefaultFormatLocale    = "es-ES"
+)
+
+// DefaultListPageSizes returns the page sizes a list offers when the environment names none.
+func DefaultListPageSizes() []int {
+	return []int{10, 20, 50, 100}
+}
+
+// ListSettings carries what the admin lists read once, as the environment named it.
+type ListSettings struct {
+	// PageSizes lists the page sizes a list offers, from the smallest up. Empty serves the defaults.
+	PageSizes []int
+	// PageSize is the page a list opens on and the size a request naming none is answered at.
+	PageSize int
+	// PageCap is the most items one admin page carries, a larger request answered at the cap.
+	PageCap int
+	// ToastDuration is how long a confirmation toast stays on screen.
+	ToastDuration time.Duration
+	// ToastNameLength is how many characters of an item's name a toast shows.
+	ToastNameLength int
+	// FormatLocale is the locale dates and numbers are written in, whatever the interface language.
+	FormatLocale string
+}
+
+// listsOf returns the list settings the configuration names, each zero value replaced by its default.
+func listsOf(cfg Config) ListSettings {
+	held := cfg.Lists
+	if len(held.PageSizes) == 0 {
+		held.PageSizes = DefaultListPageSizes()
+	}
+	held.PageSize = cmp.Or(held.PageSize, DefaultListPageSize)
+	held.PageCap = cmp.Or(held.PageCap, DefaultListPageCap)
+	held.ToastDuration = cmp.Or(held.ToastDuration, DefaultToastDuration)
+	held.ToastNameLength = cmp.Or(held.ToastNameLength, DefaultToastNameLength)
+	held.FormatLocale = cmp.Or(held.FormatLocale, DefaultFormatLocale)
+	return held
+}
+
+// settingsResponse names the values the site chose for itself and the list settings it serves read only.
 type settingsResponse struct {
-	LocaleDefault  string `json:"locale_default"`
-	ContentPerPage int    `json:"content_per_page"`
-	JPEGQuality    int    `json:"jpeg_quality"`
+	LocaleDefault     string `json:"locale_default"`
+	ContentPerPage    int    `json:"content_per_page"`
+	JPEGQuality       int    `json:"jpeg_quality"`
+	ListPageSizes     []int  `json:"list_page_sizes"`
+	ListPageSize      int    `json:"list_page_size"`
+	ToastMilliseconds int64  `json:"toast_milliseconds"`
+	ToastNameLength   int    `json:"toast_name_length"`
+	FormatLocale      string `json:"format_locale"`
 }
 
 // settingsRequest names the values a caller asks the site to choose.
@@ -86,6 +137,11 @@ func (s *server) chosenSettings(ctx context.Context) (settingsResponse, error) {
 		ContentPerPage: content.ResolvePerPage(held[content.PerPageSettingKey], found[content.PerPageSettingKey]),
 		JPEGQuality: mediahost.ResolveJPEGQuality(
 			held[mediahost.JPEGQualityKey], found[mediahost.JPEGQualityKey]),
+		ListPageSizes:     s.lists.PageSizes,
+		ListPageSize:      s.lists.PageSize,
+		ToastMilliseconds: s.lists.ToastDuration.Milliseconds(),
+		ToastNameLength:   s.lists.ToastNameLength,
+		FormatLocale:      s.lists.FormatLocale,
 	}, nil
 }
 

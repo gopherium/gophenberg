@@ -109,6 +109,7 @@ func serverConfig(
 		DefinitionsImportCap: settings.definitionsImportCap,
 		UploadTimeout:        settings.uploadTimeout,
 		Declarations:         walked,
+		Lists:                settings.lists,
 	}
 	if settings.webDir != "" {
 		cfg.Web = os.DirFS(settings.webDir)
@@ -147,6 +148,8 @@ type runConfig struct {
 	cacheContentStaleWhileRevalidate time.Duration
 
 	serving gonsole.Timeouts
+
+	lists server.ListSettings
 }
 
 // servingDefaults are the HTTP timeouts and shutdown graces a site runs under when its environment names none.
@@ -353,6 +356,9 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 		return runConfig{}, err
 	}
 	if settings.serving, err = env.Timeouts(servingDefaults); err != nil {
+		return runConfig{}, err
+	}
+	if settings.lists, err = listSettingsFrom(env); err != nil {
 		return runConfig{}, err
 	}
 	settings.databaseURL = databaseURL

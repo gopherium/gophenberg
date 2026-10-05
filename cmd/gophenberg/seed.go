@@ -64,6 +64,9 @@ func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.U
 	if err := seed.Types(ctx, types); err != nil {
 		return err
 	}
+	if err := seed.Featured(ctx, types); err != nil {
+		return err
+	}
 	store := postgres.NewContentStore(pool)
 	if err := seed.Posts(ctx, store, types, users); err != nil {
 		return err

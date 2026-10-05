@@ -6,12 +6,16 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/gopherium/framework/gonsole"
+	"github.com/gopherium/framework/pluginkit"
 
+	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/mediahost"
+	"github.com/gopherium/gophenberg/internal/server"
 )
 
 // timedConfig returns a run config carrying distinct timings the wiring must carry through.
@@ -38,6 +42,23 @@ func timedConfig() runConfig {
 			ReadHeader: 4 * time.Second, Read: 40 * time.Second, Idle: 90 * time.Second,
 			Grace: 4 * time.Minute, CancelGrace: 15 * time.Second, StopGrace: 20 * time.Second,
 		},
+
+		lists: server.ListSettings{
+			PageSizes: []int{5, 15, 45}, PageSize: 15, PageCap: 60,
+			ToastDuration: 2500 * time.Millisecond, ToastNameLength: 30, FormatLocale: "en-GB",
+		},
+	}
+}
+
+func TestServerConfigCarriesTheListSettingsTheEnvironmentNamed(t *testing.T) {
+	t.Parallel()
+
+	settings := timedConfig()
+
+	held := serverConfig(settings, site{}, pluginkit.NewHost(), definitions.Walked{}, testLogger(io.Discard))
+
+	if !reflect.DeepEqual(held.Lists, settings.lists) {
+		t.Errorf("Lists = %+v, want %+v", held.Lists, settings.lists)
 	}
 }
 

@@ -42,7 +42,7 @@ var (
 
 // Reader reads the published content the site serves.
 type Reader interface {
-	List(ctx context.Context, f content.Filter) ([]content.Content, int, error)
+	List(ctx context.Context, f content.Filter) ([]content.ListedItem, int, error)
 	PublishedByPath(ctx context.Context, path string) (content.Content, error)
 	RelatedTo(ctx context.Context, target uuid.UUID, page, perPage int) ([]content.Content, int, error)
 }
@@ -187,12 +187,12 @@ func (s *site) serveTerm(w http.ResponseWriter, r *http.Request, held content.Ad
 func (s *site) serveList(w http.ResponseWriter, r *http.Request, listed content.Type, page int) {
 	perPage := s.pageSize(r.Context())
 	rows, total, err := s.posts.List(r.Context(), content.Filter{
-		Type:    listed.Key,
-		Status:  content.StatusPublished,
-		OrderBy: content.OrderByDate,
-		Order:   content.OrderDesc,
-		Page:    page,
-		PerPage: perPage,
+		Type:     listed.Key,
+		Statuses: []content.Status{content.StatusPublished},
+		OrderBy:  content.OrderByDate,
+		Order:    content.OrderDesc,
+		Page:     page,
+		PerPage:  perPage,
 	})
 	if err != nil {
 		serveError(w)
@@ -201,7 +201,7 @@ func (s *site) serveList(w http.ResponseWriter, r *http.Request, listed content.
 	shell := s.shell(r.Context(), s.listingTitle(listed))
 	summaries := make([]summary, len(rows))
 	for i, p := range rows {
-		summaries[i] = newSummary(p, shell.T)
+		summaries[i] = newSummary(p.Content, shell.T)
 	}
 	s.render(w, indexTemplate, http.StatusOK, listData{
 		Shell: shell,

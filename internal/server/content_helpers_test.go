@@ -30,6 +30,7 @@ var _ content.Store = (*fakePostStore)(nil)
 // fakePostStore is an in-memory post store double with per-method error injection.
 type fakePostStore struct {
 	posts        map[uuid.UUID]content.Content
+	authors      map[uuid.UUID]string
 	lastFilter   content.Filter
 	createErr    error
 	byIDErr      error
@@ -39,6 +40,7 @@ type fakePostStore struct {
 	trashErr     error
 	restoreErr   error
 	deleteErr    error
+	emptyErr     error
 	countsErr    error
 	childrenErr  error
 	depthErr     error
@@ -152,25 +154,25 @@ func (s *fakePostStore) ByID(_ context.Context, id uuid.UUID) (content.Content, 
 	return p, nil
 }
 
-// List returns the stored posts matching the filter's status and search.
-func (s *fakePostStore) List(_ context.Context, f content.Filter) ([]content.Content, int, error) {
+// List returns the stored posts matching the filter's statuses and search.
+func (s *fakePostStore) List(_ context.Context, f content.Filter) ([]content.ListedItem, int, error) {
 	s.lastFilter = f
 	if s.listErr != nil {
 		return nil, 0, s.listErr
 	}
-	matched := make([]content.Content, 0, len(s.posts))
+	matched := make([]content.ListedItem, 0, len(s.posts))
 	for _, p := range s.ordered() {
 		if p.Type != f.Type {
 			continue
 		}
-		if f.Status != "" && p.Status != f.Status {
+		if len(f.Statuses) > 0 && !slices.Contains(f.Statuses, p.Status) {
 			continue
 		}
 		if f.Search != "" && !strings.Contains(strings.ToLower(p.Title), strings.ToLower(f.Search)) {
 			continue
 		}
 		p.Content = ""
-		matched = append(matched, p)
+		matched = append(matched, content.ListedItem{Content: p, AuthorName: s.authors[p.AuthorID]})
 	}
 	total := len(matched)
 	start := min((f.Page-1)*f.PerPage, total)
@@ -258,6 +260,26 @@ func (s *fakePostStore) Delete(_ context.Context, id uuid.UUID) error {
 	}
 	delete(s.posts, id)
 	return nil
+}
+
+// EmptyTrash removes the trashed posts of the type, only the author's when one is named, counting what it left.
+func (s *fakePostStore) EmptyTrash(_ context.Context, typeKey string, author *uuid.UUID) (int, int, error) {
+	if s.emptyErr != nil {
+		return 0, 0, s.emptyErr
+	}
+	deleted, kept := 0, 0
+	for id, p := range s.posts {
+		if p.Type != typeKey || p.Status != content.StatusTrash {
+			continue
+		}
+		if author != nil && p.AuthorID != *author {
+			kept++
+			continue
+		}
+		delete(s.posts, id)
+		deleted++
+	}
+	return deleted, kept, nil
 }
 
 // Revisions returns the post's stored revisions newest first, without content.
@@ -394,6 +416,7 @@ func authedPostServer(t *testing.T) (http.Handler, *fakePostStore, gouncer.User)
 	users := newFakeUserStore()
 	ada := addAda(t, users)
 	posts := newFakePostStore()
+	posts.authors = map[uuid.UUID]string{ada.ID: ada.Name}
 	handler := server.NewServer(serverConfig(users, posts))
 	cookie := loginCookie(t, handler)
 	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

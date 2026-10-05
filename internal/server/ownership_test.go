@@ -38,6 +38,11 @@ var unownedWrites = []route{
 	{http.MethodPatch, "/api/locale"},
 }
 
+// scopedWrites names the open routes that change many items at once, only those the session may change.
+var scopedWrites = []route{
+	{http.MethodDelete, "/api/content/trash"},
+}
+
 // ownedWorld is a server holding one post and one media item authored by the admin.
 type ownedWorld struct {
 	handler http.Handler
@@ -106,7 +111,7 @@ func TestEveryOpenWriteEitherAsksWhoOwnsItOrOwnsNothing(t *testing.T) {
 	t.Parallel()
 
 	classified := map[route]bool{}
-	for _, group := range [][]route{ownedWrites, unownedWrites} {
+	for _, group := range [][]route{ownedWrites, unownedWrites, scopedWrites} {
 		for _, write := range group {
 			classified[write] = true
 		}

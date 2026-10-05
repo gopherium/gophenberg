@@ -114,6 +114,10 @@ func TestContentTrash(t *testing.T) {
 	runFeature(t, "features/content-trash.feature", initializeContentTrash)
 }
 
+func TestContentList(t *testing.T) {
+	runFeature(t, "features/content-list.feature", initializeContentList)
+}
+
 func TestContentServing(t *testing.T) {
 	runFeature(t, "features/content-serving.feature", initializeContentServing)
 }

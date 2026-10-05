@@ -4,6 +4,7 @@ package content_test
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -50,6 +51,36 @@ func TestParseStatusRejectsUnknownValues(t *testing.T) {
 	for _, in := range []string{"", "publsh", "DRAFT", "deleted"} {
 		if _, err := content.ParseStatus(in); !errors.Is(err, content.ErrInvalidStatus) {
 			t.Errorf("ParseStatus(%q) error = %v, want %v", in, err, content.ErrInvalidStatus)
+		}
+	}
+}
+
+func TestParseStatusesReadsAListSeparatedByCommas(t *testing.T) {
+	t.Parallel()
+
+	for raw, want := range map[string][]content.Status{
+		"draft":               {content.StatusDraft},
+		"draft,published":     {content.StatusDraft, content.StatusPublished},
+		" pending , private ": {content.StatusPending, content.StatusPrivate},
+		"draft,pending,private,scheduled,published": {
+			content.StatusDraft, content.StatusPending, content.StatusPrivate,
+			content.StatusScheduled, content.StatusPublished,
+		},
+	} {
+		got, err := content.ParseStatuses(raw)
+
+		if err != nil || !slices.Equal(got, want) {
+			t.Errorf("ParseStatuses(%q) = %v, %v, want %v", raw, got, err, want)
+		}
+	}
+}
+
+func TestParseStatusesRefusesAListNamingAnUnknownOrEmptyStatus(t *testing.T) {
+	t.Parallel()
+
+	for _, raw := range []string{"draft,lost", "draft,,published", ",", "Draft", "draft,"} {
+		if _, err := content.ParseStatuses(raw); !errors.Is(err, content.ErrInvalidStatus) {
+			t.Errorf("ParseStatuses(%q) error = %v, want %v", raw, err, content.ErrInvalidStatus)
 		}
 	}
 }
