@@ -308,14 +308,14 @@ test('shows the size and shape of a picture', async () => {
 	renderAt('/media')
 
 	expect(await screen.findByText('1600 × 1000')).toBeInTheDocument()
-	expect(screen.getByText('248.05 KB')).toBeInTheDocument()
+	expect(screen.getByText('248,05 KB')).toBeInTheDocument()
 })
 
 test('says nothing about the shape of a file that has none', async () => {
 	listing([MANUAL])
 	renderAt('/media')
 
-	expect(await screen.findByText('11.72 KB')).toBeInTheDocument()
+	expect(await screen.findByText('11,72 KB')).toBeInTheDocument()
 	expect(screen.queryByText(/×/)).not.toBeInTheDocument()
 })
 
@@ -328,7 +328,7 @@ test('describes every stored file when the library is laid out as a table', asyn
 
 	expect(await screen.findByText('harbor.jpg')).toBeInTheDocument()
 	expect(screen.getByText('image/jpeg')).toBeInTheDocument()
-	expect(screen.getByText('08/10/2026')).toBeInTheDocument()
+	expect(screen.getByText('10/08/2026')).toBeInTheDocument()
 })
 
 test('dates a media item that carries no timestamp', async () => {

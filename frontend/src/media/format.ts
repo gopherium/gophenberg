@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { displayLocale } from '@gopherium/gottext'
+import { formatNumber } from '@gopherium/gottext'
 import type { MediaItem } from './api'
 
 /** The binary steps a file size is reported in. */
@@ -22,11 +22,7 @@ export function fileSize(bytes: number): string {
 	if (step === undefined) {
 		return ''
 	}
-	const scaled = (bytes / step.mag).toLocaleString(displayLocale(), {
-		minimumFractionDigits: 0,
-		maximumFractionDigits: 2,
-	})
-	return `${scaled} ${step.unit}`
+	return `${formatNumber(bytes / step.mag, { maximumFractionDigits: 2 })} ${step.unit}`
 }
 
 /**

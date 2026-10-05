@@ -16,6 +16,7 @@ import './index.css'
 import { BootLoading } from './boot'
 import { startLocale } from './i18n/start'
 import { createAppRouter } from './router'
+import { SiteFormatGate } from './settings/SiteFormatGate'
 import { AdminToaster } from './toasts'
 
 await startLocale()
@@ -43,7 +44,9 @@ createRoot(document.getElementById('root')!).render(
 					error={<BootError />}
 				>
 					<AdminToaster>
-						<RouterProvider router={router} />
+						<SiteFormatGate loading={<BootLoading />}>
+							<RouterProvider router={router} />
+						</SiteFormatGate>
 					</AdminToaster>
 				</AuthGate>
 			</AdminRoot>

@@ -14,6 +14,7 @@ import {
 } from '@gophenberg/frontend-sdk'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, LoadingRows, Page, useToaster } from '@gopherium/godmin'
+import { formatNumber } from '@gopherium/gottext'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -393,7 +394,7 @@ function GroupRow(
 		<tr>
 			<td>{held.title}</td>
 			<td>{placementOf(held.location, props.types)}</td>
-			<td>{String(held.fields.length)}</td>
+			<td>{formatNumber(held.fields.length)}</td>
 			<td>
 				<Stack direction="row" gap="xs">
 					{!held.active && <Badge intent="draft">{__('Inactive', 'gophenberg')}</Badge>}

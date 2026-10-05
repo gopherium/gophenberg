@@ -3,7 +3,38 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
-import { chooseSiteSettings, fetchSiteSettings } from '../settings/api'
+import { chooseSiteSettings, fetchListSettings, fetchSiteSettings } from '../settings/api'
+
+/** The list settings a server serves beside what the site chose for itself. */
+const LIST_SETTINGS = {
+	list_page_sizes: [10, 20, 50],
+	list_page_size: 20,
+	toast_milliseconds: 6000,
+	toast_name_length: 45,
+	format_locale: 'de-DE',
+}
+
+test('reads the settings every list follows, as the server names them', async () => {
+	server.use(
+		http.get('/api/settings', () =>
+			HttpResponse.json({ locale_default: '', content_per_page: 10, jpeg_quality: 82, ...LIST_SETTINGS }),
+		),
+	)
+
+	expect(await fetchListSettings()).toEqual(LIST_SETTINGS)
+})
+
+test('refuses to name the list settings when they cannot be read', async () => {
+	server.use(http.get('/api/settings', () => HttpResponse.json({ error: 'boom' }, { status: 500 })))
+
+	await expect(fetchListSettings()).rejects.toThrow()
+})
+
+test('refuses to name the list settings when they arrive in a shape it cannot read', async () => {
+	server.use(http.get('/api/settings', () => HttpResponse.json({ locale_default: '' })))
+
+	await expect(fetchListSettings()).rejects.toThrow()
+})
 
 test('reads what the site chose for itself', async () => {
 	server.use(

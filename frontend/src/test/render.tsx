@@ -9,6 +9,7 @@ import { render } from '@testing-library/react'
 
 import { adminBasepath } from '../basepath'
 import { createAppRouter } from '../router'
+import { SiteFormatGate } from '../settings/SiteFormatGate'
 import { AdminToaster } from '../toasts'
 import { versionQueryKey } from '../version'
 
@@ -49,7 +50,9 @@ export function renderRoutedAt(
 	render(
 		<QueryClientProvider client={client}>
 			<AdminToaster>
-				<RouterProvider router={router} />
+				<SiteFormatGate loading={null}>
+					<RouterProvider router={router} />
+				</SiteFormatGate>
 			</AdminToaster>
 		</QueryClientProvider>,
 	)
