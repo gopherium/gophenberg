@@ -74,6 +74,8 @@ type Config struct {
 	UploadTimeout time.Duration
 	// Declarations is what every plugin declared at the last boot, by the plugin that declared it.
 	Declarations definitions.Walked
+	// Lists is what the admin lists read once. A zero value serves its default.
+	Lists ListSettings
 }
 
 // registryOf returns the registry the configuration hands over, or one built over its type store.
@@ -109,6 +111,7 @@ func NewServer(cfg Config) http.Handler {
 		uploadTimeout:  uploadTimeoutOf(cfg),
 		declarations:   cfg.Declarations,
 		logger:         loggerOf(cfg),
+		lists:          listsOf(cfg),
 	}
 	s.addresses = content.NewResolver(cfg.Content, s.types)
 	headers := headersFor(cfg.Cache)
@@ -245,4 +248,5 @@ type server struct {
 	uploadTimeout  time.Duration
 	declarations   definitions.Walked
 	logger         *slog.Logger
+	lists          ListSettings
 }

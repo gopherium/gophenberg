@@ -7,10 +7,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/mediahost"
+	"github.com/gopherium/gophenberg/internal/server"
 )
 
 // answeredSettings returns the settings the answer carries.
@@ -299,6 +303,88 @@ func TestSettingsReportAStoreThatWillNotAnswer(t *testing.T) {
 				t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
 			}
 		})
+	}
+}
+
+// servedLists is what the settings answer carries for the admin lists.
+type servedLists struct {
+	PageSizes         []int  `json:"list_page_sizes"`
+	PageSize          int    `json:"list_page_size"`
+	ToastMilliseconds int64  `json:"toast_milliseconds"`
+	ToastNameLength   int    `json:"toast_name_length"`
+	FormatLocale      string `json:"format_locale"`
+}
+
+// listedSettingsServer returns a signed in handler serving the list settings it is given.
+func listedSettingsServer(t *testing.T, lists server.ListSettings) http.Handler {
+	t.Helper()
+	users := newFakeUserStore()
+	addAda(t, users)
+	cfg := serverConfig(users, newFakePostStore())
+	cfg.Settings = newStoredSettings()
+	cfg.Lists = lists
+	return authedServerWithStores(t, cfg)
+}
+
+// answeredLists returns what the settings answer carries for the admin lists.
+func answeredLists(t *testing.T, recorder *httptest.ResponseRecorder) servedLists {
+	t.Helper()
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	var held servedLists
+	if err := json.Unmarshal(recorder.Body.Bytes(), &held); err != nil {
+		t.Fatalf("reading the answer: %v, want nil", err)
+	}
+	return held
+}
+
+func TestSettingsGetServesTheListDefaultsWhenTheEnvironmentNamedNone(t *testing.T) {
+	t.Parallel()
+
+	handler := listedSettingsServer(t, server.ListSettings{})
+
+	held := answeredLists(t, askLocale(handler, http.MethodGet, "/api/settings", ""))
+
+	want := servedLists{
+		PageSizes: server.DefaultListPageSizes(), PageSize: server.DefaultListPageSize,
+		ToastMilliseconds: server.DefaultToastDuration.Milliseconds(), ToastNameLength: server.DefaultToastNameLength,
+		FormatLocale: server.DefaultFormatLocale,
+	}
+	if !reflect.DeepEqual(held, want) {
+		t.Errorf("served %+v, want the defaults %+v", held, want)
+	}
+}
+
+func TestSettingsGetServesTheListSettingsTheEnvironmentNamed(t *testing.T) {
+	t.Parallel()
+
+	handler := listedSettingsServer(t, server.ListSettings{
+		PageSizes: []int{5, 15}, PageSize: 15, PageCap: 40,
+		ToastDuration: 1500 * time.Millisecond, ToastNameLength: 12, FormatLocale: "en-GB",
+	})
+
+	held := answeredLists(t, askLocale(handler, http.MethodGet, "/api/settings", ""))
+
+	want := servedLists{
+		PageSizes: []int{5, 15}, PageSize: 15, ToastMilliseconds: 1500, ToastNameLength: 12, FormatLocale: "en-GB",
+	}
+	if !reflect.DeepEqual(held, want) {
+		t.Errorf("served %+v, want %+v", held, want)
+	}
+}
+
+func TestSettingsPatchLeavesTheListSettingsAsTheEnvironmentNamedThem(t *testing.T) {
+	t.Parallel()
+
+	handler := listedSettingsServer(t, server.ListSettings{PageSizes: []int{5, 15}, PageSize: 15})
+
+	held := answeredLists(t, askLocale(handler, http.MethodPatch, "/api/settings",
+		`{"list_page_sizes":[1,2],"list_page_size":2,"toast_milliseconds":1,"format_locale":"fr-FR"}`))
+
+	kept := slices.Equal(held.PageSizes, []int{5, 15}) && held.PageSize == 15
+	if !kept || held.FormatLocale != server.DefaultFormatLocale {
+		t.Errorf("served %+v, want the list settings the environment named, whatever a write asks", held)
 	}
 }
 
