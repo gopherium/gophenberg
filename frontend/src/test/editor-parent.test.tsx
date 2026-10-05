@@ -20,6 +20,7 @@ const NESTING_TYPE = {
 	page_kind: 'single',
 	default: false,
 	active: true,
+	fields: [],
 }
 
 const FLAT_TYPE = {

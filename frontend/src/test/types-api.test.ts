@@ -121,6 +121,7 @@ const POST_ROW = {
 	active: true,
 	created_at: '2026-08-01T10:00:00Z',
 	updated_at: '2026-08-01T10:00:00Z',
+	fields: [],
 }
 
 const PAGE_ROW = { ...POST_ROW, key: 'page', singular_label: 'Page', plural_label: 'Pages' }

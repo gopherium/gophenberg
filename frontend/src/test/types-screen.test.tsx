@@ -19,6 +19,7 @@ const POST_TYPE = {
 	page_kind: 'single',
 	default: true,
 	active: true,
+	fields: [],
 }
 
 const PAGE_TYPE = {

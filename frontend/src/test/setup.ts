@@ -28,6 +28,7 @@ const builtInType = {
 	active: true,
 	created_at: '2026-08-01T10:00:00Z',
 	updated_at: '2026-08-01T10:00:00Z',
+	fields: [],
 }
 
 beforeEach(() => {

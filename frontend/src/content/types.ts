@@ -47,7 +47,7 @@ const typeSchema = z.object({
 	default: z.boolean(),
 	active: z.boolean(),
 	origin: z.string().optional(),
-	fields: z.array(fieldSchema).optional(),
+	fields: z.array(fieldSchema),
 })
 
 const typeListSchema = z.object({ items: z.array(typeSchema) })
@@ -124,7 +124,7 @@ function toType(row: z.infer<typeof typeSchema>): ContentType {
 		isDefault: row.default,
 		active: row.active,
 		origin: row.origin,
-		fields: (row.fields ?? []).map(toField),
+		fields: row.fields.map(toField),
 	}
 }
 

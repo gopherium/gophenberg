@@ -54,6 +54,7 @@ test('names a registered type by the label the registry carries', async () => {
 						page_kind: 'single',
 						default: false,
 						active: true,
+						fields: [],
 					},
 				],
 			}),
