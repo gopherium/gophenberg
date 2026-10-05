@@ -30,6 +30,7 @@ var _ content.Store = (*fakePostStore)(nil)
 // fakePostStore is an in-memory post store double with per-method error injection.
 type fakePostStore struct {
 	posts        map[uuid.UUID]content.Content
+	authors      map[uuid.UUID]string
 	lastFilter   content.Filter
 	createErr    error
 	byIDErr      error
@@ -170,7 +171,7 @@ func (s *fakePostStore) List(_ context.Context, f content.Filter) ([]content.Lis
 			continue
 		}
 		p.Content = ""
-		matched = append(matched, content.ListedItem{Content: p})
+		matched = append(matched, content.ListedItem{Content: p, AuthorName: s.authors[p.AuthorID]})
 	}
 	total := len(matched)
 	start := min((f.Page-1)*f.PerPage, total)
@@ -394,6 +395,7 @@ func authedPostServer(t *testing.T) (http.Handler, *fakePostStore, gouncer.User)
 	users := newFakeUserStore()
 	ada := addAda(t, users)
 	posts := newFakePostStore()
+	posts.authors = map[uuid.UUID]string{ada.ID: ada.Name}
 	handler := server.NewServer(serverConfig(users, posts))
 	cookie := loginCookie(t, handler)
 	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

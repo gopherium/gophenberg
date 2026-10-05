@@ -191,15 +191,10 @@ func (s *server) handleContentList() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		names, err := s.authorNames(r.Context())
-		if err != nil {
-			respondDomainError(w, err)
-			return
-		}
 		items := make([]contentRow, len(rows))
 		for i, c := range rows {
 			items[i] = contentRow{
-				contentResponse: newContentResponse(c.Content, names[c.AuthorID]),
+				contentResponse: newContentResponse(c.Content, c.AuthorName),
 				Fields:          content.ListedValues(contentType.Fields, c.Fields),
 			}
 		}

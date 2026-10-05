@@ -190,24 +190,25 @@ func TestPostListReportsStoreFailures(t *testing.T) {
 	}
 }
 
-func TestPostListReportsAuthorLookupFailures(t *testing.T) {
+func TestPostListNamesTheAuthorsWithoutReadingEveryAccount(t *testing.T) {
 	t.Parallel()
 
 	users := newFakeUserStore()
-	addAda(t, users)
-	handler := server.NewServer(server.Config{
-		Users: failingUserStore{Store: users}, Content: newFakePostStore(), Types: newFakeTypeStore(),
-	})
-	cookie := loginCookie(t, handler)
-	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.AddCookie(cookie)
-		handler.ServeHTTP(w, r)
+	ada := addAda(t, users)
+	posts := newFakePostStore()
+	posts.add(newPost(t, "Hello World", ada.ID))
+	posts.authors = map[uuid.UUID]string{ada.ID: "Name On The Row"}
+	handler := authedServerWithStores(t, server.Config{
+		Users: failingUserStore{Store: users}, Content: posts, Types: newFakeTypeStore(),
 	})
 
-	recorder := doRequest(t, authed, http.MethodGet, "/api/content", "")
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content", "")
 
-	if recorder.Code != http.StatusInternalServerError {
-		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d without the accounts read: %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+	if body := decodeBody[postListBody](t, recorder); body.Items[0].AuthorName != "Name On The Row" {
+		t.Errorf("author = %q, want the name the listed row carries", body.Items[0].AuthorName)
 	}
 }
 
