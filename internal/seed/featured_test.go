@@ -4,6 +4,7 @@ package seed
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -49,6 +50,22 @@ func TestFeaturedDeclaresASwitchTheListShows(t *testing.T) {
 	}
 	if !content.Listed(declared) {
 		t.Errorf("declared %+v, want it shown in the list", declared)
+	}
+}
+
+func TestFeaturedRefusesAFieldOfAnotherKindUnderItsKey(t *testing.T) {
+	t.Parallel()
+
+	held := content.Field{TypeKey: content.TypePost, Key: FeaturedFieldKey, Label: "Featured", Kind: content.FieldKindText}
+	types := &holdingTypeStore{declared: []content.Field{held}}
+
+	err := Featured(t.Context(), content.NewRegistry(types))
+
+	if err == nil || !strings.Contains(err.Error(), string(content.FieldKindText)) {
+		t.Errorf("Featured() error = %v, want a refusal naming the %s field it found", err, content.FieldKindText)
+	}
+	if len(types.declared) != 1 {
+		t.Errorf("the store holds %+v, want the field it found alone", types.declared)
 	}
 }
 

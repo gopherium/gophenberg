@@ -38,11 +38,19 @@ func Featured(ctx context.Context, types *content.Registry) error {
 	}
 	for _, held := range postType.Fields {
 		if held.Key == FeaturedFieldKey {
-			return nil
+			return keptSwitch(held)
 		}
 	}
 	if _, err := types.CreateField(ctx, FeaturedField()); err != nil {
 		return fmt.Errorf("seed %s field: %w", FeaturedFieldKey, err)
+	}
+	return nil
+}
+
+// keptSwitch accepts a field the post type already holds under the switch key when it is a switch.
+func keptSwitch(held content.Field) error {
+	if held.Kind != content.FieldKindBoolean {
+		return fmt.Errorf("seed %s field: the post type already holds it as a %s field", FeaturedFieldKey, held.Kind)
 	}
 	return nil
 }
