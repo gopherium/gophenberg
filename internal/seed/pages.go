@@ -25,6 +25,8 @@ type demoPage struct {
 	title    string
 	excerpt  string
 	content  string
+	daysAgo  int
+	trashed  bool
 }
 
 // demoPages returns the scripted pages stored by [Pages], parents before children.
@@ -51,6 +53,23 @@ func demoPages() []demoPage {
 				"<!-- wp:paragraph -->\n<p>An address that reads like a sentence is easier to keep than one " +
 				"that reads like a database.</p>\n<!-- /wp:paragraph -->" +
 				"<cite>Maria Perez</cite></blockquote>\n<!-- /wp:quote -->",
+		},
+		{
+			id:       "019fb000-0000-7000-8000-000000000012",
+			parentID: "019fb000-0000-7000-8000-000000000011",
+			title:    "Volunteers",
+			excerpt:  "The people who give their evenings to the site.",
+			content: "<!-- wp:paragraph -->\n<p>A third level hangs under the team, so the team page holds " +
+				"a page of its own.</p>\n<!-- /wp:paragraph -->",
+			daysAgo: 30,
+		},
+		{
+			id:      "019fb000-0000-7000-8000-000000000013",
+			title:   "Old Pricing",
+			excerpt: "Prices that no longer apply.",
+			content: "<!-- wp:paragraph -->\n<p>These prices were replaced, so the page waits in the " +
+				"trash.</p>\n<!-- /wp:paragraph -->",
+			trashed: true,
 		},
 	}
 }
@@ -104,7 +123,7 @@ func Pages(ctx context.Context, store content.Store, types *content.Registry, us
 	return nil
 }
 
-// storeDemoPage stores one scripted page under its scripted parent, published.
+// storeDemoPage stores one scripted page under its parent, published, dated and trashed as the script says.
 func storeDemoPage(
 	ctx context.Context, store content.Store, pageType content.Type, scripted demoPage, authorID uuid.UUID,
 ) error {
@@ -126,8 +145,15 @@ func storeDemoPage(
 	built.Excerpt = scripted.excerpt
 	built.Content = scripted.content
 	mustPublish(&built)
+	dated(&built, scripted.daysAgo)
 	if _, err := store.Create(ctx, built); err != nil {
 		return fmt.Errorf("seed page: %w", err)
+	}
+	if !scripted.trashed {
+		return nil
+	}
+	if _, err := store.Trash(ctx, id, time.Now().UTC()); err != nil {
+		return fmt.Errorf("seed trashed page: %w", err)
 	}
 	return nil
 }

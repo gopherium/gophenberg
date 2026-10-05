@@ -4,6 +4,7 @@
 package seed
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -29,15 +30,23 @@ const (
 
 // demoPost is one scripted post of the demo data set.
 type demoPost struct {
-	id      string
-	title   string
-	excerpt string
-	content string
-	status  content.Status
+	id       string
+	title    string
+	excerpt  string
+	content  string
+	status   content.Status
+	author   string
+	daysAgo  int
+	featured bool
 }
 
-// demoPosts returns the scripted posts stored by [Posts].
+// demoPosts returns the scripted posts stored by [Posts], the archive after the ones dated at the seeding.
 func demoPosts() []demoPost {
+	return append(currentPosts(), archivePosts()...)
+}
+
+// currentPosts returns the scripted posts the admin wrote, dated at the seeding.
+func currentPosts() []demoPost {
 	return []demoPost{
 		{
 			id:      "019fb000-0000-7000-8000-000000000001",
@@ -121,11 +130,11 @@ func demoPosts() []demoPost {
 	}
 }
 
-// Posts stores the demo posts the admin account does not already own.
+// Posts stores the demo posts the site does not already hold, each credited to the demo account that wrote it.
 func Posts(ctx context.Context, store content.Store, types *content.Registry, users gouncer.Store) error {
-	admin, err := users.UserByEmail(ctx, AdminEmail)
+	writers, err := demoWriters(ctx, users)
 	if err != nil {
-		return fmt.Errorf("seed admin lookup: %w", err)
+		return err
 	}
 	postType, err := types.ByKey(ctx, content.TypePost)
 	if err != nil {
@@ -138,14 +147,28 @@ func Posts(ctx context.Context, store content.Store, types *content.Registry, us
 		} else if !errors.Is(err, content.ErrNotFound) {
 			return fmt.Errorf("seed post lookup: %w", err)
 		}
-		if err := storeDemoPost(ctx, store, postType, scripted, id, admin.ID); err != nil {
+		writer := writers[cmp.Or(scripted.author, AdminEmail)]
+		if err := storeDemoPost(ctx, store, postType, scripted, id, writer); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// storeDemoPost stores one scripted post in its scripted status.
+// demoWriters returns the identity of each demo account that writes demo posts, by its email.
+func demoWriters(ctx context.Context, users gouncer.Store) (map[string]uuid.UUID, error) {
+	writers := make(map[string]uuid.UUID, 3)
+	for _, email := range []string{AdminEmail, EditorEmail, AuthorEmail} {
+		held, err := users.UserByEmail(ctx, email)
+		if err != nil {
+			return nil, fmt.Errorf("seed %s lookup: %w", email, err)
+		}
+		writers[email] = held.ID
+	}
+	return writers, nil
+}
+
+// storeDemoPost stores one scripted post in its scripted status, dated as the script says.
 func storeDemoPost(
 	ctx context.Context, store content.Store, postType content.Type, scripted demoPost, id, authorID uuid.UUID,
 ) error {
@@ -156,11 +179,15 @@ func storeDemoPost(
 	built.ID = id
 	built.Excerpt = scripted.excerpt
 	built.Content = scripted.content
+	if scripted.featured {
+		built.Fields = content.Values{FeaturedFieldKey: true}
+	}
 	if scripted.status != content.StatusDraft && scripted.status != content.StatusTrash {
 		if err := built.Transition(scripted.status); err != nil {
 			return fmt.Errorf("build post: %w", err)
 		}
 	}
+	dated(&built, scripted.daysAgo)
 	stored, err := store.Create(ctx, built)
 	if err != nil {
 		return fmt.Errorf("seed post: %w", err)
@@ -172,6 +199,18 @@ func storeDemoPost(
 		return fmt.Errorf("seed trashed post: %w", err)
 	}
 	return nil
+}
+
+// dated moves the item back by the days given, written a day before that, leaving an item dated today alone.
+func dated(built *content.Content, daysAgo int) {
+	if daysAgo == 0 {
+		return
+	}
+	at := built.UpdatedAt.AddDate(0, 0, -daysAgo)
+	built.CreatedAt, built.UpdatedAt = at.AddDate(0, 0, -1), at
+	if built.PublishedAt != nil {
+		built.PublishedAt = &at
+	}
 }
 
 // mustPublish moves freshly built demo content to published, panicking on a refused transition.

@@ -5,6 +5,7 @@ package seed
 import (
 	"context"
 	"errors"
+	"maps"
 	"testing"
 	"time"
 
@@ -183,8 +184,135 @@ func TestPostsStoresEveryScriptedPost(t *testing.T) {
 	if store.created != len(demoPosts()) {
 		t.Errorf("created %d posts, want %d", store.created, len(demoPosts()))
 	}
-	if store.trashed != 1 {
-		t.Errorf("trashed %d posts, want 1", store.trashed)
+	if store.trashed != 2 {
+		t.Errorf("trashed %d posts, want 2", store.trashed)
+	}
+}
+
+func TestDemoPostsHoldTheStatusesTheListsPageThrough(t *testing.T) {
+	t.Parallel()
+
+	held := map[content.Status]int{}
+	for _, scripted := range demoPosts() {
+		held[scripted.status]++
+	}
+
+	want := map[content.Status]int{
+		content.StatusPublished: 23, content.StatusDraft: 5, content.StatusPending: 6, content.StatusTrash: 2,
+	}
+	if !maps.Equal(held, want) {
+		t.Errorf("statuses = %v, want %v", held, want)
+	}
+}
+
+func TestDemoPostsCarryUniqueIdentitiesAndAddresses(t *testing.T) {
+	t.Parallel()
+
+	ids, slugs := map[string]bool{}, map[string]bool{}
+	for _, scripted := range demoPosts() {
+		slug := content.Slugify(scripted.title)
+		if ids[scripted.id] || slugs[slug] {
+			t.Errorf("%q repeats an identity or an address", scripted.title)
+		}
+		ids[scripted.id], slugs[slug] = true, true
+	}
+}
+
+// rosterUserStore answers each demo account under its own identity.
+type rosterUserStore struct {
+	gouncer.Store
+	ids map[string]uuid.UUID
+}
+
+// UserByEmail returns the account the roster holds under the email.
+func (s rosterUserStore) UserByEmail(_ context.Context, email string) (gouncer.User, error) {
+	return gouncer.User{ID: s.ids[email]}, nil
+}
+
+// seededPosts stores the demo posts in a counting store over the roster, answering what it stored.
+func seededPosts(t *testing.T, roster rosterUserStore) []content.Content {
+	t.Helper()
+	store := &countingPostStore{}
+	if err := Posts(t.Context(), store, testRegistry(), roster); err != nil {
+		t.Fatalf("Posts() error = %v, want nil", err)
+	}
+	return store.stored
+}
+
+// demoRoster returns a roster holding an identity for each demo account.
+func demoRoster() rosterUserStore {
+	return rosterUserStore{ids: map[string]uuid.UUID{
+		AdminEmail: uuid.New(), EditorEmail: uuid.New(), AuthorEmail: uuid.New(),
+	}}
+}
+
+func TestPostsCreditEveryDemoAccountWithWork(t *testing.T) {
+	t.Parallel()
+
+	roster := demoRoster()
+
+	stored := seededPosts(t, roster)
+
+	written := map[uuid.UUID]int{}
+	for _, post := range stored {
+		written[post.AuthorID]++
+	}
+	for email, id := range roster.ids {
+		if written[id] == 0 {
+			t.Errorf("%s wrote nothing, want every demo account credited with posts", email)
+		}
+	}
+	if len(written) != len(roster.ids) {
+		t.Errorf("posts are credited to %d accounts, want only the %d demo ones", len(written), len(roster.ids))
+	}
+}
+
+func TestPostsSpreadTheArchiveOverEighteenMonths(t *testing.T) {
+	t.Parallel()
+
+	before := time.Now().UTC()
+	stored := seededPosts(t, demoRoster())
+
+	oldest, dated := before, 0
+	for _, post := range stored {
+		at := post.UpdatedAt
+		if post.PublishedAt != nil {
+			at = *post.PublishedAt
+		}
+		if at.Before(before.Add(-24 * time.Hour)) {
+			dated++
+			if !post.UpdatedAt.Equal(at) {
+				t.Errorf("%q changed at %v but went out at %v, want one date", post.Title, post.UpdatedAt, at)
+			}
+		}
+		if at.Before(oldest) {
+			oldest = at
+		}
+		if post.CreatedAt.After(at) {
+			t.Errorf("%q was written at %v after its date %v", post.Title, post.CreatedAt, at)
+		}
+	}
+	if dated != 30 {
+		t.Errorf("%d posts are dated in the past, want the 30 of the archive", dated)
+	}
+	if months := before.Sub(oldest).Hours() / 24 / 30; months < 17 || months > 18.5 {
+		t.Errorf("the oldest post is %.1f months old, want the archive spread over about 18 months", months)
+	}
+}
+
+func TestPostsSwitchOnTheFeaturedOnes(t *testing.T) {
+	t.Parallel()
+
+	stored := seededPosts(t, demoRoster())
+
+	featured := 0
+	for _, post := range stored {
+		if post.Fields[FeaturedFieldKey] == true {
+			featured++
+		}
+	}
+	if featured != 5 {
+		t.Errorf("%d posts are featured, want 5", featured)
 	}
 }
 
@@ -228,6 +356,7 @@ type countingPostStore struct {
 	found   bool
 	created int
 	trashed int
+	stored  []content.Content
 }
 
 // ByID reports whether the post was already stored.
@@ -238,9 +367,10 @@ func (s *countingPostStore) ByID(_ context.Context, _ uuid.UUID) (content.Conten
 	return content.Content{}, content.ErrNotFound
 }
 
-// Create counts the post as stored.
+// Create counts the post as stored and keeps it.
 func (s *countingPostStore) Create(_ context.Context, p content.Content) (content.Content, error) {
 	s.created++
+	s.stored = append(s.stored, p)
 	return p, nil
 }
 
