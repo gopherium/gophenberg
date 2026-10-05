@@ -4,7 +4,9 @@ package server_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
@@ -136,6 +138,82 @@ func TestContentAPIResolvesATermAtThePageSizeTheSiteChose(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"per_page":5`) {
 		t.Errorf("body = %q, want the term paged as the site chose", recorder.Body.String())
+	}
+}
+
+// pagedPostServer returns a signed in handler over the post store, paging the admin list as the settings name.
+func pagedPostServer(t *testing.T, lists server.ListSettings) (http.Handler, *fakePostStore) {
+	t.Helper()
+	users := newFakeUserStore()
+	addAda(t, users)
+	posts := newFakePostStore()
+	cfg := serverConfig(users, posts)
+	cfg.Lists = lists
+	return authedServerWithStores(t, cfg), posts
+}
+
+// answeredPageSize returns the page size the admin list answered it used.
+func answeredPageSize(t *testing.T, recorder *httptest.ResponseRecorder) int {
+	t.Helper()
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+	var page struct {
+		PerPage int `json:"per_page"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &page); err != nil {
+		t.Fatalf("reading the answer: %v", err)
+	}
+	return page.PerPage
+}
+
+func TestPostListOpensAtThePageSizeTheEnvironmentNamed(t *testing.T) {
+	t.Parallel()
+
+	handler, posts := pagedPostServer(t, server.ListSettings{PageSizes: []int{5, 15}, PageSize: 15, PageCap: 40})
+
+	used := answeredPageSize(t, doRequest(t, handler, http.MethodGet, "/api/content", ""))
+
+	if used != 15 || posts.lastFilter.PerPage != 15 {
+		t.Errorf("answered %d and listed %d, want the configured 15", used, posts.lastFilter.PerPage)
+	}
+}
+
+func TestPostListAnswersThePageSizeItWasAsked(t *testing.T) {
+	t.Parallel()
+
+	handler, posts := pagedPostServer(t, server.ListSettings{})
+
+	used := answeredPageSize(t, doRequest(t, handler, http.MethodGet, "/api/content?per_page=7", ""))
+
+	if used != 7 || posts.lastFilter.PerPage != 7 {
+		t.Errorf("answered %d and listed %d, want the 7 asked", used, posts.lastFilter.PerPage)
+	}
+}
+
+func TestPostListCutsAPageLargerThanTheCapToTheCap(t *testing.T) {
+	t.Parallel()
+
+	for name, asked := range map[string]struct {
+		lists server.ListSettings
+		query string
+		want  int
+	}{
+		"the configured cap": {server.ListSettings{PageCap: 40}, "?per_page=500", 40},
+		"the default cap":    {server.ListSettings{}, "?per_page=101", server.DefaultListPageCap},
+		"exactly the cap":    {server.ListSettings{PageCap: 40}, "?per_page=40", 40},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			handler, posts := pagedPostServer(t, asked.lists)
+
+			used := answeredPageSize(t, doRequest(t, handler, http.MethodGet, "/api/content"+asked.query, ""))
+
+			if used != asked.want || posts.lastFilter.PerPage != asked.want {
+				t.Errorf("answered %d and listed %d, want %d", used, posts.lastFilter.PerPage, asked.want)
+			}
+		})
 	}
 }
 

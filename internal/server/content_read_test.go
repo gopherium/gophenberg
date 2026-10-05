@@ -153,7 +153,7 @@ func TestPostListRejectsInvalidParameters(t *testing.T) {
 		"?page=-1",
 		"?page=many",
 		"?per_page=0",
-		"?per_page=101",
+		"?per_page=-5",
 		"?per_page=lots",
 		"?status=publsh",
 	} {

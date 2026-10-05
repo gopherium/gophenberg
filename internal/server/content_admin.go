@@ -20,9 +20,6 @@ import (
 	"github.com/gopherium/gophenberg/internal/served"
 )
 
-// defaultAdminPerPage is how many items the admin listing carries when the query names none.
-const defaultAdminPerPage = 20
-
 // countedStatuses are the statuses the counts endpoint always reports.
 var countedStatuses = []content.Status{
 	content.StatusDraft,
@@ -62,8 +59,9 @@ type contentRow struct {
 }
 
 type contentListResponse struct {
-	Items []contentRow `json:"items"`
-	Total int          `json:"total"`
+	Items   []contentRow `json:"items"`
+	Total   int          `json:"total"`
+	PerPage int          `json:"per_page"`
 }
 
 // newContentResponse builds a contentResponse from an item, normalizing timestamps to UTC.
@@ -104,17 +102,17 @@ func (s *server) authorNames(ctx context.Context) (map[uuid.UUID]string, error) 
 }
 
 // parseAdminContentFilter reads the list query parameters into a filter over the given type.
-func parseAdminContentFilter(query url.Values, contentType content.Type) (content.Filter, error) {
+func (s *server) parseAdminContentFilter(query url.Values, contentType content.Type) (content.Filter, error) {
 	filter := content.Filter{
 		Type:    contentType.Key,
 		Search:  query.Get("search"),
 		OrderBy: content.OrderByDate,
 		Order:   content.OrderDesc,
 		Page:    1,
-		PerPage: defaultAdminPerPage,
+		PerPage: s.lists.PageSize,
 	}
 	for _, apply := range []func(url.Values, *content.Filter) error{
-		applyContentOrdering, applyContentStatuses, applyContentAuthors, applyContentDates, applyContentPaging,
+		applyContentOrdering, applyContentStatuses, applyContentAuthors, applyContentDates, s.applyContentPaging,
 	} {
 		if err := apply(query, &filter); err != nil {
 			return content.Filter{}, err
@@ -219,8 +217,8 @@ func applyContentOrdering(query url.Values, filter *content.Filter) error {
 	return nil
 }
 
-// applyContentPaging reads the page and per_page query parameters into filter.
-func applyContentPaging(query url.Values, filter *content.Filter) error {
+// applyContentPaging reads the page and per_page query parameters into filter, a page past the cap cut to it.
+func (s *server) applyContentPaging(query url.Values, filter *content.Filter) error {
 	if raw := query.Get("page"); raw != "" {
 		page, err := strconv.Atoi(raw)
 		if err != nil || page < 1 {
@@ -230,10 +228,10 @@ func applyContentPaging(query url.Values, filter *content.Filter) error {
 	}
 	if raw := query.Get("per_page"); raw != "" {
 		perPage, err := strconv.Atoi(raw)
-		if err != nil || perPage < 1 || perPage > content.MaxPerPage {
+		if err != nil || perPage < 1 {
 			return fmt.Errorf("server: invalid per_page %q", raw)
 		}
-		filter.PerPage = perPage
+		filter.PerPage = min(perPage, s.lists.PageCap)
 	}
 	return nil
 }
@@ -246,7 +244,7 @@ func (s *server) handleContentList() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
-		filter, err := parseAdminContentFilter(r.URL.Query(), contentType)
+		filter, err := s.parseAdminContentFilter(r.URL.Query(), contentType)
 		if err != nil {
 			authkit.RespondError(w, http.StatusBadRequest, authkit.ErrorResponse{
 				Message: "invalid list parameters", Code: "list_parameters_invalid",
@@ -265,7 +263,7 @@ func (s *server) handleContentList() http.HandlerFunc {
 				Fields:          content.ListedValues(contentType.Fields, c.Fields),
 			}
 		}
-		authkit.Respond(w, http.StatusOK, contentListResponse{Items: items, Total: total})
+		authkit.Respond(w, http.StatusOK, contentListResponse{Items: items, Total: total, PerPage: filter.PerPage})
 	}
 }
 
