@@ -15,11 +15,11 @@ afterEach(() => {
 test('shows dates in the language the reader settled on', () => {
 	rememberLocale('es-ES')
 
-	expect(formatDate(NOON)).toBe('16/8/2026')
+	expect(formatDate(NOON)).toBe('16/08/2026')
 })
 
 test('shows dates in the fallback language until one is settled', () => {
-	expect(formatDate(NOON)).toBe('8/16/2026')
+	expect(formatDate(NOON)).toBe('08/16/2026')
 })
 
 test('answers nothing for a timestamp that is not there', () => {

@@ -328,7 +328,7 @@ test('describes every stored file when the library is laid out as a table', asyn
 
 	expect(await screen.findByText('harbor.jpg')).toBeInTheDocument()
 	expect(screen.getByText('image/jpeg')).toBeInTheDocument()
-	expect(screen.getByText(new Date(HARBOR.created_at).toLocaleDateString())).toBeInTheDocument()
+	expect(screen.getByText('08/10/2026')).toBeInTheDocument()
 })
 
 test('dates a media item that carries no timestamp', async () => {

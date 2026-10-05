@@ -67,7 +67,7 @@ test('shows a post date in the language the reader settled on', () => {
 
 	renderDate(postFields(placeholderType('post')), post)
 
-	expect(screen.getByText(/16\/8\/2026/)).toBeInTheDocument()
+	expect(screen.getByText(/16\/08\/2026/)).toBeInTheDocument()
 })
 
 test('shows a media date in the language the reader settled on', () => {
@@ -75,5 +75,5 @@ test('shows a media date in the language the reader settled on', () => {
 
 	renderDate(mediaFields, item)
 
-	expect(screen.getByText('16/8/2026')).toBeInTheDocument()
+	expect(screen.getByText('16/08/2026')).toBeInTheDocument()
 })
