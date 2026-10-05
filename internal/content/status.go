@@ -4,6 +4,7 @@ package content
 
 import (
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -38,6 +39,20 @@ func ParseStatus(value string) (Status, error) {
 	default:
 		return "", ErrInvalidStatus
 	}
+}
+
+// ParseStatuses returns the statuses a comma separated list names, or [ErrInvalidStatus].
+func ParseStatuses(raw string) ([]Status, error) {
+	entries := strings.Split(raw, ",")
+	statuses := make([]Status, len(entries))
+	for i, entry := range entries {
+		status, err := ParseStatus(strings.TrimSpace(entry))
+		if err != nil {
+			return nil, err
+		}
+		statuses[i] = status
+	}
+	return statuses, nil
 }
 
 // Transition moves the content item to the given status, stamping PublishedAt

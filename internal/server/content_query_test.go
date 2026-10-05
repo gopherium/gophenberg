@@ -4,7 +4,11 @@ package server_test
 
 import (
 	"net/http"
+	"slices"
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
@@ -159,6 +163,111 @@ func TestPublishedListAnswersAnEmptyPageForATypeNobodyDeclared(t *testing.T) {
 
 	if recorder.Code != http.StatusOK {
 		t.Errorf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+}
+
+func TestPostListPassesTheStatusListToTheStore(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content?status=draft,pending,private,scheduled,published", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+	want := []content.Status{
+		content.StatusDraft, content.StatusPending, content.StatusPrivate, content.StatusScheduled, content.StatusPublished,
+	}
+	if !slices.Equal(posts.lastFilter.Statuses, want) {
+		t.Errorf("filter statuses = %v, want %v", posts.lastFilter.Statuses, want)
+	}
+}
+
+func TestPostListNamingNoStatusKeepsEveryStatus(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	posts.add(newPost(t, "Draft One", ada.ID))
+	trashed := newPost(t, "Trashed One", ada.ID)
+	trashed.Status = content.StatusTrash
+	posts.add(trashed)
+
+	listed := decodeBody[postListBody](t, doRequest(t, handler, http.MethodGet, "/api/content", ""))
+
+	if listed.Total != 2 || len(posts.lastFilter.Statuses) != 0 {
+		t.Errorf("listed %d with statuses %v, want every status kept", listed.Total, posts.lastFilter.Statuses)
+	}
+}
+
+func TestPostListPassesTheAuthorsToTheStore(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+	kept, other, left := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+
+	recorder := doRequest(t, handler, http.MethodGet,
+		"/api/content?author="+kept.String()+","+other.String()+"&author_exclude="+left.String(), "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+	if !slices.Equal(posts.lastFilter.Authors, []uuid.UUID{kept, other}) {
+		t.Errorf("filter authors = %v, want %v", posts.lastFilter.Authors, []uuid.UUID{kept, other})
+	}
+	if !slices.Equal(posts.lastFilter.ExcludeAuthors, []uuid.UUID{left}) {
+		t.Errorf("filter excluded authors = %v, want %v", posts.lastFilter.ExcludeAuthors, []uuid.UUID{left})
+	}
+}
+
+func TestPostListPassesTheDatesToTheStore(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, _ := authedPostServer(t)
+
+	recorder := doRequest(t, handler, http.MethodGet,
+		"/api/content?after=2026-01-01T00:00:00Z&before=2026-06-01T12:30:00%2B02:00", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+	after, before := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, time.June, 1, 10, 30, 0, 0, time.UTC)
+	if held := posts.lastFilter.After; held == nil || !held.Equal(after) {
+		t.Errorf("filter after = %v, want %v", held, after)
+	}
+	if held := posts.lastFilter.Before; held == nil || !held.Equal(before) {
+		t.Errorf("filter before = %v, want %v", held, before)
+	}
+}
+
+func TestPostListRefusesAFilterItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	for name, query := range map[string]string{
+		"an unknown status":                "status=draft,lost",
+		"an empty status in a list":        "status=draft,,published",
+		"an author that is no id":          "author=nobody",
+		"an excluded author that is no id": "author_exclude=12",
+		"an empty author in a list":        "author=" + uuid.Nil.String() + ",",
+		"a before that is no date":         "before=yesterday",
+		"an after that is no date":         "after=2026-13-01T00:00:00Z",
+		"a day without its time":           "before=2026-06-01",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			handler, _, _ := authedPostServer(t)
+
+			recorder := doRequest(t, handler, http.MethodGet, "/api/content?"+query, "")
+
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusBadRequest, recorder.Body)
+			}
+			if code := errorCode(t, recorder); code != "list_parameters_invalid" {
+				t.Errorf("code = %q, want list_parameters_invalid", code)
+			}
+		})
 	}
 }
 
