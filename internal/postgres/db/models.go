@@ -88,6 +88,7 @@ type CoreContentType struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	Origin        *string
+	Description   string
 }
 
 type CoreFieldGroup struct {

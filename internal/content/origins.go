@@ -40,6 +40,7 @@ func keptFrom(ctx context.Context, origin string) error {
 // typeShape is what a type says about itself apart from whether it is open.
 type typeShape struct {
 	key, singular, plural, routeWord   string
+	description                        string
 	hierarchical, revisions, isDefault bool
 	revisionCap                        int
 	pageKind                           PageKind
@@ -49,6 +50,7 @@ type typeShape struct {
 func shapeOf(t Type) typeShape {
 	return typeShape{
 		key: t.Key, singular: t.SingularLabel, plural: t.PluralLabel, routeWord: t.RouteWord,
+		description:  t.Description,
 		hierarchical: t.Hierarchical, revisions: t.Revisions, isDefault: t.Default,
 		revisionCap: t.RevisionCap, pageKind: t.PageKind,
 	}
