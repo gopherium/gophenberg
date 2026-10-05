@@ -144,8 +144,8 @@ importers:
         specifier: 0.15.0
         version: 0.15.0(52121e17101e02e6e068ec924eb3adda)
       '@gopherium/gottext':
-        specifier: 0.5.1
-        version: 0.5.1(@wordpress/i18n@6.29.0)(gettext-extractor@4.0.6)
+        specifier: 0.6.0
+        version: 0.6.0(@wordpress/i18n@6.29.0)(gettext-extractor@4.0.6)(react@19.3.0)
       '@gopherium/react-auth':
         specifier: 0.10.0
         version: 0.10.0(c0572d83d0fc1eeb03f244668f11f38e)
@@ -1284,14 +1284,17 @@ packages:
       vitest:
         optional: true
 
-  '@gopherium/gottext@0.5.1':
-    resolution: {integrity: sha512-8tzbD3HysVa9/XCme7r7+AiKaHqZTix6Fca7s1vezXWe9qcxmwm2R6gbzszsTdA5SaJaV/dXA9u+S3tOIEEePw==}
+  '@gopherium/gottext@0.6.0':
+    resolution: {integrity: sha512-+r97svOpgacOKAqMRAVcgxdOH6xVdNcB9Bql74IgGsS+WnbRnES7N5qIptDNmg9xXT9P5G4/81j/TdNh+edlEg==}
     engines: {node: '>=22'}
     peerDependencies:
       '@wordpress/i18n': '>=6.26.0 <7.0.0'
       gettext-extractor: '>=4.0.6 <5.0.0'
+      react: ^19.2.8
     peerDependenciesMeta:
       gettext-extractor:
+        optional: true
+      react:
         optional: true
 
   '@gopherium/react-auth@0.10.0':
@@ -6854,12 +6857,13 @@ snapshots:
       stylelint: 17.15.0(supports-color@10.2.2)(typescript@6.0.3)
       vitest: 5.0.3(@types/node@26.6.3)(@vitest/coverage-v8@5.0.3)(jsdom@30.1.1)(msw@2.15.0(@types/node@26.6.3)(typescript@6.0.3))(vite@8.3.2(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
-  '@gopherium/gottext@0.5.1(@wordpress/i18n@6.29.0)(gettext-extractor@4.0.6)':
+  '@gopherium/gottext@0.6.0(@wordpress/i18n@6.29.0)(gettext-extractor@4.0.6)(react@19.3.0)':
     dependencies:
       '@wordpress/i18n': 6.29.0
       gettext-parser: 9.1.1
     optionalDependencies:
       gettext-extractor: 4.0.6
+      react: 19.3.0
 
   '@gopherium/react-auth@0.10.0(c0572d83d0fc1eeb03f244668f11f38e)':
     dependencies:
