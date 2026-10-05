@@ -64,15 +64,15 @@ func (s heldSettings) Lookup(_ context.Context, key string) (string, bool, error
 }
 
 // List records the filter and returns the stored posts without their content.
-func (s *recordingPostStore) List(_ context.Context, f content.Filter) ([]content.Content, int, error) {
+func (s *recordingPostStore) List(_ context.Context, f content.Filter) ([]content.ListedItem, int, error) {
 	s.filter = f
 	if s.listErr != nil {
 		return nil, 0, s.listErr
 	}
-	listed := make([]content.Content, len(s.posts))
+	listed := make([]content.ListedItem, len(s.posts))
 	for i, p := range s.posts {
 		p.Content = ""
-		listed[i] = p
+		listed[i] = content.ListedItem{Content: p}
 	}
 	return listed, len(listed), nil
 }
@@ -167,8 +167,8 @@ func TestReaderAsksOnlyForPublishedPosts(t *testing.T) {
 		t.Fatalf("ListPublished() error = %v, want nil", err)
 	}
 
-	if store.filter.Status != content.StatusPublished {
-		t.Errorf("Status = %q, want %q", store.filter.Status, content.StatusPublished)
+	if want := []content.Status{content.StatusPublished}; !slices.Equal(store.filter.Statuses, want) {
+		t.Errorf("Statuses = %v, want %v alone", store.filter.Statuses, want)
 	}
 	if store.filter.Type != "page" {
 		t.Errorf("Type = %q, want %q", store.filter.Type, "page")

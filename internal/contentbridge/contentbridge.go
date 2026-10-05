@@ -45,12 +45,12 @@ func (r reader) stores() served.Stores {
 // ListPublished returns the newest published items of the given type, capped at limit.
 func (r reader) ListPublished(ctx context.Context, contentType string, limit int) ([]sdk.Item, error) {
 	found, _, err := r.store.List(ctx, content.Filter{
-		Type:    contentType,
-		Status:  content.StatusPublished,
-		OrderBy: content.OrderByDate,
-		Order:   content.OrderDesc,
-		Page:    1,
-		PerPage: limit,
+		Type:     contentType,
+		Statuses: []content.Status{content.StatusPublished},
+		OrderBy:  content.OrderByDate,
+		Order:    content.OrderDesc,
+		Page:     1,
+		PerPage:  limit,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("contentbridge: list published content: %w", err)
@@ -61,7 +61,7 @@ func (r reader) ListPublished(ctx context.Context, contentType string, limit int
 	}
 	published := make([]sdk.Item, 0, len(found))
 	for _, c := range found {
-		withContent, serving, err := r.stillPublished(ctx, c)
+		withContent, serving, err := r.stillPublished(ctx, c.Content)
 		if err != nil {
 			return nil, fmt.Errorf("contentbridge: read published content %s: %w", c.ID, err)
 		}

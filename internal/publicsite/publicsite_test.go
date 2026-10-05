@@ -30,18 +30,18 @@ type fakeReader struct {
 }
 
 // List records the filter and returns the matching page without content.
-func (r *fakeReader) List(_ context.Context, f content.Filter) ([]content.Content, int, error) {
+func (r *fakeReader) List(_ context.Context, f content.Filter) ([]content.ListedItem, int, error) {
 	r.filter = f
 	if r.listErr != nil {
 		return nil, 0, r.listErr
 	}
-	matched := make([]content.Content, 0, len(r.posts))
+	matched := make([]content.ListedItem, 0, len(r.posts))
 	for _, p := range r.posts {
-		if p.Type != f.Type || p.Status != f.Status {
+		if p.Type != f.Type || !slices.Contains(f.Statuses, p.Status) {
 			continue
 		}
 		p.Content = ""
-		matched = append(matched, p)
+		matched = append(matched, content.ListedItem{Content: p})
 	}
 	total := len(matched)
 	start := min((f.Page-1)*f.PerPage, total)
@@ -187,8 +187,8 @@ func TestSiteListsPublishedPostsNewestFirst(t *testing.T) {
 	if !strings.Contains(body, `href="/newer"`) {
 		t.Errorf("body = %q, want each post linked at its address", body)
 	}
-	if reader.filter.Status != content.StatusPublished {
-		t.Errorf("filter status = %q, want %q", reader.filter.Status, content.StatusPublished)
+	if want := []content.Status{content.StatusPublished}; !slices.Equal(reader.filter.Statuses, want) {
+		t.Errorf("filter statuses = %v, want %v alone", reader.filter.Statuses, want)
 	}
 	if reader.filter.OrderBy != content.OrderByDate || reader.filter.Order != content.OrderDesc {
 		t.Errorf("filter ordering = %q %q, want the newest published first",

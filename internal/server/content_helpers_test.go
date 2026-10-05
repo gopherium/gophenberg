@@ -152,25 +152,25 @@ func (s *fakePostStore) ByID(_ context.Context, id uuid.UUID) (content.Content, 
 	return p, nil
 }
 
-// List returns the stored posts matching the filter's status and search.
-func (s *fakePostStore) List(_ context.Context, f content.Filter) ([]content.Content, int, error) {
+// List returns the stored posts matching the filter's statuses and search.
+func (s *fakePostStore) List(_ context.Context, f content.Filter) ([]content.ListedItem, int, error) {
 	s.lastFilter = f
 	if s.listErr != nil {
 		return nil, 0, s.listErr
 	}
-	matched := make([]content.Content, 0, len(s.posts))
+	matched := make([]content.ListedItem, 0, len(s.posts))
 	for _, p := range s.ordered() {
 		if p.Type != f.Type {
 			continue
 		}
-		if f.Status != "" && p.Status != f.Status {
+		if len(f.Statuses) > 0 && !slices.Contains(f.Statuses, p.Status) {
 			continue
 		}
 		if f.Search != "" && !strings.Contains(strings.ToLower(p.Title), strings.ToLower(f.Search)) {
 			continue
 		}
 		p.Content = ""
-		matched = append(matched, p)
+		matched = append(matched, content.ListedItem{Content: p})
 	}
 	total := len(matched)
 	start := min((f.Page-1)*f.PerPage, total)

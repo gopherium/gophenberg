@@ -26,10 +26,20 @@ WHERE p.path = @path AND p.status = 'published';
 
 -- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields,
+    u.name AS author_name
 FROM core.content p
+JOIN auth.users u ON u.id = p.author_id
+LEFT JOIN core.content parent ON parent.id = p.parent_id
 WHERE p.type = @type
-    AND (@status::text = '' OR p.status = @status)
+    AND (@field_filter::jsonb = '{}'::jsonb OR p.fields @> @field_filter::jsonb)
+    AND (cardinality(@statuses::text[]) = 0 OR p.status = ANY(@statuses::text[]))
+    AND (cardinality(@authors::uuid[]) = 0 OR p.author_id = ANY(@authors::uuid[]))
+    AND p.author_id <> ALL(@excluded_authors::uuid[])
+    AND (sqlc.narg(before)::timestamptz IS NULL
+        OR COALESCE(p.published_at, p.updated_at) < sqlc.narg(before)::timestamptz)
+    AND (sqlc.narg(after)::timestamptz IS NULL
+        OR COALESCE(p.published_at, p.updated_at) > sqlc.narg(after)::timestamptz)
     AND (
         @search::text = ''
         OR p.title ILIKE '%' || @search || '%'
@@ -37,53 +47,90 @@ WHERE p.type = @type
     )
 ORDER BY
     CASE WHEN @order_by::text = 'title' AND @order_dir::text = 'asc' THEN p.title END ASC,
-    CASE WHEN @order_by::text = 'title' AND @order_dir::text = 'desc' THEN p.title END DESC,
-    CASE WHEN @order_by::text <> 'title' AND @order_dir::text = 'asc'
-        THEN COALESCE(p.published_at, p.created_at) END ASC,
-    CASE WHEN @order_by::text <> 'title' AND @order_dir::text <> 'asc'
-        THEN COALESCE(p.published_at, p.created_at) END DESC,
+    CASE WHEN @order_by::text = 'title' AND @order_dir::text <> 'asc' THEN p.title END DESC,
+    CASE WHEN @order_by::text = 'author' AND @order_dir::text = 'asc' THEN u.name END ASC,
+    CASE WHEN @order_by::text = 'author' AND @order_dir::text <> 'asc' THEN u.name END DESC,
+    CASE WHEN @order_by::text = 'slug' AND @order_dir::text = 'asc' THEN p.slug END ASC,
+    CASE WHEN @order_by::text = 'slug' AND @order_dir::text <> 'asc' THEN p.slug END DESC,
+    CASE WHEN @order_by::text = 'parent' AND @order_dir::text = 'asc' THEN parent.created_at END ASC NULLS FIRST,
+    CASE WHEN @order_by::text = 'parent' AND @order_dir::text <> 'asc' THEN parent.created_at END DESC NULLS LAST,
+    CASE WHEN @order_by::text NOT IN ('title', 'author', 'slug', 'parent') AND @order_dir::text = 'asc'
+        THEN COALESCE(p.published_at, p.updated_at) END ASC,
+    CASE WHEN @order_by::text NOT IN ('title', 'author', 'slug', 'parent') AND @order_dir::text <> 'asc'
+        THEN COALESCE(p.published_at, p.updated_at) END DESC,
     p.id DESC
+LIMIT @row_limit OFFSET @row_offset;
+
+-- name: ListNestedContent :many
+WITH RECURSIVE listed AS (
+    SELECT p.id, p.parent_id, row_number() OVER (ORDER BY
+        CASE WHEN @order_by::text = 'title' AND @order_dir::text = 'asc' THEN p.title END ASC,
+        CASE WHEN @order_by::text = 'title' AND @order_dir::text <> 'asc' THEN p.title END DESC,
+        CASE WHEN @order_by::text = 'author' AND @order_dir::text = 'asc' THEN u.name END ASC,
+        CASE WHEN @order_by::text = 'author' AND @order_dir::text <> 'asc' THEN u.name END DESC,
+        CASE WHEN @order_by::text = 'slug' AND @order_dir::text = 'asc' THEN p.slug END ASC,
+        CASE WHEN @order_by::text = 'slug' AND @order_dir::text <> 'asc' THEN p.slug END DESC,
+        CASE WHEN @order_by::text = 'parent' AND @order_dir::text = 'asc'
+            THEN parent.created_at END ASC NULLS FIRST,
+        CASE WHEN @order_by::text = 'parent' AND @order_dir::text <> 'asc'
+            THEN parent.created_at END DESC NULLS LAST,
+        CASE WHEN @order_by::text NOT IN ('title', 'author', 'slug', 'parent') AND @order_dir::text = 'asc'
+            THEN COALESCE(p.published_at, p.updated_at) END ASC,
+        CASE WHEN @order_by::text NOT IN ('title', 'author', 'slug', 'parent') AND @order_dir::text <> 'asc'
+            THEN COALESCE(p.published_at, p.updated_at) END DESC,
+        p.id DESC
+    ) AS place
+    FROM core.content p
+    JOIN auth.users u ON u.id = p.author_id
+    LEFT JOIN core.content parent ON parent.id = p.parent_id
+    WHERE p.type = @type
+        AND (@field_filter::jsonb = '{}'::jsonb OR p.fields @> @field_filter::jsonb)
+        AND (cardinality(@statuses::text[]) = 0 OR p.status = ANY(@statuses::text[]))
+        AND (cardinality(@authors::uuid[]) = 0 OR p.author_id = ANY(@authors::uuid[]))
+        AND p.author_id <> ALL(@excluded_authors::uuid[])
+        AND (sqlc.narg(before)::timestamptz IS NULL
+            OR COALESCE(p.published_at, p.updated_at) < sqlc.narg(before)::timestamptz)
+        AND (sqlc.narg(after)::timestamptz IS NULL
+            OR COALESCE(p.published_at, p.updated_at) > sqlc.narg(after)::timestamptz)
+        AND (
+            @search::text = ''
+            OR p.title ILIKE '%' || @search || '%'
+            OR p.content ILIKE '%' || @search || '%'
+        )
+), siblings AS (
+    SELECT l.id, l.parent_id, l.place, min(l.place) OVER (PARTITION BY l.parent_id) AS first_place
+    FROM listed l
+), tree AS (
+    SELECT s.id,
+        CASE WHEN s.parent_id IS NULL THEN ARRAY[0, s.place] ELSE ARRAY[1, s.first_place, s.place] END AS trail
+    FROM siblings s
+    WHERE s.parent_id IS NULL OR NOT EXISTS (SELECT 1 FROM listed kept WHERE kept.id = s.parent_id)
+  UNION ALL
+    SELECT s.id, tree.trail || s.place
+    FROM siblings s
+    JOIN tree ON s.parent_id = tree.id
+)
+SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields,
+    u.name AS author_name
+FROM tree t
+JOIN core.content p ON p.id = t.id
+JOIN auth.users u ON u.id = p.author_id
+ORDER BY t.trail
 LIMIT @row_limit OFFSET @row_offset;
 
 -- name: CountContent :one
 SELECT count(*)
 FROM core.content p
 WHERE p.type = @type
-    AND (@status::text = '' OR p.status = @status)
-    AND (
-        @search::text = ''
-        OR p.title ILIKE '%' || @search || '%'
-        OR p.content ILIKE '%' || @search || '%'
-    );
-
--- name: ListContentByFields :many
-SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
-FROM core.content p
-WHERE p.type = @type
-    AND p.fields @> @field_filter::jsonb
-    AND (@status::text = '' OR p.status = @status)
-    AND (
-        @search::text = ''
-        OR p.title ILIKE '%' || @search || '%'
-        OR p.content ILIKE '%' || @search || '%'
-    )
-ORDER BY
-    CASE WHEN @order_by::text = 'title' AND @order_dir::text = 'asc' THEN p.title END ASC,
-    CASE WHEN @order_by::text = 'title' AND @order_dir::text = 'desc' THEN p.title END DESC,
-    CASE WHEN @order_by::text <> 'title' AND @order_dir::text = 'asc'
-        THEN COALESCE(p.published_at, p.created_at) END ASC,
-    CASE WHEN @order_by::text <> 'title' AND @order_dir::text <> 'asc'
-        THEN COALESCE(p.published_at, p.created_at) END DESC,
-    p.id DESC
-LIMIT @row_limit OFFSET @row_offset;
-
--- name: CountContentByFields :one
-SELECT count(*)
-FROM core.content p
-WHERE p.type = @type
-    AND p.fields @> @field_filter::jsonb
-    AND (@status::text = '' OR p.status = @status)
+    AND (@field_filter::jsonb = '{}'::jsonb OR p.fields @> @field_filter::jsonb)
+    AND (cardinality(@statuses::text[]) = 0 OR p.status = ANY(@statuses::text[]))
+    AND (cardinality(@authors::uuid[]) = 0 OR p.author_id = ANY(@authors::uuid[]))
+    AND p.author_id <> ALL(@excluded_authors::uuid[])
+    AND (sqlc.narg(before)::timestamptz IS NULL
+        OR COALESCE(p.published_at, p.updated_at) < sqlc.narg(before)::timestamptz)
+    AND (sqlc.narg(after)::timestamptz IS NULL
+        OR COALESCE(p.published_at, p.updated_at) > sqlc.narg(after)::timestamptz)
     AND (
         @search::text = ''
         OR p.title ILIKE '%' || @search || '%'

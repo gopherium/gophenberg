@@ -120,7 +120,7 @@ func parseAdminContentFilter(query url.Values, contentType content.Type) (conten
 		if err != nil {
 			return content.Filter{}, err
 		}
-		filter.Status = status
+		filter.Statuses = []content.Status{status}
 	}
 	if err := applyContentPaging(query, &filter); err != nil {
 		return content.Filter{}, err
@@ -199,7 +199,7 @@ func (s *server) handleContentList() http.HandlerFunc {
 		items := make([]contentRow, len(rows))
 		for i, c := range rows {
 			items[i] = contentRow{
-				contentResponse: newContentResponse(c, names[c.AuthorID]),
+				contentResponse: newContentResponse(c.Content, names[c.AuthorID]),
 				Fields:          content.ListedValues(contentType.Fields, c.Fields),
 			}
 		}

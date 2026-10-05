@@ -13,6 +13,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AuthUser struct {
+	ID   uuid.UUID
+	Name string
+}
+
 type CoreContent struct {
 	ID          uuid.UUID
 	Type        string

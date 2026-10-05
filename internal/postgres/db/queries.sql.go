@@ -188,52 +188,41 @@ const countContent = `-- name: CountContent :one
 SELECT count(*)
 FROM core.content p
 WHERE p.type = $1
-    AND ($2::text = '' OR p.status = $2)
+    AND ($2::jsonb = '{}'::jsonb OR p.fields @> $2::jsonb)
+    AND (cardinality($3::text[]) = 0 OR p.status = ANY($3::text[]))
+    AND (cardinality($4::uuid[]) = 0 OR p.author_id = ANY($4::uuid[]))
+    AND p.author_id <> ALL($5::uuid[])
+    AND ($6::timestamptz IS NULL
+        OR COALESCE(p.published_at, p.updated_at) < $6::timestamptz)
+    AND ($7::timestamptz IS NULL
+        OR COALESCE(p.published_at, p.updated_at) > $7::timestamptz)
     AND (
-        $3::text = ''
-        OR p.title ILIKE '%' || $3 || '%'
-        OR p.content ILIKE '%' || $3 || '%'
+        $8::text = ''
+        OR p.title ILIKE '%' || $8 || '%'
+        OR p.content ILIKE '%' || $8 || '%'
     )
 `
 
 type CountContentParams struct {
-	Type   string
-	Status string
-	Search string
+	Type            string
+	FieldFilter     []byte
+	Statuses        []string
+	Authors         []uuid.UUID
+	ExcludedAuthors []uuid.UUID
+	Before          *time.Time
+	After           *time.Time
+	Search          string
 }
 
 func (q *Queries) CountContent(ctx context.Context, arg CountContentParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countContent, arg.Type, arg.Status, arg.Search)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countContentByFields = `-- name: CountContentByFields :one
-SELECT count(*)
-FROM core.content p
-WHERE p.type = $1
-    AND p.fields @> $2::jsonb
-    AND ($3::text = '' OR p.status = $3)
-    AND (
-        $4::text = ''
-        OR p.title ILIKE '%' || $4 || '%'
-        OR p.content ILIKE '%' || $4 || '%'
-    )
-`
-
-type CountContentByFieldsParams struct {
-	Type        string
-	FieldFilter []byte
-	Status      string
-	Search      string
-}
-
-func (q *Queries) CountContentByFields(ctx context.Context, arg CountContentByFieldsParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countContentByFields,
+	row := q.db.QueryRow(ctx, countContent,
 		arg.Type,
 		arg.FieldFilter,
-		arg.Status,
+		arg.Statuses,
+		arg.Authors,
+		arg.ExcludedAuthors,
+		arg.Before,
+		arg.After,
 		arg.Search,
 	)
 	var count int64
@@ -1215,34 +1204,55 @@ func (q *Queries) GroupByLocation(ctx context.Context, location []byte) (CoreFie
 
 const listContent = `-- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields,
+    u.name AS author_name
 FROM core.content p
+JOIN auth.users u ON u.id = p.author_id
+LEFT JOIN core.content parent ON parent.id = p.parent_id
 WHERE p.type = $1
-    AND ($2::text = '' OR p.status = $2)
+    AND ($2::jsonb = '{}'::jsonb OR p.fields @> $2::jsonb)
+    AND (cardinality($3::text[]) = 0 OR p.status = ANY($3::text[]))
+    AND (cardinality($4::uuid[]) = 0 OR p.author_id = ANY($4::uuid[]))
+    AND p.author_id <> ALL($5::uuid[])
+    AND ($6::timestamptz IS NULL
+        OR COALESCE(p.published_at, p.updated_at) < $6::timestamptz)
+    AND ($7::timestamptz IS NULL
+        OR COALESCE(p.published_at, p.updated_at) > $7::timestamptz)
     AND (
-        $3::text = ''
-        OR p.title ILIKE '%' || $3 || '%'
-        OR p.content ILIKE '%' || $3 || '%'
+        $8::text = ''
+        OR p.title ILIKE '%' || $8 || '%'
+        OR p.content ILIKE '%' || $8 || '%'
     )
 ORDER BY
-    CASE WHEN $4::text = 'title' AND $5::text = 'asc' THEN p.title END ASC,
-    CASE WHEN $4::text = 'title' AND $5::text = 'desc' THEN p.title END DESC,
-    CASE WHEN $4::text <> 'title' AND $5::text = 'asc'
-        THEN COALESCE(p.published_at, p.created_at) END ASC,
-    CASE WHEN $4::text <> 'title' AND $5::text <> 'asc'
-        THEN COALESCE(p.published_at, p.created_at) END DESC,
+    CASE WHEN $9::text = 'title' AND $10::text = 'asc' THEN p.title END ASC,
+    CASE WHEN $9::text = 'title' AND $10::text <> 'asc' THEN p.title END DESC,
+    CASE WHEN $9::text = 'author' AND $10::text = 'asc' THEN u.name END ASC,
+    CASE WHEN $9::text = 'author' AND $10::text <> 'asc' THEN u.name END DESC,
+    CASE WHEN $9::text = 'slug' AND $10::text = 'asc' THEN p.slug END ASC,
+    CASE WHEN $9::text = 'slug' AND $10::text <> 'asc' THEN p.slug END DESC,
+    CASE WHEN $9::text = 'parent' AND $10::text = 'asc' THEN parent.created_at END ASC NULLS FIRST,
+    CASE WHEN $9::text = 'parent' AND $10::text <> 'asc' THEN parent.created_at END DESC NULLS LAST,
+    CASE WHEN $9::text NOT IN ('title', 'author', 'slug', 'parent') AND $10::text = 'asc'
+        THEN COALESCE(p.published_at, p.updated_at) END ASC,
+    CASE WHEN $9::text NOT IN ('title', 'author', 'slug', 'parent') AND $10::text <> 'asc'
+        THEN COALESCE(p.published_at, p.updated_at) END DESC,
     p.id DESC
-LIMIT $7 OFFSET $6
+LIMIT $12 OFFSET $11
 `
 
 type ListContentParams struct {
-	Type      string
-	Status    string
-	Search    string
-	OrderBy   string
-	OrderDir  string
-	RowOffset int32
-	RowLimit  int32
+	Type            string
+	FieldFilter     []byte
+	Statuses        []string
+	Authors         []uuid.UUID
+	ExcludedAuthors []uuid.UUID
+	Before          *time.Time
+	After           *time.Time
+	Search          string
+	OrderBy         string
+	OrderDir        string
+	RowOffset       int32
+	RowLimit        int32
 }
 
 type ListContentRow struct {
@@ -1259,12 +1269,18 @@ type ListContentRow struct {
 	ParentID    *uuid.UUID
 	Path        string
 	Fields      content.Values
+	AuthorName  string
 }
 
 func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error) {
 	rows, err := q.db.Query(ctx, listContent,
 		arg.Type,
-		arg.Status,
+		arg.FieldFilter,
+		arg.Statuses,
+		arg.Authors,
+		arg.ExcludedAuthors,
+		arg.Before,
+		arg.After,
 		arg.Search,
 		arg.OrderBy,
 		arg.OrderDir,
@@ -1292,99 +1308,7 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 			&i.ParentID,
 			&i.Path,
 			&i.Fields,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listContentByFields = `-- name: ListContentByFields :many
-SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
-    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
-FROM core.content p
-WHERE p.type = $1
-    AND p.fields @> $2::jsonb
-    AND ($3::text = '' OR p.status = $3)
-    AND (
-        $4::text = ''
-        OR p.title ILIKE '%' || $4 || '%'
-        OR p.content ILIKE '%' || $4 || '%'
-    )
-ORDER BY
-    CASE WHEN $5::text = 'title' AND $6::text = 'asc' THEN p.title END ASC,
-    CASE WHEN $5::text = 'title' AND $6::text = 'desc' THEN p.title END DESC,
-    CASE WHEN $5::text <> 'title' AND $6::text = 'asc'
-        THEN COALESCE(p.published_at, p.created_at) END ASC,
-    CASE WHEN $5::text <> 'title' AND $6::text <> 'asc'
-        THEN COALESCE(p.published_at, p.created_at) END DESC,
-    p.id DESC
-LIMIT $8 OFFSET $7
-`
-
-type ListContentByFieldsParams struct {
-	Type        string
-	FieldFilter []byte
-	Status      string
-	Search      string
-	OrderBy     string
-	OrderDir    string
-	RowOffset   int32
-	RowLimit    int32
-}
-
-type ListContentByFieldsRow struct {
-	ID          uuid.UUID
-	Type        string
-	Status      string
-	Slug        string
-	Title       string
-	Excerpt     string
-	AuthorID    uuid.UUID
-	PublishedAt *time.Time
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	ParentID    *uuid.UUID
-	Path        string
-	Fields      content.Values
-}
-
-func (q *Queries) ListContentByFields(ctx context.Context, arg ListContentByFieldsParams) ([]ListContentByFieldsRow, error) {
-	rows, err := q.db.Query(ctx, listContentByFields,
-		arg.Type,
-		arg.FieldFilter,
-		arg.Status,
-		arg.Search,
-		arg.OrderBy,
-		arg.OrderDir,
-		arg.RowOffset,
-		arg.RowLimit,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListContentByFieldsRow
-	for rows.Next() {
-		var i ListContentByFieldsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Type,
-			&i.Status,
-			&i.Slug,
-			&i.Title,
-			&i.Excerpt,
-			&i.AuthorID,
-			&i.PublishedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.ParentID,
-			&i.Path,
-			&i.Fields,
+			&i.AuthorName,
 		); err != nil {
 			return nil, err
 		}
@@ -1657,6 +1581,145 @@ func (q *Queries) ListMediaByIDs(ctx context.Context, ids []int64) ([]CoreMedia,
 			&i.AuthorID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listNestedContent = `-- name: ListNestedContent :many
+WITH RECURSIVE listed AS (
+    SELECT p.id, p.parent_id, row_number() OVER (ORDER BY
+        CASE WHEN $3::text = 'title' AND $4::text = 'asc' THEN p.title END ASC,
+        CASE WHEN $3::text = 'title' AND $4::text <> 'asc' THEN p.title END DESC,
+        CASE WHEN $3::text = 'author' AND $4::text = 'asc' THEN u.name END ASC,
+        CASE WHEN $3::text = 'author' AND $4::text <> 'asc' THEN u.name END DESC,
+        CASE WHEN $3::text = 'slug' AND $4::text = 'asc' THEN p.slug END ASC,
+        CASE WHEN $3::text = 'slug' AND $4::text <> 'asc' THEN p.slug END DESC,
+        CASE WHEN $3::text = 'parent' AND $4::text = 'asc'
+            THEN parent.created_at END ASC NULLS FIRST,
+        CASE WHEN $3::text = 'parent' AND $4::text <> 'asc'
+            THEN parent.created_at END DESC NULLS LAST,
+        CASE WHEN $3::text NOT IN ('title', 'author', 'slug', 'parent') AND $4::text = 'asc'
+            THEN COALESCE(p.published_at, p.updated_at) END ASC,
+        CASE WHEN $3::text NOT IN ('title', 'author', 'slug', 'parent') AND $4::text <> 'asc'
+            THEN COALESCE(p.published_at, p.updated_at) END DESC,
+        p.id DESC
+    ) AS place
+    FROM core.content p
+    JOIN auth.users u ON u.id = p.author_id
+    LEFT JOIN core.content parent ON parent.id = p.parent_id
+    WHERE p.type = $5
+        AND ($6::jsonb = '{}'::jsonb OR p.fields @> $6::jsonb)
+        AND (cardinality($7::text[]) = 0 OR p.status = ANY($7::text[]))
+        AND (cardinality($8::uuid[]) = 0 OR p.author_id = ANY($8::uuid[]))
+        AND p.author_id <> ALL($9::uuid[])
+        AND ($10::timestamptz IS NULL
+            OR COALESCE(p.published_at, p.updated_at) < $10::timestamptz)
+        AND ($11::timestamptz IS NULL
+            OR COALESCE(p.published_at, p.updated_at) > $11::timestamptz)
+        AND (
+            $12::text = ''
+            OR p.title ILIKE '%' || $12 || '%'
+            OR p.content ILIKE '%' || $12 || '%'
+        )
+), siblings AS (
+    SELECT l.id, l.parent_id, l.place, min(l.place) OVER (PARTITION BY l.parent_id) AS first_place
+    FROM listed l
+), tree AS (
+    SELECT s.id,
+        CASE WHEN s.parent_id IS NULL THEN ARRAY[0, s.place] ELSE ARRAY[1, s.first_place, s.place] END AS trail
+    FROM siblings s
+    WHERE s.parent_id IS NULL OR NOT EXISTS (SELECT 1 FROM listed kept WHERE kept.id = s.parent_id)
+  UNION ALL
+    SELECT s.id, tree.trail || s.place
+    FROM siblings s
+    JOIN tree ON s.parent_id = tree.id
+)
+SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
+    p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields,
+    u.name AS author_name
+FROM tree t
+JOIN core.content p ON p.id = t.id
+JOIN auth.users u ON u.id = p.author_id
+ORDER BY t.trail
+LIMIT $2 OFFSET $1
+`
+
+type ListNestedContentParams struct {
+	RowOffset       int32
+	RowLimit        int32
+	OrderBy         string
+	OrderDir        string
+	Type            string
+	FieldFilter     []byte
+	Statuses        []string
+	Authors         []uuid.UUID
+	ExcludedAuthors []uuid.UUID
+	Before          *time.Time
+	After           *time.Time
+	Search          string
+}
+
+type ListNestedContentRow struct {
+	ID          uuid.UUID
+	Type        string
+	Status      string
+	Slug        string
+	Title       string
+	Excerpt     string
+	AuthorID    uuid.UUID
+	PublishedAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	ParentID    *uuid.UUID
+	Path        string
+	Fields      content.Values
+	AuthorName  string
+}
+
+func (q *Queries) ListNestedContent(ctx context.Context, arg ListNestedContentParams) ([]ListNestedContentRow, error) {
+	rows, err := q.db.Query(ctx, listNestedContent,
+		arg.RowOffset,
+		arg.RowLimit,
+		arg.OrderBy,
+		arg.OrderDir,
+		arg.Type,
+		arg.FieldFilter,
+		arg.Statuses,
+		arg.Authors,
+		arg.ExcludedAuthors,
+		arg.Before,
+		arg.After,
+		arg.Search,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListNestedContentRow
+	for rows.Next() {
+		var i ListNestedContentRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Status,
+			&i.Slug,
+			&i.Title,
+			&i.Excerpt,
+			&i.AuthorID,
+			&i.PublishedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ParentID,
+			&i.Path,
+			&i.Fields,
+			&i.AuthorName,
 		); err != nil {
 			return nil, err
 		}

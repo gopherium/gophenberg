@@ -303,7 +303,8 @@ func TestSeedStoresBlockContent(t *testing.T) {
 	defer pool.Close()
 
 	posts, _, err := postgres.NewContentStore(pool).List(
-		t.Context(), content.Filter{Type: content.TypePost, Status: content.StatusPublished, Page: 1, PerPage: 10},
+		t.Context(),
+		content.Filter{Type: content.TypePost, Statuses: []content.Status{content.StatusPublished}, Page: 1, PerPage: 10},
 	)
 
 	if err != nil {

@@ -196,97 +196,106 @@ func toContent(row db.CoreContent) content.Content {
 	}
 }
 
-// List returns the items matching the filter without their content, and the
-// total number matching it.
-func (s *ContentStore) List(ctx context.Context, f content.Filter) ([]content.Content, int, error) {
-	search := escapeLike(f.Search)
-	total, err := s.countList(ctx, f, search)
+// List returns the items matching the filter without their content, each with its author's name, and their total.
+func (s *ContentStore) List(ctx context.Context, f content.Filter) ([]content.ListedItem, int, error) {
+	narrowed := narrowing(f)
+	total, err := s.queries.CountContent(ctx, narrowed)
 	if err != nil {
 		return nil, 0, fmt.Errorf("postgres: count content: %w", err)
 	}
-	rows, err := s.listRows(ctx, f, search)
+	rows, err := s.listRows(ctx, f, narrowed)
 	if err != nil {
 		return nil, 0, fmt.Errorf("postgres: list content: %w", err)
 	}
-	items := make([]content.Content, len(rows))
+	items := make([]content.ListedItem, len(rows))
 	for i, row := range rows {
 		items[i] = listedContent(row)
 	}
 	return items, int(total), nil
 }
 
-// countList returns how many items the filter matches, narrowing by field terms when it names any.
-func (s *ContentStore) countList(ctx context.Context, f content.Filter, search string) (int64, error) {
-	if len(f.Fields) == 0 {
-		return s.queries.CountContent(ctx, db.CountContentParams{
-			Type:   f.Type,
-			Status: string(f.Status),
-			Search: search,
-		})
+// listRows returns the page the filter names, each child under its parent when the filter nests them.
+func (s *ContentStore) listRows(
+	ctx context.Context, f content.Filter, narrowed db.CountContentParams,
+) ([]db.ListContentRow, error) {
+	page := db.ListContentParams{
+		Type:            narrowed.Type,
+		FieldFilter:     narrowed.FieldFilter,
+		Statuses:        narrowed.Statuses,
+		Authors:         narrowed.Authors,
+		ExcludedAuthors: narrowed.ExcludedAuthors,
+		Before:          narrowed.Before,
+		After:           narrowed.After,
+		Search:          narrowed.Search,
+		OrderBy:         string(f.OrderBy),
+		OrderDir:        string(f.Order),
+		RowLimit:        int32(f.PerPage),
+		RowOffset:       pageOffset(f.Page, f.PerPage),
 	}
-	return s.queries.CountContentByFields(ctx, db.CountContentByFieldsParams{
-		Type:        f.Type,
-		FieldFilter: termsJSON(f.Fields),
-		Status:      string(f.Status),
-		Search:      search,
-	})
-}
-
-// listRows returns the page the filter names, narrowing by field terms when it names any.
-func (s *ContentStore) listRows(ctx context.Context, f content.Filter, search string) ([]db.ListContentRow, error) {
-	if len(f.Fields) == 0 {
-		return s.queries.ListContent(ctx, db.ListContentParams{
-			Type:      f.Type,
-			Status:    string(f.Status),
-			Search:    search,
-			OrderBy:   string(f.OrderBy),
-			OrderDir:  string(f.Order),
-			RowLimit:  int32(f.PerPage),
-			RowOffset: pageOffset(f.Page, f.PerPage),
-		})
+	if !f.Hierarchy {
+		return s.queries.ListContent(ctx, page)
 	}
-	narrowed, err := s.queries.ListContentByFields(ctx, db.ListContentByFieldsParams{
-		Type:        f.Type,
-		FieldFilter: termsJSON(f.Fields),
-		Status:      string(f.Status),
-		Search:      search,
-		OrderBy:     string(f.OrderBy),
-		OrderDir:    string(f.Order),
-		RowLimit:    int32(f.PerPage),
-		RowOffset:   pageOffset(f.Page, f.PerPage),
+	nested, err := s.queries.ListNestedContent(ctx, db.ListNestedContentParams{
+		RowOffset: page.RowOffset, RowLimit: page.RowLimit, OrderBy: page.OrderBy, OrderDir: page.OrderDir,
+		Type: page.Type, FieldFilter: page.FieldFilter, Statuses: page.Statuses, Authors: page.Authors,
+		ExcludedAuthors: page.ExcludedAuthors, Before: page.Before, After: page.After, Search: page.Search,
 	})
 	if err != nil {
 		return nil, err
 	}
-	rows := make([]db.ListContentRow, len(narrowed))
-	for i, row := range narrowed {
+	rows := make([]db.ListContentRow, len(nested))
+	for i, row := range nested {
 		rows[i] = db.ListContentRow(row)
 	}
 	return rows, nil
 }
 
-// termsJSON returns the containment object the filter names as the jsonb parameter holds it.
+// narrowing returns the arguments the shared list and count queries narrow the filter by.
+func narrowing(f content.Filter) db.CountContentParams {
+	statuses := make([]string, 0, len(f.Statuses))
+	for _, status := range f.Statuses {
+		statuses = append(statuses, string(status))
+	}
+	return db.CountContentParams{
+		Type:            f.Type,
+		FieldFilter:     termsJSON(f.Fields),
+		Statuses:        statuses,
+		Authors:         append([]uuid.UUID{}, f.Authors...),
+		ExcludedAuthors: append([]uuid.UUID{}, f.ExcludeAuthors...),
+		Before:          f.Before,
+		After:           f.After,
+		Search:          escapeLike(f.Search),
+	}
+}
+
+// termsJSON returns the field terms as the jsonb containment object, an empty one matching every row.
 func termsJSON(terms map[string]any) []byte {
+	if len(terms) == 0 {
+		return []byte("{}")
+	}
 	raw, _ := json.Marshal(terms)
 	return raw
 }
 
-// listedContent returns one listed row as the item it stands for.
-func listedContent(row db.ListContentRow) content.Content {
-	return content.Content{
-		ID:          row.ID,
-		Type:        row.Type,
-		ParentID:    row.ParentID,
-		Path:        row.Path,
-		Status:      content.Status(row.Status),
-		Slug:        row.Slug,
-		Title:       row.Title,
-		Excerpt:     row.Excerpt,
-		AuthorID:    row.AuthorID,
-		PublishedAt: utcOrNil(row.PublishedAt),
-		CreatedAt:   row.CreatedAt.UTC(),
-		UpdatedAt:   row.UpdatedAt.UTC(),
-		Fields:      row.Fields,
+// listedContent returns one listed row as the item it stands for, beside its author's name.
+func listedContent(row db.ListContentRow) content.ListedItem {
+	return content.ListedItem{
+		Content: content.Content{
+			ID:          row.ID,
+			Type:        row.Type,
+			ParentID:    row.ParentID,
+			Path:        row.Path,
+			Status:      content.Status(row.Status),
+			Slug:        row.Slug,
+			Title:       row.Title,
+			Excerpt:     row.Excerpt,
+			AuthorID:    row.AuthorID,
+			PublishedAt: utcOrNil(row.PublishedAt),
+			CreatedAt:   row.CreatedAt.UTC(),
+			UpdatedAt:   row.UpdatedAt.UTC(),
+			Fields:      row.Fields,
+		},
+		AuthorName: row.AuthorName,
 	}
 }
 

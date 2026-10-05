@@ -168,11 +168,11 @@ func (s *server) publicPerPage(ctx context.Context) int {
 // parsePublishedFilter returns the published listing the query asks for, paged at the given size.
 func parsePublishedFilter(query url.Values, perPage int) (content.Filter, error) {
 	filter := content.Filter{
-		Status:  content.StatusPublished,
-		OrderBy: content.OrderByDate,
-		Order:   content.OrderDesc,
-		Page:    1,
-		PerPage: perPage,
+		Statuses: []content.Status{content.StatusPublished},
+		OrderBy:  content.OrderByDate,
+		Order:    content.OrderDesc,
+		Page:     1,
+		PerPage:  perPage,
 	}
 	if raw := query.Get("type"); raw != "" {
 		filter.Type = raw
@@ -349,7 +349,7 @@ func (s *server) publishedPageOf(r *http.Request, filter content.Filter) (publis
 	}
 	items := make([]publishedSummary, len(rows))
 	for i, c := range rows {
-		items[i] = newPublishedSummary(c)
+		items[i] = newPublishedSummary(c.Content)
 	}
 	return publishedPage{Items: items, Total: total, Page: filter.Page, PerPage: filter.PerPage}, nil
 }

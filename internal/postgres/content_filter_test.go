@@ -239,7 +239,8 @@ func TestContentStoreListNarrowedHonoursTheStatusItIsGiven(t *testing.T) {
 	}
 
 	rows, total, err := store.List(t.Context(), content.Filter{
-		Type: content.TypePost, Status: content.StatusPublished, OrderBy: content.OrderByTitle, Order: content.OrderAsc,
+		Type: content.TypePost, Statuses: []content.Status{content.StatusPublished},
+		OrderBy: content.OrderByTitle, Order: content.OrderAsc,
 		Page: 1, PerPage: 20, Fields: map[string]any{"price": float64(10)},
 	})
 

@@ -69,8 +69,11 @@ type OrderBy string
 
 // The columns a listing can be sorted by.
 const (
-	OrderByDate  OrderBy = "date"
-	OrderByTitle OrderBy = "title"
+	OrderByDate   OrderBy = "date"
+	OrderByTitle  OrderBy = "title"
+	OrderByAuthor OrderBy = "author"
+	OrderBySlug   OrderBy = "slug"
+	OrderByParent OrderBy = "parent"
 )
 
 // Order names a sort direction.
@@ -104,14 +107,19 @@ func ParseOrder(raw string) (Order, error) {
 
 // Filter narrows a content listing.
 type Filter struct {
-	Type    string
-	Status  Status
-	Search  string
-	OrderBy OrderBy
-	Order   Order
-	Page    int
-	PerPage int
-	Fields  map[string]any
+	Type           string
+	Statuses       []Status
+	Authors        []uuid.UUID
+	ExcludeAuthors []uuid.UUID
+	Before         *time.Time
+	After          *time.Time
+	Search         string
+	OrderBy        OrderBy
+	Order          Order
+	Hierarchy      bool
+	Page           int
+	PerPage        int
+	Fields         map[string]any
 }
 
 // Store persists content items and their revisions.
@@ -121,7 +129,7 @@ type Store interface {
 	PublishedByPath(ctx context.Context, path string) (Content, error)
 	Children(ctx context.Context, id uuid.UUID) (int, error)
 	Depth(ctx context.Context, id uuid.UUID) (int, error)
-	List(ctx context.Context, f Filter) ([]Content, int, error)
+	List(ctx context.Context, f Filter) ([]ListedItem, int, error)
 	RelatedTo(ctx context.Context, target uuid.UUID, page, perPage int) ([]Content, int, error)
 	TargetsByIDs(ctx context.Context, ids []uuid.UUID) ([]Target, error)
 	PointingAt(ctx context.Context, target uuid.UUID, field, page, perPage int) ([]Pointer, int, error)

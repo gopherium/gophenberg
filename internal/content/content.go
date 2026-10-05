@@ -49,6 +49,12 @@ type Content struct {
 	UpdatedAt   time.Time
 }
 
+// ListedItem is a content item as a listing carries it, beside the name of the account that wrote it.
+type ListedItem struct {
+	Content
+	AuthorName string
+}
+
 // New returns a draft [Content] of the given type under parent, slugged after its title.
 func New(t Type, parent *Content, title string, authorID uuid.UUID) (Content, error) {
 	if t.Key == "" {
