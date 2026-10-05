@@ -17,10 +17,27 @@ Press **Add New Type** and give it a singular and a plural name, like
 Guide and Guides. Gophenberg derives the rest: the plural becomes the
 route word, so Guides answer under `/guides`.
 
+The **Description** is optional. Write one sentence about what the
+type holds, like "Every guide this site keeps." Gophenberg stores it
+exactly as you typed it. Like the two names, it is never translated.
+Posts start with "Manage the posts on this site."
+
 The new type appears in the admin menu right away, with the same list
 screen and editor Posts have. Press **Fields** on a type to give its
 items typed fields of their own, covered in
 [fields](/guides/fields/).
+
+## Describing a type
+
+**Describe** opens the description of a type so you can rewrite it.
+Empty the field and save to clear it. A type a plugin declared has no
+**Describe** button, because it keeps the description its plugin
+gives it.
+
+The description travels with its type in **Export definitions**. A
+file exported by an older release holds no descriptions, and
+importing it leaves each description as it stands. See
+[moving definitions between sites](/guides/fields/#moving-definitions-between-sites).
 
 ## Addresses and the route word
 

@@ -366,7 +366,9 @@ it instead.
 **Export definitions** downloads a file holding every content type
 and field group the site made, with the fields inside them. It
 carries no content and no plugin definitions, only the shapes your
-site defined.
+site defined. Each type's description travels with it, and a file
+exported by an older release, which holds no descriptions, leaves the
+descriptions on your site as they stand.
 
 **Import definitions** reads that file back. It never applies
 straight away. It first shows you what would change, one line per
