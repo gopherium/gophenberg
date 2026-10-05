@@ -401,7 +401,13 @@ function ChangeAddress(props: { registered: ContentType; onMove: (word: string) 
 	const [word, setWord] = useState(props.registered.routeWord)
 	return (
 		<>
-			<Button variant="outline" onClick={() => setOpen(true)}>
+			<Button
+				variant="outline"
+				onClick={() => {
+					setWord(props.registered.routeWord)
+					setOpen(true)
+				}}
+			>
 				{__('Change address', 'gophenberg')}
 			</Button>
 			<Dialog.Root open={open} onOpenChange={setOpen}>
@@ -422,6 +428,7 @@ function ChangeAddress(props: { registered: ContentType; onMove: (word: string) 
 							</Text>
 							<InputControl
 								label={__('Route word', 'gophenberg')}
+								autoComplete="off"
 								value={word}
 								onValueChange={setWord}
 							/>

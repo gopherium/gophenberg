@@ -536,6 +536,33 @@ test('changes no address when the confirmation is dismissed', async () => {
 	expect(sent).toHaveLength(0)
 })
 
+test('opens Change address on the stored address after a kept back edit', async () => {
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Change address' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Change the address of Pages' })
+	await userEvent.type(within(dialog).getByLabelText('Route word'), 'x')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Keep it' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(within(pages).getByRole('button', { name: 'Change address' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Change the address of Pages' })
+
+	expect(within(reopened).getByLabelText('Route word')).toHaveValue('pages')
+})
+
+test('keeps remembered entries out of the route word field', async () => {
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Change address' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Change the address of Pages' })
+
+	expect(within(dialog).getByLabelText('Route word')).toHaveAttribute('autocomplete', 'off')
+})
+
 test('registers nothing when the new type is cancelled', async () => {
 	const sent: unknown[] = []
 	server.use(
