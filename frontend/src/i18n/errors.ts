@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
 
 import { errorTemplates } from './errorTemplates'
@@ -38,6 +39,17 @@ function filled(template: string, meta: Record<string, unknown>): boolean {
 }
 
 /**
+ * Returns the data an error carries, every number written in the format locale.
+ * @param meta - The data the error carries.
+ * @returns The data a template is filled from.
+ */
+function writtenMeta(meta: Record<string, unknown>): Record<string, unknown> {
+	return Object.fromEntries(
+		Object.entries(meta).map(([name, value]) => [name, typeof value === 'number' ? formatNumber(value) : value]),
+	)
+}
+
+/**
  * Returns the message a reader is shown for a refused request, in their own language.
  * @param refused - What the server answered.
  * @returns The message to show.
@@ -48,5 +60,5 @@ export function errorText(refused: Refused): string {
 	if (template === undefined || !filled(template, refused.meta ?? {})) {
 		return spoken
 	}
-	return sprintf(template, (refused.meta ?? {}) as never)
+	return sprintf(template, writtenMeta(refused.meta ?? {}) as never)
 }

@@ -278,7 +278,7 @@ test('says what the server refused about a definitions file', async () => {
 
 	await importing('{"format":"1.0.0"}')
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/262144/)
+	expect(await screen.findByRole('alert')).toHaveTextContent(/262\.144 bytes/)
 })
 
 test('says a definitions file was turned away even when the answer carries no reason', async () => {

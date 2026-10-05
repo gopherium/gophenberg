@@ -366,3 +366,11 @@ test('asks about every item a delete was asked over', () => {
 	expect(deleteFailure(one)).toBe('Could not delete that item.')
 	expect(deleteFailure(two)).toBe('Could not delete every item.')
 })
+
+test('groups the count a delete asks about in the site format', () => {
+	const many = Array.from({ length: 1234 }, () => ({ title: 'Manual', file: 'b.pdf' })) as Parameters<
+		typeof deleteQuestion
+	>[0]
+
+	expect(deleteQuestion(many)).toContain('Delete these 1.234 items for good?')
+})

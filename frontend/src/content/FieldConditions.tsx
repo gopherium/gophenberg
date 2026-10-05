@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, Dialog, InputControl, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -177,7 +178,7 @@ function ConditionsBody(props: {
 					direction="column"
 					gap="sm"
 					role="group"
-					aria-label={sprintf(__('Rule set %(number)d', 'gophenberg'), { number: at + 1 })}
+					aria-label={sprintf(__('Rule set %(number)s', 'gophenberg'), { number: formatNumber(at + 1) })}
 				>
 					{set.map((rule, spot) => (
 						<ConditionRow

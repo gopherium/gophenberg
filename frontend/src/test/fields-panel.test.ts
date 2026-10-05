@@ -300,6 +300,27 @@ test('names the ceiling over a number above its max', () => {
 	})
 })
 
+test('writes the bounds a number breaks in the site format', () => {
+	const bounded = [carrying('number', { min: 1000.5, max: 10000.5 })]
+
+	expect(fieldValidity(bounded, { 'a-number': 2 })).toEqual({
+		'a-number': {
+			custom: {
+				type: 'invalid',
+				message: 'number goes no lower than 1.000,5. Raise the value and save again.',
+			},
+		},
+	})
+	expect(fieldValidity(bounded, { 'a-number': 20000 })).toEqual({
+		'a-number': {
+			custom: {
+				type: 'invalid',
+				message: 'number goes no higher than 10.000,5. Lower the value and save again.',
+			},
+		},
+	})
+})
+
 test('holds no complaint for what the bounds allow', () => {
 	const bounded = [carrying('number', { min: 1, max: 10 })]
 

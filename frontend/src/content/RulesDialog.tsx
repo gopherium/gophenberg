@@ -2,6 +2,7 @@
 
 import { Button, Dialog, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
 import { ErrorNotice } from '@gopherium/godmin'
+import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -318,7 +319,7 @@ function RuleSet(props: Drafting & { set: LocationRule[]; at: number }) {
 			direction="column"
 			gap="sm"
 			role="group"
-			aria-label={sprintf(__('Rule set %(number)d', 'gophenberg'), { number: props.at + 1 })}
+			aria-label={sprintf(__('Rule set %(number)s', 'gophenberg'), { number: formatNumber(props.at + 1) })}
 		>
 			{props.set.map((rule, spot) => (
 				<RuleRow key={spot} rule={rule} spot={spot} {...props} />
@@ -378,9 +379,9 @@ function RuleRow(props: Drafting & { rule: LocationRule; at: number; spot: numbe
 			gap="sm"
 			align="end"
 			role="group"
-			aria-label={sprintf(__('Rule %(number)d of set %(set)d', 'gophenberg'), {
-				number: props.spot + 1,
-				set: props.at + 1,
+			aria-label={sprintf(__('Rule %(number)s of set %(set)s', 'gophenberg'), {
+				number: formatNumber(props.spot + 1),
+				set: formatNumber(props.at + 1),
 			})}
 		>
 			<SelectControl

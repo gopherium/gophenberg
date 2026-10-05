@@ -19,6 +19,7 @@ import type {
 	FieldValidity,
 	FormValidity,
 } from '@gophenberg/frontend-sdk/dataviews'
+import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
 import { useId, useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
@@ -105,11 +106,11 @@ function numberBroken(field: ContentField, value: unknown): string | undefined {
 	}
 	const low = field.settings.min
 	if (typeof low === 'number' && value < low) {
-		return sprintf(errorTemplates().field_min, { field: field.label, limit: low } as never)
+		return sprintf(errorTemplates().field_min, { field: field.label, limit: formatNumber(low) } as never)
 	}
 	const high = field.settings.max
 	if (typeof high === 'number' && value > high) {
-		return sprintf(errorTemplates().field_max, { field: field.label, limit: high } as never)
+		return sprintf(errorTemplates().field_max, { field: field.label, limit: formatNumber(high) } as never)
 	}
 	return undefined
 }

@@ -21,7 +21,7 @@ export function errorTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		archive_too_many_entries: __(
-			'This zip holds %(entries)d files, more than the %(max)d a theme may carry. Package only the built theme.',
+			'This zip holds %(entries)s files, more than the %(max)s a theme may carry. Package only the built theme.',
 			DOMAIN,
 		),
 		archive_unreadable: __(
@@ -85,7 +85,7 @@ export function errorTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		definitions_too_large: __(
-			'This definitions file is larger than the %(max)d bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with.',
+			'This definitions file is larger than the %(max)s bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with.',
 			DOMAIN,
 		),
 		field_key_malformed: __(
@@ -251,11 +251,11 @@ export function errorTemplates(): Record<string, string> {
 		),
 		group_title_required: __('Every field group needs a title. Give it a name and save again.', DOMAIN),
 		image_frame_too_large: __(
-			'One frame of this animation holds more than %(max)d pixels, which is more than Gophenberg opens. Upload a smaller animation.',
+			'One frame of this animation holds more than %(max)s pixels, which is more than Gophenberg opens. Upload a smaller animation.',
 			DOMAIN,
 		),
 		image_pixel_budget_exceeded: __(
-			'This picture is %(width)d by %(height)d pixels, over the limit of %(max)d pixels in all. Make it smaller and upload it again.',
+			'This picture is %(width)s by %(height)s pixels, over the limit of %(max)s pixels in all. Make it smaller and upload it again.',
 			DOMAIN,
 		),
 		image_unreadable: __(
@@ -267,7 +267,7 @@ export function errorTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		jpeg_quality_invalid: __(
-			'Picture quality runs from 1 to %(max)d, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range.',
+			'Picture quality runs from 1 to %(max)s, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range.',
 			DOMAIN,
 		),
 		kit_missing: __(
@@ -316,7 +316,7 @@ export function errorTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		nesting_limit_reached: __(
-			'Content nests at most %(max)d levels deep, and this item would sit deeper. Pick a parent closer to the top.',
+			'Content nests at most %(max)s levels deep, and this item would sit deeper. Pick a parent closer to the top.',
 			DOMAIN,
 		),
 		page_kind_unknown: __('There is no page kind called %(value)s. Pick one of these instead: %(allowed)s.', DOMAIN),
@@ -342,7 +342,7 @@ export function errorTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		per_page_invalid: __(
-			'A listing carries between 1 and %(max)d items, so %(value)s is not a size Gophenberg takes. Pick a number inside that range.',
+			'A listing carries between 1 and %(max)s items, so %(value)s is not a size Gophenberg takes. Pick a number inside that range.',
 			DOMAIN,
 		),
 		relation_target_key_malformed: __(
@@ -480,7 +480,7 @@ export function errorTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		theme_too_large: __(
-			'This theme is over the limit of %(max)d bytes, packed or unpacked. Leave out what the theme does not need and package it again.',
+			'This theme is over the limit of %(max)s bytes, packed or unpacked. Leave out what the theme does not need and package it again.',
 			DOMAIN,
 		),
 		theme_unreadable: __(
