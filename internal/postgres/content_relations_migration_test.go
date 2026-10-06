@@ -205,7 +205,7 @@ func TestRelationMigrationsServeTheBacklinksPageFromTheSameIndex(t *testing.T) {
 	}
 }
 
-// backlinksPageQuery is the listing a backlinks field runs, as internal/postgres/queries.sql holds it.
+// backlinksPageQuery is the listing a backlinks field runs, as internal/postgres/queries/content.sql holds it.
 const backlinksPageQuery = `SELECT c.id, c.type, c.title, c.path
 FROM (
     SELECT DISTINCT r.sort_at, r.from_id
@@ -219,7 +219,7 @@ FROM (
 JOIN core.content c ON c.id = held.from_id
 ORDER BY held.sort_at DESC, held.from_id`
 
-// termPageQuery is the listing a term page runs, as internal/postgres/queries.sql holds it.
+// termPageQuery is the listing a term page runs, as internal/postgres/queries/content.sql holds it.
 const termPageQuery = `SELECT c.id, c.type, c.status, c.slug, c.title, c.excerpt,
     c.author_id, c.published_at, c.created_at, c.updated_at, c.parent_id, c.path, c.fields
 FROM (
