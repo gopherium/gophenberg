@@ -57,6 +57,36 @@ function queued(client: QueryClient) {
 	return client.isMutating({ predicate: (write) => write.state.isPaused })
 }
 
+/**
+ * Registers a guide behind a held answer, then closes Add New Type and opens it again.
+ * @returns The gate holding the answer, the query client, and the reopened dialog.
+ */
+async function reopenWhileRegistering() {
+	const register = gate()
+	server.use(
+		http.post('/api/types', async () => {
+			await register.held
+			return HttpResponse.json(PAGE_TYPE, { status: 201 })
+		}),
+	)
+	const client = renderAt('/content-types')
+	await screen.findByRole('region', { name: 'Content Types' })
+	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Register a content type' })
+	await userEvent.type(within(dialog).getByLabelText('Singular name'), 'Guide')
+	await userEvent.type(within(dialog).getByLabelText('Plural name'), 'Guides')
+	await userEvent.type(within(dialog).getByLabelText('Description'), 'Manage the guides on this site.')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Register' }))
+	await waitFor(() =>
+		expect(within(dialog).getByRole('button', { name: 'Register' })).toHaveAttribute('aria-disabled', 'true'),
+	)
+	await userEvent.keyboard('{Escape}')
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Register a content type' })
+	return { register, client, reopened }
+}
+
 beforeEach(() => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [POST_TYPE, PAGE_TYPE] })))
 })
@@ -1134,6 +1164,47 @@ test('opens Add New Type empty once a type it was closed on is registered', asyn
 	expect(within(reopened).getByLabelText('Singular name')).toHaveValue('')
 	expect(within(reopened).getByLabelText('Plural name')).toHaveValue('')
 	expect(within(reopened).getByLabelText('Description')).toHaveValue('')
+})
+
+test('empties a reopened Add New Type once the type it still holds is registered', async () => {
+	const { register, client, reopened } = await reopenWhileRegistering()
+
+	expect(within(reopened).getByLabelText('Singular name')).toHaveValue('Guide')
+
+	register.release()
+	expect(await screen.findByText('Guides registered.')).toBeInTheDocument()
+	await waitFor(() => expect(client.isMutating()).toBe(0))
+
+	expect(screen.getByRole('dialog', { name: 'Register a content type' })).toBeInTheDocument()
+	expect(within(reopened).getByLabelText('Singular name')).toHaveValue('')
+	expect(within(reopened).getByLabelText('Plural name')).toHaveValue('')
+	expect(within(reopened).getByLabelText('Description')).toHaveValue('')
+})
+
+test.each([
+	{ label: 'Singular name', typed: 'book', kept: ['Guidebook', 'Guides', 'Manage the guides on this site.'] },
+	{ label: 'Plural name', typed: ' and notes', kept: ['Guide', 'Guides and notes', 'Manage the guides on this site.'] },
+	{
+		label: 'Description',
+		typed: ' Kept by the team.',
+		kept: ['Guide', 'Guides', 'Manage the guides on this site. Kept by the team.'],
+	},
+])('keeps a reopened Add New Type on its draft once its $label changed and an earlier type is registered', async ({
+	label,
+	typed,
+	kept,
+}) => {
+	const { register, client, reopened } = await reopenWhileRegistering()
+	await userEvent.type(within(reopened).getByLabelText(label), typed)
+
+	register.release()
+	expect(await screen.findByText('Guides registered.')).toBeInTheDocument()
+	await waitFor(() => expect(client.isMutating()).toBe(0))
+
+	expect(screen.getByRole('dialog', { name: 'Register a content type' })).toBeInTheDocument()
+	expect(within(reopened).getByLabelText('Singular name')).toHaveValue(kept[0])
+	expect(within(reopened).getByLabelText('Plural name')).toHaveValue(kept[1])
+	expect(within(reopened).getByLabelText('Description')).toHaveValue(kept[2])
 })
 
 test('closes Add New Type once the registry turns the type away', async () => {

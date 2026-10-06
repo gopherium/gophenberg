@@ -9,7 +9,7 @@ import type { ReactNode } from 'react'
 
 import { typesQueryKey } from './nav'
 import { createType, deleteType, listTypes, updateType } from './types'
-import type { ContentType, TypeEdit } from './types'
+import type { ContentType, NewType, TypeEdit } from './types'
 
 /**
  * Returns the address a type answers under, as the screen shows it.
@@ -262,14 +262,11 @@ function useOpenings() {
 	/**
 	 * Closes the dialog for a settled write, unless a newer opening began since the write was sent.
 	 * @param opening - The opening the write was sent from.
-	 * @returns Whether that opening is still the current one.
 	 */
 	function settle(opening: number | undefined) {
-		const latest = opening === openings.current
-		if (latest) {
+		if (opening === openings.current) {
 			setOpen(false)
 		}
-		return latest
 	}
 
 	return { open, change, current, settle }
@@ -521,6 +518,26 @@ function ChangeAddress(props: Reporter & { registered: ContentType }) {
 	)
 }
 
+/** The fields of Add New Type. */
+type TypeForm = Pick<NewType, 'singularLabel' | 'pluralLabel' | 'description'>
+
+/** The fields of Add New Type with nothing typed. */
+const emptyForm: TypeForm = { singularLabel: '', pluralLabel: '', description: '' }
+
+/**
+ * Returns whether the fields of Add New Type still hold the type sent to be registered.
+ * @param form - The fields as they are now.
+ * @param sent - The type sent to be registered.
+ * @returns Whether every field matches what was sent.
+ */
+function stillHolds(form: TypeForm, sent: NewType): boolean {
+	return (
+		form.singularLabel === sent.singularLabel &&
+		form.pluralLabel === sent.pluralLabel &&
+		form.description === sent.description
+	)
+}
+
 /**
  * Renders the control registering a new content type.
  * @param props - The reporter.
@@ -528,18 +545,13 @@ function ChangeAddress(props: Reporter & { registered: ContentType }) {
  */
 function AddType(props: Reporter) {
 	const dialog = useOpenings()
-	const [singular, setSingular] = useState('')
-	const [plural, setPlural] = useState('')
-	const [description, setDescription] = useState('')
+	const [form, setForm] = useState(emptyForm)
 	const add = useMutation({
 		mutationFn: createType,
 		onMutate: dialog.current,
 		onSuccess: (_stored, sent, opening) => {
-			if (dialog.settle(opening)) {
-				setSingular('')
-				setPlural('')
-				setDescription('')
-			}
+			dialog.settle(opening)
+			setForm((now) => (stillHolds(now, sent) ? emptyForm : now))
 			props.onDone(sprintf(__('%(type)s registered.', 'gophenberg'), { type: sent.pluralLabel }))
 		},
 		onError: (cause, _sent, opening) => {
@@ -557,6 +569,15 @@ function AddType(props: Reporter) {
 		dialog.change(next)
 	}
 
+	/**
+	 * Returns what writes one field of the form.
+	 * @param field - The field to write.
+	 * @returns The handler taking the field's new value.
+	 */
+	function fill(field: keyof TypeForm) {
+		return (value: string) => setForm((now) => ({ ...now, [field]: value }))
+	}
+
 	return (
 		<>
 			<Button onClick={() => change(true)}>{__('Add New Type', 'gophenberg')}</Button>
@@ -571,25 +592,25 @@ function AddType(props: Reporter) {
 							<InputControl
 								label={__('Singular name', 'gophenberg')}
 								autoComplete="off"
-								value={singular}
-								onValueChange={setSingular}
+								value={form.singularLabel}
+								onValueChange={fill('singularLabel')}
 							/>
 							<InputControl
 								label={__('Plural name', 'gophenberg')}
 								description={sprintf(
 									__('This type will answer under /%(word)s.', 'gophenberg'),
-									{ word: slugify(plural) || __('address', 'gophenberg') },
+									{ word: slugify(form.pluralLabel) || __('address', 'gophenberg') },
 								)}
 								autoComplete="off"
-								value={plural}
-								onValueChange={setPlural}
+								value={form.pluralLabel}
+								onValueChange={fill('pluralLabel')}
 							/>
 							<InputControl
 								label={__('Description', 'gophenberg')}
 								description={__('A descriptive summary of the content type.', 'gophenberg')}
 								autoComplete="off"
-								value={description}
-								onValueChange={setDescription}
+								value={form.description}
+								onValueChange={fill('description')}
 							/>
 						</Stack>
 					</Dialog.Content>
@@ -601,11 +622,9 @@ function AddType(props: Reporter) {
 							loading={add.isPending}
 							onClick={() =>
 								add.mutate({
-									key: slugify(singular),
-									singularLabel: singular,
-									pluralLabel: plural,
-									description,
-									routeWord: slugify(plural),
+									...form,
+									key: slugify(form.singularLabel),
+									routeWord: slugify(form.pluralLabel),
 								})
 							}
 						>
