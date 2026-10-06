@@ -23,8 +23,10 @@ the core uses never changes what a plugin compiles against.
 spaces around its value. `Value` returns the text, empty when the
 setting is unset, and `Required` refuses an empty one. `Duration`,
 `Count` and `Flag` read a duration above zero, a whole number above
-zero, or true or false, and return the default you pass when the
-setting is empty. `Within` narrows the prefix, so
+zero, or true or false. `Counts` reads whole numbers above zero
+split by commas, each above the one before, such as `10,50,100`.
+Each returns the default you pass when the setting is empty.
+`Within` narrows the prefix, so
 `deps.Env.Within("FEED_").Count("ITEMS", 20)` reads
 `GOPHENBERG_FEED_ITEMS`. Every error names the full setting, such
 as `GOPHENBERG_FEED_ITEMS: must be a whole number, got "banana"`,
