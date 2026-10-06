@@ -396,7 +396,9 @@ func (s *memoryContent) List(_ context.Context, f content.Filter) ([]content.Lis
 	matched := make([]content.ListedItem, 0, len(s.items))
 	for _, stored := range s.items {
 		if stored.Type == f.Type && keeps(f, stored) && narrowed(stored.Fields, f.Fields) {
-			matched = append(matched, content.ListedItem{Content: stored, AuthorName: s.accounts.nameOf(stored.AuthorID)})
+			matched = append(matched, content.ListedItem{
+				Content: stored, AuthorName: s.accounts.nameOf(stored.AuthorID), ParentTitle: parentTitle(s.items, stored),
+			})
 		}
 	}
 	slices.SortFunc(matched, func(a, b content.ListedItem) int {
@@ -465,6 +467,14 @@ func parentWritten(held map[uuid.UUID]content.Content, item content.Content) tim
 		return time.Time{}
 	}
 	return held[*item.ParentID].CreatedAt
+}
+
+// parentTitle returns the title of the item's parent, empty for an item with no parent.
+func parentTitle(held map[uuid.UUID]content.Content, item content.Content) string {
+	if item.ParentID == nil {
+		return ""
+	}
+	return held[*item.ParentID].Title
 }
 
 // nestedUnderParents returns the sorted items each under its parent, the children of a parent left out last.

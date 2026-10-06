@@ -118,7 +118,6 @@ Feature: The content list
     When the administrator lists the pages sorted by "title" "asc"
     Then the list reads "About", "Contact" and "Team" in that order
 
-  @wip
   Scenario: A listed child carries its parent's title
     Given a signed in administrator
     And the type "page" labeled "Page" and "Pages" under "pages" that nests
