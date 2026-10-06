@@ -6,26 +6,34 @@ package sdk
 
 import (
 	"context"
+	"net/http"
 	"time"
-
-	"github.com/google/uuid"
-	"github.com/gopherium/framework/pluginkit"
 )
 
 // Plugin is an independently addable unit of functionality with a
 // managed lifecycle.
-type Plugin = pluginkit.Plugin
+type Plugin interface {
+	ID() string
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
+}
 
 // Migrator is implemented by plugins that own database schema, which
 // the host migrates before starting any plugin.
-type Migrator = pluginkit.Migrator
+type Migrator interface {
+	Migrate(ctx context.Context) error
+}
 
 // RouteProvider is implemented by plugins that expose HTTP endpoints
 // under their own namespace.
-type RouteProvider = pluginkit.RouteProvider
+type RouteProvider interface {
+	Routes() http.Handler
+}
 
 // PublicPathProvider is implemented by plugins declaring session-exempt public paths.
-type PublicPathProvider = pluginkit.PublicPathProvider
+type PublicPathProvider interface {
+	PublicPaths() []string
+}
 
 // Deps carries the host-provided dependencies a plugin's Register function receives at registration.
 type Deps struct {
@@ -38,7 +46,7 @@ type Deps struct {
 // Item is a published content item as plugins see it: the Content field holds sanitized block HTML, and
 // Fields holds the values the content API serves, decoded the way encoding/json decodes them.
 type Item struct {
-	ID          uuid.UUID
+	ID          ID
 	Type        string
 	Path        string
 	Slug        string
