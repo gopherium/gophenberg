@@ -4,7 +4,7 @@ import { Badge, Button, Dialog, InputControl, Stack, Text } from '@gophenberg/fr
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, LoadingRows, Page, useToaster } from '@gopherium/godmin'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { typesQueryKey } from './nav'
@@ -233,20 +233,64 @@ function NestingControl(props: { registered: ContentType; onEdit: (asked: TypeEd
 }
 
 /**
+ * Returns whether a dialog is open and counts its openings, so a write settles only the opening it was sent from.
+ * @returns Whether the dialog is open, what opens or closes it, what names the opening now, and what settles one.
+ */
+function useOpenings() {
+	const [open, setOpen] = useState(false)
+	const openings = useRef(0)
+
+	/**
+	 * Opens or closes the dialog, counting each opening.
+	 * @param next - Whether the dialog opens.
+	 */
+	function change(next: boolean) {
+		if (next) {
+			openings.current += 1
+		}
+		setOpen(next)
+	}
+
+	/**
+	 * Returns the opening the dialog is in now, for a write to carry until it settles.
+	 * @returns The count of openings so far.
+	 */
+	function current() {
+		return openings.current
+	}
+
+	/**
+	 * Closes the dialog for a settled write, unless a newer opening began since the write was sent.
+	 * @param opening - The opening the write was sent from.
+	 * @returns Whether that opening is still the current one.
+	 */
+	function settle(opening: number | undefined) {
+		const latest = opening === openings.current
+		if (latest) {
+			setOpen(false)
+		}
+		return latest
+	}
+
+	return { open, change, current, settle }
+}
+
+/**
  * Returns the write editing a type, pending until the registry turns it away or takes it and the list refreshes.
  * @param props - The type and the reporter.
- * @param settled - What to do once the write settles, such as closing a dialog.
+ * @param dialog - The dialog the write is sent from, closed once the write settles in the opening it was sent from.
  * @returns The mutation sending the edit.
  */
-function useTypeEdit(props: Reporter & { registered: ContentType }, settled?: () => void) {
+function useTypeEdit(props: Reporter & { registered: ContentType }, dialog?: ReturnType<typeof useOpenings>) {
 	return useMutation({
 		mutationFn: (asked: TypeEdit) => updateType(props.registered.key, asked),
-		onSuccess: async () => {
+		onMutate: dialog?.current,
+		onSuccess: async (_stored, _asked, opening) => {
 			await props.onDone(sprintf(__('%(type)s updated.', 'gophenberg'), { type: props.registered.pluralLabel }))
-			settled?.()
+			dialog?.settle(opening)
 		},
-		onError: (cause) => {
-			settled?.()
+		onError: (cause, _asked, opening) => {
+			dialog?.settle(opening)
 			props.onRefused(cause)
 		},
 	})
@@ -259,27 +303,24 @@ function useTypeEdit(props: Reporter & { registered: ContentType }, settled?: ()
  * @returns Whether the dialog is open, what opens or closes it, the draft, and the write sending it.
  */
 function useTypeDraft(props: Reporter & { registered: ContentType }, stored: string) {
-	const [open, setOpen] = useState(false)
+	const dialog = useOpenings()
 	const [draft, setDraft] = useState(stored)
-	const save = useTypeEdit(props, () => setOpen(false))
+	const save = useTypeEdit(props, dialog)
 
 	/**
-	 * Opens or closes the dialog while no save runs, keeping a turned away draft until a close.
+	 * Opens or closes the dialog at any time, keeping a turned away draft until a close.
 	 * @param next - Whether the dialog opens.
 	 */
 	function change(next: boolean) {
-		if (save.isPending) {
-			return
-		}
 		if (!next) {
 			save.reset()
 		} else if (!save.isError) {
 			setDraft(stored)
 		}
-		setOpen(next)
+		dialog.change(next)
 	}
 
-	return { open, change, draft, setDraft, save }
+	return { open: dialog.open, change, draft, setDraft, save }
 }
 
 /**
@@ -416,7 +457,7 @@ function DescribeType(props: Reporter & { registered: ContentType }) {
 						/>
 					</Dialog.Content>
 					<Dialog.Footer>
-						<Button variant="outline" disabled={text.save.isPending} onClick={() => text.change(false)}>
+						<Button variant="outline" onClick={() => text.change(false)}>
 							{__('Cancel', 'gophenberg')}
 						</Button>
 						<Button loading={text.save.isPending} onClick={() => text.save.mutate({ description: text.draft })}>
@@ -466,7 +507,7 @@ function ChangeAddress(props: Reporter & { registered: ContentType }) {
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
-						<Button variant="outline" disabled={word.save.isPending} onClick={() => word.change(false)}>
+						<Button variant="outline" onClick={() => word.change(false)}>
 							{__('Keep it', 'gophenberg')}
 						</Button>
 						<Button loading={word.save.isPending} onClick={() => word.save.mutate({ routeWord: word.draft })}>
@@ -485,47 +526,40 @@ function ChangeAddress(props: Reporter & { registered: ContentType }) {
  * @returns The control and its dialog.
  */
 function AddType(props: Reporter) {
-	const [open, setOpen] = useState(false)
+	const dialog = useOpenings()
 	const [singular, setSingular] = useState('')
 	const [plural, setPlural] = useState('')
 	const [description, setDescription] = useState('')
 	const add = useMutation({
-		mutationFn: () =>
-			createType({
-				key: slugify(singular),
-				singularLabel: singular,
-				pluralLabel: plural,
-				description,
-				routeWord: slugify(plural),
-			}),
-		onSuccess: () => {
-			setOpen(false)
-			setSingular('')
-			setPlural('')
-			setDescription('')
-			props.onDone(sprintf(__('%(type)s registered.', 'gophenberg'), { type: plural }))
+		mutationFn: createType,
+		onMutate: dialog.current,
+		onSuccess: (_stored, sent, opening) => {
+			if (dialog.settle(opening)) {
+				setSingular('')
+				setPlural('')
+				setDescription('')
+			}
+			props.onDone(sprintf(__('%(type)s registered.', 'gophenberg'), { type: sent.pluralLabel }))
 		},
-		onError: (cause) => {
-			setOpen(false)
+		onError: (cause, _sent, opening) => {
+			dialog.settle(opening)
 			props.onRefused(cause)
 		},
 	})
 
 	/**
-	 * Opens or closes the dialog, holding it as it is while the type is being registered.
+	 * Opens or closes the dialog at any time, so no opening inherits a type still being registered.
 	 * @param next - Whether the dialog opens.
 	 */
 	function change(next: boolean) {
-		if (add.isPending) {
-			return
-		}
-		setOpen(next)
+		add.reset()
+		dialog.change(next)
 	}
 
 	return (
 		<>
-			<Button onClick={() => setOpen(true)}>{__('Add New Type', 'gophenberg')}</Button>
-			<Dialog.Root open={open} onOpenChange={change}>
+			<Button onClick={() => change(true)}>{__('Add New Type', 'gophenberg')}</Button>
+			<Dialog.Root open={dialog.open} onOpenChange={change}>
 				<Dialog.Popup>
 					<Dialog.Header>
 						<Dialog.Title>{__('Register a content type', 'gophenberg')}</Dialog.Title>
@@ -559,10 +593,21 @@ function AddType(props: Reporter) {
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
-						<Button variant="outline" disabled={add.isPending} onClick={() => change(false)}>
+						<Button variant="outline" onClick={() => change(false)}>
 							{__('Cancel', 'gophenberg')}
 						</Button>
-						<Button loading={add.isPending} onClick={() => add.mutate()}>
+						<Button
+							loading={add.isPending}
+							onClick={() =>
+								add.mutate({
+									key: slugify(singular),
+									singularLabel: singular,
+									pluralLabel: plural,
+									description,
+									routeWord: slugify(plural),
+								})
+							}
+						>
 							{__('Register', 'gophenberg')}
 						</Button>
 					</Dialog.Footer>
