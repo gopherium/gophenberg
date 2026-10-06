@@ -4,6 +4,7 @@ package sdk
 
 import (
 	"math"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -90,6 +91,57 @@ func TestEnvCountRefusesWhatIsNoCount(t *testing.T) {
 
 			if err == nil || err.Error() != tc.want || items != 0 {
 				t.Errorf("Count(ITEMS) = %d, %v, want 0 and %q", items, err, tc.want)
+			}
+		})
+	}
+}
+
+func TestEnvCountsReadsRisingWholeNumbers(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		value string
+		want  []int
+	}{
+		"empty":      {"  ", []int{5}},
+		"one number": {"7", []int{7}},
+		"a list":     {" 10, 50 ,100 ", []int{10, 50, 100}},
+	}
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
+
+			sizes, err := settingsOf(map[string]string{"GOPHENBERG_SIZES": tc.value}).Counts("SIZES", []int{5})
+
+			if err != nil || !slices.Equal(sizes, tc.want) {
+				t.Errorf("Counts(SIZES) = %v, %v, want %v", sizes, err, tc.want)
+			}
+		})
+	}
+}
+
+func TestEnvCountsRefusesWhatIsNoRisingList(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		value string
+		want  string
+	}{
+		"a word":         {"10,banana", `GOPHENBERG_SIZES: must be a whole number, got "banana" in "10,banana"`},
+		"an empty entry": {"10,,50", `GOPHENBERG_SIZES: must be a whole number, got "" in "10,,50"`},
+		"a trailing one": {"10,", `GOPHENBERG_SIZES: must be a whole number, got "" in "10,"`},
+		"zero":           {"10,0", `GOPHENBERG_SIZES: must stand above zero, got "0" in "10,0"`},
+		"falling":        {" 50,10 ", `GOPHENBERG_SIZES: must list each number once from the smallest up, got "50,10"`},
+		"repeated":       {"10,10", `GOPHENBERG_SIZES: must list each number once from the smallest up, got "10,10"`},
+	}
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
+
+			sizes, err := settingsOf(map[string]string{"GOPHENBERG_SIZES": tc.value}).Counts("SIZES", []int{5})
+
+			if errorText(err) != tc.want || sizes != nil {
+				t.Errorf("Counts(SIZES) = %v, %v, want nil and %q", sizes, err, tc.want)
 			}
 		})
 	}
