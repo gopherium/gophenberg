@@ -27,15 +27,19 @@ func quotedTitles(listed string) []string {
 	return titles
 }
 
+// adminItem is one item of the admin content list as its readers decode it.
+type adminItem struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	AuthorName  string `json:"author_name"`
+	ParentTitle string `json:"parent_title"`
+}
+
 // adminPage is one page of the admin content list as its readers decode it.
 type adminPage struct {
-	Items []struct {
-		ID         string `json:"id"`
-		Title      string `json:"title"`
-		AuthorName string `json:"author_name"`
-	} `json:"items"`
-	Total   int `json:"total"`
-	PerPage int `json:"per_page"`
+	Items   []adminItem `json:"items"`
+	Total   int         `json:"total"`
+	PerPage int         `json:"per_page"`
 }
 
 // listPage asks the admin list of the type for what the query names, keeping the answer.
@@ -194,21 +198,47 @@ func theListEndsWith(ctx context.Context, title string) error {
 	return nil
 }
 
-// theItemIsCreditedTo asserts the listed item names the account that wrote it.
-func theItemIsCreditedTo(ctx context.Context, title, name string) error {
+// listedItem returns the item of the last page carrying the title.
+func listedItem(ctx context.Context, title string) (adminItem, error) {
 	page, err := listed(ctx)
 	if err != nil {
-		return err
+		return adminItem{}, err
 	}
 	for _, item := range page.Items {
 		if item.Title == title {
-			if item.AuthorName != name {
-				return fmt.Errorf("%q is credited to %q, want %q", title, item.AuthorName, name)
-			}
-			return nil
+			return item, nil
 		}
 	}
-	return fmt.Errorf("the list carries no %q", title)
+	return adminItem{}, fmt.Errorf("the list carries no %q", title)
+}
+
+// theItemIsCreditedTo asserts the listed item names the account that wrote it.
+func theItemIsCreditedTo(ctx context.Context, title, name string) error {
+	item, err := listedItem(ctx, title)
+	if err != nil {
+		return err
+	}
+	if item.AuthorName != name {
+		return fmt.Errorf("%q is credited to %q, want %q", title, item.AuthorName, name)
+	}
+	return nil
+}
+
+// theItemIsListedUnder asserts the listed item carries the title of its parent.
+func theItemIsListedUnder(ctx context.Context, title, parent string) error {
+	item, err := listedItem(ctx, title)
+	if err != nil {
+		return err
+	}
+	if item.ParentTitle != parent {
+		return fmt.Errorf("%q is listed under %q, want %q", title, item.ParentTitle, parent)
+	}
+	return nil
+}
+
+// theItemIsListedUnderNoParent asserts the listed item carries an empty parent title.
+func theItemIsListedUnderNoParent(ctx context.Context, title string) error {
+	return theItemIsListedUnder(ctx, title, "")
 }
 
 // theListWasPagedAtATime asserts the list answered the page size it used.
@@ -520,6 +550,8 @@ func initializeContentList(sc *godog.ScenarioContext) {
 	sc.Then(`^the list reads ((?:"[^"]*"(?:, | and )?)+) in that order$`, theListReadsInThatOrder)
 	sc.Then(`^the list ends with "([^"]*)"$`, theListEndsWith)
 	sc.Then(`^"([^"]*)" is credited to "([^"]*)"$`, theItemIsCreditedTo)
+	sc.Then(`^"([^"]*)" is listed under "([^"]*)"$`, theItemIsListedUnder)
+	sc.Then(`^"([^"]*)" is listed under no parent$`, theItemIsListedUnderNoParent)
 	sc.Then(`^the list was paged (\d+) at a time$`, theListWasPagedAtATime)
 	sc.Then(`^the authors are ((?:"[^"]*"(?:, | and )?)+)$`, theAuthorsAre)
 	sc.Then(`^the post "([^"]*)" holds the excerpt "([^"]*)" and the content "([^"]*)"$`,
