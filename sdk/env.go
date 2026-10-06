@@ -49,6 +49,11 @@ func (e Env) Count(name string, fallback int) (int, error) {
 	return parse(e, name, fallback, positiveWhole)
 }
 
+// Counts returns the setting as rising whole numbers above zero split by commas, the fallback when it is empty.
+func (e Env) Counts(name string, fallback []int) ([]int, error) {
+	return parse(e, name, fallback, risingWholes)
+}
+
 // Flag returns the setting as true or false, the fallback when it is empty.
 func (e Env) Flag(name string, fallback bool) (bool, error) {
 	return parse(e, name, fallback, trueOrFalse)
@@ -98,6 +103,23 @@ func positiveWhole(value string) (int, error) {
 		return 0, complaint("must stand at or below "+strconv.Itoa(math.MaxInt), value)
 	}
 	return int(read), nil
+}
+
+// risingWholes reads value as whole numbers above zero split by commas, each above the one before.
+func risingWholes(value string) ([]int, error) {
+	entries := strings.Split(value, ",")
+	read := make([]int, 0, len(entries))
+	for _, entry := range entries {
+		count, err := positiveWhole(strings.TrimSpace(entry))
+		if err != nil {
+			return nil, fmt.Errorf("%w in %q", err, value)
+		}
+		if len(read) > 0 && count <= read[len(read)-1] {
+			return nil, complaint("must list each number once from the smallest up", value)
+		}
+		read = append(read, count)
+	}
+	return read, nil
 }
 
 // trueOrFalse reads value as true or false.
