@@ -54,6 +54,31 @@ func TestContentStoreReportsDatabaseFailures(t *testing.T) {
 	}
 }
 
+func TestContentStoreRestoreReportsAWriteTheDatabaseRefuses(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	created := mustCreate(t, store, "Hello World", author)
+	trashed, err := store.Trash(t.Context(), created.ID, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+	raiseOn(t, pool, "core.content", "UPDATE")
+
+	_, err = store.Restore(t.Context(), created.ID, time.Now().UTC())
+
+	if err == nil || !strings.Contains(err.Error(), "sabotaged") {
+		t.Errorf("Restore() error = %v, want the refused write reported", err)
+	}
+	held, err := store.ByID(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	if held.Status != content.StatusTrash || held.Slug != trashed.Slug {
+		t.Errorf("held as %q under %q, want it left in the trash under %q", held.Status, held.Slug, trashed.Slug)
+	}
+}
+
 func TestContentStoreListReportsARejectedQuery(t *testing.T) {
 	t.Parallel()
 
