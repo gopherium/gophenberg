@@ -4,12 +4,11 @@ package sdk
 
 import (
 	"go/build"
-	"slices"
 	"strings"
 	"testing"
 )
 
-func TestContractKeepsItsDependenciesMinimal(t *testing.T) {
+func TestContractImportsOnlyTheStandardLibrary(t *testing.T) {
 	t.Parallel()
 
 	pkg, err := build.ImportDir(".", 0)
@@ -17,18 +16,10 @@ func TestContractKeepsItsDependenciesMinimal(t *testing.T) {
 		t.Fatalf("inspecting package: %v", err)
 	}
 
-	allowedThirdParty := []string{
-		"github.com/google/uuid",
-		"github.com/gopherium/framework/gonsole",
-		"github.com/gopherium/framework/pluginkit",
-	}
 	for _, imported := range pkg.Imports {
-		if strings.HasPrefix(imported, "github.com/gopherium/gophenberg") {
-			t.Errorf("sdk imports %q; the contract must never depend on the application", imported)
-		}
-		first, _, _ := strings.Cut(imported, "/")
-		if strings.Contains(first, ".") && !slices.Contains(allowedThirdParty, imported) {
-			t.Errorf("sdk imports %q; third-party imports are limited to %v", imported, allowedThirdParty)
+		if first, _, _ := strings.Cut(imported, "/"); strings.Contains(first, ".") {
+			t.Errorf("sdk imports %q, want the standard library alone, so no outside release changes the contract",
+				imported)
 		}
 	}
 }

@@ -5,14 +5,12 @@ package sdk
 import (
 	"context"
 	"testing"
-
-	"github.com/google/uuid"
 )
 
 func TestSessionFromAnswersWhatTheHostFiled(t *testing.T) {
 	t.Parallel()
 
-	id := uuid.New()
+	id := ID{0x01, 0x9f, 0xb0, 0x00, 0x00, 0x00, 0x70, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02}
 	filed := NewSession(id, "maria@example.com", "Maria Perez", "editor", []string{"change_others_work"})
 
 	held, ok := SessionFrom(WithSession(t.Context(), filed))
@@ -44,7 +42,7 @@ func TestSessionFromReportsARequestCarryingNone(t *testing.T) {
 func TestCanAnswersOnlyTheCapabilitiesFiled(t *testing.T) {
 	t.Parallel()
 
-	filed := NewSession(uuid.New(), "maria@example.com", "Maria Perez", "editor",
+	filed := NewSession(ID{1}, "maria@example.com", "Maria Perez", "editor",
 		[]string{"change_others_work"})
 
 	if !filed.Can("change_others_work") {
@@ -59,7 +57,7 @@ func TestAPluginCannotWidenTheCapabilitiesItWasGiven(t *testing.T) {
 	t.Parallel()
 
 	given := []string{"change_others_work"}
-	filed := NewSession(uuid.New(), "maria@example.com", "Maria Perez", "editor", given)
+	filed := NewSession(ID{1}, "maria@example.com", "Maria Perez", "editor", given)
 
 	given[0] = "manage_users"
 
