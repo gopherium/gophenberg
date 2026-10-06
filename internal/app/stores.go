@@ -12,7 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
-	"github.com/gopherium/gophenberg/internal/contentbridge"
 	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/sdk"
@@ -48,15 +47,11 @@ func composeOf(settings runConfig, getenv func(string) string) composeConfig {
 	}
 }
 
-// compose builds the pool, the stores, the registry and the registered plugins, migrating and starting nothing.
-func compose(ctx context.Context, cfg composeConfig, plugins func(sdk.Deps) ([]sdk.Plugin, error)) (site, error) {
+// openStores builds the pool, the stores and the registry, migrating nothing.
+func openStores(ctx context.Context, cfg composeConfig) (site, error) {
 	pool, err := pgxpool.New(ctx, cfg.databaseURL)
 	if err != nil {
 		return site{}, fmt.Errorf("parse database url: %w", err)
-	}
-	getenv := cfg.getenv
-	if getenv == nil {
-		getenv = func(string) string { return "" }
 	}
 	built := site{
 		pool:     pool,
@@ -71,12 +66,6 @@ func compose(ctx context.Context, cfg composeConfig, plugins func(sdk.Deps) ([]s
 	if cfg.mediaDir != "" {
 		built.library = built.media
 	}
-	built.registered, built.failed = plugins(sdk.Deps{
-		DatabaseURL: cfg.databaseURL,
-		Content:     contentbridge.New(built.content, built.registry, built.library, built.settings),
-		Getenv:      getenv,
-		Env:         settingsEnv(getenv),
-	})
 	return built, nil
 }
 
