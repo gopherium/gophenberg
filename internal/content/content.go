@@ -49,10 +49,12 @@ type Content struct {
 	UpdatedAt   time.Time
 }
 
-// ListedItem is a content item as a listing carries it, beside the name of the account that wrote it.
+// ListedItem is a content item as a listing carries it, beside its author's name and its parent's title.
 type ListedItem struct {
 	Content
 	AuthorName string
+	// ParentTitle is the title of the item's parent, empty at the top level or under an untitled parent.
+	ParentTitle string
 }
 
 // New returns a draft [Content] of the given type under parent, slugged after its title.
