@@ -233,7 +233,7 @@ function NestingControl(props: { registered: ContentType; onEdit: (asked: TypeEd
 }
 
 /**
- * Returns whether a dialog is open and counts its openings, so a write settles only the opening it was sent from.
+ * Returns whether a dialog is open, and counts its openings.
  * @returns Whether the dialog is open, what opens or closes it, what names the opening now, and what settles one.
  */
 function useOpenings() {
@@ -252,7 +252,7 @@ function useOpenings() {
 	}
 
 	/**
-	 * Returns the opening the dialog is in now, for a write to carry until it settles.
+	 * Returns the opening the dialog is in now.
 	 * @returns The count of openings so far.
 	 */
 	function current() {
@@ -561,7 +561,7 @@ function AddType(props: Reporter) {
 	})
 
 	/**
-	 * Opens or closes the dialog at any time, so no opening inherits a type still being registered.
+	 * Opens or closes the dialog at any time, and resets the state its Register button shows.
 	 * @param next - Whether the dialog opens.
 	 */
 	function change(next: boolean) {
