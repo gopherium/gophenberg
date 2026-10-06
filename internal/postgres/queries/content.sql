@@ -27,7 +27,7 @@ WHERE p.path = @path AND p.status = 'published';
 -- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields,
-    u.name AS author_name
+    u.name AS author_name, COALESCE(parent.title, '') AS parent_title
 FROM core.content p
 JOIN auth.users u ON u.id = p.author_id
 LEFT JOIN core.content parent ON parent.id = p.parent_id
@@ -112,10 +112,11 @@ WITH RECURSIVE listed AS (
 )
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields,
-    u.name AS author_name
+    u.name AS author_name, COALESCE(parent.title, '') AS parent_title
 FROM tree t
 JOIN core.content p ON p.id = t.id
 JOIN auth.users u ON u.id = p.author_id
+LEFT JOIN core.content parent ON parent.id = p.parent_id
 ORDER BY t.trail
 LIMIT @row_limit OFFSET @row_offset;
 
