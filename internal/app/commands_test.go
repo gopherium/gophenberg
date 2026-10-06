@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -173,7 +174,8 @@ func TestAPluginWithoutCommandsOffersNone(t *testing.T) {
 var settingValues = []string{
 	"", "   ", "7", " 7 ", "banana", "2.5", "0", "-3", "9223372036854775807", "99999999999999999999",
 	"-99999999999999999999", "+5", "0x10", "1e3", "30s", " 1m30s ", "0s", "-1m", "soon", "true", "FALSE", "1",
-	"t", "maybe", "https://example.com/feed",
+	"t", "maybe", "https://example.com/feed", "10,50,100", " 10 , 50 ", "50,10", "10,10", "10,,50", "10,",
+	",10", "10,banana", "10,0", "10,-5", "10,99999999999999999999",
 }
 
 // readings returns what every settings reader answers for the setting ITEMS, errors as text.
@@ -182,18 +184,20 @@ func readings(env interface {
 	Key(name string) string
 	Required(name string) (string, error)
 	Count(name string, fallback int) (int, error)
+	Counts(name string, fallback []int) ([]int, error)
 	Flag(name string, fallback bool) (bool, error)
 	Duration(name string, fallback time.Duration) (time.Duration, error)
 },
 ) []string {
 	required, requiredErr := env.Required("ITEMS")
 	count, countErr := env.Count("ITEMS", 20)
+	counts, countsErr := env.Counts("ITEMS", []int{5})
 	flagged, flagErr := env.Flag("ITEMS", true)
 	waited, durationErr := env.Duration("ITEMS", 5*time.Second)
 	return []string{
 		env.Key("ITEMS"), env.Value("ITEMS"), required, errorText(requiredErr),
-		strconv.Itoa(count), errorText(countErr), strconv.FormatBool(flagged), errorText(flagErr),
-		waited.String(), errorText(durationErr),
+		strconv.Itoa(count), errorText(countErr), fmt.Sprintf("%#v", counts), errorText(countsErr),
+		strconv.FormatBool(flagged), errorText(flagErr), waited.String(), errorText(durationErr),
 	}
 }
 
@@ -205,6 +209,11 @@ type gonsoleReader struct {
 // Count reads a whole number with no bound.
 func (r gonsoleReader) Count(name string, fallback int) (int, error) {
 	return r.Env.Count(name, fallback)
+}
+
+// Counts reads rising whole numbers with no bound.
+func (r gonsoleReader) Counts(name string, fallback []int) ([]int, error) {
+	return r.Env.Counts(name, fallback)
 }
 
 // Duration reads a duration with no bound.
