@@ -4,113 +4,91 @@ package main
 
 import (
 	"context"
-	"errors"
-	"io"
-	"net"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/gonsole/testkit"
-	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/peterldowns/pgtestdb"
 
-	"github.com/gopherium/gophenberg/internal/postgres"
-	"github.com/gopherium/gophenberg/internal/testdb"
+	"github.com/gopherium/gophenberg/internal/app"
 	"github.com/gopherium/gophenberg/sdk"
 )
 
 const unreachableDatabaseURL = "postgres://postgres:gophenberg@localhost:9/postgres?sslmode=disable&connect_timeout=1"
 
-// emptyDatabaseURL returns the URL of a fresh unmigrated test database.
-func emptyDatabaseURL(t *testing.T) string {
+// settingsOf returns the settings reader the command line hands the plugins over env.
+func settingsOf(env map[string]string) gonsole.Env {
+	return app.Program(testkit.Getenv(env), registerPlugins).Env
+}
+
+// declaredNames returns every name the package's own files declare, imports aside, sorted.
+func declaredNames(t *testing.T) []string {
 	t.Helper()
-	return pgtestdb.Custom(t, testdb.Config(), pgtestdb.NoopMigrator{}).URL()
-}
-
-// noPlugins registers no plugins.
-func noPlugins(_ sdk.Deps) ([]sdk.Plugin, error) {
-	return []sdk.Plugin{}, nil
-}
-
-func TestRunValidatesItsEnvironment(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]map[string]string{
-		"missing database url": {},
-		"malformed database url": {
-			"GOPHENBERG_DATABASE_URL": "not a url \x00",
-		},
-		"unreachable database": {
-			"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
-		},
-		"malformed trusted proxies": {
-			"GOPHENBERG_DATABASE_URL":    unreachableDatabaseURL,
-			"GOPHENBERG_TRUSTED_PROXIES": "not-a-cidr",
-		},
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatalf("listing the package files: %v", err)
 	}
+	var names []string
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), name, nil, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatalf("parsing %s: %v", name, err)
+		}
+		for _, decl := range file.Decls {
+			names = append(names, namesOf(decl)...)
+		}
+	}
+	slices.Sort(names)
+	return names
+}
 
-	for testName, env := range tests {
-		t.Run(testName, func(t *testing.T) {
-			t.Parallel()
-
-			err := run(t.Context(), testkit.Getenv(env), io.Discard, noPlugins)
-
-			if err == nil {
-				t.Fatal("run() error = nil, want a failure")
+// namesOf returns the names one declaration brings in, imports aside.
+func namesOf(decl ast.Decl) []string {
+	if fn, ok := decl.(*ast.FuncDecl); ok {
+		return []string{fn.Name.Name}
+	}
+	gen, ok := decl.(*ast.GenDecl)
+	if !ok {
+		return nil
+	}
+	var names []string
+	for _, spec := range gen.Specs {
+		switch spec := spec.(type) {
+		case *ast.TypeSpec:
+			names = append(names, spec.Name.Name)
+		case *ast.ValueSpec:
+			for _, name := range spec.Names {
+				names = append(names, name.Name)
 			}
-		})
+		}
 	}
+	return names
 }
 
-func TestRunReportsPluginRegistrationFailure(t *testing.T) {
+func TestTheMainPackageHoldsOnlyTheWiring(t *testing.T) {
 	t.Parallel()
 
-	errRegister := errors.New("register exploded")
-	env := map[string]string{"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t)}
+	names := declaredNames(t)
 
-	err := run(t.Context(), testkit.Getenv(env), io.Discard, func(_ sdk.Deps) ([]sdk.Plugin, error) {
-		return nil, errRegister
-	})
-
-	if !errors.Is(err, errRegister) {
-		t.Errorf("run() error = %v, want %v in its chain", err, errRegister)
-	}
-}
-
-func TestRunHandsThePluginsTheirSettingsReader(t *testing.T) {
-	t.Parallel()
-
-	env := map[string]string{
-		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
-		"GOPHENBERG_FEED_ITEMS":   "7",
-	}
-	errStop := errors.New("stopped after the registration")
-	var handed sdk.Deps
-
-	err := run(t.Context(), testkit.Getenv(env), io.Discard, func(deps sdk.Deps) ([]sdk.Plugin, error) {
-		handed = deps
-		return nil, errStop
-	})
-
-	if !errors.Is(err, errStop) {
-		t.Fatalf("run() error = %v, want the registration to stop it", err)
-	}
-	if handed.Env.Getenv == nil {
-		t.Fatal("run() handed the plugins no settings reader")
-	}
-	if items := handed.Env.Within("FEED_").Value("ITEMS"); items != "7" {
-		t.Errorf("Env reads FEED_ITEMS as %q, want 7 under the program prefix", items)
+	if want := []string{"main", "registerPlugins"}; !slices.Equal(names, want) {
+		t.Errorf("package main declares %v, want only %v, the rest belongs in internal/app", names, want)
 	}
 }
 
 func TestRegisterPluginsReportsAPluginThatRefusesItsEnvironment(t *testing.T) {
 	t.Parallel()
 
-	env := map[string]string{"GOPHENBERG_FEED_ITEMS": "banana"}
+	settings := settingsOf(map[string]string{"GOPHENBERG_FEED_ITEMS": "banana"})
 
-	plugins, err := registerPlugins(sdk.Deps{Getenv: testkit.Getenv(env), Env: settingsEnv(testkit.Getenv(env))})
+	plugins, err := registerPlugins(sdk.Deps{Getenv: settings.Getenv, Env: settings})
 
 	if err == nil || !strings.Contains(err.Error(), "plugin feed: ") {
 		t.Fatalf("registerPlugins() error = %v, want the feed cap refused and the plugin named", err)
@@ -127,7 +105,9 @@ func TestRegisterPluginsReportsAPluginThatRefusesItsEnvironment(t *testing.T) {
 func TestRegisterPluginsWiresEveryManifestedPlugin(t *testing.T) {
 	t.Parallel()
 
-	plugins, err := registerPlugins(sdk.Deps{Getenv: testkit.Getenv(nil), Env: settingsEnv(testkit.Getenv(nil))})
+	settings := settingsOf(nil)
+
+	plugins, err := registerPlugins(sdk.Deps{Getenv: settings.Getenv, Env: settings})
 
 	if err != nil {
 		t.Fatalf("registerPlugins() error = %v, want nil", err)
@@ -141,155 +121,43 @@ func TestRegisterPluginsWiresEveryManifestedPlugin(t *testing.T) {
 	}
 }
 
-func TestRunReportsPluginStartFailure(t *testing.T) {
+func TestRegisterPluginsCommands(t *testing.T) {
 	t.Parallel()
 
-	errBoot := errors.New("boot exploded")
-	env := map[string]string{"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t)}
+	program := app.Program(testkit.Getenv(nil), registerPlugins)
+	call := gonsole.Call{Env: program.Env, Describe: true}
 
-	err := run(t.Context(), testkit.Getenv(env), io.Discard, func(_ sdk.Deps) ([]sdk.Plugin, error) {
-		return []sdk.Plugin{failingPlugin{err: errBoot}}, nil
+	loaded, err := program.Plugins(t.Context(), call)
+
+	if err != nil || loaded.Failed != nil {
+		t.Fatalf("Plugins() = %v with %v failed, want every compiled plugin registered", err, loaded.Failed)
+	}
+	defer func() { _ = loaded.Release(context.WithoutCancel(t.Context())) }()
+	for _, group := range loaded.Groups {
+		for _, command := range group.Commands {
+			if !strings.HasPrefix(command.Name, group.Namespace+":") {
+				t.Errorf("plugin %s offers %q, want every command under its id", group.Namespace, command.Name)
+			}
+		}
+	}
+}
+
+func TestAFeedThatCannotRegisterShowsUnderNotLoaded(t *testing.T) {
+	t.Parallel()
+
+	env := testkit.Getenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
+		"GOPHENBERG_FEED_ITEMS":   "banana",
 	})
 
-	if !errors.Is(err, errBoot) {
-		t.Errorf("run() error = %v, want %v in its chain", err, errBoot)
+	listed := testkit.Run(t, app.Program(env, registerPlugins), "", "list")
+	checked := testkit.Run(t, app.Program(env, registerPlugins), "", "check")
+
+	if listed.Code != gonsole.ExitDone || !strings.Contains(listed.Stdout, "\nNot loaded:\n") ||
+		!strings.Contains(listed.Stdout, "GOPHENBERG_FEED_ITEMS") {
+		t.Errorf("list = %d, stdout %q, want 0 and the feed under Not loaded", listed.Code, listed.Stdout)
 	}
-}
-
-func TestRunStartsAndShutsDownCleanly(t *testing.T) {
-	t.Parallel()
-
-	env := map[string]string{
-		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
-		"GOPHENBERG_ADDR":         "localhost:0",
-		"GOPHENBERG_WEB_DIR":      t.TempDir(),
-	}
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	if err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, noPlugins); err != nil {
-		t.Fatalf("run() error = %v, want a clean shutdown", err)
-	}
-}
-
-func TestRunReportsCoreMigrationFailure(t *testing.T) {
-	t.Parallel()
-
-	databaseURL := emptyDatabaseURL(t)
-	if err := authkitpg.Migrate(t.Context(), databaseURL); err != nil {
-		t.Fatalf("pre-migrating auth: %v", err)
-	}
-	if err := postgres.Migrate(t.Context(), databaseURL); err != nil {
-		t.Fatalf("pre-migrating core: %v", err)
-	}
-	forgetCoreMigrations(t, databaseURL)
-	env := map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL}
-
-	err := run(t.Context(), testkit.Getenv(env), io.Discard, noPlugins)
-
-	if err == nil {
-		t.Fatal("run() error = nil, want a core migration failure")
-	}
-}
-
-// forgetCoreMigrations clears the core migration lineage from the database at databaseURL.
-func forgetCoreMigrations(t *testing.T, databaseURL string) {
-	t.Helper()
-	pool, err := pgxpool.New(t.Context(), databaseURL)
-	if err != nil {
-		t.Fatalf("connecting pool: %v", err)
-	}
-	defer pool.Close()
-	if _, err := pool.Exec(t.Context(), "DELETE FROM goose_db_version"); err != nil {
-		t.Fatalf("clearing core migration lineage: %v", err)
-	}
-}
-
-func TestRunReportsServeFailure(t *testing.T) {
-	t.Parallel()
-
-	listener, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		t.Fatalf("occupying a port: %v", err)
-	}
-	t.Cleanup(func() { _ = listener.Close() })
-	env := map[string]string{
-		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
-		"GOPHENBERG_ADDR":         listener.Addr().String(),
-	}
-
-	runErr := run(t.Context(), testkit.Getenv(env), io.Discard, noPlugins)
-
-	if runErr == nil {
-		t.Fatal("run() error = nil, want an address-in-use failure")
-	}
-}
-
-// cancelOnListen cancels its context once the server logs that it is listening.
-type cancelOnListen struct {
-	cancel context.CancelFunc
-}
-
-// Write scans log output for the listening line.
-func (w cancelOnListen) Write(p []byte) (int, error) {
-	if strings.Contains(string(p), "listening") {
-		w.cancel()
-	}
-	return len(p), nil
-}
-
-type failingPlugin struct {
-	err error
-}
-
-// ID returns the plugin's identifier.
-func (failingPlugin) ID() string {
-	return "failing"
-}
-
-// Start returns the failure the plugin was built with.
-func (p failingPlugin) Start(_ context.Context) error {
-	return p.err
-}
-
-// Stop returns nil without stopping anything.
-func (failingPlugin) Stop(_ context.Context) error {
-	return nil
-}
-
-func TestRunServesMediaWhenADirectoryIsConfigured(t *testing.T) {
-	t.Parallel()
-
-	env := map[string]string{
-		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
-		"GOPHENBERG_ADDR":         "localhost:0",
-		"GOPHENBERG_WEB_DIR":      t.TempDir(),
-		"GOPHENBERG_MEDIA_DIR":    t.TempDir(),
-	}
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	if err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, noPlugins); err != nil {
-		t.Fatalf("run() error = %v, want a clean shutdown", err)
-	}
-}
-
-func TestRunReportsAPinnedThemeItCannotLoad(t *testing.T) {
-	t.Parallel()
-
-	env := map[string]string{
-		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
-		"GOPHENBERG_ADDR":         "localhost:0",
-		"GOPHENBERG_THEMES_DIR":   t.TempDir(),
-		"GOPHENBERG_THEME":        "missing",
-	}
-
-	err := run(t.Context(), testkit.Getenv(env), io.Discard, noPlugins)
-
-	if err == nil {
-		t.Fatal("run() error = nil, want the pinned theme reported")
-	}
-	if !strings.Contains(err.Error(), "missing") {
-		t.Errorf("error = %v, want it to name the theme", err)
+	if checked.Code != gonsole.ExitFailed || !strings.Contains(checked.Stderr, "GOPHENBERG_FEED_ITEMS") {
+		t.Errorf("check = %d with stderr %q, want 1 and the feed setting named", checked.Code, checked.Stderr)
 	}
 }

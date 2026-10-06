@@ -8,8 +8,9 @@ Gophenberg is an open-source plugin-first CMS. The backend is a Go service expos
 - **Plugins live in one folder each.** A plugin is a directory under `plugins/` holding a `plugin.json` manifest, an ordinary Go package (compiled in), and an optional `frontend/` npm package for its React screens. The Go package exports `Register(sdk.Deps) (sdk.Plugin, error)`. The frontend package exports a `FrontendPlugin` object named `plugin`. `make generate` reads every manifest and regenerates both wiring files, and CI fails if they are stale. Each plugin gets a mounted route namespace under `/api/plugins/{name}/` (and `/{name}` in the SPA), may declare session-exempt public paths, and may own a Postgres schema with its own migrations. A plugin may also offer commands, named `<plugin id>:<command>`, by implementing `sdk.CommandProvider`. The command line registers plugins without starting them, so `Register` opens nothing and `Stop` works without `Start`. Plugins never import each other and reach the core only through the SDK.
 
 ```text
-cmd/gophenberg/       main: the command line, config, db pool, auth wiring, plugin registration
+cmd/gophenberg/       main: only the generated plugin list and a main that hands it to internal/app
 cmd/pluginwire/       generator: plugins/*/plugin.json -> wiring files
+internal/app          the command line, config, db pool, auth wiring, what plugins are lent
 internal/server       http.Handler, routes, middleware, theme reverse proxy
 internal/content      content domain package
 internal/postgres     data access (pgx + sqlc)
