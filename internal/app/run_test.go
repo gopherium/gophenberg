@@ -201,6 +201,7 @@ func (w cancelOnListen) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// failingPlugin is a plugin whose Start returns the error it holds.
 type failingPlugin struct {
 	err error
 }
