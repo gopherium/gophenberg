@@ -578,7 +578,9 @@ func TestContentStoreListCarriesTheTitleOfEachParent(t *testing.T) {
 	about := mustNest(t, store, nil, "About", author)
 	team := mustNest(t, store, &about, "Team", author)
 	mustNest(t, store, &team, "Volunteers", author)
-	everyItem := map[string]string{"About": "", "Team": "About", "Volunteers": "Team"}
+	untitled := mustNest(t, store, nil, "", author)
+	mustNest(t, store, &untitled, "Donations", author)
+	everyItem := map[string]string{"About": "", "Team": "About", "Volunteers": "Team", "": "", "Donations": ""}
 
 	for _, listing := range []struct {
 		nested bool
