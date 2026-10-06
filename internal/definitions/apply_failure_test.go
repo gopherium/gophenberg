@@ -3,6 +3,8 @@
 package definitions_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,6 +30,29 @@ func renameOn(t *testing.T, pool *pgxpool.Pool, on, operation, renamed string) {
 		"BEGIN ALTER TABLE "+renamed+" RENAME COLUMN title TO retired; RETURN NEW; END $$ LANGUAGE plpgsql")
 	sabotage(t, pool, "CREATE TRIGGER sabotage_read AFTER "+operation+" ON "+on+
 		" FOR EACH ROW EXECUTE FUNCTION sabotage_rename()")
+}
+
+// errTypesUnread is the failure a store answers to a read of the types once a type was written.
+var errTypesUnread = errors.New("types unread")
+
+// unlistingStore refuses every read of the types once a type was written.
+type unlistingStore struct {
+	content.TypeStore
+	wrote bool
+}
+
+// Update stores the type and refuses every later read of the types.
+func (s *unlistingStore) Update(ctx context.Context, t content.Type) (content.Type, error) {
+	s.wrote = true
+	return s.TypeStore.Update(ctx, t)
+}
+
+// List reads the types until one was written, then refuses.
+func (s *unlistingStore) List(ctx context.Context) ([]content.Type, error) {
+	if s.wrote {
+		return nil, errTypesUnread
+	}
+	return s.TypeStore.List(ctx)
 }
 
 // addingEnvelope returns an import bringing a type, a group, a field and a section holding one field.
@@ -262,5 +287,28 @@ func TestApplyReportsEveryWriteTheStoreRefuses(t *testing.T) {
 				t.Errorf("%s: Apply() error = nil, want the refused write reported", name)
 			}
 		})
+	}
+}
+
+func TestApplyReportsATypeItCannotReadBackOnceItWrites(t *testing.T) {
+	t.Parallel()
+
+	pool, _ := declaringPool(t)
+	store := &unlistingStore{TypeStore: postgres.NewTypeStore(pool)}
+	registry := content.NewRegistry(store)
+	siteDefined(t, registry)
+	envelope := exported(t, registry)
+	relabeling(t, envelope, content.TypePost, "Entry")
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].Description = nil
+			envelope.Types[i].PluralLabel = "Dishes"
+		}
+	}
+
+	_, err := definitions.Apply(t.Context(), registry, importing(envelope))
+
+	if !errors.Is(err, errTypesUnread) {
+		t.Errorf("Apply() error = %v, want the refused read of the types reported", err)
 	}
 }
