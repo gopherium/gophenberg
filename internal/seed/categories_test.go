@@ -185,6 +185,16 @@ func TestTheCategoryTypeServesTermPages(t *testing.T) {
 	}
 }
 
+func TestTheCategoryTypeCarriesItsSentence(t *testing.T) {
+	t.Parallel()
+
+	held := CategoryType()
+
+	if held.Description != "Manage the categories on this site." {
+		t.Errorf("Description = %q, want the category sentence", held.Description)
+	}
+}
+
 func TestTheCategoriesFieldPointsPostsAtCategories(t *testing.T) {
 	t.Parallel()
 

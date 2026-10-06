@@ -18,6 +18,7 @@ type typeResponse struct {
 	Key           string          `json:"key"`
 	SingularLabel string          `json:"singular_label"`
 	PluralLabel   string          `json:"plural_label"`
+	Description   string          `json:"description"`
 	RouteWord     string          `json:"route_word"`
 	Hierarchical  bool            `json:"hierarchical"`
 	Revisions     bool            `json:"revisions"`
@@ -40,6 +41,7 @@ type typeListResponse struct {
 type typePatchRequest struct {
 	SingularLabel *string `json:"singular_label"`
 	PluralLabel   *string `json:"plural_label"`
+	Description   *string `json:"description"`
 	RouteWord     *string `json:"route_word"`
 	Hierarchical  *bool   `json:"hierarchical"`
 	Revisions     *bool   `json:"revisions"`
@@ -55,6 +57,7 @@ func newTypeResponse(t content.Type) typeResponse {
 		Key:           t.Key,
 		SingularLabel: t.SingularLabel,
 		PluralLabel:   t.PluralLabel,
+		Description:   t.Description,
 		RouteWord:     t.RouteWord,
 		Hierarchical:  t.Hierarchical,
 		Revisions:     t.Revisions,
@@ -109,6 +112,7 @@ func (req typePatchRequest) applyText(t *content.Type) bool {
 	for field, value := range map[*string]*string{
 		&t.SingularLabel: req.SingularLabel,
 		&t.PluralLabel:   req.PluralLabel,
+		&t.Description:   req.Description,
 		&t.RouteWord:     req.RouteWord,
 		kind:             req.PageKind,
 	} {
@@ -142,6 +146,7 @@ func (s *server) handleTypeCreate() http.HandlerFunc {
 		Key           string `json:"key"`
 		SingularLabel string `json:"singular_label"`
 		PluralLabel   string `json:"plural_label"`
+		Description   string `json:"description"`
 		RouteWord     string `json:"route_word"`
 		Hierarchical  bool   `json:"hierarchical"`
 	}
@@ -159,6 +164,7 @@ func (s *server) handleTypeCreate() http.HandlerFunc {
 			return
 		}
 		asked.Hierarchical = req.Hierarchical
+		asked.Description = req.Description
 		created, err := s.types.Create(r.Context(), asked)
 		if err != nil {
 			respondDomainError(w, err)

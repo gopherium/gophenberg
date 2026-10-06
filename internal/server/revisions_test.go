@@ -106,7 +106,7 @@ func TestPostPatchSkipsTheSnapshotForTypesWithoutRevisions(t *testing.T) {
 	types := newFakeTypeStore()
 	briefing := postType()
 	briefing.Key, briefing.Revisions, briefing.Default = "briefing", false, false
-	briefing.RouteWord = "briefings"
+	briefing.RouteWord, briefing.Description = "briefings", ""
 	types.register(briefing)
 	handler := authedServerWithStores(t, server.Config{Users: users, Content: posts, Types: types})
 	stored := newPost(t, "No History", ada.ID)
@@ -133,7 +133,7 @@ func TestPostPatchRefusesAnEditWhenTheTypeStoppedServing(t *testing.T) {
 	types := newFakeTypeStore()
 	retired := postType()
 	retired.Key, retired.Active, retired.Default = "briefing", false, false
-	retired.RouteWord = "briefings"
+	retired.RouteWord, retired.Description = "briefings", ""
 	types.register(retired)
 	handler := authedServerWithStores(t, server.Config{Users: users, Content: posts, Types: types})
 

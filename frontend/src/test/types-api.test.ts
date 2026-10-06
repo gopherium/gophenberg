@@ -112,6 +112,7 @@ const POST_ROW = {
 	key: 'post',
 	singular_label: 'Post',
 	plural_label: 'Posts',
+	description: 'Manage the posts on this site.',
 	route_word: '',
 	hierarchical: false,
 	revisions: true,
@@ -121,9 +122,10 @@ const POST_ROW = {
 	active: true,
 	created_at: '2026-08-01T10:00:00Z',
 	updated_at: '2026-08-01T10:00:00Z',
+	fields: [],
 }
 
-const PAGE_ROW = { ...POST_ROW, key: 'page', singular_label: 'Page', plural_label: 'Pages' }
+const PAGE_ROW = { ...POST_ROW, key: 'page', singular_label: 'Page', plural_label: 'Pages', description: '' }
 
 test('reads every registered type', async () => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [POST_ROW, PAGE_ROW] })))
@@ -134,6 +136,7 @@ test('reads every registered type', async () => {
 	expect(types[0].pluralLabel).toBe('Posts')
 	expect(types[0].isDefault).toBe(true)
 	expect(types[1].routeWord).toBe('')
+	expect(types.map((registered) => registered.description)).toEqual(['Manage the posts on this site.', ''])
 })
 
 test('reports a registry it could not read', async () => {
@@ -155,6 +158,7 @@ test('registers a type from its labels and route word', async () => {
 		key: 'page',
 		singularLabel: 'Page',
 		pluralLabel: 'Pages',
+		description: 'Manage the pages on this site.',
 		routeWord: 'pages',
 	})
 
@@ -162,6 +166,7 @@ test('registers a type from its labels and route word', async () => {
 		key: 'page',
 		singular_label: 'Page',
 		plural_label: 'Pages',
+		description: 'Manage the pages on this site.',
 		route_word: 'pages',
 	})
 	expect(created.key).toBe('page')
@@ -175,7 +180,7 @@ test('carries the reason a type was refused', async () => {
 	)
 
 	await expect(
-		createType({ key: 'page', singularLabel: 'Page', pluralLabel: 'Pages', routeWord: 'pages' }),
+		createType({ key: 'page', singularLabel: 'Page', pluralLabel: 'Pages', description: '', routeWord: 'pages' }),
 	).rejects.toThrow(/route word is taken/)
 })
 
@@ -225,6 +230,7 @@ test('sends every field an edit names', async () => {
 	await updateType('page', {
 		singularLabel: 'Section',
 		pluralLabel: 'Sections',
+		description: 'Manage the sections on this site.',
 		routeWord: 'sections',
 		hierarchical: false,
 		isDefault: true,
@@ -234,11 +240,26 @@ test('sends every field an edit names', async () => {
 	expect(sent[0]).toEqual({
 		singular_label: 'Section',
 		plural_label: 'Sections',
+		description: 'Manage the sections on this site.',
 		route_word: 'sections',
 		hierarchical: false,
 		default: true,
 		active: true,
 	})
+})
+
+test('sends an emptied description', async () => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json(PAGE_ROW)
+		}),
+	)
+
+	await updateType('page', { description: '' })
+
+	expect(sent[0]).toEqual({ description: '' })
 })
 
 test('sends the nesting flag on its own', async () => {
@@ -264,7 +285,7 @@ test('reports a removal the registry could not take', async () => {
 test('says something a reader can act on when the server body is unreadable', async () => {
 	server.use(http.post('/api/types', () => new HttpResponse(null, { status: 500 })))
 
-	const guide = { key: 'guide', singularLabel: 'Guide', pluralLabel: 'Guides', routeWord: 'guides' }
+	const guide = { key: 'guide', singularLabel: 'Guide', pluralLabel: 'Guides', description: '', routeWord: 'guides' }
 
 	await expect(createType(guide)).rejects.toThrow(/something went wrong/i)
 })

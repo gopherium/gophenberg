@@ -483,14 +483,14 @@ func (q *Queries) CreateContentField(ctx context.Context, arg CreateContentField
 const createContentType = `-- name: CreateContentType :one
 INSERT INTO core.content_types (
     key, singular_label, plural_label, route_word, hierarchical, revisions,
-    revision_cap, page_kind, is_default, active, origin, created_at, updated_at
+    revision_cap, page_kind, is_default, active, origin, description, created_at, updated_at
 )
 VALUES (
     $1, $2, $3, $4, $5, $6,
-    $7, $8, $9, $10, $11, $12, $13
+    $7, $8, $9, $10, $11, $12, $13, $14
 )
 RETURNING key, singular_label, plural_label, route_word, hierarchical, revisions,
-    revision_cap, page_kind, is_default, active, created_at, updated_at, origin
+    revision_cap, page_kind, is_default, active, created_at, updated_at, origin, description
 `
 
 type CreateContentTypeParams struct {
@@ -505,6 +505,7 @@ type CreateContentTypeParams struct {
 	IsDefault     bool
 	Active        bool
 	Origin        *string
+	Description   string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
@@ -522,6 +523,7 @@ func (q *Queries) CreateContentType(ctx context.Context, arg CreateContentTypePa
 		arg.IsDefault,
 		arg.Active,
 		arg.Origin,
+		arg.Description,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -540,6 +542,7 @@ func (q *Queries) CreateContentType(ctx context.Context, arg CreateContentTypePa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Origin,
+		&i.Description,
 	)
 	return i, err
 }
@@ -1057,7 +1060,7 @@ func (q *Queries) GetContent(ctx context.Context, id uuid.UUID) (CoreContent, er
 
 const getContentType = `-- name: GetContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
-    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin, t.description
 FROM core.content_types t
 WHERE t.key = $1
 `
@@ -1079,6 +1082,7 @@ func (q *Queries) GetContentType(ctx context.Context, key string) (CoreContentTy
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Origin,
+		&i.Description,
 	)
 	return i, err
 }
@@ -1434,7 +1438,7 @@ func (q *Queries) ListContentFieldsOfGroup(ctx context.Context, groupID int32) (
 
 const listContentTypes = `-- name: ListContentTypes :many
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
-    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin, t.description
 FROM core.content_types t
 ORDER BY t.created_at, t.key
 `
@@ -1462,6 +1466,7 @@ func (q *Queries) ListContentTypes(ctx context.Context) ([]CoreContentType, erro
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Origin,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}
@@ -1936,7 +1941,7 @@ func (q *Queries) LockContent(ctx context.Context, id uuid.UUID) (CoreContent, e
 
 const lockContentType = `-- name: LockContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
-    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin, t.description
 FROM core.content_types t
 WHERE t.key = $1
 FOR UPDATE
@@ -1959,6 +1964,7 @@ func (q *Queries) LockContentType(ctx context.Context, key string) (CoreContentT
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Origin,
+		&i.Description,
 	)
 	return i, err
 }
@@ -1990,7 +1996,7 @@ func (q *Queries) LockDeclaredFieldKeys(ctx context.Context) ([]string, error) {
 
 const lockDefaultContentType = `-- name: LockDefaultContentType :one
 SELECT t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
-    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin, t.description
 FROM core.content_types t
 WHERE t.is_default
 FOR UPDATE
@@ -2013,6 +2019,7 @@ func (q *Queries) LockDefaultContentType(ctx context.Context) (CoreContentType, 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Origin,
+		&i.Description,
 	)
 	return i, err
 }
@@ -2799,10 +2806,11 @@ const updateContentType = `-- name: UpdateContentType :one
 UPDATE core.content_types AS t
 SET singular_label = $1, plural_label = $2, route_word = $3,
     hierarchical = $4, revisions = $5, revision_cap = $6,
-    page_kind = $7, is_default = $8, active = $9, updated_at = $10
-WHERE t.key = $11
+    page_kind = $7, is_default = $8, active = $9, description = $10,
+    updated_at = $11
+WHERE t.key = $12
 RETURNING t.key, t.singular_label, t.plural_label, t.route_word, t.hierarchical, t.revisions,
-    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin
+    t.revision_cap, t.page_kind, t.is_default, t.active, t.created_at, t.updated_at, t.origin, t.description
 `
 
 type UpdateContentTypeParams struct {
@@ -2815,6 +2823,7 @@ type UpdateContentTypeParams struct {
 	PageKind      string
 	IsDefault     bool
 	Active        bool
+	Description   string
 	UpdatedAt     time.Time
 	Key           string
 }
@@ -2830,6 +2839,7 @@ func (q *Queries) UpdateContentType(ctx context.Context, arg UpdateContentTypePa
 		arg.PageKind,
 		arg.IsDefault,
 		arg.Active,
+		arg.Description,
 		arg.UpdatedAt,
 		arg.Key,
 	)
@@ -2848,6 +2858,7 @@ func (q *Queries) UpdateContentType(ctx context.Context, arg UpdateContentTypePa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Origin,
+		&i.Description,
 	)
 	return i, err
 }

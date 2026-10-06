@@ -16,6 +16,7 @@ anything serves:
 func (p *Plugin) DeclareTypes(ctx context.Context, types sdk.TypeRegistrar) error {
 	if err := types.DeclareType(ctx, sdk.TypeDeclaration{
 		Key: "event", SingularLabel: "Event", PluralLabel: "Events", RouteWord: "events",
+		Description: "Gatherings near you.",
 	}); err != nil {
 		return err
 	}
@@ -53,8 +54,8 @@ and it is written to be safe to repeat:
 
 - A definition that is not there yet is created.
 - One that is there and matches is left alone.
-- A changed label, required flag, setting or location is carried
-  onto the stored one.
+- A changed label, description, required flag, setting or location is
+  carried onto the stored one.
 
 So the way to change a field is to edit the declaration and restart.
 There is no migration to write and no version to bump.

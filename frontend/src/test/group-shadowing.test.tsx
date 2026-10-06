@@ -13,6 +13,7 @@ const POST_TYPE = {
 	key: 'post',
 	singular_label: 'Post',
 	plural_label: 'Posts',
+	description: '',
 	route_word: '',
 	hierarchical: false,
 	revisions: true,
@@ -20,6 +21,7 @@ const POST_TYPE = {
 	page_kind: 'single',
 	default: true,
 	active: true,
+	fields: [],
 }
 
 const RECIPE_TYPE = {

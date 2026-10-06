@@ -2125,3 +2125,11 @@ msgstr "Qué lee cada campo Enlazado desde"
 #, fuzzy
 msgid "It reads a relation inside a container, and only an import can point it elsewhere."
 msgstr "Lee una relación dentro de un contenedor, y solo una importación puede apuntarlo a otro sitio."
+
+#, fuzzy
+msgid "Describe %(type)s"
+msgstr "Describir %(type)s"
+
+#, fuzzy
+msgid "A descriptive summary of the content type."
+msgstr "Un resumen descriptivo del tipo de contenido."

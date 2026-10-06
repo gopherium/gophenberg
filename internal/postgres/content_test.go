@@ -58,7 +58,7 @@ func postType() content.Type {
 	return content.Type{
 		Key: content.TypePost, SingularLabel: "Post", PluralLabel: "Posts",
 		Revisions: true, RevisionCap: 100, PageKind: content.PageKindSingle,
-		Default: true, Active: true,
+		Default: true, Active: true, Description: "Manage the posts on this site.",
 	}
 }
 

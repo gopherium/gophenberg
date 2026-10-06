@@ -59,8 +59,9 @@ words, and translating one breaks the software.
 
 Also leave alone the product name Gophenberg, the size units B, KB, MB,
 GB and TB, and anything that arrives from the server or from an author.
-A content type's plural label reads as its author typed it, in whatever
-language they typed it, and no catalogue reaches it.
+A content type's plural label and its description read as their author
+typed them, in whatever language they typed them, and no catalogue
+reaches them.
 
 ## When one word means two things
 

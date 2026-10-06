@@ -48,14 +48,19 @@ func TestTypeStoreListsTheBuiltInType(t *testing.T) {
 	if post.RouteWord != "" || post.PageKind != content.PageKindSingle || !post.Revisions {
 		t.Errorf("List()[0] = %+v, want the rooted single-page type keeping revisions", post)
 	}
+	if post.Description != "Manage the posts on this site." {
+		t.Errorf("List()[0].Description = %q, want the shipped sentence", post.Description)
+	}
 }
 
 func TestTypeStoreCreatesAndReadsBackAType(t *testing.T) {
 	t.Parallel()
 
 	store := newTypeStore(t)
+	car := carType(t)
+	car.Description = "Cars for sale."
 
-	created, err := store.Create(t.Context(), carType(t))
+	created, err := store.Create(t.Context(), car)
 
 	if err != nil {
 		t.Fatalf("Create() error = %v, want nil", err)
@@ -69,6 +74,9 @@ func TestTypeStoreCreatesAndReadsBackAType(t *testing.T) {
 	}
 	if read.Key != created.Key || read.CreatedAt.Location() != time.UTC {
 		t.Errorf("ByKey() = %+v, want the stored car with UTC stamps", read)
+	}
+	if created.Description != "Cars for sale." || read.Description != "Cars for sale." {
+		t.Errorf("Description = %q created, %q read, want the stored sentence", created.Description, read.Description)
 	}
 }
 
@@ -129,6 +137,7 @@ func TestTypeStoreUpdatesTheEditableFields(t *testing.T) {
 	edited := created
 	edited.SingularLabel, edited.PluralLabel = "Vehicle", "Vehicles"
 	edited.RouteWord, edited.Hierarchical, edited.Active = "vehicles", true, false
+	edited.Description = "Vehicles for hire."
 	edited.UpdatedAt = created.UpdatedAt.Add(time.Second)
 
 	updated, err := store.Update(t.Context(), edited)
@@ -138,6 +147,9 @@ func TestTypeStoreUpdatesTheEditableFields(t *testing.T) {
 	}
 	if updated.PluralLabel != "Vehicles" || updated.RouteWord != "vehicles" {
 		t.Errorf("Update() = %+v, want the relabeled type", updated)
+	}
+	if updated.Description != "Vehicles for hire." {
+		t.Errorf("Update().Description = %q, want the new sentence", updated.Description)
 	}
 	if !updated.Hierarchical || updated.Active {
 		t.Errorf("Update() = %+v, want it nesting and deactivated", updated)
@@ -365,6 +377,9 @@ func TestUpdateHandsTheRootToAnotherType(t *testing.T) {
 	}
 	if held[content.TypePost].Default || held[content.TypePost].RouteWord != "posts" {
 		t.Errorf("post = %+v, want it moved off the root", held[content.TypePost])
+	}
+	if held[content.TypePost].Description != "Manage the posts on this site." {
+		t.Errorf("post description = %q, want the demoted post to keep it", held[content.TypePost].Description)
 	}
 	if got := addressOf(t, store, about.ID); got != "about" {
 		t.Errorf("page address = %q, want it lifted to the root", got)

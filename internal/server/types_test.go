@@ -17,6 +17,7 @@ type typeBody struct {
 	Key           string    `json:"key"`
 	SingularLabel string    `json:"singular_label"`
 	PluralLabel   string    `json:"plural_label"`
+	Description   string    `json:"description"`
 	RouteWord     string    `json:"route_word"`
 	Hierarchical  bool      `json:"hierarchical"`
 	Revisions     bool      `json:"revisions"`
@@ -76,6 +77,121 @@ func TestTypeListAnswersTheRegistry(t *testing.T) {
 	}
 	if post.RouteWord != "" || post.PageKind != string(content.PageKindSingle) {
 		t.Errorf("items[0] = %+v, want the rooted single-page type", post)
+	}
+}
+
+func TestTypeListServesTheBuiltInDescription(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/types", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := decodeBody[typeListBody](t, recorder)
+	if len(body.Items) != 1 || body.Items[0].Description != "Manage the posts on this site." {
+		t.Errorf("items = %+v, want the post carrying its shipped sentence", body.Items)
+	}
+}
+
+func TestTypeCreateCarriesADescription(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/types",
+		`{"key":"car","singular_label":"Car","plural_label":"Cars","route_word":"cars","description":"Cars for sale."}`)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusCreated, recorder.Body.String())
+	}
+	if body := decodeBody[typeBody](t, recorder); body.Description != "Cars for sale." {
+		t.Errorf("Description = %q, want the registered sentence", body.Description)
+	}
+}
+
+func TestTypeCreateWithoutADescriptionServesAnEmptyOne(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+
+	recorder := doRequest(t, handler, http.MethodPost, "/api/types",
+		`{"key":"car","singular_label":"Car","plural_label":"Cars","route_word":"cars"}`)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusCreated, recorder.Body.String())
+	}
+	body := decodeBody[map[string]any](t, recorder)
+	if description, served := body["description"]; !served || description != "" {
+		t.Errorf("description = %v served %t, want an empty one served", description, served)
+	}
+}
+
+func TestTypePatchDescribesATypeLeavingItsLabelsAndAddressAlone(t *testing.T) {
+	t.Parallel()
+
+	handler := authedTypeServer(t)
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/post",
+		`{"description":"Stories from the team."}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := decodeBody[typeBody](t, recorder)
+	if body.Description != "Stories from the team." {
+		t.Errorf("Description = %q, want the new sentence", body.Description)
+	}
+	if body.SingularLabel != "Post" || body.PluralLabel != "Posts" || body.RouteWord != "" {
+		t.Errorf("body = %+v, want the labels and the root left alone", body)
+	}
+}
+
+func TestTypePatchClearsADescriptionWithAnEmptyString(t *testing.T) {
+	t.Parallel()
+
+	handler, _, types, _ := typedPostServer(t)
+	types.register(describedCar())
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/car", `{"description":""}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	stored, err := types.ByKey(t.Context(), "car")
+	if err != nil {
+		t.Fatalf("ByKey() error = %v, want nil", err)
+	}
+	if stored.Description != "" {
+		t.Errorf("stored description = %q, want it cleared", stored.Description)
+	}
+}
+
+func TestTypePatchLeavesTheDescriptionWhenTheBodyOmitsIt(t *testing.T) {
+	t.Parallel()
+
+	handler, _, types, _ := typedPostServer(t)
+	types.register(describedCar())
+
+	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/car", `{"plural_label":"Autos"}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := decodeBody[typeBody](t, recorder)
+	if body.PluralLabel != "Autos" || body.Description != "Cars for sale." {
+		t.Errorf("body = %+v, want the relabeled car keeping its description", body)
+	}
+}
+
+// describedCar returns a car type the site made, carrying a description.
+func describedCar() content.Type {
+	return content.Type{
+		Key: "car", SingularLabel: "Car", PluralLabel: "Cars", RouteWord: "cars",
+		Revisions: true, RevisionCap: 100, PageKind: content.PageKindSingle, Active: true,
+		Description: "Cars for sale.",
 	}
 }
 

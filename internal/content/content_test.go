@@ -22,6 +22,7 @@ func postType() content.Type {
 		Key:           content.TypePost,
 		SingularLabel: "Post",
 		PluralLabel:   "Posts",
+		Description:   "Manage the posts on this site.",
 		Revisions:     true,
 		RevisionCap:   100,
 		PageKind:      content.PageKindSingle,

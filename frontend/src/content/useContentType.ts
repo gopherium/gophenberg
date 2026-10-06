@@ -17,6 +17,7 @@ const unknownType: ContentType = {
 	get pluralLabel() {
 		return __('Content', 'gophenberg')
 	},
+	description: '',
 	routeWord: '',
 	hierarchical: false,
 	revisions: true,

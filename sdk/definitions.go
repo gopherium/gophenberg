@@ -9,6 +9,7 @@ type TypeDeclaration struct {
 	Key           string
 	SingularLabel string
 	PluralLabel   string
+	Description   string
 	RouteWord     string
 	Hierarchical  bool
 	Revisions     bool

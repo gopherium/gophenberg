@@ -16,7 +16,7 @@ import (
 // pageType returns a hierarchical page type answering under pages.
 func pageType() content.Type {
 	t := postType()
-	t.Key, t.SingularLabel, t.PluralLabel = "page", "Page", "Pages"
+	t.Key, t.SingularLabel, t.PluralLabel, t.Description = "page", "Page", "Pages", ""
 	t.RouteWord, t.Hierarchical, t.Default = "pages", true, false
 	return t
 }

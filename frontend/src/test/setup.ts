@@ -19,6 +19,7 @@ const builtInType = {
 	key: 'post',
 	singular_label: 'Post',
 	plural_label: 'Posts',
+	description: 'Manage the posts on this site.',
 	route_word: '',
 	hierarchical: false,
 	revisions: true,
@@ -28,6 +29,7 @@ const builtInType = {
 	active: true,
 	created_at: '2026-08-01T10:00:00Z',
 	updated_at: '2026-08-01T10:00:00Z',
+	fields: [],
 }
 
 beforeEach(() => {

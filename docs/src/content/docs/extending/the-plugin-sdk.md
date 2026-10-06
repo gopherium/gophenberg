@@ -82,6 +82,7 @@ once at every start, before anything serves:
 func (p plugin) DeclareTypes(ctx context.Context, types sdk.TypeRegistrar) error {
 	if err := types.DeclareType(ctx, sdk.TypeDeclaration{
 		Key: "event", SingularLabel: "Event", PluralLabel: "Events", RouteWord: "events",
+		Description: "Gatherings near you.",
 	}); err != nil {
 		return err
 	}
@@ -96,10 +97,10 @@ func (p plugin) DeclareTypes(ctx context.Context, types sdk.TypeRegistrar) error
 
 Declaring is safe to repeat. A definition that is not there yet is
 created, one that is there is left alone, and a changed label,
-required flag, setting or location is carried onto it. Two things
-are refused: changing a field's kind, and changing a type's route
-word, because both would strand stored content. A definition the
-plugin stops declaring stays in place.
+description, required flag, setting or location is carried onto it.
+Two things are refused: changing a field's kind, and changing a
+type's route word, because both would strand stored content. A
+definition the plugin stops declaring stays in place.
 
 What a plugin declares belongs to that plugin. The admin shows it
 with a badge naming the plugin and offers no way to change or delete

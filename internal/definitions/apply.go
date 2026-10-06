@@ -155,7 +155,10 @@ func (r *run) types(ctx context.Context) error {
 
 // oneType stores or carries one type, leaving the root and the nesting where the site's content keeps them.
 func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Change) error {
-	wanted := typeFrom(declared)
+	wanted, err := r.described(ctx, typeFrom(declared), declared)
+	if err != nil {
+		return err
+	}
 	if r.warned(WarningRootMoved, declared.Key) {
 		r.left(r.kept(planned, declared, ReasonRootKept))
 		wanted = r.beside(wanted, declared, planned.Action)
@@ -176,6 +179,20 @@ func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Chan
 	}
 	r.did(planned)
 	return nil
+}
+
+// described returns the type carrying the description the file names, or the one the site holds now when it names none.
+func (r *run) described(ctx context.Context, wanted content.Type, declared TypeDefinition) (content.Type, error) {
+	if declared.Description != nil {
+		wanted.Description = *declared.Description
+		return wanted, nil
+	}
+	stored, err := r.registry.ByKey(ctx, declared.Key)
+	if err != nil && !errors.Is(err, content.ErrTypeNotFound) {
+		return content.Type{}, err
+	}
+	wanted.Description = stored.Description
+	return wanted, nil
 }
 
 // carryType stores the edited type, leaving its nesting on when an item nested under it while the import ran.

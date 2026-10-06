@@ -64,7 +64,7 @@ func TestPostListRefusesTypesTheRegistryDoesNotServe(t *testing.T) {
 	types := newFakeTypeStore()
 	retired := postType()
 	retired.Key, retired.Active, retired.Default = "briefing", false, false
-	retired.RouteWord = "briefings"
+	retired.RouteWord, retired.Description = "briefings", ""
 	types.register(retired)
 	handler := authedServerWithStores(t,
 		server.Config{Users: users, Content: newFakePostStore(), Types: types})

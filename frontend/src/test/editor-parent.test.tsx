@@ -13,6 +13,7 @@ const NESTING_TYPE = {
 	key: 'page',
 	singular_label: 'Page',
 	plural_label: 'Pages',
+	description: '',
 	route_word: 'pages',
 	hierarchical: true,
 	revisions: true,
@@ -20,6 +21,7 @@ const NESTING_TYPE = {
 	page_kind: 'single',
 	default: false,
 	active: true,
+	fields: [],
 }
 
 const FLAT_TYPE = {

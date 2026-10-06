@@ -68,6 +68,7 @@ test('add new starts a draft on the defaults its fields name', async () => {
 						key: 'post',
 						singular_label: 'Post',
 						plural_label: 'Posts',
+						description: '',
 						route_word: '',
 						hierarchical: false,
 						revisions: true,

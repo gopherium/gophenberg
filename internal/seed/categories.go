@@ -49,6 +49,7 @@ func CategoryType() content.Type {
 		Key:           CategoryTypeKey,
 		SingularLabel: "Category",
 		PluralLabel:   "Categories",
+		Description:   "Manage the categories on this site.",
 		RouteWord:     "categories",
 		Hierarchical:  true,
 		Revisions:     true,

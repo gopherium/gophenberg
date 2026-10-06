@@ -103,6 +103,10 @@
 	border-radius: var(--wpds-border-radius-sm);
 }
 
+.gophenberg-types__actions > button {
+	white-space: nowrap;
+}
+
 .gophenberg-fields__list {
 	margin: 0;
 	padding: 0;

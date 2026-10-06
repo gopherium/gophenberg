@@ -154,7 +154,13 @@ func sameStoredType(d TypeDefinition, held content.Type) bool {
 	return d.SingularLabel == held.SingularLabel && d.PluralLabel == held.PluralLabel &&
 		d.RouteWord == held.RouteWord && d.Hierarchical == held.Hierarchical &&
 		d.Revisions == held.Revisions && d.RevisionCap == held.RevisionCap &&
-		d.PageKind == string(held.PageKind) && d.Default == held.Default && d.Active == held.Active
+		d.PageKind == string(held.PageKind) && d.Default == held.Default && d.Active == held.Active &&
+		describedAlike(d, held)
+}
+
+// describedAlike reports whether the stored type already holds the description the envelope names, if it names one.
+func describedAlike(d TypeDefinition, held content.Type) bool {
+	return d.Description == nil || *d.Description == held.Description
 }
 
 // planGroups adds what the envelope's groups would change about the ones the site owns.

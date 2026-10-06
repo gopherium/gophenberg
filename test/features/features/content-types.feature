@@ -46,6 +46,25 @@ Feature: Managing content types
     Then the type "post" carries the labels "Story" and "Stories"
     And the type "post" answers under ""
 
+  Scenario: The install describes the post type
+    When the administrator lists the content types
+    Then the type "post" carries the description "Manage the posts on this site."
+
+  Scenario: A type registered with a description serves it
+    When the administrator creates the type "car" labeled "Car" and "Cars" under "cars" described as "Cars for sale."
+    Then the type "car" carries the description "Cars for sale."
+
+  Scenario: Describing a type leaves its labels and address alone
+    When the administrator describes "post" as "Stories from the team."
+    Then the type "post" carries the description "Stories from the team."
+    And the type "post" carries the labels "Post" and "Posts"
+    And the type "post" answers under ""
+
+  Scenario: Clearing a description
+    When the administrator describes "post" as "Stories from the team."
+    And the administrator describes "post" as ""
+    Then the type "post" carries the description ""
+
   Scenario: The default type cannot be deactivated
     When the administrator deactivates the type "post"
     Then the request is refused

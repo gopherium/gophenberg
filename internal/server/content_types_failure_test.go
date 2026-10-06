@@ -22,7 +22,7 @@ const spareTypeKey = "note"
 // spareType returns an active type the registry can reshape without leaving the site without a default.
 func spareType() content.Type {
 	t := postType()
-	t.Key, t.SingularLabel, t.PluralLabel = spareTypeKey, "Note", "Notes"
+	t.Key, t.SingularLabel, t.PluralLabel, t.Description = spareTypeKey, "Note", "Notes", ""
 	t.RouteWord, t.Default = "notes", false
 	return t
 }

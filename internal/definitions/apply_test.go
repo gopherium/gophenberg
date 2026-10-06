@@ -134,6 +134,85 @@ func TestApplyAddsTheTypeGroupAndFieldsAFileBrings(t *testing.T) {
 	}
 }
 
+func TestApplyCarriesADescriptionOntoAStoredType(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].Description = new("Plates from the garden.")
+		}
+	}
+
+	applied(t, registry, importing(envelope))
+
+	recipe, err := registry.ByKey(t.Context(), "recipe")
+	if err != nil || recipe.Description != "Plates from the garden." {
+		t.Errorf("the recipe type = %+v, %v, want the description the file named", recipe, err)
+	}
+}
+
+func TestApplyClearsTheDescriptionAFileEmpties(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].Description = new("")
+		}
+	}
+
+	applied(t, registry, importing(envelope))
+
+	recipe, err := registry.ByKey(t.Context(), "recipe")
+	if err != nil || recipe.Description != "" {
+		t.Errorf("the recipe type = %+v, %v, want the description cleared", recipe, err)
+	}
+}
+
+func TestApplyKeepsTheDescriptionAnOlderFileLeavesOut(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		envelope.Types[i].Description = nil
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].PluralLabel = "Dishes"
+		}
+	}
+
+	applied(t, registry, importing(envelope))
+
+	recipe, err := registry.ByKey(t.Context(), "recipe")
+	if err != nil || recipe.PluralLabel != "Dishes" {
+		t.Fatalf("the recipe type = %+v, %v, want the new label carried", recipe, err)
+	}
+	if recipe.Description != "Dishes from the kitchen." {
+		t.Errorf("Description = %q, want the stored one kept", recipe.Description)
+	}
+}
+
+func TestApplyStoresTheDescriptionOfATypeAFileBrings(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	envelope.Types = append(envelope.Types, definitions.TypeDefinition{
+		Key: "wine", SingularLabel: "Wine", PluralLabel: "Wines", RouteWord: "wines",
+		PageKind: "single", Active: true, Description: new("Bottles from the cellar."),
+	})
+
+	applied(t, registry, importing(envelope))
+
+	wine, err := registry.ByKey(t.Context(), "wine")
+	if err != nil || wine.Description != "Bottles from the cellar." {
+		t.Errorf("the wine type = %+v, %v, want the description the file brought", wine, err)
+	}
+}
+
 func TestApplyLeavesBehindADeleteNobodyConfirmed(t *testing.T) {
 	t.Parallel()
 

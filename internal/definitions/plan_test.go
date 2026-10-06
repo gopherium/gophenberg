@@ -225,6 +225,60 @@ func TestComparePlansWhatAFileCarriesOverTheSite(t *testing.T) {
 	}
 }
 
+func TestComparePlansAChangedDescriptionAsAnUpdate(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].Description = new("Plates from the garden.")
+		}
+	}
+
+	plan := compared(t, registry, envelope)
+
+	held, planned := changeFor(plan, definitions.SubjectType, "recipe")
+	if !planned || held.Action != definitions.ActionUpdate {
+		t.Errorf("the recipe type = %+v, %v, want an update", held, planned)
+	}
+}
+
+func TestComparePlansAnEmptiedDescriptionAsAnUpdate(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].Description = new("")
+		}
+	}
+
+	plan := compared(t, registry, envelope)
+
+	held, planned := changeFor(plan, definitions.SubjectType, "recipe")
+	if !planned || held.Action != definitions.ActionUpdate {
+		t.Errorf("the recipe type = %+v, %v, want an update", held, planned)
+	}
+}
+
+func TestCompareAsksNothingOfAFileWrittenBeforeDescriptions(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		envelope.Types[i].Description = nil
+	}
+
+	plan := compared(t, registry, envelope)
+
+	if len(plan.Changes) != 0 || len(plan.Warnings) != 0 {
+		t.Errorf("plan = %+v, want a file without descriptions to leave the stored ones alone", plan)
+	}
+}
+
 func TestComparePlansWhatAFileTakesAwayAsDestructive(t *testing.T) {
 	t.Parallel()
 

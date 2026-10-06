@@ -116,6 +116,16 @@ func TestTypesRegistersThePageType(t *testing.T) {
 	}
 }
 
+func TestThePageTypeCarriesItsSentence(t *testing.T) {
+	t.Parallel()
+
+	held := PageType()
+
+	if held.Description != "Manage the pages on this site." {
+		t.Errorf("Description = %q, want the page sentence", held.Description)
+	}
+}
+
 func TestTypesLeavesATypeItAlreadyRegistered(t *testing.T) {
 	t.Parallel()
 

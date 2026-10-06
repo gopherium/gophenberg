@@ -181,6 +181,28 @@ func TestRegistryRefusesToChangeATypeAPluginDeclared(t *testing.T) {
 	}
 }
 
+func TestRegistryRefusesToRedescribeATypeAPluginDeclared(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeTypeStore()
+	registry := content.NewRegistry(store)
+	event, err := store.Create(t.Context(), content.Type{
+		Key: "event", SingularLabel: "Event", PluralLabel: "Events", RouteWord: "events",
+		PageKind: content.PageKindSingle, Active: true, Origin: "events",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	redescribed := event
+	redescribed.Description = "Gatherings near you."
+
+	_, err = registry.Update(t.Context(), redescribed)
+
+	if !errors.Is(err, content.ErrDefinitionReadOnly) {
+		t.Errorf("Update() error = %v, want %v", err, content.ErrDefinitionReadOnly)
+	}
+}
+
 func TestRegistryReportsGroupsItCannotReadBeforeAWrite(t *testing.T) {
 	t.Parallel()
 
