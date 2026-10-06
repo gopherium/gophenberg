@@ -35,6 +35,18 @@ const PAGE_TYPE = {
 	default: false,
 }
 
+/**
+ * Returns a gate an answer waits behind, and what opens it.
+ * @returns The gate and the call opening it.
+ */
+function gate() {
+	let release: () => void = () => {}
+	const held = new Promise<void>((resolve) => {
+		release = resolve
+	})
+	return { held, release: () => release() }
+}
+
 beforeEach(() => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [POST_TYPE, PAGE_TYPE] })))
 })
@@ -682,6 +694,194 @@ test('names the type a saved description updated', async () => {
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
 
 	expect(await screen.findByText('Pages updated.')).toBeInTheDocument()
+})
+
+test('holds Describe open on the saved description until the list refresh answers', async () => {
+	const refresh = gate()
+	let refreshing = false
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+	server.use(
+		http.patch('/api/types/page', () =>
+			HttpResponse.json({ ...PAGE_TYPE, description: 'Every page this site keeps.' }),
+		),
+		http.get('/api/types', async () => {
+			refreshing = true
+			await refresh.held
+			return HttpResponse.json({
+				items: [POST_TYPE, { ...PAGE_TYPE, description: 'Every page this site keeps.' }],
+			})
+		}),
+	)
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.clear(within(dialog).getByLabelText('Description'))
+	await userEvent.type(within(dialog).getByLabelText('Description'), 'Every page this site keeps.')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+	await waitFor(() => expect(refreshing).toBe(true))
+	const waiting = screen.getByRole('dialog', { name: 'Describe Pages' })
+
+	expect(within(waiting).getByLabelText('Description')).toHaveValue('Every page this site keeps.')
+
+	refresh.release()
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Describe Pages' })
+
+	expect(within(reopened).getByLabelText('Description')).toHaveValue('Every page this site keeps.')
+})
+
+test('holds Change address open on the saved route word until the list refresh answers', async () => {
+	const refresh = gate()
+	let refreshing = false
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+	server.use(
+		http.patch('/api/types/page', () => HttpResponse.json({ ...PAGE_TYPE, route_word: 'sections' })),
+		http.get('/api/types', async () => {
+			refreshing = true
+			await refresh.held
+			return HttpResponse.json({ items: [POST_TYPE, { ...PAGE_TYPE, route_word: 'sections' }] })
+		}),
+	)
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Change address' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Change the address of Pages' })
+	await userEvent.clear(within(dialog).getByLabelText('Route word'))
+	await userEvent.type(within(dialog).getByLabelText('Route word'), 'sections')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move every address' }))
+	await waitFor(() => expect(refreshing).toBe(true))
+	const waiting = screen.getByRole('dialog', { name: 'Change the address of Pages' })
+
+	expect(within(waiting).getByLabelText('Route word')).toHaveValue('sections')
+
+	refresh.release()
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(within(pages).getByRole('button', { name: 'Change address' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Change the address of Pages' })
+
+	expect(within(reopened).getByLabelText('Route word')).toHaveValue('sections')
+})
+
+test('keeps Describe open and its Cancel held while its save runs', async () => {
+	const save = gate()
+	server.use(
+		http.patch('/api/types/page', async () => {
+			await save.held
+			return HttpResponse.json(PAGE_TYPE)
+		}),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+	await waitFor(() =>
+		expect(within(dialog).getByRole('button', { name: 'Save' })).toHaveAttribute('aria-disabled', 'true'),
+	)
+	await userEvent.keyboard('{Escape}')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+
+	expect(screen.getByRole('dialog', { name: 'Describe Pages' })).toBeInTheDocument()
+	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true')
+
+	save.release()
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+test('keeps Change address open and its Keep it held while its move runs', async () => {
+	const move = gate()
+	server.use(
+		http.patch('/api/types/page', async () => {
+			await move.held
+			return HttpResponse.json(PAGE_TYPE)
+		}),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Change address' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Change the address of Pages' })
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move every address' }))
+	await waitFor(() =>
+		expect(within(dialog).getByRole('button', { name: 'Move every address' })).toHaveAttribute(
+			'aria-disabled',
+			'true',
+		),
+	)
+	await userEvent.keyboard('{Escape}')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+
+	expect(screen.getByRole('dialog', { name: 'Change the address of Pages' })).toBeInTheDocument()
+	expect(within(dialog).getByRole('button', { name: 'Keep it' })).toHaveAttribute('aria-disabled', 'true')
+
+	move.release()
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+test('keeps Add New Type open and its Cancel held while the type is registered', async () => {
+	const register = gate()
+	server.use(
+		http.post('/api/types', async () => {
+			await register.held
+			return HttpResponse.json(PAGE_TYPE, { status: 201 })
+		}),
+	)
+	renderAt('/content-types')
+	await screen.findByRole('region', { name: 'Content Types' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Register a content type' })
+	await userEvent.type(within(dialog).getByLabelText('Singular name'), 'Guide')
+	await userEvent.type(within(dialog).getByLabelText('Plural name'), 'Guides')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Register' }))
+	await waitFor(() =>
+		expect(within(dialog).getByRole('button', { name: 'Register' })).toHaveAttribute('aria-disabled', 'true'),
+	)
+	await userEvent.keyboard('{Escape}')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+
+	expect(screen.getByRole('dialog', { name: 'Register a content type' })).toBeInTheDocument()
+	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true')
+
+	register.release()
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+test('closes Add New Type when it is cancelled', async () => {
+	renderAt('/content-types')
+	await screen.findByRole('region', { name: 'Content Types' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add New Type' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Register a content type' })
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+test('closes a type and reports no error once the list refreshes', async () => {
+	let closed = false
+	server.use(
+		http.patch('/api/types/page', () => {
+			closed = true
+			return HttpResponse.json({ ...PAGE_TYPE, active: false })
+		}),
+		http.get('/api/types', () => HttpResponse.json({ items: [POST_TYPE, { ...PAGE_TYPE, active: !closed }] })),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Deactivate' }))
+
+	expect(await within(pages).findByRole('button', { name: 'Activate' })).toBeInTheDocument()
+	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
 test('keeps remembered entries out of the route word field', async () => {

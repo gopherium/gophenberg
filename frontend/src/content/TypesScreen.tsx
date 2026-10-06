@@ -91,7 +91,7 @@ export function TypesScreen() {
 
 /** What a row reports back when a write finishes. */
 interface Reporter {
-	onDone: (said: string) => void
+	onDone: (said: string) => void | Promise<void>
 	onRefused: (cause: unknown) => void
 }
 
@@ -233,7 +233,7 @@ function NestingControl(props: { registered: ContentType; onEdit: (asked: TypeEd
 }
 
 /**
- * Returns the write editing a type, calling settled once the registry takes it or turns it away.
+ * Returns the write editing a type, pending until the registry turns it away or takes it and the list refreshes.
  * @param props - The type and the reporter.
  * @param settled - What to do once the write settles, such as closing a dialog.
  * @returns The mutation sending the edit.
@@ -241,9 +241,9 @@ function NestingControl(props: { registered: ContentType; onEdit: (asked: TypeEd
 function useTypeEdit(props: Reporter & { registered: ContentType }, settled?: () => void) {
 	return useMutation({
 		mutationFn: (asked: TypeEdit) => updateType(props.registered.key, asked),
-		onSuccess: () => {
+		onSuccess: async () => {
+			await props.onDone(sprintf(__('%(type)s updated.', 'gophenberg'), { type: props.registered.pluralLabel }))
 			settled?.()
-			props.onDone(sprintf(__('%(type)s updated.', 'gophenberg'), { type: props.registered.pluralLabel }))
 		},
 		onError: (cause) => {
 			settled?.()
@@ -264,10 +264,13 @@ function useTypeDraft(props: Reporter & { registered: ContentType }, stored: str
 	const save = useTypeEdit(props, () => setOpen(false))
 
 	/**
-	 * Closes the dialog forgetting a turned away save, or opens it on the stored value when no save was turned away.
+	 * Opens or closes the dialog while no save runs, keeping a turned away draft until a close.
 	 * @param next - Whether the dialog opens.
 	 */
 	function change(next: boolean) {
+		if (save.isPending) {
+			return
+		}
 		if (!next) {
 			save.reset()
 		} else if (!save.isError) {
@@ -413,7 +416,7 @@ function DescribeType(props: Reporter & { registered: ContentType }) {
 						/>
 					</Dialog.Content>
 					<Dialog.Footer>
-						<Button variant="outline" onClick={() => text.change(false)}>
+						<Button variant="outline" disabled={text.save.isPending} onClick={() => text.change(false)}>
 							{__('Cancel', 'gophenberg')}
 						</Button>
 						<Button loading={text.save.isPending} onClick={() => text.save.mutate({ description: text.draft })}>
@@ -463,7 +466,7 @@ function ChangeAddress(props: Reporter & { registered: ContentType }) {
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
-						<Button variant="outline" onClick={() => word.change(false)}>
+						<Button variant="outline" disabled={word.save.isPending} onClick={() => word.change(false)}>
 							{__('Keep it', 'gophenberg')}
 						</Button>
 						<Button loading={word.save.isPending} onClick={() => word.save.mutate({ routeWord: word.draft })}>
@@ -507,10 +510,22 @@ function AddType(props: Reporter) {
 			props.onRefused(cause)
 		},
 	})
+
+	/**
+	 * Opens or closes the dialog, holding it as it is while the type is being registered.
+	 * @param next - Whether the dialog opens.
+	 */
+	function change(next: boolean) {
+		if (add.isPending) {
+			return
+		}
+		setOpen(next)
+	}
+
 	return (
 		<>
 			<Button onClick={() => setOpen(true)}>{__('Add New Type', 'gophenberg')}</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
+			<Dialog.Root open={open} onOpenChange={change}>
 				<Dialog.Popup>
 					<Dialog.Header>
 						<Dialog.Title>{__('Register a content type', 'gophenberg')}</Dialog.Title>
@@ -544,7 +559,7 @@ function AddType(props: Reporter) {
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
-						<Button variant="outline" onClick={() => setOpen(false)}>
+						<Button variant="outline" disabled={add.isPending} onClick={() => change(false)}>
 							{__('Cancel', 'gophenberg')}
 						</Button>
 						<Button loading={add.isPending} onClick={() => add.mutate()}>
