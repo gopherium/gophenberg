@@ -3,6 +3,8 @@
 package sdk
 
 import (
+	"math"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -76,7 +78,8 @@ func TestEnvCountRefusesWhatIsNoCount(t *testing.T) {
 		"zero":             {"0", `GOPHENBERG_ITEMS: must stand above zero, got "0"`},
 		"a negative count": {"-3", `GOPHENBERG_ITEMS: must stand above zero, got "-3"`},
 		"past the largest": {
-			"99999999999999999999", `GOPHENBERG_ITEMS: must stand at or below 9223372036854775807, got "99999999999999999999"`,
+			"99999999999999999999",
+			`GOPHENBERG_ITEMS: must stand at or below ` + strconv.Itoa(math.MaxInt) + `, got "99999999999999999999"`,
 		},
 	}
 	for testName, tc := range tests {
@@ -174,9 +177,9 @@ func errorText(err error) string {
 func TestEnvCountTakesTheLargestCount(t *testing.T) {
 	t.Parallel()
 
-	items, err := settingsOf(map[string]string{"GOPHENBERG_ITEMS": "9223372036854775807"}).Count("ITEMS", 20)
+	items, err := settingsOf(map[string]string{"GOPHENBERG_ITEMS": strconv.Itoa(math.MaxInt)}).Count("ITEMS", 20)
 
-	if err != nil || items != 9223372036854775807 {
+	if err != nil || items != math.MaxInt {
 		t.Errorf("Count(ITEMS) = %d, %v, want the largest whole number taken", items, err)
 	}
 }
