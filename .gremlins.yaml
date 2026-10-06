@@ -2,7 +2,7 @@ unleash:
   workers: 3
   output-statuses: lct
   exclude-files:
-    - '(^|/)db/(db|models|queries\.sql)\.go$'
+    - '(^|/)db/(db|models|[a-z]+\.sql)\.go$'
     - '(^|/)testdb\.go$'
     - '(^|/)cmd/'
 mutants:
