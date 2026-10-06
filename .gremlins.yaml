@@ -5,7 +5,7 @@ unleash:
     - '(^|/)db/(db|models|[a-z]+\.sql)\.go$'
     - '(^|/)testdb\.go$'
     - '(^|/)cmd/'
-    - '(^|/)internal/app/'
+    - '^plugins/'
 mutants:
   invert-logical:
     enabled: true
