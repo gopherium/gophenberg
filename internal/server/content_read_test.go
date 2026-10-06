@@ -237,6 +237,29 @@ func TestPostListCarriesTheTitleOfEachParent(t *testing.T) {
 	}
 }
 
+func TestPostGetLeavesOutTheParentTitle(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	about := posts.add(newPost(t, "About", ada.ID))
+	team := newPost(t, "Team", ada.ID)
+	team.ParentID = &about.ID
+	posts.add(team)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/"+team.ID.String(), "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := decodeBody[map[string]any](t, recorder)
+	if body["title"] != "Team" {
+		t.Fatalf("body = %v, want the single item titled Team", body)
+	}
+	if _, found := body["parent_title"]; found {
+		t.Errorf("body = %v, want no parent_title key, only a listing carries it", body)
+	}
+}
+
 func TestPostGetReturnsTheContent(t *testing.T) {
 	t.Parallel()
 
