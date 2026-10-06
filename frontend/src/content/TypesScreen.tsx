@@ -276,7 +276,7 @@ function useOpenings() {
 }
 
 /**
- * Returns the write editing a type, pending until the registry turns it away or takes it and the list refreshes.
+ * Returns the write editing a type, sent once every earlier write to that type has settled.
  * @param props - The type and the reporter.
  * @param dialog - The dialog the write is sent from, closed once the write settles in the opening it was sent from.
  * @returns The mutation sending the edit.
@@ -284,6 +284,7 @@ function useOpenings() {
 function useTypeEdit(props: Reporter & { registered: ContentType }, dialog?: ReturnType<typeof useOpenings>) {
 	return useMutation({
 		mutationFn: (asked: TypeEdit) => updateType(props.registered.key, asked),
+		scope: { id: `content-type/${props.registered.key}` },
 		onMutate: dialog?.current,
 		onSuccess: async (_stored, _asked, opening) => {
 			await props.onDone(sprintf(__('%(type)s updated.', 'gophenberg'), { type: props.registered.pluralLabel }))

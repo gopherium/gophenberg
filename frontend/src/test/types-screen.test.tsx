@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import type { QueryClient } from '@tanstack/react-query'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test } from 'vitest'
@@ -45,6 +46,15 @@ function gate() {
 		release = resolve
 	})
 	return { held, release: () => release() }
+}
+
+/**
+ * Returns how many writes wait their turn behind another write.
+ * @param client - The query client the writes run on.
+ * @returns The count of waiting writes.
+ */
+function queued(client: QueryClient) {
+	return client.isMutating({ predicate: (write) => write.state.isPaused })
 }
 
 beforeEach(() => {
@@ -936,6 +946,122 @@ test('leaves a reopened Change address on its new draft when an earlier move lan
 
 	expect(screen.getByRole('dialog', { name: 'Change the address of Pages' })).toBeInTheDocument()
 	expect(within(reopened).getByLabelText('Route word')).toHaveValue('chapters')
+})
+
+test('sends a second Describe save only once the first save to the type has answered', async () => {
+	const first = gate()
+	const heard: string[] = []
+	let stored = PAGE_TYPE.description
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			const asked = (await request.json()) as { description: string }
+			heard.push(`sent ${asked.description}`)
+			if (heard.length === 1) {
+				await first.held
+			}
+			stored = asked.description
+			heard.push(`answered ${asked.description}`)
+			return HttpResponse.json({ ...PAGE_TYPE, description: stored })
+		}),
+		http.get('/api/types', () => HttpResponse.json({ items: [POST_TYPE, { ...PAGE_TYPE, description: stored }] })),
+	)
+	const client = renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.clear(within(dialog).getByLabelText('Description'))
+	await userEvent.type(within(dialog).getByLabelText('Description'), 'Every page this site keeps.')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+	await waitFor(() => expect(heard).toEqual(['sent Every page this site keeps.']))
+	await userEvent.keyboard('{Escape}')
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.clear(within(reopened).getByLabelText('Description'))
+	await userEvent.type(within(reopened).getByLabelText('Description'), 'Pages the team keeps.')
+	await userEvent.click(within(reopened).getByRole('button', { name: 'Save' }))
+	await waitFor(() => expect(heard.length > 1 || queued(client) > 0).toBe(true))
+	first.release()
+	await waitFor(() => expect(client.isMutating()).toBe(0))
+
+	expect(heard).toEqual([
+		'sent Every page this site keeps.',
+		'answered Every page this site keeps.',
+		'sent Pages the team keeps.',
+		'answered Pages the team keeps.',
+	])
+
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const settled = await screen.findByRole('dialog', { name: 'Describe Pages' })
+
+	expect(within(settled).getByLabelText('Description')).toHaveValue('Pages the team keeps.')
+})
+
+test('sends a one-click edit only once a Describe save to the same type has answered', async () => {
+	const first = gate()
+	const heard: string[] = []
+	server.use(
+		http.patch('/api/types/page', async ({ request }) => {
+			const asked = JSON.stringify(await request.json())
+			heard.push(`sent ${asked}`)
+			if (heard.length === 1) {
+				await first.held
+			}
+			heard.push(`answered ${asked}`)
+			return HttpResponse.json(PAGE_TYPE)
+		}),
+	)
+	const client = renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+	await waitFor(() => expect(heard).toHaveLength(1))
+	await userEvent.keyboard('{Escape}')
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(within(pages).getByRole('button', { name: 'Stop nesting' }))
+	await waitFor(() => expect(heard.length > 1 || queued(client) > 0).toBe(true))
+	first.release()
+	await waitFor(() => expect(client.isMutating()).toBe(0))
+
+	expect(heard).toEqual([
+		'sent {"description":"Manage the pages on this site."}',
+		'answered {"description":"Manage the pages on this site."}',
+		'sent {"hierarchical":false}',
+		'answered {"hierarchical":false}',
+	])
+})
+
+test('sends an edit to one type while a save to another type runs', async () => {
+	const save = gate()
+	let nested = false
+	server.use(
+		http.patch('/api/types/page', async () => {
+			await save.held
+			return HttpResponse.json(PAGE_TYPE)
+		}),
+		http.patch('/api/types/post', () => {
+			nested = true
+			return HttpResponse.json({ ...POST_TYPE, hierarchical: true })
+		}),
+	)
+	const client = renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	const posts = within(table).getByRole('row', { name: /Posts/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Stop nesting' }))
+	await userEvent.click(within(posts).getByRole('button', { name: 'Let items nest' }))
+
+	await waitFor(() => expect(nested).toBe(true))
+
+	save.release()
+	await waitFor(() => expect(client.isMutating()).toBe(0))
 })
 
 test('leaves a reopened Add New Type on its new fields when an earlier type is registered', async () => {
