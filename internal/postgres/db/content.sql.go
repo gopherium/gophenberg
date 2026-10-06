@@ -527,7 +527,7 @@ func (q *Queries) GetRevision(ctx context.Context, arg GetRevisionParams) (GetRe
 const listContent = `-- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields,
-    u.name AS author_name
+    u.name AS author_name, COALESCE(parent.title, '') AS parent_title
 FROM core.content p
 JOIN auth.users u ON u.id = p.author_id
 LEFT JOIN core.content parent ON parent.id = p.parent_id
@@ -592,6 +592,7 @@ type ListContentRow struct {
 	Path        string
 	Fields      content.Values
 	AuthorName  string
+	ParentTitle string
 }
 
 func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error) {
@@ -631,6 +632,7 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 			&i.Path,
 			&i.Fields,
 			&i.AuthorName,
+			&i.ParentTitle,
 		); err != nil {
 			return nil, err
 		}
@@ -693,10 +695,11 @@ WITH RECURSIVE listed AS (
 )
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields,
-    u.name AS author_name
+    u.name AS author_name, COALESCE(parent.title, '') AS parent_title
 FROM tree t
 JOIN core.content p ON p.id = t.id
 JOIN auth.users u ON u.id = p.author_id
+LEFT JOIN core.content parent ON parent.id = p.parent_id
 ORDER BY t.trail
 LIMIT $2 OFFSET $1
 `
@@ -731,6 +734,7 @@ type ListNestedContentRow struct {
 	Path        string
 	Fields      content.Values
 	AuthorName  string
+	ParentTitle string
 }
 
 func (q *Queries) ListNestedContent(ctx context.Context, arg ListNestedContentParams) ([]ListNestedContentRow, error) {
@@ -770,6 +774,7 @@ func (q *Queries) ListNestedContent(ctx context.Context, arg ListNestedContentPa
 			&i.Path,
 			&i.Fields,
 			&i.AuthorName,
+			&i.ParentTitle,
 		); err != nil {
 			return nil, err
 		}

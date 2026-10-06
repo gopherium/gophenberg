@@ -4,6 +4,7 @@ package postgres_test
 
 import (
 	"cmp"
+	"maps"
 	"slices"
 	"testing"
 	"time"
@@ -567,6 +568,44 @@ func TestContentStoreListNestsAChildWhoseParentIsLeftOutAfterTheRest(t *testing.
 
 	if !slices.Equal(titles, []string{"Contact", "Zoo", "Team"}) {
 		t.Errorf("nested = %v, want the child of a parent left out after every item whose parent is kept", titles)
+	}
+}
+
+func TestContentStoreListCarriesTheTitleOfEachParent(t *testing.T) {
+	t.Parallel()
+
+	store, author := newNestingStore(t)
+	about := mustNest(t, store, nil, "About", author)
+	team := mustNest(t, store, &about, "Team", author)
+	mustNest(t, store, &team, "Volunteers", author)
+	untitled := mustNest(t, store, nil, "", author)
+	mustNest(t, store, &untitled, "Donations", author)
+	everyItem := map[string]string{"About": "", "Team": "About", "Volunteers": "Team", "": "", "Donations": ""}
+
+	for _, listing := range []struct {
+		nested bool
+		search string
+		want   map[string]string
+	}{
+		{false, "", everyItem},
+		{true, "", everyItem},
+		{true, "Volunteers", map[string]string{"Volunteers": "Team"}},
+	} {
+		rows, _, err := store.List(t.Context(), content.Filter{
+			Type: "page", Search: listing.search, OrderBy: content.OrderByTitle, Order: content.OrderAsc,
+			Hierarchy: listing.nested, Page: 1, PerPage: 10,
+		})
+		if err != nil {
+			t.Fatalf("List(nested %t, search %q) error = %v, want nil", listing.nested, listing.search, err)
+		}
+		parents := map[string]string{}
+		for _, row := range rows {
+			parents[row.Title] = row.ParentTitle
+		}
+		if !maps.Equal(parents, listing.want) {
+			t.Errorf("nested %t search %q parents = %v, want %v, each item under its own parent's title",
+				listing.nested, listing.search, parents, listing.want)
+		}
 	}
 }
 

@@ -196,7 +196,7 @@ func toContent(row db.CoreContent) content.Content {
 	}
 }
 
-// List returns the items matching the filter without their content, each with its author's name, and their total.
+// List returns the items matching the filter without content, with author names and parent titles, and their total.
 func (s *ContentStore) List(ctx context.Context, f content.Filter) ([]content.ListedItem, int, error) {
 	narrowed := narrowing(f)
 	total, err := s.queries.CountContent(ctx, narrowed)
@@ -277,7 +277,7 @@ func termsJSON(terms map[string]any) []byte {
 	return raw
 }
 
-// listedContent returns one listed row as the item it stands for, beside its author's name.
+// listedContent returns one listed row as the item it stands for, beside its author's name and its parent's title.
 func listedContent(row db.ListContentRow) content.ListedItem {
 	return content.ListedItem{
 		Content: content.Content{
@@ -295,7 +295,8 @@ func listedContent(row db.ListContentRow) content.ListedItem {
 			UpdatedAt:   row.UpdatedAt.UTC(),
 			Fields:      row.Fields,
 		},
-		AuthorName: row.AuthorName,
+		AuthorName:  row.AuthorName,
+		ParentTitle: row.ParentTitle,
 	}
 }
 

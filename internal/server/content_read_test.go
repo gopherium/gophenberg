@@ -4,6 +4,7 @@ package server_test
 
 import (
 	"context"
+	"maps"
 	"net/http"
 	"strings"
 	"testing"
@@ -27,6 +28,7 @@ type postBody struct {
 	Status      string     `json:"status"`
 	AuthorID    uuid.UUID  `json:"author_id"`
 	AuthorName  string     `json:"author_name"`
+	ParentTitle *string    `json:"parent_title"`
 	PublishedAt *time.Time `json:"published_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
@@ -209,6 +211,52 @@ func TestPostListNamesTheAuthorsWithoutReadingEveryAccount(t *testing.T) {
 	}
 	if body := decodeBody[postListBody](t, recorder); body.Items[0].AuthorName != "Name On The Row" {
 		t.Errorf("author = %q, want the name the listed row carries", body.Items[0].AuthorName)
+	}
+}
+
+func TestPostListCarriesTheTitleOfEachParent(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	about := posts.add(newPost(t, "About", ada.ID))
+	team := newPost(t, "Team", ada.ID)
+	team.ParentID = &about.ID
+	posts.add(team)
+
+	body := decodeBody[postListBody](t, doRequest(t, handler, http.MethodGet, "/api/content", ""))
+
+	parents := map[string]string{}
+	for _, item := range body.Items {
+		if item.ParentTitle == nil {
+			t.Fatalf("%q carries no parent_title, want one on every listed item", item.Title)
+		}
+		parents[item.Title] = *item.ParentTitle
+	}
+	if want := map[string]string{"About": "", "Team": "About"}; !maps.Equal(parents, want) {
+		t.Errorf("parents = %v, want the child under its parent's title and the top level under none", parents)
+	}
+}
+
+func TestPostGetLeavesOutTheParentTitle(t *testing.T) {
+	t.Parallel()
+
+	handler, posts, ada := authedPostServer(t)
+	about := posts.add(newPost(t, "About", ada.ID))
+	team := newPost(t, "Team", ada.ID)
+	team.ParentID = &about.ID
+	posts.add(team)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/"+team.ID.String(), "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := decodeBody[map[string]any](t, recorder)
+	if body["title"] != "Team" {
+		t.Fatalf("body = %v, want the single item titled Team", body)
+	}
+	if _, found := body["parent_title"]; found {
+		t.Errorf("body = %v, want no parent_title key, only a listing carries it", body)
 	}
 }
 

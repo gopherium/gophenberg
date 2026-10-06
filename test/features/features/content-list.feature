@@ -118,6 +118,15 @@ Feature: The content list
     When the administrator lists the pages sorted by "title" "asc"
     Then the list reads "About", "Contact" and "Team" in that order
 
+  Scenario: A listed child carries its parent's title
+    Given a signed in administrator
+    And the type "page" labeled "Page" and "Pages" under "pages" that nests
+    And the page "About"
+    And the page "Team" filed under "About"
+    When the administrator lists the pages sorted by "title" "asc"
+    Then "Team" is listed under "About"
+    And "About" is listed under no parent
+
   Scenario: A page larger than the cap is cut to the cap
     Given a signed in administrator
     When the administrator lists the posts 500 at a time

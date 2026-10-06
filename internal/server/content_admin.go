@@ -52,10 +52,11 @@ type contentDetailResponse struct {
 	FieldTotals map[string]int `json:"field_totals,omitempty"`
 }
 
-// contentRow is one row of the admin listing, carrying the values its type marks for the list.
+// contentRow is one row of the admin listing, carrying its parent's title and the values its type marks for the list.
 type contentRow struct {
 	contentResponse
-	Fields content.Values `json:"fields"`
+	ParentTitle string         `json:"parent_title"`
+	Fields      content.Values `json:"fields"`
 }
 
 type contentListResponse struct {
@@ -260,6 +261,7 @@ func (s *server) handleContentList() http.HandlerFunc {
 		for i, c := range rows {
 			items[i] = contentRow{
 				contentResponse: newContentResponse(c.Content, c.AuthorName),
+				ParentTitle:     c.ParentTitle,
 				Fields:          content.ListedValues(contentType.Fields, c.Fields),
 			}
 		}

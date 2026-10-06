@@ -172,11 +172,21 @@ func (s *fakePostStore) List(_ context.Context, f content.Filter) ([]content.Lis
 			continue
 		}
 		p.Content = ""
-		matched = append(matched, content.ListedItem{Content: p, AuthorName: s.authors[p.AuthorID]})
+		matched = append(matched, content.ListedItem{
+			Content: p, AuthorName: s.authors[p.AuthorID], ParentTitle: s.parentTitle(p),
+		})
 	}
 	total := len(matched)
 	start := min((f.Page-1)*f.PerPage, total)
 	return matched[start:min(start+f.PerPage, total)], total, nil
+}
+
+// parentTitle returns the title of the stored post's parent, empty at the top level.
+func (s *fakePostStore) parentTitle(p content.Content) string {
+	if p.ParentID == nil {
+		return ""
+	}
+	return s.posts[*p.ParentID].Title
 }
 
 // RelatedTo returns the published items pointing at the target, newest first, and the total.
