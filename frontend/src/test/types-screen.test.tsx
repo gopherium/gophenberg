@@ -552,6 +552,138 @@ test('opens Change address on the stored address after a kept back edit', async 
 	expect(within(reopened).getByLabelText('Route word')).toHaveValue('pages')
 })
 
+test('reopens Describe on the description a failed save carried', async () => {
+	server.use(http.patch('/api/types/page', () => HttpResponse.json({ error: 'content: down' }, { status: 500 })))
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.clear(within(dialog).getByLabelText('Description'))
+	await userEvent.type(within(dialog).getByLabelText('Description'), 'Every page this site keeps.')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	expect(await screen.findByRole('alert')).toBeInTheDocument()
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Describe Pages' })
+
+	expect(within(reopened).getByLabelText('Description')).toHaveValue('Every page this site keeps.')
+})
+
+test('reopens Change address on the route word a failed move carried', async () => {
+	server.use(
+		http.patch('/api/types/page', () =>
+			HttpResponse.json({ error: 'content: route word taken' }, { status: 422 }),
+		),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Change address' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Change the address of Pages' })
+	await userEvent.clear(within(dialog).getByLabelText('Route word'))
+	await userEvent.type(within(dialog).getByLabelText('Route word'), 'sections')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Move every address' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	expect(await screen.findByText(/route word taken/)).toBeInTheDocument()
+	await userEvent.click(within(pages).getByRole('button', { name: 'Change address' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Change the address of Pages' })
+
+	expect(within(reopened).getByLabelText('Route word')).toHaveValue('sections')
+})
+
+test('starts Describe over on the stored description once a failed draft is kept back', async () => {
+	server.use(http.patch('/api/types/page', () => HttpResponse.json({ error: 'content: down' }, { status: 500 })))
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.type(within(dialog).getByLabelText('Description'), ' Kept by the team.')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	expect(await screen.findByRole('alert')).toBeInTheDocument()
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const kept = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.click(within(kept).getByRole('button', { name: 'Cancel' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Describe Pages' })
+
+	expect(within(reopened).getByLabelText('Description')).toHaveValue('Manage the pages on this site.')
+})
+
+test('opens Describe on the stored description after another edit of the type failed', async () => {
+	server.use(
+		http.patch('/api/types/page', () =>
+			HttpResponse.json({ error: 'content: the type still holds content' }, { status: 422 }),
+		),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.type(within(dialog).getByLabelText('Description'), ' Kept by the team.')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(within(pages).getByRole('button', { name: 'Deactivate' }))
+	expect(await screen.findByText(/still holds content/)).toBeInTheDocument()
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const reopened = await screen.findByRole('dialog', { name: 'Describe Pages' })
+
+	expect(within(reopened).getByLabelText('Description')).toHaveValue('Manage the pages on this site.')
+})
+
+test('opens Describe on the description the registry holds now', async () => {
+	let closed = false
+	server.use(
+		http.patch('/api/types/page', () => {
+			closed = true
+			return HttpResponse.json({ ...PAGE_TYPE, active: false })
+		}),
+		http.get('/api/types', () =>
+			HttpResponse.json({
+				items: [
+					POST_TYPE,
+					closed ? { ...PAGE_TYPE, active: false, description: 'Every page this site keeps.' } : PAGE_TYPE,
+				],
+			}),
+		),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Deactivate' }))
+	expect(await within(pages).findByRole('button', { name: 'Activate' })).toBeInTheDocument()
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+
+	expect(within(dialog).getByLabelText('Description')).toHaveValue('Every page this site keeps.')
+})
+
+test('names the type a saved description updated', async () => {
+	server.use(
+		http.patch('/api/types/page', () =>
+			HttpResponse.json({ ...PAGE_TYPE, description: 'Every page this site keeps.' }),
+		),
+	)
+	renderAt('/content-types')
+	const table = await screen.findByRole('region', { name: 'Content Types' })
+
+	const pages = within(table).getByRole('row', { name: /Pages/ })
+	await userEvent.click(within(pages).getByRole('button', { name: 'Describe' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Describe Pages' })
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+	expect(await screen.findByText('Pages updated.')).toBeInTheDocument()
+})
+
 test('keeps remembered entries out of the route word field', async () => {
 	renderAt('/content-types')
 	const table = await screen.findByRole('region', { name: 'Content Types' })

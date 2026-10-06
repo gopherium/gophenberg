@@ -168,16 +168,18 @@ function TypeBadges(props: { registered: ContentType }) {
 
 /**
  * Renders the controls a type offers, holding back the ones its owner keeps.
- * @param props - The type, the root holder, and what each control does.
+ * @param props - The type, the root holder, the reporter, and what each control does.
  * @returns The controls element.
  */
-function TypeActions(props: {
-	registered: ContentType
-	holder?: ContentType
-	removing: boolean
-	onEdit: (asked: TypeEdit) => void
-	onRemove: () => void
-}) {
+function TypeActions(
+	props: Reporter & {
+		registered: ContentType
+		holder?: ContentType
+		removing: boolean
+		onEdit: (asked: TypeEdit) => void
+		onRemove: () => void
+	},
+) {
 	const { registered } = props
 	const shapeable = originOf(registered) === ''
 	const demotable = shapeable && !registered.isDefault
@@ -185,8 +187,8 @@ function TypeActions(props: {
 		<Stack direction="row" gap="xs" wrap="wrap" className="gophenberg-types__actions">
 			{shapeable && (
 				<>
-					<DescribeType registered={registered} onDescribe={(text) => props.onEdit({ description: text })} />
-					<ChangeAddress registered={registered} onMove={(word) => props.onEdit({ routeWord: word })} />
+					<DescribeType registered={registered} onDone={props.onDone} onRefused={props.onRefused} />
+					<ChangeAddress registered={registered} onDone={props.onDone} onRefused={props.onRefused} />
 					<NestingControl registered={registered} onEdit={props.onEdit} />
 				</>
 			)}
@@ -231,6 +233,53 @@ function NestingControl(props: { registered: ContentType; onEdit: (asked: TypeEd
 }
 
 /**
+ * Returns the write editing a type, calling settled once the registry takes it or turns it away.
+ * @param props - The type and the reporter.
+ * @param settled - What to do once the write settles, such as closing a dialog.
+ * @returns The mutation sending the edit.
+ */
+function useTypeEdit(props: Reporter & { registered: ContentType }, settled?: () => void) {
+	return useMutation({
+		mutationFn: (asked: TypeEdit) => updateType(props.registered.key, asked),
+		onSuccess: () => {
+			settled?.()
+			props.onDone(sprintf(__('%(type)s updated.', 'gophenberg'), { type: props.registered.pluralLabel }))
+		},
+		onError: (cause) => {
+			settled?.()
+			props.onRefused(cause)
+		},
+	})
+}
+
+/**
+ * Returns a dialog editing one stored value of a type, keeping a draft the registry turned away for the next open.
+ * @param props - The type and the reporter.
+ * @param stored - The value the type holds now.
+ * @returns Whether the dialog is open, what opens or closes it, the draft, and the write sending it.
+ */
+function useTypeDraft(props: Reporter & { registered: ContentType }, stored: string) {
+	const [open, setOpen] = useState(false)
+	const [draft, setDraft] = useState(stored)
+	const save = useTypeEdit(props, () => setOpen(false))
+
+	/**
+	 * Closes the dialog forgetting a turned away save, or opens it on the stored value when no save was turned away.
+	 * @param next - Whether the dialog opens.
+	 */
+	function change(next: boolean) {
+		if (!next) {
+			save.reset()
+		} else if (!save.isError) {
+			setDraft(stored)
+		}
+		setOpen(next)
+	}
+
+	return { open, change, draft, setDraft, save }
+}
+
+/**
  * Renders one registered type and what may be done to it.
  * @param props - The type and the reporter.
  * @returns The row element.
@@ -239,11 +288,7 @@ function TypeRow(
 	props: Reporter & { registered: ContentType; holder?: ContentType },
 ): ReactNode {
 	const { registered } = props
-	const edit = useMutation({
-		mutationFn: (asked: TypeEdit) => updateType(registered.key, asked),
-		onSuccess: () => props.onDone(sprintf(__('%(type)s updated.', 'gophenberg'), { type: registered.pluralLabel })),
-		onError: props.onRefused,
-	})
+	const edit = useTypeEdit(props)
 	const remove = useMutation({
 		mutationFn: () => deleteType(registered.key),
 		onSuccess: () => props.onDone(sprintf(__('%(type)s removed.', 'gophenberg'), { type: registered.pluralLabel })),
@@ -265,6 +310,8 @@ function TypeRow(
 				<TypeActions
 					registered={registered}
 					holder={props.holder}
+					onDone={props.onDone}
+					onRefused={props.onRefused}
 					removing={remove.isPending}
 					onEdit={edit.mutate}
 					onRemove={remove.mutate}
@@ -338,24 +385,17 @@ function HandOverRoot(props: {
 
 /**
  * Renders the dialog changing what a type's description says.
- * @param props - The type and what to do with the new description.
+ * @param props - The type and the reporter.
  * @returns The control and its dialog.
  */
-function DescribeType(props: { registered: ContentType; onDescribe: (text: string) => void }) {
-	const [open, setOpen] = useState(false)
-	const [text, setText] = useState(props.registered.description)
+function DescribeType(props: Reporter & { registered: ContentType }) {
+	const text = useTypeDraft(props, props.registered.description)
 	return (
 		<>
-			<Button
-				variant="outline"
-				onClick={() => {
-					setText(props.registered.description)
-					setOpen(true)
-				}}
-			>
+			<Button variant="outline" onClick={() => text.change(true)}>
 				{__('Describe', 'gophenberg')}
 			</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
+			<Dialog.Root open={text.open} onOpenChange={text.change}>
 				<Dialog.Popup>
 					<Dialog.Header>
 						<Dialog.Title>
@@ -368,20 +408,15 @@ function DescribeType(props: { registered: ContentType; onDescribe: (text: strin
 							label={__('Description', 'gophenberg')}
 							description={__('A descriptive summary of the content type.', 'gophenberg')}
 							autoComplete="off"
-							value={text}
-							onValueChange={setText}
+							value={text.draft}
+							onValueChange={text.setDraft}
 						/>
 					</Dialog.Content>
 					<Dialog.Footer>
-						<Button variant="outline" onClick={() => setOpen(false)}>
+						<Button variant="outline" onClick={() => text.change(false)}>
 							{__('Cancel', 'gophenberg')}
 						</Button>
-						<Button
-							onClick={() => {
-								setOpen(false)
-								props.onDescribe(text)
-							}}
-						>
+						<Button loading={text.save.isPending} onClick={() => text.save.mutate({ description: text.draft })}>
 							{__('Save', 'gophenberg')}
 						</Button>
 					</Dialog.Footer>
@@ -393,24 +428,17 @@ function DescribeType(props: { registered: ContentType; onDescribe: (text: strin
 
 /**
  * Renders the confirmation a route word change passes through.
- * @param props - The type and what to do with the new word.
+ * @param props - The type and the reporter.
  * @returns The control and its dialog.
  */
-function ChangeAddress(props: { registered: ContentType; onMove: (word: string) => void }) {
-	const [open, setOpen] = useState(false)
-	const [word, setWord] = useState(props.registered.routeWord)
+function ChangeAddress(props: Reporter & { registered: ContentType }) {
+	const word = useTypeDraft(props, props.registered.routeWord)
 	return (
 		<>
-			<Button
-				variant="outline"
-				onClick={() => {
-					setWord(props.registered.routeWord)
-					setOpen(true)
-				}}
-			>
+			<Button variant="outline" onClick={() => word.change(true)}>
 				{__('Change address', 'gophenberg')}
 			</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
+			<Dialog.Root open={word.open} onOpenChange={word.change}>
 				<Dialog.Popup>
 					<Dialog.Header>
 						<Dialog.Title>
@@ -429,21 +457,16 @@ function ChangeAddress(props: { registered: ContentType; onMove: (word: string) 
 							<InputControl
 								label={__('Route word', 'gophenberg')}
 								autoComplete="off"
-								value={word}
-								onValueChange={setWord}
+								value={word.draft}
+								onValueChange={word.setDraft}
 							/>
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
-						<Button variant="outline" onClick={() => setOpen(false)}>
+						<Button variant="outline" onClick={() => word.change(false)}>
 							{__('Keep it', 'gophenberg')}
 						</Button>
-						<Button
-							onClick={() => {
-								setOpen(false)
-								props.onMove(word)
-							}}
-						>
+						<Button loading={word.save.isPending} onClick={() => word.save.mutate({ routeWord: word.draft })}>
 							{__('Move every address', 'gophenberg')}
 						</Button>
 					</Dialog.Footer>
