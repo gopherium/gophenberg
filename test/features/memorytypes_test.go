@@ -774,6 +774,28 @@ func (s *memoryTypes) listing() []content.Group {
 	return append(groups, s.groups...)
 }
 
+// declaredKeys returns the key of every field a type or a group declares, however deep and resting groups included.
+func (s *memoryTypes) declaredKeys() map[string]bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	declared := make(map[string]bool)
+	for _, t := range s.types {
+		keysInside(declared, t.Fields)
+	}
+	for _, g := range s.groups {
+		keysInside(declared, g.Fields)
+	}
+	return declared
+}
+
+// keysInside adds the key of every field, and of every field inside it, to the set.
+func keysInside(declared map[string]bool, fields []content.Field) {
+	for _, f := range fields {
+		declared[f.Key] = true
+		keysInside(declared, f.Fields)
+	}
+}
+
 // ByKey returns the stored type carrying the key, or [content.ErrTypeNotFound].
 func (s *memoryTypes) ByKey(_ context.Context, key string) (content.Type, error) {
 	s.mu.Lock()

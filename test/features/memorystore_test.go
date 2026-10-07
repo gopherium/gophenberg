@@ -95,6 +95,18 @@ func (m *memoryStore) nameOf(id uuid.UUID) string {
 	return ""
 }
 
+// holdsUser reports whether an account carries the id.
+func (m *memoryStore) holdsUser(id uuid.UUID) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, user := range m.users {
+		if user.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // ListUsers returns every account in email order.
 func (m *memoryStore) ListUsers(_ context.Context) ([]gouncer.User, error) {
 	m.mu.Lock()

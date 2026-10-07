@@ -16,7 +16,6 @@ import (
 
 // memoryGaps names the shared cases the in-memory stores do not pass yet.
 var memoryGaps = map[string]bool{
-	"CreateRejectsAnUnknownAuthor":                        true,
 	"UpdatePrunesBeyondTheCap":                            true,
 	"UpdatePruneSparesAutosaves":                          true,
 	"RevisionsScopeToTheirPost":                           true,
@@ -35,11 +34,8 @@ var memoryGaps = map[string]bool{
 	"UpdateRefusesToMoveBetweenParentsUnderOneInTheTrash": true,
 	"UpdateRefusesToMoveAnItemUnderOneItHolds":            true,
 	"CreateRefusesAParentDeletedForGood":                  true,
-	"RefusesAFreshItemTargetingNothing":                   true,
 	"ListsWhatPointsThroughARelationInsideARow":           true,
 	"ListOmitsContent":                                    true,
-	"RefusesAValueWhoseFieldIsGone":                       true,
-	"CreateRefusesAValueNoFieldDeclares":                  true,
 }
 
 func TestContentStoreSuite(t *testing.T) {

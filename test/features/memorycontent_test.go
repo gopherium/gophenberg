@@ -273,23 +273,46 @@ func (s *memoryContent) DeleteAutosave(_ context.Context, contentID, authorID uu
 func (s *memoryContent) Create(_ context.Context, c content.Content) (content.Content, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.valuesDeclared(c); err != nil {
+		return content.Content{}, err
+	}
 	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
 		slug := numberedSlug(c.Slug, attempt)
 		if s.addressHeld(content.AddressUnder(prefix, slug), c.ID) {
 			continue
 		}
-		stored := c.Place(prefix, slug)
-		s.items[stored.ID] = stored
-		return stored, nil
+		return s.created(c, prefix, slug)
 	}
 	slug := identifiedSlug(c.Slug, c.ID)
 	if s.addressHeld(content.AddressUnder(prefix, slug), c.ID) {
 		return content.Content{}, content.ErrSlugTaken
 	}
+	return s.created(c, prefix, slug)
+}
+
+// created stores the item under the slug once its author holds an account and every target it names is allowed.
+func (s *memoryContent) created(c content.Content, prefix, slug string) (content.Content, error) {
+	if !s.accounts.holdsUser(c.AuthorID) {
+		return content.Content{}, fmt.Errorf("memory: create content: author %s holds no account", c.AuthorID)
+	}
+	if err := s.holdTargets(c, nil); err != nil {
+		return content.Content{}, err
+	}
 	stored := c.Place(prefix, slug)
 	s.items[stored.ID] = stored
 	return stored, nil
+}
+
+// valuesDeclared refuses a value whose field no group declares at all.
+func (s *memoryContent) valuesDeclared(c content.Content) error {
+	declared := s.types.declaredKeys()
+	for key := range c.Fields {
+		if !declared[key] {
+			return fmt.Errorf("%w: %s", content.ErrUnknownField, key)
+		}
+	}
+	return nil
 }
 
 // slugAttempts bounds the suffixes tried when an address is taken.
@@ -583,6 +606,9 @@ func (s *memoryContent) Update(
 	}
 	if !stored.UpdatedAt.Equal(expectedUpdatedAt) {
 		return content.Content{}, content.ErrConflict
+	}
+	if err := s.valuesDeclared(c); err != nil {
+		return content.Content{}, err
 	}
 	if err := s.holdTargets(c, stored.Fields); err != nil {
 		return content.Content{}, err
