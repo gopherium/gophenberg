@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/content/contenttest"
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
@@ -32,12 +33,8 @@ func nestingStoresWithPool(t *testing.T) (*postgres.ContentStore, *postgres.Type
 	return items, types, author, pool
 }
 
-// flatPage returns the page type told to stop nesting.
-func flatPage() content.Type {
-	flat := pageType()
-	flat.Hierarchical, flat.UpdatedAt = false, time.Now().UTC()
-	return flat
-}
+// flatPage is the shared fixture under the name these tests use.
+var flatPage = contenttest.FlatPage
 
 // nestsStill reports whether the stored page type nests.
 func nestsStill(t *testing.T, types *postgres.TypeStore) bool {

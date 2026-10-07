@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/content/contenttest"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
@@ -55,175 +56,8 @@ func waitingOn(t *testing.T, pool *pgxpool.Pool, pattern string) {
 	}
 }
 
-// stalePage returns a page built against the type as it nested, filed under the parent.
-func stalePage(t *testing.T, parent *content.Content, title string, author uuid.UUID) content.Content {
-	t.Helper()
-	built, err := content.New(pageType(), parent, title, author)
-	if err != nil {
-		t.Fatalf("New(%q) error = %v, want nil", title, err)
-	}
-	return built
-}
-
-func TestCreateRefusesAParentOnceTheTypeStoppedNesting(t *testing.T) {
-	t.Parallel()
-
-	items, types, author := nestingStores(t)
-	about := mustNest(t, items, nil, "About", author)
-	if _, err := types.Update(t.Context(), flatPage()); err != nil {
-		t.Fatalf("Update() error = %v, want the empty type flattened", err)
-	}
-
-	_, err := items.Create(t.Context(), stalePage(t, &about, "Team", author))
-
-	if !errors.Is(err, content.ErrNotHierarchical) {
-		t.Errorf("Create() error = %v, want %v", err, content.ErrNotHierarchical)
-	}
-}
-
-func TestUpdateRefusesAParentOnceTheTypeStoppedNesting(t *testing.T) {
-	t.Parallel()
-
-	items, types, author := nestingStores(t)
-	about := mustNest(t, items, nil, "About", author)
-	team := mustNest(t, items, nil, "Team", author)
-	if _, err := types.Update(t.Context(), flatPage()); err != nil {
-		t.Fatalf("Update() error = %v, want the flat type stored", err)
-	}
-	moved, err := content.Reparent(pageType(), team, &about, 0)
-	if err != nil {
-		t.Fatalf("Reparent() error = %v, want nil", err)
-	}
-	moved.UpdatedAt = team.UpdatedAt.Add(time.Second)
-
-	_, err = items.Update(t.Context(), moved, team.UpdatedAt, nil, 0)
-
-	if !errors.Is(err, content.ErrNotHierarchical) {
-		t.Errorf("Update() error = %v, want %v", err, content.ErrNotHierarchical)
-	}
-}
-
-func TestCreateRefusesAParentInTheTrash(t *testing.T) {
-	t.Parallel()
-
-	items, _, author := nestingStores(t)
-	about := mustNest(t, items, nil, "About", author)
-	if _, err := items.Trash(t.Context(), about.ID, time.Now().UTC()); err != nil {
-		t.Fatalf("Trash() error = %v, want nil", err)
-	}
-
-	_, err := items.Create(t.Context(), stalePage(t, &about, "Team", author))
-
-	if err == nil || err.Error() != content.ErrParentTrashed.Error() {
-		t.Errorf("Create() error = %v, want the bare %v", err, content.ErrParentTrashed)
-	}
-}
-
-func TestUpdateRefusesToMoveUnderAParentInTheTrash(t *testing.T) {
-	t.Parallel()
-
-	items, _, author := nestingStores(t)
-	about := mustNest(t, items, nil, "About", author)
-	team := mustNest(t, items, nil, "Team", author)
-	if _, err := items.Trash(t.Context(), about.ID, time.Now().UTC()); err != nil {
-		t.Fatalf("Trash() error = %v, want nil", err)
-	}
-	moved, err := content.Reparent(pageType(), team, &about, 0)
-	if err != nil {
-		t.Fatalf("Reparent() error = %v, want nil", err)
-	}
-	moved.UpdatedAt = team.UpdatedAt.Add(time.Second)
-
-	_, err = items.Update(t.Context(), moved, team.UpdatedAt, nil, 0)
-
-	if !errors.Is(err, content.ErrParentTrashed) {
-		t.Errorf("Update() error = %v, want %v", err, content.ErrParentTrashed)
-	}
-}
-
-func TestUpdateRefusesToMoveBetweenParentsUnderOneInTheTrash(t *testing.T) {
-	t.Parallel()
-
-	items, _, author := nestingStores(t)
-	about := mustNest(t, items, nil, "About", author)
-	archive := mustNest(t, items, nil, "Archive", author)
-	team := mustNest(t, items, &about, "Team", author)
-	if _, err := items.Trash(t.Context(), archive.ID, time.Now().UTC()); err != nil {
-		t.Fatalf("Trash() error = %v, want nil", err)
-	}
-	moved, err := content.Reparent(pageType(), team, &archive, 0)
-	if err != nil {
-		t.Fatalf("Reparent() error = %v, want nil", err)
-	}
-	moved.UpdatedAt = team.UpdatedAt.Add(time.Second)
-
-	_, err = items.Update(t.Context(), moved, team.UpdatedAt, nil, 0)
-
-	if !errors.Is(err, content.ErrParentTrashed) {
-		t.Errorf("Update() error = %v, want %v", err, content.ErrParentTrashed)
-	}
-}
-
-func TestUpdateRefusesToMoveAnItemUnderOneItHolds(t *testing.T) {
-	t.Parallel()
-
-	items, _, author := nestingStores(t)
-	about := mustNest(t, items, nil, "About", author)
-	team := mustNest(t, items, nil, "Team", author)
-	filed, err := content.Reparent(pageType(), team, &about, 0)
-	if err != nil {
-		t.Fatalf("Reparent() error = %v, want nil", err)
-	}
-	filed.UpdatedAt = team.UpdatedAt.Add(time.Second)
-	if _, err := items.Update(t.Context(), filed, team.UpdatedAt, nil, 0); err != nil {
-		t.Fatalf("filing Team under About: %v", err)
-	}
-	moved, err := content.Reparent(pageType(), about, &team, 0)
-	if err != nil {
-		t.Fatalf("Reparent() on the stale Team error = %v, want nil", err)
-	}
-	moved.UpdatedAt = about.UpdatedAt.Add(time.Second)
-
-	_, err = items.Update(t.Context(), moved, about.UpdatedAt, nil, 0)
-
-	if err == nil || err.Error() != content.ErrCycle.Error() {
-		t.Errorf("Update() error = %v, want the bare %v", err, content.ErrCycle)
-	}
-}
-
-func TestAStaleEditAfterTheItemMovedReportsAConflict(t *testing.T) {
-	t.Parallel()
-
-	items, _, author := nestingStores(t)
-	about := mustNest(t, items, nil, "About", author)
-	team := mustNest(t, items, &about, "Team", author)
-	lifted, err := content.Reparent(pageType(), team, nil, 0)
-	if err != nil {
-		t.Fatalf("Reparent() to the top error = %v, want nil", err)
-	}
-	lifted.UpdatedAt = team.UpdatedAt.Add(time.Second)
-	lifted, err = items.Update(t.Context(), lifted, team.UpdatedAt, nil, 0)
-	if err != nil {
-		t.Fatalf("moving Team to the top: %v", err)
-	}
-	filed, err := content.Reparent(pageType(), about, &lifted, 0)
-	if err != nil {
-		t.Fatalf("Reparent() under Team error = %v, want nil", err)
-	}
-	filed.UpdatedAt = about.UpdatedAt.Add(time.Second)
-	if _, err := items.Update(t.Context(), filed, about.UpdatedAt, nil, 0); err != nil {
-		t.Fatalf("filing About under Team: %v", err)
-	}
-	edited := team
-	edited.Title = "Team retitled"
-	edited.UpdatedAt = team.UpdatedAt.Add(2 * time.Second)
-
-	_, err = items.Update(t.Context(), edited, team.UpdatedAt, nil, 0)
-
-	if !errors.Is(err, content.ErrConflict) {
-		t.Errorf("Update() error = %v, want the stale copy reported as %v", err, content.ErrConflict)
-	}
-}
+// stalePage is the shared fixture under the name these tests use.
+var stalePage = contenttest.StalePage
 
 func TestAMoveQueuedBehindAnOppositeMoveIsRefused(t *testing.T) {
 	t.Parallel()
@@ -416,44 +250,6 @@ func TestMovingReportsATypeRowItCannotHold(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Errorf("Update() error = %v, want the failing type read reported as such", err)
-	}
-}
-
-func TestMovingAnItemDeletedForGoodReportsItMissing(t *testing.T) {
-	t.Parallel()
-
-	items, _, author := nestingStores(t)
-	about := mustNest(t, items, nil, "About", author)
-	team := mustNest(t, items, nil, "Team", author)
-	if err := items.Delete(t.Context(), team.ID); err != nil {
-		t.Fatalf("Delete() error = %v, want nil", err)
-	}
-	moved, err := content.Reparent(pageType(), team, &about, 0)
-	if err != nil {
-		t.Fatalf("Reparent() error = %v, want nil", err)
-	}
-	moved.UpdatedAt = team.UpdatedAt.Add(time.Second)
-
-	_, err = items.Update(t.Context(), moved, team.UpdatedAt, nil, 0)
-
-	if !errors.Is(err, content.ErrNotFound) {
-		t.Errorf("Update() error = %v, want %v", err, content.ErrNotFound)
-	}
-}
-
-func TestCreateRefusesAParentDeletedForGood(t *testing.T) {
-	t.Parallel()
-
-	items, _, author := nestingStores(t)
-	about := mustNest(t, items, nil, "About", author)
-	if err := items.Delete(t.Context(), about.ID); err != nil {
-		t.Fatalf("Delete() error = %v, want nil", err)
-	}
-
-	_, err := items.Create(t.Context(), stalePage(t, &about, "Orphan", author))
-
-	if err == nil || err.Error() != content.ErrParentType.Error() {
-		t.Errorf("Create() error = %v, want the bare %v", err, content.ErrParentType)
 	}
 }
 

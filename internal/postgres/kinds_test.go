@@ -154,31 +154,3 @@ func TestRollingBackPastOpenKindsDropsWhatTheOldCheckRefuses(t *testing.T) {
 		t.Errorf("fields = %v, want the gallery standing and holding one", keys)
 	}
 }
-
-func TestContentStoreSnapshotsAChoiceAndAListValue(t *testing.T) {
-	t.Parallel()
-
-	store, author, pool := newContentStoreWithPool(t)
-	declareField(t, pool, "style", content.FieldKindChoice)
-	types := postgres.NewTypeStore(pool)
-	gallery := fieldOn(t, "post", "gallery", content.FieldKindMedia, "")
-	gallery.Many = true
-	if _, err := types.CreateField(t.Context(), gallery); err != nil {
-		t.Fatalf("declaring the gallery field: %v, want nil", err)
-	}
-	post := mustPost(t, "Hello world", author)
-	post.Fields = content.Values{"style": "ipa", "gallery": []any{float64(1), float64(2)}}
-
-	created, err := store.Create(t.Context(), post)
-
-	if err != nil {
-		t.Fatalf("Create() error = %v, want nil", err)
-	}
-	if created.Fields["style"] != "ipa" {
-		t.Errorf("Fields = %v, want the choice value kept", created.Fields)
-	}
-	listed, ok := created.Fields["gallery"].([]any)
-	if !ok || len(listed) != 2 {
-		t.Errorf("Fields = %v, want the media list kept", created.Fields)
-	}
-}
