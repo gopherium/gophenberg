@@ -10,7 +10,7 @@
 		"./testing": "./testing.tsx"
 	},
 	"dependencies": {
-		"@gopherium/godmin": "0.15.0",
+		"@gopherium/godmin": "0.16.1",
 		"@gopherium/react-auth": "0.10.0",
 		"@tanstack/react-query": "^5.102.8",
 		"@wordpress/api-fetch": "7.56.0",
