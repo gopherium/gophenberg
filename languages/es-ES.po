@@ -2133,3 +2133,15 @@ msgstr "Describir %(type)s"
 #, fuzzy
 msgid "A descriptive summary of the content type."
 msgstr "Un resumen descriptivo del tipo de contenido."
+
+#, fuzzy
+msgid "The item could not be moved to the trash."
+msgstr "No se ha podido mover el elemento a la papelera."
+
+#, fuzzy
+msgid "The item could not be restored."
+msgstr "No se ha podido restaurar el elemento."
+
+#, fuzzy
+msgid "The item could not be permanently deleted."
+msgstr "No se ha podido borrar permanentemente el elemento."

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { errorText as refusalText } from '@gopherium/gottext'
+import { __ } from '@wordpress/i18n'
 import { z } from 'zod'
 
+import { errorTemplates } from '../i18n/errorTemplates'
 import { errorText } from '../i18n/errors'
 
 const POSTS_PER_PAGE = 20
@@ -171,6 +174,36 @@ async function messageFrom(response: Response): Promise<string> {
 }
 
 /**
+ * Returns the reason a refused answer names in the reader's language, never the server's own prose.
+ * @param response - The response the API refused with.
+ * @param fallback - The words to show when the answer names no reason the admin knows.
+ * @returns The translated reason, or the fallback.
+ */
+async function reasonOf(response: Response, fallback: string): Promise<string> {
+	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
+	const named = parsed.success ? { code: parsed.data.code, meta: parsed.data.meta } : {}
+	return refusalText({ message: '', ...named }, errorTemplates(), fallback)
+}
+
+/**
+ * Returns the answer to a write the server accepted, or throws the refusal in the reader's language.
+ * @param url - Where the write goes.
+ * @param method - The method the write uses.
+ * @param fallback - The words to show when the answer names no reason the admin knows, or no answer came.
+ * @returns The answer.
+ */
+async function accepted(url: string, method: string, fallback: string): Promise<Response> {
+	const response = await fetch(url, { method }).catch(() => null)
+	if (response === null) {
+		throw new Error(fallback)
+	}
+	if (!response.ok) {
+		throw new Error(await reasonOf(response, fallback))
+	}
+	return response
+}
+
+/**
  * Returns one post with its content.
  * @param id - The post to read.
  * @returns The stored post.
@@ -294,10 +327,8 @@ export async function autosavePost(
  * @returns The trashed post.
  */
 export async function trashPost(id: string): Promise<Post> {
-	const response = await fetch(`/api/content/${id}`, { method: 'DELETE' })
-	if (!response.ok) {
-		throw new Error(`trashing a post failed with status ${response.status}`)
-	}
+	const fallback = __('The item could not be moved to the trash.', 'gophenberg')
+	const response = await accepted(`/api/content/${id}`, 'DELETE', fallback)
 	return toPost(postSchema.parse(await response.json()))
 }
 
@@ -307,10 +338,8 @@ export async function trashPost(id: string): Promise<Post> {
  * @returns The restored post.
  */
 export async function restorePost(id: string): Promise<Post> {
-	const response = await fetch(`/api/content/${id}/restore`, { method: 'POST' })
-	if (!response.ok) {
-		throw new Error(`restoring a post failed with status ${response.status}`)
-	}
+	const fallback = __('The item could not be restored.', 'gophenberg')
+	const response = await accepted(`/api/content/${id}/restore`, 'POST', fallback)
 	return toPost(postSchema.parse(await response.json()))
 }
 
@@ -319,10 +348,8 @@ export async function restorePost(id: string): Promise<Post> {
  * @param id - The post to delete.
  */
 export async function deletePost(id: string): Promise<void> {
-	const response = await fetch(`/api/content/${id}?force=true`, { method: 'DELETE' })
-	if (!response.ok) {
-		throw new Error(`deleting a post failed with status ${response.status}`)
-	}
+	const fallback = __('The item could not be permanently deleted.', 'gophenberg')
+	await accepted(`/api/content/${id}?force=true`, 'DELETE', fallback)
 }
 
 /**

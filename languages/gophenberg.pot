@@ -1346,6 +1346,15 @@ msgstr ""
 msgid "The groups were reordered."
 msgstr ""
 
+msgid "The item could not be moved to the trash."
+msgstr ""
+
+msgid "The item could not be permanently deleted."
+msgstr ""
+
+msgid "The item could not be restored."
+msgstr ""
+
 msgid "The item you picked as parent holds another kind of content. Pick a parent of the same content type as this item."
 msgstr ""
 

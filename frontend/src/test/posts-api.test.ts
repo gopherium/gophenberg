@@ -3,7 +3,16 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
-import { emptyTrash, fetchPost, fetchPostCounts, listEveryPost, listPosts } from '../content/api'
+import {
+	deletePost,
+	emptyTrash,
+	fetchPost,
+	fetchPostCounts,
+	listEveryPost,
+	listPosts,
+	restorePost,
+	trashPost,
+} from '../content/api'
 
 const ROW = {
 	id: '019fb000-0000-7000-8000-000000000001',
@@ -18,6 +27,66 @@ const ROW = {
 	created_at: '2026-07-19T10:00:00Z',
 	updated_at: '2026-07-20T10:00:00Z',
 }
+
+/** The writes the server can refuse, each with the words its refusal falls back to. */
+const REFUSABLE = [
+	{
+		action: 'trash',
+		run: () => trashPost(ROW.id),
+		refuse: (answer: () => Response) => server.use(http.delete(`/api/content/${ROW.id}`, answer)),
+		fallback: 'The item could not be moved to the trash.',
+	},
+	{
+		action: 'restore',
+		run: () => restorePost(ROW.id),
+		refuse: (answer: () => Response) => server.use(http.post(`/api/content/${ROW.id}/restore`, answer)),
+		fallback: 'The item could not be restored.',
+	},
+	{
+		action: 'permanent delete',
+		run: () => deletePost(ROW.id),
+		refuse: (answer: () => Response) => server.use(http.delete(`/api/content/${ROW.id}`, answer)),
+		fallback: 'The item could not be permanently deleted.',
+	},
+]
+
+test.each(REFUSABLE)('reads a refused $action as the words its code stands for', async ({ run, refuse }) => {
+	refuse(() =>
+		HttpResponse.json(
+			{ error: 'content: item holds children', code: 'content_holds_children' },
+			{ status: 422 },
+		),
+	)
+
+	await expect(run()).rejects.toEqual(
+		new Error('This item still holds items nested inside it. Move or delete those first.'),
+	)
+})
+
+test.each(REFUSABLE)('reads a refused $action with no reason as its own words', async ({ run, refuse, fallback }) => {
+	refuse(() => HttpResponse.json({}, { status: 500 }))
+
+	await expect(run()).rejects.toEqual(new Error(fallback))
+})
+
+test.each(REFUSABLE)('reads a refused $action with an unreadable body as its own words', async (refusable) => {
+	const { run, refuse, fallback } = refusable
+	refuse(() => new HttpResponse('not json', { status: 502 }))
+
+	await expect(run()).rejects.toEqual(new Error(fallback))
+})
+
+test.each(REFUSABLE)('never shows the server prose for a refused $action', async ({ run, refuse, fallback }) => {
+	refuse(() => HttpResponse.json({ error: 'content: something new', code: 'a_code_from_the_future' }, { status: 422 }))
+
+	await expect(run()).rejects.toEqual(new Error(fallback))
+})
+
+test.each(REFUSABLE)('reads the $action the network dropped as its own words', async ({ run, refuse, fallback }) => {
+	refuse(() => HttpResponse.error())
+
+	await expect(run()).rejects.toEqual(new Error(fallback))
+})
 
 /**
  * Serves one page of posts and records the query it was asked for.
