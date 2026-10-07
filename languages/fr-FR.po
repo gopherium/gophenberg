@@ -377,10 +377,6 @@ msgid "Could not load that post."
 msgstr "Impossible de charger cet article."
 
 #, fuzzy
-msgid "Could not restore that post."
-msgstr "Impossible de rétablir cet article."
-
-#, fuzzy
 msgid "Could not save that post."
 msgstr "Impossible d'enregistrer cet article."
 

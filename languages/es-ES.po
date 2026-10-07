@@ -157,9 +157,6 @@ msgstr "No se ha podido vaciar la papelera."
 msgid "Could not load that post."
 msgstr "No se ha podido cargar esa entrada."
 
-msgid "Could not restore that post."
-msgstr "No se ha podido restaurar esa entrada."
-
 msgid "Could not save that post."
 msgstr "No se ha podido guardar esa entrada."
 

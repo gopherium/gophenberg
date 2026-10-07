@@ -506,9 +506,6 @@ msgstr ""
 msgid "Could not load that post."
 msgstr ""
 
-msgid "Could not restore that post."
-msgstr ""
-
 msgid "Could not save that post."
 msgstr ""
 

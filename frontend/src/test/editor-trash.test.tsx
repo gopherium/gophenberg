@@ -187,6 +187,24 @@ test('restores a trashed post and opens it in the editor', async () => {
 
 	expect(await screen.findByRole('textbox', { name: 'Title' })).toHaveValue(storedPost.title)
 	expect(restored).toEqual([storedPost.id])
+	expect(await screen.findByText('"Welcome to Gophenberg" has been restored.', { selector: '.godmin-toast' }))
+		.toBeInTheDocument()
+})
+
+test('names an untitled post it restored from the reading view in the toast', async () => {
+	let held: Record<string, unknown> = { ...storedPost, title: '', status: 'trash' }
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(held)),
+		http.post(`/api/content/${storedPost.id}/restore`, () => {
+			held = { ...storedPost, title: '' }
+			return HttpResponse.json(held)
+		}),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Restore' }))
+
+	expect(await screen.findByText('"(no title)" has been restored.', { selector: '.godmin-toast' })).toBeInTheDocument()
 })
 
 test('saves a restored post against the version the restore stamped', async () => {
@@ -255,7 +273,26 @@ test('reports a restore the reading view could not make', async () => {
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Restore' }))
 
-	expect(await screen.findByText(/could not restore that post/i)).toBeInTheDocument()
+	expect(await screen.findByText('The item could not be restored.')).toBeInTheDocument()
+})
+
+test('reports the reason a refused restore gave in the reading view', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () =>
+			HttpResponse.json({ ...storedPost, status: 'trash' }),
+		),
+		http.post(`/api/content/${storedPost.id}/restore`, () =>
+			HttpResponse.json({ error: 'content: parent is in the trash', code: 'parent_trashed' }, { status: 422 }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Restore' }))
+
+	expect(
+		await screen.findByText('The item you picked as parent is in the trash. Restore it, or pick another parent.'),
+	).toBeInTheDocument()
 })
 
 test('opens a post trashed from the editor as a reading view', async () => {

@@ -14,10 +14,11 @@ import { TrashedNotice } from './TrashedNotice'
  * @returns The reading view element.
  */
 export function PostReadView({ stored, mine }: { stored: PostDetail, mine: boolean }) {
+	const title = stored.title === '' ? __('(no title)', 'gophenberg') : stored.title
 	return (
-		<Page title={stored.title === '' ? __('(no title)', 'gophenberg') : stored.title}>
+		<Page title={title}>
 			{mine ? (
-				<TrashedNotice postId={stored.id} />
+				<TrashedNotice postId={stored.id} title={title} />
 			) : (
 				<Notice.Root intent="info">
 					<Notice.Description>
