@@ -3,6 +3,11 @@
 package features_test
 
 import (
+	"bytes"
+	"errors"
+	"os"
+	"os/exec"
+	"regexp"
 	"testing"
 	"time"
 
@@ -13,24 +18,74 @@ import (
 	"github.com/gopherium/gophenberg/internal/content/contenttest"
 )
 
+// shortRowsVariable names the variable that runs the suite on stores keeping only some rows, by the rule's name.
+const shortRowsVariable = "GOPHENBERG_SHORT_ROWS"
+
+// reportedCase matches the line the test binary prints for each case of the short rows run.
+var reportedCase = regexp.MustCompile(`(?m)^    --- (PASS|FAIL): \S+/\S+ `)
+
+// memoryStores returns fresh in-memory stores for one case.
+func memoryStores(t *testing.T) contenttest.Stores {
+	t.Helper()
+	items, types, accounts := newMemoryStores()
+	return contenttest.Stores{
+		Content: items,
+		Types:   types,
+		AddAuthor: func(t *testing.T, name string) uuid.UUID {
+			t.Helper()
+			id := uuid.Must(uuid.NewV7())
+			user := gouncer.User{ID: id, Email: id.String() + "@example.com", Name: name, CreatedAt: time.Now().UTC()}
+			if err := accounts.CreateUser(t.Context(), user); err != nil {
+				t.Fatalf("CreateUser() error = %v, want nil", err)
+			}
+			return id
+		},
+	}
+}
+
+// shortStores returns a factory of in-memory stores whose listings keep only the rows the named rule leaves.
+func shortStores(rule string) contenttest.Factory {
+	return func(t *testing.T) contenttest.Stores {
+		t.Helper()
+		s := memoryStores(t)
+		s.Content = shortContent{Store: s.Content, keep: keptRows[rule]}
+		s.Types = shortTypes{TypeStore: s.Types, keep: keptRows[rule]}
+		return s
+	}
+}
+
 func TestContentStoreSuite(t *testing.T) {
 	t.Parallel()
 
-	contenttest.Run(t, func(t *testing.T) contenttest.Stores {
-		t.Helper()
-		items, types, accounts := newMemoryStores()
-		return contenttest.Stores{
-			Content: items,
-			Types:   types,
-			AddAuthor: func(t *testing.T, name string) uuid.UUID {
-				t.Helper()
-				id := uuid.Must(uuid.NewV7())
-				user := gouncer.User{ID: id, Email: id.String() + "@example.com", Name: name, CreatedAt: time.Now().UTC()}
-				if err := accounts.CreateUser(t.Context(), user); err != nil {
-					t.Fatalf("CreateUser() error = %v, want nil", err)
-				}
-				return id
-			},
-		}
-	})
+	contenttest.Run(t, memoryStores)
+}
+
+func TestContentStoreSuiteFailsWithoutPanickingOnShortRows(t *testing.T) {
+	if rule := os.Getenv(shortRowsVariable); rule != "" {
+		contenttest.Run(t, shortStores(rule))
+		return
+	}
+	t.Parallel()
+
+	for rule := range keptRows {
+		t.Run(rule, func(t *testing.T) {
+			t.Parallel()
+			run := exec.CommandContext(t.Context(), os.Args[0],
+				"-test.run=^TestContentStoreSuiteFailsWithoutPanickingOnShortRows$", "-test.v")
+			run.Env = append(os.Environ(), shortRowsVariable+"="+rule)
+
+			out, err := run.CombinedOutput()
+
+			var exit *exec.ExitError
+			if err != nil && !errors.As(err, &exit) {
+				t.Fatalf("running the suite: %v", err)
+			}
+			if at := bytes.Index(out, []byte("\npanic: ")); at >= 0 {
+				t.Fatalf("the suite panicked on stores keeping %s:%s", rule, out[at:min(len(out), at+800)])
+			}
+			if reported := len(reportedCase.FindAll(out, -1)); reported != len(contenttest.Cases()) {
+				t.Errorf("%d cases reported on stores keeping %s, want all %d", reported, rule, len(contenttest.Cases()))
+			}
+		})
+	}
 }
