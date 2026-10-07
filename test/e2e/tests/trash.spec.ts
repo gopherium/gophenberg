@@ -34,9 +34,9 @@ test('empties only the trash of the type on screen', async ({ page }) => {
 	await page.getByRole('button', { name: /^Trash \(\d+\)$/ }).click()
 	await page.getByRole('button', { name: 'Empty Trash' }).click()
 
-	await page.getByRole('button', { name: 'Delete All' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Empty Trash' }).click()
 
-	await expect(page.getByRole('alertdialog')).toBeHidden()
+	await expect(page.getByRole('dialog')).toBeHidden()
 	expect((await page.request.get(`/api/content/${item}`)).status()).toBe(404)
 	const left = await page.request.get(`/api/content/${post}`)
 	expect(left.status()).toBe(200)

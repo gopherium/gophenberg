@@ -209,6 +209,11 @@ msgid_plural "%s items permanently deleted."
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "%s item stays in the trash."
+msgid_plural "%s items stay in the trash."
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "%s page has been restored."
 msgid_plural "%s pages have been restored."
 msgstr[0] ""
@@ -497,9 +502,6 @@ msgid_plural "Could not delete every item."
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Could not empty the trash."
-msgstr ""
-
 msgid "Could not load %(type)s."
 msgstr ""
 
@@ -555,9 +557,6 @@ msgid "Delete %s item for good? This cannot be undone."
 msgid_plural "Delete %s items for good? This cannot be undone."
 msgstr[0] ""
 msgstr[1] ""
-
-msgid "Delete All"
-msgstr ""
 
 msgid "Delete Permanently"
 msgstr ""
@@ -1470,6 +1469,9 @@ msgid "The theme %(name)s is the one chosen, but it is not installed, so your si
 msgstr ""
 
 msgid "The theme %(name)s was built on theme kit %(declared)s, and this site serves %(served)s. Build the theme again against a kit this site serves, then install it."
+msgstr ""
+
+msgid "The trash could not be emptied."
 msgstr ""
 
 msgid "The user could not be created."

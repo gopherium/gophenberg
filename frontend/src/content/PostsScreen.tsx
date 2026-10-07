@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { CHANGE_OTHERS_WORK, can } from '@gophenberg/frontend-sdk'
 import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { __, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, Page } from '@gopherium/godmin'
+import { useSession } from '@gopherium/react-auth'
 import { useQuery } from '@tanstack/react-query'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 
-import { usePostActions, useRefresh } from './actions'
+import { usePostActions } from './actions'
 import type { ListRun } from './actions'
 import { fetchPostCounts, listPosts } from './api'
 import type { PostCounts, PostPage } from './api'
@@ -74,6 +76,17 @@ function useListRun(
 }
 
 /**
+ * Reports whether the list offers to empty the trash.
+ * @param status - The status the list shows.
+ * @param total - How many items the list holds.
+ * @param role - The role the session carries.
+ * @returns Whether the empty trash control shows.
+ */
+function offersEmptyTrash(status: string, total: number, role: string | undefined): boolean {
+	return status === 'trash' && total > 0 && can(role, CHANGE_OTHERS_WORK)
+}
+
+/**
  * Renders the list screen of a content type.
  * @returns The list screen element.
  */
@@ -85,7 +98,7 @@ export function PostsScreen() {
 	const [selection, setSelection] = useState<string[]>([])
 	const { failure, run, list } = useListRun(`${listed.key} ${status}`, setSelection)
 	const actions = usePostActions(status, listed.key, run)
-	const refresh = useRefresh()
+	const session = useSession().data
 	const counts = useQuery({
 		queryKey: ['post-counts', listed.key],
 		queryFn: () => fetchPostCounts(listed.key),
@@ -129,8 +142,8 @@ export function PostsScreen() {
 		<Page
 			title={listed.pluralLabel}
 			actions={
-				status === 'trash' ? (
-					<EmptyTrash type={listed.key} label={listed.pluralLabel} onEmptied={refresh} />
+				offersEmptyTrash(status, page.total, session?.role) ? (
+					<EmptyTrash type={listed.key} label={listed.pluralLabel} list={run} />
 				) : undefined
 			}
 		>

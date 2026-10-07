@@ -48,6 +48,12 @@ const REFUSABLE = [
 		refuse: (answer: () => Response) => server.use(http.delete(`/api/content/${ROW.id}`, answer)),
 		fallback: 'The item could not be permanently deleted.',
 	},
+	{
+		action: 'empty trash',
+		run: () => emptyTrash('post'),
+		refuse: (answer: () => Response) => server.use(http.delete('/api/content/trash', answer)),
+		fallback: 'The trash could not be emptied.',
+	},
 ]
 
 test.each(REFUSABLE)('reads a refused $action as the words its code stands for', async ({ run, refuse }) => {
@@ -214,52 +220,25 @@ test('stops at the reading ceiling when a listing never reaches its total', asyn
 	expect(held).toHaveLength(100)
 })
 
-test('stops emptying the trash with nothing removed when the listing is refused', async () => {
-	server.use(http.get('/api/content', () => HttpResponse.json({}, { status: 500 })))
-
-	const emptied = await emptyTrash('post')
-
-	expect(emptied).toEqual({ removed: [], finished: false })
-})
-
-test('asks for the trash of the type it empties on every round', async () => {
-	const queries: URLSearchParams[] = []
-	let held = 2
+test('empties the trash of the type it was asked for in one call', async () => {
+	const asked: URL[] = []
+	const each: string[] = []
 	server.use(
-		http.get('/api/content', ({ request }) => {
-			queries.push(new URL(request.url).searchParams)
-			const items = held > 0 ? [{ ...ROW, id: `${ROW.id.slice(0, -1)}${held}`, status: 'trash' }] : []
-			return HttpResponse.json({ items, total: items.length })
+		http.delete('/api/content/trash', ({ request }) => {
+			asked.push(new URL(request.url))
+			return HttpResponse.json({ deleted: 3, kept: 1 })
 		}),
-		http.delete('/api/content/:id', () => {
-			held -= 1
-			return new HttpResponse(null, { status: 204 })
-		}),
-	)
-
-	await emptyTrash('page')
-
-	expect(queries.map((query) => [query.get('type'), query.get('status')])).toEqual([
-		['page', 'trash'],
-		['page', 'trash'],
-		['page', 'trash'],
-	])
-})
-
-test('stops emptying a trash that never runs out and reports what it removed', async () => {
-	const deleted: string[] = []
-	server.use(
-		http.get('/api/content', () => HttpResponse.json({ items: [{ ...ROW, status: 'trash' }], total: 1 })),
 		http.delete('/api/content/:id', ({ params }) => {
-			deleted.push(String(params.id))
+			each.push(String(params.id))
 			return new HttpResponse(null, { status: 204 })
 		}),
 	)
 
-	const emptied = await emptyTrash('post')
+	const emptied = await emptyTrash('page')
 
-	expect(emptied.finished).toBe(false)
-	expect(emptied.removed).toEqual(deleted)
+	expect(emptied).toEqual({ deleted: 3, kept: 1 })
+	expect(asked.map((url) => url.searchParams.get('type'))).toEqual(['page'])
+	expect(each).toEqual([])
 })
 
 test('counts the type it was asked for', async () => {

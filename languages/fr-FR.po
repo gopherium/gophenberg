@@ -369,10 +369,6 @@ msgstr[1] "Impossible de supprimer tous les éléments."
 msgstr[2] "Impossible de supprimer tous les éléments."
 
 #, fuzzy
-msgid "Could not empty the trash."
-msgstr "Impossible de vider la corbeille."
-
-#, fuzzy
 msgid "Could not load that post."
 msgstr "Impossible de charger cet article."
 
@@ -415,10 +411,6 @@ msgstr "Supprimer"
 #, fuzzy
 msgid "Delete %(group)s"
 msgstr "Supprimer %(group)s"
-
-#, fuzzy
-msgid "Delete All"
-msgstr "Tout supprimer"
 
 #, fuzzy
 msgid "Delete Permanently"
@@ -2591,3 +2583,14 @@ msgid_plural "%s items could not be permanently deleted."
 msgstr[0] "%s élément n'a pas pu être supprimé définitivement."
 msgstr[1] "%s éléments n'ont pas pu être supprimés définitivement."
 msgstr[2] "%s éléments n'ont pas pu être supprimés définitivement."
+
+#, fuzzy
+msgid "The trash could not be emptied."
+msgstr "La corbeille n'a pas pu être vidée."
+
+#, fuzzy
+msgid "%s item stays in the trash."
+msgid_plural "%s items stay in the trash."
+msgstr[0] "%s élément reste dans la corbeille."
+msgstr[1] "%s éléments restent dans la corbeille."
+msgstr[2] "%s éléments restent dans la corbeille."
