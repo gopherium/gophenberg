@@ -139,6 +139,15 @@ type world struct {
 	file           *definitions.Import
 }
 
+// newMemoryStores returns one scenario's content, type and account stores, wired to each other.
+func newMemoryStores() (*memoryContent, *memoryTypes, *memoryStore) {
+	items := newMemoryContent()
+	types := newMemoryTypes(items)
+	accounts := newMemoryStore()
+	items.types, items.accounts = types, accounts
+	return items, types, accounts
+}
+
 // provisionWorld gives a scenario its own themes directory.
 func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
 	themes, err := os.MkdirTemp("", "gophenberg-themes-")
@@ -153,10 +162,7 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 	if err != nil {
 		return ctx, errors.Join(err, os.RemoveAll(themes), os.RemoveAll(gates))
 	}
-	items := newMemoryContent()
-	types := newMemoryTypes(items)
-	accounts := newMemoryStore()
-	items.types, items.accounts = types, accounts
+	items, types, accounts := newMemoryStores()
 	settings := &memorySettings{values: make(map[string]string)}
 	return context.WithValue(ctx, worldKey{}, &world{
 		themesDir:    themes,
