@@ -122,6 +122,7 @@ cover-html: cover
 
 MUTATE_PKG ?= .
 MUTATE_FLAGS ?=
+MUTATE_SDK_FLAGS ?=
 MUTATE_VMEM ?= 12582912
 MUTATE_SDK_TIMEOUT_COEFFICIENT ?= 10
 MUTATE_REPORT = $(CURDIR)/reports/mutation/gremlins.json
@@ -136,7 +137,8 @@ mutate: db-up
 		TMPDIR="$$work/tmp" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.noprefix GIT_CONFIG_VALUE_0=false \
 		go tool gremlins unleash -o $(MUTATE_REPORT) $(MUTATE_FLAGS) $(MUTATE_PKG) && \
 		gremlins="$$(go tool -n gremlins)" && cd sdk && TMPDIR="$$work/tmp" "$$gremlins" unleash \
-		--config ../.gremlins.yaml --timeout-coefficient $(MUTATE_SDK_TIMEOUT_COEFFICIENT) -o $(MUTATE_SDK_REPORT) .
+		--config ../.gremlins.yaml --timeout-coefficient $(MUTATE_SDK_TIMEOUT_COEFFICIENT) -o $(MUTATE_SDK_REPORT) \
+		$(MUTATE_SDK_FLAGS) .
 
 E2E_DB ?= gophenberg_e2e
 E2E_DATABASE_URL ?= postgres://postgres:gophenberg@localhost:5435/$(E2E_DB)?sslmode=disable
