@@ -14,7 +14,7 @@ require (
 	github.com/gopherium/framework/gonsole v0.6.1
 	github.com/gopherium/framework/gonsole/auth v0.4.1
 	github.com/gopherium/framework/pluginkit v0.6.0
-	github.com/gopherium/gophenberg/sdk v0.0.0
+	github.com/gopherium/gophenberg/sdk v0.1.0
 	github.com/gopherium/gouncer v0.4.0
 	github.com/gopherium/gouncer/authkit v0.15.0
 	github.com/gopherium/gouncer/authkit/postgres v0.11.2
