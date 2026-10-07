@@ -157,9 +157,6 @@ msgstr "No se ha podido vaciar la papelera."
 msgid "Could not load that post."
 msgstr "No se ha podido cargar esa entrada."
 
-msgid "Could not move that post to trash."
-msgstr "No se ha podido mover esa entrada a la papelera."
-
 msgid "Could not restore that post."
 msgstr "No se ha podido restaurar esa entrada."
 
@@ -377,9 +374,6 @@ msgstr "Mover todas las direcciones"
 
 msgid "Move to trash"
 msgstr "Mover a la papelera"
-
-msgid "Moved to the trash."
-msgstr "Movido a la papelera."
 
 msgid "Navigation"
 msgstr "Navegación"
@@ -819,9 +813,6 @@ msgstr "Esta imagen tiene %(width)s por %(height)s píxeles, por encima del lím
 msgid "This post changed elsewhere. Reload before saving again."
 msgstr "Esta entrada ha cambiado en otro sitio. Recarga antes de volver a guardar."
 
-msgid "This post goes to the trash. You can restore it from there."
-msgstr "Esta entrada va a la papelera. Puedes restaurarla desde allí."
-
 msgid "This request left out %(field)s, which Gophenberg needs. Reload the page and try again."
 msgstr "En esta petición faltaba %(field)s, que Gophenberg necesita. Recarga la página e inténtalo de nuevo."
 
@@ -935,9 +926,6 @@ msgstr "%(theme)s se ha instalado."
 
 msgid "%(theme)s will not load, so the built-in renderer is serving."
 msgstr "%(theme)s no se carga, así que el renderizador ha tomado el relevo."
-
-msgid "%(title)s goes to the trash. You can restore it from there."
-msgstr "%(title)s va a la papelera. Puedes restaurarlo desde allí."
 
 msgid "%(type)s registered."
 msgstr "%(type)s registrado."

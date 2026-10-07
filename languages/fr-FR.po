@@ -377,10 +377,6 @@ msgid "Could not load that post."
 msgstr "Impossible de charger cet article."
 
 #, fuzzy
-msgid "Could not move that post to trash."
-msgstr "Impossible de déplacer cet article dans la corbeille."
-
-#, fuzzy
 msgid "Could not restore that post."
 msgstr "Impossible de rétablir cet article."
 
@@ -768,10 +764,6 @@ msgstr "Déplacer le champ"
 #, fuzzy
 msgid "Move to trash"
 msgstr "Déplacer dans la corbeille"
-
-#, fuzzy
-msgid "Moved to the trash."
-msgstr "Déplacé dans la corbeille."
 
 #, fuzzy
 msgid "Navigation"
@@ -1510,10 +1502,6 @@ msgid "This post changed elsewhere. Reload before saving again."
 msgstr "Cet article a changé ailleurs. Rechargez avant d'enregistrer de nouveau."
 
 #, fuzzy
-msgid "This post goes to the trash. You can restore it from there."
-msgstr "Cet article va dans la corbeille. Vous pourrez le rétablir depuis là."
-
-#, fuzzy
 msgid "This request left out %(field)s, which Gophenberg needs. Reload the page and try again."
 msgstr "Cette requête a omis %(field)s, dont Gophenberg a besoin. Rechargez la page et réessayez."
 
@@ -1684,10 +1672,6 @@ msgstr "%(theme)s a été installé."
 #, fuzzy
 msgid "%(theme)s will not load, so the built-in renderer is serving."
 msgstr "%(theme)s ne se charge pas, le moteur de rendu intégré sert donc le site."
-
-#, fuzzy
-msgid "%(title)s goes to the trash. You can restore it from there."
-msgstr "%(title)s va dans la corbeille. Vous pourrez le rétablir depuis là."
 
 #, fuzzy
 msgid "%(type)s registered."

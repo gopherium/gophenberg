@@ -1,56 +1,62 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { AlertDialog } from '@gophenberg/frontend-sdk'
+import { Dialog } from '@gophenberg/frontend-sdk'
+import { ConfirmBody, useToaster } from '@gopherium/godmin'
 import { __, sprintf } from '@wordpress/i18n'
-import { useToaster } from '@gopherium/godmin'
+import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 
 import { useRefresh } from './actions'
-import { restorePost, trashPost } from './api'
+import { trashPost } from './api'
 
 /**
- * Renders the control moving the post being edited to the trash.
+ * Renders the control moving the post being edited to the trash, and its confirm.
  * @param props - The post to trash and the name it is known by.
- * @returns The trash control.
+ * @returns The trash control and its confirm.
  */
 export function TrashPost({ postId, title }: { postId: string, title: string }) {
 	const navigate = useNavigate()
 	const refresh = useRefresh()
 	const toaster = useToaster()
-	/**
-	 * Trashes the post, leaves for the listing and offers to take it back.
-	 * @returns The error to report, or nothing once the post is trashed.
-	 */
-	async function trash() {
-		try {
-			await trashPost(postId)
-		} catch {
-			return { close: false, error: __('Could not move that post to trash.', 'gophenberg') }
-		}
-		await navigate({ to: '/content/$typeKey' })
-		await refresh([postId])
-		toaster.show(__('Moved to the trash.', 'gophenberg'), {
-			label: __('Undo', 'gophenberg'),
-			onAct: () => {
-				restorePost(postId)
-					.then(() => refresh([postId]))
-					.catch(() => toaster.show(__('Could not restore that post.', 'gophenberg')))
-			},
-		})
-	}
-	const description =
-		title === ''
-			? __('This post goes to the trash. You can restore it from there.', 'gophenberg')
-			: sprintf(__('%(title)s goes to the trash. You can restore it from there.', 'gophenberg'), { title })
+	const [open, setOpen] = useState(false)
+	const label = __('Move to trash', 'gophenberg')
+	const named = title === '' ? __('(no title)', 'gophenberg') : title
+	const trash = useMutation({
+		mutationFn: () => trashPost(postId),
+		onSuccess: async () => {
+			await navigate({ to: '/content/$typeKey' })
+			await refresh([postId])
+			toaster.show(sprintf(__('"%s" moved to the trash.', 'gophenberg'), toaster.name(named)))
+		},
+	})
 	return (
-		<AlertDialog.Root onConfirm={trash}>
-			<AlertDialog.Trigger>{__('Move to trash', 'gophenberg')}</AlertDialog.Trigger>
-			<AlertDialog.Popup
-				intent="irreversible"
-				title={__('Move to trash', 'gophenberg')}
-				description={description}
-				confirmButtonText={__('Move to trash', 'gophenberg')}
-			/>
-		</AlertDialog.Root>
+		<Dialog.Root
+			open={open}
+			onOpenChange={(next) => {
+				trash.reset()
+				setOpen(next)
+			}}
+		>
+			<Dialog.Trigger>{label}</Dialog.Trigger>
+			<Dialog.Popup size="small">
+				<Dialog.Header>
+					<Dialog.Title>{label}</Dialog.Title>
+					<Dialog.CloseIcon />
+				</Dialog.Header>
+				<Dialog.Content>
+					<ConfirmBody
+						confirmLabel={label}
+						cancelLabel={__('Cancel', 'gophenberg')}
+						busy={trash.isPending}
+						failure={trash.error?.message}
+						onConfirm={() => trash.mutate()}
+						onCancel={trash.isPending ? undefined : () => setOpen(false)}
+					>
+						{sprintf(__('Move "%(title)s" to the trash?', 'gophenberg'), { title: toaster.name(named) })}
+					</ConfirmBody>
+				</Dialog.Content>
+			</Dialog.Popup>
+		</Dialog.Root>
 	)
 }

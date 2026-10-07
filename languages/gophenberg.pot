@@ -160,9 +160,6 @@ msgstr ""
 msgid "%(theme)s will not load, so the built-in renderer is serving."
 msgstr ""
 
-msgid "%(title)s goes to the trash. You can restore it from there."
-msgstr ""
-
 msgid "%(type)s answers on a new address, and stored links move with it."
 msgstr ""
 
@@ -507,9 +504,6 @@ msgid "Could not load %(type)s."
 msgstr ""
 
 msgid "Could not load that post."
-msgstr ""
-
-msgid "Could not move that post to trash."
 msgstr ""
 
 msgid "Could not restore that post."
@@ -942,9 +936,6 @@ msgid "Move the field"
 msgstr ""
 
 msgid "Move to trash"
-msgstr ""
-
-msgid "Moved to the trash."
 msgstr ""
 
 msgid "Navigation"
@@ -1608,9 +1599,6 @@ msgid "This picture is %(width)s by %(height)s pixels, over the limit of %(max)s
 msgstr ""
 
 msgid "This post changed elsewhere. Reload before saving again."
-msgstr ""
-
-msgid "This post goes to the trash. You can restore it from there."
 msgstr ""
 
 msgid "This request came from a page on another site, so it was refused. Open the admin on this site and try again."
