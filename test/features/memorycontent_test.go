@@ -7,6 +7,8 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"math/rand/v2"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -611,7 +613,7 @@ func (s *memoryContent) Trash(ctx context.Context, id uuid.UUID, updatedAt time.
 			"content: the item is already in the trash", nil)
 	}
 	stored.Status, stored.UpdatedAt = content.StatusTrash, updatedAt
-	stored = stored.Place(content.AddressPrefix(stored.Path, stored.Slug), stored.Slug+"-trashed")
+	stored = stored.Place(content.AddressPrefix(stored.Path, stored.Slug), stored.Slug+trashSuffix())
 	s.items[id] = stored
 	for held := range s.autosaves {
 		if held.contentID == id {
@@ -619,6 +621,47 @@ func (s *memoryContent) Trash(ctx context.Context, id uuid.UUID, updatedAt time.
 		}
 	}
 	return stored, nil
+}
+
+// trashSuffixAlphabet holds the characters a trashed slug suffix draws from.
+const trashSuffixAlphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+
+// trashSuffixLength is the number of random characters in a trashed slug suffix.
+const trashSuffixLength = 8
+
+// trashSuffix returns the marker appended to a trashed content item's slug.
+func trashSuffix() string {
+	var b strings.Builder
+	b.WriteString("-trashed-")
+	for range trashSuffixLength {
+		b.WriteByte(trashSuffixAlphabet[rand.IntN(len(trashSuffixAlphabet))])
+	}
+	return b.String()
+}
+
+// trashMarker matches the suffix a trashed slug and address carry.
+var trashMarker = regexp.MustCompile(`-trashed-[a-z0-9]{8}$`)
+
+// Restore returns a trashed item to draft under its original slug when free, and refuses one out of the trash.
+func (s *memoryContent) Restore(_ context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stored, found := s.items[id]
+	if !found {
+		return content.Content{}, content.ErrNotFound
+	}
+	if err := stored.Restore(); err != nil {
+		return content.Content{}, err
+	}
+	stored.UpdatedAt = updatedAt
+	restored := stored
+	restored.Slug = trashMarker.ReplaceAllString(stored.Slug, "")
+	restored.Path = trashMarker.ReplaceAllString(stored.Path, "")
+	if s.addressHeld(restored.Path, id) {
+		restored = stored
+	}
+	s.items[id] = restored
+	return restored, nil
 }
 
 // Counts returns how many items of the type hold each status.
