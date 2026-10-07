@@ -3,7 +3,6 @@
 package features_test
 
 import (
-	"path"
 	"testing"
 	"time"
 
@@ -14,20 +13,11 @@ import (
 	"github.com/gopherium/gophenberg/internal/content/contenttest"
 )
 
-// memoryGaps names the shared cases the in-memory stores do not pass yet.
-var memoryGaps = map[string]bool{
-	"ListsWhatPointsThroughARelationInsideARow": true,
-	"ListOmitsContent":                          true,
-}
-
 func TestContentStoreSuite(t *testing.T) {
 	t.Parallel()
 
 	contenttest.Run(t, func(t *testing.T) contenttest.Stores {
 		t.Helper()
-		if memoryGaps[path.Base(t.Name())] {
-			t.Skip("the in-memory stores do not pass this case yet")
-		}
 		items, types, accounts := newMemoryStores()
 		return contenttest.Stores{
 			Content: items,

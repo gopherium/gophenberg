@@ -550,9 +550,7 @@ func (s *memoryContent) List(_ context.Context, f content.Filter) ([]content.Lis
 	matched := make([]content.ListedItem, 0, len(s.items))
 	for _, stored := range s.items {
 		if stored.Type == f.Type && keeps(f, stored) && narrowed(stored.Fields, f.Fields) {
-			matched = append(matched, content.ListedItem{
-				Content: stored, AuthorName: s.accounts.nameOf(stored.AuthorID), ParentTitle: parentTitle(s.items, stored),
-			})
+			matched = append(matched, s.listed(stored))
 		}
 	}
 	slices.SortFunc(matched, func(a, b content.ListedItem) int {
@@ -562,6 +560,14 @@ func (s *memoryContent) List(_ context.Context, f content.Filter) ([]content.Lis
 		matched = nestedUnderParents(matched)
 	}
 	return paged(matched, f), len(matched), nil
+}
+
+// listed returns the item as a listing carries it, its author and parent named and its body left out.
+func (s *memoryContent) listed(stored content.Content) content.ListedItem {
+	stored.Content = ""
+	return content.ListedItem{
+		Content: stored, AuthorName: s.accounts.nameOf(stored.AuthorID), ParentTitle: parentTitle(s.items, stored),
+	}
 }
 
 // keeps reports whether the item stands within the statuses, authors, dates and words the filter narrows to.
@@ -932,7 +938,7 @@ func sortedAt(c content.Content) time.Time {
 func (s *memoryContent) PointingAt(
 	ctx context.Context, target uuid.UUID, field, page, perPage int,
 ) ([]content.Pointer, int, error) {
-	key, named := s.fieldKeyed(ctx, field)
+	path, named := s.fieldPath(ctx, field)
 	if !named {
 		return nil, 0, nil
 	}
@@ -940,7 +946,7 @@ func (s *memoryContent) PointingAt(
 	defer s.mu.Unlock()
 	held := make([]content.Pointer, 0, len(s.items))
 	for _, item := range s.items {
-		if item.Status != content.StatusPublished || !slices.Contains(identitiesIn(item.Fields[key]), target) {
+		if item.Status != content.StatusPublished || !slices.Contains(identitiesAt(item.Fields, path), target) {
 			continue
 		}
 		held = append(held, content.Pointer{
@@ -953,23 +959,41 @@ func (s *memoryContent) PointingAt(
 	return pagedPointers(held, page, perPage), len(held), nil
 }
 
-// fieldKeyed returns the key the field identity names, or reports that no declared field carries it.
-func (s *memoryContent) fieldKeyed(ctx context.Context, field int) (string, bool) {
+// fieldPath returns the keys reaching the field the identity names, or reports that no declared field carries it.
+func (s *memoryContent) fieldPath(ctx context.Context, field int) ([]string, bool) {
 	if s.types == nil {
-		return "", false
+		return nil, false
 	}
 	groups, err := s.types.ListGroups(ctx)
 	if err != nil {
-		return "", false
+		return nil, false
 	}
 	for _, g := range groups {
-		for _, f := range g.Fields {
-			if f.ID == field {
-				return f.Key, true
-			}
+		if _, path, found := placedInside(g.Fields, field); found {
+			return path, true
 		}
 	}
-	return "", false
+	return nil, false
+}
+
+// identitiesAt returns every identity the value at the path names, walking into every row on the way.
+func identitiesAt(values map[string]any, path []string) []uuid.UUID {
+	if len(path) == 1 {
+		return identitiesIn(values[path[0]])
+	}
+	switch inside := values[path[0]].(type) {
+	case map[string]any:
+		return identitiesAt(inside, path[1:])
+	case []any:
+		var found []uuid.UUID
+		for _, row := range inside {
+			if held, ok := row.(map[string]any); ok {
+				found = append(found, identitiesAt(held, path[1:])...)
+			}
+		}
+		return found
+	}
+	return nil
 }
 
 // pagedPointers returns the page of pointers the numbers ask for.
