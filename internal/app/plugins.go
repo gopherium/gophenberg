@@ -6,7 +6,6 @@ import (
 	"context"
 
 	"github.com/gopherium/framework/gonsole"
-	"github.com/gopherium/framework/pluginkit"
 
 	"github.com/gopherium/gophenberg/sdk"
 )
@@ -35,8 +34,8 @@ func loadPlugins(
 		if err != nil {
 			return gonsole.Loaded{}, err
 		}
-		host := pluginkit.NewHost(built.registered...)
-		return gonsole.Hosted(built.registered, host, built.failed, grace, built.pool.Close), nil
+		host := hostOf(built.registered)
+		return gonsole.Hosted(offerings(built.registered), host, built.failed, grace, built.pool.Close), nil
 	}
 }
 

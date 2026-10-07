@@ -46,7 +46,7 @@ func run(
 		return err
 	}
 	defer built.pool.Close()
-	host := pluginkit.NewHost(built.registered...)
+	host := hostOf(built.registered)
 	if built.failed != nil {
 		return errors.Join(
 			fmt.Errorf("register plugins: %w", built.failed), stopPlugins(ctx, host, settings.serving.StopGrace))
@@ -158,9 +158,12 @@ var servingDefaults = gonsole.Timeouts{
 	Grace: 10 * time.Second, CancelGrace: 5 * time.Second, StopGrace: 5 * time.Second,
 }
 
+// settingsPrefix starts the name of every setting the program reads.
+const settingsPrefix = "GOPHENBERG_"
+
 // settingsEnv returns the reader of the settings under the program prefix.
 func settingsEnv(getenv func(string) string) gonsole.Env {
-	return gonsole.Env{Prefix: "GOPHENBERG_", Getenv: getenv}
+	return gonsole.Env{Prefix: settingsPrefix, Getenv: getenv}
 }
 
 // httpServerFrom returns the HTTP server for the handler at the address and under the timeouts the settings name.

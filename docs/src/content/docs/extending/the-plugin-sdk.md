@@ -4,7 +4,9 @@ description: Everything the sdk package gives a plugin, and what it deliberately
 ---
 
 The `sdk` package is the only Gophenberg package a plugin imports.
-It is small on purpose, and this page is all of it.
+It is small on purpose, and this page is all of it. It names only
+its own types and the standard library's, so a release of a module
+the core uses never changes what a plugin compiles against.
 
 ## Deps
 
@@ -21,8 +23,10 @@ It is small on purpose, and this page is all of it.
 spaces around its value. `Value` returns the text, empty when the
 setting is unset, and `Required` refuses an empty one. `Duration`,
 `Count` and `Flag` read a duration above zero, a whole number above
-zero, or true or false, and return the default you pass when the
-setting is empty. `Within` narrows the prefix, so
+zero, or true or false. `Counts` reads whole numbers above zero
+split by commas, each above the one before, such as `10,50,100`.
+Each returns the default you pass when the setting is empty.
+`Within` narrows the prefix, so
 `deps.Env.Within("FEED_").Count("ITEMS", 20)` reads
 `GOPHENBERG_FEED_ITEMS`. Every error names the full setting, such
 as `GOPHENBERG_FEED_ITEMS: must be a whole number, got "banana"`,
@@ -60,6 +64,9 @@ posts, err := deps.Content.ListPublished(ctx, "post", 10)
 
 Each `sdk.Item` carries `ID`, `Type`, `Path`, `Slug`, `Title`,
 `Excerpt`, `Content`, `Fields`, `PublishedAt`, and `UpdatedAt`.
+`ID` is an `sdk.ID`, sixteen bytes whose `String` gives the
+36 character form, such as `019fb000-0000-7000-8000-000000000001`.
+JSON carries an `sdk.ID` as that same text, in both directions.
 `Path` is the item's public address, so a plugin building links
 prefixes it with `/` and nothing else. The `Content` has the same
 HTML filter applied that the public API uses, block markers intact.
@@ -147,13 +154,13 @@ func (p plugin) Commands() []sdk.Command {
 | `Capability` | One of the capabilities the built-in roles carry, such as `manage_users`, which adds `-as <email>` |
 | `Run` | Does the work |
 
-`Run` receives a `sdk.Call`. `Args` holds the arguments, `Flags`
+`Run` receives a `sdk.Call`. `Args` holds the arguments, and `Flags`
 maps each of the command's own flags the line set to its value as
-text, and `Env` reads the settings the same way `deps.Env` does.
-`Stdout` takes the answer, `Stderr` takes progress and warnings,
-and `Stdin` holds any input. `call.JSON` reports whether `-json` was
-passed, `call.Encode` writes one JSON document to `Stdout`, and
-`call.DatabaseURL` returns the database address. `Start` never ran,
+text. `Stdout` takes the answer, `Stderr` takes progress and
+warnings, and `Stdin` holds any input. `call.JSON` reports whether
+`-json` was passed, and `call.Encode` writes one JSON document to
+`Stdout`. A command reads its settings and the database address
+from the `Deps` the plugin kept at `Register`. `Start` never ran,
 so a command opens what it needs inside `Run` and closes it before
 it returns.
 
@@ -182,14 +189,33 @@ plugin's id, a malformed or repeated name, an empty summary, no
 [commands](/self-hosting/commands/) page shows all of this from the
 operator's side.
 
+## The signed-in account
+
+A request reaches your routes only with a login, except on the
+paths `PublicPaths` names. The host files the account on the
+request's context, and `sdk.SessionFrom` reads it:
+
+```go
+session, ok := sdk.SessionFrom(r.Context())
+if !ok || !session.Can("manage_settings") {
+	http.Error(w, "forbidden", http.StatusForbidden)
+	return
+}
+```
+
+`ok` is false on a public path, where nobody has to sign in. An
+`sdk.Session` carries `ID`, an `sdk.ID` like an item's, and the
+account's `Email`, `Name` and `Role`. `Can` reports whether the
+account's role holds a capability, such as `manage_users`.
+
 ## What the SDK withholds
 
 The absences are deliberate, so build against them:
 
 - **No content writes.** Plugins read published content, the
   editor is the one writer.
-- **No user or session API.** The host guards your routes, and
-  the SDK gives you nothing to act on accounts with.
+- **No account changes.** You read the signed-in account, and the
+  SDK gives you nothing to change accounts with.
 - **No shared database pool.** You get the URL, you own your
   connections and your schema.
 

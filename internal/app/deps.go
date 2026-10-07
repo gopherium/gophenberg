@@ -29,6 +29,6 @@ func pluginDeps(cfg composeConfig, built site) sdk.Deps {
 		DatabaseURL: cfg.databaseURL,
 		Content:     contentbridge.New(built.content, built.registry, built.library, built.settings),
 		Getenv:      getenv,
-		Env:         settingsEnv(getenv),
+		Env:         sdk.Env{Prefix: settingsPrefix, Getenv: getenv},
 	}
 }

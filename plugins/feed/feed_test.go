@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/gopherium/gophenberg/plugins/feed"
 	"github.com/gopherium/gophenberg/sdk"
 )
@@ -52,7 +50,7 @@ func (s *stubPosts) ListPublished(_ context.Context, postType string, limit int)
 // samplePost returns a published post carrying the given title and content.
 func samplePost(title, content string) sdk.Item {
 	return sdk.Item{
-		ID:          uuid.MustParse("019fb000-0000-7000-8000-000000000001"),
+		ID:          sdk.ID{0x01, 0x9f, 0xb0, 0x00, 0x00, 0x00, 0x70, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
 		Type:        "post",
 		Slug:        "a-slug",
 		Path:        "pages/nested/a-slug",

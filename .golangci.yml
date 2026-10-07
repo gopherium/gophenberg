@@ -31,9 +31,6 @@ linters:
             - "**/sdk/*.go"
           allow:
             - $gostd
-            - github.com/google/uuid
-            - github.com/gopherium/framework/gonsole
-            - github.com/gopherium/framework/pluginkit
         plugins-import-only-the-sdk:
           list-mode: lax
           files:

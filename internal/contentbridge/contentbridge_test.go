@@ -16,6 +16,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/contentbridge"
 	"github.com/gopherium/gophenberg/internal/media"
+	"github.com/gopherium/gophenberg/sdk"
 )
 
 // recordingPostStore serves posts and records the filter it was asked for.
@@ -130,7 +131,7 @@ func TestReaderMapsPostsForPlugins(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("ListPublished() returned %d posts, want 1", len(got))
 	}
-	if got[0].ID != stored.ID || got[0].Title != stored.Title || got[0].Slug != stored.Slug {
+	if got[0].ID != sdk.ID(stored.ID) || got[0].Title != stored.Title || got[0].Slug != stored.Slug {
 		t.Errorf("ListPublished()[0] = %+v, want the stored post", got[0])
 	}
 	if got[0].Content != stored.Content {
@@ -268,7 +269,7 @@ func TestReaderSkipsAPostUnpublishedWhileItWasReading(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("ListPublished() returned %d posts, want only the one still published", len(got))
 	}
-	if got[0].ID != staying.ID {
+	if got[0].ID != sdk.ID(staying.ID) {
 		t.Errorf("ListPublished()[0] = %q, want %q", got[0].Title, staying.Title)
 	}
 }

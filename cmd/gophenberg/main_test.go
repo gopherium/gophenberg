@@ -21,9 +21,10 @@ import (
 
 const unreachableDatabaseURL = "postgres://postgres:gophenberg@localhost:9/postgres?sslmode=disable&connect_timeout=1"
 
-// settingsOf returns the settings reader the command line hands the plugins over env.
-func settingsOf(env map[string]string) gonsole.Env {
-	return app.Program(testkit.Getenv(env), registerPlugins).Env
+// settingsOf returns the settings reader under the command line's prefix over env.
+func settingsOf(env map[string]string) sdk.Env {
+	settings := app.Program(testkit.Getenv(env), registerPlugins).Env
+	return sdk.Env{Prefix: settings.Prefix, Getenv: settings.Getenv}
 }
 
 // declaredNames returns every name the package's own files declare, imports aside, sorted.

@@ -5,13 +5,11 @@ package sdk
 import (
 	"context"
 	"slices"
-
-	"github.com/google/uuid"
 )
 
 // Session is the account a request is made by, as a plugin reads it.
 type Session struct {
-	ID    uuid.UUID
+	ID    ID
 	Email string
 	Name  string
 	Role  string
@@ -20,7 +18,7 @@ type Session struct {
 }
 
 // NewSession returns the session a host files for a request.
-func NewSession(id uuid.UUID, email, name, role string, capabilities []string) Session {
+func NewSession(id ID, email, name, role string, capabilities []string) Session {
 	return Session{
 		ID: id, Email: email, Name: name, Role: role,
 		capabilities: slices.Clone(capabilities),

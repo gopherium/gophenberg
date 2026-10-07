@@ -104,7 +104,7 @@ func (r reader) toSDKItem(ctx context.Context, t content.Type, c content.Content
 		published = *c.PublishedAt
 	}
 	return sdk.Item{
-		ID:          c.ID,
+		ID:          sdk.ID(c.ID),
 		Type:        c.Type,
 		Path:        c.Path,
 		Slug:        c.Slug,
