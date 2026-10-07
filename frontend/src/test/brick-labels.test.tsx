@@ -2,6 +2,7 @@
 
 import { setViewport } from '@gopherium/godmin/testing'
 import { useToaster } from '@gopherium/godmin'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { setLocaleData } from '@wordpress/i18n'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -33,9 +34,11 @@ function renderToast() {
 		return <button onClick={() => toaster.show('Saved.')}>raise</button>
 	}
 	return render(
-		<AdminToaster>
-			<Raise />
-		</AdminToaster>,
+		<QueryClientProvider client={new QueryClient()}>
+			<AdminToaster>
+				<Raise />
+			</AdminToaster>
+		</QueryClientProvider>,
 	)
 }
 
