@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { LIST_CHROME_DOMAIN, listChromeCatalogFor } from '@gopherium/godmin'
 import { DOMAIN as BRICK_DOMAIN, catalogFor as brickCatalogFor } from '@gopherium/react-auth'
 
 import { startLocale as start } from '@gopherium/gottext'
@@ -15,10 +16,16 @@ export interface Catalogs {
 	own: (locale: string) => Promise<Catalog | undefined>
 	editor: (locale: string) => Promise<Catalog | undefined>
 	brick: (locale: string) => Promise<Catalog | undefined>
+	chrome: (locale: string) => Promise<Catalog | undefined>
 }
 
 /** The catalogues the admin reads in a browser. */
-const shipped: Catalogs = { own: catalogFor, editor: editorCatalogFor, brick: brickCatalogFor }
+const shipped: Catalogs = {
+	own: catalogFor,
+	editor: editorCatalogFor,
+	brick: brickCatalogFor,
+	chrome: listChromeCatalogFor,
+}
 
 /**
  * Loads the catalogues the admin reads and returns the language it settled on.
@@ -32,6 +39,7 @@ export async function startLocale(from: Catalogs = shipped): Promise<string> {
 			{ domain: DOMAIN, load: from.own },
 			{ load: from.editor },
 			{ domain: BRICK_DOMAIN, load: from.brick },
+			{ domain: LIST_CHROME_DOMAIN, load: from.chrome },
 		],
 		{ defaultLocale: DEFAULT_LOCALE },
 	)
