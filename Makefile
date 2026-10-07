@@ -45,6 +45,11 @@ brick-unlink:
 
 bump:
 	@test -n "$(V)" || (echo "usage: make bump V=0.2.0" && exit 1)
+	@sdk="$$(GOWORK=off go list -m -f '{{.Version}}' github.com/gopherium/gophenberg/sdk)" && \
+		{ git rev-parse -q --verify "refs/tags/sdk/$$sdk" >/dev/null || \
+		{ echo "go.mod requires the sdk at $$sdk, but sdk/$$sdk carries no tag. Tag it, or fetch the tags, before bumping."; exit 1; }; } && \
+		{ git diff --quiet "refs/tags/sdk/$$sdk" HEAD -- 'sdk/*.go' sdk/go.mod || \
+		{ echo "the sdk changed since sdk/$$sdk. Tag a new sdk version and require it in go.mod before bumping."; exit 1; }; }
 	printf '%s\n' "$(V)" > internal/version/VERSION
 
 bump-kit:
