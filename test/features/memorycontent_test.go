@@ -180,17 +180,26 @@ func (s *memoryContent) clearField(typeKey, key string) {
 	}
 }
 
-// Revisions returns the item's revisions newest first, without their content.
+// Revisions returns the item's revisions and autosaves newest first, without their content.
 func (s *memoryContent) Revisions(_ context.Context, contentID uuid.UUID) ([]content.Revision, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	held := s.revisions[contentID]
-	listed := make([]content.Revision, len(held))
-	for i, stored := range held {
-		listed[len(held)-1-i] = stored
-		listed[len(held)-1-i].Content = ""
+	listed := append([]content.Revision{}, s.revisions[contentID]...)
+	for held, parked := range s.autosaves {
+		if held.contentID == contentID {
+			listed = append(listed, parked)
+		}
 	}
+	for i := range listed {
+		listed[i].Content = ""
+	}
+	slices.SortFunc(listed, newestFirst)
 	return listed, nil
+}
+
+// newestFirst orders two revisions by when they were written and then by identity, the newest first.
+func newestFirst(one, other content.Revision) int {
+	return cmp.Or(other.CreatedAt.Compare(one.CreatedAt), bytes.Compare(other.ID[:], one.ID[:]))
 }
 
 // RevisionByID returns the item's revision, or [content.ErrRevisionNotFound].
@@ -207,14 +216,44 @@ func (s *memoryContent) RevisionByID(
 	return content.Revision{}, content.ErrRevisionNotFound
 }
 
-// SaveAutosave stores the author's autosave of the item, replacing any earlier one.
+// DeleteRevision removes the item's revision, reporting [content.ErrRevisionNotFound] or [content.ErrTrashed].
+func (s *memoryContent) DeleteRevision(_ context.Context, contentID, revisionID uuid.UUID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.editable(contentID); err != nil {
+		return err
+	}
+	held := s.revisions[contentID]
+	at := slices.IndexFunc(held, func(stored content.Revision) bool { return stored.ID == revisionID })
+	if at < 0 {
+		return content.ErrRevisionNotFound
+	}
+	s.revisions[contentID] = slices.Delete(held, at, at+1)
+	return nil
+}
+
+// editable reports [content.ErrNotFound] or [content.ErrTrashed] when the item may not be written.
+func (s *memoryContent) editable(id uuid.UUID) error {
+	stored, found := s.items[id]
+	if !found {
+		return content.ErrNotFound
+	}
+	return stored.Editable()
+}
+
+// SaveAutosave stores the author's autosave of the item under its first row id, unless the item is in the trash.
 func (s *memoryContent) SaveAutosave(_ context.Context, autosave content.Revision) (content.Revision, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, found := s.items[autosave.ContentID]; !found {
-		return content.Revision{}, content.ErrNotFound
+	if err := s.editable(autosave.ContentID); err != nil {
+		return content.Revision{}, err
 	}
-	s.autosaves[autosaveKey{autosave.ContentID, autosave.AuthorID}] = autosave
+	key := autosaveKey{autosave.ContentID, autosave.AuthorID}
+	autosave.Kind = content.RevisionKindAutosave
+	if parked, found := s.autosaves[key]; found {
+		autosave.ID = parked.ID
+	}
+	s.autosaves[key] = autosave
 	return autosave, nil
 }
 
@@ -662,9 +701,9 @@ func paged[T any](matched []T, f content.Filter) []T {
 	return matched[start:min(start+f.PerPage, len(matched))]
 }
 
-// Update stores the item's editable fields, or reports it missing or stale.
+// Update stores the item's editable fields and any snapshot, or reports it missing or stale.
 func (s *memoryContent) Update(
-	_ context.Context, c content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision, _ int,
+	_ context.Context, c content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision, revisionCap int,
 ) (content.Content, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -693,12 +732,33 @@ func (s *memoryContent) Update(
 	if s.addressHeld(settled.Path, c.ID) {
 		return content.Content{}, content.ErrSlugTaken
 	}
-	if snapshot != nil {
-		s.revisions[c.ID] = append(s.revisions[c.ID], *snapshot)
+	if err := s.snapshotRevision(c.ID, snapshot, revisionCap); err != nil {
+		return content.Content{}, err
 	}
 	s.items[settled.ID] = settled
 	s.carryDescendants(settled, stored.Path)
 	return settled, nil
+}
+
+// snapshotRevision stores any snapshot of the item and prunes its revisions past the cap, refusing a reused id.
+func (s *memoryContent) snapshotRevision(id uuid.UUID, snapshot *content.Revision, revisionCap int) error {
+	if snapshot == nil {
+		return nil
+	}
+	if slices.ContainsFunc(s.revisions[id], func(stored content.Revision) bool { return stored.ID == snapshot.ID }) {
+		return fmt.Errorf("memory: create revision: revision %s is already stored", snapshot.ID)
+	}
+	s.revisions[id] = pruned(append(s.revisions[id], *snapshot), revisionCap)
+	return nil
+}
+
+// pruned returns the revisions with only the newest kept up to the cap, every one kept when the cap is zero.
+func pruned(held []content.Revision, revisionCap int) []content.Revision {
+	if revisionCap <= 0 || len(held) <= revisionCap {
+		return held
+	}
+	slices.SortFunc(held, newestFirst)
+	return held[:revisionCap]
 }
 
 // freeSiblingSlug returns the slug the item may carry beside its siblings, or [content.ErrSlugTaken].

@@ -16,16 +16,6 @@ import (
 
 // memoryGaps names the shared cases the in-memory stores do not pass yet.
 var memoryGaps = map[string]bool{
-	"UpdatePrunesBeyondTheCap":                  true,
-	"UpdatePruneSparesAutosaves":                true,
-	"RevisionsScopeToTheirPost":                 true,
-	"DeleteRevision":                            true,
-	"DeleteRevisionRefusesAnItemInTheTrash":     true,
-	"DeleteRevisionReportsMissingRevisions":     true,
-	"UpdateReportsADuplicateSnapshot":           true,
-	"SaveAutosaveReplacesTheAuthorsAutosave":    true,
-	"SaveAutosaveKeepsOnePerAuthor":             true,
-	"SaveAutosaveRefusesAnItemInTheTrash":       true,
 	"EmptyTrashTakesTheRevisionsAlong":          true,
 	"ListsWhatPointsThroughARelationInsideARow": true,
 	"ListOmitsContent":                          true,
