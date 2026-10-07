@@ -283,7 +283,13 @@ func (s *memoryContent) Create(_ context.Context, c content.Content) (content.Co
 		s.items[stored.ID] = stored
 		return stored, nil
 	}
-	return content.Content{}, content.ErrSlugTaken
+	slug := identifiedSlug(c.Slug, c.ID)
+	if s.addressHeld(content.AddressUnder(prefix, slug), c.ID) {
+		return content.Content{}, content.ErrSlugTaken
+	}
+	stored := c.Place(prefix, slug)
+	s.items[stored.ID] = stored
+	return stored, nil
 }
 
 // slugAttempts bounds the suffixes tried when an address is taken.
@@ -295,6 +301,11 @@ func numberedSlug(slug string, attempt int) string {
 		return slug
 	}
 	return slug + "-" + strconv.Itoa(attempt)
+}
+
+// identifiedSlug returns slug carrying the id of the content item holding it.
+func identifiedSlug(slug string, id uuid.UUID) string {
+	return slug + "-" + strings.ReplaceAll(id.String(), "-", "")
 }
 
 // addressHeld reports whether another item already answers at the address.
@@ -576,21 +587,49 @@ func (s *memoryContent) Update(
 	if err := s.holdTargets(c, stored.Fields); err != nil {
 		return content.Content{}, err
 	}
-	prefix := content.AddressPrefix(c.Path, c.Slug)
+	slug, err := s.freeSiblingSlug(c)
+	if err != nil {
+		return content.Content{}, err
+	}
+	settled := c.Place(content.AddressPrefix(c.Path, c.Slug), slug)
+	if s.addressHeld(settled.Path, c.ID) {
+		return content.Content{}, content.ErrSlugTaken
+	}
+	if snapshot != nil {
+		s.revisions[c.ID] = append(s.revisions[c.ID], *snapshot)
+	}
+	s.items[settled.ID] = settled
+	s.carryDescendants(settled, stored.Path)
+	return settled, nil
+}
+
+// freeSiblingSlug returns the slug the item may carry beside its siblings, or [content.ErrSlugTaken].
+func (s *memoryContent) freeSiblingSlug(c content.Content) (string, error) {
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
 		slug := numberedSlug(c.Slug, attempt)
-		if s.addressHeld(content.AddressUnder(prefix, slug), c.ID) {
-			continue
+		if !s.siblingSlugTaken(c, slug) {
+			return slug, nil
 		}
-		if snapshot != nil {
-			s.revisions[c.ID] = append(s.revisions[c.ID], *snapshot)
-		}
-		settled := c.Place(prefix, slug)
-		s.items[settled.ID] = settled
-		s.carryDescendants(settled, stored.Path)
-		return settled, nil
 	}
-	return content.Content{}, content.ErrSlugTaken
+	return "", content.ErrSlugTaken
+}
+
+// siblingSlugTaken reports whether another item of the type under the same parent carries the slug.
+func (s *memoryContent) siblingSlugTaken(c content.Content, slug string) bool {
+	for _, stored := range s.items {
+		if stored.Type == c.Type && stored.Slug == slug && stored.ID != c.ID && sameParent(stored.ParentID, c.ParentID) {
+			return true
+		}
+	}
+	return false
+}
+
+// sameParent reports whether two parent identities name the same parent, two absent ones included.
+func sameParent(one, other *uuid.UUID) bool {
+	if one == nil || other == nil {
+		return one == other
+	}
+	return *one == *other
 }
 
 // Trash marks the item trashed, frees its address and drops its parked words, or refuses while it holds children.

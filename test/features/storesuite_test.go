@@ -17,10 +17,6 @@ import (
 // memoryGaps names the shared cases the in-memory stores do not pass yet.
 var memoryGaps = map[string]bool{
 	"CreateRejectsAnUnknownAuthor":                        true,
-	"CreatesPastTheSuffixesItTries":                       true,
-	"UpdateSuffixesTakenSlugs":                            true,
-	"ReportsExhaustedSlugSuffixes":                        true,
-	"CreatesUnderACrowdedSlugAnyway":                      true,
 	"UpdatePrunesBeyondTheCap":                            true,
 	"UpdatePruneSparesAutosaves":                          true,
 	"RevisionsScopeToTheirPost":                           true,
