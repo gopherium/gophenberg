@@ -938,6 +938,18 @@ func (s *memoryTypes) serving(key string) bool {
 	return false
 }
 
+// nests reports whether the stored type takes items under a parent.
+func (s *memoryTypes) nests(key string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, stored := range s.types {
+		if stored.Key == key {
+			return stored.Hierarchical
+		}
+	}
+	return false
+}
+
 // AdoptType takes the plugin's type over as the site's own.
 func (s *memoryTypes) AdoptType(_ context.Context, key string) error {
 	s.mu.Lock()

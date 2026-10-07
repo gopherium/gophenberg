@@ -273,10 +273,13 @@ func (s *memoryContent) DeleteAutosave(_ context.Context, contentID, authorID uu
 func (s *memoryContent) Create(_ context.Context, c content.Content) (content.Content, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	prefix, err := s.fileable(c, content.AddressPrefix(c.Path, c.Slug))
+	if err != nil {
+		return content.Content{}, err
+	}
 	if err := s.valuesDeclared(c); err != nil {
 		return content.Content{}, err
 	}
-	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
 		slug := numberedSlug(c.Slug, attempt)
 		if s.addressHeld(content.AddressUnder(prefix, slug), c.ID) {
@@ -302,6 +305,71 @@ func (s *memoryContent) created(c content.Content, prefix, slug string) (content
 	stored := c.Place(prefix, slug)
 	s.items[stored.ID] = stored
 	return stored, nil
+}
+
+// nestable returns the reason the item's type no longer takes it under a parent.
+func (s *memoryContent) nestable(c content.Content) error {
+	if c.ParentID == nil || s.types.nests(c.Type) {
+		return nil
+	}
+	return content.ErrNotHierarchical
+}
+
+// fileable returns the address prefix a new item takes, or the reason its parent cannot hold it.
+func (s *memoryContent) fileable(c content.Content, prefix string) (string, error) {
+	if err := s.nestable(c); err != nil {
+		return "", err
+	}
+	if c.ParentID == nil {
+		return prefix, nil
+	}
+	return s.parentHolds(*c.ParentID, c.ID)
+}
+
+// movable returns the address prefix an edit files the stored item under, or the reason it may not move there.
+func (s *memoryContent) movable(c, stored content.Content, prefix string) (string, error) {
+	if c.ParentID == nil {
+		return prefix, nil
+	}
+	if err := s.nestable(c); err != nil {
+		return "", err
+	}
+	if sameParent(stored.ParentID, c.ParentID) {
+		return prefix, nil
+	}
+	return s.parentHolds(*c.ParentID, c.ID)
+}
+
+// parentHolds returns the parent's address, refusing one gone, in the trash, or under the item.
+func (s *memoryContent) parentHolds(id, child uuid.UUID) (string, error) {
+	parent, found := s.items[id]
+	if !found {
+		return "", content.ErrParentType
+	}
+	if parent.Status == content.StatusTrash {
+		return "", content.ErrParentTrashed
+	}
+	if s.chainHolds(id, child) {
+		return "", content.ErrCycle
+	}
+	return parent.Path, nil
+}
+
+// chainHolds reports whether the item or any item above it is the child.
+func (s *memoryContent) chainHolds(id, child uuid.UUID) bool {
+	seen := make(map[uuid.UUID]bool)
+	for !seen[id] {
+		if id == child {
+			return true
+		}
+		seen[id] = true
+		above, found := s.items[id]
+		if !found || above.ParentID == nil {
+			return false
+		}
+		id = *above.ParentID
+	}
+	return false
 }
 
 // valuesDeclared refuses a value whose field no group declares at all.
@@ -607,6 +675,10 @@ func (s *memoryContent) Update(
 	if !stored.UpdatedAt.Equal(expectedUpdatedAt) {
 		return content.Content{}, content.ErrConflict
 	}
+	prefix, err := s.movable(c, stored, content.AddressPrefix(c.Path, c.Slug))
+	if err != nil {
+		return content.Content{}, err
+	}
 	if err := s.valuesDeclared(c); err != nil {
 		return content.Content{}, err
 	}
@@ -617,7 +689,7 @@ func (s *memoryContent) Update(
 	if err != nil {
 		return content.Content{}, err
 	}
-	settled := c.Place(content.AddressPrefix(c.Path, c.Slug), slug)
+	settled := c.Place(prefix, slug)
 	if s.addressHeld(settled.Path, c.ID) {
 		return content.Content{}, content.ErrSlugTaken
 	}
