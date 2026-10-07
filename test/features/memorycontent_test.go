@@ -277,8 +277,19 @@ func (s *memoryContent) Delete(_ context.Context, id uuid.UUID) error {
 	if _, found := s.items[id]; !found {
 		return content.ErrNotFound
 	}
-	delete(s.items, id)
+	s.drop(id)
 	return nil
+}
+
+// drop removes the item together with its revisions and autosaves.
+func (s *memoryContent) drop(id uuid.UUID) {
+	delete(s.items, id)
+	delete(s.revisions, id)
+	for held := range s.autosaves {
+		if held.contentID == id {
+			delete(s.autosaves, held)
+		}
+	}
 }
 
 // EmptyTrash removes the trashed items of the type, only the author's when one is named, counting what it left.
@@ -294,7 +305,7 @@ func (s *memoryContent) EmptyTrash(_ context.Context, contentType string, author
 			kept++
 			continue
 		}
-		delete(s.items, id)
+		s.drop(id)
 		deleted++
 	}
 	return deleted, kept, nil

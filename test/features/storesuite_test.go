@@ -16,7 +16,6 @@ import (
 
 // memoryGaps names the shared cases the in-memory stores do not pass yet.
 var memoryGaps = map[string]bool{
-	"EmptyTrashTakesTheRevisionsAlong":          true,
 	"ListsWhatPointsThroughARelationInsideARow": true,
 	"ListOmitsContent":                          true,
 }
