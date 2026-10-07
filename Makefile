@@ -62,18 +62,18 @@ seed: db-up
 
 test:
 	go test ./...
-	go -C sdk test ./...
+	GOWORK=off go -C sdk test ./...
 
 test-race:
 	go test -race ./...
-	go -C sdk test -race ./...
+	GOWORK=off go -C sdk test -race ./...
 
 peers:
 	pnpm peers check
 
 lint:
 	golangci-lint run
-	cd sdk && golangci-lint run
+	cd sdk && GOWORK=off golangci-lint run
 	go run ./cmd/doclint
 
 pot:
@@ -110,7 +110,7 @@ cover:
 	GOPHENBERG_COVER_BINDIR=$(CURDIR)/$(COVERDATA)/bin \
 	GOPHENBERG_COVER_GOCOVERDIR=$(CURDIR)/$(COVERDATA)/counters \
 	go test -cover -covermode=atomic $(GOTESTFLAGS) $(COVERPKGS) -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
-	go -C sdk test -cover -covermode=atomic $(GOTESTFLAGS) ./... -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
+	GOWORK=off go -C sdk test -cover -covermode=atomic $(GOTESTFLAGS) ./... -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
 	@echo "=== merged unit + binary coverage ==="
 	go tool covdata percent -i=$(COVERDATA)/counters
 	@echo
