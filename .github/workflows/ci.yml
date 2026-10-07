@@ -29,7 +29,9 @@ jobs:
         with:
           node-version: 26
       - run: make cover GOTESTFLAGS=-race
-      - run: go vet ./...
+      - run: |
+          go vet ./...
+          go -C sdk vet ./...
       - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: .covdata/cover.out
@@ -140,9 +142,16 @@ jobs:
         with:
           version: v2.13.2
           install-mode: goinstall
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.13.2
+          install-mode: goinstall
+          working-directory: sdk
       - run: go run ./cmd/doclint
       - name: Vet the macOS build
-        run: go vet ./...
+        run: |
+          go vet ./...
+          go -C sdk vet ./...
         env:
           GOOS: darwin
           GOARCH: arm64
@@ -182,6 +191,6 @@ jobs:
             echo "no sdk package on base branch, skipping"
             exit 0
           fi
-          (cd base && apidiff -w /tmp/sdk-base.export ./sdk)
-          apidiff -incompatible /tmp/sdk-base.export ./sdk | tee /tmp/incompatible.txt
+          (cd base/sdk && apidiff -w /tmp/sdk-base.export .)
+          (cd sdk && apidiff -incompatible /tmp/sdk-base.export .) | tee /tmp/incompatible.txt
           test ! -s /tmp/incompatible.txt || echo "::warning::the sdk broke compatibility, intentional below 1.0"
