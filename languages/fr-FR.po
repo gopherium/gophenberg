@@ -369,10 +369,6 @@ msgstr[1] "Impossible de supprimer tous les éléments."
 msgstr[2] "Impossible de supprimer tous les éléments."
 
 #, fuzzy
-msgid "Could not delete that post."
-msgstr "Impossible de supprimer cet article."
-
-#, fuzzy
 msgid "Could not empty the trash."
 msgstr "Impossible de vider la corbeille."
 
@@ -381,19 +377,12 @@ msgid "Could not load that post."
 msgstr "Impossible de charger cet article."
 
 #, fuzzy
-msgid "Could not move every post to trash."
-msgstr "Impossible de déplacer tous les articles dans la corbeille."
-
-#, fuzzy
 msgid "Could not move that post to trash."
 msgstr "Impossible de déplacer cet article dans la corbeille."
 
 #, fuzzy
 msgid "Could not restore that post."
-msgid_plural "Could not restore those posts."
-msgstr[0] "Impossible de rétablir cet article."
-msgstr[1] "Impossible de rétablir ces articles."
-msgstr[2] "Impossible de rétablir ces articles."
+msgstr "Impossible de rétablir cet article."
 
 #, fuzzy
 msgid "Could not save that post."
@@ -486,10 +475,6 @@ msgstr "Document"
 #, fuzzy
 msgid "Draft saved."
 msgstr "Brouillon enregistré."
-
-#, fuzzy
-msgid "Edit"
-msgstr "Modifier"
 
 #, fuzzy
 msgid "Email"
@@ -779,10 +764,6 @@ msgstr "Déplacer toutes les adresses"
 #, fuzzy
 msgid "Move the field"
 msgstr "Déplacer le champ"
-
-#, fuzzy
-msgid "Move to Trash"
-msgstr "Déplacer dans la corbeille"
 
 #, fuzzy
 msgid "Move to trash"
@@ -1653,13 +1634,6 @@ msgid "Something went wrong. Try again."
 msgstr "Quelque chose a mal tourné. Réessayez."
 
 #, fuzzy
-msgid "%(count)s post moved to the trash."
-msgid_plural "%(count)s posts moved to the trash."
-msgstr[0] "%(count)s article déplacé dans la corbeille."
-msgstr[1] "%(count)s articles déplacés dans la corbeille."
-msgstr[2] "%(count)s articles déplacés dans la corbeille."
-
-#, fuzzy
 msgid "%(field)s declared."
 msgstr "%(field)s déclaré."
 
@@ -1799,23 +1773,12 @@ msgid "Media %(id)s"
 msgstr "Média %(id)s"
 
 #, fuzzy
-msgid "Move %(title)s to the trash?"
-msgstr "Déplacer %(title)s dans la corbeille ?"
-
-#, fuzzy
 msgid "Move %(name)s down"
 msgstr "Descendre %(name)s"
 
 #, fuzzy
 msgid "Move %(name)s up"
 msgstr "Monter %(name)s"
-
-#, fuzzy
-msgid "Move these %(count)s post to the trash?"
-msgid_plural "Move these %(count)s posts to the trash?"
-msgstr[0] "Déplacer ce %(count)s article dans la corbeille ?"
-msgstr[1] "Déplacer ces %(count)s articles dans la corbeille ?"
-msgstr[2] "Déplacer ces %(count)s articles dans la corbeille ?"
 
 #, fuzzy
 msgid "Remove %(title)s"
@@ -2556,3 +2519,95 @@ msgstr "L'élément n'a pas pu être rétabli."
 #, fuzzy
 msgid "The item could not be permanently deleted."
 msgstr "L'élément n'a pas pu être supprimé définitivement."
+
+#, fuzzy
+msgctxt "verb"
+msgid "Trash"
+msgstr "Mettre à la corbeille"
+
+#, fuzzy
+msgid "Permanently delete"
+msgstr "Supprimer définitivement"
+
+#, fuzzy
+msgid "Move %s item to the trash?"
+msgid_plural "Move %s items to the trash?"
+msgstr[0] "Déplacer %s élément dans la corbeille ?"
+msgstr[1] "Déplacer %s éléments dans la corbeille ?"
+msgstr[2] "Déplacer %s éléments dans la corbeille ?"
+
+#, fuzzy
+msgid "Delete %s item for good? This cannot be undone."
+msgid_plural "Delete %s items for good? This cannot be undone."
+msgstr[0] "Supprimer %s élément définitivement ? Cette action est irréversible."
+msgstr[1] "Supprimer %s éléments définitivement ? Cette action est irréversible."
+msgstr[2] "Supprimer %s éléments définitivement ? Cette action est irréversible."
+
+#, fuzzy
+msgid "Move \"%(title)s\" to the trash?"
+msgstr "Déplacer « %(title)s » dans la corbeille ?"
+
+#, fuzzy
+msgid "Delete \"%(title)s\" for good? This cannot be undone."
+msgstr "Supprimer « %(title)s » définitivement ? Cette action est irréversible."
+
+#, fuzzy
+msgid "\"%s\" moved to the trash."
+msgstr "« %s » déplacé dans la corbeille."
+
+#, fuzzy
+msgid "%s item moved to the trash."
+msgid_plural "%s items moved to the trash."
+msgstr[0] "%s élément déplacé dans la corbeille."
+msgstr[1] "%s éléments déplacés dans la corbeille."
+msgstr[2] "%s éléments déplacés dans la corbeille."
+
+#, fuzzy
+msgid "%s item could not be moved to the trash."
+msgid_plural "%s items could not be moved to the trash."
+msgstr[0] "%s élément n'a pas pu être déplacé dans la corbeille."
+msgstr[1] "%s éléments n'ont pas pu être déplacés dans la corbeille."
+msgstr[2] "%s éléments n'ont pas pu être déplacés dans la corbeille."
+
+#, fuzzy
+msgid "\"%s\" has been restored."
+msgstr "« %s » a été rétabli."
+
+#, fuzzy
+msgid "%s page has been restored."
+msgid_plural "%s pages have been restored."
+msgstr[0] "%s page a été rétablie."
+msgstr[1] "%s pages ont été rétablies."
+msgstr[2] "%s pages ont été rétablies."
+
+#, fuzzy
+msgid "%s post has been restored."
+msgid_plural "%s posts have been restored."
+msgstr[0] "%s article a été rétabli."
+msgstr[1] "%s articles ont été rétablis."
+msgstr[2] "%s articles ont été rétablis."
+
+#, fuzzy
+msgid "%s item could not be restored."
+msgid_plural "%s items could not be restored."
+msgstr[0] "%s élément n'a pas pu être rétabli."
+msgstr[1] "%s éléments n'ont pas pu être rétablis."
+msgstr[2] "%s éléments n'ont pas pu être rétablis."
+
+#, fuzzy
+msgid "\"%s\" permanently deleted."
+msgstr "« %s » supprimé définitivement."
+
+#, fuzzy
+msgid "%s item permanently deleted."
+msgid_plural "%s items permanently deleted."
+msgstr[0] "%s élément supprimé définitivement."
+msgstr[1] "%s éléments supprimés définitivement."
+msgstr[2] "%s éléments supprimés définitivement."
+
+#, fuzzy
+msgid "%s item could not be permanently deleted."
+msgid_plural "%s items could not be permanently deleted."
+msgstr[0] "%s élément n'a pas pu être supprimé définitivement."
+msgstr[1] "%s éléments n'ont pas pu être supprimés définitivement."
+msgstr[2] "%s éléments n'ont pas pu être supprimés définitivement."

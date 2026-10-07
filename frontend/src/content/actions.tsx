@@ -1,69 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Notice, Stack, Text, sessionMayChange } from '@gophenberg/frontend-sdk'
+import { backupIcon, sessionMayChange, trashIcon } from '@gophenberg/frontend-sdk'
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
-import { formatNumber } from '@gopherium/gottext'
+import { ConfirmBody, bulkNotes, runEach, useToaster } from '@gopherium/godmin'
+import type { BulkWords } from '@gopherium/godmin'
 import { useSession } from '@gopherium/react-auth'
-import { __, _n, _x, sprintf } from '@wordpress/i18n'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
-import { useCallback, useMemo } from 'react'
+import { __, _x } from '@wordpress/i18n'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useMemo, useState } from 'react'
 
+import { deleteQuestion, deleteWords, restoreWords, trashQuestion, trashWords } from './actionWords'
+import type { NameCut } from './actionWords'
 import { deletePost, restorePost, trashPost } from './api'
 import type { Post } from './api'
 
-export interface PostNotice {
-	intent: 'error' | 'success'
-	message: string
-	undoIds?: string[]
+/** Shows the failure of a run above the list, none when every post finished, and focuses the list once a post moved. */
+type RunSettled = (failure: string | undefined, moved: boolean) => void
+
+/** What the list does around a run over its posts. */
+export interface ListRun {
+	/** Clears the failure the last run left above the list and returns what settles this run on the list. */
+	onStart: () => RunSettled
 }
 
-export type ReportNotice = (notice: PostNotice | null) => void
-
-/**
- * Returns the name a post is listed under.
- * @param post - The post to name.
- * @returns The title, or a stand in for a post that has none.
- */
-function nameOf(post: Post): string {
-	return post.title === '' ? __('(no title)', 'gophenberg') : post.title
-}
-
-/**
- * Returns the question asked before the given posts are trashed.
- * @param items - The posts acted on.
- * @returns The question to show.
- */
-function trashQuestion(items: Post[]): string {
-	if (items.length === 1) {
-		return sprintf(__('Move %(title)s to the trash?', 'gophenberg'), { title: nameOf(items[0]) })
-	}
-	const many = _n(
-		'Move these %(count)s post to the trash?',
-		'Move these %(count)s posts to the trash?',
-		items.length,
-		'gophenberg',
-	)
-	return sprintf(many, { count: formatNumber(items.length) })
-}
-
-/**
- * Returns the note carried to the screen once the posts reach the trash.
- * @param count - How many posts were trashed.
- * @returns The note to show.
- */
-function trashedNote(count: number): string {
-	if (count === 1) {
-		return __('Moved to the trash.', 'gophenberg')
-	}
-	const many = _n(
-		'%(count)s post moved to the trash.',
-		'%(count)s posts moved to the trash.',
-		count,
-		'gophenberg',
-	)
-	return sprintf(many, { count: formatNumber(count) })
-}
+/** Runs one call over each post and reports what the run reached in the given words. */
+type RunOver = (items: Post[], call: (post: Post) => Promise<unknown>, words: BulkWords<Post>) => Promise<void>
 
 /**
  * Returns the handler that reloads the listing and the status counts and forgets the cached copy of each post moved.
@@ -83,177 +44,142 @@ export function useRefresh(): (moved?: string[]) => Promise<unknown> {
 }
 
 /**
- * Renders a confirmation body over the given work.
- * @param props - The question, the failure to report, the button label, the work to run and the posts it moves.
- * @returns The confirmation body.
+ * Returns the handler running one call over each post and reporting what the run reached.
+ * @param list - What the list does around a run.
+ * @returns The run handler.
  */
-function Confirm({
-	question,
-	failure,
-	confirmLabel,
-	run,
-	closeModal,
-	done,
-	moved = [],
-}: {
-	question: string
-	failure: string
-	confirmLabel: string
-	run: () => Promise<unknown>
-	closeModal?: () => void
-	done?: () => void
-	moved?: string[]
-}) {
+function useRunOver(list: ListRun): RunOver {
 	const refresh = useRefresh()
-	const action = useMutation({
-		mutationFn: run,
-		onSuccess: async () => {
-			done?.()
-			await refresh(moved)
-			closeModal?.()
+	const toaster = useToaster()
+	return useCallback(
+		async (items, call, words) => {
+			const settle = list.onStart()
+			const outcome = await runEach(items, call)
+			await refresh(items.map((post) => post.id))
+			const notes = bulkNotes(items, outcome, words)
+			if (notes.toast !== undefined) {
+				toaster.show(notes.toast)
+			}
+			settle(notes.notice, outcome.done > 0)
 		},
-		onError: () => {
-			void refresh(moved)
-		},
-	})
-	return (
-		<Stack direction="column" gap="md">
-			<Text>{question}</Text>
-			{action.isError && (
-				<Notice.Root intent="error" role="alert">
-					<Notice.Description>{failure}</Notice.Description>
-				</Notice.Root>
-			)}
-			<Stack direction="row" gap="sm" justify="flex-end">
-				<Button variant="outline" onClick={closeModal}>
-					{__('Cancel', 'gophenberg')}
-				</Button>
-				<Button loading={action.isPending} onClick={() => action.mutate()}>
-					{confirmLabel}
-				</Button>
-			</Stack>
-		</Stack>
+		[list, refresh, toaster],
 	)
 }
 
 /**
- * Renders the confirmation asked for before a post is trashed.
- * @param props - The posts acted on and the handler closing the modal.
+ * Renders the confirmation asked for before a run over the picked posts, closing once the run settles.
+ * @param props - The posts, the handler closing the modal, the question, the confirm label and the run.
  * @returns The confirmation body.
  */
-function TrashConfirm({
+function RunConfirm({
 	items,
 	closeModal,
-	report,
-}: RenderModalProps<Post> & { report: ReportNotice }) {
-	const single = items.length === 1
+	question,
+	confirmLabel,
+	run,
+}: RenderModalProps<Post> & { question: string, confirmLabel: string, run: (items: Post[]) => Promise<void> }) {
+	const [busy, setBusy] = useState(false)
 	return (
-		<Confirm
-			question={trashQuestion(items)}
-			failure={
-				single
-					? __('Could not move that post to trash.', 'gophenberg')
-					: __('Could not move every post to trash.', 'gophenberg')
-			}
-			confirmLabel={__('Move to Trash', 'gophenberg')}
-			moved={items.map((post) => post.id)}
-			run={async () => {
-				const settled = await Promise.allSettled(items.map((post) => trashPost(post.id)))
-				if (settled.some((outcome) => outcome.status === 'rejected')) {
-					throw new Error('trashing did not finish')
-				}
+		<ConfirmBody
+			confirmLabel={confirmLabel}
+			cancelLabel={__('Cancel', 'gophenberg')}
+			busy={busy}
+			onCancel={busy ? undefined : closeModal}
+			onConfirm={() => {
+				setBusy(true)
+				void run(items).then(() => closeModal?.())
 			}}
-			closeModal={closeModal}
-			done={() =>
-				report({
-					intent: 'success',
-					message: trashedNote(items.length),
-					undoIds: items.map((post) => post.id),
-				})
-			}
-		/>
+		>
+			{question}
+		</ConfirmBody>
 	)
 }
 
 /**
- * Renders the confirmation asked for before a post is deleted for good.
- * @param props - The posts acted on and the handler closing the modal.
- * @returns The confirmation body.
+ * Returns the actions offered on the rows of a trash view.
+ * @param mine - Whether the session may change a post.
+ * @param run - Runs one call over the picked posts.
+ * @param name - Cuts a title to the length a toast shows.
+ * @param type - The content type the list shows.
+ * @returns The restore first, then the permanent delete.
  */
-function DeleteConfirm({ items, closeModal }: RenderModalProps<Post>) {
-	const target = items[0]
-	return (
-		<Confirm
-			question={sprintf(__('Delete %(title)s for good? This cannot be undone.', 'gophenberg'), {
-				title: nameOf(target),
-			})}
-			failure={__('Could not delete that post.', 'gophenberg')}
-			confirmLabel={__('Delete Permanently', 'gophenberg')}
-			moved={[target.id]}
-			run={() => deletePost(target.id)}
-			closeModal={closeModal}
-		/>
-	)
+function trashViewActions(mine: (post: Post) => boolean, run: RunOver, name: NameCut, type: string): Action<Post>[] {
+	const label = __('Permanently delete', 'gophenberg')
+	return [
+		{
+			id: 'restore',
+			label: _x('Restore', 'trash', 'gophenberg'),
+			icon: backupIcon,
+			supportsBulk: true,
+			isEligible: mine,
+			callback: (items) => run(items, (post) => restorePost(post.id), restoreWords(name, type)),
+		},
+		{
+			id: 'delete',
+			label,
+			icon: trashIcon,
+			supportsBulk: true,
+			isEligible: mine,
+			modalHeader: label,
+			modalSize: 'small',
+			RenderModal: (props) => (
+				<RunConfirm
+					{...props}
+					question={deleteQuestion(props.items, name)}
+					confirmLabel={label}
+					run={(items) => run(items, (post) => deletePost(post.id), deleteWords(name))}
+				/>
+			),
+		},
+	]
+}
+
+/**
+ * Returns the actions offered on the rows of a list outside the trash.
+ * @param mine - Whether the session may change a post.
+ * @param run - Runs one call over the picked posts.
+ * @param name - Cuts a title to the length a toast shows.
+ * @returns The trash, offered on a post not in the trash yet.
+ */
+function listActions(mine: (post: Post) => boolean, run: RunOver, name: NameCut): Action<Post>[] {
+	const label = _x('Trash', 'verb', 'gophenberg')
+	return [
+		{
+			id: 'trash',
+			label,
+			icon: trashIcon,
+			supportsBulk: true,
+			isEligible: (post) => post.status !== 'trash' && mine(post),
+			modalHeader: label,
+			modalSize: 'small',
+			RenderModal: (props) => (
+				<RunConfirm
+					{...props}
+					question={trashQuestion(props.items, name)}
+					confirmLabel={label}
+					run={(items) => run(items, (post) => trashPost(post.id), trashWords(name))}
+				/>
+			),
+		},
+	]
 }
 
 /**
  * Returns the actions offered on each row of the posts list.
  * @param status - The status the list is filtered by, empty for every status.
- * @param report - The handler carrying a failure to the screen.
+ * @param type - The content type the list shows.
+ * @param list - What the list does around a run.
  * @returns The row actions.
  */
-export function usePostActions(status: string, report: ReportNotice): Action<Post>[] {
-	const navigate = useNavigate()
-	const refresh = useRefresh()
+export function usePostActions(status: string, type: string, list: ListRun): Action<Post>[] {
+	const run = useRunOver(list)
+	const name = useToaster().name
 	const session = useSession().data
 	return useMemo(() => {
 		const mine = (post: Post) => sessionMayChange(session, post.authorId)
 		if (status === 'trash') {
-			return [
-				{
-					id: 'restore',
-					label: _x('Restore', 'trash', 'gophenberg'),
-					isEligible: mine,
-					callback: ([post]: Post[]) => {
-						restorePost(post.id)
-							.then(() => {
-								report(null)
-								return refresh([post.id])
-							})
-							.catch(() =>
-							report({
-								intent: 'error',
-								message: __('Could not restore that post.', 'gophenberg'),
-							}),
-						)
-					},
-				},
-				{
-					id: 'delete',
-					label: __('Delete Permanently', 'gophenberg'),
-					isEligible: mine,
-					RenderModal: DeleteConfirm,
-				},
-			]
+			return trashViewActions(mine, run, name, type)
 		}
-		return [
-			{
-				id: 'edit',
-				label: __('Edit', 'gophenberg'),
-				isEligible: mine,
-				callback: ([post]: Post[]) => {
-					void navigate({ to: '/content/$typeKey/$postId/edit', params: { typeKey: post.type, postId: post.id } })
-				},
-			},
-			{
-				id: 'trash',
-				label: __('Move to Trash', 'gophenberg'),
-				supportsBulk: true,
-				isEligible: mine,
-				RenderModal: (props: RenderModalProps<Post>) => (
-					<TrashConfirm {...props} report={report} />
-				),
-			},
-		]
-	}, [navigate, refresh, report, status, session])
+		return listActions(mine, run, name)
+	}, [name, run, session, status, type])
 }

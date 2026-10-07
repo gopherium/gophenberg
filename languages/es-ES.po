@@ -151,26 +151,17 @@ msgstr[0] "No se ha podido borrar ese elemento."
 msgstr[1] "No se han podido borrar todos los elementos."
 msgstr[2] "No se han podido borrar todos los elementos."
 
-msgid "Could not delete that post."
-msgstr "No se ha podido borrar esa entrada."
-
 msgid "Could not empty the trash."
 msgstr "No se ha podido vaciar la papelera."
 
 msgid "Could not load that post."
 msgstr "No se ha podido cargar esa entrada."
 
-msgid "Could not move every post to trash."
-msgstr "No se han podido mover todas las entradas a la papelera."
-
 msgid "Could not move that post to trash."
 msgstr "No se ha podido mover esa entrada a la papelera."
 
 msgid "Could not restore that post."
-msgid_plural "Could not restore those posts."
-msgstr[0] "No se ha podido restaurar esa entrada."
-msgstr[1] "No se han podido restaurar esas entradas."
-msgstr[2] "No se han podido restaurar esas entradas."
+msgstr "No se ha podido restaurar esa entrada."
 
 msgid "Could not save that post."
 msgstr "No se ha podido guardar esa entrada."
@@ -228,9 +219,6 @@ msgstr "Documento"
 
 msgid "Draft saved."
 msgstr "Borrador guardado."
-
-msgid "Edit"
-msgstr "Editar"
 
 msgid "Email"
 msgstr "Correo electrónico"
@@ -386,9 +374,6 @@ msgstr "Móvil"
 
 msgid "Move every address"
 msgstr "Mover todas las direcciones"
-
-msgid "Move to Trash"
-msgstr "Mover a la Papelera"
 
 msgid "Move to trash"
 msgstr "Mover a la papelera"
@@ -916,13 +901,6 @@ msgstr "dirección"
 msgid "Something went wrong. Try again."
 msgstr "Algo ha ido mal. Inténtalo de nuevo."
 
-#, fuzzy
-msgid "%(count)s post moved to the trash."
-msgid_plural "%(count)s posts moved to the trash."
-msgstr[0] "%(count)s entrada movida a la papelera."
-msgstr[1] "%(count)s entradas movidas a la papelera."
-msgstr[2] "%(count)s entradas movidas a la papelera."
-
 msgid "%(field)s declared."
 msgstr "%(field)s declarado."
 
@@ -1026,9 +1004,6 @@ msgstr "Ceder la raíz a %(type)s"
 msgid "Media %(id)s"
 msgstr "Medio %(id)s"
 
-msgid "Move %(title)s to the trash?"
-msgstr "¿Mover %(title)s a la papelera?"
-
 #, fuzzy
 msgid "Move %(name)s down"
 msgstr "Bajar %(name)s"
@@ -1036,13 +1011,6 @@ msgstr "Bajar %(name)s"
 #, fuzzy
 msgid "Move %(name)s up"
 msgstr "Subir %(name)s"
-
-#, fuzzy
-msgid "Move these %(count)s post to the trash?"
-msgid_plural "Move these %(count)s posts to the trash?"
-msgstr[0] "¿Mover esta %(count)s entrada a la papelera?"
-msgstr[1] "¿Mover estas %(count)s entradas a la papelera?"
-msgstr[2] "¿Mover estas %(count)s entradas a la papelera?"
 
 msgid "Remove %(title)s"
 msgstr "Quitar %(title)s"
@@ -2145,3 +2113,95 @@ msgstr "No se ha podido restaurar el elemento."
 #, fuzzy
 msgid "The item could not be permanently deleted."
 msgstr "No se ha podido borrar permanentemente el elemento."
+
+#, fuzzy
+msgctxt "verb"
+msgid "Trash"
+msgstr "Papelera"
+
+#, fuzzy
+msgid "Permanently delete"
+msgstr "Borrar permanentemente"
+
+#, fuzzy
+msgid "Move %s item to the trash?"
+msgid_plural "Move %s items to the trash?"
+msgstr[0] "¿Mover %s elemento a la papelera?"
+msgstr[1] "¿Mover %s elementos a la papelera?"
+msgstr[2] "¿Mover %s elementos a la papelera?"
+
+#, fuzzy
+msgid "Delete %s item for good? This cannot be undone."
+msgid_plural "Delete %s items for good? This cannot be undone."
+msgstr[0] "¿Borrar permanentemente %s elemento? Esto no se puede deshacer."
+msgstr[1] "¿Borrar permanentemente %s elementos? Esto no se puede deshacer."
+msgstr[2] "¿Borrar permanentemente %s elementos? Esto no se puede deshacer."
+
+#, fuzzy
+msgid "Move \"%(title)s\" to the trash?"
+msgstr "¿Mover «%(title)s» a la papelera?"
+
+#, fuzzy
+msgid "Delete \"%(title)s\" for good? This cannot be undone."
+msgstr "¿Borrar permanentemente «%(title)s»? Esto no se puede deshacer."
+
+#, fuzzy
+msgid "\"%s\" moved to the trash."
+msgstr "«%s» trasladado a la papelera."
+
+#, fuzzy
+msgid "%s item moved to the trash."
+msgid_plural "%s items moved to the trash."
+msgstr[0] "%s elemento movido a la papelera."
+msgstr[1] "%s elementos movidos a la papelera."
+msgstr[2] "%s elementos movidos a la papelera."
+
+#, fuzzy
+msgid "%s item could not be moved to the trash."
+msgid_plural "%s items could not be moved to the trash."
+msgstr[0] "No se ha podido mover %s elemento a la papelera."
+msgstr[1] "No se han podido mover %s elementos a la papelera."
+msgstr[2] "No se han podido mover %s elementos a la papelera."
+
+#, fuzzy
+msgid "\"%s\" has been restored."
+msgstr "«%s» se ha restaurado."
+
+#, fuzzy
+msgid "%s page has been restored."
+msgid_plural "%s pages have been restored."
+msgstr[0] "Se ha restaurado %s página."
+msgstr[1] "Se han restaurado %s páginas."
+msgstr[2] "Se han restaurado %s páginas."
+
+#, fuzzy
+msgid "%s post has been restored."
+msgid_plural "%s posts have been restored."
+msgstr[0] "Se ha restaurado %s entrada."
+msgstr[1] "Se han restaurado %s entradas."
+msgstr[2] "Se han restaurado %s entradas."
+
+#, fuzzy
+msgid "%s item could not be restored."
+msgid_plural "%s items could not be restored."
+msgstr[0] "No se ha podido restaurar %s elemento."
+msgstr[1] "No se han podido restaurar %s elementos."
+msgstr[2] "No se han podido restaurar %s elementos."
+
+#, fuzzy
+msgid "\"%s\" permanently deleted."
+msgstr "«%s» borrado permanentemente."
+
+#, fuzzy
+msgid "%s item permanently deleted."
+msgid_plural "%s items permanently deleted."
+msgstr[0] "%s elemento borrado permanentemente."
+msgstr[1] "%s elementos borrados permanentemente."
+msgstr[2] "%s elementos borrados permanentemente."
+
+#, fuzzy
+msgid "%s item could not be permanently deleted."
+msgid_plural "%s items could not be permanently deleted."
+msgstr[0] "No se ha podido borrar permanentemente %s elemento."
+msgstr[1] "No se han podido borrar permanentemente %s elementos."
+msgstr[2] "No se han podido borrar permanentemente %s elementos."

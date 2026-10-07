@@ -13,10 +13,14 @@ msgstr ""
 msgid " or "
 msgstr ""
 
-msgid "%(count)s post moved to the trash."
-msgid_plural "%(count)s posts moved to the trash."
-msgstr[0] ""
-msgstr[1] ""
+msgid "\"%s\" has been restored."
+msgstr ""
+
+msgid "\"%s\" moved to the trash."
+msgstr ""
+
+msgid "\"%s\" permanently deleted."
+msgstr ""
 
 msgid "%(field)s address"
 msgstr ""
@@ -182,6 +186,41 @@ msgstr ""
 
 msgid "%(type)s will answer at the root."
 msgstr ""
+
+msgid "%s item could not be moved to the trash."
+msgid_plural "%s items could not be moved to the trash."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s item could not be permanently deleted."
+msgid_plural "%s items could not be permanently deleted."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s item could not be restored."
+msgid_plural "%s items could not be restored."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s item moved to the trash."
+msgid_plural "%s items moved to the trash."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s item permanently deleted."
+msgid_plural "%s items permanently deleted."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s page has been restored."
+msgid_plural "%s pages have been restored."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s post has been restored."
+msgid_plural "%s posts have been restored."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "(no title)"
 msgstr ""
@@ -461,9 +500,6 @@ msgid_plural "Could not delete every item."
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Could not delete that post."
-msgstr ""
-
 msgid "Could not empty the trash."
 msgstr ""
 
@@ -473,16 +509,11 @@ msgstr ""
 msgid "Could not load that post."
 msgstr ""
 
-msgid "Could not move every post to trash."
-msgstr ""
-
 msgid "Could not move that post to trash."
 msgstr ""
 
 msgid "Could not restore that post."
-msgid_plural "Could not restore those posts."
-msgstr[0] ""
-msgstr[1] ""
+msgstr ""
 
 msgid "Could not save that post."
 msgstr ""
@@ -517,6 +548,9 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
+msgid "Delete \"%(title)s\" for good? This cannot be undone."
+msgstr ""
+
 msgid "Delete %(field)s"
 msgstr ""
 
@@ -525,6 +559,11 @@ msgstr ""
 
 msgid "Delete %(title)s for good? This cannot be undone."
 msgstr ""
+
+msgid "Delete %s item for good? This cannot be undone."
+msgid_plural "Delete %s items for good? This cannot be undone."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Delete All"
 msgstr ""
@@ -580,9 +619,6 @@ msgid "Done. The site now holds what the file describes."
 msgstr ""
 
 msgid "Draft saved."
-msgstr ""
-
-msgid "Edit"
 msgstr ""
 
 msgid "Email"
@@ -864,6 +900,9 @@ msgstr ""
 msgid "Move"
 msgstr ""
 
+msgid "Move \"%(title)s\" to the trash?"
+msgstr ""
+
 msgid "Move %(field)s down"
 msgstr ""
 
@@ -885,8 +924,10 @@ msgstr ""
 msgid "Move %(name)s up"
 msgstr ""
 
-msgid "Move %(title)s to the trash?"
-msgstr ""
+msgid "Move %s item to the trash?"
+msgid_plural "Move %s items to the trash?"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Move every address"
 msgstr ""
@@ -898,14 +939,6 @@ msgid "Move row up"
 msgstr ""
 
 msgid "Move the field"
-msgstr ""
-
-msgid "Move these %(count)s post to the trash?"
-msgid_plural "Move these %(count)s posts to the trash?"
-msgstr[0] ""
-msgstr[1] ""
-
-msgid "Move to Trash"
 msgstr ""
 
 msgid "Move to trash"
@@ -1038,6 +1071,9 @@ msgid "Password"
 msgstr ""
 
 msgid "Pending"
+msgstr ""
+
+msgid "Permanently delete"
 msgstr ""
 
 msgid "Picture quality"
@@ -1866,4 +1902,8 @@ msgstr ""
 
 msgctxt "trash"
 msgid "Restore"
+msgstr ""
+
+msgctxt "verb"
+msgid "Trash"
 msgstr ""
