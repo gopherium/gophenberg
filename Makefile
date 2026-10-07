@@ -62,15 +62,18 @@ seed: db-up
 
 test:
 	go test ./...
+	go -C sdk test ./...
 
 test-race:
 	go test -race ./...
+	go -C sdk test -race ./...
 
 peers:
 	pnpm peers check
 
 lint:
 	golangci-lint run
+	cd sdk && golangci-lint run
 	go run ./cmd/doclint
 
 pot:
@@ -107,6 +110,7 @@ cover:
 	GOPHENBERG_COVER_BINDIR=$(CURDIR)/$(COVERDATA)/bin \
 	GOPHENBERG_COVER_GOCOVERDIR=$(CURDIR)/$(COVERDATA)/counters \
 	go test -cover -covermode=atomic $(GOTESTFLAGS) $(COVERPKGS) -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
+	go -C sdk test -cover -covermode=atomic $(GOTESTFLAGS) ./... -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
 	@echo "=== merged unit + binary coverage ==="
 	go tool covdata percent -i=$(COVERDATA)/counters
 	@echo
@@ -119,7 +123,9 @@ cover-html: cover
 MUTATE_PKG ?= .
 MUTATE_FLAGS ?=
 MUTATE_VMEM ?= 12582912
+MUTATE_SDK_TIMEOUT_COEFFICIENT ?= 10
 MUTATE_REPORT = $(CURDIR)/reports/mutation/gremlins.json
+MUTATE_SDK_REPORT = $(CURDIR)/reports/mutation/gremlins-sdk.json
 
 mutate: db-up
 	mkdir -p $(dir $(MUTATE_REPORT))
@@ -128,7 +134,9 @@ mutate: db-up
 		git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | tar -xf - -C "$$work/src" && \
 		cp -R .git "$$work/src/.git" && cd "$$work/src" && ulimit -v $(MUTATE_VMEM) && \
 		TMPDIR="$$work/tmp" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.noprefix GIT_CONFIG_VALUE_0=false \
-		go tool gremlins unleash -o $(MUTATE_REPORT) $(MUTATE_FLAGS) $(MUTATE_PKG)
+		go tool gremlins unleash -o $(MUTATE_REPORT) $(MUTATE_FLAGS) $(MUTATE_PKG) && \
+		gremlins="$$(go tool -n gremlins)" && cd sdk && TMPDIR="$$work/tmp" "$$gremlins" unleash \
+		--config ../.gremlins.yaml --timeout-coefficient $(MUTATE_SDK_TIMEOUT_COEFFICIENT) -o $(MUTATE_SDK_REPORT) .
 
 E2E_DB ?= gophenberg_e2e
 E2E_DATABASE_URL ?= postgres://postgres:gophenberg@localhost:5435/$(E2E_DB)?sslmode=disable
