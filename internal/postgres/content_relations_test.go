@@ -18,7 +18,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
-// The relation fixtures are shared, under the names these tests use.
+// categoryType, namedTargets, storedCategory, fileUnder and publishItem are the shared fixtures these tests use.
 var (
 	categoryType   = contenttest.CategoryType
 	namedTargets   = contenttest.NamedTargets
