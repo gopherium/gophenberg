@@ -209,6 +209,9 @@ func revisionByIDReturnsTheContent(t *testing.T, s Stores) {
 	if err != nil {
 		t.Fatalf("Revisions() error = %v, want nil", err)
 	}
+	if len(revisions) != 1 {
+		t.Fatalf("revisions = %d, want the one snapshot", len(revisions))
+	}
 
 	revision, err := s.Content.RevisionByID(t.Context(), created.ID, revisions[0].ID)
 
@@ -270,6 +273,9 @@ func deleteRevision(t *testing.T, s Stores) {
 	if err != nil {
 		t.Fatalf("Revisions() error = %v, want nil", err)
 	}
+	if len(revisions) != 1 {
+		t.Fatalf("revisions = %d, want the one snapshot", len(revisions))
+	}
 
 	if err := s.Content.DeleteRevision(t.Context(), created.ID, revisions[0].ID); err != nil {
 		t.Fatalf("DeleteRevision() error = %v, want nil", err)
@@ -296,6 +302,9 @@ func deleteRevisionRefusesAnItemInTheTrash(t *testing.T, s Stores) {
 	revisions, err := s.Content.Revisions(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("Revisions() error = %v, want nil", err)
+	}
+	if len(revisions) != 1 {
+		t.Fatalf("revisions = %d, want the one snapshot", len(revisions))
 	}
 	if _, err := s.Content.Trash(t.Context(), created.ID, time.Now().UTC()); err != nil {
 		t.Fatalf("Trash() error = %v, want nil", err)

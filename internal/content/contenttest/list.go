@@ -73,11 +73,8 @@ func listOrdersByPublicationThenCreation(t *testing.T, s Stores) {
 		t.Errorf("total = %d, want 3", total)
 	}
 	want := []string{"Fresh Draft", "Newer Published", "Older Published"}
-	got := TitlesOf(posts)
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("order = %v, want %v", got, want)
-		}
+	if got := TitlesOf(posts); !slices.Equal(got, want) {
+		t.Fatalf("order = %v, want %v", got, want)
 	}
 }
 
@@ -95,6 +92,9 @@ func listOmitsContent(t *testing.T, s Stores) {
 
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
+	}
+	if len(posts) != 1 {
+		t.Fatalf("List() = %v, want the one stored post", TitlesOf(posts))
 	}
 	if body := posts[0].Content.Content; body != "" {
 		t.Errorf("Content = %q, want listings to omit it", body)
@@ -236,8 +236,8 @@ func listSortsByTitle(t *testing.T, s Stores) {
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
 	}
-	if got := TitlesOf(ascending); got[0] != "Alpha" || got[2] != "Gamma" {
-		t.Errorf("ascending = %v, want Alpha first and Gamma last", got)
+	if got := TitlesOf(ascending); !slices.Equal(got, []string{"Alpha", "Beta", "Gamma"}) {
+		t.Errorf("ascending = %v, want Alpha, Beta, Gamma", got)
 	}
 
 	descending, _, err := s.Content.List(t.Context(), content.Filter{
@@ -246,8 +246,8 @@ func listSortsByTitle(t *testing.T, s Stores) {
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
 	}
-	if got := TitlesOf(descending); got[0] != "Gamma" || got[2] != "Alpha" {
-		t.Errorf("descending = %v, want Gamma first and Alpha last", got)
+	if got := TitlesOf(descending); !slices.Equal(got, []string{"Gamma", "Beta", "Alpha"}) {
+		t.Errorf("descending = %v, want Gamma, Beta, Alpha", got)
 	}
 }
 
@@ -265,7 +265,7 @@ func listSortsByDateIndependentlyOfCreationOrder(t *testing.T, s Stores) {
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
 	}
-	if got := TitlesOf(oldestFirst); got[0] != "Published Long Ago" {
+	if got := TitlesOf(oldestFirst); !slices.Equal(got, []string{"Published Long Ago", "Published Recently"}) {
 		t.Errorf("ascending by date = %v, want the oldest publication first", got)
 	}
 }
@@ -282,7 +282,7 @@ func listDefaultsToNewestPublicationFirst(t *testing.T, s Stores) {
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
 	}
-	if got := TitlesOf(posts); got[0] != "Published Recently" {
+	if got := TitlesOf(posts); !slices.Equal(got, []string{"Published Recently", "Published Long Ago"}) {
 		t.Errorf("default order = %v, want the newest publication first", got)
 	}
 }
@@ -456,10 +456,10 @@ func listSortsByWhenTheParentWasWritten(t *testing.T, s Stores) {
 		Type: "page", OrderBy: content.OrderByParent, Order: content.OrderDesc,
 	})
 
-	if !slices.Equal(ascending[2:], []string{"Team", "Directions"}) {
+	if len(ascending) != 4 || !slices.Equal(ascending[2:], []string{"Team", "Directions"}) {
 		t.Errorf("ascending = %v, want the items with no parent first, then by the older parent", ascending)
 	}
-	if !slices.Equal(descending[:2], []string{"Directions", "Team"}) {
+	if len(descending) != 4 || !slices.Equal(descending[:2], []string{"Directions", "Team"}) {
 		t.Errorf("descending = %v, want the newer parent's child first and the items with no parent last", descending)
 	}
 }
@@ -571,10 +571,7 @@ func listSortsTitlesCaseInsensitively(t *testing.T, s Stores) {
 		t.Fatalf("List() error = %v, want nil", err)
 	}
 	want := []string{"Apricot", "banana", "cherry"}
-	got := TitlesOf(posts)
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("titles = %v, want %v, so the database collation is not case insensitive", got, want)
-		}
+	if got := TitlesOf(posts); !slices.Equal(got, want) {
+		t.Fatalf("titles = %v, want %v, so the database collation is not case insensitive", got, want)
 	}
 }
