@@ -4,7 +4,7 @@
 	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump bump-kit \
 	brick-link brick-sync brick-pack brick-unlink
 
-COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/testdb)
+COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/testdb -e /internal/content/contenttest)
 
 # Where a linked package's restore point is kept while it is linked.
 BRICK_HELD = .brick-held

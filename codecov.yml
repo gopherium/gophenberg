@@ -19,6 +19,7 @@ coverage:
 ignore:
   - internal/postgres/db
   - internal/testdb
+  - internal/content/contenttest
   - "**/*_gen.go"
 
 comment:
