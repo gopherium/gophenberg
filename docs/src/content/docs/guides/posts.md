@@ -85,7 +85,11 @@ on several ticked rows at once:
 - **Permanently delete** removes the post forever, after a
   confirmation.
 
-**Empty Trash**, which only appears here, clears everything at once.
+**Empty Trash** appears here while the Trash view lists something,
+for an admin or an editor. After a confirmation it removes every
+trashed post of this type in one step. If some posts stay in the
+trash, such as ones trashed while it ran, the message counts them
+too.
 
 Opening a trashed post from its title shows it read only. Its
 **Restore** control brings it back as a draft, names it in a
