@@ -45,6 +45,10 @@ linters:
         linters:
           - cyclop
           - gocognit
+      - path: internal/content/contenttest/
+        linters:
+          - cyclop
+          - gocognit
 
 formatters:
   enable:
