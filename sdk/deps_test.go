@@ -26,8 +26,8 @@ func TestModuleRequiresNoOtherModule(t *testing.T) {
 	}
 	if !strings.HasPrefix(string(declared), "module github.com/gopherium/gophenberg/sdk\n") ||
 		!slices.Equal(directives, []string{"module", "go"}) {
-		t.Errorf("go.mod declares %q, want the module github.com/gopherium/gophenberg/sdk and its go version alone, "+
-			"so a plugin requiring the sdk pulls in no other module", directives)
+		t.Errorf("go.mod reads %q, want the module github.com/gopherium/gophenberg/sdk and its go version alone, "+
+			"so a plugin requiring the sdk pulls in no other module", declared)
 	}
 }
 
