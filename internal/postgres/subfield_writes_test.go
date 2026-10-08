@@ -3,10 +3,33 @@
 package postgres_test
 
 import (
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
+
+func TestUpdatingASubFieldReportsAListingItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	specs := declareSection(t, store, "specs")
+	sub, err := store.CreateSubField(
+		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
+	if err != nil {
+		t.Fatalf("CreateSubField() error = %v, want nil", err)
+	}
+	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
+	stale := sub.UpdatedAt.Add(-time.Second)
+
+	_, err = store.UpdateSubField(t.Context(), sub.ID, sub, stale)
+
+	if err == nil || errors.Is(err, content.ErrConflict) || errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("UpdateSubField() error = %v, want the unreadable listing reported", err)
+	}
+}
 
 func TestUpdatingASubFieldReportsAStoreThatWillNotWrite(t *testing.T) {
 	t.Parallel()

@@ -669,12 +669,24 @@ func (s *TypeStore) UpdateSubField(
 		ID:                int32(id),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return content.Field{}, content.ErrConflict
+		return content.Field{}, s.subFieldMissed(ctx, id)
 	}
 	if err != nil {
 		return content.Field{}, fmt.Errorf("postgres: update sub field: %w", err)
 	}
 	return toField(row), nil
+}
+
+// subFieldMissed returns field not found when no field carries the id, and a conflict when one still stands.
+func (s *TypeStore) subFieldMissed(ctx context.Context, id int) error {
+	groups, err := groupsWithFields(ctx, s.queries)
+	if err != nil {
+		return fmt.Errorf("postgres: read the fields after a missed sub field update: %w", err)
+	}
+	if _, _, _, found := fieldPathIn(groups, id); !found {
+		return content.ErrFieldNotFound
+	}
+	return content.ErrConflict
 }
 
 // ReorderSubFields stands the sub fields of the container in the order the keys name.
