@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/content/contenttest"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
@@ -122,27 +123,14 @@ func revisionsHolding(t *testing.T, pool *pgxpool.Pool, key string) int {
 	return held
 }
 
-// rested turns off the group the title names and returns it.
-func rested(t *testing.T, store *postgres.TypeStore, title string) content.Group {
-	t.Helper()
-	groups, err := store.ListGroups(t.Context())
-	if err != nil {
-		t.Fatalf("ListGroups() error = %v, want nil", err)
-	}
-	for _, held := range groups {
-		if held.Title != title {
-			continue
-		}
-		held.Active = false
-		idle, err := store.UpdateGroup(t.Context(), held, nil, nil)
-		if err != nil {
-			t.Fatalf("resting %q: %v, want nil", title, err)
-		}
-		return idle
-	}
-	t.Fatalf("no stored group is titled %q", title)
-	return content.Group{}
-}
+// groupOn, titleIn, rested, rivalOnTruck and servingEverything are the shared fixtures these tests call.
+var (
+	groupOn           = contenttest.GroupOn
+	titleIn           = contenttest.TitleIn
+	rested            = contenttest.Rested
+	rivalOnTruck      = contenttest.RivalOnTruck
+	servingEverything = contenttest.ServingEverything
+)
 
 // restingTwinOf stores a resting group on car holding a section under the key and returns the section.
 func restingTwinOf(t *testing.T, store *postgres.TypeStore, key string) content.Field {
@@ -156,31 +144,6 @@ func restingTwinOf(t *testing.T, store *postgres.TypeStore, key string) content.
 		t.Fatalf("CreateFieldInGroup(shadow %s) error = %v, want nil", key, err)
 	}
 	return twin
-}
-
-// rivalOnTruck stores a truck group holding a section under the key, registers truck and returns the group.
-func rivalOnTruck(t *testing.T, store *postgres.TypeStore, key string) content.Group {
-	t.Helper()
-	trucks, err := store.CreateGroup(t.Context(), content.Group{Title: "Trucks", Location: locationOf("truck")})
-	if err != nil {
-		t.Fatalf("CreateGroup(Trucks) error = %v, want nil", err)
-	}
-	if _, err := store.CreateFieldInGroup(t.Context(), trucks.ID, sectionOn(t, key), nil); err != nil {
-		t.Fatalf("CreateFieldInGroup(trucks %s) error = %v, want nil", key, err)
-	}
-	storeType(t, store, "truck")
-	return trucks
-}
-
-// servingEverything stores a group matching every type and returns it.
-func servingEverything(t *testing.T, store *postgres.TypeStore) content.Group {
-	t.Helper()
-	everywhere, err := store.CreateGroup(t.Context(),
-		content.Group{Title: "Everywhere", Location: locationOf(content.AnyContentType)})
-	if err != nil {
-		t.Fatalf("CreateGroup(Everywhere) error = %v, want nil", err)
-	}
-	return everywhere
 }
 
 // valuesSlugged returns the stored values of the item carrying the slug.
@@ -323,26 +286,6 @@ func TestMovingAFieldBetweenGroupTopsKeepsItsValues(t *testing.T) {
 	if held := valuesHeld(t, pool); held != `{"subtitle": "kept words"}` {
 		t.Errorf("stored values = %s, want the value kept while the path stays the same", held)
 	}
-}
-
-// groupOn stores an active group placed on the type and returns it.
-func groupOn(t *testing.T, store *postgres.TypeStore, title, typeKey string) content.Group {
-	t.Helper()
-	held, err := store.CreateGroup(t.Context(), content.Group{Title: title, Location: locationOf(typeKey)})
-	if err != nil {
-		t.Fatalf("CreateGroup(%s) error = %v, want nil", title, err)
-	}
-	return held
-}
-
-// titleIn stores a text field keyed title at the top of the group and returns it.
-func titleIn(t *testing.T, store *postgres.TypeStore, groupID int) content.Field {
-	t.Helper()
-	held, err := store.CreateFieldInGroup(t.Context(), groupID, fieldOn(t, "", "title", content.FieldKindText, ""), nil)
-	if err != nil {
-		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
-	}
-	return held
 }
 
 func TestMovingAFieldBetweenTopsKeepsTheValuesOnContentBothGroupsReach(t *testing.T) {

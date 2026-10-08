@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/content/contenttest"
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
@@ -126,21 +127,12 @@ func TestMovingATopFieldLeavesASubFieldSharingItsKey(t *testing.T) {
 	}
 }
 
-// declaredInside declares a sub field of the kind under the parent and returns it.
-func declaredInside(
-	t *testing.T, store *postgres.TypeStore, parent content.Field, key string, kind content.FieldKind,
-) content.Field {
-	t.Helper()
-	built, err := content.NewSubField(content.Field{Key: key, Label: key, Kind: kind}, parent.Kind)
-	if err != nil {
-		t.Fatalf("NewSubField(%s) error = %v, want nil", key, err)
-	}
-	stored, err := store.CreateSubField(t.Context(), parent.ID, built, deepEnough)
-	if err != nil {
-		t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
-	}
-	return stored
-}
+// declaredInside, sectionOn and declareSection are the shared fixtures under the names these tests use.
+var (
+	declaredInside = contenttest.DeclaredInside
+	sectionOn      = contenttest.SectionOn
+	declareSection = contenttest.DeclareSection
+)
 
 // groupOfField returns the group the field row sits in.
 func groupOfField(t *testing.T, pool *pgxpool.Pool, id int) int {
@@ -461,28 +453,6 @@ func TestCreatingASubFieldTakesAChainPastTheDefaultWhenTheLimitAllowsIt(t *testi
 	if depth != content.DefaultFieldDepth+1 {
 		t.Errorf("stored depth = %d, want %d", depth, content.DefaultFieldDepth+1)
 	}
-}
-
-// sectionOn returns a section field ready to nest under a parent.
-func sectionOn(t *testing.T, key string) content.Field {
-	t.Helper()
-	built, err := content.NewField(content.Field{Key: key, Label: key, Kind: content.FieldKindSection})
-	if err != nil {
-		t.Fatalf("NewField(section %s) error = %v, want nil", key, err)
-	}
-	return built
-}
-
-// declareSection stores a section at the top of the car type and returns it.
-func declareSection(t *testing.T, store *postgres.TypeStore, key string) content.Field {
-	t.Helper()
-	held := sectionOn(t, key)
-	held.TypeKey = "car"
-	stored, err := store.CreateField(t.Context(), held)
-	if err != nil {
-		t.Fatalf("CreateField(section %s) error = %v, want nil", key, err)
-	}
-	return stored
 }
 
 func TestAGroupServesItsSubFieldsInsideTheirParent(t *testing.T) {

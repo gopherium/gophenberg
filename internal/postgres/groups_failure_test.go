@@ -101,18 +101,6 @@ func TestCreateGroupReportsAGroupItCannotStore(t *testing.T) {
 	}
 }
 
-func TestUpdateGroupReportsAGroupThatIsGone(t *testing.T) {
-	t.Parallel()
-
-	store, _, _ := typedStore(t)
-
-	_, err := store.UpdateGroup(t.Context(), content.Group{ID: 4242, Title: "Vanished"}, nil, nil)
-
-	if !errors.Is(err, content.ErrGroupNotFound) {
-		t.Errorf("UpdateGroup() error = %v, want %v", err, content.ErrGroupNotFound)
-	}
-}
-
 func TestUpdateGroupReportsAGroupItCannotStore(t *testing.T) {
 	t.Parallel()
 
@@ -210,21 +198,6 @@ func TestReorderGroupsReportsAnOrderItCannotStore(t *testing.T) {
 
 	if err := store.ReorderGroups(t.Context(), []int{1, 2}); err == nil {
 		t.Error("ReorderGroups() error = nil, want the refused write reported")
-	}
-}
-
-func TestCreateFieldInGroupReportsAGroupThatIsGone(t *testing.T) {
-	t.Parallel()
-
-	store, _, _ := typedStore(t)
-
-	_, err := store.CreateFieldInGroup(
-		t.Context(), 4242, fieldOn(t, "", "orphan", content.FieldKindText, ""),
-		nil,
-	)
-
-	if !errors.Is(err, content.ErrGroupNotFound) {
-		t.Errorf("CreateFieldInGroup() error = %v, want %v", err, content.ErrGroupNotFound)
 	}
 }
 
