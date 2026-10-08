@@ -73,7 +73,7 @@ func makeIn(t *testing.T, dir string, workspace bool, args ...string) (string, e
 	return string(out), err
 }
 
-// skipWithoutRace skips a test-race run where the race detector cannot build, which needs cgo and a C compiler.
+// skipWithoutRace skips the test when the target is test-race and the race detector cannot build here.
 func skipWithoutRace(t *testing.T, target string) {
 	t.Helper()
 	if target != "test-race" {
