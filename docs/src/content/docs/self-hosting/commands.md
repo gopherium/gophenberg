@@ -131,7 +131,28 @@ it fails, the command exits with code 1 and says why:
 gophenberg: the account editor@example.com holds the role editor, which lacks manage_users
 ```
 
-Leaving out `-as` exits with code 2.
+Leaving out `-as`, or giving it only spaces, exits with code 2. The
+message names the command, so for `account:role` it reads:
+
+```text
+gophenberg: account:role wants -as <email>
+```
+
+`account:role` and `account:disable` refuse to act on the account
+named in `-as`, on a dry run too, even when another admin is left.
+The command exits with code 1 and says why:
+
+```text
+gophenberg: the account admin@example.com cannot disable itself
+```
+
+`account:role` says
+`the account admin@example.com cannot change its own role` instead.
+Name another admin in `-as` to make that change.
+
+The last enabled admin always stays. If two changes run at the same
+time and would together leave no enabled admin, one of them fails with
+`<address> is the last enabled privileged account`.
 
 `-as` asks for no password. It names who answers for the change.
 Anyone who can run commands against the database can name any
@@ -287,7 +308,7 @@ gophenberg account:disable [flags] <email>
 ```
 
 Disables one account, so it can no longer sign in. It refuses to
-disable the last enabled admin.
+disable the account named in `-as`, and the last enabled admin.
 
 ### account:enable
 
@@ -343,4 +364,5 @@ gophenberg account:role [flags] <email> <role>
 ```
 
 Sets the role of one account to `admin`, `editor` or `author`. It
-refuses to take the admin role from the last enabled admin.
+refuses to change the role of the account named in `-as`, and to take
+the admin role from the last enabled admin.
