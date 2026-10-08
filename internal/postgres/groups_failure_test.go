@@ -258,7 +258,7 @@ func TestCreateFieldJoinsAGroupMatchingWithoutNamingTheTypeLiterally(t *testing.
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 
-	declared := declareTypedField(t, store, "car", "subtitle")
+	declared := createCarField(t, store, "subtitle")
 
 	if declared.GroupID != shared.ID {
 		t.Errorf("GroupID = %d, want the matching group %d rather than %d", declared.GroupID, shared.ID, resting.ID)

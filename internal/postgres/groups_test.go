@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/content/contenttest"
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
@@ -23,24 +24,20 @@ func typedStore(t *testing.T) (*postgres.TypeStore, uuid.UUID, *pgxpool.Pool) {
 	return postgres.NewTypeStore(pool), author, pool
 }
 
-// storeType stores a content type built from the key.
-func storeType(t *testing.T, store *postgres.TypeStore, key string) {
-	t.Helper()
-	built, err := content.NewType(key, "One "+key, "Many "+key, key+"s")
-	if err != nil {
-		t.Fatalf("NewType(%s) error = %v, want nil", key, err)
-	}
-	if _, err := store.Create(t.Context(), built); err != nil {
-		t.Fatalf("Create(%s) error = %v, want nil", key, err)
-	}
-}
+// storeType, declareTypedField, locationOf and groupHolding are the shared fixtures under the names these tests use.
+var (
+	storeType         = contenttest.StoreType
+	declareTypedField = contenttest.DeclareTypedField
+	locationOf        = contenttest.LocationOf
+	groupHolding      = contenttest.GroupHolding
+)
 
-// declareTypedField stores a field on the type through the per type surface.
-func declareTypedField(t *testing.T, store *postgres.TypeStore, typeKey, key string) content.Field {
+// createCarField stores a text field on the car type through the per type CreateField.
+func createCarField(t *testing.T, store *postgres.TypeStore, key string) content.Field {
 	t.Helper()
-	stored, err := store.CreateField(t.Context(), fieldOn(t, typeKey, key, content.FieldKindText, ""))
+	stored, err := store.CreateField(t.Context(), fieldOn(t, "car", key, content.FieldKindText, ""))
 	if err != nil {
-		t.Fatalf("CreateField(%s on %s) error = %v, want nil", key, typeKey, err)
+		t.Fatalf("CreateField(%s on car) error = %v, want nil", key, err)
 	}
 	return stored
 }
@@ -68,36 +65,13 @@ func plantTyped(t *testing.T, pool *pgxpool.Pool, author uuid.UUID, typeKey, slu
 	}
 }
 
-// locationOf returns a one rule location naming the type.
-func locationOf(typeKey string) content.Rules {
-	return content.Rules{{{Source: "content_type", Operator: content.OperatorIs, Value: typeKey}}}
-}
-
-// groupHolding returns the id of the stored group declaring the key.
-func groupHolding(t *testing.T, store *postgres.TypeStore, key string) int {
-	t.Helper()
-	groups, err := store.ListGroups(context.Background())
-	if err != nil {
-		t.Fatalf("ListGroups() error = %v, want nil", err)
-	}
-	for _, g := range groups {
-		for _, f := range g.Fields {
-			if f.Key == key {
-				return g.ID
-			}
-		}
-	}
-	t.Fatalf("no stored group declares %q", key)
-	return 0
-}
-
 func TestCreateFieldRaisesADefaultGroupOnDemand(t *testing.T) {
 	t.Parallel()
 
 	store, _, _ := typedStore(t)
 	storeType(t, store, "car")
 
-	declared := declareTypedField(t, store, "car", "subtitle")
+	declared := createCarField(t, store, "subtitle")
 
 	groups, err := store.ListGroups(t.Context())
 	if err != nil {
@@ -129,9 +103,9 @@ func TestCreateFieldJoinsTheGroupAlreadyNamingTheType(t *testing.T) {
 
 	store, _, _ := typedStore(t)
 	storeType(t, store, "car")
-	declareTypedField(t, store, "car", "subtitle")
+	createCarField(t, store, "subtitle")
 
-	declareTypedField(t, store, "car", "mileage")
+	createCarField(t, store, "mileage")
 
 	groups, err := store.ListGroups(t.Context())
 	if err != nil {

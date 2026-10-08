@@ -11,20 +11,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/content/contenttest"
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
-// fieldOn returns a field definition ready to declare on the type.
-func fieldOn(t *testing.T, typeKey, key string, kind content.FieldKind, relatesTo string) content.Field {
-	t.Helper()
-	built, err := content.NewField(content.Field{
-		TypeKey: typeKey, Key: key, Label: "A Field", Kind: kind, RelatesTo: relatesTo,
-	})
-	if err != nil {
-		t.Fatalf("NewField() error = %v, want nil", err)
-	}
-	return built
-}
+// fieldOn is the shared fixture under the name these tests use.
+var fieldOn = contenttest.FieldOn
 
 // storedFields reads the raw fields column of the content row carrying the slug.
 func storedFields(t *testing.T, pool *pgxpool.Pool, slug string) string {
