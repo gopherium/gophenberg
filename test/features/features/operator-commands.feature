@@ -72,3 +72,43 @@ Feature: Operators run Gophenberg from one command line
     And the answer says nothing changed until it is confirmed
     And the account "author@example.com" still holds the role "author"
     And no account change is on record
+
+  @wip
+  Scenario: A blank acting account is refused like a missing one
+    Given the administrator "admin@example.com"
+    And the author "author@example.com"
+    When the operator gives "author@example.com" the role "editor" with a blank -as
+    Then the command exits with code 2
+    And the error says "account:role wants -as <email>"
+    And the account "author@example.com" still holds the role "author"
+    And no account change is on record
+
+  @wip
+  Scenario Outline: An acting account cannot <case>
+    Given the administrator "admin@example.com"
+    And the administrator "maria@example.com"
+    When the operator runs "<line> -as admin@example.com"
+    Then the command exits with code 1
+    And the error says "the account admin@example.com cannot <error>"
+    And the account "admin@example.com" still holds the role "admin"
+    And the account "admin@example.com" is still enabled
+    And no account change is on record
+
+    Examples:
+      | case                             | line                                       | error               |
+      | change its own role              | account:role admin@example.com editor -yes | change its own role |
+      | preview a change of its own role | account:role admin@example.com editor      | change its own role |
+      | disable itself                   | account:disable admin@example.com -yes     | disable itself      |
+      | preview disabling itself         | account:disable admin@example.com          | disable itself      |
+
+  @wip
+  Scenario Outline: An account command refuses a missing flag without a database
+    Given the settings name no database
+    When the operator runs "<line>"
+    Then the command exits with code 2
+    And the error says "<error>"
+
+    Examples:
+      | line                                                       | error                                   |
+      | account:create-admin -email admin@example.com -name Holder | account:create-admin wants -role <role> |
+      | account:grant-role -as admin@example.com -yes              | account:grant-role wants -role <role>   |

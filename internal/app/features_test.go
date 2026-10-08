@@ -54,6 +54,8 @@ func initializeOperatorCommands(t *testing.T) func(*godog.ScenarioContext) {
 		sc.Then(`^no account change is on record$`, s.recordsNothing)
 		sc.Then(`^the records list "([^"]*)" applied by "([^"]*)"$`, s.recordsChange)
 		sc.Then(`^the error says "([^"]*)"$`, s.errorSays)
+		sc.When(`^the operator gives "([^"]*)" the role "([^"]*)" with a blank -as$`, s.giveRoleAsBlank)
+		sc.Then(`^the account "([^"]*)" is still enabled$`, s.isEnabled)
 	}
 }
 
@@ -61,6 +63,20 @@ func initializeOperatorCommands(t *testing.T) func(*godog.ScenarioContext) {
 func (s *operatorScenario) errorSays(text string) error {
 	if !strings.Contains(s.result.Stderr, text) {
 		return fmt.Errorf("stderr %q does not carry %q", s.result.Stderr, text)
+	}
+	return nil
+}
+
+// giveRoleAsBlank gives the account at email the role with -as holding only spaces.
+func (s *operatorScenario) giveRoleAsBlank(email, role string) {
+	s.run("", "account:role", email, role, "-yes", "-as", "  ")
+}
+
+// isEnabled fails unless the account at email is enabled.
+func (s *operatorScenario) isEnabled(ctx context.Context, email string) error {
+	held, err := s.answers(ctx, "SELECT EXISTS (SELECT FROM auth.users WHERE email = $1 AND NOT disabled)", email)
+	if err != nil || !held {
+		return fmt.Errorf("the account %s is enabled %v (%v), want it enabled", email, held, err)
 	}
 	return nil
 }
