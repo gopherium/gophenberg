@@ -38,6 +38,7 @@ type PublicPathProvider interface {
 // Deps carries the host-provided dependencies a plugin's Register function receives at registration.
 type Deps struct {
 	DatabaseURL string
+	DB          DB
 	Content     ContentReader
 	Getenv      func(string) string
 	Env         Env
