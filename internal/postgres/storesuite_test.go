@@ -29,19 +29,28 @@ func migratedPool(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
+// postgresStores returns fresh stores over a migrated database of their own.
+func postgresStores(t *testing.T) contenttest.Stores {
+	t.Helper()
+	pool := migratedPool(t)
+	return contenttest.Stores{
+		Content: postgres.NewContentStore(pool),
+		Types:   postgres.NewTypeStore(pool),
+		AddAuthor: func(t *testing.T, name string) uuid.UUID {
+			t.Helper()
+			return addAuthor(t, pool, name)
+		},
+	}
+}
+
 func TestContentStoreSuite(t *testing.T) {
 	t.Parallel()
 
-	contenttest.Run(t, func(t *testing.T) contenttest.Stores {
-		t.Helper()
-		pool := migratedPool(t)
-		return contenttest.Stores{
-			Content: postgres.NewContentStore(pool),
-			Types:   postgres.NewTypeStore(pool),
-			AddAuthor: func(t *testing.T, name string) uuid.UUID {
-				t.Helper()
-				return addAuthor(t, pool, name)
-			},
-		}
-	})
+	contenttest.Run(t, postgresStores)
+}
+
+func TestTypeStoreSuite(t *testing.T) {
+	t.Parallel()
+
+	contenttest.RunTypes(t, postgresStores)
 }

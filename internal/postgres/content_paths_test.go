@@ -4,9 +4,8 @@ package postgres_test
 
 import "github.com/gopherium/gophenberg/internal/content/contenttest"
 
-// pageType, mustNest and addressOf are the shared fixtures under the names these tests use.
+// pageType and mustNest are the shared fixtures under the names these tests use.
 var (
-	pageType  = contenttest.PageType
-	mustNest  = contenttest.MustNest
-	addressOf = contenttest.AddressOf
+	pageType = contenttest.PageType
+	mustNest = contenttest.MustNest
 )
