@@ -24,7 +24,8 @@ go get github.com/gopherium/gophenberg/sdk@latest
 
 | Field | What it is |
 | --- | --- |
-| `DatabaseURL` | The PostgreSQL connection string. A plugin opens its own connection and owns its own schema |
+| `DB` | The plugin's share of the site's database, described [below](#the-database) |
+| `DatabaseURL` | The PostgreSQL connection string, for a plugin that still opens its own connection |
 | `Content` | A read view of published content |
 | `Env` | Reads the settings under the `GOPHENBERG_` prefix, for the plugin's own configuration |
 | `Getenv` | Reads any environment variable by its full name, as it is set |
@@ -65,6 +66,31 @@ stops every plugin that registered. When one fails to start, it
 stops the ones already started. On the command line, a plugin that
 fails to register shows under "Not loaded:" in `gophenberg list`,
 and `check`, `migrate` and `seed -yes` fail.
+
+## The database
+
+`deps.DB` is the plugin's share of the site's one database pool. A
+plugin never needs a pool of its own, so many plugins cannot use up
+the connections PostgreSQL allows.
+
+```go
+_, err := p.db.Exec(ctx, "INSERT INTO greetings (name) VALUES ($1)", name)
+```
+
+- `Exec`, `Query` and `QueryRow` take PostgreSQL's `$1`, `$2`
+  placeholders. `Begin` starts a transaction that offers the same
+  three, plus `Commit` and `Rollback`. `Engine` names the engine,
+  `sdk.Postgres` today.
+- Each statement, open result set and transaction holds one slot
+  until it ends, so close every `Rows`. The share holds
+  `GOPHENBERG_PLUGIN_DB_CONNS` slots for each plugin, 4 by default.
+  Today all plugins draw from one share of that size.
+- A statement ends at `GOPHENBERG_PLUGIN_QUERY_TIMEOUT`, 5 seconds by
+  default, its wait for a slot included. A transaction ends at
+  `GOPHENBERG_PLUGIN_TX_TIMEOUT`, 30 seconds by default.
+- The share opens once every plugin registered. Keep `deps.DB` in
+  `Register` and use it from `Start` on. A statement during
+  `Register` is refused.
 
 ## Reading content
 

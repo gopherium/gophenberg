@@ -135,5 +135,5 @@ settings and command names without touching the database.
 ## One honest boundary
 
 Compiling a plugin in is a trust decision. The SDK is a clean
-interface, not a sandbox: `deps.DatabaseURL` reaches the same
-database the core uses. Review what you compile in.
+interface, not a sandbox: `deps.DB` and `deps.DatabaseURL` reach the
+same database the core uses. Review what you compile in.
