@@ -465,18 +465,36 @@ func (s *TypeStore) DeleteFieldsOfGroup(
 		if err != nil {
 			return err
 		}
+		if !holdsEvery(held, keys) {
+			return content.ErrFieldNotFound
+		}
 		held.Fields = slices.DeleteFunc(slices.Clone(held.Fields), func(f content.Field) bool {
 			return !slices.Contains(keys, f.Key)
 		})
 		return deleteFieldsOf(ctx, queries, groups, held)
 	})
-	if errors.Is(err, content.ErrGroupNotFound) || fromCheck(err) {
+	if refusedFieldDelete(err) {
 		return err
 	}
 	if err != nil {
 		return fmt.Errorf("postgres: delete fields of group: %w", err)
 	}
 	return nil
+}
+
+// holdsEvery reports whether the group declares a field under each key.
+func holdsEvery(g content.Group, keys []string) bool {
+	for _, key := range keys {
+		if !holdsKey(g, key) {
+			return false
+		}
+	}
+	return true
+}
+
+// refusedFieldDelete reports whether the error refuses a field delete as the caller reads it.
+func refusedFieldDelete(err error) bool {
+	return errors.Is(err, content.ErrGroupNotFound) || errors.Is(err, content.ErrFieldNotFound) || fromCheck(err)
 }
 
 // deleteFieldsOf removes the group's fields and sweeps their values from the types no other group serves them on.
@@ -692,19 +710,12 @@ func fieldStands(ctx context.Context, queries *db.Queries, groupID int, key stri
 func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key string, recheck content.Recheck) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		if err := queries.LockFieldGroups(ctx); err != nil {
-			return err
-		}
-		if err := rechecked(ctx, queries, recheck); err != nil {
-			return err
-		}
-		groups, err := groupsWithFields(ctx, queries)
+		groups, held, err := lockedGroup(ctx, queries, groupID, recheck)
 		if err != nil {
 			return err
 		}
-		held, found := groupByID(groups, groupID)
-		if !found {
-			return content.ErrGroupNotFound
+		if !holdsKey(held, key) {
+			return content.ErrFieldNotFound
 		}
 		matched, err := typesMatchedBy(ctx, queries, held)
 		if err != nil {
@@ -712,7 +723,7 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 		}
 		return deleteFieldRow(ctx, queries, groupID, key, servedOn(groups, matched, groupID, []string{key}))
 	})
-	if errors.Is(err, content.ErrGroupNotFound) || fromCheck(err) {
+	if refusedFieldDelete(err) {
 		return err
 	}
 	if err != nil {

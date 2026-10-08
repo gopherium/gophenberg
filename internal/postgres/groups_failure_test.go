@@ -151,6 +151,11 @@ func TestDeleteFieldsOfGroupReportsTypesItCannotRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
+	if _, err := store.CreateFieldInGroup(
+		t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""), nil,
+	); err != nil {
+		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
+	}
 	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
 
 	if err := store.DeleteFieldsOfGroup(t.Context(), stored.ID, []string{"subtitle"}, nil); err == nil {
