@@ -31,6 +31,9 @@ so it takes the default.
 | `GOPHENBERG_UPLOAD_TIMEOUT` | No | `5m` | How long a media or theme upload has to arrive, in place of `GOPHENBERG_HTTP_READ_TIMEOUT` |
 | `GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB` | No | `256` | The largest definitions file an import takes, in kilobytes, from 1 to 1024 |
 | `GOPHENBERG_FIELD_DEPTH` | No | `32` | How many containers a field may stand inside, from 1 to 1000. A Flexible content layout counts as one |
+| `GOPHENBERG_PLUGIN_DB_CONNS` | No | `4` | How many statements, open result sets and transactions each plugin adds to the plugins' database share, from 1 to 1000 |
+| `GOPHENBERG_PLUGIN_QUERY_TIMEOUT` | No | `5s` | How long one plugin statement may run, its wait for a slot included |
+| `GOPHENBERG_PLUGIN_TX_TIMEOUT` | No | `30s` | How long one plugin transaction may stay open |
 | `GOPHENBERG_LIST_PAGE_SIZES` | No | `10,20,50,100` | The page sizes an admin list offers in its Items per page menu, from 2 to 6 of them, see [the admin lists](#the-admin-lists) |
 | `GOPHENBERG_LIST_PAGE_SIZE` | No | `20` | The page size an admin list opens at, one of the sizes above |
 | `GOPHENBERG_LIST_PAGE_CAP` | No | `100` | The most items one admin list page carries. A request for more gets this many |
