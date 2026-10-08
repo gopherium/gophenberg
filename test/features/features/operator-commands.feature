@@ -73,7 +73,6 @@ Feature: Operators run Gophenberg from one command line
     And the account "author@example.com" still holds the role "author"
     And no account change is on record
 
-  @wip
   Scenario: A blank acting account is refused like a missing one
     Given the administrator "admin@example.com"
     And the author "author@example.com"
