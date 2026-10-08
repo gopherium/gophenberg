@@ -38,6 +38,7 @@ type site struct {
 	readers    *postgres.UserSettingStore
 	registered []sdk.Plugin
 	failed     error
+	lane       *pluginLane
 }
 
 // composeOf returns the values compose reads out of the server settings.

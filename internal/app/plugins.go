@@ -35,7 +35,7 @@ func loadPlugins(
 			return gonsole.Loaded{}, err
 		}
 		host := hostOf(built.registered)
-		return gonsole.Hosted(offerings(built.registered), host, built.failed, grace, built.pool.Close), nil
+		return gonsole.Hosted(offerings(built.registered), host, built.failed, grace, built.close), nil
 	}
 }
 

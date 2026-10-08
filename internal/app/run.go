@@ -45,7 +45,7 @@ func run(
 	if err != nil {
 		return err
 	}
-	defer built.pool.Close()
+	defer built.close()
 	host := hostOf(built.registered)
 	if built.failed != nil {
 		return errors.Join(
