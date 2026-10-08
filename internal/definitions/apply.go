@@ -161,7 +161,10 @@ func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Chan
 	}
 	if r.warned(WarningRootMoved, declared.Key) {
 		r.left(r.kept(planned, declared, ReasonRootKept))
-		wanted = r.beside(wanted, declared, planned.Action)
+		wanted, err = r.beside(ctx, wanted, declared, planned.Action)
+		if err != nil {
+			return err
+		}
 	}
 	if r.warned(WarningNestingKept, declared.Key) {
 		r.left(r.kept(planned, declared, ReasonNestingKept))
@@ -218,14 +221,19 @@ func (r *run) kept(planned Change, declared TypeDefinition, reason string) Chang
 }
 
 // beside returns the type standing next to the site's own root rather than in its place.
-func (r *run) beside(wanted content.Type, declared TypeDefinition, action string) content.Type {
+func (r *run) beside(
+	ctx context.Context, wanted content.Type, declared TypeDefinition, action string,
+) (content.Type, error) {
 	if action == ActionCreate {
 		wanted.Default, wanted.RouteWord = false, content.Slugify(declared.PluralLabel)
-		return wanted
+		return wanted, nil
 	}
-	stored, _ := typeAmong(r.registered, declared.Key)
+	stored, err := r.registry.ByKey(ctx, declared.Key)
+	if err != nil {
+		return content.Type{}, err
+	}
 	wanted.Default, wanted.RouteWord = stored.Default, stored.RouteWord
-	return wanted
+	return wanted, nil
 }
 
 // groups stores the groups the envelope brings and carries what it changed onto the stored ones.
