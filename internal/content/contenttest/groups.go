@@ -30,6 +30,8 @@ var groupCases = []Case{
 	{"ReorderGroupsSettlesTheFlattenedOrder", reorderGroupsSettlesTheFlattenedOrder},
 	{"UpdateGroupReportsAGroupThatIsGone", updateGroupReportsAGroupThatIsGone},
 	{"CreateFieldInGroupReportsAGroupThatIsGone", createFieldInGroupReportsAGroupThatIsGone},
+	{"DeleteFieldInGroupReportsAFieldTheGroupDoesNotHold", deleteFieldInGroupReportsAFieldTheGroupDoesNotHold},
+	{"DeleteFieldsOfGroupReportsAFieldTheGroupDoesNotHold", deleteFieldsOfGroupReportsAFieldTheGroupDoesNotHold},
 }
 
 // byKeyServesOneFieldWhenTwoGroupsCarryTheKey serves a key once, from the first of two matching groups carrying it.
@@ -384,5 +386,57 @@ func createFieldInGroupReportsAGroupThatIsGone(t *testing.T, s Stores) {
 
 	if !errors.Is(err, content.ErrGroupNotFound) {
 		t.Errorf("CreateFieldInGroup() error = %v, want %v", err, content.ErrGroupNotFound)
+	}
+}
+
+// keyHeldElsewhere stores a car item whose subtitle only a resting group declares, and returns Details and the item.
+func keyHeldElsewhere(t *testing.T, s Stores) (content.Group, content.Content) {
+	t.Helper()
+	author := s.AddAuthor(t, DefaultAuthor)
+	StoreType(t, s.Types, "car")
+	details := GroupOn(t, s.Types, "Details", "car")
+	TitleIn(t, s.Types, details.ID)
+	resting := GroupOn(t, s.Types, "Resting", "car")
+	if _, err := s.Types.CreateFieldInGroup(
+		t.Context(), resting.ID, FieldOn(t, "", "subtitle", content.FieldKindText, ""), nil,
+	); err != nil {
+		t.Fatalf("CreateFieldInGroup(subtitle) error = %v, want nil", err)
+	}
+	item, _ := TypedHolding(t, s.Types, s.Content, "car", "One", author, content.Values{"subtitle": "kept words"})
+	Rested(t, s.Types, "Resting")
+	if held := ValuesOf(t, s.Content, item.ID); held["subtitle"] != "kept words" {
+		t.Fatalf("stored values = %v after resting the group, want the subtitle kept", held)
+	}
+	return details, item
+}
+
+// deleteFieldInGroupReportsAFieldTheGroupDoesNotHold refuses a key the group lacks and leaves the values it names.
+func deleteFieldInGroupReportsAFieldTheGroupDoesNotHold(t *testing.T, s Stores) {
+	details, item := keyHeldElsewhere(t, s)
+
+	err := s.Types.DeleteFieldInGroup(t.Context(), details.ID, "subtitle", nil)
+
+	if !errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("DeleteFieldInGroup() error = %v, want %v", err, content.ErrFieldNotFound)
+	}
+	if held := ValuesOf(t, s.Content, item.ID); held["subtitle"] != "kept words" {
+		t.Errorf("stored values = %v, want the subtitle kept, since Details never held it", held)
+	}
+}
+
+// deleteFieldsOfGroupReportsAFieldTheGroupDoesNotHold refuses a list naming a key the group lacks and removes nothing.
+func deleteFieldsOfGroupReportsAFieldTheGroupDoesNotHold(t *testing.T, s Stores) {
+	details, item := keyHeldElsewhere(t, s)
+
+	err := s.Types.DeleteFieldsOfGroup(t.Context(), details.ID, []string{"title", "subtitle"}, nil)
+
+	if !errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("DeleteFieldsOfGroup() error = %v, want %v", err, content.ErrFieldNotFound)
+	}
+	if kept := GroupAt(t, s.Types, details.ID); len(kept.Fields) != 1 || kept.Fields[0].Key != "title" {
+		t.Errorf("Details holds %v, want the title kept by the refused delete", kept.Fields)
+	}
+	if held := ValuesOf(t, s.Content, item.ID); held["subtitle"] != "kept words" {
+		t.Errorf("stored values = %v, want the subtitle kept, since Details never held it", held)
 	}
 }
