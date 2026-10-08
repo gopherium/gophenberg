@@ -82,7 +82,6 @@ Feature: Operators run Gophenberg from one command line
     And the account "author@example.com" still holds the role "author"
     And no account change is on record
 
-  @wip
   Scenario Outline: An acting account cannot <case>
     Given the administrator "admin@example.com"
     And the administrator "maria@example.com"
@@ -100,7 +99,6 @@ Feature: Operators run Gophenberg from one command line
       | disable itself                   | account:disable admin@example.com -yes     | disable itself      |
       | preview disabling itself         | account:disable admin@example.com          | disable itself      |
 
-  @wip
   Scenario Outline: An account command refuses a missing flag without a database
     Given the settings name no database
     When the operator runs "<line>"

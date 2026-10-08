@@ -12,7 +12,7 @@ require (
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/google/uuid v1.6.0
 	github.com/gopherium/framework/gonsole v0.6.1
-	github.com/gopherium/framework/gonsole/auth v0.2.1
+	github.com/gopherium/framework/gonsole/auth v0.4.1
 	github.com/gopherium/framework/pluginkit v0.6.0
 	github.com/gopherium/gouncer v0.4.0
 	github.com/gopherium/gouncer/authkit v0.15.0
