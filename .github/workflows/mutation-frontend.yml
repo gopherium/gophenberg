@@ -11,6 +11,10 @@ on:
 jobs:
   stryker:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     defaults:
       run:
         working-directory: frontend
@@ -25,13 +29,14 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run mutate:changed "$BASE"
+      - run: pnpm run mutate:changed "$BASE" "$SHARD"
         env:
           BASE: origin/${{ github.base_ref }}
+          SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: stryker-report
+          name: stryker-report-${{ matrix.shard }}
           path: reports/mutation/
           retention-days: 7
           if-no-files-found: ignore
