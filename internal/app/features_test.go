@@ -53,7 +53,16 @@ func initializeOperatorCommands(t *testing.T) func(*godog.ScenarioContext) {
 		sc.Then(`^the account "([^"]*)" still holds the role "([^"]*)"$`, s.holdsRole)
 		sc.Then(`^no account change is on record$`, s.recordsNothing)
 		sc.Then(`^the records list "([^"]*)" applied by "([^"]*)"$`, s.recordsChange)
+		sc.Then(`^the error says "([^"]*)"$`, s.errorSays)
 	}
+}
+
+// errorSays fails unless the error stream carries text.
+func (s *operatorScenario) errorSays(text string) error {
+	if !strings.Contains(s.result.Stderr, text) {
+		return fmt.Errorf("stderr %q does not carry %q", s.result.Stderr, text)
+	}
+	return nil
 }
 
 // holdAccount creates the account at email under the role a scenario calls kind.

@@ -46,14 +46,15 @@ Feature: Operators run Gophenberg from one command line
     And the editor "editor@example.com"
     When the operator gives "author@example.com" the role "editor" acting as "<actor>"
     Then the command exits with code <code>
+    And the error says "<error>"
     And the account "author@example.com" still holds the role "author"
     And no account change is on record
 
     Examples:
-      | case                              | actor              | code |
-      | it names no acting account        |                    | 2    |
-      | the acting account is an editor   | editor@example.com | 1    |
-      | no account answers to the address | nobody@example.com | 1    |
+      | case                              | actor              | code | error                                    |
+      | it names no acting account        |                    | 2    | account:role wants -as <email>           |
+      | the acting account is an editor   | editor@example.com | 1    | which lacks manage_users                 |
+      | no account answers to the address | nobody@example.com | 1    | no account answers to nobody@example.com |
 
   Scenario: An applied account change is kept on record
     Given the administrator "admin@example.com"
