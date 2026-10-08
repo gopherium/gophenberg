@@ -790,7 +790,7 @@ func (q *Queries) RecountContentFieldDepth(ctx context.Context, arg RecountConte
 	return err
 }
 
-const reorderContentFields = `-- name: ReorderContentFields :exec
+const reorderContentFields = `-- name: ReorderContentFields :execrows
 UPDATE core.content_fields
 SET position = ordered.position
 FROM (
@@ -806,9 +806,12 @@ type ReorderContentFieldsParams struct {
 	Keys    []string
 }
 
-func (q *Queries) ReorderContentFields(ctx context.Context, arg ReorderContentFieldsParams) error {
-	_, err := q.db.Exec(ctx, reorderContentFields, arg.GroupID, arg.Keys)
-	return err
+func (q *Queries) ReorderContentFields(ctx context.Context, arg ReorderContentFieldsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, reorderContentFields, arg.GroupID, arg.Keys)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const reorderFieldGroups = `-- name: ReorderFieldGroups :exec
@@ -826,7 +829,7 @@ func (q *Queries) ReorderFieldGroups(ctx context.Context, ids []int32) error {
 	return err
 }
 
-const reorderSubContentFields = `-- name: ReorderSubContentFields :exec
+const reorderSubContentFields = `-- name: ReorderSubContentFields :execrows
 UPDATE core.content_fields
 SET position = ordered.position
 FROM (
@@ -841,9 +844,12 @@ type ReorderSubContentFieldsParams struct {
 	Keys          []string
 }
 
-func (q *Queries) ReorderSubContentFields(ctx context.Context, arg ReorderSubContentFieldsParams) error {
-	_, err := q.db.Exec(ctx, reorderSubContentFields, arg.ParentFieldID, arg.Keys)
-	return err
+func (q *Queries) ReorderSubContentFields(ctx context.Context, arg ReorderSubContentFieldsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, reorderSubContentFields, arg.ParentFieldID, arg.Keys)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const reparentContentField = `-- name: ReparentContentField :one
