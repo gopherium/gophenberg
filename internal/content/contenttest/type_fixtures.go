@@ -3,6 +3,7 @@
 package contenttest
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -223,6 +224,20 @@ func DeclaredInside(
 	return stored
 }
 
+// SectionChainOnCar returns the deepest section of a chain nested depth levels under a top section of the car type.
+func SectionChainOnCar(t *testing.T, types content.TypeStore, registry *content.Registry, depth int) content.Field {
+	t.Helper()
+	at := DeclareSection(t, types, "specs")
+	for level := 1; level <= depth; level++ {
+		grown, err := registry.CreateSubField(t.Context(), at.ID, SectionOn(t, fmt.Sprintf("held%d", level)))
+		if err != nil {
+			t.Fatalf("nesting a container at depth %d: %v, want nil", level, err)
+		}
+		at = grown
+	}
+	return at
+}
+
 // Rested turns off the group the title names and returns it.
 func Rested(t *testing.T, types content.TypeStore, title string) content.Group {
 	t.Helper()
@@ -257,6 +272,38 @@ func RivalOnTruck(t *testing.T, types content.TypeStore, key string) content.Gro
 	}
 	StoreType(t, types, "truck")
 	return trucks
+}
+
+// RestingTwinOf stores a resting group on car holding a section under the key and returns the section.
+func RestingTwinOf(t *testing.T, types content.TypeStore, key string) content.Field {
+	t.Helper()
+	if _, err := types.CreateGroup(
+		t.Context(), content.Group{Title: "Shadow", Location: LocationOf("car")},
+	); err != nil {
+		t.Fatalf("CreateGroup(Shadow) error = %v, want nil", err)
+	}
+	idle := Rested(t, types, "Shadow")
+	twin, err := types.CreateFieldInGroup(t.Context(), idle.ID, SectionOn(t, key), nil)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(shadow %s) error = %v, want nil", key, err)
+	}
+	return twin
+}
+
+// RelationInside declares a relation pointing at cars inside the container and returns it.
+func RelationInside(t *testing.T, types content.TypeStore, parent content.Field, key string) content.Field {
+	t.Helper()
+	built, err := content.NewSubField(content.Field{
+		Key: key, Label: key, Kind: content.FieldKindRelation, RelatesTo: "car",
+	}, parent.Kind)
+	if err != nil {
+		t.Fatalf("NewSubField(%s) error = %v, want nil", key, err)
+	}
+	stored, err := types.CreateSubField(t.Context(), parent.ID, built, content.DefaultFieldDepth)
+	if err != nil {
+		t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
+	}
+	return stored
 }
 
 // ServingEverything stores a group matching every type and returns it.

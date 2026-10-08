@@ -40,7 +40,8 @@ func Cases() []Case {
 func TypeCases() []Case {
 	return slices.Concat(
 		typeCases, typeNestingCases, groupCases, groupValueCases, groupRecheckCases, groupRepointCases,
-		originCases, settingCases, kindCases, adoptCases, typeFieldCases,
+		originCases, settingCases, kindCases, adoptCases, typeFieldCases, fieldParentCases,
+		fieldDepthCases, subFieldWriteCases, fieldMoveCases, fieldMoveValueCases,
 	)
 }
 
