@@ -4,6 +4,7 @@ package contenttest
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -120,4 +121,250 @@ func StoreItem(
 		t.Fatalf("Create(%q) error = %v, want nil", title, err)
 	}
 	return stored
+}
+
+// TypedHolding stores an item of the type holding the values with a revision holding them too, and returns both.
+func TypedHolding(
+	t *testing.T, types content.TypeStore, store content.Store, typeKey, title string, author uuid.UUID,
+	values content.Values,
+) (content.Content, content.Revision) {
+	t.Helper()
+	kind, err := types.ByKey(t.Context(), typeKey)
+	if err != nil {
+		t.Fatalf("ByKey(%s) error = %v, want nil", typeKey, err)
+	}
+	created := StoreItem(t, store, kind, nil, title, author)
+	filled := created
+	filled.Fields = values
+	filled.UpdatedAt = time.Now().UTC()
+	snapshot := MustSnapshot(t, filled, author)
+	stored, err := store.Update(t.Context(), filled, created.UpdatedAt, snapshot, 0)
+	if err != nil {
+		t.Fatalf("storing the values of %q: %v, want nil", title, err)
+	}
+	return stored, *snapshot
+}
+
+// ParkValues stores the author's autosave of the item holding the values.
+func ParkValues(t *testing.T, store content.Store, item content.Content, author uuid.UUID, values content.Values) {
+	t.Helper()
+	buffer := item
+	buffer.Fields = values
+	if _, err := store.SaveAutosave(t.Context(), MustAutosave(t, buffer, author)); err != nil {
+		t.Fatalf("SaveAutosave() error = %v, want nil", err)
+	}
+}
+
+// ValuesOf returns the field values the store holds for the item.
+func ValuesOf(t *testing.T, store content.Store, id uuid.UUID) content.Values {
+	t.Helper()
+	held, err := store.ByID(t.Context(), id)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	return held.Fields
+}
+
+// RevisionValuesOf returns the field values the store holds for the revision.
+func RevisionValuesOf(t *testing.T, store content.Store, revision content.Revision) content.Values {
+	t.Helper()
+	held, err := store.RevisionByID(t.Context(), revision.ContentID, revision.ID)
+	if err != nil {
+		t.Fatalf("RevisionByID() error = %v, want nil", err)
+	}
+	return held.Fields
+}
+
+// AutosaveValuesOf returns the field values the author's autosave of the item holds.
+func AutosaveValuesOf(t *testing.T, store content.Store, item content.Content, author uuid.UUID) content.Values {
+	t.Helper()
+	held, err := store.Autosave(t.Context(), item.ID, author)
+	if err != nil {
+		t.Fatalf("Autosave() error = %v, want nil", err)
+	}
+	return held.Fields
+}
+
+// SectionOn returns a section field ready to nest under a parent.
+func SectionOn(t *testing.T, key string) content.Field {
+	t.Helper()
+	built, err := content.NewField(content.Field{Key: key, Label: key, Kind: content.FieldKindSection})
+	if err != nil {
+		t.Fatalf("NewField(section %s) error = %v, want nil", key, err)
+	}
+	return built
+}
+
+// DeclareSection stores a section at the top of the car type inside the group keyed after the type and returns it.
+func DeclareSection(t *testing.T, types content.TypeStore, key string) content.Field {
+	t.Helper()
+	held := SectionOn(t, key)
+	held.TypeKey = "car"
+	stored, err := types.CreateFieldInGroup(t.Context(), FieldsGroupOf(t, types, "car").ID, held, nil)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(section %s) error = %v, want nil", key, err)
+	}
+	return stored
+}
+
+// DeclaredInside declares a sub field of the kind under the parent and returns it.
+func DeclaredInside(
+	t *testing.T, types content.TypeStore, parent content.Field, key string, kind content.FieldKind,
+) content.Field {
+	t.Helper()
+	built, err := content.NewSubField(content.Field{Key: key, Label: key, Kind: kind}, parent.Kind)
+	if err != nil {
+		t.Fatalf("NewSubField(%s) error = %v, want nil", key, err)
+	}
+	stored, err := types.CreateSubField(t.Context(), parent.ID, built, content.DefaultFieldDepth)
+	if err != nil {
+		t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
+	}
+	return stored
+}
+
+// Rested turns off the group the title names and returns it.
+func Rested(t *testing.T, types content.TypeStore, title string) content.Group {
+	t.Helper()
+	groups, err := types.ListGroups(t.Context())
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v, want nil", err)
+	}
+	for _, held := range groups {
+		if held.Title != title {
+			continue
+		}
+		held.Active = false
+		idle, err := types.UpdateGroup(t.Context(), held, nil, nil)
+		if err != nil {
+			t.Fatalf("resting %q: %v, want nil", title, err)
+		}
+		return idle
+	}
+	t.Fatalf("no stored group is titled %q", title)
+	return content.Group{}
+}
+
+// RivalOnTruck stores a truck group holding a section under the key, registers truck and returns the group.
+func RivalOnTruck(t *testing.T, types content.TypeStore, key string) content.Group {
+	t.Helper()
+	trucks, err := types.CreateGroup(t.Context(), content.Group{Title: "Trucks", Location: LocationOf("truck")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Trucks) error = %v, want nil", err)
+	}
+	if _, err := types.CreateFieldInGroup(t.Context(), trucks.ID, SectionOn(t, key), nil); err != nil {
+		t.Fatalf("CreateFieldInGroup(trucks %s) error = %v, want nil", key, err)
+	}
+	StoreType(t, types, "truck")
+	return trucks
+}
+
+// ServingEverything stores a group matching every type and returns it.
+func ServingEverything(t *testing.T, types content.TypeStore) content.Group {
+	t.Helper()
+	everywhere, err := types.CreateGroup(t.Context(),
+		content.Group{Title: "Everywhere", Location: LocationOf(content.AnyContentType)})
+	if err != nil {
+		t.Fatalf("CreateGroup(Everywhere) error = %v, want nil", err)
+	}
+	return everywhere
+}
+
+// GroupOn stores an active group placed on the type and returns it.
+func GroupOn(t *testing.T, types content.TypeStore, title, typeKey string) content.Group {
+	t.Helper()
+	held, err := types.CreateGroup(t.Context(), content.Group{Title: title, Location: LocationOf(typeKey)})
+	if err != nil {
+		t.Fatalf("CreateGroup(%s) error = %v, want nil", title, err)
+	}
+	return held
+}
+
+// TitleIn stores a text field keyed title at the top of the group and returns it.
+func TitleIn(t *testing.T, types content.TypeStore, groupID int) content.Field {
+	t.Helper()
+	held, err := types.CreateFieldInGroup(
+		t.Context(), groupID, FieldOn(t, "", "title", content.FieldKindText, ""), nil,
+	)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(title) error = %v, want nil", err)
+	}
+	return held
+}
+
+// GroupAt returns the stored group carrying the identity with its fields.
+func GroupAt(t *testing.T, types content.TypeStore, id int) content.Group {
+	t.Helper()
+	groups, err := types.ListGroups(t.Context())
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v, want nil", err)
+	}
+	for _, g := range groups {
+		if g.ID == id {
+			return g
+		}
+	}
+	t.Fatalf("no stored group carries the identity %d", id)
+	return content.Group{}
+}
+
+// ReadersOn stores a group on the type holding a backlinks field that reads the named relation, and returns both.
+func ReadersOn(t *testing.T, types content.TypeStore, typeKey, relation string) (content.Group, content.Field) {
+	t.Helper()
+	group, err := types.CreateGroup(t.Context(), content.Group{Title: "Readers", Location: LocationOf(typeKey)})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	built, err := content.NewField(content.Field{
+		Key: "linked-from", Label: "Linked from", Kind: content.FieldKindBacklinks,
+		Settings: readingSource(relation),
+	})
+	if err != nil {
+		t.Fatalf("NewField(backlinks) error = %v, want nil", err)
+	}
+	stored, err := types.CreateFieldInGroup(t.Context(), group.ID, built, nil)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(backlinks) error = %v, want nil", err)
+	}
+	return group, stored
+}
+
+// readingSource returns the settings naming one relation of the sources group.
+func readingSource(relation string) map[string]any {
+	return map[string]any{content.SettingSourceGroup: "sources", content.SettingSourceField: []any{relation}}
+}
+
+// GroupOf returns the group carrying the identifier, and whether one does.
+func GroupOf(groups []content.Group, id int) (content.Group, bool) {
+	for _, held := range groups {
+		if held.ID == id {
+			return held, true
+		}
+	}
+	return content.Group{}, false
+}
+
+// DeclaredInto stores one plugin's type, group and field through the registry.
+func DeclaredInto(t *testing.T, registry *content.Registry) {
+	t.Helper()
+	ctx := content.Declaring(t.Context(), "events")
+	event, err := content.NewType("event", "Event", "Events", "events")
+	if err != nil {
+		t.Fatalf("NewType() error = %v, want nil", err)
+	}
+	event.Origin = "events"
+	if _, err := registry.Create(ctx, event); err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	group, err := registry.CreateGroup(ctx, content.Group{
+		Key: "event-details", Title: "Event details", Origin: "events",
+	})
+	if err != nil {
+		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	if _, err := registry.CreateFieldInGroup(ctx, group.ID, content.Field{
+		Key: "venue", Label: "Venue", Kind: content.FieldKindText, Origin: "events",
+	}); err != nil {
+		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
+	}
 }

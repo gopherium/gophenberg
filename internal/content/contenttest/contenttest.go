@@ -38,7 +38,10 @@ func Cases() []Case {
 
 // TypeCases returns every type store case in a fixed order.
 func TypeCases() []Case {
-	return slices.Concat(typeCases, typeNestingCases)
+	return slices.Concat(
+		typeCases, typeNestingCases, groupCases, groupValueCases, groupRecheckCases, groupRepointCases,
+		originCases, settingCases, kindCases, adoptCases, typeFieldCases,
+	)
 }
 
 // Run runs every content store case in parallel, each on stores of its own.
