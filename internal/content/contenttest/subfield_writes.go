@@ -16,6 +16,8 @@ var subFieldWriteCases = []Case{
 	{"UpdatingASubFieldRefusesAStaleStamp", updatingASubFieldRefusesAStaleStamp},
 	{"UpdatingASubFieldWillNotReachATopLevelField", updatingASubFieldWillNotReachATopLevelField},
 	{"UpdatingASubFieldReportsOneThatIsGone", updatingASubFieldReportsOneThatIsGone},
+	{"ReorderingInsideAContainerReportsOneThatIsGone", reorderingInsideAContainerReportsOneThatIsGone},
+	{"ReorderingInsideAContainerAcceptsOneHoldingNoSubFields", reorderingInsideAContainerAcceptsOneHoldingNoSubFields},
 	{"ReorderingInsideAContainerStandsTheSubFieldsAsAsked", reorderingInsideAContainerStandsTheSubFieldsAsAsked},
 	{"ReorderingInsideAContainerLeavesAnotherContainerAlone", reorderingInsideAContainerLeavesAnotherContainerAlone},
 }
@@ -183,5 +185,26 @@ func reorderingInsideAContainerLeavesAnotherContainerAlone(t *testing.T, s Store
 	if away[0].Key != "title" || away[1].Key != "colour" {
 		t.Errorf("the sub fields elsewhere stand %q then %q, want them left as title then colour",
 			away[0].Key, away[1].Key)
+	}
+}
+
+// reorderingInsideAContainerReportsOneThatIsGone answers field not found for an order inside a field nothing holds.
+func reorderingInsideAContainerReportsOneThatIsGone(t *testing.T, s Stores) {
+	err := s.Types.ReorderSubFields(t.Context(), 4242, []string{"title"})
+
+	if !errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("ReorderSubFields() error = %v, want %v", err, content.ErrFieldNotFound)
+	}
+}
+
+// reorderingInsideAContainerAcceptsOneHoldingNoSubFields takes an empty order for a container holding no sub fields.
+func reorderingInsideAContainerAcceptsOneHoldingNoSubFields(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	specs := DeclareSection(t, s.Types, "specs")
+
+	err := s.Types.ReorderSubFields(t.Context(), specs.ID, nil)
+
+	if err != nil {
+		t.Errorf("ReorderSubFields() on a container holding no sub fields: error = %v, want nil", err)
 	}
 }

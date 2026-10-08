@@ -32,6 +32,8 @@ var groupCases = []Case{
 	{"CreateFieldInGroupReportsAGroupThatIsGone", createFieldInGroupReportsAGroupThatIsGone},
 	{"DeleteFieldInGroupReportsAFieldTheGroupDoesNotHold", deleteFieldInGroupReportsAFieldTheGroupDoesNotHold},
 	{"DeleteFieldsOfGroupReportsAFieldTheGroupDoesNotHold", deleteFieldsOfGroupReportsAFieldTheGroupDoesNotHold},
+	{"ReorderFieldsInGroupReportsAGroupThatIsGone", reorderFieldsInGroupReportsAGroupThatIsGone},
+	{"ReorderFieldsInGroupAcceptsAGroupHoldingNoFields", reorderFieldsInGroupAcceptsAGroupHoldingNoFields},
 }
 
 // byKeyServesOneFieldWhenTwoGroupsCarryTheKey serves a key once, from the first of two matching groups carrying it.
@@ -438,5 +440,26 @@ func deleteFieldsOfGroupReportsAFieldTheGroupDoesNotHold(t *testing.T, s Stores)
 	}
 	if held := ValuesOf(t, s.Content, item.ID); held["subtitle"] != "kept words" {
 		t.Errorf("stored values = %v, want the subtitle kept, since Details never held it", held)
+	}
+}
+
+// reorderFieldsInGroupReportsAGroupThatIsGone answers group not found for an order given to a group nothing holds.
+func reorderFieldsInGroupReportsAGroupThatIsGone(t *testing.T, s Stores) {
+	err := s.Types.ReorderFieldsInGroup(t.Context(), 4242, []string{"title"})
+
+	if !errors.Is(err, content.ErrGroupNotFound) {
+		t.Errorf("ReorderFieldsInGroup() error = %v, want %v", err, content.ErrGroupNotFound)
+	}
+}
+
+// reorderFieldsInGroupAcceptsAGroupHoldingNoFields takes an empty order for a group holding no fields.
+func reorderFieldsInGroupAcceptsAGroupHoldingNoFields(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	empty := GroupOn(t, s.Types, "Empty", "car")
+
+	err := s.Types.ReorderFieldsInGroup(t.Context(), empty.ID, nil)
+
+	if err != nil {
+		t.Errorf("ReorderFieldsInGroup() on a group holding no fields: error = %v, want nil", err)
 	}
 }
