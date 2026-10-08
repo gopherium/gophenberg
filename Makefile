@@ -1,7 +1,7 @@
 .PHONY: peers dev seed test test-race cover cover-html mutate lint fmt generate outdated db-up db-down pot catalogs \
 	translations \
 	translations-push translations-retire \
-	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump bump-kit \
+	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump bump-kit sdk-compat \
 	brick-link brick-sync brick-pack brick-unlink
 
 COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/testdb -e /internal/content/contenttest)
@@ -59,6 +59,24 @@ bump-kit:
 		{ git rev-parse -q --verify "refs/tags/astro@$$current" >/dev/null || \
 		{ echo "astro@$$current carries no tag. Release it, or fetch the tags, before bumping the kit."; exit 1; }; }
 	cd sdk/astro && npm version "$(V)" --no-git-tag-version --allow-same-version
+
+SDK_BASE ?=
+SDK_BREAK_LABELED ?= false
+APIDIFF ?= $(shell GOWORK=off go tool -n apidiff)
+
+sdk-compat:
+	@test -n "$(SDK_BASE)" || { echo "usage: make sdk-compat SDK_BASE=../base/sdk"; exit 1; }
+	@apidiff="$(APIDIFF)" && module="$$(cd sdk && GOWORK=off go list -m)" && \
+		base="$$(mktemp)" && trap 'rm -f "$$base"' EXIT && \
+		(cd "$(SDK_BASE)" && GOWORK=off "$$apidiff" -m -w "$$base" "$$module") && \
+		broken="$$(cd sdk && GOWORK=off "$$apidiff" -m -incompatible "$$base" "$$module")" && \
+		if [ -z "$$broken" ]; then echo "the sdk keeps compatibility with $(SDK_BASE)"; exit 0; fi && \
+		printf '%s\n' "$$broken" && \
+		version="$$(GOWORK=off go list -m -f '{{.Version}}' "$$module")" && \
+		case "$(SDK_BREAK_LABELED):$$version" in \
+		true:v0.*) echo "the sdk breaks compatibility, allowed by the sdk-break label below 1.0" ;; \
+		*) echo "the sdk at $$version breaks compatibility. Below 1.0 a maintainer can allow it with the sdk-break label."; exit 1 ;; \
+		esac
 
 dev: db-up
 	go run ./cmd/gophenberg serve
