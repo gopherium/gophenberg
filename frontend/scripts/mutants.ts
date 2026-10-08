@@ -38,6 +38,62 @@ export function mutateTargets(diff: string, untracked: string[], patterns: strin
 	return [...tracked, ...mutatedFiles(untracked, patterns)]
 }
 
+/** A shard argument, capturing its index and its count. */
+const SHARD = /^(\d+)\/(\d+)$/
+
+/** A mutate entry naming a range, capturing its first and last line. */
+const RANGE = /:(\d+)-(\d+)$/
+
+/** One shard of a mutation run, as its index counted from 1 and how many shards the run has. */
+interface Shard {
+	index: number
+	count: number
+}
+
+/**
+ * Returns the shard an argument names as index/count, or undefined when it names none.
+ * @param text - The argument, as in 2/6.
+ * @returns The shard, or undefined when the text is not an index from 1 to the count.
+ */
+export function parseShard(text: string): Shard | undefined {
+	const parts = SHARD.exec(text)
+	if (parts === null) {
+		return undefined
+	}
+	const shard = { index: Number(parts[1]), count: Number(parts[2]) }
+	return shard.index >= 1 && shard.index <= shard.count ? shard : undefined
+}
+
+/**
+ * Returns the mutate entries one shard runs, every shard holding about the same number of lines.
+ * @param targets - The mutate entries, as file:start-end or a whole file.
+ * @param shard - The shard to return the entries of.
+ * @param fileLines - Counts the lines of a whole file.
+ * @returns The entries of the shard, in their given order.
+ */
+export function shardTargets(targets: string[], shard: Shard, fileLines: (file: string) => number): string[] {
+	const loads = Array.from({ length: shard.count }, () => 0)
+	const owners = new Map<string, number>()
+	const sized = targets.toSorted().map((target) => ({ target, lines: targetLines(target, fileLines) }))
+	for (const { target, lines } of sized.toSorted((left, right) => right.lines - left.lines)) {
+		const lightest = loads.reduce((least, load, place) => (load < loads[least] ? place : least), 0)
+		loads[lightest] += lines
+		owners.set(target, lightest + 1)
+	}
+	return targets.filter((target) => owners.get(target) === shard.index)
+}
+
+/**
+ * Returns how many lines a mutate entry covers.
+ * @param target - The mutate entry, as file:start-end or a whole file.
+ * @param fileLines - Counts the lines of a whole file.
+ * @returns The lines of its range, or of the whole file.
+ */
+function targetLines(target: string, fileLines: (file: string) => number): number {
+	const range = RANGE.exec(target)
+	return range === null ? fileLines(target) : Number(range[2]) - Number(range[1]) + 1
+}
+
 /**
  * Returns the line ranges a diff with no context adds or changes, by file.
  * @param diff - The output of git diff --unified=0 with a/ and b/ prefixes.
