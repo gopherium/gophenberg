@@ -15,6 +15,7 @@ var subFieldWriteCases = []Case{
 	{"UpdatingASubFieldCarriesItsLabelRequiredAndSettings", updatingASubFieldCarriesItsLabelRequiredAndSettings},
 	{"UpdatingASubFieldRefusesAStaleStamp", updatingASubFieldRefusesAStaleStamp},
 	{"UpdatingASubFieldWillNotReachATopLevelField", updatingASubFieldWillNotReachATopLevelField},
+	{"UpdatingASubFieldReportsOneThatIsGone", updatingASubFieldReportsOneThatIsGone},
 	{"ReorderingInsideAContainerStandsTheSubFieldsAsAsked", reorderingInsideAContainerStandsTheSubFieldsAsAsked},
 	{"ReorderingInsideAContainerLeavesAnotherContainerAlone", reorderingInsideAContainerLeavesAnotherContainerAlone},
 }
@@ -99,6 +100,28 @@ func updatingASubFieldWillNotReachATopLevelField(t *testing.T, s Stores) {
 
 	if !errors.Is(err, content.ErrConflict) {
 		t.Errorf("UpdateSubField() on a top field: error = %v, want %v", err, content.ErrConflict)
+	}
+}
+
+// updatingASubFieldReportsOneThatIsGone answers field not found for an edit naming a sub field that was deleted.
+func updatingASubFieldReportsOneThatIsGone(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	specs := DeclareSection(t, s.Types, "specs")
+	sub, err := s.Types.CreateSubField(
+		t.Context(), specs.ID, FieldOn(t, "", "title", content.FieldKindText, ""), content.DefaultFieldDepth)
+	if err != nil {
+		t.Fatalf("CreateSubField() error = %v, want nil", err)
+	}
+	if err := s.Types.DeleteSubField(t.Context(), sub.ID, nil); err != nil {
+		t.Fatalf("DeleteSubField() error = %v, want nil", err)
+	}
+	edited := sub
+	edited.UpdatedAt = sub.UpdatedAt.Add(time.Second)
+
+	_, err = s.Types.UpdateSubField(t.Context(), sub.ID, edited, sub.UpdatedAt)
+
+	if !errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("UpdateSubField() on a deleted sub field: error = %v, want %v", err, content.ErrFieldNotFound)
 	}
 }
 
