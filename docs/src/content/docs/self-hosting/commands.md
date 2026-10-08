@@ -131,7 +131,8 @@ it fails, the command exits with code 1 and says why:
 gophenberg: the account editor@example.com holds the role editor, which lacks manage_users
 ```
 
-Leaving out `-as`, or giving it only spaces, exits with code 2:
+Leaving out `-as`, or giving it only spaces, exits with code 2. The
+message names the command, so for `account:role` it reads:
 
 ```text
 gophenberg: account:role wants -as <email>
