@@ -679,25 +679,25 @@ func (s *TypeStore) UpdateSubField(
 
 // subFieldMissed returns field not found when no field carries the id, and a conflict when one still stands.
 func (s *TypeStore) subFieldMissed(ctx context.Context, id int) error {
-	groups, err := groupsWithFields(ctx, s.queries)
-	if err != nil {
-		return fmt.Errorf("postgres: read the fields after a missed sub field update: %w", err)
-	}
-	if _, _, _, found := fieldPathIn(groups, id); !found {
-		return content.ErrFieldNotFound
+	if err := fieldCarried(ctx, s.queries, id); err != nil {
+		return err
 	}
 	return content.ErrConflict
 }
 
 // ReorderSubFields stands the sub fields of the container in the order the keys name.
 func (s *TypeStore) ReorderSubFields(ctx context.Context, parentID int, keys []string) error {
-	if err := s.queries.ReorderSubContentFields(ctx, db.ReorderSubContentFieldsParams{
+	moved, err := s.queries.ReorderSubContentFields(ctx, db.ReorderSubContentFieldsParams{
 		ParentFieldID: pgtype.Int4{Int32: int32(parentID), Valid: true},
 		Keys:          keys,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("postgres: reorder sub fields: %w", err)
 	}
-	return nil
+	if moved > 0 {
+		return nil
+	}
+	return fieldCarried(ctx, s.queries, parentID)
 }
 
 // fieldStands reports whether the group still declares the field.
@@ -841,12 +841,39 @@ func sweepLayout(ctx context.Context, queries *db.Queries, path []string, matche
 
 // ReorderFieldsInGroup stores the declaration order of a group's fields.
 func (s *TypeStore) ReorderFieldsInGroup(ctx context.Context, groupID int, keys []string) error {
-	err := s.queries.ReorderContentFields(ctx, db.ReorderContentFieldsParams{
+	moved, err := s.queries.ReorderContentFields(ctx, db.ReorderContentFieldsParams{
 		Keys:    keys,
 		GroupID: int32(groupID),
 	})
 	if err != nil {
 		return fmt.Errorf("postgres: reorder content fields: %w", err)
+	}
+	if moved > 0 {
+		return nil
+	}
+	return groupStands(ctx, s.queries, groupID)
+}
+
+// groupStands returns group not found when no stored group carries the identifier.
+func groupStands(ctx context.Context, queries *db.Queries, id int) error {
+	groups, err := groupsWithFields(ctx, queries)
+	if err != nil {
+		return err
+	}
+	if _, found := groupByID(groups, id); !found {
+		return content.ErrGroupNotFound
+	}
+	return nil
+}
+
+// fieldCarried returns field not found when no stored field carries the identifier.
+func fieldCarried(ctx context.Context, queries *db.Queries, id int) error {
+	groups, err := groupsWithFields(ctx, queries)
+	if err != nil {
+		return err
+	}
+	if _, _, _, found := fieldPathIn(groups, id); !found {
+		return content.ErrFieldNotFound
 	}
 	return nil
 }

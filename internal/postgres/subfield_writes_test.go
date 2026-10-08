@@ -31,6 +31,19 @@ func TestUpdatingASubFieldReportsAListingItCannotRead(t *testing.T) {
 	}
 }
 
+func TestReorderingInsideAContainerReportsAListingItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
+
+	err := store.ReorderSubFields(t.Context(), 4242, []string{"title"})
+
+	if err == nil || errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("ReorderSubFields() error = %v, want the unreadable listing reported", err)
+	}
+}
+
 func TestUpdatingASubFieldReportsAStoreThatWillNotWrite(t *testing.T) {
 	t.Parallel()
 

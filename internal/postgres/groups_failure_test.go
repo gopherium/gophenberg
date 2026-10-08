@@ -206,6 +206,19 @@ func TestReorderGroupsReportsAnOrderItCannotStore(t *testing.T) {
 	}
 }
 
+func TestReorderFieldsInGroupReportsAListingItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
+
+	err := store.ReorderFieldsInGroup(t.Context(), 4242, []string{"title"})
+
+	if err == nil || errors.Is(err, content.ErrGroupNotFound) {
+		t.Errorf("ReorderFieldsInGroup() error = %v, want the unreadable listing reported", err)
+	}
+}
+
 func TestCreateFieldReportsATypeThatIsNotRegistered(t *testing.T) {
 	t.Parallel()
 
