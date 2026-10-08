@@ -4,11 +4,77 @@ package definitions_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
+
+// unlistingOnceStore refuses the first type read after an update, then recovers.
+type unlistingOnceStore struct {
+	content.TypeStore
+	wrote   bool
+	refused bool
+}
+
+// Update stores the type and arms the single refused read.
+func (s *unlistingOnceStore) Update(ctx context.Context, wanted content.Type) (content.Type, error) {
+	stored, err := s.TypeStore.Update(ctx, wanted)
+	s.wrote = err == nil
+	return stored, err
+}
+
+// List refuses one read after a type update, allowing later reads to succeed.
+func (s *unlistingOnceStore) List(ctx context.Context) ([]content.Type, error) {
+	if s.wrote && !s.refused {
+		s.refused = true
+		return nil, errTypesUnread
+	}
+	return s.TypeStore.List(ctx)
+}
+
+// TestApplyStopsWhenItCannotReadTheRouteItKeeps checks that a refused route read stops later import writes.
+func TestApplyStopsWhenItCannotReadTheRouteItKeeps(t *testing.T) {
+	t.Parallel()
+
+	pool, _ := declaringPool(t)
+	store := &unlistingOnceStore{TypeStore: postgres.NewTypeStore(pool)}
+	registry := content.NewRegistry(store)
+	siteDefined(t, registry)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == content.TypePost {
+			envelope.Types[i].SingularLabel = "Entry"
+			envelope.Types[i].Default, envelope.Types[i].RouteWord = false, "posts"
+		}
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].SingularLabel = "Dish"
+			envelope.Types[i].Default, envelope.Types[i].RouteWord = true, ""
+		}
+	}
+	groupNamed(t, envelope, "recipe-details").Title = "Imported recipe details"
+
+	_, err := definitions.Apply(t.Context(), registry, importing(envelope))
+
+	if !errors.Is(err, errTypesUnread) {
+		t.Fatalf("Apply() error = %v, want the refused read of the current route reported", err)
+	}
+	stored := content.NewRegistry(postgres.NewTypeStore(pool))
+	post, err := stored.ByKey(t.Context(), content.TypePost)
+	if err != nil || post.SingularLabel != "Entry" || !post.Default || post.RouteWord != "" {
+		t.Errorf("the post type = %+v, %v, want the earlier label write with the root preserved", post, err)
+	}
+	recipe, err := stored.ByKey(t.Context(), "recipe")
+	if err != nil || recipe.SingularLabel != "Recipe" || recipe.Default || recipe.RouteWord != "recipes" {
+		t.Errorf("the recipe type = %+v, %v, want the failed import to leave it unchanged", recipe, err)
+	}
+	group, found := storedGroup(t, stored, "recipe-details")
+	if !found || group.Title != "Recipe details" {
+		t.Errorf("the recipe group = %+v, %v, want the later group write left unapplied", group, found)
+	}
+}
 
 // TestApplyKeepsARouteWordEditedWhileItRuns checks that preserving the site's root keeps its latest route word.
 func TestApplyKeepsARouteWordEditedWhileItRuns(t *testing.T) {
