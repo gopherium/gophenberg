@@ -4,8 +4,8 @@ on:
   pull_request:
     paths:
       - '**.go'
-      - go.mod
-      - go.sum
+      - '**/go.mod'
+      - '**/go.sum'
       - Makefile
       - .gremlins.yaml
       - .github/workflows/mutation-go.yml

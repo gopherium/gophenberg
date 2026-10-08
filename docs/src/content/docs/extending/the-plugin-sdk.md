@@ -8,6 +8,16 @@ It is small on purpose, and this page is all of it. It names only
 its own types and the standard library's, so a release of a module
 the core uses never changes what a plugin compiles against.
 
+The SDK is a Go module of its own,
+`github.com/gopherium/gophenberg/sdk`. Its versions, such as
+`v0.1.0`, come from git tags such as `sdk/v0.1.0`. A plugin kept in
+its own repository requires that module alone, never the whole of
+Gophenberg:
+
+```sh
+go get github.com/gopherium/gophenberg/sdk@latest
+```
+
 ## Deps
 
 `Register` receives one value:

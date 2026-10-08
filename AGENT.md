@@ -19,7 +19,7 @@ internal/publichtml   sanitizer for stored block markup on public surfaces
 internal/publicsite   built-in Go renderer for the public site
 internal/themehost    theme artifact validation and the node process supervisor
 plugins/feed          reference plugin: RSS feed
-sdk/                  public plugin contract (Go), the only Gophenberg import allowed in a plugin
+sdk/                  public plugin contract (Go), its own module, the only Gophenberg import allowed in a plugin
 sdk/frontend/         frontend plugin contract, UI facade, and test harness (@gophenberg/frontend-sdk)
 sdk/astro/            theme kit (@gophenberg/astro): client, block walker, integration, routes
 frontend/             React SPA host (Vite), plugins import UI only via @gophenberg/frontend-sdk

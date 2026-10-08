@@ -18,6 +18,7 @@ RUN pnpm --filter @gophenberg/frontend build
 FROM golang:1.27 AS backend
 WORKDIR /src
 COPY go.mod go.sum ./
+COPY sdk/go.mod ./sdk/go.mod
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /gophenberg ./cmd/gophenberg

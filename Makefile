@@ -45,6 +45,12 @@ brick-unlink:
 
 bump:
 	@test -n "$(V)" || (echo "usage: make bump V=0.2.0" && exit 1)
+	@sdk="$$(GOWORK=off go list -m -f '{{.Version}}' github.com/gopherium/gophenberg/sdk)" && \
+		{ git rev-parse -q --verify "refs/tags/sdk/$$sdk" >/dev/null || \
+		{ echo "go.mod requires the sdk at $$sdk, but sdk/$$sdk carries no tag. Tag it, or fetch the tags, before bumping."; exit 1; }; } && \
+		{ git diff --quiet "refs/tags/sdk/$$sdk" -- 'sdk/*.go' sdk/go.mod && \
+		test -z "$$(git ls-files --others --exclude-standard -- 'sdk/*.go')" || \
+		{ echo "the sdk changed since sdk/$$sdk, in a commit or in the working files. Tag a new sdk version and require it in go.mod before bumping."; exit 1; }; }
 	printf '%s\n' "$(V)" > internal/version/VERSION
 
 bump-kit:
@@ -62,15 +68,18 @@ seed: db-up
 
 test:
 	go test ./...
+	GOWORK=off go -C sdk test ./...
 
 test-race:
 	go test -race ./...
+	GOWORK=off go -C sdk test -race ./...
 
 peers:
 	pnpm peers check
 
 lint:
 	golangci-lint run
+	cd sdk && GOWORK=off golangci-lint run
 	go run ./cmd/doclint
 
 pot:
@@ -107,6 +116,7 @@ cover:
 	GOPHENBERG_COVER_BINDIR=$(CURDIR)/$(COVERDATA)/bin \
 	GOPHENBERG_COVER_GOCOVERDIR=$(CURDIR)/$(COVERDATA)/counters \
 	go test -cover -covermode=atomic $(GOTESTFLAGS) $(COVERPKGS) -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
+	GOWORK=off go -C sdk test -cover -covermode=atomic $(GOTESTFLAGS) ./... -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
 	@echo "=== merged unit + binary coverage ==="
 	go tool covdata percent -i=$(COVERDATA)/counters
 	@echo
@@ -118,8 +128,11 @@ cover-html: cover
 
 MUTATE_PKG ?= .
 MUTATE_FLAGS ?=
+MUTATE_SDK_FLAGS ?=
 MUTATE_VMEM ?= 12582912
+MUTATE_SDK_TIMEOUT_COEFFICIENT ?= 10
 MUTATE_REPORT = $(CURDIR)/reports/mutation/gremlins.json
+MUTATE_SDK_REPORT = $(CURDIR)/reports/mutation/gremlins-sdk.json
 
 mutate: db-up
 	mkdir -p $(dir $(MUTATE_REPORT))
@@ -128,7 +141,10 @@ mutate: db-up
 		git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | tar -xf - -C "$$work/src" && \
 		cp -R .git "$$work/src/.git" && cd "$$work/src" && ulimit -v $(MUTATE_VMEM) && \
 		TMPDIR="$$work/tmp" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.noprefix GIT_CONFIG_VALUE_0=false \
-		go tool gremlins unleash -o $(MUTATE_REPORT) $(MUTATE_FLAGS) $(MUTATE_PKG)
+		go tool gremlins unleash -o $(MUTATE_REPORT) $(MUTATE_FLAGS) $(MUTATE_PKG) && \
+		gremlins="$$(go tool -n gremlins)" && cd sdk && TMPDIR="$$work/tmp" "$$gremlins" unleash \
+		--config ../.gremlins.yaml --timeout-coefficient $(MUTATE_SDK_TIMEOUT_COEFFICIENT) -o $(MUTATE_SDK_REPORT) \
+		$(MUTATE_SDK_FLAGS) .
 
 E2E_DB ?= gophenberg_e2e
 E2E_DATABASE_URL ?= postgres://postgres:gophenberg@localhost:5435/$(E2E_DB)?sslmode=disable
