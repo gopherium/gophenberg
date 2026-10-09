@@ -42,6 +42,32 @@ func TestCreateSubFieldRefusesAKeyTheContainerAlreadyHolds(t *testing.T) {
 	}
 }
 
+func TestCreateSubFieldStampsTheFieldItCreates(t *testing.T) {
+	t.Parallel()
+
+	store := storeHoldingASection()
+	types := content.NewRegistry(store)
+	before := time.Now().UTC()
+
+	created, err := types.CreateSubField(t.Context(), 7, content.Field{
+		Key: "role", Label: "Role", Kind: content.FieldKindText,
+	})
+
+	if err != nil {
+		t.Fatalf("CreateSubField() error = %v, want nil", err)
+	}
+	inside := store.groups[0].Fields[0].Fields
+	if len(inside) != 3 || inside[2].Key != "role" {
+		t.Fatalf("the section holds %+v, want the role field stored after the name and the bio", inside)
+	}
+	for name, f := range map[string]content.Field{"returned": created, "stored": inside[2]} {
+		if f.CreatedAt.Before(before) || !f.UpdatedAt.Equal(f.CreatedAt) {
+			t.Errorf("%s stamps = %v and %v, want one pair stamped at or after %v",
+				name, f.CreatedAt, f.UpdatedAt, before)
+		}
+	}
+}
+
 func TestUpdateSubFieldCarriesTheEditOntoTheStoredField(t *testing.T) {
 	t.Parallel()
 
