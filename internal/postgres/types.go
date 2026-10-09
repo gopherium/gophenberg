@@ -281,6 +281,9 @@ func (s *TypeStore) Delete(ctx context.Context, key string) error {
 	if isTypeInUse(err) {
 		return content.ErrTypeInUse
 	}
+	if isTypeTargeted(err) {
+		return content.ErrTypeTargeted
+	}
 	if err != nil {
 		return fmt.Errorf("postgres: delete content type: %w", err)
 	}
@@ -309,6 +312,12 @@ func takenBy(err error) error {
 func isTypeInUse(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == restrictViolationCode
+}
+
+// isTypeTargeted reports whether the error is a relation field still pointing at the type.
+func isTypeTargeted(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolationCode && pgErr.ConstraintName == fieldTargetConstraint
 }
 
 // CreateField declares the field on its type's group, raising the group when none matches.
