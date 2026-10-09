@@ -7,6 +7,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"math/rand/v2"
 	"regexp"
 	"slices"
@@ -473,17 +474,50 @@ func (s *memoryContent) carryDescendants(moved content.Content, was string) {
 	}
 }
 
-// carryType moves every address of the type from the route word it answered under.
-func (s *memoryContent) carryType(key, was, now string) {
+// typeCarry names a type whose addresses move from the route word it answered under to another.
+type typeCarry struct {
+	key, was, now string
+}
+
+// carryTypes moves every address of each type whose route word changed, or moves none and reports a clash.
+func (s *memoryContent) carryTypes(carries ...typeCarry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for id, stored := range s.items {
-		if stored.Type != key {
+	moved := make(map[uuid.UUID]content.Content)
+	for _, carry := range carries {
+		if carry.was == carry.now {
 			continue
 		}
-		stored.Path = content.AddressUnder(now, strings.TrimPrefix(strings.TrimPrefix(stored.Path, was), "/"))
-		s.items[id] = stored
+		for id, stored := range s.items {
+			if stored.Type != carry.key {
+				continue
+			}
+			stored.Path = content.AddressUnder(carry.now, strings.TrimPrefix(strings.TrimPrefix(stored.Path, carry.was), "/"))
+			moved[id] = stored
+		}
 	}
+	if s.addressesClash(moved) {
+		return content.ErrSlugTaken
+	}
+	maps.Copy(s.items, moved)
+	return nil
+}
+
+// addressesClash reports whether a moved item would answer at an address another item answers at once all have moved.
+func (s *memoryContent) addressesClash(moved map[uuid.UUID]content.Content) bool {
+	held := make(map[string]int, len(s.items))
+	for id, stored := range s.items {
+		if next, found := moved[id]; found {
+			stored = next
+		}
+		held[stored.Path]++
+	}
+	for _, next := range moved {
+		if held[next.Path] > 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // ByID returns the item carrying the id, or [content.ErrNotFound].

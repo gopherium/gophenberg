@@ -253,10 +253,20 @@ func (s *memoryTypes) CreateSubField(
 		if !found {
 			continue
 		}
+		if s.targetMissing(f) {
+			return content.Field{}, content.ErrTargetUnknown
+		}
 		s.groups[i].Fields = grown
 		return f, nil
 	}
 	return content.Field{}, content.ErrFieldNotFound
+}
+
+// targetMissing reports whether the field relates to a type the store does not hold now, as the foreign key refuses.
+func (s *memoryTypes) targetMissing(f content.Field) bool {
+	return f.RelatesTo != "" && !slices.ContainsFunc(s.types, func(stored content.Type) bool {
+		return stored.Key == f.RelatesTo
+	})
 }
 
 // DeleteSubField removes the field standing inside a container once the check passes.
@@ -451,6 +461,9 @@ func (s *memoryTypes) CreateFieldInGroup(
 			if stored.Key == f.Key {
 				return content.Field{}, content.ErrFieldTaken
 			}
+		}
+		if s.targetMissing(f) {
+			return content.Field{}, content.ErrTargetUnknown
 		}
 		s.fieldIDs++
 		f.ID, f.GroupID = s.fieldIDs, groupID
@@ -809,7 +822,7 @@ func (s *memoryTypes) ByKey(_ context.Context, key string) (content.Type, error)
 	return content.Type{}, content.ErrTypeNotFound
 }
 
-// Create stores a new type, or reports the key taken.
+// Create stores a new type, or reports the key or the route word taken.
 func (s *memoryTypes) Create(_ context.Context, t content.Type) (content.Type, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -818,12 +831,21 @@ func (s *memoryTypes) Create(_ context.Context, t content.Type) (content.Type, e
 			return content.Type{}, content.ErrTypeTaken
 		}
 	}
+	if s.routeWordTaken(t.Key, t.RouteWord) {
+		return content.Type{}, content.ErrRouteWordTaken
+	}
 	s.types = append(s.types, t)
 	return t, nil
 }
 
-// Update stores the edited type and carries its content to the route word, or
-// reports it missing or still nesting.
+// routeWordTaken reports whether a type other than the keyed one answers under the route word, as the index does.
+func (s *memoryTypes) routeWordTaken(key, word string) bool {
+	return word != "" && slices.ContainsFunc(s.types, func(stored content.Type) bool {
+		return stored.Key != key && stored.RouteWord == word
+	})
+}
+
+// Update stores the edited type and carries its content, or reports why it stores nothing.
 func (s *memoryTypes) Update(ctx context.Context, t content.Type) (content.Type, error) {
 	nested, err := s.Nested(ctx, t.Key)
 	if err != nil {
@@ -838,33 +860,53 @@ func (s *memoryTypes) Update(ctx context.Context, t content.Type) (content.Type,
 		if stored.Hierarchical && !t.Hierarchical && nested > 0 {
 			return content.Type{}, content.NestingInUse(t.Key, nested)
 		}
+		held := slices.Clone(s.types)
+		var demoted typeCarry
 		if t.Default && !stored.Default {
-			s.handRootOver()
+			if demoted, err = s.handRootOver(); err != nil {
+				return content.Type{}, err
+			}
 			t.RouteWord = ""
 		}
+		if s.routeWordTaken(t.Key, t.RouteWord) {
+			return content.Type{}, content.ErrRouteWordTaken
+		}
 		s.types[i] = t
-		if stored.RouteWord != t.RouteWord && s.content != nil {
-			s.content.carryType(t.Key, stored.RouteWord, t.RouteWord)
+		if err := s.carry(demoted, typeCarry{key: t.Key, was: stored.RouteWord, now: t.RouteWord}); err != nil {
+			s.types = held
+			return content.Type{}, err
 		}
 		return t, nil
 	}
 	return content.Type{}, content.ErrTypeNotFound
 }
 
-// handRootOver moves the type holding the root under a word of its own.
-func (s *memoryTypes) handRootOver() {
+// carry moves the content of every carried type at once, or reports the address clash that moves none of it.
+func (s *memoryTypes) carry(carries ...typeCarry) error {
+	if s.content == nil {
+		return nil
+	}
+	return s.content.carryTypes(carries...)
+}
+
+// handRootOver moves the type holding the root under a word of its own and returns its carry, or refuses the word.
+func (s *memoryTypes) handRootOver() (typeCarry, error) {
 	for i, stored := range s.types {
 		if !stored.Default {
 			continue
 		}
 		was := stored.RouteWord
 		stored.RouteWord, stored.Default = content.Slugify(stored.PluralLabel), false
-		s.types[i] = stored
-		if s.content != nil {
-			s.content.carryType(stored.Key, was, stored.RouteWord)
+		if err := stored.Validate(); err != nil {
+			return typeCarry{}, err
 		}
-		return
+		if s.routeWordTaken(stored.Key, stored.RouteWord) {
+			return typeCarry{}, content.ErrRouteWordTaken
+		}
+		s.types[i] = stored
+		return typeCarry{key: stored.Key, was: was, now: stored.RouteWord}, nil
 	}
+	return typeCarry{}, nil
 }
 
 // CreateField stores a field on its type, mirroring the schema's identity column.
@@ -883,7 +925,7 @@ func (s *memoryTypes) CreateField(_ context.Context, f content.Field) (content.F
 	return content.Field{}, content.ErrTypeNotFound
 }
 
-// Delete removes the type, or reports it missing or still holding content.
+// Delete removes the type, or reports it missing, still holding content or still targeted by a stored relation field.
 func (s *memoryTypes) Delete(ctx context.Context, key string) error {
 	if s.holdsContent(ctx, key) {
 		return content.ErrTypeInUse
@@ -892,6 +934,9 @@ func (s *memoryTypes) Delete(ctx context.Context, key string) error {
 	defer s.mu.Unlock()
 	for i, stored := range s.types {
 		if stored.Key == key {
+			if err := content.Untargeted(s.listing(), key); err != nil {
+				return err
+			}
 			s.types = append(s.types[:i], s.types[i+1:]...)
 			return nil
 		}
