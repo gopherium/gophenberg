@@ -35,7 +35,6 @@ func (s *unlistingOnceStore) List(ctx context.Context) ([]content.Type, error) {
 	return s.TypeStore.List(ctx)
 }
 
-// TestApplyStopsWhenItCannotReadTheRouteItKeeps checks that a refused route read stops later import writes.
 func TestApplyStopsWhenItCannotReadTheRouteItKeeps(t *testing.T) {
 	t.Parallel()
 
@@ -76,7 +75,6 @@ func TestApplyStopsWhenItCannotReadTheRouteItKeeps(t *testing.T) {
 	}
 }
 
-// TestApplyKeepsARouteWordEditedWhileItRuns checks that preserving the site's root keeps its latest route word.
 func TestApplyKeepsARouteWordEditedWhileItRuns(t *testing.T) {
 	t.Parallel()
 
