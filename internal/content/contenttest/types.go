@@ -30,6 +30,7 @@ var typeCases = []Case{
 	{"UpdateHandsTheRootToAnotherType", updateHandsTheRootToAnotherType},
 	{"UpdateRefusesToHandTheRootToAReservedAddress", updateRefusesToHandTheRootToAReservedAddress},
 	{"UpdateRefusesToHandTheRootToAnUnusableAddress", updateRefusesToHandTheRootToAnUnusableAddress},
+	{"UpdateRefusesToHandTheRootOntoATakenRouteWord", updateRefusesToHandTheRootOntoATakenRouteWord},
 	{"UpdateRefusesACarryOntoATakenAddress", updateRefusesACarryOntoATakenAddress},
 	{"UpdatePromotesWhenNoDefaultRemains", updatePromotesWhenNoDefaultRemains},
 	{"StoredFieldsServeTheGoldenHandshakeShape", storedFieldsServeTheGoldenHandshakeShape},
@@ -374,6 +375,34 @@ func updateRefusesToHandTheRootToAnUnusableAddress(t *testing.T, s Stores) {
 
 	if !errors.Is(err, content.ErrInvalidRouteWord) {
 		t.Fatalf("Update() error = %v, want %v", err, content.ErrInvalidRouteWord)
+	}
+}
+
+// updateRefusesToHandTheRootOntoATakenRouteWord refuses a hand over moving the default onto a word another type holds.
+func updateRefusesToHandTheRootOntoATakenRouteWord(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	van, err := content.NewType("van", "Van", "Vans", "posts")
+	if err != nil {
+		t.Fatalf("NewType(van) error = %v, want nil", err)
+	}
+	if _, err := s.Types.Create(t.Context(), van); err != nil {
+		t.Fatalf("Create(van) error = %v, want nil", err)
+	}
+	RegisterPageType(t, s.Types)
+	about := MustNest(t, s.Content, nil, "About", author)
+	promoted := PageType()
+	promoted.Default, promoted.UpdatedAt = true, time.Now().UTC()
+
+	_, err = s.Types.Update(t.Context(), promoted)
+
+	if !errors.Is(err, content.ErrRouteWordTaken) {
+		t.Fatalf("Update() error = %v, want %v", err, content.ErrRouteWordTaken)
+	}
+	if post, err := s.Types.ByKey(t.Context(), content.TypePost); err != nil || !post.Default {
+		t.Errorf("post = %+v, %v, want it still holding the root", post, err)
+	}
+	if got := AddressOf(t, s.Content, about.ID); got != "pages/about" {
+		t.Errorf("page address = %q, want the refused hand over to have moved nothing", got)
 	}
 }
 

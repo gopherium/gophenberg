@@ -14,6 +14,7 @@ import (
 var kindCases = []Case{
 	{"TheStoreHoldsAChoiceField", theStoreHoldsAChoiceField},
 	{"TheStoreNamesTheTargetAFieldPointsAtInVain", theStoreNamesTheTargetAFieldPointsAtInVain},
+	{"ASubFieldNamesTheTargetItPointsAtInVain", aSubFieldNamesTheTargetItPointsAtInVain},
 	{"TheStoreHoldsAManyMedia", theStoreHoldsAManyMedia},
 }
 
@@ -70,6 +71,27 @@ func theStoreNamesTheTargetAFieldPointsAtInVain(t *testing.T, s Stores) {
 
 	if !errors.Is(err, content.ErrTargetUnknown) {
 		t.Errorf("CreateFieldInGroup() error = %v, want %v", err, content.ErrTargetUnknown)
+	}
+}
+
+// aSubFieldNamesTheTargetItPointsAtInVain refuses a relation sub field whose target type the store does not hold.
+func aSubFieldNamesTheTargetItPointsAtInVain(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	specs := DeclareSection(t, s.Types, "specs")
+	built, err := content.NewSubField(content.Field{
+		Key: "maker", Label: "Maker", Kind: content.FieldKindRelation, RelatesTo: "nosuchtype",
+	}, specs.Kind)
+	if err != nil {
+		t.Fatalf("NewSubField(maker) error = %v, want nil", err)
+	}
+
+	_, err = s.Types.CreateSubField(t.Context(), specs.ID, built, content.DefaultFieldDepth)
+
+	if !errors.Is(err, content.ErrTargetUnknown) {
+		t.Errorf("CreateSubField() error = %v, want %v", err, content.ErrTargetUnknown)
+	}
+	if inside := subFieldsOf(GroupAt(t, s.Types, specs.GroupID), "specs"); len(inside) != 0 {
+		t.Errorf("specs holds %v, want the refused sub field left out", inside)
 	}
 }
 
