@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -51,11 +52,17 @@ func lending(lenders ...*lender) func(sdk.Deps) ([]sdk.Plugin, error) {
 	}
 }
 
-// lentSite composes a site over an empty database with the settings, lending the plugins their share.
+// pooled returns the address of an empty database whose pool holds the connections.
+func pooled(t *testing.T, connections int) string {
+	t.Helper()
+	return emptyDatabaseURL(t) + "&pool_max_conns=" + strconv.Itoa(connections)
+}
+
+// lentSite composes a site over an empty database with a pool of 16, lending the plugins their share.
 func lentSite(t *testing.T, settings map[string]string, lenders ...*lender) site {
 	t.Helper()
 	built, err := compose(t.Context(), composeConfig{
-		databaseURL: emptyDatabaseURL(t), fieldDepth: 4, getenv: testkit.Getenv(settings),
+		databaseURL: pooled(t, 16), fieldDepth: 4, getenv: testkit.Getenv(settings),
 	}, lending(lenders...))
 	if err != nil {
 		t.Fatalf("compose() error = %v, want the plugins lent their share", err)
@@ -136,7 +143,7 @@ func TestAnUnopenedShareRefusesEveryStatement(t *testing.T) {
 	}
 }
 
-func TestAShareTheOptionsRefuseAnswersTheRefusalToEveryStatement(t *testing.T) {
+func TestOpeningAShareTheOptionsRefuseReturnsTheRefusal(t *testing.T) {
 	t.Parallel()
 
 	pool, err := pgxpool.New(t.Context(), unreachableDatabaseURL)
@@ -146,12 +153,44 @@ func TestAShareTheOptionsRefuseAnswersTheRefusalToEveryStatement(t *testing.T) {
 	t.Cleanup(pool.Close)
 	share := &pluginLane{}
 
-	share.open(pool, 1, laneSettings{})
-	t.Cleanup(share.close)
-	_, err = share.Exec(t.Context(), "SELECT 1")
+	err = share.open(pool, 1, laneSettings{})
+	share.close()
 
 	if err == nil || !strings.Contains(err.Error(), "Slots") {
-		t.Errorf("Exec() on a share opened with no slots = %v, want the share's own refusal", err)
+		t.Errorf("open() with no slots = %v, want the share's own refusal", err)
+	}
+}
+
+func TestThePluginShareLeavesTheReserveToTheCore(t *testing.T) {
+	t.Parallel()
+
+	notes := &lender{id: "notes"}
+	built, err := compose(t.Context(), composeConfig{databaseURL: pooled(t, 4), fieldDepth: 4}, lending(notes))
+	if err != nil {
+		t.Fatalf("compose() error = %v, want the plugins lent their share", err)
+	}
+	t.Cleanup(built.close)
+	db := notes.deps.DB
+
+	heldRows(t, db, 2)
+	_, pluginErr := db.Exec(probing(t), "SELECT 1")
+	var one int
+	coreErr := built.pool.QueryRow(probing(t), "SELECT 1").Scan(&one)
+
+	if !errors.Is(pluginErr, dbkit.ErrShareFull) || coreErr != nil {
+		t.Errorf("a third plugin statement = %v and a core query = %v, want the share full at two and the core served",
+			pluginErr, coreErr)
+	}
+}
+
+func TestComposeRefusesAReserveThatLeavesPluginsNoConnection(t *testing.T) {
+	t.Parallel()
+
+	_, err := compose(t.Context(), composeConfig{databaseURL: pooled(t, 2), fieldDepth: 4}, lending(&lender{id: "notes"}))
+
+	if err == nil || !strings.Contains(err.Error(), "GOPHENBERG_PLUGIN_DB_RESERVE") ||
+		!strings.Contains(err.Error(), "GOPHENBERG_DATABASE_URL") {
+		t.Errorf("compose() over a pool of 2 = %v, want a refusal naming the reserve and the database address", err)
 	}
 }
 
@@ -304,6 +343,7 @@ func TestComposeRefusesAMalformedPluginDatabaseSetting(t *testing.T) {
 
 	for name, value := range map[string]string{
 		"GOPHENBERG_PLUGIN_DB_CONNS":      "0",
+		"GOPHENBERG_PLUGIN_DB_RESERVE":    "0",
 		"GOPHENBERG_PLUGIN_QUERY_TIMEOUT": "soon",
 		"GOPHENBERG_PLUGIN_TX_TIMEOUT":    "-1s",
 	} {
