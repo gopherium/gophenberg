@@ -72,12 +72,12 @@ async function openDuplicate(): Promise<HTMLElement> {
 	return screen.findByRole('dialog', { name: 'Duplicate' })
 }
 
-test('duplicates in a small dialog headed Duplicate, its Title field holding a copy of the title', async () => {
+test('duplicates in a medium dialog headed Duplicate, as WordPress sizes it, its Title field a copy', async () => {
 	renderAt('/content/post')
 
 	const dialog = await openDuplicate()
 
-	expect(dialog).toHaveClass('has-size-small')
+	expect(dialog).toHaveClass('has-size-medium')
 	expect(within(dialog).getByRole('heading', { name: 'Duplicate' })).toBeInTheDocument()
 	expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveValue('Welcome to Gophenberg (Copy)')
 	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument()

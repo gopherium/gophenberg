@@ -82,12 +82,12 @@ async function renameTo(dialog: HTMLElement, name: string) {
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename' }))
 }
 
-test('renames in a small dialog headed Rename, its Name field holding the title', async () => {
+test('renames in a medium dialog headed Rename, as WordPress sizes it, its Name field holding the title', async () => {
 	renderAt('/content/post')
 
 	const dialog = await openRename()
 
-	expect(dialog).toHaveClass('has-size-small')
+	expect(dialog).toHaveClass('has-size-medium')
 	expect(within(dialog).getByRole('heading', { name: 'Rename' })).toBeInTheDocument()
 	expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveValue('Welcome to Gophenberg')
 	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
