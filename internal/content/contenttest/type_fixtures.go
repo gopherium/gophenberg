@@ -208,6 +208,76 @@ func DeclareSection(t *testing.T, types content.TypeStore, key string) content.F
 	return stored
 }
 
+// DeclareRepeater stores a repeater at the top of the car type inside the group keyed after the type and returns it.
+func DeclareRepeater(t *testing.T, types content.TypeStore, key string) content.Field {
+	t.Helper()
+	built, err := content.NewField(content.Field{
+		TypeKey: "car", Key: key, Label: key, Kind: content.FieldKindRepeater,
+	})
+	if err != nil {
+		t.Fatalf("NewField(repeater %s) error = %v, want nil", key, err)
+	}
+	stored, err := types.CreateFieldInGroup(t.Context(), FieldsGroupOf(t, types, "car").ID, built, nil)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(repeater %s) error = %v, want nil", key, err)
+	}
+	return stored
+}
+
+// DeclareFlexible stores a flexible field named features in the group keyed after the car type and returns it.
+func DeclareFlexible(t *testing.T, types content.TypeStore) content.Field {
+	t.Helper()
+	built, err := content.NewField(
+		content.Field{Key: "features", Label: "features", Kind: content.FieldKindFlexible})
+	if err != nil {
+		t.Fatalf("NewField(flexible) error = %v, want nil", err)
+	}
+	built.TypeKey = "car"
+	stored, err := types.CreateFieldInGroup(t.Context(), FieldsGroupOf(t, types, "car").ID, built, nil)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(flexible) error = %v, want nil", err)
+	}
+	return stored
+}
+
+// DeclareLayout stores a layout under the flexible and returns it.
+func DeclareLayout(t *testing.T, types content.TypeStore, parentID int, key string) content.Field {
+	t.Helper()
+	built, err := content.NewSubField(
+		content.Field{Key: key, Label: key, Kind: content.FieldKindLayout}, content.FieldKindFlexible)
+	if err != nil {
+		t.Fatalf("NewSubField(layout %s) error = %v, want nil", key, err)
+	}
+	stored, err := types.CreateSubField(t.Context(), parentID, built, content.DefaultFieldDepth)
+	if err != nil {
+		t.Fatalf("CreateSubField(layout %s) error = %v, want nil", key, err)
+	}
+	return stored
+}
+
+// DeclareUnder stores a text sub field under the parent and returns it.
+func DeclareUnder(t *testing.T, types content.TypeStore, parentID int, key string) content.Field {
+	t.Helper()
+	stored, err := types.CreateSubField(
+		t.Context(), parentID, FieldOn(t, "", key, content.FieldKindText, ""), content.DefaultFieldDepth,
+	)
+	if err != nil {
+		t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
+	}
+	return stored
+}
+
+// MustFlexible returns a flexible sub field ready to stand inside a container.
+func MustFlexible(t *testing.T, key string) content.Field {
+	t.Helper()
+	built, err := content.NewSubField(
+		content.Field{Key: key, Label: key, Kind: content.FieldKindFlexible}, content.FieldKindRepeater)
+	if err != nil {
+		t.Fatalf("NewSubField(flexible %s) error = %v, want nil", key, err)
+	}
+	return built
+}
+
 // DeclaredInside declares a sub field of the kind under the parent and returns it.
 func DeclaredInside(
 	t *testing.T, types content.TypeStore, parent content.Field, key string, kind content.FieldKind,
