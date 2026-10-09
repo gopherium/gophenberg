@@ -100,6 +100,8 @@ change them. They shape every list the same way:
 - **The format.** `GOPHENBERG_FORMAT_LOCALE` sets the locale for
   dates, times and numbers, whatever language a person reads the
   admin in. The tag `es-ES` writes 04/10/2026, 14:05 and 1.234,56.
+  The date column of a content list is the one exception. Like
+  WordPress, it writes the month short in the reader's language.
 
 ## Which theme serves
 
