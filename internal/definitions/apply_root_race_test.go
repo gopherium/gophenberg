@@ -121,3 +121,37 @@ func TestApplyKeepsARouteWordEditedWhileItRuns(t *testing.T) {
 		t.Errorf("skipped = %+v, want the root move reported as skipped", outcome.Skipped)
 	}
 }
+
+func TestApplyReportsATypeDeletedWhileItRuns(t *testing.T) {
+	t.Parallel()
+
+	pool, _ := declaringPool(t)
+	store := &editingStore{TypeStore: postgres.NewTypeStore(pool)}
+	registry := content.NewRegistry(store)
+	siteDefined(t, registry)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].Default, envelope.Types[i].RouteWord = true, ""
+		}
+		if envelope.Types[i].Key == content.TypePost {
+			envelope.Types[i].Default, envelope.Types[i].RouteWord = false, "posts"
+		}
+	}
+	store.skip = 1
+	store.rival = func(ctx context.Context) {
+		if err := registry.Delete(ctx, "recipe"); err != nil {
+			t.Errorf("Delete(recipe) error = %v, want nil", err)
+		}
+	}
+
+	_, err := definitions.Apply(t.Context(), registry, importing(envelope))
+
+	if !errors.Is(err, content.ErrTypeNotFound) {
+		t.Errorf("Apply() error = %v, want the type deleted while the import ran reported as missing", err)
+	}
+	stored := content.NewRegistry(postgres.NewTypeStore(pool))
+	if _, err := stored.ByKey(t.Context(), "recipe"); !errors.Is(err, content.ErrTypeNotFound) {
+		t.Errorf("ByKey(recipe) error = %v, want the deleted type left deleted", err)
+	}
+}
