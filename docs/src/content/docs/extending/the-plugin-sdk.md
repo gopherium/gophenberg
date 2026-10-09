@@ -85,6 +85,10 @@ _, err := p.db.Exec(ctx, "INSERT INTO greetings (name) VALUES ($1)", name)
   until it ends, so close every `Rows`. The share holds
   `GOPHENBERG_PLUGIN_DB_CONNS` slots for each plugin, 4 by default.
   Today all plugins draw from one share of that size.
+- The share always leaves `GOPHENBERG_PLUGIN_DB_RESERVE` of the pool's
+  connections to the site, 2 by default, so it may hold fewer slots
+  than the plugins add up to. A statement that finds no free slot
+  before its deadline fails.
 - A statement ends at `GOPHENBERG_PLUGIN_QUERY_TIMEOUT`, 5 seconds by
   default, its wait for a slot included. A transaction ends at
   `GOPHENBERG_PLUGIN_TX_TIMEOUT`, 30 seconds by default.
