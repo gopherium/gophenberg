@@ -4,6 +4,7 @@ package contenttest
 
 import (
 	"errors"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -22,6 +23,8 @@ var fieldMoveCases = []Case{
 		movingAFieldOutToAKeyARivalGroupServesReportsFieldTaken,
 	},
 	{"MovingAContainerIntoItsOwnTreeIsRefusedByTheStore", movingAContainerIntoItsOwnTreeIsRefusedByTheStore},
+	{"MovingAContainerIntoItsOwnTreeIsRefusedBeforeItsDepth", movingAContainerIntoItsOwnTreeIsRefusedBeforeItsDepth},
+	{"MovingASubFieldOutToAKeyItsGroupServesAtTheTopIsRefused", movingASubFieldOutToAKeyItsGroupServesAtTheTopIsRefused},
 	{"MovingAFieldReportsAParentTheLandingGroupDoesNotHold", movingAFieldReportsAParentTheLandingGroupDoesNotHold},
 }
 
@@ -184,6 +187,45 @@ func movingAContainerIntoItsOwnTreeIsRefusedByTheStore(t *testing.T, s Stores) {
 		if !errors.Is(err, content.ErrFieldInsideItself) {
 			t.Errorf("moving into %s: error = %v, want %v", name, err, content.ErrFieldInsideItself)
 		}
+	}
+}
+
+// movingAContainerIntoItsOwnTreeIsRefusedBeforeItsDepth names a move inside itself even when it is also too deep.
+func movingAContainerIntoItsOwnTreeIsRefusedBeforeItsDepth(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	specs := DeclareSection(t, s.Types, "specs")
+	inner := DeclaredInside(t, s.Types, specs, "inner", content.FieldKindSection)
+
+	_, err := s.Types.MoveField(t.Context(), specs.ID, specs.GroupID, inner.ID, 1, nil)
+
+	if !errors.Is(err, content.ErrFieldInsideItself) {
+		t.Errorf("MoveField() under a limit of 1: error = %v, want %v", err, content.ErrFieldInsideItself)
+	}
+}
+
+// movingASubFieldOutToAKeyItsGroupServesAtTheTopIsRefused refuses a sub field moved out onto its own group's top key.
+func movingASubFieldOutToAKeyItsGroupServesAtTheTopIsRefused(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	DeclareTypedField(t, s.Types, "car", "title")
+	specs := DeclareSection(t, s.Types, "specs")
+	inside := DeclaredInside(t, s.Types, specs, "title", content.FieldKindText)
+	extras := GroupOn(t, s.Types, "Extras", "car")
+	before, err := s.Types.ListGroups(t.Context())
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v, want nil", err)
+	}
+
+	_, err = s.Types.MoveField(t.Context(), inside.ID, extras.ID, 0, content.DefaultFieldDepth, nil)
+
+	if !errors.Is(err, content.ErrFieldTaken) {
+		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldTaken)
+	}
+	after, err := s.Types.ListGroups(t.Context())
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v, want nil", err)
+	}
+	if !reflect.DeepEqual(after, before) {
+		t.Errorf("groups = %+v after the refused move, want them as they were, %+v", after, before)
 	}
 }
 
