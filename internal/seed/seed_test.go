@@ -192,13 +192,11 @@ func TestPostsStoresEveryScriptedPost(t *testing.T) {
 func TestDemoPostsHoldTheStatusesTheListsPageThrough(t *testing.T) {
 	t.Parallel()
 
-	held := map[content.Status]int{}
-	for _, scripted := range demoPosts() {
-		held[scripted.status]++
-	}
+	held := DemoStatuses()
 
 	want := map[content.Status]int{
-		content.StatusPublished: 23, content.StatusDraft: 5, content.StatusPending: 6, content.StatusTrash: 2,
+		content.StatusPublished: 23, content.StatusDraft: 5, content.StatusPending: 4, content.StatusPrivate: 2,
+		content.StatusTrash: 2,
 	}
 	if !maps.Equal(held, want) {
 		t.Errorf("statuses = %v, want %v", held, want)
