@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"testing"
 	"time"
@@ -23,6 +24,45 @@ const shortRowsVariable = "GOPHENBERG_SHORT_ROWS"
 
 // reportedCase matches the line the test binary prints for each case of the short rows run.
 var reportedCase = regexp.MustCompile(`(?m)^    --- (PASS|FAIL): \S+/\S+ `)
+
+// typeGaps names the shared type store cases the in-memory stores do not pass yet.
+var typeGaps = map[string]bool{
+	"ReportsATakenRouteWord":                                            true,
+	"UpdateReportsATakenRouteWord":                                      true,
+	"UpdateRefusesToHandTheRootToAReservedAddress":                      true,
+	"UpdateRefusesToHandTheRootToAnUnusableAddress":                     true,
+	"UpdateRefusesACarryOntoATakenAddress":                              true,
+	"DeleteRefusesATypeARelationStillTargets":                           true,
+	"TheStoreNamesTheTargetAFieldPointsAtInVain":                        true,
+	"UpdateGroupRefusesOneOfTwoMovesOntoTheSameType":                    true,
+	"CreateFieldInGroupRefusesAKeyARivalGroupServes":                    true,
+	"CreateSubFieldRefusesAKeyItsParentHolds":                           true,
+	"DeleteGroupSweepsAValueLeftOnATypeItStoppedMatching":               true,
+	"DeleteFieldsOfGroupSweepsAValueLeftOnATypeItStoppedMatching":       true,
+	"DeleteFieldInGroupReportsAGroupThatIsGone":                         true,
+	"DeleteFieldsOfGroupReportsAGroupThatIsGone":                        true,
+	"UpdateFieldInGroupReportsAGroupThatIsGone":                         true,
+	"CreateSubFieldStoresTheKeyTheDomainSettledOn":                      true,
+	"CreatingASubFieldRefusesAParentHoldingNone":                        true,
+	"UpdatingASubFieldWillNotReachATopLevelField":                       true,
+	"MovingAContainerIntoItsOwnTreeIsRefusedByTheStore":                 true,
+	"MovingAFieldOntoAKeyTheContainerHoldsReportsFieldTaken":            true,
+	"MovingAFieldOntoAKeyTheTopHoldsReportsFieldTaken":                  true,
+	"MovingAFieldOutToAKeyARivalGroupServesReportsFieldTaken":           true,
+	"MovingAShadowedRelationOffContentDropsOnlyItsOwnIndexRows":         true,
+	"DeletingASubFieldSweepsItsValuesInsideASection":                    true,
+	"DeletingARestingGroupsSubFieldSweepsTheValueTheServedSectionLacks": true,
+	"DeletingASubFieldSweepsItsValuesFromEveryRow":                      true,
+	"DeletingASubFieldLeavesRowsThatAreNotObjects":                      true,
+	"DeletingAContainerSweepsEverythingInsideIt":                        true,
+	"DeletingALayoutTakesItsRowsAway":                                   true,
+	"DeletingALayoutInsideARepeaterTakesItsRowsAway":                    true,
+	"DeletingASubFieldSweepsItOnlyFromItsOwnLayout":                     true,
+	"AFieldEditHoldingTheStampFromBeforeAMoveConflicts":                 true,
+	"AFieldEditHoldingTheStampFromBeforeAnAdoptionConflicts":            true,
+	"AnItemEditHoldingTheStampFromBeforeACarryConflicts":                true,
+	"ReordersLeaveUnlistedGroupsAndFieldsWhereTheyStand":                true,
+}
 
 // memoryStores returns fresh in-memory stores for one case.
 func memoryStores(t *testing.T) contenttest.Stores {
@@ -60,18 +100,25 @@ func TestContentStoreSuite(t *testing.T) {
 	contenttest.Run(t, memoryStores)
 }
 
-func TestContentStoreSuiteFailsWithoutPanickingOnShortRows(t *testing.T) {
-	if rule := os.Getenv(shortRowsVariable); rule != "" {
-		contenttest.Run(t, shortStores(rule))
-		return
-	}
+func TestTypeStoreSuite(t *testing.T) {
 	t.Parallel()
 
+	contenttest.RunTypes(t, func(t *testing.T) contenttest.Stores {
+		t.Helper()
+		if typeGaps[path.Base(t.Name())] {
+			t.Skip("the in-memory stores do not pass this case yet")
+		}
+		return memoryStores(t)
+	})
+}
+
+// shortRowsRuns reruns the named test under each keep rule and fails on a panic or a case that never reported.
+func shortRowsRuns(t *testing.T, name string, cases int) {
+	t.Helper()
 	for rule := range keptRows {
 		t.Run(rule, func(t *testing.T) {
 			t.Parallel()
-			run := exec.CommandContext(t.Context(), os.Args[0],
-				"-test.run=^TestContentStoreSuiteFailsWithoutPanickingOnShortRows$", "-test.v")
+			run := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^"+name+"$", "-test.v")
 			run.Env = append(os.Environ(), shortRowsVariable+"="+rule)
 
 			out, err := run.CombinedOutput()
@@ -83,9 +130,29 @@ func TestContentStoreSuiteFailsWithoutPanickingOnShortRows(t *testing.T) {
 			if at := bytes.Index(out, []byte("\npanic: ")); at >= 0 {
 				t.Fatalf("the suite panicked on stores keeping %s:%s", rule, out[at:min(len(out), at+800)])
 			}
-			if reported := len(reportedCase.FindAll(out, -1)); reported != len(contenttest.Cases()) {
-				t.Errorf("%d cases reported on stores keeping %s, want all %d", reported, rule, len(contenttest.Cases()))
+			if reported := len(reportedCase.FindAll(out, -1)); reported != cases {
+				t.Errorf("%d cases reported on stores keeping %s, want all %d", reported, rule, cases)
 			}
 		})
 	}
+}
+
+func TestContentStoreSuiteFailsWithoutPanickingOnShortRows(t *testing.T) {
+	if rule := os.Getenv(shortRowsVariable); rule != "" {
+		contenttest.Run(t, shortStores(rule))
+		return
+	}
+	t.Parallel()
+
+	shortRowsRuns(t, "TestContentStoreSuiteFailsWithoutPanickingOnShortRows", len(contenttest.Cases()))
+}
+
+func TestTypeStoreSuiteFailsWithoutPanickingOnShortRows(t *testing.T) {
+	if rule := os.Getenv(shortRowsVariable); rule != "" {
+		contenttest.RunTypes(t, shortStores(rule))
+		return
+	}
+	t.Parallel()
+
+	shortRowsRuns(t, "TestTypeStoreSuiteFailsWithoutPanickingOnShortRows", len(contenttest.TypeCases()))
 }

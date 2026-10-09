@@ -62,10 +62,16 @@ func (s shortContent) Revisions(ctx context.Context, contentID uuid.UUID) ([]con
 	return shorten(rows, s.keep), err
 }
 
-// shortTypes is a type store whose group listing keeps only some of its rows.
+// shortTypes is a type store whose type and group listings keep only some of their rows.
 type shortTypes struct {
 	content.TypeStore
 	keep func(n int) int
+}
+
+// List returns the stored types cut short.
+func (s shortTypes) List(ctx context.Context) ([]content.Type, error) {
+	rows, err := s.TypeStore.List(ctx)
+	return shorten(rows, s.keep), err
 }
 
 // ListGroups returns the stored groups cut short.
