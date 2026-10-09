@@ -33,6 +33,7 @@ var typeCases = []Case{
 	{"UpdateRefusesACarryOntoATakenAddress", updateRefusesACarryOntoATakenAddress},
 	{"UpdatePromotesWhenNoDefaultRemains", updatePromotesWhenNoDefaultRemains},
 	{"StoredFieldsServeTheGoldenHandshakeShape", storedFieldsServeTheGoldenHandshakeShape},
+	{"DeleteRefusesATypeARelationStillTargets", deleteRefusesATypeARelationStillTargets},
 }
 
 // listsTheBuiltInType lists the shipped post type as the only one a fresh store holds.
@@ -219,6 +220,23 @@ func keepsATypeHoldingContent(t *testing.T, s Stores) {
 
 	if !errors.Is(err, content.ErrTypeInUse) {
 		t.Errorf("Delete() error = %v, want %v", err, content.ErrTypeInUse)
+	}
+}
+
+// deleteRefusesATypeARelationStillTargets refuses to remove a type a relation field points at and keeps it.
+func deleteRefusesATypeARelationStillTargets(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	DeclareFields(t, s.Types, content.Field{
+		TypeKey: content.TypePost, Key: "garage", Label: "Garage", Kind: content.FieldKindRelation, RelatesTo: "car",
+	})
+
+	err := s.Types.Delete(t.Context(), "car")
+
+	if !errors.Is(err, content.ErrTypeTargeted) {
+		t.Errorf("Delete() error = %v, want %v", err, content.ErrTypeTargeted)
+	}
+	if _, err := s.Types.ByKey(t.Context(), "car"); err != nil {
+		t.Errorf("ByKey(car) error = %v, want the targeted type kept", err)
 	}
 }
 
