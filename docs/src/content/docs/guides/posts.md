@@ -120,7 +120,7 @@ The actions menu of a row offers:
   `(Copy)` after it, its content, its excerpt, its parent and its
   field values. You can change the title in the dialog first.
   Anyone who can write may duplicate any post not in the trash.
-- **Rename…** changes the title in a small dialog. It writes over
+- **Rename…** changes the title in a dialog. It writes over
   the newest version of the post, so the last rename wins.
 - **Trash…** moves the post to the trash, after a question.
 
@@ -143,7 +143,7 @@ question names the post. Tick several rows and the **Trash…**
 button under the list moves them all at once, behind one question.
 
 The editor's Document panel offers **Move to trash**. It asks in a
-small dialog titled "Move to trash?". The text under the title names
+dialog titled "Move to trash?". The text under the title names
 the post and reminds you that the Trash tab can bring it back.
 Cancel has the focus when the dialog opens, and while the post moves
 the confirm button shows a spinner and both buttons wait.
