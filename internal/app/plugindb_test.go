@@ -91,6 +91,14 @@ func probing(t *testing.T) context.Context {
 	return ctx
 }
 
+// serving returns a context that gives a core query time to open a connection on a loaded machine.
+func serving(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	t.Cleanup(cancel)
+	return ctx
+}
+
 func TestAPluginReachesTheSiteDatabaseThroughItsShare(t *testing.T) {
 	t.Parallel()
 
@@ -165,7 +173,10 @@ func TestThePluginShareLeavesTheReserveToTheCore(t *testing.T) {
 	t.Parallel()
 
 	notes := &lender{id: "notes"}
-	built, err := compose(t.Context(), composeConfig{databaseURL: pooled(t, 4), fieldDepth: 4}, lending(notes))
+	built, err := compose(t.Context(), composeConfig{
+		databaseURL: pooled(t, 4), fieldDepth: 4,
+		getenv: testkit.Getenv(map[string]string{"GOPHENBERG_PLUGIN_QUERY_TIMEOUT": "1m"}),
+	}, lending(notes))
 	if err != nil {
 		t.Fatalf("compose() error = %v, want the plugins lent their share", err)
 	}
@@ -175,7 +186,7 @@ func TestThePluginShareLeavesTheReserveToTheCore(t *testing.T) {
 	heldRows(t, db, 2)
 	_, pluginErr := db.Exec(probing(t), "SELECT 1")
 	var one int
-	coreErr := built.pool.QueryRow(probing(t), "SELECT 1").Scan(&one)
+	coreErr := built.pool.QueryRow(serving(t), "SELECT 1").Scan(&one)
 
 	if !errors.Is(pluginErr, dbkit.ErrShareFull) || coreErr != nil {
 		t.Errorf("a third plugin statement = %v and a core query = %v, want the share full at two and the core served",
