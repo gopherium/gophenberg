@@ -125,7 +125,7 @@ async function openTrashView() {
 async function openEmptyTrash(): Promise<HTMLElement> {
 	await openTrashView()
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
-	return screen.findByRole('dialog')
+	return screen.findByRole('alertdialog')
 }
 
 test('offers to empty the trash only in the trash view', async () => {
@@ -158,17 +158,26 @@ test('hides the empty trash control while the trash view lists nothing', async (
 	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
 })
 
-test('asks to confirm in a dialog under no header, as WordPress does, before emptying the trash', async () => {
+test('asks in an alert dialog titled with the question and a red Empty trash, before emptying the trash', async () => {
 	renderAt('/content/post')
 
 	const dialog = await openEmptyTrash()
 
-	expect(dialog).toHaveAccessibleName('Empty Trash')
-	expect(within(dialog).getByRole('heading', { name: 'Empty Trash' })).toHaveAttribute('data-visually-hidden')
+	expect(dialog).toHaveAccessibleName('Empty the trash?')
+	expect(within(dialog).getByRole('heading', { name: 'Empty the trash?', level: 2 }))
+		.not.toHaveAttribute('data-visually-hidden')
 	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
-	expect(within(dialog).getByRole('button', { name: 'Empty Trash' })).toBeInTheDocument()
-	expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+	expect(within(dialog).getByRole('button', { name: 'Empty trash' }).className).toMatch(/__irreversible-action\b/)
+	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 	expect(emptied).toEqual([])
+})
+
+test('opens the empty trash confirm on Cancel, as the WordPress design system confirm does', async () => {
+	renderAt('/content/post')
+
+	const dialog = await openEmptyTrash()
+
+	await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus())
 })
 
 test('describes the empty trash confirm by its warning, so a screen reader reads it', async () => {
@@ -176,7 +185,7 @@ test('describes the empty trash confirm by its warning, so a screen reader reads
 
 	const dialog = await openEmptyTrash()
 
-	expect(dialog).toHaveAccessibleDescription('Every item in the posts trash is removed for good. This cannot be undone.')
+	expect(dialog).toHaveAccessibleDescription('The 2 items in the trash are deleted for good. This cannot be undone.')
 })
 
 test('names Empty Trash and its warning in WordPress es_ES words, and counts exact millions with "de"', async () => {
@@ -187,9 +196,9 @@ test('names Empty Trash and its warning in WordPress es_ES words, and counts exa
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
-	const dialog = await screen.findByRole('dialog')
+	const dialog = await screen.findByRole('alertdialog', { name: '¿Vaciar la papelera?' })
 	expect(dialog).toHaveTextContent(
-		'Todos los elementos de la papelera de posts se borran permanentemente. Esto no se puede deshacer.',
+		'Los 2 elementos de la papelera se borran permanentemente. Esto no se puede deshacer.',
 	)
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Vaciar papelera' }))
 
@@ -197,31 +206,61 @@ test('names Empty Trash and its warning in WordPress es_ES words, and counts exa
 		.toBeInTheDocument()
 })
 
-test('warns that every item in the trash of the type on screen goes for good', async () => {
+test('counts the items the trash holds in the warning', async () => {
 	renderAt('/content/post')
 
 	const dialog = await openEmptyTrash()
 
-	expect(dialog).toHaveTextContent('Every item in the posts trash is removed for good. This cannot be undone.')
+	expect(dialog).toHaveTextContent('The 2 items in the trash are deleted for good. This cannot be undone.')
+})
+
+test('counts the one item the trash holds in the singular', async () => {
+	bin = [TRASHED]
+	renderAt('/content/post')
+
+	const dialog = await openEmptyTrash()
+
+	expect(dialog).toHaveTextContent('The 1 item in the trash is deleted for good. This cannot be undone.')
+})
+
+test('shows the emptying on the confirm button and holds both buttons until it settles', async () => {
+	const answer = gate()
+	server.use(
+		http.delete('/api/content/trash', async () => {
+			await answer.held
+			return HttpResponse.json({ deleted: 2, kept: 0 })
+		}),
+	)
+	renderAt('/content/post')
+	const dialog = await openEmptyTrash()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
+
+	const confirm = within(dialog).getByRole('button', { name: 'Empty trash' })
+	await waitFor(() => expect(confirm.className).toMatch(/__is-loading\b/))
+	expect(confirm).toHaveAttribute('aria-disabled', 'true')
+	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true')
+	answer.release()
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
 test('empties the trash in one call once confirmed', async () => {
 	renderAt('/content/post')
 	const dialog = await openEmptyTrash()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 
 	await waitFor(() => expect(emptied).toHaveLength(1))
 	expect(emptied[0].searchParams.get('type')).toBe('post')
 	expect(deletedOneByOne).toEqual([])
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
 test('counts the items it deleted for good in a toast', async () => {
 	renderAt('/content/post')
 	const dialog = await openEmptyTrash()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 
 	expect(await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })).toBeInTheDocument()
 	await waitFor(() => expect(screen.queryByText('Old Notes')).not.toBeInTheDocument())
@@ -231,7 +270,7 @@ test('moves the focus to the list once the trash empties', async () => {
 	renderAt('/content/post')
 	const dialog = await openEmptyTrash()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 
 	await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })
 	await waitFor(() => expect(screen.getByRole('region', { name: 'Posts' })).toHaveFocus())
@@ -242,13 +281,13 @@ test('counts the items it deleted and the items that stay in one toast', async (
 	renderAt('/content/post')
 	const dialog = await openEmptyTrash()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 
 	expect(
 		await screen.findByText('1 item permanently deleted. 1 item stays in the trash.', { selector: '.godmin-toast' }),
 	).toBeInTheDocument()
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
 test('says only what stays when nothing went', async () => {
@@ -256,7 +295,7 @@ test('says only what stays when nothing went', async () => {
 	renderAt('/content/post')
 	const dialog = await openEmptyTrash()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 
 	expect(await screen.findByText('2 items stay in the trash.', { selector: '.godmin-toast' })).toBeInTheDocument()
 })
@@ -266,7 +305,7 @@ test('returns the focus to the empty trash control when nothing went', async () 
 	renderAt('/content/post')
 	const dialog = await openEmptyTrash()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 
 	await screen.findByText('2 items stay in the trash.', { selector: '.godmin-toast' })
 	await waitFor(() => expect(screen.getByRole('button', { name: 'Empty Trash' })).toHaveFocus())
@@ -277,10 +316,10 @@ test('shows no toast when nothing went and nothing stays', async () => {
 	renderAt('/content/post')
 	const dialog = await openEmptyTrash()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 
 	await waitFor(() => expect(emptied).toHaveLength(1))
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(document.querySelector('.godmin-toast')).toBeNull()
 })
 
@@ -295,7 +334,7 @@ test('clears the failure above the list once the trash empties', async () => {
 	await screen.findByText('The item could not be restored.')
 
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Empty trash' }))
 
 	await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })
 	expect(screen.queryByText('The item could not be restored.')).not.toBeInTheDocument()
@@ -311,32 +350,13 @@ test('keeps the confirm open when Cancel is pressed while the trash empties', as
 	)
 	renderAt('/content/post')
 	const dialog = await openEmptyTrash()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
 	expect(dialog).toBeInTheDocument()
 	answer.release()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-})
-
-test('keeps the confirm open when Escape is pressed while the trash empties', async () => {
-	const answer = gate()
-	server.use(
-		http.delete('/api/content/trash', async () => {
-			await answer.held
-			return HttpResponse.json({ deleted: 2, kept: 0 })
-		}),
-	)
-	renderAt('/content/post')
-	const dialog = await openEmptyTrash()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
-
-	await userEvent.keyboard('{Escape}')
-
-	expect(dialog).toBeInTheDocument()
-	answer.release()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
 test('empties only the trash of the type on screen', async () => {
@@ -359,10 +379,10 @@ test('empties only the trash of the type on screen', async () => {
 	await pickTrashTab()
 	await screen.findByText('Old Page')
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
-	const dialog = await screen.findByRole('dialog')
-	expect(dialog).toHaveTextContent('Every item in the pages trash is removed for good.')
+	const dialog = await screen.findByRole('alertdialog')
+	expect(dialog).toHaveTextContent('The 1 item in the trash is deleted for good.')
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 
 	await waitFor(() => expect(trashes.page).toEqual([]))
 	expect(trashes.post).toEqual([TRASHED])
@@ -374,7 +394,7 @@ test('keeps the trash when the confirm is dismissed', async () => {
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
 
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(emptied).toEqual([])
 })
 
@@ -392,7 +412,7 @@ test('forgets the cached copy of every item of the type it emptied', async () =>
 		await router.navigate({ to: '/content/$typeKey', params: { typeKey: 'post' } })
 	})
 	const dialog = await openEmptyTrash()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 	await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })
 
 	await act(async () => {
@@ -430,7 +450,7 @@ test('keeps the cached copy of an item of another type and of an item that never
 		await router.navigate({ to: '/content/$typeKey', params: { typeKey: 'post' } })
 	})
 	const dialog = await openEmptyTrash()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 	await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })
 
 	await act(async () => {
@@ -444,29 +464,31 @@ test('keeps the cached copy of an item of another type and of an item that never
 	later.release()
 })
 
-test('reports an empty trash the server refused inside the confirm', async () => {
-	vi.spyOn(console, 'error').mockImplementation(() => {})
+test('reports an empty trash the server refused under the buttons, keeping the confirm open', async () => {
 	server.use(http.delete('/api/content/trash', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/content/post')
 	const dialog = await openEmptyTrash()
 
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 
-	expect(await within(dialog).findByText('The trash could not be emptied.')).toBeInTheDocument()
+	const line = await within(dialog).findByText('The trash could not be emptied.')
+	expect(line.className).toMatch(/__error-message\b/)
+	expect(line.compareDocumentPosition(within(dialog).getByRole('button', { name: 'Cancel' })))
+		.toBe(Node.DOCUMENT_POSITION_PRECEDING)
+	expect(within(dialog).getByRole('button', { name: 'Empty trash' })).toHaveAttribute('aria-disabled', 'false')
 	expect(bin).toHaveLength(2)
 })
 
 test('opens the confirm again without the failure of the last try', async () => {
-	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.delete('/api/content/trash', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/content/post')
 	const dialog = await openEmptyTrash()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
 	await within(dialog).findByText('The trash could not be emptied.')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 
-	expect(await screen.findByRole('dialog')).not.toHaveTextContent('The trash could not be emptied.')
+	expect(await screen.findByRole('alertdialog')).not.toHaveTextContent('The trash could not be emptied.')
 })

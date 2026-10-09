@@ -246,7 +246,9 @@ test('takes a post trashed from the editor back out of the trash from the list',
 
 	const named = await toastName(page, TRASH_TITLE)
 	await page.getByRole('button', { name: 'Move to trash' }).click()
-	await page.getByRole('dialog').getByRole('button', { name: 'Move to trash' }).click()
+	const confirm = page.getByRole('alertdialog', { name: 'Move to trash?' })
+	await expect(confirm.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+	await confirm.getByRole('button', { name: 'Move to trash' }).click()
 
 	await expect(page.getByRole('main').getByRole('button', { name: 'Add New', exact: true })).toBeVisible()
 	await expect(shown(page, `"${named}" moved to the trash.`)).toBeVisible()
@@ -273,7 +275,7 @@ test('reads a trashed post and restores it into the editor', async ({ page }) =>
 	await expect(shown(page, 'Draft saved.')).toBeVisible()
 	const named = await toastName(page, READ_TITLE)
 	await page.getByRole('button', { name: 'Move to trash' }).click()
-	await page.getByRole('dialog').getByRole('button', { name: 'Move to trash' }).click()
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Move to trash' }).click()
 	await expect(shown(page, `"${named}" moved to the trash.`)).toBeVisible()
 
 	await statusTab(page, 'Trash').click()

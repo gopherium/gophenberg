@@ -83,9 +83,9 @@ function useListRun(
  * @param status - The status the list shows.
  * @param page - The page the list shows, absent until it arrives.
  * @param role - The role the session carries.
- * @returns Whether the empty trash control shows.
+ * @returns Whether the empty trash control shows, which takes a page that counts something.
  */
-function offersEmptyTrash(status: string, page: PostPage | undefined, role: string | undefined): boolean {
+function offersEmptyTrash(status: string, page: PostPage | undefined, role: string | undefined): page is PostPage {
 	return status === 'trash' && (page?.total ?? 0) > 0 && can(role, CHANGE_OTHERS_WORK)
 }
 
@@ -343,7 +343,7 @@ export function PostsScreen() {
 			actions={
 				<>
 					{offersEmptyTrash(status, posts.data, session?.role) ? (
-						<EmptyTrash type={listed.key} label={listed.pluralLabel} list={run} />
+						<EmptyTrash type={listed.key} count={posts.data.total} list={run} />
 					) : null}
 					<HeaderAddNew listed={listed} run={run} />
 				</>

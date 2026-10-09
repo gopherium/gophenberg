@@ -544,7 +544,7 @@ test('opens a post removed by emptying the trash as a missing post', async () =>
 	await goToList(router)
 	await userEvent.click(await tab('Trash'))
 	await userEvent.click(await screen.findByRole('button', { name: 'Empty Trash' }))
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Empty trash' }))
 	await waitFor(() => expect(emptied).toBe(true))
 
 	await goToEditor(router)
