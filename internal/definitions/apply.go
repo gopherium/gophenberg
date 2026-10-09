@@ -156,18 +156,16 @@ func (r *run) types(ctx context.Context) error {
 
 // oneType stores or carries one type stamped now, leaving the root and the nesting where the site's content keeps them.
 func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Change) error {
-	wanted, err := r.described(ctx, typeFrom(declared), declared)
+	stored, err := r.storedType(ctx, declared.Key, planned.Action)
 	if err != nil {
 		return err
 	}
+	wanted := described(typeFrom(declared), declared, stored)
 	now := time.Now().UTC()
 	wanted.CreatedAt, wanted.UpdatedAt = now, now
 	if r.warned(WarningRootMoved, declared.Key) {
 		r.left(r.kept(planned, declared, ReasonRootKept))
-		wanted, err = r.beside(ctx, wanted, declared, planned.Action)
-		if err != nil {
-			return err
-		}
+		wanted = beside(wanted, declared, stored, planned.Action)
 	}
 	if r.warned(WarningNestingKept, declared.Key) {
 		r.left(r.kept(planned, declared, ReasonNestingKept))
@@ -187,18 +185,23 @@ func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Chan
 	return nil
 }
 
+// storedType returns the type the site holds under the key, or a zero type when the import creates one the site lacks.
+func (r *run) storedType(ctx context.Context, key, action string) (content.Type, error) {
+	stored, err := r.registry.ByKey(ctx, key)
+	if action == ActionCreate && errors.Is(err, content.ErrTypeNotFound) {
+		return content.Type{}, nil
+	}
+	return stored, err
+}
+
 // described returns the type carrying the description the file names, or the one the site holds now when it names none.
-func (r *run) described(ctx context.Context, wanted content.Type, declared TypeDefinition) (content.Type, error) {
+func described(wanted content.Type, declared TypeDefinition, stored content.Type) content.Type {
 	if declared.Description != nil {
 		wanted.Description = *declared.Description
-		return wanted, nil
-	}
-	stored, err := r.registry.ByKey(ctx, declared.Key)
-	if err != nil && !errors.Is(err, content.ErrTypeNotFound) {
-		return content.Type{}, err
+		return wanted
 	}
 	wanted.Description = stored.Description
-	return wanted, nil
+	return wanted
 }
 
 // carryType stores the edited type, leaving its nesting on when an item nested under it while the import ran.
@@ -224,19 +227,13 @@ func (r *run) kept(planned Change, declared TypeDefinition, reason string) Chang
 }
 
 // beside returns the type standing next to the site's own root rather than in its place.
-func (r *run) beside(
-	ctx context.Context, wanted content.Type, declared TypeDefinition, action string,
-) (content.Type, error) {
+func beside(wanted content.Type, declared TypeDefinition, stored content.Type, action string) content.Type {
 	if action == ActionCreate {
 		wanted.Default, wanted.RouteWord = false, content.Slugify(declared.PluralLabel)
-		return wanted, nil
-	}
-	stored, err := r.registry.ByKey(ctx, declared.Key)
-	if err != nil {
-		return content.Type{}, err
+		return wanted
 	}
 	wanted.Default, wanted.RouteWord = stored.Default, stored.RouteWord
-	return wanted, nil
+	return wanted
 }
 
 // groups stores the groups the envelope brings and carries what it changed onto the stored ones.
