@@ -473,10 +473,6 @@ msgid "Every content type"
 msgstr "Tous les types de contenu"
 
 #, fuzzy
-msgid "Every item in the %(type)s trash is removed for good. This cannot be undone."
-msgstr "Tous les éléments de la corbeille des %(type)s sont supprimés définitivement. Cette action est irréversible."
-
-#, fuzzy
 msgid "Every item needs an author who exists. Pick one from the list and save again."
 msgstr "Chaque élément a besoin d'un auteur existant. Choisissez-en un dans la liste et enregistrez de nouveau."
 
@@ -2802,3 +2798,26 @@ msgstr "Ajoutez-en un avec Ajouter."
 #, fuzzy
 msgid "Items could not be loaded."
 msgstr "Les éléments n'ont pas pu être chargés."
+
+#, fuzzy
+msgid "Move to trash?"
+msgstr "Déplacer dans la corbeille ?"
+
+#, fuzzy
+msgid "\"%(title)s\" goes to the trash. You can restore it from the Trash tab."
+msgstr "« %(title)s » va dans la corbeille. Vous pouvez le restaurer depuis l'onglet Corbeille."
+
+#, fuzzy
+msgid "Empty the trash?"
+msgstr "Vider la corbeille ?"
+
+#, fuzzy
+msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
+msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
+msgstr[0] "%(count)s élément de la corbeille est supprimé définitivement. Cette action est irréversible."
+msgstr[1] "Les %(count)s éléments de la corbeille sont supprimés définitivement. Cette action est irréversible."
+msgstr[2] "Les %(count)s éléments de la corbeille sont supprimés définitivement. Cette action est irréversible."
+
+#, fuzzy
+msgid "Empty trash"
+msgstr "Vider la corbeille"

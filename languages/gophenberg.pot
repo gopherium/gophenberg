@@ -13,6 +13,9 @@ msgstr ""
 msgid " or "
 msgstr ""
 
+msgid "\"%(title)s\" goes to the trash. You can restore it from the Trash tab."
+msgstr ""
+
 msgid "\"%s\" has been restored."
 msgstr ""
 
@@ -614,6 +617,12 @@ msgstr ""
 msgid "Empty Trash"
 msgstr ""
 
+msgid "Empty the trash?"
+msgstr ""
+
+msgid "Empty trash"
+msgstr ""
+
 msgid "Enable"
 msgstr ""
 
@@ -627,9 +636,6 @@ msgid "Every content type"
 msgstr ""
 
 msgid "Every field group needs a title. Give it a name and save again."
-msgstr ""
-
-msgid "Every item in the %(type)s trash is removed for good. This cannot be undone."
 msgstr ""
 
 msgid "Every item needs an author who exists. Pick one from the list and save again."
@@ -947,6 +953,9 @@ msgid "Move the field"
 msgstr ""
 
 msgid "Move to trash"
+msgstr ""
+
+msgid "Move to trash?"
 msgstr ""
 
 msgid "Name"
@@ -1335,6 +1344,11 @@ msgstr ""
 
 msgid "That web address does not name an item Gophenberg can look up. Go back to the list and open the item from there."
 msgstr ""
+
+msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
+msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "The %(file)s calls this theme %(declared)s, but it is being installed as %(installed)s. Rename the zip file to match, or change the name inside %(file)s."
 msgstr ""

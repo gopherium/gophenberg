@@ -218,10 +218,6 @@ msgstr "Activar"
 msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
 msgstr "Cambian todas las direcciones de este tipo. Los enlaces guardados en otro sitio hacia las direcciones antiguas dejan de funcionar."
 
-#, fuzzy
-msgid "Every item in the %(type)s trash is removed for good. This cannot be undone."
-msgstr "Todos los elementos de la papelera de %(type)s se borran permanentemente. Esto no se puede deshacer."
-
 msgid "Every item needs an author who exists. Pick one from the list and save again."
 msgstr "Cada elemento necesita un autor que exista. Elige uno de la lista y guarda de nuevo."
 
@@ -2414,3 +2410,26 @@ msgstr "Añade uno con Añadir nuevo."
 #, fuzzy
 msgid "Items could not be loaded."
 msgstr "No se han podido cargar los elementos."
+
+#, fuzzy
+msgid "Move to trash?"
+msgstr "¿Mover a la papelera?"
+
+#, fuzzy
+msgid "\"%(title)s\" goes to the trash. You can restore it from the Trash tab."
+msgstr "«%(title)s» va a la papelera. Puedes restaurarlo desde la pestaña Papelera."
+
+#, fuzzy
+msgid "Empty the trash?"
+msgstr "¿Vaciar la papelera?"
+
+#, fuzzy
+msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
+msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
+msgstr[0] "%(count)s elemento de la papelera se borra permanentemente. Esto no se puede deshacer."
+msgstr[1] "Los %(count)s de elementos de la papelera se borran permanentemente. Esto no se puede deshacer."
+msgstr[2] "Los %(count)s elementos de la papelera se borran permanentemente. Esto no se puede deshacer."
+
+#, fuzzy
+msgid "Empty trash"
+msgstr "Vaciar papelera"
