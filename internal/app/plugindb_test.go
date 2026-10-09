@@ -83,7 +83,7 @@ func heldRows(t *testing.T, db sdk.DB, count int) {
 	}
 }
 
-// probing returns a context that gives a statement a short wait for a slot, well inside the held rows' timeout.
+// probing returns a context with a 100 millisecond deadline.
 func probing(t *testing.T) context.Context {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
@@ -91,7 +91,7 @@ func probing(t *testing.T) context.Context {
 	return ctx
 }
 
-// serving returns a context that gives a core query time to open a connection on a loaded machine.
+// serving returns a context with a five second deadline.
 func serving(t *testing.T) context.Context {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
