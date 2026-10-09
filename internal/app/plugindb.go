@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -23,9 +24,10 @@ var errLaneUnopened = errors.New("the plugin database share opens once every plu
 // maxPluginDBConns is the most slots one plugin may be given in the share.
 const maxPluginDBConns = 1000
 
-// laneSettings is how the plugins' database share is sized and timed.
+// laneSettings is how the plugins' database share is sized and timed, and what of the pool it leaves the core.
 type laneSettings struct {
 	conns        int
+	reserve      int
 	queryTimeout time.Duration
 	txTimeout    time.Duration
 }
@@ -37,6 +39,10 @@ func laneSettingsFrom(getenv func(string) string) (laneSettings, error) {
 	if err != nil {
 		return laneSettings{}, err
 	}
+	reserve, err := env.Count("PLUGIN_DB_RESERVE", 2, gonsole.AtMost(maxPluginDBConns))
+	if err != nil {
+		return laneSettings{}, err
+	}
 	queryTimeout, err := env.Duration("PLUGIN_QUERY_TIMEOUT", 5*time.Second)
 	if err != nil {
 		return laneSettings{}, err
@@ -45,43 +51,49 @@ func laneSettingsFrom(getenv func(string) string) (laneSettings, error) {
 	if err != nil {
 		return laneSettings{}, err
 	}
-	return laneSettings{conns: conns, queryTimeout: queryTimeout, txTimeout: txTimeout}, nil
+	return laneSettings{conns: conns, reserve: reserve, queryTimeout: queryTimeout, txTimeout: txTimeout}, nil
 }
 
 // pluginLane is the one database share every plugin draws from, opened once every plugin registered.
 type pluginLane struct {
 	sdk.HostOnly
-	share   atomic.Pointer[dbkit.Share]
-	refused error
-	db      *sql.DB
+	share atomic.Pointer[dbkit.Share]
+	db    *sql.DB
 }
 
-// open lends the share over the pool, with the setting's slots for each of the registered plugins.
-func (l *pluginLane) open(pool *pgxpool.Pool, plugins int, lane laneSettings) {
-	l.db = stdlib.OpenDBFromPool(pool)
-	share, err := dbkit.NewShare(l.db, dbkit.Postgres, dbkit.ShareOptions{
-		ID: "plugins", Slots: lane.conns * max(plugins, 1),
+// open lends the share over the pool, with the setting's slots for each registered plugin, leaving the reserve free.
+func (l *pluginLane) open(pool *pgxpool.Pool, plugins int, lane laneSettings) error {
+	connections := int(pool.Config().MaxConns)
+	room := connections - lane.reserve
+	if room < 1 {
+		return fmt.Errorf("GOPHENBERG_PLUGIN_DB_RESERVE=%d leaves plugins no connection in a pool of %d, "+
+			"raise pool_max_conns in GOPHENBERG_DATABASE_URL or lower the reserve", lane.reserve, connections)
+	}
+	db := stdlib.OpenDBFromPool(pool)
+	share, err := dbkit.NewShare(db, dbkit.Postgres, dbkit.ShareOptions{
+		ID: "plugins", Slots: min(lane.conns*max(plugins, 1), room),
 		StatementTimeout: lane.queryTimeout, TransactionTimeout: lane.txTimeout,
 	})
 	if err != nil {
-		l.refused = err
-		return
+		_ = db.Close()
+		return err
 	}
+	l.db = db
 	l.share.Store(share)
+	return nil
 }
 
-// close closes the handle the share runs on.
+// close closes the handle the share runs on, once it opened.
 func (l *pluginLane) close() {
-	_ = l.db.Close()
+	if l.db != nil {
+		_ = l.db.Close()
+	}
 }
 
-// opened returns the share, refusing while the plugins register or when it could not open.
+// opened returns the share, refusing while the plugins register.
 func (l *pluginLane) opened() (*dbkit.Share, error) {
 	if share := l.share.Load(); share != nil {
 		return share, nil
-	}
-	if l.refused != nil {
-		return nil, l.refused
 	}
 	return nil, errLaneUnopened
 }

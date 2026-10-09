@@ -21,7 +21,10 @@ func compose(ctx context.Context, cfg composeConfig, plugins func(sdk.Deps) ([]s
 	}
 	built.lane = &pluginLane{}
 	built.registered, built.failed = plugins(pluginDeps(cfg, built))
-	built.lane.open(built.pool, len(built.registered), lane)
+	if err := built.lane.open(built.pool, len(built.registered), lane); err != nil {
+		built.close()
+		return site{}, err
+	}
 	return built, nil
 }
 
