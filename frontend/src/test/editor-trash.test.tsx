@@ -19,20 +19,13 @@ const restored: string[] = []
 
 /**
  * Serves the post in the trash until a restore returns it to draft at a newer version.
- * @returns The bodies of the saves made and the reads of the status counts.
+ * @returns The bodies of the saves made.
  */
-function serveRestorable(): { patched: Record<string, unknown>[], countsAsked: string[] } {
+function serveRestorable(): { patched: Record<string, unknown>[] } {
 	let held: Record<string, unknown> = { ...storedPost, status: 'trash' }
 	const patched: Record<string, unknown>[] = []
-	const countsAsked: string[] = []
 	server.use(
 		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(held)),
-		http.get('/api/content/counts', () => {
-			countsAsked.push('read')
-			return HttpResponse.json({
-				draft: 0, pending: 0, private: 0, published: 0, trash: held.status === 'trash' ? 1 : 0,
-			})
-		}),
 		http.post(`/api/content/${storedPost.id}/restore`, () => {
 			restored.push(storedPost.id)
 			held = { ...storedPost, updated_at: RESTORED_AT }
@@ -44,7 +37,7 @@ function serveRestorable(): { patched: Record<string, unknown>[], countsAsked: s
 			return HttpResponse.json({ ...held, ...body })
 		}),
 	)
-	return { patched, countsAsked }
+	return { patched }
 }
 
 beforeAll(async () => {
@@ -60,9 +53,6 @@ beforeEach(() => {
 	server.use(
 		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(storedPost)),
 		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
-		http.get('/api/content/counts', () =>
-			HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 0, trash: 1 }),
-		),
 		http.delete(`/api/content/${storedPost.id}`, ({ params }) => {
 			trashed.push(String(params.id ?? storedPost.id))
 			return HttpResponse.json({ ...storedPost, status: 'trash' })
@@ -80,13 +70,33 @@ test('offers to trash the post from the document tab', async () => {
 	expect(await screen.findByRole('button', { name: 'Move to trash' })).toBeInTheDocument()
 })
 
-test('asks to confirm before trashing in a dialog headed by the action', async () => {
+test('draws Move to trash as an outline button of the default size, as WordPress draws its trash button', async () => {
+	renderAt(EDITOR_PATH)
+
+	const trigger = await screen.findByRole('button', { name: 'Move to trash' })
+
+	expect(trigger.className).toMatch(/__is-outline\b/)
+	expect(trigger.className).not.toMatch(/__is-(compact|small)\b/)
+})
+
+test('describes the trash confirm by its question, so a screen reader reads it', async () => {
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Move to trash' }))
+
+	expect(await screen.findByRole('dialog', { name: 'Move to trash' }))
+		.toHaveAccessibleDescription('Move "Welcome to Gophenberg" to the trash?')
+})
+
+test('asks to confirm before trashing in a dialog under no header, as WordPress does', async () => {
 	renderAt(EDITOR_PATH)
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Move to trash' }))
 
 	const dialog = await screen.findByRole('dialog', { name: 'Move to trash' })
 	expect(dialog).toHaveTextContent('Move "Welcome to Gophenberg" to the trash?')
+	expect(within(dialog).getByRole('heading', { name: 'Move to trash' })).toHaveAttribute('data-visually-hidden')
+	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
 	expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 	expect(trashed).toEqual([])
 })
@@ -217,26 +227,6 @@ test('saves a restored post against the version the restore stamped', async () =
 
 	await waitFor(() => expect(patched).toHaveLength(1))
 	expect(patched[0].updated_at).toBe(RESTORED_AT)
-})
-
-test('refreshes the status counts after a restore from the reading view', async () => {
-	const { countsAsked } = serveRestorable()
-	const { router } = renderRoutedAt('/content/post')
-	await screen.findByRole('button', { name: 'Trash (1)' })
-	await act(async () => {
-		await router.navigate({
-			to: '/content/$typeKey/$postId/edit',
-			params: { typeKey: 'post', postId: storedPost.id },
-		})
-	})
-	await userEvent.click(await screen.findByRole('button', { name: 'Restore' }))
-	await screen.findByRole('textbox', { name: 'Title' })
-
-	await act(async () => {
-		await router.navigate({ to: '/content/$typeKey', params: { typeKey: 'post' } })
-	})
-
-	await waitFor(() => expect(countsAsked).toHaveLength(2))
 })
 
 test('opens the editor when the restore finds the post already out of the trash', async () => {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Dialog } from '@gophenberg/frontend-sdk'
+import { Button, Dialog, VisuallyHidden } from '@gophenberg/frontend-sdk'
 import { ConfirmBody, useToaster } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, _n, sprintf } from '@wordpress/i18n'
@@ -71,10 +71,7 @@ export function EmptyTrash({ type, label, list }: { type: string, label: string,
 		>
 			<Dialog.Trigger render={<Button variant="outline" size="compact" />}>{action}</Dialog.Trigger>
 			<Dialog.Popup size="small">
-				<Dialog.Header>
-					<Dialog.Title>{action}</Dialog.Title>
-					<Dialog.CloseIcon />
-				</Dialog.Header>
+				<VisuallyHidden render={<Dialog.Title />}>{action}</VisuallyHidden>
 				<Dialog.Content>
 					<ConfirmBody
 						confirmLabel={action}
@@ -84,10 +81,12 @@ export function EmptyTrash({ type, label, list }: { type: string, label: string,
 						onConfirm={() => empty.mutate()}
 						onCancel={empty.isPending ? undefined : () => setOpen(false)}
 					>
-						{sprintf(
-							__('Every item in the %(type)s trash is removed for good. This cannot be undone.', 'gophenberg'),
-							{ type: label.toLowerCase() },
-						)}
+						<Dialog.Description render={<span />}>
+							{sprintf(
+								__('Every item in the %(type)s trash is removed for good. This cannot be undone.', 'gophenberg'),
+								{ type: label.toLowerCase() },
+							)}
+						</Dialog.Description>
 					</ConfirmBody>
 				</Dialog.Content>
 			</Dialog.Popup>

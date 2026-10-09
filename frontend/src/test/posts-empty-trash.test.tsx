@@ -3,8 +3,10 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
+import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
+import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
 import { adminUser, renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
@@ -87,15 +89,6 @@ beforeEach(() => {
 			const matching = query.get('status') === 'trash' ? bin : []
 			return HttpResponse.json({ items: matching, total: matching.length })
 		}),
-		http.get('/api/content/counts', () =>
-			HttpResponse.json({
-				draft: 0,
-				pending: 0,
-				private: 0,
-				published: 0,
-				trash: bin.length,
-			}),
-		),
 		http.delete('/api/content/trash', ({ request }) => {
 			emptied.push(new URL(request.url))
 			const deleted = bin.length
@@ -110,10 +103,18 @@ beforeEach(() => {
 })
 
 /**
+ * Picks the Trash tab of the status filter once the list shows it.
+ */
+async function pickTrashTab() {
+	const tabs = await screen.findByRole('navigation', { name: 'Filter by status' })
+	await userEvent.click(within(tabs).getByRole('link', { name: 'Trash' }))
+}
+
+/**
  * Switches the list to the trash view.
  */
 async function openTrashView() {
-	await userEvent.click(await screen.findByRole('button', { name: 'Trash (2)' }))
+	await pickTrashTab()
 	await screen.findByText('Old Notes')
 }
 
@@ -151,22 +152,49 @@ test('hides the empty trash control while the trash view lists nothing', async (
 	bin = []
 	renderAt('/content/post')
 
-	await userEvent.click(await screen.findByRole('button', { name: 'Trash (0)' }))
+	await pickTrashTab()
 
-	expect(await screen.findByText('No results')).toBeInTheDocument()
+	expect(await screen.findByText('No items found.')).toBeInTheDocument()
 	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
 })
 
-test('asks to confirm in a dialog headed by the action before emptying the trash', async () => {
+test('asks to confirm in a dialog under no header, as WordPress does, before emptying the trash', async () => {
 	renderAt('/content/post')
 
 	const dialog = await openEmptyTrash()
 
 	expect(dialog).toHaveAccessibleName('Empty Trash')
-	expect(within(dialog).getByRole('heading', { name: 'Empty Trash' })).toBeInTheDocument()
+	expect(within(dialog).getByRole('heading', { name: 'Empty Trash' })).toHaveAttribute('data-visually-hidden')
+	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
 	expect(within(dialog).getByRole('button', { name: 'Empty Trash' })).toBeInTheDocument()
 	expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 	expect(emptied).toEqual([])
+})
+
+test('describes the empty trash confirm by its warning, so a screen reader reads it', async () => {
+	renderAt('/content/post')
+
+	const dialog = await openEmptyTrash()
+
+	expect(dialog).toHaveAccessibleDescription('Every item in the posts trash is removed for good. This cannot be undone.')
+})
+
+test('names Empty Trash and its warning in WordPress es_ES words, and counts exact millions with "de"', async () => {
+	serveEmptied({ deleted: 0, kept: 1000000 })
+	renderAt('/content/post')
+	await openTrashView()
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+
+	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
+	const dialog = await screen.findByRole('dialog')
+	expect(dialog).toHaveTextContent(
+		'Todos los elementos de la papelera de posts se borran permanentemente. Esto no se puede deshacer.',
+	)
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Vaciar papelera' }))
+
+	expect(await screen.findByText('1.000.000 de elementos siguen en la papelera.', { selector: '.godmin-toast' }))
+		.toBeInTheDocument()
 })
 
 test('warns that every item in the trash of the type on screen goes for good', async () => {
@@ -320,10 +348,6 @@ test('empties only the trash of the type on screen', async () => {
 			const matching = query.get('status') === 'trash' ? trashes[query.get('type') ?? 'post'] : []
 			return HttpResponse.json({ items: matching, total: matching.length })
 		}),
-		http.get('/api/content/counts', ({ request }) => {
-			const held = trashes[new URL(request.url).searchParams.get('type') ?? 'post']
-			return HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 0, trash: held.length })
-		}),
 		http.delete('/api/content/trash', ({ request }) => {
 			const type = new URL(request.url).searchParams.get('type') ?? ''
 			const deleted = trashes[type].length
@@ -332,7 +356,7 @@ test('empties only the trash of the type on screen', async () => {
 		}),
 	)
 	renderAt('/content/page')
-	await userEvent.click(await screen.findByRole('button', { name: 'Trash (1)' }))
+	await pickTrashTab()
 	await screen.findByText('Old Page')
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 	const dialog = await screen.findByRole('dialog')
