@@ -10,13 +10,6 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
-// newTypeStore returns a type store over a migrated database.
-func newTypeStore(t *testing.T) *postgres.TypeStore {
-	t.Helper()
-	_, _, pool := newContentStoreWithPool(t)
-	return postgres.NewTypeStore(pool)
-}
-
 // carType is the shared fixture under the name these tests use.
 var carType = contenttest.CarType
 

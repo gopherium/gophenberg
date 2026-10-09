@@ -81,11 +81,10 @@ func relationRowsOf(t *testing.T, pool *pgxpool.Pool, field int) int {
 	return held
 }
 
-// groupOn, titleIn, restingTwinOf and relationInside are the shared fixtures these tests call.
+// groupOn, titleIn and relationInside are the shared fixtures these tests call.
 var (
 	groupOn        = contenttest.GroupOn
 	titleIn        = contenttest.TitleIn
-	restingTwinOf  = contenttest.RestingTwinOf
 	relationInside = contenttest.RelationInside
 )
 
