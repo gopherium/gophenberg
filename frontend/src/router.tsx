@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { LoadingScreen } from '@gopherium/godmin'
+import { listSearch } from '@gopherium/godmin/router'
 import {
 	createRootRoute,
 	createRoute,
@@ -18,6 +19,7 @@ import { Home } from './Home'
 import { Layout } from './Layout'
 import { plugins } from './plugins'
 import { ContentSidebar } from './content/ContentSidebar'
+import { statusSearch } from './content/StatusTabs'
 
 const rootRoute = createRootRoute()
 
@@ -36,6 +38,7 @@ const homeRoute = createRoute({
 const contentRoute = createRoute({
 	getParentRoute: () => framedRoute,
 	path: '/content/$typeKey',
+	validateSearch: (raw: Record<string, unknown>) => ({ ...listSearch(raw), ...statusSearch(raw) }),
 	staticData: { Sidebar: ContentSidebar },
 	component: lazyRouteComponent(() => import('./content/PostsScreen'), 'PostsScreen'),
 })
