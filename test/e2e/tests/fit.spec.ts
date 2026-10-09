@@ -36,7 +36,16 @@ test('seeds a hostile post and fits every screen to a phone', async ({ page }) =
 	})
 	expect(created.status()).toBe(201)
 
-	for (const path of ['/admin/', '/admin/content/post', '/admin/users', '/admin/users/new']) {
+	const screens = [
+		'/admin/',
+		'/admin/content/post',
+		'/admin/content/post?status=trash',
+		'/admin/content/page',
+		'/admin/content/category',
+		'/admin/users',
+		'/admin/users/new',
+	]
+	for (const path of screens) {
 		await page.goto(path)
 		await expect(page.getByRole('main')).toBeVisible()
 

@@ -43,18 +43,23 @@ test('spans the posts listing across the canvas', async ({ page }) => {
 	await expect(page.locator('.dataviews-view-table')).toBeVisible()
 
 	const fit = await page.evaluate(() => {
-		const page = document.querySelector('.godmin-page') as HTMLElement
+		const canvas = document.querySelector('.godmin-layout__canvas') as HTMLElement
+		const list = document.querySelector('.godmin-page__list') as HTMLElement
 		const table = document.querySelector('.dataviews-view-table') as HTMLElement
+		const inside = canvas.getBoundingClientRect().left + canvas.clientLeft
+		const edges = list.getBoundingClientRect()
 		return {
-			found: table !== null,
-			styled: table === null ? '' : getComputedStyle(table).borderCollapse,
-			ratio: table === null ? 0 : table.clientWidth / page.clientWidth,
+			styled: getComputedStyle(table).borderCollapse,
+			start: edges.left - inside,
+			end: inside + canvas.clientWidth - edges.right,
+			filled: table.getBoundingClientRect().width / edges.width,
 		}
 	})
 
-	expect(fit.found).toBe(true)
 	expect(fit.styled).toBe('collapse')
-	expect(fit.ratio).toBeGreaterThan(0.95)
+	expect(fit.start).toBeCloseTo(0, 0)
+	expect(fit.end).toBeCloseTo(0, 0)
+	expect(fit.filled).toBeGreaterThan(0.99)
 })
 
 test('folds the rail into a drawer on a phone', async ({ page }) => {

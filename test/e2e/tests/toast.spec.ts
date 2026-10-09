@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test'
 
 test('floats a raised message over the screen rather than in its flow', async ({ page }) => {
 	await page.goto('/admin/content/post')
-	await page.getByRole('button', { name: 'Add New' }).click()
+	await page.getByRole('main').getByRole('button', { name: 'Add New', exact: true }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
 	await page.getByRole('textbox', { name: 'Title' }).fill('A post the toast spec wrote')
 
@@ -25,7 +25,7 @@ test('floats a raised message over the screen rather than in its flow', async ({
 
 test('holds a raised message wide enough to read it', async ({ page }) => {
 	await page.goto('/admin/content/post')
-	await page.getByRole('button', { name: 'Add New' }).click()
+	await page.getByRole('main').getByRole('button', { name: 'Add New', exact: true }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
 	await page.getByRole('textbox', { name: 'Title' }).fill('A post the toast width spec wrote')
 
