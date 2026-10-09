@@ -189,6 +189,7 @@ func (p plugin) Commands() []sdk.Command {
 | `Summary` | The one line the listing prints beside the name |
 | `Args` | The names of the positional arguments, in order, each one required |
 | `Flags` | Declares the command's own flags on a `flag.FlagSet`. The flags `h`, `help`, `yes`, `json` and `as` belong to the command line |
+| `Needs` | The names of the flags every run must set, each one declared by `Flags` and taking a value |
 | `Writes` | Makes the command a dry run until `-yes` |
 | `JSON` | Offers `-json` |
 | `Capability` | One of the capabilities the built-in roles carry, such as `manage_users`, which adds `-as <email>` |
@@ -224,10 +225,66 @@ It then exits with code 2 and prints the command's help under the
 error. A missing argument or an unknown flag is already refused that
 way. A command that breaks a rule, such as a name outside its
 plugin's id, a malformed or repeated name, an empty summary, no
-`Run`, or a flag the command line owns, is dropped, and
-`gophenberg check` names it. The
+`Run`, a flag the command line owns, or a needed flag it does not
+declare, is dropped, and `gophenberg check` names it. The
 [commands](/self-hosting/commands/) page shows all of this from the
 operator's side.
+
+## Flags a run must set
+
+`Flags` declares the command's own flags with Go's standard `flag`
+package, and `Needs` names the ones every run must set. This command
+of an `archive` plugin brings back the rows archived since the day the
+line names:
+
+```go
+// restore returns archive:restore, which brings back the rows archived since the day -since names.
+func (p plugin) restore() sdk.Command {
+	return sdk.Command{
+		Name:    "archive:restore",
+		Summary: "bring back the rows archived since one day",
+		Flags: func(fs *flag.FlagSet) {
+			fs.String("since", "", "first `day` to bring back, such as 2026-10-01")
+		},
+		Needs:  []string{"since"},
+		Writes: true,
+		Run: func(ctx context.Context, call sdk.Call) error {
+			day := call.Flags["since"]
+			since, err := time.Parse(time.DateOnly, day)
+			if err != nil {
+				return sdk.Misuse(fmt.Errorf("archive:restore: -since %q is not a day like 2026-10-01", day))
+			}
+			return p.bringBack(ctx, call, since)
+		},
+	}
+}
+```
+
+Add `p.restore()` to the list `Commands` returns. A line that leaves
+`-since` out, or gives it empty text or only spaces, exits 2 with
+`gophenberg: archive:restore wants -since <day>` and the help page.
+The command line checks this as soon as it has read the line, before
+it calls `Run`, so `Run` never has to look for a missing `-since`
+itself. `gophenberg archive:restore -h` still prints the help page.
+
+The placeholder `day` is the word in backquotes in the flag's usage.
+Without backquotes it names the kind of value, such as `string` or
+`int`, or just `value`.
+
+The command line checks the text the line types for the flag, not the
+value the flag reads back. So a flag declared with `fs.Func`, which
+keeps no value of its own, works in `Needs` too. A default does not
+count. A flag declared as `fs.Int("batch", 500, ...)` and named in
+`Needs` still stops a line that leaves `-batch` out. Each name in
+`Needs` must be a flag that `Flags` declares and that takes a value,
+unlike a `bool` flag. Otherwise the command line drops the command,
+`gophenberg check` names it, and running it exits 1.
+
+`Needs` only checks that a value is there. To stop a bad value, such
+as `-since soon`, `Run` returns the error wrapped in `sdk.Misuse`, as
+above, so the run exits 2 with the help page the same way.
+[Writing commands](https://docs.gopherium.org/command-line/writing-commands/)
+covers `Needs` in full.
 
 ## The signed-in account
 
