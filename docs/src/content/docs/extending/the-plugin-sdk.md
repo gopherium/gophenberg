@@ -336,7 +336,8 @@ uses this path yet, so expect to be the first through it.
 The frontend SDK, `@gophenberg/frontend-sdk`, passes on a few icons
 from `@wordpress/icons`, each named after the job it does in the
 admin: `backIcon`, `backupIcon`, `downIcon`, `listViewIcon`,
-`redoIcon`, `trashIcon`, `undoIcon` and `upIcon`. Import them from
+`postIcon`, `redoIcon`, `trashIcon`, `undoIcon` and `upIcon`.
+`postIcon` is the one an empty content list shows. Import them from
 the SDK, so the admin keeps one copy of the icon set:
 
 ```ts
@@ -344,4 +345,13 @@ import { trashIcon } from '@gophenberg/frontend-sdk'
 ```
 
 To confirm an action, open a `Dialog` that holds the question, a
-**Cancel** button and a button named after the action.
+**Cancel** button and a button named after the action. Like the
+WordPress confirms, it shows no header. Give it a `Dialog.Title` all
+the same, inside `VisuallyHidden`, so a screen reader still names the
+dialog, and put the question in `Dialog.Description`, so the screen
+reader reads it out too:
+
+```tsx
+<VisuallyHidden render={<Dialog.Title />}>{label}</VisuallyHidden>
+<Dialog.Description>{question}</Dialog.Description>
+```
