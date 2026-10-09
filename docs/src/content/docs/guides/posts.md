@@ -138,10 +138,15 @@ with what you typed kept.
 ## Trash
 
 **Trash…** sits last in the actions menu of every row not in the
-trash yet, and the editor's Document panel offers **Move to trash**.
-Both ask first, in a dialog with no header. The question names the
-post. Tick several rows and the **Trash…** button under the list
-moves them all at once, behind one question.
+trash yet. It asks first, in a dialog with no header, and the
+question names the post. Tick several rows and the **Trash…**
+button under the list moves them all at once, behind one question.
+
+The editor's Document panel offers **Move to trash**. It asks in a
+small dialog titled "Move to trash?". The text under the title names
+the post and reminds you that the Trash tab can bring it back.
+Cancel has the focus when the dialog opens, and while the post moves
+the confirm button shows a spinner and both buttons wait.
 
 Each finished action shows a short message at the bottom of the
 screen that names the post, such as `"Hello world" moved to the
@@ -151,7 +156,8 @@ counts them instead. There is no Undo. A trashed post comes back
 from the Trash tab.
 
 When the server refuses, the list shows the reason in a notice above
-the rows, and the editor shows it inside its dialog. A page that
+the rows, and the editor shows it under the buttons of its dialog,
+which stays open. A page that
 still holds pages nested inside it cannot go to the trash until
 those move or go first. The notice above the list stays until your
 next action, or until you switch to another status or content type.
@@ -168,10 +174,13 @@ on several ticked rows at once:
   confirmation.
 
 **Empty Trash** appears at the top of the Trash tab while it lists
-something, for an admin or an editor. After a confirmation it
-removes every trashed post of this type in one step. If some posts
-stay in the trash, such as ones trashed while it ran, the message
-counts them too.
+something, for an admin or an editor. It asks in a dialog titled
+"Empty the trash?" that counts the posts about to go and warns that
+this cannot be undone. Its **Empty trash** button is red, the colour
+the WordPress design system gives an action with no way back.
+Confirm, and every trashed post of this type goes in one step. If
+some posts stay in the trash, such as ones trashed while it ran, the
+message counts them too.
 
 Opening a trashed post from its title shows it read only. Its
 **Restore** control brings it back as a draft, names it in a
