@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/gopherium/framework/gonsole/testkit"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/gopherium/gophenberg/sdk"
 )
 
 // operatorCommandsFeature is the feature the command line answers to.
@@ -22,9 +25,11 @@ const typedPassword = "correct horse battery"
 
 // operatorScenario is what one operator scenario keeps between its steps.
 type operatorScenario struct {
-	t      *testing.T
-	env    map[string]string
-	result testkit.Result
+	t       *testing.T
+	env     map[string]string
+	result  testkit.Result
+	plugins []sdk.Plugin
+	offered *commanding
 }
 
 // initializeOperatorCommands returns the binding of the operator command steps, t holding their databases.
@@ -56,7 +61,59 @@ func initializeOperatorCommands(t *testing.T) func(*godog.ScenarioContext) {
 		sc.Then(`^the error says "([^"]*)"$`, s.errorSays)
 		sc.When(`^the operator gives "([^"]*)" the role "([^"]*)" with a blank -as$`, s.giveRoleAsBlank)
 		sc.Then(`^the account "([^"]*)" is still enabled$`, s.isEnabled)
+		sc.Given(`^a plugin offering "([^"]*)", which needs -since$`, s.offerNeedingSince)
+		sc.Given(`^a plugin offering "([^"]*)", which needs -since but declares no flags$`, s.offerNeedingUndeclared)
+		sc.When(`^the operator runs "([^"]*)" with -since holding only spaces$`, s.runWithBlankSince)
+		sc.Then(`^the plugin command never ran$`, s.neverRan)
 	}
+}
+
+// offerNeedingSince offers a plugin whose command called name declares and needs -since.
+func (s *operatorScenario) offerNeedingSince(name string) {
+	s.offer(name, func(fs *flag.FlagSet) { fs.String("since", "", "first `day` to bring back") })
+}
+
+// offerNeedingUndeclared offers a plugin whose command called name needs -since and declares no flags.
+func (s *operatorScenario) offerNeedingUndeclared(name string) {
+	s.offer(name, nil)
+}
+
+// offer offers a plugin holding one command called name that declares flags, needs -since and notes its run.
+func (s *operatorScenario) offer(name string, flags func(*flag.FlagSet)) {
+	s.offered = &commanding{}
+	s.offered.command = sdk.Command{
+		Name: name, Summary: "bring back what was archived", Flags: flags, Needs: []string{"since"},
+		Run: s.offered.noteCall(nil),
+	}
+	s.plugins = []sdk.Plugin{noting{s.offered}}
+}
+
+// noting is a commanding plugin under the id notes.
+type noting struct {
+	*commanding
+}
+
+// ID returns the plugin's identifier.
+func (noting) ID() string {
+	return "notes"
+}
+
+// runWithBlankSince runs the command called name with -since holding only spaces.
+func (s *operatorScenario) runWithBlankSince(name string) {
+	s.run("", name, "-since", "  ")
+}
+
+// neverRan fails when the offered plugin command ran.
+func (s *operatorScenario) neverRan() error {
+	if s.offered.ran.Stdout != nil {
+		return fmt.Errorf("the plugin command ran with %+v, want it never run", s.offered.ran)
+	}
+	return nil
+}
+
+// loaded returns the plugins the scenario offers, none until a step offers one.
+func (s *operatorScenario) loaded(sdk.Deps) ([]sdk.Plugin, error) {
+	return s.plugins, nil
 }
 
 // errorSays fails unless the error stream carries text.
@@ -109,7 +166,7 @@ func (s *operatorScenario) changeRole(email, role, actor string, flags ...string
 
 // records returns the lines account:records lists.
 func (s *operatorScenario) records() ([]string, error) {
-	listed := testkit.Run(s.t, Program(testkit.Getenv(s.env), noPlugins), "", "account:records")
+	listed := testkit.Run(s.t, Program(testkit.Getenv(s.env), s.loaded), "", "account:records")
 	if listed.Code != 0 {
 		return nil, fmt.Errorf("account:records exited with %d and stderr %q", listed.Code, listed.Stderr)
 	}
@@ -146,7 +203,7 @@ func (s *operatorScenario) nameNoDatabase() {
 
 // run runs the command line in process over the scenario's settings, feeding stdin.
 func (s *operatorScenario) run(stdin string, args ...string) {
-	s.result = testkit.Run(s.t, Program(testkit.Getenv(s.env), noPlugins), stdin, args...)
+	s.result = testkit.Run(s.t, Program(testkit.Getenv(s.env), s.loaded), stdin, args...)
 }
 
 // runWithNoCommand runs the command line naming no command.

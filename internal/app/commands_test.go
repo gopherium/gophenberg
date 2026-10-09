@@ -73,8 +73,8 @@ func TestAPluginCommandReachesTheCommandLineWithEveryField(t *testing.T) {
 
 	plugin := &commanding{command: sdk.Command{
 		Name: "commanding:show", Summary: "show what was asked", Args: []string{"<email>"},
-		Flags:  func(fs *flag.FlagSet) { fs.String("format", "text", "how to print") },
-		Writes: true, JSON: true, Capability: "manage_users",
+		Flags: func(fs *flag.FlagSet) { fs.String("format", "text", "how to print") },
+		Needs: []string{"format"}, Writes: true, JSON: true, Capability: "manage_users",
 	}}
 
 	commands := offeredBy(t, plugin)
@@ -84,8 +84,8 @@ func TestAPluginCommandReachesTheCommandLineWithEveryField(t *testing.T) {
 	}
 	held := commands[0]
 	if held.Name != "commanding:show" || held.Summary != "show what was asked" ||
-		!slices.Equal(held.Args, []string{"<email>"}) || !held.Writes || !held.JSON ||
-		held.Capability != "manage_users" || held.Migrates {
+		!slices.Equal(held.Args, []string{"<email>"}) || !slices.Equal(held.Needs, []string{"format"}) ||
+		!held.Writes || !held.JSON || held.Capability != "manage_users" || held.Migrates {
 		t.Errorf("command = %+v, want every field the plugin set and Migrates left off", held)
 	}
 	flags := flag.NewFlagSet("commanding:show", flag.ContinueOnError)
@@ -149,6 +149,54 @@ func TestAPluginCommandMisuseExitsAsAMisusedCommandLine(t *testing.T) {
 
 	if got.Code != gonsole.ExitMisused || !strings.Contains(got.Stderr, "commanding:show takes no arguments") {
 		t.Errorf("commanding:show = %d with stderr %q, want 2 and the plugin's message", got.Code, got.Stderr)
+	}
+}
+
+func TestAPluginCommandWithoutANeededFlagExitsAsAMisusedCommandLine(t *testing.T) {
+	t.Parallel()
+
+	for name, args := range map[string][]string{
+		"left out":    {"commanding:show"},
+		"only spaces": {"commanding:show", "-since", "  "},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			plugin := &commanding{}
+			plugin.command = sdk.Command{
+				Name: "commanding:show", Summary: "show what was asked",
+				Flags: func(fs *flag.FlagSet) { fs.String("since", "", "first `day` to bring back") },
+				Needs: []string{"since"}, Run: plugin.noteCall(nil),
+			}
+			env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL})
+
+			got := testkit.Run(t, Program(env, func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil }),
+				"", args...)
+
+			if got.Code != gonsole.ExitMisused || !strings.Contains(got.Stderr, "commanding:show wants -since <day>") ||
+				plugin.ran.Stdout != nil {
+				t.Errorf("%q = %d with stderr %q, want 2, the needed flag named and the command never run",
+					args, got.Code, got.Stderr)
+			}
+		})
+	}
+}
+
+func TestCheckNamesAPluginCommandNeedingAFlagItDoesNotDeclare(t *testing.T) {
+	t.Parallel()
+
+	plugin := &commanding{}
+	plugin.command = sdk.Command{
+		Name: "commanding:show", Summary: "show what was asked", Needs: []string{"since"}, Run: plugin.noteCall(nil),
+	}
+	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL})
+
+	got := testkit.Run(t, Program(env, func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil }),
+		"", "check")
+
+	if got.Code != gonsole.ExitFailed ||
+		!strings.Contains(got.Stderr, `command "commanding:show" needs -since, which it does not declare`) {
+		t.Errorf("check = %d with stderr %q, want 1 and the undeclared needed flag named", got.Code, got.Stderr)
 	}
 }
 
