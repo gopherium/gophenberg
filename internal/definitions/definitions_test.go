@@ -207,12 +207,10 @@ func TestDeclareGroupStampsTheFieldsItCreates(t *testing.T) {
 	if len(held) != 2 || held[0].Key != "venue" || held[1].Key != "schedule" {
 		t.Fatalf("the group holds %+v, want the venue and the schedule the plugin declared", held)
 	}
-	for _, f := range held {
-		if f.CreatedAt.Before(before) || !f.UpdatedAt.Equal(f.CreatedAt) {
-			t.Errorf("%s stamps = %v and %v, want one pair stamped at or after %v",
-				f.Key, f.CreatedAt, f.UpdatedAt, before)
-		}
+	if inside := keysOfFields(held[1].Fields); !slices.Equal(inside, []string{"starts-at"}) {
+		t.Fatalf("the schedule holds %v, want the starts-at field the plugin declared", inside)
 	}
+	stampedSince(t, before, held[0], held[1], held[1].Fields[0])
 }
 
 func TestDeclareGroupCarriesChangesAndKeepsWhatIsNoLongerDeclared(t *testing.T) {

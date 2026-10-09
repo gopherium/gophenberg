@@ -3,9 +3,11 @@
 package definitions_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/definitions"
 )
 
@@ -14,13 +16,25 @@ func postgresNow() time.Time {
 	return time.Now().UTC().Truncate(time.Microsecond)
 }
 
+// stampedSince fails the test for each field whose stamps are not one pair at or after the moment.
+func stampedSince(t *testing.T, before time.Time, fields ...content.Field) {
+	t.Helper()
+	for _, f := range fields {
+		if f.CreatedAt.Before(before) || !f.UpdatedAt.Equal(f.CreatedAt) {
+			t.Errorf("%s stamps = %v and %v, want one pair stamped at or after %v",
+				f.Key, f.CreatedAt, f.UpdatedAt, before)
+		}
+	}
+}
+
 func TestApplyStampsTheFieldsItCreates(t *testing.T) {
 	t.Parallel()
 
 	for name, tc := range map[string]struct {
-		group string
-		key   string
-		asked func(t *testing.T, envelope definitions.Envelope) definitions.Import
+		group  string
+		key    string
+		inside []string
+		asked  func(t *testing.T, envelope definitions.Envelope) definitions.Import
 	}{
 		"a field added to a stored group": {
 			group: "recipe-details", key: "serves",
@@ -33,7 +47,7 @@ func TestApplyStampsTheFieldsItCreates(t *testing.T) {
 			},
 		},
 		"a section in a group the file brings": {
-			group: "wine-details", key: "tasting",
+			group: "wine-details", key: "tasting", inside: []string{"nose"},
 			asked: func(_ *testing.T, envelope definitions.Envelope) definitions.Import {
 				envelope.Groups = append(envelope.Groups, definitions.GroupDefinition{
 					Key: "wine-details", Title: "Wine details", Location: recipeRules(), Active: true,
@@ -66,10 +80,10 @@ func TestApplyStampsTheFieldsItCreates(t *testing.T) {
 			if !found {
 				t.Fatalf("the %s field is missing, want the one the file brought", tc.key)
 			}
-			if held.CreatedAt.Before(before) || !held.UpdatedAt.Equal(held.CreatedAt) {
-				t.Errorf("%s stamps = %v and %v, want one pair stamped at or after %v",
-					tc.key, held.CreatedAt, held.UpdatedAt, before)
+			if inside := keysOfFields(held.Fields); !slices.Equal(inside, tc.inside) {
+				t.Fatalf("the %s field holds %v, want %v", tc.key, inside, tc.inside)
 			}
+			stampedSince(t, before, append([]content.Field{held}, held.Fields...)...)
 		})
 	}
 }
