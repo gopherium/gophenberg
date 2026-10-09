@@ -27,17 +27,8 @@ var reportedCase = regexp.MustCompile(`(?m)^    --- (PASS|FAIL): \S+/\S+ `)
 
 // typeGaps names the shared type store cases the in-memory stores do not pass yet.
 var typeGaps = map[string]bool{
-	"UpdateGroupRefusesOneOfTwoMovesOntoTheSameType":                    true,
-	"CreateFieldInGroupRefusesAKeyARivalGroupServes":                    true,
-	"CreateSubFieldRefusesAKeyItsParentHolds":                           true,
 	"DeleteGroupSweepsAValueLeftOnATypeItStoppedMatching":               true,
 	"DeleteFieldsOfGroupSweepsAValueLeftOnATypeItStoppedMatching":       true,
-	"DeleteFieldInGroupReportsAGroupThatIsGone":                         true,
-	"DeleteFieldsOfGroupReportsAGroupThatIsGone":                        true,
-	"UpdateFieldInGroupReportsAGroupThatIsGone":                         true,
-	"CreateSubFieldStoresTheKeyTheDomainSettledOn":                      true,
-	"CreatingASubFieldRefusesAParentHoldingNone":                        true,
-	"UpdatingASubFieldWillNotReachATopLevelField":                       true,
 	"MovingAContainerIntoItsOwnTreeIsRefusedByTheStore":                 true,
 	"MovingAFieldOntoAKeyTheContainerHoldsReportsFieldTaken":            true,
 	"MovingAFieldOntoAKeyTheTopHoldsReportsFieldTaken":                  true,

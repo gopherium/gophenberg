@@ -120,7 +120,7 @@ func (s *memoryTypes) rechecked(recheck content.Recheck) error {
 	return recheck(s.listing(), s.types)
 }
 
-// UpdateGroup stores the group's title, location and resting flag with the fields it points anew.
+// UpdateGroup stores the group's title, location and resting flag with the fields it points anew, once it stands alone.
 func (s *memoryTypes) UpdateGroup(
 	_ context.Context, g content.Group, repointed []content.Field, recheck content.Recheck,
 ) (content.Group, error) {
@@ -133,6 +133,9 @@ func (s *memoryTypes) UpdateGroup(
 		if held.ID != g.ID {
 			continue
 		}
+		if err := s.standsAlone(g, held); err != nil {
+			return content.Group{}, err
+		}
 		fields, err := repointedIn(held.Fields, repointed)
 		if err != nil {
 			return content.Group{}, err
@@ -142,6 +145,15 @@ func (s *memoryTypes) UpdateGroup(
 		return held, nil
 	}
 	return content.Group{}, content.ErrGroupNotFound
+}
+
+// standsAlone reports whether the stored keys of the group stay free of every rival it would share a type with.
+func (s *memoryTypes) standsAlone(g, held content.Group) error {
+	keys := make([]string, 0, len(held.Fields))
+	for _, f := range held.Fields {
+		keys = append(keys, f.Key)
+	}
+	return content.Uncollided(s.types, s.groups, g, keys, 0, memoryParams)
 }
 
 // repointedIn returns the fields with each one pointed anew in its place, or a conflict when one changed since read.
@@ -234,16 +246,24 @@ func (s *memoryTypes) ReorderGroups(_ context.Context, ids []int) error {
 	return nil
 }
 
-// CreateSubField declares the field inside the container the parent names, within the limit.
+// CreateSubField declares the field the domain settles on inside the container the parent names, within the limit.
 func (s *memoryTypes) CreateSubField(
 	_ context.Context, parentID int, f content.Field, limit int,
 ) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, _, path, found := s.placedIn(parentID); found {
-		if err := content.WithinDepth(f, len(path), limit); err != nil {
+	if _, parent, path, found := s.placedIn(parentID); found {
+		settled, err := content.NewSubField(f, parent.Kind)
+		if err != nil {
 			return content.Field{}, err
 		}
+		if err := content.WithinDepth(settled, len(path), limit); err != nil {
+			return content.Field{}, err
+		}
+		if slices.ContainsFunc(parent.Fields, func(held content.Field) bool { return held.Key == settled.Key }) {
+			return content.Field{}, content.ErrFieldTaken
+		}
+		f = settled
 	}
 	s.fieldIDs++
 	f.ID, f.ParentID = s.fieldIDs, parentID
@@ -294,6 +314,9 @@ func (s *memoryTypes) UpdateSubField(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
+		if slices.ContainsFunc(held.Fields, func(top content.Field) bool { return top.ID == id }) {
+			return content.Field{}, content.ErrConflict
+		}
 		edited, stored, err := editedInside(held.Fields, id, f, expectedUpdatedAt)
 		if err != nil {
 			return content.Field{}, err
@@ -444,7 +467,7 @@ func prunedInside(declared []content.Field, id int) ([]content.Field, bool) {
 	return declared, false
 }
 
-// CreateFieldInGroup declares the field inside the group once the check passes.
+// CreateFieldInGroup declares the field inside the group once the check passes and no rival group serves its key.
 func (s *memoryTypes) CreateFieldInGroup(
 	_ context.Context, groupID int, f content.Field, recheck content.Recheck,
 ) (content.Field, error) {
@@ -456,6 +479,9 @@ func (s *memoryTypes) CreateFieldInGroup(
 	for i, held := range s.groups {
 		if held.ID != groupID {
 			continue
+		}
+		if err := content.Uncollided(s.types, s.groups, held, []string{f.Key}, 0, memoryParams); err != nil {
+			return content.Field{}, err
 		}
 		for _, stored := range held.Fields {
 			if stored.Key == f.Key {
@@ -495,8 +521,9 @@ func (s *memoryTypes) UpdateFieldInGroup(
 				return f, nil
 			}
 		}
+		return content.Field{}, content.ErrFieldNotFound
 	}
-	return content.Field{}, content.ErrFieldNotFound
+	return content.Field{}, content.ErrGroupNotFound
 }
 
 // DeleteFieldInGroup removes the field once the check passes, and its values from the types its group served it on.
@@ -532,7 +559,10 @@ func (s *memoryTypes) dropFieldsInGroup(
 		return nil, err
 	}
 	at := slices.IndexFunc(s.groups, func(g content.Group) bool { return g.ID == groupID })
-	if at < 0 || !holdsEvery(s.groups[at].Fields, keys) {
+	if at < 0 {
+		return nil, content.ErrGroupNotFound
+	}
+	if !holdsEvery(s.groups[at].Fields, keys) {
 		return nil, content.ErrFieldNotFound
 	}
 	reached := make(map[string][]string, len(keys))
