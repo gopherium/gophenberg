@@ -42,7 +42,7 @@ func TypeCases() []Case {
 		typeCases, typeNestingCases, groupCases, groupValueCases, groupRecheckCases, groupRepointCases,
 		originCases, settingCases, kindCases, adoptCases, typeFieldCases, fieldParentCases,
 		fieldDepthCases, subFieldWriteCases, fieldMoveCases, fieldMoveValueCases, fieldSweepCases,
-		layoutSweepCases, definitionSweepCases,
+		layoutSweepCases, definitionSweepCases, contractKeyCases, contractStampCases, contractOrderCases,
 	)
 }
 

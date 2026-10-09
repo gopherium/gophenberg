@@ -485,3 +485,32 @@ func DeclaredInto(t *testing.T, registry *content.Registry) {
 		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}
 }
+
+// DeclaredSectionInto stores a plugin's group holding a section with one sub field, and returns both fields.
+func DeclaredSectionInto(t *testing.T, registry *content.Registry) (content.Field, content.Field) {
+	t.Helper()
+	ctx := content.Declaring(t.Context(), "events")
+	group, err := registry.CreateGroup(ctx, content.Group{
+		Key: "event-schedule", Title: "Event schedule", Origin: "events",
+	})
+	if err != nil {
+		t.Fatalf("CreateGroup(event-schedule) error = %v, want nil", err)
+	}
+	section := SectionOn(t, "schedule")
+	section.Origin = "events"
+	held, err := registry.CreateFieldInGroup(ctx, group.ID, section)
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup(schedule) error = %v, want nil", err)
+	}
+	built, err := content.NewSubField(content.Field{
+		Key: "doors", Label: "Doors", Kind: content.FieldKindText, Origin: "events",
+	}, content.FieldKindSection)
+	if err != nil {
+		t.Fatalf("NewSubField(doors) error = %v, want nil", err)
+	}
+	sub, err := registry.CreateSubField(ctx, held.ID, built)
+	if err != nil {
+		t.Fatalf("CreateSubField(doors) error = %v, want nil", err)
+	}
+	return held, sub
+}
