@@ -142,9 +142,6 @@ msgstr "Tipos de contenido"
 msgid "Content nests at most %(max)s levels deep, and this item would sit deeper. Pick a parent closer to the top."
 msgstr "El contenido se anida como mucho %(max)s niveles, y este elemento quedaría más abajo. Elige un nivel superior más cercano al inicio."
 
-msgid "Could not create a draft."
-msgstr "No se ha podido crear el borrador."
-
 msgid "Could not delete that item."
 msgid_plural "Could not delete every item."
 msgstr[0] "No se ha podido borrar ese elemento."
@@ -211,8 +208,9 @@ msgstr "Borrador guardado."
 msgid "Email"
 msgstr "Correo electrónico"
 
+#, fuzzy
 msgid "Empty Trash"
-msgstr "Vaciar la papelera"
+msgstr "Vaciar papelera"
 
 msgid "Enable"
 msgstr "Activar"
@@ -222,7 +220,7 @@ msgstr "Cambian todas las direcciones de este tipo. Los enlaces guardados en otr
 
 #, fuzzy
 msgid "Every item in the %(type)s trash is removed for good. This cannot be undone."
-msgstr "Todos los elementos de la papelera de %(type)s se borran para siempre. Esto no se puede deshacer."
+msgstr "Todos los elementos de la papelera de %(type)s se borran permanentemente. Esto no se puede deshacer."
 
 msgid "Every item needs an author who exists. Pick one from the list and save again."
 msgstr "Cada elemento necesita un autor que exista. Elige uno de la lista y guarda de nuevo."
@@ -314,9 +312,6 @@ msgstr "Idioma"
 msgid "Large"
 msgstr "Grande"
 
-msgid "Last Modified"
-msgstr "Última modificación"
-
 #, fuzzy
 msgid "Linked from"
 msgstr "Enlazado desde"
@@ -390,8 +385,9 @@ msgstr "Todavía no se ha subido ningún medio."
 msgid "No page lives at this address."
 msgstr "No existe ninguna página en esta dirección."
 
+#, fuzzy
 msgid "No parent"
-msgstr "Sin elemento superior"
+msgstr "Sin superior"
 
 msgid "No theme arrived with this upload. Choose a zip file and try again."
 msgstr "No ha llegado ningún tema con esta subida. Elige un archivo zip e inténtalo de nuevo."
@@ -402,8 +398,9 @@ msgstr "No hay ningún tema instalado."
 msgid "No title"
 msgstr "Sin título"
 
+#, fuzzy
 msgid "None"
-msgstr "Ninguno"
+msgstr "Ninguna"
 
 msgid "Not found"
 msgstr "No encontrado"
@@ -465,8 +462,9 @@ msgstr "Abrir la navegación"
 msgid "Open %(field)s in a new tab"
 msgstr "Abrir %(field)s en una pestaña nueva"
 
+#, fuzzy
 msgid "Parent"
-msgstr "Elemento Superior"
+msgstr "Superior"
 
 msgid "Password"
 msgstr "Contraseña"
@@ -486,8 +484,9 @@ msgstr "Entrada publicada."
 msgid "Preview"
 msgstr "Vista previa"
 
+#, fuzzy
 msgid "Private"
-msgstr "Privado"
+msgstr "Privada"
 
 msgid "Publish"
 msgstr "Publicar"
@@ -532,8 +531,9 @@ msgstr "Guardado"
 msgid "Saving"
 msgstr "Guardando"
 
+#, fuzzy
 msgid "Scheduled"
-msgstr "Programado"
+msgstr "Programada"
 
 msgid "Search audio"
 msgstr "Buscar audios"
@@ -951,9 +951,6 @@ msgstr "Elegir %(field)s"
 msgid "Clear %(field)s"
 msgstr "Vaciar %(field)s"
 
-msgid "Could not load %(type)s."
-msgstr "No se ha podido cargar %(type)s."
-
 msgid "Deactivate %(theme)s"
 msgstr "Desactivar %(theme)s"
 
@@ -999,9 +996,6 @@ msgstr "Renombrar %(field)s"
 
 msgid "Roll back to %(theme)s"
 msgstr "Revertir a %(theme)s"
-
-msgid "Search %(type)s"
-msgstr "Buscar %(type)s"
 
 msgid "This type will answer under /%(word)s."
 msgstr "Este tipo responderá como /%(word)s."
@@ -1139,10 +1133,6 @@ msgstr "%(group)s actualizado."
 #, fuzzy
 msgid "%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
 msgstr "%(key)s lo sirve %(winner)s, así que %(loser)s no lo muestra en %(where)s."
-
-#, fuzzy
-msgid "%(label)s (%(count)s)"
-msgstr "%(label)s (%(count)s)"
 
 #, fuzzy
 msgid "%(source)s is %(value)s"
@@ -1519,10 +1509,6 @@ msgstr "Fecha"
 msgctxt "content type"
 msgid "Status"
 msgstr "Estado"
-
-msgctxt "date caption"
-msgid "Published"
-msgstr "Publicada"
 
 msgctxt "field"
 msgid "Name"
@@ -2106,14 +2092,14 @@ msgstr "Borrar permanentemente"
 msgid "Move %s item to the trash?"
 msgid_plural "Move %s items to the trash?"
 msgstr[0] "¿Mover %s elemento a la papelera?"
-msgstr[1] "¿Mover %s elementos a la papelera?"
+msgstr[1] "¿Mover %s de elementos a la papelera?"
 msgstr[2] "¿Mover %s elementos a la papelera?"
 
 #, fuzzy
 msgid "Delete %s item for good? This cannot be undone."
 msgid_plural "Delete %s items for good? This cannot be undone."
 msgstr[0] "¿Borrar permanentemente %s elemento? Esto no se puede deshacer."
-msgstr[1] "¿Borrar permanentemente %s elementos? Esto no se puede deshacer."
+msgstr[1] "¿Borrar permanentemente %s de elementos? Esto no se puede deshacer."
 msgstr[2] "¿Borrar permanentemente %s elementos? Esto no se puede deshacer."
 
 #, fuzzy
@@ -2132,14 +2118,14 @@ msgstr "«%s» trasladado a la papelera."
 msgid "%s item moved to the trash."
 msgid_plural "%s items moved to the trash."
 msgstr[0] "%s elemento movido a la papelera."
-msgstr[1] "%s elementos movidos a la papelera."
+msgstr[1] "%s de elementos movidos a la papelera."
 msgstr[2] "%s elementos movidos a la papelera."
 
 #, fuzzy
 msgid "%s item could not be moved to the trash."
 msgid_plural "%s items could not be moved to the trash."
 msgstr[0] "No se ha podido mover %s elemento a la papelera."
-msgstr[1] "No se han podido mover %s elementos a la papelera."
+msgstr[1] "No se han podido mover %s de elementos a la papelera."
 msgstr[2] "No se han podido mover %s elementos a la papelera."
 
 #, fuzzy
@@ -2150,21 +2136,21 @@ msgstr "«%s» se ha restaurado."
 msgid "%s page has been restored."
 msgid_plural "%s pages have been restored."
 msgstr[0] "Se ha restaurado %s página."
-msgstr[1] "Se han restaurado %s páginas."
+msgstr[1] "Se han restaurado %s de páginas."
 msgstr[2] "Se han restaurado %s páginas."
 
 #, fuzzy
 msgid "%s post has been restored."
 msgid_plural "%s posts have been restored."
 msgstr[0] "Se ha restaurado %s entrada."
-msgstr[1] "Se han restaurado %s entradas."
+msgstr[1] "Se han restaurado %s de entradas."
 msgstr[2] "Se han restaurado %s entradas."
 
 #, fuzzy
 msgid "%s item could not be restored."
 msgid_plural "%s items could not be restored."
 msgstr[0] "No se ha podido restaurar %s elemento."
-msgstr[1] "No se han podido restaurar %s elementos."
+msgstr[1] "No se han podido restaurar %s de elementos."
 msgstr[2] "No se han podido restaurar %s elementos."
 
 #, fuzzy
@@ -2175,14 +2161,14 @@ msgstr "«%s» borrado permanentemente."
 msgid "%s item permanently deleted."
 msgid_plural "%s items permanently deleted."
 msgstr[0] "%s elemento borrado permanentemente."
-msgstr[1] "%s elementos borrados permanentemente."
+msgstr[1] "%s de elementos borrados permanentemente."
 msgstr[2] "%s elementos borrados permanentemente."
 
 #, fuzzy
 msgid "%s item could not be permanently deleted."
 msgid_plural "%s items could not be permanently deleted."
 msgstr[0] "No se ha podido borrar permanentemente %s elemento."
-msgstr[1] "No se han podido borrar permanentemente %s elementos."
+msgstr[1] "No se han podido borrar permanentemente %s de elementos."
 msgstr[2] "No se han podido borrar permanentemente %s elementos."
 
 #, fuzzy
@@ -2193,5 +2179,238 @@ msgstr "No se ha podido vaciar la papelera."
 msgid "%s item stays in the trash."
 msgid_plural "%s items stay in the trash."
 msgstr[0] "%s elemento sigue en la papelera."
-msgstr[1] "%s elementos siguen en la papelera."
+msgstr[1] "%s de elementos siguen en la papelera."
 msgstr[2] "%s elementos siguen en la papelera."
+
+#, fuzzy
+msgid "Manage the items of this content type."
+msgstr "Gestiona los elementos de este tipo de contenido."
+
+#, fuzzy
+msgid "Search %(type)s…"
+msgstr "Buscar %(type)s…"
+
+#, fuzzy
+msgid "Pending Review"
+msgstr "Pendiente de revisión"
+
+#, fuzzy
+msgid "Published: %s"
+msgstr "Publicado: %s"
+
+#, fuzzy
+msgid "Scheduled: %s"
+msgstr "Programado: %s"
+
+#, fuzzy
+msgid "Modified: %s"
+msgstr "Modificado: %s"
+
+#, fuzzy
+msgctxt "relation target"
+msgid "None"
+msgstr "Ninguno"
+
+#, fuzzy
+msgctxt "January abbreviation"
+msgid "Jan"
+msgstr "Ene"
+
+#, fuzzy
+msgctxt "February abbreviation"
+msgid "Feb"
+msgstr "Feb"
+
+#, fuzzy
+msgctxt "March abbreviation"
+msgid "Mar"
+msgstr "Mar"
+
+#, fuzzy
+msgctxt "April abbreviation"
+msgid "Apr"
+msgstr "Abr"
+
+#, fuzzy
+msgctxt "May abbreviation"
+msgid "May"
+msgstr "May"
+
+#, fuzzy
+msgctxt "June abbreviation"
+msgid "Jun"
+msgstr "Jun"
+
+#, fuzzy
+msgctxt "July abbreviation"
+msgid "Jul"
+msgstr "Jul"
+
+#, fuzzy
+msgctxt "August abbreviation"
+msgid "Aug"
+msgstr "Ago"
+
+#, fuzzy
+msgctxt "September abbreviation"
+msgid "Sep"
+msgstr "Sep"
+
+#, fuzzy
+msgctxt "October abbreviation"
+msgid "Oct"
+msgstr "Oct"
+
+#, fuzzy
+msgctxt "November abbreviation"
+msgid "Nov"
+msgstr "Nov"
+
+#, fuzzy
+msgctxt "December abbreviation"
+msgid "Dec"
+msgstr "Dic"
+
+#, fuzzy
+msgid "Sunday"
+msgstr "domingo"
+
+#, fuzzy
+msgid "Monday"
+msgstr "lunes"
+
+#, fuzzy
+msgid "Tuesday"
+msgstr "martes"
+
+#, fuzzy
+msgid "Wednesday"
+msgstr "miércoles"
+
+#, fuzzy
+msgid "Thursday"
+msgstr "jueves"
+
+#, fuzzy
+msgid "Friday"
+msgstr "viernes"
+
+#, fuzzy
+msgid "Saturday"
+msgstr "sábado"
+
+#, fuzzy
+msgid "Sun"
+msgstr "Dom"
+
+#, fuzzy
+msgid "Mon"
+msgstr "Lun"
+
+#, fuzzy
+msgid "Tue"
+msgstr "Mar"
+
+#, fuzzy
+msgid "Wed"
+msgstr "Mié"
+
+#, fuzzy
+msgid "Thu"
+msgstr "Jue"
+
+#, fuzzy
+msgid "Fri"
+msgstr "Vie"
+
+#, fuzzy
+msgid "Sat"
+msgstr "Sáb"
+
+#, fuzzy
+msgctxt "start of week"
+msgid "1"
+msgstr "1"
+
+#, fuzzy
+msgctxt "date and time format"
+msgid "F j, Y g:i a"
+msgstr "j \\d\\e F \\d\\e Y H:i"
+
+#, fuzzy
+msgctxt "abbreviated date and time format"
+msgid "M j, Y g:i a"
+msgstr "j M Y H:i"
+
+#, fuzzy
+msgid "Name"
+msgstr "Nombre"
+
+#, fuzzy
+msgid "Name updated."
+msgstr "Nombre actualizado."
+
+#, fuzzy
+msgid "The name could not be updated."
+msgstr "No se ha podido actualizar el nombre."
+
+#, fuzzy
+msgid "Rename…"
+msgstr "Renombrar…"
+
+#, fuzzy
+msgctxt "verb"
+msgid "Trash…"
+msgstr "Papelera…"
+
+#, fuzzy
+msgid "Permanently delete…"
+msgstr "Borrar permanentemente…"
+
+#, fuzzy
+msgctxt "action label"
+msgid "Duplicate"
+msgstr "Duplicar"
+
+#, fuzzy
+msgctxt "post"
+msgid "%s (Copy)"
+msgstr "%s (copia)"
+
+#, fuzzy
+msgid "\"%s\" successfully created."
+msgstr "«%s» creado correctamente."
+
+#, fuzzy
+msgid "The item could not be duplicated."
+msgstr "No se ha podido duplicar el elemento."
+
+#, fuzzy
+msgctxt "action label"
+msgid "Duplicate…"
+msgstr "Duplicar…"
+
+#, fuzzy
+msgctxt "verb"
+msgid "View"
+msgstr "Ver"
+
+#, fuzzy
+msgid "The draft could not be created."
+msgstr "No se ha podido crear el borrador."
+
+#, fuzzy
+msgid "No items found."
+msgstr "No se han encontrado elementos."
+
+#, fuzzy
+msgid "No items yet."
+msgstr "Todavía no hay elementos."
+
+#, fuzzy
+msgid "Add one with Add New."
+msgstr "Añade uno con Añadir nuevo."
+
+#, fuzzy
+msgid "Items could not be loaded."
+msgstr "No se han podido cargar los elementos."
