@@ -685,8 +685,17 @@ func (s *memoryTypes) MoveField(
 	if !found {
 		return content.Field{}, content.ErrFieldNotFound
 	}
+	if content.Inside(carried, toParent) {
+		return content.Field{}, content.MovesInsideItself(carried.Key)
+	}
 	if err := content.WithinDepth(carried, landingDepth(s.groups[landing].Fields, toParent), limit); err != nil {
 		return content.Field{}, err
+	}
+	if err := s.keyFreeAtTop(s.groups[landing], source, carried, toParent); err != nil {
+		return content.Field{}, err
+	}
+	if keyTakenAt(s.groups[landing].Fields, toParent, carried.Key) {
+		return content.Field{}, content.ErrFieldTaken
 	}
 	swept := s.sweptByMove(source, s.groups[landing], carried.ParentID != toParent, path)
 	s.takenOut(id)
@@ -710,6 +719,27 @@ func landingDepth(fields []content.Field, toParent int) int {
 	}
 	_, above, _ := placedInside(fields, toParent)
 	return len(above)
+}
+
+// keyFreeAtTop reports whether no rival of the landing group serves the key of a field landing at its top.
+func (s *memoryTypes) keyFreeAtTop(landing, source content.Group, carried content.Field, toParent int) error {
+	if toParent != 0 {
+		return nil
+	}
+	leaving := 0
+	if carried.ParentID == 0 {
+		leaving = source.ID
+	}
+	return content.Uncollided(s.types, s.groups, landing, []string{carried.Key}, leaving, memoryParams)
+}
+
+// keyTakenAt reports whether a field already holds the key where a field landing under the parent would stand.
+func keyTakenAt(fields []content.Field, toParent int, key string) bool {
+	if toParent != 0 {
+		parent, _, _ := placedInside(fields, toParent)
+		fields = parent.Fields
+	}
+	return slices.ContainsFunc(fields, func(held content.Field) bool { return held.Key == key })
 }
 
 // sweptByMove returns the types a moved field's old values leave, only those the landing misses between two tops.
@@ -1011,6 +1041,14 @@ func (s *memoryTypes) serving(key string) bool {
 		}
 	}
 	return false
+}
+
+// reachedBy returns the keys of the types the group holding the field reaches, read from the groups as they stand.
+func (s *memoryTypes) reachedBy(field int) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	held, _, _, _ := s.placedIn(field)
+	return s.typesMatchedBy(held)
 }
 
 // nests reports whether the stored type takes items under a parent.

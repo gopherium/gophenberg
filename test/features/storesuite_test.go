@@ -29,11 +29,6 @@ var reportedCase = regexp.MustCompile(`(?m)^    --- (PASS|FAIL): \S+/\S+ `)
 var typeGaps = map[string]bool{
 	"DeleteGroupSweepsAValueLeftOnATypeItStoppedMatching":               true,
 	"DeleteFieldsOfGroupSweepsAValueLeftOnATypeItStoppedMatching":       true,
-	"MovingAContainerIntoItsOwnTreeIsRefusedByTheStore":                 true,
-	"MovingAFieldOntoAKeyTheContainerHoldsReportsFieldTaken":            true,
-	"MovingAFieldOntoAKeyTheTopHoldsReportsFieldTaken":                  true,
-	"MovingAFieldOutToAKeyARivalGroupServesReportsFieldTaken":           true,
-	"MovingAShadowedRelationOffContentDropsOnlyItsOwnIndexRows":         true,
 	"DeletingASubFieldSweepsItsValuesInsideASection":                    true,
 	"DeletingARestingGroupsSubFieldSweepsTheValueTheServedSectionLacks": true,
 	"DeletingASubFieldSweepsItsValuesFromEveryRow":                      true,

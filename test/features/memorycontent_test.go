@@ -968,7 +968,7 @@ func sortedAt(c content.Content) time.Time {
 	return c.CreatedAt
 }
 
-// PointingAt returns the published items pointing at the target through the field, and how many there are.
+// PointingAt returns the published items the field's group reaches pointing at the target through it, and how many.
 func (s *memoryContent) PointingAt(
 	ctx context.Context, target uuid.UUID, field, page, perPage int,
 ) ([]content.Pointer, int, error) {
@@ -976,11 +976,13 @@ func (s *memoryContent) PointingAt(
 	if !named {
 		return nil, 0, nil
 	}
+	reached := s.types.reachedBy(field)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	held := make([]content.Pointer, 0, len(s.items))
 	for _, item := range s.items {
-		if item.Status != content.StatusPublished || !slices.Contains(identitiesAt(item.Fields, path), target) {
+		if item.Status != content.StatusPublished || !slices.Contains(reached, item.Type) ||
+			!slices.Contains(identitiesAt(item.Fields, path), target) {
 			continue
 		}
 		held = append(held, content.Pointer{
