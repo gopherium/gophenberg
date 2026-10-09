@@ -56,7 +56,7 @@ func TestComposeRegistersThePluginsWithoutMigrating(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compose() error = %v, want nil", err)
 	}
-	defer built.pool.Close()
+	defer built.close()
 	if !slices.Contains(idsOf(built.registered), "keeper") {
 		t.Errorf("registered = %v, want the keeper plugin among them", idsOf(built.registered))
 	}
@@ -84,7 +84,7 @@ func TestComposeInDescribeModeNeedsNoDatabaseSetting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compose() error = %v, want the plugins registered without a database setting", err)
 	}
-	defer built.pool.Close()
+	defer built.close()
 	if !slices.Contains(idsOf(built.registered), "keeper") {
 		t.Errorf("registered = %v, want the keeper plugin among them", idsOf(built.registered))
 	}
@@ -115,7 +115,7 @@ func TestServerConfigCarriesEveryComposedValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compose() error = %v, want nil", err)
 	}
-	defer built.pool.Close()
+	defer built.close()
 
 	cfg := serverConfig(settings, built, pluginkit.NewHost(), definitions.Walked{}, slog.New(slog.DiscardHandler))
 
