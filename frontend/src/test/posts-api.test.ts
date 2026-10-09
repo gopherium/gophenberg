@@ -7,7 +7,6 @@ import {
 	deletePost,
 	emptyTrash,
 	fetchPost,
-	fetchPostCounts,
 	listEveryPost,
 	listPosts,
 	restorePost,
@@ -122,7 +121,7 @@ test('reads a page of posts with its total', async () => {
 test('asks only for the parameters it was given', async () => {
 	const queries = captureList()
 
-	await listPosts({ status: 'draft', search: 'gutenberg', page: 2, orderBy: 'title', order: 'asc' })
+	await listPosts({ status: 'draft', search: 'gutenberg', page: 2, perPage: 50, orderBy: 'title', order: 'asc' })
 
 	const asked = new URLSearchParams(queries[0])
 	expect(asked.get('status')).toBe('draft')
@@ -130,7 +129,7 @@ test('asks only for the parameters it was given', async () => {
 	expect(asked.get('page')).toBe('2')
 	expect(asked.get('orderby')).toBe('title')
 	expect(asked.get('order')).toBe('asc')
-	expect(asked.get('per_page')).toBe('20')
+	expect(asked.get('per_page')).toBe('50')
 })
 
 test('omits filters that were not asked for', async () => {
@@ -143,29 +142,67 @@ test('omits filters that were not asked for', async () => {
 	expect(asked.has('search')).toBe(false)
 })
 
+test('asks no page size while none is handed, so the server pages at its own', async () => {
+	const queries = captureList()
+
+	await listPosts({ type: 'post' })
+
+	expect(new URLSearchParams(queries[0]).has('per_page')).toBe(false)
+})
+
+test('reads the page size the server says it used', async () => {
+	server.use(http.get('/api/content', () => HttpResponse.json({ items: [ROW], total: 1, per_page: 7 })))
+
+	const page = await listPosts({})
+
+	expect(page.perPage).toBe(7)
+})
+
+test('reads the title of the parent each listed item sits under', async () => {
+	server.use(
+		http.get('/api/content', () =>
+			HttpResponse.json({ items: [{ ...ROW, parent_id: 'p1', parent_title: 'About Us' }], total: 1 }),
+		),
+	)
+
+	const page = await listPosts({})
+
+	expect(page.items[0].parentTitle).toBe('About Us')
+})
+
+test('reads a listed item that names no moments and no parent as dated nowhere, at the top of its tree', async () => {
+	const bare = { id: ROW.id, type: 'post', slug: 'welcome', title: 'Welcome', status: 'draft' }
+	server.use(http.get('/api/content', () => HttpResponse.json({ items: [bare], total: 1 })))
+
+	const page = await listPosts({})
+
+	expect(page.items[0]).toMatchObject({ parentTitle: '', publishedAt: null, createdAt: '', updatedAt: '', date: '' })
+})
+
+test('dates a listed item by its publication, else by its last save, as the server sorts it', async () => {
+	server.use(
+		http.get('/api/content', () =>
+			HttpResponse.json({ items: [ROW, { ...ROW, id: 'd1', published_at: null }], total: 2 }),
+		),
+	)
+
+	const page = await listPosts({})
+
+	expect(page.items.map((post) => post.date)).toEqual([ROW.published_at, ROW.updated_at])
+})
+
+test('reads no page size from a server that names none', async () => {
+	captureList()
+
+	const page = await listPosts({})
+
+	expect(page.perPage).toBe(0)
+})
+
 test('reports a failed listing', async () => {
 	server.use(http.get('/api/content', () => HttpResponse.json({}, { status: 500 })))
 
 	await expect(listPosts({})).rejects.toThrow(/500/)
-})
-
-test('reads the count of every status', async () => {
-	server.use(
-		http.get('/api/content/counts', () =>
-			HttpResponse.json({ draft: 3, published: 2, pending: 0, private: 0, trash: 1 }),
-		),
-	)
-
-	const counts = await fetchPostCounts()
-
-	expect(counts.draft).toBe(3)
-	expect(counts.trash).toBe(1)
-})
-
-test('reports a failed count', async () => {
-	server.use(http.get('/api/content/counts', () => HttpResponse.json({}, { status: 500 })))
-
-	await expect(fetchPostCounts()).rejects.toThrow(/500/)
 })
 
 test('lists the type it was asked for', async () => {
@@ -176,15 +213,20 @@ test('lists the type it was asked for', async () => {
 	expect(new URLSearchParams(queries[0]).get('type')).toBe('page')
 })
 
-test('reads every post of a type, not just the first page', async () => {
-	const total = 130
+/**
+ * Serves a listing of the given total, page by page at the size asked, or at the given size when none is asked.
+ * @param total - How many items the listing holds.
+ * @param served - The page size the server uses when the request names none.
+ * @returns The query strings asked for.
+ */
+function servePaged(total: number, served: number): string[] {
 	const queries: string[] = []
 	server.use(
 		http.get('/api/content', ({ request }) => {
 			const params = new URL(request.url).searchParams
 			queries.push(params.toString())
 			const page = Number(params.get('page') ?? '1')
-			const perPage = Number(params.get('per_page'))
+			const perPage = Number(params.get('per_page') ?? served)
 			const held = Math.max(0, Math.min(perPage, total - (page - 1) * perPage))
 			return HttpResponse.json({
 				items: Array.from({ length: held }, (_, i) => ({
@@ -192,16 +234,31 @@ test('reads every post of a type, not just the first page', async () => {
 					id: `019fb000-0000-7000-8000-${String((page - 1) * perPage + i).padStart(12, '0')}`,
 				})),
 				total,
+				per_page: perPage,
 			})
 		}),
 	)
+	return queries
+}
+
+test('reads every post of a type page by page at the largest size the settings name', async () => {
+	const queries = servePaged(130, 20)
+
+	const held = await listEveryPost({ type: 'category' }, [10, 75, 50])
+
+	expect(held).toHaveLength(130)
+	expect(new Set(held.map((post) => post.id)).size).toBe(130)
+	expect(queries.map((query) => new URLSearchParams(query).get('per_page'))).toEqual(['75', '75'])
+})
+
+test('reads every post of a type at the size the server serves when no size is handed', async () => {
+	const queries = servePaged(45, 20)
 
 	const held = await listEveryPost({ type: 'category' })
 
-	expect(held).toHaveLength(total)
-	expect(new Set(held.map((post) => post.id)).size).toBe(total)
-	expect(queries).toHaveLength(2)
-	expect(new URLSearchParams(queries[0]).get('per_page')).toBe('100')
+	expect(held).toHaveLength(45)
+	expect(queries).toHaveLength(3)
+	expect(queries.every((query) => !new URLSearchParams(query).has('per_page'))).toBe(true)
 })
 
 test('stops reading pages when the listing reports nothing', async () => {
@@ -210,14 +267,42 @@ test('stops reading pages when the listing reports nothing', async () => {
 	await expect(listEveryPost({ type: 'category' })).resolves.toEqual([])
 })
 
-test('stops at the reading ceiling when a listing never reaches its total', async () => {
+test('stops reading pages once a later page comes back empty', async () => {
+	const queries: string[] = []
 	server.use(
-		http.get('/api/content', () => HttpResponse.json({ items: [ROW], total: Number.MAX_SAFE_INTEGER })),
+		http.get('/api/content', ({ request }) => {
+			queries.push(new URL(request.url).search)
+			const first = !new URL(request.url).searchParams.has('page')
+			return HttpResponse.json({ items: first ? [ROW] : [], total: 500, per_page: 1 })
+		}),
 	)
 
 	const held = await listEveryPost({ type: 'category' })
 
-	expect(held).toHaveLength(100)
+	expect(held).toHaveLength(1)
+	expect(queries).toHaveLength(2)
+})
+
+test('reads no more pages than the total of the first answer names', async () => {
+	const queries: string[] = []
+	server.use(
+		http.get('/api/content', ({ request }) => {
+			queries.push(new URL(request.url).search)
+			const first = !new URL(request.url).searchParams.has('page')
+			return HttpResponse.json({ items: [ROW], total: first ? 3 : Number.MAX_SAFE_INTEGER, per_page: 1 })
+		}),
+	)
+
+	const held = await listEveryPost({ type: 'category' })
+
+	expect(held).toHaveLength(3)
+	expect(queries).toHaveLength(3)
+})
+
+test('reads one page from a server that names no page size', async () => {
+	server.use(http.get('/api/content', () => HttpResponse.json({ items: [ROW], total: 1 })))
+
+	await expect(listEveryPost({ type: 'category' })).resolves.toHaveLength(1)
 })
 
 test('empties the trash of the type it was asked for in one call', async () => {
@@ -239,20 +324,6 @@ test('empties the trash of the type it was asked for in one call', async () => {
 	expect(emptied).toEqual({ deleted: 3, kept: 1 })
 	expect(asked.map((url) => url.searchParams.get('type'))).toEqual(['page'])
 	expect(each).toEqual([])
-})
-
-test('counts the type it was asked for', async () => {
-	const queries: string[] = []
-	server.use(
-		http.get('/api/content/counts', ({ request }) => {
-			queries.push(new URL(request.url).search)
-			return HttpResponse.json({ draft: 1 })
-		}),
-	)
-
-	await fetchPostCounts('page')
-
-	expect(new URLSearchParams(queries[0]).get('type')).toBe('page')
 })
 
 test('reads how many items point at the one it fetched', async () => {

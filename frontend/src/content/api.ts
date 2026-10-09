@@ -7,16 +7,11 @@ import { z } from 'zod'
 import { errorTemplates } from '../i18n/errorTemplates'
 import { errorText } from '../i18n/errors'
 
-const POSTS_PER_PAGE = 20
-
-const MAX_POSTS_PER_PAGE = 100
-
-const MAX_LISTING_PAGES = 100
-
 const postSchema = z.object({
 	id: z.string(),
 	type: z.string(),
 	parent_id: z.string().nullable().optional(),
+	parent_title: z.string().optional(),
 	path: z.string().optional(),
 	slug: z.string(),
 	title: z.string(),
@@ -36,7 +31,7 @@ const detailSchema = postSchema.extend({
 	field_totals: z.record(z.string(), z.number()).optional(),
 })
 
-const pageSchema = z.object({ items: z.array(postSchema), total: z.number() })
+const pageSchema = z.object({ items: z.array(postSchema), total: z.number(), per_page: z.number().optional() })
 
 const errorSchema = z.object({
 	error: z.string(),
@@ -44,14 +39,13 @@ const errorSchema = z.object({
 	meta: z.record(z.string(), z.unknown()).optional(),
 })
 
-const countsSchema = z.record(z.string(), z.number())
-
 const emptiedSchema = z.object({ deleted: z.number(), kept: z.number() })
 
 export interface Post {
 	id: string
 	type: string
 	parentId: string | null
+	parentTitle: string
 	path: string
 	slug: string
 	title: string
@@ -62,12 +56,14 @@ export interface Post {
 	publishedAt: string | null
 	createdAt: string
 	updatedAt: string
+	date: string
 	fields?: Record<string, unknown>
 }
 
 export interface PostPage {
 	items: Post[]
 	total: number
+	perPage: number
 }
 
 export interface PostQuery {
@@ -78,10 +74,27 @@ export interface PostQuery {
 	perPage?: number
 	orderBy?: string
 	order?: string
+	orderHierarchy?: boolean
 	fields?: Record<string, string>
+	author?: string[]
+	authorExclude?: string[]
+	before?: string
+	after?: string
 }
 
-export type PostCounts = Record<string, number>
+/**
+ * Returns the moments an API row carries.
+ * @param row - The row as the API sent it.
+ * @returns The moments, the list date being the one the server sorts by: published, else last saved.
+ */
+function momentsOf(row: z.infer<typeof postSchema>): Pick<Post, 'publishedAt' | 'createdAt' | 'updatedAt' | 'date'> {
+	return {
+		publishedAt: row.published_at ?? null,
+		createdAt: row.created_at ?? '',
+		updatedAt: row.updated_at ?? '',
+		date: row.published_at ?? row.updated_at ?? '',
+	}
+}
 
 /**
  * Returns the post carried by an API row.
@@ -93,6 +106,7 @@ function toPost(row: z.infer<typeof postSchema>): Post {
 		id: row.id,
 		type: row.type,
 		parentId: row.parent_id ?? null,
+		parentTitle: row.parent_title ?? '',
 		path: row.path ?? '',
 		slug: row.slug,
 		title: row.title,
@@ -100,28 +114,41 @@ function toPost(row: z.infer<typeof postSchema>): Post {
 		excerpt: row.excerpt ?? '',
 		authorId: row.author_id ?? '',
 		authorName: row.author_name ?? '',
-		publishedAt: row.published_at ?? null,
-		createdAt: row.created_at ?? '',
-		updatedAt: row.updated_at ?? '',
+		...momentsOf(row),
 		fields: row.fields ?? {},
 	}
 }
 
+/** What a new draft starts with, each part it leaves out left to the server. */
+export interface PostDraft {
+	title?: string
+	content?: string
+	excerpt?: string
+	parentId?: string
+	fields?: Record<string, unknown>
+}
+
 /**
- * Creates a draft of the given type.
+ * Creates a draft of the given type, sending only the parts the draft names.
  * @param type - The post type to create.
- * @param fields - The values the draft starts with.
+ * @param draft - What the draft starts with.
+ * @param fallback - The words a refused create throws when the server names no reason the admin knows.
  * @returns The stored draft.
  */
-export async function createPost(type = 'post', fields: Record<string, unknown> = {}): Promise<Post> {
-	const response = await fetch('/api/content', {
-		method: 'POST',
-		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ type, title: '', fields }),
-	})
-	if (!response.ok) {
-		throw new Error(`creating a post failed with status ${response.status}`)
+export async function createPost(type: string, draft: PostDraft, fallback: string): Promise<Post> {
+	const body = {
+		type,
+		title: draft.title,
+		content: draft.content,
+		excerpt: draft.excerpt,
+		parent_id: draft.parentId,
+		fields: draft.fields,
 	}
+	const response = await accepted(
+		'/api/content',
+		{ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) },
+		fallback,
+	)
 	return toPost(postSchema.parse(await response.json()))
 }
 
@@ -186,15 +213,16 @@ async function reasonOf(response: Response, fallback: string): Promise<string> {
 }
 
 /**
- * Returns the answer to a write the server accepted, or throws the refusal in the reader's language.
- * @param url - Where the write goes.
- * @param method - The method the write uses.
- * @param fallback - The words to show when the answer names no reason the admin knows, or no answer came.
+ * Returns the answer to a request the server accepted, or throws the refusal in the reader's language.
+ * @param url - Where the request goes.
+ * @param init - The method, headers and body of the request.
+ * @param fallback - The words to show when the answer names no reason the admin knows, when no answer came, or
+ *   when another save got there first, which only the caller can word.
  * @returns The answer.
  */
-async function accepted(url: string, method: string, fallback: string): Promise<Response> {
-	const response = await fetch(url, { method }).catch(() => null)
-	if (response === null) {
+async function accepted(url: string, init: RequestInit, fallback: string): Promise<Response> {
+	const response = await fetch(url, init).catch(() => null)
+	if (response === null || response.status === 409) {
 		throw new Error(fallback)
 	}
 	if (!response.ok) {
@@ -206,14 +234,33 @@ async function accepted(url: string, method: string, fallback: string): Promise<
 /**
  * Returns one post with its content.
  * @param id - The post to read.
+ * @param fallback - The words a failed read throws when the server names no reason the admin knows.
  * @returns The stored post.
  */
-export async function fetchPost(id: string): Promise<PostDetail> {
-	const response = await fetch(`/api/content/${id}`)
-	if (!response.ok) {
-		throw new Error(`reading a post failed with status ${response.status}`)
-	}
+export async function fetchPost(id: string, fallback = ''): Promise<PostDetail> {
+	const response = await accepted(`/api/content/${id}`, {}, fallback)
 	return toDetail(detailSchema.parse(await response.json()))
+}
+
+/**
+ * Writes a new title over the version of an item read just before the write, so the newest name wins.
+ * @param id - The item to rename.
+ * @param title - The new title.
+ * @returns The renamed item.
+ */
+export async function renamePost(id: string, title: string): Promise<Post> {
+	const fallback = __('The name could not be updated.', 'gophenberg')
+	const current = await fetchPost(id, fallback)
+	const response = await accepted(
+		`/api/content/${id}`,
+		{
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ title, updated_at: current.updatedAt }),
+		},
+		fallback,
+	)
+	return toPost(postSchema.parse(await response.json()))
 }
 
 /**
@@ -328,7 +375,7 @@ export async function autosavePost(
  */
 export async function trashPost(id: string): Promise<Post> {
 	const fallback = __('The item could not be moved to the trash.', 'gophenberg')
-	const response = await accepted(`/api/content/${id}`, 'DELETE', fallback)
+	const response = await accepted(`/api/content/${id}`, { method: 'DELETE' }, fallback)
 	return toPost(postSchema.parse(await response.json()))
 }
 
@@ -339,7 +386,7 @@ export async function trashPost(id: string): Promise<Post> {
  */
 export async function restorePost(id: string): Promise<Post> {
 	const fallback = __('The item could not be restored.', 'gophenberg')
-	const response = await accepted(`/api/content/${id}/restore`, 'POST', fallback)
+	const response = await accepted(`/api/content/${id}/restore`, { method: 'POST' }, fallback)
 	return toPost(postSchema.parse(await response.json()))
 }
 
@@ -349,7 +396,27 @@ export async function restorePost(id: string): Promise<Post> {
  */
 export async function deletePost(id: string): Promise<void> {
 	const fallback = __('The item could not be permanently deleted.', 'gophenberg')
-	await accepted(`/api/content/${id}?force=true`, 'DELETE', fallback)
+	await accepted(`/api/content/${id}?force=true`, { method: 'DELETE' }, fallback)
+}
+
+/**
+ * Returns the named parameters a listing request carries, undefined for each one the query leaves out.
+ * @param query - The filters, sort and page to ask for.
+ * @returns The parameters by name.
+ */
+function namedParams(query: PostQuery): Record<string, string | undefined> {
+	return {
+		per_page: query.perPage?.toString(),
+		type: query.type,
+		status: query.status,
+		search: query.search,
+		orderby: query.orderBy,
+		order: query.order,
+		author: query.author?.join(','),
+		author_exclude: query.authorExclude?.join(','),
+		before: query.before,
+		after: query.after,
+	}
 }
 
 /**
@@ -358,21 +425,17 @@ export async function deletePost(id: string): Promise<void> {
  * @returns The parameters.
  */
 function listingParams(query: PostQuery): URLSearchParams {
-	const params = new URLSearchParams({ per_page: String(query.perPage ?? POSTS_PER_PAGE) })
-	const named: Record<string, string | undefined> = {
-		type: query.type,
-		status: query.status,
-		search: query.search,
-		orderby: query.orderBy,
-		order: query.order,
-	}
-	for (const [name, value] of Object.entries(named)) {
+	const params = new URLSearchParams()
+	for (const [name, value] of Object.entries(namedParams(query))) {
 		if (value) {
 			params.set(name, value)
 		}
 	}
 	if (query.page && query.page > 1) {
 		params.set('page', String(query.page))
+	}
+	if (query.orderHierarchy) {
+		params.set('orderby_hierarchy', 'true')
 	}
 	for (const [key, value] of Object.entries(query.fields ?? {})) {
 		params.set(`field[${key}]`, value)
@@ -382,8 +445,8 @@ function listingParams(query: PostQuery): URLSearchParams {
 
 /**
  * Returns one page of posts matching the query.
- * @param query - The filters, sort and page to ask for.
- * @returns The page and the total number of matches.
+ * @param query - The filters, sort and page to ask for, the server's own page size when it names none.
+ * @returns The page, the total number of matches and the page size the server used, 0 when it names none.
  */
 export async function listPosts(query: PostQuery): Promise<PostPage> {
 	const params = listingParams(query)
@@ -392,22 +455,26 @@ export async function listPosts(query: PostQuery): Promise<PostPage> {
 		throw new Error(`listing posts failed with status ${response.status}`)
 	}
 	const page = pageSchema.parse(await response.json())
-	return { items: page.items.map(toPost), total: page.total }
+	return { items: page.items.map(toPost), total: page.total, perPage: page.per_page ?? 0 }
 }
 
 /**
- * Returns the posts the query names, asking page after page up to the reading ceiling.
+ * Returns the posts the query names, asking page after page no further than the total of the first answer names.
  * @param query - The listing to read, without paging.
- * @returns The posts the listing holds, up to the pages the ceiling allows.
+ * @param sizes - The page sizes the settings name, the largest asked for, none to take the server's own size.
+ * @returns The posts the listing holds, the ones read before a page came back empty.
  */
-export async function listEveryPost(query: PostQuery): Promise<Post[]> {
-	const held: Post[] = []
-	for (let page = 1; page <= MAX_LISTING_PAGES; page += 1) {
-		const read = await listPosts({ ...query, page, perPage: MAX_POSTS_PER_PAGE })
-		held.push(...read.items)
-		if (held.length >= read.total || read.items.length === 0) {
+export async function listEveryPost(query: PostQuery, sizes?: readonly number[]): Promise<Post[]> {
+	const perPage = sizes === undefined ? undefined : Math.max(...sizes)
+	const first = await listPosts({ ...query, perPage })
+	const held = [...first.items]
+	const pages = first.perPage > 0 ? Math.ceil(first.total / first.perPage) : 1
+	for (let page = 2; page <= pages; page += 1) {
+		const read = await listPosts({ ...query, page, perPage })
+		if (read.items.length === 0) {
 			return held
 		}
+		held.push(...read.items)
 	}
 	return held
 }
@@ -422,20 +489,6 @@ export type Emptied = z.infer<typeof emptiedSchema>
  */
 export async function emptyTrash(type: string): Promise<Emptied> {
 	const fallback = __('The trash could not be emptied.', 'gophenberg')
-	const response = await accepted(`/api/content/trash?${new URLSearchParams({ type })}`, 'DELETE', fallback)
+	const response = await accepted(`/api/content/trash?${new URLSearchParams({ type })}`, { method: 'DELETE' }, fallback)
 	return emptiedSchema.parse(await response.json())
-}
-
-/**
- * Returns how many posts of a type hold each status.
- * @param type - The content type to count, the default type when absent.
- * @returns The count of posts per status.
- */
-export async function fetchPostCounts(type?: string): Promise<PostCounts> {
-	const params = new URLSearchParams(type ? { type } : {})
-	const response = await fetch(`/api/content/counts?${params}`)
-	if (!response.ok) {
-		throw new Error(`counting posts failed with status ${response.status}`)
-	}
-	return countsSchema.parse(await response.json())
 }

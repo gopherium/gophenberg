@@ -7,6 +7,7 @@ import { startLocale as start } from '@gopherium/gottext'
 
 import { fetchLocale } from './api'
 import { DEFAULT_LOCALE, catalogFor, editorCatalogFor, type Catalog } from './catalog'
+import { startDates } from './dates'
 
 /** The text domain every Gophenberg owned string names. */
 export const DOMAIN = 'gophenberg'
@@ -28,12 +29,12 @@ const shipped: Catalogs = {
 }
 
 /**
- * Loads the catalogues the admin reads and returns the language it settled on.
+ * Loads the catalogues the admin reads, hands the dates their words and clock, and returns the language it settled on.
  * @param from - Where the catalogues come from, the shipped ones by default.
  * @returns The language the admin reads in.
  */
 export async function startLocale(from: Catalogs = shipped): Promise<string> {
-	return start(
+	const locale = await start(
 		async () => (await fetchLocale()).locale,
 		[
 			{ domain: DOMAIN, load: from.own },
@@ -43,4 +44,6 @@ export async function startLocale(from: Catalogs = shipped): Promise<string> {
 		],
 		{ defaultLocale: DEFAULT_LOCALE },
 	)
+	startDates(locale)
+	return locale
 }

@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
+import type { ReactElement } from 'react'
+import { expect, onTestFinished, test, vi } from 'vitest'
 
-import { fieldTerms } from '../content/fields'
+import type { Post } from '../content/api'
+import { fieldTerms, levelOf, offeredView, postFields } from '../content/fields'
+import { placeholderType } from '../content/useContentType'
+import { catalogFor } from '../i18n/catalog'
 import { renderAt, renderRoutedAt } from './render'
 import { warmPostsScreen } from './warm'
 
@@ -94,13 +99,38 @@ function declaring(fields: Record<string, unknown>[]) {
 	return asked
 }
 
-beforeEach(() => {
-	server.use(
-		http.get('/api/content/counts', () =>
-			HttpResponse.json({ draft: 0, published: 1, pending: 0, private: 0, trash: 0 }),
-		),
-	)
-})
+/**
+ * Returns a listed item as the admin reads it, at the top of its tree.
+ * @returns The item.
+ */
+function listedPost(): Post {
+	return {
+		id: '1',
+		type: 'page',
+		parentId: null,
+		parentTitle: '',
+		path: 'pages/one',
+		slug: 'one',
+		title: 'One',
+		status: 'published',
+		excerpt: '',
+		authorId: '',
+		authorName: '',
+		publishedAt: STAMP,
+		createdAt: STAMP,
+		updatedAt: STAMP,
+		date: STAMP,
+	}
+}
+
+/**
+ * Picks a filter through the Add filter menu, which opens its chip.
+ * @param name - The label of the column to filter by.
+ */
+async function pickFilter(name: string) {
+	await userEvent.click(screen.getByRole('button', { name: 'Add filter' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name }))
+}
 
 test('shows a column for every field the type marks for the list', async () => {
 	declaring([PRICE, ON_SALE, SINCE, COLOUR, NOTE])
@@ -228,10 +258,148 @@ test('asks the server for the field a chip narrows by', async () => {
 	renderAt('/content/post')
 	await screen.findByRole('table')
 
-	await userEvent.click(screen.getAllByRole('button', { name: /On sale/ })[0])
+	await pickFilter('On sale')
 	await userEvent.click(await screen.findByRole('option', { name: 'Yes' }))
 
 	await waitFor(() => expect(asked.some((search) => search.includes('field%5Bon-sale%5D=true'))).toBe(true))
+})
+
+test('keeps the chip of a listed field behind Add filter until it is picked', async () => {
+	declaring([ON_SALE])
+	renderAt('/content/post')
+
+	await screen.findByRole('table')
+
+	expect(screen.getAllByRole('button', { name: /On sale/ })).toHaveLength(1)
+	expect(screen.getByRole('button', { name: 'Add filter' })).toBeInTheDocument()
+})
+
+test.each([
+	{ operator: 'isNot', value: 'true' },
+	{ operator: 'is', value: 'maybe' },
+])('asks for no field the address narrows with $operator $value, which its chip never offers', async (filter) => {
+	const asked = declaring([ON_SALE])
+	const filters = encodeURIComponent(JSON.stringify([{ field: 'field.on-sale', ...filter }]))
+	renderAt(`/content/post?filters=${filters}&search=sale`)
+
+	await screen.findByRole('table')
+
+	expect(asked[0]).toContain('search=sale')
+	expect(asked[0]).not.toContain('field%5Bon-sale%5D')
+})
+
+test.each(['author', 'slug'])('asks the server to sort by %s', async (column) => {
+	const asked = declaring([])
+	renderAt(`/content/post?sort=${column}&order=asc`)
+
+	await screen.findByRole('table')
+
+	expect(asked[0]).toContain(`orderby=${column}&order=asc`)
+})
+
+test.each(['excerpt', 'status'])('asks no sort by the %s, which the list never sorts by', async (column) => {
+	const asked = declaring([])
+	renderAt(`/content/post?sort=${column}`)
+
+	await screen.findByRole('table')
+
+	expect(asked[0]).toContain('orderby=date')
+})
+
+test('offers to sort by the title, the author, the date and the slug only', async () => {
+	declaring([PRICE])
+	renderAt('/content/post')
+	await screen.findByRole('table')
+
+	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
+
+	const sorts = within(await screen.findByRole('combobox', { name: 'Sort by' })).getAllByRole('option')
+	expect(sorts.map((option) => option.textContent)).toEqual(['Title', 'Author', 'Date', 'Slug'])
+})
+
+test('asks the server to sort a hierarchical type by its parents', async () => {
+	const pageType = { ...POST_TYPE, key: 'page', plural_label: 'Pages', hierarchical: true, default: false }
+	const asked: string[] = []
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [POST_TYPE, pageType] })),
+		http.get('/api/content', ({ request }) => {
+			asked.push(new URL(request.url).search)
+			return HttpResponse.json({ items: [{ ...ITEM, type: 'page' }], total: 1 })
+		}),
+	)
+	renderAt('/content/page?sort=parent')
+
+	await screen.findByRole('table')
+
+	expect(asked[0]).toContain('orderby=parent')
+})
+
+test('offers no parent column on a type that does not nest', () => {
+	expect(postFields(placeholderType('post')).map((column) => column.id)).not.toContain('parent')
+})
+
+test('names the parent of an item by its title, or None at the top', () => {
+	const pages = { ...placeholderType('page'), hierarchical: true }
+	const parent = postFields(pages).find((column) => column.id === 'parent')
+	const nested = { ...listedPost(), parentTitle: 'About Us' }
+
+	expect(parent?.getValue?.({ item: nested })).toBe('About Us')
+	expect(parent?.getValue?.({ item: listedPost() })).toBe('None')
+})
+
+test('names the parent column and an item at the top as WordPress es_ES does for a Spanish reader', async () => {
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	const pages = { ...placeholderType('page'), hierarchical: true }
+
+	const parent = postFields(pages).find((column) => column.id === 'parent')
+
+	expect(parent?.label).toBe('Superior')
+	expect(parent?.getValue?.({ item: listedPost() })).toBe('Ninguna')
+})
+
+test('names a scheduled item by the badge WordPress es_ES draws for a Spanish reader', async () => {
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	const status = postFields(placeholderType('post')).find((column) => column.id === 'status')
+	const Cell = status?.render as (props: { item: Post }) => ReactElement
+
+	render(<Cell item={{ ...listedPost(), status: 'scheduled' }} />)
+
+	expect(screen.getByText('Programada')).toBeInTheDocument()
+})
+
+test('heads the columns of a nesting type as the WordPress page list does', () => {
+	const pages = { ...placeholderType('page'), hierarchical: true }
+
+	const labels = postFields(pages).map((column) => column.label)
+
+	expect(labels).toEqual(['Title', 'Excerpt', 'Author', 'Status', 'Date', 'Slug', 'Parent'])
+})
+
+test('offers no way to hide the title column', async () => {
+	declaring([])
+	renderAt('/content/post')
+	await screen.findByText('Welcome')
+
+	await userEvent.click(screen.getByRole('button', { name: 'Title' }))
+
+	expect(await screen.findAllByRole('menuitemradio')).toHaveLength(2)
+	expect(screen.queryByRole('menuitem', { name: 'Hide column' })).not.toBeInTheDocument()
+})
+
+test('counts the levels of a nesting type with no route word from its first slash', () => {
+	const nesting = { ...placeholderType('category'), hierarchical: true, routeWord: '' }
+
+	expect(levelOf(nesting)({ ...listedPost(), path: 'news' })).toBe(0)
+	expect(levelOf(nesting)({ ...listedPost(), path: 'news/local' })).toBe(1)
+})
+
+test('reads a view naming no sort and no filter as the opening order, narrowed by nothing', () => {
+	const view = offeredView({ type: 'table' }, postFields(placeholderType('post')))
+
+	expect(view.sort).toEqual({ field: 'date', direction: 'desc' })
+	expect(view.filters).toEqual([])
 })
 
 test('joins the labels a field holding several choices carries', async () => {
@@ -258,7 +426,10 @@ test('offers no chip on a choice field nobody gave options', async () => {
 	renderAt('/content/post')
 	await screen.findByRole('table')
 
-	expect(screen.getAllByRole('button', { name: /Colour/ })).toHaveLength(1)
+	await userEvent.click(screen.getByRole('button', { name: 'Add filter' }))
+
+	expect(await screen.findByRole('menuitem', { name: 'Author' })).toBeInTheDocument()
+	expect(screen.queryByRole('menuitem', { name: 'Colour' })).not.toBeInTheDocument()
 })
 
 test('reads the terms a view narrows by, ignoring what names no field', () => {
@@ -303,7 +474,7 @@ test('drops a filter the type it moves to never declared', async () => {
 	)
 	const { router } = renderRoutedAt('/content/post')
 	await screen.findByRole('table')
-	await userEvent.click(screen.getAllByRole('button', { name: /On sale/ })[0])
+	await pickFilter('On sale')
 	await userEvent.click(await screen.findByRole('option', { name: 'Yes' }))
 	await waitFor(() => expect(asked.some((search) => search.includes('field%5Bon-sale%5D'))).toBe(true))
 
@@ -332,7 +503,7 @@ test('drops a filter the type it moves to declares under another kind', async ()
 	)
 	const { router } = renderRoutedAt('/content/post')
 	await screen.findByRole('table')
-	await userEvent.click(screen.getAllByRole('button', { name: /Shared/ })[0])
+	await pickFilter('Shared')
 	await userEvent.click(await screen.findByRole('option', { name: 'Red' }))
 	await waitFor(() => expect(asked.some((search) => search.includes('field%5Bshared%5D=red'))).toBe(true))
 

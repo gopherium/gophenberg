@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
-import { __, sprintf } from '@wordpress/i18n'
+import { __, _x, sprintf } from '@wordpress/i18n'
 import { useQuery } from '@tanstack/react-query'
 
+import { useListSettings } from '../settings/useListSettings'
 import { listEveryPost } from './api'
 import { FieldLabel } from './FieldLabel'
 import type { ContentField } from './types'
@@ -46,9 +47,10 @@ export function RelationPicker(props: {
 	targets: string[]
 	onChange: (targets: string[]) => void
 }) {
+	const sizes = useListSettings().data?.list_page_sizes
 	const held = useQuery({
 		queryKey: ['relation-targets', props.field.relatesTo],
-		queryFn: () => listEveryPost({ type: props.field.relatesTo }),
+		queryFn: () => listEveryPost({ type: props.field.relatesTo }, sizes),
 	})
 	const candidates = (held.data ?? []).filter(
 		(item) => item.id !== props.postId && item.status !== trashed,
@@ -56,7 +58,7 @@ export function RelationPicker(props: {
 	if (props.field.many) {
 		return <ManyTargets {...props} candidates={candidates} />
 	}
-	const noTarget = { label: __('None', 'gophenberg'), value: '' }
+	const noTarget = { label: _x('None', 'relation target', 'gophenberg'), value: '' }
 	const items = [noTarget, ...candidates.map((item) => ({ label: item.title, value: item.id }))]
 	const selected = items.find((item) => item.value === (props.targets[0] ?? '')) ?? noTarget
 	return (
