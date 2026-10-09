@@ -202,7 +202,7 @@ func groupOf(held []Group, id int) (Group, bool) {
 	return Group{}, false
 }
 
-// CreateFieldInGroup declares the field inside the group, or reports why the registry refuses it.
+// CreateFieldInGroup declares the field inside the group, stamped as created now, or reports why it is refused.
 func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field) (Field, error) {
 	if err := f.Validate(); err != nil {
 		return Field{}, err
@@ -226,6 +226,8 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	if err := Stands(target.Fields, f); err != nil {
 		return Field{}, err
 	}
+	now := time.Now().UTC()
+	f.CreatedAt, f.UpdatedAt = now, now
 	created, err := r.store.CreateFieldInGroup(ctx, groupID, f, declaredRecheck(groupID, f, r.Params(ctx)))
 	if err != nil {
 		return Field{}, err
@@ -234,7 +236,7 @@ func (r *Registry) CreateFieldInGroup(ctx context.Context, groupID int, f Field)
 	return created, nil
 }
 
-// CreateSubField declares the field inside the container the parent names.
+// CreateSubField declares the field inside the container the parent names, stamped as created now.
 func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (Field, error) {
 	parent, _, depth, err := r.fieldByID(ctx, parentID)
 	if err != nil {
@@ -252,6 +254,8 @@ func (r *Registry) CreateSubField(ctx context.Context, parentID int, f Field) (F
 	if err := WithinDepth(f, depth+1, r.FieldDepth()); err != nil {
 		return Field{}, err
 	}
+	now := time.Now().UTC()
+	f.CreatedAt, f.UpdatedAt = now, now
 	created, err := r.store.CreateSubField(ctx, parentID, f, r.FieldDepth())
 	if err != nil {
 		return Field{}, err

@@ -190,6 +190,29 @@ func TestDeclareGroupStoresTheGroupAndItsFieldTree(t *testing.T) {
 	}
 }
 
+func TestDeclareGroupStampsTheFieldsItCreates(t *testing.T) {
+	t.Parallel()
+
+	registry, registrar := declaringRegistry(t)
+	if err := registrar.DeclareType(t.Context(), eventType()); err != nil {
+		t.Fatalf("DeclareType() error = %v, want nil", err)
+	}
+	before := postgresNow()
+
+	if err := registrar.DeclareGroup(t.Context(), eventGroup()); err != nil {
+		t.Fatalf("DeclareGroup() error = %v, want nil", err)
+	}
+
+	held := heldGroup(t, registry, "event-details").Fields
+	if len(held) != 2 || held[0].Key != "venue" || held[1].Key != "schedule" {
+		t.Fatalf("the group holds %+v, want the venue and the schedule the plugin declared", held)
+	}
+	if inside := keysOfFields(held[1].Fields); !slices.Equal(inside, []string{"starts-at"}) {
+		t.Fatalf("the schedule holds %v, want the starts-at field the plugin declared", inside)
+	}
+	stampedSince(t, before, held[0], held[1], held[1].Fields[0])
+}
+
 func TestDeclareGroupCarriesChangesAndKeepsWhatIsNoLongerDeclared(t *testing.T) {
 	t.Parallel()
 

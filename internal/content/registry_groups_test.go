@@ -957,6 +957,32 @@ func TestRegistryRefusesWakingAGroupIntoACollision(t *testing.T) {
 	}
 }
 
+func TestRegistryStampsAFieldItCreatesInAGroup(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newGroupingStore())
+	held := groupNaming(t, registry, "Article details", namingPost())
+	before := time.Now().UTC()
+
+	created, err := registry.CreateFieldInGroup(t.Context(), held.ID, content.Field{
+		Key: "subtitle", Label: "Subtitle", Kind: content.FieldKindText,
+	})
+
+	if err != nil {
+		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
+	}
+	groups, err := registry.Groups(t.Context())
+	if err != nil || len(groups) != 1 || len(groups[0].Fields) != 1 || groups[0].Fields[0].Key != "subtitle" {
+		t.Fatalf("Groups() = %+v, %v, want the one group holding the subtitle field", groups, err)
+	}
+	for name, f := range map[string]content.Field{"returned": created, "stored": groups[0].Fields[0]} {
+		if f.CreatedAt.Before(before) || !f.UpdatedAt.Equal(f.CreatedAt) {
+			t.Errorf("%s stamps = %v and %v, want one pair stamped at or after %v",
+				name, f.CreatedAt, f.UpdatedAt, before)
+		}
+	}
+}
+
 func TestRegistryRelabelsAFieldInsideItsGroup(t *testing.T) {
 	t.Parallel()
 

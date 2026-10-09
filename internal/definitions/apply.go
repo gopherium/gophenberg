@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"time"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
@@ -153,12 +154,14 @@ func (r *run) types(ctx context.Context) error {
 	return nil
 }
 
-// oneType stores or carries one type, leaving the root and the nesting where the site's content keeps them.
+// oneType stores or carries one type stamped now, leaving the root and the nesting where the site's content keeps them.
 func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Change) error {
 	wanted, err := r.described(ctx, typeFrom(declared), declared)
 	if err != nil {
 		return err
 	}
+	now := time.Now().UTC()
+	wanted.CreatedAt, wanted.UpdatedAt = now, now
 	if r.warned(WarningRootMoved, declared.Key) {
 		r.left(r.kept(planned, declared, ReasonRootKept))
 		wanted, err = r.beside(ctx, wanted, declared, planned.Action)
