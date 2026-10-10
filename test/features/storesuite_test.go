@@ -7,7 +7,6 @@ import (
 	"errors"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
 	"testing"
 	"time"
@@ -24,14 +23,6 @@ const shortRowsVariable = "GOPHENBERG_SHORT_ROWS"
 
 // reportedCase matches the line the test binary prints for each case of the short rows run.
 var reportedCase = regexp.MustCompile(`(?m)^    --- (PASS|FAIL): \S+/\S+ `)
-
-// typeGaps names the shared type store cases the in-memory stores do not pass yet.
-var typeGaps = map[string]bool{
-	"AFieldEditHoldingTheStampFromBeforeAMoveConflicts":      true,
-	"AFieldEditHoldingTheStampFromBeforeAnAdoptionConflicts": true,
-	"AnItemEditHoldingTheStampFromBeforeACarryConflicts":     true,
-	"ReordersLeaveUnlistedGroupsAndFieldsWhereTheyStand":     true,
-}
 
 // memoryStores returns fresh in-memory stores for one case.
 func memoryStores(t *testing.T) contenttest.Stores {
@@ -72,13 +63,7 @@ func TestContentStoreSuite(t *testing.T) {
 func TestTypeStoreSuite(t *testing.T) {
 	t.Parallel()
 
-	contenttest.RunTypes(t, func(t *testing.T) contenttest.Stores {
-		t.Helper()
-		if typeGaps[path.Base(t.Name())] {
-			t.Skip("the in-memory stores do not pass this case yet")
-		}
-		return memoryStores(t)
-	})
+	contenttest.RunTypes(t, memoryStores)
 }
 
 // shortRowsRuns reruns the named test under each keep rule and fails on a panic or a case that never reported.
