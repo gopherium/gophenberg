@@ -5,6 +5,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
+import { holdWrite } from '../content/postWrites'
 import { gate } from './gate'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
@@ -34,6 +35,60 @@ const STORED = {
 	excerpt: 'A short tour of the editor.',
 	parent_id: PARENT_ID,
 	fields: { rating: 5 },
+}
+
+const STAMP = '2026-08-01T10:00:00Z'
+
+const POST_TYPE = {
+	key: 'post',
+	singular_label: 'Post',
+	plural_label: 'Posts',
+	description: '',
+	route_word: '',
+	hierarchical: false,
+	revisions: true,
+	revision_cap: 100,
+	page_kind: 'single',
+	default: true,
+	active: true,
+	created_at: STAMP,
+	updated_at: STAMP,
+	fields: [],
+}
+
+const RATING = { key: 'rating', label: 'Rating', kind: 'number', many: false, required: false, updated_at: STAMP }
+
+const LINKED_FROM = {
+	key: 'linked-from',
+	label: 'Linked from',
+	kind: 'backlinks',
+	many: true,
+	required: false,
+	updated_at: STAMP,
+}
+
+const ON_SALE = { key: 'on-sale', label: 'On sale', kind: 'boolean', many: false, required: false, updated_at: STAMP }
+
+const SALE_NOTE = {
+	key: 'sale-note',
+	label: 'Sale note',
+	kind: 'text',
+	many: false,
+	required: false,
+	updated_at: STAMP,
+	settings: { conditions: [[{ source: 'on-sale', operator: '==', value: 'true' }]] },
+}
+
+/**
+ * Serves the post type declaring the given fields and the stored item holding the given values.
+ * @param fields - The fields the type declares.
+ * @param held - The values the item holds.
+ */
+function declaring(fields: Record<string, unknown>[], held: Record<string, unknown>) {
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [{ ...POST_TYPE, fields }] })),
+		http.get(`/api/content/${PUBLISHED.id}`, () => HttpResponse.json({ ...STORED, fields: held })),
+	)
 }
 
 const created: Record<string, unknown>[] = []
@@ -105,6 +160,55 @@ test('makes one draft holding the title typed and the content, excerpt, parent a
 		]),
 	)
 	expect(createdAs).toEqual(['application/json'])
+})
+
+test('leaves the empty Linked from field out of a copy, the field the server reads rather than writes', async () => {
+	declaring([RATING, LINKED_FROM], { rating: 5, 'linked-from': [] })
+	renderAt('/content/post')
+	const dialog = await openDuplicate()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Duplicate' }))
+
+	await waitFor(() => expect(created).toHaveLength(1))
+	expect(created[0].fields).toEqual({ rating: 5 })
+})
+
+test('leaves a value under a field its conditions hide out of a copy, never meeting field_hidden', async () => {
+	declaring([RATING, ON_SALE, SALE_NOTE], { rating: 5, 'on-sale': false, 'sale-note': 'Half price' })
+	renderAt('/content/post')
+	const dialog = await openDuplicate()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Duplicate' }))
+
+	await waitFor(() => expect(created).toHaveLength(1))
+	expect(created[0].fields).toEqual({ rating: 5, 'on-sale': false })
+})
+
+test('waits for a write in flight to the item before reading it, so the copy carries the settled words', async () => {
+	const settled = {
+		content: '<!-- wp:paragraph -->\n<p>Settled words.</p>\n<!-- /wp:paragraph -->',
+		excerpt: 'Settled.',
+	}
+	let answered = false
+	server.use(
+		http.get(`/api/content/${PUBLISHED.id}`, () => HttpResponse.json(answered ? { ...STORED, ...settled } : STORED)),
+	)
+	const saving = gate()
+	const client = renderAt('/content/post')
+	const dialog = await openDuplicate()
+	holdWrite(
+		client,
+		PUBLISHED.id,
+		saving.held.then(() => {
+			answered = true
+		}),
+	)
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Duplicate' }))
+	saving.release()
+
+	await waitFor(() => expect(created).toHaveLength(1))
+	expect(created[0]).toMatchObject(settled)
 })
 
 test('names no parent for a copy of an item at the top of its tree', async () => {

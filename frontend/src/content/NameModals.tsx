@@ -3,29 +3,39 @@
 import { Button, InputControl, Stack } from '@gophenberg/frontend-sdk'
 import type { RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
 import { ErrorNotice, RenameBody, useToaster } from '@gopherium/godmin'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useState } from 'react'
 
 import { useRefresh } from './actions'
 import { createPost, fetchPost, renamePost } from './api'
 import type { Post } from './api'
+import { shownValues } from './conditions'
+import { writesSettled } from './postWrites'
+import type { ContentField } from './types'
+import { useContentType } from './useContentType'
 
 /**
- * Makes a draft holding the title given and the content, excerpt, parent and field values of an item.
+ * Makes a draft holding the title given and the content, excerpt, parent and the field values of an item the server
+ * writes, the ones its conditions show less the Linked from fields it only reads, read once every write still in
+ * flight to the item has answered.
+ * @param client - The query client holding the writes in flight.
  * @param post - The item to copy.
  * @param title - The title of the copy.
+ * @param declared - The fields the type declares, judging which values the rules show.
  * @returns The copy.
  */
-async function duplicated(post: Post, title: string): Promise<Post> {
+async function duplicated(client: QueryClient, post: Post, title: string, declared: ContentField[]): Promise<Post> {
 	const fallback = __('The item could not be duplicated.', 'gophenberg')
+	await writesSettled(client, post.id)
 	const source = await fetchPost(post.id, fallback)
 	const draft = {
 		title,
 		content: source.content,
 		excerpt: source.excerpt,
 		parentId: source.parentId ?? undefined,
-		fields: source.fields,
+		fields: shownValues(declared, source.fields),
 	}
 	return createPost(post.type, draft, fallback)
 }
@@ -36,11 +46,13 @@ async function duplicated(post: Post, title: string): Promise<Post> {
  * @returns The duplicate form.
  */
 export function DuplicateModal({ items: [post], closeModal }: RenderModalProps<Post>) {
+	const client = useQueryClient()
 	const refresh = useRefresh()
 	const toaster = useToaster()
+	const { fields } = useContentType()
 	const [title, setTitle] = useState<string>(sprintf(_x('%s (Copy)', 'post', 'gophenberg'), post.title))
 	const duplicate = useMutation({
-		mutationFn: () => duplicated(post, title),
+		mutationFn: () => duplicated(client, post, title, fields),
 		onSuccess: async () => {
 			await refresh()
 			toaster.show(sprintf(__('"%s" successfully created.', 'gophenberg'), toaster.name(title)))
