@@ -43,9 +43,9 @@ function useListRun(
 ): { failure?: string, run: ListRun, list: RefObject<HTMLDivElement | null> } {
 	const [shown, setShown] = useState<{ scope: string, failure?: string }>({ scope })
 	const list = useRef<HTMLDivElement>(null)
-	const live = useRef(scope)
+	const latest = useRef(0)
 	useEffect(() => {
-		live.current = scope
+		latest.current += 1
 	}, [scope])
 	if (shown.scope !== scope) {
 		setShown({ scope })
@@ -54,10 +54,15 @@ function useListRun(
 	const run = useMemo<ListRun>(
 		() => ({
 			onStart: () => {
+				const id = latest.current + 1
+				latest.current = id
 				setShown({ scope })
 				return (failure, moved) => {
-					setShown((current) => (current.scope === scope ? { scope, failure } : current))
-					if (moved && live.current === scope) {
+					if (latest.current !== id) {
+						return
+					}
+					setShown({ scope, failure })
+					if (moved) {
 						list.current?.focus()
 					}
 				}

@@ -380,6 +380,51 @@ test('leaves the focus alone on the status the list moved to before the run sett
 	expect(screen.getByRole('checkbox', { name: 'Fresh Notes' })).toHaveFocus()
 })
 
+/**
+ * Serves two posts in the trash, holding the first two restores on the gate and refusing the restores asked after.
+ * @param held - What the first two restores wait on before the server answers them.
+ */
+function serveTwoTrashedRefusingLater(held: Promise<void>) {
+	serveTwoTrashed(undefined, held)
+	let asked = 0
+	server.use(
+		http.post('/api/content/:id/restore', async ({ params }) => {
+			asked += 1
+			if (asked > 2) {
+				return HttpResponse.json({}, { status: 500 })
+			}
+			await held
+			restored.push(String(params.id))
+			return HttpResponse.json({ ...TRASHED, id: String(params.id), status: 'draft' })
+		}),
+	)
+}
+
+test('keeps the newer failure and the focus once a run from an earlier visit of the status settles', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	const answer = gate()
+	serveTwoTrashedRefusingLater(answer.held)
+	renderAt('/content/post')
+	await tickBothTrashed()
+	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
+	await userEvent.click(screen.getByRole('button', { name: /^All/ }))
+	await waitFor(() => expect(listed).toContain(''))
+	await userEvent.click(screen.getByRole('button', { name: 'Trash (2)' }))
+	await screen.findByText('Older Notes')
+	expect(screen.getByRole('checkbox', { name: 'Old Notes' })).not.toBeChecked()
+	await userEvent.click(screen.getAllByRole('button', { name: 'Actions' })[0])
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Restore' }))
+	await screen.findByText('The item could not be restored.')
+	await waitFor(() => expect(screen.getAllByRole('button', { name: 'Actions' })[0]).toHaveFocus())
+
+	answer.release()
+
+	await screen.findByText('2 posts have been restored.', { selector: '.godmin-toast' })
+	expect(screen.getByText('The item could not be restored.')).toBeInTheDocument()
+	expect(screen.getAllByRole('button', { name: 'Actions' })[0]).toHaveFocus()
+	expect(screen.getByRole('region', { name: 'Posts' })).not.toHaveFocus()
+})
+
 test('keeps a failure off the type the list moved to before the run settled', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	const answer = gate()
