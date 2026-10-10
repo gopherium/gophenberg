@@ -460,18 +460,7 @@ func (s *TypeStore) DeleteFieldsOfGroup(
 	ctx context.Context, groupID int, keys []string, recheck content.Recheck,
 ) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
-		groups, held, err := lockedGroup(ctx, queries, groupID, recheck)
-		if err != nil {
-			return err
-		}
-		if !holdsEvery(held, keys) {
-			return content.ErrFieldNotFound
-		}
-		held.Fields = slices.DeleteFunc(slices.Clone(held.Fields), func(f content.Field) bool {
-			return !slices.Contains(keys, f.Key)
-		})
-		return deleteFieldsOf(ctx, queries, groups, held)
+		return deleteNamedFields(ctx, s.queries.WithTx(tx), groupID, keys, recheck)
 	})
 	if refusedFieldDelete(err) {
 		return err
@@ -480,6 +469,23 @@ func (s *TypeStore) DeleteFieldsOfGroup(
 		return fmt.Errorf("postgres: delete fields of group: %w", err)
 	}
 	return nil
+}
+
+// deleteNamedFields removes the group's named top level fields once the check passes, sweeping as a group delete does.
+func deleteNamedFields(
+	ctx context.Context, queries *db.Queries, groupID int, keys []string, recheck content.Recheck,
+) error {
+	groups, held, err := lockedGroup(ctx, queries, groupID, recheck)
+	if err != nil {
+		return err
+	}
+	if !holdsEvery(held, keys) {
+		return content.ErrFieldNotFound
+	}
+	held.Fields = slices.DeleteFunc(slices.Clone(held.Fields), func(f content.Field) bool {
+		return !slices.Contains(keys, f.Key)
+	})
+	return deleteFieldsOf(ctx, queries, groups, held)
 }
 
 // holdsEvery reports whether the group declares a field under each key.
@@ -718,22 +724,10 @@ func fieldStands(ctx context.Context, queries *db.Queries, groupID int, key stri
 	return content.ErrFieldNotFound
 }
 
-// DeleteFieldInGroup removes the field and sweeps its values from the types its group serves the key on.
+// DeleteFieldInGroup removes the field, sweeping its values as a group delete does.
 func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key string, recheck content.Recheck) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
-		groups, held, err := lockedGroup(ctx, queries, groupID, recheck)
-		if err != nil {
-			return err
-		}
-		if !holdsKey(held, key) {
-			return content.ErrFieldNotFound
-		}
-		matched, err := typesMatchedBy(ctx, queries, held)
-		if err != nil {
-			return err
-		}
-		return deleteFieldRow(ctx, queries, groupID, key, servedOn(groups, matched, groupID, []string{key}))
+		return deleteNamedFields(ctx, s.queries.WithTx(tx), groupID, []string{key}, recheck)
 	})
 	if refusedFieldDelete(err) {
 		return err
