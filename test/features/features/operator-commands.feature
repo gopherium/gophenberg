@@ -109,3 +109,22 @@ Feature: Operators run Gophenberg from one command line
       | line                                                       | error                                   |
       | account:create-admin -email admin@example.com -name Holder | account:create-admin wants -role <role> |
       | account:grant-role -as admin@example.com -yes              | account:grant-role wants -role <role>   |
+
+  Scenario: A plugin command refuses a needed flag left out
+    Given a plugin offering "notes:restore", which needs -since
+    When the operator runs "notes:restore"
+    Then the command exits with code 2
+    And the error says "notes:restore wants -since <day>"
+    And the plugin command never ran
+
+  Scenario: A plugin command refuses a needed flag holding only spaces
+    Given a plugin offering "notes:restore", which needs -since
+    When the operator runs "notes:restore" with -since holding only spaces
+    Then the command exits with code 2
+    And the plugin command never ran
+
+  Scenario: Check names a plugin command needing a flag it does not declare
+    Given a plugin offering "notes:restore", which needs -since but declares no flags
+    When the operator runs "check"
+    Then the command exits with code 1
+    And the error says "needs -since, which it does not declare"

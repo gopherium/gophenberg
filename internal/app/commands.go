@@ -49,7 +49,7 @@ func (o offering) Commands() []gonsole.Command {
 func commandOf(command sdk.Command) gonsole.Command {
 	converted := gonsole.Command{
 		Name: command.Name, Summary: command.Summary, Args: command.Args, Flags: command.Flags,
-		Writes: command.Writes, JSON: command.JSON, Capability: command.Capability,
+		Needs: command.Needs, Writes: command.Writes, JSON: command.JSON, Capability: command.Capability,
 	}
 	if run := command.Run; run != nil {
 		converted.Run = func(ctx context.Context, call gonsole.Call) error {

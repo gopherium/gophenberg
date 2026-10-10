@@ -16,6 +16,7 @@ type Command struct {
 	Summary    string
 	Args       []string
 	Flags      func(fs *flag.FlagSet)
+	Needs      []string
 	Writes     bool
 	JSON       bool
 	Capability string
