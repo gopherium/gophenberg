@@ -82,11 +82,13 @@ function useListRun(
  * Reports whether the list offers to empty the trash.
  * @param status - The status the list shows.
  * @param page - The page the list shows, absent until it arrives.
+ * @param held - How many items the trash of the type holds, 0 until the count arrives.
  * @param role - The role the session carries.
- * @returns Whether the empty trash control shows, which takes a page that counts something.
+ * @returns Whether the empty trash control shows, which takes a page showing rows, as WordPress offers it, and a
+ *   count for its confirm to name.
  */
-function offersEmptyTrash(status: string, page: PostPage | undefined, role: string | undefined): page is PostPage {
-	return status === 'trash' && (page?.total ?? 0) > 0 && can(role, CHANGE_OTHERS_WORK)
+function offersEmptyTrash(status: string, page: PostPage | undefined, held: number, role: string | undefined): boolean {
+	return status === 'trash' && (page?.items.length ?? 0) > 0 && held > 0 && can(role, CHANGE_OTHERS_WORK)
 }
 
 /**
@@ -117,6 +119,22 @@ function usePostPage(type: string, status: string, asked: PostQuery) {
 		placeholderData: (previous, last) => (readsList(last?.queryKey, type, status) ? previous : undefined),
 	})
 	return { posts, waiting: registry.isPending }
+}
+
+/**
+ * Reads how many items the trash of a type holds, whatever narrows the list, under the posts family a run refreshes.
+ * @param type - The type the list shows.
+ * @param status - The status the list shows, the count read only in the trash.
+ * @returns The count, 0 until it arrives.
+ */
+function useTrashTotal(type: string, status: string): number {
+	const trash = useQuery({
+		queryKey: ['posts', type, 'trash', 'total'],
+		queryFn: () => listPosts({ type, status: 'trash', perPage: 1 }),
+		enabled: status === 'trash',
+		select: (page) => page.total,
+	})
+	return trash.data ?? 0
 }
 
 /**
@@ -335,6 +353,7 @@ export function PostsScreen() {
 	const { list, columns, view, settings, posts, waiting } = usePostList(listed, status)
 	const { failure, run, list: region } = useListRun(`${listed.key} ${status}`, list.onChangeSelection)
 	const actions = usePostActions(status, listed, run)
+	const held = useTrashTotal(listed.key, status)
 	const session = useSession().data
 	return (
 		<Page
@@ -342,8 +361,8 @@ export function PostsScreen() {
 			subtitle={waiting ? undefined : subtitleOf(listed)}
 			actions={
 				<>
-					{offersEmptyTrash(status, posts.data, session?.role) ? (
-						<EmptyTrash type={listed.key} count={posts.data.total} list={run} />
+					{offersEmptyTrash(status, posts.data, held, session?.role) ? (
+						<EmptyTrash type={listed.key} count={held} list={run} />
 					) : null}
 					<HeaderAddNew listed={listed} run={run} />
 				</>

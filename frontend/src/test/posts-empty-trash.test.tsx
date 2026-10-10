@@ -34,6 +34,8 @@ const TRASHED = {
 
 const SECOND = { ...TRASHED, id: '019fb000-0000-7000-8000-000000000004', title: 'Older Notes' }
 
+const SPARE = { ...TRASHED, id: '019fb000-0000-7000-8000-000000000007', title: 'Spare Draft' }
+
 const TRASHED_PAGE = { ...TRASHED, id: '019fb000-0000-7000-8000-000000000005', type: 'page', title: 'Old Page' }
 
 const POST_TYPE = {
@@ -63,6 +65,7 @@ const PAGE_TYPE = {
 }
 
 let bin: { id: string, title: string }[] = []
+const asked: URLSearchParams[] = []
 const emptied: URL[] = []
 const deletedOneByOne: string[] = []
 
@@ -81,13 +84,18 @@ function serveEmptied(counts: { deleted: number, kept: number }) {
 
 beforeEach(() => {
 	bin = [TRASHED, SECOND]
+	asked.length = 0
 	emptied.length = 0
 	deletedOneByOne.length = 0
 	server.use(
 		http.get('/api/content', ({ request }) => {
 			const query = new URL(request.url).searchParams
-			const matching = query.get('status') === 'trash' ? bin : []
-			return HttpResponse.json({ items: matching, total: matching.length })
+			asked.push(query)
+			const search = (query.get('search') ?? '').toLowerCase()
+			const trashed = query.get('status') === 'trash' ? bin : []
+			const matching = trashed.filter((post) => post.title.toLowerCase().includes(search))
+			const perPage = Number(query.get('per_page') ?? matching.length)
+			return HttpResponse.json({ items: matching.slice(0, perPage), total: matching.length })
 		}),
 		http.delete('/api/content/trash', ({ request }) => {
 			emptied.push(new URL(request.url))
@@ -212,6 +220,48 @@ test('counts the items the trash holds in the warning', async () => {
 	const dialog = await openEmptyTrash()
 
 	expect(dialog).toHaveTextContent('The 2 items in the trash are deleted for good. This cannot be undone.')
+})
+
+test('counts every trashed item of the type in the warning while a search narrows the list', async () => {
+	bin = [TRASHED, SECOND, SPARE]
+	renderAt('/content/post?status=trash&search=spare')
+	await screen.findByText('Spare Draft')
+	expect(screen.queryByText('Old Notes')).not.toBeInTheDocument()
+
+	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
+
+	const dialog = await screen.findByRole('alertdialog')
+	expect(dialog).toHaveTextContent('The 3 items in the trash are deleted for good. This cannot be undone.')
+	const counted = asked.find((query) => query.get('per_page') === '1')
+	expect(counted?.get('status')).toBe('trash')
+	expect(counted?.has('search')).toBe(false)
+})
+
+test('offers Empty Trash only while the narrowed list shows rows, its dialog counting the whole trash', async () => {
+	bin = [TRASHED, SECOND, SPARE]
+	renderAt('/content/post?status=trash&search=nothing')
+	expect(await screen.findByText('No items found.')).toBeInTheDocument()
+	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
+
+	const search = screen.getByRole('searchbox')
+	await userEvent.clear(search)
+	await userEvent.type(search, 'spare')
+
+	await screen.findByText('Spare Draft')
+	await userEvent.click(await screen.findByRole('button', { name: 'Empty Trash' }))
+	expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+		'The 3 items in the trash are deleted for good. This cannot be undone.',
+	)
+})
+
+test('takes the empty trash control away once the trash empties', async () => {
+	renderAt('/content/post')
+	const dialog = await openEmptyTrash()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
+
+	await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })
+	await waitFor(() => expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument())
 })
 
 test('counts the one item the trash holds in the singular', async () => {
