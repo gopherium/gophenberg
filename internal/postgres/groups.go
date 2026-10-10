@@ -128,19 +128,13 @@ func flattenedFields(groups []content.Group, typeKey string) []content.Field {
 	return fields
 }
 
-// typesMatchedBy returns the stored type keys the group's rules name, active or not.
-func typesMatchedBy(ctx context.Context, queries *db.Queries, g content.Group) ([]string, error) {
+// storedTypeKeys returns the key of every registered type.
+func storedTypeKeys(ctx context.Context, queries *db.Queries) ([]string, error) {
 	keys, err := queries.TypeKeys(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: list type keys: %w", err)
 	}
-	var matched []string
-	for _, key := range keys {
-		if g.Location.Match(screenOf(key), locationParams) {
-			matched = append(matched, key)
-		}
-	}
-	return matched, nil
+	return keys, nil
 }
 
 // matchingGroupIDs returns the ids of the active groups matching the type.
@@ -530,9 +524,9 @@ func groupByID(groups []content.Group, id int) (content.Group, bool) {
 
 // storedTypes returns every registered type carrying nothing but its key.
 func storedTypes(ctx context.Context, queries *db.Queries) ([]content.Type, error) {
-	names, err := queries.TypeKeys(ctx)
+	names, err := storedTypeKeys(ctx, queries)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: list type keys: %w", err)
+		return nil, err
 	}
 	types := make([]content.Type, len(names))
 	for i, key := range names {
@@ -596,20 +590,20 @@ func sweptByDelete(groups []content.Group, types []content.Type, leaving int, ke
 	return swept
 }
 
-// deleteFieldRow removes one field row and sweeps its values from the matched types.
-func deleteFieldRow(ctx context.Context, queries *db.Queries, groupID int, key string, matched []string) error {
+// deleteFieldRow removes one field row and sweeps its values from the given types.
+func deleteFieldRow(ctx context.Context, queries *db.Queries, groupID int, key string, swept []string) error {
 	if _, err := queries.DeleteContentField(ctx, db.DeleteContentFieldParams{
 		GroupID: int32(groupID), Key: key,
 	}); err != nil {
 		return err
 	}
 	if err := queries.ClearContentFieldValues(ctx, db.ClearContentFieldValuesParams{
-		Key: key, Types: matched,
+		Key: key, Types: swept,
 	}); err != nil {
 		return err
 	}
 	return queries.ClearRevisionFieldValues(ctx, db.ClearRevisionFieldValuesParams{
-		Key: key, Types: matched,
+		Key: key, Types: swept,
 	})
 }
 
@@ -738,7 +732,7 @@ func (s *TypeStore) DeleteFieldInGroup(ctx context.Context, groupID int, key str
 	return nil
 }
 
-// DeleteSubField removes the field standing inside a container, and its values on the types its group serves.
+// DeleteSubField removes the sub field, and its values where no other active group serves its path.
 func (s *TypeStore) DeleteSubField(ctx context.Context, id int, recheck content.Recheck) error {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		return deleteSubFieldRows(ctx, s.queries.WithTx(tx), id, recheck)
@@ -752,7 +746,7 @@ func (s *TypeStore) DeleteSubField(ctx context.Context, id int, recheck content.
 	return nil
 }
 
-// deleteSubFieldRows removes the sub field once the check passes, sweeping its values where no other group serves them.
+// deleteSubFieldRows removes the sub field once the check passes, sweeping values no other active group serves.
 func deleteSubFieldRows(ctx context.Context, queries *db.Queries, id int, recheck content.Recheck) error {
 	if err := queries.LockFieldGroups(ctx); err != nil {
 		return err
@@ -768,14 +762,14 @@ func deleteSubFieldRows(ctx context.Context, queries *db.Queries, id int, rechec
 	if !found {
 		return content.ErrFieldNotFound
 	}
-	matched, err := typesMatchedBy(ctx, queries, group)
+	typeKeys, err := storedTypeKeys(ctx, queries)
 	if err != nil {
 		return err
 	}
 	if _, err := queries.DeleteFieldByID(ctx, int32(id)); err != nil {
 		return err
 	}
-	return sweepField(ctx, queries, dropped, path, servedOn(groups, matched, group.ID, path))
+	return sweepField(ctx, queries, dropped, path, servedOn(groups, typeKeys, group.ID, path))
 }
 
 // fieldPathIn returns the group holding the field, the field, and the keys addressing it from the group.
@@ -801,35 +795,35 @@ func pathToField(declared []content.Field, id int) (content.Field, []string, boo
 	return content.Field{}, nil, false
 }
 
-// sweepField removes what the field held at the path from every item and revision of the matched types.
-func sweepField(ctx context.Context, queries *db.Queries, f content.Field, path, matched []string) error {
+// sweepField removes what the field held at the path from every item and revision of the swept types.
+func sweepField(ctx context.Context, queries *db.Queries, f content.Field, path, swept []string) error {
 	if f.Kind == content.FieldKindLayout {
-		return sweepLayout(ctx, queries, path, matched)
+		return sweepLayout(ctx, queries, path, swept)
 	}
-	return sweepPath(ctx, queries, path, matched)
+	return sweepPath(ctx, queries, path, swept)
 }
 
-// sweepPath removes whatever stands at the path from every item and revision of the matched types.
-func sweepPath(ctx context.Context, queries *db.Queries, path []string, matched []string) error {
+// sweepPath removes whatever stands at the path from every item and revision of the swept types.
+func sweepPath(ctx context.Context, queries *db.Queries, path []string, swept []string) error {
 	if err := queries.StripContentFieldPath(ctx, db.StripContentFieldPathParams{
-		Path: path, Types: matched, Key: path[0],
+		Path: path, Types: swept, Key: path[0],
 	}); err != nil {
 		return err
 	}
 	return queries.StripRevisionFieldPath(ctx, db.StripRevisionFieldPathParams{
-		Path: path, Types: matched, Key: path[0],
+		Path: path, Types: swept, Key: path[0],
 	})
 }
 
-// sweepLayout removes the rows a layout held from every item and revision of the matched types.
-func sweepLayout(ctx context.Context, queries *db.Queries, path []string, matched []string) error {
+// sweepLayout removes the rows a layout held from every item and revision of the swept types.
+func sweepLayout(ctx context.Context, queries *db.Queries, path []string, swept []string) error {
 	if err := queries.StripContentLayout(ctx, db.StripContentLayoutParams{
-		Path: path, Types: matched, Key: path[0],
+		Path: path, Types: swept, Key: path[0],
 	}); err != nil {
 		return err
 	}
 	return queries.StripRevisionLayout(ctx, db.StripRevisionLayoutParams{
-		Path: path, Types: matched, Key: path[0],
+		Path: path, Types: swept, Key: path[0],
 	})
 }
 
@@ -872,8 +866,7 @@ func fieldCarried(ctx context.Context, queries *db.Queries, id int) error {
 	return nil
 }
 
-// MoveField carries the field to a group's top or into a container within the limit, sweeping its values when it
-// enters or leaves one.
+// MoveField carries the field to a group's top or into a container within the limit, sweeping what it leaves.
 func (s *TypeStore) MoveField(
 	ctx context.Context, id, toGroup, toParent, limit int, recheck content.Recheck,
 ) (content.Field, error) {
@@ -988,30 +981,30 @@ func (m fieldMove) write(ctx context.Context, queries *db.Queries) (content.Fiel
 	}); err != nil {
 		return content.Field{}, err
 	}
-	matched, err := typesMatchedBy(ctx, queries, m.source)
+	typeKeys, err := storedTypeKeys(ctx, queries)
 	if err != nil {
 		return content.Field{}, err
 	}
 	if m.leaving.ParentID == m.toParent {
-		matched = m.behind(matched)
+		typeKeys = m.behind(typeKeys)
 	}
-	return toField(row), m.sweep(ctx, queries, matched)
+	return toField(row), m.sweep(ctx, queries, typeKeys)
 }
 
-// behind returns the matched types the landing group does not reach.
-func (m fieldMove) behind(matched []string) []string {
+// behind returns the types the landing group does not reach.
+func (m fieldMove) behind(typeKeys []string) []string {
 	landing, _ := groupByID(m.groups, m.toGroup)
-	return slices.DeleteFunc(matched, func(key string) bool {
+	return slices.DeleteFunc(typeKeys, func(key string) bool {
 		return landing.Location.Match(screenOf(key), locationParams)
 	})
 }
 
-// sweep takes what the field held at its old path out of the matched types, their relation rows included.
-func (m fieldMove) sweep(ctx context.Context, queries *db.Queries, matched []string) error {
-	if len(matched) == 0 {
+// sweep strips the old path where no other active group serves it and drops the field's relation rows on every type.
+func (m fieldMove) sweep(ctx context.Context, queries *db.Queries, typeKeys []string) error {
+	if len(typeKeys) == 0 {
 		return nil
 	}
-	swept := servedOn(m.groups, matched, m.source.ID, m.path)
+	swept := servedOn(m.groups, typeKeys, m.source.ID, m.path)
 	if err := sweepField(ctx, queries, m.leaving, m.path, swept); err != nil {
 		return err
 	}
@@ -1019,13 +1012,13 @@ func (m fieldMove) sweep(ctx context.Context, queries *db.Queries, matched []str
 	if len(fields) == 0 {
 		return nil
 	}
-	return queries.DeleteRelationsOfFields(ctx, db.DeleteRelationsOfFieldsParams{Types: matched, Fields: fields})
+	return queries.DeleteRelationsOfFields(ctx, db.DeleteRelationsOfFieldsParams{Types: typeKeys, Fields: fields})
 }
 
-// servedOn returns the matched type keys on which no other active group serves the whole path.
-func servedOn(groups []content.Group, matched []string, groupID int, path []string) []string {
-	held := make([]string, 0, len(matched))
-	for _, typeKey := range matched {
+// servedOn returns the type keys on which no other active group serves the whole path.
+func servedOn(groups []content.Group, typeKeys []string, groupID int, path []string) []string {
+	held := make([]string, 0, len(typeKeys))
+	for _, typeKey := range typeKeys {
 		by, found := servingGroup(groups, typeKey, path[0])
 		if !found || by.ID == groupID || !declares(by.Fields, path) {
 			held = append(held, typeKey)

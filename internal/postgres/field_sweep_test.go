@@ -32,7 +32,7 @@ func TestDeletingASubFieldReportsWhatItCannotReach(t *testing.T) {
 		"the groups it cannot read": func(t *testing.T, pool *pgxpool.Pool) {
 			sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
 		},
-		"the types it cannot match": func(t *testing.T, pool *pgxpool.Pool) {
+		"the types it cannot read": func(t *testing.T, pool *pgxpool.Pool) {
 			sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
 		},
 		"the row it cannot remove": func(t *testing.T, pool *pgxpool.Pool) {
