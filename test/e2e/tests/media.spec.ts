@@ -76,7 +76,7 @@ test('places a picture already in the library through the media library picker',
 	expect(uploaded.status()).toBe(201)
 
 	await page.goto('/admin/content/post')
-	await page.getByRole('button', { name: 'Add New' }).click()
+	await page.getByRole('main').getByRole('button', { name: 'Add New', exact: true }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
 	const postId = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
 	if (postId !== undefined) {
@@ -98,7 +98,7 @@ test('places a picture already in the library through the media library picker',
 
 test('frames the media library search box when an image block opens the library', async ({ page }) => {
 	await page.goto('/admin/content/post')
-	await page.getByRole('button', { name: 'Add New' }).click()
+	await page.getByRole('main').getByRole('button', { name: 'Add New', exact: true }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
 	const postId = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
 	if (postId !== undefined) {
@@ -120,7 +120,7 @@ test('frames the media library search box when an image block opens the library'
 
 test('places an uploaded picture in a post and publishes it', async ({ page }) => {
 	await page.goto('/admin/content/post')
-	await page.getByRole('button', { name: 'Add New' }).click()
+	await page.getByRole('main').getByRole('button', { name: 'Add New', exact: true }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
 	const postId = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
 	if (postId !== undefined) {

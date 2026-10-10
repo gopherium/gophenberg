@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import { expect, test } from 'vitest'
 
 import { renderAt } from './render'
@@ -15,8 +15,9 @@ test('the posts section replaces the menu with its own drill-down screen', async
 	renderAt('/content/post')
 
 	expect(await screen.findByRole('heading', { name: 'Posts', level: 2 })).toBeInTheDocument()
-	expect(screen.getByRole('link', { name: 'All Posts' })).toBeInTheDocument()
-	expect(screen.getByRole('button', { name: 'Add New' })).toBeInTheDocument()
+	const rail = screen.getByRole('navigation', { name: 'Navigation' })
+	expect(within(rail).getByRole('link', { name: 'All Posts' })).toBeInTheDocument()
+	expect(within(rail).getByRole('button', { name: 'Add New' })).toBeInTheDocument()
 })
 
 test('the drill-down screen returns to the main menu', async () => {

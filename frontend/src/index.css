@@ -97,10 +97,21 @@
 	opacity: 0.5;
 }
 
-.gophenberg-status-ghost {
-	width: 88px;
-	height: var(--wpds-dimension-size-md);
-	border-radius: var(--wpds-border-radius-sm);
+.gophenberg-author {
+	display: flex;
+	align-items: center;
+}
+
+.gophenberg-author__avatar {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	width: 24px;
+	height: 24px;
+}
+
+.gophenberg-status {
+	white-space: nowrap;
 }
 
 .gophenberg-types__actions > button {

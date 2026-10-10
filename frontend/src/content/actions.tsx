@@ -13,6 +13,8 @@ import { deleteQuestion, deleteWords, restoreWords, trashQuestion, trashWords } 
 import type { NameCut } from './actionWords'
 import { deletePost, restorePost, trashPost } from './api'
 import type { Post } from './api'
+import { DuplicateModal, RenameModal } from './NameModals'
+import type { ContentType } from './types'
 
 /** Shows the failure of a run above the list, none when every post finished, and focuses the list once a post moved. */
 type RunSettled = (failure: string | undefined, moved: boolean) => void
@@ -27,8 +29,8 @@ export interface ListRun {
 type RunOver = (items: Post[], call: (post: Post) => Promise<unknown>, words: BulkWords<Post>) => Promise<void>
 
 /**
- * Returns the handler that reloads the listing and the status counts and forgets the cached copy of each post moved.
- * @returns The reload handler, taking the ids of the posts that moved into or out of the trash.
+ * Returns the handler that reloads the listing and forgets the cached copy of each post moved or renamed.
+ * @returns The reload handler, taking the ids of the posts that moved into or out of the trash or took a new name.
  */
 export function useRefresh(): (moved?: string[]) => Promise<unknown> {
 	const client = useQueryClient()
@@ -36,7 +38,6 @@ export function useRefresh(): (moved?: string[]) => Promise<unknown> {
 		(moved: string[] = []) =>
 			Promise.all([
 				client.invalidateQueries({ queryKey: ['posts'] }),
-				client.invalidateQueries({ queryKey: ['post-counts'] }),
 				...moved.map((id) => client.removeQueries({ queryKey: ['post', id], exact: true })),
 			]),
 		[client],
@@ -101,32 +102,33 @@ function RunConfirm({
  * @param run - Runs one call over the picked posts.
  * @param name - Cuts a title to the length a toast shows.
  * @param type - The content type the list shows.
- * @returns The restore first, then the permanent delete.
+ * @returns The restore first, a primary action DataViews also draws on the row, then the permanent delete.
  */
 function trashViewActions(mine: (post: Post) => boolean, run: RunOver, name: NameCut, type: string): Action<Post>[] {
-	const label = __('Permanently delete', 'gophenberg')
+	const confirmLabel = __('Permanently delete', 'gophenberg')
 	return [
 		{
 			id: 'restore',
 			label: _x('Restore', 'trash', 'gophenberg'),
 			icon: backupIcon,
+			isPrimary: true,
 			supportsBulk: true,
 			isEligible: mine,
 			callback: (items) => run(items, (post) => restorePost(post.id), restoreWords(name, type)),
 		},
 		{
 			id: 'delete',
-			label,
+			label: __('Permanently delete…', 'gophenberg'),
 			icon: trashIcon,
 			supportsBulk: true,
 			isEligible: mine,
-			modalHeader: label,
-			modalSize: 'small',
+			hideModalHeader: true,
+			modalFocusOnMount: 'firstContentElement',
 			RenderModal: (props) => (
 				<RunConfirm
 					{...props}
 					question={deleteQuestion(props.items, name)}
-					confirmLabel={label}
+					confirmLabel={confirmLabel}
 					run={(items) => run(items, (post) => deletePost(post.id), deleteWords(name))}
 				/>
 			),
@@ -135,28 +137,49 @@ function trashViewActions(mine: (post: Post) => boolean, run: RunOver, name: Nam
 }
 
 /**
- * Returns the actions offered on the rows of a list outside the trash.
+ * Returns the actions offered on the rows of a list outside the trash, the view first and the trash last.
  * @param mine - Whether the session may change a post.
  * @param run - Runs one call over the picked posts.
  * @param name - Cuts a title to the length a toast shows.
- * @returns The trash, offered on a post not in the trash yet.
+ * @param served - Whether the site serves the type the list shows.
+ * @returns The view, a primary action DataViews also draws on the row, then the duplicate, offered on every post not
+ *   in the trash since every role may create, then the rename and the trash, offered on a post the session may change
+ *   that is not in the trash yet.
  */
-function listActions(mine: (post: Post) => boolean, run: RunOver, name: NameCut): Action<Post>[] {
-	const label = _x('Trash', 'verb', 'gophenberg')
+function listActions(mine: (post: Post) => boolean, run: RunOver, name: NameCut, served: boolean): Action<Post>[] {
+	const confirmLabel = _x('Trash', 'verb', 'gophenberg')
+	const changeable = (post: Post) => post.status !== 'trash' && mine(post)
 	return [
+		viewAction(served),
+		{
+			id: 'duplicate',
+			label: _x('Duplicate…', 'action label', 'gophenberg'),
+			isEligible: (post) => post.status !== 'trash',
+			modalHeader: _x('Duplicate', 'action label', 'gophenberg'),
+			modalFocusOnMount: 'firstContentElement',
+			RenderModal: DuplicateModal,
+		},
+		{
+			id: 'rename',
+			label: __('Rename…', 'gophenberg'),
+			isEligible: changeable,
+			modalHeader: __('Rename', 'gophenberg'),
+			modalFocusOnMount: 'firstContentElement',
+			RenderModal: RenameModal,
+		},
 		{
 			id: 'trash',
-			label,
+			label: _x('Trash…', 'verb', 'gophenberg'),
 			icon: trashIcon,
 			supportsBulk: true,
-			isEligible: (post) => post.status !== 'trash' && mine(post),
-			modalHeader: label,
-			modalSize: 'small',
+			isEligible: changeable,
+			hideModalHeader: true,
+			modalFocusOnMount: 'firstContentElement',
 			RenderModal: (props) => (
 				<RunConfirm
 					{...props}
 					question={trashQuestion(props.items, name)}
-					confirmLabel={label}
+					confirmLabel={confirmLabel}
 					run={(items) => run(items, (post) => trashPost(post.id), trashWords(name))}
 				/>
 			),
@@ -165,21 +188,39 @@ function listActions(mine: (post: Post) => boolean, run: RunOver, name: NameCut)
 }
 
 /**
+ * Returns the action opening the public address of an item in a new tab, a primary one click action.
+ * @param served - Whether the site serves the type the list shows.
+ * @returns The view, offered on a published item of a served type, the only kind with a public address.
+ */
+function viewAction(served: boolean): Action<Post> {
+	return {
+		id: 'view',
+		label: _x('View', 'verb', 'gophenberg'),
+		isPrimary: true,
+		isEligible: (post) => served && post.status === 'published',
+		callback: ([post]) => {
+			window.open(`/${post.path}`, '_blank')
+		},
+	}
+}
+
+/**
  * Returns the actions offered on each row of the posts list.
  * @param status - The status the list is filtered by, empty for every status.
- * @param type - The content type the list shows.
+ * @param listed - The content type the list shows.
  * @param list - What the list does around a run.
  * @returns The row actions.
  */
-export function usePostActions(status: string, type: string, list: ListRun): Action<Post>[] {
+export function usePostActions(status: string, listed: ContentType, list: ListRun): Action<Post>[] {
 	const run = useRunOver(list)
 	const name = useToaster().name
 	const session = useSession().data
+	const { key, active } = listed
 	return useMemo(() => {
 		const mine = (post: Post) => sessionMayChange(session, post.authorId)
 		if (status === 'trash') {
-			return trashViewActions(mine, run, name, type)
+			return trashViewActions(mine, run, name, key)
 		}
-		return listActions(mine, run, name)
-	}, [name, run, session, status, type])
+		return listActions(mine, run, name, active)
+	}, [active, key, name, run, session, status])
 }

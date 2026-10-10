@@ -49,9 +49,6 @@ function servePosts(authorId: string) {
 		http.get('/api/content', () =>
 			HttpResponse.json({ items: [postBy(authorId)], total: 1 }),
 		),
-		http.get('/api/content/counts', () =>
-			HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 1, trash: 0 }),
-		),
 	)
 }
 
@@ -103,13 +100,15 @@ function serveEditor(authorId: string) {
 	)
 }
 
-test('offers an author no actions on a post another account wrote', async () => {
+test('offers an author only a duplicate and a view of a published post another account wrote', async () => {
 	servePosts(FOREIGN)
 	renderAt('/content/post', maria)
-
 	await screen.findByText('Welcome to Gophenberg')
 
-	expect(screen.queryByRole('button', { name: 'Actions' })).toBeNull()
+	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
+
+	await screen.findByRole('menuitem', { name: 'Duplicate…' })
+	expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['View', 'Duplicate…'])
 })
 
 test('offers an author every action on its own post', async () => {
@@ -119,7 +118,7 @@ test('offers an author every action on its own post', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 
-	expect(await screen.findByRole('menuitem', { name: 'Trash' })).toBeInTheDocument()
+	expect(await screen.findByRole('menuitem', { name: 'Trash…' })).toBeInTheDocument()
 	expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument()
 })
 
@@ -130,7 +129,7 @@ test('offers an editor every action on a post another account wrote', async () =
 
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 
-	expect(await screen.findByRole('menuitem', { name: 'Trash' })).toBeInTheDocument()
+	expect(await screen.findByRole('menuitem', { name: 'Trash…' })).toBeInTheDocument()
 })
 
 test('opens a post another account wrote as a reading view', async () => {

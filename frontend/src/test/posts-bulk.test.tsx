@@ -70,7 +70,7 @@ async function selectBoth() {
  * Trashes the ticked posts through the bulk bar and its confirm.
  */
 async function trashTheTicked() {
-	await userEvent.click(screen.getByRole('button', { name: 'Trash' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Trash…' }))
 	const dialog = await screen.findByRole('dialog')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Trash' }))
 }
@@ -79,7 +79,7 @@ test('trashes every selected post behind one confirm', async () => {
 	renderAt('/content/post')
 	await selectBoth()
 
-	await userEvent.click(screen.getByRole('button', { name: 'Trash' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Trash…' }))
 	const dialog = await screen.findByRole('dialog')
 	expect(dialog).toHaveTextContent('Move 2 items to the trash?')
 	expect(trashed).toEqual([])
@@ -95,7 +95,7 @@ test('quotes the one ticked post in the bulk trash confirm, cut at the length th
 	await screen.findByText('Welcome to Gophenberg')
 	await userEvent.click(screen.getByRole('checkbox', { name: 'Welcome to Gophenberg' }))
 
-	await userEvent.click(screen.getByRole('button', { name: 'Trash' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Trash…' }))
 
 	expect(await screen.findByRole('dialog')).toHaveTextContent('Move "Welcome to…" to the trash?')
 })
@@ -114,7 +114,7 @@ test('stops offering the bulk trash once the ticked posts sit in the trash', asy
 	await trashTheTicked()
 
 	await screen.findByText('2 items moved to the trash.', { selector: '.godmin-toast' })
-	await waitFor(() => expect(screen.queryByRole('button', { name: 'Trash' })).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('button', { name: 'Trash…' })).not.toBeInTheDocument())
 })
 
 test('counts the posts a bulk trash moved in a toast with no undo', async () => {
@@ -160,7 +160,7 @@ test('keeps the tick on a row a run did not reach', async () => {
 	const first = screen.getAllByRole('row').find((row) => within(row).queryByText('Welcome to Gophenberg') !== null)
 
 	await userEvent.click(within(first as HTMLElement).getByRole('button', { name: 'Actions' }))
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
 	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Trash' }))
 
 	await screen.findByText('"Welcome to Gophenberg" moved to the trash.', { selector: '.godmin-toast' })

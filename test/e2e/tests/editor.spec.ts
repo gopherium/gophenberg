@@ -46,6 +46,16 @@ async function toastName(page: Page, title: string): Promise<string> {
 }
 
 /**
+ * Returns the tab of the list's status filter carrying the label, matched whole so no title holding the word answers.
+ * @param page - The page holding the list.
+ * @param label - The label of the tab.
+ * @returns The tab locator.
+ */
+function statusTab(page: Page, label: string) {
+	return page.getByRole('navigation', { name: 'Filter by status' }).getByRole('link', { name: label, exact: true })
+}
+
+/**
  * Starts writing in the canvas, which opens on the empty paragraph it shows before any block is stored.
  * @param page - The page to drive.
  */
@@ -61,7 +71,7 @@ const created: string[] = []
  */
 async function openNewDraft(page: Page) {
 	await page.goto('/admin/content/post')
-	await page.getByRole('button', { name: 'Add New' }).click()
+	await page.getByRole('main').getByRole('button', { name: 'Add New', exact: true }).click()
 	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
 	const id = page.url().match(/content\/[a-z-]+\/([0-9a-f-]+)\/edit/)?.[1]
 	if (id !== undefined) {
@@ -107,7 +117,7 @@ test('writes, saves, publishes, trashes and restores a post', async ({ page }) =
 	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
 
 	await page.getByRole('link', { name: 'Back to posts' }).click()
-	await page.getByRole('button', { name: /^Published/ }).click()
+	await statusTab(page, 'Published').click()
 	await expect(page.getByRole('link', { name: TITLE })).toBeVisible()
 })
 
@@ -117,7 +127,7 @@ test('keeps the words of a draft the author left for the posts list', async ({ p
 	await page.getByRole('textbox', { name: 'Title' }).fill(title)
 
 	await page.getByRole('link', { name: 'Back to posts' }).click()
-	await expect(page.getByRole('button', { name: 'Add New' })).toBeVisible()
+	await expect(page.getByRole('main').getByRole('button', { name: 'Add New', exact: true })).toBeVisible()
 	await page.goBack()
 
 	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(title)
@@ -171,7 +181,7 @@ test('round-trips every field of the editor without a full reload', async ({ pag
 	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
 
 	await page.getByRole('link', { name: 'Back to posts' }).click()
-	await page.getByRole('button', { name: /^Published/ }).click()
+	await statusTab(page, 'Published').click()
 	await page.getByRole('link', { name: written }).click()
 	await expect(page.getByRole('combobox', { name: 'Status' })).toHaveText('Published')
 
@@ -190,7 +200,7 @@ test('round-trips every field of the editor without a full reload', async ({ pag
 	await expect(shown(page, 'Draft saved.')).toBeVisible()
 
 	await page.getByRole('link', { name: 'Back to posts' }).click()
-	await page.getByRole('button', { name: /^Pending/ }).click()
+	await statusTab(page, 'Pending').click()
 	await page.getByRole('link', { name: edited.title }).click()
 
 	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(edited.title)
@@ -236,17 +246,19 @@ test('takes a post trashed from the editor back out of the trash from the list',
 
 	const named = await toastName(page, TRASH_TITLE)
 	await page.getByRole('button', { name: 'Move to trash' }).click()
-	await page.getByRole('dialog').getByRole('button', { name: 'Move to trash' }).click()
+	const confirm = page.getByRole('alertdialog', { name: 'Move to trash?' })
+	await expect(confirm.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+	await confirm.getByRole('button', { name: 'Move to trash' }).click()
 
-	await expect(page.getByRole('button', { name: 'Add New' })).toBeVisible()
+	await expect(page.getByRole('main').getByRole('button', { name: 'Add New', exact: true })).toBeVisible()
 	await expect(shown(page, `"${named}" moved to the trash.`)).toBeVisible()
 
-	await page.getByRole('group', { name: 'Filter by status' }).getByRole('button', { name: /^Trash/ }).click()
+	await statusTab(page, 'Trash').click()
 	await page.getByRole('row').filter({ hasText: TRASH_TITLE }).getByRole('button', { name: 'Actions' }).click()
 	await page.getByRole('menuitem', { name: 'Restore' }).click()
 	await expect(shown(page, `"${named}" has been restored.`)).toBeVisible()
 
-	await page.getByRole('group', { name: 'Filter by status' }).getByRole('button', { name: /^Draft/ }).click()
+	await statusTab(page, 'Draft').click()
 	await expect(page.getByRole('link', { name: TRASH_TITLE })).toBeVisible()
 })
 
@@ -263,10 +275,10 @@ test('reads a trashed post and restores it into the editor', async ({ page }) =>
 	await expect(shown(page, 'Draft saved.')).toBeVisible()
 	const named = await toastName(page, READ_TITLE)
 	await page.getByRole('button', { name: 'Move to trash' }).click()
-	await page.getByRole('dialog').getByRole('button', { name: 'Move to trash' }).click()
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Move to trash' }).click()
 	await expect(shown(page, `"${named}" moved to the trash.`)).toBeVisible()
 
-	await page.getByRole('button', { name: /^Trash/ }).click()
+	await statusTab(page, 'Trash').click()
 	await page.getByRole('link', { name: READ_TITLE }).click()
 
 	await expect(shown(page, 'This item is in the trash. Restore it first to work on it again.')).toBeVisible()

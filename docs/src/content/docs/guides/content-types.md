@@ -22,6 +22,11 @@ type holds, like "Every guide this site keeps." Gophenberg stores it
 exactly as you typed it. Like the two names, it is never translated.
 Posts start with "Manage the posts on this site."
 
+The description shows under the title of the type's list. A type
+with no description shows a sentence of the admin's own there
+instead, "Manage the items of this content type.", in the language
+you read the admin in.
+
 The new type appears in the admin menu right away, with the same list
 screen and editor Posts have. Press **Fields** on a type to give its
 items typed fields of their own, covered in

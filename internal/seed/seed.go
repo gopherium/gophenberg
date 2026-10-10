@@ -45,6 +45,15 @@ func demoPosts() []demoPost {
 	return append(currentPosts(), archivePosts()...)
 }
 
+// DemoStatuses returns how many of the demo posts [Posts] stores hold each status.
+func DemoStatuses() map[content.Status]int {
+	held := map[content.Status]int{}
+	for _, scripted := range demoPosts() {
+		held[scripted.status]++
+	}
+	return held
+}
+
 // currentPosts returns the scripted posts the admin wrote, dated at the seeding.
 func currentPosts() []demoPost {
 	return []demoPost{

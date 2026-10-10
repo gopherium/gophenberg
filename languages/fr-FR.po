@@ -90,10 +90,6 @@ msgid "%(group)s updated."
 msgstr "%(group)s mis à jour."
 
 #, fuzzy
-msgid "%(label)s (%(count)s)"
-msgstr "%(label)s (%(count)s)"
-
-#, fuzzy
 msgid ""
 "%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
 msgstr ""
@@ -358,10 +354,6 @@ msgstr "Le contenu s'imbrique sur au plus %(max)s niveaux, et cet élément irai
 msgid "Content type"
 msgstr "Type de contenu"
 
-#, fuzzy
-msgid "Could not create a draft."
-msgstr "Impossible de créer un brouillon."
-
 msgid "Could not delete that item."
 msgid_plural "Could not delete every item."
 msgstr[0] "Impossible de supprimer cet élément."
@@ -479,10 +471,6 @@ msgstr "Toutes les adresses de ce type changent. Les liens conservés ailleurs v
 #, fuzzy
 msgid "Every content type"
 msgstr "Tous les types de contenu"
-
-#, fuzzy
-msgid "Every item in the %(type)s trash is removed for good. This cannot be undone."
-msgstr "Tous les éléments de la corbeille des %(type)s sont supprimés définitivement. Cette action est irréversible."
 
 #, fuzzy
 msgid "Every item needs an author who exists. Pick one from the list and save again."
@@ -650,10 +638,6 @@ msgid "Large"
 msgstr "Grande"
 
 #, fuzzy
-msgid "Last Modified"
-msgstr "Dernière modification"
-
-#, fuzzy
 msgid "Linked from"
 msgstr "Lié depuis"
 
@@ -787,7 +771,7 @@ msgstr "Aucune page n'existe à cette adresse."
 
 #, fuzzy
 msgid "No parent"
-msgstr "Aucun parent"
+msgstr "Pas de parent"
 
 #, fuzzy
 msgid "No theme arrived with this upload. Choose a zip file and try again."
@@ -1706,10 +1690,6 @@ msgid "Clear %(field)s"
 msgstr "Vider %(field)s"
 
 #, fuzzy
-msgid "Could not load %(type)s."
-msgstr "Impossible de charger %(type)s."
-
-#, fuzzy
 msgid "Deactivate %(theme)s"
 msgstr "Désactiver %(theme)s"
 
@@ -1763,10 +1743,6 @@ msgstr "Renommer %(field)s"
 #, fuzzy
 msgid "Roll back to %(theme)s"
 msgstr "Revenir à %(theme)s"
-
-#, fuzzy
-msgid "Search %(type)s"
-msgstr "Rechercher %(type)s"
 
 #, fuzzy
 msgid "This type will answer under /%(word)s."
@@ -1845,11 +1821,6 @@ msgstr "Date"
 msgctxt "content type"
 msgid "Status"
 msgstr "État"
-
-#, fuzzy
-msgctxt "date caption"
-msgid "Published"
-msgstr "Publié le"
 
 #, fuzzy
 msgctxt "field"
@@ -2594,3 +2565,259 @@ msgid_plural "%s items stay in the trash."
 msgstr[0] "%s élément reste dans la corbeille."
 msgstr[1] "%s éléments restent dans la corbeille."
 msgstr[2] "%s éléments restent dans la corbeille."
+
+#, fuzzy
+msgid "Manage the items of this content type."
+msgstr "Gérez les éléments de ce type de contenu."
+
+#, fuzzy
+msgid "Search %(type)s…"
+msgstr "Rechercher %(type)s…"
+
+#, fuzzy
+msgid "Pending Review"
+msgstr "En attente de relecture"
+
+#, fuzzy
+msgid "Published: %s"
+msgstr "Publié : %s"
+
+#, fuzzy
+msgid "Scheduled: %s"
+msgstr "Planifié : %s"
+
+#, fuzzy
+msgid "Modified: %s"
+msgstr "Modifié : %s"
+
+#, fuzzy
+msgctxt "relation target"
+msgid "None"
+msgstr "Aucun"
+
+#, fuzzy
+msgctxt "January abbreviation"
+msgid "Jan"
+msgstr "Jan"
+
+#, fuzzy
+msgctxt "February abbreviation"
+msgid "Feb"
+msgstr "Fév"
+
+#, fuzzy
+msgctxt "March abbreviation"
+msgid "Mar"
+msgstr "Mar"
+
+#, fuzzy
+msgctxt "April abbreviation"
+msgid "Apr"
+msgstr "Avr"
+
+#, fuzzy
+msgctxt "May abbreviation"
+msgid "May"
+msgstr "Mai"
+
+#, fuzzy
+msgctxt "June abbreviation"
+msgid "Jun"
+msgstr "Juin"
+
+#, fuzzy
+msgctxt "July abbreviation"
+msgid "Jul"
+msgstr "Juil"
+
+#, fuzzy
+msgctxt "August abbreviation"
+msgid "Aug"
+msgstr "Août"
+
+#, fuzzy
+msgctxt "September abbreviation"
+msgid "Sep"
+msgstr "Sep"
+
+#, fuzzy
+msgctxt "October abbreviation"
+msgid "Oct"
+msgstr "Oct"
+
+#, fuzzy
+msgctxt "November abbreviation"
+msgid "Nov"
+msgstr "Nov"
+
+#, fuzzy
+msgctxt "December abbreviation"
+msgid "Dec"
+msgstr "Déc"
+
+#, fuzzy
+msgid "Sunday"
+msgstr "dimanche"
+
+#, fuzzy
+msgid "Monday"
+msgstr "lundi"
+
+#, fuzzy
+msgid "Tuesday"
+msgstr "mardi"
+
+#, fuzzy
+msgid "Wednesday"
+msgstr "mercredi"
+
+#, fuzzy
+msgid "Thursday"
+msgstr "jeudi"
+
+#, fuzzy
+msgid "Friday"
+msgstr "vendredi"
+
+#, fuzzy
+msgid "Saturday"
+msgstr "samedi"
+
+#, fuzzy
+msgid "Sun"
+msgstr "Dim"
+
+#, fuzzy
+msgid "Mon"
+msgstr "Lun"
+
+#, fuzzy
+msgid "Tue"
+msgstr "Mar"
+
+#, fuzzy
+msgid "Wed"
+msgstr "Mer"
+
+#, fuzzy
+msgid "Thu"
+msgstr "Jeu"
+
+#, fuzzy
+msgid "Fri"
+msgstr "Ven"
+
+#, fuzzy
+msgid "Sat"
+msgstr "Sam"
+
+#, fuzzy
+msgctxt "start of week"
+msgid "1"
+msgstr "1"
+
+#, fuzzy
+msgctxt "date and time format"
+msgid "F j, Y g:i a"
+msgstr "d F Y G\\hi"
+
+#, fuzzy
+msgctxt "abbreviated date and time format"
+msgid "M j, Y g:i a"
+msgstr "d F Y G\\hi"
+
+#, fuzzy
+msgid "Name"
+msgstr "Nom"
+
+#, fuzzy
+msgid "Name updated."
+msgstr "Nom mis à jour."
+
+#, fuzzy
+msgid "The name could not be updated."
+msgstr "Le nom n'a pas pu être mis à jour."
+
+#, fuzzy
+msgid "Rename…"
+msgstr "Renommer…"
+
+#, fuzzy
+msgctxt "verb"
+msgid "Trash…"
+msgstr "Mettre à la corbeille…"
+
+#, fuzzy
+msgid "Permanently delete…"
+msgstr "Supprimer définitivement…"
+
+#, fuzzy
+msgctxt "action label"
+msgid "Duplicate"
+msgstr "Dupliquer"
+
+#, fuzzy
+msgctxt "post"
+msgid "%s (Copy)"
+msgstr "%s (copie)"
+
+#, fuzzy
+msgid "\"%s\" successfully created."
+msgstr "« %s » créé avec succès."
+
+#, fuzzy
+msgid "The item could not be duplicated."
+msgstr "L'élément n'a pas pu être dupliqué."
+
+#, fuzzy
+msgctxt "action label"
+msgid "Duplicate…"
+msgstr "Dupliquer…"
+
+#, fuzzy
+msgctxt "verb"
+msgid "View"
+msgstr "Voir"
+
+#, fuzzy
+msgid "The draft could not be created."
+msgstr "Le brouillon n'a pas pu être créé."
+
+#, fuzzy
+msgid "No items found."
+msgstr "Aucun élément trouvé."
+
+#, fuzzy
+msgid "No items yet."
+msgstr "Aucun élément pour l'instant."
+
+#, fuzzy
+msgid "Add one with Add New."
+msgstr "Ajoutez-en un avec Ajouter."
+
+#, fuzzy
+msgid "Items could not be loaded."
+msgstr "Les éléments n'ont pas pu être chargés."
+
+#, fuzzy
+msgid "Move to trash?"
+msgstr "Déplacer dans la corbeille ?"
+
+#, fuzzy
+msgid "\"%(title)s\" goes to the trash. You can restore it from the Trash tab."
+msgstr "« %(title)s » va dans la corbeille. Vous pouvez le restaurer depuis l'onglet Corbeille."
+
+#, fuzzy
+msgid "Empty the trash?"
+msgstr "Vider la corbeille ?"
+
+#, fuzzy
+msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
+msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
+msgstr[0] "%(count)s élément de la corbeille est supprimé définitivement. Cette action est irréversible."
+msgstr[1] "Les %(count)s éléments de la corbeille sont supprimés définitivement. Cette action est irréversible."
+msgstr[2] "Les %(count)s éléments de la corbeille sont supprimés définitivement. Cette action est irréversible."
+
+#, fuzzy
+msgid "Empty trash"
+msgstr "Vider la corbeille"

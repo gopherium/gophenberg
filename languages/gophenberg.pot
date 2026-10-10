@@ -13,6 +13,9 @@ msgstr ""
 msgid " or "
 msgstr ""
 
+msgid "\"%(title)s\" goes to the trash. You can restore it from the Trash tab."
+msgstr ""
+
 msgid "\"%s\" has been restored."
 msgstr ""
 
@@ -20,6 +23,9 @@ msgid "\"%s\" moved to the trash."
 msgstr ""
 
 msgid "\"%s\" permanently deleted."
+msgstr ""
+
+msgid "\"%s\" successfully created."
 msgstr ""
 
 msgid "%(field)s address"
@@ -119,9 +125,6 @@ msgid "%(group)s updated."
 msgstr ""
 
 msgid "%(key)s is served by %(winner)s, so %(loser)s does not show it on %(where)s."
-msgstr ""
-
-msgid "%(label)s (%(count)s)"
 msgstr ""
 
 msgid "%(name)s %(version)s is serving the public site."
@@ -347,6 +350,9 @@ msgstr ""
 msgid "Add media"
 msgstr ""
 
+msgid "Add one with Add New."
+msgstr ""
+
 msgid "Add row"
 msgstr ""
 
@@ -494,16 +500,10 @@ msgstr ""
 msgid "Content type"
 msgstr ""
 
-msgid "Could not create a draft."
-msgstr ""
-
 msgid "Could not delete that item."
 msgid_plural "Could not delete every item."
 msgstr[0] ""
 msgstr[1] ""
-
-msgid "Could not load %(type)s."
-msgstr ""
 
 msgid "Could not load that post."
 msgstr ""
@@ -617,6 +617,12 @@ msgstr ""
 msgid "Empty Trash"
 msgstr ""
 
+msgid "Empty the trash?"
+msgstr ""
+
+msgid "Empty trash"
+msgstr ""
+
 msgid "Enable"
 msgstr ""
 
@@ -630,9 +636,6 @@ msgid "Every content type"
 msgstr ""
 
 msgid "Every field group needs a title. Give it a name and save again."
-msgstr ""
-
-msgid "Every item in the %(type)s trash is removed for good. This cannot be undone."
 msgstr ""
 
 msgid "Every item needs an author who exists. Pick one from the list and save again."
@@ -690,6 +693,12 @@ msgid "Filter by status"
 msgstr ""
 
 msgid "Follow the browser"
+msgstr ""
+
+msgid "Fri"
+msgstr ""
+
+msgid "Friday"
 msgstr ""
 
 msgid "From %(plugin)s"
@@ -776,6 +785,9 @@ msgstr ""
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
 msgstr ""
 
+msgid "Items could not be loaded."
+msgstr ""
+
 msgid "Its items sit inside one another, so it keeps nesting."
 msgstr ""
 
@@ -807,9 +819,6 @@ msgid "Language"
 msgstr ""
 
 msgid "Large"
-msgstr ""
-
-msgid "Last Modified"
 msgstr ""
 
 msgid "Let items nest"
@@ -857,6 +866,9 @@ msgstr ""
 msgid "Make optional"
 msgstr ""
 
+msgid "Manage the items of this content type."
+msgstr ""
+
 msgid "Many targets"
 msgstr ""
 
@@ -879,6 +891,15 @@ msgid "Medium"
 msgstr ""
 
 msgid "Mobile"
+msgstr ""
+
+msgid "Modified: %s"
+msgstr ""
+
+msgid "Mon"
+msgstr ""
+
+msgid "Monday"
 msgstr ""
 
 msgid "Most files"
@@ -934,6 +955,15 @@ msgstr ""
 msgid "Move to trash"
 msgstr ""
 
+msgid "Move to trash?"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Name updated."
+msgstr ""
+
 msgid "Navigation"
 msgstr ""
 
@@ -950,6 +980,12 @@ msgid "No"
 msgstr ""
 
 msgid "No file arrived with this upload. Choose a file and try again."
+msgstr ""
+
+msgid "No items found."
+msgstr ""
+
+msgid "No items yet."
 msgstr ""
 
 msgid "No media chosen"
@@ -1060,7 +1096,13 @@ msgstr ""
 msgid "Pending"
 msgstr ""
 
+msgid "Pending Review"
+msgstr ""
+
 msgid "Permanently delete"
+msgstr ""
+
+msgid "Permanently delete…"
 msgstr ""
 
 msgid "Picture quality"
@@ -1091,6 +1133,9 @@ msgid "Private"
 msgstr ""
 
 msgid "Publish"
+msgstr ""
+
+msgid "Published: %s"
 msgstr ""
 
 msgid "Radio group"
@@ -1129,6 +1174,9 @@ msgstr ""
 msgid "Rename %(field)s"
 msgstr ""
 
+msgid "Rename…"
+msgstr ""
+
 msgid "Require"
 msgstr ""
 
@@ -1162,6 +1210,12 @@ msgstr ""
 msgid "Rules showing %(field)s"
 msgstr ""
 
+msgid "Sat"
+msgstr ""
+
+msgid "Saturday"
+msgstr ""
+
 msgid "Save"
 msgstr ""
 
@@ -1183,7 +1237,10 @@ msgstr ""
 msgid "Scheduled"
 msgstr ""
 
-msgid "Search %(type)s"
+msgid "Scheduled: %s"
+msgstr ""
+
+msgid "Search %(type)s…"
 msgstr ""
 
 msgid "Search audio"
@@ -1252,6 +1309,12 @@ msgstr ""
 msgid "Stop nesting"
 msgstr ""
 
+msgid "Sun"
+msgstr ""
+
+msgid "Sunday"
+msgstr ""
+
 msgid "Tablet"
 msgstr ""
 
@@ -1281,6 +1344,11 @@ msgstr ""
 
 msgid "That web address does not name an item Gophenberg can look up. Go back to the list and open the item from there."
 msgstr ""
+
+msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
+msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "The %(file)s calls this theme %(declared)s, but it is being installed as %(installed)s. Rename the zip file to match, or change the name inside %(file)s."
 msgstr ""
@@ -1322,6 +1390,9 @@ msgid "The content types could not be loaded."
 msgstr ""
 
 msgid "The content types could not be refreshed, so where these groups appear and what they shadow may be out of date."
+msgstr ""
+
+msgid "The draft could not be created."
 msgstr ""
 
 msgid "The entry %(entry)s in this zip would be written outside the theme folder, so nothing was installed. Package the theme again."
@@ -1369,6 +1440,9 @@ msgstr ""
 msgid "The groups were reordered."
 msgstr ""
 
+msgid "The item could not be duplicated."
+msgstr ""
+
 msgid "The item could not be moved to the trash."
 msgstr ""
 
@@ -1391,6 +1465,9 @@ msgid "The media library could not be loaded."
 msgstr ""
 
 msgid "The name changes. Nothing stored under this field moves."
+msgstr ""
+
+msgid "The name could not be updated."
 msgstr ""
 
 msgid "The new order has to name every field group exactly once. Reload the page and move the groups again."
@@ -1633,10 +1710,22 @@ msgstr ""
 msgid "Through"
 msgstr ""
 
+msgid "Thu"
+msgstr ""
+
 msgid "Thumbnail"
 msgstr ""
 
+msgid "Thursday"
+msgstr ""
+
 msgid "Title"
+msgstr ""
+
+msgid "Tue"
+msgstr ""
+
+msgid "Tuesday"
 msgstr ""
 
 msgid "Two field groups in this file share the key %(key)s. Give one of them a different key and import again."
@@ -1679,6 +1768,12 @@ msgid "Videos"
 msgstr ""
 
 msgid "Web address"
+msgstr ""
+
+msgid "Wed"
+msgstr ""
+
+msgid "Wednesday"
 msgstr ""
 
 msgid "Welcome to Gophenberg."
@@ -1747,6 +1842,58 @@ msgstr ""
 msgid "{day} {month} {year}"
 msgstr ""
 
+msgctxt "April abbreviation"
+msgid "Apr"
+msgstr ""
+
+msgctxt "August abbreviation"
+msgid "Aug"
+msgstr ""
+
+msgctxt "December abbreviation"
+msgid "Dec"
+msgstr ""
+
+msgctxt "February abbreviation"
+msgid "Feb"
+msgstr ""
+
+msgctxt "January abbreviation"
+msgid "Jan"
+msgstr ""
+
+msgctxt "July abbreviation"
+msgid "Jul"
+msgstr ""
+
+msgctxt "June abbreviation"
+msgid "Jun"
+msgstr ""
+
+msgctxt "March abbreviation"
+msgid "Mar"
+msgstr ""
+
+msgctxt "May abbreviation"
+msgid "May"
+msgstr ""
+
+msgctxt "November abbreviation"
+msgid "Nov"
+msgstr ""
+
+msgctxt "October abbreviation"
+msgid "Oct"
+msgstr ""
+
+msgctxt "September abbreviation"
+msgid "Sep"
+msgstr ""
+
+msgctxt "abbreviated date and time format"
+msgid "M j, Y g:i a"
+msgstr ""
+
 msgctxt "account"
 msgid "Role"
 msgstr ""
@@ -1757,6 +1904,14 @@ msgstr ""
 
 msgctxt "account"
 msgid "Status"
+msgstr ""
+
+msgctxt "action label"
+msgid "Duplicate"
+msgstr ""
+
+msgctxt "action label"
+msgid "Duplicate…"
 msgstr ""
 
 msgctxt "admin section"
@@ -1775,8 +1930,8 @@ msgctxt "content type"
 msgid "Status"
 msgstr ""
 
-msgctxt "date caption"
-msgid "Published"
+msgctxt "date and time format"
+msgid "F j, Y g:i a"
 msgstr ""
 
 msgctxt "field"
@@ -1848,6 +2003,10 @@ msgid "Name"
 msgstr ""
 
 msgctxt "post"
+msgid "%s (Copy)"
+msgstr ""
+
+msgctxt "post"
 msgid "Status"
 msgstr ""
 
@@ -1861,6 +2020,10 @@ msgstr ""
 
 msgctxt "post status"
 msgid "Trash"
+msgstr ""
+
+msgctxt "relation target"
+msgid "None"
 msgstr ""
 
 msgctxt "role"
@@ -1879,6 +2042,10 @@ msgctxt "role"
 msgid "No role"
 msgstr ""
 
+msgctxt "start of week"
+msgid "1"
+msgstr ""
+
 msgctxt "status filter"
 msgid "All"
 msgstr ""
@@ -1893,4 +2060,12 @@ msgstr ""
 
 msgctxt "verb"
 msgid "Trash"
+msgstr ""
+
+msgctxt "verb"
+msgid "Trash…"
+msgstr ""
+
+msgctxt "verb"
+msgid "View"
 msgstr ""

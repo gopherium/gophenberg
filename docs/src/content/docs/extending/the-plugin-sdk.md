@@ -336,12 +336,38 @@ uses this path yet, so expect to be the first through it.
 The frontend SDK, `@gophenberg/frontend-sdk`, passes on a few icons
 from `@wordpress/icons`, each named after the job it does in the
 admin: `backIcon`, `backupIcon`, `downIcon`, `listViewIcon`,
-`redoIcon`, `trashIcon`, `undoIcon` and `upIcon`. Import them from
+`postIcon`, `redoIcon`, `trashIcon`, `undoIcon` and `upIcon`.
+`postIcon` is the one an empty content list shows. Import them from
 the SDK, so the admin keeps one copy of the icon set:
 
 ```ts
 import { trashIcon } from '@gophenberg/frontend-sdk'
 ```
 
-To confirm an action, open a `Dialog` that holds the question, a
-**Cancel** button and a button named after the action.
+To confirm an action outside a list, use an `AlertDialog`. The SDK
+passes it on from `@wordpress/ui`, as it does `Dialog`. Give it a
+short question as its `title`, what happens next as its
+`description`, and the words of its two buttons. Cancel has the
+focus when it opens. `onConfirm` may be async: while it runs, the
+confirm button shows a spinner and both buttons wait. Return
+`{ close: false, error }` to keep the dialog open and show the reason
+under the buttons. Pass `intent="irreversible"` when the action
+cannot be undone, and the confirm button turns red:
+
+```tsx
+<AlertDialog.Root onConfirm={confirm}>
+	<AlertDialog.Trigger render={<Button variant="outline" />}>{label}</AlertDialog.Trigger>
+	<AlertDialog.Popup
+		title={question}
+		description={consequence}
+		confirmButtonText={label}
+		cancelButtonText={cancel}
+	/>
+</AlertDialog.Root>
+```
+
+A confirm on a list row is different: WordPress draws it inside the
+list's own modal with the header hidden. Give the row action
+`hideModalHeader: true` and render godmin's `ConfirmBody` with the
+question as its child, a **Cancel** button and a button named after
+the action.

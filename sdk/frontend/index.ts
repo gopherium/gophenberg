@@ -27,6 +27,7 @@ export interface FrontendPlugin {
 }
 
 export {
+	AlertDialog,
 	Badge,
 	Button,
 	Dialog,
@@ -39,12 +40,14 @@ export {
 	Stack,
 	Tabs,
 	Text,
+	VisuallyHidden,
 } from '@wordpress/ui'
 export {
 	chevronLeft as backIcon,
 	backup as backupIcon,
 	chevronDown as downIcon,
 	listView as listViewIcon,
+	post as postIcon,
 	redo as redoIcon,
 	trash as trashIcon,
 	undo as undoIcon,

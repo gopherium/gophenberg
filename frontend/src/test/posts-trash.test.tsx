@@ -5,11 +5,13 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
+import type { BulkFailure } from '@gopherium/godmin'
 
-import { deleteQuestion } from '../content/actionWords'
+import { deleteQuestion, deleteWords, restoreWords, trashQuestion, trashWords } from '../content/actionWords'
 import type { Post } from '../content/api'
 import { catalogFor } from '../i18n/catalog'
 import type { Router } from './anotherPost'
+import { bulkBar } from './bulkBar'
 import { gate } from './gate'
 import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
@@ -46,6 +48,7 @@ const OLD_NOTES: Post = {
 	id: TRASHED.id,
 	type: 'post',
 	parentId: null,
+	parentTitle: '',
 	path: TRASHED.slug,
 	slug: TRASHED.slug,
 	title: 'Old Notes',
@@ -56,6 +59,7 @@ const OLD_NOTES: Post = {
 	publishedAt: null,
 	createdAt: TRASHED.created_at,
 	updatedAt: TRASHED.updated_at,
+	date: TRASHED.updated_at,
 }
 
 const POST_TYPE = {
@@ -85,23 +89,17 @@ const PAGE_TYPE = {
 }
 
 const listed: string[] = []
-const counted: string[] = []
 const restored: string[] = []
 const deleted: URL[] = []
 
 beforeEach(() => {
 	listed.length = 0
-	counted.length = 0
 	restored.length = 0
 	deleted.length = 0
 	server.use(
 		http.get('/api/content', ({ request }) => {
 			listed.push(new URL(request.url).searchParams.get('status') ?? '')
 			return HttpResponse.json({ items: [TRASHED], total: 1 })
-		}),
-		http.get('/api/content/counts', () => {
-			counted.push('asked')
-			return HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 0, trash: 1 })
 		}),
 		http.post('/api/content/:id/restore', ({ params }) => {
 			restored.push(String(params.id))
@@ -126,13 +124,6 @@ function serveMovable(status: 'draft' | 'trash') {
 		http.get('/api/content', ({ request }) => {
 			listed.push(new URL(request.url).searchParams.get('status') ?? '')
 			return HttpResponse.json(held === null ? { items: [], total: 0 } : { items: [held], total: 1 })
-		}),
-		http.get('/api/content/counts', () => {
-			counted.push('asked')
-			const inTrash = held?.status === 'trash'
-			return HttpResponse.json({
-				draft: held === null || inTrash ? 0 : 1, pending: 0, private: 0, published: 0, trash: inTrash ? 1 : 0,
-			})
 		}),
 		http.get(`/api/content/${TRASHED.id}`, () =>
 			held === null ? HttpResponse.json({}, { status: 404 }) : HttpResponse.json(held),
@@ -203,7 +194,7 @@ async function goToEditor(router: Router) {
  */
 async function trashTheListedPost() {
 	await userEvent.click(await screen.findByRole('button', { name: 'Actions' }))
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
 	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Trash' }))
 	await screen.findByText('"Old Notes" moved to the trash.', { selector: '.godmin-toast' })
 }
@@ -220,9 +211,6 @@ function serveTwoTrashed(refused?: string, held: Promise<void> = Promise.resolve
 			listed.push(new URL(request.url).searchParams.get('status') ?? '')
 			return HttpResponse.json({ items: [TRASHED, second], total: 2 })
 		}),
-		http.get('/api/content/counts', () =>
-			HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 0, trash: 2 }),
-		),
 		http.post('/api/content/:id/restore', async ({ params }) => {
 			await held
 			if (String(params.id) === refused) {
@@ -239,10 +227,19 @@ function serveTwoTrashed(refused?: string, held: Promise<void> = Promise.resolve
 }
 
 /**
+ * Returns the tab of the status filter carrying the label, once the list shows it.
+ * @param label - The label of the tab.
+ * @returns The tab link.
+ */
+async function tab(label: string): Promise<HTMLElement> {
+	return within(await screen.findByRole('navigation', { name: 'Filter by status' })).getByRole('link', { name: label })
+}
+
+/**
  * Opens the trash view holding two posts and ticks both.
  */
 async function tickBothTrashed() {
-	await userEvent.click(await screen.findByRole('button', { name: 'Trash (2)' }))
+	await userEvent.click(await tab('Trash'))
 	await screen.findByText('Older Notes')
 	await userEvent.click(screen.getByRole('checkbox', { name: 'Old Notes' }))
 	await userEvent.click(screen.getByRole('checkbox', { name: 'Older Notes' }))
@@ -252,8 +249,7 @@ async function tickBothTrashed() {
  * Opens the row actions of the only post listed in the trash view.
  */
 async function openTrashedRowActions() {
-	await screen.findByRole('button', { name: 'Trash (1)' })
-	await userEvent.click(screen.getByRole('button', { name: 'Trash (1)' }))
+	await userEvent.click(await tab('Trash'))
 	await waitFor(() => expect(listed).toContain('trash'))
 	await userEvent.click(await screen.findByRole('button', { name: 'Actions' }))
 }
@@ -264,9 +260,19 @@ test('swaps the row actions in the trash view, the restore first', async () => {
 	await openTrashedRowActions()
 
 	await screen.findByRole('menuitem', { name: 'Restore' })
-	expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Restore', 'Permanently delete'])
-	expect(screen.queryByRole('menuitem', { name: 'Trash' })).not.toBeInTheDocument()
+	expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Restore', 'Permanently delete…'])
+	expect(screen.queryByRole('menuitem', { name: 'Trash…' })).not.toBeInTheDocument()
 	expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument()
+})
+
+test('draws the primary Restore as a button on a trashed row, leaving the permanent delete to the menu', async () => {
+	renderAt('/content/post')
+	await userEvent.click(await tab('Trash'))
+
+	const row = within((await screen.findByText('Old Notes')).closest('tr') as HTMLElement)
+
+	const drawn = row.getAllByRole('button').map((button) => button.textContent || button.getAttribute('aria-label'))
+	expect(drawn).toEqual(['Restore', 'Actions'])
 })
 
 test('restores a post out of the trash', async () => {
@@ -303,7 +309,7 @@ test('restores every ticked post at once and counts them', async () => {
 	renderAt('/content/post')
 	await tickBothTrashed()
 
-	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Restore' }))
 
 	expect(await screen.findByText('2 posts have been restored.', { selector: '.godmin-toast' })).toBeInTheDocument()
 	expect(restored).toEqual(expect.arrayContaining([TRASHED.id, '019fb000-0000-7000-8000-000000000004']))
@@ -315,7 +321,7 @@ test('counts what a partly refused bulk restore brought back and what it could n
 	renderAt('/content/post')
 	await tickBothTrashed()
 
-	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Restore' }))
 
 	expect(await screen.findByText('1 post has been restored.', { selector: '.godmin-toast' })).toBeInTheDocument()
 	expect(await screen.findByText('1 item could not be restored.')).toBeInTheDocument()
@@ -327,12 +333,12 @@ test('shows the bulk restore as busy until it settles', async () => {
 	renderAt('/content/post')
 	await tickBothTrashed()
 
-	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Restore' }))
 
-	expect(screen.getByRole('button', { name: 'Restore' })).toHaveAttribute('aria-disabled', 'true')
+	expect(bulkBar().getByRole('button', { name: 'Restore' })).toHaveAttribute('aria-disabled', 'true')
 	answer.release()
 	await screen.findByText('2 posts have been restored.', { selector: '.godmin-toast' })
-	expect(screen.getByRole('button', { name: 'Restore' })).not.toHaveAttribute('aria-disabled')
+	expect(bulkBar().getByRole('button', { name: 'Restore' })).not.toHaveAttribute('aria-disabled')
 })
 
 /**
@@ -351,9 +357,9 @@ async function tickInAllWhileRestoring(held: Promise<void>) {
 	)
 	renderAt('/content/post')
 	await tickBothTrashed()
-	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
-	await userEvent.click(screen.getByRole('button', { name: /^All/ }))
-	await waitFor(() => expect(listed).toContain(''))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Restore' }))
+	await userEvent.click(await tab('All'))
+	await waitFor(() => expect(listed).toContain('draft,pending,private,scheduled,published'))
 	await userEvent.click(await screen.findByRole('checkbox', { name: 'Fresh Notes' }))
 }
 
@@ -406,10 +412,10 @@ test('keeps the newer failure and the focus once a run from an earlier visit of 
 	serveTwoTrashedRefusingLater(answer.held)
 	renderAt('/content/post')
 	await tickBothTrashed()
-	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
-	await userEvent.click(screen.getByRole('button', { name: /^All/ }))
-	await waitFor(() => expect(listed).toContain(''))
-	await userEvent.click(screen.getByRole('button', { name: 'Trash (2)' }))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Restore' }))
+	await userEvent.click(await tab('All'))
+	await waitFor(() => expect(listed).toContain('draft,pending,private,scheduled,published'))
+	await userEvent.click(await tab('Trash'))
 	await screen.findByText('Older Notes')
 	expect(screen.getByRole('checkbox', { name: 'Old Notes' })).not.toBeChecked()
 	await userEvent.click(screen.getAllByRole('button', { name: 'Actions' })[0])
@@ -432,7 +438,7 @@ test('keeps a failure off the type the list moved to before the run settled', as
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [POST_TYPE, PAGE_TYPE] })))
 	const { router } = renderRoutedAt('/content/post')
 	await tickBothTrashed()
-	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Restore' }))
 
 	await act(async () => {
 		await router.navigate({ to: '/content/$typeKey', params: { typeKey: 'page' } })
@@ -450,7 +456,7 @@ test('counts the pages a bulk restore brought back as pages', async () => {
 	renderAt('/content/page')
 	await tickBothTrashed()
 
-	await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
+	await userEvent.click(bulkBar().getByRole('button', { name: 'Restore' }))
 
 	expect(await screen.findByText('2 pages have been restored.', { selector: '.godmin-toast' })).toBeInTheDocument()
 })
@@ -460,8 +466,8 @@ test('deletes every ticked post for good behind one confirm and counts them', as
 	renderAt('/content/post')
 	await tickBothTrashed()
 
-	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete' }))
-	const dialog = await screen.findByRole('dialog', { name: 'Permanently delete' })
+	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete…' }))
+	const dialog = await screen.findByRole('dialog')
 	expect(dialog).toHaveTextContent('Delete 2 items for good? This cannot be undone.')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Permanently delete' }))
 
@@ -469,16 +475,14 @@ test('deletes every ticked post for good behind one confirm and counts them', as
 	expect(deleted).toHaveLength(2)
 })
 
-test('refreshes the listing and the counts after a restore', async () => {
+test('refreshes the listing after a restore', async () => {
 	renderAt('/content/post')
 	await openTrashedRowActions()
 	const listedBefore = listed.length
-	const countedBefore = counted.length
 
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Restore' }))
 
 	await waitFor(() => expect(listed.length).toBeGreaterThan(listedBefore))
-	await waitFor(() => expect(counted.length).toBeGreaterThan(countedBefore))
 })
 
 test('opens a post trashed from the list as a reading view', async () => {
@@ -514,7 +518,7 @@ test('opens a post deleted for good as a missing post', async () => {
 	await screen.findByText(/This item is in the trash/)
 	await goToList(router)
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Permanently delete' }))
 	await waitFor(() => expect(deleted).toHaveLength(1))
 
@@ -538,9 +542,9 @@ test('opens a post removed by emptying the trash as a missing post', async () =>
 	const { router } = renderRoutedAt(EDITOR_PATH)
 	await screen.findByText(/This item is in the trash/)
 	await goToList(router)
-	await userEvent.click(await screen.findByRole('button', { name: 'Trash (1)' }))
+	await userEvent.click(await tab('Trash'))
 	await userEvent.click(await screen.findByRole('button', { name: 'Empty Trash' }))
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Empty Trash' }))
+	await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Empty trash' }))
 	await waitFor(() => expect(emptied).toBe(true))
 
 	await goToEditor(router)
@@ -548,16 +552,26 @@ test('opens a post removed by emptying the trash as a missing post', async () =>
 	expect(await screen.findByText('Could not load that post.')).toBeInTheDocument()
 })
 
-test('asks to confirm before deleting permanently, headed by the action', async () => {
+test('asks to confirm before deleting permanently, under no header as WordPress does', async () => {
 	renderAt('/content/post')
 	await openTrashedRowActions()
 
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
-	const dialog = await screen.findByRole('dialog', { name: 'Permanently delete' })
+	const dialog = await screen.findByRole('dialog')
 	expect(dialog).toHaveTextContent('Delete "Old Notes" for good? This cannot be undone.')
-	expect(within(dialog).getByRole('heading', { name: 'Permanently delete' })).toBeInTheDocument()
+	expect(within(dialog).queryByRole('heading')).not.toBeInTheDocument()
+	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
 	expect(deleted).toEqual([])
+})
+
+test('opens the permanent delete confirm at the medium width WordPress gives it', async () => {
+	renderAt('/content/post')
+	await openTrashedRowActions()
+
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
+
+	expect(await screen.findByRole('dialog')).toHaveClass('has-size-medium')
 })
 
 test('cuts a long title in the permanent delete confirm at the length the site serves', async () => {
@@ -565,7 +579,7 @@ test('cuts a long title in the permanent delete confirm at the length the site s
 	renderAt('/content/post')
 	await openTrashedRowActions()
 
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
 	expect(await screen.findByRole('dialog')).toHaveTextContent('Delete "Old N…" for good? This cannot be undone.')
 })
@@ -580,10 +594,33 @@ test('asks the Spanish permanent delete in the words of its title, button and to
 		.toBe('¿Borrar permanentemente 2 elementos? Esto no se puede deshacer.')
 })
 
+test('counts exact millions with "de" in the Spanish trash, restore and delete words', async () => {
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	const named = (title: string) => title
+	const million = 1000000
+	const failure: BulkFailure<Post> = { item: OLD_NOTES, error: new Error('refused') }
+	const picked = Array.from({ length: million }, () => OLD_NOTES)
+	const refused = Array.from({ length: million }, () => failure)
+
+	expect(trashQuestion(picked, named)).toBe('¿Mover 1.000.000 de elementos a la papelera?')
+	expect(deleteQuestion(picked, named))
+		.toBe('¿Borrar permanentemente 1.000.000 de elementos? Esto no se puede deshacer.')
+	expect(trashWords(named).done(million, undefined)).toBe('1.000.000 de elementos movidos a la papelera.')
+	expect(trashWords(named).failed(refused, million)).toBe('No se han podido mover 1.000.000 de elementos a la papelera.')
+	expect(restoreWords(named, 'page').done(million, undefined)).toBe('Se han restaurado 1.000.000 de páginas.')
+	expect(restoreWords(named, 'post').done(million, undefined)).toBe('Se han restaurado 1.000.000 de entradas.')
+	expect(restoreWords(named, 'post').failed(refused, million))
+		.toBe('No se han podido restaurar 1.000.000 de elementos.')
+	expect(deleteWords(named).done(million, undefined)).toBe('1.000.000 de elementos borrados permanentemente.')
+	expect(deleteWords(named).failed(refused, million))
+		.toBe('No se han podido borrar permanentemente 1.000.000 de elementos.')
+})
+
 test('deletes for good once confirmed', async () => {
 	renderAt('/content/post')
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
 	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Permanently delete' }))
 
@@ -595,7 +632,7 @@ test('deletes for good once confirmed', async () => {
 test('names the post it deleted for good in a toast', async () => {
 	renderAt('/content/post')
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
 	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Permanently delete' }))
 
@@ -606,7 +643,7 @@ test('moves the focus to the list once a permanent delete finishes', async () =>
 	serveLeaving()
 	renderAt('/content/post')
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
 	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Permanently delete' }))
 
@@ -617,7 +654,7 @@ test('moves the focus to the list once a permanent delete finishes', async () =>
 test('keeps the post when the permanent delete is dismissed', async () => {
 	renderAt('/content/post')
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
 
@@ -641,7 +678,7 @@ test('reports a permanent delete the server refused above the list', async () =>
 	server.use(http.delete('/api/content/:id', () => HttpResponse.json({}, { status: 500 })))
 	renderAt('/content/post')
 	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
 	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Permanently delete' }))
 
@@ -663,7 +700,7 @@ test('counts the posts a partly refused bulk permanent delete could not remove',
 	)
 	renderAt('/content/post')
 	await tickBothTrashed()
-	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete…' }))
 
 	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Permanently delete' }))
 

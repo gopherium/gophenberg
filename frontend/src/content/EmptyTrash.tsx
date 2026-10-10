@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Dialog } from '@gophenberg/frontend-sdk'
-import { ConfirmBody, useToaster } from '@gopherium/godmin'
+import { AlertDialog, Button } from '@gophenberg/frontend-sdk'
+import { useToaster } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, _n, sprintf } from '@wordpress/i18n'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { useRefresh } from './actions'
@@ -31,66 +31,62 @@ function emptiedToast({ deleted, kept }: Emptied): string {
 }
 
 /**
+ * Returns the warning counting the items emptying the trash deletes for good.
+ * @param count - How many items the trash holds.
+ * @returns The warning.
+ */
+function warningOf(count: number): string {
+	const warning = _n(
+		'The %(count)s item in the trash is deleted for good. This cannot be undone.',
+		'The %(count)s items in the trash are deleted for good. This cannot be undone.',
+		count,
+		'gophenberg',
+	)
+	return sprintf(warning, { count: formatNumber(count) })
+}
+
+/**
  * Renders the control removing every trashed item of a type for good, and its confirm.
- * @param props - The type whose trash to empty, its plural label, and what the list does around the run.
+ * @param props - The type whose trash to empty, how many items it holds, and what the list does around the run.
  * @returns The empty trash control and its confirm.
  */
-export function EmptyTrash({ type, label, list }: { type: string, label: string, list: ListRun }) {
+export function EmptyTrash({ type, count, list }: { type: string, count: number, list: ListRun }) {
 	const client = useQueryClient()
 	const refresh = useRefresh()
 	const toaster = useToaster()
 	const [open, setOpen] = useState(false)
-	const action = __('Empty Trash', 'gophenberg')
-	const empty = useMutation({
-		mutationFn: () => emptyTrash(type),
-		onMutate: () => list.onStart(),
-		onSuccess: async (emptied, _asked, settle) => {
-			client.removeQueries({
-				queryKey: ['post'],
-				predicate: (query) => (query.state.data as Post | undefined)?.type === type,
-			})
-			await refresh()
-			setOpen(false)
-			const toast = emptiedToast(emptied)
-			if (toast !== '') {
-				toaster.show(toast)
-			}
-			settle(undefined, emptied.deleted > 0)
-		},
-	})
+	const confirm = async () => {
+		const settle = list.onStart()
+		let emptied: Emptied
+		try {
+			emptied = await emptyTrash(type)
+		} catch (failure) {
+			return { close: false, error: (failure as Error).message }
+		}
+		client.removeQueries({
+			queryKey: ['post'],
+			predicate: (query) => (query.state.data as Post | undefined)?.type === type,
+		})
+		await refresh()
+		setOpen(false)
+		const toast = emptiedToast(emptied)
+		if (toast !== '') {
+			toaster.show(toast)
+		}
+		settle(undefined, emptied.deleted > 0)
+	}
 	return (
-		<Dialog.Root
-			open={open}
-			onOpenChange={(next) => {
-				if (!next && empty.isPending) {
-					return
-				}
-				empty.reset()
-				setOpen(next)
-			}}
-		>
-			<Dialog.Trigger render={<Button variant="outline" size="compact" />}>{action}</Dialog.Trigger>
-			<Dialog.Popup size="small">
-				<Dialog.Header>
-					<Dialog.Title>{action}</Dialog.Title>
-					<Dialog.CloseIcon />
-				</Dialog.Header>
-				<Dialog.Content>
-					<ConfirmBody
-						confirmLabel={action}
-						cancelLabel={__('Cancel', 'gophenberg')}
-						busy={empty.isPending}
-						failure={empty.error?.message}
-						onConfirm={() => empty.mutate()}
-						onCancel={empty.isPending ? undefined : () => setOpen(false)}
-					>
-						{sprintf(
-							__('Every item in the %(type)s trash is removed for good. This cannot be undone.', 'gophenberg'),
-							{ type: label.toLowerCase() },
-						)}
-					</ConfirmBody>
-				</Dialog.Content>
-			</Dialog.Popup>
-		</Dialog.Root>
+		<AlertDialog.Root open={open} onOpenChange={setOpen} onConfirm={confirm}>
+			<AlertDialog.Trigger render={<Button variant="outline" size="compact" />}>
+				{__('Empty Trash', 'gophenberg')}
+			</AlertDialog.Trigger>
+			<AlertDialog.Popup
+				intent="irreversible"
+				title={__('Empty the trash?', 'gophenberg')}
+				description={warningOf(count)}
+				confirmButtonText={__('Empty trash', 'gophenberg')}
+				cancelButtonText={__('Cancel', 'gophenberg')}
+			/>
+		</AlertDialog.Root>
 	)
 }

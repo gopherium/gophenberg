@@ -194,13 +194,7 @@ func TestSeedStoresTheDemoPosts(t *testing.T) {
 	}
 
 	counts := seededCounts(t, databaseURL)
-	want := map[content.Status]int{
-		content.StatusPublished: 23,
-		content.StatusDraft:     5,
-		content.StatusPending:   6,
-		content.StatusTrash:     2,
-	}
-	if !maps.Equal(counts, want) {
+	if want := seed.DemoStatuses(); !maps.Equal(counts, want) {
 		t.Errorf("counts = %v, want %v", counts, want)
 	}
 	if !strings.Contains(stdout.String(), seed.AdminEmail) {

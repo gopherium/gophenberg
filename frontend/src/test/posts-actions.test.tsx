@@ -21,6 +21,7 @@ beforeAll(async () => {
 const PUBLISHED = {
 	id: '019fb000-0000-7000-8000-000000000001',
 	type: 'post',
+	path: 'welcome',
 	slug: 'welcome',
 	title: 'Welcome to Gophenberg',
 	excerpt: '',
@@ -36,6 +37,7 @@ const WELCOME: Post = {
 	id: PUBLISHED.id,
 	type: 'post',
 	parentId: null,
+	parentTitle: '',
 	path: 'welcome',
 	slug: 'welcome',
 	title: 'Welcome to Gophenberg',
@@ -46,6 +48,7 @@ const WELCOME: Post = {
 	publishedAt: PUBLISHED.published_at,
 	createdAt: PUBLISHED.created_at,
 	updatedAt: PUBLISHED.updated_at,
+	date: PUBLISHED.published_at,
 }
 
 const BUILT_IN_TYPE = {
@@ -66,21 +69,15 @@ const BUILT_IN_TYPE = {
 }
 
 const listed: string[] = []
-const counted: string[] = []
 const trashed: string[] = []
 
 beforeEach(() => {
 	listed.length = 0
-	counted.length = 0
 	trashed.length = 0
 	server.use(
 		http.get('/api/content', () => {
 			listed.push('asked')
 			return HttpResponse.json({ items: [PUBLISHED], total: 1 })
-		}),
-		http.get('/api/content/counts', () => {
-			counted.push('asked')
-			return HttpResponse.json({ draft: 0, pending: 0, private: 0, published: 1, trash: 0 })
 		}),
 		http.get('/api/content/:id', ({ params }) =>
 			HttpResponse.json(storedPostWithId(String(params.id))),
@@ -100,20 +97,45 @@ async function openRowActions() {
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 }
 
-test('offers trash on a row and leaves editing to the title', async () => {
+test('offers View first, then Duplicate…, Rename… and Trash… last, and leaves editing to the title', async () => {
 	renderAt('/content/post')
 
 	await openRowActions()
 
-	expect(await screen.findByRole('menuitem', { name: 'Trash' })).toBeInTheDocument()
+	await screen.findByRole('menuitem', { name: 'Trash…' })
+	const offered = screen.getAllByRole('menuitem').map((item) => item.textContent)
+	expect(offered).toEqual(['View', 'Duplicate…', 'Rename…', 'Trash…'])
 	expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument()
+})
+
+/**
+ * Returns the names of the buttons a row draws, read once the row of the title shows.
+ * @param title - The title of the row.
+ * @returns The text or the label of each button on the row, in order.
+ */
+async function rowButtons(title: string): Promise<(string | null)[]> {
+	const row = within((await screen.findByRole('link', { name: title })).closest('tr') as HTMLElement)
+	return row.getAllByRole('button').map((button) => button.textContent || button.getAttribute('aria-label'))
+}
+
+test('draws only the primary View as a button on a published row, as WordPress shows it on hover', async () => {
+	renderAt('/content/post')
+
+	expect(await rowButtons('Welcome to Gophenberg')).toEqual(['View', 'Actions'])
+})
+
+test('draws no action button on a row that is not published, leaving every action to the menu', async () => {
+	server.use(http.get('/api/content', () => HttpResponse.json({ items: [{ ...PUBLISHED, status: 'draft' }], total: 1 })))
+	renderAt('/content/post')
+
+	expect(await rowButtons('Welcome to Gophenberg')).toEqual(['Actions'])
 })
 
 test('asks to confirm before trashing', async () => {
 	renderAt('/content/post')
 	await openRowActions()
 
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
 
 	expect(await screen.findByRole('dialog')).toHaveTextContent('Move "Welcome to Gophenberg" to the trash?')
 	expect(trashed).toEqual([])
@@ -124,7 +146,7 @@ test('cuts a long title in the trash confirm at the length the site serves', asy
 	renderAt('/content/post')
 	await openRowActions()
 
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
 
 	expect(await screen.findByRole('dialog')).toHaveTextContent('Move "Welcome to…" to the trash?')
 })
@@ -136,6 +158,36 @@ test('quotes the name in the Spanish trash confirm as the Spanish toasts do', as
 	expect(trashQuestion([WELCOME], (title) => title)).toBe('¿Mover «Welcome to Gophenberg» a la papelera?')
 })
 
+test('opens the public address of a published item in a new tab', async () => {
+	const opened = vi.spyOn(window, 'open').mockImplementation(() => null)
+	renderAt('/content/post')
+	await openRowActions()
+
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'View' }))
+
+	expect(opened).toHaveBeenCalledWith('/welcome', '_blank')
+})
+
+test('offers no view of an item that is not published, as it has no public address yet', async () => {
+	server.use(http.get('/api/content', () => HttpResponse.json({ items: [{ ...PUBLISHED, status: 'draft' }], total: 1 })))
+	renderAt('/content/post')
+	await openRowActions()
+
+	await screen.findByRole('menuitem', { name: 'Trash…' })
+
+	expect(screen.queryByRole('menuitem', { name: 'View' })).not.toBeInTheDocument()
+})
+
+test('offers no view of an item of a type the site does not serve', async () => {
+	server.use(http.get('/api/types', () => HttpResponse.json({ items: [{ ...BUILT_IN_TYPE, active: false }] })))
+	renderAt('/content/post')
+	await openRowActions()
+
+	await screen.findByRole('menuitem', { name: 'Trash…' })
+
+	expect(screen.queryByRole('menuitem', { name: 'View' })).not.toBeInTheDocument()
+})
+
 test('offers no trash on a post already in the trash', async () => {
 	server.use(http.get('/api/content', () => HttpResponse.json({ items: [{ ...PUBLISHED, status: 'trash' }], total: 1 })))
 	renderAt('/content/post')
@@ -145,15 +197,25 @@ test('offers no trash on a post already in the trash', async () => {
 	expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument()
 })
 
-test('heads the trash confirm with the action and confirms with it', async () => {
+test('asks the trash confirm under no header, as WordPress does, and confirms with the action', async () => {
 	renderAt('/content/post')
 	await openRowActions()
 
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
 
-	const dialog = await screen.findByRole('dialog', { name: 'Trash' })
-	expect(within(dialog).getByRole('heading', { name: 'Trash' })).toBeInTheDocument()
+	const dialog = await screen.findByRole('dialog')
+	expect(within(dialog).queryByRole('heading')).not.toBeInTheDocument()
+	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
 	expect(within(dialog).getByRole('button', { name: 'Trash' })).toBeInTheDocument()
+})
+
+test('opens the trash confirm at the medium width WordPress gives it', async () => {
+	renderAt('/content/post')
+	await openRowActions()
+
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
+
+	expect(await screen.findByRole('dialog')).toHaveClass('has-size-medium')
 })
 
 test('names a post that has no title yet in the confirm', async () => {
@@ -166,7 +228,7 @@ test('names a post that has no title yet in the confirm', async () => {
 	await screen.findByRole('link', { name: '(no title)' })
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
 
 	expect(await screen.findByRole('dialog')).toHaveTextContent('Move "(no title)" to the trash?')
 })
@@ -176,7 +238,7 @@ test('names a post that has no title yet in the confirm', async () => {
  */
 async function trashTheListedPost() {
 	await openRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
 	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Trash' }))
 }
 
@@ -191,7 +253,7 @@ test('trashes the post once confirmed', async () => {
 test('leaves the post alone when the confirm is dismissed', async () => {
 	renderAt('/content/post')
 	await openRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
 
@@ -199,15 +261,13 @@ test('leaves the post alone when the confirm is dismissed', async () => {
 	expect(trashed).toEqual([])
 })
 
-test('refreshes the listing and the counts after trashing', async () => {
+test('refreshes the listing after trashing', async () => {
 	renderAt('/content/post')
 	const listedBefore = listed.length
-	const countedBefore = counted.length
 
 	await trashTheListedPost()
 
 	await waitFor(() => expect(listed.length).toBeGreaterThan(listedBefore))
-	await waitFor(() => expect(counted.length).toBeGreaterThan(countedBefore))
 })
 
 test('names the post it trashed in a toast with no undo', async () => {
@@ -349,7 +409,9 @@ test('forgets the last failure once another status is shown', async () => {
 	await trashTheListedPost()
 	await screen.findByText('The item could not be moved to the trash.')
 
-	await userEvent.click(screen.getByRole('button', { name: 'Published (1)' }))
+	await userEvent.click(
+		within(screen.getByRole('navigation', { name: 'Filter by status' })).getByRole('link', { name: 'Published' }),
+	)
 
 	await waitFor(() =>
 		expect(screen.queryByText('The item could not be moved to the trash.')).not.toBeInTheDocument(),

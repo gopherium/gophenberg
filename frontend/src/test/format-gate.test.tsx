@@ -34,6 +34,34 @@ const PUBLISHED = {
 	updated_at: '2026-07-20T10:00:00Z',
 }
 
+/** The post type declaring a date field its list shows in a column of its own. */
+const DATED_POSTS = {
+	key: 'post',
+	singular_label: 'Post',
+	plural_label: 'Posts',
+	description: '',
+	route_word: '',
+	hierarchical: false,
+	revisions: true,
+	revision_cap: 100,
+	page_kind: 'single',
+	default: true,
+	active: true,
+	created_at: '2026-08-01T10:00:00Z',
+	updated_at: '2026-08-01T10:00:00Z',
+	fields: [
+		{
+			key: 'since',
+			label: 'Since',
+			kind: 'date',
+			many: false,
+			required: false,
+			updated_at: '2026-08-01T10:00:00Z',
+			settings: { listed: true },
+		},
+	],
+}
+
 /**
  * Shows one day and one count as the screens write them.
  * @returns The dated line.
@@ -130,14 +158,16 @@ test('opens the screens on the first failed read through the client the admin bu
 	expect(asked).toBe(1)
 })
 
-test('writes the dates of the admin screens in the format the site names', async () => {
+test('writes the dates of the admin screens in the format the site names, a listed date field among them', async () => {
 	serveSettings('de-DE')
 	server.use(
-		http.get('/api/content', () => HttpResponse.json({ items: [PUBLISHED], total: 1 })),
-		http.get('/api/content/counts', () => HttpResponse.json({ published: 1 })),
+		http.get('/api/types', () => HttpResponse.json({ items: [DATED_POSTS] })),
+		http.get('/api/content', () =>
+			HttpResponse.json({ items: [{ ...PUBLISHED, fields: { since: '2026-07-20' } }], total: 1 }),
+		),
 	)
 
 	renderAt('/content/post')
 
-	expect(await screen.findByText(/20\.07\.2026/)).toBeInTheDocument()
+	expect(await screen.findByText('20.07.2026')).toBeInTheDocument()
 })

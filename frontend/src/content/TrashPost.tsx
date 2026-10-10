@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Dialog } from '@gophenberg/frontend-sdk'
-import { ConfirmBody, useToaster } from '@gopherium/godmin'
+import { AlertDialog, Button } from '@gophenberg/frontend-sdk'
+import { useToaster } from '@gopherium/godmin'
 import { __, sprintf } from '@wordpress/i18n'
-import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
 
 import { useRefresh } from './actions'
 import { trashPost } from './api'
@@ -19,44 +17,30 @@ export function TrashPost({ postId, title }: { postId: string, title: string }) 
 	const navigate = useNavigate()
 	const refresh = useRefresh()
 	const toaster = useToaster()
-	const [open, setOpen] = useState(false)
 	const label = __('Move to trash', 'gophenberg')
-	const named = title === '' ? __('(no title)', 'gophenberg') : title
-	const trash = useMutation({
-		mutationFn: () => trashPost(postId),
-		onSuccess: async () => {
-			await navigate({ to: '/content/$typeKey' })
-			await refresh([postId])
-			toaster.show(sprintf(__('"%s" moved to the trash.', 'gophenberg'), toaster.name(named)))
-		},
-	})
+	const named = toaster.name(title === '' ? __('(no title)', 'gophenberg') : title)
+	const confirm = async () => {
+		try {
+			await trashPost(postId)
+		} catch (failure) {
+			return { close: false, error: (failure as Error).message }
+		}
+		await navigate({ to: '/content/$typeKey' })
+		await refresh([postId])
+		toaster.show(sprintf(__('"%s" moved to the trash.', 'gophenberg'), named))
+	}
 	return (
-		<Dialog.Root
-			open={open}
-			onOpenChange={(next) => {
-				trash.reset()
-				setOpen(next)
-			}}
-		>
-			<Dialog.Trigger>{label}</Dialog.Trigger>
-			<Dialog.Popup size="small">
-				<Dialog.Header>
-					<Dialog.Title>{label}</Dialog.Title>
-					<Dialog.CloseIcon />
-				</Dialog.Header>
-				<Dialog.Content>
-					<ConfirmBody
-						confirmLabel={label}
-						cancelLabel={__('Cancel', 'gophenberg')}
-						busy={trash.isPending}
-						failure={trash.error?.message}
-						onConfirm={() => trash.mutate()}
-						onCancel={trash.isPending ? undefined : () => setOpen(false)}
-					>
-						{sprintf(__('Move "%(title)s" to the trash?', 'gophenberg'), { title: toaster.name(named) })}
-					</ConfirmBody>
-				</Dialog.Content>
-			</Dialog.Popup>
-		</Dialog.Root>
+		<AlertDialog.Root onConfirm={confirm}>
+			<AlertDialog.Trigger render={<Button variant="outline" />}>{label}</AlertDialog.Trigger>
+			<AlertDialog.Popup
+				title={__('Move to trash?', 'gophenberg')}
+				description={sprintf(
+					__('"%(title)s" goes to the trash. You can restore it from the Trash tab.', 'gophenberg'),
+					{ title: named },
+				)}
+				confirmButtonText={label}
+				cancelButtonText={__('Cancel', 'gophenberg')}
+			/>
+		</AlertDialog.Root>
 	)
 }

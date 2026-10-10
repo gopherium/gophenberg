@@ -21,8 +21,10 @@ the content API can ask for a different number on the request, up
 to the same 100.
 
 Two lists do not follow it. The list of posts you work in inside
-the admin stays at 20 a page whatever you choose here. The
-[RSS feed](/reference/rss-feed/) carries its own number, which
+the admin pages by its own **Items per page** menu under **View
+options**, which offers the sizes whoever runs the server allows,
+see [the admin lists](/self-hosting/configuration/#the-admin-lists).
+The [RSS feed](/reference/rss-feed/) carries its own number, which
 whoever runs the server sets.
 
 ## Picture quality

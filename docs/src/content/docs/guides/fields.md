@@ -142,9 +142,9 @@ included.
 
 **In list** puts the field in the content list as a column of its
 own. Press it on a text, number, switch, date or choice field at the
-top of a group. A switch or a choice field also gets a filter above
-the table, so you can narrow the list to the items holding one value.
-See [the content list](/guides/posts/).
+top of a group. A switch or a choice field can also be picked under
+**Add filter**, so you can narrow the list to the items holding one
+value. See [the content list](/guides/posts/).
 
 ## Fields inside fields
 

@@ -31,12 +31,14 @@ test('empties only the trash of the type on screen', async ({ page }) => {
 	const post = await trashed(page.request, 'post', 'A post the empty trash spec trashed')
 	const item = await trashed(page.request, 'page', 'A page the empty trash spec trashed')
 	await page.goto('/admin/content/page')
-	await page.getByRole('button', { name: /^Trash \(\d+\)$/ }).click()
+	await page.getByRole('navigation', { name: 'Filter by status' }).getByRole('link', { name: 'Trash', exact: true }).click()
 	await page.getByRole('button', { name: 'Empty Trash' }).click()
+	const confirm = page.getByRole('alertdialog', { name: 'Empty the trash?' })
+	await expect(confirm.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
 
-	await page.getByRole('dialog').getByRole('button', { name: 'Empty Trash' }).click()
+	await confirm.getByRole('button', { name: 'Empty trash' }).click()
 
-	await expect(page.getByRole('dialog')).toBeHidden()
+	await expect(page.getByRole('alertdialog')).toBeHidden()
 	expect((await page.request.get(`/api/content/${item}`)).status()).toBe(404)
 	const left = await page.request.get(`/api/content/${post}`)
 	expect(left.status()).toBe(200)

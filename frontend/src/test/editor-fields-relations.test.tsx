@@ -3,8 +3,10 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeAll, beforeEach, expect, test } from 'vitest'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
+import { beforeAll, beforeEach, expect, onTestFinished, test } from 'vitest'
 
+import { catalogFor } from '../i18n/catalog'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
@@ -295,6 +297,17 @@ test('shows none when the target held is no longer offered', async () => {
 
 	expect(await screen.findByRole('option', { name: 'News' })).toBeInTheDocument()
 	expect(picker).not.toHaveTextContent('019fb000')
+})
+
+test('names an empty pick Ninguno to a Spanish reader, apart from the Ninguna of the parent column', async () => {
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	server.use(http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring([ONE_CATEGORY])] })))
+	renderAt(EDITOR_PATH)
+
+	await userEvent.click(await screen.findByLabelText('Category'))
+
+	expect(await screen.findByRole('option', { name: 'Ninguno' })).toBeInTheDocument()
 })
 
 test('adds nothing when the placeholder is chosen', async () => {

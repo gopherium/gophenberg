@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import { expect, test } from 'vitest'
 
 import '../index.css'
@@ -28,7 +28,8 @@ test('dresses a section entry like every other rail row', async () => {
 test('dresses a section action like every other rail row', async () => {
 	renderAt('/content/post')
 
-	expect(await screen.findByRole('button', { name: 'Add New' })).toHaveClass(ROW)
+	const rail = await screen.findByRole('navigation', { name: 'Navigation' })
+	expect(await within(rail).findByRole('button', { name: 'Add New' })).toHaveClass(ROW)
 })
 
 test('dresses the top level rows the same way', async () => {

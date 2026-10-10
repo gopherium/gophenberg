@@ -3,11 +3,9 @@
 import { Button, Notice, Stack } from '@gophenberg/frontend-sdk'
 import { __, sprintf } from '@wordpress/i18n'
 import { NavScreen } from '@gopherium/godmin'
-import { useMutation } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 
-import { createPost } from './api'
-import { seededValues } from './fieldDefaults'
+import { useAddNew } from './useAddNew'
 import { useContentType } from './useContentType'
 
 /**
@@ -15,16 +13,8 @@ import { useContentType } from './useContentType'
  * @returns The drill-down screen listing the section's entries.
  */
 export function ContentSidebar() {
-	const navigate = useNavigate()
 	const listed = useContentType()
-	const addNew = useMutation({
-		mutationFn: () => createPost(listed.key, seededValues(listed.fields)),
-		onSuccess: (post) =>
-			navigate({
-				to: '/content/$typeKey/$postId/edit',
-				params: { typeKey: listed.key, postId: post.id },
-			}),
-	})
+	const addNew = useAddNew(listed)
 	return (
 		<NavScreen
 			title={listed.pluralLabel}
@@ -46,15 +36,16 @@ export function ContentSidebar() {
 						variant="unstyled"
 						className="gophenberg-menu__item"
 						loading={addNew.isPending}
+						disabled={addNew.waiting}
 						onClick={() => addNew.mutate()}
 					>
 						{__('Add New', 'gophenberg')}
 					</Button>
 				</li>
 			</Stack>
-			{addNew.isError && (
+			{addNew.error === null ? null : (
 				<Notice.Root intent="error" role="alert">
-					<Notice.Description>{__('Could not create a draft.', 'gophenberg')}</Notice.Description>
+					<Notice.Description>{addNew.error.message}</Notice.Description>
 				</Notice.Root>
 			)}
 		</NavScreen>

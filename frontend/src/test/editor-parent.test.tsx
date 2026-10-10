@@ -3,9 +3,11 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeAll, beforeEach, expect, test } from 'vitest'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
+import { beforeAll, beforeEach, expect, onTestFinished, test } from 'vitest'
 
 import { chosenParent } from '../content/ParentPicker'
+import { catalogFor } from '../i18n/catalog'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 
@@ -139,6 +141,16 @@ test('offers only the root while the items of the type are still arriving', asyn
 	await userEvent.click(picker)
 
 	expect(await screen.findByRole('option', { name: 'No parent' })).toBeInTheDocument()
+})
+
+test('names the empty parent choice as WordPress es_ES does for a Spanish reader', async () => {
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	renderAt(`/content/page/${EDITED.id}/edit`)
+
+	await userEvent.click(await screen.findByLabelText('Superior'))
+
+	expect(await screen.findByRole('option', { name: 'Sin superior' })).toBeInTheDocument()
 })
 
 test('reads the parent a select change asks for', () => {
