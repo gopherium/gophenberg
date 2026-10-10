@@ -5,6 +5,7 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
+import { holdWrite } from '../content/postWrites'
 import { gate } from './gate'
 import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
@@ -116,6 +117,35 @@ test('writes the new name over the version read just before the write, so the ne
 
 	await waitFor(() => expect(patched).toEqual([{ title: 'A New Welcome', updated_at: CURRENT_VERSION }]))
 	expect(patchedAs).toEqual(['application/json'])
+})
+
+test('waits for a write in flight to the item before reading its version, so the name lands on it', async () => {
+	const settledVersion = '2026-07-21T09:30:00Z'
+	let answered = false
+	server.use(
+		http.get(`/api/content/${PUBLISHED.id}`, () =>
+			HttpResponse.json({
+				...storedPost,
+				title: PUBLISHED.title,
+				updated_at: answered ? settledVersion : CURRENT_VERSION,
+			}),
+		),
+	)
+	const saving = gate()
+	const client = renderAt('/content/post')
+	const dialog = await openRename()
+	holdWrite(
+		client,
+		PUBLISHED.id,
+		saving.held.then(() => {
+			answered = true
+		}),
+	)
+
+	await renameTo(dialog, 'A New Welcome')
+	saving.release()
+
+	await waitFor(() => expect(patched).toEqual([{ title: 'A New Welcome', updated_at: settledVersion }]))
 })
 
 test('says Name updated, closes the dialog and reads the list again', async () => {

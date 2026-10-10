@@ -87,15 +87,28 @@ export function DuplicateModal({ items: [post], closeModal }: RenderModalProps<P
 }
 
 /**
+ * Writes the title given to an item, its version read once every write still in flight to the item has answered.
+ * @param client - The query client holding the writes in flight.
+ * @param post - The item to rename.
+ * @param title - The new title.
+ * @returns The renamed item.
+ */
+async function renamed(client: QueryClient, post: Post, title: string): Promise<Post> {
+	await writesSettled(client, post.id)
+	return renamePost(post.id, title)
+}
+
+/**
  * Renders the modal writing a new name for one item, its failure kept inside under the field.
  * @param props - The item and the handler closing the modal.
  * @returns The rename form.
  */
 export function RenameModal({ items: [post], closeModal }: RenderModalProps<Post>) {
+	const client = useQueryClient()
 	const refresh = useRefresh()
 	const toaster = useToaster()
 	const rename = useMutation({
-		mutationFn: (title: string) => renamePost(post.id, title),
+		mutationFn: (title: string) => renamed(client, post, title),
 		onSuccess: async () => {
 			await refresh([post.id])
 			toaster.show(__('Name updated.', 'gophenberg'))
