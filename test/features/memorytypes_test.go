@@ -700,7 +700,7 @@ func (s *memoryTypes) MoveField(
 		s.groups[landing].Fields, _ = grownInside(s.groups[landing].Fields, toParent, moved)
 	}
 	if s.content != nil {
-		s.content.sweepPath(swept, path)
+		s.content.sweepField(swept, carried, path)
 	}
 	return moved, nil
 }
