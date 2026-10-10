@@ -197,7 +197,7 @@ func (s *memoryTypes) DeleteGroup(_ context.Context, id int, recheck content.Rec
 func (s *memoryTypes) DeleteFieldsOfGroup(
 	_ context.Context, groupID int, keys []string, recheck content.Recheck,
 ) error {
-	return s.deleteFields(groupID, keys, recheck, s.sweptByDelete)
+	return s.deleteFields(groupID, keys, recheck)
 }
 
 // sweptByDelete returns every stored type a deleted key clears from, sparing those another active group serves it on.
@@ -532,20 +532,13 @@ func (s *memoryTypes) UpdateFieldInGroup(
 	return content.Field{}, content.ErrGroupNotFound
 }
 
-// DeleteFieldInGroup removes the field once the check passes, and its values from the types its group served it on.
+// DeleteFieldInGroup removes the field once the check passes, sweeping its values as a group delete does.
 func (s *memoryTypes) DeleteFieldInGroup(_ context.Context, groupID int, key string, recheck content.Recheck) error {
-	return s.deleteFields(groupID, []string{key}, recheck, s.sweptFromMatched)
+	return s.deleteFields(groupID, []string{key}, recheck)
 }
 
-// sweptFromMatched returns the types the group matches on which no other active group serves the key first.
-func (s *memoryTypes) sweptFromMatched(held content.Group, key string) []string {
-	return s.servedAlong(s.typesMatchedBy(held), held.ID, []string{key})
-}
-
-// deleteFields removes the named fields in one hold of the mutex once the check passes, sweeping the types swept names.
-func (s *memoryTypes) deleteFields(
-	groupID int, keys []string, recheck content.Recheck, swept func(content.Group, string) []string,
-) error {
+// deleteFields removes the named fields in one hold of the mutex once the check passes, sweeping like a group delete.
+func (s *memoryTypes) deleteFields(groupID int, keys []string, recheck content.Recheck) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.rechecked(recheck); err != nil {
@@ -560,7 +553,7 @@ func (s *memoryTypes) deleteFields(
 	}
 	for _, key := range keys {
 		held := s.groups[at]
-		s.sweepKey(swept(held, key), key)
+		s.sweepKey(s.sweptByDelete(held, key), key)
 		s.groups[at].Fields = slices.DeleteFunc(slices.Clone(held.Fields), func(f content.Field) bool {
 			return f.Key == key
 		})
