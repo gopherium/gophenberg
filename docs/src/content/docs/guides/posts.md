@@ -117,8 +117,10 @@ The actions menu of a row offers:
 
 - **View** opens a published post on your site in a new tab.
 - **Duplicate…** makes a new draft holding the post's title with
-  `(Copy)` after it, its content, its excerpt, its parent and its
-  field values. You can change the title in the dialog first.
+  `(Copy)` after it, its content, its excerpt, its parent and the
+  field values it shows. A value under a field its conditions hide
+  stays behind, and so does a Linked from field, which the site
+  fills on its own. You can change the title in the dialog first.
   Anyone who can write may duplicate any post not in the trash.
 - **Rename…** changes the title in a dialog. It writes over
   the newest version of the post, so the last rename wins.
@@ -175,8 +177,9 @@ on several ticked rows at once:
 
 **Empty Trash** appears at the top of the Trash tab while it lists
 something, for an admin or an editor. It asks in a dialog titled
-"Empty the trash?" that counts the posts about to go and warns that
-this cannot be undone. Its **Empty trash** button is red, the colour
+"Empty the trash?" that counts every trashed post of the type, not
+only the ones a search shows, and warns that this cannot be undone.
+Its **Empty trash** button is red, the colour
 the WordPress design system gives an action with no way back.
 Confirm, and every trashed post of this type goes in one step. If
 some posts stay in the trash, such as ones trashed while it ran, the
