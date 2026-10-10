@@ -139,11 +139,31 @@ func TypedHolding(
 	filled.Fields = values
 	filled.UpdatedAt = time.Now().UTC()
 	snapshot := MustSnapshot(t, filled, author)
+	snapshot.Fields = copiedValue(map[string]any(values)).(map[string]any)
 	stored, err := store.Update(t.Context(), filled, created.UpdatedAt, snapshot, 0)
 	if err != nil {
 		t.Fatalf("storing the values of %q: %v, want nil", title, err)
 	}
 	return stored, *snapshot
+}
+
+// copiedValue returns the value with every JSON object and array inside it copied, every other value kept as given.
+func copiedValue(value any) any {
+	switch held := value.(type) {
+	case map[string]any:
+		copied := make(map[string]any, len(held))
+		for key, member := range held {
+			copied[key] = copiedValue(member)
+		}
+		return copied
+	case []any:
+		copied := make([]any, len(held))
+		for i, member := range held {
+			copied[i] = copiedValue(member)
+		}
+		return copied
+	}
+	return value
 }
 
 // ParkValues stores the author's autosave of the item holding the values.
