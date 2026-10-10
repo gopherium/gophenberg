@@ -868,10 +868,8 @@ func (s *memoryTypes) listing() []content.Group {
 	return append(groups, s.groups...)
 }
 
-// declaredKeys returns the key of every field a type or a group declares, however deep and resting groups included.
+// declaredKeys returns the key of every field a type or a group declares, the caller holding the store's lock.
 func (s *memoryTypes) declaredKeys() map[string]bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	declared := make(map[string]bool)
 	for _, t := range s.types {
 		keysInside(declared, t.Fields)
@@ -894,13 +892,21 @@ func keysInside(declared map[string]bool, fields []content.Field) {
 func (s *memoryTypes) ByKey(_ context.Context, key string) (content.Type, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if held, found := s.typeHeld(key); found {
+		return held, nil
+	}
+	return content.Type{}, content.ErrTypeNotFound
+}
+
+// typeHeld returns the stored type carrying the key with the fields its groups serve, the caller holding the lock.
+func (s *memoryTypes) typeHeld(key string) (content.Type, bool) {
 	for _, stored := range s.types {
 		if stored.Key == key {
 			stored.Fields = s.flattened(key, stored.Fields)
-			return stored, nil
+			return stored, true
 		}
 	}
-	return content.Type{}, content.ErrTypeNotFound
+	return content.Type{}, false
 }
 
 // Create stores a new type, or reports the key or the route word taken.
@@ -1064,10 +1070,8 @@ func (s *memoryTypes) holdsContent(ctx context.Context, key string) bool {
 	return err == nil && len(items) > 0
 }
 
-// serving reports whether the type is active enough to appear on a term page.
+// serving reports whether the type is active enough to appear on a term page, the caller holding the store's lock.
 func (s *memoryTypes) serving(key string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	for _, stored := range s.types {
 		if stored.Key == key {
 			return stored.Active
@@ -1084,10 +1088,8 @@ func (s *memoryTypes) reachedBy(field int) []string {
 	return s.typesMatchedBy(held)
 }
 
-// nests reports whether the stored type takes items under a parent.
+// nests reports whether the stored type takes items under a parent, the caller holding the store's lock.
 func (s *memoryTypes) nests(key string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	for _, stored := range s.types {
 		if stored.Key == key {
 			return stored.Hierarchical

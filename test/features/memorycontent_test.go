@@ -70,13 +70,27 @@ func identitiesIn(value any) []uuid.UUID {
 	return nil
 }
 
+// lockedAfterTypes takes the type store's lock and then the content lock, and returns the call that releases both.
+func (s *memoryContent) lockedAfterTypes() func() {
+	if s.types != nil {
+		s.types.mu.Lock()
+	}
+	s.mu.Lock()
+	return func() {
+		s.mu.Unlock()
+		if s.types != nil {
+			s.types.mu.Unlock()
+		}
+	}
+}
+
 // holdTargets reports whether every target exists and is the type its field points at.
 func (s *memoryContent) holdTargets(c content.Content, before content.Values) error {
 	if s.types == nil {
 		return nil
 	}
-	declared, err := s.types.ByKey(context.Background(), c.Type)
-	if err != nil {
+	declared, found := s.types.typeHeld(c.Type)
+	if !found {
 		return nil
 	}
 	pointing, err := content.HeldTargets(declared.Fields, c.Fields)
@@ -357,8 +371,7 @@ func (s *memoryContent) DeleteAutosave(_ context.Context, contentID, authorID uu
 
 // Create stores a new content item, suffixing its slug until its address is free.
 func (s *memoryContent) Create(_ context.Context, c content.Content) (content.Content, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.lockedAfterTypes()()
 	prefix, err := s.fileable(c, content.AddressPrefix(c.Path, c.Slug))
 	if err != nil {
 		return content.Content{}, err
@@ -793,8 +806,7 @@ func paged[T any](matched []T, f content.Filter) []T {
 func (s *memoryContent) Update(
 	_ context.Context, c content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision, revisionCap int,
 ) (content.Content, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.lockedAfterTypes()()
 	stored, found := s.items[c.ID]
 	if !found {
 		return content.Content{}, content.ErrNotFound
@@ -966,8 +978,7 @@ func (s *memoryContent) Counts(_ context.Context, contentType string) (map[conte
 func (s *memoryContent) RelatedTo(
 	_ context.Context, target uuid.UUID, page, perPage int,
 ) ([]content.Content, int, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.lockedAfterTypes()()
 	matched := make([]content.Content, 0, len(s.items))
 	for _, stored := range s.items {
 		if stored.Status != content.StatusPublished || !pointsAt(stored.Fields, target) {
@@ -1080,8 +1091,7 @@ func pagedPointers(held []content.Pointer, page, perPage int) []content.Pointer 
 
 // TargetsByIDs returns the published items of active types the identities name.
 func (s *memoryContent) TargetsByIDs(_ context.Context, ids []uuid.UUID) ([]content.Target, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.lockedAfterTypes()()
 	held := make([]content.Target, 0, len(ids))
 	for _, id := range ids {
 		pointed, stored := s.items[id]
