@@ -15,6 +15,47 @@ import (
 var groupRepointCases = []Case{
 	{"UpdateGroupPointsItsBacklinksAnewInTheSameWrite", updateGroupPointsItsBacklinksAnewInTheSameWrite},
 	{"UpdateGroupWritesNothingWhenAPointedFieldMovedOn", updateGroupWritesNothingWhenAPointedFieldMovedOn},
+	{"AFieldEditHoldingTheStampFromBeforeARepointConflicts", aFieldEditHoldingTheStampFromBeforeARepointConflicts},
+	{"UpdateGroupKeepsWhatTheRepointLeavesAlone", updateGroupKeepsWhatTheRepointLeavesAlone},
+}
+
+// aFieldEditHoldingTheStampFromBeforeARepointConflicts turns away a field edit holding the stamp a repoint replaced.
+func aFieldEditHoldingTheStampFromBeforeARepointConflicts(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	group, field := ReadersOn(t, s.Types, "car", "maker")
+	pointed := field
+	pointed.Settings = readingSource("twin")
+
+	if _, err := s.Types.UpdateGroup(t.Context(), group, []content.Field{pointed}, nil); err != nil {
+		t.Fatalf("UpdateGroup() error = %v, want nil", err)
+	}
+
+	served := storedField(t, s.Types, group.ID, field.ID)
+	staleThenServed(t, "UpdateFieldInGroup() after the repoint", field.UpdatedAt, served.UpdatedAt,
+		topFieldEdit(t, s.Types, group.ID, served))
+}
+
+// updateGroupKeepsWhatTheRepointLeavesAlone writes only the label, required flag, settings and stamp of a repoint.
+func updateGroupKeepsWhatTheRepointLeavesAlone(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	group, field := ReadersOn(t, s.Types, "car", "maker")
+	held := storedField(t, s.Types, group.ID, field.ID)
+	pointed := held
+	pointed.Settings = readingSource("twin")
+	pointed.Kind, pointed.Origin, pointed.CreatedAt = content.FieldKindText, "events", held.CreatedAt.Add(time.Hour)
+
+	if _, err := s.Types.UpdateGroup(t.Context(), group, []content.Field{pointed}, nil); err != nil {
+		t.Fatalf("UpdateGroup() error = %v, want nil", err)
+	}
+
+	stored := storedField(t, s.Types, group.ID, field.ID)
+	if stored.ID != held.ID || stored.Kind != held.Kind || stored.Origin != held.Origin ||
+		!stored.CreatedAt.Equal(held.CreatedAt) {
+		t.Errorf("the repointed field = %+v, want only its label, required flag, settings and stamp rewritten", stored)
+	}
+	if path := content.SourceFieldOf(stored); !slices.Equal(path, []string{"twin"}) {
+		t.Errorf("SourceFieldOf() = %v, want the backlinks reading the twin", path)
+	}
 }
 
 // updateGroupPointsItsBacklinksAnewInTheSameWrite moves a group and points its backlinks field anew in one write.
