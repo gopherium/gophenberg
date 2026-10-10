@@ -289,7 +289,7 @@ func TestAChoiceThatCannotBeStoredLeavesTheSiteAsItWas(t *testing.T) {
 	manager := themehost.NewManager(themehost.ManagerConfig{
 		Library:     themehost.NewLibrary(filepath.Dir(serving.Dir)),
 		Settings:    settings,
-		Supervision: themehost.SupervisorConfig{NodeBin: node},
+		Supervision: themehost.SupervisorConfig{NodeBin: node, MaxAttempts: 1},
 	})
 	t.Cleanup(manager.Close)
 	if err := manager.Activate(t.Context(), "starter"); err != nil {
@@ -321,7 +321,7 @@ func TestOnlyTheThemeActuallyRunningIsReportedAsServing(t *testing.T) {
 	manager := themehost.NewManager(themehost.ManagerConfig{
 		Library:     themehost.NewLibrary(themesDir),
 		Settings:    settings,
-		Supervision: themehost.SupervisorConfig{NodeBin: node},
+		Supervision: themehost.SupervisorConfig{NodeBin: node, MaxAttempts: 1},
 	})
 	t.Cleanup(manager.Close)
 	if err := manager.Activate(t.Context(), "starter"); err != nil {
@@ -370,14 +370,14 @@ func TestASwitchThatCannotBeStoredLeavesTheRollbackHistoryAlone(t *testing.T) {
 	manager := themehost.NewManager(themehost.ManagerConfig{
 		Library:     themehost.NewLibrary(filepath.Dir(running.Dir)),
 		Settings:    settings,
-		Supervision: themehost.SupervisorConfig{NodeBin: node},
+		Supervision: themehost.SupervisorConfig{NodeBin: node, MaxAttempts: 1},
 	})
 	t.Cleanup(manager.Close)
 
 	err := manager.Activate(t.Context(), "starter")
 
-	if err == nil {
-		t.Fatal("Activate() = nil, want the storage failure reported")
+	if err == nil || !strings.Contains(err.Error(), "the database is gone") {
+		t.Fatalf("Activate() = %v, want the storage failure reported", err)
 	}
 	if _, known, _ := settings.Lookup(t.Context(), themehost.PreviousKey); known {
 		t.Error("a switch that was never stored still wrote rollback history")
@@ -411,9 +411,10 @@ func TestClosingWaitsForTheThemeItRetired(t *testing.T) {
 		Library:  themehost.NewLibrary(themesDir),
 		Settings: newSettings(),
 		Supervision: themehost.SupervisorConfig{
-			NodeBin:   node,
-			StopGrace: 250 * time.Millisecond,
-			Logger:    slog.New(slog.NewTextHandler(logs, nil)),
+			NodeBin:     node,
+			StopGrace:   250 * time.Millisecond,
+			Logger:      slog.New(slog.NewTextHandler(logs, nil)),
+			MaxAttempts: 1,
 		},
 	})
 	if err := manager.Activate(t.Context(), "aurora"); err != nil {
@@ -518,8 +519,8 @@ func TestTheManagerRefusesABootPinNamingAThemeThatIsGone(t *testing.T) {
 	}
 }
 
-// managerServing returns a manager whose library holds one theme that really serves.
-func managerServing(t *testing.T, settings themehost.Settings, pinned string) *themehost.Manager {
+// managerServing returns a manager whose library holds one theme that really serves, and the logs it writes.
+func managerServing(t *testing.T, settings themehost.Settings, pinned string) (*themehost.Manager, *logBuffer) {
 	t.Helper()
 
 	node := nodeBin(t)
@@ -533,20 +534,21 @@ func managerServing(t *testing.T, settings themehost.Settings, pinned string) *t
 	if err := os.WriteFile(filepath.Join(dir, "server", "entry.mjs"), source, 0o644); err != nil {
 		t.Fatalf("writing the stub entry: %v", err)
 	}
+	logs := &logBuffer{}
 	manager := themehost.NewManager(themehost.ManagerConfig{
 		Library:  themehost.NewLibrary(themesDir),
 		Settings: settings,
 		Pinned:   pinned,
 		Supervision: themehost.SupervisorConfig{
-			NodeBin:      node,
-			ReadyTimeout: 20 * time.Second,
-			Backoff:      time.Millisecond,
-			MaxBackoff:   time.Millisecond,
-			MaxAttempts:  2,
+			NodeBin:     node,
+			Logger:      slog.New(slog.NewTextHandler(logs, nil)),
+			Backoff:     time.Millisecond,
+			MaxBackoff:  time.Millisecond,
+			MaxAttempts: 1,
 		},
 	})
 	t.Cleanup(manager.Close)
-	return manager
+	return manager, logs
 }
 
 func TestBootServesThroughTheStoredChoice(t *testing.T) {
@@ -554,33 +556,22 @@ func TestBootServesThroughTheStoredChoice(t *testing.T) {
 
 	settings := newSettings()
 	settings.values[themehost.ActiveKey] = "aurora"
-	manager := managerServing(t, settings, "")
+	manager, logs := managerServing(t, settings, "")
 
 	if err := manager.Boot(t.Context()); err != nil {
 		t.Fatalf("Boot() error = %v, want nil", err)
 	}
-
-	if !servingWithin(manager, 20*time.Second) {
-		t.Error("the holder is not serving, want the stored theme in front of the site")
+	if held, _ := manager.Holder().Serving(); held != "aurora" {
+		t.Fatalf("the holder holds %q, want the stored theme aurora\nsupervisor logs:\n%s", held, logs)
 	}
-}
 
-// servingWithin reports whether the manager's holder starts serving before the deadline.
-func servingWithin(manager *themehost.Manager, within time.Duration) bool {
-	deadline := time.Now().Add(within)
-	for time.Now().Before(deadline) {
-		if manager.Holder().Healthy() {
-			return true
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	return false
+	waitReady(t, "the stored theme to serve in front of the site", manager.Holder(), logs)
 }
 
 func TestBootServesTheRendererWhenNoThemeIsStored(t *testing.T) {
 	t.Parallel()
 
-	manager := managerServing(t, newSettings(), "")
+	manager, _ := managerServing(t, newSettings(), "")
 
 	if err := manager.Boot(t.Context()); err != nil {
 		t.Fatalf("Boot() error = %v, want nil", err)
@@ -595,7 +586,7 @@ func TestActivateAndRollBackWalkBothWays(t *testing.T) {
 	t.Parallel()
 
 	settings := newSettings()
-	manager := managerServing(t, settings, "")
+	manager, _ := managerServing(t, settings, "")
 	if err := manager.Activate(t.Context(), "aurora"); err != nil {
 		t.Fatalf("Activate() error = %v, want nil", err)
 	}

@@ -78,14 +78,13 @@ func startSupervisor(
 
 	logs := &logBuffer{}
 	config := themehost.SupervisorConfig{
-		Theme:        installStub(t, stub),
-		NodeBin:      nodeBin(t),
-		APIAddr:      "127.0.0.1:8081",
-		Logger:       slog.New(slog.NewTextHandler(logs, nil)),
-		ReadyTimeout: 5 * time.Second,
-		Backoff:      10 * time.Millisecond,
-		MaxBackoff:   40 * time.Millisecond,
-		MaxAttempts:  3,
+		Theme:       installStub(t, stub),
+		NodeBin:     nodeBin(t),
+		APIAddr:     "127.0.0.1:8081",
+		Logger:      slog.New(slog.NewTextHandler(logs, nil)),
+		Backoff:     10 * time.Millisecond,
+		MaxBackoff:  40 * time.Millisecond,
+		MaxAttempts: 1,
 	}
 	if tune != nil {
 		tune(&config)
@@ -96,6 +95,9 @@ func startSupervisor(
 	return supervisor, logs
 }
 
+// waitPoll is how often a test wait checks its condition.
+const waitPoll = 5 * time.Millisecond
+
 // waitFor polls until the condition holds or the deadline passes.
 func waitFor(t *testing.T, why string, condition func() bool) {
 	t.Helper()
@@ -105,9 +107,29 @@ func waitFor(t *testing.T, why string, condition func() bool) {
 		if condition() {
 			return
 		}
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(waitPoll)
 	}
 	t.Fatalf("timed out waiting for %s", why)
+}
+
+// readiness is what a readiness wait watches, a theme that either serves or gives up starting.
+type readiness interface {
+	Healthy() bool
+	StartFailed() bool
+}
+
+// waitReady polls until the theme serves, failing with the supervisor logs once its start fails or time runs out.
+func waitReady(t *testing.T, why string, theme readiness, logs *logBuffer) {
+	t.Helper()
+
+	deadline, bounded := t.Deadline()
+	grace := time.Until(deadline) / 20
+	for !theme.Healthy() {
+		if theme.StartFailed() || (bounded && time.Until(deadline) < 2*grace) {
+			t.Fatalf("timed out waiting for %s\nsupervisor logs:\n%s", why, logs)
+		}
+		time.Sleep(waitPoll)
+	}
 }
 
 func TestSupervisorServesOnceTheThemeReportsReady(t *testing.T) {
@@ -115,7 +137,7 @@ func TestSupervisorServesOnceTheThemeReportsReady(t *testing.T) {
 
 	supervisor, logs := startSupervisor(t, "healthy", nil)
 
-	waitFor(t, "the theme to report ready", supervisor.Healthy)
+	waitReady(t, "the theme to report ready", supervisor, logs)
 
 	response, err := http.Get(supervisor.Target() + "/anything")
 	if err != nil {
@@ -135,8 +157,8 @@ func TestSupervisorServesOnceTheThemeReportsReady(t *testing.T) {
 
 func TestSupervisorGivesTheChildOnlyTheAllowlist(t *testing.T) {
 	t.Setenv("GOPHENBERG_DATABASE_URL", "postgres://should-never-reach-the-child")
-	supervisor, _ := startSupervisor(t, "env", nil)
-	waitFor(t, "the theme to report ready", supervisor.Healthy)
+	supervisor, logs := startSupervisor(t, "env", nil)
+	waitReady(t, "the theme to report ready", supervisor, logs)
 
 	response, err := http.Get(supervisor.Target() + "/env")
 	if err != nil {
@@ -168,15 +190,17 @@ func TestSupervisorGivesTheChildOnlyTheAllowlist(t *testing.T) {
 func TestSupervisorWaitsForASlowBoot(t *testing.T) {
 	t.Parallel()
 
-	supervisor, _ := startSupervisor(t, "slow", nil)
+	supervisor, logs := startSupervisor(t, "slow", nil)
 
-	waitFor(t, "the slow theme to report ready", supervisor.Healthy)
+	waitReady(t, "the slow theme to report ready", supervisor, logs)
 }
 
 func TestSupervisorBacksOffThenFailsTheStartOfAThemeThatNeverBoots(t *testing.T) {
 	t.Parallel()
 
-	supervisor, logs := startSupervisor(t, "crash", nil)
+	supervisor, logs := startSupervisor(t, "crash", func(config *themehost.SupervisorConfig) {
+		config.MaxAttempts = 3
+	})
 
 	waitFor(t, "the supervisor to stop retrying", func() bool {
 		return strings.Contains(logs.String(), "theme start failed")
@@ -195,8 +219,8 @@ func TestSupervisorBacksOffThenFailsTheStartOfAThemeThatNeverBoots(t *testing.T)
 func TestSupervisorLeavesNoOrphanBehind(t *testing.T) {
 	t.Parallel()
 
-	supervisor, _ := startSupervisor(t, "healthy", nil)
-	waitFor(t, "the theme to report ready", supervisor.Healthy)
+	supervisor, logs := startSupervisor(t, "healthy", nil)
+	waitReady(t, "the theme to report ready", supervisor, logs)
 	group := supervisor.Group()
 	if group <= 0 {
 		t.Fatalf("Group() = %d, want the child process group", group)
@@ -212,10 +236,10 @@ func TestSupervisorLeavesNoOrphanBehind(t *testing.T) {
 func TestSupervisorKillsAThemeThatSwallowsSigterm(t *testing.T) {
 	t.Parallel()
 
-	supervisor, _ := startSupervisor(t, "stubborn", func(config *themehost.SupervisorConfig) {
+	supervisor, logs := startSupervisor(t, "stubborn", func(config *themehost.SupervisorConfig) {
 		config.StopGrace = 100 * time.Millisecond
 	})
-	waitFor(t, "the stubborn theme to report ready", supervisor.Healthy)
+	waitReady(t, "the stubborn theme to report ready", supervisor, logs)
 	group := supervisor.Group()
 
 	supervisor.Stop()
@@ -244,7 +268,7 @@ func TestSupervisorFailsTheStartOfAThemeThatBootsButNeverReportsReady(t *testing
 		config.ReadyTimeout = 150 * time.Millisecond
 	})
 
-	waitFor(t, "the supervisor to stop retrying a theme that never answers", func() bool {
+	waitFor(t, "the supervisor to fail a theme that never answers", func() bool {
 		return strings.Contains(logs.String(), "theme start failed")
 	})
 	if supervisor.Healthy() {

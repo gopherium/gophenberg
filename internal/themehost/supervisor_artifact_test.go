@@ -3,12 +3,10 @@
 package themehost_test
 
 import (
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/gopherium/gophenberg/internal/themehost"
 )
@@ -29,17 +27,18 @@ func TestSupervisorRunsAThemeARealBuildProduced(t *testing.T) {
 		t.Fatalf("loading the built theme: %v", err)
 	}
 
+	logs := &logBuffer{}
 	supervisor := themehost.NewSupervisor(themehost.SupervisorConfig{
-		Theme:        theme,
-		NodeBin:      nodeBin(t),
-		APIAddr:      "127.0.0.1:8081",
-		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
-		ReadyTimeout: 20 * time.Second,
+		Theme:       theme,
+		NodeBin:     nodeBin(t),
+		APIAddr:     "127.0.0.1:8081",
+		Logger:      slog.New(slog.NewTextHandler(logs, nil)),
+		MaxAttempts: 1,
 	})
 	supervisor.Start()
 	t.Cleanup(supervisor.Stop)
 
-	waitFor(t, "the built theme to report ready", supervisor.Healthy)
+	waitReady(t, "the built theme to report ready", supervisor, logs)
 
 	response, err := http.Get(supervisor.Target() + "/_gophenberg/health")
 	if err != nil {

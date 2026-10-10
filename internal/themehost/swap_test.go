@@ -110,11 +110,11 @@ func TestHolderSaysWhenTheHeldThemeFailedItsStart(t *testing.T) {
 func TestHolderReportsTheThemeItHolds(t *testing.T) {
 	t.Parallel()
 
-	supervisor, _ := startSupervisor(t, "healthy", nil)
+	supervisor, logs := startSupervisor(t, "healthy", nil)
 	holder := themehost.NewHolder()
 	holder.Swap(supervisor)
 
-	waitFor(t, "the held theme to report ready", holder.Healthy)
+	waitReady(t, "the held theme to report ready", holder, logs)
 
 	if holder.Target() != supervisor.Target() {
 		t.Errorf("Target() = %q, want the held theme's address", holder.Target())
@@ -125,7 +125,7 @@ func TestHolderHandsBackWhatItHeld(t *testing.T) {
 	t.Parallel()
 
 	first, _ := startSupervisor(t, "healthy", nil)
-	second, _ := startSupervisor(t, "healthy", nil)
+	second, logs := startSupervisor(t, "healthy", nil)
 	holder := themehost.NewHolder()
 	holder.Swap(first)
 
@@ -134,7 +134,7 @@ func TestHolderHandsBackWhatItHeld(t *testing.T) {
 	if previous != first {
 		t.Error("Swap() did not hand back the theme it held")
 	}
-	waitFor(t, "the new theme to report ready", holder.Healthy)
+	waitReady(t, "the new theme to report ready", holder, logs)
 	if holder.Target() != second.Target() {
 		t.Errorf("Target() = %q, want the new theme's address", holder.Target())
 	}
@@ -143,10 +143,10 @@ func TestHolderHandsBackWhatItHeld(t *testing.T) {
 func TestHolderReturnsToNothingServing(t *testing.T) {
 	t.Parallel()
 
-	supervisor, _ := startSupervisor(t, "healthy", nil)
+	supervisor, logs := startSupervisor(t, "healthy", nil)
 	holder := themehost.NewHolder()
 	holder.Swap(supervisor)
-	waitFor(t, "the held theme to report ready", holder.Healthy)
+	waitReady(t, "the held theme to report ready", holder, logs)
 
 	holder.Swap(nil)
 

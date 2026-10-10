@@ -23,11 +23,10 @@ func managerRunning(t *testing.T, stub string, tune func(*themehost.SupervisorCo
 	themesDir := t.TempDir()
 	plantStub(t, themesDir, "aurora", stub)
 	supervision := themehost.SupervisorConfig{
-		NodeBin:      node,
-		ReadyTimeout: 20 * time.Second,
-		Backoff:      time.Millisecond,
-		MaxBackoff:   time.Millisecond,
-		MaxAttempts:  2,
+		NodeBin:     node,
+		Backoff:     time.Millisecond,
+		MaxBackoff:  time.Millisecond,
+		MaxAttempts: 1,
 	}
 	if tune != nil {
 		tune(&supervision)
