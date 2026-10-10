@@ -5,7 +5,7 @@ import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { __, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, Page } from '@gopherium/godmin'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 
 import { usePostActions, useRefresh } from './actions'
@@ -44,7 +44,7 @@ function useListRun(
 	const [shown, setShown] = useState<{ scope: string, failure?: string }>({ scope })
 	const list = useRef<HTMLDivElement>(null)
 	const latest = useRef(0)
-	useEffect(() => {
+	useLayoutEffect(() => {
 		latest.current += 1
 	}, [scope])
 	if (shown.scope !== scope) {
