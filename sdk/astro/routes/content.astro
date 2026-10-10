@@ -8,9 +8,9 @@ import { GophenbergClient } from '../client.ts'
 export const prerender = false
 
 /**
- * Returns the requested path decoded once, before Astro normalizes its URL.
+ * Returns the original request's content path decoded once.
  * @param url - The original request address.
- * @returns The content path, retaining invalid escapes for the resolver to reject.
+ * @returns The content path, with malformed escapes left unchanged.
  */
 function contentPath(url: string): string {
 	const { pathname } = new URL(url)
