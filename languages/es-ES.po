@@ -151,9 +151,6 @@ msgstr[0] "No se ha podido borrar ese elemento."
 msgstr[1] "No se han podido borrar todos los elementos."
 msgstr[2] "No se han podido borrar todos los elementos."
 
-msgid "Could not empty the trash."
-msgstr "No se ha podido vaciar la papelera."
-
 msgid "Could not load that post."
 msgstr "No se ha podido cargar esa entrada."
 
@@ -177,9 +174,6 @@ msgstr "Por defecto"
 
 msgid "Delete"
 msgstr "Borrar"
-
-msgid "Delete All"
-msgstr "Borrar todo"
 
 msgid "Delete Permanently"
 msgstr "Borrar permanentemente"
@@ -2190,3 +2184,14 @@ msgid_plural "%s items could not be permanently deleted."
 msgstr[0] "No se ha podido borrar permanentemente %s elemento."
 msgstr[1] "No se han podido borrar permanentemente %s elementos."
 msgstr[2] "No se han podido borrar permanentemente %s elementos."
+
+#, fuzzy
+msgid "The trash could not be emptied."
+msgstr "No se ha podido vaciar la papelera."
+
+#, fuzzy
+msgid "%s item stays in the trash."
+msgid_plural "%s items stay in the trash."
+msgstr[0] "%s elemento sigue en la papelera."
+msgstr[1] "%s elementos siguen en la papelera."
+msgstr[2] "%s elementos siguen en la papelera."

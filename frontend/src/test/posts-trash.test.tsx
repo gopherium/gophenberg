@@ -525,13 +525,23 @@ test('opens a post deleted for good as a missing post', async () => {
 
 test('opens a post removed by emptying the trash as a missing post', async () => {
 	serveMovable('trash')
+	let emptied = false
+	server.use(
+		http.delete('/api/content/trash', () => {
+			emptied = true
+			return HttpResponse.json({ deleted: 1, kept: 0 })
+		}),
+		http.get(`/api/content/${TRASHED.id}`, () =>
+			emptied ? HttpResponse.json({}, { status: 404 }) : HttpResponse.json({ ...storedPost, ...TRASHED }),
+		),
+	)
 	const { router } = renderRoutedAt(EDITOR_PATH)
 	await screen.findByText(/This item is in the trash/)
 	await goToList(router)
 	await userEvent.click(await screen.findByRole('button', { name: 'Trash (1)' }))
 	await userEvent.click(await screen.findByRole('button', { name: 'Empty Trash' }))
-	await userEvent.click(await screen.findByRole('button', { name: 'Delete All' }))
-	await waitFor(() => expect(deleted).toHaveLength(1))
+	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Empty Trash' }))
+	await waitFor(() => expect(emptied).toBe(true))
 
 	await goToEditor(router)
 

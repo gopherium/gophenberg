@@ -13,8 +13,6 @@ const MAX_POSTS_PER_PAGE = 100
 
 const MAX_LISTING_PAGES = 100
 
-const MAX_EMPTY_ROUNDS = 50
-
 const postSchema = z.object({
 	id: z.string(),
 	type: z.string(),
@@ -47,6 +45,8 @@ const errorSchema = z.object({
 })
 
 const countsSchema = z.record(z.string(), z.number())
+
+const emptiedSchema = z.object({ deleted: z.number(), kept: z.number() })
 
 export interface Post {
 	id: string
@@ -412,34 +412,18 @@ export async function listEveryPost(query: PostQuery): Promise<Post[]> {
 	return held
 }
 
-/** What emptying the trash removed, and whether the trash is empty now. */
-export interface Emptied {
-	removed: string[]
-	finished: boolean
-}
+/** How many items emptying a type's trash deleted for good and how many it left there. */
+export type Emptied = z.infer<typeof emptiedSchema>
 
 /**
- * Removes every trashed post of a type for good, as far as the server lets it.
+ * Removes for good every trashed item of a type the session may change.
  * @param type - The content type whose trash to empty.
- * @returns The ids of the posts removed and whether the trash is empty now.
+ * @returns How many items went and how many stayed.
  */
 export async function emptyTrash(type: string): Promise<Emptied> {
-	const removed: string[] = []
-	for (let round = 0; round < MAX_EMPTY_ROUNDS; round += 1) {
-		const page = await listPosts({ type, status: 'trash' }).catch(() => null)
-		if (page === null) {
-			return { removed, finished: false }
-		}
-		if (page.items.length === 0) {
-			return { removed, finished: true }
-		}
-		const outcomes = await Promise.allSettled(page.items.map((post) => deletePost(post.id)))
-		removed.push(...page.items.filter((_, index) => outcomes[index].status === 'fulfilled').map((post) => post.id))
-		if (outcomes.some((outcome) => outcome.status === 'rejected')) {
-			return { removed, finished: false }
-		}
-	}
-	return { removed, finished: false }
+	const fallback = __('The trash could not be emptied.', 'gophenberg')
+	const response = await accepted(`/api/content/trash?${new URLSearchParams({ type })}`, 'DELETE', fallback)
+	return emptiedSchema.parse(await response.json())
 }
 
 /**

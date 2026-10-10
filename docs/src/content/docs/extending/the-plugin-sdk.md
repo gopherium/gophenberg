@@ -342,3 +342,6 @@ the SDK, so the admin keeps one copy of the icon set:
 ```ts
 import { trashIcon } from '@gophenberg/frontend-sdk'
 ```
+
+To confirm an action, open a `Dialog` that holds the question, a
+**Cancel** button and a button named after the action.
