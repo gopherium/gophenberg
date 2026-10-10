@@ -4,24 +4,26 @@ package definitions_test
 
 import (
 	"context"
-	"sync"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
-// editingStore lands a rival edit once, the first time the groups are read after it is armed.
+// editingStore lands a rival edit once, on the first groups read after it is armed and the skipped reads pass.
 type editingStore struct {
 	content.TypeStore
-	once  sync.Once
+	skip  int
 	rival func(context.Context)
 }
 
-// ListGroups runs the armed rival edit before the first read of the groups, then reads them.
+// ListGroups disarms and runs the rival edit once the skipped reads pass, then reads the groups.
 func (s *editingStore) ListGroups(ctx context.Context) ([]content.Group, error) {
-	if s.rival != nil {
-		s.once.Do(func() { s.rival(ctx) })
+	if s.rival != nil && s.skip > 0 {
+		s.skip--
+	} else if rival := s.rival; rival != nil {
+		s.rival = nil
+		rival(ctx)
 	}
 	return s.TypeStore.ListGroups(ctx)
 }

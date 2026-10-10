@@ -41,15 +41,23 @@ func nestingSiteWithPool(
 ) (*content.Registry, *postgres.ContentStore, uuid.UUID, *pgxpool.Pool) {
 	t.Helper()
 	pool, registry := definedSite(t)
+	nestingRecipe(t, registry)
+	return registry, postgres.NewContentStore(pool), authorOn(t, pool), pool
+}
+
+// nestingRecipe turns the registry's recipe type nesting and returns it as stored.
+func nestingRecipe(t *testing.T, registry *content.Registry) content.Type {
+	t.Helper()
 	recipe, err := registry.ByKey(t.Context(), "recipe")
 	if err != nil {
 		t.Fatalf("ByKey(recipe) error = %v, want nil", err)
 	}
 	recipe.Hierarchical, recipe.UpdatedAt = true, time.Now().UTC()
-	if _, err := registry.Update(t.Context(), recipe); err != nil {
+	nesting, err := registry.Update(t.Context(), recipe)
+	if err != nil {
 		t.Fatalf("Update(recipe) error = %v, want the type nesting", err)
 	}
-	return registry, postgres.NewContentStore(pool), authorOn(t, pool), pool
+	return nesting
 }
 
 // filed stores an item of the type under the parent and returns it.
@@ -153,19 +161,12 @@ func TestCompareReportsNestedItemsItCannotCount(t *testing.T) {
 	t.Parallel()
 
 	pool, registry := definedSite(t)
-	recipe, err := registry.ByKey(t.Context(), "recipe")
-	if err != nil {
-		t.Fatalf("ByKey(recipe) error = %v, want nil", err)
-	}
-	recipe.Hierarchical, recipe.UpdatedAt = true, time.Now().UTC()
-	if _, err := registry.Update(t.Context(), recipe); err != nil {
-		t.Fatalf("Update(recipe) error = %v, want the type nesting", err)
-	}
+	nestingRecipe(t, registry)
 	envelope := exported(t, registry)
 	flatteningRecipe(t, envelope)
 	sabotage(t, pool, "ALTER TABLE core.content RENAME COLUMN parent_id TO parent_gone")
 
-	_, err = definitions.Compare(t.Context(), registry, envelope)
+	_, err := definitions.Compare(t.Context(), registry, envelope)
 
 	if err == nil {
 		t.Error("Compare() error = nil, want the failing count reported")
@@ -215,23 +216,29 @@ func TestApplyStopsATypeNestingWhileNoneOfItsItemsNests(t *testing.T) {
 	}
 }
 
-func TestDeclareTypeKeepsAPluginTypeNestingWhileItsItemsNest(t *testing.T) {
-	t.Parallel()
-
+// nestingEvent declares the event type nesting with one event filed inside another and returns it as stored.
+func nestingEvent(t *testing.T) (*pgxpool.Pool, *definitions.Registrar, content.Type) {
+	t.Helper()
 	pool, registrar := declaringPool(t)
 	nesting := eventType()
 	nesting.Hierarchical = true
 	if err := registrar.DeclareType(t.Context(), nesting); err != nil {
 		t.Fatalf("DeclareType(nesting) error = %v, want nil", err)
 	}
-	registry := content.NewRegistry(postgres.NewTypeStore(pool))
-	event, err := registry.ByKey(t.Context(), "event")
+	event, err := content.NewRegistry(postgres.NewTypeStore(pool)).ByKey(t.Context(), "event")
 	if err != nil {
 		t.Fatalf("ByKey(event) error = %v, want nil", err)
 	}
 	items, author := postgres.NewContentStore(pool), authorOn(t, pool)
 	gala := filed(t, items, event, nil, "Gala", author)
 	filed(t, items, event, &gala, "After party", author)
+	return pool, registrar, event
+}
+
+func TestDeclareTypeKeepsAPluginTypeNestingWhileItsItemsNest(t *testing.T) {
+	t.Parallel()
+
+	pool, registrar, _ := nestingEvent(t)
 	flat := eventType()
 	flat.SingularLabel = "Gathering"
 
@@ -253,6 +260,21 @@ func TestDeclareTypeKeepsAPluginTypeNestingWhileItsItemsNest(t *testing.T) {
 	if len(registrar.Skipped()) != 0 {
 		t.Errorf("skipped = %+v, want the plugin's own type left out of what another owner holds",
 			registrar.Skipped())
+	}
+}
+
+func TestDeclareTypeKeepsTheStampOfAPluginTypeItLeavesNesting(t *testing.T) {
+	t.Parallel()
+
+	pool, registrar, held := nestingEvent(t)
+
+	if err := registrar.DeclareType(t.Context(), eventType()); err != nil {
+		t.Fatalf("DeclareType(flat) error = %v, want the declaration standing around the nested items", err)
+	}
+
+	stampKept(t, content.NewRegistry(postgres.NewTypeStore(pool)), held)
+	if !heldNames(registrar.Kept(), definitions.SubjectType, "event") {
+		t.Errorf("kept = %+v, want the type the plugin could not flatten named there", registrar.Kept())
 	}
 }
 

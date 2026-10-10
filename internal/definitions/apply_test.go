@@ -419,6 +419,14 @@ func TestApplyLeavesTheRootWhereTheSiteHasIt(t *testing.T) {
 			envelope.Types[i].Default, envelope.Types[i].RouteWord = false, "posts"
 		}
 	}
+	storedPost, err := registry.ByKey(t.Context(), content.TypePost)
+	if err != nil {
+		t.Fatalf("ByKey(post) error = %v, want nil", err)
+	}
+	storedRecipe, err := registry.ByKey(t.Context(), "recipe")
+	if err != nil {
+		t.Fatalf("ByKey(recipe) error = %v, want nil", err)
+	}
 
 	outcome := applied(t, registry, importing(envelope))
 
@@ -429,9 +437,10 @@ func TestApplyLeavesTheRootWhereTheSiteHasIt(t *testing.T) {
 	if err != nil || !post.Default {
 		t.Errorf("the post type = %+v, %v, want it still holding the root", post, err)
 	}
+	stampKept(t, registry, storedPost)
 	recipe, err := registry.ByKey(t.Context(), "recipe")
-	if err != nil || recipe.SingularLabel != "Dish" {
-		t.Errorf("the recipe type = %+v, %v, want its label carried even so", recipe, err)
+	if err != nil || recipe.SingularLabel != "Dish" || recipe.UpdatedAt.Equal(storedRecipe.UpdatedAt) {
+		t.Errorf("the recipe type = %+v, %v, want its label carried even so under a new stamp", recipe, err)
 	}
 }
 
@@ -457,6 +466,25 @@ func TestApplyCarriesARouteWordChangeWithoutKeepingTheRootOrTheNesting(t *testin
 	}
 }
 
+func TestApplyRestsATypeTheFileRests(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].Active = false
+		}
+	}
+
+	applied(t, registry, importing(envelope))
+
+	recipe, err := registry.ByKey(t.Context(), "recipe")
+	if err != nil || recipe.Active {
+		t.Errorf("the recipe type = %+v, %v, want it resting as the file says", recipe, err)
+	}
+}
+
 func TestApplyLeavesTheRootWhenTheFileOnlyTakesItFromTheRootType(t *testing.T) {
 	t.Parallel()
 
@@ -466,6 +494,10 @@ func TestApplyLeavesTheRootWhenTheFileOnlyTakesItFromTheRootType(t *testing.T) {
 		if envelope.Types[i].Key == content.TypePost {
 			envelope.Types[i].Default, envelope.Types[i].RouteWord = false, "posts"
 		}
+	}
+	stored, err := registry.ByKey(t.Context(), content.TypePost)
+	if err != nil {
+		t.Fatalf("ByKey(post) error = %v, want nil", err)
 	}
 
 	outcome := applied(t, registry, importing(envelope))
@@ -480,6 +512,7 @@ func TestApplyLeavesTheRootWhenTheFileOnlyTakesItFromTheRootType(t *testing.T) {
 	if err != nil || !post.Default {
 		t.Errorf("the post type = %+v, %v, want it still holding the root", post, err)
 	}
+	stampKept(t, registry, stored)
 }
 
 func TestApplyRefusesAFileTouchingWhatAPluginDeclared(t *testing.T) {

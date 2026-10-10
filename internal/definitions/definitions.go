@@ -100,17 +100,20 @@ func (r *Registrar) DeclareType(ctx context.Context, declared sdk.TypeDeclaratio
 	if sameType(stored, wanted) {
 		return nil
 	}
-	return r.carryType(ctx, wanted, declared.Key)
+	return r.carryType(ctx, stored, wanted, declared.Key)
 }
 
-// carryType stores the declared type, leaving its nesting on while items of it sit inside one another.
-func (r *Registrar) carryType(ctx context.Context, wanted content.Type, key string) error {
+// carryType stores the declared type, or stores it nesting while its items nest unless the site already holds that.
+func (r *Registrar) carryType(ctx context.Context, stored, wanted content.Type, key string) error {
 	_, err := r.registry.Update(ctx, wanted)
 	if !errors.Is(err, content.ErrNestingInUse) {
 		return err
 	}
 	r.keeps(SubjectType, key)
 	wanted.Hierarchical = true
+	if sameType(stored, wanted) {
+		return nil
+	}
 	_, err = r.registry.Update(ctx, wanted)
 	return err
 }
@@ -322,12 +325,13 @@ func rulesOf(declared [][]sdk.Rule) content.Rules {
 	return rules
 }
 
-// sameType reports whether two types say the same thing about themselves.
+// sameType reports whether two types say the same thing about themselves, down to the route word, root and active flag.
 func sameType(a, b content.Type) bool {
 	return a.SingularLabel == b.SingularLabel && a.PluralLabel == b.PluralLabel &&
 		a.Hierarchical == b.Hierarchical && a.Revisions == b.Revisions &&
 		a.RevisionCap == b.RevisionCap && a.PageKind == b.PageKind &&
-		a.Description == b.Description
+		a.Description == b.Description && a.RouteWord == b.RouteWord &&
+		a.Default == b.Default && a.Active == b.Active
 }
 
 // sameSettings reports whether two settings hold the same values once written as JSON.

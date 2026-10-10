@@ -3,11 +3,22 @@
 package definitions_test
 
 import (
+	"context"
 	"testing"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
+
+// stampKept fails the test when the type the registry holds under the held one's key carries another stamp.
+func stampKept(t *testing.T, registry *content.Registry, held content.Type) {
+	t.Helper()
+	after, err := registry.ByKey(t.Context(), held.Key)
+	if err != nil || !after.UpdatedAt.Equal(held.UpdatedAt) {
+		t.Errorf("%s UpdatedAt = %v, %v, want the stored %v kept", held.Key, after.UpdatedAt, err, held.UpdatedAt)
+	}
+}
 
 func TestApplyStampsATypeItCreates(t *testing.T) {
 	t.Parallel()
@@ -85,4 +96,74 @@ func TestApplyStampsTheItemsItMovesToANewRouteWord(t *testing.T) {
 	if moved.UpdatedAt.Before(before) {
 		t.Errorf("UpdatedAt = %v, want it stamped at or after %v", moved.UpdatedAt, before)
 	}
+}
+
+func TestApplyKeepsTheStampOfATypeItLeavesNesting(t *testing.T) {
+	t.Parallel()
+
+	registry, items, author := nestingSite(t)
+	recipeUnderAnother(t, registry, items, author)
+	envelope := exported(t, registry)
+	flatteningRecipe(t, envelope)
+	held, err := registry.ByKey(t.Context(), "recipe")
+	if err != nil {
+		t.Fatalf("ByKey(recipe) error = %v, want nil", err)
+	}
+
+	applied(t, registry, importing(envelope))
+
+	stampKept(t, registry, held)
+}
+
+func TestApplyKeepsTheStampOfATypeWhoseLabelOnlyGainsSpaces(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	relabeling(t, envelope, "recipe", " Recipe ")
+	held, err := registry.ByKey(t.Context(), "recipe")
+	if err != nil {
+		t.Fatalf("ByKey(recipe) error = %v, want nil", err)
+	}
+
+	applied(t, registry, importing(envelope))
+
+	stampKept(t, registry, held)
+}
+
+func TestApplyKeepsTheStampOfAnEditMadeWhileItRunsThatMatchesTheFile(t *testing.T) {
+	t.Parallel()
+
+	pool, _ := declaringPool(t)
+	store := &editingStore{TypeStore: postgres.NewTypeStore(pool)}
+	registry := content.NewRegistry(store)
+	siteDefined(t, registry)
+	envelope := exported(t, registry)
+	relabeling(t, envelope, "recipe", "Dish")
+	var edited content.Type
+	store.skip = 1
+	store.rival = func(ctx context.Context) {
+		recipe, err := registry.ByKey(ctx, "recipe")
+		if err != nil {
+			t.Errorf("ByKey(recipe) error = %v, want nil", err)
+			return
+		}
+		if recipe.SingularLabel == "Dish" {
+			t.Error("the recipe type already carries Dish, want the edit made before the import writes it")
+		}
+		recipe.SingularLabel, recipe.UpdatedAt = "Dish", postgresNow()
+		if edited, err = registry.Update(ctx, recipe); err != nil {
+			t.Errorf("Update(recipe) error = %v, want nil", err)
+		}
+	}
+
+	outcome := applied(t, registry, importing(envelope))
+
+	if edited.UpdatedAt.IsZero() {
+		t.Fatal("the edit never landed, want it made after the plan")
+	}
+	if !named(outcome.Applied, "type", "recipe") {
+		t.Fatalf("applied = %+v, want the recipe change planned before the edit", outcome.Applied)
+	}
+	stampKept(t, registry, edited)
 }

@@ -5,6 +5,7 @@ package definitions_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -119,5 +120,78 @@ func TestApplyKeepsARouteWordEditedWhileItRuns(t *testing.T) {
 	}
 	if !named(outcome.Skipped, "type", "recipe") {
 		t.Errorf("skipped = %+v, want the root move reported as skipped", outcome.Skipped)
+	}
+}
+
+func TestApplyKeepsARootMovedWhileItRuns(t *testing.T) {
+	t.Parallel()
+
+	pool, _ := declaringPool(t)
+	store := &editingStore{TypeStore: postgres.NewTypeStore(pool)}
+	registry := content.NewRegistry(store)
+	siteDefined(t, registry)
+	envelope := exported(t, registry)
+	relabeling(t, envelope, content.TypePost, "Entry")
+	store.rival = func(ctx context.Context) {
+		recipe, err := registry.ByKey(ctx, "recipe")
+		if err != nil {
+			t.Errorf("ByKey(recipe) error = %v, want nil", err)
+			return
+		}
+		recipe.Default, recipe.RouteWord = true, ""
+		if _, err := registry.Update(ctx, recipe); err != nil {
+			t.Errorf("Update(recipe) error = %v, want nil", err)
+		}
+	}
+
+	outcome := applied(t, registry, importing(envelope))
+
+	recipe, err := registry.ByKey(t.Context(), "recipe")
+	if err != nil || !recipe.Default || recipe.RouteWord != "" {
+		t.Errorf("the recipe type = %+v, %v, want the root moved during import kept", recipe, err)
+	}
+	post, err := registry.ByKey(t.Context(), content.TypePost)
+	if err != nil || post.SingularLabel != "Entry" || post.Default || post.RouteWord != "posts" {
+		t.Errorf("the post type = %+v, %v, want the imported label carried under its own word", post, err)
+	}
+	rootKept := slices.ContainsFunc(outcome.Skipped, func(held definitions.Change) bool {
+		return held.Subject == "type" && held.Key == content.TypePost && held.Reason == definitions.ReasonRootKept
+	})
+	if !rootKept {
+		t.Errorf("skipped = %+v, want the post type named with the root kept", outcome.Skipped)
+	}
+}
+
+func TestApplyReportsATypeDeletedWhileItRuns(t *testing.T) {
+	t.Parallel()
+
+	pool, _ := declaringPool(t)
+	store := &editingStore{TypeStore: postgres.NewTypeStore(pool)}
+	registry := content.NewRegistry(store)
+	siteDefined(t, registry)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == "recipe" {
+			envelope.Types[i].Default, envelope.Types[i].RouteWord = true, ""
+		}
+		if envelope.Types[i].Key == content.TypePost {
+			envelope.Types[i].Default, envelope.Types[i].RouteWord = false, "posts"
+		}
+	}
+	store.skip = 1
+	store.rival = func(ctx context.Context) {
+		if err := registry.Delete(ctx, "recipe"); err != nil {
+			t.Errorf("Delete(recipe) error = %v, want nil", err)
+		}
+	}
+
+	_, err := definitions.Apply(t.Context(), registry, importing(envelope))
+
+	if !errors.Is(err, content.ErrTypeNotFound) {
+		t.Errorf("Apply() error = %v, want the type deleted while the import ran reported as missing", err)
+	}
+	stored := content.NewRegistry(postgres.NewTypeStore(pool))
+	if _, err := stored.ByKey(t.Context(), "recipe"); !errors.Is(err, content.ErrTypeNotFound) {
+		t.Errorf("ByKey(recipe) error = %v, want the deleted type left deleted", err)
 	}
 }
