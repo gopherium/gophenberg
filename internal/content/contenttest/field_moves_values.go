@@ -62,6 +62,7 @@ var fieldMoveValueCases = []Case{
 		"MovingAFieldItsGroupServesIntoAContainerSweepsItWhereARivalHoldsTheKey",
 		movingAFieldItsGroupServesIntoAContainerSweepsItWhereARivalHoldsTheKey,
 	},
+	{"MovingALayoutBetweenFlexiblesTakesItsRowsAway", movingALayoutBetweenFlexiblesTakesItsRowsAway},
 }
 
 // snapshotsHolding counts the revision and the author's autosave of the item that still hold the key.
@@ -522,4 +523,25 @@ func movingAFieldItsGroupServesIntoAContainerSweepsItWhereARivalHoldsTheKey(t *t
 	if held := ValuesOf(t, s.Content, one.ID); len(held) != 0 {
 		t.Errorf("stored values = %v, want the title swept, the rival section never taking it over", held)
 	}
+}
+
+// movingALayoutBetweenFlexiblesTakesItsRowsAway takes a moved layout's rows out of the flexible it left.
+func movingALayoutBetweenFlexiblesTakesItsRowsAway(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	StoreType(t, s.Types, "car")
+	features := DeclareFlexible(t, s.Types)
+	blocks := flexibleIn(t, s.Types, features.GroupID, "blocks")
+	hero := DeclareLayout(t, s.Types, features.ID, "hero")
+	quote := DeclareLayout(t, s.Types, features.ID, "quote")
+	DeclareUnder(t, s.Types, hero.ID, "title")
+	DeclareUnder(t, s.Types, quote.ID, "title")
+	one, revision := TypedHolding(t, s.Types, s.Content, "car", "One", author, heroAndQuote())
+
+	if _, err := s.Types.MoveField(
+		t.Context(), hero.ID, features.GroupID, blocks.ID, content.DefaultFieldDepth, nil,
+	); err != nil {
+		t.Fatalf("MoveField() error = %v, want nil", err)
+	}
+
+	expectHeld(t, t.Errorf, s.Content, one, revision, quoteAlone(), "the hero rows gone rather than emptied")
 }
