@@ -505,7 +505,7 @@ func deleteFieldsOf(ctx context.Context, queries *db.Queries, groups []content.G
 	}
 	for _, f := range held.Fields {
 		swept := sweptByDelete(groups, types, held.ID, f.Key)
-		if err := deleteFieldRow(ctx, queries, held.ID, f.Key, swept); err != nil {
+		if err := deleteFieldRow(ctx, queries, groups, held.ID, f.Key, swept); err != nil {
 			return err
 		}
 	}
@@ -590,8 +590,10 @@ func sweptByDelete(groups []content.Group, types []content.Type, leaving int, ke
 	return swept
 }
 
-// deleteFieldRow removes one field row and sweeps its values from the given types.
-func deleteFieldRow(ctx context.Context, queries *db.Queries, groupID int, key string, swept []string) error {
+// deleteFieldRow removes one field row and its values, revisions and index rows from the given types.
+func deleteFieldRow(
+	ctx context.Context, queries *db.Queries, groups []content.Group, groupID int, key string, swept []string,
+) error {
 	if _, err := queries.DeleteContentField(ctx, db.DeleteContentFieldParams{
 		GroupID: int32(groupID), Key: key,
 	}); err != nil {
@@ -602,9 +604,12 @@ func deleteFieldRow(ctx context.Context, queries *db.Queries, groupID int, key s
 	}); err != nil {
 		return err
 	}
-	return queries.ClearRevisionFieldValues(ctx, db.ClearRevisionFieldValuesParams{
+	if err := queries.ClearRevisionFieldValues(ctx, db.ClearRevisionFieldValuesParams{
 		Key: key, Types: swept,
-	})
+	}); err != nil {
+		return err
+	}
+	return dropIndexAt(ctx, queries, groups, []string{key}, swept)
 }
 
 // ReorderGroups stores the given order on the groups.
@@ -769,7 +774,7 @@ func deleteSubFieldRows(ctx context.Context, queries *db.Queries, id int, rechec
 	if _, err := queries.DeleteFieldByID(ctx, int32(id)); err != nil {
 		return err
 	}
-	return sweepField(ctx, queries, dropped, path, servedOn(groups, typeKeys, group.ID, path))
+	return sweepField(ctx, queries, groups, dropped, path, servedOn(groups, typeKeys, group.ID, path))
 }
 
 // fieldPathIn returns the group holding the field, the field, and the keys addressing it from the group.
@@ -795,12 +800,46 @@ func pathToField(declared []content.Field, id int) (content.Field, []string, boo
 	return content.Field{}, nil, false
 }
 
-// sweepField removes what the field held at the path from every item and revision of the swept types.
-func sweepField(ctx context.Context, queries *db.Queries, f content.Field, path, swept []string) error {
+// sweepField removes what the field held at the path from every item, revision and index row of the swept types.
+func sweepField(
+	ctx context.Context, queries *db.Queries, groups []content.Group, f content.Field, path, swept []string,
+) error {
+	sweep := sweepPath
 	if f.Kind == content.FieldKindLayout {
-		return sweepLayout(ctx, queries, path, swept)
+		sweep = sweepLayout
 	}
-	return sweepPath(ctx, queries, path, swept)
+	if err := sweep(ctx, queries, path, swept); err != nil {
+		return err
+	}
+	return dropIndexAt(ctx, queries, groups, path, swept)
+}
+
+// dropIndexAt removes the index rows of every relation standing at the path in any group from the swept types.
+func dropIndexAt(ctx context.Context, queries *db.Queries, groups []content.Group, path, swept []string) error {
+	var fields []int32
+	for _, g := range groups {
+		if f, found := fieldAt(g.Fields, path); found {
+			fields = relationsBelow(f, fields)
+		}
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return queries.DeleteRelationsOfFields(ctx, db.DeleteRelationsOfFieldsParams{Types: swept, Fields: fields})
+}
+
+// fieldAt returns the field standing at the path among the fields, and whether one does.
+func fieldAt(fields []content.Field, path []string) (content.Field, bool) {
+	for _, f := range fields {
+		if f.Key != path[0] {
+			continue
+		}
+		if len(path) == 1 {
+			return f, true
+		}
+		return fieldAt(f.Fields, path[1:])
+	}
+	return content.Field{}, false
 }
 
 // sweepPath removes whatever stands at the path from every item and revision of the swept types.
@@ -1014,7 +1053,7 @@ func (m fieldMove) sweep(ctx context.Context, queries *db.Queries, typeKeys []st
 		return nil
 	}
 	swept := servedOn(m.groups, typeKeys, m.source.ID, m.path)
-	if err := sweepField(ctx, queries, m.leaving, m.path, swept); err != nil {
+	if err := sweepField(ctx, queries, m.groups, m.leaving, m.path, swept); err != nil {
 		return err
 	}
 	fields := relationsBelow(m.leaving, nil)
