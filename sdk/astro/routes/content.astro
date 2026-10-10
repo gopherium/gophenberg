@@ -7,7 +7,21 @@ import { GophenbergClient } from '../client.ts'
 
 export const prerender = false
 
-const held = await new GophenbergClient().resolve(Astro.url.pathname, {
+/**
+ * Returns the original request's content path decoded once.
+ * @param url - The original request address.
+ * @returns The content path, with malformed escapes left unchanged.
+ */
+function contentPath(url: string): string {
+	const { pathname } = new URL(url)
+	try {
+		return decodeURIComponent(pathname)
+	} catch {
+		return pathname
+	}
+}
+
+const held = await new GophenbergClient().resolve(contentPath(Astro.request.url), {
 	perPage: theme.pagination?.perPage,
 })
 
