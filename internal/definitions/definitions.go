@@ -100,17 +100,20 @@ func (r *Registrar) DeclareType(ctx context.Context, declared sdk.TypeDeclaratio
 	if sameType(stored, wanted) {
 		return nil
 	}
-	return r.carryType(ctx, wanted, declared.Key)
+	return r.carryType(ctx, stored, wanted, declared.Key)
 }
 
-// carryType stores the declared type, leaving its nesting on while items of it sit inside one another.
-func (r *Registrar) carryType(ctx context.Context, wanted content.Type, key string) error {
+// carryType stores the declared type, or stores it nesting while its items nest unless the site already holds that.
+func (r *Registrar) carryType(ctx context.Context, stored, wanted content.Type, key string) error {
 	_, err := r.registry.Update(ctx, wanted)
 	if !errors.Is(err, content.ErrNestingInUse) {
 		return err
 	}
 	r.keeps(SubjectType, key)
 	wanted.Hierarchical = true
+	if sameType(stored, wanted) {
+		return nil
+	}
 	_, err = r.registry.Update(ctx, wanted)
 	return err
 }
