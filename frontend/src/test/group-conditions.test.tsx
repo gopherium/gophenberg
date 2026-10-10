@@ -89,6 +89,9 @@ function recordingSettings(): { sent: unknown } {
 beforeEach(() => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [POST_TYPE] })))
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [DETAILS] })))
+	server.use(
+		http.get('/api/definitions/drift', () => HttpResponse.json({ orphans: [], collisions: [], nesting_kept: [] })),
+	)
 })
 
 test('offers the siblings a rule may read, leaving the field itself out', async () => {
@@ -181,6 +184,80 @@ test('says why the rules were turned away', async () => {
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
 
 	expect(await screen.findByRole('alert')).toHaveTextContent(/sale-note/)
+})
+
+/** Reopens the conditions while the fields dialog remains open. */
+async function reopenConditions() {
+	await userEvent.click(screen.getByRole('button', { name: 'Rules showing Sale note' }))
+	return screen.findByRole('dialog', { name: 'Rules showing Sale note' })
+}
+
+test.each([422, 409])('keeps a refused rules draft for another save after a %s response', async (status) => {
+	const sent: unknown[] = []
+	server.use(
+		http.patch('/api/groups/3/fields/:key', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ error: 'refused', code: 'content_stale_update' }, { status })
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openConditions('Sale note')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Value' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'No' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
+
+	const reopened = await reopenConditions()
+	expect(within(reopened).getByRole('combobox', { name: 'Value' })).toHaveTextContent('No')
+	await userEvent.click(within(reopened).getByRole('button', { name: 'Save rules' }))
+	await waitFor(() => expect(sent).toHaveLength(2))
+	expect(sent[1]).toEqual(sent[0])
+	expect(sent[1]).toEqual({
+		settings: { conditions: [[{ source: 'on-sale', operator: '==', value: 'false' }]] },
+		updated_at: '2026-08-01T10:00:00Z',
+	})
+})
+
+test('forgets a refused rules draft after cancel', async () => {
+	server.use(
+		http.patch('/api/groups/3/fields/:key', () =>
+			HttpResponse.json({ error: 'refused', code: 'rule_cycle', meta: { field: 'sale-note' } }, { status: 422 }),
+		),
+	)
+	renderAt('/field-groups')
+	const dialog = await openConditions('Sale note')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
+
+	const reopened = await reopenConditions()
+	expect(within(reopened).getByRole('combobox', { name: 'Source' })).toHaveTextContent('On sale')
+	await userEvent.click(within(reopened).getByRole('button', { name: 'Cancel' }))
+	const cancelled = await reopenConditions()
+	expect(within(cancelled).getByText('Without a rule this field always shows.')).toBeInTheDocument()
+})
+
+test('starts from stored rules after a successful retry', async () => {
+	let attempts = 0
+	server.use(
+		http.patch('/api/groups/3/fields/:key', () => {
+			attempts++
+			return attempts === 1
+				? HttpResponse.json({ error: 'refused' }, { status: 500 })
+				: HttpResponse.json(SALE_NOTE)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openConditions('Sale note')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
+	const reopened = await reopenConditions()
+	await userEvent.click(within(reopened).getByRole('button', { name: 'Save rules' }))
+	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
+	const saved = await reopenConditions()
+	expect(within(saved).getByText('Without a rule this field always shows.')).toBeInTheDocument()
 })
 
 test('carries a rule onto another source, starting its condition afresh', async () => {

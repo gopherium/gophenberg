@@ -263,11 +263,13 @@ export function FieldConditions(props: {
 	})
 
 	/**
-	 * Opens the dialog on the stored rules, or closes it on the edits.
+	 * Opens on the stored rules, keeping a refused draft until the operator dismisses it.
 	 * @param next - Whether the dialog is opening.
 	 */
 	function change(next: boolean) {
-		if (next) {
+		if (!next) {
+			save.reset()
+		} else if (!save.isError) {
 			setDraft(conditionsOf(props.field))
 			setOpened(props.field)
 		}
