@@ -681,6 +681,9 @@ func (s *memoryTypes) MoveField(
 	if err := content.WithinDepth(carried, landingDepth(s.groups[landing].Fields, toParent), limit); err != nil {
 		return content.Field{}, err
 	}
+	if source.ID == toGroup && carried.ParentID == toParent {
+		return carried, nil
+	}
 	if err := s.keyFreeAtTop(s.groups[landing], source, carried, toParent); err != nil {
 		return content.Field{}, err
 	}
