@@ -154,7 +154,7 @@ func (r *run) types(ctx context.Context) error {
 	return nil
 }
 
-// oneType stores or carries one type stamped now, leaving the root and the nesting where the site's content keeps them.
+// oneType stores or carries one type, stamping a write now, leaving the root and the nesting where content keeps them.
 func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Change) error {
 	stored, err := r.storedType(ctx, declared.Key, planned.Action)
 	if err != nil {
@@ -178,7 +178,7 @@ func (r *run) oneType(ctx context.Context, declared TypeDefinition, planned Chan
 		r.did(planned)
 		return nil
 	}
-	if err := r.carryType(ctx, wanted, declared, planned); err != nil {
+	if err := r.carryType(ctx, stored, wanted, declared, planned); err != nil {
 		return err
 	}
 	r.did(planned)
@@ -204,17 +204,25 @@ func described(wanted content.Type, declared TypeDefinition, stored content.Type
 	return wanted
 }
 
-// carryType stores the edited type, leaving its nesting on when an item nested under it while the import ran.
+// carryType skips a type the site already holds, else stores it, leaving its nesting on when an item nested meanwhile.
 func (r *run) carryType(
-	ctx context.Context, wanted content.Type, declared TypeDefinition, planned Change,
+	ctx context.Context, stored, wanted content.Type, declared TypeDefinition, planned Change,
 ) error {
-	_, err := r.registry.Update(ctx, wanted)
+	err := r.carryOver(ctx, stored, wanted)
 	if !errors.Is(err, content.ErrNestingInUse) {
 		return err
 	}
 	r.left(r.kept(planned, declared, ReasonNestingKept))
 	wanted.Hierarchical = true
-	_, err = r.registry.Update(ctx, wanted)
+	return r.carryOver(ctx, stored, wanted)
+}
+
+// carryOver writes the edited type over the stored one unless the two say the same thing.
+func (r *run) carryOver(ctx context.Context, stored, wanted content.Type) error {
+	if sameType(stored, wanted) {
+		return nil
+	}
+	_, err := r.registry.Update(ctx, wanted)
 	return err
 }
 

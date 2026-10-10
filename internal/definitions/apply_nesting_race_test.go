@@ -13,6 +13,7 @@ import (
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/definitions"
+	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
 // holdingTypeRow opens a transaction holding the type row against any write, rolled back when the test ends.
@@ -114,7 +115,38 @@ func TestApplyLeavesATypeNestingWhenAnItemNestsWhileItRuns(t *testing.T) {
 	if !keptNesting(outcome.Skipped, "recipe") {
 		t.Errorf("skipped = %+v, want the kept nesting named there", outcome.Skipped)
 	}
+	stampKept(t, registry, recipe)
 	if held, _ := registry.ByKey(t.Context(), content.TypePost); held.SingularLabel != "Entry" {
 		t.Errorf("the post type is labeled %q, want the import's other write kept", held.SingularLabel)
+	}
+}
+
+func TestApplyCarriesTheFilesLabelWhenAnItemNestsWhileItRuns(t *testing.T) {
+	t.Parallel()
+
+	pool, _ := declaringPool(t)
+	store := &editingStore{TypeStore: postgres.NewTypeStore(pool)}
+	registry := content.NewRegistry(store)
+	siteDefined(t, registry)
+	recipe := nestingRecipe(t, registry)
+	items, author := postgres.NewContentStore(pool), authorOn(t, pool)
+	bread := filed(t, items, recipe, nil, "Bread", author)
+	envelope := exported(t, registry)
+	flatteningRecipe(t, envelope)
+	relabeling(t, envelope, "recipe", "Dish")
+	store.skip = 1
+	store.rival = func(context.Context) { filed(t, items, recipe, &bread, "Roll", author) }
+
+	outcome := applied(t, registry, importing(envelope))
+
+	if !storedNesting(t, registry, "recipe") {
+		t.Errorf("the recipe type stopped nesting, want it kept for the item filed meanwhile")
+	}
+	if !keptNesting(outcome.Skipped, "recipe") {
+		t.Errorf("skipped = %+v, want the kept nesting named there", outcome.Skipped)
+	}
+	held, err := registry.ByKey(t.Context(), "recipe")
+	if err != nil || held.SingularLabel != "Dish" {
+		t.Errorf("the recipe type = %+v, %v, want the file's label carried on the retry", held, err)
 	}
 }
