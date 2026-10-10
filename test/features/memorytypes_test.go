@@ -169,10 +169,16 @@ func repointedIn(fields, repointed []content.Field, now time.Time) ([]content.Fi
 		if at < 0 || !held[at].UpdatedAt.Equal(f.UpdatedAt) {
 			return nil, content.ErrConflict
 		}
-		f.UpdatedAt = now
-		held[at] = f
+		held[at] = editedFrom(held[at], f, now)
 	}
 	return held, nil
+}
+
+// editedFrom returns the stored field carrying the edit's label, required flag and settings, stamped at the time.
+func editedFrom(stored, edit content.Field, at time.Time) content.Field {
+	stored.Label, stored.Required, stored.Settings = edit.Label, edit.Required, edit.Settings
+	stored.UpdatedAt = at
+	return stored
 }
 
 // DeleteGroup removes the group once the check passes, carrying its strays and sweeping its keys under one lock.
@@ -382,10 +388,8 @@ func editedInside(
 			if !expectedUpdatedAt.Equal(held.UpdatedAt) {
 				return declared, content.Field{}, content.ErrConflict
 			}
-			held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
-			held.UpdatedAt = f.UpdatedAt
-			edited[i] = held
-			return edited, held, nil
+			edited[i] = editedFrom(held, f, f.UpdatedAt)
+			return edited, edited[i], nil
 		}
 		inside, stored, err := editedInside(held.Fields, id, f, expectedUpdatedAt)
 		if err != nil {
@@ -545,8 +549,9 @@ func (s *memoryTypes) UpdateFieldInGroup(
 				if !expectedUpdatedAt.Equal(stored.UpdatedAt) {
 					return content.Field{}, content.ErrConflict
 				}
-				s.groups[i].Fields[j] = f
-				return f, nil
+				edited := editedFrom(stored, f, f.UpdatedAt)
+				s.groups[i].Fields[j] = edited
+				return edited, nil
 			}
 		}
 		return content.Field{}, content.ErrFieldNotFound
@@ -937,26 +942,36 @@ func (s *memoryTypes) Update(ctx context.Context, t content.Type) (content.Type,
 			return content.Type{}, content.NestingInUse(t.Key, nested)
 		}
 		held := slices.Clone(s.types)
+		written := writtenOver(stored, t)
 		var demoted typeCarry
-		if t.Default && !stored.Default {
+		if written.Default && !stored.Default {
 			if demoted, err = s.handRootOver(t.UpdatedAt); err != nil {
 				return content.Type{}, err
 			}
-			t.RouteWord = ""
+			written.RouteWord = ""
 		}
-		if s.routeWordTaken(t.Key, t.RouteWord) {
+		if s.routeWordTaken(t.Key, written.RouteWord) {
 			return content.Type{}, content.ErrRouteWordTaken
 		}
-		t.CreatedAt = stored.CreatedAt
-		s.types[i] = t
-		carried := typeCarry{key: t.Key, was: stored.RouteWord, now: t.RouteWord, at: t.UpdatedAt}
+		s.types[i] = written
+		carried := typeCarry{key: t.Key, was: stored.RouteWord, now: written.RouteWord, at: t.UpdatedAt}
 		if err := s.carry(demoted, carried); err != nil {
 			s.types = held
 			return content.Type{}, err
 		}
-		return t, nil
+		written.Fields = nil
+		return written, nil
 	}
 	return content.Type{}, content.ErrTypeNotFound
+}
+
+// writtenOver returns the stored type carrying the columns a type edit writes.
+func writtenOver(stored, edit content.Type) content.Type {
+	stored.SingularLabel, stored.PluralLabel, stored.RouteWord = edit.SingularLabel, edit.PluralLabel, edit.RouteWord
+	stored.Hierarchical, stored.Revisions, stored.RevisionCap = edit.Hierarchical, edit.Revisions, edit.RevisionCap
+	stored.PageKind, stored.Default, stored.Active = edit.PageKind, edit.Default, edit.Active
+	stored.Description, stored.UpdatedAt = edit.Description, edit.UpdatedAt
+	return stored
 }
 
 // carry moves the content of every carried type at once, or reports the address clash that moves none of it.
