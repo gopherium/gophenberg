@@ -292,6 +292,25 @@ test('keeps the confirm open when Cancel is pressed while the trash empties', as
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })
 
+test('keeps the confirm open when Escape is pressed while the trash empties', async () => {
+	const answer = gate()
+	server.use(
+		http.delete('/api/content/trash', async () => {
+			await answer.held
+			return HttpResponse.json({ deleted: 2, kept: 0 })
+		}),
+	)
+	renderAt('/content/post')
+	const dialog = await openEmptyTrash()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty Trash' }))
+
+	await userEvent.keyboard('{Escape}')
+
+	expect(dialog).toBeInTheDocument()
+	answer.release()
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
 test('empties only the trash of the type on screen', async () => {
 	const trashes: Record<string, { id: string, title: string }[]> = { post: [TRASHED], page: [TRASHED_PAGE] }
 	server.use(

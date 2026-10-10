@@ -62,6 +62,9 @@ export function EmptyTrash({ type, label, list }: { type: string, label: string,
 		<Dialog.Root
 			open={open}
 			onOpenChange={(next) => {
+				if (!next && empty.isPending) {
+					return
+				}
 				empty.reset()
 				setOpen(next)
 			}}
