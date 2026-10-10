@@ -27,20 +27,10 @@ var reportedCase = regexp.MustCompile(`(?m)^    --- (PASS|FAIL): \S+/\S+ `)
 
 // typeGaps names the shared type store cases the in-memory stores do not pass yet.
 var typeGaps = map[string]bool{
-	"DeleteGroupSweepsAValueLeftOnATypeItStoppedMatching":               true,
-	"DeleteFieldsOfGroupSweepsAValueLeftOnATypeItStoppedMatching":       true,
-	"DeletingASubFieldSweepsItsValuesInsideASection":                    true,
-	"DeletingARestingGroupsSubFieldSweepsTheValueTheServedSectionLacks": true,
-	"DeletingASubFieldSweepsItsValuesFromEveryRow":                      true,
-	"DeletingASubFieldLeavesRowsThatAreNotObjects":                      true,
-	"DeletingAContainerSweepsEverythingInsideIt":                        true,
-	"DeletingALayoutTakesItsRowsAway":                                   true,
-	"DeletingALayoutInsideARepeaterTakesItsRowsAway":                    true,
-	"DeletingASubFieldSweepsItOnlyFromItsOwnLayout":                     true,
-	"AFieldEditHoldingTheStampFromBeforeAMoveConflicts":                 true,
-	"AFieldEditHoldingTheStampFromBeforeAnAdoptionConflicts":            true,
-	"AnItemEditHoldingTheStampFromBeforeACarryConflicts":                true,
-	"ReordersLeaveUnlistedGroupsAndFieldsWhereTheyStand":                true,
+	"AFieldEditHoldingTheStampFromBeforeAMoveConflicts":      true,
+	"AFieldEditHoldingTheStampFromBeforeAnAdoptionConflicts": true,
+	"AnItemEditHoldingTheStampFromBeforeACarryConflicts":     true,
+	"ReordersLeaveUnlistedGroupsAndFieldsWhereTheyStand":     true,
 }
 
 // memoryStores returns fresh in-memory stores for one case.

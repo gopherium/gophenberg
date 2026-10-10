@@ -171,52 +171,59 @@ func repointedIn(fields, repointed []content.Field) ([]content.Field, error) {
 	return held, nil
 }
 
-// DeleteGroup removes the group and every field it holds, carrying what it stores inside other groups' containers.
+// DeleteGroup removes the group once the check passes, carrying its strays and sweeping its keys under one lock.
 func (s *memoryTypes) DeleteGroup(_ context.Context, id int, recheck content.Recheck) error {
-	served, err := s.dropGroup(id, recheck)
-	if err != nil {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.rechecked(recheck); err != nil {
 		return err
 	}
-	for key, typeKeys := range served {
-		for _, typeKey := range typeKeys {
-			s.content.clearField(typeKey, key)
-			s.content.clearRelation(typeKey, key)
-		}
+	at := slices.IndexFunc(s.groups, func(g content.Group) bool { return g.ID == id })
+	if at < 0 {
+		return content.ErrGroupNotFound
+	}
+	held := s.groups[at]
+	for _, f := range held.Fields {
+		s.sweepKey(s.sweptByDelete(held, f.Key), f.Key)
+	}
+	s.groups = append(s.groups[:at], s.groups[at+1:]...)
+	for j, kept := range s.groups {
+		s.groups[j].Fields = carriedInto(kept.Fields, kept.ID)
 	}
 	return nil
 }
 
-// DeleteFieldsOfGroup removes every named field from its group once the check passes, and sweeps its values.
+// DeleteFieldsOfGroup removes every named field from its group once the check passes, sweeping as a group delete does.
 func (s *memoryTypes) DeleteFieldsOfGroup(
 	_ context.Context, groupID int, keys []string, recheck content.Recheck,
 ) error {
-	return s.deleteFields(groupID, keys, recheck)
+	return s.deleteFields(groupID, keys, recheck, s.sweptByDelete)
 }
 
-// dropGroup removes the group once the check passes, reporting the types it alone served each top level key on.
-func (s *memoryTypes) dropGroup(id int, recheck content.Recheck) (map[string][]string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err := s.rechecked(recheck); err != nil {
-		return nil, err
+// sweptByDelete returns every stored type a deleted key clears from, sparing those another active group serves it on.
+func (s *memoryTypes) sweptByDelete(leaving content.Group, key string) []string {
+	swept := make([]string, 0, len(s.types))
+	for _, t := range s.types {
+		if !s.servedElsewhere(leaving.ID, t.Key, key) {
+			swept = append(swept, t.Key)
+		}
 	}
-	for i, held := range s.groups {
-		if held.ID != id {
-			continue
-		}
-		served := map[string][]string{}
-		for _, f := range held.Fields {
-			if s.content != nil {
-				served[f.Key] = s.servedAlong(s.typesMatchedBy(held), held.ID, []string{f.Key})
-			}
-		}
-		s.groups = append(s.groups[:i], s.groups[i+1:]...)
-		for j, kept := range s.groups {
-			s.groups[j].Fields = carriedInto(kept.Fields, kept.ID)
-		}
-		return served, nil
+	return swept
+}
+
+// servedElsewhere reports whether an active group other than the leaving one serves the top key on the type.
+func (s *memoryTypes) servedElsewhere(leaving int, typeKey, key string) bool {
+	screen := content.Screen{content.ScreenContentType: typeKey}
+	return slices.ContainsFunc(s.groups, func(g content.Group) bool {
+		return g.ID != leaving && g.Active && holdsKey(g.Fields, key) && g.Location.Match(screen, memoryParams)
+	})
+}
+
+// sweepKey takes the top key's values out of the items, revisions and autosaves of the types.
+func (s *memoryTypes) sweepKey(typeKeys []string, key string) {
+	for _, typeKey := range typeKeys {
+		s.content.clearField(typeKey, key)
 	}
-	return nil, content.ErrGroupNotFound
 }
 
 // carriedInto returns the declared fields, and every field inside them, stored under the group.
@@ -289,22 +296,21 @@ func (s *memoryTypes) targetMissing(f content.Field) bool {
 	})
 }
 
-// DeleteSubField removes the field standing inside a container once the check passes.
+// DeleteSubField removes the field once the check passes, and its values where no other active group serves its path.
 func (s *memoryTypes) DeleteSubField(_ context.Context, id int, recheck content.Recheck) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.rechecked(recheck); err != nil {
 		return err
 	}
-	for i, held := range s.groups {
-		pruned, found := prunedInside(held.Fields, id)
-		if !found {
-			continue
-		}
-		s.groups[i].Fields = pruned
-		return nil
+	held, dropped, path, found := s.placedIn(id)
+	if !found {
+		return content.ErrFieldNotFound
 	}
-	return content.ErrFieldNotFound
+	swept := s.servedAlong(s.typesMatchedBy(held), held.ID, path)
+	s.takenOut(id)
+	s.content.sweepField(swept, dropped, path)
+	return nil
 }
 
 // UpdateSubField carries the edit onto the field standing inside a container.
@@ -528,62 +534,53 @@ func (s *memoryTypes) UpdateFieldInGroup(
 
 // DeleteFieldInGroup removes the field once the check passes, and its values from the types its group served it on.
 func (s *memoryTypes) DeleteFieldInGroup(_ context.Context, groupID int, key string, recheck content.Recheck) error {
-	return s.deleteFields(groupID, []string{key}, recheck)
+	return s.deleteFields(groupID, []string{key}, recheck, s.sweptFromMatched)
 }
 
-// deleteFields removes the named fields once the check passes, then their values from the types their group served.
-func (s *memoryTypes) deleteFields(groupID int, keys []string, recheck content.Recheck) error {
-	reached, err := s.dropFieldsInGroup(groupID, keys, recheck)
-	if err != nil {
-		return err
-	}
-	if s.content == nil {
-		return nil
-	}
-	for key, typeKeys := range reached {
-		for _, typeKey := range typeKeys {
-			s.content.clearField(typeKey, key)
-			s.content.clearRelation(typeKey, key)
-		}
-	}
-	return nil
+// sweptFromMatched returns the types the group matches on which no other active group serves the key first.
+func (s *memoryTypes) sweptFromMatched(held content.Group, key string) []string {
+	return s.servedAlong(s.typesMatchedBy(held), held.ID, []string{key})
 }
 
-// dropFieldsInGroup removes the named declarations in one hold of the mutex once the check passes, keyed to types.
-func (s *memoryTypes) dropFieldsInGroup(
-	groupID int, keys []string, recheck content.Recheck,
-) (map[string][]string, error) {
+// deleteFields removes the named fields in one hold of the mutex once the check passes, sweeping the types swept names.
+func (s *memoryTypes) deleteFields(
+	groupID int, keys []string, recheck content.Recheck, swept func(content.Group, string) []string,
+) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.rechecked(recheck); err != nil {
-		return nil, err
+		return err
 	}
 	at := slices.IndexFunc(s.groups, func(g content.Group) bool { return g.ID == groupID })
 	if at < 0 {
-		return nil, content.ErrGroupNotFound
+		return content.ErrGroupNotFound
 	}
 	if !holdsEvery(s.groups[at].Fields, keys) {
-		return nil, content.ErrFieldNotFound
+		return content.ErrFieldNotFound
 	}
-	reached := make(map[string][]string, len(keys))
 	for _, key := range keys {
 		held := s.groups[at]
-		reached[key] = s.servedAlong(s.typesMatchedBy(held), held.ID, []string{key})
+		s.sweepKey(swept(held, key), key)
 		s.groups[at].Fields = slices.DeleteFunc(slices.Clone(held.Fields), func(f content.Field) bool {
 			return f.Key == key
 		})
 	}
-	return reached, nil
+	return nil
 }
 
 // holdsEvery reports whether a top level field stands under each key.
 func holdsEvery(fields []content.Field, keys []string) bool {
 	for _, key := range keys {
-		if !slices.ContainsFunc(fields, func(f content.Field) bool { return f.Key == key }) {
+		if !holdsKey(fields, key) {
 			return false
 		}
 	}
 	return true
+}
+
+// holdsKey reports whether a top level field stands under the key.
+func holdsKey(fields []content.Field, key string) bool {
+	return slices.ContainsFunc(fields, func(f content.Field) bool { return f.Key == key })
 }
 
 // servedAlong returns the type keys on which the group serves the path, or no other active group serves it whole.

@@ -109,37 +109,72 @@ func (s *memoryContent) targetsAllowed(ft content.FieldTargets, kept map[uuid.UU
 	return nil
 }
 
-// clearRelation drops the field's targets from every item of the type.
-func (s *memoryContent) clearRelation(typeKey, key string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for id, stored := range s.items {
-		if stored.Type != typeKey {
-			continue
-		}
-		delete(stored.Fields, key)
-		s.items[id] = stored
-	}
-}
-
 // sweepPath takes what stands at the path out of every item of the types, their revisions and their autosaves.
 func (s *memoryContent) sweepPath(typeKeys []string, path []string) {
+	s.sweptWith(typeKeys, path, strippedAt)
+}
+
+// sweepField takes what the field held at the path out of the types, a layout's whole rows rather than their values.
+func (s *memoryContent) sweepField(typeKeys []string, f content.Field, path []string) {
+	if f.Kind == content.FieldKindLayout {
+		s.sweptWith(typeKeys, path, layoutStripped)
+		return
+	}
+	s.sweepPath(typeKeys, path)
+}
+
+// sweptWith runs the strip at the path over every item of the types, their revisions and their autosaves.
+func (s *memoryContent) sweptWith(typeKeys []string, path []string, strip func(map[string]any, []string)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for id, stored := range s.items {
 		if !slices.Contains(typeKeys, stored.Type) {
 			continue
 		}
-		strippedAt(stored.Fields, path)
+		strip(stored.Fields, path)
 		for i := range s.revisions[id] {
-			strippedAt(s.revisions[id][i].Fields, path)
+			strip(s.revisions[id][i].Fields, path)
 		}
 		for held, parked := range s.autosaves {
 			if held.contentID == id {
-				strippedAt(parked.Fields, path)
+				strip(parked.Fields, path)
 			}
 		}
 	}
+}
+
+// layoutStripped takes every row holding the layout the path ends on out of the values, as core.strip_layout does.
+func layoutStripped(values map[string]any, path []string) {
+	if inside, found := values[path[0]]; found && len(path) > 1 {
+		values[path[0]] = withoutLayout(inside, path[1:])
+	}
+}
+
+// withoutLayout returns the value without the rows holding the layout the path ends on, walking into every row.
+func withoutLayout(value any, path []string) any {
+	switch inside := value.(type) {
+	case map[string]any:
+		layoutStripped(inside, path)
+	case []any:
+		kept := make([]any, 0, len(inside))
+		for _, row := range inside {
+			if len(path) > 1 {
+				kept = append(kept, withoutLayout(row, path))
+				continue
+			}
+			if held, _ := row.(map[string]any); !layoutHeld(held, path[0]) {
+				kept = append(kept, row)
+			}
+		}
+		return kept
+	}
+	return value
+}
+
+// layoutHeld reports whether the row holds the layout.
+func layoutHeld(row map[string]any, layout string) bool {
+	_, found := row[layout]
+	return found
 }
 
 // strippedAt removes what stands at the path inside the values, walking into every row on the way.
