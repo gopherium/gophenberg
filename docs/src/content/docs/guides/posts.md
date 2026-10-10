@@ -31,9 +31,10 @@ In the Trash tab it shows the date and time alone. The list sorts by
 that same moment, so the date you read is the date the order
 follows.
 
-Like WordPress, the date cell writes the month short, in the
-language you read the admin in: `Oct 8, 2026 5:54 pm` in English,
-`8 Oct 2026 17:54` in Spanish.
+Like WordPress, the date cell writes the date the way WordPress does
+in the language you read the admin in. English and Spanish write the
+month short, `Oct 8, 2026 5:54 pm` and `8 Oct 2026 17:54`. French
+keeps it whole, `08 octobre 2026 17h54`.
 
 Slug, and Parent on a type whose items nest, are hidden at first.
 Turn them on under **View options**, where you can also hide every

@@ -101,7 +101,9 @@ change them. They shape every list the same way:
   dates, times and numbers, whatever language a person reads the
   admin in. The tag `es-ES` writes 04/10/2026, 14:05 and 1.234,56.
   The date column of a content list is the one exception. Like
-  WordPress, it writes the month short in the reader's language.
+  WordPress, it writes the date the way WordPress does in the
+  reader's language, with a short month in English and Spanish and
+  a whole one in French.
 
 ## Which theme serves
 
