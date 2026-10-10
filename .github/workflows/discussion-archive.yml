@@ -1,0 +1,43 @@
+name: discussion-archive
+
+on:
+  discussion:
+    types: [created, edited, deleted]
+  discussion_comment:
+    types: [created, edited, deleted]
+
+permissions: {}
+
+jobs:
+  discord:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Copy the discussion change to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          jq --arg event "$GITHUB_EVENT_NAME" '
+            (if $event == "discussion_comment" then .comment else .discussion end) as $item
+            | ({
+                discussion: {created: "New discussion", edited: "Discussion edited", deleted: "Discussion deleted"},
+                discussion_comment: {created: "New reply", edited: "Reply edited", deleted: "Reply deleted"}
+              }[$event][.action] // (.action + " " + $event)) as $what
+            | ({created: "Posted by", edited: "Edited by", deleted: "Deleted by"}[.action] // "Done by") as $by
+            | ({created: 2991182, edited: 12551936, deleted: 13574702}[.action] // 0) as $color
+            | {
+                allowed_mentions: {parse: []},
+                content: ((.repository.name + " #" + (.discussion.number | tostring) + " " + .discussion.title)[0:2000]),
+                embeds: [{
+                  title: (($what + ": " + .discussion.title)[0:256]),
+                  url: ($item.html_url // .discussion.html_url),
+                  color: $color,
+                  description: (if ($item.body // "") == "" then "(empty)" else $item.body[0:4000] end),
+                  fields: [
+                    {name: "Written by", value: $item.user.login, inline: true},
+                    {name: $by, value: .sender.login, inline: true},
+                    {name: "Repository", value: .repository.full_name, inline: true}
+                  ]
+                }]
+              }' "$GITHUB_EVENT_PATH" > message.json
+          curl --fail --silent --show-error --retry 5 -H 'Content-Type: application/json' --data @message.json "$DISCORD_WEBHOOK_URL"
