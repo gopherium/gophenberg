@@ -322,12 +322,13 @@ func rulesOf(declared [][]sdk.Rule) content.Rules {
 	return rules
 }
 
-// sameType reports whether two types say the same thing about themselves.
+// sameType reports whether two types say the same thing about themselves, down to the route word, root and active flag.
 func sameType(a, b content.Type) bool {
 	return a.SingularLabel == b.SingularLabel && a.PluralLabel == b.PluralLabel &&
 		a.Hierarchical == b.Hierarchical && a.Revisions == b.Revisions &&
 		a.RevisionCap == b.RevisionCap && a.PageKind == b.PageKind &&
-		a.Description == b.Description
+		a.Description == b.Description && a.RouteWord == b.RouteWord &&
+		a.Default == b.Default && a.Active == b.Active
 }
 
 // sameSettings reports whether two settings hold the same values once written as JSON.
