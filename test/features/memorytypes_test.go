@@ -3,6 +3,7 @@
 package features_test
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -240,20 +241,51 @@ func carriedInto(declared []content.Field, groupID int) []content.Field {
 	return carried
 }
 
-// ReorderGroups stores the given order on the groups.
+// ReorderGroups stands the listed groups in the given order and leaves the rest where they stand.
 func (s *memoryTypes) ReorderGroups(_ context.Context, ids []int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	ordered := make([]content.Group, 0, len(ids))
-	for _, id := range ids {
-		for _, held := range s.groups {
-			if held.ID == id {
-				ordered = append(ordered, held)
-			}
-		}
-	}
-	s.groups = ordered
+	s.groups = reordered(s.groups, ids, groupID, groupID)
 	return nil
+}
+
+// reordered returns the entries with the asked ones at their asked place and the rest at their slot, ties by identity.
+func reordered[T any, K comparable](held []T, asked []K, key func(T) K, id func(T) int) []T {
+	type placed struct {
+		entry        T
+		position, id int
+	}
+	all := make([]placed, len(held))
+	for i, entry := range held {
+		position := slices.Index(asked, key(entry)) + 1
+		if position == 0 {
+			position = i + 1
+		}
+		all[i] = placed{entry: entry, position: position, id: id(entry)}
+	}
+	slices.SortStableFunc(all, func(one, other placed) int {
+		return cmp.Or(cmp.Compare(one.position, other.position), cmp.Compare(one.id, other.id))
+	})
+	sorted := make([]T, len(all))
+	for i, place := range all {
+		sorted[i] = place.entry
+	}
+	return sorted
+}
+
+// groupID returns the identity of the group.
+func groupID(g content.Group) int {
+	return g.ID
+}
+
+// fieldKey returns the key of the field.
+func fieldKey(f content.Field) string {
+	return f.Key
+}
+
+// fieldID returns the identity of the field.
+func fieldID(f content.Field) int {
+	return f.ID
 }
 
 // CreateSubField declares the field the domain settles on inside the container the parent names, within the limit.
@@ -367,7 +399,7 @@ func editedInside(
 	return declared, content.Field{}, nil
 }
 
-// ReorderSubFields stands the fields inside the container in the order the keys name.
+// ReorderSubFields stands the listed fields inside the container in the given order and leaves the rest in place.
 func (s *memoryTypes) ReorderSubFields(_ context.Context, parentID int, keys []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -382,13 +414,13 @@ func (s *memoryTypes) ReorderSubFields(_ context.Context, parentID int, keys []s
 	return content.ErrFieldNotFound
 }
 
-// stoodInside returns the declared fields with the container's own fields in the order the keys name.
+// stoodInside returns the declared fields with the container's listed fields in the given order and the rest kept.
 func stoodInside(declared []content.Field, parentID int, keys []string) ([]content.Field, bool) {
 	stood := make([]content.Field, len(declared))
 	copy(stood, declared)
 	for i, held := range stood {
 		if held.ID == parentID {
-			stood[i].Fields = orderedInside(held.Fields, keys)
+			stood[i].Fields = reordered(held.Fields, keys, fieldKey, fieldID)
 			return stood, true
 		}
 		if inside, found := stoodInside(held.Fields, parentID, keys); found {
@@ -397,19 +429,6 @@ func stoodInside(declared []content.Field, parentID int, keys []string) ([]conte
 		}
 	}
 	return declared, false
-}
-
-// orderedInside returns the fields standing in the order the keys name.
-func orderedInside(declared []content.Field, keys []string) []content.Field {
-	stood := make([]content.Field, 0, len(declared))
-	for _, key := range keys {
-		for _, held := range declared {
-			if held.Key == key {
-				stood = append(stood, held)
-			}
-		}
-	}
-	return stood
 }
 
 // storedUnder returns the field and every field inside it stored under the group.
@@ -631,7 +650,7 @@ func (s *memoryTypes) typesMatchedBy(g content.Group) []string {
 	return matched
 }
 
-// ReorderFieldsInGroup stores the given order on the group's fields.
+// ReorderFieldsInGroup stands the listed fields of the group in the given order and leaves the rest where they stand.
 func (s *memoryTypes) ReorderFieldsInGroup(_ context.Context, groupID int, keys []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -639,15 +658,7 @@ func (s *memoryTypes) ReorderFieldsInGroup(_ context.Context, groupID int, keys 
 		if held.ID != groupID {
 			continue
 		}
-		ordered := make([]content.Field, 0, len(keys))
-		for _, key := range keys {
-			for _, stored := range held.Fields {
-				if stored.Key == key {
-					ordered = append(ordered, stored)
-				}
-			}
-		}
-		s.groups[i].Fields = ordered
+		s.groups[i].Fields = reordered(held.Fields, keys, fieldKey, fieldID)
 		return nil
 	}
 	return content.ErrGroupNotFound
