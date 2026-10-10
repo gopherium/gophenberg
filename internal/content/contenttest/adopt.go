@@ -43,9 +43,10 @@ func groupKeyed(t *testing.T, registry *content.Registry, key string) content.Gr
 	return content.Group{}
 }
 
-// adoptGroupTakesThePluginsGroupAndItsFieldsOverAsTheSites clears the origin of the group and its fields.
+// adoptGroupTakesThePluginsGroupAndItsFieldsOverAsTheSites clears the origin of the group and its fields, stamped now.
 func adoptGroupTakesThePluginsGroupAndItsFieldsOverAsTheSites(t *testing.T, s Stores) {
 	registry := declaredSite(t, s.Types)
+	before := groupKeyed(t, registry, "event-details")
 
 	if err := registry.AdoptGroup(t.Context(), "event-details"); err != nil {
 		t.Fatalf("AdoptGroup() error = %v, want nil", err)
@@ -58,6 +59,10 @@ func adoptGroupTakesThePluginsGroupAndItsFieldsOverAsTheSites(t *testing.T, s St
 	if len(held.Fields) != 1 || held.Fields[0].Origin != "" {
 		t.Errorf("fields = %+v, want the fields taken over with the group", held.Fields)
 	}
+	if !held.CreatedAt.Equal(before.CreatedAt) || !held.UpdatedAt.After(before.UpdatedAt) {
+		t.Errorf("group stamps = %v and %v, want %v kept and the update stamp past %v",
+			held.CreatedAt, held.UpdatedAt, before.CreatedAt, before.UpdatedAt)
+	}
 	if _, err := registry.UpdateGroup(t.Context(), content.Group{
 		ID: held.ID, Key: held.Key, Title: "Event facts", Location: held.Location, Active: held.Active,
 	}); err != nil {
@@ -65,9 +70,13 @@ func adoptGroupTakesThePluginsGroupAndItsFieldsOverAsTheSites(t *testing.T, s St
 	}
 }
 
-// adoptTypeTakesThePluginsTypeOverAsTheSites clears the origin of the type.
+// adoptTypeTakesThePluginsTypeOverAsTheSites clears the origin of the type, stamped now.
 func adoptTypeTakesThePluginsTypeOverAsTheSites(t *testing.T, s Stores) {
 	registry := declaredSite(t, s.Types)
+	before, err := registry.ByKey(t.Context(), "event")
+	if err != nil {
+		t.Fatalf("ByKey(event) error = %v, want nil", err)
+	}
 
 	if err := registry.AdoptType(t.Context(), "event"); err != nil {
 		t.Fatalf("AdoptType() error = %v, want nil", err)
@@ -76,6 +85,10 @@ func adoptTypeTakesThePluginsTypeOverAsTheSites(t *testing.T, s Stores) {
 	held, err := registry.ByKey(t.Context(), "event")
 	if err != nil || held.Origin != "" {
 		t.Errorf("the event type = %+v, %v, want the site owning it", held, err)
+	}
+	if !held.CreatedAt.Equal(before.CreatedAt) || !held.UpdatedAt.After(before.UpdatedAt) {
+		t.Errorf("type stamps = %v and %v, want %v kept and the update stamp past %v",
+			held.CreatedAt, held.UpdatedAt, before.CreatedAt, before.UpdatedAt)
 	}
 }
 

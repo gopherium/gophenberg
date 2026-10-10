@@ -10,12 +10,18 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-// contractStampCases are the cases over refusing an edit holding a stamp a move, an adoption or a carry left behind.
+// contractStampCases are the cases over the stamps a store writes and the edits holding a stamp it left behind.
 var contractStampCases = []Case{
 	{"AFieldEditHoldingTheStampFromBeforeAMoveConflicts", aFieldEditHoldingTheStampFromBeforeAMoveConflicts},
 	{"AFieldEditHoldingTheStampFromBeforeAnAdoptionConflicts", aFieldEditHoldingTheStampFromBeforeAnAdoptionConflicts},
 	{"AdoptGroupClearsTheOriginOfItsSubFields", adoptGroupClearsTheOriginOfItsSubFields},
 	{"AnItemEditHoldingTheStampFromBeforeACarryConflicts", anItemEditHoldingTheStampFromBeforeACarryConflicts},
+	{"CreateGroupAndUpdateGroupStampTheGroup", createGroupAndUpdateGroupStampTheGroup},
+	{"UpdateFieldInGroupStoresTheStampTheEditSends", updateFieldInGroupStoresTheStampTheEditSends},
+	{"AMoveLeavesTheStampsOfTheFieldsInsideTheMovedOne", aMoveLeavesTheStampsOfTheFieldsInsideTheMovedOne},
+	{"AGroupEditLeavesTheStampsOfItsFieldsAlone", aGroupEditLeavesTheStampsOfItsFieldsAlone},
+	{"ANestedItemEditHoldingTheStampFromBeforeACarryConflicts", aNestedItemEditHoldingTheStampFromBeforeACarryConflicts},
+	{"AHandOverStampsTheDemotedTypeAndItsItemsWithTheEditStamp", aHandOverStampsTheDemotedTypeAndItsItemsWithTheEditStamp},
 }
 
 // fieldNamed returns the field the identity names among the fields or anywhere below them, and whether one does.
@@ -171,5 +177,143 @@ func anItemEditHoldingTheStampFromBeforeACarryConflicts(t *testing.T, s Stores) 
 		t.Context(), EditTitle(carried, "Ford Fiesta"), carried.UpdatedAt, nil, 0,
 	); err != nil {
 		t.Errorf("Update() holding the stamp the store serves now: error = %v, want nil", err)
+	}
+}
+
+// createGroupAndUpdateGroupStampTheGroup stamps a new group as created now and moves only its update stamp on an edit.
+func createGroupAndUpdateGroupStampTheGroup(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	created := GroupOn(t, s.Types, "Extras", "car")
+	if created.CreatedAt.IsZero() || !created.UpdatedAt.Equal(created.CreatedAt) {
+		t.Fatalf("CreateGroup() stamps = %v and %v, want both set at creation", created.CreatedAt, created.UpdatedAt)
+	}
+	edited := created
+	edited.Title = "Extras renamed"
+	edited.CreatedAt = created.CreatedAt.Add(time.Hour)
+
+	updated, err := s.Types.UpdateGroup(t.Context(), edited, nil, nil)
+
+	if err != nil {
+		t.Fatalf("UpdateGroup() error = %v, want nil", err)
+	}
+	for what, held := range map[string]content.Group{
+		"UpdateGroup()": updated, "the stored group": GroupAt(t, s.Types, created.ID),
+	} {
+		if !held.CreatedAt.Equal(created.CreatedAt) {
+			t.Errorf("%s creation stamp = %v, want %v kept", what, held.CreatedAt, created.CreatedAt)
+		}
+		if !held.UpdatedAt.After(created.UpdatedAt) {
+			t.Errorf("%s update stamp = %v, want it moved past %v", what, held.UpdatedAt, created.UpdatedAt)
+		}
+	}
+}
+
+// updateFieldInGroupStoresTheStampTheEditSends turns away a later edit holding the stamp from before the first one.
+func updateFieldInGroupStoresTheStampTheEditSends(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	title := DeclareTypedField(t, s.Types, "car", "title")
+
+	if _, err := s.Types.UpdateFieldInGroup(
+		t.Context(), title.GroupID, relabelled(title), title.UpdatedAt, nil,
+	); err != nil {
+		t.Fatalf("UpdateFieldInGroup() error = %v, want nil", err)
+	}
+
+	served := storedField(t, s.Types, title.GroupID, title.ID)
+	staleThenServed(t, "UpdateFieldInGroup() after an edit", title.UpdatedAt, served.UpdatedAt,
+		topFieldEdit(t, s.Types, title.GroupID, served))
+}
+
+// aMoveLeavesTheStampsOfTheFieldsInsideTheMovedOne lets an edit of a sub field land after its container moved.
+func aMoveLeavesTheStampsOfTheFieldsInsideTheMovedOne(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	specs := DeclareSection(t, s.Types, "specs")
+	doors := DeclareUnder(t, s.Types, specs.ID, "doors")
+	extras := GroupOn(t, s.Types, "Extras", "car")
+	before := storedField(t, s.Types, specs.GroupID, doors.ID)
+
+	if _, err := s.Types.MoveField(
+		t.Context(), specs.ID, extras.ID, 0, content.DefaultFieldDepth, nil,
+	); err != nil {
+		t.Fatalf("MoveField(specs to extras) error = %v, want nil", err)
+	}
+
+	if _, err := s.Types.UpdateSubField(t.Context(), doors.ID, relabelled(doors), before.UpdatedAt); err != nil {
+		t.Errorf("UpdateSubField() holding the stamp from before its container moved: error = %v, want nil", err)
+	}
+}
+
+// aGroupEditLeavesTheStampsOfItsFieldsAlone lets a field edit land after its group was renamed.
+func aGroupEditLeavesTheStampsOfItsFieldsAlone(t *testing.T, s Stores) {
+	StoreType(t, s.Types, "car")
+	title := DeclareTypedField(t, s.Types, "car", "title")
+	before := storedField(t, s.Types, title.GroupID, title.ID)
+	renamed := GroupAt(t, s.Types, title.GroupID)
+	renamed.Title = "Car details"
+
+	if _, err := s.Types.UpdateGroup(t.Context(), renamed, nil, nil); err != nil {
+		t.Fatalf("UpdateGroup() error = %v, want nil", err)
+	}
+
+	if _, err := s.Types.UpdateFieldInGroup(
+		t.Context(), title.GroupID, relabelled(title), before.UpdatedAt, nil,
+	); err != nil {
+		t.Errorf("UpdateFieldInGroup() holding the stamp from before the group edit: error = %v, want nil", err)
+	}
+}
+
+// aNestedItemEditHoldingTheStampFromBeforeACarryConflicts turns away an edit of a nested item a carry stamped.
+func aNestedItemEditHoldingTheStampFromBeforeACarryConflicts(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	RegisterPageType(t, s.Types)
+	about := MustNest(t, s.Content, nil, "About", author)
+	team := MustNest(t, s.Content, &about, "Team", author)
+	pages, err := s.Types.ByKey(t.Context(), "page")
+	if err != nil {
+		t.Fatalf("ByKey(page) error = %v, want nil", err)
+	}
+	pages.RouteWord, pages.UpdatedAt = "docs", time.Now().UTC()
+	if _, err := s.Types.Update(t.Context(), pages); err != nil {
+		t.Fatalf("Update(page) error = %v, want nil", err)
+	}
+	carried, err := s.Content.ByID(t.Context(), team.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+
+	_, err = s.Content.Update(t.Context(), EditTitle(carried, "Crew"), team.UpdatedAt, nil, 0)
+
+	if !errors.Is(err, content.ErrConflict) {
+		t.Errorf("Update() of the nested page holding the stamp from before the carry: error = %v, want %v",
+			err, content.ErrConflict)
+	}
+	if _, err := s.Content.Update(t.Context(), EditTitle(carried, "Crew"), carried.UpdatedAt, nil, 0); err != nil {
+		t.Errorf("Update() of the nested page holding the stamp the store serves now: error = %v, want nil", err)
+	}
+}
+
+// aHandOverStampsTheDemotedTypeAndItsItemsWithTheEditStamp gives the demoted type and each carried item the edit stamp.
+func aHandOverStampsTheDemotedTypeAndItsItemsWithTheEditStamp(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	RegisterPageType(t, s.Types)
+	post := StoreItem(t, s.Content, PostType(), nil, "Hello World", author)
+	about := MustNest(t, s.Content, nil, "About", author)
+	at := time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)
+	promoted := PageType()
+	promoted.Default, promoted.UpdatedAt = true, at
+
+	if _, err := s.Types.Update(t.Context(), promoted); err != nil {
+		t.Fatalf("Update() handing over the root error = %v, want nil", err)
+	}
+
+	demoted, err := s.Types.ByKey(t.Context(), content.TypePost)
+	if err != nil || !demoted.UpdatedAt.Equal(at) {
+		t.Errorf("the demoted post type stamp = %v, %v, want the edit stamp %v", demoted.UpdatedAt, err, at)
+	}
+	for _, item := range []content.Content{post, about} {
+		carried, err := s.Content.ByID(t.Context(), item.ID)
+		if err != nil || !carried.UpdatedAt.Equal(at) {
+			t.Errorf("the carried %q stamp = %v, %v, want the edit stamp %v", item.Title, carried.UpdatedAt, err, at)
+		}
 	}
 }

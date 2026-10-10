@@ -123,7 +123,7 @@ func reportsAMissingType(t *testing.T, s Stores) {
 	}
 }
 
-// updatesTheEditableFields stores the new labels, route word, nesting, activity and description.
+// updatesTheEditableFields stores the new labels, route word, nesting, activity, description and update stamp.
 func updatesTheEditableFields(t *testing.T, s Stores) {
 	created, err := s.Types.Create(t.Context(), CarType(t))
 	if err != nil {
@@ -133,6 +133,7 @@ func updatesTheEditableFields(t *testing.T, s Stores) {
 	edited.SingularLabel, edited.PluralLabel = "Vehicle", "Vehicles"
 	edited.RouteWord, edited.Hierarchical, edited.Active = "vehicles", true, false
 	edited.Description = "Vehicles for hire."
+	edited.CreatedAt = created.CreatedAt.Add(time.Hour)
 	edited.UpdatedAt = created.UpdatedAt.Add(time.Second)
 
 	updated, err := s.Types.Update(t.Context(), edited)
@@ -151,6 +152,14 @@ func updatesTheEditableFields(t *testing.T, s Stores) {
 	}
 	if updated.Key != "car" || !updated.CreatedAt.Equal(created.CreatedAt) {
 		t.Errorf("Update() = %+v, want the key and creation stamp untouched", updated)
+	}
+	if !updated.UpdatedAt.Equal(edited.UpdatedAt) {
+		t.Errorf("Update().UpdatedAt = %v, want the given stamp %v", updated.UpdatedAt, edited.UpdatedAt)
+	}
+	stored, err := s.Types.ByKey(t.Context(), "car")
+	if err != nil || !stored.CreatedAt.Equal(created.CreatedAt) || !stored.UpdatedAt.Equal(edited.UpdatedAt) {
+		t.Errorf("ByKey() stamps = %v and %v, %v, want %v kept and %v written",
+			stored.CreatedAt, stored.UpdatedAt, err, created.CreatedAt, edited.UpdatedAt)
 	}
 }
 
