@@ -883,6 +883,10 @@ func (s *TypeStore) MoveField(
 		if err != nil {
 			return err
 		}
+		if move.stands() {
+			moved = move.leaving
+			return nil
+		}
 		if err := move.keyFree(ctx, queries); err != nil {
 			return err
 		}
@@ -953,6 +957,11 @@ func movePlanned(ctx context.Context, queries *db.Queries, id, toGroup, toParent
 		return fieldMove{}, err
 	}
 	return move, nil
+}
+
+// stands reports whether the field already stands where the move asks it to.
+func (m fieldMove) stands() bool {
+	return m.toGroup == m.source.ID && m.toParent == m.leaving.ParentID
 }
 
 // keyFree re-checks the key against the rival groups when the field lands at a group's top.
