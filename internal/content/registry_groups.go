@@ -396,7 +396,7 @@ func (r *Registry) UpdateFieldInGroup(
 	return updated, nil
 }
 
-// DeleteFieldInGroup removes the field and its values from the types its group matches.
+// DeleteFieldInGroup removes the field and its values as deleting the group would.
 func (r *Registry) DeleteFieldInGroup(ctx context.Context, groupID int, key string) error {
 	return r.DeleteFieldInGroupSettled(ctx, groupID, key, nil)
 }
@@ -476,7 +476,7 @@ func (r *Registry) heldGroup(ctx context.Context, groupID int) (Group, error) {
 	return target, err
 }
 
-// MoveField carries the field to a group's top or into a container, sweeping its values when it enters or leaves one.
+// MoveField carries the field to a group's top or into a container, sweeping the values it leaves behind.
 func (r *Registry) MoveField(ctx context.Context, id, toGroup, toParent int) (Field, error) {
 	return r.MoveFieldSettled(ctx, id, toGroup, toParent, nil)
 }
