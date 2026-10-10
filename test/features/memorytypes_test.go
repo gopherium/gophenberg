@@ -307,7 +307,7 @@ func (s *memoryTypes) DeleteSubField(_ context.Context, id int, recheck content.
 	if !found {
 		return content.ErrFieldNotFound
 	}
-	swept := s.servedAlong(s.typesMatchedBy(held), held.ID, path)
+	swept := s.servedAlong(s.typeKeys(), held.ID, path)
 	s.takenOut(id)
 	s.content.sweepField(swept, dropped, path)
 	return nil
@@ -734,13 +734,22 @@ func keyTakenAt(fields []content.Field, toParent int, key string) bool {
 
 // sweptByMove returns the types a moved field's old values leave, only those the landing misses between two tops.
 func (s *memoryTypes) sweptByMove(source, landing content.Group, containerChanged bool, path []string) []string {
-	matched := s.typesMatchedBy(source)
+	typeKeys := s.typeKeys()
 	if !containerChanged {
-		matched = slices.DeleteFunc(matched, func(key string) bool {
+		typeKeys = slices.DeleteFunc(typeKeys, func(key string) bool {
 			return landing.Location.Match(content.Screen{content.ScreenContentType: key}, memoryParams)
 		})
 	}
-	return s.servedAlong(matched, source.ID, path)
+	return s.servedAlong(typeKeys, source.ID, path)
+}
+
+// typeKeys returns the key of every stored type.
+func (s *memoryTypes) typeKeys() []string {
+	keys := make([]string, len(s.types))
+	for i, stored := range s.types {
+		keys[i] = stored.Key
+	}
+	return keys
 }
 
 // placedIn returns the group holding the field carrying the identity, the field and its path.
