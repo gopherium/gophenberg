@@ -4,6 +4,7 @@ package contenttest
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -93,13 +94,12 @@ func deletingALayoutTakesTheFieldsItHeld(t *testing.T, s Stores) {
 	if err != nil {
 		t.Fatalf("List() error = %v, want nil", err)
 	}
-	for _, listed := range held {
-		if listed.Key != "car" {
-			continue
-		}
-		if len(listed.Fields) != 1 || len(listed.Fields[0].Fields) != 0 {
-			t.Errorf("fields = %v, want the flexible left holding no layout", listed.Fields)
-		}
+	listed := slices.IndexFunc(held, func(stored content.Type) bool { return stored.Key == "car" })
+	if listed < 0 {
+		t.Fatalf("List() = %+v, want the car type listed", held)
+	}
+	if fields := held[listed].Fields; len(fields) != 1 || len(fields[0].Fields) != 0 {
+		t.Errorf("fields = %v, want the flexible left holding no layout", fields)
 	}
 }
 
