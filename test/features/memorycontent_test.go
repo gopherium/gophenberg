@@ -509,12 +509,13 @@ func (s *memoryContent) carryDescendants(moved content.Content, was string) {
 	}
 }
 
-// typeCarry names a type whose addresses move from the route word it answered under to another.
+// typeCarry names a type whose addresses move from the route word it answered under to another, and their stamp.
 type typeCarry struct {
 	key, was, now string
+	at            time.Time
 }
 
-// carryTypes moves every address of each type whose route word changed, or moves none and reports a clash.
+// carryTypes moves and stamps every item of each type whose route word changed, or moves none and reports a clash.
 func (s *memoryContent) carryTypes(carries ...typeCarry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -528,6 +529,7 @@ func (s *memoryContent) carryTypes(carries ...typeCarry) error {
 				continue
 			}
 			stored.Path = content.AddressUnder(carry.now, strings.TrimPrefix(strings.TrimPrefix(stored.Path, carry.was), "/"))
+			stored.UpdatedAt = carry.at
 			moved[id] = stored
 		}
 	}

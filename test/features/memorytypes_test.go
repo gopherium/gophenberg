@@ -94,6 +94,8 @@ func (s *memoryTypes) CreateGroup(_ context.Context, g content.Group) (content.G
 	}
 	s.nextGroupID++
 	g.ID, g.Active, g.Position = s.nextGroupID, true, len(s.groups)+1
+	now := time.Now().UTC()
+	g.CreatedAt, g.UpdatedAt = now, now
 	s.groups = append(s.groups, g)
 	return g, nil
 }
@@ -136,11 +138,13 @@ func (s *memoryTypes) UpdateGroup(
 		if err := s.standsAlone(g, held); err != nil {
 			return content.Group{}, err
 		}
-		fields, err := repointedIn(held.Fields, repointed)
+		now := time.Now().UTC()
+		fields, err := repointedIn(held.Fields, repointed, now)
 		if err != nil {
 			return content.Group{}, err
 		}
 		held.Title, held.Location, held.Active, held.Fields = g.Title, g.Location, g.Active, fields
+		held.UpdatedAt = now
 		s.groups[i] = held
 		return held, nil
 	}
@@ -157,9 +161,8 @@ func (s *memoryTypes) standsAlone(g, held content.Group) error {
 }
 
 // repointedIn returns the fields with each one pointed anew in its place, or a conflict when one changed since read.
-func repointedIn(fields, repointed []content.Field) ([]content.Field, error) {
+func repointedIn(fields, repointed []content.Field, now time.Time) ([]content.Field, error) {
 	held := slices.Clone(fields)
-	now := time.Now().UTC()
 	for _, f := range repointed {
 		at := slices.IndexFunc(held, func(stored content.Field) bool { return stored.Key == f.Key })
 		if at < 0 || !held[at].UpdatedAt.Equal(f.UpdatedAt) {
@@ -693,7 +696,7 @@ func (s *memoryTypes) MoveField(
 	swept := s.sweptByMove(source, s.groups[landing], carried.ParentID != toParent, path)
 	s.takenOut(id)
 	moved := storedUnder(carried, toGroup)
-	moved.ParentID = toParent
+	moved.ParentID, moved.UpdatedAt = toParent, time.Now().UTC()
 	if toParent == 0 {
 		s.groups[landing].Fields = append(s.groups[landing].Fields, moved)
 	} else {
@@ -925,7 +928,7 @@ func (s *memoryTypes) Update(ctx context.Context, t content.Type) (content.Type,
 		held := slices.Clone(s.types)
 		var demoted typeCarry
 		if t.Default && !stored.Default {
-			if demoted, err = s.handRootOver(); err != nil {
+			if demoted, err = s.handRootOver(t.UpdatedAt); err != nil {
 				return content.Type{}, err
 			}
 			t.RouteWord = ""
@@ -933,8 +936,10 @@ func (s *memoryTypes) Update(ctx context.Context, t content.Type) (content.Type,
 		if s.routeWordTaken(t.Key, t.RouteWord) {
 			return content.Type{}, content.ErrRouteWordTaken
 		}
+		t.CreatedAt = stored.CreatedAt
 		s.types[i] = t
-		if err := s.carry(demoted, typeCarry{key: t.Key, was: stored.RouteWord, now: t.RouteWord}); err != nil {
+		carried := typeCarry{key: t.Key, was: stored.RouteWord, now: t.RouteWord, at: t.UpdatedAt}
+		if err := s.carry(demoted, carried); err != nil {
 			s.types = held
 			return content.Type{}, err
 		}
@@ -951,14 +956,14 @@ func (s *memoryTypes) carry(carries ...typeCarry) error {
 	return s.content.carryTypes(carries...)
 }
 
-// handRootOver moves the type holding the root under a word of its own and returns its carry, or refuses the word.
-func (s *memoryTypes) handRootOver() (typeCarry, error) {
+// handRootOver moves the root type under a word of its own stamped at the time and returns its carry, or refuses it.
+func (s *memoryTypes) handRootOver(at time.Time) (typeCarry, error) {
 	for i, stored := range s.types {
 		if !stored.Default {
 			continue
 		}
 		was := stored.RouteWord
-		stored.RouteWord, stored.Default = content.Slugify(stored.PluralLabel), false
+		stored.RouteWord, stored.Default, stored.UpdatedAt = content.Slugify(stored.PluralLabel), false, at
 		if err := stored.Validate(); err != nil {
 			return typeCarry{}, err
 		}
@@ -966,7 +971,7 @@ func (s *memoryTypes) handRootOver() (typeCarry, error) {
 			return typeCarry{}, content.ErrRouteWordTaken
 		}
 		s.types[i] = stored
-		return typeCarry{key: stored.Key, was: was, now: stored.RouteWord}, nil
+		return typeCarry{key: stored.Key, was: was, now: stored.RouteWord, at: at}, nil
 	}
 	return typeCarry{}, nil
 }
@@ -1065,20 +1070,20 @@ func (s *memoryTypes) nests(key string) bool {
 	return false
 }
 
-// AdoptType takes the plugin's type over as the site's own.
+// AdoptType takes the plugin's type over as the site's own, stamped now.
 func (s *memoryTypes) AdoptType(_ context.Context, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i := range s.types {
 		if s.types[i].Key == key {
-			s.types[i].Origin = ""
+			s.types[i].Origin, s.types[i].UpdatedAt = "", time.Now().UTC()
 			return nil
 		}
 	}
 	return content.ErrTypeNotFound
 }
 
-// AdoptGroup takes the plugin's group and its fields over as the site's own.
+// AdoptGroup takes the plugin's group and its fields over as the site's own, stamped now.
 func (s *memoryTypes) AdoptGroup(_ context.Context, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1086,17 +1091,18 @@ func (s *memoryTypes) AdoptGroup(_ context.Context, key string) error {
 		if s.groups[i].Key != key {
 			continue
 		}
-		s.groups[i].Origin = ""
-		adoptFields(s.groups[i].Fields)
+		now := time.Now().UTC()
+		s.groups[i].Origin, s.groups[i].UpdatedAt = "", now
+		adoptFields(s.groups[i].Fields, now)
 		return nil
 	}
 	return content.ErrGroupNotFound
 }
 
-// adoptFields clears the plugin origin from the fields and from every field standing inside them.
-func adoptFields(fields []content.Field) {
+// adoptFields clears the plugin origin from the fields and every field inside them, stamping each one.
+func adoptFields(fields []content.Field, now time.Time) {
 	for i := range fields {
-		fields[i].Origin = ""
-		adoptFields(fields[i].Fields)
+		fields[i].Origin, fields[i].UpdatedAt = "", now
+		adoptFields(fields[i].Fields, now)
 	}
 }
