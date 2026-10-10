@@ -198,7 +198,7 @@ RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_
 SELECT id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin
 FROM core.content_fields WHERE id = @id;
 
--- name: ReorderContentFields :exec
+-- name: ReorderContentFields :execrows
 UPDATE core.content_fields
 SET position = ordered.position
 FROM (
@@ -221,7 +221,7 @@ SET label = @label, required = @required, settings = @settings, updated_at = @up
 WHERE id = @id AND parent_field_id IS NOT NULL AND updated_at = @expected_updated_at
 RETURNING id, key, label, kind, relates_to, many, required, created_at, updated_at, position, group_id, settings, parent_field_id, depth, origin;
 
--- name: ReorderSubContentFields :exec
+-- name: ReorderSubContentFields :execrows
 UPDATE core.content_fields
 SET position = ordered.position
 FROM (

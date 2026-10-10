@@ -60,18 +60,19 @@ func TestContentStoreSuite(t *testing.T) {
 	contenttest.Run(t, memoryStores)
 }
 
-func TestContentStoreSuiteFailsWithoutPanickingOnShortRows(t *testing.T) {
-	if rule := os.Getenv(shortRowsVariable); rule != "" {
-		contenttest.Run(t, shortStores(rule))
-		return
-	}
+func TestTypeStoreSuite(t *testing.T) {
 	t.Parallel()
 
+	contenttest.RunTypes(t, memoryStores)
+}
+
+// shortRowsRuns reruns the named test under each keep rule and fails on a panic or a case that never reported.
+func shortRowsRuns(t *testing.T, name string, cases int) {
+	t.Helper()
 	for rule := range keptRows {
 		t.Run(rule, func(t *testing.T) {
 			t.Parallel()
-			run := exec.CommandContext(t.Context(), os.Args[0],
-				"-test.run=^TestContentStoreSuiteFailsWithoutPanickingOnShortRows$", "-test.v")
+			run := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^"+name+"$", "-test.v")
 			run.Env = append(os.Environ(), shortRowsVariable+"="+rule)
 
 			out, err := run.CombinedOutput()
@@ -83,9 +84,29 @@ func TestContentStoreSuiteFailsWithoutPanickingOnShortRows(t *testing.T) {
 			if at := bytes.Index(out, []byte("\npanic: ")); at >= 0 {
 				t.Fatalf("the suite panicked on stores keeping %s:%s", rule, out[at:min(len(out), at+800)])
 			}
-			if reported := len(reportedCase.FindAll(out, -1)); reported != len(contenttest.Cases()) {
-				t.Errorf("%d cases reported on stores keeping %s, want all %d", reported, rule, len(contenttest.Cases()))
+			if reported := len(reportedCase.FindAll(out, -1)); reported != cases {
+				t.Errorf("%d cases reported on stores keeping %s, want all %d", reported, rule, cases)
 			}
 		})
 	}
+}
+
+func TestContentStoreSuiteFailsWithoutPanickingOnShortRows(t *testing.T) {
+	if rule := os.Getenv(shortRowsVariable); rule != "" {
+		contenttest.Run(t, shortStores(rule))
+		return
+	}
+	t.Parallel()
+
+	shortRowsRuns(t, "TestContentStoreSuiteFailsWithoutPanickingOnShortRows", len(contenttest.Cases()))
+}
+
+func TestTypeStoreSuiteFailsWithoutPanickingOnShortRows(t *testing.T) {
+	if rule := os.Getenv(shortRowsVariable); rule != "" {
+		contenttest.RunTypes(t, shortStores(rule))
+		return
+	}
+	t.Parallel()
+
+	shortRowsRuns(t, "TestTypeStoreSuiteFailsWithoutPanickingOnShortRows", len(contenttest.TypeCases()))
 }

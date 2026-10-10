@@ -3,6 +3,7 @@
 package features_test
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -94,6 +95,8 @@ func (s *memoryTypes) CreateGroup(_ context.Context, g content.Group) (content.G
 	}
 	s.nextGroupID++
 	g.ID, g.Active, g.Position = s.nextGroupID, true, len(s.groups)+1
+	now := time.Now().UTC()
+	g.CreatedAt, g.UpdatedAt = now, now
 	s.groups = append(s.groups, g)
 	return g, nil
 }
@@ -120,7 +123,7 @@ func (s *memoryTypes) rechecked(recheck content.Recheck) error {
 	return recheck(s.listing(), s.types)
 }
 
-// UpdateGroup stores the group's title, location and resting flag with the fields it points anew.
+// UpdateGroup stores the group's title, location and resting flag with the fields it points anew, once it stands alone.
 func (s *memoryTypes) UpdateGroup(
 	_ context.Context, g content.Group, repointed []content.Field, recheck content.Recheck,
 ) (content.Group, error) {
@@ -133,78 +136,104 @@ func (s *memoryTypes) UpdateGroup(
 		if held.ID != g.ID {
 			continue
 		}
-		fields, err := repointedIn(held.Fields, repointed)
+		if err := s.standsAlone(g, held); err != nil {
+			return content.Group{}, err
+		}
+		now := time.Now().UTC()
+		fields, err := repointedIn(held.Fields, repointed, now)
 		if err != nil {
 			return content.Group{}, err
 		}
 		held.Title, held.Location, held.Active, held.Fields = g.Title, g.Location, g.Active, fields
+		held.UpdatedAt = now
 		s.groups[i] = held
 		return held, nil
 	}
 	return content.Group{}, content.ErrGroupNotFound
 }
 
+// standsAlone reports whether the stored keys of the group stay free of every rival it would share a type with.
+func (s *memoryTypes) standsAlone(g, held content.Group) error {
+	keys := make([]string, 0, len(held.Fields))
+	for _, f := range held.Fields {
+		keys = append(keys, f.Key)
+	}
+	return content.Uncollided(s.types, s.groups, g, keys, 0, memoryParams)
+}
+
 // repointedIn returns the fields with each one pointed anew in its place, or a conflict when one changed since read.
-func repointedIn(fields, repointed []content.Field) ([]content.Field, error) {
+func repointedIn(fields, repointed []content.Field, now time.Time) ([]content.Field, error) {
 	held := slices.Clone(fields)
-	now := time.Now().UTC()
 	for _, f := range repointed {
 		at := slices.IndexFunc(held, func(stored content.Field) bool { return stored.Key == f.Key })
 		if at < 0 || !held[at].UpdatedAt.Equal(f.UpdatedAt) {
 			return nil, content.ErrConflict
 		}
-		f.UpdatedAt = now
-		held[at] = f
+		held[at] = editedFrom(held[at], f, now)
 	}
 	return held, nil
 }
 
-// DeleteGroup removes the group and every field it holds, carrying what it stores inside other groups' containers.
+// editedFrom returns the stored field carrying the edit's label, required flag and settings, stamped at the time.
+func editedFrom(stored, edit content.Field, at time.Time) content.Field {
+	stored.Label, stored.Required, stored.Settings = edit.Label, edit.Required, edit.Settings
+	stored.UpdatedAt = at
+	return stored
+}
+
+// DeleteGroup removes the group once the check passes, carrying its strays and sweeping its keys under one lock.
 func (s *memoryTypes) DeleteGroup(_ context.Context, id int, recheck content.Recheck) error {
-	served, err := s.dropGroup(id, recheck)
-	if err != nil {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.rechecked(recheck); err != nil {
 		return err
 	}
-	for key, typeKeys := range served {
-		for _, typeKey := range typeKeys {
-			s.content.clearField(typeKey, key)
-			s.content.clearRelation(typeKey, key)
-		}
+	at := slices.IndexFunc(s.groups, func(g content.Group) bool { return g.ID == id })
+	if at < 0 {
+		return content.ErrGroupNotFound
+	}
+	held := s.groups[at]
+	for _, f := range held.Fields {
+		s.sweepKey(s.sweptByDelete(held, f.Key), f.Key)
+	}
+	s.groups = append(s.groups[:at], s.groups[at+1:]...)
+	for j, kept := range s.groups {
+		s.groups[j].Fields = carriedInto(kept.Fields, kept.ID)
 	}
 	return nil
 }
 
-// DeleteFieldsOfGroup removes every named field from its group once the check passes, and sweeps its values.
+// DeleteFieldsOfGroup removes every named field from its group once the check passes, sweeping as a group delete does.
 func (s *memoryTypes) DeleteFieldsOfGroup(
 	_ context.Context, groupID int, keys []string, recheck content.Recheck,
 ) error {
 	return s.deleteFields(groupID, keys, recheck)
 }
 
-// dropGroup removes the group once the check passes, reporting the types it alone served each top level key on.
-func (s *memoryTypes) dropGroup(id int, recheck content.Recheck) (map[string][]string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err := s.rechecked(recheck); err != nil {
-		return nil, err
+// sweptByDelete returns every stored type a deleted key clears from, sparing those another active group serves it on.
+func (s *memoryTypes) sweptByDelete(leaving content.Group, key string) []string {
+	swept := make([]string, 0, len(s.types))
+	for _, t := range s.types {
+		if !s.servedElsewhere(leaving.ID, t.Key, key) {
+			swept = append(swept, t.Key)
+		}
 	}
-	for i, held := range s.groups {
-		if held.ID != id {
-			continue
-		}
-		served := map[string][]string{}
-		for _, f := range held.Fields {
-			if s.content != nil {
-				served[f.Key] = s.servedAlong(s.typesMatchedBy(held), held.ID, []string{f.Key})
-			}
-		}
-		s.groups = append(s.groups[:i], s.groups[i+1:]...)
-		for j, kept := range s.groups {
-			s.groups[j].Fields = carriedInto(kept.Fields, kept.ID)
-		}
-		return served, nil
+	return swept
+}
+
+// servedElsewhere reports whether an active group other than the leaving one serves the top key on the type.
+func (s *memoryTypes) servedElsewhere(leaving int, typeKey, key string) bool {
+	screen := content.Screen{content.ScreenContentType: typeKey}
+	return slices.ContainsFunc(s.groups, func(g content.Group) bool {
+		return g.ID != leaving && g.Active && holdsKey(g.Fields, key) && g.Location.Match(screen, memoryParams)
+	})
+}
+
+// sweepKey takes the top key's values out of the items, revisions and autosaves of the types.
+func (s *memoryTypes) sweepKey(typeKeys []string, key string) {
+	for _, typeKey := range typeKeys {
+		s.content.clearField(typeKey, key)
 	}
-	return nil, content.ErrGroupNotFound
 }
 
 // carriedInto returns the declared fields, and every field inside them, stored under the group.
@@ -218,32 +247,71 @@ func carriedInto(declared []content.Field, groupID int) []content.Field {
 	return carried
 }
 
-// ReorderGroups stores the given order on the groups.
+// ReorderGroups stands the listed groups in the given order and leaves the rest where they stand.
 func (s *memoryTypes) ReorderGroups(_ context.Context, ids []int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	ordered := make([]content.Group, 0, len(ids))
-	for _, id := range ids {
-		for _, held := range s.groups {
-			if held.ID == id {
-				ordered = append(ordered, held)
-			}
-		}
-	}
-	s.groups = ordered
+	s.groups = reordered(s.groups, ids, groupID, groupID)
 	return nil
 }
 
-// CreateSubField declares the field inside the container the parent names, within the limit.
+// reordered returns the entries with the asked ones at their asked place and the rest at their slot, ties by identity.
+func reordered[T any, K comparable](held []T, asked []K, key func(T) K, id func(T) int) []T {
+	type placed struct {
+		entry        T
+		position, id int
+	}
+	all := make([]placed, len(held))
+	for i, entry := range held {
+		position := slices.Index(asked, key(entry)) + 1
+		if position == 0 {
+			position = i + 1
+		}
+		all[i] = placed{entry: entry, position: position, id: id(entry)}
+	}
+	slices.SortStableFunc(all, func(one, other placed) int {
+		return cmp.Or(cmp.Compare(one.position, other.position), cmp.Compare(one.id, other.id))
+	})
+	sorted := make([]T, len(all))
+	for i, place := range all {
+		sorted[i] = place.entry
+	}
+	return sorted
+}
+
+// groupID returns the identity of the group.
+func groupID(g content.Group) int {
+	return g.ID
+}
+
+// fieldKey returns the key of the field.
+func fieldKey(f content.Field) string {
+	return f.Key
+}
+
+// fieldID returns the identity of the field.
+func fieldID(f content.Field) int {
+	return f.ID
+}
+
+// CreateSubField declares the field the domain settles on inside the container the parent names, within the limit.
 func (s *memoryTypes) CreateSubField(
 	_ context.Context, parentID int, f content.Field, limit int,
 ) (content.Field, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, _, path, found := s.placedIn(parentID); found {
-		if err := content.WithinDepth(f, len(path), limit); err != nil {
+	if _, parent, path, found := s.placedIn(parentID); found {
+		settled, err := content.NewSubField(f, parent.Kind)
+		if err != nil {
 			return content.Field{}, err
 		}
+		if err := content.WithinDepth(settled, len(path), limit); err != nil {
+			return content.Field{}, err
+		}
+		if slices.ContainsFunc(parent.Fields, func(held content.Field) bool { return held.Key == settled.Key }) {
+			return content.Field{}, content.ErrFieldTaken
+		}
+		f = settled
 	}
 	s.fieldIDs++
 	f.ID, f.ParentID = s.fieldIDs, parentID
@@ -253,28 +321,37 @@ func (s *memoryTypes) CreateSubField(
 		if !found {
 			continue
 		}
+		if s.targetMissing(f) {
+			return content.Field{}, content.ErrTargetUnknown
+		}
 		s.groups[i].Fields = grown
 		return f, nil
 	}
 	return content.Field{}, content.ErrFieldNotFound
 }
 
-// DeleteSubField removes the field standing inside a container once the check passes.
+// targetMissing reports whether the field relates to a type the store does not hold now, as the foreign key refuses.
+func (s *memoryTypes) targetMissing(f content.Field) bool {
+	return f.RelatesTo != "" && !slices.ContainsFunc(s.types, func(stored content.Type) bool {
+		return stored.Key == f.RelatesTo
+	})
+}
+
+// DeleteSubField removes the field once the check passes, and its values where no other active group serves its path.
 func (s *memoryTypes) DeleteSubField(_ context.Context, id int, recheck content.Recheck) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.rechecked(recheck); err != nil {
 		return err
 	}
-	for i, held := range s.groups {
-		pruned, found := prunedInside(held.Fields, id)
-		if !found {
-			continue
-		}
-		s.groups[i].Fields = pruned
-		return nil
+	held, dropped, path, found := s.placedIn(id)
+	if !found {
+		return content.ErrFieldNotFound
 	}
-	return content.ErrFieldNotFound
+	swept := s.servedAlong(s.typeKeys(), held.ID, path)
+	s.takenOut(id)
+	s.content.sweepField(swept, dropped, path)
+	return nil
 }
 
 // UpdateSubField carries the edit onto the field standing inside a container.
@@ -284,6 +361,9 @@ func (s *memoryTypes) UpdateSubField(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, held := range s.groups {
+		if slices.ContainsFunc(held.Fields, func(top content.Field) bool { return top.ID == id }) {
+			return content.Field{}, content.ErrConflict
+		}
 		edited, stored, err := editedInside(held.Fields, id, f, expectedUpdatedAt)
 		if err != nil {
 			return content.Field{}, err
@@ -308,10 +388,8 @@ func editedInside(
 			if !expectedUpdatedAt.Equal(held.UpdatedAt) {
 				return declared, content.Field{}, content.ErrConflict
 			}
-			held.Label, held.Required, held.Settings = f.Label, f.Required, f.Settings
-			held.UpdatedAt = f.UpdatedAt
-			edited[i] = held
-			return edited, held, nil
+			edited[i] = editedFrom(held, f, f.UpdatedAt)
+			return edited, edited[i], nil
 		}
 		inside, stored, err := editedInside(held.Fields, id, f, expectedUpdatedAt)
 		if err != nil {
@@ -325,7 +403,7 @@ func editedInside(
 	return declared, content.Field{}, nil
 }
 
-// ReorderSubFields stands the fields inside the container in the order the keys name.
+// ReorderSubFields stands the listed fields inside the container in the given order and leaves the rest in place.
 func (s *memoryTypes) ReorderSubFields(_ context.Context, parentID int, keys []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -340,13 +418,13 @@ func (s *memoryTypes) ReorderSubFields(_ context.Context, parentID int, keys []s
 	return content.ErrFieldNotFound
 }
 
-// stoodInside returns the declared fields with the container's own fields in the order the keys name.
+// stoodInside returns the declared fields with the container's listed fields in the given order and the rest kept.
 func stoodInside(declared []content.Field, parentID int, keys []string) ([]content.Field, bool) {
 	stood := make([]content.Field, len(declared))
 	copy(stood, declared)
 	for i, held := range stood {
 		if held.ID == parentID {
-			stood[i].Fields = orderedInside(held.Fields, keys)
+			stood[i].Fields = reordered(held.Fields, keys, fieldKey, fieldID)
 			return stood, true
 		}
 		if inside, found := stoodInside(held.Fields, parentID, keys); found {
@@ -355,19 +433,6 @@ func stoodInside(declared []content.Field, parentID int, keys []string) ([]conte
 		}
 	}
 	return declared, false
-}
-
-// orderedInside returns the fields standing in the order the keys name.
-func orderedInside(declared []content.Field, keys []string) []content.Field {
-	stood := make([]content.Field, 0, len(declared))
-	for _, key := range keys {
-		for _, held := range declared {
-			if held.Key == key {
-				stood = append(stood, held)
-			}
-		}
-	}
-	return stood
 }
 
 // storedUnder returns the field and every field inside it stored under the group.
@@ -434,7 +499,7 @@ func prunedInside(declared []content.Field, id int) ([]content.Field, bool) {
 	return declared, false
 }
 
-// CreateFieldInGroup declares the field inside the group once the check passes.
+// CreateFieldInGroup declares the field inside the group once the check passes and no rival group serves its key.
 func (s *memoryTypes) CreateFieldInGroup(
 	_ context.Context, groupID int, f content.Field, recheck content.Recheck,
 ) (content.Field, error) {
@@ -447,10 +512,16 @@ func (s *memoryTypes) CreateFieldInGroup(
 		if held.ID != groupID {
 			continue
 		}
+		if err := content.Uncollided(s.types, s.groups, held, []string{f.Key}, 0, memoryParams); err != nil {
+			return content.Field{}, err
+		}
 		for _, stored := range held.Fields {
 			if stored.Key == f.Key {
 				return content.Field{}, content.ErrFieldTaken
 			}
+		}
+		if s.targetMissing(f) {
+			return content.Field{}, content.ErrTargetUnknown
 		}
 		s.fieldIDs++
 		f.ID, f.GroupID = s.fieldIDs, groupID
@@ -478,69 +549,58 @@ func (s *memoryTypes) UpdateFieldInGroup(
 				if !expectedUpdatedAt.Equal(stored.UpdatedAt) {
 					return content.Field{}, content.ErrConflict
 				}
-				s.groups[i].Fields[j] = f
-				return f, nil
+				edited := editedFrom(stored, f, f.UpdatedAt)
+				s.groups[i].Fields[j] = edited
+				return edited, nil
 			}
 		}
+		return content.Field{}, content.ErrFieldNotFound
 	}
-	return content.Field{}, content.ErrFieldNotFound
+	return content.Field{}, content.ErrGroupNotFound
 }
 
-// DeleteFieldInGroup removes the field once the check passes, and its values from the types its group served it on.
+// DeleteFieldInGroup removes the field once the check passes, sweeping its values as a group delete does.
 func (s *memoryTypes) DeleteFieldInGroup(_ context.Context, groupID int, key string, recheck content.Recheck) error {
 	return s.deleteFields(groupID, []string{key}, recheck)
 }
 
-// deleteFields removes the named fields once the check passes, then their values from the types their group served.
+// deleteFields removes the named fields in one hold of the mutex once the check passes, sweeping like a group delete.
 func (s *memoryTypes) deleteFields(groupID int, keys []string, recheck content.Recheck) error {
-	reached, err := s.dropFieldsInGroup(groupID, keys, recheck)
-	if err != nil {
-		return err
-	}
-	if s.content == nil {
-		return nil
-	}
-	for key, typeKeys := range reached {
-		for _, typeKey := range typeKeys {
-			s.content.clearField(typeKey, key)
-			s.content.clearRelation(typeKey, key)
-		}
-	}
-	return nil
-}
-
-// dropFieldsInGroup removes the named declarations in one hold of the mutex once the check passes, keyed to types.
-func (s *memoryTypes) dropFieldsInGroup(
-	groupID int, keys []string, recheck content.Recheck,
-) (map[string][]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.rechecked(recheck); err != nil {
-		return nil, err
+		return err
 	}
 	at := slices.IndexFunc(s.groups, func(g content.Group) bool { return g.ID == groupID })
-	if at < 0 || !holdsEvery(s.groups[at].Fields, keys) {
-		return nil, content.ErrFieldNotFound
+	if at < 0 {
+		return content.ErrGroupNotFound
 	}
-	reached := make(map[string][]string, len(keys))
+	if !holdsEvery(s.groups[at].Fields, keys) {
+		return content.ErrFieldNotFound
+	}
 	for _, key := range keys {
 		held := s.groups[at]
-		reached[key] = s.servedAlong(s.typesMatchedBy(held), held.ID, []string{key})
+		s.sweepKey(s.sweptByDelete(held, key), key)
 		s.groups[at].Fields = slices.DeleteFunc(slices.Clone(held.Fields), func(f content.Field) bool {
 			return f.Key == key
 		})
 	}
-	return reached, nil
+	return nil
 }
 
 // holdsEvery reports whether a top level field stands under each key.
 func holdsEvery(fields []content.Field, keys []string) bool {
 	for _, key := range keys {
-		if !slices.ContainsFunc(fields, func(f content.Field) bool { return f.Key == key }) {
+		if !holdsKey(fields, key) {
 			return false
 		}
 	}
 	return true
+}
+
+// holdsKey reports whether a top level field stands under the key.
+func holdsKey(fields []content.Field, key string) bool {
+	return slices.ContainsFunc(fields, func(f content.Field) bool { return f.Key == key })
 }
 
 // servedAlong returns the type keys on which the group serves the path, or no other active group serves it whole.
@@ -595,7 +655,7 @@ func (s *memoryTypes) typesMatchedBy(g content.Group) []string {
 	return matched
 }
 
-// ReorderFieldsInGroup stores the given order on the group's fields.
+// ReorderFieldsInGroup stands the listed fields of the group in the given order and leaves the rest where they stand.
 func (s *memoryTypes) ReorderFieldsInGroup(_ context.Context, groupID int, keys []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -603,15 +663,7 @@ func (s *memoryTypes) ReorderFieldsInGroup(_ context.Context, groupID int, keys 
 		if held.ID != groupID {
 			continue
 		}
-		ordered := make([]content.Field, 0, len(keys))
-		for _, key := range keys {
-			for _, stored := range held.Fields {
-				if stored.Key == key {
-					ordered = append(ordered, stored)
-				}
-			}
-		}
-		s.groups[i].Fields = ordered
+		s.groups[i].Fields = reordered(held.Fields, keys, fieldKey, fieldID)
 		return nil
 	}
 	return content.ErrGroupNotFound
@@ -642,20 +694,32 @@ func (s *memoryTypes) MoveField(
 	if !found {
 		return content.Field{}, content.ErrFieldNotFound
 	}
+	if content.Inside(carried, toParent) {
+		return content.Field{}, content.MovesInsideItself(carried.Key)
+	}
 	if err := content.WithinDepth(carried, landingDepth(s.groups[landing].Fields, toParent), limit); err != nil {
 		return content.Field{}, err
+	}
+	if source.ID == toGroup && carried.ParentID == toParent {
+		return carried, nil
+	}
+	if err := s.keyFreeAtTop(s.groups[landing], source, carried, toParent); err != nil {
+		return content.Field{}, err
+	}
+	if keyTakenAt(s.groups[landing].Fields, toParent, carried.Key) {
+		return content.Field{}, content.ErrFieldTaken
 	}
 	swept := s.sweptByMove(source, s.groups[landing], carried.ParentID != toParent, path)
 	s.takenOut(id)
 	moved := storedUnder(carried, toGroup)
-	moved.ParentID = toParent
+	moved.ParentID, moved.UpdatedAt = toParent, time.Now().UTC()
 	if toParent == 0 {
 		s.groups[landing].Fields = append(s.groups[landing].Fields, moved)
 	} else {
 		s.groups[landing].Fields, _ = grownInside(s.groups[landing].Fields, toParent, moved)
 	}
 	if s.content != nil {
-		s.content.sweepPath(swept, path)
+		s.content.sweepField(swept, carried, path)
 	}
 	return moved, nil
 }
@@ -669,15 +733,45 @@ func landingDepth(fields []content.Field, toParent int) int {
 	return len(above)
 }
 
+// keyFreeAtTop reports whether no rival of the landing group serves the key of a field landing at its top.
+func (s *memoryTypes) keyFreeAtTop(landing, source content.Group, carried content.Field, toParent int) error {
+	if toParent != 0 {
+		return nil
+	}
+	leaving := 0
+	if carried.ParentID == 0 {
+		leaving = source.ID
+	}
+	return content.Uncollided(s.types, s.groups, landing, []string{carried.Key}, leaving, memoryParams)
+}
+
+// keyTakenAt reports whether a field already holds the key where a field landing under the parent would stand.
+func keyTakenAt(fields []content.Field, toParent int, key string) bool {
+	if toParent != 0 {
+		parent, _, _ := placedInside(fields, toParent)
+		fields = parent.Fields
+	}
+	return slices.ContainsFunc(fields, func(held content.Field) bool { return held.Key == key })
+}
+
 // sweptByMove returns the types a moved field's old values leave, only those the landing misses between two tops.
 func (s *memoryTypes) sweptByMove(source, landing content.Group, containerChanged bool, path []string) []string {
-	matched := s.typesMatchedBy(source)
+	typeKeys := s.typeKeys()
 	if !containerChanged {
-		matched = slices.DeleteFunc(matched, func(key string) bool {
+		typeKeys = slices.DeleteFunc(typeKeys, func(key string) bool {
 			return landing.Location.Match(content.Screen{content.ScreenContentType: key}, memoryParams)
 		})
 	}
-	return s.servedAlong(matched, source.ID, path)
+	return s.servedAlong(typeKeys, source.ID, path)
+}
+
+// typeKeys returns the key of every stored type.
+func (s *memoryTypes) typeKeys() []string {
+	keys := make([]string, len(s.types))
+	for i, stored := range s.types {
+		keys[i] = stored.Key
+	}
+	return keys
 }
 
 // placedIn returns the group holding the field carrying the identity, the field and its path.
@@ -774,10 +868,8 @@ func (s *memoryTypes) listing() []content.Group {
 	return append(groups, s.groups...)
 }
 
-// declaredKeys returns the key of every field a type or a group declares, however deep and resting groups included.
+// declaredKeys returns the key of every field a type or a group declares, the caller holding the store's lock.
 func (s *memoryTypes) declaredKeys() map[string]bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	declared := make(map[string]bool)
 	for _, t := range s.types {
 		keysInside(declared, t.Fields)
@@ -800,16 +892,24 @@ func keysInside(declared map[string]bool, fields []content.Field) {
 func (s *memoryTypes) ByKey(_ context.Context, key string) (content.Type, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, stored := range s.types {
-		if stored.Key == key {
-			stored.Fields = s.flattened(key, stored.Fields)
-			return stored, nil
-		}
+	if held, found := s.typeHeld(key); found {
+		return held, nil
 	}
 	return content.Type{}, content.ErrTypeNotFound
 }
 
-// Create stores a new type, or reports the key taken.
+// typeHeld returns the stored type carrying the key with the fields its groups serve, the caller holding the lock.
+func (s *memoryTypes) typeHeld(key string) (content.Type, bool) {
+	for _, stored := range s.types {
+		if stored.Key == key {
+			stored.Fields = s.flattened(key, stored.Fields)
+			return stored, true
+		}
+	}
+	return content.Type{}, false
+}
+
+// Create stores a new type, or reports the key or the route word taken.
 func (s *memoryTypes) Create(_ context.Context, t content.Type) (content.Type, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -818,12 +918,21 @@ func (s *memoryTypes) Create(_ context.Context, t content.Type) (content.Type, e
 			return content.Type{}, content.ErrTypeTaken
 		}
 	}
+	if s.routeWordTaken(t.Key, t.RouteWord) {
+		return content.Type{}, content.ErrRouteWordTaken
+	}
 	s.types = append(s.types, t)
 	return t, nil
 }
 
-// Update stores the edited type and carries its content to the route word, or
-// reports it missing or still nesting.
+// routeWordTaken reports whether a type other than the keyed one answers under the route word, as the index does.
+func (s *memoryTypes) routeWordTaken(key, word string) bool {
+	return word != "" && slices.ContainsFunc(s.types, func(stored content.Type) bool {
+		return stored.Key != key && stored.RouteWord == word
+	})
+}
+
+// Update stores the edited type and carries its content, or reports why it stores nothing.
 func (s *memoryTypes) Update(ctx context.Context, t content.Type) (content.Type, error) {
 	nested, err := s.Nested(ctx, t.Key)
 	if err != nil {
@@ -838,33 +947,65 @@ func (s *memoryTypes) Update(ctx context.Context, t content.Type) (content.Type,
 		if stored.Hierarchical && !t.Hierarchical && nested > 0 {
 			return content.Type{}, content.NestingInUse(t.Key, nested)
 		}
-		if t.Default && !stored.Default {
-			s.handRootOver()
-			t.RouteWord = ""
+		held := slices.Clone(s.types)
+		written := writtenOver(stored, t)
+		var demoted typeCarry
+		if written.Default && !stored.Default {
+			if demoted, err = s.handRootOver(t.UpdatedAt); err != nil {
+				return content.Type{}, err
+			}
+			written.RouteWord = ""
 		}
-		s.types[i] = t
-		if stored.RouteWord != t.RouteWord && s.content != nil {
-			s.content.carryType(t.Key, stored.RouteWord, t.RouteWord)
+		if s.routeWordTaken(t.Key, written.RouteWord) {
+			return content.Type{}, content.ErrRouteWordTaken
 		}
-		return t, nil
+		s.types[i] = written
+		carried := typeCarry{key: t.Key, was: stored.RouteWord, now: written.RouteWord, at: t.UpdatedAt}
+		if err := s.carry(demoted, carried); err != nil {
+			s.types = held
+			return content.Type{}, err
+		}
+		written.Fields = nil
+		return written, nil
 	}
 	return content.Type{}, content.ErrTypeNotFound
 }
 
-// handRootOver moves the type holding the root under a word of its own.
-func (s *memoryTypes) handRootOver() {
+// writtenOver returns the stored type carrying the columns a type edit writes.
+func writtenOver(stored, edit content.Type) content.Type {
+	stored.SingularLabel, stored.PluralLabel, stored.RouteWord = edit.SingularLabel, edit.PluralLabel, edit.RouteWord
+	stored.Hierarchical, stored.Revisions, stored.RevisionCap = edit.Hierarchical, edit.Revisions, edit.RevisionCap
+	stored.PageKind, stored.Default, stored.Active = edit.PageKind, edit.Default, edit.Active
+	stored.Description, stored.UpdatedAt = edit.Description, edit.UpdatedAt
+	return stored
+}
+
+// carry moves the content of every carried type at once, or reports the address clash that moves none of it.
+func (s *memoryTypes) carry(carries ...typeCarry) error {
+	if s.content == nil {
+		return nil
+	}
+	return s.content.carryTypes(carries...)
+}
+
+// handRootOver moves the root type under a word of its own stamped at the time and returns its carry, or refuses it.
+func (s *memoryTypes) handRootOver(at time.Time) (typeCarry, error) {
 	for i, stored := range s.types {
 		if !stored.Default {
 			continue
 		}
 		was := stored.RouteWord
-		stored.RouteWord, stored.Default = content.Slugify(stored.PluralLabel), false
-		s.types[i] = stored
-		if s.content != nil {
-			s.content.carryType(stored.Key, was, stored.RouteWord)
+		stored.RouteWord, stored.Default, stored.UpdatedAt = content.Slugify(stored.PluralLabel), false, at
+		if err := stored.Validate(); err != nil {
+			return typeCarry{}, err
 		}
-		return
+		if s.routeWordTaken(stored.Key, stored.RouteWord) {
+			return typeCarry{}, content.ErrRouteWordTaken
+		}
+		s.types[i] = stored
+		return typeCarry{key: stored.Key, was: was, now: stored.RouteWord, at: at}, nil
 	}
+	return typeCarry{}, nil
 }
 
 // CreateField stores a field on its type, mirroring the schema's identity column.
@@ -883,7 +1024,7 @@ func (s *memoryTypes) CreateField(_ context.Context, f content.Field) (content.F
 	return content.Field{}, content.ErrTypeNotFound
 }
 
-// Delete removes the type, or reports it missing or still holding content.
+// Delete removes the type, or reports it missing, still holding content or still targeted by a stored relation field.
 func (s *memoryTypes) Delete(ctx context.Context, key string) error {
 	if s.holdsContent(ctx, key) {
 		return content.ErrTypeInUse
@@ -892,6 +1033,9 @@ func (s *memoryTypes) Delete(ctx context.Context, key string) error {
 	defer s.mu.Unlock()
 	for i, stored := range s.types {
 		if stored.Key == key {
+			if err := content.Untargeted(s.listing(), key); err != nil {
+				return err
+			}
 			s.types = append(s.types[:i], s.types[i+1:]...)
 			return nil
 		}
@@ -926,10 +1070,8 @@ func (s *memoryTypes) holdsContent(ctx context.Context, key string) bool {
 	return err == nil && len(items) > 0
 }
 
-// serving reports whether the type is active enough to appear on a term page.
+// serving reports whether the type is active enough to appear on a term page, the caller holding the store's lock.
 func (s *memoryTypes) serving(key string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	for _, stored := range s.types {
 		if stored.Key == key {
 			return stored.Active
@@ -938,10 +1080,16 @@ func (s *memoryTypes) serving(key string) bool {
 	return false
 }
 
-// nests reports whether the stored type takes items under a parent.
-func (s *memoryTypes) nests(key string) bool {
+// reachedBy returns the keys of the types the group holding the field reaches, read from the groups as they stand.
+func (s *memoryTypes) reachedBy(field int) []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	held, _, _, _ := s.placedIn(field)
+	return s.typesMatchedBy(held)
+}
+
+// nests reports whether the stored type takes items under a parent, the caller holding the store's lock.
+func (s *memoryTypes) nests(key string) bool {
 	for _, stored := range s.types {
 		if stored.Key == key {
 			return stored.Hierarchical
@@ -950,20 +1098,20 @@ func (s *memoryTypes) nests(key string) bool {
 	return false
 }
 
-// AdoptType takes the plugin's type over as the site's own.
+// AdoptType takes the plugin's type over as the site's own, stamped now.
 func (s *memoryTypes) AdoptType(_ context.Context, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i := range s.types {
 		if s.types[i].Key == key {
-			s.types[i].Origin = ""
+			s.types[i].Origin, s.types[i].UpdatedAt = "", time.Now().UTC()
 			return nil
 		}
 	}
 	return content.ErrTypeNotFound
 }
 
-// AdoptGroup takes the plugin's group and its fields over as the site's own.
+// AdoptGroup takes the plugin's group and its fields over as the site's own, stamped now.
 func (s *memoryTypes) AdoptGroup(_ context.Context, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -971,17 +1119,18 @@ func (s *memoryTypes) AdoptGroup(_ context.Context, key string) error {
 		if s.groups[i].Key != key {
 			continue
 		}
-		s.groups[i].Origin = ""
-		adoptFields(s.groups[i].Fields)
+		now := time.Now().UTC()
+		s.groups[i].Origin, s.groups[i].UpdatedAt = "", now
+		adoptFields(s.groups[i].Fields, now)
 		return nil
 	}
 	return content.ErrGroupNotFound
 }
 
-// adoptFields clears the plugin origin from the fields and from every field standing inside them.
-func adoptFields(fields []content.Field) {
+// adoptFields clears the plugin origin from the fields and every field inside them, stamping each one.
+func adoptFields(fields []content.Field, now time.Time) {
 	for i := range fields {
-		fields[i].Origin = ""
-		adoptFields(fields[i].Fields)
+		fields[i].Origin, fields[i].UpdatedAt = "", now
+		adoptFields(fields[i].Fields, now)
 	}
 }

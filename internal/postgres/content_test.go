@@ -17,9 +17,8 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
-// postType, mustPost and mustCreate are the shared fixtures under the names these tests use.
+// mustPost and mustCreate are the shared fixtures under the names these tests use.
 var (
-	postType   = contenttest.PostType
 	mustPost   = contenttest.MustPost
 	mustCreate = contenttest.MustCreate
 )

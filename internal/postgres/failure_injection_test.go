@@ -271,31 +271,6 @@ func TestContentUpdateReportsAnAddressCheckItCannotDefer(t *testing.T) {
 	}
 }
 
-func TestTypeUpdatePromotesWhenNoDefaultRemains(t *testing.T) {
-	t.Parallel()
-
-	_, _, pool := newContentStoreWithPool(t)
-	types := postgres.NewTypeStore(pool)
-	stored, err := types.Create(t.Context(), carType(t))
-	if err != nil {
-		t.Fatalf("Create() error = %v, want nil", err)
-	}
-	sabotage(t, pool,
-		"UPDATE core.content_types SET is_default = false, route_word = 'retired-posts' WHERE is_default")
-
-	stored.Default = true
-	stored.UpdatedAt = time.Now().UTC()
-
-	promoted, err := types.Update(t.Context(), stored)
-
-	if err != nil {
-		t.Fatalf("Update() error = %v, want the promotion with nothing to demote", err)
-	}
-	if !promoted.Default {
-		t.Error("the promoted type is not the default")
-	}
-}
-
 func TestTypeUpdateReportsADefaultItCannotLock(t *testing.T) {
 	t.Parallel()
 

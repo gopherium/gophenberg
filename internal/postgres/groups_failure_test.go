@@ -101,18 +101,6 @@ func TestCreateGroupReportsAGroupItCannotStore(t *testing.T) {
 	}
 }
 
-func TestUpdateGroupReportsAGroupThatIsGone(t *testing.T) {
-	t.Parallel()
-
-	store, _, _ := typedStore(t)
-
-	_, err := store.UpdateGroup(t.Context(), content.Group{ID: 4242, Title: "Vanished"}, nil, nil)
-
-	if !errors.Is(err, content.ErrGroupNotFound) {
-		t.Errorf("UpdateGroup() error = %v, want %v", err, content.ErrGroupNotFound)
-	}
-}
-
 func TestUpdateGroupReportsAGroupItCannotStore(t *testing.T) {
 	t.Parallel()
 
@@ -162,6 +150,11 @@ func TestDeleteFieldsOfGroupReportsTypesItCannotRead(t *testing.T) {
 	stored, err := store.CreateGroup(t.Context(), content.Group{Title: "Extras", Location: locationOf("car")})
 	if err != nil {
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
+	}
+	if _, err := store.CreateFieldInGroup(
+		t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""), nil,
+	); err != nil {
+		t.Fatalf("CreateFieldInGroup() error = %v, want nil", err)
 	}
 	sabotage(t, pool, "ALTER TABLE core.content_types RENAME COLUMN key TO retired")
 
@@ -213,18 +206,16 @@ func TestReorderGroupsReportsAnOrderItCannotStore(t *testing.T) {
 	}
 }
 
-func TestCreateFieldInGroupReportsAGroupThatIsGone(t *testing.T) {
+func TestReorderFieldsInGroupReportsAListingItCannotRead(t *testing.T) {
 	t.Parallel()
 
-	store, _, _ := typedStore(t)
+	store, _, pool := typedStore(t)
+	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
 
-	_, err := store.CreateFieldInGroup(
-		t.Context(), 4242, fieldOn(t, "", "orphan", content.FieldKindText, ""),
-		nil,
-	)
+	err := store.ReorderFieldsInGroup(t.Context(), 4242, []string{"title"})
 
-	if !errors.Is(err, content.ErrGroupNotFound) {
-		t.Errorf("CreateFieldInGroup() error = %v, want %v", err, content.ErrGroupNotFound)
+	if err == nil || errors.Is(err, content.ErrGroupNotFound) {
+		t.Errorf("ReorderFieldsInGroup() error = %v, want the unreadable listing reported", err)
 	}
 }
 
@@ -258,7 +249,7 @@ func TestCreateFieldJoinsAGroupMatchingWithoutNamingTheTypeLiterally(t *testing.
 		t.Fatalf("CreateGroup() error = %v, want nil", err)
 	}
 
-	declared := declareTypedField(t, store, "car", "subtitle")
+	declared := createCarField(t, store, "subtitle")
 
 	if declared.GroupID != shared.ID {
 		t.Errorf("GroupID = %d, want the matching group %d rather than %d", declared.GroupID, shared.ID, resting.ID)

@@ -3,9 +3,6 @@
 package postgres_test
 
 import (
-	"context"
-	"errors"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -16,117 +13,11 @@ import (
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
-// errJudged stands for what a caller's check raises on fields that changed meanwhile.
-var errJudged = errors.New("the fields changed meanwhile")
-
-// judgedGroup holds a car group with a title at its top and a street inside an address section.
-type judgedGroup struct {
-	group                  content.Group
-	title, address, street content.Field
-}
-
-// judgedStore returns a store holding the car type and the judged group.
-func judgedStore(t *testing.T) (*postgres.TypeStore, judgedGroup) {
-	t.Helper()
-	store, _, _ := typedStore(t)
-	storeType(t, store, "car")
-	group := groupOn(t, store, "Details", "car")
-	title := titleIn(t, store, group.ID)
-	address, err := store.CreateFieldInGroup(
-		t.Context(), group.ID, fieldOn(t, "", "address", content.FieldKindSection, ""), nil)
-	if err != nil {
-		t.Fatalf("CreateFieldInGroup(address) error = %v, want nil", err)
-	}
-	street := declaredInside(t, store, address, "street", content.FieldKindText)
-	return store, judgedGroup{group: group, title: title, address: address, street: street}
-}
-
-// storedGroups returns every group the store holds, with its fields.
-func storedGroups(t *testing.T, store *postgres.TypeStore) []content.Group {
-	t.Helper()
-	groups, err := store.ListGroups(t.Context())
-	if err != nil {
-		t.Fatalf("ListGroups() error = %v, want nil", err)
-	}
-	return groups
-}
-
-// refusing returns a check that expects the stored details group and car type, then refuses the write.
-func refusing(t *testing.T) content.Recheck {
-	return func(groups []content.Group, types []content.Type) error {
-		if !slices.ContainsFunc(groups, func(g content.Group) bool { return g.Key == "details" && len(g.Fields) == 2 }) {
-			t.Error("the check was handed no details group holding its two fields")
-		}
-		if !slices.ContainsFunc(types, func(held content.Type) bool { return held.Key == "car" }) {
-			t.Error("the check was handed no car type")
-		}
-		return errJudged
-	}
-}
-
 // unreached returns a check that fails the test when the store runs it.
 func unreached(t *testing.T) content.Recheck {
 	return func([]content.Group, []content.Type) error {
 		t.Error("the store ran the check on what it could not read")
 		return nil
-	}
-}
-
-// judgedWrite runs one group write on the judged group, handing the store the check.
-type judgedWrite func(context.Context, *postgres.TypeStore, judgedGroup, content.Recheck) error
-
-func TestTheGroupWritesStoreNothingTheirCheckRefuses(t *testing.T) {
-	t.Parallel()
-
-	for name, write := range map[string]judgedWrite{
-		"update the group": func(ctx context.Context, s *postgres.TypeStore, at judgedGroup, check content.Recheck) error {
-			at.group.Title = "Renamed"
-			_, err := s.UpdateGroup(ctx, at.group, nil, check)
-			return err
-		},
-		"delete the group": func(ctx context.Context, s *postgres.TypeStore, at judgedGroup, check content.Recheck) error {
-			return s.DeleteGroup(ctx, at.group.ID, check)
-		},
-		"delete its fields": func(ctx context.Context, s *postgres.TypeStore, at judgedGroup, check content.Recheck) error {
-			return s.DeleteFieldsOfGroup(ctx, at.group.ID, []string{"title"}, check)
-		},
-		"declare a field": func(ctx context.Context, s *postgres.TypeStore, at judgedGroup, check content.Recheck) error {
-			subtitle := content.Field{Key: "subtitle", Label: "Subtitle", Kind: content.FieldKindText}
-			_, err := s.CreateFieldInGroup(ctx, at.group.ID, subtitle, check)
-			return err
-		},
-		"edit a field": func(ctx context.Context, s *postgres.TypeStore, at judgedGroup, check content.Recheck) error {
-			edited := at.title
-			edited.Label = "Renamed"
-			_, err := s.UpdateFieldInGroup(ctx, at.group.ID, edited, at.title.UpdatedAt, check)
-			return err
-		},
-		"delete a field": func(ctx context.Context, s *postgres.TypeStore, at judgedGroup, check content.Recheck) error {
-			return s.DeleteFieldInGroup(ctx, at.group.ID, "title", check)
-		},
-		"delete a sub field": func(ctx context.Context, s *postgres.TypeStore, at judgedGroup, check content.Recheck) error {
-			return s.DeleteSubField(ctx, at.street.ID, check)
-		},
-		"move a field": func(ctx context.Context, s *postgres.TypeStore, at judgedGroup, check content.Recheck) error {
-			_, err := s.MoveField(ctx, at.title.ID, at.group.ID, at.address.ID, deepEnough, check)
-			return err
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			store, at := judgedStore(t)
-			before := storedGroups(t, store)
-
-			err := write(t.Context(), store, at, refusing(t))
-
-			if !errors.Is(err, errJudged) || err.Error() != errJudged.Error() {
-				t.Errorf("error = %v, want %v handed back as the check raised it", err, errJudged)
-			}
-			if after := storedGroups(t, store); !reflect.DeepEqual(after, before) {
-				t.Errorf("the groups read %+v, want them left as %+v", after, before)
-			}
-		})
 	}
 }
 

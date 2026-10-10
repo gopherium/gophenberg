@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package postgres_test
+package contenttest
 
 import (
 	"testing"
@@ -8,8 +8,13 @@ import (
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/definitions"
-	"github.com/gopherium/gophenberg/internal/postgres"
 )
+
+// definitionSweepCases are the cases over the values a definition import sweeps or keeps.
+var definitionSweepCases = []Case{
+	{"ImportSweepsTheValuesOfAFieldTheAdminGaveUp", importSweepsTheValuesOfAFieldTheAdminGaveUp},
+	{"ImportKeepsTheValuesOfAFieldNobodyConfirmed", importKeepsTheValuesOfAFieldNobodyConfirmed},
+}
 
 // withoutTheField returns the exported envelope with the named field dropped from its group.
 func withoutTheField(t *testing.T, registry *content.Registry, group, key string) definitions.Envelope {
@@ -35,16 +40,15 @@ func withoutTheField(t *testing.T, registry *content.Registry, group, key string
 	return definitions.Envelope{}
 }
 
-func TestImportSweepsTheValuesOfAFieldTheAdminGaveUp(t *testing.T) {
-	t.Parallel()
-
-	store, author, pool := newContentStoreWithPool(t)
-	declareField(t, pool, "color", content.FieldKindText)
-	registry := content.NewRegistry(postgres.NewTypeStore(pool))
-	created := mustCreate(t, store, "Hello world", author)
+// importSweepsTheValuesOfAFieldTheAdminGaveUp sweeps the values of a field the admin confirmed giving up.
+func importSweepsTheValuesOfAFieldTheAdminGaveUp(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	DeclareTypedField(t, s.Types, "post", "color")
+	registry := content.NewRegistry(s.Types)
+	created := MustCreate(t, s.Content, "Hello world", author)
 	created.Fields = content.Values{"color": "red"}
 	created.UpdatedAt = time.Now().UTC()
-	if _, err := store.Update(t.Context(), created, created.CreatedAt, nil, 0); err != nil {
+	if _, err := s.Content.Update(t.Context(), created, created.CreatedAt, nil, 0); err != nil {
 		t.Fatalf("storing the value: %v, want nil", err)
 	}
 	envelope := withoutTheField(t, registry, "post-fields", "color")
@@ -56,7 +60,7 @@ func TestImportSweepsTheValuesOfAFieldTheAdminGaveUp(t *testing.T) {
 		t.Fatalf("Apply() error = %v, want nil", err)
 	}
 
-	held, err := store.ByID(t.Context(), created.ID)
+	held, err := s.Content.ByID(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("ByID() error = %v, want nil", err)
 	}
@@ -65,16 +69,15 @@ func TestImportSweepsTheValuesOfAFieldTheAdminGaveUp(t *testing.T) {
 	}
 }
 
-func TestImportKeepsTheValuesOfAFieldNobodyConfirmed(t *testing.T) {
-	t.Parallel()
-
-	store, author, pool := newContentStoreWithPool(t)
-	declareField(t, pool, "color", content.FieldKindText)
-	registry := content.NewRegistry(postgres.NewTypeStore(pool))
-	created := mustCreate(t, store, "Hello world", author)
+// importKeepsTheValuesOfAFieldNobodyConfirmed keeps the values of a dropped field while nobody confirmed the loss.
+func importKeepsTheValuesOfAFieldNobodyConfirmed(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	DeclareTypedField(t, s.Types, "post", "color")
+	registry := content.NewRegistry(s.Types)
+	created := MustCreate(t, s.Content, "Hello world", author)
 	created.Fields = content.Values{"color": "red"}
 	created.UpdatedAt = time.Now().UTC()
-	if _, err := store.Update(t.Context(), created, created.CreatedAt, nil, 0); err != nil {
+	if _, err := s.Content.Update(t.Context(), created, created.CreatedAt, nil, 0); err != nil {
 		t.Fatalf("storing the value: %v, want nil", err)
 	}
 	envelope := withoutTheField(t, registry, "post-fields", "color")
@@ -83,7 +86,7 @@ func TestImportKeepsTheValuesOfAFieldNobodyConfirmed(t *testing.T) {
 		t.Fatalf("Apply() error = %v, want nil", err)
 	}
 
-	held, err := store.ByID(t.Context(), created.ID)
+	held, err := s.Content.ByID(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("ByID() error = %v, want nil", err)
 	}

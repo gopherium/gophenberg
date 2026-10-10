@@ -5,26 +5,16 @@ package postgres_test
 import (
 	"errors"
 	"testing"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/content/contenttest"
 	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
-// fieldOn returns a field definition ready to declare on the type.
-func fieldOn(t *testing.T, typeKey, key string, kind content.FieldKind, relatesTo string) content.Field {
-	t.Helper()
-	built, err := content.NewField(content.Field{
-		TypeKey: typeKey, Key: key, Label: "A Field", Kind: kind, RelatesTo: relatesTo,
-	})
-	if err != nil {
-		t.Fatalf("NewField() error = %v, want nil", err)
-	}
-	return built
-}
+// fieldOn is the shared fixture under the name these tests use.
+var fieldOn = contenttest.FieldOn
 
 // storedFields reads the raw fields column of the content row carrying the slug.
 func storedFields(t *testing.T, pool *pgxpool.Pool, slug string) string {
@@ -36,30 +26,6 @@ func storedFields(t *testing.T, pool *pgxpool.Pool, slug string) string {
 		t.Fatalf("reading the fields of %q: %v, want nil", slug, err)
 	}
 	return held
-}
-
-// plantValues stores a content row and one revision carrying raw field values.
-func plantValues(t *testing.T, pool *pgxpool.Pool, author uuid.UUID, slug, values string) {
-	t.Helper()
-	ctx := t.Context()
-	id := uuid.Must(uuid.NewV7())
-	now := time.Now().UTC()
-	if _, err := pool.Exec(ctx,
-		`INSERT INTO core.content
-		(id, type, status, slug, path, title, content, excerpt, author_id, created_at, updated_at, fields)
-		VALUES ($1, 'post', 'draft', $2, $2, 'Planted', '', '', $3, $4, $4, $5)`,
-		id, slug, author, now, values,
-	); err != nil {
-		t.Fatalf("planting the content row: %v, want nil", err)
-	}
-	if _, err := pool.Exec(ctx,
-		`INSERT INTO core.content_revisions
-		(id, content_id, kind, author_id, title, content, excerpt, created_at, fields)
-		VALUES ($1, $2, 'revision', $3, $4, '', '', $5, $6)`,
-		uuid.Must(uuid.NewV7()), id, author, "Planted", now, values,
-	); err != nil {
-		t.Fatalf("planting the revision row: %v, want nil", err)
-	}
 }
 
 func TestTypeStoreDeclaresAField(t *testing.T) {
@@ -153,44 +119,5 @@ func TestTypeStoreRefusesAFieldOnAnUnknownType(t *testing.T) {
 
 	if !errors.Is(err, content.ErrTypeNotFound) {
 		t.Fatalf("CreateField() error = %v, want %v", err, content.ErrTypeNotFound)
-	}
-}
-
-func TestDeleteFieldInGroupSweepsRevisionValues(t *testing.T) {
-	t.Parallel()
-
-	_, author, pool := newContentStoreWithPool(t)
-	types := postgres.NewTypeStore(pool)
-	declared, err := types.CreateField(t.Context(), fieldOn(t, "post", "color", content.FieldKindText, ""))
-	if err != nil {
-		t.Fatalf("declaring the field: %v, want nil", err)
-	}
-	plantValues(t, pool, author, "planted", `{"color": "red", "other": 1}`)
-
-	if err := types.DeleteFieldInGroup(t.Context(), declared.GroupID, "color", nil); err != nil {
-		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
-	}
-
-	held, err := types.ByKey(t.Context(), "post")
-	if err != nil {
-		t.Fatalf("ByKey() error = %v, want nil", err)
-	}
-	if len(held.Fields) != 0 {
-		t.Errorf("ByKey() fields = %+v, want the definition gone", held.Fields)
-	}
-	if got := storedFields(t, pool, "planted"); got != `{"other": 1}` {
-		t.Errorf("the content row holds %s, want only the surviving key", got)
-	}
-	var revision string
-	if err := pool.QueryRow(
-		t.Context(),
-		`SELECT r.fields::text FROM core.content_revisions r
-		JOIN core.content c ON c.id = r.content_id WHERE c.slug = $1`,
-		"planted",
-	).Scan(&revision); err != nil {
-		t.Fatalf("reading the revision fields: %v, want nil", err)
-	}
-	if revision != `{"other": 1}` {
-		t.Errorf("the revision holds %s, want the key swept from snapshots too", revision)
 	}
 }

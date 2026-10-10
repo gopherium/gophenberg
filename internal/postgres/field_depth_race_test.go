@@ -12,25 +12,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
-	"github.com/gopherium/gophenberg/internal/postgres"
 )
 
 // deepEnough is a depth limit no field these tests declare comes near.
 const deepEnough = content.DefaultFieldDepth
-
-// sectionInside declares a section inside the container and returns it.
-func sectionInside(t *testing.T, store *postgres.TypeStore, parent content.Field, key string) content.Field {
-	t.Helper()
-	built, err := content.NewSubField(content.Field{Key: key, Label: key, Kind: content.FieldKindSection}, parent.Kind)
-	if err != nil {
-		t.Fatalf("NewSubField(%s) error = %v, want nil", key, err)
-	}
-	stored, err := store.CreateSubField(t.Context(), parent.ID, built, deepEnough)
-	if err != nil {
-		t.Fatalf("CreateSubField(%s) error = %v, want nil", key, err)
-	}
-	return stored
-}
 
 // sessionLock holds the field groups lock on a connection of its own and returns what lets it go.
 func sessionLock(t *testing.T, pool *pgxpool.Pool) func() {
@@ -79,35 +64,25 @@ func writersQueued(t *testing.T, pool *pgxpool.Pool, count int) {
 	}
 }
 
-func TestMoveFieldRefusesALandingPastTheLimit(t *testing.T) {
+func TestRefusalsPastTheLimitWriteNoRow(t *testing.T) {
 	t.Parallel()
 
 	store, _, pool := typedStore(t)
 	storeType(t, store, "car")
 	outer := declareSection(t, store, "outer")
 	holder := declareSection(t, store, "holder")
-	sectionInside(t, store, holder, "inner")
+	inner := declaredInside(t, store, holder, "inner", content.FieldKindSection)
 
 	_, err := store.MoveField(t.Context(), holder.ID, outer.GroupID, outer.ID, 1, nil)
-
 	if !errors.Is(err, content.ErrFieldTooDeep) {
-		t.Errorf("MoveField() error = %v, want %v", err, content.ErrFieldTooDeep)
+		t.Fatalf("MoveField() error = %v, want %v", err, content.ErrFieldTooDeep)
 	}
+	_, err = store.CreateSubField(t.Context(), inner.ID, fieldOn(t, "", "street", content.FieldKindText, ""), 1)
+	if !errors.Is(err, content.ErrFieldTooDeep) {
+		t.Fatalf("CreateSubField() error = %v, want %v", err, content.ErrFieldTooDeep)
+	}
+
 	standsUnder(t, pool, holder.ID, holder.GroupID, 0, 0)
-}
-
-func TestCreateSubFieldRefusesAFieldPastTheLimit(t *testing.T) {
-	t.Parallel()
-
-	store, _, pool := typedStore(t)
-	storeType(t, store, "car")
-	inner := sectionInside(t, store, declareSection(t, store, "outer"), "inner")
-
-	_, err := store.CreateSubField(t.Context(), inner.ID, fieldOn(t, "", "street", content.FieldKindText, ""), 1)
-
-	if !errors.Is(err, content.ErrFieldTooDeep) {
-		t.Errorf("CreateSubField() error = %v, want %v", err, content.ErrFieldTooDeep)
-	}
 	var stored int
 	if err := pool.QueryRow(t.Context(),
 		`SELECT count(*) FROM core.content_fields WHERE key = 'street'`).Scan(&stored); err != nil {

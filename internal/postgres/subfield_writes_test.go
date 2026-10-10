@@ -10,10 +10,10 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 )
 
-func TestUpdatingASubFieldCarriesItsLabelRequiredAndSettings(t *testing.T) {
+func TestUpdatingASubFieldReportsAListingItCannotRead(t *testing.T) {
 	t.Parallel()
 
-	store, _, _ := typedStore(t)
+	store, _, pool := typedStore(t)
 	storeType(t, store, "car")
 	specs := declareSection(t, store, "specs")
 	sub, err := store.CreateSubField(
@@ -21,59 +21,26 @@ func TestUpdatingASubFieldCarriesItsLabelRequiredAndSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateSubField() error = %v, want nil", err)
 	}
-	asked := sub
-	asked.Label = "The title"
-	asked.Required = true
-	asked.Settings = map[string]any{"maxlength": float64(20)}
+	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
+	stale := sub.UpdatedAt.Add(-time.Second)
 
-	held, err := store.UpdateSubField(t.Context(), sub.ID, asked, sub.UpdatedAt)
+	_, err = store.UpdateSubField(t.Context(), sub.ID, sub, stale)
 
-	if err != nil {
-		t.Fatalf("UpdateSubField() error = %v, want nil", err)
-	}
-	if held.Label != "The title" || !held.Required {
-		t.Errorf("stored label %q required %v, want the edit carried", held.Label, held.Required)
-	}
-	if held.Settings["maxlength"] != float64(20) {
-		t.Errorf("stored settings = %v, want maxlength carried", held.Settings)
+	if err == nil || errors.Is(err, content.ErrConflict) || errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("UpdateSubField() error = %v, want the unreadable listing reported", err)
 	}
 }
 
-func TestUpdatingASubFieldRefusesAStaleStamp(t *testing.T) {
+func TestReorderingInsideAContainerReportsAListingItCannotRead(t *testing.T) {
 	t.Parallel()
 
-	store, _, _ := typedStore(t)
-	storeType(t, store, "car")
-	specs := declareSection(t, store, "specs")
-	sub, err := store.CreateSubField(
-		t.Context(), specs.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
-	if err != nil {
-		t.Fatalf("CreateSubField() error = %v, want nil", err)
-	}
-	stamped := sub
-	stamped.UpdatedAt = sub.UpdatedAt.Add(time.Second)
-	if _, err := store.UpdateSubField(t.Context(), sub.ID, stamped, sub.UpdatedAt); err != nil {
-		t.Fatalf("the first update: %v, want nil", err)
-	}
+	store, _, pool := typedStore(t)
+	sabotage(t, pool, "ALTER TABLE core.field_groups RENAME COLUMN title TO retired")
 
-	_, err = store.UpdateSubField(t.Context(), sub.ID, stamped, sub.UpdatedAt)
+	err := store.ReorderSubFields(t.Context(), 4242, []string{"title"})
 
-	if !errors.Is(err, content.ErrConflict) {
-		t.Errorf("UpdateSubField() error = %v, want %v", err, content.ErrConflict)
-	}
-}
-
-func TestUpdatingASubFieldWillNotReachATopLevelField(t *testing.T) {
-	t.Parallel()
-
-	store, _, _ := typedStore(t)
-	storeType(t, store, "car")
-	title := declareTypedField(t, store, "car", "title")
-
-	_, err := store.UpdateSubField(t.Context(), title.ID, title, title.UpdatedAt)
-
-	if !errors.Is(err, content.ErrConflict) {
-		t.Errorf("UpdateSubField() on a top field: error = %v, want %v", err, content.ErrConflict)
+	if err == nil || errors.Is(err, content.ErrFieldNotFound) {
+		t.Errorf("ReorderSubFields() error = %v, want the unreadable listing reported", err)
 	}
 }
 
@@ -116,12 +83,13 @@ func TestReorderingInsideAContainerReportsAStoreThatWillNotWrite(t *testing.T) {
 	}
 }
 
-func TestReorderingInsideAContainerStandsTheSubFieldsAsAsked(t *testing.T) {
+func TestReorderingInsideAContainerStoresItsPositionsAndNoOthers(t *testing.T) {
 	t.Parallel()
 
 	store, _, pool := typedStore(t)
 	storeType(t, store, "car")
 	specs := declareSection(t, store, "specs")
+	extras := declareSection(t, store, "extras")
 	held := map[string]int{}
 	for _, key := range []string{"title", "colour", "trim"} {
 		stored, err := store.CreateSubField(
@@ -131,6 +99,12 @@ func TestReorderingInsideAContainerStandsTheSubFieldsAsAsked(t *testing.T) {
 		}
 		held[key] = stored.ID
 	}
+	away, err := store.CreateSubField(
+		t.Context(), extras.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
+	if err != nil {
+		t.Fatalf("declaring title inside extras: %v, want nil", err)
+	}
+	standing := positionOf(t, pool, away.ID)
 
 	if err := store.ReorderSubFields(t.Context(), specs.ID, []string{"trim", "title", "colour"}); err != nil {
 		t.Fatalf("ReorderSubFields() error = %v, want nil", err)
@@ -141,33 +115,7 @@ func TestReorderingInsideAContainerStandsTheSubFieldsAsAsked(t *testing.T) {
 			t.Errorf("%s sits at %d, want %d", key, stood, want)
 		}
 	}
-}
-
-func TestReorderingInsideAContainerLeavesAnotherContainerAlone(t *testing.T) {
-	t.Parallel()
-
-	store, _, pool := typedStore(t)
-	storeType(t, store, "car")
-	specs := declareSection(t, store, "specs")
-	extras := declareSection(t, store, "extras")
-	for _, key := range []string{"title", "colour"} {
-		if _, err := store.CreateSubField(
-			t.Context(), specs.ID, fieldOn(t, "", key, content.FieldKindText, ""), deepEnough); err != nil {
-			t.Fatalf("declaring %s inside specs: %v, want nil", key, err)
-		}
-	}
-	away, err := store.CreateSubField(
-		t.Context(), extras.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
-	if err != nil {
-		t.Fatalf("declaring title inside extras: %v, want nil", err)
-	}
-	standing := positionOf(t, pool, away.ID)
-
-	if err := store.ReorderSubFields(t.Context(), specs.ID, []string{"colour", "title"}); err != nil {
-		t.Fatalf("ReorderSubFields() error = %v, want nil", err)
-	}
-
-	if held := positionOf(t, pool, away.ID); held != standing {
-		t.Errorf("the sub field elsewhere sits at %d, want it left at %d", held, standing)
+	if kept := positionOf(t, pool, away.ID); kept != standing {
+		t.Errorf("the sub field elsewhere sits at %d, want it left at %d", kept, standing)
 	}
 }

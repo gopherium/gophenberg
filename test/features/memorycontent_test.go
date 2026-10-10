@@ -7,6 +7,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"math/rand/v2"
 	"regexp"
 	"slices"
@@ -69,13 +70,27 @@ func identitiesIn(value any) []uuid.UUID {
 	return nil
 }
 
+// lockedAfterTypes takes the type store's lock and then the content lock, and returns the call that releases both.
+func (s *memoryContent) lockedAfterTypes() func() {
+	if s.types != nil {
+		s.types.mu.Lock()
+	}
+	s.mu.Lock()
+	return func() {
+		s.mu.Unlock()
+		if s.types != nil {
+			s.types.mu.Unlock()
+		}
+	}
+}
+
 // holdTargets reports whether every target exists and is the type its field points at.
 func (s *memoryContent) holdTargets(c content.Content, before content.Values) error {
 	if s.types == nil {
 		return nil
 	}
-	declared, err := s.types.ByKey(context.Background(), c.Type)
-	if err != nil {
+	declared, found := s.types.typeHeld(c.Type)
+	if !found {
 		return nil
 	}
 	pointing, err := content.HeldTargets(declared.Fields, c.Fields)
@@ -108,37 +123,72 @@ func (s *memoryContent) targetsAllowed(ft content.FieldTargets, kept map[uuid.UU
 	return nil
 }
 
-// clearRelation drops the field's targets from every item of the type.
-func (s *memoryContent) clearRelation(typeKey, key string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for id, stored := range s.items {
-		if stored.Type != typeKey {
-			continue
-		}
-		delete(stored.Fields, key)
-		s.items[id] = stored
-	}
-}
-
 // sweepPath takes what stands at the path out of every item of the types, their revisions and their autosaves.
 func (s *memoryContent) sweepPath(typeKeys []string, path []string) {
+	s.sweptWith(typeKeys, path, strippedAt)
+}
+
+// sweepField takes what the field held at the path out of the types, a layout's whole rows rather than their values.
+func (s *memoryContent) sweepField(typeKeys []string, f content.Field, path []string) {
+	if f.Kind == content.FieldKindLayout {
+		s.sweptWith(typeKeys, path, layoutStripped)
+		return
+	}
+	s.sweepPath(typeKeys, path)
+}
+
+// sweptWith runs the strip at the path over every item of the types, their revisions and their autosaves.
+func (s *memoryContent) sweptWith(typeKeys []string, path []string, strip func(map[string]any, []string)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for id, stored := range s.items {
 		if !slices.Contains(typeKeys, stored.Type) {
 			continue
 		}
-		strippedAt(stored.Fields, path)
+		strip(stored.Fields, path)
 		for i := range s.revisions[id] {
-			strippedAt(s.revisions[id][i].Fields, path)
+			strip(s.revisions[id][i].Fields, path)
 		}
 		for held, parked := range s.autosaves {
 			if held.contentID == id {
-				strippedAt(parked.Fields, path)
+				strip(parked.Fields, path)
 			}
 		}
 	}
+}
+
+// layoutStripped takes every row holding the layout the path ends on out of the values, as core.strip_layout does.
+func layoutStripped(values map[string]any, path []string) {
+	if inside, found := values[path[0]]; found && len(path) > 1 {
+		values[path[0]] = withoutLayout(inside, path[1:])
+	}
+}
+
+// withoutLayout returns the value without the rows holding the layout the path ends on, walking into every row.
+func withoutLayout(value any, path []string) any {
+	switch inside := value.(type) {
+	case map[string]any:
+		layoutStripped(inside, path)
+	case []any:
+		kept := make([]any, 0, len(inside))
+		for _, row := range inside {
+			if len(path) > 1 {
+				kept = append(kept, withoutLayout(row, path))
+				continue
+			}
+			if held, _ := row.(map[string]any); !layoutHeld(held, path[0]) {
+				kept = append(kept, row)
+			}
+		}
+		return kept
+	}
+	return value
+}
+
+// layoutHeld reports whether the row holds the layout.
+func layoutHeld(row map[string]any, layout string) bool {
+	_, found := row[layout]
+	return found
 }
 
 // strippedAt removes what stands at the path inside the values, walking into every row on the way.
@@ -321,8 +371,7 @@ func (s *memoryContent) DeleteAutosave(_ context.Context, contentID, authorID uu
 
 // Create stores a new content item, suffixing its slug until its address is free.
 func (s *memoryContent) Create(_ context.Context, c content.Content) (content.Content, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.lockedAfterTypes()()
 	prefix, err := s.fileable(c, content.AddressPrefix(c.Path, c.Slug))
 	if err != nil {
 		return content.Content{}, err
@@ -473,17 +522,52 @@ func (s *memoryContent) carryDescendants(moved content.Content, was string) {
 	}
 }
 
-// carryType moves every address of the type from the route word it answered under.
-func (s *memoryContent) carryType(key, was, now string) {
+// typeCarry names a type whose addresses move from the route word it answered under to another, and their stamp.
+type typeCarry struct {
+	key, was, now string
+	at            time.Time
+}
+
+// carryTypes moves and stamps every item of each type whose route word changed, or moves none and reports a clash.
+func (s *memoryContent) carryTypes(carries ...typeCarry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for id, stored := range s.items {
-		if stored.Type != key {
+	moved := make(map[uuid.UUID]content.Content)
+	for _, carry := range carries {
+		if carry.was == carry.now {
 			continue
 		}
-		stored.Path = content.AddressUnder(now, strings.TrimPrefix(strings.TrimPrefix(stored.Path, was), "/"))
-		s.items[id] = stored
+		for id, stored := range s.items {
+			if stored.Type != carry.key {
+				continue
+			}
+			stored.Path = content.AddressUnder(carry.now, strings.TrimPrefix(strings.TrimPrefix(stored.Path, carry.was), "/"))
+			stored.UpdatedAt = carry.at
+			moved[id] = stored
+		}
 	}
+	if s.addressesClash(moved) {
+		return content.ErrSlugTaken
+	}
+	maps.Copy(s.items, moved)
+	return nil
+}
+
+// addressesClash reports whether a moved item would answer at an address another item answers at once all have moved.
+func (s *memoryContent) addressesClash(moved map[uuid.UUID]content.Content) bool {
+	held := make(map[string]int, len(s.items))
+	for id, stored := range s.items {
+		if next, found := moved[id]; found {
+			stored = next
+		}
+		held[stored.Path]++
+	}
+	for _, next := range moved {
+		if held[next.Path] > 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // ByID returns the item carrying the id, or [content.ErrNotFound].
@@ -722,8 +806,7 @@ func paged[T any](matched []T, f content.Filter) []T {
 func (s *memoryContent) Update(
 	_ context.Context, c content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision, revisionCap int,
 ) (content.Content, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.lockedAfterTypes()()
 	stored, found := s.items[c.ID]
 	if !found {
 		return content.Content{}, content.ErrNotFound
@@ -895,8 +978,7 @@ func (s *memoryContent) Counts(_ context.Context, contentType string) (map[conte
 func (s *memoryContent) RelatedTo(
 	_ context.Context, target uuid.UUID, page, perPage int,
 ) ([]content.Content, int, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.lockedAfterTypes()()
 	matched := make([]content.Content, 0, len(s.items))
 	for _, stored := range s.items {
 		if stored.Status != content.StatusPublished || !pointsAt(stored.Fields, target) {
@@ -934,7 +1016,7 @@ func sortedAt(c content.Content) time.Time {
 	return c.CreatedAt
 }
 
-// PointingAt returns the published items pointing at the target through the field, and how many there are.
+// PointingAt returns the published items the field's group reaches pointing at the target through it, and how many.
 func (s *memoryContent) PointingAt(
 	ctx context.Context, target uuid.UUID, field, page, perPage int,
 ) ([]content.Pointer, int, error) {
@@ -942,11 +1024,13 @@ func (s *memoryContent) PointingAt(
 	if !named {
 		return nil, 0, nil
 	}
+	reached := s.types.reachedBy(field)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	held := make([]content.Pointer, 0, len(s.items))
 	for _, item := range s.items {
-		if item.Status != content.StatusPublished || !slices.Contains(identitiesAt(item.Fields, path), target) {
+		if item.Status != content.StatusPublished || !slices.Contains(reached, item.Type) ||
+			!slices.Contains(identitiesAt(item.Fields, path), target) {
 			continue
 		}
 		held = append(held, content.Pointer{
@@ -1007,8 +1091,7 @@ func pagedPointers(held []content.Pointer, page, perPage int) []content.Pointer 
 
 // TargetsByIDs returns the published items of active types the identities name.
 func (s *memoryContent) TargetsByIDs(_ context.Context, ids []uuid.UUID) ([]content.Target, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.lockedAfterTypes()()
 	held := make([]content.Target, 0, len(ids))
 	for _, id := range ids {
 		pointed, stored := s.items[id]
