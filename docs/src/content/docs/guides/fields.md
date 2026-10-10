@@ -184,10 +184,10 @@ bound how many rows may pick that one layout, counted across the
 whole field. Once a field or a layout holds its most rows, the editor
 turns its Add button off.
 
-Deleting a layout takes its rows with it, in every item the group
-reaches and in the revisions behind them, because a row without its
-layout carries nothing anyone can read. Going back to an earlier
-revision does not bring those rows back.
+Deleting a layout takes its rows away, the way deleting a field
+takes its values. A row without its layout carries nothing anyone
+can read. Going back to an earlier revision does not bring those
+rows back.
 
 A field inside a container moves like any other, to the top of a
 group or into another container, and the values stored at its old
@@ -221,9 +221,8 @@ so a Repeater row can point at an item of its own. Only a Linked from
 field stands outside, so declare that one beside the container rather
 than in it.
 
-Deleting a field inside a container takes the values stored under it,
-in every item the group reaches and in the revisions behind them,
-exactly as deleting a field at the top does.
+Deleting a field inside a container takes the values stored under it
+too.
 
 A theme reads these the same way it reads any field. The
 [theme guide](/themes/writing-a-theme/) shows the helpers that walk
@@ -351,11 +350,12 @@ it. Point the Linked from field at another relation first, from
 
 ## Deleting a field
 
-**Delete** removes the field and everything stored under it, in
-every item the group reaches and in the revisions behind them. The
-dialog says so before it happens. Where another active group serves a
-field at the same place, inside containers of the same names, its
-value stays.
+**Delete** removes the field and everything stored under it, from
+every item and revision that holds it. The dialog says so before it
+happens. Where another active group serves a field at the same
+place, inside containers of the same names, its value stays.
+Everywhere else the value goes, even on content the group stopped
+reaching when its rules changed.
 
 Deleting a whole group takes its fields with it, and their stored
 values too. If you only want the group to stop appearing, deactivate
