@@ -31,6 +31,21 @@ function shown(page: Page, message: string) {
 }
 
 /**
+ * Returns a title as the site's toasts name it, cut at the served length with an ellipsis when it runs longer.
+ * @param page - The page whose session reads the settings.
+ * @param title - The title to name.
+ * @returns The name a toast shows.
+ */
+async function toastName(page: Page, title: string): Promise<string> {
+	const served = (await (await page.request.get('/api/settings')).json()) as { toast_name_length: number }
+	const characters = Array.from(title)
+	if (characters.length <= served.toast_name_length) {
+		return title
+	}
+	return `${characters.slice(0, served.toast_name_length).join('').trimEnd()}…`
+}
+
+/**
  * Starts writing in the canvas, which opens on the empty paragraph it shows before any block is stored.
  * @param page - The page to drive.
  */
@@ -213,19 +228,23 @@ test('saves twice over without reloading in between', async ({ page }) => {
 	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(`${TITLE} twice`)
 })
 
-test('takes a post back out of the trash from the editor', async ({ page }) => {
+test('takes a post trashed from the editor back out of the trash from the list', async ({ page }) => {
 	await openNewDraft(page)
 	await page.getByRole('textbox', { name: 'Title' }).fill(TRASH_TITLE)
 	await page.getByRole('button', { name: 'Save draft' }).click()
 	await expect(shown(page, 'Draft saved.')).toBeVisible()
 
+	const named = await toastName(page, TRASH_TITLE)
 	await page.getByRole('button', { name: 'Move to trash' }).click()
-	await page.getByRole('alertdialog').getByRole('button', { name: 'Move to trash' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Move to trash' }).click()
 
 	await expect(page.getByRole('button', { name: 'Add New' })).toBeVisible()
-	await expect(shown(page, 'Moved to the trash.')).toBeVisible()
+	await expect(shown(page, `"${named}" moved to the trash.`)).toBeVisible()
 
-	await page.getByRole('button', { name: 'Undo' }).click()
+	await page.getByRole('group', { name: 'Filter by status' }).getByRole('button', { name: /^Trash/ }).click()
+	await page.getByRole('row').filter({ hasText: TRASH_TITLE }).getByRole('button', { name: 'Actions' }).click()
+	await page.getByRole('menuitem', { name: 'Restore' }).click()
+	await expect(shown(page, `"${named}" has been restored.`)).toBeVisible()
 
 	await page.getByRole('group', { name: 'Filter by status' }).getByRole('button', { name: /^Draft/ }).click()
 	await expect(page.getByRole('link', { name: TRASH_TITLE })).toBeVisible()
@@ -242,9 +261,10 @@ test('reads a trashed post and restores it into the editor', async ({ page }) =>
 	await page.getByRole('textbox', { name: 'Title' }).fill(READ_TITLE)
 	await page.getByRole('button', { name: 'Save draft' }).click()
 	await expect(shown(page, 'Draft saved.')).toBeVisible()
+	const named = await toastName(page, READ_TITLE)
 	await page.getByRole('button', { name: 'Move to trash' }).click()
-	await page.getByRole('alertdialog').getByRole('button', { name: 'Move to trash' }).click()
-	await expect(shown(page, 'Moved to the trash.')).toBeVisible()
+	await page.getByRole('dialog').getByRole('button', { name: 'Move to trash' }).click()
+	await expect(shown(page, `"${named}" moved to the trash.`)).toBeVisible()
 
 	await page.getByRole('button', { name: /^Trash/ }).click()
 	await page.getByRole('link', { name: READ_TITLE }).click()

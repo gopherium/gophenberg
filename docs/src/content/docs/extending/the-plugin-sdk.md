@@ -332,3 +332,13 @@ export const plugin = {
 `make generate` wires it in: routes mount inside the admin layout
 and nav rows appear after the built-in ones. No built-in plugin
 uses this path yet, so expect to be the first through it.
+
+The frontend SDK, `@gophenberg/frontend-sdk`, passes on a few icons
+from `@wordpress/icons`, each named after the job it does in the
+admin: `backIcon`, `backupIcon`, `downIcon`, `listViewIcon`,
+`redoIcon`, `trashIcon`, `undoIcon` and `upIcon`. Import them from
+the SDK, so the admin keeps one copy of the icon set:
+
+```ts
+import { trashIcon } from '@gophenberg/frontend-sdk'
+```

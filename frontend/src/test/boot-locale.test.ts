@@ -71,6 +71,7 @@ test('loads the editor catalogue beside its own when a build produced one', asyn
 		own: async () => undefined,
 		editor: async () => editor,
 		brick: async () => undefined,
+		chrome: async () => undefined,
 	})
 
 	expect(__('Bold')).toBe('Negrita')
@@ -87,9 +88,41 @@ test('loads nothing when a build produced no catalogue at all', async () => {
 		own: async () => undefined,
 		editor: async () => undefined,
 		brick: async () => undefined,
+		chrome: async () => undefined,
 	})
 
 	expect(held).toBe('es-ES')
+})
+
+test('loads the list chrome so the list controls speak the reader language', async () => {
+	server.use(
+		http.get('/api/locale', () =>
+			HttpResponse.json({ locale: 'es-ES', supported: ['en-US', 'es-ES'] }),
+		),
+	)
+
+	await startLocale()
+
+	expect(__('Add filter')).toBe('Añadir filtro')
+})
+
+test('reads the list chrome words where the editor catalogue holds the same message', async () => {
+	server.use(
+		http.get('/api/locale', () =>
+			HttpResponse.json({ locale: 'es-ES', supported: ['en-US', 'es-ES'] }),
+		),
+	)
+	const editor = { '': { 'plural-forms': 'nplurals=2; plural=(n != 1);' }, Close: ['Cerrar el editor'] }
+	const chrome = { '': { 'plural-forms': 'nplurals=2; plural=(n != 1);' }, Close: ['Cerrar'] }
+
+	await startLocale({
+		own: async () => undefined,
+		editor: async () => editor,
+		brick: async () => undefined,
+		chrome: async () => chrome,
+	})
+
+	expect(__('Close')).toBe('Cerrar')
 })
 
 test('loads the brick catalogue so its screens speak the same language', async () => {

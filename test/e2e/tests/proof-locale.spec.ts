@@ -27,6 +27,7 @@ test.describe('the admin read in the proof locale', () => {
 
 		await expect(page.getByRole('button', { name: 'Añadir nuevo' })).toBeVisible()
 		await expect(page.getByRole('link', { name: 'Atrás' })).toBeVisible()
+		await expect(page.getByRole('button', { name: 'Ver opciones' })).toBeVisible()
 	})
 
 	test('names the content types screen in the reader language', async ({ page }) => {

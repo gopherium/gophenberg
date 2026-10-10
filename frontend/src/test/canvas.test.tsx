@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { CanvasMode } from '@gophenberg/frontend-sdk'
+import { Frame } from '@gopherium/godmin'
 import { createAuthQueryClient } from '@gopherium/react-auth'
 import { defaultUser, seedSession } from '@gopherium/react-auth/testing'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -11,7 +12,7 @@ import {
 	createRoute,
 	createRouter,
 } from '@tanstack/react-router'
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { expect, test } from 'vitest'
 
 import '../index.css'
@@ -19,6 +20,10 @@ import { Layout } from '../Layout'
 import { versionQueryKey } from '../version'
 
 const BLEED = 'godmin-layout__canvas--bleed'
+
+const RAIL_TOKEN = '--wpds-color-background-surface-neutral-weak'
+
+const LINE_TOKEN = '--wpds-color-stroke-surface-neutral-weak'
 
 /**
  * Renders a section whose route and parent declare the given canvas modes.
@@ -62,6 +67,27 @@ function canvas(): HTMLElement {
 	return document.querySelector('.godmin-layout__canvas') as HTMLElement
 }
 
+/**
+ * Returns the value one design token takes on the nearest theme around an element.
+ * @param element - The element the theme wraps.
+ * @param token - The custom property name.
+ * @returns The value the nearest theme sets.
+ */
+function tokenAround(element: Element, token: string): string {
+	return (element.closest(`[style*="${token}:"]`) as HTMLElement).style.getPropertyValue(token)
+}
+
+/**
+ * Returns the rail and canvas line colours of the frame on screen.
+ * @returns The rail background and the canvas line colour.
+ */
+function frameColours(): { rail: string, line: string } {
+	return {
+		rail: tokenAround(document.querySelector('.godmin-layout') as Element, RAIL_TOKEN),
+		line: tokenAround(canvas(), LINE_TOKEN),
+	}
+}
+
 test('pads the canvas of a route that asks for nothing', async () => {
 	renderCanvas()
 
@@ -95,4 +121,22 @@ test('inherits the canvas mode when the route declares none', async () => {
 
 	expect(await screen.findByText('section canvas')).toBeInTheDocument()
 	expect(canvas()).toHaveClass(BLEED)
+})
+
+test('paints the frame in the colours the admin kit picks', async () => {
+	renderCanvas()
+	await screen.findByText('section canvas')
+	const painted = frameColours()
+	cleanup()
+
+	render(
+		<Frame.Root>
+			<Frame.Canvas>
+				<p>bare canvas</p>
+			</Frame.Canvas>
+		</Frame.Root>,
+	)
+
+	expect(await screen.findByText('bare canvas')).toBeInTheDocument()
+	expect(painted).toEqual(frameColours())
 })

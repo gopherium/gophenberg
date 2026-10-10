@@ -5,15 +5,15 @@ import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { __, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, Page } from '@gopherium/godmin'
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { RefObject } from 'react'
 
 import { usePostActions, useRefresh } from './actions'
-import type { PostNotice } from './actions'
+import type { ListRun } from './actions'
 import { fetchPostCounts, listPosts } from './api'
 import type { PostCounts, PostPage } from './api'
 import { EmptyTrash } from './EmptyTrash'
 import { fieldTerms, postFields } from './fields'
-import { PostsNotice } from './PostsNotice'
 import { StatusGhost, StatusViews } from './StatusViews'
 import { useContentType } from './useContentType'
 
@@ -32,6 +32,48 @@ const INITIAL_VIEW: View = {
 }
 
 /**
+ * Holds the failure shown above the list of one type and status, and the list a finished run focuses.
+ * @param scope - The type and status the list shows.
+ * @param setTicks - Replaces the ticked rows.
+ * @returns The failure on show, what the list does around a run, and the list element.
+ */
+function useListRun(
+	scope: string,
+	setTicks: (ids: string[]) => void,
+): { failure?: string, run: ListRun, list: RefObject<HTMLDivElement | null> } {
+	const [shown, setShown] = useState<{ scope: string, failure?: string }>({ scope })
+	const list = useRef<HTMLDivElement>(null)
+	const latest = useRef(0)
+	useLayoutEffect(() => {
+		latest.current += 1
+	}, [scope])
+	if (shown.scope !== scope) {
+		setShown({ scope })
+		setTicks([])
+	}
+	const run = useMemo<ListRun>(
+		() => ({
+			onStart: () => {
+				const id = latest.current + 1
+				latest.current = id
+				setShown({ scope })
+				return (failure, moved) => {
+					if (latest.current !== id) {
+						return
+					}
+					setShown({ scope, failure })
+					if (moved) {
+						list.current?.focus()
+					}
+				}
+			},
+		}),
+		[scope],
+	)
+	return { failure: shown.failure, run, list }
+}
+
+/**
  * Renders the list screen of a content type.
  * @returns The list screen element.
  */
@@ -40,15 +82,9 @@ export function PostsScreen() {
 	const [view, setView] = useState<View>(INITIAL_VIEW)
 	const [offered, setOffered] = useState('')
 	const [status, setStatus] = useState('')
-	const [notice, setNotice] = useState<PostNotice | null>(null)
 	const [selection, setSelection] = useState<string[]>([])
-	const report = useCallback((next: PostNotice | null) => {
-		setNotice(next)
-		if (next?.intent === 'success') {
-			setSelection([])
-		}
-	}, [])
-	const actions = usePostActions(status, report)
+	const { failure, run, list } = useListRun(`${listed.key} ${status}`, setSelection)
+	const actions = usePostActions(status, listed.key, run)
 	const refresh = useRefresh()
 	const counts = useQuery({
 		queryKey: ['post-counts', listed.key],
@@ -86,8 +122,6 @@ export function PostsScreen() {
 	 */
 	function chooseStatus(chosen: string) {
 		setStatus(chosen)
-		setNotice(null)
-		setSelection([])
 		setView((current) => ({ ...current, page: 1 }))
 	}
 	const page = posts.data ?? EMPTY_PAGE
@@ -106,7 +140,7 @@ export function PostsScreen() {
 				current={status}
 				onSelect={chooseStatus}
 			/>
-			{notice !== null && <PostsNotice notice={notice} report={setNotice} />}
+			{failure === undefined ? null : <ErrorNotice>{failure}</ErrorNotice>}
 			{posts.isError ? (
 				<ErrorNotice>
 					{sprintf(__('Could not load %(type)s.', 'gophenberg'), {
@@ -115,6 +149,7 @@ export function PostsScreen() {
 				</ErrorNotice>
 			) : (
 				<div
+					ref={list}
 					className="godmin-table-scroll"
 					role="region"
 					aria-label={listed.pluralLabel}

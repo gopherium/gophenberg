@@ -57,19 +57,36 @@ Gophenberg creates a draft and opens it in
 
 ## Trash
 
-**Move to Trash** appears on every row, and in the editor's
-Document panel. You can trash several posts at once, and the
-confirmation notice carries one **Undo** that brings the whole
-batch back.
+**Trash** sits in the actions menu of every row not in the trash
+yet, and the editor's Document panel offers **Move to trash**. Both
+ask first, in a small dialog that names the post. Tick several rows
+and the **Trash** button under the list moves them all at once,
+behind one question.
 
-In the Trash view, each row offers two actions:
+Each finished action shows a short message at the bottom of the
+screen that names the post, such as `"Hello world" moved to the
+trash.` A long title is cut short with `…`, in the message and in
+the question. When you act on several posts at once, the message
+counts them instead. There is no Undo. A trashed post comes back
+from the Trash view.
+
+When the server refuses, the list shows the reason in a notice above
+the rows, such as a page that still holds pages nested inside it,
+and the editor shows it inside its dialog. The notice above the list
+stays until your next action, or until you switch to another status
+or content type. Rows the server refused stay ticked, so you can try
+them again.
+
+In the Trash view, each row offers two actions, and both also work
+on several ticked rows at once:
 
 - **Restore** brings the post back **as a draft**, whatever it was
   before. Publish it again to put it back on your site.
-- **Delete Permanently** removes it forever, after a confirmation.
+- **Permanently delete** removes the post forever, after a
+  confirmation.
 
-Both work one post at a time. **Empty Trash**, which only appears
-here, clears everything at once.
+**Empty Trash**, which only appears here, clears everything at once.
 
 Opening a trashed post from its title shows it read only. Its
-**Restore** control brings it back as a draft and opens the editor.
+**Restore** control brings it back as a draft, names it in a
+message, and opens the editor.

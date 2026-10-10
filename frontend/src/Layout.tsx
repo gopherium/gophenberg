@@ -7,20 +7,13 @@ import { Outlet } from '@tanstack/react-router'
 
 import { RailContent } from './RailContent'
 
-const CHROME_COLOR = { background: '#1e1e1e' }
-const CANVAS_COLOR = { background: '#ffffff' }
-
 /**
  * Renders the admin layout framing the active route.
  * @returns The layout element.
  */
 export function Layout() {
 	return (
-		<Frame.Root
-			location={useFrameLocation()}
-			chromeColor={CHROME_COLOR}
-			canvasColor={CANVAS_COLOR}
-		>
+		<Frame.Root location={useFrameLocation()}>
 			<Frame.Rail menuLabel={__('Open navigation', 'gophenberg')}>
 				<RailContent />
 			</Frame.Rail>

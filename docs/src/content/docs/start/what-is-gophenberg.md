@@ -29,8 +29,8 @@ the binary, with its own routes and its own database tables. The
 first built-in plugin serves your posts as an RSS feed.
 
 **The editor is real Gutenberg.** Not a lookalike. Autosave,
-revision snapshots kept behind the scenes, and a trash you can
-undo.
+revision snapshots kept behind the scenes, and a trash you
+restore from.
 
 ## What ships today
 
