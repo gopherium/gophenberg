@@ -17,6 +17,10 @@ var groupValueCases = []Case{
 		"DeleteFieldsOfGroupSweepsAValueLeftOnATypeItStoppedMatching",
 		deleteFieldsOfGroupSweepsAValueLeftOnATypeItStoppedMatching,
 	},
+	{
+		"DeleteFieldInGroupSweepsAValueLeftOnATypeItStoppedMatching",
+		deleteFieldInGroupSweepsAValueLeftOnATypeItStoppedMatching,
+	},
 	{"DeleteGroupSparesAValueAnotherGroupStillServes", deleteGroupSparesAValueAnotherGroupStillServes},
 	{"DeleteFieldInGroupSweepsTheValuesOfItsMatchedTypes", deleteFieldInGroupSweepsTheValuesOfItsMatchedTypes},
 	{
@@ -102,6 +106,31 @@ func deleteFieldsOfGroupSweepsAValueLeftOnATypeItStoppedMatching(t *testing.T, s
 	}
 }
 
+// deleteFieldInGroupSweepsAValueLeftOnATypeItStoppedMatching sweeps the field's value off a type its group moved off.
+func deleteFieldInGroupSweepsAValueLeftOnATypeItStoppedMatching(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	StoreType(t, s.Types, "car")
+	StoreType(t, s.Types, "book")
+	group := GroupOn(t, s.Types, "Extras", "car")
+	textIn(t, s.Types, group.ID, "subtitle")
+	textIn(t, s.Types, group.ID, "footnote")
+	left, revision := TypedHolding(t, s.Types, s.Content, "car", "Left Behind", author,
+		content.Values{"subtitle": "must go", "footnote": "stays"})
+	group.Location = LocationOf("book")
+	if _, err := s.Types.UpdateGroup(t.Context(), group, nil, nil); err != nil {
+		t.Fatalf("UpdateGroup() error = %v, want nil", err)
+	}
+	expectHeld(t, t.Fatalf, s.Content, left, revision, content.Values{"subtitle": "must go", "footnote": "stays"},
+		"both values frozen on the car once the group moved off it")
+
+	if err := s.Types.DeleteFieldInGroup(t.Context(), group.ID, "subtitle", nil); err != nil {
+		t.Fatalf("DeleteFieldInGroup() error = %v, want nil", err)
+	}
+
+	expectHeld(t, t.Errorf, s.Content, left, revision, content.Values{"footnote": "stays"},
+		"the frozen subtitle swept with the field that declared it")
+}
+
 // deleteGroupSparesAValueAnotherGroupStillServes keeps the value a second group still serves on the item's type.
 func deleteGroupSparesAValueAnotherGroupStillServes(t *testing.T, s Stores) {
 	author := s.AddAuthor(t, DefaultAuthor)
@@ -134,7 +163,7 @@ func deleteGroupSparesAValueAnotherGroupStillServes(t *testing.T, s Stores) {
 	}
 }
 
-// deleteFieldInGroupSweepsTheValuesOfItsMatchedTypes sweeps the field's values from its own type and no other.
+// deleteFieldInGroupSweepsTheValuesOfItsMatchedTypes sweeps the field's values from its own type and spares one served.
 func deleteFieldInGroupSweepsTheValuesOfItsMatchedTypes(t *testing.T, s Stores) {
 	author := s.AddAuthor(t, DefaultAuthor)
 	StoreType(t, s.Types, "car")
