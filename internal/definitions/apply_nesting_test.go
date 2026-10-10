@@ -41,15 +41,23 @@ func nestingSiteWithPool(
 ) (*content.Registry, *postgres.ContentStore, uuid.UUID, *pgxpool.Pool) {
 	t.Helper()
 	pool, registry := definedSite(t)
+	nestingRecipe(t, registry)
+	return registry, postgres.NewContentStore(pool), authorOn(t, pool), pool
+}
+
+// nestingRecipe turns the registry's recipe type nesting and returns it as stored.
+func nestingRecipe(t *testing.T, registry *content.Registry) content.Type {
+	t.Helper()
 	recipe, err := registry.ByKey(t.Context(), "recipe")
 	if err != nil {
 		t.Fatalf("ByKey(recipe) error = %v, want nil", err)
 	}
 	recipe.Hierarchical, recipe.UpdatedAt = true, time.Now().UTC()
-	if _, err := registry.Update(t.Context(), recipe); err != nil {
+	nesting, err := registry.Update(t.Context(), recipe)
+	if err != nil {
 		t.Fatalf("Update(recipe) error = %v, want the type nesting", err)
 	}
-	return registry, postgres.NewContentStore(pool), authorOn(t, pool), pool
+	return nesting
 }
 
 // filed stores an item of the type under the parent and returns it.
@@ -153,19 +161,12 @@ func TestCompareReportsNestedItemsItCannotCount(t *testing.T) {
 	t.Parallel()
 
 	pool, registry := definedSite(t)
-	recipe, err := registry.ByKey(t.Context(), "recipe")
-	if err != nil {
-		t.Fatalf("ByKey(recipe) error = %v, want nil", err)
-	}
-	recipe.Hierarchical, recipe.UpdatedAt = true, time.Now().UTC()
-	if _, err := registry.Update(t.Context(), recipe); err != nil {
-		t.Fatalf("Update(recipe) error = %v, want the type nesting", err)
-	}
+	nestingRecipe(t, registry)
 	envelope := exported(t, registry)
 	flatteningRecipe(t, envelope)
 	sabotage(t, pool, "ALTER TABLE core.content RENAME COLUMN parent_id TO parent_gone")
 
-	_, err = definitions.Compare(t.Context(), registry, envelope)
+	_, err := definitions.Compare(t.Context(), registry, envelope)
 
 	if err == nil {
 		t.Error("Compare() error = nil, want the failing count reported")
