@@ -22,7 +22,7 @@ require (
 	github.com/gopherium/gouncer v0.4.0
 	github.com/gopherium/gouncer/authkit v0.19.0
 	github.com/gopherium/gouncer/authkit/postgres v0.13.0
-	github.com/gopherium/gouncer/authkit/ratelimit v0.3.0
+	github.com/gopherium/gouncer/authkit/ratelimit v0.3.1
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/microcosm-cc/bluemonday v1.0.27
