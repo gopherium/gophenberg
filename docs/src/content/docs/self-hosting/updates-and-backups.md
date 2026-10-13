@@ -29,10 +29,18 @@ nothing left to do. While Gophenberg is below 1.0, read the release
 notes first, since a release can change behavior.
 
 Updating to %VERSION% from an earlier %FEATURE_VERSION% release runs no
-migration, changes no setting and needs no theme rebuild. It fixes
-**Empty Trash**, which on any list but Posts deleted the trashed posts
-for good and left the trash on screen as it was. Rolling back within
-%FEATURE_VERSION% deletes nothing, and brings that defect back.
+migration, changes no setting and needs no theme rebuild. It also runs
+themes built on `@gophenberg/astro` 0.15.1, which the earlier
+%FEATURE_VERSION% releases turn away with `kit_unsupported`. Coming
+from %FEATURE_VERSION%.0, it also fixes **Empty Trash**, which on any
+list but Posts deleted the trashed posts for good and left the trash on
+screen as it was.
+
+Rolling back within %FEATURE_VERSION% deletes nothing. A theme built on
+kit 0.15.1 then stops loading and the site shows the built-in pages. If
+`GOPHENBERG_THEME` names that theme, the server does not start at all.
+Rolling back to %FEATURE_VERSION%.0 also brings the Empty Trash defect
+back.
 
 Updating to %FEATURE_VERSION% from the release before it runs one
 migration when the server starts, or when you run `migrate`. It adds
@@ -43,7 +51,7 @@ the site used when it first started. If the migration fails, the
 server stops at start, and the older image still starts on that
 database. Until it runs, `account:records` and the commands that take
 `-as` refuse with `the command records are missing, run migrate first`.
-This release serves the same theme kits as the release before it, so
+This release serves every theme kit the release before it serves, so
 no theme needs rebuilding. Back up the database before the first
 start on this release, as before any update.
 
@@ -176,7 +184,8 @@ Rolling back to the release before this one deletes nothing. Put the
 older image tag back, the newest patch of that release, and start it.
 It runs on this release's database as it stands. Accounts keep
 signing in, and the database password needs no change. It serves the
-same theme kits, so no theme needs rebuilding. It does not bring back
+theme kits up to %KIT_VERSION%, so a theme built on kit 0.15.1 does not
+load there until you rebuild it on %KIT_VERSION%. It does not bring back
 what this release deleted, such as the work parked on a post moved to
 the trash. While you run it:
 
@@ -301,7 +310,7 @@ saved, not even with a new title, until a field of that name exists
 again. The definitions do not come back if you migrate forward again,
 and neither do the copies the container migration removed.
 
-This release serves themes built on `@gophenberg/astro`
+This release serves themes built on `@gophenberg/astro` 0.15.1 and
 %KIT_VERSION%, and the older kits it still answers. Ask a site which
 ones through [the handshake](/reference/content-api/), and rebuild
 your theme against one of them before updating.
