@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -306,6 +307,50 @@ type quietJobs struct{}
 // RunDue runs nothing.
 func (quietJobs) RunDue(context.Context) (cron.Report, error) {
 	return cron.Report{}, nil
+}
+
+// futureStore is a cron store whose session sweep falls due an hour from now, counting each read of its slots.
+type futureStore struct {
+	cron.Store
+	reads atomic.Int32
+}
+
+// Slots counts one read and holds the session sweep an hour off.
+func (s *futureStore) Slots(context.Context) ([]cron.Slot, error) {
+	s.reads.Add(1)
+	return []cron.Slot{{Name: sessionSweepJob, NextRun: time.Now().Add(time.Hour)}}, nil
+}
+
+func TestCronRunsOverTheStoreTheSiteHolds(t *testing.T) {
+	t.Parallel()
+
+	settings, err := cronSettingsWith(nil)
+	if err != nil {
+		t.Fatalf("cronSettingsWith() error = %v", err)
+	}
+	store := &futureStore{}
+	jobs := cronOf(settings, site{cronStore: store}, slog.New(slog.DiscardHandler))
+
+	if _, err := jobs.runs.RunNow(); err != nil {
+		t.Fatalf("RunNow() error = %v", err)
+	}
+	if reads := store.reads.Load(); reads != 1 {
+		t.Errorf("the cron jobs read the site's store %d times, want once", reads)
+	}
+}
+
+func TestOpenStoresPicksThePostgresCronStore(t *testing.T) {
+	t.Parallel()
+
+	built, err := openStores(t.Context(), composeConfig{databaseURL: unreachableDatabaseURL})
+	if err != nil {
+		t.Fatalf("openStores() error = %v", err)
+	}
+	defer built.pool.Close()
+
+	if _, picked := built.cronStore.(*postgres.CronStore); !picked {
+		t.Errorf("openStores() holds the cron store %T, want the PostgreSQL one", built.cronStore)
+	}
 }
 
 func TestTheServerCutsTheCronJobsWhenItBeginsToShutDown(t *testing.T) {

@@ -16,7 +16,6 @@ import (
 	"github.com/gopherium/gouncer/authkit"
 
 	"github.com/gopherium/gophenberg/internal/cron"
-	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
@@ -100,11 +99,11 @@ type siteCron struct {
 	stopGrace time.Duration
 }
 
-// cronOf returns the site's cron jobs over its pool, the session sweep the only core job.
+// cronOf returns the site's cron jobs over the cron store the site holds, the session sweep the only core job.
 func cronOf(settings cronSettings, built site, logger *slog.Logger) siteCron {
 	runner := cron.New(cron.Config{
 		Jobs:      []cron.Job{sessionSweep(built.users, settings.sweepEvery, logger)},
-		Store:     postgres.NewCronStore(built.pool),
+		Store:     built.cronStore,
 		TimeLimit: settings.timeLimit,
 		Lease:     settings.lease,
 		Logger:    logger,

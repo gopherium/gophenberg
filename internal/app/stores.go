@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/cron"
 	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/sdk"
@@ -44,6 +45,7 @@ type site struct {
 	lane       *pluginLane
 	roles      *goncierge.Registry
 	avatars    avatar.Options
+	cronStore  cron.Store
 }
 
 // composeOf returns the values compose reads out of the server settings.
@@ -60,13 +62,14 @@ func openStores(ctx context.Context, cfg composeConfig) (site, error) {
 		return site{}, fmt.Errorf("parse database url: %w", err)
 	}
 	built := site{
-		pool:     pool,
-		users:    authkitpg.NewUserStore(pool),
-		content:  postgres.NewContentStore(pool),
-		types:    postgres.NewTypeStore(pool),
-		media:    postgres.NewMediaStore(pool),
-		settings: postgres.NewSettingStore(pool),
-		readers:  postgres.NewUserSettingStore(pool),
+		pool:      pool,
+		users:     authkitpg.NewUserStore(pool),
+		content:   postgres.NewContentStore(pool),
+		types:     postgres.NewTypeStore(pool),
+		media:     postgres.NewMediaStore(pool),
+		settings:  postgres.NewSettingStore(pool),
+		readers:   postgres.NewUserSettingStore(pool),
+		cronStore: postgres.NewCronStore(pool),
 	}
 	built.registry = registryFrom(cfg.fieldDepth, built.types)
 	if cfg.mediaDir != "" {
