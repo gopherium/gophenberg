@@ -30,7 +30,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/peterldowns/pgtestdb v0.1.1
 	github.com/pressly/goose/v3 v3.28.0
-	golang.org/x/image v0.46.0
+	golang.org/x/image v0.47.0
 	golang.org/x/net v0.61.0
 	golang.org/x/text v0.43.0
 )
