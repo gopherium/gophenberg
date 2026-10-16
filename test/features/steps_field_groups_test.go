@@ -488,6 +488,7 @@ func initializeFieldGroups(sc *godog.ScenarioContext) {
 		theAdministratorMovesTheField,
 	)
 	sc.When(`^the administrator orders the groups "(.*)"$`, theAdministratorOrdersTheGroups)
+	sc.Given(`^the administrator lists the rule sources$`, theAdministratorListsTheRuleSources)
 	sc.When(`^the administrator lists the rule sources$`, theAdministratorListsTheRuleSources)
 	sc.Then(`^no field groups are listed$`, noFieldGroupsAreListed)
 	sc.Then(`^the group "([^"]*)" is listed$`, theGroupIsListed)

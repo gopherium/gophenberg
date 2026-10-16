@@ -50,7 +50,7 @@ func (r *Registry) FieldDepth() int {
 }
 
 // Params returns the rule sources locations evaluate against, the built in ones by default.
-func (r *Registry) Params(ctx context.Context) *ParamRegistry {
+func (r *Registry) Params(context.Context) *ParamRegistry {
 	r.mu.RLock()
 	held := r.locations
 	r.mu.RUnlock()
@@ -60,19 +60,22 @@ func (r *Registry) Params(ctx context.Context) *ParamRegistry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.locations == nil {
-		r.locations = DefaultParamRegistry(func(context.Context) ([]Choice, error) {
-			types, err := r.All(ctx)
-			if err != nil {
-				return nil, err
-			}
-			choices := make([]Choice, len(types))
-			for i, t := range types {
-				choices[i] = Choice{Value: t.Key, Label: t.PluralLabel}
-			}
-			return choices, nil
-		})
+		r.locations = DefaultParamRegistry(r.typeChoices)
 	}
 	return r.locations
+}
+
+// typeChoices returns a choice per registered type, labelled in the plural.
+func (r *Registry) typeChoices(ctx context.Context) ([]Choice, error) {
+	types, err := r.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	choices := make([]Choice, len(types))
+	for i, t := range types {
+		choices[i] = Choice{Value: t.Key, Label: t.PluralLabel}
+	}
+	return choices, nil
 }
 
 // All returns every registered type, active or not, in registration order.

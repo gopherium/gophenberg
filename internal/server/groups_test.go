@@ -3,6 +3,7 @@
 package server_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -690,17 +691,23 @@ func TestGroupFieldMoveReportsAParentThatIsGone(t *testing.T) {
 	}
 }
 
+// listedParams returns the rule sources the admin API offers, failing unless it answers 200.
+func listedParams(t *testing.T, handler http.Handler) paramsHeld {
+	t.Helper()
+	recorder := doRequest(t, handler, http.MethodGet, "/api/groups/params", "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	return decodeBody[paramsHeld](t, recorder)
+}
+
 func TestGroupParamsAnswerTheSourcesARuleCanRead(t *testing.T) {
 	t.Parallel()
 
 	handler, _, _, _ := typedPostServer(t)
 
-	recorder := doRequest(t, handler, http.MethodGet, "/api/groups/params", "")
+	listed := listedParams(t, handler)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body.String())
-	}
-	listed := decodeBody[paramsHeld](t, recorder)
 	if len(listed.Items) != 1 || listed.Items[0].Source != content.ScreenContentType {
 		t.Fatalf("params = %+v, want the content type source alone", listed.Items)
 	}
@@ -710,6 +717,30 @@ func TestGroupParamsAnswerTheSourcesARuleCanRead(t *testing.T) {
 	}
 	if len(held.Values) == 0 || held.Values[0].Value != content.TypePost {
 		t.Errorf("values = %+v, want a choice per registered type", held.Values)
+	}
+}
+
+func TestGroupParamsOfferATypeSavedAfterAnEarlierListingEnded(t *testing.T) {
+	t.Parallel()
+
+	handler, _, _, _ := typedPostServer(t)
+	asked, ended := context.WithCancel(t.Context())
+	first := httptest.NewRecorder()
+	handler.ServeHTTP(first, httptest.NewRequestWithContext(asked, http.MethodGet, "/api/groups/params", nil))
+	ended()
+	if first.Code != http.StatusOK {
+		t.Fatalf("the first listing answered %d, want %d", first.Code, http.StatusOK)
+	}
+	saved := doRequest(t, handler, http.MethodPost, "/api/types",
+		`{"key":"car","singular_label":"Car","plural_label":"Cars","route_word":"cars"}`)
+	if saved.Code != http.StatusCreated {
+		t.Fatalf("saving the car type answered %d, want %d: %s", saved.Code, http.StatusCreated, saved.Body.String())
+	}
+
+	values := listedParams(t, handler).Items[0].Values
+
+	if len(values) != 2 || values[1].Value != "car" {
+		t.Errorf("values = %+v, want the car type saved after the earlier listing", values)
 	}
 }
 

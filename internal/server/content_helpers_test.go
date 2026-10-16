@@ -492,8 +492,11 @@ func (s *fakeTypeStore) register(t content.Type) {
 	s.types = append(s.types, t)
 }
 
-// List returns every stored type in registration order.
-func (s *fakeTypeStore) List(context.Context) ([]content.Type, error) {
+// List returns every stored type in registration order, refusing an ended context.
+func (s *fakeTypeStore) List(ctx context.Context) ([]content.Type, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.listErr != nil {

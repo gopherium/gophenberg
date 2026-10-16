@@ -42,8 +42,11 @@ func newMemoryTypes(items *memoryContent) *memoryTypes {
 	}}}
 }
 
-// List returns every stored type in registration order.
-func (s *memoryTypes) List(context.Context) ([]content.Type, error) {
+// List returns every stored type in registration order, refusing an ended context.
+func (s *memoryTypes) List(ctx context.Context) ([]content.Type, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	stored := make([]content.Type, len(s.types))

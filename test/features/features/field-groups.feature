@@ -265,3 +265,9 @@ Feature: Grouping fields and placing them by rule
   Scenario: The rule sources a location may read are offered
     When the administrator lists the rule sources
     Then the source "content_type" is offered with a choice for "post"
+
+  Scenario: The rule sources offer a type saved after an earlier listing
+    Given the administrator lists the rule sources
+    And the type "recipe" labeled "Recipe" and "Recipes" under "recipes"
+    When the administrator lists the rule sources
+    Then the source "content_type" is offered with a choice for "recipe"

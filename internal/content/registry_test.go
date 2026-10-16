@@ -32,8 +32,11 @@ func newFakeTypeStore() *fakeTypeStore {
 	return &fakeTypeStore{types: []content.Type{postType()}}
 }
 
-// List returns every stored type in registration order.
-func (s *fakeTypeStore) List(context.Context) ([]content.Type, error) {
+// List returns every stored type in registration order, refusing an ended context.
+func (s *fakeTypeStore) List(ctx context.Context) ([]content.Type, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	s.listCalls++
 	if s.listErr != nil {
 		return nil, s.listErr
@@ -217,6 +220,27 @@ func TestRegistryRereadsAfterAWrite(t *testing.T) {
 	if found.Key != "car" || store.listCalls != 2 {
 		t.Errorf("ByKey() = %+v after %d reads, want the write to have refreshed the cache",
 			found, store.listCalls)
+	}
+}
+
+func TestRegistryOffersTheTypesUnderTheContextAskingForThem(t *testing.T) {
+	t.Parallel()
+
+	registry := content.NewRegistry(newFakeTypeStore())
+	first, end := context.WithCancel(t.Context())
+	params, _ := registry.Params(first).Param(content.ScreenContentType)
+	end()
+	if _, err := registry.Create(t.Context(), carType(t)); err != nil {
+		t.Fatalf("registering the car type: %v, want nil", err)
+	}
+
+	choices, err := params.Values(t.Context())
+
+	if err != nil {
+		t.Fatalf("Values() error = %v, want the types read under the context asking for them", err)
+	}
+	if len(choices) != 2 || choices[1].Value != "car" {
+		t.Errorf("Values() = %v, want the car type saved after the first asker ended", choices)
 	}
 }
 
