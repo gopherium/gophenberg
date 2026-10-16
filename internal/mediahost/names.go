@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // lookalikeSuffix matches a stem that could collide with sub-size naming.
@@ -24,11 +26,12 @@ func titleOf(name string) string {
 	return strings.TrimSuffix(base, path.Ext(base))
 }
 
-// stemOf returns the sanitized file stem an upload stores under.
+// stemOf returns the sanitized file stem an upload stores under, folding
+// accents the way slugs do.
 func stemOf(name string) string {
 	var b strings.Builder
 	separated := false
-	for _, r := range strings.ToLower(titleOf(name)) {
+	for _, r := range content.FoldAccents(strings.ToLower(titleOf(name))) {
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
 			separated = true
 			continue

@@ -98,7 +98,7 @@ func New(t Type, parent *Content, title string, authorID uuid.UUID) (Content, er
 func Slugify(title string) string {
 	var b strings.Builder
 	separated, afterKept := false, false
-	for _, r := range foldAccents(strings.ToLower(title)) {
+	for _, r := range FoldAccents(strings.ToLower(title)) {
 		switch slugRuneKindOf(r, afterKept) {
 		case slugRuneWord:
 			if separated && b.Len() > 0 {

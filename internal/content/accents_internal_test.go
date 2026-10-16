@@ -38,8 +38,8 @@ func TestFoldAccentsReadsAnApostropheAsPartOfTheWord(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			t.Parallel()
 
-			if got := foldAccents(tc.in); got != tc.want {
-				t.Errorf("foldAccents(%q) = %q, want %q", tc.in, got, tc.want)
+			if got := FoldAccents(tc.in); got != tc.want {
+				t.Errorf("FoldAccents(%q) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
 	}

@@ -36,8 +36,9 @@ var letterFolds = map[rune]string{
 	'ə': "e",
 }
 
-// foldAccents returns lowercase s with its accented Latin letters written as plain ones.
-func foldAccents(s string) string {
+// FoldAccents returns s with its accented Latin letters written as plain ones;
+// callers lowercase first, as Slugify and the media host do.
+func FoldAccents(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
 	afterLatin := false
