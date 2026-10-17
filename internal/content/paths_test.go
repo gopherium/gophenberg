@@ -127,6 +127,19 @@ func TestNewRefusesAReservedAddressBehindAnApostropheAndAMark(t *testing.T) {
 	}
 }
 
+func TestNewRefusesAReservedAddressBehindADroppedSymbolAndAMark(t *testing.T) {
+	t.Parallel()
+
+	for _, reserved := range content.ReservedRouteWords {
+		title := reserved + "&\U0000FE0F"
+		_, err := content.New(postType(), nil, title, uuid.Must(uuid.NewV7()))
+
+		if !errors.Is(err, content.ErrReservedAddress) {
+			t.Errorf("New(%q) error = %v, want %v", title, err, content.ErrReservedAddress)
+		}
+	}
+}
+
 func TestNewLeavesAReservedWordAloneBelowTheRoot(t *testing.T) {
 	t.Parallel()
 

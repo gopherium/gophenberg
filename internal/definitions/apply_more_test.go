@@ -247,6 +247,29 @@ func TestApplyGivesATypeBesideTheRootAPlainWordFromAnAccentedLabel(t *testing.T)
 	}
 }
 
+func TestApplyGivesATypeBesideTheRootAWordBrokenAtItsUnderscores(t *testing.T) {
+	t.Parallel()
+
+	registry := planningSite(t)
+	envelope := exported(t, registry)
+	for i := range envelope.Types {
+		if envelope.Types[i].Key == content.TypePost {
+			envelope.Types[i].Default, envelope.Types[i].RouteWord = false, "posts"
+		}
+	}
+	envelope.Types = append(envelope.Types, definitions.TypeDefinition{
+		Key: "faq", SingularLabel: "FAQ_Item", PluralLabel: "FAQ_Items",
+		PageKind: "single", Default: true, Active: true,
+	})
+
+	applied(t, registry, importing(envelope))
+
+	held, err := registry.ByKey(t.Context(), "faq")
+	if err != nil || held.Default || held.RouteWord != "faq-items" {
+		t.Errorf("the faq type = %+v, %v, want it beside the root under faq-items", held, err)
+	}
+}
+
 func TestApplyTakesAwayATypeTheAdminConfirmed(t *testing.T) {
 	t.Parallel()
 

@@ -4,11 +4,13 @@
 package content
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"golang.org/x/text/unicode/norm"
@@ -98,7 +100,7 @@ func New(t Type, parent *Content, title string, authorID uuid.UUID) (Content, er
 func Slugify(title string) string {
 	var b strings.Builder
 	separated, afterKept := false, false
-	for _, r := range FoldAccents(title) {
+	for _, r := range FoldAccents(strings.ReplaceAll(title, "×", "x")) {
 		switch slugRuneKindOf(r, afterKept) {
 		case slugRuneWord:
 			if separated && b.Len() > 0 {
@@ -110,16 +112,19 @@ func Slugify(title string) string {
 			b.WriteRune(r)
 		case slugRuneSeparator:
 			separated, afterKept = true, false
+		case slugRuneDrop:
+			afterKept = false
 		}
 	}
-	slug := truncateSlug(norm.NFC.String(b.String()))
-	if slug == "" {
-		return untitledSlug
-	}
-	return slug
+	return cmp.Or(truncateSlug(norm.NFC.String(b.String())), untitledSlug)
 }
 
-// slugRuneKind is the role of one title character in a slug: skipped, a word character, a kept mark or a separator.
+// RouteWord returns label as a route word, with its underscores read as spaces.
+func RouteWord(label string) string {
+	return Slugify(strings.ReplaceAll(label, "_", " "))
+}
+
+// slugRuneKind is the role of one title character in a slug: skipped, a word, a kept mark, a separator or dropped.
 type slugRuneKind int
 
 const (
@@ -127,20 +132,44 @@ const (
 	slugRuneWord
 	slugRuneMark
 	slugRuneSeparator
+	slugRuneDrop
 )
+
+// strippedSymbols holds the characters beyond ASCII that a slug drops without splitting a word.
+var strippedSymbols = map[rune]bool{
+	0x00A1: true, 0x00A9: true, 0x00AB: true, 0x00AD: true, 0x00AE: true, 0x00B0: true, 0x00B4: true,
+	0x00BB: true, 0x00BF: true, 0x02CA: true, 0x200B: true, 0x200C: true, 0x200D: true, 0x200E: true,
+	0x200F: true, 0x2018: true, 0x201A: true, 0x201B: true, 0x201C: true, 0x201D: true, 0x201E: true,
+	0x201F: true, 0x2022: true, 0x2026: true, 0x202A: true, 0x202B: true, 0x202C: true, 0x202D: true,
+	0x202E: true, 0x2039: true, 0x203A: true, 0x2122: true, 0xFEFF: true, 0xFFFC: true,
+}
 
 // slugRuneKindOf returns the [slugRuneKind] of r, given whether the previous character was kept.
 func slugRuneKindOf(r rune, afterKept bool) slugRuneKind {
 	switch {
 	case isApostrophe(r) || isSeparateAccent(r):
 		return slugRuneSkip
-	case unicode.IsLetter(r) || unicode.IsDigit(r):
+	case strippedSymbols[r]:
+		return slugRuneDrop
+	case isSlugWord(r):
 		return slugRuneWord
 	case afterKept && unicode.Is(unicode.M, r):
 		return slugRuneMark
+	case isStrippedASCII(r):
+		return slugRuneDrop
 	default:
 		return slugRuneSeparator
 	}
+}
+
+// isSlugWord reports whether r is kept as part of a word in a slug: a letter, a digit or an underscore.
+func isSlugWord(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
+}
+
+// isStrippedASCII reports whether r is an ASCII character a slug drops without splitting a word.
+func isStrippedASCII(r rune) bool {
+	return r < utf8.RuneSelf && !unicode.IsSpace(r) && !strings.ContainsRune("./-", r)
 }
 
 // isSeparateAccent reports whether r is a combining grave, acute, macron or caron, or the grapheme joiner.
