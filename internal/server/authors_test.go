@@ -3,6 +3,7 @@
 package server_test
 
 import (
+	"fmt"
 	"net/http"
 	"slices"
 	"testing"
@@ -132,5 +133,48 @@ func TestAuthorsNeedASession(t *testing.T) {
 
 	if recorder.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestAuthorsSortNamesBesideTheirBaseLetter(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		names []string
+		want  []string
+	}{
+		{
+			name:  "lowercase and accented names",
+			names: []string{"Zoe", "alba", "Bob", "Álvaro"},
+			want:  []string{"Ada Lovelace", "alba", "Álvaro", "Bob", "Zoe"},
+		},
+		{
+			name:  "names differing only by case or accent",
+			names: []string{"élise", "Elise", "elise"},
+			want:  []string{"Ada Lovelace", "Elise", "elise", "élise"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			users := newFakeUserStore()
+			addAda(t, users)
+			for i, name := range tt.names {
+				addWithRole(t, users, fmt.Sprintf("author%d@example.com", i), name, role.Author)
+			}
+			handler := authedServerWithStores(t, serverConfig(users, newFakePostStore()))
+
+			held := decodeBody[authorsHeld](t, doRequest(t, handler, http.MethodGet, "/api/authors", ""))
+
+			got := make([]string, len(held.Items))
+			for i, author := range held.Items {
+				got[i] = author.Name
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("names = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
