@@ -983,7 +983,9 @@ func (s *memoryTypes) handRootOver(at time.Time) (typeCarry, error) {
 			continue
 		}
 		was := stored.RouteWord
-		stored.RouteWord, stored.Default, stored.UpdatedAt = content.Slugify(stored.PluralLabel), false, at
+		stored.RouteWord = content.RouteWordForType(stored.Key, stored.PluralLabel)
+		stored.Default = false
+		stored.UpdatedAt = at
 		if err := stored.Validate(); err != nil {
 			return typeCarry{}, err
 		}

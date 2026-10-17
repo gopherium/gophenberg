@@ -167,6 +167,32 @@ func TestSlugify(t *testing.T) {
 	}
 }
 
+func TestRouteWordForType(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		key         string
+		pluralLabel string
+		want        string
+	}{
+		"uses a valid slug":                     {key: "post", pluralLabel: "Posts", want: "posts"},
+		"keeps an accent-folded slug":           {key: "resume", pluralLabel: "Résumés", want: "resumes"},
+		"falls back for a non-Latin label":      {key: "page-list", pluralLabel: "Страницы", want: "page-list"},
+		"falls back for a slug with marks":      {key: "page-list", pluralLabel: "Pages 2️⃣", want: "page-list"},
+		"leaves a reserved slug for validation": {key: "admin-type", pluralLabel: "Admin", want: "admin"},
+	}
+
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
+
+			if got := content.RouteWordForType(tc.key, tc.pluralLabel); got != tc.want {
+				t.Errorf("RouteWordForType(%q, %q) = %q, want %q", tc.key, tc.pluralLabel, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestSlugifyStripsAccentsLikeWordPress(t *testing.T) {
 	t.Parallel()
 

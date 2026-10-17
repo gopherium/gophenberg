@@ -237,7 +237,7 @@ func (r *run) kept(planned Change, declared TypeDefinition, reason string) Chang
 // beside returns the type standing next to the site's own root rather than in its place.
 func beside(wanted content.Type, declared TypeDefinition, stored content.Type, action string) content.Type {
 	if action == ActionCreate {
-		wanted.Default, wanted.RouteWord = false, content.Slugify(declared.PluralLabel)
+		wanted.Default, wanted.RouteWord = false, content.RouteWordForType(wanted.Key, declared.PluralLabel)
 		return wanted
 	}
 	wanted.Default, wanted.RouteWord = stored.Default, stored.RouteWord

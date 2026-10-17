@@ -119,6 +119,15 @@ func Slugify(title string) string {
 	return slug
 }
 
+// RouteWordForType returns the plural label's slug when it matches the route-word format, and key otherwise.
+func RouteWordForType(key, pluralLabel string) string {
+	routeWord := Slugify(pluralLabel)
+	if !typeWord.MatchString(routeWord) {
+		return key
+	}
+	return routeWord
+}
+
 // slugRuneKind is the role of one title character in a slug: skipped, a word character, a kept mark or a separator.
 type slugRuneKind int
 

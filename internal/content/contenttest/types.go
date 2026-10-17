@@ -29,7 +29,7 @@ var typeCases = []Case{
 	{"UpdateLeavesContentAloneWhenTheRouteWordStays", updateLeavesContentAloneWhenTheRouteWordStays},
 	{"UpdateHandsTheRootToAnotherType", updateHandsTheRootToAnotherType},
 	{"UpdateRefusesToHandTheRootToAReservedAddress", updateRefusesToHandTheRootToAReservedAddress},
-	{"UpdateRefusesToHandTheRootToAnUnusableAddress", updateRefusesToHandTheRootToAnUnusableAddress},
+	{"UpdateHandsTheRootToATypeWithAnUnusableLabel", updateHandsTheRootToATypeWithAnUnusableLabel},
 	{"UpdateRefusesToHandTheRootOntoATakenRouteWord", updateRefusesToHandTheRootOntoATakenRouteWord},
 	{"UpdateRefusesACarryOntoATakenAddress", updateRefusesACarryOntoATakenAddress},
 	{"UpdatePromotesWhenNoDefaultRemains", updatePromotesWhenNoDefaultRemains},
@@ -367,8 +367,8 @@ func updateRefusesToHandTheRootToAReservedAddress(t *testing.T, s Stores) {
 	}
 }
 
-// updateRefusesToHandTheRootToAnUnusableAddress refuses a hand over that leaves the default no usable word.
-func updateRefusesToHandTheRootToAnUnusableAddress(t *testing.T, s Stores) {
+// updateHandsTheRootToATypeWithAnUnusableLabel gives the demoted type its key as a fallback route word.
+func updateHandsTheRootToATypeWithAnUnusableLabel(t *testing.T, s Stores) {
 	RegisterPageType(t, s.Types)
 	relabelled := PostType()
 	relabelled.SingularLabel, relabelled.PluralLabel = "3D Model", "3D Models"
@@ -380,10 +380,23 @@ func updateRefusesToHandTheRootToAnUnusableAddress(t *testing.T, s Stores) {
 	promoted := PageType()
 	promoted.Default, promoted.UpdatedAt = true, time.Now().UTC()
 
-	_, err := s.Types.Update(t.Context(), promoted)
+	if _, err := s.Types.Update(t.Context(), promoted); err != nil {
+		t.Fatalf("handing the root to the page type: %v", err)
+	}
 
-	if !errors.Is(err, content.ErrInvalidRouteWord) {
-		t.Fatalf("Update() error = %v, want %v", err, content.ErrInvalidRouteWord)
+	post, err := s.Types.ByKey(t.Context(), content.TypePost)
+	if err != nil {
+		t.Fatalf("ByKey(post) error = %v, want nil", err)
+	}
+	if post.Default || post.RouteWord != content.TypePost {
+		t.Errorf("post = %+v, want demoted type using its key as route word", post)
+	}
+	page, err := s.Types.ByKey(t.Context(), "page")
+	if err != nil {
+		t.Fatalf("ByKey(page) error = %v, want nil", err)
+	}
+	if !page.Default {
+		t.Errorf("page = %+v, want page type holding the root", page)
 	}
 }
 

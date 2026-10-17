@@ -116,6 +116,13 @@ func accentedRoot() shelf {
 	return stocked
 }
 
+// markedRoot returns the library shelf with the root type's plural label slugging to a marked word.
+func markedRoot() shelf {
+	stocked := library()
+	stocked.types[0].PluralLabel = "Pages 2️⃣"
+	return stocked
+}
+
 // The type keys the library shelf holds, in stored order, and the sweeps that spare one of them.
 var (
 	everyTypeKey  = []string{"page", "book", "person"}
@@ -235,6 +242,12 @@ var demotedPage = TypeRow{
 // demotedResumes is what writing the accented root type under a plain word binds when it hands the root over.
 var demotedResumes = TypeRow{
 	Key: "page", SingularLabel: "Page", PluralLabel: "Résumés", RouteWord: "resumes", PageKind: "single",
+	Hierarchical: true, Revisions: true, Active: true, RevisionCap: 100, UpdatedAt: editedAt,
+}
+
+// demotedPageByKey is what writing the root type under its key binds when its label has no valid route word.
+var demotedPageByKey = TypeRow{
+	Key: "page", SingularLabel: "Page", PluralLabel: "Pages 2️⃣", RouteWord: "page", PageKind: "single",
 	Hierarchical: true, Revisions: true, Active: true, RevisionCap: 100, UpdatedAt: editedAt,
 }
 
@@ -369,6 +382,20 @@ var typeSequences = map[string]sequence{
 			begun, sent("LockContentType", keyed{"book"}), lockedRoot,
 			sent("UpdateContentType", demotedResumes), deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "page", RouteWord: "resumes", UpdatedAt: editedAt}),
+			sent("UpdateContentType", rootBookRow(true)), deferredAddresses,
+			sent("RetypeContentPaths", retyped{Key: "book", Was: "books", UpdatedAt: editedAt}),
+			committed,
+		},
+	},
+	"Update taking the root a type with a marked label falls back to its key": {
+		stocked: markedRoot,
+		run: func(ctx context.Context, s *Store, _ content.Recheck) (any, error) {
+			return valued(s.Update(ctx, rootBook(true)))
+		},
+		golden: []step{
+			begun, sent("LockContentType", keyed{"book"}), lockedRoot,
+			sent("UpdateContentType", demotedPageByKey), deferredAddresses,
+			sent("RetypeContentPaths", retyped{Key: "page", RouteWord: "page", UpdatedAt: editedAt}),
 			sent("UpdateContentType", rootBookRow(true)), deferredAddresses,
 			sent("RetypeContentPaths", retyped{Key: "book", Was: "books", UpdatedAt: editedAt}),
 			committed,
