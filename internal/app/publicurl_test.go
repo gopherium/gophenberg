@@ -85,7 +85,6 @@ func TestRunRefusesAndLogsAWriteSentAwayFromThePublicAddress(t *testing.T) {
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
 		"GOPHENBERG_ADDR":         address,
-		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 		"GOPHENBERG_PUBLIC_URL":   "https://cms.example",
 	}
 	ctx, cancel := context.WithCancel(t.Context())

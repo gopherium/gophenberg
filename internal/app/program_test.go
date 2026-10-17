@@ -34,6 +34,7 @@ func TestProgramListsEveryCommandWhenNoneIsNamed(t *testing.T) {
 			"A command that offers -yes is a dry run until -yes.",
 		"",
 		"Available commands:",
+		"  about                 print the version, the build stamp, the commit and the theme kits of this binary",
 		"  check                 check every setting, every plugin and every command name",
 		"  help                  print the help of one command",
 		"  list                  list every command",

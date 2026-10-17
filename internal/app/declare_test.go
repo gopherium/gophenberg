@@ -60,7 +60,6 @@ func TestRunDeclaresWhatPluginsDeclare(t *testing.T) {
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL": databaseURL,
 		"GOPHENBERG_ADDR":         "localhost:0",
-		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -114,7 +113,6 @@ func TestRunLeavesTheSitesOwnTypeToTheSiteWhenAPluginDeclaresItsKey(t *testing.T
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL": databaseURL,
 		"GOPHENBERG_ADDR":         "localhost:0",
-		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -179,7 +177,6 @@ func TestRunReportsADeclaredFieldDeeperThanTheFieldDepthAllows(t *testing.T) {
 		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
 		"GOPHENBERG_FIELD_DEPTH":  "1",
 		"GOPHENBERG_ADDR":         "localhost:0",
-		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()

@@ -5,6 +5,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 )
 
@@ -20,11 +21,20 @@ const DefaultContentSharedMaxAge = time.Minute
 // DefaultContentStaleWhileRevalidate is how long a shared cache may serve a stale read by default.
 const DefaultContentStaleWhileRevalidate = 5 * time.Minute
 
+// DefaultAdminAssetCacheMaxAge is how long a client may keep a hashed admin file when nothing else applies.
+const DefaultAdminAssetCacheMaxAge = 8760 * time.Hour
+
 // readerCacheControl is what an answer resolved for one reader carries, so no cache it does not belong to holds it.
 const readerCacheControl = "private, no-store"
 
 // uncachedControl is what a failed answer carries, so no cache keeps it.
 const uncachedControl = "no-store"
+
+// adminPageCache asks a client to check again on every load of an admin answer whose name carries no content hash.
+const adminPageCache = "no-cache"
+
+// hashedAdminAsset matches an admin file under assets/ whose name carries the content hash the admin build appends.
+var hashedAdminAsset = regexp.MustCompile(`^/assets/.+-[A-Za-z0-9_-]{8}\.[A-Za-z0-9]+$`)
 
 // cacheStamp is a writer stamping the Cache-Control an answer earns once its status is known.
 type cacheStamp struct {
@@ -81,13 +91,16 @@ type CachePolicy struct {
 	ContentSharedMaxAge time.Duration
 	// ContentStaleWhileRevalidate is how long a shared cache may serve a stale read.
 	ContentStaleWhileRevalidate time.Duration
+	// AdminAssetMaxAge is how long a client may keep an admin file whose name carries its content hash.
+	AdminAssetMaxAge time.Duration
 }
 
 // cacheHeaders are the Cache-Control values each kind of public answer carries.
 type cacheHeaders struct {
-	asset   string
-	media   string
-	content string
+	asset      string
+	media      string
+	content    string
+	adminAsset string
 }
 
 // headersFor returns the Cache-Control values the policy asks for, each default standing in for a zero.
@@ -98,7 +111,17 @@ func headersFor(policy CachePolicy) cacheHeaders {
 		content: fmt.Sprintf("public, s-maxage=%d, stale-while-revalidate=%d",
 			wholeSeconds(policy.ContentSharedMaxAge, DefaultContentSharedMaxAge),
 			wholeSeconds(policy.ContentStaleWhileRevalidate, DefaultContentStaleWhileRevalidate)),
+		adminAsset: fmt.Sprintf("public, max-age=%d, immutable",
+			wholeSeconds(policy.AdminAssetMaxAge, DefaultAdminAssetCacheMaxAge)),
 	}
+}
+
+// adminCacheFor returns the Cache-Control of the admin answer at path, assetCache for a hashed admin file.
+func adminCacheFor(path, assetCache string) string {
+	if hashedAdminAsset.MatchString(path) {
+		return assetCache
+	}
+	return adminPageCache
 }
 
 // wholeSeconds returns the seconds the window holds, or the fallback when it holds none.

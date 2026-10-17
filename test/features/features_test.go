@@ -169,3 +169,7 @@ func TestCron(t *testing.T) {
 func TestPluginAccounts(t *testing.T) {
 	runFeature(t, "features/plugin-accounts.feature", initializePluginAccounts)
 }
+
+func TestReleaseSignatures(t *testing.T) {
+	runFeature(t, "features/release-signatures.feature", initializeReleaseSignatures)
+}

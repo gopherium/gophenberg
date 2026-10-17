@@ -50,7 +50,6 @@ func serveOnce(t *testing.T, databaseURL string, plugins ...sdk.Plugin) (string,
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL": databaseURL,
 		"GOPHENBERG_ADDR":         "localhost:0",
-		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()

@@ -103,7 +103,6 @@ func TestRunServesThePickerPageSizeTheEnvironmentNamed(t *testing.T) {
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL":     emptyDatabaseURL(t),
 		"GOPHENBERG_ADDR":             address,
-		"GOPHENBERG_WEB_DIR":          t.TempDir(),
 		"GOPHENBERG_PICKER_PAGE_SIZE": "10",
 	}
 	if err := seedMigrated(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {

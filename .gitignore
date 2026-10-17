@@ -1,6 +1,8 @@
 /gophenberg
 cover.out
 frontend/dist/
+internal/webui/dist/
+/dist/
 frontend/coverage/
 sdk/astro/.astro/
 sdk/astro/coverage/

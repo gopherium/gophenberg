@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"math"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/internal/version"
+	"github.com/gopherium/gophenberg/internal/webui"
 	"github.com/gopherium/gophenberg/sdk"
 )
 
@@ -112,6 +114,7 @@ func serverConfig(
 		Roles:                built.roles,
 		Avatars:              built.avatars,
 	}
+	cfg.Web = webui.FS()
 	if settings.webDir != "" {
 		cfg.Web = os.DirFS(settings.webDir)
 	}
@@ -149,6 +152,7 @@ type runConfig struct {
 	cacheMediaMaxAge                 time.Duration
 	cacheContentSharedMaxAge         time.Duration
 	cacheContentStaleWhileRevalidate time.Duration
+	cacheAdminAssetMaxAge            time.Duration
 
 	serving gonsole.Timeouts
 
@@ -195,6 +199,7 @@ func cacheWindowsFrom(env gonsole.Env, held *runConfig) error {
 		{"CACHE_CONTENT_SHARED_MAX_AGE", server.DefaultContentSharedMaxAge, &held.cacheContentSharedMaxAge},
 		{"CACHE_CONTENT_STALE_WHILE_REVALIDATE", server.DefaultContentStaleWhileRevalidate,
 			&held.cacheContentStaleWhileRevalidate},
+		{"CACHE_ADMIN_ASSET_MAX_AGE", server.DefaultAdminAssetCacheMaxAge, &held.cacheAdminAssetMaxAge},
 	} {
 		stood, err := standingSeconds(env, asked.name, asked.fallback)
 		if err != nil {
@@ -224,6 +229,7 @@ func cachePolicyFrom(settings runConfig) server.CachePolicy {
 		MediaMaxAge:                 settings.cacheMediaMaxAge,
 		ContentSharedMaxAge:         settings.cacheContentSharedMaxAge,
 		ContentStaleWhileRevalidate: settings.cacheContentStaleWhileRevalidate,
+		AdminAssetMaxAge:            settings.cacheAdminAssetMaxAge,
 	}
 }
 
@@ -388,7 +394,6 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	}
 	settings.databaseURL = databaseURL
 	settings.addr = valueOr(env, "ADDR", "localhost:8081")
-	settings.webDir = env.Value("WEB_DIR")
 	settings.siteTitle = env.Value("SITE_TITLE")
 	settings.trustedProxies = trustedProxies
 	settings.publicURL = publicURL
@@ -399,15 +404,36 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 	return settings, nil
 }
 
-// sectionsFrom reads the admin list settings and the cron job settings into held.
+// sectionsFrom reads the admin list settings, the admin folder and the cron job settings into held.
 func sectionsFrom(env gonsole.Env, held *runConfig) error {
 	lists, err := listSettingsFrom(env)
 	if err != nil {
 		return err
 	}
 	held.lists = lists
+	if held.webDir, err = webDirFrom(env); err != nil {
+		return err
+	}
 	held.cron, err = cronSettingsFrom(env)
 	return err
+}
+
+// webDirFrom returns the admin folder the settings name, refusing one whose index.html it cannot read.
+func webDirFrom(env gonsole.Env) (string, error) {
+	dir := env.Value("WEB_DIR")
+	if dir == "" {
+		return "", nil
+	}
+	_, err := fs.ReadFile(os.DirFS(dir), "index.html")
+	switch {
+	case err == nil:
+		return dir, nil
+	case errors.Is(err, fs.ErrNotExist):
+		return "", fmt.Errorf("%s names %q, which holds no index.html, so unset it to serve the admin built into "+
+			"this binary", env.Key("WEB_DIR"), dir)
+	}
+	return "", fmt.Errorf("%s names %q, whose index.html cannot be read, so fix it or unset it to serve the admin "+
+		"built into this binary: %w", env.Key("WEB_DIR"), dir, err)
 }
 
 // valueOr returns the setting's value, or fallback when it is empty.

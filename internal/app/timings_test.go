@@ -26,7 +26,6 @@ func TestRunConfigTrimsEverySetting(t *testing.T) {
 		{"GOPHENBERG_DATABASE_URL", " " + unreachableDatabaseURL + " ",
 			func(c runConfig) string { return c.databaseURL }, unreachableDatabaseURL},
 		{"GOPHENBERG_ADDR", " 127.0.0.1:9000 ", func(c runConfig) string { return c.addr }, "127.0.0.1:9000"},
-		{"GOPHENBERG_WEB_DIR", " /srv/web ", func(c runConfig) string { return c.webDir }, "/srv/web"},
 		{"GOPHENBERG_SITE_TITLE", " Field Notes ", func(c runConfig) string { return c.siteTitle }, "Field Notes"},
 		{"GOPHENBERG_TRUSTED_PROXIES", " 192.0.2.0/24 ",
 			func(c runConfig) string { return strings.Join(c.trustedProxies, ",") }, "192.0.2.0/24"},
@@ -49,6 +48,8 @@ func TestRunConfigTrimsEverySetting(t *testing.T) {
 		{"GOPHENBERG_FIELD_DEPTH", " 4 ", func(c runConfig) string { return strconv.Itoa(c.fieldDepth) }, "4"},
 		{"GOPHENBERG_CACHE_ASSET_MAX_AGE", " 1h ",
 			func(c runConfig) string { return c.cacheAssetMaxAge.String() }, "1h0m0s"},
+		{"GOPHENBERG_CACHE_ADMIN_ASSET_MAX_AGE", " 720h ",
+			func(c runConfig) string { return c.cacheAdminAssetMaxAge.String() }, "720h0m0s"},
 		{"GOPHENBERG_SHUTDOWN_GRACE", " 20s ", func(c runConfig) string { return c.serving.Grace.String() }, "20s"},
 	}
 	for _, tt := range tests {
@@ -381,10 +382,11 @@ func TestLoadRunConfigDefaultsTheCacheWindows(t *testing.T) {
 		stood time.Duration
 		want  time.Duration
 	}{
-		"the asset window":  {settings.cacheAssetMaxAge, time.Hour},
-		"the media window":  {settings.cacheMediaMaxAge, time.Hour},
-		"the shared window": {settings.cacheContentSharedMaxAge, time.Minute},
-		"the stale window":  {settings.cacheContentStaleWhileRevalidate, 5 * time.Minute},
+		"the asset window":       {settings.cacheAssetMaxAge, time.Hour},
+		"the media window":       {settings.cacheMediaMaxAge, time.Hour},
+		"the shared window":      {settings.cacheContentSharedMaxAge, time.Minute},
+		"the stale window":       {settings.cacheContentStaleWhileRevalidate, 5 * time.Minute},
+		"the admin asset window": {settings.cacheAdminAssetMaxAge, 8760 * time.Hour},
 	} {
 		if held.stood != held.want {
 			t.Errorf("%s = %v, want %v", name, held.stood, held.want)
@@ -401,6 +403,7 @@ func TestLoadRunConfigReadsTheCacheWindowsFromTheEnvironment(t *testing.T) {
 		"GOPHENBERG_CACHE_MEDIA_MAX_AGE":                  "90s",
 		"GOPHENBERG_CACHE_CONTENT_SHARED_MAX_AGE":         "30s",
 		"GOPHENBERG_CACHE_CONTENT_STALE_WHILE_REVALIDATE": "10m",
+		"GOPHENBERG_CACHE_ADMIN_ASSET_MAX_AGE":            "720h",
 	}))
 
 	if err != nil {
@@ -410,10 +413,11 @@ func TestLoadRunConfigReadsTheCacheWindowsFromTheEnvironment(t *testing.T) {
 		stood time.Duration
 		want  time.Duration
 	}{
-		"the asset window":  {settings.cacheAssetMaxAge, 2 * time.Hour},
-		"the media window":  {settings.cacheMediaMaxAge, 90 * time.Second},
-		"the shared window": {settings.cacheContentSharedMaxAge, 30 * time.Second},
-		"the stale window":  {settings.cacheContentStaleWhileRevalidate, 10 * time.Minute},
+		"the asset window":       {settings.cacheAssetMaxAge, 2 * time.Hour},
+		"the media window":       {settings.cacheMediaMaxAge, 90 * time.Second},
+		"the shared window":      {settings.cacheContentSharedMaxAge, 30 * time.Second},
+		"the stale window":       {settings.cacheContentStaleWhileRevalidate, 10 * time.Minute},
+		"the admin asset window": {settings.cacheAdminAssetMaxAge, 720 * time.Hour},
 	} {
 		if held.stood != held.want {
 			t.Errorf("%s = %v, want %v", name, held.stood, held.want)
@@ -434,6 +438,7 @@ func TestLoadRunConfigRefusesACacheWindowItCannotServe(t *testing.T) {
 		"a window under a second":         {"GOPHENBERG_CACHE_MEDIA_MAX_AGE", "500ms"},
 		"a window of part seconds":        {"GOPHENBERG_CACHE_CONTENT_SHARED_MAX_AGE", "1500ms"},
 		"a stale window under a second":   {"GOPHENBERG_CACHE_CONTENT_STALE_WHILE_REVALIDATE", "10ms"},
+		"an admin window of part seconds": {"GOPHENBERG_CACHE_ADMIN_ASSET_MAX_AGE", "2500ms"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -468,6 +473,7 @@ func TestCachePolicyCarriesEveryWindowTheEnvironmentNamed(t *testing.T) {
 		"MediaMaxAge":                 {held.MediaMaxAge, settings.cacheMediaMaxAge},
 		"ContentSharedMaxAge":         {held.ContentSharedMaxAge, settings.cacheContentSharedMaxAge},
 		"ContentStaleWhileRevalidate": {held.ContentStaleWhileRevalidate, settings.cacheContentStaleWhileRevalidate},
+		"AdminAssetMaxAge":            {held.AdminAssetMaxAge, settings.cacheAdminAssetMaxAge},
 	} {
 		if asked.stood != asked.want {
 			t.Errorf("%s = %v, want %v", name, asked.stood, asked.want)

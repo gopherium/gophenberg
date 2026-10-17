@@ -91,6 +91,30 @@ func TestADirectoryUnderTheSPAFallsBackToTheApp(t *testing.T) {
 	}
 }
 
+func TestAdminPageIsCheckedOnEveryLoad(t *testing.T) {
+	t.Parallel()
+
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(),
+		Web: fstest.MapFS{
+			"index.html":               {Data: []byte("<!doctype html><title>Gophenberg</title>")},
+			"favicon.svg":              {Data: []byte("<svg></svg>")},
+			"assets/app.js":            {Data: []byte("console.log('unhashed')")},
+			"assets/index-DWLUpakq.js": {Data: []byte("console.log('hashed')")},
+		},
+	})
+
+	unhashed := []string{"/admin/", "/admin/posts", "/admin/favicon.svg", "/admin/assets/", "/admin/assets/app.js"}
+	for _, path := range unhashed {
+		recorder := doRequest(t, handler, http.MethodGet, path, "")
+
+		if held := recorder.Header().Get("Cache-Control"); recorder.Code != http.StatusOK || held != "no-cache" {
+			t.Errorf("GET %s = %d with Cache-Control %q, want 200 and no-cache, since it names no content hash", path,
+				recorder.Code, held)
+		}
+	}
+}
+
 func TestUnknownAPIPathIsNotServedTheSPA(t *testing.T) {
 	t.Parallel()
 

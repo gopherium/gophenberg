@@ -10,8 +10,11 @@ import (
 	"testing"
 )
 
-// author is the identity the fixture repositories commit and tag as.
-var author = []string{"-c", "user.name=Maria Perez", "-c", "user.email=maria@example.com"}
+// author is the identity the fixture repositories commit and tag as, unsigned whatever the caller's git config asks.
+var author = []string{
+	"-c", "user.name=Maria Perez", "-c", "user.email=maria@example.com",
+	"-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false",
+}
 
 // tagStyles are the git steps that tag sdk/v0.1.0, as a bare name or as an annotated tag.
 var tagStyles = map[string][]string{

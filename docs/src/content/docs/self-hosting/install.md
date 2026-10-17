@@ -156,3 +156,43 @@ From here: [configuration](/self-hosting/configuration/) lists
 every setting, and
 [installing a theme](/themes/installing-a-theme/) changes how the
 site looks.
+
+## Check a download
+
+Every release also publishes the binary itself, packed for Linux on
+`amd64` and `arm64` and for macOS on Apple chips, such as
+`gophenberg_%VERSION%_linux_amd64.tar.gz`. An archive holds the
+`gophenberg` binary with the admin inside, `release.json`, which
+`gophenberg about -json` also prints, and the license files. Beside
+each archive the release carries a `.sig` file with its signature, and
+`SHA256SUMS` lists the SHA-256 of every archive.
+
+Before you run a binary you downloaded, check that the release key
+signed it. Save the release key as `release.pub.pem`:
+
+```text
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEANLMkB0RToFiEfIMw2VdG5Ml636MuXEwm4C+hGbbd5Mw=
+-----END PUBLIC KEY-----
+```
+
+Then check the archive with OpenSSL alone. It needs OpenSSL 3, and the
+last line prints `Signature Verified Successfully`:
+
+```sh
+printf '%s==' "$(tr '_-' '/+' < gophenberg_%VERSION%_linux_amd64.tar.gz.sig | tr -d '\n')" | openssl base64 -d -A > sig.bin
+openssl dgst -sha384 -binary gophenberg_%VERSION%_linux_amd64.tar.gz > digest.bin
+openssl pkeyutl -verify -pubin -inkey release.pub.pem -rawin -in digest.bin -sigfile sig.bin
+```
+
+Three other checks reach the same answer another way:
+
+- `sha256sum -c SHA256SUMS --ignore-missing` compares each archive you
+  downloaded with the list. Check `SHA256SUMS.sig` first, the same way
+  as an archive, so you know the list itself came from the release.
+- From a checkout of the repository,
+  `go run ./cmd/releasetool verify -public z6MkhzygKXb6Xx7PB1NZsPhuNamiHiinZcaBijQZKMFYgWc3 gophenberg_%VERSION%_linux_amd64.tar.gz`
+  checks the signature in one step. The long `z6Mk` text is the same
+  release key, written as a Multikey.
+- `gh attestation verify gophenberg_%VERSION%_linux_amd64.tar.gz --repo gopherium/gophenberg`
+  checks that the repository's own release workflow built the file.

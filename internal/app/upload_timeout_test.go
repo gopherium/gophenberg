@@ -79,7 +79,6 @@ func TestRunCutsAnUploadThatStallsPastTheUploadTimeout(t *testing.T) {
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL":   emptyDatabaseURL(t),
 		"GOPHENBERG_ADDR":           address,
-		"GOPHENBERG_WEB_DIR":        t.TempDir(),
 		"GOPHENBERG_MEDIA_DIR":      t.TempDir(),
 		"GOPHENBERG_UPLOAD_TIMEOUT": "300ms",
 	}

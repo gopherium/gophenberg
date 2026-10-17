@@ -1,2 +1,9 @@
 Gophenberg
 Copyright 2026 Manuel 'SirLouen' Camargo
+
+Gophenberg is licensed under the Apache License 2.0, in LICENSE.
+
+Release archives and images carry a built admin app that bundles @wordpress/*
+packages licensed under GPL-2.0-or-later. That bundle is conveyed under the
+terms of the GPLv3, in LICENSES/GPL-3.0.txt. Its source is the matching tag
+at https://github.com/gopherium/gophenberg.

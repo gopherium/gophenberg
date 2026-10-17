@@ -75,7 +75,6 @@ func TestRunStartsWhenAPluginFlattensATypeWhoseItemsNest(t *testing.T) {
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL": databaseURL,
 		"GOPHENBERG_ADDR":         "localhost:0",
-		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 	}
 	if err := booting(t, env, nestingTypePlugin{nests: true}); err != nil {
 		t.Fatalf("run() error = %v, want the nesting type declared", err)

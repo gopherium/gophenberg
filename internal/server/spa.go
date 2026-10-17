@@ -57,12 +57,12 @@ func reserved(path, prefix string) bool {
 	return path == prefix || strings.HasPrefix(path, prefix+"/")
 }
 
-// adminApp returns the single-page app, or the JSON 404 when none is configured.
-func adminApp(cfg Config) http.Handler {
+// adminApp returns the single-page app keeping hashed files for assetCache, or the JSON 404 when none is configured.
+func adminApp(cfg Config, assetCache string) http.Handler {
 	if cfg.Web == nil {
 		return http.HandlerFunc(respondNotFound)
 	}
-	return spaHandler(cfg.Web)
+	return spaHandler(cfg.Web, assetCache)
 }
 
 // builtInSite returns the renderer serving the public site, or the JSON 404 when no store or no
@@ -88,8 +88,8 @@ func respondNotFound(w http.ResponseWriter, _ *http.Request) {
 }
 
 // spaHandler serves the single-page app from webFS with the admin prefix stripped, index.html
-// standing in for paths without a matching file.
-func spaHandler(webFS fs.FS) http.HandlerFunc {
+// standing in for paths without a matching file, and hashed files kept for assetCache.
+func spaHandler(webFS fs.FS, assetCache string) http.HandlerFunc {
 	fileServer := http.FileServerFS(webFS)
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(strings.TrimPrefix(path.Clean(r.URL.Path), adminPrefix), "/")
@@ -98,6 +98,7 @@ func spaHandler(webFS fs.FS) http.HandlerFunc {
 		if name != "" && !servesAFile(webFS, name) {
 			r.URL.Path = "/"
 		}
+		w.Header().Set("Cache-Control", adminCacheFor(r.URL.Path, assetCache))
 		fileServer.ServeHTTP(w, r)
 	}
 }

@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,6 +18,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/sqlite"
+	"github.com/gopherium/gophenberg/internal/themehost"
+	"github.com/gopherium/gophenberg/internal/version"
 	"github.com/gopherium/gophenberg/sdk"
 )
 
@@ -107,7 +110,24 @@ func initializeOperatorCommands(t *testing.T, engine operatorEngine) func(*godog
 		sc.Given(`^a plugin declaring the role "([^"]*)" with the capability "([^"]*)"$`, s.declareRole)
 		sc.Given(`^a plugin offering "([^"]*)", which asks for "([^"]*)"$`, s.offerAsking)
 		sc.Given(`^the administrator "([^"]*)" gave "([^"]*)" the role "([^"]*)"$`, s.gaveRole)
+		sc.Then(`^the answer names the version, the build stamp and the theme kits of this binary$`, s.namesTheBuildFacts)
 	}
+}
+
+// namesTheBuildFacts fails unless the answer is the one document that holds this binary's build facts.
+func (s *operatorScenario) namesTheBuildFacts() error {
+	var facts buildFacts
+	if err := json.Unmarshal([]byte(s.result.Stdout), &facts); err != nil {
+		return fmt.Errorf("the answer %q is no JSON document: %w", s.result.Stdout, err)
+	}
+	want := buildFacts{
+		Schema: 1, Name: "gophenberg", Version: version.Version(),
+		Commit: version.Commit(), Stamp: version.Stamp(), Kits: themehost.ServedKits(),
+	}
+	if !facts.equal(want) {
+		return fmt.Errorf("the answer %q holds %+v, want %+v", s.result.Stdout, facts, want)
+	}
+	return nil
 }
 
 // declareRole has the notes plugin declare the role name carrying the capability.

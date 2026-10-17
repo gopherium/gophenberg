@@ -34,16 +34,17 @@ func moduleRepo(t *testing.T, sdkPasses, workspace bool) string {
 		"replace example.com/site/sdk => ./sdk\n"
 	contract := "package sdk\n\nimport \"testing\"\n\nfunc TestContract(t *testing.T) {\n\tReady()\n\t" + verdict + "\n}\n"
 	files := map[string]string{
-		"Makefile":               string(makefile),
-		"go.mod":                 rootModule,
-		"site_test.go":           "package site\n\nimport \"testing\"\n\nfunc TestSite(t *testing.T) {}\n",
-		"cmd/gophenberg/main.go": "package main\n\nfunc main() {}\n",
-		"cmd/doclint/main.go":    "package main\n\nfunc main() {}\n",
-		"cmd/pluginwire/main.go": "package main\n\nfunc main() {}\n",
-		"internal/app/app.go":    "package app\n\nfunc Ready() bool { return true }\n",
-		"sdk/go.mod":             "module example.com/site/sdk\n\ngo 1.27.1\n",
-		"sdk/sdk.go":             "package sdk\n\nfunc Ready() bool { return true }\n",
-		"sdk/contract_test.go":   contract,
+		"Makefile":                string(makefile),
+		"go.mod":                  rootModule,
+		"site_test.go":            "package site\n\nimport \"testing\"\n\nfunc TestSite(t *testing.T) {}\n",
+		"cmd/gophenberg/main.go":  "package main\n\nfunc main() {}\n",
+		"cmd/doclint/main.go":     "package main\n\nfunc main() {}\n",
+		"cmd/pluginwire/main.go":  "package main\n\nfunc main() {}\n",
+		"cmd/releasetool/main.go": "package main\n\nfunc main() {}\n",
+		"internal/app/app.go":     "package app\n\nfunc Ready() bool { return true }\n",
+		"sdk/go.mod":              "module example.com/site/sdk\n\ngo 1.27.1\n",
+		"sdk/sdk.go":              "package sdk\n\nfunc Ready() bool { return true }\n",
+		"sdk/contract_test.go":    contract,
 	}
 	if workspace {
 		files["go.work"] = "go 1.27.1\n\nuse .\n"

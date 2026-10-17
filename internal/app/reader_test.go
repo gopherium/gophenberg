@@ -75,7 +75,6 @@ func TestRunListsForPluginsAsManyPointersAsTheSiteChose(t *testing.T) {
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL": databaseURL,
 		"GOPHENBERG_ADDR":         "localhost:0",
-		"GOPHENBERG_WEB_DIR":      t.TempDir(),
 	}
 	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
 		t.Fatalf("seeding the demo data: %v", err)

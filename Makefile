@@ -2,7 +2,7 @@
 	translations \
 	translations-push translations-retire \
 	e2e e2e-build e2e-theme e2e-serve e2e-db-reset e2e-seed e2e-reset bump bump-kit sdk-compat \
-	brick-link brick-sync brick-pack brick-unlink
+	brick-link brick-sync brick-pack brick-unlink keygen build-release release-archives
 
 COVERPKGS = $(shell go list ./... | grep -v -e /internal/postgres/db -e /internal/sqlite -e /internal/testdb -e /internal/content/contenttest -e /internal/media/mediatest -e /internal/cron/crontest)
 SQLITE_COVERPKGS = $(shell go list ./internal/sqlite/... | grep -v -e /internal/sqlite/db)
@@ -60,6 +60,68 @@ bump-kit:
 		{ git rev-parse -q --verify "refs/tags/astro@$$current" >/dev/null || \
 		{ echo "astro@$$current carries no tag. Release it, or fetch the tags, before bumping the kit."; exit 1; }; }
 	cd sdk/astro && npm version "$(V)" --no-git-tag-version --allow-same-version
+
+# The PBKDF2 rounds make keygen seals a root key file with.
+RELEASE_KEY_ITERATIONS ?= 600000
+# The root key file make keygen writes, with its public key beside it.
+ROOT_KEY ?=
+# The file whose first line seals the root key.
+ROOT_KEY_PASSPHRASE_FILE ?= /dev/stdin
+
+keygen:
+	@test -n "$(ROOT_KEY)" || { printf '%s\n' 'usage: read -rs pass && printf "%s\n" "$$pass" | make keygen ROOT_KEY=root1.pem && unset pass'; exit 1; }
+	go run ./cmd/releasetool keygen -curve p256 -out "$(ROOT_KEY)" -public "$(basename $(ROOT_KEY)).pub.pem" \
+		-passphrase-file "$(ROOT_KEY_PASSPHRASE_FILE)" -iterations "$(RELEASE_KEY_ITERATIONS)"
+
+# The folder make build-release writes each platform's binary into, as <os>_<arch>/gophenberg.
+RELEASE_DIR ?= dist
+# The platform of the machine running make, as os/arch.
+RELEASE_HOST = $(shell go env GOOS)/$(shell go env GOARCH)
+# The platforms make build-release builds, as os/arch, the machine's own unless named.
+RELEASE_PLATFORMS ?= $(RELEASE_HOST)
+# The platforms a release publishes, as os/arch, each packed by make release-archives.
+RELEASE_TARGETS ?= linux/amd64 linux/arm64 darwin/arm64
+# The build stamp written into release binaries, which only the release workflow sets, to official.
+RELEASE_STAMP ?=
+# The commit written into release binaries.
+RELEASE_COMMIT ?=
+# The time every archive entry carries, as Unix seconds, the last commit's unless named.
+RELEASE_EPOCH ?= $(shell git log -1 --format=%ct)
+# The address a release's notes are read at, before its tag.
+RELEASE_NOTES_URL ?= https://github.com/gopherium/gophenberg/releases/tag
+# The package whose variables carry the build stamp and the commit.
+VERSION_PACKAGE = github.com/gopherium/gophenberg/internal/version
+# The GNU tar make release-archives packs archives with, such as gtar on macOS.
+TAR ?= tar
+
+build-release:
+	pnpm --filter @gophenberg/frontend build
+	rm -rf internal/webui/dist
+	cp -R frontend/dist internal/webui/dist
+	go test -tags embedweb ./internal/webui
+	for platform in $(RELEASE_PLATFORMS); do \
+		os=$${platform%/*}; arch=$${platform#*/}; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -tags embedweb -trimpath -buildvcs=false \
+			-ldflags="-s -w -X $(VERSION_PACKAGE).stamp=$(RELEASE_STAMP) -X $(VERSION_PACKAGE).commit=$(RELEASE_COMMIT)" \
+			-o "$(RELEASE_DIR)/$${os}_$${arch}/gophenberg" ./cmd/gophenberg || exit 1; \
+	done
+
+release-archives:
+	@$(TAR) --version 2>/dev/null | grep -q 'GNU tar' || \
+		{ echo "make release-archives needs GNU tar, so install it and run make release-archives TAR=gtar"; exit 1; }
+	$(MAKE) build-release RELEASE_PLATFORMS="$(sort $(RELEASE_TARGETS) $(RELEASE_HOST))"
+	about="$$("$(RELEASE_DIR)/$$(go env GOOS)_$$(go env GOARCH)/gophenberg" about -json)" && \
+	version="$$(printf '%s' "$$about" | jq -r .version)" && \
+	for platform in $(RELEASE_TARGETS); do \
+		folder="$(RELEASE_DIR)/$${platform%/*}_$${platform#*/}"; \
+		printf '%s' "$$about" | jq --arg platform "$$platform" --arg notes "$(RELEASE_NOTES_URL)/v$$version" \
+			'. + {platform: $$platform, notes: $$notes}' > "$$folder/release.json" && \
+		cp LICENSE NOTICE "$$folder/" && rm -rf "$$folder/LICENSES" && cp -R LICENSES "$$folder/LICENSES" && \
+		$(TAR) -C "$$folder" --sort=name --owner=0 --group=0 --numeric-owner --mtime=@$(RELEASE_EPOCH) \
+			--mode='a+rX,u+w,go-w' --use-compress-program='gzip -n' \
+			-cf "$(RELEASE_DIR)/gophenberg_$${version}_$${platform%/*}_$${platform#*/}.tar.gz" \
+			LICENSE LICENSES NOTICE gophenberg release.json || exit 1; \
+	done
 
 SDK_BASE ?=
 SDK_BREAK_LABELED ?= false
@@ -131,7 +193,7 @@ cover:
 	rm -rf $(COVERDATA)
 	mkdir -p $(COVERDATA)/bin $(COVERDATA)/counters
 	go build -cover -covermode=atomic -coverpkg=./cmd/...,./internal/app/... -o $(COVERDATA)/bin \
-		./cmd/gophenberg ./cmd/doclint ./cmd/pluginwire
+		./cmd/gophenberg ./cmd/doclint ./cmd/pluginwire ./cmd/releasetool
 	GOPHENBERG_COVER_BINDIR=$(CURDIR)/$(COVERDATA)/bin \
 	GOPHENBERG_COVER_GOCOVERDIR=$(CURDIR)/$(COVERDATA)/counters \
 	go test -cover -covermode=atomic $(GOTESTFLAGS) $(COVERPKGS) -args -test.gocoverdir=$(CURDIR)/$(COVERDATA)/counters
@@ -195,10 +257,9 @@ E2E_STALE_THEME ?= millpond
 E2E_STALE_KIT ?= 0.1.0
 E2E_MEDIA_DIR ?= $(CURDIR)/.e2e-media
 
-e2e-build:
-	pnpm --filter @gophenberg/frontend build
+e2e-build: build-release
 	pnpm --filter @gophenberg/theme-starter build
-	go build -o gophenberg ./cmd/gophenberg
+	cp "$(RELEASE_DIR)/$$(go env GOOS)_$$(go env GOARCH)/gophenberg" gophenberg
 
 e2e-theme: e2e-build
 	rm -rf $(E2E_THEMES_DIR)
@@ -231,7 +292,7 @@ e2e-media:
 	mkdir -p $(E2E_MEDIA_DIR)
 
 e2e-serve: db-up e2e-theme e2e-media
-	GOPHENBERG_WEB_DIR=frontend/dist GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" \
+	GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" \
 		GOPHENBERG_THEMES_DIR="$(E2E_THEMES_DIR)" \
 		GOPHENBERG_MEDIA_DIR="$(E2E_MEDIA_DIR)" \
 		./gophenberg serve

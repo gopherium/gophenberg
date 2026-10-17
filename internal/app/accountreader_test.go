@@ -96,7 +96,6 @@ func TestAPluginReadsTheSeededAccountsByID(t *testing.T) {
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL":   databaseURL,
 		"GOPHENBERG_ADDR":           "localhost:0",
-		"GOPHENBERG_WEB_DIR":        t.TempDir(),
 		"GOPHENBERG_AVATARS":        "gravatar",
 		"GOPHENBERG_AVATAR_DEFAULT": "identicon",
 		"GOPHENBERG_AVATAR_RATING":  "PG",

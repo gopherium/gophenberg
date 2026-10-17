@@ -29,6 +29,12 @@ Feature: Operators run Gophenberg from one command line
     Then the command succeeds
     And the answer describes "account:role"
 
+  Scenario: About tells what this binary is without a database
+    Given the settings name no database
+    When the operator runs "about -json"
+    Then the command succeeds
+    And the answer names the version, the build stamp and the theme kits of this binary
+
   Scenario: Seeding only previews until it is confirmed
     When the operator runs "seed"
     Then the command succeeds

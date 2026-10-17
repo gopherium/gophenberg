@@ -194,7 +194,7 @@ func NewServer(cfg Config) http.Handler {
 	site := builtInSite(cfg, s.types)
 	renderer := identify(cfg.Version)(site)
 	public := identify(cfg.Version)(themedSite(cfg.Theme, site, cfg.ThemeTimeout))
-	router.NotFound(fallbackHandler(adminApp(cfg), renderer, public))
+	router.NotFound(fallbackHandler(adminApp(cfg, headers.adminAsset), renderer, public))
 	return router
 }
 

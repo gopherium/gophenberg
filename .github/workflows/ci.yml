@@ -178,6 +178,133 @@ jobs:
           GOOS: darwin
           GOARCH: arm64
 
+  release-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: make release-archives
+      - run: go vet -tags embedweb ./internal/webui
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.14.0
+          install-mode: goinstall
+          args: --build-tags embedweb ./internal/webui/...
+      - name: A pull request build carries no stamp, and every archive carries release.json
+        run: |
+          stamp="$(dist/linux_amd64/gophenberg about -json | jq -r .stamp)"
+          if [ -n "$stamp" ]; then
+            echo "a pull request build carries the stamp $stamp" >&2
+            exit 1
+          fi
+          for archive in dist/*.tar.gz; do
+            tar -xzOf "$archive" release.json | jq -e .platform > /dev/null
+          done
+      - name: Build releasetool from the standard library alone
+        run: |
+          GOMODCACHE="$RUNNER_TEMP/empty-module-cache" GOPROXY=off GOFLAGS=-mod=readonly GOWORK=off \
+            go build -o "$RUNNER_TEMP/releasetool" ./cmd/releasetool
+      - name: Sign, record, list and verify with a throwaway key
+        run: |
+          version="$(cat internal/version/VERSION)"
+          record="gophenberg_${version}_release-record.json"
+          tool="$RUNNER_TEMP/releasetool"
+          "$tool" keygen -curve ed25519 -out "$RUNNER_TEMP/throwaway.pem" -public dist/throwaway.pub.pem
+          cd dist
+          "$tool" sign -key "$RUNNER_TEMP/throwaway.pem" gophenberg_*.tar.gz
+          "$tool" record -version "$version" \
+            -download-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/v$version" \
+            gophenberg_*.tar.gz > "$record"
+          "$tool" sign -key "$RUNNER_TEMP/throwaway.pem" "$record"
+          "$tool" sums gophenberg_*.tar.gz "$record" > SHA256SUMS
+          "$tool" sign -key "$RUNNER_TEMP/throwaway.pem" SHA256SUMS
+          "$tool" verify -public throwaway.pub.pem gophenberg_*.tar.gz "$record" SHA256SUMS
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: release
+          build-contexts: binaries=./dist
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: gophenberg:release-check
+      - name: The linux/amd64 release image answers about and holds the archive's binary
+        run: |
+          docker run --rm gophenberg:release-check about -json
+          container="$(docker create gophenberg:release-check)"
+          docker cp "$container:/gophenberg" "$RUNNER_TEMP/image-amd64"
+          docker rm "$container"
+          image="$(sha256sum < "$RUNNER_TEMP/image-amd64")"
+          archived="$(tar -xzOf dist/gophenberg_*_linux_amd64.tar.gz gophenberg | sha256sum)"
+          if [ "$image" != "$archived" ]; then
+            echo "the linux/amd64 image holds another binary than its archive" >&2
+            exit 1
+          fi
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: release
+          build-contexts: binaries=./dist
+          platforms: linux/arm64
+          push: false
+          outputs: type=local,dest=${{ runner.temp }}/image-arm64
+      - name: The linux/arm64 release image holds the archive's binary
+        run: |
+          image="$(sha256sum < "$RUNNER_TEMP/image-arm64/gophenberg")"
+          archived="$(tar -xzOf dist/gophenberg_*_linux_arm64.tar.gz gophenberg | sha256sum)"
+          if [ "$image" != "$archived" ]; then
+            echo "the linux/arm64 image holds another binary than its archive" >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: download-check
+          path: |
+            dist/gophenberg_*_linux_amd64.tar.gz
+            dist/gophenberg_*_linux_amd64.tar.gz.sig
+            dist/throwaway.pub.pem
+          if-no-files-found: error
+          retention-days: 1
+
+  verify-download:
+    needs: release-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: download-check
+      - name: OpenSSL alone verifies the archive
+        run: |
+          for archive in gophenberg_*_linux_amd64.tar.gz; do
+            printf '%s==' "$(tr '_-' '/+' < "$archive.sig" | tr -d '\n')" | openssl base64 -d -A > sig.bin
+            openssl dgst -sha384 -binary "$archive" > digest.bin
+            openssl pkeyutl -verify -pubin -inkey throwaway.pub.pem -rawin -in digest.bin -sigfile sig.bin
+          done
+
+  image-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+
   generate:
     runs-on: ubuntu-latest
     steps:

@@ -32,7 +32,7 @@ func Program(getenv func(string) string, plugins func(sdk.Deps) ([]sdk.Plugin, e
 		Validate:   validate(accountCommands),
 		Migrations: migrations(getenv),
 		Seed:       postgresOnly(getenv, "seed", composed.seed),
-		Commands:   append(accounts.Commands(accountCommands), accounts.Records(accountCommands)),
+		Commands:   append(accounts.Commands(accountCommands), accounts.Records(accountCommands), aboutCommand()),
 		Plugins:    loadPlugins(plugins, roles, composed),
 		Authorize:  accounts.Authorize(accountCommands),
 		Record:     accounts.Record(accountCommands),

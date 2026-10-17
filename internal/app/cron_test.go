@@ -398,7 +398,6 @@ func TestRunRunsTheSessionSweepFromTheCronAddress(t *testing.T) {
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL":   databaseURL,
 		"GOPHENBERG_ADDR":           address,
-		"GOPHENBERG_WEB_DIR":        t.TempDir(),
 		"GOPHENBERG_CRON_SECRET":    longSecret,
 		"GOPHENBERG_CRON_ON_VISITS": "false",
 	}

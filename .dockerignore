@@ -3,6 +3,8 @@
 .spec
 **/node_modules
 frontend/dist
+internal/webui/dist
+dist
 frontend/coverage
 **/*_test.go
 .env

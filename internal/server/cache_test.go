@@ -26,12 +26,16 @@ func cachingServerWith(t *testing.T, users *testkit.Store, cache server.CachePol
 	t.Helper()
 	posts := newFakePostStore()
 	return server.NewServer(server.Config{
-		Users:      users,
-		Content:    posts,
-		Types:      newFakeTypeStore(),
-		Version:    "1.2.3",
-		Cache:      cache,
-		Web:        fstest.MapFS{"gophenberg/site.css": {Data: []byte("body{}")}},
+		Users:   users,
+		Content: posts,
+		Types:   newFakeTypeStore(),
+		Version: "1.2.3",
+		Cache:   cache,
+		Web: fstest.MapFS{
+			"gophenberg/site.css":      {Data: []byte("body{}")},
+			"index.html":               {Data: []byte("<!doctype html><title>Gophenberg</title>")},
+			"assets/index-DWLUpakq.js": {Data: []byte("console.log('admin')")},
+		},
 		MediaFiles: fstest.MapFS{"picture.jpg": {Data: []byte("not really a picture")}},
 	})
 }
@@ -53,8 +57,9 @@ func TestCacheWindowsFallBackToTheirDefaults(t *testing.T) {
 		path string
 		want string
 	}{
-		"site assets": {"/gophenberg/site.css", "public, max-age=3600"},
-		"media":       {"/media/picture.jpg", "public, max-age=3600"},
+		"site assets":             {"/gophenberg/site.css", "public, max-age=3600"},
+		"media":                   {"/media/picture.jpg", "public, max-age=3600"},
+		"the hashed admin assets": {"/admin/assets/index-DWLUpakq.js", "public, max-age=31536000, immutable"},
 		"the content API": {
 			"/api/content/v1/items", "public, s-maxage=60, stale-while-revalidate=300",
 		},
@@ -77,14 +82,16 @@ func TestCacheWindowsCarryWhatTheDeploymentNamed(t *testing.T) {
 		MediaMaxAge:                 90 * time.Second,
 		ContentSharedMaxAge:         30 * time.Second,
 		ContentStaleWhileRevalidate: 10 * time.Minute,
+		AdminAssetMaxAge:            720 * time.Hour,
 	})
 
 	for name, asked := range map[string]struct {
 		path string
 		want string
 	}{
-		"site assets": {"/gophenberg/site.css", "public, max-age=7200"},
-		"media":       {"/media/picture.jpg", "public, max-age=90"},
+		"site assets":             {"/gophenberg/site.css", "public, max-age=7200"},
+		"media":                   {"/media/picture.jpg", "public, max-age=90"},
+		"the hashed admin assets": {"/admin/assets/index-DWLUpakq.js", "public, max-age=2592000, immutable"},
 		"the content API": {
 			"/api/content/v1/items", "public, s-maxage=30, stale-while-revalidate=600",
 		},

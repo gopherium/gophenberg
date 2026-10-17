@@ -31,13 +31,13 @@ func TestConfigRefusesThePluginIDTheCoreDeclaresItsRolesUnder(t *testing.T) {
 func TestConfigRefusesAPluginIDTheCommandLineKeeps(t *testing.T) {
 	t.Parallel()
 
-	for _, id := range []string{"help", "list", "version", "check", "serve", "migrate", "seed", "account"} {
+	for _, id := range []string{"help", "list", "version", "check", "serve", "migrate", "seed", "account", "about"} {
 		t.Run(id, func(t *testing.T) {
 			t.Parallel()
 
 			root := t.TempDir()
-			writePlugin(t, root, "about",
-				`{"id": "about", "name": "About", "backend": "github.com/gopherium/gophenberg/plugins/about"}`)
+			writePlugin(t, root, "gallery",
+				`{"id": "gallery", "name": "Gallery", "backend": "github.com/gopherium/gophenberg/plugins/gallery"}`)
 			writePlugin(t, root, id, fmt.Sprintf(
 				`{"id": %q, "name": "Taken", "backend": "github.com/gopherium/gophenberg/plugins/%s"}`, id, id))
 

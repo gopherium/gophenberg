@@ -1,0 +1,51 @@
+{
+  "live": [
+    {
+      "name": "Query Monitor 3.20.2",
+      "public_key": "41fa729b627335b644a629a7c2b263fc0466eb4a0be0bf5735ed5d82d8f407eb",
+      "digest": "91cf00d77bf471e2467a4fed773d51da3273ec8e688e2904ba583f04ec2605fad2d02bfcae8245f3f07aa7c892d1d6a2",
+      "signature": "KrPyjumw1q_KWP22NhF_9n1mHiUpyLPkYIYLlxsdbNzWJHUBWCXqqLRPdjAMfid39cNRP_pcQbz_7NS9dQlNBw"
+    },
+    {
+      "name": "Query Monitor 3.20.1",
+      "public_key": "41fa729b627335b644a629a7c2b263fc0466eb4a0be0bf5735ed5d82d8f407eb",
+      "digest": "89b10587e44f303a9263ae89baa3b5edd59121cad8bac0f1d47305e7e6313918622015f28b04a7f4ffbf8698550dfd83",
+      "signature": "d2CTAHmISVQ29RO_HYuF_NuATfZC20P-XdHFlMpystkADMaQiqT6hfgr3azmiLheJWSKesgt1HPHc5wwDH0pCA"
+    },
+    {
+      "name": "FAIR Connect 1.4.1",
+      "public_key": "4555779c563ebb3939e0c35fb4564288f85ce35ed788333f1714fa559aa29044",
+      "digest": "594e8870b321e280c95cb3cff8d9a157a11a91ffed7916c0a215a901b79b151391dcdd5aefeda232d0c94799fc76a262",
+      "signature": "jfzdnzYoVwJ8rkFDcwFVhaXRCe9uL-sdRaafNjPbox0tTnMVsXngoG2OfQJ4P-1la9MD4FPgKua-GUbaAsDKDQ"
+    },
+    {
+      "name": "Git Updater 14.4.2",
+      "public_key": "372dd069c13b86586b03ce7862c1537d055f0f0454ab81ef6ded4885423b5904",
+      "digest": "0a5018b4fe0f8f47e9804afbed41953856fd9068cb843407710e79af37b242ec2f5915e50581559f314b405258d7f204",
+      "signature": "d1dV-zRBRPvBj-xqdV2IzLW1XAAjPAdaoFxMhmwulVDCDk-PbVX0GBHJ_CoDPCM8rMRj5ieK9NGfClqHdgf9Bw"
+    }
+  ],
+  "published_multikeys": [
+    {
+      "name": "Query Monitor",
+      "public_key": "41fa729b627335b644a629a7c2b263fc0466eb4a0be0bf5735ed5d82d8f407eb",
+      "multikey": "z6Mkitp3T2Gk2U4pvuwpy8ygAzxkM6K1Ygoyv1ZgUx3AW9Px"
+    }
+  ],
+  "seed": {
+    "seed": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+    "public_key": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+    "multikey": "z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+    "message": "gophenberg fair test vector 1\n",
+    "digest": "3284e1f6ff0de155986db6ccd6e7967a8df16c4592e5ec32cc7d652a98d3f3f76df8b4a202d9b4f2143f67a7410fdde4",
+    "checksum": "sha256:13847ef148b4812aade5da0dfae822b4b80bbbf1f8fce3f4223ebf488e456341",
+    "signature": "4qvQWRlmyJuUi98sjScuY4u38Tega2EHGUXpKgYfoWh3TDMBQRBJrbAXFMw_ENyy2f__n_rDhVF-mQuhIf1pBQ"
+  },
+  "p256_multikey": "zDnaerx9CtbPJ1q36T5Ln5wYt3MQYeGRG5ehnPAmxcf5mDZpv",
+  "refused": {
+    "seed_signature_over_the_hex_digest": "smLLsynUYBmx4_xOwpo-8x8KnU4o1BTZh01a0h9QqL1Xa_YtqsFrxwUg9NVBJeFSRKudHDMsehZffq1ZqGp4CQ",
+    "query_monitor_3_20_2_in_standard_base64": "KrPyjumw1q/KWP22NhF/9n1mHiUpyLPkYIYLlxsdbNzWJHUBWCXqqLRPdjAMfid39cNRP/pcQbz/7NS9dQlNBw==",
+    "secp256k1_multikey": "zQ3shVc2UkAfJCdc1TR8E66J85h48P43r93q8jGPkPpjF9Ef9",
+    "sha256_of_32_hex_characters": "sha256:13847ef148b4812aade5da0dfae822b4"
+  }
+}

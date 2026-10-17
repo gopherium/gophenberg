@@ -20,7 +20,7 @@ so it takes the default.
 | `GOPHENBERG_DATABASE_URL` | Yes | | The PostgreSQL connection string, or `sqlite:` and the absolute path of a SQLite file. [The PostgreSQL address](#the-postgresql-address) lists what a connection string may not hold. [A SQLite database](#a-sqlite-database) says what runs on one and lists its settings |
 | `GOPHENBERG_DATABASE_MAX_CONNS` | No | The larger of 4 and the number of CPUs | How many connections to the database stay open at most, from 2 to 2147483647, see [the database connections](#the-database-connections) |
 | `GOPHENBERG_ADDR` | No | `localhost:8081` | Address the server listens on. The container image sets `0.0.0.0:8081` |
-| `GOPHENBERG_WEB_DIR` | No | | Where the built admin and the public stylesheets live. The image sets `/web` |
+| `GOPHENBERG_WEB_DIR` | No | | A built admin folder to serve in place of the admin built into the binary. It must hold `index.html` |
 | `GOPHENBERG_SITE_TITLE` | No | `Gophenberg` | The site name shown by the built-in renderer |
 | `GOPHENBERG_TRUSTED_PROXIES` | No | | Comma-separated CIDR ranges allowed to set forwarded headers |
 | `GOPHENBERG_PUBLIC_URL` | No | | The address people reach the site at, such as `https://example.com`. When set, a write sent to any other address is refused |
@@ -57,6 +57,7 @@ so it takes the default.
 | `GOPHENBERG_CACHE_MEDIA_MAX_AGE` | No | `1h` | How long a browser may keep an uploaded file |
 | `GOPHENBERG_CACHE_CONTENT_SHARED_MAX_AGE` | No | `1m` | How long a shared cache may serve a content API answer. The language answer is never shared, since it is resolved per reader |
 | `GOPHENBERG_CACHE_CONTENT_STALE_WHILE_REVALIDATE` | No | `5m` | How much longer that cache may serve the old answer while fetching a fresh one |
+| `GOPHENBERG_CACHE_ADMIN_ASSET_MAX_AGE` | No | `8760h` | How long a browser may keep an admin file whose name carries its content hash, one year by default. A new build gives a changed file a new name, and the admin page itself is checked on every load |
 | `GOPHENBERG_HTTP_READ_HEADER_TIMEOUT` | No | `10s` | How long a visitor has to send a request's headers |
 | `GOPHENBERG_HTTP_READ_TIMEOUT` | No | `30s` | How long a visitor has to send a whole request |
 | `GOPHENBERG_HTTP_IDLE_TIMEOUT` | No | `2m` | How long an idle connection waits for its next request |
@@ -77,9 +78,11 @@ so it takes the default.
 
 Three rows deserve a warning:
 
-- `GOPHENBERG_WEB_DIR` also holds the stylesheets every public
-  page loads. Unset, the public site loses its block styling,
-  theme or not.
+- `GOPHENBERG_WEB_DIR` replaces the admin built into the binary,
+  and the stylesheets every public page loads with it. Leave it
+  unset to serve both from the binary. Older images set it to
+  `/web`, a folder the image no longer holds, so delete that line if
+  your compose file copied it, or the server stops at start.
 - `GOPHENBERG_SITE_TITLE` only affects the built-in renderer. A
   theme names the site in its own source.
 - `GOPHENBERG_MEDIA_DIR` holds files no database backup carries.
@@ -481,6 +484,10 @@ The server refuses to start, and says why, when:
 - `GOPHENBERG_TRUSTED_PROXIES` is not valid CIDR notation.
 - `GOPHENBERG_PUBLIC_URL` is not an `http` or `https` address naming
   only a host.
+- `GOPHENBERG_WEB_DIR` names a folder that holds no `index.html`, or
+  one whose `index.html` the server cannot read, such as a page only
+  another user may read. The message names the reason and tells you
+  to unset the setting to serve the admin built into the binary.
 - `GOPHENBERG_FEED_ITEMS` is not a positive whole number.
 - `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` is not a positive whole number, or
   names more megabytes than the server can count in bytes.
@@ -552,7 +559,7 @@ docker compose run --rm -T gophenberg check
 | `/{routeword}` | A [content type](/guides/content-types/)'s archive | No |
 | `/page/{n}`, `/{routeword}/page/{n}` | Older items behind the page word | No |
 | `/media/...` | Uploaded files and their derived sizes | No |
-| `/admin/` | The admin | The screens ask for one |
+| `/admin/` | The admin, built into the binary. Its hashed files are cached for a year unless set otherwise, and the page is checked on every load | The screens ask for one |
 | `/api/...` | The admin's JSON API | Yes, apart from signing in and out |
 | `/api/content/v1/...` | The [public content API](/reference/content-api/) | No |
 | `/api/cron` | Runs the [cron jobs](/self-hosting/cron/) for the host's cron, `POST` only, served only once a secret is set | The cron secret, in a header |

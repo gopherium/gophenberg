@@ -29,6 +29,7 @@ Usage:
 Every command answers -h. A command that offers -json answers one JSON document. A command that offers -yes is a dry run until -yes.
 
 Available commands:
+  about                 print the version, the build stamp, the commit and the theme kits of this binary
   check                 check every setting, every plugin and every command name
   help                  print the help of one command
   list                  list every command
@@ -262,6 +263,23 @@ Change any script that runs them. `account:grant-role` also wants
 `-as`, and `-yes` to apply.
 
 ## Every command
+
+### about
+
+```text
+gophenberg about [flags]
+```
+
+Prints what this binary is in one line, such as
+`Gophenberg %VERSION%, official build, commit 4c3ba60, theme kits 0.9.0 to %KIT_VERSION%`.
+With `-json` it answers one JSON document holding `schema`, `name`,
+`version`, `commit`, `stamp` and `kits`. It needs no database.
+
+- A binary from a release archive or the release image says
+  `official build`, and names the commit it was built from.
+- A binary you build yourself says `custom build` and names no commit.
+- `kits` lists the [theme kit](/themes/how-theming-works/) versions
+  this binary serves.
 
 ### check
 

@@ -7,6 +7,7 @@
         { "name": "Complex Conditional", "weight": 0.0 },
         { "name": "Overall Code Complexity", "weight": 0.0 },
         { "name": "Excess Number of Function Arguments", "weight": 0.0 },
+        { "name": "String Heavy Function Arguments", "weight": 0.0 },
         { "name": "Code Duplication", "weight": 0.0 }
       ]
     },

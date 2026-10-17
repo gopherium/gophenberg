@@ -37,6 +37,22 @@ func TestGeneratorNamesTheProductAndItsFeatureVersion(t *testing.T) {
 	}
 }
 
+func TestStampIsEmptyInACustomBuild(t *testing.T) {
+	t.Parallel()
+
+	if got := version.Stamp(); got != "" {
+		t.Errorf("Stamp() = %q in a build no release workflow made, want empty", got)
+	}
+}
+
+func TestCommitIsEmptyWithoutTheReleaseFlag(t *testing.T) {
+	t.Parallel()
+
+	if got := version.Commit(); got != "" {
+		t.Errorf("Commit() = %q in a build that named no commit, want empty", got)
+	}
+}
+
 func TestMajorMinorDropsThePatch(t *testing.T) {
 	t.Parallel()
 

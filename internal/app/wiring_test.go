@@ -39,6 +39,7 @@ func timedConfig() runConfig {
 		cacheMediaMaxAge:                 90 * time.Second,
 		cacheContentSharedMaxAge:         30 * time.Second,
 		cacheContentStaleWhileRevalidate: 10 * time.Minute,
+		cacheAdminAssetMaxAge:            720 * time.Hour,
 
 		serving: gonsole.Timeouts{
 			ReadHeader: 4 * time.Second, Read: 40 * time.Second, Idle: 90 * time.Second,
