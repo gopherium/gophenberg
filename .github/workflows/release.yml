@@ -381,28 +381,34 @@ jobs:
           "$RUNNER_TEMP/releasetool" verify -public "$RELEASE_KEY_MULTIKEY" \
             "gophenberg_${version}_release-record.json" "gophenberg_${version}_linux_amd64.tar.gz"
           tar -xzf "gophenberg_${version}_linux_amd64.tar.gz" release.json
+      - name: Ask the update site's app for a token that writes to the update site alone
+        id: updates
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.UPDATES_APP_CLIENT_ID }}
+          private-key: ${{ secrets.UPDATES_APP_PRIVATE_KEY }}
+          owner: gopherium
+          repositories: gophenberg-updates
+          permission-contents: write
       - name: Offer the release on the stable channel of the update site
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
           RELEASE_KEY_MULTIKEY: ${{ vars.RELEASE_KEY_MULTIKEY }}
-          UPDATES_DEPLOY_KEY: ${{ secrets.UPDATES_DEPLOY_KEY }}
+          UPDATES_TOKEN: ${{ steps.updates.outputs.token }}
         run: |
-          if [ -z "$RELEASE_SIGNING_KEY" ] || [ -z "$UPDATES_DEPLOY_KEY" ]; then
-            echo "the release environment holds no RELEASE_SIGNING_KEY or no UPDATES_DEPLOY_KEY" >&2
+          if [ -z "$RELEASE_SIGNING_KEY" ]; then
+            echo "the release environment holds no RELEASE_SIGNING_KEY" >&2
             exit 1
           fi
           version="${GITHUB_REF_NAME#v}"
           tool="$RUNNER_TEMP/releasetool"
           key="$RUNNER_TEMP/release.pem"
-          deploy="$RUNNER_TEMP/deploy.key"
-          trap 'rm -f "$key" "$deploy"' EXIT
-          (umask 077 && printf '%s\n' "$RELEASE_SIGNING_KEY" > "$key" && printf '%s\n' "$UPDATES_DEPLOY_KEY" > "$deploy")
-          printf '%s\n' "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" \
-            > "$RUNNER_TEMP/known_hosts"
-          export GIT_SSH_COMMAND="ssh -i $deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts"
+          trap 'rm -f "$key"' EXIT
+          (umask 077 && printf '%s\n' "$RELEASE_SIGNING_KEY" > "$key")
+          helper='!f() { echo username=x-access-token; echo "password=$UPDATES_TOKEN"; }; f'
           for attempt in 1 2 3; do
             rm -rf updates
-            git clone -q --depth 1 git@github.com:gopherium/gophenberg-updates.git updates
+            git clone -q --depth 1 https://github.com/gopherium/gophenberg-updates.git updates
             index=updates/v1/core/stable.json
             previous=()
             if [ -f "$index" ]; then
@@ -419,7 +425,7 @@ jobs:
             git -C updates -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -q -m "chore(index): offer ${version} on stable"
-            if git -C updates push -q origin HEAD:main; then
+            if git -C updates -c credential.helper= -c credential.helper="$helper" push -q origin HEAD:main; then
               exit 0
             fi
             echo "attempt $attempt could not push, so the index is written again over the newer one" >&2
