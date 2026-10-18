@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gouncer/authkit"
+
+	"github.com/gopherium/gophenberg/internal/content"
 )
 
 // authorView is one account that may write, as the authors list names it.
@@ -41,7 +43,14 @@ func (s *server) handleAuthorList() http.HandlerFunc {
 			}
 		}
 		slices.SortFunc(items, func(a, b authorView) int {
-			return cmp.Or(strings.Compare(a.Name, b.Name), bytes.Compare(a.ID[:], b.ID[:]))
+			// Case and accents stay beside their base letter, as WordPress sorts its names.
+			if c := cmp.Or(
+				strings.Compare(content.FoldAccents(a.Name), content.FoldAccents(b.Name)),
+				strings.Compare(a.Name, b.Name),
+			); c != 0 {
+				return c
+			}
+			return bytes.Compare(a.ID[:], b.ID[:])
 		})
 		authkit.Respond(w, http.StatusOK, authorsResponse{Items: items})
 	}

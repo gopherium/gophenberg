@@ -49,6 +49,31 @@ func TestAuthorsListEveryAccountByName(t *testing.T) {
 	}
 }
 
+func TestAuthorsSortNamesBesideTheirBaseLetter(t *testing.T) {
+	t.Parallel()
+
+	users := newFakeUserStore()
+	ada := addAda(t, users)
+	alba := addWithRole(t, users, "alba@example.com", "alba", role.Author)
+	alvaro := addWithRole(t, users, "alvaro@example.com", "Álvaro", role.Author)
+	zoe := addWithRole(t, users, "zoe@example.com", "Zoe", role.Author)
+	handler := authedServerWithStores(t, serverConfig(users, newFakePostStore()))
+
+	held := decodeBody[authorsHeld](t, doRequest(t, handler, http.MethodGet, "/api/authors", ""))
+
+	names := make([]string, len(held.Items))
+	ids := make([]uuid.UUID, len(held.Items))
+	for i, author := range held.Items {
+		names[i], ids[i] = author.Name, author.ID
+	}
+	if !slices.Equal(names, []string{"Ada Lovelace", "alba", "Álvaro", "Zoe"}) {
+		t.Errorf("names = %v, want case and accents kept beside their base letter", names)
+	}
+	if !slices.Equal(ids, []uuid.UUID{ada.ID, alba.ID, alvaro.ID, zoe.ID}) {
+		t.Errorf("ids = %v, want each name beside its own account", ids)
+	}
+}
+
 func TestAuthorsKeepADisabledAccountThatStillOwnsItems(t *testing.T) {
 	t.Parallel()
 
