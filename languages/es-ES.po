@@ -15,7 +15,6 @@ msgstr "%(name)s %(version)s está publicado en la web."
 msgid "%(name)s cannot be used as a theme name. Name the zip file after the theme, with no dot at the start and no slashes in it."
 msgstr "%(name)s no se puede usar como nombre de tema. Nombra el archivo zip como el tema, sin punto al principio y sin barras."
 
-#, fuzzy
 msgid "%(name)s moves to /%(word)s. Every address of both types changes."
 msgstr "El tipo %(name)s pasa a /%(word)s. Cambian todas las direcciones de ambos tipos."
 
@@ -133,10 +132,6 @@ msgstr "Contenido"
 msgid "Content Types"
 msgstr "Tipos de contenido"
 
-#, fuzzy
-msgid "Content nests at most %(max)s levels deep, and this item would sit deeper. Pick a parent closer to the top."
-msgstr "El contenido se anida como mucho %(max)s niveles, y este elemento quedaría más abajo. Elige un nivel superior más cercano al inicio."
-
 msgid "Could not delete that item."
 msgid_plural "Could not delete every item."
 msgstr[0] "No se ha podido borrar ese elemento."
@@ -203,7 +198,6 @@ msgstr "Borrador guardado."
 msgid "Email"
 msgstr "Correo electrónico"
 
-#, fuzzy
 msgid "Empty Trash"
 msgstr "Vaciar papelera"
 
@@ -297,10 +291,6 @@ msgstr "Idioma"
 msgid "Large"
 msgstr "Grande"
 
-#, fuzzy
-msgid "Linked from"
-msgstr "Enlazado desde"
-
 msgid "List view"
 msgstr "Vista de lista"
 
@@ -391,10 +381,6 @@ msgstr "No encontrado"
 msgid "Not serving"
 msgstr "No está sirviendo"
 
-#, fuzzy
-msgid "Nothing points here yet."
-msgstr "Todavía no apunta nada aquí."
-
 msgid "Nothing published here yet."
 msgstr "Todavía no hay nada publicado aquí."
 
@@ -412,10 +398,6 @@ msgstr "octubre"
 
 msgid "Older posts"
 msgstr "Entradas anteriores"
-
-#, fuzzy
-msgid "One frame of this animation holds more than %(max)s pixels, which is more than Gophenberg opens. Upload a smaller animation."
-msgstr "Un fotograma de esta animación tiene más de %(max)s píxeles, más de lo que Gophenberg abre. Sube una animación más pequeña."
 
 msgid "One of the filters on this list is not one Gophenberg understands. Clear the filters and try again."
 msgstr "Uno de los filtros de esta lista no es un filtro que Gophenberg entienda. Quita los filtros e inténtalo de nuevo."
@@ -441,10 +423,6 @@ msgstr "Solo el tipo de contenido que está en la raíz de tu sitio puede ir sin
 msgid "Open navigation"
 msgstr "Abrir la navegación"
 
-#, fuzzy
-msgid "Open %(field)s in a new tab"
-msgstr "Abrir %(field)s en una pestaña nueva"
-
 msgid "Parent"
 msgstr "Elemento superior"
 
@@ -466,16 +444,11 @@ msgstr "Entrada publicada."
 msgid "Preview"
 msgstr "Vista previa"
 
-#, fuzzy
 msgid "Private"
 msgstr "Privada"
 
 msgid "Publish"
 msgstr "Publicar"
-
-#, fuzzy
-msgid "Reads from"
-msgstr "Lee de"
 
 msgid "Redo"
 msgstr "Rehacer"
@@ -513,7 +486,6 @@ msgstr "Guardado"
 msgid "Saving"
 msgstr "Guardando"
 
-#, fuzzy
 msgid "Scheduled"
 msgstr "Programada"
 
@@ -682,10 +654,6 @@ msgstr "El tema %(name)s es el elegido, pero no está instalado, así que el ren
 msgid "The user could not be created."
 msgstr "No se ha podido crear el usuario."
 
-#, fuzzy
-msgid "These files could not be read."
-msgstr "No se han podido leer estos archivos."
-
 msgid "Theme"
 msgstr "Tema"
 
@@ -728,14 +696,6 @@ msgstr "Este tipo de contenido está desactivado, así que su contenido ni se si
 msgid "This content type still holds content, so it cannot be deleted. Move or delete its items first."
 msgstr "Este tipo de contenido todavía tiene contenido, así que no se puede borrar. Mueve o borra antes sus elementos."
 
-#, fuzzy
-msgid "This field holds no layouts yet."
-msgstr "Este campo todavía no tiene diseños."
-
-#, fuzzy
-msgid "This field would stand inside too many containers. Put it nearer the top and try again."
-msgstr "Este campo quedaría dentro de demasiados contenedores. Ponlo más cerca del nivel superior e inténtalo de nuevo."
-
 msgid "This file could not be opened as a zip. Package the theme again and upload the new file."
 msgstr "Este archivo no se ha podido abrir como zip. Vuelve a empaquetar el tema y sube el archivo nuevo."
 
@@ -757,10 +717,6 @@ msgstr "Este elemento no existe, y puede que se haya borrado. Vuelve a la lista 
 msgid "This item is already in the trash. Restore it first to work on it again."
 msgstr "Este elemento ya está en la papelera. Restáuralo primero para volver a trabajar en él."
 
-#, fuzzy
-msgid "This item is in the trash. Restore it first to work on it again."
-msgstr "Este elemento está en la papelera. Restáuralo primero para volver a trabajar en él."
-
 msgid "This item is not in the trash, so there is nothing to restore. Open it from the list to work on it as it is."
 msgstr "Este elemento no está en la papelera, así que no hay nada que restaurar. Ábrelo desde la lista para trabajar en él tal como está."
 
@@ -773,37 +729,17 @@ msgstr "Este medio no está en la biblioteca, y puede que alguien lo haya borrad
 msgid "This picture could not be read, so nothing was stored. The file may be damaged, so open it on your computer and upload it again."
 msgstr "Esta imagen no se ha podido leer, así que no se ha guardado nada. Puede que el archivo esté dañado, así que ábrelo en tu ordenador y vuelve a subirlo."
 
-#, fuzzy
-msgid "This picture is %(width)s by %(height)s pixels, over the limit of %(max)s pixels in all. Make it smaller and upload it again."
-msgstr "Esta imagen tiene %(width)s por %(height)s píxeles, por encima del límite de %(max)s píxeles en total. Hazla más pequeña y vuelve a subirla."
-
 msgid "This post changed elsewhere. Reload before saving again."
 msgstr "Esta entrada ha cambiado en otro sitio. Recarga antes de volver a guardar."
 
 msgid "This request left out %(field)s, which Gophenberg needs. Reload the page and try again."
 msgstr "En esta petición faltaba %(field)s, que Gophenberg necesita. Recarga la página e inténtalo de nuevo."
 
-#, fuzzy
-msgid "This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder that %(setting)s points at writable. A read-only mount is the usual cause."
-msgstr "Este sitio no puede escribir en su carpeta de temas, así que no se puede instalar ninguno. Pide a quien gestione tu sitio que haga escribible la carpeta a la que apunta %(setting)s. La causa habitual es un montaje de solo lectura."
-
 msgid "This site has nowhere to keep themes, so no theme can be installed. Ask whoever looks after your site to point %(setting)s at a folder the server can write to."
 msgstr "Este sitio no tiene dónde guardar los temas, así que no se puede instalar ninguno. Pide a quien gestione tu sitio que apunte %(setting)s a una carpeta en la que el servidor pueda escribir."
 
 msgid "This site has nowhere to store uploads, so nothing can be uploaded. Ask whoever looks after your site to point %(setting)s at a folder the server can write to."
 msgstr "Este sitio no tiene dónde guardar las subidas, así que no se puede subir nada. Pide a quien gestione tu sitio que apunte %(setting)s a una carpeta en la que el servidor pueda escribir."
-
-#, fuzzy
-msgid "This theme is over the limit of %(max)s bytes, packed or unpacked. Leave out what the theme does not need and package it again."
-msgstr "Este tema pasa del límite de %(max)s bytes, comprimido o sin comprimir. Saca lo que el tema no necesite y vuelve a empaquetarlo."
-
-#, fuzzy
-msgid "This zip holds %(entries)s files, more than the %(max)s a theme may carry. Package only the built theme."
-msgstr "Este zip lleva %(entries)s archivos, más de los %(max)s que puede llevar un tema. Empaqueta solo el tema ya construido."
-
-#, fuzzy
-msgid "Through"
-msgstr "A través de"
 
 msgid "Thumbnail"
 msgstr "Miniatura"
@@ -859,10 +795,6 @@ msgstr "Algo ha ido mal. Inténtalo de nuevo."
 msgid "%(field)s declared."
 msgstr "%(field)s declarado."
 
-#, fuzzy
-msgid "%(field)s address"
-msgstr "Dirección de %(field)s"
-
 msgid "%(field)s deleted."
 msgstr "%(field)s borrado."
 
@@ -871,10 +803,6 @@ msgstr "%(field)s renombrado."
 
 msgid "%(file)s is larger than one upload may be."
 msgstr "%(file)s es más grande de lo que una subida permite."
-
-#, fuzzy
-msgid "%(field)s title"
-msgstr "Título de %(field)s"
 
 msgid "%(file)s is not a file this block accepts."
 msgstr "%(file)s no es un archivo que este bloque acepte."
@@ -894,15 +822,12 @@ msgstr "%(theme)s no se carga, así que el renderizador ha tomado el relevo."
 msgid "%(type)s registered."
 msgstr "%(type)s registrado."
 
-#, fuzzy
 msgid "%(type)s removed."
 msgstr "Tipo de contenido %(type)s eliminado."
 
-#, fuzzy
 msgid "%(type)s updated."
 msgstr "Tipo de contenido %(type)s actualizado."
 
-#, fuzzy
 msgid "%(type)s will answer at the root."
 msgstr "El tipo %(type)s responderá en la raíz."
 
@@ -933,13 +858,6 @@ msgstr "Borrar %(field)s"
 msgid "Delete %(title)s for good? This cannot be undone."
 msgstr "¿Borrar %(title)s para siempre? Esto no se puede deshacer."
 
-#, fuzzy
-msgid "Delete this %(count)s item for good? This cannot be undone."
-msgid_plural "Delete these %(count)s items for good? This cannot be undone."
-msgstr[0] "¿Borrar este %(count)s elemento para siempre? Esto no se puede deshacer."
-msgstr[1] "¿Borrar estos %(count)s elementos para siempre? Esto no se puede deshacer."
-msgstr[2] "¿Borrar estos %(count)s elementos para siempre? Esto no se puede deshacer."
-
 msgid "Disable %(name)s"
 msgstr "Desactivar a %(name)s"
 
@@ -948,18 +866,6 @@ msgstr "Activar a %(name)s"
 
 msgid "Hand the root to %(type)s"
 msgstr "Ceder la raíz a %(type)s"
-
-#, fuzzy
-msgid "Media %(id)s"
-msgstr "Medio %(id)s"
-
-#, fuzzy
-msgid "Move %(name)s down"
-msgstr "Bajar %(name)s"
-
-#, fuzzy
-msgid "Move %(name)s up"
-msgstr "Subir %(name)s"
 
 msgid "Remove %(title)s"
 msgstr "Quitar %(title)s"
@@ -1060,10 +966,6 @@ msgid "%(field)s goes no lower than %(limit)s. Raise the value and save again."
 msgstr "%(field)s no baja de %(limit)s. Sube el valor y guarda de nuevo."
 
 #, fuzzy
-msgid "%(field)s holds no value of its own, so it cannot be required. Make it optional."
-msgstr "%(field)s no guarda ningún valor propio, así que no puede ser obligatorio. Hazlo opcional."
-
-#, fuzzy
 msgid "%(field)s moved."
 msgstr "%(field)s movido."
 
@@ -1082,10 +984,6 @@ msgstr "%(field)s ajustado."
 #, fuzzy
 msgid "%(field)s takes at most %(limit)s letters. Shorten what you wrote and save again."
 msgstr "%(field)s acepta como mucho %(limit)s letras. Acorta lo que has escrito y guarda de nuevo."
-
-#, fuzzy
-msgid "%(field)s takes at most %(limit)s files. Remove one and save again."
-msgstr "%(field)s acepta como mucho %(limit)s archivos. Quita uno y guarda de nuevo."
 
 #, fuzzy
 msgid "%(group)s created."
@@ -1308,14 +1206,6 @@ msgid "Remove"
 msgstr "Quitar"
 
 #, fuzzy
-msgid "Rule %(number)s of set %(set)s"
-msgstr "Regla %(number)s del conjunto %(set)s"
-
-#, fuzzy
-msgid "Rule set %(number)s"
-msgstr "Conjunto de reglas %(number)s"
-
-#, fuzzy
 msgid "Rules"
 msgstr "Reglas"
 
@@ -1374,10 +1264,6 @@ msgstr "No se han podido cargar los grupos de campos."
 #, fuzzy
 msgid "The field groups could not be reached."
 msgstr "No se ha podido contactar con los grupos de campos."
-
-#, fuzzy
-msgid "The field keeps its values on the content both groups reach."
-msgstr "El campo conserva sus valores en el contenido al que llegan ambos grupos."
 
 #, fuzzy
 msgid "The fields this group holds go with it, and so do the values every item stored in them."
@@ -1452,8 +1338,842 @@ msgid "is not"
 msgstr "no es"
 
 #, fuzzy
+msgid "%(field)s needs at least %(limit)s rows. Add one and save again."
+msgstr "%(field)s necesita al menos %(limit)s filas. Añade una y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s shows by its rules now."
+msgstr "%(field)s ahora se muestra según sus reglas."
+
+#, fuzzy
+msgid "%(field)s stands in the list."
+msgstr "%(field)s aparece en la lista."
+
+#, fuzzy
+msgid "%(field)s stays out of the list."
+msgstr "%(field)s se queda fuera de la lista."
+
+#, fuzzy
+msgid "%(field)s takes at most %(limit)s rows. Remove one and save again."
+msgstr "%(field)s admite como mucho %(limit)s filas. Quita una y guarda de nuevo."
+
+#, fuzzy
+msgid "%(name)s belongs to the site now."
+msgstr "%(name)s ya pertenece al sitio."
+
+#, fuzzy
+msgid "%(name)s came from the %(plugin)s plugin, which no longer declares it."
+msgstr "%(name)s vino del plugin %(plugin)s, que ya no lo declara."
+
+#, fuzzy
+msgid "%(type)s answers on a new address, and stored links move with it."
+msgstr "%(type)s responde en una dirección nueva, y los enlaces guardados se mueven con ella."
+
+#, fuzzy
+msgid "%(type)s becomes the type the site opens on, and the old one takes an address."
+msgstr "%(type)s pasa a ser el tipo con el que abre el sitio, y el anterior toma una dirección."
+
+#, fuzzy
+msgid "A field group key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the group in the file so its key comes out in that shape."
+msgstr "La clave de un grupo de campos tiene que empezar por una letra minúscula y después llevar solo letras minúsculas, números y guiones. Cambia el nombre del grupo en el archivo para que su clave salga con esa forma."
+
+#, fuzzy
+msgid "A flexible content field holds layouts, and %(field)s is not one. Add a layout first, then declare the field inside that layout."
+msgstr "Un campo de contenido flexible contiene diseños, y %(field)s no lo es. Añade primero un diseño y después declara el campo dentro de ese diseño."
+
+#, fuzzy
+msgid "A higher quality stores larger files, and it applies to pictures uploaded from now on."
+msgstr "Una calidad más alta almacena archivos más grandes, y se aplica a las imágenes que subas a partir de ahora."
+
+#, fuzzy
+msgid "A layout stands inside a flexible content field only. Put %(field)s inside one of those instead."
+msgstr "Un diseño solo va dentro de un campo de contenido flexible. Pon %(field)s dentro de uno de ellos."
+
+#, fuzzy
+msgid "A layout stands inside a flexible content field, never on its own. Declare a flexible content field first, then add %(field)s inside it."
+msgstr "Un diseño va dentro de un campo de contenido flexible, nunca por su cuenta. Declara primero un campo de contenido flexible y después añade %(field)s dentro."
+
+#, fuzzy
+msgid "A row of %(field)s has to name the layout it takes. Pick a layout for the row, or remove the row."
+msgstr "Una fila de %(field)s tiene que nombrar el diseño que toma. Elige un diseño para la fila, o quita la fila."
+
+#, fuzzy
+msgid "A row of %(field)s takes one layout and no more. Reload the page and build the row again."
+msgstr "Una fila de %(field)s toma un solo diseño. Recarga la página y crea la fila otra vez."
+
+#, fuzzy
+msgid "A theme naming its own page size uses that instead."
+msgstr "Un tema que indica su propio tamaño de página usa ese en su lugar."
+
+#, fuzzy
+msgid "Add"
+msgstr "Añadir"
+
+#, fuzzy
+msgid "Add %(layout)s"
+msgstr "Añadir %(layout)s"
+
+#, fuzzy
+msgid "Add %(name)s"
+msgstr "Añadir %(name)s"
+
+#, fuzzy
+msgid "Add field to %(field)s"
+msgstr "Añadir campo a %(field)s"
+
+#, fuzzy
+msgid "Add layout"
+msgstr "Añadir diseño"
+
+#, fuzzy
+msgid "Add layout to %(field)s"
+msgstr "Añadir diseño a %(field)s"
+
+#, fuzzy
+msgid "Add row"
+msgstr "Añadir fila"
+
+#, fuzzy
+msgid "Adopt"
+msgstr "Adoptar"
+
+#, fuzzy
+msgid "Apply"
+msgstr "Aplicar"
+
+#, fuzzy
+msgid "Change %(name)s"
+msgstr "Cambiar %(name)s"
+
+#, fuzzy
+msgid "Choose how the site serves its content."
+msgstr "Elige cómo el sitio sirve su contenido."
+
+#, fuzzy
+msgid "Close"
+msgstr "Cerrar"
+
+#, fuzzy
+msgid "Definitions file"
+msgstr "Archivo de definiciones"
+
+#, fuzzy
+msgid "Done. The site now holds what the file describes."
+msgstr "Hecho. El sitio ya tiene lo que describe el archivo."
+
+#, fuzzy
+msgid "Export definitions"
+msgstr "Exportar definiciones"
+
+#, fuzzy
+msgid "Fewest rows"
+msgstr "Mínimo de filas"
+
+#, fuzzy
+msgid "Field"
+msgstr "Campo"
+
+#, fuzzy
+msgid "Field group"
+msgstr "Grupo de campos"
+
+#, fuzzy
+msgid "From %(plugin)s"
+msgstr "De %(plugin)s"
+
+#, fuzzy
+msgid "Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again."
+msgstr "Gophenberg no tiene ninguna clase de definición llamada %(subject)s, así que no se ha adoptado nada. Recarga la página para que el admin y el servidor vuelvan a coincidir."
+
+#, fuzzy
+msgid "Import definitions"
+msgstr "Importar definiciones"
+
+#, fuzzy
+msgid "In list"
+msgstr "En la lista"
+
+#, fuzzy
+msgid "It moves to another group, so its stored values do not follow."
+msgstr "Se mueve a otro grupo, así que sus valores guardados no le siguen."
+
+#, fuzzy
+msgid "Its kind changed, so its stored values go with it."
+msgstr "Su tipo ha cambiado, así que sus valores guardados se van con él."
+
+#, fuzzy
+msgid "Keep %(field)s out of the list"
+msgstr "Dejar %(field)s fuera de la lista"
+
+#, fuzzy
+msgid "Most rows"
+msgstr "Máximo de filas"
+
+#, fuzzy
+msgid "Move row down"
+msgstr "Bajar la fila"
+
+#, fuzzy
+msgid "Move row up"
+msgstr "Subir la fila"
+
+#, fuzzy
+msgid "Other"
+msgstr "Otro"
+
+#, fuzzy
+msgid "Out of list"
+msgstr "Fuera de la lista"
+
+#, fuzzy
+msgid "Picture quality"
+msgstr "Calidad de imagen"
+
+#, fuzzy
+msgid "Posts per page"
+msgstr "Entradas por página"
+
+#, fuzzy
+msgid "Remove %(name)s"
+msgstr "Quitar %(name)s"
+
+#, fuzzy
+msgid "Remove row"
+msgstr "Quitar fila"
+
+#, fuzzy
+msgid "Rules showing %(field)s"
+msgstr "Reglas que muestran %(field)s"
+
+#, fuzzy
+msgid "Show %(field)s in the list"
+msgstr "Mostrar %(field)s en la lista"
+
+#, fuzzy
+msgid "The %(origin)s plugin declared this, so it can only be changed in that plugin. Turning it off is still yours to do."
+msgstr "El plugin %(origin)s lo declaró, así que solo se puede cambiar en ese plugin. Desactivarlo sigue estando en tu mano."
+
+#, fuzzy
+msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key."
+msgstr "El plugin %(plugin)s también declara %(name)s, y el sitio se queda con la clave."
+
+#, fuzzy
+msgid "The %(plugin)s plugin declared these fields, so they change only in its code."
+msgstr "El plugin %(plugin)s declaró estos campos, así que solo cambian en su código."
+
+#, fuzzy
+msgid "The field %(field)s is hidden by its own rules right now, so it cannot hold a value. Show it again before filling it in."
+msgstr "El campo %(field)s está oculto por sus propias reglas ahora mismo, así que no puede guardar ningún valor. Vuelve a mostrarlo antes de rellenarlo."
+
+#, fuzzy
+msgid "The field %(source)s cannot hold the value %(value)s, so no rule can compare it. Write a value of the kind %(source)s stores."
+msgstr "El campo %(source)s no puede guardar el valor %(value)s, así que ninguna regla puede compararlo. Escribe un valor de la clase que %(source)s guarda."
+
+#, fuzzy
+msgid "The rules on %(field)s lead back to %(field)s itself, so nothing can decide whether to show it. Point one of them at another field."
+msgstr "Las reglas de %(field)s vuelven al propio %(field)s, así que nada puede decidir si mostrarlo. Apunta una de ellas a otro campo."
+
+#, fuzzy
+msgid "The settings could not be read, so nothing can be changed here yet."
+msgstr "No se han podido leer los ajustes, así que todavía no se puede cambiar nada aquí."
+
+#, fuzzy
+msgid "The site may already hold part of this file. Import it again to see what is left."
+msgstr "Puede que el sitio ya tenga parte de este archivo. Impórtalo de nuevo para ver lo que queda."
+
+#, fuzzy
+msgid "These were left alone, because nobody confirmed losing them."
+msgstr "Estos se han dejado como estaban, porque nadie confirmó perderlos."
+
+#, fuzzy
+msgid "This field would stand inside too many containers. Put it nearer the top and try again."
+msgstr "Este campo quedaría dentro de demasiados contenedores. Ponlo más cerca del nivel superior e inténtalo de nuevo."
+
+#, fuzzy
+msgid "This file matches the site, so there is nothing to change."
+msgstr "Este archivo coincide con el sitio, así que no hay nada que cambiar."
+
+#, fuzzy
+msgid "This file says it was written in format %(declared)s, which is not a version Gophenberg can read. Export the definitions again from the site they came from."
+msgstr "Este archivo dice estar escrito en el formato %(declared)s, que no es una versión que Gophenberg pueda leer. Vuelve a exportar las definiciones desde el sitio del que vinieron."
+
+#, fuzzy
+msgid "This file was written in format %(declared)s, and this release reads %(served)s. Upgrade the site the file came from, or this one."
+msgstr "Este archivo está escrito en el formato %(declared)s, y esta versión lee %(served)s. Actualiza el sitio del que viene el archivo, o este."
+
+#, fuzzy
+msgid "This kind of field holds no fields inside it. Put the field in a section or a repeater instead."
+msgstr "Este tipo de campo no contiene campos dentro. Pon el campo en una sección o en un repetidor."
+
+#, fuzzy
+msgid "Two field groups in this file share the key %(key)s. Give one of them a different key and import again."
+msgstr "Dos grupos de campos de este archivo comparten la clave %(key)s. Dale una clave distinta a uno de ellos e importa de nuevo."
+
+#, fuzzy
+msgid "Type a whole number in both boxes before saving."
+msgstr "Escribe un número entero en las dos casillas antes de guardar."
+
+#, fuzzy
+msgid "What it points at changed, so its stored values go with it."
+msgstr "Aquello a lo que apunta ha cambiado, así que sus valores guardados se van con él."
+
+#, fuzzy
+msgid "Without a rule this field always shows."
+msgstr "Sin ninguna regla este campo siempre se muestra."
+
+#, fuzzy
+msgid "holds"
+msgstr "contiene"
+
+#, fuzzy
+msgid "holds anything"
+msgstr "contiene algo"
+
+#, fuzzy
+msgid "is above"
+msgstr "es mayor que"
+
+#, fuzzy
+msgid "is below"
+msgstr "es menor que"
+
+#, fuzzy
+msgid "is empty"
+msgstr "está vacío"
+
+#, fuzzy
+msgid "%(field)s address"
+msgstr "Dirección de %(field)s"
+
+#, fuzzy
+msgid "%(field)s holds no value of its own, so it cannot be required. Make it optional."
+msgstr "%(field)s no guarda ningún valor propio, así que no puede ser obligatorio. Hazlo opcional."
+
+#, fuzzy
+msgid "%(field)s needs at least %(limit)s files. Add one and save again."
+msgstr "%(field)s necesita al menos %(limit)s archivos. Añade uno y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s reads a relation field that is not there. Pick a group and a relation field it holds."
+msgstr "%(field)s lee un campo de relación que no existe. Elige un grupo y un campo de relación que contenga."
+
+#, fuzzy
+msgid "%(field)s reads a relation pointing at %(type)s, so it would list nothing here. Pick a relation pointing at the items this group is shown on."
+msgstr "%(field)s lee una relación que apunta a %(type)s, así que aquí no mostraría nada. Elige una relación que apunte a los elementos donde se muestra este grupo."
+
+#, fuzzy
+msgid "%(field)s takes at most %(limit)s files. Remove one and save again."
+msgstr "%(field)s acepta como mucho %(limit)s archivos. Quita uno y guarda de nuevo."
+
+#, fuzzy
+msgid "%(field)s title"
+msgstr "Título de %(field)s"
+
+#, fuzzy
+msgid "A Linked from field stands on its own, not inside a section or a repeater. Declare %(field)s beside the container."
+msgstr "Un campo Enlazado desde va por su cuenta, no dentro de una sección ni de un repetidor. Declara %(field)s junto al contenedor."
+
+#, fuzzy
+msgid "Fewest files"
+msgstr "Mínimo de archivos"
+
+#, fuzzy
+msgid "Linked from"
+msgstr "Enlazado desde"
+
+#, fuzzy
+msgid "Most files"
+msgstr "Máximo de archivos"
+
+#, fuzzy
+msgid "Move %(name)s down"
+msgstr "Bajar %(name)s"
+
+#, fuzzy
+msgid "Move %(name)s up"
+msgstr "Subir %(name)s"
+
+#, fuzzy
+msgid "Nothing points here yet."
+msgstr "Todavía no apunta nada aquí."
+
+#, fuzzy
+msgid "Open %(field)s in a new tab"
+msgstr "Abrir %(field)s en una pestaña nueva"
+
+#, fuzzy
+msgid "Reads from"
+msgstr "Lee de"
+
+#, fuzzy
+msgid "The field %(field)s cannot go, because %(by)s reads it. Change %(by)s first."
+msgstr "El campo %(field)s no se puede quitar, porque %(by)s lo lee. Cambia antes %(by)s."
+
+#, fuzzy
+msgid "These files could not be read."
+msgstr "No se han podido leer estos archivos."
+
+#, fuzzy
+msgid "Through"
+msgstr "A través de"
+
+#, fuzzy
+msgid "This field holds no layouts yet."
+msgstr "Este campo todavía no tiene diseños."
+
+#, fuzzy
+msgid "This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder that %(setting)s points at writable. A read-only mount is the usual cause."
+msgstr "Este sitio no puede escribir en su carpeta de temas, así que no se puede instalar ninguno. Pide a quien gestione tu sitio que haga escribible la carpeta a la que apunta %(setting)s. La causa habitual es un montaje de solo lectura."
+
+#, fuzzy
 msgid "v%(version)s"
 msgstr "v%(version)s"
+
+#, fuzzy
+msgid "%(field)s cannot move inside itself. Pick a container that is not one of its own."
+msgstr "%(field)s no puede moverse dentro de sí mismo. Elige un contenedor que no sea uno de los suyos."
+
+#, fuzzy
+msgid "%(type)s keeps nesting while %(items)s of its items sit inside another. Move those to the top level first, the ones in the trash included."
+msgstr "%(type)s sigue anidando mientras %(items)s de sus elementos están dentro de otro. Muévelos primero al nivel superior, incluidos los de la papelera."
+
+#, fuzzy
+msgid "%(type)s keeps nesting, because some of its items sit inside another."
+msgstr "%(type)s sigue anidando, porque algunos de sus elementos están dentro de otro."
+
+#, fuzzy
+msgid "Destination"
+msgstr "Destino"
+
+#, fuzzy
+msgid "Its items sit inside one another, so it keeps nesting."
+msgstr "Sus elementos están unos dentro de otros, así que sigue anidando."
+
+#, fuzzy
+msgid "Let items nest"
+msgstr "Permitir anidar"
+
+#, fuzzy
+msgid "Stop nesting"
+msgstr "Dejar de anidar"
+
+#, fuzzy
+msgid "The %(plugin)s plugin declares %(name)s flat, and the site keeps it nesting while its items sit inside another."
+msgstr "El plugin %(plugin)s declara %(name)s sin anidar, y el sitio lo mantiene anidando mientras sus elementos están dentro de otro."
+
+#, fuzzy
+msgid "The values stored under it do not follow."
+msgstr "Los valores guardados debajo no le siguen."
+
+#, fuzzy
+msgid "This request came from a page on another site, so it was refused. Open the admin on this site and try again."
+msgstr "Esta petición vino de una página de otro sitio, así que se rechazó. Abre la administración en este sitio e inténtalo de nuevo."
+
+#, fuzzy
+msgid "It moves here from another group and keeps its stored values."
+msgstr "Se mueve aquí desde otro grupo y conserva sus valores guardados."
+
+#, fuzzy
+msgid "It moves to another group and keeps its stored values."
+msgstr "Se mueve a otro grupo y conserva sus valores guardados."
+
+#, fuzzy
+msgid "It reads a relation inside a container, and only an import can point it elsewhere."
+msgstr "Lee una relación dentro de un contenedor, y solo una importación puede apuntarlo a otro sitio."
+
+#, fuzzy
+msgid "The field keeps its values on the content both groups reach."
+msgstr "El campo conserva sus valores en el contenido al que llegan ambos grupos."
+
+#, fuzzy
+msgid "What each Linked from field reads"
+msgstr "Qué lee cada campo Enlazado desde"
+
+#, fuzzy
+msgid "This item is in the trash. Restore it first to work on it again."
+msgstr "Este elemento está en la papelera. Restáuralo primero para volver a trabajar en él."
+
+#, fuzzy
+msgid "\"%(title)s\" goes to the trash. You can restore it from the Trash tab."
+msgstr "«%(title)s» va a la papelera. Puedes restaurarlo desde la pestaña Papelera."
+
+#, fuzzy
+msgid "\"%s\" has been restored."
+msgstr "«%s» se ha restaurado."
+
+#, fuzzy
+msgid "\"%s\" moved to the trash."
+msgstr "«%s» trasladado a la papelera."
+
+#, fuzzy
+msgid "\"%s\" permanently deleted."
+msgstr "«%s» borrado permanentemente."
+
+#, fuzzy
+msgid "\"%s\" successfully created."
+msgstr "«%s» creado correctamente."
+
+#, fuzzy
+msgid "%s item could not be moved to the trash."
+msgid_plural "%s items could not be moved to the trash."
+msgstr[0] "No se ha podido mover %s elemento a la papelera."
+msgstr[1] "No se han podido mover %s de elementos a la papelera."
+msgstr[2] "No se han podido mover %s elementos a la papelera."
+
+#, fuzzy
+msgid "%s item could not be permanently deleted."
+msgid_plural "%s items could not be permanently deleted."
+msgstr[0] "No se ha podido borrar permanentemente %s elemento."
+msgstr[1] "No se han podido borrar permanentemente %s de elementos."
+msgstr[2] "No se han podido borrar permanentemente %s elementos."
+
+#, fuzzy
+msgid "%s item could not be restored."
+msgid_plural "%s items could not be restored."
+msgstr[0] "No se ha podido restaurar %s elemento."
+msgstr[1] "No se han podido restaurar %s de elementos."
+msgstr[2] "No se han podido restaurar %s elementos."
+
+#, fuzzy
+msgid "%s item moved to the trash."
+msgid_plural "%s items moved to the trash."
+msgstr[0] "%s elemento movido a la papelera."
+msgstr[1] "%s de elementos movidos a la papelera."
+msgstr[2] "%s elementos movidos a la papelera."
+
+#, fuzzy
+msgid "%s item permanently deleted."
+msgid_plural "%s items permanently deleted."
+msgstr[0] "%s elemento borrado permanentemente."
+msgstr[1] "%s de elementos borrados permanentemente."
+msgstr[2] "%s elementos borrados permanentemente."
+
+#, fuzzy
+msgid "%s item stays in the trash."
+msgid_plural "%s items stay in the trash."
+msgstr[0] "%s elemento sigue en la papelera."
+msgstr[1] "%s de elementos siguen en la papelera."
+msgstr[2] "%s elementos siguen en la papelera."
+
+#, fuzzy
+msgid "%s page has been restored."
+msgid_plural "%s pages have been restored."
+msgstr[0] "Se ha restaurado %s página."
+msgstr[1] "Se han restaurado %s de páginas."
+msgstr[2] "Se han restaurado %s páginas."
+
+#, fuzzy
+msgid "%s post has been restored."
+msgid_plural "%s posts have been restored."
+msgstr[0] "Se ha restaurado %s entrada."
+msgstr[1] "Se han restaurado %s de entradas."
+msgstr[2] "Se han restaurado %s entradas."
+
+#, fuzzy
+msgid "A descriptive summary of the content type."
+msgstr "Un resumen descriptivo del tipo de contenido."
+
+#, fuzzy
+msgid "A listing carries between 1 and %(max)s items, so %(value)s is not a size Gophenberg takes. Pick a number inside that range."
+msgstr "Un listado muestra entre 1 y %(max)s elementos, así que %(value)s no es un tamaño que Gophenberg acepte. Elige un número dentro de ese rango."
+
+#, fuzzy
+msgid "Add one with Add New."
+msgstr "Añade uno con Añadir nuevo."
+
+#, fuzzy
+msgid "Content nests at most %(max)s levels deep, and this item would sit deeper. Pick a parent closer to the top."
+msgstr "El contenido se anida como mucho %(max)s niveles, y este elemento quedaría más abajo. Elige un nivel superior más cercano al inicio."
+
+#, fuzzy
+msgid "Delete \"%(title)s\" for good? This cannot be undone."
+msgstr "¿Borrar permanentemente «%(title)s»? Esto no se puede deshacer."
+
+#, fuzzy
+msgid "Delete %s item for good? This cannot be undone."
+msgid_plural "Delete %s items for good? This cannot be undone."
+msgstr[0] "¿Borrar permanentemente %s elemento? Esto no se puede deshacer."
+msgstr[1] "¿Borrar permanentemente %s de elementos? Esto no se puede deshacer."
+msgstr[2] "¿Borrar permanentemente %s elementos? Esto no se puede deshacer."
+
+#, fuzzy
+msgid "Delete this %(count)s item for good? This cannot be undone."
+msgid_plural "Delete these %(count)s items for good? This cannot be undone."
+msgstr[0] "¿Borrar este %(count)s elemento para siempre? Esto no se puede deshacer."
+msgstr[1] "¿Borrar estos %(count)s elementos para siempre? Esto no se puede deshacer."
+msgstr[2] "¿Borrar estos %(count)s elementos para siempre? Esto no se puede deshacer."
+
+#, fuzzy
+msgid "Describe %(type)s"
+msgstr "Describir %(type)s"
+
+#, fuzzy
+msgid "Empty the trash?"
+msgstr "¿Vaciar la papelera?"
+
+#, fuzzy
+msgid "Empty trash"
+msgstr "Vaciar papelera"
+
+#, fuzzy
+msgid "Items could not be loaded."
+msgstr "No se han podido cargar los elementos."
+
+#, fuzzy
+msgid "Manage the items of this content type."
+msgstr "Gestiona los elementos de este tipo de contenido."
+
+#, fuzzy
+msgid "Media %(id)s"
+msgstr "Medio %(id)s"
+
+#, fuzzy
+msgid "Modified: %s"
+msgstr "Modificado: %s"
+
+#, fuzzy
+msgid "Move \"%(title)s\" to the trash?"
+msgstr "¿Mover «%(title)s» a la papelera?"
+
+#, fuzzy
+msgid "Move %s item to the trash?"
+msgid_plural "Move %s items to the trash?"
+msgstr[0] "¿Mover %s elemento a la papelera?"
+msgstr[1] "¿Mover %s de elementos a la papelera?"
+msgstr[2] "¿Mover %s elementos a la papelera?"
+
+#, fuzzy
+msgid "Move to trash?"
+msgstr "¿Mover a la papelera?"
+
+#, fuzzy
+msgid "Name"
+msgstr "Nombre"
+
+#, fuzzy
+msgid "Name updated."
+msgstr "Nombre actualizado."
+
+#, fuzzy
+msgid "No items found."
+msgstr "No se han encontrado elementos."
+
+#, fuzzy
+msgid "No items yet."
+msgstr "Todavía no hay elementos."
+
+#, fuzzy
+msgid "One frame of this animation holds more than %(max)s pixels, which is more than Gophenberg opens. Upload a smaller animation."
+msgstr "Un fotograma de esta animación tiene más de %(max)s píxeles, más de lo que Gophenberg abre. Sube una animación más pequeña."
+
+#, fuzzy
+msgid "Pending Review"
+msgstr "Pendiente de revisión"
+
+#, fuzzy
+msgid "Permanently delete"
+msgstr "Borrar permanentemente"
+
+#, fuzzy
+msgid "Permanently delete…"
+msgstr "Borrar permanentemente…"
+
+#, fuzzy
+msgid "Picture quality runs from 1 to %(max)s, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range."
+msgstr "La calidad de imagen va de 1 a %(max)s, así que %(value)s no es una calidad con la que Gophenberg guarde. Elige un número dentro de ese rango."
+
+#, fuzzy
+msgid "Published: %s"
+msgstr "Publicado: %s"
+
+#, fuzzy
+msgid "Rename…"
+msgstr "Renombrar…"
+
+#, fuzzy
+msgid "Rule %(number)s of set %(set)s"
+msgstr "Regla %(number)s del conjunto %(set)s"
+
+#, fuzzy
+msgid "Rule set %(number)s"
+msgstr "Conjunto de reglas %(number)s"
+
+#, fuzzy
+msgid "Scheduled: %s"
+msgstr "Programado: %s"
+
+#, fuzzy
+msgid "Search %(type)s…"
+msgstr "Buscar %(type)s…"
+
+#, fuzzy
+msgid "Showing %(held)s of %(total)s."
+msgstr "Mostrando %(held)s de %(total)s."
+
+#, fuzzy
+msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
+msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
+msgstr[0] "%(count)s elemento de la papelera se borra permanentemente. Esto no se puede deshacer."
+msgstr[1] "Los %(count)s de elementos de la papelera se borran permanentemente. Esto no se puede deshacer."
+msgstr[2] "Los %(count)s elementos de la papelera se borran permanentemente. Esto no se puede deshacer."
+
+#, fuzzy
+msgid "The draft could not be created."
+msgstr "No se ha podido crear el borrador."
+
+#, fuzzy
+msgid "The item could not be duplicated."
+msgstr "No se ha podido duplicar el elemento."
+
+#, fuzzy
+msgid "The item could not be moved to the trash."
+msgstr "No se ha podido mover el elemento a la papelera."
+
+#, fuzzy
+msgid "The item could not be permanently deleted."
+msgstr "No se ha podido borrar permanentemente el elemento."
+
+#, fuzzy
+msgid "The item could not be restored."
+msgstr "No se ha podido restaurar el elemento."
+
+#, fuzzy
+msgid "The name could not be updated."
+msgstr "No se ha podido actualizar el nombre."
+
+#, fuzzy
+msgid "The trash could not be emptied."
+msgstr "No se ha podido vaciar la papelera."
+
+#, fuzzy
+msgid "This definitions file is larger than the %(max)s bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
+msgstr "Este archivo de definiciones es mayor que los %(max)s bytes que Gophenberg lee en una petición. Divídelo, o sube el límite con el que funciona tu sitio."
+
+#, fuzzy
+msgid "This picture is %(width)s by %(height)s pixels, over the limit of %(max)s pixels in all. Make it smaller and upload it again."
+msgstr "Esta imagen tiene %(width)s por %(height)s píxeles, por encima del límite de %(max)s píxeles en total. Hazla más pequeña y vuelve a subirla."
+
+#, fuzzy
+msgid "This theme is over the limit of %(max)s bytes, packed or unpacked. Leave out what the theme does not need and package it again."
+msgstr "Este tema pasa del límite de %(max)s bytes, comprimido o sin comprimir. Saca lo que el tema no necesite y vuelve a empaquetarlo."
+
+#, fuzzy
+msgid "This zip holds %(entries)s files, more than the %(max)s a theme may carry. Package only the built theme."
+msgstr "Este zip lleva %(entries)s archivos, más de los %(max)s que puede llevar un tema. Empaqueta solo el tema ya construido."
+
+#, fuzzy
+msgid "Change role"
+msgstr "Cambiar el rol"
+
+#, fuzzy
+msgid "Change the role of %(name)s"
+msgstr "Cambiar el rol de %(name)s"
+
+#, fuzzy
+msgid "Choose the role of %(name)s."
+msgstr "Elige el rol de %(name)s."
+
+msgid "Nothing declares that role."
+msgstr "Nada declara ese rol."
+
+#, fuzzy
+msgid "Role changed."
+msgstr "Rol cambiado."
+
+#, fuzzy
+msgid "Somebody must be able to manage users."
+msgstr "Alguien tiene que poder gestionar los usuarios."
+
+#, fuzzy
+msgid "Sorry, you are not allowed to access this page."
+msgstr "Lo siento, no tienes permisos para acceder a esta página."
+
+#, fuzzy
+msgid "That role holds more than your own."
+msgstr "Ese rol abarca más que el tuyo."
+
+#, fuzzy
+msgid "The role could not be changed."
+msgstr "No se ha podido cambiar el rol."
+
+#, fuzzy
+msgid "Visit Site"
+msgstr "Visitar el sitio"
+
+#, fuzzy
+msgid "You cannot change your own role."
+msgstr "No puedes cambiar tu propio rol."
+
+#, fuzzy
+msgid "Your role does not allow %(capability)s."
+msgstr "Tu rol no permite %(capability)s."
+
+#, fuzzy
+msgid "\"%s\" uploaded."
+msgstr "«%s» subido."
+
+#, fuzzy
+msgid "%(file)s: %(reason)s"
+msgstr "%(file)s: %(reason)s"
+
+#, fuzzy
+msgid "Add one with Upload media."
+msgstr "Añade uno con Subir medios."
+
+#, fuzzy
+msgid "Delete \"%(type)s\"?"
+msgstr "¿Borrar «%(type)s»?"
+
+#, fuzzy
+msgid "Drop files to upload"
+msgstr "Arrastra los archivos para subirlos"
+
+#, fuzzy
+msgid "Manage the categories on this site."
+msgstr "Gestiona las categorías de este sitio."
+
+#, fuzzy
+msgid "Manage the images and files this site holds."
+msgstr "Gestiona las imágenes y los archivos que hay en este sitio."
+
+#, fuzzy
+msgid "Manage the pages on this site."
+msgstr "Gestiona las páginas de este sitio."
+
+#, fuzzy
+msgid "Manage the posts on this site."
+msgstr "Gestiona las entradas de este sitio."
+
+#, fuzzy
+msgid "No media items found."
+msgstr "No se han encontrado archivos de medios."
+
+#, fuzzy
+msgid "No media items yet."
+msgstr "Todavía no hay archivos de medios."
+
+#, fuzzy
+msgid "There is nothing at this address. Check the link and try again."
+msgstr "No hay nada en esta dirección. Comprueba el enlace e inténtalo de nuevo."
+
+#, fuzzy
+msgid "This cannot be undone."
+msgstr "Esto no se puede deshacer."
+
+#, fuzzy
+msgid "Upload media"
+msgstr "Subir medios"
+
+#, fuzzy
+msgid "Upload theme"
+msgstr "Subir tema"
+
+#, fuzzy
+msgid "Uploaded %s file."
+msgid_plural "Uploaded %s files."
+msgstr[0] "%s archivo subido."
+msgstr[1] "%s de archivos subidos."
+msgstr[2] "%s archivos subidos."
 
 msgctxt "account"
 msgid "Status"
@@ -1483,11 +2203,6 @@ msgctxt "field type"
 msgid "Date"
 msgstr "Fecha"
 
-#, fuzzy
-msgctxt "field type"
-msgid "Color"
-msgstr "Color"
-
 msgctxt "field type"
 msgid "Kind"
 msgstr "Tipo"
@@ -1495,11 +2210,6 @@ msgstr "Tipo"
 msgctxt "field type"
 msgid "Media"
 msgstr "Medio"
-
-#, fuzzy
-msgctxt "field type"
-msgid "Link"
-msgstr "Enlace"
 
 #, fuzzy
 msgctxt "field type"
@@ -1521,6 +2231,36 @@ msgctxt "field type"
 msgid "Select"
 msgstr "Desplegable"
 
+#, fuzzy
+msgctxt "field type"
+msgid "Flexible content"
+msgstr "Contenido flexible"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Layout"
+msgstr "Diseño"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Repeater"
+msgstr "Repetidor"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Section"
+msgstr "Sección"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Color"
+msgstr "Color"
+
+#, fuzzy
+msgctxt "field type"
+msgid "Link"
+msgstr "Enlace"
+
 msgctxt "media family"
 msgid "Kind"
 msgstr "Clase"
@@ -1532,6 +2272,11 @@ msgstr "Nombre"
 msgctxt "post"
 msgid "Status"
 msgstr "Estado"
+
+#, fuzzy
+msgctxt "post"
+msgid "%s (Copy)"
+msgstr "%s (copia)"
 
 msgctxt "post status"
 msgid "Draft"
@@ -1574,627 +2319,14 @@ msgid "No role"
 msgstr "Sin rol"
 
 #, fuzzy
+msgctxt "role"
+msgid "Member"
+msgstr "Miembro"
+
+#, fuzzy
 msgctxt "field group"
 msgid "Status"
 msgstr "Estado"
-
-#, fuzzy
-msgid "Add"
-msgstr "Añadir"
-
-#, fuzzy
-msgid "Other"
-msgstr "Otro"
-
-#, fuzzy
-msgid "Add row"
-msgstr "Añadir fila"
-
-#, fuzzy
-msgid "Add field to %(field)s"
-msgstr "Añadir campo a %(field)s"
-
-#, fuzzy
-msgctxt "field type"
-msgid "Section"
-msgstr "Sección"
-
-#, fuzzy
-msgctxt "field type"
-msgid "Repeater"
-msgstr "Repetidor"
-
-#, fuzzy
-msgid "Remove row"
-msgstr "Quitar fila"
-
-#, fuzzy
-msgid "%(field)s needs at least %(limit)s rows. Add one and save again."
-msgstr "%(field)s necesita al menos %(limit)s filas. Añade una y guarda de nuevo."
-
-#, fuzzy
-msgid "%(field)s needs at least %(limit)s files. Add one and save again."
-msgstr "%(field)s necesita al menos %(limit)s archivos. Añade uno y guarda de nuevo."
-
-#, fuzzy
-msgid "%(field)s takes at most %(limit)s rows. Remove one and save again."
-msgstr "%(field)s admite como mucho %(limit)s filas. Quita una y guarda de nuevo."
-
-#, fuzzy
-msgid ""
-"This kind of field holds no fields inside it. Put the field in a section or "
-"a repeater instead."
-msgstr ""
-"Este tipo de campo no contiene campos dentro. Pon el campo en una sección o "
-"en un repetidor."
-
-#, fuzzy
-msgid "Posts per page"
-msgstr "Entradas por página"
-
-#, fuzzy
-msgid "Picture quality"
-msgstr "Calidad de imagen"
-
-#, fuzzy
-msgid "Choose how the site serves its content."
-msgstr "Elige cómo el sitio sirve su contenido."
-
-#, fuzzy
-msgid "A theme naming its own page size uses that instead."
-msgstr "Un tema que indica su propio tamaño de página usa ese en su lugar."
-
-#, fuzzy
-msgid ""
-"A higher quality stores larger files, and it applies to pictures uploaded "
-"from now on."
-msgstr ""
-"Una calidad más alta almacena archivos más grandes, y se aplica a las "
-"imágenes que subas a partir de ahora."
-
-#, fuzzy
-msgid ""
-"A listing carries between 1 and %(max)s items, so %(value)s is not a size "
-"Gophenberg takes. Pick a number inside that range."
-msgstr ""
-"Un listado muestra entre 1 y %(max)s elementos, así que %(value)s no es un "
-"tamaño que Gophenberg acepte. Elige un número dentro de ese rango."
-
-#, fuzzy
-msgid ""
-"Picture quality runs from 1 to %(max)s, so %(value)s is not a quality "
-"Gophenberg stores at. Pick a number inside that range."
-msgstr ""
-"La calidad de imagen va de 1 a %(max)s, así que %(value)s no es una calidad "
-"con la que Gophenberg guarde. Elige un número dentro de ese rango."
-
-#, fuzzy
-msgid "Type a whole number in both boxes before saving."
-msgstr "Escribe un número entero en las dos casillas antes de guardar."
-
-#, fuzzy
-msgid "The settings could not be read, so nothing can be changed here yet."
-msgstr ""
-"No se han podido leer los ajustes, así que todavía no se puede cambiar nada "
-"aquí."
-
-#, fuzzy
-msgid "From %(plugin)s"
-msgstr "De %(plugin)s"
-
-#, fuzzy
-msgid "Export definitions"
-msgstr "Exportar definiciones"
-
-#, fuzzy
-msgid ""
-"The %(origin)s plugin declared this, so it can only be changed in that "
-"plugin. Turning it off is still yours to do."
-msgstr ""
-"El plugin %(origin)s lo declaró, así que solo se puede cambiar en ese "
-"plugin. Desactivarlo sigue estando en tu mano."
-
-#, fuzzy
-msgid ""
-"The %(plugin)s plugin declared these fields, so they change only in its "
-"code."
-msgstr ""
-"El plugin %(plugin)s declaró estos campos, así que solo cambian en su "
-"código."
-
-#, fuzzy
-msgid "%(type)s answers on a new address, and stored links move with it."
-msgstr "%(type)s responde en una dirección nueva, y los enlaces guardados se mueven con ella."
-
-#, fuzzy
-msgid "%(field)s cannot move inside itself. Pick a container that is not one of its own."
-msgstr "%(field)s no puede moverse dentro de sí mismo. Elige un contenedor que no sea uno de los suyos."
-
-#, fuzzy
-msgid "Destination"
-msgstr "Destino"
-
-#, fuzzy
-msgid "The values stored under it do not follow."
-msgstr "Los valores guardados debajo no le siguen."
-
-#, fuzzy
-msgid "%(type)s keeps nesting while %(items)s of its items sit inside another. Move those to the top level first, the ones in the trash included."
-msgstr "%(type)s sigue anidando mientras %(items)s de sus elementos están dentro de otro. Muévelos primero al nivel superior, incluidos los de la papelera."
-
-#, fuzzy
-msgid "%(type)s keeps nesting, because some of its items sit inside another."
-msgstr "%(type)s sigue anidando, porque algunos de sus elementos están dentro de otro."
-
-#, fuzzy
-msgid "Its items sit inside one another, so it keeps nesting."
-msgstr "Sus elementos están unos dentro de otros, así que sigue anidando."
-
-#, fuzzy
-msgid "Let items nest"
-msgstr "Permitir anidar"
-
-#, fuzzy
-msgid "Stop nesting"
-msgstr "Dejar de anidar"
-
-#, fuzzy
-msgid "%(type)s becomes the type the site opens on, and the old one takes an address."
-msgstr "%(type)s pasa a ser el tipo con el que abre el sitio, y el anterior toma una dirección."
-
-#, fuzzy
-msgid "A field group key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Rename the group in the file so its key comes out in that shape."
-msgstr "La clave de un grupo de campos tiene que empezar por una letra minúscula y después llevar solo letras minúsculas, números y guiones. Cambia el nombre del grupo en el archivo para que su clave salga con esa forma."
-
-#, fuzzy
-msgid "Add %(name)s"
-msgstr "Añadir %(name)s"
-
-#, fuzzy
-msgid "Change %(name)s"
-msgstr "Cambiar %(name)s"
-
-#, fuzzy
-msgid "Close"
-msgstr "Cerrar"
-
-#, fuzzy
-msgid "Definitions file"
-msgstr "Archivo de definiciones"
-
-#, fuzzy
-msgid "Field"
-msgstr "Campo"
-
-#, fuzzy
-msgid "Field group"
-msgstr "Grupo de campos"
-
-#, fuzzy
-msgid "Import definitions"
-msgstr "Importar definiciones"
-
-#, fuzzy
-msgid "It moves here from another group and keeps its stored values."
-msgstr "Se mueve aquí desde otro grupo y conserva sus valores guardados."
-
-#, fuzzy
-msgid "It moves to another group and keeps its stored values."
-msgstr "Se mueve a otro grupo y conserva sus valores guardados."
-
-#, fuzzy
-msgid "It moves to another group, so its stored values do not follow."
-msgstr "Se mueve a otro grupo, así que sus valores guardados no le siguen."
-
-#, fuzzy
-msgid "Its kind changed, so its stored values go with it."
-msgstr "Su tipo ha cambiado, así que sus valores guardados se van con él."
-
-#, fuzzy
-msgid "Remove %(name)s"
-msgstr "Quitar %(name)s"
-
-#, fuzzy
-msgid "This definitions file is larger than the %(max)s bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
-msgstr "Este archivo de definiciones es mayor que los %(max)s bytes que Gophenberg lee en una petición. Divídelo, o sube el límite con el que funciona tu sitio."
-
-#, fuzzy
-msgid "This file matches the site, so there is nothing to change."
-msgstr "Este archivo coincide con el sitio, así que no hay nada que cambiar."
-
-#, fuzzy
-msgid "This file says it was written in format %(declared)s, which is not a version Gophenberg can read. Export the definitions again from the site they came from."
-msgstr "Este archivo dice estar escrito en el formato %(declared)s, que no es una versión que Gophenberg pueda leer. Vuelve a exportar las definiciones desde el sitio del que vinieron."
-
-#, fuzzy
-msgid "This file was written in format %(declared)s, and this release reads %(served)s. Upgrade the site the file came from, or this one."
-msgstr "Este archivo está escrito en el formato %(declared)s, y esta versión lee %(served)s. Actualiza el sitio del que viene el archivo, o este."
-
-#, fuzzy
-msgid "Two field groups in this file share the key %(key)s. Give one of them a different key and import again."
-msgstr "Dos grupos de campos de este archivo comparten la clave %(key)s. Dale una clave distinta a uno de ellos e importa de nuevo."
-
-#, fuzzy
-msgid "What it points at changed, so its stored values go with it."
-msgstr "Aquello a lo que apunta ha cambiado, así que sus valores guardados se van con él."
-
-#, fuzzy
-msgid "Apply"
-msgstr "Aplicar"
-
-#, fuzzy
-msgid "Done. The site now holds what the file describes."
-msgstr "Hecho. El sitio ya tiene lo que describe el archivo."
-
-#, fuzzy
-msgid "These were left alone, because nobody confirmed losing them."
-msgstr "Estos se han dejado como estaban, porque nadie confirmó perderlos."
-
-#, fuzzy
-msgid "%(name)s belongs to the site now."
-msgstr "%(name)s ya pertenece al sitio."
-
-#, fuzzy
-msgid "%(name)s came from the %(plugin)s plugin, which no longer declares it."
-msgstr "%(name)s vino del plugin %(plugin)s, que ya no lo declara."
-
-#, fuzzy
-msgid "Adopt"
-msgstr "Adoptar"
-
-#, fuzzy
-msgid "The %(plugin)s plugin also declares %(name)s, and the site keeps the key."
-msgstr "El plugin %(plugin)s también declara %(name)s, y el sitio se queda con la clave."
-
-#, fuzzy
-msgid "The %(plugin)s plugin declares %(name)s flat, and the site keeps it nesting while its items sit inside another."
-msgstr "El plugin %(plugin)s declara %(name)s sin anidar, y el sitio lo mantiene anidando mientras sus elementos están dentro de otro."
-
-#, fuzzy
-msgid "Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again."
-msgstr "Gophenberg no tiene ninguna clase de definición llamada %(subject)s, así que no se ha adoptado nada. Recarga la página para que el admin y el servidor vuelvan a coincidir."
-
-#, fuzzy
-msgid "The site may already hold part of this file. Import it again to see what is left."
-msgstr "Puede que el sitio ya tenga parte de este archivo. Impórtalo de nuevo para ver lo que queda."
-
-#, fuzzy
-msgid "The field %(field)s is hidden by its own rules right now, so it cannot hold a value. Show it again before filling it in."
-msgstr "El campo %(field)s está oculto por sus propias reglas ahora mismo, así que no puede guardar ningún valor. Vuelve a mostrarlo antes de rellenarlo."
-
-#, fuzzy
-msgid "The field %(field)s cannot go, because %(by)s reads it. Change %(by)s first."
-msgstr "El campo %(field)s no se puede quitar, porque %(by)s lo lee. Cambia antes %(by)s."
-
-#, fuzzy
-msgid "The rules on %(field)s lead back to %(field)s itself, so nothing can decide whether to show it. Point one of them at another field."
-msgstr "Las reglas de %(field)s vuelven al propio %(field)s, así que nada puede decidir si mostrarlo. Apunta una de ellas a otro campo."
-
-#, fuzzy
-msgid "The field %(source)s cannot hold the value %(value)s, so no rule can compare it. Write a value of the kind %(source)s stores."
-msgstr "El campo %(source)s no puede guardar el valor %(value)s, así que ninguna regla puede compararlo. Escribe un valor de la clase que %(source)s guarda."
-
-#, fuzzy
-msgid "%(field)s shows by its rules now."
-msgstr "%(field)s ahora se muestra según sus reglas."
-
-#, fuzzy
-msgid "%(field)s stands in the list."
-msgstr "%(field)s aparece en la lista."
-
-#, fuzzy
-msgid "%(field)s stays out of the list."
-msgstr "%(field)s se queda fuera de la lista."
-
-#, fuzzy
-msgid "In list"
-msgstr "En la lista"
-
-#, fuzzy
-msgid "Keep %(field)s out of the list"
-msgstr "Dejar %(field)s fuera de la lista"
-
-#, fuzzy
-msgid "Out of list"
-msgstr "Fuera de la lista"
-
-#, fuzzy
-msgid "Rules showing %(field)s"
-msgstr "Reglas que muestran %(field)s"
-
-#, fuzzy
-msgid "Show %(field)s in the list"
-msgstr "Mostrar %(field)s en la lista"
-
-#, fuzzy
-msgid "Showing %(held)s of %(total)s."
-msgstr "Mostrando %(held)s de %(total)s."
-
-#, fuzzy
-msgid "Without a rule this field always shows."
-msgstr "Sin ninguna regla este campo siempre se muestra."
-
-#, fuzzy
-msgid "holds"
-msgstr "contiene"
-
-#, fuzzy
-msgid "holds anything"
-msgstr "contiene algo"
-
-#, fuzzy
-msgid "is above"
-msgstr "es mayor que"
-
-#, fuzzy
-msgid "is below"
-msgstr "es menor que"
-
-#, fuzzy
-msgid "is empty"
-msgstr "está vacío"
-
-#, fuzzy
-msgid "A flexible content field holds layouts, and %(field)s is not one. Add a layout first, then declare the field inside that layout."
-msgstr "Un campo de contenido flexible contiene diseños, y %(field)s no lo es. Añade primero un diseño y después declara el campo dentro de ese diseño."
-
-#, fuzzy
-msgid "A layout stands inside a flexible content field only. Put %(field)s inside one of those instead."
-msgstr "Un diseño solo va dentro de un campo de contenido flexible. Pon %(field)s dentro de uno de ellos."
-
-#, fuzzy
-msgid "A layout stands inside a flexible content field, never on its own. Declare a flexible content field first, then add %(field)s inside it."
-msgstr "Un diseño va dentro de un campo de contenido flexible, nunca por su cuenta. Declara primero un campo de contenido flexible y después añade %(field)s dentro."
-
-#, fuzzy
-msgid "A row of %(field)s has to name the layout it takes. Pick a layout for the row, or remove the row."
-msgstr "Una fila de %(field)s tiene que nombrar el diseño que toma. Elige un diseño para la fila, o quita la fila."
-
-#, fuzzy
-msgid "A row of %(field)s takes one layout and no more. Reload the page and build the row again."
-msgstr "Una fila de %(field)s toma un solo diseño. Recarga la página y crea la fila otra vez."
-
-#, fuzzy
-msgid "Add layout"
-msgstr "Añadir diseño"
-
-#, fuzzy
-msgid "Add layout to %(field)s"
-msgstr "Añadir diseño a %(field)s"
-
-#, fuzzy
-msgid "Fewest rows"
-msgstr "Mínimo de filas"
-
-#, fuzzy
-msgid "Fewest files"
-msgstr "Mínimo de archivos"
-
-#, fuzzy
-msgid "Most rows"
-msgstr "Máximo de filas"
-
-#, fuzzy
-msgid "Most files"
-msgstr "Máximo de archivos"
-
-#, fuzzy
-msgctxt "field type"
-msgid "Flexible content"
-msgstr "Contenido flexible"
-
-#, fuzzy
-msgctxt "field type"
-msgid "Layout"
-msgstr "Diseño"
-
-#, fuzzy
-msgid "Add %(layout)s"
-msgstr "Añadir %(layout)s"
-
-#, fuzzy
-msgid "Move row up"
-msgstr "Subir la fila"
-
-#, fuzzy
-msgid "Move row down"
-msgstr "Bajar la fila"
-
-#, fuzzy
-msgid "A Linked from field stands on its own, not inside a section or a repeater. Declare %(field)s beside the container."
-msgstr "Un campo Enlazado desde va por su cuenta, no dentro de una sección ni de un repetidor. Declara %(field)s junto al contenedor."
-
-#, fuzzy
-msgid "%(field)s reads a relation field that is not there. Pick a group and a relation field it holds."
-msgstr "%(field)s lee un campo de relación que no existe. Elige un grupo y un campo de relación que contenga."
-
-#, fuzzy
-msgid "%(field)s reads a relation pointing at %(type)s, so it would list nothing here. Pick a relation pointing at the items this group is shown on."
-msgstr "%(field)s lee una relación que apunta a %(type)s, así que aquí no mostraría nada. Elige una relación que apunte a los elementos donde se muestra este grupo."
-
-#, fuzzy
-msgid "This request came from a page on another site, so it was refused. Open the admin on this site and try again."
-msgstr "Esta petición vino de una página de otro sitio, así que se rechazó. Abre la administración en este sitio e inténtalo de nuevo."
-
-#, fuzzy
-msgid "What each Linked from field reads"
-msgstr "Qué lee cada campo Enlazado desde"
-
-#, fuzzy
-msgid "It reads a relation inside a container, and only an import can point it elsewhere."
-msgstr "Lee una relación dentro de un contenedor, y solo una importación puede apuntarlo a otro sitio."
-
-#, fuzzy
-msgid "Describe %(type)s"
-msgstr "Describir %(type)s"
-
-#, fuzzy
-msgid "A descriptive summary of the content type."
-msgstr "Un resumen descriptivo del tipo de contenido."
-
-#, fuzzy
-msgid "The item could not be moved to the trash."
-msgstr "No se ha podido mover el elemento a la papelera."
-
-#, fuzzy
-msgid "The item could not be restored."
-msgstr "No se ha podido restaurar el elemento."
-
-#, fuzzy
-msgid "The item could not be permanently deleted."
-msgstr "No se ha podido borrar permanentemente el elemento."
-
-#, fuzzy
-msgid "Permanently delete"
-msgstr "Borrar permanentemente"
-
-#, fuzzy
-msgid "Move %s item to the trash?"
-msgid_plural "Move %s items to the trash?"
-msgstr[0] "¿Mover %s elemento a la papelera?"
-msgstr[1] "¿Mover %s de elementos a la papelera?"
-msgstr[2] "¿Mover %s elementos a la papelera?"
-
-#, fuzzy
-msgid "Delete %s item for good? This cannot be undone."
-msgid_plural "Delete %s items for good? This cannot be undone."
-msgstr[0] "¿Borrar permanentemente %s elemento? Esto no se puede deshacer."
-msgstr[1] "¿Borrar permanentemente %s de elementos? Esto no se puede deshacer."
-msgstr[2] "¿Borrar permanentemente %s elementos? Esto no se puede deshacer."
-
-#, fuzzy
-msgid "Move \"%(title)s\" to the trash?"
-msgstr "¿Mover «%(title)s» a la papelera?"
-
-#, fuzzy
-msgid "Delete \"%(title)s\" for good? This cannot be undone."
-msgstr "¿Borrar permanentemente «%(title)s»? Esto no se puede deshacer."
-
-#, fuzzy
-msgid "\"%s\" moved to the trash."
-msgstr "«%s» trasladado a la papelera."
-
-#, fuzzy
-msgid "%s item moved to the trash."
-msgid_plural "%s items moved to the trash."
-msgstr[0] "%s elemento movido a la papelera."
-msgstr[1] "%s de elementos movidos a la papelera."
-msgstr[2] "%s elementos movidos a la papelera."
-
-#, fuzzy
-msgid "%s item could not be moved to the trash."
-msgid_plural "%s items could not be moved to the trash."
-msgstr[0] "No se ha podido mover %s elemento a la papelera."
-msgstr[1] "No se han podido mover %s de elementos a la papelera."
-msgstr[2] "No se han podido mover %s elementos a la papelera."
-
-#, fuzzy
-msgid "\"%s\" has been restored."
-msgstr "«%s» se ha restaurado."
-
-#, fuzzy
-msgid "%s page has been restored."
-msgid_plural "%s pages have been restored."
-msgstr[0] "Se ha restaurado %s página."
-msgstr[1] "Se han restaurado %s de páginas."
-msgstr[2] "Se han restaurado %s páginas."
-
-#, fuzzy
-msgid "%s post has been restored."
-msgid_plural "%s posts have been restored."
-msgstr[0] "Se ha restaurado %s entrada."
-msgstr[1] "Se han restaurado %s de entradas."
-msgstr[2] "Se han restaurado %s entradas."
-
-#, fuzzy
-msgid "%s item could not be restored."
-msgid_plural "%s items could not be restored."
-msgstr[0] "No se ha podido restaurar %s elemento."
-msgstr[1] "No se han podido restaurar %s de elementos."
-msgstr[2] "No se han podido restaurar %s elementos."
-
-#, fuzzy
-msgid "\"%s\" permanently deleted."
-msgstr "«%s» borrado permanentemente."
-
-#, fuzzy
-msgid "%s item permanently deleted."
-msgid_plural "%s items permanently deleted."
-msgstr[0] "%s elemento borrado permanentemente."
-msgstr[1] "%s de elementos borrados permanentemente."
-msgstr[2] "%s elementos borrados permanentemente."
-
-#, fuzzy
-msgid "%s item could not be permanently deleted."
-msgid_plural "%s items could not be permanently deleted."
-msgstr[0] "No se ha podido borrar permanentemente %s elemento."
-msgstr[1] "No se han podido borrar permanentemente %s de elementos."
-msgstr[2] "No se han podido borrar permanentemente %s elementos."
-
-#, fuzzy
-msgid "The trash could not be emptied."
-msgstr "No se ha podido vaciar la papelera."
-
-#, fuzzy
-msgid "%s item stays in the trash."
-msgid_plural "%s items stay in the trash."
-msgstr[0] "%s elemento sigue en la papelera."
-msgstr[1] "%s de elementos siguen en la papelera."
-msgstr[2] "%s elementos siguen en la papelera."
-
-#, fuzzy
-msgid "Manage the items of this content type."
-msgstr "Gestiona los elementos de este tipo de contenido."
-
-#, fuzzy
-msgid "Search %(type)s…"
-msgstr "Buscar %(type)s…"
-
-#, fuzzy
-msgid "Pending Review"
-msgstr "Pendiente de revisión"
-
-#, fuzzy
-msgid "Published: %s"
-msgstr "Publicado: %s"
-
-#, fuzzy
-msgid "Scheduled: %s"
-msgstr "Programado: %s"
-
-#, fuzzy
-msgid "Modified: %s"
-msgstr "Modificado: %s"
-
-#, fuzzy
-msgctxt "relation target"
-msgid "None"
-msgstr "Ninguno"
-
-#, fuzzy
-msgid "Name"
-msgstr "Nombre"
-
-#, fuzzy
-msgid "Name updated."
-msgstr "Nombre actualizado."
-
-#, fuzzy
-msgid "The name could not be updated."
-msgstr "No se ha podido actualizar el nombre."
-
-#, fuzzy
-msgid "Rename…"
-msgstr "Renombrar…"
-
-#, fuzzy
-msgctxt "verb"
-msgid "Trash…"
-msgstr "Papelera…"
-
-#, fuzzy
-msgid "Permanently delete…"
-msgstr "Borrar permanentemente…"
 
 #, fuzzy
 msgctxt "action label"
@@ -2202,22 +2334,19 @@ msgid "Duplicate"
 msgstr "Duplicar"
 
 #, fuzzy
-msgctxt "post"
-msgid "%s (Copy)"
-msgstr "%s (copia)"
-
-#, fuzzy
-msgid "\"%s\" successfully created."
-msgstr "«%s» creado correctamente."
-
-#, fuzzy
-msgid "The item could not be duplicated."
-msgstr "No se ha podido duplicar el elemento."
-
-#, fuzzy
 msgctxt "action label"
 msgid "Duplicate…"
 msgstr "Duplicar…"
+
+#, fuzzy
+msgctxt "relation target"
+msgid "None"
+msgstr "Ninguno"
+
+#, fuzzy
+msgctxt "verb"
+msgid "Trash…"
+msgstr "Papelera…"
 
 #, fuzzy
 msgctxt "verb"
@@ -2225,159 +2354,9 @@ msgid "View"
 msgstr "Ver"
 
 #, fuzzy
-msgid "The draft could not be created."
-msgstr "No se ha podido crear el borrador."
-
-#, fuzzy
-msgid "No items found."
-msgstr "No se han encontrado elementos."
-
-#, fuzzy
-msgid "No items yet."
-msgstr "Todavía no hay elementos."
-
-#, fuzzy
-msgid "Add one with Add New."
-msgstr "Añade uno con Añadir nuevo."
-
-#, fuzzy
-msgid "Items could not be loaded."
-msgstr "No se han podido cargar los elementos."
-
-#, fuzzy
-msgid "Move to trash?"
-msgstr "¿Mover a la papelera?"
-
-#, fuzzy
-msgid "\"%(title)s\" goes to the trash. You can restore it from the Trash tab."
-msgstr "«%(title)s» va a la papelera. Puedes restaurarlo desde la pestaña Papelera."
-
-#, fuzzy
-msgid "Empty the trash?"
-msgstr "¿Vaciar la papelera?"
-
-#, fuzzy
-msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
-msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
-msgstr[0] "%(count)s elemento de la papelera se borra permanentemente. Esto no se puede deshacer."
-msgstr[1] "Los %(count)s de elementos de la papelera se borran permanentemente. Esto no se puede deshacer."
-msgstr[2] "Los %(count)s elementos de la papelera se borran permanentemente. Esto no se puede deshacer."
-
-#, fuzzy
-msgid "Empty trash"
-msgstr "Vaciar papelera"
-
-#, fuzzy
-msgid "Change role"
-msgstr "Cambiar el rol"
-
-#, fuzzy
-msgid "Change the role of %(name)s"
-msgstr "Cambiar el rol de %(name)s"
-
-#, fuzzy
-msgid "Choose the role of %(name)s."
-msgstr "Elige el rol de %(name)s."
-
-msgid "Nothing declares that role."
-msgstr "Nada declara ese rol."
-
-#, fuzzy
-msgid "Role changed."
-msgstr "Rol cambiado."
-
-#, fuzzy
-msgid "Somebody must be able to manage users."
-msgstr "Alguien tiene que poder gestionar los usuarios."
-
-#, fuzzy
-msgid "That role holds more than your own."
-msgstr "Ese rol abarca más que el tuyo."
-
-#, fuzzy
-msgid "The role could not be changed."
-msgstr "No se ha podido cambiar el rol."
-
-#, fuzzy
-msgid "You cannot change your own role."
-msgstr "No puedes cambiar tu propio rol."
-
-#, fuzzy
-msgid "Your role does not allow %(capability)s."
-msgstr "Tu rol no permite %(capability)s."
-
-#, fuzzy
-msgctxt "role"
-msgid "Member"
-msgstr "Miembro"
-
-#, fuzzy
-msgid "Sorry, you are not allowed to access this page."
-msgstr "Lo siento, no tienes permisos para acceder a esta página."
-
-#, fuzzy
-msgid "Visit Site"
-msgstr "Visitar el sitio"
-
-#, fuzzy
-msgid "Upload media"
-msgstr "Subir medios"
-
-#, fuzzy
-msgid "Upload theme"
-msgstr "Subir tema"
-
-#, fuzzy
-msgid "Drop files to upload"
-msgstr "Arrastra los archivos para subirlos"
-
-#, fuzzy
-msgid "\"%s\" uploaded."
-msgstr "«%s» subido."
-
-#, fuzzy
-msgid "Uploaded %s file."
-msgid_plural "Uploaded %s files."
-msgstr[0] "%s archivo subido."
-msgstr[1] "%s de archivos subidos."
-msgstr[2] "%s archivos subidos."
-
-#, fuzzy
-msgid "%(file)s: %(reason)s"
-msgstr "%(file)s: %(reason)s"
-
-#, fuzzy
-msgid "No media items found."
-msgstr "No se han encontrado archivos de medios."
-
-#, fuzzy
-msgid "No media items yet."
-msgstr "Todavía no hay archivos de medios."
-
-#, fuzzy
-msgid "Add one with Upload media."
-msgstr "Añade uno con Subir medios."
-
-#, fuzzy
-msgid "Delete \"%(type)s\"?"
-msgstr "¿Borrar «%(type)s»?"
-
-#, fuzzy
-msgid "This cannot be undone."
-msgstr "Esto no se puede deshacer."
-
-#, fuzzy
-msgid "Manage the images and files this site holds."
-msgstr "Gestiona las imágenes y los archivos que hay en este sitio."
-
-#, fuzzy
-msgid "There is nothing at this address. Check the link and try again."
-msgstr "No hay nada en esta dirección. Comprueba el enlace e inténtalo de nuevo."
-
-#, fuzzy
-msgctxt "post type singular name"
-msgid "Post"
-msgstr "Entrada"
+msgctxt "post type general name"
+msgid "Pages"
+msgstr "Páginas"
 
 #, fuzzy
 msgctxt "post type general name"
@@ -2385,27 +2364,14 @@ msgid "Posts"
 msgstr "Entradas"
 
 #, fuzzy
-msgid "Manage the posts on this site."
-msgstr "Gestiona las entradas de este sitio."
-
-#, fuzzy
 msgctxt "post type singular name"
 msgid "Page"
 msgstr "Página"
 
 #, fuzzy
-msgctxt "post type general name"
-msgid "Pages"
-msgstr "Páginas"
-
-#, fuzzy
-msgid "Manage the pages on this site."
-msgstr "Gestiona las páginas de este sitio."
-
-#, fuzzy
-msgctxt "taxonomy singular name"
-msgid "Category"
-msgstr "Categoría"
+msgctxt "post type singular name"
+msgid "Post"
+msgstr "Entrada"
 
 #, fuzzy
 msgctxt "taxonomy general name"
@@ -2413,5 +2379,6 @@ msgid "Categories"
 msgstr "Categorías"
 
 #, fuzzy
-msgid "Manage the categories on this site."
-msgstr "Gestiona las categorías de este sitio."
+msgctxt "taxonomy singular name"
+msgid "Category"
+msgstr "Categoría"
