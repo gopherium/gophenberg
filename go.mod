@@ -12,7 +12,7 @@ require (
 	github.com/cucumber/godog v0.16.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/google/uuid v1.6.0
-	github.com/gopherium/framework/dbkit v0.2.0
+	github.com/gopherium/framework/dbkit v0.3.0
 	github.com/gopherium/framework/dbkit/postgres v0.3.0
 	github.com/gopherium/framework/dbkit/sqlite v0.1.0
 	github.com/gopherium/framework/goncierge v0.1.0

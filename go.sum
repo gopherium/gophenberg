@@ -62,8 +62,8 @@ github.com/google/pprof v0.0.0-20260802141513-ef3492d7dac3 h1:LMLX+LgTNWpfvCBdFe
 github.com/google/pprof v0.0.0-20260802141513-ef3492d7dac3/go.mod h1:jl5iWTm0/hd5PjEYEOuwAJ57L/CibdZfrqZ5XA5GrCk=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/gopherium/framework/dbkit v0.2.0 h1:V+Di+B8oGvdmQKPx5q/a/PbgfHOvRAHhCFfQ5g8DojM=
-github.com/gopherium/framework/dbkit v0.2.0/go.mod h1:sGsNkpbHe1LRW7k1qEjTzqbeHVYOnoCI5e1l/81TAvQ=
+github.com/gopherium/framework/dbkit v0.3.0 h1:EkMU4dg6YkiIrn3SJH0oJ2KzLNIXrDMu4K+HHoraEIs=
+github.com/gopherium/framework/dbkit v0.3.0/go.mod h1:sGsNkpbHe1LRW7k1qEjTzqbeHVYOnoCI5e1l/81TAvQ=
 github.com/gopherium/framework/dbkit/postgres v0.3.0 h1:W9SoXXu9Y3YRum5vIG10iBHlMMIhmbuUmOPLmZEnW3U=
 github.com/gopherium/framework/dbkit/postgres v0.3.0/go.mod h1:ZUsvp2lOkhX+08sstBErt+jN6FM5HkhxV7hXgToRd+A=
 github.com/gopherium/framework/dbkit/sqlite v0.1.0 h1:NmfcEuhlV5/SpqqZHHeN1qtA6FBDwERGmYFCHMXy5YA=
