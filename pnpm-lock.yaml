@@ -147,8 +147,8 @@ importers:
         specifier: 0.7.0
         version: 0.7.0(@wordpress/i18n@6.30.0)(gettext-extractor@4.0.6)(react@19.3.1)
       '@gopherium/react-auth':
-        specifier: 0.12.0
-        version: 0.12.0(a5835c01ae64bb1b13002b90bd755989)
+        specifier: 0.13.0
+        version: 0.13.0(a5835c01ae64bb1b13002b90bd755989)
       '@tanstack/react-query':
         specifier: ^5.102.8
         version: 5.104.3(react@19.3.1)
@@ -266,8 +266,8 @@ importers:
         specifier: 0.22.0
         version: 0.22.0(1822312577d2c52107d31b633ac91b30)
       '@gopherium/react-auth':
-        specifier: 0.12.0
-        version: 0.12.0(a5835c01ae64bb1b13002b90bd755989)
+        specifier: 0.13.0
+        version: 0.13.0(a5835c01ae64bb1b13002b90bd755989)
       '@tanstack/react-query':
         specifier: ^5.102.8
         version: 5.104.3(react@19.3.1)
@@ -1330,8 +1330,8 @@ packages:
       react:
         optional: true
 
-  '@gopherium/react-auth@0.12.0':
-    resolution: {integrity: sha512-nrxTW09vbl0i8C76Rd33q50PBz9eRQWpnWVaehVSFczzQIoqP9FU4RJOwxgjThulAfGHyuTzaGXkr/MaePQKrw==}
+  '@gopherium/react-auth@0.13.0':
+    resolution: {integrity: sha512-Ho1aB6x24NEpHkRmTJ3EywpLrNSJJ8El+tz5wQdTRc6bdxt0JLQEAF9RSripvdMUEXrD2p6zG3rIb8H1srWnpw==}
     peerDependencies:
       '@tanstack/react-query': ^5.101.2
       '@testing-library/jest-dom': ^6.9.1 || ^7.0.0
@@ -7024,7 +7024,7 @@ snapshots:
       gettext-extractor: 4.0.6
       react: 19.3.1
 
-  '@gopherium/react-auth@0.12.0(a5835c01ae64bb1b13002b90bd755989)':
+  '@gopherium/react-auth@0.13.0(a5835c01ae64bb1b13002b90bd755989)':
     dependencies:
       '@tanstack/react-query': 5.104.3(react@19.3.1)
       '@wordpress/i18n': 6.30.0
