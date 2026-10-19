@@ -86,7 +86,7 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 			Active: true,
 		})
 	}
-	return installed, nil
+	return ordered(installed), nil
 }
 
 // mark labels each theme with the operator's choice and the one answering, reporting the choice found.
