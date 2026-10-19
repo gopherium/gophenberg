@@ -70,8 +70,8 @@ github.com/gopherium/framework/dbkit/sqlite v0.1.0 h1:NmfcEuhlV5/SpqqZHHeN1qtA6F
 github.com/gopherium/framework/dbkit/sqlite v0.1.0/go.mod h1:43gIZC9JkU/PeAvKLVjEubbe6TOz+1rjIANf615QEOI=
 github.com/gopherium/framework/goncierge v0.1.0 h1:9Zn2zxAuWTrhKeMEHNSncAb1jmjFrkEpVYXGdZrxTG8=
 github.com/gopherium/framework/goncierge v0.1.0/go.mod h1:ekTJKyCbU0s659tjHvH/sjEZfPp2S4iuOGaLRRULZuA=
-github.com/gopherium/framework/gonsole v0.7.0 h1:JluS72WcE6LXcBihJB+5zdhX7IUiLZxv0g059z8T3/U=
-github.com/gopherium/framework/gonsole v0.7.0/go.mod h1:6ZLlrT2q5W8Pk2BrD7WgorL6b68nx2n2OX1Rg8FKwAo=
+github.com/gopherium/framework/gonsole v0.8.0 h1:Qc1juxe0tc9w0mLxOQPFJKT9GfM0ZdJixR3g9NdjCL4=
+github.com/gopherium/framework/gonsole v0.8.0/go.mod h1:6ZLlrT2q5W8Pk2BrD7WgorL6b68nx2n2OX1Rg8FKwAo=
 github.com/gopherium/framework/gonsole/auth v0.8.0 h1:WddQbi5eRQs98tTR8qx2bLg8clDeW99Kz6mM1T03pvQ=
 github.com/gopherium/framework/gonsole/auth v0.8.0/go.mod h1:Lms8wUhRpxvQd3M8kv1tpMS9Pox0Qh/M+1j4HjLq8PE=
 github.com/gopherium/framework/gonsole/auth/postgres v0.2.0 h1:cGYiPUUfa0arwnvLdnWJshgLU/oXF+gYRAhZUvqc8nM=
