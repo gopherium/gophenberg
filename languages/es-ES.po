@@ -51,22 +51,6 @@ msgstr "Activar"
 msgid "Active"
 msgstr "Activo"
 
-#, fuzzy
-msgid "Add Category"
-msgstr "Añadir categoría"
-
-#, fuzzy
-msgid "Add Content Type"
-msgstr "Añadir tipo de contenido"
-
-#, fuzzy
-msgid "Add Page"
-msgstr "Añadir página"
-
-#, fuzzy
-msgid "Add Post"
-msgstr "Añadir entrada"
-
 msgid "Add block"
 msgstr "Añadir bloque"
 
@@ -132,10 +116,6 @@ msgstr "Cambiar la dirección"
 
 msgid "Choose the language the admin reads in."
 msgstr "Elige el idioma en el que se lee el panel de administración."
-
-#, fuzzy
-msgid "Close Settings"
-msgstr "Cerrar ajustes"
 
 msgid "Closed"
 msgstr "Cerrado"
@@ -257,10 +237,6 @@ msgstr "Sigue al navegador"
 msgid "Full Size"
 msgstr "Tamaño completo"
 
-#, fuzzy
-msgid "Gophenberg checked for updates moments ago. Try again later."
-msgstr "Gophenberg ha buscado actualizaciones hace un momento. Inténtalo de nuevo más tarde."
-
 msgid "Gophenberg could not read what your browser sent. Reload the page and try again, and tell whoever looks after your site if it keeps happening."
 msgstr "Gophenberg no ha podido leer lo que ha enviado tu navegador. Recarga la página e inténtalo de nuevo, y avisa a quien gestiona tu sitio si sigue pasando."
 
@@ -359,10 +335,6 @@ msgstr "Navegación"
 
 msgid "Nests"
 msgstr "Anida"
-
-#, fuzzy
-msgid "Add User"
-msgstr "Añadir usuario"
 
 msgid "Newer posts"
 msgstr "Entradas más recientes"
@@ -964,11 +936,9 @@ msgstr "Esta petición llevaba %(attribute)s, que los campos no aceptan. Recarga
 msgid "Yes"
 msgstr "Sí"
 
-#, fuzzy
 msgid " and "
 msgstr " y "
 
-#, fuzzy
 msgid " or "
 msgstr " o "
 
@@ -1047,10 +1017,6 @@ msgstr "Ya existe un campo con ese nombre en los elementos que este grupo alcanz
 #, fuzzy
 msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave it as is, or name the ones to leave out instead."
 msgstr "Una regla que vale para cualquier %(source)s no se puede convertir en exclusión. Déjala como está, o nombra los que quieras dejar fuera."
-
-#, fuzzy
-msgid "Add Field Group"
-msgstr "Añadir grupo de campos"
 
 #, fuzzy
 msgid "Add choice"
@@ -1812,23 +1778,15 @@ msgstr "Qué lee cada campo Enlazado desde"
 msgid "This item is in the trash. Restore it first to work on it again."
 msgstr "Este elemento está en la papelera. Restáuralo primero para volver a trabajar en él."
 
-#, fuzzy
-msgid "Are you sure you want to move \"%s\" to the trash?"
-msgstr "¿Seguro que quieres mover «%s» a la papelera?"
-
-#, fuzzy
 msgid "\"%s\" has been restored."
 msgstr "«%s» se ha restaurado."
 
-#, fuzzy
 msgid "\"%s\" moved to the trash."
 msgstr "«%s» trasladado a la papelera."
 
-#, fuzzy
 msgid "\"%s\" permanently deleted."
 msgstr "«%s» borrado permanentemente."
 
-#, fuzzy
 msgid "\"%s\" successfully created."
 msgstr "«%s» creado correctamente."
 
@@ -1897,25 +1855,18 @@ msgid "A listing carries between 1 and %(max)s items, so %(value)s is not a size
 msgstr "Un listado muestra entre 1 y %(max)s elementos, así que %(value)s no es un tamaño que Gophenberg acepte. Elige un número dentro de ese rango."
 
 #, fuzzy
-msgid "Add one with %(button)s."
-msgstr "Añade un elemento con %(button)s."
-
-#, fuzzy
 msgid "Content nests at most %(max)s levels deep, and this item would sit deeper. Pick a parent closer to the top."
 msgstr "El contenido se anida como mucho %(max)s niveles, y este elemento quedaría más abajo. Elige un nivel superior más cercano al inicio."
 
-#, fuzzy
 msgid "Delete \"%(title)s\" for good? This cannot be undone."
 msgstr "¿Borrar permanentemente «%(title)s»? Esto no se puede deshacer."
 
-#, fuzzy
 msgid "Delete %s item for good? This cannot be undone."
 msgid_plural "Delete %s items for good? This cannot be undone."
 msgstr[0] "¿Borrar permanentemente %s elemento? Esto no se puede deshacer."
 msgstr[1] "¿Borrar permanentemente %s de elementos? Esto no se puede deshacer."
 msgstr[2] "¿Borrar permanentemente %s elementos? Esto no se puede deshacer."
 
-#, fuzzy
 msgid "Delete this %(count)s item for good? This cannot be undone."
 msgid_plural "Delete these %(count)s items for good? This cannot be undone."
 msgstr[0] "¿Borrar este %(count)s elemento para siempre? Esto no se puede deshacer."
@@ -1926,7 +1877,6 @@ msgstr[2] "¿Borrar estos %(count)s elementos para siempre? Esto no se puede des
 msgid "Describe %(type)s"
 msgstr "Describir %(type)s"
 
-#, fuzzy
 msgid "Empty the trash?"
 msgstr "¿Vaciar la papelera?"
 
@@ -1950,11 +1900,9 @@ msgstr "Medio %(id)s"
 msgid "Modified: %s"
 msgstr "Modificado: %s"
 
-#, fuzzy
 msgid "Move \"%(title)s\" to the trash?"
 msgstr "¿Mover «%(title)s» a la papelera?"
 
-#, fuzzy
 msgid "Move %s item to the trash?"
 msgid_plural "Move %s items to the trash?"
 msgstr[0] "¿Mover %s elemento a la papelera?"
@@ -2025,12 +1973,11 @@ msgstr "Buscar %(type)s…"
 msgid "Showing %(held)s of %(total)s."
 msgstr "Mostrando %(held)s de %(total)s."
 
-#, fuzzy
 msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
 msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
-msgstr[0] "%(count)s elemento de la papelera se borra permanentemente. Esto no se puede deshacer."
-msgstr[1] "Los %(count)s de elementos de la papelera se borran permanentemente. Esto no se puede deshacer."
-msgstr[2] "Los %(count)s elementos de la papelera se borran permanentemente. Esto no se puede deshacer."
+msgstr[0] "%(count)s elemento de la papelera se borrará permanentemente. Esto no se puede deshacer."
+msgstr[1] "%(count)s de elementos de la papelera se borrarán permanentemente. Esto no se puede deshacer."
+msgstr[2] "Los %(count)s elementos de la papelera se borrarán permanentemente. Esto no se puede deshacer."
 
 #, fuzzy
 msgid "The draft could not be created."
@@ -2123,7 +2070,6 @@ msgstr "No puedes cambiar tu propio rol."
 msgid "Your role does not allow %(capability)s."
 msgstr "Tu rol no permite %(capability)s."
 
-#, fuzzy
 msgid "\"%s\" uploaded."
 msgstr "«%s» subido."
 
@@ -2131,7 +2077,6 @@ msgstr "«%s» subido."
 msgid "%(file)s: %(reason)s"
 msgstr "%(file)s: %(reason)s"
 
-#, fuzzy
 msgid "Delete \"%(type)s\"?"
 msgstr "¿Borrar «%(type)s»?"
 
@@ -2172,10 +2117,6 @@ msgid "This cannot be undone."
 msgstr "Esto no se puede deshacer."
 
 #, fuzzy
-msgid "Add Media File"
-msgstr "Añadir medios"
-
-#, fuzzy
 msgid "Upload theme"
 msgstr "Subir tema"
 
@@ -2185,6 +2126,50 @@ msgid_plural "Uploaded %s files."
 msgstr[0] "%s archivo subido."
 msgstr[1] "%s de archivos subidos."
 msgstr[2] "%s archivos subidos."
+
+#, fuzzy
+msgid "Close Settings"
+msgstr "Cerrar ajustes"
+
+#, fuzzy
+msgid "Gophenberg checked for updates moments ago. Try again later."
+msgstr "Gophenberg ha buscado actualizaciones hace un momento. Inténtalo de nuevo más tarde."
+
+#, fuzzy
+msgid "Are you sure you want to move \"%s\" to the trash?"
+msgstr "¿Seguro que quieres mover «%s» a la papelera?"
+
+#, fuzzy
+msgid "Add Category"
+msgstr "Añadir categoría"
+
+#, fuzzy
+msgid "Add Content Type"
+msgstr "Añadir tipo de contenido"
+
+#, fuzzy
+msgid "Add Field Group"
+msgstr "Añadir grupo de campos"
+
+#, fuzzy
+msgid "Add Media File"
+msgstr "Añadir medios"
+
+#, fuzzy
+msgid "Add Page"
+msgstr "Añadir página"
+
+#, fuzzy
+msgid "Add Post"
+msgstr "Añadir entrada"
+
+#, fuzzy
+msgid "Add User"
+msgstr "Añadir usuario"
+
+#, fuzzy
+msgid "Add one with %(button)s."
+msgstr "Añade un elemento con %(button)s."
 
 msgctxt "account"
 msgid "Status"
@@ -2275,11 +2260,6 @@ msgstr "Enlace"
 msgctxt "media family"
 msgid "Kind"
 msgstr "Clase"
-
-#, fuzzy
-msgctxt "panel button label"
-msgid "Settings"
-msgstr "Ajustes"
 
 msgctxt "person"
 msgid "Name"
@@ -2398,3 +2378,8 @@ msgstr "Categorías"
 msgctxt "taxonomy singular name"
 msgid "Category"
 msgstr "Categoría"
+
+#, fuzzy
+msgctxt "panel button label"
+msgid "Settings"
+msgstr "Ajustes"
