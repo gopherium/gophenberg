@@ -206,12 +206,41 @@ test('names Empty Trash and its warning in WordPress es_ES words, and counts exa
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 	const dialog = await screen.findByRole('alertdialog', { name: '¿Vaciar la papelera?' })
 	expect(dialog).toHaveTextContent(
-		'Los 2 elementos de la papelera se borran permanentemente. Esto no se puede deshacer.',
+		'Los 2 elementos de la papelera se borrarán permanentemente. Esto no se puede deshacer.',
 	)
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Vaciar papelera' }))
 
 	expect(await screen.findByText('1.000.000 de elementos siguen en la papelera.', { selector: '.godmin-toast' }))
 		.toBeInTheDocument()
+})
+
+test.each([
+	{
+		held: 'one item',
+		total: 1,
+		warning: '1 elemento de la papelera se borrará permanentemente. Esto no se puede deshacer.',
+	},
+	{
+		held: 'an exact million items',
+		total: 1000000,
+		warning: '1.000.000 de elementos de la papelera se borrarán permanentemente. Esto no se puede deshacer.',
+	},
+])('warns about $held in the trash in its own Spanish plural form', async ({ total, warning }) => {
+	server.use(
+		http.get('/api/content', ({ request }) => {
+			const query = new URL(request.url).searchParams
+			const trashed = query.get('status') === 'trash' ? bin : []
+			return HttpResponse.json({ items: trashed, total: query.get('per_page') === '1' ? total : trashed.length })
+		}),
+	)
+	renderAt('/content/post')
+	await openTrashView()
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+
+	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
+
+	expect(await screen.findByRole('alertdialog', { name: '¿Vaciar la papelera?' })).toHaveAccessibleDescription(warning)
 })
 
 test('counts the items the trash holds in the warning', async () => {
