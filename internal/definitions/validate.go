@@ -75,9 +75,13 @@ func importedAs(d TypeDefinition, found bool) content.Type {
 	return beside(wanted, content.Type{}, ActionCreate)
 }
 
-// importFailure returns the reason the declared type was refused, naming the type and its word when the import derived a word the CMS keeps.
+// importFailure returns the reason the declared type was refused, naming the type and its word when the import
+// derived a word the CMS keeps.
 func importFailure(d TypeDefinition, found bool, err error) error {
-	if found || !d.Default || !errors.Is(err, content.ErrRouteWordReserved) {
+	if !errors.Is(err, content.ErrRouteWordReserved) {
+		return err
+	}
+	if found || !d.Default {
 		return err
 	}
 	wanted := importedAs(d, found)
