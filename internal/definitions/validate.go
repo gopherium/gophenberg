@@ -4,6 +4,7 @@ package definitions
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -43,7 +44,7 @@ func validateTypes(declared []TypeDefinition, stored []content.Type) error {
 		}
 		held, found := typeAmong(stored, d.Key)
 		if err := importedAs(d, found).ValidateChange(held); err != nil {
-			return err
+			return importFailure(d, found, err)
 		}
 		if d.Default {
 			if rooted {
@@ -72,6 +73,15 @@ func importedAs(d TypeDefinition, found bool) content.Type {
 		return wanted
 	}
 	return beside(wanted, content.Type{}, ActionCreate)
+}
+
+// importFailure returns the reason the declared type was refused, naming the type and its word when the import derived a word the CMS keeps.
+func importFailure(d TypeDefinition, found bool, err error) error {
+	if found || !d.Default || !errors.Is(err, content.ErrRouteWordReserved) {
+		return err
+	}
+	wanted := importedAs(d, found)
+	return content.DerivedRouteWordReserved(wanted.Key, wanted.PluralLabel, wanted.RouteWord)
 }
 
 // typeFrom returns the content type the declaration stands for.
