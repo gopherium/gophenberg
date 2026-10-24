@@ -20,6 +20,7 @@ import (
 
 	"github.com/gopherium/gophenberg/internal/cron"
 	"github.com/gopherium/gophenberg/internal/postgres"
+	"github.com/gopherium/gophenberg/internal/update"
 	"github.com/gopherium/gophenberg/internal/updater"
 	"github.com/gopherium/gophenberg/internal/version"
 )
@@ -76,6 +77,8 @@ type answeredBackups struct {
 // initializeSiteUpdates binds the steps of the scenarios where an administrator asks the site for its updates to s.
 func initializeSiteUpdates(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Given(`^an earlier update failed at the step "([^"]*)"$`, s.failEarlierUpdate)
+	sc.Given(`^an earlier update from "([^"]*)" to this version failed at the step "([^"]*)"$`, s.failUpdateToThis)
+	sc.Given(`^the last check ran on the build "([^"]*)" and found this version$`, s.checkedOnBuild)
 	sc.Given(`^the operator ran "([^"]*)" and it failed$`, s.ranLineFailing)
 	sc.Given(`^the install root keeps (\d+) database backups, the newest taken at "([^"]*)"$`, s.keepBackups)
 	sc.Given(`^the settings keep (\d+) backups$`, s.keepBackupLimit)
@@ -89,6 +92,8 @@ func initializeSiteUpdates(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Then(`^the site says this install can update itself$`, s.saysItCanUpdate)
 	sc.Then(`^the site says this install cannot update itself, since "([^"]*)"$`, s.saysItCannotUpdate)
 	sc.Then(`^the site names no refused version and no update$`, s.namesNothingRefused)
+	sc.Then(`^the site names no update on offer$`, s.namesNoOffer)
+	sc.Then(`^the site names no failure$`, s.namesNoFailure)
 	sc.Then(`^the site names "([^"]*)" as refused$`, s.namesRefused)
 	sc.Then(`^the site names the update from this version to "([^"]*)" at the step "([^"]*)"$`, s.namesUpdate)
 	sc.Then(`^the site names when the update from this version to "([^"]*)" failed, at the step "([^"]*)", `+
@@ -107,6 +112,40 @@ func (s *operatorScenario) failEarlierUpdate(step string) error {
 			At: time.Now().Add(-time.Hour).UTC(), Step: updater.Step(step), Error: "an earlier update failed",
 		}
 	})
+}
+
+// failUpdateToThis records that an earlier update from the build from to this version failed an hour ago at step.
+func (s *operatorScenario) failUpdateToThis(from, step string) error {
+	return editState(s.env[installRootSetting], func(state *updater.State) {
+		state.Failure = &updater.JobFailure{
+			At: time.Now().Add(-time.Hour).UTC(), From: from, To: version.Version(), Step: updater.Step(step),
+			Error: "an earlier update failed",
+		}
+	})
+}
+
+// checkedOnBuild stores what a check by the build running found on an update site offering this version.
+func (s *operatorScenario) checkedOnBuild(ctx context.Context, running string) error {
+	s.offerUpdate(version.Version())
+	address, addressErr := update.ParseAddress(s.site.address)
+	roots, rootsErr := update.ParseRoots(s.site.trustedRoots())
+	pool, poolErr := pgxpool.New(ctx, s.env["GOPHENBERG_DATABASE_URL"])
+	if err := errors.Join(addressErr, rootsErr, poolErr); err != nil {
+		return err
+	}
+	defer pool.Close()
+	check := update.Config{
+		Address: address, Channel: "stable", Roots: roots, Client: update.NewClient(siteStartLimit),
+		Site: update.Site{Running: running}, Now: time.Now,
+	}
+	result, err := update.Run(ctx, check, postgres.NewSettingStore(pool))
+	if err != nil {
+		return err
+	}
+	if result.Offer == nil || result.Offer.Version != version.Version() {
+		return fmt.Errorf("the check by %s found %+v, want %s on offer", running, result.Offer, version.Version())
+	}
+	return nil
 }
 
 // ranLineFailing runs the command line and fails unless the command failed.
@@ -266,6 +305,22 @@ func (s *operatorScenario) namesNothingRefused() error {
 	listed := s.updates.Refused != nil && len(s.updates.Refused) == 0
 	if !listed || !strings.Contains(s.updates.body, `"job":null`) {
 		return fmt.Errorf("the site answered %s, want refused [] and job null", s.updates.body)
+	}
+	return nil
+}
+
+// namesNoOffer fails unless the site names no update on offer.
+func (s *operatorScenario) namesNoOffer() error {
+	if !strings.Contains(s.updates.body, `"offer":null`) {
+		return fmt.Errorf("the site answered %s, want offer null", s.updates.body)
+	}
+	return nil
+}
+
+// namesNoFailure fails unless the site names no failure of an update.
+func (s *operatorScenario) namesNoFailure() error {
+	if s.updates.Job != nil && s.updates.Job.Failure != nil {
+		return fmt.Errorf("the site answered %s, want no failure", s.updates.body)
 	}
 	return nil
 }

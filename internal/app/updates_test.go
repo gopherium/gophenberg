@@ -410,6 +410,42 @@ func TestSiteUpdatesOverviewReportsWhatItCannotRead(t *testing.T) {
 	}
 }
 
+func TestSiteUpdatesOverviewDropsAnOfferTheRunningVersionReached(t *testing.T) {
+	t.Parallel()
+
+	for running, kept := range map[string]bool{"0.20.0": true, "0.20.1": false, "0.20.2": false} {
+		got := withoutReachedOffer(update.Result{Offer: &update.Found{Version: "0.20.1"}}, running)
+
+		if (got.Offer != nil) != kept {
+			t.Errorf("withoutReachedOffer() on %s = %+v, want the offer of 0.20.1 kept %v", running, got.Offer, kept)
+		}
+	}
+}
+
+func TestSiteUpdatesOverviewDropsTheFailureOfAnUpdateTheRunningVersionReached(t *testing.T) {
+	t.Parallel()
+
+	failure := &updater.JobFailure{From: "0.20.0", To: "0.20.1", Step: updater.StepDownload}
+	committed := &updater.LastUpdate{Step: updater.StepCommitted, From: "0.19.0", To: "0.20.0", Failure: failure}
+	cleared := &updater.LastUpdate{Step: updater.StepCommitted, From: "0.19.0", To: "0.20.0"}
+	for name, tc := range map[string]struct {
+		job     *updater.LastUpdate
+		running string
+		want    *updater.LastUpdate
+	}{
+		"a failure of an update to a newer version":     {job: committed, running: "0.20.0", want: committed},
+		"a failure of an update to the running version": {job: committed, running: "0.20.1", want: cleared},
+		"a failure alone, to the running version":       {job: &updater.LastUpdate{Failure: failure}, running: "0.20.1"},
+		"no update at all":                              {running: "0.20.1"},
+	} {
+		got := withoutReachedFailure(updater.Overview{Job: tc.job}, tc.running)
+
+		if !reflect.DeepEqual(got.Job, tc.want) {
+			t.Errorf("withoutReachedFailure() with %s = %+v, want %+v", name, got.Job, tc.want)
+		}
+	}
+}
+
 func TestUpdateSummaryNamesTheVersionOnOffer(t *testing.T) {
 	t.Parallel()
 
