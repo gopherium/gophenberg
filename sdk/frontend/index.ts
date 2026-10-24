@@ -48,6 +48,7 @@ export {
 	Notice,
 	SelectControl,
 	Skeleton,
+	Spinner,
 	Stack,
 	Tabs,
 	Text,
@@ -76,6 +77,7 @@ export {
 	trash as trashIcon,
 	undo as undoIcon,
 	chevronUp as upIcon,
+	update as updateIcon,
 	upload as uploadIcon,
 } from '@wordpress/icons'
 export { Dialog } from './dialog'
@@ -99,6 +101,7 @@ export {
 	MANAGE_TYPES,
 	MANAGE_USERS,
 	MEMBER,
+	UPDATE_CORE,
 	sessionMayChange,
 } from './capabilities'
 export { can, useSession } from '@gopherium/react-auth'

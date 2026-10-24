@@ -12,6 +12,7 @@ import {
 	MANAGE_TYPES,
 	MANAGE_USERS,
 	MEMBER,
+	UPDATE_CORE,
 	can,
 	sessionMayChange,
 } from '../index'
@@ -21,9 +22,15 @@ test('a session holds exactly the capabilities it lists, a plugin capability inc
 
 	expect(can(session, MANAGE_THEMES)).toBe(true)
 	expect(can(session, 'events.manage')).toBe(true)
-	for (const capability of [MANAGE_USERS, MANAGE_TYPES, MANAGE_SETTINGS, CHANGE_OTHERS_WORK]) {
+	for (const capability of [MANAGE_USERS, MANAGE_TYPES, MANAGE_SETTINGS, CHANGE_OTHERS_WORK, UPDATE_CORE]) {
 		expect(can(session, capability)).toBe(false)
 	}
+})
+
+test('names the capability updating Gophenberg, which a session holds only when it lists it', () => {
+	expect(UPDATE_CORE).toBe('update_core')
+	expect(can({ ...defaultUser, role: 'admin', capabilities: [UPDATE_CORE] }, UPDATE_CORE)).toBe(true)
+	expect(can({ ...defaultUser, role: 'editor', capabilities: [CHANGE_OTHERS_WORK] }, UPDATE_CORE)).toBe(false)
 })
 
 test('names the capability entering the admin, which a member never holds', () => {

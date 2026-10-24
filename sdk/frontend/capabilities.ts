@@ -33,6 +33,9 @@ export const MANAGE_SETTINGS: Capability = 'manage_settings'
 /** The capability changing content and media another account wrote. */
 export const CHANGE_OTHERS_WORK: Capability = 'change_others_work'
 
+/** The capability checking for and installing a new version of Gophenberg. */
+export const UPDATE_CORE: Capability = 'update_core'
+
 /**
  * Reports whether an account carrying the given capabilities may change work the author owns.
  * @param capabilities - The capabilities the session carries, missing counting as none.

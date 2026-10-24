@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { brush, category, customPostType, language, list, media, page, post, settings } from '@wordpress/icons'
+import { brush, category, customPostType, language, list, media, page, post, settings, update } from '@wordpress/icons'
 import { expect, test } from 'vitest'
 
 import {
@@ -13,6 +13,7 @@ import {
 	pageIcon,
 	postIcon,
 	settingsIcon,
+	updateIcon,
 } from '../index'
 
 test('hands the sidebar rows the glyphs WordPress draws them with', () => {
@@ -25,4 +26,5 @@ test('hands the sidebar rows the glyphs WordPress draws them with', () => {
 	expect(languageIcon).toBe(language)
 	expect(customPostTypeIcon).toBe(customPostType)
 	expect(listIcon).toBe(list)
+	expect(updateIcon).toBe(update)
 })
