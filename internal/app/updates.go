@@ -150,10 +150,41 @@ func (u siteUpdates) Overview(ctx context.Context) (server.UpdatesOverview, erro
 		return server.UpdatesOverview{}, err
 	}
 	reason := updater.CannotUpdate(u.install, u.stamp)
+	running := version.Version()
 	return server.UpdatesOverview{
-		Result: result, Overview: install, Running: version.Version(), CanUpdate: reason == "", CannotUpdate: reason,
-		NextCheck: next,
+		Result: withoutReachedOffer(result, running), Overview: withoutReachedFailure(install, running),
+		Running: running, CanUpdate: reason == "", CannotUpdate: reason, NextCheck: next,
 	}, nil
+}
+
+// withoutReachedOffer returns result without its offer once running is that version or a newer one, as after an update.
+func withoutReachedOffer(result update.Result, running string) update.Result {
+	if result.Offer != nil && !version.Before(running, result.Offer.Version) {
+		result.Offer = nil
+	}
+	return result
+}
+
+// withoutReachedFailure returns install without the failure of an update to running or an older version.
+func withoutReachedFailure(install updater.Overview, running string) updater.Overview {
+	if !failedOnReachedVersion(install.Job, running) {
+		return install
+	}
+	cleared := *install.Job
+	cleared.Failure = nil
+	install.Job = &cleared
+	if cleared.Step == "" {
+		install.Job = nil
+	}
+	return install
+}
+
+// failedOnReachedVersion reports whether job holds the failure of an update to running or an older version.
+func failedOnReachedVersion(job *updater.LastUpdate, running string) bool {
+	if job == nil || job.Failure == nil {
+		return false
+	}
+	return !version.Before(running, job.Failure.To)
 }
 
 // nextCheck returns when the check job runs next, now while it is due, and none while the checks are off.

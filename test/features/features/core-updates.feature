@@ -15,7 +15,9 @@ Feature: Operators and administrators update the core and see where it stands
   A step that fails leaves which update failed, when, at which step and
   why. An administrator asks the site for the same: the version that
   runs, whether this install updates itself, the refused versions, the
-  last update, the backups kept and when the next check runs.
+  last update, the backups kept and when the next check runs. Once the
+  site runs the version a check offered, or the version an update
+  failed to reach, it names neither.
   An administrator also starts an update from the admin. The site runs
   the checks that need no download first and answers at once when one
   refuses. It runs the rest on its own, one update at a time, and once
@@ -202,6 +204,18 @@ Feature: Operators and administrators update the core and see where it stands
     When an administrator asks the site for its updates
     Then the site names "99.0.0" as refused
     And the site names the update from this version to "99.0.0" at the step "rolled-back"
+
+  Scenario: The site names no update once it runs the version the last check offered
+    Given an install root running this version as an official build
+    And the last check ran on the build "0.18.0" and found this version
+    When an administrator asks the site for its updates
+    Then the site names no update on offer
+
+  Scenario: The site names no failure once it runs the version the failed update went to
+    Given an install root running this version as an official build
+    And an earlier update from "0.18.0" to this version failed at the step "download"
+    When an administrator asks the site for its updates
+    Then the site names no failure
 
   Scenario: The site names when, where and why the last update failed
     Given an install root running this version as an official build

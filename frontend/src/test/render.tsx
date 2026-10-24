@@ -7,6 +7,7 @@ import {
 	MANAGE_THEMES,
 	MANAGE_TYPES,
 	MANAGE_USERS,
+	UPDATE_CORE,
 } from '@gophenberg/frontend-sdk'
 import { createAuthQueryClient } from '@gopherium/react-auth'
 import type { User } from '@gopherium/react-auth'
@@ -29,6 +30,7 @@ export const adminCapabilities = [
 	MANAGE_TYPES,
 	MANAGE_SETTINGS,
 	CHANGE_OTHERS_WORK,
+	UPDATE_CORE,
 ]
 
 /** The account tests render as, an administrator unless a test names another role. */

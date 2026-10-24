@@ -71,6 +71,51 @@
 	}
 }
 
+.gophenberg-updates__check {
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.gophenberg-updates__check:disabled {
+	cursor: default;
+}
+
+.gophenberg-updates__last-check {
+	text-wrap: wrap;
+}
+
+.gophenberg-updates__version {
+	white-space: nowrap;
+}
+
+.gophenberg-updates__steps {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-sm);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.gophenberg-updates__steps:focus {
+	outline: none;
+}
+
+.gophenberg-updates__steps > li {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-sm);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.gophenberg-updates__steps > li[aria-current='step'] {
+	color: var(--wpds-color-foreground-content-neutral);
+}
+
 .gophenberg-no-access {
 	box-sizing: border-box;
 	max-width: min(var(--wpds-dimension-surface-width-lg), calc(100% - 2 * var(--wpds-dimension-padding-lg)));

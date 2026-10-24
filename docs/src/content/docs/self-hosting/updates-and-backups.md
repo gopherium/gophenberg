@@ -695,6 +695,81 @@ its start check, it goes back on its own, as
 shows, and the admin can try that version again once you have fixed
 what failed.
 
+### The Updates screen
+
+**Updates** is the last item of the admin menu. It shows to every role
+carrying `update_core`, which `admin` carries. While a newer version
+waits, a small number sits beside **Updates**, and a line above every
+other admin screen names the version and links to the screen. After an
+update fails before it switches builds, a line says the update to that
+version failed to complete and links to the screen to try again. When
+the failed version is the one on offer, only that line shows.
+
+From top to bottom, the screen shows:
+
+- The version that runs, under the title.
+- When the site last checked for a new version, and when the next
+  check runs. **Check again** checks now. A second check within
+  `GOPHENBERG_UPDATES_SCREEN_CHECK_AGE`, one minute unless set, is
+  refused, and the screen asks you to try again later. When
+  `GOPHENBERG_UPDATE_CHECKS` is `false`, the screen says the site does
+  not check on its own.
+- That the site receives no automatic updates. Nothing installs until
+  you press the button.
+- The version on offer and a link to its release notes, or that the
+  site runs the latest version. Before the first good check it says
+  neither, as it cannot know yet. There is no button to install the
+  same version again, since the server refuses a version that is not
+  newer than the one that runs.
+- How many database backups the install root keeps, and when the
+  newest was taken.
+
+**Update to version** asks before it starts, and says what happens if
+the new version does not start. Once you confirm, the warning to back
+up and the sentence above the button go away, and the screen shows each
+step on its own line, the one under way marked: the download, the
+unpacking, the check of the unpacked files, the database backup, the
+restart and the check of the new version. It asks the server where the
+update stands every `GOPHENBERG_UPDATES_SCREEN_PROGRESS_INTERVAL`, 2
+seconds unless set. While the server restarts it cannot answer, so the
+screen keeps asking for up to `GOPHENBERG_UPDATES_SCREEN_RESTART_WAIT`,
+5 minutes unless set. Opening the screen while an update runs shows its
+steps and its ending too.
+
+The update ends in one of five ways:
+
+- **Gophenberg updated successfully.** The open tab still runs the old
+  admin, so press **Reload the admin**.
+- **The update to 1.4.1 failed.** The message adds that Gophenberg went
+  back to 1.4.0 and is running normally, since the new version failed
+  its start check. It stays until you dismiss it. The version stays on
+  offer, and under the line saying it failed its start check, the
+  button now reads **Re-install version 1.4.1**. It tries that version
+  again, as `-retry` does, so fix what failed first.
+- **The update to 1.4.1 failed its start check, and Gophenberg cannot
+  go back to 1.4.0 on its own.** An update that raised the minimum
+  version failed its start check, and the screen says so once the
+  service manager starts the new version again. Run `update:status` to
+  see the backup taken before the update, then restore it or fix what
+  failed, see
+  [an update that raised the minimum version](#an-update-that-raised-the-minimum-version).
+- **The update failed before anything changed.** A step before the
+  switch failed, and the reason follows. The site keeps running the
+  version it ran, and **Update to version** tries again.
+- **Gophenberg has not come back yet.** The wait passed with no answer
+  from the new version. Check that your service manager starts
+  Gophenberg again after exit code 75, and run `update:status` on the
+  server to see where the update stands. The screen keeps asking, and
+  shows how the update ended once Gophenberg answers again.
+
+Two offers show no button. An update that needs a newer PostgreSQL
+names the version it needs. An install that updates by hand, such as
+the Docker image or a binary you built yourself, says why and links to
+this page. An update that raised the minimum version keeps its button,
+and says the backup is required and that the site stays down if the
+new version does not start, see
+[an update that raised the minimum version](#an-update-that-raised-the-minimum-version).
+
 ### The boot guard
 
 At every start, before it opens the database, Gophenberg reads

@@ -131,8 +131,9 @@ test('renders a navigation entry for every active type, core and plugin section'
 
 	const nav = await screen.findByRole('region', { name: 'Navigation' })
 	await within(nav).findByRole('link', { name: 'Posts' })
+	await within(nav).findByRole('link', { name: 'Updates' })
 	expect(within(nav).queryAllByRole('link')).toHaveLength(
-		1 + coreNav.length + plugins.flatMap((plugin) => plugin.nav).length,
+		1 + coreNav.length + 1 + plugins.flatMap((plugin) => plugin.nav).length,
 	)
 })
 

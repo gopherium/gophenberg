@@ -13,6 +13,8 @@ const LIST_SETTINGS = {
 	toast_milliseconds: 6000,
 	toast_name_length: 45,
 	format_locale: 'de-DE',
+	updates_progress_milliseconds: 2000,
+	updates_restart_wait_milliseconds: 300000,
 }
 
 test('reads the settings every list follows, as the server names them', async () => {

@@ -11,4 +11,6 @@ export const siteSettings = {
 	toast_milliseconds: 6000,
 	toast_name_length: 45,
 	format_locale: 'es-ES',
+	updates_progress_milliseconds: 2000,
+	updates_restart_wait_milliseconds: 300000,
 }

@@ -355,7 +355,7 @@ covers `Needs` in full.
 
 A capability is one named permission, such as `notes.manage`. A role
 is a set of capabilities an account holds. The core declares four
-roles, `admin`, `editor`, `author` and `member`, and six
+roles, `admin`, `editor`, `author` and `member`, and seven
 capabilities. A plugin adds its own through `RoleProvider`, which
 returns them as data:
 
@@ -463,8 +463,14 @@ export const plugin = {
 `make generate` wires it in: routes mount inside the admin layout
 and the rows of `nav` appear in the sidebar after the built-in ones.
 Each row is a `MenuItem`: the `label` it shows, the address `to`, and
-an optional `icon` and `capability`. No built-in plugin uses this path
-yet, so expect to be the first through it.
+an optional `icon`, `capability` and `count`. No built-in plugin uses
+this path yet, so expect to be the first through it.
+
+A `count` is `{ value, label }`: the number drawn after the label,
+hidden at zero, and the translated sentence a screen reader reads for
+it, such as `1 update available`. The core's Updates row counts the
+update that waits this way. A plugin's `nav` is plain data, so a count
+there stays the same while the admin is open.
 
 A row naming a `capability` shows only to an account whose role
 carries it. The screen still opens from a pasted link, so the Go
@@ -480,6 +486,10 @@ import { can, useSession } from '@gophenberg/frontend-sdk'
 const session = useSession().data
 const manages = can(session, 'hello.manage')
 ```
+
+The SDK names the core's capabilities as constants, such as
+`MANAGE_USERS` and `UPDATE_CORE`, so `can(session, UPDATE_CORE)`
+asks whether the account may update Gophenberg.
 
 A row can open a sub menu of its own, as the Site Editor's Navigation
 row opens the list of menus. Give the route a `staticData.Sidebar`
@@ -552,7 +562,7 @@ admin: `authorIcon`, `backIcon`, `backupIcon`, `brushIcon`,
 `categoryIcon`, `closeIcon`, `customPostTypeIcon`, `downIcon`,
 `languageIcon`, `listIcon`, `listViewIcon`, `mediaIcon`, `pageIcon`,
 `postIcon`, `redoIcon`, `saveIcon`, `settingsIcon`, `sidebarIcon`,
-`sidebarRtlIcon`, `trashIcon`, `undoIcon`, `upIcon` and
+`sidebarRtlIcon`, `trashIcon`, `undoIcon`, `upIcon`, `updateIcon` and
 `uploadIcon`. `authorIcon` is the one an
 author cell shows when the site shows no avatars, `postIcon` the one
 an empty content list shows, `mediaIcon` the one an empty media
@@ -565,8 +575,8 @@ The sidebar rows carry the icons WordPress draws for the same rows:
 `postIcon` for Posts and every type a site adds, `pageIcon` for
 Pages, `categoryIcon` for Categories, `mediaIcon` for Media,
 `brushIcon` for Themes, `customPostTypeIcon` for Content Types,
-`listIcon` for Field Groups, `languageIcon` for Language and
-`settingsIcon` for Settings.
+`listIcon` for Field Groups, `languageIcon` for Language,
+`settingsIcon` for Settings and `updateIcon` for Updates.
 Import them from the SDK, so the admin keeps one copy of the icon set:
 
 ```ts

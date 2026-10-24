@@ -10,6 +10,7 @@ import {
 	pageIcon,
 	postIcon,
 	settingsIcon,
+	updateIcon,
 } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { render, screen, within } from '@testing-library/react'
@@ -75,6 +76,7 @@ test('lists every sidebar row as an item of one list, the types first', async ()
 		'Users',
 		'Language',
 		'Settings',
+		'Updates',
 	])
 })
 
@@ -97,6 +99,7 @@ test('draws each sidebar row with the glyph WordPress draws for it, other types 
 		['Users', people],
 		['Language', languageIcon],
 		['Settings', settingsIcon],
+		['Updates', updateIcon],
 	]
 	for (const [name, glyph] of glyphs) {
 		expect(drawingOf(sidebar.getByRole('link', { name })), name).toBe(drawingOf(glyph))
