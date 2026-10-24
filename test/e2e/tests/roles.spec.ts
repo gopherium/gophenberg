@@ -48,6 +48,7 @@ test.describe('an author', () => {
 		await expect(menu.getByRole('link', { name: 'Users' })).toHaveCount(0)
 		await expect(menu.getByRole('link', { name: 'Themes' })).toHaveCount(0)
 		await expect(menu.getByRole('link', { name: 'Content Types' })).toHaveCount(0)
+		await expect(menu.getByRole('link', { name: /^Updates/ })).toHaveCount(0)
 	})
 
 	test('is returned to the default list from a pasted admin link', async ({ page }) => {
@@ -100,6 +101,7 @@ test.describe('an editor', () => {
 		await expect(menu.getByRole('link', { name: 'Media' })).toBeVisible()
 		await expect(menu.getByRole('link', { name: 'Users' })).toHaveCount(0)
 		await expect(menu.getByRole('link', { name: 'Themes' })).toHaveCount(0)
+		await expect(menu.getByRole('link', { name: /^Updates/ })).toHaveCount(0)
 	})
 
 	test('is refused the theme list by the API', async ({ request }) => {
