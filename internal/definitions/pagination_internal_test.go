@@ -43,3 +43,23 @@ func TestImportKeepsPageReservedUnlessTheTypeAlreadyUsesIt(t *testing.T) {
 		})
 	}
 }
+
+func TestImportNamesTheTypeWhoseLabelGivesAReservedWord(t *testing.T) {
+	t.Parallel()
+
+	declaration := TypeDefinition{
+		Key: "chapter", SingularLabel: "Chapter", PluralLabel: "Media",
+		PageKind: "single", Default: true, Active: true,
+	}
+	err := validateTypes([]TypeDefinition{declaration}, nil)
+
+	if !errors.Is(err, content.ErrRouteWordReserved) {
+		t.Errorf("validateTypes() error = %v, want %v", err, content.ErrRouteWordReserved)
+	}
+	if code, _ := content.CodeOf(err); code != "derived_route_word_reserved" {
+		t.Errorf("code = %q, want derived_route_word_reserved", code)
+	}
+	if held, _ := content.DetailsOf(err); held["type"] != "chapter" || held["name"] != "Media" || held["word"] != "media" {
+		t.Errorf("details = %v, want the type chapter named %q and the word %q", held, "Media", "media")
+	}
+}
