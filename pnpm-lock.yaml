@@ -141,8 +141,8 @@ importers:
         specifier: workspace:*
         version: link:../sdk/frontend
       '@gopherium/godmin':
-        specifier: 0.25.0
-        version: 0.25.0(95cb8e83355dc3cd0ae6db4441fc2ea1)
+        specifier: 0.26.0
+        version: 0.26.0(95cb8e83355dc3cd0ae6db4441fc2ea1)
       '@gopherium/gottext':
         specifier: 0.7.0
         version: 0.7.0(@wordpress/i18n@6.30.0)(gettext-extractor@4.0.6)(react@19.3.1)
@@ -158,6 +158,9 @@ importers:
       '@wordpress/date':
         specifier: 5.57.0
         version: 5.57.0
+      '@wordpress/element':
+        specifier: 9.0.0
+        version: 9.0.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@wordpress/i18n':
         specifier: 6.30.0
         version: 6.30.0
@@ -266,8 +269,8 @@ importers:
   sdk/frontend:
     dependencies:
       '@gopherium/godmin':
-        specifier: 0.25.0
-        version: 0.25.0(95cb8e83355dc3cd0ae6db4441fc2ea1)
+        specifier: 0.26.0
+        version: 0.26.0(95cb8e83355dc3cd0ae6db4441fc2ea1)
       '@gopherium/react-auth':
         specifier: 0.15.0
         version: 0.15.0(2d3f16a3b2e3dd70991c065c2099a2ee)
@@ -1285,8 +1288,8 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@gopherium/godmin@0.25.0':
-    resolution: {integrity: sha512-X1stZFI7Hg1voaruRqjj59HmfLdPblw+9FaioyJZ6fc1nNwYz6m2DwxSJeDPRwdNbVp4RLcMo/fB4l6Us3UUsA==}
+  '@gopherium/godmin@0.26.0':
+    resolution: {integrity: sha512-xRqCoi1nEmP/Nr6f1kOGY0U30OgZ3YRPb3wCFDfa4qxusNQSjIfNUrWP6X+7rj519cclIFl47LdCcBW9mWMVTA==}
     peerDependencies:
       '@tanstack/react-router': ^1.170.44
       '@testing-library/react': ^16.3.2
@@ -7005,7 +7008,7 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@gopherium/godmin@0.25.0(95cb8e83355dc3cd0ae6db4441fc2ea1)':
+  '@gopherium/godmin@0.26.0(95cb8e83355dc3cd0ae6db4441fc2ea1)':
     dependencies:
       '@wordpress/a11y': 4.57.0
       '@wordpress/i18n': 6.30.0
