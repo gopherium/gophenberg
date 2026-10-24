@@ -20,6 +20,7 @@ const TITLES: Record<string, string> = {
 	'/themes': 'Themes',
 	'/language': 'Language',
 	'/settings': 'Settings',
+	'/update-core': 'Gophenberg Updates',
 }
 
 const FRAMED = Object.keys(TITLES)

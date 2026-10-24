@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { CHANGE_OTHERS_WORK, MANAGE_THEMES } from '@gophenberg/frontend-sdk'
+import { CHANGE_OTHERS_WORK, MANAGE_THEMES, UPDATE_CORE } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { defaultUser } from '@gopherium/react-auth/testing'
 import { screen, waitFor } from '@testing-library/react'
@@ -12,7 +12,7 @@ import { warmPostsScreen } from './warm'
 warmPostsScreen()
 
 /** The gated screens, each behind the capability it asks for. */
-const GATED = ['Users', 'Themes', 'Content Types', 'Settings']
+const GATED = ['Users', 'Themes', 'Content Types', 'Settings', 'Updates']
 
 /** The screens every signed in role reaches. */
 const OPEN = ['Media', 'Language']
@@ -119,4 +119,28 @@ test('leaves an administrator on the gated screen it asked for', async () => {
 	renderAt('/users', holding('admin', adminCapabilities))
 
 	expect(await screen.findByRole('heading', { name: 'Users' })).toBeInTheDocument()
+})
+
+test('shows a role carrying only the update capability the Updates screen alone', async () => {
+	renderAt('/', holding('maintainer', [UPDATE_CORE]))
+
+	await screen.findByRole('link', { name: 'Media' })
+
+	expect(screen.getByRole('link', { name: 'Updates' })).toHaveAttribute('href', '/admin/update-core')
+	for (const label of GATED.filter((gated) => gated !== 'Updates')) {
+		expect(screen.queryByRole('link', { name: label })).toBeNull()
+	}
+})
+
+test('leaves a role carrying the update capability on the Updates screen it asked for', async () => {
+	renderAt('/update-core', holding('maintainer', [UPDATE_CORE]))
+
+	expect(await screen.findByRole('heading', { level: 2, name: 'Gophenberg Updates' })).toBeInTheDocument()
+})
+
+test('answers a deep link into the Updates screen without update_core by opening the default list', async () => {
+	renderAt('/update-core', holding('editor', [CHANGE_OTHERS_WORK]))
+
+	expect(await screen.findByRole('heading', { name: 'Posts', level: 2 })).toBeInTheDocument()
+	await waitFor(() => expect(screen.queryByRole('heading', { name: 'Gophenberg Updates' })).toBeNull())
 })

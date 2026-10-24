@@ -12,7 +12,7 @@ import {
 import type { RouterHistory } from '@tanstack/react-router'
 import { __ } from '@wordpress/i18n'
 
-import { MANAGE_SETTINGS, MANAGE_THEMES, MANAGE_TYPES, MANAGE_USERS } from '@gophenberg/frontend-sdk'
+import { MANAGE_SETTINGS, MANAGE_THEMES, MANAGE_TYPES, MANAGE_USERS, UPDATE_CORE } from '@gophenberg/frontend-sdk'
 
 import { adminBasepath } from './basepath'
 import { CapabilityGate } from './CapabilityGate'
@@ -122,6 +122,13 @@ const settingsRoute = createRoute({
 	component: lazyRouteComponent(() => import('./settings/SettingsScreen'), 'SettingsScreen'),
 })
 
+const updatesRoute = createRoute({
+	getParentRoute: () => adminRoute,
+	path: '/update-core',
+	staticData: { capability: UPDATE_CORE },
+	component: lazyRouteComponent(() => import('./updates/UpdatesScreen'), 'UpdatesScreen'),
+})
+
 const editorRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/content/$typeKey/$postId/edit',
@@ -141,6 +148,7 @@ const routeTree = rootRoute.addChildren([
 			newUserRoute,
 			themesRoute,
 			settingsRoute,
+			updatesRoute,
 		]),
 		...plugins.flatMap((plugin) => plugin.routes(framedRoute)),
 	]),

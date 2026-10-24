@@ -10,6 +10,7 @@ import { afterAll, beforeEach } from 'vitest'
 import { DEFAULT_LOCALE } from '../i18n/catalog'
 import { DOMAIN } from '../i18n/start'
 import { siteSettings } from './siteSettings'
+import { upToDate } from './updatesOverview'
 
 installTestEnvironment()
 configure({ asyncUtilTimeout: 2000 })
@@ -38,6 +39,7 @@ beforeEach(() => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [builtInType] })))
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [] })))
 	server.use(http.get('/api/groups/params', () => HttpResponse.json({ items: [] })))
+	server.use(http.get('/api/updates', () => HttpResponse.json(upToDate)))
 	server.use(http.get('/api/content/:id/autosave', () => HttpResponse.json({}, { status: 404 })))
 	server.use(
 		http.post('/api/content/:id/autosave', async ({ request, params }) =>

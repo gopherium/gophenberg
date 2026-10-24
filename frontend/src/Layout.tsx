@@ -11,6 +11,8 @@ import { __, sprintf } from '@wordpress/i18n'
 import { useContentNav, useDefaultType } from './content/nav'
 import { coreNav } from './menu/coreNav'
 import { plugins } from './plugins'
+import { useUpdatesMenuItem } from './updates/nav'
+import { UpdateNag } from './updates/UpdateNag'
 import { useAppVersion } from './version'
 
 /**
@@ -38,12 +40,12 @@ export function Layout() {
 			>
 				<Navigation
 					title={'Gophenberg'}
-					items={[...useContentNav(), ...coreNav, ...plugins.flatMap((plugin) => plugin.nav)]}
+					items={[...useContentNav(), ...coreNav, useUpdatesMenuItem(), ...plugins.flatMap((plugin) => plugin.nav)]}
 					home={useHome()}
 					can={(capability) => can(session, capability)}
 				/>
 			</Frame.Sidebar>
-			<Frame.Canvas canvas={useCanvas()}>
+			<Frame.Canvas canvas={useCanvas()} notices={<UpdateNag />}>
 				<Outlet />
 			</Frame.Canvas>
 		</Frame.Root>
