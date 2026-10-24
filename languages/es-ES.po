@@ -2114,6 +2114,221 @@ msgid "This is a custom build of Gophenberg, so it updates by hand."
 msgstr "Esta es una compilación propia de Gophenberg, así que se actualiza a mano."
 
 #, fuzzy
+msgid "Updates"
+msgstr "Actualizaciones"
+
+#, fuzzy
+msgid "%s update available"
+msgid_plural "%s updates available"
+msgstr[0] "%s actualización disponible"
+msgstr[1] "%s de actualizaciones disponibles"
+msgstr[2] "%s actualizaciones disponibles"
+
+#, fuzzy
+msgid "<notes>Gophenberg %(version)s</notes> is available! <update>Please update now</update>."
+msgstr "¡Ya está disponible <notes>Gophenberg %(version)s</notes>! <update>Por favor, actualiza ahora</update>."
+
+#, fuzzy
+msgid "The update to Gophenberg %(version)s failed to complete. <retry>Please attempt the update again now</retry>."
+msgstr "No se ha podido completar la actualización a Gophenberg %(version)s. Por favor, <retry>vuelve a intentarlo</retry>."
+
+#, fuzzy
+msgid "Gophenberg Updates"
+msgstr "Actualizaciones de Gophenberg"
+
+#, fuzzy
+msgid "Current version: %(version)s"
+msgstr "Versión actual: %(version)s"
+
+#, fuzzy
+msgid "Last checked on %(date)s at %(time)s."
+msgstr "Última comprobación el %(date)s a las %(time)s."
+
+#, fuzzy
+msgid "Check again."
+msgstr "Comprobar de nuevo."
+
+#, fuzzy
+msgid "Gophenberg has not checked for updates yet."
+msgstr "Gophenberg todavía no ha buscado actualizaciones."
+
+#, fuzzy
+msgid "Check now."
+msgstr "Comprobar ahora."
+
+#, fuzzy
+msgid "The next check runs in %(time)s."
+msgstr "La próxima comprobación será dentro de %(time)s."
+
+#, fuzzy
+msgid "%s minute"
+msgid_plural "%s minutes"
+msgstr[0] "%s minuto"
+msgstr[1] "%s de minutos"
+msgstr[2] "%s minutos"
+
+#, fuzzy
+msgid "%s hour"
+msgid_plural "%s hours"
+msgstr[0] "%s hora"
+msgstr[1] "%s de horas"
+msgstr[2] "%s horas"
+
+#, fuzzy
+msgid "%s day"
+msgid_plural "%s days"
+msgstr[0] "%s día"
+msgstr[1] "%s de días"
+msgstr[2] "%s días"
+
+#, fuzzy
+msgid "This site does not check for updates on its own."
+msgstr "Este sitio no busca actualizaciones por su cuenta."
+
+#, fuzzy
+msgid "The check on %(date)s at %(time)s failed: %(error)s"
+msgstr "La comprobación del %(date)s a las %(time)s ha fallado: %(error)s"
+
+#, fuzzy
+msgid "No new updates found."
+msgstr "No se han encontrado actualizaciones nuevas."
+
+#, fuzzy
+msgid "This site will not receive automatic updates for new versions of Gophenberg."
+msgstr "Este sitio no recibirá actualizaciones automáticas de nuevas versiones de Gophenberg."
+
+#, fuzzy
+msgid "An updated version of Gophenberg is available."
+msgstr "Hay disponible una versión actualizada de Gophenberg."
+
+#, fuzzy
+msgid "You have the latest version of Gophenberg."
+msgstr "Tienes la última versión de Gophenberg."
+
+#, fuzzy
+msgid "<strong>Important:</strong> Before updating, please <backup>back up your database and files</backup>. For help with updates, visit the <docs>Updating Gophenberg</docs> documentation page."
+msgstr "<strong>Importante:</strong> Antes de actualizar, por favor, <backup>haz una copia de seguridad de tu base de datos y de los archivos</backup>. Para obtener ayuda con las actualizaciones, visita la página de documentación <docs>Actualización de Gophenberg</docs>."
+
+#, fuzzy
+msgid "You can update from Gophenberg %(running)s to <notes>Gophenberg %(version)s</notes> manually:"
+msgstr "Puedes actualizar desde Gophenberg %(running)s a <notes>Gophenberg %(version)s</notes> manualmente:"
+
+#, fuzzy
+msgid "You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version %(postgresql)s or higher."
+msgstr "No puedes actualizar porque <notes>Gophenberg %(version)s</notes> necesita la versión %(postgresql)s o superior de PostgreSQL."
+
+#, fuzzy
+msgid "Gophenberg %(version)s failed its start check on this site. Fix what failed before you try it again."
+msgstr "Gophenberg %(version)s no ha superado su comprobación de arranque en este sitio. Corrige lo que ha fallado antes de volver a intentarlo."
+
+#, fuzzy
+msgid "This update needs a backup of the database, and the site stays down if the new version does not start."
+msgstr "Esta actualización necesita una copia de seguridad de la base de datos, y el sitio deja de funcionar si la nueva versión no arranca."
+
+#, fuzzy
+msgid "Update to version %(version)s"
+msgstr "Actualizar a la versión %(version)s"
+
+#, fuzzy
+msgid "Re-install version %(version)s"
+msgstr "Reinstalar la versión %(version)s"
+
+#, fuzzy
+msgid "While your site is being updated, it keeps serving until Gophenberg restarts on the new version."
+msgstr "Mientras tu sitio está siendo actualizado, sigue funcionando hasta que Gophenberg se reinicia con la nueva versión."
+
+#, fuzzy
+msgid "This install of Gophenberg updates by hand."
+msgstr "Esta instalación de Gophenberg se actualiza a mano."
+
+#, fuzzy
+msgid "Follow the steps on the <docs>Updating Gophenberg</docs> documentation page to update by hand."
+msgstr "Sigue los pasos de la página de documentación <docs>Actualización de Gophenberg</docs> para actualizar a mano."
+
+#, fuzzy
+msgid "Backups kept: %(kept)s of %(limit)s, taken on %(date)s at %(time)s."
+msgid_plural "Backups kept: %(kept)s of %(limit)s, the newest on %(date)s at %(time)s."
+msgstr[0] "Copias de seguridad guardadas: %(kept)s de %(limit)s, hecha el %(date)s a las %(time)s."
+msgstr[1] "Copias de seguridad guardadas: %(kept)s de %(limit)s, la más reciente del %(date)s a las %(time)s."
+msgstr[2] "Copias de seguridad guardadas: %(kept)s de %(limit)s, la más reciente del %(date)s a las %(time)s."
+
+#, fuzzy
+msgid "Update to Gophenberg %(version)s?"
+msgstr "¿Actualizar a Gophenberg %(version)s?"
+
+#, fuzzy
+msgid "A backup of the database is taken first, and Gophenberg goes back to %(running)s on its own if the new version does not start."
+msgstr "Primero se hace una copia de seguridad de la base de datos, y Gophenberg vuelve a %(running)s por su cuenta si la nueva versión no arranca."
+
+#, fuzzy
+msgid "A backup of the database is taken first, and the site stays down until you restore it if the new version does not start."
+msgstr "Primero se hace una copia de seguridad de la base de datos, y el sitio deja de funcionar hasta que la restaures si la nueva versión no arranca."
+
+#, fuzzy
+msgid "Downloading Gophenberg %(version)s…"
+msgstr "Descargando Gophenberg %(version)s…"
+
+#, fuzzy
+msgid "Unpacking the update…"
+msgstr "Descomprimiendo la actualización…"
+
+#, fuzzy
+msgid "Verifying the unpacked files…"
+msgstr "Verificando los archivos descomprimidos…"
+
+#, fuzzy
+msgid "Backing up the database…"
+msgstr "Haciendo copia de seguridad de la base de datos…"
+
+#, fuzzy
+msgid "Restarting Gophenberg…"
+msgstr "Reiniciando Gophenberg…"
+
+#, fuzzy
+msgid "Checking the new version…"
+msgstr "Comprobando la nueva versión…"
+
+#, fuzzy
+msgid "Gophenberg updated successfully."
+msgstr "Gophenberg se ha actualizado correctamente."
+
+#, fuzzy
+msgid "Reload the admin"
+msgstr "Recargar la administración"
+
+#, fuzzy
+msgid "The update to %(to)s failed."
+msgstr "La actualización a %(to)s ha fallado."
+
+#, fuzzy
+msgid "Gophenberg went back to %(from)s and is running normally."
+msgstr "Gophenberg ha vuelto a %(from)s y funciona con normalidad."
+
+#, fuzzy
+msgid "The update failed before anything changed."
+msgstr "La actualización ha fallado antes de cambiar nada."
+
+#, fuzzy
+msgid "Gophenberg has not come back yet."
+msgstr "Gophenberg todavía no ha vuelto."
+
+#, fuzzy
+msgid "Gophenberg stopped after the switch so that its service manager, such as systemd, starts the new version. Check that the service manager starts it again after exit code <code>75</code>, and run <code>update:status</code> on the server to see where the update stands."
+msgstr "Gophenberg se ha detenido tras el cambio para que su gestor de servicios, como systemd, arranque la nueva versión. Comprueba que el gestor de servicios lo vuelve a arrancar tras el código de salida <code>75</code>, y ejecuta <code>update:status</code> en el servidor para ver en qué punto está la actualización."
+
+#, fuzzy
+msgid "The updates could not be read, so nothing can be updated here yet."
+msgstr "No se han podido leer las actualizaciones, así que todavía no se puede actualizar nada aquí."
+
+#, fuzzy
+msgid "The update to %(to)s failed its start check, and Gophenberg cannot go back to %(from)s on its own."
+msgstr "La actualización a %(to)s no ha superado su comprobación de arranque, y Gophenberg no puede volver a %(from)s por su cuenta."
+
+#, fuzzy
+msgid "Run <code>update:status</code> on the server to see the backup taken before the update. Then <restore>restore that backup</restore>, or fix what failed and start Gophenberg again."
+msgstr "Ejecuta <code>update:status</code> en el servidor para ver la copia de seguridad hecha antes de la actualización. Después, <restore>restaura esa copia de seguridad</restore>, o corrige lo que ha fallado y vuelve a arrancar Gophenberg."
+
+#, fuzzy
 msgid "Are you sure you want to move \"%s\" to the trash?"
 msgstr "¿Seguro que quieres mover «%s» a la papelera?"
 

@@ -220,6 +220,16 @@ msgid_plural "%s content types permanently deleted."
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "%s day"
+msgid_plural "%s days"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s hour"
+msgid_plural "%s hours"
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "%s item could not be moved to the trash."
 msgid_plural "%s items could not be moved to the trash."
 msgstr[0] ""
@@ -250,6 +260,11 @@ msgid_plural "%s items stay in the trash."
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "%s minute"
+msgid_plural "%s minutes"
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "%s page has been restored."
 msgid_plural "%s pages have been restored."
 msgstr[0] ""
@@ -260,13 +275,30 @@ msgid_plural "%s posts have been restored."
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "%s update available"
+msgid_plural "%s updates available"
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "(no title)"
+msgstr ""
+
+msgid "<notes>Gophenberg %(version)s</notes> is available! <update>Please update now</update>."
+msgstr ""
+
+msgid "<strong>Important:</strong> Before updating, please <backup>back up your database and files</backup>. For help with updates, visit the <docs>Updating Gophenberg</docs> documentation page."
 msgstr ""
 
 msgid "A %(kind)s field does not take a setting called %(setting)s. Remove it and try again."
 msgstr ""
 
 msgid "A Linked from field stands on its own, not inside a section or a repeater. Declare %(field)s beside the container."
+msgstr ""
+
+msgid "A backup of the database is taken first, and Gophenberg goes back to %(running)s on its own if the new version does not start."
+msgstr ""
+
+msgid "A backup of the database is taken first, and the site stays down until you restore it if the new version does not start."
 msgstr ""
 
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
@@ -431,6 +463,9 @@ msgstr ""
 msgid "An item cannot sit inside itself, or inside one of the items nested under it. Pick a parent outside this branch."
 msgstr ""
 
+msgid "An updated version of Gophenberg is available."
+msgstr ""
+
 msgid "Another account wrote this, and only its author, an editor or an administrator may change it. You can still read it."
 msgstr ""
 
@@ -479,6 +514,14 @@ msgstr ""
 msgid "Back to the latest posts"
 msgstr ""
 
+msgid "Backing up the database…"
+msgstr ""
+
+msgid "Backups kept: %(kept)s of %(limit)s, taken on %(date)s at %(time)s."
+msgid_plural "Backups kept: %(kept)s of %(limit)s, the newest on %(date)s at %(time)s."
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "Block"
 msgstr ""
 
@@ -512,7 +555,16 @@ msgstr ""
 msgid "Change the role of %(name)s"
 msgstr ""
 
+msgid "Check again."
+msgstr ""
+
+msgid "Check now."
+msgstr ""
+
 msgid "Checkbox group"
+msgstr ""
+
+msgid "Checking the new version…"
 msgstr ""
 
 msgid "Choices"
@@ -584,6 +636,9 @@ msgid "Create user"
 msgstr ""
 
 msgid "Created"
+msgstr ""
+
+msgid "Current version: %(version)s"
 msgstr ""
 
 msgid "Date added"
@@ -688,6 +743,9 @@ msgstr ""
 msgid "Done. The site now holds what the file describes."
 msgstr ""
 
+msgid "Downloading Gophenberg %(version)s…"
+msgstr ""
+
 msgid "Draft saved."
 msgstr ""
 
@@ -775,10 +833,19 @@ msgstr ""
 msgid "Follow the browser"
 msgstr ""
 
+msgid "Follow the steps on the <docs>Updating Gophenberg</docs> documentation page to update by hand."
+msgstr ""
+
 msgid "From %(plugin)s"
 msgstr ""
 
 msgid "Full Size"
+msgstr ""
+
+msgid "Gophenberg %(version)s failed its start check on this site. Fix what failed before you try it again."
+msgstr ""
+
+msgid "Gophenberg Updates"
 msgstr ""
 
 msgid "Gophenberg cannot start this update: %(reason)s"
@@ -802,6 +869,12 @@ msgstr ""
 msgid "Gophenberg has no autosave of yours for this item. Open the item to see the version that is stored."
 msgstr ""
 
+msgid "Gophenberg has not checked for updates yet."
+msgstr ""
+
+msgid "Gophenberg has not come back yet."
+msgstr ""
+
 msgid "Gophenberg holds no kind of definition called %(subject)s, so nothing was taken over. Reload the page so the admin and the server agree again."
 msgstr ""
 
@@ -809,6 +882,15 @@ msgid "Gophenberg keeps /%(path)s for itself or for another content type, so you
 msgstr ""
 
 msgid "Gophenberg keeps this word for itself, so no content type can answer under it. Pick a different route word."
+msgstr ""
+
+msgid "Gophenberg stopped after the switch so that its service manager, such as systemd, starts the new version. Check that the service manager starts it again after exit code <code>75</code>, and run <code>update:status</code> on the server to see where the update stands."
+msgstr ""
+
+msgid "Gophenberg updated successfully."
+msgstr ""
+
+msgid "Gophenberg went back to %(from)s and is running normally."
 msgstr ""
 
 msgid "Group"
@@ -890,6 +972,9 @@ msgid "Language"
 msgstr ""
 
 msgid "Large"
+msgstr ""
+
+msgid "Last checked on %(date)s at %(time)s."
 msgstr ""
 
 msgid "Let items nest"
@@ -1074,6 +1159,9 @@ msgstr ""
 msgid "No media items yet."
 msgstr ""
 
+msgid "No new updates found."
+msgstr ""
+
 msgid "No page lives at this address."
 msgstr ""
 
@@ -1221,6 +1309,9 @@ msgstr ""
 msgid "Radio group"
 msgstr ""
 
+msgid "Re-install version %(version)s"
+msgstr ""
+
 msgid "Reads from"
 msgstr ""
 
@@ -1228,6 +1319,9 @@ msgid "Redo"
 msgstr ""
 
 msgid "Relation"
+msgstr ""
+
+msgid "Reload the admin"
 msgstr ""
 
 msgid "Remove"
@@ -1260,6 +1354,9 @@ msgstr ""
 msgid "Required"
 msgstr ""
 
+msgid "Restarting Gophenberg…"
+msgstr ""
+
 msgid "Restore"
 msgstr ""
 
@@ -1285,6 +1382,9 @@ msgid "Rules"
 msgstr ""
 
 msgid "Rules showing %(field)s"
+msgstr ""
+
+msgid "Run <code>update:status</code> on the server to see the backup taken before the update. Then <restore>restore that backup</restore>, or fix what failed and start Gophenberg again."
 msgstr ""
 
 msgid "Save"
@@ -1454,6 +1554,9 @@ msgstr ""
 msgid "The built-in renderer is serving the public site."
 msgstr ""
 
+msgid "The check on %(date)s at %(time)s failed: %(error)s"
+msgstr ""
+
 msgid "The content type this field points at is not named in a shape Gophenberg accepts. Give it a key that starts with a lowercase letter and then holds only lowercase letters, numbers and hyphens."
 msgstr ""
 
@@ -1550,6 +1653,9 @@ msgstr ""
 msgid "The new order has to name every field of this content type exactly once. Reload the page and move the fields again."
 msgstr ""
 
+msgid "The next check runs in %(time)s."
+msgstr ""
+
 msgid "The number of revisions to keep has to be a whole number, and it cannot be negative. Enter a different number."
 msgstr ""
 
@@ -1626,6 +1732,21 @@ msgid "The theme %(name)s was built on theme kit %(declared)s, and this site ser
 msgstr ""
 
 msgid "The trash could not be emptied."
+msgstr ""
+
+msgid "The update failed before anything changed."
+msgstr ""
+
+msgid "The update to %(to)s failed its start check, and Gophenberg cannot go back to %(from)s on its own."
+msgstr ""
+
+msgid "The update to %(to)s failed."
+msgstr ""
+
+msgid "The update to Gophenberg %(version)s failed to complete. <retry>Please attempt the update again now</retry>."
+msgstr ""
+
+msgid "The updates could not be read, so nothing can be updated here yet."
 msgstr ""
 
 msgid "The user could not be created."
@@ -1718,6 +1839,9 @@ msgstr ""
 msgid "This install of Gophenberg has no install root, so it updates by hand."
 msgstr ""
 
+msgid "This install of Gophenberg updates by hand."
+msgstr ""
+
 msgid "This is a custom build of Gophenberg, so it updates by hand."
 msgstr ""
 
@@ -1772,16 +1896,25 @@ msgstr ""
 msgid "This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder that %(setting)s points at writable. A read-only mount is the usual cause."
 msgstr ""
 
+msgid "This site does not check for updates on its own."
+msgstr ""
+
 msgid "This site has nowhere to keep themes, so no theme can be installed. Ask whoever looks after your site to point %(setting)s at a folder the server can write to."
 msgstr ""
 
 msgid "This site has nowhere to store uploads, so nothing can be uploaded. Ask whoever looks after your site to point %(setting)s at a folder the server can write to."
 msgstr ""
 
+msgid "This site will not receive automatic updates for new versions of Gophenberg."
+msgstr ""
+
 msgid "This theme is over the limit of %(max)s bytes, packed or unpacked. Leave out what the theme does not need and package it again."
 msgstr ""
 
 msgid "This type will answer under /%(word)s."
+msgstr ""
+
+msgid "This update needs a backup of the database, and the site stays down if the new version does not start."
 msgstr ""
 
 msgid "This zip holds %(entries)s files, more than the %(max)s a theme may carry. Package only the built theme."
@@ -1811,6 +1944,9 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
+msgid "Unpacking the update…"
+msgstr ""
+
 msgid "Unsaved changes"
 msgstr ""
 
@@ -1818,6 +1954,15 @@ msgid "Update"
 msgstr ""
 
 msgid "Update failed."
+msgstr ""
+
+msgid "Update to Gophenberg %(version)s?"
+msgstr ""
+
+msgid "Update to version %(version)s"
+msgstr ""
+
+msgid "Updates"
 msgstr ""
 
 msgid "Upload theme"
@@ -1835,6 +1980,9 @@ msgid "Users could not be loaded."
 msgstr ""
 
 msgid "Value"
+msgstr ""
+
+msgid "Verifying the unpacked files…"
 msgstr ""
 
 msgid "Version"
@@ -1858,6 +2006,9 @@ msgstr ""
 msgid "Where %(group)s appears"
 msgstr ""
 
+msgid "While your site is being updated, it keeps serving until Gophenberg restarts on the new version."
+msgstr ""
+
 msgid "Without a rule this field always shows."
 msgstr ""
 
@@ -1870,7 +2021,16 @@ msgstr ""
 msgid "Yes or no"
 msgstr ""
 
+msgid "You can update from Gophenberg %(running)s to <notes>Gophenberg %(version)s</notes> manually:"
+msgstr ""
+
 msgid "You cannot change your own role."
+msgstr ""
+
+msgid "You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version %(postgresql)s or higher."
+msgstr ""
+
+msgid "You have the latest version of Gophenberg."
 msgstr ""
 
 msgid "Your language"
