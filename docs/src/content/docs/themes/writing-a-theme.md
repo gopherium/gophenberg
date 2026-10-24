@@ -25,6 +25,12 @@ export default defineConfig({
 })
 ```
 
+Leave Astro's `trailingSlash` option at its default. While your
+theme starts or after it crashes, the built-in renderer answers
+instead and sends a listing address that ends in a slash, like
+`/pages/`, to `/pages` for good. A theme that sends `/pages` back to
+`/pages/` would then trap visitors in a loop.
+
 `src/theme.ts` declares what your theme provides:
 
 ```ts

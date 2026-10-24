@@ -10,6 +10,7 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -150,15 +151,59 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		serveError(w)
 		return
 	}
+	if held.Kind == content.KindItem {
+		s.serveItem(w, r, held.Item)
+		return
+	}
+	if moved := s.redirectTarget(r, held); moved != "" {
+		serveRedirect(w, r, moved)
+		return
+	}
 	if held.Kind == content.KindArchive {
 		s.serveList(w, r, held.Type, held.Page)
 		return
 	}
-	if held.Kind == content.KindTerm {
-		s.serveTerm(w, r, held)
-		return
+	s.serveTerm(w, r, held)
+}
+
+// redirectTarget returns the one address a read of a listing page moves to, empty when it stays where it was asked.
+func (s *site) redirectTarget(r *http.Request, held content.Address) string {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return ""
 	}
-	s.serveItem(w, r, held.Item)
+	canonical := canonicalAddress(held)
+	if canonical == r.URL.Path {
+		return ""
+	}
+	there, err := s.addresses.Resolve(r.Context(), canonical)
+	if err != nil || !sameListing(there, held) {
+		return ""
+	}
+	return canonical
+}
+
+// canonicalAddress returns the one address a listing page answers at.
+func canonicalAddress(held content.Address) string {
+	listing := held.Item.Path
+	if held.Kind == content.KindArchive {
+		listing = held.Type.RouteWord
+	}
+	if held.Page > 1 {
+		return numberedPage(listing, held.Page)
+	}
+	return "/" + listing
+}
+
+// sameListing reports whether both addresses hold the same page of the same listing.
+func sameListing(a, b content.Address) bool {
+	return a.Kind == b.Kind && a.Type.Key == b.Type.Key && a.Item.ID == b.Item.ID && a.Page == b.Page
+}
+
+// serveRedirect answers with a permanent redirect to the address and the request's query, with no body.
+func serveRedirect(w http.ResponseWriter, r *http.Request, address string) {
+	target := url.URL{Path: address, RawQuery: r.URL.RawQuery}
+	w.Header()["Content-Type"] = nil
+	http.Redirect(w, r, target.String(), http.StatusMovedPermanently)
 }
 
 // serveTerm renders a term page, the item itself above what points at it.

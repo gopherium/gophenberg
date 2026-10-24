@@ -118,6 +118,58 @@ func theAddressAnswersNotFound(ctx context.Context, address string) error {
 	return w.expect(http.StatusNotFound)
 }
 
+// visitWithoutFollowing asks the public site for an address and keeps a redirect as the answer.
+func visitWithoutFollowing(ctx context.Context, address string) (*world, error) {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := w.running(); err != nil {
+		return nil, err
+	}
+	request, err := http.NewRequest(http.MethodGet, w.site.URL+address, nil)
+	if err != nil {
+		return nil, fmt.Errorf("building the GET %s request: %w", address, err)
+	}
+	staying := *w.client
+	staying.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	if w.answer, err = w.answerFrom(&staying, request); err != nil {
+		return nil, err
+	}
+	return w, nil
+}
+
+// theAddressMovesTo asserts the address sends a visitor on to the target for good.
+func theAddressMovesTo(ctx context.Context, address, target string) error {
+	w, err := visitWithoutFollowing(ctx, address)
+	if err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusMovedPermanently); err != nil {
+		return fmt.Errorf("reading %q: %w", address, err)
+	}
+	if moved := w.answer.header.Get("Location"); moved != target {
+		return fmt.Errorf("%q moves to %q, want %q", address, moved, target)
+	}
+	return nil
+}
+
+// theAddressAnswersWithAnArchivePage asserts the address renders an archive page itself, with no redirect.
+func theAddressAnswersWithAnArchivePage(ctx context.Context, address string) error {
+	w, err := visitWithoutFollowing(ctx, address)
+	if err != nil {
+		return err
+	}
+	if err := w.expect(http.StatusOK); err != nil {
+		return fmt.Errorf("reading %q: %w", address, err)
+	}
+	body := string(w.answer.body)
+	if !strings.Contains(body, "gophenberg-site__pagination") || strings.Contains(body, "gophenberg-site__post-title") {
+		return fmt.Errorf("the page at %q is not an archive page", address)
+	}
+	return nil
+}
+
 // aVisitorResolvesNothingAt asks the resolver about an address nothing holds.
 func aVisitorResolvesNothingAt(ctx context.Context, address string) error {
 	w, err := visit(ctx, "/api/content/v1/resolve?path="+address)
@@ -163,6 +215,8 @@ func initializeContentServing(sc *godog.ScenarioContext) {
 	sc.Then(`^"([^"]*)" answers with "([^"]*)"$`, theAddressAnswersWith)
 	sc.Then(`^"([^"]*)" lists "([^"]*)"$`, theAddressLists)
 	sc.Then(`^"([^"]*)" answers not found$`, theAddressAnswersNotFound)
+	sc.Then(`^"([^"]*)" moves for good to "([^"]*)"$`, theAddressMovesTo)
+	sc.Then(`^"([^"]*)" answers with an archive page, not a redirect$`, theAddressAnswersWithAnArchivePage)
 	sc.Then(`^the answer is never cached$`, theAnswerIsNeverCached)
 	sc.When(`^a visitor reads the content handshake$`, aVisitorReadsTheContentHandshake)
 	sc.When(`^a visitor resolves "([^"]*)"$`, aVisitorResolves)

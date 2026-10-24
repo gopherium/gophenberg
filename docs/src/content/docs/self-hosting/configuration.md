@@ -634,3 +634,12 @@ docker compose run --rm -T gophenberg check
 
 The last row answering 404 from outside is correct behavior, not
 an outage.
+
+The built-in renderer gives each page of a listing one address. A
+visit to page 1, to a page number with leading zeros or to a
+listing address that ends in a slash gets a `301` redirect to the
+plain address, with the query kept. So `/page/1` goes to `/`,
+`/page/02` goes to `/page/2` and `/pages/` goes to `/pages`. Only a
+`GET` or `HEAD` is redirected, and a listing page stays where it
+was asked when other content is stored at its plain address. While
+a theme serves the site, the theme answers these addresses itself.
