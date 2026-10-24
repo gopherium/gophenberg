@@ -97,14 +97,14 @@ function foundRun(overview: UpdatesOverview): UpdateRun | undefined {
 }
 
 /**
- * Reports whether the screen follows a job: under way on the version it left, or failed on the one it went to.
+ * Reports whether the screen follows a job: under way on the version it left, or checking or failed on its new one.
  * @param job - The job the overview names.
  * @param overview - The overview of the updates.
  * @returns True when the screen follows the job.
  */
 function pickedUp(job: UpdateJob, overview: UpdatesOverview): boolean {
-	if (job.step === 'failed') {
-		return job.to === overview.running
+	if (job.to === overview.running) {
+		return job.step === 'failed' || openStep(job, overview.refused)
 	}
 	return job.from === overview.running && openStep(job, overview.refused)
 }

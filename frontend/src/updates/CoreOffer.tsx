@@ -286,16 +286,17 @@ export function BackupsLine({ backups }: { backups: BackupCount }) {
 /**
  * Returns the heading of the core update: one on offer this site takes, the latest version once a check ran, or none.
  * @param overview - The overview of the updates.
- * @returns The heading, or undefined before a check or while the version on offer or running is one this site refuses.
+ * @param moving - Whether the update the screen follows may still move on.
+ * @returns The heading, or undefined before a check, while an update may move on, or while a version is refused.
  */
-function offerHeading(overview: UpdatesOverview): string | undefined {
+function offerHeading(overview: UpdatesOverview, moving: boolean): string | undefined {
 	if (overview.offer !== null) {
 		return refuses(overview, overview.offer.version)
 			? undefined
 			: __('An updated version of Gophenberg is available.', 'gophenberg')
 	}
 	const latest = overview.checked_at !== null && !refuses(overview, overview.running)
-	return latest ? __('You have the latest version of Gophenberg.', 'gophenberg') : undefined
+	return latest && !moving ? __('You have the latest version of Gophenberg.', 'gophenberg') : undefined
 }
 
 /**
@@ -307,7 +308,7 @@ export function CoreOffer(props: OfferProps) {
 	const { overview, view } = props
 	const offer = overview.offer
 	const phase = view?.phase.kind
-	const heading = offerHeading(overview)
+	const heading = offerHeading(overview, mayMoveOn(view))
 	return (
 		<Stack direction="column" gap="md">
 			{heading === undefined ? null : <SectionTitle>{heading}</SectionTitle>}

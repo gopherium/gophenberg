@@ -596,6 +596,20 @@ test('says an update already under way when the screen opens went back once the 
 	expect(await screen.findByText(/Gophenberg went back to 0.20.0/)).toBeInTheDocument()
 })
 
+test.each([
+	['succeeded once it passes', patchRunning('committed'), 'Gophenberg updated successfully.'],
+	['went back once it fails', patchWentBack, 'Gophenberg went back to 0.20.0 and is running normally.'],
+])('says an update the screen opens on while the new version checks itself %s', async (_ending, ended, words) => {
+	const site = siteAnswering(patchRunning('switched'))
+	renderAt('/update-core')
+
+	await underWay('Checking the new version…')
+	expect(screen.queryByRole('heading', { level: 3, name: 'You have the latest version of Gophenberg.' })).toBeNull()
+	site(ended)
+
+	expect(await screen.findByText(words)).toBeInTheDocument()
+})
+
 test('leaves the focus on the menu when Updates opens on an update under way', async () => {
 	siteAnswering(patchAt('stage'))
 	renderAt('/content/post')
