@@ -73,6 +73,33 @@ func (r *Resolver) Resolve(ctx context.Context, raw string) (Address, error) {
 	return r.archiveAt(ctx, address)
 }
 
+// PagedItem returns the post or page an address asks a page number of, or [ErrNotFound].
+func (r *Resolver) PagedItem(ctx context.Context, raw string) (Address, error) {
+	if !storableAddress(raw) {
+		return Address{}, ErrNotFound
+	}
+	address := tidy(raw)
+	word, _, err := listingAt(address)
+	if err != nil {
+		return Address{}, err
+	}
+	if word == address || word == "" {
+		return Address{}, ErrNotFound
+	}
+	item, err := r.content.PublishedByPath(ctx, word)
+	if err != nil {
+		return Address{}, err
+	}
+	held, err := r.itemAt(ctx, item, 1)
+	if err != nil {
+		return Address{}, err
+	}
+	if held.Kind != KindItem {
+		return Address{}, ErrNotFound
+	}
+	return held, nil
+}
+
 // itemAt returns what an item answers with, which is a term page when its type lists its pointers.
 func (r *Resolver) itemAt(ctx context.Context, item Content, page int) (Address, error) {
 	listed, err := r.types.ByKey(ctx, item.Type)
