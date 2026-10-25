@@ -167,3 +167,93 @@ func TestSiteSendsNothingButTheRedirect(t *testing.T) {
 		t.Errorf("GET /page/1 body = %q, want none", recorder.Body.String())
 	}
 }
+
+func TestSiteSendsAPostOrPageToTheOneAddressItAnswersAt(t *testing.T) {
+	t.Parallel()
+
+	hello := publishedPost("Hello World", "hello-world", blockMarkup, time.Now().UTC())
+	about := storedAt("page", "About", "pages/about")
+	handler, _ := siteWith(hello, about)
+
+	for _, tc := range []struct {
+		requested string
+		want      string
+	}{
+		{"/hello-world/", "/hello-world"},
+		{"//hello-world", "/hello-world"},
+		{"/hello-world//", "/hello-world"},
+		{"/hello-world/?utm_source=feed", "/hello-world?utm_source=feed"},
+		{"/pages/about/", "/pages/about"},
+		{"/pages//about", "/pages/about"},
+		{"/hello-world/page/1", "/hello-world"},
+		{"/hello-world/page/2", "/hello-world"},
+		{"/hello-world/page/1/", "/hello-world"},
+		{"/hello-world/page/01?utm_source=feed", "/hello-world?utm_source=feed"},
+		{"/pages/about/page/1", "/pages/about"},
+	} {
+		recorder := get(t, handler, tc.requested)
+
+		if recorder.Code != http.StatusMovedPermanently {
+			t.Errorf("GET %s status = %d, want %d", tc.requested, recorder.Code, http.StatusMovedPermanently)
+		}
+		if got := recorder.Header().Get("Location"); got != tc.want {
+			t.Errorf("GET %s Location = %q, want %q", tc.requested, got, tc.want)
+		}
+	}
+}
+
+func TestSiteKeepsTheAddressesAPostOrPageAlreadyAnswersAt(t *testing.T) {
+	t.Parallel()
+
+	hello := publishedPost("Hello World", "hello-world", blockMarkup, time.Now().UTC())
+	about := storedAt("page", "About", "pages/about")
+	handler, _ := siteWith(hello, about)
+
+	for _, address := range []string{"/", "/hello-world", "/pages/about"} {
+		recorder := get(t, handler, address)
+
+		if recorder.Code != http.StatusOK {
+			t.Errorf("GET %s status = %d, want %d", address, recorder.Code, http.StatusOK)
+		}
+	}
+}
+
+func TestSiteAnswersNotFoundForAPageNumberNothingHangsFrom(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := siteWith(publishedPost("Hello World", "hello-world", blockMarkup, time.Now().UTC()))
+
+	for _, address := range []string{"/hello-world/page/0", "/nowhere/page/1", "/hello-world/page/next"} {
+		recorder := get(t, handler, address)
+
+		if recorder.Code != http.StatusNotFound {
+			t.Errorf("GET %s status = %d, want %d", address, recorder.Code, http.StatusNotFound)
+		}
+	}
+}
+
+func TestSiteRedirectsOnlyAReadOfAPostOrPage(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := siteWith(publishedPost("Hello World", "hello-world", blockMarkup, time.Now().UTC()))
+
+	for _, tc := range []struct {
+		method    string
+		requested string
+		want      int
+	}{
+		{http.MethodGet, "/hello-world/", http.StatusMovedPermanently},
+		{http.MethodHead, "/hello-world/", http.StatusMovedPermanently},
+		{http.MethodPost, "/hello-world/", http.StatusOK},
+		{http.MethodHead, "/hello-world/page/1", http.StatusMovedPermanently},
+		{http.MethodPost, "/hello-world/page/1", http.StatusNotFound},
+	} {
+		recorder := httptest.NewRecorder()
+
+		handler.ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.requested, nil))
+
+		if recorder.Code != tc.want {
+			t.Errorf("%s %s status = %d, want %d", tc.method, tc.requested, recorder.Code, tc.want)
+		}
+	}
+}
