@@ -43,10 +43,11 @@ type UpdatesScreen struct {
 type UpdatesOverview struct {
 	update.Result
 	updater.Overview
-	Running      string         `json:"running"`
-	CanUpdate    bool           `json:"can_update"`
-	CannotUpdate updater.Reason `json:"cannot_update,omitempty"`
-	NextCheck    *time.Time     `json:"next_check"`
+	Running           string         `json:"running"`
+	RunningPostgreSQL *int           `json:"running_postgresql,omitempty"`
+	CanUpdate         bool           `json:"can_update"`
+	CannotUpdate      updater.Reason `json:"cannot_update,omitempty"`
+	NextCheck         *time.Time     `json:"next_check"`
 }
 
 // handleUpdatesGet answers the overview of the updates: what the checks stored beside this binary and its install.
