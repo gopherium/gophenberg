@@ -332,6 +332,27 @@ func TestSiteUpdatesOverviewNamesWhatTheChecksStoredBesideThisBinaryAndItsInstal
 	}
 }
 
+func TestSiteUpdatesOverviewNamesThePostgreSQLMajorThatRunsAndNoneOnSQLite(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		major func(context.Context) (int, error)
+		want  *int
+	}{
+		"a PostgreSQL 15 server": {major: major(15, nil), want: new(15)},
+		"a site on SQLite":       {major: noMajor},
+	} {
+		updates := officialUpdates(t)
+		updates.major = tc.major
+
+		overview, err := updates.Overview(t.Context())
+
+		if err != nil || !reflect.DeepEqual(overview.RunningPostgreSQL, tc.want) {
+			t.Errorf("Overview() on %s names PostgreSQL %v, %v, want %v", name, overview.RunningPostgreSQL, err, tc.want)
+		}
+	}
+}
+
 func TestSiteUpdatesOverviewSaysWhyAnInstallCannotUpdateItself(t *testing.T) {
 	t.Parallel()
 
@@ -393,6 +414,7 @@ func TestSiteUpdatesOverviewReportsWhatItCannotRead(t *testing.T) {
 	for name, change := range map[string]func(*testing.T, *siteUpdates){
 		"a setting store it cannot read": func(_ *testing.T, u *siteUpdates) { u.store = &unreadSettings{} },
 		"a cron store it cannot read":    func(_ *testing.T, u *siteUpdates) { u.slots = unreadSlots{} },
+		"a server major it cannot read":  func(_ *testing.T, u *siteUpdates) { u.major = major(0, errMajor) },
 		"a state file it cannot read": func(t *testing.T, u *siteUpdates) {
 			layout := updater.Layout{Root: u.install.Root}
 			if err := errors.Join(layout.WriteState(updater.State{}), os.WriteFile(layout.StateFile(), []byte("{"),

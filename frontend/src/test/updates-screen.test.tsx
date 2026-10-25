@@ -190,6 +190,21 @@ test('refuses an update the PostgreSQL server is too old for and offers no butto
 	expect(screen.queryByText(/keeps serving until/)).toBeNull()
 })
 
+test('names the PostgreSQL version that runs after refusing an update it is too old for', async () => {
+	await openUpdates({
+		...patchWaiting,
+		running_postgresql: 15,
+		offer: { ...patchOffer, version: '0.21.0', postgresql: 18, needs_postgresql: true },
+	})
+
+	const refused = await paragraph(
+		'You cannot update because Gophenberg 0.21.0 requires PostgreSQL version 18 or higher. ' +
+			'You are running version 15.',
+	)
+
+	expect(within(refused).getByRole('link', { name: 'Gophenberg 0.21.0' })).toBeInTheDocument()
+})
+
 test('says an update past the minimum version needs the backup above the sentence leading to the button', async () => {
 	await openUpdates({ ...patchWaiting, offer: { ...patchOffer, long_jump: true } })
 
