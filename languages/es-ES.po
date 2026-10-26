@@ -5,7 +5,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: POEditor.com\n"
 "X-Domain: gophenberg\n"
-"Project-Id-Version: Gophenberg\n"
+"Project-Id-Version: gophenberg\n"
 "Language: es\n"
 "Plural-Forms: nplurals=3; plural=((n == 1) ? 0 : ((n != 0 && n % 1000000 == 0) ? 1 : 2));\n"
 
@@ -17,10 +17,6 @@ msgstr "%(name)s no se puede usar como nombre de tema. Nombra el archivo zip com
 
 msgid "%(name)s moves to /%(word)s. Every address of both types changes."
 msgstr "El tipo %(name)s pasa a /%(word)s. Cambian todas las direcciones de ambos tipos."
-
-#, fuzzy
-msgid "%(name)s would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again."
-msgstr "El tipo %(name)s pasaría a /%(word)s, que Gophenberg reserva para sí mismo. Cambia su nombre en plural e inténtalo de nuevo."
 
 msgid "(no title)"
 msgstr "(sin título)"
@@ -139,9 +135,8 @@ msgstr "No se ha podido guardar esa entrada."
 msgid "Create user"
 msgstr "Crear usuario"
 
-#, fuzzy
 msgid "Date added"
-msgstr "Fecha de inclusión"
+msgstr "Fecha de subida"
 
 msgid "Deactivate"
 msgstr "Desactivar"
@@ -244,10 +239,6 @@ msgstr "Gophenberg no responde en %(value)s. Elige uno de los idiomas de la list
 
 msgid "Gophenberg has no autosave of yours for this item. Open the item to see the version that is stored."
 msgstr "Gophenberg no tiene ningún guardado automático tuyo de este elemento. Ábrelo para ver la versión guardada."
-
-#, fuzzy
-msgid "Gophenberg keeps /%(path)s for itself or for another content type, so your content cannot answer there. Give the item a different slug."
-msgstr "Gophenberg reserva la dirección /%(path)s para sí mismo o para otro tipo de contenido, así que tu contenido no puede usarla. Dale al elemento otro slug."
 
 msgid "Gophenberg keeps this word for itself, so no content type can answer under it. Pick a different route word."
 msgstr "Gophenberg reserva esta palabra para sí mismo, así que ningún tipo de contenido puede usarla. Elige otra palabra de ruta de URL."
@@ -1877,7 +1868,7 @@ msgstr "Pendiente de revisión"
 
 #, fuzzy
 msgid "Permanently delete…"
-msgstr "Eliminar permanentemente…"
+msgstr "Borrar permanentemente…"
 
 #, fuzzy
 msgid "Picture quality runs from 1 to %(max)s, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range."
@@ -2067,241 +2058,6 @@ msgid "Gophenberg checked for updates moments ago. Try again later."
 msgstr "Gophenberg ha buscado actualizaciones hace un momento. Inténtalo de nuevo más tarde."
 
 #, fuzzy
-msgid "Another update is currently in progress."
-msgstr "En este momento hay otra actualización en marcha."
-
-#, fuzzy
-msgid "Choose the version to update to."
-msgstr "Elige la versión a la que actualizar."
-
-#, fuzzy
-msgid "Gophenberg cannot start this update: %(reason)s"
-msgstr "Gophenberg no puede empezar esta actualización: %(reason)s"
-
-#, fuzzy
-msgid "This install of Gophenberg has no install root, so it updates by hand."
-msgstr "Esta instalación de Gophenberg no tiene raíz de instalación, así que se actualiza a mano."
-
-#, fuzzy
-msgid "This is a custom build of Gophenberg, so it updates by hand."
-msgstr "Esta es una compilación propia de Gophenberg, así que se actualiza a mano."
-
-#, fuzzy
-msgid "Updates"
-msgstr "Actualizaciones"
-
-#, fuzzy
-msgid "%s update available"
-msgid_plural "%s updates available"
-msgstr[0] "%s actualización disponible"
-msgstr[1] "%s de actualizaciones disponibles"
-msgstr[2] "%s actualizaciones disponibles"
-
-#, fuzzy
-msgid "<notes>Gophenberg %(version)s</notes> is available! <update>Please update now</update>."
-msgstr "¡Ya está disponible <notes>Gophenberg %(version)s</notes>! <update>Por favor, actualiza ahora</update>."
-
-#, fuzzy
-msgid "The update to Gophenberg %(version)s failed to complete. <retry>Please attempt the update again now</retry>."
-msgstr "No se ha podido completar la actualización a Gophenberg %(version)s. Por favor, <retry>vuelve a intentarlo</retry>."
-
-#, fuzzy
-msgid "Gophenberg Updates"
-msgstr "Actualizaciones de Gophenberg"
-
-#, fuzzy
-msgid "Current version: %(version)s"
-msgstr "Versión actual: %(version)s"
-
-#, fuzzy
-msgid "Last checked on %(date)s at %(time)s."
-msgstr "Última comprobación el %(date)s a las %(time)s."
-
-#, fuzzy
-msgid "Check again."
-msgstr "Comprobar de nuevo."
-
-#, fuzzy
-msgid "Gophenberg has not checked for updates yet."
-msgstr "Gophenberg todavía no ha buscado actualizaciones."
-
-#, fuzzy
-msgid "Check now."
-msgstr "Comprobar ahora."
-
-#, fuzzy
-msgid "The next check runs in %(time)s."
-msgstr "La próxima comprobación será dentro de %(time)s."
-
-#, fuzzy
-msgid "%s minute"
-msgid_plural "%s minutes"
-msgstr[0] "%s minuto"
-msgstr[1] "%s de minutos"
-msgstr[2] "%s minutos"
-
-#, fuzzy
-msgid "%s hour"
-msgid_plural "%s hours"
-msgstr[0] "%s hora"
-msgstr[1] "%s de horas"
-msgstr[2] "%s horas"
-
-#, fuzzy
-msgid "%s day"
-msgid_plural "%s days"
-msgstr[0] "%s día"
-msgstr[1] "%s de días"
-msgstr[2] "%s días"
-
-#, fuzzy
-msgid "This site does not check for updates on its own."
-msgstr "Este sitio no busca actualizaciones por su cuenta."
-
-#, fuzzy
-msgid "The check on %(date)s at %(time)s failed: %(error)s"
-msgstr "La comprobación del %(date)s a las %(time)s ha fallado: %(error)s"
-
-#, fuzzy
-msgid "No new updates found."
-msgstr "No se han encontrado actualizaciones nuevas."
-
-#, fuzzy
-msgid "This site will not receive automatic updates for new versions of Gophenberg."
-msgstr "Este sitio no recibirá actualizaciones automáticas de nuevas versiones de Gophenberg."
-
-#, fuzzy
-msgid "An updated version of Gophenberg is available."
-msgstr "Hay disponible una versión actualizada de Gophenberg."
-
-#, fuzzy
-msgid "You have the latest version of Gophenberg."
-msgstr "Tienes la última versión de Gophenberg."
-
-#, fuzzy
-msgid "<strong>Important:</strong> Before updating, please <backup>back up your database and files</backup>. For help with updates, visit the <docs>Updating Gophenberg</docs> documentation page."
-msgstr "<strong>Importante:</strong> Antes de actualizar, por favor, <backup>haz una copia de seguridad de tu base de datos y de los archivos</backup>. Para obtener ayuda con las actualizaciones, visita la página de documentación <docs>Actualización de Gophenberg</docs>."
-
-#, fuzzy
-msgid "You can update from Gophenberg %(running)s to <notes>Gophenberg %(version)s</notes> manually:"
-msgstr "Puedes actualizar desde Gophenberg %(running)s a <notes>Gophenberg %(version)s</notes> manualmente:"
-
-#, fuzzy
-msgid "You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version %(postgresql)s or higher."
-msgstr "No puedes actualizar porque <notes>Gophenberg %(version)s</notes> necesita la versión %(postgresql)s o superior de PostgreSQL."
-
-#, fuzzy
-msgid "Gophenberg %(version)s failed its start check on this site. Fix what failed before you try it again."
-msgstr "Gophenberg %(version)s no ha superado su comprobación de arranque en este sitio. Corrige lo que ha fallado antes de volver a intentarlo."
-
-#, fuzzy
-msgid "This update needs a backup of the database, and the site stays down if the new version does not start."
-msgstr "Esta actualización necesita una copia de seguridad de la base de datos, y el sitio deja de funcionar si la nueva versión no arranca."
-
-#, fuzzy
-msgid "Update to version %(version)s"
-msgstr "Actualizar a la versión %(version)s"
-
-#, fuzzy
-msgid "Re-install version %(version)s"
-msgstr "Reinstalar la versión %(version)s"
-
-#, fuzzy
-msgid "While your site is being updated, it keeps serving until Gophenberg restarts on the new version."
-msgstr "Mientras tu sitio está siendo actualizado, sigue funcionando hasta que Gophenberg se reinicia con la nueva versión."
-
-#, fuzzy
-msgid "This install of Gophenberg updates by hand."
-msgstr "Esta instalación de Gophenberg se actualiza a mano."
-
-#, fuzzy
-msgid "Follow the steps on the <docs>Updating Gophenberg</docs> documentation page to update by hand."
-msgstr "Sigue los pasos de la página de documentación <docs>Actualización de Gophenberg</docs> para actualizar a mano."
-
-#, fuzzy
-msgid "Backups kept: %(kept)s of %(limit)s, taken on %(date)s at %(time)s."
-msgid_plural "Backups kept: %(kept)s of %(limit)s, the newest on %(date)s at %(time)s."
-msgstr[0] "Copias de seguridad guardadas: %(kept)s de %(limit)s, hecha el %(date)s a las %(time)s."
-msgstr[1] "Copias de seguridad guardadas: %(kept)s de %(limit)s, la más reciente del %(date)s a las %(time)s."
-msgstr[2] "Copias de seguridad guardadas: %(kept)s de %(limit)s, la más reciente del %(date)s a las %(time)s."
-
-#, fuzzy
-msgid "Update to Gophenberg %(version)s?"
-msgstr "¿Actualizar a Gophenberg %(version)s?"
-
-#, fuzzy
-msgid "A backup of the database is taken first, and Gophenberg goes back to %(running)s on its own if the new version does not start."
-msgstr "Primero se hace una copia de seguridad de la base de datos, y Gophenberg vuelve a %(running)s por su cuenta si la nueva versión no arranca."
-
-#, fuzzy
-msgid "A backup of the database is taken first, and the site stays down until you restore it if the new version does not start."
-msgstr "Primero se hace una copia de seguridad de la base de datos, y el sitio deja de funcionar hasta que la restaures si la nueva versión no arranca."
-
-#, fuzzy
-msgid "Downloading Gophenberg %(version)s…"
-msgstr "Descargando Gophenberg %(version)s…"
-
-#, fuzzy
-msgid "Unpacking the update…"
-msgstr "Descomprimiendo la actualización…"
-
-#, fuzzy
-msgid "Verifying the unpacked files…"
-msgstr "Verificando los archivos descomprimidos…"
-
-#, fuzzy
-msgid "Backing up the database…"
-msgstr "Haciendo copia de seguridad de la base de datos…"
-
-#, fuzzy
-msgid "Restarting Gophenberg…"
-msgstr "Reiniciando Gophenberg…"
-
-#, fuzzy
-msgid "Checking the new version…"
-msgstr "Comprobando la nueva versión…"
-
-#, fuzzy
-msgid "Gophenberg updated successfully."
-msgstr "Gophenberg se ha actualizado correctamente."
-
-#, fuzzy
-msgid "Reload the admin"
-msgstr "Recargar la administración"
-
-#, fuzzy
-msgid "The update to %(to)s failed."
-msgstr "La actualización a %(to)s ha fallado."
-
-#, fuzzy
-msgid "Gophenberg went back to %(from)s and is running normally."
-msgstr "Gophenberg ha vuelto a %(from)s y funciona con normalidad."
-
-#, fuzzy
-msgid "The update failed before anything changed."
-msgstr "La actualización ha fallado antes de cambiar nada."
-
-#, fuzzy
-msgid "Gophenberg has not come back yet."
-msgstr "Gophenberg todavía no ha vuelto."
-
-#, fuzzy
-msgid "Gophenberg stopped after the switch so that its service manager, such as systemd, starts the new version. Check that the service manager starts it again after exit code <code>75</code>, and run <code>update:status</code> on the server to see where the update stands."
-msgstr "Gophenberg se ha detenido tras el cambio para que su gestor de servicios, como systemd, arranque la nueva versión. Comprueba que el gestor de servicios lo vuelve a arrancar tras el código de salida <code>75</code>, y ejecuta <code>update:status</code> en el servidor para ver en qué punto está la actualización."
-
-#, fuzzy
-msgid "The updates could not be read, so nothing can be updated here yet."
-msgstr "No se han podido leer las actualizaciones, así que todavía no se puede actualizar nada aquí."
-
-#, fuzzy
-msgid "The update to %(to)s failed its start check, and Gophenberg cannot go back to %(from)s on its own."
-msgstr "La actualización a %(to)s no ha superado su comprobación de arranque, y Gophenberg no puede volver a %(from)s por su cuenta."
-
-#, fuzzy
-msgid "Run <code>update:status</code> on the server to see the backup taken before the update. Then <restore>restore that backup</restore>, or fix what failed and start Gophenberg again."
-msgstr "Ejecuta <code>update:status</code> en el servidor para ver la copia de seguridad hecha antes de la actualización. Después, <restore>restaura esa copia de seguridad</restore>, o corrige lo que ha fallado y vuelve a arrancar Gophenberg."
-
-#, fuzzy
 msgid "Are you sure you want to move \"%s\" to the trash?"
 msgstr "¿Seguro que quieres mover «%s» a la papelera?"
 
@@ -2337,6 +2093,398 @@ msgstr "Añadir usuario"
 msgid "Add one with %(button)s."
 msgstr "Añade un elemento con %(button)s."
 
+#, fuzzy
+msgid "\"%s\" activated."
+msgstr "Se ha activado «%s»."
+
+#, fuzzy
+msgid "\"%s\" deactivated."
+msgstr "Se ha desactivado «%s»."
+
+#, fuzzy
+msgid "%s content type activated."
+msgid_plural "%s content types activated."
+msgstr[0] "Se ha activado %s tipo de contenido."
+msgstr[1] "Se han activado %s de tipos de contenido."
+msgstr[2] "Se han activado %s tipos de contenido."
+
+#, fuzzy
+msgid "%s content type could not be activated."
+msgid_plural "%s content types could not be activated."
+msgstr[0] "No se ha podido activar %s tipo de contenido."
+msgstr[1] "No se han podido activar %s de tipos de contenido."
+msgstr[2] "No se han podido activar %s tipos de contenido."
+
+#, fuzzy
+msgid "%s content type could not be deactivated."
+msgid_plural "%s content types could not be deactivated."
+msgstr[0] "No se ha podido desactivar %s tipo de contenido."
+msgstr[1] "No se han podido desactivar %s de tipos de contenido."
+msgstr[2] "No se han podido desactivar %s tipos de contenido."
+
+#, fuzzy
+msgid "%s content type could not be permanently deleted."
+msgid_plural "%s content types could not be permanently deleted."
+msgstr[0] "No se ha podido borrar permanentemente %s tipo de contenido."
+msgstr[1] "No se han podido borrar permanentemente %s de tipos de contenido."
+msgstr[2] "No se han podido borrar permanentemente %s tipos de contenido."
+
+#, fuzzy
+msgid "%s content type deactivated."
+msgid_plural "%s content types deactivated."
+msgstr[0] "Se ha desactivado %s tipo de contenido."
+msgstr[1] "Se han desactivado %s de tipos de contenido."
+msgstr[2] "Se han desactivado %s tipos de contenido."
+
+#, fuzzy
+msgid "%s content type permanently deleted."
+msgid_plural "%s content types permanently deleted."
+msgstr[0] "Se ha borrado permanentemente %s tipo de contenido."
+msgstr[1] "Se han borrado permanentemente %s de tipos de contenido."
+msgstr[2] "Se han borrado permanentemente %s tipos de contenido."
+
+#, fuzzy
+msgid "Address updated."
+msgstr "Dirección actualizada."
+
+#, fuzzy
+msgid "Another update is currently in progress."
+msgstr "En este momento hay otra actualización en marcha."
+
+#, fuzzy
+msgid "Change address…"
+msgstr "Cambiar la dirección…"
+
+#, fuzzy
+msgid "Choose the version to update to."
+msgstr "Elige la versión a la que actualizar."
+
+#, fuzzy
+msgid "Content type updated."
+msgstr "Tipo de contenido actualizado."
+
+#, fuzzy
+msgid "Created"
+msgstr "Fecha de creación"
+
+#, fuzzy
+msgid "Default content type updated."
+msgstr "Tipo de contenido predeterminado actualizado."
+
+#, fuzzy
+msgid "Delete %s content type for good? This cannot be undone."
+msgid_plural "Delete %s content types for good? This cannot be undone."
+msgstr[0] "¿Borrar permanentemente %s tipo de contenido? Esto no se puede deshacer."
+msgstr[1] "¿Borrar permanentemente %s de tipos de contenido? Esto no se puede deshacer."
+msgstr[2] "¿Borrar permanentemente %s tipos de contenido? Esto no se puede deshacer."
+
+#, fuzzy
+msgid "Delete…"
+msgstr "Borrar…"
+
+#, fuzzy
+msgid "Describe…"
+msgstr "Describir…"
+
+#, fuzzy
+msgid "Description updated."
+msgstr "Descripción actualizada."
+
+#, fuzzy
+msgid "Gophenberg cannot start this update: %(reason)s"
+msgstr "Gophenberg no puede empezar esta actualización: %(reason)s"
+
+#, fuzzy
+msgid "Key"
+msgstr "Clave"
+
+#, fuzzy
+msgid "Make default…"
+msgstr "Establecer como predeterminado…"
+
+#, fuzzy
+msgid "No content types found."
+msgstr "No se han encontrado tipos de contenido."
+
+#, fuzzy
+msgid "No description"
+msgstr "Sin descripción"
+
+#, fuzzy
+msgid "This install of Gophenberg has no install root, so it updates by hand."
+msgstr "Esta instalación de Gophenberg no tiene raíz de instalación, así que se actualiza a mano."
+
+#, fuzzy
+msgid "This is a custom build of Gophenberg, so it updates by hand."
+msgstr "Esta es una compilación propia de Gophenberg, así que se actualiza a mano."
+
+#, fuzzy
+msgid "%(name)s would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again."
+msgstr "El tipo %(name)s pasaría a /%(word)s, que Gophenberg reserva para sí mismo. Cambia su nombre en plural e inténtalo de nuevo."
+
+#, fuzzy
+msgid "Gophenberg keeps /%(path)s for itself or for another content type, so your content cannot answer there. Give the item a different slug."
+msgstr "Gophenberg reserva la dirección /%(path)s para sí mismo o para otro tipo de contenido, así que tu contenido no puede usarla. Dale al elemento otro slug."
+
+#, fuzzy
+msgid "%s day"
+msgid_plural "%s days"
+msgstr[0] "%s día"
+msgstr[1] "%s de días"
+msgstr[2] "%s días"
+
+#, fuzzy
+msgid "%s hour"
+msgid_plural "%s hours"
+msgstr[0] "%s hora"
+msgstr[1] "%s de horas"
+msgstr[2] "%s horas"
+
+#, fuzzy
+msgid "%s minute"
+msgid_plural "%s minutes"
+msgstr[0] "%s minuto"
+msgstr[1] "%s de minutos"
+msgstr[2] "%s minutos"
+
+#, fuzzy
+msgid "%s update available"
+msgid_plural "%s updates available"
+msgstr[0] "%s actualización disponible"
+msgstr[1] "%s de actualizaciones disponibles"
+msgstr[2] "%s actualizaciones disponibles"
+
+#, fuzzy
+msgid "<notes>Gophenberg %(version)s</notes> is available! <update>Please update now</update>."
+msgstr "¡Ya está disponible <notes>Gophenberg %(version)s</notes>! <update>Por favor, actualiza ahora</update>."
+
+#, fuzzy
+msgid "<strong>Important:</strong> Before updating, please <backup>back up your database and files</backup>. For help with updates, visit the <docs>Updating Gophenberg</docs> documentation page."
+msgstr "<strong>Importante:</strong> Antes de actualizar, por favor, <backup>haz una copia de seguridad de tu base de datos y de los archivos</backup>. Para obtener ayuda con las actualizaciones, visita la página de documentación <docs>Actualización de Gophenberg</docs>."
+
+#, fuzzy
+msgid "A backup of the database is taken first, and Gophenberg goes back to %(running)s on its own if the new version does not start."
+msgstr "Primero se hace una copia de seguridad de la base de datos, y Gophenberg vuelve a %(running)s por su cuenta si la nueva versión no arranca."
+
+#, fuzzy
+msgid "A backup of the database is taken first, and the site stays down until you restore it if the new version does not start."
+msgstr "Primero se hace una copia de seguridad de la base de datos, y el sitio deja de funcionar hasta que la restaures si la nueva versión no arranca."
+
+#, fuzzy
+msgid "An updated version of Gophenberg is available."
+msgstr "Hay disponible una versión actualizada de Gophenberg."
+
+#, fuzzy
+msgid "Backing up the database…"
+msgstr "Haciendo copia de seguridad de la base de datos…"
+
+#, fuzzy
+msgid "Backups kept: %(kept)s of %(limit)s, taken on %(date)s at %(time)s."
+msgid_plural "Backups kept: %(kept)s of %(limit)s, the newest on %(date)s at %(time)s."
+msgstr[0] "Copias de seguridad guardadas: %(kept)s de %(limit)s, hecha el %(date)s a las %(time)s."
+msgstr[1] "Copias de seguridad guardadas: %(kept)s de %(limit)s, la más reciente del %(date)s a las %(time)s."
+msgstr[2] "Copias de seguridad guardadas: %(kept)s de %(limit)s, la más reciente del %(date)s a las %(time)s."
+
+#, fuzzy
+msgid "Check again."
+msgstr "Comprobar de nuevo."
+
+#, fuzzy
+msgid "Check now."
+msgstr "Comprobar ahora."
+
+#, fuzzy
+msgid "Checking the new version…"
+msgstr "Comprobando la nueva versión…"
+
+#, fuzzy
+msgid "Could not save image. %s"
+msgstr "No se ha podido guardar la imagen. %s"
+
+#, fuzzy
+msgid "Could not save media. %s"
+msgstr "No se ha podido guardar el archivo multimedia. %s"
+
+#, fuzzy
+msgid "Current version: %(version)s"
+msgstr "Versión actual: %(version)s"
+
+#, fuzzy
+msgid "Date modified"
+msgstr "Fecha de modificación"
+
+#, fuzzy
+msgid "Delete permanently"
+msgstr "Borrar permanentemente"
+
+#, fuzzy
+msgid "Describe the purpose of the image."
+msgstr "Describe el propósito de la imagen."
+
+#, fuzzy
+msgid "Documents"
+msgstr "Documentos"
+
+#, fuzzy
+msgid "Downloading Gophenberg %(version)s…"
+msgstr "Descargando Gophenberg %(version)s…"
+
+#, fuzzy
+msgid "Edit media"
+msgstr "Editar los medios"
+
+#, fuzzy
+msgid "Edit…"
+msgstr "Editar…"
+
+#, fuzzy
+msgid "Follow the steps on the <docs>Updating Gophenberg</docs> documentation page to update by hand."
+msgstr "Sigue los pasos de la página de documentación <docs>Actualización de Gophenberg</docs> para actualizar a mano."
+
+#, fuzzy
+msgid "Gophenberg %(version)s failed its start check on this site. Fix what failed before you try it again."
+msgstr "Gophenberg %(version)s no ha superado su comprobación de arranque en este sitio. Corrige lo que ha fallado antes de volver a intentarlo."
+
+#, fuzzy
+msgid "Gophenberg Updates"
+msgstr "Actualizaciones de Gophenberg"
+
+#, fuzzy
+msgid "Gophenberg has not checked for updates yet."
+msgstr "Gophenberg todavía no ha buscado actualizaciones."
+
+#, fuzzy
+msgid "Gophenberg has not come back yet."
+msgstr "Gophenberg todavía no ha vuelto."
+
+#, fuzzy
+msgid "Gophenberg stopped after the switch so that its service manager, such as systemd, starts the new version. Check that the service manager starts it again after exit code <code>75</code>, and run <code>update:status</code> on the server to see where the update stands."
+msgstr "Gophenberg se ha detenido tras el cambio para que su gestor de servicios, como systemd, arranque la nueva versión. Comprueba que el gestor de servicios lo vuelve a arrancar tras el código de salida <code>75</code>, y ejecuta <code>update:status</code> en el servidor para ver en qué punto está la actualización."
+
+#, fuzzy
+msgid "Gophenberg updated successfully."
+msgstr "Gophenberg se ha actualizado correctamente."
+
+#, fuzzy
+msgid "Gophenberg went back to %(from)s and is running normally."
+msgstr "Gophenberg ha vuelto a %(from)s y funciona con normalidad."
+
+#, fuzzy
+msgid "Last checked on %(date)s at %(time)s."
+msgstr "Última comprobación el %(date)s a las %(time)s."
+
+#, fuzzy
+msgid "Leave empty if decorative."
+msgstr "Déjalo vacío si es decorativo."
+
+#, fuzzy
+msgid "Media file updated."
+msgstr "Archivo de medios actualizado."
+
+#, fuzzy
+msgid "No new updates found."
+msgstr "No se han encontrado actualizaciones nuevas."
+
+#, fuzzy
+msgid "Re-install version %(version)s"
+msgstr "Reinstalar la versión %(version)s"
+
+#, fuzzy
+msgid "Reload the admin"
+msgstr "Recargar la administración"
+
+#, fuzzy
+msgid "Restarting Gophenberg…"
+msgstr "Reiniciando Gophenberg…"
+
+#, fuzzy
+msgid "Run <code>update:status</code> on the server to see the backup taken before the update. Then <restore>restore that backup</restore>, or fix what failed and start Gophenberg again."
+msgstr "Ejecuta <code>update:status</code> en el servidor para ver la copia de seguridad hecha antes de la actualización. Después, <restore>restaura esa copia de seguridad</restore>, o corrige lo que ha fallado y vuelve a arrancar Gophenberg."
+
+#, fuzzy
+msgid "The check on %(date)s at %(time)s failed: %(error)s"
+msgstr "La comprobación del %(date)s a las %(time)s ha fallado: %(error)s"
+
+#, fuzzy
+msgid "The next check runs in %(time)s."
+msgstr "La próxima comprobación será dentro de %(time)s."
+
+#, fuzzy
+msgid "The update failed before anything changed."
+msgstr "La actualización ha fallado antes de cambiar nada."
+
+#, fuzzy
+msgid "The update to %(to)s failed its start check, and Gophenberg cannot go back to %(from)s on its own."
+msgstr "La actualización a %(to)s no ha superado su comprobación de arranque, y Gophenberg no puede volver a %(from)s por su cuenta."
+
+#, fuzzy
+msgid "The update to %(to)s failed."
+msgstr "La actualización a %(to)s ha fallado."
+
+#, fuzzy
+msgid "The update to Gophenberg %(version)s failed to complete. <retry>Please attempt the update again now</retry>."
+msgstr "No se ha podido completar la actualización a Gophenberg %(version)s. Por favor, <retry>vuelve a intentarlo</retry>."
+
+#, fuzzy
+msgid "The updates could not be read, so nothing can be updated here yet."
+msgstr "No se han podido leer las actualizaciones, así que todavía no se puede actualizar nada aquí."
+
+#, fuzzy
+msgid "This install of Gophenberg updates by hand."
+msgstr "Esta instalación de Gophenberg se actualiza a mano."
+
+#, fuzzy
+msgid "This site does not check for updates on its own."
+msgstr "Este sitio no busca actualizaciones por su cuenta."
+
+#, fuzzy
+msgid "This site will not receive automatic updates for new versions of Gophenberg."
+msgstr "Este sitio no recibirá actualizaciones automáticas de nuevas versiones de Gophenberg."
+
+#, fuzzy
+msgid "This update needs a backup of the database, and the site stays down if the new version does not start."
+msgstr "Esta actualización necesita una copia de seguridad de la base de datos, y el sitio deja de funcionar si la nueva versión no arranca."
+
+#, fuzzy
+msgid "Unpacking the update…"
+msgstr "Descomprimiendo la actualización…"
+
+#, fuzzy
+msgid "Update to Gophenberg %(version)s?"
+msgstr "¿Actualizar a Gophenberg %(version)s?"
+
+#, fuzzy
+msgid "Update to version %(version)s"
+msgstr "Actualizar a la versión %(version)s"
+
+#, fuzzy
+msgid "Updates"
+msgstr "Actualizaciones"
+
+#, fuzzy
+msgid "Verifying the unpacked files…"
+msgstr "Verificando los archivos descomprimidos…"
+
+#, fuzzy
+msgid "While your site is being updated, it keeps serving until Gophenberg restarts on the new version."
+msgstr "Mientras tu sitio está siendo actualizado, sigue funcionando hasta que Gophenberg se reinicia con la nueva versión."
+
+#, fuzzy
+msgid "You can update from Gophenberg %(running)s to <notes>Gophenberg %(version)s</notes> manually:"
+msgstr "Puedes actualizar desde Gophenberg %(running)s a <notes>Gophenberg %(version)s</notes> manualmente:"
+
+#, fuzzy
+msgid "You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version %(postgresql)s or higher."
+msgstr "No puedes actualizar porque <notes>Gophenberg %(version)s</notes> necesita la versión %(postgresql)s o superior de PostgreSQL."
+
+#, fuzzy
+msgid "You have the latest version of Gophenberg."
+msgstr "Tienes la última versión de Gophenberg."
+
+#, fuzzy
+msgid "https://www.w3.org/WAI/tutorials/images/decision-tree/"
+msgstr "https://www.w3.org/WAI/tutorials/images/decision-tree/"
+
 msgctxt "account"
 msgid "Status"
 msgstr "Estado"
@@ -2344,6 +2492,10 @@ msgstr "Estado"
 msgctxt "account"
 msgid "Role"
 msgstr "Rol"
+
+msgctxt "admin section"
+msgid "Media"
+msgstr "Medios"
 
 msgctxt "admin section"
 msgid "Content Types"
@@ -2357,10 +2509,6 @@ msgstr "Grupos de campos"
 msgctxt "admin section"
 msgid "Language"
 msgstr "Idioma"
-
-msgctxt "admin section"
-msgid "Media"
-msgstr "Medios"
 
 #, fuzzy
 msgctxt "admin section"
@@ -2378,6 +2526,16 @@ msgstr "Fecha"
 msgctxt "content type"
 msgid "Status"
 msgstr "Estado"
+
+#, fuzzy
+msgctxt "content type"
+msgid "\"%s\" permanently deleted."
+msgstr "Se ha borrado permanentemente el tipo de contenido «%s»."
+
+#, fuzzy
+msgctxt "content type"
+msgid "\"%s\" successfully created."
+msgstr "Se ha creado correctamente el tipo de contenido «%s»."
 
 msgctxt "field"
 msgid "Name"
@@ -2567,165 +2725,6 @@ msgstr "Categoría"
 msgctxt "panel button label"
 msgid "Settings"
 msgstr "Ajustes"
-
-#, fuzzy
-msgid "\"%s\" activated."
-msgstr "Se ha activado «%s»."
-
-#, fuzzy
-msgid "\"%s\" deactivated."
-msgstr "Se ha desactivado «%s»."
-
-#, fuzzy
-msgid "%s content type activated."
-msgid_plural "%s content types activated."
-msgstr[0] "Se ha activado %s tipo de contenido."
-msgstr[1] "Se han activado %s de tipos de contenido."
-msgstr[2] "Se han activado %s tipos de contenido."
-
-#, fuzzy
-msgid "%s content type could not be activated."
-msgid_plural "%s content types could not be activated."
-msgstr[0] "No se ha podido activar %s tipo de contenido."
-msgstr[1] "No se han podido activar %s de tipos de contenido."
-msgstr[2] "No se han podido activar %s tipos de contenido."
-
-#, fuzzy
-msgid "%s content type could not be deactivated."
-msgid_plural "%s content types could not be deactivated."
-msgstr[0] "No se ha podido desactivar %s tipo de contenido."
-msgstr[1] "No se han podido desactivar %s de tipos de contenido."
-msgstr[2] "No se han podido desactivar %s tipos de contenido."
-
-#, fuzzy
-msgid "%s content type deactivated."
-msgid_plural "%s content types deactivated."
-msgstr[0] "Se ha desactivado %s tipo de contenido."
-msgstr[1] "Se han desactivado %s de tipos de contenido."
-msgstr[2] "Se han desactivado %s tipos de contenido."
-
-#, fuzzy
-msgid "%s content type permanently deleted."
-msgid_plural "%s content types permanently deleted."
-msgstr[0] "Se ha borrado permanentemente %s tipo de contenido."
-msgstr[1] "Se han borrado permanentemente %s de tipos de contenido."
-msgstr[2] "Se han borrado permanentemente %s tipos de contenido."
-
-#, fuzzy
-msgid "%s content type could not be permanently deleted."
-msgid_plural "%s content types could not be permanently deleted."
-msgstr[0] "No se ha podido borrar permanentemente %s tipo de contenido."
-msgstr[1] "No se han podido borrar permanentemente %s de tipos de contenido."
-msgstr[2] "No se han podido borrar permanentemente %s tipos de contenido."
-
-#, fuzzy
-msgid "Delete %s content type for good? This cannot be undone."
-msgid_plural "Delete %s content types for good? This cannot be undone."
-msgstr[0] "¿Borrar permanentemente %s tipo de contenido? Esto no se puede deshacer."
-msgstr[1] "¿Borrar permanentemente %s de tipos de contenido? Esto no se puede deshacer."
-msgstr[2] "¿Borrar permanentemente %s tipos de contenido? Esto no se puede deshacer."
-
-#, fuzzy
-msgctxt "content type"
-msgid "\"%s\" permanently deleted."
-msgstr "Se ha borrado permanentemente el tipo de contenido «%s»."
-
-#, fuzzy
-msgctxt "content type"
-msgid "\"%s\" successfully created."
-msgstr "Se ha creado correctamente el tipo de contenido «%s»."
-
-#, fuzzy
-msgid "Address updated."
-msgstr "Dirección actualizada."
-
-#, fuzzy
-msgid "Change address…"
-msgstr "Cambiar la dirección…"
-
-#, fuzzy
-msgid "Content type updated."
-msgstr "Tipo de contenido actualizado."
-
-#, fuzzy
-msgid "Created"
-msgstr "Fecha de creación"
-
-#, fuzzy
-msgid "Default content type updated."
-msgstr "Tipo de contenido predeterminado actualizado."
-
-#, fuzzy
-msgid "Delete…"
-msgstr "Borrar…"
-
-#, fuzzy
-msgid "Describe…"
-msgstr "Describir…"
-
-#, fuzzy
-msgid "Description updated."
-msgstr "Descripción actualizada."
-
-#, fuzzy
-msgid "Key"
-msgstr "Clave"
-
-#, fuzzy
-msgid "Make default…"
-msgstr "Establecer como predeterminado…"
-
-#, fuzzy
-msgid "No content types found."
-msgstr "No se han encontrado tipos de contenido."
-
-#, fuzzy
-msgid "No description"
-msgstr "Sin descripción"
-
-#, fuzzy
-msgid "Could not save image. %s"
-msgstr "No se ha podido guardar la imagen. %s"
-
-#, fuzzy
-msgid "Could not save media. %s"
-msgstr "No se ha podido guardar el archivo multimedia. %s"
-
-#, fuzzy
-msgid "Date modified"
-msgstr "Fecha de modificación"
-
-#, fuzzy
-msgid "Delete permanently"
-msgstr "Borrar permanentemente"
-
-#, fuzzy
-msgid "Describe the purpose of the image."
-msgstr "Describe el propósito de la imagen."
-
-#, fuzzy
-msgid "Documents"
-msgstr "Documentos"
-
-#, fuzzy
-msgid "Edit media"
-msgstr "Editar los medios"
-
-#, fuzzy
-msgid "Edit…"
-msgstr "Editar…"
-
-#, fuzzy
-msgid "Leave empty if decorative."
-msgstr "Déjalo vacío si es decorativo."
-
-#, fuzzy
-msgid "Media file updated."
-msgstr "Archivo de medios actualizado."
-
-#, fuzzy
-msgid "https://www.w3.org/WAI/tutorials/images/decision-tree/"
-msgstr "https://www.w3.org/WAI/tutorials/images/decision-tree/"
 
 #, fuzzy
 msgctxt "file size"
