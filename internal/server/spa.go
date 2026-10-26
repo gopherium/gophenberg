@@ -48,7 +48,7 @@ func reservedHandler(path string, renderer http.Handler) http.Handler {
 	return nil
 }
 
-// dotSegments reports whether path holds a "." or ".." segment, which the renderer would resolve away.
+// dotSegments reports whether path holds a "." or ".." segment.
 func dotSegments(path string) bool {
 	for segment := range strings.SplitSeq(path, "/") {
 		if segment == "." || segment == ".." {
