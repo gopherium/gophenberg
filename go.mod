@@ -23,10 +23,10 @@ require (
 	github.com/gopherium/framework/pluginkit v0.7.0
 	github.com/gopherium/gophenberg/sdk v0.5.0
 	github.com/gopherium/gouncer v0.5.0
-	github.com/gopherium/gouncer/authkit v0.21.0
+	github.com/gopherium/gouncer/authkit v0.22.0
 	github.com/gopherium/gouncer/authkit/postgres v0.14.0
 	github.com/gopherium/gouncer/authkit/ratelimit v0.3.1
-	github.com/gopherium/gouncer/authkit/sqlite v0.2.0
+	github.com/gopherium/gouncer/authkit/sqlite v0.3.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/microcosm-cc/bluemonday v1.0.27
