@@ -82,11 +82,8 @@ func (r *fakeReader) PublishedByPath(_ context.Context, path string) (content.Co
 	if r.readErr != nil {
 		return content.Content{}, r.readErr
 	}
-	if path == r.rereadPath && r.rereadErr != nil {
-		r.rereads++
-		if r.rereads > 1 {
-			return content.Content{}, r.rereadErr
-		}
+	if err := r.reread(path); err != nil {
+		return content.Content{}, err
 	}
 	for _, p := range r.posts {
 		if p.Path == path && p.Status == content.StatusPublished {
@@ -94,6 +91,18 @@ func (r *fakeReader) PublishedByPath(_ context.Context, path string) (content.Co
 		}
 	}
 	return content.Content{}, content.ErrNotFound
+}
+
+// reread counts a read of rereadPath and returns rereadErr for every read after the first.
+func (r *fakeReader) reread(path string) error {
+	if path != r.rereadPath || r.rereadErr == nil {
+		return nil
+	}
+	r.rereads++
+	if r.rereads == 1 {
+		return nil
+	}
+	return r.rereadErr
 }
 
 // fakeTypes answers which type answers under a route word and which carries a key.
