@@ -144,7 +144,12 @@ func New(cfg Config) http.Handler {
 func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	held, err := s.addresses.Resolve(r.Context(), r.URL.Path)
 	if errors.Is(err, content.ErrNotFound) {
-		if moved := s.pagedItemTarget(r); moved != "" {
+		moved, err := s.pagedItemTarget(r)
+		if err != nil {
+			serveError(w)
+			return
+		}
+		if moved != "" {
 			serveRedirect(w, r, moved)
 			return
 		}
@@ -188,15 +193,18 @@ func (s *site) redirectTarget(r *http.Request, held content.Address) string {
 }
 
 // pagedItemTarget returns the plain address of the post or page a read asks a page number of, empty when there is none.
-func (s *site) pagedItemTarget(r *http.Request) string {
+func (s *site) pagedItemTarget(r *http.Request) (string, error) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		return ""
+		return "", nil
 	}
 	held, err := s.addresses.PagedItem(r.Context(), r.URL.Path)
-	if err != nil {
-		return ""
+	if errors.Is(err, content.ErrNotFound) {
+		return "", nil
 	}
-	return "/" + held.Item.Path
+	if err != nil {
+		return "", err
+	}
+	return "/" + held.Item.Path, nil
 }
 
 // canonicalAddress returns the one address a post, page or listing page answers at.
