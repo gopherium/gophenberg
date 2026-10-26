@@ -27,10 +27,6 @@ type fakeReader struct {
 	filter  content.Filter
 	listErr error
 	readErr error
-	// rereadErr fails every read of rereadPath after its first.
-	rereadPath string
-	rereadErr  error
-	rereads    int
 }
 
 // List records the filter and returns the matching page without content.
@@ -82,27 +78,12 @@ func (r *fakeReader) PublishedByPath(_ context.Context, path string) (content.Co
 	if r.readErr != nil {
 		return content.Content{}, r.readErr
 	}
-	if err := r.reread(path); err != nil {
-		return content.Content{}, err
-	}
 	for _, p := range r.posts {
 		if p.Path == path && p.Status == content.StatusPublished {
 			return p, nil
 		}
 	}
 	return content.Content{}, content.ErrNotFound
-}
-
-// reread counts a read of rereadPath and returns rereadErr for every read after the first.
-func (r *fakeReader) reread(path string) error {
-	if path != r.rereadPath || r.rereadErr == nil {
-		return nil
-	}
-	r.rereads++
-	if r.rereads == 1 {
-		return nil
-	}
-	return r.rereadErr
 }
 
 // fakeTypes answers which type answers under a route word and which carries a key.

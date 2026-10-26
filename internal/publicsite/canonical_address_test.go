@@ -3,6 +3,7 @@
 package publicsite_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,27 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/publicsite"
 )
+
+// failingReread serves like its reader but fails every read of path after its first.
+type failingReread struct {
+	*fakeReader
+	path  string
+	err   error
+	reads int
+}
+
+// PublishedByPath lets the first read of path through and returns err for every later one.
+func (r *failingReread) PublishedByPath(ctx context.Context, path string) (content.Content, error) {
+	if path == r.path {
+		r.reads++
+		if r.reads > 1 {
+			return content.Content{}, r.err
+		}
+	}
+	return r.fakeReader.PublishedByPath(ctx, path)
+}
 
 // storedAt returns a published item of the type stored at the path.
 func storedAt(kind, title, path string) content.Content {
@@ -235,9 +256,14 @@ func TestSiteAnswersNotFoundForAPageNumberNothingHangsFrom(t *testing.T) {
 func TestSiteReportsAPostItCannotReadBehindAPageNumber(t *testing.T) {
 	t.Parallel()
 
-	handler, reader := siteWith(publishedPost("Hello World", "hello-world", blockMarkup, time.Now().UTC()))
-	reader.rereadPath = "hello-world"
-	reader.rereadErr = errors.New("database down")
+	reader := &failingReread{
+		fakeReader: &fakeReader{posts: []content.Content{
+			publishedPost("Hello World", "hello-world", blockMarkup, time.Now().UTC()),
+		}},
+		path: "hello-world",
+		err:  errors.New("database down"),
+	}
+	handler := publicsite.New(publicsite.Config{Content: reader, Types: fakeTypes{}})
 
 	recorder := get(t, handler, "/hello-world/page/2")
 
