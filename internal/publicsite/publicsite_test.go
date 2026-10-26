@@ -27,6 +27,10 @@ type fakeReader struct {
 	filter  content.Filter
 	listErr error
 	readErr error
+	// rereadErr fails every read of rereadPath after its first.
+	rereadPath string
+	rereadErr  error
+	rereads    int
 }
 
 // List records the filter and returns the matching page without content.
@@ -77,6 +81,12 @@ func (r *fakeReader) RelatedTo(
 func (r *fakeReader) PublishedByPath(_ context.Context, path string) (content.Content, error) {
 	if r.readErr != nil {
 		return content.Content{}, r.readErr
+	}
+	if path == r.rereadPath && r.rereadErr != nil {
+		r.rereads++
+		if r.rereads > 1 {
+			return content.Content{}, r.rereadErr
+		}
 	}
 	for _, p := range r.posts {
 		if p.Path == path && p.Status == content.StatusPublished {

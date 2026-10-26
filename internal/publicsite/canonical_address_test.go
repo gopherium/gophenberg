@@ -232,6 +232,20 @@ func TestSiteAnswersNotFoundForAPageNumberNothingHangsFrom(t *testing.T) {
 	}
 }
 
+func TestSiteReportsAPostItCannotReadBehindAPageNumber(t *testing.T) {
+	t.Parallel()
+
+	handler, reader := siteWith(publishedPost("Hello World", "hello-world", blockMarkup, time.Now().UTC()))
+	reader.rereadPath = "hello-world"
+	reader.rereadErr = errors.New("database down")
+
+	recorder := get(t, handler, "/hello-world/page/2")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Errorf("GET /hello-world/page/2 status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+}
+
 func TestSiteRedirectsOnlyAReadOfAPostOrPage(t *testing.T) {
 	t.Parallel()
 
