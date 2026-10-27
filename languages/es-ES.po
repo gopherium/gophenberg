@@ -19,6 +19,10 @@ msgid "%(name)s moves to /%(word)s. Every address of both types changes."
 msgstr "El tipo %(name)s pasa a /%(word)s. Cambian todas las direcciones de ambos tipos."
 
 #, fuzzy
+msgid "%(name)s (%(type)s) would use /%(word)s, which another content type already uses. Change its plural name and try again."
+msgstr "El tipo %(name)s (%(type)s) usaría /%(word)s, que ya utiliza otro tipo de contenido. Cambia su nombre en plural e inténtalo de nuevo."
+
+#, fuzzy
 msgid "%(name)s would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again."
 msgstr "El tipo %(name)s pasaría a /%(word)s, que Gophenberg reserva para sí mismo. Cambia su nombre en plural e inténtalo de nuevo."
 

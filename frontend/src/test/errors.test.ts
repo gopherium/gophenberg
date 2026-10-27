@@ -121,6 +121,19 @@ test('names the type and the route word a hand over would give it', () => {
 	)
 })
 
+test('asks for a different plural name when an import derives a taken route word', () => {
+	const held = errorText({
+		error: 'content: route word taken: "Recipes" would answer under "recipes"',
+		code: 'derived_route_word_taken',
+		meta: { type: 'chapter', name: 'Recipes', word: 'recipes' },
+	})
+
+	expect(held).toBe(
+		'Recipes (chapter) would use /recipes, which another content type already uses. ' +
+			'Change its plural name and try again.',
+	)
+})
+
 test('names the address no item can answer at', () => {
 	const held = errorText({
 		error: 'content: the address is reserved: "page/2"',
