@@ -91,7 +91,10 @@ func validateRouteWords(declared []TypeDefinition, stored []content.Type) error 
 
 // routeWordConflict names the derived word in a clash, or keeps an explicit word's usual refusal.
 func routeWordConflict(previous routeOwner, wanted content.Type, declared TypeDefinition, found bool) error {
-	if wanted.RouteWord == "" || previous.key == "" || previous.key == wanted.Key {
+	if wanted.RouteWord == "" {
+		return nil
+	}
+	if previous.key == "" || previous.key == wanted.Key {
 		return nil
 	}
 	if previous.derived != nil {
