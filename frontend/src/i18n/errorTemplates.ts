@@ -554,6 +554,10 @@ export function authTemplates(): Record<string, string> {
  */
 export function typeTemplates(): Record<string, string> {
 	return {
+		derived_route_word_taken: __(
+			'%(name)s (%(type)s) would use /%(word)s, which another content type already uses. Change its plural name and try again.',
+			DOMAIN,
+		),
 		derived_route_word_reserved: __(
 			'%(name)s would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again.',
 			DOMAIN,

@@ -114,8 +114,9 @@ a numbered page of the front page, like a page filed at
 When an import brings a new default type and your site keeps its own
 root, the new type gets its route word the same way, and the import is
 refused before it changes anything when that word is one Gophenberg
-keeps. The message names that type and the word. Change the type's
-plural label in the definitions file, then import it again.
+keeps or another type already uses, on the site or in the file. The
+message names that type and the word. Change the type's plural label in
+the definitions file, then import it again.
 
 **Change address…** moves a type to a new route word. Every address of
 that type moves with it, at once, including nested items. Links kept
