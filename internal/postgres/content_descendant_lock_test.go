@@ -68,7 +68,7 @@ func TestRenamingAParentKeepsTheSlugADescendantSavedMeanwhile(t *testing.T) {
 	}
 }
 
-func TestEditingAParentTitleKeepsTheSlugADescendantSavedMeanwhile(t *testing.T) {
+func TestEditingAParentTitleDoesNotWaitForADescendantSave(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -102,14 +102,12 @@ func TestEditingAParentTitleKeepsTheSlugADescendantSavedMeanwhile(t *testing.T) 
 				_, err := items.Update(ctx, edited, parent.UpdatedAt, nil, 0)
 				retitled <- err
 			}()
-			waitingOn(t, pool, "%core.content%")
 
+			if err := finishes(t, retitled, 5*time.Second); err != nil {
+				t.Fatalf("Update() error = %v, want nil", err)
+			}
 			if err := rival.Commit(t.Context()); err != nil {
 				t.Fatalf("committing the %s save: %v", tc.name, err)
-			}
-
-			if err := <-retitled; err != nil {
-				t.Fatalf("Update() error = %v, want nil", err)
 			}
 			if got := contenttest.AddressOf(t, items, descendant.ID); got != tc.savedPath {
 				t.Errorf("Path = %q, want %q with the slug the %s saved", got, tc.savedPath, tc.name)

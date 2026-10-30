@@ -34,8 +34,11 @@ func checkPaginationEdit(ctx context.Context, queries *db.Queries, params db.Upd
 	return nil
 }
 
-// moveDescendants locks the descendants and carries them to the requested address, refusing a reserved address.
-func moveDescendants(ctx context.Context, queries *db.Queries, params db.MoveDescendantsParams) error {
+// moveDescendants locks the descendants and carries them to the new address when it changed, refusing a reserved one.
+func moveDescendants(ctx context.Context, queries *db.Queries, was string, params db.MoveDescendantsParams) error {
+	if params.Path == was {
+		return nil
+	}
 	if err := queries.LockDescendants(ctx, params.ID); err != nil {
 		return err
 	}
