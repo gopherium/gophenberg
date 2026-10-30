@@ -354,7 +354,7 @@ func (s *ContentStore) update(
 		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
 			return err
 		}
-		prefix, err := movable(ctx, queries, c, expectedUpdatedAt, content.AddressPrefix(c.Path, c.Slug))
+		prefix, was, err := movable(ctx, queries, c, expectedUpdatedAt, content.AddressPrefix(c.Path, c.Slug))
 		if err != nil {
 			return err
 		}
@@ -384,7 +384,7 @@ func (s *ContentStore) update(
 		if err := writeRelations(ctx, queries, c, resolved); err != nil {
 			return err
 		}
-		if err := moveDescendants(ctx, queries, db.MoveDescendantsParams{
+		if err := moveDescendants(ctx, queries, was, db.MoveDescendantsParams{
 			ID:        c.ID,
 			Path:      path,
 			UpdatedAt: c.UpdatedAt,
@@ -478,24 +478,25 @@ func fileable(ctx context.Context, queries *db.Queries, c content.Content, prefi
 	return parentHolds(ctx, queries, *c.ParentID, c.ID)
 }
 
-// movable returns the address prefix an edit files the item under, holding the type and any new parent.
+// movable returns the prefix an edit files the item under and its stored address, holding the type and any new parent.
 func movable(
 	ctx context.Context, queries *db.Queries, c content.Content, expected time.Time, prefix string,
-) (string, error) {
-	if c.ParentID == nil {
-		return prefix, nil
-	}
+) (string, string, error) {
 	stored, err := byID(ctx, queries, c.ID)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if !stored.UpdatedAt.Equal(expected) {
-		return "", content.ErrConflict
+		return "", "", content.ErrConflict
+	}
+	if c.ParentID == nil {
+		return prefix, stored.Path, nil
 	}
 	if stored.ParentID != nil && *stored.ParentID == *c.ParentID {
-		return prefix, nestable(ctx, queries, c)
+		return prefix, stored.Path, nestable(ctx, queries, c)
 	}
-	return movedUnder(ctx, queries, c)
+	moved, err := movedUnder(ctx, queries, c)
+	return moved, stored.Path, err
 }
 
 // movedUnder returns the address of the new parent, holding the type against every other move.
