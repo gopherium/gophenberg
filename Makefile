@@ -264,6 +264,7 @@ E2E_UPLOAD_VERSION ?= 9.9.9
 E2E_STALE_THEME ?= millpond
 E2E_STALE_KIT ?= 0.1.0
 E2E_MEDIA_DIR ?= $(CURDIR)/.e2e-media
+E2E_DEFAULT_ROLE ?= editor
 
 e2e-build: build-release
 	pnpm --filter @gophenberg/theme-starter build
@@ -303,6 +304,7 @@ e2e-serve: db-up e2e-theme e2e-media
 	GOPHENBERG_DATABASE_URL="$(E2E_DATABASE_URL)" \
 		GOPHENBERG_THEMES_DIR="$(E2E_THEMES_DIR)" \
 		GOPHENBERG_MEDIA_DIR="$(E2E_MEDIA_DIR)" \
+		GOPHENBERG_DEFAULT_ROLE="$(E2E_DEFAULT_ROLE)" \
 		GOPHENBERG_UPDATE_CHECKS=false \
 		./gophenberg serve
 

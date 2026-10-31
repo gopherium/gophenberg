@@ -80,12 +80,40 @@ test.describe('the admin read in the proof locale', () => {
 		await expect(page.getByRole('main').getByRole('button', { name: 'Subir tema' })).toBeVisible()
 	})
 
-	test('names the users screen in the reader language', async ({ page }) => {
+	test('names the users screen and its list in the reader language', async ({ page }) => {
 		await page.goto('/admin/users')
 
 		await expect(page.getByRole('heading', { name: 'Usuarios' })).toBeVisible()
-		await expect(page.getByRole('columnheader', { name: 'Estado' })).toBeVisible()
+		await expect(page.getByText('Gestiona quién puede entrar y qué puede hacer.')).toBeVisible()
 		await expect(page.getByRole('main').getByRole('link', { name: 'Añadir usuario' })).toBeVisible()
+		await expect(page.getByRole('searchbox', { name: 'Buscar usuarios…', exact: true })).toBeVisible()
+		for (const column of ['Nombre', 'Estado', 'Rol', 'Entradas', 'Creado']) {
+			await expect(page.getByRole('columnheader', { name: column, exact: true })).toBeVisible()
+		}
+	})
+
+	test('names Change role of the users screen in the reader language', async ({ page }) => {
+		await page.goto(`/admin/users?search=${encodeURIComponent('member@example.com')}`)
+		const row = page.getByRole('row').filter({ hasText: 'member@example.com' })
+
+		await row.getByRole('button', { name: 'Acciones' }).click()
+		await page.getByRole('menuitem', { name: 'Cambiar el rol…', exact: true }).click()
+
+		const dialog = page.getByRole('dialog', { name: 'Cambiar el rol' })
+		await expect(dialog.getByText('Elige el rol de Member.')).toBeVisible()
+		await expect(dialog.getByRole('combobox', { name: 'Rol' })).toHaveText('Miembro')
+		await expect(dialog.getByRole('button', { name: 'Cambiar el rol', exact: true })).toBeVisible()
+	})
+
+	test('names Add User in the reader language', async ({ page }) => {
+		await page.goto('/admin/users/new')
+
+		await expect(page.getByRole('heading', { name: 'Añadir usuario' })).toBeVisible()
+		await expect(page.getByText('Crea un nuevo usuario y añádelo a este sitio.')).toBeVisible()
+		await expect(page.getByRole('textbox', { name: 'Correo electrónico (Obligatorio)' })).toBeVisible()
+		await expect(page.getByRole('textbox', { name: 'Nombre (Obligatorio)' })).toBeVisible()
+		await expect(page.getByRole('button', { name: 'Generar contraseña' })).toBeVisible()
+		await expect(page.getByRole('button', { name: 'Añadir usuario', exact: true })).toBeVisible()
 	})
 
 	test('names the language screen and reports the chosen language', async ({ page }) => {
