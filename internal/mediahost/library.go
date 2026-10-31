@@ -193,16 +193,8 @@ func (l *Library) process(ctx context.Context, k kind, data []byte, quality int)
 	if err != nil {
 		return processed{}, refuse("image_unreadable", "the image cannot be read", "decoding: %w", err)
 	}
-	src := newSource(img, uploadOrientation(k, data))
+	src := newSource(img, jpegOrientation(data))
 	return processed{width: src.width, height: src.height, pending: makeSubSizes(src, k, quality)}, nil
-}
-
-// uploadOrientation returns the EXIF orientation of a JPEG upload, and 1 for every other kind.
-func uploadOrientation(k kind, data []byte) int {
-	if k.ext != "jpg" {
-		return 1
-	}
-	return jpegOrientation(data)
 }
 
 // decodeBudget reads the image header and refuses what holds more pixels than the library's budget.
