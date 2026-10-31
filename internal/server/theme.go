@@ -6,11 +6,15 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 )
 
 // themePrefix is the URL prefix a theme keeps to itself, never reachable from outside.
 const themePrefix = "/_gophenberg"
+
+// themeDecodes is the most times the theme decodes a path before it routes it.
+const themeDecodes = 10
 
 // themeHeaderTimeout is how long a theme has to begin answering before the renderer takes over.
 const themeHeaderTimeout = 10 * time.Second
@@ -73,4 +77,32 @@ func themeProxy(theme Theme, renderer http.Handler, wait time.Duration) *httputi
 			renderer.ServeHTTP(w, r)
 		},
 	}
+}
+
+// themePath returns escaped as the theme routes it.
+func themePath(escaped string) string {
+	address := "/" + strings.TrimLeft(withoutDotSegments(escaped), "/")
+	for range themeDecodes {
+		decoded, err := url.PathUnescape(address)
+		if err != nil || decoded == address {
+			break
+		}
+		address = decoded
+	}
+	return address
+}
+
+// withoutDotSegments returns escaped with its "." and ".." segments resolved.
+func withoutDotSegments(escaped string) string {
+	var kept []string
+	for segment := range strings.SplitSeq(escaped, "/") {
+		switch dots, _ := url.PathUnescape(segment); dots {
+		case ".":
+		case "..":
+			kept = kept[:max(len(kept)-1, 0)]
+		default:
+			kept = append(kept, segment)
+		}
+	}
+	return strings.Join(kept, "/")
 }

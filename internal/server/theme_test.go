@@ -164,6 +164,17 @@ func TestTheReservedAddressesNeverReachTheTheme(t *testing.T) {
 		{path: "/_gophenberg%2f..%2fhello-world", status: http.StatusNotFound, want: `"route_not_found"`},
 		{path: "/_gophenberg/a/../../hello-world", status: http.StatusNotFound, want: `"route_not_found"`},
 		{path: "/_gophenberg/./health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/x/../_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "//_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "//_gophenberg/health%25", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/%255fgophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/%2525252525252525255fgophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/x/../_gophenberg//../health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/%255fgophenberg/..%2f../../health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/%255fgophenberg/%252e%252e/../health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/%2e/_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/../../_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "//_gophenberg", status: http.StatusNotFound, want: `"route_not_found"`},
 		{path: "/admin/", status: http.StatusOK, want: "<title>Admin</title>"},
 	}
 	for _, testCase := range cases {
