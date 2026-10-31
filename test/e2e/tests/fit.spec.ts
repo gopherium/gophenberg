@@ -198,7 +198,7 @@ test('fits the content types table to its card at 1280, every row action in one 
 	expect(await badges.count()).toBeGreaterThan(0)
 })
 
-test('fits the users table to its card at 1280 beside a long name, every column shown', async ({ page }) => {
+test('fits the users table to its card at 1280 beside a long name, every default column shown', async ({ page }) => {
 	const email = `listed-${RUN}@example.com`
 	const made = await page.request.post('/api/users', {
 		data: { email, name: LONG_NAME, password: credentials.password, role: 'author' },
@@ -216,7 +216,7 @@ test('fits the users table to its card at 1280 beside a long name, every column 
 	})
 	expect(scroll).toBeLessThanOrEqual(0)
 	await expect(table.locator('.dataviews-view-table__actions-column--stuck')).toHaveCount(0)
-	for (const column of ['Name', 'Status', 'Role', 'Posts', 'Created']) {
+	for (const column of ['Name', 'Status', 'Role', 'Posts']) {
 		await expect(table.getByRole('columnheader', { name: column, exact: true })).toBeVisible()
 	}
 })

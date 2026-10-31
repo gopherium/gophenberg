@@ -141,6 +141,24 @@ test('draws no avatar when the site shows none', async () => {
 	expect(row.querySelector('.godmin-avatar')).toBeNull()
 })
 
+test('opens newest first with Created left in View options, as WordPress draws no such column', async () => {
+	serveAccounts(AUTHOR, MEMBER)
+	renderAt('/users')
+
+	await rowOf(MEMBER.name)
+	const [, newest, oldest] = screen.getAllByRole('row')
+
+	expect(within(newest).getByText(MEMBER.name)).toBeInTheDocument()
+	expect(within(oldest).getByText(AUTHOR.name)).toBeInTheDocument()
+	expect(screen.queryByRole('columnheader', { name: /^Created/ })).toBeNull()
+
+	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
+	const properties = (await screen.findByText('Properties')).closest('.dataviews-field-control') as HTMLElement
+	await userEvent.click(within(properties).getByRole('button', { name: 'Created' }))
+
+	expect(await screen.findByRole('columnheader', { name: /^Created/ })).toBeInTheDocument()
+})
+
 test('pages the accounts by the size the settings name', async () => {
 	serveSettings({ list_page_size: 2, list_page_sizes: [2, 5] })
 	serveAccounts(SIGNED_IN, EDITOR, AUTHOR, MEMBER)

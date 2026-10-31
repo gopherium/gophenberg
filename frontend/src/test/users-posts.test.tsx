@@ -116,5 +116,5 @@ test.each([
 
 	const headers = screen.getAllByRole('columnheader').map((header) => header.textContent)
 
-	expect(headers.filter(Boolean)).toEqual(['Name', 'Status', 'Role', expect.stringMatching(/^Created/), 'Actions'])
+	expect(headers.filter(Boolean)).toEqual(['Name', 'Status', 'Role', 'Actions'])
 })

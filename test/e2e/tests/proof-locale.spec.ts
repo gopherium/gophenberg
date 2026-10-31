@@ -87,9 +87,15 @@ test.describe('the admin read in the proof locale', () => {
 		await expect(page.getByText('Gestiona quién puede entrar y qué puede hacer.')).toBeVisible()
 		await expect(page.getByRole('main').getByRole('link', { name: 'Añadir usuario' })).toBeVisible()
 		await expect(page.getByRole('searchbox', { name: 'Buscar usuarios…', exact: true })).toBeVisible()
-		for (const column of ['Nombre', 'Estado', 'Rol', 'Entradas', 'Creado']) {
+		for (const column of ['Nombre', 'Estado', 'Rol', 'Entradas']) {
 			await expect(page.getByRole('columnheader', { name: column, exact: true })).toBeVisible()
 		}
+		await expect(page.getByRole('columnheader', { name: 'Creado', exact: true })).toHaveCount(0)
+
+		await page.getByRole('button', { name: 'Ver opciones' }).click()
+		await page.locator('.dataviews-field-control').getByRole('button', { name: 'Creado', exact: true }).click()
+
+		await expect(page.getByRole('columnheader', { name: 'Creado', exact: true })).toBeVisible()
 	})
 
 	test('names Change role of the users screen in the reader language', async ({ page }) => {
