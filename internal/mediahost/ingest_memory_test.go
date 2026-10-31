@@ -17,7 +17,7 @@ func TestIngestTurnsAndScalesASidewaysPhotoWithinItsMemoryBudget(t *testing.T) {
 	mustIngest(t, library, "cliff.jpg", photo)
 
 	runtime.ReadMemStats(&after)
-	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 48<<20 {
-		t.Errorf("Ingest() allocated %d MiB, want at most 48", allocated>>20)
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 28<<20 {
+		t.Errorf("Ingest() allocated %d MiB, want at most 28", allocated>>20)
 	}
 }

@@ -92,26 +92,27 @@ func wantSizes(t *testing.T, l *mediahost.Library, m media.Media, want map[strin
 	}
 }
 
-// wantUpright fails unless the picture shows the top quadrants of quadrantJPEG where they stand upright.
+// wantUpright fails unless the picture shows the four quadrants of quadrantJPEG where they stand upright.
 func wantUpright(t *testing.T, slug string, img image.Image) {
 	t.Helper()
 	b := img.Bounds()
-	for i, x := range []int{b.Dx() / 4, 3 * b.Dx() / 4} {
-		if got := img.At(b.Min.X+x, b.Min.Y+b.Dy()/4); !near(got, quadrantColors[i]) {
-			t.Errorf("%s holds %v at %d,%d, want about %v", slug, got, x, b.Dy()/4, quadrantColors[i])
+	for i, at := range [][2]int{{1, 1}, {3, 1}, {1, 3}, {3, 3}} {
+		x, y := at[0]*b.Dx()/4, at[1]*b.Dy()/4
+		if got := img.At(b.Min.X+x, b.Min.Y+y); !near(got, quadrantColors[i]) {
+			t.Errorf("%s holds %v at %d,%d, want about %v", slug, got, x, y, quadrantColors[i])
 		}
 	}
 }
 
-// near reports whether got lies within 48 of want on every channel.
+// near reports whether got lies within 8 of want on every channel.
 func near(got color.Color, want color.RGBA) bool {
 	r, g, b, _ := got.RGBA()
 	return within(r>>8, want.R) && within(g>>8, want.G) && within(b>>8, want.B)
 }
 
-// within reports whether a channel lies within 48 of want.
+// within reports whether a channel lies within 8 of want.
 func within(channel uint32, want uint8) bool {
-	return max(int(channel), int(want))-min(int(channel), int(want)) <= 48
+	return max(int(channel), int(want))-min(int(channel), int(want)) <= 8
 }
 
 // wantRefused asserts err was refused carrying the exact reason.
@@ -288,7 +289,7 @@ func TestIngestKeepsALargeSidewaysUploadAsSent(t *testing.T) {
 func TestIngestPlacesEveryOrientationUprightInEverySize(t *testing.T) {
 	t.Parallel()
 
-	for _, shape := range [][2]int{{2600, 400}, {400, 200}} {
+	for _, shape := range [][2]int{{2600, 400}, {400, 200}, {400, 2600}, {3000, 160}} {
 		for orientation := uint16(1); orientation <= 8; orientation++ {
 			t.Run(fmt.Sprintf("%dx%d turned %d", shape[0], shape[1], orientation), func(t *testing.T) {
 				t.Parallel()
@@ -319,6 +320,10 @@ func TestIngestKeepsTheSizesEveryShapeEarns(t *testing.T) {
 		{2561, 151, map[string][2]int{"full": {2560, 151}, "large": {1024, 60}, "medium": {300, 18},
 			"thumbnail": {150, 150}}},
 		{2561, 1, map[string][2]int{"full": {2560, 1}, "large": {1024, 1}, "medium": {300, 1}}},
+		{2560, 300, map[string][2]int{"full": {2560, 300}, "large": {1024, 120}, "medium": {300, 35},
+			"thumbnail": {150, 150}}},
+		{1024, 200, map[string][2]int{"full": {1024, 200}, "medium": {300, 59}, "thumbnail": {150, 150}}},
+		{300, 200, map[string][2]int{"full": {300, 200}, "thumbnail": {150, 150}}},
 		{151, 151, map[string][2]int{"full": {151, 151}, "thumbnail": {150, 150}}},
 	}
 	for _, shape := range shapes {
@@ -336,6 +341,25 @@ func TestIngestKeepsTheSizesEveryShapeEarns(t *testing.T) {
 
 				wantSizes(t, library, m, shape.sizes)
 			})
+		}
+	}
+}
+
+func TestIngestDrawsNoScaledCopyOfAPhotoAtTheBound(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		orientation   uint16
+		width, height int
+		full          string
+	}{{1, 2560, 300, "shape.jpg"}, {6, 300, 2560, "shape-rotated.jpg"}}
+	for _, tc := range cases {
+		library := newLibrary(t)
+
+		m := mustIngest(t, library, "shape.jpg", orientedJPEG(t, tc.orientation, tc.width, tc.height))
+
+		if got := filepath.Base(m.Sizes["full"].File); got != tc.full {
+			t.Errorf("orientation %d keeps %q as full, want %q", tc.orientation, got, tc.full)
 		}
 	}
 }
