@@ -252,7 +252,7 @@ own address during development still load files from the instance.
 Giving `width` and `height` stops the page jumping as images
 arrive. `item.sizes` holds the other image sizes when you want a
 `srcset`, and it can be empty, so check before reaching into it.
-`item.src` is the file as it was uploaded, so a photo taken
+`item.src` is the file as it was uploaded, so a JPEG taken
 sideways keeps its orientation tag there. Browsers turn it upright,
 and `item.sizes.full` is an upright copy for any other reader.
 

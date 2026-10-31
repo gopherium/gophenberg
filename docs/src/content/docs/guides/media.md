@@ -45,7 +45,7 @@ A lower number makes lighter files that look rougher. The change
 applies to pictures uploaded after it, so copies already on disk
 stay as they were.
 
-Two things are corrected in the copies. A photo taken sideways
+Two things are corrected in the copies. A JPEG taken sideways
 gains an upright copy named with `-rotated`, so a post shows it the
 way you saw it on the camera. A very large photo gains a display
 copy bounded to 2560 pixels and named with `-scaled`, upright when
@@ -116,7 +116,8 @@ empty library says `No media items yet.` and how to add one.
 
 The actions menu of a file offers:
 
-- **View** opens the file itself in a new tab.
+- **View** opens the picture at its full size in a new tab, or the
+  file itself when it has no full size copy.
 - **Edit…** opens the file's details, as the next part explains.
 - **Rename…** changes the title alone, in a dialog sent with
   **Save**.
