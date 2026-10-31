@@ -16,8 +16,8 @@ var errGIFTruncated = errors.New("the gif ends before its trailer")
 // errGIFFrameTooLarge reports a frame declaring more pixels than the budget.
 var errGIFFrameTooLarge = errors.New("a frame declares more pixels than the budget")
 
-// gifFrames returns how many image blocks a GIF declares, refusing one beyond the budget.
-func gifFrames(data []byte) (int, error) {
+// gifFrames returns how many image blocks a GIF declares, refusing one holding more pixels than budget.
+func gifFrames(data []byte, budget int) (int, error) {
 	pos, err := gifHeaderEnd(data)
 	if err != nil {
 		return 0, err
@@ -28,7 +28,7 @@ func gifFrames(data []byte) (int, error) {
 			return frames, nil
 		}
 		if data[pos] == 0x2C {
-			if err := gifFrameWithinBudget(data, pos); err != nil {
+			if err := gifFrameWithinBudget(data, pos, budget); err != nil {
 				return 0, err
 			}
 			frames++
@@ -41,8 +41,8 @@ func gifFrames(data []byte) (int, error) {
 	return 0, errGIFTruncated
 }
 
-// gifFrameWithinBudget refuses an image block declaring more pixels than the budget.
-func gifFrameWithinBudget(data []byte, pos int) error {
+// gifFrameWithinBudget refuses an image block declaring more pixels than budget.
+func gifFrameWithinBudget(data []byte, pos, budget int) error {
 	if len(data) < pos+10 {
 		return errGIFTruncated
 	}
@@ -51,7 +51,7 @@ func gifFrameWithinBudget(data []byte, pos int) error {
 	if width == 0 || height == 0 {
 		return fmt.Errorf("a frame declares %dx%d pixels", width, height)
 	}
-	if width > maxPixels/height {
+	if width > budget/height {
 		return errGIFFrameTooLarge
 	}
 	return nil

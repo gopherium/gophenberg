@@ -32,8 +32,8 @@ const DefaultConcurrentImages = 2
 // MaxConcurrentImages is the most images a site may let decode and resize at once.
 const MaxConcurrentImages = 64
 
-// maxPixels bounds the pixels an image may decode to.
-const maxPixels = 80_000_000
+// DefaultMaxPixels bounds the pixels an image may decode to when the library is not given its own budget.
+const DefaultMaxPixels = 80_000_000
 
 // bigImageBound is the longest side the full display copy of an image may keep.
 const bigImageBound = 2560
@@ -75,30 +75,38 @@ type Config struct {
 	Settings Settings
 	// ConcurrentImages bounds how many images decode and resize at once. Zero applies [DefaultConcurrentImages].
 	ConcurrentImages int
+	// MaxPixels bounds the pixels a picture or one frame of a GIF may hold. Zero applies [DefaultMaxPixels].
+	MaxPixels int
 }
 
 // Library owns the media directory uploads land in.
 type Library struct {
-	dir      string
-	maxSize  int64
-	settings Settings
-	slots    slots
-	decode   func(io.Reader) (image.Image, string, error)
+	dir       string
+	maxSize   int64
+	maxPixels int
+	settings  Settings
+	slots     slots
+	decode    func(io.Reader) (image.Image, string, error)
 }
 
 // New returns a [Library] over the configured directory.
 func New(cfg Config) *Library {
-	size := cfg.MaxSize
-	if size <= 0 {
-		size = DefaultMaxSize
-	}
-	images := cfg.ConcurrentImages
-	if images <= 0 {
-		images = DefaultConcurrentImages
-	}
 	return &Library{
-		dir: cfg.Dir, maxSize: size, settings: cfg.Settings, slots: make(slots, images), decode: image.Decode,
+		dir:       cfg.Dir,
+		maxSize:   positiveOr(cfg.MaxSize, DefaultMaxSize),
+		maxPixels: positiveOr(cfg.MaxPixels, DefaultMaxPixels),
+		settings:  cfg.Settings,
+		slots:     make(slots, positiveOr(cfg.ConcurrentImages, DefaultConcurrentImages)),
+		decode:    image.Decode,
 	}
+}
+
+// positiveOr returns value when it stands above zero, else fallback.
+func positiveOr[T int | int64](value, fallback T) T {
+	if value > 0 {
+		return value
+	}
+	return fallback
 }
 
 // Dir returns the directory the library owns.
@@ -148,12 +156,12 @@ func (l *Library) quality(ctx context.Context) int {
 func (l *Library) ingestImage(
 	ctx context.Context, name string, k kind, data []byte, authorID uuid.UUID,
 ) (media.Media, error) {
-	cfg, err := decodeBudget(data)
+	cfg, err := l.decodeBudget(data)
 	if err != nil {
 		return media.Media{}, err
 	}
 	if k.ext == "gif" {
-		animated, err := isAnimated(data)
+		animated, err := l.isAnimated(data)
 		if err != nil {
 			return media.Media{}, err
 		}
@@ -184,8 +192,8 @@ func (l *Library) process(
 	return img, data, makeSubSizes(img, k, quality), nil
 }
 
-// decodeBudget reads the image header and refuses what is too big to decode.
-func decodeBudget(data []byte) (image.Config, error) {
+// decodeBudget reads the image header and refuses what holds more pixels than the library's budget.
+func (l *Library) decodeBudget(data []byte) (image.Config, error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		return image.Config{}, refuse("image_unreadable", "the image cannot be read", "reading the header: %w", err)
@@ -194,21 +202,21 @@ func decodeBudget(data []byte) (image.Config, error) {
 		return image.Config{}, refuse("image_unreadable", "the image cannot be read",
 			"the header declares %dx%d pixels", cfg.Width, cfg.Height)
 	}
-	if cfg.Width > maxPixels/cfg.Height {
+	if cfg.Width > l.maxPixels/cfg.Height {
 		refused := refuse("image_pixel_budget_exceeded", "the image is too large",
-			"%dx%d exceeds the %d pixel budget", cfg.Width, cfg.Height, maxPixels)
-		refused.Meta = map[string]any{"width": cfg.Width, "height": cfg.Height, "max": maxPixels}
+			"%dx%d exceeds the %d pixel budget", cfg.Width, cfg.Height, l.maxPixels)
+		refused.Meta = map[string]any{"width": cfg.Width, "height": cfg.Height, "max": l.maxPixels}
 		return image.Config{}, refused
 	}
 	return cfg, nil
 }
 
-// isAnimated reports whether a GIF holds more than one frame.
-func isAnimated(data []byte) (bool, error) {
-	frames, err := gifFrames(data)
+// isAnimated reports whether a GIF holds more than one frame, refusing one frame past the library's budget.
+func (l *Library) isAnimated(data []byte) (bool, error) {
+	frames, err := gifFrames(data, l.maxPixels)
 	if errors.Is(err, errGIFFrameTooLarge) {
 		refused := refuse("image_frame_too_large", "the image is too large", "walking the animation: %w", err)
-		refused.Meta = map[string]any{"max": maxPixels}
+		refused.Meta = map[string]any{"max": l.maxPixels}
 		return false, refused
 	}
 	if err != nil {

@@ -492,6 +492,54 @@ func TestIngestTakesAPictureExactlyAtThePixelBudget(t *testing.T) {
 	}
 }
 
+func TestIngestRefusesAPictureOverTheBudgetTheLibraryNames(t *testing.T) {
+	t.Parallel()
+
+	library := mediahost.New(mediahost.Config{Dir: t.TempDir(), MaxPixels: 2_000_000})
+
+	_, err := library.Ingest(t.Context(), "wide.png", pixelSizedPNG(2000, 1001), uuid.Must(uuid.NewV7()))
+
+	var refused *mediahost.Error
+	if !errors.As(err, &refused) || refused.Code != "image_pixel_budget_exceeded" {
+		t.Fatalf("error = %v, want it refused with the code image_pixel_budget_exceeded", err)
+	}
+	if want := map[string]any{"width": 2000, "height": 1001, "max": 2_000_000}; !maps.Equal(refused.Meta, want) {
+		t.Errorf("meta = %v, want %v", refused.Meta, want)
+	}
+	wantEmptyDir(t, library)
+}
+
+func TestIngestTakesAPictureExactlyAtTheBudgetTheLibraryNames(t *testing.T) {
+	t.Parallel()
+
+	library := mediahost.New(mediahost.Config{Dir: t.TempDir(), MaxPixels: 2_000_000})
+
+	_, err := library.Ingest(t.Context(), "field.png", pixelSizedPNG(2000, 1000), uuid.Must(uuid.NewV7()))
+
+	var refused *mediahost.Error
+	if errors.As(err, &refused) && refused.Code == "image_pixel_budget_exceeded" {
+		t.Errorf("error = %v, want a picture of exactly the budget let past the budget check", err)
+	}
+}
+
+func TestIngestRefusesAnAnimationFrameOverTheBudgetTheLibraryNames(t *testing.T) {
+	t.Parallel()
+
+	library := mediahost.New(mediahost.Config{Dir: t.TempDir(), MaxPixels: 2_000_000})
+	animation := withFrameOf(t, animatedGIF(t), 1500, 1500)
+
+	_, err := library.Ingest(t.Context(), "loader.gif", animation, uuid.Must(uuid.NewV7()))
+
+	var refused *mediahost.Error
+	if !errors.As(err, &refused) || refused.Code != "image_frame_too_large" {
+		t.Fatalf("error = %v, want it refused with the code image_frame_too_large", err)
+	}
+	if want := map[string]any{"max": 2_000_000}; !maps.Equal(refused.Meta, want) {
+		t.Errorf("meta = %v, want %v", refused.Meta, want)
+	}
+	wantEmptyDir(t, library)
+}
+
 func TestIngestRefusesDimensionsBeyondAnyBudget(t *testing.T) {
 	t.Parallel()
 

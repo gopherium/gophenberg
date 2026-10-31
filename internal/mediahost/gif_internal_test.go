@@ -2,7 +2,10 @@
 
 package mediahost
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // bareGIF returns a header without a global palette followed by the given blocks.
 func bareGIF(blocks ...byte) []byte {
@@ -14,12 +17,12 @@ func TestGIFFramesCountsAndStops(t *testing.T) {
 	t.Parallel()
 
 	none := bareGIF(0x3B)
-	if frames, err := gifFrames(none); err != nil || frames != 0 {
+	if frames, err := gifFrames(none, DefaultMaxPixels); err != nil || frames != 0 {
 		t.Errorf("gifFrames(empty) = %d, %v, want 0 frames", frames, err)
 	}
 
 	one := bareGIF(0x2C, 0, 0, 0, 0, 1, 0, 1, 0, 0x00, 2, 1, 0, 0, 0x3B)
-	if frames, err := gifFrames(one); err != nil || frames != 1 {
+	if frames, err := gifFrames(one, DefaultMaxPixels); err != nil || frames != 1 {
 		t.Errorf("gifFrames(one) = %d, %v, want 1 frame", frames, err)
 	}
 }
@@ -40,8 +43,21 @@ func TestGIFFramesRefusesWhatItCannotWalk(t *testing.T) {
 		"a frame over the budget": bareGIF(0x2C, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 2, 1, 0, 0, 0x3B),
 	}
 	for name, data := range unwalkable {
-		if _, err := gifFrames(data); err == nil {
+		if _, err := gifFrames(data, DefaultMaxPixels); err == nil {
 			t.Errorf("gifFrames(%s) error = nil, want a failure", name)
 		}
+	}
+}
+
+func TestGIFFramesRefusesAFrameOverTheBudgetItIsGiven(t *testing.T) {
+	t.Parallel()
+
+	frame := bareGIF(0x2C, 0, 0, 0, 0, 3, 0, 1, 0, 0x00, 2, 1, 0, 0, 0x3B)
+
+	if _, err := gifFrames(frame, 2); !errors.Is(err, errGIFFrameTooLarge) {
+		t.Errorf("gifFrames(a 3x1 frame, 2) error = %v, want errGIFFrameTooLarge", err)
+	}
+	if frames, err := gifFrames(frame, 3); err != nil || frames != 1 {
+		t.Errorf("gifFrames(a 3x1 frame, 3) = %d, %v, want 1 frame", frames, err)
 	}
 }

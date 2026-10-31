@@ -127,6 +127,22 @@ func TestNewAppliesTheDefaultImageLimitWhenNoneIsNamed(t *testing.T) {
 	}
 }
 
+func TestNewAppliesTheDefaultPixelBudgetWhenNoneIsNamed(t *testing.T) {
+	t.Parallel()
+
+	for name, budget := range map[string]int{"zero": 0, "a negative budget": -1} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			library := New(Config{Dir: t.TempDir(), MaxPixels: budget})
+
+			if library.maxPixels != DefaultMaxPixels {
+				t.Errorf("maxPixels = %d, want the default %d", library.maxPixels, DefaultMaxPixels)
+			}
+		})
+	}
+}
+
 func TestIngestWaitsWhileTheOnlySlotIsHeld(t *testing.T) {
 	t.Parallel()
 

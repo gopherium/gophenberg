@@ -140,11 +140,17 @@ func zipArchive(t *testing.T) []byte {
 // withFrameBeyondTheBudget appends a frame declaring absurd dimensions after the last one.
 func withFrameBeyondTheBudget(t *testing.T, animation []byte) []byte {
 	t.Helper()
+	return withFrameOf(t, animation, 0xFFFF, 0xFFFF)
+}
+
+// withFrameOf appends a frame declaring width by height pixels after the last one.
+func withFrameOf(t *testing.T, animation []byte, width, height int) []byte {
+	t.Helper()
 	if animation[len(animation)-1] != 0x3B {
 		t.Fatal("the animation does not end with a trailer")
 	}
 	descriptor := []byte{
-		0x2C, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
+		0x2C, 0, 0, 0, 0, byte(width), byte(width >> 8), byte(height), byte(height >> 8), 0x00,
 		8, 1, 0, 0,
 	}
 	swollen := append([]byte{}, animation[:len(animation)-1]...)
