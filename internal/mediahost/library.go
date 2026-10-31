@@ -193,13 +193,8 @@ func (l *Library) process(ctx context.Context, k kind, data []byte, quality int)
 	if err != nil {
 		return processed{}, refuse("image_unreadable", "the image cannot be read", "decoding: %w", err)
 	}
-	orientation := uploadOrientation(k, data)
-	upright := orient(img, orientation)
-	return processed{
-		width:   upright.Bounds().Dx(),
-		height:  upright.Bounds().Dy(),
-		pending: makeSubSizes(upright, orientation != 1, k, quality),
-	}, nil
+	src := newSource(img, uploadOrientation(k, data))
+	return processed{width: src.width, height: src.height, pending: makeSubSizes(src, k, quality)}, nil
 }
 
 // uploadOrientation returns the EXIF orientation of a JPEG upload, and 1 for every other kind.
@@ -243,24 +238,36 @@ func (l *Library) isAnimated(data []byte) (bool, error) {
 	return frames > 1, nil
 }
 
-// makeSubSizes returns the sub-sizes an upright image needs, a full size copy when it was turned upright.
-func makeSubSizes(img image.Image, turned bool, k kind, quality int) []pendingSubSize {
-	format := subSizeFormat(k.ext, img)
-	out := fullSubSize(img, turned, format, quality)
-	out = fitSubSizes(out, img, format, quality)
-	return cropThumbnailSubSize(out, img, format, quality)
+// sizing holds what every sub-size of one upload is drawn and encoded from.
+type sizing struct {
+	upload, base source
+	format       string
+	quality      int
 }
 
-// fullSubSize returns the full size copy of an image beyond the big image bound or turned upright, else none.
-func fullSubSize(img image.Image, turned bool, format string, quality int) []pendingSubSize {
+// makeSubSizes returns the sub-sizes an upload needs, the smaller ones drawn from its full size copy when it has one.
+func makeSubSizes(src source, k kind, quality int) []pendingSubSize {
+	s := sizing{upload: src, base: src, format: subSizeFormat(k.ext, src.img), quality: quality}
+	out, s := fullSubSize(s)
+	out = fitSubSizes(out, s)
+	return cropThumbnailSubSize(out, s)
+}
+
+// fullSubSize returns the full size copy of an upload beyond the big image bound or turned upright, and its sizing.
+func fullSubSize(s sizing) ([]pendingSubSize, sizing) {
 	out := make([]pendingSubSize, 0, 4)
+	var suffix string
+	var full *image.RGBA
 	switch {
-	case img.Bounds().Dx() > bigImageBound || img.Bounds().Dy() > bigImageBound:
-		return append(out, fullCopy("scaled", resizeFit(img, bigImageBound), format, quality))
-	case turned:
-		return append(out, fullCopy("rotated", img, format, quality))
+	case s.upload.exceeds(bigImageBound):
+		suffix, full = "scaled", s.upload.draw(s.upload.fit(bigImageBound))
+	case s.upload.turned():
+		suffix, full = "rotated", s.upload.draw(s.upload.upright())
+	default:
+		return out, s
 	}
-	return out
+	s.base = s.upload.withCopy(full)
+	return append(out, fullCopy(suffix, full, s.format, s.quality)), s
 }
 
 // fullCopy returns img encoded as the full size copy named with suffix.
@@ -270,23 +277,32 @@ func fullCopy(suffix string, img image.Image, format string, quality int) pendin
 	return copied
 }
 
-// fitSubSizes appends the sub-sizes bounded by their longest side.
-func fitSubSizes(out []pendingSubSize, img image.Image, format string, quality int) []pendingSubSize {
+// fitSubSizes appends the sub-sizes bounded by their longest side, drawn from the sizing's base.
+func fitSubSizes(out []pendingSubSize, s sizing) []pendingSubSize {
 	for _, size := range fitBounds {
-		if img.Bounds().Dx() <= size.bound && img.Bounds().Dy() <= size.bound {
-			continue
+		if s.upload.exceeds(size.bound) {
+			out = append(out, encodeSubSize(size.slug, s.base.draw(s.base.fit(size.bound)), s.format, s.quality))
 		}
-		out = append(out, encodeSubSize(size.slug, resizeFit(img, size.bound), format, quality))
 	}
 	return out
 }
 
-// cropThumbnailSubSize appends the square thumbnail sub-size of a large enough image.
-func cropThumbnailSubSize(out []pendingSubSize, img image.Image, format string, quality int) []pendingSubSize {
-	if img.Bounds().Dx() <= thumbnailSide || img.Bounds().Dy() <= thumbnailSide {
+// cropThumbnailSubSize appends the square thumbnail sub-size of a large enough upload.
+func cropThumbnailSubSize(out []pendingSubSize, s sizing) []pendingSubSize {
+	if s.upload.width <= thumbnailSide || s.upload.height <= thumbnailSide {
 		return out
 	}
-	return append(out, encodeSubSize("thumbnail", resizeCrop(img, thumbnailSide), format, quality))
+	from := s.thumbnailSource()
+	return append(out, encodeSubSize("thumbnail", from.draw(from.crop(thumbnailSide)), s.format, s.quality))
+}
+
+// thumbnailSource returns the base while its short side still holds a thumbnail, else the upload.
+func (s sizing) thumbnailSource() source {
+	b := s.base.img.Bounds()
+	if min(b.Dx(), b.Dy()) >= thumbnailSide {
+		return s.base
+	}
+	return s.upload
 }
 
 // encodeSubSize returns img encoded as the named sub-size.
