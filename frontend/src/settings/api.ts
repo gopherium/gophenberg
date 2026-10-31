@@ -19,6 +19,8 @@ const listSettingsSchema = z.object({
 	format_locale: z.string(),
 	updates_progress_milliseconds: z.number(),
 	updates_restart_wait_milliseconds: z.number(),
+	show_avatars: z.boolean(),
+	default_role: z.string(),
 })
 
 const errorSchema = z.object({
@@ -33,7 +35,7 @@ export type SiteSettings = z.infer<typeof settingsSchema>
 /** The settings a request asks the site to store. */
 export type SettingsAsked = Partial<SiteSettings>
 
-/** The settings every list and the Updates screen follow, as the server's environment names them. */
+/** The settings every list, the Updates screen and Add User follow, as the server's environment names them. */
 export type ListSettings = z.infer<typeof listSettingsSchema>
 
 /**
