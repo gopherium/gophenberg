@@ -233,6 +233,7 @@ type runConfig struct {
 	uploadTimeout      time.Duration
 
 	mediaConcurrentImages int
+	mediaMaxPixels        int
 
 	definitionsImportCap int64
 	fieldDepth           int
@@ -378,7 +379,13 @@ func timingsFrom(env gonsole.Env) (runConfig, error) {
 // maxUploadCapMB is the most megabytes an upload cap may name and still be held in bytes.
 const maxUploadCapMB int64 = math.MaxInt64 >> 20
 
-// mediaLimitsFrom reads the upload cap and how many images decode at once into held.
+// megapixel is the pixels in one megapixel.
+const megapixel = 1_000_000
+
+// maxMegapixels is the most megapixels a pixel budget may name and still be held in pixels.
+const maxMegapixels = math.MaxInt / megapixel
+
+// mediaLimitsFrom reads the upload cap, how many images decode at once and the pixel budget into held.
 func mediaLimitsFrom(env gonsole.Env, held *runConfig) error {
 	uploadCap, err := env.Count("MEDIA_UPLOAD_CAP_MB", 128, gonsole.AtMost(maxUploadCapMB))
 	if err != nil {
@@ -389,7 +396,13 @@ func mediaLimitsFrom(env gonsole.Env, held *runConfig) error {
 	if err != nil {
 		return err
 	}
+	megapixels, err := env.Count("MEDIA_MAX_MEGAPIXELS", mediahost.DefaultMaxPixels/megapixel,
+		gonsole.AtMost(maxMegapixels))
+	if err != nil {
+		return err
+	}
 	held.mediaUploadCap, held.mediaConcurrentImages = int64(uploadCap)<<20, images
+	held.mediaMaxPixels = megapixels * megapixel
 	return nil
 }
 
@@ -397,7 +410,7 @@ func mediaLimitsFrom(env gonsole.Env, held *runConfig) error {
 func mediaConfigFrom(settings runConfig, store mediahost.Settings) mediahost.Config {
 	return mediahost.Config{
 		Dir: settings.mediaDir, MaxSize: settings.mediaUploadCap, Settings: store,
-		ConcurrentImages: settings.mediaConcurrentImages,
+		ConcurrentImages: settings.mediaConcurrentImages, MaxPixels: settings.mediaMaxPixels,
 	}
 }
 

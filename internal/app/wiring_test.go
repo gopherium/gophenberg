@@ -32,6 +32,7 @@ func timedConfig() runConfig {
 		fieldDepth:         7,
 
 		mediaConcurrentImages: 3,
+		mediaMaxPixels:        24_000_000,
 
 		cacheAssetMaxAge:                 2 * time.Hour,
 		cacheMediaMaxAge:                 90 * time.Second,
@@ -163,6 +164,18 @@ func TestMediaConfigCarriesTheImageLimitTheEnvironmentNamed(t *testing.T) {
 
 	if held.ConcurrentImages != settings.mediaConcurrentImages {
 		t.Errorf("ConcurrentImages = %d, want %d", held.ConcurrentImages, settings.mediaConcurrentImages)
+	}
+}
+
+func TestMediaConfigCarriesThePixelBudgetTheEnvironmentNamed(t *testing.T) {
+	t.Parallel()
+
+	settings := timedConfig()
+
+	held := mediaConfigFrom(settings, nil)
+
+	if held.MaxPixels != settings.mediaMaxPixels {
+		t.Errorf("MaxPixels = %d, want %d", held.MaxPixels, settings.mediaMaxPixels)
 	}
 }
 

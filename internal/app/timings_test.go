@@ -43,6 +43,8 @@ func TestRunConfigTrimsEverySetting(t *testing.T) {
 			func(c runConfig) string { return strconv.FormatInt(c.mediaUploadCap, 10) }, strconv.Itoa(64 << 20)},
 		{"GOPHENBERG_MEDIA_CONCURRENT_IMAGES", " 3 ",
 			func(c runConfig) string { return strconv.Itoa(c.mediaConcurrentImages) }, "3"},
+		{"GOPHENBERG_MEDIA_MAX_MEGAPIXELS", " 24 ",
+			func(c runConfig) string { return strconv.Itoa(c.mediaMaxPixels) }, "24000000"},
 		{"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", " 512 ",
 			func(c runConfig) string { return strconv.FormatInt(c.definitionsImportCap, 10) }, strconv.Itoa(512 << 10)},
 		{"GOPHENBERG_FIELD_DEPTH", " 4 ", func(c runConfig) string { return strconv.Itoa(c.fieldDepth) }, "4"},
@@ -122,6 +124,22 @@ func TestLoadRunConfigTakesTheMostConcurrentImagesAllowed(t *testing.T) {
 	}
 }
 
+func TestLoadRunConfigTakesTheLargestPixelBudgetItCanCount(t *testing.T) {
+	t.Parallel()
+
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL":         unreachableDatabaseURL,
+		"GOPHENBERG_MEDIA_MAX_MEGAPIXELS": strconv.Itoa(math.MaxInt / 1_000_000),
+	}))
+
+	if err != nil {
+		t.Fatalf("loadRunConfig() error = %v, want the largest pixel budget it can count taken", err)
+	}
+	if want := math.MaxInt / 1_000_000 * 1_000_000; settings.mediaMaxPixels != want {
+		t.Errorf("the pixel budget = %d, want %d", settings.mediaMaxPixels, want)
+	}
+}
+
 func TestLoadRunConfigTakesTheDeepestFieldNestingAllowed(t *testing.T) {
 	t.Parallel()
 
@@ -178,6 +196,9 @@ func TestLoadRunConfigDefaultsTheTimingsToTodaysValues(t *testing.T) {
 	}
 	if settings.mediaConcurrentImages != 2 {
 		t.Errorf("the image limit = %d, want 2", settings.mediaConcurrentImages)
+	}
+	if settings.mediaMaxPixels != 80_000_000 {
+		t.Errorf("the pixel budget = %d, want 80000000", settings.mediaMaxPixels)
 	}
 	if settings.definitionsImportCap != server.DefaultDefinitionsImportCap {
 		t.Errorf("the definitions cap = %d, want %d",
@@ -296,6 +317,12 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		"an image limit that is not a number":    {"GOPHENBERG_MEDIA_CONCURRENT_IMAGES", "several"},
 		"an image limit standing at zero":        {"GOPHENBERG_MEDIA_CONCURRENT_IMAGES", "0"},
 		"an image limit below zero":              {"GOPHENBERG_MEDIA_CONCURRENT_IMAGES", "-1"},
+		"a pixel budget that is not a number":    {"GOPHENBERG_MEDIA_MAX_MEGAPIXELS", "lots"},
+		"a pixel budget standing at zero":        {"GOPHENBERG_MEDIA_MAX_MEGAPIXELS", "0"},
+		"a pixel budget below zero":              {"GOPHENBERG_MEDIA_MAX_MEGAPIXELS", "-1"},
+		"a pixel budget of more pixels than the server counts": {
+			"GOPHENBERG_MEDIA_MAX_MEGAPIXELS", strconv.Itoa(math.MaxInt/1_000_000 + 1),
+		},
 		"a definitions cap that is not a number": {"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", "roomy"},
 		"a definitions cap standing at zero":     {"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", "0"},
 		"a definitions cap below zero":           {"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", "-4"},
