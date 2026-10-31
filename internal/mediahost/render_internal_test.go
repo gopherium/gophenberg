@@ -67,15 +67,6 @@ func TestEncodeSubSizePanicsOnAnImageItCannotEncode(t *testing.T) {
 	encodeSubSize("full", flatImage(bigImageBound*2), "png", DefaultJPEGQuality)
 }
 
-func TestUprightJPEGPanicsOnAnImageItCannotReEncode(t *testing.T) {
-	t.Parallel()
-
-	turned := jpegWithSegment(0xE1, append([]byte("Exif\x00\x00"), tiffBlock(shortEntry(0x0112, 6))...))
-
-	defer wantEncodePanic(t, "uprightJPEG()", "encoding a jpeg image")
-	uprightJPEG(kind{ext: "jpg", mime: "image/jpeg"}, hugeImage(), turned, DefaultJPEGQuality)
-}
-
 func TestWriteExclusiveReportsWhatItCannotOpen(t *testing.T) {
 	t.Parallel()
 

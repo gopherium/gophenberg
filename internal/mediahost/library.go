@@ -50,13 +50,20 @@ var fitBounds = []struct {
 	bound int
 }{{"large", 1024}, {"medium", 300}}
 
-// pendingSubSize is one sub-size encoded and waiting to be written.
+// pendingSubSize is one sub-size encoded and waiting to be written, a suffix naming a full size copy.
 type pendingSubSize struct {
 	slug   string
+	suffix string
 	data   []byte
 	width  int
 	height int
 	format string
+}
+
+// processed is what decoding an upload yields, its upright size and the sub-sizes to write.
+type processed struct {
+	width, height int
+	pending       []pendingSubSize
 }
 
 // Settings answers what the site chose for the pictures it stores.
@@ -152,7 +159,7 @@ func (l *Library) quality(ctx context.Context) int {
 	return ResolveJPEGQuality(held, found)
 }
 
-// ingestImage decodes an upload, uprights it, and stores it with its sub-sizes.
+// ingestImage decodes an upload and stores it as sent with its upright sub-sizes.
 func (l *Library) ingestImage(
 	ctx context.Context, name string, k kind, data []byte, authorID uuid.UUID,
 ) (media.Media, error) {
@@ -169,27 +176,38 @@ func (l *Library) ingestImage(
 			return l.store(name, k, data, cfg.Width, cfg.Height, nil, authorID)
 		}
 	}
-	img, data, pending, err := l.process(ctx, k, data, l.quality(ctx))
+	done, err := l.process(ctx, k, data, l.quality(ctx))
 	if err != nil {
 		return media.Media{}, err
 	}
-	return l.store(name, k, data, img.Bounds().Dx(), img.Bounds().Dy(), pending, authorID)
+	return l.store(name, k, data, done.width, done.height, done.pending, authorID)
 }
 
-// process decodes an upload, uprights it, and makes its sub-sizes while it holds one of the library's slots.
-func (l *Library) process(
-	ctx context.Context, k kind, data []byte, quality int,
-) (image.Image, []byte, []pendingSubSize, error) {
+// process decodes an upload and makes its upright sub-sizes while it holds one of the library's slots.
+func (l *Library) process(ctx context.Context, k kind, data []byte, quality int) (processed, error) {
 	if err := l.slots.take(ctx); err != nil {
-		return nil, nil, nil, fmt.Errorf("mediahost: wait for an image slot: %w", err)
+		return processed{}, fmt.Errorf("mediahost: wait for an image slot: %w", err)
 	}
 	defer l.slots.give()
 	img, _, err := l.decode(bytes.NewReader(data))
 	if err != nil {
-		return nil, nil, nil, refuse("image_unreadable", "the image cannot be read", "decoding: %w", err)
+		return processed{}, refuse("image_unreadable", "the image cannot be read", "decoding: %w", err)
 	}
-	img, data = uprightJPEG(k, img, data, quality)
-	return img, data, makeSubSizes(img, k, quality), nil
+	orientation := uploadOrientation(k, data)
+	upright := orient(img, orientation)
+	return processed{
+		width:   upright.Bounds().Dx(),
+		height:  upright.Bounds().Dy(),
+		pending: makeSubSizes(upright, orientation != 1, k, quality),
+	}, nil
+}
+
+// uploadOrientation returns the EXIF orientation of a JPEG upload, and 1 for every other kind.
+func uploadOrientation(k kind, data []byte) int {
+	if k.ext != "jpg" {
+		return 1
+	}
+	return jpegOrientation(data)
 }
 
 // decodeBudget reads the image header and refuses what holds more pixels than the library's budget.
@@ -225,34 +243,31 @@ func (l *Library) isAnimated(data []byte) (bool, error) {
 	return frames > 1, nil
 }
 
-// uprightJPEG applies a JPEG's orientation tag, re-encoding when the pixels moved.
-func uprightJPEG(k kind, img image.Image, data []byte, quality int) (image.Image, []byte) {
-	if k.ext != "jpg" {
-		return img, data
-	}
-	orientation := jpegOrientation(data)
-	if orientation == 1 {
-		return img, data
-	}
-	upright := orient(img, orientation)
-	return upright, mustEncode(upright, "jpeg", quality)
-}
-
-// makeSubSizes returns the sub-sizes an upright image needs.
-func makeSubSizes(img image.Image, k kind, quality int) []pendingSubSize {
+// makeSubSizes returns the sub-sizes an upright image needs, a full size copy when it was turned upright.
+func makeSubSizes(img image.Image, turned bool, k kind, quality int) []pendingSubSize {
 	format := subSizeFormat(k.ext, img)
-	out := scaleFullSubSize(img, format, quality)
+	out := fullSubSize(img, turned, format, quality)
 	out = fitSubSizes(out, img, format, quality)
 	return cropThumbnailSubSize(out, img, format, quality)
 }
 
-// scaleFullSubSize returns the full sub-size of an image beyond the big image bound, scaled down to it.
-func scaleFullSubSize(img image.Image, format string, quality int) []pendingSubSize {
+// fullSubSize returns the full size copy of an image beyond the big image bound or turned upright, else none.
+func fullSubSize(img image.Image, turned bool, format string, quality int) []pendingSubSize {
 	out := make([]pendingSubSize, 0, 4)
-	if img.Bounds().Dx() <= bigImageBound && img.Bounds().Dy() <= bigImageBound {
-		return out
+	switch {
+	case img.Bounds().Dx() > bigImageBound || img.Bounds().Dy() > bigImageBound:
+		return append(out, fullCopy("scaled", resizeFit(img, bigImageBound), format, quality))
+	case turned:
+		return append(out, fullCopy("rotated", img, format, quality))
 	}
-	return append(out, encodeSubSize("full", resizeFit(img, bigImageBound), format, quality))
+	return out
+}
+
+// fullCopy returns img encoded as the full size copy named with suffix.
+func fullCopy(suffix string, img image.Image, format string, quality int) pendingSubSize {
+	copied := encodeSubSize("full", img, format, quality)
+	copied.suffix = suffix
+	return copied
 }
 
 // fitSubSizes appends the sub-sizes bounded by their longest side.
@@ -333,7 +348,7 @@ func (l *Library) writeSubSizes(
 			Filesize: int64(len(p.data)),
 		}
 	}
-	if _, scaled := sizes["full"]; !scaled {
+	if _, copied := sizes["full"]; !copied {
 		sizes["full"] = media.SubSize{
 			File: rel, Width: width, Height: height, MimeType: k.mime, Filesize: int64(len(original)),
 		}
@@ -343,8 +358,8 @@ func (l *Library) writeSubSizes(
 
 // subSizeStem returns the stem a sub-size of the given stem stores under.
 func subSizeStem(stem string, p pendingSubSize) string {
-	if p.slug == "full" {
-		return stem + "-scaled"
+	if p.suffix != "" {
+		return stem + "-" + p.suffix
 	}
 	return fmt.Sprintf("%s-%dx%d", stem, p.width, p.height)
 }

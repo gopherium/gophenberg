@@ -57,6 +57,54 @@ func orientedJPEG(t *testing.T, orientation uint16, width, height int) []byte {
 	return append(oriented, plain[2:]...)
 }
 
+// quadrantColors are the upright quadrants of quadrantJPEG: top left, top right, bottom left, bottom right.
+var quadrantColors = [4]color.RGBA{
+	{R: 220, A: 255}, {G: 200, A: 255}, {B: 220, A: 255}, {R: 240, G: 240, B: 240, A: 255},
+}
+
+// quadrantJPEG returns a JPEG of four coloured quadrants that stand upright at width by height once turned.
+func quadrantJPEG(t *testing.T, orientation uint16, width, height int) []byte {
+	t.Helper()
+	w, h := width, height
+	if orientation >= 5 {
+		w, h = height, width
+	}
+	canvas := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			ux, uy := uprightPoint(orientation, x, y, w, h)
+			canvas.SetRGBA(x, y, quadrantColors[2*(uy*2/height)+ux*2/width])
+		}
+	}
+	var buffer bytes.Buffer
+	if err := jpeg.Encode(&buffer, canvas, &jpeg.Options{Quality: 90}); err != nil {
+		t.Fatalf("encoding the quadrants: %v", err)
+	}
+	plain := buffer.Bytes()
+	return append(append(append([]byte{}, plain[:2]...), exifSegment(orientation)...), plain[2:]...)
+}
+
+// uprightPoint returns where the stored pixel x, y of a w by h picture lands once orientation stands it upright.
+func uprightPoint(orientation uint16, x, y, w, h int) (int, int) {
+	switch orientation {
+	case 2:
+		return w - 1 - x, y
+	case 3:
+		return w - 1 - x, h - 1 - y
+	case 4:
+		return x, h - 1 - y
+	case 5:
+		return y, x
+	case 6:
+		return h - 1 - y, x
+	case 7:
+		return h - 1 - y, w - 1 - x
+	case 8:
+		return y, w - 1 - x
+	}
+	return x, y
+}
+
 // exifSegment returns an APP1 segment holding one orientation tag.
 func exifSegment(orientation uint16) []byte {
 	payload := []byte("Exif\x00\x00")

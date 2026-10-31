@@ -5,7 +5,9 @@ package mediahost_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"image"
+	"image/color"
 	"maps"
 	"os"
 	"path/filepath"
@@ -58,6 +60,58 @@ func storedBytes(t *testing.T, l *mediahost.Library, file string) []byte {
 		t.Fatalf("reading %q: %v", file, err)
 	}
 	return data
+}
+
+// storedPicture decodes a library relative file whole.
+func storedPicture(t *testing.T, l *mediahost.Library, file string) image.Image {
+	t.Helper()
+	img, _, err := image.Decode(bytes.NewReader(storedBytes(t, l, file)))
+	if err != nil {
+		t.Fatalf("decoding %q: %v", file, err)
+	}
+	return img
+}
+
+// wantSizes fails unless the item offers exactly the sizes want names, each measuring as named in its data and file.
+func wantSizes(t *testing.T, l *mediahost.Library, m media.Media, want map[string][2]int) {
+	t.Helper()
+	if len(m.Sizes) != len(want) {
+		t.Errorf("Sizes = %v, want exactly %v", m.Sizes, want)
+	}
+	for slug, dims := range want {
+		size, offered := m.Sizes[slug]
+		if !offered {
+			t.Errorf("Sizes = %v, want %q among them", m.Sizes, slug)
+			continue
+		}
+		cfg := storedImage(t, l, size.File)
+		if size.Width != dims[0] || size.Height != dims[1] || cfg.Width != dims[0] || cfg.Height != dims[1] {
+			t.Errorf("%s measures %dx%d with a file of %dx%d, want %dx%d",
+				slug, size.Width, size.Height, cfg.Width, cfg.Height, dims[0], dims[1])
+		}
+	}
+}
+
+// wantUpright fails unless the picture shows the top quadrants of quadrantJPEG where they stand upright.
+func wantUpright(t *testing.T, slug string, img image.Image) {
+	t.Helper()
+	b := img.Bounds()
+	for i, x := range []int{b.Dx() / 4, 3 * b.Dx() / 4} {
+		if got := img.At(b.Min.X+x, b.Min.Y+b.Dy()/4); !near(got, quadrantColors[i]) {
+			t.Errorf("%s holds %v at %d,%d, want about %v", slug, got, x, b.Dy()/4, quadrantColors[i])
+		}
+	}
+}
+
+// near reports whether got lies within 48 of want on every channel.
+func near(got color.Color, want color.RGBA) bool {
+	r, g, b, _ := got.RGBA()
+	return within(r>>8, want.R) && within(g>>8, want.G) && within(b>>8, want.B)
+}
+
+// within reports whether a channel lies within 48 of want.
+func within(channel uint32, want uint8) bool {
+	return max(int(channel), int(want))-min(int(channel), int(want)) <= 48
 }
 
 // wantRefused asserts err was refused carrying the exact reason.
@@ -182,7 +236,7 @@ func TestIngestScalesAnOversizedPhoto(t *testing.T) {
 	}
 }
 
-func TestIngestStoresASidewaysPhotoUpright(t *testing.T) {
+func TestIngestKeepsASidewaysUploadAsSentBesideAnUprightCopy(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
@@ -193,15 +247,96 @@ func TestIngestStoresASidewaysPhotoUpright(t *testing.T) {
 	if m.Width != 20 || m.Height != 40 {
 		t.Errorf("measures %dx%d, want the sideways photo upright at 20x40", m.Width, m.Height)
 	}
-	stored := storedBytes(t, library, m.File)
-	if bytes.Contains(stored, []byte("Exif\x00\x00")) {
-		t.Errorf("the stored file still carries an EXIF segment, want the tag dropped")
+	if !bytes.Equal(storedBytes(t, library, m.File), photo) || m.Filesize != int64(len(photo)) {
+		t.Errorf("the original file was rewritten, want it byte for byte the upload")
 	}
-	if cfg := storedImage(t, library, m.File); cfg.Width != 20 || cfg.Height != 40 {
-		t.Errorf("the stored file measures %dx%d, want 20x40", cfg.Width, cfg.Height)
+	full := m.Sizes["full"]
+	if len(m.Sizes) != 1 || filepath.Base(full.File) != "sideways-rotated.jpg" {
+		t.Fatalf("Sizes = %v, want only a full sub-size named sideways-rotated.jpg", m.Sizes)
 	}
-	if len(m.Sizes) != 1 || m.Sizes["full"].File != m.File {
-		t.Errorf("Sizes = %v, want only a full sub-size on a tiny photo", m.Sizes)
+	if cfg := storedImage(t, library, full.File); full.Width != 20 || full.Height != 40 || cfg.Width != 20 ||
+		cfg.Height != 40 {
+		t.Errorf("full measures %dx%d with a file of %dx%d, want 20x40", full.Width, full.Height, cfg.Width, cfg.Height)
+	}
+	if bytes.Contains(storedBytes(t, library, full.File), []byte("Exif\x00\x00")) {
+		t.Errorf("the upright copy carries an EXIF segment, want none")
+	}
+}
+
+func TestIngestKeepsALargeSidewaysUploadAsSent(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+	photo := orientedJPEG(t, 6, 3000, 2000)
+
+	m := mustIngest(t, library, "cliff.jpg", photo)
+
+	if m.Width != 2000 || m.Height != 3000 {
+		t.Errorf("measures %dx%d, want the sideways photo upright at 2000x3000", m.Width, m.Height)
+	}
+	if !bytes.Equal(storedBytes(t, library, m.File), photo) {
+		t.Errorf("the original file was rewritten, want it byte for byte the upload")
+	}
+	if filepath.Base(m.Sizes["full"].File) != "cliff-scaled.jpg" {
+		t.Errorf("full = %q, want cliff-scaled.jpg", m.Sizes["full"].File)
+	}
+	wantSizes(t, library, m, map[string][2]int{
+		"full": {1707, 2560}, "large": {683, 1024}, "medium": {200, 300}, "thumbnail": {150, 150},
+	})
+}
+
+func TestIngestPlacesEveryOrientationUprightInEverySize(t *testing.T) {
+	t.Parallel()
+
+	for _, shape := range [][2]int{{2600, 400}, {400, 200}} {
+		for orientation := uint16(1); orientation <= 8; orientation++ {
+			t.Run(fmt.Sprintf("%dx%d turned %d", shape[0], shape[1], orientation), func(t *testing.T) {
+				t.Parallel()
+
+				library := newLibrary(t)
+				m := mustIngest(t, library, "quadrants.jpg", quadrantJPEG(t, orientation, shape[0], shape[1]))
+
+				for slug, size := range m.Sizes {
+					wantUpright(t, slug, storedPicture(t, library, size.File))
+				}
+			})
+		}
+	}
+}
+
+func TestIngestKeepsTheSizesEveryShapeEarns(t *testing.T) {
+	t.Parallel()
+
+	shapes := []struct {
+		width, height int
+		sizes         map[string][2]int
+	}{
+		{3000, 160, map[string][2]int{"full": {2560, 137}, "large": {1024, 55}, "medium": {300, 16},
+			"thumbnail": {150, 150}}},
+		{160, 3000, map[string][2]int{"full": {137, 2560}, "large": {55, 1024}, "medium": {16, 300},
+			"thumbnail": {150, 150}}},
+		{2600, 100, map[string][2]int{"full": {2560, 98}, "large": {1024, 39}, "medium": {300, 12}}},
+		{2561, 151, map[string][2]int{"full": {2560, 151}, "large": {1024, 60}, "medium": {300, 18},
+			"thumbnail": {150, 150}}},
+		{2561, 1, map[string][2]int{"full": {2560, 1}, "large": {1024, 1}, "medium": {300, 1}}},
+		{151, 151, map[string][2]int{"full": {151, 151}, "thumbnail": {150, 150}}},
+	}
+	for _, shape := range shapes {
+		for _, orientation := range []uint16{1, 6} {
+			t.Run(fmt.Sprintf("%dx%d turned %d", shape.width, shape.height, orientation), func(t *testing.T) {
+				t.Parallel()
+
+				stored := [2]int{shape.width, shape.height}
+				if orientation == 6 {
+					stored = [2]int{shape.height, shape.width}
+				}
+				library := newLibrary(t)
+
+				m := mustIngest(t, library, "shape.jpg", orientedJPEG(t, orientation, stored[0], stored[1]))
+
+				wantSizes(t, library, m, shape.sizes)
+			})
+		}
 	}
 }
 
@@ -331,12 +466,16 @@ func TestIngestGuardsSubSizeLookalikeNames(t *testing.T) {
 
 	cropLike := mustIngest(t, library, "photo-150x150.jpg", photo)
 	scaledLike := mustIngest(t, library, "shot-scaled.jpg", photo)
+	rotatedLike := mustIngest(t, library, "turned-rotated.jpg", photo)
 
 	if filepath.Base(cropLike.File) != "photo-150x150-file.jpg" {
 		t.Errorf("File = %q, want the sub-size lookalike suffixed", cropLike.File)
 	}
 	if filepath.Base(scaledLike.File) != "shot-scaled-file.jpg" {
 		t.Errorf("File = %q, want the scaled lookalike suffixed", scaledLike.File)
+	}
+	if filepath.Base(rotatedLike.File) != "turned-rotated-file.jpg" {
+		t.Errorf("File = %q, want the rotated lookalike suffixed", rotatedLike.File)
 	}
 }
 
@@ -683,6 +822,32 @@ func TestIngestCleansUpWhenASubSizeCannotBeWritten(t *testing.T) {
 	}
 	for _, entry := range entries {
 		if entry.Name() != "harbor-150x150.jpg" {
+			t.Errorf("the directory still holds %q, want the partial upload cleaned up", entry.Name())
+		}
+	}
+}
+
+func TestIngestCleansUpWhenTheUprightCopyCannotBeWritten(t *testing.T) {
+	t.Parallel()
+
+	library := newLibrary(t)
+	month := time.Now().UTC().Format("2006/01")
+	blocked := filepath.Join(library.Dir(), filepath.FromSlash(month), "sideways-rotated.jpg")
+	if err := os.MkdirAll(blocked, 0o755); err != nil {
+		t.Fatalf("planting the blocking directory: %v", err)
+	}
+
+	_, err := library.Ingest(t.Context(), "sideways.jpg", orientedJPEG(t, 6, 40, 20), uuid.Must(uuid.NewV7()))
+
+	if err == nil {
+		t.Fatal("Ingest() over a blocked upright copy path error = nil, want a failure")
+	}
+	entries, readErr := os.ReadDir(filepath.Join(library.Dir(), filepath.FromSlash(month)))
+	if readErr != nil {
+		t.Fatalf("reading the month directory: %v", readErr)
+	}
+	for _, entry := range entries {
+		if entry.Name() != "sideways-rotated.jpg" {
 			t.Errorf("the directory still holds %q, want the partial upload cleaned up", entry.Name())
 		}
 	}

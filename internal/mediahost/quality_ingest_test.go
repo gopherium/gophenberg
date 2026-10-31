@@ -95,7 +95,7 @@ func TestIngestEncodesAtTheDefaultForAQualityItCannotUse(t *testing.T) {
 	}
 }
 
-func TestIngestUprightsAPhotoAtTheQualityTheSiteChose(t *testing.T) {
+func TestIngestSavesTheUprightCopyAtTheQualityTheSiteChose(t *testing.T) {
 	t.Parallel()
 
 	photo := orientedJPEG(t, 6, 900, 600)
@@ -113,8 +113,12 @@ func TestIngestUprightsAPhotoAtTheQualityTheSiteChose(t *testing.T) {
 		t.Fatalf("Ingest() at the default: %v, want nil", err)
 	}
 
-	if leaner.Filesize >= richer.Filesize {
-		t.Errorf("the upright photo is %d bytes at quality 30 and %d at the default, want it smaller",
-			leaner.Filesize, richer.Filesize)
+	if leaner.Sizes["full"].Filesize >= richer.Sizes["full"].Filesize {
+		t.Errorf("the upright copy is %d bytes at quality 30 and %d at the default, want it smaller",
+			leaner.Sizes["full"].Filesize, richer.Sizes["full"].Filesize)
+	}
+	if leaner.Filesize != int64(len(photo)) || richer.Filesize != int64(len(photo)) {
+		t.Errorf("the originals are %d and %d bytes, want both the upload's %d", leaner.Filesize, richer.Filesize,
+			len(photo))
 	}
 }

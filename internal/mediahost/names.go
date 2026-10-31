@@ -20,7 +20,7 @@ const maxStemBytes = 200
 const maxNameBytes = 4 * maxStemBytes
 
 // lookalikeSuffix matches a stem that could collide with sub-size naming.
-var lookalikeSuffix = regexp.MustCompile(`-(\d+x\d+|scaled)$`)
+var lookalikeSuffix = regexp.MustCompile(`-(\d+x\d+|scaled|rotated)$`)
 
 // baseName returns name without any leading path, whichever separator wrote it.
 func baseName(name string) string {
