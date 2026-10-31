@@ -61,12 +61,18 @@ lists. Under the title it says what the screen is for: *Manage who
 can sign in and what they can do.*
 
 **Reading the list.** Each row shows the account's name with its
-email under it, then its Status, its Role, how many posts it wrote,
-and when it was created. Status is a badge, Active or Disabled. An
+email under it, then its Status, its Role and how many posts it
+wrote. A long email stops at the edge of the column, and a tooltip
+shows the whole address. Status is a badge, Active or Disabled. An
 account holding no role reads None. A role a plugin declares reads
 as its name with a capital first letter, such as Archivist for
-`archivist`. Created shows the date and time the way the posts list
-writes them.
+`archivist`.
+
+The Created column is hidden by default, as WordPress's users list
+has no such column. Turn it on under **View options** to see when
+each account was created. It shows the date and time the way the
+posts list writes them. Hidden or shown, the list still opens newest
+first.
 
 A small round avatar sits before each name, drawn the way the
 site's [avatar settings](/self-hosting/configuration/#avatars) say,
@@ -82,9 +88,10 @@ someone renames that type. While that type is deactivated or
 deleted, the column is gone.
 
 On a phone the list shows one account per row, with its avatar, its
-name, its email, its status, its role and when it was created. The
-posts count is not on the row. Turned on under **View options**, it
-shows as plain text there, with no link.
+name, its email, its status and its role. The posts count and the
+date the account was created are not on the row. Turn either one on
+under **View options**. The posts count then shows as plain text,
+with no link.
 
 **Finding an account.** The search box reads `Search users…` and
 matches names and emails. **Add filter** narrows the list by
@@ -157,9 +164,11 @@ The password field starts with a generated password, 24 characters
 long, in plain sight. **Generate password** puts a new one in, and
 **Hide** hides it. A meter under the field rates the password as
 you type. A weak one asks you to tick **Confirm use of weak password**.
-Press **Add User** before you tick it and the field says *Please
-confirm the use of a weak password.* The password must be at least
-12 characters.
+Send the form before you tick it and the message *Please confirm the
+use of a weak password.* shows in red under the field and its meter,
+and the cursor moves to the field. Tick the box or change the
+password and the message goes. The password must be at least 12
+characters.
 
 The role menu offers the roles your own role reaches, the one with
 the fewest capabilities first. It starts on the site's default role,
@@ -168,12 +177,13 @@ the fewest capabilities first. It starts on the site's default role,
 unless set. When you may not give that role, it starts on the role
 with the fewest capabilities you may give.
 
-Press **Add User** to create the account. An empty field, a taken
-email or a password that is too short shows its message under that
-field, such as *This email is already registered. Please choose
-another one.* Any other failure shows a message at the bottom of the
-screen, and the form keeps what you typed. Once the account exists,
-the screen goes back to the list and says *New user created.*
+Press **Add User** or Enter to create the account. An empty field, a
+taken email or a password that is too short shows its message in red
+under that field, such as *This email is already registered. Please
+choose another one.* The form waits until you change that field. Any
+other failure shows a message at the bottom of the screen, and the
+form keeps what you typed. Once the account exists, the screen goes
+back to the list and says *New user created.*
 
 Changing a password is not something the admin offers.
 
