@@ -44,11 +44,13 @@ A lower number makes lighter files that look rougher. The change
 applies to pictures uploaded after it, so copies already on disk
 stay as they were.
 
-Two things are corrected on the way in. A photo taken sideways is
-turned upright, so it is stored the way you saw it on the camera.
-A very large photo also gains a display copy bounded to 2560
-pixels, and that copy is what a post shows. Your original stays on
-disk either way.
+Two things are corrected in the copies. A photo taken sideways
+gains an upright copy named with `-rotated`, so a post shows it the
+way you saw it on the camera. A very large photo gains a display
+copy bounded to 2560 pixels and named with `-scaled`, upright when
+the photo was taken sideways, and that copy is what a post shows.
+The file you sent stays on disk as it was, with the details the
+camera wrote into it, such as where the photo was taken.
 
 An animated GIF is the exception. It is stored exactly as
 uploaded and gains no smaller copies, because making them would

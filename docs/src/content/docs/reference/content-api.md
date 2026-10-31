@@ -360,7 +360,9 @@ and a list for a Gallery, ready to render:
 }
 ```
 
-`src` is the one address every file carries. `sizes` maps the stored
+`src` is the one address every file carries, the file as it was
+uploaded. A photo taken sideways keeps its orientation tag there,
+while its `full` size is an upright copy. `sizes` maps the stored
 image sizes for building responsive images, and it can be empty, for
 an animated GIF or a plain file, so never rely on a particular slug.
 A file that was deleted from the library drops out of a list, and a

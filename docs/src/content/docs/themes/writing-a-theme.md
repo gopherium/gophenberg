@@ -252,6 +252,9 @@ own address during development still load files from the instance.
 Giving `width` and `height` stops the page jumping as images
 arrive. `item.sizes` holds the other image sizes when you want a
 `srcset`, and it can be empty, so check before reaching into it.
+`item.src` is the file as it was uploaded, so a photo taken
+sideways keeps its orientation tag there. Browsers turn it upright,
+and `item.sizes.full` is an upright copy for any other reader.
 
 A Section groups fields under one key, and a Repeater holds rows of
 them. The kit's `heldSection` helper reads the values a section

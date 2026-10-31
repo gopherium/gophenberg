@@ -276,6 +276,12 @@ Some things work differently after this update:
   it, where it started on `author`. A member cannot enter the admin,
   so set it to `author` to keep the old start. See
   [managing accounts](/guides/users/#managing-accounts).
+- A JPEG that arrives sideways is now kept as you sent it, with its
+  orientation tag and the details the camera wrote into it, such as
+  where the photo was taken, as WordPress keeps it. Its full size is
+  an upright copy named with `-rotated`, or the `-scaled` copy when
+  the photo is larger than 2560 pixels, and a post shows that copy.
+  Pictures already in the library stay as they were.
 
 Updating from further back also runs the migrations of every release
 you skip, so read each of their notes. Coming from five releases back

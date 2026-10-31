@@ -42,8 +42,8 @@ GIF gets PNG copies, which ignore the number entirely, and an
 animated GIF is stored as it arrived with no copies at all. Copies
 already on disk
 stay as they were, so lowering the number to save room frees
-nothing until new pictures arrive. A JPEG that arrives sideways is
-turned upright and stored again at the quality you chose, which
+nothing until new pictures arrive. A JPEG that arrives sideways
+gains an upright copy saved at the quality you chose, which
 [media](/guides/media/) explains.
 
 ## When a change reaches readers
