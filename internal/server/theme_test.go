@@ -157,6 +157,13 @@ func TestTheReservedAddressesNeverReachTheTheme(t *testing.T) {
 		{path: "/gophenberg/blocks.css", status: http.StatusNotFound, want: ""},
 		{path: "/_gophenberg/health", status: http.StatusNotFound, want: "A Test Site"},
 		{path: "/_gophenberg", status: http.StatusNotFound, want: "A Test Site"},
+		{path: "/_gophenberg/..x", status: http.StatusNotFound, want: "A Test Site"},
+		{path: "/_gophenberg/../hello-world", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/_gophenberg/%2e%2e/hello-world", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/_gophenberg/./../hello-world", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/_gophenberg%2f..%2fhello-world", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/_gophenberg/a/../../hello-world", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/_gophenberg/./health", status: http.StatusNotFound, want: `"route_not_found"`},
 		{path: "/admin/", status: http.StatusOK, want: "<title>Admin</title>"},
 	}
 	for _, testCase := range cases {
@@ -173,35 +180,6 @@ func TestTheReservedAddressesNeverReachTheTheme(t *testing.T) {
 			}
 			if testCase.want != "" && !strings.Contains(recorder.Body.String(), testCase.want) {
 				t.Errorf("body = %q, want it to carry %q", recorder.Body.String(), testCase.want)
-			}
-		})
-	}
-}
-
-func TestDotSegmentsUnderTheThemePrefixNeverReachTheBuiltInSite(t *testing.T) {
-	t.Parallel()
-
-	upstream := themeUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte("themed answer"))
-	})
-	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
-
-	paths := []string{
-		"/_gophenberg/../hello-world",
-		"/_gophenberg/%2e%2e/hello-world",
-		"/_gophenberg/./../hello-world",
-	}
-	for _, path := range paths {
-		t.Run(path, func(t *testing.T) {
-			t.Parallel()
-
-			recorder := doRequest(t, handler, http.MethodGet, path, "")
-
-			if recorder.Code != http.StatusNotFound {
-				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
-			}
-			if strings.Contains(recorder.Body.String(), "themed answer") {
-				t.Errorf("body = %q, want it never served by the theme", recorder.Body.String())
 			}
 		})
 	}
