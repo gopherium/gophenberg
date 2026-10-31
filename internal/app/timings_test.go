@@ -293,6 +293,21 @@ func TestLoadRunConfigReadsTheTimingsFromTheEnvironment(t *testing.T) {
 	}
 }
 
+// wantSettingRefused fails unless loadRunConfig refuses the value and names its key.
+func wantSettingRefused(t *testing.T, key, value string) {
+	t.Helper()
+	_, err := loadRunConfig(testkit.Getenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
+		key:                       value,
+	}))
+	if err == nil {
+		t.Fatalf("loadRunConfig() error = nil, want %s refused", key)
+	}
+	if !strings.Contains(err.Error(), key) {
+		t.Errorf("error = %v, want it to name %s", err, key)
+	}
+}
+
 func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 	t.Parallel()
 
@@ -317,12 +332,6 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		"an image limit that is not a number":    {"GOPHENBERG_MEDIA_CONCURRENT_IMAGES", "several"},
 		"an image limit standing at zero":        {"GOPHENBERG_MEDIA_CONCURRENT_IMAGES", "0"},
 		"an image limit below zero":              {"GOPHENBERG_MEDIA_CONCURRENT_IMAGES", "-1"},
-		"a pixel budget that is not a number":    {"GOPHENBERG_MEDIA_MAX_MEGAPIXELS", "lots"},
-		"a pixel budget standing at zero":        {"GOPHENBERG_MEDIA_MAX_MEGAPIXELS", "0"},
-		"a pixel budget below zero":              {"GOPHENBERG_MEDIA_MAX_MEGAPIXELS", "-1"},
-		"a pixel budget of more pixels than the server counts": {
-			"GOPHENBERG_MEDIA_MAX_MEGAPIXELS", strconv.Itoa(math.MaxInt/1_000_000 + 1),
-		},
 		"a definitions cap that is not a number": {"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", "roomy"},
 		"a definitions cap standing at zero":     {"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", "0"},
 		"a definitions cap below zero":           {"GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB", "-4"},
@@ -363,17 +372,24 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := loadRunConfig(testkit.Getenv(map[string]string{
-				"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
-				asked.key:                 asked.value,
-			}))
+			wantSettingRefused(t, asked.key, asked.value)
+		})
+	}
+}
 
-			if err == nil {
-				t.Fatalf("loadRunConfig() error = nil, want %s refused", asked.key)
-			}
-			if !strings.Contains(err.Error(), asked.key) {
-				t.Errorf("error = %v, want it to name %s", err, asked.key)
-			}
+func TestLoadRunConfigRefusesAPixelBudgetItCannotCount(t *testing.T) {
+	t.Parallel()
+
+	for name, megapixels := range map[string]string{
+		"a budget that is not a number":                  "lots",
+		"a budget standing at zero":                      "0",
+		"a budget below zero":                            "-1",
+		"a budget of more pixels than the server counts": strconv.Itoa(math.MaxInt/1_000_000 + 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			wantSettingRefused(t, "GOPHENBERG_MEDIA_MAX_MEGAPIXELS", megapixels)
 		})
 	}
 }
@@ -470,17 +486,7 @@ func TestLoadRunConfigRefusesACacheWindowItCannotServe(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := loadRunConfig(testkit.Getenv(map[string]string{
-				"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL,
-				asked.key:                 asked.value,
-			}))
-
-			if err == nil {
-				t.Fatalf("loadRunConfig() error = nil, want %s refused", asked.key)
-			}
-			if !strings.Contains(err.Error(), asked.key) {
-				t.Errorf("error = %v, want it to name %s", err, asked.key)
-			}
+			wantSettingRefused(t, asked.key, asked.value)
 		})
 	}
 }
