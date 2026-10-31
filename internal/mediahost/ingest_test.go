@@ -681,11 +681,13 @@ func TestIngestRefusesAPictureOverTheBudgetTheLibraryNames(t *testing.T) {
 func TestIngestTakesAPictureExactlyAtTheBudgetTheLibraryNames(t *testing.T) {
 	t.Parallel()
 
-	_, err := budgetedLibrary(t).Ingest(t.Context(), "field.png", pixelSizedPNG(2000, 1000), uuid.Must(uuid.NewV7()))
+	m, err := budgetedLibrary(t).Ingest(t.Context(), "field.png", pngImage(t, 2000, 1000), uuid.Must(uuid.NewV7()))
 
-	var refused *mediahost.Error
-	if errors.As(err, &refused) && refused.Code == "image_pixel_budget_exceeded" {
-		t.Errorf("error = %v, want a picture of exactly the budget let past the budget check", err)
+	if err != nil {
+		t.Fatalf("Ingest() error = %v, want the picture stored", err)
+	}
+	if m.Width != 2000 || m.Height != 1000 {
+		t.Errorf("stored %dx%d, want 2000x1000", m.Width, m.Height)
 	}
 }
 
