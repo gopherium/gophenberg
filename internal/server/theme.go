@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 )
@@ -90,6 +91,12 @@ func themePath(escaped string) string {
 		address = decoded
 	}
 	return address
+}
+
+// themeFilePath returns escaped as the theme's file server reads it.
+func themeFilePath(escaped string) string {
+	decoded, _ := url.PathUnescape(path.Clean(escaped))
+	return path.Clean(decoded)
 }
 
 // withoutDotSegments returns escaped with its "." and ".." segments resolved.

@@ -175,6 +175,12 @@ func TestTheReservedAddressesNeverReachTheTheme(t *testing.T) {
 		{path: "/%2e/_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
 		{path: "/../../_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
 		{path: "//_gophenberg", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/%2f_gophenberg", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/%2f_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/.%2f_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/x/..%2f_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/x%2f..%2f_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
+		{path: "/a%2fb/../x%2f..%2f_gophenberg/health", status: http.StatusNotFound, want: `"route_not_found"`},
 		{path: "/admin/", status: http.StatusOK, want: "<title>Admin</title>"},
 	}
 	for _, testCase := range cases {
@@ -217,6 +223,10 @@ func TestAddressesNearTheReservedOnesStillReachTheTheme(t *testing.T) {
 		"/hello-world/.",
 		"/a%2f..%2fhello-world",
 		"/hello-world?x=/../_gophenberg/health",
+		"/%2fhello-world",
+		"/%2f_gophenberg-notes",
+		"/notes%2f_gophenberg",
+		"/a%2fb/../hello-world",
 	}
 	for _, path := range paths {
 		t.Run(path, func(t *testing.T) {

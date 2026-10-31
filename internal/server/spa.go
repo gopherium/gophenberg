@@ -38,7 +38,7 @@ func fallbackHandler(admin, renderer, public http.Handler) http.HandlerFunc {
 
 // reservedHandler returns what answers a path a theme may never serve, or nothing when it may.
 func reservedHandler(address *url.URL, renderer http.Handler) http.Handler {
-	path := address.Path
+	path, escaped := address.Path, address.EscapedPath()
 	switch {
 	case reserved(path, "/api"), reserved(path, assetPrefix), reserved(path, mediaPrefix):
 		return http.HandlerFunc(respondNotFound)
@@ -46,7 +46,7 @@ func reservedHandler(address *url.URL, renderer http.Handler) http.Handler {
 		return http.HandlerFunc(respondNotFound)
 	case reserved(path, themePrefix):
 		return renderer
-	case reserved(themePath(address.EscapedPath()), themePrefix):
+	case reserved(themePath(escaped), themePrefix), reserved(themeFilePath(escaped), themePrefix):
 		return http.HandlerFunc(respondNotFound)
 	}
 	return nil
