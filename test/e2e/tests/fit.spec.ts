@@ -89,6 +89,17 @@ async function postsTableFor(page: Page, narrowing: string, title: string) {
 }
 
 /**
+ * Returns the left and right edges of an element, rounded to the pixel.
+ * @param element - The element to measure.
+ * @returns The edges in pixels from the left of the viewport.
+ */
+async function edgesOf(element: Locator) {
+	const box = await element.boundingBox()
+	const left = Math.round(box?.x ?? 0)
+	return { left, right: left + Math.round(box?.width ?? 0) }
+}
+
+/**
  * Returns how far the document and the canvas overflow the screen.
  * @param page - The page to measure.
  * @returns The overflow of each region in pixels.
@@ -185,6 +196,57 @@ test('fits the content types table to its card at 1280, every row action in one 
 		expect(kept).toEqual({ oneLine: true, insideCell: true })
 	}
 	expect(await badges.count()).toBeGreaterThan(0)
+})
+
+test('fits the users table to its card at 1280 beside a long name, every default column shown', async ({ page }) => {
+	const email = `listed-${RUN}@example.com`
+	const made = await page.request.post('/api/users', {
+		data: { email, name: LONG_NAME, password: credentials.password, role: 'author' },
+	})
+	expect(made.status()).toBe(201)
+	await page.setViewportSize(LAPTOP)
+
+	await page.goto(`/admin/users?search=${encodeURIComponent(email)}`)
+	const table = page.locator('.dataviews-view-table')
+	await expect(table.getByText(email)).toBeVisible()
+
+	const scroll = await table.evaluate((element) => {
+		const scroller = element.closest('.dataviews-layout__container') as HTMLElement
+		return scroller.scrollWidth - scroller.clientWidth
+	})
+	expect(scroll).toBeLessThanOrEqual(0)
+	await expect(table.locator('.dataviews-view-table__actions-column--stuck')).toHaveCount(0)
+	for (const column of ['Name', 'Status', 'Role', 'Posts']) {
+		await expect(table.getByRole('columnheader', { name: column, exact: true })).toBeVisible()
+	}
+})
+
+test('lays Add User out in one column on a phone, each field as wide as the form and Add User under them', async ({
+	page,
+}) => {
+	await page.goto('/admin/users/new')
+	const form = page.locator('form.godmin-form')
+	const role = page.getByRole('combobox', { name: 'Role' })
+	await expect(role).toBeVisible()
+
+	const edges = await edgesOf(form)
+	const email = page.getByRole('textbox', { name: /^Email/ })
+	const name = page.getByRole('textbox', { name: /^Name/ })
+	const rows = [
+		{ label: 'Email', starts: email, ends: email },
+		{ label: 'Name', starts: name, ends: name },
+		{ label: 'Password', starts: page.getByLabel('Password', { exact: true }), ends: page.getByLabel('Hide password') },
+		{ label: 'Role', starts: role, ends: role },
+	]
+	for (const { label, starts, ends } of rows) {
+		const left = (await edgesOf(starts)).left - edges.left
+		const right = edges.right - (await edgesOf(ends)).right
+		expect(Math.abs(left), `${label} starts at the left of the form`).toBeLessThanOrEqual(1)
+		expect(Math.abs(right), `${label} ends at the right of the form`).toBeLessThanOrEqual(1)
+	}
+	const roleBox = await role.boundingBox()
+	const submit = await page.getByRole('button', { name: 'Add User', exact: true }).boundingBox()
+	expect(submit?.y ?? 0).toBeGreaterThanOrEqual((roleBox?.y ?? 0) + (roleBox?.height ?? 0))
 })
 
 for (const { reads, condition, name } of LONG_NAMES) {

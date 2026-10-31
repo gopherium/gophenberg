@@ -173,10 +173,6 @@ msgid "Activate"
 msgstr "Activer"
 
 #, fuzzy
-msgid "Active"
-msgstr "Actif"
-
-#, fuzzy
 msgid "Add Category"
 msgstr "Ajouter une catégorie"
 
@@ -379,10 +375,6 @@ msgid "Create a field group"
 msgstr "Créer un groupe de champs"
 
 #, fuzzy
-msgid "Create user"
-msgstr "Créer l'utilisateur"
-
-#, fuzzy
 msgid "Date added"
 msgstr "Date d’ajout"
 
@@ -431,14 +423,6 @@ msgid "Dimensions"
 msgstr "Dimensions"
 
 #, fuzzy
-msgid "Disable"
-msgstr "Désactiver"
-
-#, fuzzy
-msgid "Disabled"
-msgstr "Désactivé"
-
-#, fuzzy
 msgid "Dismiss"
 msgstr "Ignorer"
 
@@ -461,10 +445,6 @@ msgstr "E-mail"
 #, fuzzy
 msgid "Empty Trash"
 msgstr "Vider la corbeille"
-
-#, fuzzy
-msgid "Enable"
-msgstr "Activer"
 
 #, fuzzy
 msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
@@ -895,10 +875,6 @@ msgid "Loading themes."
 msgstr "Chargement des thèmes."
 
 #, fuzzy
-msgid "Loading users."
-msgstr "Chargement des utilisateurs."
-
-#, fuzzy
 msgid "Loading…"
 msgstr "Chargement…"
 
@@ -970,9 +946,8 @@ msgstr "Déplacer dans la corbeille"
 msgid "Nests"
 msgstr "Imbriqué"
 
-#, fuzzy
 msgid "Add User"
-msgstr "Ajouter un utilisateur"
+msgstr "Ajouter un compte"
 
 #, fuzzy
 msgid "Newer posts"
@@ -1097,10 +1072,6 @@ msgstr "Ouvrir %(field)s dans un nouvel onglet"
 #, fuzzy
 msgid "Parent"
 msgstr "Parent"
-
-#, fuzzy
-msgid "Password"
-msgstr "Mot de passe"
 
 #, fuzzy
 msgid "Pending"
@@ -1293,10 +1264,6 @@ msgstr "Texte"
 #, fuzzy
 msgid "Text area"
 msgstr "Zone de texte"
-
-#, fuzzy
-msgid "That email is already in use."
-msgstr "Cet e-mail est déjà utilisé."
 
 #, fuzzy
 msgid "That field is not on this content type any more. Reload the page to see the fields it has now."
@@ -1552,7 +1519,7 @@ msgstr "Le thème %(name)s est celui choisi, mais il n'est pas installé, votre 
 
 #, fuzzy
 msgid "The user could not be created."
-msgstr "L'utilisateur n'a pas pu être créé."
+msgstr "Le compte n'a pas pu être créé."
 
 #, fuzzy
 msgid "These files could not be read."
@@ -1727,18 +1694,6 @@ msgid "Update"
 msgstr "Mettre à jour"
 
 #, fuzzy
-msgid "Update failed."
-msgstr "La mise à jour a échoué."
-
-#, fuzzy
-msgid "Users"
-msgstr "Utilisateurs"
-
-#, fuzzy
-msgid "Users could not be loaded."
-msgstr "Les utilisateurs n'ont pas pu être chargés."
-
-#, fuzzy
 msgid "Value"
 msgstr "Valeur"
 
@@ -1875,14 +1830,6 @@ msgid "Delete %(field)s"
 msgstr "Supprimer %(field)s"
 
 #, fuzzy
-msgid "Disable %(name)s"
-msgstr "Désactiver %(name)s"
-
-#, fuzzy
-msgid "Enable %(name)s"
-msgstr "Activer %(name)s"
-
-#, fuzzy
 msgid "Media %(id)s"
 msgstr "Média %(id)s"
 
@@ -1950,15 +1897,6 @@ msgstr "v%(version)s"
 #, fuzzy
 msgid "{day} {month} {year}"
 msgstr "{day} {month} {year}"
-
-msgctxt "account"
-msgid "Role"
-msgstr "Rôle"
-
-#, fuzzy
-msgctxt "account"
-msgid "Status"
-msgstr "État"
 
 #, fuzzy
 msgctxt "admin section"
@@ -2051,10 +1989,6 @@ msgstr "Auteur"
 msgctxt "role"
 msgid "Editor"
 msgstr "Éditeur"
-
-msgctxt "role"
-msgid "No role"
-msgstr "Sans rôle"
 
 #, fuzzy
 msgctxt "post"
@@ -2849,41 +2783,6 @@ msgid "Empty trash"
 msgstr "Vider la corbeille"
 
 #, fuzzy
-msgid "Change role"
-msgstr "Changer le rôle"
-
-#, fuzzy
-msgid "Change the role of %(name)s"
-msgstr "Changer le rôle de %(name)s"
-
-#, fuzzy
-msgid "Choose the role of %(name)s."
-msgstr "Choisissez le rôle de %(name)s."
-
-msgid "Nothing declares that role."
-msgstr "Rien ne déclare ce rôle."
-
-#, fuzzy
-msgid "Role changed."
-msgstr "Rôle modifié."
-
-#, fuzzy
-msgid "Somebody must be able to manage users."
-msgstr "Quelqu'un doit pouvoir gérer les utilisateurs."
-
-#, fuzzy
-msgid "That role holds more than your own."
-msgstr "Ce rôle va au-delà du vôtre."
-
-#, fuzzy
-msgid "The role could not be changed."
-msgstr "Le rôle n'a pas pu être modifié."
-
-#, fuzzy
-msgid "You cannot change your own role."
-msgstr "Vous ne pouvez pas changer votre propre rôle."
-
-#, fuzzy
 msgid "Your role does not allow %(capability)s."
 msgstr "Votre rôle ne permet pas %(capability)s."
 
@@ -3213,3 +3112,31 @@ msgstr "Yo"
 msgctxt "unit symbol"
 msgid "ZB"
 msgstr "Zo"
+
+msgid "%s post by this author"
+msgid_plural "%s posts by this author"
+msgstr[0] "%s publication par cet auteur/autrice"
+msgstr[1] "%s de publications par cet auteur/autrice"
+msgstr[2] "%s publications par cet auteur/autrice"
+
+msgid "Create a brand new user and add them to this site."
+msgstr "Créer un nouveau compte et l’ajouter à ce site."
+
+msgid "New user created."
+msgstr "Le nouveau compte a été créé."
+
+#, fuzzy
+msgid "Please enter a password."
+msgstr "Veuillez saisir un mot de passe."
+
+#, fuzzy
+msgid "Please enter an email address."
+msgstr "Veuillez saisir une adresse e-mail."
+
+#, fuzzy
+msgid "Please provide a name."
+msgstr "Veuillez indiquer un nom."
+
+#, fuzzy
+msgid "Please confirm the use of a weak password."
+msgstr "Veuillez confirmer l’utilisation du mot de passe faible."

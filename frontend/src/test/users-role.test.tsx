@@ -1,302 +1,187 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { DOMAIN as AUTH_DOMAIN, catalogFor as authCatalogFor } from '@gopherium/react-auth'
+import { accountWithRole, roleRefused } from '@gopherium/react-auth/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
-import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
+import { beforeEach, expect, onTestFinished, test } from 'vitest'
 
 import { catalogFor } from '../i18n/catalog'
-import { roleLabel, startingRole } from '../users/roles'
+import { roleLabels } from '../users/roles'
 import { adminUser, renderAt } from './render'
+import {
+	EDITOR,
+	REQUEST_CROSS_ORIGIN,
+	REQUEST_CROSS_ORIGIN_WORDS,
+	SIGNED_IN,
+	act,
+	rowOf,
+	serveAccounts,
+	toast,
+	warmUsersScreen,
+} from './usersFixtures'
 
-const SIGNED_IN = '0198b2f0-0000-7000-8000-000000000001'
+/** The words the admin gives a write sent from a page on another site, for a Spanish reader. */
+const REQUEST_CROSS_ORIGIN_SPANISH =
+	'Esta petición vino de una página de otro sitio, así que se rechazó. ' +
+	'Abre la administración en este sitio e inténtalo de nuevo.'
 
-const OTHER = '0198b2f0-0000-7000-8000-000000000002'
+warmUsersScreen()
+
+beforeEach(() => serveAccounts(SIGNED_IN, EDITOR))
 
 /**
- * Returns a stored account row holding a role.
- * @param id - The account identifier.
- * @param name - The account holder's name.
- * @param role - The role the account holds.
- * @returns The account row.
+ * Returns the queries of the open Change role dialog.
+ * @returns The queries bound to the dialog.
  */
-function withRole(id: string, name: string, role: string) {
-	return {
-		id,
-		email: `${name.split(' ')[0]?.toLowerCase()}@example.com`,
-		name,
-		disabled: false,
-		role,
-		created_at: '2026-07-06T10:00:00Z',
-	}
+async function roleDialog() {
+	return within(await screen.findByRole('dialog', { name: 'Change role' }))
 }
 
 /**
- * Opens the role dialog of the other account and returns it.
- * @returns The dialog element.
+ * Returns the roles the open Change role dialog offers, in the order it lists them.
+ * @returns The labels.
  */
-async function openRoleDialog(): Promise<HTMLElement> {
-	await userEvent.click(await screen.findByRole('button', { name: 'Change the role of Maria Perez' }))
-	return screen.findByRole('dialog', { name: 'Change role' })
+async function offeredRoles() {
+	await userEvent.click((await roleDialog()).getByRole('combobox', { name: 'Role' }))
+	return (await screen.findAllByRole('option')).map((option) => option.textContent)
 }
 
 /**
- * Picks a role in the open role dialog.
- * @param dialog - The role dialog.
+ * Picks a role in the open Change role dialog and sends it.
  * @param label - The label of the role to pick.
  */
-async function pickRole(dialog: HTMLElement, label: string) {
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Role' }))
+async function changeRoleTo(label: string) {
+	await userEvent.click((await roleDialog()).getByRole('combobox', { name: 'Role' }))
 	await userEvent.click(await screen.findByRole('option', { name: label }))
+	await userEvent.click((await roleDialog()).getByRole('button', { name: 'Change role' }))
 }
 
 /**
- * Answers the next role write with a refusal carrying the code.
- * @param status - The status the refusal answers with.
- * @param code - The error code the refusal names.
+ * Loads the Spanish catalogues of the admin and of the account screens until the test ends.
  */
-function refuseRoleWrite(status: number, code: string) {
-	server.use(
-		http.put(`/api/users/${OTHER}/role`, () => HttpResponse.json({ error: code.replaceAll('_', ' '), code }, { status })),
-	)
+async function readInSpanish() {
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	setLocaleData(await authCatalogFor('es-ES'), AUTH_DOMAIN)
+	onTestFinished(() => {
+		resetLocaleData({}, 'gophenberg')
+		resetLocaleData({}, AUTH_DOMAIN)
+	})
 }
 
-beforeEach(() =>
-	server.use(
-		http.get('/api/users', () => HttpResponse.json([withRole(OTHER, 'Maria Perez', 'editor')])),
-	),
-)
-
-test('shows the role each account holds', async () => {
-	renderAt('/users')
-
-	const row = await screen.findByRole('row', { name: /Maria Perez/ })
-
-	expect(within(row).getByText('Editor')).toBeInTheDocument()
+test('labels each core role as the admin names it', () => {
+	expect(roleLabels()).toEqual({ admin: 'Administrator', editor: 'Editor', author: 'Author', member: 'Member' })
 })
 
-test('offers exactly the roles the session may give, in the order the server sent them', async () => {
+test('labels the core roles in the reader s language', async () => {
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+
+	expect(roleLabels()).toMatchObject({ admin: 'Administrador', member: 'Miembro' })
+})
+
+test('shows the label of the role each account holds', async () => {
+	renderAt('/users')
+
+	expect((await rowOf(EDITOR.name)).getByText('Editor')).toBeInTheDocument()
+	expect((await rowOf(SIGNED_IN.name)).getByText('Administrator')).toBeInTheDocument()
+})
+
+test('shows a role a plugin declares as its stored name with a capital first letter', async () => {
+	serveAccounts(SIGNED_IN, accountWithRole('archivist'))
+	renderAt('/users')
+
+	expect((await rowOf('Maria Perez the archivist')).getByText('Archivist')).toBeInTheDocument()
+})
+
+test('shows None for an account holding no role, as WordPress does', async () => {
+	serveAccounts(SIGNED_IN, { ...EDITOR, role: '' })
+	renderAt('/users')
+
+	expect((await rowOf(EDITOR.name)).getByText('None')).toBeInTheDocument()
+})
+
+test('shows the role labels in the reader s language', async () => {
+	await readInSpanish()
+	renderAt('/users')
+
+	expect((await rowOf(SIGNED_IN.name)).getByText('Administrador')).toBeInTheDocument()
+})
+
+/** Refuses every role change as sent from a page on another site. */
+function refuseRoleAsCrossOrigin() {
+	server.use(http.put('/api/users/:id/role', () => HttpResponse.json(REQUEST_CROSS_ORIGIN, { status: 403 })))
+}
+
+test('says in a toast in the admin s words that Change role came from a page on another site', async () => {
+	refuseRoleAsCrossOrigin()
+	renderAt('/users')
+
+	await act(EDITOR.name, 'Change role…')
+	await changeRoleTo('Administrator')
+
+	expect(await toast(REQUEST_CROSS_ORIGIN_WORDS)).toBeInTheDocument()
+})
+
+test('says in the reader s language that Change role came from a page on another site', async () => {
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	refuseRoleAsCrossOrigin()
+	renderAt('/users')
+
+	await act(EDITOR.name, 'Change role…')
+	await changeRoleTo('Administrador')
+
+	expect(await toast(REQUEST_CROSS_ORIGIN_SPANISH)).toBeInTheDocument()
+})
+
+test('offers in Change role the roles the session may give, the narrowest first', async () => {
 	renderAt('/users', { ...adminUser, grantable: ['admin', 'moderator', 'editor', 'author'] })
 
-	const dialog = await openRoleDialog()
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Role' }))
-	const offered = (await screen.findAllByRole('option')).map((option) => option.textContent)
+	await act(EDITOR.name, 'Change role…')
 
-	expect(offered).toEqual(['Administrator', 'Moderator', 'Editor', 'Author'])
+	expect(await offeredRoles()).toEqual(['Author', 'Editor', 'Moderator', 'Administrator'])
 })
 
-test('offers no role past the reach of the session', async () => {
-	renderAt('/users', { ...adminUser, grantable: ['author'] })
-
-	const dialog = await openRoleDialog()
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Role' }))
-	const offered = (await screen.findAllByRole('option')).map((option) => option.textContent)
-
-	expect(offered).toEqual(['Author'])
-})
-
-test('asks which role the account should hold, and waits for another one to be picked', async () => {
-	renderAt('/users')
-
-	const dialog = await openRoleDialog()
-
-	expect(within(dialog).getByText('Choose the role of Maria Perez.')).toBeInTheDocument()
-	expect(within(dialog).getByRole('button', { name: 'Change role' })).toHaveAttribute('aria-disabled', 'true')
-	await pickRole(dialog, 'Administrator')
-	expect(within(dialog).getByRole('button', { name: 'Change role' })).not.toHaveAttribute('aria-disabled', 'true')
-})
-
-test('keeps the dialog body beside its header so the dialog spacing applies', async () => {
-	renderAt('/users')
-
-	const dialog = await openRoleDialog()
-	const header = within(dialog).getByRole('banner')
-	const footer = within(dialog).getByRole('contentinfo')
-
-	expect(footer.parentElement).toBe(header.parentElement)
-	expect(header.nextElementSibling).toContainElement(within(dialog).getByText('Choose the role of Maria Perez.'))
-})
-
-test('writes the role the reader picked, says so and closes', async () => {
-	const asked: unknown[] = []
-	server.use(
-		http.put(`/api/users/${OTHER}/role`, async ({ request }) => {
-			asked.push(await request.json())
-			return new HttpResponse(null, { status: 204 })
-		}),
-	)
-	renderAt('/users')
-
-	const dialog = await openRoleDialog()
-	await pickRole(dialog, 'Administrator')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Change role' }))
-
-	expect(await screen.findByText('Role changed.')).toBeInTheDocument()
-	expect(asked).toEqual([{ role: 'admin' }])
-	await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-})
-
-test('closes on cancel without writing', async () => {
-	const asked: unknown[] = []
-	server.use(
-		http.put(`/api/users/${OTHER}/role`, () => {
-			asked.push('written')
-			return new HttpResponse(null, { status: 204 })
-		}),
-	)
-	renderAt('/users')
-
-	const dialog = await openRoleDialog()
-	await pickRole(dialog, 'Administrator')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-
-	await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-	expect(asked).toEqual([])
-})
-
-test('leaves the signed in account without a way to change its own role', async () => {
-	server.use(
-		http.get('/api/users', () =>
-			HttpResponse.json([withRole(SIGNED_IN, 'Grace Hopper', 'admin')]),
-		),
-	)
-	renderAt('/users')
-
-	const row = await screen.findByRole('row', { name: /Grace Hopper/ })
-
-	expect(within(row).queryByRole('button', { name: /Change the role/ })).toBeNull()
-	expect(within(row).getByText('Administrator')).toBeInTheDocument()
-})
-
-test.each([
-	[422, 'self_role_refused', 'You cannot change your own role.'],
-	[422, 'last_privileged_refused', 'Somebody must be able to manage users.'],
-	[403, 'role_beyond_reach', 'That role holds more than your own.'],
-	[422, 'role_unknown', 'Nothing declares that role.'],
-	[403, 'role_insufficient', 'The role could not be changed.'],
-	[409, 'role_changed', 'The role could not be changed.'],
-	[500, 'internal', 'The role could not be changed.'],
-])('explains a role write answered %i %s', async (status, code, words) => {
-	vi.spyOn(console, 'error').mockImplementation(() => {})
-	refuseRoleWrite(status, code)
-	renderAt('/users')
-
-	const dialog = await openRoleDialog()
-	await pickRole(dialog, 'Administrator')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Change role' }))
-
-	expect(await within(dialog).findByRole('alert')).toHaveTextContent(words)
-})
-
-test('explains a role past the reach of the session in the reader s language', async () => {
-	vi.spyOn(console, 'error').mockImplementation(() => {})
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
-	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
-	refuseRoleWrite(403, 'role_beyond_reach')
-	renderAt('/users')
-
-	await userEvent.click(await screen.findByRole('button', { name: 'Cambiar el rol de Maria Perez' }))
-	const dialog = await screen.findByRole('dialog', { name: 'Cambiar el rol' })
-	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Rol' }))
-	await userEvent.click(await screen.findByRole('option', { name: 'Administrador' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Cambiar el rol' }))
-
-	expect(await within(dialog).findByRole('alert')).toHaveTextContent('Ese rol abarca más que el tuyo.')
-})
-
-test('creates an account under the role the form picked', async () => {
+test('changes the role of an account and names it in a toast', async () => {
 	const sent: unknown[] = []
 	server.use(
-		http.post('/api/users', async ({ request }) => {
-			sent.push(await request.json())
-			return HttpResponse.json(withRole(OTHER, 'Maria Perez', 'editor'), { status: 201 })
+		http.put('/api/users/:id/role', async ({ params, request }) => {
+			sent.push({ id: params.id, ...((await request.json()) as object) })
+			return new HttpResponse(null, { status: 204 })
 		}),
-	)
-	renderAt('/users/new')
-
-	await userEvent.type(await screen.findByLabelText('Email'), 'maria@example.com')
-	await userEvent.type(screen.getByLabelText('Name'), 'Maria Perez')
-	await userEvent.type(screen.getByLabelText('Password'), 'correct horse battery')
-	await userEvent.click(screen.getByRole('combobox', { name: 'Role' }))
-	await userEvent.click(await screen.findByRole('option', { name: 'Editor' }))
-	await userEvent.click(screen.getByRole('button', { name: 'Create user' }))
-
-	await waitFor(() => expect(sent).toHaveLength(1))
-	expect(sent[0]).toMatchObject({ role: 'editor' })
-})
-
-test('offers a new account exactly the roles the session may give', async () => {
-	renderAt('/users/new', { ...adminUser, grantable: ['moderator', 'author'] })
-
-	await userEvent.click(await screen.findByRole('combobox', { name: 'Role' }))
-	const offered = (await screen.findAllByRole('option')).map((option) => option.textContent)
-
-	expect(offered).toEqual(['Moderator', 'Author'])
-})
-
-test('starts a new account at the author role', async () => {
-	renderAt('/users/new')
-
-	expect(await screen.findByRole('combobox', { name: 'Role' })).toHaveTextContent('Author')
-})
-
-test('offers a new account no role when the session names none it may give', async () => {
-	renderAt('/users/new', { ...adminUser, grantable: undefined })
-
-	await userEvent.click(await screen.findByRole('combobox', { name: 'Role' }))
-
-	expect(screen.queryAllByRole('option')).toEqual([])
-})
-
-test('starts a new account at author when the session names no role it may give', () => {
-	expect(startingRole([])).toBe('author')
-})
-
-test('starts a new account at the narrowest role the session may give when author is not one', async () => {
-	renderAt('/users/new', { ...adminUser, grantable: ['moderator', 'reviewer'] })
-
-	expect(await screen.findByRole('combobox', { name: 'Role' })).toHaveTextContent('Reviewer')
-})
-
-test.each([
-	[422, 'role_unknown', 'Nothing declares that role.'],
-	[403, 'role_beyond_reach', 'That role holds more than your own.'],
-])('explains a new account answered %i %s', async (status, code, words) => {
-	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(
-		http.post('/api/users', () => HttpResponse.json({ error: code.replaceAll('_', ' '), code }, { status })),
-	)
-	renderAt('/users/new')
-
-	await userEvent.type(await screen.findByLabelText('Email'), 'maria@example.com')
-	await userEvent.type(screen.getByLabelText('Name'), 'Maria Perez')
-	await userEvent.type(screen.getByLabelText('Password'), 'correct horse battery')
-	await userEvent.click(screen.getByRole('button', { name: 'Create user' }))
-
-	expect(await screen.findByRole('alert')).toHaveTextContent(words)
-})
-
-test('names an account holding no role', async () => {
-	server.use(
-		http.get('/api/users', () => HttpResponse.json([withRole(OTHER, 'Maria Perez', '')])),
 	)
 	renderAt('/users')
 
-	const row = await screen.findByRole('row', { name: /Maria Perez/ })
+	await act(EDITOR.name, 'Change role…')
+	await changeRoleTo('Administrator')
 
-	expect(within(row).getByText('No role')).toBeInTheDocument()
+	expect(await toast(`Role changed for "${EDITOR.name}".`)).toBeInTheDocument()
+	expect(sent).toEqual([{ id: EDITOR.id, role: 'admin' }])
+	await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 })
 
-test('reads the member role in the reader s language', async () => {
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
-	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+test('says in WordPress s words why the server refused a role', async () => {
+	server.use(roleRefused('role_not_grantable'))
+	renderAt('/users')
 
-	expect(roleLabel('member')).toBe('Miembro')
+	await act(EDITOR.name, 'Change role…')
+	await changeRoleTo('Administrator')
+
+	expect(await toast('Sorry, you are not allowed to give users that role.')).toBeInTheDocument()
 })
 
-test('reads a role the screen does not know with a capital first letter', () => {
-	expect(roleLabel('archivist')).toBe('Archivist')
-	expect(roleLabel('')).toBe('No role')
-	expect(roleLabel('editor')).toBe('Editor')
+test('says why the server refused a role in the reader s language', async () => {
+	await readInSpanish()
+	server.use(roleRefused('role_not_grantable'))
+	renderAt('/users')
+
+	await act(EDITOR.name, 'Cambiar el rol…')
+	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('combobox', { name: 'Rol' }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Administrador' }))
+	await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cambiar el rol' }))
+
+	expect(await toast('Lo siento, no tienes permisos para dar ese rol a los usuarios.')).toBeInTheDocument()
 })

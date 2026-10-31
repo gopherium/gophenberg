@@ -52,9 +52,6 @@ msgstr "Acciones"
 msgid "Activate"
 msgstr "Activar"
 
-msgid "Active"
-msgstr "Activo"
-
 msgid "Add block"
 msgstr "Añadir bloque"
 
@@ -136,9 +133,6 @@ msgstr "No se ha podido cargar esa entrada."
 msgid "Could not save that post."
 msgstr "No se ha podido guardar esa entrada."
 
-msgid "Create user"
-msgstr "Crear usuario"
-
 #, fuzzy
 msgid "Date added"
 msgstr "Fecha de inclusión"
@@ -170,12 +164,6 @@ msgstr "Escritorio"
 msgid "Dimensions"
 msgstr "Dimensiones"
 
-msgid "Disable"
-msgstr "Desactivar"
-
-msgid "Disabled"
-msgstr "Desactivado"
-
 msgid "Dismiss"
 msgstr "Descartar"
 
@@ -194,9 +182,6 @@ msgstr "Correo electrónico"
 
 msgid "Empty Trash"
 msgstr "Vaciar papelera"
-
-msgid "Enable"
-msgstr "Activar"
 
 msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
 msgstr "Cambian todas las direcciones de este tipo. Los enlaces guardados en otro sitio hacia las direcciones antiguas dejan de funcionar."
@@ -299,9 +284,6 @@ msgstr "Cargando las actualizaciones."
 
 msgid "Loading themes."
 msgstr "Cargando los temas."
-
-msgid "Loading users."
-msgstr "Cargando los usuarios."
 
 msgid "Loading…"
 msgstr "Cargando…"
@@ -411,9 +393,6 @@ msgstr "Solo el tipo de contenido que está en la raíz de tu sitio puede ir sin
 msgid "Parent"
 msgstr "Elemento superior"
 
-msgid "Password"
-msgstr "Contraseña"
-
 msgid "Pending"
 msgstr "Pendiente"
 
@@ -512,9 +491,6 @@ msgstr "Tableta"
 
 msgid "Text"
 msgstr "Texto"
-
-msgid "That email is already in use."
-msgstr "Ese correo electrónico ya está en uso."
 
 msgid "That field is not on this content type any more. Reload the page to see the fields it has now."
 msgstr "Ese campo ya no está en este tipo de contenido. Recarga la página para ver los campos que tiene ahora."
@@ -735,15 +711,6 @@ msgstr "Cambios sin guardar"
 msgid "Update"
 msgstr "Actualizar"
 
-msgid "Update failed."
-msgstr "No se ha podido actualizar."
-
-msgid "Users"
-msgstr "Usuarios"
-
-msgid "Users could not be loaded."
-msgstr "No se han podido cargar los usuarios."
-
 msgid "Version"
 msgstr "Versión"
 
@@ -818,12 +785,6 @@ msgstr "Desactivar %(theme)s"
 
 msgid "Delete %(field)s"
 msgstr "Borrar %(field)s"
-
-msgid "Disable %(name)s"
-msgstr "Desactivar a %(name)s"
-
-msgid "Enable %(name)s"
-msgstr "Activar a %(name)s"
 
 msgid "Remove %(title)s"
 msgstr "Quitar %(title)s"
@@ -1974,47 +1935,12 @@ msgid "This zip holds %(entries)s files, more than the %(max)s a theme may carry
 msgstr "Este zip lleva %(entries)s archivos, más de los %(max)s que puede llevar un tema. Empaqueta solo el tema ya construido."
 
 #, fuzzy
-msgid "Change role"
-msgstr "Cambiar el rol"
-
-#, fuzzy
-msgid "Change the role of %(name)s"
-msgstr "Cambiar el rol de %(name)s"
-
-#, fuzzy
-msgid "Choose the role of %(name)s."
-msgstr "Elige el rol de %(name)s."
-
-msgid "Nothing declares that role."
-msgstr "Nada declara ese rol."
-
-#, fuzzy
-msgid "Role changed."
-msgstr "Rol cambiado."
-
-#, fuzzy
-msgid "Somebody must be able to manage users."
-msgstr "Alguien tiene que poder gestionar los usuarios."
-
-#, fuzzy
 msgid "Sorry, you are not allowed to access this page."
 msgstr "Lo siento, no tienes permisos para acceder a esta página."
 
 #, fuzzy
-msgid "That role holds more than your own."
-msgstr "Ese rol abarca más que el tuyo."
-
-#, fuzzy
-msgid "The role could not be changed."
-msgstr "No se ha podido cambiar el rol."
-
-#, fuzzy
 msgid "Visit Site"
 msgstr "Visitar el sitio"
-
-#, fuzzy
-msgid "You cannot change your own role."
-msgstr "No puedes cambiar tu propio rol."
 
 #, fuzzy
 msgid "Your role does not allow %(capability)s."
@@ -2341,21 +2267,12 @@ msgstr "Añadir página"
 msgid "Add Post"
 msgstr "Añadir entrada"
 
-#, fuzzy
 msgid "Add User"
 msgstr "Añadir usuario"
 
 #, fuzzy
 msgid "Add one with %(button)s."
 msgstr "Añade un elemento con %(button)s."
-
-msgctxt "account"
-msgid "Status"
-msgstr "Estado"
-
-msgctxt "account"
-msgid "Role"
-msgstr "Rol"
 
 msgctxt "admin section"
 msgid "Content Types"
@@ -2505,10 +2422,6 @@ msgstr "Autor"
 msgctxt "role"
 msgid "Editor"
 msgstr "Editor"
-
-msgctxt "role"
-msgid "No role"
-msgstr "Sin rol"
 
 #, fuzzy
 msgctxt "role"
@@ -2808,3 +2721,31 @@ msgstr "YB"
 msgctxt "unit symbol"
 msgid "ZB"
 msgstr "ZB"
+
+msgid "%s post by this author"
+msgid_plural "%s posts by this author"
+msgstr[0] "%s entrada de este autor"
+msgstr[1] "%s de entradas de este autor"
+msgstr[2] "%s entradas de este autor"
+
+msgid "Create a brand new user and add them to this site."
+msgstr "Crea un nuevo usuario y añádelo a este sitio."
+
+msgid "New user created."
+msgstr "Nuevo usuario creado."
+
+#, fuzzy
+msgid "Please enter a password."
+msgstr "Por favor, introduce una contraseña."
+
+#, fuzzy
+msgid "Please enter an email address."
+msgstr "Por favor, introduce una dirección de correo electrónico."
+
+#, fuzzy
+msgid "Please provide a name."
+msgstr "Por favor, facilita un nombre."
+
+#, fuzzy
+msgid "Please confirm the use of a weak password."
+msgstr "Por favor, confirma el uso de una contraseña débil."

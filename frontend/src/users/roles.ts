@@ -1,72 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { ADMIN, AUTHOR, EDITOR, MEMBER } from '@gophenberg/frontend-sdk'
-import {
-	LastPrivilegedError,
-	RoleBeyondReachError,
-	RoleUnknownError,
-	SelfRoleError,
-} from '@gopherium/react-auth/admin'
-import { __, _x } from '@wordpress/i18n'
-
-import { authTemplates } from '../i18n/errorTemplates'
-
-/** The error code each turned down role write answers with, by the error it raises. */
-const refusals: [new (...args: never[]) => Error, string][] = [
-	[SelfRoleError, 'self_role_refused'],
-	[LastPrivilegedError, 'last_privileged_refused'],
-	[RoleBeyondReachError, 'role_beyond_reach'],
-	[RoleUnknownError, 'role_unknown'],
-]
+import type { RoleLabels } from '@gopherium/react-auth/wpds/users'
+import { _x } from '@wordpress/i18n'
 
 /**
- * Returns the label each core role reads as, and the one an account holding no role reads as.
+ * Returns the label each core role reads as, read fresh so the loaded catalogue answers.
  * @returns The labels, keyed by role.
  */
-function coreLabels(): Map<string, string> {
-	return new Map<string, string>([
-		[ADMIN, _x('Administrator', 'role', 'gophenberg')],
-		[EDITOR, _x('Editor', 'role', 'gophenberg')],
-		[AUTHOR, _x('Author', 'role', 'gophenberg')],
-		[MEMBER, _x('Member', 'role', 'gophenberg')],
-		['', _x('No role', 'role', 'gophenberg')],
-	])
+export function roleLabels(): RoleLabels {
+	return {
+		[ADMIN]: _x('Administrator', 'role', 'gophenberg'),
+		[EDITOR]: _x('Editor', 'role', 'gophenberg'),
+		[AUTHOR]: _x('Author', 'role', 'gophenberg'),
+		[MEMBER]: _x('Member', 'role', 'gophenberg'),
+	}
 }
 
 /**
- * Returns the label a role reads as, any role outside the core's reading as stored with a capital first letter.
- * @param role - The role the account holds.
- * @returns The label.
- */
-export function roleLabel(role: string): string {
-	return coreLabels().get(role) ?? role.charAt(0).toUpperCase() + role.slice(1)
-}
-
-/**
- * Returns the role a new account starts under, author when the reader may give it, else the narrowest it may give.
+ * Returns the role a new account starts under, the site's default when the reader may give it, else the narrowest.
  * @param grantable - The roles the reader may give, widest first.
- * @returns The starting role.
+ * @param defaultRole - The role the settings start new accounts on, none while unknown.
+ * @returns The starting role, empty when the reader may give none.
  */
-export function startingRole(grantable: string[]): string {
-	return grantable.includes(AUTHOR) ? AUTHOR : (grantable.at(-1) ?? AUTHOR)
-}
-
-/**
- * Returns the code a turned down role write carries, none for any other failure.
- * @param error - The failure the write raised.
- * @returns The error code, or nothing.
- */
-export function roleRefusal(error: unknown): string | undefined {
-	return refusals.find(([refused]) => error instanceof refused)?.[1]
-}
-
-/**
- * Returns the message a failed role write shows, in the reader's language.
- * @param error - The failure the write raised.
- * @returns The message.
- */
-export function roleFailureMessage(error: unknown): string {
-	const code = roleRefusal(error)
-	const template = code === undefined ? undefined : authTemplates()[code]
-	return template ?? __('The role could not be changed.', 'gophenberg')
+export function startingRole(grantable: readonly string[], defaultRole: string | undefined): string {
+	return grantable.find((role) => role === defaultRole) ?? grantable.at(-1) ?? ''
 }
