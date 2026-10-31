@@ -36,6 +36,7 @@ so it takes the default.
 | `GOPHENBERG_NODE_BIN` | No | `node` | The Node binary themes run on. The image sets its own |
 | `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` | No | `128` | The largest upload the media library takes, in megabytes |
 | `GOPHENBERG_MEDIA_CONCURRENT_IMAGES` | No | `2` | How many uploaded images the server decodes and resizes at once, from 1 to 64. The rest wait their turn |
+| `GOPHENBERG_MEDIA_MAX_MEGAPIXELS` | No | `80` | The most pixels a picture or one frame of a GIF may hold, in millions. A larger one is refused |
 | `GOPHENBERG_UPLOAD_TIMEOUT` | No | `5m` | How long a media or theme upload has to arrive, in place of `GOPHENBERG_HTTP_READ_TIMEOUT` |
 | `GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB` | No | `256` | The largest definitions file an import takes, in kilobytes, from 1 to 1024 |
 | `GOPHENBERG_FIELD_DEPTH` | No | `32` | How many containers a field may stand inside, from 1 to 1000. A Flexible content layout counts as one |
@@ -738,6 +739,8 @@ The server refuses to start, and says why, when:
 - `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` is not a positive whole number, or
   names more megabytes than the server can count in bytes.
 - `GOPHENBERG_MEDIA_CONCURRENT_IMAGES` is not a whole number from 1 to 64.
+- `GOPHENBERG_MEDIA_MAX_MEGAPIXELS` is not a positive whole number, or
+  names more megapixels than the server can count in pixels.
 - `GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB` is not a whole number from 1 to
   1024, which is as much of a request body as the server reads.
 - `GOPHENBERG_THEME_START_ATTEMPTS` is not a whole number from 1 to 1000.
