@@ -5,6 +5,7 @@ package mediahost
 import (
 	"errors"
 	"fmt"
+	_ "image/gif"
 )
 
 // gifHeaderLen is the length of a GIF signature and logical screen descriptor.
