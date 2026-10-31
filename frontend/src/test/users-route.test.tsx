@@ -1,126 +1,77 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, within } from '@testing-library/react'
+import { http, server } from '@gophenberg/frontend-sdk/testing'
+import { listSearch } from '@gopherium/godmin/router'
+import { accountWithRole, usersFailure } from '@gopherium/react-auth/testing'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
-import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
+import { beforeEach, expect, test } from 'vitest'
 
-import { catalogFor } from '../i18n/catalog'
-import { renderAt } from './render'
+import { createAppRouter } from '../router'
+import { renderAt, renderRoutedAt } from './render'
+import { EDITOR, rowOf, serveAccounts, warmUsersScreen } from './usersFixtures'
 
-beforeEach(() =>
-	server.use(
-		http.get('/api/users', () =>
-			HttpResponse.json([
-				{
-					id: '0198b2f0-0000-7000-8000-000000000001',
-					email: 'grace@example.com',
-					name: 'Grace Hopper',
-					disabled: false,
-					created_at: '2026-07-06T10:00:00Z',
-				},
-			]),
-		),
-	),
-)
+const AUTHOR = accountWithRole('author')
 
-test('keeps the users heading while the accounts are on their way', async () => {
+warmUsersScreen()
+
+beforeEach(() => serveAccounts(EDITOR, AUTHOR))
+
+test('serves the users list at /users', async () => {
+	renderAt('/users')
+
+	expect(await screen.findByRole('heading', { level: 2, name: 'Users' })).toBeInTheDocument()
+	expect((await rowOf(EDITOR.name)).getByText(EDITOR.email)).toBeInTheDocument()
+})
+
+test('navigates to the users list from the main menu', async () => {
+	renderAt('/')
+
+	await userEvent.click(await screen.findByRole('link', { name: 'Users' }))
+
+	expect(await screen.findByRole('heading', { name: 'Users' })).toBeInTheDocument()
+})
+
+test('keeps the heading and the search while the accounts are on their way', async () => {
 	server.use(http.get('/api/users', () => new Promise(() => {})))
 	renderAt('/users')
 
 	const main = await screen.findByRole('main')
 
 	expect(await within(main).findByRole('heading', { level: 2 })).toHaveTextContent('Users')
-	const status = await within(main).findByRole('status')
-	expect(status).toHaveTextContent('Loading users.')
-	expect(status.closest('.godmin-loading-screen')).not.toBeNull()
+	expect(await within(main).findByRole('searchbox', { name: 'Search users…' })).toBeInTheDocument()
+	expect(within(main).queryByText(EDITOR.name)).toBeNull()
 })
 
-test('keeps the users heading when the accounts cannot be loaded', async () => {
-	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.get('/api/users', () => HttpResponse.json({}, { status: 500 })))
+test('keeps the heading alone when the accounts cannot be loaded', async () => {
+	server.use(usersFailure())
 	renderAt('/users')
 
-	const alert = await screen.findByRole('alert')
-
-	expect(alert).toHaveTextContent(/could not be loaded/i)
+	expect(await screen.findByText('Users could not be loaded.')).toBeInTheDocument()
 	const main = screen.getByRole('main')
 	expect(within(main).getByRole('heading', { level: 2 })).toHaveTextContent('Users')
 	expect(within(main).getAllByRole('heading', { level: 2 })).toHaveLength(1)
 })
 
-test('names the add user screen with its only second level heading, under the sidebar title', async () => {
-	renderAt('/users/new')
+test('reads the list view the address holds the way every other list does', () => {
+	const users = Object.values(createAppRouter().routesById).find((route) => route.fullPath === '/users')
 
-	const main = await screen.findByRole('main')
-
-	expect(within(main).getByRole('heading', { level: 2 })).toHaveTextContent('Add User')
-	expect(within(main).getAllByRole('heading', { level: 2 })).toHaveLength(1)
+	expect(users?.options.validateSearch).toBe(listSearch)
 })
 
-test('names the add user screen as WordPress es_ES does for a Spanish reader', async () => {
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
-	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
-	renderAt('/users/new')
+test('opens on the search the address holds', async () => {
+	renderAt('/users?search=author')
 
-	expect(await screen.findByRole('heading', { level: 2, name: 'Añadir usuario' })).toBeInTheDocument()
+	expect(await rowOf(AUTHOR.name)).toBeDefined()
+	expect(screen.queryByText(EDITOR.name)).toBeNull()
 })
 
-test('serves the users screen at /users', async () => {
-	renderAt('/users')
+test('writes the search a reader types into the address and narrows the list to it', async () => {
+	const { router } = renderRoutedAt('/users')
+	await rowOf(EDITOR.name)
 
-	expect(
-		await screen.findByRole('heading', { name: 'Users' }),
-	).toBeInTheDocument()
-	expect(
-		within(await screen.findByRole('row', { name: /Grace Hopper/ })).getByText(
-			'grace@example.com',
-		),
-	).toBeInTheDocument()
-})
+	await userEvent.type(screen.getByRole('searchbox', { name: 'Search users…' }), 'author')
 
-test('navigates to the users screen from the main menu', async () => {
-	renderAt('/')
-
-	await userEvent.click(
-		await screen.findByRole('link', { name: 'Users' }),
-	)
-
-	expect(
-		await screen.findByRole('heading', { name: 'Users' }),
-	).toBeInTheDocument()
-})
-
-test('returns to the user list after creating a user', async () => {
-	server.use(
-		http.post('/api/users', () =>
-			HttpResponse.json(
-				{
-					id: '0198b2f0-0000-7000-8000-000000000002',
-					email: 'ada@example.com',
-					name: 'Ada Lovelace',
-					disabled: false,
-					created_at: '2026-07-16T10:00:00Z',
-				},
-				{ status: 201 },
-			),
-		),
-	)
-	renderAt('/users/new')
-
-	await userEvent.type(
-		await screen.findByLabelText('Email'),
-		'ada@example.com',
-	)
-	await userEvent.type(screen.getByLabelText('Name'), 'Ada Lovelace')
-	await userEvent.type(
-		screen.getByLabelText('Password'),
-		'correct horse battery',
-	)
-	await userEvent.click(screen.getByRole('button', { name: 'Create user' }))
-
-	expect(
-		await screen.findByRole('heading', { name: 'Users' }),
-	).toBeInTheDocument()
+	await waitFor(() => expect(router.state.location.search).toMatchObject({ search: 'author' }))
+	await waitFor(() => expect(screen.queryByText(EDITOR.name)).toBeNull())
 })

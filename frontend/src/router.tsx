@@ -85,6 +85,7 @@ const fieldGroupsRoute = createRoute({
 const usersRoute = createRoute({
 	getParentRoute: () => adminRoute,
 	path: '/users',
+	validateSearch: listSearch,
 	staticData: { capability: MANAGE_USERS },
 	component: lazyRouteComponent(() => import('./users/UsersScreen'), 'UsersScreen'),
 })
