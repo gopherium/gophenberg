@@ -1,7 +1,7 @@
 Feature: Uploading media files
   A signed in administrator builds the site's media library by
-  uploading files. Every accepted image is stored ready to embed,
-  with upright pixels and the image sizes the editor offers.
+  uploading files. Every accepted image is kept as it was sent, with
+  upright copies in the image sizes the editor offers.
 
   Background:
     Given a running Gophenberg with an empty media directory
@@ -13,17 +13,11 @@ Feature: Uploading media files
     And the image offers the sizes "thumbnail", "medium", "large" and "full"
     And every size fits its bounding box
 
-  Scenario: A sideways phone photo is stored upright
-    When the administrator uploads a JPEG carrying orientation tag 6
-    Then the stored image is taller than it is wide
-    And the stored image carries no orientation tag
-
   Scenario: An oversized photo gains a scaled display copy
     When the administrator uploads a 3000 by 2000 pixel JPEG named "cliff.jpg"
     Then the full size is at most 2560 pixels wide
     And the original upload is kept on disk
 
-  @wip
   Scenario: A sideways phone photo keeps its upload and gains an upright copy
     When the administrator uploads a JPEG carrying orientation tag 6
     Then the image is taller than it is wide
@@ -32,7 +26,6 @@ Feature: Uploading media files
     And the full size carries no orientation tag
     And the original upload is kept on disk
 
-  @wip
   Scenario: A sideways photo past 2560 pixels is turned while it is scaled
     When the administrator uploads a 3000 by 2000 pixel JPEG carrying orientation tag 6 named "cliff.jpg"
     Then the image is taller than it is wide
@@ -44,7 +37,6 @@ Feature: Uploading media files
     And the full size carries no orientation tag
     And the original upload is kept on disk
 
-  @wip
   Scenario: A thin panorama keeps its thumbnail though its scaled copy is thinner
     When the administrator uploads a 3000 by 160 pixel JPEG named "ridge.jpg"
     Then the image offers the sizes "thumbnail", "medium", "large" and "full"

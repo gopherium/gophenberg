@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 
@@ -292,43 +293,94 @@ func subSizeFits(w *world, slug string, subSize media.SubSize) error {
 	return nil
 }
 
-// theStoredImageIsTallerThanWide asserts the stored pixels stand upright.
-func theStoredImageIsTallerThanWide(ctx context.Context) error {
-	w, item, err := oneMediaNamed(ctx, media.TypeImage, "sideways")
+// theOnlyItem returns the scenario's world and the single item its library holds.
+func theOnlyItem(ctx context.Context) (*world, media.Media, error) {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return nil, media.Media{}, err
+	}
+	items, err := storedMedia(w)
+	if err != nil {
+		return nil, media.Media{}, err
+	}
+	if len(items) != 1 {
+		return nil, media.Media{}, fmt.Errorf("the library holds %d items, want the uploaded image alone", len(items))
+	}
+	return w, items[0], nil
+}
+
+// theImageIsTallerThanWide asserts the single image measures upright.
+func theImageIsTallerThanWide(ctx context.Context) error {
+	_, item, err := theOnlyItem(ctx)
 	if err != nil {
 		return err
 	}
 	if item.Height <= item.Width {
 		return fmt.Errorf("the library holds %dx%d, want it taller than wide", item.Width, item.Height)
 	}
-	data, err := w.storedBytes(item.File)
+	return nil
+}
+
+// theFullSizeIsStoredAs asserts the single image's full size lives in a file of the given name.
+func theFullSizeIsStoredAs(ctx context.Context, name string) error {
+	_, item, err := theOnlyItem(ctx)
+	if err != nil {
+		return err
+	}
+	if got := path.Base(item.Sizes["full"].File); got != name {
+		return fmt.Errorf("the full size is stored as %q, want %q", got, name)
+	}
+	return nil
+}
+
+// theSizeMeasures asserts one size of the single image measures width by height in its data and its file.
+func theSizeMeasures(ctx context.Context, slug string, width, height int) error {
+	w, item, err := theOnlyItem(ctx)
+	if err != nil {
+		return err
+	}
+	size, offered := item.Sizes[slug]
+	if !offered {
+		return fmt.Errorf("the image offers %v, want a %s size", item.Sizes, slug)
+	}
+	data, err := w.storedBytes(size.File)
 	if err != nil {
 		return err
 	}
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return fmt.Errorf("reading the stored image: %w", err)
+		return fmt.Errorf("reading the %s size: %w", slug, err)
 	}
-	if cfg.Height <= cfg.Width {
-		return fmt.Errorf("the stored file measures %dx%d, want it taller than wide", cfg.Width, cfg.Height)
+	if size.Width != width || size.Height != height || cfg.Width != width || cfg.Height != height {
+		return fmt.Errorf("the %s size measures %dx%d with a file of %dx%d, want %dx%d",
+			slug, size.Width, size.Height, cfg.Width, cfg.Height, width, height)
 	}
 	return nil
 }
 
-// theStoredImageCarriesNoOrientationTag asserts the stored file dropped its EXIF orientation.
-func theStoredImageCarriesNoOrientationTag(ctx context.Context) error {
-	w, item, err := oneMediaNamed(ctx, media.TypeImage, "sideways")
+// theFullSizeCarriesNoOrientationTag asserts the single image's full size holds no EXIF segment.
+func theFullSizeCarriesNoOrientationTag(ctx context.Context) error {
+	w, item, err := theOnlyItem(ctx)
 	if err != nil {
 		return err
 	}
-	data, err := w.storedBytes(item.File)
+	data, err := w.storedBytes(item.Sizes["full"].File)
 	if err != nil {
 		return err
 	}
 	if bytes.Contains(data, []byte("Exif\x00\x00")) {
-		return fmt.Errorf("the stored file still carries an EXIF segment, want the tag dropped")
+		return fmt.Errorf("the full size carries an EXIF segment, want none")
 	}
 	return nil
+}
+
+// uploadsASizedOrientedJPEG uploads a photo stored at width by height carrying the given orientation tag.
+func uploadsASizedOrientedJPEG(ctx context.Context, width, height, tag int, name string) error {
+	photo, err := orientedSizedJPEG(uint16(tag), width, height)
+	if err != nil {
+		return err
+	}
+	return uploadsMedia(ctx, name, photo)
 }
 
 // theFullSubSizeIsAtMost asserts the display copy is bounded to the given width.
@@ -520,8 +572,12 @@ func initializeMediaUpload(sc *godog.ScenarioContext) {
 	sc.Then(`^the library lists one file named "([^"]*)"$`, theLibraryListsOneFileNamed)
 	sc.Then(`^the image offers the sizes (.+)$`, theImageOffersSubSizes)
 	sc.Then(`^every size fits its bounding box$`, everySubSizeFitsItsBoundingBox)
-	sc.Then(`^the stored image is taller than it is wide$`, theStoredImageIsTallerThanWide)
-	sc.Then(`^the stored image carries no orientation tag$`, theStoredImageCarriesNoOrientationTag)
+	sc.When(`^the administrator uploads a (\d+) by (\d+) pixel JPEG carrying orientation tag (\d+) named "([^"]*)"$`,
+		uploadsASizedOrientedJPEG)
+	sc.Then(`^the image is taller than it is wide$`, theImageIsTallerThanWide)
+	sc.Then(`^the full size is stored as "([^"]*)"$`, theFullSizeIsStoredAs)
+	sc.Then(`^the (full|large|medium|thumbnail) size measures (\d+) by (\d+) pixels$`, theSizeMeasures)
+	sc.Then(`^the full size carries no orientation tag$`, theFullSizeCarriesNoOrientationTag)
 	sc.Then(`^the full size is at most (\d+) pixels wide$`, theFullSubSizeIsAtMost)
 	sc.Then(`^the original upload is kept on disk$`, theOriginalUploadIsKeptOnDisk)
 	sc.Then(`^the image offers no sizes$`, theImageOffersNoSubSizes)

@@ -30,7 +30,12 @@ func jpegImage(width, height int) ([]byte, error) {
 
 // orientedJPEG returns a wide JPEG carrying the given EXIF orientation tag.
 func orientedJPEG(orientation uint16) ([]byte, error) {
-	plain, err := jpegImage(40, 20)
+	return orientedSizedJPEG(orientation, 40, 20)
+}
+
+// orientedSizedJPEG returns a JPEG stored at width by height carrying the given EXIF orientation tag.
+func orientedSizedJPEG(orientation uint16, width, height int) ([]byte, error) {
+	plain, err := jpegImage(width, height)
 	if err != nil {
 		return nil, err
 	}
