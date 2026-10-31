@@ -162,14 +162,15 @@ test('draws no avatar when the site shows none', async () => {
 })
 
 test('opens newest first with Created left in View options, as WordPress draws no such column', async () => {
-	serveAccounts(AUTHOR, MEMBER)
+	serveAccounts(AUTHOR, EDITOR, MEMBER)
 	renderAt('/users')
 
 	await rowOf(MEMBER.name)
-	const [, newest, oldest] = screen.getAllByRole('row')
+	const [, newest, between, oldest] = screen.getAllByRole('row')
 
 	expect(within(newest).getByText(MEMBER.name)).toBeInTheDocument()
-	expect(within(oldest).getByText(AUTHOR.name)).toBeInTheDocument()
+	expect(within(between).getByText(AUTHOR.name)).toBeInTheDocument()
+	expect(within(oldest).getByText(EDITOR.name)).toBeInTheDocument()
 	expect(screen.queryByRole('columnheader', { name: /^Created/ })).toBeNull()
 
 	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
