@@ -9,7 +9,7 @@
 	},
 	"devDependencies": {
 		"eslint": "^10.10.0",
-		"eslint-plugin-jsdoc": "^64.2.0",
+		"eslint-plugin-jsdoc": "^65.0.1",
 		"eslint-plugin-sonarjs": "^4.2.0",
 		"eslint-plugin-tsdoc": "^0.5.2",
 		"knip": "^6.35.0",
