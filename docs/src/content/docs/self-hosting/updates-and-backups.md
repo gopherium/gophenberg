@@ -286,6 +286,11 @@ Some things work differently after this update:
   is the most pixels a picture or one frame of a GIF may hold, in
   millions. A site that leaves it unset refuses the same pictures as
   before. See [configuration](/self-hosting/configuration/).
+- `GOPHENBERG_MAX_PROCS` and `GOPHENBERG_MEMORY_LIMIT_MB`, new settings
+  and neither required, hand Go its processor and memory limits once
+  `.env` has loaded. Each only ever lowers what Go holds, and a value
+  out of range stops `check` and `serve`. See
+  [memory and processors on a small host](/self-hosting/configuration/#memory-and-processors-on-a-small-host).
 
 Updating from further back also runs the migrations of every release
 you skip, so read each of their notes. Coming from five releases back

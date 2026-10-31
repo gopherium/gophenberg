@@ -22,6 +22,8 @@ so it takes the default.
 | --- | --- | --- | --- |
 | `GOPHENBERG_DATABASE_URL` | Yes | | The PostgreSQL connection string, or `sqlite:` and the absolute path of a SQLite file. [The PostgreSQL address](#the-postgresql-address) lists what a connection string may not hold. [A SQLite database](#a-sqlite-database) says what runs on one and lists its settings |
 | `GOPHENBERG_DATABASE_MAX_CONNS` | No | The larger of 4 and the number of CPUs | How many connections to the database stay open at most, from 2 to 2147483647, see [the database connections](#the-database-connections) |
+| `GOPHENBERG_MAX_PROCS` | No | Go's own | How many processors run Go code at once, from 1 to the number of CPUs, see [memory and processors on a small host](#memory-and-processors-on-a-small-host) |
+| `GOPHENBERG_MEMORY_LIMIT_MB` | No | | The memory Go tries to stay under, in megabytes from 1 to 1073741824, see [memory and processors on a small host](#memory-and-processors-on-a-small-host) |
 | `GOPHENBERG_SUPERUSER_POLICY` | No | `warn` | What the server does when it connects to PostgreSQL as a superuser: `warn` logs a warning and serves, `refuse` stops it, see [the PostgreSQL server](#the-postgresql-server) |
 | `GOPHENBERG_DATABASE_WAIT` | No | `60s` | How long `serve` waits for a PostgreSQL server that is not up yet before it stops. `0` does not wait, see [a database that starts late](#a-database-that-starts-late) |
 | `GOPHENBERG_DATABASE_WAIT_INTERVAL` | No | `1s` | The pause between two tries while `serve` waits for the database |
@@ -282,6 +284,48 @@ instead.
 The safest password holds only letters and digits. In a
 `postgres://` address, write every other sign in it as its `%` code,
 such as `%40` for `@`, `%23` for `#` and `%3F` for `?`.
+
+## Memory and processors on a small host
+
+A small hosting plan caps the memory of a site and how many processes
+and threads it may start. Go reads `GOMAXPROCS` and `GOMEMLIMIT`
+before Gophenberg loads `.env`, so a line for either in `.env` does
+nothing. Set `GOPHENBERG_MAX_PROCS` and `GOPHENBERG_MEMORY_LIMIT_MB`
+instead. Every command hands them to Go, after `.env` for the
+commands that read it, and `serve` logs `runtime limits` with the
+values Go holds. A set value only ever lowers what Go holds, so the
+tighter of it and `GOMAXPROCS`, `GOMEMLIMIT` or the container's CPU
+quota wins. An unset one leaves Go its own default.
+
+`GOPHENBERG_MAX_PROCS` bounds the processors that run Go code at
+once. Go still starts a thread for each call that waits on the
+system, so it lowers the thread count without capping it. Once it
+takes effect, Go no longer follows a change to the container's CPU
+quota while the site runs.
+
+`GOPHENBERG_MEMORY_LIMIT_MB` is a soft limit. Go collects garbage
+harder as the site nears it, and a site that holds more than the
+limit keeps running while the collector works almost without pause.
+Set it well above what the site uses at rest.
+
+An upload is where a site needs the most memory. A 24 megapixel JPEG
+from a camera needs about 60 MB while its sizes are made, the decoded
+picture included, and the request holds up to two more copies of the
+uploaded file. A progressive JPEG, which a web export often is, costs
+more: about 205 MB at the same size, and about 385 MB with full
+colour detail. `GOPHENBERG_MEDIA_CONCURRENT_IMAGES` pictures are made
+at once, and `GOPHENBERG_MEDIA_MAX_MEGAPIXELS` refuses a picture past
+its budget before it is decoded. Size a small host from the
+progressive rows below, since the people who upload choose the file.
+
+| Picture                                          | Memory per megapixel once decoded |
+| ------------------------------------------------ | --------------------------------- |
+| Baseline JPEG, the usual camera photo            | about 1.5 MB                      |
+| Baseline JPEG with full colour detail (4:4:4)    | about 3 MB                        |
+| PNG                                              | about 4 MB                        |
+| Progressive JPEG                                 | about 7.5 MB                      |
+| CMYK JPEG or 16-bit PNG                          | about 8 MB                        |
+| Progressive JPEG with full colour detail (4:4:4) | about 15 MB                       |
 
 ## A SQLite database
 
@@ -745,7 +789,11 @@ The server refuses to start, and says why, when:
   1024, which is as much of a request body as the server reads.
 - `GOPHENBERG_THEME_START_ATTEMPTS` is not a whole number from 1 to 1000.
 - `GOPHENBERG_FIELD_DEPTH` is not a whole number from 1 to 1000.
-  These four refuse rather than quietly using another value.
+- `GOPHENBERG_MAX_PROCS` is not a whole number from 1 to the number of
+  CPUs.
+- `GOPHENBERG_MEMORY_LIMIT_MB` is not a whole number from 1 to
+  1073741824. Each of these refuses rather than quietly using another
+  value.
 - Any of the cache windows is not a positive whole number of seconds.
   Write them as durations, `1h`, `90s`, `5m`. Part of a second is
   refused, because the header counts in whole seconds.
@@ -807,6 +855,10 @@ The server refuses to start, and says why, when:
 
 `check` never connects to the database, so the last three wait for
 `serve`, `migrate` and the commands that migrate.
+
+`GOPHENBERG_MAX_PROCS` and `GOPHENBERG_MEMORY_LIMIT_MB` reach Go in
+every command. A bad one stops `check` and `serve`, and every other
+command runs without either of them.
 
 `GOPHENBERG_COMMAND_RECORD_TIMEOUT` has to be a positive duration and
 `GOPHENBERG_COMMAND_RECORDS_LIMIT` a positive whole number. A bad one
