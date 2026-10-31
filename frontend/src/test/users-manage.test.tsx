@@ -1,152 +1,183 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { badgeClasses, buttonClasses } from '@gopherium/godmin/testing'
-import { EmailTakenError, ValidationError } from '@gopherium/react-auth/admin'
+import { DOMAIN as AUTH_DOMAIN, catalogFor as authCatalogFor } from '@gopherium/react-auth'
+import { accountWithRole, disabledRefused } from '@gopherium/react-auth/testing'
+import { badgeClasses } from '@gopherium/godmin/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
-import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
+import { beforeEach, expect, onTestFinished, test } from 'vitest'
 
-import { catalogFor } from '../i18n/catalog'
-import { createFailureMessage } from '../users/NewUserScreen'
+import { adminBasepath } from '../basepath'
 import { renderAt } from './render'
+import { siteSettings } from './siteSettings'
+import { EDITOR, SIGNED_IN, act, rowOf, rowShowing, serveAccounts, toast, warmUsersScreen } from './usersFixtures'
 
-const SIGNED_IN = '0198b2f0-0000-7000-8000-000000000001'
+const AUTHOR = accountWithRole('author', { created_at: new Date('2026-10-20T09:00:00Z') })
 
-const OTHER = '0198b2f0-0000-7000-8000-000000000002'
+const MEMBER = accountWithRole('member', { created_at: new Date('2026-10-20T10:00:00Z') })
+
+const PICTURED = { ...EDITOR, avatar: 'https://example.com/avatar/editor.png' }
+
+warmUsersScreen()
+
+beforeEach(() => serveAccounts(SIGNED_IN, EDITOR))
 
 /**
- * Returns a stored account row.
- * @param id - The account identifier.
- * @param name - The account holder's name.
- * @param disabled - Whether the account is shut out.
- * @returns The account row.
+ * Serves the list settings with the given values changed.
+ * @param changes - The settings a test sets apart from the defaults.
  */
-function account(id: string, name: string, disabled: boolean) {
-	return {
-		id,
-		email: `${name.split(' ')[0]?.toLowerCase()}@example.com`,
-		name,
-		disabled,
-		created_at: '2026-07-06T10:00:00Z',
-	}
+function serveSettings(changes: Record<string, unknown>) {
+	server.use(http.get('/api/settings', () => HttpResponse.json({ ...siteSettings, ...changes })))
 }
 
-beforeEach(() =>
+/**
+ * Records every Enable or Disable the list sends, by account id.
+ * @returns The writes, each the account id beside the body sent.
+ */
+function recordSwitches(): unknown[] {
+	const sent: unknown[] = []
 	server.use(
-		http.get('/api/users', () =>
-			HttpResponse.json([account(OTHER, 'Maria Perez', false)]),
-		),
-	),
-)
-
-test('shuts an account out at the reader s request', async () => {
-	const asked: unknown[] = []
-	server.use(
-		http.patch(`/api/users/${OTHER}`, async ({ request }) => {
-			asked.push(await request.json())
+		http.patch('/api/users/:id', async ({ params, request }) => {
+			sent.push({ id: params.id, ...((await request.json()) as object) })
 			return new HttpResponse(null, { status: 204 })
 		}),
 	)
+	return sent
+}
+
+/**
+ * Returns the page sizes View options offers, opening it first.
+ * @returns The sizes as the radio buttons read.
+ */
+async function offeredSizes() {
+	await userEvent.click(await screen.findByRole('button', { name: 'View options' }))
+	return within(await screen.findByRole('radiogroup', { name: 'Items per page' }))
+}
+
+test('draws Add User in the header as a link to the add user screen', async () => {
 	renderAt('/users')
 
-	await userEvent.click(await screen.findByRole('button', { name: 'Disable Maria Perez' }))
+	const add = await within(await screen.findByRole('main')).findByRole('link', { name: 'Add User' })
 
-	await waitFor(() => expect(asked).toHaveLength(1))
-	expect(asked[0]).toMatchObject({ disabled: true })
-})
-
-test('says so when an account could not be changed', async () => {
-	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.patch(`/api/users/${OTHER}`, () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/users')
-
-	await userEvent.click(await screen.findByRole('button', { name: 'Disable Maria Perez' }))
-
-	expect(await screen.findByRole('alert')).toHaveTextContent('Update failed.')
-})
-
-test('offers to let a shut out account back in', async () => {
-	server.use(
-		http.get('/api/users', () => HttpResponse.json([account(OTHER, 'Maria Perez', true)])),
-	)
-	renderAt('/users')
-
-	const row = await screen.findByRole('row', { name: /Maria Perez/ })
-
-	expect(within(row).getByRole('button', { name: 'Enable Maria Perez' })).toBeInTheDocument()
-	expect(within(row).getByText('Disabled')).toBeInTheDocument()
-})
-
-test('draws Add User as the compact solid button every list header holds', async () => {
-	renderAt('/users')
-
-	const add = await within(await screen.findByRole('main')).findByText('Add User')
-
-	expect([...add.classList]).toEqual(buttonClasses('solid', 'compact'))
+	expect(add).toHaveAttribute('href', `${adminBasepath}/users/new`)
 })
 
 test('names the header button of the users list as WordPress es_ES does for a Spanish reader', async () => {
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
-	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	setLocaleData(await authCatalogFor('es-ES'), AUTH_DOMAIN)
+	onTestFinished(() => resetLocaleData({}, AUTH_DOMAIN))
 	renderAt('/users')
 
-	expect(await within(await screen.findByRole('main')).findByText('Añadir usuario')).toBeInTheDocument()
+	const main = within(await screen.findByRole('main'))
+
+	expect(await main.findByRole('link', { name: 'Añadir usuario' })).toBeInTheDocument()
 })
 
-test('draws a shut out account as an outline badge, the WordPress badge for an inactive state', async () => {
-	server.use(
-		http.get('/api/users', () => HttpResponse.json([account(OTHER, 'Maria Perez', true)])),
-	)
+test('disables an account from its row menu and names it in a toast', async () => {
+	const sent = recordSwitches()
 	renderAt('/users')
 
-	const row = await screen.findByRole('row', { name: /Maria Perez/ })
+	await act(EDITOR.name, 'Disable')
 
-	expect([...within(row).getByText('Disabled').classList]).toEqual(badgeClasses('none'))
+	expect(await toast(`"${EDITOR.name}" disabled.`)).toBeInTheDocument()
+	expect(sent).toEqual([{ id: EDITOR.id, disabled: true }])
 })
 
-test('leaves the signed in account without a way to shut itself out', async () => {
-	server.use(
-		http.get('/api/users', () =>
-			HttpResponse.json([account(SIGNED_IN, 'Maria Perez', false)]),
-		),
-	)
+test('says in a toast why the server refused to disable an account', async () => {
+	server.use(disabledRefused('last_privileged_refused'))
 	renderAt('/users')
 
-	const row = await screen.findByRole('row', { name: /Maria Perez/ })
+	await act(EDITOR.name, 'Disable')
 
-	expect(within(row).queryByRole('button')).toBeNull()
+	expect(await toast('Somebody must be able to manage users.')).toBeInTheDocument()
 })
 
-test('announces a creation the server turned down', async () => {
-	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.post('/api/users', () => HttpResponse.json({}, { status: 500 })))
-	renderAt('/users/new')
+test('offers Enable on a disabled account, drawn with the outline badge of an inactive state', async () => {
+	serveAccounts(SIGNED_IN, { ...EDITOR, disabled: true })
+	const sent = recordSwitches()
+	renderAt('/users')
 
-	await userEvent.type(await screen.findByLabelText('Email'), 'maria@example.com')
-	await userEvent.type(screen.getByLabelText('Name'), 'Maria Perez')
-	await userEvent.type(screen.getByLabelText('Password'), 'correct horse battery')
-	await userEvent.click(screen.getByRole('button', { name: 'Create user' }))
+	const row = await rowOf(EDITOR.name)
+	expect([...row.getByText('Disabled').classList]).toEqual(badgeClasses('none'))
+	await act(EDITOR.name, 'Enable')
 
-	expect(await screen.findByRole('alert')).toHaveTextContent('The user could not be created.')
+	await waitFor(() => expect(sent).toEqual([{ id: EDITOR.id, disabled: false }]))
 })
 
-test('marks the role a new user starts with as the chosen one', async () => {
-	renderAt('/users/new')
+test('leaves the signed in account without an action', async () => {
+	renderAt('/users')
 
-	await userEvent.click(await screen.findByRole('combobox', { name: 'Role' }))
+	const row = await rowOf(SIGNED_IN.name)
 
-	expect(await screen.findByRole('option', { name: 'Author' })).toHaveAttribute('aria-selected', 'true')
-	expect(screen.getByRole('option', { name: 'Administrator' })).toHaveAttribute('aria-selected', 'false')
+	expect(row.queryByRole('button', { name: 'Actions' })).toBeNull()
 })
 
-test('reports why an account could not be created', () => {
-	expect(createFailureMessage(new EmailTakenError('taken'))).toBe(
-		'That email is already in use.',
-	)
-	expect(createFailureMessage(new ValidationError('Password is too short.'))).toBe(
-		'Password is too short.',
-	)
-	expect(createFailureMessage(new Error('boom'))).toBe('The user could not be created.')
+test('leaves an account the server marks not editable without an action', async () => {
+	serveAccounts(SIGNED_IN, { ...EDITOR, editable: false })
+	renderAt('/users')
+
+	const row = await rowOf(EDITOR.name)
+
+	expect(row.queryByRole('button', { name: 'Actions' })).toBeNull()
+})
+
+test('draws beside each name the avatar the server sends', async () => {
+	serveAccounts(SIGNED_IN, PICTURED)
+	renderAt('/users')
+
+	const row = await rowShowing(EDITOR.name)
+
+	expect(row.querySelector('.godmin-avatar__image')).toHaveAttribute('src', PICTURED.avatar)
+})
+
+test('draws no avatar when the site shows none', async () => {
+	serveSettings({ show_avatars: false })
+	serveAccounts(SIGNED_IN, PICTURED)
+	renderAt('/users')
+
+	const row = await rowShowing(EDITOR.name)
+
+	expect(row.querySelector('.godmin-avatar')).toBeNull()
+})
+
+test('pages the accounts by the size the settings name', async () => {
+	serveSettings({ list_page_size: 2, list_page_sizes: [2, 5] })
+	serveAccounts(SIGNED_IN, EDITOR, AUTHOR, MEMBER)
+	renderAt('/users')
+
+	await rowOf(MEMBER.name)
+
+	expect(screen.getAllByRole('row')).toHaveLength(3)
+	expect(screen.queryByText(EDITOR.name)).toBeNull()
+	expect((await offeredSizes()).getAllByRole('radio').map((size) => size.textContent)).toEqual(['2', '5'])
+})
+
+test('opens on the page size the settings name for an address naming one they do not offer', async () => {
+	renderAt('/users?perPage=7')
+	await rowOf(EDITOR.name)
+
+	expect((await offeredSizes()).getByRole('radio', { name: '20' })).toBeChecked()
+})
+
+test('opens on the page and the offered page size the address holds', async () => {
+	serveSettings({ list_page_size: 5, list_page_sizes: [2, 5] })
+	serveAccounts(SIGNED_IN, EDITOR, AUTHOR, MEMBER)
+	renderAt('/users?page=2&perPage=2')
+
+	await rowOf(EDITOR.name)
+
+	expect(screen.getAllByRole('row')).toHaveLength(3)
+	expect(screen.queryByText(MEMBER.name)).toBeNull()
+	expect((await offeredSizes()).getByRole('radio', { name: '2' })).toBeChecked()
+})
+
+test('shows every account on one page when the settings cannot be read', async () => {
+	server.use(http.get('/api/settings', () => HttpResponse.json({}, { status: 500 })))
+	serveAccounts(SIGNED_IN, EDITOR, AUTHOR, MEMBER)
+	renderAt('/users')
+
+	await rowOf(MEMBER.name)
+
+	expect(screen.getAllByRole('row')).toHaveLength(5)
 })

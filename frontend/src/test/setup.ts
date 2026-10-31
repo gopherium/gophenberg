@@ -37,6 +37,7 @@ beforeEach(() => {
 	rememberFormatLocale(siteSettings.format_locale)
 	server.use(http.get('/api/settings', () => HttpResponse.json(siteSettings)))
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [builtInType] })))
+	server.use(http.get('/api/users/post-counts', () => HttpResponse.json({ counts: {} })))
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [] })))
 	server.use(http.get('/api/groups/params', () => HttpResponse.json({ items: [] })))
 	server.use(http.get('/api/updates', () => HttpResponse.json(upToDate)))

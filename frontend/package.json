@@ -23,7 +23,7 @@
 		"@gophenberg/frontend-sdk": "workspace:*",
 		"@gopherium/godmin": "0.29.0",
 		"@gopherium/gottext": "0.7.0",
-		"@gopherium/react-auth": "0.15.0",
+		"@gopherium/react-auth": "0.16.1",
 		"@tanstack/react-query": "^5.102.8",
 		"@tanstack/react-router": "^1.170.44",
 		"@wordpress/date": "5.57.0",

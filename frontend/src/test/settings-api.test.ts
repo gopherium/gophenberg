@@ -15,6 +15,8 @@ const LIST_SETTINGS = {
 	format_locale: 'de-DE',
 	updates_progress_milliseconds: 2000,
 	updates_restart_wait_milliseconds: 300000,
+	show_avatars: false,
+	default_role: 'editor',
 }
 
 test('reads the settings every list follows, as the server names them', async () => {

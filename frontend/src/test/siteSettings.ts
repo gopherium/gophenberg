@@ -13,4 +13,6 @@ export const siteSettings = {
 	format_locale: 'es-ES',
 	updates_progress_milliseconds: 2000,
 	updates_restart_wait_milliseconds: 300000,
+	show_avatars: true,
+	default_role: 'member',
 }
