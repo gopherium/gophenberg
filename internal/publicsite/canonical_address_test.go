@@ -38,7 +38,6 @@ func TestSiteSendsAListingPageToTheOneAddressItAnswersAt(t *testing.T) {
 		{"/page/1", "/"},
 		{"/page/01", "/"},
 		{"/page/02", "/page/2"},
-		{"/page/+2", "/page/2"},
 		{"/page/1?utm_source=feed", "/?utm_source=feed"},
 		{"/page/02?utm_source=feed", "/page/2?utm_source=feed"},
 		{"/pages/page/1", "/pages"},
@@ -98,7 +97,6 @@ func TestSiteKeepsAListingPageWhoseOneAddressHoldsContent(t *testing.T) {
 		want      string
 	}{
 		{[]content.Content{two}, "/pages/page/02", "Pages | A Test Site"},
-		{[]content.Content{two}, "/pages/page/+2", "Pages | A Test Site"},
 		{[]content.Content{guide}, "/pages/page/1", "Pages | A Test Site"},
 		{[]content.Content{guide}, "/pages/page/01", "Pages | A Test Site"},
 		{[]content.Content{news, three}, "/categories/news/page/03", "News | A Test Site"},

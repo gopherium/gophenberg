@@ -158,6 +158,41 @@ func TestResolveLetsContentBeatPagination(t *testing.T) {
 	}
 }
 
+func TestResolveLetsContentBeatARefusedPageNumber(t *testing.T) {
+	t.Parallel()
+
+	for name, storedPath := range map[string]string{
+		"a word":             "page/about",
+		"a nested word":      "chapter/page/intro",
+		"an ordinal":         "page/2nd",
+		"zero":               "pages/page/0",
+		"negative":           "pages/page/-2",
+		"signed":             "pages/page/+2",
+		"a plus sign alone":  "pages/page/+",
+		"a minus sign alone": "pages/page/-",
+		"a fullwidth two":    "pages/page/\U0000FF12",
+		"a superscript two":  "pages/page/\U000000B2",
+		"too long to read":   "pages/page/99999999999999999999",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			store := newFakeAddresses()
+			held := store.hold("page", storedPath)
+			resolver := newResolver(t, store)
+
+			answer, err := resolver.Resolve(t.Context(), "/"+storedPath)
+			if err != nil {
+				t.Fatalf("Resolve error = %v, want nil", err)
+			}
+
+			if answer.Kind != content.KindItem || answer.Item.ID != held.ID {
+				t.Errorf("answer = %q %v, want the item stored at the address", answer.Kind, answer.Item.ID)
+			}
+		})
+	}
+}
+
 func TestResolveRefusesAPageNumberBelowTheFirst(t *testing.T) {
 	t.Parallel()
 
@@ -171,6 +206,40 @@ func TestResolveRefusesAPageNumberBelowTheFirst(t *testing.T) {
 		if !errors.Is(err, content.ErrNotFound) {
 			t.Errorf("%s page error = %v, want %v", name, err, content.ErrNotFound)
 		}
+	}
+}
+
+func TestResolveReadsAPageNumberOnlyFromPlainDigits(t *testing.T) {
+	t.Parallel()
+
+	resolver := newResolver(t, newFakeAddresses())
+
+	_, signed := resolver.Resolve(t.Context(), "/page/+2")
+	_, plusAlone := resolver.Resolve(t.Context(), "/page/+")
+	_, minusAlone := resolver.Resolve(t.Context(), "/page/-")
+	_, fullwidth := resolver.Resolve(t.Context(), "/page/\U0000FF12")
+	_, superscript := resolver.Resolve(t.Context(), "/page/\U000000B2")
+
+	for name, err := range map[string]error{
+		"signed": signed, "a plus sign alone": plusAlone, "a minus sign alone": minusAlone,
+		"a fullwidth two": fullwidth, "a superscript two": superscript,
+	} {
+		if !errors.Is(err, content.ErrNotFound) {
+			t.Errorf("%s page error = %v, want %v", name, err, content.ErrNotFound)
+		}
+	}
+}
+
+func TestResolveReadsEveryDigitOfAPageNumber(t *testing.T) {
+	t.Parallel()
+
+	answer, err := newResolver(t, newFakeAddresses()).Resolve(t.Context(), "/pages/page/1234567890")
+	if err != nil {
+		t.Fatalf("Resolve error = %v, want nil", err)
+	}
+
+	if answer.Kind != content.KindArchive || answer.Page != 1234567890 {
+		t.Errorf("answer = %q page %d, want the page archive at page 1234567890", answer.Kind, answer.Page)
 	}
 }
 

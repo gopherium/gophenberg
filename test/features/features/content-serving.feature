@@ -45,6 +45,11 @@ Feature: Serving content by address
     And the published page "2" filed under "Page"
     Then "/pages/page/2" answers with "2"
 
+  Scenario: Exact content beats a number that is no page number
+    Given the published page "Page"
+    And the published page "٢" filed under "Page"
+    Then "/pages/page/٢" answers with "٢"
+
   Scenario: A padded page number stays where content holds the plain number
     Given the published page "Page"
     And the published page "2" filed under "Page"
@@ -71,6 +76,10 @@ Feature: Serving content by address
 
   Scenario: A page number below the first answers not found
     Then "/page/0" answers not found
+
+  Scenario: A signed page number answers not found
+    Then "/page/+2" answers not found
+    And "/pages/page/+2" answers not found
 
   Scenario: An archive of an inactive type answers not found
     Given the type "page" is deactivated

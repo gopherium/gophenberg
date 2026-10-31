@@ -938,6 +938,27 @@ func TestResolveKeepsASingleItemOffThePageWord(t *testing.T) {
 	}
 }
 
+func TestResolveReadsAPageNumberOnlyFromPlainDigits(t *testing.T) {
+	t.Parallel()
+
+	handler := termTypeServer(t)
+	publishItemAt(t, handler, storedCategoryItem(t, handler))
+
+	for path, want := range map[string]int{
+		"page/%2B2":                 http.StatusNotFound,
+		"categories/page/%2B2":      http.StatusNotFound,
+		"categories/news/page/%2B2": http.StatusNotFound,
+		"categories/page/02":        http.StatusOK,
+		"categories/news/page/02":   http.StatusOK,
+	} {
+		recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/resolve?path="+path, "")
+
+		if recorder.Code != want {
+			t.Errorf("resolve %s status = %d, want %d", path, recorder.Code, want)
+		}
+	}
+}
+
 func TestResolveCarriesRelationSummaries(t *testing.T) {
 	t.Parallel()
 
