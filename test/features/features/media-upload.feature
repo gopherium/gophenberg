@@ -23,6 +23,34 @@ Feature: Uploading media files
     Then the full size is at most 2560 pixels wide
     And the original upload is kept on disk
 
+  @wip
+  Scenario: A sideways phone photo keeps its upload and gains an upright copy
+    When the administrator uploads a JPEG carrying orientation tag 6
+    Then the image is taller than it is wide
+    And the full size is stored as "sideways-rotated.jpg"
+    And the full size measures 20 by 40 pixels
+    And the full size carries no orientation tag
+    And the original upload is kept on disk
+
+  @wip
+  Scenario: A sideways photo past 2560 pixels is turned while it is scaled
+    When the administrator uploads a 3000 by 2000 pixel JPEG carrying orientation tag 6 named "cliff.jpg"
+    Then the image is taller than it is wide
+    And the full size is stored as "cliff-scaled.jpg"
+    And the full size measures 1707 by 2560 pixels
+    And the large size measures 683 by 1024 pixels
+    And the medium size measures 200 by 300 pixels
+    And the thumbnail size measures 150 by 150 pixels
+    And the full size carries no orientation tag
+    And the original upload is kept on disk
+
+  @wip
+  Scenario: A thin panorama keeps its thumbnail though its scaled copy is thinner
+    When the administrator uploads a 3000 by 160 pixel JPEG named "ridge.jpg"
+    Then the image offers the sizes "thumbnail", "medium", "large" and "full"
+    And the full size measures 2560 by 137 pixels
+    And the thumbnail size measures 150 by 150 pixels
+
   Scenario: An animated GIF keeps its animation
     When the administrator uploads an animated GIF named "loader.gif"
     Then the library lists one image named "loader"
