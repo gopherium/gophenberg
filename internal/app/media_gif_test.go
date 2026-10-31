@@ -10,7 +10,7 @@ import (
 	"github.com/gopherium/gophenberg/internal/mediahost"
 )
 
-// onePixelGIF holds a GIF as bytes, because a test importing image/gif registers the decoder it looks for.
+// onePixelGIF holds a GIF of one pixel as bytes.
 const onePixelGIF = "GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff" +
 	",\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
 
