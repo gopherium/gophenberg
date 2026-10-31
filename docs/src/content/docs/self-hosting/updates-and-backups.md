@@ -282,6 +282,10 @@ Some things work differently after this update:
   an upright copy named with `-rotated`, or the `-scaled` copy when
   the photo is larger than 2560 pixels, and a post shows that copy.
   Pictures already in the library stay as they were.
+- `GOPHENBERG_MEDIA_MAX_MEGAPIXELS`, a new setting, `80` unless set,
+  is the most pixels a picture or one frame of a GIF may hold, in
+  millions. A site that leaves it unset refuses the same pictures as
+  before. See [configuration](/self-hosting/configuration/).
 
 Updating from further back also runs the migrations of every release
 you skip, so read each of their notes. Coming from five releases back

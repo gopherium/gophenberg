@@ -28,8 +28,9 @@ archives. Anything else is refused, and the answer says why.
 A file is checked before it is stored, so refusing one never leaves
 anything behind. An upload is turned away when its type is not on
 that list, when its contents do not match its name, when it is
-larger than the upload limit, or when it is a picture the server
-cannot read.
+larger than the upload limit, when it is a picture holding more
+pixels than the server takes, 80 million unless the server names
+another number, or when it is a picture the server cannot read.
 
 ## What happens to a picture
 
