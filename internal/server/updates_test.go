@@ -115,7 +115,7 @@ func TestUpdatesGetAnswersTheStoredResultBesideTheInstall(t *testing.T) {
 	next := time.Date(2026, 10, 22, 21, 12, 0, 0, time.UTC)
 	held := &storedUpdates{overview: server.UpdatesOverview{
 		Result:  update.Result{CheckedAt: at(time.Hour), Offer: &update.Found{Version: "0.21.0"}},
-		Running: "0.20.0", CanUpdate: true, NextCheck: &next,
+		Running: "0.20.0", RunningPostgreSQL: new(15), CanUpdate: true, NextCheck: &next,
 		Overview: updater.Overview{Refused: []string{"0.20.5"}, Backups: updater.BackupCount{Kept: 1, Limit: 3}},
 	}}
 	handler, cookie := updatesServer(t, held)
@@ -127,7 +127,7 @@ func TestUpdatesGetAnswersTheStoredResultBesideTheInstall(t *testing.T) {
 	}
 	fields := answeredFields(t, recorder)
 	want := map[string]any{
-		"running": "0.20.0", "can_update": true, "refused": []any{"0.20.5"}, "job": nil,
+		"running": "0.20.0", "running_postgresql": 15.0, "can_update": true, "refused": []any{"0.20.5"}, "job": nil,
 		"backups": map[string]any{"kept": 1.0, "limit": 3.0, "newest": nil}, "next_check": "2026-10-22T21:12:00Z",
 		"failed_at": nil, "error": "",
 	}
@@ -152,6 +152,10 @@ func TestUpdatesGetNamesWhyAnInstallCannotUpdateItself(t *testing.T) {
 	fields := answeredFields(t, recorder)
 	if fields["can_update"] != false || fields["cannot_update"] != "no_install_root" {
 		t.Errorf("GET /api/updates = %s, want can_update false and cannot_update no_install_root", recorder.Body)
+	}
+	if _, found := fields["running_postgresql"]; found {
+		t.Errorf("GET /api/updates = %s, want no running_postgresql for a site that names no PostgreSQL major",
+			recorder.Body)
 	}
 }
 

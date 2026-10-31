@@ -46,12 +46,12 @@ function BackUpFirst() {
 }
 
 /**
- * Renders the sentence saying the PostgreSQL server is too old for the update on offer.
- * @param props - The update on offer.
+ * Renders the sentence saying the PostgreSQL server is too old for the update on offer, then its version when known.
+ * @param props - The update on offer, and the PostgreSQL major the site runs on, if the server named one.
  * @returns The line element, the version on offer linked to its release notes.
  */
-function BlockedLine({ offer }: { offer: UpdateOffer }) {
-	const sentence = sprintf(
+function BlockedLine({ offer, running }: { offer: UpdateOffer, running: number | undefined }) {
+	let sentence = sprintf(
 		__(
 			'You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version ' +
 				'%(postgresql)s or higher.',
@@ -59,6 +59,9 @@ function BlockedLine({ offer }: { offer: UpdateOffer }) {
 		),
 		{ version: offer.version, postgresql: formatNumber(offer.postgresql) } as never,
 	)
+	if (running !== undefined) {
+		sentence += ' ' + sprintf(__('You are running version %s.', 'gophenberg'), formatNumber(running))
+	}
 	return <Text render={<p />}>{createInterpolateElement(sentence, { notes: notesLink(offer) })}</Text>
 }
 
@@ -234,7 +237,7 @@ function OfferDetails(props: OfferProps & { offer: UpdateOffer }) {
 	return (
 		<>
 			{view === undefined ? <BackUpFirst /> : null}
-			{offer.needs_postgresql ? <BlockedLine offer={offer} /> : null}
+			{offer.needs_postgresql ? <BlockedLine offer={offer} running={overview.running_postgresql} /> : null}
 			{offer.long_jump ? <Text render={<p />}>{longJump}</Text> : null}
 			{refuses(overview, offer.version) ? <Text render={<p />}>{refused}</Text> : null}
 			<OfferAction {...props} offer={offer} />

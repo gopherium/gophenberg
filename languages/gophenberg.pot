@@ -2035,6 +2035,9 @@ msgstr ""
 msgid "Yes or no"
 msgstr ""
 
+msgid "You are running version %s."
+msgstr ""
+
 msgid "You can update from Gophenberg %(running)s to <notes>Gophenberg %(version)s</notes> manually:"
 msgstr ""
 

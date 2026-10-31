@@ -44,6 +44,7 @@ const backupsSchema = z.object({
 
 const overviewSchema = resultSchema.extend({
 	running: z.string(),
+	running_postgresql: z.number().optional(),
 	can_update: z.boolean(),
 	cannot_update: z.string().optional(),
 	refused: z.array(z.string()),
