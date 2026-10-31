@@ -62,6 +62,7 @@ export {
 	Tabs,
 	Text,
 	Tooltip,
+	ValidatedInputControl,
 	VisuallyHidden,
 } from '@wordpress/ui'
 export {

@@ -644,6 +644,21 @@ The SDK still passes on `AlertDialog` and `Dialog` from
 `@wordpress/ui`. They float as a card on a phone, where WordPress
 draws a sheet, so prefer the two dialogs above.
 
+A field the reader has to fill, or that the server may refuse, draws
+through `ValidatedInputControl` from `@gophenberg/frontend-sdk`, as
+the Email and Name of Add User do. Give it `required` and its label
+ends in `(Required)`. Its message shows under the field once the
+reader leaves it or sends the form. To show the server's reason
+about that field there, such as a taken email, pass
+`customValidity={{ type: 'invalid', message }}`. Then call the
+form's `reportValidity()` in an effect that runs once the message is
+set, as Add User does. The reader may have sent the form with Enter
+from that very field. The field was never left, so its message stays
+hidden. `reportValidity()` shows it and moves the focus to the field.
+Set `customValidity` back to `undefined` once the reader changes the
+field, since the browser holds back a form while one of its fields
+is invalid. A failure about no one field still goes to a toast.
+
 A confirm on a list row is different: WordPress draws it inside the
 list's own modal. A confirm that removes something, such as Move to
 trash, hides the header, so give that row action
