@@ -31,6 +31,12 @@ func newLibrary(t *testing.T) *mediahost.Library {
 	return mediahost.New(mediahost.Config{Dir: t.TempDir()})
 }
 
+// budgetedLibrary returns a library over a fresh directory that names a budget of two million pixels.
+func budgetedLibrary(t *testing.T) *mediahost.Library {
+	t.Helper()
+	return mediahost.New(mediahost.Config{Dir: t.TempDir(), MaxPixels: 2_000_000})
+}
+
 // mustIngest stores an upload and returns the media item it produced.
 func mustIngest(t *testing.T, l *mediahost.Library, name string, data []byte) media.Media {
 	t.Helper()
@@ -658,7 +664,7 @@ func TestIngestTakesAPictureExactlyAtThePixelBudget(t *testing.T) {
 func TestIngestRefusesAPictureOverTheBudgetTheLibraryNames(t *testing.T) {
 	t.Parallel()
 
-	library := mediahost.New(mediahost.Config{Dir: t.TempDir(), MaxPixels: 2_000_000})
+	library := budgetedLibrary(t)
 
 	_, err := library.Ingest(t.Context(), "wide.png", pixelSizedPNG(2000, 1001), uuid.Must(uuid.NewV7()))
 
@@ -675,9 +681,7 @@ func TestIngestRefusesAPictureOverTheBudgetTheLibraryNames(t *testing.T) {
 func TestIngestTakesAPictureExactlyAtTheBudgetTheLibraryNames(t *testing.T) {
 	t.Parallel()
 
-	library := mediahost.New(mediahost.Config{Dir: t.TempDir(), MaxPixels: 2_000_000})
-
-	_, err := library.Ingest(t.Context(), "field.png", pixelSizedPNG(2000, 1000), uuid.Must(uuid.NewV7()))
+	_, err := budgetedLibrary(t).Ingest(t.Context(), "field.png", pixelSizedPNG(2000, 1000), uuid.Must(uuid.NewV7()))
 
 	var refused *mediahost.Error
 	if errors.As(err, &refused) && refused.Code == "image_pixel_budget_exceeded" {
@@ -688,7 +692,7 @@ func TestIngestTakesAPictureExactlyAtTheBudgetTheLibraryNames(t *testing.T) {
 func TestIngestRefusesAnAnimationFrameOverTheBudgetTheLibraryNames(t *testing.T) {
 	t.Parallel()
 
-	library := mediahost.New(mediahost.Config{Dir: t.TempDir(), MaxPixels: 2_000_000})
+	library := budgetedLibrary(t)
 	animation := withFrameOf(t, animatedGIF(t), 1500, 1500)
 
 	_, err := library.Ingest(t.Context(), "loader.gif", animation, uuid.Must(uuid.NewV7()))
