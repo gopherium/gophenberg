@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -125,6 +126,7 @@ func TestRuntimeLimits(t *testing.T) {
 	t.Parallel()
 
 	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
+	env = slices.DeleteFunc(env, func(entry string) bool { return strings.HasPrefix(entry, "GOMEMLIMIT=") })
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(sc *godog.ScenarioContext) {
 			initializeRuntimeLimits(sc, &limitsScenario{binary: binary, env: env, dir: t.TempDir()})
