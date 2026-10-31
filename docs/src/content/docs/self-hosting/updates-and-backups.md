@@ -266,6 +266,16 @@ Some things work differently after this update:
   carries `avatar`, the same picture the author column draws, and none
   while `GOPHENBERG_AVATARS` is `off`. See
   [configuration](/self-hosting/configuration/).
+- The Users screen is now a list like the posts list. It searches,
+  filters by role and status, sorts, pages and acts on several ticked
+  accounts at once, and the address of the screen keeps all of it.
+  Each row shows the account's avatar and how many posts it wrote. A
+  row you may not change shows no actions, and a refused change says
+  why in a message at the bottom of the screen. **Add User** now
+  starts on `GOPHENBERG_DEFAULT_ROLE`, so on `member` unless you set
+  it, where it started on `author`. A member cannot enter the admin,
+  so set it to `author` to keep the old start. See
+  [managing accounts](/guides/users/#managing-accounts).
 
 Updating from further back also runs the migrations of every release
 you skip, so read each of their notes. Coming from five releases back

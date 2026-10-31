@@ -402,11 +402,12 @@ change them. They shape every list the same way:
 - **The format.** `GOPHENBERG_FORMAT_LOCALE` sets the locale for
   dates, times and numbers, whatever language a person reads the
   admin in. The tag `es-ES` writes 04/10/2026, 14:05 and 1.234,56.
-  The date column of a content list and the two dates of the media
-  library are the exceptions. Like WordPress, they write the date the
-  way WordPress does in the reader's language. The content list
-  writes a short month in English and Spanish and a whole one in
-  French. The media library writes the whole date and time, such as
+  The date column of a content list, the Created column of the Users
+  list and the two dates of the media library are the exceptions.
+  Like WordPress, they write the date the way WordPress does in the
+  reader's language. The two lists write a short month in English and
+  Spanish and a whole one in French. The media library writes the
+  whole date and time, such as
   `8 de octubre de 2026 17:54` in Spanish.
 
 ## Avatars
