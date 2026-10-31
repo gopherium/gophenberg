@@ -44,28 +44,34 @@ type RequiredFieldProps = Omit<
 }
 
 /**
+ * Returns a message in the shape the WPDS fields take it.
+ * @param message - The message about the field, if any.
+ * @returns The invalid state holding the form back, none without a message.
+ */
+function invalidWith(message: string | undefined) {
+	return message === undefined ? undefined : { type: 'invalid' as const, message }
+}
+
+/**
  * Renders a field the form needs filled, its message under it once the reader leaves it or sends the form.
  * @param props - The value, the server's message about it, the words for an empty field and the field's own props.
  * @returns The field.
  */
 function RequiredField({ refused, empty, ...field }: RequiredFieldProps) {
 	const message = refused ?? (field.value.trim() === '' ? empty : undefined)
-	return (
-		<ValidatedInputControl
-			{...field}
-			required
-			customValidity={message === undefined ? undefined : { type: 'invalid', message }}
-		/>
-	)
+	return <ValidatedInputControl {...field} required customValidity={invalidWith(message)} />
 }
 
 /**
- * Returns the words under a weak password Add User was pressed on, while the field still holds it unconfirmed.
+ * Returns the words under the password the form itself holds back: an empty one, or a weak one Add User was pressed on.
  * @param pressed - The weak password Add User was last pressed on, if any.
  * @param password - The password the field holds and what the meter knows of it.
  * @returns The words, none once the password changed or its use is confirmed.
  */
-function unconfirmedMessage(pressed: string | undefined, password: PasswordFieldState): string | undefined {
+function heldBackMessage(pressed: string | undefined, password: PasswordFieldState): string | undefined {
+	if (password.value.trim() === '') {
+		return __('Please enter a password.', 'gophenberg')
+	}
 	return pressed === password.value && !password.ready
 		? __('Please confirm the use of a weak password.', 'gophenberg')
 		: undefined
@@ -88,10 +94,10 @@ export function NewUserScreen() {
 	const [pressedWeak, setPressedWeak] = useState<string>()
 	const form = useRef<HTMLFormElement>(null)
 	useEffect(() => {
-		if (refusal !== undefined) {
+		if (refusal !== undefined || pressedWeak !== undefined) {
 			form.current?.reportValidity()
 		}
-	}, [refusal])
+	}, [refusal, pressedWeak])
 	const password = usePasswordField({ length: GENERATED_PASSWORD_LENGTH, userInputs: [name, email] })
 	const role = picked ?? startingRole(grantable, defaultRole)
 	const typed: Typed = { email, name, password: password.value }
@@ -115,9 +121,7 @@ export function NewUserScreen() {
 		},
 	})
 	const submit = () => {
-		if (password.value.trim() === '') {
-			setRefusal({ field: 'password', message: __('Please enter a password.', 'gophenberg'), value: password.value })
-		} else if (password.ready) {
+		if (password.ready) {
 			password.mask(true)
 			create.mutate(typed)
 		} else {
@@ -160,7 +164,7 @@ export function NewUserScreen() {
 					generateFirst
 					labelPosition="top"
 					readOnly={create.isPending}
-					help={messageOf('password') ?? unconfirmedMessage(pressedWeak, password)}
+					customValidity={invalidWith(messageOf('password') ?? heldBackMessage(pressedWeak, password))}
 				/>
 				<RoleSelect grantable={grantable} value={role} onChange={setPicked} roleLabels={roleLabels()} />
 				<Button type="submit" loading={create.isPending}>

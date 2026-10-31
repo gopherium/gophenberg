@@ -329,6 +329,41 @@ test('adds a user from Add User, starting on the default role the settings name 
 	expect((await listedAs(request, email))?.role).toBe(defaultRole)
 })
 
+test('asks to confirm a weak password at once and moves the focus to it when Enter sends the form from Name', async ({
+	page,
+}) => {
+	await page.goto('/admin/users/new')
+	const password = page.getByLabel('Password', { exact: true })
+	const name = page.getByRole('textbox', { name: /^Name/ })
+	await page.getByRole('textbox', { name: /^Email/ }).fill(`${markOf()}-weak@example.com`)
+	await password.fill('abc')
+	await name.fill(`Maria Perez weak ${markOf()}`)
+
+	await name.press('Enter')
+
+	await expect(page.getByText('Please confirm the use of a weak password.')).toBeVisible()
+	await expect(password).toHaveAttribute('aria-invalid', 'true')
+	await expect(password).toBeFocused()
+})
+
+test('shows at once why the server refused a password and moves the focus to it when Enter sends the form from Name', async ({
+	page,
+}) => {
+	await page.goto('/admin/users/new')
+	const password = page.getByLabel('Password', { exact: true })
+	const name = page.getByRole('textbox', { name: /^Name/ })
+	await page.getByRole('textbox', { name: /^Email/ }).fill(`${markOf()}-short@example.com`)
+	await password.fill('abc')
+	await page.getByRole('checkbox', { name: 'Confirm use of weak password' }).check()
+	await name.fill(`Maria Perez short ${markOf()}`)
+
+	await name.press('Enter')
+
+	await expect(page.getByText(/^Hint: The password should be at least 12 characters long/)).toBeVisible()
+	await expect(password).toHaveAttribute('aria-invalid', 'true')
+	await expect(password).toBeFocused()
+})
+
 test.describe('on a phone', () => {
 	test.use({ viewport: PHONE, isMobile: true, hasTouch: true })
 

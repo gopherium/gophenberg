@@ -35,6 +35,12 @@ const UNLISTED_WORD = 'qvzkjwplmxrt'
 /** The words under a weak password Add User was pressed on before its use was confirmed. */
 const CONFIRM_WEAK = 'Please confirm the use of a weak password.'
 
+/** The error for a password shorter than the server keeps. */
+const PASSWORD_TOO_SHORT = { error: 'password refused', code: 'password_too_short', meta: { min: 12 } }
+
+/** The words under a password the server found too short. */
+const TOO_SHORT_WORDS = 'Hint: The password should be at least 12 characters long.'
+
 /** The refusal of a role the reader may not give. */
 const ROLE_NOT_GRANTABLE = { error: 'role not grantable', code: 'role_not_grantable' }
 
@@ -104,6 +110,42 @@ async function send() {
 function passwordField() {
 	return screen.getByLabelText<HTMLInputElement>('Password')
 }
+
+/**
+ * Types over the password the field holds, the focus left in the field.
+ * @param typed - The password to type, none to leave the field empty.
+ */
+async function typePassword(typed = '') {
+	await userEvent.clear(passwordField())
+	if (typed !== '') {
+		await userEvent.type(passwordField(), typed)
+	}
+}
+
+/**
+ * Expects the words under the password as its field error the browser holds the form back on, never as its help line.
+ * @param words - The words of the message.
+ */
+async function expectPasswordError(words: string) {
+	await waitFor(() => expect(passwordField()).toHaveAccessibleDescription(expect.stringContaining(words)))
+	expect(passwordField()).toHaveAttribute('aria-invalid', 'true')
+	expect(passwordField().validationMessage).toContain(words)
+	expect(document.querySelector('.gopherium-setup__help')).toBeNull()
+}
+
+/** Each message the password field holds, and how a test brings the field to it with the focus left in it. */
+const PASSWORD_MESSAGES = [
+	{ about: 'an empty password', words: 'Please enter a password.', reach: () => typePassword() },
+	{ about: 'a weak password not yet confirmed', words: CONFIRM_WEAK, reach: () => typePassword('abc') },
+	{
+		about: 'a password the server refused',
+		words: TOO_SHORT_WORDS,
+		reach: async () => {
+			refuseCreates(422, PASSWORD_TOO_SHORT)
+			await userEvent.click(passwordField())
+		},
+	},
+]
 
 /** Loads the Spanish catalogue of the account screens until the test ends. */
 async function readAccountWordsInSpanish() {
@@ -372,6 +414,76 @@ test('drops the words under a weak password once its use is confirmed', async ()
 	await userEvent.click(screen.getByRole('checkbox', { name: 'Confirm use of weak password' }))
 
 	expect(passwordField()).not.toHaveAccessibleDescription(expect.stringContaining(CONFIRM_WEAK))
+	expect(passwordField()).not.toHaveAttribute('aria-invalid')
+})
+
+test('leaves the password unmarked as required, as WordPress s Add User does', async () => {
+	renderAt('/users/new')
+
+	await screen.findByRole('button', { name: 'Generate password' })
+
+	expect(passwordField()).not.toBeRequired()
+})
+
+test.each(PASSWORD_MESSAGES)('shows $about as the field error of the password when Add User is pressed', async ({
+	reach,
+	words,
+}) => {
+	await fillIn()
+	await reach()
+
+	await send()
+
+	await expectPasswordError(words)
+})
+
+test.each(PASSWORD_MESSAGES)('shows $about at once when the form is sent with Enter from the password', async ({
+	reach,
+	words,
+}) => {
+	await fillIn()
+	await reach()
+
+	await userEvent.keyboard('{Enter}')
+
+	await expectPasswordError(words)
+})
+
+test.each(PASSWORD_MESSAGES)('sends the form once the reader changes $about', async ({ reach, words }) => {
+	await fillIn()
+	await reach()
+	await send()
+	await expectPasswordError(words)
+	const sent = recordCreates()
+
+	await userEvent.click(screen.getByRole('button', { name: 'Generate password' }))
+	await waitFor(() => expect(passwordField()).toHaveAccessibleDescription(expect.stringContaining('Strong')))
+	const generated = passwordField().value
+
+	expect(passwordField()).not.toHaveAttribute('aria-invalid')
+	await send()
+	await waitFor(() => expect(sent).toEqual([expect.objectContaining({ password: generated })]))
+})
+
+test('shows the words under an empty password once the reader leaves it, as under Email and Name', async () => {
+	await fillIn()
+	await typePassword()
+
+	await userEvent.click(screen.getByLabelText('Email (Required)'))
+
+	await expectPasswordError('Please enter a password.')
+})
+
+test('shows the words under an empty password together with those under Email and Name', async () => {
+	renderAt('/users/new')
+	await screen.findByRole('button', { name: 'Generate password' })
+	await typePassword()
+
+	await send()
+
+	await expectPasswordError('Please enter a password.')
+	expect(screen.getByLabelText('Email (Required)')).toHaveAccessibleDescription('Please enter an email address.')
+	expect(screen.getByLabelText('Name (Required)')).toHaveAccessibleDescription('Please provide a name.')
 })
 
 test('rates as very weak a password repeating a word of the email typed beside it, as WordPress does', async () => {
