@@ -12,7 +12,18 @@ import { beforeEach, expect, onTestFinished, test } from 'vitest'
 import { adminBasepath } from '../basepath'
 import { renderAt } from './render'
 import { siteSettings } from './siteSettings'
-import { EDITOR, SIGNED_IN, act, rowOf, rowShowing, serveAccounts, toast, warmUsersScreen } from './usersFixtures'
+import {
+	EDITOR,
+	REQUEST_CROSS_ORIGIN,
+	REQUEST_CROSS_ORIGIN_WORDS,
+	SIGNED_IN,
+	act,
+	rowOf,
+	rowShowing,
+	serveAccounts,
+	toast,
+	warmUsersScreen,
+} from './usersFixtures'
 
 const AUTHOR = accountWithRole('author', { created_at: new Date('2026-10-20T09:00:00Z') })
 
@@ -91,6 +102,15 @@ test('says in a toast why the server refused to disable an account', async () =>
 	await act(EDITOR.name, 'Disable')
 
 	expect(await toast('Somebody must be able to manage users.')).toBeInTheDocument()
+})
+
+test('says in a toast in the admin s words that a Disable came from a page on another site', async () => {
+	server.use(http.patch('/api/users/:id', () => HttpResponse.json(REQUEST_CROSS_ORIGIN, { status: 403 })))
+	renderAt('/users')
+
+	await act(EDITOR.name, 'Disable')
+
+	expect(await toast(REQUEST_CROSS_ORIGIN_WORDS)).toBeInTheDocument()
 })
 
 test('offers Enable on a disabled account, drawn with the outline badge of an inactive state', async () => {

@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ComponentProps } from 'react'
 
 import { useListSettings } from '../settings/useListSettings'
+import { accountErrorMessages } from './errorMessages'
 import { roleLabels, startingRole } from './roles'
 
 /** The length of every password Add User generates. */
@@ -114,7 +115,7 @@ export function NewUserScreen() {
 		onError: (error, sent) => {
 			const about = fieldError(error)
 			if (about === undefined) {
-				toaster.show(errorMessageOf(error, {}, __('The user could not be created.', 'gophenberg')))
+				toaster.show(errorMessageOf(error, accountErrorMessages(), __('The user could not be created.', 'gophenberg')))
 				return
 			}
 			setRefusal({ ...about, value: sent[about.field] })

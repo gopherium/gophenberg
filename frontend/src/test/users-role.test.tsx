@@ -11,7 +11,22 @@ import { beforeEach, expect, onTestFinished, test } from 'vitest'
 import { catalogFor } from '../i18n/catalog'
 import { roleLabels } from '../users/roles'
 import { adminUser, renderAt } from './render'
-import { EDITOR, SIGNED_IN, act, rowOf, serveAccounts, toast, warmUsersScreen } from './usersFixtures'
+import {
+	EDITOR,
+	REQUEST_CROSS_ORIGIN,
+	REQUEST_CROSS_ORIGIN_WORDS,
+	SIGNED_IN,
+	act,
+	rowOf,
+	serveAccounts,
+	toast,
+	warmUsersScreen,
+} from './usersFixtures'
+
+/** The words the admin gives a write sent from a page on another site, for a Spanish reader. */
+const REQUEST_CROSS_ORIGIN_SPANISH =
+	'Esta petición vino de una página de otro sitio, así que se rechazó. ' +
+	'Abre la administración en este sitio e inténtalo de nuevo.'
 
 warmUsersScreen()
 
@@ -93,6 +108,33 @@ test('shows the role labels in the reader s language', async () => {
 	renderAt('/users')
 
 	expect((await rowOf(SIGNED_IN.name)).getByText('Administrador')).toBeInTheDocument()
+})
+
+/** Refuses every role change as sent from a page on another site. */
+function refuseRoleAsCrossOrigin() {
+	server.use(http.put('/api/users/:id/role', () => HttpResponse.json(REQUEST_CROSS_ORIGIN, { status: 403 })))
+}
+
+test('says in a toast in the admin s words that Change role came from a page on another site', async () => {
+	refuseRoleAsCrossOrigin()
+	renderAt('/users')
+
+	await act(EDITOR.name, 'Change role…')
+	await changeRoleTo('Administrator')
+
+	expect(await toast(REQUEST_CROSS_ORIGIN_WORDS)).toBeInTheDocument()
+})
+
+test('says in the reader s language that Change role came from a page on another site', async () => {
+	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	refuseRoleAsCrossOrigin()
+	renderAt('/users')
+
+	await act(EDITOR.name, 'Change role…')
+	await changeRoleTo('Administrador')
+
+	expect(await toast(REQUEST_CROSS_ORIGIN_SPANISH)).toBeInTheDocument()
 })
 
 test('offers in Change role the roles the session may give, the narrowest first', async () => {

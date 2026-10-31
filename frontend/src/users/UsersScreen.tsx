@@ -9,6 +9,7 @@ import { Link } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
 import { useListSettings } from '../settings/useListSettings'
+import { accountErrorMessages } from './errorMessages'
 import { usePostsColumns } from './postsColumn'
 import { roleLabels } from './roles'
 
@@ -22,6 +23,7 @@ export function UsersScreen() {
 	const size = settings.data?.list_page_size
 	const columns = usePostsColumns()
 	const labels = useMemo(() => roleLabels(), [])
+	const errorMessages = useMemo(() => accountErrorMessages(), [])
 	const list = useListView<View>(usersListDefaults({ perPage: size, columns: columns.map((column) => column.id) }))
 	const view = { ...list.view, perPage: offeredSize(list.view.perPage, sizes, size) }
 	return (
@@ -31,6 +33,7 @@ export function UsersScreen() {
 			sizesFailed={settings.isError}
 			showAvatars={settings.data?.show_avatars}
 			roleLabels={labels}
+			errorMessages={errorMessages}
 			addLink={<Link to="/users/new" />}
 			headingLevel={2}
 			columns={columns}

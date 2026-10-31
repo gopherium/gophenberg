@@ -15,6 +15,13 @@ export const EDITOR = accountWithRole('editor')
 /** The account the tests sign in as, as the list shows its own row. */
 export const SIGNED_IN = accountWithRole('admin', { id: adminUser.id, name: adminUser.name, email: adminUser.email })
 
+/** The error of a write sent from a page on another site, a code react-auth has no words for. */
+export const REQUEST_CROSS_ORIGIN = { error: 'cross-origin request refused', code: 'request_cross_origin' }
+
+/** The words the admin gives that error. */
+export const REQUEST_CROSS_ORIGIN_WORDS =
+	'This request came from a page on another site, so it was refused. Open the admin on this site and try again.'
+
 /** Loads the users screen before a file renders its lazily mounted route. */
 export function warmUsersScreen() {
 	beforeAll(async () => {
