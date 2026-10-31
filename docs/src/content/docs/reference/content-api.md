@@ -436,7 +436,8 @@ curl "https://example.com/api/content/v1/resolve?path=/categories/news"
 
 An item filed under the term through two different fields is listed
 once. Term pages paginate behind `/page/{n}` like archives, and a
-page suffix on an ordinary single item stays `404`.
+page suffix on an ordinary single item stays `404` here, while the
+built-in renderer redirects it to the item's own address.
 
 Item answers carry an `ETag` computed over the whole served answer.
 Send it back as `If-None-Match` and an unchanged answer comes back

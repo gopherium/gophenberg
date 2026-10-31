@@ -287,3 +287,51 @@ func TestResolveAnswersAnAddressNoStoreCanHoldAsNotFound(t *testing.T) {
 		t.Errorf("lookups = %d, want none for an address no store can hold", store.lookups)
 	}
 }
+
+func TestPagedItemFindsThePostOrPageBehindAPageNumber(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeAddresses()
+	hello := store.hold("post", "hello-world")
+	team := store.hold("page", "pages/about/team")
+	resolver := newResolver(t, store)
+
+	for raw, want := range map[string]content.Content{
+		"/hello-world/page/1":       hello,
+		"/hello-world/page/02/":     hello,
+		"/pages/about/team/page/3":  team,
+		"//pages/about/team/page/1": team,
+	} {
+		answer, err := resolver.PagedItem(t.Context(), raw)
+		if err != nil {
+			t.Errorf("PagedItem(%q) error = %v, want nil", raw, err)
+			continue
+		}
+		if answer.Kind != content.KindItem || answer.Item.ID != want.ID {
+			t.Errorf("PagedItem(%q) = %+v, want the item at %q", raw, answer, want.Path)
+		}
+	}
+}
+
+func TestPagedItemAnswersNotFoundWithoutAnItemBehindAPageNumber(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeAddresses()
+	store.hold("post", "hello-world")
+	resolver := newResolver(t, store)
+
+	for name, raw := range map[string]string{
+		"no page number":         "/hello-world",
+		"a page below the first": "/hello-world/page/0",
+		"a word for a number":    "/hello-world/page/next",
+		"the front page":         "/page/1",
+		"an archive":             "/pages/page/1",
+		"nothing stored":         "/nowhere/page/1",
+		"a NUL byte":             "/hello\x00world/page/1",
+	} {
+		_, err := resolver.PagedItem(t.Context(), raw)
+		if !errors.Is(err, content.ErrNotFound) {
+			t.Errorf("%s error = %v, want %v", name, err, content.ErrNotFound)
+		}
+	}
+}
