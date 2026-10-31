@@ -56,7 +56,7 @@ func (s *ContentStore) Create(ctx context.Context, c content.Content) (content.C
 	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
 		created, err := s.create(ctx, c, prefix, numberedSlug(c.Slug, attempt))
-		if isSlugTaken(err) {
+		if isSlugTaken(err) || lostAddressCheck(err) {
 			continue
 		}
 		return created, err
@@ -802,4 +802,10 @@ func trashSuffix() string {
 func isSlugTaken(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.ConstraintName == slugConstraint
+}
+
+// lostAddressCheck reports whether err is a deadlock Postgres broke while checking an address.
+func lostAddressCheck(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "40P01" && strings.Contains(pgErr.Where, slugConstraint)
 }
