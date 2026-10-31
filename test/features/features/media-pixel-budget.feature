@@ -1,4 +1,3 @@
-@wip
 Feature: The pixel budget follows the server's setting
   A picture takes far more memory once decoded than its file takes, so
   the media library refuses a picture, or one frame of a GIF, holding

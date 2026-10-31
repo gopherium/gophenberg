@@ -95,8 +95,16 @@ func pixelBombPNG() []byte {
 
 // oversizedFrameGIF returns a GIF whose one frame declares far more pixels than the budget.
 func oversizedFrameGIF() []byte {
-	screen := append([]byte("GIF89a"), 1, 0, 1, 0, 0x00, 0, 0)
-	frame := []byte{0x2C, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 2, 1, 0, 0, 0x3B}
+	return framedGIF(0xFFFF, 0xFFFF, 1, 1)
+}
+
+// framedGIF returns a GIF whose one frame declares frameW by frameH pixels on a canvasW by canvasH canvas.
+func framedGIF(frameW, frameH, canvasW, canvasH int) []byte {
+	screen := append([]byte("GIF89a"), byte(canvasW), byte(canvasW>>8), byte(canvasH), byte(canvasH>>8), 0x00, 0, 0)
+	frame := []byte{
+		0x2C, 0, 0, 0, 0, byte(frameW), byte(frameW >> 8), byte(frameH), byte(frameH >> 8), 0x00,
+		2, 1, 0, 0, 0x3B,
+	}
 	return append(screen, frame...)
 }
 

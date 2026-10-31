@@ -31,9 +31,8 @@ func uploadsMayReach(ctx context.Context, megabytes int) error {
 	if w.site != nil {
 		return errors.New("the upload cap must be set before Gophenberg starts")
 	}
-	w.mediaFiles = mediahost.New(mediahost.Config{
-		Dir: w.mediaDir, MaxSize: int64(megabytes) << 20, Settings: w.settings,
-	})
+	w.mediaConfig.MaxSize = int64(megabytes) << 20
+	w.mediaFiles = mediahost.New(w.mediaConfig)
 	return nil
 }
 

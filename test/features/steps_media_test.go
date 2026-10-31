@@ -5,6 +5,7 @@ package features_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"mime/multipart"
@@ -16,6 +17,7 @@ import (
 	"github.com/cucumber/godog"
 
 	"github.com/gopherium/gophenberg/internal/media"
+	"github.com/gopherium/gophenberg/internal/mediahost"
 )
 
 // mediaPath is the admin route uploads arrive over.
@@ -62,6 +64,25 @@ func uploadsAnAnimatedGIF(ctx context.Context, name string) error {
 		return err
 	}
 	return uploadsMedia(ctx, name, animation)
+}
+
+// thePixelBudgetIs sets the pixel budget of the Gophenberg the scenario starts next.
+func thePixelBudgetIs(ctx context.Context, megapixels int) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if w.site != nil {
+		return errors.New("the pixel budget must be set before Gophenberg starts")
+	}
+	w.mediaConfig.MaxPixels = megapixels * 1_000_000
+	w.mediaFiles = mediahost.New(w.mediaConfig)
+	return nil
+}
+
+// uploadsAFramedGIF uploads a GIF whose one frame declares its own size on a canvas of another.
+func uploadsAFramedGIF(ctx context.Context, name string, frameW, frameH, canvasW, canvasH int) error {
+	return uploadsMedia(ctx, name, framedGIF(frameW, frameH, canvasW, canvasH))
 }
 
 // uploadsAPDF uploads a minimal document.
@@ -481,6 +502,9 @@ func initializeMediaUpload(sc *godog.ScenarioContext) {
 	registerSharedSteps(sc)
 	sc.Given(`^a running Gophenberg with an empty media directory$`, aRunningGophenberg)
 	sc.Given(`^no administrator is signed in$`, noAdministratorIsSignedIn)
+	sc.Given(`^the pixel budget is (\d+) megapixels$`, thePixelBudgetIs)
+	sc.When(`^the administrator uploads a GIF named "([^"]*)" holding a (\d+) by (\d+) pixel frame `+
+		`on a (\d+) by (\d+) pixel canvas$`, uploadsAFramedGIF)
 	sc.When(`^the administrator uploads a (\d+) by (\d+) pixel JPEG named "([^"]*)"$`, uploadsAPixelJPEG)
 	sc.When(`^the administrator uploads a JPEG carrying orientation tag (\d+)$`, uploadsAnOrientedJPEG)
 	sc.When(`^the administrator uploads an animated GIF named "([^"]*)"$`, uploadsAnAnimatedGIF)
