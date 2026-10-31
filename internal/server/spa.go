@@ -5,6 +5,7 @@ package server
 import (
 	"io/fs"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 
@@ -20,7 +21,7 @@ const adminPrefix = "/admin"
 // fallbackHandler routes unhandled paths to the JSON 404, the admin app, the renderer, or the theme.
 func fallbackHandler(admin, renderer, public http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if handler := reservedHandler(r.URL.Path, renderer); handler != nil {
+		if handler := reservedHandler(r.URL, renderer); handler != nil {
 			handler.ServeHTTP(w, r)
 			return
 		}
@@ -36,14 +37,29 @@ func fallbackHandler(admin, renderer, public http.Handler) http.HandlerFunc {
 }
 
 // reservedHandler returns what answers a path a theme may never serve, or nothing when it may.
-func reservedHandler(path string, renderer http.Handler) http.Handler {
+func reservedHandler(address *url.URL, renderer http.Handler) http.Handler {
+	path, escaped := address.Path, address.EscapedPath()
 	switch {
 	case reserved(path, "/api"), reserved(path, assetPrefix), reserved(path, mediaPrefix):
 		return http.HandlerFunc(respondNotFound)
+	case reserved(path, themePrefix) && dotSegments(path):
+		return http.HandlerFunc(respondNotFound)
 	case reserved(path, themePrefix):
 		return renderer
+	case reserved(themePath(escaped), themePrefix), reserved(themeFilePath(escaped), themePrefix):
+		return http.HandlerFunc(respondNotFound)
 	}
 	return nil
+}
+
+// dotSegments reports whether path holds a "." or ".." segment.
+func dotSegments(path string) bool {
+	for segment := range strings.SplitSeq(path, "/") {
+		if segment == "." || segment == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 // servesAFile reports whether name is a file the web root holds.
