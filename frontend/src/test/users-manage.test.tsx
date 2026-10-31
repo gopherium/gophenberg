@@ -160,6 +160,18 @@ test('opens on the page size the settings name for an address naming one they do
 	expect((await offeredSizes()).getByRole('radio', { name: '20' })).toBeChecked()
 })
 
+test('opens on the page and the offered page size the address holds', async () => {
+	serveSettings({ list_page_size: 5, list_page_sizes: [2, 5] })
+	serveAccounts(SIGNED_IN, EDITOR, AUTHOR, MEMBER)
+	renderAt('/users?page=2&perPage=2')
+
+	await rowOf(EDITOR.name)
+
+	expect(screen.getAllByRole('row')).toHaveLength(3)
+	expect(screen.queryByText(MEMBER.name)).toBeNull()
+	expect((await offeredSizes()).getByRole('radio', { name: '2' })).toBeChecked()
+})
+
 test('shows every account on one page when the settings cannot be read', async () => {
 	server.use(http.get('/api/settings', () => HttpResponse.json({}, { status: 500 })))
 	serveAccounts(SIGNED_IN, EDITOR, AUTHOR, MEMBER)
