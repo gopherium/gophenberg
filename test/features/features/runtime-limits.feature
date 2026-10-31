@@ -1,4 +1,3 @@
-@wip
 Feature: The Go runtime takes the site's processor and memory limits
   A small hosting plan caps the memory of a site and how many processes
   and threads it may start. Go reads GOMAXPROCS and GOMEMLIMIT before
@@ -17,6 +16,13 @@ Feature: The Go runtime takes the site's processor and memory limits
     And the site's .env holds the line "GOPHENBERG_MEMORY_LIMIT_MB=256"
     When the site starts
     Then the site logged that Go holds 1 processor and a memory limit of 256 MB
+
+  Scenario: A lower limit Go already holds stays in force
+    Given Go starts with "GOMEMLIMIT=128MiB"
+    And the site's .env holds the line "GOPHENBERG_MAX_PROCS=1"
+    And the site's .env holds the line "GOPHENBERG_MEMORY_LIMIT_MB=256"
+    When the site starts
+    Then the site logged that Go holds 1 processor and a memory limit of 128 MB
 
   Scenario: A site that names no limit leaves both to Go
     When the site starts

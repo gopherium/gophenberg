@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
+	"runtime/debug"
 	"time"
 
 	"github.com/gopherium/framework/gonsole"
@@ -88,12 +90,14 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 	}))
 }
 
-// started reads the server settings, then counts this start for the boot guard before the database opens.
+// started reads the server settings, logs the runtime limits, then counts this start before the database opens.
 func started(getenv func(string) string, logger *slog.Logger) (runConfig, *updater.Guard, error) {
 	settings, err := loadRunConfig(getenv)
 	if err != nil {
 		return runConfig{}, nil, err
 	}
+	named, _ := settingsEnv(getenv).RuntimeLimits()
+	logRuntimeLimits(logger, named, runtime.GOMAXPROCS(0), debug.SetMemoryLimit(-1))
 	guard, err := updater.Start(settings.install, version.Version(), logger)
 	return settings, guard, err
 }
