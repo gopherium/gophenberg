@@ -40,10 +40,22 @@ func reservedHandler(path string, renderer http.Handler) http.Handler {
 	switch {
 	case reserved(path, "/api"), reserved(path, assetPrefix), reserved(path, mediaPrefix):
 		return http.HandlerFunc(respondNotFound)
+	case reserved(path, themePrefix) && dotSegments(path):
+		return http.HandlerFunc(respondNotFound)
 	case reserved(path, themePrefix):
 		return renderer
 	}
 	return nil
+}
+
+// dotSegments reports whether path holds a "." or ".." segment.
+func dotSegments(path string) bool {
+	for segment := range strings.SplitSeq(path, "/") {
+		if segment == "." || segment == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 // servesAFile reports whether name is a file the web root holds.

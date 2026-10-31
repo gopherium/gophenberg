@@ -178,6 +178,35 @@ func TestTheReservedAddressesNeverReachTheTheme(t *testing.T) {
 	}
 }
 
+func TestDotSegmentsUnderTheThemePrefixNeverReachTheBuiltInSite(t *testing.T) {
+	t.Parallel()
+
+	upstream := themeUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("themed answer"))
+	})
+	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
+
+	paths := []string{
+		"/_gophenberg/../hello-world",
+		"/_gophenberg/%2e%2e/hello-world",
+		"/_gophenberg/./../hello-world",
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			recorder := doRequest(t, handler, http.MethodGet, path, "")
+
+			if recorder.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+			}
+			if strings.Contains(recorder.Body.String(), "themed answer") {
+				t.Errorf("body = %q, want it never served by the theme", recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestTheRendererServesWhileTheThemeIsDown(t *testing.T) {
 	t.Parallel()
 
