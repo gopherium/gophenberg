@@ -270,6 +270,11 @@ msgid_plural "%s pages have been restored."
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "%s post by this author"
+msgid_plural "%s posts by this author"
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "%s post has been restored."
 msgid_plural "%s posts have been restored."
 msgstr[0] ""
@@ -365,9 +370,6 @@ msgid "Activate"
 msgstr ""
 
 msgid "Activate %(theme)s"
-msgstr ""
-
-msgid "Active"
 msgstr ""
 
 msgid "Add"
@@ -549,12 +551,6 @@ msgstr ""
 msgid "Change address…"
 msgstr ""
 
-msgid "Change role"
-msgstr ""
-
-msgid "Change the role of %(name)s"
-msgstr ""
-
 msgid "Check again."
 msgstr ""
 
@@ -577,9 +573,6 @@ msgid "Choose how the site serves its content."
 msgstr ""
 
 msgid "Choose the language the admin reads in."
-msgstr ""
-
-msgid "Choose the role of %(name)s."
 msgstr ""
 
 msgid "Choose the version to update to."
@@ -630,10 +623,10 @@ msgstr ""
 msgid "Create"
 msgstr ""
 
-msgid "Create a field group"
+msgid "Create a brand new user and add them to this site."
 msgstr ""
 
-msgid "Create user"
+msgid "Create a field group"
 msgstr ""
 
 msgid "Created"
@@ -724,15 +717,6 @@ msgstr ""
 msgid "Dimensions"
 msgstr ""
 
-msgid "Disable"
-msgstr ""
-
-msgid "Disable %(name)s"
-msgstr ""
-
-msgid "Disabled"
-msgstr ""
-
 msgid "Dismiss"
 msgstr ""
 
@@ -770,12 +754,6 @@ msgid "Empty Trash"
 msgstr ""
 
 msgid "Empty trash"
-msgstr ""
-
-msgid "Enable"
-msgstr ""
-
-msgid "Enable %(name)s"
 msgstr ""
 
 msgid "Every address of this type moves. Links kept elsewhere to the old addresses stop working."
@@ -1015,9 +993,6 @@ msgstr ""
 msgid "Loading themes."
 msgstr ""
 
-msgid "Loading users."
-msgstr ""
-
 msgid "Loading…"
 msgstr ""
 
@@ -1146,6 +1121,9 @@ msgstr ""
 msgid "Nests"
 msgstr ""
 
+msgid "New user created."
+msgstr ""
+
 msgid "Newer posts"
 msgstr ""
 
@@ -1207,9 +1185,6 @@ msgid "Not found"
 msgstr ""
 
 msgid "Not serving"
-msgstr ""
-
-msgid "Nothing declares that role."
 msgstr ""
 
 msgid "Nothing points here yet."
@@ -1278,9 +1253,6 @@ msgstr ""
 msgid "Parent"
 msgstr ""
 
-msgid "Password"
-msgstr ""
-
 msgid "Pending"
 msgstr ""
 
@@ -1297,6 +1269,18 @@ msgid "Picture quality runs from 1 to %(max)s, so %(value)s is not a quality Gop
 msgstr ""
 
 msgid "Placeholder"
+msgstr ""
+
+msgid "Please confirm the use of a weak password."
+msgstr ""
+
+msgid "Please enter a password."
+msgstr ""
+
+msgid "Please enter an email address."
+msgstr ""
+
+msgid "Please provide a name."
 msgstr ""
 
 msgid "Plural name"
@@ -1375,9 +1359,6 @@ msgid "Restarting Gophenberg…"
 msgstr ""
 
 msgid "Restore"
-msgstr ""
-
-msgid "Role changed."
 msgstr ""
 
 msgid "Roll back to %(theme)s"
@@ -1473,9 +1454,6 @@ msgstr ""
 msgid "Slug"
 msgstr ""
 
-msgid "Somebody must be able to manage users."
-msgstr ""
-
 msgid "Someone else changed this media item while you were editing it. Reload the page and make your change again."
 msgstr ""
 
@@ -1512,9 +1490,6 @@ msgstr ""
 msgid "Text area"
 msgstr ""
 
-msgid "That email is already in use."
-msgstr ""
-
 msgid "That field group no longer exists. Reload the page to see the groups your site holds now."
 msgstr ""
 
@@ -1522,9 +1497,6 @@ msgid "That field is not on this content type any more. Reload the page to see t
 msgstr ""
 
 msgid "That revision does not exist, and older ones drop off once a type holds more than it keeps. Open the item to see which revisions are left."
-msgstr ""
-
-msgid "That role holds more than your own."
 msgstr ""
 
 msgid "That web address does not name a media item Gophenberg can look up. Open the media library and pick the item from there."
@@ -1677,9 +1649,6 @@ msgid "The number of revisions to keep has to be a whole number, and it cannot b
 msgstr ""
 
 msgid "The registry could not be reached."
-msgstr ""
-
-msgid "The role could not be changed."
 msgstr ""
 
 msgid "The rule on %(source)s names nothing to match. Pick a value, or remove the rule."
@@ -1967,9 +1936,6 @@ msgstr ""
 msgid "Update"
 msgstr ""
 
-msgid "Update failed."
-msgstr ""
-
 msgid "Update to Gophenberg %(version)s?"
 msgstr ""
 
@@ -1986,12 +1952,6 @@ msgid "Uploaded %s file."
 msgid_plural "Uploaded %s files."
 msgstr[0] ""
 msgstr[1] ""
-
-msgid "Users"
-msgstr ""
-
-msgid "Users could not be loaded."
-msgstr ""
 
 msgid "Value"
 msgstr ""
@@ -2036,9 +1996,6 @@ msgid "Yes or no"
 msgstr ""
 
 msgid "You can update from Gophenberg %(running)s to <notes>Gophenberg %(version)s</notes> manually:"
-msgstr ""
-
-msgid "You cannot change your own role."
 msgstr ""
 
 msgid "You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version %(postgresql)s or higher."
@@ -2093,14 +2050,6 @@ msgid "v%(version)s"
 msgstr ""
 
 msgid "{day} {month} {year}"
-msgstr ""
-
-msgctxt "account"
-msgid "Role"
-msgstr ""
-
-msgctxt "account"
-msgid "Status"
 msgstr ""
 
 msgctxt "action label"
@@ -2293,10 +2242,6 @@ msgstr ""
 
 msgctxt "role"
 msgid "Member"
-msgstr ""
-
-msgctxt "role"
-msgid "No role"
 msgstr ""
 
 msgctxt "status filter"
