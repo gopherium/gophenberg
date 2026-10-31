@@ -185,6 +185,44 @@ func TestTheReservedAddressesNeverReachTheTheme(t *testing.T) {
 	}
 }
 
+func TestAddressesNearTheReservedOnesStillReachTheTheme(t *testing.T) {
+	t.Parallel()
+
+	upstream := themeUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("themed answer"))
+	})
+	handler := themedServer(t, stubTheme{target: upstream.URL, healthy: true}, nil)
+
+	paths := []string{
+		"//hello-world",
+		"/_gophenberg-notes",
+		"/notes/_gophenberg",
+		"/.well-known/security.txt",
+		"/hello..world",
+		"/100%25-pure",
+		"/caf%25C3%25A9",
+		"/a%2fb",
+		"/x/../hello-world",
+		"/hello-world/.",
+		"/a%2f..%2fhello-world",
+		"/hello-world?x=/../_gophenberg/health",
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			recorder := doRequest(t, handler, http.MethodGet, path, "")
+
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+			}
+			if !strings.Contains(recorder.Body.String(), "themed answer") {
+				t.Errorf("body = %q, want the theme's answer", recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestTheRendererServesWhileTheThemeIsDown(t *testing.T) {
 	t.Parallel()
 
