@@ -59,6 +59,7 @@ func initializeCoreUpdates(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Given(`^the site failed to start (\d+) times$`, s.failStarts)
 	sc.Given(`^the start check of this version runs out of time$`, s.outlastCheck)
 	sc.Given(`^a data folder outside the install root$`, s.nameDataFolder)
+	sc.Given(`^a data folder keeps the state of the update$`, s.moveStateToDataFolder)
 	sc.When(`^the site starts$`, s.startSite)
 	sc.When(`^the service manager runs "([^"]*)" with (MONITOR_[A-Z_]+) set to "([^"]*)"$`, s.runAfterFailure)
 	sc.Then(`^the command asks for a restart to start "([^"]*)"$`, s.asksForRestart)
@@ -386,6 +387,16 @@ func backupIn(folder string) (string, error) {
 // nameDataFolder names a data folder nothing has made yet, beside the install root.
 func (s *operatorScenario) nameDataFolder() {
 	s.env["GOPHENBERG_DATA_DIR"] = filepath.Join(s.t.TempDir(), "gophenberg-data")
+}
+
+// moveStateToDataFolder names a data folder and moves the state of the update out of the install root into it.
+func (s *operatorScenario) moveStateToDataFolder() error {
+	s.nameDataFolder()
+	data := s.env["GOPHENBERG_DATA_DIR"]
+	if err := os.Mkdir(data, 0o700); err != nil {
+		return err
+	}
+	return os.Rename(filepath.Join(s.env[installRootSetting], "state"), filepath.Join(data, "state"))
 }
 
 // dataFolderKeepsBackup fails unless the data folder keeps the backup of this version.

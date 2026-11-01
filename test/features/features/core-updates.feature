@@ -167,6 +167,16 @@ Feature: Operators and administrators update the core and see where it stands
     And the error says "restore the backup taken before the update"
     And the update status names the backup taken before the switch
 
+  Scenario: A migrate run by hand keeps a long jump from going back when a data folder keeps the state
+    Given an install root where an update switched from "0.18.0" to this version
+    And the update raised the minimum version, with a backup taken before the switch
+    And a data folder keeps the state of the update
+    And the operator ran "migrate"
+    When the operator runs "update:rollback"
+    Then the command exits with code 1
+    And the current build is still this version
+    And the error says "update:rollback cannot go back to it"
+
   Scenario: A migrate run by hand on the new build keeps a long jump from going back
     Given an install root where an update switched from "0.18.0" to this version
     And the update raised the minimum version, with a backup taken before the switch
