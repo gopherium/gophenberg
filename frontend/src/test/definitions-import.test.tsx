@@ -695,7 +695,7 @@ test('hands a file that is not JSON to the server as it was written', async () =
 
 	await importing('not a definitions file')
 
-	expect(await screen.findByRole('alert')).toBeInTheDocument()
+	expect(await screen.findByRole('alert')).toHaveTextContent(/could not read what your browser sent/)
 	expect(sent).toBe('not a definitions file')
 })
 
