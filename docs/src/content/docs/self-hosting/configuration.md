@@ -28,6 +28,10 @@ so it takes the default.
 | `GOPHENBERG_DATABASE_WAIT` | No | `60s` | How long `serve` waits for a PostgreSQL server that is not up yet before it stops. `0` does not wait, see [a database that starts late](#a-database-that-starts-late) |
 | `GOPHENBERG_DATABASE_WAIT_INTERVAL` | No | `1s` | The pause between two tries while `serve` waits for the database |
 | `GOPHENBERG_ADDR` | No | `localhost:8081` | Address the server listens on. The container image sets `0.0.0.0:8081` |
+| `GOPHENBERG_SOCKET` | No | | A private Unix socket to listen on in place of an address, on Linux only, see [listening on a small host](#listening-on-a-small-host) |
+| `PORT` | No | | The port a host names, on every interface, when neither a socket nor an address is set |
+| `GOPHENBERG_CLIENT_ADDR_HEADER` | With a socket | | The header the program in front of the socket names the visitor in |
+| `GOPHENBERG_IDLE_EXIT` | No | `0` | How long the site waits with nothing open before it exits with code 0. `0` keeps it serving |
 | `GOPHENBERG_WEB_DIR` | No | | A built admin folder to serve in place of the admin built into the binary. It must hold `index.html` |
 | `GOPHENBERG_SITE_TITLE` | No | `Gophenberg` | The site name shown by the built-in renderer |
 | `GOPHENBERG_TRUSTED_PROXIES` | No | | Comma-separated CIDR ranges allowed to set forwarded headers |
@@ -326,6 +330,45 @@ progressive rows below, since the people who upload choose the file.
 | Progressive JPEG                                 | about 7.5 MB                      |
 | CMYK JPEG or 16-bit PNG                          | about 8 MB                        |
 | Progressive JPEG with full colour detail (4:4:4) | about 15 MB                       |
+
+## Listening on a small host
+
+A site listens on the first of these that is set:
+
+1. `GOPHENBERG_SOCKET`, a private Unix socket, on Linux only.
+2. `GOPHENBERG_ADDR`, a host and port.
+3. `PORT`, the bare setting a host names, on every interface.
+
+With none set it listens on `localhost:8081`. A shell or a tool that
+exports `PORT` moves a site that names no address, so set
+`GOPHENBERG_ADDR` when that is not what you want.
+
+On a server you share, every account can reach a loopback port, so a
+neighbour could skip the web server and forge the headers that name a
+visitor. A socket has the mode `0600`, so only your own programs can
+open it. The program in front of it must keep to these rules, because
+the site believes it:
+
+- Write the header `GOPHENBERG_CLIENT_ADDR_HEADER` names on every
+  request, with exactly one address, overwriting any copy the visitor
+  sent. A request without it is answered with `400`.
+- Set `X-Forwarded-Proto` on every request to `http` or `https`,
+  overwriting any copy the visitor sent. A write that names no scheme
+  is refused unless `GOPHENBERG_PUBLIC_URL` is set, so set it too.
+- Pass `Host` as the visitor sent it.
+
+The site believes no other forwarded header over a socket, whatever
+`GOPHENBERG_TRUSTED_PROXIES` holds.
+
+A theme and the first start of an update reach the site over TCP, so
+`GOPHENBERG_SOCKET` stops the site when `GOPHENBERG_THEMES_DIR` or
+`GOPHENBERG_INSTALL_ROOT` is set. Update a site on a socket by hand.
+
+A host that stops idle programs starts the site again at the next
+visit. `GOPHENBERG_IDLE_EXIT`, such as `15m`, lets the site leave by
+itself: once nothing has been open for that long it stops as it does
+on a signal and exits with code 0. A service manager that restarts
+only a failed program leaves it stopped, so keep it unset there.
 
 ## A SQLite database
 
@@ -773,6 +816,11 @@ The server refuses to start, and says why, when:
 - `GOPHENBERG_PLUGIN_DB_RESERVE` leaves the plugins no connection
   under `GOPHENBERG_DATABASE_MAX_CONNS`.
 - `GOPHENBERG_TRUSTED_PROXIES` is not valid CIDR notation.
+- `GOPHENBERG_SOCKET` is set without `GOPHENBERG_CLIENT_ADDR_HEADER`, or
+  with `GOPHENBERG_THEMES_DIR` or `GOPHENBERG_INSTALL_ROOT`, see
+  [listening on a small host](#listening-on-a-small-host).
+- `PORT` is not a whole number from 1 to 65535.
+- `GOPHENBERG_IDLE_EXIT` is not a duration, such as `15m`.
 - `GOPHENBERG_PUBLIC_URL` is not an `http` or `https` address naming
   only a host.
 - `GOPHENBERG_WEB_DIR` names a folder that holds no `index.html`, or

@@ -86,7 +86,8 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 
 	srv := jobs.serverOf(settings, server.NewServer(cfg))
 	return b.admin.ended(guard.Serve(serving, srv, themes.CheckChoice, func(ctx context.Context) error {
-		return gonsole.Serve(ctx, srv, settings.serving, jobs.stop(b.host, settings.serving.StopGrace), logger)
+		stop := jobs.stop(b.host, settings.serving.StopGrace)
+		return gonsole.ServeListening(ctx, srv, settings.serving, settings.listening, stop, logger)
 	}))
 }
 
@@ -217,7 +218,7 @@ func (b boot) serverConfig(walked definitions.Walked) server.Config {
 // runConfig carries the environment-derived settings of the server.
 type runConfig struct {
 	databaseURL    string
-	addr           string
+	listening      gonsole.Listening
 	webDir         string
 	siteTitle      string
 	trustedProxies []string
@@ -279,7 +280,7 @@ func settingsEnv(getenv func(string) string) gonsole.Env {
 
 // httpServerFrom returns the HTTP server for the handler at the address and under the timeouts the settings name.
 func httpServerFrom(settings runConfig, handler http.Handler) *http.Server {
-	return gonsole.NewServer(settings.addr, handler, settings.serving)
+	return gonsole.NewServer(settings.listening.Address, handler, settings.serving)
 }
 
 // stopPlugins stops the plugin host within the grace, whether or not ctx has ended.
@@ -507,18 +508,13 @@ func loadRunConfig(getenv func(string) string) (runConfig, error) {
 		return runConfig{}, err
 	}
 	settings.databaseURL = databaseURL
-	settings.addr = valueOr(env, "ADDR", "localhost:8081")
 	settings.siteTitle = env.Value("SITE_TITLE")
 	settings.trustedProxies = trustedProxies
 	settings.publicURL = publicURL
-	settings.themesDir = env.Value("THEMES_DIR")
-	settings.theme = env.Value("THEME")
-	settings.nodeBin = valueOr(env, "NODE_BIN", "node")
-	settings.mediaDir = env.Value("MEDIA_DIR")
 	return settings, nil
 }
 
-// sectionsFrom reads the list, admin folder, cron, superuser, database wait, update and install settings into held.
+// sectionsFrom reads the list, admin folder, cron, superuser, database wait, update, install and place settings.
 func sectionsFrom(env gonsole.Env, held *runConfig) error {
 	lists, err := listSettingsFrom(env)
 	if err != nil {
@@ -540,7 +536,20 @@ func sectionsFrom(env gonsole.Env, held *runConfig) error {
 	if held.updates, err = updateSettingsFrom(env); err != nil {
 		return err
 	}
-	held.install, err = updater.SettingsFrom(env)
+	if held.install, err = updater.SettingsFrom(env); err != nil {
+		return err
+	}
+	return placesFrom(env, held)
+}
+
+// placesFrom reads where the site finds its themes and media and where it listens into held.
+func placesFrom(env gonsole.Env, held *runConfig) error {
+	held.themesDir = env.Value("THEMES_DIR")
+	held.theme = env.Value("THEME")
+	held.nodeBin = valueOr(env, "NODE_BIN", "node")
+	held.mediaDir = env.Value("MEDIA_DIR")
+	listening, err := listeningFrom(env, *held)
+	held.listening = listening
 	return err
 }
 
