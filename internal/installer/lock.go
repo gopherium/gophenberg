@@ -41,7 +41,10 @@ func lockInstallerFolder(machine Machine) (func(), error) {
 func heldAlone(folder *os.File, flock func(fd, how int) error) (func(), error) {
 	err := flock(int(folder.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 	if err == nil {
-		return func() { _ = folder.Close() }, nil
+		return func() {
+			_ = flock(int(folder.Fd()), syscall.LOCK_UN)
+			_ = folder.Close()
+		}, nil
 	}
 	_ = folder.Close()
 	if errors.Is(err, syscall.EWOULDBLOCK) {
