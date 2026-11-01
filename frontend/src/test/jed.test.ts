@@ -61,6 +61,47 @@ test('falls back to the source string when the catalogue misses one', () => {
 	expect(loaded(CATALOG).__('Never translated', DOMAIN)).toBe('Never translated')
 })
 
+test('keeps translated long-jump messages scoped to failure after database access', () => {
+	const messages = [
+		{
+			source:
+				'This update needs a backup of the database. ' +
+				'The site stays down if the new version fails after it reaches the database.',
+			translations: {
+				'es-ES':
+					'Esta actualización necesita una copia de seguridad de la base de datos. ' +
+					'El sitio permanecerá inactivo si la nueva versión falla después de acceder a la base de datos.',
+				'fr-FR':
+					'Cette mise à jour nécessite une sauvegarde de la base de données. ' +
+					'Le site restera indisponible si la nouvelle version échoue après avoir accédé à la base de données.',
+			},
+		},
+		{
+			source:
+				'A backup of the database is taken first. If the new version fails after reaching the database, ' +
+				'the site stays down until you restore it.',
+			translations: {
+				'es-ES':
+					'Primero se hace una copia de seguridad de la base de datos. ' +
+					'Si la nueva versión falla después de acceder a la base de datos, el sitio permanecerá ' +
+					'inactivo hasta que restaures la base de datos.',
+				'fr-FR':
+					"Une sauvegarde de la base de données est effectuée d'abord. " +
+					"Si la nouvelle version échoue après avoir accédé à la base de données, le site restera " +
+					"indisponible jusqu'à ce que vous restauriez la base de données.",
+			},
+		},
+	]
+
+	for (const locale of ['es-ES', 'fr-FR'] as const) {
+		const catalogue = readFileSync(join(repositoryRoot(), 'languages', `${locale}.po`), 'utf8')
+		const i18n = loaded(catalogue)
+		for (const { source, translations } of messages) {
+			expect(i18n.__(source, DOMAIN)).toBe(translations[locale])
+		}
+	}
+})
+
 test('carries the plural rule the runtime reads', () => {
 	expect(compileCatalog(CATALOG)['']).toHaveProperty('plural-forms')
 })
