@@ -16,7 +16,10 @@ var pathCases = []Case{
 	{"LetsSiblingsOfDifferentParentsShareASlug", letsSiblingsOfDifferentParentsShareASlug},
 	{"SuffixesASlugTakenBesideASibling", suffixesASlugTakenBesideASibling},
 	{"CarriesDescendantsWhenAParentIsRenamed", carriesDescendantsWhenAParentIsRenamed},
+	{"CarriesDescendantsWhenANestedParentIsRenamed", carriesDescendantsWhenANestedParentIsRenamed},
 	{"CarriesDescendantsWhenAParentMoves", carriesDescendantsWhenAParentMoves},
+	{"LeavesDescendantsAloneWhenAParentKeepsItsAddress", leavesDescendantsAloneWhenAParentKeepsItsAddress},
+	{"LeavesDescendantsAloneWhenANestedParentKeepsItsAddress", leavesDescendantsAloneWhenANestedParentKeepsItsAddress},
 	{"SuffixesAnAddressARenameCollidesWith", suffixesAnAddressARenameCollidesWith},
 	{"KeepsAParentThatHoldsChildren", keepsAParentThatHoldsChildren},
 	{"FreesAnAddressWhenContentIsTrashed", freesAnAddressWhenContentIsTrashed},
@@ -111,6 +114,28 @@ func carriesDescendantsWhenAParentIsRenamed(t *testing.T, s Stores) {
 	}
 }
 
+// carriesDescendantsWhenANestedParentIsRenamed carries the child of a renamed page that sits under another page.
+func carriesDescendantsWhenANestedParentIsRenamed(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	RegisterPageType(t, s.Types)
+	guide := MustNest(t, s.Content, nil, "Guide", author)
+	about := MustNest(t, s.Content, &guide, "About", author)
+	team := MustNest(t, s.Content, &about, "Team", author)
+	renamed, err := about.Rename("company")
+	if err != nil {
+		t.Fatalf("Rename error = %v, want nil", err)
+	}
+	renamed.UpdatedAt = about.UpdatedAt.Add(time.Second)
+
+	if _, err := s.Content.Update(t.Context(), renamed, about.UpdatedAt, nil, 0); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+
+	if got := AddressOf(t, s.Content, team.ID); got != "pages/guide/company/team" {
+		t.Errorf("child path = %q, want it carried under the renamed page", got)
+	}
+}
+
 // carriesDescendantsWhenAParentMoves moves the whole subtree under the parent's new address.
 func carriesDescendantsWhenAParentMoves(t *testing.T, s Stores) {
 	author := s.AddAuthor(t, DefaultAuthor)
@@ -133,6 +158,46 @@ func carriesDescendantsWhenAParentMoves(t *testing.T, s Stores) {
 	}
 	if got := AddressOf(t, s.Content, team.ID); got != "pages/company/about/team" {
 		t.Errorf("child path = %q, want the subtree carried", got)
+	}
+}
+
+// leavesDescendantsAloneWhenAParentKeepsItsAddress leaves a child's saved time alone when its parent is retitled.
+func leavesDescendantsAloneWhenAParentKeepsItsAddress(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	RegisterPageType(t, s.Types)
+	about := MustNest(t, s.Content, nil, "About", author)
+	team := MustNest(t, s.Content, &about, "Team", author)
+
+	retitleLeavesTheChildAlone(t, s, about, team)
+}
+
+// leavesDescendantsAloneWhenANestedParentKeepsItsAddress leaves a child alone when a page with a parent is retitled.
+func leavesDescendantsAloneWhenANestedParentKeepsItsAddress(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	RegisterPageType(t, s.Types)
+	guide := MustNest(t, s.Content, nil, "Guide", author)
+	about := MustNest(t, s.Content, &guide, "About", author)
+	team := MustNest(t, s.Content, &about, "Team", author)
+
+	retitleLeavesTheChildAlone(t, s, about, team)
+}
+
+// retitleLeavesTheChildAlone retitles the parent and checks the child keeps its saved time and takes an edit.
+func retitleLeavesTheChildAlone(t *testing.T, s Stores, parent, child content.Content) {
+	t.Helper()
+	if _, err := s.Content.Update(t.Context(), EditTitle(parent, "Retitled"), parent.UpdatedAt, nil, 0); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+
+	stored, err := s.Content.ByID(t.Context(), child.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	if !stored.UpdatedAt.Equal(child.UpdatedAt) {
+		t.Errorf("child updated at = %v, want %v from before the parent was retitled", stored.UpdatedAt, child.UpdatedAt)
+	}
+	if _, err := s.Content.Update(t.Context(), EditTitle(child, "The team"), child.UpdatedAt, nil, 0); err != nil {
+		t.Errorf("Update() error = %v, want the child saved from the version read before the retitle", err)
 	}
 }
 

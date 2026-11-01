@@ -446,7 +446,7 @@ func TestContentUpdateReportsDescendantsItCannotLock(t *testing.T) {
 	holdInRival(t, pool.Config().ConnString(), "SELECT id FROM core.content WHERE slug = 'a-child' FOR UPDATE")
 
 	version := parent.UpdatedAt
-	parent.Title = "A Parent retitled"
+	parent.Slug = "a-renamed-parent"
 	parent.UpdatedAt = time.Now().UTC()
 
 	_, err := lockTimedContent(t, pool).Update(t.Context(), parent, version, nil, 0)

@@ -378,6 +378,38 @@ func TestEditingAnItemLeftUnderATrashedParentStillSaves(t *testing.T) {
 	}
 }
 
+func TestUpdateReportsAnItemDeletedWhileItWaitsForTheFields(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := relatingStore(t)
+	held := mustCreate(t, store, "A Post", author)
+	rival := rivalTransaction(t, pool)
+	if _, err := rival.Exec(t.Context(), `SELECT key FROM core.content_fields FOR UPDATE`); err != nil {
+		t.Fatalf("holding the field rows: %v", err)
+	}
+	if _, err := rival.Exec(t.Context(), `DELETE FROM core.content WHERE id = $1`, held.ID); err != nil {
+		t.Fatalf("deleting the item: %v", err)
+	}
+	version := held.UpdatedAt
+	held.Title, held.UpdatedAt = "Edited", time.Now().UTC()
+	saved := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, err := store.Update(ctx, held, version, nil, 0)
+		saved <- err
+	}()
+	waitingOn(t, pool, "%core.content_fields%")
+
+	if err := rival.Commit(t.Context()); err != nil {
+		t.Fatalf("committing the delete: %v", err)
+	}
+
+	if err := <-saved; !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("Update() error = %v, want %v", err, content.ErrNotFound)
+	}
+}
+
 func TestCreateReportsAParentItCannotHold(t *testing.T) {
 	t.Parallel()
 
