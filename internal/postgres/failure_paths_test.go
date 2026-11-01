@@ -64,15 +64,19 @@ func TestUpdateReportsTheValuesItCannotRead(t *testing.T) {
 
 	store, author, pool := relatingStore(t)
 	held := mustCreate(t, store, "A Post", author)
-	sabotage(t, pool, "ALTER TABLE core.content DROP COLUMN fields")
+	sabotage(t, pool, "CREATE FUNCTION sabotage_gate(uuid) RETURNS boolean AS $$ BEGIN "+
+		"IF current_query() LIKE '%ValuesOfContent%' THEN RAISE EXCEPTION 'sabotaged values read'; END IF; "+
+		"RETURN true; END $$ LANGUAGE plpgsql COST 1")
+	sabotage(t, pool, "ALTER TABLE core.content RENAME TO content_rows")
+	sabotage(t, pool, "CREATE VIEW core.content AS SELECT * FROM core.content_rows WHERE sabotage_gate(id)")
 
 	version := held.UpdatedAt
 	held.UpdatedAt = time.Now().UTC()
 
 	_, err := store.Update(t.Context(), held, version, nil, 0)
 
-	if err == nil {
-		t.Fatal("Update() error = nil, want the unreadable values reported")
+	if err == nil || !strings.Contains(err.Error(), "sabotaged values read") {
+		t.Fatalf("Update() error = %v, want the unreadable values reported", err)
 	}
 	if errors.Is(err, content.ErrNotFound) || errors.Is(err, content.ErrConflict) {
 		t.Errorf("Update() error = %v, want the read failure rather than a write verdict", err)
