@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gopherium/framework/gonsole"
@@ -39,13 +40,26 @@ func SettingsFrom(env gonsole.Env) (Settings, error) {
 	marginMB, marginErr := env.Count("UPDATE_DISK_MARGIN_MB", 64, gonsole.AllowZero(), gonsole.AtMost(maxMegabytes))
 	kept, keptErr := env.Count("UPDATE_BACKUPS_KEEP", 3)
 	check, checkErr := checkSettingsFrom(env)
-	if err := errors.Join(rootErr, dataErr, timeoutErr, capErr, marginErr, keptErr, checkErr); err != nil {
+	outsideErr := outsideRoot(env, root, data)
+	if err := errors.Join(rootErr, dataErr, outsideErr, timeoutErr, capErr, marginErr, keptErr, checkErr); err != nil {
 		return Settings{}, err
 	}
 	check.Root, check.Data, check.DownloadCap, check.DownloadTimeout = root, data, megabytes(capMB), timeout
 	check.DiskMargin, check.BackupsKept = megabytes(marginMB), kept
 	check.PgDump, check.names = cmp.Or(env.Value("PG_DUMP_BIN"), "pg_dump"), env
 	return check, nil
+}
+
+// outsideRoot refuses a data folder that is the install root or stands inside it.
+func outsideRoot(env gonsole.Env, root, data string) error {
+	if root == "" || data == "" {
+		return nil
+	}
+	relative, _ := filepath.Rel(root, data)
+	if relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return nil
+	}
+	return fmt.Errorf("%s: must stand outside %s, got %q", env.Key("DATA_DIR"), env.Key("INSTALL_ROOT"), data)
 }
 
 // Layout returns the install root and the data folder the settings name.
