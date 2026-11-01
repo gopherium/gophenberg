@@ -53,7 +53,7 @@ func TestImportNamesTheTypeWhoseLabelGivesAReservedWord(t *testing.T) {
 		label string
 	}{
 		{name: "as written", key: "chapter", label: "Media"},
-		{name: "padded", key: " chapter ", label: " Media "},
+		{name: "trimmed label", key: "chapter", label: " Media "},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()

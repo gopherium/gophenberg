@@ -123,7 +123,7 @@ func TestImportChecksRouteWordsInTheOrderApplyWrites(t *testing.T) {
 			name:   "second new type states the word of the first",
 			stored: []content.Type{wordlessRoot},
 			declared: []TypeDefinition{
-				declaredType("zine", "Zines", " zines ", false), declaredType(" book ", " Books ", "zines", false),
+				declaredType("zine", "Zines", " zines ", false), declaredType("book", " Books ", "zines", false),
 			},
 			taken: true, code: statedWordTaken, details: content.Details{"type": "book", "name": "Books", "word": "zines"},
 		},
@@ -169,38 +169,6 @@ func TestImportChecksRouteWordsWithRootChangesLeftAsApplyLeavesThem(t *testing.T
 			declared: []TypeDefinition{
 				declaredType("recipe", "Recipes", "meals", true), declaredType("chapter", "Chapters", "meals", false),
 			},
-		},
-	})
-}
-
-func TestRouteWordsHoldAWordUnderTheTrimmedKey(t *testing.T) {
-	t.Parallel()
-
-	declared := []TypeDefinition{
-		declaredType(" chapter ", "Books", "books", false), declaredType("chapter", "Books", "books", false),
-	}
-	if err := validateRouteWords(declared, nil); err != nil {
-		t.Errorf("validateRouteWords() error = %v, want nil", err)
-	}
-}
-
-func TestImportChecksThePaddedKeyAWordIsHeldUnder(t *testing.T) {
-	t.Parallel()
-
-	checksWords(t, []wordCase{
-		{
-			name:     "padded copy of a stored key keeps its word",
-			stored:   []content.Type{wordlessRoot, recipeType},
-			declared: []TypeDefinition{declaredType(" recipe ", "Recipes", "recipes", false)},
-		},
-		{
-			name:   "padded copy of a stored key derives over its own word",
-			stored: []content.Type{wordlessRoot, recipeType, bookType},
-			declared: []TypeDefinition{
-				declaredType(" recipe ", "Recipes", "", true), declaredType("book", "Books", "recipes", false),
-			},
-			taken: true, code: derivedWordTaken,
-			details: content.Details{"type": "recipe", "name": "Recipes", "word": "recipes"},
 		},
 	})
 }

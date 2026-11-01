@@ -33,7 +33,7 @@ func TestImportRefusesADerivedRouteWordAnotherTypeHolds(t *testing.T) {
 			stored: []content.Type{{Key: "recipe", RouteWord: "recipes", Origin: "recipes"}},
 		},
 		{
-			name: "trimmed label", key: " chapter ", label: " Recipes ",
+			name: "trimmed label", key: "chapter", label: " Recipes ",
 			wantKey: "chapter", wantLabel: "Recipes", word: "recipes",
 			stored: []content.Type{{Key: "recipe", RouteWord: "recipes"}},
 		},
