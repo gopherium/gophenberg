@@ -676,8 +676,14 @@ the mode `0700`, since a backup holds every account, and they leave
 one that is there as it stands. An update asks for the same free disk
 on the data folder as on the install root.
 
-Setting it on a site that already updated leaves the old `backups/`
-and `state/` behind, so move them into the new folder first.
+The folder must stand outside the install root, so a site with one
+inside it stops at its start. Setting it on a site that already
+updated leaves the old `backups/` and `state/` behind, so move them
+into the new folder first.
+
+[Install on a Linux server](/self-hosting/server-install/) sets up a
+service that may write only under the install root, so leave
+`GOPHENBERG_DATA_DIR` unset there.
 
 ### Running an update
 

@@ -822,8 +822,8 @@ The server refuses to start, and says why, when:
   [listening on a small host](#listening-on-a-small-host).
 - `PORT` is not a whole number from 1 to 65535.
 - `GOPHENBERG_IDLE_EXIT` is not a duration, such as `15m`.
-- `GOPHENBERG_DATA_DIR` is not an absolute path, or names a folder the
-  server cannot make.
+- `GOPHENBERG_DATA_DIR` is not an absolute path, stands inside
+  `GOPHENBERG_INSTALL_ROOT`, or names a folder the server cannot make.
 - `GOPHENBERG_PUBLIC_URL` is not an `http` or `https` address naming
   only a host.
 - `GOPHENBERG_WEB_DIR` names a folder that holds no `index.html`, or
