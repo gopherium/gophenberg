@@ -7,6 +7,7 @@ import {
 	ErrorNotice,
 	FileButton,
 	ListEmpty,
+	ListNoResults,
 	Page,
 	bulkNotes,
 	focusInDialog,
@@ -171,15 +172,24 @@ function addLabel(): string {
 
 /**
  * Renders what the library shows when it holds no item.
- * @param props - Whether a search or a filter narrowed the library.
- * @returns The empty state, telling how to add a file when nothing narrowed the library.
+ * @param props - Whether a search or a filter narrowed the library, whether an upload runs and what takes the files.
+ * @returns The empty state, offering the add button when nothing narrowed the library.
  */
-function MediaEmpty({ narrowed }: { narrowed: boolean }) {
+function MediaEmpty({ narrowed, busy, upload }: { narrowed: boolean, busy: boolean, upload: (files: File[]) => void }) {
 	if (narrowed) {
-		return <ListEmpty icon={mediaIcon} title={__('No media items found.', 'gophenberg')} />
+		return <ListNoResults />
 	}
-	const hint = sprintf(__('Add one with %(button)s.', 'gophenberg'), { button: addLabel() })
-	return <ListEmpty icon={mediaIcon} title={__('No media items yet.', 'gophenberg')} hint={hint} />
+	return (
+		<ListEmpty
+			icon={mediaIcon}
+			title={__('No media items yet', 'gophenberg')}
+			actions={
+				<FileButton multiple size="default" icon={uploadIcon} busy={busy} inputLabel={addLabel()} onChoose={upload}>
+					{addLabel()}
+				</FileButton>
+			}
+		/>
+	)
 }
 
 /**
@@ -263,7 +273,8 @@ function openTapped(
 /**
  * Renders the items of the library, or the failure of their read.
  * @param props - The page query, the list view, the view the fields draw, the fields, the settings, what the actions
- *   need from the screen, whether the session may change a file and the handler opening a dialog on one.
+ *   need from the screen, whether the session may change a file, the handler opening a dialog on one, whether an upload
+ *   runs and what takes the files.
  * @returns The list, or the failure notice.
  */
 function MediaList(props: {
@@ -275,6 +286,8 @@ function MediaList(props: {
 	tools: MediaTools
 	mayChange: (item: MediaItem) => boolean
 	open: (opened: OpenedDialog) => void
+	busy: boolean
+	upload: (files: File[]) => void
 }) {
 	const actions = useMediaActions(props.tools, props.mayChange, props.open)
 	const { media, list, view } = props
@@ -285,7 +298,7 @@ function MediaList(props: {
 	return (
 		<DataViews
 			{...pageProps(media.data, props.settings)}
-			empty={<MediaEmpty narrowed={viewNarrows(view)} />}
+			empty={<MediaEmpty narrowed={viewNarrows(view)} busy={props.busy} upload={props.upload} />}
 			fields={props.fields}
 			actions={actions}
 			view={view}
@@ -346,6 +359,8 @@ export function MediaScreen() {
 				tools={tools}
 				mayChange={mayChange}
 				open={setOpened}
+				busy={busy}
+				upload={upload}
 			/>
 			<DropZone className="godmin-list-overlay" label={__('Drop files to upload', 'gophenberg')} onFilesDrop={upload} />
 			<OpenMediaDialog opened={opened} tools={tools} onClose={() => setOpened(undefined)} onBack={focusBack} />

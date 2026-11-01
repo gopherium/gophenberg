@@ -75,7 +75,6 @@ const WORDPRESS = [
 	},
 	{ key: '"%s" permanently deleted.', es: '«%s» borrado permanentemente.', fr: 'Suppression définitive de « %s ».' },
 	{ key: 'Search media', es: 'Buscar medios', fr: 'Rechercher des médias' },
-	{ key: 'No media items found.', es: 'No se han encontrado archivos de medios.', fr: 'Aucun média n’a été trouvé.' },
 	{ key: 'Add Media File', es: 'Añadir medios', fr: 'Ajouter un fichier média' },
 	{
 		key: 'Drop files to upload',

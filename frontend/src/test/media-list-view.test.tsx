@@ -490,12 +490,13 @@ test('opens Edit from a tap on a phone row of the page on show while the next pa
 	next.release()
 })
 
-test('says the library holds nothing yet, and how to add a file, when nothing narrows it', async () => {
+test('says the library holds nothing yet, and offers the add button, when nothing narrows it', async () => {
 	serveRows([])
 	renderAt('/media')
 
-	expect(await screen.findByText('No media items yet.')).toBeInTheDocument()
-	expect(screen.getByText('Add one with Add Media File.')).toBeInTheDocument()
+	const empty = (await screen.findByText('No media items yet')).closest('.godmin-empty') as HTMLElement
+
+	expect(within(empty).getByRole('button', { name: 'Add Media File' })).toBeInTheDocument()
 })
 
 test.each([
@@ -549,10 +550,11 @@ test.each([
 		address: narrowedAt([{ field: 'modified', operator: 'before', value: '2026-01-01T00:00:00.000Z' }]),
 	},
 	{ how: 'a kind filter', address: narrowedAt([{ field: 'media_type', operator: 'is', value: 'archive' }]) },
-])('says no media item was found when $how narrows the library to nothing', async ({ address }) => {
+])('says no results are found when $how narrows the library to nothing', async ({ address }) => {
 	serveRows([])
 	renderAt(address)
 
-	expect(await screen.findByText('No media items found.')).toBeInTheDocument()
-	expect(screen.queryByText('Add one with Add Media File.')).not.toBeInTheDocument()
+	const empty = (await screen.findByText('No results found')).closest('.godmin-empty') as HTMLElement
+
+	expect(within(empty).queryByRole('button')).not.toBeInTheDocument()
 })

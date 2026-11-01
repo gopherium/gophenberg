@@ -2760,16 +2760,28 @@ msgid "The draft could not be created."
 msgstr "Le brouillon n'a pas pu être créé."
 
 #, fuzzy
-msgid "No items found."
-msgstr "Aucun élément trouvé."
+msgid "No items yet"
+msgstr "Aucun élément pour l'instant"
 
 #, fuzzy
-msgid "No items yet."
-msgstr "Aucun élément pour l'instant."
+msgid "No published items"
+msgstr "Aucun élément publié"
 
 #, fuzzy
-msgid "Add one with %(button)s."
-msgstr "Ajoutez un élément avec %(button)s."
+msgid "No drafts"
+msgstr "Aucun brouillon"
+
+#, fuzzy
+msgid "No pending items"
+msgstr "Aucun élément en attente"
+
+#, fuzzy
+msgid "No private items"
+msgstr "Aucun élément privé"
+
+#, fuzzy
+msgid "Trash is empty"
+msgstr "La corbeille est vide"
 
 #, fuzzy
 msgid "Items could not be loaded."
@@ -2835,12 +2847,8 @@ msgid "%(file)s: %(reason)s"
 msgstr "%(file)s : %(reason)s"
 
 #, fuzzy
-msgid "No media items found."
-msgstr "Aucun média n’a été trouvé."
-
-#, fuzzy
-msgid "No media items yet."
-msgstr "Aucun fichier média pour l’instant."
+msgid "No media items yet"
+msgstr "Aucun fichier média pour l’instant"
 
 #, fuzzy
 msgid "Manage the images and files this site holds."
@@ -2998,10 +3006,6 @@ msgstr "Clé"
 #, fuzzy
 msgid "Make default…"
 msgstr "Rendre par défaut…"
-
-#, fuzzy
-msgid "No content types found."
-msgstr "Aucun type de contenu trouvé."
 
 #, fuzzy
 msgid "No description"

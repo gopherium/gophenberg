@@ -432,9 +432,6 @@ msgstr ""
 msgid "Add layout to %(field)s"
 msgstr ""
 
-msgid "Add one with %(button)s."
-msgstr ""
-
 msgid "Add row"
 msgstr ""
 
@@ -1136,19 +1133,16 @@ msgstr ""
 msgid "No"
 msgstr ""
 
-msgid "No content types found."
+msgid "No description"
 msgstr ""
 
-msgid "No description"
+msgid "No drafts"
 msgstr ""
 
 msgid "No file arrived with this upload. Choose a file and try again."
 msgstr ""
 
-msgid "No items found."
-msgstr ""
-
-msgid "No items yet."
+msgid "No items yet"
 msgstr ""
 
 msgid "No media chosen"
@@ -1157,10 +1151,7 @@ msgstr ""
 msgid "No media has been uploaded yet."
 msgstr ""
 
-msgid "No media items found."
-msgstr ""
-
-msgid "No media items yet."
+msgid "No media items yet"
 msgstr ""
 
 msgid "No new updates found."
@@ -1170,6 +1161,15 @@ msgid "No page lives at this address."
 msgstr ""
 
 msgid "No parent"
+msgstr ""
+
+msgid "No pending items"
+msgstr ""
+
+msgid "No private items"
+msgstr ""
+
+msgid "No published items"
 msgstr ""
 
 msgid "No theme arrived with this upload. Choose a zip file and try again."
@@ -1916,6 +1916,9 @@ msgid "Thumbnail"
 msgstr ""
 
 msgid "Title"
+msgstr ""
+
+msgid "Trash is empty"
 msgstr ""
 
 msgid "Two field groups in this file share the key %(key)s. Give one of them a different key and import again."

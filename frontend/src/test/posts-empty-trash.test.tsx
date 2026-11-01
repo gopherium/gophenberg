@@ -177,7 +177,7 @@ test('hides the empty trash control while the trash view lists nothing', async (
 
 	await pickTrashTab()
 
-	expect(await screen.findByText('No items found.')).toBeInTheDocument()
+	expect(await screen.findByText('Trash is empty')).toBeInTheDocument()
 	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
 })
 
@@ -299,7 +299,7 @@ test('counts every trashed item of the type in the warning while a search narrow
 test('offers Empty Trash only while the narrowed list shows rows, its dialog counting the whole trash', async () => {
 	bin = [TRASHED, SECOND, SPARE]
 	renderAt('/content/post?status=trash&search=nothing')
-	expect(await screen.findByText('No items found.')).toBeInTheDocument()
+	expect(await screen.findByText('No results found')).toBeInTheDocument()
 	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
 
 	const search = screen.getByRole('searchbox')

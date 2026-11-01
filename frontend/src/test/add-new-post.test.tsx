@@ -49,8 +49,21 @@ function captureCreate(): { bodies: unknown[] } {
  * @returns The header's add button.
  */
 async function headerAddNew(name = 'Add Post'): Promise<HTMLElement> {
-	return within(await screen.findByRole('main')).findByRole('button', { name })
+	const [header] = await within(await screen.findByRole('main')).findAllByRole('button', { name })
+	return header
 }
+
+test('the add button of an empty list creates a draft and opens it in the editor', async () => {
+	const recorded = captureCreate()
+	server.use(http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })))
+	const { router } = renderRoutedAt('/content/post')
+	const empty = (await screen.findByText('No items yet')).closest('.godmin-empty') as HTMLElement
+
+	await userEvent.click(within(empty).getByRole('button', { name: 'Add Post' }))
+
+	await vi.waitFor(() => expect(router.state.location.pathname).toBe(`/content/post/${NEW_POST_ID}/edit`))
+	expect(recorded.bodies).toHaveLength(1)
+})
 
 test('the add button of the list header creates a draft and opens it in the editor', async () => {
 	const recorded = captureCreate()
@@ -182,17 +195,16 @@ test.each([
 		types: () => HttpResponse.json({ items: [RATED_TYPE] }),
 		path: '/content/missing',
 	},
-])('draws no add button and no add hint when $when', async ({ types, path }) => {
+])('draws no add button when $when', async ({ types, path }) => {
 	server.use(
 		http.get('/api/types', types),
 		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
 	)
 	renderAt(path)
 	const main = await screen.findByRole('main')
-	await within(main).findByText('No items yet.')
+	await within(main).findByText('No items yet')
 
 	expect(within(main).queryByRole('button', { name: 'Add Content' })).not.toBeInTheDocument()
-	expect(within(main).queryByText('Add one with Add Content.')).not.toBeInTheDocument()
 })
 
 /**

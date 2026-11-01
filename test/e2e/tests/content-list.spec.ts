@@ -226,11 +226,12 @@ test('shows only View on the published row the pointer rests on, as WordPress dr
 	await expect(row.getByRole('button', { name: 'Trash…', exact: true })).toHaveCount(0)
 })
 
-test('says no items are found when a search matches none', async ({ page }) => {
+test('says no results are found when a search matches none', async ({ page }) => {
 	await page.goto(`/admin/content/post?search=${encodeURIComponent(`nothing matches ${RUN}`)}`)
 
-	await expect(page.getByText('No items found.')).toBeVisible()
-	await expect(page.getByText('Add one with Add Post.')).toBeHidden()
+	const empty = page.locator('.godmin-empty')
+	await expect(empty.getByText('No results found')).toBeVisible()
+	await expect(empty.getByRole('button')).toHaveCount(0)
 })
 
 test('trashes two ticked items at once and counts them in a toast', async ({ page }) => {

@@ -28,8 +28,8 @@ const FRAMED = Object.keys(TITLES)
 const VISITABLE = Object.entries(TITLES).map(([path, title]) => [path.replace('$typeKey', 'post'), title])
 
 const EMPTY = [
-	['/content/post', 'No items yet.'],
-	['/media', 'No media items yet.'],
+	['/content/post', 'No items yet'],
+	['/media', 'No media items yet'],
 ]
 
 const CHROMELESS = ['/content/$typeKey/$postId/edit']

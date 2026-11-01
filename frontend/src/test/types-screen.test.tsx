@@ -260,10 +260,10 @@ test('writes the search a reader types into the address and narrows the list to 
 	await waitFor(() => expect(list.queryByText('Pages', { exact: true })).not.toBeInTheDocument())
 })
 
-test('says no content types are found when a search matches none', async () => {
+test('says no results are found when a search matches no content type', async () => {
 	renderAt('/content-types?search=nothing')
 
-	expect(await screen.findByText('No content types found.')).toBeInTheDocument()
+	expect(await screen.findByText('No results found')).toBeInTheDocument()
 })
 
 test('filters the list by status from the address', async () => {
@@ -436,14 +436,6 @@ test('names a type a plugin declared under a built-in key as the plugin named it
 	expect(await list.findByText('Entradas', { exact: true })).toBeInTheDocument()
 	expect(list.getByText('Pages', { exact: true })).toBeInTheDocument()
 	expect(list.queryByText('Páginas', { exact: true })).not.toBeInTheDocument()
-})
-
-test('says no content types are found in Spanish', async () => {
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
-	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
-	renderAt('/content-types?search=nothing')
-
-	expect(await screen.findByText('No se han encontrado tipos de contenido.')).toBeInTheDocument()
 })
 
 test('draws Add Content Type as the compact solid button every list header holds', async () => {

@@ -3,7 +3,7 @@
 import { Button } from '@gophenberg/frontend-sdk'
 import { DataViews, filterSortAndPaginate } from '@gophenberg/frontend-sdk/dataviews'
 import type { Action, Field, View } from '@gophenberg/frontend-sdk/dataviews'
-import { ErrorNotice, ListEmpty, Page, offeredSize, offeredView, useListRun } from '@gopherium/godmin'
+import { ErrorNotice, ListNoResults, Page, offeredSize, offeredView, useListRun } from '@gopherium/godmin'
 import type { OfferedView } from '@gopherium/godmin'
 import { useListView } from '@gopherium/godmin/router'
 import type { ListView } from '@gopherium/godmin/router'
@@ -14,7 +14,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import type { ListSettings } from '../settings/api'
 import { useListSettings } from '../settings/useListSettings'
-import { typesMenuItem, typesQueryKey } from './nav'
+import { typesQueryKey } from './nav'
 import { TYPE_COLUMNS, TYPE_PHONE_COLUMNS, TYPE_SORT, TYPE_VIEW_GUARD, originsOf, typeFields } from './typeFields'
 import { useTypeActions } from './typeActions'
 import { AddTypeDialog } from './TypeModals'
@@ -99,7 +99,7 @@ function TypesTable(props: {
 			data={shown.data}
 			paginationInfo={shown.paginationInfo}
 			config={{ perPageSizes: props.settings?.list_page_sizes ?? [] }}
-			empty={<ListEmpty icon={typesMenuItem.icon} title={__('No content types found.', 'gophenberg')} />}
+			empty={<ListNoResults />}
 			fields={fields}
 			actions={props.actions}
 			view={view}

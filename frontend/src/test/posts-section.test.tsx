@@ -53,5 +53,5 @@ test('adds from the list header alone, the sidebar offering no row of its own', 
 
 	expect(within(sidebar).queryByRole('link', { name: 'All Posts' })).not.toBeInTheDocument()
 	expect(within(sidebar).queryByRole('button', { name: 'Add Post' })).not.toBeInTheDocument()
-	expect(within(screen.getByRole('main')).getByRole('button', { name: 'Add Post' })).toBeInTheDocument()
+	expect(within(screen.getByRole('main')).getAllByRole('button', { name: 'Add Post' })).not.toHaveLength(0)
 })

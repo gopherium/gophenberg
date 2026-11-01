@@ -1841,12 +1841,28 @@ msgid "Name updated."
 msgstr "Nombre actualizado."
 
 #, fuzzy
-msgid "No items found."
-msgstr "No se han encontrado elementos."
+msgid "No items yet"
+msgstr "Todavía no hay elementos"
 
 #, fuzzy
-msgid "No items yet."
-msgstr "Todavía no hay elementos."
+msgid "No published items"
+msgstr "No hay elementos publicados"
+
+#, fuzzy
+msgid "No drafts"
+msgstr "No hay borradores"
+
+#, fuzzy
+msgid "No pending items"
+msgstr "No hay elementos pendientes"
+
+#, fuzzy
+msgid "No private items"
+msgstr "No hay elementos privados"
+
+#, fuzzy
+msgid "Trash is empty"
+msgstr "La papelera está vacía"
 
 #, fuzzy
 msgid "One frame of this animation holds more than %(max)s pixels, which is more than Gophenberg opens. Upload a smaller animation."
@@ -1982,12 +1998,8 @@ msgid "Manage the posts on this site."
 msgstr "Gestiona las entradas de este sitio."
 
 #, fuzzy
-msgid "No media items found."
-msgstr "No se han encontrado archivos de medios."
-
-#, fuzzy
-msgid "No media items yet."
-msgstr "Todavía no hay archivos de medios."
+msgid "No media items yet"
+msgstr "Todavía no hay archivos de medios"
 
 #, fuzzy
 msgid "There is nothing at this address. Check the link and try again."
@@ -2277,10 +2289,6 @@ msgstr "Añadir entrada"
 
 msgid "Add User"
 msgstr "Añadir usuario"
-
-#, fuzzy
-msgid "Add one with %(button)s."
-msgstr "Añade un elemento con %(button)s."
 
 msgctxt "admin section"
 msgid "Content Types"
@@ -2607,10 +2615,6 @@ msgstr "Clave"
 #, fuzzy
 msgid "Make default…"
 msgstr "Establecer como predeterminado…"
-
-#, fuzzy
-msgid "No content types found."
-msgstr "No se han encontrado tipos de contenido."
 
 #, fuzzy
 msgid "No description"
