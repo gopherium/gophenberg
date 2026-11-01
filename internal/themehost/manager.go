@@ -111,36 +111,53 @@ func compareListed(one, other Installed) int {
 
 // compareNaturalNames compares two theme names with letter case ignored and each run of digits read by its value.
 func compareNaturalNames(one, other string) int {
-	left, right := 0, 0
-	for left < len(one) && right < len(other) {
-		compared, nextLeft, nextRight := compareNextElement(one, left, other, right)
-		if compared != 0 {
+	left, right := nameCursor{name: one}, nameCursor{name: other}
+	for !left.done() && !right.done() {
+		if compared := left.compareNext(&right); compared != 0 {
 			return compared
 		}
-		left, right = nextLeft, nextRight
 	}
 	// A name that still has characters left is the longer one and sorts after the other.
-	return cmp.Compare(min(len(one)-left, 1), min(len(other)-right, 1))
+	return cmp.Compare(left.remaining(), right.remaining())
 }
 
-// compareNextElement compares the digit run or letter at each offset, returning where each name continues.
-func compareNextElement(one string, left int, other string, right int) (compared, nextLeft, nextRight int) {
-	first, firstSize := utf8.DecodeRuneInString(one[left:])
-	second, secondSize := utf8.DecodeRuneInString(other[right:])
-	if isDigit(first) && isDigit(second) {
-		endLeft, endRight := digitRunEnd(one, left), digitRunEnd(other, right)
-		return compareDigitRuns(one[left:endLeft], other[right:endRight]), endLeft, endRight
-	}
-	return cmp.Compare(foldCase(first), foldCase(second)), left + firstSize, right + secondSize
+// nameCursor walks a theme name one comparison element at a time: a whole run of digits or a single letter.
+type nameCursor struct {
+	name string
+	at   int
 }
 
-// digitRunEnd returns the offset just past the run of digits starting at start.
-func digitRunEnd(name string, start int) int {
-	end := start
-	for end < len(name) && isDigit(rune(name[end])) {
-		end++
+// done reports whether the cursor has walked past the end of its name.
+func (c nameCursor) done() bool { return c.at >= len(c.name) }
+
+// remaining is 1 while the cursor still has characters to walk and 0 after the end.
+func (c nameCursor) remaining() int { return min(len(c.name)-c.at, 1) }
+
+// compareNext compares the element each cursor is at and moves both cursors past it.
+func (c *nameCursor) compareNext(other *nameCursor) int {
+	if c.atDigit() && other.atDigit() {
+		return compareDigitRuns(c.takeDigitRun(), other.takeDigitRun())
 	}
-	return end
+	return cmp.Compare(foldCase(c.takeRune()), foldCase(other.takeRune()))
+}
+
+// atDigit reports whether the cursor is at one of the digits 0 to 9.
+func (c nameCursor) atDigit() bool { return isDigit(rune(c.name[c.at])) }
+
+// takeDigitRun returns the run of digits at the cursor and moves past it.
+func (c *nameCursor) takeDigitRun() string {
+	start := c.at
+	for !c.done() && c.atDigit() {
+		c.at++
+	}
+	return c.name[start:c.at]
+}
+
+// takeRune returns the character at the cursor and moves past it.
+func (c *nameCursor) takeRune() rune {
+	symbol, size := utf8.DecodeRuneInString(c.name[c.at:])
+	c.at += size
+	return symbol
 }
 
 // foldCase maps a letter to a form shared by its upper and lower cases, so that letters such as σ and ς compare equal.
