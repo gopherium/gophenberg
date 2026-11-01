@@ -829,8 +829,8 @@ Two offers show no button. An update that needs a newer PostgreSQL
 names the version it needs. An install that updates by hand, such as
 the Docker image or a binary you built yourself, says why and links to
 this page. An update that raised the minimum version keeps its button,
-and says the backup is required and that the site stays down if the
-new version does not start, see
+and says the backup is required and that the site stays down if the new
+version fails after it reaches the database, see
 [an update that raised the minimum version](#an-update-that-raised-the-minimum-version).
 
 ### The boot guard

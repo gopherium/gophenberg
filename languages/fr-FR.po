@@ -655,8 +655,8 @@ msgid "Gophenberg %(version)s failed its start check on this site. Fix what fail
 msgstr "Gophenberg %(version)s a échoué à sa vérification de démarrage sur ce site. Corrigez ce qui a échoué avant de réessayer."
 
 #, fuzzy
-msgid "This update needs a backup of the database, and the site stays down if the new version does not start."
-msgstr "Cette mise à jour nécessite une sauvegarde de la base de données, et le site reste hors service si la nouvelle version ne démarre pas."
+msgid "This update needs a backup of the database. The site stays down if the new version fails after it reaches the database."
+msgstr "Cette mise à jour nécessite une sauvegarde de la base de données. Le site restera indisponible si la nouvelle version échoue après avoir accédé à la base de données."
 
 #, fuzzy
 msgid "Update to version %(version)s"
@@ -694,8 +694,8 @@ msgid "A backup of the database is taken first, and Gophenberg goes back to %(ru
 msgstr "Une sauvegarde de la base de données est faite d'abord, et Gophenberg revient de lui-même à %(running)s si la nouvelle version ne démarre pas."
 
 #, fuzzy
-msgid "A backup of the database is taken first, and the site stays down until you restore it if the new version does not start."
-msgstr "Une sauvegarde de la base de données est faite d'abord, et le site reste hors service jusqu'à ce que vous la restauriez si la nouvelle version ne démarre pas."
+msgid "A backup of the database is taken first. If the new version fails after reaching the database, the site stays down until you restore it."
+msgstr "Une sauvegarde de la base de données est effectuée d'abord. Si la nouvelle version échoue après avoir accédé à la base de données, le site restera indisponible jusqu'à ce que vous restauriez la base de données."
 
 #, fuzzy
 msgid "Downloading Gophenberg %(version)s…"

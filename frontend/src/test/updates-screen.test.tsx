@@ -206,7 +206,8 @@ test('says an update past the minimum version needs the backup above the sentenc
 	await openUpdates({ ...patchWaiting, offer: { ...patchOffer, long_jump: true } })
 
 	const warning = await paragraph(
-		'This update needs a backup of the database, and the site stays down if the new version does not start.',
+		'This update needs a backup of the database. ' +
+			'The site stays down if the new version fails after it reaches the database.',
 	)
 	const offer = await paragraph('You can update from Gophenberg 0.20.0 to Gophenberg 0.20.1 manually:')
 
