@@ -137,7 +137,7 @@ func MarkDatabaseReached(settings Settings, running string) error {
 	if settings.Root == "" {
 		return nil
 	}
-	layout := Layout{Root: settings.Root}
+	layout := settings.Layout()
 	state, unlock, err := layout.lockedState()
 	if err != nil {
 		return err
