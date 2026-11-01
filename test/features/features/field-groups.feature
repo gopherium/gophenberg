@@ -148,6 +148,12 @@ Feature: Grouping fields and placing them by rule
     And the administrator lists the field groups
     Then the group "Article facts" is listed
 
+  Scenario: An import whose new default type would use a route word in use is refused with its own code
+    Given the type "recipe" labeled "Recipe" and "Recipes" under "recipes"
+    And the site's file brings the default type "chapter" labeled "Chapter" and "Recipes"
+    When the administrator plans the file
+    Then the request is refused with the code "derived_route_word_taken"
+
   Scenario: An import takes nothing away that nobody confirmed
     Given the group "Article details" for "post"
     When the administrator applies a file holding no field groups

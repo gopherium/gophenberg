@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/server"
 )
 
@@ -168,6 +169,55 @@ func TestDefinitionsImportTakesADescriptionOnAType(t *testing.T) {
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+}
+
+func TestDefinitionsImportNamesTheTypeWhoseWordIsTaken(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name  string
+		file  string
+		code  string
+		label string
+	}{
+		{
+			name: "derived",
+			file: `"plural_label":"Recipes","page_kind":"single","default":true`,
+			code: "derived_route_word_taken", label: "Recipes",
+		},
+		{
+			name: "stated",
+			file: `"plural_label":"Chapters","route_word":"recipes","page_kind":"single"`,
+			code: "stated_route_word_taken", label: "Chapters",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			handler, _, types, _ := typedPostServer(t)
+			types.register(content.Type{
+				Key: "recipe", SingularLabel: "Recipe", PluralLabel: "Recipes", RouteWord: "recipes",
+				PageKind: content.PageKindSingle, Active: true,
+			})
+			body := `{"format":"1.0.0","types":[{"key":"chapter","singular_label":"Chapter",` +
+				test.file + `,"active":true}],"groups":[]}`
+			for _, path := range []string{importPath, applyPath} {
+				recorder := doRequest(t, handler, http.MethodPost, path, body)
+				if recorder.Code != http.StatusUnprocessableEntity {
+					t.Fatalf("POST %s status = %d: %s", path, recorder.Code, recorder.Body.String())
+				}
+				answered := decodeBody[struct {
+					Code string         `json:"code"`
+					Meta map[string]any `json:"meta"`
+				}](t, recorder)
+				if answered.Code != test.code {
+					t.Errorf("POST %s code = %q, want %q", path, answered.Code, test.code)
+				}
+				if answered.Meta["type"] != "chapter" || answered.Meta["name"] != test.label || answered.Meta["word"] != "recipes" {
+					t.Errorf("POST %s meta = %v, want the chapter type, %q and the word recipes", path, answered.Meta, test.label)
+				}
+			}
+		})
 	}
 }
 

@@ -121,6 +121,29 @@ test('names the type and the route word a hand over would give it', () => {
 	)
 })
 
+test.each([
+	{
+		change: 'a different plural name when an import derives a taken route word',
+		code: 'derived_route_word_taken',
+		name: 'Recipes',
+		advice: 'Change its plural name and try again.',
+	},
+	{
+		change: 'a different route word when an import states a taken one',
+		code: 'stated_route_word_taken',
+		name: 'Chapters',
+		advice: 'Pick a different route word.',
+	},
+])('asks for $change', ({ code, name, advice }) => {
+	const held = errorText({
+		error: `content: route word taken: "${name}" would answer under "recipes"`,
+		code,
+		meta: { type: 'chapter', name, word: 'recipes' },
+	})
+
+	expect(held).toBe(`${name} (chapter) would use /recipes, which another content type already uses. ${advice}`)
+})
+
 test('names the address no item can answer at', () => {
 	const held = errorText({
 		error: 'content: the address is reserved: "page/2"',

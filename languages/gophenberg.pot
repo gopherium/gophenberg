@@ -139,6 +139,12 @@ msgstr ""
 msgid "%(name)s %(version)s is serving the public site."
 msgstr ""
 
+msgid "%(name)s (%(type)s) would use /%(word)s, which another content type already uses. Change its plural name and try again."
+msgstr ""
+
+msgid "%(name)s (%(type)s) would use /%(word)s, which another content type already uses. Pick a different route word."
+msgstr ""
+
 msgid "%(name)s belongs to the site now."
 msgstr ""
 

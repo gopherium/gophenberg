@@ -68,8 +68,8 @@ func Apply(ctx context.Context, registry *content.Registry, asked Import) (Outco
 		outcome: Outcome{Applied: []Change{}, Skipped: []Change{}},
 	}
 	for _, stage := range []func(context.Context) error{
-		held.refresh, held.settle, held.heldBack, held.standing, held.leaving,
-		held.types, held.refresh, held.groups, held.refresh, held.vacated, held.refresh, held.fields,
+		held.refresh, held.settle, held.heldBack, held.standing, held.types,
+		held.leaving, held.refresh, held.groups, held.refresh, held.vacated, held.refresh, held.fields,
 		held.refresh, held.conditions, held.removals, held.refresh, held.orders,
 	} {
 		if err := stage(ctx); err != nil {

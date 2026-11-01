@@ -54,7 +54,50 @@ func validateTypes(declared []TypeDefinition, stored []content.Type) error {
 			rooted = true
 		}
 	}
+	return validateRouteWords(declared, stored)
+}
+
+// wordHolder is the type holding a route word and the declaration that derived the word, when one did.
+type wordHolder struct {
+	key     string
+	derived *TypeDefinition
+}
+
+// validateRouteWords returns the first reason a type could not take its route word in the order Apply writes them.
+func validateRouteWords(declared []TypeDefinition, stored []content.Type) error {
+	words := make(map[string]wordHolder, len(stored)+len(declared))
+	for _, held := range stored {
+		words[held.RouteWord] = wordHolder{key: held.Key}
+	}
+	for i, d := range declared {
+		held, found := typeAmong(stored, d.Key)
+		wanted := importedAs(d, found)
+		if found && wanted.Default != held.Default {
+			wanted = beside(wanted, held, ActionUpdate)
+		}
+		if err := routeWordConflict(words[wanted.RouteWord], wanted, d, found); err != nil {
+			return err
+		}
+		delete(words, held.RouteWord)
+		claim := wordHolder{key: wanted.Key}
+		if !found && d.Default {
+			claim.derived = &declared[i]
+		}
+		words[wanted.RouteWord] = claim
+	}
 	return nil
+}
+
+// routeWordConflict returns the reason another type already answers under the word, or nothing when it is free.
+func routeWordConflict(holder wordHolder, wanted content.Type, declared TypeDefinition, found bool) error {
+	if holder.key == "" || holder.key == wanted.Key {
+		return nil
+	}
+	taken := content.StatedRouteWordTaken(wanted)
+	if holder.derived != nil {
+		return importFailure(*holder.derived, false, taken)
+	}
+	return importFailure(declared, found, taken)
 }
 
 // siteOwns returns the reason a stored type is not the site's to import over, or nothing when it is.
@@ -75,16 +118,20 @@ func importedAs(d TypeDefinition, found bool) content.Type {
 	return beside(wanted, content.Type{}, ActionCreate)
 }
 
-// importFailure returns the error the import carries, naming the type and the derived word when the CMS keeps it.
+// importFailure returns the error the import carries, naming the type and the derived word the CMS or a type holds.
 func importFailure(d TypeDefinition, found bool, err error) error {
-	if !errors.Is(err, content.ErrRouteWordReserved) {
-		return err
-	}
 	if found || !d.Default {
 		return err
 	}
 	wanted := importedAs(d, found)
-	return content.DerivedRouteWordReserved(wanted.Key, wanted.PluralLabel, wanted.RouteWord)
+	switch {
+	case errors.Is(err, content.ErrRouteWordReserved):
+		return content.DerivedRouteWordReserved(wanted)
+	case errors.Is(err, content.ErrRouteWordTaken):
+		return content.DerivedRouteWordTaken(wanted)
+	default:
+		return err
+	}
 }
 
 // typeFrom returns the content type the declaration stands for.

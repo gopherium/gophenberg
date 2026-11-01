@@ -2,7 +2,10 @@
 
 package content
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Details holds the parts of an error a client reads as data rather than as prose.
 type Details map[string]any
@@ -28,6 +31,27 @@ func (e *Error) Unwrap() error {
 // Refuse returns the sentinel carrying its condition code, its message and the details a client reads.
 func Refuse(err error, code, message string, held Details) error {
 	return &Error{Err: err, Code: code, Message: message, Held: held}
+}
+
+// DerivedRouteWordTaken returns the error naming the type and the derived route word another type holds.
+func DerivedRouteWordTaken(t Type) error {
+	return Refuse(ErrRouteWordTaken, "derived_route_word_taken",
+		fmt.Sprintf("%s: %q would answer under %q", ErrRouteWordTaken, t.PluralLabel, t.RouteWord),
+		Details{"type": t.Key, "name": t.PluralLabel, "word": t.RouteWord})
+}
+
+// StatedRouteWordTaken returns the error naming the type and the route word it states another type holds.
+func StatedRouteWordTaken(t Type) error {
+	return Refuse(ErrRouteWordTaken, "stated_route_word_taken",
+		fmt.Sprintf("%s: %q would answer under %q", ErrRouteWordTaken, t.PluralLabel, t.RouteWord),
+		Details{"type": t.Key, "name": t.PluralLabel, "word": t.RouteWord})
+}
+
+// DerivedRouteWordReserved returns the error naming the type and the derived route word the CMS keeps.
+func DerivedRouteWordReserved(t Type) error {
+	return Refuse(ErrRouteWordReserved, "derived_route_word_reserved",
+		fmt.Sprintf("%s: %q would answer under %q", ErrRouteWordReserved, t.PluralLabel, t.RouteWord),
+		Details{"type": t.Key, "name": t.PluralLabel, "word": t.RouteWord})
 }
 
 // CodeOf returns the condition code an error names, reporting false when it names none.

@@ -50,7 +50,7 @@ func TestImportRefusesANewRootTypeWhoseLabelGivesAReservedWord(t *testing.T) {
 				t.Errorf("Apply() error = %v, want %v", applyErr, content.ErrRouteWordReserved)
 			}
 			for call, err := range map[string]error{"Compare": compareErr, "Apply": applyErr} {
-				namesTheDerivedWord(t, call, err, test.label, test.word)
+				namesTheDerivedWord(t, call, err, "derived_route_word_reserved", test.label, test.word)
 			}
 			if _, found := storedGroup(t, registry, "recipe-details"); !found {
 				t.Errorf("the recipe group is gone, want the refused import to have taken nothing")
@@ -59,11 +59,11 @@ func TestImportRefusesANewRootTypeWhoseLabelGivesAReservedWord(t *testing.T) {
 	}
 }
 
-// namesTheDerivedWord fails the case unless the error names the chapter type, its plural label and the word it gives.
-func namesTheDerivedWord(t *testing.T, call string, err error, label, word string) {
+// namesTheDerivedWord fails the case unless the error carries the code and names the chapter type, label and word.
+func namesTheDerivedWord(t *testing.T, call string, err error, want, label, word string) {
 	t.Helper()
-	if code, _ := content.CodeOf(err); code != "derived_route_word_reserved" {
-		t.Errorf("%s() code = %q, want derived_route_word_reserved", call, code)
+	if code, _ := content.CodeOf(err); code != want {
+		t.Errorf("%s() code = %q, want %q", call, code, want)
 	}
 	if held, _ := content.DetailsOf(err); held["type"] != "chapter" || held["name"] != label || held["word"] != word {
 		t.Errorf("%s() details = %v, want the type chapter named %q and the word %q", call, held, label, word)
