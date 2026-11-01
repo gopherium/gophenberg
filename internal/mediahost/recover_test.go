@@ -58,7 +58,7 @@ func TestRecoverDeletesTheFilesOfAnUploadThatWasNeverSaved(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
-	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 2400, 1600))
+	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 400, 300))
 
 	deleted, err := library.Recover(t.Context(), soon(), nothingSaved)
 
@@ -79,7 +79,7 @@ func TestRecoverLeavesTheFilesOfAFinishedItem(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
-	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 2400, 1600))
+	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 400, 300))
 	library.Finish(m)
 
 	deleted, err := library.Recover(t.Context(), soon(), nothingSaved)
@@ -98,7 +98,7 @@ func TestRecoverKeepsAnItemSavedBeforeItsUploadWasMarkedFinished(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
-	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 2400, 1600))
+	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 400, 300))
 
 	deleted, err := library.Recover(t.Context(), soon(), savedAs(m.File))
 
@@ -119,7 +119,7 @@ func TestRecoverLeavesAnUploadNotedAfterTheCutoff(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
-	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 2400, 1600))
+	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 400, 300))
 
 	deleted, err := library.Recover(t.Context(), time.Now().Add(-time.Hour), nothingSaved)
 
@@ -135,7 +135,7 @@ func TestRecoverAsksAboutEachItemOnce(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
-	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 2400, 1600))
+	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 400, 300))
 	var asked []string
 
 	_, err := library.Recover(t.Context(), soon(), func(_ context.Context, files []string) (map[string]bool, error) {
@@ -158,7 +158,7 @@ func TestRecoverTouchesNothingWhenItCannotAskWhatIsSaved(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
-	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 2400, 1600))
+	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 400, 300))
 	errStoreDown := errors.New("the store is down")
 
 	deleted, err := library.Recover(t.Context(), soon(), func(context.Context, []string) (map[string]bool, error) {
@@ -274,7 +274,7 @@ func TestRemoveLeavesNoNoteForRecoverToFind(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
-	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 2400, 1600))
+	m := mustIngest(t, library, "harbor.jpg", jpegImage(t, 400, 300))
 	if err := library.Remove(m); err != nil {
 		t.Fatalf("Remove() error = %v, want nil", err)
 	}

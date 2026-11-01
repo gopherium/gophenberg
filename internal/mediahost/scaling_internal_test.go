@@ -191,7 +191,7 @@ func TestThumbnailComesFromTheCopyWhileItsShortSideHoldsOne(t *testing.T) {
 		width, height int
 		fromCopy      bool
 	}{
-		"a wide copy":           {3000, 2000, true},
+		"a wide copy":           {3000, 500, true},
 		"a copy of exactly 150": {2730, 160, true},
 		"a copy under 150":      {3000, 160, false},
 	}
@@ -214,7 +214,7 @@ func TestSmallSizesReadTheCopyAndNeverTheUpload(t *testing.T) {
 	t.Parallel()
 
 	var reads atomic.Int64
-	upload := newSource(countedPicture{image.NewRGBA(image.Rect(0, 0, 2700, 400)), &reads}, 1)
+	upload := newSource(countedPicture{image.NewRGBA(image.Rect(0, 0, 2700, 170)), &reads}, 1)
 	out, s := fullSubSize(sizingOf(upload))
 	if reads.Load() == 0 {
 		t.Fatal("the copy read nothing from the upload, want it drawn from there")

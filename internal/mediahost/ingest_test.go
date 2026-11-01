@@ -31,10 +31,10 @@ func newLibrary(t *testing.T) *mediahost.Library {
 	return mediahost.New(mediahost.Config{Dir: t.TempDir()})
 }
 
-// budgetedLibrary returns a library over a fresh directory that names a budget of two million pixels.
+// budgetedLibrary returns a library over a fresh directory that names a budget of twenty thousand pixels.
 func budgetedLibrary(t *testing.T) *mediahost.Library {
 	t.Helper()
-	return mediahost.New(mediahost.Config{Dir: t.TempDir(), MaxPixels: 2_000_000})
+	return mediahost.New(mediahost.Config{Dir: t.TempDir(), MaxPixels: 20_000})
 }
 
 // mustIngest stores an upload and returns the media item it produced.
@@ -159,7 +159,7 @@ func TestIngestStoresAPhotoWithSubSizes(t *testing.T) {
 
 	library := newLibrary(t)
 	author := uuid.Must(uuid.NewV7())
-	photo := jpegImage(t, 2400, 1600)
+	photo := jpegImage(t, 1200, 800)
 
 	m, err := library.Ingest(t.Context(), "Harbor.JPG", photo, author)
 
@@ -175,8 +175,8 @@ func TestIngestStoresAPhotoWithSubSizes(t *testing.T) {
 	if !monthPath.MatchString(m.File) || filepath.Base(m.File) != "harbor.jpg" {
 		t.Errorf("File = %q, want harbor.jpg under a year and month directory", m.File)
 	}
-	if m.Width != 2400 || m.Height != 1600 {
-		t.Errorf("measures %dx%d, want 2400x1600", m.Width, m.Height)
+	if m.Width != 1200 || m.Height != 800 {
+		t.Errorf("measures %dx%d, want 1200x800", m.Width, m.Height)
 	}
 	if m.Filesize != int64(len(photo)) {
 		t.Errorf("Filesize = %d, want the upload size %d", m.Filesize, len(photo))
@@ -187,14 +187,14 @@ func TestIngestStoresAPhotoWithSubSizes(t *testing.T) {
 	wantSubSizes(t, library, m)
 }
 
-// wantSubSizes asserts the 2400x1600 photo derived its four sub-sizes.
+// wantSubSizes asserts the 1200x800 photo derived its four sub-sizes.
 func wantSubSizes(t *testing.T, library *mediahost.Library, m media.Media) {
 	t.Helper()
 	if len(m.Sizes) != 4 {
 		t.Fatalf("Sizes = %v, want thumbnail, medium, large and full", m.Sizes)
 	}
-	if full := m.Sizes["full"]; full.File != m.File || full.Width != 2400 || full.Height != 1600 {
-		t.Errorf("full = %+v, want the original file at 2400x1600", full)
+	if full := m.Sizes["full"]; full.File != m.File || full.Width != 1200 || full.Height != 800 {
+		t.Errorf("full = %+v, want the original file at 1200x800", full)
 	}
 	thumb := m.Sizes["thumbnail"]
 	if thumb.Width != 150 || thumb.Height != 150 {
@@ -221,7 +221,7 @@ func TestIngestScalesAnOversizedPhoto(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
-	photo := jpegImage(t, 3000, 2000)
+	photo := jpegImage(t, 3000, 500)
 
 	m := mustIngest(t, library, "cliff.jpg", photo)
 
@@ -232,11 +232,11 @@ func TestIngestScalesAnOversizedPhoto(t *testing.T) {
 	if filepath.Base(full.File) != "cliff-scaled.jpg" {
 		t.Errorf("full = %q, want cliff-scaled.jpg beside the original", full.File)
 	}
-	if full.Width != 2560 || full.Height != 1707 {
-		t.Errorf("full measures %dx%d, want 2560x1707", full.Width, full.Height)
+	if full.Width != 2560 || full.Height != 427 {
+		t.Errorf("full measures %dx%d, want 2560x427", full.Width, full.Height)
 	}
-	if m.Width != 3000 || m.Height != 2000 {
-		t.Errorf("the item measures %dx%d, want the original 3000x2000", m.Width, m.Height)
+	if m.Width != 3000 || m.Height != 500 {
+		t.Errorf("the item measures %dx%d, want the original 3000x500", m.Width, m.Height)
 	}
 	if !bytes.Equal(storedBytes(t, library, m.File), photo) {
 		t.Errorf("the original file was rewritten, want it byte for byte the upload")
@@ -274,12 +274,12 @@ func TestIngestKeepsALargeSidewaysUploadAsSent(t *testing.T) {
 	t.Parallel()
 
 	library := newLibrary(t)
-	photo := orientedJPEG(t, 6, 3000, 2000)
+	photo := orientedJPEG(t, 6, 3000, 500)
 
 	m := mustIngest(t, library, "cliff.jpg", photo)
 
-	if m.Width != 2000 || m.Height != 3000 {
-		t.Errorf("measures %dx%d, want the sideways photo upright at 2000x3000", m.Width, m.Height)
+	if m.Width != 500 || m.Height != 3000 {
+		t.Errorf("measures %dx%d, want the sideways photo upright at 500x3000", m.Width, m.Height)
 	}
 	if !bytes.Equal(storedBytes(t, library, m.File), photo) {
 		t.Errorf("the original file was rewritten, want it byte for byte the upload")
@@ -288,14 +288,14 @@ func TestIngestKeepsALargeSidewaysUploadAsSent(t *testing.T) {
 		t.Errorf("full = %q, want cliff-scaled.jpg", m.Sizes["full"].File)
 	}
 	wantSizes(t, library, m, map[string][2]int{
-		"full": {1707, 2560}, "large": {683, 1024}, "medium": {200, 300}, "thumbnail": {150, 150},
+		"full": {427, 2560}, "large": {171, 1024}, "medium": {50, 300}, "thumbnail": {150, 150},
 	})
 }
 
 func TestIngestPlacesEveryOrientationUprightInEverySize(t *testing.T) {
 	t.Parallel()
 
-	for _, shape := range [][2]int{{2600, 400}, {400, 200}, {400, 2600}, {3000, 160}} {
+	for _, shape := range [][2]int{{2600, 170}, {400, 200}, {170, 2600}, {3000, 160}} {
 		for orientation := uint16(1); orientation <= 8; orientation++ {
 			t.Run(fmt.Sprintf("%dx%d turned %d", shape[0], shape[1], orientation), func(t *testing.T) {
 				t.Parallel()
@@ -358,7 +358,7 @@ func TestIngestDrawsNoScaledCopyOfAPhotoAtTheBound(t *testing.T) {
 		orientation   uint16
 		width, height int
 		full          string
-	}{{1, 2560, 300, "shape.jpg"}, {6, 300, 2560, "shape-rotated.jpg"}}
+	}{{1, 2560, 40, "shape.jpg"}, {6, 40, 2560, "shape-rotated.jpg"}}
 	for _, tc := range cases {
 		library := newLibrary(t)
 
@@ -666,13 +666,13 @@ func TestIngestRefusesAPictureOverTheBudgetTheLibraryNames(t *testing.T) {
 
 	library := budgetedLibrary(t)
 
-	_, err := library.Ingest(t.Context(), "wide.png", pixelSizedPNG(2000, 1001), uuid.Must(uuid.NewV7()))
+	_, err := library.Ingest(t.Context(), "wide.png", pixelSizedPNG(200, 101), uuid.Must(uuid.NewV7()))
 
 	var refused *mediahost.Error
 	if !errors.As(err, &refused) || refused.Code != "image_pixel_budget_exceeded" {
 		t.Fatalf("error = %v, want it refused with the code image_pixel_budget_exceeded", err)
 	}
-	if want := map[string]any{"width": 2000, "height": 1001, "max": 2_000_000}; !maps.Equal(refused.Meta, want) {
+	if want := map[string]any{"width": 200, "height": 101, "max": 20_000}; !maps.Equal(refused.Meta, want) {
 		t.Errorf("meta = %v, want %v", refused.Meta, want)
 	}
 	wantEmptyDir(t, library)
@@ -681,13 +681,13 @@ func TestIngestRefusesAPictureOverTheBudgetTheLibraryNames(t *testing.T) {
 func TestIngestTakesAPictureExactlyAtTheBudgetTheLibraryNames(t *testing.T) {
 	t.Parallel()
 
-	m, err := budgetedLibrary(t).Ingest(t.Context(), "field.png", pngImage(t, 2000, 1000), uuid.Must(uuid.NewV7()))
+	m, err := budgetedLibrary(t).Ingest(t.Context(), "field.png", pngImage(t, 200, 100), uuid.Must(uuid.NewV7()))
 
 	if err != nil {
 		t.Fatalf("Ingest() error = %v, want the picture stored", err)
 	}
-	if m.Width != 2000 || m.Height != 1000 {
-		t.Errorf("stored %dx%d, want 2000x1000", m.Width, m.Height)
+	if m.Width != 200 || m.Height != 100 {
+		t.Errorf("stored %dx%d, want 200x100", m.Width, m.Height)
 	}
 }
 
@@ -695,7 +695,7 @@ func TestIngestRefusesAnAnimationFrameOverTheBudgetTheLibraryNames(t *testing.T)
 	t.Parallel()
 
 	library := budgetedLibrary(t)
-	animation := withFrameOf(t, animatedGIF(t), 1500, 1500)
+	animation := withFrameOf(t, animatedGIF(t), 150, 150)
 
 	_, err := library.Ingest(t.Context(), "loader.gif", animation, uuid.Must(uuid.NewV7()))
 
@@ -703,7 +703,7 @@ func TestIngestRefusesAnAnimationFrameOverTheBudgetTheLibraryNames(t *testing.T)
 	if !errors.As(err, &refused) || refused.Code != "image_frame_too_large" {
 		t.Fatalf("error = %v, want it refused with the code image_frame_too_large", err)
 	}
-	if want := map[string]any{"max": 2_000_000}; !maps.Equal(refused.Meta, want) {
+	if want := map[string]any{"max": 20_000}; !maps.Equal(refused.Meta, want) {
 		t.Errorf("meta = %v, want %v", refused.Meta, want)
 	}
 	wantEmptyDir(t, library)
@@ -906,7 +906,7 @@ func TestIngestHandlesPortraitAndExtremeShapes(t *testing.T) {
 
 	library := newLibrary(t)
 
-	portrait := mustIngest(t, library, "tower.jpg", jpegImage(t, 1600, 2400))
+	portrait := mustIngest(t, library, "tower.jpg", jpegImage(t, 400, 600))
 	if medium := portrait.Sizes["medium"]; medium.Width != 200 || medium.Height != 300 {
 		t.Errorf("portrait medium measures %dx%d, want 200x300", medium.Width, medium.Height)
 	}

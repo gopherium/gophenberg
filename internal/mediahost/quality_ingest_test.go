@@ -47,7 +47,7 @@ func subSizeBytes(t *testing.T, settings mediahost.Settings, photo []byte) map[s
 func TestIngestEncodesAtTheQualityTheSiteChose(t *testing.T) {
 	t.Parallel()
 
-	photo := jpegImage(t, 2400, 1600)
+	photo := jpegImage(t, 1200, 800)
 
 	lean := subSizeBytes(t, chosenQuality{held: "30", found: true}, photo)
 	rich := subSizeBytes(t, nil, photo)
