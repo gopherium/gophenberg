@@ -2,15 +2,15 @@
 
 import { InputControl } from '@gophenberg/frontend-sdk'
 import type { RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
-import { FormBody, markLatest, useCloseWhileOpen, useToaster } from '@gopherium/godmin'
-import type { UnsavedText } from '@gopherium/godmin'
+import { FormBody, markLatest, useCloseWhileOpen } from '@gopherium/godmin'
+import type { BulkRun, UnsavedText } from '@gopherium/godmin'
 import { useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useState } from 'react'
 
+import { oneWriteWords } from '../lists/itemWords'
 import { RenameModal } from '../lists/RenameModal'
-import { useRefresh } from './actions'
 import { createPost, fetchPost, renamePost } from './api'
 import type { Post } from './api'
 import { shownValues } from './conditions'
@@ -46,17 +46,18 @@ async function duplicated(client: QueryClient, post: Post, title: string, declar
 interface PostModalProps extends RenderModalProps<Post> {
 	/** The text failed writes left unsaved, offered again when the modal opens for the same item. */
 	unsaved: UnsavedText
+	/** Runs the write over the item, the list reloading once it ended. */
+	run: BulkRun<Post>
 }
 
 /**
  * Renders the modal copying one item into a new draft under the title given.
- * @param props - The item, the handler closing the modal and the unsaved titles.
+ * @param props - The item, the handler closing the modal, the unsaved titles and the run.
  * @returns The duplicate form.
  */
-export function DuplicateModal({ items: [post], closeModal, unsaved }: PostModalProps) {
+export function DuplicateModal({ items, closeModal, unsaved, run }: PostModalProps) {
+	const [post] = items
 	const client = useQueryClient()
-	const refresh = useRefresh()
-	const toaster = useToaster()
 	const { fields } = useContentType()
 	const [title, setTitle] = useState(
 		() => unsaved.get(post.id) ?? sprintf(_x('%s (Copy)', 'post', 'gophenberg'), post.title),
@@ -66,23 +67,21 @@ export function DuplicateModal({ items: [post], closeModal, unsaved }: PostModal
 	const duplicate = () => {
 		setBusy(true)
 		const stillLatest = markLatest(unsaved, post.id)
-		void duplicated(client, post, title, fields)
-			.then(
-				async () => {
+		const write = () =>
+			duplicated(client, post, title, fields).then(
+				() => {
 					if (stillLatest()) {
 						unsaved.delete(post.id)
 					}
-					await refresh()
-					toaster.show(sprintf(__('"%s" successfully created.', 'gophenberg'), title))
 				},
-				(failure: Error) => {
+				(failure: unknown) => {
 					if (stillLatest()) {
 						unsaved.set(post.id, title)
 					}
-					toaster.show(failure.message)
+					throw failure
 				},
 			)
-			.finally(close)
+		void run(items, write, oneWriteWords(sprintf(__('"%s" successfully created.', 'gophenberg'), title))).finally(close)
 	}
 	return (
 		<FormBody
@@ -112,19 +111,17 @@ async function renamed(client: QueryClient, post: Post, title: string): Promise<
 
 /**
  * Renders the modal writing a new title for one item, closed the moment Save is pressed, its failure in a toast.
- * @param props - The item, the handler closing the modal and the unsaved titles.
+ * @param props - The item, the handler closing the modal, the unsaved titles and the run.
  * @returns The rename form.
  */
 export function RenamePostModal(props: PostModalProps) {
 	const client = useQueryClient()
-	const refresh = useRefresh()
 	return (
 		<RenameModal
 			{...props}
 			nameOf={(post) => post.title}
 			idOf={(post) => post.id}
 			rename={(post, title) => holdWrite(client, post.id, renamed(client, post, title))}
-			refresh={(post) => refresh([post.id])}
 		/>
 	)
 }

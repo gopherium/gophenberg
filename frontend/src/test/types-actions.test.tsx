@@ -10,6 +10,7 @@ import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import { typesQueryKey } from '../content/nav'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
+import { expectUnmarked, holdReads, waitMarked } from './reloads'
 import { renderAt } from './render'
 import {
 	GUIDE_TYPE,
@@ -639,6 +640,77 @@ test('lands the focus on the list once Make default takes the type out of the fi
 	await findToast('Default content type updated.')
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 	await waitListFocused()
+})
+
+test('shows the toast of a saved description, then marks the list until the registry answers', async () => {
+	recordEdits(PAGE_TYPE)
+	renderAt('/content-types')
+	const dialog = await openRowDialog('Pages', 'Describe…')
+	await retype(dialog, 'Description', 'Every section this site keeps.')
+	holdReads('/api/types')
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+	await findToast('Description updated.')
+	await waitMarked()
+})
+
+test('marks nothing when a description could not be saved', async () => {
+	refuseEdits(PAGE_TYPE)
+	renderAt('/content-types')
+	await describeAs('Pages', 'Every section this site keeps.')
+
+	await findToast(/content/)
+
+	expectUnmarked()
+})
+
+test('shows the toast of a nesting switch, then marks the list until the registry answers', async () => {
+	recordEdits(PAGE_TYPE)
+	renderAt('/content-types')
+	await openRowMenu('Pages')
+	holdReads('/api/types')
+
+	await userEvent.click(screen.getByRole('menuitem', { name: 'Stop nesting' }))
+
+	await findToast('Content type updated.')
+	await waitMarked()
+})
+
+test('closes Make default as its toast shows and marks the list until the registry answers', async () => {
+	recordEdits(PAGE_TYPE)
+	renderAt('/content-types')
+	const dialog = await openRowDialog('Pages', 'Make default…')
+	holdReads('/api/types')
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Make default' }))
+
+	await findToast('Default content type updated.')
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitMarked()
+})
+
+test('puts the focus back on the row menu once a saved description leaves the type on the page', async () => {
+	recordEdits(PAGE_TYPE)
+	renderAt('/content-types')
+
+	await describeAs('Pages', 'Every section this site keeps.')
+
+	await findToast('Description updated.')
+	const row = await rowOf('Pages')
+	await waitFor(() => expect(row.getByRole('button', { name: 'Actions' })).toHaveFocus())
+})
+
+test('puts the focus back on the row menu once a nesting switch leaves the type on the page', async () => {
+	recordEdits(PAGE_TYPE)
+	renderAt('/content-types')
+	await openRowMenu('Pages')
+
+	await userEvent.click(screen.getByRole('menuitem', { name: 'Stop nesting' }))
+
+	await findToast('Content type updated.')
+	const row = await rowOf('Pages')
+	await waitFor(() => expect(row.getByRole('button', { name: 'Actions' })).toHaveFocus())
 })
 
 test('lands the focus on the list once a saved description takes the type out of the search', async () => {

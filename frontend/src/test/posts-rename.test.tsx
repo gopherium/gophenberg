@@ -10,6 +10,7 @@ import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import { heldWrites, holdWrite } from '../content/postWrites'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
+import { expectUnmarked, holdReads, waitMarked } from './reloads'
 import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
 import { warmPostsScreen } from './warm'
@@ -244,6 +245,37 @@ test('says Name updated, closes the dialog and reads the list again', async () =
 	expect(await screen.findByText('Name updated.', { selector: '.godmin-toast' })).toBeInTheDocument()
 	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 	expect(listings).toBeGreaterThan(before)
+})
+
+test('says Name updated as the write ends and marks the list until the rows come back', async () => {
+	renderAt('/content/post')
+	const dialog = await openRename()
+	holdReads('/api/content')
+
+	await renameTo(dialog, 'A New Welcome')
+
+	await screen.findByText('Name updated.', { selector: '.godmin-toast' })
+	await waitMarked()
+})
+
+test('marks nothing when the rename was refused', async () => {
+	refuseRenames()
+	renderAt('/content/post')
+
+	await renameTo(await openRename(), 'A New Welcome')
+
+	await screen.findByText(TRASHED_REASON, { selector: '.godmin-toast' })
+	expectUnmarked()
+})
+
+test('puts the focus back on the row menu the rename opened from once the rows came back', async () => {
+	renderAt('/content/post')
+
+	await renameTo(await openRename(), 'A New Welcome')
+
+	await screen.findByText('Name updated.', { selector: '.godmin-toast' })
+	const row = within((await screen.findByRole('link', { name: PUBLISHED.title })).closest('tr') as HTMLElement)
+	await waitFor(() => expect(row.getByRole('button', { name: 'Actions' })).toHaveFocus())
 })
 
 test('opens the editor on the new name after a rename from the list, not on a copy read before it', async () => {

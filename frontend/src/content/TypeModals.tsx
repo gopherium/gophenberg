@@ -3,60 +3,52 @@
 import { InputControl, Text } from '@gophenberg/frontend-sdk'
 import type { RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
 import { FormBody, RunConfirm, markLatest, useCloseWhileOpen, useToaster } from '@gopherium/godmin'
-import type { UnsavedText } from '@gopherium/godmin'
+import type { BulkRun, ListRun, UnsavedText } from '@gopherium/godmin'
 import { FormDialog } from '@gopherium/godmin/dialogs'
 import { useQueryClient } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useState } from 'react'
 
+import { oneWriteWords } from '../lists/itemWords'
 import { typesQueryKey } from './nav'
 import { pluralOf } from './typeText'
 import { createType, slugifyKey } from './types'
 import type { ContentType, NewType, TypeEdit } from './types'
 import { editInTurn, refreshTypes } from './typeWrites'
 
-/** Runs a write over types on the list, moving the focus to the list once a type it reached left the page on show. */
-export type RunOnList = (types: ContentType[], write: () => Promise<unknown>) => Promise<void>
-
 /** What a row form of the types list takes beside the props DataViews hands a modal. */
 export interface TypeFormProps extends RenderModalProps<ContentType> {
 	/** The text failed writes left unsaved, offered again when the form opens for the same type. */
 	unsaved: UnsavedText
-	/** Runs the write on the list, so the focus finds the list when the type leaves the page on show. */
-	runOnList: RunOnList
+	/** Runs the write over the type, the list reloading once it ended. */
+	run: BulkRun<ContentType>
 }
 
 /**
  * Returns the value a row form edits and its send, which closes the form at once, as WordPress closes a row edit.
- * @param props - The type, the handler closing the modal, the unsaved text and the run on the list.
+ * @param props - The type, the handler closing the modal, the unsaved text and the run.
  * @param stored - The value the type holds now.
  * @param asEdit - Turns the value typed into the edit to send.
  * @param done - The toast once the edit landed.
  * @returns The value, its setter and the send.
  */
 function useRowEdit(props: TypeFormProps, stored: string, asEdit: (value: string) => TypeEdit, done: string) {
-	const { items: [type], closeModal, unsaved, runOnList } = props
+	const { items, closeModal, unsaved, run } = props
+	const [type] = items
 	const client = useQueryClient()
-	const toaster = useToaster()
 	const [value, setValue] = useState(() => unsaved.get(type.key) ?? stored)
+	const write = (stillLatest: () => boolean) =>
+		editInTurn(client, type.key, asEdit(value)).catch((failure: unknown) => {
+			if (stillLatest()) {
+				unsaved.set(type.key, value)
+			}
+			throw failure
+		})
 	const save = () => {
 		closeModal?.()
 		unsaved.delete(type.key)
 		const stillLatest = markLatest(unsaved, type.key)
-		void runOnList([type], () =>
-			editInTurn(client, type.key, asEdit(value)).then(
-				async () => {
-					await refreshTypes(client)
-					toaster.show(done)
-				},
-				(failure: Error) => {
-					if (stillLatest()) {
-						unsaved.set(type.key, value)
-					}
-					toaster.show(failure.message)
-				},
-			),
-		)
+		void run(items, () => write(stillLatest), oneWriteWords(done))
 	}
 	return { value, setValue, save }
 }
@@ -144,33 +136,25 @@ function rootQuestion(type: ContentType, holder: ContentType | undefined): strin
 
 /**
  * Renders the confirm handing the root to a type, busy until the write ends, as WordPress sets a homepage.
- * @param props - The type, the handler closing the modal and the run on the list.
+ * @param props - The type, the handler closing the modal and the run.
  * @returns The confirm, naming the type that held the root in the list on show when the confirm opened.
  */
 export function MakeDefaultModal({
 	items,
 	closeModal,
-	runOnList,
-}: RenderModalProps<ContentType> & { runOnList: RunOnList }) {
+	run,
+}: RenderModalProps<ContentType> & { run: BulkRun<ContentType> }) {
 	const client = useQueryClient()
-	const toaster = useToaster()
 	const [holder] = useState(() => client.getQueryData<ContentType[]>(typesQueryKey)?.find((held) => held.isDefault))
 	const [type] = items
-	const handOver = () =>
-		editInTurn(client, type.key, { isDefault: true }).then(
-			async () => {
-				await refreshTypes(client)
-				toaster.show(__('Default content type updated.', 'gophenberg'))
-			},
-			(failure: Error) => toaster.show(failure.message),
-		)
+	const handOver = () => editInTurn(client, type.key, { isDefault: true })
 	return (
 		<RunConfirm
 			items={items}
 			closeModal={closeModal}
 			confirmLabel={__('Make default', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			run={() => runOnList(items, handOver)}
+			run={() => run(items, handOver, oneWriteWords(__('Default content type updated.', 'gophenberg')))}
 		>
 			{rootQuestion(type, holder)}
 		</RunConfirm>
@@ -185,10 +169,10 @@ const EMPTY_FORM: TypeForm = { singularLabel: '', pluralLabel: '', description: 
 
 /**
  * Renders the dialog registering a new type as WordPress asks for a new pattern, kept open after a failure.
- * @param props - What takes the dialog away.
+ * @param props - What takes the dialog away and what the list does around a reload.
  * @returns The dialog.
  */
-export function AddTypeDialog({ onClose }: { onClose: () => void }) {
+export function AddTypeDialog({ onClose, list }: { onClose: () => void, list: ListRun }) {
 	const client = useQueryClient()
 	const toaster = useToaster()
 	const closeWhileOpen = useCloseWhileOpen(onClose)
@@ -197,9 +181,10 @@ export function AddTypeDialog({ onClose }: { onClose: () => void }) {
 	const add = () =>
 		createType({ ...form, key: slugifyKey(form.singularLabel), routeWord: slugifyKey(form.pluralLabel) }).then(
 			async (created) => {
-				await refreshTypes(client)
 				toaster.show(sprintf(_x('"%s" successfully created.', 'content type', 'gophenberg'), pluralOf(created)))
 				closeWhileOpen()
+				const ended = list.onRefresh()
+				await refreshTypes(client).then(ended, ended)
 			},
 			(failure: Error) => toaster.show(failure.message),
 		)

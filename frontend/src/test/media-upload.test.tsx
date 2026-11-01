@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 import { gate } from './gate'
+import { expectUnmarked, holdReads, waitMarked } from './reloads'
 import { renderAt } from './render'
 import { siteSettings } from './siteSettings'
 
@@ -212,6 +213,45 @@ test('holds Add Media File busy while the files upload', async () => {
 	await waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'true'))
 	held.release()
 	await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled', 'true'))
+})
+
+test('says a file landed as the upload ends and marks the list until the rows come back', async () => {
+	storing()
+	renderAt('/media')
+	await screen.findByText('Harbor at dawn')
+	holdReads('/api/media')
+
+	await choose(file('harbor.jpg'))
+
+	await screen.findByText('"harbor.jpg" uploaded.', { selector: '.godmin-toast' })
+	await waitMarked()
+})
+
+test('ends the busy button before the list reloads', async () => {
+	storing()
+	renderAt('/media')
+	await screen.findByText('Harbor at dawn')
+	holdReads('/api/media')
+
+	await choose(file('harbor.jpg'))
+
+	await waitMarked()
+	const button = screen.getByRole('button', { name: 'Add Media File' })
+	await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled', 'true'))
+})
+
+test('marks nothing when no file landed', async () => {
+	storing()
+	renderAt('/media')
+	await screen.findByText('Harbor at dawn')
+	const seen = listing()
+	const before = seen.reads
+
+	await choose(file('notes.txt'))
+
+	expect(await screen.findByText(REFUSAL)).toBeInTheDocument()
+	expectUnmarked()
+	expect(seen.reads).toBe(before)
 })
 
 test('reloads the library and moves the focus to it once a file landed', async () => {

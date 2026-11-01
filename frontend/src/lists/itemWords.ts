@@ -24,6 +24,15 @@ function reasonOf<Item>(failures: BulkFailure<Item>[]): string {
 }
 
 /**
+ * Returns the words a write to one item reads as.
+ * @param done - The toast once the write landed.
+ * @returns The words for the write that landed and the reason of the one that failed.
+ */
+export function oneWriteWords<Item>(done: string): BulkWords<Item> {
+	return { done: () => done, failed: reasonOf }
+}
+
+/**
  * Returns the words a run over items reads as.
  * @param nameOf - Returns the name an item is listed under.
  * @param sentences - The toasts of the run, the one counting its failures included.

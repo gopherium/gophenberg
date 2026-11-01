@@ -22,7 +22,7 @@ import {
 	useToaster,
 	viewNarrows,
 } from '@gopherium/godmin'
-import type { BulkFailure, BulkWords, OfferedView, Trigger } from '@gopherium/godmin'
+import type { BulkFailure, BulkWords, ListRun, OfferedView, Trigger } from '@gopherium/godmin'
 import { openOnTap, useListView } from '@gopherium/godmin/router'
 import type { ListView } from '@gopherium/godmin/router'
 import { formatNumber } from '@gopherium/gottext'
@@ -126,10 +126,11 @@ function batchNotice(held: UploadBatch): string | undefined {
 
 /**
  * Holds the uploads to the library: a request per file, a toast per upload, one notice per batch running together.
+ * @param list - What the list does around a reload.
  * @param region - The list region focused once a file landed.
  * @returns Whether an upload runs, the notice of the last uploads, and the handler taking the files.
  */
-function useUpload(region: RefObject<HTMLDivElement | null>) {
+function useUpload(list: ListRun, region: RefObject<HTMLDivElement | null>) {
 	const toaster = useToaster()
 	const refresh = useRefreshMedia()
 	const batch = useRef<UploadBatch>({ runs: 0, asked: 0, failures: [] })
@@ -147,17 +148,19 @@ function useUpload(region: RefObject<HTMLDivElement | null>) {
 		setBusy(true)
 		setNotice(undefined)
 		const outcome = await runEach(files, uploadMedia)
-		if (outcome.done > 0) {
-			await refresh()
-		}
 		const toast = bulkNotes(files, outcome, uploadWords()).toast
 		if (toast !== undefined) {
 			toaster.show(toast)
 		}
 		finish(outcome.failures)
-		if (outcome.done > 0 && !focusInDialog()) {
+		if (outcome.done === 0) {
+			return
+		}
+		if (!focusInDialog()) {
 			region.current?.focus()
 		}
+		const reloaded = list.onRefresh()
+		await refresh().then(reloaded, reloaded)
 	}
 	return { busy, notice, upload: (files: File[]) => void upload(files) }
 }
@@ -274,7 +277,7 @@ function openTapped(
  * Renders the items of the library, or the failure of their read.
  * @param props - The page query, the list view, the view the fields draw, the fields, the settings, what the actions
  *   need from the screen, whether the session may change a file, the handler opening a dialog on one, whether an upload
- *   runs and what takes the files.
+ *   runs, what takes the files and whether a write reloads the list.
  * @returns The list, or the failure notice.
  */
 function MediaList(props: {
@@ -288,6 +291,7 @@ function MediaList(props: {
 	open: (opened: OpenedDialog) => void
 	busy: boolean
 	upload: (files: File[]) => void
+	refreshing: boolean
 }) {
 	const actions = useMediaActions(props.tools, props.mayChange, props.open)
 	const { media, list, view } = props
@@ -308,7 +312,7 @@ function MediaList(props: {
 			onChangeSelection={openOnTap(list, openTapped(media.data, props.mayChange, (item) => edit(item, 'row')))}
 			isItemClickable={props.mayChange}
 			onClickItem={(item: MediaItem) => edit(item, focusedTrigger())}
-			isLoading={media.isPending || media.isPlaceholderData}
+			isLoading={media.isPending || media.isPlaceholderData || props.refreshing}
 			getItemId={(item: MediaItem) => String(item.id)}
 			searchLabel={sprintf(__('Search %(type)s…', 'gophenberg'), {
 				type: _x('Media', 'admin section', 'gophenberg').toLowerCase(),
@@ -323,12 +327,12 @@ function MediaList(props: {
  */
 export function MediaScreen() {
 	const { list, fields, view, settings, media } = useMediaList()
-	const { run, region } = useListRun('media', list.onChangeSelection)
+	const { run, region, refreshing } = useListRun('media', list.onChangeSelection)
 	const tools = useMediaTools(run)
 	const mayChange = useMayChange()
 	const [opened, setOpened] = useState<OpenedDialog>()
 	const focusBack = useFocusBack(media.isFetching, region)
-	const { busy, notice, upload } = useUpload(region)
+	const { busy, notice, upload } = useUpload(run, region)
 	const title = _x('Media', 'admin section', 'gophenberg')
 	const uploadLabel = addLabel()
 	return (
@@ -361,6 +365,7 @@ export function MediaScreen() {
 				open={setOpened}
 				busy={busy}
 				upload={upload}
+				refreshing={refreshing}
 			/>
 			<DropZone className="godmin-list-overlay" label={__('Drop files to upload', 'gophenberg')} onFilesDrop={upload} />
 			<OpenMediaDialog opened={opened} tools={tools} onClose={() => setOpened(undefined)} onBack={focusBack} />

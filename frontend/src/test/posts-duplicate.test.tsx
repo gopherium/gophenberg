@@ -8,6 +8,7 @@ import { beforeEach, expect, test, vi } from 'vitest'
 
 import { holdWrite } from '../content/postWrites'
 import { gate } from './gate'
+import { holdReads, waitMarked } from './reloads'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
 import { warmPostsScreen } from './warm'
@@ -267,6 +268,29 @@ test('names the copy in full in a toast, and reads the list again', async () => 
 	expect(await screen.findByText(toast, { selector: '.godmin-toast' })).toBeInTheDocument()
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 	expect(listings).toBeGreaterThan(before)
+})
+
+test('closes the dialog as its toast shows and marks the list until the rows come back', async () => {
+	renderAt('/content/post')
+	const dialog = await openDuplicate()
+	holdReads('/api/content')
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Duplicate' }))
+
+	await screen.findByText('"Welcome to Gophenberg (Copy)" successfully created.', { selector: '.godmin-toast' })
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitMarked()
+})
+
+test('puts the focus back on the row menu the copy opened from once the rows came back', async () => {
+	renderAt('/content/post')
+	const dialog = await openDuplicate()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Duplicate' }))
+
+	await screen.findByText('"Welcome to Gophenberg (Copy)" successfully created.', { selector: '.godmin-toast' })
+	const row = within((await screen.findByRole('link', { name: PUBLISHED.title })).closest('tr') as HTMLElement)
+	await waitFor(() => expect(row.getByRole('button', { name: 'Actions' })).toHaveFocus())
 })
 
 /**

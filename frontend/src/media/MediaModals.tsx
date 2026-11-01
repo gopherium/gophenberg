@@ -3,8 +3,8 @@
 import { InputControl } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
 import type { Form, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
-import { RunConfirm, markLatest, useToaster } from '@gopherium/godmin'
-import type { BulkRun, Trigger, UnsavedText } from '@gopherium/godmin'
+import { RunConfirm, markLatest } from '@gopherium/godmin'
+import type { BulkRun, BulkWords, Trigger, UnsavedText } from '@gopherium/godmin'
 import { FormDialog } from '@gopherium/godmin/dialogs'
 import type { QueryClient } from '@tanstack/react-query'
 import { __ } from '@wordpress/i18n'
@@ -23,10 +23,8 @@ import { saveFailure, titleOf } from './format'
 export interface MediaTools {
 	/** The query client the writes run on. */
 	client: QueryClient
-	/** Reads the library again. */
-	refresh: () => Promise<unknown>
-	/** Runs a call over files that may leave the list. */
-	removals: BulkRun<MediaItem>
+	/** Runs a call over files, the list reloading once the last call ended. */
+	run: BulkRun<MediaItem>
 	/** The fields failed edits left unsaved. */
 	edits: UnsavedText<MediaDescriptions>
 	/** The names failed renames left unsaved, the store the latest write of each file is marked on. */
@@ -117,6 +115,17 @@ function dropKeptTitle(edits: UnsavedText<MediaDescriptions>, id: string) {
 }
 
 /**
+ * Returns the words an edit of a file reads as.
+ * @returns The words for the edit that landed and for the one that failed, naming what kind of file it was.
+ */
+function editWords(): BulkWords<MediaItem> {
+	return {
+		done: () => __('Media file updated.', 'gophenberg'),
+		failed: ([{ item, error }]) => saveFailure(item, (error as Error).message),
+	}
+}
+
+/**
  * Returns the form editing a file and its send, which closes the dialog at once, as WordPress closes a row edit.
  * @param item - The file.
  * @param tools - What the dialog needs from the screen.
@@ -125,7 +134,6 @@ function dropKeptTitle(edits: UnsavedText<MediaDescriptions>, id: string) {
  * @returns The props of the form and the send.
  */
 function useEditMedia(item: MediaItem, tools: MediaTools, close: () => void, settled: () => void) {
-	const toaster = useToaster()
 	const id = String(item.id)
 	const fields = useMemo(() => mediaFields(), [])
 	const [typed, setTyped] = useState<MediaDescriptions>(() => tools.edits.get(id) ?? {})
@@ -137,21 +145,14 @@ function useEditMedia(item: MediaItem, tools: MediaTools, close: () => void, set
 		}
 		const stillLatest = markLatest(tools.renames, id)
 		const unreached = __('The server could not be reached, so nothing was saved.', 'gophenberg')
-		void editInTurn(tools.client, item, typed, unreached).then(
-			async () => {
-				await tools.refresh()
-				settled()
-				toaster.show(__('Media file updated.', 'gophenberg'))
-			},
-			async (failure: Error) => {
+		const write = () =>
+			editInTurn(tools.client, item, typed, unreached).catch((failure: unknown) => {
 				if (stillLatest()) {
 					tools.edits.set(id, typed)
 				}
-				await tools.refresh()
-				settled()
-				toaster.show(saveFailure(item, failure.message))
-			},
-		)
+				throw failure
+			})
+		void tools.run([item], write, editWords()).then(settled)
 	}
 	const onChange = (changed: MediaDescriptions) => setTyped((now) => ({ ...now, ...changed }))
 	return { form: { data: { ...item, ...typed }, fields, form: EDIT_FORM, onChange }, save }
@@ -198,7 +199,7 @@ function RenameMediaDialog({ item, tools, onClose, onSettled }: MediaDialogProps
 			dropKeptTitle(tools.edits, String(file.id))
 			return editInTurn(tools.client, file, { title: typed }, unreached)
 		},
-		refresh: () => tools.refresh().then(onSettled),
+		run: tools.run,
 		unsaved: tools.renames,
 	})
 	return (
@@ -209,7 +210,7 @@ function RenameMediaDialog({ item, tools, onClose, onSettled }: MediaDialogProps
 			submitLabel={__('Save', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
 			canSubmit={name.trim() !== ''}
-			onSubmit={() => send(name)}
+			onSubmit={() => void send(name).then(onSettled)}
 			onClose={onClose}
 		>
 			<InputControl label={__('Name', 'gophenberg')} value={name} onValueChange={setName} />
@@ -269,11 +270,7 @@ export function DeleteMediaModal({ items, closeModal, tools }: MediaModalProps) 
 			confirmLabel={__('Delete permanently', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
 			run={(picked) =>
-				tools.removals(
-					picked,
-					(item) => inTurn(tools.client, item.id, () => deleteMedia(item.id)),
-					deleteWords(titleOf),
-				)
+				tools.run(picked, (item) => inTurn(tools.client, item.id, () => deleteMedia(item.id)), deleteWords(titleOf))
 			}
 		>
 			{deleteQuestion(items, titleOf)}

@@ -177,7 +177,7 @@ test.each([
 	expect(await screen.findByText(toast, { selector: '.godmin-toast' })).toBeInTheDocument()
 })
 
-test('keeps the focus on the bulk bar after a switch, since every row stays in the list', async () => {
+test('puts the focus back on the bulk bar after a switch, since every row stays in the list', async () => {
 	renderAt('/content-types')
 	await pick(['Pages', 'Guides'])
 	const deactivate = bulkBar().getByRole('button', { name: 'Deactivate' })
@@ -185,7 +185,7 @@ test('keeps the focus on the bulk bar after a switch, since every row stays in t
 	await userEvent.click(deactivate)
 
 	await screen.findByText('2 content types deactivated.', { selector: '.godmin-toast' })
-	expect(screen.getByRole('region', { name: 'Content Types' })).not.toHaveFocus()
+	await waitFor(() => expect(bulkBar().getByRole('button', { name: 'Deactivate' })).toHaveFocus())
 })
 
 test('lands the focus on the list once a bulk Activate takes the picked types out of the Closed filter', async () => {

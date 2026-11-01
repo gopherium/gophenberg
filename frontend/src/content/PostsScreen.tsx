@@ -256,8 +256,8 @@ function PostsEmpty({ view, status, adding }: {
 /**
  * Renders the rows of a type's list, or the failure of their read.
  * @param props - The type and status shown, the page query, whether the list waits for the type registry and whether
- *   the registry holds the type, the list view, the view the columns draw, the columns, the settings and the row
- *   actions.
+ *   the registry holds the type, the list view, the view the columns draw, the columns, the settings, the row actions
+ *   and whether a write reloads the list.
  * @returns The list, or the failure notice.
  */
 function PostsTable(props: {
@@ -271,6 +271,7 @@ function PostsTable(props: {
 	columns: Field<Post>[]
 	settings: ListSettings | undefined
 	actions: Action<Post>[]
+	refreshing: boolean
 }) {
 	const navigate = useNavigate()
 	const { listed, posts, list } = props
@@ -294,7 +295,7 @@ function PostsTable(props: {
 			renderItemLink={({ item, ...link }) => (
 				<Link to="/content/$typeKey/$postId/edit" params={{ typeKey: item.type, postId: item.id }} {...link} />
 			)}
-			isLoading={posts.isPending || posts.isPlaceholderData || props.waiting}
+			isLoading={posts.isPending || posts.isPlaceholderData || props.waiting || props.refreshing}
 			getItemId={(post) => post.id}
 			searchLabel={sprintf(__('Search %(type)s…', 'gophenberg'), { type: pluralOf(listed).toLowerCase() })}
 		/>
@@ -330,7 +331,7 @@ export function PostsScreen() {
 	const current = useSearch({ strict: false, select: (search) => search.status })
 	const status = current ?? ''
 	const { list, columns, view, settings, posts, waiting, registered } = usePostList(listed, status)
-	const { run, region } = useListRun(`${listed.key} ${status}`, list.onChangeSelection)
+	const { run, region, refreshing } = useListRun(`${listed.key} ${status}`, list.onChangeSelection)
 	const actions = usePostActions(status, listed, run)
 	const held = useTrashTotal(listed.key, status)
 	const session = useSession().data
@@ -363,6 +364,7 @@ export function PostsScreen() {
 				columns={columns}
 				settings={settings}
 				actions={actions}
+				refreshing={refreshing}
 			/>
 		</Page>
 	)

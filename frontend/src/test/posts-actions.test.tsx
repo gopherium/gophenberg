@@ -298,13 +298,23 @@ test('names the post it trashed in a toast with no undo', async () => {
 	expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
 })
 
-test('moves the focus to the list once the trash finishes', async () => {
+test('moves the focus to the list once the trash finishes, and to the row menu once the rows land', async () => {
 	renderAt('/content/post')
+	await screen.findByText('Welcome to Gophenberg')
+	const rows = gate()
+	server.use(
+		http.get('/api/content', async () => {
+			await rows.held
+			return HttpResponse.json({ items: [PUBLISHED], total: 1 })
+		}),
+	)
 
 	await trashTheListedPost()
 
 	await screen.findByText('"Welcome to Gophenberg" moved to the trash.', { selector: '.godmin-toast' })
 	await waitFor(() => expect(screen.getByRole('region', { name: 'Posts' })).toHaveFocus())
+	rows.release()
+	await waitFor(() => expect(screen.getByRole('button', { name: 'Actions' })).toHaveFocus())
 })
 
 test('shows the reason a refused trash gave in a toast, never above the list', async () => {

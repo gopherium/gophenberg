@@ -1,22 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
-import { RunConfirm, useBulkRun, useToaster, useUnsavedText } from '@gopherium/godmin'
+import { RunConfirm, useBulkRun, useUnsavedText } from '@gopherium/godmin'
 import type { BulkRun, ListRun, UnsavedText } from '@gopherium/godmin'
 import { useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { __ } from '@wordpress/i18n'
 import { useCallback, useMemo } from 'react'
 
+import { oneWriteWords } from '../lists/itemWords'
 import { originOf } from './typeFields'
 import { AddressModal, DescribeModal, MakeDefaultModal } from './TypeModals'
-import type { RunOnList } from './TypeModals'
-import type { ContentType, TypeEdit } from './types'
+import type { ContentType } from './types'
 import { removalQuestion, removalWords, switchWords } from './typeWords'
 import { deleteInTurn, editInTurn, refreshTypes } from './typeWrites'
-
-/** A list run whose end never moves the focus, left to the caller that knows whether the rows stayed on the page. */
-const NO_FOCUS_MOVE: ListRun = { onStart: () => () => {} }
 
 /**
  * Reports whether the site made a type, so its shape is the site's to change.
@@ -40,14 +37,8 @@ function demotable(type: ContentType): boolean {
 interface ActionTools {
 	/** The query client the writes run on. */
 	client: QueryClient
-	/** Runs a call over types that may leave the list. */
-	removals: BulkRun<ContentType>
-	/** Runs a call over types, leaving the focus to the run on the list around it. */
-	switches: BulkRun<ContentType>
-	/** Edits one type and says in a toast how it went. */
-	edit: (type: ContentType, edit: TypeEdit) => Promise<unknown>
-	/** Runs a write over types on the list, moving the focus to the list once a type it reached left the page. */
-	runOnList: RunOnList
+	/** Runs a call over types, the list reloading once the last call ended. */
+	run: BulkRun<ContentType>
 	/** The descriptions failed saves left unsaved. */
 	descriptions: UnsavedText
 	/** The route words failed moves left unsaved. */
@@ -67,9 +58,7 @@ function formActions(tools: ActionTools): Action<ContentType>[] {
 			isEligible: madeHere,
 			modalHeader: __('Describe', 'gophenberg'),
 			modalFocusOnMount: 'firstContentElement',
-			RenderModal: (props) => (
-				<DescribeModal {...props} unsaved={tools.descriptions} runOnList={tools.runOnList} />
-			),
+			RenderModal: (props) => <DescribeModal {...props} unsaved={tools.descriptions} run={tools.run} />,
 		},
 		{
 			id: 'change-address',
@@ -77,7 +66,7 @@ function formActions(tools: ActionTools): Action<ContentType>[] {
 			isEligible: madeHere,
 			modalHeader: __('Change address', 'gophenberg'),
 			modalFocusOnMount: 'firstContentElement',
-			RenderModal: (props) => <AddressModal {...props} unsaved={tools.routeWords} runOnList={tools.runOnList} />,
+			RenderModal: (props) => <AddressModal {...props} unsaved={tools.routeWords} run={tools.run} />,
 		},
 		{
 			id: 'make-default',
@@ -85,7 +74,7 @@ function formActions(tools: ActionTools): Action<ContentType>[] {
 			isEligible: demotable,
 			modalHeader: __('Make default', 'gophenberg'),
 			modalFocusOnMount: 'firstContentElement',
-			RenderModal: (props) => <MakeDefaultModal {...props} runOnList={tools.runOnList} />,
+			RenderModal: (props) => <MakeDefaultModal {...props} run={tools.run} />,
 		},
 	]
 }
@@ -97,13 +86,13 @@ function formActions(tools: ActionTools): Action<ContentType>[] {
  */
 function switchActions(tools: ActionTools): Action<ContentType>[] {
 	const activeAs = (on: boolean) => (types: ContentType[]) =>
-		tools.runOnList(types, () =>
-			tools.switches(types, (type) => editInTurn(tools.client, type.key, { active: on }), switchWords(on)),
+		tools.run(types, (type) => editInTurn(tools.client, type.key, { active: on }), switchWords(on))
+	const nestingAs = (hierarchical: boolean) => (types: ContentType[]) =>
+		tools.run(
+			types,
+			(type) => editInTurn(tools.client, type.key, { hierarchical }),
+			oneWriteWords(__('Content type updated.', 'gophenberg')),
 		)
-	const nestingAs =
-		(hierarchical: boolean) =>
-		([type]: ContentType[]) =>
-			tools.runOnList([type], () => tools.edit(type, { hierarchical }))
 	return [
 		{
 			id: 'nest',
@@ -146,7 +135,7 @@ function DeleteTypesModal({ items, closeModal, tools }: RenderModalProps<Content
 			closeModal={closeModal}
 			confirmLabel={__('Delete', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			run={(types) => tools.removals(types, (type) => deleteInTurn(tools.client, type.key), removalWords())}
+			run={(types) => tools.run(types, (type) => deleteInTurn(tools.client, type.key), removalWords())}
 		>
 			{removalQuestion(items)}
 		</RunConfirm>
@@ -171,61 +160,18 @@ function deleteAction(tools: ActionTools): Action<ContentType> {
 }
 
 /**
- * Returns the handler editing one type and saying in a toast how it went, the type named by no word that agrees.
- * @param client - The query client the writes run on.
- * @returns The handler.
- */
-function useTypeEdit(client: QueryClient): ActionTools['edit'] {
-	const toaster = useToaster()
-	return useCallback(
-		(type, edit) =>
-			editInTurn(client, type.key, edit).then(
-				async () => {
-					await refreshTypes(client)
-					toaster.show(__('Content type updated.', 'gophenberg'))
-				},
-				(failure: Error) => toaster.show(failure.message),
-			),
-		[client, toaster],
-	)
-}
-
-/**
- * Returns the handler running a write over types on the list run, moving the focus to the list once a type it reached
- * left the page on show.
- * @param list - What the list does around a run.
- * @param pageKeys - Reads the keys of the types on the page the list shows.
- * @returns The handler.
- */
-function useRunOnList(list: ListRun, pageKeys: () => Promise<string[]>): RunOnList {
-	return useCallback(
-		async (types, write) => {
-			const settle = list.onStart()
-			await write()
-			const shown = await pageKeys()
-			settle(types.some((type) => !shown.includes(type.key)))
-		},
-		[list, pageKeys],
-	)
-}
-
-/**
  * Returns the actions offered on each row of the types list: the forms first, the one click switches, Delete last.
  * @param list - What the list does around a run.
- * @param pageKeys - Reads the keys of the types on the page the list shows.
  * @returns The row actions, the same for as long as the screen stays, so a confirm never starts over in a run.
  */
-export function useTypeActions(list: ListRun, pageKeys: () => Promise<string[]>): Action<ContentType>[] {
+export function useTypeActions(list: ListRun): Action<ContentType>[] {
 	const client = useQueryClient()
 	const refresh = useCallback(() => refreshTypes(client), [client])
-	const removals = useBulkRun<ContentType>(list, refresh)
-	const switches = useBulkRun<ContentType>(NO_FOCUS_MOVE, refresh)
-	const edit = useTypeEdit(client)
-	const runOnList = useRunOnList(list, pageKeys)
+	const run = useBulkRun<ContentType>(list, refresh)
 	const descriptions = useUnsavedText()
 	const routeWords = useUnsavedText()
 	return useMemo(() => {
-		const tools = { client, removals, switches, edit, runOnList, descriptions, routeWords }
+		const tools = { client, run, descriptions, routeWords }
 		return [...formActions(tools), ...switchActions(tools), deleteAction(tools)]
-	}, [client, descriptions, edit, removals, routeWords, runOnList, switches])
+	}, [client, descriptions, routeWords, run])
 }

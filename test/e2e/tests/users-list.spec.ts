@@ -266,8 +266,8 @@ test('says the reader may no longer edit users when it lost that right while Cha
 	expect(demoted.ok()).toBe(true)
 	await page.getByRole('dialog', { name: 'Change role' }).getByRole('button', { name: 'Change role', exact: true }).click()
 
-	await expect(toastOf(page, 'Sorry, you are not allowed to edit users.')).toBeVisible({ timeout: 15_000 })
-	await expect(page.getByText('Users could not be loaded.')).toBeVisible()
+	await expect(toastOf(page, 'Sorry, you are not allowed to edit users.')).toBeVisible()
+	await expect(page.getByText('Users could not be loaded.')).toBeVisible({ timeout: 15_000 })
 	expect((await listedAs(request, kept.email))?.role).toBe('author')
 	await context.close()
 })

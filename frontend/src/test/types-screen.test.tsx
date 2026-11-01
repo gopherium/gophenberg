@@ -11,6 +11,7 @@ import '../index.css'
 import { typesQueryKey } from '../content/nav'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
+import { holdReads, waitMarked } from './reloads'
 import { leaveStale } from './reopen'
 import { renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
@@ -436,6 +437,21 @@ test('names a type a plugin declared under a built-in key as the plugin named it
 	expect(await list.findByText('Entradas', { exact: true })).toBeInTheDocument()
 	expect(list.getByText('Pages', { exact: true })).toBeInTheDocument()
 	expect(list.queryByText('Páginas', { exact: true })).not.toBeInTheDocument()
+})
+
+test('closes Add Content Type as its toast shows and marks the list until the registry answers', async () => {
+	const created = { ...GUIDE_TYPE, key: 'lesson', plural_label: 'Lessons' }
+	server.use(http.post('/api/types', () => HttpResponse.json(created, { status: 201 })))
+	renderAt('/content-types')
+	const dialog = await openAdd()
+	await nameNewType(dialog)
+	holdReads('/api/types')
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }))
+
+	await screen.findByText('"Lessons" successfully created.', { selector: '.godmin-toast' })
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitMarked()
 })
 
 test('draws Add Content Type as the compact solid button every list header holds', async () => {
