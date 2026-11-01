@@ -11,7 +11,7 @@ import '../index.css'
 import { typesQueryKey } from '../content/nav'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
-import { holdReads, waitMarked } from './reloads'
+import { holdReads, waitMarked, waitUnmarked } from './reloads'
 import { leaveStale } from './reopen'
 import { renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
@@ -445,13 +445,15 @@ test('closes Add Content Type as its toast shows and marks the list until the re
 	renderAt('/content-types')
 	const dialog = await openAdd()
 	await nameNewType(dialog)
-	holdReads('/api/types')
+	const release = holdReads('/api/types', { items: [POST_TYPE, PAGE_TYPE, created] })
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }))
 
 	await screen.findByText('"Lessons" successfully created.', { selector: '.godmin-toast' })
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 	await waitMarked()
+	release()
+	await waitUnmarked()
 })
 
 test('draws Add Content Type as the compact solid button every list header holds', async () => {

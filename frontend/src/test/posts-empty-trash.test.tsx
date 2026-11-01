@@ -9,7 +9,7 @@ import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
-import { expectUnmarked, holdReads, waitMarked } from './reloads'
+import { expectUnmarked, holdReads, waitMarked, waitUnmarked } from './reloads'
 import { adminUser, renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
 import { warmPostsScreen } from './warm'
@@ -401,12 +401,14 @@ test('counts the items it deleted for good in a toast', async () => {
 test('counts the items as the trash empties and marks the list until the rows come back', async () => {
 	renderAt('/content/post')
 	await openEmptyTrash()
-	holdReads('/api/content')
+	const release = holdReads('/api/content', { items: [TRASHED], total: 1 })
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Empty trash' }))
 
 	await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })
 	await waitMarked()
+	release()
+	await waitUnmarked()
 })
 
 test('marks nothing when the trash deleted no item', async () => {

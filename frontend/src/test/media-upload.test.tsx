@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 import { gate } from './gate'
-import { expectUnmarked, holdReads, waitMarked } from './reloads'
+import { expectUnmarked, holdReads, waitMarked, waitUnmarked } from './reloads'
 import { renderAt } from './render'
 import { siteSettings } from './siteSettings'
 
@@ -219,12 +219,14 @@ test('says a file landed as the upload ends and marks the list until the rows co
 	storing()
 	renderAt('/media')
 	await screen.findByText('Harbor at dawn')
-	holdReads('/api/media')
+	const release = holdReads('/api/media', { items: [HARBOR], total: 1, per_page: siteSettings.list_page_size })
 
 	await choose(file('harbor.jpg'))
 
 	await screen.findByText('"harbor.jpg" uploaded.', { selector: '.godmin-toast' })
 	await waitMarked()
+	release()
+	await waitUnmarked()
 })
 
 test('ends the busy button before the list reloads', async () => {
