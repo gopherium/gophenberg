@@ -159,7 +159,8 @@ func (c *nameCursor) takeRune() rune {
 	return symbol
 }
 
-// foldCase maps a letter to a form shared by its upper and lower cases, so that letters such as σ and ς compare equal, and returns dotless ı and dotted İ unchanged.
+// foldCase maps a letter to a form shared by its upper and lower cases, so that letters such as σ and ς compare equal.
+// It returns dotless ı and dotted İ unchanged, as Unicode case folding does.
 func foldCase(symbol rune) rune {
 	if symbol == 'ı' || symbol == 'İ' {
 		return symbol
