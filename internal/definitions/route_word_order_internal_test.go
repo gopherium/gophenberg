@@ -173,16 +173,21 @@ func TestImportChecksRouteWordsWithRootChangesLeftAsApplyLeavesThem(t *testing.T
 	})
 }
 
+func TestRouteWordsHoldAWordUnderTheTrimmedKey(t *testing.T) {
+	t.Parallel()
+
+	declared := []TypeDefinition{
+		declaredType(" chapter ", "Books", "books", false), declaredType("chapter", "Books", "books", false),
+	}
+	if err := validateRouteWords(declared, nil); err != nil {
+		t.Errorf("validateRouteWords() error = %v, want nil", err)
+	}
+}
+
 func TestImportChecksThePaddedKeyAWordIsHeldUnder(t *testing.T) {
 	t.Parallel()
 
 	checksWords(t, []wordCase{
-		{
-			name: "padded key shares its word with the same trimmed key",
-			declared: []TypeDefinition{
-				declaredType(" chapter ", "Books", "books", false), declaredType("chapter", "Books", "books", false),
-			},
-		},
 		{
 			name:     "padded copy of a stored key keeps its word",
 			stored:   []content.Type{wordlessRoot, recipeType},
