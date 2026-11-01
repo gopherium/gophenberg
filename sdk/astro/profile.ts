@@ -10,7 +10,7 @@ const nodeAdapter = '@astrojs/node'
 export interface ProfileConfig {
 	output?: string
 	adapter?: { name?: string }
-	image?: { service?: { entrypoint?: string } }
+	image?: { service?: { entrypoint?: string, build?: unknown, runtime?: unknown } }
 	vite?: { ssr?: { noExternal?: unknown } }
 }
 
