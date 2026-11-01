@@ -3,6 +3,8 @@
 package app
 
 import (
+	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -55,6 +57,22 @@ func TestLoadRunConfigTakesTheMediaFolderTheSettingsNameOverTheDataFolder(t *tes
 	}
 	if settings.mediaDir != "/srv/media" {
 		t.Errorf("mediaDir = %q, want /srv/media", settings.mediaDir)
+	}
+}
+
+func TestSeedStoresTheDemoMediaInTheDataFolderWhenNothingNamesAMediaFolder(t *testing.T) {
+	t.Parallel()
+
+	data := t.TempDir()
+	env := map[string]string{"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t), "GOPHENBERG_DATA_DIR": data}
+
+	if err := seedMigrated(t.Context(), testkit.Getenv(env), io.Discard); err != nil {
+		t.Fatalf("seedMigrated() error = %v, want nil", err)
+	}
+
+	stored, err := os.ReadDir(filepath.Join(data, "data", "media"))
+	if err != nil || len(stored) == 0 {
+		t.Errorf("the media folder of the data folder holds %v (%v), want the demo pictures", stored, err)
 	}
 }
 
