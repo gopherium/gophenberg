@@ -30,6 +30,46 @@ func TestDerivedRouteWordReservedNamesTheTypeAndTheWord(t *testing.T) {
 	}
 }
 
+func TestDerivedRouteWordTakenNamesTheTypeAndTheWord(t *testing.T) {
+	t.Parallel()
+
+	err := content.DerivedRouteWordTaken("chapter", "Recipes", "recipes")
+
+	if !errors.Is(err, content.ErrRouteWordTaken) {
+		t.Errorf("error = %v, want it to carry %v", err, content.ErrRouteWordTaken)
+	}
+	if code, _ := content.CodeOf(err); code != "derived_route_word_taken" {
+		t.Errorf("code = %q, want derived_route_word_taken", code)
+	}
+	held, _ := content.DetailsOf(err)
+	if held["type"] != "chapter" || held["name"] != "Recipes" || held["word"] != "recipes" {
+		t.Errorf("details = %v, want the type chapter, the name Recipes and the word recipes named", held)
+	}
+	if want := `content: route word taken: "Recipes" would answer under "recipes"`; err.Error() != want {
+		t.Errorf("message = %q, want %q", err.Error(), want)
+	}
+}
+
+func TestStatedRouteWordTakenNamesTheTypeAndTheWord(t *testing.T) {
+	t.Parallel()
+
+	err := content.StatedRouteWordTaken("chapter", "Chapters", "recipes")
+
+	if !errors.Is(err, content.ErrRouteWordTaken) {
+		t.Errorf("error = %v, want it to carry %v", err, content.ErrRouteWordTaken)
+	}
+	if code, _ := content.CodeOf(err); code != "stated_route_word_taken" {
+		t.Errorf("code = %q, want stated_route_word_taken", code)
+	}
+	held, _ := content.DetailsOf(err)
+	if held["type"] != "chapter" || held["name"] != "Chapters" || held["word"] != "recipes" {
+		t.Errorf("details = %v, want the type chapter, the name Chapters and the word recipes named", held)
+	}
+	if want := `content: route word taken: "Chapters" would answer under "recipes"`; err.Error() != want {
+		t.Errorf("message = %q, want %q", err.Error(), want)
+	}
+}
+
 func TestRegistryRefusesANewTypeClaimingTheRoot(t *testing.T) {
 	t.Parallel()
 

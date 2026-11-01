@@ -25,6 +25,20 @@ var ErrTypeTaken = errors.New("content: type key taken")
 // ErrRouteWordTaken reports that another content type answers under the route word.
 var ErrRouteWordTaken = errors.New("content: route word taken")
 
+// DerivedRouteWordTaken returns the error naming the type and the derived route word another type holds.
+func DerivedRouteWordTaken(key, name, word string) error {
+	return Refuse(ErrRouteWordTaken, "derived_route_word_taken",
+		fmt.Sprintf("%s: %q would answer under %q", ErrRouteWordTaken, name, word),
+		Details{"type": key, "name": name, "word": word})
+}
+
+// StatedRouteWordTaken returns the error naming the type and the route word it states another type holds.
+func StatedRouteWordTaken(key, name, word string) error {
+	return Refuse(ErrRouteWordTaken, "stated_route_word_taken",
+		fmt.Sprintf("%s: %q would answer under %q", ErrRouteWordTaken, name, word),
+		Details{"type": key, "name": name, "word": word})
+}
+
 // ErrRouteWordReserved reports that the route word names a place the CMS keeps.
 var ErrRouteWordReserved = errors.New("content: route word reserved")
 
