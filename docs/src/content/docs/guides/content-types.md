@@ -112,11 +112,16 @@ the label Page gives. It is also refused when it would move an item to
 a numbered page of the front page, like a page filed at
 `/pages/page/2`. Relabel the type or rename the item, then try again.
 When an import brings a new default type and your site keeps its own
-root, the new type gets its route word the same way, and the import is
+root, the new type gets its route word the same way. The import is
 refused before it changes anything when that word is one Gophenberg
 keeps or another type already uses, on the site or in the file. The
-message names that type and the word. Change the type's plural label in
-the definitions file, then import it again.
+message names the new type and the word. Change the type's plural label
+in the definitions file, then import it again.
+
+An import checks route words in the order the file lists its types. A
+type that gives a word up frees it only for the types listed after it.
+A type the file leaves out holds its word until the import ends. If you
+tick it away, a new type can take that word in a second import.
 
 **Change address…** moves a type to a new route word. Every address of
 that type moves with it, at once, including nested items. Links kept
