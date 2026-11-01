@@ -1143,26 +1143,6 @@ function listByTitle() {
 	)
 }
 
-test.each([
-	{ action: 'Edit…', box: 'Title', toast: 'Media file updated.' },
-	{ action: 'Rename…', box: 'Name', toast: 'Name updated.' },
-])('lands the focus on the card in its place once the file $action saved moved away', async ({
-	action,
-	box,
-	toast,
-}) => {
-	listByTitle()
-	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', action)
-	await retype(dialog, box, 'Zebra crossing')
-
-	await save(dialog)
-
-	await findToast(toast)
-	await cardOf('Zebra crossing')
-	await waitFocusOnManual()
-})
-
 /** A file another account uploaded while an edit was in flight, its title sorting before every other. */
 const ANCHOR = { ...MANUAL, id: 9, file: '2026/08/anchor-chain.pdf', title: 'Anchor chain' }
 
@@ -1177,19 +1157,23 @@ async function openFromHarbor(trigger: CardTrigger): Promise<HTMLElement> {
 }
 
 test.each([
-	{ part: 'title', trigger: titleTrigger },
-	{ part: 'picture', trigger: pictureTrigger },
-])('lands the focus on the card in its place once the file Edit opened from its $part moved away', async ({
-	trigger,
+	{ from: 'Edit…', open: () => openCardDialog('Harbor at dawn', 'Edit…'), box: 'Title', toast: 'Media file updated.' },
+	{ from: 'Rename…', open: () => openCardDialog('Harbor at dawn', 'Rename…'), box: 'Name', toast: 'Name updated.' },
+	{ from: 'the title', open: () => openFromHarbor(titleTrigger), box: 'Title', toast: 'Media file updated.' },
+	{ from: 'the picture', open: () => openFromHarbor(pictureTrigger), box: 'Title', toast: 'Media file updated.' },
+])('lands the focus on the card in its place once the file saved from $from moved away', async ({
+	open,
+	box,
+	toast,
 }) => {
 	listByTitle()
 	renderAt('/media')
-	const dialog = await openFromHarbor(trigger)
-	await retype(dialog, 'Title', 'Zebra crossing')
+	const dialog = await open()
+	await retype(dialog, box, 'Zebra crossing')
 
 	await save(dialog)
 
-	await findToast('Media file updated.')
+	await findToast(toast)
 	await cardOf('Zebra crossing')
 	await waitFocusOnManual()
 })
