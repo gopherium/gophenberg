@@ -153,4 +153,8 @@ func TestApplyLandsAGroupWhereAConfirmedGroupLeft(t *testing.T) {
 	if _, found := storedGroup(t, registry, "recipe-details"); found {
 		t.Errorf("the recipe group stands, want it gone once the import finished")
 	}
+	landed, found := storedGroup(t, registry, side.Key)
+	if !found || !landed.Location.Equal(recipeRules()) {
+		t.Errorf("the side notes group sits at %v, want it moved to the recipe rules", landed.Location)
+	}
 }
