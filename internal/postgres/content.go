@@ -363,7 +363,7 @@ func (s *ContentStore) update(
 		if err != nil {
 			return err
 		}
-		row, err := writeContent(ctx, queries, db.UpdateContentParams{
+		row, err := writeContent(ctx, queries, was, db.UpdateContentParams{
 			ID:                c.ID,
 			ParentID:          c.ParentID,
 			Path:              path,
@@ -403,8 +403,10 @@ func (s *ContentStore) update(
 }
 
 // writeContent applies the edited fields, telling a stale write apart from a missing item.
-func writeContent(ctx context.Context, queries *db.Queries, p db.UpdateContentParams) (db.CoreContent, error) {
-	if err := checkPaginationEdit(ctx, queries, p); err != nil {
+func writeContent(
+	ctx context.Context, queries *db.Queries, was string, p db.UpdateContentParams,
+) (db.CoreContent, error) {
+	if err := checkPaginationEdit(was, p.Path); err != nil {
 		return db.CoreContent{}, err
 	}
 	row, err := queries.UpdateContent(ctx, p)
