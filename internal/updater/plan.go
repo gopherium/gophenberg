@@ -171,7 +171,7 @@ func (r *run) writable() error {
 		}
 		if err != nil {
 			return fmt.Errorf("updater: cannot write to %s, so give the user Gophenberg runs as read and write "+
-				"access to the install root: %w", dir, err)
+				"access to it: %w", dir, err)
 		}
 	}
 	return nil
