@@ -94,8 +94,8 @@ function refuses(overview: UpdatesOverview, version: string): boolean {
 function confirmWords(offer: UpdateOffer, running: string): string {
 	if (offer.long_jump) {
 		return __(
-			'A backup of the database is taken first, and the site stays down until you restore it ' +
-				'if the new version does not start.',
+			'A backup of the database is taken first. If the new version fails after reaching the database, ' +
+				'the site stays down until you restore it.',
 			'gophenberg',
 		)
 	}
@@ -228,7 +228,8 @@ function OfferDetails(props: OfferProps & { offer: UpdateOffer }) {
 		{ version: offer.version },
 	)
 	const longJump = __(
-		'This update needs a backup of the database, and the site stays down if the new version does not start.',
+		'This update needs a backup of the database. ' +
+			'The site stays down if the new version fails after it reaches the database.',
 		'gophenberg',
 	)
 	return (

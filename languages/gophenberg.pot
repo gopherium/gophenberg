@@ -309,7 +309,7 @@ msgstr ""
 msgid "A backup of the database is taken first, and Gophenberg goes back to %(running)s on its own if the new version does not start."
 msgstr ""
 
-msgid "A backup of the database is taken first, and the site stays down until you restore it if the new version does not start."
+msgid "A backup of the database is taken first. If the new version fails after reaching the database, the site stays down until you restore it."
 msgstr ""
 
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."
@@ -1903,7 +1903,7 @@ msgstr ""
 msgid "This type will answer under /%(word)s."
 msgstr ""
 
-msgid "This update needs a backup of the database, and the site stays down if the new version does not start."
+msgid "This update needs a backup of the database. The site stays down if the new version fails after it reaches the database."
 msgstr ""
 
 msgid "This zip holds %(entries)s files, more than the %(max)s a theme may carry. Package only the built theme."
