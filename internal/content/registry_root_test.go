@@ -13,7 +13,7 @@ import (
 func TestDerivedRouteWordReservedNamesTheTypeAndTheWord(t *testing.T) {
 	t.Parallel()
 
-	err := content.DerivedRouteWordReserved("media", "3D Files", "media")
+	err := content.DerivedRouteWordReserved(content.Type{Key: "media", PluralLabel: "3D Files", RouteWord: "media"})
 
 	if !errors.Is(err, content.ErrRouteWordReserved) {
 		t.Errorf("error = %v, want it to carry %v", err, content.ErrRouteWordReserved)
@@ -33,7 +33,7 @@ func TestDerivedRouteWordReservedNamesTheTypeAndTheWord(t *testing.T) {
 func TestDerivedRouteWordTakenNamesTheTypeAndTheWord(t *testing.T) {
 	t.Parallel()
 
-	err := content.DerivedRouteWordTaken("chapter", "Recipes", "recipes")
+	err := content.DerivedRouteWordTaken(content.Type{Key: "chapter", PluralLabel: "Recipes", RouteWord: "recipes"})
 
 	if !errors.Is(err, content.ErrRouteWordTaken) {
 		t.Errorf("error = %v, want it to carry %v", err, content.ErrRouteWordTaken)
@@ -53,7 +53,7 @@ func TestDerivedRouteWordTakenNamesTheTypeAndTheWord(t *testing.T) {
 func TestStatedRouteWordTakenNamesTheTypeAndTheWord(t *testing.T) {
 	t.Parallel()
 
-	err := content.StatedRouteWordTaken("chapter", "Chapters", "recipes")
+	err := content.StatedRouteWordTaken(content.Type{Key: "chapter", PluralLabel: "Chapters", RouteWord: "recipes"})
 
 	if !errors.Is(err, content.ErrRouteWordTaken) {
 		t.Errorf("error = %v, want it to carry %v", err, content.ErrRouteWordTaken)
