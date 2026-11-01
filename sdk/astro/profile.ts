@@ -10,7 +10,7 @@ const nodeAdapter = '@astrojs/node'
 export interface ProfileConfig {
 	output?: string
 	adapter?: { name?: string }
-	image?: { service?: { entrypoint?: string, build?: unknown, runtime?: unknown } }
+	image?: { service?: { entrypoint?: string } | { build: { entrypoint?: string }, runtime: { entrypoint?: string } } }
 	vite?: { ssr?: { noExternal?: unknown } }
 }
 
@@ -54,12 +54,25 @@ function adapterIssue(config: ProfileConfig): string | undefined {
 }
 
 /**
+ * Returns what a config's image service runs on.
+ * @param config - The config Astro settled on.
+ * @returns The entrypoint, or both entrypoints of a split service.
+ */
+function imageService(config: ProfileConfig): string | undefined {
+	const service = config.image?.service
+	if (service && 'build' in service) {
+		return `${service.build.entrypoint} at build and ${service.runtime.entrypoint} at runtime`
+	}
+	return service?.entrypoint
+}
+
+/**
  * Returns the issue for a config swapping the image service.
  * @param config - The config Astro settled on.
  * @returns The issue, or nothing when the setting holds.
  */
 function imageIssue(config: ProfileConfig): string | undefined {
-	const service = config.image?.service?.entrypoint
+	const service = imageService(config)
 	if (service !== passthroughImages) {
 		return (
 			`gophenberg: image service is ${service}, want ${passthroughImages}, ` +

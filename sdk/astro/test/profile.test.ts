@@ -65,7 +65,8 @@ describe('profileIssue', () => {
 		})
 
 		expect(issue).toContain('image')
-		expect(issue).toContain('astro/assets/services/noop')
+		expect(issue).toContain('astro/assets/services/sharp at build')
+		expect(issue).toContain('astro/assets/services/noop at runtime')
 	})
 
 	test('names the setting when a theme names no image service', () => {
