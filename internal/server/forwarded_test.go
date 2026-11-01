@@ -3,6 +3,8 @@
 package server_test
 
 import (
+	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -31,21 +33,38 @@ func forwardedServer(t *testing.T, trusted []string) http.Handler {
 	})
 }
 
-// forwardedEcho returns what the handler saw for a request from peer carrying forwarded headers.
-func forwardedEcho(t *testing.T, handler http.Handler, peer string) string {
-	t.Helper()
+// forwardedRequest returns a request from peer carrying forwarded headers.
+func forwardedRequest(peer string) *http.Request {
 	request := httptest.NewRequest(http.MethodGet, "/api/plugins/echo/headers", nil)
 	request.RemoteAddr = peer
 	request.Header.Set("X-Forwarded-Proto", "https")
 	request.Header.Set("X-Forwarded-For", "203.0.113.9")
 	request.Header.Set("X-Forwarded-Host", "evil.example.com")
 	request.Header.Set("Forwarded", "proto=https")
+	return request
+}
+
+// overSocket returns request as it reaches the server over a Unix socket.
+func overSocket(request *http.Request) *http.Request {
+	local := &net.UnixAddr{Name: "site.sock", Net: "unix"}
+	return request.WithContext(context.WithValue(request.Context(), http.LocalAddrContextKey, local))
+}
+
+// echoed returns what the handler saw of the forwarded headers request carried.
+func echoed(t *testing.T, handler http.Handler, request *http.Request) string {
+	t.Helper()
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 	return recorder.Body.String()
+}
+
+// forwardedEcho returns what the handler saw for a request from peer carrying forwarded headers.
+func forwardedEcho(t *testing.T, handler http.Handler, peer string) string {
+	t.Helper()
+	return echoed(t, handler, forwardedRequest(peer))
 }
 
 func TestForwardedHeadersFromAnUntrustedPeerAreDropped(t *testing.T) {
@@ -105,5 +124,29 @@ func TestForwardedHeadersSurviveForATrustedIPv6Proxy(t *testing.T) {
 
 	if got != "https|203.0.113.9|evil.example.com|proto=https" {
 		t.Errorf("forwarded headers = %q, want them kept for a trusted proxy", got)
+	}
+}
+
+func TestForwardedHeadersOverASocketKeepOnlyTheScheme(t *testing.T) {
+	t.Parallel()
+
+	handler := forwardedServer(t, nil)
+
+	got := echoed(t, handler, overSocket(forwardedRequest("203.0.113.5:0")))
+
+	if got != "https|||" {
+		t.Errorf("forwarded headers = %q, want only the scheme kept over a socket", got)
+	}
+}
+
+func TestForwardedHeadersOverASocketTrustNoVisitorInATrustedRange(t *testing.T) {
+	t.Parallel()
+
+	handler := forwardedServer(t, []string{"10.0.0.0/8"})
+
+	got := echoed(t, handler, overSocket(forwardedRequest("10.1.2.3:0")))
+
+	if got != "https|||" {
+		t.Errorf("forwarded headers = %q, want a visitor in a trusted range kept to the scheme", got)
 	}
 }
