@@ -162,6 +162,19 @@ export async function applyDefinitions(file: string, confirm: Confirmed[]): Prom
 }
 
 /**
+ * Returns the definitions file as the import sends it, or the text as written when it is not JSON.
+ * @param file - The definitions file exactly as it was written.
+ * @returns The text a plan of the file reads.
+ */
+function asImported(file: string): string {
+	try {
+		return JSON.stringify(JSON.parse(file))
+	} catch {
+		return file
+	}
+}
+
+/**
  * Reports what a definitions file would change about the site, changing nothing.
  * @param file - The definitions file exactly as it was written.
  * @returns The plan the server answered.
@@ -170,7 +183,7 @@ export async function planDefinitions(file: string): Promise<DefinitionsPlan> {
 	const response = await fetch(definitionsPlanPath, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
-		body: file,
+		body: asImported(file),
 	})
 	if (!response.ok) {
 		const parsed = errorSchema.safeParse(await response.json().catch(() => null))

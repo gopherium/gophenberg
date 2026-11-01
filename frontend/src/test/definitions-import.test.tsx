@@ -644,17 +644,59 @@ test('puts the plan away when the admin closes it', async () => {
 	expect(screen.queryByText('Add Event details')).not.toBeInTheDocument()
 })
 
-test('sends the file the admin chose exactly as it was written', async () => {
-	let sent = ''
+test.each([
+	{ kind: 'spaces between its keys', file: '{ "format": "1.0.0", "types": [], "groups": [] }' },
+	{
+		kind: 'a key written twice',
+		file: '{"format":"1.0.0","types":[{"key":"first"}],"types":[{"key":"second"}],"groups":[]}',
+	},
+	{
+		kind: 'a key written in two cases',
+		file: '{"format":"1.0.0","types":[{"key":"first"}],"Types":[{"key":"second"}],"types":[{"key":"third"}],"groups":[]}',
+	},
+])('plans a file with $kind the way the import sends it', async ({ file }) => {
+	let planned = ''
+	let applied = ''
 	planning(async ({ request }) => {
-		sent = await request.text()
-		return HttpResponse.json({ changes: [], warnings: [] })
+		planned = await request.text()
+		return HttpResponse.json({
+			changes: [{ action: 'create', subject: 'type', key: 'latest', label: 'Latest type' }],
+			warnings: [],
+		})
 	})
+	server.use(
+		http.post('/api/definitions/apply', async ({ request }) => {
+			applied = await request.text()
+			return HttpResponse.json({ applied: [], skipped: [] })
+		}),
+	)
+
+	await importing(file)
+	await userEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+	await screen.findByText('Done. The site now holds what the file describes.')
+
+	expect(applied).toBe(`${planned.slice(0, -1)},"confirm":[]}`)
+})
+
+test('says when a definitions file matches the site', async () => {
+	planning(() => HttpResponse.json({ changes: [], warnings: [] }))
 
 	await importing('{"format":"1.0.0","types":[],"groups":[]}')
 
 	expect(await screen.findByText('This file matches the site, so there is nothing to change.')).toBeInTheDocument()
-	expect(sent).toBe('{"format":"1.0.0","types":[],"groups":[]}')
+})
+
+test('hands a file that is not JSON to the server as it was written', async () => {
+	let sent = ''
+	planning(async ({ request }) => {
+		sent = await request.text()
+		return HttpResponse.json({ error: 'malformed json', code: 'body_malformed' }, { status: 400 })
+	})
+
+	await importing('not a definitions file')
+
+	expect(await screen.findByRole('alert')).toBeInTheDocument()
+	expect(sent).toBe('not a definitions file')
 })
 
 test('says what the server refused about a definitions file', async () => {
