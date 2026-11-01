@@ -410,6 +410,9 @@ group away, because a group you tick goes before the file's other
 groups land. Each refusal names what stands in the way, and nothing
 is written.
 
+An import reads keys exactly as the file writes them. A type, group or
+field key with spaces around it is refused before anything changes.
+
 Two things an import never does. It never hands the site's root to
 another content type, because that changes every stored address.
 And it never touches a definition a plugin declared.

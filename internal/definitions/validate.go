@@ -137,7 +137,7 @@ func importFailure(d TypeDefinition, found bool, err error) error {
 // typeFrom returns the content type the declaration stands for.
 func typeFrom(d TypeDefinition) content.Type {
 	return content.Type{
-		Key: strings.TrimSpace(d.Key), SingularLabel: strings.TrimSpace(d.SingularLabel),
+		Key: d.Key, SingularLabel: strings.TrimSpace(d.SingularLabel),
 		PluralLabel: strings.TrimSpace(d.PluralLabel), RouteWord: strings.TrimSpace(d.RouteWord),
 		Hierarchical: d.Hierarchical, Revisions: d.Revisions, RevisionCap: d.RevisionCap,
 		PageKind: content.PageKind(d.PageKind), Default: d.Default, Active: d.Active,
@@ -241,6 +241,9 @@ func conditionsStand(declared []FieldDefinition) error {
 
 // fieldStands returns the reason a declared field could not be stored where it sits, or nothing when it could.
 func fieldStands(d FieldDefinition, parent content.FieldKind, at nesting, targets map[string]bool) error {
+	if d.Key != strings.TrimSpace(d.Key) {
+		return content.ErrInvalidFieldKey
+	}
 	if _, kept := keptField(at.stored, d); at.depth > at.limit && !kept {
 		return content.Refuse(content.ErrFieldTooDeep, "field_too_deep",
 			content.ErrFieldTooDeep.Error(), content.Details{"field": d.Key})

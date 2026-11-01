@@ -154,6 +154,19 @@ Feature: Grouping fields and placing them by rule
     When the administrator plans the file
     Then the request is refused with the code "derived_route_word_taken"
 
+  Scenario: An import refuses a type key with spaces around it
+    Given the type "recipe" labeled "Recipe" and "Recipes" under "recipes"
+    And the site's file puts spaces around the type key "recipe"
+    When the administrator plans the file
+    Then the request is refused with the code "type_key_malformed"
+
+  Scenario: An import refuses a field key with spaces around it
+    Given the group "Article details" for "post"
+    And the "text" field "subtitle" labeled "Subtitle" in "Article details"
+    And the site's file puts spaces around the field key "subtitle" in "Article details"
+    When the administrator plans the file
+    Then the request is refused with the code "field_key_malformed"
+
   Scenario: An import takes nothing away that nobody confirmed
     Given the group "Article details" for "post"
     When the administrator applies a file holding no field groups

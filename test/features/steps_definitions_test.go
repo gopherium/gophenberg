@@ -484,6 +484,31 @@ func theSitesFileStopsTheTypeNesting(ctx context.Context, key string) error {
 	return fmt.Errorf("the file holds no type %q", key)
 }
 
+// theSitesFilePutsSpacesAroundTheTypeKey writes one type's key in the file with a space on each side.
+func theSitesFilePutsSpacesAroundTheTypeKey(ctx context.Context, key string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range w.file.Types {
+		if w.file.Types[i].Key == key {
+			w.file.Types[i].Key = " " + key + " "
+			return nil
+		}
+	}
+	return fmt.Errorf("the file holds no type %q", key)
+}
+
+// theSitesFilePutsSpacesAroundTheFieldKey writes one field's key in the file with a space on each side.
+func theSitesFilePutsSpacesAroundTheFieldKey(ctx context.Context, key, title string) error {
+	held, err := fieldInFile(ctx, key, title)
+	if err != nil {
+		return err
+	}
+	held.Key = " " + key + " "
+	return nil
+}
+
 // theAdministratorPlansTheFile asks what the file the scenario built would change, whatever the site answers.
 func theAdministratorPlansTheFile(ctx context.Context) error {
 	w, err := siteFile(ctx)
@@ -697,6 +722,11 @@ func initializeImportFile(sc *godog.ScenarioContext) {
 	sc.Given(`^the site's file leaves out the group "([^"]*)"$`, theSitesFileLeavesOutTheGroup)
 	sc.Given(`^the site's file makes "([^"]*)" in "([^"]*)" point at "([^"]*)"$`, theSitesFileMakesPointAt)
 	sc.Given(`^the site's file places "([^"]*)" on "([^"]*)"$`, theSitesFilePlacesOn)
+	sc.Given(`^the site's file puts spaces around the type key "([^"]*)"$`, theSitesFilePutsSpacesAroundTheTypeKey)
+	sc.Given(
+		`^the site's file puts spaces around the field key "([^"]*)" in "([^"]*)"$`,
+		theSitesFilePutsSpacesAroundTheFieldKey,
+	)
 	sc.When(`^the administrator plans the file$`, theAdministratorPlansTheFile)
 	sc.When(`^the administrator imports the file$`, theAdministratorImportsTheFile)
 	sc.Then(`^the plan warns that "([^"]*)" keeps nesting$`, thePlanWarnsThatKeepsNesting)
