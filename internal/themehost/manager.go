@@ -117,7 +117,6 @@ func compareNaturalNames(one, other string) int {
 			return compared
 		}
 	}
-	// A name that still has characters left is the longer one and sorts after the other.
 	return cmp.Compare(left.remaining(), right.remaining())
 }
 
@@ -160,8 +159,13 @@ func (c *nameCursor) takeRune() rune {
 	return symbol
 }
 
-// foldCase maps a letter to a form shared by its upper and lower cases, so that letters such as σ and ς compare equal.
-func foldCase(symbol rune) rune { return unicode.ToLower(unicode.ToUpper(symbol)) }
+// foldCase maps a letter to a form shared by its upper and lower cases, so that letters such as σ and ς compare equal, and returns dotless ı and dotted İ unchanged.
+func foldCase(symbol rune) rune {
+	if symbol == 'ı' || symbol == 'İ' {
+		return symbol
+	}
+	return unicode.ToLower(unicode.ToUpper(symbol))
+}
 
 // compareDigitRuns compares two runs of digits by their numeric value.
 func compareDigitRuns(one, other string) int {

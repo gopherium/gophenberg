@@ -86,3 +86,19 @@ func TestTheManagerListsPrefixesFirstAndBreaksNumericTiesByTheWrittenName(t *tes
 		t.Errorf("List() names = %v, want %v", got, want)
 	}
 }
+
+func TestTheManagerListsDotlessAndDottedIApartFromI(t *testing.T) {
+	t.Parallel()
+
+	manager := managerOver(t, newSettings(), "", "ı2", "İ3", "i10")
+
+	listed, err := manager.List(t.Context())
+
+	if err != nil {
+		t.Fatalf("List() = %v, want the themes listed", err)
+	}
+	want := []string{"i10", "İ3", "ı2"}
+	if got := listedNames(listed); !slices.Equal(got, want) {
+		t.Errorf("List() names = %v, want %v", got, want)
+	}
+}
