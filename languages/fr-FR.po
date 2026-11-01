@@ -113,6 +113,10 @@ msgid "%(name)s (%(type)s) would use /%(word)s, which another content type alrea
 msgstr "Le type %(name)s (%(type)s) utiliserait /%(word)s, qu'un autre type de contenu utilise déjà. Modifiez son nom au pluriel et réessayez."
 
 #, fuzzy
+msgid "%(name)s (%(type)s) would use /%(word)s, which another content type already uses. Pick a different route word."
+msgstr "Le type %(name)s (%(type)s) utiliserait /%(word)s, qu'un autre type de contenu utilise déjà. Choisissez un autre mot de route."
+
+#, fuzzy
 msgid "%(name)s would move to /%(word)s, which Gophenberg keeps for itself. Change its plural name and try again."
 msgstr "Le type %(name)s passerait à /%(word)s, que Gophenberg garde pour lui. Modifiez son nom au pluriel et réessayez."
 
