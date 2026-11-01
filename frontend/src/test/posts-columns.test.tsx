@@ -159,7 +159,7 @@ function narrowerThanWide() {
 	onTestFinished(() => spy.mockRestore())
 }
 
-test('opens a table narrower than 1440px on the built-in columns, so it fits its card', async () => {
+test('opens a table narrower than 1440px on the listed fields too', async () => {
 	narrowerThanWide()
 	declaring([PRICE, ON_SALE])
 	renderAt('/content/post')
@@ -167,21 +167,8 @@ test('opens a table narrower than 1440px on the built-in columns, so it fits its
 	const table = await screen.findByRole('table')
 
 	expect(within(table).getByRole('columnheader', { name: 'Date' })).toBeInTheDocument()
-	expect(within(table).queryByRole('columnheader', { name: 'Price' })).not.toBeInTheDocument()
-	expect(within(table).queryByRole('columnheader', { name: 'On sale' })).not.toBeInTheDocument()
-})
-
-test('keeps a listed field one pick away in View options while the table is narrower than 1440px', async () => {
-	narrowerThanWide()
-	declaring([PRICE])
-	renderAt('/content/post')
-	await screen.findByRole('table')
-
-	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
-	const properties = (await screen.findByText('Properties')).closest('.dataviews-field-control') as HTMLElement
-	await userEvent.click(within(properties).getByRole('button', { name: 'Price' }))
-
-	expect(await within(screen.getByRole('table')).findByRole('columnheader', { name: 'Price' })).toBeInTheDocument()
+	expect(within(table).getByRole('columnheader', { name: 'Price' })).toBeInTheDocument()
+	expect(within(table).getByRole('columnheader', { name: 'On sale' })).toBeInTheDocument()
 })
 
 test('reads each value the way its kind is written', async () => {

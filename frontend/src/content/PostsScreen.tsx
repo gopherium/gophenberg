@@ -14,7 +14,6 @@ import {
 	paginationOf,
 	sizedView,
 	useListRun,
-	useMediaQuery,
 	useToaster,
 	viewNarrows,
 } from '@gopherium/godmin'
@@ -34,7 +33,6 @@ import { listPosts } from './api'
 import type { Post, PostPage, PostQuery } from './api'
 import { EmptyTrash } from './EmptyTrash'
 import {
-	BELOW_HUGE_QUERY,
 	OPENING_SORT,
 	PHONE_COLUMNS,
 	POST_VIEW_GUARD,
@@ -157,9 +155,8 @@ function opensSorted(view: View): boolean {
 function usePostList(listed: ContentType, status: string) {
 	const settings = useListSettings().data
 	const columns = useMemo(() => postFields(listed), [listed])
-	const roomy = !useMediaQuery(BELOW_HUGE_QUERY)
 	const list = useListView<View>({
-		fields: openingColumns(columns, roomy),
+		fields: openingColumns(columns),
 		phoneFields: PHONE_COLUMNS,
 		titleField: 'title',
 		descriptionField: 'excerpt',
