@@ -26,6 +26,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { QueryKey, UseQueryResult } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useMemo } from 'react'
+import type { ReactNode } from 'react'
 
 import type { ListSettings } from '../settings/api'
 import { useListSettings } from '../settings/useListSettings'
@@ -227,14 +228,10 @@ function emptyTabTitles(): Record<string, string> {
 
 /**
  * Renders what a list shows when it holds no item.
- * @param props - The view and the status the list shows, and the type its add button adds, if any.
+ * @param props - The view and the status the list shows, and its add button, if any.
  * @returns The empty state: no results for a search or a filter, the words of a tab, else the add button.
  */
-function PostsEmpty({ view, status, adding }: {
-	view: OfferedView<View>
-	status: string
-	adding: ContentType | undefined
-}) {
+function PostsEmpty({ view, status, adding }: { view: OfferedView<View>, status: string, adding: ReactNode }) {
 	if (viewNarrows(view)) {
 		return <ListNoResults />
 	}
@@ -244,20 +241,14 @@ function PostsEmpty({ view, status, adding }: {
 	if (status !== '') {
 		return <ListEmpty icon={postIcon} title={emptyTabTitles()[status]} />
 	}
-	return (
-		<ListEmpty
-			icon={postIcon}
-			title={__('No items yet', 'gophenberg')}
-			actions={adding === undefined ? null : <HeaderAddNew listed={adding} size="default" />}
-		/>
-	)
+	return <ListEmpty icon={postIcon} title={__('No items yet', 'gophenberg')} actions={adding} />
 }
 
 /**
  * Renders the rows of a type's list, or the failure of their read.
- * @param props - The type and status shown, the page query, whether the list waits for the type registry and whether
- *   the registry holds the type, the list view, the view the columns draw, the columns, the settings, the row actions
- *   and whether a write reloads the list.
+ * @param props - The type and status shown, the page query, whether the list waits for the type registry, the add
+ *   button of an empty list, the list view, the view the columns draw, the columns, the settings, the row actions and
+ *   whether a write reloads the list.
  * @returns The list, or the failure notice.
  */
 function PostsTable(props: {
@@ -265,7 +256,7 @@ function PostsTable(props: {
 	status: string
 	posts: UseQueryResult<PostPage>
 	waiting: boolean
-	registered: boolean
+	adding: ReactNode
 	list: ListView<View>
 	view: OfferedView<View>
 	columns: Field<Post>[]
@@ -282,7 +273,7 @@ function PostsTable(props: {
 		<DataViews
 			key={listed.key}
 			{...pageProps(listed, posts.data, props.settings)}
-			empty={<PostsEmpty view={props.view} status={props.status} adding={props.registered ? listed : undefined} />}
+			empty={<PostsEmpty view={props.view} status={props.status} adding={props.adding} />}
 			fields={columnsOn(props.columns, props.status)}
 			actions={props.actions}
 			view={props.view}
@@ -304,11 +295,15 @@ function PostsTable(props: {
 
 /**
  * Renders the add button of a list, its failure shown in a toast like the failure of any write.
- * @param props - The type the list shows and the button size, compact when absent, as a page header button.
+ * @param props - The type the list shows, the draft both add buttons create and the button size, compact when absent,
+ *   as a page header button.
  * @returns The add button.
  */
-function HeaderAddNew({ listed, size = 'compact' }: { listed: ContentType, size?: 'compact' | 'default' }) {
-	const addNew = useAddNew(listed)
+function HeaderAddNew({ listed, addNew, size = 'compact' }: {
+	listed: ContentType
+	addNew: ReturnType<typeof useAddNew>
+	size?: 'compact' | 'default'
+}) {
 	const toaster = useToaster()
 	return (
 		<Button
@@ -335,6 +330,7 @@ export function PostsScreen() {
 	const actions = usePostActions(status, listed, run)
 	const held = useTrashTotal(listed.key, status)
 	const session = useSession().data
+	const addNew = useAddNew(listed)
 	return (
 		<Page
 			title={pluralOf(listed)}
@@ -345,7 +341,7 @@ export function PostsScreen() {
 					{offersEmptyTrash(status, posts.data, held, session) ? (
 						<EmptyTrash type={listed.key} count={held} list={run} />
 					) : null}
-					{registered ? <HeaderAddNew listed={listed} /> : null}
+					{registered ? <HeaderAddNew listed={listed} addNew={addNew} /> : null}
 				</>
 			}
 			tabs={<StatusTabs current={current} />}
@@ -358,7 +354,7 @@ export function PostsScreen() {
 				status={status}
 				posts={posts}
 				waiting={waiting}
-				registered={registered}
+				adding={registered ? <HeaderAddNew listed={listed} addNew={addNew} size="default" /> : null}
 				list={list}
 				view={view}
 				columns={columns}

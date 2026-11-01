@@ -65,6 +65,31 @@ test('the add button of an empty list creates a draft and opens it in the editor
 	expect(recorded.bodies).toHaveLength(1)
 })
 
+test('holds both add buttons of an empty list while one creates the draft, so only one draft is made', async () => {
+	const answer = gate()
+	const created: unknown[] = []
+	const draft = { id: NEW_POST_ID, type: 'post', slug: 'untitled', title: '', status: 'draft' }
+	server.use(
+		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
+		http.post('/api/content', async () => {
+			created.push(draft)
+			await answer.held
+			return HttpResponse.json(draft, { status: 201 })
+		}),
+	)
+	const { router } = renderRoutedAt('/content/post')
+	const empty = (await screen.findByText('No items yet')).closest('.godmin-empty') as HTMLElement
+	await userEvent.click(within(empty).getByRole('button', { name: 'Add Post' }))
+	const header = await headerAddNew()
+	await vi.waitFor(() => expect(header).toHaveAttribute('aria-disabled', 'true'))
+
+	await userEvent.click(header)
+	answer.release()
+
+	await vi.waitFor(() => expect(router.state.location.pathname).toBe(`/content/post/${NEW_POST_ID}/edit`))
+	expect(created).toHaveLength(1)
+})
+
 test('the add button of the list header creates a draft and opens it in the editor', async () => {
 	const recorded = captureCreate()
 	server.use(http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })))
