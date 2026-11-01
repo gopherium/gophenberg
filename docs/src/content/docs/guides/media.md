@@ -109,8 +109,9 @@ the page size, the sort, the search and the filters all live in the
 address of the screen. Reload it or share the link and the library
 opens the same way.
 
-When nothing matches, the library says `No media items found.` An
-empty library says `No media items yet.` and how to add one.
+When a search or a filter matches nothing, the library says `No
+results found`. An empty library says `No media items yet` and offers
+**Add Media File**.
 
 ## The actions on a file
 
