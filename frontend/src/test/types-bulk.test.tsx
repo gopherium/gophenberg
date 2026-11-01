@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { setViewport } from '@gopherium/godmin/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
@@ -175,6 +176,26 @@ test.each([
 	await userEvent.click(bulkBar().getByRole('button', { name: action }))
 
 	expect(await screen.findByText(toast, { selector: '.godmin-toast' })).toBeInTheDocument()
+})
+
+test('keeps Deactivate and Delete… in the bulk bar below 782px, where only actions with an icon show', async () => {
+	setViewport({ width: 700 })
+	renderAt('/content-types')
+
+	await pick(['Pages', 'Guides'])
+
+	expect(bulkBar().getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
+	expect(bulkBar().getByRole('button', { name: 'Delete…' })).toBeInTheDocument()
+})
+
+test('keeps Activate in the bulk bar below 782px, where only actions with an icon show', async () => {
+	setViewport({ width: 700 })
+	serveTypes(POST_TYPE, { ...PAGE_TYPE, active: false }, { ...GUIDE_TYPE, active: false })
+	renderAt('/content-types')
+
+	await pick(['Pages', 'Guides'])
+
+	expect(bulkBar().getByRole('button', { name: 'Activate' })).toBeInTheDocument()
 })
 
 test('puts the focus back on the bulk bar after a switch, since every row stays in the list', async () => {

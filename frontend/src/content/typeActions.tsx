@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { checkIcon, notAllowedIcon, trashIcon } from '@gophenberg/frontend-sdk'
 import type { Action, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
 import { RunConfirm, useBulkRun, useUnsavedText } from '@gopherium/godmin'
 import type { BulkRun, ListRun, UnsavedText } from '@gopherium/godmin'
@@ -109,6 +110,7 @@ function switchActions(tools: ActionTools): Action<ContentType>[] {
 		{
 			id: 'activate',
 			label: __('Activate', 'gophenberg'),
+			icon: checkIcon,
 			supportsBulk: true,
 			isEligible: (type) => !type.active,
 			callback: activeAs(true),
@@ -116,6 +118,7 @@ function switchActions(tools: ActionTools): Action<ContentType>[] {
 		{
 			id: 'deactivate',
 			label: __('Deactivate', 'gophenberg'),
+			icon: notAllowedIcon,
 			supportsBulk: true,
 			isEligible: (type) => type.active && !type.isDefault,
 			callback: activeAs(false),
@@ -151,6 +154,7 @@ function deleteAction(tools: ActionTools): Action<ContentType> {
 	return {
 		id: 'delete',
 		label: __('Delete…', 'gophenberg'),
+		icon: trashIcon,
 		supportsBulk: true,
 		isEligible: demotable,
 		hideModalHeader: true,
