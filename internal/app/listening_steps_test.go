@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +25,9 @@ import (
 
 // listeningFeature is the feature the site answers to on the listener its settings name.
 const listeningFeature = "../../test/features/features/listening.feature"
+
+// dataFolderFeature is the feature the site answers to on the data folder its settings name.
+const dataFolderFeature = "../../test/features/features/data-folder.feature"
 
 // listeningBound is how long a scenario waits for the site to answer or to end.
 const listeningBound = 30 * time.Second
@@ -39,6 +43,7 @@ type listeningScenario struct {
 	header  string
 	address string
 	port    string
+	data    string
 	stop    context.CancelFunc
 	done    chan int
 	written answered
@@ -61,6 +66,9 @@ func initializeListening(t *testing.T) func(*godog.ScenarioContext) {
 		sc.Given(`^the host names a free PORT$`, s.namePort)
 		sc.Given(`^the setting "([^"]*)" holds "([^"]*)"$`, s.hold)
 		sc.Given(`^the settings hold "([^"]*)"$`, s.holdAll)
+		sc.Given(`^the settings name a data folder that is not there yet$`, s.nameNewDataFolder)
+		sc.Given(`^the settings name a data folder with the mode (\d+)$`, s.nameDataFolderWithMode)
+		sc.Given(`^the settings name a data folder inside a file$`, s.nameDataFolderInsideAFile)
 		sc.When(`^the site serves$`, s.serve)
 		sc.When(`^the site starts$`, s.start)
 		sc.When(`^an older browser on "([^"]*)" signs in over the socket, naming the scheme "([^"]*)"$`, s.signInWithScheme)
@@ -69,6 +77,8 @@ func initializeListening(t *testing.T) func(*godog.ScenarioContext) {
 			s.signInWithForwardedHost)
 		sc.When(`^the operator runs "([^"]*)"$`, s.runCommand)
 		sc.Then(`^only the site's own user can open the socket$`, s.socketIsPrivate)
+		sc.Then(`^only the site's own user can open the data folder$`, func() error { return s.dataFolderHasMode("700") })
+		sc.Then(`^the data folder has the mode (\d+)$`, s.dataFolderHasMode)
 		sc.Then(`^a request over the socket from the visitor "([^"]*)" is answered$`, s.answersVisitor)
 		sc.Then(`^a request over the socket that names no visitor answers 400$`, s.refusesNoVisitor)
 		sc.Then(`^the site answers on the address$`, func() error { return s.answersOn(s.address) })
@@ -79,7 +89,7 @@ func initializeListening(t *testing.T) func(*godog.ScenarioContext) {
 		sc.Then(`^the write is refused as cross-origin$`, s.refused)
 		sc.Then(`^the site exits with code (\d+) by itself$`, s.exitsWith)
 		sc.Then(`^the site is still serving$`, s.stillServing)
-		sc.Then(`^the command fails, saying "([^"]*)"$`, s.failsSaying)
+		sc.Then(`^the command fails, saying "(.*)"$`, s.failsSaying)
 		sc.After(s.stopServing)
 	}
 }
@@ -114,6 +124,37 @@ func (s *listeningScenario) holdAll(settings string) {
 		name, value, _ := strings.Cut(setting, "=")
 		s.hold(name, value)
 	}
+}
+
+// nameDataFolder names path as the data folder.
+func (s *listeningScenario) nameDataFolder(path string) {
+	s.data = path
+	s.env["GOPHENBERG_DATA_DIR"] = path
+}
+
+// nameNewDataFolder names a data folder nothing has made yet.
+func (s *listeningScenario) nameNewDataFolder() {
+	s.nameDataFolder(filepath.Join(s.t.TempDir(), "gophenberg-data"))
+}
+
+// nameDataFolderWithMode names a data folder that stands with the octal mode.
+func (s *listeningScenario) nameDataFolderWithMode(mode string) error {
+	perm, err := strconv.ParseUint(mode, 8, 32)
+	if err != nil {
+		return err
+	}
+	s.nameNewDataFolder()
+	if err := os.Mkdir(s.data, 0o700); err != nil {
+		return err
+	}
+	return os.Chmod(s.data, os.FileMode(perm))
+}
+
+// nameDataFolderInsideAFile names a data folder below a file, where no folder can be made.
+func (s *listeningScenario) nameDataFolderInsideAFile() error {
+	file := filepath.Join(s.t.TempDir(), "taken")
+	s.nameDataFolder(filepath.Join(file, "gophenberg-data"))
+	return os.WriteFile(file, nil, 0o600)
 }
 
 // portAddress returns the loopback address of the port the host named.
@@ -245,6 +286,18 @@ func (s *listeningScenario) socketIsPrivate() error {
 	return nil
 }
 
+// dataFolderHasMode fails unless the data folder stands with the octal mode.
+func (s *listeningScenario) dataFolderHasMode(mode string) error {
+	info, err := os.Stat(s.data)
+	if err != nil {
+		return err
+	}
+	if got := strconv.FormatUint(uint64(info.Mode().Perm()), 8); got != mode {
+		return fmt.Errorf("the data folder has the mode %s, want %s", got, mode)
+	}
+	return nil
+}
+
 // answersVisitor fails unless a request naming the visitor is answered with 200.
 func (s *listeningScenario) answersVisitor(visitor string) error {
 	got, err := s.overSocket(s.request(visitor))
@@ -370,7 +423,7 @@ func TestListening(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: initializeListening(t),
 		Options: &godog.Options{
-			Format: "pretty", Paths: []string{listeningFeature}, Strict: true, TestingT: t,
+			Format: "pretty", Paths: []string{listeningFeature, dataFolderFeature}, Strict: true, TestingT: t,
 		},
 	}
 	if suite.Run() != 0 {

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"time"
@@ -99,6 +100,9 @@ func started(getenv func(string) string, logger *slog.Logger) (runConfig, *updat
 	}
 	named, _ := settingsEnv(getenv).RuntimeLimits()
 	logRuntimeLimits(logger, named, runtime.GOMAXPROCS(0), debug.SetMemoryLimit(-1))
+	if err := settings.install.Layout().MakeData(); err != nil {
+		return runConfig{}, nil, err
+	}
 	guard, err := updater.Start(settings.install, version.Version(), logger)
 	return settings, guard, err
 }
@@ -542,12 +546,21 @@ func sectionsFrom(env gonsole.Env, held *runConfig) error {
 	return placesFrom(env, held)
 }
 
+// mediaDirFrom returns the media folder the settings name, else the one inside a data folder they name.
+func mediaDirFrom(env gonsole.Env) string {
+	named, data := env.Value("MEDIA_DIR"), env.Value("DATA_DIR")
+	if named != "" || data == "" {
+		return named
+	}
+	return filepath.Join(data, "data", "media")
+}
+
 // placesFrom reads where the site finds its themes and media and where it listens into held.
 func placesFrom(env gonsole.Env, held *runConfig) error {
 	held.themesDir = env.Value("THEMES_DIR")
 	held.theme = env.Value("THEME")
 	held.nodeBin = valueOr(env, "NODE_BIN", "node")
-	held.mediaDir = env.Value("MEDIA_DIR")
+	held.mediaDir = mediaDirFrom(env)
 	listening, err := listeningFrom(env, *held)
 	held.listening = listening
 	return err
