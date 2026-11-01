@@ -1005,7 +1005,7 @@ func handOverFailure(demoted content.Type, err error) error {
 	if !errors.Is(err, content.ErrRouteWordReserved) {
 		return err
 	}
-	return content.DerivedRouteWordReserved(demoted.Key, demoted.PluralLabel, demoted.RouteWord)
+	return content.DerivedRouteWordReserved(demoted)
 }
 
 // Delete removes the type, or reports it missing, still holding content or still targeted by a stored relation field.
