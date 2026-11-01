@@ -656,6 +656,29 @@ ln -s versions/%VERSION% /opt/gophenberg/current
 Then set `GOPHENBERG_INSTALL_ROOT=/opt/gophenberg` beside your other
 settings.
 
+### A data folder outside the install root
+
+Set `GOPHENBERG_DATA_DIR` when something other than an update may
+rebuild the install root, such as a redeploy on a small hosting plan.
+It names a folder outside the install root, as an absolute path, and
+`backups/` and `state/` move there under the same names. The builds,
+the links and `downloads/` stay in the install root:
+
+```text
+/srv/gophenberg-data/
+  backups/1.4.0-20261020T120000Z.dump
+  state/update.json
+  data/media/
+```
+
+`serve` and `update:apply` make the folder when it is not there, with
+the mode `0700`, since a backup holds every account, and they leave
+one that is there as it stands. An update asks for the same free disk
+on the data folder as on the install root.
+
+Setting it on a site that already updated leaves the old `backups/`
+and `state/` behind, so move them into the new folder first.
+
 ### Running an update
 
 On a server that `install.sh` set up, run `update:apply` through the

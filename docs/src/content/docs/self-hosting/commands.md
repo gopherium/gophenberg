@@ -1280,7 +1280,9 @@ gophenberg update:status [flags]
 
 Shows the server install: the install root, the builds `current` and
 `previous` name, where the last update stands, the refused versions
-and the backups kept, the newest first. After an update that raised
+and the backups kept, the newest first. With `-json`, `data` names the
+folder that keeps the backups, which is the install root unless
+`GOPHENBERG_DATA_DIR` is set. After an update that raised
 the minimum version and failed its start check, it also prints the
 steps that restore the backup. For example:
 

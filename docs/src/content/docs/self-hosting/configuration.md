@@ -37,7 +37,8 @@ so it takes the default.
 | `GOPHENBERG_TRUSTED_PROXIES` | No | | Comma-separated CIDR ranges allowed to set forwarded headers |
 | `GOPHENBERG_PUBLIC_URL` | No | | The address people reach the site at, such as `https://example.com`. When set, a write sent to any other address is refused |
 | `GOPHENBERG_THEMES_DIR` | No | | The directory themes are installed in, which uploads write to. The image sets `/themes` |
-| `GOPHENBERG_MEDIA_DIR` | No | | The directory uploaded media is stored in and served from. The image sets `/media` |
+| `GOPHENBERG_MEDIA_DIR` | No | `data/media` inside `GOPHENBERG_DATA_DIR` | The directory uploaded media is stored in and served from. The image sets `/media` |
+| `GOPHENBERG_DATA_DIR` | No | | A folder outside the app folder for `backups/`, `state/` and `data/`, an absolute path. See [a data folder outside the install root](/self-hosting/updates-and-backups/#a-data-folder-outside-the-install-root) |
 | `GOPHENBERG_THEME` | No | | Pins one theme, overriding the admin. Empty lets the admin choose |
 | `GOPHENBERG_NODE_BIN` | No | `node` | The Node binary themes run on. The image sets its own |
 | `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` | No | `128` | The largest upload the media library takes, in megabytes |
@@ -118,9 +119,9 @@ Three rows deserve a warning:
 - `GOPHENBERG_SITE_TITLE` only affects the built-in renderer. A
   theme names the site in its own source.
 - `GOPHENBERG_MEDIA_DIR` holds files no database backup carries.
-  Leave it unset and the media library refuses every upload. Point
-  it at a volume that survives a restart, and back it up alongside
-  the database.
+  Leave it and `GOPHENBERG_DATA_DIR` unset and the media library
+  refuses every upload. Point it at a volume that survives a restart,
+  and back it up alongside the database.
 
 Every cache window applies only to an answer that succeeded. An
 address nothing holds, a file that is missing or a request the server
@@ -821,6 +822,8 @@ The server refuses to start, and says why, when:
   [listening on a small host](#listening-on-a-small-host).
 - `PORT` is not a whole number from 1 to 65535.
 - `GOPHENBERG_IDLE_EXIT` is not a duration, such as `15m`.
+- `GOPHENBERG_DATA_DIR` is not an absolute path, or names a folder the
+  server cannot make.
 - `GOPHENBERG_PUBLIC_URL` is not an `http` or `https` address naming
   only a host.
 - `GOPHENBERG_WEB_DIR` names a folder that holds no `index.html`, or
