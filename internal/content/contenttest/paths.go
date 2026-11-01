@@ -19,6 +19,7 @@ var pathCases = []Case{
 	{"CarriesDescendantsWhenANestedParentIsRenamed", carriesDescendantsWhenANestedParentIsRenamed},
 	{"CarriesDescendantsWhenAParentMoves", carriesDescendantsWhenAParentMoves},
 	{"LeavesDescendantsAloneWhenAParentKeepsItsAddress", leavesDescendantsAloneWhenAParentKeepsItsAddress},
+	{"LeavesDescendantsAloneWhenANestedParentKeepsItsAddress", leavesDescendantsAloneWhenANestedParentKeepsItsAddress},
 	{"SuffixesAnAddressARenameCollidesWith", suffixesAnAddressARenameCollidesWith},
 	{"KeepsAParentThatHoldsChildren", keepsAParentThatHoldsChildren},
 	{"FreesAnAddressWhenContentIsTrashed", freesAnAddressWhenContentIsTrashed},
@@ -167,18 +168,35 @@ func leavesDescendantsAloneWhenAParentKeepsItsAddress(t *testing.T, s Stores) {
 	about := MustNest(t, s.Content, nil, "About", author)
 	team := MustNest(t, s.Content, &about, "Team", author)
 
-	if _, err := s.Content.Update(t.Context(), EditTitle(about, "About us"), about.UpdatedAt, nil, 0); err != nil {
+	retitleLeavesTheChildAlone(t, s, about, team)
+}
+
+// leavesDescendantsAloneWhenANestedParentKeepsItsAddress leaves a child alone when a page with a parent is retitled.
+func leavesDescendantsAloneWhenANestedParentKeepsItsAddress(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	RegisterPageType(t, s.Types)
+	guide := MustNest(t, s.Content, nil, "Guide", author)
+	about := MustNest(t, s.Content, &guide, "About", author)
+	team := MustNest(t, s.Content, &about, "Team", author)
+
+	retitleLeavesTheChildAlone(t, s, about, team)
+}
+
+// retitleLeavesTheChildAlone retitles the parent and checks the child keeps its saved time and takes an edit.
+func retitleLeavesTheChildAlone(t *testing.T, s Stores, parent, child content.Content) {
+	t.Helper()
+	if _, err := s.Content.Update(t.Context(), EditTitle(parent, "Retitled"), parent.UpdatedAt, nil, 0); err != nil {
 		t.Fatalf("Update() error = %v, want nil", err)
 	}
 
-	stored, err := s.Content.ByID(t.Context(), team.ID)
+	stored, err := s.Content.ByID(t.Context(), child.ID)
 	if err != nil {
 		t.Fatalf("ByID() error = %v, want nil", err)
 	}
-	if !stored.UpdatedAt.Equal(team.UpdatedAt) {
-		t.Errorf("child updated at = %v, want %v from before the parent was retitled", stored.UpdatedAt, team.UpdatedAt)
+	if !stored.UpdatedAt.Equal(child.UpdatedAt) {
+		t.Errorf("child updated at = %v, want %v from before the parent was retitled", stored.UpdatedAt, child.UpdatedAt)
 	}
-	if _, err := s.Content.Update(t.Context(), EditTitle(team, "The team"), team.UpdatedAt, nil, 0); err != nil {
+	if _, err := s.Content.Update(t.Context(), EditTitle(child, "The team"), child.UpdatedAt, nil, 0); err != nil {
 		t.Errorf("Update() error = %v, want the child saved from the version read before the retitle", err)
 	}
 }
