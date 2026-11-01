@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { OTHER_POST, comeBack, openAnotherPost } from './anotherPost'
+import { watchKeepalive } from './parks'
 import type { Park } from './parks'
 import { adminUser, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
@@ -137,6 +138,7 @@ function serve(post: Record<string, unknown>): Served {
 		failParks: 0,
 	}
 	const id = String(post.id)
+	const keepaliveAt = watchKeepalive(id)
 	server.use(
 		http.get(`/api/content/${id}`, async () => {
 			const answer = served.post
@@ -148,7 +150,7 @@ function serve(post: Record<string, unknown>): Served {
 		),
 		http.post(`/api/content/${id}/autosave`, async ({ request }) => {
 			const body = (await request.json()) as Record<string, unknown>
-			served.parks.push({ body, keepalive: request.keepalive })
+			served.parks.push({ body, keepalive: keepaliveAt(served.parks.length) })
 			await (served.parkGates.shift() ?? served.parkGate)
 			return parked(served, body)
 		}),
@@ -234,7 +236,7 @@ test('parks nothing when the author leaves an untouched post', async () => {
 	renderRoutedAt(EDITOR_PATH)
 	await screen.findByRole('textbox', { name: 'Title' })
 
-	await userEvent.click(screen.getByRole('link', { name: 'Back to posts' }))
+	await userEvent.click(await screen.findByRole('link', { name: 'Back to posts' }))
 
 	await screen.findByRole('table')
 	expect(held.parks).toEqual([])

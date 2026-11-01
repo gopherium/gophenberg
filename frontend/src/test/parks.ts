@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { onTestFinished, vi } from 'vitest'
 
 import { storedPost } from './postFixture'
 
@@ -11,6 +12,22 @@ export interface Park {
 }
 
 /**
+ * Watches the autosaves the page sends for a post, which carry a keepalive no handler can read.
+ * @param id - The post whose autosaves are watched.
+ * @returns A reader of whether the autosave at a position asked to outlive the page.
+ */
+export function watchKeepalive(id: string): (at: number) => boolean {
+	const sends = vi.spyOn(globalThis, 'fetch')
+	onTestFinished(() => sends.mockRestore())
+	return (at) => {
+		const autosaves = sends.mock.calls.filter(
+			([url, init]) => url === `/api/content/${id}/autosave` && init?.method === 'POST',
+		)
+		return autosaves[at]?.[1]?.keepalive === true
+	}
+}
+
+/**
  * Answers the autosaves of a post and returns the ones this test sent.
  * @param answer - What the server answers each autosave with, over a kept copy of the stored post.
  * @param id - The post whose autosaves are answered.
@@ -18,9 +35,10 @@ export interface Park {
  */
 export function collectParks(answer: Record<string, unknown> = {}, id: string = storedPost.id): Park[] {
 	const parks: Park[] = []
+	const keepaliveAt = watchKeepalive(id)
 	server.use(
 		http.post(`/api/content/${id}/autosave`, async ({ request }) => {
-			parks.push({ body: (await request.json()) as Record<string, unknown>, keepalive: request.keepalive })
+			parks.push({ body: (await request.json()) as Record<string, unknown>, keepalive: keepaliveAt(parks.length) })
 			return HttpResponse.json({
 				target: 'autosave',
 				content_id: id,

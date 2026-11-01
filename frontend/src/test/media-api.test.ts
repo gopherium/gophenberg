@@ -279,8 +279,9 @@ test('uploads a file as multipart under the field the server reads', async () =>
 
 	expect(stored).toEqual(expect.objectContaining({ id: 7 }))
 	expect(contentType).toMatch(/^multipart\/form-data; boundary=/)
-	expect(body).toMatch(/name="file"; filename=/)
+	expect(body).toMatch(/name="file"; filename="harbor\.jpg"/)
 	expect(body).toContain('Content-Type: image/jpeg')
+	expect(body).toContain('the bytes')
 })
 
 test('throws the reason an upload was refused, so a run never counts it as done', async () => {

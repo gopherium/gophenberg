@@ -53,6 +53,22 @@ describe('profileIssue', () => {
 		expect(issue).toContain('sharp')
 	})
 
+	test('names the setting when a theme splits its image service between build and runtime', () => {
+		const issue = profileIssue({
+			...heldConfig(),
+			image: {
+				service: {
+					build: { entrypoint: 'astro/assets/services/sharp' },
+					runtime: { entrypoint: 'astro/assets/services/noop' },
+				},
+			},
+		})
+
+		expect(issue).toContain('image')
+		expect(issue).toContain('astro/assets/services/sharp at build')
+		expect(issue).toContain('astro/assets/services/noop at runtime')
+	})
+
 	test('names the setting when a theme names no image service', () => {
 		const issue = profileIssue({ ...heldConfig(), image: undefined })
 
