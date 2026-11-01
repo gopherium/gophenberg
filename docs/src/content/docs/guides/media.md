@@ -28,8 +28,9 @@ archives. Anything else is refused, and the answer says why.
 A file is checked before it is stored, so refusing one never leaves
 anything behind. An upload is turned away when its type is not on
 that list, when its contents do not match its name, when it is
-larger than the upload limit, or when it is a picture the server
-cannot read.
+larger than the upload limit, when it is a picture holding more
+pixels than the server takes, 80 million unless the server names
+another number, or when it is a picture the server cannot read.
 
 ## What happens to a picture
 
@@ -44,11 +45,13 @@ A lower number makes lighter files that look rougher. The change
 applies to pictures uploaded after it, so copies already on disk
 stay as they were.
 
-Two things are corrected on the way in. A photo taken sideways is
-turned upright, so it is stored the way you saw it on the camera.
-A very large photo also gains a display copy bounded to 2560
-pixels, and that copy is what a post shows. Your original stays on
-disk either way.
+Two things are corrected in the copies. A JPEG taken sideways
+gains an upright copy named with `-rotated`, so a post shows it the
+way you saw it on the camera. A very large photo gains a display
+copy bounded to 2560 pixels and named with `-scaled`, upright when
+the photo was taken sideways, and that copy is what a post shows.
+The file you sent stays on disk as it was, with the details the
+camera wrote into it, such as where the photo was taken.
 
 An animated GIF is the exception. It is stored exactly as
 uploaded and gains no smaller copies, because making them would
@@ -113,7 +116,8 @@ empty library says `No media items yet.` and how to add one.
 
 The actions menu of a file offers:
 
-- **View** opens the file itself in a new tab.
+- **View** opens the picture at its full size in a new tab, or the
+  file itself when it has no full size copy.
 - **Edit…** opens the file's details, as the next part explains.
 - **Rename…** changes the title alone, in a dialog sent with
   **Save**.

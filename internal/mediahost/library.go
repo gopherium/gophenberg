@@ -32,8 +32,8 @@ const DefaultConcurrentImages = 2
 // MaxConcurrentImages is the most images a site may let decode and resize at once.
 const MaxConcurrentImages = 64
 
-// maxPixels bounds the pixels an image may decode to.
-const maxPixels = 80_000_000
+// DefaultMaxPixels bounds the pixels an image may decode to when the library is not given its own budget.
+const DefaultMaxPixels = 80_000_000
 
 // bigImageBound is the longest side the full display copy of an image may keep.
 const bigImageBound = 2560
@@ -50,13 +50,20 @@ var fitBounds = []struct {
 	bound int
 }{{"large", 1024}, {"medium", 300}}
 
-// pendingSubSize is one sub-size encoded and waiting to be written.
+// pendingSubSize is one sub-size encoded and waiting to be written, a suffix naming a full size copy.
 type pendingSubSize struct {
 	slug   string
+	suffix string
 	data   []byte
 	width  int
 	height int
 	format string
+}
+
+// processed is what decoding an upload yields, its upright size and the sub-sizes to write.
+type processed struct {
+	width, height int
+	pending       []pendingSubSize
 }
 
 // Settings answers what the site chose for the pictures it stores.
@@ -75,30 +82,38 @@ type Config struct {
 	Settings Settings
 	// ConcurrentImages bounds how many images decode and resize at once. Zero applies [DefaultConcurrentImages].
 	ConcurrentImages int
+	// MaxPixels bounds the pixels a picture or one frame of a GIF may hold. Zero applies [DefaultMaxPixels].
+	MaxPixels int
 }
 
 // Library owns the media directory uploads land in.
 type Library struct {
-	dir      string
-	maxSize  int64
-	settings Settings
-	slots    slots
-	decode   func(io.Reader) (image.Image, string, error)
+	dir       string
+	maxSize   int64
+	maxPixels int
+	settings  Settings
+	slots     slots
+	decode    func(io.Reader) (image.Image, string, error)
 }
 
 // New returns a [Library] over the configured directory.
 func New(cfg Config) *Library {
-	size := cfg.MaxSize
-	if size <= 0 {
-		size = DefaultMaxSize
-	}
-	images := cfg.ConcurrentImages
-	if images <= 0 {
-		images = DefaultConcurrentImages
-	}
 	return &Library{
-		dir: cfg.Dir, maxSize: size, settings: cfg.Settings, slots: make(slots, images), decode: image.Decode,
+		dir:       cfg.Dir,
+		maxSize:   positiveOr(cfg.MaxSize, DefaultMaxSize),
+		maxPixels: positiveOr(cfg.MaxPixels, DefaultMaxPixels),
+		settings:  cfg.Settings,
+		slots:     make(slots, positiveOr(cfg.ConcurrentImages, DefaultConcurrentImages)),
+		decode:    image.Decode,
 	}
+}
+
+// positiveOr returns value when it stands above zero, else fallback.
+func positiveOr[T int | int64](value, fallback T) T {
+	if value > 0 {
+		return value
+	}
+	return fallback
 }
 
 // Dir returns the directory the library owns.
@@ -144,16 +159,16 @@ func (l *Library) quality(ctx context.Context) int {
 	return ResolveJPEGQuality(held, found)
 }
 
-// ingestImage decodes an upload, uprights it, and stores it with its sub-sizes.
+// ingestImage decodes an upload and stores it as sent with its upright sub-sizes.
 func (l *Library) ingestImage(
 	ctx context.Context, name string, k kind, data []byte, authorID uuid.UUID,
 ) (media.Media, error) {
-	cfg, err := decodeBudget(data)
+	cfg, err := l.decodeBudget(data)
 	if err != nil {
 		return media.Media{}, err
 	}
 	if k.ext == "gif" {
-		animated, err := isAnimated(data)
+		animated, err := l.isAnimated(data)
 		if err != nil {
 			return media.Media{}, err
 		}
@@ -161,31 +176,29 @@ func (l *Library) ingestImage(
 			return l.store(name, k, data, cfg.Width, cfg.Height, nil, authorID)
 		}
 	}
-	img, data, pending, err := l.process(ctx, k, data, l.quality(ctx))
+	done, err := l.process(ctx, k, data, l.quality(ctx))
 	if err != nil {
 		return media.Media{}, err
 	}
-	return l.store(name, k, data, img.Bounds().Dx(), img.Bounds().Dy(), pending, authorID)
+	return l.store(name, k, data, done.width, done.height, done.pending, authorID)
 }
 
-// process decodes an upload, uprights it, and makes its sub-sizes while it holds one of the library's slots.
-func (l *Library) process(
-	ctx context.Context, k kind, data []byte, quality int,
-) (image.Image, []byte, []pendingSubSize, error) {
+// process decodes an upload and makes its upright sub-sizes while it holds one of the library's slots.
+func (l *Library) process(ctx context.Context, k kind, data []byte, quality int) (processed, error) {
 	if err := l.slots.take(ctx); err != nil {
-		return nil, nil, nil, fmt.Errorf("mediahost: wait for an image slot: %w", err)
+		return processed{}, fmt.Errorf("mediahost: wait for an image slot: %w", err)
 	}
 	defer l.slots.give()
 	img, _, err := l.decode(bytes.NewReader(data))
 	if err != nil {
-		return nil, nil, nil, refuse("image_unreadable", "the image cannot be read", "decoding: %w", err)
+		return processed{}, refuse("image_unreadable", "the image cannot be read", "decoding: %w", err)
 	}
-	img, data = uprightJPEG(k, img, data, quality)
-	return img, data, makeSubSizes(img, k, quality), nil
+	src := newSource(img, jpegOrientation(data))
+	return processed{width: src.width, height: src.height, pending: makeSubSizes(src, k, quality)}, nil
 }
 
-// decodeBudget reads the image header and refuses what is too big to decode.
-func decodeBudget(data []byte) (image.Config, error) {
+// decodeBudget reads the image header and refuses what holds more pixels than the library's budget.
+func (l *Library) decodeBudget(data []byte) (image.Config, error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		return image.Config{}, refuse("image_unreadable", "the image cannot be read", "reading the header: %w", err)
@@ -194,21 +207,21 @@ func decodeBudget(data []byte) (image.Config, error) {
 		return image.Config{}, refuse("image_unreadable", "the image cannot be read",
 			"the header declares %dx%d pixels", cfg.Width, cfg.Height)
 	}
-	if cfg.Width > maxPixels/cfg.Height {
+	if cfg.Width > l.maxPixels/cfg.Height {
 		refused := refuse("image_pixel_budget_exceeded", "the image is too large",
-			"%dx%d exceeds the %d pixel budget", cfg.Width, cfg.Height, maxPixels)
-		refused.Meta = map[string]any{"width": cfg.Width, "height": cfg.Height, "max": maxPixels}
+			"%dx%d exceeds the %d pixel budget", cfg.Width, cfg.Height, l.maxPixels)
+		refused.Meta = map[string]any{"width": cfg.Width, "height": cfg.Height, "max": l.maxPixels}
 		return image.Config{}, refused
 	}
 	return cfg, nil
 }
 
-// isAnimated reports whether a GIF holds more than one frame.
-func isAnimated(data []byte) (bool, error) {
-	frames, err := gifFrames(data)
+// isAnimated reports whether a GIF holds more than one frame, refusing one frame past the library's budget.
+func (l *Library) isAnimated(data []byte) (bool, error) {
+	frames, err := gifFrames(data, l.maxPixels)
 	if errors.Is(err, errGIFFrameTooLarge) {
 		refused := refuse("image_frame_too_large", "the image is too large", "walking the animation: %w", err)
-		refused.Meta = map[string]any{"max": maxPixels}
+		refused.Meta = map[string]any{"max": l.maxPixels}
 		return false, refused
 	}
 	if err != nil {
@@ -217,53 +230,71 @@ func isAnimated(data []byte) (bool, error) {
 	return frames > 1, nil
 }
 
-// uprightJPEG applies a JPEG's orientation tag, re-encoding when the pixels moved.
-func uprightJPEG(k kind, img image.Image, data []byte, quality int) (image.Image, []byte) {
-	if k.ext != "jpg" {
-		return img, data
-	}
-	orientation := jpegOrientation(data)
-	if orientation == 1 {
-		return img, data
-	}
-	upright := orient(img, orientation)
-	return upright, mustEncode(upright, "jpeg", quality)
+// sizing holds what every sub-size of one upload is drawn and encoded from.
+type sizing struct {
+	upload, base source
+	format       string
+	quality      int
 }
 
-// makeSubSizes returns the sub-sizes an upright image needs.
-func makeSubSizes(img image.Image, k kind, quality int) []pendingSubSize {
-	format := subSizeFormat(k.ext, img)
-	out := scaleFullSubSize(img, format, quality)
-	out = fitSubSizes(out, img, format, quality)
-	return cropThumbnailSubSize(out, img, format, quality)
+// makeSubSizes returns the sub-sizes an upload needs, the smaller ones drawn from its full size copy when it has one.
+func makeSubSizes(src source, k kind, quality int) []pendingSubSize {
+	s := sizing{upload: src, base: src, format: subSizeFormat(k.ext, src.img), quality: quality}
+	out, s := fullSubSize(s)
+	out = fitSubSizes(out, s)
+	return cropThumbnailSubSize(out, s)
 }
 
-// scaleFullSubSize returns the full sub-size of an image beyond the big image bound, scaled down to it.
-func scaleFullSubSize(img image.Image, format string, quality int) []pendingSubSize {
+// fullSubSize returns the full size copy of an upload beyond the big image bound or turned upright, and its sizing.
+func fullSubSize(s sizing) ([]pendingSubSize, sizing) {
 	out := make([]pendingSubSize, 0, 4)
-	if img.Bounds().Dx() <= bigImageBound && img.Bounds().Dy() <= bigImageBound {
-		return out
+	var suffix string
+	var full *image.RGBA
+	switch {
+	case s.upload.exceeds(bigImageBound):
+		suffix, full = "scaled", s.upload.draw(s.upload.fit(bigImageBound))
+	case s.upload.turned():
+		suffix, full = "rotated", s.upload.draw(s.upload.upright())
+	default:
+		return out, s
 	}
-	return append(out, encodeSubSize("full", resizeFit(img, bigImageBound), format, quality))
+	s.base = s.upload.withCopy(full)
+	return append(out, fullCopy(suffix, full, s.format, s.quality)), s
 }
 
-// fitSubSizes appends the sub-sizes bounded by their longest side.
-func fitSubSizes(out []pendingSubSize, img image.Image, format string, quality int) []pendingSubSize {
+// fullCopy returns img encoded as the full size copy named with suffix.
+func fullCopy(suffix string, img image.Image, format string, quality int) pendingSubSize {
+	copied := encodeSubSize("full", img, format, quality)
+	copied.suffix = suffix
+	return copied
+}
+
+// fitSubSizes appends the sub-sizes bounded by their longest side, drawn from the sizing's base.
+func fitSubSizes(out []pendingSubSize, s sizing) []pendingSubSize {
 	for _, size := range fitBounds {
-		if img.Bounds().Dx() <= size.bound && img.Bounds().Dy() <= size.bound {
-			continue
+		if s.upload.exceeds(size.bound) {
+			out = append(out, encodeSubSize(size.slug, s.base.draw(s.base.fit(size.bound)), s.format, s.quality))
 		}
-		out = append(out, encodeSubSize(size.slug, resizeFit(img, size.bound), format, quality))
 	}
 	return out
 }
 
-// cropThumbnailSubSize appends the square thumbnail sub-size of a large enough image.
-func cropThumbnailSubSize(out []pendingSubSize, img image.Image, format string, quality int) []pendingSubSize {
-	if img.Bounds().Dx() <= thumbnailSide || img.Bounds().Dy() <= thumbnailSide {
+// cropThumbnailSubSize appends the square thumbnail sub-size of a large enough upload.
+func cropThumbnailSubSize(out []pendingSubSize, s sizing) []pendingSubSize {
+	if s.upload.width <= thumbnailSide || s.upload.height <= thumbnailSide {
 		return out
 	}
-	return append(out, encodeSubSize("thumbnail", resizeCrop(img, thumbnailSide), format, quality))
+	from := s.thumbnailSource()
+	return append(out, encodeSubSize("thumbnail", from.draw(from.crop(thumbnailSide)), s.format, s.quality))
+}
+
+// thumbnailSource returns the base while its short side still holds a thumbnail, else the upload.
+func (s sizing) thumbnailSource() source {
+	b := s.base.img.Bounds()
+	if min(b.Dx(), b.Dy()) >= thumbnailSide {
+		return s.base
+	}
+	return s.upload
 }
 
 // encodeSubSize returns img encoded as the named sub-size.
@@ -325,7 +356,7 @@ func (l *Library) writeSubSizes(
 			Filesize: int64(len(p.data)),
 		}
 	}
-	if _, scaled := sizes["full"]; !scaled {
+	if _, copied := sizes["full"]; !copied {
 		sizes["full"] = media.SubSize{
 			File: rel, Width: width, Height: height, MimeType: k.mime, Filesize: int64(len(original)),
 		}
@@ -335,8 +366,8 @@ func (l *Library) writeSubSizes(
 
 // subSizeStem returns the stem a sub-size of the given stem stores under.
 func subSizeStem(stem string, p pendingSubSize) string {
-	if p.slug == "full" {
-		return stem + "-scaled"
+	if p.suffix != "" {
+		return stem + "-" + p.suffix
 	}
 	return fmt.Sprintf("%s-%dx%d", stem, p.width, p.height)
 }

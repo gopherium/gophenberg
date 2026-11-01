@@ -276,6 +276,21 @@ Some things work differently after this update:
   it, where it started on `author`. A member cannot enter the admin,
   so set it to `author` to keep the old start. See
   [managing accounts](/guides/users/#managing-accounts).
+- A JPEG that arrives sideways is now kept as you sent it, with its
+  orientation tag and the details the camera wrote into it, such as
+  where the photo was taken, as WordPress keeps it. Its full size is
+  an upright copy named with `-rotated`, or the `-scaled` copy when
+  the photo is larger than 2560 pixels, and a post shows that copy.
+  Pictures already in the library stay as they were.
+- `GOPHENBERG_MEDIA_MAX_MEGAPIXELS`, a new setting, `80` unless set,
+  is the most pixels a picture or one frame of a GIF may hold, in
+  millions. A site that leaves it unset refuses the same pictures as
+  before. See [configuration](/self-hosting/configuration/).
+- `GOPHENBERG_MAX_PROCS` and `GOPHENBERG_MEMORY_LIMIT_MB`, new settings
+  and neither required, hand Go its processor and memory limits once
+  `.env` has loaded. Each only ever lowers what Go holds, and a value
+  out of range stops `check` and `serve`. See
+  [memory and processors on a small host](/self-hosting/configuration/#memory-and-processors-on-a-small-host).
 
 Updating from further back also runs the migrations of every release
 you skip, so read each of their notes. Coming from five releases back

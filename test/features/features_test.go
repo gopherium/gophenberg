@@ -134,6 +134,10 @@ func TestMediaUpload(t *testing.T) {
 	runFeature(t, "features/media-upload.feature", initializeMediaUpload)
 }
 
+func TestMediaPixelBudget(t *testing.T) {
+	runFeature(t, "features/media-pixel-budget.feature", initializeMediaUpload)
+}
+
 func TestUploadScratchFiles(t *testing.T) {
 	runFeature(t, "features/upload-scratch-files.feature", initializeUploadScratch)
 }

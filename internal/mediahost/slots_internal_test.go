@@ -127,6 +127,22 @@ func TestNewAppliesTheDefaultImageLimitWhenNoneIsNamed(t *testing.T) {
 	}
 }
 
+func TestNewAppliesTheDefaultPixelBudgetWhenNoneIsNamed(t *testing.T) {
+	t.Parallel()
+
+	for name, budget := range map[string]int{"zero": 0, "a negative budget": -1} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			library := New(Config{Dir: t.TempDir(), MaxPixels: budget})
+
+			if library.maxPixels != DefaultMaxPixels {
+				t.Errorf("maxPixels = %d, want the default %d", library.maxPixels, DefaultMaxPixels)
+			}
+		})
+	}
+}
+
 func TestIngestWaitsWhileTheOnlySlotIsHeld(t *testing.T) {
 	t.Parallel()
 
@@ -259,22 +275,24 @@ func TestIngestStopsWaitingOnceTheRequestIsCancelled(t *testing.T) {
 func TestIngestTakesNoFreeSlotOnceTheRequestHasEnded(t *testing.T) {
 	t.Parallel()
 
-	library := New(Config{Dir: t.TempDir(), ConcurrentImages: 1})
-	decoder := newGatedDecoder(cancelledIngests)
-	close(decoder.gate)
-	library.decode = decoder.decode
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
+	synctest.Test(t, func(t *testing.T) {
+		library := New(Config{Dir: t.TempDir(), ConcurrentImages: 1})
+		decoder := newGatedDecoder(cancelledIngests)
+		close(decoder.gate)
+		library.decode = decoder.decode
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
 
-	for range cancelledIngests {
-		_, err := library.Ingest(ctx, "harbor.png", slotPNG(t), uuid.Must(uuid.NewV7()))
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("Ingest() for an ended request with a free slot error = %v, want %v", err, context.Canceled)
+		for range cancelledIngests {
+			_, err := library.Ingest(ctx, "harbor.png", slotPNG(t), uuid.Must(uuid.NewV7()))
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("Ingest() for an ended request with a free slot error = %v, want %v", err, context.Canceled)
+			}
 		}
-	}
-	if decoded := len(decoder.entered); decoded != 0 {
-		t.Errorf("images decoded for an ended request = %d, want none", decoded)
-	}
+		if decoded := len(decoder.entered); decoded != 0 {
+			t.Errorf("images decoded for an ended request = %d, want none", decoded)
+		}
+	})
 }
 
 func TestTakeGivesBackASlotWhenTheRequestEndsAfterItsCheck(t *testing.T) {

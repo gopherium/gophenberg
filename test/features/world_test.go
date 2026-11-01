@@ -122,6 +122,7 @@ type world struct {
 	deepest        nestedContent
 	mediaStore     *memoryMedia
 	mediaFiles     *mediahost.Library
+	mediaConfig    mediahost.Config
 	mediaSubject   int64
 	mediaVersion   time.Time
 	locales        []string
@@ -178,6 +179,7 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 	}
 	items, types, accounts := newMemoryStores()
 	settings := newMemorySettings()
+	mediaConfig := mediahost.Config{Dir: uploads, MaxSize: mediaTestCap, Settings: settings}
 	return context.WithValue(ctx, worldKey{}, &world{
 		themesDir:    themes,
 		gateDir:      gates,
@@ -190,9 +192,8 @@ func provisionWorld(ctx context.Context, _ *godog.Scenario) (context.Context, er
 		contentItems: items,
 		contentTypes: types,
 		mediaStore:   newMemoryMedia(accounts),
-		mediaFiles: mediahost.New(mediahost.Config{
-			Dir: uploads, MaxSize: mediaTestCap, Settings: settings,
-		}),
+		mediaConfig:  mediaConfig,
+		mediaFiles:   mediahost.New(mediaConfig),
 	}), nil
 }
 
