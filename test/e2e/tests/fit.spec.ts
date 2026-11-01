@@ -164,6 +164,8 @@ test('fits the posts table to its card at 1280 beside a long title, its listed f
 	expect(scroll).toBeLessThanOrEqual(0)
 	await expect(table.locator('.dataviews-view-table__actions-column--stuck')).toHaveCount(0)
 	await expect(page.getByRole('columnheader', { name: 'Featured' })).toBeVisible()
+	await page.getByRole('button', { name: 'View options' }).click()
+	await expect(page.locator('.dataviews-field-control').getByRole('button', { name: 'Featured' })).toBeVisible()
 	await page.request.delete(`/api/content/${id}?force=true`)
 })
 
