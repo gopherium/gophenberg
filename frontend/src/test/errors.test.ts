@@ -121,29 +121,27 @@ test('names the type and the route word a hand over would give it', () => {
 	)
 })
 
-test('asks for a different plural name when an import derives a taken route word', () => {
-	const held = errorText({
-		error: 'content: route word taken: "Recipes" would answer under "recipes"',
+test.each([
+	{
+		change: 'a different plural name when an import derives a taken route word',
 		code: 'derived_route_word_taken',
-		meta: { type: 'chapter', name: 'Recipes', word: 'recipes' },
-	})
-
-	expect(held).toBe(
-		'Recipes (chapter) would use /recipes, which another content type already uses. ' +
-			'Change its plural name and try again.',
-	)
-})
-
-test('asks for a different route word when an import states a taken one', () => {
-	const held = errorText({
-		error: 'content: route word taken: "Chapters" would answer under "recipes"',
+		name: 'Recipes',
+		advice: 'Change its plural name and try again.',
+	},
+	{
+		change: 'a different route word when an import states a taken one',
 		code: 'stated_route_word_taken',
-		meta: { type: 'chapter', name: 'Chapters', word: 'recipes' },
+		name: 'Chapters',
+		advice: 'Pick a different route word.',
+	},
+])('asks for $change', ({ code, name, advice }) => {
+	const held = errorText({
+		error: `content: route word taken: "${name}" would answer under "recipes"`,
+		code,
+		meta: { type: 'chapter', name, word: 'recipes' },
 	})
 
-	expect(held).toBe(
-		'Chapters (chapter) would use /recipes, which another content type already uses. Pick a different route word.',
-	)
+	expect(held).toBe(`${name} (chapter) would use /recipes, which another content type already uses. ${advice}`)
 })
 
 test('names the address no item can answer at', () => {
