@@ -73,7 +73,7 @@ func (s State) WithEmptyLists() State {
 
 // StateFile returns the file that holds the state of the last update.
 func (l Layout) StateFile() string {
-	return filepath.Join(l.Root, stateFolder, stateName)
+	return filepath.Join(l.Kept(), stateFolder, stateName)
 }
 
 // ReadState returns the state the state file holds, an empty state before the first update.

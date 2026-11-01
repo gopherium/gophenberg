@@ -3,6 +3,7 @@
 package updater
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,6 +29,24 @@ const (
 // Layout is an install root: one folder per build side by side, and the links naming the current and previous builds.
 type Layout struct {
 	Root string
+	// Data names the folder that keeps the backups and the state in place of the install root.
+	Data string
+}
+
+// Kept returns the folder that keeps the backups and the state, the install root with no data folder.
+func (l Layout) Kept() string {
+	return cmp.Or(l.Data, l.Root)
+}
+
+// MakeData makes a data folder only its owner opens, leaving one that is already there as it stands.
+func (l Layout) MakeData() error {
+	if l.Data == "" {
+		return nil
+	}
+	if err := os.MkdirAll(l.Data, 0o700); err != nil {
+		return fmt.Errorf("updater: make the data folder: %w", err)
+	}
+	return nil
 }
 
 // Build returns the folder of the build called name.
@@ -47,14 +66,14 @@ func (l Layout) Download(release string) string {
 
 // Backups returns the folder that keeps the backups of the database.
 func (l Layout) Backups() string {
-	return filepath.Join(l.Root, backupsFolder)
+	return filepath.Join(l.Kept(), backupsFolder)
 }
 
-// folders returns the install root and each folder a job writes into.
+// folders returns the install root, the folder that keeps the backups and the state, and each folder a job writes into.
 func (l Layout) folders() []string {
 	return []string{
-		l.Root, filepath.Join(l.Root, versionsFolder), filepath.Join(l.Root, downloadsFolder), l.Backups(),
-		filepath.Join(l.Root, stateFolder),
+		l.Root, filepath.Join(l.Root, versionsFolder), filepath.Join(l.Root, downloadsFolder), l.Kept(), l.Backups(),
+		filepath.Dir(l.StateFile()),
 	}
 }
 

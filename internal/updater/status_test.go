@@ -64,7 +64,7 @@ func TestReadStatusNamesTheBuildsTheLastUpdateAndTheBackupsTheNewestFirst(t *tes
 	status, err := updater.ReadStatus(settingsOf(t, f.env))
 
 	want := updater.Status{
-		Root: f.layout.Root, Current: offered, Previous: running, Update: switchedTo,
+		Root: f.layout.Root, Data: f.layout.Root, Current: offered, Previous: running, Update: switchedTo,
 		Backups: []string{longJumpBackup, "backups/0.19.0-20261001T120000Z.dump"},
 	}
 	if err != nil || !reflect.DeepEqual(status, want) {
@@ -80,7 +80,7 @@ func TestReadStatusOfAnInstallRootWithNoLinksNamesNoBuild(t *testing.T) {
 	status, err := updater.ReadStatus(settingsOf(t, map[string]string{"GOPHENBERG_INSTALL_ROOT": root}))
 
 	want := listsNothing
-	want.Root = root
+	want.Root, want.Data = root, root
 	if err != nil || !reflect.DeepEqual(status, want) {
 		t.Errorf("ReadStatus() of an empty install root = %#v, %v, want only its root named", status, err)
 	}

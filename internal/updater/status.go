@@ -45,15 +45,15 @@ func ReadOverview(settings Settings) (Overview, error) {
 	if err != nil {
 		return Overview{}, err
 	}
-	layout := Layout{Root: status.Root}
 	return Overview{
-		Refused: status.Update.Refused, Job: status.lastUpdate(), Backups: layout.backupCount(settings.BackupsKept),
+		Refused: status.Update.Refused, Job: status.lastUpdate(),
+		Backups: settings.Layout().backupCount(settings.BackupsKept),
 	}, nil
 }
 
 // CannotUpdate returns why the install the settings name cannot update itself under stamp, empty when it can.
 func CannotUpdate(settings Settings, stamp string) Reason {
-	r := &run{job: Job{Settings: settings, Stamp: stamp}, layout: Layout{Root: settings.Root}}
+	r := &run{job: Job{Settings: settings, Stamp: stamp}, layout: settings.Layout()}
 	for _, check := range []func() error{r.official, r.rooted} {
 		if err := check(); err != nil {
 			return ReasonOf(err)
@@ -88,6 +88,7 @@ func (l Layout) backupCount(limit int) BackupCount {
 // Status is what update:status shows of an install root: the builds its links name, the last update and the backups.
 type Status struct {
 	Root     string   `json:"root"`
+	Data     string   `json:"data"`
 	Current  string   `json:"current"`
 	Previous string   `json:"previous"`
 	Update   State    `json:"update"`
@@ -100,12 +101,12 @@ func ReadStatus(settings Settings) (Status, error) {
 	if settings.Root == "" {
 		return Status{Update: State{}.WithEmptyLists(), Backups: []string{}}, nil
 	}
-	layout := Layout{Root: settings.Root}
+	layout := settings.Layout()
 	state, err := layout.ReadState()
 	if err != nil {
 		return Status{}, err
 	}
-	status := Status{Root: layout.Root, Update: state.WithEmptyLists(), Backups: layout.backups()}
+	status := Status{Root: layout.Root, Data: layout.Kept(), Update: state.WithEmptyLists(), Backups: layout.backups()}
 	status.Current, _ = layout.Named(Current)
 	status.Previous, _ = layout.Named(Previous)
 	if state.Step == StepFailed {
@@ -114,7 +115,7 @@ func ReadStatus(settings Settings) (Status, error) {
 	return status, nil
 }
 
-// backups returns each backup the backups folder keeps, relative to the install root, the newest first.
+// backups returns each backup the backups folder keeps, relative to the folder that keeps it, the newest first.
 func (l Layout) backups() []string {
 	dated := datedBackups(l.Backups())
 	names := make([]string, 0, len(dated))
