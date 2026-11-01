@@ -11,6 +11,16 @@ import (
 	"github.com/gopherium/gophenberg/internal/updater"
 )
 
+// planAnswer returns what Plan answers for job, applying a plan that passed so its database connection goes back.
+func planAnswer(t *testing.T, job updater.Job) error {
+	t.Helper()
+	planned, err := job.Plan(t.Context())
+	if err == nil {
+		_, _ = planned.Apply(t.Context())
+	}
+	return err
+}
+
 func TestPlanHoldsTheUpdateLockAndChangesNothingUntilTheJobApplies(t *testing.T) {
 	t.Parallel()
 
@@ -42,7 +52,7 @@ func TestPlanLetsGoOfTheUpdateLockWhenACheckRefuses(t *testing.T) {
 	job := f.job()
 	job.Stamp = ""
 
-	_, err := job.Plan(t.Context())
+	err := planAnswer(t, job)
 
 	wantRefused(t, err, "updater: this is a custom build of Gophenberg 0.20.0")
 	locked(t, f.db)()
@@ -97,7 +107,7 @@ func TestPlanMarksWhatTheChecksRefuseAndLeavesWhatFailedUnmarked(t *testing.T) {
 			job := f.job()
 			marked.change(f, &job)
 
-			_, err := job.Plan(t.Context())
+			err := planAnswer(t, job)
 
 			if err == nil || errors.Is(err, updater.ErrRefused) != marked.refused {
 				t.Errorf("Plan() = %v, want it marked as refused %t", err, marked.refused)
@@ -122,7 +132,7 @@ func TestReasonOfNamesWhyThePlanRefusedAnInstallThatCannotUpdateItself(t *testin
 			job := f.job()
 			planCases[name].change(f, &job)
 
-			_, err := job.Plan(t.Context())
+			err := planAnswer(t, job)
 
 			if got := updater.ReasonOf(err); err == nil || got != want {
 				t.Errorf("ReasonOf(%v) = %q, want %q", err, got, want)
