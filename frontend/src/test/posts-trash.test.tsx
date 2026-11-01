@@ -388,7 +388,7 @@ test('leaves the focus alone on the status the list moved to before the run sett
 	answer.release()
 
 	await screen.findByText('1 item could not be restored.', { selector: '.godmin-toast' })
-	expect(screen.getByRole('checkbox', { name: 'Fresh Notes' })).toHaveFocus()
+	await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Fresh Notes' })).toHaveFocus())
 })
 
 /**
@@ -432,7 +432,7 @@ test('keeps the focus where a newer run left it once a run from an earlier visit
 
 	await screen.findByText('2 posts have been restored.', { selector: '.godmin-toast' })
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-	expect(screen.getAllByRole('button', { name: 'Actions' })[0]).toHaveFocus()
+	await waitFor(() => expect(screen.getAllByRole('button', { name: 'Actions' })[0]).toHaveFocus())
 	expect(screen.getByRole('region', { name: 'Posts' })).not.toHaveFocus()
 })
 

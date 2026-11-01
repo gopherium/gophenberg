@@ -11,6 +11,7 @@ import '../index.css'
 import { typesQueryKey } from '../content/nav'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
+import { holdReads, waitMarked, waitUnmarked } from './reloads'
 import { leaveStale } from './reopen'
 import { renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
@@ -260,10 +261,10 @@ test('writes the search a reader types into the address and narrows the list to 
 	await waitFor(() => expect(list.queryByText('Pages', { exact: true })).not.toBeInTheDocument())
 })
 
-test('says no content types are found when a search matches none', async () => {
+test('says no results are found when a search matches no content type', async () => {
 	renderAt('/content-types?search=nothing')
 
-	expect(await screen.findByText('No content types found.')).toBeInTheDocument()
+	expect(await screen.findByText('No results found')).toBeInTheDocument()
 })
 
 test('filters the list by status from the address', async () => {
@@ -438,12 +439,21 @@ test('names a type a plugin declared under a built-in key as the plugin named it
 	expect(list.queryByText('Páginas', { exact: true })).not.toBeInTheDocument()
 })
 
-test('says no content types are found in Spanish', async () => {
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
-	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
-	renderAt('/content-types?search=nothing')
+test('closes Add Content Type as its toast shows and marks the list until the registry answers', async () => {
+	const created = { ...GUIDE_TYPE, key: 'lesson', plural_label: 'Lessons' }
+	server.use(http.post('/api/types', () => HttpResponse.json(created, { status: 201 })))
+	renderAt('/content-types')
+	const dialog = await openAdd()
+	await nameNewType(dialog)
+	const release = holdReads('/api/types', { items: [POST_TYPE, PAGE_TYPE, created] })
 
-	expect(await screen.findByText('No se han encontrado tipos de contenido.')).toBeInTheDocument()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }))
+
+	await screen.findByText('"Lessons" successfully created.', { selector: '.godmin-toast' })
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitMarked()
+	release()
+	await waitUnmarked()
 })
 
 test('draws Add Content Type as the compact solid button every list header holds', async () => {

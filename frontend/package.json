@@ -21,9 +21,9 @@
 	},
 	"dependencies": {
 		"@gophenberg/frontend-sdk": "workspace:*",
-		"@gopherium/godmin": "0.29.0",
+		"@gopherium/godmin": "0.30.0",
 		"@gopherium/gottext": "0.7.0",
-		"@gopherium/react-auth": "0.18.0",
+		"@gopherium/react-auth": "0.19.0",
 		"@tanstack/react-query": "^5.102.8",
 		"@tanstack/react-router": "^1.170.44",
 		"@wordpress/date": "5.57.0",

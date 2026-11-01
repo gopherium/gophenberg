@@ -146,9 +146,7 @@ test('seeds a hostile post and fits every screen to a phone', async ({ page }) =
 	}
 })
 
-test('fits the posts table to its card at 1280 beside a long title, the listed fields left in View options', async ({
-	page,
-}) => {
+test('fits the posts table to its card at 1280 beside a long title, its listed fields open', async ({ page }) => {
 	const title = `${LONG_TITLE} ${RUN}`
 	const created = await page.request.post('/api/content', { data: { type: 'post', title } })
 	expect(created.status()).toBe(201)
@@ -165,7 +163,7 @@ test('fits the posts table to its card at 1280 beside a long title, the listed f
 	})
 	expect(scroll).toBeLessThanOrEqual(0)
 	await expect(table.locator('.dataviews-view-table__actions-column--stuck')).toHaveCount(0)
-	await expect(page.getByRole('columnheader', { name: 'Featured' })).toHaveCount(0)
+	await expect(page.getByRole('columnheader', { name: 'Featured' })).toBeVisible()
 	await page.getByRole('button', { name: 'View options' }).click()
 	await expect(page.locator('.dataviews-field-control').getByRole('button', { name: 'Featured' })).toBeVisible()
 	await page.request.delete(`/api/content/${id}?force=true`)

@@ -103,8 +103,10 @@ body.
 
 Filters add up, so a post has to match every one of them.
 
-When nothing matches, the list says `No items found.` A list that
-holds nothing at all says `No items yet.` and how to add one.
+When a search or a filter matches nothing, the list says `No results
+found`. A status tab with nothing in it says so in its own words,
+such as `No drafts` or `Trash is empty`. A list that holds nothing at
+all says `No items yet` and offers the add button.
 
 ## Creating a post
 

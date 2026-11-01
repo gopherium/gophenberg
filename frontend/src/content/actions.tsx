@@ -151,7 +151,7 @@ function listActions(
 			isEligible: (post) => post.status !== 'trash',
 			modalHeader: _x('Duplicate', 'action label', 'gophenberg'),
 			modalFocusOnMount: 'firstContentElement',
-			RenderModal: (props) => <DuplicateModal {...props} unsaved={unsaved.copies} />,
+			RenderModal: (props) => <DuplicateModal {...props} unsaved={unsaved.copies} run={run} />,
 		},
 		{
 			id: 'rename',
@@ -159,7 +159,7 @@ function listActions(
 			isEligible: changeable,
 			modalHeader: __('Rename', 'gophenberg'),
 			modalFocusOnMount: 'firstContentElement',
-			RenderModal: (props) => <RenamePostModal {...props} unsaved={unsaved.renames} />,
+			RenderModal: (props) => <RenamePostModal {...props} unsaved={unsaved.renames} run={run} />,
 		},
 		{
 			id: 'trash',

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { buttonClasses } from '@gopherium/godmin/testing'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
@@ -142,25 +143,26 @@ test('reports a library that could not be read', async () => {
 	expect(await screen.findByRole('alert')).toHaveTextContent(/could not/i)
 })
 
-test('says the library holds nothing yet, and how to add a file, when nothing narrows it', async () => {
+test('says the library holds nothing yet, and offers the add button, when nothing narrows it', async () => {
 	listing([])
 	renderAt('/media')
 
-	const empty = (await screen.findByText('No media items yet.')).closest('.godmin-empty') as HTMLElement
+	const empty = (await screen.findByText('No media items yet')).closest('.godmin-empty') as HTMLElement
 
-	expect(within(empty).getByText('Add one with Add Media File.')).toBeInTheDocument()
+	expect([...within(empty).getByRole('button', { name: 'Add Media File' }).classList]).toEqual(buttonClasses('solid'))
 	expect(empty.querySelector('svg')).not.toBeNull()
 })
 
-test('says no media item was found when a search narrows the library to nothing', async () => {
+test('says no results are found when a search narrows the library to nothing', async () => {
 	renderAt('/media')
 	await screen.findByText('Harbor at dawn')
 	listing([])
 
 	await userEvent.type(screen.getByRole('searchbox'), 'lighthouse')
 
-	expect(await screen.findByText('No media items found.')).toBeInTheDocument()
-	expect(screen.queryByText('Add one with Add Media File.')).not.toBeInTheDocument()
+	const empty = (await screen.findByText('No results found')).closest('.godmin-empty') as HTMLElement
+
+	expect(within(empty).queryByRole('button')).not.toBeInTheDocument()
 })
 
 test('says under the Media title what the library holds', async () => {

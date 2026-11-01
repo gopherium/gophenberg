@@ -43,14 +43,10 @@ export function useMayChange(): (item: MediaItem) => boolean {
  */
 export function useMediaTools(list: ListRun): MediaTools {
 	const client = useQueryClient()
-	const refresh = useRefreshMedia()
-	const removals = useBulkRun<MediaItem>(list, refresh)
+	const run = useBulkRun<MediaItem>(list, useRefreshMedia())
 	const edits = useUnsavedText<MediaDescriptions>()
 	const renames = useUnsavedText()
-	return useMemo(
-		() => ({ client, refresh, removals, edits, renames }),
-		[client, edits, refresh, removals, renames],
-	)
+	return useMemo(() => ({ client, run, edits, renames }), [client, edits, renames, run])
 }
 
 /**

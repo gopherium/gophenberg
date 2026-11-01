@@ -13,6 +13,7 @@ import type { Post } from '../content/api'
 import { catalogFor } from '../i18n/catalog'
 import { listenAt } from './announcements'
 import { gate } from './gate'
+import { holdReads } from './reloads'
 import { renderAt } from './render'
 import { storedPostWithId } from './postFixture'
 import { clickDimmedPage, waitBusy } from './typeFixtures'
@@ -298,13 +299,21 @@ test('names the post it trashed in a toast with no undo', async () => {
 	expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
 })
 
-test('moves the focus to the list once the trash finishes', async () => {
+test('moves the focus to the list once the trash finishes, and to the next row once the rows land', async () => {
+	const next = { ...PUBLISHED, id: '019fb000-0000-7000-8000-000000000002', slug: 'next', title: 'Notes for Next Week' }
+	server.use(http.get('/api/content', () => HttpResponse.json({ items: [PUBLISHED, next], total: 2 })))
 	renderAt('/content/post')
+	const row = (await screen.findByRole('link', { name: PUBLISHED.title })).closest('tr') as HTMLElement
+	const release = holdReads('/api/content', { items: [next], total: 1 })
 
-	await trashTheListedPost()
+	await userEvent.click(within(row).getByRole('button', { name: 'Actions' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
+	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Move to trash' }))
 
 	await screen.findByText('"Welcome to Gophenberg" moved to the trash.', { selector: '.godmin-toast' })
 	await waitFor(() => expect(screen.getByRole('region', { name: 'Posts' })).toHaveFocus())
+	release()
+	await waitFor(() => expect(screen.getByRole('checkbox', { name: next.title })).toHaveFocus())
 })
 
 test('shows the reason a refused trash gave in a toast, never above the list', async () => {

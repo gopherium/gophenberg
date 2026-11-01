@@ -9,6 +9,7 @@ import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
+import { expectUnmarked, holdReads, waitMarked, waitUnmarked } from './reloads'
 import { adminUser, renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
 import { warmPostsScreen } from './warm'
@@ -177,7 +178,7 @@ test('hides the empty trash control while the trash view lists nothing', async (
 
 	await pickTrashTab()
 
-	expect(await screen.findByText('No items found.')).toBeInTheDocument()
+	expect(await screen.findByText('Trash is empty')).toBeInTheDocument()
 	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
 })
 
@@ -299,7 +300,7 @@ test('counts every trashed item of the type in the warning while a search narrow
 test('offers Empty Trash only while the narrowed list shows rows, its dialog counting the whole trash', async () => {
 	bin = [TRASHED, SECOND, SPARE]
 	renderAt('/content/post?status=trash&search=nothing')
-	expect(await screen.findByText('No items found.')).toBeInTheDocument()
+	expect(await screen.findByText('No results found')).toBeInTheDocument()
 	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
 
 	const search = screen.getByRole('searchbox')
@@ -395,6 +396,31 @@ test('counts the items it deleted for good in a toast', async () => {
 
 	expect(await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })).toBeInTheDocument()
 	await waitFor(() => expect(screen.queryByText('Old Notes')).not.toBeInTheDocument())
+})
+
+test('counts the items as the trash empties and marks the list until the rows come back', async () => {
+	renderAt('/content/post')
+	await openEmptyTrash()
+	const release = holdReads('/api/content', { items: [TRASHED], total: 1 })
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Empty trash' }))
+
+	await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })
+	await waitMarked()
+	release()
+	await waitUnmarked()
+})
+
+test('marks nothing when the trash deleted no item', async () => {
+	serveEmptied({ deleted: 0, kept: 2 })
+	renderAt('/content/post')
+	await openEmptyTrash()
+	holdReads('/api/content')
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Empty trash' }))
+
+	await screen.findByText('2 items stay in the trash.', { selector: '.godmin-toast' })
+	expectUnmarked()
 })
 
 test('moves the focus to the list once the trash empties', async () => {

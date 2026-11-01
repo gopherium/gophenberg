@@ -157,7 +157,7 @@ test.each([
 	expect(await screen.findByText(reader.removed, { selector: '.godmin-toast' })).toBeInTheDocument()
 })
 
-test('lands the focus on the list once the deleted type has left it', async () => {
+test('lands the focus on the row in its place once the deleted type has left the list', async () => {
 	let deleted = false
 	server.use(
 		http.get('/api/types', () => HttpResponse.json({ items: deleted ? [POST_TYPE] : [POST_TYPE, PAGE_TYPE] })),
@@ -174,7 +174,7 @@ test('lands the focus on the list once the deleted type has left it', async () =
 	expect(await screen.findByText('"Pages" permanently deleted.', { selector: '.godmin-toast' })).toBeInTheDocument()
 	const list = screen.getByRole('region', { name: 'Content Types' })
 	await waitFor(() => expect(within(list).queryByText('Pages', { exact: true })).not.toBeInTheDocument())
-	await waitFor(() => expect(list).toHaveFocus())
+	await waitFor(() => expect(within(list).getByRole('button', { name: 'Actions' })).toHaveFocus())
 })
 
 test('shows the reason a type could not be deleted in a toast, the confirm closed and the row kept', async () => {

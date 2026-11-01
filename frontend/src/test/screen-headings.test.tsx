@@ -49,7 +49,7 @@ test('names the list the root opens with its only second level heading, beside t
 	renderAt('/')
 
 	const main = await screen.findByRole('main')
-	await within(main).findByRole('heading', { level: 3, name: 'No items yet.' })
+	await within(main).findByRole('heading', { level: 3, name: 'No items yet' })
 	expect(within(main).getByRole('heading', { level: 2 })).toHaveTextContent('Posts')
 	expect(within(main).queryAllByRole('heading', { level: 1 })).toHaveLength(0)
 })
@@ -60,7 +60,7 @@ test('names the posts screen with its only second level heading, beside the side
 	renderAt('/content/post')
 
 	const main = await screen.findByRole('main')
-	await within(main).findByRole('heading', { level: 3, name: 'No items yet.' })
+	await within(main).findByRole('heading', { level: 3, name: 'No items yet' })
 	expect(within(main).getByRole('heading', { level: 2 })).toHaveTextContent('Posts')
 	expect(within(main).queryAllByRole('heading', { level: 1 })).toHaveLength(0)
 })

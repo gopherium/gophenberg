@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, CHANGE_OTHERS_WORK, can, postIcon } from '@gophenberg/frontend-sdk'
+import { Button, CHANGE_OTHERS_WORK, can, postIcon, trashIcon } from '@gophenberg/frontend-sdk'
 import type { Session } from '@gophenberg/frontend-sdk'
 import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 import type { Action, Field, View } from '@gophenberg/frontend-sdk/dataviews'
@@ -8,13 +8,13 @@ import { __, sprintf } from '@wordpress/i18n'
 import {
 	ErrorNotice,
 	ListEmpty,
+	ListNoResults,
 	Page,
 	offeredSize,
 	offeredView,
 	paginationOf,
 	sizedView,
 	useListRun,
-	useMediaQuery,
 	useToaster,
 	viewNarrows,
 } from '@gopherium/godmin'
@@ -26,6 +26,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { QueryKey, UseQueryResult } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useMemo } from 'react'
+import type { ReactNode } from 'react'
 
 import type { ListSettings } from '../settings/api'
 import { useListSettings } from '../settings/useListSettings'
@@ -34,7 +35,6 @@ import { listPosts } from './api'
 import type { Post, PostPage, PostQuery } from './api'
 import { EmptyTrash } from './EmptyTrash'
 import {
-	BELOW_HUGE_QUERY,
 	OPENING_SORT,
 	PHONE_COLUMNS,
 	POST_VIEW_GUARD,
@@ -157,9 +157,8 @@ function opensSorted(view: View): boolean {
 function usePostList(listed: ContentType, status: string) {
 	const settings = useListSettings().data
 	const columns = useMemo(() => postFields(listed), [listed])
-	const roomy = !useMediaQuery(BELOW_HUGE_QUERY)
 	const list = useListView<View>({
-		fields: openingColumns(columns, roomy),
+		fields: openingColumns(columns),
 		phoneFields: PHONE_COLUMNS,
 		titleField: 'title',
 		descriptionField: 'excerpt',
@@ -215,36 +214,41 @@ function pageProps(listed: ContentType, page: PostPage | undefined, settings: Li
 }
 
 /**
- * Reports whether a search, a filter holding a value, or a tab other than All narrows a list.
- * @param view - The view the list shows.
- * @param status - The status the list shows, empty for All.
- * @returns Whether the list shows fewer items than the type holds.
+ * Returns the words an empty tab shows, read fresh so the loaded catalogue answers.
+ * @returns The title of each tab other than All and Trash, keyed by its status.
  */
-function narrows(view: OfferedView<View>, status: string): boolean {
-	return status !== '' || viewNarrows(view)
+function emptyTabTitles(): Record<string, string> {
+	return {
+		published: __('No published items', 'gophenberg'),
+		draft: __('No drafts', 'gophenberg'),
+		pending: __('No pending items', 'gophenberg'),
+		private: __('No private items', 'gophenberg'),
+	}
 }
 
 /**
  * Renders what a list shows when it holds no item.
- * @param props - Whether a search, a filter or a tab narrowed the list, and the type its add button adds, if any.
- * @returns The empty state, telling how to add an item when nothing narrowed the list and it offers its add button.
+ * @param props - The view and the status the list shows, and its add button, if any.
+ * @returns The empty state: no results for a search or a filter, the words of a tab, else the add button.
  */
-function PostsEmpty({ narrowed, adding }: { narrowed: boolean, adding: ContentType | undefined }) {
-	if (narrowed) {
-		return <ListEmpty icon={postIcon} title={__('No items found.', 'gophenberg')} />
+function PostsEmpty({ view, status, adding }: { view: OfferedView<View>, status: string, adding: ReactNode }) {
+	if (viewNarrows(view)) {
+		return <ListNoResults />
 	}
-	const hint =
-		adding === undefined
-			? undefined
-			: sprintf(__('Add one with %(button)s.', 'gophenberg'), { button: addLabelOf(adding) })
-	return <ListEmpty icon={postIcon} title={__('No items yet.', 'gophenberg')} hint={hint} />
+	if (status === 'trash') {
+		return <ListEmpty icon={trashIcon} title={__('Trash is empty', 'gophenberg')} />
+	}
+	if (status !== '') {
+		return <ListEmpty icon={postIcon} title={emptyTabTitles()[status]} />
+	}
+	return <ListEmpty icon={postIcon} title={__('No items yet', 'gophenberg')} actions={adding} />
 }
 
 /**
  * Renders the rows of a type's list, or the failure of their read.
- * @param props - The type and status shown, the page query, whether the list waits for the type registry and whether
- *   the registry holds the type, the list view, the view the columns draw, the columns, the settings and the row
- *   actions.
+ * @param props - The type and status shown, the page query, whether the list waits for the type registry, the add
+ *   button of an empty list, the list view, the view the columns draw, the columns, the settings, the row actions and
+ *   whether a write reloads the list.
  * @returns The list, or the failure notice.
  */
 function PostsTable(props: {
@@ -252,12 +256,13 @@ function PostsTable(props: {
 	status: string
 	posts: UseQueryResult<PostPage>
 	waiting: boolean
-	registered: boolean
+	adding: ReactNode
 	list: ListView<View>
 	view: OfferedView<View>
 	columns: Field<Post>[]
 	settings: ListSettings | undefined
 	actions: Action<Post>[]
+	refreshing: boolean
 }) {
 	const navigate = useNavigate()
 	const { listed, posts, list } = props
@@ -268,7 +273,7 @@ function PostsTable(props: {
 		<DataViews
 			key={listed.key}
 			{...pageProps(listed, posts.data, props.settings)}
-			empty={<PostsEmpty narrowed={narrows(props.view, props.status)} adding={props.registered ? listed : undefined} />}
+			empty={<PostsEmpty view={props.view} status={props.status} adding={props.adding} />}
 			fields={columnsOn(props.columns, props.status)}
 			actions={props.actions}
 			view={props.view}
@@ -281,7 +286,7 @@ function PostsTable(props: {
 			renderItemLink={({ item, ...link }) => (
 				<Link to="/content/$typeKey/$postId/edit" params={{ typeKey: item.type, postId: item.id }} {...link} />
 			)}
-			isLoading={posts.isPending || posts.isPlaceholderData || props.waiting}
+			isLoading={posts.isPending || posts.isPlaceholderData || props.waiting || props.refreshing}
 			getItemId={(post) => post.id}
 			searchLabel={sprintf(__('Search %(type)s…', 'gophenberg'), { type: pluralOf(listed).toLowerCase() })}
 		/>
@@ -289,17 +294,21 @@ function PostsTable(props: {
 }
 
 /**
- * Renders the add button of the list header, its failure shown in a toast like the failure of any write.
- * @param props - The type the list shows.
- * @returns The header button.
+ * Renders the add button of a list, its failure shown in a toast like the failure of any write.
+ * @param props - The type the list shows, the draft both add buttons create and the button size, compact when absent,
+ *   as a page header button.
+ * @returns The add button.
  */
-function HeaderAddNew({ listed }: { listed: ContentType }) {
-	const addNew = useAddNew(listed)
+function HeaderAddNew({ listed, addNew, size = 'compact' }: {
+	listed: ContentType
+	addNew: ReturnType<typeof useAddNew>
+	size?: 'compact' | 'default'
+}) {
 	const toaster = useToaster()
 	return (
 		<Button
 			variant="solid"
-			size="compact"
+			size={size}
 			loading={addNew.isPending}
 			onClick={() => addNew.mutate(undefined, { onError: (failure) => toaster.show(failure.message) })}
 		>
@@ -317,10 +326,11 @@ export function PostsScreen() {
 	const current = useSearch({ strict: false, select: (search) => search.status })
 	const status = current ?? ''
 	const { list, columns, view, settings, posts, waiting, registered } = usePostList(listed, status)
-	const { run, region } = useListRun(`${listed.key} ${status}`, list.onChangeSelection)
+	const { run, region, refreshing } = useListRun(`${listed.key} ${status}`, list.onChangeSelection)
 	const actions = usePostActions(status, listed, run)
 	const held = useTrashTotal(listed.key, status)
 	const session = useSession().data
+	const addNew = useAddNew(listed)
 	return (
 		<Page
 			title={pluralOf(listed)}
@@ -331,7 +341,7 @@ export function PostsScreen() {
 					{offersEmptyTrash(status, posts.data, held, session) ? (
 						<EmptyTrash type={listed.key} count={held} list={run} />
 					) : null}
-					{registered ? <HeaderAddNew listed={listed} /> : null}
+					{registered ? <HeaderAddNew listed={listed} addNew={addNew} /> : null}
 				</>
 			}
 			tabs={<StatusTabs current={current} />}
@@ -344,12 +354,13 @@ export function PostsScreen() {
 				status={status}
 				posts={posts}
 				waiting={waiting}
-				registered={registered}
+				adding={registered ? <HeaderAddNew listed={listed} addNew={addNew} size="default" /> : null}
 				list={list}
 				view={view}
 				columns={columns}
 				settings={settings}
 				actions={actions}
+				refreshing={refreshing}
 			/>
 		</Page>
 	)

@@ -275,7 +275,7 @@ test('offers no Empty Trash from the rows of All while an empty trash loads', as
 	await waitFor(() => expect(tab('Trash')).toHaveAttribute('aria-current', 'page'))
 	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
 	trash.release()
-	expect(await screen.findByText('No items found.')).toBeInTheDocument()
+	expect(await screen.findByText('Trash is empty')).toBeInTheDocument()
 })
 
 test('keeps Empty Trash while the next page of the trash loads', async () => {
@@ -313,7 +313,7 @@ test('offers no Empty Trash from the trash of another type while an empty trash 
 	expect(await screen.findByRole('heading', { level: 2, name: 'Pages' })).toBeInTheDocument()
 	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
 	pages.release()
-	expect(await screen.findByText('No items found.')).toBeInTheDocument()
+	expect(await screen.findByText('Trash is empty')).toBeInTheDocument()
 })
 
 test('keeps the list and the rows of All, marked busy, while the trash loads', async () => {

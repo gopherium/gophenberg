@@ -2,7 +2,6 @@
 
 import { Badge } from '@gophenberg/frontend-sdk'
 import type { Field, Filter } from '@gophenberg/frontend-sdk/dataviews'
-import { HUGE_BREAKPOINT } from '@gopherium/godmin'
 import type { ViewGuard } from '@gopherium/godmin'
 import { listDate } from '@gopherium/godmin/dates'
 import { formatDate } from '@gopherium/gottext'
@@ -143,18 +142,14 @@ export const PHONE_COLUMNS = ['status', 'date']
 /** What the table of a list opens on, its author column held to the 15ch floor of a DataViews cell. */
 export const TABLE_LAYOUT = { layout: { styles: { author: { align: 'start', maxWidth: '15ch' } } } } as const
 
-/** The viewports below WordPress's huge breakpoint, where a table opens on its built-in columns alone. */
-export const BELOW_HUGE_QUERY = `(max-width: ${HUGE_BREAKPOINT - 1}px)`
-
 /**
  * Returns the ids of the columns a list shows before a reader picks any, the fields a type marks for the list last.
  * @param columns - The columns the list offers.
- * @param roomy - Whether the viewport is wide enough for the listed fields to fit beside the built-in columns.
- * @returns The author, the status, the date, and every listed field when there is room for them.
+ * @returns The author, the status, the date and every listed field.
  */
-export function openingColumns(columns: Field<Post>[], roomy: boolean): string[] {
+export function openingColumns(columns: Field<Post>[]): string[] {
 	const listed = columns.filter((column) => column.id.startsWith(fieldColumnPrefix)).map((column) => column.id)
-	return ['author', 'status', 'date', ...(roomy ? listed : [])]
+	return ['author', 'status', 'date', ...listed]
 }
 
 /**

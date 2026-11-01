@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { setViewport } from '@gopherium/godmin/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
@@ -177,7 +178,27 @@ test.each([
 	expect(await screen.findByText(toast, { selector: '.godmin-toast' })).toBeInTheDocument()
 })
 
-test('keeps the focus on the bulk bar after a switch, since every row stays in the list', async () => {
+test('keeps Deactivate and Delete… in the bulk bar below 782px, where only actions with an icon show', async () => {
+	setViewport({ width: 700 })
+	renderAt('/content-types')
+
+	await pick(['Pages', 'Guides'])
+
+	expect(bulkBar().getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
+	expect(bulkBar().getByRole('button', { name: 'Delete…' })).toBeInTheDocument()
+})
+
+test('keeps Activate in the bulk bar below 782px, where only actions with an icon show', async () => {
+	setViewport({ width: 700 })
+	serveTypes(POST_TYPE, { ...PAGE_TYPE, active: false }, { ...GUIDE_TYPE, active: false })
+	renderAt('/content-types')
+
+	await pick(['Pages', 'Guides'])
+
+	expect(bulkBar().getByRole('button', { name: 'Activate' })).toBeInTheDocument()
+})
+
+test('puts the focus back on the bulk bar after a switch, since every row stays in the list', async () => {
 	renderAt('/content-types')
 	await pick(['Pages', 'Guides'])
 	const deactivate = bulkBar().getByRole('button', { name: 'Deactivate' })
@@ -185,7 +206,7 @@ test('keeps the focus on the bulk bar after a switch, since every row stays in t
 	await userEvent.click(deactivate)
 
 	await screen.findByText('2 content types deactivated.', { selector: '.godmin-toast' })
-	expect(screen.getByRole('region', { name: 'Content Types' })).not.toHaveFocus()
+	await waitFor(() => expect(bulkBar().getByRole('button', { name: 'Deactivate' })).toHaveFocus())
 })
 
 test('lands the focus on the list once a bulk Activate takes the picked types out of the Closed filter', async () => {

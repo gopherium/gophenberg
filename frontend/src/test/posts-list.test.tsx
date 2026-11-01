@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { Icon, trashIcon } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { badgeClasses, setViewport } from '@gopherium/godmin/testing'
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { LIST_CHROME_DOMAIN, listChromeCatalogFor } from '@gopherium/godmin'
+import { badgeClasses, buttonClasses, setViewport } from '@gopherium/godmin/testing'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test } from 'vitest'
@@ -303,52 +305,128 @@ const BEFORE_2020 = encodeURIComponent('[{"field":"date","operator":"before","va
 
 const BY_ONE_AUTHOR = encodeURIComponent(`[{"field":"author","operator":"isAny","value":["${PUBLISHED.author_id}"]}]`)
 
+/**
+ * Returns the empty state holding the title.
+ * @param title - The title the empty state shows.
+ * @returns The empty state, to query within.
+ */
+async function emptyState(title: string) {
+	return within((await screen.findByText(title)).closest('.godmin-empty') as HTMLElement)
+}
+
 test.each([
 	{ narrowing: 'a search', address: '/content/post?search=nothing' },
 	{ narrowing: 'a filter', address: `/content/post?filters=${BEFORE_2020}` },
 	{ narrowing: 'an author picked', address: `/content/post?filters=${BY_ONE_AUTHOR}` },
-	{ narrowing: 'a tab other than All', address: '/content/post?status=draft' },
-])('says no items are found when $narrowing narrows the list to none', async ({ address }) => {
+	{ narrowing: 'a search inside a tab', address: '/content/post?status=draft&search=nothing' },
+	{ narrowing: 'a search inside the trash', address: '/content/post?status=trash&search=nothing' },
+])('says no results are found when $narrowing narrows the list to none', async ({ address }) => {
 	serveRows([], 0, 20)
 	renderAt(address)
 
-	expect(await screen.findByText('No items found.')).toBeInTheDocument()
-	expect(screen.queryByText('Add one with Add Post.')).not.toBeInTheDocument()
+	const empty = await emptyState('No results found')
+
+	expect(empty.getByText("Try adjusting your search or filters to find what you're looking for.")).toBeInTheDocument()
+	expect(empty.queryByRole('button')).not.toBeInTheDocument()
 })
 
-test('says no items are found in the words of WordPress es_ES for a Spanish reader', async () => {
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
-	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+test.each([
+	{ status: 'published', title: 'No published items' },
+	{ status: 'draft', title: 'No drafts' },
+	{ status: 'pending', title: 'No pending items' },
+	{ status: 'private', title: 'No private items' },
+	{ status: 'trash', title: 'Trash is empty' },
+])('says the $status tab holds nothing, with no add button', async ({ status, title }) => {
+	serveRows([], 0, 20)
+	renderAt(`/content/post?status=${status}`)
+
+	const empty = await emptyState(title)
+
+	expect(empty.queryByRole('button')).not.toBeInTheDocument()
+})
+
+test('draws the trash icon above an empty trash', async () => {
+	serveRows([], 0, 20)
+	renderAt('/content/post?status=trash')
+	const empty = (await screen.findByText('Trash is empty')).closest('.godmin-empty') as HTMLElement
+
+	const { container } = render(<Icon icon={trashIcon} />)
+
+	expect(empty.querySelector('svg')?.innerHTML).toBe(container.querySelector('svg')?.innerHTML)
+})
+
+test('says a search found nothing in the Spanish godmin ships for a Spanish reader', async () => {
+	setLocaleData(await listChromeCatalogFor('es-ES'), LIST_CHROME_DOMAIN)
+	onTestFinished(() => resetLocaleData({}, LIST_CHROME_DOMAIN))
 	serveRows([], 0, 20)
 	renderAt('/content/post?search=nothing')
 
-	expect(await screen.findByText('No se han encontrado elementos.')).toBeInTheDocument()
+	expect(await screen.findByText('No se encontraron resultados')).toBeInTheDocument()
 })
 
-test('says no items are there yet, and how to add one, when nothing narrows the empty list', async () => {
+test('says no items are there yet, and offers the add button, when nothing narrows the empty list', async () => {
 	serveRows([], 0, 20)
 	renderAt('/content/post')
 
-	expect(await screen.findByText('No items yet.')).toBeInTheDocument()
-	expect(screen.getByText('Add one with Add Post.')).toBeInTheDocument()
+	const empty = await emptyState('No items yet')
+
+	expect(empty.getByRole('button', { name: 'Add Post' })).toBeInTheDocument()
 })
 
-test('names the header button in the Spanish hint of an empty list', async () => {
+test('draws the add button of an empty list at the default size, the header keeping its compact one', async () => {
+	serveRows([], 0, 20)
+	renderAt('/content/post')
+
+	const empty = await emptyState('No items yet')
+	const inList = empty.getByRole('button', { name: 'Add Post' })
+	const header = within(screen.getByRole('main'))
+		.getAllByRole('button', { name: 'Add Post' })
+		.find((button) => button !== inList) as HTMLElement
+
+	expect([...inList.classList]).toEqual(buttonClasses('solid'))
+	expect([...header.classList]).toEqual(buttonClasses('solid', 'compact'))
+})
+
+test('says an empty list holds nothing yet in the words of the Spanish catalogue', async () => {
 	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 	serveRows([], 0, 20)
 	renderAt('/content/post')
 
-	expect(await screen.findByText('Añade un elemento con Añadir entrada.')).toBeInTheDocument()
+	const empty = await emptyState('Todavía no hay elementos')
+
+	expect(empty.getByRole('button', { name: 'Añadir entrada' })).toBeInTheDocument()
 })
 
-test('names the header button in the French hint of an empty list', async () => {
+test('says an empty list holds nothing yet in the words of the French catalogue', async () => {
 	setLocaleData(await catalogFor('fr-FR'), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 	serveRows([], 0, 20)
 	renderAt('/content/post')
 
-	expect(await screen.findByText('Ajoutez un élément avec Ajouter un article.')).toBeInTheDocument()
+	const empty = await emptyState("Aucun élément pour l'instant")
+
+	expect(empty.getByRole('button', { name: 'Ajouter un article' })).toBeInTheDocument()
+})
+
+test.each([
+	{ locale: 'es-ES', title: 'La papelera está vacía', status: 'trash' },
+	{ locale: 'es-ES', title: 'No hay elementos publicados', status: 'published' },
+	{ locale: 'es-ES', title: 'No hay borradores', status: 'draft' },
+	{ locale: 'es-ES', title: 'No hay elementos pendientes', status: 'pending' },
+	{ locale: 'es-ES', title: 'No hay elementos privados', status: 'private' },
+	{ locale: 'fr-FR', title: 'La corbeille est vide', status: 'trash' },
+	{ locale: 'fr-FR', title: 'Aucun élément publié', status: 'published' },
+	{ locale: 'fr-FR', title: 'Aucun brouillon', status: 'draft' },
+	{ locale: 'fr-FR', title: 'Aucun élément en attente', status: 'pending' },
+	{ locale: 'fr-FR', title: 'Aucun élément privé', status: 'private' },
+])('says the $status tab holds nothing in the $locale catalogue', async ({ locale, title, status }) => {
+	setLocaleData(await catalogFor(locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	serveRows([], 0, 20)
+	renderAt(`/content/post?status=${status}`)
+
+	expect(await screen.findByText(title)).toBeInTheDocument()
 })
 
 test.each([
@@ -361,7 +439,7 @@ test.each([
 	serveRows([], 0, 20)
 	renderAt(`/content/post?filters=${encodeURIComponent(filters)}`)
 
-	expect(await screen.findByText('No items yet.')).toBeInTheDocument()
+	expect(await screen.findByText('No items yet')).toBeInTheDocument()
 })
 
 test('names the search after the type it lists, its label in lower case', async () => {
@@ -478,13 +556,14 @@ test.each([
 	},
 )
 
-test('names the header button of a declared type in the hint of its empty list', async () => {
+test('names the add button of an empty list after the declared type it adds', async () => {
 	server.use(http.get('/api/types', () => HttpResponse.json({ items: [POST_TYPE, PAGE_TYPE, BOOK_TYPE] })))
 	serveRows([], 0, 20)
 	renderAt('/content/book')
 
-	expect(await screen.findByText('No items yet.')).toBeInTheDocument()
-	expect(screen.getByText('Add one with Add Book.')).toBeInTheDocument()
+	const empty = await emptyState('No items yet')
+
+	expect(empty.getByRole('button', { name: 'Add Book' })).toBeInTheDocument()
 })
 
 test('shows the excerpt under the title', async () => {

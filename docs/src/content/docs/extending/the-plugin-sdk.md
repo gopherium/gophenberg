@@ -674,10 +674,31 @@ Cancel inert while the run goes and closes once it settles.
 Import `RunConfirm` from `@gophenberg/frontend-sdk`, beside
 `useListRun` and `useBulkRun`, the hooks the admin's own lists run
 their actions with. `useListRun` holds the ticked rows and the focus
-after a run, and `useBulkRun` makes one call per picked row,
-refreshes your list and shows one toast in the words you pass as
-`BulkWords`: the failure words when a row failed, else the done
-words.
+after a run. It also hands out `refreshing`, which you pass to the
+`isLoading` of your DataViews beside your own loading state, so the
+old rows stay on screen, dimmed, while the list reloads.
+
+`useBulkRun` makes one call per picked row. The list shows as
+reloading as the first call that works ends. One toast shows as the
+last call ends, in the words you pass as `BulkWords`: the failure
+words when a row failed, else the done words. Your list then reloads.
+
+As the list starts to reload, its region takes the focus from the
+table or the footer, and after a run started from the keyboard it
+draws the focus ring. Once the new rows land, the focus goes back to
+the control the reader pressed, or to the first control of the row in
+its place. It stays on the region when that control is a primary
+action, so a one click action of your plugin never takes a second
+Enter meant for another row.
+
+A write to one row, such as a rename, runs the same way: pass that
+row alone to `useBulkRun`. For a write that is no run, show its toast
+as the call ends, then mark the list around your reload:
+
+```tsx
+const ended = run.onRefresh()
+await refresh().then(ended, ended)
+```
 
 For a row action that asks for more, the SDK passes on the bodies
 the admin draws in a row modal. `ConfirmBody` asks a question you
@@ -764,17 +785,27 @@ all, as `useUnsavedText<NoteFields>()`. Type a store you pass on with
 
 `ListEmpty` is what your list shows when it has no rows. It titles
 the empty list one level under your page's title, as the admin's own
-lists do. Pass it to DataViews as `empty`, with an icon, a title and
-an optional hint:
+lists do. Pass it to DataViews as `empty`, with an icon and a short
+title with no full stop. An optional `description` goes under the
+title, and `actions` holds the buttons under that. Draw your add
+button there at its default size.
+
+When a search or a filter emptied the list, show `ListNoResults`
+instead. It takes no props, and the admin already loads its words.
+`viewNarrows` tells the two cases apart:
 
 ```tsx
-import { ListEmpty, postIcon } from '@gophenberg/frontend-sdk'
+import { ListEmpty, ListNoResults, postIcon, viewNarrows } from '@gophenberg/frontend-sdk'
 import { DataViews } from '@gophenberg/frontend-sdk/dataviews'
 
-<DataViews {...props} empty={<ListEmpty icon={postIcon} title="No notes yet." hint="Add one with Add Note." />} />
-```
+const empty = viewNarrows(view) ? (
+	<ListNoResults />
+) : (
+	<ListEmpty icon={postIcon} title="No notes yet" actions={<AddNote size="default" />} />
+)
 
-Leave the hint out when a search or a filter emptied the list.
+<DataViews {...props} empty={empty} />
+```
 
 ## Versions
 

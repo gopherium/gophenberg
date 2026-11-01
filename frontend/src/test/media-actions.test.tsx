@@ -10,6 +10,7 @@ import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { bulkBar } from './bulkBar'
 import { gate } from './gate'
+import { expectUnmarked, holdReads, waitMarked } from './reloads'
 import { adminUser, renderAt } from './render'
 import { siteSettings } from './siteSettings'
 import { clickDimmedPage, findToast, menuItems, waitBusy } from './typeFixtures'
@@ -695,6 +696,18 @@ test('says the server could not be reached when the network drops an edit', asyn
 	expect(await findToast('Could not save media. The server could not be reached, so nothing was saved.')).toBeTruthy()
 })
 
+test('says Media file updated as the write ends and marks the list until the rows come back', async () => {
+	renderAt('/media')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	await retype(dialog, 'Title', 'Harbor at noon')
+	holdReads('/api/media')
+
+	await save(dialog)
+
+	await findToast('Media file updated.')
+	await waitMarked()
+})
+
 test('reads the list again after a failed edit, so the card holds the newest version', async () => {
 	refuseEdits()
 	renderAt('/media')
@@ -704,7 +717,19 @@ test('reads the list again after a failed edit, so the card holds the newest ver
 	await save(dialog)
 
 	await findToast(`Could not save image. ${NOT_FOUND}`)
-	expect(listings).toBeGreaterThan(before)
+	await waitFor(() => expect(listings).toBeGreaterThan(before))
+})
+
+test('marks nothing while the list reads again after a failed edit', async () => {
+	refuseEdits()
+	renderAt('/media')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	holdReads('/api/media')
+
+	await save(dialog)
+
+	await findToast(`Could not save image. ${NOT_FOUND}`)
+	expectUnmarked()
 })
 
 test('offers the fields a failed edit left unsaved when Edit opens again, through a Cancel', async () => {
@@ -900,6 +925,18 @@ test('closes Rename as Save is pressed, writes over the version read first, then
 	expect(await cardOf('Harbor renamed')).toBeTruthy()
 })
 
+test('says Name updated as the write ends and marks the list until the rows come back', async () => {
+	renderAt('/media')
+	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
+	await retype(dialog, 'Name', 'Harbor renamed')
+	holdReads('/api/media')
+
+	await save(dialog)
+
+	await findToast('Name updated.')
+	await waitMarked()
+})
+
 test('shows the reason a refused rename gave in a toast and offers the typed name again', async () => {
 	refuseEdits()
 	renderAt('/media')
@@ -1078,14 +1115,22 @@ test('keeps the focus in an Edit opened after a dismissed delete once that delet
 	expect(title).toHaveFocus()
 })
 
-test('lands the focus on the list once a deleted file has left it', async () => {
+/**
+ * Waits until the picture of the card now in the first place holds the focus.
+ */
+async function waitFocusOnManual() {
+	const manual = await cardHolding('Manual')
+	await waitFor(() => expect(pictureTrigger(manual)).toHaveFocus())
+}
+
+test('lands the focus on the card in its place once a deleted file has left the list', async () => {
 	renderAt('/media')
 	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
 	await findToast('"Harbor at dawn" permanently deleted.')
-	await waitFor(() => expect(screen.getByRole('region', { name: 'Media' })).toHaveFocus())
+	await waitFocusOnManual()
 })
 
 /** Lists the files the server holds by title, as a library sorted by Title shows them. */
@@ -1097,28 +1142,6 @@ function listByTitle() {
 		}),
 	)
 }
-
-test.each([
-	{ action: 'Edit…', box: 'Title', toast: 'Media file updated.' },
-	{ action: 'Rename…', box: 'Name', toast: 'Name updated.' },
-])('gives the focus back to the actions menu of the file $action saved, on its card where it moved', async ({
-	action,
-	box,
-	toast,
-}) => {
-	listByTitle()
-	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', action)
-	await retype(dialog, box, 'Zebra crossing')
-
-	await save(dialog)
-
-	await findToast(toast)
-	const moved = await cardOf('Zebra crossing')
-	await waitFor(() => expect(moved.getByRole('button', { name: 'Actions' })).toHaveFocus())
-	const second = document.querySelectorAll('.dataviews-view-grid__card')[1]
-	expect(second).toContainElement(document.activeElement as HTMLElement)
-})
 
 /** A file another account uploaded while an edit was in flight, its title sorting before every other. */
 const ANCHOR = { ...MANUAL, id: 9, file: '2026/08/anchor-chain.pdf', title: 'Anchor chain' }
@@ -1134,22 +1157,25 @@ async function openFromHarbor(trigger: CardTrigger): Promise<HTMLElement> {
 }
 
 test.each([
-	{ part: 'title', trigger: titleTrigger },
-	{ part: 'picture', trigger: pictureTrigger },
-])('gives the focus back to the $part Edit opened from, on its card where it moved, once Save stored it', async ({
-	trigger,
+	{ from: 'Edit…', open: () => openCardDialog('Harbor at dawn', 'Edit…'), box: 'Title', toast: 'Media file updated.' },
+	{ from: 'Rename…', open: () => openCardDialog('Harbor at dawn', 'Rename…'), box: 'Name', toast: 'Name updated.' },
+	{ from: 'the title', open: () => openFromHarbor(titleTrigger), box: 'Title', toast: 'Media file updated.' },
+	{ from: 'the picture', open: () => openFromHarbor(pictureTrigger), box: 'Title', toast: 'Media file updated.' },
+])('lands the focus on the card in its place once the file saved from $from moved away', async ({
+	open,
+	box,
+	toast,
 }) => {
 	listByTitle()
 	renderAt('/media')
-	const dialog = await openFromHarbor(trigger)
-	await retype(dialog, 'Title', 'Zebra crossing')
+	const dialog = await open()
+	await retype(dialog, box, 'Zebra crossing')
 
 	await save(dialog)
 
-	await findToast('Media file updated.')
-	const moved = await cardHolding('Zebra crossing')
-	await waitFor(() => expect(trigger(moved)).toHaveFocus())
-	expect(document.querySelectorAll('.dataviews-view-grid__card')[1]).toBe(moved)
+	await findToast(toast)
+	await cardOf('Zebra crossing')
+	await waitFocusOnManual()
 })
 
 test.each([

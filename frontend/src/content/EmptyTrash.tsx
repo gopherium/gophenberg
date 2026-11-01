@@ -73,13 +73,14 @@ function useEmptying(type: string, list: ListRun, setEmptying: (emptying: boolea
 			queryKey: ['post'],
 			predicate: (query) => (query.state.data as Post | undefined)?.type === type,
 		})
-		await refresh()
 		setEmptying(false)
 		const toast = emptiedToast(emptied)
 		if (toast !== '') {
 			toaster.show(toast)
 		}
 		settle(emptied.deleted > 0)
+		const ended = emptied.deleted > 0 ? list.onRefresh() : undefined
+		await refresh().finally(ended)
 	}
 }
 

@@ -3,18 +3,18 @@
 import { Button } from '@gophenberg/frontend-sdk'
 import { DataViews, filterSortAndPaginate } from '@gophenberg/frontend-sdk/dataviews'
 import type { Action, Field, View } from '@gophenberg/frontend-sdk/dataviews'
-import { ErrorNotice, ListEmpty, Page, offeredSize, offeredView, useListRun } from '@gopherium/godmin'
-import type { OfferedView } from '@gopherium/godmin'
+import { ErrorNotice, ListNoResults, Page, offeredSize, offeredView, useListRun } from '@gopherium/godmin'
+import type { ListRun, OfferedView } from '@gopherium/godmin'
 import { useListView } from '@gopherium/godmin/router'
 import type { ListView } from '@gopherium/godmin/router'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { __, sprintf } from '@wordpress/i18n'
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { ListSettings } from '../settings/api'
 import { useListSettings } from '../settings/useListSettings'
-import { typesMenuItem, typesQueryKey } from './nav'
+import { typesQueryKey } from './nav'
 import { TYPE_COLUMNS, TYPE_PHONE_COLUMNS, TYPE_SORT, TYPE_VIEW_GUARD, originsOf, typeFields } from './typeFields'
 import { useTypeActions } from './typeActions'
 import { AddTypeDialog } from './TypeModals'
@@ -58,27 +58,9 @@ function useTypesView(fields: Field<ContentType>[]) {
 }
 
 /**
- * Returns the read of the keys of the types on the page the list shows, from the registry the client holds now.
- * @param view - The view the list draws.
- * @param fields - The columns the list offers.
- * @returns The read, the same for as long as the screen stays, answering for the latest view.
- */
-function usePageKeys(view: View, fields: Field<ContentType>[]): () => Promise<string[]> {
-	const client = useQueryClient()
-	const shown = useRef(view)
-	useLayoutEffect(() => {
-		shown.current = view
-	})
-	return useCallback(async () => {
-		const types = await client.ensureQueryData({ queryKey: typesQueryKey, queryFn: listTypes })
-		return filterSortAndPaginate(types, shown.current, fields).data.map((type) => type.key)
-	}, [client, fields])
-}
-
-/**
  * Renders the rows of the registry, searched, sorted and paged in the browser, or the failure of its read.
- * @param props - The registry query, the list view, the view the columns draw, the columns, the settings and the row
- *   actions.
+ * @param props - The registry query, the list view, the view the columns draw, the columns, the settings, the row
+ *   actions and whether a write reloads the list.
  * @returns The list, or the failure notice.
  */
 function TypesTable(props: {
@@ -88,6 +70,7 @@ function TypesTable(props: {
 	fields: Field<ContentType>[]
 	settings: ListSettings | undefined
 	actions: Action<ContentType>[]
+	refreshing: boolean
 }) {
 	const { types, list, view, fields } = props
 	if (types.isError) {
@@ -99,7 +82,7 @@ function TypesTable(props: {
 			data={shown.data}
 			paginationInfo={shown.paginationInfo}
 			config={{ perPageSizes: props.settings?.list_page_sizes ?? [] }}
-			empty={<ListEmpty icon={typesMenuItem.icon} title={__('No content types found.', 'gophenberg')} />}
+			empty={<ListNoResults />}
 			fields={fields}
 			actions={props.actions}
 			view={view}
@@ -107,7 +90,7 @@ function TypesTable(props: {
 			defaultLayouts={list.defaultLayouts}
 			selection={list.selection}
 			onChangeSelection={list.onChangeSelection}
-			isLoading={types.isPending}
+			isLoading={types.isPending || props.refreshing}
 			getItemId={(type) => type.key}
 			searchLabel={sprintf(__('Search %(type)s…', 'gophenberg'), {
 				type: __('Content Types', 'gophenberg').toLowerCase(),
@@ -118,16 +101,17 @@ function TypesTable(props: {
 
 /**
  * Renders the header button adding a content type, and its dialog while it asks.
+ * @param props - What the list does around a reload.
  * @returns The button and the dialog.
  */
-function AddType() {
+function AddType({ list }: { list: ListRun }) {
 	const [asking, setAsking] = useState(false)
 	return (
 		<>
 			<Button variant="solid" size="compact" onClick={() => setAsking(true)}>
 				{__('Add Content Type', 'gophenberg')}
 			</Button>
-			{asking ? <AddTypeDialog onClose={() => setAsking(false)} /> : null}
+			{asking ? <AddTypeDialog list={list} onClose={() => setAsking(false)} /> : null}
 		</>
 	)
 }
@@ -140,14 +124,14 @@ export function TypesScreen() {
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
 	const fields = useTypeFields(types.data)
 	const { list, view, settings } = useTypesView(fields)
-	const { run, region } = useListRun('content-types', list.onChangeSelection)
-	const actions = useTypeActions(run, usePageKeys(view, fields))
+	const { run, region, refreshing } = useListRun('content-types', list.onChangeSelection)
+	const actions = useTypeActions(run)
 	return (
 		<Page
 			title={__('Content Types', 'gophenberg')}
 			headingLevel={2}
 			subtitle={__('Every kind of content this site holds.', 'gophenberg')}
-			actions={<AddType />}
+			actions={<AddType list={run} />}
 			list
 			listLabel={__('Content Types', 'gophenberg')}
 			listRef={region}
@@ -159,6 +143,7 @@ export function TypesScreen() {
 				fields={fields}
 				settings={settings}
 				actions={actions}
+				refreshing={refreshing}
 			/>
 		</Page>
 	)
