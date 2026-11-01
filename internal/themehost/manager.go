@@ -3,6 +3,7 @@
 package themehost
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -112,50 +113,45 @@ func compareListed(one, other Installed) int {
 func compareNaturalNames(one, other string) int {
 	left, right := 0, 0
 	for left < len(one) && right < len(other) {
-		first, firstSize := utf8.DecodeRuneInString(one[left:])
-		second, secondSize := utf8.DecodeRuneInString(other[right:])
-		if isDigit(first) && isDigit(second) {
-			endLeft, endRight := left, right
-			for endLeft < len(one) && isDigit(rune(one[endLeft])) {
-				endLeft++
-			}
-			for endRight < len(other) && isDigit(rune(other[endRight])) {
-				endRight++
-			}
-			if compared := compareDigitRuns(one[left:endLeft], other[right:endRight]); compared != 0 {
-				return compared
-			}
-			left, right = endLeft, endRight
-			continue
+		compared, nextLeft, nextRight := compareNextElement(one, left, other, right)
+		if compared != 0 {
+			return compared
 		}
-		if folded, otherFolded := unicode.ToLower(first), unicode.ToLower(second); folded != otherFolded {
-			if folded < otherFolded {
-				return -1
-			}
-			return 1
-		}
-		left += firstSize
-		right += secondSize
+		left, right = nextLeft, nextRight
 	}
-	switch {
-	case left < len(one):
-		return 1
-	case right < len(other):
-		return -1
-	default:
-		return 0
-	}
+	// A name that still has characters left is the longer one and sorts after the other.
+	return cmp.Compare(min(len(one)-left, 1), min(len(other)-right, 1))
 }
+
+// compareNextElement compares the digit run or letter at each offset, returning where each name continues.
+func compareNextElement(one string, left int, other string, right int) (compared, nextLeft, nextRight int) {
+	first, firstSize := utf8.DecodeRuneInString(one[left:])
+	second, secondSize := utf8.DecodeRuneInString(other[right:])
+	if isDigit(first) && isDigit(second) {
+		endLeft, endRight := digitRunEnd(one, left), digitRunEnd(other, right)
+		return compareDigitRuns(one[left:endLeft], other[right:endRight]), endLeft, endRight
+	}
+	return cmp.Compare(foldCase(first), foldCase(second)), left + firstSize, right + secondSize
+}
+
+// digitRunEnd returns the offset just past the run of digits starting at start.
+func digitRunEnd(name string, start int) int {
+	end := start
+	for end < len(name) && isDigit(rune(name[end])) {
+		end++
+	}
+	return end
+}
+
+// foldCase maps a letter to a form shared by its upper and lower cases, so that letters such as σ and ς compare equal.
+func foldCase(symbol rune) rune { return unicode.ToLower(unicode.ToUpper(symbol)) }
 
 // compareDigitRuns compares two runs of digits by their numeric value.
 func compareDigitRuns(one, other string) int {
 	one = strings.TrimLeft(one, "0")
 	other = strings.TrimLeft(other, "0")
-	if len(one) != len(other) {
-		if len(one) < len(other) {
-			return -1
-		}
-		return 1
+	if compared := cmp.Compare(len(one), len(other)); compared != 0 {
+		return compared
 	}
 	return strings.Compare(one, other)
 }

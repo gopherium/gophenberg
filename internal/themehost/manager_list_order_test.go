@@ -22,7 +22,7 @@ func TestTheManagerListsTheActiveThemeFirstAndTheRestInNaturalNameOrder(t *testi
 	t.Parallel()
 
 	settings := newSettings()
-	settings.values[themehost.ActiveKey] = "Zoe"
+	settings.values[themehost.ActiveKey] = "theme10"
 	manager := managerOver(t, settings, "", "alba", "Álvaro", "Zoe", "theme2", "theme10")
 
 	listed, err := manager.List(t.Context())
@@ -30,7 +30,7 @@ func TestTheManagerListsTheActiveThemeFirstAndTheRestInNaturalNameOrder(t *testi
 	if err != nil {
 		t.Fatalf("List() = %v, want the themes listed", err)
 	}
-	want := []string{"Zoe", "alba", "theme2", "theme10", "Álvaro"}
+	want := []string{"theme10", "alba", "theme2", "Zoe", "Álvaro"}
 	if got := listedNames(listed); !slices.Equal(got, want) {
 		t.Errorf("List() names = %v, want %v", got, want)
 	}
@@ -50,6 +50,22 @@ func TestTheManagerListsThemesInNaturalNameOrderWhenNoneIsActive(t *testing.T) {
 		t.Fatalf("List() = %v, want the themes listed", err)
 	}
 	want := []string{"alba", "theme2", "theme10", "Zoe", "Álvaro"}
+	if got := listedNames(listed); !slices.Equal(got, want) {
+		t.Errorf("List() names = %v, want %v", got, want)
+	}
+}
+
+func TestTheManagerListsNamesThatDifferOnlyInLetterFormsByTheirNumbers(t *testing.T) {
+	t.Parallel()
+
+	manager := managerOver(t, newSettings(), "", "ς10", "σ2")
+
+	listed, err := manager.List(t.Context())
+
+	if err != nil {
+		t.Fatalf("List() = %v, want the themes listed", err)
+	}
+	want := []string{"σ2", "ς10"}
 	if got := listedNames(listed); !slices.Equal(got, want) {
 		t.Errorf("List() names = %v, want %v", got, want)
 	}
