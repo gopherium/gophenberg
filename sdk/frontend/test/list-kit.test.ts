@@ -7,6 +7,7 @@ import {
 	ConfirmBody,
 	FormBody,
 	ListEmpty,
+	ListNoResults,
 	RenameBody,
 	RunConfirm,
 	focusInDialog,
@@ -18,6 +19,7 @@ import {
 	useListRun,
 	useToaster,
 	useUnsavedText,
+	viewNarrows,
 } from '../index'
 import type {
 	BulkRun,
@@ -73,8 +75,11 @@ test('hands plugins the store a failed row write keeps its text in, the very one
 	expect(kept.get('7')).toBe('Harbor at dawn')
 })
 
-test('hands plugins the empty state the admin titles an empty list with, the very one godmin ships', () => {
-	expectGodmins([ListEmpty], [godmin.ListEmpty])
+test('hands plugins the empty states the admin draws an empty list with, the very ones godmin ships', () => {
+	expectGodmins(
+		[ListEmpty, ListNoResults, viewNarrows],
+		[godmin.ListEmpty, godmin.ListNoResults, godmin.viewNarrows],
+	)
 })
 
 test('hands plugins the hooks a dialog closes and gives the focus back with, the very ones godmin ships', () => {
