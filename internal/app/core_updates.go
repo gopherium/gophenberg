@@ -74,7 +74,7 @@ func applyUpdate(stamp string) func(context.Context, gonsole.Call) error {
 		if err != nil {
 			return err
 		}
-		summary := switchSummary(job.Settings.Root, state)
+		summary := switchSummary(job.Settings.Layout().Kept(), state)
 		return errors.Join(printState(call, summary, state), restartError{release: state.To})
 	}
 }
@@ -125,13 +125,13 @@ func chosenTheme(ctx context.Context, env gonsole.Env, store update.Settings) (s
 	return stored, err
 }
 
-// switchSummary returns the line update:apply prints once it switched builds, naming the backup it took.
-func switchSummary(root string, state updater.State) string {
+// switchSummary returns the line update:apply prints once it switched builds, naming the backup kept in folder.
+func switchSummary(folder string, state updater.State) string {
 	line := "switched from Gophenberg " + state.From + " to " + state.To
 	if state.Backup == "" {
 		return line + ", with no database backup"
 	}
-	return line + ", and the database backup is " + filepath.Join(root, state.Backup)
+	return line + ", and the database backup is " + filepath.Join(folder, state.Backup)
 }
 
 // printState prints the state a command ended at, one document under -json or the summary line for people.
@@ -216,7 +216,7 @@ func statusText(env gonsole.Env, status updater.Status) string {
 	}
 	backups := make([]string, 0, len(status.Backups))
 	for _, backup := range status.Backups {
-		backups = append(backups, filepath.Join(status.Root, backup))
+		backups = append(backups, filepath.Join(status.Data, backup))
 	}
 	lines := append([]string{
 		"install root: " + status.Root,

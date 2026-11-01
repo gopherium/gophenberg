@@ -65,7 +65,7 @@ func lastUpdate(settings Settings, undo func(Layout, State) (State, error)) (Sta
 		return State{}, fmt.Errorf("updater: %s is empty, so this install keeps no build to go back to, "+
 			"go back by hand as %s shows", settings.names.Key("INSTALL_ROOT"), manualSteps)
 	}
-	layout := Layout{Root: settings.Root}
+	layout := settings.Layout()
 	state, unlock, err := layout.lockedState()
 	if err != nil {
 		return State{}, err

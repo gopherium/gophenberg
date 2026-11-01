@@ -153,7 +153,7 @@ func serverOf(ctx context.Context, db *sql.DB) (server, error) {
 
 // planned reads the state, chooses the update and returns the run once no check of the plan refuses it.
 func (j Job) planned(ctx context.Context, facts server) (*run, error) {
-	r := &run{job: j, layout: Layout{Root: j.Settings.Root}, server: facts}
+	r := &run{job: j, layout: j.Settings.Layout(), server: facts}
 	if err := r.readState(); err != nil {
 		return nil, err
 	}

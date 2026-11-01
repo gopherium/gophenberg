@@ -229,6 +229,72 @@ func TestCrossOriginFallbackIgnoresForwardedHeadersFromAnUntrustedPeer(t *testin
 	}
 }
 
+func TestCrossOriginFallbackRejectsASocketWriteWithoutAScheme(t *testing.T) {
+	t.Parallel()
+
+	handler, calls := crossOriginServer()
+	request := overSocket(browserRequest(http.MethodPost, "/api/plugins/form/submit", "", "http://cms.example"))
+	request.Host = "cms.example"
+	request.RemoteAddr = "203.0.113.5:0"
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusForbidden)
+	}
+	if *calls != 0 {
+		t.Errorf("plugin calls = %d, want none", *calls)
+	}
+}
+
+func TestCrossOriginFallbackTakesTheSchemeASocketNames(t *testing.T) {
+	t.Parallel()
+
+	for origin, want := range map[string]int{
+		"https://cms.example": http.StatusNoContent,
+		"http://cms.example":  http.StatusForbidden,
+	} {
+		t.Run(origin, func(t *testing.T) {
+			t.Parallel()
+
+			handler, _ := crossOriginServer()
+			request := overSocket(browserRequest(http.MethodPost, "/api/plugins/form/submit", "", origin))
+			request.Host = "cms.example"
+			request.RemoteAddr = "203.0.113.5:0"
+			request.Header.Set("X-Forwarded-Proto", "https")
+			recorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(recorder, request)
+
+			if recorder.Code != want {
+				t.Errorf("status = %d, want %d", recorder.Code, want)
+			}
+		})
+	}
+}
+
+func TestCrossOriginFallbackIgnoresAForwardedHostOverASocket(t *testing.T) {
+	t.Parallel()
+
+	handler, calls := crossOriginServer()
+	request := overSocket(browserRequest(http.MethodPost, "/api/plugins/form/submit", "", "https://forged.example"))
+	request.Host = "cms.example"
+	request.RemoteAddr = "203.0.113.5:0"
+	request.Header.Set("X-Forwarded-Host", "forged.example")
+	request.Header.Set("X-Forwarded-Proto", "https")
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusForbidden)
+	}
+	if *calls != 0 {
+		t.Errorf("plugin calls = %d, want none", *calls)
+	}
+}
+
 func TestCrossOriginLogoutCannotEndASession(t *testing.T) {
 	t.Parallel()
 

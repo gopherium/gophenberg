@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/gouncer/authkit"
 )
 
@@ -146,12 +147,12 @@ func validOrigin(parsed *url.URL) bool {
 }
 
 // publicRequestOrigin returns the request scheme and host seen by the browser.
-// The scheme is unknown when a trusted proxy omits it.
+// The scheme is unknown when a trusted proxy or the peer of a socket omits it.
 func publicRequestOrigin(r *http.Request, trustedPrefixes []netip.Prefix) (string, string) {
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
-	} else if trustedPeer(r.RemoteAddr, trustedPrefixes) {
+	} else if gonsole.OverSocket(r) || trustedPeer(r.RemoteAddr, trustedPrefixes) {
 		scheme = ""
 	}
 	if forwarded := firstForwarded(r.Header.Get("X-Forwarded-Proto")); forwarded != "" {

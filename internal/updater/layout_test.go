@@ -55,6 +55,78 @@ func TestLayoutNamesEachPlaceOfTheInstallRoot(t *testing.T) {
 	}
 }
 
+func TestLayoutKeepsTheBackupsAndTheStateInADataFolder(t *testing.T) {
+	t.Parallel()
+
+	layout := updater.Layout{Root: "/opt/gophenberg", Data: "/srv/gophenberg-data"}
+
+	for got, want := range map[string]string{
+		layout.Build("0.21.0"):    "/opt/gophenberg/versions/0.21.0",
+		layout.Download("0.21.0"): "/opt/gophenberg/downloads/0.21.0.partial",
+		layout.Backups():          "/srv/gophenberg-data/backups",
+		layout.StateFile():        "/srv/gophenberg-data/state/update.json",
+		layout.Kept():             "/srv/gophenberg-data",
+	} {
+		if got != want {
+			t.Errorf("the layout names %s, want %s", got, want)
+		}
+	}
+}
+
+func TestLayoutKeepsTheBackupsAndTheStateInTheInstallRootWithNoDataFolder(t *testing.T) {
+	t.Parallel()
+
+	layout := updater.Layout{Root: "/opt/gophenberg"}
+
+	if got := layout.Kept(); got != "/opt/gophenberg" {
+		t.Errorf("Kept() = %q, want the install root", got)
+	}
+}
+
+func TestMakeDataMakesAFolderOnlyItsOwnerOpens(t *testing.T) {
+	t.Parallel()
+
+	layout := updater.Layout{Data: filepath.Join(t.TempDir(), "parent", "gophenberg-data")}
+
+	if err := layout.MakeData(); err != nil {
+		t.Fatalf("MakeData() = %v, want nil", err)
+	}
+
+	info, err := os.Stat(layout.Data)
+	if err != nil {
+		t.Fatalf("reading the data folder: %v", err)
+	}
+	if info.Mode().Perm() != 0o700 {
+		t.Errorf("the data folder has the mode %o, want 700", info.Mode().Perm())
+	}
+}
+
+func TestMakeDataLeavesAFolderThatIsThereAsItStands(t *testing.T) {
+	t.Parallel()
+
+	layout := updater.Layout{Data: t.TempDir()}
+	if err := os.Chmod(layout.Data, 0o750); err != nil {
+		t.Fatalf("changing the mode: %v", err)
+	}
+
+	if err := layout.MakeData(); err != nil {
+		t.Fatalf("MakeData() = %v, want nil", err)
+	}
+
+	info, err := os.Stat(layout.Data)
+	if err != nil || info.Mode().Perm() != 0o750 {
+		t.Errorf("the data folder has the mode %v (%v), want it left at 750", info.Mode(), err)
+	}
+}
+
+func TestMakeDataMakesNothingWithNoDataFolder(t *testing.T) {
+	t.Parallel()
+
+	if err := (updater.Layout{}).MakeData(); err != nil {
+		t.Errorf("MakeData() = %v, want nil", err)
+	}
+}
+
 func TestPointMakesARelativeLinkToTheBuild(t *testing.T) {
 	t.Parallel()
 

@@ -27,6 +27,9 @@ Feature: Operators and administrators update the core and see where it stands
   refuses. It runs the rest on its own, one update at a time, and once
   it switched builds it stops and exits with code 75, so the service
   manager starts the new build and the boot guard checks it.
+  A data folder keeps the backups and the state in place of the install
+  root, under the same names, so a redeploy that rebuilds the install
+  root leaves them alone.
 
   Background:
     Given the settings point at an empty database
@@ -47,6 +50,27 @@ Feature: Operators and administrators update the core and see where it stands
     When the operator runs "update:apply"
     Then the command exits with code 75
     And the install root keeps a database backup named after this version
+
+  Scenario: A data folder keeps the backups and the state of an update
+    Given an install root running this version as an official build
+    And a data folder outside the install root
+    And an update site offering version "99.0.0" that keeps the minimum version of this binary
+    When the operator runs "update:apply"
+    Then the command exits with code 75
+    And the data folder keeps a database backup named after this version
+    And the data folder keeps the state of the update
+    And the install root keeps no backup and no state
+    And only the site's own user can open the data folder
+    And the output names the backup in the data folder
+    And the update status lists the backup in the data folder
+
+  Scenario: A rollback finds the last update in the data folder
+    Given an install root running this version as an official build
+    And a data folder outside the install root
+    And an update site offering version "99.0.0" that keeps the minimum version of this binary
+    When the operator runs "update:apply"
+    And the operator runs "update:rollback"
+    Then the current build is this version
 
   Scenario Outline: Applying an update refuses <case>
     Given an install root running this version as an official build
@@ -142,6 +166,17 @@ Feature: Operators and administrators update the core and see where it stands
     And the error names the backup taken before the switch
     And the error says "restore the backup taken before the update"
     And the update status names the backup taken before the switch
+
+  Scenario: A migrate run by hand keeps a long jump from going back when a data folder keeps the state
+    Given an install root where an update switched from "0.18.0" to this version
+    And the update raised the minimum version, with a backup taken before the switch
+    And a data folder keeps the backup and the state of the update
+    And the operator ran "migrate"
+    When the operator runs "update:rollback"
+    Then the command exits with code 1
+    And the current build is still this version
+    And the error says "update:rollback cannot go back to it"
+    And the error names the backup in the data folder
 
   Scenario: A migrate run by hand on the new build keeps a long jump from going back
     Given an install root where an update switched from "0.18.0" to this version

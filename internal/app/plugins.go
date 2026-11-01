@@ -31,7 +31,7 @@ func loadPlugins(
 		}
 		cfg := composeConfig{
 			databaseURL: databaseURL, handle: handle, describe: call.Describe, fieldDepth: depth,
-			mediaDir: call.Env.Value("MEDIA_DIR"), getenv: call.Env.Getenv, roles: roles,
+			mediaDir: mediaDirFrom(call.Env), getenv: call.Env.Getenv, roles: roles,
 		}
 		built, err := compose(cfg, plugins)
 		if err != nil {

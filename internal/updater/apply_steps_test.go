@@ -84,6 +84,20 @@ func TestApplyRefusesAnInstallRootItCannotWrite(t *testing.T) {
 	}
 }
 
+func TestApplyTellsWhoToLetWriteToADataFolderItCannotWrite(t *testing.T) {
+	t.Parallel()
+
+	f := newJobFixture(t)
+	job := f.job()
+	job.Settings.Data = t.TempDir()
+	denied(t, job.Settings.Data, 0o500)
+
+	_, err := job.Apply(t.Context())
+
+	wantRefused(t, err, "updater: cannot write to "+job.Settings.Data+
+		", so give the user Gophenberg runs as read and write access to it")
+}
+
 func TestApplyWritesEachStepToTheStateFileBeforeItRunsIt(t *testing.T) {
 	t.Parallel()
 

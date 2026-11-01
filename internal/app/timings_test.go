@@ -25,7 +25,8 @@ func TestRunConfigTrimsEverySetting(t *testing.T) {
 	}{
 		{"GOPHENBERG_DATABASE_URL", " " + unreachableDatabaseURL + " ",
 			func(c runConfig) string { return c.databaseURL }, unreachableDatabaseURL},
-		{"GOPHENBERG_ADDR", " 127.0.0.1:9000 ", func(c runConfig) string { return c.addr }, "127.0.0.1:9000"},
+		{"GOPHENBERG_ADDR", " 127.0.0.1:9000 ",
+			func(c runConfig) string { return c.listening.Address }, "127.0.0.1:9000"},
 		{"GOPHENBERG_SITE_TITLE", " Field Notes ", func(c runConfig) string { return c.siteTitle }, "Field Notes"},
 		{"GOPHENBERG_TRUSTED_PROXIES", " 192.0.2.0/24 ",
 			func(c runConfig) string { return strings.Join(c.trustedProxies, ",") }, "192.0.2.0/24"},

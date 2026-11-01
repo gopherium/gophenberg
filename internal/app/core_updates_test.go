@@ -58,12 +58,21 @@ func initializeCoreUpdates(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Given(`^the new build reached the database$`, s.markDatabaseReached)
 	sc.Given(`^the site failed to start (\d+) times$`, s.failStarts)
 	sc.Given(`^the start check of this version runs out of time$`, s.outlastCheck)
+	sc.Given(`^a data folder outside the install root$`, s.nameDataFolder)
+	sc.Given(`^a data folder keeps the backup and the state of the update$`, s.moveToDataFolder)
 	sc.When(`^the site starts$`, s.startSite)
 	sc.When(`^the service manager runs "([^"]*)" with (MONITOR_[A-Z_]+) set to "([^"]*)"$`, s.runAfterFailure)
 	sc.Then(`^the command asks for a restart to start "([^"]*)"$`, s.asksForRestart)
 	sc.Then(`^the (current|previous) build is (?:still )?(?:this version|"([^"]*)")$`, s.linksTo)
 	sc.Then(`^the install root holds no download and no build of "([^"]*)"$`, s.holdsNoBuildOf)
 	sc.Then(`^the install root keeps a database backup named after this version$`, s.keepsBackup)
+	sc.Then(`^the data folder keeps a database backup named after this version$`, s.dataFolderKeepsBackup)
+	sc.Then(`^the data folder keeps the state of the update$`, s.dataFolderKeepsState)
+	sc.Then(`^the install root keeps no backup and no state$`, s.rootKeepsNothing)
+	sc.Then(`^only the site's own user can open the data folder$`, s.dataFolderIsPrivate)
+	sc.Then(`^the output names the backup in the data folder$`, s.outputNamesDataBackup)
+	sc.Then(`^the error names the backup in the data folder$`, s.errorNamesDataBackup)
+	sc.Then(`^the update status lists the backup in the data folder$`, s.statusListsDataBackup)
 	sc.Then(`^the error names the backup taken before the switch$`, s.namesBackup)
 	sc.Then(`^the update status says the update to this version is kept$`, s.statusKeepsUpdate)
 	sc.Then(`^the update status lists (?:this version|version "([^"]*)") as refused$`, s.statusRefuses)
@@ -358,14 +367,109 @@ func (s *operatorScenario) holdsNoBuildOf(offered string) error {
 
 // keepsBackup fails unless the install root keeps one database backup named after this version, holding bytes.
 func (s *operatorScenario) keepsBackup() error {
-	pattern := filepath.Join(s.env[installRootSetting], "backups", version.Version()+"-*.dump")
+	_, err := backupIn(s.env[installRootSetting])
+	return err
+}
+
+// backupIn returns the one database backup folder keeps of this version, failing on none or on an empty one.
+func backupIn(folder string) (string, error) {
+	pattern := filepath.Join(folder, "backups", version.Version()+"-*.dump")
 	held, err := filepath.Glob(pattern)
 	if err != nil || len(held) != 1 {
-		return fmt.Errorf("the install root keeps the backups %q (%v), want one matching %s", held, err, pattern)
+		return "", fmt.Errorf("the folder keeps the backups %q (%v), want one matching %s", held, err, pattern)
 	}
 	info, err := os.Stat(held[0])
 	if err != nil || info.Size() == 0 {
-		return fmt.Errorf("the backup %s holds no bytes (%v), want the database", held[0], err)
+		return "", fmt.Errorf("the backup %s holds no bytes (%v), want the database", held[0], err)
+	}
+	return held[0], nil
+}
+
+// nameDataFolder names a data folder nothing has made yet, beside the install root.
+func (s *operatorScenario) nameDataFolder() {
+	s.env["GOPHENBERG_DATA_DIR"] = filepath.Join(s.t.TempDir(), "gophenberg-data")
+}
+
+// moveToDataFolder names a data folder and moves the backup and the state out of the install root into it.
+func (s *operatorScenario) moveToDataFolder() error {
+	s.nameDataFolder()
+	root, data := s.env[installRootSetting], s.env["GOPHENBERG_DATA_DIR"]
+	if err := os.Mkdir(data, 0o700); err != nil {
+		return err
+	}
+	for _, folder := range []string{"backups", "state"} {
+		if err := os.Rename(filepath.Join(root, folder), filepath.Join(data, folder)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// errorNamesDataBackup fails unless the data folder keeps the backup taken before the switch and the error names it.
+func (s *operatorScenario) errorNamesDataBackup() error {
+	backup := filepath.Join(s.env["GOPHENBERG_DATA_DIR"], switchBackup)
+	if _, err := os.Stat(backup); err != nil {
+		return err
+	}
+	return s.errorSays(backup)
+}
+
+// dataFolderKeepsBackup fails unless the data folder keeps the backup of this version.
+func (s *operatorScenario) dataFolderKeepsBackup() error {
+	_, err := backupIn(s.env["GOPHENBERG_DATA_DIR"])
+	return err
+}
+
+// dataFolderKeepsState fails unless the data folder holds the state of the update.
+func (s *operatorScenario) dataFolderKeepsState() error {
+	_, err := os.Stat(filepath.Join(s.env["GOPHENBERG_DATA_DIR"], "state", "update.json"))
+	return err
+}
+
+// rootKeepsNothing fails when the install root holds a backup or the state of the update.
+func (s *operatorScenario) rootKeepsNothing() error {
+	root := s.env[installRootSetting]
+	for _, held := range []string{filepath.Join(root, "state", "update.json"), filepath.Join(root, "backups")} {
+		if _, err := os.Stat(held); !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("the install root holds %s (%v), want it kept in the data folder", held, err)
+		}
+	}
+	return nil
+}
+
+// dataFolderIsPrivate fails unless the data folder answers to its owner alone.
+func (s *operatorScenario) dataFolderIsPrivate() error {
+	info, err := os.Stat(s.env["GOPHENBERG_DATA_DIR"])
+	if err != nil {
+		return err
+	}
+	if info.Mode().Perm() != 0o700 {
+		return fmt.Errorf("the data folder has the mode %o, want 700", info.Mode().Perm())
+	}
+	return nil
+}
+
+// outputNamesDataBackup fails unless the command printed the path of the backup in the data folder.
+func (s *operatorScenario) outputNamesDataBackup() error {
+	backup, err := backupIn(s.env["GOPHENBERG_DATA_DIR"])
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(s.result.Stdout+s.result.Stderr, backup) {
+		return fmt.Errorf("the command printed %q and %q, want it to name %s", s.result.Stdout, s.result.Stderr, backup)
+	}
+	return nil
+}
+
+// statusListsDataBackup fails unless update:status lists the backup at its path in the data folder.
+func (s *operatorScenario) statusListsDataBackup() error {
+	backup, err := backupIn(s.env["GOPHENBERG_DATA_DIR"])
+	if err != nil {
+		return err
+	}
+	answered := s.answer("", "update:status")
+	if !strings.Contains(answered.Stdout, "backups kept: "+backup) {
+		return fmt.Errorf("update:status printed %q, want it to list %s", answered.Stdout, backup)
 	}
 	return nil
 }

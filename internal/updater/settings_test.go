@@ -101,3 +101,29 @@ func TestSettingsFromRefusesAnInstallRootThatIsNotAbsolute(t *testing.T) {
 
 	wantRefused(t, err, `GOPHENBERG_INSTALL_ROOT: must be an absolute path, got "gophenberg"`)
 }
+
+func TestSettingsFromRefusesADataFolderInTheInstallRoot(t *testing.T) {
+	t.Parallel()
+
+	for _, data := range []string{"/opt/gophenberg", "/opt/gophenberg/data", "/opt/gophenberg/..data"} {
+		_, err := updater.SettingsFrom(envOf(map[string]string{
+			"GOPHENBERG_INSTALL_ROOT": "/opt/gophenberg", "GOPHENBERG_DATA_DIR": data,
+		}))
+
+		wantRefused(t, err, `GOPHENBERG_DATA_DIR: must stand outside GOPHENBERG_INSTALL_ROOT, got "`+data+`"`)
+	}
+}
+
+func TestSettingsFromTakesADataFolderOutsideTheInstallRoot(t *testing.T) {
+	t.Parallel()
+
+	for _, data := range []string{"/opt/gophenberg-data", "/opt/data", "/srv/gophenberg-data"} {
+		_, err := updater.SettingsFrom(envOf(map[string]string{
+			"GOPHENBERG_INSTALL_ROOT": "/opt/gophenberg", "GOPHENBERG_DATA_DIR": data,
+		}))
+
+		if err != nil {
+			t.Errorf("SettingsFrom() with the data folder %s = %v, want nil", data, err)
+		}
+	}
+}

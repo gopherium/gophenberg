@@ -74,7 +74,7 @@ func (e CheckError) Unwrap() error {
 
 // Start counts a start of running after a switch under the state lock, failing past the attempts or once refused.
 func Start(settings Settings, running string, logger *slog.Logger) (*Guard, error) {
-	g := &Guard{settings: settings, layout: Layout{Root: settings.Root}, logger: logger, running: running}
+	g := &Guard{settings: settings, layout: settings.Layout(), logger: logger, running: running}
 	if settings.Root == "" {
 		return g, nil
 	}
@@ -137,7 +137,7 @@ func MarkDatabaseReached(settings Settings, running string) error {
 	if settings.Root == "" {
 		return nil
 	}
-	layout := Layout{Root: settings.Root}
+	layout := settings.Layout()
 	state, unlock, err := layout.lockedState()
 	if err != nil {
 		return err
@@ -377,5 +377,5 @@ func raisedPast(state State) string {
 func (l Layout) restoreText(state State) string {
 	return fmt.Sprintf("restore the backup taken before the update, %s, into an empty database, point current at "+
 		"%s and start Gophenberg again, as %s shows, or fix what failed and start Gophenberg %s again",
-		filepath.Join(l.Root, state.Backup), filepath.Join(versionsFolder, state.From), restoreSteps, state.To)
+		filepath.Join(l.Kept(), state.Backup), filepath.Join(versionsFolder, state.From), restoreSteps, state.To)
 }

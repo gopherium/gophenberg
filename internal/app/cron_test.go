@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/gonsole/testkit"
 	"github.com/gopherium/gouncer"
 	"github.com/gopherium/gouncer/authkit"
@@ -372,7 +373,7 @@ func TestTheServerCutsTheCronJobsWhenItBeginsToShutDown(t *testing.T) {
 	t.Parallel()
 
 	runs := server.NewCronRuns(quietJobs{}, time.Minute, time.Now)
-	settings := runConfig{addr: "localhost:0", serving: servingDefaults}
+	settings := runConfig{listening: gonsole.Listening{Address: "localhost:0"}, serving: servingDefaults}
 	srv := (siteCron{runs: runs, stopGrace: time.Second}).serverOf(settings, http.NotFoundHandler())
 
 	if err := srv.Shutdown(t.Context()); err != nil {

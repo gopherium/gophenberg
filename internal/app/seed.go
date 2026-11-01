@@ -85,7 +85,7 @@ func seedDemoContent(ctx context.Context, pool *pgxpool.Pool, users *authkitpg.U
 func seedDemoMedia(
 	ctx context.Context, getenv func(string) string, pool *pgxpool.Pool, users gouncer.Store,
 ) error {
-	dir := settingsEnv(getenv).Value("MEDIA_DIR")
+	dir := mediaDirFrom(settingsEnv(getenv))
 	if dir == "" {
 		return nil
 	}

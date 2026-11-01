@@ -13,7 +13,7 @@ import (
 func supervisionFrom(settings runConfig, logger *slog.Logger) themehost.SupervisorConfig {
 	return themehost.SupervisorConfig{
 		NodeBin:      settings.nodeBin,
-		APIAddr:      settings.addr,
+		APIAddr:      apiAddress(settings.listening.Address),
 		Logger:       logger,
 		ReadyTimeout: settings.themeReadyTimeout,
 		Backoff:      settings.themeBackoff,

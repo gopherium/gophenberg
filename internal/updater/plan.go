@@ -161,6 +161,9 @@ func (r *run) notWaiting() error {
 
 // writable refuses an install root the job cannot write to, probing the root and each folder of it that is there.
 func (r *run) writable() error {
+	if err := r.layout.MakeData(); err != nil {
+		return err
+	}
 	for _, dir := range r.layout.folders() {
 		err := probe(dir)
 		if errors.Is(err, fs.ErrNotExist) && dir != r.layout.Root {
@@ -168,7 +171,7 @@ func (r *run) writable() error {
 		}
 		if err != nil {
 			return fmt.Errorf("updater: cannot write to %s, so give the user Gophenberg runs as read and write "+
-				"access to the install root: %w", dir, err)
+				"access to it: %w", dir, err)
 		}
 	}
 	return nil
@@ -217,20 +220,21 @@ func (r *run) backupHint() string {
 	return ", or run update:apply -skip-backup to update without one"
 }
 
-// roomy refuses an install root whose disk cannot hold the archive, the backup and the margin.
+// roomy refuses an install root or a data folder whose disk cannot hold the archive, the backup and the margin.
 func (r *run) roomy() error {
 	settings := r.job.Settings
 	need := settings.DownloadCap + settings.DiskMargin
 	if r.backsUp() {
 		need += r.server.size
 	}
-	free := freeBytes(r.layout.Root)
-	if free >= need {
-		return nil
+	for _, dir := range []string{r.layout.Root, r.layout.Kept()} {
+		if free := freeBytes(dir); free < need {
+			return fmt.Errorf("updater: %s has %d MB free and the update needs %d MB for the archive, the backup and "+
+				"%s, so free some disk space first", dir, free>>20, (need+1<<20-1)>>20,
+				settings.names.Key("UPDATE_DISK_MARGIN_MB"))
+		}
 	}
-	return fmt.Errorf("updater: %s has %d MB free and the update needs %d MB for the archive, the backup and %s, "+
-		"so free some disk space first", r.layout.Root, free>>20, (need+1<<20-1)>>20,
-		settings.names.Key("UPDATE_DISK_MARGIN_MB"))
+	return nil
 }
 
 // freeBytes returns the bytes the file system that holds dir has free for the user Gophenberg runs as, 0 unread.

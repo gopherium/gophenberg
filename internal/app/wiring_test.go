@@ -20,7 +20,7 @@ import (
 func timedConfig() runConfig {
 	return runConfig{
 		nodeBin:            "/usr/bin/node",
-		addr:               "localhost:9999",
+		listening:          gonsole.Listening{Address: "localhost:9999"},
 		mediaDir:           "/srv/media",
 		themeReadyTimeout:  45 * time.Second,
 		themeBackoff:       250 * time.Millisecond,
@@ -101,8 +101,8 @@ func TestHTTPServerCarriesEveryTimeoutTheEnvironmentNamed(t *testing.T) {
 			t.Errorf("%s = %v, want %v", name, asked.stood, asked.want)
 		}
 	}
-	if held.Addr != settings.addr {
-		t.Errorf("Addr = %q, want %q", held.Addr, settings.addr)
+	if held.Addr != settings.listening.Address {
+		t.Errorf("Addr = %q, want %q", held.Addr, settings.listening.Address)
 	}
 	if held.Handler == nil {
 		t.Error("Handler = nil, want the site's handler served")
@@ -132,7 +132,7 @@ func TestSupervisionCarriesEveryTimingTheEnvironmentNamed(t *testing.T) {
 	if held.MaxAttempts != settings.themeStartAttempts {
 		t.Errorf("MaxAttempts = %d, want %d", held.MaxAttempts, settings.themeStartAttempts)
 	}
-	if held.NodeBin != settings.nodeBin || held.APIAddr != settings.addr {
+	if held.NodeBin != settings.nodeBin || held.APIAddr != settings.listening.Address {
 		t.Errorf("NodeBin = %q APIAddr = %q, want the run config's own", held.NodeBin, held.APIAddr)
 	}
 	if held.Logger == nil {

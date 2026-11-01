@@ -138,6 +138,21 @@ func TestMarkDatabaseReachedMarksTheUpdateThatSwitchedToTheBuildThatRuns(t *test
 	}
 }
 
+func TestMarkDatabaseReachedMarksTheStateInTheDataFolder(t *testing.T) {
+	t.Parallel()
+
+	failed := updater.State{Step: updater.StepFailed, From: running, To: offered, LongJump: true}
+	f := newDataFixture(t, failed)
+
+	if err := updater.MarkDatabaseReached(f.settings, offered); err != nil {
+		t.Fatalf("MarkDatabaseReached() = %v, want the update marked", err)
+	}
+
+	if state := readState(t, f.layout); !state.DatabaseReached {
+		t.Errorf("the state in the data folder is %+v, want the database marked reached", state)
+	}
+}
+
 func TestMarkDatabaseReachedLeavesAStateThatNamesNoSwitchToTheBuildThatRunsAlone(t *testing.T) {
 	t.Parallel()
 
