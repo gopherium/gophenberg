@@ -91,7 +91,7 @@ func TestTypeAPINamesTheTypeAndTheWordItWouldMoveTo(t *testing.T) {
 	addAda(t, users)
 	types := newFakeTypeStore()
 	types.register(pageType())
-	types.updateErr = content.DerivedRouteWordReserved("post", "Page", "page")
+	types.updateErr = content.DerivedRouteWordReserved(content.Type{Key: "post", PluralLabel: "Page", RouteWord: "page"})
 	handler := authedServerWithStores(t, server.Config{Users: users, Content: newFakePostStore(), Types: types})
 
 	recorder := doRequest(t, handler, http.MethodPatch, "/api/types/page", `{"default":true}`)
