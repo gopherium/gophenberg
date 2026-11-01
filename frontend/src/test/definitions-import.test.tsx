@@ -253,7 +253,7 @@ test('keeps the file field locked when the dialog is opened again while an impor
 	expect(await screen.findByLabelText('Definitions file')).toBeDisabled()
 	applying.release()
 	expect(await screen.findByText('Done. The site now holds what the file describes.')).toBeInTheDocument()
-	expect(screen.getByLabelText('Definitions file')).toBeEnabled()
+	await waitFor(() => expect(screen.getByLabelText('Definitions file')).toBeEnabled())
 })
 
 test('sends the file of the plan on screen when Apply is pressed the moment that plan is drawn', async () => {
