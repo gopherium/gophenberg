@@ -95,6 +95,32 @@ func TestHeldAloneRefusesAFolderTheFileSystemWillNotLockAndLetsItGo(t *testing.T
 	}
 }
 
+func TestHeldAloneLetsGoWhileACopyOfTheFolderStaysOpen(t *testing.T) {
+	t.Parallel()
+
+	server := newFakeServer(t)
+	server.folder(installerFolder)
+	folder, err := os.Open(server.at(installerFolder))
+	if err != nil {
+		t.Fatalf("opening the installer folder: %v", err)
+	}
+	unlock, err := heldAlone(folder, syscall.Flock)
+	if err != nil {
+		t.Fatalf("heldAlone() = %v, want the lock", err)
+	}
+	copied, err := syscall.Dup(int(folder.Fd()))
+	if err != nil {
+		t.Fatalf("copying the descriptor of the installer folder: %v", err)
+	}
+	defer func() { _ = syscall.Close(copied) }()
+
+	unlock()
+
+	if lockedByAnother(t, server) {
+		t.Error("the installer folder stays locked while a copy of it is open, want it let go")
+	}
+}
+
 // pipeAt puts a named pipe at the installer folder of server.
 func pipeAt(t *testing.T, server *fakeServer) {
 	t.Helper()
