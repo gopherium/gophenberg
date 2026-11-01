@@ -206,8 +206,8 @@ test('says in the confirm of an update past the minimum version that the site st
 	const dialog = await openConfirm()
 
 	expect(dialog).toHaveAccessibleDescription(
-		'A backup of the database is taken first, and the site stays down until you restore it ' +
-			'if the new version does not start.',
+		'A backup of the database is taken first. If the new version fails after reaching the database, ' +
+			'the site stays down until you restore it.',
 	)
 })
 
