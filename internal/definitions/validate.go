@@ -93,7 +93,7 @@ func routeWordConflict(holder wordHolder, wanted content.Type, declared TypeDefi
 	if holder.key == "" || holder.key == wanted.Key {
 		return nil
 	}
-	taken := content.StatedRouteWordTaken(wanted.Key, wanted.PluralLabel, wanted.RouteWord)
+	taken := content.StatedRouteWordTaken(wanted)
 	if holder.derived != nil {
 		return importFailure(*holder.derived, false, taken)
 	}
@@ -126,9 +126,9 @@ func importFailure(d TypeDefinition, found bool, err error) error {
 	wanted := importedAs(d, found)
 	switch {
 	case errors.Is(err, content.ErrRouteWordReserved):
-		return content.DerivedRouteWordReserved(wanted.Key, wanted.PluralLabel, wanted.RouteWord)
+		return content.DerivedRouteWordReserved(wanted)
 	case errors.Is(err, content.ErrRouteWordTaken):
-		return content.DerivedRouteWordTaken(wanted.Key, wanted.PluralLabel, wanted.RouteWord)
+		return content.DerivedRouteWordTaken(wanted)
 	default:
 		return err
 	}
