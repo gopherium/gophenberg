@@ -144,6 +144,15 @@ func New(cfg Config) http.Handler {
 func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	held, err := s.addresses.Resolve(r.Context(), r.URL.Path)
 	if errors.Is(err, content.ErrNotFound) {
+		moved, err := s.pagedItemTarget(r)
+		if err != nil {
+			serveError(w)
+			return
+		}
+		if moved != "" {
+			serveRedirect(w, r, moved)
+			return
+		}
 		s.serveNotFound(w, r)
 		return
 	}
@@ -151,12 +160,12 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		serveError(w)
 		return
 	}
-	if held.Kind == content.KindItem {
-		s.serveItem(w, r, held.Item)
-		return
-	}
 	if moved := s.redirectTarget(r, held); moved != "" {
 		serveRedirect(w, r, moved)
+		return
+	}
+	if held.Kind == content.KindItem {
+		s.serveItem(w, r, held.Item)
 		return
 	}
 	if held.Kind == content.KindArchive {
@@ -166,7 +175,8 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.serveTerm(w, r, held)
 }
 
-// redirectTarget returns the one address a read of a listing page moves to, empty when it stays where it was asked.
+// redirectTarget returns the one address a read of a post, page or listing page moves to, empty when it stays where
+// it was asked.
 func (s *site) redirectTarget(r *http.Request, held content.Address) string {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return ""
@@ -182,7 +192,22 @@ func (s *site) redirectTarget(r *http.Request, held content.Address) string {
 	return canonical
 }
 
-// canonicalAddress returns the one address a listing page answers at.
+// pagedItemTarget returns the plain address of the post or page a read asks a page number of, empty when there is none.
+func (s *site) pagedItemTarget(r *http.Request) (string, error) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return "", nil
+	}
+	held, err := s.addresses.PagedItem(r.Context(), r.URL.Path)
+	if errors.Is(err, content.ErrNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return "/" + held.Item.Path, nil
+}
+
+// canonicalAddress returns the one address a post, page or listing page answers at.
 func canonicalAddress(held content.Address) string {
 	listing := held.Item.Path
 	if held.Kind == content.KindArchive {

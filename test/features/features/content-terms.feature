@@ -52,9 +52,9 @@ Feature: Serving term pages
     Then the answer is a term of "category"
     And it holds "Second filed" alone of 3 related items
 
-  Scenario: A page suffix on a single item answers nothing
+  Scenario: A page suffix on a single item resolves nothing
     Given the published post "Hello world"
-    Then "/hello-world/page/2" answers not found
+    When a visitor resolves "/hello-world/page/2" and finds nothing
 
   Scenario: A term page holds no validator of its own
     Given the published post "Hello world" filed under "News"

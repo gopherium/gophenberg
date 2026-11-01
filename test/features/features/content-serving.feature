@@ -4,6 +4,7 @@ Feature: Serving content by address
   route word, and the front page always keeps its numbered pages. A listing
   page answers at one address, so page 1, a padded number and a trailing
   slash move for good to it, unless content already holds that address.
+  A post or page answers at one address too.
 
   Background:
     Given a running Gophenberg with the default content types
@@ -39,6 +40,15 @@ Feature: Serving content by address
 
   Scenario: A listing that moves keeps its query
     Then "/page/1?ref=feed" moves for good to "/?ref=feed"
+
+  Scenario: A post with a trailing slash moves to the address without it
+    Then "/hello-world/" moves for good to "/hello-world"
+
+  Scenario: A page asked with repeated slashes moves to its plain address
+    Then "/pages//about" moves for good to "/pages/about"
+
+  Scenario: A page number on a post moves to the post
+    Then "/hello-world/page/1?ref=feed" moves for good to "/hello-world?ref=feed"
 
   Scenario: Exact content beats pagination
     Given the published page "Page"

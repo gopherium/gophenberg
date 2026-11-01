@@ -292,6 +292,7 @@ func initializeContentTerms(sc *godog.ScenarioContext) {
 	sc.Given(`^the type "([^"]*)" labeled "([^"]*)" and "([^"]*)" under "([^"]*)"$`, theTypeExists)
 	sc.When(`^a visitor resolves "([^"]*)"$`, aVisitorResolves)
 	sc.When(`^a visitor resolves "([^"]*)" one item at a time$`, aVisitorResolvesOneAtATime)
+	sc.When(`^a visitor resolves "([^"]*)" and finds nothing$`, aVisitorResolvesNothingAt)
 	sc.When(`^the administrator trashes "([^"]*)"$`, theAdministratorTrashes)
 	sc.When(`^the administrator deactivates the type "([^"]*)"$`, theTypeIsDeactivated)
 	sc.Then(`^the answer is a term of "([^"]*)"$`, theAnswerIsATermOf)
@@ -303,5 +304,4 @@ func initializeContentTerms(sc *godog.ScenarioContext) {
 	sc.Then(`^one item is related$`, oneItemIsRelated)
 	sc.Then(`^it holds "([^"]*)" alone of (\d+) related items$`, theTermPageHoldsAloneOf)
 	sc.Then(`^the answer carries no entity tag$`, theAnswerCarriesNoEntityTag)
-	sc.Then(`^"([^"]*)" answers not found$`, theAddressAnswersNotFound)
 }
