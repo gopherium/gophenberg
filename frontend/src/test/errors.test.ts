@@ -134,6 +134,18 @@ test('asks for a different plural name when an import derives a taken route word
 	)
 })
 
+test('asks for a different route word when an import states a taken one', () => {
+	const held = errorText({
+		error: 'content: route word taken: "Chapters" would answer under "recipes"',
+		code: 'stated_route_word_taken',
+		meta: { type: 'chapter', name: 'Chapters', word: 'recipes' },
+	})
+
+	expect(held).toBe(
+		'Chapters (chapter) would use /recipes, which another content type already uses. Pick a different route word.',
+	)
+})
+
 test('names the address no item can answer at', () => {
 	const held = errorText({
 		error: 'content: the address is reserved: "page/2"',
