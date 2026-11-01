@@ -411,6 +411,23 @@ func theSitesFileLeavesOutTheType(ctx context.Context, key string) error {
 	return nil
 }
 
+// theSitesFileBringsTheDefaultType adds a new default type to the file and takes the mark off the type the site holds.
+func theSitesFileBringsTheDefaultType(ctx context.Context, key, singular, plural string) error {
+	w, err := siteFile(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range w.file.Types {
+		if w.file.Types[i].Default {
+			w.file.Types[i].Default, w.file.Types[i].RouteWord = false, "posts"
+		}
+	}
+	w.file.Types = append(w.file.Types, definitions.TypeDefinition{
+		Key: key, SingularLabel: singular, PluralLabel: plural, PageKind: "single", Default: true, Active: true,
+	})
+	return nil
+}
+
 // theSitesFileLeavesOutTheGroup takes one group out of the file.
 func theSitesFileLeavesOutTheGroup(ctx context.Context, title string) error {
 	w, err := siteFile(ctx)
@@ -671,6 +688,10 @@ func initializeImportFile(sc *godog.ScenarioContext) {
 	sc.Given(
 		`^the site's file adds the "([^"]*)" field "([^"]*)" to "([^"]*)" with settings:$`,
 		theSitesFileAddsTheFieldWithSettings,
+	)
+	sc.Given(
+		`^the site's file brings the default type "([^"]*)" labeled "([^"]*)" and "([^"]*)"$`,
+		theSitesFileBringsTheDefaultType,
 	)
 	sc.Given(`^the site's file leaves out the type "([^"]*)"$`, theSitesFileLeavesOutTheType)
 	sc.Given(`^the site's file leaves out the group "([^"]*)"$`, theSitesFileLeavesOutTheGroup)
