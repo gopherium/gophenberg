@@ -70,3 +70,19 @@ func TestTheManagerListsNamesThatDifferOnlyInLetterFormsByTheirNumbers(t *testin
 		t.Errorf("List() names = %v, want %v", got, want)
 	}
 }
+
+func TestTheManagerListsPrefixesFirstAndBreaksNumericTiesByTheWrittenName(t *testing.T) {
+	t.Parallel()
+
+	manager := managerOver(t, newSettings(), "", "theme3", "theme1", "the", "theme01", "theme", "theme2")
+
+	listed, err := manager.List(t.Context())
+
+	if err != nil {
+		t.Fatalf("List() = %v, want the themes listed", err)
+	}
+	want := []string{"the", "theme", "theme01", "theme1", "theme2", "theme3"}
+	if got := listedNames(listed); !slices.Equal(got, want) {
+		t.Errorf("List() names = %v, want %v", got, want)
+	}
+}
