@@ -5,6 +5,7 @@ package definitions_test
 import (
 	"errors"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -14,8 +15,22 @@ import (
 func TestImportRefusesADerivedWordBeforeRemovingGroups(t *testing.T) {
 	t.Parallel()
 
-	for _, source := range []string{"site", "file before", "file after"} {
-		t.Run(source, func(t *testing.T) {
+	book := []definitions.TypeDefinition{{
+		Key: "book", SingularLabel: "Book", PluralLabel: "Books", RouteWord: "books",
+		PageKind: "single", Active: true,
+	}}
+	for _, test := range []struct {
+		name   string
+		label  string
+		word   string
+		before []definitions.TypeDefinition
+		after  []definitions.TypeDefinition
+	}{
+		{name: "site", label: "Recipes", word: "recipes"},
+		{name: "file before", label: "Books", word: "books", before: book},
+		{name: "file after", label: "Books", word: "books", after: book},
+	} {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			registry := planningSite(t)
 			before := exported(t, registry)
@@ -25,25 +40,11 @@ func TestImportRefusesADerivedWordBeforeRemovingGroups(t *testing.T) {
 					envelope.Types[i].Default, envelope.Types[i].RouteWord = false, "posts"
 				}
 			}
-			label, word := "Recipes", "recipes"
-			if source != "site" {
-				label, word = "Books", "books"
-			}
 			derived := definitions.TypeDefinition{
-				Key: "chapter", SingularLabel: "Chapter", PluralLabel: label,
+				Key: "chapter", SingularLabel: "Chapter", PluralLabel: test.label,
 				PageKind: "single", Default: true, Active: true,
 			}
-			other := definitions.TypeDefinition{
-				Key: "book", SingularLabel: "Book", PluralLabel: "Books", RouteWord: word,
-				PageKind: "single", Active: true,
-			}
-			if source == "file before" {
-				envelope.Types = append(envelope.Types, other)
-			}
-			envelope.Types = append(envelope.Types, derived)
-			if source == "file after" {
-				envelope.Types = append(envelope.Types, other)
-			}
+			envelope.Types = slices.Concat(envelope.Types, test.before, []definitions.TypeDefinition{derived}, test.after)
 			envelope.Groups = nil
 			asked := definitions.Import{
 				Envelope: envelope,
@@ -56,13 +57,7 @@ func TestImportRefusesADerivedWordBeforeRemovingGroups(t *testing.T) {
 				if !errors.Is(err, content.ErrRouteWordTaken) {
 					t.Errorf("%s() error = %v, want %v", call, err, content.ErrRouteWordTaken)
 				}
-				if code, _ := content.CodeOf(err); code != "derived_route_word_taken" {
-					t.Errorf("%s() code = %q, want derived_route_word_taken", call, code)
-				}
-				details, _ := content.DetailsOf(err)
-				if details["type"] != "chapter" || details["name"] != label || details["word"] != word {
-					t.Errorf("%s() details = %v", call, details)
-				}
+				namesTheDerivedWord(t, call, err, "derived_route_word_taken", test.label, test.word)
 			}
 			if after := exported(t, registry); !reflect.DeepEqual(before, after) {
 				t.Errorf("refused import changed stored definitions: before=%+v after=%+v", before, after)
@@ -73,6 +68,7 @@ func TestImportRefusesADerivedWordBeforeRemovingGroups(t *testing.T) {
 
 func TestImportCanUseAWordAnEarlierTypeReleases(t *testing.T) {
 	t.Parallel()
+
 	registry := planningSite(t)
 	envelope := exported(t, registry)
 	for i := range envelope.Types {

@@ -13,31 +13,38 @@ func TestImportRefusesADerivedRouteWordAnotherTypeHolds(t *testing.T) {
 	t.Parallel()
 
 	for _, test := range []struct {
-		name     string
-		key      string
-		label    string
-		word     string
-		stored   []content.Type
-		declared []TypeDefinition
+		name      string
+		key       string
+		label     string
+		wantKey   string
+		wantLabel string
+		word      string
+		stored    []content.Type
+		declared  []TypeDefinition
 	}{
 		{
-			name: "site type", key: "chapter", label: "Recipes", word: "recipes",
+			name: "site type", key: "chapter", label: "Recipes",
+			wantKey: "chapter", wantLabel: "Recipes", word: "recipes",
 			stored: []content.Type{{Key: "recipe", RouteWord: "recipes"}},
 		},
 		{
-			name: "plugin type", key: "chapter", label: "Recipes", word: "recipes",
+			name: "plugin type", key: "chapter", label: "Recipes",
+			wantKey: "chapter", wantLabel: "Recipes", word: "recipes",
 			stored: []content.Type{{Key: "recipe", RouteWord: "recipes", Origin: "recipes"}},
 		},
 		{
-			name: "trimmed label", key: " chapter ", label: " Recipes ", word: "recipes",
+			name: "trimmed label", key: " chapter ", label: " Recipes ",
+			wantKey: "chapter", wantLabel: "Recipes", word: "recipes",
 			stored: []content.Type{{Key: "recipe", RouteWord: "recipes"}},
 		},
 		{
-			name: "key fallback", key: "chapter", label: "Страницы", word: "chapter",
+			name: "key fallback", key: "chapter", label: "Страницы",
+			wantKey: "chapter", wantLabel: "Страницы", word: "chapter",
 			stored: []content.Type{{Key: "other", RouteWord: "chapter"}},
 		},
 		{
-			name: "later declaration", key: "chapter", label: "Recipes", word: "recipes",
+			name: "later declaration", key: "chapter", label: "Recipes",
+			wantKey: "chapter", wantLabel: "Recipes", word: "recipes",
 			declared: []TypeDefinition{{
 				Key: "recipe", SingularLabel: "Recipe", PluralLabel: "Recipes",
 				RouteWord: "recipes", PageKind: "single", Active: true,
@@ -58,10 +65,9 @@ func TestImportRefusesADerivedRouteWordAnotherTypeHolds(t *testing.T) {
 			if code, _ := content.CodeOf(err); code != "derived_route_word_taken" {
 				t.Errorf("code = %q, want derived_route_word_taken", code)
 			}
-			wanted := importedAs(declaration, false)
 			details, _ := content.DetailsOf(err)
-			if details["type"] != wanted.Key || details["name"] != wanted.PluralLabel || details["word"] != test.word {
-				t.Errorf("details = %v, want type %q, name %q, word %q", details, wanted.Key, wanted.PluralLabel, test.word)
+			if details["type"] != test.wantKey || details["name"] != test.wantLabel || details["word"] != test.word {
+				t.Errorf("details = %v, want type %q, name %q, word %q", details, test.wantKey, test.wantLabel, test.word)
 			}
 		})
 	}
@@ -69,6 +75,7 @@ func TestImportRefusesADerivedRouteWordAnotherTypeHolds(t *testing.T) {
 
 func TestImportAllowsADerivedWordTheKeptRootDoesNotUse(t *testing.T) {
 	t.Parallel()
+
 	stored := []content.Type{{Key: "post", Default: true}}
 	declared := []TypeDefinition{
 		{Key: "post", SingularLabel: "Post", PluralLabel: "Posts", RouteWord: "posts", PageKind: "single", Active: true},
