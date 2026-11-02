@@ -13,6 +13,12 @@ Feature: Activating a theme
     And the theme list shows "aurora" as active
     And the theme list shows "aurora" as serving
 
+  Scenario: The theme list opens with the active theme and sorts the rest by name
+    Given "driftwood" is installed and active
+    And a valid theme "aurora10" is installed
+    And a valid theme "aurora2" is installed
+    Then the theme list reads "driftwood, aurora2, aurora10"
+
   Scenario: The site keeps answering while a theme starts
     Given a valid theme "aurora" is installed
     When the administrator activates "aurora"

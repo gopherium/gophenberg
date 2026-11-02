@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cucumber/godog"
 )
@@ -154,6 +155,26 @@ func theThemeListShowsActiveNotServing(ctx context.Context, name string) error {
 	return fmt.Errorf("the theme list shows %v, want %q listed", themes, name)
 }
 
+// theThemeListReads asserts the list names its themes in the given order.
+func theThemeListReads(ctx context.Context, order string) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	themes, err := installedThemes(w)
+	if err != nil {
+		return err
+	}
+	names := make([]string, 0, len(themes))
+	for _, theme := range themes {
+		names = append(names, theme.Name)
+	}
+	if got := strings.Join(names, ", "); got != order {
+		return fmt.Errorf("the theme list reads %q, want %q", got, order)
+	}
+	return nil
+}
+
 // theThemeListShowsServing asserts the list reports the named theme as answering the public site.
 func theThemeListShowsServing(ctx context.Context, name string) error {
 	w, err := worldOf(ctx)
@@ -239,6 +260,7 @@ func initializeActivation(sc *godog.ScenarioContext) {
 	sc.Given(`^the files of "([^"]*)" are replaced by a theme that never starts$`, theFilesNeverStart)
 	sc.Then(`^the theme list shows "([^"]*)" as active but not serving$`, theThemeListShowsActiveNotServing)
 	sc.Then(`^the theme list shows "([^"]*)" as serving$`, theThemeListShowsServing)
+	sc.Then(`^the theme list reads "([^"]*)"$`, theThemeListReads)
 	sc.When(`^the administrator deactivates the theme$`, theAdministratorDeactivates)
 	sc.When(`^the server restarts$`, theServerRestarts)
 	sc.When(`^the administrator tries to activate "([^"]*)"$`, theAdministratorTriesToActivate)
