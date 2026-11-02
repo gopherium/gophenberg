@@ -3,11 +3,27 @@
 package content_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
+
+// failingKeys finds no route word and fails every read by key.
+type failingKeys struct {
+	err error
+}
+
+// ByRouteWord answers that no type carries the word.
+func (f failingKeys) ByRouteWord(context.Context, string) (content.Type, error) {
+	return content.Type{}, content.ErrTypeNotFound
+}
+
+// ByKey returns err.
+func (f failingKeys) ByKey(context.Context, string) (content.Type, error) {
+	return content.Type{}, f.err
+}
 
 func TestResolveReportsAnAddressItCannotRead(t *testing.T) {
 	t.Parallel()
@@ -46,6 +62,20 @@ func TestResolveReportsARegistryItCannotRead(t *testing.T) {
 	resolver := content.NewResolver(store, content.NewRegistry(types))
 
 	_, err := resolver.Resolve(t.Context(), "/a-post")
+
+	if !errors.Is(err, errStoreDown) {
+		t.Errorf("Resolve() error = %v, want %v", err, errStoreDown)
+	}
+}
+
+func TestResolveReportsARegistryItCannotReadBehindAPageNumber(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeAddresses()
+	store.hold(content.TypePost, "a-post")
+	resolver := content.NewResolver(store, failingKeys{err: errStoreDown})
+
+	_, err := resolver.Resolve(t.Context(), "/a-post/"+content.PageWord+"/2")
 
 	if !errors.Is(err, errStoreDown) {
 		t.Errorf("Resolve() error = %v, want %v", err, errStoreDown)

@@ -979,5 +979,12 @@ listing address that ends in a slash gets a `301` redirect to the
 plain address, with the query kept. So `/page/1` goes to `/`,
 `/page/02` goes to `/page/2` and `/pages/` goes to `/pages`. Only a
 `GET` or `HEAD` is redirected, and a listing page stays where it
-was asked when other content is stored at its plain address. While
+was asked when other content is stored at its plain address.
+
+Each post and page has one address too. A visit with a trailing
+slash, with repeated slashes or with a page number gets the same
+`301` to the plain address, so `/hello-world/`, `//hello-world` and
+`/hello-world/page/1` all go to `/hello-world`. Page 0 answers
+`404`, and content stored at the address asked for stays there, so a
+page stored at `/pages/about/page/1` answers at that address. While
 a theme serves the site, the theme answers these addresses itself.

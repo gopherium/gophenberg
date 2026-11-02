@@ -356,3 +356,89 @@ func TestResolveAnswersAnAddressNoStoreCanHoldAsNotFound(t *testing.T) {
 		t.Errorf("lookups = %d, want none for an address no store can hold", store.lookups)
 	}
 }
+
+func TestResolveNamesThePostOrPageBehindAPageNumber(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeAddresses()
+	hello := store.hold("post", "hello-world")
+	team := store.hold("page", "pages/about/team")
+	resolver := newResolver(t, store)
+
+	for raw, want := range map[string]content.Content{
+		"/hello-world/page/1":       hello,
+		"/hello-world/page/02/":     hello,
+		"/pages/about/team/page/3":  team,
+		"//pages/about/team/page/1": team,
+	} {
+		_, err := resolver.Resolve(t.Context(), raw)
+
+		var paged *content.PagedItemError
+		if !errors.As(err, &paged) || paged.Item.ID != want.ID {
+			t.Errorf("Resolve(%q) error = %v, want it to name the item at %q", raw, err, want.Path)
+		}
+	}
+}
+
+func TestResolveAnswersNotFoundWhenItNamesAnItemBehindAPageNumber(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeAddresses()
+	store.hold("post", "hello-world")
+
+	_, err := newResolver(t, store).Resolve(t.Context(), "/hello-world/page/2")
+
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("Resolve() error = %v, want %v", err, content.ErrNotFound)
+	}
+	if got, want := err.Error(), content.ErrNotFound.Error(); got != want {
+		t.Errorf("Resolve() message = %q, want %q", got, want)
+	}
+}
+
+func TestResolveNamesNothingWithoutAnItemBehindAPageNumber(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeAddresses()
+	store.hold("post", "hello-world")
+	resolver := newResolver(t, store)
+
+	for name, raw := range map[string]string{
+		"no page number":         "/nowhere",
+		"a page below the first": "/hello-world/page/0",
+		"a word for a number":    "/hello-world/page/next",
+		"the front page":         "/page/1",
+		"an archive":             "/pages/page/1",
+		"nothing stored":         "/nowhere/page/1",
+		"a NUL byte":             "/hello\x00world/page/1",
+	} {
+		_, err := resolver.Resolve(t.Context(), raw)
+
+		var paged *content.PagedItemError
+		if errors.As(err, &paged) {
+			t.Errorf("%s error = %v, want no item named", name, err)
+		}
+	}
+}
+
+func TestResolveNamesNoItemOfAnInactiveTypeBehindAPageNumber(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeAddresses()
+	store.hold("retired", "retired/old")
+	retired := pageType()
+	retired.Key, retired.RouteWord, retired.Active = "retired", "retired", false
+	types := newFakeTypeStore()
+	types.types = append(types.types, retired)
+	resolver := content.NewResolver(store, content.NewRegistry(types))
+
+	_, err := resolver.Resolve(t.Context(), "/retired/old/page/1")
+
+	var paged *content.PagedItemError
+	if errors.As(err, &paged) {
+		t.Errorf("Resolve() error = %v, want no item named", err)
+	}
+	if !errors.Is(err, content.ErrNotFound) {
+		t.Errorf("Resolve() error = %v, want %v", err, content.ErrNotFound)
+	}
+}
