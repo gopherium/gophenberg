@@ -90,7 +90,7 @@ func sameDatabase(site, held *pgx.ConnConfig) bool {
 	return slices.Equal(serversOf(site), serversOf(held)) && reachedDatabase(site) == reachedDatabase(held)
 }
 
-// serversOf returns the servers config tries in order, each once.
+// serversOf returns the servers config tries in order, with no server twice in a row.
 func serversOf(config *pgx.ConnConfig) []hostPort {
 	servers := []hostPort{{config.Host, config.Port}}
 	for _, fallback := range config.Fallbacks {
