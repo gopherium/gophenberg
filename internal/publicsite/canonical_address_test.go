@@ -291,3 +291,47 @@ func TestSiteRedirectsOnlyAReadOfAPostOrPage(t *testing.T) {
 		}
 	}
 }
+
+func TestSiteSendsAPageNumberToTheStoredPathRatherThanTheSlug(t *testing.T) {
+	t.Parallel()
+
+	about := storedAt("page", "About", "pages/about")
+	about.Slug = "about"
+	handler, _ := siteWith(about)
+
+	recorder := get(t, handler, "/pages/about/page/1")
+
+	if got := recorder.Header().Get("Location"); got != "/pages/about" {
+		t.Errorf("GET /pages/about/page/1 Location = %q, want %q", got, "/pages/about")
+	}
+}
+
+func TestSiteSendsNothingButTheRedirectFromAPageNumber(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := siteWith(publishedPost("Hello World", "hello-world", blockMarkup, time.Now().UTC()))
+
+	recorder := get(t, handler, "/hello-world/page/2")
+
+	if recorder.Code != http.StatusMovedPermanently {
+		t.Fatalf("GET /hello-world/page/2 status = %d, want %d", recorder.Code, http.StatusMovedPermanently)
+	}
+	if recorder.Body.Len() != 0 {
+		t.Errorf("GET /hello-world/page/2 body = %q, want none", recorder.Body.String())
+	}
+}
+
+func TestSiteKeepsContentStoredBehindAPageNumberOfAPage(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := siteWith(storedAt("page", "About", "pages/about"), storedAt("page", "Exact", "pages/about/page/1"))
+
+	recorder := get(t, handler, "/pages/about/page/1")
+
+	if recorder.Code != http.StatusOK {
+		t.Errorf("GET /pages/about/page/1 status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if body := recorder.Body.String(); !strings.Contains(body, "<title>Exact | A Test Site</title>") {
+		t.Errorf("GET /pages/about/page/1 body = %q, want the item stored there", body)
+	}
+}
