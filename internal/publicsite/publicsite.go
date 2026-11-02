@@ -170,8 +170,7 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.serveTerm(w, r, held)
 }
 
-// redirectTarget returns the one address a read of a post, page or listing page moves to, empty when it stays where
-// it was asked.
+// redirectTarget returns the one address a read moves to, empty when it stays where it was asked.
 func (s *site) redirectTarget(r *http.Request, held content.Address) string {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return ""
@@ -211,7 +210,7 @@ func canonicalAddress(held content.Address) string {
 	return "/" + listing
 }
 
-// sameListing reports whether both addresses hold the same page of the same listing.
+// sameListing reports whether both addresses hold the same item or the same page of the same listing.
 func sameListing(a, b content.Address) bool {
 	return a.Kind == b.Kind && a.Type.Key == b.Type.Key && a.Item.ID == b.Item.ID && a.Page == b.Page
 }
