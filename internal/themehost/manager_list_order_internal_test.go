@@ -39,7 +39,7 @@ func TestCompareNaturalNamesOrdersNamesAsStrnatcasecmpDoes(t *testing.T) {
 		"a space right after a run is compared":          {"1 z", "1a"},
 		"a name can end in a space":                      {"a ", "a b"},
 		"a name sorts before itself with a space after":  {"a", "a "},
-		"a lone zero is not skipped":                     {"0", "1"},
+		"a lone zero is not skipped":                     {"-", "0", "1"},
 		"a run can be longer than any integer":           {"theme9", "theme10000000000000000000000"},
 		"letters past ASCII keep their lower case order": {"ÿ", "ā"},
 		"accented capitals sit with their lower case":    {"Ea", "zoe", "áa", "Ábc", "Éa"},
