@@ -17,21 +17,17 @@ import (
 	"github.com/gopherium/gophenberg/internal/publicsite"
 )
 
-// failingReread serves like its reader but fails every read of path after its first.
-type failingReread struct {
+// failingAt serves like its reader but fails every read of path.
+type failingAt struct {
 	*fakeReader
-	path  string
-	err   error
-	reads int
+	path string
+	err  error
 }
 
-// PublishedByPath lets the first read of path through and returns err for every later one.
-func (r *failingReread) PublishedByPath(ctx context.Context, path string) (content.Content, error) {
+// PublishedByPath returns err for path and reads any other path as its reader does.
+func (r *failingAt) PublishedByPath(ctx context.Context, path string) (content.Content, error) {
 	if path == r.path {
-		r.reads++
-		if r.reads > 1 {
-			return content.Content{}, r.err
-		}
+		return content.Content{}, r.err
 	}
 	return r.fakeReader.PublishedByPath(ctx, path)
 }
@@ -254,7 +250,7 @@ func TestSiteAnswersNotFoundForAPageNumberNothingHangsFrom(t *testing.T) {
 func TestSiteReportsAPostItCannotReadBehindAPageNumber(t *testing.T) {
 	t.Parallel()
 
-	reader := &failingReread{
+	reader := &failingAt{
 		fakeReader: &fakeReader{posts: []content.Content{
 			publishedPost("Hello World", "hello-world", blockMarkup, time.Now().UTC()),
 		}},
