@@ -32,6 +32,9 @@ UNION ALL
 SELECT 'relation ' || relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE nspname !~ '^pg_' AND nspname <> 'information_schema' AND pg_get_userbyid(relowner) <> $1
 UNION ALL
+SELECT 'routine ' || proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE nspname !~ '^pg_' AND nspname <> 'information_schema' AND pg_get_userbyid(proowner) <> $1
+UNION ALL
 SELECT 'database ' || datname FROM pg_database WHERE datname = current_database() AND pg_get_userbyid(datdba) <> $1`
 )
 
@@ -236,7 +239,7 @@ func (o *ownerScenario) hasNoRole(ctx context.Context) error {
 	return nil
 }
 
-// ownsEverything fails unless the database and every schema, table and sequence inside it belong to the role.
+// ownsEverything fails unless the database and every schema, table, sequence and routine inside it belong to the role.
 func (o *ownerScenario) ownsEverything(ctx context.Context) error {
 	conn, err := pgx.Connect(ctx, o.address)
 	if err != nil {
