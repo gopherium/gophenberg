@@ -134,6 +134,7 @@ func initializeOperatorCommands(t *testing.T, engine operatorEngine) func(*godog
 		initializeUpdateChecks(sc, s)
 		initializeCoreUpdates(sc, s)
 		initializeDatabaseWait(sc, s)
+		initializeDatabaseOwner(sc, s)
 	}
 }
 

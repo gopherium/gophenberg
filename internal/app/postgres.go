@@ -26,17 +26,22 @@ const poolSettingPrefix = "pool_"
 
 // openPostgres returns the one pool and its view on the PostgreSQL database at address under the cap env names.
 func openPostgres(env gonsole.Env, address string) (*dbkitpg.Handle, error) {
+	return openPostgresAt(env, siteAddressSetting, address)
+}
+
+// openPostgresAt returns what openPostgres returns for an address the setting named by setting holds.
+func openPostgresAt(env gonsole.Env, setting, address string) (*dbkitpg.Handle, error) {
 	conns, err := dbconns.MaxConnsFrom(env)
 	if err != nil {
 		return nil, err
 	}
 	if keys := poolSettings(address); len(keys) > 0 {
 		return nil, fmt.Errorf("%s: remove %s from the address, %s sizes the pool",
-			env.Key("DATABASE_URL"), strings.Join(keys, " and "), env.Key("DATABASE_MAX_CONNS"))
+			env.Key(setting), strings.Join(keys, " and "), env.Key("DATABASE_MAX_CONNS"))
 	}
 	handle, err := dbkitpg.Open(address, dbkitpg.Options{MaxConns: conns})
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", env.Key("DATABASE_URL"), err)
+		return nil, fmt.Errorf("%s: %w", env.Key(setting), err)
 	}
 	return handle, nil
 }
