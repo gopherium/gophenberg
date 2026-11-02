@@ -33,7 +33,7 @@ require (
 	github.com/peterldowns/pgtestdb v0.1.1
 	github.com/pressly/goose/v3 v3.29.0
 	golang.org/x/image v0.47.0
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 	golang.org/x/text v0.43.0
 )
 
