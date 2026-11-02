@@ -52,7 +52,8 @@ build fills it in so it is always right, which is why the zip takes
 Open **Themes** in the admin, press **Upload theme** at the top of
 the screen, and pick the zip. The upload starts at once, and a short
 message says when the theme is installed. Once it appears in the
-list, select **Activate**.
+list, select **Activate**. The active theme sits at the top of the
+list and the rest follow by name, with `theme2` before `theme10`.
 
 The old theme keeps serving until the new one is ready, so the
 site never goes quiet while you switch. **Deactivate** returns the

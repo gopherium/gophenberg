@@ -3,11 +3,16 @@
 package themehost
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
+	"strings"
 	"sync"
+	"unicode"
+	"unicode/utf8"
 )
 
 // ActiveKey is the setting naming the theme the public site is served through.
@@ -69,7 +74,7 @@ func (m *Manager) Close() {
 	m.retiring.Wait()
 }
 
-// List returns the installed themes, marking the chosen one and the one serving.
+// List returns the installed themes in the order the admin shows them, marking the chosen one and the one serving.
 func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 	installed, err := m.cfg.Library.List()
 	if err != nil {
@@ -86,8 +91,124 @@ func (m *Manager) List(ctx context.Context) ([]Installed, error) {
 			Active: true,
 		})
 	}
+	slices.SortStableFunc(installed, compareListed)
 	return installed, nil
 }
+
+// compareListed compares two themes for the order the admin lists them in, the active one first.
+func compareListed(one, other Installed) int {
+	if one.Active != other.Active {
+		if one.Active {
+			return -1
+		}
+		return 1
+	}
+	return compareNaturalNames(one.Name, other.Name)
+}
+
+// compareNaturalNames compares two theme names as PHP strnatcasecmp does, with letter case folded past ASCII too.
+func compareNaturalNames(one, other string) int {
+	left, right := nameCursor{name: one}, nameCursor{name: other}
+	left.skipLeadingZeros()
+	right.skipLeadingZeros()
+	for !left.done() && !right.done() {
+		if compared := left.compareNext(&right); compared != 0 {
+			return compared
+		}
+	}
+	return cmp.Compare(left.remaining(), right.remaining())
+}
+
+// nameCursor walks a theme name one comparison element at a time: a whole run of digits or a single letter.
+type nameCursor struct {
+	name string
+	at   int
+}
+
+// done reports whether the cursor has walked past the end of its name.
+func (c nameCursor) done() bool { return c.at >= len(c.name) }
+
+// remaining is 1 while the cursor still has characters to walk and 0 after the end.
+func (c nameCursor) remaining() int { return min(len(c.name)-c.at, 1) }
+
+// compareNext compares the element each cursor is at and moves both cursors past it.
+func (c *nameCursor) compareNext(other *nameCursor) int {
+	c.skipSpaces()
+	other.skipSpaces()
+	if c.atDigit() && other.atDigit() {
+		if compared := compareDigitRuns(c.takeDigitRun(), other.takeDigitRun()); compared != 0 {
+			return compared
+		}
+	}
+	return cmp.Compare(foldCase(c.takeRune()), foldCase(other.takeRune()))
+}
+
+// current returns the byte at the cursor, zero past the end of the name.
+func (c nameCursor) current() byte {
+	if c.done() {
+		return 0
+	}
+	return c.name[c.at]
+}
+
+// atDigit reports whether the cursor is at one of the digits 0 to 9.
+func (c nameCursor) atDigit() bool { return isDigit(c.current()) }
+
+// skipLeadingZeros moves past the zeros opening a name that have a digit after them.
+func (c *nameCursor) skipLeadingZeros() {
+	for c.current() == '0' && c.at+1 < len(c.name) && isDigit(c.name[c.at+1]) {
+		c.at++
+	}
+}
+
+// skipSpaces moves past a run of ASCII white space.
+func (c *nameCursor) skipSpaces() {
+	c.at = len(c.name) - len(strings.TrimLeft(c.name[c.at:], " \t\n\v\f\r"))
+}
+
+// takeDigitRun returns the run of digits at the cursor and moves past it.
+func (c *nameCursor) takeDigitRun() string {
+	start := c.at
+	for !c.done() && c.atDigit() {
+		c.at++
+	}
+	return c.name[start:c.at]
+}
+
+// takeRune returns the character at the cursor and moves past it, zero past the end of the name.
+func (c *nameCursor) takeRune() rune {
+	if c.done() {
+		return 0
+	}
+	symbol, size := utf8.DecodeRuneInString(c.name[c.at:])
+	c.at += size
+	return symbol
+}
+
+// foldCase returns the form a letter's cases share, upper case within ASCII and lower case past it.
+func foldCase(symbol rune) rune {
+	if symbol == 'ı' || symbol == 'İ' {
+		return symbol
+	}
+	folded := unicode.ToLower(unicode.ToUpper(symbol))
+	if folded < utf8.RuneSelf {
+		return unicode.ToUpper(folded)
+	}
+	return folded
+}
+
+// compareDigitRuns compares two runs of digits by value, or digit by digit when either opens with a zero.
+func compareDigitRuns(one, other string) int {
+	if one[0] != '0' && other[0] != '0' {
+		if compared := cmp.Compare(len(one), len(other)); compared != 0 {
+			return compared
+		}
+	}
+	return strings.Compare(one, other)
+}
+
+// isDigit reports whether a byte is one of the digits 0 to 9.
+func isDigit(symbol byte) bool { return symbol >= '0' && symbol <= '9' }
 
 // mark labels each theme with the operator's choice and the one holder answers with, reporting the choice found.
 func mark(installed []Installed, active string, holder *Holder) bool {
