@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -28,6 +29,12 @@ const (
 
 // errUnreadableAddress refuses an address pgx cannot read, in words that repeat none of it.
 var errUnreadableAddress = fmt.Errorf("%w: pgx cannot parse the address or one of its settings", dbkit.ErrAddress)
+
+// hostPort is one server an address tries.
+type hostPort struct {
+	host string
+	port uint16
+}
 
 // databaseOwnerCommand returns the command that gives the role the site logs in as its database.
 func databaseOwnerCommand(getenv func(string) string) gonsole.Command {
@@ -78,9 +85,18 @@ func ownerAddresses(call gonsole.Call) (*pgx.ConnConfig, string, error) {
 	return site, superuser, nil
 }
 
-// sameDatabase reports whether two addresses log in to one database on one server.
+// sameDatabase reports whether two addresses log in to one database on the same servers.
 func sameDatabase(site, held *pgx.ConnConfig) bool {
-	return site.Host == held.Host && site.Port == held.Port && reachedDatabase(site) == reachedDatabase(held)
+	return slices.Equal(serversOf(site), serversOf(held)) && reachedDatabase(site) == reachedDatabase(held)
+}
+
+// serversOf returns the servers config tries in order, each once.
+func serversOf(config *pgx.ConnConfig) []hostPort {
+	servers := []hostPort{{config.Host, config.Port}}
+	for _, fallback := range config.Fallbacks {
+		servers = append(servers, hostPort{fallback.Host, fallback.Port})
+	}
+	return slices.Compact(servers)
 }
 
 // reachedDatabase returns the database config logs in to, which is the user's own when the address names none.

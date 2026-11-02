@@ -528,7 +528,7 @@ gophenberg database:create-owner [flags]
 Sets up the PostgreSQL role the site logs in as.
 `GOPHENBERG_DATABASE_URL` names the role and its password, and
 `GOPHENBERG_DATABASE_SUPERUSER_URL` names the superuser that makes the
-change. Both must name the same database on the same host and port,
+change. Both must name the same database on the same hosts and ports,
 and no other command reads the second address.
 
 With `-yes` it creates the role, or sets its password when the role

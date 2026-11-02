@@ -84,10 +84,31 @@ func TestCreateOwnerStopsOnAddressesThatReachTwoDatabases(t *testing.T) {
 			"postgres://site:" + hiddenPassword + "@localhost:5432/site",
 			"postgres://root:" + hiddenPassword + "@localhost:5433/site",
 		},
+		"two fallback hosts": {
+			"postgres://site:" + hiddenPassword + "@127.0.0.1:9,127.0.0.2:9/site",
+			"postgres://root:" + hiddenPassword + "@127.0.0.1:9,127.0.0.3:9/site",
+		},
+		"a fallback host on one side only": {
+			"postgres://site:" + hiddenPassword + "@127.0.0.1:9,127.0.0.2:9/site",
+			"postgres://root:" + hiddenPassword + "@127.0.0.1:9/site",
+		},
 	} {
 		wantStopped(t, name, createOwnerAnswer(t, tc.site, tc.superuser), []string{
 			"GOPHENBERG_DATABASE_URL", "GOPHENBERG_DATABASE_SUPERUSER_URL", "name the same database",
 		})
+	}
+}
+
+func TestCreateOwnerTakesOneHostListWithTwoTLSModes(t *testing.T) {
+	t.Parallel()
+
+	const hosts = "@127.0.0.1:9,127.0.0.2:9/site"
+
+	got := createOwnerAnswer(t, "postgres://site:"+hiddenPassword+hosts+"?sslmode=disable",
+		"postgres://root:"+hiddenPassword+hosts)
+
+	if got.Code != 1 || !strings.Contains(got.Stderr, "dbkit: begin the hand-over: ") {
+		t.Errorf("code = %d, stderr = %q, want both addresses taken and the servers found down", got.Code, got.Stderr)
 	}
 }
 
