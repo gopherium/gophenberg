@@ -24,7 +24,8 @@ so it takes the default.
 | `GOPHENBERG_DATABASE_MAX_CONNS` | No | The larger of 4 and the number of CPUs | How many connections to the database stay open at most, from 2 to 2147483647, see [the database connections](#the-database-connections) |
 | `GOPHENBERG_MAX_PROCS` | No | Go's own | How many processors run Go code at once, from 1 to the number of CPUs, see [memory and processors on a small host](#memory-and-processors-on-a-small-host) |
 | `GOPHENBERG_MEMORY_LIMIT_MB` | No | | The memory Go tries to stay under, in megabytes from 1 to 1073741824, see [memory and processors on a small host](#memory-and-processors-on-a-small-host) |
-| `GOPHENBERG_SUPERUSER_POLICY` | No | `warn` | What the server does when it connects to PostgreSQL as a superuser: `warn` logs a warning and serves, `refuse` stops it, see [the PostgreSQL server](#the-postgresql-server) |
+| `GOPHENBERG_DATABASE_SUPERUSER_URL` | Only for `database:create-owner` | | The superuser [`database:create-owner`](/self-hosting/commands/#databasecreate-owner) logs in as. No other command reads it |
+| `GOPHENBERG_SUPERUSER_POLICY` | No | `refuse` | What the server does when it connects to PostgreSQL as a role that can reach the database server, such as a superuser: `refuse` stops it, `warn` logs a warning and serves, see [the PostgreSQL server](#the-postgresql-server) |
 | `GOPHENBERG_DATABASE_WAIT` | No | `60s` | How long `serve` waits for a PostgreSQL server that is not up yet before it stops. `0` does not wait, see [a database that starts late](#a-database-that-starts-late) |
 | `GOPHENBERG_DATABASE_WAIT_INTERVAL` | No | `1s` | The pause between two tries while `serve` waits for the database |
 | `GOPHENBERG_ADDR` | No | `localhost:8081` | Address the server listens on. The container image sets `0.0.0.0:8081` |
@@ -138,12 +139,33 @@ anything, and name the version they found.
 Connect as the database's own owner role, not as a superuser such as
 `postgres`. A superuser can make the database server run programs, so
 a fault in Gophenberg or in a plugin that let someone send it SQL would
-reach the shell of that server. When `serve` connects as a superuser,
-it logs a warning and serves. Set `GOPHENBERG_SUPERUSER_POLICY` to
-`refuse` to stop it instead. The compose file from
-[Install](/self-hosting/install/) connects as `postgres`, so a site set
-up from it shows the warning. A SQLite file has no roles, so the
-setting does nothing there.
+reach the shell of that server. So `serve` stops before it changes
+anything when its role can reach the database server. That covers a
+superuser, a role that can create roles, a member of
+`pg_execute_server_program`, `pg_read_server_files` or
+`pg_write_server_files`, and a member of any of those. Set
+`GOPHENBERG_SUPERUSER_POLICY` to `warn` to log a warning and serve
+instead. A SQLite file has no roles, so the setting does nothing there.
+
+[`database:create-owner`](/self-hosting/commands/#databasecreate-owner)
+sets the owner role up for you, and the compose file from
+[Install](/self-hosting/install/) runs it on every start.
+
+### Moving a site off `postgres`
+
+If your site still connects as `postgres`, it stops with an error that
+names `GOPHENBERG_SUPERUSER_POLICY`. To move it, give your compose file
+the `database-owner` service from
+[Install](/self-hosting/install/), make `gophenberg` depend on it as
+that file does, and point the site's `GOPHENBERG_DATABASE_URL` at the
+new role. Then run:
+
+```sh
+docker compose up -d
+```
+
+The command creates the role and gives it the database and everything
+inside, then the site starts on it. Nothing you wrote changes.
 
 ### A database that starts late
 
@@ -899,7 +921,8 @@ The server refuses to start, and says why, when:
 - The database runs PostgreSQL 14 or older, see
   [the PostgreSQL server](#the-postgresql-server).
 - `GOPHENBERG_SUPERUSER_POLICY` is `refuse` and the server connects
-  to PostgreSQL as a superuser.
+  to PostgreSQL as a role that can reach the database server, such as
+  a superuser.
 - A newer Gophenberg migrated the database past what this version
   serves. The message names the version the database needs, see
   [going back to an older version](/self-hosting/updates-and-backups/#going-back-to-an-older-version).

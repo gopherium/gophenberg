@@ -13,7 +13,7 @@ require (
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/google/uuid v1.6.0
 	github.com/gopherium/framework/dbkit v0.3.0
-	github.com/gopherium/framework/dbkit/postgres v0.3.0
+	github.com/gopherium/framework/dbkit/postgres v0.4.0
 	github.com/gopherium/framework/dbkit/sqlite v0.3.0
 	github.com/gopherium/framework/goncierge v0.1.0
 	github.com/gopherium/framework/gonsole v0.9.0

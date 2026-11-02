@@ -33,30 +33,32 @@ Usage:
 Every command answers -h. A command that offers -json answers one JSON document. A command that offers -yes is a dry run until -yes.
 
 Available commands:
-  about                 print the version, the build stamp, the commit and the theme kits of this binary
-  check                 check every setting, every plugin and every command name
-  help                  print the help of one command
-  list                  list every command
-  migrate               apply every schema step
-  seed                  store the demo data
-  serve                 run the server
-  version               print the version
+  about                  print the version, the build stamp, the commit and the theme kits of this binary
+  check                  check every setting, every plugin and every command name
+  help                   print the help of one command
+  list                   list every command
+  migrate                apply every schema step
+  seed                   store the demo data
+  serve                  run the server
+  version                print the version
  account
-  account:create-admin  create an account under a role
-  account:disable       disable one account
-  account:enable        enable one disabled account
-  account:grant-role    give a role to every account holding none
-  account:list          list every account with its role
-  account:records       list who applied which change, the newest first
-  account:role          set one account's role
+  account:create-admin   create an account under a role
+  account:disable        disable one account
+  account:enable         enable one disabled account
+  account:grant-role     give a role to every account holding none
+  account:list           list every account with its role
+  account:records        list who applied which change, the newest first
+  account:role           set one account's role
+ database
+  database:create-owner  create the role the site logs in as and give it the database, as a superuser
  server
-  server:install        install Gophenberg on this Linux server with PostgreSQL, Caddy and a systemd service
-  server:uninstall      remove what server:install set up on this server, keeping the site's data unless -delete-data
+  server:install         install Gophenberg on this Linux server with PostgreSQL, Caddy and a systemd service
+  server:uninstall       remove what server:install set up on this server, keeping the site's data unless -delete-data
  update
-  update:apply          update this server install to a newer Gophenberg, then ask for a restart
-  update:check          check the update site for a newer Gophenberg and keep what it found
-  update:rollback       take back the last update, pointing current at the build before it
-  update:status         show the builds of this server install, its last update and its backups
+  update:apply           update this server install to a newer Gophenberg, then ask for a restart
+  update:check           check the update site for a newer Gophenberg and keep what it found
+  update:rollback        take back the last update, pointing current at the build before it
+  update:status          show the builds of this server install, its last update and its backups
 
 Every command is described at https://docs.gophenberg.org/self-hosting/commands/
 ```
@@ -126,17 +128,19 @@ When `GOPHENBERG_DATABASE_URL` names a SQLite file, such as
 | `account:create-admin` | Works as on PostgreSQL. It migrates the file first, then asks for the password |
 | Every other `account:` command | Works as on PostgreSQL, on the accounts and the records kept in the file |
 | A plugin command that names a capability | Checks the account in `-as`, then runs, as on PostgreSQL |
+| `database:create-owner` | Exits with code 1 before it opens anything, since a SQLite file has no roles |
 | `update:apply` | Exits with code 1 before it opens anything |
 | `update:rollback` and `update:status` | Work as on PostgreSQL, since they never open the database |
 
-`serve`, `seed -yes` and `update:apply` stop and name what they need:
+`serve`, `seed -yes`, `database:create-owner` and `update:apply` stop
+and name what they need:
 
 ```text
 gophenberg: serve: content and types do not run on SQLite yet, so this command needs GOPHENBERG_DATABASE_URL to name a PostgreSQL database
 ```
 
-`seed -yes` says `seed:` in place of `serve:`, and `update:apply`
-says `update:apply:`.
+`seed -yes` says `seed:` in place of `serve:`, and the other two say
+their own names.
 
 `seed -yes` migrates the file before it stops, `account:create-admin`
 migrates it first, and every other account command and every plugin
@@ -151,9 +155,10 @@ covers the address, the file and its settings.
 
 ## Dry runs and -yes
 
-Six commands only show what they would change until you add `-yes`:
+Seven commands only show what they would change until you add `-yes`:
 `seed`, `account:grant-role`, `account:role`, `account:disable`,
-`account:enable` and `server:uninstall`. This line, for example:
+`account:enable`, `database:create-owner` and `server:uninstall`. This
+line, for example:
 
 ```sh
 gophenberg account:role author@example.com editor -as admin@example.com
@@ -513,6 +518,55 @@ Sets the role of one account to `admin`, `editor`, `author`,
 of the account named in `-as`, to hand out a role beyond the reach
 of that account, and to take `manage_users` from the last enabled
 account holding it.
+
+### database:create-owner
+
+```text
+gophenberg database:create-owner [flags]
+```
+
+Sets up the PostgreSQL role the site logs in as.
+`GOPHENBERG_DATABASE_URL` names the role and its password, and
+`GOPHENBERG_DATABASE_SUPERUSER_URL` names the superuser that makes the
+change. Both must name the same database on the same hosts and ports,
+and no other command reads the second address.
+
+With `-yes` it creates the role, or sets its password when the role
+exists. Then it gives the role the database and its schemas, tables,
+views, sequences, functions, procedures and types. All of that runs in
+one transaction, so a failure changes nothing. What an extension
+installed keeps its owner.
+
+Without `-yes` it prints the steps and changes nothing:
+
+```text
+CREATE ROLE gophenberg LOGIN
+ALTER DATABASE gophenberg OWNER TO gophenberg
+ALTER SCHEMA auth OWNER TO gophenberg
+gophenberg: dry run, nothing changed, pass -yes to apply
+```
+
+You can run it again at any time. A second run prints
+`nothing to move, the role already owns the database`, and with `-yes`
+it only sets the password. It never prints a password.
+
+It stops with code 1, and changes nothing, when:
+
+- `GOPHENBERG_DATABASE_SUPERUSER_URL` is missing, or does not log in as
+  a superuser.
+- The two addresses reach different databases, or different servers.
+  An address with no database name reaches the one named after its
+  user.
+- The site's role could reach the database server: a superuser, a role
+  that can create roles, a member of `pg_execute_server_program`,
+  `pg_read_server_files` or `pg_write_server_files`, or a member of any
+  of those.
+- The site runs on SQLite, which has no roles.
+
+The compose file from [Install](/self-hosting/install/) runs this
+command for you. A server install made by
+[`server:install`](#serverinstall) needs no such step, because it
+already creates a plain role.
 
 ### server:install
 

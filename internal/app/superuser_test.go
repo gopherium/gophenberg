@@ -23,7 +23,7 @@ func TestSuperuserPolicyIsWarnOrRefuse(t *testing.T) {
 		want  superuserPolicy
 		err   string
 	}{
-		{value: "", want: superuserWarn},
+		{value: "", want: superuserRefuse},
 		{value: "warn", want: superuserWarn},
 		{value: "refuse", want: superuserRefuse},
 		{value: "Refuse", err: `GOPHENBERG_SUPERUSER_POLICY: must be warn or refuse, got "Refuse"`},
@@ -53,62 +53,63 @@ func TestLoadRunConfigRefusesASuperuserPolicyItCannotUse(t *testing.T) {
 	}
 }
 
-// askedRole returns a question about the connected role that answers super and err.
-func askedRole(super bool, err error) func(context.Context) (bool, error) {
+// askedRole returns a question about the connected role that answers reaches and err.
+func askedRole(reaches bool, err error) func(context.Context) (bool, error) {
 	return func(context.Context) (bool, error) {
-		return super, err
+		return reaches, err
 	}
 }
 
-func TestSuperuserCheckWarnsUnderWarn(t *testing.T) {
+func TestReachCheckWarnsUnderWarn(t *testing.T) {
 	t.Parallel()
 	var logged bytes.Buffer
 
-	err := superuserCheck(t.Context(), superuserWarn, askedRole(true, nil), slog.New(slog.NewTextHandler(&logged, nil)))
+	err := reachCheck(t.Context(), superuserWarn, askedRole(true, nil), slog.New(slog.NewTextHandler(&logged, nil)))
 
 	if err != nil {
-		t.Fatalf("superuserCheck() = %v under warn, want nil", err)
+		t.Fatalf("reachCheck() = %v under warn, want nil", err)
 	}
-	if !strings.Contains(logged.String(), "level=WARN") || !strings.Contains(logged.String(), superuserWarning) {
-		t.Errorf("logged %q, want the superuser warning", logged.String())
+	if !strings.Contains(logged.String(), "level=WARN") || !strings.Contains(logged.String(), reachWarning) {
+		t.Errorf("logged %q, want the warning", logged.String())
 	}
 }
 
-func TestSuperuserCheckRefusesUnderRefuse(t *testing.T) {
+func TestReachCheckRefusesUnderRefuse(t *testing.T) {
 	t.Parallel()
 	var logged bytes.Buffer
 
-	err := superuserCheck(t.Context(), superuserRefuse, askedRole(true, nil), slog.New(slog.NewTextHandler(&logged, nil)))
+	err := reachCheck(t.Context(), superuserRefuse, askedRole(true, nil), slog.New(slog.NewTextHandler(&logged, nil)))
 
-	want := "gophenberg connects to its database as a superuser and GOPHENBERG_SUPERUSER_POLICY is refuse, " +
-		"so connect as the database's own owner role"
+	want := "gophenberg connects to its database as a role that can reach the database server, such as a superuser, " +
+		"and GOPHENBERG_SUPERUSER_POLICY is refuse, " +
+		"so connect as the database's own owner role, which database:create-owner sets up"
 	if err == nil || err.Error() != want {
-		t.Errorf("superuserCheck() = %v under refuse, want %q", err, want)
+		t.Errorf("reachCheck() = %v under refuse, want %q", err, want)
 	}
 	if logged.Len() != 0 {
-		t.Errorf("logged %q under refuse, want the refusal alone", logged.String())
+		t.Errorf("logged %q under refuse, want only the error", logged.String())
 	}
 }
 
-func TestSuperuserCheckSaysNothingForAnOwnerRole(t *testing.T) {
+func TestReachCheckSaysNothingForAnOwnerRole(t *testing.T) {
 	t.Parallel()
 
 	for _, policy := range []superuserPolicy{superuserWarn, superuserRefuse} {
 		var logged bytes.Buffer
-		err := superuserCheck(t.Context(), policy, askedRole(false, nil), slog.New(slog.NewTextHandler(&logged, nil)))
+		err := reachCheck(t.Context(), policy, askedRole(false, nil), slog.New(slog.NewTextHandler(&logged, nil)))
 		if err != nil || logged.Len() != 0 {
-			t.Errorf("superuserCheck() under %s = %v and logged %q, want nil and nothing", policy, err, logged.String())
+			t.Errorf("reachCheck() under %s = %v and logged %q, want nil and nothing", policy, err, logged.String())
 		}
 	}
 }
 
-func TestSuperuserCheckReportsAQuestionItCouldNotAsk(t *testing.T) {
+func TestReachCheckReportsAQuestionItCouldNotAsk(t *testing.T) {
 	t.Parallel()
 
-	err := superuserCheck(t.Context(), superuserWarn, askedRole(false, errRead), slog.New(slog.DiscardHandler))
+	err := reachCheck(t.Context(), superuserWarn, askedRole(false, errRead), slog.New(slog.DiscardHandler))
 
 	if !errors.Is(err, errRead) {
-		t.Errorf("superuserCheck() = %v, want the failure of the question", err)
+		t.Errorf("reachCheck() = %v, want the failure of the question", err)
 	}
 }
 
@@ -132,6 +133,7 @@ func TestRunWarnsWhenItConnectsAsASuperuser(t *testing.T) {
 
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL": testdb.AsServer(t, emptyDatabaseURL(t)), "GOPHENBERG_ADDR": "localhost:0",
+		"GOPHENBERG_SUPERUSER_POLICY": "warn",
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -140,8 +142,8 @@ func TestRunWarnsWhenItConnectsAsASuperuser(t *testing.T) {
 	if err := run(ctx, testkit.Getenv(env), listenRecorder{cancel: cancel, logged: logged}, noPlugins); err != nil {
 		t.Fatalf("run() error = %v as a superuser under warn, want a clean shutdown", err)
 	}
-	if !strings.Contains(logged.String(), superuserWarning) {
-		t.Errorf("logged %q, want the superuser warning", logged.String())
+	if !strings.Contains(logged.String(), reachWarning) {
+		t.Errorf("logged %q, want the warning", logged.String())
 	}
 }
 
@@ -158,8 +160,8 @@ func TestRunStopsWhenItConnectsAsASuperuserUnderRefuse(t *testing.T) {
 
 	err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, noPlugins)
 
-	if err == nil || !strings.HasPrefix(err.Error(), "gophenberg connects to its database as a superuser") {
-		t.Fatalf("run() error = %v, want the superuser refusal before the site listens", err)
+	if !errors.Is(err, errReachesServer) {
+		t.Fatalf("run() error = %v, want the site stopped before it listens", err)
 	}
 	if got := storedMinimumVersionAt(t, databaseURL); got != "" {
 		t.Errorf("stored minimum version = %q after the refusal, want nothing migrated", got)
@@ -177,7 +179,7 @@ func TestRunSaysNothingOfTheRoleOfADatabaseOwner(t *testing.T) {
 	if err := run(ctx, testkit.Getenv(env), listenRecorder{cancel: cancel, logged: logged}, noPlugins); err != nil {
 		t.Fatalf("run() error = %v, want a clean shutdown", err)
 	}
-	if strings.Contains(logged.String(), "superuser") {
-		t.Errorf("logged %q for the database's owner role, want no superuser warning", logged.String())
+	if strings.Contains(logged.String(), reachWarning) {
+		t.Errorf("logged %q for the database's owner role, want no warning", logged.String())
 	}
 }

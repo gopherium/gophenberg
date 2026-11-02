@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/postgres"
-	"github.com/gopherium/gophenberg/internal/testdb"
 )
 
 func TestCheckMajorTakesTheServerTheTestsRunOn(t *testing.T) {
@@ -27,29 +26,6 @@ func TestServerMajorReadsTheMajorOfTheTestServer(t *testing.T) {
 	}
 }
 
-func TestSuperuserIsFalseForTheRoleTestDatabasesBelongTo(t *testing.T) {
-	t.Parallel()
-
-	super, err := postgres.Superuser(t.Context(), emptyDB(t))
-
-	if err != nil || super {
-		t.Errorf("Superuser() = %v, %v for the owner of a test database, want false and nil", super, err)
-	}
-}
-
-func TestSuperuserIsTrueForTheRoleTheTestServerIsReachedAs(t *testing.T) {
-	t.Parallel()
-	if testing.Short() {
-		t.Skip("skipping database test in short mode")
-	}
-
-	super, err := postgres.Superuser(t.Context(), testdb.Open(t, testdb.Server(t)))
-
-	if err != nil || !super {
-		t.Errorf("Superuser() = %v, %v for the role the test server is reached as, want true and nil", super, err)
-	}
-}
-
 func TestServerChecksReportDatabaseFailures(t *testing.T) {
 	t.Parallel()
 
@@ -61,8 +37,5 @@ func TestServerChecksReportDatabaseFailures(t *testing.T) {
 	}
 	if _, err := postgres.ServerMajor(t.Context(), db); err == nil {
 		t.Error("ServerMajor() on a closed handle error = nil, want a failure")
-	}
-	if _, err := postgres.Superuser(t.Context(), db); err == nil {
-		t.Error("Superuser() on a closed handle error = nil, want a failure")
 	}
 }
