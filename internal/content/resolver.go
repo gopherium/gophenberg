@@ -32,6 +32,21 @@ type Address struct {
 	Page int
 }
 
+// PagedItemError is the [ErrNotFound] of a page number asked of a post or page, naming the item.
+type PagedItemError struct {
+	Item Content
+}
+
+// Error returns the message of the miss it stands for.
+func (e *PagedItemError) Error() string {
+	return ErrNotFound.Error()
+}
+
+// Unwrap returns [ErrNotFound].
+func (e *PagedItemError) Unwrap() error {
+	return ErrNotFound
+}
+
 // AddressReader reads the published content an address holds.
 type AddressReader interface {
 	PublishedByPath(ctx context.Context, path string) (Content, error)
@@ -73,33 +88,6 @@ func (r *Resolver) Resolve(ctx context.Context, raw string) (Address, error) {
 	return r.archiveAt(ctx, address)
 }
 
-// PagedItem returns the post or page an address asks a page number of, or [ErrNotFound].
-func (r *Resolver) PagedItem(ctx context.Context, raw string) (Address, error) {
-	if !storableAddress(raw) {
-		return Address{}, ErrNotFound
-	}
-	address := tidy(raw)
-	word, _, err := listingAt(address)
-	if err != nil {
-		return Address{}, err
-	}
-	if word == address || word == "" {
-		return Address{}, ErrNotFound
-	}
-	item, err := r.content.PublishedByPath(ctx, word)
-	if err != nil {
-		return Address{}, err
-	}
-	held, err := r.itemAt(ctx, item, 1)
-	if err != nil {
-		return Address{}, err
-	}
-	if held.Kind != KindItem {
-		return Address{}, ErrNotFound
-	}
-	return held, nil
-}
-
 // itemAt returns what an item answers with, which is a term page when its type lists its pointers.
 func (r *Resolver) itemAt(ctx context.Context, item Content, page int) (Address, error) {
 	listed, err := r.types.ByKey(ctx, item.Type)
@@ -114,9 +102,6 @@ func (r *Resolver) itemAt(ctx context.Context, item Content, page int) (Address,
 	}
 	if listed.PageKind == PageKindArchive {
 		return Address{Kind: KindTerm, Type: listed, Item: item, Page: page}, nil
-	}
-	if page > 1 {
-		return Address{}, ErrNotFound
 	}
 	return Address{Kind: KindItem, Type: listed, Item: item}, nil
 }
@@ -150,7 +135,7 @@ func (r *Resolver) archiveAt(ctx context.Context, address string) (Address, erro
 	return r.pagedItemAt(ctx, word, page)
 }
 
-// pagedItemAt returns the term page an address asks for behind the page word.
+// pagedItemAt returns the term page an address asks for behind the page word, or a [PagedItemError] for a post or page.
 func (r *Resolver) pagedItemAt(ctx context.Context, address string, page int) (Address, error) {
 	item, err := r.content.PublishedByPath(ctx, address)
 	if errors.Is(err, ErrNotFound) {
@@ -163,10 +148,10 @@ func (r *Resolver) pagedItemAt(ctx context.Context, address string, page int) (A
 	if err != nil {
 		return Address{}, err
 	}
-	if held.Kind != KindTerm {
-		return Address{}, ErrNotFound
+	if held.Kind == KindTerm {
+		return held, nil
 	}
-	return held, nil
+	return Address{}, &PagedItemError{Item: item}
 }
 
 // listingAt returns the route word an address lists and the page it asks for.
