@@ -163,15 +163,13 @@ func (c *nameCursor) skipLeadingZeros() {
 
 // skipSpaces moves past a run of ASCII white space.
 func (c *nameCursor) skipSpaces() {
-	for strings.IndexByte(" \t\n\v\f\r", c.current()) >= 0 {
-		c.at++
-	}
+	c.at = len(c.name) - len(strings.TrimLeft(c.name[c.at:], " \t\n\v\f\r"))
 }
 
 // takeDigitRun returns the run of digits at the cursor and moves past it.
 func (c *nameCursor) takeDigitRun() string {
 	start := c.at
-	for c.atDigit() {
+	for !c.done() && c.atDigit() {
 		c.at++
 	}
 	return c.name[start:c.at]
