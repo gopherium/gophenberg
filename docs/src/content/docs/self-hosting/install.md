@@ -36,17 +36,27 @@ services:
     volumes:
       - db-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1"]
       interval: 2s
       timeout: 2s
       retries: 15
+
+  database-owner:
+    image: ghcr.io/gopherium/gophenberg:%VERSION%
+    command: ["database:create-owner", "-yes"]
+    environment:
+      GOPHENBERG_DATABASE_URL: postgres://gophenberg:change-me-too@db:5432/gophenberg?sslmode=disable
+      GOPHENBERG_DATABASE_SUPERUSER_URL: postgres://postgres:change-me@db:5432/gophenberg?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
 
   gophenberg:
     image: ghcr.io/gopherium/gophenberg:%VERSION%
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
-      GOPHENBERG_DATABASE_URL: postgres://postgres:change-me@db:5432/gophenberg?sslmode=disable
+      GOPHENBERG_DATABASE_URL: postgres://gophenberg:change-me-too@db:5432/gophenberg?sslmode=disable
       GOPHENBERG_SITE_TITLE: My Site
       GOPHENBERG_TRUSTED_PROXIES: 172.16.0.0/12
       GOPHENBERG_PUBLIC_URL: https://example.com
@@ -56,8 +66,8 @@ services:
     ports:
       - "127.0.0.1:8081:8081"
     depends_on:
-      db:
-        condition: service_healthy
+      database-owner:
+        condition: service_completed_successfully
 
 volumes:
   db-data:
@@ -67,17 +77,18 @@ volumes:
 
 Four values to change:
 
-- **The password**, in both places it appears. Keep the
-  `POSTGRES_PASSWORD` value in single quotes, so a password such as
-  `0012345678` is not read as a number. A long password of only
-  letters and digits is simplest, because it needs nothing more.
-  Otherwise write a `$` as `$$` and a `'` as `''` in
-  `POSTGRES_PASSWORD`. In `GOPHENBERG_DATABASE_URL` write every sign
-  that is not a letter or a digit as its `%` code, such as `%40` for
-  `@`, `%23` for `#`, `%3F` for `?`, `%2F` for `/`, `%25` for `%`,
-  `%24` for `$` and `%20` for a space, see
+- **The two passwords.** `change-me` is the database superuser's, in
+  both places it appears. `change-me-too` is the site's own, also in
+  both places. Keep the `POSTGRES_PASSWORD` value in single quotes,
+  so a password such as `0012345678` is not read as a number. A long
+  password of only letters and digits is simplest, because it needs
+  nothing more. Otherwise write a `$` as `$$` and a `'` as `''` in
+  `POSTGRES_PASSWORD`. In the two addresses write every sign that is
+  not a letter or a digit as its `%` code, such as `%40` for `@`,
+  `%23` for `#`, `%3F` for `?`, `%2F` for `/`, `%25` for `%`, `%24`
+  for `$` and `%20` for a space, see
   [the PostgreSQL address](/self-hosting/configuration/#the-postgresql-address).
-- **The image tag.** Pin the newest version from the
+- **The image tag**, in both places. Pin the newest version from the
   [tags page](https://github.com/gopherium/gophenberg/tags), never
   `latest`.
 - **`GOPHENBERG_TRUSTED_PROXIES`**, the network your proxy
@@ -88,8 +99,17 @@ Four values to change:
   Every write sent to another address is refused, see
   [the public address](/self-hosting/configuration/#the-public-address).
 
-The healthcheck and the `condition` keep Gophenberg from starting
-before the database is ready on first boot. The `themes` volume is
+The official PostgreSQL image only offers a superuser, and a site must
+not log in as one, because a superuser can run programs on the database
+server. So the `database-owner` service runs once on every start. It
+creates the role the site logs in as and gives it the database, then it
+stops, and Gophenberg starts after it. Its second address is the only
+place the site's setup needs the superuser, and running it again
+changes nothing. See
+[`database:create-owner`](/self-hosting/commands/#databasecreate-owner).
+
+The healthcheck and the `condition` lines keep each service from
+starting before the one it needs is ready. The `themes` volume is
 where themes you upload in the admin are kept, so it has to stay
 writable. The `stop_grace_period` gives a stop time to finish before
 Docker kills the server, see

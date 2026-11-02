@@ -16,7 +16,7 @@ Your compose file pins an exact version, so nothing updates behind
 your back:
 
 ```sh
-# 1. edit compose.yaml: change the image tag to the new version
+# 1. edit compose.yaml: change both image tags to the new version
 docker compose pull
 docker compose run --rm -T gophenberg check
 docker compose up -d
@@ -365,8 +365,10 @@ copies by hand first, because on that release it clears the values
 both copies read.
 
 Rolling back to the release before this one deletes nothing. Put the
-older image tag back, the newest patch of that release, and start it.
-It runs on this release's database as it stands. Accounts keep
+older image tag back on the `gophenberg` service, the newest patch of
+that release, and start it. Leave `database-owner` on this release,
+because an older one does not have that command. The site runs on this
+release's database as it stands. Accounts keep
 signing in, and the database password needs no change. Its newest
 patch serves the same theme kits, so no theme needs rebuilding. An
 older patch turns away a theme built on kit %KIT_VERSION% with
@@ -1093,13 +1095,15 @@ them, and so do `migrate`, `seed -yes` and `account:create-admin`, so
 run none of them before the restore:
 
 ```sh
-docker compose up -d db
+docker compose run --rm database-owner
 docker compose exec -T db pg_restore -U postgres -d gophenberg < gophenberg.dump
 docker compose up -d
 ```
 
-Starting only the database first is what keeps Gophenberg out of
-the way until the restore is done.
+Running only `database-owner` first starts the database and makes the
+role the restored tables belong to, and it keeps Gophenberg out of the
+way until the restore is done. A backup from before you moved off
+`postgres` restores too, and the last line moves it to the role.
 
 ### Restoring on a server install
 
