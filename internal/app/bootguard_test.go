@@ -133,8 +133,8 @@ func TestServeMarksThatTheNewBuildReachedTheDatabaseBeforeItAsksAboutTheRole(t *
 		installRootSetting: root,
 	})
 
-	if result.Code != gonsole.ExitFailed || !strings.Contains(result.Stderr, "connects to its database as a superuser") {
-		t.Errorf("serve = %d with stderr %q, want 1 and the superuser refused", result.Code, result.Stderr)
+	if result.Code != gonsole.ExitFailed || !strings.Contains(result.Stderr, errReachesServer.Error()) {
+		t.Errorf("serve = %d with stderr %q, want 1 and the role refused", result.Code, result.Stderr)
 	}
 	state, err := updater.Layout{Root: root}.ReadState()
 	if err != nil {
