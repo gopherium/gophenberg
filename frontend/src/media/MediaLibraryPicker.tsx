@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Dialog, Stack, StyleProvider, Text } from '@gophenberg/frontend-sdk'
+import { Button, Dialog, Stack, Text } from '@gophenberg/frontend-sdk'
 import { DataViewsPicker } from '@gophenberg/frontend-sdk/dataviews'
 import type { View } from '@gophenberg/frontend-sdk/dataviews'
 import { Popover, SlotFillProvider } from '@gophenberg/frontend-sdk/editor'
@@ -116,53 +116,51 @@ export function MediaLibraryPicker({
 					setOpen(true)
 				},
 			})}
-			<StyleProvider document={document}>
-				<Dialog.Root open={open} onOpenChange={() => close()}>
-					<Dialog.Popup size="large" className="gophenberg-media-picker">
-						<SlotFillProvider>
-							<Dialog.Header>
-								<Dialog.Title>{__('Media Library', 'gophenberg')}</Dialog.Title>
-								<Dialog.CloseIconButton />
-							</Dialog.Header>
-							<Dialog.Content>
-								{media.isError ? (
-									<ErrorNotice>{__('The media library could not be loaded.', 'gophenberg')}</ErrorNotice>
-								) : (
-									<DataViewsPicker
-										data={page.items}
-										fields={fields}
-										actions={actions}
-										view={view}
-										onChangeView={setHeld}
-										selection={selection}
-										onChangeSelection={setSelection}
-										isLoading={media.isFetching}
-										getItemId={(item: MediaItem) => String(item.id)}
-										searchLabel={__('Search media', 'gophenberg')}
-										config={{ perPageSizes: [] }}
-										paginationInfo={paginationOf({ total: page.total, limit: page.perPage })}
-										defaultLayouts={
-											{
-												pickerGrid: { fields: [] },
-												pickerTable: { fields: ['filename', 'filesize'] },
-											} as unknown as Record<string, object>
-										}
-										empty={<Text>{__('No media has been uploaded yet.', 'gophenberg')}</Text>}
-									/>
-								)}
-							</Dialog.Content>
-							<Dialog.Footer>
-								<Stack direction="row" gap="sm" justify="flex-end">
-									<Button variant="outline" onClick={close}>
-										{__('Cancel', 'gophenberg')}
-									</Button>
-								</Stack>
-							</Dialog.Footer>
-							<Popover.Slot />
-						</SlotFillProvider>
-					</Dialog.Popup>
-				</Dialog.Root>
-			</StyleProvider>
+			<Dialog.Root open={open} onOpenChange={() => close()}>
+				<Dialog.Popup size="large" className="gophenberg-media-picker">
+					<SlotFillProvider>
+						<Dialog.Header>
+							<Dialog.Title>{__('Media Library', 'gophenberg')}</Dialog.Title>
+							<Dialog.CloseIconButton />
+						</Dialog.Header>
+						<Dialog.Content>
+							{media.isError ? (
+								<ErrorNotice>{__('The media library could not be loaded.', 'gophenberg')}</ErrorNotice>
+							) : (
+								<DataViewsPicker
+									data={page.items}
+									fields={fields}
+									actions={actions}
+									view={view}
+									onChangeView={setHeld}
+									selection={selection}
+									onChangeSelection={setSelection}
+									isLoading={media.isFetching}
+									getItemId={(item: MediaItem) => String(item.id)}
+									searchLabel={__('Search media', 'gophenberg')}
+									config={{ perPageSizes: [] }}
+									paginationInfo={paginationOf({ total: page.total, limit: page.perPage })}
+									defaultLayouts={
+										{
+											pickerGrid: { fields: [] },
+											pickerTable: { fields: ['filename', 'filesize'] },
+										} as unknown as Record<string, object>
+									}
+									empty={<Text>{__('No media has been uploaded yet.', 'gophenberg')}</Text>}
+								/>
+							)}
+						</Dialog.Content>
+						<Dialog.Footer>
+							<Stack direction="row" gap="sm" justify="flex-end">
+								<Button variant="outline" onClick={close}>
+									{__('Cancel', 'gophenberg')}
+								</Button>
+							</Stack>
+						</Dialog.Footer>
+						<Popover.Slot />
+					</SlotFillProvider>
+				</Dialog.Popup>
+			</Dialog.Root>
 		</>
 	)
 }
