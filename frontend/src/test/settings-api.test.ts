@@ -119,23 +119,14 @@ test.each([
 	await expect(chooseSiteSettings({ [field]: 500 })).rejects.toMatchObject({ field })
 })
 
-test('names no setting when the server speaks about none', async () => {
-	server.use(
-		http.patch('/api/settings', () =>
-			HttpResponse.json({ error: 'malformed json', code: 'body_malformed' }, { status: 400 }),
-		),
-	)
-
-	const failed = await chooseSiteSettings({ jpeg_quality: 30 }).catch((error: unknown) => error)
-
-	expect(failed).toBeInstanceOf(SettingError)
-	expect((failed as SettingError).field).toBeUndefined()
-})
-
-test('names no setting when the server gives no reason', async () => {
-	server.use(
-		http.patch('/api/settings', () => new HttpResponse('not json at all', { status: 500 })),
-	)
+test.each([
+	{
+		answers: 'speaks about none',
+		answer: () => HttpResponse.json({ error: 'malformed json', code: 'body_malformed' }, { status: 400 }),
+	},
+	{ answers: 'gives no reason', answer: () => new HttpResponse('not json at all', { status: 500 }) },
+])('names no setting when the server $answers', async ({ answer }) => {
+	server.use(http.patch('/api/settings', answer))
 
 	const failed = await chooseSiteSettings({ jpeg_quality: 30 }).catch((error: unknown) => error)
 
