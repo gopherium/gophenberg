@@ -157,6 +157,16 @@ test('leads a reading view back to the list of its type, never as the current pa
 	expect(back).not.toHaveAttribute('aria-current')
 })
 
+test('leads a reading view back to the list its post is stored under, whatever type its address names', async () => {
+	serveEditor(FOREIGN)
+	renderAt(`/content/page/${storedPost.id}/edit`, maria)
+
+	const breadcrumbs = await screen.findByRole('navigation', { name: 'Breadcrumbs' })
+	const back = await within(breadcrumbs).findByRole('link', { name: 'Posts' })
+
+	expect(back).toHaveAttribute('href', `${adminBasepath}/content/post`)
+})
+
 test('leads a reading view back to its list under Content until the registry answers', async () => {
 	server.use(http.get('/api/types', () => new Promise<Response>(() => {})))
 	serveEditor(FOREIGN)

@@ -17,7 +17,7 @@ import { useContentType } from './useContentType'
  * @returns The reading view element.
  */
 export function PostReadView({ stored, mine }: { stored: PostDetail, mine: boolean }) {
-	const listed = useContentType()
+	const listed = useContentType(stored.type)
 	const title = stored.title === '' ? __('(no title)', 'gophenberg') : stored.title
 	return (
 		<Page
