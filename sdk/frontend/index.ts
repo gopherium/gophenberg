@@ -52,6 +52,7 @@ export {
 	AlertDialog,
 	Badge,
 	Button,
+	Dialog,
 	Icon,
 	IconButton,
 	InputControl,
@@ -99,7 +100,6 @@ export {
 	upload as uploadIcon,
 	video as videoIcon,
 } from '@wordpress/icons'
-export { Dialog } from './dialog'
 export { TextareaControl } from './TextareaControl'
 export {
 	CheckboxControl,
