@@ -9,6 +9,7 @@ import { beforeEach, expect, test, vi } from 'vitest'
 import { rollbackLabel, servingLine } from '../themes/ThemesScreen'
 import { gate } from './gate'
 import { renderAt } from './render'
+import { findToast } from './typeFixtures'
 
 const ARCHIVE = new File(['a packaged theme'], 'aurora.zip', { type: 'application/zip' })
 
@@ -241,7 +242,21 @@ test('shows the reason an activation was refused', async () => {
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Activate riverbed' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent('the theme did not start')
+	expect(await findToast('Could not activate the theme. the theme did not start')).toBeTruthy()
+	expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test('shows the reason a deactivation was refused', async () => {
+	server.use(
+		http.delete('/api/themes/active', () =>
+			HttpResponse.json({ error: 'the theme is pinned by the operator' }, { status: 422 }),
+		),
+	)
+	renderAt('/themes')
+
+	await userEvent.click(await screen.findByRole('button', { name: 'Deactivate aurora' }))
+
+	expect(await findToast('Could not deactivate the theme. the theme is pinned by the operator')).toBeTruthy()
 })
 
 test('returns the public site to the built-in renderer at the reader s request', async () => {
@@ -291,16 +306,44 @@ test('re-reads the themes once an action has changed which one is active', async
 	expect(within(listed).getByText('Serving')).toBeTruthy()
 })
 
-test('says so when an action never reached the server', async () => {
+test.each([
+	{
+		press: 'Activate riverbed',
+		lead: 'Could not activate the theme.',
+		unreachable: http.post('/api/themes/active', () => HttpResponse.error()),
+	},
+	{
+		press: 'Deactivate aurora',
+		lead: 'Could not deactivate the theme.',
+		unreachable: http.delete('/api/themes/active', () => HttpResponse.error()),
+	},
+	{
+		press: 'Roll back to riverbed',
+		lead: 'Could not roll back the theme.',
+		unreachable: http.post('/api/themes/rollback', () => HttpResponse.error()),
+	},
+])('says so when $press never reached the server', async ({ press, lead, unreachable }) => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
-	server.use(http.post('/api/themes/active', () => HttpResponse.error()))
+	listing([row('aurora', true), row('riverbed', false)], 'riverbed')
+	server.use(unreachable)
 	renderAt('/themes')
 
-	await userEvent.click(await screen.findByRole('button', { name: 'Activate riverbed' }))
+	await userEvent.click(await screen.findByRole('button', { name: press }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(
-		'The server could not be reached, so nothing was changed.',
-	)
+	expect(await findToast(`${lead} The server could not be reached, so nothing was changed.`)).toBeTruthy()
+})
+
+test('says so when an upload never reached the server', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(http.post('/api/themes', () => HttpResponse.error()))
+	renderAt('/themes')
+	await screen.findByRole('button', { name: 'Upload theme' })
+
+	await userEvent.upload(screen.getByLabelText('Upload theme'), ARCHIVE)
+
+	expect(
+		await findToast('Could not install the theme. The server could not be reached, so nothing was changed.'),
+	).toBeTruthy()
 })
 
 test('rolls the public site back to the previous choice', async () => {
@@ -331,7 +374,7 @@ test('shows the reason a rollback was refused', async () => {
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Roll back to riverbed' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent('the theme is pinned by the operator')
+	expect(await findToast('Could not roll back the theme. the theme is pinned by the operator')).toBeTruthy()
 })
 
 test('offers Upload theme as the compact solid header button, drawn with the upload icon', async () => {
@@ -391,41 +434,19 @@ test('holds Upload theme busy while the archive uploads', async () => {
 	await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled', 'true'))
 })
 
-test('shows the reason an upload was refused in a notice above the list', async () => {
+test('shows the reason an upload was refused in a toast', async () => {
 	server.use(
 		http.post('/api/themes', () =>
 			HttpResponse.json({ error: 'the manifest is missing' }, { status: 422 }),
 		),
 	)
 	renderAt('/themes')
-	const list = await screen.findByRole('region', { name: 'Themes' })
-
-	await userEvent.upload(screen.getByLabelText('Upload theme'), ARCHIVE)
-
-	const notice = await screen.findByRole('alert')
-	expect(notice).toHaveTextContent('the manifest is missing')
-	expect(notice.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-})
-
-test('takes a shown error back once the next upload works', async () => {
-	let attempts = 0
-	server.use(
-		http.post('/api/themes', () => {
-			attempts += 1
-			return attempts === 1
-				? HttpResponse.json({ error: 'the manifest is missing' }, { status: 422 })
-				: HttpResponse.json({ name: 'aurora' }, { status: 201 })
-		}),
-	)
-	renderAt('/themes')
 	await screen.findByRole('button', { name: 'Upload theme' })
-	await userEvent.upload(screen.getByLabelText('Upload theme'), ARCHIVE)
-	await screen.findByRole('alert')
 
 	await userEvent.upload(screen.getByLabelText('Upload theme'), ARCHIVE)
 
-	await screen.findByText('aurora was installed.', { selector: '.godmin-toast' })
-	expect(screen.queryByText('the manifest is missing')).toBeNull()
+	expect(await findToast('Could not install the theme. the manifest is missing')).toBeTruthy()
+	expect(screen.queryByRole('alert')).toBeNull()
 })
 
 test('draws a theme status badge at the width of its words, not stretched across its column', async () => {

@@ -67,10 +67,10 @@ test('refuses a theme built on a kit this site does not serve', async ({ page })
 
 	await page.getByLabel('Upload theme').setInputFiles(staleArchive)
 
-	const notice = page.getByRole('alert')
-	await expect(notice).toContainText(builtOn)
+	const toast = page.locator('.godmin-toast', { hasText: 'Could not install the theme.' })
+	await expect(toast).toContainText(builtOn)
 	for (const kit of served) {
-		await expect(notice).toContainText(kit)
+		await expect(toast).toContainText(kit)
 	}
 	await expect(page.getByRole('row', { name: new RegExp(staleTheme.name) })).toHaveCount(0)
 	await expect(
@@ -91,9 +91,12 @@ test('refuses an archive that is not a theme and leaves the site alone', async (
 		buffer: Buffer.from('this is not an archive'),
 	})
 
-	await expect(page.getByRole('alert')).toHaveText(
-		'This file could not be opened as a zip. Package the theme again and upload the new file.',
-	)
+	await expect(
+		page.locator('.godmin-toast', {
+			hasText:
+				'Could not install the theme. This file could not be opened as a zip. Package the theme again and upload the new file.',
+		}),
+	).toBeVisible()
 	await expect(page.getByRole('row', { name: /riverbed/ })).toHaveCount(0)
 	await expect(
 		page.getByText(`${starterTheme.name} ${starterTheme.version} is serving the public site.`),
