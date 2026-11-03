@@ -10,7 +10,7 @@ import type { ComponentProps } from 'react'
 
 import { errorText } from '../i18n/errors'
 import { SettingError, chooseSiteSettings, fetchSiteSettings } from './api'
-import type { SettingField, SiteSettings } from './api'
+import type { SettingField, SettingsAsked, SiteSettings } from './api'
 
 /** The query naming the settings the site chose for itself. */
 const settingsQueryKey = ['site-settings']
@@ -79,10 +79,44 @@ function NumberBox({ refused, ...box }: NumberBoxProps) {
  */
 function reportBoxes(form: HTMLFormElement | null) {
 	const box = document.activeElement
-	const passes = form?.reportValidity()
-	if (passes === false && box === document.activeElement && box instanceof HTMLInputElement) {
+	form?.reportValidity()
+	if (box === document.activeElement && box instanceof HTMLInputElement) {
 		speak(box.validationMessage, 'assertive')
 	}
+}
+
+/**
+ * Returns a failed save as a setting error, carrying the plain words when it came from elsewhere.
+ * @param error - What the save failed with.
+ * @returns The setting error.
+ */
+function settingFailure(error: Error): SettingError {
+	return error instanceof SettingError ? error : new SettingError(errorText({ error: '' }))
+}
+
+/**
+ * Returns the box a failure names while that box still holds the value sent, or nothing.
+ * @param field - The setting the failure names, if any.
+ * @param asked - What each box holds now.
+ * @param sent - What the save sent.
+ * @returns The box that can show the failure.
+ */
+function boxStillHolding(field: SettingField | undefined, asked: SettingsAsked, sent: SettingsAsked) {
+	if (field === undefined || asked[field] !== sent[field]) {
+		return undefined
+	}
+	return field
+}
+
+/**
+ * Returns the server's message about a box while the box holds the value it is about.
+ * @param refused - The server's last message about one box, if any.
+ * @param field - The box asking.
+ * @param held - The number the box holds.
+ * @returns The message, or undefined.
+ */
+function messageFor(refused: FieldMessage | undefined, field: SettingField, held: number | undefined) {
+	return refused?.field === field && refused.value === held ? refused.message : undefined
 }
 
 /**
@@ -109,17 +143,16 @@ function SettingsForm({ held }: { held: SiteSettings }) {
 			await client.invalidateQueries({ queryKey: settingsQueryKey })
 		},
 		onError: (error, sent) => {
-			const failure = error instanceof SettingError ? error : new SettingError(errorText({ error: '' }))
-			const { field, message } = failure
-			if (field === undefined || form.current === null || asked[field] !== sent[field]) {
+			const { field: named, message } = settingFailure(error)
+			const field = form.current === null ? undefined : boxStillHolding(named, asked, sent)
+			if (field === undefined) {
 				toaster.show(sprintf(__('Could not save the settings. %s', 'gophenberg'), message))
 				return
 			}
 			setRefused({ field, message, value: sent[field] })
 		},
 	})
-	const messageOf = (field: SettingField) =>
-		refused?.field === field && refused.value === asked[field] ? refused.message : undefined
+	const messageOf = (field: SettingField) => messageFor(refused, field, asked[field])
 	const store = () => {
 		if (asked.content_per_page === undefined || asked.jpeg_quality === undefined) {
 			reportBoxes(form.current)
