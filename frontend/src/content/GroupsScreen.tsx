@@ -215,7 +215,6 @@ function shadowingSentence(held: Shadowing): string {
 export function GroupsScreen() {
 	const client = useQueryClient()
 	const toaster = useToaster()
-	const [notice, setNotice] = useState('')
 	const groups = useQuery({ queryKey: groupsQueryKey, queryFn: listGroups })
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
 	const overlaps = shadowings(groups.data ?? [], types.data ?? [])
@@ -233,7 +232,6 @@ export function GroupsScreen() {
 	 * @param said - The sentence naming what was done.
 	 */
 	async function done(said: string) {
-		setNotice('')
 		toaster.show(said)
 		await client.invalidateQueries({ queryKey: groupsQueryKey })
 		await client.invalidateQueries({ queryKey: typesQueryKey })
@@ -244,7 +242,7 @@ export function GroupsScreen() {
 	 * @param cause - What the write failed with.
 	 */
 	function refused(cause: unknown) {
-		setNotice(groupErrorMessage(cause))
+		toaster.show(sprintf(__('Could not save the change. %s', 'gophenberg'), groupErrorMessage(cause)))
 	}
 
 	return (
@@ -261,7 +259,6 @@ export function GroupsScreen() {
 			}
 		>
 			<Stack direction="column" gap="md">
-				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
 				<DriftNotices onDone={done} onRefused={refused} />
 				{types.isError && (
 					<ErrorNotice>{types.data === undefined ? typesLost : typesStale}</ErrorNotice>
