@@ -38,8 +38,9 @@ func (s *Supervisor) Await(ctx context.Context) error {
 
 // Holder is the theme the public site is served through, replaceable while serving.
 type Holder struct {
-	mu      sync.RWMutex
-	current *Supervisor
+	mu       sync.RWMutex
+	current  *Supervisor
+	unloaded bool
 }
 
 // NewHolder returns a [Holder] serving nothing.
@@ -54,9 +55,18 @@ func (h *Holder) Healthy() bool {
 	return h.current != nil && h.current.Healthy()
 }
 
-// Held reports whether the holder holds a theme, serving or not.
+// Held reports whether the holder holds a theme, serving or not, or a chosen theme that did not load.
 func (h *Holder) Held() bool {
-	return h.held() != nil
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.current != nil || h.unloaded
+}
+
+// holdUnloaded marks the holder as holding a chosen theme that did not load.
+func (h *Holder) holdUnloaded() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.unloaded = true
 }
 
 // StartFailed reports whether the held theme stopped trying to start.
@@ -99,5 +109,6 @@ func (h *Holder) Swap(next *Supervisor) *Supervisor {
 	defer h.mu.Unlock()
 	previous := h.current
 	h.current = next
+	h.unloaded = false
 	return previous
 }

@@ -81,7 +81,9 @@ func themeProxy(theme Theme, renderer http.Handler, wait time.Duration) *httputi
 		},
 		Transport: &http.Transport{ResponseHeaderTimeout: wait},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, _ error) {
-			w.Header().Set("Cache-Control", uncachedControl)
+			if theme.Held() {
+				w.Header().Set("Cache-Control", uncachedControl)
+			}
 			renderer.ServeHTTP(w, r)
 		},
 	}
