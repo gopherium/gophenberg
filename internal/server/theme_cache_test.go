@@ -73,6 +73,29 @@ func TestTheRendererCatchingAFailedProxyIsNotStored(t *testing.T) {
 		"no-store")
 }
 
+// unheldTheme is a healthy theme that reports no hold, as after a deactivation.
+type unheldTheme struct{ target string }
+
+// Healthy reports that the unheld theme is serving.
+func (unheldTheme) Healthy() bool { return true }
+
+// Held reports that no theme is chosen to serve.
+func (unheldTheme) Held() bool { return false }
+
+// Target returns the address the unheld theme serves on.
+func (u unheldTheme) Target() string { return u.target }
+
+func TestTheRendererCatchingAFailedProxyWithNoThemeHeldStaysCacheable(t *testing.T) {
+	t.Parallel()
+
+	dead := httptest.NewServer(http.NotFoundHandler())
+	target := dead.URL
+	dead.Close()
+	handler := themedServer(t, unheldTheme{target: target}, nil)
+
+	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world", ""), http.StatusOK, "")
+}
+
 func TestAHealthyThemeKeepsItsOwnCacheControl(t *testing.T) {
 	t.Parallel()
 
