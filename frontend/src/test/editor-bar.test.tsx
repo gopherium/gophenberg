@@ -95,7 +95,7 @@ test('roots the block trail of a page at the name WordPress es_ES gives a page f
 	renderAt(`/content/page/${storedPost.id}/edit`)
 	await screen.findByTestId('document-bar')
 
-	await waitFor(() => expect(within(editorFoot()).getByText('Página')).toBeInTheDocument())
+	await waitFor(() => expect(within(within(editorFoot()).getByRole('list')).getByText('Página')).toBeInTheDocument())
 	expect(within(editorFoot()).queryByText('Entrada')).not.toBeInTheDocument()
 })
 
@@ -107,7 +107,7 @@ test('roots the block trail at the singular name of a type the site registered',
 	renderAt(`/content/guide/${storedPost.id}/edit`)
 	await screen.findByTestId('document-bar')
 
-	await waitFor(() => expect(within(editorFoot()).getByText('Guide')).toBeInTheDocument())
+	await waitFor(() => expect(within(within(editorFoot()).getByRole('list')).getByText('Guide')).toBeInTheDocument())
 	expect(within(editorFoot()).queryByText('Post')).not.toBeInTheDocument()
 })
 

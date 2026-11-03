@@ -138,9 +138,7 @@ test('counts its pages by the size the server served', async () => {
 	await openPicker()
 	await screen.findByText('Harbor at dawn')
 
-	const pages = within(screen.getByRole('combobox', { name: 'Current page' })).getAllByRole('option')
-
-	expect(pages.map((page) => page.textContent)).toEqual(['1', '2', '3'])
+	expect(screen.getByText('of 3')).toBeInTheDocument()
 })
 
 const OWN_AUTHOR = '019fb000-0000-7000-8000-0000000000ff'
@@ -265,8 +263,7 @@ test('keeps the cards and the page count while the sort a reader picks loads', a
 	await waitFor(() => expect(asking).toBe(true))
 
 	expect(screen.getByText('Harbor at dawn')).toBeInTheDocument()
-	const pages = within(screen.getByRole('combobox', { name: 'Current page' })).getAllByRole('option')
-	expect(pages.map((page) => page.textContent)).toEqual(['1', '2', '3'])
+	expect(screen.getByText('of 3')).toBeInTheDocument()
 	sorted.release()
 })
 

@@ -95,9 +95,7 @@ test('counts its pages by the size the server served', async () => {
 	renderAt('/media')
 	await screen.findByText('Harbor at dawn')
 
-	const pages = within(screen.getByRole('combobox', { name: 'Current page' })).getAllByRole('option')
-
-	expect(pages.map((page) => page.textContent)).toEqual(['1', '2', '3'])
+	expect(screen.getByText('of 3')).toBeInTheDocument()
 })
 
 test('draws a picture from its smallest fitting sub-size', async () => {

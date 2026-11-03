@@ -434,8 +434,7 @@ test('keeps the cards of a page and its page count while the next one loads', as
 
 	expect(screen.getByText('Harbor at dawn')).toBeInTheDocument()
 	expect(document.querySelector('.dataviews-view-grid')).toHaveAttribute('aria-busy', 'true')
-	const pages = within(screen.getByRole('combobox', { name: 'Current page' })).getAllByRole('option')
-	expect(pages.map((page) => page.textContent)).toEqual(['1', '2', '3'])
+	expect(screen.getByText('of 3')).toBeInTheDocument()
 	next.release()
 	expect(await screen.findByText('Manual')).toBeInTheDocument()
 })
