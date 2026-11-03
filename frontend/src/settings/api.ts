@@ -38,6 +38,31 @@ export type SettingsAsked = Partial<SiteSettings>
 /** The settings every list, the Updates screen and Add User follow, as the server's environment names them. */
 export type ListSettings = z.infer<typeof listSettingsSchema>
 
+/** A setting the server can speak about on its own. */
+export type SettingField = 'content_per_page' | 'jpeg_quality'
+
+/** The setting each server code speaks about, for the codes about one setting. */
+const fieldOfCode: Record<string, SettingField> = {
+	per_page_invalid: 'content_per_page',
+	jpeg_quality_invalid: 'jpeg_quality',
+}
+
+/** A failed request, naming the setting its message is about when it is about one. */
+export class SettingError extends Error {
+	/** The setting the message is about, if any. */
+	readonly field: SettingField | undefined
+
+	/**
+	 * Holds the message and the setting it is about.
+	 * @param message - The words for the reader.
+	 * @param field - The setting the words are about, if any.
+	 */
+	constructor(message: string, field?: SettingField) {
+		super(message)
+		this.field = field
+	}
+}
+
 /**
  * Returns the settings the site chose for itself, raising when they cannot be read.
  * @returns The site settings.
@@ -88,7 +113,10 @@ export async function chooseSiteSettings(asked: SettingsAsked): Promise<SiteSett
  * @param response - The answer the server gave.
  * @returns The error to raise.
  */
-async function errorFrom(response: Response): Promise<Error> {
+async function errorFrom(response: Response): Promise<SettingError> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
-	return new Error(parsed.success ? errorText(parsed.data) : errorText({ error: '' }))
+	if (!parsed.success) {
+		return new SettingError(errorText({ error: '' }))
+	}
+	return new SettingError(errorText(parsed.data), fieldOfCode[parsed.data.code ?? ''])
 }
