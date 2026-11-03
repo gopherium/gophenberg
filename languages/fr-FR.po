@@ -2674,8 +2674,8 @@ msgid "You can update from Gophenberg %(running)s to <notes>Gophenberg %(version
 msgstr "Vous pouvez mettre à jour de Gophenberg %(running)s vers <notes>Gophenberg %(version)s</notes> manuellement :"
 
 #, fuzzy
-msgid "You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version %(postgresql)s or higher."
-msgstr "Vous ne pouvez pas mettre à jour car <notes>Gophenberg %(version)s</notes> nécessite la version %(postgresql)s de PostgreSQL ou une version ultérieure."
+msgid "You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version %(postgresql)s or higher. You are running version %(running)s."
+msgstr "Vous ne pouvez pas mettre à jour car <notes>Gophenberg %(version)s</notes> nécessite la version %(postgresql)s de PostgreSQL ou une version ultérieure. Vous utilisez la version %(running)s."
 
 #, fuzzy
 msgid "You have the latest version of Gophenberg."

@@ -46,22 +46,19 @@ function BackUpFirst() {
 }
 
 /**
- * Renders the sentence saying the PostgreSQL server is too old for the update on offer, then its version when known.
- * @param props - The update on offer, and the PostgreSQL major the site runs on, if the server named one.
+ * Renders the sentence saying the PostgreSQL server is too old for the update on offer and which version it runs.
+ * @param props - The update on offer and the PostgreSQL major the site runs on.
  * @returns The line element, the version on offer linked to its release notes.
  */
-function BlockedLine({ offer, running }: { offer: UpdateOffer, running: number | undefined }) {
-	let sentence = sprintf(
+function BlockedLine({ offer, major }: { offer: UpdateOffer, major: number }) {
+	const sentence = sprintf(
 		__(
 			'You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version ' +
-				'%(postgresql)s or higher.',
+				'%(postgresql)s or higher. You are running version %(running)s.',
 			'gophenberg',
 		),
-		{ version: offer.version, postgresql: formatNumber(offer.postgresql) } as never,
+		{ version: offer.version, postgresql: formatNumber(offer.postgresql), running: formatNumber(major) } as never,
 	)
-	if (running !== undefined) {
-		sentence += ' ' + sprintf(__('You are running version %s.', 'gophenberg'), formatNumber(running))
-	}
 	return <Text render={<p />}>{createInterpolateElement(sentence, { notes: notesLink(offer) })}</Text>
 }
 
@@ -234,10 +231,11 @@ function OfferDetails(props: OfferProps & { offer: UpdateOffer }) {
 		'This update needs a backup of the database, and the site stays down if the new version does not start.',
 		'gophenberg',
 	)
+	const tooOld = offer.needs_postgresql ? overview.running_postgresql : undefined
 	return (
 		<>
 			{view === undefined ? <BackUpFirst /> : null}
-			{offer.needs_postgresql ? <BlockedLine offer={offer} running={overview.running_postgresql} /> : null}
+			{tooOld === undefined ? null : <BlockedLine offer={offer} major={tooOld} />}
 			{offer.long_jump ? <Text render={<p />}>{longJump}</Text> : null}
 			{refuses(overview, offer.version) ? <Text render={<p />}>{refused}</Text> : null}
 			<OfferAction {...props} offer={offer} />
