@@ -138,6 +138,10 @@ test('counts its pages by the size the server served', async () => {
 	await screen.findByText('Harbor at dawn')
 
 	expect(screen.getByText('of 3')).toBeInTheDocument()
+	await userEvent.click(screen.getByRole('combobox', { name: 'Current page' }))
+	await screen.findByRole('option', { name: '3' })
+	const pages = screen.getAllByRole('option').map((option) => option.textContent)
+	expect(pages.filter((text) => /^\d+$/.test(text ?? ''))).toEqual(['1', '2', '3'])
 })
 
 const OWN_AUTHOR = '019fb000-0000-7000-8000-0000000000ff'
