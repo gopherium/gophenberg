@@ -555,6 +555,9 @@ for the account at `/api/auth/session`, so serve that address with
    the capability a row names, or serve the session address. The test
    host now hides a row the reader cannot open, and asks the server
    for the session when the test seeds none.
+4. Remove `StyleProvider` and keep what it wrapped. The SDK no longer
+   passes it on, with no alias, since the WordPress components now
+   load their own styles into the admin page.
 
 The frontend SDK, `@gophenberg/frontend-sdk`, passes on a few icons
 from `@wordpress/icons`, each named after the job it does in the
@@ -721,8 +724,10 @@ that opened it when the list draws that row again, and the focus
 falls to the page. `useFocusBack` finds the row again and puts the
 focus back on the `Trigger` that `focusedTrigger()` noted when the
 dialog opened. Mark the title cell of each row with the id DataViews
-keys the row by, as `data-item-id`. `focusInDialog()` tells whether a
-dialog holds the focus, for a write you finish yourself outside a run.
+keys the row by, as `data-item-id`. `useListRun` reads the same mark
+to find an item a reload moved, before the focus falls to the row in
+its place. `focusInDialog()` tells whether a dialog holds the focus,
+for a write you finish yourself outside a run.
 
 A rename, or a form that closes before its write, is gone by the time
 a write fails. Keep what the reader typed, so the next open of the

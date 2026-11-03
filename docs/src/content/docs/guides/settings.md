@@ -14,7 +14,7 @@ counts for the front page, for every archive, for the listings the
 [content API](/reference/content-api/) answers, and for the items a
 **Linked from** field lists. It starts at 20 and takes a whole
 number from 1 to 100. A number outside that range is refused, and
-the screen says why.
+the box says why.
 
 This is the site's default rather than the last word. A theme that
 names its own page size uses that instead, and a program reading
