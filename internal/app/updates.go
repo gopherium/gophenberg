@@ -153,18 +153,21 @@ func (u siteUpdates) Overview(ctx context.Context) (server.UpdatesOverview, erro
 	reason := updater.CannotUpdate(u.install, u.stamp)
 	running := version.Version()
 	return server.UpdatesOverview{
-		Result: withoutReachedOffer(result, running), Overview: withoutReachedFailure(install, running),
-		Running: running, RunningPostgreSQL: runningMajor(major), CanUpdate: reason == "", CannotUpdate: reason,
-		NextCheck: next,
+		Result:   withRunningPostgreSQL(withoutReachedOffer(result, running), major),
+		Overview: withoutReachedFailure(install, running),
+		Running:  running, RunningPostgreSQL: major, CanUpdate: reason == "", CannotUpdate: reason, NextCheck: next,
 	}, nil
 }
 
-// runningMajor returns the PostgreSQL major the site runs on, none for 0 as on SQLite.
-func runningMajor(major int) *int {
-	if major == 0 {
-		return nil
+// withRunningPostgreSQL returns result with its offer compared to major, the PostgreSQL server that runs now.
+func withRunningPostgreSQL(result update.Result, major int) update.Result {
+	if result.Offer == nil {
+		return result
 	}
-	return &major
+	offer := *result.Offer
+	offer.NeedsPostgreSQL = update.NeedsPostgreSQL(major, offer.PostgreSQL)
+	result.Offer = &offer
+	return result
 }
 
 // withoutReachedOffer returns result without its offer once running is that version or a newer one, as after an update.
