@@ -1157,11 +1157,36 @@ async function openFromHarbor(trigger: CardTrigger): Promise<HTMLElement> {
 }
 
 test.each([
-	{ from: 'Edit…', open: () => openCardDialog('Harbor at dawn', 'Edit…'), box: 'Title', toast: 'Media file updated.' },
-	{ from: 'Rename…', open: () => openCardDialog('Harbor at dawn', 'Rename…'), box: 'Name', toast: 'Name updated.' },
-	{ from: 'the title', open: () => openFromHarbor(titleTrigger), box: 'Title', toast: 'Media file updated.' },
-	{ from: 'the picture', open: () => openFromHarbor(pictureTrigger), box: 'Title', toast: 'Media file updated.' },
-])('lands the focus on the card in its place once the file saved from $from moved away', async ({
+	{
+		from: 'Edit…',
+		trigger: menuTrigger,
+		open: () => openCardDialog('Harbor at dawn', 'Edit…'),
+		box: 'Title',
+		toast: 'Media file updated.',
+	},
+	{
+		from: 'Rename…',
+		trigger: menuTrigger,
+		open: () => openCardDialog('Harbor at dawn', 'Rename…'),
+		box: 'Name',
+		toast: 'Name updated.',
+	},
+	{
+		from: 'the title',
+		trigger: titleTrigger,
+		open: () => openFromHarbor(titleTrigger),
+		box: 'Title',
+		toast: 'Media file updated.',
+	},
+	{
+		from: 'the picture',
+		trigger: pictureTrigger,
+		open: () => openFromHarbor(pictureTrigger),
+		box: 'Title',
+		toast: 'Media file updated.',
+	},
+])('gives the focus back to the file saved from $from, on its card where it moved', async ({
+	trigger,
 	open,
 	box,
 	toast,
@@ -1174,8 +1199,9 @@ test.each([
 	await save(dialog)
 
 	await findToast(toast)
-	await cardOf('Zebra crossing')
-	await waitFocusOnManual()
+	const moved = await cardHolding('Zebra crossing')
+	await waitFor(() => expect(trigger(moved)).toHaveFocus())
+	expect(document.querySelectorAll('.dataviews-view-grid__card')[1]).toBe(moved)
 })
 
 test.each([
