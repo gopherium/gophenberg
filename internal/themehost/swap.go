@@ -54,6 +54,11 @@ func (h *Holder) Healthy() bool {
 	return h.current != nil && h.current.Healthy()
 }
 
+// Held reports whether the holder holds a theme, serving or not.
+func (h *Holder) Held() bool {
+	return h.held() != nil
+}
+
 // StartFailed reports whether the held theme stopped trying to start.
 func (h *Holder) StartFailed() bool {
 	h.mu.RLock()

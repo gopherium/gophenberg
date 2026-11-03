@@ -88,6 +88,23 @@ func TestHolderWithoutAThemeIsNotServing(t *testing.T) {
 	if holder.StartFailed() {
 		t.Error("want an empty holder to report no failed start")
 	}
+	if holder.Held() {
+		t.Error("want an empty holder to report no theme held")
+	}
+}
+
+func TestHolderHoldsAThemeThatIsNotServing(t *testing.T) {
+	t.Parallel()
+
+	holder := themehost.NewHolder()
+	holder.Swap(themehost.NewSupervisor(themehost.SupervisorConfig{}))
+
+	if !holder.Held() {
+		t.Error("want a theme that is not serving still reported held")
+	}
+	if holder.Healthy() {
+		t.Error("want a theme that never started reported as not serving")
+	}
 }
 
 func TestHolderSaysWhenTheHeldThemeFailedItsStart(t *testing.T) {
@@ -152,5 +169,8 @@ func TestHolderReturnsToNothingServing(t *testing.T) {
 
 	if holder.Healthy() {
 		t.Error("want nothing serving once the holder is emptied")
+	}
+	if holder.Held() {
+		t.Error("want nothing held once the holder is emptied")
 	}
 }
