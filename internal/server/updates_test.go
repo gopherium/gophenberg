@@ -115,7 +115,7 @@ func TestUpdatesGetAnswersTheStoredResultBesideTheInstall(t *testing.T) {
 	next := time.Date(2026, 10, 22, 21, 12, 0, 0, time.UTC)
 	held := &storedUpdates{overview: server.UpdatesOverview{
 		Result:  update.Result{CheckedAt: at(time.Hour), Offer: &update.Found{Version: "0.21.0"}},
-		Running: "0.20.0", RunningPostgreSQL: new(15), CanUpdate: true, NextCheck: &next,
+		Running: "0.20.0", RunningPostgreSQL: 15, CanUpdate: true, NextCheck: &next,
 		Overview: updater.Overview{Refused: []string{"0.20.5"}, Backups: updater.BackupCount{Kept: 1, Limit: 3}},
 	}}
 	handler, cookie := updatesServer(t, held)
@@ -153,9 +153,20 @@ func TestUpdatesGetNamesWhyAnInstallCannotUpdateItself(t *testing.T) {
 	if fields["can_update"] != false || fields["cannot_update"] != "no_install_root" {
 		t.Errorf("GET /api/updates = %s, want can_update false and cannot_update no_install_root", recorder.Body)
 	}
-	if _, found := fields["running_postgresql"]; found {
-		t.Errorf("GET /api/updates = %s, want no running_postgresql for a site that names no PostgreSQL major",
-			recorder.Body)
+}
+
+func TestUpdatesGetLeavesOutThePostgreSQLMajorOfASiteThatRunsNone(t *testing.T) {
+	t.Parallel()
+
+	handler, cookie := updatesServer(t, &storedUpdates{})
+
+	recorder := ask(handler, cookie, call{http.MethodGet, "/api/updates", ""})
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET /api/updates = %d %s, want 200", recorder.Code, recorder.Body.String())
+	}
+	if _, found := answeredFields(t, recorder)["running_postgresql"]; found {
+		t.Errorf("GET /api/updates = %s, want no running_postgresql for a site that runs no PostgreSQL", recorder.Body)
 	}
 }
 
