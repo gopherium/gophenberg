@@ -395,6 +395,33 @@ test('stops saying why once the box holds another value', async () => {
 	await waitFor(() => expect(field).toHaveAccessibleDescription(''))
 })
 
+test('forgets why a value was refused once a save works', async () => {
+	refuseSize()
+	renderAt(PATH, adminUser)
+
+	const field = await screen.findByLabelText('Posts per page')
+	await userEvent.clear(field)
+	await userEvent.type(field, '500')
+	await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+	await waitFor(() => expect(field).toHaveAccessibleDescription(TOO_MANY))
+
+	let stored = false
+	server.use(
+		http.patch('/api/settings', () => {
+			stored = true
+			return HttpResponse.json({ locale_default: '', content_per_page: 50, jpeg_quality: 82 })
+		}),
+	)
+	await userEvent.type(field, '{Backspace}')
+	await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+	await waitFor(() => expect(stored).toBe(true))
+	await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute('aria-disabled', 'true'))
+	await userEvent.type(field, '0')
+
+	expect(field).toHaveValue(500)
+	expect(field).not.toHaveAccessibleDescription(TOO_MANY)
+})
+
 test('says in a toast why a value was not stored when the box changed before the answer', async () => {
 	const answer = gate()
 	refuseSize(answer.held)

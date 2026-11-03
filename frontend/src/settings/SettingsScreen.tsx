@@ -140,6 +140,7 @@ function SettingsForm({ held }: { held: SiteSettings }) {
 	const save = useMutation({
 		mutationFn: chooseSiteSettings,
 		onSuccess: async () => {
+			setRefused(undefined)
 			await client.invalidateQueries({ queryKey: settingsQueryKey })
 		},
 		onError: (error, sent) => {
