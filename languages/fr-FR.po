@@ -2479,7 +2479,7 @@ msgstr "Impossible d’installer le thème. %s"
 
 #, fuzzy
 msgid "Could not roll back the theme. %s"
-msgstr "Impossible de revenir au thème précédent. %s"
+msgstr "Impossible d’annuler le changement de thème. %s"
 
 #, fuzzy
 msgid "Could not save image. %s"
