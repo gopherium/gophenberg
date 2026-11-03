@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test } from 'vitest'
 
+import { adminBasepath } from '../basepath'
 import { catalogFor } from '../i18n/catalog'
 import { startingRole } from '../users/roles'
 import { adminUser, renderAt } from './render'
@@ -177,6 +178,25 @@ test('names the add user screen as WordPress es_ES does for a Spanish reader', a
 	renderAt('/users/new')
 
 	expect(await screen.findByRole('heading', { level: 2, name: 'Añadir usuario' })).toBeInTheDocument()
+})
+
+test('leads Add User back to the users list, never as the current page', async () => {
+	renderAt('/users/new')
+
+	const breadcrumbs = await screen.findByRole('navigation', { name: 'Breadcrumbs' })
+	const back = within(breadcrumbs).getByRole('link', { name: 'Users' })
+
+	expect(back).toHaveAttribute('href', `${adminBasepath}/users`)
+	expect(back).not.toHaveAttribute('aria-current')
+})
+
+test('names the link back to the users list in the reader s language', async () => {
+	await readAccountWordsInSpanish()
+	renderAt('/users/new')
+
+	const breadcrumbs = await screen.findByRole('navigation', { name: 'Breadcrumbs' })
+
+	expect(within(breadcrumbs).getByRole('link', { name: 'Usuarios' })).toBeInTheDocument()
 })
 
 test('marks Email and Name as required in their labels', async () => {

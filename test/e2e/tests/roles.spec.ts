@@ -88,6 +88,9 @@ test.describe('an author', () => {
 				.getByText('Another account wrote this, so you are reading it rather than editing it.'),
 		).toBeVisible()
 		await expect(page.getByRole('textbox', { name: 'Title' })).toHaveCount(0)
+		await expect(
+			page.getByRole('navigation', { name: 'Breadcrumbs' }).getByRole('link', { name: 'Posts' }),
+		).toHaveAttribute('href', '/admin/content/post')
 	})
 })
 

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, expect, test } from 'vitest'
 
+import { adminBasepath } from '../basepath'
 import { adminUser, renderAt } from './render'
 import { storedPost } from './postFixture'
 import { siteSettings } from './siteSettings'
@@ -143,6 +144,30 @@ test('opens a post another account wrote as a reading view', async () => {
 	expect(screen.getByText('Welcome to Gophenberg')).toBeInTheDocument()
 	expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull()
 	expect(screen.queryByRole('button', { name: /publish|update/i })).toBeNull()
+})
+
+test('leads a reading view back to the list of its type, never as the current page', async () => {
+	serveEditor(FOREIGN)
+	renderAt(`/content/post/${storedPost.id}/edit`, maria)
+
+	const breadcrumbs = await screen.findByRole('navigation', { name: 'Breadcrumbs' })
+	const back = await within(breadcrumbs).findByRole('link', { name: 'Posts' })
+
+	expect(back).toHaveAttribute('href', `${adminBasepath}/content/post`)
+	expect(back).not.toHaveAttribute('aria-current')
+})
+
+test('leads a reading view back to its list under Content until the registry answers', async () => {
+	server.use(http.get('/api/types', () => new Promise<Response>(() => {})))
+	serveEditor(FOREIGN)
+	renderAt(`/content/post/${storedPost.id}/edit`, maria)
+
+	const breadcrumbs = await screen.findByRole('navigation', { name: 'Breadcrumbs' })
+
+	expect(within(breadcrumbs).getByRole('link', { name: 'Content' })).toHaveAttribute(
+		'href',
+		`${adminBasepath}/content/post`,
+	)
 })
 
 test('reads an untitled foreign post under a stand in title, its excerpt beside it', async () => {
