@@ -92,6 +92,11 @@ func (s Site) found(offer Offer) *Found {
 		Version: offer.Version(), MinimumVersion: offer.MinimumVersion, PostgreSQL: offer.PostgreSQL,
 		Kits: slices.Clone(offer.Kits), Notes: offer.Notes, Auto: offer.Auto,
 		LongJump:        version.Before(s.Running, offer.MinimumVersion),
-		NeedsPostgreSQL: s.ServerMajor > 0 && s.ServerMajor < offer.PostgreSQL,
+		NeedsPostgreSQL: NeedsPostgreSQL(s.ServerMajor, offer.PostgreSQL),
 	}
+}
+
+// NeedsPostgreSQL reports whether a server of major runs an older PostgreSQL than needed, never on SQLite's 0.
+func NeedsPostgreSQL(major, needed int) bool {
+	return major > 0 && major < needed
 }
