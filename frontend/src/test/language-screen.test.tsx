@@ -7,6 +7,7 @@ import { beforeAll, beforeEach, expect, test } from 'vitest'
 
 import { adminUser, renderAt, renderRoutedAt } from './render'
 import { siteSettings } from './siteSettings'
+import { findToast } from './typeFixtures'
 
 const PATH = '/language'
 
@@ -72,7 +73,7 @@ test('stores the language the site answers in', async () => {
 	await waitFor(() => expect(sent[0]).toBe('{"locale_default":"es-ES"}'))
 })
 
-test('reports a refused write rather than failing quietly', async () => {
+test('reports a refused write in a toast rather than failing quietly', async () => {
 	server.use(
 		http.patch('/api/locale', () =>
 			HttpResponse.json({ error: 'content: locale unknown' }, { status: 422 }),
@@ -83,10 +84,11 @@ test('reports a refused write rather than failing quietly', async () => {
 	await userEvent.click(await screen.findByLabelText('Your language'))
 	await userEvent.click(await screen.findByRole('option', { name: 'es-ES' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/locale unknown/)
+	expect(await findToast('Could not save your language. content: locale unknown')).toBeInTheDocument()
+	expect(screen.queryByRole('alert')).toBeNull()
 })
 
-test('reports a refused site default rather than failing quietly', async () => {
+test('reports a refused site default in a toast rather than failing quietly', async () => {
 	server.use(
 		http.patch('/api/settings', () =>
 			HttpResponse.json({ error: 'content: locale unknown' }, { status: 422 }),
@@ -97,7 +99,8 @@ test('reports a refused site default rather than failing quietly', async () => {
 	await userEvent.click(await screen.findByLabelText('The site default'))
 	await userEvent.click(await screen.findByRole('option', { name: 'es-ES' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/locale unknown/)
+	expect(await findToast('Could not save the site default. content: locale unknown')).toBeInTheDocument()
+	expect(screen.queryByRole('alert')).toBeNull()
 })
 
 test('keeps the site default in an administrator s hands alone', async () => {
