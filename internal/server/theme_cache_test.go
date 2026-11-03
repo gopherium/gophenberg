@@ -21,10 +21,11 @@ func downTheme() *themehost.Holder {
 func assertCacheControl(t *testing.T, recorder *httptest.ResponseRecorder, wantStatus int, want string) {
 	t.Helper()
 
-	if recorder.Code != wantStatus {
-		t.Fatalf("status = %d, want %d", recorder.Code, wantStatus)
+	result := recorder.Result()
+	if result.StatusCode != wantStatus {
+		t.Fatalf("status = %d, want %d", result.StatusCode, wantStatus)
 	}
-	if got := recorder.Header().Get("Cache-Control"); got != want {
+	if got := result.Header.Get("Cache-Control"); got != want {
 		t.Errorf("Cache-Control = %q, want %q", got, want)
 	}
 }
@@ -68,6 +69,8 @@ func TestTheRendererCatchingAFailedProxyIsNotStored(t *testing.T) {
 	handler := themedServer(t, stubTheme{target: target, healthy: true}, nil)
 
 	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world", ""), http.StatusOK, "no-store")
+	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world/page/2", ""), http.StatusMovedPermanently,
+		"no-store")
 }
 
 func TestAHealthyThemeKeepsItsOwnCacheControl(t *testing.T) {
