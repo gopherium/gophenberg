@@ -6,7 +6,7 @@
 }
 
 :root:has(.gophenberg-editor:not(.gophenberg-editor--narrow)) .godmin-toasts {
-	bottom: 46px;
+	bottom: 49px;
 }
 
 :root:has(.gophenberg-editor:not(.gophenberg-editor--narrow) .gophenberg-editor__sidebar:not([hidden])) .godmin-toasts {
@@ -90,9 +90,7 @@
 }
 
 .gophenberg-editor__foot {
-	flex: 0 0 30px;
-	box-sizing: border-box;
-	padding: 4px 12px;
+	flex: 0 0 auto;
 	border-top-width: 1px;
 	border-top-style: solid;
 	border-top-color: var(--wpds-color-stroke-surface-neutral);
