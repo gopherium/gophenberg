@@ -857,11 +857,13 @@ The update ends in one of five ways:
   shows how the update ended once Gophenberg answers again.
 
 Two offers show no button. An update that needs a newer PostgreSQL
-names the version it needs. An install that updates by hand, such as
-the Docker image or a binary you built yourself, says why and links to
-this page. An update that raised the minimum version keeps its button,
-and says the backup is required and that the site stays down if the
-new version does not start, see
+names the version it needs and the version your server runs. The
+screen reads your server each time it loads, so the button comes back
+as soon as you upgrade PostgreSQL. An install that updates by hand,
+such as the Docker image or a binary you built yourself, says why and
+links to this page. An update that raised the minimum version keeps
+its button, and says the backup is required and that the site stays
+down if the new version does not start, see
 [an update that raised the minimum version](#an-update-that-raised-the-minimum-version).
 
 ### The boot guard
