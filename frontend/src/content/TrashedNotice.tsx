@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Notice, speak } from '@gophenberg/frontend-sdk'
+import { Notice } from '@gophenberg/frontend-sdk'
 import { useToaster } from '@gopherium/godmin'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -26,20 +26,20 @@ export function TrashedNotice({ postId, title }: { postId: string, title: string
 		},
 		onError: () => client.invalidateQueries({ queryKey: ['post', postId], exact: true }),
 	})
-	const speakFailure = (error: Error) => {
+	const reportFailure = (error: Error) => {
 		if (client.getQueryData<PostDetail>(['post', postId])?.status === 'trash') {
-			speak(error.message, 'assertive')
+			toaster.show(error.message)
 		}
 	}
-	const message =
-		restore.error?.message ?? __('This item is in the trash. Restore it first to work on it again.', 'gophenberg')
 	return (
-		<Notice.Root intent={restore.isError ? 'error' : 'warning'}>
-			<Notice.Description>{message}</Notice.Description>
+		<Notice.Root intent="warning">
+			<Notice.Description>
+				{__('This item is in the trash. Restore it first to work on it again.', 'gophenberg')}
+			</Notice.Description>
 			<Notice.Actions>
 				<Notice.ActionButton
 					loading={restore.isPending}
-					onClick={() => restore.mutate(undefined, { onError: speakFailure })}
+					onClick={() => restore.mutate(undefined, { onError: reportFailure })}
 				>
 					{_x('Restore', 'trash', 'gophenberg')}
 				</Notice.ActionButton>

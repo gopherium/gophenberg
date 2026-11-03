@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { Notice } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { buttonClasses, stubLayout } from '@gopherium/godmin/testing'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
@@ -7,9 +8,11 @@ import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { listenAt } from './announcements'
+import { classesOf } from './classes'
 import { gate } from './gate'
 import { renderAt, renderRoutedAt } from './render'
 import { storedPost, storedPostWithId } from './postFixture'
+import { findToast } from './typeFixtures'
 
 const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
@@ -521,25 +524,36 @@ test('speaks nothing when the restore finds the post already out of the trash', 
 	expect(polite()).toEqual([])
 })
 
-test('reports a restore the reading view could not make', async () => {
+test('reports a restore the reading view could not make in a toast', async () => {
 	refuseRestore({}, 500)
 	renderAt(EDITOR_PATH)
 
 	await pressRestore()
 
-	expect(await screen.findByText('The item could not be restored.')).toBeInTheDocument()
+	expect(await findToast('The item could not be restored.')).toBeInTheDocument()
 })
 
-test('reports the reason a refused restore gave in the reading view', async () => {
+test('reports the reason a refused restore gave in a toast', async () => {
 	refuseRestore(PARENT_TRASHED_ANSWER, 422)
 	renderAt(EDITOR_PATH)
 
 	await pressRestore()
 
-	expect(await screen.findByText(PARENT_TRASHED)).toBeInTheDocument()
+	expect(await findToast(PARENT_TRASHED)).toBeInTheDocument()
 })
 
-test('speaks the reason a restore failed once, as an urgent update', async () => {
+test('keeps the trash words and the warning colour in the notice when a restore fails', async () => {
+	refuseRestore(PARENT_TRASHED_ANSWER, 422)
+	renderAt(EDITOR_PATH)
+
+	await pressRestore()
+
+	await findToast(PARENT_TRASHED)
+	const words = screen.getByText(/This item is in the trash/)
+	expect(words.parentElement?.className).toBe(classesOf(<Notice.Root intent="warning">Words</Notice.Root>))
+})
+
+test('speaks the reason a restore failed once, as the toast speaks it', async () => {
 	const polite = listenAt('polite')
 	const assertive = listenAt('assertive')
 	refuseRestore(PARENT_TRASHED_ANSWER, 422)
@@ -547,12 +561,13 @@ test('speaks the reason a restore failed once, as an urgent update', async () =>
 
 	await pressRestore()
 
-	await screen.findByText(PARENT_TRASHED)
-	expect(assertive()).toEqual([PARENT_TRASHED])
-	expect(polite()).toEqual([])
+	await findToast(PARENT_TRASHED)
+	expect(polite()).toEqual([PARENT_TRASHED])
+	expect(assertive()).toEqual([])
 })
 
-test('speaks nothing when the reader left before the restore failed', async () => {
+test('shows and speaks nothing when the reader left before the restore failed', async () => {
+	const polite = listenAt('polite')
 	const assertive = listenAt('assertive')
 	const answer = gate()
 	refuseRestore(PARENT_TRASHED_ANSWER, 422, answer.held)
@@ -566,10 +581,13 @@ test('speaks nothing when the reader left before the restore failed', async () =
 	answer.release()
 
 	await waitFor(() => expect(client.isMutating()).toBe(0))
+	expect(screen.queryByText(PARENT_TRASHED)).not.toBeInTheDocument()
+	expect(polite()).toEqual([])
 	expect(assertive()).toEqual([])
 })
 
 test('keeps a restore the reader left off the next trashed post they open', async () => {
+	const polite = listenAt('polite')
 	const assertive = listenAt('assertive')
 	const answer = gate()
 	refuseRestore(PARENT_TRASHED_ANSWER, 422, answer.held)
@@ -590,6 +608,7 @@ test('keeps a restore the reader left off the next trashed post they open', asyn
 	await waitFor(() => expect(client.isMutating()).toBe(0))
 	expect(screen.getByText(/This item is in the trash/)).toBeInTheDocument()
 	expect(screen.queryByText(PARENT_TRASHED)).not.toBeInTheDocument()
+	expect(polite()).toEqual([])
 	expect(assertive()).toEqual([])
 })
 
