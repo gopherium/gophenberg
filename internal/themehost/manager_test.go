@@ -511,6 +511,13 @@ func TestTheManagerServesTheRendererWhenTheStoredThemeIsGone(t *testing.T) {
 	if !manager.Holder().Held() {
 		t.Error("want the stored theme that did not load still reported held")
 	}
+
+	if err := manager.Deactivate(t.Context()); err != nil {
+		t.Fatalf("Deactivate() = %v, want the site returned to the renderer", err)
+	}
+	if manager.Holder().Held() {
+		t.Error("want nothing held once the site returns to the renderer")
+	}
 }
 
 func TestTheManagerRefusesABootPinNamingAThemeThatIsGone(t *testing.T) {
