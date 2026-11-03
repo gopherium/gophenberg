@@ -52,6 +52,7 @@ export {
 	AlertDialog,
 	Badge,
 	Button,
+	Dialog,
 	Icon,
 	IconButton,
 	InputControl,
@@ -99,15 +100,8 @@ export {
 	upload as uploadIcon,
 	video as videoIcon,
 } from '@wordpress/icons'
-export { Dialog } from './dialog'
 export { TextareaControl } from './TextareaControl'
-export {
-	CheckboxControl,
-	DropZone,
-	RadioControl,
-	RangeControl,
-	__experimentalStyleProvider as StyleProvider,
-} from '@wordpress/components'
+export { CheckboxControl, DropZone, RadioControl, RangeControl } from '@wordpress/components'
 export { speak } from '@wordpress/a11y'
 export {
 	ACCESS_ADMIN,

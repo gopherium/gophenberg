@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button, ValidatedInputControl } from '@gophenberg/frontend-sdk'
-import { Page, useToaster } from '@gopherium/godmin'
+import { Page, PageBreadcrumb, PageBreadcrumbs, useToaster } from '@gopherium/godmin'
 import { useSession } from '@gopherium/react-auth'
 import { createUser, fieldError, usersQueryKey } from '@gopherium/react-auth/admin'
 import type { UserField } from '@gopherium/react-auth/admin'
-import { PasswordField, usePasswordField } from '@gopherium/react-auth/wpds'
+import { PasswordField, usePasswordField, usersMenuItem } from '@gopherium/react-auth/wpds'
 import type { PasswordFieldState } from '@gopherium/react-auth/wpds'
 import { RoleSelect, errorMessageOf } from '@gopherium/react-auth/wpds/users'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { __, _x } from '@wordpress/i18n'
 import { useEffect, useRef, useState } from 'react'
 import type { ComponentProps } from 'react'
@@ -134,6 +134,13 @@ export function NewUserScreen() {
 			title={__('Add User', 'gophenberg')}
 			subtitle={__('Create a brand new user and add them to this site.', 'gophenberg')}
 			headingLevel={2}
+			breadcrumbs={
+				<PageBreadcrumbs label={__('Breadcrumbs', 'gophenberg')}>
+					<PageBreadcrumb render={<Link to="/users" activeOptions={{ exact: true }} />}>
+						{usersMenuItem.label}
+					</PageBreadcrumb>
+				</PageBreadcrumbs>
+			}
 		>
 			<form
 				ref={form}

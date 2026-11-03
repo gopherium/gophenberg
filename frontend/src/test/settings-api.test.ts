@@ -3,7 +3,7 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
-import { chooseSiteSettings, fetchListSettings, fetchSiteSettings } from '../settings/api'
+import { chooseSiteSettings, fetchListSettings, fetchSiteSettings, SettingError } from '../settings/api'
 
 /** The list settings a server serves beside what the site chose for itself. */
 const LIST_SETTINGS = {
@@ -104,4 +104,32 @@ test('reports a refused setting in words a reader understands', async () => {
 	)
 
 	await expect(chooseSiteSettings({ content_per_page: 500 })).rejects.toThrow(/100/)
+})
+
+test.each([
+	{ code: 'per_page_invalid', field: 'content_per_page' },
+	{ code: 'jpeg_quality_invalid', field: 'jpeg_quality' },
+])('names the setting the server speaks about when it answers $code', async ({ code, field }) => {
+	server.use(
+		http.patch('/api/settings', () =>
+			HttpResponse.json({ error: 'out of range', code, meta: { value: '500', max: 100 } }, { status: 422 }),
+		),
+	)
+
+	await expect(chooseSiteSettings({ [field]: 500 })).rejects.toMatchObject({ field })
+})
+
+test.each([
+	{
+		answers: 'speaks about none',
+		answer: () => HttpResponse.json({ error: 'malformed json', code: 'body_malformed' }, { status: 400 }),
+	},
+	{ answers: 'gives no reason', answer: () => new HttpResponse('not json at all', { status: 500 }) },
+])('names no setting when the server $answers', async ({ answer }) => {
+	server.use(http.patch('/api/settings', answer))
+
+	const failed = await chooseSiteSettings({ jpeg_quality: 30 }).catch((error: unknown) => error)
+
+	expect(failed).toBeInstanceOf(SettingError)
+	expect((failed as SettingError).field).toBeUndefined()
 })

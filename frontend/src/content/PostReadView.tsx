@@ -2,11 +2,14 @@
 
 import { Notice, Text } from '@gophenberg/frontend-sdk'
 import { BlockPreview, parse } from '@gophenberg/frontend-sdk/editor'
-import { Page } from '@gopherium/godmin'
+import { Page, PageBreadcrumb, PageBreadcrumbs } from '@gopherium/godmin'
+import { Link } from '@tanstack/react-router'
 import { __ } from '@wordpress/i18n'
 
 import type { PostDetail } from './api'
 import { TrashedNotice } from './TrashedNotice'
+import { pluralOf } from './typeText'
+import { useContentType } from './useContentType'
 
 /**
  * Renders a post the session may not edit as a reading view without a form.
@@ -14,9 +17,23 @@ import { TrashedNotice } from './TrashedNotice'
  * @returns The reading view element.
  */
 export function PostReadView({ stored, mine }: { stored: PostDetail, mine: boolean }) {
+	const listed = useContentType(stored.type)
 	const title = stored.title === '' ? __('(no title)', 'gophenberg') : stored.title
 	return (
-		<Page title={title}>
+		<Page
+			title={title}
+			breadcrumbs={
+				<PageBreadcrumbs label={__('Breadcrumbs', 'gophenberg')}>
+					<PageBreadcrumb
+						render={
+							<Link to="/content/$typeKey" params={{ typeKey: listed.key }} activeOptions={{ exact: true }} />
+						}
+					>
+						{pluralOf(listed)}
+					</PageBreadcrumb>
+				</PageBreadcrumbs>
+			}
+		>
 			{mine ? (
 				<TrashedNotice postId={stored.id} title={title} />
 			) : (

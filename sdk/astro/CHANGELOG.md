@@ -16,6 +16,7 @@ through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 ### Changed
 
 - `MediaRendition` is now `MediaSubSize`, the type of one image sub-size a media field serves.
+- The kit parses blocks with `@wordpress/block-serialization-default-parser` 6.0.0.
 
 ## [0.15.1] - 2026-10-13
 

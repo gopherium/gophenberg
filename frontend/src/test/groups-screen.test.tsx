@@ -12,6 +12,7 @@ import { groupErrorMessage } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
 import { renderAt } from './render'
 import { siteSettings } from './siteSettings'
+import { findToast } from './typeFixtures'
 
 const POST_TYPE = {
 	key: 'post',
@@ -377,7 +378,23 @@ test('reports why a group write was turned away', async () => {
 
 	await userEvent.click(within(row).getByRole('button', { name: 'Deactivate' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/field/i)
+	expect(await findToast(/^Could not save the change\. A field with that name already exists/)).toBeInTheDocument()
+	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+test('reports why the groups could not be reordered', async () => {
+	server.use(
+		http.put('/api/groups/order', () =>
+			HttpResponse.json({ error: 'content: the order misses a group' }, { status: 422 }),
+		),
+	)
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const row = within(table).getByRole('row', { name: /Extras/ })
+
+	await userEvent.click(within(row).getByRole('button', { name: 'Move Extras up' }))
+
+	expect(await findToast('Could not save the change. content: the order misses a group')).toBeInTheDocument()
 })
 
 test('closes the warning and reports why a group could not be deleted', async () => {
@@ -394,7 +411,7 @@ test('closes the warning and reports why a group could not be deleted', async ()
 	const dialog = await screen.findByRole('dialog')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete the group' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/group/i)
+	expect(await findToast('Could not save the change. content: no such group')).toBeInTheDocument()
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })
 
@@ -413,7 +430,9 @@ test('closes the form and reports why a group could not be created', async () =>
 	await userEvent.type(await screen.findByLabelText('Title'), 'Extras')
 	await userEvent.click(screen.getByRole('button', { name: 'Create' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/title/i)
+	expect(
+		await findToast('Could not save the change. content: a group already carries that title'),
+	).toBeInTheDocument()
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })
 

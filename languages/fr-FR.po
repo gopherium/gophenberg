@@ -1756,8 +1756,8 @@ msgid "Two field groups in this file share the key %(key)s. Give one of them a d
 msgstr "Deux groupes de champs de ce fichier partagent la clé %(key)s. Donnez une clé différente à l'un d'eux et importez à nouveau."
 
 #, fuzzy
-msgid "Type a whole number in both boxes before saving."
-msgstr "Saisissez un nombre entier dans les deux cases avant d'enregistrer."
+msgid "Type a whole number."
+msgstr "Saisissez un nombre entier."
 
 #, fuzzy
 msgid "What it points at changed, so its stored values go with it."
@@ -2450,6 +2450,10 @@ msgstr[1] "Sauvegardes conservées : %(kept)s sur %(limit)s, la plus récente le
 msgstr[2] "Sauvegardes conservées : %(kept)s sur %(limit)s, la plus récente le %(date)s à %(time)s."
 
 #, fuzzy
+msgid "Breadcrumbs"
+msgstr "Fil d’Ariane"
+
+#, fuzzy
 msgid "Check again."
 msgstr "Vérifier à nouveau."
 
@@ -2462,12 +2466,44 @@ msgid "Checking the new version…"
 msgstr "Vérification de la nouvelle version…"
 
 #, fuzzy
+msgid "Could not activate the theme. %s"
+msgstr "Impossible d’activer le thème. %s"
+
+#, fuzzy
+msgid "Could not deactivate the theme. %s"
+msgstr "Impossible de désactiver le thème. %s"
+
+#, fuzzy
+msgid "Could not install the theme. %s"
+msgstr "Impossible d’installer le thème. %s"
+
+#, fuzzy
+msgid "Could not roll back the theme. %s"
+msgstr "Impossible d’annuler le changement de thème. %s"
+
+#, fuzzy
 msgid "Could not save image. %s"
 msgstr "Impossible d’enregistrer le média. %s"
 
 #, fuzzy
 msgid "Could not save media. %s"
 msgstr "Impossible d’enregistrer le média. %s"
+
+#, fuzzy
+msgid "Could not save the change. %s"
+msgstr "Impossible d’enregistrer la modification. %s"
+
+#, fuzzy
+msgid "Could not save the settings. %s"
+msgstr "Impossible d’enregistrer les réglages. %s"
+
+#, fuzzy
+msgid "Could not save the site default. %s"
+msgstr "Impossible d’enregistrer la langue par défaut du site. %s"
+
+#, fuzzy
+msgid "Could not save your language. %s"
+msgstr "Impossible d’enregistrer votre langue. %s"
 
 #, fuzzy
 msgid "Current version: %(version)s"

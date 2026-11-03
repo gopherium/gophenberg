@@ -1502,8 +1502,8 @@ msgid "Two field groups in this file share the key %(key)s. Give one of them a d
 msgstr "Dos grupos de campos de este archivo comparten la clave %(key)s. Dale una clave distinta a uno de ellos e importa de nuevo."
 
 #, fuzzy
-msgid "Type a whole number in both boxes before saving."
-msgstr "Escribe un número entero en las dos casillas antes de guardar."
+msgid "Type a whole number."
+msgstr "Escribe un número entero."
 
 #, fuzzy
 msgid "What it points at changed, so its stored values go with it."
@@ -2186,6 +2186,10 @@ msgstr[1] "Copias de seguridad guardadas: %(kept)s de %(limit)s, la más recient
 msgstr[2] "Copias de seguridad guardadas: %(kept)s de %(limit)s, la más reciente del %(date)s a las %(time)s."
 
 #, fuzzy
+msgid "Breadcrumbs"
+msgstr "Migas de pan"
+
+#, fuzzy
 msgid "Check again."
 msgstr "Comprobar de nuevo."
 
@@ -2198,12 +2202,44 @@ msgid "Checking the new version…"
 msgstr "Comprobando la nueva versión…"
 
 #, fuzzy
+msgid "Could not activate the theme. %s"
+msgstr "No se ha podido activar el tema. %s"
+
+#, fuzzy
+msgid "Could not deactivate the theme. %s"
+msgstr "No se ha podido desactivar el tema. %s"
+
+#, fuzzy
+msgid "Could not install the theme. %s"
+msgstr "No se ha podido instalar el tema. %s"
+
+#, fuzzy
+msgid "Could not roll back the theme. %s"
+msgstr "No se ha podido revertir el tema. %s"
+
+#, fuzzy
 msgid "Could not save image. %s"
 msgstr "No se ha podido guardar la imagen. %s"
 
 #, fuzzy
 msgid "Could not save media. %s"
 msgstr "No se ha podido guardar el archivo multimedia. %s"
+
+#, fuzzy
+msgid "Could not save the change. %s"
+msgstr "No se ha podido guardar el cambio. %s"
+
+#, fuzzy
+msgid "Could not save the settings. %s"
+msgstr "No se han podido guardar los ajustes. %s"
+
+#, fuzzy
+msgid "Could not save the site default. %s"
+msgstr "No se ha podido guardar el idioma por defecto del sitio. %s"
+
+#, fuzzy
+msgid "Could not save your language. %s"
+msgstr "No se ha podido guardar tu idioma. %s"
 
 #, fuzzy
 msgid "Current version: %(version)s"

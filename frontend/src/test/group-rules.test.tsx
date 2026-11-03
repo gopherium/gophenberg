@@ -10,6 +10,7 @@ import { operatorLabel } from '../content/RulesDialog'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
 import { renderAt } from './render'
+import { findToast } from './typeFixtures'
 
 const POST_TYPE = {
 	key: 'post',
@@ -794,7 +795,7 @@ test('closes on a save someone else beat and reopens on the rules and sources th
 	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/someone else saved/i)
+	expect(await findToast(/^Could not save the change\. Someone else saved/)).toBeInTheDocument()
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 	const table = screen.getByRole('region', { name: 'Field Groups' })
 	await waitFor(() =>

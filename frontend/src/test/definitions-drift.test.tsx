@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { expect, test } from 'vitest'
 
 import { renderAt } from './render'
+import { findToast } from './typeFixtures'
 
 /** Serves the given drift from the drift endpoint. */
 function drifting(orphans: unknown[], collisions: unknown[], nestingKept: unknown[] = []) {
@@ -80,7 +81,7 @@ test('says why taking an orphan over was turned away', async () => {
 	renderAt('/field-groups')
 	await userEvent.click(await screen.findByRole('button', { name: 'Adopt' }))
 
-	expect(await screen.findByRole('alert')).toBeInTheDocument()
+	expect(await findToast(/^Could not save the change\. That field group no longer exists\./)).toBeInTheDocument()
 })
 
 test('says taking an orphan over was turned away even with no reason given', async () => {
@@ -92,7 +93,7 @@ test('says taking an orphan over was turned away even with no reason given', asy
 	renderAt('/field-groups')
 	await userEvent.click(await screen.findByRole('button', { name: 'Adopt' }))
 
-	expect(await screen.findByRole('alert')).toBeInTheDocument()
+	expect(await findToast('Could not save the change. Something went wrong. Try again.')).toBeInTheDocument()
 })
 
 test('shows no drift when the site cannot be asked for it', async () => {

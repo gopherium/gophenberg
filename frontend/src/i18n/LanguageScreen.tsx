@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { MANAGE_SETTINGS, SelectControl, Stack, Text, can } from '@gophenberg/frontend-sdk'
-import { __ } from '@wordpress/i18n'
-import { ErrorNotice, Page } from '@gopherium/godmin'
+import { __, sprintf } from '@wordpress/i18n'
+import { Page, useToaster } from '@gopherium/godmin'
 import { useSession } from '@gopherium/react-auth'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
 
 
 import { chooseLocale, chooseSiteLocale, fetchLocale, fetchSiteLocale } from './api'
@@ -37,25 +36,21 @@ function optionsOf(supported: string[]): { label: string, value: string }[] {
 export function LanguageScreen() {
 	const client = useQueryClient()
 	const session = useSession().data
-	const [notice, setNotice] = useState('')
+	const toaster = useToaster()
 	const answered = useQuery({ queryKey: localeQueryKey, queryFn: fetchLocale })
 	const site = useQuery({ queryKey: siteLocaleQueryKey, queryFn: fetchSiteLocale })
 	const supported = answered.data?.supported ?? [DEFAULT_LOCALE]
 	const mine = useMutation({
 		mutationFn: chooseLocale,
-		onSuccess: async () => {
-			setNotice('')
-			await client.invalidateQueries({ queryKey: localeQueryKey })
-		},
-		onError: (err: Error) => setNotice(err.message),
+		onSuccess: () => client.invalidateQueries({ queryKey: localeQueryKey }),
+		onError: (err: Error) =>
+			toaster.show(sprintf(__('Could not save your language. %s', 'gophenberg'), err.message)),
 	})
 	const theirs = useMutation({
 		mutationFn: chooseSiteLocale,
-		onSuccess: async () => {
-			setNotice('')
-			await client.invalidateQueries({ queryKey: siteLocaleQueryKey })
-		},
-		onError: (err: Error) => setNotice(err.message),
+		onSuccess: () => client.invalidateQueries({ queryKey: siteLocaleQueryKey }),
+		onError: (err: Error) =>
+			toaster.show(sprintf(__('Could not save the site default. %s', 'gophenberg'), err.message)),
 	})
 	const options = optionsOf(supported)
 	const chosen = options.find((held) => held.value === answered.data?.locale) ?? options[0]
@@ -68,7 +63,6 @@ export function LanguageScreen() {
 			subtitle={__('Choose the language the admin reads in.', 'gophenberg')}
 		>
 			<Stack direction="column" gap="md">
-				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
 				<SelectControl
 					label={__('Your language', 'gophenberg')}
 					items={options}

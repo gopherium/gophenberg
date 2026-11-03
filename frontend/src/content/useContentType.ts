@@ -39,12 +39,14 @@ export function placeholderType(key: string | undefined): ContentType {
 }
 
 /**
- * Returns the content type the current route addresses.
+ * Returns the content type a key names, or the one the current route addresses.
+ * @param key - The type key to look up, the route's own when left out.
  * @returns The registered type, or a placeholder until the registry answers.
  */
-export function useContentType(): ContentType {
+export function useContentType(key?: string): ContentType {
 	const { typeKey } = useParams({ strict: false })
+	const wanted = key ?? typeKey
 	const types = useQuery({ queryKey: typesQueryKey, queryFn: listTypes })
-	const found = types.data?.find((registered) => registered.key === typeKey)
-	return found ?? placeholderType(typeKey)
+	const found = types.data?.find((registered) => registered.key === wanted)
+	return found ?? placeholderType(wanted)
 }

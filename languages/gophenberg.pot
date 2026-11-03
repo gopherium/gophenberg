@@ -530,6 +530,9 @@ msgstr[1] ""
 msgid "Block"
 msgstr ""
 
+msgid "Breadcrumbs"
+msgstr ""
+
 msgid "Broken"
 msgstr ""
 
@@ -611,7 +614,19 @@ msgstr ""
 msgid "Content type updated."
 msgstr ""
 
+msgid "Could not activate the theme. %s"
+msgstr ""
+
+msgid "Could not deactivate the theme. %s"
+msgstr ""
+
+msgid "Could not install the theme. %s"
+msgstr ""
+
 msgid "Could not load that post."
+msgstr ""
+
+msgid "Could not roll back the theme. %s"
 msgstr ""
 
 msgid "Could not save image. %s"
@@ -621,6 +636,18 @@ msgid "Could not save media. %s"
 msgstr ""
 
 msgid "Could not save that post."
+msgstr ""
+
+msgid "Could not save the change. %s"
+msgstr ""
+
+msgid "Could not save the settings. %s"
+msgstr ""
+
+msgid "Could not save the site default. %s"
+msgstr ""
+
+msgid "Could not save your language. %s"
 msgstr ""
 
 msgid "Create"
@@ -1930,7 +1957,7 @@ msgstr ""
 msgid "Type"
 msgstr ""
 
-msgid "Type a whole number in both boxes before saving."
+msgid "Type a whole number."
 msgstr ""
 
 msgid "Undo"

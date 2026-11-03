@@ -4,7 +4,6 @@ import { Badge, Button, Stack, Text, uploadIcon } from '@gophenberg/frontend-sdk
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { ErrorNotice, FileButton, LoadingScreen, Page, useToaster } from '@gopherium/godmin'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
 import type { ReactNode } from 'react'
 
 import {
@@ -100,7 +99,6 @@ function servingNow(name: string): string {
 export function ThemesScreen() {
 	const client = useQueryClient()
 	const toaster = useToaster()
-	const [notice, setNotice] = useState('')
 	const themes = useQuery({
 		queryKey: themesQueryKey,
 		queryFn: ({ signal }) => listThemes(signal),
@@ -110,22 +108,23 @@ export function ThemesScreen() {
 	 * Reports what the server answered a theme action with.
 	 * @param outcome - The outcome the server answered.
 	 * @param said - The sentence naming what was done.
+	 * @param lead - The sentence naming what failed and why.
 	 */
-	async function done(outcome: ThemeOutcome, said: (name: string) => string) {
+	async function done(outcome: ThemeOutcome, said: (name: string) => string, lead: (reason: string) => string) {
 		if (outcome.kind === 'refused') {
-			setNotice(outcome.reason)
+			toaster.show(lead(outcome.reason))
 			return
 		}
-		setNotice('')
 		toaster.show(said(outcome.name))
 		await client.invalidateQueries({ queryKey: themesQueryKey })
 	}
 
 	/**
 	 * Reports that a theme action never reached the server.
+	 * @param lead - The sentence naming what failed and why.
 	 */
-	function failed() {
-		setNotice(__('The server could not be reached, so nothing was changed.', 'gophenberg'))
+	function failed(lead: (reason: string) => string) {
+		toaster.show(lead(__('The server could not be reached, so nothing was changed.', 'gophenberg')))
 	}
 
 	const report: Reporter = { done, failed }
@@ -138,7 +137,6 @@ export function ThemesScreen() {
 			actions={<UploadTheme onOutcome={report} />}
 		>
 			<Stack direction="column" gap="md">
-				{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
 				{listed.rollback !== null && (
 					<RollbackControl target={listed.rollback} onOutcome={report} />
 				)}
@@ -157,8 +155,8 @@ export function ThemesScreen() {
  * Reports how a theme action ended.
  */
 interface Reporter {
-	done: (outcome: ThemeOutcome, said: (name: string) => string) => void
-	failed: () => void
+	done: (outcome: ThemeOutcome, said: (name: string) => string, lead: (reason: string) => string) => void
+	failed: (lead: (reason: string) => string) => void
 }
 
 /**
@@ -259,10 +257,19 @@ function ThemeBadge(props: { theme: Theme }) {
  */
 function ServingToggle(props: { theme: Theme; onOutcome: Reporter }) {
 	const { theme } = props
+	/**
+	 * Returns the sentence naming what failed and why.
+	 * @param reason - Why it failed.
+	 * @returns The sentence to report.
+	 */
+	const lead = (reason: string) =>
+		theme.active
+			? sprintf(__('Could not deactivate the theme. %s', 'gophenberg'), reason)
+			: sprintf(__('Could not activate the theme. %s', 'gophenberg'), reason)
 	const serve = useMutation({
 		mutationFn: () => (theme.active ? deactivateTheme() : activateTheme(theme.name)),
-		onSuccess: (outcome) => props.onOutcome.done(outcome, servingNow),
-		onError: props.onOutcome.failed,
+		onSuccess: (outcome) => props.onOutcome.done(outcome, servingNow, lead),
+		onError: () => props.onOutcome.failed(lead),
 	})
 	const named = theme.active
 		? sprintf(__('Deactivate %(theme)s', 'gophenberg'), { theme: theme.name })
@@ -285,10 +292,16 @@ function ServingToggle(props: { theme: Theme; onOutcome: Reporter }) {
  * @returns The rollback element.
  */
 function RollbackControl(props: { target: string; onOutcome: Reporter }) {
+	/**
+	 * Returns the sentence naming what failed and why.
+	 * @param reason - Why it failed.
+	 * @returns The sentence to report.
+	 */
+	const lead = (reason: string) => sprintf(__('Could not roll back the theme. %s', 'gophenberg'), reason)
 	const roll = useMutation({
 		mutationFn: rollbackTheme,
-		onSuccess: (outcome) => props.onOutcome.done(outcome, servingNow),
-		onError: props.onOutcome.failed,
+		onSuccess: (outcome) => props.onOutcome.done(outcome, servingNow, lead),
+		onError: () => props.onOutcome.failed(lead),
 	})
 	return (
 		<Stack direction="row" gap="sm">
@@ -305,13 +318,21 @@ function RollbackControl(props: { target: string; onOutcome: Reporter }) {
  * @returns The upload button.
  */
 function UploadTheme(props: { onOutcome: Reporter }) {
+	/**
+	 * Returns the sentence naming what failed and why.
+	 * @param reason - Why it failed.
+	 * @returns The sentence to report.
+	 */
+	const lead = (reason: string) => sprintf(__('Could not install the theme. %s', 'gophenberg'), reason)
 	const install = useMutation({
 		mutationFn: (chosen: File) => uploadTheme(chosen),
 		onSuccess: (outcome) =>
-			props.onOutcome.done(outcome, (name) =>
-				sprintf(__('%(theme)s was installed.', 'gophenberg'), { theme: name }),
+			props.onOutcome.done(
+				outcome,
+				(name) => sprintf(__('%(theme)s was installed.', 'gophenberg'), { theme: name }),
+				lead,
 			),
-		onError: props.onOutcome.failed,
+		onError: () => props.onOutcome.failed(lead),
 	})
 	const label = __('Upload theme', 'gophenberg')
 	return (

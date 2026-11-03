@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { StyleProvider } from '@gophenberg/frontend-sdk'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -138,9 +137,11 @@ test('counts its pages by the size the server served', async () => {
 	await openPicker()
 	await screen.findByText('Harbor at dawn')
 
-	const pages = within(screen.getByRole('combobox', { name: 'Current page' })).getAllByRole('option')
-
-	expect(pages.map((page) => page.textContent)).toEqual(['1', '2', '3'])
+	expect(screen.getByText('of 3')).toBeInTheDocument()
+	await userEvent.click(screen.getByRole('combobox', { name: 'Current page' }))
+	await screen.findByRole('option', { name: '3' })
+	const pages = screen.getAllByRole('option').map((option) => option.textContent)
+	expect(pages.filter((text) => /^\d+$/.test(text ?? ''))).toEqual(['1', '2', '3'])
 })
 
 const OWN_AUTHOR = '019fb000-0000-7000-8000-0000000000ff'
@@ -265,8 +266,7 @@ test('keeps the cards and the page count while the sort a reader picks loads', a
 	await waitFor(() => expect(asking).toBe(true))
 
 	expect(screen.getByText('Harbor at dawn')).toBeInTheDocument()
-	const pages = within(screen.getByRole('combobox', { name: 'Current page' })).getAllByRole('option')
-	expect(pages.map((page) => page.textContent)).toEqual(['1', '2', '3'])
+	expect(screen.getByText('of 3')).toBeInTheDocument()
 	sorted.release()
 })
 
@@ -338,28 +338,6 @@ test('says the library is empty when nothing was uploaded', async () => {
 	await openPicker()
 
 	expect(await screen.findByText(/no media/i)).toBeInTheDocument()
-})
-
-test('styles the search box on the admin page when a block in the canvas opens the library', async () => {
-	const canvas = document.implementation.createHTMLDocument('canvas')
-	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-	render(
-		<QueryClientProvider client={client}>
-			<StyleProvider document={canvas}>
-				<MediaLibraryPicker
-					onSelect={() => {}}
-					render={({ open }) => <button onClick={open}>Media Library</button>}
-				/>
-			</StyleProvider>
-		</QueryClientProvider>,
-	)
-	await userEvent.click(screen.getByRole('button', { name: 'Media Library' }))
-
-	const search = await screen.findByRole('searchbox', { name: 'Search media' })
-	const backdrop = search.parentElement?.querySelector('.components-input-control__backdrop')
-
-	expect(backdrop).toBeInstanceOf(HTMLElement)
-	expect(getComputedStyle(backdrop as HTMLElement).position).toBe('absolute')
 })
 
 test('narrows the library to what the block accepts', () => {
