@@ -808,7 +808,8 @@ test('names a refused file in a 320 pixel panel, its notice filling the row and 
 	await chooseFile(library, NOTES)
 
 	const panel = page.locator('.gophenberg-media-picker__panel')
-	await expect(panel).toContainText(`${NOTES.name}: ${NOTES.name}: Sorry, this file type is not supported here.`)
+	await expect(panel).toContainText(`${NOTES.name}: Sorry, this file type is not supported here.`)
+	await expect(panel).not.toContainText(`${NOTES.name}: ${NOTES.name}`)
 	await expect.poll(async () => Math.round((await boxOf(panel)).width)).toBe(320)
 	const notice = panel.locator('.gophenberg-media-picker__error')
 	await expect

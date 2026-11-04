@@ -28,10 +28,10 @@ import {
 const IMAGE_BLOCK = { allowedTypes: ['image'] }
 
 /** The line a text file refused by an image block reads as. */
-const NOTES_LINE = 'notes.txt: notes.txt: Sorry, this file type is not supported here.'
+const NOTES_LINE = 'notes.txt: Sorry, this file type is not supported here.'
 
 /** The line an empty file reads as. */
-const HOLLOW_LINE = 'hollow.jpg: hollow.jpg: This file is empty.'
+const HOLLOW_LINE = 'hollow.jpg: This file is empty.'
 
 /** The name of the panel listing what went wrong. */
 const ERRORS = { name: 'Upload errors' }

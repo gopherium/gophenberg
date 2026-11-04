@@ -2,7 +2,7 @@
 
 import { speak } from '@gophenberg/frontend-sdk'
 import { bulkNotes } from '@gopherium/godmin'
-import { __, sprintf } from '@wordpress/i18n'
+import { __ } from '@wordpress/i18n'
 import { useCallback, useRef, useState } from 'react'
 
 import { useRefreshMedia } from './actions'
@@ -49,10 +49,10 @@ const NO_RUN: Run = { open: 0, files: [], landed: 0 }
  */
 function whyRefused(file: File, allowedTypes: string[] | undefined): string {
 	if (!typeAllowed(file.type, allowedTypes)) {
-		return sprintf(__('%s: Sorry, this file type is not supported here.', 'gophenberg'), file.name)
+		return __('Sorry, this file type is not supported here.', 'gophenberg')
 	}
 	if (file.size === 0) {
-		return sprintf(__('%s: This file is empty.', 'gophenberg'), file.name)
+		return __('This file is empty.', 'gophenberg')
 	}
 	return ''
 }

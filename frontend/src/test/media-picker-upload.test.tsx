@@ -152,7 +152,7 @@ test.each([
 		props: IMAGE_BLOCK,
 		file: NOTES,
 		answer: stored,
-		line: 'notes.txt: notes.txt: Sorry, this file type is not supported here.',
+		line: 'notes.txt: Sorry, this file type is not supported here.',
 		asked: [],
 	},
 	{
@@ -160,7 +160,7 @@ test.each([
 		props: {},
 		file: HOLLOW,
 		answer: stored,
-		line: 'hollow.jpg: hollow.jpg: This file is empty.',
+		line: 'hollow.jpg: This file is empty.',
 		asked: [],
 	},
 	{
@@ -212,7 +212,7 @@ test('lists a dropped file of a type the block refuses', async () => {
 
 	drop(NOTES)
 
-	expect(await screen.findByText(/^notes\.txt: notes\.txt: Sorry/)).toBeInTheDocument()
+	expect(await screen.findByText(/^notes\.txt: Sorry/)).toBeInTheDocument()
 	expect(sent).toEqual([])
 })
 
@@ -311,7 +311,7 @@ test('raises no toast when every file was refused', async () => {
 	await openOnCards(IMAGE_BLOCK)
 
 	await choose(NOTES)
-	await screen.findByText(/^notes\.txt: notes\.txt: Sorry/)
+	await screen.findByText(/^notes\.txt: Sorry/)
 	await settled()
 
 	expect(document.querySelector(TOAST.selector)).toBeNull()
