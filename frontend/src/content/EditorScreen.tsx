@@ -27,6 +27,7 @@ import './editor.css'
 
 import { MEDIA_CATEGORIES } from '../media/inserterCategories'
 import { MediaLibraryPicker } from '../media/MediaLibraryPicker'
+import { PickerViewProvider } from '../media/pickerView'
 import { fetchPost } from './api'
 import type { PostDetail } from './api'
 import { PostReadView } from './PostReadView'
@@ -95,61 +96,63 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 		toggle.focus()
 	}
 	return (
-		<SlotFillProvider>
-			<ShortcutProvider>
-				<BlockEditorProvider
-					value={buffer.blocks}
-					onInput={buffer.onInput}
-					onChange={buffer.onChange}
-					settings={settings}
-				>
-					<div className={editorClass(width.narrow)}>
-						<EditorHeader
-							buffer={buffer}
-							type={stored.type}
-							views={views}
-							width={width}
-							settingsRef={settingsRef}
-						/>
-						<div className="gophenberg-editor__main">
-							{views.listOpen ? (
-								<div className="gophenberg-editor__outline">
-									<ListView focusOnMount />
-								</div>
-							) : null}
-							<div className="gophenberg-editor__content">
-								<RestoreBanner
-									postId={postId}
-									stored={stored}
-									onRestore={buffer.restore}
-								/>
-								{width.narrow ? <BlockToolbar hideDragHandle showPlaceholder /> : null}
-								<div className="gophenberg-editor__title">
-									<InputControl
-										label={__('Title', 'gophenberg')}
-										placeholder={__('Add title', 'gophenberg')}
-										value={buffer.title}
-										onValueChange={buffer.setTitle}
+		<PickerViewProvider>
+			<SlotFillProvider>
+				<ShortcutProvider>
+					<BlockEditorProvider
+						value={buffer.blocks}
+						onInput={buffer.onInput}
+						onChange={buffer.onChange}
+						settings={settings}
+					>
+						<div className={editorClass(width.narrow)}>
+							<EditorHeader
+								buffer={buffer}
+								type={stored.type}
+								views={views}
+								width={width}
+								settingsRef={settingsRef}
+							/>
+							<div className="gophenberg-editor__main">
+								{views.listOpen ? (
+									<div className="gophenberg-editor__outline">
+										<ListView focusOnMount />
+									</div>
+								) : null}
+								<div className="gophenberg-editor__content">
+									<RestoreBanner
+										postId={postId}
+										stored={stored}
+										onRestore={buffer.restore}
 									/>
+									{width.narrow ? <BlockToolbar hideDragHandle showPlaceholder /> : null}
+									<div className="gophenberg-editor__title">
+										<InputControl
+											label={__('Title', 'gophenberg')}
+											placeholder={__('Add title', 'gophenberg')}
+											value={buffer.title}
+											onValueChange={buffer.setTitle}
+										/>
+									</div>
+									<div className={canvasClass(views.preview)}>
+										<BlockCanvas height="100%" styles={CANVAS_STYLES}>
+											<BlockList {...CANVAS_ROOT} />
+										</BlockCanvas>
+									</div>
 								</div>
-								<div className={canvasClass(views.preview)}>
-									<BlockCanvas height="100%" styles={CANVAS_STYLES}>
-										<BlockList {...CANVAS_ROOT} />
-									</BlockCanvas>
+								<div className={sidebarClass(views.sidebarMoved)} id={views.sidebarId} hidden={!views.sidebarOpen}>
+									<EditorSidebar postId={postId} buffer={buffer} onClose={closeSettings} />
 								</div>
 							</div>
-							<div className={sidebarClass(views.sidebarMoved)} id={views.sidebarId} hidden={!views.sidebarOpen}>
-								<EditorSidebar postId={postId} buffer={buffer} onClose={closeSettings} />
-							</div>
+							{width.narrow ? null : (
+								<div className="gophenberg-editor__foot">
+									<BlockBreadcrumb rootLabelText={singularOf(listed)} />
+								</div>
+							)}
 						</div>
-						{width.narrow ? null : (
-							<div className="gophenberg-editor__foot">
-								<BlockBreadcrumb rootLabelText={singularOf(listed)} />
-							</div>
-						)}
-					</div>
-				</BlockEditorProvider>
-			</ShortcutProvider>
-		</SlotFillProvider>
+					</BlockEditorProvider>
+				</ShortcutProvider>
+			</SlotFillProvider>
+		</PickerViewProvider>
 	)
 }

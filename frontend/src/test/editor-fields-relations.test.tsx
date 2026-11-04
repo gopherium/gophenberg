@@ -511,6 +511,37 @@ test('leaves the address alone while a reader searches, pages and sorts the pick
 	expect(router.state.location.href).toBe(address)
 })
 
+/**
+ * Opens the picker behind a media field's button, then its View options.
+ * @param choose - The button that opens the picker.
+ * @returns The picker, and the Sort by control inside it.
+ */
+async function sortOfPickerFrom(choose: HTMLElement) {
+	await userEvent.click(choose)
+	const picker = await screen.findByRole('dialog', { name: 'Select Media' })
+	await within(picker).findByRole('option', { name: 'Harbor' })
+	await userEvent.click(within(picker).getByRole('button', { name: 'View options' }))
+	return { picker, sort: await within(picker).findByRole('combobox', { name: 'Sort by' }) }
+}
+
+test('holds a sort chosen in the picker of one media field when the next field opens its own', async () => {
+	const fields = [
+		{ ...GALLERY_FIELD, key: 'cover', label: 'Cover', many: false },
+		{ ...GALLERY_FIELD, key: 'hero', label: 'Hero', many: false },
+	]
+	galleryOf([])
+	server.use(http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring(fields)] })))
+	renderAt(EDITOR_PATH)
+	const first = await sortOfPickerFrom(await screen.findByRole('button', { name: 'Choose Cover' }))
+	await userEvent.selectOptions(first.sort, 'title')
+	await userEvent.click(within(first.picker).getByRole('button', { name: 'Close' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+	const second = await sortOfPickerFrom(screen.getByRole('button', { name: 'Choose Hero' }))
+
+	expect(second.sort).toHaveValue('title')
+})
+
 test('moves a file up the gallery', async () => {
 	const { sent } = galleryOf([12, 15])
 	renderAt(EDITOR_PATH)

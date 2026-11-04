@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen } from '@testing-library/react'
 import type { RenderOptions } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 
 import { MediaLibraryPicker } from '../media/MediaLibraryPicker'
 import { siteSettings } from './siteSettings'
@@ -112,6 +113,34 @@ export function renderPicker(props: Record<string, unknown> = {}, options: Rende
 		</QueryClientProvider>,
 		options,
 	)
+}
+
+/**
+ * Renders two pickers behind the triggers First picker and Second picker, inside the query client they read through.
+ * @param options - How to render them, a wrapper around them among them.
+ * @returns What takes the first picker off the screen, as a block deleted with its dialog open goes.
+ */
+export function renderTwoPickers(options: RenderOptions = {}) {
+	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+	const tree = (first: ReactNode) => (
+		<QueryClientProvider client={client}>
+			{first}
+			<MediaLibraryPicker
+				onSelect={() => {}}
+				render={({ open }) => <button onClick={open}>Second picker</button>}
+			/>
+		</QueryClientProvider>
+	)
+	const { rerender } = render(
+		tree(
+			<MediaLibraryPicker
+				onSelect={() => {}}
+				render={({ open }) => <button onClick={open}>First picker</button>}
+			/>,
+		),
+		options,
+	)
+	return () => rerender(tree(null))
 }
 
 /**

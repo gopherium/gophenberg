@@ -3,13 +3,25 @@
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
+import type { RenderOptions } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 import { allowedMimes, MediaLibraryPicker, selectionFrom } from '../media/MediaLibraryPicker'
+import { PickerViewProvider } from '../media/pickerView'
 import { SiteFormatGate } from '../settings/SiteFormatGate'
 import { gate } from './gate'
-import { card, CLIFF, HARBOR, listing, openPicker, OWN_AUTHOR, recording, renderPicker } from './mediaPicker'
+import {
+	card,
+	CLIFF,
+	HARBOR,
+	listing,
+	openPicker,
+	OWN_AUTHOR,
+	recording,
+	renderPicker,
+	renderTwoPickers,
+} from './mediaPicker'
 import { siteSettings } from './siteSettings'
 
 beforeEach(() => {
@@ -228,12 +240,77 @@ function dialogGone() {
 }
 
 /**
+ * Closes the picker by its close button and waits for it to leave.
+ */
+async function closePicker() {
+	await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+	await dialogGone()
+}
+
+/**
  * Closes the picker by its close button and opens it again.
  */
 async function closeAndReopen() {
-	await userEvent.click(screen.getByRole('button', { name: 'Close' }))
-	await dialogGone()
+	await closePicker()
 	await userEvent.click(await screen.findByRole('button', { name: 'Media Library' }))
+}
+
+/**
+ * Sorts the open picker by the date a file last changed.
+ */
+async function sortByModified() {
+	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
+	await userEvent.selectOptions(await sortControl(), 'modified')
+}
+
+/**
+ * Asks the open picker for twenty files a page.
+ */
+async function sizeTwenty() {
+	await userEvent.click((await offeredSizes()).getByRole('radio', { name: '20' }))
+}
+
+/**
+ * Opens the first of two pickers and waits for its cards.
+ */
+async function openFirst() {
+	await userEvent.click(screen.getByRole('button', { name: 'First picker' }))
+	await card(HARBOR)
+}
+
+/**
+ * Opens the second of two pickers.
+ */
+async function openSecond() {
+	await userEvent.click(screen.getByRole('button', { name: 'Second picker' }))
+}
+
+/** What a reader may change in a picker's view, and how the requests it sends say so. */
+const VIEW_CHANGES = [
+	{ what: 'a sort', set: sortByModified, param: 'orderby', value: 'modified' },
+	{ what: 'a filter', set: filterByAuthor, param: 'author', value: OWN_AUTHOR },
+	{ what: 'a page size', set: sizeTwenty, param: 'per_page', value: '20' },
+]
+
+/**
+ * Makes a change in the first of two pickers, closes it and opens the second.
+ * @param change - The change to make, and how its requests say so.
+ * @param options - How to render the two.
+ * @returns The parameters of the request the second picker sent on opening.
+ */
+async function secondAfter(change: (typeof VIEW_CHANGES)[number], options?: RenderOptions) {
+	const asked = recording()
+	renderTwoPickers(options)
+	await openFirst()
+	await change.set()
+	await waitFor(() => expect(asked.at(-1)?.get(change.param)).toBe(change.value))
+	await closePicker()
+	const before = asked.length
+
+	await openSecond()
+
+	await waitFor(() => expect(asked.length).toBeGreaterThan(before))
+	return asked.at(-1)
 }
 
 test.each([
@@ -298,6 +375,19 @@ test('offers the served page sizes, opens on the size the site sets, and asks a 
 	expect(asked.at(-1)?.has('page')).toBe(false)
 })
 
+test('offers no page sizes and asks for none when the settings could not be read, the cards still show', async () => {
+	server.use(http.get('/api/settings', () => HttpResponse.json({}, { status: 500 })))
+	const asked = recording()
+	await openPicker()
+	await card(HARBOR)
+
+	await userEvent.click(screen.getByRole('button', { name: 'View options' }))
+	await sortControl()
+
+	expect(screen.queryByRole('radiogroup', { name: 'Items per page' })).not.toBeInTheDocument()
+	expect(asked.at(-1)?.has('per_page')).toBe(false)
+})
+
 test('keeps a page size chosen in View options after a close and a reopen', async () => {
 	const asked = recording()
 	await openPicker()
@@ -329,6 +419,38 @@ test('forgets the page and the search on a close, and keeps the sort and a filte
 	expect(asked.at(-1)?.has('page')).toBe(false)
 	expect(asked.at(-1)?.get('orderby')).toBe('modified')
 	expect(asked.at(-1)?.get('author')).toBe(OWN_AUTHOR)
+	expect(await screen.findByRole('searchbox', { name: 'Search media…' })).toHaveValue('')
+})
+
+test.each(VIEW_CHANGES)('opens the next picker on $what the first one set, under one shared view', async (change) => {
+	const sent = await secondAfter(change, { wrapper: PickerViewProvider })
+
+	expect(sent?.get(change.param)).toBe(change.value)
+})
+
+test.each(VIEW_CHANGES)('keeps $what to the picker it was set in, with no shared view above them', async (change) => {
+	const sent = await secondAfter(change)
+
+	expect(sent?.get(change.param)).not.toBe(change.value)
+})
+
+test.each([
+	{ how: 'closes', leave: closePicker },
+	{ how: 'leaves the screen with its dialog open', leave: (dropFirst: () => void) => dropFirst() },
+])('starts the next picker on its first page with no search when the first one $how', async ({ leave }) => {
+	const asked = recording(120)
+	const dropFirst = renderTwoPickers({ wrapper: PickerViewProvider })
+	await openFirst()
+	await searchHarbor()
+	await waitFor(() => expect(asked.at(-1)?.get('search')).toBe('harbor'))
+	await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
+	await waitFor(() => expect(asked.at(-1)?.get('page')).toBe('2'))
+
+	await leave(dropFirst)
+	await openSecond()
+
+	await waitFor(() => expect(asked.at(-1)?.has('search')).toBe(false))
+	expect(asked.at(-1)?.has('page')).toBe(false)
 	expect(await screen.findByRole('searchbox', { name: 'Search media…' })).toHaveValue('')
 })
 

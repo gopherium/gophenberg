@@ -52,6 +52,9 @@ function photo(name: string) {
 /** A text file, which no image block takes. */
 const NOTES = { name: `notes-e2e-${RUN}.txt`, mimeType: 'text/plain', buffer: Buffer.from('Notes on the harbor.') }
 
+/** An Image block that holds no picture yet, as the editor stores it. */
+const EMPTY_IMAGE_BLOCK = '<!-- wp:image -->\n<figure class="wp-block-image"><img alt=""/></figure>\n<!-- /wp:image -->'
+
 /**
  * Returns the canvas the block editor writes into.
  * @param page - The page holding the editor.
@@ -260,6 +263,42 @@ function listingAsking(page: Page, wanted: Record<string, string>) {
 		const url = new URL(request.url())
 		return url.pathname === '/api/media' && Object.entries(wanted).every(([key, value]) => url.searchParams.get(key) === value)
 	})
+}
+
+/**
+ * Stores a draft holding two empty Image blocks, keeping its id for the clean up, and opens it in the editor.
+ * @param page - The page to drive.
+ * @returns The two blocks in the canvas.
+ */
+async function openTwoImageBlocks(page: Page): Promise<Locator> {
+	const answer = await page.request.post('/api/content', {
+		data: { type: 'post', title: POST_TITLE, content: `${EMPTY_IMAGE_BLOCK}\n\n${EMPTY_IMAGE_BLOCK}` },
+	})
+	expect(answer.status()).toBe(201)
+	const { id } = (await answer.json()) as { id: string }
+	createdPosts.push(id)
+	await page.goto(`/admin/content/post/${id}/edit`)
+	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
+	return canvas(page).locator('[data-type="core/image"]')
+}
+
+/**
+ * Selects an empty Image block by its corner and opens the picker from it.
+ * @param block - The block.
+ */
+async function openPickerFrom(block: Locator) {
+	await block.click({ position: { x: 4, y: 4 } })
+	await block.getByRole('button', { name: 'Media Library' }).click()
+}
+
+/**
+ * Opens View options in the open picker.
+ * @param library - The picker dialog.
+ * @returns The Sort by control.
+ */
+async function sortControl(library: Locator): Promise<Locator> {
+	await library.getByRole('button', { name: 'View options' }).click()
+	return library.getByRole('combobox', { name: 'Sort by' })
 }
 
 test('uploads two pictures chosen at once, counts them in a toast and serves them publicly', async ({ page }) => {
@@ -805,6 +844,29 @@ for (const size of [DESKTOP, PHONE]) {
 		expect(room.bottom).toBeGreaterThanOrEqual(0)
 	})
 }
+
+test('holds a sort from one Image block to the next in a post, and opens newest first again after a reload', async ({
+	page,
+}) => {
+	const blocks = await openTwoImageBlocks(page)
+	const library = page.getByRole('dialog', { name: 'Select Media' })
+	await openPickerFrom(blocks.first())
+	const sorted = listingAsking(page, { orderby: 'title' })
+	await (await sortControl(library)).selectOption('title')
+	await sorted
+	await page.keyboard.press('Escape')
+	await library.getByRole('button', { name: 'Close', exact: true }).click()
+	await expect(library).toHaveCount(0)
+
+	await openPickerFrom(blocks.last())
+	await expect(await sortControl(library)).toHaveValue('title')
+
+	await page.reload()
+	const newest = listingAsking(page, { orderby: 'date', order: 'desc' })
+	await openPickerFrom(blocks.last())
+	await newest
+	await expect(await sortControl(library)).toHaveValue('date')
+})
 
 test.describe('on a phone', () => {
 	test.use({ viewport: PHONE, isMobile: true, hasTouch: true })

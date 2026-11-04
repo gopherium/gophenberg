@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Dialog } from '@gophenberg/frontend-sdk'
-import type { Field, View, ViewPickerGrid } from '@gophenberg/frontend-sdk/dataviews'
+import type { Field, View } from '@gophenberg/frontend-sdk/dataviews'
 import { SlotFillProvider } from '@gophenberg/frontend-sdk/editor'
 import type { MediaLibraryProps } from '@gophenberg/frontend-sdk/editor'
 import { offeredSize, viewNarrows } from '@gopherium/godmin'
@@ -15,24 +15,10 @@ import './media.css'
 import { listMedia, listMediaByIDs, mediaQueryKey } from './api'
 import type { MediaItem } from './api'
 import { toAttachment, typeFamily } from './editorMedia'
-import { MEDIA_SORT, mediaFields, mediaListing } from './fields'
+import { mediaFields, mediaListing } from './fields'
 import { PickerDialog } from './PickerDialog'
+import { usePickerView } from './pickerView'
 import { useUploadRun } from './useUploadRun'
-
-const PREVIEW_SIZE = 170
-
-const INITIAL_VIEW: ViewPickerGrid = {
-	type: 'pickerGrid',
-	fields: [],
-	showTitle: false,
-	titleField: 'title',
-	mediaField: 'thumbnail',
-	search: '',
-	page: 1,
-	filters: [],
-	sort: { ...MEDIA_SORT },
-	layout: { previewSize: PREVIEW_SIZE, density: 'compact', mediaFit: 'contain' },
-}
 
 /**
  * Returns the content type prefixes a block's allowed types narrow the library to.
@@ -118,7 +104,7 @@ async function readChosen(ids: string[], sizes: readonly number[] | undefined) {
  */
 function usePickerState(value: MediaLibraryProps['value'], onClose: MediaLibraryProps['onClose']) {
 	const [isOpen, setIsOpen] = useState(false)
-	const [held, setHeld] = useState<View>(INITIAL_VIEW)
+	const [held, setHeld] = usePickerView()
 	const [selection, setSelection] = useState<string[]>([])
 	const [choiceNote, setChoiceNote] = useState('')
 	const sessions = useRef(0)
