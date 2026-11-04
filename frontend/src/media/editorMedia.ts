@@ -108,6 +108,15 @@ export function toAttachment(item: MediaItem): EditorAttachment {
 }
 
 /**
+ * Returns the words saying a block does not take a file.
+ * @param file - The file the block was handed.
+ * @returns The words.
+ */
+function notTakenWords(file: File): string {
+	return sprintf(__('%(file)s is not a file this block accepts.', 'gophenberg'), { file: file.name })
+}
+
+/**
  * Returns why a file may not be uploaded, empty when it may.
  * @param file - The file the block was handed.
  * @param args - The rules the block passed along.
@@ -115,7 +124,7 @@ export function toAttachment(item: MediaItem): EditorAttachment {
  */
 function errorOf(file: File, args: EditorMediaUploadArgs): string {
 	if (!typeAllowed(file.type, args.allowedTypes)) {
-		return sprintf(__('%(file)s is not a file this block accepts.', 'gophenberg'), { file: file.name })
+		return notTakenWords(file)
 	}
 	if (args.maxUploadFileSize !== undefined && file.size > args.maxUploadFileSize) {
 		return sprintf(__('%(file)s is larger than one upload may be.', 'gophenberg'), { file: file.name })
@@ -150,15 +159,19 @@ export function typeAllowed(mime: string, allowed: string[] = ['*']): boolean {
 /**
  * Uploads one file and returns the placed attachment.
  * @param file - The file to upload.
- * @param args - The handlers the block passed along.
- * @returns The stored attachment, or null when the upload failed.
+ * @param args - The rules and handlers the block passed along.
+ * @returns The stored attachment, or null when the upload failed or the server stored a kind the block refuses.
  */
 async function storedAttachment(
 	file: File,
 	args: EditorMediaUploadArgs,
 ): Promise<EditorAttachment | null> {
 	try {
-		return toAttachment(await uploadMedia(file))
+		const item = await uploadMedia(file)
+		if (typeAllowed(item.mimeType, args.allowedTypes)) {
+			return toAttachment(item)
+		}
+		args.onError?.(new Error(notTakenWords(file)))
 	} catch (failure) {
 		args.onError?.(failure as Error)
 	}

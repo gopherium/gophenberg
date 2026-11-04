@@ -156,6 +156,19 @@ test('refuses a file outside the allowed types before uploading', async () => {
 	expect(uploaded).toBe(0)
 })
 
+test('hands the block nothing and says so when the server stored a kind the block refuses', async () => {
+	const audio = { ...HARBOR, type: 'audio', mime_type: 'audio/mpeg' }
+	server.use(http.post('/api/media', () => HttpResponse.json(audio, { status: 201 })))
+
+	const { batches, errors } = await uploadBatches({
+		filesList: [new File(['x'], 'harbor.unknown')],
+		allowedTypes: ['image'],
+	})
+
+	expect(errors).toEqual(['harbor.unknown is not a file this block accepts.'])
+	expect(batches.at(-1)).toEqual([])
+})
+
 test('accepts a file matching an exact allowed mime', async () => {
 	server.use(http.post('/api/media', () => HttpResponse.json(HARBOR, { status: 201 })))
 
