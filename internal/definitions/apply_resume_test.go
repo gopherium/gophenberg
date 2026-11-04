@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -65,12 +67,21 @@ func writesCounted(t *testing.T, pool *pgxpool.Pool) int64 {
 }
 
 // stateOf returns what the site holds, read through a registry that starts afresh.
+// The types are sorted by key before the comparison: the export lists them in
+// the order the wall clock stamped them as they were created, and a step back
+// of the clock between two creations reorders the list even though the import
+// leaves the same site. The import never sets the order of types, so the
+// comparison loses nothing by reading them in key order.
 func stateOf(t *testing.T, pool *pgxpool.Pool, id uuid.UUID) siteState {
 	t.Helper()
 	item, revisions := heldValues(t, pool, id)
-	return siteState{
+	state := siteState{
 		Envelope: exported(t, content.NewRegistry(postgres.NewTypeStore(pool))), Item: item, Revisions: revisions,
 	}
+	slices.SortFunc(state.Envelope.Types, func(a, b definitions.TypeDefinition) int {
+		return strings.Compare(a.Key, b.Key)
+	})
+	return state
 }
 
 // uninterrupted runs the import once on a fresh site, returning what it left and how many writes it made.
@@ -216,5 +227,26 @@ func TestApplyRunAgainFinishesAnImportAStopCutShort(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+// TestApplyLeavesTheSameSiteWhenTheClockStepsBack runs an import that adds a
+// type on a site whose recipe type carries a stamp ten seconds ahead of the
+// clock, as it does after the wall clock steps back between the setup that
+// created the type and the import that adds the next one. The export then
+// lists the added type before recipe, and the state the import leaves must
+// still read as the state one clean run leaves.
+func TestApplyLeavesTheSameSiteWhenTheClockStepsBack(t *testing.T) {
+	t.Parallel()
+
+	scenario := resumableImports()["adding a type, a group and a section"]
+	whole, _ := uninterrupted(t, scenario)
+
+	registry, pool, id := valuedSite(t)
+	sabotage(t, pool, "UPDATE core.content_types SET created_at = created_at + interval '10 seconds' WHERE key = 'recipe'")
+	applied(t, registry, scenario(t, registry))
+
+	if got := stateOf(t, pool, id); !reflect.DeepEqual(got, whole) {
+		t.Errorf("the site after an import under a stepped-back clock = %+v, want what one run leaves, %+v", got, whole)
 	}
 }
