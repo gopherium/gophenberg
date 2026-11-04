@@ -89,11 +89,11 @@ const WORDPRESS = [
 	{ key: 'Upload errors', es: 'Errores de carga', fr: 'Erreurs de téléversement' },
 	{ key: 'Upload complete', es: 'Subida completada', fr: 'Téléversement terminé' },
 	{
-		key: '%s: Sorry, this file type is not supported here.',
-		es: '%s: Lo siento, este tipo de archivo no es compatible aquí.',
-		fr: '%s : désolé, ce type de fichier n’est pas pris en charge ici.',
+		key: 'Sorry, this file type is not supported here.',
+		es: 'Lo siento, este tipo de archivo no es compatible aquí.',
+		fr: 'Désolé, ce type de fichier n’est pas pris en charge ici.',
 	},
-	{ key: '%s: This file is empty.', es: '%s: Este archivo está vacío.', fr: '%s : ce fichier est vide.' },
+	{ key: 'This file is empty.', es: 'Este archivo está vacío.', fr: 'Ce fichier est vide.' },
 ]
 
 /** The answers with words of our own, the middle form of a counted message and a sentence WordPress lacks. */

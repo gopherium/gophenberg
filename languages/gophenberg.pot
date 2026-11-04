@@ -296,12 +296,6 @@ msgid_plural "%s upload errors"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "%s: Sorry, this file type is not supported here."
-msgstr ""
-
-msgid "%s: This file is empty."
-msgstr ""
-
 msgid "(no title)"
 msgstr ""
 
@@ -1510,6 +1504,9 @@ msgstr ""
 msgid "Something went wrong. Try again."
 msgstr ""
 
+msgid "Sorry, this file type is not supported here."
+msgstr ""
+
 msgid "Sorry, you are not allowed to access this page."
 msgstr ""
 
@@ -1846,6 +1843,9 @@ msgid "This field would stand inside too many containers. Put it nearer the top 
 msgstr ""
 
 msgid "This file could not be opened as a zip. Package the theme again and upload the new file."
+msgstr ""
+
+msgid "This file is empty."
 msgstr ""
 
 msgid "This file is larger than the upload limit. Upload a smaller file."

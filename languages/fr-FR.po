@@ -2183,11 +2183,11 @@ msgstr[0] "%s erreur de téléversement"
 msgstr[1] "%s d’erreurs de téléversement"
 msgstr[2] "%s erreurs de téléversement"
 
-msgid "%s: Sorry, this file type is not supported here."
-msgstr "%s : désolé, ce type de fichier n’est pas pris en charge ici."
+msgid "Sorry, this file type is not supported here."
+msgstr "Désolé, ce type de fichier n’est pas pris en charge ici."
 
-msgid "%s: This file is empty."
-msgstr "%s : ce fichier est vide."
+msgid "This file is empty."
+msgstr "Ce fichier est vide."
 
 #, fuzzy
 msgid "Drop files to upload"

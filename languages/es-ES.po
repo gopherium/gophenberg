@@ -1921,11 +1921,11 @@ msgstr[0] "%s error al subir el archivo"
 msgstr[1] "%s de errores de subida"
 msgstr[2] "%s errores de subida"
 
-msgid "%s: Sorry, this file type is not supported here."
-msgstr "%s: Lo siento, este tipo de archivo no es compatible aquí."
+msgid "Sorry, this file type is not supported here."
+msgstr "Lo siento, este tipo de archivo no es compatible aquí."
 
-msgid "%s: This file is empty."
-msgstr "%s: Este archivo está vacío."
+msgid "This file is empty."
+msgstr "Este archivo está vacío."
 
 #, fuzzy
 msgid "Drop files to upload"
