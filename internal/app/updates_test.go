@@ -332,6 +332,57 @@ func TestSiteUpdatesOverviewNamesWhatTheChecksStoredBesideThisBinaryAndItsInstal
 	}
 }
 
+func TestSiteUpdatesOverviewNamesThePostgreSQLMajorThatRunsAndNoneOnSQLite(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		major func(context.Context) (int, error)
+		want  int
+	}{
+		"a PostgreSQL 15 server": {major: major(15, nil), want: 15},
+		"a PostgreSQL 17 server": {major: major(17, nil), want: 17},
+		"a site on SQLite":       {major: noMajor},
+	} {
+		updates := officialUpdates(t)
+		updates.major = tc.major
+
+		overview, err := updates.Overview(t.Context())
+
+		if err != nil || overview.RunningPostgreSQL != tc.want {
+			t.Errorf("Overview() on %s names PostgreSQL %d, %v, want %d", name, overview.RunningPostgreSQL, err, tc.want)
+		}
+	}
+}
+
+func TestSiteUpdatesOverviewComparesTheOfferWithThePostgreSQLServerThatRunsNow(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		checkedOn, runsOn int
+		needs             bool
+	}{
+		"a server upgraded since the check":   {checkedOn: 14, runsOn: 15},
+		"a server downgraded since the check": {checkedOn: 15, runsOn: 14, needs: true},
+		"a server still too old":              {checkedOn: 14, runsOn: 14, needs: true},
+		"a server still new enough":           {checkedOn: 15, runsOn: 15},
+		"a result carried onto SQLite":        {checkedOn: 14},
+	} {
+		updates := officialUpdates(t)
+		updates.major = major(tc.checkedOn, nil)
+		if _, err := updates.Check(t.Context()); err != nil {
+			t.Fatalf("Check() before %s = %v, want nil", name, err)
+		}
+		updates.major = major(tc.runsOn, nil)
+
+		overview, err := updates.Overview(t.Context())
+
+		if err != nil || overview.Offer == nil || overview.Offer.NeedsPostgreSQL != tc.needs {
+			t.Errorf("Overview() on %s = %+v, %v, want an offer needing a newer PostgreSQL %v", name, overview.Offer, err,
+				tc.needs)
+		}
+	}
+}
+
 func TestSiteUpdatesOverviewSaysWhyAnInstallCannotUpdateItself(t *testing.T) {
 	t.Parallel()
 
@@ -393,6 +444,7 @@ func TestSiteUpdatesOverviewReportsWhatItCannotRead(t *testing.T) {
 	for name, change := range map[string]func(*testing.T, *siteUpdates){
 		"a setting store it cannot read": func(_ *testing.T, u *siteUpdates) { u.store = &unreadSettings{} },
 		"a cron store it cannot read":    func(_ *testing.T, u *siteUpdates) { u.slots = unreadSlots{} },
+		"a server major it cannot read":  func(_ *testing.T, u *siteUpdates) { u.major = major(0, errMajor) },
 		"a state file it cannot read": func(t *testing.T, u *siteUpdates) {
 			layout := updater.Layout{Root: u.install.Root}
 			if err := errors.Join(layout.WriteState(updater.State{}), os.WriteFile(layout.StateFile(), []byte("{"),

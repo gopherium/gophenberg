@@ -141,20 +141,33 @@ func (u siteUpdates) Start(ctx context.Context, asked server.UpdateStart) error 
 	return u.admin.start(ctx, asked)
 }
 
-// Overview returns what the admin shows: what the checks stored, this binary, its install and the next check.
+// Overview returns what the admin shows: what the checks stored, this binary, its server, install and the next check.
 func (u siteUpdates) Overview(ctx context.Context) (server.UpdatesOverview, error) {
 	result, resultErr := u.Result(ctx)
 	install, installErr := updater.ReadOverview(u.install)
 	next, nextErr := u.nextCheck(ctx)
-	if err := errors.Join(resultErr, installErr, nextErr); err != nil {
+	major, majorErr := u.major(ctx)
+	if err := errors.Join(resultErr, installErr, nextErr, majorErr); err != nil {
 		return server.UpdatesOverview{}, err
 	}
 	reason := updater.CannotUpdate(u.install, u.stamp)
 	running := version.Version()
 	return server.UpdatesOverview{
-		Result: withoutReachedOffer(result, running), Overview: withoutReachedFailure(install, running),
-		Running: running, CanUpdate: reason == "", CannotUpdate: reason, NextCheck: next,
+		Result:   withRunningPostgreSQL(withoutReachedOffer(result, running), major),
+		Overview: withoutReachedFailure(install, running),
+		Running:  running, RunningPostgreSQL: major, CanUpdate: reason == "", CannotUpdate: reason, NextCheck: next,
 	}, nil
+}
+
+// withRunningPostgreSQL returns result with its offer compared to major, the PostgreSQL server that runs now.
+func withRunningPostgreSQL(result update.Result, major int) update.Result {
+	if result.Offer == nil {
+		return result
+	}
+	offer := *result.Offer
+	offer.NeedsPostgreSQL = update.NeedsPostgreSQL(major, offer.PostgreSQL)
+	result.Offer = &offer
+	return result
 }
 
 // withoutReachedOffer returns result without its offer once running is that version or a newer one, as after an update.

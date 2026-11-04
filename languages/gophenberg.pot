@@ -2034,7 +2034,7 @@ msgstr ""
 msgid "You can update from Gophenberg %(running)s to <notes>Gophenberg %(version)s</notes> manually:"
 msgstr ""
 
-msgid "You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version %(postgresql)s or higher."
+msgid "You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version %(postgresql)s or higher. You are running version %(running)s."
 msgstr ""
 
 msgid "You have the latest version of Gophenberg."

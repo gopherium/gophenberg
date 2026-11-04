@@ -9,6 +9,7 @@ import { beforeAll, expect, onTestFinished, test } from 'vitest'
 import { catalogFor } from '../i18n/catalog'
 import { classesOf } from './classes'
 import { renderAt } from './render'
+import { siteSettings } from './siteSettings'
 import { declarations } from './stylesheet'
 import { patchFailed, patchOffer, patchWaiting, serveUpdates, upToDate } from './updatesOverview'
 
@@ -48,6 +49,19 @@ async function openUpdates(overview: object) {
  */
 function nextCheckIn(away: number) {
 	return { ...upToDate, next_check: new Date(Date.now() + away).toISOString() }
+}
+
+/**
+ * Returns the overview of a site whose PostgreSQL server is too old for the update on offer, which needs version 18.
+ * @param major - The PostgreSQL major the site runs on.
+ * @returns The overview.
+ */
+function blockedOn(major: number) {
+	return {
+		...patchWaiting,
+		running_postgresql: major,
+		offer: { ...patchOffer, version: '0.21.0', postgresql: 18, needs_postgresql: true },
+	}
 }
 
 test('keeps the Updates title and shows a spinner under it while the updates are on their way', async () => {
@@ -188,18 +202,82 @@ test('warns to back up before updating, linking the backup advice and the page o
 })
 
 test('refuses an update the PostgreSQL server is too old for and offers no button', async () => {
-	await openUpdates({
-		...patchWaiting,
-		offer: { ...patchOffer, version: '0.21.0', postgresql: 18, needs_postgresql: true },
-	})
+	await openUpdates(blockedOn(15))
 
 	const refused = await paragraph(
-		'You cannot update because Gophenberg 0.21.0 requires PostgreSQL version 18 or higher.',
+		'You cannot update because Gophenberg 0.21.0 requires PostgreSQL version 18 or higher. ' +
+			'You are running version 15.',
 	)
 
 	expect(within(refused).getByRole('link', { name: 'Gophenberg 0.21.0' })).toBeInTheDocument()
 	expect(screen.queryByRole('button', { name: /Update to version/ })).toBeNull()
 	expect(screen.queryByText(/keeps serving until/)).toBeNull()
+})
+
+test('names the PostgreSQL version that runs after refusing an update it is too old for', async () => {
+	await openUpdates(blockedOn(16))
+
+	expect(
+		await paragraph(
+			'You cannot update because Gophenberg 0.21.0 requires PostgreSQL version 18 or higher. ' +
+				'You are running version 16.',
+		),
+	).toBeInTheDocument()
+})
+
+test('writes both PostgreSQL versions in the site format', async () => {
+	server.use(
+		http.get('/api/settings', () => HttpResponse.json({ ...siteSettings, format_locale: 'es-ES-u-nu-deva' })),
+	)
+
+	await openUpdates(blockedOn(15))
+
+	expect(
+		await paragraph(
+			'You cannot update because Gophenberg 0.21.0 requires PostgreSQL version १८ or higher. ' +
+				'You are running version १५.',
+		),
+	).toBeInTheDocument()
+})
+
+test('hands a translator the sentence and the version that runs as one message', async () => {
+	setLocaleData(
+		{
+			[
+				'You cannot update because <notes>Gophenberg %(version)s</notes> requires PostgreSQL version ' +
+					'%(postgresql)s or higher. You are running version %(running)s.'
+			]: ['PostgreSQL %(running)s stops <notes>Gophenberg %(version)s</notes>, which needs %(postgresql)s.'],
+		},
+		'gophenberg',
+	)
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+
+	await openUpdates(blockedOn(15))
+
+	expect(await paragraph('PostgreSQL 15 stops Gophenberg 0.21.0, which needs 18.')).toBeInTheDocument()
+})
+
+test.each(['es-ES', 'fr-FR'])('names the running PostgreSQL version with no English left in %s', async (locale) => {
+	setLocaleData(await catalogFor(locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	serveUpdates(blockedOn(15))
+	renderAt('/update-core')
+
+	const refused = (await screen.findByRole('link', { name: 'Gophenberg 0.21.0' })).closest('p')
+
+	expect(refused).toHaveTextContent('15')
+	expect(refused).not.toHaveTextContent('You are running')
+})
+
+test.each([
+	['a PostgreSQL server new enough for it', { running_postgresql: 18, offer: { ...patchOffer, postgresql: 18 } }],
+	['a site on SQLite', {}],
+])('says nothing of the PostgreSQL server over an update it can take on %s', async (_condition, overview) => {
+	await openUpdates({ ...patchWaiting, ...overview })
+
+	await screen.findByRole('button', { name: 'Update to version 0.20.1' })
+
+	expect(screen.queryByText(/You cannot update/)).toBeNull()
 })
 
 test('says an update past the minimum version needs the backup above the sentence leading to the button', async () => {
