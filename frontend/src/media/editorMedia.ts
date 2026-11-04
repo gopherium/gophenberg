@@ -114,7 +114,7 @@ export function toAttachment(item: MediaItem): EditorAttachment {
  * @returns The error to report, empty for an acceptable file.
  */
 function errorOf(file: File, args: EditorMediaUploadArgs): string {
-	if (args.allowedTypes !== undefined && !typeAllowed(file.type, args.allowedTypes)) {
+	if (!typeAllowed(file.type, args.allowedTypes)) {
 		return sprintf(__('%(file)s is not a file this block accepts.', 'gophenberg'), { file: file.name })
 	}
 	if (args.maxUploadFileSize !== undefined && file.size > args.maxUploadFileSize) {
@@ -124,13 +124,25 @@ function errorOf(file: File, args: EditorMediaUploadArgs): string {
 }
 
 /**
+ * Returns the family a block type written with a star stands for, any other entry as it is.
+ * @param entry - A full type or a type family a block accepts.
+ * @returns The entry without its trailing star.
+ */
+export function typeFamily(entry: string): string {
+	return entry.endsWith('/*') ? entry.slice(0, -2) : entry
+}
+
+/**
  * Reports whether a content type satisfies one of the allowed entries.
- * @param mime - The content type of the file.
+ * @param mime - The content type of the file, empty when the browser has none.
  * @param allowed - Full types or type families a block accepts.
  * @returns Whether the file may land in the block.
  */
-function typeAllowed(mime: string, allowed: string[]): boolean {
-	return allowed.some((entry) =>
+export function typeAllowed(mime: string, allowed: string[] = ['*']): boolean {
+	if (mime === '' || allowed.includes('*')) {
+		return true
+	}
+	return allowed.map(typeFamily).some((entry) =>
 		entry.includes('/') ? entry === mime : mime.startsWith(`${entry}/`),
 	)
 }

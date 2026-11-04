@@ -9,6 +9,8 @@ import {
 	MAX_UPLOAD_BYTES,
 	editorMediaUpload,
 	toAttachment,
+	typeAllowed,
+	typeFamily,
 } from '../media/editorMedia'
 import type { EditorAttachment } from '../media/editorMedia'
 import { EDITOR_SETTINGS, editorSettings } from '../content/editorSetup'
@@ -160,6 +162,40 @@ test('accepts a file matching an exact allowed mime', async () => {
 	const { errors } = await uploadBatches({ allowedTypes: ['image/jpeg'] })
 
 	expect(errors).toEqual([])
+})
+
+test('sends a file with no known type to the server where a block names types', async () => {
+	server.use(http.post('/api/media', () => HttpResponse.json(HARBOR, { status: 201 })))
+
+	const { batches, errors } = await uploadBatches({
+		filesList: [new File(['x'], 'harbor.unknown')],
+		allowedTypes: ['image'],
+	})
+
+	expect(errors).toEqual([])
+	expect(batches[1][0].id).toBe(7)
+})
+
+test.each([
+	{ when: 'a family holds the type', mime: 'image/jpeg', allowed: ['image'], passes: true },
+	{ when: 'no family holds the type', mime: 'text/plain', allowed: ['image'], passes: false },
+	{ when: 'a full type matches', mime: 'image/jpeg', allowed: ['image/jpeg'], passes: true },
+	{ when: 'a full type differs', mime: 'image/png', allowed: ['image/jpeg'], passes: false },
+	{ when: 'the block takes any type', mime: 'text/plain', allowed: ['*'], passes: true },
+	{ when: 'the block names no types', mime: 'text/plain', allowed: undefined, passes: true },
+	{ when: 'the file has no known type', mime: '', allowed: ['image'], passes: true },
+	{ when: 'a family written with a star holds the type', mime: 'image/jpeg', allowed: ['image/*'], passes: true },
+	{ when: 'a family written with a star misses the type', mime: 'text/plain', allowed: ['image/*'], passes: false },
+])('answers $passes for a type when $when', ({ mime, allowed, passes }) => {
+	expect(typeAllowed(mime, allowed)).toBe(passes)
+})
+
+test.each([
+	{ entry: 'image/*', family: 'image' },
+	{ entry: 'image', family: 'image' },
+	{ entry: 'image/jpeg', family: 'image/jpeg' },
+])('reads the block type $entry as $family', ({ entry, family }) => {
+	expect(typeFamily(entry)).toBe(family)
 })
 
 test('refuses a file over the size cap before uploading', async () => {
