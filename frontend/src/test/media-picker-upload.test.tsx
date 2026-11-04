@@ -377,6 +377,25 @@ test('holds the toast of a run that ends while the dialog plays its exit until t
 	expect(await within(frame()).findByText('"harbor.jpg" uploaded.', TOAST)).toBeInTheDocument()
 })
 
+test.each([
+	{ how: 'takes one', props: {} },
+	{ how: 'takes many', props: { multiple: true } },
+])('leaves the ticks of a reopened picker of a block that $how alone when an older upload lands', async ({ props }) => {
+	const { held, sent } = heldUploads()
+	await openOnCards(props)
+
+	await choose(PHOTO)
+	await waitFor(() => expect(sent).toEqual([PHOTO.name]))
+	await closeFrame()
+	await userEvent.click(screen.getByRole('button', { name: 'Media Library' }))
+	await userEvent.click(await card(CLIFF))
+	held.release()
+
+	await within(frame()).findByText('"harbor.jpg" uploaded.', TOAST)
+	expect(await card(CLIFF)).toHaveAttribute('aria-selected', 'true')
+	expect(await card(HARBOR)).toHaveAttribute('aria-selected', 'false')
+})
+
 test('keeps Select working during a run, handing over what is ticked at that moment', async () => {
 	const { held } = heldUploads()
 	const chosen = await openOnCards()

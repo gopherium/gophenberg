@@ -180,6 +180,21 @@ function selectAction(
 }
 
 /**
+ * Returns what ticks the files of a batch starting now, unless the picker closed before they landed.
+ * @param state - The state of the picker.
+ * @param takesMany - Whether the block takes many files.
+ * @returns The handler told which files landed.
+ */
+function tickerFor(state: ReturnType<typeof usePickerState>, takesMany: boolean) {
+	const session = state.sessions.current
+	return (landed: string[]) => {
+		if (session === state.sessions.current) {
+			state.setSelection((held) => selectionAfter(held, landed, takesMany))
+		}
+	}
+}
+
+/**
  * Renders the Select Media dialog the block editor opens to choose stored media.
  * @param props - The library contract the block editor passes.
  * @returns The trigger with the dialog behind it.
@@ -201,10 +216,7 @@ export function MediaLibraryPicker({
 	const view = { ...state.held, perPage: offeredSize(state.held.perPage, sizes, settings?.picker_page_size) }
 	const takesMany = Boolean(multiple)
 	const media = usePickerPage(view, allowedTypes, state.isOpen)
-	const uploads = useUploadRun({
-		allowedTypes,
-		onLanded: (landed) => state.setSelection((held) => selectionAfter(held, landed, takesMany)),
-	})
+	const uploads = useUploadRun({ allowedTypes, onBatch: () => tickerFor(state, takesMany) })
 	return (
 		<>
 			{render({ open: state.open })}

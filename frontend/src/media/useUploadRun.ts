@@ -35,7 +35,7 @@ interface Run {
 /** What the picker tells the upload, and is told by it. */
 interface UploadRunOptions {
 	allowedTypes: string[] | undefined
-	onLanded: (ids: string[]) => void
+	onBatch: () => (ids: string[]) => void
 }
 
 /** The run before any file was given. */
@@ -162,10 +162,10 @@ function toastOf(run: Run): string | undefined {
 
 /**
  * Holds what the status of the picker lists and runs every upload started from the picker.
- * @param options - The types the block accepts, and the handler told which files to tick.
+ * @param options - The types the block accepts, and what hands each batch the handler told which files to tick.
  * @returns The rows, the handlers changing them and the toast waiting to be raised.
  */
-export function useUploadRun({ allowedTypes, onLanded }: UploadRunOptions) {
+export function useUploadRun({ allowedTypes, onBatch }: UploadRunOptions) {
 	const refresh = useRefreshMedia()
 	const [rows, setRows] = useState<UploadRow[]>([])
 	const [toast, setToast] = useState<UploadNotice | null>(null)
@@ -219,6 +219,7 @@ export function useUploadRun({ allowedTypes, onLanded }: UploadRunOptions) {
 	 * @param files - The files picked or dropped.
 	 */
 	async function upload(files: File[]) {
+		const onLanded = onBatch()
 		batches.current += 1
 		const batch = batches.current
 		const fresh = rowsFor(files, batch, allowedTypes)
