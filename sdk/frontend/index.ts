@@ -58,6 +58,7 @@ export {
 	InputControl,
 	Link,
 	Notice,
+	Popover,
 	SelectControl,
 	Skeleton,
 	Spinner,

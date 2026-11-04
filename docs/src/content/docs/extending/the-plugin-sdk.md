@@ -647,6 +647,13 @@ The SDK still passes on `AlertDialog` and `Dialog` from
 `@wordpress/ui`. They float as a card on a phone, where WordPress
 draws a sheet, so prefer the two dialogs above.
 
+`Popover` from `@gophenberg/frontend-sdk` is the one from
+`@wordpress/ui`. It anchors a small panel to a button, and it paints
+above a dialog. The `Popover` from `@gophenberg/frontend-sdk/editor`
+is a different one, from `@wordpress/components`. Reach for it inside
+the block editor, and for its `Popover.Slot`, which a dialog needs to
+show the controls a components overlay draws.
+
 A field the reader has to fill, or that the server may refuse, draws
 through `ValidatedInputControl` from `@gophenberg/frontend-sdk`, as
 the Email and Name of Add User do. Give it `required` and its label
