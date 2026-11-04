@@ -10,12 +10,14 @@ import { __ } from '@wordpress/i18n'
 import { useMemo, useRef, useState } from 'react'
 
 import { useListSettings } from '../settings/useListSettings'
+import { AdminToaster } from '../toasts'
 import './media.css'
 import { listMedia, listMediaByIDs, mediaQueryKey } from './api'
 import type { MediaItem } from './api'
 import { toAttachment, typeFamily } from './editorMedia'
 import { MEDIA_SORT, mediaFields, mediaListing } from './fields'
 import { PickerDialog } from './PickerDialog'
+import { useUploadRun } from './useUploadRun'
 
 const PREVIEW_SIZE = 170
 
@@ -46,6 +48,18 @@ export function allowedMimes(allowedTypes: string[] = []): string[] {
 }
 
 /**
+ * Returns what the file dialog offers for a block's allowed types.
+ * @param allowedTypes - The types the block accepts, undefined for any.
+ * @returns The types as an input's accept attribute takes them, undefined to offer every file.
+ */
+function acceptOf(allowedTypes: string[] = ['*']): string | undefined {
+	if (allowedTypes.includes('*')) {
+		return undefined
+	}
+	return allowedTypes.map(typeFamily).map((entry) => (entry.includes('/') ? entry : `${entry}/*`)).join(',')
+}
+
+/**
  * Returns the selection a block's current value stands for.
  * @param value - The ids the block holds, undefined for none.
  * @returns One selected id string per held item.
@@ -56,6 +70,20 @@ export function selectionFrom(value: number | number[] | undefined): string[] {
 	}
 	const held = Array.isArray(value) ? value : [value]
 	return held.filter((id) => typeof id === 'number').map(String)
+}
+
+/**
+ * Returns the selection once files landed.
+ * @param held - What is ticked.
+ * @param landed - The new files the block's types take, in the order picked.
+ * @param takesMany - Whether the block takes many files.
+ * @returns The new files joined without repeats, or the first in place of what was ticked, which stays if none landed.
+ */
+function selectionAfter(held: string[], landed: string[], takesMany: boolean): string[] {
+	if (landed.length === 0) {
+		return held
+	}
+	return takesMany ? [...new Set([...held, ...landed])] : landed.slice(0, 1)
 }
 
 /**
@@ -133,6 +161,39 @@ function usePickerPage(view: View, allowedTypes: string[] | undefined, isOpen: b
 }
 
 /**
+ * Returns the Select action, handing the block every ticked file, read again, unless a close outran the read.
+ * @param state - The state of the picker.
+ * @param sizes - The page sizes the settings name.
+ * @param props - Whether the block takes many files, and the handler taking what it chose.
+ * @returns The action.
+ */
+function selectAction(
+	state: ReturnType<typeof usePickerState>,
+	sizes: readonly number[] | undefined,
+	{ takesMany, onSelect }: { takesMany: boolean, onSelect: MediaLibraryProps['onSelect'] },
+) {
+	return {
+		id: 'select',
+		label: __('Select', 'gophenberg'),
+		isPrimary: true,
+		supportsBulk: takesMany,
+		callback: async () => {
+			const session = state.sessions.current
+			state.setChoiceNote('')
+			const chosen = await readChosen(state.selection, sizes)
+			if (session !== state.sessions.current) {
+				return
+			}
+			state.setChoiceNote(chosen.note)
+			if (chosen.note === '') {
+				onSelect(takesMany ? chosen.attachments : chosen.attachments[0])
+				state.close()
+			}
+		},
+	}
+}
+
+/**
  * Renders the Select Media dialog the block editor opens to choose stored media.
  * @param props - The library contract the block editor passes.
  * @returns The trigger with the dialog behind it.
@@ -154,51 +215,36 @@ export function MediaLibraryPicker({
 	const view = { ...state.held, perPage: offeredSize(state.held.perPage, sizes, settings?.picker_page_size) }
 	const takesMany = Boolean(multiple)
 	const media = usePickerPage(view, allowedTypes, state.isOpen)
-	/**
-	 * Hands the block every ticked file, read again, or says why it cannot, unless a close outran the read.
-	 */
-	async function choose() {
-		const session = state.sessions.current
-		state.setChoiceNote('')
-		const chosen = await readChosen(state.selection, sizes)
-		if (session !== state.sessions.current) {
-			return
-		}
-		state.setChoiceNote(chosen.note)
-		if (chosen.note === '') {
-			onSelect(takesMany ? chosen.attachments : chosen.attachments[0])
-			state.close()
-		}
-	}
-	const actions = [
-		{
-			id: 'select',
-			label: __('Select', 'gophenberg'),
-			isPrimary: true,
-			supportsBulk: takesMany,
-			callback: choose,
-		},
-	]
+	const uploads = useUploadRun({
+		allowedTypes,
+		onLanded: (landed) => state.setSelection((held) => selectionAfter(held, landed, takesMany)),
+	})
 	return (
 		<>
 			{render({ open: state.open })}
 			<Dialog.Root open={state.isOpen} onOpenChange={state.close}>
 				<Dialog.Popup ref={frame} initialFocus={frame} size="full" className="gophenberg-media-picker">
-					<SlotFillProvider>
-						<PickerDialog
-							title={title ?? __('Select Media', 'gophenberg')}
-							media={media}
-							view={view}
-							onChangeView={state.setHeld}
-							fields={fields}
-							actions={actions}
-							selection={state.selection}
-							onChangeSelection={state.setSelection}
-							sizes={sizes}
-							narrowed={viewNarrows(view) || allowedMimes(allowedTypes).length > 0}
-							choiceNote={state.choiceNote}
-						/>
-					</SlotFillProvider>
+					<AdminToaster>
+						<SlotFillProvider>
+							<PickerDialog
+								title={title ?? __('Select Media', 'gophenberg')}
+								accept={acceptOf(allowedTypes)}
+								media={media}
+								view={view}
+								onChangeView={state.setHeld}
+								fields={fields}
+								actions={[selectAction(state, sizes, { takesMany, onSelect })]}
+								selection={state.selection}
+								onChangeSelection={state.setSelection}
+								sizes={sizes}
+								narrowed={viewNarrows(view) || allowedMimes(allowedTypes).length > 0}
+								choiceNote={state.choiceNote}
+								uploads={uploads}
+								toast={state.isOpen ? uploads.toast : null}
+								frame={frame}
+							/>
+						</SlotFillProvider>
+					</AdminToaster>
 				</Dialog.Popup>
 			</Dialog.Root>
 		</>

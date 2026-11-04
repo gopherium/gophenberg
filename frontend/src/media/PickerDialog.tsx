@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Dialog, mediaIcon, Stack } from '@gophenberg/frontend-sdk'
+import { Dialog, DropZone, mediaIcon, Stack, uploadIcon, useToaster } from '@gophenberg/frontend-sdk'
 import { DataViewsPicker } from '@gophenberg/frontend-sdk/dataviews'
 import type { ActionButton, Field, SupportedLayouts, View } from '@gophenberg/frontend-sdk/dataviews'
 import { Popover } from '@gophenberg/frontend-sdk/editor'
-import { ErrorNotice, ListEmpty, ListNoResults, paginationOf } from '@gopherium/godmin'
+import { ErrorNotice, FileButton, ListEmpty, ListNoResults, paginationOf } from '@gopherium/godmin'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
-import type { ReactNode } from 'react'
+import { useEffect, useRef } from 'react'
+import type { ReactNode, RefObject } from 'react'
 
 import type { MediaItem, MediaPage } from './api'
+import { UploadStatus } from './UploadStatus'
+import type { UploadNotice, UploadRun } from './useUploadRun'
 
 /** The page the list draws before the first one arrives. */
 const EMPTY_PAGE: MediaPage = { items: [], total: 0, perPage: 0 }
@@ -17,9 +20,23 @@ const EMPTY_PAGE: MediaPage = { items: [], total: 0, perPage: 0 }
 /** The one layout the picker offers, which leaves no layout to switch to. */
 const LAYOUTS: SupportedLayouts = { pickerGrid: true }
 
-/** What the dialog draws, and what it tells the picker around it. */
-interface PickerDialogProps {
+/** What the head of the dialog draws, and what takes the files it is given. */
+interface PickerHeaderProps {
 	title: string
+	accept: string | undefined
+	upload: UploadRun['upload']
+}
+
+/** What a foot of the dialog draws the status from. */
+interface PickerFootProps {
+	uploads: UploadRun
+	frame: RefObject<HTMLDivElement | null>
+}
+
+/** What the dialog draws, and what it tells the picker around it. */
+interface PickerDialogProps extends PickerFootProps {
+	title: string
+	accept: string | undefined
 	media: UseQueryResult<MediaPage>
 	view: View
 	onChangeView: (view: View) => void
@@ -30,6 +47,7 @@ interface PickerDialogProps {
 	sizes: number[] | undefined
 	narrowed: boolean
 	choiceNote: string
+	toast: UploadNotice | null
 }
 
 /**
@@ -44,14 +62,29 @@ function searchLabel(): string {
 
 /**
  * Renders the head of the dialog.
- * @param props - The words of the title.
- * @returns The title and the close button.
+ * @param props - The words of the title, what the file dialog offers and what takes the files.
+ * @returns The title, then Upload media beside the close button.
  */
-function PickerHeader({ title }: { title: string }) {
+function PickerHeader({ title, accept, upload }: PickerHeaderProps) {
+	const label = __('Upload media', 'gophenberg')
 	return (
 		<Dialog.Header className="gophenberg-media-picker__header">
 			<Dialog.Title>{title}</Dialog.Title>
-			<Dialog.CloseIconButton />
+			<Stack direction="row" gap="sm" align="center">
+				<FileButton
+					variant="minimal"
+					tone="neutral"
+					size="default"
+					icon={uploadIcon}
+					accept={accept}
+					multiple
+					inputLabel={label}
+					onChoose={upload}
+				>
+					{label}
+				</FileButton>
+				<Dialog.CloseIconButton />
+			</Stack>
 		</Dialog.Header>
 	)
 }
@@ -82,13 +115,51 @@ function PickerEmpty({ narrowed }: { narrowed: boolean }) {
 }
 
 /**
- * Renders the foot of the list, sticking to the bottom of the dialog.
- * @returns The count, the paging and the Select button in their wrapper.
+ * Renders the status of the uploads while any row is listed.
+ * @param props - The uploads and the frame of the dialog.
+ * @returns The status, nothing with no row listed.
  */
-function PickerFooter() {
+function PickerStatus({ uploads, frame }: PickerFootProps) {
+	if (uploads.rows.length === 0) {
+		return null
+	}
 	return (
-		<div className="gophenberg-media-picker__footer">
+		<UploadStatus
+			rows={uploads.rows}
+			frame={frame}
+			onDismiss={uploads.dismiss}
+			onPanelChange={uploads.onPanelChange}
+		/>
+	)
+}
+
+/**
+ * Renders the foot of the list, sticking to the bottom of the dialog.
+ * @param props - The uploads and the frame of the dialog.
+ * @returns The status, the count, the paging and the Select button in their wrapper.
+ */
+function PickerFooter({ uploads, frame }: PickerFootProps) {
+	const footer = 'gophenberg-media-picker__footer'
+	return (
+		<div className={uploads.rows.length > 0 ? `${footer} is-uploading` : footer}>
+			<PickerStatus uploads={uploads} frame={frame} />
 			<DataViewsPicker.Footer />
+		</div>
+	)
+}
+
+/**
+ * Renders the foot under a list that could not be read, the one place then showing a file the check refused.
+ * @param props - The uploads and the frame of the dialog.
+ * @returns The status in its wrapper, nothing with no row listed.
+ */
+function PickerFailedFooter({ uploads, frame }: PickerFootProps) {
+	if (uploads.rows.length === 0) {
+		return null
+	}
+	return (
+		<div className="gophenberg-media-picker__footer is-alone">
+			<PickerStatus uploads={uploads} frame={frame} />
 		</div>
 	)
 }
@@ -128,7 +199,7 @@ function PickerList(props: PickerDialogProps) {
 			</Stack>
 			<DataViewsPicker.FiltersToggled className="dataviews-filters__container" />
 			<DataViewsPicker.Layout />
-			<PickerFooter />
+			<PickerFooter uploads={props.uploads} frame={props.frame} />
 		</DataViewsPicker>
 	)
 }
@@ -140,7 +211,12 @@ function PickerList(props: PickerDialogProps) {
  */
 function PickerBody(props: PickerDialogProps) {
 	if (props.media.isError) {
-		return <PickerNotice>{__('The media library could not be loaded.', 'gophenberg')}</PickerNotice>
+		return (
+			<>
+				<PickerNotice>{__('The media library could not be loaded.', 'gophenberg')}</PickerNotice>
+				<PickerFailedFooter uploads={props.uploads} frame={props.frame} />
+			</>
+		)
 	}
 	return (
 		<>
@@ -151,18 +227,39 @@ function PickerBody(props: PickerDialogProps) {
 }
 
 /**
+ * Raises a waiting toast through the nearest toaster, once for each notice.
+ * @param props - The notice waiting, null for none, and the handler told it was raised.
+ * @returns Nothing to draw.
+ */
+function UploadToast({ notice, onShown }: { notice: UploadNotice | null, onShown: () => void }) {
+	const toaster = useToaster()
+	const raised = useRef<UploadNotice | null>(null)
+	useEffect(() => {
+		if (notice === null || raised.current === notice) {
+			return
+		}
+		raised.current = notice
+		toaster.show(notice.words)
+		onShown()
+	}, [notice, onShown, toaster])
+	return null
+}
+
+/**
  * Renders what the Select Media dialog holds inside its frame.
  * @param props - What the dialog draws.
- * @returns The header, the body and the slot the components overlays draw in.
+ * @returns The drop zone, the header, the body, the slot the components overlays draw in and the toast raiser.
  */
 export function PickerDialog(props: PickerDialogProps) {
 	return (
 		<>
-			<PickerHeader title={props.title} />
+			<DropZone label={__('Drop files to upload', 'gophenberg')} onFilesDrop={props.uploads.upload} />
+			<PickerHeader title={props.title} accept={props.accept} upload={props.uploads.upload} />
 			<Dialog.Content className="gophenberg-media-picker__content">
 				<PickerBody {...props} />
 			</Dialog.Content>
 			<Popover.Slot />
+			<UploadToast notice={props.toast} onShown={props.uploads.toastShown} />
 		</>
 	)
 }

@@ -68,6 +68,18 @@ test.each(['Cancel', 'Layout'])('draws no %s button', async (name) => {
 	expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
 })
 
+test('offers Upload media before the close button in the header', async () => {
+	await openPicker()
+	await card(HARBOR)
+
+	const header = screen.getByRole('dialog').querySelector('.gophenberg-media-picker__header') as HTMLElement
+	const buttons = within(header).getAllByRole('button')
+
+	expect(buttons).toHaveLength(2)
+	expect(buttons[0]).toHaveAccessibleName('Upload media')
+	expect(buttons[1]).toHaveAccessibleName('Close')
+})
+
 test('names the list of cards', async () => {
 	await openPicker()
 
