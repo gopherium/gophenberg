@@ -2,7 +2,7 @@
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
@@ -208,11 +208,19 @@ async function searchHarbor() {
 async function leaveAsIs() {}
 
 /**
+ * Waits for the picker's dialog to leave.
+ * @returns A promise settling once it left.
+ */
+function dialogGone() {
+	return waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+}
+
+/**
  * Closes the picker by its close button and opens it again.
  */
 async function closeAndReopen() {
 	await userEvent.click(screen.getByRole('button', { name: 'Close' }))
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await dialogGone()
 	await userEvent.click(await screen.findByRole('button', { name: 'Media Library' }))
 }
 
@@ -390,6 +398,263 @@ test('hands several chosen items back as a list', async () => {
 
 	await waitFor(() => expect(chosen).toHaveLength(1))
 	expect(chosen[0]).toHaveLength(2)
+})
+
+const PIER = { ...CLIFF, id: 11, file: '2026/08/pier.jpg', title: 'Pier at dusk', alt_text: 'An empty pier' }
+
+/** The identity of a file the library no longer holds. */
+const GONE = 99
+
+/** A read of named files that found the first file. */
+const FOUND = () => HttpResponse.json({ items: [HARBOR], total: 1 })
+
+/** A read of named files that found none of them. */
+const NOTHING = () => HttpResponse.json({ items: [], total: 0 })
+
+/** A read of named files the server could not answer. */
+const FAILED = () => HttpResponse.json({}, { status: 500 })
+
+/**
+ * Serves the library one row a page, and the rows an ids query names in the order it asked for them.
+ * @returns The parameters of every listing and the ids of every read of named files so far.
+ */
+function onePerPage() {
+	const rows = [HARBOR, CLIFF, PIER]
+	const listed: URLSearchParams[] = []
+	const named: string[] = []
+	server.use(
+		http.get('/api/media', ({ request }) => {
+			const query = new URL(request.url).searchParams
+			const ids = query.get('ids')
+			if (ids === null) {
+				listed.push(query)
+				const page = Number(query.get('page') ?? 1)
+				return HttpResponse.json({ items: [rows[page - 1]], total: rows.length, per_page: 1 })
+			}
+			named.push(ids)
+			const found = ids.split(',').flatMap((id) => rows.filter((row) => String(row.id) === id))
+			return HttpResponse.json({ items: found, total: found.length })
+		}),
+	)
+	return { listed, named }
+}
+
+/**
+ * Serves the library's first page, and answers every read of named files as the given function does.
+ * @param answer - Gives the answer to a read of named files.
+ */
+function namedReadsAnswering(answer: () => Response | Promise<Response>) {
+	server.use(
+		http.get('/api/media', ({ request }) => {
+			if (new URL(request.url).searchParams.has('ids')) {
+				return answer()
+			}
+			return HttpResponse.json({ items: [HARBOR, CLIFF], total: 2, per_page: siteSettings.picker_page_size })
+		}),
+	)
+}
+
+/**
+ * Holds every read of named files until the gate opens, then answers it as the given function does.
+ * @param answer - Gives the answer once the gate opened.
+ * @returns The gate.
+ */
+function heldReads(answer: () => Response) {
+	const read = gate()
+	namedReadsAnswering(async () => {
+		await read.held
+		return answer()
+	})
+	return read
+}
+
+/**
+ * Presses the Select button of the open picker, once a read before this press let it go.
+ */
+async function pressSelect() {
+	const select = screen.getByRole('button', { name: /^Select$/ })
+	await waitFor(() => expect(select).not.toHaveAttribute('aria-disabled', 'true'))
+	await userEvent.click(select)
+}
+
+/**
+ * Ticks the card of a row and presses Select.
+ * @param fixture - The row to tick.
+ */
+async function tickAndSelect(fixture: { title: string }) {
+	await userEvent.click(await card(fixture))
+	await pressSelect()
+}
+
+/**
+ * Closes the picker by Escape.
+ */
+async function escapePicker() {
+	await userEvent.keyboard('{Escape}')
+	await dialogGone()
+}
+
+/**
+ * Opens the gate holding a read and gives its answer the time to reach the picker.
+ * @param read - The gate holding the read.
+ * @returns A promise settling once the time has passed.
+ */
+function released(read: ReturnType<typeof gate>) {
+	read.release()
+	return act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+}
+
+test('hands a block that takes many each file ticked, on any page, in the order ticked, read once', async () => {
+	const { named } = onePerPage()
+	const onClose = vi.fn()
+	const chosen = await openPicker({ multiple: true, onClose })
+	await card(HARBOR)
+	await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
+	await userEvent.click(await card(CLIFF))
+	await userEvent.click(screen.getByRole('button', { name: 'Previous page' }))
+
+	await tickAndSelect(HARBOR)
+
+	await dialogGone()
+	expect(chosen).toHaveLength(1)
+	expect(chosen[0]).toMatchObject([{ id: CLIFF.id }, { id: HARBOR.id }])
+	expect(named).toEqual([`${CLIFF.id},${HARBOR.id}`])
+	expect(onClose).toHaveBeenCalledOnce()
+})
+
+test.each([
+	{ how: 'the file it holds off the page on show', props: { value: CLIFF.id }, handed: { id: CLIFF.id } },
+	{
+		how: 'what the library still holds of its files',
+		props: { multiple: true, value: [CLIFF.id, GONE] },
+		handed: [{ id: CLIFF.id }],
+	},
+])('hands a block $how', async ({ props, handed }) => {
+	onePerPage()
+	const chosen = await openPicker(props)
+	await card(HARBOR)
+
+	await pressSelect()
+
+	await waitFor(() => expect(chosen).toHaveLength(1))
+	expect(chosen[0]).toMatchObject(handed)
+})
+
+test('reads the ticked files in calls of the largest size the settings serve', async () => {
+	server.use(
+		http.get('/api/settings', () =>
+			HttpResponse.json({ ...siteSettings, list_page_sizes: [1, 2], picker_page_size: 2 }),
+		),
+	)
+	const { listed, named } = onePerPage()
+	const chosen = await openPicker({ multiple: true, value: [HARBOR.id, CLIFF.id, PIER.id] })
+	await waitFor(() => expect(listed.at(-1)?.get('per_page')).toBe('2'))
+
+	await pressSelect()
+
+	await waitFor(() => expect(chosen).toHaveLength(1))
+	expect(named).toEqual([`${HARBOR.id},${CLIFF.id}`, String(PIER.id)])
+	expect(chosen[0]).toMatchObject([{ id: HARBOR.id }, { id: CLIFF.id }, { id: PIER.id }])
+})
+
+test.each([
+	{ how: 'fails', answer: FAILED, words: 'The media library could not be loaded.' },
+	{ how: 'finds nothing', answer: NOTHING, words: 'The selected media is no longer in the library.' },
+])('says why and keeps its ticks when the read $how, then works on a second press', async ({ answer, words }) => {
+	namedReadsAnswering(answer)
+	const chosen = await openPicker()
+
+	await tickAndSelect(CLIFF)
+
+	expect(await screen.findByRole('alert')).toHaveTextContent(words)
+	expect(chosen).toEqual([])
+	expect(await card(CLIFF)).toHaveAttribute('aria-selected', 'true')
+	listing()
+	await pressSelect()
+	await waitFor(() => expect(chosen).toHaveLength(1))
+	expect(chosen[0]).toMatchObject({ id: CLIFF.id })
+})
+
+test('lets a one file block holding a file the library lost tick another in its place', async () => {
+	onePerPage()
+	const chosen = await openPicker({ value: GONE })
+	await card(HARBOR)
+	await pressSelect()
+	await screen.findByRole('alert')
+	expect(chosen).toEqual([])
+
+	await tickAndSelect(HARBOR)
+
+	await waitFor(() => expect(chosen).toHaveLength(1))
+	expect(chosen[0]).toMatchObject({ id: HARBOR.id })
+})
+
+test('takes the words of a failed read away while a new press reads again', async () => {
+	namedReadsAnswering(FAILED)
+	await openPicker()
+	await tickAndSelect(CLIFF)
+	await screen.findByRole('alert')
+	const read = heldReads(FOUND)
+
+	await pressSelect()
+
+	await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+	await released(read)
+})
+
+test('forgets the words of a failed read on a close', async () => {
+	namedReadsAnswering(FAILED)
+	await openPicker()
+	await tickAndSelect(CLIFF)
+	await screen.findByRole('alert')
+
+	await closeAndReopen()
+	await card(HARBOR)
+
+	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+test('fills no block and tells of the close once when Escape outruns the read of the ticked files', async () => {
+	const read = heldReads(FOUND)
+	const onClose = vi.fn()
+	const chosen = await openPicker({ onClose })
+	await tickAndSelect(HARBOR)
+	await escapePicker()
+
+	await released(read)
+
+	expect(chosen).toEqual([])
+	expect(onClose).toHaveBeenCalledOnce()
+})
+
+test('shows no alert on the next open when the read of the ticked files fails after Escape', async () => {
+	const read = heldReads(FAILED)
+	await openPicker()
+	await tickAndSelect(HARBOR)
+	await escapePicker()
+	await released(read)
+
+	await userEvent.click(screen.getByRole('button', { name: 'Media Library' }))
+	await card(HARBOR)
+
+	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+test.each([
+	{ how: 'finds the file', answer: FOUND },
+	{ how: 'fails', answer: FAILED },
+])('stays open and silent when a read from before a close and a reopen $how', async ({ answer }) => {
+	const read = heldReads(answer)
+	const chosen = await openPicker()
+	await tickAndSelect(HARBOR)
+	await closeAndReopen()
+	await card(HARBOR)
+
+	await released(read)
+
+	expect(screen.getByRole('dialog')).toBeInTheDocument()
+	expect(chosen).toEqual([])
+	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
 test('reports a library it could not read', async () => {

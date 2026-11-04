@@ -11,7 +11,7 @@ import { useMemo, useRef, useState } from 'react'
 
 import { useListSettings } from '../settings/useListSettings'
 import './media.css'
-import { listMedia, mediaQueryKey } from './api'
+import { listMedia, listMediaByIDs, mediaQueryKey } from './api'
 import type { MediaItem } from './api'
 import { toAttachment, typeFamily } from './editorMedia'
 import { MEDIA_SORT, mediaFields, mediaListing } from './fields'
@@ -67,7 +67,23 @@ function pickerFields(): Field<MediaItem>[] {
 }
 
 /**
- * Holds whether the picker is open, the view it shows and what is ticked in it.
+ * Reads the ticked files, whatever page of the library they sit on.
+ * @param ids - The ticked ids, in the order they were ticked.
+ * @param sizes - The page sizes the settings name, the largest being one call's worth.
+ * @returns The attachments, and the words saying why there is nothing to hand over, empty when there is.
+ */
+async function readChosen(ids: string[], sizes: readonly number[] | undefined) {
+	try {
+		const items = await listMediaByIDs(ids.map(Number), sizes)
+		const note = items.length > 0 ? '' : __('The selected media is no longer in the library.', 'gophenberg')
+		return { attachments: items.map(toAttachment), note }
+	} catch {
+		return { attachments: [], note: __('The media library could not be loaded.', 'gophenberg') }
+	}
+}
+
+/**
+ * Holds whether the picker is open, the view it shows, what is ticked in it and what stopped its last Select.
  * @param value - The ids the block holds, ticked on each open.
  * @param onClose - Told when the picker closes.
  * @returns The state and the handlers opening and closing the picker.
@@ -76,6 +92,8 @@ function usePickerState(value: MediaLibraryProps['value'], onClose: MediaLibrary
 	const [isOpen, setIsOpen] = useState(false)
 	const [held, setHeld] = useState<View>(INITIAL_VIEW)
 	const [selection, setSelection] = useState<string[]>([])
+	const [choiceNote, setChoiceNote] = useState('')
+	const sessions = useRef(0)
 	/**
 	 * Opens the picker on what the block holds, at the first page with no search.
 	 */
@@ -85,14 +103,16 @@ function usePickerState(value: MediaLibraryProps['value'], onClose: MediaLibrary
 		setIsOpen(true)
 	}
 	/**
-	 * Closes the picker, forgetting what was ticked in it.
+	 * Closes the picker, forgetting what was ticked in it and any read still owed to it.
 	 */
 	function close() {
+		sessions.current += 1
+		setChoiceNote('')
 		setIsOpen(false)
 		setSelection([])
 		onClose?.()
 	}
-	return { isOpen, held, setHeld, selection, setSelection, open, close }
+	return { isOpen, held, setHeld, selection, setSelection, choiceNote, setChoiceNote, sessions, open, close }
 }
 
 /**
@@ -135,13 +155,20 @@ export function MediaLibraryPicker({
 	const takesMany = Boolean(multiple)
 	const media = usePickerPage(view, allowedTypes, state.isOpen)
 	/**
-	 * Hands the block what the picker chose and closes the dialog.
-	 * @param chosen - The items the picker acted on.
+	 * Hands the block every ticked file, read again, or says why it cannot, unless a close outran the read.
 	 */
-	function choose(chosen: MediaItem[]) {
-		const attachments = chosen.map(toAttachment)
-		onSelect(takesMany ? attachments : attachments[0])
-		state.close()
+	async function choose() {
+		const session = state.sessions.current
+		state.setChoiceNote('')
+		const chosen = await readChosen(state.selection, sizes)
+		if (session !== state.sessions.current) {
+			return
+		}
+		state.setChoiceNote(chosen.note)
+		if (chosen.note === '') {
+			onSelect(takesMany ? chosen.attachments : chosen.attachments[0])
+			state.close()
+		}
 	}
 	const actions = [
 		{
@@ -169,6 +196,7 @@ export function MediaLibraryPicker({
 							onChangeSelection={state.setSelection}
 							sizes={sizes}
 							narrowed={viewNarrows(view) || allowedMimes(allowedTypes).length > 0}
+							choiceNote={state.choiceNote}
 						/>
 					</SlotFillProvider>
 				</Dialog.Popup>

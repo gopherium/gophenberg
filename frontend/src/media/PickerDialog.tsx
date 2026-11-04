@@ -29,6 +29,7 @@ interface PickerDialogProps {
 	onChangeSelection: (selection: string[]) => void
 	sizes: number[] | undefined
 	narrowed: boolean
+	choiceNote: string
 }
 
 /**
@@ -133,7 +134,7 @@ function PickerList(props: PickerDialogProps) {
 }
 
 /**
- * Renders the list, or the failure of its read.
+ * Renders the list with what stopped the last Select above it, or the failure of the list's read.
  * @param props - What the dialog draws.
  * @returns The body of the dialog.
  */
@@ -141,7 +142,12 @@ function PickerBody(props: PickerDialogProps) {
 	if (props.media.isError) {
 		return <PickerNotice>{__('The media library could not be loaded.', 'gophenberg')}</PickerNotice>
 	}
-	return <PickerList {...props} />
+	return (
+		<>
+			{props.choiceNote !== '' && <PickerNotice>{props.choiceNote}</PickerNotice>}
+			<PickerList {...props} />
+		</>
+	)
 }
 
 /**

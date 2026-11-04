@@ -53,6 +53,14 @@ const ONE_CATEGORY = {
 
 const MANY_CATEGORIES = { ...ONE_CATEGORY, key: 'categories', label: 'Categories', many: true }
 
+/**
+ * Presses Select in the open picker and waits for its dialog to leave.
+ */
+async function pressSelect() {
+	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+}
+
 beforeAll(async () => {
 	await import('../content/EditorScreen')
 }, 120000)
@@ -248,7 +256,7 @@ test('holds the media a media field was pointed at', async () => {
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Choose Cover' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'Shore' }))
-	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+	await pressSelect()
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
 	await waitFor(() => expect(sent).toHaveLength(1))
@@ -457,7 +465,7 @@ test('adds every file picked at once to the gallery a field holds', async () => 
 	const picker = await screen.findByRole('dialog', { name: 'Select Media' })
 	await userEvent.click(await within(picker).findByRole('option', { name: 'Harbor' }))
 	await userEvent.click(within(picker).getByRole('option', { name: 'Shore' }))
-	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+	await pressSelect()
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
 	await waitFor(() => expect(sent).toHaveLength(1))
@@ -471,7 +479,7 @@ test('never adds the item the gallery already holds', async () => {
 	await userEvent.click(await screen.findByRole('button', { name: 'Add to Gallery' }))
 	const picker = await screen.findByRole('dialog', { name: 'Select Media' })
 	await userEvent.click(await within(picker).findByRole('option', { name: 'Shore' }))
-	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+	await pressSelect()
 
 	const listed = screen.getByRole('list', { name: 'Gallery' })
 	expect(within(listed).getAllByRole('listitem')).toHaveLength(1)
