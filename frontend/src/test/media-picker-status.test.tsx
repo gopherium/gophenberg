@@ -104,9 +104,11 @@ async function refusedPick() {
 }
 
 /**
- * Closes the panel by Escape.
+ * Closes the panel by Escape once it holds the focus.
  */
 async function escapePanel() {
+	const panel = await screen.findByRole('dialog', ERRORS)
+	await waitFor(() => expect(panel).toContainElement(document.activeElement as HTMLElement))
 	await userEvent.keyboard('{Escape}')
 	await waitFor(() => expect(screen.queryByRole('dialog', ERRORS)).not.toBeInTheDocument())
 }
