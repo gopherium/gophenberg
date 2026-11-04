@@ -361,9 +361,6 @@ msgstr "mars"
 msgid "May"
 msgstr "mai"
 
-msgid "Media Library"
-msgstr "Médiathèque"
-
 #, fuzzy
 msgid "Medium"
 msgstr "Moyenne"
@@ -395,10 +392,6 @@ msgstr "Aucun fichier n'est arrivé avec ce téléversement. Choisissez un fichi
 #, fuzzy
 msgid "No media chosen"
 msgstr "Aucun média choisi"
-
-#, fuzzy
-msgid "No media has been uploaded yet."
-msgstr "Aucun média n'a encore été téléversé."
 
 #, fuzzy
 msgid "No page lives at this address."
@@ -566,10 +559,6 @@ msgstr "Rechercher un audio"
 #, fuzzy
 msgid "Search images"
 msgstr "Rechercher des images"
-
-#, fuzzy
-msgid "Search media"
-msgstr "Rechercher des médias"
 
 #, fuzzy
 msgid "Search videos"
@@ -2188,6 +2177,19 @@ msgid "%(file)s: %(reason)s"
 msgstr "%(file)s : %(reason)s"
 
 #, fuzzy
+msgid "%s upload error"
+msgid_plural "%s upload errors"
+msgstr[0] "%s erreur de téléversement"
+msgstr[1] "%s d’erreurs de téléversement"
+msgstr[2] "%s erreurs de téléversement"
+
+msgid "%s: Sorry, this file type is not supported here."
+msgstr "%s : désolé, ce type de fichier n’est pas pris en charge ici."
+
+msgid "%s: This file is empty."
+msgstr "%s : ce fichier est vide."
+
+#, fuzzy
 msgid "Drop files to upload"
 msgstr "Déposez vos fichiers pour les téléverser"
 
@@ -2207,9 +2209,28 @@ msgstr "Gérez les pages de ce site."
 msgid "Manage the posts on this site."
 msgstr "Gérez les articles de ce site."
 
+msgid "Media items"
+msgstr "Éléments média"
+
+msgid "Select Media"
+msgstr "Sélectionner un média"
+
+#, fuzzy
+msgid "The selected media is no longer in the library."
+msgstr "Les médias sélectionnés ne sont plus dans la bibliothèque."
+
 #, fuzzy
 msgid "There is nothing at this address. Check the link and try again."
 msgstr "Il n'y a rien à cette adresse. Vérifiez le lien et réessayez."
+
+msgid "Upload complete"
+msgstr "Téléversement terminé"
+
+msgid "Upload errors"
+msgstr "Erreurs de téléversement"
+
+msgid "Upload media"
+msgstr "Téléverser un média"
 
 #, fuzzy
 msgid "Upload theme"
@@ -2221,6 +2242,16 @@ msgid_plural "Uploaded %s files."
 msgstr[0] "%s fichier téléversé."
 msgstr[1] "%s fichiers téléversés."
 msgstr[2] "%s fichiers téléversés."
+
+msgid "Uploading"
+msgstr "Téléversement"
+
+#, fuzzy
+msgid "Uploading %s file"
+msgid_plural "Uploading %s files"
+msgstr[0] "Téléversement de %s fichier"
+msgstr[1] "Téléversement de %s de fichiers"
+msgstr[2] "Téléversement de %s fichiers"
 
 #, fuzzy
 msgid "Close Settings"

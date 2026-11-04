@@ -291,6 +291,17 @@ msgid_plural "%s updates available"
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "%s upload error"
+msgid_plural "%s upload errors"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s: Sorry, this file type is not supported here."
+msgstr ""
+
+msgid "%s: This file is empty."
+msgstr ""
+
 msgid "(no title)"
 msgstr ""
 
@@ -1074,10 +1085,10 @@ msgstr ""
 msgid "Media %(id)s"
 msgstr ""
 
-msgid "Media Library"
+msgid "Media file updated."
 msgstr ""
 
-msgid "Media file updated."
+msgid "Media items"
 msgstr ""
 
 msgid "Medium"
@@ -1173,9 +1184,6 @@ msgid "No items yet"
 msgstr ""
 
 msgid "No media chosen"
-msgstr ""
-
-msgid "No media has been uploaded yet."
 msgstr ""
 
 msgid "No media items yet"
@@ -1451,13 +1459,13 @@ msgstr ""
 msgid "Search images"
 msgstr ""
 
-msgid "Search media"
-msgstr ""
-
 msgid "Search videos"
 msgstr ""
 
 msgid "Select"
+msgstr ""
+
+msgid "Select Media"
 msgstr ""
 
 msgid "September"
@@ -1694,6 +1702,9 @@ msgid "The rules on %(field)s lead back to %(field)s itself, so nothing can deci
 msgstr ""
 
 msgid "The same item was picked twice for %(field)s. Pick each item once."
+msgstr ""
+
+msgid "The selected media is no longer in the library."
 msgstr ""
 
 msgid "The server could not be reached, so nothing was changed."
@@ -1981,11 +1992,28 @@ msgstr ""
 msgid "Updates"
 msgstr ""
 
+msgid "Upload complete"
+msgstr ""
+
+msgid "Upload errors"
+msgstr ""
+
+msgid "Upload media"
+msgstr ""
+
 msgid "Upload theme"
 msgstr ""
 
 msgid "Uploaded %s file."
 msgid_plural "Uploaded %s files."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Uploading"
+msgstr ""
+
+msgid "Uploading %s file"
+msgid_plural "Uploading %s files"
 msgstr[0] ""
 msgstr[1] ""
 
