@@ -30,9 +30,6 @@ const mediaUploadField = "file"
 // mediaPrefix is the URL prefix uploads are served under.
 const mediaPrefix = "/media"
 
-// maxMediaIDsPerCall is the most identities one request for named files may carry.
-const maxMediaIDsPerCall = 100
-
 // MediaLibrary validates uploads and owns the media directory.
 type MediaLibrary interface {
 	// Cap returns the most bytes one upload may carry.
@@ -258,13 +255,13 @@ func mediaID(r *http.Request) (int64, error) {
 	return strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 }
 
-// mediaIDs reads the ids query parameter into the identities it names, at most maxMediaIDsPerCall of them.
-func mediaIDs(query url.Values) ([]int64, error) {
+// mediaIDs reads the ids query parameter into the identities it names, at most limit of them.
+func mediaIDs(query url.Values, limit int) ([]int64, error) {
 	if len(query) != 1 || len(query["ids"]) != 1 {
 		return nil, fmt.Errorf("server: ids stands alone among the list parameters, once")
 	}
 	raw := strings.Split(query.Get("ids"), ",")
-	if len(raw) > maxMediaIDsPerCall {
+	if len(raw) > limit {
 		return nil, fmt.Errorf("server: %d ids asked for, more than one request may name", len(raw))
 	}
 	ids := make([]int64, 0, len(raw))
@@ -334,7 +331,7 @@ func (s *server) listedMedia(ctx context.Context, rows []media.Listed) ([]mediaR
 
 // respondMediaByIDs answers the stored files the query names, in the order it names them.
 func (s *server) respondMediaByIDs(w http.ResponseWriter, r *http.Request) {
-	ids, err := mediaIDs(r.URL.Query())
+	ids, err := mediaIDs(r.URL.Query(), s.lists.PageCap)
 	if err != nil {
 		respondInvalidList(w)
 		return

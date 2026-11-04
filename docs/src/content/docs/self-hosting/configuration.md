@@ -57,7 +57,7 @@ so it takes the default.
 | `GOPHENBERG_AVATAR_RATING` | No | `G` | The most mature Gravatar picture an avatar may show: `G`, `PG`, `R` or `X` |
 | `GOPHENBERG_LIST_PAGE_SIZES` | No | `10,20,50,100` | The page sizes an admin list offers in its Items per page menu, from 2 to 6 of them, see [the admin lists](#the-admin-lists) |
 | `GOPHENBERG_LIST_PAGE_SIZE` | No | `20` | The page size an admin list opens at, one of the sizes above |
-| `GOPHENBERG_LIST_PAGE_CAP` | No | `100` | The most items one admin list page carries. A request for more gets this many |
+| `GOPHENBERG_LIST_PAGE_CAP` | No | `100` | The most items one admin list page carries. A request for more gets this many, and a read of named files may name no more than this many in one request |
 | `GOPHENBERG_PICKER_PAGE_SIZE` | No | `50` | The page size the media picker opens at, one of the sizes above. Unset and with no `50` among them, the size a list opens at |
 | `GOPHENBERG_TOAST_DURATION` | No | `6s` | How long a confirmation message with no button stays on screen, in whole milliseconds from `1ms` to `2147483647ms` |
 | `GOPHENBERG_TOAST_ACTION_DURATION` | No | `10s` | How long a confirmation message with a button stays on screen, in whole milliseconds from `1ms` to `2147483647ms` |
@@ -502,7 +502,8 @@ change them. They shape every list the same way:
   the sizes leave out 50.
 - **The page cap.** No list page carries more than
   `GOPHENBERG_LIST_PAGE_CAP` items, whatever a request asks for. The
-  largest page size has to fit under it.
+  largest page size has to fit under it. The admin splits a longer
+  read of named files by the largest page size.
 - **The confirmation messages.** `GOPHENBERG_TOAST_DURATION` sets how
   long a message with no button stays on screen.
   `GOPHENBERG_TOAST_ACTION_DURATION` sets how long a message with a

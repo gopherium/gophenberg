@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1047,6 +1048,54 @@ func TestListingMediaByIdentityRefusesWhatItCannotRead(t *testing.T) {
 				Code string `json:"code"`
 			}](t, recorder).Code; code != "list_parameters_invalid" {
 				t.Errorf("code = %q, want list_parameters_invalid", code)
+			}
+		})
+	}
+}
+
+// identitiesUpTo returns the query naming the files from identity one up to count.
+func identitiesUpTo(count int) string {
+	named := make([]string, count)
+	for i := range count {
+		named[i] = strconv.Itoa(i + 1)
+	}
+	return "ids=" + strings.Join(named, ",")
+}
+
+func TestListingMediaByIdentityFollowsThePageCap(t *testing.T) {
+	t.Parallel()
+
+	for name, asked := range map[string]struct {
+		pageCap  int
+		named    int
+		status   int
+		answered int
+		code     string
+	}{
+		"exactly the cap":              {40, 40, http.StatusOK, 40, ""},
+		"one past the cap":             {40, 41, http.StatusBadRequest, 0, "list_parameters_invalid"},
+		"under a cap past the default": {200, 150, http.StatusOK, 150, ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			store := newFakeMediaStore()
+			heldMediaItems(t, store, asked.named)
+			handler := pagedMediaServer(t, mediahost.New(mediahost.Config{Dir: t.TempDir()}), store,
+				server.ListSettings{PageCap: asked.pageCap})
+
+			recorder := doRequest(t, handler, http.MethodGet, "/api/media?"+identitiesUpTo(asked.named), "")
+
+			if recorder.Code != asked.status {
+				t.Fatalf("status = %d, want %d: %s", recorder.Code, asked.status, recorder.Body.String())
+			}
+			body := decodeBody[struct {
+				Items []mediaBody `json:"items"`
+				Code  string      `json:"code"`
+			}](t, recorder)
+			if len(body.Items) != asked.answered || body.Code != asked.code {
+				t.Errorf("answered %d files with code %q, want %d with code %q",
+					len(body.Items), body.Code, asked.answered, asked.code)
 			}
 		})
 	}
