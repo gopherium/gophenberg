@@ -7,7 +7,7 @@ import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test } from 'vitest'
 
 import { catalogFor } from '../i18n/catalog'
-import { renderAt } from './render'
+import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
 import { siteSettings } from './siteSettings'
 
@@ -247,7 +247,7 @@ test('holds the media a media field was pointed at', async () => {
 	renderAt(EDITOR_PATH)
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Choose Cover' }))
-	await userEvent.click(await screen.findByText('Shore'))
+	await userEvent.click(await screen.findByRole('option', { name: 'Shore' }))
 	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
@@ -454,9 +454,9 @@ test('adds every file picked at once to the gallery a field holds', async () => 
 	renderAt(EDITOR_PATH)
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add to Gallery' }))
-	const picker = await screen.findByRole('dialog', { name: 'Media Library' })
-	await userEvent.click(await within(picker).findByText('Harbor'))
-	await userEvent.click(within(picker).getByText('Shore'))
+	const picker = await screen.findByRole('dialog', { name: 'Select Media' })
+	await userEvent.click(await within(picker).findByRole('option', { name: 'Harbor' }))
+	await userEvent.click(within(picker).getByRole('option', { name: 'Shore' }))
 	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
@@ -469,12 +469,38 @@ test('never adds the item the gallery already holds', async () => {
 	renderAt(EDITOR_PATH)
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add to Gallery' }))
-	const picker = await screen.findByRole('dialog', { name: 'Media Library' })
-	await userEvent.click(await within(picker).findByText('Shore'))
+	const picker = await screen.findByRole('dialog', { name: 'Select Media' })
+	await userEvent.click(await within(picker).findByRole('option', { name: 'Shore' }))
 	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
 
 	const listed = screen.getByRole('list', { name: 'Gallery' })
 	expect(within(listed).getAllByRole('listitem')).toHaveLength(1)
+})
+
+test('leaves the address alone while a reader searches, pages and sorts the picker', async () => {
+	const asked: URLSearchParams[] = []
+	galleryOf([])
+	server.use(
+		http.get('/api/media', ({ request }) => {
+			asked.push(new URL(request.url).searchParams)
+			return HttpResponse.json({ items: LIBRARY, total: 120, per_page: siteSettings.picker_page_size })
+		}),
+	)
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	await userEvent.click(await screen.findByRole('button', { name: 'Add to Gallery' }))
+	const picker = await screen.findByRole('dialog', { name: 'Select Media' })
+	await within(picker).findByRole('option', { name: 'Harbor' })
+	const address = router.state.location.href
+
+	await userEvent.type(within(picker).getByRole('searchbox', { name: 'Search media…' }), 'harbor')
+	await waitFor(() => expect(asked.at(-1)?.get('search')).toBe('harbor'))
+	await userEvent.click(within(picker).getByRole('button', { name: 'Next page' }))
+	await waitFor(() => expect(asked.at(-1)?.get('page')).toBe('2'))
+	await userEvent.click(within(picker).getByRole('button', { name: 'View options' }))
+	await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Sort by' }), 'title')
+	await waitFor(() => expect(asked.at(-1)?.get('orderby')).toBe('title'))
+
+	expect(router.state.location.href).toBe(address)
 })
 
 test('moves a file up the gallery', async () => {
