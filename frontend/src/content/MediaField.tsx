@@ -8,6 +8,7 @@ import { listMediaByIDs, mediaSrc } from '../media/api'
 import type { MediaItem } from '../media/api'
 import { bestSubSizeFile } from '../media/format'
 import { MediaLibraryPicker } from '../media/MediaLibraryPicker'
+import { useListSettings } from '../settings/useListSettings'
 import { FieldLabel } from './FieldLabel'
 import type { ContentField } from './types'
 
@@ -129,9 +130,10 @@ export function GalleryField(props: {
 	value: number[]
 	onChange: (value: number[] | null) => void
 }) {
+	const sizes = useListSettings().data?.list_page_sizes
 	const held = useQuery({
 		queryKey: ['media', 'held', props.value.join(',')],
-		queryFn: () => listMediaByIDs(props.value),
+		queryFn: () => listMediaByIDs(props.value, sizes),
 	})
 	const byID = new Map((held.data ?? []).map((item) => [item.id, item]))
 	/**

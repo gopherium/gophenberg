@@ -5,9 +5,6 @@ import { z } from 'zod'
 
 import { errorText } from '../i18n/errors'
 
-/** How many identities one request for named files may carry, as the server caps them. */
-const MEDIA_IDS_PER_CALL = 100
-
 const subSizeSchema = z.object({
 	file: z.string(),
 	width: z.number(),
@@ -259,12 +256,14 @@ export async function listMedia(query: MediaQuery): Promise<MediaPage> {
 /**
  * Returns the stored files the identities name, in that order, leaving out any the library no longer holds.
  * @param ids - The identities a field holds.
+ * @param sizes - The page sizes the settings name, the largest being one call's worth, none to ask in one call.
  * @returns The files, none when no identity was named.
  */
-export async function listMediaByIDs(ids: number[]): Promise<MediaItem[]> {
+export async function listMediaByIDs(ids: number[], sizes?: readonly number[]): Promise<MediaItem[]> {
+	const perCall = sizes === undefined ? ids.length : Math.max(...sizes)
 	const held: MediaItem[] = []
-	for (let from = 0; from < ids.length; from += MEDIA_IDS_PER_CALL) {
-		held.push(...(await namedMedia(ids.slice(from, from + MEDIA_IDS_PER_CALL))))
+	for (let from = 0; from < ids.length; from += perCall) {
+		held.push(...(await namedMedia(ids.slice(from, from + perCall))))
 	}
 	return held
 }

@@ -438,6 +438,17 @@ test('shows each file a gallery holds by its picture and name, read in one call'
 	expect(asked.filter((query) => query.includes('ids='))).toEqual(['ids=12%2C15'])
 })
 
+test('reads a gallery of more files than the largest served size in calls of that size', async () => {
+	server.use(http.get('/api/settings', () => HttpResponse.json({ ...siteSettings, list_page_sizes: [1, 2] })))
+	const { asked } = galleryOf([12, 15, 9, 20])
+	renderAt(EDITOR_PATH)
+
+	const listed = await screen.findByRole('list', { name: 'Gallery' })
+
+	expect(await within(listed).findByText('Pier')).toBeInTheDocument()
+	expect(asked.filter((query) => query.includes('ids='))).toEqual(['ids=12%2C15', 'ids=9%2C20'])
+})
+
 test('adds every file picked at once to the gallery a field holds', async () => {
 	const { sent } = galleryOf([])
 	renderAt(EDITOR_PATH)
