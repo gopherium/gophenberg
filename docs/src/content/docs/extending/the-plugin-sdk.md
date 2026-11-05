@@ -654,6 +654,12 @@ is a different one, from `@wordpress/components`. Reach for it inside
 the block editor, and for its `Popover.Slot`, which a dialog needs to
 show the controls a components overlay draws.
 
+A block that fails at something, such as an upload the server
+refused, leaves a message for the block editor and draws nothing
+itself. `useBlockNotices` from `@gophenberg/frontend-sdk/editor`
+hands you each message, so a screen holding the block editor can show
+it, in a toast for example.
+
 A field the reader has to fill, or that the server may refuse, draws
 through `ValidatedInputControl` from `@gophenberg/frontend-sdk`, as
 the Email and Name of Add User do. Give it `required` and its label
