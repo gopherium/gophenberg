@@ -119,13 +119,17 @@ test('hands on a message a block leaves, once even under strict mode, and takes 
 	expect(held()).toBe(0)
 })
 
-test('hands on a message left before the reader mounted', async () => {
+test('hands on a message left before the reader mounted, once even under strict mode', async () => {
 	const show = vi.fn<Show>()
 	await leave('A message left earlier')
 
-	render(<Reader show={show} />)
+	render(
+		<StrictMode>
+			<Reader show={show} />
+		</StrictMode>,
+	)
 
-	expect(show).toHaveBeenCalledWith('A message left earlier', undefined)
+	expect(show.mock.calls).toEqual([['A message left earlier', undefined]])
 	expect(held()).toBe(0)
 })
 
