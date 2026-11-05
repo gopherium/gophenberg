@@ -11,6 +11,8 @@ const NOTICES_STORE = 'core/notices'
 interface OfferedAction {
 	label: string
 	onClick?: () => void
+	url?: string
+	openInNewTab?: boolean
 }
 
 /** One message a block left. */
@@ -46,13 +48,37 @@ function noticesFrom(read: typeof select): BlockNotice[] {
 }
 
 /**
+ * Opens the link an action offers, in a new tab when it asks for one.
+ * @param offered - The action.
+ */
+function follow({ url, openInNewTab }: OfferedAction) {
+	if (url === undefined) {
+		return
+	}
+	if (openInNewTab === true) {
+		window.open(url, '_blank', 'noopener,noreferrer')
+		return
+	}
+	window.location.assign(url)
+}
+
+/**
  * Returns the action a message offers.
  * @param notice - The message.
- * @returns The first action, undefined when it offers none or only a link away.
+ * @returns The first action, undefined when it offers none.
  */
 function actionOf(notice: BlockNotice): BlockNoticeAction | undefined {
 	const [offered] = notice.actions
-	return offered?.onClick === undefined ? undefined : { label: offered.label, onAct: offered.onClick }
+	if (offered === undefined) {
+		return undefined
+	}
+	return {
+		label: offered.label,
+		onAct: () => {
+			offered.onClick?.()
+			follow(offered)
+		},
+	}
 }
 
 /**

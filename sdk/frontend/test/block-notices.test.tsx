@@ -142,13 +142,28 @@ test('hands on the action a message offers', async () => {
 	expect(undo).toHaveBeenCalledOnce()
 })
 
-test('offers no action for a message whose action only links away', async () => {
+test('takes the reader in the same tab where an action that only links away points', async () => {
+	const show = vi.fn<Show>()
+	onTestFinished(() => history.replaceState(null, '', location.pathname))
+	render(<Reader show={show} />)
+
+	await leave('Read more.', [{ label: 'Open', url: '#notes' }])
+
+	const action = show.mock.calls[0][1]
+	expect(action?.label).toBe('Open')
+	action?.onAct()
+	expect(location.hash).toBe('#notes')
+})
+
+test('opens in a new tab the link of an action that asks for one', async () => {
+	const opened = vi.spyOn(window, 'open').mockImplementation(() => null)
 	const show = vi.fn<Show>()
 	render(<Reader show={show} />)
 
-	await leave('Read more.', [{ label: 'Open', url: 'https://example.com/' }])
+	await leave('Read more.', [{ label: 'Open', url: 'https://example.com/', openInNewTab: true }])
 
-	expect(show).toHaveBeenCalledWith('Read more.', undefined)
+	show.mock.calls[0][1]?.onAct()
+	expect(opened).toHaveBeenCalledWith('https://example.com/', '_blank', 'noopener,noreferrer')
 })
 
 test('follows the messages of the registry it is drawn under, leaving the default one alone', async () => {
