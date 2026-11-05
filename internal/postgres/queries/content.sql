@@ -22,7 +22,7 @@ WHERE p.id = @id;
 SELECT p.id, p.type, p.status, p.slug, p.title, p.content, p.excerpt,
     p.author_id, p.published_at, p.created_at, p.updated_at, p.parent_id, p.path, p.fields
 FROM core.content p
-WHERE p.path = @path AND p.status = 'published';
+WHERE p.path ~>=~ @path AND p.path ~<=~ @path AND p.status = 'published';
 
 -- name: ListContent :many
 SELECT p.id, p.type, p.status, p.slug, p.title, p.excerpt,
