@@ -766,6 +766,36 @@ test('says in a toast why the server refused a file an Image block sent, the blo
 	await expect(canvas(page).getByRole('button', { name: 'Media Library' })).toBeVisible()
 })
 
+test('closes only the filter panel on Escape in the Author search box, past ten authors, the tick kept', async ({
+	page,
+}) => {
+	const title = `${LIBRARY}-escaped`
+	await stored(page, title)
+	await page.route('**/api/authors*', async (route) => {
+		const answer = await route.fetch()
+		const body = (await answer.json()) as { items: unknown[] }
+		const samples = Array.from({ length: 12 }, (_, at) => ({
+			id: `00000000-0000-4000-8000-0000000000${String(at + 10)}`,
+			name: `Sample Author ${String(at)}`,
+		}))
+		await route.fulfill({ response: answer, json: { ...body, items: [...body.items, ...samples] } })
+	})
+	const library = await openPicker(page)
+	await library.getByRole('option', { name: title }).click()
+	await library.getByRole('button', { name: 'Add filter' }).click()
+	await page.getByRole('menuitem', { name: 'Author' }).click()
+	const search = library.getByRole('combobox', { name: 'Search items' })
+	await search.click()
+	await page.keyboard.type('Sample')
+
+	await page.keyboard.press('Escape')
+
+	await expect(search).toHaveCount(0)
+	await expect(library).toBeVisible()
+	await expect(library.getByRole('option', { name: title, selected: true })).toBeVisible()
+	await expect(library.locator('.dataviews-filters__summary-chip')).toBeFocused()
+})
+
 test('uploads from the picker, ticks the new card, raises a toast that takes a press and places the picture', async ({
 	page,
 }) => {

@@ -347,6 +347,27 @@ test('offers Author, Date added and Date modified as filters, and no Type, as th
 	expect(offered.map((item) => item.textContent)).toEqual(['Author', 'Date added', 'Date modified'])
 })
 
+test('closes only the filter panel on Escape in the Author search box, the dialog and its tick kept', async () => {
+	const many = Array.from({ length: 12 }, (_, at) => ({
+		id: `author-${String(at)}`,
+		name: `Sample Author ${String(at)}`,
+	}))
+	server.use(http.get('/api/authors', () => HttpResponse.json({ items: many })))
+	await openPicker()
+	await userEvent.click(await card(HARBOR))
+	await userEvent.click(screen.getByRole('button', { name: 'Add filter' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Author' }))
+	const search = await screen.findByRole('combobox', { name: 'Search items' })
+	await userEvent.click(search)
+	await userEvent.keyboard('Sample')
+
+	await userEvent.keyboard('{Escape}')
+
+	await waitFor(() => expect(search).not.toBeInTheDocument())
+	expect(screen.getByRole('dialog', { name: 'Select Media' })).toBeInTheDocument()
+	expect(await card(HARBOR)).toHaveAttribute('aria-selected', 'true')
+})
+
 test('sorts by Title, Date added, Date modified and Author alone', async () => {
 	await openPicker()
 	await card(HARBOR)

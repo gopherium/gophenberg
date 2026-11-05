@@ -8,6 +8,7 @@ import { offeredSize, viewNarrows } from '@gopherium/godmin'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { __ } from '@wordpress/i18n'
 import { useMemo, useRef, useState } from 'react'
+import type { ComponentProps } from 'react'
 
 import { useListSettings } from '../settings/useListSettings'
 import { AdminToaster } from '../toasts'
@@ -19,6 +20,9 @@ import { mediaFields, mediaListing } from './fields'
 import { PickerDialog } from './PickerDialog'
 import { usePickerView } from './pickerView'
 import { useUploadRun } from './useUploadRun'
+
+/** Why the dialog was asked to close. */
+type CloseDetails = Parameters<NonNullable<ComponentProps<typeof Dialog.Root>['onOpenChange']>>[1]
 
 /**
  * Returns the content type prefixes a block's allowed types narrow the library to.
@@ -180,6 +184,15 @@ function selectAction(
 }
 
 /**
+ * Reports whether a close was asked by Escape from inside a panel the list opened, which closes that panel alone.
+ * @param details - Why the dialog was asked to close.
+ * @returns Whether it was.
+ */
+function escapeInPanel(details: CloseDetails): boolean {
+	return details.reason === 'escape-key' && (details.event.target as Element).closest('.components-popover') !== null
+}
+
+/**
  * Returns what ticks the files of a batch starting now, unless the picker closed before they landed.
  * @param state - The state of the picker.
  * @param takesMany - Whether the block takes many files.
@@ -220,7 +233,14 @@ export function MediaLibraryPicker({
 	return (
 		<>
 			{render({ open: state.open })}
-			<Dialog.Root open={state.isOpen} onOpenChange={state.close}>
+			<Dialog.Root
+				open={state.isOpen}
+				onOpenChange={(_open, details) => {
+					if (!escapeInPanel(details)) {
+						state.close()
+					}
+				}}
+			>
 				<Dialog.Popup ref={frame} initialFocus={frame} size="full" className="gophenberg-media-picker">
 					<AdminToaster>
 						<SlotFillProvider>
