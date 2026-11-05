@@ -69,7 +69,7 @@ async function uploadBatches(
 	await editorMediaUpload({
 		filesList: [photo()],
 		onFileChange: (attachments) => batches.push(attachments),
-		onError: (error) => errors.push(error.message),
+		onError: (message) => errors.push(message),
 		...args,
 	})
 	return { batches, errors }
@@ -120,7 +120,7 @@ test('drops a refused upload and carries its reason', async () => {
 
 	const { batches, errors } = await uploadBatches({})
 
-	expect(errors).toEqual(['the image cannot be read'])
+	expect(errors).toEqual(['harbor.jpg: the image cannot be read'])
 	expect(batches[0]).toEqual([{ url: 'blob:test-1' }])
 	expect(batches[1]).toEqual([])
 	expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-1')
@@ -132,7 +132,7 @@ test('reports an upload that never reached the server', async () => {
 
 	const { batches, errors } = await uploadBatches({})
 
-	expect(errors).toEqual(['The server could not be reached, so nothing was uploaded.'])
+	expect(errors).toEqual(['harbor.jpg: The server could not be reached, so nothing was uploaded.'])
 	expect(batches[1]).toEqual([])
 })
 

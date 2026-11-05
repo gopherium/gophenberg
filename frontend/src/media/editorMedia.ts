@@ -5,6 +5,7 @@ import { __, sprintf } from '@wordpress/i18n'
 import { mediaSrc, uploadMedia } from './api'
 import type { MediaItem } from './api'
 import { displayFile } from './format'
+import { fileReason } from './uploadWords'
 
 // MAX_UPLOAD_BYTES mirrors the cap the server enforces on one upload.
 export const MAX_UPLOAD_BYTES = 128 * 1024 * 1024
@@ -77,7 +78,7 @@ export interface EditorMediaUploadArgs {
 	maxUploadFileSize?: number
 	multiple?: boolean
 	onFileChange?: (attachments: EditorAttachment[]) => void
-	onError?: (error: Error) => void
+	onError?: (message: string) => void
 }
 
 /**
@@ -171,9 +172,9 @@ async function storedAttachment(
 		if (typeAllowed(item.mimeType, args.allowedTypes)) {
 			return toAttachment(item)
 		}
-		args.onError?.(new Error(notTakenWords(file)))
+		args.onError?.(notTakenWords(file))
 	} catch (failure) {
-		args.onError?.(failure as Error)
+		args.onError?.(fileReason(file.name, (failure as Error).message))
 	}
 	return null
 }
@@ -194,7 +195,7 @@ function report(slots: (EditorAttachment | null)[], args: EditorMediaUploadArgs)
 export async function editorMediaUpload(args: EditorMediaUploadArgs): Promise<void> {
 	const files = Array.from(args.filesList)
 	if (args.multiple === false && files.length > 1) {
-		args.onError?.(new Error(__('Only one file may be placed here.', 'gophenberg')))
+		args.onError?.(__('Only one file may be placed here.', 'gophenberg'))
 		return
 	}
 	const accepted: File[] = []
@@ -203,7 +204,7 @@ export async function editorMediaUpload(args: EditorMediaUploadArgs): Promise<vo
 		if (message === '') {
 			accepted.push(file)
 		} else {
-			args.onError?.(new Error(message))
+			args.onError?.(message)
 		}
 	}
 	const slots: (EditorAttachment | null)[] = accepted.map((file) => ({
