@@ -762,7 +762,9 @@ test('says in a toast why the server refused a file an Image block sent, the blo
 	await canvas(page).getByRole('button', { name: 'Upload' }).click()
 	await (await chooser).setFiles(path)
 
-	await expect(page.locator('.godmin-toast', { hasText: `${name}: ` })).toBeVisible()
+	const reason =
+		'Gophenberg does not accept zzz files. Upload a picture, a video, an audio file, a PDF or a zip instead.'
+	await expect(page.locator('.godmin-toast', { hasText: `${name}: ${reason}` })).toBeVisible()
 	await expect(canvas(page).getByRole('button', { name: 'Media Library' })).toBeVisible()
 })
 
