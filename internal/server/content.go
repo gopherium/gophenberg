@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -378,13 +379,25 @@ func (s *server) handlePublishedList() http.HandlerFunc {
 			})
 			return
 		}
-		page, err := s.publishedPageOf(r, filter)
+		page, err := s.registeredPageOf(r, filter)
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
 		authkit.Respond(w, http.StatusOK, page)
 	}
+}
+
+// registeredPageOf returns the page the filter asks for, an empty one for a type the registry does not hold.
+func (s *server) registeredPageOf(r *http.Request, filter content.Filter) (publishedPage, error) {
+	_, err := s.types.ByKey(r.Context(), filter.Type)
+	if errors.Is(err, content.ErrTypeNotFound) {
+		return publishedPage{Items: []publishedSummary{}, Page: filter.Page, PerPage: filter.PerPage}, nil
+	}
+	if err != nil {
+		return publishedPage{}, err
+	}
+	return s.publishedPageOf(r, filter)
 }
 
 // narrowByFields reads the field terms the query names into the filter, once its type is settled.
