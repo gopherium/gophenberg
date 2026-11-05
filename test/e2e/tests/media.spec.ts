@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { writeFileSync } from 'node:fs'
+
 import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 
@@ -745,6 +747,23 @@ test('never scrolls the picker sideways when a crowded footer pushes Select past
 
 	const content = library.locator('.gophenberg-media-picker__content')
 	expect(await content.evaluate((element) => element.scrollLeft)).toBe(0)
+})
+
+test('says in a toast why the server refused a file an Image block sent, the block left empty', async ({
+	page,
+}, testInfo) => {
+	const name = `unknown-e2e-${RUN}.zzz`
+	const path = testInfo.outputPath(name)
+	writeFileSync(path, 'Notes on the harbor.')
+	await newPost(page)
+	await addImageBlock(page)
+
+	const chooser = page.waitForEvent('filechooser')
+	await canvas(page).getByRole('button', { name: 'Upload' }).click()
+	await (await chooser).setFiles(path)
+
+	await expect(page.locator('.godmin-toast', { hasText: `${name}: ` })).toBeVisible()
+	await expect(canvas(page).getByRole('button', { name: 'Media Library' })).toBeVisible()
 })
 
 test('uploads from the picker, ticks the new card, raises a toast that takes a press and places the picture', async ({

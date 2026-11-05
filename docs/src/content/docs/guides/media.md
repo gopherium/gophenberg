@@ -176,7 +176,8 @@ sent wins.
 
 In the editor, any media block offers two ways to fill itself.
 **Upload** takes a file from your computer and adds it to the
-library on the way in. **Media Library** opens the **Select Media**
+library on the way in, and if the file is refused, a message says
+why. **Media Library** opens the **Select Media**
 dialog, which lists the files from the Media screen that the block
 can use, as cards.
 

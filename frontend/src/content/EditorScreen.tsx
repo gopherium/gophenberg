@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { LoadingScreen } from '@gopherium/godmin'
+import { LoadingScreen, useToaster } from '@gopherium/godmin'
 import { InputControl, Notice, sessionMayChange } from '@gophenberg/frontend-sdk'
 import {
 	BlockBreadcrumb,
@@ -16,6 +16,7 @@ import {
 	registerCuratedBlocks,
 	registerMediaCategories,
 	registerMediaLibrary,
+	useBlockNotices,
 } from '@gophenberg/frontend-sdk/editor'
 import { useSession } from '@gopherium/react-auth'
 import { __ } from '@wordpress/i18n'
@@ -89,6 +90,8 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 	const views = useEditorViews(width.narrow)
 	const settingsRef = useRef<HTMLButtonElement>(null)
 	const settings = useMemo(() => editorSettings(width.narrow), [width.narrow])
+	const toaster = useToaster()
+	useBlockNotices(toaster.show)
 	useAutosave(postId, buffer)
 	const closeSettings = () => {
 		const toggle = settingsRef.current as HTMLButtonElement
