@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { dispatch, select } from '@wordpress/data'
+import { RegistryProvider, createReduxStore, createRegistry, dispatch, select } from '@wordpress/data'
 import { act, render } from '@testing-library/react'
 import { StrictMode } from 'react'
-import { beforeAll, expect, test, vi } from 'vitest'
+import { beforeAll, expect, onTestFinished, test, vi } from 'vitest'
 
 import { registerCuratedBlocks, useBlockNotices } from '../editor'
 
@@ -16,6 +16,60 @@ type Show = Parameters<typeof useBlockNotices>[0]
 /** What the store of messages takes from a block. */
 interface NoticesWriter {
 	createErrorNotice: (words: string, options: Record<string, unknown>) => Promise<unknown>
+}
+
+/** What empties the store of messages of one kind. */
+interface AllRemover {
+	removeAllNotices: (kind: string) => Promise<unknown>
+}
+
+/** One message held by a registry apart from the default one. */
+interface Left {
+	id: string
+	content: string
+	actions: unknown[]
+}
+
+/** What a store of messages apart from the default one is told. */
+interface Change {
+	type: string
+	notice?: Left
+	id?: string
+}
+
+/**
+ * Returns the messages a registry apart from the default one holds after a change.
+ * @param left - The messages before it.
+ * @param change - A message left or one taken off.
+ * @returns The messages after it.
+ */
+function keep(left: Left[] = [], change: Change): Left[] {
+	if (change.notice !== undefined) {
+		return [...left, change.notice]
+	}
+	return left.filter((notice) => notice.id !== change.id)
+}
+
+/** A store of messages under the name blocks leave them in, for a registry apart from the default one. */
+const APART = createReduxStore(NOTICES, {
+	reducer: keep,
+	actions: {
+		leave: (notice: Left) => ({ type: 'leave', notice }),
+		removeNotice: (id: string) => ({ type: 'remove', id }),
+	},
+	selectors: {
+		getNotices: (left: Left[]) => left,
+	},
+})
+
+/**
+ * Returns a registry apart from the default one, holding a store of messages of its own.
+ * @returns The registry.
+ */
+function apartRegistry() {
+	const registry = createRegistry()
+	registry.register(APART)
+	return registry
 }
 
 beforeAll(() => {
@@ -95,4 +149,26 @@ test('offers no action for a message whose action only links away', async () => 
 	await leave('Read more.', [{ label: 'Open', url: 'https://example.com/' }])
 
 	expect(show).toHaveBeenCalledWith('Read more.', undefined)
+})
+
+test('follows the messages of the registry it is drawn under, leaving the default one alone', async () => {
+	const show = vi.fn<Show>()
+	const registry = apartRegistry()
+	onTestFinished(() => {
+		void (dispatch(NOTICES) as unknown as AllRemover).removeAllNotices('snackbar')
+	})
+	render(
+		<RegistryProvider value={registry}>
+			<Reader show={show} />
+		</RegistryProvider>,
+	)
+
+	await act(async () => {
+		await registry.dispatch(APART).leave({ id: 'apart', content: 'Left apart.', actions: [] })
+	})
+	await leave('Left in the default registry.')
+
+	expect(show.mock.calls).toEqual([['Left apart.', undefined]])
+	expect(registry.select(APART).getNotices()).toEqual([])
+	expect(held()).toBe(1)
 })

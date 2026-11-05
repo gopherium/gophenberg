@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { dispatch, select, useSelect } from '@wordpress/data'
+import { useRegistry, useSelect } from '@wordpress/data'
+import type { select } from '@wordpress/data'
 import { useEffect } from 'react'
 
 /** The store blocks leave their messages in. */
@@ -55,15 +56,16 @@ function actionOf(notice: BlockNotice): BlockNoticeAction | undefined {
 }
 
 /**
- * Hands each message the blocks leave to what draws it, taking it off the store.
+ * Hands each message the blocks leave to what draws it, taking it off the store of the registry it is drawn under.
  * @param show - Takes the words of a message and what it offers.
  */
 export function useBlockNotices(show: (words: string, action?: BlockNoticeAction) => void) {
+	const registry = useRegistry()
 	const left = useSelect((read) => noticesFrom(read as typeof select), [])
 	useEffect(() => {
-		for (const notice of noticesFrom(select)) {
+		for (const notice of noticesFrom(registry.select as typeof select)) {
 			show(notice.content, actionOf(notice))
-			void (dispatch(NOTICES_STORE) as unknown as NoticesWriter).removeNotice(notice.id)
+			void (registry.dispatch(NOTICES_STORE) as unknown as NoticesWriter).removeNotice(notice.id)
 		}
-	}, [left, show])
+	}, [left, registry, show])
 }
