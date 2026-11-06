@@ -5,15 +5,20 @@ import type { APIRequestContext } from '@playwright/test'
 
 const created: string[] = []
 
+const READ_WORDS = 'Words the reading view draws in the column of the editor.'
+
+const READ_CONTENT = `<!-- wp:paragraph -->\n<p>${READ_WORDS}</p>\n<!-- /wp:paragraph -->`
+
 /**
  * Creates an item of a type and moves it to the trash.
  * @param request - The signed in API client.
  * @param type - The content type of the item.
  * @param title - The title of the item.
+ * @param content - The serialized blocks of the item.
  * @returns The id of the item.
  */
-async function trashed(request: APIRequestContext, type: string, title: string): Promise<string> {
-	const answer = await request.post('/api/content', { data: { type, title } })
+async function trashed(request: APIRequestContext, type: string, title: string, content = ''): Promise<string> {
+	const answer = await request.post('/api/content', { data: { type, title, content } })
 	expect(answer.status()).toBe(201)
 	const { id } = (await answer.json()) as { id: string }
 	created.push(id)
@@ -46,4 +51,17 @@ test('empties only the trash of the type on screen', async ({ page }) => {
 	const left = await page.request.get(`/api/content/${post}`)
 	expect(left.status()).toBe(200)
 	expect(((await left.json()) as { status: string }).status).toBe('trash')
+})
+
+test('reads a trashed post at full size in the column and the font of the editor', async ({ page }) => {
+	const id = await trashed(page.request, 'post', 'A post the reading view spec trashed', READ_CONTENT)
+	await page.goto(`/admin/content/post/${id}/edit`)
+
+	const preview = page.locator('.block-editor-block-preview__content iframe')
+	const words = page.frameLocator('.block-editor-block-preview__content iframe').getByText(READ_WORDS)
+
+	await expect(words).toBeVisible()
+	await expect(preview).toHaveCSS('width', '700px')
+	await expect(words).toHaveCSS('font-size', '16px')
+	await expect(words).toHaveCSS('font-family', /^system-ui/)
 })
