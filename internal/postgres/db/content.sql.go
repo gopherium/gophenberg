@@ -161,38 +161,6 @@ func (q *Queries) CountContentByAuthor(ctx context.Context, type_ string) ([]Cou
 	return items, nil
 }
 
-const countContentByStatus = `-- name: CountContentByStatus :many
-SELECT p.status, count(*) AS total
-FROM core.content p
-WHERE p.type = $1
-GROUP BY p.status
-`
-
-type CountContentByStatusRow struct {
-	Status string
-	Total  int64
-}
-
-func (q *Queries) CountContentByStatus(ctx context.Context, type_ string) ([]CountContentByStatusRow, error) {
-	rows, err := q.db.Query(ctx, countContentByStatus, type_)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []CountContentByStatusRow
-	for rows.Next() {
-		var i CountContentByStatusRow
-		if err := rows.Scan(&i.Status, &i.Total); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const countPointingAt = `-- name: CountPointingAt :one
 SELECT count(DISTINCT r.from_id)
 FROM core.content_relations r
