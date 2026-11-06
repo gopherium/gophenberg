@@ -5,6 +5,10 @@ import type { APIRequestContext } from '@playwright/test'
 
 const created: string[] = []
 
+const PHONE = { width: 390, height: 844 }
+
+const UNSCALED = 'matrix(1, 0, 0, 1, 0, 0)'
+
 const READ_WORDS = 'Words the reading view draws in the column of the editor.'
 
 const READ_CONTENT = `<!-- wp:paragraph -->\n<p>${READ_WORDS}</p>\n<!-- /wp:paragraph -->`
@@ -64,4 +68,18 @@ test('reads a trashed post at full size in the column and the font of the editor
 	await expect(preview).toHaveCSS('width', '700px')
 	await expect(words).toHaveCSS('font-size', '16px')
 	await expect(words).toHaveCSS('font-family', /^system-ui/)
+})
+
+test('reads a trashed post unscaled on a phone without a sideways scroll', async ({ page }) => {
+	await page.setViewportSize(PHONE)
+	const id = await trashed(page.request, 'post', 'A post the phone reading view spec trashed', READ_CONTENT)
+	await page.goto(`/admin/content/post/${id}/edit`)
+
+	const preview = page.locator('.block-editor-block-preview__content')
+	const words = page.frameLocator('.block-editor-block-preview__content iframe').getByText(READ_WORDS)
+
+	await expect(words).toBeVisible()
+	await expect(preview).toHaveCSS('transform', UNSCALED)
+	expect(Math.ceil((await preview.boundingBox())?.width ?? PHONE.width + 1)).toBeLessThanOrEqual(PHONE.width)
+	expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
 })
