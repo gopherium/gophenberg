@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { writeFileSync } from 'node:fs'
+
 import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 
@@ -15,6 +17,17 @@ const PHONE = { width: 390, height: 844 }
 const LAPTOP = { width: 1280, height: 900 }
 
 const DESKTOP = { width: 1920, height: 1080 }
+
+/** How far the media library picker sits from each edge of a window of each size. */
+const PICKER_INSETS = [
+	{ size: DESKTOP, inset: 40 },
+	{ size: LAPTOP, inset: 40 },
+	{ size: { width: 700, height: 900 }, inset: 16 },
+	{ size: PHONE, inset: 0 },
+]
+
+/** The box an element takes on screen. */
+type Box = { x: number, y: number, width: number, height: number }
 
 // PHOTO_BASE64 is an eight by eight JPEG painted for this suite.
 const PHOTO_BASE64 =
@@ -37,6 +50,12 @@ const PHOTO_BASE64 =
 function photo(name: string) {
 	return { name, mimeType: 'image/jpeg', buffer: Buffer.from(PHOTO_BASE64, 'base64') }
 }
+
+/** A text file, which no image block takes. */
+const NOTES = { name: `notes-e2e-${RUN}.txt`, mimeType: 'text/plain', buffer: Buffer.from('Notes on the harbor.') }
+
+/** An Image block that holds no picture yet, as the editor stores it. */
+const EMPTY_IMAGE_BLOCK = '<!-- wp:image -->\n<figure class="wp-block-image"><img alt=""/></figure>\n<!-- /wp:image -->'
 
 /**
  * Returns the canvas the block editor writes into.
@@ -99,13 +118,80 @@ async function addImageBlock(page: Page) {
 /**
  * Opens a new post, adds an image block and opens the media library picker from it.
  * @param page - The page to drive.
+ * @param size - The window the block opens the picker in, the test's own when absent.
  * @returns The picker dialog.
  */
-async function openPicker(page: Page): Promise<Locator> {
+async function openPicker(page: Page, size?: { width: number, height: number }): Promise<Locator> {
 	await newPost(page)
 	await addImageBlock(page)
+	if (size !== undefined) {
+		await page.setViewportSize(size)
+	}
 	await canvas(page).getByRole('button', { name: 'Media Library' }).click()
-	return page.getByRole('dialog', { name: 'Media Library' })
+	return page.getByRole('dialog', { name: 'Select Media' })
+}
+
+/**
+ * Picks a file through the Upload media button of the picker.
+ * @param library - The picker dialog.
+ * @param file - The file to pick, or the files of one pick.
+ */
+async function chooseFile(library: Locator, file: ReturnType<typeof photo> | ReturnType<typeof photo>[]) {
+	const chooser = library.page().waitForEvent('filechooser')
+	await library.getByRole('button', { name: 'Upload media' }).click()
+	await (await chooser).setFiles(file)
+}
+
+/**
+ * Returns a drag carrying a file, as one from the desktop carries it.
+ * @param page - The page the drag crosses.
+ * @param file - The file it carries.
+ * @returns The handle a drag event takes as its data.
+ */
+function dragCarrying(page: Page, file: ReturnType<typeof photo>) {
+	return page.evaluateHandle(
+		([base64, name, type]) => {
+			const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
+			const carried = new DataTransfer()
+			carried.items.add(new File([bytes], name, { type }))
+			return carried
+		},
+		[file.buffer.toString('base64'), file.name, file.mimeType],
+	)
+}
+
+/**
+ * Returns how far each side of a box sits inside another, rounded to the pixel.
+ * @param inner - The box inside.
+ * @param outer - The box around it.
+ * @returns The gap at each side, below zero where the inner box passes the outer one.
+ */
+function gaps(inner: Box, outer: Box) {
+	return {
+		left: Math.round(inner.x - outer.x),
+		right: Math.round(outer.x + outer.width - inner.x - inner.width),
+		top: Math.round(inner.y - outer.y),
+		bottom: Math.round(outer.y + outer.height - inner.y - inner.height),
+	}
+}
+
+/**
+ * Returns the box an element takes on screen.
+ * @param element - The element to measure.
+ * @returns Its box.
+ */
+async function boxOf(element: Locator) {
+	return (await element.boundingBox()) as Box
+}
+
+/**
+ * Returns how far each side of an element sits inside another on screen.
+ * @param element - The element inside.
+ * @param around - The element around it.
+ * @returns The gap at each side.
+ */
+async function gapsWithin(element: Locator, around: Locator) {
+	return gaps(await boxOf(element), await boxOf(around))
 }
 
 /**
@@ -181,6 +267,42 @@ function listingAsking(page: Page, wanted: Record<string, string>) {
 	})
 }
 
+/**
+ * Stores a draft holding two empty Image blocks, keeping its id for the clean up, and opens it in the editor.
+ * @param page - The page to drive.
+ * @returns The two blocks in the canvas.
+ */
+async function openTwoImageBlocks(page: Page): Promise<Locator> {
+	const answer = await page.request.post('/api/content', {
+		data: { type: 'post', title: POST_TITLE, content: `${EMPTY_IMAGE_BLOCK}\n\n${EMPTY_IMAGE_BLOCK}` },
+	})
+	expect(answer.status()).toBe(201)
+	const { id } = (await answer.json()) as { id: string }
+	createdPosts.push(id)
+	await page.goto(`/admin/content/post/${id}/edit`)
+	await expect(page.getByRole('textbox', { name: 'Title' })).toBeVisible()
+	return canvas(page).locator('[data-type="core/image"]')
+}
+
+/**
+ * Selects an empty Image block by its corner and opens the picker from it.
+ * @param block - The block.
+ */
+async function openPickerFrom(block: Locator) {
+	await block.click({ position: { x: 4, y: 4 } })
+	await block.getByRole('button', { name: 'Media Library' }).click()
+}
+
+/**
+ * Opens View options in the open picker.
+ * @param library - The picker dialog.
+ * @returns The Sort by control.
+ */
+async function sortControl(library: Locator): Promise<Locator> {
+	await library.getByRole('button', { name: 'View options' }).click()
+	return library.getByRole('combobox', { name: 'Sort by' })
+}
+
 test('uploads two pictures chosen at once, counts them in a toast and serves them publicly', async ({ page }) => {
 	await page.goto('/admin/media')
 	await expect(page.getByRole('heading', { name: 'Media' })).toBeVisible()
@@ -203,15 +325,7 @@ test('uploads a picture dropped on the library, over a zone reading Drop files t
 	const name = `${PICTURE}-dropped.jpg`
 	await page.goto('/admin/media')
 	await expect(page.getByRole('heading', { name: 'Media' })).toBeVisible()
-	const transfer = await page.evaluateHandle(
-		([base64, named]) => {
-			const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
-			const carried = new DataTransfer()
-			carried.items.add(new File([bytes], named, { type: 'image/jpeg' }))
-			return carried
-		},
-		[PHOTO_BASE64, name],
-	)
+	const transfer = await dragCarrying(page, photo(name))
 
 	await page.dispatchEvent('main', 'dragenter', { dataTransfer: transfer })
 	const zone = page.locator('.godmin-list-overlay')
@@ -232,8 +346,8 @@ test('places a picture already in the library through the media library picker',
 
 	const library = await openPicker(page)
 
-	await expect(library.getByText(`${PICTURE}-stored`)).toBeVisible()
-	await library.getByText(`${PICTURE}-stored`).click()
+	await expect(library.getByRole('option', { name: `${PICTURE}-stored` })).toBeVisible()
+	await library.getByRole('option', { name: `${PICTURE}-stored` }).click()
 	await library.getByRole('button', { name: 'Select' }).click()
 
 	await expect(canvas(page).locator('img[src^="/media/"]')).toBeVisible()
@@ -242,7 +356,7 @@ test('places a picture already in the library through the media library picker',
 test('frames the media library search box when an image block opens the library', async ({ page }) => {
 	const library = await openPicker(page)
 
-	await library.getByRole('searchbox', { name: 'Search media' }).focus()
+	await library.getByRole('searchbox', { name: 'Search media…' }).focus()
 	const frame = library.locator('.components-input-control__backdrop')
 
 	await expect(frame).toHaveCSS('position', 'absolute')
@@ -527,7 +641,7 @@ test('narrows and sorts the media library picker with the pointer, then places t
 	const title = `${LIBRARY}-pointed`
 	await stored(page, title)
 	const library = await openPicker(page)
-	await expect(library.getByText(title, { exact: true })).toBeVisible()
+	await expect(library.getByRole('option', { name: title })).toBeVisible()
 
 	await library.getByRole('button', { name: 'Add filter' }).click()
 	await page.getByRole('menuitem', { name: 'Author' }).click()
@@ -540,7 +654,7 @@ test('narrows and sorts the media library picker with the pointer, then places t
 	await library.getByRole('combobox', { name: 'Sort by' }).selectOption('modified')
 	await sorted
 	await page.keyboard.press('Escape')
-	await library.getByText(title, { exact: true }).click()
+	await library.getByRole('option', { name: title }).click()
 	await library.getByRole('button', { name: 'Select' }).click()
 
 	await expect(library).toHaveCount(0)
@@ -553,9 +667,9 @@ test('searches, narrows, sorts and places from the media library picker by keybo
 	const title = `${LIBRARY}-typed`
 	await stored(page, title)
 	const library = await openPicker(page)
-	await library.getByRole('searchbox', { name: 'Search media' }).focus()
+	await library.getByRole('searchbox', { name: 'Search media…' }).focus()
 	await page.keyboard.type(title)
-	await expect(library.getByText(title, { exact: true })).toBeVisible()
+	await expect(library.getByRole('option', { name: title })).toBeVisible()
 
 	await library.getByRole('button', { name: 'Add filter' }).focus()
 	await page.keyboard.press('Enter')
@@ -579,12 +693,12 @@ test('searches, narrows, sorts and places from the media library picker by keybo
 	await library.getByRole('button', { name: 'View options' }).focus()
 	await page.keyboard.press('Enter')
 	await expect(library.getByRole('combobox', { name: 'Sort by' })).toBeFocused()
-	const sorted = page.waitForResponse((answer) => new URL(answer.url()).searchParams.has('orderby'))
+	const sorted = page.waitForResponse((answer) => new URL(answer.url()).searchParams.get('orderby') === 'modified')
 	await page.keyboard.press('ArrowDown')
 	await sorted
 	await page.keyboard.press('Escape')
 	await expect(library.getByRole('button', { name: 'View options' })).toBeFocused()
-	await expect(library.getByText(title, { exact: true })).toBeVisible()
+	await expect(library.getByRole('option', { name: title })).toBeVisible()
 	await library.getByRole('button', { name: 'Reset', exact: true }).focus()
 	await page.keyboard.press('Tab')
 	await page.keyboard.press('Space')
@@ -594,6 +708,216 @@ test('searches, narrows, sorts and places from the media library picker by keybo
 
 	await expect(library).toHaveCount(0)
 	await expect(canvas(page).locator('img[src^="/media/"]')).toBeVisible()
+})
+
+for (const { size, inset } of PICKER_INSETS) {
+	test(`fills a window ${size.width} pixels wide but for ${inset} pixels at each edge, under a 72 pixel header, with no ring or border on its frame`, async ({
+		page,
+	}) => {
+		const library = await openPicker(page, size)
+
+		await expect
+			.poll(async () => gaps(await boxOf(library), { x: 0, y: 0, ...size }))
+			.toEqual({ left: inset, right: inset, top: inset, bottom: inset })
+		const header = await boxOf(library.locator('.gophenberg-media-picker__header'))
+		expect(Math.round(header.height)).toBe(72)
+		const upload = await boxOf(library.getByRole('button', { name: 'Upload media' }))
+		expect(Math.round(upload.height)).toBe(40)
+		await expect(library.getByRole('heading', { name: 'Select Media' })).toHaveCSS('line-height', '20px')
+		await expect(library).toBeFocused()
+		await expect(library).toHaveCSS('outline-style', 'none')
+		await expect(library).toHaveCSS('border-top-width', '0px')
+	})
+}
+
+test('never scrolls the picker sideways when a crowded footer pushes Select past its edge and Select takes the focus', async ({
+	page,
+}) => {
+	const title = `${LIBRARY}-past-the-edge`
+	await stored(page, title)
+	await page.route('**/api/media?*', async (route) => {
+		const answer = await route.fetch()
+		const body = (await answer.json()) as Record<string, unknown>
+		await route.fulfill({ response: answer, json: { ...body, total: 120 } })
+	})
+	const library = await openPicker(page, { width: 320, height: PHONE.height })
+	await library.getByRole('option', { name: title }).click()
+
+	await library.getByRole('button', { name: 'Select' }).focus()
+
+	const content = library.locator('.gophenberg-media-picker__content')
+	expect(await content.evaluate((element) => element.scrollLeft)).toBe(0)
+})
+
+test('says in a toast why the server refused a file an Image block sent, the block left empty', async ({
+	page,
+}, testInfo) => {
+	const name = `unknown-e2e-${RUN}.zzz`
+	const path = testInfo.outputPath(name)
+	writeFileSync(path, 'Notes on the harbor.')
+	await newPost(page)
+	await addImageBlock(page)
+
+	const chooser = page.waitForEvent('filechooser')
+	await canvas(page).getByRole('button', { name: 'Upload' }).click()
+	await (await chooser).setFiles(path)
+
+	const reason =
+		'Gophenberg does not accept zzz files. Upload a picture, a video, an audio file, a PDF or a zip instead.'
+	await expect(page.locator('.godmin-toast', { hasText: `${name}: ${reason}` })).toBeVisible()
+	await expect(canvas(page).getByRole('button', { name: 'Media Library' })).toBeVisible()
+})
+
+test('closes only the filter panel on Escape in the Author search box, past ten authors, the tick kept', async ({
+	page,
+}) => {
+	const title = `${LIBRARY}-escaped`
+	await stored(page, title)
+	await page.route('**/api/authors*', async (route) => {
+		const answer = await route.fetch()
+		const body = (await answer.json()) as { items: unknown[] }
+		const samples = Array.from({ length: 12 }, (_, at) => ({
+			id: `00000000-0000-4000-8000-0000000000${String(at + 10)}`,
+			name: `Sample Author ${String(at)}`,
+		}))
+		await route.fulfill({ response: answer, json: { ...body, items: [...body.items, ...samples] } })
+	})
+	const library = await openPicker(page)
+	await library.getByRole('option', { name: title }).click()
+	await library.getByRole('button', { name: 'Add filter' }).click()
+	await page.getByRole('menuitem', { name: 'Author' }).click()
+	const search = library.getByRole('combobox', { name: 'Search items' })
+	await search.click()
+	await page.keyboard.type('Sample')
+
+	await page.keyboard.press('Escape')
+
+	await expect(search).toHaveCount(0)
+	await expect(library).toBeVisible()
+	await expect(library.getByRole('option', { name: title, selected: true })).toBeVisible()
+	await expect(library.locator('.dataviews-filters__summary-chip')).toBeFocused()
+})
+
+test('uploads from the picker, ticks the new card, raises a toast that takes a press and places the picture', async ({
+	page,
+}) => {
+	const title = `${PICTURE}-picked`
+	const library = await openPicker(page)
+
+	await chooseFile(library, photo(`${title}.jpg`))
+
+	await expect(library.getByRole('option', { name: title, selected: true })).toBeVisible()
+	const toast = library.locator('.godmin-toast', { hasText: `"${title}.jpg" uploaded.` })
+	await toast.click()
+	await expect(toast).toHaveCount(0)
+	await library.getByRole('button', { name: 'Select' }).click()
+
+	await expect(library).toHaveCount(0)
+	await expect(canvas(page).locator('img[src^="/media/"]')).toBeVisible()
+})
+
+test('uploads a picture dropped on the picker, over a zone filling its frame and reading Drop files to upload', async ({
+	page,
+}) => {
+	const name = `${PICTURE}-carried.jpg`
+	const library = await openPicker(page)
+	const transfer = await dragCarrying(page, photo(name))
+	const zone = library.locator('.components-drop-zone')
+
+	await library.dispatchEvent('dragenter', { dataTransfer: transfer })
+	await zone.dispatchEvent('dragenter', { dataTransfer: transfer })
+	await expect(zone).toHaveClass(/is-dragging-over-element/)
+	await expect(zone.locator('.components-drop-zone__content-inner')).toHaveCSS('opacity', '1')
+	await expect(zone.getByText('Drop files to upload')).toBeVisible()
+	await expect(zone.getByText('Drop files to upload')).toHaveCSS('line-height', '18.2px')
+	await expect.poll(() => gapsWithin(zone, library)).toEqual({ left: 0, right: 0, top: 0, bottom: 0 })
+	await zone.dispatchEvent('drop', { dataTransfer: transfer })
+
+	await expect(library.locator('.godmin-toast', { hasText: `"${name}" uploaded.` })).toBeVisible()
+})
+
+test('lists a landed file in a panel of tight rows beside a refused one, its trigger in the accent colour while open', async ({
+	page,
+}) => {
+	const name = `${PICTURE}-listed.jpg`
+	const library = await openPicker(page)
+
+	await chooseFile(library, [photo(name), NOTES])
+
+	const panel = page.locator('.gophenberg-media-picker__panel')
+	await expect(panel.getByText(name, { exact: true })).toHaveCSS('line-height', '16.8px')
+	await expect(panel.getByRole('heading')).toHaveCSS('line-height', '18.2px')
+	const trigger = library.locator('.gophenberg-media-picker__status').getByRole('button')
+	await expect(trigger).toHaveCSS('color', 'rgb(56, 88, 233)')
+})
+
+test('names a refused file in a 320 pixel panel, its notice filling the row and the status 24 pixels in', async ({
+	page,
+}) => {
+	const library = await openPicker(page)
+
+	await chooseFile(library, NOTES)
+
+	const panel = page.locator('.gophenberg-media-picker__panel')
+	await expect(panel).toContainText(`${NOTES.name}: Sorry, this file type is not supported here.`)
+	await expect(panel).not.toContainText(`${NOTES.name}: ${NOTES.name}`)
+	await expect.poll(async () => Math.round((await boxOf(panel)).width)).toBe(320)
+	const notice = panel.locator('.gophenberg-media-picker__error')
+	await expect
+		.poll(() => gapsWithin(notice, panel.locator('.gophenberg-media-picker__row')))
+		.toMatchObject({ left: 16, right: 16 })
+	const status = library.locator('.gophenberg-media-picker__status')
+	await expect(status).toContainText('1 upload error')
+	await expect
+		.poll(() => gapsWithin(status, library.locator('.gophenberg-media-picker__footer')))
+		.toMatchObject({ left: 24 })
+})
+
+for (const size of [DESKTOP, PHONE]) {
+	test(`keeps a failed Select read inside the picker at ${size.width} by ${size.height}, the notice 24 pixels from its sides`, async ({
+		page,
+	}) => {
+		const title = `${LIBRARY}-unread-${size.width}`
+		await stored(page, title)
+		const library = await openPicker(page, size)
+		await library.getByRole('option', { name: title }).click()
+		await page.route('**/api/media?ids=*', (route) => route.fulfill({ status: 500 }))
+		const select = library.getByRole('button', { name: 'Select' })
+
+		await select.click()
+
+		const notice = library.getByRole('alert')
+		await expect(notice).toHaveText('The media library could not be loaded.')
+		await expect
+			.poll(() => gapsWithin(notice, library.locator('.gophenberg-media-picker__content')))
+			.toMatchObject({ left: 24, right: 24 })
+		const room = await gapsWithin(select, library)
+		expect(room.right).toBeGreaterThanOrEqual(0)
+		expect(room.bottom).toBeGreaterThanOrEqual(0)
+	})
+}
+
+test('holds a sort from one Image block to the next in a post, and opens newest first again after a reload', async ({
+	page,
+}) => {
+	const blocks = await openTwoImageBlocks(page)
+	const library = page.getByRole('dialog', { name: 'Select Media' })
+	await openPickerFrom(blocks.first())
+	const sorted = listingAsking(page, { orderby: 'title' })
+	await (await sortControl(library)).selectOption('title')
+	await sorted
+	await page.keyboard.press('Escape')
+	await library.getByRole('button', { name: 'Close', exact: true }).click()
+	await expect(library).toHaveCount(0)
+
+	await openPickerFrom(blocks.last())
+	await expect(await sortControl(library)).toHaveValue('title')
+
+	await page.reload()
+	const newest = listingAsking(page, { orderby: 'date', order: 'desc' })
+	await openPickerFrom(blocks.last())
+	await newest
+	await expect(await sortControl(library)).toHaveValue('date')
 })
 
 test.describe('on a phone', () => {

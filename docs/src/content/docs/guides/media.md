@@ -176,9 +176,24 @@ sent wins.
 
 In the editor, any media block offers two ways to fill itself.
 **Upload** takes a file from your computer and adds it to the
-library on the way in. **Media Library** opens the same library
-you see on the Media screen, so you can place a file you already
-uploaded without uploading it twice.
+library on the way in, and if the file is refused, a message says
+why. **Media Library** opens the **Select Media**
+dialog, which lists the files from the Media screen that the block
+can use, as cards.
+
+Search, filter and sort the cards, tick a file, and press **Select**.
+A block that takes many files lets you tick several, on any page,
+and they arrive in the order you ticked them. Closing the dialog
+forgets the page and the search. The sort, the filters and the page
+size stay for every block and field in the post until you reload or
+leave the editor.
+
+**Upload media** at the top of the dialog adds files without leaving
+it, and you can also drop files anywhere on the dialog. Each new file
+the block can use is ticked for you, and a block that takes one file
+ticks only the first. The bottom of the dialog follows the upload.
+If a file is refused, a small panel opens and names it with the
+reason, and the note stays until you close it.
 
 The inserter also has a Media tab listing your images, video and
 audio, which places an item with a single click.
@@ -188,7 +203,7 @@ it from the library does not repair the post, so check where a
 file is used before removing it.
 
 A **Media** or **Gallery** [field](/guides/fields/) opens the same
-library from the Document panel, and the same warning applies.
+dialog from the Document panel, and the same warning applies.
 
 ## Deleting
 

@@ -276,9 +276,6 @@ msgstr "marzo"
 msgid "May"
 msgstr "mayo"
 
-msgid "Media Library"
-msgstr "Biblioteca de medios"
-
 msgid "Medium"
 msgstr "Mediano"
 
@@ -302,9 +299,6 @@ msgstr "No ha llegado ningún archivo con esta subida. Elige un archivo e intén
 
 msgid "No media chosen"
 msgstr "Ningún medio elegido"
-
-msgid "No media has been uploaded yet."
-msgstr "Todavía no se ha subido ningún medio."
 
 msgid "No page lives at this address."
 msgstr "No existe ninguna página en esta dirección."
@@ -431,9 +425,6 @@ msgstr "Buscar audios"
 
 msgid "Search images"
 msgstr "Buscar imágenes"
-
-msgid "Search media"
-msgstr "Buscar medios"
 
 msgid "Search videos"
 msgstr "Buscar vídeos"
@@ -1924,6 +1915,19 @@ msgid "%(file)s: %(reason)s"
 msgstr "%(file)s: %(reason)s"
 
 #, fuzzy
+msgid "%s upload error"
+msgid_plural "%s upload errors"
+msgstr[0] "%s error al subir el archivo"
+msgstr[1] "%s de errores de subida"
+msgstr[2] "%s errores de subida"
+
+msgid "Sorry, this file type is not supported here."
+msgstr "Lo siento, este tipo de archivo no es compatible aquí."
+
+msgid "This file is empty."
+msgstr "Este archivo está vacío."
+
+#, fuzzy
 msgid "Drop files to upload"
 msgstr "Arrastra los archivos para subirlos"
 
@@ -1943,9 +1947,28 @@ msgstr "Gestiona las páginas de este sitio."
 msgid "Manage the posts on this site."
 msgstr "Gestiona las entradas de este sitio."
 
+msgid "Media items"
+msgstr "Elementos de medios"
+
+msgid "Select Media"
+msgstr "Seleccionar medios"
+
+#, fuzzy
+msgid "The selected media is no longer in the library."
+msgstr "Los medios seleccionados ya no están en la biblioteca."
+
 #, fuzzy
 msgid "There is nothing at this address. Check the link and try again."
 msgstr "No hay nada en esta dirección. Comprueba el enlace e inténtalo de nuevo."
+
+msgid "Upload complete"
+msgstr "Subida completada"
+
+msgid "Upload errors"
+msgstr "Errores de carga"
+
+msgid "Upload media"
+msgstr "Subir medios"
 
 #, fuzzy
 msgid "Upload theme"
@@ -1957,6 +1980,16 @@ msgid_plural "Uploaded %s files."
 msgstr[0] "%s archivo subido."
 msgstr[1] "%s de archivos subidos."
 msgstr[2] "%s archivos subidos."
+
+msgid "Uploading"
+msgstr "Subiendo"
+
+#, fuzzy
+msgid "Uploading %s file"
+msgid_plural "Uploading %s files"
+msgstr[0] "Subiendo %s archivo"
+msgstr[1] "Subiendo %s de archivos"
+msgstr[2] "Subiendo %s archivos"
 
 #, fuzzy
 msgid "Close Settings"

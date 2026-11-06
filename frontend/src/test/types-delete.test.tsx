@@ -260,6 +260,7 @@ test('keeps the focus in a Describe opened after a dismissed delete once that de
 
 test('lands the focus on the list when a dismissed delete ends while nothing holds the focus', async () => {
 	const answer = await deletePagesThenLeave()
+	await waitFor(() => expect(document.activeElement).not.toBe(document.body))
 	act(() => (document.activeElement as HTMLElement).blur())
 
 	answer.release()

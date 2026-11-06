@@ -11,6 +11,7 @@ export {
 	Inserter,
 	__experimentalListView as ListView,
 } from '@wordpress/block-editor'
+export { useBlockNotices } from './notices'
 export { BlockPreview } from './preview'
 export { BlockToolbar } from './toolbar'
 export { getBlockTypes, parse, serialize } from '@wordpress/blocks'

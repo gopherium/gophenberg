@@ -5,15 +5,15 @@
 	--gophenberg-editor-outline-width: 280px;
 }
 
-:root:has(.gophenberg-editor:not(.gophenberg-editor--narrow)) .godmin-toasts {
+:root:has(.gophenberg-editor:not(.gophenberg-editor--narrow)) #root .godmin-toasts {
 	bottom: 49px;
 }
 
-:root:has(.gophenberg-editor:not(.gophenberg-editor--narrow) .gophenberg-editor__sidebar:not([hidden])) .godmin-toasts {
+:root:has(.gophenberg-editor:not(.gophenberg-editor--narrow) .gophenberg-editor__sidebar:not([hidden])) #root .godmin-toasts {
 	inset-inline-end: var(--gophenberg-editor-sidebar-width);
 }
 
-:root:has(.gophenberg-editor:not(.gophenberg-editor--narrow) .gophenberg-editor__outline) .godmin-toasts {
+:root:has(.gophenberg-editor:not(.gophenberg-editor--narrow) .gophenberg-editor__outline) #root .godmin-toasts {
 	inset-inline-start: var(--gophenberg-editor-outline-width);
 }
 

@@ -22,13 +22,12 @@ import {
 	useToaster,
 	viewNarrows,
 } from '@gopherium/godmin'
-import type { BulkFailure, BulkWords, ListRun, OfferedView, Trigger } from '@gopherium/godmin'
+import type { BulkFailure, ListRun, OfferedView, Trigger } from '@gopherium/godmin'
 import { openOnTap, useListView } from '@gopherium/godmin/router'
 import type { ListView } from '@gopherium/godmin/router'
-import { formatNumber } from '@gopherium/gottext'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { __, _n, _x, sprintf } from '@wordpress/i18n'
+import { __, _x, sprintf } from '@wordpress/i18n'
 import { useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 
@@ -41,49 +40,13 @@ import type { MediaItem, MediaPage, MediaQuery } from './api'
 import { MEDIA_SORT, MEDIA_VIEW_GUARD, libraryFields, mediaListing } from './fields'
 import { OpenMediaDialog } from './MediaModals'
 import type { MediaTools, OpenedDialog } from './MediaModals'
+import { refusedLines, uploadWords } from './uploadWords'
 
 /** The width a card of the grid opens at, the one DataViews draws by default. */
 const PREVIEW_SIZE = 230
 
 /** The items the library holds before its first page arrives. */
 const NO_ITEMS: MediaItem[] = []
-
-/**
- * Returns the reason a file was not stored, already in the reader's words.
- * @param failure - The file and what its upload failed with.
- * @returns The reason.
- */
-function reasonOf(failure: BulkFailure<File>): string {
-	return (failure.error as Error).message
-}
-
-/**
- * Returns the notice naming the files an upload could not store, one line per file when several were sent.
- * @param failures - The files that failed and what each failed with.
- * @param asked - How many files the upload was given.
- * @returns The reason alone for one file sent, else a line naming each failed file with its reason.
- */
-function refusedLines(failures: BulkFailure<File>[], asked: number): string {
-	if (asked === 1) {
-		return reasonOf(failures[0])
-	}
-	const line = __('%(file)s: %(reason)s', 'gophenberg')
-	return failures.map((failure) => sprintf(line, { file: failure.item.name, reason: reasonOf(failure) })).join('\n')
-}
-
-/**
- * Returns the words an upload to the library reads as.
- * @returns The toast naming the one file stored or counting the files stored, and the notice for the refused ones.
- */
-function uploadWords(): BulkWords<File> {
-	return {
-		done: (count, only) =>
-			only === undefined
-				? sprintf(_n('Uploaded %s file.', 'Uploaded %s files.', count, 'gophenberg'), formatNumber(count))
-				: sprintf(__('"%s" uploaded.', 'gophenberg'), only.name),
-		failed: refusedLines,
-	}
-}
 
 /** The uploads running at once, how many files they were given and the files they could not store between them. */
 interface UploadBatch {

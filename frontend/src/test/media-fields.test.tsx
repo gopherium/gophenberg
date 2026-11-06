@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { audioIcon, fileIcon, Icon, imageIcon, videoIcon } from '@gophenberg/frontend-sdk'
-import type { Field } from '@gophenberg/frontend-sdk/dataviews'
+import type { Field, View } from '@gophenberg/frontend-sdk/dataviews'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
@@ -10,7 +10,7 @@ import { expect, onTestFinished, test, vi } from 'vitest'
 
 import '../media/media.css'
 import type { MediaItem } from '../media/api'
-import { libraryFields, mediaFields } from '../media/fields'
+import { libraryFields, MEDIA_SORT, mediaFields, mediaListing } from '../media/fields'
 import { bestSubSizeFile, fileSize, imageDimensions } from '../media/format'
 
 /**
@@ -467,4 +467,10 @@ test('falls back to the largest sub-size when every one is too small', () => {
 
 test('falls back to the stored file when there are no sub-sizes', () => {
 	expect(bestSubSizeFile(item(), 200)).toBe('2026/08/harbor.jpg')
+})
+
+test('asks for the search and the sort alone when a view holds no filters', () => {
+	const view: View = { type: 'grid', search: 'harbor', sort: { ...MEDIA_SORT } }
+
+	expect(mediaListing(view)).toEqual({ search: 'harbor', orderBy: 'date', order: 'desc' })
 })

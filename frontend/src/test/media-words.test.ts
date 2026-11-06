@@ -74,16 +74,45 @@ const WORDPRESS = [
 		fr: 'Impossible d’enregistrer le média. %s',
 	},
 	{ key: '"%s" permanently deleted.', es: '«%s» borrado permanentemente.', fr: 'Suppression définitive de « %s ».' },
-	{ key: 'Search media', es: 'Buscar medios', fr: 'Rechercher des médias' },
 	{ key: 'Add Media File', es: 'Añadir medios', fr: 'Ajouter un fichier média' },
 	{
 		key: 'Drop files to upload',
 		es: 'Arrastra los archivos para subirlos',
 		fr: 'Déposez vos fichiers pour les téléverser',
 	},
-	{ key: 'Media Library', es: 'Biblioteca de medios', fr: 'Médiathèque' },
 	{ key: 'Select', es: 'Seleccionar', fr: 'Sélectionner' },
 	{ key: 'admin section\u0004Media', es: 'Medios', fr: 'Médias' },
+	{ key: 'Select Media', es: 'Seleccionar medios', fr: 'Sélectionner un média' },
+	{ key: 'Upload media', es: 'Subir medios', fr: 'Téléverser un média' },
+	{ key: 'Media items', es: 'Elementos de medios', fr: 'Éléments média' },
+	{ key: 'Uploading', es: 'Subiendo', fr: 'Téléversement' },
+	{ key: 'Upload errors', es: 'Errores de carga', fr: 'Erreurs de téléversement' },
+	{ key: 'Upload complete', es: 'Subida completada', fr: 'Téléversement terminé' },
+	{
+		key: 'Sorry, this file type is not supported here.',
+		es: 'Lo siento, este tipo de archivo no es compatible aquí.',
+		fr: 'Désolé, ce type de fichier n’est pas pris en charge ici.',
+	},
+	{ key: 'This file is empty.', es: 'Este archivo está vacío.', fr: 'Ce fichier est vide.' },
+]
+
+/** The answers with words of our own, the middle form of a counted message and a sentence WordPress lacks. */
+const OUR_WORDS = [
+	{
+		key: 'Uploading %s file',
+		es: ['Subiendo %s archivo', 'Subiendo %s de archivos', 'Subiendo %s archivos'],
+		fr: ['Téléversement de %s fichier', 'Téléversement de %s de fichiers', 'Téléversement de %s fichiers'],
+	},
+	{
+		key: '%s upload error',
+		es: ['%s error al subir el archivo', '%s de errores de subida', '%s errores de subida'],
+		fr: ['%s erreur de téléversement', '%s d’erreurs de téléversement', '%s erreurs de téléversement'],
+	},
+	{
+		key: 'The selected media is no longer in the library.',
+		es: ['Los medios seleccionados ya no están en la biblioteca.'],
+		fr: ['Les médias sélectionnés ne sont plus dans la bibliothèque.'],
+	},
 ]
 
 /** The rows above, each named by its message and the context it is read in. */
@@ -91,4 +120,8 @@ const NAMED = WORDPRESS.map((row) => ({ ...row, named: row.key.split('\u0004').r
 
 test.each(NAMED)('ships $named in the Spanish and the French WordPress gives it', ({ key, es, fr }) => {
 	expect([shipped('es-ES')[key], shipped('fr-FR')[key]]).toEqual([[es], [fr]])
+})
+
+test.each(OUR_WORDS)('ships every form of $key in the Spanish and the French we give it', ({ key, es, fr }) => {
+	expect([shipped('es-ES')[key], shipped('fr-FR')[key]]).toEqual([es, fr])
 })

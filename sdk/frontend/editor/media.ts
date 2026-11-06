@@ -17,6 +17,7 @@ export interface MediaLibraryProps {
 	addToGallery?: boolean
 	value?: number | number[]
 	mode?: string
+	title?: string
 	onSelect: (media: unknown) => void
 	onClose?: () => void
 	render: (props: { open: () => void }) => ReactNode

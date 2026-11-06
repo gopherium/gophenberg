@@ -174,7 +174,11 @@ test('asks for the files a gallery holds by identity in one call', async () => {
 	expect(held.map((item) => item.title)).toEqual(['Harbor at dawn'])
 })
 
-test('asks in pages when a gallery holds more files than one request carries', async () => {
+test.each([
+	{ served: 'sizes up to 100', sizes: [10, 100], calls: [100, 100, 50] },
+	{ served: 'sizes up to 50', sizes: [10, 50], calls: [50, 50, 50, 50, 50] },
+	{ served: 'no sizes', sizes: undefined, calls: [250] },
+])('splits the files a gallery holds by what the settings serve, with $served', async ({ sizes, calls }) => {
 	const asked: string[] = []
 	server.use(
 		http.get('/api/media', ({ request }) => {
@@ -186,11 +190,12 @@ test('asks in pages when a gallery holds more files than one request carries', a
 			})
 		}),
 	)
+	const named = Array.from({ length: 250 }, (_, at) => at + 1)
 
-	const held = await listMediaByIDs(Array.from({ length: 250 }, (_, at) => at + 1))
+	const held = await listMediaByIDs(named, sizes)
 
-	expect(asked.map((page) => page.split(',').length)).toEqual([100, 100, 50])
-	expect(held.map((item) => item.id)).toEqual(Array.from({ length: 250 }, (_, at) => at + 1))
+	expect(asked.map((page) => page.split(',').length)).toEqual(calls)
+	expect(held.map((item) => item.id)).toEqual(named)
 })
 
 test('reports the files it could not read by identity', async () => {

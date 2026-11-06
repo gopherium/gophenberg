@@ -7,7 +7,7 @@ import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test } from 'vitest'
 
 import { catalogFor } from '../i18n/catalog'
-import { renderAt } from './render'
+import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
 import { siteSettings } from './siteSettings'
 
@@ -52,6 +52,14 @@ const ONE_CATEGORY = {
 }
 
 const MANY_CATEGORIES = { ...ONE_CATEGORY, key: 'categories', label: 'Categories', many: true }
+
+/**
+ * Presses Select in the open picker and waits for its dialog to leave.
+ */
+async function pressSelect() {
+	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+}
 
 beforeAll(async () => {
 	await import('../content/EditorScreen')
@@ -247,8 +255,8 @@ test('holds the media a media field was pointed at', async () => {
 	renderAt(EDITOR_PATH)
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Choose Cover' }))
-	await userEvent.click(await screen.findByText('Shore'))
-	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+	await userEvent.click(await screen.findByRole('option', { name: 'Shore' }))
+	await pressSelect()
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
 	await waitFor(() => expect(sent).toHaveLength(1))
@@ -438,15 +446,26 @@ test('shows each file a gallery holds by its picture and name, read in one call'
 	expect(asked.filter((query) => query.includes('ids='))).toEqual(['ids=12%2C15'])
 })
 
+test('reads a gallery of more files than the largest served size in calls of that size', async () => {
+	server.use(http.get('/api/settings', () => HttpResponse.json({ ...siteSettings, list_page_sizes: [1, 2] })))
+	const { asked } = galleryOf([12, 15, 9, 20])
+	renderAt(EDITOR_PATH)
+
+	const listed = await screen.findByRole('list', { name: 'Gallery' })
+
+	expect(await within(listed).findByText('Pier')).toBeInTheDocument()
+	expect(asked.filter((query) => query.includes('ids='))).toEqual(['ids=12%2C15', 'ids=9%2C20'])
+})
+
 test('adds every file picked at once to the gallery a field holds', async () => {
 	const { sent } = galleryOf([])
 	renderAt(EDITOR_PATH)
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add to Gallery' }))
-	const picker = await screen.findByRole('dialog', { name: 'Media Library' })
-	await userEvent.click(await within(picker).findByText('Harbor'))
-	await userEvent.click(within(picker).getByText('Shore'))
-	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+	const picker = await screen.findByRole('dialog', { name: 'Select Media' })
+	await userEvent.click(await within(picker).findByRole('option', { name: 'Harbor' }))
+	await userEvent.click(within(picker).getByRole('option', { name: 'Shore' }))
+	await pressSelect()
 	await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
 	await waitFor(() => expect(sent).toHaveLength(1))
@@ -458,12 +477,69 @@ test('never adds the item the gallery already holds', async () => {
 	renderAt(EDITOR_PATH)
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Add to Gallery' }))
-	const picker = await screen.findByRole('dialog', { name: 'Media Library' })
-	await userEvent.click(await within(picker).findByText('Shore'))
-	await userEvent.click(screen.getByRole('button', { name: /^Select$/ }))
+	const picker = await screen.findByRole('dialog', { name: 'Select Media' })
+	await userEvent.click(await within(picker).findByRole('option', { name: 'Shore' }))
+	await pressSelect()
 
 	const listed = screen.getByRole('list', { name: 'Gallery' })
 	expect(within(listed).getAllByRole('listitem')).toHaveLength(1)
+})
+
+test('leaves the address alone while a reader searches, pages and sorts the picker', async () => {
+	const asked: URLSearchParams[] = []
+	galleryOf([])
+	server.use(
+		http.get('/api/media', ({ request }) => {
+			asked.push(new URL(request.url).searchParams)
+			return HttpResponse.json({ items: LIBRARY, total: 120, per_page: siteSettings.picker_page_size })
+		}),
+	)
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	await userEvent.click(await screen.findByRole('button', { name: 'Add to Gallery' }))
+	const picker = await screen.findByRole('dialog', { name: 'Select Media' })
+	await within(picker).findByRole('option', { name: 'Harbor' })
+	const address = router.state.location.href
+
+	await userEvent.type(within(picker).getByRole('searchbox', { name: 'Search media…' }), 'harbor')
+	await waitFor(() => expect(asked.at(-1)?.get('search')).toBe('harbor'))
+	await userEvent.click(within(picker).getByRole('button', { name: 'Next page' }))
+	await waitFor(() => expect(asked.at(-1)?.get('page')).toBe('2'))
+	await userEvent.click(within(picker).getByRole('button', { name: 'View options' }))
+	await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Sort by' }), 'title')
+	await waitFor(() => expect(asked.at(-1)?.get('orderby')).toBe('title'))
+
+	expect(router.state.location.href).toBe(address)
+})
+
+/**
+ * Opens the picker behind a media field's button, then its View options.
+ * @param choose - The button that opens the picker.
+ * @returns The picker, and the Sort by control inside it.
+ */
+async function sortOfPickerFrom(choose: HTMLElement) {
+	await userEvent.click(choose)
+	const picker = await screen.findByRole('dialog', { name: 'Select Media' })
+	await within(picker).findByRole('option', { name: 'Harbor' })
+	await userEvent.click(within(picker).getByRole('button', { name: 'View options' }))
+	return { picker, sort: await within(picker).findByRole('combobox', { name: 'Sort by' }) }
+}
+
+test('holds a sort chosen in the picker of one media field when the next field opens its own', async () => {
+	const fields = [
+		{ ...GALLERY_FIELD, key: 'cover', label: 'Cover', many: false },
+		{ ...GALLERY_FIELD, key: 'hero', label: 'Hero', many: false },
+	]
+	galleryOf([])
+	server.use(http.get('/api/types', () => HttpResponse.json({ items: [typeDeclaring(fields)] })))
+	renderAt(EDITOR_PATH)
+	const first = await sortOfPickerFrom(await screen.findByRole('button', { name: 'Choose Cover' }))
+	await userEvent.selectOptions(first.sort, 'title')
+	await userEvent.click(within(first.picker).getByRole('button', { name: 'Close' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+	const second = await sortOfPickerFrom(screen.getByRole('button', { name: 'Choose Hero' }))
+
+	expect(second.sort).toHaveValue('title')
 })
 
 test('moves a file up the gallery', async () => {

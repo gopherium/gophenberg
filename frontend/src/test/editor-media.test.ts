@@ -9,6 +9,8 @@ import {
 	MAX_UPLOAD_BYTES,
 	editorMediaUpload,
 	toAttachment,
+	typeAllowed,
+	typeFamily,
 } from '../media/editorMedia'
 import type { EditorAttachment } from '../media/editorMedia'
 import { EDITOR_SETTINGS, editorSettings } from '../content/editorSetup'
@@ -67,7 +69,7 @@ async function uploadBatches(
 	await editorMediaUpload({
 		filesList: [photo()],
 		onFileChange: (attachments) => batches.push(attachments),
-		onError: (error) => errors.push(error.message),
+		onError: (message) => errors.push(message),
 		...args,
 	})
 	return { batches, errors }
@@ -118,7 +120,7 @@ test('drops a refused upload and carries its reason', async () => {
 
 	const { batches, errors } = await uploadBatches({})
 
-	expect(errors).toEqual(['the image cannot be read'])
+	expect(errors).toEqual(['harbor.jpg: the image cannot be read'])
 	expect(batches[0]).toEqual([{ url: 'blob:test-1' }])
 	expect(batches[1]).toEqual([])
 	expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-1')
@@ -130,7 +132,7 @@ test('reports an upload that never reached the server', async () => {
 
 	const { batches, errors } = await uploadBatches({})
 
-	expect(errors).toEqual(['The server could not be reached, so nothing was uploaded.'])
+	expect(errors).toEqual(['harbor.jpg: The server could not be reached, so nothing was uploaded.'])
 	expect(batches[1]).toEqual([])
 })
 
@@ -154,12 +156,59 @@ test('refuses a file outside the allowed types before uploading', async () => {
 	expect(uploaded).toBe(0)
 })
 
+test('hands the block nothing and says so when the server stored a kind the block refuses', async () => {
+	const audio = { ...HARBOR, type: 'audio', mime_type: 'audio/mpeg' }
+	server.use(http.post('/api/media', () => HttpResponse.json(audio, { status: 201 })))
+
+	const { batches, errors } = await uploadBatches({
+		filesList: [new File(['x'], 'harbor.unknown')],
+		allowedTypes: ['image'],
+	})
+
+	expect(errors).toEqual(['harbor.unknown is not a file this block accepts.'])
+	expect(batches.at(-1)).toEqual([])
+})
+
 test('accepts a file matching an exact allowed mime', async () => {
 	server.use(http.post('/api/media', () => HttpResponse.json(HARBOR, { status: 201 })))
 
 	const { errors } = await uploadBatches({ allowedTypes: ['image/jpeg'] })
 
 	expect(errors).toEqual([])
+})
+
+test('sends a file with no known type to the server where a block names types', async () => {
+	server.use(http.post('/api/media', () => HttpResponse.json(HARBOR, { status: 201 })))
+
+	const { batches, errors } = await uploadBatches({
+		filesList: [new File(['x'], 'harbor.unknown')],
+		allowedTypes: ['image'],
+	})
+
+	expect(errors).toEqual([])
+	expect(batches[1][0].id).toBe(7)
+})
+
+test.each([
+	{ when: 'a family holds the type', mime: 'image/jpeg', allowed: ['image'], passes: true },
+	{ when: 'no family holds the type', mime: 'text/plain', allowed: ['image'], passes: false },
+	{ when: 'a full type matches', mime: 'image/jpeg', allowed: ['image/jpeg'], passes: true },
+	{ when: 'a full type differs', mime: 'image/png', allowed: ['image/jpeg'], passes: false },
+	{ when: 'the block takes any type', mime: 'text/plain', allowed: ['*'], passes: true },
+	{ when: 'the block names no types', mime: 'text/plain', allowed: undefined, passes: true },
+	{ when: 'the file has no known type', mime: '', allowed: ['image'], passes: true },
+	{ when: 'a family written with a star holds the type', mime: 'image/jpeg', allowed: ['image/*'], passes: true },
+	{ when: 'a family written with a star misses the type', mime: 'text/plain', allowed: ['image/*'], passes: false },
+])('answers $passes for a type when $when', ({ mime, allowed, passes }) => {
+	expect(typeAllowed(mime, allowed)).toBe(passes)
+})
+
+test.each([
+	{ entry: 'image/*', family: 'image' },
+	{ entry: 'image', family: 'image' },
+	{ entry: 'image/jpeg', family: 'image/jpeg' },
+])('reads the block type $entry as $family', ({ entry, family }) => {
+	expect(typeFamily(entry)).toBe(family)
 })
 
 test('refuses a file over the size cap before uploading', async () => {

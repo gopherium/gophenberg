@@ -1,44 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Dialog, Stack, Text } from '@gophenberg/frontend-sdk'
-import { DataViewsPicker } from '@gophenberg/frontend-sdk/dataviews'
-import type { View } from '@gophenberg/frontend-sdk/dataviews'
-import { Popover, SlotFillProvider } from '@gophenberg/frontend-sdk/editor'
+import { Dialog } from '@gophenberg/frontend-sdk'
+import type { Field, View } from '@gophenberg/frontend-sdk/dataviews'
+import { SlotFillProvider } from '@gophenberg/frontend-sdk/editor'
 import type { MediaLibraryProps } from '@gophenberg/frontend-sdk/editor'
-import { ErrorNotice, paginationOf } from '@gopherium/godmin'
+import { offeredSize, viewNarrows } from '@gopherium/godmin'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { __ } from '@wordpress/i18n'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import type { ComponentProps } from 'react'
 
 import { useListSettings } from '../settings/useListSettings'
+import { AdminToaster } from '../toasts'
 import './media.css'
-import { listMedia, mediaQueryKey } from './api'
-import type { MediaItem, MediaPage } from './api'
-import { toAttachment } from './editorMedia'
+import { listMedia, listMediaByIDs, mediaQueryKey } from './api'
+import type { MediaItem } from './api'
+import { toAttachment, typeFamily } from './editorMedia'
 import { mediaFields, mediaListing } from './fields'
+import { PickerDialog } from './PickerDialog'
+import { usePickerView } from './pickerView'
+import { useUploadRun } from './useUploadRun'
 
-const PREVIEW_SIZE = 170
-
-const EMPTY_PAGE: MediaPage = { items: [], total: 0, perPage: 0 }
-
-const INITIAL_VIEW = {
-	type: 'pickerGrid',
-	fields: [],
-	titleField: 'title',
-	mediaField: 'thumbnail',
-	search: '',
-	page: 1,
-	layout: { previewSize: PREVIEW_SIZE },
-} as unknown as View
+/** Why the dialog was asked to close. */
+type CloseDetails = Parameters<NonNullable<ComponentProps<typeof Dialog.Root>['onOpenChange']>>[1]
 
 /**
  * Returns the content type prefixes a block's allowed types narrow the library to.
  * @param allowedTypes - The types the block accepts, undefined for any.
  * @returns One prefix per accepted type, empty for every kind.
  */
-export function allowedMimes(allowedTypes: string[] | undefined): string[] {
-	const prefixes = (allowedTypes ?? []).map((entry) => (entry.includes('/') ? entry : `${entry}/`))
+export function allowedMimes(allowedTypes: string[] = []): string[] {
+	if (allowedTypes.includes('*')) {
+		return []
+	}
+	const prefixes = allowedTypes.map(typeFamily).map((entry) => (entry.includes('/') ? entry : `${entry}/`))
 	return [...new Set(prefixes)]
+}
+
+/**
+ * Returns what the file dialog offers for a block's allowed types.
+ * @param allowedTypes - The types the block accepts, undefined for any.
+ * @returns The types as an input's accept attribute takes them, undefined to offer every file.
+ */
+function acceptOf(allowedTypes: string[] = ['*']): string | undefined {
+	if (allowedTypes.includes('*')) {
+		return undefined
+	}
+	return allowedTypes.map(typeFamily).map((entry) => (entry.includes('/') ? entry : `${entry}/*`)).join(',')
 }
 
 /**
@@ -55,110 +63,206 @@ export function selectionFrom(value: number | number[] | undefined): string[] {
 }
 
 /**
- * Renders the media library the block editor opens to choose stored media.
+ * Returns the selection once files landed.
+ * @param held - What is ticked.
+ * @param landed - The new files the block's types take, in the order picked.
+ * @param takesMany - Whether the block takes many files.
+ * @returns The new files joined without repeats, or the first in place of what was ticked, which stays if none landed.
+ */
+function selectionAfter(held: string[], landed: string[], takesMany: boolean): string[] {
+	if (landed.length === 0) {
+		return held
+	}
+	return takesMany ? [...new Set([...held, ...landed])] : landed.slice(0, 1)
+}
+
+/**
+ * Returns the fields the picker lists, whose thumbnail a reader cannot hide.
+ * @returns The shared fields, the thumbnail not hideable.
+ */
+function pickerFields(): Field<MediaItem>[] {
+	return mediaFields().map((field) => (field.id === 'thumbnail' ? { ...field, enableHiding: false } : field))
+}
+
+/**
+ * Reads the ticked files, whatever page of the library they sit on.
+ * @param ids - The ticked ids, in the order they were ticked.
+ * @param sizes - The page sizes the settings name, the largest being one call's worth.
+ * @returns The attachments, and the words saying why there is nothing to hand over, empty when there is.
+ */
+async function readChosen(ids: string[], sizes: readonly number[] | undefined) {
+	try {
+		const items = await listMediaByIDs(ids.map(Number), sizes)
+		const note = items.length > 0 ? '' : __('The selected media is no longer in the library.', 'gophenberg')
+		return { attachments: items.map(toAttachment), note }
+	} catch {
+		return { attachments: [], note: __('The media library could not be loaded.', 'gophenberg') }
+	}
+}
+
+/**
+ * Holds whether the picker is open, the view it shows, what is ticked in it and what stopped its last Select.
+ * @param value - The ids the block holds, ticked on each open.
+ * @param onClose - Told when the picker closes.
+ * @returns The state and the handlers opening and closing the picker.
+ */
+function usePickerState(value: MediaLibraryProps['value'], onClose: MediaLibraryProps['onClose']) {
+	const [isOpen, setIsOpen] = useState(false)
+	const [held, setHeld] = usePickerView()
+	const [selection, setSelection] = useState<string[]>([])
+	const [choiceNote, setChoiceNote] = useState('')
+	const sessions = useRef(0)
+	/**
+	 * Opens the picker on what the block holds, at the first page with no search.
+	 */
+	function open() {
+		setHeld((view) => ({ ...view, page: 1, search: '' }))
+		setSelection(selectionFrom(value))
+		setIsOpen(true)
+	}
+	/**
+	 * Closes the picker, forgetting what was ticked in it and any read still owed to it.
+	 */
+	function close() {
+		sessions.current += 1
+		setChoiceNote('')
+		setIsOpen(false)
+		setSelection([])
+		onClose?.()
+	}
+	return { isOpen, held, setHeld, selection, setSelection, choiceNote, setChoiceNote, sessions, open, close }
+}
+
+/**
+ * Reads the page of the library a view shows, asking nothing while the picker is closed.
+ * @param view - The view the picker shows.
+ * @param allowedTypes - The types the block accepts.
+ * @param isOpen - Whether the picker is open.
+ * @returns The page query.
+ */
+function usePickerPage(view: View, allowedTypes: string[] | undefined, isOpen: boolean) {
+	const asked = { mimes: allowedMimes(allowedTypes), ...mediaListing(view), page: view.page, perPage: view.perPage }
+	return useQuery({
+		queryKey: [...mediaQueryKey, 'picker', asked],
+		queryFn: () => listMedia(asked),
+		enabled: isOpen,
+		placeholderData: keepPreviousData,
+	})
+}
+
+/**
+ * Returns the Select action, handing the block every ticked file, read again, unless a close outran the read.
+ * @param state - The state of the picker.
+ * @param sizes - The page sizes the settings name.
+ * @param props - Whether the block takes many files, and the handler taking what it chose.
+ * @returns The action.
+ */
+function selectAction(
+	state: ReturnType<typeof usePickerState>,
+	sizes: readonly number[] | undefined,
+	{ takesMany, onSelect }: { takesMany: boolean, onSelect: MediaLibraryProps['onSelect'] },
+) {
+	return {
+		id: 'select',
+		label: __('Select', 'gophenberg'),
+		isPrimary: true,
+		supportsBulk: takesMany,
+		callback: async () => {
+			const session = state.sessions.current
+			state.setChoiceNote('')
+			const chosen = await readChosen(state.selection, sizes)
+			if (session !== state.sessions.current) {
+				return
+			}
+			state.setChoiceNote(chosen.note)
+			if (chosen.note === '') {
+				onSelect(takesMany ? chosen.attachments : chosen.attachments[0])
+				state.close()
+			}
+		},
+	}
+}
+
+/**
+ * Reports whether a close was asked by Escape from inside a panel the list opened, which closes that panel alone.
+ * @param details - Why the dialog was asked to close.
+ * @returns Whether it was.
+ */
+function escapeInPanel(details: CloseDetails): boolean {
+	return details.reason === 'escape-key' && (details.event.target as Element).closest('.components-popover') !== null
+}
+
+/**
+ * Returns what ticks the files of a batch starting now, unless the picker closed before they landed.
+ * @param state - The state of the picker.
+ * @param takesMany - Whether the block takes many files.
+ * @returns The handler told which files landed.
+ */
+function tickerFor(state: ReturnType<typeof usePickerState>, takesMany: boolean) {
+	const session = state.sessions.current
+	return (landed: string[]) => {
+		if (session === state.sessions.current) {
+			state.setSelection((held) => selectionAfter(held, landed, takesMany))
+		}
+	}
+}
+
+/**
+ * Renders the Select Media dialog the block editor opens to choose stored media.
  * @param props - The library contract the block editor passes.
- * @returns The trigger with the library behind it.
+ * @returns The trigger with the dialog behind it.
  */
 export function MediaLibraryPicker({
 	allowedTypes,
 	multiple,
 	value,
+	title,
 	onSelect,
 	onClose,
 	render,
 }: MediaLibraryProps) {
 	const settings = useListSettings().data
-	const fields = useMemo(() => mediaFields(), [])
-	const [open, setOpen] = useState(false)
-	const [held, setHeld] = useState<View>(INITIAL_VIEW)
-	const view = { ...held, perPage: held.perPage ?? settings?.picker_page_size }
-	const [selection, setSelection] = useState<string[]>([])
-	const takesMany = multiple === true || multiple === 'add'
-	const asked = { mimes: allowedMimes(allowedTypes), ...mediaListing(view), page: view.page, perPage: view.perPage }
-	const media = useQuery({
-		queryKey: [...mediaQueryKey, 'picker', asked],
-		queryFn: () => listMedia(asked),
-		enabled: open,
-		placeholderData: keepPreviousData,
-	})
-	const page = media.data ?? EMPTY_PAGE
-	/**
-	 * Closes the library, forgetting what was selected in it.
-	 */
-	function close() {
-		setOpen(false)
-		setSelection([])
-		onClose?.()
-	}
-	/**
-	 * Hands the block what the picker chose and closes the library.
-	 * @param chosen - The items the picker acted on.
-	 */
-	function choose(chosen: MediaItem[]) {
-		const attachments = chosen.map(toAttachment)
-		onSelect(takesMany ? attachments : attachments[0])
-		close()
-	}
-	const actions = [
-		{
-			id: 'select',
-			label: __('Select', 'gophenberg'),
-			isPrimary: true,
-			supportsBulk: takesMany,
-			callback: choose,
-		},
-	]
+	const sizes = settings?.list_page_sizes
+	const fields = useMemo(() => pickerFields(), [])
+	const frame = useRef<HTMLDivElement>(null)
+	const state = usePickerState(value, onClose)
+	const view = { ...state.held, perPage: offeredSize(state.held.perPage, sizes, settings?.picker_page_size) }
+	const takesMany = Boolean(multiple)
+	const media = usePickerPage(view, allowedTypes, state.isOpen)
+	const uploads = useUploadRun({ allowedTypes, onBatch: () => tickerFor(state, takesMany) })
 	return (
 		<>
-			{render({
-				open: () => {
-					setSelection(selectionFrom(value))
-					setOpen(true)
-				},
-			})}
-			<Dialog.Root open={open} onOpenChange={() => close()}>
-				<Dialog.Popup size="large" className="gophenberg-media-picker">
-					<SlotFillProvider>
-						<Dialog.Header>
-							<Dialog.Title>{__('Media Library', 'gophenberg')}</Dialog.Title>
-							<Dialog.CloseIconButton />
-						</Dialog.Header>
-						<Dialog.Content>
-							{media.isError ? (
-								<ErrorNotice>{__('The media library could not be loaded.', 'gophenberg')}</ErrorNotice>
-							) : (
-								<DataViewsPicker
-									data={page.items}
-									fields={fields}
-									actions={actions}
-									view={view}
-									onChangeView={setHeld}
-									selection={selection}
-									onChangeSelection={setSelection}
-									isLoading={media.isFetching}
-									getItemId={(item: MediaItem) => String(item.id)}
-									searchLabel={__('Search media', 'gophenberg')}
-									config={{ perPageSizes: [] }}
-									paginationInfo={paginationOf({ total: page.total, limit: page.perPage })}
-									defaultLayouts={
-										{
-											pickerGrid: { fields: [] },
-											pickerTable: { fields: ['filename', 'filesize'] },
-										} as unknown as Record<string, object>
-									}
-									empty={<Text>{__('No media has been uploaded yet.', 'gophenberg')}</Text>}
-								/>
-							)}
-						</Dialog.Content>
-						<Dialog.Footer>
-							<Stack direction="row" gap="sm" justify="flex-end">
-								<Button variant="outline" onClick={close}>
-									{__('Cancel', 'gophenberg')}
-								</Button>
-							</Stack>
-						</Dialog.Footer>
-						<Popover.Slot />
-					</SlotFillProvider>
+			{render({ open: state.open })}
+			<Dialog.Root
+				open={state.isOpen}
+				onOpenChange={(_open, details) => {
+					if (!escapeInPanel(details)) {
+						state.close()
+					}
+				}}
+			>
+				<Dialog.Popup ref={frame} initialFocus={frame} size="full" className="gophenberg-media-picker">
+					<AdminToaster>
+						<SlotFillProvider>
+							<PickerDialog
+								title={title ?? __('Select Media', 'gophenberg')}
+								accept={acceptOf(allowedTypes)}
+								media={media}
+								view={view}
+								onChangeView={state.setHeld}
+								fields={fields}
+								actions={[selectAction(state, sizes, { takesMany, onSelect })]}
+								selection={state.selection}
+								onChangeSelection={state.setSelection}
+								sizes={sizes}
+								narrowed={viewNarrows(view) || allowedMimes(allowedTypes).length > 0}
+								choiceNote={state.choiceNote}
+								uploads={uploads}
+								toast={state.isOpen ? uploads.toast : null}
+								frame={frame}
+							/>
+						</SlotFillProvider>
+					</AdminToaster>
 				</Dialog.Popup>
 			</Dialog.Root>
 		</>

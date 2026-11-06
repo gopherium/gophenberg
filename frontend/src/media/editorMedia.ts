@@ -5,6 +5,7 @@ import { __, sprintf } from '@wordpress/i18n'
 import { mediaSrc, uploadMedia } from './api'
 import type { MediaItem } from './api'
 import { displayFile } from './format'
+import { fileReason } from './uploadWords'
 
 // MAX_UPLOAD_BYTES mirrors the cap the server enforces on one upload.
 export const MAX_UPLOAD_BYTES = 128 * 1024 * 1024
@@ -77,7 +78,7 @@ export interface EditorMediaUploadArgs {
 	maxUploadFileSize?: number
 	multiple?: boolean
 	onFileChange?: (attachments: EditorAttachment[]) => void
-	onError?: (error: Error) => void
+	onError?: (message: string) => void
 }
 
 /**
@@ -108,14 +109,23 @@ export function toAttachment(item: MediaItem): EditorAttachment {
 }
 
 /**
+ * Returns the words saying a block does not take a file.
+ * @param file - The file the block was handed.
+ * @returns The words.
+ */
+function notTakenWords(file: File): string {
+	return sprintf(__('%(file)s is not a file this block accepts.', 'gophenberg'), { file: file.name })
+}
+
+/**
  * Returns why a file may not be uploaded, empty when it may.
  * @param file - The file the block was handed.
  * @param args - The rules the block passed along.
  * @returns The error to report, empty for an acceptable file.
  */
 function errorOf(file: File, args: EditorMediaUploadArgs): string {
-	if (args.allowedTypes !== undefined && !typeAllowed(file.type, args.allowedTypes)) {
-		return sprintf(__('%(file)s is not a file this block accepts.', 'gophenberg'), { file: file.name })
+	if (!typeAllowed(file.type, args.allowedTypes)) {
+		return notTakenWords(file)
 	}
 	if (args.maxUploadFileSize !== undefined && file.size > args.maxUploadFileSize) {
 		return sprintf(__('%(file)s is larger than one upload may be.', 'gophenberg'), { file: file.name })
@@ -124,13 +134,25 @@ function errorOf(file: File, args: EditorMediaUploadArgs): string {
 }
 
 /**
+ * Returns the family a block type written with a star stands for, any other entry as it is.
+ * @param entry - A full type or a type family a block accepts.
+ * @returns The entry without its trailing star.
+ */
+export function typeFamily(entry: string): string {
+	return entry.endsWith('/*') ? entry.slice(0, -2) : entry
+}
+
+/**
  * Reports whether a content type satisfies one of the allowed entries.
- * @param mime - The content type of the file.
+ * @param mime - The content type of the file, empty when the browser has none.
  * @param allowed - Full types or type families a block accepts.
  * @returns Whether the file may land in the block.
  */
-function typeAllowed(mime: string, allowed: string[]): boolean {
-	return allowed.some((entry) =>
+export function typeAllowed(mime: string, allowed: string[] = ['*']): boolean {
+	if (mime === '' || allowed.includes('*')) {
+		return true
+	}
+	return allowed.map(typeFamily).some((entry) =>
 		entry.includes('/') ? entry === mime : mime.startsWith(`${entry}/`),
 	)
 }
@@ -138,17 +160,21 @@ function typeAllowed(mime: string, allowed: string[]): boolean {
 /**
  * Uploads one file and returns the placed attachment.
  * @param file - The file to upload.
- * @param args - The handlers the block passed along.
- * @returns The stored attachment, or null when the upload failed.
+ * @param args - The rules and handlers the block passed along.
+ * @returns The stored attachment, or null when the upload failed or the server stored a kind the block refuses.
  */
 async function storedAttachment(
 	file: File,
 	args: EditorMediaUploadArgs,
 ): Promise<EditorAttachment | null> {
 	try {
-		return toAttachment(await uploadMedia(file))
+		const item = await uploadMedia(file)
+		if (typeAllowed(item.mimeType, args.allowedTypes)) {
+			return toAttachment(item)
+		}
+		args.onError?.(notTakenWords(file))
 	} catch (failure) {
-		args.onError?.(failure as Error)
+		args.onError?.(fileReason(file.name, (failure as Error).message))
 	}
 	return null
 }
@@ -169,7 +195,7 @@ function report(slots: (EditorAttachment | null)[], args: EditorMediaUploadArgs)
 export async function editorMediaUpload(args: EditorMediaUploadArgs): Promise<void> {
 	const files = Array.from(args.filesList)
 	if (args.multiple === false && files.length > 1) {
-		args.onError?.(new Error(__('Only one file may be placed here.', 'gophenberg')))
+		args.onError?.(__('Only one file may be placed here.', 'gophenberg'))
 		return
 	}
 	const accepted: File[] = []
@@ -178,7 +204,7 @@ export async function editorMediaUpload(args: EditorMediaUploadArgs): Promise<vo
 		if (message === '') {
 			accepted.push(file)
 		} else {
-			args.onError?.(new Error(message))
+			args.onError?.(message)
 		}
 	}
 	const slots: (EditorAttachment | null)[] = accepted.map((file) => ({

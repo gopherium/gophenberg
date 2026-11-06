@@ -110,3 +110,173 @@
 .components-modal__content:has(.gophenberg-media__edit-fields.has-scrolled-content) .components-modal__header {
 	border-bottom-color: var(--wpds-color-stroke-surface-neutral);
 }
+
+.gophenberg-media-picker {
+	--viewport-inset: 0px;
+	border-radius: 0;
+}
+
+.gophenberg-media-picker:focus {
+	outline: none;
+}
+
+@media not (forced-colors: active) {
+	.gophenberg-media-picker {
+		border-width: 0;
+	}
+}
+
+@media (min-width: 600px) {
+	.gophenberg-media-picker {
+		--viewport-inset: var(--wpds-dimension-padding-lg);
+		border-radius: var(--wpds-border-radius-lg);
+	}
+}
+
+@media (min-width: 782px) {
+	.gophenberg-media-picker {
+		--viewport-inset: var(--wpds-dimension-size-lg);
+	}
+}
+
+@media (max-width: 599px) {
+	.gophenberg-media-picker[data-starting-style],
+	.gophenberg-media-picker[data-ending-style] {
+		transform: translate(-50%, 50%);
+	}
+}
+
+.gophenberg-media-picker__header {
+	flex-shrink: 0;
+	box-sizing: border-box;
+	block-size: 72px;
+	padding-block-end: var(--wpds-dimension-padding-sm);
+}
+
+.gophenberg-media-picker__header h2 {
+	line-height: 1;
+}
+
+.gophenberg-media-picker__header button {
+	--wp-ui-button-padding-block: 0px;
+	line-height: normal;
+}
+
+.gophenberg-media-picker__content {
+	display: flex;
+	flex-direction: column;
+	padding: 0;
+}
+
+.gophenberg-media-picker__notice {
+	flex-shrink: 0;
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-2xl) 0;
+}
+
+.gophenberg-media-picker .dataviews-picker-wrapper > .dataviews__view-actions {
+	padding-block-start: var(--wpds-dimension-padding-sm);
+}
+
+.gophenberg-media-picker__footer {
+	position: sticky;
+	bottom: 0;
+	z-index: 2;
+	overflow-inline: clip;
+	background-color: inherit;
+}
+
+.gophenberg-media-picker__footer.is-uploading .dataviews-picker-footer__bulk-selection {
+	visibility: hidden;
+}
+
+.gophenberg-media-picker__footer .dataviews-footer {
+	position: static;
+	z-index: auto;
+}
+
+.gophenberg-media-picker__footer.is-alone {
+	min-block-size: calc(2 * var(--wpds-dimension-padding-md) + var(--wpds-dimension-size-md));
+	margin-block-start: auto;
+}
+
+.gophenberg-media-picker__status {
+	position: absolute;
+	inset-block: 1px;
+	inset-inline-start: var(--wpds-dimension-padding-2xl);
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-sm);
+	background-color: var(--wp-dataviews-color-background, var(--wpds-color-background-surface-neutral-strong));
+}
+
+.gophenberg-media-picker__status [aria-expanded='true'] {
+	color: var(--wpds-color-foreground-interactive-brand);
+}
+
+.gophenberg-media-picker .components-drop-zone__content-text {
+	line-height: 1.4;
+}
+
+.gophenberg-media-picker .godmin-toasts {
+	bottom: max(var(--wpds-dimension-gap-sm), calc(var(--wpds-dimension-size-md) - var(--viewport-inset)));
+	z-index: 3;
+}
+
+.gophenberg-media-picker__panel {
+	inline-size: 320px;
+}
+
+.gophenberg-media-picker__panel > div {
+	padding: 0;
+}
+
+.gophenberg-media-picker__panel-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+}
+
+.gophenberg-media-picker__panel-header h3 {
+	margin: 0;
+	font-size: var(--wpds-typography-font-size-md);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	line-height: 1.4;
+}
+
+.gophenberg-media-picker__rows {
+	max-block-size: 200px;
+	margin: 0;
+	padding: 0 0 var(--wpds-dimension-padding-xs);
+	overflow-y: auto;
+	list-style: none;
+}
+
+.gophenberg-media-picker__row {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--wpds-dimension-gap-sm);
+	margin-block-end: 0;
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-lg);
+}
+
+.gophenberg-media-picker__row > svg {
+	flex-shrink: 0;
+}
+
+.gophenberg-media-picker__error {
+	flex: 1;
+	min-inline-size: 0;
+}
+
+.gophenberg-media-picker__filename {
+	flex: 1;
+	min-inline-size: 0;
+	overflow: hidden;
+	font-size: var(--wpds-typography-font-size-sm);
+	line-height: 1.4;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
