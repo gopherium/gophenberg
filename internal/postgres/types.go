@@ -31,6 +31,9 @@ const restrictViolationCode = "23001"
 // foreignKeyViolationCode is what Postgres reports when a reference points at no row.
 const foreignKeyViolationCode = "23503"
 
+// deadlockCode is what Postgres reports when it breaks a deadlock.
+const deadlockCode = "40P01"
+
 // fieldKeyConstraint names the unique index over one group's field keys.
 const fieldKeyConstraint = "content_fields_scope_key_unique"
 
