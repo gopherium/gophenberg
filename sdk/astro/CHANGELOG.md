@@ -11,12 +11,18 @@ npm-style tag stays invisible to the Go toolchain, unlike a
 `sdk/astro/vX.Y.Z` tag naming the directory as a module. Versions
 through 0.8.0 shipped in step with Gophenberg under its `vX.Y.Z` tags.
 
-## Unreleased
+## [0.16.0] - 2026-11-06
 
 ### Changed
 
+- A theme built on 0.16.0 needs Gophenberg 0.20.0 or newer.
 - `MediaRendition` is now `MediaSubSize`, the type of one image sub-size a media field serves.
+- `ProfileConfig` types a split image service, with a `build` and a `runtime` entrypoint.
 - The kit parses blocks with `@wordpress/block-serialization-default-parser` 6.0.0.
+
+### Fixed
+
+- The build error names both image services when a theme splits its image service between build and runtime.
 
 ## [0.15.1] - 2026-10-13
 
