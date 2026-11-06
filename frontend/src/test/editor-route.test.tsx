@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, beforeEach, expect, test } from 'vitest'
 
-import { renderAt, renderRoutedAt } from './render'
+import { adminUser, renderAt, renderRoutedAt } from './render'
 import { storedPost, storedPostWithId } from './postFixture'
 
 const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
 const OTHER_POST = { ...storedPostWithId('019fb000-0000-7000-8000-000000000002'), title: 'Another post' }
+
+const author = { ...adminUser, role: 'author', capabilities: [] }
 
 beforeAll(async () => {
 	await import('../content/EditorScreen')
@@ -35,6 +37,53 @@ test('framed routes still render the admin chrome', async () => {
 
 	expect(await screen.findByRole('region', { name: 'Navigation' })).toBeInTheDocument()
 	expect(document.querySelector('.godmin-layout')).not.toBeNull()
+})
+
+/**
+ * Returns the menu row the admin sidebar draws for posts, once the registry answers.
+ * @returns The Posts link in the Navigation region.
+ */
+async function postsMenuRow(): Promise<HTMLElement> {
+	const menu = await screen.findByRole('region', { name: 'Navigation' })
+	return within(menu).findByRole('link', { name: 'Posts' })
+}
+
+test('draws the reading view of a trashed post in the admin frame, beside the menu row of its type', async () => {
+	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json({ ...storedPost, status: 'trash' })))
+	renderAt(EDITOR_PATH)
+
+	const words = await screen.findByText(/This item is in the trash/)
+
+	expect(await postsMenuRow()).toHaveAttribute('aria-current', 'page')
+	expect(screen.getByRole('main')).toContainElement(words)
+})
+
+test('draws the reading view of a post another account wrote in the admin frame', async () => {
+	renderAt(EDITOR_PATH, author)
+
+	const words = await screen.findByText(/another account wrote this/i)
+
+	expect(await postsMenuRow()).toHaveAttribute('aria-current', 'page')
+	expect(screen.getByRole('main')).toContainElement(words)
+})
+
+test('names a reading view with its only second level heading, beside the sidebar', async () => {
+	renderAt(EDITOR_PATH, author)
+
+	const main = await screen.findByRole('main')
+
+	expect(await within(main).findByRole('heading', { level: 2 })).toHaveTextContent(storedPost.title)
+	expect(within(main).queryAllByRole('heading', { level: 1 })).toHaveLength(0)
+})
+
+test('reports a post that could not load in the admin frame', async () => {
+	server.use(http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json({}, { status: 404 })))
+	renderAt(EDITOR_PATH)
+
+	const words = await screen.findByText('Could not load that post.')
+
+	expect(await postsMenuRow()).toBeInTheDocument()
+	expect(screen.getByRole('main')).toContainElement(words)
 })
 
 /**

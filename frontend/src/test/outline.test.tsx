@@ -32,7 +32,7 @@ const EMPTY = [
 	['/media', 'No media items yet'],
 ]
 
-const CHROMELESS = ['/content/$typeKey/$postId/edit']
+const EDITOR_ROUTES = ['/content/$typeKey/$postId/edit']
 
 const EDITOR_URL = `/content/post/${storedPost.id}/edit`
 
@@ -62,7 +62,7 @@ test('covers every route the application serves', () => {
 			.filter((path) => path !== ''),
 	)
 
-	expect([...served].sort()).toEqual([...FRAMED, ...CHROMELESS].sort())
+	expect([...served].sort()).toEqual([...FRAMED, ...EDITOR_ROUTES].sort())
 })
 
 test.each(VISITABLE)('titles %s as %s at the second level, under the sidebar title', async (path, title) => {
@@ -103,13 +103,16 @@ test('leaves the design canvas without a page heading', async () => {
 	expect(screen.queryAllByRole('heading', { level: 1 })).toHaveLength(0)
 })
 
-test('keeps the title of a trashed post at the first level in the editor, with no sidebar beside it', async () => {
+test('titles a trashed post at the second level, leaving the sidebar title the only first level heading', async () => {
 	server.use(
 		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json({ ...storedPost, status: 'trash' })),
 	)
 	renderAt(EDITOR_URL)
 
-	expect(await screen.findByRole('heading', { level: 1, name: storedPost.title })).toBeInTheDocument()
-	expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-	expect(screen.queryByRole('region', { name: 'Navigation' })).toBeNull()
+	await within(await screen.findByRole('main')).findByRole('heading', { level: 2, name: storedPost.title })
+
+	const sidebar = screen.getByRole('region', { name: 'Navigation' })
+	expect(screen.getAllByRole('heading', { level: 1 })).toEqual([
+		within(sidebar).getByRole('heading', { level: 1, name: 'Gophenberg' }),
+	])
 })

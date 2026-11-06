@@ -26,6 +26,7 @@ import { useMemo, useRef } from 'react'
 
 import './editor.css'
 
+import { Layout } from '../Layout'
 import { MEDIA_CATEGORIES } from '../media/inserterCategories'
 import { MediaLibraryPicker } from '../media/MediaLibraryPicker'
 import { PickerViewProvider } from '../media/pickerView'
@@ -63,9 +64,11 @@ export function EditorScreen() {
 	})
 	if (post.isError) {
 		return (
-			<Notice.Root intent="error" role="alert">
-				<Notice.Description>{__('Could not load that post.', 'gophenberg')}</Notice.Description>
-			</Notice.Root>
+			<Layout>
+				<Notice.Root intent="error" role="alert">
+					<Notice.Description>{__('Could not load that post.', 'gophenberg')}</Notice.Description>
+				</Notice.Root>
+			</Layout>
 		)
 	}
 	if (post.data === undefined) {
@@ -73,7 +76,11 @@ export function EditorScreen() {
 	}
 	const mine = sessionMayChange(session, post.data.authorId)
 	if (!mine || post.data.status === 'trash') {
-		return <PostReadView key={postId} stored={post.data} mine={mine} />
+		return (
+			<Layout>
+				<PostReadView key={postId} stored={post.data} mine={mine} />
+			</Layout>
+		)
 	}
 	return <Editor key={postId} postId={postId} stored={post.data} />
 }

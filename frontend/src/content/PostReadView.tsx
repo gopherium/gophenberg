@@ -22,6 +22,7 @@ export function PostReadView({ stored, mine }: { stored: PostDetail, mine: boole
 	return (
 		<Page
 			title={title}
+			headingLevel={2}
 			breadcrumbs={
 				<PageBreadcrumbs label={__('Breadcrumbs', 'gophenberg')}>
 					<PageBreadcrumb
