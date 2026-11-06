@@ -4,13 +4,11 @@ package postgres_test
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -150,8 +148,7 @@ func TestCreatingAPageReportsADeadlockOverItsParent(t *testing.T) {
 		t.Fatalf("committing the rival: %v", err)
 	}
 
-	var pgErr *pgconn.PgError
-	if err := finishes(t, created, 10*time.Second); !errors.As(err, &pgErr) || pgErr.Code != "40P01" {
+	if err := finishes(t, created, 10*time.Second); !deadlocked(err) {
 		t.Errorf("Create() error = %v, want the deadlock reported", err)
 	}
 }
