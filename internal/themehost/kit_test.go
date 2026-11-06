@@ -59,10 +59,11 @@ func TestKitsServeReadsTheKitsAnotherReleaseServes(t *testing.T) {
 func TestServedKitsCannotBeChangedByACaller(t *testing.T) {
 	t.Parallel()
 
+	oldest := themehost.ServedKits()[0]
 	themehost.ServedKits()[0] = "9.9.9"
 
-	if themehost.NewestKit() != "0.16.0" {
-		t.Errorf("NewestKit() = %q after a caller wrote to the returned slice", themehost.NewestKit())
+	if got := themehost.ServedKits()[0]; got != oldest {
+		t.Errorf("ServedKits()[0] = %q after a caller wrote to the returned slice, want %q", got, oldest)
 	}
 }
 
