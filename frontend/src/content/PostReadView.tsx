@@ -18,7 +18,7 @@ import { TrashedNotice } from './TrashedNotice'
 import { pluralOf } from './typeText'
 import { useContentType } from './useContentType'
 
-/** The preview viewport width WordPress reads as the width of the container, so the post draws unscaled. */
+/** The preview viewport width for an unscaled post. */
 const AT_CONTAINER_WIDTH = 0
 
 /** The block editor settings that give the preview the styles of the editor canvas. */
