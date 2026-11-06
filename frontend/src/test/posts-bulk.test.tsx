@@ -41,9 +41,6 @@ beforeEach(() => {
 	restored.length = 0
 	server.use(
 		http.get('/api/content', () => HttpResponse.json({ items: listed, total: listed.length })),
-		http.get('/api/content/counts', () =>
-			HttpResponse.json({ draft: 0, pending: 0, private: 0, published: listed.length, trash: 0 }),
-		),
 		http.delete('/api/content/:id', ({ params }) => {
 			trashed.push(String(params.id))
 			listed = listed.filter((post) => post.id !== String(params.id))

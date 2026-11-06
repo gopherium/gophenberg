@@ -14,7 +14,6 @@ const MENU_BUTTON = 'Open navigation panel'
 beforeEach(() => {
 	server.use(
 		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
-		http.get('/api/content/counts', () => HttpResponse.json({})),
 		http.get('/api/media', () => HttpResponse.json({ items: [], total: 0, per_page: 20 })),
 	)
 })

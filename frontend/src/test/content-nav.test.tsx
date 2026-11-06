@@ -51,7 +51,6 @@ beforeEach(() => {
 			HttpResponse.json({ items: [POST_TYPE, PAGE_TYPE, CLOSED_TYPE] }),
 		),
 		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
-		http.get('/api/content/counts', () => HttpResponse.json({})),
 	)
 })
 

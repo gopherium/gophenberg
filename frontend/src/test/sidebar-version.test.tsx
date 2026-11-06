@@ -10,7 +10,6 @@ import { renderAt } from './render'
 beforeEach(() => {
 	server.use(
 		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
-		http.get('/api/content/counts', () => HttpResponse.json({})),
 	)
 })
 
