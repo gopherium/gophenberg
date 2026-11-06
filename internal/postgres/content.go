@@ -797,5 +797,5 @@ func isSlugTaken(err error) bool {
 // lostAddressCheck reports whether err is a deadlock Postgres broke while checking an address.
 func lostAddressCheck(err error) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "40P01" && strings.Contains(pgErr.Where, slugConstraint)
+	return errors.As(err, &pgErr) && pgErr.Code == deadlockCode && strings.Contains(pgErr.Where, slugConstraint)
 }
