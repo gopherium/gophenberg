@@ -86,10 +86,7 @@ export function useEditorBuffer(postId: string, stored: PostDetail, declared: Co
 			if (outcome.kind === 'saved') {
 				adopt(outcome.post)
 				client.setQueryData<PostDetail>(['post', postId], (cached) => cached && outcome.post)
-				await Promise.all([
-					client.invalidateQueries({ queryKey: ['posts'] }),
-					client.invalidateQueries({ queryKey: ['post-counts'] }),
-				])
+				await client.invalidateQueries({ queryKey: ['posts'] })
 			}
 		},
 		onError: () => toaster.show(__('Could not save that post.', 'gophenberg')),
