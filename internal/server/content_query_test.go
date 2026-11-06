@@ -3,14 +3,17 @@
 package server_test
 
 import (
+	"context"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/server"
 )
 
 // queryFields declares a listed price, an unlisted note and a sale note the price hides.
@@ -163,6 +166,76 @@ func TestPublishedListAnswersAnEmptyPageForATypeNobodyDeclared(t *testing.T) {
 
 	if recorder.Code != http.StatusOK {
 		t.Errorf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+}
+
+func TestPublishedListLeavesTheStoreOutOfATypeNobodyDeclared(t *testing.T) {
+	t.Parallel()
+
+	store := newFakePostStore()
+	store.listErr = context.DeadlineExceeded
+	handler := contentServerOver(store)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/items?type=nothing&page=3&per_page=7", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body %s", recorder.Code, http.StatusOK, recorder.Body)
+	}
+	want := `{"items":[],"total":0,"page":3,"per_page":7}`
+	if got := strings.TrimSpace(recorder.Body.String()); got != want {
+		t.Errorf("body = %s, want %s", got, want)
+	}
+}
+
+func TestPublishedListStillAsksTheStoreAboutADeclaredType(t *testing.T) {
+	t.Parallel()
+
+	store := newFakePostStore()
+	store.listErr = context.DeadlineExceeded
+	handler := contentServerOver(store)
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/items?type=category", "")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+	if store.lastFilter.Type != "category" {
+		t.Errorf("filter type = %q, want category", store.lastFilter.Type)
+	}
+}
+
+func TestPublishedListKeepsAskingTheStoreAboutAnInactiveType(t *testing.T) {
+	t.Parallel()
+
+	types := newFakeTypeStore()
+	types.register(content.Type{Key: "retired", PageKind: content.PageKindSingle})
+	store := newFakePostStore()
+	store.add(content.Content{ID: uuid.Must(uuid.NewV7()), Type: "retired", Status: content.StatusPublished})
+	handler := server.NewServer(server.Config{Users: newFakeUserStore(), Content: store, Types: types})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/items?type=retired", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if !strings.Contains(recorder.Body.String(), `"total":1`) {
+		t.Errorf("body = %s, want the stored item listed", recorder.Body)
+	}
+}
+
+func TestPublishedListReportsARegistryItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	types := newFakeTypeStore()
+	types.listErr = errRegistryDown
+	handler := server.NewServer(server.Config{
+		Users: newFakeUserStore(), Content: newFakePostStore(), Types: types,
+	})
+
+	recorder := doRequest(t, handler, http.MethodGet, "/api/content/v1/items?type=post", "")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
 	}
 }
 

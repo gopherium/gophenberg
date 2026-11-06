@@ -24,7 +24,7 @@ require (
 	github.com/gopherium/gophenberg/sdk v0.5.0
 	github.com/gopherium/gouncer v0.5.0
 	github.com/gopherium/gouncer/authkit v0.24.0
-	github.com/gopherium/gouncer/authkit/postgres v0.15.0
+	github.com/gopherium/gouncer/authkit/postgres v0.15.1
 	github.com/gopherium/gouncer/authkit/ratelimit v0.3.1
 	github.com/gopherium/gouncer/authkit/sqlite v0.3.0
 	github.com/jackc/pgx/v5 v5.11.0
