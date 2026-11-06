@@ -24,6 +24,8 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
+
+	"github.com/gopherium/gophenberg/internal/version"
 )
 
 // mistypedSite is a site a person adds to the Caddyfile, its directive respond mistyped as respnd.
@@ -300,18 +302,25 @@ func (s *installScenario) checkedNoHTTPS() error {
 
 // endsWith fails unless what the run printed ends with want and its newline.
 func (s *installScenario) endsWith(want *godog.DocString) error {
-	if !strings.HasSuffix(s.stdout, "\n"+want.Content+"\n") {
-		return fmt.Errorf("the run printed\n%s\nwant it to end with\n%s", s.stdout, want.Content)
+	text := withThisVersion(want.Content)
+	if !strings.HasSuffix(s.stdout, "\n"+text+"\n") {
+		return fmt.Errorf("the run printed\n%s\nwant it to end with\n%s", s.stdout, text)
 	}
 	return nil
 }
 
 // printsLines fails unless what the run printed holds the lines of want, whole and in order.
 func (s *installScenario) printsLines(want *godog.DocString) error {
-	if !strings.Contains("\n"+s.stdout, "\n"+want.Content+"\n") {
-		return fmt.Errorf("the run printed\n%s\nwant it to hold\n%s", s.stdout, want.Content)
+	text := withThisVersion(want.Content)
+	if !strings.Contains("\n"+s.stdout, "\n"+text+"\n") {
+		return fmt.Errorf("the run printed\n%s\nwant it to hold\n%s", s.stdout, text)
 	}
 	return nil
+}
+
+// withThisVersion returns text with each %VERSION% replaced by the version of this installer.
+func withThisVersion(text string) string {
+	return strings.ReplaceAll(text, "%VERSION%", version.Version())
 }
 
 // endsWithWebServer fails unless what the run printed ends with the text the dry run prints for the web server.
