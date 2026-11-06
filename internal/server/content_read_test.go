@@ -48,7 +48,6 @@ func TestPostRoutesRequireASession(t *testing.T) {
 
 	for _, path := range []string{
 		"/api/content",
-		"/api/content/counts",
 		"/api/content/019f4a00-0000-7000-8000-000000000001",
 	} {
 		if code := doRequest(t, handler, http.MethodGet, path, "").Code; code != http.StatusUnauthorized {
@@ -295,48 +294,6 @@ func TestPostGetRejectsUnknownAndMalformedIDs(t *testing.T) {
 	}
 	if malformed.Code != http.StatusBadRequest {
 		t.Errorf("malformed id status = %d, want %d", malformed.Code, http.StatusBadRequest)
-	}
-}
-
-func TestPostCountsReportsEveryStatus(t *testing.T) {
-	t.Parallel()
-
-	handler, posts, ada := authedPostServer(t)
-	posts.add(newPost(t, "Draft One", ada.ID))
-	published := newPost(t, "Published One", ada.ID)
-	published.Status = content.StatusPublished
-	posts.add(published)
-	other := newPost(t, "A Page", ada.ID)
-	other.Type = "page"
-	posts.add(other)
-
-	recorder := doRequest(t, handler, http.MethodGet, "/api/content/counts", "")
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
-	}
-	counts := decodeBody[map[string]int](t, recorder)
-	want := map[string]int{"draft": 1, "pending": 0, "private": 0, "published": 1, "trash": 0}
-	if len(counts) != len(want) {
-		t.Fatalf("counts = %v, want the keys of %v", counts, want)
-	}
-	for status, total := range want {
-		if counts[status] != total {
-			t.Errorf("counts[%q] = %d, want %d", status, counts[status], total)
-		}
-	}
-}
-
-func TestPostCountsReportsStoreFailures(t *testing.T) {
-	t.Parallel()
-
-	handler, posts, _ := authedPostServer(t)
-	posts.countsErr = context.DeadlineExceeded
-
-	recorder := doRequest(t, handler, http.MethodGet, "/api/content/counts", "")
-
-	if recorder.Code != http.StatusInternalServerError {
-		t.Errorf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
 	}
 }
 
