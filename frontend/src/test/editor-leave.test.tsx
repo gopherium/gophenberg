@@ -58,11 +58,6 @@ beforeAll(async () => {
 
 beforeEach(() => {
 	vi.useFakeTimers({ shouldAdvanceTime: true })
-	server.use(
-		http.get('/api/content/counts', () =>
-			HttpResponse.json({ draft: 1, pending: 0, private: 0, published: 0, trash: 0 }),
-		),
-	)
 })
 
 afterEach(() => {

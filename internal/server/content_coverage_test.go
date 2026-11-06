@@ -71,13 +71,9 @@ func TestPostListRefusesTypesTheRegistryDoesNotServe(t *testing.T) {
 
 	for _, contentType := range []string{"page", "briefing"} {
 		list := doRequest(t, handler, http.MethodGet, "/api/content?type="+contentType, "")
-		counts := doRequest(t, handler, http.MethodGet, "/api/content/counts?type="+contentType, "")
 
 		if list.Code != http.StatusUnprocessableEntity {
 			t.Errorf("listing %q = %d, want %d", contentType, list.Code, http.StatusUnprocessableEntity)
-		}
-		if counts.Code != http.StatusUnprocessableEntity {
-			t.Errorf("counting %q = %d, want %d", contentType, counts.Code, http.StatusUnprocessableEntity)
 		}
 	}
 }

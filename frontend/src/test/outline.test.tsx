@@ -43,7 +43,6 @@ beforeAll(async () => {
 beforeEach(() => {
 	server.use(
 		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
-		http.get('/api/content/counts', () => HttpResponse.json({})),
 		http.get('/api/users', () => HttpResponse.json([])),
 		http.get('/api/themes', () => HttpResponse.json({ themes: [] })),
 		http.get('/api/media', () => HttpResponse.json({ items: [], total: 0, per_page: siteSettings.list_page_size })),

@@ -40,7 +40,6 @@ type fakePostStore struct {
 	restoreErr   error
 	deleteErr    error
 	emptyErr     error
-	countsErr    error
 	authoredErr  error
 	childrenErr  error
 	depthErr     error
@@ -382,20 +381,6 @@ func (s *fakePostStore) Autosave(_ context.Context, postID, authorID uuid.UUID) 
 		}
 	}
 	return content.Revision{}, content.ErrRevisionNotFound
-}
-
-// Counts returns the number of stored posts of the type in each status.
-func (s *fakePostStore) Counts(_ context.Context, typeKey string) (map[content.Status]int, error) {
-	if s.countsErr != nil {
-		return nil, s.countsErr
-	}
-	counts := map[content.Status]int{}
-	for _, p := range s.posts {
-		if p.Type == typeKey {
-			counts[p.Status]++
-		}
-	}
-	return counts, nil
 }
 
 // CountsByAuthor returns how many published and private posts of the type each author wrote.

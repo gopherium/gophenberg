@@ -50,7 +50,6 @@ var staffRoutes = []route{
 	{http.MethodGet, "/api/content"},
 	{http.MethodPost, "/api/content"},
 	{http.MethodDelete, "/api/content/trash"},
-	{http.MethodGet, "/api/content/counts"},
 	{http.MethodGet, "/api/content/{id}"},
 	{http.MethodPatch, "/api/content/{id}"},
 	{http.MethodDelete, "/api/content/{id}"},

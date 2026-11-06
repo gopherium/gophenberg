@@ -237,12 +237,6 @@ WHERE p.type = @type AND p.status = 'trash'
 -- name: CountTrash :one
 SELECT count(*) FROM core.content p WHERE p.type = @type AND p.status = 'trash';
 
--- name: CountContentByStatus :many
-SELECT p.status, count(*) AS total
-FROM core.content p
-WHERE p.type = @type
-GROUP BY p.status;
-
 -- name: CountContentByAuthor :many
 SELECT p.author_id, count(*) AS total
 FROM core.content p

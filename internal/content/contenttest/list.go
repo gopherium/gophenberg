@@ -23,7 +23,6 @@ var listCases = []Case{
 	{"ListTreatsWildcardsAsLiterals", listTreatsWildcardsAsLiterals},
 	{"ListPaginates", listPaginates},
 	{"ListReturnsAnEmptyPagePastTheEnd", listReturnsAnEmptyPagePastTheEnd},
-	{"CountsPerStatus", countsPerStatus},
 	{"CountsByAuthorKeepThePublishedAndPrivateItemsOfTheType", countsByAuthorKeepThePublishedAndPrivateItemsOfTheType},
 	{"CountsByAuthorAnswerAnEmptyMapWhenNothingCounts", countsByAuthorAnswerAnEmptyMapWhenNothingCounts},
 	{"ListSortsByTitle", listSortsByTitle},
@@ -203,26 +202,6 @@ func listReturnsAnEmptyPagePastTheEnd(t *testing.T, s Stores) {
 	}
 	if posts == nil || len(posts) != 0 {
 		t.Errorf("posts = %v, want an empty non-nil slice", posts)
-	}
-}
-
-// countsPerStatus counts the posts in each status and leaves the absent statuses out.
-func countsPerStatus(t *testing.T, s Stores) {
-	author := s.AddAuthor(t, DefaultAuthor)
-	Publish(t, s.Content, "Published One", author, time.Now().UTC().Truncate(time.Microsecond))
-	MustCreate(t, s.Content, "Draft One", author)
-	MustCreate(t, s.Content, "Draft Two", author)
-
-	counts, err := s.Content.Counts(t.Context(), content.TypePost)
-
-	if err != nil {
-		t.Fatalf("Counts() error = %v, want nil", err)
-	}
-	if counts[content.StatusDraft] != 2 || counts[content.StatusPublished] != 1 {
-		t.Errorf("counts = %v, want two drafts and one published", counts)
-	}
-	if _, ok := counts[content.StatusTrash]; ok {
-		t.Errorf("counts = %v, want absent statuses omitted by the store", counts)
 	}
 }
 

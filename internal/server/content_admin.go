@@ -24,15 +24,6 @@ import (
 	"github.com/gopherium/gophenberg/internal/served"
 )
 
-// countedStatuses are the statuses the counts endpoint always reports.
-var countedStatuses = []content.Status{
-	content.StatusDraft,
-	content.StatusPending,
-	content.StatusPrivate,
-	content.StatusPublished,
-	content.StatusTrash,
-}
-
 // authorCellAvatar is the avatar size the admin's author cell asks for, twice the 16 pixels it draws.
 const authorCellAvatar = 32
 
@@ -389,27 +380,6 @@ func (s *server) handleContentGet() http.HandlerFunc {
 			return
 		}
 		s.respondContent(w, r, http.StatusOK, c)
-	}
-}
-
-// handleContentCounts returns an http.HandlerFunc reporting how many items hold each status.
-func (s *server) handleContentCounts() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		contentType, err := s.typeAsked(r, r.URL.Query().Get("type"))
-		if err != nil {
-			respondDomainError(w, err)
-			return
-		}
-		stored, err := s.content.Counts(r.Context(), contentType.Key)
-		if err != nil {
-			respondDomainError(w, err)
-			return
-		}
-		counts := make(map[string]int, len(countedStatuses))
-		for _, status := range countedStatuses {
-			counts[string(status)] = stored[status]
-		}
-		authkit.Respond(w, http.StatusOK, counts)
 	}
 }
 

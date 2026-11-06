@@ -176,14 +176,34 @@ func execSQL(t *testing.T, databaseURL, statement string) {
 // seededCounts returns the seeded posts of each status.
 func seededCounts(t *testing.T, databaseURL string) map[content.Status]int {
 	t.Helper()
+	return seededCountsOf(t, databaseURL, content.TypePost)
+}
+
+// seededCountsOf returns the seeded items of the type in each status.
+func seededCountsOf(t *testing.T, databaseURL, typeKey string) map[content.Status]int {
+	t.Helper()
 	pool, err := pgxpool.New(t.Context(), databaseURL)
 	if err != nil {
 		t.Fatalf("connecting pool: %v", err)
 	}
 	defer pool.Close()
-	counts, err := postgres.NewContentStore(pool).Counts(t.Context(), content.TypePost)
+	rows, err := pool.Query(t.Context(),
+		"SELECT status, count(*) FROM core.content WHERE type = $1 GROUP BY status", typeKey)
 	if err != nil {
-		t.Fatalf("Counts() error = %v, want nil", err)
+		t.Fatalf("counting the seeded items: %v", err)
+	}
+	defer rows.Close()
+	counts := map[content.Status]int{}
+	for rows.Next() {
+		var status string
+		var total int
+		if err := rows.Scan(&status, &total); err != nil {
+			t.Fatalf("reading a seeded count: %v", err)
+		}
+		counts[content.Status(status)] = total
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("reading the seeded counts: %v", err)
 	}
 	return counts
 }
@@ -735,17 +755,9 @@ func TestSeedKeepsAPageInTheTrashBesideThePosts(t *testing.T) {
 		io.Discard); err != nil {
 		t.Fatalf("seedMigrated() error = %v, want nil", err)
 	}
-	pool, err := pgxpool.New(t.Context(), databaseURL)
-	if err != nil {
-		t.Fatalf("connecting pool: %v", err)
-	}
-	defer pool.Close()
 
-	counts, err := postgres.NewContentStore(pool).Counts(t.Context(), seed.PageTypeKey)
+	counts := seededCountsOf(t, databaseURL, seed.PageTypeKey)
 
-	if err != nil {
-		t.Fatalf("Counts() error = %v, want nil", err)
-	}
 	if counts[content.StatusTrash] != 1 || counts[content.StatusPublished] != 3 {
 		t.Errorf("page counts = %v, want three published pages and one in the trash", counts)
 	}
