@@ -703,19 +703,6 @@ func restoredRow(
 	}
 }
 
-// Counts returns the number of items of the type in each status.
-func (s *ContentStore) Counts(ctx context.Context, contentType string) (map[content.Status]int, error) {
-	rows, err := s.queries.CountContentByStatus(ctx, contentType)
-	if err != nil {
-		return nil, fmt.Errorf("postgres: count content by status: %w", err)
-	}
-	counts := make(map[content.Status]int, len(rows))
-	for _, row := range rows {
-		counts[content.Status(row.Status)] = int(row.Total)
-	}
-	return counts, nil
-}
-
 // CountsByAuthor returns how many published and private items of the type each author wrote.
 func (s *ContentStore) CountsByAuthor(ctx context.Context, contentType string) (map[uuid.UUID]int, error) {
 	rows, err := s.queries.CountContentByAuthor(ctx, contentType)

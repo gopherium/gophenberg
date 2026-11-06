@@ -12,19 +12,6 @@ import (
 // trash is the shared fixture under the name these tests use.
 var trash = contenttest.Trash
 
-func TestContentStoreCountsReportsDatabaseFailures(t *testing.T) {
-	t.Parallel()
-
-	store, _, pool := newContentStoreWithPool(t)
-	pool.Close()
-
-	_, err := store.Counts(t.Context(), content.TypePost)
-
-	if err == nil {
-		t.Error("Counts() on a closed pool error = nil, want a failure")
-	}
-}
-
 func TestContentStoreCountsByAuthorReportsDatabaseFailures(t *testing.T) {
 	t.Parallel()
 
