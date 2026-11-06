@@ -70,7 +70,7 @@ test('reads a trashed post at full size in the column and the font of the editor
 	await expect(words).toHaveCSS('font-family', /^system-ui/)
 })
 
-test('reads a trashed post unscaled on a phone without a sideways scroll', async ({ page }) => {
+test('reads a trashed post unscaled on a phone without clipping or a sideways scroll', async ({ page }) => {
 	await page.setViewportSize(PHONE)
 	const id = await trashed(page.request, 'post', 'A post the phone reading view spec trashed', READ_CONTENT)
 	await page.goto(`/admin/content/post/${id}/edit`)
@@ -82,4 +82,17 @@ test('reads a trashed post unscaled on a phone without a sideways scroll', async
 	await expect(preview).toHaveCSS('transform', UNSCALED)
 	expect(Math.ceil((await preview.boundingBox())?.width ?? PHONE.width + 1)).toBeLessThanOrEqual(PHONE.width)
 	expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+
+	const inside = await words.evaluate((element) => {
+		const text = element.ownerDocument.createRange()
+		text.selectNodeContents(element)
+		const { body } = element.ownerDocument
+		return {
+			textRight: Math.ceil(text.getBoundingClientRect().right),
+			width: body.clientWidth,
+			overflow: body.scrollWidth - body.clientWidth,
+		}
+	})
+	expect(inside.textRight).toBeLessThanOrEqual(inside.width)
+	expect(inside.overflow).toBe(0)
 })
