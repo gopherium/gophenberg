@@ -17,10 +17,11 @@ func TestServedKitsNamesWhatThisReleaseServes(t *testing.T) {
 
 	served := themehost.ServedKits()
 
-	if !slices.Equal(served, []string{"0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.15.1"}) {
+	want := []string{"0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.15.1", "0.16.0"}
+	if !slices.Equal(served, want) {
 		t.Errorf("ServedKits() = %v, want the kit versions this release serves", served)
 	}
-	if themehost.NewestKit() != "0.15.1" {
+	if themehost.NewestKit() != "0.16.0" {
 		t.Errorf("NewestKit() = %q, want the newest of them", themehost.NewestKit())
 	}
 }
@@ -28,12 +29,13 @@ func TestServedKitsNamesWhatThisReleaseServes(t *testing.T) {
 func TestAThemeOnEitherServedKitIsAccepted(t *testing.T) {
 	t.Parallel()
 
-	for _, declared := range []string{"0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.15.1"} {
+	accepted := []string{"0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.15.1", "0.16.0"}
+	for _, declared := range accepted {
 		if !themehost.ServesKit(declared) {
 			t.Errorf("ServesKit(%q) = false, want a theme on a served kit accepted", declared)
 		}
 	}
-	for _, declared := range []string{"0.8.0", "0.10.3", "0.15.2"} {
+	for _, declared := range []string{"0.8.0", "0.10.3", "0.15.2", "0.16.1"} {
 		if themehost.ServesKit(declared) {
 			t.Errorf("ServesKit(%q) = true, want a kit this release cannot serve turned away", declared)
 		}
@@ -59,7 +61,7 @@ func TestServedKitsCannotBeChangedByACaller(t *testing.T) {
 
 	themehost.ServedKits()[0] = "9.9.9"
 
-	if themehost.NewestKit() != "0.15.1" {
+	if themehost.NewestKit() != "0.16.0" {
 		t.Errorf("NewestKit() = %q after a caller wrote to the returned slice", themehost.NewestKit())
 	}
 }
