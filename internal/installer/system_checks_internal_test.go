@@ -6,13 +6,90 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"testing"
 )
+
+// notSetUp ends the stop of the machine checks on a system server:install does not set up.
+const notSetUp = ", and server:install sets up Ubuntu 24.04 or newer and Debian 12 or newer only, while Docker " +
+	"Compose runs Gophenberg on other systems, so nothing was changed"
 
 // debianRelease returns the os-release of Debian major, called codename.
 func debianRelease(major int, codename string) string {
 	return fmt.Sprintf("PRETTY_NAME=\"Debian GNU/Linux %d (%s)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"%d\"\n"+
 		"VERSION=\"%d (%s)\"\nVERSION_CODENAME=%s\nID=debian\n", major, codename, major, major, codename, codename)
+}
+
+func TestVersionNumbersReadsEachNumberOfAVersionID(t *testing.T) {
+	t.Parallel()
+
+	for versionID, want := range map[string][]uint64{
+		"24.04": {24, 4}, "24.10": {24, 10}, "26.04": {26, 4}, "12": {12}, "14": {14}, "24.04.1": {24, 4, 1},
+		"007": {7},
+	} {
+		if got := versionNumbers(versionID); !slices.Equal(got, want) {
+			t.Errorf("versionNumbers(%q) = %v, want %v", versionID, got, want)
+		}
+	}
+}
+
+func TestVersionNumbersReadsNoneFromAVersionIDThatIsNotNumbersJoinedByDots(t *testing.T) {
+	t.Parallel()
+
+	for _, versionID := range []string{
+		"", "forky/sid", "26.", ".04", "26..04", "+26.04", "-26", "26.04 LTS", " 26.04", "26,04", "0x1a", "1_4",
+		"99999999999999999999",
+	} {
+		if got := versionNumbers(versionID); got != nil {
+			t.Errorf("versionNumbers(%q) = %v, want none", versionID, got)
+		}
+	}
+}
+
+func TestAReleaseIsAtLeastAnotherOfItsSystemNumberByNumber(t *testing.T) {
+	t.Parallel()
+
+	ubuntu2404 := systemRelease{id: "ubuntu", version: "24.04"}
+	debian12 := systemRelease{id: "debian", version: "12"}
+	for _, tc := range []struct {
+		id, version string
+		oldest      systemRelease
+		want        bool
+	}{
+		{"ubuntu", "24.04", ubuntu2404, true}, {"ubuntu", "24.10", ubuntu2404, true},
+		{"ubuntu", "26.04", ubuntu2404, true}, {"ubuntu", "24.04.1", ubuntu2404, true},
+		{"ubuntu", "23.10", ubuntu2404, false}, {"ubuntu", "22.04", ubuntu2404, false},
+		{"ubuntu", "24", ubuntu2404, false}, {"ubuntu", "", ubuntu2404, false}, {"ubuntu", "next", ubuntu2404, false},
+		{"debian", "12", debian12, true}, {"debian", "13", debian12, true}, {"debian", "14", debian12, true},
+		{"debian", "100", debian12, true}, {"debian", "11", debian12, false}, {"debian", "9", debian12, false},
+		{"debian", "26.04", ubuntu2404, false}, {"linuxmint", "22", debian12, false},
+	} {
+		release := systemRelease{id: tc.id, version: tc.version}
+		if got := release.atLeast(tc.oldest); got != tc.want {
+			t.Errorf("%s %s at least %s %s = %t, want %t", tc.id, tc.version, tc.oldest.id, tc.oldest.version, got,
+				tc.want)
+		}
+	}
+}
+
+func TestTheOldestReleaseOfEachSystemNamesItsVersionIDInNumbers(t *testing.T) {
+	t.Parallel()
+
+	for _, oldest := range oldestSystems {
+		if versionNumbers(oldest.version) == nil {
+			t.Errorf("the oldest %s names the VERSION_ID %q, want numbers joined by dots", oldest.name, oldest.version)
+		}
+	}
+}
+
+func TestEveryReleaseCITestsIsOneServerInstallSetsUp(t *testing.T) {
+	t.Parallel()
+
+	for _, tested := range testedSystems {
+		if !slices.ContainsFunc(oldestSystems, tested.atLeast) {
+			t.Errorf("CI tests %s %s, which server:install does not set up", tested.name, tested.version)
+		}
+	}
 }
 
 func TestOsReleaseReadsEachSettingWithoutTheQuotesAroundIt(t *testing.T) {
@@ -106,17 +183,39 @@ func TestMemTotalMBRefusesAMemoryTooLargeToCount(t *testing.T) {
 	wantRefused(t, err, `strconv.Atoi: parsing "99999999999999999999": value out of range`)
 }
 
-func TestTheMachineChecksNoteThatDebianIsNotYetTestedInCI(t *testing.T) {
+func TestTheMachineChecksNoteNothingOnAReleaseGophenbergsCITests(t *testing.T) {
 	t.Parallel()
 
-	for major, codename := range map[int]string{12: "bookworm", 13: "trixie"} {
+	for _, release := range []string{
+		ubuntuRelease, systemReleases["Ubuntu 26.04"],
+		"PRETTY_NAME=\"Ubuntu 26.04.1 LTS\"\nVERSION_ID=\"26.04\"\nID=ubuntu\n",
+	} {
 		server := newFakeServer(t)
-		server.write("/etc/os-release", debianRelease(major, codename))
+		server.write("/etc/os-release", release)
 
 		err := server.check().run(t.Context())
 
-		server.wantPassed(err, fmt.Sprintf("Debian GNU/Linux %d (%s) is not yet tested in Gophenberg's CI, which "+
-			"tests Ubuntu 24.04\n", major, codename))
+		server.wantPassed(err, "")
+	}
+}
+
+func TestTheMachineChecksNoteASystemGophenbergsCIDoesNotTestYet(t *testing.T) {
+	t.Parallel()
+
+	for release, named := range map[string]string{
+		debianRelease(12, "bookworm"):                                     "Debian GNU/Linux 12 (bookworm)",
+		debianRelease(13, "trixie"):                                       "Debian GNU/Linux 13 (trixie)",
+		debianRelease(14, "forky"):                                        "Debian GNU/Linux 14 (forky)",
+		systemReleases["Ubuntu 26.10"]:                                    "Ubuntu 26.10",
+		"PRETTY_NAME=\"Ubuntu 24.10\"\nVERSION_ID=\"24.10\"\nID=ubuntu\n": "Ubuntu 24.10",
+		"ID=ubuntu\nVERSION_ID=\"28.04\"\n":                               "ubuntu 28.04",
+	} {
+		server := newFakeServer(t)
+		server.write("/etc/os-release", release)
+
+		err := server.check().run(t.Context())
+
+		server.wantPassed(err, named+" is not yet tested in Gophenberg's CI, which tests Ubuntu 24.04 and Ubuntu 26.04\n")
 	}
 }
 
@@ -124,22 +223,24 @@ func TestTheMachineChecksStopOnASystemTheyDoNotSetUp(t *testing.T) {
 	t.Parallel()
 
 	for release, named := range map[string]string{
-		"PRETTY_NAME=\"Ubuntu 22.04.5 LTS\"\nVERSION_ID=\"22.04\"\nID=ubuntu\n": "Ubuntu 22.04.5 LTS",
-		"PRETTY_NAME=\"Fedora Linux 41 (Server Edition)\"\nVERSION_ID=41\nID=fedora\n": "Fedora " +
-			"Linux 41 (Server Edition)",
-		"PRETTY_NAME=\"Debian GNU/Linux forky/sid\"\nID=debian\n": "Debian GNU/Linux forky/sid",
-		debianRelease(11, "bullseye"):                             "Debian GNU/Linux 11 (bullseye)",
-		"ID=alpine\nVERSION_ID=3.20.3\n":                          "alpine 3.20.3",
-		"ID=ubuntu\n":                                             "ubuntu",
-		"NAME=Linux\n":                                            "a system /etc/os-release does not name",
+		systemReleases["Ubuntu 22.04"]:                                     "Ubuntu 22.04.5 LTS",
+		systemReleases["Fedora 41"]:                                        "Fedora Linux 41 (Server Edition)",
+		"PRETTY_NAME=\"Ubuntu 23.10\"\nVERSION_ID=\"23.10\"\nID=ubuntu\n":  "Ubuntu 23.10",
+		"PRETTY_NAME=\"Debian GNU/Linux forky/sid\"\nID=debian\n":          "Debian GNU/Linux forky/sid",
+		debianRelease(11, "bullseye"):                                      "Debian GNU/Linux 11 (bullseye)",
+		"ID=ubuntu\nVERSION_ID=\"26.04 LTS\"\n":                            "ubuntu 26.04 LTS",
+		"ID=debian\nVERSION_ID=\"\"\n":                                     "debian",
+		"PRETTY_NAME=\"Linux Mint 22\"\nVERSION_ID=\"22\"\nID=linuxmint\n": "Linux Mint 22",
+		"ID=alpine\nVERSION_ID=3.20.3\n":                                   "alpine 3.20.3",
+		"ID=ubuntu\n":                                                      "ubuntu",
+		"NAME=Linux\n":                                                     "a system /etc/os-release does not name",
 	} {
 		server := newFakeServer(t)
 		server.write("/etc/os-release", release)
 
 		err := server.check().run(t.Context())
 
-		wantRefused(t, err, "this server runs "+named+", and server:install sets up Ubuntu 24.04, Debian 12 and "+
-			"Debian 13 only, so nothing was changed")
+		wantRefused(t, err, "this server runs "+named+notSetUp)
 	}
 }
 
@@ -151,8 +252,7 @@ func TestTheMachineChecksStopOnAServerWithNoOsRelease(t *testing.T) {
 
 	err := server.check().run(t.Context())
 
-	wantRefused(t, err, "this server runs a system /etc/os-release does not name, and server:install sets up "+
-		"Ubuntu 24.04, Debian 12 and Debian 13 only, so nothing was changed")
+	wantRefused(t, err, "this server runs a system /etc/os-release does not name"+notSetUp)
 }
 
 func TestTheMachineChecksRefuseAnOsReleaseTheyCannotRead(t *testing.T) {

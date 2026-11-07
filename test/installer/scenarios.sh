@@ -70,7 +70,7 @@ reset_failed() {
 begin() {
 	scenario="$1"
 	scenario_began=$SECONDS
-	scenario_started="$(date +%s.%6N)"
+	scenario_started="$EPOCHREALTIME"
 	echo "=== $scenario"
 	reset_failed
 }
@@ -329,7 +329,7 @@ probe() {
 	local file="$1" address="$2" asked answer
 	shift 2
 	while :; do
-		asked="$(date +%s.%N)"
+		asked="$EPOCHREALTIME"
 		answer="$(curl -s -o /dev/null --max-time 30 -w '%{http_code} %{time_total}' "$@" "$address" || true)"
 		printf '%s %s\n' "$asked" "$answer" >> "$file"
 		sleep "$probe_pause"

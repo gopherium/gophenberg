@@ -116,7 +116,7 @@ func (c *machineCheck) settleAdmin(ctx context.Context) error {
 	if !c.record.started(stepAdmin) {
 		return nil
 	}
-	listed, err := listedAccounts(ctx, c.machine, c.settings.Root)
+	listed, err := listedAccounts(ctx, c.machine.Run, c.settings.Root)
 	if err != nil {
 		return stop("cannot tell whether the run cut off in the admin step made the first administrator: %v", err)
 	}
@@ -132,9 +132,11 @@ type account struct {
 	Role  string `json:"role"`
 }
 
-// listedAccounts returns the accounts account:list -json lists, run on machine as gophenberg in root.
-func listedAccounts(ctx context.Context, machine Machine, root string) ([]account, error) {
-	printed, err := machine.Run(ctx, siteCommand(root, "account:list", "-json"))
+// listedAccounts returns the accounts account:list -json lists, started by run as gophenberg in root.
+func listedAccounts(
+	ctx context.Context, run func(context.Context, Program) (string, error), root string,
+) ([]account, error) {
+	printed, err := run(ctx, siteCommand(root, "account:list", "-json"))
 	if err != nil {
 		return nil, withPrinted(err, printed)
 	}

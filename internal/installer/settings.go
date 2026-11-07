@@ -95,7 +95,7 @@ type Restarts struct {
 	ProxyRetry    time.Duration
 }
 
-// Checks is how server:install checks the machine and how long each of its waits lasts.
+// Checks is how server:install checks the machine, how long each wait lasts and how often it prints a progress line.
 type Checks struct {
 	MemoryFloorMB      int
 	DiskFloorMB        int
@@ -104,6 +104,7 @@ type Checks struct {
 	HTTPSWait          time.Duration
 	PollInterval       time.Duration
 	StartWait          time.Duration
+	ProgressInterval   time.Duration
 }
 
 // withCaddy reports whether the run sets up Caddy in front of the site, not the person's own web server.
@@ -305,7 +306,7 @@ func restartsFrom(env gonsole.Env) (Restarts, error) {
 	return restarts, errors.Join(delayErr, intervalErr, burstErr, marginErr, retryAfterErr, proxyRetryErr)
 }
 
-// checksFrom reads how server:install checks the machine and how long it waits, each with its default.
+// checksFrom reads the checks, the waits and the progress interval of server:install, each with its default.
 func checksFrom(env gonsole.Env) (Checks, error) {
 	memory, memoryErr := env.Count("INSTALL_MEMORY_FLOOR_MB", 900, gonsole.AtMost(maxMegabytes))
 	disk, diskErr := env.Count("INSTALL_DISK_FLOOR_MB", 1024, gonsole.AtMost(maxMegabytes))
@@ -314,11 +315,12 @@ func checksFrom(env gonsole.Env) (Checks, error) {
 	https, httpsErr := env.Duration("INSTALL_HTTPS_WAIT", 2*time.Minute)
 	poll, pollErr := env.Duration("INSTALL_POLL_INTERVAL", time.Second)
 	start, startErr := env.Duration("UPDATE_VERIFY_TIMEOUT", time.Minute)
+	progress, progressErr := seconds(env, "INSTALL_PROGRESS_INTERVAL", 30*time.Second, gonsole.AllowZero())
 	checks := Checks{
 		MemoryFloorMB: memory, DiskFloorMB: disk, AptLockWait: apt, DomainCheckTimeout: domain, HTTPSWait: https,
-		PollInterval: poll, StartWait: start,
+		PollInterval: poll, StartWait: start, ProgressInterval: progress,
 	}
-	return checks, errors.Join(memoryErr, diskErr, aptErr, domainErr, httpsErr, pollErr, startErr)
+	return checks, errors.Join(memoryErr, diskErr, aptErr, domainErr, httpsErr, pollErr, startErr, progressErr)
 }
 
 // seconds returns the duration setting called name, refusing one that is not a whole number of seconds.

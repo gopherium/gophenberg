@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -19,14 +20,16 @@ import (
 	"syscall"
 )
 
-// Program is one outside program a step starts, with its arguments, OS user, folder, extra settings and input.
+// Program is an outside program a step starts: arguments, OS user, folder, settings, input, shown line and output copy.
 type Program struct {
-	Name  string
-	Args  []string
-	User  string
-	Dir   string
-	Env   []string
-	Stdin string
+	Name   string
+	Args   []string
+	User   string
+	Dir    string
+	Env    []string
+	Stdin  string
+	Shown  string
+	Output io.Writer
 }
 
 // Machine is everything outside its own process the installer reaches, so that a test can hand in a fake server.

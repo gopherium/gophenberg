@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"maps"
 	"math/big"
@@ -47,6 +48,9 @@ func initializeServerInstallApplies(sc *godog.ScenarioContext, s *installScenari
 	sc.When(`^Caddy restarts again on the server$`, s.letCaddyRestart)
 	sc.When(`^the person adds the site example.org to /etc/caddy/Caddyfile$`, s.addPersonSite)
 	sc.Given(`^an account a person made by hand holds (\S+) under the role (\S+)$`, s.addHandMadeAccount)
+	sc.Given(`^unattended-upgrades holds the dpkg lock for the first (\S+) of apt-get install$`, s.holdDpkgLock)
+	sc.Given(`^Caddy gets the certificate for example.com from Let's Encrypt only (\S+) into the HTTPS check$`,
+		s.delayCertificate)
 	sc.Then(`^the run stops with "(.*)", followed by what the program printed$`, s.stopsWithPrinted)
 	sc.Then(`^the run ran these programs, the checks' own left out:$`, s.ranPrograms)
 	sc.Then(`^the run ran "([^"]*)"$`, s.ranLine)
@@ -179,6 +183,58 @@ func (s *installScenario) addHandMadeAccount(email, role string) {
 // letCaddyRestart has caddy.service restart again.
 func (s *installScenario) letCaddyRestart() {
 	s.server.effects["systemctl"] = s.server.systemctl
+}
+
+// dpkgLockWait is what apt-get prints, no line break after it, while it waits for the lock unattended-upgrades holds.
+const dpkgLockWait = "Waiting for cache lock: Could not get lock /var/lib/dpkg/lock-frontend. " +
+	"It is held by process 1234 (unattended-upgr)..."
+
+// holdDpkgLock has apt-get install wait for the dpkg lock unattended-upgrades holds for wait, saying so as it waits.
+func (s *installScenario) holdDpkgLock(wait string) error {
+	held, err := time.ParseDuration(wait)
+	if err != nil {
+		return err
+	}
+	s.server.effects["apt-get"] = func(program Program) answer {
+		if !slices.Contains(program.Args, "install") {
+			return s.server.aptGet(program)
+		}
+		copyPrinted(program, dpkgLockWait)
+		time.Sleep(held)
+		installed := s.server.aptGet(program)
+		copyPrinted(program, "\n"+installed.printed)
+		return answer{printed: dpkgLockWait + "\n" + installed.printed}
+	}
+	return nil
+}
+
+// noCertificateYet is what an HTTPS fetch gets from Caddy while it holds no certificate for the domain.
+const noCertificateYet = "remote error: tls: internal error"
+
+// delayCertificate has every HTTPS fetch fail as Caddy without a certificate fails it until wait after the first fetch.
+func (s *installScenario) delayCertificate(wait string) error {
+	held, err := time.ParseDuration(wait)
+	if err != nil {
+		return err
+	}
+	var first time.Time
+	s.server.answerHTTPS = func(request *http.Request) (*http.Response, error) {
+		if first.IsZero() {
+			first = time.Now()
+		}
+		if time.Since(first) < held {
+			return nil, errors.New(noCertificateYet)
+		}
+		return s.server.caddyPage(request)
+	}
+	return nil
+}
+
+// copyPrinted writes text to the output program copies what it prints to, as the runner does, when it has one.
+func copyPrinted(program Program, text string) {
+	if program.Output != nil {
+		_, _ = io.WriteString(program.Output, text)
+	}
 }
 
 // stopsWithPrinted fails unless the run stopped with want followed by what the program that failed printed.

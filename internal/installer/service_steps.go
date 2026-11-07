@@ -165,8 +165,10 @@ func (r *installing) checkedCaddy(ctx context.Context, files []file) error {
 	if err != nil {
 		return err
 	}
-	validate := Program{Name: pieceCaddy, Args: caddyValidateArgs, User: pieceCaddy, Env: []string{"HOME=" + home}}
-	if printed, err := r.machine.Run(ctx, validate); err != nil {
+	validate := Program{
+		Name: pieceCaddy, Args: caddyValidateArgs, User: pieceCaddy, Env: []string{"HOME=" + home}, Shown: "caddy validate",
+	}
+	if printed, err := r.runNamed(ctx, validate); err != nil {
 		return fmt.Errorf("caddy validate refused Caddy's files, so Caddy runs on with the settings it has: %w",
 			withPrinted(err, printed))
 	}
@@ -197,7 +199,7 @@ func (r *installing) start(ctx context.Context, _ step) error {
 // waitForSite waits within the start wait until the site's pages answer as the start check of an update wants.
 func (r *installing) waitForSite(ctx context.Context) error {
 	settings := r.site.settings
-	err := r.within(ctx, settings.Checks.StartWait, func(ctx context.Context) error {
+	err := r.within(ctx, settings.Checks.StartWait, "the site to start", func(ctx context.Context) error {
 		return updater.CheckPages(ctx, r.machine.Fetch, settings.Addr.String())
 	})
 	if err == nil || ctx.Err() != nil {
@@ -208,8 +210,18 @@ func (r *installing) waitForSite(ctx context.Context) error {
 		r.site.env.Key("UPDATE_VERIFY_TIMEOUT"), err)
 }
 
-// within tries try every poll interval until it passes or wait is over, returning why the last try failed or ctx's end.
-func (r *installing) within(ctx context.Context, wait time.Duration, try func(context.Context) error) error {
+// within tries try every poll interval until it passes or wait is over, printing a still-waiting line for what.
+func (r *installing) within(
+	ctx context.Context, wait time.Duration, what string, try func(context.Context) error,
+) error {
+	tried := &lastTry{}
+	var err error
+	r.watched("still waiting for "+what, wait, tried.last, func() { err = r.retried(ctx, wait, tried.kept(try)) })
+	return err
+}
+
+// retried tries try every poll interval until it passes or wait is over, returning the last try's error or ctx's end.
+func (r *installing) retried(ctx context.Context, wait time.Duration, try func(context.Context) error) error {
 	waiting, cancel := context.WithTimeout(ctx, wait)
 	defer cancel()
 	for {
@@ -230,7 +242,8 @@ func (r *installing) createAdmin(ctx context.Context, _ step) error {
 	program := siteCommand(r.site.settings.Root, "account:create-admin", "-email", r.admin.email, "-name",
 		r.admin.name, "-role", adminRole)
 	program.Stdin = r.admin.password + "\n"
-	printed, err := r.machine.Run(ctx, program)
+	program.Shown = siteUser + " account:create-admin"
+	printed, err := r.runNamed(ctx, program)
 	if strings.Contains(printed, emailTaken) {
 		return r.takenByAdmin(ctx)
 	}
@@ -240,7 +253,7 @@ func (r *installing) createAdmin(ctx context.Context, _ step) error {
 
 // takenByAdmin accepts the email account:create-admin found taken once account:list lists that email under admin.
 func (r *installing) takenByAdmin(ctx context.Context) error {
-	listed, err := listedAccounts(ctx, r.machine, r.site.settings.Root)
+	listed, err := listedAccounts(ctx, r.runNamed, r.site.settings.Root)
 	if err != nil || slices.Contains(listed, account{Email: r.admin.email, Role: adminRole}) {
 		return err
 	}
@@ -252,7 +265,7 @@ func (r *installing) takenByAdmin(ctx context.Context) error {
 func (r *installing) https(ctx context.Context, _ step) error {
 	settings := r.site.settings
 	address := "https://" + settings.Domain + "/admin/"
-	err := r.within(ctx, settings.Checks.HTTPSWait, func(ctx context.Context) error {
+	err := r.within(ctx, settings.Checks.HTTPSWait, address, func(ctx context.Context) error {
 		return r.askHTTPS(ctx, address)
 	})
 	if err == nil || ctx.Err() != nil {

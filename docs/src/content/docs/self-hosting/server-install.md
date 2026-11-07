@@ -13,8 +13,11 @@ containers instead, see
 
 This section lists what the server needs before you start.
 
-- A fresh server running Ubuntu 24.04. Debian 12 and 13 install too,
-  and the run prints that Gophenberg's CI does not test them yet.
+- A fresh server running Ubuntu 24.04 or newer, or Debian 12 or newer.
+  Gophenberg's CI tests Ubuntu 24.04 and Ubuntu 26.04, and on any other
+  release the run prints that the CI does not test it yet. On an older
+  release or another system,
+  [install with Docker Compose](/self-hosting/install/) instead.
 - An `x86_64` or `aarch64` processor.
 - At least 1 GB of memory and 1 GB of free disk.
 - A domain whose A or AAAA record points at the server.
@@ -169,6 +172,30 @@ the install root `/opt/gophenberg`, and unpacks the build there. It
 writes the site's settings, two systemd units, the `gophenberg`
 command and Caddy's site. It starts the site, creates the first
 administrator and checks that HTTPS answers.
+
+As it goes, the run prints each step, and under it each program the
+step runs. Installing the packages can take a few minutes, and on a
+fresh server `apt-get` may first wait for the automatic updates to
+finish. So when a program runs longer than 30 seconds, the run prints
+a line every 30 seconds with the time so far and the last line the
+program printed:
+
+```text
+Step 2: install PostgreSQL and Caddy with apt-get, Caddy from its own apt repository
+  dpkg-query -W postgresql caddy
+  apt-get update
+  apt-get install postgresql caddy
+  still running apt-get install postgresql caddy after 30s: Waiting for cache lock: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 1234 (unattended-upgr)...
+  still running apt-get install postgresql caddy after 1m0s: Setting up postgresql-16 (16.10-0ubuntu0.24.04.1) ...
+```
+
+A program's own output shows in full only when it fails.
+While the run waits for the site to start or for HTTPS to answer, it
+prints the same kind of line, such as
+`still waiting for https://example.com/admin/ after 30s`, with why the
+last try failed.
+`GOPHENBERG_INSTALL_PROGRESS_INTERVAL` changes the 30 seconds, see
+[the server settings](/self-hosting/configuration/#the-server-settings).
 
 [What a dry run prints](/self-hosting/commands/#what-a-dry-run-prints)
 lists every step and every file with its owner and mode. Each step is
@@ -463,12 +490,181 @@ It needs no flag, since `server.env` keeps the settings. It writes the
 units and Caddy's site again, replaces the installer's own copy, and
 keeps the build `current` names.
 
-Caddy comes from Caddy's own apt repository. Its security fixes arrive
-through `unattended-upgrades` when that package was installed before
-the install line ran. If you install it later, run the install line
-again, which adds Caddy's repository to it. Without it, run
-`sudo apt update` and then `sudo apt upgrade`, which also bring
-PostgreSQL's fixes.
+Caddy and PostgreSQL get their updates from apt, see
+[keeping the server up to date](#keeping-the-server-up-to-date).
+
+## Keeping the server up to date
+
+This section says what keeps the rest of the server up to date, and
+what you do by hand. Gophenberg updates itself from the Updates
+screen, see
+[updating a server install](/self-hosting/updates-and-backups/#updating-a-server-install).
+PostgreSQL, Caddy and the system come from apt, the system's package
+tool.
+
+### What updates itself
+
+Ubuntu servers and most Debian cloud images come with
+`unattended-upgrades` switched on, and the check below shows whether
+yours does. Once a day it installs, without asking:
+
+- The system's security fixes, PostgreSQL's among them. Debian also
+  installs its point releases. Other PostgreSQL updates wait for
+  `sudo apt update` and then `sudo apt upgrade`.
+- Every new Caddy release, from Caddy's own repository. The install
+  adds that repository in `/etc/apt/apt.conf.d/52gophenberg-caddy`,
+  but only when `unattended-upgrades` was installed before the install
+  line ran. If you install it later, run the install line again.
+
+An update restarts what it updates. PostgreSQL stops for a few
+seconds, so a page asked for then may fail. Caddy restarts too, so
+HTTPS stops for a moment.
+
+To check that it is on, read this file. Both of its lines must hold
+`"1"`:
+
+```sh
+cat /etc/apt/apt.conf.d/20auto-upgrades
+```
+
+If the file is missing or a line holds `"0"`, turn it on, answering
+yes to its question, then run the install line again so it adds
+Caddy's repository:
+
+```sh
+sudo apt install unattended-upgrades
+sudo dpkg-reconfigure -plow unattended-upgrades
+```
+
+`/var/log/unattended-upgrades/unattended-upgrades.log` lists what it
+installed. `apt-cache policy caddy` shows the Caddy you have. Read the
+line with `dl.cloudsmith.io`, which is Caddy's own repository. The
+older Caddy of Ubuntu's own archive shows too, and never wins.
+
+### Restarting the server
+
+Some fixes, such as a new kernel, only take effect after a restart,
+and `unattended-upgrades` never restarts the server by itself. When
+one is due, the file `/var/run/reboot-required` exists, and on Ubuntu
+signing in also prints `*** System restart required ***`. On Debian,
+`unattended-upgrades` writes that file when it installs a new kernel,
+so it shows only while that package is installed. To check:
+
+```sh
+ls /var/run/reboot-required
+```
+
+`No such file or directory` means no restart is due. When one is,
+restart at a quiet time:
+
+```sh
+sudo reboot
+```
+
+The site, PostgreSQL and Caddy start again on their own.
+
+### A new Ubuntu or Debian release
+
+Ubuntu 24.04 gets security fixes until 2029, so moving to a new
+release is never urgent. When you move, such as from Ubuntu 24.04 to
+26.04, three things need your hands: a backup first, PostgreSQL's new
+major version, and Caddy's repository.
+
+1. Stop the site, then take a backup of the database:
+
+   ```sh
+   sudo systemctl stop gophenberg
+   sudo -u gophenberg pg_dump -Fc \
+     -f /opt/gophenberg/backups/before-release-upgrade.dump gophenberg
+   ```
+
+   Use the install root you chose in place of `/opt/gophenberg`. An
+   update never removes a backup with this name, and
+   [restoring on a server install](/self-hosting/updates-and-backups/#restoring-on-a-server-install)
+   puts one back.
+
+2. Upgrade the system, on Ubuntu with:
+
+   ```sh
+   sudo do-release-upgrade
+   ```
+
+   It asks two questions about what the install set up. It lists
+   `caddy` among packages from outside Ubuntu and asks whether to go
+   on. Answer yes. It asks whether to upgrade the PostgreSQL cluster
+   16/main to 18. Answer no, and move it in step 3. It also turns
+   Caddy's repository off, by adding `Enabled: no` to
+   `/etc/apt/sources.list.d/caddy.sources`. At the end it asks to
+   restart the server. Answer yes, and the site starts again with it.
+
+3. Move PostgreSQL to the new major. Ubuntu 26.04 ships PostgreSQL 18,
+   and 16 gets no more fixes there, so do this soon. First see which
+   cluster holds the site's data:
+
+   ```sh
+   pg_lsclusters
+   ```
+
+   The cluster online on port 5432 is the one the site uses. Never
+   remove a cluster that is online on 5432.
+
+   - If `16 main` is online on 5432, move it:
+
+     ```sh
+     sudo systemctl stop gophenberg
+     sudo pg_upgradecluster 16 main
+     pg_lsclusters
+     ```
+
+     `pg_upgradecluster` copies the data into a new 18 cluster, which
+     takes port 5432, and leaves the old one stopped on another port.
+     It needs free disk for a second copy of the database. Stop the
+     site before it, never PostgreSQL. Keep its default way of
+     copying, since `--method=upgrade` and `--method=link` can leave
+     indexes that need rebuilding after a new system release. The
+     second `pg_lsclusters` shows `18 main` online on 5432 and
+     `16 main` down.
+
+     If the first `pg_lsclusters` also listed an `18 main` on another
+     port, `pg_upgradecluster` stops, since that name is taken. While
+     `16 main` is the one on 5432, that `18 main` holds none of the
+     site's data, and `sudo pg_dropcluster --stop 18 main` removes it.
+
+   - If `18 main` is already online on 5432 and `16 main` is down,
+     the upgrade moved the data when its question was answered yes.
+     Skip the move.
+
+   Then start the site and check it:
+
+   ```sh
+   sudo systemctl start gophenberg
+   ```
+
+   Once the site works, remove the old cluster and its packages:
+
+   ```sh
+   sudo pg_dropcluster 16 main
+   sudo apt purge postgresql-16 postgresql-client-16
+   ```
+
+4. Turn Caddy's repository back on with the install line, and let apt
+   read it again:
+
+   ```sh
+   curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh
+   sudo apt update
+   ```
+
+   The install line writes Caddy's source again without
+   `Enabled: no`, and writes the units for the new release. Use the
+   install line rather than `sudo gophenberg server:install`, whose
+   copy of the installer may be older than the first release that
+   knows the new system.
+
+On Debian, take step 1, then follow Debian's release notes to upgrade
+the system. When apt asks whether to upgrade the PostgreSQL cluster
+15/main to 17, answer no. Then take steps 3 and 4, with 15 and 17 in
+place of 16 and 18.
 
 ## With your own web server
 
@@ -545,7 +741,8 @@ Nothing was installed, and no download folder is left.
   ```
 
 - **An old OpenSSL.** The system is older than the ones Gophenberg
-  installs on. Ubuntu 24.04 and Debian 12 and 13 ship OpenSSL 3.
+  installs on. Ubuntu 24.04, Debian 12 and their newer releases ship
+  OpenSSL 3 or newer.
 
   ```text
   install.sh: checking the download needs OpenSSL 3 or newer, and this server has OpenSSL 1.1.1w

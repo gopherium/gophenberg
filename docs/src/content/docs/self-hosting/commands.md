@@ -685,10 +685,13 @@ says why and ends with `so nothing was changed`. In order:
 - **The installer folder.** `/var/lib/gophenberg-installer`, when it
   exists, is a real folder, not a link, owned by root and writable by
   root alone.
-- **The system.** `/etc/os-release` names Ubuntu 24.04, Debian 12 or
-  Debian 13. On Debian it also prints that Gophenberg's CI tests
-  Ubuntu 24.04 only, such as
-  `Debian GNU/Linux 12 (bookworm) is not yet tested in Gophenberg's CI, which tests Ubuntu 24.04`.
+- **The system.** `/etc/os-release` names Ubuntu 24.04 or newer, or
+  Debian 12 or newer. It compares `VERSION_ID` number by number, so
+  Ubuntu 24.10 and 26.04 are both newer than 24.04. An older release,
+  a missing `VERSION_ID` or another system stops here. On a release
+  that CI does not test, such as Debian or Ubuntu 26.10, it also prints
+  that the release is not yet tested in Gophenberg's CI, which tests
+  Ubuntu 24.04 and Ubuntu 26.04, and goes on.
 - **systemd.** systemd runs the server, so `/run/systemd/system` is a
   folder, and `systemctl --version` names systemd 251 or newer.
 - **The sandbox.** systemd can set up the sandbox the site's service
@@ -901,6 +904,26 @@ order. Before each one it prints its line, such as
 `Step 10: write the gophenberg command on the path`. Each file it
 writes is the one a dry run prints, with that owner and mode.
 
+Under each step it names every program the step runs, indented by two
+spaces, by its name and the arguments that matter, such as
+`apt-get install postgresql caddy`. A program that runs longer than
+`GOPHENBERG_INSTALL_PROGRESS_INTERVAL`, 30 seconds unless set, gets a
+line every interval with the time so far and the last line it printed.
+The waits for the site to start and for HTTPS to answer print such a
+line too, with why the last try failed.
+`0` leaves those lines out. What a program prints shows in full only
+when it fails, after the error. On a fresh server, `apt-get` may first
+wait up to `GOPHENBERG_INSTALL_APT_LOCK_WAIT` for the automatic
+updates:
+
+```text
+Step 2: install PostgreSQL and Caddy with apt-get, Caddy from its own apt repository
+  dpkg-query -W postgresql caddy
+  apt-get update
+  apt-get install postgresql caddy
+  still running apt-get install postgresql caddy after 30s: Waiting for cache lock: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 1234 (unattended-upgr)...
+```
+
 The step that starts the site waits for its pages, up to
 `GOPHENBERG_UPDATE_VERIFY_TIMEOUT`, 1 minute unless
 [the server settings](/self-hosting/configuration/#the-server-settings)
@@ -1102,7 +1125,7 @@ server:uninstall keeps:
   the system user gophenberg
   /var/lib/gophenberg-installer/install.json, so a later install picks up what is kept
   the packages server:install installed, which sudo apt-get purge postgresql caddy removes
-  /etc/apt/keyrings/caddy.asc, /etc/apt/sources.list.d/caddy.sources and /etc/apt/preferences.d/gophenberg-caddy, which bring Caddy's security fixes from its own apt repository
+  /etc/apt/keyrings/caddy.asc, /etc/apt/sources.list.d/caddy.sources and /etc/apt/preferences.d/gophenberg-caddy, part of the setup of Caddy's own apt repository
 gophenberg: dry run, nothing changed, pass -yes to apply
 ```
 

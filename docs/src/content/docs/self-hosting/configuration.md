@@ -700,6 +700,7 @@ first of these that gives it a value:
 | `GOPHENBERG_INSTALL_DOMAIN_CHECK_TIMEOUT` | `10s` | How long the domain check waits for each fetch of its token |
 | `GOPHENBERG_INSTALL_HTTPS_WAIT` | `2m` | How long the HTTPS step waits for `https://<domain>/admin/` to answer |
 | `GOPHENBERG_INSTALL_POLL_INTERVAL` | `1s` | The pause between two tries in each wait of the steps |
+| `GOPHENBERG_INSTALL_PROGRESS_INTERVAL` | `30s` | How often a step prints that a program it runs is still running, with the last line that program printed, or that it still waits for the site or for HTTPS, with why the last try failed, in whole seconds. `0` prints no such line, and each step still names the programs it runs |
 | `GOPHENBERG_UPDATE_VERIFY_TIMEOUT` | `1m` | How long the step that starts the site waits for its first start to pass the same check an update's first start does. Updates take theirs from the site's `.env` |
 
 With `GOPHENBERG_INSTALL_WEB_SERVER=none`, the run uses neither the
@@ -708,9 +709,9 @@ certificate email, `GOPHENBERG_MAINTENANCE_RETRY_AFTER`,
 since those are Caddy's. It still stops on a bad value of one, and
 keeps their lines in `server.env`.
 
-Every duration but the apt lock wait must stand above zero. A bad
-value stops the run before the server is checked, and the message
-names the setting, every bad one at once:
+Every duration but the apt lock wait and the progress interval must
+stand above zero. A bad value stops the run before the server is
+checked, and the message names the setting, every bad one at once:
 
 ```text
 gophenberg: GOPHENBERG_ADDR: must be a loopback address with a port, such as 127.0.0.1:8081, got "0.0.0.0:8081"

@@ -1,6 +1,7 @@
 Feature: Install Gophenberg on a Linux server
-  sudo gophenberg server:install sets up Gophenberg on a fresh Ubuntu
-  24.04, Debian 12 or Debian 13 server. Before it changes anything it
+  sudo gophenberg server:install sets up Gophenberg on a fresh server
+  that runs Ubuntu 24.04 or newer, or Debian 12 or newer, and notes a
+  system Gophenberg's CI does not test yet. Before it changes anything it
   checks that root runs it and that its installer folder is a real folder
   root alone may write, then reads its settings, reads its install record
   and checks the server: the system, systemd and the sandbox of the site's
@@ -19,24 +20,30 @@ Feature: Install Gophenberg on a Linux server
   flags leave out: the email, the name and the password, typed twice and
   never shown. A typed answer the account rules refuse is asked again.
   Then it takes the steps its dry run prints, in order, and writes each
-  file its dry run prints. The install record marks each step started
-  before it and ended after it, so a run cut off part way picks up where
-  it stopped, and a step an earlier run ended never opens again. A later
-  run leaves the running build alone, asks nothing, keeps the person's
-  Caddyfile, reloads Caddy and restarts the site. A site that never
-  answers stops the run, and an HTTPS check that gets no answer only warns
-  and checks again on the next run. The checks also stop at a gophenberg
-  command on the path that the installer did not write, at a Caddyfile
-  that lost a line an earlier run wrote, and at a current link that names
-  no build. Root never takes a setting from the site's .env, since the
-  site's own user can write it. It reads only the five stop graces from
-  it, as plain numbers, for the time systemd gives the site to stop, and
-  on a server that keeps its own web server the upload cap. With
+  file its dry run prints. Under each step it names every program the step
+  runs, and while one runs longer than the progress interval,
+  GOPHENBERG_INSTALL_PROGRESS_INTERVAL or 30 seconds, it prints a line
+  every interval with the time so far and the last line the program
+  printed. The wait for the site to start and the HTTPS check print such
+  a line while they wait, with what their last try got. An interval of 0
+  prints no such line. The install record marks
+  each step started before it and ended after it, so a run cut off part
+  way picks up where it stopped, and a step an earlier run ended never
+  opens again. A later run leaves the running build alone, asks nothing,
+  keeps the person's Caddyfile, reloads Caddy and restarts the site. A
+  site that never answers stops the run, and an HTTPS check that gets no
+  answer only warns and checks again on the next run. The checks also stop
+  at a gophenberg command on the path that the installer did not write, at
+  a Caddyfile that lost a line an earlier run wrote, and at a current link
+  that names no build. Root never takes a setting from the site's .env,
+  since the site's own user can write it. It reads only the five stop
+  graces from it, as plain numbers, for the time systemd gives the site to
+  stop, and on a server that keeps its own web server the upload cap. With
   -web-server none the server keeps a web server of its own: the run
   leaves out Caddy, the ports Caddy answers on and the domain check, and
   its last step prints the lines that web server needs to send the domain
-  to the site. A later run never moves a server from one web server to
-  the other.
+  to the site. A later run never moves a server from one web server to the
+  other.
 
   Background:
     Given a fresh Ubuntu 24.04 server run by systemd 255
@@ -55,11 +62,40 @@ Feature: Install Gophenberg on a Linux server
     Then the run stops with "server:install must run as root, such as with sudo, so nothing was changed"
     And nothing on the server changed
 
-  Scenario: A system the installer does not set up is refused
-    Given the server runs Ubuntu 22.04
+  Scenario Outline: A system the installer does not set up is refused
+    Given the server runs <system>
     When the operator runs "server:install -dry-run -domain example.com"
-    Then the run stops with "this server runs Ubuntu 22.04.5 LTS, and server:install sets up Ubuntu 24.04, Debian 12 and Debian 13 only, so nothing was changed"
+    Then the run stops with "this server runs <named>, and server:install sets up Ubuntu 24.04 or newer and Debian 12 or newer only, while Docker Compose runs Gophenberg on other systems, so nothing was changed"
     And nothing on the server changed
+
+    Examples:
+      | system       | named                            |
+      | Ubuntu 22.04 | Ubuntu 22.04.5 LTS               |
+      | Fedora 41    | Fedora Linux 41 (Server Edition) |
+
+  Scenario Outline: A release Gophenberg's CI tests is set up with no note
+    Given the server runs <system>
+    When the operator runs "server:install -dry-run -domain localhost -admin-email admin@example.com"
+    Then the run succeeds
+    And the run notes nothing
+    And nothing on the server changed
+
+    Examples:
+      | system       |
+      | Ubuntu 24.04 |
+      | Ubuntu 26.04 |
+
+  Scenario Outline: A newer Ubuntu or Debian is set up with a note that CI does not test it yet
+    Given the server runs <system>
+    When the operator runs "server:install -dry-run -domain example.com -admin-email admin@example.com"
+    Then the run succeeds
+    And the run notes "<named> is not yet tested in Gophenberg's CI, which tests Ubuntu 24.04 and Ubuntu 26.04"
+    And nothing on the server changed
+
+    Examples:
+      | system       | named                       |
+      | Ubuntu 26.10 | Ubuntu 26.10                |
+      | Debian 14    | Debian GNU/Linux 14 (forky) |
 
   Scenario: A systemd older than 251 is refused
     Given the server runs systemd 250
@@ -808,6 +844,38 @@ Feature: Install Gophenberg on a Linux server
     And the server holds /etc/caddy/Caddyfile.before-gophenberg as the caddy package wrote it
     And the install record holds the SHA-256 of the Caddyfile the run wrote
     And the install record marks every step it took ended
+    And the run prints:
+      """
+      Step 1: start the install record /var/lib/gophenberg-installer/install.json and write the server settings
+      Step 2: install PostgreSQL and Caddy with apt-get, Caddy from its own apt repository
+        dpkg-query -W postgresql caddy
+        apt-get update
+        apt-get install postgresql caddy
+      Step 3: make the system user gophenberg, which runs the site and signs in to PostgreSQL
+        useradd gophenberg
+      Step 4: make the install root /opt/gophenberg and its folders, owned by gophenberg
+      Step 5: make the database role gophenberg and its database gophenberg as the postgres user
+        createuser gophenberg
+        createdb gophenberg
+      Step 6: unpack the release archive into /opt/gophenberg/versions and point /opt/gophenberg/current at it
+      Step 7: keep a copy of this installer at /usr/local/lib/gophenberg/gophenberg, the one root runs for server:install and server:uninstall
+      Step 8: write the site's settings, then run check as gophenberg in /opt/gophenberg
+        gophenberg check
+      Step 9: write the systemd units and Caddy's drop-in, then reload systemd and enable gophenberg.service
+        systemctl daemon-reload
+        systemctl enable gophenberg.service
+      Step 10: write the gophenberg command on the path
+      Step 11: write Caddy's files, keep the package's Caddyfile as /etc/caddy/Caddyfile.before-gophenberg, check them with caddy validate and restart Caddy
+        caddy validate
+        systemctl restart caddy.service
+      Step 12: start gophenberg.service and wait until /admin/, /api/locale and / answer on 127.0.0.1:8081
+        systemctl reset-failed gophenberg.service
+        systemctl start gophenberg.service
+      Step 13: create the first administrator with account:create-admin as gophenberg
+        gophenberg account:create-admin
+      Step 14: check that https://example.com/admin/ answers within 2m0s
+      Step 15: print the summary and end the install record
+      """
     And the run ends with:
       """
       Step 15: print the summary and end the install record
@@ -819,6 +887,54 @@ Feature: Install Gophenberg on a Linux server
         sudo gophenberg update:apply      installs the update on offer
         sudo journalctl -u gophenberg     shows what the site logged
         sudo gophenberg server:uninstall  removes Gophenberg and keeps its data
+      """
+
+  Scenario: A program that runs longer than the progress interval prints a line every 30 seconds with what it printed last
+    Given unattended-upgrades holds the dpkg lock for the first 1m15s of apt-get install
+    And the release archive of this installer is at /var/lib/gophenberg-installer/release.tar.gz
+    And the file /root/admin-password holds the line "correct horse battery staple"
+    When the operator runs "server:install -domain example.com -archive /var/lib/gophenberg-installer/release.tar.gz -admin-email admin@example.com -admin-name Maria -admin-password-file /root/admin-password"
+    Then the run succeeds
+    And the run prints:
+      """
+      Step 2: install PostgreSQL and Caddy with apt-get, Caddy from its own apt repository
+        dpkg-query -W postgresql caddy
+        apt-get update
+        apt-get install postgresql caddy
+        still running apt-get install postgresql caddy after 30s: Waiting for cache lock: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 1234 (unattended-upgr)...
+        still running apt-get install postgresql caddy after 1m0s: Waiting for cache lock: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 1234 (unattended-upgr)...
+      Step 3: make the system user gophenberg, which runs the site and signs in to PostgreSQL
+      """
+
+  Scenario: A progress interval of 0 names each program and prints no line while it runs
+    Given unattended-upgrades holds the dpkg lock for the first 1m15s of apt-get install
+    And the environment sets GOPHENBERG_INSTALL_PROGRESS_INTERVAL to 0
+    And the release archive of this installer is at /var/lib/gophenberg-installer/release.tar.gz
+    And the file /root/admin-password holds the line "correct horse battery staple"
+    When the operator runs "server:install -domain example.com -archive /var/lib/gophenberg-installer/release.tar.gz -admin-email admin@example.com -admin-name Maria -admin-password-file /root/admin-password"
+    Then the run succeeds
+    And the run prints:
+      """
+      Step 2: install PostgreSQL and Caddy with apt-get, Caddy from its own apt repository
+        dpkg-query -W postgresql caddy
+        apt-get update
+        apt-get install postgresql caddy
+      Step 3: make the system user gophenberg, which runs the site and signs in to PostgreSQL
+      """
+
+  Scenario: An HTTPS check that waits longer than the progress interval prints a line every 30 seconds with what the last try got
+    Given Caddy gets the certificate for example.com from Let's Encrypt only 1m15s into the HTTPS check
+    And the release archive of this installer is at /var/lib/gophenberg-installer/release.tar.gz
+    And the file /root/admin-password holds the line "correct horse battery staple"
+    When the operator runs "server:install -domain example.com -archive /var/lib/gophenberg-installer/release.tar.gz -admin-email admin@example.com -admin-name Maria -admin-password-file /root/admin-password"
+    Then the run succeeds
+    And the install record marks the step https ended
+    And the run prints:
+      """
+      Step 14: check that https://example.com/admin/ answers within 2m0s
+        still waiting for https://example.com/admin/ after 30s: it could not be reached: remote error: tls: internal error
+        still waiting for https://example.com/admin/ after 1m0s: it could not be reached: remote error: tls: internal error
+      Step 15: print the summary and end the install record
       """
 
   Scenario: A first run asks on the terminal for the first administrator the flags leave out, the password unseen and twice
@@ -1016,6 +1132,31 @@ Feature: Install Gophenberg on a Linux server
       """
     And the current link still names the earlier build 0.19.0
     And /etc/caddy/Caddyfile is as the earlier run left it
+    And the run prints:
+      """
+      Step 1: start the install record /var/lib/gophenberg-installer/install.json and write the server settings
+      Step 2: install PostgreSQL and Caddy with apt-get, Caddy from its own apt repository
+        dpkg-query -W postgresql caddy
+      Step 3: make the system user gophenberg, which runs the site and signs in to PostgreSQL
+      Step 4: make the install root /opt/gophenberg and its folders, owned by gophenberg
+      Step 5: make the database role gophenberg and its database gophenberg as the postgres user
+      Step 6: keep the build /opt/gophenberg/current names, since updates go through update:apply
+      Step 7: keep a copy of this installer at /usr/local/lib/gophenberg/gophenberg, the one root runs for server:install and server:uninstall
+      Step 8: write the site's settings, then run check as gophenberg in /opt/gophenberg
+        gophenberg check
+      Step 9: write the systemd units and Caddy's drop-in, then reload systemd and enable gophenberg.service
+        systemctl daemon-reload
+        systemctl enable gophenberg.service
+      Step 10: write the gophenberg command on the path
+      Step 11: write Caddy's files, check them with caddy validate and reload Caddy
+        caddy validate
+        systemctl reload caddy.service
+      Step 12: restart gophenberg.service and wait until /admin/, /api/locale and / answer on 127.0.0.1:8081
+        systemctl reset-failed gophenberg.service
+        systemctl restart gophenberg.service
+      Step 13: check that https://example.com/admin/ answers within 2m0s
+      Step 14: print the summary and end the install record
+      """
     And the run ends with:
       """
       Step 14: print the summary and end the install record
@@ -1246,6 +1387,9 @@ Feature: Install Gophenberg on a Linux server
     And the run prints:
       """
       Step 11: write Caddy's files, check them with caddy validate and restart Caddy
+        caddy validate
+        systemctl restart caddy.service
+      Step 12: restart gophenberg.service and wait until /admin/, /api/locale and / answer on 127.0.0.1:8081
       """
     And /etc/caddy/Caddyfile still holds the person's site
     And the run ran "systemctl restart caddy.service"

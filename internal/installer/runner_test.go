@@ -3,6 +3,7 @@
 package installer_test
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -113,6 +114,42 @@ func TestTheRunnerStartsAProgramInASessionOfItsOwnWithoutATerminal(t *testing.T)
 	if got := [2]string{fields[3], fields[4]}; got != [2]string{pid, "0"} {
 		t.Errorf("the program ran in the session %s on the terminal %s, want a session of its own, %s, and no "+
 			"terminal, 0", got[0], got[1], pid)
+	}
+}
+
+// stopOnLast is an output that keeps what reaches it and stops the run once that ends with the line last.
+type stopOnLast struct {
+	last   string
+	cancel context.CancelFunc
+	copied strings.Builder
+}
+
+// Write keeps p and stops the run once the copy ends with the line last.
+func (s *stopOnLast) Write(p []byte) (int, error) {
+	n, err := s.copied.Write(p)
+	if strings.HasSuffix(s.copied.String(), s.last) {
+		s.cancel()
+	}
+	return n, err
+}
+
+func TestTheRunnerCopiesWhatAProgramPrintsToItsOutputWhileTheProgramRuns(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	output := &stopOnLast{last: "184467235\n", cancel: cancel}
+
+	printed, err := installer.RealMachine().Run(ctx, installer.Program{
+		Name: "sh", Args: []string{"-c", "echo Maria Perez; echo 184467235 >&2; exec sleep 10"}, Output: output,
+	})
+
+	if err == nil || err.Error() != "installer: run sh: signal: killed" {
+		t.Errorf("running sh = %v, want it killed by the run its output stopped while it ran", err)
+	}
+	if want := "Maria Perez\n184467235\n"; printed != want || output.copied.String() != want {
+		t.Errorf("running sh printed %q and copied %q to its output, want %q both times", printed,
+			output.copied.String(), want)
 	}
 }
 

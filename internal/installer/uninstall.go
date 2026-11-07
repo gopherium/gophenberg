@@ -628,7 +628,7 @@ func (u *removing) planKept() {
 			strings.Join(packages, " ")+" removes")
 	}
 	if files := u.present(repositoryPaths); len(files) > 0 {
-		u.kept = append(u.kept, joined(files)+", which bring Caddy's security fixes from its own apt repository")
+		u.kept = append(u.kept, joined(files)+", part of the setup of Caddy's own apt repository")
 	}
 }
 
