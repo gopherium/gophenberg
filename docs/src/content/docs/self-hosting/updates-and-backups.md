@@ -25,6 +25,8 @@ docker compose up -d
 `check` reads your settings with the new version while the old one
 still serves, and names the ones it refuses, see
 [what stops startup](/self-hosting/configuration/#what-stops-startup).
+It never connects to the database, so a problem there, such as the
+role the site logs in as, shows only when the server starts.
 Migrations run automatically when the new version starts, and
 `docker compose run --rm -T gophenberg migrate` applies them without
 starting the server. Two copies that migrate at once never apply the
@@ -32,133 +34,89 @@ same migration twice, the second waits for the first and then finds
 nothing left to do. While Gophenberg is below 1.0, read the release
 notes first, since a release can change behavior.
 
-Updating to %VERSION% from the release before this one runs two
-migrations when the server starts, or when you run `migrate`. The
-first gives every content type a short description. It fills the one
-of Posts with *Manage the posts on this site.* and leaves the others
-empty. Until you change it, the admin shows that sentence in the
-language each person reads the admin in, as it does the names of the
-built-in types. The second adds an empty table where the server keeps
-its [cron jobs](/self-hosting/cron/). Neither changes anything else
-you stored, and the database account needs no right it did not use
-before. If a migration fails, the server stops at start, and the
-older image still starts on that database. This release serves every
-theme kit the release before it serves, so no theme needs rebuilding.
+Updating to %VERSION% from the release before this one runs no
+migration. The database stays as that release left it, so its image
+still starts on it. The first start only adds a few rows. One is the
+oldest version allowed to run on the database, and that is the
+release before this one, so its image still starts, see
+[going back to an older version](#going-back-to-an-older-version).
 Back up the database before the first start on this release, as
 before any update.
 
-Coming from the release before this one, but not from its newest
-patch, this release also runs themes built on `@gophenberg/astro`
-%KIT_VERSION%, which its earlier releases turn away with
-`kit_unsupported`. On the first of them, **Empty Trash** on any list
-but Posts deleted the trashed posts for good. This release empties
-only the trash of the type on screen.
+This release serves every theme kit the release before it serves, so
+no theme needs rebuilding. It also runs themes built on
+`@gophenberg/astro` %KIT_VERSION%, which the release before this one
+turns away with `kit_unsupported`. That kit renames the type of one
+image size from `MediaRendition` to `MediaSubSize`, so a theme that
+imports `MediaRendition` has to import `MediaSubSize` instead once it
+moves to that kit.
+
+Before you update, check these three, since each one can stop the
+server at start:
+
+- **The role the site logs in as.** The server now stops when it
+  logs in to PostgreSQL as `postgres`, as the compose file from the
+  Install page of the release before this one does, or as any other
+  role that can reach the database server, see
+  [the PostgreSQL server](/self-hosting/configuration/#the-postgresql-server).
+  In the same edit as the image tag, add the `database-owner` service
+  from [Install](/self-hosting/install/), make `gophenberg` depend on
+  it as that file does, and point `GOPHENBERG_DATABASE_URL` at the
+  new role, see
+  [moving a site off `postgres`](/self-hosting/configuration/#moving-a-site-off-postgres).
+  To update first and move later, set
+  `GOPHENBERG_SUPERUSER_POLICY=warn`, which logs a warning and serves.
+  `check` cannot see the role.
+- **`GOPHENBERG_WEB_DIR`.** The admin is now built into the binary,
+  and the image no longer holds `/web`. A compose file or `.env` that
+  sets `GOPHENBERG_WEB_DIR=/web`, as the image of the release before
+  this one did, now stops the server, so delete that line. `check`
+  names it.
+- **`PORT`.** A site that sets neither `GOPHENBERG_ADDR` nor
+  `GOPHENBERG_SOCKET` now listens on every interface at `PORT` when
+  its environment exports one. The release before this one ignored
+  `PORT` and kept to `localhost:8081`. A `PORT` that is not a whole
+  number from 1 to 65535 stops the server. Set `GOPHENBERG_ADDR` to
+  keep the old address. The image sets `GOPHENBERG_ADDR`, so a Docker
+  site is not touched. See
+  [listening on a small host](/self-hosting/configuration/#listening-on-a-small-host).
 
 Some things work differently after this update:
 
-- The admin opens only for a role carrying `access_admin`. The
-  `admin`, `editor` and `author` roles carry it. The new `member`
-  role signs in but never enters the admin, see
-  [roles](/guides/users/#roles). An account holding no role, or a
-  role from a plugin that is gone, is now turned away the same way.
-  Before you update, run `account:list` and give each such account a
-  role, see
-  [upgrading a site](/guides/users/#upgrading-a-site-that-ran-an-earlier-version).
-- Each admin area opens only to the roles carrying its capability.
-  The `admin`, `editor` and `author` roles see the same screens as on
-  the release before this one. The themes, types and settings areas
-  of the API refuse a role without the capability with
-  `capability_missing`, where the release before this one answered
-  `role_insufficient`. A member, or an account holding no role, gets
-  `capability_missing` on every content, media and type route. A
-  program that reads those codes needs updating.
-- Any account whose role carries `manage_users` may now run the
-  account commands. They take `member` and the roles plugins declare,
-  and refuse a role beyond the reach of the account in `-as`. A role
-  nobody declares exits with code 2 and lists the roles there are.
-  `account:role` and `account:disable` refuse to act on the account
-  in `-as`, on a dry run too. An `-as` made only of spaces now exits
-  with code 2, as an empty one did. Every account command but
-  `account:list` and `account:records` registers the plugins first,
-  so a plugin that fails to register stops it. See
-  [who may change an account](/self-hosting/commands/#who-may-change-an-account).
-- A stop takes up to 25 seconds at the default settings, two more
-  than the release before this one. It gives the running requests
-  `GOPHENBERG_SHUTDOWN_GRACE` to finish, cancels the rest, gives a
-  running cron job `GOPHENBERG_CRON_STOP_GRACE` to end, and then gives
-  the plugins and the theme their own time. Docker kills the server
-  after 10 seconds unless the compose file sets `stop_grace_period`,
-  so set it above 25 seconds, as the compose file from
-  [Install](/self-hosting/install/) does with `30s`. See
-  [stopping the server](/self-hosting/configuration/#stopping-the-server).
-- The hourly sweep of expired sessions and links is now a
-  [cron job](/self-hosting/cron/), the only one this release ships.
-  It runs after a visit is answered, or when the host's cron calls the
-  cron address. On a host that stops a quiet site, it waits for the
-  next visit, so set `GOPHENBERG_CRON_SECRET` and a host cron to keep
-  it on time. The secret needs at least 32 characters, and a shorter
-  one stops the server at start. A failed sweep logs `cron job failed`
-  at Warn with `job=core/session-sweep`, and a database that cannot
-  list the jobs logs `cron jobs unread` at Error. These replace the
-  `reap expired sessions` and `reap expired tokens` lines, so update
-  any alert that watched for them.
-- Plugins draw from a share of the site's one database pool, and
-  `GOPHENBERG_PLUGIN_DB_RESERVE` of its connections, 2 by default,
-  always stay free for the site. The pool holds the larger of 4 and
-  the number of CPUs, so the default reserve always leaves the plugins
-  some. A reserve as large as the pool leaves them nothing, so the
-  server refuses to start, even with no plugin. `check` names the
-  problem before you update.
-- The admin writes dates, times and numbers in one format for every
-  reader, set by `GOPHENBERG_FORMAT_LOCALE`. Its default, `es-ES`,
-  writes 4 October 2026 as 04/10/2026, a time as 14:05 and a number as
-  1.234,56, also for a reader who reads the admin in English. The date
-  column of a content list is the one exception, and follows the
-  language each person reads the admin in. Set the locale, such as to
-  `en-US` or `en-GB`, for another style. See
-  [the admin lists](/self-hosting/configuration/#the-admin-lists).
-- Twenty-nine settings are new, and none is required. They size the
-  admin lists, time the confirmation messages and the cron jobs, size
-  the plugins' database share, cap how many uploaded images the server
-  decodes and resizes at once, pick how the site draws avatars, and
-  tune a SQLite database. A value out of range or outside its list
-  stops startup, so run `check` with your settings first. A PostgreSQL
-  address ignores the six that start with `GOPHENBERG_SQLITE_`. See
+- PostgreSQL 14 and older now stop `serve`, `migrate` and every
+  command that migrates, with a message naming the version found. A
+  site on the release before this one already runs 15 or newer, since
+  its migrations need it.
+- `serve` now waits up to 60 seconds for a PostgreSQL that is not up
+  yet, where it stopped at once. A wrong password, a missing role or a
+  missing database still stop it at once. See
+  [a database that starts late](/self-hosting/configuration/#a-database-that-starts-late).
+- The site now asks `https://updates.gophenberg.org` for a newer
+  Gophenberg twice a day, as the [cron job](/self-hosting/cron/)
+  `core/update-check`. It sends nothing about the site but its
+  version, and installs nothing. A site with no internet access logs
+  `cron job failed` at Warn with `job=core/update-check` at every
+  check, so set `GOPHENBERG_UPDATE_CHECKS=false` there. The `admin`
+  role now sees an **Updates** screen, and a line above every admin
+  screen while a newer version waits. See
+  [how a site hears of a new version](#how-a-site-hears-of-a-new-version).
+- A site can now be installed on a Linux server with one command, and
+  an administrator updates such an install from the admin or with
+  `update:apply`. A Docker site keeps updating by hand, as above. See
+  [Install on a Linux server](/self-hosting/server-install/).
+- A binary you build yourself serves the admin only when you copy the
+  admin build into `internal/webui/dist` and build with
+  `-tags embedweb`, as `make build-release` and the Dockerfile do. A
+  plain `go build` serves a placeholder page in its place, unless
+  `GOPHENBERG_WEB_DIR` names an admin build. A `GOPHENBERG_WEB_DIR`
+  that still names the admin built for the release before this one
+  serves that old admin, so build the admin again or unset it.
+  Building from source needs Go 1.27.3.
+- Thirty-three settings are new, beside `PORT`, and none is required.
+  Most of them tune the update checks and the updates of a server
+  install. A value out of range or outside its list stops startup, so
+  run `check` with your settings first. See
   [configuration](/self-hosting/configuration/).
-- This release can check and migrate a SQLite file, named in
-  `GOPHENBERG_DATABASE_URL` as `sqlite:` and its absolute path, but
-  cannot serve a site from one yet. The seven settings it reads there
-  are `GOPHENBERG_DATABASE_MAX_CONNS` and the six that start with
-  `GOPHENBERG_SQLITE_`. No older release opens a SQLite file. See
-  [a SQLite database](/self-hosting/configuration/#a-sqlite-database).
-- The admin's own address opens the list of the default content
-  type, since the home screen is gone. The status tabs no longer show
-  how many items each holds. The message after a trash no longer
-  offers **Undo**, so a trashed post comes back from the Trash tab.
-  **Empty Trash** now shows only to an admin or an editor. A new slug,
-  a slug typed in the editor and a route word a type takes from its
-  label lose their accents, so *Café* gives `cafe`. Slugs already
-  saved keep their address. The breadcrumb at the bottom of the
-  editor starts at the item's own type, such as Page, and no longer at
-  Post on every type. See [the posts list](/guides/posts/).
-- An avatar now sits before each author's name in a content list. By
-  default it is a circle with the first letter of the name, which the
-  site draws itself, so nothing is sent to another service.
-  `GOPHENBERG_AVATARS` can show Gravatar pictures instead, or an
-  author icon, and plugins that show authors follow it too. See
-  [avatars](/self-hosting/configuration/#avatars).
-- A definitions file exported by this release carries the description
-  of each type. The release before this one refuses such a file with
-  `body_unknown_attribute`, so move definitions only between sites on
-  this release. A file with no descriptions still imports here, and
-  leaves the descriptions on the site as they are. A type an import
-  adds now lists after the site's other types.
-- On a site that builds its own plugins, the SDK is now a Go module
-  of its own, and a plugin requires it alone. A plugin role meant for
-  the admin needs `access_admin`. The
-  [versions of the plugin SDK](/extending/the-plugin-sdk/#versions)
-  list every step to move a plugin. Building from source needs
-  Go 1.27.3.
 - On PostgreSQL, `GOPHENBERG_DATABASE_MAX_CONNS` now caps the site's
   one database pool. Left unset, the pool keeps the size it had, the
   larger of 4 and the number of CPUs. `GOPHENBERG_DATABASE_URL` takes
@@ -247,9 +205,7 @@ Some things work differently after this update:
   anything and can go from your settings, and `/api/settings` no
   longer serves `toast_name_length`.
   `GOPHENBERG_TOAST_ACTION_DURATION`, a new setting, 10s unless set,
-  times a message with a button, which only a plugin raises today. A
-  plugin screen that called `toaster.name` now breaks, so put the
-  whole name in its message instead. See
+  times a message with a button, which only a plugin raises today. See
   [the admin lists](/self-hosting/configuration/#the-admin-lists).
 - The users API refuses an account write in WordPress's two ways. A
   write on an account whose role carries a capability the reader's
@@ -291,16 +247,63 @@ Some things work differently after this update:
   `.env` has loaded. Each only ever lowers what Go holds, and a value
   out of range stops `check` and `serve`. See
   [memory and processors on a small host](/self-hosting/configuration/#memory-and-processors-on-a-small-host).
+- GIF uploads now work. The release before this one refused them
+  with `image_unreadable`.
+- The built-in site now answers each post, page and listing at one
+  address. A trailing slash, repeated slashes, page 1, a page number
+  with leading zeros and a post or page asked for with a page number,
+  such as `/hello-world/page/2`, now get a `301` to the plain address,
+  with the query kept. A theme answers these addresses itself. See
+  [what the binary serves where](/self-hosting/configuration/#what-the-binary-serves-where).
+- A new slug keeps its underscores, drops signs such as `&` and `°`
+  without a break and writes `×` as `x`, so *Q&A* gives `qa` and
+  *2×4* gives `2x4`. Spaces, dots and slashes become hyphens. Words
+  in scripts such as Hindi, Tamil and Thai stay whole. An uploaded
+  file name loses its accents, so *Café Ærø.jpg* is stored as
+  `cafe-aero.jpg`. Saved slugs and stored files keep their names. A
+  new or changed route word can no longer be `page`, since `/page/2`
+  is the second page of the front page.
+- The media library and the content types list are now WordPress
+  lists, like the posts list. A media block's **Media Library** button
+  opens the **Select Media** dialog, which uploads too and keeps what
+  you tick across pages. See [media](/guides/media/).
+- `GET /api/content/counts` is gone, since no screen reads it, so a
+  script that called it needs updating.
+- On a site that builds its own plugins, the plugin ids `about`,
+  `update`, `server`, `plugin`, `theme`, `setup`, `build` and `health`
+  are now reserved, and a plugin's admin screens move to newer packages. The
+  Go SDK has not changed.
+  [Admin screens for plugins](/extending/the-plugin-sdk/#admin-screens-for-plugins)
+  lists every step to move a plugin.
 
 Updating from further back also runs the migrations of every release
-you skip, so read each of their notes. Coming from five releases back
+you skip, so read each of their notes. Coming from six releases back
 or older, write any `@` inside the password in
 `GOPHENBERG_DATABASE_URL` as `%40`, or the server does not start. The
 `%40` form works on those releases too, so change the address first
 and update after.
 
-Coming from two releases back or older, the update also runs the
-migration the release before this one added. It adds the `gonsole`
+Coming from two releases back or older, the update also runs the two
+migrations the release before this one added. The first gives every
+content type a short description, and the one of Posts reads *Manage
+the posts on this site.* The second adds an empty table for the
+[cron jobs](/self-hosting/cron/). The admin then opens only for a
+role carrying `access_admin`, so run `account:list` first and give a
+role to each account that holds none, see
+[upgrading a site](/guides/users/#upgrading-a-site-that-ran-an-earlier-version).
+Some API routes answer `capability_missing` where those releases
+answered `role_insufficient`. A stop takes up to 25 seconds, so set
+`stop_grace_period` above that. The sweep of expired sessions is a
+cron job, so on a host that stops a quiet site, set
+`GOPHENBERG_CRON_SECRET` and a host cron, and update any alert that
+watched for `reap expired sessions`. The admin writes dates, times
+and numbers in the format of `GOPHENBERG_FORMAT_LOCALE`, `es-ES`
+unless set. On a site that builds its own plugins, a plugin requires
+the SDK module alone, and a plugin role meant for the admin needs
+`access_admin`.
+
+Coming from three releases back or older, the update also runs the
+migration that two releases back added. It adds the `gonsole`
 schema, which keeps a record of each account change applied with
 `-as`, so the database account needs the right to create a schema.
 A run with no command lists the commands instead of serving, so a
@@ -318,7 +321,7 @@ plugins, commands such as `list` and `check` register every plugin
 and stop it without starting it, so `Register` must open nothing, and
 `Stop` must work when `Start` never ran.
 
-Coming from three releases back or older, a browser that saves
+Coming from four releases back or older, a browser that saves
 anything from a page on another site is refused with
 `request_cross_origin`, so a plugin form has to sit on this site's
 own pages. Behind a reverse proxy, set `GOPHENBERG_PUBLIC_URL`, or set
@@ -333,8 +336,8 @@ sat inside other items, this release refuses to save those items.
 Press **Let items nest** on that type. For a type a plugin declared,
 move those items to the top level instead.
 
-Coming from four releases back or older, the update also runs the
-migration that three releases back added. On most sites it only adds
+Coming from five releases back or older, the update also runs the
+migration that four releases back added. On most sites it only adds
 a database index, a rule that stops one container from holding two
 fields of the same name, and changes no row. It never changes what
 your items, revisions and autosaves store. The migration runs as one
@@ -342,7 +345,7 @@ step. If it fails, the server stops at start and the database stays
 as it was, so the older image starts again.
 
 The migration does more on a site where one container held two fields
-of the same name. That can only happen where a release six back or
+of the same name. That can only happen where a release seven back or
 older moved a Section, a Repeater or a Flexible content field to
 another group without the fields inside it. The migration keeps one
 copy. It keeps the copy stored in the same group as the top-level
@@ -364,59 +367,54 @@ until you have checked those containers. Do not delete one of the two
 copies by hand first, because on that release it clears the values
 both copies read.
 
-Rolling back to the release before this one deletes nothing. Put the
-older image tag back on the `gophenberg` service, the newest patch of
-that release, and start it. Leave `database-owner` on this release,
-because an older one does not have that command. The site runs on this
-release's database as it stands. Accounts keep
-signing in, and the database password needs no change. Its newest
-patch serves the same theme kits, so no theme needs rebuilding. An
-older patch turns away a theme built on kit %KIT_VERSION% with
-`kit_unsupported`, and the site shows the built-in pages. If
-`GOPHENBERG_THEME` names that theme, the server does not start at
-all. While you run it:
+Rolling back to the release before this one deletes nothing, and
+there is no migration to undo, since this release added none. Put the
+older image tag back on the `gophenberg` service and start it. Leave
+`database-owner` on this release, because an older one does not have
+that command. The site runs on this release's database as it stands,
+as the role it logs in as now. Accounts keep signing in, and the
+database password needs no change. It turns away a theme built on kit
+%KIT_VERSION% with `kit_unsupported`, and the site shows the built-in
+pages. If `GOPHENBERG_THEME` names that theme, the server does not
+start at all.
 
-- It keeps the description of every type, but neither shows nor
-  exports them. They show again once you update.
-- Its import refuses a definitions file this release exported, with a
-  message naming `description` that asks you to reload the page.
-  Reloading does not help. Import a file it exported itself, or take
-  every `description` out of the file first.
-- Every account that signs in enters the admin again, members and
-  accounts holding no role or a plugin's role included. Each of them
-  can write and upload its own items, like an author. Disable the
-  member accounts before you roll back if that matters. A plugin role
-  carrying `manage_users` loses it, so only `admin` manages accounts,
-  and `-role member` is refused.
-- It has no cron address, so a host cron calling it gets 404, and
-  `curl -f` reports a failure on every run. Pause the host's cron. It
-  sweeps sessions on its own hourly timer, and leaves the cron jobs
-  table unused.
-- It ignores the settings this release added. An admin list shows 20
-  items a page, image uploads are resized with no limit on how many
-  at once, and dates and numbers follow each reader's language. A stop
-  takes up to 23 seconds at the defaults. A plugin that uses
-  `deps.DB`, `deps.Accounts`, `Needs` or `RoleProvider`, or requires
-  the SDK module, does not build against it.
-- Its PostgreSQL pool holds the larger of 4 and the number of CPUs.
+Only a Docker site can roll back this way. The release before this
+one published its image but no archives, so a server install has no
+build of it to go back to.
+
+While you run it:
+
+- It never checks for updates and has no **Updates** screen. What
+  this release stored about updates stays in the database, unused.
+- It ignores the settings this release added. It stops at once when
+  the database is not up yet, never checks the role it logs in as,
+  and listens on `GOPHENBERG_ADDR` or `localhost:8081`, whatever
+  `PORT` says. Its PostgreSQL pool holds the larger of 4 and the
+  number of CPUs.
+- **Add User** starts on `author` again, and the Users screen goes
+  back to its older form. The users API answers `role_beyond_reach`
+  again where this release answers `user_not_editable` or
+  `role_not_grantable`.
+- A confirmation message cuts a long name short again, at 45
+  characters unless `GOPHENBERG_TOAST_NAME_LENGTH` says otherwise.
+- It refuses every GIF upload with `image_unreadable`. It turns a
+  sideways JPEG upright in place of the file you sent, without the
+  details the camera wrote into it.
+- New slugs and uploaded file names follow its older rules, while the
+  ones saved on this release keep their names. The built-in site
+  answers a post, page or listing at more than one address again.
+- Its older media library, content types list and media picker come
+  back.
 - On a SQLite file it stops every account command, and every plugin
   command that names a capability, with the `account commands:`
   error. The accounts and their records stay in the file, and the
   commands reach them again once you update.
-- Its screens come back, with the home screen, the older lists with
-  their counts and the **Undo** after a trash. An author sees
-  **Empty Trash** again. The author column shows the name alone, with
-  no avatar. The names of the built-in types show as stored again, and
-  the editor's breadcrumb starts at Post on every type. New slugs,
-  slugs typed in the editor and route words taken from a label keep
-  their accents again, while the ones saved on this release stay
-  plain.
+- A plugin screen written for this release, such as one that takes
+  `MenuItem` or `ConfirmDialog` from the frontend SDK, does not build
+  against it.
 
 Updating again runs no migration, and what you changed while rolled
-back stays as it is. Rolling back never needs this release's
-migrations run backwards. Doing it by hand forgets when each cron job
-falls due, which is harmless, and deletes every type description for
-good, so press **Export definitions** first.
+back stays as it is.
 
 Going back more than one release is not supported. To run an older
 release, restore the backup you took just before you first updated
@@ -431,7 +429,26 @@ deletes nothing. Each older release also has the problems of every
 newer one, the release before this one included, unless its own line
 says otherwise:
 
-- Two releases back knows three commands, `createadmin`, `grantrole`
+- Two releases back keeps the description of every type, but neither
+  shows nor exports them. Its import refuses a definitions file a
+  newer release exported, with a message naming `description`, so
+  take every `description` out of the file first. Every account that
+  signs in enters the admin again, members and accounts holding no
+  role or a plugin's role included, and can write and upload like an
+  author, so disable the member accounts first if that matters. A
+  plugin role carrying `manage_users` loses it, and `-role member` is
+  refused. It has no cron address, so pause the host's cron, which
+  gets 404, and it sweeps sessions on its own hourly timer. An admin
+  list shows 20 items a page, dates and numbers follow each reader's
+  language, and a stop takes up to 23 seconds. A plugin that uses
+  `deps.DB`, `deps.Accounts`, `Needs` or `RoleProvider`, or requires
+  the SDK module, does not build against it. It does not open a SQLite
+  file. Its screens come back with the home screen, the counts on the
+  status tabs and the **Undo** after a trash, and new slugs keep their
+  accents. Take its newest patch. On its first patch, **Empty Trash**
+  on any list but Posts deletes the trashed posts for good. Its first
+  two patches run only themes built on theme kit 0.15.0 or older.
+- Three releases back knows three commands, `createadmin`, `grantrole`
   and `seed`. Any other word, `serve`, `check`, `migrate` and every
   `account:` command included, starts the full server and runs its
   migrations. Under `docker compose run`, that server keeps running
@@ -452,7 +469,7 @@ says otherwise:
   kit 0.15.0 or older. A newer theme does not load, and the site shows
   the built-in pages instead. If `GOPHENBERG_THEME` names that theme,
   the server does not start.
-- Three releases back accepts what a browser saves from a page on
+- Four releases back accepts what a browser saves from a page on
   another site. Its **Move** leaves a field's values hidden on the
   content the new group does not reach, and updating again does not
   clean them up. Its imports delete the values of a field they move to
@@ -463,9 +480,9 @@ says otherwise:
   from field reading it. A site whose Linked from field reads a
   relation inside a Section cannot import its own export. It also lets
   a block delimiter inside an allowed attribute hide an event handler
-  from the content sanitizer, which the newest patch of two releases
+  from the content sanitizer, which the newest patch of three releases
   back fixed.
-- Four releases back cannot move a field into or out of a container,
+- Five releases back cannot move a field into or out of a container,
   and fields a newer release moved stay where they are. It has no
   buttons to let a type nest or stop nesting, and it lets the API or
   an import turn nesting off while items still sit inside other items.
@@ -475,35 +492,35 @@ says otherwise:
   update again, so move its nested items to the top level. Deleting a
   field from a group that is turned off or **Shadowed** clears the
   values another active group serves at the same place.
-- Five releases back ignores `GOPHENBERG_FIELD_DEPTH` and holds the
+- Six releases back ignores `GOPHENBERG_FIELD_DEPTH` and holds the
   limit at 32. It refuses a new field more than 32 deep, and any
   import file that holds one.
-- Six releases back moves a Section, a Repeater or a Flexible
+- Seven releases back moves a Section, a Repeater or a Flexible
   content field to another group without the fields inside it. After
   such a move, adding a field to that container under the name of a
   field left behind fails with an internal error. Deleting the old
   group fails the same way. It also lets a shared cache keep a failed
   content API answer, and does not mark answers to a signed in account
   as private.
-- Seven releases back does not know a relation inside a container. Its
+- Eight releases back does not know a relation inside a container. Its
   editor refuses to save a change to a container holding one, and a
   change sent through the API that leaves the relation out deletes its
   value. It keeps what an item points at in a separate list, while
   newer releases read the item itself, so a relation you change there
   is lost when you update again.
-- Eight releases back does not know the newer field kinds. It shows
+- Nine releases back does not know the newer field kinds. It shows
   their values but refuses a change to one. It runs only themes built
   on theme kit 0.12.0 or older. A newer theme does not load, and the
   site shows the built-in pages instead. If `GOPHENBERG_THEME` names
   that theme, the server does not start.
-- Nine releases back knows only the six original kinds and does not
+- Ten releases back knows only the six original kinds and does not
   know containers at all. It cannot create a field group. Deleting a
   field there also deletes every field of that name inside the group's
   containers, and deleting a group also deletes its fields that stand
   inside other groups' containers. It runs only themes built on theme
   kit 0.9.0.
 
-Running the migrations backwards by hand, as nine releases back would
+Running the migrations backwards by hand, as ten releases back would
 need, deletes definitions, and that is a one way trip. It deletes
 every field whose kind is not one of the six, every field standing
 inside another field, every field's settings, and the record of which
