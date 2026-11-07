@@ -329,11 +329,9 @@ func (q contentQueries) CountPointingAt(ctx context.Context, target uuid.UUID, f
 }
 
 // PointingAt returns one page of the published items pointing at the target through the field.
-func (q contentQueries) PointingAt(
-	ctx context.Context, target uuid.UUID, fieldID, limit, offset int,
-) ([]content.Pointer, error) {
+func (q contentQueries) PointingAt(ctx context.Context, p contentstore.Pointing) ([]content.Pointer, error) {
 	rows, err := q.queries.PointingAt(ctx, db.PointingAtParams{
-		Target: target, Field: int32(fieldID), RowLimit: int32(limit), RowOffset: int32(offset),
+		Target: p.Target, Field: int32(p.FieldID), RowLimit: int32(p.Limit), RowOffset: int32(p.Offset),
 	})
 	return mapped(rows, pointer), err
 }
