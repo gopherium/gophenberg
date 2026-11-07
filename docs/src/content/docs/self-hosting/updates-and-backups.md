@@ -836,8 +836,8 @@ From top to bottom, the screen shows:
   newest was taken.
 
 **Update to version** asks before it starts, and says what happens if
-the new version does not start. Once you confirm, the warning to back
-up and the sentence above the button go away, and the screen shows each
+the new version fails. Once you confirm, the warning to back up and
+the sentence above the button go away, and the screen shows each
 step on its own line, the one under way marked: the download, the
 unpacking, the check of the unpacked files, the database backup, the
 restart and the check of the new version. It asks the server where the
