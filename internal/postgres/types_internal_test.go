@@ -5,6 +5,7 @@ package postgres
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -12,40 +13,45 @@ import (
 	"github.com/gopherium/gophenberg/internal/content/typestore"
 )
 
-func TestReadErrorReadsTheCodeAndTheConstraintAPostgreSQLErrorCarries(t *testing.T) {
+// addressCheckContext is the context PostgreSQL gives an error it raised while writing the address index.
+const addressCheckContext = `while inserting index tuple (0,7) in relation "content_path_unique"`
+
+func TestReadErrorReadsTheCodeTheConstraintAndTheContextAPostgreSQLErrorCarries(t *testing.T) {
 	t.Parallel()
 
 	for name, test := range map[string]struct {
-		err        error
-		code       string
-		constraint string
+		err  error
+		want typestore.Failure
 	}{
 		"a unique violation with its constraint": {
 			&pgconn.PgError{Code: uniqueViolationCode, ConstraintName: fieldKeyConstraint},
-			uniqueViolationCode, fieldKeyConstraint,
+			typestore.Failure{Code: uniqueViolationCode, Name: fieldKeyConstraint},
 		},
 		"a foreign key violation": {
 			&pgconn.PgError{Code: foreignKeyViolationCode, ConstraintName: fieldTargetConstraint},
-			foreignKeyViolationCode, fieldTargetConstraint,
+			typestore.Failure{Code: foreignKeyViolationCode, Name: fieldTargetConstraint},
 		},
 		"a restrict violation": {
 			&pgconn.PgError{Code: restrictViolationCode, ConstraintName: "content_type_fkey"},
-			restrictViolationCode, "content_type_fkey",
+			typestore.Failure{Code: restrictViolationCode, Name: "content_type_fkey"},
+		},
+		"a deadlock with the context it struck in": {
+			&pgconn.PgError{Code: deadlockCode, Where: addressCheckContext},
+			typestore.Failure{Code: deadlockCode, Context: addressCheckContext},
 		},
 		"a PostgreSQL error wrapped on the way out": {
 			fmt.Errorf("retype content paths: %w",
-				&pgconn.PgError{Code: uniqueViolationCode, ConstraintName: slugConstraint}),
-			uniqueViolationCode, slugConstraint,
+				&pgconn.PgError{Code: uniqueViolationCode, ConstraintName: slugConstraint, Where: "while updating"}),
+			typestore.Failure{Code: uniqueViolationCode, Name: slugConstraint, Context: "while updating"},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			code, constraint, found := readError(test.err)
+			got, found := readError(test.err)
 
-			if code != test.code || constraint != test.constraint || !found {
-				t.Errorf("readError() = (%q, %q, %t), want (%q, %q, true)",
-					code, constraint, found, test.code, test.constraint)
+			if got != test.want || !found {
+				t.Errorf("readError() = (%+v, %t), want (%+v, true)", got, found, test.want)
 			}
 		})
 	}
@@ -61,11 +67,11 @@ func TestReadErrorFindsNothingInAnErrorPostgreSQLDidNotRaise(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			code, constraint, found := readError(err)
+			got, found := readError(err)
 
-			if code != "" || constraint != "" || found {
-				t.Errorf("readError() = (%q, %q, %t), want no code, no constraint and nothing found",
-					code, constraint, found)
+			if got != (typestore.Failure{}) || found {
+				t.Errorf("readError() = (%+v, %t), want no code, no constraint, no context and nothing found",
+					got, found)
 			}
 		})
 	}
@@ -119,6 +125,87 @@ func TestRulesBrokenListsEachRuleThePostgreSQLErrorsNameInMatchOrder(t *testing.
 			}
 			if rulesBroken[at] != test.rule {
 				t.Errorf("rulesBroken[%d] = %+v, want %+v", at, rulesBroken[at], test.rule)
+			}
+		})
+	}
+}
+
+func TestContentRulesBrokenListsEachRuleThePostgreSQLErrorsOfAContentWriteNameInMatchOrder(t *testing.T) {
+	t.Parallel()
+
+	want := []typestore.Rule{
+		{Name: slugConstraint, Broken: typestore.ContentPathUnique},
+		{Code: foreignKeyViolationCode, Name: relationFromConstraint, Broken: typestore.RelationTargetExists},
+		{Code: foreignKeyViolationCode, Name: relationFieldConstraint, Broken: typestore.RelationTargetExists},
+		{Code: foreignKeyViolationCode, Name: relationTargetConstraint, Broken: typestore.RelationTargetExists},
+		{Code: deadlockCode, Context: slugConstraint, Broken: typestore.AddressCheckDeadlocked},
+	}
+
+	if !slices.Equal(contentRulesBroken, want) {
+		t.Errorf("contentRulesBroken = %+v, want %+v", contentRulesBroken, want)
+	}
+}
+
+func TestContentRulesBrokenNameTheStoredRuleEachPostgreSQLFailureOfAContentWriteBreaks(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		err  error
+		want typestore.Constraint
+	}{
+		"the address taken on a unique check": {
+			&pgconn.PgError{Code: uniqueViolationCode, ConstraintName: "content_path_unique"},
+			typestore.ContentPathUnique,
+		},
+		"the address taken at the commit of a deferred check": {
+			fmt.Errorf("commit: %w", &pgconn.PgError{Code: "23505", ConstraintName: "content_path_unique"}),
+			typestore.ContentPathUnique,
+		},
+		"the address named under another code": {
+			&pgconn.PgError{Code: "40001", ConstraintName: "content_path_unique"}, typestore.ContentPathUnique,
+		},
+		"the pointing item gone": {
+			&pgconn.PgError{Code: "23503", ConstraintName: "content_relations_from_id_fkey"},
+			typestore.RelationTargetExists,
+		},
+		"the relation field gone": {
+			&pgconn.PgError{Code: "23503", ConstraintName: "content_relations_field_id_fkey"},
+			typestore.RelationTargetExists,
+		},
+		"the target gone": {
+			&pgconn.PgError{Code: "23503", ConstraintName: "content_relations_to_id_fkey"},
+			typestore.RelationTargetExists,
+		},
+		"a relation key under another code": {
+			&pgconn.PgError{Code: uniqueViolationCode, ConstraintName: "content_relations_to_id_fkey"},
+			typestore.NoConstraint,
+		},
+		"a key of the index no rule names": {
+			&pgconn.PgError{Code: "23503", ConstraintName: "content_relations_pkey"}, typestore.NoConstraint,
+		},
+		"a field key the type store names": {
+			&pgconn.PgError{Code: "23503", ConstraintName: fieldTargetConstraint}, typestore.NoConstraint,
+		},
+		"a deadlock broken while writing the address": {
+			fmt.Errorf("create content: %w", &pgconn.PgError{Code: "40P01", Where: addressCheckContext}),
+			typestore.AddressCheckDeadlocked,
+		},
+		"a deadlock broken anywhere else": {
+			&pgconn.PgError{Code: "40P01", Where: "while locking tuple (0,3) in relation \"content\""},
+			typestore.NoConstraint,
+		},
+		"a deadlock with no context": {&pgconn.PgError{Code: "40P01"}, typestore.NoConstraint},
+		"another failure while writing the address": {
+			&pgconn.PgError{Code: "57014", Where: addressCheckContext}, typestore.NoConstraint,
+		},
+		"a plain error": {errors.New("the connection is gone"), typestore.NoConstraint},
+		"no error":      {nil, typestore.NoConstraint},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := typestore.Broken(contentRulesBroken, readError, test.err); got != test.want {
+				t.Errorf("Broken(%v) = %d, want %d", test.err, got, test.want)
 			}
 		})
 	}

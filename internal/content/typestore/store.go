@@ -19,7 +19,7 @@ type Backend struct {
 	Pool      Queries
 	InTx      Transactor
 	Rules     []Rule
-	ReadError func(err error) (code, name string, found bool)
+	ReadError func(err error) (Failure, bool)
 }
 
 // Transactor runs write on statements bound to one transaction, committing when write returns nil.

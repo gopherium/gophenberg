@@ -31,6 +31,16 @@ func ReservedAddress(path string) error {
 		fmt.Sprintf("%s: %q", ErrReservedAddress, path), Details{"path": path})
 }
 
+// CheckPaginationPaths refuses addresses a write would take from the root listing, naming the first one.
+func CheckPaginationPaths(paths []string) error {
+	for _, path := range paths {
+		if RootPagination(path) {
+			return ReservedAddress(path)
+		}
+	}
+	return nil
+}
+
 // ErrHoldsChildren reports that content still holds content nested under it.
 var ErrHoldsChildren = errors.New("content: the item still holds children")
 

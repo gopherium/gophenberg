@@ -5,6 +5,7 @@ package content
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 )
 
@@ -40,4 +41,12 @@ func ResolvePerPage(held string, found bool) int {
 		return DefaultPerPage
 	}
 	return size
+}
+
+// PageOffset returns the row offset of a page, bounded to the largest offset a PostgreSQL integer holds.
+func PageOffset(page, perPage int) int {
+	if perPage > 0 && page-1 > math.MaxInt32/perPage {
+		return math.MaxInt32
+	}
+	return (page - 1) * perPage
 }
