@@ -49,6 +49,21 @@ const fieldGroupConstraint = "content_fields_group_fkey"
 // fieldTargetConstraint names the reference a relation field keeps to its target type.
 const fieldTargetConstraint = "content_fields_relates_to_fkey"
 
+// deferAddressCheck holds the address check until a move has settled.
+const deferAddressCheck = "SET CONSTRAINTS core.content_path_unique DEFERRED"
+
+// slugConstraint names the unique constraint over a content address.
+const slugConstraint = "content_path_unique"
+
+// relationFromConstraint names the reference an index row keeps to the item pointing.
+const relationFromConstraint = "content_relations_from_id_fkey"
+
+// relationFieldConstraint names the reference an index row keeps to the relation field it indexes.
+const relationFieldConstraint = "content_relations_field_id_fkey"
+
+// relationTargetConstraint names the reference an index row keeps to the item pointed at.
+const relationTargetConstraint = "content_relations_to_id_fkey"
+
 // TypeStore persists the content type registry in the core schema.
 type TypeStore struct {
 	*typestore.Store
@@ -79,13 +94,13 @@ var rulesBroken = []typestore.Rule{
 	{Code: foreignKeyViolationCode, Name: fieldGroupConstraint, Broken: typestore.FieldGroupExists},
 }
 
-// readError returns the code and the constraint name a Postgres error carries, and whether err holds one.
-func readError(err error) (code, name string, found bool) {
+// readError returns the code, the constraint name and the context a Postgres error carries, and whether err holds one.
+func readError(err error) (typestore.Failure, bool) {
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) {
-		return "", "", false
+		return typestore.Failure{}, false
 	}
-	return pgErr.Code, pgErr.ConstraintName, true
+	return typestore.Failure{Code: pgErr.Code, Name: pgErr.ConstraintName, Context: pgErr.Where}, true
 }
 
 // originOf returns the origin a nullable column holds, empty for a definition the site made.

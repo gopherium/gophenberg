@@ -3,13 +3,8 @@
 package postgres
 
 import (
-	"context"
-	"fmt"
-
-	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/content/typestore"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
@@ -98,28 +93,4 @@ func int32s(ids []int) []int32 {
 		held[i] = int32(id)
 	}
 	return held
-}
-
-// fieldsByGroup returns the declared rows as trees of fields, keyed by the group holding them.
-func fieldsByGroup(declared []db.CoreContentField) map[int][]content.Field {
-	return typestore.FieldsByGroup(mapped(declared, fieldRow))
-}
-
-// matchingGroupIDs returns the ids of the active groups matching the type.
-func matchingGroupIDs(ctx context.Context, queries *db.Queries, typeKey string) ([]int32, error) {
-	rows, err := queries.ListFieldGroups(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("postgres: list field groups: %w", err)
-	}
-	var ids []int32
-	for _, row := range rows {
-		group, err := typestore.GroupFromRow(dbkit.Postgres, groupRow(row))
-		if err != nil {
-			return nil, err
-		}
-		if typestore.Serves(group, typeKey) {
-			ids = append(ids, int32(group.ID))
-		}
-	}
-	return ids, nil
 }
