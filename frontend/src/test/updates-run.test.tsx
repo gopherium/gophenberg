@@ -199,15 +199,15 @@ test('starts nothing when the confirm is cancelled', async () => {
 	expect(screen.getByRole('button', { name: 'Update to version 0.20.1' })).toBeInTheDocument()
 })
 
-test('says in the confirm of an update past the minimum version that the site stays down when it fails', async () => {
+test('says in the confirm of an update past the minimum version when a failure keeps the site down', async () => {
 	siteAnswering({ ...patchWaiting, offer: { ...patchOffer, long_jump: true } })
 	renderAt('/update-core')
 
 	const dialog = await openConfirm()
 
 	expect(dialog).toHaveAccessibleDescription(
-		'A backup of the database is taken first. If the new version fails after reaching the database, ' +
-			'the site stays down until you restore it.',
+		'A backup of the database is taken first. If the new version fails after it reaches the database, ' +
+			'the site stays down until you restore the backup, or fix what failed and start Gophenberg again.',
 	)
 })
 
