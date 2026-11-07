@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { CANVAS_LAYOUT } from '@gophenberg/frontend-sdk/editor'
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeAll, expect, test } from 'vitest'
+import { beforeAll, expect, onTestFinished, test, vi } from 'vitest'
 
 import { adminBasepath } from '../basepath'
 import { adminUser, renderAt } from './render'
@@ -186,6 +187,62 @@ test('reads an untitled foreign post under a stand in title, its excerpt beside 
 
 	expect(await screen.findByText('(no title)')).toBeInTheDocument()
 	expect(screen.getByText('A few words about it.')).toBeInTheDocument()
+})
+
+/**
+ * Replaces ResizeObserver with one that reports every element it watches at the given width, until the test ends.
+ * @param width - The width in pixels each watched element reports.
+ */
+function measureAt(width: number) {
+	vi.stubGlobal(
+		'ResizeObserver',
+		class {
+			reported: ResizeObserverCallback
+			constructor(reported: ResizeObserverCallback) {
+				this.reported = reported
+			}
+			observe(target: Element) {
+				const entry = { target, contentBoxSize: [{ inlineSize: width, blockSize: 200 }] }
+				this.reported([entry as unknown as ResizeObserverEntry], this as unknown as ResizeObserver)
+			}
+			unobserve() {}
+			disconnect() {}
+		},
+	)
+	onTestFinished(() => {
+		vi.unstubAllGlobals()
+	})
+}
+
+/**
+ * Returns the frame the reading view draws the post in, once it has a width to draw at.
+ * @returns The preview frame.
+ */
+async function previewFrame(): Promise<HTMLIFrameElement> {
+	await waitFor(() => expect(document.querySelector('.block-editor-block-preview__content iframe')).not.toBeNull())
+	return document.querySelector('.block-editor-block-preview__content iframe') as HTMLIFrameElement
+}
+
+test('draws the post of a reading view at the width it is given, never scaled', async () => {
+	measureAt(390)
+	serveEditor(FOREIGN)
+	renderAt(`/content/post/${storedPost.id}/edit`, maria)
+
+	const frame = await previewFrame()
+
+	expect(frame.style.width).toBe('390px')
+	expect((frame.closest('.block-editor-block-preview__content') as HTMLElement).style.transform).toBe('scale(1)')
+})
+
+test('draws the post of a reading view no wider than the column the editor gives it', async () => {
+	measureAt(390)
+	serveEditor(FOREIGN)
+	renderAt(`/content/post/${storedPost.id}/edit`, maria)
+
+	const frame = await previewFrame()
+
+	const column = frame.closest('.block-editor-block-preview__container')?.parentElement
+	expect(column?.style.maxWidth).toBe(CANVAS_LAYOUT.contentSize)
 })
 
 test('reads a trashed post another account wrote as a foreign post', async () => {

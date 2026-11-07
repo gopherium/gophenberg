@@ -72,7 +72,8 @@ func TestContentAPIAnswersTheHandshakeWithoutASession(t *testing.T) {
 	if !strings.Contains(body, `"api":0`) {
 		t.Errorf("body = %q, want the api generation", body)
 	}
-	if !strings.Contains(body, `"kit":["0.9.0","0.10.0","0.11.0","0.12.0","0.13.0","0.14.0","0.15.0","0.15.1"]`) {
+	kits := `"kit":["0.9.0","0.10.0","0.11.0","0.12.0","0.13.0","0.14.0","0.15.0","0.15.1","0.16.0"]`
+	if !strings.Contains(body, kits) {
 		t.Errorf("body = %q, want the kit versions served", body)
 	}
 	if !strings.Contains(body, `"gophenberg"`) {
@@ -358,7 +359,7 @@ func TestContentAPIAdvertisesTheTypesItServes(t *testing.T) {
 	if handshake.API != 0 {
 		t.Errorf("api = %d, want 0", handshake.API)
 	}
-	want := []string{"0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.15.1"}
+	want := []string{"0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.15.1", "0.16.0"}
 	if !slices.Equal(handshake.Kit, want) {
 		t.Errorf("kit = %v, want the kit versions this release serves", handshake.Kit)
 	}

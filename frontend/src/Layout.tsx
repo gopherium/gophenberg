@@ -7,6 +7,7 @@ import { useSession } from '@gopherium/react-auth'
 import { AccountPanel } from '@gopherium/react-auth/wpds'
 import { Link, Outlet } from '@tanstack/react-router'
 import { __, sprintf } from '@wordpress/i18n'
+import type { ReactNode } from 'react'
 
 import { useContentNav, useDefaultType } from './content/nav'
 import { coreNav } from './menu/coreNav'
@@ -25,10 +26,11 @@ function useHome() {
 }
 
 /**
- * Renders the admin layout framing the active route.
+ * Renders the admin layout framing the given screen, or the active route when none is given.
+ * @param props - The screen to frame in place of the active route.
  * @returns The layout element.
  */
-export function Layout() {
+export function Layout({ children }: { children?: ReactNode }) {
 	const session = useSession().data
 	const version = useAppVersion().data
 	return (
@@ -46,7 +48,7 @@ export function Layout() {
 				/>
 			</Frame.Sidebar>
 			<Frame.Canvas canvas={useCanvas()} notices={<UpdateNag />}>
-				<Outlet />
+				{children ?? <Outlet />}
 			</Frame.Canvas>
 		</Frame.Root>
 	)

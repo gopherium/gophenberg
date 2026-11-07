@@ -812,7 +812,7 @@ Feature: Install Gophenberg on a Linux server
       """
       Step 15: print the summary and end the install record
 
-      Gophenberg 0.19.0 runs at https://example.com. Sign in at https://example.com/admin/ as admin@example.com.
+      Gophenberg %VERSION% runs at https://example.com. Sign in at https://example.com/admin/ as admin@example.com.
       The hosting provider's firewall must let TCP 80, TCP 443 and UDP 443 in for visitors to reach the site.
       Commands to know:
         sudo gophenberg update:status     shows the build that runs and the update on offer
@@ -893,7 +893,7 @@ Feature: Install Gophenberg on a Linux server
       """
       Step 13: print the summary and end the install record
 
-      Gophenberg 0.19.0 answers on 127.0.0.1:8081, the GOPHENBERG_ADDR the site listens on.
+      Gophenberg %VERSION% answers on 127.0.0.1:8081, the GOPHENBERG_ADDR the site listens on.
       Once your own web server sends example.com there, sign in at https://example.com/admin/ as admin@example.com.
       Commands to know:
         sudo gophenberg update:status     shows the build that runs and the update on offer

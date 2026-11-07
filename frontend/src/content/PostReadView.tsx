@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Notice, Text } from '@gophenberg/frontend-sdk'
-import { BlockPreview, parse } from '@gophenberg/frontend-sdk/editor'
+import {
+	BlockEditorProvider,
+	BlockPreview,
+	CANVAS_LAYOUT,
+	CANVAS_STYLES,
+	parse,
+} from '@gophenberg/frontend-sdk/editor'
+import type { Block } from '@gophenberg/frontend-sdk/editor'
 import { Page, PageBreadcrumb, PageBreadcrumbs } from '@gopherium/godmin'
 import { Link } from '@tanstack/react-router'
 import { __ } from '@wordpress/i18n'
@@ -10,6 +17,18 @@ import type { PostDetail } from './api'
 import { TrashedNotice } from './TrashedNotice'
 import { pluralOf } from './typeText'
 import { useContentType } from './useContentType'
+
+/** The preview viewport width for an unscaled post. */
+const AT_CONTAINER_WIDTH = 0
+
+/** The block editor settings that give the preview the styles of the editor canvas. */
+const PREVIEW_SETTINGS = { styles: CANVAS_STYLES }
+
+/** The column the preview draws the post in, as wide as the editor draws its content. */
+const PREVIEW_COLUMN = { maxWidth: CANVAS_LAYOUT.contentSize }
+
+/** The blocks of the provider around the preview, which draws its own. */
+const NO_BLOCKS: Block[] = []
 
 /**
  * Renders a post the session may not edit as a reading view without a form.
@@ -22,6 +41,7 @@ export function PostReadView({ stored, mine }: { stored: PostDetail, mine: boole
 	return (
 		<Page
 			title={title}
+			headingLevel={2}
 			breadcrumbs={
 				<PageBreadcrumbs label={__('Breadcrumbs', 'gophenberg')}>
 					<PageBreadcrumb
@@ -44,7 +64,11 @@ export function PostReadView({ stored, mine }: { stored: PostDetail, mine: boole
 				</Notice.Root>
 			)}
 			{stored.excerpt !== '' && <Text>{stored.excerpt}</Text>}
-			<BlockPreview blocks={parse(stored.content)} />
+			<div style={PREVIEW_COLUMN}>
+				<BlockEditorProvider value={NO_BLOCKS} settings={PREVIEW_SETTINGS}>
+					<BlockPreview blocks={parse(stored.content)} viewportWidth={AT_CONTAINER_WIDTH} />
+				</BlockEditorProvider>
+			</div>
 		</Page>
 	)
 }
