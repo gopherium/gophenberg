@@ -2674,7 +2674,7 @@ msgstr "Ce site ne recevra pas de mises à jour automatiques pour les nouvelles 
 
 #, fuzzy
 msgid "This update needs a backup of the database. The site stays down if the new version fails after it reaches the database."
-msgstr "Cette mise à jour nécessite une sauvegarde de la base de données. Le site restera indisponible si la nouvelle version échoue après avoir accédé à la base de données."
+msgstr "Cette mise à jour nécessite une sauvegarde de la base de données. Le site reste hors service si la nouvelle version échoue après avoir accédé à la base de données."
 
 #, fuzzy
 msgid "Unpacking the update…"

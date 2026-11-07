@@ -2412,7 +2412,7 @@ msgstr "Este sitio no recibirá actualizaciones automáticas de nuevas versiones
 
 #, fuzzy
 msgid "This update needs a backup of the database. The site stays down if the new version fails after it reaches the database."
-msgstr "Esta actualización necesita una copia de seguridad de la base de datos. El sitio permanecerá inactivo si la nueva versión falla después de acceder a la base de datos."
+msgstr "Esta actualización necesita una copia de seguridad de la base de datos. El sitio dejará de funcionar si la nueva versión falla después de acceder a la base de datos."
 
 #, fuzzy
 msgid "Unpacking the update…"
