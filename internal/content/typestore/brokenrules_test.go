@@ -31,13 +31,23 @@ type brokeRule struct{ code, name string }
 // Error returns the code and the name of the broken rule.
 func (b brokeRule) Error() string { return b.code + " on " + b.name }
 
-// readBrokenRule returns the code and the name a broken rule failure carries, and whether err is one.
-func readBrokenRule(err error) (code, name string, found bool) {
+// struckIn is a statement failure carrying a code and the context the engine struck it in.
+type struckIn struct{ code, context string }
+
+// Error returns the code and the context of the failure.
+func (s struckIn) Error() string { return s.code + " " + s.context }
+
+// readBrokenRule returns the code, the name and the context a test failure carries, and whether err is one.
+func readBrokenRule(err error) (Failure, bool) {
 	var broke brokeRule
-	if !errors.As(err, &broke) {
-		return "", "", false
+	if errors.As(err, &broke) {
+		return Failure{Code: broke.code, Name: broke.name}, true
 	}
-	return broke.code, broke.name, true
+	var struck struckIn
+	if errors.As(err, &struck) {
+		return Failure{Code: struck.code, Context: struck.context}, true
+	}
+	return Failure{}, false
 }
 
 // storeReading returns a store matching the rules against what readBrokenRule reads.
@@ -137,6 +147,65 @@ func TestBrokenNamesNoRuleWhenTheEngineLendsNone(t *testing.T) {
 
 	if got := storeReading(nil).broken(brokeRule{"unique", "type key"}); got != NoConstraint {
 		t.Errorf("broken() = %d, want %d", got, NoConstraint)
+	}
+}
+
+// readAsTypeKey finds a taken type key in every error, as an engine naming one rule for each failure would.
+func readAsTypeKey(error) (Failure, bool) {
+	return Failure{Code: "unique", Name: "type key"}, true
+}
+
+// contextRules lends a code with a text its context must hold first, then the same code in any context.
+var contextRules = []Rule{
+	{Code: "deadlock", Context: "content path", Broken: AddressCheckDeadlocked},
+	{Code: "deadlock", Broken: TypeHeldByContent},
+}
+
+func TestBrokenMatchesWhatTheReaderItIsHandedFindsAgainstTheRulesItIsHanded(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		rules []Rule
+		read  func(err error) (Failure, bool)
+		err   error
+		want  Constraint
+	}{
+		"a context holding the rule's text": {
+			contextRules, readBrokenRule, struckIn{"deadlock", "while checking the content path index"},
+			AddressCheckDeadlocked,
+		},
+		"a context that is the rule's text": {
+			contextRules, readBrokenRule, struckIn{"deadlock", "content path"}, AddressCheckDeadlocked,
+		},
+		"a context missing the rule's text": {
+			contextRules, readBrokenRule, struckIn{"deadlock", "while locking a parent row"}, TypeHeldByContent,
+		},
+		"no context at all": {contextRules, readBrokenRule, struckIn{"deadlock", ""}, TypeHeldByContent},
+		"a context holding the text under another code": {
+			contextRules, readBrokenRule, struckIn{"unique", "while checking the content path index"}, NoConstraint,
+		},
+		"the first of two rules matching": {
+			orderedRules, readBrokenRule, brokeRule{"restrict", "content path"}, TypeHeldByContent,
+		},
+		"a name under any code": {orderedRules, readBrokenRule, brokeRule{"reference", "content path"}, ContentPathUnique},
+		"a code and a name":     {orderedRules, readBrokenRule, brokeRule{"unique", "type key"}, TypeKeyUnique},
+		"a rule naming neither": {catchAll, readBrokenRule, brokeRule{}, FieldGroupExists},
+		"a failure carried inside a wrap": {
+			orderedRules, readBrokenRule, fmt.Errorf("create: %w", brokeRule{"unique", "route word"}), RouteWordUnique,
+		},
+		"a failure no rule names":              {orderedRules, readBrokenRule, brokeRule{"unique", "slug"}, NoConstraint},
+		"an error the reader finds nothing in": {catchAll, readBrokenRule, errConnectionGone, NoConstraint},
+		"no error":                             {catchAll, readBrokenRule, nil, NoConstraint},
+		"no rules":                             {nil, readBrokenRule, brokeRule{"unique", "type key"}, NoConstraint},
+		"a reader finding a rule in any error": {orderedRules, readAsTypeKey, errConnectionGone, TypeKeyUnique},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := Broken(test.rules, test.read, test.err); got != test.want {
+				t.Errorf("Broken(%v) = %d, want %d", test.err, got, test.want)
+			}
+		})
 	}
 }
 
