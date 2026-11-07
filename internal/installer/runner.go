@@ -6,6 +6,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,11 +31,13 @@ func run(ctx context.Context, program Program) (string, error) {
 	cmd.Dir = cmp.Or(program.Dir, "/")
 	cmd.Stdin = strings.NewReader(program.Stdin)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	printed, err := cmd.CombinedOutput()
-	if err != nil {
-		return string(printed), fmt.Errorf("installer: run %s: %w", program.Name, err)
+	var printed strings.Builder
+	cmd.Stdout = io.MultiWriter(&printed, cmp.Or(program.Output, io.Discard))
+	cmd.Stderr = cmd.Stdout
+	if err := cmd.Run(); err != nil {
+		return printed.String(), fmt.Errorf("installer: run %s: %w", program.Name, err)
 	}
-	return string(printed), nil
+	return printed.String(), nil
 }
 
 // argsOf returns the command line that starts program from folders, with runuser in front for another OS user.

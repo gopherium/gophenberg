@@ -24,8 +24,10 @@ var aptEnv = []string{"DEBIAN_FRONTEND=noninteractive", "NEEDRESTART_MODE=a"}
 
 // databasePrograms make the role gophenberg that signs in by peer, then its database, sorted by ICU's root collation.
 var databasePrograms = []Program{
-	{Name: "createuser", User: "postgres", Args: []string{"--no-superuser", "--no-createdb", "--no-createrole", siteUser}},
-	{Name: "createdb", User: "postgres", Args: []string{
+	{Name: "createuser", User: "postgres", Shown: "createuser " + siteUser, Args: []string{
+		"--no-superuser", "--no-createdb", "--no-createrole", siteUser,
+	}},
+	{Name: "createdb", User: "postgres", Shown: "createdb " + siteUser, Args: []string{
 		"--owner=" + siteUser, "--encoding=UTF8", "--template=template0", "--locale-provider=icu", "--icu-locale=und",
 		siteUser,
 	}},
@@ -101,7 +103,8 @@ func (r *installing) packageNames() []string {
 
 // installed reports whether dpkg has every one of names installed, held or not, one it cannot find counted as missing.
 func (r *installing) installed(ctx context.Context, names []string) bool {
-	printed, err := r.machine.Run(ctx, aptProgram("dpkg-query", append([]string{"-W", "-f", statusFormat}, names...)...))
+	query := aptProgram("dpkg-query", append([]string{"-W", "-f", statusFormat}, names...)...)
+	printed, err := r.runNamed(ctx, query.shownAs("dpkg-query -W "+strings.Join(names, " ")))
 	if err != nil {
 		return false
 	}
@@ -123,11 +126,11 @@ func (r *installing) aptInstall(ctx context.Context, names []string) error {
 		return err
 	}
 	lock := "DPkg::Lock::Timeout=" + strconv.FormatInt(inSeconds(r.site.settings.Checks.AptLockWait), 10)
-	if err := r.runStep(ctx, aptProgram("apt-get", "-o", lock, "update")); err != nil {
+	if err := r.runStep(ctx, aptProgram("apt-get", "-o", lock, "update").shownAs("apt-get update")); err != nil {
 		return err
 	}
-	return r.runStep(ctx, aptProgram("apt-get", append([]string{"-o", lock, "install", "-y", "--no-install-recommends"},
-		names...)...))
+	install := aptProgram("apt-get", append([]string{"-o", lock, "install", "-y", "--no-install-recommends"}, names...)...)
+	return r.runStep(ctx, install.shownAs("apt-get install "+strings.Join(names, " ")))
 }
 
 // aptProgram returns the apt or dpkg program called name with args and the settings every such program gets.
@@ -137,7 +140,7 @@ func aptProgram(name string, args ...string) Program {
 
 // runStep runs program and returns its error with what it printed, so the person sees why the step stopped.
 func (r *installing) runStep(ctx context.Context, program Program) error {
-	printed, err := r.machine.Run(ctx, program)
+	printed, err := r.runNamed(ctx, program)
 	return withPrinted(err, printed)
 }
 
@@ -164,7 +167,7 @@ func (r *installing) user(ctx context.Context, _ step) error {
 
 // addSiteUser makes the system user gophenberg, at home in the install root and unable to sign in, then looks it up.
 func (r *installing) addSiteUser(ctx context.Context) (*user.User, error) {
-	err := r.runStep(ctx, Program{Name: "useradd", Args: []string{
+	err := r.runStep(ctx, Program{Name: "useradd", Shown: "useradd " + siteUser, Args: []string{
 		"--system", "--user-group", "--home-dir", r.site.settings.Root, "--no-create-home", "--shell", "/usr/sbin/nologin",
 		siteUser,
 	}})
@@ -238,7 +241,7 @@ func (r *installing) database(ctx context.Context, planned step) error {
 
 // runMade runs program, taking a failure that says what it makes already exists as made.
 func (r *installing) runMade(ctx context.Context, program Program) error {
-	printed, err := r.machine.Run(ctx, program)
+	printed, err := r.runNamed(ctx, program)
 	if strings.Contains(printed, "already exists") {
 		return nil
 	}

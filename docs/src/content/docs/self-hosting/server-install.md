@@ -173,6 +173,30 @@ writes the site's settings, two systemd units, the `gophenberg`
 command and Caddy's site. It starts the site, creates the first
 administrator and checks that HTTPS answers.
 
+As it goes, the run prints each step, and under it each program the
+step runs. Installing the packages can take a few minutes, and on a
+fresh server `apt-get` may first wait for the automatic updates to
+finish. So when a program runs longer than 30 seconds, the run prints
+a line every 30 seconds with the time so far and the last line the
+program printed:
+
+```text
+Step 2: install PostgreSQL and Caddy with apt-get, Caddy from its own apt repository
+  dpkg-query -W postgresql caddy
+  apt-get update
+  apt-get install postgresql caddy
+  still running apt-get install postgresql caddy after 30s: Waiting for cache lock: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 1234 (unattended-upgr)...
+  still running apt-get install postgresql caddy after 1m0s: Setting up postgresql-16 (16.10-0ubuntu0.24.04.1) ...
+```
+
+A program's own output shows in full only when it fails.
+While the run waits for the site to start or for HTTPS to answer, it
+prints the same kind of line, such as
+`still waiting for https://example.com/admin/ after 30s`, with why the
+last try failed.
+`GOPHENBERG_INSTALL_PROGRESS_INTERVAL` changes the 30 seconds, see
+[the server settings](/self-hosting/configuration/#the-server-settings).
+
 [What a dry run prints](/self-hosting/commands/#what-a-dry-run-prints)
 lists every step and every file with its owner and mode. Each step is
 marked in the install record,

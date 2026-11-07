@@ -904,6 +904,26 @@ order. Before each one it prints its line, such as
 `Step 10: write the gophenberg command on the path`. Each file it
 writes is the one a dry run prints, with that owner and mode.
 
+Under each step it names every program the step runs, indented by two
+spaces, by its name and the arguments that matter, such as
+`apt-get install postgresql caddy`. A program that runs longer than
+`GOPHENBERG_INSTALL_PROGRESS_INTERVAL`, 30 seconds unless set, gets a
+line every interval with the time so far and the last line it printed.
+The waits for the site to start and for HTTPS to answer print such a
+line too, with why the last try failed.
+`0` leaves those lines out. What a program prints shows in full only
+when it fails, after the error. On a fresh server, `apt-get` may first
+wait up to `GOPHENBERG_INSTALL_APT_LOCK_WAIT` for the automatic
+updates:
+
+```text
+Step 2: install PostgreSQL and Caddy with apt-get, Caddy from its own apt repository
+  dpkg-query -W postgresql caddy
+  apt-get update
+  apt-get install postgresql caddy
+  still running apt-get install postgresql caddy after 30s: Waiting for cache lock: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 1234 (unattended-upgr)...
+```
+
 The step that starts the site waits for its pages, up to
 `GOPHENBERG_UPDATE_VERIFY_TIMEOUT`, 1 minute unless
 [the server settings](/self-hosting/configuration/#the-server-settings)

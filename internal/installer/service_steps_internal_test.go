@@ -36,7 +36,7 @@ const createAdminLine = "runuser -u gophenberg -- /opt/gophenberg/current/gophen
 // mariaPerez is the first administrator the tests answer for.
 var mariaPerez = admin{email: "admin@example.com", name: "Maria Perez", password: goodPassword}
 
-// servedOn returns the run that takes the steps of planned on server, its user and its install root already made.
+// servedOn returns the run that takes the steps of planned on server, its user and install root made, its answer blank.
 func servedOn(t *testing.T, server *fakeServer, planned site) (*installing, *strings.Builder) {
 	t.Helper()
 	check := server.check()
@@ -53,6 +53,7 @@ func servedOn(t *testing.T, server *fakeServer, planned site) (*installing, *str
 		}
 	}
 	server.forgetRun()
+	answer.Reset()
 	return running, answer
 }
 

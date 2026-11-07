@@ -94,6 +94,7 @@ func TestSettingsOnAFirstRunTakeEveryDefaultAndWriteItIntoServerEnv(t *testing.T
 		Checks: Checks{
 			MemoryFloorMB: 900, DiskFloorMB: 1024, AptLockWait: 5 * time.Minute, DomainCheckTimeout: 10 * time.Second,
 			HTTPSWait: 2 * time.Minute, PollInterval: time.Second, StartWait: time.Minute,
+			ProgressInterval: 30 * time.Second,
 		},
 	}
 	if settings != want {
@@ -520,6 +521,10 @@ func TestSettingsOnRefuseEachBadValue(t *testing.T) {
 		"INSTALL_DOMAIN_CHECK_TIMEOUT": {"0s": `must stand above zero, got "0s"`},
 		"INSTALL_HTTPS_WAIT":           {"later": `must be a duration like 30s, got "later"`},
 		"INSTALL_POLL_INTERVAL":        {"0s": `must stand above zero, got "0s"`},
+		"INSTALL_PROGRESS_INTERVAL": {
+			"-30s": `must not be negative, got "-30s"`, "2500ms": `must be a whole number of seconds, got "2500ms"`,
+			"often": `must be a duration like 30s, got "often"`,
+		},
 	} {
 		for value, complaint := range cases {
 			env := envOf(map[string]string{"GOPHENBERG_PUBLIC_URL": "https://example.com", "GOPHENBERG_" + name: value})
@@ -541,6 +546,19 @@ func TestSettingsOnTakeAnAptLockWaitOfZero(t *testing.T) {
 	if err != nil || settings.Checks.AptLockWait != 0 {
 		t.Errorf("settingsOn() = %v, %v, want an apt lock wait of 0, which does not wait", settings.Checks.AptLockWait,
 			err)
+	}
+}
+
+func TestSettingsOnTakeAProgressIntervalOfZero(t *testing.T) {
+	t.Parallel()
+
+	env := envOf(map[string]string{"GOPHENBERG_INSTALL_PROGRESS_INTERVAL": "0"})
+
+	settings, err := settingsOn(serverWith(t, nil), env, firstRun)
+
+	if err != nil || settings.Checks.ProgressInterval != 0 {
+		t.Errorf("settingsOn() = %v, %v, want a progress interval of 0, which prints no still-running line",
+			settings.Checks.ProgressInterval, err)
 	}
 }
 
