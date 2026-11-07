@@ -685,10 +685,13 @@ says why and ends with `so nothing was changed`. In order:
 - **The installer folder.** `/var/lib/gophenberg-installer`, when it
   exists, is a real folder, not a link, owned by root and writable by
   root alone.
-- **The system.** `/etc/os-release` names Ubuntu 24.04, Debian 12 or
-  Debian 13. On Debian it also prints that Gophenberg's CI tests
-  Ubuntu 24.04 only, such as
-  `Debian GNU/Linux 12 (bookworm) is not yet tested in Gophenberg's CI, which tests Ubuntu 24.04`.
+- **The system.** `/etc/os-release` names Ubuntu 24.04 or newer, or
+  Debian 12 or newer. It compares `VERSION_ID` number by number, so
+  Ubuntu 24.10 and 26.04 are both newer than 24.04. An older release,
+  a missing `VERSION_ID` or another system stops here. On a release
+  that CI does not test, such as Debian or Ubuntu 26.10, it also prints
+  that the release is not yet tested in Gophenberg's CI, which tests
+  Ubuntu 24.04 and Ubuntu 26.04, and goes on.
 - **systemd.** systemd runs the server, so `/run/systemd/system` is a
   folder, and `systemctl --version` names systemd 251 or newer.
 - **The sandbox.** systemd can set up the sandbox the site's service

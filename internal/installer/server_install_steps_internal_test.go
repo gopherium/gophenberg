@@ -47,6 +47,18 @@ const thisPlatform = "linux/" + runtime.GOARCH
 // probes are the programs the checks run, none of which changes a server.
 var probes = []string{"systemctl --version", sandboxLine, "systemd-detect-virt", clockLine}
 
+// systemReleases are the os-release files of the systems a scenario's server runs, by the name the scenario gives.
+var systemReleases = map[string]string{
+	"Ubuntu 22.04": "PRETTY_NAME=\"Ubuntu 22.04.5 LTS\"\nVERSION_ID=\"22.04\"\nID=ubuntu\n",
+	"Ubuntu 24.04": ubuntuRelease,
+	"Ubuntu 26.04": "PRETTY_NAME=\"Ubuntu 26.04 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"26.04\"\n" +
+		"VERSION=\"26.04 LTS (Resolute Raccoon)\"\nVERSION_CODENAME=resolute\nID=ubuntu\nID_LIKE=debian\n",
+	"Ubuntu 26.10": "PRETTY_NAME=\"Ubuntu 26.10\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"26.10\"\nID=ubuntu\nID_LIKE=debian\n",
+	"Debian 12":    debianRelease(12, "bookworm"),
+	"Debian 14":    debianRelease(14, "forky"),
+	"Fedora 41":    "PRETTY_NAME=\"Fedora Linux 41 (Server Edition)\"\nVERSION_ID=41\nID=fedora\n",
+}
+
 // printedFile is one file a dry run prints: the line that names it, and its text.
 type printedFile struct {
 	header, text string
@@ -77,7 +89,8 @@ func initializeServerInstall(t *testing.T) func(*godog.ScenarioContext) {
 		s := &installScenario{t: t, env: map[string]string{}, planted: map[string]string{}, checked: map[string]bool{}}
 		sc.Given(`^a fresh Ubuntu 24.04 server run by systemd 255$`, s.freshServer)
 		sc.Given(`^the operator is not root$`, s.notRoot)
-		sc.Given(`^the server runs Ubuntu 22.04$`, s.runUbuntu2204)
+		sc.Given(`^the server runs (Ubuntu 22.04|Ubuntu 24.04|Ubuntu 26.04|Ubuntu 26.10|Debian 14|Fedora 41)$`,
+			s.runSystem)
 		sc.Given(`^the server runs systemd (\d+)$`, s.runSystemd)
 		sc.Given(`^the server runs (Ubuntu 24.04|Debian 12) with systemd (\d+)$`, s.runSystemWithSystemd)
 		sc.Given(`^systemd cannot set up a sandbox on the server, a container systemd-detect-virt reports as lxc$`,
@@ -194,9 +207,9 @@ func (s *installScenario) notRoot() {
 	s.server.euid = 1000
 }
 
-// runUbuntu2204 has the server run Ubuntu 22.04.
-func (s *installScenario) runUbuntu2204() {
-	s.server.write(osReleasePath, "PRETTY_NAME=\"Ubuntu 22.04.5 LTS\"\nVERSION_ID=\"22.04\"\nID=ubuntu\n")
+// runSystem has the server run system, by the os-release systemReleases holds for it.
+func (s *installScenario) runSystem(system string) {
+	s.server.write(osReleasePath, systemReleases[system])
 }
 
 // runSystemd has the server run systemd major.
@@ -206,9 +219,7 @@ func (s *installScenario) runSystemd(major int) {
 
 // runSystemWithSystemd has the server run system, Ubuntu 24.04 or Debian 12, with systemd major.
 func (s *installScenario) runSystemWithSystemd(system string, major int) {
-	if system == "Debian 12" {
-		s.server.write(osReleasePath, debianRelease(12, "bookworm"))
-	}
+	s.runSystem(system)
 	s.runSystemd(major)
 }
 

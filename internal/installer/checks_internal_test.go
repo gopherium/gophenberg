@@ -844,9 +844,9 @@ func TestInstallRunsTheMachineChecksAndPrintsTheirNotesOnTheErrorStream(t *testi
 	err := Install(t.Context(), server.machine(), gonsole.Call{Env: envOf(nil), Stdout: &stdout, Stderr: &stderr},
 		firstRun)
 
-	want := "Debian GNU/Linux 12 (bookworm) is not yet tested in Gophenberg's CI, which tests Ubuntu 24.04\n" +
-		wantedFirewallNote + "warning: the clock of this server is not synchronized, and HTTPS and the signed update " +
-		"index both need the right time, so turn on NTP with sudo timedatectl set-ntp true\n"
+	want := "Debian GNU/Linux 12 (bookworm) is not yet tested in Gophenberg's CI, which tests Ubuntu 24.04 and " +
+		"Ubuntu 26.04\n" + wantedFirewallNote + "warning: the clock of this server is not synchronized, and HTTPS " +
+		"and the signed update index both need the right time, so turn on NTP with sudo timedatectl set-ntp true\n"
 	if err != nil || stderr.String() != want {
 		t.Errorf("Install() = %v, noting %q, want nil and the notes\n%s", err, stderr.String(), want)
 	}

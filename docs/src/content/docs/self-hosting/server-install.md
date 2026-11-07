@@ -13,8 +13,11 @@ containers instead, see
 
 This section lists what the server needs before you start.
 
-- A fresh server running Ubuntu 24.04. Debian 12 and 13 install too,
-  and the run prints that Gophenberg's CI does not test them yet.
+- A fresh server running Ubuntu 24.04 or newer, or Debian 12 or newer.
+  Gophenberg's CI tests Ubuntu 24.04 and Ubuntu 26.04, and on any other
+  release the run prints that the CI does not test it yet. On an older
+  release or another system,
+  [install with Docker Compose](/self-hosting/install/) instead.
 - An `x86_64` or `aarch64` processor.
 - At least 1 GB of memory and 1 GB of free disk.
 - A domain whose A or AAAA record points at the server.
@@ -545,7 +548,8 @@ Nothing was installed, and no download folder is left.
   ```
 
 - **An old OpenSSL.** The system is older than the ones Gophenberg
-  installs on. Ubuntu 24.04 and Debian 12 and 13 ship OpenSSL 3.
+  installs on. Ubuntu 24.04, Debian 12 and their newer releases ship
+  OpenSSL 3 or newer.
 
   ```text
   install.sh: checking the download needs OpenSSL 3 or newer, and this server has OpenSSL 1.1.1w

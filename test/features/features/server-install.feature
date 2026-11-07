@@ -1,6 +1,7 @@
 Feature: Install Gophenberg on a Linux server
-  sudo gophenberg server:install sets up Gophenberg on a fresh Ubuntu
-  24.04, Debian 12 or Debian 13 server. Before it changes anything it
+  sudo gophenberg server:install sets up Gophenberg on a fresh server
+  that runs Ubuntu 24.04 or newer, or Debian 12 or newer, and notes a
+  system Gophenberg's CI does not test yet. Before it changes anything it
   checks that root runs it and that its installer folder is a real folder
   root alone may write, then reads its settings, reads its install record
   and checks the server: the system, systemd and the sandbox of the site's
@@ -55,11 +56,40 @@ Feature: Install Gophenberg on a Linux server
     Then the run stops with "server:install must run as root, such as with sudo, so nothing was changed"
     And nothing on the server changed
 
-  Scenario: A system the installer does not set up is refused
-    Given the server runs Ubuntu 22.04
+  Scenario Outline: A system the installer does not set up is refused
+    Given the server runs <system>
     When the operator runs "server:install -dry-run -domain example.com"
-    Then the run stops with "this server runs Ubuntu 22.04.5 LTS, and server:install sets up Ubuntu 24.04, Debian 12 and Debian 13 only, so nothing was changed"
+    Then the run stops with "this server runs <named>, and server:install sets up Ubuntu 24.04 or newer and Debian 12 or newer only, while Docker Compose runs Gophenberg on other systems, so nothing was changed"
     And nothing on the server changed
+
+    Examples:
+      | system       | named                            |
+      | Ubuntu 22.04 | Ubuntu 22.04.5 LTS               |
+      | Fedora 41    | Fedora Linux 41 (Server Edition) |
+
+  Scenario Outline: A release Gophenberg's CI tests is set up with no note
+    Given the server runs <system>
+    When the operator runs "server:install -dry-run -domain localhost -admin-email admin@example.com"
+    Then the run succeeds
+    And the run notes nothing
+    And nothing on the server changed
+
+    Examples:
+      | system       |
+      | Ubuntu 24.04 |
+      | Ubuntu 26.04 |
+
+  Scenario Outline: A newer Ubuntu or Debian is set up with a note that CI does not test it yet
+    Given the server runs <system>
+    When the operator runs "server:install -dry-run -domain example.com -admin-email admin@example.com"
+    Then the run succeeds
+    And the run notes "<named> is not yet tested in Gophenberg's CI, which tests Ubuntu 24.04 and Ubuntu 26.04"
+    And nothing on the server changed
+
+    Examples:
+      | system       | named                       |
+      | Ubuntu 26.10 | Ubuntu 26.10                |
+      | Debian 14    | Debian GNU/Linux 14 (forky) |
 
   Scenario: A systemd older than 251 is refused
     Given the server runs systemd 250
