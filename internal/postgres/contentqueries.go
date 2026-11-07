@@ -318,7 +318,7 @@ func (q contentQueries) ListRelatedContent(
 	ctx context.Context, target uuid.UUID, limit, offset int,
 ) ([]contentstore.ContentRow, error) {
 	rows, err := q.queries.ListRelatedContent(ctx, db.ListRelatedContentParams{
-		Target: target, RowLimit: int32(limit), RowOffset: int32(offset),
+		Target: target, RowLimit: rowLimit(limit), RowOffset: int32(offset),
 	})
 	return mapped(rows, relatedRow), err
 }
@@ -331,7 +331,7 @@ func (q contentQueries) CountPointingAt(ctx context.Context, target uuid.UUID, f
 // PointingAt returns one page of the published items pointing at the target through the field.
 func (q contentQueries) PointingAt(ctx context.Context, p contentstore.Pointing) ([]content.Pointer, error) {
 	rows, err := q.queries.PointingAt(ctx, db.PointingAtParams{
-		Target: p.Target, Field: int32(p.FieldID), RowLimit: int32(p.Limit), RowOffset: int32(p.Offset),
+		Target: p.Target, Field: int32(p.FieldID), RowLimit: rowLimit(p.Limit), RowOffset: int32(p.Offset),
 	})
 	return mapped(rows, pointer), err
 }

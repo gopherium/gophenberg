@@ -3,6 +3,7 @@
 package postgres
 
 import (
+	"math"
 	"time"
 
 	"github.com/gopherium/framework/dbkit"
@@ -131,8 +132,16 @@ func listParams(p contentstore.Page) db.ListContentParams {
 	return db.ListContentParams{
 		Type: n.Type, FieldFilter: n.FieldFilter, Statuses: n.Statuses, Authors: n.Authors,
 		ExcludedAuthors: n.ExcludedAuthors, Before: n.Before, After: n.After, Search: n.Search,
-		OrderBy: p.OrderBy, OrderDir: p.OrderDir, RowLimit: int32(p.Limit), RowOffset: int32(p.Offset),
+		OrderBy: p.OrderBy, OrderDir: p.OrderDir, RowLimit: rowLimit(p.Limit), RowOffset: int32(p.Offset),
 	}
+}
+
+// rowLimit returns the page size as the limit a query binds, bounded to the largest a PostgreSQL integer holds.
+func rowLimit(size int) int32 {
+	if size > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int32(size)
 }
 
 // nestedParams returns what the nested list statement binds, the search escaped for ILIKE.
