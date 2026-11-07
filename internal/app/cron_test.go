@@ -401,6 +401,7 @@ func TestRunRunsTheSessionSweepFromTheCronAddress(t *testing.T) {
 		"GOPHENBERG_ADDR":           address,
 		"GOPHENBERG_CRON_SECRET":    longSecret,
 		"GOPHENBERG_CRON_ON_VISITS": "false",
+		"GOPHENBERG_UPDATE_CHECKS":  "false",
 	}
 	if err := seedMigrated(t.Context(), testkit.Getenv(env), new(bytes.Buffer)); err != nil {
 		t.Fatalf("seeding: %v", err)
