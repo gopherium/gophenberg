@@ -504,8 +504,9 @@ tool.
 
 ### What updates itself
 
-Ubuntu and Debian come with `unattended-upgrades` switched on. Once a
-day it installs, without asking:
+Ubuntu servers and most Debian cloud images come with
+`unattended-upgrades` switched on, and the check below shows whether
+yours does. Once a day it installs, without asking:
 
 - The system's security fixes, PostgreSQL's among them. Debian also
   installs its point releases. Other PostgreSQL updates wait for
@@ -545,7 +546,9 @@ older Caddy of Ubuntu's own archive shows too, and never wins.
 Some fixes, such as a new kernel, only take effect after a restart,
 and `unattended-upgrades` never restarts the server by itself. When
 one is due, the file `/var/run/reboot-required` exists, and on Ubuntu
-signing in also prints `*** System restart required ***`. To check:
+signing in also prints `*** System restart required ***`. On Debian,
+`unattended-upgrades` writes that file when it installs a new kernel,
+so it shows only while that package is installed. To check:
 
 ```sh
 ls /var/run/reboot-required
