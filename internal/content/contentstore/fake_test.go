@@ -703,11 +703,8 @@ func (q fakeQueries) CountPointingAt(_ context.Context, target uuid.UUID, fieldI
 }
 
 // PointingAt answers with the pointing items the shelf holds.
-func (q fakeQueries) PointingAt(
-	_ context.Context, target uuid.UUID, fieldID, limit, offset int,
-) ([]content.Pointer, error) {
-	args := paging{Target: target, FieldID: fieldID, Limit: limit, Offset: offset}
-	return answer(q, "PointingAt", args, q.fake.shelf.pointers, nil)
+func (q fakeQueries) PointingAt(_ context.Context, p Pointing) ([]content.Pointer, error) {
+	return answer(q, "PointingAt", paging(p), q.fake.shelf.pointers, nil)
 }
 
 // SummariesOfTargets answers with the target summaries the shelf holds.
