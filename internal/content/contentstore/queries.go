@@ -83,7 +83,7 @@ type RelationQueries interface {
 	CountRelatedContent(ctx context.Context, target uuid.UUID) (int64, error)
 	ListRelatedContent(ctx context.Context, target uuid.UUID, limit, offset int) ([]ContentRow, error)
 	CountPointingAt(ctx context.Context, target uuid.UUID, fieldID int) (int64, error)
-	PointingAt(ctx context.Context, target uuid.UUID, fieldID, limit, offset int) ([]content.Pointer, error)
+	PointingAt(ctx context.Context, p Pointing) ([]content.Pointer, error)
 	SummariesOfTargets(ctx context.Context, ids []uuid.UUID) ([]content.Target, error)
 }
 
@@ -144,6 +144,12 @@ type Page struct {
 	Narrowing
 	OrderBy, OrderDir string
 	Limit, Offset     int
+}
+
+// Pointing is one page of the items pointing at a target through a field.
+type Pointing struct {
+	Target                 uuid.UUID
+	FieldID, Limit, Offset int
 }
 
 // TypedItem is the type one item belongs to.

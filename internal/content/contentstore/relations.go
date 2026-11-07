@@ -177,7 +177,9 @@ func (s *Store) PointingAt(
 	if err != nil {
 		return nil, 0, fmt.Errorf("%s: count pointing at: %w", s.backend.Engine, err)
 	}
-	rows, err := s.backend.Pool.PointingAt(ctx, target, field, perPage, content.PageOffset(page, perPage))
+	rows, err := s.backend.Pool.PointingAt(ctx, Pointing{
+		Target: target, FieldID: field, Limit: perPage, Offset: content.PageOffset(page, perPage),
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("%s: list pointing at: %w", s.backend.Engine, err)
 	}
