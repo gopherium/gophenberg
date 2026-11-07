@@ -228,12 +228,11 @@ func TestApplyRunAgainFinishesAnImportAStopCutShort(t *testing.T) {
 func TestApplyLeavesTheSameSiteWhenTheClockStepsBack(t *testing.T) {
 	t.Parallel()
 
-	scenario := resumableImports()["adding a type, a group and a section"]
-	whole, _ := uninterrupted(t, scenario)
+	whole, _ := uninterrupted(t, addingEnvelope)
 
 	registry, pool, id := valuedSite(t)
-	sabotage(t, pool, "UPDATE core.content_types SET created_at = created_at + interval '10 seconds' WHERE key = 'recipe'")
-	applied(t, registry, scenario(t, registry))
+	sabotage(t, pool, "UPDATE core.content_types SET created_at = created_at + interval '1 day' WHERE key = 'recipe'")
+	applied(t, registry, addingEnvelope(t, registry))
 
 	if got := stateOf(t, pool, id); !reflect.DeepEqual(got, whole) {
 		t.Errorf("the site after an import under a stepped-back clock = %+v, want what one run leaves, %+v", got, whole)
