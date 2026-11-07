@@ -2,7 +2,11 @@
 
 package typestore
 
-import "github.com/gopherium/gophenberg/internal/content"
+import (
+	"strings"
+
+	"github.com/gopherium/gophenberg/internal/content"
+)
 
 // Constraint names a stored rule a statement broke, whatever the engine calls that rule.
 type Constraint int
@@ -18,31 +22,44 @@ const (
 	RouteWordUnique
 	TypeHeldByContent
 	ContentPathUnique
+	RelationTargetExists
+	AddressCheckDeadlocked
 )
 
-// Rule names the stored rule an engine's error code and rule name stand for, an empty one matching any.
+// Failure is what an engine reads from an error it raised: its code, the rule it names and the context it struck in.
+type Failure struct {
+	Code, Name, Context string
+}
+
+// Rule names the stored rule an engine's error code, rule name and context text stand for, an empty one matching any.
 type Rule struct {
-	Code, Name string
-	Broken     Constraint
+	Code, Name, Context string
+	Broken              Constraint
 }
 
-// matches reports whether the rule holds the code and the name an engine read from a failure.
-func (r Rule) matches(code, name string) bool {
-	return (r.Code == "" || r.Code == code) && (r.Name == "" || r.Name == name)
+// matches reports whether the rule holds the code, the name and the context an engine read from a failure.
+func (r Rule) matches(f Failure) bool {
+	return (r.Code == "" || r.Code == f.Code) && (r.Name == "" || r.Name == f.Name) &&
+		(r.Context == "" || strings.Contains(f.Context, r.Context))
 }
 
-// broken returns the stored rule the first rule matching what the engine reads from err names, or none.
-func (s *Store) broken(err error) Constraint {
-	code, name, found := s.backend.ReadError(err)
+// Broken returns the stored rule the first rule matching what read finds in err names, or none.
+func Broken(rules []Rule, read func(err error) (Failure, bool), err error) Constraint {
+	failure, found := read(err)
 	if !found {
 		return NoConstraint
 	}
-	for _, rule := range s.backend.Rules {
-		if rule.matches(code, name) {
+	for _, rule := range rules {
+		if rule.matches(failure) {
 			return rule.Broken
 		}
 	}
 	return NoConstraint
+}
+
+// broken returns the stored rule the first rule matching what the engine reads from err names, or none.
+func (s *Store) broken(err error) Constraint {
+	return Broken(s.backend.Rules, s.backend.ReadError, err)
 }
 
 // errorFor returns the error the table holds for the stored rule err broke, or nil.

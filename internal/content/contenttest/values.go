@@ -22,6 +22,7 @@ var valueCases = []Case{
 	{"SnapshotsFieldValues", snapshotsFieldValues},
 	{"ParksFieldValuesInAnAutosave", parksFieldValuesInAnAutosave},
 	{"SnapshotsAChoiceAndAListValue", snapshotsAChoiceAndAListValue},
+	{"ReadsBackEveryKindOfJSONValue", readsBackEveryKindOfJSONValue},
 }
 
 // freezesTheValuesOfAGroupThatStoppedMatching keeps the values of a resting group through an edit.
@@ -240,5 +241,55 @@ func snapshotsAChoiceAndAListValue(t *testing.T, s Stores) {
 	listed, ok := created.Fields["gallery"].([]any)
 	if !ok || len(listed) != 2 {
 		t.Errorf("Fields = %v, want the media list kept", created.Fields)
+	}
+}
+
+// everyJSONKind returns a whole number, a fraction, a bool, a nested list and an empty object, as JSON reads them.
+func everyJSONKind() content.Values {
+	return content.Values{
+		"whole":    float64(4),
+		"fraction": 2.5,
+		"flag":     true,
+		"nested":   []any{"a", []any{float64(1), false}},
+		"empty":    map[string]any{},
+	}
+}
+
+// readsBackEveryKindOfJSONValue stores one value of each JSON kind and reads it back from the item and its revision.
+func readsBackEveryKindOfJSONValue(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	DeclareFields(t, s.Types,
+		PostField("whole", content.FieldKindNumber),
+		PostField("fraction", content.FieldKindNumber),
+		PostField("flag", content.FieldKindBoolean),
+		PostField("nested", content.FieldKindText),
+		PostField("empty", content.FieldKindText),
+	)
+	created := MustCreate(t, s.Content, "Hello world", author)
+	created.Fields = everyJSONKind()
+	created.UpdatedAt = time.Now().UTC()
+	snapshot := MustSnapshot(t, created, author)
+
+	if _, err := s.Content.Update(t.Context(), created, created.CreatedAt, snapshot, 100); err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+
+	held, err := s.Content.ByID(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	if !reflect.DeepEqual(held.Fields, everyJSONKind()) {
+		t.Errorf("ByID() fields = %#v, want %#v", held.Fields, everyJSONKind())
+	}
+	revisions, err := s.Content.Revisions(t.Context(), created.ID)
+	if err != nil || len(revisions) != 1 {
+		t.Fatalf("Revisions() = %v, %v, want the snapshot stored", revisions, err)
+	}
+	stored, err := s.Content.RevisionByID(t.Context(), created.ID, revisions[0].ID)
+	if err != nil {
+		t.Fatalf("RevisionByID() error = %v, want nil", err)
+	}
+	if !reflect.DeepEqual(stored.Fields, everyJSONKind()) {
+		t.Errorf("RevisionByID() fields = %#v, want %#v", stored.Fields, everyJSONKind())
 	}
 }

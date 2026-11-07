@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/content/typestore"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
@@ -110,7 +111,7 @@ func (q typeQueries) RetypeContentPaths(ctx context.Context, t typestore.TypeRow
 	if err != nil {
 		return err
 	}
-	return checkPaginationPaths(paths)
+	return content.CheckPaginationPaths(paths)
 }
 
 // CountNestedContent returns how many items of the type sit inside another.

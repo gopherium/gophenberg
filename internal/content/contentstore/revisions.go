@@ -1,23 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package postgres
+package contentstore
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	"github.com/gopherium/gophenberg/internal/content"
-	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
 // editableUnderLock locks the item, reporting [content.ErrNotFound] or [content.ErrTrashed] when it may not be written.
-func editableUnderLock(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
+func editableUnderLock(ctx context.Context, queries Queries, id uuid.UUID) error {
 	row, err := queries.LockContent(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return content.ErrNotFound
 	}
 	if err != nil {
@@ -27,10 +26,10 @@ func editableUnderLock(ctx context.Context, queries *db.Queries, id uuid.UUID) e
 }
 
 // Revisions returns the item's revisions newest first, without their content.
-func (s *ContentStore) Revisions(ctx context.Context, contentID uuid.UUID) ([]content.Revision, error) {
-	rows, err := s.queries.ListRevisions(ctx, contentID)
+func (s *Store) Revisions(ctx context.Context, contentID uuid.UUID) ([]content.Revision, error) {
+	rows, err := s.backend.Pool.ListRevisions(ctx, contentID)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: list revisions: %w", err)
+		return nil, fmt.Errorf("%s: list revisions: %w", s.backend.Engine, err)
 	}
 	revisions := make([]content.Revision, len(rows))
 	for i, row := range rows {
@@ -48,13 +47,13 @@ func (s *ContentStore) Revisions(ctx context.Context, contentID uuid.UUID) ([]co
 }
 
 // RevisionByID returns the item's revision, or [content.ErrRevisionNotFound].
-func (s *ContentStore) RevisionByID(ctx context.Context, contentID, revisionID uuid.UUID) (content.Revision, error) {
-	row, err := s.queries.GetRevision(ctx, db.GetRevisionParams{ContentID: contentID, ID: revisionID})
-	if errors.Is(err, pgx.ErrNoRows) {
+func (s *Store) RevisionByID(ctx context.Context, contentID, revisionID uuid.UUID) (content.Revision, error) {
+	row, err := s.backend.Pool.GetRevision(ctx, contentID, revisionID)
+	if errors.Is(err, sql.ErrNoRows) {
 		return content.Revision{}, content.ErrRevisionNotFound
 	}
 	if err != nil {
-		return content.Revision{}, fmt.Errorf("postgres: get revision: %w", err)
+		return content.Revision{}, fmt.Errorf("%s: get revision: %w", s.backend.Engine, err)
 	}
 	return content.Revision{
 		ID:        row.ID,
@@ -70,13 +69,12 @@ func (s *ContentStore) RevisionByID(ctx context.Context, contentID, revisionID u
 }
 
 // DeleteRevision removes the item's revision, reporting [content.ErrRevisionNotFound] or [content.ErrTrashed].
-func (s *ContentStore) DeleteRevision(ctx context.Context, contentID, revisionID uuid.UUID) error {
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+func (s *Store) DeleteRevision(ctx context.Context, contentID, revisionID uuid.UUID) error {
+	err := s.backend.InTx(ctx, func(queries Tx) error {
 		if err := editableUnderLock(ctx, queries, contentID); err != nil {
 			return err
 		}
-		rows, err := queries.DeleteRevision(ctx, db.DeleteRevisionParams{ContentID: contentID, ID: revisionID})
+		rows, err := queries.DeleteRevision(ctx, contentID, revisionID)
 		if err != nil {
 			return err
 		}
@@ -90,21 +88,20 @@ func (s *ContentStore) DeleteRevision(ctx context.Context, contentID, revisionID
 		return err
 	}
 	if err != nil {
-		return fmt.Errorf("postgres: delete revision: %w", err)
+		return fmt.Errorf("%s: delete revision: %w", s.backend.Engine, err)
 	}
 	return nil
 }
 
 // SaveAutosave stores the author's autosave of the item, replacing any earlier one, unless the item is in the trash.
-func (s *ContentStore) SaveAutosave(ctx context.Context, autosave content.Revision) (content.Revision, error) {
-	var row db.UpsertAutosaveRow
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+func (s *Store) SaveAutosave(ctx context.Context, autosave content.Revision) (content.Revision, error) {
+	var row RevisionRow
+	err := s.backend.InTx(ctx, func(queries Tx) error {
 		if err := editableUnderLock(ctx, queries, autosave.ContentID); err != nil {
 			return err
 		}
 		var err error
-		row, err = queries.UpsertAutosave(ctx, db.UpsertAutosaveParams{
+		row, err = queries.UpsertAutosave(ctx, RevisionRow{
 			ID:        autosave.ID,
 			ContentID: autosave.ContentID,
 			AuthorID:  autosave.AuthorID,
@@ -120,7 +117,7 @@ func (s *ContentStore) SaveAutosave(ctx context.Context, autosave content.Revisi
 		return content.Revision{}, err
 	}
 	if err != nil {
-		return content.Revision{}, fmt.Errorf("postgres: save autosave: %w", err)
+		return content.Revision{}, fmt.Errorf("%s: save autosave: %w", s.backend.Engine, err)
 	}
 	return content.Revision{
 		ID:        row.ID,
@@ -136,13 +133,13 @@ func (s *ContentStore) SaveAutosave(ctx context.Context, autosave content.Revisi
 }
 
 // Autosave returns the author's autosave of the item, or [content.ErrRevisionNotFound].
-func (s *ContentStore) Autosave(ctx context.Context, contentID, authorID uuid.UUID) (content.Revision, error) {
-	row, err := s.queries.GetAutosave(ctx, db.GetAutosaveParams{ContentID: contentID, AuthorID: authorID})
-	if errors.Is(err, pgx.ErrNoRows) {
+func (s *Store) Autosave(ctx context.Context, contentID, authorID uuid.UUID) (content.Revision, error) {
+	row, err := s.backend.Pool.GetAutosave(ctx, contentID, authorID)
+	if errors.Is(err, sql.ErrNoRows) {
 		return content.Revision{}, content.ErrRevisionNotFound
 	}
 	if err != nil {
-		return content.Revision{}, fmt.Errorf("postgres: get autosave: %w", err)
+		return content.Revision{}, fmt.Errorf("%s: get autosave: %w", s.backend.Engine, err)
 	}
 	return content.Revision{
 		ID:        row.ID,
@@ -158,17 +155,19 @@ func (s *ContentStore) Autosave(ctx context.Context, contentID, authorID uuid.UU
 }
 
 // DeleteAutosave removes the author's autosave of the item.
-func (s *ContentStore) DeleteAutosave(ctx context.Context, contentID, authorID uuid.UUID) error {
-	err := s.queries.DeleteAutosave(ctx, db.DeleteAutosaveParams{ContentID: contentID, AuthorID: authorID})
+func (s *Store) DeleteAutosave(ctx context.Context, contentID, authorID uuid.UUID) error {
+	err := s.backend.Pool.DeleteAutosave(ctx, contentID, authorID)
 	if err != nil {
-		return fmt.Errorf("postgres: delete autosave: %w", err)
+		return fmt.Errorf("%s: delete autosave: %w", s.backend.Engine, err)
 	}
 	return nil
 }
 
 // snapshotRevision stores the snapshot and prunes revisions beyond the cap, sparing autosaves.
-func snapshotRevision(ctx context.Context, queries *db.Queries, snapshot content.Revision, revisionCap int) error {
-	err := queries.CreateRevision(ctx, db.CreateRevisionParams{
+func (s *Store) snapshotRevision(
+	ctx context.Context, queries Queries, snapshot content.Revision, revisionCap int,
+) error {
+	err := queries.CreateRevision(ctx, RevisionRow{
 		ID:        snapshot.ID,
 		ContentID: snapshot.ContentID,
 		Kind:      string(snapshot.Kind),
@@ -180,14 +179,14 @@ func snapshotRevision(ctx context.Context, queries *db.Queries, snapshot content
 		CreatedAt: snapshot.CreatedAt,
 	})
 	if err != nil {
-		return fmt.Errorf("postgres: create revision: %w", err)
+		return fmt.Errorf("%s: create revision: %w", s.backend.Engine, err)
 	}
 	if revisionCap <= 0 {
 		return nil
 	}
-	err = queries.PruneRevisions(ctx, db.PruneRevisionsParams{ContentID: snapshot.ContentID, Keep: int32(revisionCap)})
+	err = queries.PruneRevisions(ctx, snapshot.ContentID, revisionCap)
 	if err != nil {
-		return fmt.Errorf("postgres: prune revisions: %w", err)
+		return fmt.Errorf("%s: prune revisions: %w", s.backend.Engine, err)
 	}
 	return nil
 }

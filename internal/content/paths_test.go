@@ -159,6 +159,51 @@ func TestReservedAddressNamesTheAddress(t *testing.T) {
 	}
 }
 
+func TestCheckPaginationPathsPassesAddressesTheRootListingLeavesAlone(t *testing.T) {
+	t.Parallel()
+
+	for name, paths := range map[string][]string{
+		"no addresses":                     nil,
+		"addresses no root page names":     {"about", "books/page/2", "pages/about/page/3"},
+		"a page word without a page count": {"page", "page/two"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if err := content.CheckPaginationPaths(paths); err != nil {
+				t.Errorf("CheckPaginationPaths(%q) error = %v, want nil", paths, err)
+			}
+		})
+	}
+}
+
+func TestCheckPaginationPathsNamesTheFirstAddressTheRootListingTakes(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		paths []string
+		want  string
+	}{
+		"one root page":             {[]string{"page/2"}, "page/2"},
+		"a root page after a free":  {[]string{"about", "page/3"}, "page/3"},
+		"the first of two named":    {[]string{"about", "page/3", "page/2"}, "page/3"},
+		"a root page before a free": {[]string{"page/4", "about"}, "page/4"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			err := content.CheckPaginationPaths(test.paths)
+
+			if !errors.Is(err, content.ErrReservedAddress) {
+				t.Fatalf("CheckPaginationPaths(%q) error = %v, want %v", test.paths, err, content.ErrReservedAddress)
+			}
+			if held, _ := content.DetailsOf(err); held["path"] != test.want {
+				t.Errorf("details = %v, want the path %s named", held, test.want)
+			}
+		})
+	}
+}
+
 func TestNewNamesTheReservedAddressItRefuses(t *testing.T) {
 	t.Parallel()
 

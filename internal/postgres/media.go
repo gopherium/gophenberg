@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/media"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
@@ -114,7 +115,7 @@ func (s *MediaStore) List(ctx context.Context, f media.Filter) ([]media.Listed, 
 		OrderBy:         string(f.OrderBy),
 		OrderDir:        string(f.Order),
 		RowLimit:        int32(f.PerPage),
-		RowOffset:       pageOffset(f.Page, f.PerPage),
+		RowOffset:       int32(content.PageOffset(f.Page, f.PerPage)),
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("postgres: list media: %w", err)

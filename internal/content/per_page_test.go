@@ -4,6 +4,7 @@ package content_test
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -95,6 +96,30 @@ func TestResolvePerPageFallsBackToTheDefault(t *testing.T) {
 
 			if size := content.ResolvePerPage(asked.held, asked.found); size != asked.want {
 				t.Errorf("ResolvePerPage(%q, %v) = %d, want %d", asked.held, asked.found, size, asked.want)
+			}
+		})
+	}
+}
+
+func TestPageOffsetSkipsThePagesBeforeItUpToTheLargestOffsetAQueryTakes(t *testing.T) {
+	t.Parallel()
+
+	lastWhole := math.MaxInt32 / 20
+	for name, asked := range map[string]struct {
+		page, perPage, want int
+	}{
+		"the first page":                {1, 20, 0},
+		"a middle page":                 {3, 20, 40},
+		"the last page under the bound": {lastWhole + 1, 20, lastWhole * 20},
+		"the page one past the bound":   {lastWhole + 2, 20, math.MaxInt32},
+		"a page far past the bound":     {math.MaxInt32, 20, math.MaxInt32},
+		"a page size of zero":           {5, 0, 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := content.PageOffset(asked.page, asked.perPage); got != asked.want {
+				t.Errorf("PageOffset(%d, %d) = %d, want %d", asked.page, asked.perPage, got, asked.want)
 			}
 		})
 	}
