@@ -181,6 +181,37 @@ func TestAStillRunningLineCutsALastLineLongerThan160Characters(t *testing.T) {
 	}
 }
 
+func TestATailKeepsTheLastLineAndTheStartOfAnUnfinishedOneNotAllAProgramPrinted(t *testing.T) {
+	t.Parallel()
+
+	seen := &tail{}
+	for range 20000 {
+		_, _ = seen.Write([]byte("Unpacking postgresql-16 (16.10-0ubuntu0.24.04.1) ...\n"))
+	}
+	_, _ = seen.Write([]byte(strings.Repeat("x", 1<<20)))
+
+	if kept := len(seen.shown) + len(seen.partial); kept > maxPartial+maxShownLine+len("...") {
+		t.Errorf("the tail keeps %d bytes after 1 MiB with no line end, want at most %d", kept,
+			maxPartial+maxShownLine+len("..."))
+	}
+	if want := strings.Repeat("x", maxShownLine) + "..."; seen.last() != want {
+		t.Errorf("last() = %q, want %q", seen.last(), want)
+	}
+}
+
+func TestATailShowsTheLastFinishedLineThatHoldsTextOnceTheUnfinishedOneHoldsNone(t *testing.T) {
+	t.Parallel()
+
+	seen := &tail{}
+	for _, piece := range []string{"Reading package ", "lists... Done\r", "   ", "\n", "  \t"} {
+		_, _ = seen.Write([]byte(piece))
+	}
+
+	if want := "Reading package lists... Done"; seen.last() != want {
+		t.Errorf("last() = %q, want %q", seen.last(), want)
+	}
+}
+
 func TestAProgressIntervalOfZeroPrintsNoStillRunningLine(t *testing.T) {
 	t.Parallel()
 

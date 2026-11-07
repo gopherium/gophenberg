@@ -3,10 +3,10 @@
 package installer
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -122,36 +122,57 @@ func (l *lastTry) last() string {
 	return shownText(l.err.Error())
 }
 
-// tail is what a program printed so far, kept while another goroutine reads its last line.
+// maxPartial is the most bytes of an unfinished line a tail keeps, room for maxShownLine characters of four bytes.
+const maxPartial = 4*maxShownLine + 4
+
+// tail is the last finished line a program printed that holds text, as shown, and the start of its unfinished line.
 type tail struct {
 	mu      sync.Mutex
-	printed []byte
+	shown   string
+	partial []byte
 }
 
-// Write keeps p after what the program printed before it.
+// Write ends the unfinished line at each line feed or carriage return in p, keeping the start of the line left open.
 func (t *tail) Write(p []byte) (int, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.printed = append(t.printed, p...)
+	for rest := p; len(rest) > 0; {
+		end := bytes.IndexAny(rest, "\n\r")
+		if end < 0 {
+			t.keep(rest)
+			break
+		}
+		t.keep(rest[:end])
+		t.finish()
+		rest = rest[end+1:]
+	}
 	return len(p), nil
 }
 
-// last returns the last line the program printed that holds more than spaces, as a still-running line shows it.
+// keep adds piece to the unfinished line up to maxPartial bytes, leading blanks left out while the line is empty.
+func (t *tail) keep(piece []byte) {
+	if len(t.partial) == 0 {
+		piece = bytes.TrimLeft(piece, " \t")
+	}
+	t.partial = append(t.partial, piece[:min(len(piece), maxPartial-len(t.partial))]...)
+}
+
+// finish ends the unfinished line, keeping it as shown when it holds text.
+func (t *tail) finish() {
+	if shown := shownText(string(t.partial)); shown != "" {
+		t.shown = shown
+	}
+	t.partial = t.partial[:0]
+}
+
+// last returns the unfinished line as shown when it holds text, else the last finished line that did.
 func (t *tail) last() string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return lastLine(string(t.printed))
-}
-
-// lastLine returns the last line of printed that holds more than spaces, a carriage return ending a line too, as shown.
-func lastLine(printed string) string {
-	lines := strings.FieldsFunc(printed, func(r rune) bool { return r == '\n' || r == '\r' })
-	for _, line := range slices.Backward(lines) {
-		if shown := shownText(line); shown != "" {
-			return shown
-		}
+	if shown := shownText(string(t.partial)); shown != "" {
+		return shown
 	}
-	return ""
+	return t.shown
 }
 
 // shownText returns text as a progress line shows it, each control character a space, trimmed and cut.
