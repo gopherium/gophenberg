@@ -66,12 +66,7 @@ func writesCounted(t *testing.T, pool *pgxpool.Pool) int64 {
 	return counted
 }
 
-// stateOf returns what the site holds, read through a registry that starts afresh.
-// The types are sorted by key before the comparison: the export lists them in
-// the order the wall clock stamped them as they were created, and a step back
-// of the clock between two creations reorders the list even though the import
-// leaves the same site. The import never sets the order of types, so the
-// comparison loses nothing by reading them in key order.
+// stateOf returns what the site holds, its types in key order, read through a registry that starts afresh.
 func stateOf(t *testing.T, pool *pgxpool.Pool, id uuid.UUID) siteState {
 	t.Helper()
 	item, revisions := heldValues(t, pool, id)
@@ -230,12 +225,6 @@ func TestApplyRunAgainFinishesAnImportAStopCutShort(t *testing.T) {
 	}
 }
 
-// TestApplyLeavesTheSameSiteWhenTheClockStepsBack runs an import that adds a
-// type on a site whose recipe type carries a stamp ten seconds ahead of the
-// clock, as it does after the wall clock steps back between the setup that
-// created the type and the import that adds the next one. The export then
-// lists the added type before recipe, and the state the import leaves must
-// still read as the state one clean run leaves.
 func TestApplyLeavesTheSameSiteWhenTheClockStepsBack(t *testing.T) {
 	t.Parallel()
 
