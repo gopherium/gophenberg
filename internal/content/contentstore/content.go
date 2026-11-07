@@ -1,38 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package postgres
+package contentstore
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"math/rand/v2"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gopherium/framework/dbkit"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
-	"github.com/gopherium/gophenberg/internal/postgres/db"
+	"github.com/gopherium/gophenberg/internal/content/typestore"
 )
-
-var _ content.Store = (*ContentStore)(nil)
 
 // slugAttempts bounds the suffixes tried when a slug is taken.
 const slugAttempts = 20
-
-// deferAddressCheck holds the address check until a move has settled.
-const deferAddressCheck = "SET CONSTRAINTS core.content_path_unique DEFERRED"
-
-// slugConstraint names the unique constraint over a content address.
-const slugConstraint = "content_path_unique"
 
 // trashSuffixAlphabet holds the characters a trashed slug suffix draws from.
 const trashSuffixAlphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -40,39 +28,28 @@ const trashSuffixAlphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
 // trashSuffixLength is the number of random characters in a trashed slug suffix.
 const trashSuffixLength = 8
 
-// ContentStore persists content items in the core schema.
-type ContentStore struct {
-	pool    *pgxpool.Pool
-	queries *db.Queries
-}
-
-// NewContentStore returns a [ContentStore] backed by pool.
-func NewContentStore(pool *pgxpool.Pool) *ContentStore {
-	return &ContentStore{pool: pool, queries: db.New(pool)}
-}
-
 // Create stores a new content item, suffixing its slug until its address is free.
-func (s *ContentStore) Create(ctx context.Context, c content.Content) (content.Content, error) {
+func (s *Store) Create(ctx context.Context, c content.Content) (content.Content, error) {
 	prefix := content.AddressPrefix(c.Path, c.Slug)
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
 		created, err := s.create(ctx, c, prefix, numberedSlug(c.Slug, attempt))
-		if isSlugTaken(err) || lostAddressCheck(err) {
+		if slugRetries[s.broken(err)] {
 			continue
 		}
 		return created, err
 	}
 	created, err := s.create(ctx, c, prefix, identifiedSlug(c.Slug, c.ID))
-	if isSlugTaken(err) {
+	if s.broken(err) == typestore.ContentPathUnique {
 		return content.Content{}, content.ErrSlugTaken
 	}
 	return created, err
 }
 
 // create stores the content item under slug, addressed beneath prefix.
-func (s *ContentStore) create(
+func (s *Store) create(
 	ctx context.Context, c content.Content, prefix, slug string,
 ) (content.Content, error) {
-	params := db.CreateContentParams{
+	params := ContentRow{
 		ID:          c.ID,
 		Type:        c.Type,
 		ParentID:    c.ParentID,
@@ -91,32 +68,31 @@ func (s *ContentStore) create(
 	if len(c.Fields) > 0 || c.ParentID != nil {
 		return s.createHeld(ctx, c, params)
 	}
-	if err := checkPaginationPaths([]string{params.Path}); err != nil {
+	if err := content.CheckPaginationPaths([]string{params.Path}); err != nil {
 		return content.Content{}, err
 	}
-	row, err := s.queries.CreateContent(ctx, params)
+	row, err := s.backend.Pool.CreateContent(ctx, params)
 	if err != nil {
-		return content.Content{}, fmt.Errorf("postgres: create content: %w", err)
+		return content.Content{}, fmt.Errorf("%s: create content: %w", s.backend.Engine, err)
 	}
 	return toContent(row), nil
 }
 
 // createHeld stores the item once its type still nests and every value it carries names a declared field.
-func (s *ContentStore) createHeld(
-	ctx context.Context, c content.Content, params db.CreateContentParams,
+func (s *Store) createHeld(
+	ctx context.Context, c content.Content, params ContentRow,
 ) (content.Content, error) {
-	var row db.CoreContent
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+	var row ContentRow
+	err := s.backend.InTx(ctx, func(queries Tx) error {
 		prefix, err := fileable(ctx, queries, c, content.AddressPrefix(params.Path, params.Slug))
 		if err != nil {
 			return err
 		}
 		params.Path = content.AddressUnder(prefix, params.Slug)
-		if err := checkPaginationPaths([]string{params.Path}); err != nil {
+		if err := content.CheckPaginationPaths([]string{params.Path}); err != nil {
 			return err
 		}
-		matching, err := declaredValues(ctx, queries, c)
+		matching, err := s.declaredValues(ctx, queries, c)
 		if err != nil {
 			return err
 		}
@@ -125,52 +101,52 @@ func (s *ContentStore) createHeld(
 			return err
 		}
 		row = created
-		resolved, err := resolveTargets(ctx, queries, matching, toContent(created), nil)
+		resolved, err := s.resolveTargets(ctx, queries, matching, toContent(created), nil)
 		if err != nil {
 			return err
 		}
 		return writeRelations(ctx, queries, toContent(created), resolved)
 	})
 	if err != nil {
-		return content.Content{}, writeFailure(err)
+		return content.Content{}, s.writeFailure(err)
 	}
 	return toContent(row), nil
 }
 
 // PublishedByPath returns the published item at the address, or [content.ErrNotFound].
-func (s *ContentStore) PublishedByPath(ctx context.Context, path string) (content.Content, error) {
-	row, err := s.queries.GetPublishedContentByPath(ctx, path)
-	if errors.Is(err, pgx.ErrNoRows) {
+func (s *Store) PublishedByPath(ctx context.Context, path string) (content.Content, error) {
+	row, err := s.backend.Pool.GetPublishedContentByPath(ctx, path)
+	if errors.Is(err, sql.ErrNoRows) {
 		return content.Content{}, content.ErrNotFound
 	}
 	if err != nil {
-		return content.Content{}, fmt.Errorf("postgres: get published content by path: %w", err)
+		return content.Content{}, fmt.Errorf("%s: get published content by path: %w", s.backend.Engine, err)
 	}
 	return toContent(row), nil
 }
 
 // Children returns how many items nest directly under the item.
-func (s *ContentStore) Children(ctx context.Context, id uuid.UUID) (int, error) {
-	held, err := s.queries.CountChildren(ctx, &id)
+func (s *Store) Children(ctx context.Context, id uuid.UUID) (int, error) {
+	held, err := s.backend.Pool.CountChildren(ctx, id)
 	if err != nil {
-		return 0, fmt.Errorf("postgres: count children: %w", err)
+		return 0, fmt.Errorf("%s: count children: %w", s.backend.Engine, err)
 	}
 	return int(held), nil
 }
 
 // ByID returns the content item with the given id, or [content.ErrNotFound].
-func (s *ContentStore) ByID(ctx context.Context, id uuid.UUID) (content.Content, error) {
-	return byID(ctx, s.queries, id)
+func (s *Store) ByID(ctx context.Context, id uuid.UUID) (content.Content, error) {
+	return s.byID(ctx, s.backend.Pool, id)
 }
 
 // byID returns the content item with the given id through queries, or [content.ErrNotFound].
-func byID(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Content, error) {
+func (s *Store) byID(ctx context.Context, queries Queries, id uuid.UUID) (content.Content, error) {
 	row, err := queries.GetContent(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return content.Content{}, content.ErrNotFound
 	}
 	if err != nil {
-		return content.Content{}, fmt.Errorf("postgres: get content: %w", err)
+		return content.Content{}, fmt.Errorf("%s: get content: %w", s.backend.Engine, err)
 	}
 	return toContent(row), nil
 }
@@ -184,7 +160,7 @@ func storedValues(v content.Values) content.Values {
 }
 
 // toContent maps a stored row to a domain content item with UTC timestamps.
-func toContent(row db.CoreContent) content.Content {
+func toContent(row ContentRow) content.Content {
 	return content.Content{
 		ID:          row.ID,
 		Type:        row.Type,
@@ -204,15 +180,15 @@ func toContent(row db.CoreContent) content.Content {
 }
 
 // List returns the items matching the filter without content, with author names and parent titles, and their total.
-func (s *ContentStore) List(ctx context.Context, f content.Filter) ([]content.ListedItem, int, error) {
+func (s *Store) List(ctx context.Context, f content.Filter) ([]content.ListedItem, int, error) {
 	narrowed := narrowing(f)
-	total, err := s.queries.CountContent(ctx, narrowed)
+	total, err := s.backend.Pool.CountContent(ctx, narrowed)
 	if err != nil {
-		return nil, 0, fmt.Errorf("postgres: count content: %w", err)
+		return nil, 0, fmt.Errorf("%s: count content: %w", s.backend.Engine, err)
 	}
 	rows, err := s.listRows(ctx, f, narrowed)
 	if err != nil {
-		return nil, 0, fmt.Errorf("postgres: list content: %w", err)
+		return nil, 0, fmt.Errorf("%s: list content: %w", s.backend.Engine, err)
 	}
 	items := make([]content.ListedItem, len(rows))
 	for i, row := range rows {
@@ -222,48 +198,29 @@ func (s *ContentStore) List(ctx context.Context, f content.Filter) ([]content.Li
 }
 
 // listRows returns the page the filter names, each child under its parent when the filter nests them.
-func (s *ContentStore) listRows(
-	ctx context.Context, f content.Filter, narrowed db.CountContentParams,
-) ([]db.ListContentRow, error) {
-	page := db.ListContentParams{
-		Type:            narrowed.Type,
-		FieldFilter:     narrowed.FieldFilter,
-		Statuses:        narrowed.Statuses,
-		Authors:         narrowed.Authors,
-		ExcludedAuthors: narrowed.ExcludedAuthors,
-		Before:          narrowed.Before,
-		After:           narrowed.After,
-		Search:          narrowed.Search,
-		OrderBy:         string(f.OrderBy),
-		OrderDir:        string(f.Order),
-		RowLimit:        int32(f.PerPage),
-		RowOffset:       pageOffset(f.Page, f.PerPage),
+func (s *Store) listRows(
+	ctx context.Context, f content.Filter, narrowed Narrowing,
+) ([]ListedRow, error) {
+	page := Page{
+		Narrowing: narrowed,
+		OrderBy:   string(f.OrderBy),
+		OrderDir:  string(f.Order),
+		Limit:     f.PerPage,
+		Offset:    content.PageOffset(f.Page, f.PerPage),
 	}
 	if !f.Hierarchy {
-		return s.queries.ListContent(ctx, page)
+		return s.backend.Pool.ListContent(ctx, page)
 	}
-	nested, err := s.queries.ListNestedContent(ctx, db.ListNestedContentParams{
-		RowOffset: page.RowOffset, RowLimit: page.RowLimit, OrderBy: page.OrderBy, OrderDir: page.OrderDir,
-		Type: page.Type, FieldFilter: page.FieldFilter, Statuses: page.Statuses, Authors: page.Authors,
-		ExcludedAuthors: page.ExcludedAuthors, Before: page.Before, After: page.After, Search: page.Search,
-	})
-	if err != nil {
-		return nil, err
-	}
-	rows := make([]db.ListContentRow, len(nested))
-	for i, row := range nested {
-		rows[i] = db.ListContentRow(row)
-	}
-	return rows, nil
+	return s.backend.Pool.ListNestedContent(ctx, page)
 }
 
 // narrowing returns the arguments the shared list and count queries narrow the filter by.
-func narrowing(f content.Filter) db.CountContentParams {
+func narrowing(f content.Filter) Narrowing {
 	statuses := make([]string, 0, len(f.Statuses))
 	for _, status := range f.Statuses {
 		statuses = append(statuses, string(status))
 	}
-	return db.CountContentParams{
+	return Narrowing{
 		Type:            f.Type,
 		FieldFilter:     termsJSON(f.Fields),
 		Statuses:        statuses,
@@ -271,7 +228,7 @@ func narrowing(f content.Filter) db.CountContentParams {
 		ExcludedAuthors: append([]uuid.UUID{}, f.ExcludeAuthors...),
 		Before:          f.Before,
 		After:           f.After,
-		Search:          dbkit.EscapeLike(f.Search),
+		Search:          f.Search,
 	}
 }
 
@@ -285,7 +242,7 @@ func termsJSON(terms map[string]any) []byte {
 }
 
 // listedContent returns one listed row as the item it stands for, beside its author's name and its parent's title.
-func listedContent(row db.ListContentRow) content.ListedItem {
+func listedContent(row ListedRow) content.ListedItem {
 	return content.ListedItem{
 		Content: content.Content{
 			ID:          row.ID,
@@ -308,26 +265,26 @@ func listedContent(row db.ListContentRow) content.ListedItem {
 }
 
 // Update stores the item's editable fields and any snapshot, settling its address among its siblings.
-func (s *ContentStore) Update(
+func (s *Store) Update(
 	ctx context.Context, c content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision,
 	revisionCap int,
 ) (content.Content, error) {
 	slug, err := s.freeSiblingSlug(ctx, c)
 	if err != nil {
-		return content.Content{}, fmt.Errorf("postgres: update content: %w", err)
+		return content.Content{}, fmt.Errorf("%s: update content: %w", s.backend.Engine, err)
 	}
 	updated, err := s.update(ctx, c, slug, expectedUpdatedAt, snapshot, revisionCap)
-	if isSlugTaken(err) {
+	if s.broken(err) == typestore.ContentPathUnique {
 		return content.Content{}, content.ErrSlugTaken
 	}
 	return updated, err
 }
 
 // freeSiblingSlug returns the slug the item may carry beside its siblings.
-func (s *ContentStore) freeSiblingSlug(ctx context.Context, c content.Content) (string, error) {
+func (s *Store) freeSiblingSlug(ctx context.Context, c content.Content) (string, error) {
 	for attempt := 1; attempt <= slugAttempts; attempt++ {
 		slug := numberedSlug(c.Slug, attempt)
-		taken, err := s.queries.SiblingSlugTaken(ctx, db.SiblingSlugTakenParams{
+		taken, err := s.backend.Pool.SiblingSlugTaken(ctx, SiblingSlug{
 			Type:     c.Type,
 			ParentID: c.ParentID,
 			Slug:     slug,
@@ -344,39 +301,38 @@ func (s *ContentStore) freeSiblingSlug(ctx context.Context, c content.Content) (
 }
 
 // update writes the content item, its descendants and any snapshot under slug.
-func (s *ContentStore) update(
+func (s *Store) update(
 	ctx context.Context, c content.Content, slug string, expectedUpdatedAt time.Time,
 	snapshot *content.Revision, revisionCap int,
 ) (content.Content, error) {
 	var updated content.Content
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
-		if _, err := tx.Exec(ctx, deferAddressCheck); err != nil {
+	err := s.backend.InTx(ctx, func(queries Tx) error {
+		if err := queries.DeferAddressCheck(ctx); err != nil {
 			return err
 		}
-		prefix, was, err := movable(ctx, queries, c, expectedUpdatedAt, content.AddressPrefix(c.Path, c.Slug))
+		prefix, was, err := s.movable(ctx, queries, c, expectedUpdatedAt, content.AddressPrefix(c.Path, c.Slug))
 		if err != nil {
 			return err
 		}
 		path := content.AddressUnder(prefix, slug)
-		resolved, err := resolvedTargets(ctx, queries, c)
+		resolved, err := s.resolvedTargets(ctx, queries, c)
 		if err != nil {
 			return err
 		}
-		row, err := writeContent(ctx, queries, was, db.UpdateContentParams{
-			ID:                c.ID,
-			ParentID:          c.ParentID,
-			Path:              path,
-			Status:            string(c.Status),
-			Slug:              slug,
-			Title:             c.Title,
-			Content:           c.Content,
-			Excerpt:           c.Excerpt,
-			Fields:            storedValues(c.Fields),
-			PublishedAt:       c.PublishedAt,
-			UpdatedAt:         c.UpdatedAt,
-			ExpectedUpdatedAt: expectedUpdatedAt,
-		})
+		edited := ContentRow{
+			ID:          c.ID,
+			ParentID:    c.ParentID,
+			Path:        path,
+			Status:      string(c.Status),
+			Slug:        slug,
+			Title:       c.Title,
+			Content:     c.Content,
+			Excerpt:     c.Excerpt,
+			Fields:      storedValues(c.Fields),
+			PublishedAt: c.PublishedAt,
+			UpdatedAt:   c.UpdatedAt,
+		}
+		row, err := s.writeContent(ctx, queries, was, edited, expectedUpdatedAt)
 		if err != nil {
 			return err
 		}
@@ -384,46 +340,42 @@ func (s *ContentStore) update(
 		if err := writeRelations(ctx, queries, c, resolved); err != nil {
 			return err
 		}
-		if err := moveDescendants(ctx, queries, was, db.MoveDescendantsParams{
-			ID:        c.ID,
-			Path:      path,
-			UpdatedAt: c.UpdatedAt,
-		}); err != nil {
+		if err := moveDescendants(ctx, queries, was, edited); err != nil {
 			return err
 		}
 		if snapshot == nil {
 			return nil
 		}
-		return snapshotRevision(ctx, queries, *snapshot, revisionCap)
+		return s.snapshotRevision(ctx, queries, *snapshot, revisionCap)
 	})
 	if err != nil {
-		return content.Content{}, writeFailure(err)
+		return content.Content{}, s.writeFailure(err)
 	}
 	return updated, nil
 }
 
 // writeContent applies the edited fields, telling a stale write apart from a missing item.
-func writeContent(
-	ctx context.Context, queries *db.Queries, was string, p db.UpdateContentParams,
-) (db.CoreContent, error) {
+func (s *Store) writeContent(
+	ctx context.Context, queries Queries, was string, p ContentRow, expected time.Time,
+) (ContentRow, error) {
 	if err := checkPaginationEdit(was, p.Path); err != nil {
-		return db.CoreContent{}, err
+		return ContentRow{}, err
 	}
-	row, err := queries.UpdateContent(ctx, p)
-	if !errors.Is(err, pgx.ErrNoRows) {
+	row, err := queries.UpdateContent(ctx, p, expected)
+	if !errors.Is(err, sql.ErrNoRows) {
 		return row, err
 	}
-	if _, err := byID(ctx, queries, p.ID); err != nil {
-		return db.CoreContent{}, err
+	if _, err := s.byID(ctx, queries, p.ID); err != nil {
+		return ContentRow{}, err
 	}
-	return db.CoreContent{}, content.ErrConflict
+	return ContentRow{}, content.ErrConflict
 }
 
 // resolvedTargets cleans the item's values of a target that is gone and returns what the index may hold.
-func resolvedTargets(
-	ctx context.Context, queries *db.Queries, c content.Content,
+func (s *Store) resolvedTargets(
+	ctx context.Context, queries Queries, c content.Content,
 ) ([]content.FieldTargets, error) {
-	matching, err := declaredValues(ctx, queries, c)
+	matching, err := s.declaredValues(ctx, queries, c)
 	if err != nil {
 		return nil, err
 	}
@@ -431,13 +383,13 @@ func resolvedTargets(
 	if err != nil {
 		return nil, err
 	}
-	return resolveTargets(ctx, queries, matching, c, before)
+	return s.resolveTargets(ctx, queries, matching, c, before)
 }
 
 // valuesBefore returns the values the item holds until this write replaces them.
-func valuesBefore(ctx context.Context, queries *db.Queries, id uuid.UUID) (content.Values, error) {
+func valuesBefore(ctx context.Context, queries Queries, id uuid.UUID) (content.Values, error) {
 	held, err := queries.ValuesOfContent(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
@@ -447,15 +399,15 @@ func valuesBefore(ctx context.Context, queries *db.Queries, id uuid.UUID) (conte
 }
 
 // declaredValues returns the groups matching the item's type once every held value is declared.
-func declaredValues(ctx context.Context, queries *db.Queries, c content.Content) ([]int32, error) {
+func (s *Store) declaredValues(ctx context.Context, queries Queries, c content.Content) ([]int, error) {
 	if err := valuesDeclared(ctx, queries, c); err != nil {
 		return nil, err
 	}
-	return matchingGroupIDs(ctx, queries, c.Type)
+	return s.matchingGroupIDs(ctx, queries, c.Type)
 }
 
 // nestable returns the reason the item's type no longer takes it under a parent, holding the type as it stands.
-func nestable(ctx context.Context, queries *db.Queries, c content.Content) error {
+func nestable(ctx context.Context, queries Queries, c content.Content) error {
 	if c.ParentID == nil {
 		return nil
 	}
@@ -470,7 +422,7 @@ func nestable(ctx context.Context, queries *db.Queries, c content.Content) error
 }
 
 // fileable returns the address prefix a new item takes, holding the type and its parent as they stand.
-func fileable(ctx context.Context, queries *db.Queries, c content.Content, prefix string) (string, error) {
+func fileable(ctx context.Context, queries Queries, c content.Content, prefix string) (string, error) {
 	if err := nestable(ctx, queries, c); err != nil {
 		return "", err
 	}
@@ -481,10 +433,10 @@ func fileable(ctx context.Context, queries *db.Queries, c content.Content, prefi
 }
 
 // movable returns the prefix an edit files the item under and its stored address, holding the type and any new parent.
-func movable(
-	ctx context.Context, queries *db.Queries, c content.Content, expected time.Time, prefix string,
+func (s *Store) movable(
+	ctx context.Context, queries Queries, c content.Content, expected time.Time, prefix string,
 ) (string, string, error) {
-	stored, err := byID(ctx, queries, c.ID)
+	stored, err := s.byID(ctx, queries, c.ID)
 	if err != nil {
 		return "", "", err
 	}
@@ -502,7 +454,7 @@ func movable(
 }
 
 // movedUnder returns the address of the new parent, holding the type against every other move.
-func movedUnder(ctx context.Context, queries *db.Queries, c content.Content) (string, error) {
+func movedUnder(ctx context.Context, queries Queries, c content.Content) (string, error) {
 	nests, err := queries.LockTypeForMove(ctx, c.Type)
 	if err != nil {
 		return "", err
@@ -514,12 +466,12 @@ func movedUnder(ctx context.Context, queries *db.Queries, c content.Content) (st
 }
 
 // parentHolds locks the parent and every item above it, returning its address unless gone, trashed or under the item.
-func parentHolds(ctx context.Context, queries *db.Queries, id, child uuid.UUID) (string, error) {
+func parentHolds(ctx context.Context, queries Queries, id, child uuid.UUID) (string, error) {
 	if err := queries.LockAncestors(ctx, id); err != nil {
 		return "", err
 	}
-	parent, err := queries.LockParent(ctx, db.LockParentParams{ID: id, ChildID: child})
-	if errors.Is(err, pgx.ErrNoRows) {
+	parent, err := queries.LockParent(ctx, id, child)
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", content.ErrParentType
 	}
 	if err != nil {
@@ -535,7 +487,7 @@ func parentHolds(ctx context.Context, queries *db.Queries, id, child uuid.UUID) 
 }
 
 // valuesDeclared refuses a value whose field no group declares at all.
-func valuesDeclared(ctx context.Context, queries *db.Queries, c content.Content) error {
+func valuesDeclared(ctx context.Context, queries Queries, c content.Content) error {
 	keys, err := queries.LockDeclaredFieldKeys(ctx)
 	if err != nil {
 		return err
@@ -560,8 +512,9 @@ var domainWriteErrors = []error{
 }
 
 // writeFailure returns the error the write carries, and wraps anything else.
-func writeFailure(err error) error {
-	if isSlugTaken(err) {
+func (s *Store) writeFailure(err error) error {
+	broken := s.broken(err)
+	if broken == typestore.ContentPathUnique {
 		return err
 	}
 	for _, domain := range domainWriteErrors {
@@ -569,34 +522,29 @@ func writeFailure(err error) error {
 			return err
 		}
 	}
-	if isTargetGone(err) {
-		return content.ErrTargetNotFound
+	if meant := writeErrors[broken]; meant != nil {
+		return meant
 	}
-	return fmt.Errorf("postgres: update content: %w", err)
+	return fmt.Errorf("%s: update content: %w", s.backend.Engine, err)
 }
 
 // Depth returns how many levels of content nest below the item.
-func (s *ContentStore) Depth(ctx context.Context, id uuid.UUID) (int, error) {
-	levels, err := s.queries.ContentDepth(ctx, id)
+func (s *Store) Depth(ctx context.Context, id uuid.UUID) (int, error) {
+	levels, err := s.backend.Pool.ContentDepth(ctx, id)
 	if err != nil {
-		return 0, fmt.Errorf("postgres: content depth: %w", err)
+		return 0, fmt.Errorf("%s: content depth: %w", s.backend.Engine, err)
 	}
 	return int(levels), nil
 }
 
 // Trash marks the content item trashed, frees its address for reuse and drops its parked words.
-func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
+func (s *Store) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	var trashed content.Content
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+	err := s.backend.InTx(ctx, func(queries Tx) error {
 		if err := leavable(ctx, queries, id); err != nil {
 			return err
 		}
-		row, err := queries.TrashContent(ctx, db.TrashContentParams{
-			ID:        id,
-			Suffix:    trashSuffix(),
-			UpdatedAt: updatedAt,
-		})
+		row, err := queries.TrashContent(ctx, id, trashSuffix(), updatedAt)
 		if err != nil {
 			return err
 		}
@@ -607,7 +555,7 @@ func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.T
 		return queries.RefreshRelationVisibility(ctx, id)
 	})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return content.Content{}, content.ErrNotFound
 		}
 		if errors.Is(err, content.ErrNotFound) ||
@@ -615,15 +563,15 @@ func (s *ContentStore) Trash(ctx context.Context, id uuid.UUID, updatedAt time.T
 			errors.Is(err, content.ErrInvalidTransition) {
 			return content.Content{}, err
 		}
-		return content.Content{}, fmt.Errorf("postgres: trash content: %w", err)
+		return content.Content{}, fmt.Errorf("%s: trash content: %w", s.backend.Engine, err)
 	}
 	return trashed, nil
 }
 
 // leavable returns the reason the locked item may not go to the trash, if there is one.
-func leavable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
+func leavable(ctx context.Context, queries Queries, id uuid.UUID) error {
 	row, err := queries.LockContent(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return content.ErrNotFound
 	}
 	if err != nil {
@@ -633,7 +581,7 @@ func leavable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
 		return content.Refuse(content.ErrInvalidTransition, "content_already_trashed",
 			"content: the item is already in the trash", nil)
 	}
-	held, err := queries.CountChildren(ctx, &id)
+	held, err := queries.CountChildren(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -644,34 +592,33 @@ func leavable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
 }
 
 // Restore returns a trashed item to draft under its original slug when free, and refuses one out of the trash.
-func (s *ContentStore) Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
+func (s *Store) Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	var restored content.Content
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+	err := s.backend.InTx(ctx, func(queries Tx) error {
 		if err := restorable(ctx, queries, id); err != nil {
 			return err
 		}
-		row, err := restoredRow(ctx, queries, tx, id, updatedAt)
+		row, err := s.restoredRow(ctx, queries, id, updatedAt)
 		if err != nil {
 			return err
 		}
 		restored = toContent(row)
 		return queries.RefreshRelationVisibility(ctx, id)
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return content.Content{}, content.ErrNotFound
 	}
 	if errors.Is(err, content.ErrInvalidTransition) {
 		return content.Content{}, err
 	}
 	if err != nil {
-		return content.Content{}, fmt.Errorf("postgres: restore content: %w", err)
+		return content.Content{}, fmt.Errorf("%s: restore content: %w", s.backend.Engine, err)
 	}
 	return restored, nil
 }
 
 // restorable locks the item, reporting why it cannot leave the trash.
-func restorable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
+func restorable(ctx context.Context, queries Queries, id uuid.UUID) error {
 	row, err := queries.LockContent(ctx, id)
 	if err != nil {
 		return err
@@ -681,33 +628,31 @@ func restorable(ctx context.Context, queries *db.Queries, id uuid.UUID) error {
 }
 
 // restoredRow returns the item to draft under its original slug, or the trashed one when that address is unavailable.
-func restoredRow(
-	ctx context.Context, queries *db.Queries, tx pgx.Tx, id uuid.UUID, updatedAt time.Time,
-) (db.CoreContent, error) {
-	var row db.CoreContent
-	err := pgx.BeginFunc(ctx, tx, func(attempt pgx.Tx) error {
+func (s *Store) restoredRow(
+	ctx context.Context, queries Tx, id uuid.UUID, updatedAt time.Time,
+) (ContentRow, error) {
+	var row ContentRow
+	err := queries.Savepoint(ctx, func(attempt Queries) error {
 		var taken error
-		row, taken = queries.WithTx(attempt).RestoreContent(
-			ctx, db.RestoreContentParams{ID: id, UpdatedAt: updatedAt},
-		)
+		row, taken = attempt.RestoreContent(ctx, id, updatedAt)
 		if taken != nil {
 			return taken
 		}
-		return checkPaginationPaths([]string{row.Path})
+		return content.CheckPaginationPaths([]string{row.Path})
 	})
 	switch {
-	case isSlugTaken(err), errors.Is(err, content.ErrReservedAddress):
-		return queries.RestoreContentKeepingSlug(ctx, db.RestoreContentKeepingSlugParams{ID: id, UpdatedAt: updatedAt})
+	case s.broken(err) == typestore.ContentPathUnique, errors.Is(err, content.ErrReservedAddress):
+		return queries.RestoreContentKeepingSlug(ctx, id, updatedAt)
 	default:
 		return row, err
 	}
 }
 
 // CountsByAuthor returns how many published and private items of the type each author wrote.
-func (s *ContentStore) CountsByAuthor(ctx context.Context, contentType string) (map[uuid.UUID]int, error) {
-	rows, err := s.queries.CountContentByAuthor(ctx, contentType)
+func (s *Store) CountsByAuthor(ctx context.Context, contentType string) (map[uuid.UUID]int, error) {
+	rows, err := s.backend.Pool.CountContentByAuthor(ctx, contentType)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: count content by author: %w", err)
+		return nil, fmt.Errorf("%s: count content by author: %w", s.backend.Engine, err)
 	}
 	counts := make(map[uuid.UUID]int, len(rows))
 	for _, row := range rows {
@@ -717,10 +662,10 @@ func (s *ContentStore) CountsByAuthor(ctx context.Context, contentType string) (
 }
 
 // Delete removes the content item, or reports [content.ErrNotFound].
-func (s *ContentStore) Delete(ctx context.Context, id uuid.UUID) error {
-	rows, err := s.queries.DeleteContent(ctx, id)
+func (s *Store) Delete(ctx context.Context, id uuid.UUID) error {
+	rows, err := s.backend.Pool.DeleteContent(ctx, id)
 	if err != nil {
-		return fmt.Errorf("postgres: delete content: %w", err)
+		return fmt.Errorf("%s: delete content: %w", s.backend.Engine, err)
 	}
 	if rows == 0 {
 		return content.ErrNotFound
@@ -729,12 +674,11 @@ func (s *ContentStore) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 // EmptyTrash deletes the type's trash, only the author's when one is named, and counts what it deleted and left.
-func (s *ContentStore) EmptyTrash(ctx context.Context, contentType string, author *uuid.UUID) (int, int, error) {
+func (s *Store) EmptyTrash(ctx context.Context, contentType string, author *uuid.UUID) (int, int, error) {
 	var deleted, kept int64
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+	err := s.backend.InTx(ctx, func(queries Tx) error {
 		var err error
-		deleted, err = queries.DeleteTrash(ctx, db.DeleteTrashParams{Type: contentType, AuthorID: author})
+		deleted, err = queries.DeleteTrash(ctx, contentType, author)
 		if err != nil {
 			return err
 		}
@@ -742,17 +686,9 @@ func (s *ContentStore) EmptyTrash(ctx context.Context, contentType string, autho
 		return err
 	})
 	if err != nil {
-		return 0, 0, fmt.Errorf("postgres: empty the trash: %w", err)
+		return 0, 0, fmt.Errorf("%s: empty the trash: %w", s.backend.Engine, err)
 	}
 	return int(deleted), int(kept), nil
-}
-
-// pageOffset returns the row offset of a page, bounded to what the query accepts.
-func pageOffset(page, perPage int) int32 {
-	if perPage > 0 && page-1 > math.MaxInt32/perPage {
-		return math.MaxInt32
-	}
-	return int32((page - 1) * perPage)
 }
 
 // utcOrNil returns the instant in UTC, or nil when it is unset.
@@ -764,8 +700,7 @@ func utcOrNil(t *time.Time) *time.Time {
 	return &utc
 }
 
-// numberedSlug returns slug for the first attempt, and slug with the attempt
-// number appended after that.
+// numberedSlug returns slug for the first attempt, and slug with the attempt number appended after that.
 func numberedSlug(slug string, attempt int) string {
 	if attempt == 1 {
 		return slug
@@ -786,16 +721,4 @@ func trashSuffix() string {
 		b.WriteByte(trashSuffixAlphabet[rand.IntN(len(trashSuffixAlphabet))])
 	}
 	return b.String()
-}
-
-// isSlugTaken reports whether err is the unique violation over a type and slug.
-func isSlugTaken(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.ConstraintName == slugConstraint
-}
-
-// lostAddressCheck reports whether err is a deadlock Postgres broke while checking an address.
-func lostAddressCheck(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == deadlockCode && strings.Contains(pgErr.Where, slugConstraint)
 }
