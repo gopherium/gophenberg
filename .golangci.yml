@@ -36,6 +36,7 @@ linters:
           list-mode: lax
           files:
             - "**/internal/content/typestore/*.go"
+            - "**/internal/content/contentstore/*.go"
           deny:
             - pkg: github.com/jackc/pgx/v5
               desc: the store steps reach a database only through the backend
