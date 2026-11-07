@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -64,13 +66,17 @@ func writesCounted(t *testing.T, pool *pgxpool.Pool) int64 {
 	return counted
 }
 
-// stateOf returns what the site holds, read through a registry that starts afresh.
+// stateOf returns what the site holds, its types in key order, read through a registry that starts afresh.
 func stateOf(t *testing.T, pool *pgxpool.Pool, id uuid.UUID) siteState {
 	t.Helper()
 	item, revisions := heldValues(t, pool, id)
-	return siteState{
+	state := siteState{
 		Envelope: exported(t, content.NewRegistry(postgres.NewTypeStore(pool))), Item: item, Revisions: revisions,
 	}
+	slices.SortFunc(state.Envelope.Types, func(a, b definitions.TypeDefinition) int {
+		return strings.Compare(a.Key, b.Key)
+	})
+	return state
 }
 
 // uninterrupted runs the import once on a fresh site, returning what it left and how many writes it made.
@@ -216,5 +222,19 @@ func TestApplyRunAgainFinishesAnImportAStopCutShort(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestApplyLeavesTheSameSiteWhenTheClockStepsBack(t *testing.T) {
+	t.Parallel()
+
+	whole, _ := uninterrupted(t, addingEnvelope)
+
+	registry, pool, id := valuedSite(t)
+	sabotage(t, pool, "UPDATE core.content_types SET created_at = created_at + interval '1 day' WHERE key = 'recipe'")
+	applied(t, registry, addingEnvelope(t, registry))
+
+	if got := stateOf(t, pool, id); !reflect.DeepEqual(got, whole) {
+		t.Errorf("the site after an import under a stepped-back clock = %+v, want what one run leaves, %+v", got, whole)
 	}
 }
