@@ -187,6 +187,19 @@ var ruleFailures = map[typestore.Constraint]error{
 	typestore.AddressCheckDeadlocked: addressDeadlocked,
 }
 
+// checkTail fails the test unless the tail answers given with want when held, and wraps it in its text otherwise.
+func checkTail(t *testing.T, engine dbkit.Engine, test tailCase, given, want error, held bool) {
+	t.Helper()
+	got := test.run(t.Context(), failingStore(t, engine, test.entry, given))
+	if !held {
+		checkWrapped(t, engine, test.wrap, given, got)
+		return
+	}
+	if got != want {
+		t.Errorf("tail(%v) = %v, want %v", given, got, want)
+	}
+}
+
 func TestEachTailGivesTheErrorItsTableHoldsAndWrapsEveryOtherBrokenRule(t *testing.T) {
 	t.Parallel()
 
@@ -196,15 +209,8 @@ func TestEachTailGivesTheErrorItsTableHoldsAndWrapsEveryOtherBrokenRule(t *testi
 				t.Parallel()
 
 				for rule, given := range ruleFailures {
-					got := test.run(t.Context(), failingStore(t, engine, test.entry, given))
 					want, mapped := test.rules[rule]
-					if !mapped {
-						checkWrapped(t, engine, test.wrap, given, got)
-						continue
-					}
-					if got != want {
-						t.Errorf("tail(%v) = %v, want %v", given, got, want)
-					}
+					checkTail(t, engine, test, given, want, mapped)
 				}
 			})
 		}
@@ -236,15 +242,8 @@ func TestEachTailPassesTheSentinelsItPassesTodayAndWrapsTheOthers(t *testing.T) 
 				t.Parallel()
 
 				for _, sentinel := range contentSentinels {
-					got := test.run(t.Context(), failingStore(t, engine, test.entry, sentinel))
 					want, meant := test.sentinels[sentinel]
-					if !meant {
-						checkWrapped(t, engine, test.wrap, sentinel, got)
-						continue
-					}
-					if got != want {
-						t.Errorf("tail(%v) = %v, want %v", sentinel, got, want)
-					}
+					checkTail(t, engine, test, sentinel, want, meant)
 				}
 			})
 		}

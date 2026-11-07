@@ -373,15 +373,21 @@ func TestTrashSuffixTakesTheShapeTheRestoreStatementStrips(t *testing.T) {
 	}
 }
 
-func TestTrashSuffixDrawsEveryCharacterOfItsAlphabet(t *testing.T) {
-	t.Parallel()
-
+// drawnCharacters returns every character the random part of so many trash suffixes holds.
+func drawnCharacters(draws int) map[rune]bool {
 	seen := map[rune]bool{}
-	for range 2000 {
+	for range draws {
 		for _, r := range strings.TrimPrefix(trashSuffix(), "-trashed-") {
 			seen[r] = true
 		}
 	}
+	return seen
+}
+
+func TestTrashSuffixDrawsEveryCharacterOfItsAlphabet(t *testing.T) {
+	t.Parallel()
+
+	seen := drawnCharacters(2000)
 	for _, r := range trashSuffixAlphabet {
 		if !seen[r] {
 			t.Errorf("trashSuffix() never drew %q, want every character of the alphabet drawn", r)
