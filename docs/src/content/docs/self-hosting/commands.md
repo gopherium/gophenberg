@@ -1125,7 +1125,7 @@ server:uninstall keeps:
   the system user gophenberg
   /var/lib/gophenberg-installer/install.json, so a later install picks up what is kept
   the packages server:install installed, which sudo apt-get purge postgresql caddy removes
-  /etc/apt/keyrings/caddy.asc, /etc/apt/sources.list.d/caddy.sources and /etc/apt/preferences.d/gophenberg-caddy, which bring Caddy's security fixes from its own apt repository
+  /etc/apt/keyrings/caddy.asc, /etc/apt/sources.list.d/caddy.sources and /etc/apt/preferences.d/gophenberg-caddy, which bring Caddy's updates from its own apt repository
 gophenberg: dry run, nothing changed, pass -yes to apply
 ```
 

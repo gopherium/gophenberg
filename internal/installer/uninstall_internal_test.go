@@ -42,7 +42,7 @@ const wantedRestart = "  Gophenberg's settings in Caddy, restarting Caddy on /et
 // wantedPackagesKept is what server:uninstall lists as kept once the install record and the site's data are listed.
 const wantedPackagesKept = "  the packages server:install installed, which sudo apt-get purge postgresql caddy " +
 	"removes\n  /etc/apt/keyrings/caddy.asc, /etc/apt/sources.list.d/caddy.sources and " +
-	"/etc/apt/preferences.d/gophenberg-caddy, which bring Caddy's security fixes from its own apt repository\n"
+	"/etc/apt/preferences.d/gophenberg-caddy, which bring Caddy's updates from its own apt repository\n"
 
 // wantedKeeps is what server:uninstall lists as kept on a server a first run for example.com set up.
 const wantedKeeps = `server:uninstall keeps:
