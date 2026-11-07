@@ -558,6 +558,33 @@ for the account at `/api/auth/session`, so serve that address with
 4. Remove `StyleProvider` and keep what it wrapped. The SDK no longer
    passes it on, with no alias, since the WordPress components now
    load their own styles into the admin page.
+5. In your plugin's `package.json`, take `msw` 3 and `vitest` 5.0.4
+   or newer. The `http` and `server` that
+   `@gophenberg/frontend-sdk/testing` hands out now need them.
+6. If your plugin imports a `@wordpress` package itself, take the
+   major version the SDK pins. Every one of them moved a major, such
+   as `@wordpress/components` from 42 to 43 and `@wordpress/ui` from
+   0.24 to 0.25.
+7. If your plugin imports `@gopherium/godmin` itself, move it from
+   0.18 to 0.31, the version the SDK pins. `ConfirmBody` and
+   `RenameBody` no longer take `failure`, and `RenameBody` no longer
+   takes `busy`, so show a failure in a toast. `useToaster().name` is
+   gone, so put the whole name in the message. `ListEmpty` takes
+   `description` in place of `hint`, and `actions` for its buttons.
+   The SDK now passes all of these on, so you can import them from it
+   instead. `LoadingRows` is gone, so pass the list's loading state to
+   `isLoading` on DataViews, or show `LoadingScreen`. `NavScreen` and
+   `NavScreenProps` are now `NavigationScreen` and
+   `NavigationScreenProps`, which the SDK passes on. `Frame.Rail` and
+   `FrameRailProps` are `Frame.Sidebar` and `FrameSidebarProps`, and
+   `RAIL_BREAKPOINT` is `SIDEBAR_BREAKPOINT`. godmin now needs
+   `@tanstack/react-router` 1.170.44 or newer.
+8. If your plugin's id is `about`, `update`, `server`, `plugin`,
+   `theme`, `setup`, `build` or `health`, give it another one. These
+   ids are now reserved, and `make generate` stops on them with
+   `id "update" is reserved`. Rename its folder under `plugins/` to
+   match, and start the names of its commands and of the capabilities
+   it declares with the new id.
 
 The frontend SDK, `@gophenberg/frontend-sdk`, passes on a few icons
 from `@wordpress/icons`, each named after the job it does in the
