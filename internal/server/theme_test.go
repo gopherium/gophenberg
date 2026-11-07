@@ -24,6 +24,9 @@ type stubTheme struct {
 // Healthy reports whether the stub theme is serving.
 func (s stubTheme) Healthy() bool { return s.healthy }
 
+// Held reports that the stub theme is chosen to serve.
+func (s stubTheme) Held() bool { return true }
+
 // Target returns the address the stub theme serves on.
 func (s stubTheme) Target() string { return s.target }
 
@@ -311,6 +314,9 @@ func (s *swappableTheme) Healthy() bool {
 	defer s.mu.RUnlock()
 	return s.healthy
 }
+
+// Held reports that the theme is chosen to serve.
+func (s *swappableTheme) Held() bool { return true }
 
 // Target returns the address the theme serves on.
 func (s *swappableTheme) Target() string {

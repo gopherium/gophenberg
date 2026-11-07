@@ -259,6 +259,7 @@ func (m *Manager) Boot(ctx context.Context) error {
 		}
 		m.cfg.Supervision.Logger.Error("the stored theme will not load, serving with the built-in renderer",
 			"theme", name, "reason", err)
+		m.holder.holdUnloaded()
 		return nil
 	}
 	if loaded == nil {

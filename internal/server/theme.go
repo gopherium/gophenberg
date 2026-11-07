@@ -38,11 +38,14 @@ func forwardedByProxy(request *http.Request) map[string]string {
 type Theme interface {
 	// Healthy reports whether the theme is serving.
 	Healthy() bool
+	// Held reports whether a theme is chosen to serve, whether or not it is serving.
+	Held() bool
 	// Target returns the address the theme serves on.
 	Target() string
 }
 
-// themedSite returns the handler serving the public site through a healthy theme, or the renderer.
+// themedSite returns the handler serving the public site through a healthy theme, or the renderer, uncached while
+// it stands in for a held theme.
 func themedSite(theme Theme, renderer http.Handler, wait time.Duration) http.Handler {
 	if theme == nil {
 		return renderer
@@ -52,11 +55,14 @@ func themedSite(theme Theme, renderer http.Handler, wait time.Duration) http.Han
 	}
 	proxy := themeProxy(theme, renderer, wait)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !theme.Healthy() {
-			renderer.ServeHTTP(w, r)
+		if theme.Healthy() {
+			proxy.ServeHTTP(w, r)
 			return
 		}
-		proxy.ServeHTTP(w, r)
+		if theme.Held() {
+			w.Header().Set("Cache-Control", uncachedControl)
+		}
+		renderer.ServeHTTP(w, r)
 	})
 }
 
@@ -75,6 +81,9 @@ func themeProxy(theme Theme, renderer http.Handler, wait time.Duration) *httputi
 		},
 		Transport: &http.Transport{ResponseHeaderTimeout: wait},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, _ error) {
+			if theme.Held() {
+				w.Header().Set("Cache-Control", uncachedControl)
+			}
 			renderer.ServeHTTP(w, r)
 		},
 	}

@@ -264,6 +264,9 @@ func (c currentManager) Previous(ctx context.Context) (string, bool, error) {
 // Healthy reports whether the theme is serving.
 func (c currentManager) Healthy() bool { return c.w.manager.Holder().Healthy() }
 
+// Held reports whether a theme is chosen to serve.
+func (c currentManager) Held() bool { return c.w.manager.Holder().Held() }
+
 // Target returns the address the theme serves on.
 func (c currentManager) Target() string { return c.w.manager.Holder().Target() }
 

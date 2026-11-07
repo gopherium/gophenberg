@@ -113,6 +113,9 @@ type readyTheme struct {
 // Healthy reports whether the ready theme is serving.
 func (r readyTheme) Healthy() bool { return true }
 
+// Held reports that the ready theme is chosen to serve.
+func (r readyTheme) Held() bool { return true }
+
 // Target returns the address the ready theme serves on.
 func (r readyTheme) Target() string { return r.target }
 

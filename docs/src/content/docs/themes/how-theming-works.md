@@ -36,6 +36,11 @@ request up to 10 seconds before the renderer steps in, and a theme
 that answers an error page is not covered at all, because it did
 answer. The safety net catches silence, not mistakes.
 
+While the renderer stands in for a theme, its answers, redirects
+included, carry `Cache-Control: no-store`, so no browser or shared
+cache keeps them once the theme is back. A site with no theme
+chosen is served by the renderer as usual.
+
 Switching in the admin is the safe way round. Pin a theme only
 when you want it fixed by deployment, and check the site after.
 
