@@ -34,7 +34,15 @@ same migration twice, the second waits for the first and then finds
 nothing left to do. While Gophenberg is below 1.0, read the release
 notes first, since a release can change behavior.
 
-Updating to %VERSION% from the release before this one runs no
+Updating to %VERSION% from an earlier %FEATURE_VERSION% release runs no
+migration, changes no setting and needs no theme rebuild. Its Updates
+screen says the site stays down only when a new version fails after
+it reaches the database, and how to bring it back. On a server
+install, run the install line again for its new installer, which sets
+up newer Ubuntu and Debian releases and names what each step runs.
+Rolling back within %FEATURE_VERSION% deletes nothing.
+
+Updating to %FEATURE_VERSION% from the release before it runs no
 migration. The database stays as that release left it, so its image
 still starts on it. The first start only adds a few rows. One is the
 oldest version allowed to run on the database, and that is the
