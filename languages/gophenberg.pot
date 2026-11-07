@@ -314,7 +314,7 @@ msgstr ""
 msgid "A backup of the database is taken first, and Gophenberg goes back to %(running)s on its own if the new version does not start."
 msgstr ""
 
-msgid "A backup of the database is taken first. If the new version fails after reaching the database, the site stays down until you restore it."
+msgid "A backup of the database is taken first. If the new version fails after it reaches the database, the site stays down until you restore the backup, or fix what failed and start Gophenberg again."
 msgstr ""
 
 msgid "A content type needs a singular and a plural name, like Guide and Guides. Fill both in and try again."

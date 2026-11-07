@@ -2462,8 +2462,8 @@ msgid "A backup of the database is taken first, and Gophenberg goes back to %(ru
 msgstr "Une sauvegarde de la base de données est faite d'abord, et Gophenberg revient de lui-même à %(running)s si la nouvelle version ne démarre pas."
 
 #, fuzzy
-msgid "A backup of the database is taken first. If the new version fails after reaching the database, the site stays down until you restore it."
-msgstr "Une sauvegarde de la base de données est effectuée d'abord. Si la nouvelle version échoue après avoir accédé à la base de données, le site restera indisponible jusqu'à ce que vous restauriez la base de données."
+msgid "A backup of the database is taken first. If the new version fails after it reaches the database, the site stays down until you restore the backup, or fix what failed and start Gophenberg again."
+msgstr "Une sauvegarde de la base de données est faite d'abord. Si la nouvelle version échoue après avoir accédé à la base de données, le site reste hors service jusqu'à ce que vous restauriez la sauvegarde, ou corrigiez ce qui a échoué et redémarriez Gophenberg."
 
 #, fuzzy
 msgid "An updated version of Gophenberg is available."

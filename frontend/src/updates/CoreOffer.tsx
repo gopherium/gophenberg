@@ -94,8 +94,8 @@ function refuses(overview: UpdatesOverview, version: string): boolean {
 function confirmWords(offer: UpdateOffer, running: string): string {
 	if (offer.long_jump) {
 		return __(
-			'A backup of the database is taken first. If the new version fails after reaching the database, ' +
-				'the site stays down until you restore it.',
+			'A backup of the database is taken first. If the new version fails after it reaches the database, ' +
+				'the site stays down until you restore the backup, or fix what failed and start Gophenberg again.',
 			'gophenberg',
 		)
 	}
