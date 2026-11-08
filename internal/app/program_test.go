@@ -16,8 +16,8 @@ import (
 var listedCommands = []string{
 	"check", "help", "list", "migrate", "seed", "serve", "version",
 	"account:create-admin", "account:disable", "account:enable", "account:grant-role", "account:list",
-	"account:records", "account:role", "database:create-owner", "server:install", "server:uninstall", "update:apply",
-	"update:check", "update:rollback", "update:status",
+	"account:records", "account:role", "database:backup", "database:create-owner", "server:install", "server:uninstall",
+	"update:apply", "update:check", "update:rollback", "update:status",
 }
 
 func TestProgramListsEveryCommandWhenNoneIsNamed(t *testing.T) {
@@ -52,6 +52,7 @@ func TestProgramListsEveryCommandWhenNoneIsNamed(t *testing.T) {
 		"  account:records        list who applied which change, the newest first",
 		"  account:role           set one account's role",
 		" database",
+		"  database:backup        back up the SQLite file into the backups folder",
 		"  database:create-owner  create the role the site logs in as and give it the database, as a superuser",
 		" server",
 		"  server:install         install Gophenberg on this Linux server with PostgreSQL, Caddy and a systemd service",

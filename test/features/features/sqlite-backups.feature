@@ -8,7 +8,6 @@ Feature: A SQLite site keeps backups of its file
   demand stays until the owner deletes it. A copy on the server is a
   convenience, not a backup, so the owner moves each copy off the server.
 
-  @wip
   Scenario: A new version backs up the file before it migrates it
     Given the settings point at an empty SQLite file
     And the operator ran "migrate"
@@ -19,7 +18,6 @@ Feature: A SQLite site keeps backups of its file
     And the update backup records Gophenberg "0.0.1" as the version that last migrated it
     And the file records this binary as the version that last migrated it
 
-  @wip
   Scenario: A command that migrates first backs up the file too
     Given the settings point at an empty SQLite file
     And the operator ran "migrate"
@@ -28,7 +26,6 @@ Feature: A SQLite site keeps backups of its file
     Then the command succeeds
     And the backups folder holds 1 update backup
 
-  @wip
   Scenario: A second run of one version takes no more backup
     Given the settings point at an empty SQLite file
     And the operator ran "migrate"
@@ -53,7 +50,6 @@ Feature: A SQLite site keeps backups of its file
     And the error says "this database needs Gophenberg 99.0.0 or newer"
     And the backups folder holds no backup
 
-  @wip
   Scenario: One count keeps the newest update and scheduled backups together
     Given the settings point at an empty SQLite file
     And the operator ran "migrate"
@@ -69,7 +65,6 @@ Feature: A SQLite site keeps backups of its file
     And the backups folder still holds "0.0.1-20200103T101500Z-manual.sqlite"
     And the backups folder no longer holds "0.0.1-20200101T031500Z-scheduled.sqlite"
 
-  @wip
   Scenario: The skip setting lets its version migrate with no backup
     Given the settings point at an empty SQLite file
     And the operator ran "migrate"
@@ -80,7 +75,6 @@ Feature: A SQLite site keeps backups of its file
     And the backups folder holds no backup
     And the file records this binary as the version that last migrated it
 
-  @wip
   Scenario: The skip setting never skips a rising minimum version
     Given the settings point at an empty SQLite file
     And a Gophenberg migrated the database and left the minimum version "0.0.1"
@@ -90,7 +84,6 @@ Feature: A SQLite site keeps backups of its file
     Then the command succeeds
     And the backups folder holds 1 update backup
 
-  @wip
   Scenario: database:backup copies a SQLite file on demand
     Given the settings point at an empty SQLite file
     And the operator ran "migrate"
@@ -99,7 +92,6 @@ Feature: A SQLite site keeps backups of its file
     And the backups folder holds 1 manual backup
     And the answer names where it put the manual backup
 
-  @wip
   Scenario: A backup on demand deletes no other backup
     Given the settings point at an empty SQLite file
     And the operator ran "migrate"
@@ -112,7 +104,6 @@ Feature: A SQLite site keeps backups of its file
     And the backups folder still holds "0.0.1-20200101T031500Z-update.sqlite"
     And the backups folder still holds "0.0.1-20200102T031500Z-scheduled.sqlite"
 
-  @wip
   Scenario: database:backup on PostgreSQL names pg_dump
     Given the settings point at an empty PostgreSQL database
     When the operator runs "database:backup"
@@ -120,7 +111,6 @@ Feature: A SQLite site keeps backups of its file
     And the error says "pg_dump"
     And the error says "#what-to-back-up"
 
-  @wip
   Scenario Outline: Check names a bad backup setting
     Given the settings point at an empty SQLite file
     And <setting> is "<value>"
@@ -138,7 +128,6 @@ Feature: A SQLite site keeps backups of its file
       | GOPHENBERG_SQLITE_BACKUP_TIME_LIMIT | 25h   | must stand at or below 24h  |
       | GOPHENBERG_SQLITE_SKIP_BACKUP_FOR   | 0.21  | must name a version         |
 
-  @wip
   Scenario: update:status lists the SQLite backups beside the dumps
     Given the settings point at an empty SQLite file
     And the settings name an install root
