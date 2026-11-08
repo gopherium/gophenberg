@@ -13,6 +13,8 @@ import (
 	accounts "github.com/gopherium/framework/gonsole/auth"
 	accountpg "github.com/gopherium/framework/gonsole/auth/postgres"
 	"github.com/gopherium/framework/gonsole/auth/recordstest"
+	"github.com/gopherium/framework/pluginkit"
+	"github.com/gopherium/framework/pluginkit/pluginstoretest"
 	"github.com/gopherium/gouncer"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/gopherium/gouncer/authkit/storetest"
@@ -205,6 +207,19 @@ func TestCronStoreSuite(t *testing.T) {
 	t.Parallel()
 
 	crontest.Run(t, postgresCronStores)
+}
+
+// postgresPluginStore returns a fresh plugin store over a migrated database of its own.
+func postgresPluginStore(t *testing.T) pluginkit.PluginStore {
+	t.Helper()
+	store, _ := pluginStoreWithPool(t)
+	return store
+}
+
+func TestPluginStoreSuite(t *testing.T) {
+	t.Parallel()
+
+	pluginstoretest.Run(t, postgresPluginStore)
 }
 
 func TestUserSettingStoreSuite(t *testing.T) {
