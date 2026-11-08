@@ -108,10 +108,11 @@ func TestAPluginReadsTheSeededAccountsByID(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, func(deps sdk.Deps) ([]sdk.Plugin, error) {
-		reading.accounts = deps.Accounts
-		return []sdk.Plugin{reading}, nil
-	})
+	err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel},
+		listedAs(reading.ID(), func(deps sdk.Deps) (sdk.Plugin, error) {
+			reading.accounts = deps.Accounts
+			return reading, nil
+		}))
 
 	if err != nil {
 		t.Fatalf("run() error = %v, want a clean shutdown", err)
@@ -134,10 +135,10 @@ func TestAPluginReadingAccountsWhileItRegistersIsRefused(t *testing.T) {
 	var refused error
 
 	built, err := compose(composeConfig{databaseURL: unreachableDatabaseURL, fieldDepth: 4},
-		func(deps sdk.Deps) ([]sdk.Plugin, error) {
+		listedAs("probe", func(deps sdk.Deps) (sdk.Plugin, error) {
 			_, refused = deps.Accounts.People(t.Context(), []sdk.ID{sdk.ID(uuid.New())}, readSize)
-			return []sdk.Plugin{}, nil
-		})
+			return idle("probe"), nil
+		}))
 	if err != nil {
 		t.Fatalf("compose() error = %v, want nil", err)
 	}
@@ -155,10 +156,7 @@ func TestAPluginReadingAccountsEndsAtThePluginQueryTimeout(t *testing.T) {
 	built, err := compose(composeConfig{
 		databaseURL: emptyDatabaseURL(t), fieldDepth: 4,
 		getenv: testkit.Getenv(map[string]string{"GOPHENBERG_PLUGIN_QUERY_TIMEOUT": "1ns"}),
-	}, func(deps sdk.Deps) ([]sdk.Plugin, error) {
-		handed = deps
-		return []sdk.Plugin{}, nil
-	})
+	}, handing(&handed))
 	if err != nil {
 		t.Fatalf("compose() error = %v, want nil", err)
 	}
@@ -207,19 +205,18 @@ func readingSQLite(path string) func(string) string {
 	return testkit.Getenv(env)
 }
 
-// peopleReader returns the plugins whose one command, naming no capability, reads the accounts holding ids into read.
-func peopleReader(ids []sdk.ID, read *map[sdk.ID]sdk.Person) func(sdk.Deps) ([]sdk.Plugin, error) {
-	return func(deps sdk.Deps) ([]sdk.Plugin, error) {
-		reading := &commanding{command: sdk.Command{
+// peopleReader returns the plugin whose one command, naming no capability, reads the accounts holding ids into read.
+func peopleReader(ids []sdk.ID, read *map[sdk.ID]sdk.Person) registrations {
+	return listedAs("commanding", func(deps sdk.Deps) (sdk.Plugin, error) {
+		return &commanding{command: sdk.Command{
 			Name: "commanding:people", Summary: "read the accounts",
 			Run: func(ctx context.Context, _ sdk.Call) error {
 				people, err := deps.Accounts.People(ctx, ids, readSize)
 				*read = people
 				return err
 			},
-		}}
-		return []sdk.Plugin{reading}, nil
-	}
+		}}, nil
+	})
 }
 
 func TestAPluginCommandReadsTheAccountsOfASQLiteFile(t *testing.T) {
@@ -248,10 +245,7 @@ func TestAPluginReadsTheAccountsOfASQLiteFileByID(t *testing.T) {
 	var handed sdk.Deps
 	built, err := compose(composeConfig{
 		databaseURL: sqlitePrefix + path, handle: db, fieldDepth: 4, getenv: readingSQLite(path),
-	}, func(deps sdk.Deps) ([]sdk.Plugin, error) {
-		handed = deps
-		return []sdk.Plugin{}, nil
-	})
+	}, handing(&handed))
 	if err != nil {
 		t.Fatalf("compose() error = %v, want nil", err)
 	}

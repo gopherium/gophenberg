@@ -134,8 +134,7 @@ func TestRunStopsThePluginsWhenThePinnedThemeCannotLoad(t *testing.T) {
 		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
 	}
 
-	err := run(t.Context(), testkit.Getenv(env), io.Discard,
-		func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil })
+	err := run(t.Context(), testkit.Getenv(env), io.Discard, listOf(plugin))
 
 	if err == nil || !strings.Contains(err.Error(), "missing") {
 		t.Fatalf("run() error = %v, want the pinned theme reported", err)
@@ -169,31 +168,28 @@ func TestRunStopsThePluginsUnderALiveContextWhenASignalEndsTheBoot(t *testing.T)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	err := run(ctx, testkit.Getenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
-		return []sdk.Plugin{cancellingPlugin{holdingPlugin: plugin, cancel: cancel}}, nil
-	})
+	err := run(ctx, testkit.Getenv(env), io.Discard, listOf(cancellingPlugin{holdingPlugin: plugin, cancel: cancel}))
 
-	if err == nil {
-		t.Fatal("run() error = nil, want the failed boot reported")
+	if err != nil {
+		t.Fatalf("run() error = %v, want a clean stop, as a signal while it serves ends one", err)
 	}
 	stoppedLiveWithin(t, plugin)
 }
 
-func TestRunStopsThePluginsThatRegisteredWhenAnotherFails(t *testing.T) {
+func TestRunStopsTheStartedPluginsWhenNoRoleIsTheDefaultRoleAfterTheStart(t *testing.T) {
 	t.Parallel()
 
-	errRegister := errors.New("register exploded")
 	plugin := newHoldingPlugin()
 	env := map[string]string{
 		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
 		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
+		"GOPHENBERG_DEFAULT_ROLE":        "archivist",
 	}
 
-	err := run(t.Context(), testkit.Getenv(env), io.Discard,
-		func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, errRegister })
+	err := run(t.Context(), testkit.Getenv(env), io.Discard, listOf(plugin))
 
-	if !errors.Is(err, errRegister) {
-		t.Fatalf("run() error = %v, want %v in its chain", err, errRegister)
+	if err == nil || !strings.Contains(err.Error(), "GOPHENBERG_DEFAULT_ROLE") {
+		t.Fatalf("run() error = %v, want the default role nobody declares named", err)
 	}
 	stoppedLiveWithin(t, plugin)
 }
@@ -209,44 +205,19 @@ func (p refusingDeclarer) DeclareTypes(context.Context, sdk.TypeRegistrar) error
 	return p.err
 }
 
-func TestRunStopsThePluginsWhenTheirTypesCannotBeDeclared(t *testing.T) {
+func TestRunPausesAPluginWhoseTypesCannotBeDeclaredAndServes(t *testing.T) {
 	t.Parallel()
 
 	errDeclare := errors.New("declare exploded")
-	plugin := newHoldingPlugin()
-	env := map[string]string{
-		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
-		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
+	databaseURL := emptyDatabaseURL(t)
+
+	err := serveUntilListening(t, map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL},
+		listOf(refusingDeclarer{holdingPlugin: newHoldingPlugin(), err: errDeclare}))
+
+	if err != nil {
+		t.Fatalf("run() error = %v, want the site served with the plugin paused", err)
 	}
-
-	err := run(t.Context(), testkit.Getenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
-		return []sdk.Plugin{refusingDeclarer{holdingPlugin: plugin, err: errDeclare}}, nil
-	})
-
-	if !errors.Is(err, errDeclare) {
-		t.Fatalf("run() error = %v, want %v in its chain", err, errDeclare)
-	}
-	stoppedLiveWithin(t, plugin)
-}
-
-func TestRunStopsTheStartedPluginsWithinTheStopGraceWhenOneFailsToStart(t *testing.T) {
-	t.Parallel()
-
-	errBoot := errors.New("boot exploded")
-	plugin := newHoldingPlugin()
-	env := map[string]string{
-		"GOPHENBERG_DATABASE_URL":        emptyDatabaseURL(t),
-		"GOPHENBERG_SHUTDOWN_STOP_GRACE": stopGrace.String(),
-	}
-
-	err := run(t.Context(), testkit.Getenv(env), io.Discard, func(sdk.Deps) ([]sdk.Plugin, error) {
-		return []sdk.Plugin{plugin, failingPlugin{err: errBoot}}, nil
-	})
-
-	if !errors.Is(err, errBoot) {
-		t.Fatalf("run() error = %v, want %v in its chain", err, errBoot)
-	}
-	stoppedLiveWithin(t, plugin)
+	wantPausedFor(t, databaseURL, "holding", errDeclare)
 }
 
 // stoppedLiveWithin asserts the plugin stopped under a live context with close to the whole stop grace left.
@@ -281,7 +252,7 @@ func TestRunCancelsARequestStillRunningAtTheGraceBeforeThePluginsStop(t *testing
 	finished := make(chan error, 1)
 	go func() {
 		finished <- run(ctx, testkit.Getenv(env), closeOnListen{listening: listening, once: &sync.Once{}},
-			func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil })
+			listOf(plugin))
 	}()
 	select {
 	case <-listening:

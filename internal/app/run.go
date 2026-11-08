@@ -29,12 +29,11 @@ import (
 	"github.com/gopherium/gophenberg/internal/updater"
 	"github.com/gopherium/gophenberg/internal/version"
 	"github.com/gopherium/gophenberg/internal/webui"
-	"github.com/gopherium/gophenberg/sdk"
 )
 
 // binary is what a gophenberg binary is built with: the plugins compiled into it and its build stamp.
 type binary struct {
-	plugins func(sdk.Deps) ([]sdk.Plugin, error)
+	plugins registrations
 	stamp   string
 }
 
@@ -47,31 +46,25 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 		return err
 	}
 
-	built, err := compose(composeOf(settings, getenv), compiled.plugins)
+	built, err := openSite(composeOf(settings, getenv))
 	if err != nil {
 		return err
 	}
 	defer built.close()
-	b := boot{
-		settings: settings, guard: guard, built: built, host: hostOf(built.registered), logger: logger,
-		stamp: compiled.stamp,
-	}
+	b := boot{settings: settings, guard: guard, built: built, logger: logger, stamp: compiled.stamp}
 	serving, restart := context.WithCancelCause(ctx)
 	defer restart(nil)
 	b.admin = b.updatesFromAdmin(serving, restart, settingsEnv(getenv))
-	if err := b.ready(ctx); err != nil {
-		return errors.Join(b.stopped(ctx, err), b.stopPlugins(ctx))
+	if err := b.reachDatabase(ctx); err != nil {
+		return b.stopped(ctx, err)
 	}
 
 	jobs := cronOf(settings.cron, built, logger, updateJobs(settings.updates, b.updates())...)
 
-	walked, err := declareTypes(ctx, built.registry, built.registered, logger)
+	plugins, err := b.startPlugins(ctx, compiled.plugins)
+	b.host, b.served = plugins.host, plugins.served
 	if err != nil {
-		return errors.Join(fmt.Errorf("declare plugin types: %w", err), b.stopPlugins(ctx))
-	}
-
-	if err := b.host.Start(ctx, settings.serving.StopGrace); err != nil {
-		return fmt.Errorf("start plugins: %w", err)
+		return errors.Join(b.stopped(ctx, err), b.stopPlugins(ctx))
 	}
 
 	themes, stopTheme, err := startTheme(ctx, settings, built.settings, logger)
@@ -80,7 +73,7 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 	}
 	defer stopTheme()
 
-	cfg := b.serverConfig(walked)
+	cfg := b.serverConfig(plugins.walked)
 	cfg.Theme, cfg.Themes = themes.Holder(), themes
 	cfg.Cron, cfg.CronSecret, cfg.CronOnVisits = jobs.runs, settings.cron.secret, settings.cron.onVisits
 	b.lendMedia(ctx, &cfg)
@@ -107,12 +100,13 @@ func started(getenv func(string) string, logger *slog.Logger) (runConfig, *updat
 	return settings, guard, err
 }
 
-// boot is one start of the site: its settings, guard, what compose built, plugins, logger, stamp and admin updates.
+// boot is one start of the site: its settings, guard, stores, plugins, logger, stamp and admin updates.
 type boot struct {
 	settings runConfig
 	guard    *updater.Guard
 	built    site
 	host     *pluginkit.Host
+	served   *pluginkit.Host
 	logger   *slog.Logger
 	stamp    string
 	admin    *adminUpdates
@@ -136,14 +130,6 @@ func (b boot) updatesFromAdmin(
 		},
 		env: env, serving: serving, restart: restart, logger: b.logger,
 	}
-}
-
-// ready refuses plugins that failed to register, then waits for the database and readies it.
-func (b boot) ready(ctx context.Context) error {
-	if b.built.failed != nil {
-		return fmt.Errorf("register plugins: %w", b.built.failed)
-	}
-	return b.reachDatabase(ctx)
 }
 
 // reachDatabase waits for the database, marks it reached for the boot guard, then checks the role and migrates it.
@@ -181,9 +167,9 @@ func (b boot) lendMedia(ctx context.Context, cfg *server.Config) {
 	cfg.MediaFiles = os.DirFS(b.settings.mediaDir)
 }
 
-// serverConfig returns the server settings over what compose built and the types walked, the theme and media aside.
+// serverConfig returns the server settings over the stores, the started plugins and the types walked, theme aside.
 func (b boot) serverConfig(walked definitions.Walked) server.Config {
-	settings, built, host := b.settings, b.built, b.host
+	settings, built, host := b.settings, b.built, b.served
 	cfg := server.Config{
 		Users:             built.users,
 		Content:           built.content,
@@ -240,6 +226,7 @@ type runConfig struct {
 	themeStartAttempts int
 	mediaUploadCap     int64
 	uploadTimeout      time.Duration
+	pluginStartBudget  time.Duration
 
 	mediaConcurrentImages int
 	mediaMaxPixels        int
@@ -354,6 +341,7 @@ func timingsFrom(env gonsole.Env) (runConfig, error) {
 		{"THEME_STOP_GRACE", 3 * time.Second, &held.themeStopGrace},
 		{"THEME_PROXY_TIMEOUT", 10 * time.Second, &held.themeProxyTimeout},
 		{"UPLOAD_TIMEOUT", server.DefaultUploadTimeout, &held.uploadTimeout},
+		{"PLUGIN_START_BUDGET", 10 * time.Millisecond, &held.pluginStartBudget},
 	} {
 		stood, err := env.Duration(asked.name, asked.fallback)
 		if err != nil {
@@ -436,35 +424,6 @@ func recoveredLibrary(
 		logger.Warn("unsaved uploads kept for the next start", "error", err)
 	}
 	return library
-}
-
-// declareTypes hands every declaring plugin a registrar over the registry, logging what a plugin could not claim.
-func declareTypes(
-	ctx context.Context, registry *content.Registry, plugins []sdk.Plugin, logger *slog.Logger,
-) (definitions.Walked, error) {
-	walked := definitions.Walked{}
-	for _, plugin := range plugins {
-		declarer, ok := plugin.(sdk.TypeDeclarer)
-		if !ok {
-			continue
-		}
-		registrar := definitions.New(registry, plugin.ID())
-		if err := declarer.DeclareTypes(ctx, registrar); err != nil {
-			return nil, fmt.Errorf("plugin %s: %w", plugin.ID(), err)
-		}
-		walked[plugin.ID()] = definitions.Walk{
-			Declared: registrar.Declared(), Skipped: registrar.Skipped(), Kept: registrar.Kept(),
-		}
-		if kept := registrar.Kept(); len(kept) > 0 {
-			logger.Warn("plugin declarations kept as they stand, the site's content holds them",
-				"plugin", plugin.ID(), "keys", kept)
-		}
-		if skipped := registrar.Skipped(); len(skipped) > 0 {
-			logger.Warn("plugin declarations skipped, another owner holds the key",
-				"plugin", plugin.ID(), "keys", skipped)
-		}
-	}
-	return walked, nil
 }
 
 // maxStartAttempts is how many times a theme that will not start may be tried again.

@@ -242,10 +242,11 @@ func (s *operatorScenario) startSite() {
 	s.env["GOPHENBERG_ADDR"] = "127.0.0.1:0"
 	ctx, cancel := context.WithTimeout(s.t.Context(), siteStartLimit)
 	defer cancel()
+	s.stopping = cancel
 	exits := &exitCodes{}
 	stderr := &keptWatch{cancel: cancel}
 	var stdout strings.Builder
-	code := commandLine(testkit.Getenv(s.env), s.loaded, exits, s.stamp).Run(
+	code := commandLine(testkit.Getenv(s.env), s.loaded(), exits, s.stamp).Run(
 		ctx, []string{"serve"}, strings.NewReader(""), &stdout, stderr)
 	s.result = testkit.Result{Code: exits.of(code), Stdout: stdout.String(), Stderr: stderr.String()}
 }

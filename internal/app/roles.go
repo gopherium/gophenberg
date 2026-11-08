@@ -30,13 +30,13 @@ func declareRoles(registry *goncierge.Registry, core []goncierge.Role, registere
 // defaultRoleSetting names the setting that holds the role Add User starts on.
 const defaultRoleSetting = "DEFAULT_ROLE"
 
-// checkDefaultRole returns an error naming the setting and its value when registry holds no role called name.
-func checkDefaultRole(registry *goncierge.Registry, name string) error {
+// checkDefaultRole returns an error naming the setting, its value and the plugins paused when registry lacks name.
+func checkDefaultRole(registry *goncierge.Registry, name string, paused []string) error {
 	if registry.Known(name) {
 		return nil
 	}
-	return fmt.Errorf("%s%s: must name a role the core or a plugin declares, got %q",
-		settingsPrefix, defaultRoleSetting, name)
+	return fmt.Errorf("%s%s: must name a role the core or a plugin declares, got %q%s",
+		settingsPrefix, defaultRoleSetting, name, pausedNote(paused))
 }
 
 // declarePlugin declares the roles a plugin provides under its id, the administrator receiving their capabilities.

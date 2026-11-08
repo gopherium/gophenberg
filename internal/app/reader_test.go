@@ -93,10 +93,11 @@ func TestRunListsForPluginsAsManyPointersAsTheSiteChose(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	err = run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, func(deps sdk.Deps) ([]sdk.Plugin, error) {
-		reading.content = deps.Content
-		return []sdk.Plugin{reading}, nil
-	})
+	err = run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel},
+		listedAs(reading.ID(), func(deps sdk.Deps) (sdk.Plugin, error) {
+			reading.content = deps.Content
+			return reading, nil
+		}))
 
 	if err != nil {
 		t.Fatalf("run() error = %v, want a clean shutdown", err)

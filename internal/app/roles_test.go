@@ -166,9 +166,7 @@ func TestComposeHoldsTheRolesThePluginsDeclare(t *testing.T) {
 	t.Parallel()
 
 	built, err := compose(composeConfig{databaseURL: emptyDatabaseURL(t), fieldDepth: 4},
-		func(sdk.Deps) ([]sdk.Plugin, error) {
-			return []sdk.Plugin{declaringRole("notes", "archivist", "notes.manage")}, nil
-		})
+		listOf(declaringRole("notes", "archivist", "notes.manage")))
 	if err != nil {
 		t.Fatalf("compose() error = %v, want the plugin's role declared", err)
 	}
@@ -200,9 +198,7 @@ func TestComposeRefusesAPluginDeclarationTheRulesRefuse(t *testing.T) {
 	t.Parallel()
 
 	_, err := compose(composeConfig{databaseURL: emptyDatabaseURL(t), fieldDepth: 4},
-		func(sdk.Deps) ([]sdk.Plugin, error) {
-			return []sdk.Plugin{declaringRole("notes", "archivist", "manage_archive")}, nil
-		})
+		listOf(declaringRole("notes", "archivist", "manage_archive")))
 
 	if !errors.Is(err, goncierge.ErrOutsidePrefix) || !strings.Contains(err.Error(), "plugin notes") {
 		t.Errorf("compose() = %v, want the prefix error naming the plugin", err)
@@ -210,9 +206,7 @@ func TestComposeRefusesAPluginDeclarationTheRulesRefuse(t *testing.T) {
 }
 
 // composedWithDefaultRole returns the server settings composed over the plugins while the setting names named.
-func composedWithDefaultRole(
-	t *testing.T, named string, plugins func(sdk.Deps) ([]sdk.Plugin, error),
-) (server.Config, error) {
+func composedWithDefaultRole(t *testing.T, named string, plugins registrations) (server.Config, error) {
 	t.Helper()
 	getenv := testkit.Getenv(map[string]string{
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL, "GOPHENBERG_DEFAULT_ROLE": named,
@@ -232,12 +226,10 @@ func composedWithDefaultRole(
 func TestComposeHandsTheServerTheDefaultRoleTheSettingNames(t *testing.T) {
 	t.Parallel()
 
-	notes := func(sdk.Deps) ([]sdk.Plugin, error) {
-		return []sdk.Plugin{declaringRole("notes", "archivist", "notes.manage")}, nil
-	}
+	notes := listOf(declaringRole("notes", "archivist", "notes.manage"))
 	for name, asked := range map[string]struct {
 		named   string
-		plugins func(sdk.Deps) ([]sdk.Plugin, error)
+		plugins registrations
 		want    string
 	}{
 		"nothing set":     {named: "", plugins: noPlugins, want: role.Member},
@@ -270,12 +262,11 @@ func TestComposeStopsTheBootOnADefaultRoleNobodyDeclares(t *testing.T) {
 func TestComposeKeepsARegistrationFailureBesideTheDeclarationItBroke(t *testing.T) {
 	t.Parallel()
 
-	failed := errors.New("plugin notes: a setting is missing")
+	failed := errors.New("a setting is missing")
+	plugins := append(listedAs("notes", func(sdk.Deps) (sdk.Plugin, error) { return nil, failed }),
+		listOf(declaringRole("notes-tags", role.Editor, "notes.manage"))...)
 
-	_, err := compose(composeConfig{databaseURL: emptyDatabaseURL(t), fieldDepth: 4},
-		func(sdk.Deps) ([]sdk.Plugin, error) {
-			return []sdk.Plugin{declaringRole("notes-tags", role.Editor, "notes.manage")}, failed
-		})
+	_, err := compose(composeConfig{databaseURL: emptyDatabaseURL(t), fieldDepth: 4}, plugins)
 
 	if !errors.Is(err, failed) || !errors.Is(err, goncierge.ErrOutsidePrefix) {
 		t.Errorf("compose() = %v, want the registration failure beside the prefix error", err)

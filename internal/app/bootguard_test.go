@@ -207,10 +207,10 @@ func TestReadyStopsBeforeItMigratesWhenItCannotMarkTheDatabaseReached(t *testing
 	}
 	t.Cleanup(func() { _ = os.Chmod(folder, 0o755) })
 
-	err := start.ready(t.Context())
+	err := start.reachDatabase(t.Context())
 
 	if err == nil || !strings.Contains(err.Error(), "updater: write the update state") {
-		t.Errorf("ready() = %v, want the mark it could not write", err)
+		t.Errorf("reachDatabase() = %v, want the mark it could not write", err)
 	}
 	if got := storedMinimumVersionAt(t, databaseURL); got != "" {
 		t.Errorf("stored minimum version = %q after the mark failed, want nothing migrated", got)
@@ -226,12 +226,12 @@ func TestReadyStopsBeforeItMigratesALongJumpTakenBackWhileItWaitedForTheDatabase
 		t.Fatalf("Rollback() = %v, want the long jump taken back before its build reached the database", err)
 	}
 
-	err := start.ready(t.Context())
+	err := start.reachDatabase(t.Context())
 
 	want := "updater: another command took back the update to Gophenberg " + version.Version() +
 		" while this start waited for the database, so it stops before it migrates"
 	if err == nil || !strings.Contains(err.Error(), want) {
-		t.Errorf("ready() = %v, want %q", err, want)
+		t.Errorf("reachDatabase() = %v, want %q", err, want)
 	}
 	if got := storedMinimumVersionAt(t, databaseURL); got != "" {
 		t.Errorf("stored minimum version = %q after the update was taken back, want nothing migrated", got)

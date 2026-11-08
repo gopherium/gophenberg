@@ -42,16 +42,16 @@ func (*lender) Stop(context.Context) error {
 }
 
 // lending registers one lender per id, each keeping its dependencies and trying its database while it registers.
-func lending(lenders ...*lender) func(sdk.Deps) ([]sdk.Plugin, error) {
-	return func(deps sdk.Deps) ([]sdk.Plugin, error) {
-		plugins := make([]sdk.Plugin, 0, len(lenders))
-		for _, l := range lenders {
+func lending(lenders ...*lender) registrations {
+	listed := make(registrations, 0, len(lenders))
+	for _, l := range lenders {
+		listed = append(listed, listedAs(l.id, func(deps sdk.Deps) (sdk.Plugin, error) {
 			l.deps = deps
 			_, l.registering = deps.DB.Exec(context.Background(), "SELECT 1")
-			plugins = append(plugins, l)
-		}
-		return plugins, nil
+			return l, nil
+		})...)
 	}
+	return listed
 }
 
 // capped returns the reader of settings with the database connection cap set to connections.

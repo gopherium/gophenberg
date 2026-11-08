@@ -8,13 +8,11 @@ import (
 
 	"github.com/gopherium/framework/goncierge"
 	"github.com/gopherium/framework/gonsole"
-
-	"github.com/gopherium/gophenberg/sdk"
 )
 
 // loadPlugins returns the plugin registration, declaring roles into roles and keeping the site's handle in composed.
 func loadPlugins(
-	plugins func(sdk.Deps) ([]sdk.Plugin, error), roles *goncierge.Registry, composed *sitePool,
+	plugins registrations, roles *goncierge.Registry, composed *sitePool,
 ) func(context.Context, gonsole.Call) (gonsole.Loaded, error) {
 	return func(ctx context.Context, call gonsole.Call) (gonsole.Loaded, error) {
 		grace, err := call.Env.Duration("SHUTDOWN_STOP_GRACE", servingDefaults.StopGrace)
