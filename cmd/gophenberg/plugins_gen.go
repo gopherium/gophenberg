@@ -5,23 +5,20 @@
 package main
 
 import (
-	"errors"
-	"fmt"
-
 	feed "github.com/gopherium/gophenberg/plugins/feed"
+
+	pluginKit "github.com/gopherium/framework/pluginkit"
 
 	sdk "github.com/gopherium/gophenberg/sdk"
 )
 
-// registerPlugins registers every compiled plugin, answering the ones that registered and an error naming each failure.
-func registerPlugins(deps sdk.Deps) ([]sdk.Plugin, error) {
-	plugins := make([]sdk.Plugin, 0, 1)
-	var failed []error
-	feedPlugin, err := feed.Register(deps)
-	if err != nil {
-		failed = append(failed, fmt.Errorf("plugin feed: %w", err))
-	} else {
-		plugins = append(plugins, feedPlugin)
-	}
-	return plugins, errors.Join(failed...)
+// pluginRegistrations lists every compiled backend plugin's manifest id and Register function, in wiring order.
+var pluginRegistrations = []pluginKit.Registration[sdk.Deps, sdk.Plugin]{
+	{ID: "feed", Register: func(deps sdk.Deps) (sdk.Plugin, error) {
+		plugin, err := feed.Register(deps)
+		if err != nil {
+			return nil, err
+		}
+		return plugin, nil
+	}},
 }
