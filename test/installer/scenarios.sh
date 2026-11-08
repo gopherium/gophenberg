@@ -39,6 +39,10 @@ units=/etc/systemd/system
 local_root=/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
 site_owner=gophenberg:gophenberg
 root_owner=root:root
+docs_page="$repo/docs/src/content/docs/self-hosting/server-install.md"
+docs_line="sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh -s -- --domain example.com'"
+local_docs_line="${docs_line/https:\/\/updates.gophenberg.org/http://127.0.0.1:$update_port}"
+local_docs_line="${local_docs_line/example.com/$domain}"
 background=()
 
 # fail prints why the scenarios stop on standard error and ends the run with exit 1.
@@ -96,6 +100,49 @@ piped_install() {
 	sudo sh -c "sh -s -- \"\$@\" < \"\$0\"" "$copy" "$@" < /dev/null 2> "$out/$name.err" | tee "$out/$name.out" || code=$?
 	cat "$out/$name.err" >&2
 	return "$code"
+}
+
+# typed_install runs the line given on a terminal, keeping its output under the name, and types each answer once asked.
+typed_install() {
+	local name="$1" line="$2" fifo="$work/$1.keys" pid typing code=0 last=""
+	shift 2
+	rm -f "$fifo"
+	mkfifo "$fifo"
+	script -q -f -e -c "$line" "$out/$name.out" < "$fifo" > /dev/null 2> "$out/$name.err" &
+	pid=$!
+	background+=("$pid")
+	exec {typing}> "$fifo"
+	while [ "$#" -gt 0 ]; do
+		if ! timeout "$wait_limit" bash "$self" retry asked "$name" "$1"; then
+			terminal_fail "$name" \
+				"${last:+took the answer to \"${last%: }\" but }never asked \"${1%: }\" in ${wait_limit}s"
+		fi
+		if ! grep -qF -- "$1" "$out/$name.out"; then
+			wait "$pid" || code=$?
+			terminal_fail "$name" "ended with exit $code before it asked \"${1%: }\""
+		fi
+		(printf '%s\n' "$2" >&"$typing") 2> /dev/null ||
+			terminal_fail "$name" "ended before it took the answer to \"${1%: }\""
+		last="$1"
+		shift 2
+	done
+	exec {typing}>&-
+	wait "$pid" || code=$?
+	unset 'background[-1]'
+	rm -f "$fifo"
+	[ "$code" = 0 ] || tr -d '\r' < "$out/$name.out" >&2
+	return "$code"
+}
+
+# terminal_fail prints the terminal output kept under the name given, then stops with the words given about the install.
+terminal_fail() {
+	tr -d '\r' < "$out/$1.out" >&2
+	fail "the install on a terminal $2"
+}
+
+# asked reports whether the terminal output kept under the name given shows the question given or the end of the run.
+asked() {
+	grep -qF -e "$2" -e 'Script done on' "$out/$1.out"
 }
 
 # as_site runs a command of the current build as the site's user in the install root, so it reads the site's .env.
@@ -281,7 +328,7 @@ caddy_admin_closed() {
 
 # no_https_warning stops when the server:install run kept under the name given warned that HTTPS did not answer.
 no_https_warning() {
-	if grep -q 'did not answer 200 within' "$out/$1.err"; then
+	if grep -q 'did not answer 200 within' "$out/$1.out" "$out/$1.err"; then
 		fail "server:install warned that https://$domain/admin/ did not answer"
 	fi
 }
@@ -404,6 +451,7 @@ held_floor() {
 # host_facts prints what the runner image brings that the install depends on, and what already listens.
 host_facts() {
 	systemctl --version
+	sudo --version
 	ps -p 1 -o comm=
 	openssl version
 	apt-cache policy postgresql caddy
@@ -411,6 +459,11 @@ host_facts() {
 	df -h
 	sudo ss -ltnup
 	stat -c '%U:%G %a %n' / /opt /usr/local/bin
+}
+
+# os_version prints the release of Ubuntu the runner runs, such as 24.04.
+os_version() {
+	awk -F= '$1 == "VERSION_ID" { gsub(/"/, "", $2); print $2 }' /etc/os-release
 }
 
 # purge_postgresql purges the image's PostgreSQL packages, their folders and the PostgreSQL project's apt source.
@@ -693,12 +746,26 @@ scenario_install_script_stops() {
 	finish
 }
 
-# scenario_install installs A through the test copy of install.sh with every flag of the first administrator.
+# scenario_install installs A with the docs' line on a terminal under Ubuntu's own sudo, typing every answer.
 scenario_install() {
+	local sudo_line password
 	begin "install"
+	has_line "$docs_page" "$docs_line"
+	sudo_line="$(sudo --version | awk 'NR == 1')"
+	echo "the install asks its questions on a terminal under $sudo_line"
+	if [ "$(os_version)" = 26.04 ] && [[ "$sudo_line" != sudo-rs* ]]; then
+		fail "sudo on this Ubuntu 26.04 runner is $sudo_line, but Ubuntu 26.04 ships sudo-rs as its sudo"
+	fi
 	(umask 077 && openssl rand -base64 18 > "$password_file")
-	piped_install install "$install_copy" --domain "$domain" --admin-email "$admin_email" --admin-name "$admin_name" \
-		--admin-password-file "$password_file" || fail "the first install through install.sh did not end with exit 0"
+	password="$(head -n 1 "$password_file")"
+	cp "$install_copy" "$site/install.sh"
+	typed_install install "$local_docs_line" "Email of the first administrator: " "$admin_email" \
+		"Name of the first administrator [${admin_email%@*}]: " "$admin_name" "Password: " "$password" \
+		"Password again: " "$password" || fail "the first install on a terminal did not end with exit 0"
+	if grep -qF -- "$password" "$out/install.out"; then
+		fail "the terminal showed the first administrator's password as it was typed"
+	fi
+	tr -d '\r' < "$out/install.out"
 	no_work_folder
 	no_https_warning install
 	grep -q "Gophenberg $a runs at https://$domain" "$out/install.out" ||
