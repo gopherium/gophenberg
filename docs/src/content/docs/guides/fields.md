@@ -429,8 +429,8 @@ screen:
 - **The plugin stopped declaring one.** The definition stays, and
   the notice offers **Adopt**, which hands it to your site. After
   that it edits and deletes like anything you made yourself. A
-  plugin the site paused at start has not stopped declaring, so its
-  definitions get no notice.
+  plugin the site paused at start has not stopped declaring, so this
+  notice never shows for its definitions.
 - **A plugin wants a key you already use.** Your own definition
   keeps it and the plugin's is skipped. The notice names the plugin
   so you can decide whether to rename yours.
