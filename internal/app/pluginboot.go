@@ -148,28 +148,29 @@ func (p *pausing) keep(
 ) ([]sdk.Plugin, error) {
 	kept := make([]sdk.Plugin, 0, len(plugins))
 	for _, plugin := range plugins {
-		failed := stepOf(plugin, step, run)
+		id := plugin.ID()
+		failed := stepOf(id, step, func() error { return run(plugin) })
 		if failed == nil {
 			kept = append(kept, plugin)
 			continue
 		}
-		if err := p.records.Pause(ctx, plugin.ID(), failed); err != nil {
+		if err := p.records.Pause(ctx, id, failed); err != nil {
 			return nil, err
 		}
-		p.note(plugin.ID(), step, failed)
+		p.note(id, step, failed)
 	}
 	return kept, nil
 }
 
-// stepOf runs step on plugin, naming both in the error it answers or in the panic it recovered.
-func stepOf(plugin sdk.Plugin, step string, run func(sdk.Plugin) error) (failed error) {
+// stepOf runs the step of the plugin id, naming both in the error it answers or in the panic it recovered.
+func stepOf(id, step string, run func() error) (failed error) {
 	defer func() {
 		if caught := recover(); caught != nil {
-			failed = fmt.Errorf("plugin %s %s panicked: %v", plugin.ID(), step, caught)
+			failed = fmt.Errorf("plugin %s %s panicked: %v", id, step, caught)
 		}
 	}()
-	if err := run(plugin); err != nil {
-		return fmt.Errorf("plugin %s %s: %w", plugin.ID(), step, err)
+	if err := run(); err != nil {
+		return fmt.Errorf("plugin %s %s: %w", id, step, err)
 	}
 	return nil
 }

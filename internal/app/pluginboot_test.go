@@ -17,6 +17,7 @@ import (
 
 	"github.com/gopherium/gophenberg/internal/accountbridge"
 	"github.com/gopherium/gophenberg/internal/role"
+	"github.com/gopherium/gophenberg/sdk"
 )
 
 // errDropped is the failure a refusing store answers.
@@ -64,6 +65,35 @@ func bootOver(store pluginkit.PluginStore) boot {
 	}
 }
 
+// turncoat is a plugin whose Roles breaks its ID and then panics.
+type turncoat struct {
+	broken bool
+}
+
+// ID returns the plugin's id, panicking once Roles broke it.
+func (t *turncoat) ID() string {
+	if t.broken {
+		panic("the id is gone")
+	}
+	return "turncoat"
+}
+
+// Start starts nothing.
+func (*turncoat) Start(context.Context) error {
+	return nil
+}
+
+// Stop stops nothing.
+func (*turncoat) Stop(context.Context) error {
+	return nil
+}
+
+// Roles breaks the plugin's ID, then panics.
+func (t *turncoat) Roles() []sdk.RoleDeclaration {
+	t.broken = true
+	panic("boom")
+}
+
 // activeRecord returns the record of the plugin id active with no error.
 func activeRecord(id string) pluginkit.PluginRecord {
 	return pluginkit.PluginRecord{ID: id, State: pluginkit.PluginActive}
@@ -107,6 +137,24 @@ func TestStartPluginsStopsWhenThePluginStoreFails(t *testing.T) {
 				t.Error("startPlugins() answered no host, want one a stop can reach")
 			}
 		})
+	}
+}
+
+func TestStartPluginsPausesAPluginUnderTheIDItHadBeforeItsStepPanicked(t *testing.T) {
+	t.Parallel()
+	store := pluginstoretest.NewMemory()
+
+	_, err := bootOver(store).startPlugins(t.Context(), listOf(&turncoat{}))
+
+	if err != nil {
+		t.Fatalf("startPlugins() = %v, want the site to start", err)
+	}
+	records, err := store.Records(t.Context())
+	want := pluginkit.PluginRecord{
+		ID: "turncoat", State: pluginkit.PluginPaused, LastError: "plugin turncoat roles panicked: boom",
+	}
+	if err != nil || records["turncoat"] != want {
+		t.Errorf("Records() = %+v (%v), want %+v", records, err, want)
 	}
 }
 
