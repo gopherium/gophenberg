@@ -13,8 +13,12 @@ import (
 	"github.com/gopherium/framework/gonsole"
 )
 
-// maxMegabytes is the largest size setting in megabytes, a pebibyte, so that sizes added up never overflow an int64.
-const maxMegabytes = 1 << 30
+const (
+	// maxMegabytes is the largest size setting in megabytes, a pebibyte, so that sizes added up never overflow an int64.
+	maxMegabytes = 1 << 30
+	// maxBackupsKept is the most database backups an update keeps.
+	maxBackupsKept = 100
+)
 
 // Settings is how a server install updates itself and checks each update at its first starts, as GOPHENBERG_ names it.
 type Settings struct {
@@ -38,7 +42,7 @@ func SettingsFrom(env gonsole.Env) (Settings, error) {
 	timeout, timeoutErr := env.Duration("UPDATE_DOWNLOAD_TIMEOUT", 10*time.Minute)
 	capMB, capErr := env.Count("UPDATE_DOWNLOAD_CAP_MB", 200, gonsole.AtMost(maxMegabytes))
 	marginMB, marginErr := env.Count("UPDATE_DISK_MARGIN_MB", 64, gonsole.AllowZero(), gonsole.AtMost(maxMegabytes))
-	kept, keptErr := env.Count("UPDATE_BACKUPS_KEEP", 3)
+	kept, keptErr := env.Count("UPDATE_BACKUPS_KEEP", 3, gonsole.AtMost(maxBackupsKept))
 	check, checkErr := checkSettingsFrom(env)
 	outsideErr := outsideRoot(env, root, data)
 	if err := errors.Join(rootErr, dataErr, outsideErr, timeoutErr, capErr, marginErr, keptErr, checkErr); err != nil {

@@ -82,6 +82,7 @@ func TestSettingsFromRefusesAValueOutOfItsRange(t *testing.T) {
 		{"GOPHENBERG_UPDATE_DOWNLOAD_TIMEOUT", "soon"},
 		{"GOPHENBERG_UPDATE_DISK_MARGIN_MB", "1073741825"},
 		{"GOPHENBERG_UPDATE_BACKUPS_KEEP", "0"},
+		{"GOPHENBERG_UPDATE_BACKUPS_KEEP", "101"},
 		{"GOPHENBERG_UPDATE_ATTEMPTS", "0"},
 		{"GOPHENBERG_UPDATE_VERIFY_TIMEOUT", "0s"},
 		{"GOPHENBERG_UPDATE_VERSIONS_KEEP", "none"},
@@ -91,6 +92,14 @@ func TestSettingsFromRefusesAValueOutOfItsRange(t *testing.T) {
 		_, err := updater.SettingsFrom(envOf(map[string]string{name: value}))
 
 		wantRefused(t, err, name+":")
+	}
+}
+
+func TestSettingsFromKeepsUpToAHundredBackups(t *testing.T) {
+	t.Parallel()
+
+	if settings := settingsOf(t, map[string]string{"GOPHENBERG_UPDATE_BACKUPS_KEEP": "100"}); settings.BackupsKept != 100 {
+		t.Errorf("SettingsFrom() keeps %d backups, want the hundred the setting names", settings.BackupsKept)
 	}
 }
 
