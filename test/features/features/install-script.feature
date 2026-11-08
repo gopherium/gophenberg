@@ -81,7 +81,7 @@ Feature: Install Gophenberg with one command
 
   Scenario: A run as a plain user is refused
     When the operator runs install.sh as a plain user with "--domain example.com"
-    Then install.sh stops with "run it as root, such as with curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh -s -- --domain example.com"
+    Then install.sh stops with "run it as root, such as with sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh -s -- --domain example.com'"
     And nothing was downloaded
     And server:install never ran
 

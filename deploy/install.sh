@@ -144,7 +144,7 @@ main() {
 	[ "$#" = "$arguments_given" ] || stop "this copy of install.sh was cut off, so nothing was installed"
 	PATH="$PATH:/usr/sbin:/sbin"
 	[ "$(id -u)" = "$root_id" ] || stop "run it as root, such as with" \
-		"curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh -s -- --domain example.com"
+		"sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh -s -- --domain example.com'"
 	[ "$version" != unstamped ] || stop "this copy of install.sh names no release," \
 		"so run it from https://updates.gophenberg.org/install.sh"
 	refuse_archive "$@"

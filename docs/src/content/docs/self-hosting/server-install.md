@@ -725,7 +725,7 @@ Nothing was installed, and no download folder is left.
 - **Not root.** Run it with `sudo`, as the line shows.
 
   ```text
-  install.sh: run it as root, such as with curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh -s -- --domain example.com
+  install.sh: run it as root, such as with sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh -s -- --domain example.com'
   ```
 
 - **No release named.** This is the copy in the repository, not the
