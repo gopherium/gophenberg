@@ -36,11 +36,12 @@ This section runs the install. Run this line on the server, with your
 own domain in place of `example.com`:
 
 ```sh
-curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh -s -- --domain example.com
+sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh -s -- --domain example.com'
 ```
 
-`curl` fetches `install.sh`, and `sudo sh` runs it as root. Everything
-after `--` goes to `install.sh`, which passes it on to
+`sudo sh -c` runs the whole line as root: `curl` fetches `install.sh`,
+and `sh` runs it. Everything after `--` goes to `install.sh`, which
+passes it on to
 [`server:install`](/self-hosting/commands/#serverinstall), where every
 flag is listed. A flag takes one dash or two, so `-domain` works too.
 
@@ -50,6 +51,21 @@ administrator's email, name and password, see
 [the first administrator](/self-hosting/commands/#the-first-administrator).
 It ends with a summary that names the site's address and the commands
 to know, see [taking the steps](/self-hosting/commands/#taking-the-steps).
+
+Keep `sudo` in front of the whole line. On Ubuntu 26.04, `sudo` is
+sudo-rs 0.2.13, and a line that pipes into it, such as
+`curl ... | sudo sh`, stops for good at the first question. It shows
+the question and takes no answer. To end such a run, find its number
+from a second session, then end it. A stopped run ends only once it is
+continued, so the second `kill` continues it:
+
+```sh
+pgrep -f 'gophenberg server:install'
+sudo kill -TERM 1234 && sudo kill -CONT 1234
+```
+
+Put the number `pgrep` printed in place of `1234`, then run the line
+above.
 
 To see what it would do first, add `--dry-run`. A dry run downloads and
 checks the release too, runs every check, then prints each step and
@@ -61,17 +77,17 @@ flags. The password file holds the password on its first line, and
 its path must be absolute:
 
 ```sh
-curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh -s -- --domain example.com \
-  --admin-email admin@example.com --admin-name "Maria Perez" --admin-password-file /root/admin-password
+sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh -s -- --domain example.com \
+  --admin-email admin@example.com --admin-name "Maria Perez" --admin-password-file /root/admin-password'
 ```
 
 `sudo` leaves out your own environment, so give a setting on the first
-run through `env`.
+run in front of `sh`.
 [The server settings](/self-hosting/configuration/#the-server-settings)
 lists each one:
 
 ```sh
-curl -fsSL https://updates.gophenberg.org/install.sh | sudo env GOPHENBERG_SERVICE_RESTART_DELAY=3s sh -s -- --domain example.com
+sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | GOPHENBERG_SERVICE_RESTART_DELAY=3s sh -s -- --domain example.com'
 ```
 
 ## What install.sh does
@@ -483,7 +499,7 @@ as it is. So a newer release's fixes to them reach the server only when
 you run the install line again:
 
 ```sh
-curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh
+sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh'
 ```
 
 It needs no flag, since `server.env` keeps the settings. It writes the
@@ -651,7 +667,7 @@ major version, and Caddy's repository.
    read it again:
 
    ```sh
-   curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh
+   sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh'
    sudo apt update
    ```
 
@@ -672,7 +688,7 @@ A server that already runs nginx, Caddy, Traefik or Apache for other
 sites can keep it. Add `--web-server none`:
 
 ```sh
-curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh -s -- --domain example.com --web-server none
+sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh -s -- --domain example.com --web-server none'
 ```
 
 The install then sets up no Caddy and leaves ports 80 and 443 to your
@@ -709,7 +725,7 @@ Nothing was installed, and no download folder is left.
 - **Not root.** Run it with `sudo`, as the line shows.
 
   ```text
-  install.sh: run it as root, such as with curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh -s -- --domain example.com
+  install.sh: run it as root, such as with sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh -s -- --domain example.com'
   ```
 
 - **No release named.** This is the copy in the repository, not the

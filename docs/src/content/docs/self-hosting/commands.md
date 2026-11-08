@@ -1196,7 +1196,7 @@ A later install reuses what was kept. The `gophenberg` command is gone
 after an uninstall, so run the install line again:
 
 ```sh
-curl -fsSL https://updates.gophenberg.org/install.sh | sudo sh -s -- --domain example.com
+sudo sh -c 'curl -fsSL https://updates.gophenberg.org/install.sh | sh -s -- --domain example.com'
 ```
 
 It unpacks the build again, writes the files and starts the site. It

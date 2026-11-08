@@ -89,11 +89,11 @@ logged() {
 	return "$code"
 }
 
-# piped_install feeds the install.sh copy given to sudo sh -s -- as the docs do, keeping its output under the name.
+# piped_install feeds the install.sh copy given to sh -s -- under sudo sh -c as the docs do, keeping its output under the name.
 piped_install() {
 	local name="$1" copy="$2" code=0
 	shift 2
-	{ sudo sh -s -- "$@"; } < "$copy" 2> "$out/$name.err" | tee "$out/$name.out" || code=$?
+	sudo sh -c "sh -s -- \"\$@\" < \"\$0\"" "$copy" "$@" < /dev/null 2> "$out/$name.err" | tee "$out/$name.out" || code=$?
 	cat "$out/$name.err" >&2
 	return "$code"
 }
