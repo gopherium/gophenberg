@@ -54,6 +54,7 @@ func (b boot) startPlugins(ctx context.Context, plugins registrations) (pluginSt
 	}
 	started.host, started.walked = hostOf(kept), walked
 	started.served, err = b.startEach(ctx, paused, started.host, kept)
+	paused.mark(walked)
 	return started, err
 }
 
@@ -173,6 +174,15 @@ func stepOf(id, step string, run func() error) (failed error) {
 		return fmt.Errorf("plugin %s %s: %w", id, step, err)
 	}
 	return nil
+}
+
+// mark marks each plugin the start paused as paused in walked.
+func (p *pausing) mark(walked definitions.Walked) {
+	for _, id := range p.paused {
+		walk := walked[id]
+		walk.Paused = true
+		walked[id] = walk
+	}
 }
 
 // note logs the pause of the plugin id at step for err and keeps its id.

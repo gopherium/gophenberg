@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,6 +20,8 @@ import (
 	"github.com/gopherium/framework/pluginkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/postgres"
 	"github.com/gopherium/gophenberg/internal/testdb"
 	"github.com/gopherium/gophenberg/sdk"
@@ -50,6 +53,7 @@ type pausingPlugin struct {
 	takes        time.Duration
 	stopsTheSite bool
 	roles        []sdk.RoleDeclaration
+	types        []string
 }
 
 // initializePluginPausing binds the steps of the scenarios where a start pauses a plugin that fails to s.
@@ -63,10 +67,16 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Given(`^the Start of "([^"]*)" takes "([^"]*)"$`, p.slowStart)
 	sc.Given(`^the content types of "([^"]*)" fail with "([^"]*)"$`, p.failTypes)
 	sc.Given(`^"([^"]*)" declares the role "([^"]*)" with the capability "([^"]*)"$`, p.declare)
+	sc.Given(`^"([^"]*)" declares the content type "([^"]*)"$`, p.declareType)
+	sc.Given(`^the site served once$`, p.servedOnce)
+	sc.Given(`^an administrator account exists$`, p.holdAdministrator)
 	sc.Given(`^the site is told to stop while "([^"]*)" starts$`, p.stopWhileStarting)
 	sc.Given(`^the plugin records already hold "([^"]*)" as paused with "([^"]*)"$`, p.holdPaused)
 	sc.Given(`^the plugin records already hold "([^"]*)" as (inactive|not installed)$`, p.holdIn)
 	sc.When(`^the site serves$`, p.serve)
+	sc.When(`^the administrator signs in$`, p.signIn)
+	sc.Then(`^the site holds the content type "([^"]*)" from "([^"]*)"$`, p.holdsType)
+	sc.Then(`^the drift report names no orphan from "([^"]*)"$`, p.noOrphanFrom)
 	sc.Then(`^the route of "([^"]*)" answers (\d+)$`, p.routeAnswers)
 	sc.Then(`^the plugin records hold "([^"]*)" as (active|inactive|not installed) with no error$`, p.holdsClean)
 	sc.Then(`^the plugin records hold "([^"]*)" as paused, its error saying "([^"]*)"$`, p.holdsPaused)
@@ -123,6 +133,68 @@ func (p *pausingScenario) failTypes(id, text string) {
 func (p *pausingScenario) declare(id, name, capability string) {
 	held := p.plugins[id]
 	held.roles = append(held.roles, sdk.RoleDeclaration{Name: name, Capabilities: []string{capability}})
+}
+
+// declareType has the plugin id declare the content type key.
+func (p *pausingScenario) declareType(id, key string) {
+	held := p.plugins[id]
+	held.types = append(held.types, key)
+}
+
+// servedOnce serves the site until it answers, then stops it and waits for a clean end.
+func (p *pausingScenario) servedOnce() error {
+	if err := p.serve(); err != nil {
+		return err
+	}
+	p.served.cancel()
+	if code := <-p.served.done; code != 0 {
+		return fmt.Errorf("the site stopped with %d and stderr %q, want a clean stop", code, p.served.stderr.String())
+	}
+	return nil
+}
+
+// holdAdministrator creates the administrator the scenario signs in as.
+func (p *pausingScenario) holdAdministrator() error {
+	return p.holdAccount("administrator", adminEmail)
+}
+
+// signIn signs the administrator in to the site the scenario serves.
+func (p *pausingScenario) signIn() error {
+	client, err := signedIn(p.served.base)
+	p.served.client = client
+	return err
+}
+
+// holdsType fails unless the site holds the content type key with the plugin id as its origin.
+func (p *pausingScenario) holdsType(ctx context.Context, key, id string) error {
+	pool, err := pgxpool.New(ctx, p.env["GOPHENBERG_DATABASE_URL"])
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	held, err := content.NewRegistry(postgres.NewTypeStore(pool)).ByKey(ctx, key)
+	if err != nil || held.Origin != id {
+		return fmt.Errorf("the site holds %s from %q (%v), want it from %s", key, held.Origin, err, id)
+	}
+	return nil
+}
+
+// noOrphanFrom fails unless the drift report the administrator reads names no orphan from the plugin id.
+func (p *pausingScenario) noOrphanFrom(id string) error {
+	got, err := p.served.get("/api/definitions/drift")
+	if err != nil || got.status != http.StatusOK {
+		return fmt.Errorf("the drift report answered %d (%v), want 200", got.status, err)
+	}
+	var drift definitions.Drift
+	if err := json.Unmarshal(got.body, &drift); err != nil {
+		return err
+	}
+	for _, orphan := range drift.Orphans {
+		if orphan.Origin == id {
+			return fmt.Errorf("the drift report names %+v, want no orphan from %s", orphan, id)
+		}
+	}
+	return nil
 }
 
 // stopWhileStarting makes the Start of the plugin id tell the site to stop.
@@ -358,9 +430,17 @@ func (pl *pausingPlugin) Roles() []sdk.RoleDeclaration {
 	return pl.roles
 }
 
-// DeclareTypes declares nothing, or answers the failure or the panic the scenario set.
-func (pl *pausingPlugin) DeclareTypes(context.Context, sdk.TypeRegistrar) error {
+// DeclareTypes declares the content types the scenario set, or answers the failure or the panic it set.
+func (pl *pausingPlugin) DeclareTypes(ctx context.Context, registrar sdk.TypeRegistrar) error {
 	pl.boom("DeclareTypes")
+	for _, key := range pl.types {
+		declared := sdk.TypeDeclaration{
+			Key: key, SingularLabel: key, PluralLabel: key + "s", RouteWord: key + "s", PageKind: "single",
+		}
+		if err := registrar.DeclareType(ctx, declared); err != nil {
+			return err
+		}
+	}
 	return pl.typesErr
 }
 

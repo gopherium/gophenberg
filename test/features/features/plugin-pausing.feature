@@ -62,6 +62,16 @@ Feature: A site keeps running when one plugin fails at start
     And the plugin records hold "notes" as paused, its error saying "the field list is missing"
     And the site logged that "notes" is paused at the step "types"
 
+  Scenario: A paused plugin keeps the content types it declared before and none is offered as an orphan
+    Given "notes" declares the content type "note"
+    And the site served once
+    And an administrator account exists
+    And the Register of "notes" fails with "the title is too long"
+    When the site serves
+    And the administrator signs in
+    Then the site holds the content type "note" from "notes"
+    And the drift report names no orphan from "notes"
+
   Scenario Outline: A plugin whose <method> panics is paused and the site serves
     Given the <method> of "notes" panics with "boom"
     When the site serves
