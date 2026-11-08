@@ -182,7 +182,7 @@ func postgresMigrations(core gonsole.Step) []gonsole.Step {
 // sqliteMigrations returns the steps a SQLite database takes on the run's one handle, in the order they apply.
 func sqliteMigrations(env gonsole.Env) []gonsole.Step {
 	return []gonsole.Step{
-		sqliteStep("accounts", env, guardedSQLite(accountStep(accountsqlite.Migration))),
+		sqliteStep("accounts", env, guardedSQLite(backedUp(env, accountStep(accountsqlite.Migration)))),
 		sqliteStep("records", env, accountStep(accountsqlite.RecordMigration)),
 		sqliteStep("core", env, migrateSQLiteCore),
 	}
