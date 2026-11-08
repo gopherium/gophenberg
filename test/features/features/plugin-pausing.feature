@@ -29,12 +29,6 @@ Feature: A site keeps running when one plugin fails at start
     And the plugin records hold "notes" as paused, its error saying "pluginkit: notes register: the title is too long"
     And the site logged that "notes" is paused at the step "register"
 
-  Scenario: A plugin whose Register panics is paused
-    Given the Register of "notes" panics with "boom"
-    When the site serves
-    Then the route of "events" answers 200
-    And the plugin records hold "notes" as paused, its error saying "pluginkit: notes register panicked: boom"
-
   Scenario: A plugin whose migration fails is paused and never starts
     Given the migration of "notes" fails with "schema exploded"
     When the site serves
@@ -73,13 +67,16 @@ Feature: A site keeps running when one plugin fails at start
     When the site serves
     Then the route of "events" answers 200
     And the route of "notes" answers 404
-    And the plugin records hold "notes" as paused, its error saying "plugin notes <step> panicked: boom"
+    And the plugin records hold "notes" as paused, its error saying "<error>"
     And the site logged that "notes" is paused at the step "<step>"
 
     Examples:
-      | method       | step  |
-      | Roles        | roles |
-      | DeclareTypes | types |
+      | method       | step     | error                                    |
+      | Register     | register | pluginkit: notes register panicked: boom |
+      | Migrate      | migrate  | pluginkit: notes migrate panicked: boom  |
+      | Roles        | roles    | plugin notes roles panicked: boom        |
+      | DeclareTypes | types    | plugin notes types panicked: boom        |
+      | Start        | start    | pluginkit: notes start panicked: boom    |
 
   Scenario: A paused plugin that starts again is active with no error
     Given the plugin records already hold "notes" as paused with "a setting is missing"

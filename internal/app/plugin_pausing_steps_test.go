@@ -57,7 +57,7 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	p := &pausingScenario{operatorScenario: s, plugins: map[string]*pausingPlugin{}}
 	sc.Given(`^the compiled plugins "([^"]*)" and "([^"]*)"$`, p.compile)
 	sc.Given(`^the Register of "([^"]*)" fails with "([^"]*)"$`, p.failRegister)
-	sc.Given(`^the (Register|Roles|DeclareTypes) of "([^"]*)" panics with "([^"]*)"$`, p.panics)
+	sc.Given(`^the (Register|Migrate|Roles|DeclareTypes|Start) of "([^"]*)" panics with "([^"]*)"$`, p.panics)
 	sc.Given(`^the migration of "([^"]*)" fails with "([^"]*)"$`, p.failMigration)
 	sc.Given(`^the Start of "([^"]*)" fails with "([^"]*)"$`, p.failStart)
 	sc.Given(`^the Start of "([^"]*)" takes "([^"]*)"$`, p.slowStart)
@@ -318,14 +318,16 @@ func (pl *pausingPlugin) ID() string {
 	return pl.id
 }
 
-// Migrate applies nothing, or answers the failure the scenario set.
+// Migrate applies nothing, or answers the failure or the panic the scenario set.
 func (pl *pausingPlugin) Migrate(context.Context) error {
+	pl.boom("Migrate")
 	return pl.migrateErr
 }
 
-// Start notes the call, takes the time the scenario set, tells the site to stop when asked and answers its failure.
+// Start notes the call, then panics, waits, stops the site or fails as the scenario set.
 func (pl *pausingPlugin) Start(context.Context) error {
 	pl.scenario.note("Start", pl.id)
+	pl.boom("Start")
 	time.Sleep(pl.takes)
 	if pl.stopsTheSite {
 		pl.scenario.stopping()
