@@ -35,9 +35,7 @@ func booting(t *testing.T, env map[string]string, plugin sdk.Plugin) error {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	return run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
-		return []sdk.Plugin{plugin}, nil
-	})
+	return run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, listOf(plugin))
 }
 
 // nestedEvent files one event of the type under another, straight into the database.

@@ -392,44 +392,28 @@ func (w waitRecorder) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// stopReportingPlugin is a plugin whose Stop records that it ran and returns the failure it holds.
-type stopReportingPlugin struct {
-	failure error
-	stopped bool
-}
-
-// ID names the plugin.
-func (*stopReportingPlugin) ID() string { return "stop-reporting" }
-
-// Start starts nothing.
-func (*stopReportingPlugin) Start(context.Context) error { return nil }
-
-// Stop records the stop and returns the failure the plugin holds.
-func (p *stopReportingPlugin) Stop(context.Context) error {
-	p.stopped = true
-	return p.failure
-}
-
-// stoppedDuringTheWait serves the plugin until serve logs that it waits for the database, then stops it, returning
+// stoppedDuringTheWait serves the plugins until serve logs that it waits for the database, then stops it, returning
 // what serve logged and returned.
-func stoppedDuringTheWait(t *testing.T, plugin sdk.Plugin) (string, error) {
+func stoppedDuringTheWait(t *testing.T, plugins registrations) (string, error) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	logged := &strings.Builder{}
 	env := map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL, "GOPHENBERG_DATABASE_WAIT": "1m"}
 
-	err := run(ctx, testkit.Getenv(env), waitRecorder{cancel: cancel, logged: logged},
-		func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil })
+	err := run(ctx, testkit.Getenv(env), waitRecorder{cancel: cancel, logged: logged}, plugins)
 
 	return logged.String(), err
 }
 
 func TestServeStopsCleanlyWhenItEndsWhileItWaitsForTheDatabase(t *testing.T) {
 	t.Parallel()
-	plugin := &stopReportingPlugin{}
+	registered := false
 
-	logged, err := stoppedDuringTheWait(t, plugin)
+	logged, err := stoppedDuringTheWait(t, listedAs("late", func(sdk.Deps) (sdk.Plugin, error) {
+		registered = true
+		return idle("late"), nil
+	}))
 
 	if err != nil {
 		t.Fatalf("run() = %v, want a clean stop as a stop while it serves ends", err)
@@ -437,22 +421,8 @@ func TestServeStopsCleanlyWhenItEndsWhileItWaitsForTheDatabase(t *testing.T) {
 	if !strings.Contains(logged, `msg="shutting down"`) {
 		t.Errorf("serve logged %q, want it to say it shuts down", logged)
 	}
-	if !plugin.stopped {
-		t.Error("serve ended without stopping the plugin, want it stopped")
-	}
-}
-
-func TestServeReturnsWhatAPluginFailedToStopWhenItEndsWhileItWaitsForTheDatabase(t *testing.T) {
-	t.Parallel()
-	errStuck := errors.New("the queue would not close")
-
-	logged, err := stoppedDuringTheWait(t, &stopReportingPlugin{failure: errStuck})
-
-	if !errors.Is(err, errStuck) || errors.Is(err, context.Canceled) {
-		t.Errorf("run() = %v, want only the plugin's stop failure, as the stop itself ends serve cleanly", err)
-	}
-	if !strings.Contains(logged, `msg="shutting down"`) {
-		t.Errorf("serve logged %q, want it to say it shuts down", logged)
+	if registered {
+		t.Error("serve registered a plugin before its database answered, want none registered")
 	}
 }
 
@@ -497,7 +467,7 @@ func TestNotUpYetHoldsWhatAPoolAnswersWithNoServerThere(t *testing.T) {
 	}
 }
 
-func TestReadyWaitsForTheDatabaseBeforeItAsksAboutTheRole(t *testing.T) {
+func TestReachDatabaseWaitsForTheDatabaseBeforeItAsksAboutTheRole(t *testing.T) {
 	t.Parallel()
 
 	handle, err := openPostgres(settingsEnv(testkit.Getenv(nil)), unreachableDatabaseURL)
@@ -511,10 +481,10 @@ func TestReadyWaitsForTheDatabaseBeforeItAsksAboutTheRole(t *testing.T) {
 	start := boot{settings: settings, built: site{pgHandle: handle}, host: pluginkit.NewHost(),
 		logger: testLogger(&bytes.Buffer{})}
 
-	err = start.ready(t.Context())
+	err = start.reachDatabase(t.Context())
 
 	want := "the database did not answer within 0s, the time GOPHENBERG_DATABASE_WAIT allows: "
 	if err == nil || !strings.HasPrefix(err.Error(), want) {
-		t.Errorf("ready() = %v, want %q before the role is asked about", err, want)
+		t.Errorf("reachDatabase() = %v, want %q before the role is asked about", err, want)
 	}
 }

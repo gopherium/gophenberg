@@ -87,6 +87,9 @@ type operatorScenario struct {
 	told    answered
 	gate    string
 	release func()
+
+	compiled registrations
+	stopping context.CancelFunc
 }
 
 // initializeOperatorCommands returns the binding of the operator command steps on engine, t holding their databases.
@@ -135,6 +138,7 @@ func initializeOperatorCommands(t *testing.T, engine operatorEngine) func(*godog
 		initializeCoreUpdates(sc, s)
 		initializeDatabaseWait(sc, s)
 		initializeDatabaseOwner(sc, s)
+		initializePluginPausing(sc, s)
 	}
 }
 
@@ -316,9 +320,12 @@ func (s *operatorScenario) neverRan() error {
 	return nil
 }
 
-// loaded returns the plugins the scenario offers, none until a step offers one.
-func (s *operatorScenario) loaded(sdk.Deps) ([]sdk.Plugin, error) {
-	return s.plugins, nil
+// loaded returns the registrations the scenario compiled in, else one for each plugin it offers, none at first.
+func (s *operatorScenario) loaded() registrations {
+	if s.compiled != nil {
+		return s.compiled
+	}
+	return listOf(s.plugins...)
 }
 
 // errorSays fails unless the error stream carries text.
@@ -371,7 +378,7 @@ func (s *operatorScenario) changeRole(email, role, actor string, flags ...string
 
 // records returns the lines account:records lists.
 func (s *operatorScenario) records() ([]string, error) {
-	listed := testkit.Run(s.t, Program(testkit.Getenv(s.env), s.loaded), "", "account:records")
+	listed := testkit.Run(s.t, Program(testkit.Getenv(s.env), s.loaded()), "", "account:records")
 	if listed.Code != 0 {
 		return nil, fmt.Errorf("account:records exited with %d and stderr %q", listed.Code, listed.Stderr)
 	}
@@ -414,7 +421,7 @@ func (s *operatorScenario) run(stdin string, args ...string) {
 // answer returns what the command line answers in process over the scenario's settings, with the code main answers.
 func (s *operatorScenario) answer(stdin string, args ...string) testkit.Result {
 	exits := &exitCodes{}
-	answered := testkit.Run(s.t, commandLine(testkit.Getenv(s.env), s.loaded, exits, s.stamp), stdin, args...)
+	answered := testkit.Run(s.t, commandLine(testkit.Getenv(s.env), s.loaded(), exits, s.stamp), stdin, args...)
 	answered.Code = exits.of(answered.Code)
 	return answered
 }

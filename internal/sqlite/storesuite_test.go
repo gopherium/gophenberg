@@ -15,6 +15,8 @@ import (
 	accounts "github.com/gopherium/framework/gonsole/auth"
 	"github.com/gopherium/framework/gonsole/auth/recordstest"
 	accountsqlite "github.com/gopherium/framework/gonsole/auth/sqlite"
+	"github.com/gopherium/framework/pluginkit"
+	"github.com/gopherium/framework/pluginkit/pluginstoretest"
 	"github.com/gopherium/gouncer"
 	authkitsqlite "github.com/gopherium/gouncer/authkit/sqlite"
 	"github.com/gopherium/gouncer/authkit/storetest"
@@ -105,6 +107,18 @@ func TestCronStoreSuite(t *testing.T) {
 	t.Parallel()
 
 	crontest.Run(t, sqliteCronStores)
+}
+
+// sqlitePluginStore returns a fresh plugin store over a migrated copy of its own.
+func sqlitePluginStore(t *testing.T) pluginkit.PluginStore {
+	t.Helper()
+	return sqlite.NewPluginStore(migrated(t))
+}
+
+func TestPluginStoreSuite(t *testing.T) {
+	t.Parallel()
+
+	pluginstoretest.Run(t, sqlitePluginStore)
 }
 
 // plantTokenOn returns the hook that stores a token in the file behind handle past the store's own checks.

@@ -131,6 +131,12 @@ type CoreMedia struct {
 	UpdatedAt   time.Time
 }
 
+type CorePlugin struct {
+	ID        string
+	State     string
+	LastError string
+}
+
 type CoreSetting struct {
 	Key   string
 	Value string

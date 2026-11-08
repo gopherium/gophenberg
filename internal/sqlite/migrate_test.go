@@ -127,8 +127,8 @@ func TestMigrateRecordsTheBaselineInTheCoreVersionTable(t *testing.T) {
 
 	core := count(t, db, "SELECT max(version_id) FROM core_goose_db_version")
 	auth := count(t, db, "SELECT max(version_id) FROM auth_goose_db_version")
-	if core != 27 || auth != 4 {
-		t.Errorf("the highest versions are core %d and auth %d, want the 00027 cron jobs beside the 00004 auth one",
+	if core != 28 || auth != 4 {
+		t.Errorf("the highest versions are core %d and auth %d, want the 00028 plugins beside the 00004 auth one",
 			core, auth)
 	}
 }

@@ -68,11 +68,22 @@ never ran, and return by the time its context ends. When `list` or
 `help` registers the plugins, `DatabaseURL` can be empty. On a SQLite
 database it is always empty.
 
-When a plugin fails to register or to declare its types, Gophenberg
-stops every plugin that registered. When one fails to start, it
-stops the ones already started. On the command line, a plugin that
-fails to register shows under "Not loaded:" in `gophenberg list`,
-and `check`, `migrate` and `seed -yes` fail.
+`serve` takes the plugins one by one. When a plugin fails to
+register, a panic in `Register` included, or fails to declare its
+roles, to declare its types, to migrate or to start, `serve` pauses
+that plugin and the rest of the site starts. A paused plugin's
+routes are not mounted, its roles are left out, and every start
+tries it again, see
+[a plugin that fails at start](/self-hosting/configuration/#a-plugin-that-fails-at-start).
+`serve` also logs a warning when a plugin's `Start` takes longer
+than `GOPHENBERG_PLUGIN_START_BUDGET`, 10 milliseconds unless set,
+though the plugin still starts.
+
+Every other command registers every plugin and pauses none. On the
+command line, a plugin that fails to register shows under
+"Not loaded:" in `gophenberg list`, and `check`, `migrate` and
+`seed -yes` fail. The error names the plugin and the step, such as
+`pluginkit: feed register:` in front of what `Register` returned.
 
 ## The database
 
@@ -389,10 +400,11 @@ under these rules:
   under `plugins/`. A plugin that grants another plugin's capability
   must come after it, so name it after its parent, such as
   `notes-tags` after `notes`. The id `core` is reserved.
-- **A declaration that breaks a rule stops** `serve`, `check`,
-  `migrate`, `seed -yes`, every plugin command and every account
-  command except `account:list` and `account:records`, and the error
-  names your plugin:
+- **A declaration that breaks a rule pauses your plugin** when
+  `serve` starts, so the site serves without its routes and its
+  roles. It stops `check`, `migrate`, `seed -yes`, every plugin
+  command and every account command except `account:list` and
+  `account:records`, and the error names your plugin:
   `plugin notes: goncierge: new capability outside the source's prefix "notes.": "manage_archive"`.
 
 Ask for a capability, never a role name: `session.Can("notes.manage")`

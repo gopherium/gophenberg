@@ -150,6 +150,11 @@ var (
 			postgres: "CHECK (((leased_until IS NULL) = (lease_token IS NULL)))",
 			sqlite:   "(leased_until IS NULL) = (lease_token IS NULL)",
 		},
+		"plugins_state_check": {
+			postgres: "CHECK ((state = ANY (ARRAY['not installed'::text, 'inactive'::text, 'active'::text, " +
+				"'paused'::text])))",
+			sqlite: "state IN ('not installed', 'inactive', 'active', 'paused')",
+		},
 	}
 	// partialPredicates holds each partial index by name with its predicate as PostgreSQL prints it and SQLite keeps it.
 	partialPredicates = map[string]sqlTwin{

@@ -144,7 +144,7 @@ func TestAPluginCommandMisuseExitsAsAMisusedCommandLine(t *testing.T) {
 	}
 	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL})
 
-	got := testkit.Run(t, Program(env, func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil }),
+	got := testkit.Run(t, Program(env, listOf(plugin)),
 		"", "commanding:show")
 
 	if got.Code != gonsole.ExitMisused || !strings.Contains(got.Stderr, "commanding:show takes no arguments") {
@@ -170,7 +170,7 @@ func TestAPluginCommandWithoutANeededFlagExitsAsAMisusedCommandLine(t *testing.T
 			}
 			env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL})
 
-			got := testkit.Run(t, Program(env, func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil }),
+			got := testkit.Run(t, Program(env, listOf(plugin)),
 				"", args...)
 
 			if got.Code != gonsole.ExitMisused || !strings.Contains(got.Stderr, "commanding:show wants -since <day>") ||
@@ -191,7 +191,7 @@ func TestCheckNamesAPluginCommandNeedingAFlagItDoesNotDeclare(t *testing.T) {
 	}
 	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL})
 
-	got := testkit.Run(t, Program(env, func(sdk.Deps) ([]sdk.Plugin, error) { return []sdk.Plugin{plugin}, nil }),
+	got := testkit.Run(t, Program(env, listOf(plugin)),
 		"", "check")
 
 	if got.Code != gonsole.ExitFailed ||

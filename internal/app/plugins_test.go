@@ -94,11 +94,11 @@ func (k *keeper) steps() []string {
 }
 
 // keeping returns a registration answering k over the Deps it is handed.
-func keeping(k *keeper) func(sdk.Deps) ([]sdk.Plugin, error) {
-	return func(deps sdk.Deps) ([]sdk.Plugin, error) {
+func keeping(k *keeper) registrations {
+	return listedAs("keeper", func(deps sdk.Deps) (sdk.Plugin, error) {
 		k.deps = deps
-		return []sdk.Plugin{k}, nil
-	}
+		return k, nil
+	})
 }
 
 func TestLoadPluginsNamesWhatItCannotRead(t *testing.T) {

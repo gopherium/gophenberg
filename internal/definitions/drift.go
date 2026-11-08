@@ -18,11 +18,12 @@ type Held struct {
 	Key     string `json:"key"`
 }
 
-// Walk is what one plugin declared at a boot, what another owner already held and what the site's content kept.
+// Walk is what one plugin declared at a boot, what others held, what the content kept and whether the boot paused it.
 type Walk struct {
 	Declared []Held
 	Skipped  []Held
 	Kept     []Held
+	Paused   bool
 }
 
 // Walked is what every plugin declared at a boot, by the plugin that declared it.
@@ -87,9 +88,9 @@ func Adopt(ctx context.Context, registry *content.Registry, held Held) error {
 	}
 }
 
-// orphaned reports whether a stored row belongs to a plugin that no longer declares it.
+// orphaned reports whether a stored row belongs to a plugin that no longer declares it, a paused plugin aside.
 func orphaned(walked Walked, subject, key, origin string) bool {
-	if origin == "" {
+	if origin == "" || walked[origin].Paused {
 		return false
 	}
 	for _, one := range walked[origin].Declared {

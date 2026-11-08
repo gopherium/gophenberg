@@ -42,6 +42,14 @@ func idsOf(plugins []sdk.Plugin) []string {
 	return ids
 }
 
+// handedKeeper returns the registration of a keeper plugin whose Register keeps what it is handed in handed.
+func handedKeeper(handed *sdk.Deps) registrations {
+	return listedAs("keeper", func(deps sdk.Deps) (sdk.Plugin, error) {
+		*handed = deps
+		return &keeper{deps: deps}, nil
+	})
+}
+
 func TestComposeRegistersThePluginsWithoutMigrating(t *testing.T) {
 	t.Parallel()
 
@@ -50,10 +58,7 @@ func TestComposeRegistersThePluginsWithoutMigrating(t *testing.T) {
 	var handed sdk.Deps
 
 	built, err := compose(composeConfig{databaseURL: databaseURL, fieldDepth: 4, getenv: getenv},
-		func(deps sdk.Deps) ([]sdk.Plugin, error) {
-			handed = deps
-			return keeping(&keeper{})(deps)
-		})
+		handedKeeper(&handed))
 
 	if err != nil {
 		t.Fatalf("compose() error = %v, want nil", err)
@@ -142,10 +147,7 @@ func TestComposeInDescribeModeNeedsNoDatabaseSetting(t *testing.T) {
 
 	var handed sdk.Deps
 
-	built, err := compose(composeConfig{describe: true, fieldDepth: 4}, func(deps sdk.Deps) ([]sdk.Plugin, error) {
-		handed = deps
-		return keeping(&keeper{})(deps)
-	})
+	built, err := compose(composeConfig{describe: true, fieldDepth: 4}, handedKeeper(&handed))
 
 	if err != nil {
 		t.Fatalf("compose() error = %v, want the plugins registered without a database setting", err)
@@ -175,9 +177,12 @@ func TestPluginsAreLentNoDatabaseAddressOnSQLite(t *testing.T) {
 func TestReadyOpensNoPluginShareOnSQLite(t *testing.T) {
 	t.Parallel()
 
-	built := site{lane: &pluginLane{sqlite: true}, roles: goncierge.New(), defaultRole: role.Member}
+	built := site{
+		lane: &pluginLane{sqlite: true}, roles: goncierge.New(), defaultRole: role.Member,
+		laneSettings: laneSettings{conns: 4, reserve: 2, queryTimeout: time.Second, txTimeout: time.Second},
+	}
 
-	err := built.ready(laneSettings{conns: 4, reserve: 2, queryTimeout: time.Second, txTimeout: time.Second})
+	err := built.ready()
 
 	if err != nil || built.lane.share.Load() != nil {
 		t.Errorf("ready() = %v with share %v, want nil and the share left closed", err, built.lane.share.Load())

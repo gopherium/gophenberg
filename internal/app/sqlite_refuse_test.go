@@ -172,10 +172,10 @@ func TestServeOnSQLiteAnswersBeforeTheSiteOrTheFileIsTouched(t *testing.T) {
 
 	path := emptySQLiteFile(t)
 	registered := false
-	plugins := func(sdk.Deps) ([]sdk.Plugin, error) {
+	plugins := listedAs("probe", func(sdk.Deps) (sdk.Plugin, error) {
 		registered = true
-		return nil, nil
-	}
+		return idle("probe"), nil
+	})
 
 	got := testkit.Run(t, Program(migratingSQLite(path), plugins), "", "serve")
 
@@ -259,12 +259,12 @@ func TestAPostgreSQLAccountChangeStillReadsTheRolesOfTheRegisteredPlugins(t *tes
 	t.Parallel()
 
 	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL})
-	failing := func(sdk.Deps) ([]sdk.Plugin, error) { return nil, errors.New("plugin teams: a setting is missing") }
+	failing := listedAs("teams", func(sdk.Deps) (sdk.Plugin, error) { return nil, errors.New("a setting is missing") })
 
 	got := testkit.Run(t, Program(env, failing), "",
 		"account:role", "author@example.com", "editor", "-yes", "-as", "admin@example.com")
 
-	if want := "register plugins: plugin teams: a setting is missing"; got.Code != gonsole.ExitFailed ||
+	if want := "register plugins: pluginkit: teams register: a setting is missing"; got.Code != gonsole.ExitFailed ||
 		!strings.Contains(got.Stderr, want) {
 		t.Errorf("account:role on PostgreSQL = %d with stderr %q, want 1 and %q", got.Code, got.Stderr, want)
 	}

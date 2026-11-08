@@ -10,6 +10,7 @@ import (
 	"github.com/gopherium/framework/goncierge"
 	"github.com/gopherium/framework/gonsole"
 	accounts "github.com/gopherium/framework/gonsole/auth"
+	"github.com/gopherium/framework/pluginkit"
 
 	"github.com/gopherium/gophenberg/internal/installer"
 	"github.com/gopherium/gophenberg/internal/version"
@@ -17,20 +18,18 @@ import (
 )
 
 // Main runs the gophenberg command line over the arguments and the standard streams of the process, answering its code.
-func Main(getenv func(string) string, plugins func(sdk.Deps) ([]sdk.Plugin, error)) int {
+func Main(getenv func(string) string, plugins []pluginkit.Registration[sdk.Deps, sdk.Plugin]) int {
 	exits := &exitCodes{}
 	return exits.of(gonsole.Main(commandLine(getenv, plugins, exits, version.Stamp())))
 }
 
 // Program returns the gophenberg command line over getenv and the compiled plugins.
-func Program(getenv func(string) string, plugins func(sdk.Deps) ([]sdk.Plugin, error)) gonsole.Program {
+func Program(getenv func(string) string, plugins []pluginkit.Registration[sdk.Deps, sdk.Plugin]) gonsole.Program {
 	return commandLine(getenv, plugins, &exitCodes{}, version.Stamp())
 }
 
 // commandLine returns the command line of a binary of the build stamp given, keeping in exits the code a run asks for.
-func commandLine(
-	getenv func(string) string, plugins func(sdk.Deps) ([]sdk.Plugin, error), exits *exitCodes, stamp string,
-) gonsole.Program {
+func commandLine(getenv func(string) string, plugins registrations, exits *exitCodes, stamp string) gonsole.Program {
 	roles := goncierge.New()
 	accountCommands := accountConfig(roles, getenv)
 	composed := &sitePool{}

@@ -184,6 +184,7 @@ func TestSchemaNamesEachCheckAsPostgreSQLDoes(t *testing.T) {
 		"cron_jobs_lease_whole": {
 			"INSERT INTO core_cron_jobs (name, next_run_at, leased_until) VALUES ('core/session-sweep', 1, 2)", nil,
 		},
+		"plugins_state_check": {"INSERT INTO core_plugins (id, state) VALUES ('events', 'broken')", nil},
 	} {
 		err := classed(t, db, broken.statement, broken.args...)
 		if !errors.Is(err, dbkit.ErrCheck) || !strings.Contains(err.Error(), "CHECK constraint failed: "+name) {
@@ -209,6 +210,10 @@ func TestSchemaTakesEveryValueItsChecksAllow(t *testing.T) {
 		"VALUES ('file', 'a.pdf', 'application/pdf', ?, 1, 1)", accountID)
 	mustExec(t, db, "UPDATE core_content_fields SET kind = 'media', many = 1")
 	mustExec(t, db, "UPDATE core_content_fields SET kind = 'relation', relates_to = 'post', many = 1")
+	mustExec(t, db, "INSERT INTO core_plugins (id, state) VALUES ('events', 'not installed')")
+	for _, state := range []string{"inactive", "active", "paused"} {
+		mustExec(t, db, "UPDATE core_plugins SET state = ?", state)
+	}
 }
 
 func TestSchemaRefusesAScheduledRowWithNoDate(t *testing.T) {

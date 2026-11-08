@@ -148,12 +148,13 @@ func TestAnAccountChangeStopsOnAPluginThatFailedToRegister(t *testing.T) {
 	t.Parallel()
 
 	getenv := accountsSite(t)
-	failing := func(sdk.Deps) ([]sdk.Plugin, error) { return nil, errors.New("plugin teams: a setting is missing") }
+	failing := listedAs("teams", func(sdk.Deps) (sdk.Plugin, error) { return nil, errors.New("a setting is missing") })
 
 	got := testkit.Run(t, Program(getenv, failing), "",
 		"account:role", "author@example.com", "editor", "-yes", "-as", "admin@example.com")
 
-	if got.Code != gonsole.ExitFailed || !strings.Contains(got.Stderr, "plugin teams: a setting is missing") {
+	if got.Code != gonsole.ExitFailed ||
+		!strings.Contains(got.Stderr, "pluginkit: teams register: a setting is missing") {
 		t.Errorf("account:role with a failed plugin = %d with stderr %q, want 1 and the failure named", got.Code, got.Stderr)
 	}
 	if held := authorRole(t, getenv); held != "author" {

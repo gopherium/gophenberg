@@ -116,6 +116,23 @@ func TestAdriftNamesTheRowsNoPluginDeclaresAnyMore(t *testing.T) {
 	}
 }
 
+func TestAdriftNamesNoOrphanOfAPausedPlugin(t *testing.T) {
+	t.Parallel()
+
+	pool, registrar := declaringPool(t)
+	declared(t, registrar)
+	registry := content.NewRegistry(postgres.NewTypeStore(pool))
+
+	drift, err := definitions.Adrift(t.Context(), registry, definitions.Walked{"events": {Paused: true}})
+
+	if err != nil {
+		t.Fatalf("Adrift() error = %v, want nil", err)
+	}
+	if len(drift.Orphans) != 0 {
+		t.Errorf("orphans = %+v, want none of a plugin the start paused", drift.Orphans)
+	}
+}
+
 func TestAdriftNamesTheKeysAPluginCouldNotClaim(t *testing.T) {
 	t.Parallel()
 

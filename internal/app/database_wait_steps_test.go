@@ -162,7 +162,7 @@ func (w *waitScenario) startAndListen() error {
 	defer cancel()
 	exits := &exitCodes{}
 	logged := &strings.Builder{}
-	code := commandLine(testkit.Getenv(w.env), w.loaded, exits, w.stamp).Run(
+	code := commandLine(testkit.Getenv(w.env), w.loaded(), exits, w.stamp).Run(
 		ctx, []string{"serve"}, strings.NewReader(""), io.Discard, listenRecorder{cancel: cancel, logged: logged})
 	w.result = testkit.Result{Code: exits.of(code), Stderr: logged.String()}
 	if !strings.Contains(w.result.Stderr, "msg=listening") {

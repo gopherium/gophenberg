@@ -4,12 +4,13 @@ package app
 
 import (
 	"context"
-	"errors"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/framework/gonsole/testkit"
+	"github.com/gopherium/framework/pluginkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -64,9 +65,8 @@ func TestRunDeclaresWhatPluginsDeclare(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
-		return []sdk.Plugin{declaringPlugin{groupKey: "event-details"}}, nil
-	})
+	err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel},
+		listOf(declaringPlugin{groupKey: "event-details"}))
 
 	if err != nil {
 		t.Fatalf("run() error = %v, want a clean shutdown", err)
@@ -117,9 +117,8 @@ func TestRunLeavesTheSitesOwnTypeToTheSiteWhenAPluginDeclaresItsKey(t *testing.T
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	err = run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
-		return []sdk.Plugin{declaringPlugin{groupKey: "event-details"}}, nil
-	})
+	err = run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel},
+		listOf(declaringPlugin{groupKey: "event-details"}))
 
 	if err != nil {
 		t.Fatalf("run() error = %v, want the collision skipped and a clean shutdown", err)
@@ -130,18 +129,27 @@ func TestRunLeavesTheSitesOwnTypeToTheSiteWhenAPluginDeclaresItsKey(t *testing.T
 	}
 }
 
-func TestRunReportsADeclarationTheRegistryRefuses(t *testing.T) {
+// wantPausedFor fails unless the database at databaseURL holds the plugin id paused for a failure carrying cause.
+func wantPausedFor(t *testing.T, databaseURL, id string, cause error) {
+	t.Helper()
+	held := recordsAt(t, databaseURL)[id]
+	if held.State != pluginkit.PluginPaused || !strings.Contains(held.LastError, cause.Error()) {
+		t.Errorf("the %s record = %+v, want it paused for %q", id, held, cause)
+	}
+}
+
+func TestRunPausesAPluginWhoseDeclarationTheRegistryRefuses(t *testing.T) {
 	t.Parallel()
 
-	env := map[string]string{"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t)}
+	databaseURL := emptyDatabaseURL(t)
 
-	err := run(t.Context(), testkit.Getenv(env), noWriter{}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
-		return []sdk.Plugin{declaringPlugin{groupKey: "Not A Key"}}, nil
-	})
+	err := serveUntilListening(t, map[string]string{"GOPHENBERG_DATABASE_URL": databaseURL},
+		listOf(declaringPlugin{groupKey: "Not A Key"}))
 
-	if !errors.Is(err, content.ErrInvalidGroupKey) {
-		t.Errorf("run() error = %v, want %v in its chain", err, content.ErrInvalidGroupKey)
+	if err != nil {
+		t.Fatalf("run() error = %v, want the site served with the plugin paused", err)
 	}
+	wantPausedFor(t, databaseURL, "events", content.ErrInvalidGroupKey)
 }
 
 // nestingPlugin declares one content type and a group holding a text field inside a section inside a section.
@@ -170,30 +178,17 @@ func (nestingPlugin) DeclareTypes(ctx context.Context, types sdk.TypeRegistrar) 
 	})
 }
 
-func TestRunReportsADeclaredFieldDeeperThanTheFieldDepthAllows(t *testing.T) {
+func TestRunPausesAPluginDeclaringAFieldDeeperThanTheFieldDepthAllows(t *testing.T) {
 	t.Parallel()
 
-	env := map[string]string{
-		"GOPHENBERG_DATABASE_URL": emptyDatabaseURL(t),
-		"GOPHENBERG_FIELD_DEPTH":  "1",
-		"GOPHENBERG_ADDR":         "localhost:0",
+	databaseURL := emptyDatabaseURL(t)
+
+	err := serveUntilListening(t, map[string]string{
+		"GOPHENBERG_DATABASE_URL": databaseURL, "GOPHENBERG_FIELD_DEPTH": "1",
+	}, listOf(nestingPlugin{}))
+
+	if err != nil {
+		t.Fatalf("run() error = %v, want the site served with the plugin paused", err)
 	}
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	err := run(ctx, testkit.Getenv(env), cancelOnListen{cancel: cancel}, func(_ sdk.Deps) ([]sdk.Plugin, error) {
-		return []sdk.Plugin{nestingPlugin{}}, nil
-	})
-
-	if !errors.Is(err, content.ErrFieldTooDeep) {
-		t.Errorf("run() error = %v, want %v in its chain", err, content.ErrFieldTooDeep)
-	}
-}
-
-// noWriter discards what is written to it.
-type noWriter struct{}
-
-// Write discards the bytes and reports them written.
-func (noWriter) Write(p []byte) (int, error) {
-	return len(p), nil
+	wantPausedFor(t, databaseURL, "events", content.ErrFieldTooDeep)
 }

@@ -54,7 +54,7 @@ func serveOnce(t *testing.T, databaseURL string, plugins ...sdk.Plugin) (string,
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	logged := &listenLog{cancel: cancel}
-	err := run(ctx, testkit.Getenv(env), logged, func(sdk.Deps) ([]sdk.Plugin, error) { return plugins, nil })
+	err := run(ctx, testkit.Getenv(env), logged, listOf(plugins...))
 	return logged.String(), err
 }
 

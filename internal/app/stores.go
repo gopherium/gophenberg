@@ -11,11 +11,13 @@ import (
 	"github.com/gopherium/framework/gonsole"
 	accountpg "github.com/gopherium/framework/gonsole/auth/postgres"
 	accountsqlite "github.com/gopherium/framework/gonsole/auth/sqlite"
+	"github.com/gopherium/framework/pluginkit"
 	"github.com/gopherium/gouncer/authkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	authkitsqlite "github.com/gopherium/gouncer/authkit/sqlite"
 	"github.com/gopherium/gouncer/avatar"
 
+	"github.com/gopherium/gophenberg/internal/accountbridge"
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/cron"
 	"github.com/gopherium/gophenberg/internal/media"
@@ -65,6 +67,11 @@ type site struct {
 	avatars     avatar.Options
 	cronStore   cron.Store
 	major       func(context.Context) (int, error)
+
+	pluginRecords pluginkit.PluginStore
+	laneSettings  laneSettings
+	accounts      *accountbridge.Reader
+	deps          sdk.Deps
 }
 
 // composeOf returns the values compose reads out of the server settings.
@@ -105,6 +112,8 @@ func postgresStores(cfg composeConfig) (site, error) {
 		release:   func() { _ = handle.Close() },
 		cronStore: postgres.NewCronStore(pool),
 		major:     majorOf(handle.DB),
+
+		pluginRecords: postgres.NewPluginStore(pool),
 	}
 	built.registry = registryFrom(cfg.fieldDepth, built.types)
 	return built, nil
@@ -123,6 +132,8 @@ func sqliteStores(cfg composeConfig) site {
 		release:   func() {},
 		cronStore: sqlite.NewCronStore(cfg.handle),
 		major:     noMajor,
+
+		pluginRecords: sqlite.NewPluginStore(cfg.handle),
 	}
 }
 

@@ -52,6 +52,7 @@ so it takes the default.
 | `GOPHENBERG_PLUGIN_DB_RESERVE` | No | `2` | How many of the database pool's connections the plugins' share always leaves to the site, from 1 to 1000. The share holds at most `GOPHENBERG_DATABASE_MAX_CONNS` less this reserve. The server refuses to start when the reserve leaves plugins no connection, so a cap of 2 needs a reserve of 1 |
 | `GOPHENBERG_PLUGIN_QUERY_TIMEOUT` | No | `5s` | How long one plugin statement may run, its wait for a slot included. It also ends a plugin's read of account names |
 | `GOPHENBERG_PLUGIN_TX_TIMEOUT` | No | `30s` | How long one plugin transaction may stay open |
+| `GOPHENBERG_PLUGIN_START_BUDGET` | No | `10ms` | How long one plugin's `Start` may take before `serve` logs a warning naming it. A slower plugin still starts, see [a plugin that fails at start](#a-plugin-that-fails-at-start) |
 | `GOPHENBERG_AVATARS` | No | `initials` | How the site draws avatars: `initials`, `gravatar` or `off`, see [avatars](#avatars) |
 | `GOPHENBERG_AVATAR_DEFAULT` | No | `mystery` | The picture Gravatar shows for an email address it does not know: `mystery`, `blank`, `gravatar_default`, `identicon`, `wavatar`, `monsterid`, `retro`, `robohash` or `color`. WordPress's `initials` is refused, see [avatars](#avatars) |
 | `GOPHENBERG_AVATAR_RATING` | No | `G` | The most mature Gravatar picture an avatar may show: `G`, `PG`, `R` or `X` |
@@ -854,7 +855,6 @@ The server refuses to start, and says why, when:
   one whose `index.html` the server cannot read, such as a page only
   another user may read. The message names the reason and tells you
   to unset the setting to serve the admin built into the binary.
-- `GOPHENBERG_FEED_ITEMS` is not a positive whole number.
 - `GOPHENBERG_MEDIA_UPLOAD_CAP_MB` is not a positive whole number, or
   names more megabytes than the server can count in bytes.
 - `GOPHENBERG_MEDIA_CONCURRENT_IMAGES` is not a whole number from 1 to 64.
@@ -873,7 +873,8 @@ The server refuses to start, and says why, when:
   Write them as durations, `1h`, `90s`, `5m`. Part of a second is
   refused, because the header counts in whole seconds.
 - Any of the theme timings, HTTP timeouts, shutdown graces, cron job
-  timings, update timings, the upload timeout or
+  timings, update timings, the upload timeout,
+  `GOPHENBERG_PLUGIN_START_BUDGET` or
   `GOPHENBERG_DATABASE_WAIT_INTERVAL` is not a positive duration.
   Write them the way Go does, `30s`, `500ms`, `1m`.
 - `GOPHENBERG_DATABASE_WAIT` is not a duration of `0` or more.
@@ -915,7 +916,10 @@ The server refuses to start, and says why, when:
   `GOPHENBERG_AVATAR_RATING` names a value outside its list. The
   message names the setting and the value.
 - `GOPHENBERG_DEFAULT_ROLE` names a role neither the core nor a plugin
-  declares. The message names the setting and the value.
+  declares. The message names the setting and the value. When the
+  start paused a plugin, the message ends with the plugins it paused,
+  since their roles are left out, see
+  [a plugin that fails at start](#a-plugin-that-fails-at-start).
 - `GOPHENBERG_THEME` pins a theme that fails to load, see
   [installing a theme](/themes/installing-a-theme/). A theme chosen
   in the admin does not stop startup.
@@ -954,6 +958,82 @@ settings it refuses and exits with code 1:
 ```sh
 docker compose run --rm -T gophenberg check
 ```
+
+### A plugin that fails at start
+
+The site keeps one record for each plugin compiled into it, in its
+database. A record holds the plugin's state, which is active,
+paused, inactive or not installed, and the error that paused it.
+The first start that sees a plugin records it as active.
+
+At every start, `serve` takes the active and paused plugins one by
+one. It pauses a plugin at the first of these steps that returns an
+error or panics, and the rest of the site starts and serves:
+
+- `register`, when its `Register` runs, or when its `ID()` returns
+  anything but the `id` in its manifest
+- `roles`, when it declares its roles
+- `types`, when it declares its content types
+- `migrate`, when its schema is applied
+- `start`, when its `Start` runs
+
+While a plugin is paused:
+
+- Its routes are not mounted, so its addresses under
+  `/api/plugins/<id>/` answer the site's 404.
+- Its roles are left out of the site.
+- The content types and field groups it declared at an earlier
+  start stay, since the site stores them with its content. They are
+  still the plugin's own, so the **Field Groups** screen offers none
+  of them to adopt.
+
+`serve` logs each pause as a warning that names the plugin, the step
+and the error. With `GOPHENBERG_FEED_ITEMS=banana`, the line reads:
+
+```text
+time=2026-11-08T09:30:12.345Z level=WARN msg="plugin paused" plugin=feed step=register error="pluginkit: feed register: GOPHENBERG_FEED_ITEMS: must be a whole number, got \"banana\""
+```
+
+Every start tries a paused plugin again. Once it starts, it is
+active again and its error is cleared. So fix the setting and
+restart the server, and the plugin comes back with no other step.
+
+An inactive plugin is one turned off on purpose. It is never
+registered or tried. No screen or command turns a plugin off or on
+yet.
+
+A start cut short by a shutdown, such as a `SIGTERM` while the
+plugins start, pauses nothing.
+
+The check of the first start after an update asks for the core's
+pages only, so a plugin that fails at that start is paused and the
+update is kept, see
+[the boot guard](/self-hosting/updates-and-backups/#the-boot-guard).
+
+A paused plugin's roles count as undeclared, so a
+`GOPHENBERG_DEFAULT_ROLE` that names one of them still stops the
+start. The message then ends with the plugins this start paused:
+
+```text
+gophenberg: GOPHENBERG_DEFAULT_ROLE: must name a role the core or a plugin declares, got "archivist", and this start paused notes
+```
+
+`serve` also times each plugin's `Start`. A plugin whose `Start`
+takes longer than `GOPHENBERG_PLUGIN_START_BUDGET`, 10 milliseconds
+unless set, gets a warning and still starts. Nothing is paused for
+being slow:
+
+```text
+time=2026-11-08T09:30:12.401Z level=WARN msg="plugin started slower than its budget" plugin=feed took=52.318ms budget=10ms
+```
+
+Every other command registers every compiled plugin and never reads
+or writes these records. So a plugin that fails to register shows
+under `Not loaded:` in `gophenberg list`, and `check`, `migrate`,
+`seed -yes` and every account command except `account:list` and
+`account:records` fail until it is fixed. Run `check` before a
+rollout to catch a bad plugin setting before `serve` pauses the
+plugin.
 
 ## What the binary serves where
 
