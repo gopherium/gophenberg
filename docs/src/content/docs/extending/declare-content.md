@@ -103,7 +103,8 @@ Stop declaring a definition and the rows stay where they are, with
 your plugin's name still on them. The site owner sees them on the
 **Field Groups** screen as coming from a plugin that no longer
 declares them, and gets one button, **Adopt**, which hands the
-definition to the site.
+definition to the site. A plugin the site paused at start has not
+stopped declaring, so its definitions stay its own with no notice.
 
 Nothing is deleted behind anyone's back. A definition that holds
 content keeps holding it until a person decides otherwise.

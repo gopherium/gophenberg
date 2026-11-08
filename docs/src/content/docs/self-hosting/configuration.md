@@ -967,10 +967,10 @@ paused, inactive or not installed, and the error that paused it.
 The first start that sees a plugin records it as active.
 
 At every start, `serve` takes the active and paused plugins one by
-one. It pauses a plugin at the first of these steps it fails, and
-the rest of the site starts and serves:
+one. It pauses a plugin at the first of these steps that returns an
+error or panics, and the rest of the site starts and serves:
 
-- `register`, when its `Register` returns an error or panics
+- `register`, when its `Register` runs
 - `roles`, when it declares its roles
 - `types`, when it declares its content types
 - `migrate`, when its schema is applied
@@ -981,8 +981,10 @@ While a plugin is paused:
 - Its routes are not mounted, so its addresses under
   `/api/plugins/<id>/` answer the site's 404.
 - Its roles are left out of the site.
-- The content types it declared at an earlier start stay, since the
-  site stores them with its content.
+- The content types and field groups it declared at an earlier
+  start stay, since the site stores them with its content. They are
+  still the plugin's own, so the **Field Groups** screen offers none
+  of them to adopt.
 
 `serve` logs each pause as a warning that names the plugin, the step
 and the error. With `GOPHENBERG_FEED_ITEMS=banana`, the line reads:
