@@ -29,6 +29,16 @@ Feature: A site keeps running when one plugin fails at start
     And the plugin records hold "notes" as paused, its error saying "pluginkit: notes register: the title is too long"
     And the site logged that "notes" is paused at the step "register"
 
+  Scenario: A plugin that calls itself by another id is paused under its manifest id
+    Given the Register of "notes" answers a plugin that calls itself "notez"
+    When the site serves
+    Then the route of "events" answers 200
+    And the route of "notes" answers 404
+    And the route of "notez" answers 404
+    And the plugin records hold "notes" as paused, its error saying "the plugin calls itself"
+    And the plugin records hold no record of "notez"
+    And the site logged that "notes" is paused at the step "register"
+
   Scenario: A plugin whose migration fails is paused and never starts
     Given the migration of "notes" fails with "schema exploded"
     When the site serves

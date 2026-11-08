@@ -3,6 +3,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -44,6 +45,7 @@ type pausingScenario struct {
 // pausingPlugin is a compiled plugin of a pausing scenario, failing where the scenario says.
 type pausingPlugin struct {
 	id           string
+	calledAs     string
 	scenario     *pausingScenario
 	registerErr  error
 	booms        map[string]string
@@ -61,6 +63,7 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	p := &pausingScenario{operatorScenario: s, plugins: map[string]*pausingPlugin{}}
 	sc.Given(`^the compiled plugins "([^"]*)" and "([^"]*)"$`, p.compile)
 	sc.Given(`^the Register of "([^"]*)" fails with "([^"]*)"$`, p.failRegister)
+	sc.Given(`^the Register of "([^"]*)" answers a plugin that calls itself "([^"]*)"$`, p.callItself)
 	sc.Given(`^the (Register|Migrate|Roles|DeclareTypes|Start) of "([^"]*)" panics with "([^"]*)"$`, p.panics)
 	sc.Given(`^the migration of "([^"]*)" fails with "([^"]*)"$`, p.failMigration)
 	sc.Given(`^the Start of "([^"]*)" fails with "([^"]*)"$`, p.failStart)
@@ -81,6 +84,7 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Then(`^the plugin records hold "([^"]*)" as (active|inactive|not installed) with no error$`, p.holdsClean)
 	sc.Then(`^the plugin records hold "([^"]*)" as paused, its error saying "([^"]*)"$`, p.holdsPaused)
 	sc.Then(`^the plugin records hold no record$`, p.holdsNone)
+	sc.Then(`^the plugin records hold no record of "([^"]*)"$`, p.holdsNoneOf)
 	sc.Then(`^the site logged that "([^"]*)" is paused at the step "([^"]*)"$`, p.loggedPause)
 	sc.Then(`^the (Register|Start) of "([^"]*)" never ran$`, p.neverRan)
 	sc.Then(`^the site logged a warning that "([^"]*)" started slower than its budget$`, p.warnedSlow)
@@ -95,6 +99,11 @@ func (p *pausingScenario) compile(first, second string) {
 		p.plugins[id] = plugin
 		p.compiled = append(p.compiled, pluginkit.Registration[sdk.Deps, sdk.Plugin]{ID: id, Register: plugin.register})
 	}
+}
+
+// callItself makes the Register of the plugin id answer a plugin whose ID is name.
+func (p *pausingScenario) callItself(id, name string) {
+	p.plugins[id].calledAs = name
 }
 
 // failRegister makes the Register of the plugin id answer text as its error.
@@ -300,6 +309,15 @@ func (p *pausingScenario) holds(
 	return nil
 }
 
+// holdsNoneOf fails when the plugin records hold a record of the plugin id.
+func (p *pausingScenario) holdsNoneOf(ctx context.Context, id string) error {
+	records, err := p.records(ctx)
+	if held, ok := records[id]; err != nil || ok {
+		return fmt.Errorf("the plugin records hold %+v (%v) for %s, want no record", held, err, id)
+	}
+	return nil
+}
+
 // holdsNone fails unless the plugin records hold no record at all.
 func (p *pausingScenario) holdsNone(ctx context.Context) error {
 	records, err := p.records(ctx)
@@ -385,9 +403,9 @@ func (pl *pausingPlugin) register(sdk.Deps) (sdk.Plugin, error) {
 	return pl, nil
 }
 
-// ID returns the plugin's identifier.
+// ID returns the id the plugin calls itself, its manifest id unless the scenario set another.
 func (pl *pausingPlugin) ID() string {
-	return pl.id
+	return cmp.Or(pl.calledAs, pl.id)
 }
 
 // Migrate applies nothing, or answers the failure or the panic the scenario set.
