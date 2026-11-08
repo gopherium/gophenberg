@@ -33,15 +33,20 @@ is set correctly for your proxy.
 | `GOPHENBERG_FEED_TITLE` | `Gophenberg` | The channel title feed readers display |
 | `GOPHENBERG_FEED_ITEMS` | `20` | How many posts the feed carries |
 
-`GOPHENBERG_FEED_ITEMS` must be a positive whole number. Anything
-else stops the server at startup, and makes `check`, `migrate` and
-`seed -yes` fail too. With `banana` as the value, `check` prints:
+`GOPHENBERG_FEED_ITEMS` must be a positive whole number. With
+anything else, the server pauses the feed when it starts and serves
+the rest of the site. The feed's address answers 404 until you fix
+the value and restart the server, see
+[a plugin that fails at start](/self-hosting/configuration/#a-plugin-that-fails-at-start).
+
+`check`, `migrate` and `seed -yes` still fail on a bad value. With
+`banana` as the value, `check` prints:
 
 ```text
-gophenberg: plugin feed: GOPHENBERG_FEED_ITEMS: must be a whole number, got "banana"
+gophenberg: pluginkit: feed register: GOPHENBERG_FEED_ITEMS: must be a whole number, got "banana"
 ```
 
 The command listing still works. It shows the feed under
 **Not loaded**, with the same reason. Run
 [`gophenberg check`](/self-hosting/commands/) before a rollout to
-catch a bad value before the server does.
+catch a bad value before the server pauses the feed.

@@ -73,9 +73,11 @@ Every command is described at https://docs.gophenberg.org/self-hosting/commands/
   plugin offers. They are named after the plugin's id.
 - A `Not loaded:` part at the end names each plugin that failed to
   register, and why, such as a bad `GOPHENBERG_FEED_ITEMS`. The
-  listing still exits with code 0, but `serve`, `check`, `migrate`,
+  listing still exits with code 0, but `check`, `migrate`,
   `seed -yes` and every account command except `account:list` and
-  `account:records` fail until the setting is fixed.
+  `account:records` fail until the setting is fixed. `serve` pauses
+  that plugin and serves the rest of the site, see
+  [a plugin that fails at start](/self-hosting/configuration/#a-plugin-that-fails-at-start).
 
 Every command answers `-h`. `gophenberg account:role -h` and
 `gophenberg help account:role` print the same page, and neither needs
@@ -322,8 +324,10 @@ Reads every setting, registers the plugins and checks the command
 names, without touching the database. It prints
 `settings, plugins and command names are valid`, or names what it
 refuses, one line each, and exits with code 1. Run it before a
-rollout. On a SQLite database it also checks the SQLite settings and
-that the file exists on a local disk, still without connecting to it.
+rollout. A plugin that fails to register fails `check`, although
+`serve` only pauses that plugin. On a SQLite database it also checks
+the SQLite settings and that the file exists on a local disk, still
+without connecting to it.
 It does not open the file, so a folder, a file that is not a SQLite
 database or a read-only file still passes `check` and stops at
 `migrate`. A command that stops on a read-only file leaves the
@@ -357,10 +361,13 @@ gophenberg migrate
 Applies every schema step in order, `accounts`, `records` and `core`,
 then every plugin's schema, and prints `migrated accounts`,
 `migrated records`, `migrated core` and `migrated plugins`.
-`serve` applies the same steps when it starts. Every step waits for a
-lock in the database, so two servers starting together, or a server
-and `migrate`, never apply the same step at once. The second waits,
-then finds nothing left to do.
+`serve` applies the same steps when it starts, except that a plugin
+whose schema fails there is paused while the rest of the site starts,
+see
+[a plugin that fails at start](/self-hosting/configuration/#a-plugin-that-fails-at-start).
+Every step waits for a lock in the database, so two servers starting
+together, or a server and `migrate`, never apply the same step at
+once. The second waits, then finds nothing left to do.
 
 On a SQLite database the lock is the file `<database file>.migrate.lock`,
 such as `site.db.migrate.lock`. It sits beside the file the path
@@ -405,6 +412,10 @@ with `serve`, since a run with no command only prints the listing.
 
 On a SQLite database `serve` exits with code 1 before it opens
 anything, see [on a SQLite database](#on-a-sqlite-database).
+
+A plugin that fails while `serve` starts is paused, and the rest of
+the site serves, see
+[a plugin that fails at start](/self-hosting/configuration/#a-plugin-that-fails-at-start).
 
 When the PostgreSQL server is not up yet, `serve` first waits for it,
 up to `GOPHENBERG_DATABASE_WAIT`, see

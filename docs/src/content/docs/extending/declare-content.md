@@ -50,7 +50,8 @@ lowercase letter, then lowercase letters, numbers and hyphens.
 A route word takes that shape too, and a few words are kept for
 Gophenberg itself: `admin`, `api`, `media`, `gophenberg`,
 `_gophenberg` and `page`. A type declared under one of them is
-refused, and the site will not start.
+refused, and `serve` pauses your plugin, see
+[a plugin that fails at start](/self-hosting/configuration/#a-plugin-that-fails-at-start).
 
 ## Declaring runs on every start
 
@@ -68,8 +69,9 @@ There is no migration to write and no version to bump.
 ## Two changes are refused
 
 Changing a field's **Kind** and changing a type's **Route word**
-both strand content that is already stored. The host refuses them
-and the site will not start, which is loud on purpose.
+both strand content that is already stored. The host refuses them,
+and `serve` pauses your plugin and logs why, while the rest of the
+site starts.
 
 To change either one, declare a new key beside the old one, move
 what you need, and stop declaring the old key.
