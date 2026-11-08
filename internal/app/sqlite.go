@@ -47,7 +47,10 @@ func checkSQLite(env gonsole.Env, address string) error {
 	if _, err := sqlite.SettingsFrom(env); err != nil {
 		return err
 	}
-	_, err := sqlite.MigrateOptionsFrom(env)
+	if _, err := sqlite.MigrateOptionsFrom(env); err != nil {
+		return err
+	}
+	_, err := sqlite.BackupSettingsFrom(env)
 	return err
 }
 
