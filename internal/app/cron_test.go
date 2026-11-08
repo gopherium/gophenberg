@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -531,5 +532,40 @@ func TestTheSessionSweepRunsAsACronJobOnSQLite(t *testing.T) {
 	if err := other.QueryRowContext(t.Context(), "SELECT count(*) FROM auth_sessions").Scan(&left); err != nil ||
 		left != 0 {
 		t.Errorf("%d sessions left after the sweep (%v), want the expired one gone", left, err)
+	}
+}
+
+func TestTheBackupJobRunsAsACronJobOnSQLite(t *testing.T) {
+	t.Parallel()
+
+	path := migratedSQLiteFile(t)
+	db := openSQLiteFile(t, path)
+	settings, err := cronSettingsWith(nil)
+	if err != nil {
+		t.Fatalf("cronSettingsWith() error = %v", err)
+	}
+	logger := slog.New(slog.DiscardHandler)
+	jobs := cronOf(settings, sqliteStores(composeConfig{handle: db, fieldDepth: 4}), logger,
+		backupJobs(scheduleBeside(t, path, nil), db, logger)...)
+
+	first, err := jobs.runs.RunNow()
+	second, againErr := jobs.runs.RunNow()
+
+	if err != nil || first.Ran != 2 {
+		t.Fatalf("the first RunNow() = %+v, %v, want the sweep and the backup run once", first, err)
+	}
+	if againErr != nil || second.Ran != 0 {
+		t.Errorf("the second RunNow() = %+v, %v, want nothing run while neither job is due", second, againErr)
+	}
+	backups := scheduledBackupsIn(t, backupsBeside(path))
+	if len(backups) != 1 {
+		t.Fatalf("%s holds the scheduled backups %+v, want one", backupsBeside(path), backups)
+	}
+	copied := copiedBackup(t, filepath.Join(backupsBeside(path), backups[0].Name()))
+	if held := lastMigratedBy(t, copied); held != thisBuild() {
+		t.Errorf("the scheduled backup records %+v as its last migration, want the file as %+v left it", held, thisBuild())
+	}
+	if stored := cronJobCount(t, openSQLiteFile(t, path)); stored != 2 {
+		t.Errorf("a second handle on the file reads %d cron jobs, want the sweep's and the backup's", stored)
 	}
 }
