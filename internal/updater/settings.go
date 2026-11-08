@@ -37,21 +37,29 @@ type Settings struct {
 
 // SettingsFrom reads the update settings env holds, refusing a relative folder and any value out of range.
 func SettingsFrom(env gonsole.Env) (Settings, error) {
-	root, rootErr := gonsole.Parse(env, "INSTALL_ROOT", "", absolute)
-	data, dataErr := gonsole.Parse(env, "DATA_DIR", "", absolute)
+	layout, layoutErr := BackupSettingsFrom(env)
 	timeout, timeoutErr := env.Duration("UPDATE_DOWNLOAD_TIMEOUT", 10*time.Minute)
 	capMB, capErr := env.Count("UPDATE_DOWNLOAD_CAP_MB", 200, gonsole.AtMost(maxMegabytes))
 	marginMB, marginErr := env.Count("UPDATE_DISK_MARGIN_MB", 64, gonsole.AllowZero(), gonsole.AtMost(maxMegabytes))
 	kept, keptErr := env.Count("UPDATE_BACKUPS_KEEP", 3, gonsole.AtMost(maxBackupsKept))
 	check, checkErr := checkSettingsFrom(env)
-	outsideErr := outsideRoot(env, root, data)
-	if err := errors.Join(rootErr, dataErr, outsideErr, timeoutErr, capErr, marginErr, keptErr, checkErr); err != nil {
+	if err := errors.Join(layoutErr, timeoutErr, capErr, marginErr, keptErr, checkErr); err != nil {
 		return Settings{}, err
 	}
-	check.Root, check.Data, check.DownloadCap, check.DownloadTimeout = root, data, megabytes(capMB), timeout
+	check.Root, check.Data, check.DownloadCap, check.DownloadTimeout = layout.Root, layout.Data, megabytes(capMB), timeout
 	check.DiskMargin, check.BackupsKept = megabytes(marginMB), kept
 	check.PgDump, check.names = cmp.Or(env.Value("PG_DUMP_BIN"), "pg_dump"), env
 	return check, nil
+}
+
+// BackupSettingsFrom reads the install root and the data folder env holds, the only update settings a backup reads.
+func BackupSettingsFrom(env gonsole.Env) (Layout, error) {
+	root, rootErr := gonsole.Parse(env, "INSTALL_ROOT", "", absolute)
+	data, dataErr := gonsole.Parse(env, "DATA_DIR", "", absolute)
+	if err := errors.Join(rootErr, dataErr, outsideRoot(env, root, data)); err != nil {
+		return Layout{}, err
+	}
+	return Layout{Root: root, Data: data}, nil
 }
 
 // outsideRoot refuses a data folder that is the install root or stands inside it.
