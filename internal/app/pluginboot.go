@@ -13,7 +13,6 @@ import (
 	"github.com/gopherium/framework/goncierge"
 	"github.com/gopherium/framework/pluginkit"
 
-	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/role"
 	"github.com/gopherium/gophenberg/sdk"
@@ -88,7 +87,7 @@ func (b boot) declarePlugins(
 	}
 	walked := definitions.Walked{}
 	kept, err := paused.keep(ctx, withRoles, "types", func(plugin sdk.Plugin) error {
-		return declarePluginTypes(ctx, b.built.registry, plugin, walked, b.logger)
+		return b.declarePluginTypes(ctx, plugin, walked)
 	})
 	if err != nil {
 		return nil, nil, err
@@ -181,15 +180,13 @@ func (p *pausing) note(id, step string, err error) {
 	p.paused = append(p.paused, id)
 }
 
-// declarePluginTypes hands a declaring plugin a registrar over registry, noting its walk and what it could not claim.
-func declarePluginTypes(
-	ctx context.Context, registry *content.Registry, plugin sdk.Plugin, walked definitions.Walked, logger *slog.Logger,
-) error {
+// declarePluginTypes hands a declaring plugin a registrar over the types, noting its walk and what it could not claim.
+func (b boot) declarePluginTypes(ctx context.Context, plugin sdk.Plugin, walked definitions.Walked) error {
 	declarer, ok := plugin.(sdk.TypeDeclarer)
 	if !ok {
 		return nil
 	}
-	registrar := definitions.New(registry, plugin.ID())
+	registrar := definitions.New(b.built.registry, plugin.ID())
 	if err := declarer.DeclareTypes(ctx, registrar); err != nil {
 		return err
 	}
@@ -197,11 +194,11 @@ func declarePluginTypes(
 		Declared: registrar.Declared(), Skipped: registrar.Skipped(), Kept: registrar.Kept(),
 	}
 	if kept := registrar.Kept(); len(kept) > 0 {
-		logger.Warn("plugin declarations kept as they stand, the site's content holds them",
+		b.logger.Warn("plugin declarations kept as they stand, the site's content holds them",
 			"plugin", plugin.ID(), "keys", kept)
 	}
 	if skipped := registrar.Skipped(); len(skipped) > 0 {
-		logger.Warn("plugin declarations skipped, another owner holds the key",
+		b.logger.Warn("plugin declarations skipped, another owner holds the key",
 			"plugin", plugin.ID(), "keys", skipped)
 	}
 	return nil
