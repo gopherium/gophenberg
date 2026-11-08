@@ -3,12 +3,12 @@ Feature: A site keeps running when one plugin fails at start
   that paused it. The state is not installed, inactive, active or paused.
   The first start that sees a plugin records it as active. Each start
   registers the active and paused plugins one by one. A plugin that fails
-  to register, migrate, declare its roles or content types, or start is
-  paused with its error, the way WordPress's recovery mode pauses a
-  plugin, and the rest of the site starts. A paused plugin is left out of
-  the site and tried again at every start. An inactive plugin, one turned
-  off on purpose, is never tried. A start cut short by a shutdown pauses
-  nothing.
+  or panics as it registers, migrates, declares its roles or content
+  types, or starts is paused with its error, the way WordPress's
+  recovery mode pauses a plugin, and the rest of the site starts. A
+  paused plugin is left out of the site and tried again at every start.
+  An inactive plugin, one turned off on purpose, is never tried. A start
+  cut short by a shutdown pauses nothing.
 
   Background:
     Given the settings point at an empty database
@@ -67,6 +67,19 @@ Feature: A site keeps running when one plugin fails at start
     And the route of "notes" answers 404
     And the plugin records hold "notes" as paused, its error saying "the field list is missing"
     And the site logged that "notes" is paused at the step "types"
+
+  Scenario Outline: A plugin whose <method> panics is paused and the site serves
+    Given the <method> of "notes" panics with "boom"
+    When the site serves
+    Then the route of "events" answers 200
+    And the route of "notes" answers 404
+    And the plugin records hold "notes" as paused, its error saying "plugin notes <step> panicked: boom"
+    And the site logged that "notes" is paused at the step "<step>"
+
+    Examples:
+      | method       | step  |
+      | Roles        | roles |
+      | DeclareTypes | types |
 
   Scenario: A paused plugin that starts again is active with no error
     Given the plugin records already hold "notes" as paused with "a setting is missing"

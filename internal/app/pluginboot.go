@@ -149,18 +149,30 @@ func (p *pausing) keep(
 ) ([]sdk.Plugin, error) {
 	kept := make([]sdk.Plugin, 0, len(plugins))
 	for _, plugin := range plugins {
-		failed := run(plugin)
+		failed := stepOf(plugin, step, run)
 		if failed == nil {
 			kept = append(kept, plugin)
 			continue
 		}
-		failed = fmt.Errorf("plugin %s %s: %w", plugin.ID(), step, failed)
 		if err := p.records.Pause(ctx, plugin.ID(), failed); err != nil {
 			return nil, err
 		}
 		p.note(plugin.ID(), step, failed)
 	}
 	return kept, nil
+}
+
+// stepOf runs step on plugin, naming both in the error it answers or in the panic it recovered.
+func stepOf(plugin sdk.Plugin, step string, run func(sdk.Plugin) error) (failed error) {
+	defer func() {
+		if caught := recover(); caught != nil {
+			failed = fmt.Errorf("plugin %s %s panicked: %v", plugin.ID(), step, caught)
+		}
+	}()
+	if err := run(plugin); err != nil {
+		return fmt.Errorf("plugin %s %s: %w", plugin.ID(), step, err)
+	}
+	return nil
 }
 
 // note logs the pause of the plugin id at step for err and keeps its id.

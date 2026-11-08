@@ -43,7 +43,7 @@ type pausingPlugin struct {
 	id           string
 	scenario     *pausingScenario
 	registerErr  error
-	registerBoom string
+	booms        map[string]string
 	migrateErr   error
 	startErr     error
 	typesErr     error
@@ -57,7 +57,7 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	p := &pausingScenario{operatorScenario: s, plugins: map[string]*pausingPlugin{}}
 	sc.Given(`^the compiled plugins "([^"]*)" and "([^"]*)"$`, p.compile)
 	sc.Given(`^the Register of "([^"]*)" fails with "([^"]*)"$`, p.failRegister)
-	sc.Given(`^the Register of "([^"]*)" panics with "([^"]*)"$`, p.panicRegister)
+	sc.Given(`^the (Register|Roles|DeclareTypes) of "([^"]*)" panics with "([^"]*)"$`, p.panics)
 	sc.Given(`^the migration of "([^"]*)" fails with "([^"]*)"$`, p.failMigration)
 	sc.Given(`^the Start of "([^"]*)" fails with "([^"]*)"$`, p.failStart)
 	sc.Given(`^the Start of "([^"]*)" takes "([^"]*)"$`, p.slowStart)
@@ -81,7 +81,7 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 // compile compiles the plugins first and second into the scenario's binary, in that order.
 func (p *pausingScenario) compile(first, second string) {
 	for _, id := range []string{first, second} {
-		plugin := &pausingPlugin{id: id, scenario: p}
+		plugin := &pausingPlugin{id: id, scenario: p, booms: map[string]string{}}
 		p.plugins[id] = plugin
 		p.compiled = append(p.compiled, pluginkit.Registration[sdk.Deps, sdk.Plugin]{ID: id, Register: plugin.register})
 	}
@@ -92,9 +92,9 @@ func (p *pausingScenario) failRegister(id, text string) {
 	p.plugins[id].registerErr = errors.New(text)
 }
 
-// panicRegister makes the Register of the plugin id panic with value.
-func (p *pausingScenario) panicRegister(id, value string) {
-	p.plugins[id].registerBoom = value
+// panics makes the method of the plugin id panic with value.
+func (p *pausingScenario) panics(method, id, value string) {
+	p.plugins[id].booms[method] = value
 }
 
 // failMigration makes the migration of the plugin id answer text as its error.
@@ -306,9 +306,7 @@ func (p *pausingScenario) note(step, id string) {
 // register notes the call and answers the plugin, or the failure or the panic the scenario set.
 func (pl *pausingPlugin) register(sdk.Deps) (sdk.Plugin, error) {
 	pl.scenario.note("Register", pl.id)
-	if pl.registerBoom != "" {
-		panic(pl.registerBoom)
-	}
+	pl.boom("Register")
 	if pl.registerErr != nil {
 		return nil, pl.registerErr
 	}
@@ -352,14 +350,23 @@ func (*pausingPlugin) PublicPaths() []string {
 	return []string{pausingRoute}
 }
 
-// Roles returns the roles the scenario had the plugin declare.
+// Roles returns the roles the scenario had the plugin declare, or panics as it set.
 func (pl *pausingPlugin) Roles() []sdk.RoleDeclaration {
+	pl.boom("Roles")
 	return pl.roles
 }
 
-// DeclareTypes declares nothing, or answers the failure the scenario set.
+// DeclareTypes declares nothing, or answers the failure or the panic the scenario set.
 func (pl *pausingPlugin) DeclareTypes(context.Context, sdk.TypeRegistrar) error {
+	pl.boom("DeclareTypes")
 	return pl.typesErr
+}
+
+// boom panics with the value the scenario set for method, if any.
+func (pl *pausingPlugin) boom(method string) {
+	if value := pl.booms[method]; value != "" {
+		panic(value)
+	}
 }
 
 func TestPluginPausing(t *testing.T) {
