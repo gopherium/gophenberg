@@ -50,6 +50,7 @@ Available commands:
   account:records        list who applied which change, the newest first
   account:role           set one account's role
  database
+  database:backup        back up the SQLite file into the backups folder
   database:create-owner  create the role the site logs in as and give it the database, as a superuser
  server
   server:install         install Gophenberg on this Linux server with PostgreSQL, Caddy and a systemd service
@@ -124,15 +125,17 @@ When `GOPHENBERG_DATABASE_URL` names a SQLite file, such as
 | --- | --- |
 | `list`, `help` and `version` | Work as on PostgreSQL |
 | `check` | Works, and also checks the SQLite settings and the file |
-| `migrate` | Works |
+| `migrate` | Works. When a new version opens a file an older one migrated, it backs the file up first |
 | `seed` | Without `-yes` it still prints `would store the demo data` and exits with code 0. With `-yes` it migrates the file, then exits with code 1 |
 | `serve` | Exits with code 1 before it opens anything |
 | `account:create-admin` | Works as on PostgreSQL. It migrates the file first, then asks for the password |
 | Every other `account:` command | Works as on PostgreSQL, on the accounts and the records kept in the file |
 | A plugin command that names a capability | Checks the account in `-as`, then runs, as on PostgreSQL |
+| `database:backup` | Copies the file into the backups folder, see [database:backup](#databasebackup) |
 | `database:create-owner` | Exits with code 1 before it opens anything, since a SQLite file has no roles |
 | `update:apply` | Exits with code 1 before it opens anything |
-| `update:rollback` and `update:status` | Work as on PostgreSQL, since they never open the database |
+| `update:check` | Works as on PostgreSQL. It migrates the file first |
+| `update:rollback` and `update:status` | Work as on PostgreSQL, since they never open the database. With an install root, `update:status` also lists the SQLite backups beside the dumps |
 
 `serve`, `seed -yes`, `database:create-owner` and `update:apply` stop
 and name what they need:
@@ -152,8 +155,14 @@ On a file that was never migrated, run `migrate` first. Until then
 `account:records` and every command that takes `-as` stop with
 `the command records are missing, run migrate first`, and
 `account:list` stops with SQLite's own error.
+
+When a new version of Gophenberg opens a file an older one migrated,
+every command that migrates the file backs it up first: `migrate`,
+`seed -yes`, `account:create-admin`, `account:grant-role -yes` and
+`update:check`. A backup that fails stops the command before it
+migrates anything.
 [A SQLite database](/self-hosting/configuration/#a-sqlite-database)
-covers the address, the file and its settings.
+covers the address, the file, its settings and its backups.
 
 ## Dry runs and -yes
 
@@ -376,6 +385,10 @@ beside the file the link points at. A step waits for it up to
 `GOPHENBERG_SQLITE_MIGRATE_LOCK_WAIT`, 30 seconds unless set, then
 stops with an error. Never delete that file.
 
+On a SQLite file an older version migrated, a new version backs the
+file up before the first step, see
+[backups of the file](/self-hosting/configuration/#backups-of-the-file).
+
 ### seed
 
 ```text
@@ -529,6 +542,35 @@ Sets the role of one account to `admin`, `editor`, `author`,
 of the account named in `-as`, to hand out a role beyond the reach
 of that account, and to take `manage_users` from the last enabled
 account holding it.
+
+### database:backup
+
+```text
+gophenberg database:backup
+```
+
+Copies a SQLite file into its backups folder now, and prints where the
+copy went:
+
+```text
+backed up the database to /srv/gophenberg/backups/1.4.1-20261022T101500Z-manual.sqlite
+```
+
+When a step after the copy fails, a second line names that error, and
+the copy stands all the same. The command never migrates the file and
+changes nothing in it, so it takes no `-yes`. Nothing deletes a backup
+it took, since `GOPHENBERG_SQLITE_BACKUPS_KEEP` counts only the update
+and scheduled backups.
+
+A copy on the server is a convenience, not a backup. Move it off the
+server, by File Manager download or SFTP, then delete it there.
+[Backups of the file](/self-hosting/configuration/#backups-of-the-file)
+says where the folder is, and
+[restoring a backup](/self-hosting/configuration/#restoring-a-backup)
+how to put a backup back.
+
+On PostgreSQL it stops with code 1 and points at `pg_dump`, see
+[what to back up](/self-hosting/updates-and-backups/#what-to-back-up).
 
 ### database:create-owner
 

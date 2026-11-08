@@ -103,7 +103,7 @@ so it takes the default.
 | `GOPHENBERG_UPDATE_DOWNLOAD_CAP_MB` | No | `200` | The most megabytes an update downloads for the release archive |
 | `GOPHENBERG_UPDATE_DOWNLOAD_TIMEOUT` | No | `10m` | How long an update has to download the release archive |
 | `GOPHENBERG_UPDATE_DISK_MARGIN_MB` | No | `64` | How many megabytes of free disk an update asks for beyond `GOPHENBERG_UPDATE_DOWNLOAD_CAP_MB` and, when it takes a backup, the size of the database, so the site still has room once the update is done. `0` asks for none |
-| `GOPHENBERG_UPDATE_BACKUPS_KEEP` | No | `3` | How many database backups the `backups` folder of the install root keeps, from 1 to 100 |
+| `GOPHENBERG_UPDATE_BACKUPS_KEEP` | No | `3` | How many `pg_dump` backups the `backups` folder of the install root keeps, from 1 to 100 |
 | `GOPHENBERG_PG_DUMP_BIN` | No | `pg_dump` | The `pg_dump` an update backs up the database with, a name found on the path or a full path. Its major version must be at least the server's |
 | `GOPHENBERG_UPDATE_ATTEMPTS` | No | `3` | How many times the build an update switched to may try to start. The next start goes back to the build before it, or stays down when the update raised the minimum version and its new build reached the database |
 | `GOPHENBERG_UPDATE_VERIFY_TIMEOUT` | No | `1m` | How long the first start of a new build has to check itself: the server listens, then `/admin/` and `/api/locale` answer 200 and `/` answers below 500 over loopback. `server:install` reads its own from [the server settings](#the-server-settings) |
@@ -398,8 +398,8 @@ only a failed program leaves it stopped, so keep it unset there.
 
 Gophenberg can also keep its data in one SQLite file instead of a
 PostgreSQL server. Only part of Gophenberg runs on SQLite so far:
-`check`, `migrate` and the account commands work, but the site cannot
-serve from the file yet.
+`check`, `migrate`, `database:backup` and the account commands work,
+but the site cannot serve from the file yet.
 
 ### The address
 
@@ -449,15 +449,23 @@ All three sit beside the file the path finally points at, so when
 the path is a symbolic link, they sit beside the file the link points
 at, not beside the link.
 
+With neither `GOPHENBERG_DATA_DIR` nor `GOPHENBERG_INSTALL_ROOT` set,
+the backups of the file go into a `backups` folder beside the path in
+the address, see [backups of the file](#backups-of-the-file).
+
 ### What runs on SQLite
 
 [On a SQLite database](/self-hosting/commands/#on-a-sqlite-database)
 lists what each command does on a SQLite file, and the error a
 command gives when it stops.
 
-[Cron jobs](/self-hosting/cron/), the session sweep included, run only
-while `serve` runs, so none run on a SQLite site yet. `check` still
-checks the cron settings.
+The backup a new version takes before it migrates the file runs now,
+and so does `database:backup`, see
+[backups of the file](#backups-of-the-file).
+
+[Cron jobs](/self-hosting/cron/), the session sweep and the scheduled
+backup included, run only while `serve` runs, so none run on a SQLite
+site yet. `check` still checks the cron settings.
 
 Plugins get no database on SQLite. Their database address is empty,
 their share of the database answers every statement with an error,
@@ -465,6 +473,150 @@ and they cannot read posts yet, see
 [the plugin SDK](/extending/the-plugin-sdk/#the-database). They can
 read account names, see
 [reading account names](/extending/the-plugin-sdk/#reading-account-names).
+
+### Backups of the file
+
+Gophenberg copies the SQLite file into a backups folder in two cases:
+
+- **Before a new version migrates it.** The first command of a new
+  version that migrates the file copies it first: `migrate`,
+  `seed -yes`, `account:create-admin`, `account:grant-role -yes` or
+  `update:check`. A new build of the same version counts as a new
+  version. Later runs of that version take no more backup, and neither
+  does a new empty file or a file a newer version migrated.
+- **On demand.** [`database:backup`](/self-hosting/commands/#databasebackup)
+  copies the file now and prints where the copy went.
+
+A third kind, the scheduled backup, is the
+[cron job](/self-hosting/cron/) `core/sqlite-backup`. It runs every
+`GOPHENBERG_SQLITE_BACKUP_INTERVAL` and logs `backup taken` with the
+path of each copy. Like every cron job it runs only while `serve`
+runs, so it takes no backup yet.
+
+Each backup is a whole SQLite file, checked before it takes its name.
+It holds only the database. The media files in `GOPHENBERG_MEDIA_DIR`
+and your `.env` are not in it, so keep a copy of them as well.
+
+**Where they go.** Into `backups/` inside `GOPHENBERG_DATA_DIR` when it
+is set, else inside `GOPHENBERG_INSTALL_ROOT`, the folder that keeps
+the PostgreSQL dumps. With neither set, into a `backups` folder beside
+the path in the address, even when that path is a symbolic link. So
+`sqlite:/srv/gophenberg/site.db` backs up into
+`/srv/gophenberg/backups/`. Gophenberg makes a missing data folder and
+a missing backups folder with the mode `0700`, and gives each backup
+the mode `0600`, since a backup holds every account. The folder also
+holds `.dbkit-snapshot.lock`, which every backup takes so that two
+never write at once. Leave it in place. With an install root,
+`update:status` lists the backups beside the dumps.
+
+**Their names.** Each name holds the version that last migrated the
+file, the time of the copy in UTC, and the kind:
+
+```text
+1.4.0-20261020T120000Z-update.sqlite      taken before 1.4.1 migrated the file
+1.4.1-20261021T031500Z-scheduled.sqlite   taken by the schedule
+1.4.1-20261022T101500Z-manual.sqlite      taken by database:backup
+```
+
+So a backup taken before an update names the version you updated
+from. A file that records no version yet, such as one only older
+releases migrated, gives a name that starts with `unknown`.
+
+**How many stay.** `GOPHENBERG_SQLITE_BACKUPS_KEEP`, 3 unless set,
+counts the update and scheduled backups together. Once a new one lands,
+the oldest past that count are deleted, and the one just taken always
+stays. A backup `database:backup` took stays out of the count, and
+nothing deletes it, so delete it yourself once it is off the server.
+Under the defaults, three daily scheduled backups push out the backup
+taken before an update, so move that one off the server first.
+
+**Move each backup off the server.** A copy on the server is a
+convenience, not a backup. A disk that fails takes it along with the
+file, and a web host gives little room for copies. Download each
+backup with your host's File Manager, or fetch it over SFTP, then
+delete it on the server.
+
+**When a backup fails.** The command stops before it migrates
+anything. Its error starts with `take the backup before migrating:`,
+names the cause, such as a full disk, and ends with the way out. Free
+room first, by moving backups off the server. When that is not enough,
+the skip setting lets one version migrate the file with no backup:
+
+```sh
+GOPHENBERG_SQLITE_SKIP_BACKUP_FOR=1.4.1
+```
+
+- It applies only to the version it names, so a line left in `.env`
+  does nothing once you move to the next version. Delete it all the
+  same once the file has migrated.
+- It never applies to a version that raises the minimum version of the
+  file, see
+  [going back to an older version](/self-hosting/updates-and-backups/#going-back-to-an-older-version).
+  Such a version takes its backup all the same, since only that backup
+  can take the file back, and its error says the setting does not
+  apply.
+
+**When another backup is running.** Only one backup writes into the
+folder at a time. A command that needs its backup meanwhile waits up to
+`GOPHENBERG_SQLITE_MIGRATE_LOCK_WAIT`, and checks again every
+`GOPHENBERG_SQLITE_MIGRATE_LOCK_POLL`. When the other run took the
+backup this version needs, it goes on with no copy of its own.
+Otherwise it stops and asks you to run it again once that backup ends.
+
+**What you see.** `migrate` prints the same lines with or without a
+backup. On a large file or a slow disk the copy can take minutes before
+the first line shows. Stopping the command then loses nothing, since
+nothing has migrated yet.
+
+**Run as the site's user.** Run every command as the user that runs
+Gophenberg, not as root. As root, a backup stops when another user can
+change the backups folder or a folder above it.
+
+### Restoring a backup
+
+A restore puts a backup in place of the file, and everything written
+since that backup is lost. These steps keep the old file, so you can
+undo the restore. Say the file is `/srv/gophenberg/site.db`, with no
+data folder or install root set, and you go back to the backup taken
+before 1.4.1 migrated it.
+
+First make sure no Gophenberg command runs on the file. Then move the
+file, and the files SQLite keeps beside it, into a new folder only you
+can open. Leave `site.db.migrate.lock` where it is:
+
+```sh
+cd /srv/gophenberg
+mkdir -m 700 before-restore-20261023
+mv site.db site.db-wal site.db-shm before-restore-20261023/
+```
+
+`mv` names each of the three that is not there and moves the rest, so
+a missing `-wal` or `-shm` file is fine. Move a `site.db-journal` too
+when there is one. When the path in the address is a symbolic link,
+take these steps in the folder of the file the link points at, and
+name the backup by its full path.
+
+Copy the backup in under a temporary name, give it the owner and the
+mode the old file had, then rename it to `site.db`:
+
+```sh
+cp backups/1.4.0-20261020T120000Z-update.sqlite site.db.restoring
+chown --reference=before-restore-20261023/site.db site.db.restoring
+chmod --reference=before-restore-20261023/site.db site.db.restoring
+mv site.db.restoring site.db
+```
+
+On macOS, which has no `--reference`, read the owner and the mode of
+the old file with `ls -l` and set them with `chown` and `chmod`.
+
+Then run `migrate` with the version the backup's name starts with,
+1.4.0 here, and check the accounts with `account:list`. A newer
+version migrates the file again, and backs it up first. Put back the
+media files from the same day too, if you keep them apart.
+
+The folder `before-restore-20261023` holds a whole copy of the old
+file and takes room until you delete it. Download it or move it off
+the server, then delete it once the restored file works.
 
 ### The SQLite settings
 
@@ -480,13 +632,22 @@ connections to the file, as it caps a PostgreSQL pool.
 | `GOPHENBERG_SQLITE_CACHE_SIZE` | `2000` | The page cache of each connection, in kibibytes, up to 2147483647. All the caches together may take this times `GOPHENBERG_DATABASE_MAX_CONNS` |
 | `GOPHENBERG_SQLITE_SYNCHRONOUS` | `full` | `full` writes the log to disk at every commit. `normal` writes it only at each checkpoint, which is faster, but a power cut can lose the last commits |
 | `GOPHENBERG_SQLITE_JOURNAL_SIZE_LIMIT` | | The size in bytes the write-ahead log is cut back to after a checkpoint. Unset sets no limit, so the log keeps the largest size it reached |
-| `GOPHENBERG_SQLITE_MIGRATE_LOCK_WAIT` | `30s` | How long a migration waits for the lock file before it stops with an error |
-| `GOPHENBERG_SQLITE_MIGRATE_LOCK_POLL` | `250ms` | How often a waiting migration tries the lock file again |
+| `GOPHENBERG_SQLITE_MIGRATE_LOCK_WAIT` | `30s` | How long a migration waits for the lock file before it stops with an error. A command that needs its backup while another backup runs waits as long, see [backups of the file](#backups-of-the-file) |
+| `GOPHENBERG_SQLITE_MIGRATE_LOCK_POLL` | `250ms` | How often a waiting migration tries the lock file again, and how often a command waiting for another backup checks again |
+| `GOPHENBERG_SQLITE_BACKUP_INTERVAL` | `24h` | How often the schedule backs up the file, from `1h` to `744h`, 31 days. `0` turns the schedule off. It runs only while `serve` runs, so not yet on SQLite |
+| `GOPHENBERG_SQLITE_BACKUPS_KEEP` | `3` | How many update and scheduled backups the backups folder keeps together, from 1 to 100. The backup just taken always stays, and a backup `database:backup` took stays out of the count |
+| `GOPHENBERG_SQLITE_BACKUP_TIME_LIMIT` | `15m` | How long one scheduled backup may run before it is cut short, up to `24h`, in place of `GOPHENBERG_CRON_TIME_LIMIT` |
+| `GOPHENBERG_SQLITE_SKIP_BACKUP_FOR` | | The one version, such as `1.4.1`, that migrates the file with no backup first. It does nothing for any other version, nor for a version that raises the minimum version of the file |
 
 `check` refuses a bad value and names it, for example
 `GOPHENBERG_SQLITE_SYNCHRONOUS: must be full or normal, got "off"`, or
 `GOPHENBERG_SQLITE_BUSY_POLL: must stand at or below the 5s of GOPHENBERG_SQLITE_BUSY_TIMEOUT, got "6s"`
-for a poll longer than the busy timeout.
+for a poll longer than the busy timeout. A bad backup setting reads
+the same way, such as
+`GOPHENBERG_SQLITE_BACKUP_INTERVAL: must be 0 or at least 1h, got "10m"`.
+Every command that migrates the file reads the backup settings too, so
+a bad one stops it before it migrates, and so does a bad
+`GOPHENBERG_DATA_DIR` or `GOPHENBERG_INSTALL_ROOT`.
 
 ## The admin lists
 
