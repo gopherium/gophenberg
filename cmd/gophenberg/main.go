@@ -16,5 +16,5 @@ func main() {
 	if app.ReadsDotEnv(os.Args[1:]) {
 		_ = godotenv.Load()
 	}
-	os.Exit(app.Main(os.Getenv, registerPlugins))
+	os.Exit(app.Main(os.Getenv, pluginRegistrations))
 }

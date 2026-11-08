@@ -14,6 +14,7 @@ import (
 
 	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/gonsole/testkit"
+	"github.com/gopherium/framework/pluginkit"
 
 	"github.com/gopherium/gophenberg/internal/app"
 	"github.com/gopherium/gophenberg/sdk"
@@ -23,8 +24,25 @@ const unreachableDatabaseURL = "postgres://postgres:gophenberg@localhost:9/postg
 
 // settingsOf returns the settings reader under the command line's prefix over env.
 func settingsOf(env map[string]string) sdk.Env {
-	settings := app.Program(testkit.Getenv(env), registerPlugins).Env
+	settings := app.Program(testkit.Getenv(env), pluginRegistrations).Env
 	return sdk.Env{Prefix: settings.Prefix, Getenv: settings.Getenv}
+}
+
+// registeredOver registers every compiled plugin with the settings of env, answering the outcome.
+func registeredOver(env map[string]string) pluginkit.RegisterOutcome[sdk.Plugin] {
+	settings := settingsOf(env)
+	return pluginkit.RegisterEach(pluginRegistrations, func(string) sdk.Deps {
+		return sdk.Deps{Getenv: settings.Getenv, Env: settings}
+	})
+}
+
+// idsOf returns the id of each plugin.
+func idsOf(plugins []sdk.Plugin) []string {
+	ids := make([]string, 0, len(plugins))
+	for _, plugin := range plugins {
+		ids = append(ids, plugin.ID())
+	}
+	return ids
 }
 
 // declaredNames returns every name the package's own files declare, imports aside, sorted.
@@ -79,53 +97,42 @@ func TestTheMainPackageHoldsOnlyTheWiring(t *testing.T) {
 
 	names := declaredNames(t)
 
-	if want := []string{"main", "registerPlugins"}; !slices.Equal(names, want) {
+	if want := []string{"main", "pluginRegistrations"}; !slices.Equal(names, want) {
 		t.Errorf("package main declares %v, want only %v, the rest belongs in internal/app", names, want)
 	}
 }
 
-func TestRegisterPluginsReportsAPluginThatRefusesItsEnvironment(t *testing.T) {
+func TestPluginRegistrationsReportAPluginThatRefusesItsEnvironment(t *testing.T) {
 	t.Parallel()
 
-	settings := settingsOf(map[string]string{"GOPHENBERG_FEED_ITEMS": "banana"})
+	outcome := registeredOver(map[string]string{"GOPHENBERG_FEED_ITEMS": "banana"})
 
-	plugins, err := registerPlugins(sdk.Deps{Getenv: settings.Getenv, Env: settings})
-
-	if err == nil || !strings.Contains(err.Error(), "plugin feed: ") {
-		t.Fatalf("registerPlugins() error = %v, want the feed cap refused and the plugin named", err)
+	if len(outcome.Failed) != 1 || outcome.Failed[0].ID != "feed" ||
+		!strings.Contains(outcome.Failed[0].Err.Error(), "pluginkit: feed register: GOPHENBERG_FEED_ITEMS") {
+		t.Fatalf("RegisterEach() failed %+v, want the feed cap refused and the plugin named", outcome.Failed)
 	}
-	ids := make([]string, 0, len(plugins))
-	for _, plugin := range plugins {
-		ids = append(ids, plugin.ID())
-	}
-	if slices.Contains(ids, "feed") {
-		t.Errorf("registerPlugins() = %v, want the refused feed plugin left out", ids)
+	if ids := idsOf(outcome.Registered); slices.Contains(ids, "feed") {
+		t.Errorf("RegisterEach() registered %v, want the refused feed plugin left out", ids)
 	}
 }
 
-func TestRegisterPluginsWiresEveryManifestedPlugin(t *testing.T) {
+func TestPluginRegistrationsWireEveryManifestedPlugin(t *testing.T) {
 	t.Parallel()
 
-	settings := settingsOf(nil)
+	outcome := registeredOver(nil)
 
-	plugins, err := registerPlugins(sdk.Deps{Getenv: settings.Getenv, Env: settings})
-
-	if err != nil {
-		t.Fatalf("registerPlugins() error = %v, want nil", err)
+	if len(outcome.Failed) != 0 {
+		t.Fatalf("RegisterEach() failed %+v, want none", outcome.Failed)
 	}
-	ids := make([]string, 0, len(plugins))
-	for _, plugin := range plugins {
-		ids = append(ids, plugin.ID())
-	}
-	if !slices.Contains(ids, "feed") {
-		t.Errorf("registerPlugins() = %v, want the feed plugin among them", ids)
+	if ids := idsOf(outcome.Registered); !slices.Contains(ids, "feed") {
+		t.Errorf("RegisterEach() registered %v, want the feed plugin among them", ids)
 	}
 }
 
-func TestRegisterPluginsCommands(t *testing.T) {
+func TestPluginRegistrationsOfferCommands(t *testing.T) {
 	t.Parallel()
 
-	program := app.Program(testkit.Getenv(nil), registerPlugins)
+	program := app.Program(testkit.Getenv(nil), pluginRegistrations)
 	call := gonsole.Call{Env: program.Env, Describe: true}
 
 	loaded, err := program.Plugins(t.Context(), call)
@@ -151,8 +158,8 @@ func TestAFeedThatCannotRegisterShowsUnderNotLoaded(t *testing.T) {
 		"GOPHENBERG_FEED_ITEMS":   "banana",
 	})
 
-	listed := testkit.Run(t, app.Program(env, registerPlugins), "", "list")
-	checked := testkit.Run(t, app.Program(env, registerPlugins), "", "check")
+	listed := testkit.Run(t, app.Program(env, pluginRegistrations), "", "list")
+	checked := testkit.Run(t, app.Program(env, pluginRegistrations), "", "check")
 
 	if listed.Code != gonsole.ExitDone || !strings.Contains(listed.Stdout, "\nNot loaded:\n") ||
 		!strings.Contains(listed.Stdout, "GOPHENBERG_FEED_ITEMS") {
