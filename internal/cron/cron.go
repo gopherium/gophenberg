@@ -11,11 +11,12 @@ import (
 	"time"
 )
 
-// Job is one named piece of work that falls due again each time its interval passes.
+// Job is one named piece of work that falls due again each time its interval passes, under its own time limit if set.
 type Job struct {
-	Name  string
-	Every time.Duration
-	Run   func(ctx context.Context, now time.Time) error
+	Name      string
+	Every     time.Duration
+	TimeLimit time.Duration
+	Run       func(ctx context.Context, now time.Time) error
 }
 
 // Slot is where one stored job stands: when it falls due next and until when a run holds it.
@@ -130,6 +131,8 @@ func refusal(job Job, seen map[string]bool) string {
 		return "a second job of the name"
 	case job.Every <= 0:
 		return "an interval not above zero"
+	case job.TimeLimit < 0:
+		return "a time limit below zero"
 	case job.Run == nil:
 		return "no run"
 	}
