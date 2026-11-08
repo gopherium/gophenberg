@@ -3,8 +3,13 @@
 package updater
 
 import (
+	"cmp"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
+
+	"github.com/gopherium/gophenberg/internal/sqlite/backupfiles"
 )
 
 // Reason names why an install cannot update itself from the admin.
@@ -77,7 +82,7 @@ func (l Layout) backupCount(limit int) BackupCount {
 	if l.Root == "" {
 		return count
 	}
-	backups := datedBackups(l.Backups())
+	backups := listedBackups(l.Backups())
 	count.Kept = len(backups)
 	if len(backups) > 0 {
 		count.Newest = &backups[0].at
@@ -117,10 +122,23 @@ func ReadStatus(settings Settings) (Status, error) {
 
 // backups returns each backup the backups folder keeps, relative to the folder that keeps it, the newest first.
 func (l Layout) backups() []string {
-	dated := datedBackups(l.Backups())
-	names := make([]string, 0, len(dated))
-	for _, backup := range dated {
+	listed := listedBackups(l.Backups())
+	names := make([]string, 0, len(listed))
+	for _, backup := range listed {
 		names = append(names, filepath.Join(backupsFolder, backup.name))
 	}
 	return names
+}
+
+// listedBackups returns each dump and each SQLite backup folder holds with the time it was taken at, the newest first.
+func listedBackups(folder string) []dated {
+	listed := datedBackups(folder)
+	copies, _ := backupfiles.Folder(folder).List()
+	for _, backup := range copies {
+		listed = append(listed, dated{name: backup.Name(), at: backup.At})
+	}
+	slices.SortFunc(listed, func(older, newer dated) int {
+		return cmp.Or(newer.at.Compare(older.at), strings.Compare(newer.name, older.name))
+	})
+	return listed
 }

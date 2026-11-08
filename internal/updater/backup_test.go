@@ -410,6 +410,27 @@ func TestTakeKeepsTheBackupTheStateNamesPastTheNumberItKeeps(t *testing.T) {
 	}
 }
 
+func TestTakeLeavesTheSQLiteBackupsWhenItPrunes(t *testing.T) {
+	t.Parallel()
+
+	backup := backupInto(t, pgDumpOf(t, 18), "postgres://db.example.com/site")
+	backup.Keep = 1
+	copies := []string{
+		"0.19.0-20261002T000000Z-update.sqlite", "0.19.0-20261003T000000Z-scheduled.sqlite",
+		"0.19.0-20261004T000000Z-manual.sqlite",
+	}
+	placeBackups(t, backup, append([]string{"0.19.0-20261001T000000Z.dump"}, copies...)...)
+
+	if err := backup.Take(t.Context()); err != nil {
+		t.Fatalf("Take() = %v, want nil", err)
+	}
+
+	want := append(slices.Clone(copies), backup.Name)
+	if names := folderNames(t, backup.Folder); !slices.Equal(names, want) {
+		t.Errorf("the backups folder holds %v, want every SQLite backup beside the dump just taken %v", names, want)
+	}
+}
+
 func TestTakeRefusesAFailedDumpAndKeepsNoPartOfIt(t *testing.T) {
 	t.Parallel()
 

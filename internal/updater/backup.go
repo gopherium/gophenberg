@@ -23,7 +23,7 @@ import (
 const (
 	// backupTime is how the name of a backup writes the time it was taken at, in UTC.
 	backupTime = "20060102T150405Z"
-	// backupSuffix ends the name of every backup.
+	// backupSuffix ends the name of every dump.
 	backupSuffix = ".dump"
 )
 
@@ -153,7 +153,7 @@ func postgresURL(parsed *url.URL) bool {
 	return parsed.Scheme == "postgres" || parsed.Scheme == "postgresql"
 }
 
-// prune keeps the spared backups and the newest others up to Keep in all, leaving alone each file that is no backup.
+// prune keeps the spared dumps and the newest others up to Keep in all, leaving alone each file that is no dump.
 func (b Backup) prune() {
 	backups := datedBackups(b.Folder)
 	others := slices.DeleteFunc(slices.Clone(backups), b.spared)
@@ -168,7 +168,7 @@ func (b Backup) spared(old dated) bool {
 	return old.name == b.Name || old.name == b.Held
 }
 
-// datedBackups returns each backup folder holds with the time it was taken at, the newest first.
+// datedBackups returns each dump folder holds with the time it was taken at, the newest first.
 func datedBackups(folder string) []dated {
 	entries, _ := os.ReadDir(folder)
 	var backups []dated
@@ -181,7 +181,7 @@ func datedBackups(folder string) []dated {
 	return backups
 }
 
-// takenAt returns the time the name of entry says the backup was taken at, and whether entry is a backup.
+// takenAt returns the time the name of entry says the dump was taken at, and whether entry is a dump.
 func takenAt(entry fs.DirEntry) (time.Time, bool) {
 	stem, dumped := strings.CutSuffix(entry.Name(), backupSuffix)
 	cut := strings.LastIndex(stem, "-")
