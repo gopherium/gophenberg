@@ -128,6 +128,12 @@ type CoreMedia struct {
 	UpdatedAt   dbkit.Time
 }
 
+type CorePlugin struct {
+	ID        string
+	State     string
+	LastError string
+}
+
 type CoreSetting struct {
 	Key   string
 	Value string

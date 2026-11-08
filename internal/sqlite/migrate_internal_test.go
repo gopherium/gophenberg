@@ -72,7 +72,7 @@ func TestTheBaselineRollsBackOverAStoredPostAndAppliesAgain(t *testing.T) {
 	if err := Migrate(t.Context(), db, opts); err != nil {
 		t.Fatalf("Migrate() after the rollback error = %v, want a clean reapply", err)
 	}
-	if err := db.QueryRowContext(t.Context(), tables, versionTable).Scan(&core, &accounts); err != nil || core != 10 {
-		t.Errorf("after the reapply %d core tables are there with error %v, want all 10", core, err)
+	if err := db.QueryRowContext(t.Context(), tables, versionTable).Scan(&core, &accounts); err != nil || core != 11 {
+		t.Errorf("after the reapply %d core tables are there with error %v, want all 11", core, err)
 	}
 }
