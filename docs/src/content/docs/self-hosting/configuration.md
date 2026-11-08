@@ -970,7 +970,8 @@ At every start, `serve` takes the active and paused plugins one by
 one. It pauses a plugin at the first of these steps that returns an
 error or panics, and the rest of the site starts and serves:
 
-- `register`, when its `Register` runs
+- `register`, when its `Register` runs, or when its `ID()` returns
+  anything but the `id` in its manifest
 - `roles`, when it declares its roles
 - `types`, when it declares its content types
 - `migrate`, when its schema is applied

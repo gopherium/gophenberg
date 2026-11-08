@@ -22,7 +22,7 @@ A plugin is a directory under `plugins/` with a `plugin.json`:
 
 | Field | Rules |
 | --- | --- |
-| `id` | Required. Lowercase letters, digits, and hyphens, starting with a letter. Must equal the directory name |
+| `id` | Required. Lowercase letters, digits, and hyphens, starting with a letter. Must equal the directory name and what the plugin's `ID()` returns |
 | `name` | Required. The human readable name |
 | `backend` | The Go import path of the plugin package |
 | `frontend` | The package name of an admin screen, if any |
