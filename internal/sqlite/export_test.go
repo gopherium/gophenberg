@@ -19,10 +19,23 @@ const SettingsLookup = settingsLookup
 // BuildsLookup is buildsLookup, for the tests of a claim whose read of the builds fails.
 const BuildsLookup = buildsLookup
 
+// otherThanRoot is a user id that is not root.
+const otherThanRoot = 1000
+
 // RunAsRoot makes the backups see the process as root until t ends.
 func RunAsRoot(t *testing.T) {
+	runAs(t, 0)
+}
+
+// RunAsUser makes the backups see the process as a user other than root until t ends.
+func RunAsUser(t *testing.T) {
+	runAs(t, otherThanRoot)
+}
+
+// runAs makes the backups see the process as the user euid until t ends.
+func runAs(t *testing.T, euid int) {
 	ran := geteuid
-	geteuid = func() int { return 0 }
+	geteuid = func() int { return euid }
 	t.Cleanup(func() { geteuid = ran })
 }
 

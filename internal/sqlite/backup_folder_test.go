@@ -61,8 +61,7 @@ func wantFolderNamed(t *testing.T, err error, folder string) {
 }
 
 func TestABackupClosesTheFolderALinkNames(t *testing.T) {
-	t.Parallel()
-
+	sqlite.RunAsUser(t)
 	elsewhere := openFolder(t)
 	link := linkTo(t, elsewhere)
 
@@ -113,6 +112,7 @@ func TestABackupLeavesAFolderOnlyItsOwnerOpensAsItIs(t *testing.T) {
 }
 
 func TestABackupStopsWhenItCannotCloseAnOpenFolder(t *testing.T) {
+	sqlite.RunAsUser(t)
 	sqlite.FailModes(t, errPlanted)
 	folder := openFolder(t)
 	plantBackups(t, folder, "0.19.0-20200101T031500Z-update.sqlite")

@@ -156,8 +156,7 @@ func TestABackupMakesAMissingFolderOnlyItsOwnerOpens(t *testing.T) {
 }
 
 func TestABackupOnlyItsOwnerReads(t *testing.T) {
-	t.Parallel()
-
+	sqlite.RunAsUser(t)
 	db := migrated(t)
 	if err := os.Chmod(liveFile(t, db), 0o644); err != nil {
 		t.Fatalf("opening the live file to every reader: %v", err)
