@@ -114,7 +114,6 @@ Feature: A site keeps running when one plugin fails at start
       | the PublicPaths of "notes" panics with "boom" | pluginkit: notes routes panicked: boom              |
       | the Routes of "notes" answers no handler      | pluginkit: notes routes: Routes answered no handler |
 
-  @wip
   Scenario Outline: A plugin whose listed hooks differ from its methods is paused and never starts
     Given <trouble>
     When the site serves
