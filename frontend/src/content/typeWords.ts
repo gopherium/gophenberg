@@ -4,7 +4,7 @@ import type { BulkWords } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, _n, _x, sprintf } from '@wordpress/i18n'
 
-import { deleteTitle, itemWords } from '../lists/itemWords'
+import { deleteTitle, irreversible, itemWords } from '../lists/itemWords'
 import { pluralOf } from './typeText'
 import type { ContentType } from './types'
 
@@ -75,4 +75,26 @@ export function removalTitle(types: ContentType[]): string {
 	}
 	const many = _n('Delete %s content type?', 'Delete %s content types?', types.length, 'gophenberg')
 	return sprintf(many, formatNumber(types.length))
+}
+
+/**
+ * Returns the description of the confirm asked before types are deleted for good.
+ * @param count - How many types the confirm deletes.
+ * @returns What goes with the types and what stays, counting them when there are several, then the warning.
+ */
+export function removalDescription(count: number): string {
+	const what =
+		count === 1
+			? __('The type and its address are deleted, and its field groups stay.', 'gophenberg')
+			: sprintf(
+					_n(
+						'The %s type and its address are deleted, and its field groups stay.',
+						'The %s types and their addresses are deleted, and their field groups stay.',
+						count,
+						'gophenberg',
+					),
+					formatNumber(count),
+				)
+	const kept = __('A type that still holds items, even in the trash, is not deleted.', 'gophenberg')
+	return `${what} ${kept} ${irreversible()}`
 }

@@ -4,7 +4,7 @@ import type { BulkWords } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, _n, sprintf } from '@wordpress/i18n'
 
-import { itemWords } from '../lists/itemWords'
+import { irreversible, itemWords } from '../lists/itemWords'
 import type { Post } from './api'
 
 /**
@@ -31,6 +31,27 @@ export function trashWords(): BulkWords<Post> {
 				formatNumber(count),
 			),
 	})
+}
+
+/**
+ * Returns the description of the confirm asked before posts are deleted for good.
+ * @param count - How many posts the confirm deletes.
+ * @returns What goes with the posts, counting them when there are several, then the warning.
+ */
+export function deleteDescription(count: number): string {
+	const what =
+		count === 1
+			? __('The item is deleted for good, with its revisions and autosaves.', 'gophenberg')
+			: sprintf(
+					_n(
+						'The %s item is deleted for good, with its revisions and autosaves.',
+						'The %s items are deleted for good, with their revisions and autosaves.',
+						count,
+						'gophenberg',
+					),
+					formatNumber(count),
+				)
+	return `${what} ${irreversible()}`
 }
 
 /**

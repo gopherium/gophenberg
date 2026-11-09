@@ -9,11 +9,11 @@ import type { QueryClient } from '@tanstack/react-query'
 import { __ } from '@wordpress/i18n'
 import { useCallback, useMemo } from 'react'
 
-import { irreversible, oneWriteWords } from '../lists/itemWords'
+import { oneWriteWords } from '../lists/itemWords'
 import { originOf } from './typeFields'
 import { AddressDialog, DescribeDialog, MakeDefaultConfirm } from './TypeModals'
 import type { ContentType } from './types'
-import { removalTitle, removalWords, switchWords } from './typeWords'
+import { removalDescription, removalTitle, removalWords, switchWords } from './typeWords'
 import { deleteInTurn, editInTurn, refreshTypes } from './typeWrites'
 
 /**
@@ -163,7 +163,7 @@ export function OpenTypeDialog({ opened, tools, onClose, onBack }: {
 		<ConfirmDialog
 			intent="irreversible"
 			title={removalTitle(opened.items)}
-			description={irreversible()}
+			description={removalDescription(opened.items.length)}
 			confirmLabel={__('Delete', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
 			onConfirm={() => tools.run(opened.items, (type) => deleteInTurn(tools.client, type.key), removalWords())}

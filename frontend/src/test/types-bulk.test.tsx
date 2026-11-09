@@ -97,6 +97,10 @@ test('deletes every picked type behind one confirm, counting them as content typ
 	await userEvent.click(bulkBar().getByRole('button', { name: 'Delete…' }))
 	const dialog = await screen.findByRole('alertdialog')
 	expect(within(dialog).getByRole('heading', { name: 'Delete 2 content types?' })).toBeInTheDocument()
+	expect(dialog).toHaveAccessibleDescription(
+		'The 2 types and their addresses are deleted, and their field groups stay. '
+			+ 'A type that still holds items, even in the trash, is not deleted. This action cannot be undone.',
+	)
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
 	expect(await findToast('2 content types permanently deleted.')).toBeInTheDocument()

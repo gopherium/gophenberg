@@ -62,7 +62,10 @@ test('asks before deleting a type in a confirm titled by the question, and delet
 	const dialog = await openDelete()
 
 	expect(within(dialog).getByRole('heading', { name: 'Delete "Pages"?' })).toBeInTheDocument()
-	expect(dialog).toHaveAccessibleDescription('This action cannot be undone.')
+	expect(dialog).toHaveAccessibleDescription(
+		'The type and its address are deleted, and its field groups stay. '
+			+ 'A type that still holds items, even in the trash, is not deleted. This action cannot be undone.',
+	)
 	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
 	expect(asked).toEqual([])
 })

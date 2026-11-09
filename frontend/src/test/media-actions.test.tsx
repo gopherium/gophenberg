@@ -718,7 +718,9 @@ test('asks before deleting a file for good in a red confirm titled by the questi
 	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 
 	expect(within(dialog).getByRole('heading', { name: 'Delete "Harbor at dawn"?' })).toBeInTheDocument()
-	expect(dialog).toHaveAccessibleDescription('This action cannot be undone.')
+	expect(dialog).toHaveAccessibleDescription(
+		'The file is deleted from your site, with every size made from it. This action cannot be undone.',
+	)
 	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
 	const [cancel, confirm] = within(dialog).getAllByRole('button')
 	expect([cancel.textContent, confirm.textContent]).toEqual(['Cancel', 'Delete permanently'])
@@ -775,6 +777,9 @@ test('deletes every ticked file behind one confirm and counts them', async () =>
 
 	const dialog = await deleteBothTicked()
 	expect(dialog).toHaveAccessibleName('Delete 2 items?')
+	expect(dialog).toHaveAccessibleDescription(
+		'The 2 files are deleted from your site, with every size made from them. This action cannot be undone.',
+	)
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
 	expect(await findToast('2 items permanently deleted.')).toBeInTheDocument()

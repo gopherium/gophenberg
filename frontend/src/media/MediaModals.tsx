@@ -10,11 +10,11 @@ import { __ } from '@wordpress/i18n'
 import { createContext, useContext, useMemo, useState } from 'react'
 
 import { holdWrite, writesSettled } from '../content/postWrites'
-import { deleteTitle, deleteWords, irreversible, nameWords } from '../lists/itemWords'
+import { deleteTitle, deleteWords, nameWords } from '../lists/itemWords'
 import { deleteMedia, editMedia } from './api'
 import type { MediaDescriptions, MediaItem } from './api'
 import { mediaFields } from './fields'
-import { saveFailure, titleOf } from './format'
+import { fileDeleteDescription, saveFailure, titleOf } from './format'
 
 /** What the actions of the media library need from the screen around them. */
 export interface MediaTools {
@@ -256,7 +256,7 @@ function DeleteMediaConfirm({ items, tools, onClose }: {
 		<ConfirmDialog
 			intent="irreversible"
 			title={deleteTitle(items, titleOf)}
-			description={irreversible()}
+			description={fileDeleteDescription(items.length)}
 			confirmLabel={__('Delete permanently', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
 			onConfirm={() =>

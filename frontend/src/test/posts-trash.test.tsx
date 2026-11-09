@@ -481,6 +481,9 @@ test('deletes every ticked post for good behind one confirm and counts them', as
 	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete…' }))
 	const dialog = await screen.findByRole('alertdialog')
 	expect(dialog).toHaveAccessibleName('Delete 2 items?')
+	expect(dialog).toHaveAccessibleDescription(
+		'The 2 items are deleted for good, with their revisions and autosaves. This action cannot be undone.',
+	)
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
 	expect(await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })).toBeInTheDocument()
@@ -564,7 +567,7 @@ test('opens a post removed by emptying the trash as a missing post', async () =>
 	expect(await screen.findByText('Could not load that post.')).toBeInTheDocument()
 })
 
-test('asks to confirm before deleting permanently, titled by the question and saying it cannot be undone', async () => {
+test('asks to confirm before deleting permanently, titled by the question and saying what goes for good', async () => {
 	renderAt('/content/post')
 	await openTrashedRowActions()
 
@@ -573,7 +576,9 @@ test('asks to confirm before deleting permanently, titled by the question and sa
 	const dialog = await screen.findByRole('alertdialog')
 	expect(within(dialog).getByRole('heading', { name: 'Delete "Old Notes"?' })).toBeInTheDocument()
 	expect(dialog).toHaveAccessibleName('Delete "Old Notes"?')
-	expect(dialog).toHaveAccessibleDescription('This action cannot be undone.')
+	expect(dialog).toHaveAccessibleDescription(
+		'The item is deleted for good, with its revisions and autosaves. This action cannot be undone.',
+	)
 	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
 	expect(within(dialog).getByRole('button', { name: 'Delete permanently' }).className).toMatch(/irreversible/)
 	expect(deleted).toEqual([])

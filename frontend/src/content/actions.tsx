@@ -9,8 +9,8 @@ import { __, _x } from '@wordpress/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 
-import { deleteTitle, deleteWords, irreversible } from '../lists/itemWords'
-import { postName, restoreWords, trashWords } from './actionWords'
+import { deleteTitle, deleteWords } from '../lists/itemWords'
+import { deleteDescription, postName, restoreWords, trashWords } from './actionWords'
 import { deletePost, restorePost, trashPost } from './api'
 import type { Post } from './api'
 import { DuplicateDialog, RenamePostDialog } from './NameModals'
@@ -98,7 +98,7 @@ export function OpenPostDialog({ opened, tools, onClose, onBack }: {
 		<ConfirmDialog
 			intent="irreversible"
 			title={deleteTitle(opened.items, postName)}
-			description={irreversible()}
+			description={deleteDescription(opened.items.length)}
 			confirmLabel={__('Delete permanently', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
 			onConfirm={() => tools.run(opened.items, (item) => deletePost(item.id), deleteWords(postName))}
