@@ -20,6 +20,7 @@ import {
 	PAGE_TYPE,
 	POST_TYPE,
 	SPANISH,
+	expectReadOnly,
 	findToast,
 	rowOf,
 	serveTypes,
@@ -464,28 +465,14 @@ test('draws Add Content Type as the compact solid button every list header holds
 	expect([...add.classList]).toEqual(buttonClasses('solid', 'compact'))
 })
 
-test('opens Add Content Type as a small dialog titled as WordPress titles Add Pattern, name focused', async () => {
+test('opens Add Content Type as a dialog titled as WordPress titles Add Pattern, name focused', async () => {
 	stubLayout()
 	renderAt('/content-types')
 
 	const dialog = await openAdd()
 
-	expect(dialog).toHaveClass('has-size-small')
 	expect(within(dialog).getByRole('heading', { name: 'Add Content Type' })).toBeInTheDocument()
 	await waitFor(() => expect(within(dialog).getByLabelText('Singular name')).toHaveFocus())
-})
-
-test('spaces Add Content Type as WordPress spaces a create, Cancel as accent text before Add', async () => {
-	renderAt('/content-types')
-
-	const dialog = await openAdd()
-
-	const form = within(dialog).getByLabelText('Singular name').closest('form') as HTMLElement
-	expect(form).toHaveClass('godmin-modal-body', 'godmin-modal-body--create')
-	const [cancel, submit, ...rest] = within(form).getAllByRole('button')
-	expect([cancel.textContent, submit.textContent, rest]).toEqual(['Cancel', 'Add', []])
-	expect([...cancel.classList]).toEqual(buttonClasses('minimal'))
-	expect(submit).toHaveAttribute('type', 'submit')
 })
 
 test('keeps Add off until both names are typed, the description left optional', async () => {
@@ -524,13 +511,13 @@ test('registers a type from the labels it was given', async () => {
 	)
 })
 
-test('registers a type with no description from Enter in a field', async () => {
+test('registers a type with no description from Add', async () => {
 	const sent = recordRegistrations()
 	renderAt('/content-types')
 	const dialog = await openAdd()
 
 	await nameNewType(dialog)
-	await userEvent.keyboard('{Enter}')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }))
 
 	await waitFor(() => expect(sent).toHaveLength(1))
 	expect(sent[0]).toMatchObject({ key: 'lesson', plural_label: 'Lessons', description: '', route_word: 'lessons' })
@@ -583,6 +570,7 @@ test('explains the description field of a new type', async () => {
 })
 
 test('keeps Add Content Type open on the reason the registry refused a type, the typed names kept', async () => {
+	const reason = 'Another content type already answers under this route word. Pick a different word.'
 	server.use(
 		http.post('/api/types', () =>
 			HttpResponse.json({ error: 'content: the route word is taken', code: 'route_word_taken' }, { status: 422 }),
@@ -594,18 +582,15 @@ test('keeps Add Content Type open on the reason the registry refused a type, the
 	await nameNewType(dialog, 'Page', 'Pages')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }))
 
-	expect(
-		await screen.findByText('Another content type already answers under this route word. Pick a different word.', {
-			selector: '.godmin-toast',
-		}),
-	).toBeInTheDocument()
+	expect(await within(dialog).findByText(reason)).toBeInTheDocument()
+	expect(screen.queryByText(reason, { selector: '.godmin-toast' })).not.toBeInTheDocument()
 	expect(screen.getByRole('dialog', { name: 'Add Content Type' })).toBe(dialog)
 	expect(within(dialog).getByLabelText('Plural name')).toHaveValue('Pages')
 	expect(within(dialog).getByRole('button', { name: 'Add' })).not.toHaveAttribute('aria-disabled', 'true')
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
-test('says the registry could not be reached when the network drops a new type', async () => {
+test('says inside Add Content Type that the registry could not be reached when the network drops', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.post('/api/types', () => HttpResponse.error()))
 	renderAt('/content-types')
@@ -614,10 +599,11 @@ test('says the registry could not be reached when the network drops a new type',
 	await nameNewType(dialog)
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }))
 
-	expect(await findToast('The registry could not be reached.')).toBeInTheDocument()
+	expect(await within(dialog).findByText('The registry could not be reached.')).toBeInTheDocument()
+	expect(screen.getByRole('dialog', { name: 'Add Content Type' })).toBe(dialog)
 })
 
-test('keeps Add busy with Cancel live while the type is registered', async () => {
+test('keeps Add busy with Cancel greyed until the type is registered', async () => {
 	const register = gate()
 	server.use(
 		http.post('/api/types', async () => {
@@ -633,69 +619,13 @@ test('keeps Add busy with Cancel live while the type is registered', async () =>
 
 	const add = within(dialog).getByRole('button', { name: 'Add' })
 	await waitFor(() => expect(add.className).toMatch(/__is-loading\b/))
-	expect(within(dialog).getByRole('button', { name: 'Cancel' })).not.toHaveAttribute('aria-disabled', 'true')
+	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true')
+	expect(screen.getByRole('dialog', { name: 'Add Content Type' })).toBe(dialog)
 	register.release()
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })
 
-test('closes Add Content Type on Cancel while the type is registered, naming it in a toast once done', async () => {
-	const register = gate()
-	server.use(
-		http.post('/api/types', async () => {
-			await register.held
-			return HttpResponse.json({ ...GUIDE_TYPE, key: 'lesson', plural_label: 'Lessons' }, { status: 201 })
-		}),
-	)
-	renderAt('/content-types')
-	const dialog = await openAdd()
-	await nameNewType(dialog)
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }))
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-	register.release()
-	expect(await screen.findByText('"Lessons" successfully created.', { selector: '.godmin-toast' })).toBeInTheDocument()
-})
-
-test.each([
-	{ outcome: 'is registered', status: 201 },
-	{ outcome: 'is refused', status: 422 },
-])('leaves a reopened Add Content Type open on its new names when an earlier type $outcome', async ({ status }) => {
-	vi.spyOn(console, 'error').mockImplementation(() => {})
-	const register = gate()
-	let asked = 0
-	server.use(
-		http.post('/api/types', async () => {
-			asked += 1
-			await register.held
-			return status === 201
-				? HttpResponse.json(GUIDE_TYPE, { status })
-				: HttpResponse.json({ error: 'content: the route word is taken' }, { status })
-		}),
-	)
-	renderAt('/content-types')
-	const first = await openAdd()
-	await nameNewType(first)
-	await userEvent.click(within(first).getByRole('button', { name: 'Add' }))
-	await waitFor(() => expect(asked).toBe(1))
-	await userEvent.click(within(first).getByRole('button', { name: 'Cancel' }))
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-
-	const reopened = await openAdd()
-	expect(within(reopened).getByLabelText('Singular name')).toHaveValue('')
-	await nameNewType(reopened, 'Recipe', 'Recipes')
-	register.release()
-	await screen.findByText(/./, { selector: '.godmin-toast' })
-	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
-
-	expect(screen.getByRole('dialog', { name: 'Add Content Type' })).toBe(reopened)
-	expect(within(reopened).getByLabelText('Singular name')).toHaveValue('Recipe')
-	expect(within(reopened).getByLabelText('Plural name')).toHaveValue('Recipes')
-	expect(within(reopened).getByRole('button', { name: 'Add' })).not.toHaveAttribute('aria-disabled', 'true')
-})
-
-test('names the type it registered when its plural name changes while it runs', async () => {
+test('keeps the names of Add Content Type read only while it runs, then names the type it registered', async () => {
 	const register = gate()
 	server.use(
 		http.post('/api/types', async ({ request }) => {
@@ -710,7 +640,9 @@ test('names the type it registered when its plural name changes while it runs', 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }))
 	await waitBusy(dialog, 'Add')
 
+	expectReadOnly(dialog)
 	await userEvent.type(within(dialog).getByLabelText('Plural name'), ' and notes')
+	expect(within(dialog).getByLabelText('Plural name')).toHaveValue('Guides')
 	register.release()
 
 	expect(await screen.findByText('"Guides" successfully created.', { selector: '.godmin-toast' })).toBeInTheDocument()

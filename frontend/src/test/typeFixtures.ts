@@ -133,6 +133,22 @@ export async function waitBusy(dialog: HTMLElement, name: string) {
 }
 
 /**
+ * Expects every box and every select of a dialog to be read only, as while its write runs.
+ * @param dialog - The dialog.
+ */
+export function expectReadOnly(dialog: HTMLElement) {
+	const boxes = [...within(dialog).queryAllByRole('textbox'), ...within(dialog).queryAllByRole('spinbutton')]
+	const selects = within(dialog).queryAllByRole('combobox')
+	expect(boxes.length + selects.length).toBeGreaterThan(0)
+	for (const box of boxes) {
+		expect(box).toHaveAttribute('readonly')
+	}
+	for (const select of selects) {
+		expect(select).toHaveAttribute('aria-readonly', 'true')
+	}
+}
+
+/**
  * Opens the actions menu of the row a type is listed in.
  * @param name - The name the row shows.
  * @param reader - How the reader finds the list, an English one unless a test names another.

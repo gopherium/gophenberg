@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { InputControl } from '@gophenberg/frontend-sdk'
-import { ConfirmDialog, FormDialog, useCloseWhileOpen, useToaster } from '@gopherium/godmin'
+import { ConfirmDialog, FormDialog, useToaster } from '@gopherium/godmin'
 import type { BulkRun, DialogRun, ListRun } from '@gopherium/godmin'
 import { useQueryClient } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
@@ -169,18 +169,16 @@ const EMPTY_FORM: TypeForm = { singularLabel: '', pluralLabel: '', description: 
 export function AddTypeDialog({ onClose, list }: { onClose: () => void, list: ListRun }) {
 	const client = useQueryClient()
 	const toaster = useToaster()
-	const closeWhileOpen = useCloseWhileOpen(onClose)
 	const [form, setForm] = useState(EMPTY_FORM)
 	const fill = (field: keyof TypeForm) => (value: string) => setForm((now) => ({ ...now, [field]: value }))
 	const add = () =>
 		createType({ ...form, key: slugifyKey(form.singularLabel), routeWord: slugifyKey(form.pluralLabel) }).then(
-			async (created) => {
+			(created) => {
 				toaster.show(sprintf(_x('"%s" successfully created.', 'content type', 'gophenberg'), pluralOf(created)))
-				closeWhileOpen()
 				const ended = list.onRefresh()
-				await refreshTypes(client).then(ended, ended)
+				void refreshTypes(client).then(ended, ended)
 			},
-			(failure: Error) => toaster.show(failure.message),
+			(failure: Error) => ({ error: failure.message }),
 		)
 	return (
 		<FormDialog
@@ -191,28 +189,35 @@ export function AddTypeDialog({ onClose, list }: { onClose: () => void, list: Li
 			onSubmit={add}
 			onClose={onClose}
 		>
-			<InputControl
-				label={__('Singular name', 'gophenberg')}
-				autoComplete="off"
-				value={form.singularLabel}
-				onValueChange={fill('singularLabel')}
-			/>
-			<InputControl
-				label={__('Plural name', 'gophenberg')}
-				description={sprintf(__('This type will answer under /%(word)s.', 'gophenberg'), {
-					word: slugifyKey(form.pluralLabel) || __('address', 'gophenberg'),
-				})}
-				autoComplete="off"
-				value={form.pluralLabel}
-				onValueChange={fill('pluralLabel')}
-			/>
-			<InputControl
-				label={__('Description', 'gophenberg')}
-				description={__('A descriptive summary of the content type.', 'gophenberg')}
-				autoComplete="off"
-				value={form.description}
-				onValueChange={fill('description')}
-			/>
+			{(busy) => (
+				<>
+					<InputControl
+						label={__('Singular name', 'gophenberg')}
+						autoComplete="off"
+						value={form.singularLabel}
+						readOnly={busy}
+						onValueChange={fill('singularLabel')}
+					/>
+					<InputControl
+						label={__('Plural name', 'gophenberg')}
+						description={sprintf(__('This type will answer under /%(word)s.', 'gophenberg'), {
+							word: slugifyKey(form.pluralLabel) || __('address', 'gophenberg'),
+						})}
+						autoComplete="off"
+						value={form.pluralLabel}
+						readOnly={busy}
+						onValueChange={fill('pluralLabel')}
+					/>
+					<InputControl
+						label={__('Description', 'gophenberg')}
+						description={__('A descriptive summary of the content type.', 'gophenberg')}
+						autoComplete="off"
+						value={form.description}
+						readOnly={busy}
+						onValueChange={fill('description')}
+					/>
+				</>
+			)}
 		</FormDialog>
 	)
 }

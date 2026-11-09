@@ -100,13 +100,13 @@ test('narrows the content types to a search', async ({ page }) => {
 	await expect(page).toHaveURL(/search=categ/)
 })
 
-test('adds a type from a 400 pixel Add Content Type whose Add waits for both names', async ({ page }) => {
+test('adds a type from a 560 pixel Add Content Type whose Add waits for both names', async ({ page }) => {
 	await page.goto('/admin/content-types')
 
 	await page.getByRole('button', { name: 'Add Content Type' }).click()
 	const dialog = page.getByRole('dialog', { name: 'Add Content Type' })
 	await expect(dialog.getByLabel('Singular name')).toBeFocused()
-	await frameBox(page, 'width').toBe(400)
+	await frameBox(page, 'width').toBe(560)
 	await expect(dialog.getByRole('button', { name: 'Add', exact: true })).toHaveAttribute('aria-disabled', 'true')
 	await dialog.getByLabel('Singular name').fill(`Lesson ${RUN}`)
 	await dialog.getByLabel('Plural name').fill(`Lessons ${RUN}`)
@@ -118,7 +118,7 @@ test('adds a type from a 400 pixel Add Content Type whose Add waits for both nam
 	await expect(rowOf(page, `Lessons ${RUN}`)).toBeVisible()
 })
 
-test('keeps Add Content Type open on the reason a taken key gave, in a toast', async ({ page }) => {
+test('keeps Add Content Type open on the reason a taken key gave, said inside it', async ({ page }) => {
 	await page.goto('/admin/content-types')
 
 	await page.getByRole('button', { name: 'Add Content Type' }).click()
@@ -127,7 +127,8 @@ test('keeps Add Content Type open on the reason a taken key gave, in a toast', a
 	await dialog.getByLabel('Plural name').fill(`Posts ${RUN}`)
 	await dialog.getByRole('button', { name: 'Add', exact: true }).click()
 
-	await expect(page.locator('.godmin-toast', { hasText: 'Another content type already uses this key.' })).toBeVisible()
+	await expect(dialog.getByText('Another content type already uses this key.')).toBeVisible()
+	await expect(page.locator('.godmin-toast')).toHaveCount(0)
 	await expect(dialog.getByLabel('Plural name')).toHaveValue(`Posts ${RUN}`)
 })
 
