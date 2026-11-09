@@ -103,7 +103,11 @@ settings and command names without touching the database.
   is marked `private, no-store`. A failed one, a refused login
   included, is marked `no-store`. Either way no cache keeps it,
   whatever header your plugin sets. Public paths keep your own
-  header.
+  header. `serve` asks for your routes before `Start` runs, so
+  `Routes` must build its handler without anything `Start` opens.
+  A panic in a route answers the site's internal error, status 500
+  with the code `internal`, and `serve` logs your plugin's name with
+  the stack.
 - **Public paths**: declare `PublicPaths() []string` and those
   exact paths answer without a session, for every method. Exact
   match, never a prefix. This is how the feed serves

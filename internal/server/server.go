@@ -59,7 +59,7 @@ type Config struct {
 	TrustedProxies []string
 	// PublicURL is the address visitors reach the site at. Nil judges each write by the request itself.
 	PublicURL *url.URL
-	// Logger receives the writes the server refuses and the upload files it cannot remove. Nil discards it.
+	// Logger receives refused writes, upload files the server cannot remove and plugin route panics. Nil discards it.
 	Logger *slog.Logger
 	// Theme serves the public site while it is healthy. Nil leaves the built-in renderer serving.
 	Theme Theme
@@ -200,9 +200,10 @@ func NewServer(cfg Config) http.Handler {
 		gated.Use(readerOnly, auth.RequireSession)
 		s.mountAdmin(gated, auth, cfg)
 	})
+	pluginRoutes := pluginRouteSettings(auth, s.logger)
 	for id, handler := range cfg.Plugins {
-		prefix := "/api/plugins/" + id
-		guarded := pluginkit.Protect(handler, cfg.PluginPublicPaths[id], guardPlugin(auth))
+		prefix := pluginPrefix + id
+		guarded := pluginkit.Protect(id, handler, cfg.PluginPublicPaths[id], pluginRoutes)
 		router.Mount(prefix, http.StripPrefix(prefix, guarded))
 	}
 	router.With(identify(cfg.Version)).Handle(assetPrefix+"/*", siteAssets(cfg.Web, headers.asset))
