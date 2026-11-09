@@ -250,6 +250,34 @@ test('trashes two ticked items at once and counts them in a toast', async ({ pag
 	await expect(page.getByRole('link', { name: first, exact: true })).toBeHidden()
 })
 
+test('brings two ticked items back unticked and out of the trash once Undo is pressed in the trash toast', async ({
+	page,
+}) => {
+	const first = `A post the list spec undoes first ${RUN}`
+	const second = `A post the list spec undoes second ${RUN}`
+	await draftTitled(page, first)
+	await draftTitled(page, second)
+	await page.goto(`/admin/content/post?search=${encodeURIComponent('the list spec undoes')}`)
+	await page.getByRole('checkbox', { name: first, exact: true }).check()
+	await page.getByRole('checkbox', { name: second, exact: true }).check()
+	await expect(page.getByText('2 Items selected')).toBeVisible()
+	await page.getByRole('button', { name: 'Trash', exact: true }).click()
+	const toast = page.locator('.godmin-toast', { hasText: '2 items moved to the trash.' })
+	const undo = toast.getByRole('button', { name: 'Undo', exact: true })
+
+	await undo.click()
+
+	await expect(page.locator('#root').getByText('2 posts have been restored.')).toBeVisible()
+	await expect(page.getByRole('link', { name: first, exact: true })).toBeVisible()
+	await expect(page.getByRole('link', { name: second, exact: true })).toBeVisible()
+	await expect(page.getByRole('checkbox', { name: first, exact: true })).not.toBeChecked()
+	await expect(page.getByRole('checkbox', { name: second, exact: true })).not.toBeChecked()
+	await statusTab(page, 'Trash').click()
+	await expect(statusTab(page, 'Trash')).toHaveAttribute('aria-current', 'page')
+	await page.getByRole('searchbox', { name: 'Search posts…', exact: true }).fill(RUN)
+	await expect(page.locator('.godmin-empty').getByText('No results found')).toBeVisible()
+})
+
 test('restores one item from the Trash tab and deletes another for good', async ({ page }) => {
 	const kept = `A post the list spec keeps ${RUN}`
 	const gone = `A post the list spec drops ${RUN}`
