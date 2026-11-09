@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { __ } from '@wordpress/i18n'
+import type { DialogAnswer } from '@gopherium/godmin'
 
 import { errorText } from '../i18n/errors'
 import { fieldSchema, toField } from './types'
@@ -171,12 +172,30 @@ function toGroup(row: z.infer<typeof groupSchema>): FieldGroup {
 export class StaleWriteError extends Error {}
 
 /**
- * Reports whether a turned away write left edits the operator still has to mend.
- * @param state - What the write reported.
- * @returns Whether the dialog reopens on those edits.
+ * Returns what a form over a group's fields answers once its write settles.
+ * @param write - The write the form sent.
+ * @param said - The sentence naming what the write did.
+ * @param reporter - What reports a landed write, and a stale one, where the form was opened from.
+ * @returns Nothing once the write landed or went stale, so the form closes, or the words any other failure shows.
  */
-export function holdsEdits(state: { isError: boolean; error: unknown }): boolean {
-	return state.isError && !(state.error instanceof StaleWriteError)
+export function formAnswer(
+	write: Promise<unknown>,
+	said: string,
+	reporter: { onDone: (said: string) => Promise<void>; onRefused: (cause: unknown) => Promise<void> },
+): Promise<DialogAnswer | undefined> {
+	return write.then(
+		() => {
+			void reporter.onDone(said)
+			return undefined
+		},
+		async (cause: unknown) => {
+			if (!(cause instanceof StaleWriteError)) {
+				return { error: groupErrorMessage(cause) }
+			}
+			await reporter.onRefused(cause)
+			return undefined
+		},
+	)
 }
 
 /**

@@ -5,7 +5,9 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test } from 'vitest'
 
+import { gate } from './gate'
 import { renderAt } from './render'
+import { expectReadOnly, waitBusy } from './typeFixtures'
 
 const POST_TYPE = {
 	key: 'post',
@@ -171,7 +173,33 @@ test('says a field stands on no rules until one is added', async () => {
 	expect(within(dialog).getByText('Without a rule this field always shows.')).toBeInTheDocument()
 })
 
-test('says why the rules were turned away', async () => {
+const CYCLE = 'The rules on sale-note lead back to sale-note itself, so nothing can decide whether to show it. '
+	+ 'Point one of them at another field.'
+
+test('keeps every rule of a field read only while its rules are saved', async () => {
+	const answer = gate()
+	server.use(
+		http.patch('/api/groups/3/fields/:key', async () => {
+			await answer.held
+			return HttpResponse.json(SALE_NOTE)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openConditions('Sale note')
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await waitBusy(dialog, 'Save rules')
+
+	expectReadOnly(dialog)
+	for (const name of ['Remove', 'Add condition', 'Add rule set']) {
+		expect(within(dialog).getByRole('button', { name })).toHaveAttribute('aria-disabled', 'true')
+	}
+	answer.release()
+	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
+})
+
+test('says inside the open rules dialog why the rules were turned away', async () => {
 	server.use(
 		http.patch('/api/groups/3/fields/:key', () =>
 			HttpResponse.json({ error: 'loop', code: 'rule_cycle', meta: { field: 'sale-note' } }, { status: 422 }),
@@ -183,7 +211,9 @@ test('says why the rules were turned away', async () => {
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/sale-note/)
+	expect(await within(dialog).findByText(CYCLE)).toBeInTheDocument()
+	expect(screen.getAllByText(CYCLE)).toHaveLength(1)
+	expect(screen.getByRole('dialog', { name: 'Rules showing Sale note' })).toBe(dialog)
 })
 
 /**
@@ -195,7 +225,7 @@ async function reopenConditions() {
 	return screen.findByRole('dialog', { name: 'Rules showing Sale note' })
 }
 
-test('keeps a refused rules draft for another save after a 422 response', async () => {
+test('keeps a refused rules draft in the open dialog for another save after a 422 response', async () => {
 	const sent: unknown[] = []
 	server.use(
 		http.patch('/api/groups/3/fields/:key', async ({ request }) => {
@@ -209,11 +239,11 @@ test('keeps a refused rules draft for another save after a 422 response', async 
 	await userEvent.click(within(dialog).getByRole('combobox', { name: 'Value' }))
 	await userEvent.click(await screen.findByRole('option', { name: 'No' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
+	expect(await within(dialog).findByText('refused')).toBeInTheDocument()
 
-	const reopened = await reopenConditions()
-	expect(within(reopened).getByRole('combobox', { name: 'Value' })).toHaveTextContent('No')
-	await userEvent.click(within(reopened).getByRole('button', { name: 'Save rules' }))
+	expect(screen.getByRole('dialog', { name: 'Rules showing Sale note' })).toBe(dialog)
+	expect(within(dialog).getByRole('combobox', { name: 'Value' })).toHaveTextContent('No')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
 	await waitFor(() => expect(sent).toHaveLength(2))
 	expect(sent[1]).toEqual(sent[0])
 	expect(sent[1]).toEqual({
@@ -257,7 +287,7 @@ test('starts the rules over on the field read afresh after a stale write', async
 	await waitFor(() => expect(held.updated_at).toBe('2026-08-03T09:00:00Z'))
 })
 
-test('keeps a refused rules draft after cancel', async () => {
+test('starts the rules over from the stored ones once a refused draft is cancelled', async () => {
 	server.use(
 		http.patch('/api/groups/3/fields/:key', () =>
 			HttpResponse.json({ error: 'refused', code: 'rule_cycle', meta: { field: 'sale-note' } }, { status: 422 }),
@@ -267,16 +297,16 @@ test('keeps a refused rules draft after cancel', async () => {
 	const dialog = await openConditions('Sale note')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
+	expect(await within(dialog).findByText(CYCLE)).toBeInTheDocument()
+	expect(within(dialog).getByRole('combobox', { name: 'Source' })).toHaveTextContent('On sale')
 
-	const reopened = await reopenConditions()
-	expect(within(reopened).getByRole('combobox', { name: 'Source' })).toHaveTextContent('On sale')
-	await userEvent.click(within(reopened).getByRole('button', { name: 'Cancel' }))
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
 	const cancelled = await reopenConditions()
-	expect(within(cancelled).getByRole('combobox', { name: 'Source' })).toHaveTextContent('On sale')
+	expect(within(cancelled).getByText('Without a rule this field always shows.')).toBeInTheDocument()
 })
 
-test('starts from stored rules after a successful retry', async () => {
+test('starts from stored rules after a successful retry from the open dialog', async () => {
 	let attempts = 0
 	server.use(
 		http.patch('/api/groups/3/fields/:key', () => {
@@ -290,42 +320,12 @@ test('starts from stored rules after a successful retry', async () => {
 	const dialog = await openConditions('Sale note')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
-	const reopened = await reopenConditions()
-	await userEvent.click(within(reopened).getByRole('button', { name: 'Save rules' }))
+	expect(await within(dialog).findByText('refused')).toBeInTheDocument()
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
 	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
 	const saved = await reopenConditions()
 	expect(within(saved).getByText('Without a rule this field always shows.')).toBeInTheDocument()
-})
-
-test('keeps the save busy on a reopen while the rules are still saving, sending one write', async () => {
-	const sent: unknown[] = []
-	let release = () => {}
-	const released = new Promise<void>((resolve) => {
-		release = resolve
-	})
-	server.use(
-		http.patch('/api/groups/3/fields/:key', async ({ request }) => {
-			sent.push(await request.json())
-			await released
-			return HttpResponse.json(SALE_NOTE)
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openConditions('Sale note')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
-	await waitFor(() => expect(sent).toHaveLength(1))
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-
-	const reopened = await reopenConditions()
-	const saving = within(reopened).getByRole('button', { name: 'Save rules' })
-	expect(saving).toHaveAttribute('aria-disabled', 'true')
-	await userEvent.click(saving)
-	release()
-
-	expect(await screen.findByText('Sale note shows by its rules now.')).toBeInTheDocument()
-	expect(sent).toHaveLength(1)
+	expect(attempts).toBe(2)
 })
 
 test('carries a rule onto another source, starting its condition afresh', async () => {
@@ -521,7 +521,7 @@ test('leaves the stored rules alone when the dialog is cancelled', async () => {
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
-	expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument()
+	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rules showing Sale note' })).not.toBeInTheDocument())
 })
 
 test('falls back to a sibling it can read when a stored rule names one it cannot', async () => {

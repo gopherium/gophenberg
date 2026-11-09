@@ -12,11 +12,13 @@ import {
 	downIcon,
 	upIcon,
 } from '@gophenberg/frontend-sdk'
-import { ErrorNotice } from '@gopherium/godmin'
+import { ConfirmDialog, ErrorNotice, FormDialog } from '@gopherium/godmin'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 
+import { irreversible } from '../lists/itemWords'
 import {
 	backlinkSettings,
 	backlinkSources,
@@ -24,9 +26,9 @@ import {
 	createSubField,
 	deleteFieldInGroup,
 	deleteSubField,
+	formAnswer,
 	groupErrorMessage,
 	groupsQueryKey,
-	holdsEdits,
 	moveField,
 	renameFieldInGroup,
 	reorderFieldsInGroup,
@@ -293,20 +295,58 @@ function FieldsBody(
 	)
 }
 
+/** Where a new field is declared: the group, the types, the groups a backlinks field reads, and the container. */
+interface FieldPlace {
+	group: number
+	types: ContentType[]
+	groups?: FieldGroup[]
+	path?: string
+	parent?: string
+}
+
+/** A new field as its controls hold it, and the write declaring it. */
+interface FieldDraft {
+	controls: ReactNode
+	blocked: boolean
+	pending: boolean
+	declare: () => Promise<unknown>
+	said: string
+	clear: () => void
+}
+
 /**
- * Renders the control declaring a new field into the group.
+ * Renders the control declaring a new field at the top of the group, its failure reported in the dialog around it.
  * @param props - The group, the groups a backlinks field reads, the types, and what to report.
- * @returns The control element.
+ * @returns The controls and the button sending them.
  */
-function AddField(
-	props: Reporter & {
-		group: number
-		types: ContentType[]
-		groups?: FieldGroup[]
-		path?: string
-		parent?: string
-	},
-) {
+function AddField(props: Reporter & FieldPlace) {
+	const draft = useFieldDraft(props)
+
+	/** Declares the field, empties its name once it landed, and reports how the write went. */
+	function declare() {
+		const said = draft.said
+		void draft.declare().then(async () => {
+			draft.clear()
+			await props.onDone(said)
+		}, props.onRefused)
+	}
+
+	return (
+		<Stack direction="column" gap="sm">
+			{draft.controls}
+			<Button loading={draft.pending} disabled={draft.blocked} onClick={declare}>
+				{__('Add field', 'gophenberg')}
+			</Button>
+		</Stack>
+	)
+}
+
+/**
+ * Holds the controls declaring a new field and the write that stores what they hold.
+ * @param props - Where the field is declared.
+ * @returns The controls, read only while the write runs, whether they may be sent yet, and the write.
+ */
+function useFieldDraft(props: FieldPlace): FieldDraft {
 	const [kinds] = useState(() => kindsInside(props.parent))
 	const targets = props.types.map((listed) => ({ label: pluralOf(listed), value: listed.key }))
 	const [presences] = useState<Choice[]>([
@@ -345,24 +385,22 @@ function AddField(
 				? createFieldInGroup(props.group, asked)
 				: createSubField(props.group, props.path, asked)
 		},
-		onSuccess: async () => {
-			setLabel('')
-			await props.onDone(sprintf(__('%(field)s declared.', 'gophenberg'), { field: label }))
-		},
-		onError: props.onRefused,
 	})
-	return (
-		<Stack direction="column" gap="sm">
+	const sending = add.isPending
+	const controls = (
+		<>
 			<InputControl
 				label={_x('Name', 'field', 'gophenberg')}
 				autoComplete="off"
 				value={label}
+				readOnly={sending}
 				onValueChange={setLabel}
 			/>
 			<SelectControl
 				label={_x('Kind', 'field type', 'gophenberg')}
 				items={kinds}
 				value={kind}
+				readOnly={sending}
 				onValueChange={(item) => setKind(chosenOf(item, kinds, kind))}
 			/>
 			{relating && target !== undefined && (
@@ -370,6 +408,7 @@ function AddField(
 					label={__('Points at', 'gophenberg')}
 					items={targets}
 					value={target}
+					readOnly={sending}
 					onValueChange={(item) => setTargetKey(chosenOf(item, targets, target).value)}
 				/>
 			)}
@@ -378,30 +417,32 @@ function AddField(
 					label={__('Holds', 'gophenberg')}
 					items={holdings}
 					value={holding}
+					readOnly={sending}
 					onValueChange={(item) => setHolding(chosenOf(item, holdings, holding))}
 				/>
 			)}
 			{reading && (
-				<SourceOfLinks
-					sources={sources}
-					readOnly={add.isPending}
-					onGroup={setSourceKey}
-					onField={setThroughKey}
-				/>
+				<SourceOfLinks sources={sources} readOnly={sending} onGroup={setSourceKey} onField={setThroughKey} />
 			)}
 			{requirable(picked.kind) && (
 				<SelectControl
 					label={__('Required', 'gophenberg')}
 					items={presences}
 					value={presence}
+					readOnly={sending}
 					onValueChange={(item) => setPresence(chosenOf(item, presences, presence))}
 				/>
 			)}
-			<Button loading={add.isPending} disabled={blocked} onClick={() => add.mutate()}>
-				{__('Add field', 'gophenberg')}
-			</Button>
-		</Stack>
+		</>
 	)
+	return {
+		controls,
+		blocked,
+		pending: sending,
+		declare: () => add.mutateAsync(),
+		said: sprintf(__('%(field)s declared.', 'gophenberg'), { field: label }),
+		clear: () => setLabel(''),
+	}
 }
 
 /** One setting a kind takes, as its control edits it. */
@@ -543,19 +584,41 @@ function settingHeld(shape: SettingControl['shape'], written: string): unknown {
 	return written
 }
 
+/** What a form over one field takes beyond the field: its title and what takes it away. */
+interface Asked {
+	title: string
+	onClose: () => void
+}
+
 /**
- * Renders the control editing the settings a field carries.
+ * Renders the control editing the settings a field carries and, while it asks, its form.
  * @param props - The group, the field, and what to report.
- * @returns The control and its dialog.
+ * @returns The control and its form.
  */
 function FieldSettings(props: Inside) {
-	const offered = settingsOffered(props.field)
+	const [asking, setAsking] = useState(false)
+	const title = sprintf(__('Settings of %(field)s', 'gophenberg'), { field: props.field.label })
+	return (
+		<>
+			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
+				{__('Settings', 'gophenberg')}
+			</Button>
+			{asking ? <SettingsForm {...props} title={title} onClose={() => setAsking(false)} /> : null}
+		</>
+	)
+}
+
+/**
+ * Renders the form editing the settings a field carries, started from the field as read on each ask.
+ * @param props - The group, the field, what to report, the title and what takes the form away.
+ * @returns The form dialog, kept open with what was typed after a failure other than a stale write.
+ */
+function SettingsForm(props: Inside & Asked) {
+	const [opened] = useState(props.field)
+	const offered = settingsOffered(opened)
 	const answers = settingAnswers()
-	const [open, setOpen] = useState(false)
-	const [typed, setTyped] = useState(() => typedSettings(offered, props.field.settings))
-	const [pairs, setPairs] = useState(() => pairsOf(props.field.settings))
-	const [opened, setOpened] = useState(props.field)
-	const asking = sprintf(__('Settings of %(field)s', 'gophenberg'), { field: props.field.label })
+	const [typed, setTyped] = useState(() => typedSettings(offered, opened.settings))
+	const [pairs, setPairs] = useState(() => pairsOf(opened.settings))
 	const save = useMutation({
 		mutationFn: () =>
 			setFieldSettingsInGroup(
@@ -564,94 +627,58 @@ function FieldSettings(props: Inside) {
 				pairedSettings(opened.kind, storedSettings(offered, typed, opened.settings), pairs),
 				opened.updatedAt,
 			),
-		onSuccess: async () => {
-			setOpen(false)
-			await props.onDone(sprintf(__('%(field)s settled.', 'gophenberg'), { field: props.field.label }))
-		},
-		onError: async (cause) => {
-			await props.onRefused(cause)
-			setOpen(false)
-		},
 	})
-
-	/**
-	 * Opens the dialog on the stored settings, or closes it on the edits.
-	 * @param next - Whether the dialog is opening.
-	 */
-	function change(next: boolean) {
-		if (next && !holdsEdits(save)) {
-			setTyped(typedSettings(offered, props.field.settings))
-			setPairs(pairsOf(props.field.settings))
-			setOpened(props.field)
-		}
-		setOpen(next)
-	}
-
+	const said = sprintf(__('%(field)s settled.', 'gophenberg'), { field: props.field.label })
 	return (
-		<>
-			<Button variant="outline" size="compact" aria-label={asking} onClick={() => change(true)}>
-				{__('Settings', 'gophenberg')}
-			</Button>
-			<Dialog.Root open={open} onOpenChange={change}>
-				<Dialog.Popup>
-					<Dialog.Header>
-						<Dialog.Title>{asking}</Dialog.Title>
-						<Dialog.CloseIconButton />
-					</Dialog.Header>
-					<Dialog.Content>
-						<Stack direction="column" gap="md">
-							{offered.map((setting) =>
-								setting.shape === 'choice' ? (
-									<SelectControl
-										key={setting.name}
-										label={setting.label}
-										items={answers}
-										value={chosenOf({ value: typed[setting.name] }, answers, answers[0])}
-										onValueChange={(item) =>
-											setTyped((was) => ({
-												...was,
-												[setting.name]: chosenOf(item, answers, answers[0]).value,
-											}))
-										}
-									/>
-								) : (
-									<InputControl
-										key={setting.name}
-										label={setting.label}
-										type={setting.shape}
-										autoComplete="off"
-										value={typed[setting.name]}
-										onValueChange={(written) =>
-											setTyped((was) => ({ ...was, [setting.name]: written }))
-										}
-									/>
-								),
-							)}
-							{props.field.kind === 'choice' && (
-								<ChoicesEditor pairs={pairs} onChange={setPairs} />
-							)}
-						</Stack>
-					</Dialog.Content>
-					<Dialog.Footer>
-						<Button variant="outline" onClick={() => change(false)}>
-							{__('Cancel', 'gophenberg')}
-						</Button>
-						<Button loading={save.isPending} onClick={() => save.mutate()}>
-							{__('Save settings', 'gophenberg')}
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Popup>
-			</Dialog.Root>
-		</>
+		<FormDialog
+			title={props.title}
+			submitLabel={__('Save settings', 'gophenberg')}
+			cancelLabel={__('Cancel', 'gophenberg')}
+			onSubmit={() => formAnswer(save.mutateAsync(), said, props)}
+			onClose={props.onClose}
+		>
+			{(busy) => (
+				<>
+					{offered.map((setting) =>
+						setting.shape === 'choice' ? (
+							<SelectControl
+								key={setting.name}
+								label={setting.label}
+								items={answers}
+								value={chosenOf({ value: typed[setting.name] }, answers, answers[0])}
+								readOnly={busy}
+								onValueChange={(item) =>
+									setTyped((was) => ({
+										...was,
+										[setting.name]: chosenOf(item, answers, answers[0]).value,
+									}))
+								}
+							/>
+						) : (
+							<InputControl
+								key={setting.name}
+								label={setting.label}
+								type={setting.shape}
+								autoComplete="off"
+								value={typed[setting.name]}
+								readOnly={busy}
+								onValueChange={(written) => setTyped((was) => ({ ...was, [setting.name]: written }))}
+							/>
+						),
+					)}
+					{opened.kind === 'choice' && <ChoicesEditor pairs={pairs} readOnly={busy} onChange={setPairs} />}
+				</>
+			)}
+		</FormDialog>
 	)
 }
 
 /**
  * Renders the rows editing the value and label pairs a choice field offers.
- * @param props - The pairs held and what to call with an edit.
+ * @param props - The pairs held, whether they are read only, and what to call with an edit.
  * @returns The editor element.
  */
-function ChoicesEditor(props: { pairs: ChoicePair[]; onChange: (pairs: ChoicePair[]) => void }) {
+function ChoicesEditor(props: { pairs: ChoicePair[]; readOnly: boolean; onChange: (pairs: ChoicePair[]) => void }) {
 	return (
 		<Stack direction="column" gap="sm">
 			<Text variant="body-sm">{__('Choices', 'gophenberg')}</Text>
@@ -661,6 +688,7 @@ function ChoicesEditor(props: { pairs: ChoicePair[]; onChange: (pairs: ChoicePai
 						label={__('Value', 'gophenberg')}
 						autoComplete="off"
 						value={pair.value}
+						readOnly={props.readOnly}
 						onValueChange={(written) =>
 							props.onChange(props.pairs.map((held, row) =>
 								row === at ? { ...held, value: written } : held,
@@ -671,6 +699,7 @@ function ChoicesEditor(props: { pairs: ChoicePair[]; onChange: (pairs: ChoicePai
 						label={__('Label', 'gophenberg')}
 						autoComplete="off"
 						value={pair.label}
+						readOnly={props.readOnly}
 						onValueChange={(written) =>
 							props.onChange(props.pairs.map((held, row) =>
 								row === at ? { ...held, label: written } : held,
@@ -680,6 +709,7 @@ function ChoicesEditor(props: { pairs: ChoicePair[]; onChange: (pairs: ChoicePai
 					<Button
 						variant="outline"
 						size="compact"
+						disabled={props.readOnly}
 						onClick={() => props.onChange(props.pairs.filter((_, row) => row !== at))}
 					>
 						{__('Remove', 'gophenberg')}
@@ -688,6 +718,7 @@ function ChoicesEditor(props: { pairs: ChoicePair[]; onChange: (pairs: ChoicePai
 			))}
 			<Button
 				variant="outline"
+				disabled={props.readOnly}
 				onClick={() => props.onChange([...props.pairs, { value: '', label: '' }])}
 			>
 				{__('Add choice', 'gophenberg')}
@@ -783,71 +814,58 @@ function ListField(props: Inside) {
 }
 
 /**
- * Renders the control carrying a new label for a field.
+ * Renders the control carrying a new label for a field and, while it asks, its form.
  * @param props - The group, the field, and what to report.
- * @returns The control and its dialog.
+ * @returns The control and its form.
  */
 function RenameField(props: Inside) {
-	const [open, setOpen] = useState(false)
-	const [label, setLabel] = useState(props.field.label)
-	const [opened, setOpened] = useState(props.field)
-	const asking = sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })
-	const rename = useMutation({
-		mutationFn: () =>
-			renameFieldInGroup(props.group, props.path ?? opened.key, label, opened.updatedAt),
-		onSuccess: async () => {
-			setOpen(false)
-			await props.onDone(sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }))
-		},
-		onError: async (cause) => {
-			await props.onRefused(cause)
-			setOpen(false)
-		},
-	})
-	/**
-	 * Opens the dialog on the stored name, or closes it on the edits.
-	 * @param next - Whether the dialog is opening.
-	 */
-	function change(next: boolean) {
-		if (next && !holdsEdits(rename)) {
-			setLabel(props.field.label)
-			setOpened(props.field)
-		}
-		setOpen(next)
-	}
-
+	const [asking, setAsking] = useState(false)
+	const title = sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })
 	return (
 		<>
-			<Button variant="outline" size="compact" aria-label={asking} onClick={() => change(true)}>
+			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
 				{__('Rename', 'gophenberg')}
 			</Button>
-			<Dialog.Root open={open} onOpenChange={change}>
-				<Dialog.Popup>
-					<Dialog.Header>
-						<Dialog.Title>{asking}</Dialog.Title>
-						<Dialog.CloseIconButton />
-					</Dialog.Header>
-					<Dialog.Content>
-						<Stack direction="column" gap="md">
-							<Text>{__('The name changes. Nothing stored under this field moves.', 'gophenberg')}</Text>
-							<InputControl
-								label={_x('Name', 'field', 'gophenberg')}
-								value={label}
-								onValueChange={setLabel}
-							/>
-						</Stack>
-					</Dialog.Content>
-					<Dialog.Footer>
-						<Button variant="outline" onClick={() => setOpen(false)}>
-							{__('Keep it', 'gophenberg')}
-						</Button>
-						<Button loading={rename.isPending} onClick={() => rename.mutate()}>
-							{__('Rename', 'gophenberg')}
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Popup>
-			</Dialog.Root>
+			{asking ? <RenameForm {...props} title={title} onClose={() => setAsking(false)} /> : null}
 		</>
+	)
+}
+
+/**
+ * Renders the form carrying a new label for a field, started from the field as read on each ask.
+ * @param props - The group, the field, what to report, the title and what takes the form away.
+ * @returns The form dialog, kept open with the name typed after a failure other than a stale write.
+ */
+function RenameForm(props: Inside & Asked) {
+	const [opened] = useState(props.field)
+	const [label, setLabel] = useState(opened.label)
+	const rename = useMutation({
+		mutationFn: () => renameFieldInGroup(props.group, props.path ?? opened.key, label, opened.updatedAt),
+	})
+	return (
+		<FormDialog
+			title={props.title}
+			description={__('The name changes. Nothing stored under this field moves.', 'gophenberg')}
+			submitLabel={__('Rename', 'gophenberg')}
+			cancelLabel={__('Cancel', 'gophenberg')}
+			onSubmit={() =>
+				formAnswer(
+					rename.mutateAsync(),
+					sprintf(__('%(field)s renamed.', 'gophenberg'), { field: label }),
+					props,
+				)
+			}
+			onClose={props.onClose}
+		>
+			{(busy) => (
+				<InputControl
+					label={_x('Name', 'field', 'gophenberg')}
+					value={label}
+					readOnly={busy}
+					onValueChange={setLabel}
+				/>
+			)}
+		</FormDialog>
 	)
 }
 
@@ -941,69 +959,71 @@ function CarryField(props: Inside & { groups: FieldGroup[] }) {
 	)
 }
 
+/** Where a field may be carried: its path, the landings on offer, and the first of them. */
+interface Carried {
+	at: string
+	landings: Landing[]
+	first: Landing
+}
+
 /**
- * Renders the dialog choosing where a field lands and carrying it there.
+ * Renders the control carrying a field elsewhere and, while it asks, the form choosing where it lands.
  * @param props - The group, the field, its path, the landings on offer, the first of them, and what to report.
- * @returns The control and its dialog.
+ * @returns The control and its form.
  */
-function CarryDialog(props: Inside & { at: string; landings: Landing[]; first: Landing }) {
+function CarryDialog(props: Inside & Carried) {
+	const [asking, setAsking] = useState(false)
+	const title = sprintf(__('Move %(field)s elsewhere', 'gophenberg'), { field: props.field.label })
+	return (
+		<>
+			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
+				{__('Move', 'gophenberg')}
+			</Button>
+			{asking ? <CarryForm {...props} title={title} onClose={() => setAsking(false)} /> : null}
+		</>
+	)
+}
+
+/**
+ * Renders the form choosing where a field lands and carrying it there, the first landing picked on each ask.
+ * @param props - The group, the field, the landings, what to report, the title and what takes the form away.
+ * @returns The form dialog, kept open after a failure other than a stale write.
+ */
+function CarryForm(props: Inside & Carried & Asked) {
 	const { at, landings } = props
-	const [open, setOpen] = useState(false)
 	const [picked, setPicked] = useState(props.first)
 	const landing = landings.find((held) => held.value === picked.value) ?? props.first
-	const asking = sprintf(__('Move %(field)s elsewhere', 'gophenberg'), { field: props.field.label })
 	const carry = useMutation({
 		mutationFn: () => {
 			const [toGroup, toParent] = landing.value.split(':')
 			return moveField(props.group, at, Number(toGroup), toParent)
 		},
-		onSuccess: async () => {
-			setOpen(false)
-			await props.onDone(sprintf(__('%(field)s moved.', 'gophenberg'), { field: props.field.label }))
-		},
-		onError: (cause) => {
-			setOpen(false)
-			props.onRefused(cause)
-		},
 	})
+	const said = sprintf(__('%(field)s moved.', 'gophenberg'), { field: props.field.label })
 	const follows = !at.includes('.') && !landing.value.includes(':')
 	return (
-		<>
-			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
-				{__('Move', 'gophenberg')}
-			</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
-				<Dialog.Popup>
-					<Dialog.Header>
-						<Dialog.Title>{asking}</Dialog.Title>
-						<Dialog.CloseIconButton />
-					</Dialog.Header>
-					<Dialog.Content>
-						<Stack direction="column" gap="md">
-							<Text>
-								{follows
-									? __('The field keeps its values on the content both groups reach.', 'gophenberg')
-									: __('The values stored under it do not follow.', 'gophenberg')}
-							</Text>
-							<SelectControl
-								label={__('Destination', 'gophenberg')}
-								items={landings}
-								value={landing}
-								onValueChange={(item) => setPicked(chosenOf(item, landings, landing))}
-							/>
-						</Stack>
-					</Dialog.Content>
-					<Dialog.Footer>
-						<Button variant="outline" onClick={() => setOpen(false)}>
-							{__('Keep it here', 'gophenberg')}
-						</Button>
-						<Button loading={carry.isPending} onClick={() => carry.mutate()}>
-							{__('Move the field', 'gophenberg')}
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Popup>
-			</Dialog.Root>
-		</>
+		<FormDialog
+			title={props.title}
+			description={
+				follows
+					? __('The field keeps its values on the content both groups reach.', 'gophenberg')
+					: __('The values stored under it do not follow.', 'gophenberg')
+			}
+			submitLabel={__('Move the field', 'gophenberg')}
+			cancelLabel={__('Cancel', 'gophenberg')}
+			onSubmit={() => formAnswer(carry.mutateAsync(), said, props)}
+			onClose={props.onClose}
+		>
+			{(busy) => (
+				<SelectControl
+					label={__('Destination', 'gophenberg')}
+					items={landings}
+					value={landing}
+					readOnly={busy}
+					onValueChange={(item) => setPicked(chosenOf(item, landings, landing))}
+				/>
+			)}
+		</FormDialog>
 	)
 }
 
@@ -1153,60 +1173,74 @@ function HeldFields(
 }
 
 /**
- * Renders the control declaring a field inside the container.
+ * Renders the control declaring a field inside the container and, while it asks, its form.
  * @param props - The group, the container, its path, the types, and what to report.
- * @returns The control and its dialog, or nothing for a field holding none.
+ * @returns The control and its form, or nothing for a field holding none.
  */
 function SubFields(props: Inside & { types: ContentType[]; path: string }) {
-	const [open, setOpen] = useState(false)
+	const [asking, setAsking] = useState(false)
 	const layouts = props.field.kind === 'flexible'
-	const asking = sprintf(
+	const title = sprintf(
 		layouts
 			? __('Add layout to %(field)s', 'gophenberg')
 			: __('Add field to %(field)s', 'gophenberg'),
 		{ field: props.field.label },
 	)
+	const send = layouts ? __('Add layout', 'gophenberg') : __('Add field', 'gophenberg')
 	if (!holdsFields(props.field.kind)) {
 		return null
 	}
 	return (
 		<>
-			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
-				{layouts ? __('Add layout', 'gophenberg') : __('Add field', 'gophenberg')}
+			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
+				{send}
 			</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
-				<Dialog.Popup>
-					<Dialog.Header>
-						<Dialog.Title>{asking}</Dialog.Title>
-						<Dialog.CloseIconButton />
-					</Dialog.Header>
-					<Dialog.Content>
-						<AddField
-							group={props.group}
-							types={props.types}
-							path={props.path}
-							parent={props.field.kind}
-							onDone={async (said) => {
-								setOpen(false)
-								await props.onDone(said)
-							}}
-							onRefused={props.onRefused}
-						/>
-					</Dialog.Content>
-				</Dialog.Popup>
-			</Dialog.Root>
+			{asking ? (
+				<SubFieldForm
+					group={props.group}
+					types={props.types}
+					path={props.path}
+					parent={props.field.kind}
+					title={title}
+					send={send}
+					onDone={props.onDone}
+					onRefused={props.onRefused}
+					onClose={() => setAsking(false)}
+				/>
+			) : null}
 		</>
 	)
 }
 
 /**
- * Renders the control removing a field and everything stored under it.
+ * Renders the form declaring a field inside a container, empty on each ask.
+ * @param props - Where the field is declared, what to report, the title, the send label and what takes it away.
+ * @returns The form dialog, kept open with what was typed after a failure other than a stale write.
+ */
+function SubFieldForm(props: Reporter & FieldPlace & Asked & { send: string }) {
+	const draft = useFieldDraft(props)
+	return (
+		<FormDialog
+			title={props.title}
+			submitLabel={props.send}
+			cancelLabel={__('Cancel', 'gophenberg')}
+			canSubmit={!draft.blocked}
+			onSubmit={() => formAnswer(draft.declare(), draft.said, props)}
+			onClose={props.onClose}
+		>
+			{draft.controls}
+		</FormDialog>
+	)
+}
+
+/**
+ * Renders the control removing a field and, while it asks, the red confirm that removes it with its values.
  * @param props - The group, the field, and what to report.
- * @returns The control and its dialog.
+ * @returns The control and its confirm, busy until the delete ends.
  */
 function DeleteField(props: Inside) {
-	const [open, setOpen] = useState(false)
-	const asking = sprintf(__('Delete %(field)s', 'gophenberg'), { field: props.field.label })
+	const [asking, setAsking] = useState(false)
+	const opener = sprintf(__('Delete %(field)s', 'gophenberg'), { field: props.field.label })
 	const warning = __(
 		'Every value stored under this field goes with it, in every item the group reaches and in the revisions behind them.',
 		'gophenberg',
@@ -1216,39 +1250,28 @@ function DeleteField(props: Inside) {
 			props.path === undefined
 				? deleteFieldInGroup(props.group, props.field.key)
 				: deleteSubField(props.group, props.path),
-		onSuccess: async () => {
-			setOpen(false)
-			await props.onDone(sprintf(__('%(field)s deleted.', 'gophenberg'), { field: props.field.label }))
-		},
-		onError: (cause) => {
-			setOpen(false)
-			props.onRefused(cause)
-		},
 	})
+	const said = sprintf(__('%(field)s deleted.', 'gophenberg'), { field: props.field.label })
 	return (
 		<>
-			<Button variant="outline" size="compact" aria-label={asking} onClick={() => setOpen(true)}>
+			<Button variant="outline" size="compact" aria-label={opener} onClick={() => setAsking(true)}>
 				{__('Delete', 'gophenberg')}
 			</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
-				<Dialog.Popup>
-					<Dialog.Header>
-						<Dialog.Title>{asking}</Dialog.Title>
-						<Dialog.CloseIconButton />
-					</Dialog.Header>
-					<Dialog.Content>
-						<Text>{warning}</Text>
-					</Dialog.Content>
-					<Dialog.Footer>
-						<Button variant="outline" onClick={() => setOpen(false)}>
-							{__('Keep it', 'gophenberg')}
-						</Button>
-						<Button loading={remove.isPending} onClick={() => remove.mutate()}>
-							{__('Delete the field', 'gophenberg')}
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Popup>
-			</Dialog.Root>
+			{asking ? (
+				<ConfirmDialog
+					intent="irreversible"
+					title={sprintf(__('Delete "%(field)s"?', 'gophenberg'), { field: props.field.label })}
+					description={`${warning} ${irreversible()}`}
+					confirmLabel={__('Delete the field', 'gophenberg')}
+					cancelLabel={__('Cancel', 'gophenberg')}
+					onConfirm={() =>
+						remove.mutateAsync().then(() => {
+							void props.onDone(said)
+						}, props.onRefused)
+					}
+					onClose={() => setAsking(false)}
+				/>
+			) : null}
 		</>
 	)
 }
