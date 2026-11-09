@@ -89,6 +89,14 @@ func errorResponseFor(err error) (int, authkit.ErrorResponse) {
 	return http.StatusInternalServerError, authkit.ErrorResponse{Message: "internal error", Code: "internal"}
 }
 
+// respondInternal writes the site's internal error, kept out of every cache.
+func respondInternal(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Cache-Control", uncachedControl)
+	authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
+		Message: "internal error", Code: "internal",
+	})
+}
+
 // codeFor returns the code the raise site named, falling back to the sentinel's own.
 func codeFor(err error, fallback string) string {
 	if named, ok := content.CodeOf(err); ok && named != "" {
