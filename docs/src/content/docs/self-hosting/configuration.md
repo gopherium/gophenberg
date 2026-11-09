@@ -1292,11 +1292,13 @@ time=2026-11-09T10:12:44.211Z level=INFO msg="plugin hook ran out of time" plugi
 The budget only tells a plugin to stop. A plugin that ignores its
 context holds the page until it returns.
 
-A head tag must be a `meta` or `link` tag whose attribute names are
-lowercase letters, digits and hyphens, and whose `href` or `src` is an
-`http` or `https` address or a path on the site. `serve` drops any
-other tag, logs the plugin's warning naming the tag and why, and keeps
-the plugin's other tags.
+A head tag must be a `meta` or `link` tag. Its attribute names are
+lowercase letters, digits and hyphens with a letter first, and none
+is `style` or starts with `on`, as `onload` does, since those run
+script or style the page. Its `href` or `src` is an `http` or `https`
+address or a path on the site, with no space or control character.
+`serve` drops any other tag, logs the plugin's warning naming the tag
+and why, and keeps the plugin's other tags.
 
 The plugin stays active. Nothing is paused for a failure inside a
 hook.

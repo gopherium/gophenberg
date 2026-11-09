@@ -495,11 +495,13 @@ func (p *plugin) HeadTags(_ context.Context, page sdk.PageMeta) ([]sdk.HeadTag, 
 }
 ```
 
-The site writes the tags itself. A tag must be `meta` or `link`, its
-attribute names lowercase letters, digits and hyphens, and its `href`
-or `src` an `http` or `https` address or a path on the site. The
-site drops any other tag and keeps the plugin's other tags. Tags
-reach the pages the built-in site draws. A theme draws its own head.
+The site writes the tags itself. A tag must be `meta` or `link`. Its
+attribute names are lowercase letters, digits and hyphens with a
+letter first, none `style` or starting with `on`. Its `href` or `src`
+is an `http` or `https` address or a path on the site, with no space
+or control character. The site drops any other tag and keeps the
+plugin's other tags. Tags reach the pages the built-in site draws. A
+theme draws its own head.
 
 All the plugins of one call share `GOPHENBERG_PLUGIN_HOOK_BUDGET`, 2
 milliseconds unless set, as the deadline of the context they get, so
