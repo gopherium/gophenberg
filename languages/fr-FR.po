@@ -318,10 +318,6 @@ msgid "June"
 msgstr "juin"
 
 #, fuzzy
-msgid "Keep it"
-msgstr "Le conserver"
-
-#, fuzzy
 msgid "Language"
 msgstr "Langue"
 
@@ -348,6 +344,10 @@ msgstr "Chargement des thèmes."
 #, fuzzy
 msgid "Loading…"
 msgstr "Chargement…"
+
+#, fuzzy
+msgid "Make \"%(type)s\" the default?"
+msgstr "Rendre « %(type)s » par défaut ?"
 
 #, fuzzy
 msgid "Make default"
@@ -996,6 +996,10 @@ msgid "Deactivate %(theme)s"
 msgstr "Désactiver %(theme)s"
 
 #, fuzzy
+msgid "Delete \"%(field)s\"?"
+msgstr "Supprimer « %(field)s » ?"
+
+#, fuzzy
 msgid "Delete %(field)s"
 msgstr "Supprimer %(field)s"
 
@@ -1169,6 +1173,10 @@ msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave 
 msgstr "Une règle valable pour n'importe quel %(source)s ne peut pas devenir une exclusion. Laissez-la telle quelle, ou nommez ceux à écarter."
 
 #, fuzzy
+msgid "A type that still holds items, even in the trash, is not deleted."
+msgstr "Un type qui contient encore des éléments, même dans la corbeille, n'est pas supprimé."
+
+#, fuzzy
 msgid "Add choice"
 msgstr "Ajouter un choix"
 
@@ -1229,8 +1237,8 @@ msgid "Create a field group"
 msgstr "Créer un groupe de champs"
 
 #, fuzzy
-msgid "Delete %(group)s"
-msgstr "Supprimer %(group)s"
+msgid "Delete \"%(group)s\"?"
+msgstr "Supprimer « %(group)s » ?"
 
 #, fuzzy
 msgid "Delete the group"
@@ -1275,10 +1283,6 @@ msgstr "Instructions"
 #, fuzzy
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
 msgstr "Il commence sur %(type)s, et les règles peuvent être modifiées ensuite."
-
-#, fuzzy
-msgid "Keep it here"
-msgstr "Le laisser ici"
 
 #, fuzzy
 msgid "Label"
@@ -2012,15 +2016,19 @@ msgid "Content nests at most %(max)s levels deep, and this item would sit deeper
 msgstr "Le contenu s'imbrique sur au plus %(max)s niveaux, et cet élément irait plus profond. Choisissez un parent plus proche du sommet."
 
 #, fuzzy
-msgid "Delete \"%(title)s\" for good? This cannot be undone."
-msgstr "Supprimer « %(title)s » définitivement ? Cette action est irréversible."
+msgid "Delete \"%(title)s\"?"
+msgstr "Supprimer « %(title)s » ?"
 
 #, fuzzy
-msgid "Delete %s item for good? This cannot be undone."
-msgid_plural "Delete %s items for good? This cannot be undone."
-msgstr[0] "Supprimer %s élément définitivement ? Cette action est irréversible."
-msgstr[1] "Supprimer %s éléments définitivement ? Cette action est irréversible."
-msgstr[2] "Supprimer %s éléments définitivement ? Cette action est irréversible."
+msgid "Delete %s item?"
+msgid_plural "Delete %s items?"
+msgstr[0] "Supprimer %s élément ?"
+msgstr[1] "Supprimer %s d’éléments ?"
+msgstr[2] "Supprimer %s éléments ?"
+
+#, fuzzy
+msgid "Empty the trash?"
+msgstr "Vider la corbeille ?"
 
 #, fuzzy
 msgid "Empty trash"
@@ -2041,17 +2049,6 @@ msgstr "Média %(id)s"
 #, fuzzy
 msgid "Modified: %s"
 msgstr "Modifié : %s"
-
-#, fuzzy
-msgid "Move \"%(title)s\" to the trash?"
-msgstr "Déplacer « %(title)s » dans la corbeille ?"
-
-#, fuzzy
-msgid "Move %s item to the trash?"
-msgid_plural "Move %s items to the trash?"
-msgstr[0] "Déplacer %s élément dans la corbeille ?"
-msgstr[1] "Déplacer %s éléments dans la corbeille ?"
-msgstr[2] "Déplacer %s éléments dans la corbeille ?"
 
 #, fuzzy
 msgid "Name"
@@ -2106,15 +2103,40 @@ msgid "Showing %(held)s of %(total)s."
 msgstr "Affichage de %(held)s sur %(total)s."
 
 #, fuzzy
-msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
-msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
-msgstr[0] "%(count)s élément de la corbeille est supprimé définitivement. Cette action est irréversible."
-msgstr[1] "Les %(count)s éléments de la corbeille sont supprimés définitivement. Cette action est irréversible."
-msgstr[2] "Les %(count)s éléments de la corbeille sont supprimés définitivement. Cette action est irréversible."
+msgid "The %(count)s item in the trash is deleted for good."
+msgid_plural "The %(count)s items in the trash are deleted for good."
+msgstr[0] "%(count)s élément de la corbeille est supprimé définitivement."
+msgstr[1] "%(count)s d’éléments de la corbeille sont supprimés définitivement."
+msgstr[2] "Les %(count)s éléments de la corbeille sont supprimés définitivement."
+
+#, fuzzy
+msgid "The %s file is deleted from your site, with every size made from it."
+msgid_plural "The %s files are deleted from your site, with every size made from them."
+msgstr[0] "%s fichier est supprimé de votre site, avec toutes ses tailles."
+msgstr[1] "%s de fichiers sont supprimés de votre site, avec toutes leurs tailles."
+msgstr[2] "Les %s fichiers sont supprimés de votre site, avec toutes leurs tailles."
+
+#, fuzzy
+msgid "The %s item is deleted for good, with its revisions and autosaves."
+msgid_plural "The %s items are deleted for good, with their revisions and autosaves."
+msgstr[0] "%s élément est supprimé définitivement, avec ses révisions et ses enregistrements automatiques."
+msgstr[1] "%s d’éléments sont supprimés définitivement, avec leurs révisions et leurs enregistrements automatiques."
+msgstr[2] "Les %s éléments sont supprimés définitivement, avec leurs révisions et leurs enregistrements automatiques."
+
+#, fuzzy
+msgid "The %s type and its address are deleted, and its field groups stay."
+msgid_plural "The %s types and their addresses are deleted, and their field groups stay."
+msgstr[0] "%s type et son adresse sont supprimés, et ses groupes de champs sont conservés."
+msgstr[1] "%s de types et leurs adresses sont supprimés, et leurs groupes de champs sont conservés."
+msgstr[2] "Les %s types et leurs adresses sont supprimés, et leurs groupes de champs sont conservés."
 
 #, fuzzy
 msgid "The draft could not be created."
 msgstr "Le brouillon n'a pas pu être créé."
+
+#, fuzzy
+msgid "The file is deleted from your site, with every size made from it."
+msgstr "Le fichier est supprimé de votre site, avec toutes ses tailles."
 
 #, fuzzy
 msgid "The item could not be duplicated."
@@ -2133,12 +2155,24 @@ msgid "The item could not be restored."
 msgstr "L'élément n'a pas pu être rétabli."
 
 #, fuzzy
+msgid "The item is deleted for good, with its revisions and autosaves."
+msgstr "L'élément est supprimé définitivement, avec ses révisions et ses enregistrements automatiques."
+
+#, fuzzy
 msgid "The name could not be updated."
 msgstr "Le nom n'a pas pu être mis à jour."
 
 #, fuzzy
 msgid "The trash could not be emptied."
 msgstr "La corbeille n'a pas pu être vidée."
+
+#, fuzzy
+msgid "The type and its address are deleted, and its field groups stay."
+msgstr "Le type et son adresse sont supprimés, et ses groupes de champs sont conservés."
+
+#, fuzzy
+msgid "This action cannot be undone."
+msgstr "Cette action est irréversible."
 
 #, fuzzy
 msgid "This definitions file is larger than the %(max)s bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
@@ -2262,10 +2296,6 @@ msgid "Gophenberg checked for updates moments ago. Try again later."
 msgstr "Gophenberg a cherché des mises à jour il y a un instant. Réessayez plus tard."
 
 #, fuzzy
-msgid "Are you sure you want to move \"%s\" to the trash?"
-msgstr "Voulez-vous vraiment déplacer « %s » dans la corbeille ?"
-
-#, fuzzy
 msgid "Add Category"
 msgstr "Ajouter une catégorie"
 
@@ -2371,11 +2401,11 @@ msgid "Default content type updated."
 msgstr "Type de contenu par défaut mis à jour."
 
 #, fuzzy
-msgid "Delete %s content type for good? This cannot be undone."
-msgid_plural "Delete %s content types for good? This cannot be undone."
-msgstr[0] "Supprimer %s type de contenu définitivement ? Cette action est irréversible."
-msgstr[1] "Supprimer %s types de contenu définitivement ? Cette action est irréversible."
-msgstr[2] "Supprimer %s types de contenu définitivement ? Cette action est irréversible."
+msgid "Delete %s content type?"
+msgid_plural "Delete %s content types?"
+msgstr[0] "Supprimer %s type de contenu ?"
+msgstr[1] "Supprimer %s de types de contenu ?"
+msgstr[2] "Supprimer %s types de contenu ?"
 
 #, fuzzy
 msgid "Delete…"
@@ -2996,8 +3026,8 @@ msgstr "Aucun"
 
 #, fuzzy
 msgctxt "verb"
-msgid "Trash…"
-msgstr "Mettre à la corbeille…"
+msgid "Trash"
+msgstr "Mettre à la corbeille"
 
 #, fuzzy
 msgctxt "verb"

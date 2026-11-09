@@ -237,16 +237,27 @@ test('names Empty Trash and its warning in WordPress es_ES words, and counts exa
 
 test.each([
 	{
+		locale: 'es-ES',
 		held: 'one item',
 		total: 1,
+		title: '¿Vaciar la papelera?',
 		warning: '1 elemento de la papelera se borrará permanentemente. Esta acción no se puede deshacer.',
 	},
 	{
+		locale: 'es-ES',
 		held: 'an exact million items',
 		total: 1000000,
+		title: '¿Vaciar la papelera?',
 		warning: '1.000.000 de elementos de la papelera se borrarán permanentemente. Esta acción no se puede deshacer.',
 	},
-])('warns about $held in the trash in its own Spanish plural form', async ({ total, warning }) => {
+	{
+		locale: 'fr-FR',
+		held: 'an exact million items',
+		total: 1000000,
+		title: 'Vider la corbeille ?',
+		warning: '1.000.000 d’éléments de la corbeille sont supprimés définitivement. Cette action est irréversible.',
+	},
+])('warns about $held in the trash in its own $locale plural form', async ({ locale, total, title, warning }) => {
 	server.use(
 		http.get('/api/content', ({ request }) => {
 			const query = new URL(request.url).searchParams
@@ -256,12 +267,12 @@ test.each([
 	)
 	renderAt('/content/post')
 	await openTrashView()
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	setLocaleData(await catalogFor(locale), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 
-	expect(await screen.findByRole('alertdialog', { name: '¿Vaciar la papelera?' })).toHaveAccessibleDescription(warning)
+	expect(await screen.findByRole('alertdialog', { name: title })).toHaveAccessibleDescription(warning)
 })
 
 test('counts the items the trash holds in the warning', async () => {

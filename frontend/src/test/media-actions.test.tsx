@@ -2,6 +2,7 @@
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { buttonClasses, setViewport, stubLayout } from '@gopherium/godmin/testing'
+import { formatNumber } from '@gopherium/gottext'
 import { seedSession } from '@gopherium/react-auth/testing'
 import type { QueryClient } from '@tanstack/react-query'
 import { act, screen, waitFor, within } from '@testing-library/react'
@@ -10,6 +11,8 @@ import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { holdWrite } from '../content/postWrites'
+import { catalogFor } from '../i18n/catalog'
+import { fileDeleteDescription } from '../media/format'
 import { bulkBar } from './bulkBar'
 import { gate } from './gate'
 import { expectUnmarked, holdReads, waitMarked } from './reloads'
@@ -784,6 +787,31 @@ test('deletes every ticked file behind one confirm and counts them', async () =>
 
 	expect(await findToast('2 items permanently deleted.')).toBeInTheDocument()
 	expect(deleted.sort()).toEqual([HARBOR.id, MANUAL.id])
+})
+
+test.each([
+	{
+		locale: 'es-ES',
+		one: 'El archivo se borrará de tu sitio, con todos sus tamaños.',
+		two: 'Los 2 archivos se borrarán de tu sitio, con todos sus tamaños.',
+		millions: '%s de archivos se borrarán de tu sitio, con todos sus tamaños.',
+		warning: 'Esta acción no se puede deshacer.',
+	},
+	{
+		locale: 'fr-FR',
+		one: 'Le fichier est supprimé de votre site, avec toutes ses tailles.',
+		two: 'Les 2 fichiers sont supprimés de votre site, avec toutes leurs tailles.',
+		millions: '%s de fichiers sont supprimés de votre site, avec toutes leurs tailles.',
+		warning: 'Cette action est irréversible.',
+	},
+])('says what a permanent delete of files takes with it in $locale, the millions form included', async (words) => {
+	setLocaleData(await catalogFor(words.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+
+	const said = [1, 2, 1000000].map((count) => fileDeleteDescription(count))
+
+	const millions = words.millions.replace('%s', formatNumber(1000000))
+	expect(said).toEqual([words.one, words.two, millions].map((what) => `${what} ${words.warning}`))
 })
 
 test('shows the reason a refused delete gave in a toast, the confirm closed and the card kept', async () => {

@@ -2,11 +2,14 @@
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { setViewport } from '@gopherium/godmin/testing'
+import { formatNumber } from '@gopherium/gottext'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeEach, expect, onTestFinished, test } from 'vitest'
 
+import type { ContentType } from '../content/types'
+import { removalDescription, removalTitle } from '../content/typeWords'
 import { catalogFor } from '../i18n/catalog'
 import { bulkBar } from './bulkBar'
 import { renderAt } from './render'
@@ -23,6 +26,23 @@ import {
 import type { Reader } from './typeFixtures'
 
 warmTypesScreen()
+
+/** The built-in type a new site opens on, as the admin reads it. */
+const READ_POST_TYPE: ContentType = {
+	key: 'post',
+	singularLabel: 'Post',
+	pluralLabel: 'Posts',
+	description: 'Manage the posts on this site.',
+	routeWord: '',
+	derivedRouteWord: 'posts',
+	hierarchical: false,
+	revisions: true,
+	revisionCap: 100,
+	pageKind: 'single',
+	isDefault: true,
+	active: true,
+	fields: [],
+}
 
 const asked: string[] = []
 
@@ -132,6 +152,46 @@ test('counts the content types a bulk delete removed in Spanish, with no word ag
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Borrar' }))
 
 	expect(await findToast('Se han borrado permanentemente 2 tipos de contenido.')).toBeInTheDocument()
+})
+
+test('counts exact millions with "de" in the French bulk delete title', async () => {
+	setLocaleData(await catalogFor('fr-FR'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	const million = 1000000
+
+	expect(removalTitle(Array.from({ length: million }, () => READ_POST_TYPE)))
+		.toBe(`Supprimer ${formatNumber(million)} de types de contenu ?`)
+})
+
+test.each([
+	{
+		locale: 'es-ES',
+		one: 'El tipo y su dirección se borrarán, y sus grupos de campos se conservarán. '
+			+ 'Un tipo que aún tenga elementos, incluso en la papelera, no se borrará.',
+		two: 'Los 2 tipos y sus direcciones se borrarán, y sus grupos de campos se conservarán. '
+			+ 'Un tipo que aún tenga elementos, incluso en la papelera, no se borrará.',
+		millions: '%s de tipos y sus direcciones se borrarán, y sus grupos de campos se conservarán. '
+			+ 'Un tipo que aún tenga elementos, incluso en la papelera, no se borrará.',
+		warning: 'Esta acción no se puede deshacer.',
+	},
+	{
+		locale: 'fr-FR',
+		one: 'Le type et son adresse sont supprimés, et ses groupes de champs sont conservés. '
+			+ "Un type qui contient encore des éléments, même dans la corbeille, n'est pas supprimé.",
+		two: 'Les 2 types et leurs adresses sont supprimés, et leurs groupes de champs sont conservés. '
+			+ "Un type qui contient encore des éléments, même dans la corbeille, n'est pas supprimé.",
+		millions: '%s de types et leurs adresses sont supprimés, et leurs groupes de champs sont conservés. '
+			+ "Un type qui contient encore des éléments, même dans la corbeille, n'est pas supprimé.",
+		warning: 'Cette action est irréversible.',
+	},
+])('says what a delete of content types does in $locale, the millions form included', async (words) => {
+	setLocaleData(await catalogFor(words.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+
+	const said = [1, 2, 1000000].map((count) => removalDescription(count))
+
+	const millions = words.millions.replace('%s', formatNumber(1000000))
+	expect(said).toEqual([words.one, words.two, millions].map((what) => `${what} ${words.warning}`))
 })
 
 test('closes every picked type at once, counting them in one toast', async () => {

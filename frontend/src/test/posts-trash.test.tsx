@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
+import { formatNumber } from '@gopherium/gottext'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import type { BulkFailure } from '@gopherium/godmin'
 
-import { postName, restoreWords, trashWords } from '../content/actionWords'
+import { deleteDescription, postName, restoreWords, trashWords } from '../content/actionWords'
 import type { Post } from '../content/api'
 import { deleteTitle, deleteWords } from '../lists/itemWords'
 import { catalogFor } from '../i18n/catalog'
@@ -592,6 +593,31 @@ test('asks the Spanish permanent delete in the words of its title', async () => 
 	expect(deleteTitle([OLD_NOTES, { ...OLD_NOTES, id: SECOND_ID }], postName)).toBe('¿Borrar 2 elementos?')
 })
 
+test.each([
+	{
+		locale: 'es-ES',
+		one: 'El elemento se borrará permanentemente, con sus revisiones y guardados automáticos.',
+		two: 'Los 2 elementos se borrarán permanentemente, con sus revisiones y guardados automáticos.',
+		millions: '%s de elementos se borrarán permanentemente, con sus revisiones y guardados automáticos.',
+		warning: 'Esta acción no se puede deshacer.',
+	},
+	{
+		locale: 'fr-FR',
+		one: "L'élément est supprimé définitivement, avec ses révisions et ses enregistrements automatiques.",
+		two: 'Les 2 éléments sont supprimés définitivement, avec leurs révisions et leurs enregistrements automatiques.',
+		millions: '%s d’éléments sont supprimés définitivement, avec leurs révisions et leurs enregistrements automatiques.',
+		warning: 'Cette action est irréversible.',
+	},
+])('says what a permanent delete of posts takes with it in $locale, the millions form included', async (words) => {
+	setLocaleData(await catalogFor(words.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+
+	const said = [1, 2, 1000000].map((count) => deleteDescription(count))
+
+	const millions = words.millions.replace('%s', formatNumber(1000000))
+	expect(said).toEqual([words.one, words.two, millions].map((what) => `${what} ${words.warning}`))
+})
+
 test('counts exact millions with "de" in the Spanish trash, restore and delete words', async () => {
 	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
@@ -610,6 +636,15 @@ test('counts exact millions with "de" in the Spanish trash, restore and delete w
 	expect(deleteWords(postName).done(million, undefined)).toBe('1.000.000 de elementos borrados permanentemente.')
 	expect(deleteWords(postName).failed(refused, million))
 		.toBe('No se han podido borrar permanentemente 1.000.000 de elementos.')
+})
+
+test('counts exact millions with "de" in the French permanent delete title', async () => {
+	setLocaleData(await catalogFor('fr-FR'), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	const million = 1000000
+
+	expect(deleteTitle(Array.from({ length: million }, () => OLD_NOTES), postName))
+		.toBe(`Supprimer ${formatNumber(million)} d’éléments ?`)
 })
 
 test('deletes for good once confirmed', async () => {
