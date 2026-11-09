@@ -2,9 +2,8 @@
 
 import { InputControl, Text } from '@gophenberg/frontend-sdk'
 import type { RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
-import { FormBody, RunConfirm, markLatest, useCloseWhileOpen, useToaster } from '@gopherium/godmin'
+import { FormBody, FormDialog, RunConfirm, markLatest, useCloseWhileOpen, useToaster } from '@gopherium/godmin'
 import type { BulkRun, ListRun, UnsavedText } from '@gopherium/godmin'
-import { FormDialog } from '@gopherium/godmin/dialogs'
 import { useQueryClient } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useState } from 'react'

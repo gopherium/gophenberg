@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button } from '@gophenberg/frontend-sdk'
-import { useToaster } from '@gopherium/godmin'
+import { ConfirmDialog, useToaster } from '@gopherium/godmin'
 import type { ListRun } from '@gopherium/godmin'
-import { ConfirmDialog } from '@gopherium/godmin/dialogs'
 import { formatNumber } from '@gopherium/gottext'
 import { __, _n, sprintf } from '@wordpress/i18n'
 import { useQueryClient } from '@tanstack/react-query'

@@ -6,7 +6,6 @@
 	"exports": {
 		".": "./index.ts",
 		"./dataviews": "./dataviews.ts",
-		"./dialogs": "./dialogs.ts",
 		"./editor": "./editor/index.ts",
 		"./testing": "./testing.tsx"
 	},
