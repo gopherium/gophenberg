@@ -401,25 +401,6 @@ test.describe('on a phone', () => {
 		})
 	})
 
-	test('shows the move to trash confirm as a sheet along the bottom edge and closes it on a tap', async ({ page }) => {
-		await openDraft(page)
-		await settings(page).tap()
-
-		await page.getByRole('button', { name: 'Move to trash' }).tap()
-
-		const confirm = page.getByRole('dialog')
-		await expect(confirm).toBeVisible()
-		await expect
-			.poll(async () => {
-				const at = await box(confirm)
-				return { left: at.x, width: at.width, bottom: at.y + at.height }
-			})
-			.toEqual({ left: 0, width: PHONE.width, bottom: PHONE.height })
-		await expect(confirm.getByRole('button', { name: 'Move to trash' })).toBeInViewport()
-		await confirm.getByRole('button', { name: 'Cancel' }).tap()
-		await expect(confirm).toBeHidden()
-	})
-
 	test('opens the block inserter inside the screen', async ({ page }) => {
 		await openDraft(page)
 

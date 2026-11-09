@@ -223,7 +223,7 @@ test('shows only View on the published row the pointer rests on, as WordPress dr
 	await row.hover()
 
 	await expect(view).toHaveCSS('opacity', '1')
-	await expect(row.getByRole('button', { name: 'Trash…', exact: true })).toHaveCount(0)
+	await expect(row.getByRole('button', { name: 'Trash', exact: true })).toHaveCount(0)
 })
 
 test('says no results are found when a search matches none', async ({ page }) => {
@@ -244,8 +244,7 @@ test('trashes two ticked items at once and counts them in a toast', async ({ pag
 	await page.getByRole('checkbox', { name: first, exact: true }).check()
 	await page.getByRole('checkbox', { name: second, exact: true }).check()
 	await expect(page.getByText('2 Items selected')).toBeVisible()
-	await page.getByRole('button', { name: 'Trash…', exact: true }).click()
-	await page.getByRole('dialog').getByRole('button', { name: 'Move to trash', exact: true }).click()
+	await page.getByRole('button', { name: 'Trash', exact: true }).click()
 
 	await expect(page.locator('#root').getByText('2 items moved to the trash.')).toBeVisible()
 	await expect(page.getByRole('link', { name: first, exact: true })).toBeHidden()
@@ -273,16 +272,6 @@ test('restores one item from the Trash tab and deletes another for good', async 
 	await expect(page.getByRole('link', { name: gone, exact: true })).toBeHidden()
 })
 
-test('opens the trash confirm of a row on Cancel, as WordPress does', async ({ page }) => {
-	const title = `A post the list spec asks to trash ${RUN}`
-	await draftTitled(page, title)
-	await openRowMenu(page, title)
-
-	await page.getByRole('menuitem', { name: 'Trash…', exact: true }).click()
-
-	await expect(page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
-})
-
 test('opens the permanent delete confirm of a row on Cancel, as WordPress does', async ({ page }) => {
 	const title = `A post the list spec asks to delete ${RUN}`
 	const id = await draftTitled(page, title)
@@ -301,8 +290,7 @@ test('refuses to trash a page that still holds pages, saying why in a toast', as
 	const team = page.getByRole('row').filter({ has: page.getByRole('link', { name: /Team$/ }) })
 
 	await team.getByRole('button', { name: 'Actions' }).click()
-	await page.getByRole('menuitem', { name: 'Trash…', exact: true }).click()
-	await page.getByRole('dialog').getByRole('button', { name: 'Move to trash', exact: true }).click()
+	await page.getByRole('menuitem', { name: 'Trash', exact: true }).click()
 
 	const reason = 'This item still holds items nested inside it. Move or delete those first.'
 	await expect(page.locator('.godmin-toast').getByText(reason)).toBeVisible()

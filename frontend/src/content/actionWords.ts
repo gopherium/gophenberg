@@ -17,19 +17,6 @@ export function postName(post: Post): string {
 }
 
 /**
- * Returns the question asked before the given posts are trashed.
- * @param items - The posts acted on.
- * @returns The question naming the post when only one was picked.
- */
-export function trashQuestion(items: Post[]): string {
-	if (items.length === 1) {
-		return sprintf(__('Move "%(title)s" to the trash?', 'gophenberg'), { title: postName(items[0]) })
-	}
-	const many = _n('Move %s item to the trash?', 'Move %s items to the trash?', items.length, 'gophenberg')
-	return sprintf(many, formatNumber(items.length))
-}
-
-/**
  * Returns the words a trash over posts reads as.
  * @returns The words for the posts trashed and for the ones that stayed.
  */

@@ -244,9 +244,6 @@ test('takes a post trashed from the editor back out of the trash from the list',
 	await expect(shown(page, 'Draft saved.')).toBeVisible()
 
 	await page.getByRole('button', { name: 'Move to trash' }).click()
-	const confirm = page.getByRole('dialog', { name: `Are you sure you want to move "${TRASH_TITLE}" to the trash?` })
-	await expect(confirm.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
-	await confirm.getByRole('button', { name: 'Move to trash' }).click()
 
 	await expect(page.getByRole('main').getByRole('button', { name: 'Add Post', exact: true })).toBeVisible()
 	await expect(shown(page, `"${TRASH_TITLE}" moved to the trash.`)).toBeVisible()
@@ -260,7 +257,7 @@ test('takes a post trashed from the editor back out of the trash from the list',
 	await expect(page.getByRole('link', { name: TRASH_TITLE })).toBeVisible()
 })
 
-test('lays out Move to trash and the small confirm it opens as the WordPress editor does', async ({ page }) => {
+test('lays out Move to trash as the WordPress editor does', async ({ page }) => {
 	await openNewDraft(page)
 	await page.getByRole('textbox', { name: 'Title' }).fill(LAYOUT_TITLE)
 	const trigger = page.getByRole('button', { name: 'Move to trash' })
@@ -286,18 +283,9 @@ test('lays out Move to trash and the small confirm it opens as the WordPress edi
 	const field = await page.getByLabel('On sale').boundingBox()
 	const button = await trigger.boundingBox()
 	expect(field?.y ?? 0).toBeGreaterThan((button?.y ?? 0) + (button?.height ?? 0))
-
-	await trigger.click()
-	const confirm = page.getByRole('dialog', { name: `Are you sure you want to move "${LAYOUT_TITLE}" to the trash?` })
-	await expect(confirm.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
-	await expect(confirm.getByRole('heading')).toHaveCount(0)
-	await expect.poll(async () => Math.round((await confirm.boundingBox())?.width ?? 0)).toBe(400)
-	await confirm.getByRole('button', { name: 'Cancel', exact: true }).click()
-	await expect(confirm).toBeHidden()
-	await expect(trigger).toBeFocused()
 })
 
-test('closes the trash confirm at once and reports a trash the server refused in a toast', async ({ page }) => {
+test('shows Move to trash busy at once and reports a trash the server refused in a toast', async ({ page }) => {
 	await openNewDraft(page)
 	await page.getByRole('textbox', { name: 'Title' }).fill(REFUSED_TITLE)
 	await page.getByRole('button', { name: 'Save draft' }).click()
@@ -315,11 +303,9 @@ test('closes the trash confirm at once and reports a trash the server refused in
 		await route.fulfill({ status: 500, json: {} })
 	})
 	const trigger = page.getByRole('button', { name: 'Move to trash' })
+
 	await trigger.click()
 
-	await page.getByRole('dialog').getByRole('button', { name: 'Move to trash' }).click()
-
-	await expect(page.getByRole('dialog')).toHaveCount(0)
 	await expect(trigger).toHaveAttribute('aria-disabled', 'true')
 	await expect(trigger).toHaveClass(/\bis-busy\b/)
 	answer()
@@ -340,7 +326,6 @@ test('reads a trashed post and restores it into the editor', async ({ page }) =>
 	await page.getByRole('button', { name: 'Save draft' }).click()
 	await expect(shown(page, 'Draft saved.')).toBeVisible()
 	await page.getByRole('button', { name: 'Move to trash' }).click()
-	await page.getByRole('dialog').getByRole('button', { name: 'Move to trash' }).click()
 	await expect(shown(page, `"${READ_TITLE}" moved to the trash.`)).toBeVisible()
 
 	await statusTab(page, 'Trash').click()

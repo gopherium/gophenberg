@@ -7,6 +7,7 @@ import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
+import { findActionToast } from './typeFixtures'
 import { warmPostsScreen } from './warm'
 
 warmPostsScreen()
@@ -63,38 +64,22 @@ async function selectBoth() {
 }
 
 /**
- * Trashes the ticked posts through the bulk bar and its confirm.
+ * Trashes the ticked posts through the bulk bar.
  */
 async function trashTheTicked() {
-	await userEvent.click(screen.getByRole('button', { name: 'Trash…' }))
-	const dialog = await screen.findByRole('dialog')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move to trash' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Trash' }))
 }
 
-test('trashes every selected post behind one confirm', async () => {
+test('trashes every selected post at once, asking nothing first', async () => {
 	renderAt('/content/post')
 	await selectBoth()
 
-	await userEvent.click(screen.getByRole('button', { name: 'Trash…' }))
-	const dialog = await screen.findByRole('dialog')
-	expect(dialog).toHaveTextContent('Move 2 items to the trash?')
-	expect(trashed).toEqual([])
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move to trash' }))
+	await userEvent.click(screen.getByRole('button', { name: 'Trash' }))
 
 	await waitFor(() => expect(trashed).toHaveLength(2))
 	expect(trashed).toEqual(expect.arrayContaining([FIRST.id, SECOND.id]))
-})
-
-test('quotes the whole title of the one ticked post in the bulk trash confirm, however long', async () => {
-	const long = 'Notes from a long weekend walk along the harbor at dawn'
-	listed = [{ ...FIRST, title: long }, SECOND]
-	renderAt('/content/post')
-	await screen.findByText(long)
-	await userEvent.click(screen.getByRole('checkbox', { name: long }))
-
-	await userEvent.click(screen.getByRole('button', { name: 'Trash…' }))
-
-	expect(await screen.findByRole('dialog')).toHaveTextContent(`Move "${long}" to the trash?`)
+	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+	expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 })
 
 test('stops offering the bulk trash once the ticked posts sit in the trash', async () => {
@@ -110,19 +95,22 @@ test('stops offering the bulk trash once the ticked posts sit in the trash', asy
 
 	await trashTheTicked()
 
-	await screen.findByText('2 items moved to the trash.', { selector: '.godmin-toast' })
-	await waitFor(() => expect(screen.queryByRole('button', { name: 'Trash…' })).not.toBeInTheDocument())
+	await findActionToast('2 items moved to the trash.')
+	await waitFor(() => expect(screen.queryByRole('button', { name: 'Trash' })).not.toBeInTheDocument())
 })
 
-test('counts the posts a bulk trash moved in a toast with no undo', async () => {
+test('counts the posts a bulk trash moved in a toast whose Undo restores both', async () => {
 	renderAt('/content/post')
 	await selectBoth()
-
 	await trashTheTicked()
-
-	expect(await screen.findByText('2 items moved to the trash.', { selector: '.godmin-toast' })).toBeInTheDocument()
-	expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+	const toast = await findActionToast('2 items moved to the trash.')
 	expect(restored).toEqual([])
+
+	await userEvent.click(within(toast).getByRole('button', { name: 'Undo' }))
+
+	expect(await screen.findByText('2 posts have been restored.', { selector: '.godmin-toast' })).toBeInTheDocument()
+	expect(restored).toEqual(expect.arrayContaining([FIRST.id, SECOND.id]))
+	expect(restored).toHaveLength(2)
 })
 
 test('counts only what a partly refused bulk trash could not move, in one toast', async () => {
@@ -148,6 +136,7 @@ test('counts only what a partly refused bulk trash could not move, in one toast'
 		.toBeInTheDocument()
 	expect(document.querySelectorAll('.godmin-toast')).toHaveLength(1)
 	expect(screen.queryByText('1 item moved to the trash.')).not.toBeInTheDocument()
+	expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 	expect(screen.getByRole('checkbox', { name: 'Second Thoughts' })).toBeChecked()
 	expect(screen.getByRole('checkbox', { name: 'Third Draft' })).toBeChecked()
@@ -160,10 +149,9 @@ test('keeps the tick on a row a run did not reach', async () => {
 	const first = screen.getAllByRole('row').find((row) => within(row).queryByText('Welcome to Gophenberg') !== null)
 
 	await userEvent.click(within(first as HTMLElement).getByRole('button', { name: 'Actions' }))
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Move to trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
 
-	await screen.findByText('"Welcome to Gophenberg" moved to the trash.', { selector: '.godmin-toast' })
+	await findActionToast('"Welcome to Gophenberg" moved to the trash.')
 	expect(screen.getByRole('checkbox', { name: 'Second Thoughts' })).toBeChecked()
 })
 

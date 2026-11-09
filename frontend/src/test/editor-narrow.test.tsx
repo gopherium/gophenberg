@@ -9,6 +9,7 @@ import { beforeAll, beforeEach, expect, test } from 'vitest'
 import '../content/editor.css'
 import { renderAt } from './render'
 import { storedPost } from './postFixture'
+import { findActionToast } from './typeFixtures'
 
 const EDITOR_PATH = `/content/post/${storedPost.id}/edit`
 
@@ -255,12 +256,14 @@ test('leaves the drag handle out of the toolbar row, as WordPress does on a phon
 })
 
 test('moves the post to the trash through the settings', async () => {
+	server.use(
+		http.delete(`/api/content/${storedPost.id}`, () => HttpResponse.json({ ...storedPost, status: 'trash' })),
+		http.get('/api/content', () => HttpResponse.json({ items: [], total: 0 })),
+	)
 	await openEditor()
 	await userEvent.click(screen.getByRole('button', { name: 'Settings' }))
 
 	await userEvent.click(screen.getByRole('button', { name: 'Move to trash' }))
 
-	expect(
-		await screen.findByRole('dialog', { name: 'Are you sure you want to move "Welcome to Gophenberg" to the trash?' }),
-	).toBeInTheDocument()
+	expect(await findActionToast('"Welcome to Gophenberg" moved to the trash.')).toBeInTheDocument()
 })

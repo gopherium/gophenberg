@@ -7,7 +7,7 @@ import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import type { BulkFailure } from '@gopherium/godmin'
 
-import { postName, restoreWords, trashQuestion, trashWords } from '../content/actionWords'
+import { postName, restoreWords, trashWords } from '../content/actionWords'
 import type { Post } from '../content/api'
 import { deleteQuestion, deleteWords } from '../lists/itemWords'
 import { catalogFor } from '../i18n/catalog'
@@ -16,7 +16,7 @@ import { bulkBar } from './bulkBar'
 import { gate } from './gate'
 import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
-import { clickDimmedPage, waitBusy } from './typeFixtures'
+import { clickDimmedPage, findActionToast, waitBusy } from './typeFixtures'
 import { warmPostsScreen } from './warm'
 
 warmPostsScreen()
@@ -196,9 +196,8 @@ async function goToEditor(router: Router) {
  */
 async function trashTheListedPost() {
 	await userEvent.click(await screen.findByRole('button', { name: 'Actions' }))
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Move to trash' }))
-	await screen.findByText('"Old Notes" moved to the trash.', { selector: '.godmin-toast' })
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	await findActionToast('"Old Notes" moved to the trash.')
 }
 
 /**
@@ -263,7 +262,7 @@ test('swaps the row actions in the trash view, the restore first', async () => {
 
 	await screen.findByRole('menuitem', { name: 'Restore' })
 	expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Restore', 'Permanently delete…'])
-	expect(screen.queryByRole('menuitem', { name: 'Trash…' })).not.toBeInTheDocument()
+	expect(screen.queryByRole('menuitem', { name: 'Trash' })).not.toBeInTheDocument()
 	expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument()
 })
 
@@ -597,7 +596,6 @@ test('counts exact millions with "de" in the Spanish trash, restore and delete w
 	const picked = Array.from({ length: million }, () => OLD_NOTES)
 	const refused = Array.from({ length: million }, () => failure)
 
-	expect(trashQuestion(picked)).toBe('¿Mover 1.000.000 de elementos a la papelera?')
 	expect(deleteQuestion(picked, postName))
 		.toBe('¿Borrar permanentemente 1.000.000 de elementos? Esto no se puede deshacer.')
 	expect(trashWords().done(million, undefined)).toBe('1.000.000 de elementos movidos a la papelera.')

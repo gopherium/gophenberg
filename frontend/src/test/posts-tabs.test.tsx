@@ -197,8 +197,7 @@ async function refuseTheTrash() {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.delete('/api/content/:id', () => HttpResponse.json({}, { status: 500 })))
 	await userEvent.click(await screen.findByRole('button', { name: 'Actions' }))
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Move to trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
 	await screen.findByText('The item could not be moved to the trash.', { selector: '.godmin-toast' })
 }
 

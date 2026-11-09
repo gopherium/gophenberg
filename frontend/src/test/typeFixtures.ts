@@ -114,6 +114,16 @@ export function findToast(words: string | RegExp): Promise<HTMLElement> {
 }
 
 /**
+ * Returns the toast showing the given words beside its action, such as Undo, once it shows.
+ * @param words - The words of the toast.
+ * @returns The toast, its action inside.
+ */
+export async function findActionToast(words: string | RegExp): Promise<HTMLElement> {
+	const message = await screen.findByText(words, { selector: '.godmin-toast__message' })
+	return message.closest('.godmin-toast') as HTMLElement
+}
+
+/**
  * Waits until a button of a dialog shows the spinner of a write it runs.
  * @param dialog - The dialog.
  * @param name - The words of the button.

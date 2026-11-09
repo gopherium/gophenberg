@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 
 import { deleteQuestion, deleteWords } from '../lists/itemWords'
-import { postName, restoreWords, trashQuestion, trashWords } from './actionWords'
+import { postName, restoreWords, trashWords } from './actionWords'
 import { deletePost, restorePost, trashPost } from './api'
 import type { Post } from './api'
 import { DuplicateModal, RenamePostModal } from './NameModals'
@@ -47,25 +47,6 @@ function useRunOver(list: ListRun): BulkRun<Post> {
 interface PostConfirmProps extends RenderModalProps<Post> {
 	/** Runs one call over the picked posts. */
 	run: BulkRun<Post>
-}
-
-/**
- * Renders the confirm moving the picked posts to the trash, closing only itself once the run ends.
- * @param props - The posts, the handler closing the modal and the run.
- * @returns The confirm.
- */
-function TrashConfirm({ items, closeModal, run }: PostConfirmProps) {
-	return (
-		<RunConfirm
-			items={items}
-			closeModal={closeModal}
-			confirmLabel={__('Move to trash', 'gophenberg')}
-			cancelLabel={__('Cancel', 'gophenberg')}
-			run={(picked) => run(picked, (post) => trashPost(post.id), trashWords())}
-		>
-			{trashQuestion(items)}
-		</RunConfirm>
-	)
 }
 
 /**
@@ -130,6 +111,7 @@ interface UnsavedForms {
  * Returns the actions offered on the rows of a list outside the trash, the view first and the trash last.
  * @param mine - Whether the session may change a post.
  * @param run - Runs one call over the picked posts.
+ * @param type - The content type the list shows.
  * @param served - Whether the site serves the type the list shows.
  * @param unsaved - The text failed row forms left unsaved.
  * @returns The view, a primary action DataViews also draws on the row, then the duplicate, offered on every post not
@@ -139,6 +121,7 @@ interface UnsavedForms {
 function listActions(
 	mine: (post: Post) => boolean,
 	run: BulkRun<Post>,
+	type: string,
 	served: boolean,
 	unsaved: UnsavedForms,
 ): Action<Post>[] {
@@ -163,13 +146,18 @@ function listActions(
 		},
 		{
 			id: 'trash',
-			label: _x('Trash…', 'verb', 'gophenberg'),
+			label: _x('Trash', 'verb', 'gophenberg'),
 			icon: trashIcon,
 			supportsBulk: true,
 			isEligible: changeable,
-			hideModalHeader: true,
-			modalFocusOnMount: 'firstContentElement',
-			RenderModal: (props) => <TrashConfirm {...props} run={run} />,
+			callback: (posts) =>
+				run(posts, (post) => trashPost(post.id), {
+					...trashWords(),
+					undo: (done) => ({
+						label: __('Undo', 'gophenberg'),
+						onAct: () => void run(done, (post) => restorePost(post.id), restoreWords(type)),
+					}),
+				}),
 		},
 	]
 }
@@ -209,6 +197,6 @@ export function usePostActions(status: string, listed: ContentType, list: ListRu
 		if (status === 'trash') {
 			return trashViewActions(mine, run, key)
 		}
-		return listActions(mine, run, active, { copies, renames })
+		return listActions(mine, run, key, active, { copies, renames })
 	}, [active, copies, key, renames, run, session, status])
 }
