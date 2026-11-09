@@ -230,7 +230,7 @@ func (s *site) serveTerm(w http.ResponseWriter, r *http.Request, held content.Ad
 		serveError(w)
 		return
 	}
-	shell := s.shell(r.Context(), held.Item.Title+" | "+s.title)
+	shell := s.shell(r.Context(), s.titleOf(held.Item.Title))
 	summaries := make([]summary, len(rows))
 	for i, p := range rows {
 		summaries[i] = newSummary(p, shell.T)
@@ -275,21 +275,29 @@ func (s *site) serveList(w http.ResponseWriter, r *http.Request, listed content.
 // listingTitle returns the document title a listing carries.
 func (s *site) listingTitle(listed content.Type) string {
 	if listed.RouteWord == "" {
+		return s.titleOf("")
+	}
+	return s.titleOf(listed.PluralLabel)
+}
+
+// titleOf returns the document title of a page about part, the site's name alone when part is empty.
+func (s *site) titleOf(part string) string {
+	if part == "" {
 		return s.title
 	}
-	return listed.PluralLabel + " | " + s.title
+	return part + " | " + s.title
 }
 
 // serveItem renders one published content item.
 func (s *site) serveItem(w http.ResponseWriter, r *http.Request, held content.Content) {
-	shell := s.shell(r.Context(), held.Title+" | "+s.title)
+	shell := s.shell(r.Context(), s.titleOf(held.Title))
 	s.render(w, postTemplate, http.StatusOK, detailData{Shell: shell, Post: newDetail(held, shell.T)})
 }
 
 // serveNotFound renders the page reporting that nothing lives at an address.
 func (s *site) serveNotFound(w http.ResponseWriter, r *http.Request) {
 	shell := s.shell(r.Context(), "")
-	shell.Title = shell.T.Get(notFoundTitle) + " | " + s.title
+	shell.Title = s.titleOf(shell.T.Get(notFoundTitle))
 	s.render(w, notFoundTemplate, http.StatusNotFound, listData{Shell: shell})
 }
 
