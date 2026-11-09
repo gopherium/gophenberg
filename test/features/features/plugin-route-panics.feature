@@ -11,7 +11,6 @@ Feature: A panic in a plugin's route costs only that request
     Given the settings point at an empty database
     And the compiled plugins "events" and "notes"
 
-  @wip
   Scenario: A route that panics answers the site's internal error and the plugin stays active
     Given the route "/boom" of "notes" panics with "boom"
     When the site serves
@@ -21,7 +20,6 @@ Feature: A panic in a plugin's route costs only that request
     And the site logged once that GET "/api/plugins/notes/boom" of "notes" panicked with "boom", answered
     And the plugin records hold "notes" as active with no error
 
-  @wip
   Scenario: A route that panics after it began its answer is cut
     Given the route "/boom" of "notes" answers 200, then panics with "boom"
     When the site serves
@@ -29,7 +27,6 @@ Feature: A panic in a plugin's route costs only that request
     And the route of "notes" answers 200
     And the site logged once that GET "/api/plugins/notes/boom" of "notes" panicked with "boom", not answered
 
-  @wip
   Scenario: A route behind a session that panics answers the site's internal error
     Given the route "/private" of "notes" needs a session and panics with "boom"
     And an administrator account exists

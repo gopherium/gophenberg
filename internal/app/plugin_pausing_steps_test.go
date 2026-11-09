@@ -54,8 +54,10 @@ type pausingPlugin struct {
 	typesErr     error
 	takes        time.Duration
 	stopsTheSite bool
+	noHandler    bool
 	roles        []sdk.RoleDeclaration
 	types        []string
+	routeBooms   map[string]routeBoom
 }
 
 // initializePluginPausing binds the steps of the scenarios where a start pauses a plugin that fails to s.
@@ -64,7 +66,9 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Given(`^the compiled plugins "([^"]*)" and "([^"]*)"$`, p.compile)
 	sc.Given(`^the Register of "([^"]*)" fails with "([^"]*)"$`, p.failRegister)
 	sc.Given(`^the Register of "([^"]*)" answers a plugin that calls itself "([^"]*)"$`, p.callItself)
-	sc.Given(`^the (Register|Migrate|Roles|DeclareTypes|Start) of "([^"]*)" panics with "([^"]*)"$`, p.panics)
+	sc.Given(`^the (Register|Migrate|Roles|DeclareTypes|Routes|PublicPaths|Start) of "([^"]*)" panics with "([^"]*)"$`,
+		p.panics)
+	sc.Given(`^the Routes of "([^"]*)" answers no handler$`, func(id string) { p.plugins[id].noHandler = true })
 	sc.Given(`^the migration of "([^"]*)" fails with "([^"]*)"$`, p.failMigration)
 	sc.Given(`^the Start of "([^"]*)" fails with "([^"]*)"$`, p.failStart)
 	sc.Given(`^the Start of "([^"]*)" takes "([^"]*)"$`, p.slowStart)
@@ -90,12 +94,13 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Then(`^the site logged a warning that "([^"]*)" started slower than its budget$`, p.warnedSlow)
 	sc.Then(`^the site logged no slow start for "([^"]*)"$`, p.warnedNoSlow)
 	sc.Then(`^the error names the paused plugin "([^"]*)"$`, p.namesPaused)
+	p.bindRoutePanics(sc)
 }
 
 // compile compiles the plugins first and second into the scenario's binary, in that order.
 func (p *pausingScenario) compile(first, second string) {
 	for _, id := range []string{first, second} {
-		plugin := &pausingPlugin{id: id, scenario: p, booms: map[string]string{}}
+		plugin := &pausingPlugin{id: id, scenario: p, booms: map[string]string{}, routeBooms: map[string]routeBoom{}}
 		p.plugins[id] = plugin
 		p.compiled = append(p.compiled, pluginkit.Registration[sdk.Deps, sdk.Plugin]{ID: id, Register: plugin.register})
 	}
@@ -430,16 +435,30 @@ func (*pausingPlugin) Stop(context.Context) error {
 	return nil
 }
 
-// Routes answers 200 on the plugin's one route.
-func (*pausingPlugin) Routes() http.Handler {
+// Routes answers 200 on the plugin's one route beside the routes set to panic, or answers nothing or panics as set.
+func (pl *pausingPlugin) Routes() http.Handler {
+	pl.boom("Routes")
+	if pl.noHandler {
+		return nil
+	}
 	routes := http.NewServeMux()
 	routes.HandleFunc("GET "+pausingRoute, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	for path, boom := range pl.routeBooms {
+		routes.HandleFunc("GET "+path, boom.serve)
+	}
 	return routes
 }
 
-// PublicPaths opens the plugin's one route to every visitor.
-func (*pausingPlugin) PublicPaths() []string {
-	return []string{pausingRoute}
+// PublicPaths opens the plugin's one route and each route set to panic without a session, or panics as set.
+func (pl *pausingPlugin) PublicPaths() []string {
+	pl.boom("PublicPaths")
+	public := []string{pausingRoute}
+	for path, boom := range pl.routeBooms {
+		if !boom.private {
+			public = append(public, path)
+		}
+	}
+	return public
 }
 
 // Roles returns the roles the scenario had the plugin declare, or panics as it set.

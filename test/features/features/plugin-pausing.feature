@@ -99,7 +99,6 @@ Feature: A site keeps running when one plugin fails at start
       | DeclareTypes | types    | plugin notes types panicked: boom        |
       | Start        | start    | pluginkit: notes start panicked: boom    |
 
-  @wip
   Scenario Outline: A plugin whose routes fail to load is paused and never starts
     Given <trouble>
     When the site serves
