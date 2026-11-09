@@ -27,7 +27,7 @@ require (
 	github.com/gopherium/gouncer/authkit/postgres v0.15.1
 	github.com/gopherium/gouncer/authkit/ratelimit v0.3.1
 	github.com/gopherium/gouncer/authkit/sqlite v0.3.0
-	github.com/jackc/pgx/v5 v5.11.0
+	github.com/jackc/pgx/v5 v5.12.0
 	github.com/joho/godotenv v1.5.1
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/peterldowns/pgtestdb v0.1.1
