@@ -10,7 +10,7 @@ import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
-import { holdWrite } from '../content/postWrites'
+import { holdWrite, writesSettled } from '../content/postWrites'
 import { catalogFor } from '../i18n/catalog'
 import { fileDeleteDescription } from '../media/format'
 import { bulkBar } from './bulkBar'
@@ -1040,6 +1040,32 @@ test('lands the focus on the list once the file a save went to left it, as a del
 
 	await findToast('Name updated.')
 	await waitFor(() => expect(screen.getByRole('region', { name: 'Media' })).toHaveFocus())
+})
+
+test('holds a save of Edit as a write to the file until it answers', async () => {
+	const answer = gate()
+	server.use(
+		http.patch('/api/media/:id', async ({ params, request }) => {
+			const body = await request.json()
+			await answer.held
+			return kept(Number(params.id), body)
+		}),
+	)
+	const client = renderAt('/media')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	let settled = false
+
+	await pressSave(dialog)
+	await waitBusy(dialog, 'Save')
+	void writesSettled(client, `media ${HARBOR.id}`).then(() => {
+		settled = true
+	})
+	await aMoment()
+	expect(settled).toBe(false)
+	answer.release()
+
+	await waitFor(() => expect(settled).toBe(true))
+	await waitClosed()
 })
 
 test('sends a delete of a file only once a write to it still in flight has answered', async () => {
