@@ -89,6 +89,38 @@ func TestKeepDropsEachTagOutsideTheRulesAndNamesWhy(t *testing.T) {
 			`dropped the head tag meta: its attribute "Name" is not a lowercase name`,
 		},
 		{"an empty key", tagOf("meta", "", "x"), `dropped the head tag meta: its attribute "" is not a lowercase name`},
+		{
+			"an event attribute", tagOf("link", "rel", "stylesheet", "href", "/style.css", "onload", "alert(1)"),
+			`dropped the head tag link: its attribute "onload" runs script or styles the page`,
+		},
+		{
+			"an error event attribute", tagOf("link", "rel", "preload", "href", "/x", "onerror", "alert(1)"),
+			`dropped the head tag link: its attribute "onerror" runs script or styles the page`,
+		},
+		{
+			"a style attribute", tagOf("meta", "name", "x", "style", "display:none"),
+			`dropped the head tag meta: its attribute "style" runs script or styles the page`,
+		},
+		{
+			"a tab after the first slash", tagOf("link", "href", "/\t/example.com/x.css"),
+			"dropped the head tag link: its href must be an http, https or site address",
+		},
+		{
+			"a line break after the first slash", tagOf("link", "href", "/\n/example.com/x.css"),
+			"dropped the head tag link: its href must be an http, https or site address",
+		},
+		{
+			"a carriage return after the scheme", tagOf("link", "href", "https:\r//example.com/x.css"),
+			"dropped the head tag link: its href must be an http, https or site address",
+		},
+		{
+			"a space inside the address", tagOf("link", "href", "/ /example.com/x.css"),
+			"dropped the head tag link: its href must be an http, https or site address",
+		},
+		{
+			"a delete character", tagOf("link", "href", "/x\x7f.css"),
+			"dropped the head tag link: its href must be an http, https or site address",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -128,6 +160,20 @@ func TestKeepAnswersATagListOfItsOwn(t *testing.T) {
 
 	if given[0].Tag != "meta" {
 		t.Errorf("Keep() answered the list it was given, the caller changed it to %+v", given[0])
+	}
+}
+
+func TestKeepKeepsTheAttributesItChecked(t *testing.T) {
+	t.Parallel()
+
+	given := []sdk.HeadTag{tagOf("link", "rel", "icon", "href", "/icon.svg")}
+
+	kept, err := headtag.Keep(given)
+	given[0].Attrs[0] = sdk.Attr{Key: "onload", Value: "alert(1)"}
+	given[0].Attrs[1].Value = "javascript:alert(1)"
+
+	if want := tagOf("link", "rel", "icon", "href", "/icon.svg"); err != nil || !sameTag(kept[0], want) {
+		t.Errorf("Keep() = %+v, %v, want the attributes it checked %+v whatever the plugin changes after", kept, err, want)
 	}
 }
 
