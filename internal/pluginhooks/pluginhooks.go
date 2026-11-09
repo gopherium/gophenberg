@@ -54,20 +54,31 @@ func implements[C any](plugin sdk.Plugin) bool {
 
 // Check refuses a listed hook the plugin has no method for or nobody defines, one listed twice, a method not listed.
 func Check(plugin sdk.Plugin, listed, defined []string) error {
-	var refused []error
-	for i, name := range listed {
-		if slices.Contains(listed[:i], name) {
-			refused = append(refused, fmt.Errorf("lists %s twice", name))
-			continue
-		}
-		refused = append(refused, checkListed(plugin, name, defined))
+	refused := make([]error, 0, len(listed)+len(known))
+	for i := range listed {
+		refused = append(refused, checkAt(plugin, listed, i, defined))
 	}
+	return errors.Join(append(refused, unlisted(plugin, listed)...)...)
+}
+
+// checkAt refuses the hook the plugin lists at i when it listed it before, lacks its method or nobody defines it.
+func checkAt(plugin sdk.Plugin, listed []string, i int, defined []string) error {
+	name := listed[i]
+	if slices.Contains(listed[:i], name) {
+		return fmt.Errorf("lists %s twice", name)
+	}
+	return checkListed(plugin, name, defined)
+}
+
+// unlisted returns an error for each hook the plugin has the method of but does not list.
+func unlisted(plugin sdk.Plugin, listed []string) []error {
+	var refused []error
 	for _, h := range known {
 		if h.implements(plugin) && !slices.Contains(listed, h.name) {
 			refused = append(refused, fmt.Errorf("has a %s method but does not list %s", h.method, h.name))
 		}
 	}
-	return errors.Join(refused...)
+	return refused
 }
 
 // checkListed refuses the hook name a plugin lists when the plugin lacks its method or nobody defines it.
