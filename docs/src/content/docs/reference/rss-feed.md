@@ -15,6 +15,10 @@ https://example.com/api/plugins/feed/rss.xml
 It needs no login. That is the address to hand to feed readers, or
 to a newsletter service that syndicates by feed.
 
+The feed also links that address from the head of every page the
+built-in site draws, titled with the site's name, so a browser or a
+feed reader finds it on its own. A paused feed links nothing.
+
 ## What it contains
 
 The newest published posts, most recent first. Each item carries
