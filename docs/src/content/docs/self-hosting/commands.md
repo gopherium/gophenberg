@@ -550,10 +550,11 @@ gophenberg database:backup
 ```
 
 Copies a SQLite file into its backups folder now, and prints where the
-copy went:
+copy went, here for `sqlite:/srv/gophenberg/site.db` with no data
+folder or install root set:
 
 ```text
-backed up the database to /srv/gophenberg/backups/1.4.1-20261022T101500Z-manual.sqlite
+backed up the database to /srv/gophenberg/site.db.backups/1.4.1-20261022T101500Z-manual.sqlite
 ```
 
 When a step after the copy fails, a second line names that error, and

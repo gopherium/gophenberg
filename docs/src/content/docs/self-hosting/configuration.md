@@ -450,8 +450,8 @@ the path is a symbolic link, they sit beside the file the link points
 at, not beside the link.
 
 With neither `GOPHENBERG_DATA_DIR` nor `GOPHENBERG_INSTALL_ROOT` set,
-the backups of the file go into a `backups` folder beside the path in
-the address, see [backups of the file](#backups-of-the-file).
+the backups of the file go into `site.db.backups`, a folder beside the
+path in the address, see [backups of the file](#backups-of-the-file).
 
 ### What runs on SQLite
 
@@ -499,15 +499,27 @@ and your `.env` are not in it, so keep a copy of them as well.
 
 **Where they go.** Into `backups/` inside `GOPHENBERG_DATA_DIR` when it
 is set, else inside `GOPHENBERG_INSTALL_ROOT`, the folder that keeps
-the PostgreSQL dumps. With neither set, into a `backups` folder beside
-the path in the address, even when that path is a symbolic link. So
-`sqlite:/srv/gophenberg/site.db` backs up into
-`/srv/gophenberg/backups/`. Gophenberg makes a missing data folder and
-a missing backups folder with the mode `0700`, and gives each backup
-the mode `0600`, since a backup holds every account. The folder also
-holds `.dbkit-snapshot.lock`, which every backup takes so that two
-never write at once. Leave it in place. With an install root,
-`update:status` lists the backups beside the dumps.
+the PostgreSQL dumps. With neither set, into a folder beside the path
+in the address, named for it with `.backups` added, even when that path
+is a symbolic link. So `sqlite:/srv/gophenberg/site.db` backs up into
+`/srv/gophenberg/site.db.backups/`. Two SQLite files in one folder,
+such as `site.db` and a test copy `site-test.db`, each get their own
+backups folder and their own count, so a backup of one never pushes out
+a backup of the other. With a data folder or an install root, every
+file backs up into its one `backups` folder under one count, so give a
+test copy its own `GOPHENBERG_DATA_DIR`.
+
+Gophenberg makes a missing data folder and a missing backups folder
+with the mode `0700`, and gives each backup the mode `0600`, since a
+backup holds every account. A backups folder that is already there and
+lets other users in, such as one made with the mode `0755`, is closed
+to them the same way before each copy. When it cannot be closed, for
+example because another user owns the folder, the backup stops before
+it copies anything, and its error names the folder:
+`keep the backups folder /srv/gophenberg/site.db.backups from other users`.
+The folder also holds `.dbkit-snapshot.lock`, which every backup takes
+so that two never write at once. Leave it in place. With an install
+root, `update:status` lists the backups beside the dumps.
 
 **Their names.** Each name holds the version that last migrated the
 file, the time of the copy in UTC, and the kind:
@@ -562,6 +574,8 @@ folder at a time. A command that needs its backup meanwhile waits up to
 `GOPHENBERG_SQLITE_MIGRATE_LOCK_POLL`. When the other run took the
 backup this version needs, it goes on with no copy of its own.
 Otherwise it stops and asks you to run it again once that backup ends.
+When two commands still copy the file at about the same time, only one
+of the copies stays, and the other run deletes its own copy and goes on.
 
 **What you see.** `migrate` prints the same lines with or without a
 backup. On a large file or a slow disk the copy can take minutes before
@@ -570,19 +584,23 @@ nothing has migrated yet.
 
 **Run as the site's user.** Run every command as the user that runs
 Gophenberg, not as root. As root, a backup stops when another user can
-change the backups folder or a folder above it.
+change the backups folder or a folder above it. It also stops when the
+backups folder lets other users in, since a run as root never changes a
+folder it did not make.
 
 ### Restoring a backup
 
 A restore puts a backup in place of the file, and everything written
 since that backup is lost. These steps keep the old file, so you can
 undo the restore. Say the file is `/srv/gophenberg/site.db`, with no
-data folder or install root set, and you go back to the backup taken
+data folder or install root set, so its backups are in
+`/srv/gophenberg/site.db.backups/`, and you go back to the backup taken
 before 1.4.1 migrated it.
 
 First make sure no Gophenberg command runs on the file. Then move the
 file, and the files SQLite keeps beside it, into a new folder only you
-can open. Leave `site.db.migrate.lock` where it is:
+can open. Leave `site.db.migrate.lock` and the `site.db.backups` folder
+where they are:
 
 ```sh
 cd /srv/gophenberg
@@ -594,13 +612,14 @@ mv site.db site.db-wal site.db-shm before-restore-20261023/
 a missing `-wal` or `-shm` file is fine. Move a `site.db-journal` too
 when there is one. When the path in the address is a symbolic link,
 take these steps in the folder of the file the link points at, and
-name the backup by its full path.
+name the backup by its full path, since its backups folder sits beside
+the link.
 
 Copy the backup in under a temporary name, give it the owner and the
 mode the old file had, then rename it to `site.db`:
 
 ```sh
-cp backups/1.4.0-20261020T120000Z-update.sqlite site.db.restoring
+cp site.db.backups/1.4.0-20261020T120000Z-update.sqlite site.db.restoring
 chown --reference=before-restore-20261023/site.db site.db.restoring
 chmod --reference=before-restore-20261023/site.db site.db.restoring
 mv site.db.restoring site.db
