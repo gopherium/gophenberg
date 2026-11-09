@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gopherium/framework/dbkit v0.3.0
 	github.com/gopherium/framework/dbkit/postgres v0.4.0
-	github.com/gopherium/framework/dbkit/sqlite v0.3.0
+	github.com/gopherium/framework/dbkit/sqlite v0.4.0
 	github.com/gopherium/framework/goncierge v0.1.0
 	github.com/gopherium/framework/gonsole v0.9.0
 	github.com/gopherium/framework/gonsole/auth v0.9.0
@@ -117,7 +117,7 @@ require (
 	modernc.org/libc v1.79.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
-	modernc.org/sqlite v1.61.0 // indirect
+	modernc.org/sqlite v1.61.1 // indirect
 )
 
 replace github.com/gopherium/gophenberg/sdk => ./sdk
