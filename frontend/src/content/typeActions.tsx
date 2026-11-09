@@ -133,26 +133,31 @@ const ROW_FORMS = { describe: DescribeDialog, 'change-address': AddressDialog }
 
 /**
  * Renders the dialog the screen holds open on the picked types, none while no dialog is open.
- * @param props - The dialog, its types and the trigger it opened from, what it needs from the screen and what takes
- *   it away.
+ * @param props - The dialog, its types and the trigger it opened from, what it needs from the screen, what takes it
+ *   away and what puts a lost focus back on the trigger it opened from.
  * @returns Describe, Change address or Make default on one type, or the red confirm deleting the types for good, each
- *   busy until its write ends.
+ *   busy until its write ends and giving the focus back to the trigger it opened from once it closed.
  */
-export function OpenTypeDialog({ opened, tools, onClose }: {
+export function OpenTypeDialog({ opened, tools, onClose, onBack }: {
 	opened?: OpenedTypes
 	tools: ActionTools
 	onClose: () => void
+	onBack: (id: string, trigger: Trigger) => void
 }) {
 	if (opened === undefined) {
 		return null
 	}
 	const [type] = opened.items
+	const close = () => {
+		onClose()
+		onBack(type.key, opened.trigger)
+	}
 	if (opened.action === 'make-default') {
-		return <MakeDefaultConfirm type={type} run={tools.run} onClose={onClose} />
+		return <MakeDefaultConfirm type={type} run={tools.run} onClose={close} />
 	}
 	if (opened.action !== 'delete') {
 		const Form = ROW_FORMS[opened.action]
-		return <Form key={`${opened.action} ${type.key}`} type={type} write={tools.write} onClose={onClose} />
+		return <Form key={`${opened.action} ${type.key}`} type={type} write={tools.write} onClose={close} />
 	}
 	return (
 		<ConfirmDialog
@@ -162,7 +167,7 @@ export function OpenTypeDialog({ opened, tools, onClose }: {
 			confirmLabel={__('Delete', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
 			onConfirm={() => tools.run(opened.items, (type) => deleteInTurn(tools.client, type.key), removalWords())}
-			onClose={onClose}
+			onClose={close}
 		/>
 	)
 }

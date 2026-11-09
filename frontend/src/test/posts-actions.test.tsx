@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { gate } from './gate'
-import { holdReads } from './reloads'
+import { holdReads, refuseInertFocus } from './reloads'
 import { renderAt } from './render'
 import { storedPostWithId } from './postFixture'
 import { findActionToast } from './typeFixtures'
@@ -307,4 +307,35 @@ test('keeps the focus in a Rename opened while a trash runs once that trash land
 
 	expect(screen.getByRole('dialog', { name: 'Rename' })).toBe(rename)
 	expect(name).toHaveFocus()
+})
+
+test('puts the focus back on the row menu of a Rename cancelled while the list reads again behind it', async () => {
+	refuseInertFocus()
+	const next = { ...PUBLISHED, id: '019fb000-0000-7000-8000-000000000002', slug: 'next', title: 'Notes for Next Week' }
+	const answer = gate()
+	server.use(
+		http.get('/api/content', () => HttpResponse.json({ items: [PUBLISHED, next], total: 2 })),
+		http.delete('/api/content/:id', async () => {
+			await answer.held
+			return HttpResponse.json({ ...PUBLISHED, status: 'trash' })
+		}),
+	)
+	renderAt('/content/post')
+	const trashed = (await screen.findByRole('link', { name: PUBLISHED.title })).closest('tr') as HTMLElement
+	await userEvent.click(within(trashed).getByRole('button', { name: 'Actions' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	const renamed = (await screen.findByRole('link', { name: next.title })).closest('tr') as HTMLElement
+	await userEvent.click(within(renamed).getByRole('button', { name: 'Actions' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename…' }))
+	const rename = await screen.findByRole('dialog', { name: 'Rename' })
+	const release = holdReads('/api/content', { items: [next], total: 1 })
+	answer.release()
+	await findActionToast('"Welcome to Gophenberg" moved to the trash.')
+
+	await userEvent.click(within(rename).getByRole('button', { name: 'Cancel' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	release()
+
+	const row = within((await screen.findByRole('link', { name: next.title })).closest('tr') as HTMLElement)
+	await waitFor(() => expect(row.getByRole('button', { name: 'Actions' })).toHaveFocus())
 })

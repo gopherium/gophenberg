@@ -10,7 +10,7 @@ import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import { typesQueryKey } from '../content/nav'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
-import { expectUnmarked, holdReads, waitMarked } from './reloads'
+import { expectUnmarked, holdReads, refuseInertFocus, waitMarked } from './reloads'
 import { renderAt } from './render'
 import {
 	GUIDE_TYPE,
@@ -644,6 +644,33 @@ test('keeps the focus in a Describe opened while an Activate that empties the fi
 	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 
 	expect(field).toHaveFocus()
+})
+
+test('puts the focus back on the row menu of a Describe cancelled while the list reads again behind it', async () => {
+	refuseInertFocus()
+	const answer = gate()
+	const closed = { ...PAGE_TYPE, active: false }
+	server.use(
+		http.get('/api/types', () => HttpResponse.json({ items: [POST_TYPE, closed, GUIDE_TYPE] })),
+		http.patch('/api/types/page', async () => {
+			await answer.held
+			return HttpResponse.json(PAGE_TYPE)
+		}),
+	)
+	renderAt('/content-types')
+	await openRowMenu('Pages')
+	await userEvent.click(screen.getByRole('menuitem', { name: 'Activate' }))
+	const describe = await openRowDialog('Guides', 'Describe…')
+	const release = holdReads('/api/types', { items: [POST_TYPE, PAGE_TYPE, GUIDE_TYPE] })
+	answer.release()
+	await findToast('"Pages" activated.')
+
+	await userEvent.click(within(describe).getByRole('button', { name: 'Cancel' }))
+	await waitClosed()
+	release()
+
+	const row = await rowOf('Guides')
+	await waitFor(() => expect(row.getByRole('button', { name: 'Actions' })).toHaveFocus())
 })
 
 test('stops a type nesting from its menu, saying the type was updated', async () => {

@@ -14,6 +14,7 @@ import {
 	offeredView,
 	paginationOf,
 	sizedView,
+	useFocusBack,
 	useListRun,
 	useToaster,
 	viewNarrows,
@@ -35,6 +36,7 @@ import type { OpenedPosts } from './actions'
 import { listPosts } from './api'
 import type { Post, PostPage, PostQuery } from './api'
 import { EmptyTrash } from './EmptyTrash'
+import { useShareListRun } from './listOnShow'
 import {
 	OPENING_SORT,
 	PHONE_COLUMNS,
@@ -328,6 +330,8 @@ export function PostsScreen() {
 	const status = current ?? ''
 	const { list, columns, view, settings, posts, waiting, registered } = usePostList(listed, status)
 	const { run, region, refreshing } = useListRun(`${listed.key} ${status}`, list.onChangeSelection)
+	useShareListRun(run)
+	const focusBack = useFocusBack(posts.isFetching, region)
 	const tools = usePostTools(run)
 	const [opened, setOpened] = useState<OpenedPosts>()
 	const actions = usePostActions(status, listed, tools, setOpened)
@@ -365,7 +369,7 @@ export function PostsScreen() {
 				actions={actions}
 				refreshing={refreshing}
 			/>
-			<OpenPostDialog opened={opened} tools={tools} onClose={() => setOpened(undefined)} />
+			<OpenPostDialog opened={opened} tools={tools} onClose={() => setOpened(undefined)} onBack={focusBack} />
 		</Page>
 	)
 }

@@ -304,6 +304,17 @@ test('names the post it trashed in a toast carried to the list, whose Undo resto
 	expect(restored).toEqual([storedPost.id])
 })
 
+test('puts the focus on the list once the Undo of the editor trash lands, as an Undo of a list run does', async () => {
+	renderAt(EDITOR_PATH)
+	await userEvent.click(await screen.findByRole('button', { name: 'Move to trash' }))
+	const toast = await findActionToast(TRASHED_TOAST)
+
+	await userEvent.click(within(toast).getByRole('button', { name: 'Undo' }))
+
+	await findToast('"Welcome to Gophenberg" has been restored.')
+	await waitFor(() => expect(screen.getByRole('region', { name: 'Posts' })).toHaveFocus())
+})
+
 test('reports an Undo the server refused in a toast', async () => {
 	server.use(http.post(`/api/content/${storedPost.id}/restore`, () => HttpResponse.json({}, { status: 500 })))
 	renderAt(EDITOR_PATH)

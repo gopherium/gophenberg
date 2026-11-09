@@ -3,7 +3,7 @@
 import { Button } from '@gophenberg/frontend-sdk'
 import { DataViews, filterSortAndPaginate } from '@gophenberg/frontend-sdk/dataviews'
 import type { Action, Field, View } from '@gophenberg/frontend-sdk/dataviews'
-import { ErrorNotice, ListNoResults, Page, offeredSize, offeredView, useListRun } from '@gopherium/godmin'
+import { ErrorNotice, ListNoResults, Page, offeredSize, offeredView, useFocusBack, useListRun } from '@gopherium/godmin'
 import type { ListRun, OfferedView } from '@gopherium/godmin'
 import { useListView } from '@gopherium/godmin/router'
 import type { ListView } from '@gopherium/godmin/router'
@@ -126,6 +126,7 @@ export function TypesScreen() {
 	const fields = useTypeFields(types.data)
 	const { list, view, settings } = useTypesView(fields)
 	const { run, region, refreshing } = useListRun('content-types', list.onChangeSelection)
+	const focusBack = useFocusBack(types.isFetching, region)
 	const tools = useTypeTools(run)
 	const [opened, setOpened] = useState<OpenedTypes>()
 	const actions = useTypeActions(tools, setOpened)
@@ -148,7 +149,7 @@ export function TypesScreen() {
 				actions={actions}
 				refreshing={refreshing}
 			/>
-			<OpenTypeDialog opened={opened} tools={tools} onClose={() => setOpened(undefined)} />
+			<OpenTypeDialog opened={opened} tools={tools} onClose={() => setOpened(undefined)} onBack={focusBack} />
 		</Page>
 	)
 }

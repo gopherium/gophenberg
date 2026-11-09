@@ -8,6 +8,7 @@ import { useState } from 'react'
 
 import { useRefresh } from './actions'
 import { restorePost, trashPost } from './api'
+import { useListOnShow } from './listOnShow'
 
 /**
  * Renders the control moving the post being edited to the trash at once, its toast offering Undo.
@@ -19,15 +20,23 @@ export function TrashPost({ postId, title }: { postId: string, title: string }) 
 	const router = useRouter()
 	const refresh = useRefresh()
 	const toaster = useToaster()
+	const listOnShow = useListOnShow()
 	const [trashing, setTrashing] = useState(false)
 	const named = title === '' ? __('(no title)', 'gophenberg') : title
 	const restore = () => {
+		const list = listOnShow()
+		const settle = list?.onStart()
 		void restorePost(postId).then(
 			async () => {
-				await refresh([postId])
 				toaster.show(sprintf(__('"%s" has been restored.', 'gophenberg'), named))
+				settle?.(true)
+				const ended = list?.onRefresh()
+				await refresh([postId]).finally(ended)
 			},
-			(failure: Error) => toaster.show(failure.message),
+			(failure: Error) => {
+				toaster.show(failure.message)
+				settle?.(false)
+			},
 		)
 	}
 	const trash = () => {

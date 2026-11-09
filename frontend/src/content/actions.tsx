@@ -68,23 +68,28 @@ const ROW_FORMS = { duplicate: DuplicateDialog, rename: RenamePostDialog }
 
 /**
  * Renders the dialog the screen holds open on the picked posts, none while no dialog is open.
- * @param props - The dialog, its posts and the trigger it opened from, what it needs from the screen and what takes
- *   it away.
+ * @param props - The dialog, its posts and the trigger it opened from, what it needs from the screen, what takes it
+ *   away and what puts a lost focus back on the trigger it opened from.
  * @returns The duplicate or the rename of one post, or the confirm deleting the posts for good, each busy until its
- *   write ends.
+ *   write ends and giving the focus back to the trigger it opened from once it closed.
  */
-export function OpenPostDialog({ opened, tools, onClose }: {
+export function OpenPostDialog({ opened, tools, onClose, onBack }: {
 	opened?: OpenedPosts
 	tools: PostTools
 	onClose: () => void
+	onBack: (id: string, trigger: Trigger) => void
 }) {
 	if (opened === undefined) {
 		return null
 	}
+	const [post] = opened.items
+	const close = () => {
+		onClose()
+		onBack(post.id, opened.trigger)
+	}
 	if (opened.action !== 'delete') {
 		const Form = ROW_FORMS[opened.action]
-		const [post] = opened.items
-		return <Form key={`${opened.action} ${post.id}`} post={post} write={tools.write} onClose={onClose} />
+		return <Form key={`${opened.action} ${post.id}`} post={post} write={tools.write} onClose={close} />
 	}
 	return (
 		<ConfirmDialog
@@ -93,8 +98,8 @@ export function OpenPostDialog({ opened, tools, onClose }: {
 			description={irreversible()}
 			confirmLabel={__('Delete permanently', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			onConfirm={() => tools.run(opened.items, (post) => deletePost(post.id), deleteWords(postName))}
-			onClose={onClose}
+			onConfirm={() => tools.run(opened.items, (item) => deletePost(item.id), deleteWords(postName))}
+			onClose={close}
 		/>
 	)
 }

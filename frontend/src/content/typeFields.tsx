@@ -156,6 +156,15 @@ function CreatedCell({ item }: { item: ContentType }) {
 }
 
 /**
+ * Renders the name of a type as text marked with its key.
+ * @param props - The row being rendered.
+ * @returns The plural name.
+ */
+function TitleCell({ item }: { item: ContentType }) {
+	return <span data-item-id={item.key}>{pluralOf(item)}</span>
+}
+
+/**
  * Returns the columns of the types list, in the order the table draws them.
  * @param origins - The plugins that declared a type, which the Status filter offers after the marks.
  * @returns The type, its key, its singular name kept for the search alone, description, address, status and creation.
@@ -166,6 +175,7 @@ export function typeFields(origins: readonly string[]): Field<ContentType>[] {
 			id: 'title',
 			label: __('Type', 'gophenberg'),
 			getValue: ({ item }) => pluralOf(item),
+			render: TitleCell,
 			enableHiding: false,
 			enableGlobalSearch: true,
 		},
