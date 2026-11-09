@@ -153,6 +153,11 @@ function HeldInput(props: DataFormControlProps<MediaItem>) {
  * @returns The box.
  */
 function heldTextarea(rows: number | undefined) {
+	/**
+	 * Renders the box of several lines of a field, as DataForm draws it, read only while the save runs.
+	 * @param props - The file, the field, the handler of a change and how the label shows.
+	 * @returns The box.
+	 */
 	return function HeldTextarea(props: DataFormControlProps<MediaItem>) {
 		const saving = useContext(Saving)
 		return <ValidatedTextareaControl {...boxProps(props)} rows={rows} readOnly={saving} />
