@@ -2,9 +2,23 @@
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { waitFor } from '@testing-library/react'
-import { expect } from 'vitest'
+import { expect, onTestFinished } from 'vitest'
 
 import { gate } from './gate'
+
+/**
+ * Refuses every focus that lands inside an inert part of the page until the test ends, as a browser refuses it.
+ */
+export function refuseInertFocus() {
+	const refuse = (event: FocusEvent) => {
+		const target = event.target as HTMLElement
+		if (target.closest('[inert]') !== null) {
+			target.blur()
+		}
+	}
+	document.addEventListener('focusin', refuse, true)
+	onTestFinished(() => document.removeEventListener('focusin', refuse, true))
+}
 
 /**
  * Holds every later read of a list, so what a write does before its reload ends can be read.

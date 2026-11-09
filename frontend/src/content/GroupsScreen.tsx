@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {
-	Badge,
-	Button,
-	Dialog,
-	IconButton,
-	InputControl,
-	Notice,
-	Stack,
-	Text,
-	downIcon,
-	upIcon,
-} from '@gophenberg/frontend-sdk'
+import { Badge, Button, IconButton, InputControl, Notice, Stack, downIcon, upIcon } from '@gophenberg/frontend-sdk'
 import { __, _x, sprintf } from '@wordpress/i18n'
-import { ErrorNotice, LoadingScreen, Page, useToaster } from '@gopherium/godmin'
+import { ConfirmDialog, ErrorNotice, FormDialog, LoadingScreen, Page, useToaster } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { irreversible } from '../lists/itemWords'
 import {
 	anyType,
 	createGroup,
@@ -254,7 +244,7 @@ export function GroupsScreen() {
 				<>
 					<ExportDefinitions />
 					<ImportDefinitions />
-					<AddGroup types={types.data ?? []} onDone={done} onRefused={refused} />
+					<AddGroup types={types.data ?? []} onDone={done} />
 				</>
 			}
 		>
@@ -466,54 +456,34 @@ function MoveGroup(props: {
 }
 
 /**
- * Renders the confirmation removing a group takes.
+ * Renders the control removing a group and, while it asks, the red confirm that removes it.
  * @param props - The group and the reporter.
- * @returns The control and its dialog.
+ * @returns The control and its confirm, busy until the delete ends.
  */
 function RemoveGroup(props: Reporter & { held: FieldGroup }) {
-	const [open, setOpen] = useState(false)
-	const remove = useMutation({
-		mutationFn: () => deleteGroup(props.held.id),
-		onSuccess: () => {
-			setOpen(false)
-			props.onDone(sprintf(__('%(group)s removed.', 'gophenberg'), { group: props.held.title }))
-		},
-		onError: (cause) => {
-			setOpen(false)
-			props.onRefused(cause)
-		},
-	})
+	const [asking, setAsking] = useState(false)
+	const remove = useMutation({ mutationFn: () => deleteGroup(props.held.id) })
+	const said = sprintf(__('%(group)s removed.', 'gophenberg'), { group: props.held.title })
+	const warning = __(
+		'The fields this group holds go with it, and so do the values every item stored in them.',
+		'gophenberg',
+	)
 	return (
 		<>
-			<Button variant="outline" onClick={() => setOpen(true)}>
+			<Button variant="outline" onClick={() => setAsking(true)}>
 				{__('Delete', 'gophenberg')}
 			</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
-				<Dialog.Popup>
-					<Dialog.Header>
-						<Dialog.Title>
-							{sprintf(__('Delete %(group)s', 'gophenberg'), { group: props.held.title })}
-						</Dialog.Title>
-						<Dialog.CloseIconButton />
-					</Dialog.Header>
-					<Dialog.Content>
-						<Text>
-							{__(
-								'The fields this group holds go with it, and so do the values every item stored in them.',
-								'gophenberg',
-							)}
-						</Text>
-					</Dialog.Content>
-					<Dialog.Footer>
-						<Button variant="outline" onClick={() => setOpen(false)}>
-							{__('Keep it', 'gophenberg')}
-						</Button>
-						<Button loading={remove.isPending} onClick={() => remove.mutate()}>
-							{__('Delete the group', 'gophenberg')}
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Popup>
-			</Dialog.Root>
+			{asking ? (
+				<ConfirmDialog
+					intent="irreversible"
+					title={sprintf(__('Delete "%(group)s"?', 'gophenberg'), { group: props.held.title })}
+					description={`${warning} ${irreversible()}`}
+					confirmLabel={__('Delete the group', 'gophenberg')}
+					cancelLabel={__('Cancel', 'gophenberg')}
+					onConfirm={() => remove.mutateAsync().then(() => { props.onDone(said) }, props.onRefused)}
+					onClose={() => setAsking(false)}
+				/>
+			) : null}
 		</>
 	)
 }
@@ -530,66 +500,71 @@ function ExportDefinitions() {
 	)
 }
 
+/** What the control storing a new field group takes. */
+interface AddGroupProps {
+	types: ContentType[]
+	onDone: (said: string) => void
+}
+
 /**
- * Renders the control storing a new field group.
- * @param props - The registered types and the reporter.
- * @returns The control and its dialog.
+ * Renders the control storing a new field group and, while it asks, its form.
+ * @param props - The registered types and what reports the group created.
+ * @returns The control and its form.
  */
-function AddGroup(props: Reporter & { types: ContentType[] }) {
-	const [open, setOpen] = useState(false)
+function AddGroup(props: AddGroupProps) {
+	const [asking, setAsking] = useState(false)
+	return (
+		<>
+			<Button variant="solid" size="compact" onClick={() => setAsking(true)}>
+				{__('Add Field Group', 'gophenberg')}
+			</Button>
+			{asking ? <AddGroupDialog {...props} onClose={() => setAsking(false)} /> : null}
+		</>
+	)
+}
+
+/**
+ * Renders the form storing a new field group, its title empty on each ask and kept after a failure.
+ * @param props - The registered types, what reports the group created and what takes the form away.
+ * @returns The form dialog.
+ */
+function AddGroupDialog(props: AddGroupProps & { onClose: () => void }) {
 	const [title, setTitle] = useState('')
 	const firstType = props.types.at(0)
 	const seeded = firstType?.key ?? ''
 	const add = useMutation({
-		mutationFn: () =>
-			createGroup(title, [[{ source: typeSource, operator: '==', value: seeded }]]),
-		onSuccess: () => {
-			setOpen(false)
-			setTitle('')
-			props.onDone(sprintf(__('%(group)s created.', 'gophenberg'), { group: title }))
-		},
-		onError: (cause) => {
-			setOpen(false)
-			props.onRefused(cause)
-		},
+		mutationFn: () => createGroup(title, [[{ source: typeSource, operator: '==', value: seeded }]]),
 	})
+	const create = () =>
+		add.mutateAsync().then(
+			() => {
+				props.onDone(sprintf(__('%(group)s created.', 'gophenberg'), { group: title }))
+			},
+			(cause: unknown) => ({
+				error: sprintf(__('Could not save the change. %s', 'gophenberg'), groupErrorMessage(cause)),
+			}),
+		)
 	return (
-		<>
-			<Button variant="solid" size="compact" onClick={() => setOpen(true)}>
-				{__('Add Field Group', 'gophenberg')}
-			</Button>
-			<Dialog.Root open={open} onOpenChange={setOpen}>
-				<Dialog.Popup>
-					<Dialog.Header>
-						<Dialog.Title>{__('Create a field group', 'gophenberg')}</Dialog.Title>
-						<Dialog.CloseIconButton />
-					</Dialog.Header>
-					<Dialog.Content>
-						<Stack direction="column" gap="md">
-							<InputControl
-								label={__('Title', 'gophenberg')}
-								autoComplete="off"
-								value={title}
-								onValueChange={setTitle}
-							/>
-							<Text variant="body-sm">
-								{sprintf(
-									__('It starts on %(type)s, and the rules may be edited afterwards.', 'gophenberg'),
-									{ type: firstType === undefined ? __('a content type', 'gophenberg') : pluralOf(firstType) },
-								)}
-							</Text>
-						</Stack>
-					</Dialog.Content>
-					<Dialog.Footer>
-						<Button variant="outline" onClick={() => setOpen(false)}>
-							{__('Cancel', 'gophenberg')}
-						</Button>
-						<Button loading={add.isPending} onClick={() => add.mutate()}>
-							{__('Create', 'gophenberg')}
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Popup>
-			</Dialog.Root>
-		</>
+		<FormDialog
+			title={__('Create a field group', 'gophenberg')}
+			description={sprintf(
+				__('It starts on %(type)s, and the rules may be edited afterwards.', 'gophenberg'),
+				{ type: firstType === undefined ? __('a content type', 'gophenberg') : pluralOf(firstType) },
+			)}
+			submitLabel={__('Create', 'gophenberg')}
+			cancelLabel={__('Cancel', 'gophenberg')}
+			onSubmit={create}
+			onClose={props.onClose}
+		>
+			{(busy) => (
+				<InputControl
+					label={__('Title', 'gophenberg')}
+					autoComplete="off"
+					value={title}
+					readOnly={busy}
+					onValueChange={setTitle}
+				/>
+			)}
+		</FormDialog>
 	)
 }

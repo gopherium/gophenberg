@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Dialog, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
-import { ErrorNotice } from '@gopherium/godmin'
+import { Button, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { ErrorNotice, FormDialog } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -158,112 +158,111 @@ function pointedAnew(
 	)
 }
 
-/**
- * Renders the control editing where a group appears.
- * @param props - The group, the groups a relation may stand in, the registered types, and the reporters.
- * @returns The control and its dialog.
- */
-export function RulesDialog(props: {
+/** What the control editing where a group appears takes. */
+interface RulesProps {
 	held: FieldGroup
 	groups: FieldGroup[]
 	types: ContentType[]
 	onDone: (said: string) => void
 	onRefused: (cause: unknown) => void
-}) {
-	const [open, setOpen] = useState(false)
-	const [notice, setNotice] = useState('')
-	const [draft, setDraft] = useState<Location>(props.held.location)
-	const [picked, setPicked] = useState<Record<string, Touched>>({})
-	const client = useQueryClient()
+}
+
+/**
+ * Renders the control editing where a group appears and, while it asks, its form.
+ * @param props - The group, the groups a relation may stand in, the registered types, and the reporters.
+ * @returns The control and its form.
+ */
+export function RulesDialog(props: RulesProps) {
+	const [asking, setAsking] = useState(false)
 	const sources = useQuery({ queryKey: ruleSourcesQueryKey, queryFn: listRuleSources })
-	const save = useMutation({
-		mutationFn: () =>
-			updateGroup(props.held.id, { location: draft, backlinks: pointedAnew(props.groups, picked) }),
-		onSuccess: () => {
-			setOpen(false)
-			props.onDone(sprintf(__('%(group)s now appears where you said.', 'gophenberg'), {
-				group: props.held.title,
-			}))
-		},
-		onError: async (cause) => {
-			if (!(cause instanceof StaleWriteError)) {
-				setNotice(groupErrorMessage(cause))
-				return
-			}
-			setOpen(false)
-			props.onRefused(cause)
-			await client.invalidateQueries({ queryKey: groupsQueryKey })
-		},
-	})
-
-	/**
-	 * Opens the dialog on the stored rules, or closes it on the edits.
-	 * @param next - Whether the dialog is opening.
-	 */
-	function change(next: boolean) {
-		if (next) {
-			setDraft(props.held.location)
-			setPicked({})
-			setNotice('')
-		}
-		setOpen(next)
-	}
-
 	return (
 		<>
-			<Button variant="outline" onClick={() => change(true)}>
+			<Button variant="outline" onClick={() => setAsking(true)}>
 				{__('Rules', 'gophenberg')}
 			</Button>
-			<Dialog.Root open={open} onOpenChange={change}>
-				<Dialog.Popup>
-					<Dialog.Header>
-						<Dialog.Title>
-							{sprintf(__('Where %(group)s appears', 'gophenberg'), { group: props.held.title })}
-						</Dialog.Title>
-						<Dialog.CloseIconButton />
-					</Dialog.Header>
-					<Dialog.Content>
-						<Stack direction="column" gap="md">
-							{notice !== '' && <ErrorNotice>{notice}</ErrorNotice>}
-							<RulesBody
-								draft={draft}
-								sources={namedSources(sources.data ?? [], props.types)}
-								failed={sources.isError}
-								onDraft={setDraft}
-							/>
-							<LinkedSources
-								held={props.held}
-								groups={props.groups}
-								picked={picked}
-								onPick={(field, pick) =>
-									setPicked((was) => ({ ...was, [field.key]: { ...pick, updatedAt: field.updatedAt } }))
-								}
-							/>
-						</Stack>
-					</Dialog.Content>
-					<Dialog.Footer>
-						<Button variant="outline" onClick={() => change(false)}>
-							{__('Cancel', 'gophenberg')}
-						</Button>
-						<Button loading={save.isPending} onClick={() => save.mutate()}>
-							{__('Save rules', 'gophenberg')}
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Popup>
-			</Dialog.Root>
+			{asking ? (
+				<RulesForm
+					{...props}
+					sources={sources.data ?? []}
+					failed={sources.isError}
+					onClose={() => setAsking(false)}
+				/>
+			) : null}
 		</>
 	)
 }
 
 /**
+ * Renders the form editing where a group appears, its draft started from the stored rules on each ask.
+ * @param props - The group, the groups, the types, the reporters, the sources offered and what takes the form away.
+ * @returns The form dialog, kept open with the draft after a failure other than a stale write.
+ */
+function RulesForm(props: RulesProps & { sources: RuleSource[]; failed: boolean; onClose: () => void }) {
+	const [draft, setDraft] = useState<Location>(props.held.location)
+	const [picked, setPicked] = useState<Record<string, Touched>>({})
+	const client = useQueryClient()
+	const save = useMutation({
+		mutationFn: () =>
+			updateGroup(props.held.id, { location: draft, backlinks: pointedAnew(props.groups, picked) }),
+	})
+	const said = sprintf(__('%(group)s now appears where you said.', 'gophenberg'), { group: props.held.title })
+	const send = () =>
+		save.mutateAsync().then(
+			() => {
+				props.onDone(said)
+			},
+			(cause: unknown) => {
+				if (!(cause instanceof StaleWriteError)) {
+					return { error: groupErrorMessage(cause) }
+				}
+				props.onRefused(cause)
+				void client.invalidateQueries({ queryKey: groupsQueryKey })
+				return undefined
+			},
+		)
+	return (
+		<FormDialog
+			title={sprintf(__('Where %(group)s appears', 'gophenberg'), { group: props.held.title })}
+			submitLabel={__('Save rules', 'gophenberg')}
+			cancelLabel={__('Cancel', 'gophenberg')}
+			onSubmit={send}
+			onClose={props.onClose}
+		>
+			{(busy) => (
+				<>
+					<RulesBody
+						draft={draft}
+						sources={namedSources(props.sources, props.types)}
+						failed={props.failed}
+						readOnly={busy}
+						onDraft={setDraft}
+					/>
+					<LinkedSources
+						held={props.held}
+						groups={props.groups}
+						picked={picked}
+						readOnly={busy}
+						onPick={(field, pick) =>
+							setPicked((was) => ({ ...was, [field.key]: { ...pick, updatedAt: field.updatedAt } }))
+						}
+					/>
+				</>
+			)}
+		</FormDialog>
+	)
+}
+
+/**
  * Renders the pickers naming what each Linked from field of the group reads.
- * @param props - The group, the groups a relation may stand in, the pairs picked so far, and what to call with a pick.
+ * @param props - The group, the groups a relation may stand in, the pairs picked so far, whether the pickers are read
+ *   only, and what to call with a pick.
  * @returns The pickers element, or nothing when the group holds no Linked from field.
  */
 function LinkedSources(props: {
 	held: FieldGroup
 	groups: FieldGroup[]
 	picked: Record<string, Touched>
+	readOnly: boolean
 	onPick: (field: ContentField, pick: BacklinkPick) => void
 }) {
 	const reading = props.held.fields.filter((field) => field.kind === 'backlinks')
@@ -289,6 +288,7 @@ function LinkedSources(props: {
 							<Stack direction="row" gap="sm" align="end">
 								<SourceOfLinks
 									sources={backlinkSources(props.groups, pick.group, pick.field)}
+									readOnly={props.readOnly}
 									onGroup={(group) => props.onPick(field, { ...pick, group })}
 									onField={(through) => props.onPick(field, { ...pick, field: through })}
 								/>
@@ -305,12 +305,13 @@ function LinkedSources(props: {
 interface Drafting {
 	draft: Location
 	sources: RuleSource[]
+	readOnly: boolean
 	onDraft: (next: Location) => void
 }
 
 /**
  * Renders the rule sets and the control adding another.
- * @param props - The rules held, the sources offered, whether the sources failed, and what to do.
+ * @param props - The rules held, the sources, whether the sources failed or the body is read only, and what to do.
  * @returns The body element.
  */
 function RulesBody(props: Drafting & { failed: boolean }) {
@@ -328,7 +329,7 @@ function RulesBody(props: Drafting & { failed: boolean }) {
 			))}
 			<Button
 				variant="outline"
-				disabled={fresh === null}
+				disabled={fresh === null || props.readOnly}
 				onClick={() => fresh !== null && props.onDraft([...props.draft, [fresh]])}
 			>
 				{__('Add rule set', 'gophenberg')}
@@ -356,7 +357,7 @@ function RuleSet(props: Drafting & { set: LocationRule[]; at: number }) {
 			))}
 			<Button
 				variant="outline"
-				disabled={fresh === null}
+				disabled={fresh === null || props.readOnly}
 				onClick={() =>
 					fresh !== null &&
 					props.onDraft(props.draft.map((set, index) => (index === props.at ? [...set, fresh] : set)))
@@ -418,12 +419,14 @@ function RuleRow(props: Drafting & { rule: LocationRule; at: number; spot: numbe
 				label={__('Source', 'gophenberg')}
 				items={sources}
 				value={chosen(sources, rule.source)}
+				readOnly={props.readOnly}
 				onValueChange={(item) => moved(chosenOf(item, sources, chosen(sources, rule.source)).value)}
 			/>
 			<SelectControl
 				label={__('Condition', 'gophenberg')}
 				items={operators}
 				value={chosen(operators, rule.operator)}
+				readOnly={props.readOnly}
 				onValueChange={(item) =>
 					edited({ operator: chosenOf(item, operators, chosen(operators, rule.operator)).value })
 				}
@@ -432,9 +435,14 @@ function RuleRow(props: Drafting & { rule: LocationRule; at: number; spot: numbe
 				label={__('Value', 'gophenberg')}
 				items={values}
 				value={chosen(values, rule.value)}
+				readOnly={props.readOnly}
 				onValueChange={(item) => edited({ value: chosenOf(item, values, chosen(values, rule.value)).value })}
 			/>
-			<Button variant="outline" onClick={() => props.onDraft(withoutRule(props.draft, where))}>
+			<Button
+				variant="outline"
+				disabled={props.readOnly}
+				onClick={() => props.onDraft(withoutRule(props.draft, where))}
+			>
 				{__('Remove', 'gophenberg')}
 			</Button>
 		</Stack>

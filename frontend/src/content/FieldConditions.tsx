@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Button, Dialog, InputControl, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { Button, InputControl, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
+import { FormDialog } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { conditionsOf, multipleOf, needsValue, operatorsFor } from './conditions'
-import { holdsEdits, setFieldSettingsInGroup } from './groups'
+import { formAnswer, setFieldSettingsInGroup } from './groups'
 import { chosenOf } from './select'
 import { pairsOf } from './types'
 import type { ConditionRule } from './conditions'
@@ -88,12 +89,13 @@ function chosen(offered: Choice[], value: string): Choice {
 
 /**
  * Renders one condition as the source, operator and value it reads.
- * @param props - The rule, where it sits, the sources, and what to do.
+ * @param props - The rule, where it sits, the sources, whether the row is read only, and what to do.
  * @returns The row element.
  */
 function ConditionRow(props: {
 	rule: ConditionRule
 	sources: ContentField[]
+	readOnly: boolean
 	onChange: (rule: ConditionRule) => void
 	onRemove: () => void
 }) {
@@ -110,6 +112,7 @@ function ConditionRow(props: {
 				label={__('Source', 'gophenberg')}
 				items={sources}
 				value={chosen(sources, props.rule.source)}
+				readOnly={props.readOnly}
 				onValueChange={(item) =>
 					props.onChange(
 						blankRule(
@@ -124,6 +127,7 @@ function ConditionRow(props: {
 				label={__('Condition', 'gophenberg')}
 				items={operators}
 				value={chosen(operators, props.rule.operator)}
+				readOnly={props.readOnly}
 				onValueChange={(item) =>
 					props.onChange({
 						...props.rule,
@@ -136,6 +140,7 @@ function ConditionRow(props: {
 					label={__('Value', 'gophenberg')}
 					items={values}
 					value={chosen(values, props.rule.value)}
+					readOnly={props.readOnly}
 					onValueChange={(item) =>
 						props.onChange({ ...props.rule, value: chosenOf(item, values, values[0]).value })
 					}
@@ -147,10 +152,11 @@ function ConditionRow(props: {
 					type={shapeOf(held.kind)}
 					autoComplete="off"
 					value={props.rule.value}
+					readOnly={props.readOnly}
 					onValueChange={(written) => props.onChange({ ...props.rule, value: written })}
 				/>
 			)}
-			<Button variant="outline" onClick={props.onRemove}>
+			<Button variant="outline" disabled={props.readOnly} onClick={props.onRemove}>
 				{__('Remove', 'gophenberg')}
 			</Button>
 		</Stack>
@@ -159,12 +165,13 @@ function ConditionRow(props: {
 
 /**
  * Renders the rule sets a field is shown under and the controls editing them.
- * @param props - The rules held, the sources offered, and what to do.
+ * @param props - The rules held, the sources offered, whether the rules are read only, and what to do.
  * @returns The body element.
  */
 function ConditionsBody(props: {
 	draft: ConditionRule[][]
 	sources: ContentField[]
+	readOnly: boolean
 	onDraft: (next: ConditionRule[][]) => void
 }) {
 	return (
@@ -185,6 +192,7 @@ function ConditionsBody(props: {
 							key={spot}
 							rule={rule}
 							sources={props.sources}
+							readOnly={props.readOnly}
 							onChange={(next) =>
 								props.onDraft(
 									props.draft.map((held, index) =>
@@ -205,6 +213,7 @@ function ConditionsBody(props: {
 					))}
 					<Button
 						variant="outline"
+						disabled={props.readOnly}
 						onClick={() =>
 							props.onDraft(
 								props.draft.map((held, index) =>
@@ -217,31 +226,59 @@ function ConditionsBody(props: {
 					</Button>
 				</Stack>
 			))}
-			<Button variant="outline" onClick={() => props.onDraft([...props.draft, [blankRule(props.sources)]])}>
+			<Button
+				variant="outline"
+				disabled={props.readOnly}
+				onClick={() => props.onDraft([...props.draft, [blankRule(props.sources)]])}
+			>
 				{__('Add rule set', 'gophenberg')}
 			</Button>
 		</Stack>
 	)
 }
 
-/**
- * Renders the control editing the rules a field is shown under.
- * @param props - The group, the field, its siblings, its path, and what to report.
- * @returns The control and its dialog, or nothing when no sibling can be read.
- */
-export function FieldConditions(props: {
+/** What the control editing the rules a field is shown under takes. */
+interface ConditionsProps {
 	group: number
 	field: ContentField
 	siblings: ContentField[]
 	path?: string
 	onDone: (said: string) => Promise<void>
 	onRefused: (cause: unknown) => Promise<void>
-}) {
+}
+
+/**
+ * Renders the control editing the rules a field is shown under and, while it asks, its form.
+ * @param props - The group, the field, its siblings, its path, and what to report.
+ * @returns The control and its form, or nothing when no sibling can be read.
+ */
+export function FieldConditions(props: ConditionsProps) {
+	const [asking, setAsking] = useState(false)
 	const sources = conditionSources(props.siblings, props.field)
-	const [open, setOpen] = useState(false)
-	const [draft, setDraft] = useState<ConditionRule[][]>([])
-	const [opened, setOpened] = useState(props.field)
-	const asking = sprintf(__('Rules showing %(field)s', 'gophenberg'), { field: props.field.label })
+	const title = sprintf(__('Rules showing %(field)s', 'gophenberg'), { field: props.field.label })
+	if (sources.length === 0) {
+		return null
+	}
+	return (
+		<>
+			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
+				{__('Rules', 'gophenberg')}
+			</Button>
+			{asking ? (
+				<ConditionsForm {...props} title={title} sources={sources} onClose={() => setAsking(false)} />
+			) : null}
+		</>
+	)
+}
+
+/**
+ * Renders the form editing the rules a field is shown under, its draft started from the field as read on each ask.
+ * @param props - The group, the field, its path, the reporters, the title, the sources offered and what takes it away.
+ * @returns The form dialog, kept open with the draft after a failure other than a stale write.
+ */
+function ConditionsForm(props: ConditionsProps & { title: string; sources: ContentField[]; onClose: () => void }) {
+	const [opened] = useState(props.field)
+	const [draft, setDraft] = useState<ConditionRule[][]>(() => conditionsOf(opened))
 	const save = useMutation({
 		mutationFn: () =>
 			setFieldSettingsInGroup(
@@ -250,58 +287,18 @@ export function FieldConditions(props: {
 				storedConditions(opened.settings, draft),
 				opened.updatedAt,
 			),
-		onSuccess: async () => {
-			setOpen(false)
-			await props.onDone(sprintf(__('%(field)s shows by its rules now.', 'gophenberg'), {
-				field: props.field.label,
-			}))
-		},
-		onError: async (cause) => {
-			await props.onRefused(cause)
-			setOpen(false)
-		},
 	})
-
-	/**
-	 * Opens the dialog on the stored rules unless a turned away draft is held, or closes it on the edits.
-	 * @param next - Whether the dialog is opening.
-	 */
-	function change(next: boolean) {
-		if (next && !holdsEdits(save)) {
-			setDraft(conditionsOf(props.field))
-			setOpened(props.field)
-		}
-		setOpen(next)
-	}
-
-	if (sources.length === 0) {
-		return null
-	}
+	const said = sprintf(__('%(field)s shows by its rules now.', 'gophenberg'), { field: props.field.label })
 	return (
-		<>
-			<Button variant="outline" size="compact" aria-label={asking} onClick={() => change(true)}>
-				{__('Rules', 'gophenberg')}
-			</Button>
-			<Dialog.Root open={open} onOpenChange={change}>
-				<Dialog.Popup>
-					<Dialog.Header>
-						<Dialog.Title>{asking}</Dialog.Title>
-						<Dialog.CloseIconButton />
-					</Dialog.Header>
-					<Dialog.Content>
-						<ConditionsBody draft={draft} sources={sources} onDraft={setDraft} />
-					</Dialog.Content>
-					<Dialog.Footer>
-						<Button variant="outline" onClick={() => change(false)}>
-							{__('Cancel', 'gophenberg')}
-						</Button>
-						<Button loading={save.isPending} onClick={() => save.mutate()}>
-							{__('Save rules', 'gophenberg')}
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Popup>
-			</Dialog.Root>
-		</>
+		<FormDialog
+			title={props.title}
+			submitLabel={__('Save rules', 'gophenberg')}
+			cancelLabel={__('Cancel', 'gophenberg')}
+			onSubmit={() => formAnswer(save.mutateAsync(), said, props)}
+			onClose={props.onClose}
+		>
+			{(busy) => <ConditionsBody draft={draft} sources={props.sources} readOnly={busy} onDraft={setDraft} />}
+		</FormDialog>
 	)
 }
 

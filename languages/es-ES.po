@@ -243,9 +243,6 @@ msgstr "julio"
 msgid "June"
 msgstr "junio"
 
-msgid "Keep it"
-msgstr "Conservarlo"
-
 msgid "Language"
 msgstr "Idioma"
 
@@ -266,6 +263,10 @@ msgstr "Cargando los temas."
 
 msgid "Loading…"
 msgstr "Cargando…"
+
+#, fuzzy
+msgid "Make \"%(type)s\" the default?"
+msgstr "¿Establecer «%(type)s» como predeterminado?"
 
 msgid "Make default"
 msgstr "Establecer como predeterminado"
@@ -753,6 +754,10 @@ msgstr "Vaciar %(field)s"
 msgid "Deactivate %(theme)s"
 msgstr "Desactivar %(theme)s"
 
+#, fuzzy
+msgid "Delete \"%(field)s\"?"
+msgstr "¿Borrar «%(field)s»?"
+
 msgid "Delete %(field)s"
 msgstr "Borrar %(field)s"
 
@@ -917,6 +922,10 @@ msgid "A rule matching any %(source)s cannot be turned into an exclusion. Leave 
 msgstr "Una regla que vale para cualquier %(source)s no se puede convertir en exclusión. Déjala como está, o nombra los que quieras dejar fuera."
 
 #, fuzzy
+msgid "A type that still holds items, even in the trash, is not deleted."
+msgstr "Un tipo que aún tenga elementos, incluso en la papelera, no se borrará."
+
+#, fuzzy
 msgid "Add choice"
 msgstr "Añadir opción"
 
@@ -977,8 +986,8 @@ msgid "Create a field group"
 msgstr "Crear un grupo de campos"
 
 #, fuzzy
-msgid "Delete %(group)s"
-msgstr "Eliminar %(group)s"
+msgid "Delete \"%(group)s\"?"
+msgstr "¿Eliminar «%(group)s»?"
 
 #, fuzzy
 msgid "Delete the group"
@@ -1023,10 +1032,6 @@ msgstr "Instrucciones"
 #, fuzzy
 msgid "It starts on %(type)s, and the rules may be edited afterwards."
 msgstr "Empieza en %(type)s, y las reglas se pueden editar después."
-
-#, fuzzy
-msgid "Keep it here"
-msgstr "Dejarlo aquí"
 
 #, fuzzy
 msgid "Label"
@@ -1756,14 +1761,20 @@ msgstr "Un listado muestra entre 1 y %(max)s elementos, así que %(value)s no es
 msgid "Content nests at most %(max)s levels deep, and this item would sit deeper. Pick a parent closer to the top."
 msgstr "El contenido se anida como mucho %(max)s niveles, y este elemento quedaría más abajo. Elige un nivel superior más cercano al inicio."
 
-msgid "Delete \"%(title)s\" for good? This cannot be undone."
-msgstr "¿Borrar permanentemente «%(title)s»? Esto no se puede deshacer."
+#, fuzzy
+msgid "Delete \"%(title)s\"?"
+msgstr "¿Borrar «%(title)s»?"
 
-msgid "Delete %s item for good? This cannot be undone."
-msgid_plural "Delete %s items for good? This cannot be undone."
-msgstr[0] "¿Borrar permanentemente %s elemento? Esto no se puede deshacer."
-msgstr[1] "¿Borrar permanentemente %s de elementos? Esto no se puede deshacer."
-msgstr[2] "¿Borrar permanentemente %s elementos? Esto no se puede deshacer."
+#, fuzzy
+msgid "Delete %s item?"
+msgid_plural "Delete %s items?"
+msgstr[0] "¿Borrar %s elemento?"
+msgstr[1] "¿Borrar %s de elementos?"
+msgstr[2] "¿Borrar %s elementos?"
+
+#, fuzzy
+msgid "Empty the trash?"
+msgstr "¿Vaciar la papelera?"
 
 #, fuzzy
 msgid "Empty trash"
@@ -1784,15 +1795,6 @@ msgstr "Medio %(id)s"
 #, fuzzy
 msgid "Modified: %s"
 msgstr "Modificado: %s"
-
-msgid "Move \"%(title)s\" to the trash?"
-msgstr "¿Mover «%(title)s» a la papelera?"
-
-msgid "Move %s item to the trash?"
-msgid_plural "Move %s items to the trash?"
-msgstr[0] "¿Mover %s elemento a la papelera?"
-msgstr[1] "¿Mover %s de elementos a la papelera?"
-msgstr[2] "¿Mover %s elementos a la papelera?"
 
 #, fuzzy
 msgid "Name"
@@ -1845,15 +1847,41 @@ msgstr "Buscar %(type)s…"
 msgid "Showing %(held)s of %(total)s."
 msgstr "Mostrando %(held)s de %(total)s."
 
-msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
-msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
-msgstr[0] "%(count)s elemento de la papelera se borrará permanentemente. Esto no se puede deshacer."
-msgstr[1] "%(count)s de elementos de la papelera se borrarán permanentemente. Esto no se puede deshacer."
-msgstr[2] "Los %(count)s elementos de la papelera se borrarán permanentemente. Esto no se puede deshacer."
+#, fuzzy
+msgid "The %(count)s item in the trash is deleted for good."
+msgid_plural "The %(count)s items in the trash are deleted for good."
+msgstr[0] "%(count)s elemento de la papelera se borrará permanentemente."
+msgstr[1] "%(count)s de elementos de la papelera se borrarán permanentemente."
+msgstr[2] "Los %(count)s elementos de la papelera se borrarán permanentemente."
+
+#, fuzzy
+msgid "The %s file is deleted from your site, with every size made from it."
+msgid_plural "The %s files are deleted from your site, with every size made from them."
+msgstr[0] "%s archivo se borrará de tu sitio, con todos sus tamaños."
+msgstr[1] "%s de archivos se borrarán de tu sitio, con todos sus tamaños."
+msgstr[2] "Los %s archivos se borrarán de tu sitio, con todos sus tamaños."
+
+#, fuzzy
+msgid "The %s item is deleted for good, with its revisions and autosaves."
+msgid_plural "The %s items are deleted for good, with their revisions and autosaves."
+msgstr[0] "%s elemento se borrará permanentemente, con sus revisiones y guardados automáticos."
+msgstr[1] "%s de elementos se borrarán permanentemente, con sus revisiones y guardados automáticos."
+msgstr[2] "Los %s elementos se borrarán permanentemente, con sus revisiones y guardados automáticos."
+
+#, fuzzy
+msgid "The %s type and its address are deleted, and its field groups stay."
+msgid_plural "The %s types and their addresses are deleted, and their field groups stay."
+msgstr[0] "%s tipo y su dirección se borrarán, y sus grupos de campos se conservarán."
+msgstr[1] "%s de tipos y sus direcciones se borrarán, y sus grupos de campos se conservarán."
+msgstr[2] "Los %s tipos y sus direcciones se borrarán, y sus grupos de campos se conservarán."
 
 #, fuzzy
 msgid "The draft could not be created."
 msgstr "No se ha podido crear el borrador."
+
+#, fuzzy
+msgid "The file is deleted from your site, with every size made from it."
+msgstr "El archivo se borrará de tu sitio, con todos sus tamaños."
 
 #, fuzzy
 msgid "The item could not be duplicated."
@@ -1872,12 +1900,24 @@ msgid "The item could not be restored."
 msgstr "No se ha podido restaurar el elemento."
 
 #, fuzzy
+msgid "The item is deleted for good, with its revisions and autosaves."
+msgstr "El elemento se borrará permanentemente, con sus revisiones y guardados automáticos."
+
+#, fuzzy
 msgid "The name could not be updated."
 msgstr "No se ha podido actualizar el nombre."
 
 #, fuzzy
 msgid "The trash could not be emptied."
 msgstr "No se ha podido vaciar la papelera."
+
+#, fuzzy
+msgid "The type and its address are deleted, and its field groups stay."
+msgstr "El tipo y su dirección se borrarán, y sus grupos de campos se conservarán."
+
+#, fuzzy
+msgid "This action cannot be undone."
+msgstr "Esta acción no se puede deshacer."
 
 #, fuzzy
 msgid "This definitions file is larger than the %(max)s bytes Gophenberg reads in one request. Split it, or raise the limit your site runs with."
@@ -2000,10 +2040,6 @@ msgid "Gophenberg checked for updates moments ago. Try again later."
 msgstr "Gophenberg ha buscado actualizaciones hace un momento. Inténtalo de nuevo más tarde."
 
 #, fuzzy
-msgid "Are you sure you want to move \"%s\" to the trash?"
-msgstr "¿Seguro que quieres mover «%s» a la papelera?"
-
-#, fuzzy
 msgid "Add Category"
 msgstr "Añadir categoría"
 
@@ -2109,11 +2145,11 @@ msgid "Default content type updated."
 msgstr "Tipo de contenido predeterminado actualizado."
 
 #, fuzzy
-msgid "Delete %s content type for good? This cannot be undone."
-msgid_plural "Delete %s content types for good? This cannot be undone."
-msgstr[0] "¿Borrar permanentemente %s tipo de contenido? Esto no se puede deshacer."
-msgstr[1] "¿Borrar permanentemente %s de tipos de contenido? Esto no se puede deshacer."
-msgstr[2] "¿Borrar permanentemente %s tipos de contenido? Esto no se puede deshacer."
+msgid "Delete %s content type?"
+msgid_plural "Delete %s content types?"
+msgstr[0] "¿Borrar %s tipo de contenido?"
+msgstr[1] "¿Borrar %s de tipos de contenido?"
+msgstr[2] "¿Borrar %s tipos de contenido?"
 
 #, fuzzy
 msgid "Delete…"
@@ -2716,8 +2752,8 @@ msgstr "Ninguno"
 
 #, fuzzy
 msgctxt "verb"
-msgid "Trash…"
-msgstr "Papelera…"
+msgid "Trash"
+msgstr "Papelera"
 
 #, fuzzy
 msgctxt "verb"

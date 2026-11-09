@@ -14,6 +14,7 @@ import {
 	offeredView,
 	paginationOf,
 	sizedView,
+	useFocusBack,
 	useListRun,
 	useToaster,
 	viewNarrows,
@@ -25,15 +26,17 @@ import { useSession } from '@gopherium/react-auth'
 import { useQuery } from '@tanstack/react-query'
 import type { QueryKey, UseQueryResult } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { useMemo } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type { ListSettings } from '../settings/api'
 import { useListSettings } from '../settings/useListSettings'
-import { usePostActions } from './actions'
+import { OpenPostDialog, usePostActions, usePostTools } from './actions'
+import type { OpenedPosts } from './actions'
 import { listPosts } from './api'
 import type { Post, PostPage, PostQuery } from './api'
 import { EmptyTrash } from './EmptyTrash'
+import { useShareListRun } from './listOnShow'
 import {
 	OPENING_SORT,
 	PHONE_COLUMNS,
@@ -318,6 +321,41 @@ function HeaderAddNew({ listed, addNew, size = 'compact' }: {
 }
 
 /**
+ * Returns the handler taking posts off the ticked rows of a list, every other tick kept.
+ * @param list - The list view the screen holds.
+ * @returns The handler, given the ids of the posts, the same for as long as the screen stays.
+ */
+function useUnpick(list: ListView<View>): (ids: string[]) => void {
+	const ticked = useRef(list.selection)
+	useLayoutEffect(() => {
+		ticked.current = list.selection
+	})
+	const { onChangeSelection } = list
+	return useCallback(
+		(ids: string[]) => {
+			ticked.current = ticked.current.filter((id) => !ids.includes(id))
+			onChangeSelection(ticked.current)
+		},
+		[onChangeSelection],
+	)
+}
+
+/**
+ * Holds the dialog the screen keeps open on the picked posts, closed when the list moves to another type.
+ * @param type - The key of the type the list shows.
+ * @returns The open dialog, none while no dialog is open, beside the setter that opens or closes one.
+ */
+function useRowDialog(type: string) {
+	const [opened, setOpened] = useState<OpenedPosts>()
+	const [openedFor, setOpenedFor] = useState(type)
+	if (openedFor !== type) {
+		setOpenedFor(type)
+		setOpened(undefined)
+	}
+	return [opened, setOpened] as const
+}
+
+/**
  * Renders the list screen of a content type.
  * @returns The list screen element.
  */
@@ -327,7 +365,11 @@ export function PostsScreen() {
 	const status = current ?? ''
 	const { list, columns, view, settings, posts, waiting, registered } = usePostList(listed, status)
 	const { run, region, refreshing } = useListRun(`${listed.key} ${status}`, list.onChangeSelection)
-	const actions = usePostActions(status, listed, run)
+	useShareListRun(run)
+	const focusBack = useFocusBack(posts.isFetching, region)
+	const tools = usePostTools(run, useUnpick(list))
+	const [opened, setOpened] = useRowDialog(listed.key)
+	const actions = usePostActions(status, listed, tools, setOpened)
 	const held = useTrashTotal(listed.key, status)
 	const session = useSession().data
 	const addNew = useAddNew(listed)
@@ -362,6 +404,7 @@ export function PostsScreen() {
 				actions={actions}
 				refreshing={refreshing}
 			/>
+			<OpenPostDialog opened={opened} tools={tools} onClose={() => setOpened(undefined)} onBack={focusBack} />
 		</Page>
 	)
 }

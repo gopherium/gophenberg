@@ -617,6 +617,7 @@ test.each([
 	[403, ROLE_NOT_GRANTABLE, 'Sorry, you are not allowed to give users that role.'],
 	[422, ROLE_UNKNOWN, 'Sorry, you are not allowed to give users that role.'],
 	[403, REQUEST_CROSS_ORIGIN, REQUEST_CROSS_ORIGIN_WORDS],
+	[403, { error: 'role insufficient', code: 'role_insufficient' }, 'Sorry, you are not allowed to create users.'],
 	[422, { error: 'role is required', code: 'body_field_required' }, 'The user could not be created.'],
 	[500, { error: 'boom' }, 'The user could not be created.'],
 ])('says in a toast why the server answered %i, the form kept as typed', async (status, body, words) => {

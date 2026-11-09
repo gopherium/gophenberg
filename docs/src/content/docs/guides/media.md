@@ -148,29 +148,24 @@ Under them sit the details you cannot change: Date added, Author,
 File name, File type, File size and Dimensions. The file name shows
 whole here.
 
-Cancel and **Save** stay at the bottom of the dialog while the fields
-above them scroll, as in WordPress's own media editor. While the
-fields do not fit, the part they scroll in is a stop of its own for
-the Tab key, named `Scrollable section` for a screen reader, so the
-arrow keys, Page Down and End scroll it. Once it has scrolled, a line
-shows under the dialog's header, as in WordPress's dialogs. The dialog
-closes the moment you press **Save**, and a short message at the
-bottom of the screen says `Media file updated.` once the server
-stored the change. The focus then goes back to what opened the
-dialog, the title, the picture, the actions menu or the phone row,
-wherever the file now sits in the library. It goes to the file's
-actions menu when that part no longer shows, and to the library
-itself when the file no longer shows there. Only the fields
-you changed are sent, so a change someone else made to another field
-stays. When the save fails, the message says why, starting with
-`Could not save image.` for a picture and `Could not save media.`
-for any other file. The dialog then opens on what you typed the next
-time you open it for that file.
+Press **Save**, or Enter in **Title**, and the dialog stays open with
+its button busy until the server answers. The boxes stay where they
+are, read only, and the focus stays where you left it.
+Cancel closes nothing while it saves. Only the
+fields you changed are sent, so a change someone else made to another
+field stays. Once the change is stored, the dialog closes and a short
+message at the bottom of the screen says `Media file updated.` The
+focus then goes back to what opened the dialog, the title, the
+picture, the actions menu or the phone row, wherever the file now
+sits in the library. It goes to the file's actions menu when that
+part no longer shows, and to the library itself when the file no
+longer shows there. When the save fails, the dialog keeps what you
+typed and says why inside it, starting with `Could not save image.`
+for a picture and `Could not save media.` for any other file.
 
-**Rename…** closes at once too, says `Name updated.`, and keeps a
-refused name the same way. Saves to one file go one after the
-other, so when you rename a file and then edit it, the last one you
-sent wins.
+**Rename…** stays open the same way and says `Name updated.` Its
+**Save** stays on, and a blank name is refused before anything is
+sent.
 
 ## Placing media in a post
 
@@ -209,16 +204,16 @@ dialog from the Document panel, and the same warning applies.
 
 **Permanently delete…** removes a file and every copy of it from
 disk. There is no media trash, so the question is the only step
-between you and a deleted file. It asks in a dialog with no header
-that names the file, such as
-`Delete "Sunset" for good? This cannot be undone.` Cancel has the
-focus when the dialog opens. Press **Delete permanently** and the
-button shows the work running until the server answers, then the
-dialog closes.
+between you and a deleted file. The dialog's title asks it and names
+the file, such as `Delete "Sunset"?`, with
+`The file is deleted from your site, with every size made from it. This action cannot be undone.`
+under it. Cancel has the focus when the dialog opens. Press the red **Delete permanently** and the button
+shows the work running until the server answers, then the dialog
+closes.
 
 Tick several cards and the **Permanently delete…** button under the
-library deletes them all at once, behind one question that counts
-them. A phone list has no tick boxes.
+library deletes them all at once, behind one question whose title and
+sentence count them. A phone list has no tick boxes.
 
 A short message at the bottom of the screen names the file, such as
 `"Sunset" permanently deleted.`, or counts the files when you deleted

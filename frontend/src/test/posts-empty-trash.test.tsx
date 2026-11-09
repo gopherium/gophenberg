@@ -36,7 +36,7 @@ const TRASHED = {
 
 const SECOND = { ...TRASHED, id: '019fb000-0000-7000-8000-000000000004', title: 'Older Notes' }
 
-const WARNING = 'The 2 items in the trash are deleted for good. This cannot be undone.'
+const WARNING = 'The 2 items in the trash are deleted for good. This action cannot be undone.'
 
 const SPARE = { ...TRASHED, id: '019fb000-0000-7000-8000-000000000007', title: 'Spare Draft' }
 
@@ -137,7 +137,7 @@ async function openTrashView() {
 async function openEmptyTrash(): Promise<HTMLElement> {
 	await openTrashView()
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
-	return screen.findByRole('dialog')
+	return screen.findByRole('alertdialog')
 }
 
 /**
@@ -148,7 +148,7 @@ async function confirmEmptyTrash(): Promise<HTMLElement> {
 	await openTrashView()
 	const control = screen.getByRole('button', { name: 'Empty Trash' })
 	await userEvent.click(control)
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Empty trash' }))
+	await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Empty trash' }))
 	return control
 }
 
@@ -182,29 +182,18 @@ test('hides the empty trash control while the trash view lists nothing', async (
 	expect(screen.queryByRole('button', { name: 'Empty Trash' })).not.toBeInTheDocument()
 })
 
-test('asks with no header and no close button, Empty trash in the accent colour, before emptying', async () => {
+test('asks under the heading Empty the trash? with no close button, Empty trash red, before emptying', async () => {
 	renderAt('/content/post')
 
 	const dialog = await openEmptyTrash()
 
-	expect(within(dialog).queryByRole('heading')).not.toBeInTheDocument()
-	expect(dialog.querySelector('.components-modal__header')).toBeNull()
+	expect(within(dialog).getByRole('heading', { name: 'Empty the trash?' })).toBeInTheDocument()
 	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
 	const [cancel, confirm, ...rest] = within(dialog).getAllByRole('button')
 	expect([cancel.textContent, confirm.textContent, rest]).toEqual(['Cancel', 'Empty trash', []])
-	expect([...cancel.classList]).toEqual(buttonClasses('minimal'))
-	expect([...confirm.classList]).toEqual(buttonClasses('solid'))
-	expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+	expect([...cancel.classList]).toEqual(buttonClasses('minimal', undefined, 'neutral'))
+	expect(confirm.className).toMatch(/irreversible/)
 	expect(emptied).toEqual([])
-})
-
-test('opens the empty trash confirm at the medium size, 560 pixels wide, as the WordPress delete confirm', async () => {
-	renderAt('/content/post')
-
-	const dialog = await openEmptyTrash()
-
-	expect(dialog).toHaveClass('components-modal__frame', 'has-size-medium')
-	expect(dialog).not.toHaveClass('has-size-small')
 })
 
 test('opens the empty trash confirm on Cancel, as the shared confirm does', async () => {
@@ -214,18 +203,18 @@ test('opens the empty trash confirm on Cancel, as the shared confirm does', asyn
 
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 
-	const dialog = await screen.findByRole('dialog')
+	const dialog = await screen.findByRole('alertdialog')
 	await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus())
 })
 
-test('names the empty trash confirm by its warning, the only words it shows, so a screen reader reads it', async () => {
+test('names the empty trash confirm by its title and describes it by its warning for a screen reader', async () => {
 	renderAt('/content/post')
 
 	const dialog = await openEmptyTrash()
 
-	expect(dialog).toHaveAccessibleName(WARNING)
-	expect(dialog).not.toHaveAttribute('aria-describedby')
-	expect(screen.queryByText('Empty the trash?')).not.toBeInTheDocument()
+	expect(dialog).toHaveAccessibleName('Empty the trash?')
+	expect(dialog).toHaveAccessibleDescription(WARNING)
+	expect(within(dialog).getByText('Empty the trash?')).toBeInTheDocument()
 })
 
 test('names Empty Trash and its warning in WordPress es_ES words, and counts exact millions with "de"', async () => {
@@ -236,9 +225,10 @@ test('names Empty Trash and its warning in WordPress es_ES words, and counts exa
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
-	const dialog = await screen.findByRole('dialog', {
-		name: 'Los 2 elementos de la papelera se borrarán permanentemente. Esto no se puede deshacer.',
-	})
+	const dialog = await screen.findByRole('alertdialog', { name: '¿Vaciar la papelera?' })
+	expect(dialog).toHaveAccessibleDescription(
+		'Los 2 elementos de la papelera se borrarán permanentemente. Esta acción no se puede deshacer.',
+	)
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Vaciar papelera' }))
 
 	expect(await screen.findByText('1.000.000 de elementos siguen en la papelera.', { selector: '.godmin-toast' }))
@@ -247,16 +237,27 @@ test('names Empty Trash and its warning in WordPress es_ES words, and counts exa
 
 test.each([
 	{
+		locale: 'es-ES',
 		held: 'one item',
 		total: 1,
-		warning: '1 elemento de la papelera se borrará permanentemente. Esto no se puede deshacer.',
+		title: '¿Vaciar la papelera?',
+		warning: '1 elemento de la papelera se borrará permanentemente. Esta acción no se puede deshacer.',
 	},
 	{
+		locale: 'es-ES',
 		held: 'an exact million items',
 		total: 1000000,
-		warning: '1.000.000 de elementos de la papelera se borrarán permanentemente. Esto no se puede deshacer.',
+		title: '¿Vaciar la papelera?',
+		warning: '1.000.000 de elementos de la papelera se borrarán permanentemente. Esta acción no se puede deshacer.',
 	},
-])('warns about $held in the trash in its own Spanish plural form', async ({ total, warning }) => {
+	{
+		locale: 'fr-FR',
+		held: 'an exact million items',
+		total: 1000000,
+		title: 'Vider la corbeille ?',
+		warning: '1.000.000 d’éléments de la corbeille sont supprimés définitivement. Cette action est irréversible.',
+	},
+])('warns about $held in the trash in its own $locale plural form', async ({ locale, total, title, warning }) => {
 	server.use(
 		http.get('/api/content', ({ request }) => {
 			const query = new URL(request.url).searchParams
@@ -266,12 +267,12 @@ test.each([
 	)
 	renderAt('/content/post')
 	await openTrashView()
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
+	setLocaleData(await catalogFor(locale), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 
-	expect(await screen.findByRole('dialog', { name: warning })).toHaveTextContent(warning)
+	expect(await screen.findByRole('alertdialog', { name: title })).toHaveAccessibleDescription(warning)
 })
 
 test('counts the items the trash holds in the warning', async () => {
@@ -290,8 +291,8 @@ test('counts every trashed item of the type in the warning while a search narrow
 
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
 
-	const dialog = await screen.findByRole('dialog')
-	expect(dialog).toHaveTextContent('The 3 items in the trash are deleted for good. This cannot be undone.')
+	const dialog = await screen.findByRole('alertdialog')
+	expect(dialog).toHaveTextContent('The 3 items in the trash are deleted for good. This action cannot be undone.')
 	const counted = asked.find((query) => query.get('per_page') === '1')
 	expect(counted?.get('status')).toBe('trash')
 	expect(counted?.has('search')).toBe(false)
@@ -309,8 +310,8 @@ test('offers Empty Trash only while the narrowed list shows rows, its dialog cou
 
 	await screen.findByText('Spare Draft')
 	await userEvent.click(await screen.findByRole('button', { name: 'Empty Trash' }))
-	expect(await screen.findByRole('dialog')).toHaveTextContent(
-		'The 3 items in the trash are deleted for good. This cannot be undone.',
+	expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+		'The 3 items in the trash are deleted for good. This action cannot be undone.',
 	)
 })
 
@@ -329,7 +330,7 @@ test('counts the one item the trash holds in the singular', async () => {
 
 	const dialog = await openEmptyTrash()
 
-	expect(dialog).toHaveTextContent('The 1 item in the trash is deleted for good. This cannot be undone.')
+	expect(dialog).toHaveTextContent('The 1 item in the trash is deleted for good. This action cannot be undone.')
 })
 
 /**
@@ -356,7 +357,7 @@ test('closes the confirm at once and shows the emptying on Empty Trash until it 
 
 	const control = await confirmEmptyTrash()
 
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	await waitFor(() => expect(control.className).toMatch(/__is-loading\b/))
 	expect(control).toHaveAttribute('aria-disabled', 'true')
 	expect(emptied).toEqual([])
@@ -368,11 +369,11 @@ test('asks nothing more when Empty Trash is pressed while the trash empties', as
 	const answer = holdEmptying()
 	renderAt('/content/post')
 	const control = await confirmEmptyTrash()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 
 	await userEvent.click(control)
 
-	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	answer.release()
 	await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })
 	expect(emptied).toHaveLength(1)
@@ -386,7 +387,7 @@ test('empties the trash in one call once confirmed', async () => {
 	await waitFor(() => expect(emptied).toHaveLength(1))
 	expect(emptied[0].searchParams.get('type')).toBe('post')
 	expect(deletedOneByOne).toEqual([])
-	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
 test('counts the items it deleted for good in a toast', async () => {
@@ -442,7 +443,7 @@ test('counts the items it deleted and the items that stay in one toast', async (
 		await screen.findByText('1 item permanently deleted. 1 item stays in the trash.', { selector: '.godmin-toast' }),
 	).toBeInTheDocument()
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
 test('says only what stays when nothing went', async () => {
@@ -462,7 +463,7 @@ test('returns the focus to the empty trash control when nothing went', async () 
 	stubLayout()
 	await userEvent.click(control)
 
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Empty trash' }))
+	await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Empty trash' }))
 
 	await screen.findByText('2 items stay in the trash.', { selector: '.godmin-toast' })
 	await waitFor(() => expect(control).toHaveFocus())
@@ -475,7 +476,7 @@ test('shows no toast when nothing went and nothing stays', async () => {
 	await confirmEmptyTrash()
 
 	await waitFor(() => expect(emptied).toHaveLength(1))
-	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(document.querySelector('.godmin-toast')).toBeNull()
 })
 
@@ -499,7 +500,7 @@ test('empties only the trash of the type on screen', async () => {
 	await pickTrashTab()
 	await screen.findByText('Old Page')
 	await userEvent.click(screen.getByRole('button', { name: 'Empty Trash' }))
-	const dialog = await screen.findByRole('dialog')
+	const dialog = await screen.findByRole('alertdialog')
 	expect(dialog).toHaveTextContent('The 1 item in the trash is deleted for good.')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Empty trash' }))
@@ -514,7 +515,7 @@ test('keeps the trash when the confirm is dismissed', async () => {
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
 
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(emptied).toEqual([])
 })
 
@@ -592,7 +593,7 @@ test('reports an empty trash the server refused in a toast, the confirm already 
 	const control = await confirmEmptyTrash()
 
 	expect(await screen.findByText('The trash could not be emptied.', { selector: '.godmin-toast' })).toBeInTheDocument()
-	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 	expect(screen.getByText('Old Notes')).toBeInTheDocument()
 	await waitFor(() => expect(control.className).not.toMatch(/__is-loading\b/))
@@ -609,5 +610,5 @@ test('asks again from Empty Trash once a refused emptying settles', async () => 
 
 	await userEvent.click(control)
 
-	expect(await screen.findByRole('dialog', { name: WARNING })).toBeInTheDocument()
+	expect(await screen.findByRole('alertdialog', { name: 'Empty the trash?' })).toBeInTheDocument()
 })

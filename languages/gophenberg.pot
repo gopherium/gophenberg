@@ -374,6 +374,9 @@ msgstr ""
 msgid "A type key has to start with a lowercase letter and then hold only lowercase letters, numbers and hyphens. Change the key and try again."
 msgstr ""
 
+msgid "A type that still holds items, even in the trash, is not deleted."
+msgstr ""
+
 msgid "Actions"
 msgstr ""
 
@@ -504,9 +507,6 @@ msgid "Apply"
 msgstr ""
 
 msgid "April"
-msgstr ""
-
-msgid "Are you sure you want to move \"%s\" to the trash?"
 msgstr ""
 
 msgid "Audio"
@@ -697,22 +697,25 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-msgid "Delete \"%(title)s\" for good? This cannot be undone."
+msgid "Delete \"%(field)s\"?"
+msgstr ""
+
+msgid "Delete \"%(group)s\"?"
+msgstr ""
+
+msgid "Delete \"%(title)s\"?"
 msgstr ""
 
 msgid "Delete %(field)s"
 msgstr ""
 
-msgid "Delete %(group)s"
-msgstr ""
-
-msgid "Delete %s content type for good? This cannot be undone."
-msgid_plural "Delete %s content types for good? This cannot be undone."
+msgid "Delete %s content type?"
+msgid_plural "Delete %s content types?"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Delete %s item for good? This cannot be undone."
-msgid_plural "Delete %s items for good? This cannot be undone."
+msgid "Delete %s item?"
+msgid_plural "Delete %s items?"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -786,6 +789,9 @@ msgid "Email"
 msgstr ""
 
 msgid "Empty Trash"
+msgstr ""
+
+msgid "Empty the trash?"
 msgstr ""
 
 msgid "Empty trash"
@@ -977,12 +983,6 @@ msgstr ""
 msgid "Keep %(field)s out of the list"
 msgstr ""
 
-msgid "Keep it"
-msgstr ""
-
-msgid "Keep it here"
-msgstr ""
-
 msgid "Key"
 msgstr ""
 
@@ -1035,6 +1035,9 @@ msgid "Longest"
 msgstr ""
 
 msgid "Lowest"
+msgstr ""
+
+msgid "Make \"%(type)s\" the default?"
 msgstr ""
 
 msgid "Make %(field)s optional"
@@ -1103,9 +1106,6 @@ msgstr ""
 msgid "Move"
 msgstr ""
 
-msgid "Move \"%(title)s\" to the trash?"
-msgstr ""
-
 msgid "Move %(field)s down"
 msgstr ""
 
@@ -1126,11 +1126,6 @@ msgstr ""
 
 msgid "Move %(name)s up"
 msgstr ""
-
-msgid "Move %s item to the trash?"
-msgid_plural "Move %s items to the trash?"
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Move every address"
 msgstr ""
@@ -1546,8 +1541,8 @@ msgstr ""
 msgid "That web address does not name an item Gophenberg can look up. Go back to the list and open the item from there."
 msgstr ""
 
-msgid "The %(count)s item in the trash is deleted for good. This cannot be undone."
-msgid_plural "The %(count)s items in the trash are deleted for good. This cannot be undone."
+msgid "The %(count)s item in the trash is deleted for good."
+msgid_plural "The %(count)s items in the trash are deleted for good."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -1571,6 +1566,21 @@ msgstr ""
 
 msgid "The %(plugin)s plugin declares %(name)s flat, and the site keeps it nesting while its items sit inside another."
 msgstr ""
+
+msgid "The %s file is deleted from your site, with every size made from it."
+msgid_plural "The %s files are deleted from your site, with every size made from them."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "The %s item is deleted for good, with its revisions and autosaves."
+msgid_plural "The %s items are deleted for good, with their revisions and autosaves."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "The %s type and its address are deleted, and its field groups stay."
+msgid_plural "The %s types and their addresses are deleted, and their field groups stay."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "The browser kept an unsaved version of this post."
 msgstr ""
@@ -1641,6 +1651,9 @@ msgstr ""
 msgid "The fields this group holds go with it, and so do the values every item stored in them."
 msgstr ""
 
+msgid "The file is deleted from your site, with every size made from it."
+msgstr ""
+
 msgid "The groups were reordered."
 msgstr ""
 
@@ -1654,6 +1667,9 @@ msgid "The item could not be permanently deleted."
 msgstr ""
 
 msgid "The item could not be restored."
+msgstr ""
+
+msgid "The item is deleted for good, with its revisions and autosaves."
 msgstr ""
 
 msgid "The item you picked as parent holds another kind of content. Pick a parent of the same content type as this item."
@@ -1761,6 +1777,9 @@ msgstr ""
 msgid "The trash could not be emptied."
 msgstr ""
 
+msgid "The type and its address are deleted, and its field groups stay."
+msgstr ""
+
 msgid "The update failed before anything changed."
 msgstr ""
 
@@ -1816,6 +1835,9 @@ msgid "These files could not be read."
 msgstr ""
 
 msgid "These were left alone, because nobody confirmed losing them."
+msgstr ""
+
+msgid "This action cannot be undone."
 msgstr ""
 
 msgid "This content type does not exist any more. Reload the page to see the types your site holds now."
@@ -2365,7 +2387,7 @@ msgid "ZB"
 msgstr ""
 
 msgctxt "verb"
-msgid "Trash…"
+msgid "Trash"
 msgstr ""
 
 msgctxt "verb"

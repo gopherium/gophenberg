@@ -6,13 +6,12 @@
 	"exports": {
 		".": "./index.ts",
 		"./dataviews": "./dataviews.ts",
-		"./dialogs": "./dialogs.ts",
 		"./editor": "./editor/index.ts",
 		"./testing": "./testing.tsx"
 	},
 	"dependencies": {
-		"@gopherium/godmin": "0.31.0",
-		"@gopherium/react-auth": "0.20.0",
+		"@gopherium/godmin": "0.32.0",
+		"@gopherium/react-auth": "0.21.0",
 		"@tanstack/react-query": "^5.102.8",
 		"@wordpress/a11y": "5.0.0",
 		"@wordpress/api-fetch": "8.0.0",

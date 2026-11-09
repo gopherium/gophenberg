@@ -4,17 +4,16 @@ import * as godmin from '@gopherium/godmin'
 import { expect, test } from 'vitest'
 
 import {
-	ConfirmBody,
-	FormBody,
+	ConfirmDialog,
+	FormDialog,
 	ListEmpty,
 	ListNoResults,
-	RenameBody,
-	RunConfirm,
+	RenameDialog,
 	focusInDialog,
 	focusedTrigger,
 	markLatest,
 	useBulkRun,
-	useCloseWhileOpen,
+	useDialogRun,
 	useFocusBack,
 	useListRun,
 	useToaster,
@@ -24,13 +23,13 @@ import {
 import type {
 	BulkRun,
 	BulkWords,
-	ConfirmBodyProps,
-	FormBodyProps,
-	FormKind,
+	ConfirmDialogProps,
+	DialogAnswer,
+	DialogRun,
+	FormDialogProps,
 	ListRun,
 	ListRunState,
-	RenameBodyProps,
-	RunConfirmProps,
+	RenameDialogProps,
 	RunSettled,
 	ToasterHandle,
 	Trigger,
@@ -54,11 +53,14 @@ function expectGodmins(handed: unknown[], shipped: unknown[]): void {
 }
 
 test('hands plugins the list kit the admin runs, the very functions godmin ships', () => {
-	expectGodmins([RunConfirm, useBulkRun, useListRun], [godmin.RunConfirm, godmin.useBulkRun, godmin.useListRun])
+	expectGodmins([useBulkRun, useDialogRun, useListRun], [godmin.useBulkRun, godmin.useDialogRun, godmin.useListRun])
 })
 
-test('hands plugins the dialog bodies the admin asks in, the very ones godmin ships', () => {
-	expectGodmins([ConfirmBody, FormBody, RenameBody], [godmin.ConfirmBody, godmin.FormBody, godmin.RenameBody])
+test('hands plugins the dialogs the admin asks in, the very ones godmin ships', () => {
+	expectGodmins(
+		[ConfirmDialog, FormDialog, RenameDialog],
+		[godmin.ConfirmDialog, godmin.FormDialog, godmin.RenameDialog],
+	)
 })
 
 test('hands plugins the toaster the admin reports a failed write in, the very one godmin ships', () => {
@@ -82,28 +84,30 @@ test('hands plugins the empty states the admin draws an empty list with, the ver
 	)
 })
 
-test('hands plugins the hooks a dialog closes and gives the focus back with, the very ones godmin ships', () => {
+test('hands plugins the hooks a dialog gives the focus back with, the very ones godmin ships', () => {
 	const trigger: Trigger = 'actions'
 
 	expectGodmins(
-		[useCloseWhileOpen, useFocusBack, focusedTrigger, focusInDialog],
-		[godmin.useCloseWhileOpen, godmin.useFocusBack, godmin.focusedTrigger, godmin.focusInDialog],
+		[useFocusBack, focusedTrigger, focusInDialog],
+		[godmin.useFocusBack, godmin.focusedTrigger, godmin.focusInDialog],
 	)
 	expect(trigger).toBe('actions')
 })
 
 test('hands plugins the types the list kit is written in', () => {
-	const props: Pick<RunConfirmProps<{ id: string }>, 'confirmLabel' | 'cancelLabel'> = {
+	const props: Pick<ConfirmDialogProps, 'confirmLabel' | 'cancelLabel'> = {
 		confirmLabel: 'Trash',
 		cancelLabel: 'Cancel',
 	}
 	const run: BulkRun<{ id: string }> | undefined = undefined
+	const dialogRun: DialogRun<{ id: string }> | undefined = undefined
 	const list: ListRun | undefined = undefined
 	const state: ListRunState | undefined = undefined
 	const settled: RunSettled = () => undefined
 
-	expect([props.confirmLabel, run, list, state, settled(true), WORDS.done(2, undefined)]).toEqual([
+	expect([props.confirmLabel, run, dialogRun, list, state, settled(true), WORDS.done(2, undefined)]).toEqual([
 		'Trash',
+		undefined,
 		undefined,
 		undefined,
 		undefined,
@@ -112,16 +116,16 @@ test('hands plugins the types the list kit is written in', () => {
 	])
 })
 
-test('hands plugins the types the dialog bodies are written in', () => {
-	const kind: FormKind = 'copy'
-	const confirm: Pick<ConfirmBodyProps, 'confirmLabel'> = { confirmLabel: 'Delete' }
-	const form: Pick<FormBodyProps, 'submitLabel' | 'kind'> = { submitLabel: 'Duplicate', kind }
-	const rename: Pick<RenameBodyProps, 'submitLabel'> = { submitLabel: 'Save' }
+test('hands plugins the types the dialogs are written in', () => {
+	const answer: DialogAnswer = { error: 'Refused.' }
+	const confirm: Pick<ConfirmDialogProps, 'title' | 'intent'> = { title: 'Delete for good?', intent: 'irreversible' }
+	const form: Pick<FormDialogProps, 'title' | 'submitLabel'> = { title: 'Duplicate type', submitLabel: 'Duplicate' }
+	const rename: Pick<RenameDialogProps, 'fieldLabel' | 'submitLabel'> = { fieldLabel: 'Name', submitLabel: 'Save' }
 
-	expect([confirm.confirmLabel, form.submitLabel, form.kind, rename.submitLabel]).toEqual([
-		'Delete',
+	expect([answer, confirm.intent, form.submitLabel, rename.submitLabel]).toEqual([
+		{ error: 'Refused.' },
+		'irreversible',
 		'Duplicate',
-		'copy',
 		'Save',
 	])
 })

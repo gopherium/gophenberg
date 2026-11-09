@@ -33,6 +33,14 @@ export function oneWriteWords<Item>(done: string): BulkWords<Item> {
 }
 
 /**
+ * Returns the words a new name for one item reads as.
+ * @returns The words for the name that landed and the reason of the one that failed.
+ */
+export function nameWords<Item>(): BulkWords<Item> {
+	return oneWriteWords(__('Name updated.', 'gophenberg'))
+}
+
+/**
  * Returns the words a run over items reads as.
  * @param nameOf - Returns the name an item is listed under.
  * @param sentences - The toasts of the run, the one counting its failures included.
@@ -46,23 +54,24 @@ export function itemWords<Item>(nameOf: (item: Item) => string, sentences: RunSe
 }
 
 /**
- * Returns the question asked before the given items are deleted for good.
+ * Returns the title of the confirm asked before the given items are deleted for good.
  * @param items - The items acted on.
  * @param nameOf - Returns the name an item is listed under.
- * @returns The question naming the item when only one was picked.
+ * @returns The question naming the item when only one was picked, else counting the items.
  */
-export function deleteQuestion<Item>(items: Item[], nameOf: (item: Item) => string): string {
+export function deleteTitle<Item>(items: Item[], nameOf: (item: Item) => string): string {
 	if (items.length === 1) {
-		const one = __('Delete "%(title)s" for good? This cannot be undone.', 'gophenberg')
-		return sprintf(one, { title: nameOf(items[0]) })
+		return sprintf(__('Delete "%(title)s"?', 'gophenberg'), { title: nameOf(items[0]) })
 	}
-	const many = _n(
-		'Delete %s item for good? This cannot be undone.',
-		'Delete %s items for good? This cannot be undone.',
-		items.length,
-		'gophenberg',
-	)
-	return sprintf(many, formatNumber(items.length))
+	return sprintf(_n('Delete %s item?', 'Delete %s items?', items.length, 'gophenberg'), formatNumber(items.length))
+}
+
+/**
+ * Returns the sentence a confirm describes an action that cannot be undone with.
+ * @returns The sentence.
+ */
+export function irreversible(): string {
+	return __('This action cannot be undone.', 'gophenberg')
 }
 
 /**

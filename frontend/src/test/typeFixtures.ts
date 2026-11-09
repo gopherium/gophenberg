@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, expect } from 'vitest'
 
@@ -114,12 +114,38 @@ export function findToast(words: string | RegExp): Promise<HTMLElement> {
 }
 
 /**
+ * Returns the toast showing the given words beside its action, such as Undo, once it shows.
+ * @param words - The words of the toast.
+ * @returns The toast, its action inside.
+ */
+export async function findActionToast(words: string | RegExp): Promise<HTMLElement> {
+	const message = await screen.findByText(words, { selector: '.godmin-toast__message' })
+	return message.closest('.godmin-toast') as HTMLElement
+}
+
+/**
  * Waits until a button of a dialog shows the spinner of a write it runs.
  * @param dialog - The dialog.
  * @param name - The words of the button.
  */
 export async function waitBusy(dialog: HTMLElement, name: string) {
 	await waitFor(() => expect(within(dialog).getByRole('button', { name }).className).toMatch(/__is-loading\b/))
+}
+
+/**
+ * Expects every box and every select of a dialog to be read only, as while its write runs.
+ * @param dialog - The dialog.
+ */
+export function expectReadOnly(dialog: HTMLElement) {
+	const boxes = [...within(dialog).queryAllByRole('textbox'), ...within(dialog).queryAllByRole('spinbutton')]
+	const selects = within(dialog).queryAllByRole('combobox')
+	expect(boxes.length + selects.length).toBeGreaterThan(0)
+	for (const box of boxes) {
+		expect(box).toHaveAttribute('readonly')
+	}
+	for (const select of selects) {
+		expect(select).toHaveAttribute('aria-readonly', 'true')
+	}
 }
 
 /**
@@ -155,13 +181,16 @@ export async function openRowDialog(name: string, item: string, reader = ENGLISH
 }
 
 /**
- * Closes the open dialog by a press on the dimmed page around it, the way out that works while its buttons are busy.
+ * Picks an item of the actions menu of a row and returns the confirm it opens.
+ * @param name - The name the row shows.
+ * @param item - The words of the menu item.
+ * @param reader - How the reader finds the list, an English one unless a test names another.
+ * @returns The confirm.
  */
-export async function clickDimmedPage() {
-	const overlay = document.querySelector('.components-modal__screen-overlay') as HTMLElement
-	fireEvent.pointerDown(overlay, { button: 0 })
-	fireEvent.pointerUp(overlay, { button: 0 })
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+export async function openRowConfirm(name: string, item: string, reader = ENGLISH): Promise<HTMLElement> {
+	await openRowMenu(name, reader)
+	await userEvent.click(await screen.findByRole('menuitem', { name: item }))
+	return screen.findByRole('alertdialog')
 }
 
 /**

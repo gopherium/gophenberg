@@ -31,7 +31,8 @@ menu sits on the row too.
 
 When something you asked for is done, a short message at the bottom
 of the screen says so. When the server refuses it, that message says
-why, in the server's own words.
+why, in the server's own words, unless a dialog still open says it
+inside.
 
 ## Registering a type
 
@@ -46,8 +47,9 @@ exactly as you typed it. Posts start with "Manage the posts on this
 site."
 
 When the server refuses the type, for example because another type
-already uses its key, the dialog stays open with what you typed, so
-you can change a name and press **Add** again. Closing the dialog
+already uses its key, the dialog stays open, says why inside it and
+keeps what you typed, so you can change a name and press **Add**
+again. Closing the dialog
 forgets what was typed, and the next one starts empty.
 
 The names and descriptions Gophenberg gives its own types, like Posts,
@@ -72,10 +74,10 @@ rewrite it. Empty the field and save to clear it. A type a plugin
 declared has no **Describe…**, because it keeps the description its
 plugin gives it.
 
-The dialog closes the moment you press **Save**, as WordPress closes
-its Rename. When the server refuses the change, the next
-**Describe…** on that type opens on what you typed, so you can try
-again. **Change address…** keeps a refused route word the same way.
+The dialog stays open with its button busy until the server answers.
+When the server refuses the change, the dialog says why inside it and
+keeps what you typed, so you can try again. **Change address…** works
+the same way.
 
 The description travels with its type in **Export definitions**. A
 file exported by an older release holds no descriptions, and
@@ -154,12 +156,17 @@ flat meets it too, and the type keeps nesting until those items move.
 its archive, and its items stop being served, and everything comes
 back with **Activate**.
 
-**Delete…** removes a type for good, and is refused while the type
-still holds content. It asks first, naming the type, and Cancel has
-the focus when the dialog opens. The dialog closes once the server
-answers, and when the server refuses, the message at the bottom of
-the screen says why. The default type can be neither deactivated nor
-deleted, so the root always answers.
+**Delete…** removes a type and its address for good, and is refused
+while the type still holds content, the trash included. The field
+groups shown on it stay, with their fields. It asks first, in a
+dialog whose title names the type, such as `Delete "Guides"?`, with
+`The type and its address are deleted, and its field groups stay.`
+`A type that still holds items, even in the trash, is not deleted.`
+`This action cannot be undone.` under it, and its **Delete** button is red. Cancel has the focus when
+the dialog opens. The dialog closes once
+the server answers, and when the server refuses, the message at the
+bottom of the screen says why. The default type can be neither
+deactivated nor deleted, so the root always answers.
 
 Tick the box at the start of several rows to act on them at once. The
 bar under the list then offers **Activate**, **Deactivate** and

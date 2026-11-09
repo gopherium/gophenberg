@@ -123,7 +123,7 @@ test('offers an author every action on its own post', async () => {
 
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 
-	expect(await screen.findByRole('menuitem', { name: 'Trash…' })).toBeInTheDocument()
+	expect(await screen.findByRole('menuitem', { name: 'Trash' })).toBeInTheDocument()
 	expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument()
 })
 
@@ -134,7 +134,7 @@ test('offers an editor every action on a post another account wrote', async () =
 
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 
-	expect(await screen.findByRole('menuitem', { name: 'Trash…' })).toBeInTheDocument()
+	expect(await screen.findByRole('menuitem', { name: 'Trash' })).toBeInTheDocument()
 })
 
 test('opens a post another account wrote as a reading view', async () => {

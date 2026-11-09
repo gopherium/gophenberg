@@ -59,15 +59,15 @@ async function openRowMenu(page: Page, name: string) {
 }
 
 /**
- * Returns the box of the open modal frame once its opening animation ends, rounded to the pixel.
- * @param page - The page holding the modal.
+ * Returns the box of the open dialog or confirm once its opening animation ends, rounded to the pixel.
+ * @param page - The page holding the dialog.
  * @param side - The edge or size of the box to read.
  * @returns The poll that reads it until it holds still.
  */
-function frameBox(page: Page, side: 'width' | 'bottom') {
+function frameBox(page: Page, side: 'width' | 'left') {
 	return expect.poll(async () => {
-		const box = await page.locator('.components-modal__frame').boundingBox()
-		return Math.round(side === 'width' ? (box?.width ?? 0) : (box?.y ?? 0) + (box?.height ?? 0))
+		const box = await page.getByRole('dialog').or(page.getByRole('alertdialog')).boundingBox()
+		return Math.round(side === 'width' ? (box?.width ?? 0) : (box?.x ?? 0))
 	})
 }
 
@@ -100,13 +100,13 @@ test('narrows the content types to a search', async ({ page }) => {
 	await expect(page).toHaveURL(/search=categ/)
 })
 
-test('adds a type from a 400 pixel Add Content Type whose Add waits for both names', async ({ page }) => {
+test('adds a type from a 560 pixel Add Content Type whose Add waits for both names', async ({ page }) => {
 	await page.goto('/admin/content-types')
 
 	await page.getByRole('button', { name: 'Add Content Type' }).click()
 	const dialog = page.getByRole('dialog', { name: 'Add Content Type' })
 	await expect(dialog.getByLabel('Singular name')).toBeFocused()
-	await frameBox(page, 'width').toBe(400)
+	await frameBox(page, 'width').toBe(560)
 	await expect(dialog.getByRole('button', { name: 'Add', exact: true })).toHaveAttribute('aria-disabled', 'true')
 	await dialog.getByLabel('Singular name').fill(`Lesson ${RUN}`)
 	await dialog.getByLabel('Plural name').fill(`Lessons ${RUN}`)
@@ -118,7 +118,7 @@ test('adds a type from a 400 pixel Add Content Type whose Add waits for both nam
 	await expect(rowOf(page, `Lessons ${RUN}`)).toBeVisible()
 })
 
-test('keeps Add Content Type open on the reason a taken key gave, in a toast', async ({ page }) => {
+test('keeps Add Content Type open on the reason a taken key gave, said inside it', async ({ page }) => {
 	await page.goto('/admin/content-types')
 
 	await page.getByRole('button', { name: 'Add Content Type' }).click()
@@ -127,7 +127,8 @@ test('keeps Add Content Type open on the reason a taken key gave, in a toast', a
 	await dialog.getByLabel('Plural name').fill(`Posts ${RUN}`)
 	await dialog.getByRole('button', { name: 'Add', exact: true }).click()
 
-	await expect(page.locator('.godmin-toast', { hasText: 'Another content type already uses this key.' })).toBeVisible()
+	await expect(dialog.getByText('Another content type already uses this key.')).toBeVisible()
+	await expect(page.locator('.godmin-toast')).toHaveCount(0)
 	await expect(dialog.getByLabel('Plural name')).toHaveValue(`Posts ${RUN}`)
 })
 
@@ -178,15 +179,15 @@ test('lets a type nest and switches it off and on from its menu', async ({ page 
 	await expect(rowOf(page, name).getByText('Closed', { exact: true })).toHaveCount(0)
 })
 
-test('deletes a type behind a headerless 560 pixel confirm, Cancel focused', async ({ page }) => {
+test('deletes a type behind a 560 pixel confirm titled by the question, Cancel focused', async ({ page }) => {
 	const name = await typeNamed(page, 'memo')
 	await openRowMenu(page, name)
 
 	await page.getByRole('menuitem', { name: 'Delete…' }).click()
-	const dialog = page.getByRole('dialog')
-	await expect(dialog.getByText(`Delete "${name}" for good? This cannot be undone.`)).toBeVisible()
+	const dialog = page.getByRole('alertdialog')
+	await expect(dialog.getByRole('heading', { name: `Delete "${name}"?` })).toBeVisible()
 	await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused()
-	await expect(dialog.getByRole('heading')).toHaveCount(0)
+	await expect(dialog.getByRole('heading')).toHaveCount(1)
 	await frameBox(page, 'width').toBe(560)
 	await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
 
@@ -202,8 +203,8 @@ test('deletes two picked types behind one confirm', async ({ page }) => {
 	await rowOf(page, first).getByRole('checkbox').check()
 	await rowOf(page, second).getByRole('checkbox').check()
 	await page.locator('.dataviews-bulk-actions-footer__action-buttons').getByRole('button', { name: 'Delete…' }).click()
-	const dialog = page.getByRole('dialog')
-	await expect(dialog.getByText('Delete 2 content types for good? This cannot be undone.')).toBeVisible()
+	const dialog = page.getByRole('alertdialog')
+	await expect(dialog.getByRole('heading', { name: 'Delete 2 content types?' })).toBeVisible()
 	await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
 
 	await expect(page.locator('.godmin-toast', { hasText: '2 content types permanently deleted.' })).toBeVisible()
@@ -211,7 +212,7 @@ test('deletes two picked types behind one confirm', async ({ page }) => {
 	await expect(rowOf(page, second)).toHaveCount(0)
 })
 
-test('opens a row dialog as a sheet along the bottom of a phone', async ({ page }) => {
+test('opens a row dialog as a card in the middle of a phone, 24 pixels from each edge', async ({ page }) => {
 	const name = await typeNamed(page, 'tip')
 	await page.setViewportSize(PHONE)
 	await page.goto(`/admin/content-types?search=${encodeURIComponent(name)}`)
@@ -219,6 +220,6 @@ test('opens a row dialog as a sheet along the bottom of a phone', async ({ page 
 	await page.getByRole('grid').getByRole('button', { name: 'Actions' }).first().click()
 	await page.getByRole('menuitem', { name: 'Describe…' }).click()
 
-	await frameBox(page, 'width').toBe(PHONE.width)
-	await frameBox(page, 'bottom').toBe(PHONE.height)
+	await frameBox(page, 'width').toBe(PHONE.width - 48)
+	await frameBox(page, 'left').toBe(24)
 })

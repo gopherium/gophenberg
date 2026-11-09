@@ -42,14 +42,14 @@ test('empties only the trash of the type on screen', async ({ page }) => {
 	await page.goto('/admin/content/page')
 	await page.getByRole('navigation', { name: 'Filter by status' }).getByRole('link', { name: 'Trash', exact: true }).click()
 	await page.getByRole('button', { name: 'Empty Trash' }).click()
-	const confirm = page.getByRole('dialog', { name: /in the trash (is|are) deleted for good\. This cannot be undone\.$/ })
+	const confirm = page.getByRole('alertdialog', { name: 'Empty the trash?' })
 	await expect(confirm.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
-	await expect(confirm.getByRole('heading')).toHaveCount(0)
+	await expect(confirm.getByRole('heading')).toHaveCount(1)
 	await expect.poll(async () => Math.round((await confirm.boundingBox())?.width ?? 0)).toBe(560)
 
 	await confirm.getByRole('button', { name: 'Empty trash' }).click()
 
-	await expect(page.getByRole('dialog')).toHaveCount(0)
+	await expect(page.getByRole('alertdialog')).toHaveCount(0)
 	await expect(page.locator('#root').getByText(/permanently deleted\.$/)).toBeVisible()
 	expect((await page.request.get(`/api/content/${item}`)).status()).toBe(404)
 	const left = await page.request.get(`/api/content/${post}`)

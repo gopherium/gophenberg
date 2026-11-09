@@ -244,7 +244,7 @@ test('disables two ticked accounts at once, counts them in a toast and gives the
 	await expect(page.getByRole('region', { name: 'Users' })).toBeFocused()
 })
 
-test('says the reader may no longer edit users when it lost that right while Change role was open', async ({
+test('says inside the open Change role that the reader may no longer edit users once it lost that right', async ({
 	browser,
 	request,
 }) => {
@@ -264,9 +264,11 @@ test('says the reader may no longer edit users when it lost that right while Cha
 	await pickRole(page, 'Editor')
 	const demoted = await request.put(`/api/users/${lowered.id}/role`, { data: { role: 'editor' } })
 	expect(demoted.ok()).toBe(true)
-	await page.getByRole('dialog', { name: 'Change role' }).getByRole('button', { name: 'Change role', exact: true }).click()
+	const dialog = page.getByRole('dialog', { name: 'Change role' })
+	await dialog.getByRole('button', { name: 'Change role', exact: true }).click()
 
-	await expect(toastOf(page, 'Sorry, you are not allowed to edit users.')).toBeVisible()
+	await expect(dialog.getByText('Sorry, you are not allowed to edit users.')).toBeVisible()
+	await expect(toastOf(page, 'Sorry, you are not allowed to edit users.')).toHaveCount(0)
 	await expect(page.getByText('Users could not be loaded.')).toBeVisible({ timeout: 15_000 })
 	expect((await listedAs(request, kept.email))?.role).toBe('author')
 	await context.close()

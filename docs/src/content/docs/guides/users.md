@@ -139,13 +139,19 @@ menu starts on that account's role when you may give it. Otherwise,
 and for several accounts, it starts on *Change role to…*, and
 **Change role** stays off until you pick a role.
 
-The dialog closes the moment you press **Change role**. The message
-then says *Role changed for "Maria Perez".*, or *Changed roles.* for
-several accounts. When the server turns a change down, the message
-says why, such as *Sorry, you are not allowed to give users that
-role.* or *Somebody must be able to manage users.* The dialog then
-opens on the role you picked the next time. Once it closes, the
-focus goes back to what opened it.
+Press **Change role** and the button spins while the server works.
+The dialog stays open until the server answers, and until then
+Cancel, the close button, Escape and a click beside the dialog close
+nothing. Once the role is changed the dialog closes, and the message
+at the bottom says *Role changed for "Maria Perez".*, or *Changed
+roles.* for several accounts. When the server turns down the change
+of one account, the dialog stays open on the role you picked and
+says why inside it, such as *Sorry, you are not allowed to give
+users that role.* or *Somebody must be able to manage users.* Pick
+another role or press Cancel. When some of several accounts fail,
+the dialog closes and the message at the bottom counts them, such as
+*The roles of 2 users could not be changed.* Once the dialog closes,
+the focus goes back to what opened it.
 
 **Disabling a user** blocks them from signing in and ends their
 existing sessions immediately, so they are signed out everywhere.

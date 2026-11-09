@@ -4,7 +4,7 @@ import type { BulkWords } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, _n, sprintf } from '@wordpress/i18n'
 
-import { itemWords } from '../lists/itemWords'
+import { irreversible, itemWords } from '../lists/itemWords'
 import type { Post } from './api'
 
 /**
@@ -14,19 +14,6 @@ import type { Post } from './api'
  */
 export function postName(post: Post): string {
 	return post.title === '' ? __('(no title)', 'gophenberg') : post.title
-}
-
-/**
- * Returns the question asked before the given posts are trashed.
- * @param items - The posts acted on.
- * @returns The question naming the post when only one was picked.
- */
-export function trashQuestion(items: Post[]): string {
-	if (items.length === 1) {
-		return sprintf(__('Move "%(title)s" to the trash?', 'gophenberg'), { title: postName(items[0]) })
-	}
-	const many = _n('Move %s item to the trash?', 'Move %s items to the trash?', items.length, 'gophenberg')
-	return sprintf(many, formatNumber(items.length))
 }
 
 /**
@@ -44,6 +31,27 @@ export function trashWords(): BulkWords<Post> {
 				formatNumber(count),
 			),
 	})
+}
+
+/**
+ * Returns the description of the confirm asked before posts are deleted for good.
+ * @param count - How many posts the confirm deletes.
+ * @returns What goes with the posts, counting them when there are several, then the warning.
+ */
+export function deleteDescription(count: number): string {
+	const what =
+		count === 1
+			? __('The item is deleted for good, with its revisions and autosaves.', 'gophenberg')
+			: sprintf(
+					_n(
+						'The %s item is deleted for good, with its revisions and autosaves.',
+						'The %s items are deleted for good, with their revisions and autosaves.',
+						count,
+						'gophenberg',
+					),
+					formatNumber(count),
+				)
+	return `${what} ${irreversible()}`
 }
 
 /**

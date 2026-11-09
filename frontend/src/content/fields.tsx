@@ -13,6 +13,7 @@ import { everyDecimal } from '../i18n/numbers'
 import { authorField, authorNarrowing, namesAccounts } from '../lists/author'
 import { dateNarrowing, isMoment, narrowedBy } from '../lists/narrowing'
 import type { Narrowing } from '../lists/narrowing'
+import { postName } from './actionWords'
 import type { Post, PostQuery } from './api'
 import { pairsOf } from './types'
 import type { ContentField, ContentType } from './types'
@@ -87,6 +88,15 @@ function DateCell({ item }: { item: Post }) {
 }
 
 /**
+ * Renders the title of a post as text marked with its id.
+ * @param props - The row being rendered.
+ * @returns The title, or (no title).
+ */
+function TitleCell({ item }: { item: Post }) {
+	return <span data-item-id={item.id}>{postName(item)}</span>
+}
+
+/**
  * Returns the columns every content type's list offers, in the order WordPress lists them.
  * @returns The title, excerpt, author, status, date and slug columns.
  */
@@ -96,6 +106,7 @@ function builtInFields(): Field<Post>[] {
 			id: 'title',
 			label: __('Title', 'gophenberg'),
 			getValue: ({ item }) => (item.title === '' ? __('(no title)', 'gophenberg') : item.title),
+			render: TitleCell,
 			enableSorting: true,
 			enableHiding: false,
 		},

@@ -3,7 +3,7 @@
 import { Button } from '@gophenberg/frontend-sdk'
 import { DataViews, filterSortAndPaginate } from '@gophenberg/frontend-sdk/dataviews'
 import type { Action, Field, View } from '@gophenberg/frontend-sdk/dataviews'
-import { ErrorNotice, ListNoResults, Page, offeredSize, offeredView, useListRun } from '@gopherium/godmin'
+import { ErrorNotice, ListNoResults, Page, offeredSize, offeredView, useFocusBack, useListRun } from '@gopherium/godmin'
 import type { ListRun, OfferedView } from '@gopherium/godmin'
 import { useListView } from '@gopherium/godmin/router'
 import type { ListView } from '@gopherium/godmin/router'
@@ -16,7 +16,8 @@ import type { ListSettings } from '../settings/api'
 import { useListSettings } from '../settings/useListSettings'
 import { typesQueryKey } from './nav'
 import { TYPE_COLUMNS, TYPE_PHONE_COLUMNS, TYPE_SORT, TYPE_VIEW_GUARD, originsOf, typeFields } from './typeFields'
-import { useTypeActions } from './typeActions'
+import { OpenTypeDialog, useTypeActions, useTypeTools } from './typeActions'
+import type { OpenedTypes } from './typeActions'
 import { AddTypeDialog } from './TypeModals'
 import { listTypes } from './types'
 import type { ContentType } from './types'
@@ -125,7 +126,10 @@ export function TypesScreen() {
 	const fields = useTypeFields(types.data)
 	const { list, view, settings } = useTypesView(fields)
 	const { run, region, refreshing } = useListRun('content-types', list.onChangeSelection)
-	const actions = useTypeActions(run)
+	const focusBack = useFocusBack(types.isFetching, region)
+	const tools = useTypeTools(run)
+	const [opened, setOpened] = useState<OpenedTypes>()
+	const actions = useTypeActions(tools, setOpened)
 	return (
 		<Page
 			title={__('Content Types', 'gophenberg')}
@@ -145,6 +149,7 @@ export function TypesScreen() {
 				actions={actions}
 				refreshing={refreshing}
 			/>
+			<OpenTypeDialog opened={opened} tools={tools} onClose={() => setOpened(undefined)} onBack={focusBack} />
 		</Page>
 	)
 }

@@ -1,22 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { LIST_CHROME_DOMAIN, listChromeCatalogFor } from '@gopherium/godmin'
-import { buttonClasses, stubLayout } from '@gopherium/godmin/testing'
+import { stubLayout } from '@gopherium/godmin/testing'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
-import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
+import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
-import { trashQuestion } from '../content/actionWords'
-import type { Post } from '../content/api'
-import { catalogFor } from '../i18n/catalog'
-import { listenAt } from './announcements'
 import { gate } from './gate'
-import { holdReads } from './reloads'
+import { holdReads, refuseInertFocus } from './reloads'
 import { renderAt } from './render'
 import { storedPostWithId } from './postFixture'
-import { clickDimmedPage, waitBusy } from './typeFixtures'
+import { findActionToast } from './typeFixtures'
 
 beforeAll(async () => {
 	await import('../content/EditorScreen')
@@ -35,25 +29,6 @@ const PUBLISHED = {
 	published_at: '2026-07-20T10:00:00Z',
 	created_at: '2026-07-19T10:00:00Z',
 	updated_at: '2026-07-20T10:00:00Z',
-}
-
-const WELCOME: Post = {
-	id: PUBLISHED.id,
-	type: 'post',
-	parentId: null,
-	parentTitle: '',
-	path: 'welcome',
-	slug: 'welcome',
-	title: 'Welcome to Gophenberg',
-	status: 'published',
-	excerpt: '',
-	authorId: PUBLISHED.author_id,
-	authorName: 'Maria Perez',
-	authorAvatar: '',
-	publishedAt: PUBLISHED.published_at,
-	createdAt: PUBLISHED.created_at,
-	updatedAt: PUBLISHED.updated_at,
-	date: PUBLISHED.published_at,
 }
 
 const BUILT_IN_TYPE = {
@@ -102,14 +77,14 @@ async function openRowActions() {
 	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
 }
 
-test('offers View first, then Duplicate…, Rename… and Trash… last, and leaves editing to the title', async () => {
+test('offers View first, then Duplicate…, Rename… and Trash last, and leaves editing to the title', async () => {
 	renderAt('/content/post')
 
 	await openRowActions()
 
-	await screen.findByRole('menuitem', { name: 'Trash…' })
+	await screen.findByRole('menuitem', { name: 'Trash' })
 	const offered = screen.getAllByRole('menuitem').map((item) => item.textContent)
-	expect(offered).toEqual(['View', 'Duplicate…', 'Rename…', 'Trash…'])
+	expect(offered).toEqual(['View', 'Duplicate…', 'Rename…', 'Trash'])
 	expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument()
 })
 
@@ -136,36 +111,6 @@ test('draws no action button on a row that is not published, leaving every actio
 	expect(await rowButtons('Welcome to Gophenberg')).toEqual(['Actions'])
 })
 
-test('asks to confirm before trashing', async () => {
-	renderAt('/content/post')
-	await openRowActions()
-
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-
-	expect(await screen.findByRole('dialog')).toHaveTextContent('Move "Welcome to Gophenberg" to the trash?')
-	expect(trashed).toEqual([])
-})
-
-test('quotes the name in the Spanish trash confirm as the Spanish toasts do', async () => {
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
-	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
-
-	expect(trashQuestion([WELCOME])).toBe('¿Mover «Welcome to Gophenberg» a la papelera?')
-})
-
-test('confirms the Spanish trash with the verb WordPress es_ES uses, not the noun', async () => {
-	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
-	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
-	renderAt('/content/post')
-	await openRowActions()
-
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Papelera…' }))
-
-	const dialog = await screen.findByRole('dialog')
-	expect(within(dialog).getByRole('button', { name: 'Mover a la papelera' })).toBeInTheDocument()
-	expect(within(dialog).queryByRole('button', { name: 'Papelera' })).not.toBeInTheDocument()
-})
-
 test('opens the public address of a published item in a new tab', async () => {
 	const opened = vi.spyOn(window, 'open').mockImplementation(() => null)
 	renderAt('/content/post')
@@ -181,7 +126,7 @@ test('offers no view of an item that is not published, as it has no public addre
 	renderAt('/content/post')
 	await openRowActions()
 
-	await screen.findByRole('menuitem', { name: 'Trash…' })
+	await screen.findByRole('menuitem', { name: 'Trash' })
 
 	expect(screen.queryByRole('menuitem', { name: 'View' })).not.toBeInTheDocument()
 })
@@ -191,7 +136,7 @@ test('offers no view of an item of a type the site does not serve', async () => 
 	renderAt('/content/post')
 	await openRowActions()
 
-	await screen.findByRole('menuitem', { name: 'Trash…' })
+	await screen.findByRole('menuitem', { name: 'Trash' })
 
 	expect(screen.queryByRole('menuitem', { name: 'View' })).not.toBeInTheDocument()
 })
@@ -205,79 +150,22 @@ test('offers no trash on a post already in the trash', async () => {
 	expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument()
 })
 
-test('asks the trash confirm under no header, as WordPress does, and confirms with a verb', async () => {
-	renderAt('/content/post')
-	await openRowActions()
-
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-
-	const dialog = await screen.findByRole('dialog')
-	expect(within(dialog).queryByRole('heading')).not.toBeInTheDocument()
-	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
-	expect(within(dialog).getByRole('button', { name: 'Move to trash' })).toBeInTheDocument()
-	expect(within(dialog).queryByRole('button', { name: 'Trash' })).not.toBeInTheDocument()
-})
-
-test('draws Cancel of the trash confirm as accent text, as WordPress Site Editor dialogs do', async () => {
-	renderAt('/content/post')
-	await openRowActions()
-
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-
-	const cancel = within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' })
-	expect([...cancel.classList]).toEqual(buttonClasses('minimal'))
-})
-
-test('opens the trash confirm at the medium width WordPress gives it', async () => {
-	renderAt('/content/post')
-	await openRowActions()
-
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-
-	expect(await screen.findByRole('dialog')).toHaveClass('has-size-medium')
-})
-
-test('names a post that has no title yet in the confirm', async () => {
-	server.use(
-		http.get('/api/content', () =>
-			HttpResponse.json({ items: [{ ...PUBLISHED, title: '' }], total: 1 }),
-		),
-	)
-	renderAt('/content/post')
-	await screen.findByRole('link', { name: '(no title)' })
-	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
-
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-
-	expect(await screen.findByRole('dialog')).toHaveTextContent('Move "(no title)" to the trash?')
-})
-
 /**
- * Trashes the only listed post through its row actions and its confirm.
+ * Trashes the only listed post through its row actions.
  */
 async function trashTheListedPost() {
 	await openRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Move to trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
 }
 
-test('trashes the post once confirmed', async () => {
+test('trashes the post at once, asking nothing first', async () => {
 	renderAt('/content/post')
 
 	await trashTheListedPost()
 
 	await waitFor(() => expect(trashed).toEqual([PUBLISHED.id]))
-})
-
-test('leaves the post alone when the confirm is dismissed', async () => {
-	renderAt('/content/post')
-	await openRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-
-	await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
-
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-	expect(trashed).toEqual([])
+	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+	expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 })
 
 test('refreshes the listing after trashing', async () => {
@@ -289,14 +177,32 @@ test('refreshes the listing after trashing', async () => {
 	await waitFor(() => expect(listed.length).toBeGreaterThan(listedBefore))
 })
 
-test('names the post it trashed in a toast with no undo', async () => {
+test('names the post it trashed in a toast that offers Undo', async () => {
 	renderAt('/content/post')
 
 	await trashTheListedPost()
 
-	expect(await screen.findByText('"Welcome to Gophenberg" moved to the trash.', { selector: '.godmin-toast' }))
+	const toast = await findActionToast('"Welcome to Gophenberg" moved to the trash.')
+	expect(within(toast).getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+})
+
+test('restores the trashed post on a press on Undo and names it in a toast', async () => {
+	const restored: string[] = []
+	server.use(
+		http.post('/api/content/:id/restore', ({ params }) => {
+			restored.push(String(params.id))
+			return HttpResponse.json({ ...PUBLISHED, status: 'draft' })
+		}),
+	)
+	renderAt('/content/post')
+	await trashTheListedPost()
+	const toast = await findActionToast('"Welcome to Gophenberg" moved to the trash.')
+
+	await userEvent.click(within(toast).getByRole('button', { name: 'Undo' }))
+
+	expect(await screen.findByText('"Welcome to Gophenberg" has been restored.', { selector: '.godmin-toast' }))
 		.toBeInTheDocument()
-	expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+	expect(restored).toEqual([PUBLISHED.id])
 })
 
 test('moves the focus to the list once the trash finishes, and to the next row once the rows land', async () => {
@@ -307,10 +213,9 @@ test('moves the focus to the list once the trash finishes, and to the next row o
 	const release = holdReads('/api/content', { items: [next], total: 1 })
 
 	await userEvent.click(within(row).getByRole('button', { name: 'Actions' }))
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Move to trash' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
 
-	await screen.findByText('"Welcome to Gophenberg" moved to the trash.', { selector: '.godmin-toast' })
+	await findActionToast('"Welcome to Gophenberg" moved to the trash.')
 	await waitFor(() => expect(screen.getByRole('region', { name: 'Posts' })).toHaveFocus())
 	release()
 	await waitFor(() => expect(screen.getByRole('checkbox', { name: next.title })).toHaveFocus())
@@ -358,26 +263,7 @@ test('reports a trash the server refused in its own words', async () => {
 		.toBeInTheDocument()
 })
 
-test('keeps the confirm open when Cancel is pressed while the trash runs', async () => {
-	const answer = gate()
-	server.use(
-		http.delete('/api/content/:id', async () => {
-			await answer.held
-			return HttpResponse.json({ ...PUBLISHED, status: 'trash' })
-		}),
-	)
-	renderAt('/content/post')
-	await trashTheListedPost()
-	const dialog = screen.getByRole('dialog')
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-
-	expect(dialog).toBeInTheDocument()
-	answer.release()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-})
-
-test('leaves a dialog opened on the row after a trash dismissed while busy open once it ends', async () => {
+test('leaves a dialog opened on the row while a trash runs open once the trash ends', async () => {
 	const answer = gate()
 	server.use(
 		http.delete('/api/content/:id', async () => {
@@ -387,9 +273,6 @@ test('leaves a dialog opened on the row after a trash dismissed while busy open 
 	)
 	renderAt('/content/post')
 	await trashTheListedPost()
-	const busy = screen.getByRole('dialog')
-	await waitBusy(busy, 'Move to trash')
-	await clickDimmedPage()
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename…' }))
 	const rename = await screen.findByRole('dialog', { name: 'Rename' })
@@ -401,7 +284,7 @@ test('leaves a dialog opened on the row after a trash dismissed while busy open 
 	expect(screen.getByRole('dialog', { name: 'Rename' })).toBe(rename)
 })
 
-test('keeps the focus in a Rename opened after a dismissed trash once that trash lands', async () => {
+test('keeps the focus in a Rename opened while a trash runs once that trash lands', async () => {
 	stubLayout()
 	const answer = gate()
 	server.use(
@@ -412,8 +295,6 @@ test('keeps the focus in a Rename opened after a dismissed trash once that trash
 	)
 	renderAt('/content/post')
 	await trashTheListedPost()
-	await waitBusy(screen.getByRole('dialog'), 'Move to trash')
-	await clickDimmedPage()
 	await openRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename…' }))
 	const rename = await screen.findByRole('dialog', { name: 'Rename' })
@@ -421,32 +302,40 @@ test('keeps the focus in a Rename opened after a dismissed trash once that trash
 	await waitFor(() => expect(name).toHaveFocus())
 
 	answer.release()
-	await screen.findByText('"Welcome to Gophenberg" moved to the trash.', { selector: '.godmin-toast' })
+	await findActionToast('"Welcome to Gophenberg" moved to the trash.')
 	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 
 	expect(screen.getByRole('dialog', { name: 'Rename' })).toBe(rename)
 	expect(name).toHaveFocus()
 })
 
-test('speaks Cargando to a Spanish reader while the trash runs, as WordPress es_ES does', async () => {
+test('puts the focus back on the row menu of a Rename cancelled while the list reads again behind it', async () => {
+	refuseInertFocus()
+	const next = { ...PUBLISHED, id: '019fb000-0000-7000-8000-000000000002', slug: 'next', title: 'Notes for Next Week' }
 	const answer = gate()
 	server.use(
+		http.get('/api/content', () => HttpResponse.json({ items: [PUBLISHED, next], total: 2 })),
 		http.delete('/api/content/:id', async () => {
 			await answer.held
 			return HttpResponse.json({ ...PUBLISHED, status: 'trash' })
 		}),
 	)
 	renderAt('/content/post')
-	await openRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash…' }))
-	const dialog = await screen.findByRole('dialog')
-	setLocaleData(await listChromeCatalogFor('es-ES'), LIST_CHROME_DOMAIN)
-	onTestFinished(() => resetLocaleData({}, LIST_CHROME_DOMAIN))
-	const polite = listenAt('polite')
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move to trash' }))
-
-	await waitFor(() => expect(polite()).toContain('Cargando'))
+	const trashed = (await screen.findByRole('link', { name: PUBLISHED.title })).closest('tr') as HTMLElement
+	await userEvent.click(within(trashed).getByRole('button', { name: 'Actions' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Trash' }))
+	const renamed = (await screen.findByRole('link', { name: next.title })).closest('tr') as HTMLElement
+	await userEvent.click(within(renamed).getByRole('button', { name: 'Actions' }))
+	await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename…' }))
+	const rename = await screen.findByRole('dialog', { name: 'Rename' })
+	const release = holdReads('/api/content', { items: [next], total: 1 })
 	answer.release()
+	await findActionToast('"Welcome to Gophenberg" moved to the trash.')
+
+	await userEvent.click(within(rename).getByRole('button', { name: 'Cancel' }))
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	release()
+
+	const row = within((await screen.findByRole('link', { name: next.title })).closest('tr') as HTMLElement)
+	await waitFor(() => expect(row.getByRole('button', { name: 'Actions' })).toHaveFocus())
 })

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Button } from '@gophenberg/frontend-sdk'
-import { useToaster } from '@gopherium/godmin'
+import { ConfirmDialog, useToaster } from '@gopherium/godmin'
 import type { ListRun } from '@gopherium/godmin'
-import { ConfirmDialog } from '@gopherium/godmin/dialogs'
 import { formatNumber } from '@gopherium/gottext'
 import { __, _n, sprintf } from '@wordpress/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { irreversible } from '../lists/itemWords'
 import { useRefresh } from './actions'
 import { emptyTrash } from './api'
 import type { Emptied, Post } from './api'
@@ -38,8 +38,8 @@ function emptiedToast({ deleted, kept }: Emptied): string {
  */
 function warningOf(count: number): string {
 	const warning = _n(
-		'The %(count)s item in the trash is deleted for good. This cannot be undone.',
-		'The %(count)s items in the trash are deleted for good. This cannot be undone.',
+		'The %(count)s item in the trash is deleted for good.',
+		'The %(count)s items in the trash are deleted for good.',
 		count,
 		'gophenberg',
 	)
@@ -100,15 +100,16 @@ export function EmptyTrash({ type, count, list }: { type: string, count: number,
 			</Button>
 			{asking ? (
 				<ConfirmDialog
+					intent="irreversible"
+					title={__('Empty the trash?', 'gophenberg')}
+					description={`${warningOf(count)} ${irreversible()}`}
 					confirmLabel={__('Empty trash', 'gophenberg')}
 					cancelLabel={__('Cancel', 'gophenberg')}
 					onConfirm={() => {
 						void empty()
 					}}
 					onClose={() => setAsking(false)}
-				>
-					{warningOf(count)}
-				</ConfirmDialog>
+				/>
 			) : null}
 		</>
 	)

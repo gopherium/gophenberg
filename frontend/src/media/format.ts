@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { formatNumber } from '@gopherium/gottext'
-import { __, _x, sprintf } from '@wordpress/i18n'
+import { __, _n, _x, sprintf } from '@wordpress/i18n'
 
+import { irreversible } from '../lists/itemWords'
 import type { MediaItem } from './api'
 
 /** The content type prefix of each WordPress file type group a stored file falls in, keyed by the group. */
@@ -105,6 +106,27 @@ export function saveFailure(item: MediaItem, reason: string): string {
 		return sprintf(__('Could not save image. %s', 'gophenberg'), reason)
 	}
 	return sprintf(__('Could not save media. %s', 'gophenberg'), reason)
+}
+
+/**
+ * Returns the description of the confirm asked before files are deleted for good.
+ * @param count - How many files the confirm deletes.
+ * @returns What goes with the files, counting them when there are several, then the warning.
+ */
+export function fileDeleteDescription(count: number): string {
+	const what =
+		count === 1
+			? __('The file is deleted from your site, with every size made from it.', 'gophenberg')
+			: sprintf(
+					_n(
+						'The %s file is deleted from your site, with every size made from it.',
+						'The %s files are deleted from your site, with every size made from them.',
+						count,
+						'gophenberg',
+					),
+					formatNumber(count),
+				)
+	return `${what} ${irreversible()}`
 }
 
 /**

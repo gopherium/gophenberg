@@ -2,18 +2,23 @@
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { buttonClasses, setViewport, stubLayout } from '@gopherium/godmin/testing'
+import { formatNumber } from '@gopherium/gottext'
 import { seedSession } from '@gopherium/react-auth/testing'
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import type { QueryClient } from '@tanstack/react-query'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
+import { holdWrite, writesSettled } from '../content/postWrites'
+import { catalogFor } from '../i18n/catalog'
+import { fileDeleteDescription } from '../media/format'
 import { bulkBar } from './bulkBar'
 import { gate } from './gate'
 import { expectUnmarked, holdReads, waitMarked } from './reloads'
 import { adminUser, renderAt } from './render'
 import { siteSettings } from './siteSettings'
-import { clickDimmedPage, findToast, menuItems, waitBusy } from './typeFixtures'
+import { findToast, menuItems, waitBusy } from './typeFixtures'
 
 beforeAll(async () => {
 	await import('../media/MediaScreen')
@@ -139,37 +144,22 @@ function gone(): Response {
 }
 
 /**
- * Refuses every edit until the returned switch lets them through, as a server that cannot find the file.
- * @returns The switch letting edits through.
+ * Refuses every edit, as a server that cannot find the file.
  */
-function refuseEdits(): { allow: () => void } {
-	let refusing = true
-	server.use(
-		http.patch('/api/media/:id', async ({ params, request }) =>
-			refusing ? gone() : kept(Number(params.id), await request.json()),
-		),
-	)
-	return { allow: () => (refusing = false) }
+function refuseEdits() {
+	server.use(http.patch('/api/media/:id', gone))
 }
 
 /**
- * Holds the first edit until the returned gate opens, then refuses it, letting every later edit through.
- * @returns The gate the first edit waits on and the count of edits sent so far.
+ * Holds a write to a file from outside every dialog until the returned gate opens, as a write still in flight.
+ * @param client - The query client the library writes through.
+ * @param id - The file the write goes to.
+ * @returns The gate the write waits on.
  */
-function holdFirstEditThenRefuse() {
-	const first = gate()
-	const sent = { writes: 0 }
-	server.use(
-		http.patch('/api/media/:id', async ({ params, request }) => {
-			sent.writes += 1
-			if (sent.writes === 1) {
-				await first.held
-				return gone()
-			}
-			return kept(Number(params.id), await request.json())
-		}),
-	)
-	return { first, sent }
+function holdFileWrite(client: QueryClient, id: number) {
+	const write = gate()
+	void holdWrite(client, `media ${id}`, write.held)
+	return write
 }
 
 /**
@@ -225,12 +215,17 @@ async function openCardMenu(title: string) {
  * Picks an item of the actions menu of a card and returns the dialog it opens.
  * @param title - The title the card shows.
  * @param item - The words of the menu item.
+ * @param role - The role the dialog has, an alertdialog for a confirm.
  * @returns The dialog.
  */
-async function openCardDialog(title: string, item: string): Promise<HTMLElement> {
+async function openCardDialog(
+	title: string,
+	item: string,
+	role: 'dialog' | 'alertdialog' = 'dialog',
+): Promise<HTMLElement> {
 	await openCardMenu(title)
 	await userEvent.click(await screen.findByRole('menuitem', { name: item }))
-	return screen.findByRole('dialog')
+	return screen.findByRole(role)
 }
 
 /**
@@ -246,12 +241,36 @@ async function retype(dialog: HTMLElement, label: string, text: string) {
 }
 
 /**
- * Presses Save in an open dialog and waits for the dialog to close.
+ * Presses Save in an open dialog.
+ * @param dialog - The dialog.
+ */
+async function pressSave(dialog: HTMLElement) {
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+}
+
+/**
+ * Waits until no dialog shows.
+ */
+async function waitClosed() {
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+}
+
+/**
+ * Presses Save in an open dialog and waits for the dialog to close, as a write that works closes it.
  * @param dialog - The dialog.
  */
 async function save(dialog: HTMLElement) {
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await pressSave(dialog)
+	await waitClosed()
+}
+
+/**
+ * Presses Cancel in an open dialog and waits for the dialog to close.
+ * @param dialog - The dialog.
+ */
+async function closeByCancel(dialog: HTMLElement) {
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+	await waitClosed()
 }
 
 /**
@@ -336,13 +355,12 @@ test('names View in the words the catalogue gives the verb', async () => {
 	expect(menuItems()[0]).toBe('Open')
 })
 
-test('edits in a medium dialog headed Edit media, the Title box focused', async () => {
+test('edits in a dialog headed Edit media, the Title box focused', async () => {
 	stubLayout()
 	renderAt('/media')
 
 	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
 
-	expect(dialog).toHaveClass('has-size-medium')
 	expect(within(dialog).getByRole('heading', { name: 'Edit media' })).toBeInTheDocument()
 	await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveFocus())
 })
@@ -398,196 +416,6 @@ test('leaves out the alt text and the dimensions of a file that is no picture', 
 	expect(readOnlyRows(dialog)).toEqual(['Date added', 'Author', 'File name', 'File type', 'File size'])
 })
 
-test('keeps Save on as Edit opens, after a Cancel drawn as accent text, as WordPress draws a row edit', async () => {
-	renderAt('/media')
-
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-
-	const form = within(dialog).getByRole('textbox', { name: 'Title' }).closest('form') as HTMLElement
-	expect([...form.classList]).toEqual(['godmin-modal-body'])
-	const [cancel, submit, ...rest] = within(form).getAllByRole('button')
-	expect([cancel.textContent, submit.textContent, rest]).toEqual(['Cancel', 'Save', []])
-	expect([...cancel.classList]).toEqual(buttonClasses('minimal'))
-	expect(submit).toHaveAttribute('type', 'submit')
-	expect(submit).not.toHaveAttribute('aria-disabled', 'true')
-})
-
-test('scrolls the fields of Edit in a pane above Cancel and Save, as WordPress scrolls its media editor', async () => {
-	renderAt('/media')
-
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-
-	const title = within(dialog).getByRole('textbox', { name: 'Title' })
-	const pane = title.closest('.gophenberg-media__edit-fields') as HTMLElement
-	expect(within(pane).getByText('Dimensions')).toBeInTheDocument()
-	expect(within(pane).queryAllByRole('button', { name: /^(Cancel|Save)$/ })).toEqual([])
-	expect(getComputedStyle(pane).overflowY).toBe('auto')
-})
-
-/**
- * Makes the fields pane of Edit report fields taller than itself, as a short window lays them out, until the test ends.
- */
-function overflowFields() {
-	const pane = (element: Element) => element.classList.contains('gophenberg-media__edit-fields')
-	const tall = vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockImplementation(function (this: Element) {
-		return pane(this) ? 900 : 0
-	})
-	const shown = vi.spyOn(Element.prototype, 'clientHeight', 'get').mockImplementation(function (this: Element) {
-		return pane(this) ? 600 : 0
-	})
-	onTestFinished(() => {
-		tall.mockRestore()
-		shown.mockRestore()
-	})
-}
-
-/**
- * Returns the pane the fields of an open Edit scroll in.
- * @param dialog - The Edit dialog.
- * @returns The pane.
- */
-function fieldsPane(dialog: HTMLElement): HTMLElement {
-	return within(dialog).getByRole('textbox', { name: 'Title' }).closest('.gophenberg-media__edit-fields') as HTMLElement
-}
-
-/**
- * Tells whether the header of an open dialog draws the line the Modal draws under it once its content scrolled.
- * @param dialog - The dialog.
- * @returns Whether the bottom border of the header takes the colour of a neutral surface stroke.
- */
-function headerLine(dialog: HTMLElement): boolean {
-	const header = dialog.querySelector('.components-modal__header') as HTMLElement
-	return /^var\(--wpds-color-stroke-surface-neutral\b/.test(getComputedStyle(header).borderBottomColor)
-}
-
-test('names the fields pane of Edit Scrollable section while its fields overflow it, as the Modal does', async () => {
-	overflowFields()
-	renderAt('/media')
-
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-
-	const pane = within(dialog).getByRole('document', { name: 'Scrollable section' })
-	expect(pane).toBe(fieldsPane(dialog))
-	expect(pane).toHaveClass('is-scrollable')
-})
-
-test('focuses the Title box as Edit opens on overflowing fields, then makes their pane a tab stop', async () => {
-	stubLayout()
-	overflowFields()
-	renderAt('/media')
-
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-
-	await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveFocus())
-	expect(fieldsPane(dialog)).toHaveAttribute('tabindex', '0')
-})
-
-test('leaves the Edit fields pane unnamed, out of the tab order, no line above, while its fields fit', async () => {
-	renderAt('/media')
-
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-
-	const pane = fieldsPane(dialog)
-	expect(pane).not.toHaveAttribute('aria-label')
-	expect(pane).not.toHaveAttribute('tabindex')
-	expect(pane).not.toHaveClass('is-scrollable')
-	expect(headerLine(dialog)).toBe(false)
-})
-
-test('draws the line under the Edit header once the fields pane scrolled, gone again back at the top', async () => {
-	overflowFields()
-	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-	const pane = fieldsPane(dialog)
-	expect(headerLine(dialog)).toBe(false)
-
-	for (const { top, drawn } of [{ top: 40, drawn: true }, { top: 0, drawn: false }]) {
-		Object.defineProperty(pane, 'scrollTop', { configurable: true, value: top })
-		fireEvent.scroll(pane)
-		expect(headerLine(dialog)).toBe(drawn)
-	}
-})
-
-/**
- * Replaces ResizeObserver with one that records what it watches and what it stops, until the test ends.
- * @returns The callback each watched element reports to, and the callbacks disconnected.
- */
-function watchResizes() {
-	const watched = new Map<Element, ResizeObserverCallback>()
-	const stopped: ResizeObserverCallback[] = []
-	vi.stubGlobal(
-		'ResizeObserver',
-		class {
-			seen: ResizeObserverCallback
-			constructor(seen: ResizeObserverCallback) {
-				this.seen = seen
-			}
-			observe(target: Element) {
-				watched.set(target, this.seen)
-			}
-			unobserve() {}
-			disconnect() {
-				stopped.push(this.seen)
-			}
-		},
-	)
-	onTestFinished(() => {
-		vi.unstubAllGlobals()
-	})
-	return { watched, stopped }
-}
-
-test('names the Edit fields pane once a shorter window makes it overflow, its fields the same size', async () => {
-	const { watched } = watchResizes()
-	stubLayout()
-	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-	const pane = fieldsPane(dialog)
-	await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveFocus())
-	expect(pane).not.toHaveAttribute('aria-label')
-	expect(watched.has(pane)).toBe(true)
-
-	overflowFields()
-	act(() => (watched.get(pane) as ResizeObserverCallback)([], {} as ResizeObserver))
-
-	expect(pane).toHaveAttribute('aria-label', 'Scrollable section')
-	expect(pane).toHaveAttribute('tabindex', '0')
-})
-
-test('names the Edit fields pane once its fields grow past it, watched as the Modal watches content', async () => {
-	const { watched, stopped } = watchResizes()
-	stubLayout()
-	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-	const pane = fieldsPane(dialog)
-	const watching = [...watched].find(([target]) => target.parentElement === pane)
-	const [content, seen] = watching as [Element, ResizeObserverCallback]
-	const title = within(dialog).getByRole('textbox', { name: 'Title' })
-	expect(content).toContainElement(title)
-	await waitFor(() => expect(title).toHaveFocus())
-	expect(pane).not.toHaveAttribute('aria-label')
-	expect(pane).not.toHaveAttribute('tabindex')
-
-	overflowFields()
-	act(() => seen([], {} as ResizeObserver))
-
-	expect(pane).toHaveAttribute('aria-label', 'Scrollable section')
-	expect(pane).toHaveAttribute('tabindex', '0')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-	expect(stopped).toContain(seen)
-})
-
-test('names the fields pane of Edit in the words the catalogue the Modal reads gives Scrollable section', async () => {
-	setLocaleData({ 'Scrollable section': ['Scrolling fields'] })
-	onTestFinished(() => resetLocaleData({}))
-	overflowFields()
-	renderAt('/media')
-
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-
-	expect(fieldsPane(dialog)).toHaveAttribute('aria-label', 'Scrolling fields')
-})
-
 test('opens the same Edit from a click on the title of a card', async () => {
 	stubLayout()
 	renderAt('/media')
@@ -596,12 +424,18 @@ test('opens the same Edit from a click on the title of a card', async () => {
 	await userEvent.click(card.getByText('Harbor at dawn'))
 
 	const dialog = await screen.findByRole('dialog', { name: 'Edit media' })
-	expect(dialog).toHaveClass('has-size-medium')
 	expect(boxes(dialog)).toMatchObject({ Title: 'Harbor at dawn', Caption: 'Before the market opens' })
 	await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveFocus())
 })
 
-test('closes the Edit opened from a title as Save is pressed, then says Media file updated.', async () => {
+test('keeps the Edit opened from a title on show while the save is sent, then says Media file updated.', async () => {
+	const shownAtWrite: boolean[] = []
+	server.use(
+		http.patch('/api/media/:id', async ({ params, request }) => {
+			shownAtWrite.push(screen.queryByRole('dialog', { name: 'Edit media' }) !== null)
+			return kept(Number(params.id), await request.json())
+		}),
+	)
 	renderAt('/media')
 	await userEvent.click((await cardOf('Harbor at dawn')).getByText('Harbor at dawn'))
 	const dialog = await screen.findByRole('dialog', { name: 'Edit media' })
@@ -610,6 +444,7 @@ test('closes the Edit opened from a title as Save is pressed, then says Media fi
 	await save(dialog)
 
 	expect(await findToast('Media file updated.')).toBeInTheDocument()
+	expect(shownAtWrite).toEqual([true])
 	expect(patched).toEqual([{ updated_at: CURRENT_VERSION, title: 'Harbor at noon' }])
 })
 
@@ -624,7 +459,7 @@ test('closes the Edit opened from a title through its Cancel, sending nothing', 
 	expect(patched).toEqual([])
 })
 
-test('closes Edit as Save is pressed, before the write answers, then says Media file updated.', async () => {
+test('keeps Edit busy with Cancel greyed until the write answers, then says Media file updated.', async () => {
 	const answer = gate()
 	server.use(
 		http.patch('/api/media/:id', async ({ params, request }) => {
@@ -637,12 +472,45 @@ test('closes Edit as Save is pressed, before the write answers, then says Media 
 	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
 	await retype(dialog, 'Title', 'Harbor at noon')
 
-	await save(dialog)
+	await pressSave(dialog)
 
+	await waitBusy(dialog, 'Save')
+	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true')
+	expect(screen.getByRole('dialog', { name: 'Edit media' })).toBe(dialog)
 	expect(screen.queryByText('Media file updated.')).not.toBeInTheDocument()
 	answer.release()
 	expect(await findToast('Media file updated.')).toBeInTheDocument()
+	await waitClosed()
 	expect(await cardOf('Harbor at noon')).toBeTruthy()
+})
+
+test('keeps the boxes of Edit in place and read only while the write runs, the focus staying in Title', async () => {
+	const answer = gate()
+	server.use(
+		http.patch('/api/media/:id', async () => {
+			await answer.held
+			return gone()
+		}),
+	)
+	renderAt('/media')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	await retype(dialog, 'Caption', 'After the market closes')
+	const held = ['Title', 'Alt text', 'Caption', 'Description'].map((label) =>
+		within(dialog).getByRole('textbox', { name: label }),
+	)
+	await userEvent.click(held[0])
+
+	await userEvent.keyboard('{Enter}')
+
+	await waitBusy(dialog, 'Save')
+	expect(held.map((box) => box.hasAttribute('readonly'))).toEqual([true, true, true, true])
+	expect(held.map((box) => box.isConnected)).toEqual([true, true, true, true])
+	expect(held[0]).toHaveFocus()
+	answer.release()
+	expect(await within(dialog).findByText(`Could not save image. ${NOT_FOUND}`)).toBeInTheDocument()
+	expect(held.map((box) => box.hasAttribute('readonly'))).toEqual([false, false, false, false])
+	expect(held[0]).toHaveFocus()
+	expect(boxes(dialog)).toMatchObject({ Title: 'Harbor at dawn', Caption: 'After the market closes' })
 })
 
 test('writes over the version read just before the write, sending only the fields the reader changed', async () => {
@@ -674,26 +542,33 @@ test('sends Edit from Enter in the Title box', async () => {
 test.each([
 	{ kind: 'a picture', title: 'Harbor at dawn', words: 'Could not save image.' },
 	{ kind: 'a file that is no picture', title: 'Manual', words: 'Could not save media.' },
-])('says $words with the reason in a toast when the edit of $kind fails', async ({ title, words }) => {
+])('says $words with the reason inside Edit when the edit of $kind fails, the text typed kept', async ({
+	title,
+	words,
+}) => {
 	refuseEdits()
 	renderAt('/media')
 	const dialog = await openCardDialog(title, 'Edit…')
+	await retype(dialog, 'Caption', 'After the market closes')
 
-	await save(dialog)
+	await pressSave(dialog)
 
-	expect(await findToast(`${words} ${NOT_FOUND}`)).toBeInTheDocument()
-	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+	expect(await within(dialog).findByText(`${words} ${NOT_FOUND}`)).toBeInTheDocument()
+	expect(screen.getByRole('dialog', { name: 'Edit media' })).toBe(dialog)
+	expect(boxes(dialog)).toMatchObject({ Caption: 'After the market closes' })
+	expect(screen.queryByText(`${words} ${NOT_FOUND}`, { selector: '.godmin-toast' })).not.toBeInTheDocument()
 })
 
-test('says the server could not be reached when the network drops an edit', async () => {
+test('says inside Edit the server could not be reached when the network drops an edit', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.patch('/api/media/:id', () => HttpResponse.error()))
 	renderAt('/media')
 	const dialog = await openCardDialog('Manual', 'Edit…')
 
-	await save(dialog)
+	await pressSave(dialog)
 
-	expect(await findToast('Could not save media. The server could not be reached, so nothing was saved.')).toBeTruthy()
+	const words = 'Could not save media. The server could not be reached, so nothing was saved.'
+	expect(await within(dialog).findByText(words)).toBeInTheDocument()
 })
 
 test('says Media file updated as the write ends and marks the list until the rows come back', async () => {
@@ -714,9 +589,9 @@ test('reads the list again after a failed edit, so the card holds the newest ver
 	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
 	const before = listings
 
-	await save(dialog)
+	await pressSave(dialog)
 
-	await findToast(`Could not save image. ${NOT_FOUND}`)
+	await within(dialog).findByText(`Could not save image. ${NOT_FOUND}`)
 	await waitFor(() => expect(listings).toBeGreaterThan(before))
 })
 
@@ -726,181 +601,42 @@ test('marks nothing while the list reads again after a failed edit', async () =>
 	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
 	holdReads('/api/media')
 
-	await save(dialog)
+	await pressSave(dialog)
 
-	await findToast(`Could not save image. ${NOT_FOUND}`)
+	await within(dialog).findByText(`Could not save image. ${NOT_FOUND}`)
 	expectUnmarked()
 })
 
-test('offers the fields a failed edit left unsaved when Edit opens again, through a Cancel', async () => {
-	refuseEdits()
-	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-	await retype(dialog, 'Title', 'Harbor at noon')
-	await retype(dialog, 'Alt text', 'Boats at noon')
-	await save(dialog)
-	await findToast(`Could not save image. ${NOT_FOUND}`)
-	const kept = await openCardDialog('Harbor at dawn', 'Edit…')
-	await userEvent.click(within(kept).getByRole('button', { name: 'Cancel' }))
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-
-	const again = await openCardDialog('Harbor at dawn', 'Edit…')
-
-	expect(boxes(again)).toMatchObject({
-		Title: 'Harbor at noon',
-		'Alt text': 'Boats at noon',
-		Caption: 'Before the market opens',
-	})
-})
-
-test('offers the fields a failed edit left unsaved only on the file they were typed for', async () => {
-	refuseEdits()
-	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
-	await retype(dialog, 'Caption', 'After the market closes')
-	await save(dialog)
-	await findToast(`Could not save image. ${NOT_FOUND}`)
-
-	const other = await openCardDialog('Manual', 'Edit…')
-
-	expect(boxes(other)).toMatchObject({ Caption: '' })
-})
-
-test('opens Edit on what a later save stored, dropping what an earlier failed edit kept', async () => {
-	const edits = refuseEdits()
-	renderAt('/media')
-	const failing = await openCardDialog('Harbor at dawn', 'Edit…')
-	await retype(failing, 'Caption', 'A failed caption')
-	await save(failing)
-	await findToast(`Could not save image. ${NOT_FOUND}`)
-	edits.allow()
-	const retried = await openCardDialog('Harbor at dawn', 'Edit…')
-	await retype(retried, 'Caption', 'A saved caption')
-	await save(retried)
-	await findToast('Media file updated.')
-
-	const again = await openCardDialog('Harbor at dawn', 'Edit…')
-
-	expect(boxes(again)).toMatchObject({ Caption: 'A saved caption' })
-})
-
-test('opens Edit on the saved fields when an earlier edit fails after a later one was sent', async () => {
-	const { first, sent } = holdFirstEditThenRefuse()
-	renderAt('/media')
-	const failing = await openCardDialog('Harbor at dawn', 'Edit…')
-	await retype(failing, 'Title', 'A failed title')
-	await save(failing)
-	await waitFor(() => expect(sent.writes).toBe(1))
-	const later = await openCardDialog('Harbor at dawn', 'Edit…')
-	await retype(later, 'Title', 'A saved title')
-	await save(later)
-
-	first.release()
-
-	await findToast(`Could not save image. ${NOT_FOUND}`)
-	await findToast('Media file updated.')
-	const again = await openCardDialog('A saved title', 'Edit…')
-	expect(boxes(again)).toMatchObject({ Title: 'A saved title' })
-})
-
-test('keeps nothing of an edit that fails after a later rename of the file was sent', async () => {
-	const { first, sent } = holdFirstEditThenRefuse()
-	renderAt('/media')
-	const edit = await openCardDialog('Harbor at dawn', 'Edit…')
-	await retype(edit, 'Alt text', 'Boats at noon')
-	await save(edit)
-	await waitFor(() => expect(sent.writes).toBe(1))
-	const rename = await openCardDialog('Harbor at dawn', 'Rename…')
-	await retype(rename, 'Name', 'Harbor renamed')
-	await save(rename)
-
-	first.release()
-
-	await findToast(`Could not save image. ${NOT_FOUND}`)
-	await findToast('Name updated.')
-	const again = await openCardDialog('Harbor renamed', 'Edit…')
-	expect(boxes(again)).toMatchObject({ Title: 'Harbor renamed', 'Alt text': 'Boats at sunrise' })
-})
-
-test('drops the title a failed edit kept once a rename is sent, keeping its alt text', async () => {
-	const edits = refuseEdits()
-	renderAt('/media')
-	const edit = await openCardDialog('Harbor at dawn', 'Edit…')
-	await retype(edit, 'Title', 'A failed title')
-	await retype(edit, 'Alt text', 'Boats at noon')
-	await save(edit)
-	await findToast(`Could not save image. ${NOT_FOUND}`)
-	edits.allow()
-	const rename = await openCardDialog('Harbor at dawn', 'Rename…')
-	await retype(rename, 'Name', 'Harbor renamed')
-	await save(rename)
-	await findToast('Name updated.')
-
-	const again = await openCardDialog('Harbor renamed', 'Edit…')
-
-	expect(boxes(again)).toMatchObject({ Title: 'Harbor renamed', 'Alt text': 'Boats at noon' })
-})
-
-test('drops the name a failed rename kept once an edit of the title is sent', async () => {
-	const edits = refuseEdits()
-	renderAt('/media')
-	const rename = await openCardDialog('Harbor at dawn', 'Rename…')
-	await retype(rename, 'Name', 'A failed name')
-	await save(rename)
-	await findToast(NOT_FOUND)
-	edits.allow()
-	const edit = await openCardDialog('Harbor at dawn', 'Edit…')
-	await retype(edit, 'Title', 'Harbor at noon')
-	await save(edit)
-	await findToast('Media file updated.')
-
-	const again = await openCardDialog('Harbor at noon', 'Rename…')
-
-	expect(within(again).getByRole('textbox', { name: 'Name' })).toHaveValue('Harbor at noon')
-})
-
-test('keeps the name a failed rename kept when an edit leaves the title alone', async () => {
-	const edits = refuseEdits()
-	renderAt('/media')
-	const rename = await openCardDialog('Harbor at dawn', 'Rename…')
-	await retype(rename, 'Name', 'A failed name')
-	await save(rename)
-	await findToast(NOT_FOUND)
-	edits.allow()
-	const edit = await openCardDialog('Harbor at dawn', 'Edit…')
-	await retype(edit, 'Caption', 'After the market closes')
-	await save(edit)
-	await findToast('Media file updated.')
-
-	const again = await openCardDialog('Harbor at dawn', 'Rename…')
-
-	expect(within(again).getByRole('textbox', { name: 'Name' })).toHaveValue('A failed name')
-})
-
-test('renames in a medium dialog headed Rename, its Name box holding the stored title and focused', async () => {
+test('renames in a dialog headed Rename, its Name box holding the stored title and focused', async () => {
 	stubLayout()
 	renderAt('/media')
 
 	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
 
-	expect(dialog).toHaveClass('has-size-medium')
 	expect(within(dialog).getByRole('heading', { name: 'Rename' })).toBeInTheDocument()
 	expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveValue('Harbor at dawn')
 	await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveFocus())
 })
 
-test('keeps Save of Rename off while the Name is blank or spaces, after a Cancel drawn as accent text', async () => {
+test('keeps Save of Rename on and sends nothing from it while the Name is blank or spaces', async () => {
 	renderAt('/media')
 	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
-	const save = within(dialog).getByRole('button', { name: 'Save' })
-	expect([...within(dialog).getByRole('button', { name: 'Cancel' }).classList]).toEqual(buttonClasses('minimal'))
-	expect(save).not.toHaveAttribute('aria-disabled', 'true')
+	const submit = within(dialog).getByRole('button', { name: 'Save' })
+	const field = within(dialog).getByRole('textbox', { name: 'Name' })
+	expect([...within(dialog).getByRole('button', { name: 'Cancel' }).classList]).toEqual(
+		buttonClasses('outline', undefined, 'neutral'),
+	)
 
-	await retype(dialog, 'Name', '   ')
-	expect(save).toHaveAttribute('aria-disabled', 'true')
-	await userEvent.clear(within(dialog).getByRole('textbox', { name: 'Name' }))
+	await userEvent.clear(field)
+	expect(submit).not.toHaveAttribute('aria-disabled', 'true')
+	await userEvent.click(submit)
+	await userEvent.type(field, '   ')
+	expect(submit).not.toHaveAttribute('aria-disabled', 'true')
+	await userEvent.click(submit)
 
-	expect(save).toHaveAttribute('aria-disabled', 'true')
+	await aMoment()
+	expect(patched).toEqual([])
+	expect(screen.getByRole('dialog', { name: 'Rename' })).toBe(dialog)
 })
 
 test('holds an empty Name for a file with no title', async () => {
@@ -912,14 +648,28 @@ test('holds an empty Name for a file with no title', async () => {
 	expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveValue('')
 })
 
-test('closes Rename as Save is pressed, writes over the version read first, then says Name updated.', async () => {
+test('keeps Rename busy with the Name read only until the write answers, then says Name updated.', async () => {
+	const answer = gate()
+	server.use(
+		http.patch('/api/media/:id', async ({ params, request }) => {
+			const body = await request.json()
+			await answer.held
+			return kept(Number(params.id), body)
+		}),
+	)
 	renderAt('/media')
 	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
 	await retype(dialog, 'Name', 'Harbor renamed')
 
-	await save(dialog)
+	await pressSave(dialog)
 
+	await waitBusy(dialog, 'Save')
+	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true')
+	expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveAttribute('readonly')
+	expect(screen.getByRole('dialog', { name: 'Rename' })).toBe(dialog)
+	answer.release()
 	expect(await findToast('Name updated.')).toBeInTheDocument()
+	await waitClosed()
 	expect(patched).toEqual([{ updated_at: CURRENT_VERSION, title: 'Harbor renamed' }])
 	expect(versionReads).toEqual([HARBOR.id])
 	expect(await cardOf('Harbor renamed')).toBeTruthy()
@@ -937,42 +687,47 @@ test('says Name updated as the write ends and marks the list until the rows come
 	await waitMarked()
 })
 
-test('shows the reason a refused rename gave in a toast and offers the typed name again', async () => {
+test('shows the reason a refused rename gave inside Rename, the name typed kept and no toast raised', async () => {
 	refuseEdits()
 	renderAt('/media')
 	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
 	await retype(dialog, 'Name', 'Harbor renamed')
-	await save(dialog)
 
-	expect(await findToast(NOT_FOUND)).toBeInTheDocument()
-	const again = await openCardDialog('Harbor at dawn', 'Rename…')
-	expect(within(again).getByRole('textbox', { name: 'Name' })).toHaveValue('Harbor renamed')
+	await pressSave(dialog)
+
+	expect(await within(dialog).findByText(NOT_FOUND)).toBeInTheDocument()
+	expect(screen.getByRole('dialog', { name: 'Rename' })).toBe(dialog)
+	expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveValue('Harbor renamed')
+	expect(screen.queryByText(NOT_FOUND, { selector: '.godmin-toast' })).not.toBeInTheDocument()
 })
 
-test('says the name could not be updated when the network drops a rename', async () => {
+test('says inside Rename the name could not be updated when the network drops a rename, the name kept', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	server.use(http.patch('/api/media/:id', () => HttpResponse.error()))
 	renderAt('/media')
 	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
+	await retype(dialog, 'Name', 'Harbor renamed')
 
-	await save(dialog)
+	await pressSave(dialog)
 
-	expect(await findToast('The name could not be updated.')).toBeInTheDocument()
+	expect(await within(dialog).findByText('The name could not be updated.')).toBeInTheDocument()
+	expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveValue('Harbor renamed')
 })
 
-test('asks before deleting a file for good under no header, naming it in quotes, Cancel focused', async () => {
+test('asks before deleting a file for good in a red confirm titled by the question, Cancel focused', async () => {
 	stubLayout()
 	renderAt('/media')
 
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 
-	expect(within(dialog).getByText('Delete "Harbor at dawn" for good? This cannot be undone.')).toBeInTheDocument()
-	expect(within(dialog).queryByRole('heading')).not.toBeInTheDocument()
+	expect(within(dialog).getByRole('heading', { name: 'Delete "Harbor at dawn"?' })).toBeInTheDocument()
+	expect(dialog).toHaveAccessibleDescription(
+		'The file is deleted from your site, with every size made from it. This action cannot be undone.',
+	)
 	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
-	expect(dialog).toHaveClass('has-size-medium')
 	const [cancel, confirm] = within(dialog).getAllByRole('button')
 	expect([cancel.textContent, confirm.textContent]).toEqual(['Cancel', 'Delete permanently'])
-	expect([...cancel.classList]).toEqual(buttonClasses('minimal'))
+	expect(confirm.className).toMatch(/irreversible/)
 	await waitFor(() => expect(cancel).toHaveFocus())
 	expect(deleted).toEqual([])
 })
@@ -981,9 +736,9 @@ test('names a file with no title as (no title) in the delete question', async ()
 	stored.set(HARBOR.id, { ...HARBOR, title: '' })
 	renderAt('/media')
 
-	const dialog = await openCardDialog('(no title)', 'Permanently delete…')
+	const dialog = await openCardDialog('(no title)', 'Permanently delete…', 'alertdialog')
 
-	expect(within(dialog).getByText('Delete "(no title)" for good? This cannot be undone.')).toBeInTheDocument()
+	expect(within(dialog).getByRole('heading', { name: 'Delete "(no title)"?' })).toBeInTheDocument()
 })
 
 test('keeps the confirm busy with Cancel greyed while the delete runs, then closes it and names the file', async () => {
@@ -997,14 +752,14 @@ test('keeps the confirm busy with Cancel greyed while the delete runs, then clos
 		}),
 	)
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
 	await waitBusy(dialog, 'Delete permanently')
 	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true')
 	answer.release()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(await findToast('"Harbor at dawn" permanently deleted.')).toBeInTheDocument()
 	expect(deleted).toEqual([HARBOR.id])
 })
@@ -1017,29 +772,57 @@ async function deleteBothTicked(): Promise<HTMLElement> {
 	await userEvent.click(await screen.findByRole('checkbox', { name: 'Harbor at dawn' }))
 	await userEvent.click(screen.getByRole('checkbox', { name: 'Manual' }))
 	await userEvent.click(bulkBar().getByRole('button', { name: 'Permanently delete…' }))
-	return screen.findByRole('dialog')
+	return screen.findByRole('alertdialog')
 }
 
 test('deletes every ticked file behind one confirm and counts them', async () => {
 	renderAt('/media')
 
 	const dialog = await deleteBothTicked()
-	expect(dialog).toHaveTextContent('Delete 2 items for good? This cannot be undone.')
+	expect(dialog).toHaveAccessibleName('Delete 2 items?')
+	expect(dialog).toHaveAccessibleDescription(
+		'The 2 files are deleted from your site, with every size made from them. This action cannot be undone.',
+	)
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
 	expect(await findToast('2 items permanently deleted.')).toBeInTheDocument()
 	expect(deleted.sort()).toEqual([HARBOR.id, MANUAL.id])
 })
 
+test.each([
+	{
+		locale: 'es-ES',
+		one: 'El archivo se borrará de tu sitio, con todos sus tamaños.',
+		two: 'Los 2 archivos se borrarán de tu sitio, con todos sus tamaños.',
+		millions: '%s de archivos se borrarán de tu sitio, con todos sus tamaños.',
+		warning: 'Esta acción no se puede deshacer.',
+	},
+	{
+		locale: 'fr-FR',
+		one: 'Le fichier est supprimé de votre site, avec toutes ses tailles.',
+		two: 'Les 2 fichiers sont supprimés de votre site, avec toutes leurs tailles.',
+		millions: '%s de fichiers sont supprimés de votre site, avec toutes leurs tailles.',
+		warning: 'Cette action est irréversible.',
+	},
+])('says what a permanent delete of files takes with it in $locale, the millions form included', async (words) => {
+	setLocaleData(await catalogFor(words.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+
+	const said = [1, 2, 1000000].map((count) => fileDeleteDescription(count))
+
+	const millions = words.millions.replace('%s', formatNumber(1000000))
+	expect(said).toEqual([words.one, words.two, millions].map((what) => `${what} ${words.warning}`))
+})
+
 test('shows the reason a refused delete gave in a toast, the confirm closed and the card kept', async () => {
 	server.use(http.delete('/api/media/:id', gone))
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
 	expect(await findToast(NOT_FOUND)).toBeInTheDocument()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(await cardOf('Harbor at dawn')).toBeTruthy()
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
@@ -1065,57 +848,6 @@ test('counts only the files a partly refused bulk delete could not remove, in on
 })
 
 /**
- * Starts the held permanent delete of a file and closes its busy confirm on the dimmed page.
- * @param title - The title the card of the file shows.
- * @param answer - Builds the answer the delete gets once the gate opens.
- * @returns The gate the delete waits on.
- */
-async function deleteThenLeave(title: string, answer: () => Response) {
-	const held = gate()
-	server.use(
-		http.delete('/api/media/:id', async () => {
-			await held.held
-			return answer()
-		}),
-	)
-	renderAt('/media')
-	const confirm = await openCardDialog(title, 'Permanently delete…')
-	await userEvent.click(within(confirm).getByRole('button', { name: 'Delete permanently' }))
-	await waitBusy(confirm, 'Delete permanently')
-	await clickDimmedPage()
-	return held
-}
-
-test('leaves a dialog opened on the card after a delete dismissed while busy open once that delete ends', async () => {
-	const held = await deleteThenLeave('Harbor at dawn', gone)
-	const edit = await openCardDialog('Harbor at dawn', 'Edit…')
-
-	held.release()
-	await findToast(NOT_FOUND)
-	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
-
-	expect(screen.getByRole('dialog', { name: 'Edit media' })).toBe(edit)
-})
-
-test('keeps the focus in an Edit opened after a dismissed delete once that delete lands', async () => {
-	stubLayout()
-	const held = await deleteThenLeave('Manual', () => {
-		stored.delete(MANUAL.id)
-		return new HttpResponse(null, { status: 204 })
-	})
-	const edit = await openCardDialog('Harbor at dawn', 'Edit…')
-	const title = within(edit).getByRole('textbox', { name: 'Title' })
-	await waitFor(() => expect(title).toHaveFocus())
-
-	held.release()
-	await findToast('"Manual" permanently deleted.')
-	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
-
-	expect(screen.getByRole('dialog', { name: 'Edit media' })).toBe(edit)
-	expect(title).toHaveFocus()
-})
-
-/**
  * Waits until the picture of the card now in the first place holds the focus.
  */
 async function waitFocusOnManual() {
@@ -1125,7 +857,7 @@ async function waitFocusOnManual() {
 
 test('lands the focus on the card in its place once a deleted file has left the list', async () => {
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
@@ -1207,7 +939,7 @@ test.each([
 test.each([
 	{ part: 'actions menu', trigger: menuTrigger, open: () => openCardDialog('Harbor at dawn', 'Edit…') },
 	{ part: 'title', trigger: titleTrigger, open: () => openFromHarbor(titleTrigger) },
-])('gives the focus back to the $part of a file whose edit failed, on its card where it moved', async ({
+])('gives the focus back to the $part once a failed edit is cancelled, on its card where it moved', async ({
 	trigger,
 	open,
 }) => {
@@ -1220,10 +952,12 @@ test.each([
 		}),
 	)
 	renderAt('/media')
+	const dialog = await open()
+	await pressSave(dialog)
+	await within(dialog).findByText('Could not save image. The server could not be reached, so nothing was saved.')
 
-	await save(await open())
+	await closeByCancel(dialog)
 
-	await findToast('Could not save image. The server could not be reached, so nothing was saved.')
 	const moved = await cardHolding('Harbor at dawn')
 	await waitFor(() => expect(trigger(moved)).toHaveFocus())
 	expect(document.querySelectorAll('.dataviews-view-grid__card')[1]).toBe(moved)
@@ -1258,7 +992,7 @@ test('gives the focus back to the phone row Edit opened from, where it moved, on
 	expect(document.querySelectorAll('.dataviews-view-list__item')[1]).toBe(row)
 })
 
-test('gives the focus back to the phone row Edit opened from once the save failed, the list read again', async () => {
+test('gives the focus back to the phone row of a failed Edit once it is cancelled, the list read again', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	setViewport({ width: 639 })
 	dropFocusWhileReading()
@@ -1266,10 +1000,12 @@ test('gives the focus back to the phone row Edit opened from once the save faile
 	renderAt('/media')
 	const row = await screen.findByRole('button', { name: /^Harbor at dawn/ })
 	await userEvent.click(row)
+	const dialog = await screen.findByRole('dialog', { name: 'Edit media' })
+	await pressSave(dialog)
+	await within(dialog).findByText('Could not save image. The server could not be reached, so nothing was saved.')
 
-	await save(await screen.findByRole('dialog', { name: 'Edit media' }))
+	await closeByCancel(dialog)
 
-	await findToast('Could not save image. The server could not be reached, so nothing was saved.')
 	await waitFor(() => expect(row).toHaveFocus())
 	expect(listings).toBeGreaterThan(1)
 })
@@ -1306,8 +1042,7 @@ test('lands the focus on the list once the file a save went to left it, as a del
 	await waitFor(() => expect(screen.getByRole('region', { name: 'Media' })).toHaveFocus())
 })
 
-test('leaves the focus in a dialog opened while a save of another file was still in flight', async () => {
-	stubLayout()
+test('holds a save of Edit as a write to the file until it answers', async () => {
 	const answer = gate()
 	server.use(
 		http.patch('/api/media/:id', async ({ params, request }) => {
@@ -1316,91 +1051,65 @@ test('leaves the focus in a dialog opened while a save of another file was still
 			return kept(Number(params.id), body)
 		}),
 	)
-	renderAt('/media')
-	await save(await openCardDialog('Harbor at dawn', 'Edit…'))
-	const rename = await openCardDialog('Manual', 'Rename…')
-	const name = within(rename).getByRole('textbox', { name: 'Name' })
-	await waitFor(() => expect(name).toHaveFocus())
+	const client = renderAt('/media')
+	const dialog = await openCardDialog('Harbor at dawn', 'Edit…')
+	let settled = false
 
-	answer.release()
-	await findToast('Media file updated.')
+	await pressSave(dialog)
+	await waitBusy(dialog, 'Save')
+	void writesSettled(client, `media ${HARBOR.id}`).then(() => {
+		settled = true
+	})
 	await aMoment()
+	expect(settled).toBe(false)
+	answer.release()
 
-	expect(name).toHaveFocus()
+	await waitFor(() => expect(settled).toBe(true))
+	await waitClosed()
 })
 
-test('sends a delete of a file only once an edit of it still in flight has answered', async () => {
-	const edit = gate()
+test('sends a delete of a file only once a write to it still in flight has answered', async () => {
 	const heard: string[] = []
 	server.use(
-		http.patch('/api/media/:id', async ({ params, request }) => {
-			heard.push('edit sent')
-			const body = await request.json()
-			await edit.held
-			heard.push('edit answered')
-			return kept(Number(params.id), body)
-		}),
 		http.delete('/api/media/:id', () => {
 			heard.push('delete sent')
 			return new HttpResponse(null, { status: 204 })
 		}),
 	)
-	renderAt('/media')
-	await save(await openCardDialog('Harbor at dawn', 'Edit…'))
-	await waitFor(() => expect(heard).toEqual(['edit sent']))
+	const client = renderAt('/media')
+	const write = holdFileWrite(client, HARBOR.id)
+	const confirm = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 
-	const confirm = await openCardDialog('Harbor at dawn', 'Permanently delete…')
 	await userEvent.click(within(confirm).getByRole('button', { name: 'Delete permanently' }))
 	await aMoment()
-	edit.release()
+	expect(heard).toEqual([])
+	write.release()
 
-	await waitFor(() => expect(heard).toEqual(['edit sent', 'edit answered', 'delete sent']))
+	await waitFor(() => expect(heard).toEqual(['delete sent']))
 })
 
-test('sends an edit of one file while an edit of another file is still in flight', async () => {
-	const first = gate()
-	const sent: number[] = []
-	server.use(
-		http.patch('/api/media/:id', async ({ params, request }) => {
-			sent.push(Number(params.id))
-			const body = await request.json()
-			await (Number(params.id) === HARBOR.id ? first.held : Promise.resolve())
-			return kept(Number(params.id), body)
-		}),
-	)
-	renderAt('/media')
-	await save(await openCardDialog('Harbor at dawn', 'Edit…'))
-	await waitFor(() => expect(sent).toEqual([HARBOR.id]))
+test('sends an edit of one file while a write to another file is still in flight', async () => {
+	const client = renderAt('/media')
+	const write = holdFileWrite(client, HARBOR.id)
 
 	await save(await openCardDialog('Manual', 'Edit…'))
 
-	await waitFor(() => expect(sent).toEqual([HARBOR.id, MANUAL.id]))
-	first.release()
+	expect(await findToast('Media file updated.')).toBeInTheDocument()
+	expect(versionReads).toEqual([MANUAL.id])
+	write.release()
 })
 
-test('reads the version for a rename only once an edit of the file still in flight has answered', async () => {
-	const edit = gate()
-	const heard: string[] = []
-	server.use(
-		http.get('/api/media/:id', ({ params }) => {
-			heard.push('version read')
-			return HttpResponse.json({ ...stored.get(Number(params.id)), updated_at: CURRENT_VERSION })
-		}),
-		http.patch('/api/media/:id', async ({ params, request }) => {
-			heard.push('write sent')
-			const body = await request.json()
-			await (heard.length === 2 ? edit.held : Promise.resolve())
-			return kept(Number(params.id), body)
-		}),
-	)
-	renderAt('/media')
-	await save(await openCardDialog('Harbor at dawn', 'Edit…'))
-	await waitFor(() => expect(heard).toEqual(['version read', 'write sent']))
+test('reads the version for a rename only once a write to the file still in flight has answered', async () => {
+	const client = renderAt('/media')
+	const write = holdFileWrite(client, HARBOR.id)
+	const dialog = await openCardDialog('Harbor at dawn', 'Rename…')
 
-	await save(await openCardDialog('Harbor at dawn', 'Rename…'))
+	await pressSave(dialog)
 	await aMoment()
-	expect(heard).toEqual(['version read', 'write sent'])
-	edit.release()
+	expect(versionReads).toEqual([])
+	write.release()
 
-	await waitFor(() => expect(heard).toEqual(['version read', 'write sent', 'version read', 'write sent']))
+	await waitFor(() => expect(versionReads).toEqual([HARBOR.id]))
+	await findToast('Name updated.')
+	await waitClosed()
 })
