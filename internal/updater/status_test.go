@@ -72,6 +72,47 @@ func TestReadStatusNamesTheBuildsTheLastUpdateAndTheBackupsTheNewestFirst(t *tes
 	}
 }
 
+func TestReadStatusListsTheSQLiteBackupsBesideTheDumpsTheNewestFirst(t *testing.T) {
+	t.Parallel()
+
+	f := newGuardFixture(t, switchedTo)
+	keepFile(t, f.layout, "backups/0.19.0-20261001T120000Z.dump", "an older dump")
+	keepFile(t, f.layout, "backups/0.19.0-20261005T120000Z-update.sqlite", "an update backup")
+	keepFile(t, f.layout, longJumpBackup, "a dump")
+	keepFile(t, f.layout, "backups/0.20.0-20261021T120000Z-scheduled-0123456789abcdef.sqlite", "a scheduled backup")
+	keepFile(t, f.layout, "backups/0.20.0-20261022T120000Z-manual.sqlite", "a manual backup")
+	keepFile(t, f.layout, "backups/0.20.0-20261023T120000Z-scheduled.sqlite.dbkit-snapshot.partial", "half a backup")
+	keepFile(t, f.layout, "backups/.dbkit-snapshot.lock", "")
+
+	status, err := updater.ReadStatus(settingsOf(t, f.env))
+
+	want := []string{
+		"backups/0.20.0-20261022T120000Z-manual.sqlite",
+		"backups/0.20.0-20261021T120000Z-scheduled-0123456789abcdef.sqlite",
+		longJumpBackup,
+		"backups/0.19.0-20261005T120000Z-update.sqlite",
+		"backups/0.19.0-20261001T120000Z.dump",
+	}
+	if err != nil || !reflect.DeepEqual(status.Backups, want) {
+		t.Errorf("ReadStatus() lists the backups %q, %v, want %q", status.Backups, err, want)
+	}
+}
+
+func TestReadStatusListsTwoBackupsOfOneSecondTheLaterNameFirst(t *testing.T) {
+	t.Parallel()
+
+	f := newGuardFixture(t, switchedTo)
+	keepFile(t, f.layout, "backups/0.19.0-20261022T120000Z.dump", "a dump")
+	keepFile(t, f.layout, "backups/0.20.0-20261022T120000Z-update.sqlite", "an update backup")
+
+	status, err := updater.ReadStatus(settingsOf(t, f.env))
+
+	want := []string{"backups/0.20.0-20261022T120000Z-update.sqlite", "backups/0.19.0-20261022T120000Z.dump"}
+	if err != nil || !reflect.DeepEqual(status.Backups, want) {
+		t.Errorf("ReadStatus() lists the backups %q, %v, want the later name first %q", status.Backups, err, want)
+	}
+}
+
 func TestReadStatusOfAnInstallRootWithNoLinksNamesNoBuild(t *testing.T) {
 	t.Parallel()
 
@@ -162,6 +203,23 @@ func TestReadOverviewNamesTheRefusedVersionsTheLastUpdateItsFailureAndTheBackups
 	}
 	if err != nil || !reflect.DeepEqual(overview, want) {
 		t.Errorf("ReadOverview() = %+v, %v, want %+v", overview, err, want)
+	}
+}
+
+func TestReadOverviewCountsTheSQLiteBackups(t *testing.T) {
+	t.Parallel()
+
+	f := newGuardFixture(t, switchedTo)
+	keepFile(t, f.layout, "backups/0.19.0-20261001T120000Z.dump", "an older dump")
+	keepFile(t, f.layout, "backups/0.19.0-20261005T120000Z-update.sqlite", "an update backup")
+	keepFile(t, f.layout, "backups/0.20.0-20261022T120000Z-manual.sqlite", "a manual backup")
+
+	overview, err := updater.ReadOverview(settingsOf(t, f.env))
+
+	newest := time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
+	want := updater.BackupCount{Kept: 3, Limit: 3, Newest: &newest}
+	if err != nil || !reflect.DeepEqual(overview.Backups, want) {
+		t.Errorf("ReadOverview() counts the backups %+v, %v, want %+v", overview.Backups, err, want)
 	}
 }
 

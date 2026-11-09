@@ -1086,6 +1086,11 @@ docker compose exec -T db pg_dump -U postgres -Fc gophenberg > gophenberg.dump
 The `-T` is required: without it Docker attaches a terminal that
 corrupts the binary dump, and you find out when the restore fails.
 
+That dump sits on the server's own disk, as do the ones `update:apply`
+keeps in `backups/`. A copy on the server is a convenience, not a
+backup, so move each dump off the server, by File Manager download or
+SFTP.
+
 **Your compose file and any `.env` beside it**, the only place
 your configuration and passwords exist.
 

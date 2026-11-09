@@ -8,9 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/gonsole/testkit"
 
 	"github.com/gopherium/gophenberg/internal/postgres"
+	"github.com/gopherium/gophenberg/internal/sqlite"
 	"github.com/gopherium/gophenberg/internal/testdb"
 	"github.com/gopherium/gophenberg/internal/version"
 )
@@ -87,6 +89,27 @@ func TestRunStoresTheMinimumVersionOfThisBinary(t *testing.T) {
 	}
 	if got := storedMinimumVersionAt(t, databaseURL); got != version.Minimum() {
 		t.Errorf("stored minimum version = %q after serving, want this binary's %q", got, version.Minimum())
+	}
+}
+
+func TestTheCoreStepRecordsTheVersionThatMigrated(t *testing.T) {
+	t.Parallel()
+
+	address := emptySQLiteAddress(t)
+	env := testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": address})
+
+	if got := testkit.Run(t, Program(env, noPlugins), "", "migrate"); got.Code != gonsole.ExitDone {
+		t.Fatalf("migrate = %d with stderr %q, want 0", got.Code, got.Stderr)
+	}
+
+	db, err := openDefaultSQLite(address)
+	if err != nil {
+		t.Fatalf("opening the migrated file: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	got, err := sqlite.LastMigratedBy(t.Context(), db)
+	if want := (sqlite.Build{Version: version.Version(), Commit: version.Commit()}); err != nil || got != want {
+		t.Errorf("LastMigratedBy() = %+v, %v after migrate, want %+v", got, err, want)
 	}
 }
 

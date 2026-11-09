@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"time"
 
 	"github.com/gopherium/framework/gonsole"
@@ -45,7 +46,8 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 		return err
 	}
 
-	built, err := openSite(composeOf(settings, getenv))
+	composed := composeOf(settings, getenv)
+	built, err := openSite(composed)
 	if err != nil {
 		return err
 	}
@@ -58,7 +60,8 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 		return b.stopped(ctx, err)
 	}
 
-	jobs := cronOf(settings.cron, built, logger, updateJobs(settings.updates, b.updates())...)
+	more := slices.Concat(updateJobs(settings.updates, b.updates()), backupJobs(settings.backups, composed.handle, logger))
+	jobs := cronOf(settings.cron, built, logger, more...)
 
 	plugins, err := b.startPlugins(ctx, compiled.plugins)
 	b.host = plugins.host
@@ -251,6 +254,8 @@ type runConfig struct {
 	updates updateSettings
 
 	install updater.Settings
+
+	backups backupSchedule
 }
 
 // servingDefaults are the HTTP timeouts and shutdown graces a site runs under when its environment names none.
@@ -497,10 +502,21 @@ func sectionsFrom(env gonsole.Env, held *runConfig) error {
 	if held.updates, err = updateSettingsFrom(env); err != nil {
 		return err
 	}
-	if held.install, err = updater.SettingsFrom(env); err != nil {
+	if err = installFrom(env, held); err != nil {
 		return err
 	}
 	return placesFrom(env, held)
+}
+
+// installFrom reads the install settings, then the SQLite backup schedule in the folders they name, into held.
+func installFrom(env gonsole.Env, held *runConfig) error {
+	install, err := updater.SettingsFrom(env)
+	if err != nil {
+		return err
+	}
+	held.install = install
+	held.backups, err = backupScheduleFrom(env, install.Layout())
+	return err
 }
 
 // mediaDirFrom returns the media folder the settings name, else the one inside a data folder they name.

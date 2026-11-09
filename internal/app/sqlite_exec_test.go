@@ -23,9 +23,15 @@ import (
 
 	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/gonsole/testkit"
+
+	"github.com/gopherium/gophenberg/internal/sqlite"
+	"github.com/gopherium/gophenberg/internal/sqlite/backupfiles"
+	"github.com/gopherium/gophenberg/internal/version"
 )
 
 const (
+	// stampedCommit is a synthetic commit a test stamps into its own build of gophenberg.
+	stampedCommit = "0123456789abcdef0123456789abcdef01234567"
 	// binaryRunLimit is how long one run of the built binary may take before the test stops it.
 	binaryRunLimit = 30 * time.Second
 	// newFileHold is how long another connection keeps the write lock of a new file on a system without /proc.
@@ -258,6 +264,94 @@ func TestSQLiteBinaryMigratesANewFileFromTwoRunsBehindAHeldWriteLock(t *testing.
 	want := appliedVersions(t, openSQLiteFile(t, lone))
 	if got := appliedVersions(t, openSQLiteFile(t, path)); !maps.EqualFunc(got, want, slices.Equal) {
 		t.Errorf("the versions after two runs at once = %v, want the %v one run leaves on a new file", got, want)
+	}
+}
+
+// stampedBinary builds gophenberg with commit stamped in, into a folder of t, and returns its path.
+func stampedBinary(t *testing.T, commit string) string {
+	t.Helper()
+	binary := filepath.Join(t.TempDir(), "gophenberg")
+	build := exec.CommandContext(t.Context(), "go", "build", "-ldflags",
+		"-X github.com/gopherium/gophenberg/internal/version.commit="+commit, "-o", binary, "../../cmd/gophenberg")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("building gophenberg stamped with the commit %s: %v\n%s", commit, err, out)
+	}
+	return binary
+}
+
+// unsetEnv returns the environment of the test process without its GOPHENBERG_ settings, then settings.
+func unsetEnv(settings ...string) []string {
+	kept := slices.DeleteFunc(os.Environ(), func(entry string) bool { return strings.HasPrefix(entry, "GOPHENBERG_") })
+	return append(kept, settings...)
+}
+
+func TestSQLiteBinaryBacksUpAFileAnOlderBuildMigrated(t *testing.T) {
+	t.Parallel()
+
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
+	path := olderMigratedSQLiteFile(t)
+
+	got := runBinary(t, binary, append(env, "GOPHENBERG_DATABASE_URL="+sqlitePrefix+path), nil, "migrate")
+
+	if got.Code != gonsole.ExitDone || got.Stdout != migratedLines {
+		t.Fatalf("gophenberg migrate = %d, stdout %q, stderr %q, want 0 and %q",
+			got.Code, got.Stdout, got.Stderr, migratedLines)
+	}
+	backup := oneUpdateBackupIn(t, backupsBeside(path))
+	if held := lastMigratedBy(t, copiedBackup(t, backup)); held.Version != olderVersion {
+		t.Errorf("the update backup records %+v as its last migration, want the file as %s left it", held, olderVersion)
+	}
+}
+
+func TestSQLiteBinariesAtOnceOnAnOlderFileLeaveOneBackupOfItAsItWas(t *testing.T) {
+	t.Parallel()
+
+	binary, env := testkit.CoverBinary(t, "GOPHENBERG_", "gophenberg")
+	path := olderMigratedSQLiteFile(t)
+	env = append(env, "GOPHENBERG_DATABASE_URL="+sqlitePrefix+path)
+
+	runs := []binaryRun{startBinary(t, binary, env, nil, "migrate"), startBinary(t, binary, env, nil, "migrate")}
+
+	for i, run := range runs {
+		got := run.wait(t)
+		migrated := got.Code == gonsole.ExitDone && got.Stdout == migratedLines
+		waited := got.Code == gonsole.ExitFailed && strings.Contains(got.Stderr, "GOPHENBERG_SQLITE_MIGRATE_LOCK_WAIT") &&
+			strings.Contains(got.Stderr, "GOPHENBERG_SQLITE_MIGRATE_LOCK_POLL")
+		if !migrated && !waited {
+			t.Errorf("gophenberg migrate run %d of 2 = %d, stdout %q, stderr %q, want it migrated or both lock settings named",
+				i+1, got.Code, got.Stdout, got.Stderr)
+		}
+	}
+	copied := copiedBackup(t, oneUpdateBackupIn(t, backupsBeside(path)))
+	if held := lastMigratedBy(t, copied); held.Version != olderVersion {
+		t.Errorf("the update backup records %+v as its last migration, want the file as %s left it", held, olderVersion)
+	}
+	if needed, err := sqlite.NeedsBackup(t.Context(), copied, thisBuild()); err != nil || !needed {
+		t.Errorf("NeedsBackup() of the update backup = %t, %v, want true, the file as it was before both runs",
+			needed, err)
+	}
+}
+
+func TestSQLiteBinaryOfAnotherCommitBacksUpAndRecordsItsCommit(t *testing.T) {
+	t.Parallel()
+
+	path := migratedSQLiteFile(t)
+	binary := stampedBinary(t, stampedCommit)
+	env := unsetEnv("GOPHENBERG_DATABASE_URL="+sqlitePrefix+path, "GOPHENBERG_UPDATE_CHECKS=false")
+
+	got := runBinary(t, binary, env, nil, "migrate")
+
+	if got.Code != gonsole.ExitDone || got.Stdout != migratedLines {
+		t.Fatalf("the stamped gophenberg migrate = %d, stdout %q, stderr %q, want 0 and %q",
+			got.Code, got.Stdout, got.Stderr, migratedLines)
+	}
+	backup := oneUpdateBackupIn(t, backupsBeside(path))
+	if named, _ := backupfiles.Read(filepath.Base(backup)); named.Version != version.Version() {
+		t.Errorf("the update backup is named %s, want the %s the in-process migrate recorded", backup, version.Version())
+	}
+	want := sqlite.Build{Version: version.Version(), Commit: stampedCommit}
+	if held := lastMigratedBy(t, openSQLiteFile(t, path)); held != want {
+		t.Errorf("the file records %+v as its last migration, want %+v", held, want)
 	}
 }
 

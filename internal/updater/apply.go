@@ -412,11 +412,11 @@ func (r *run) interrupted() bool {
 	return slices.Contains(stoppedSteps, r.held.Step)
 }
 
-// removeFiles deletes the download and the build of release and any partial backup, what a job that fails leaves.
+// removeFiles deletes the download and the build of release and any partial dump, what a job that fails leaves.
 func (r *run) removeFiles(release string) {
 	_ = os.Remove(r.layout.Download(release))
 	_ = os.RemoveAll(r.layout.Build(release))
-	partials, _ := filepath.Glob(filepath.Join(r.layout.Backups(), "*"+partialSuffix))
+	partials, _ := filepath.Glob(filepath.Join(r.layout.Backups(), "*"+backupSuffix+partialSuffix))
 	for _, partial := range partials {
 		_ = os.Remove(partial)
 	}

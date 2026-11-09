@@ -240,6 +240,39 @@ func TestApplyRefusesADatabaseItCannotRead(t *testing.T) {
 	wantRefused(t, err, "updater: read the database server")
 }
 
+func TestApplyLeavesEveryPartialFileButADumpsInTheBackupsFolder(t *testing.T) {
+	t.Parallel()
+
+	for name, stop := range map[string]func(*jobFixture){
+		"a job that fails": func(f *jobFixture) { f.site.replace(f.artifact, []byte("another archive")) },
+		"a job that clears a stopped one": func(f *jobFixture) {
+			writeState(f.t, f.layout, updater.State{Step: updater.StepBackup, From: running, To: "0.20.5"})
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newJobFixture(t)
+			stop(f)
+			dump := filepath.Join(f.layout.Backups(), "0.20.0-20261019T120000Z.dump.partial")
+			other := filepath.Join(f.layout.Backups(), "0.20.0-20261019T120000Z-update.sqlite.dbkit-snapshot.partial")
+			if err := os.MkdirAll(f.layout.Backups(), 0o700); err != nil {
+				t.Fatalf("making the backups folder: %v", err)
+			}
+			for _, path := range []string{dump, other} {
+				if err := os.WriteFile(path, []byte("being written"), 0o600); err != nil {
+					t.Fatalf("writing %s: %v", path, err)
+				}
+			}
+
+			_, _ = f.job().Apply(t.Context())
+
+			wantMissing(t, dump)
+			wantFile(t, other, "being written")
+		})
+	}
+}
+
 // planCase is an update the plan refuses: the change to the fixture or the job that makes it, and what the error says.
 type planCase struct {
 	change func(*jobFixture, *updater.Job)

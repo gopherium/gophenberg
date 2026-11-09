@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/gopherium/gophenberg/internal/postgres"
@@ -57,10 +58,16 @@ func guardedSQLite(
 	}
 }
 
-// migrateSQLiteCore migrates the core tables on db, then raises the stored minimum version to this binary's.
+// migrateSQLiteCore migrates the core tables on db, raises the stored minimum version, then records this build.
 func migrateSQLiteCore(ctx context.Context, db *sql.DB, opts sqlite.MigrateOptions) error {
 	if err := sqlite.Migrate(ctx, db, opts); err != nil {
 		return err
 	}
-	return sqlite.RaiseMinimumVersion(ctx, db, version.Minimum())
+	raised := sqlite.RaiseMinimumVersion(ctx, db, version.Minimum())
+	return errors.Join(raised, sqlite.RecordMigratedBy(ctx, db, thisBuild()))
+}
+
+// thisBuild returns the version and the commit of this binary.
+func thisBuild() sqlite.Build {
+	return sqlite.Build{Version: version.Version(), Commit: version.Commit()}
 }

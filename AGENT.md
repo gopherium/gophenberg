@@ -41,7 +41,7 @@ command and `gophenberg serve` to run the server.
 ## Stack
 
 - Backend: Go, `net/http` + chi v5, PostgreSQL (pgx/v5, sqlc, goose migrations), gouncer/authkit authentication
-- SQLite: `dbkit/sqlite` over the pure Go `modernc.org/sqlite`, sqlc and goose migrations. `check`, `migrate` and the account commands run on a `sqlite:` address, and `serve` and `seed -yes` answer a named error
+- SQLite: `dbkit/sqlite` over the pure Go `modernc.org/sqlite`, sqlc and goose migrations. `check`, `migrate`, `database:backup` and the account commands run on a `sqlite:` address, and `serve` and `seed -yes` answer a named error. A new version backs the file up before it migrates it, into `backups/` of the data folder or install root, else into `site.db.backups/` beside `site.db`
 - Frontend: React + TypeScript, Vite, TanStack Router + Query, `@wordpress/ui` + `@wordpress/theme` (WordPress Design System), `@wordpress/block-editor` (Gutenberg)
 - Themes: Astro with the `@astrojs/node` standalone adapter, built to a self-contained artifact that runs without `node_modules`
 - Testing: stdlib table-driven tests, httptest, dbkit `pgtest` and `sqlitetest` (backend), Vitest, Testing Library, MSW (frontend), Playwright (e2e)

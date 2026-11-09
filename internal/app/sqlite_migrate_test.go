@@ -4,6 +4,8 @@ package app
 
 import (
 	"database/sql"
+	"errors"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -15,10 +17,15 @@ import (
 	"github.com/gopherium/framework/gonsole/testkit"
 
 	"github.com/gopherium/gophenberg/internal/sqlite"
+	"github.com/gopherium/gophenberg/internal/sqlite/backupfiles"
 )
 
-// migratedLines is what migrate prints on a SQLite site, one line per schema step and one for the plugins.
-const migratedLines = "migrated accounts\nmigrated records\nmigrated core\nmigrated plugins\n"
+const (
+	// migratedLines is what migrate prints on a SQLite site, one line per schema step and one for the plugins.
+	migratedLines = "migrated accounts\nmigrated records\nmigrated core\nmigrated plugins\n"
+	// olderVersion is a version every build of this repository comes after.
+	olderVersion = "0.0.1"
+)
 
 // versionLookups reads the versions each schema owner's version table holds, keyed by the table's name.
 var versionLookups = map[string]string{
@@ -97,6 +104,73 @@ func hasTable(t *testing.T, db *sql.DB, name string) bool {
 // appliedOne reports whether versions holds a migration past the version table's own starting row.
 func appliedOne(versions []int64) bool {
 	return slices.ContainsFunc(versions, func(version int64) bool { return version > 0 })
+}
+
+// olderMigratedSQLiteFile returns the path of a migrated SQLite file that records olderVersion as its last migration.
+func olderMigratedSQLiteFile(t *testing.T) string {
+	t.Helper()
+	path := migratedSQLiteFile(t)
+	execSQLiteFile(t, path, "UPDATE core_settings SET value = '"+olderVersion+"' WHERE key = 'migrated_by'")
+	return path
+}
+
+// backupsBeside returns the backups folder beside the SQLite file at path, named for it.
+func backupsBeside(path string) string {
+	return path + ".backups"
+}
+
+// updateBackupsIn returns every update backup folder holds, the newest first.
+func updateBackupsIn(t *testing.T, folder string) []backupfiles.Backup {
+	t.Helper()
+	backups, err := backupfiles.Folder(folder).List()
+	if err != nil {
+		t.Fatalf("listing the backups in %s: %v", folder, err)
+	}
+	return slices.DeleteFunc(backups, func(backup backupfiles.Backup) bool { return backup.Kind != backupfiles.Update })
+}
+
+// oneUpdateBackupIn returns the path of the one update backup folder holds, failing t unless it holds exactly one.
+func oneUpdateBackupIn(t *testing.T, folder string) string {
+	t.Helper()
+	backups := updateBackupsIn(t, folder)
+	if len(backups) != 1 {
+		t.Fatalf("%s holds the update backups %+v, want one", folder, backups)
+	}
+	return filepath.Join(folder, backups[0].Name())
+}
+
+// moveBackupsOff removes every update backup from folder, as an owner who moves each copy off the server does.
+func moveBackupsOff(t *testing.T, folder string) {
+	t.Helper()
+	for _, backup := range updateBackupsIn(t, folder) {
+		if err := os.Remove(filepath.Join(folder, backup.Name())); err != nil {
+			t.Fatalf("moving %s off the server: %v", backup.Name(), err)
+		}
+	}
+}
+
+// copiedBackup returns a handle on a copy of the backup at path, so that reading it leaves the backup as it was.
+func copiedBackup(t *testing.T, path string) *sql.DB {
+	t.Helper()
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading the backup: %v", err)
+	}
+	copied := filepath.Join(t.TempDir(), "backup.db")
+	if err := os.WriteFile(copied, body, 0o600); err != nil {
+		t.Fatalf("copying the backup: %v", err)
+	}
+	return openSQLiteFile(t, copied)
+}
+
+// lastMigratedBy returns the build the SQLite file behind db records as the one that last migrated it.
+func lastMigratedBy(t *testing.T, db *sql.DB) sqlite.Build {
+	t.Helper()
+	build, err := sqlite.LastMigratedBy(t.Context(), db)
+	if err != nil {
+		t.Fatalf("LastMigratedBy() error = %v, want nil", err)
+	}
+	return build
 }
 
 func TestMigrateBuildsEveryOwnersSchemaOnAnEmptySQLiteFile(t *testing.T) {
@@ -199,5 +273,93 @@ func TestAPostgreSQLProgramMigratesEveryStepByAddress(t *testing.T) {
 	}
 	if want := []string{"accounts", "records", "core"}; !slices.Equal(names, want) {
 		t.Errorf("the PostgreSQL steps are %v, want %v", names, want)
+	}
+}
+
+func TestMigrateBacksUpAFileAnOlderVersionMigrated(t *testing.T) {
+	t.Parallel()
+
+	path := olderMigratedSQLiteFile(t)
+
+	got := testkit.Run(t, Program(migratingSQLite(path), noPlugins), "", "migrate")
+
+	if got.Code != gonsole.ExitDone || got.Stdout != migratedLines {
+		t.Fatalf("migrate = %d, stdout %q, stderr %q, want 0 and %q", got.Code, got.Stdout, got.Stderr, migratedLines)
+	}
+	backup := oneUpdateBackupIn(t, backupsBeside(path))
+	if named, _ := backupfiles.Read(filepath.Base(backup)); named.Version != olderVersion {
+		t.Errorf("the update backup is named %s, want the %s that last migrated the file", backup, olderVersion)
+	}
+	if held := lastMigratedBy(t, copiedBackup(t, backup)); held.Version != olderVersion {
+		t.Errorf("the update backup records %+v as its last migration, want the file as %s left it", held, olderVersion)
+	}
+	if held := lastMigratedBy(t, openSQLiteFile(t, path)); held != thisBuild() {
+		t.Errorf("the file records %+v as its last migration after migrate, want %+v", held, thisBuild())
+	}
+}
+
+func TestASecondMigrateOfOneVersionTakesNoBackup(t *testing.T) {
+	t.Parallel()
+
+	path := olderMigratedSQLiteFile(t)
+	if first := testkit.Run(t, Program(migratingSQLite(path), noPlugins), "", "migrate"); first.Code != gonsole.ExitDone {
+		t.Fatalf("the first migrate = %d with stderr %q, want 0", first.Code, first.Stderr)
+	}
+	oneUpdateBackupIn(t, backupsBeside(path))
+	moveBackupsOff(t, backupsBeside(path))
+
+	got := testkit.Run(t, Program(migratingSQLite(path), noPlugins), "", "migrate")
+
+	if got.Code != gonsole.ExitDone || got.Stdout != migratedLines {
+		t.Fatalf("the second migrate = %d, stdout %q, stderr %q, want 0 and %q",
+			got.Code, got.Stdout, got.Stderr, migratedLines)
+	}
+	if backups := updateBackupsIn(t, backupsBeside(path)); len(backups) != 0 {
+		t.Errorf("the second migrate left the update backups %+v, want none", backups)
+	}
+}
+
+func TestUpdateCheckOnANewVersionBacksUpOnce(t *testing.T) {
+	t.Parallel()
+
+	path := olderMigratedSQLiteFile(t)
+	site := offeringSite(t)
+	env := testkit.Getenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL": sqlitePrefix + path, "GOPHENBERG_UPDATE_URL": site.address,
+		"GOPHENBERG_TRUSTED_KEYS": site.trustedRoots(),
+	})
+
+	first := testkit.Run(t, Program(env, noPlugins), "", "update:check")
+	backups := updateBackupsIn(t, backupsBeside(path))
+	moveBackupsOff(t, backupsBeside(path))
+	second := testkit.Run(t, Program(env, noPlugins), "", "update:check")
+
+	for i, got := range []testkit.Result{first, second} {
+		if got.Code != gonsole.ExitDone {
+			t.Errorf("update:check call %d of 2 = %d with stderr %q, want 0", i+1, got.Code, got.Stderr)
+		}
+	}
+	if len(backups) != 1 || backups[0].Version != olderVersion {
+		t.Errorf("the first update:check left the update backups %+v, want one of %s", backups, olderVersion)
+	}
+	if again := updateBackupsIn(t, backupsBeside(path)); len(again) != 0 {
+		t.Errorf("the second update:check left the update backups %+v, want none", again)
+	}
+}
+
+func TestAFileWithANewerFloorStopsBeforeAnyBackup(t *testing.T) {
+	t.Parallel()
+
+	path := olderMigratedSQLiteFile(t)
+	execSQLiteFile(t, path, "UPDATE core_settings SET value = '"+newerMinimumVersion+"' WHERE key = 'minimum_version'")
+
+	got := testkit.Run(t, Program(migratingSQLite(path), noPlugins), "", "migrate")
+
+	if want := "this database needs Gophenberg " + newerMinimumVersion + " or newer"; got.Code != gonsole.ExitFailed ||
+		!strings.Contains(got.Stderr, want) {
+		t.Fatalf("migrate = %d with stderr %q, want 1 and %q", got.Code, got.Stderr, want)
+	}
+	if _, err := os.Lstat(backupsBeside(path)); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the backups folder after the refusal: %v, want none made", err)
 	}
 }

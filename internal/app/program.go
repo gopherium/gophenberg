@@ -34,7 +34,7 @@ func commandLine(getenv func(string) string, plugins registrations, exits *exitC
 	accountCommands := accountConfig(roles, getenv)
 	composed := &sitePool{}
 	installs := append(updateCommands(getenv, exits, stamp), serverCommands(installer.RealMachine())...)
-	installs = append(installs, databaseOwnerCommand(getenv))
+	installs = append(installs, databaseBackupCommand(), databaseOwnerCommand(getenv))
 	return gonsole.Program{
 		Name:       "gophenberg",
 		Title:      "Gophenberg",

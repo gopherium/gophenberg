@@ -65,8 +65,9 @@ func (r *Runner) plan(slots []Slot, now time.Time) ([]Job, int) {
 
 // runOne takes, runs and settles one job, counting how it ended, and reports whether the store can serve the next.
 func (r *Runner) runOne(ctx context.Context, job Job, report *Report) bool {
+	limit, hold := r.limits(job)
 	taken := r.clock()
-	lease, ok, err := r.take(ctx, Lease{Name: job.Name, Token: rand.Text(), Taken: taken, Until: taken.Add(r.lease)})
+	lease, ok, err := r.take(ctx, Lease{Name: job.Name, Token: rand.Text(), Taken: taken, Until: taken.Add(hold)})
 	if err != nil {
 		report.Failed++
 		r.logger.Warn("cron job failed", "job", job.Name, "error", err)
@@ -76,7 +77,7 @@ func (r *Runner) runOne(ctx context.Context, job Job, report *Report) bool {
 		report.Held++
 		return true
 	}
-	failure := r.attempt(ctx, job, lease)
+	failure := r.attempt(ctx, job, lease, limit)
 	outcome := r.outcome(ctx, job, lease, failure)
 	settled := r.settle(ctx, lease, outcome)
 	served := settled == nil || errors.Is(settled, ErrLeaseLost)
@@ -88,9 +89,17 @@ func (r *Runner) runOne(ctx context.Context, job Job, report *Report) bool {
 	return served
 }
 
-// take asks the store for lease, giving up once the length of a lease has passed.
+// limits returns how long job may run and how long its lease holds, the runner's own for a job with no limit.
+func (r *Runner) limits(job Job) (time.Duration, time.Duration) {
+	if job.TimeLimit == 0 {
+		return r.timeLimit, r.lease
+	}
+	return job.TimeLimit, job.TimeLimit + r.lease - r.timeLimit
+}
+
+// take asks the store for lease, giving up once lease would have ended or the runner's lease has passed.
 func (r *Runner) take(ctx context.Context, lease Lease) (Lease, bool, error) {
-	bounded, cancel := context.WithTimeout(ctx, r.lease)
+	bounded, cancel := context.WithTimeout(ctx, min(r.lease, lease.Until.Sub(lease.Taken)))
 	defer cancel()
 	return r.store.Take(bounded, lease)
 }
@@ -106,9 +115,9 @@ func (r *Runner) count(job Job, took time.Duration, outcome Outcome, report *Rep
 	r.logger.Warn("cron job failed", "job", job.Name, "took", took, "error", outcome.Failure)
 }
 
-// attempt runs job within the time limit and the lease, turning a panic or a return past either into an error.
-func (r *Runner) attempt(ctx context.Context, job Job, lease Lease) (err error) {
-	limited, cancel := context.WithTimeout(ctx, min(r.timeLimit, lease.Until.Sub(r.clock())))
+// attempt runs job within limit and the lease, turning a panic or a return past either into an error.
+func (r *Runner) attempt(ctx context.Context, job Job, lease Lease, limit time.Duration) (err error) {
+	limited, cancel := context.WithTimeout(ctx, min(limit, lease.Until.Sub(r.clock())))
 	defer cancel()
 	defer func() {
 		if caught := recover(); caught != nil {

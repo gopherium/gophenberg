@@ -20,6 +20,10 @@ var badSQLiteSettings = map[string]string{
 	"GOPHENBERG_SQLITE_SYNCHRONOUS":       "off",
 	"GOPHENBERG_SQLITE_BUSY_POLL":         "0",
 	"GOPHENBERG_SQLITE_MIGRATE_LOCK_WAIT": "0",
+	"GOPHENBERG_SQLITE_BACKUP_INTERVAL":   "10m",
+	"GOPHENBERG_SQLITE_BACKUPS_KEEP":      "0",
+	"GOPHENBERG_SQLITE_BACKUP_TIME_LIMIT": "25h",
+	"GOPHENBERG_SQLITE_SKIP_BACKUP_FOR":   "0.21",
 }
 
 func TestCheckNamesEachBadSQLiteSettingBeforeOpeningTheDatabase(t *testing.T) {

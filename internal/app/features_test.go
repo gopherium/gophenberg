@@ -32,6 +32,7 @@ const typedPassword = "correct horse battery"
 
 // operatorEngine is what the operator steps ask of the database engine one run of the feature keeps its data on.
 type operatorEngine struct {
+	kind               string
 	empty              func(t *testing.T) string
 	answers            func(ctx context.Context, address, query string, args ...any) (bool, error)
 	noSchema           func(ctx context.Context, address string) error
@@ -45,6 +46,7 @@ type operatorEngine struct {
 // postgresOperators returns the engine of the feature's run on a PostgreSQL database.
 func postgresOperators() operatorEngine {
 	return operatorEngine{
+		kind:               "PostgreSQL database",
 		empty:              emptyDatabaseURL,
 		answers:            postgresAnswers,
 		noSchema:           postgresHoldsNoSchema,
@@ -59,6 +61,7 @@ func postgresOperators() operatorEngine {
 // sqliteOperators returns the engine of the feature's run on a SQLite file.
 func sqliteOperators() operatorEngine {
 	return operatorEngine{
+		kind:               "SQLite file",
 		empty:              emptySQLiteAddress,
 		answers:            sqliteAnswers,
 		noSchema:           untouchedSQLiteFile,
@@ -139,6 +142,7 @@ func initializeOperatorCommands(t *testing.T, engine operatorEngine) func(*godog
 		initializeDatabaseWait(sc, s)
 		initializeDatabaseOwner(sc, s)
 		initializePluginPausing(sc, s)
+		initializeSQLiteBackups(sc, s)
 	}
 }
 

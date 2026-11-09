@@ -82,6 +82,7 @@ func TestSettingsFromRefusesAValueOutOfItsRange(t *testing.T) {
 		{"GOPHENBERG_UPDATE_DOWNLOAD_TIMEOUT", "soon"},
 		{"GOPHENBERG_UPDATE_DISK_MARGIN_MB", "1073741825"},
 		{"GOPHENBERG_UPDATE_BACKUPS_KEEP", "0"},
+		{"GOPHENBERG_UPDATE_BACKUPS_KEEP", "101"},
 		{"GOPHENBERG_UPDATE_ATTEMPTS", "0"},
 		{"GOPHENBERG_UPDATE_VERIFY_TIMEOUT", "0s"},
 		{"GOPHENBERG_UPDATE_VERSIONS_KEEP", "none"},
@@ -91,6 +92,14 @@ func TestSettingsFromRefusesAValueOutOfItsRange(t *testing.T) {
 		_, err := updater.SettingsFrom(envOf(map[string]string{name: value}))
 
 		wantRefused(t, err, name+":")
+	}
+}
+
+func TestSettingsFromKeepsUpToAHundredBackups(t *testing.T) {
+	t.Parallel()
+
+	if settings := settingsOf(t, map[string]string{"GOPHENBERG_UPDATE_BACKUPS_KEEP": "100"}); settings.BackupsKept != 100 {
+		t.Errorf("SettingsFrom() keeps %d backups, want the hundred the setting names", settings.BackupsKept)
 	}
 }
 
@@ -125,5 +134,68 @@ func TestSettingsFromTakesADataFolderOutsideTheInstallRoot(t *testing.T) {
 		if err != nil {
 			t.Errorf("SettingsFrom() with the data folder %s = %v, want nil", data, err)
 		}
+	}
+}
+
+func TestBackupSettingsFromReadsTheInstallRootAndTheDataFolder(t *testing.T) {
+	t.Parallel()
+
+	layout, err := updater.BackupSettingsFrom(envOf(map[string]string{
+		"GOPHENBERG_INSTALL_ROOT": "/opt/gophenberg/", "GOPHENBERG_DATA_DIR": "/srv/gophenberg-data/",
+	}))
+
+	want := updater.Layout{Root: "/opt/gophenberg", Data: "/srv/gophenberg-data"}
+	if err != nil || layout != want {
+		t.Errorf("BackupSettingsFrom() = %+v, %v, want %+v", layout, err, want)
+	}
+}
+
+func TestBackupSettingsFromLeavesEveryOtherUpdateSettingUnread(t *testing.T) {
+	t.Parallel()
+
+	for _, setting := range [][2]string{
+		{"GOPHENBERG_UPDATE_DOWNLOAD_CAP_MB", "0"},
+		{"GOPHENBERG_UPDATE_DOWNLOAD_TIMEOUT", "soon"},
+		{"GOPHENBERG_UPDATE_DISK_MARGIN_MB", "1073741825"},
+		{"GOPHENBERG_UPDATE_BACKUPS_KEEP", "0"},
+		{"GOPHENBERG_UPDATE_ATTEMPTS", "0"},
+		{"GOPHENBERG_UPDATE_VERIFY_TIMEOUT", "0s"},
+		{"GOPHENBERG_UPDATE_VERSIONS_KEEP", "none"},
+	} {
+		name, value := setting[0], setting[1]
+
+		layout, err := updater.BackupSettingsFrom(envOf(map[string]string{
+			"GOPHENBERG_INSTALL_ROOT": "/opt/gophenberg", name: value,
+		}))
+
+		if want := (updater.Layout{Root: "/opt/gophenberg"}); err != nil || layout != want {
+			t.Errorf("BackupSettingsFrom() with %s=%s = %+v, %v, want %+v", name, value, layout, err, want)
+		}
+	}
+}
+
+func TestBackupSettingsFromStillRefusesABadFolder(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		env  map[string]string
+		want string
+	}{
+		{
+			map[string]string{"GOPHENBERG_INSTALL_ROOT": "gophenberg"},
+			`GOPHENBERG_INSTALL_ROOT: must be an absolute path, got "gophenberg"`,
+		},
+		{
+			map[string]string{"GOPHENBERG_DATA_DIR": "gophenberg-data"},
+			`GOPHENBERG_DATA_DIR: must be an absolute path, got "gophenberg-data"`,
+		},
+		{
+			map[string]string{"GOPHENBERG_INSTALL_ROOT": "/opt/gophenberg", "GOPHENBERG_DATA_DIR": "/opt/gophenberg/data"},
+			`GOPHENBERG_DATA_DIR: must stand outside GOPHENBERG_INSTALL_ROOT, got "/opt/gophenberg/data"`,
+		},
+	} {
+		_, err := updater.BackupSettingsFrom(envOf(tc.env))
+
+		wantRefused(t, err, tc.want)
 	}
 }
