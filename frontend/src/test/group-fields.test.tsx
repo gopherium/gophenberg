@@ -9,53 +9,9 @@ import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import { groupsQueryKey } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
+import { DETAILS, EXTRAS, listing, POST_TYPE, READING_TIME, SUBTITLE } from './groupFieldsFixtures'
 import { renderAt } from './render'
 import { expectReadOnly, waitBusy } from './typeFixtures'
-
-const POST_TYPE = {
-	key: 'post',
-	singular_label: 'Post',
-	plural_label: 'Posts',
-	description: '',
-	route_word: '',
-	hierarchical: false,
-	revisions: true,
-	revision_cap: 100,
-	page_kind: 'single',
-	default: true,
-	active: true,
-	fields: [],
-}
-
-const SUBTITLE = {
-	key: 'subtitle',
-	label: 'Subtitle',
-	kind: 'text',
-	many: false,
-	required: false,
-	created_at: '2026-08-01T10:00:00Z',
-	updated_at: '2026-08-01T10:00:00Z',
-}
-
-const READING_TIME = {
-	...SUBTITLE,
-	key: 'reading-time',
-	label: 'Reading time',
-	kind: 'number',
-	required: true,
-}
-
-const DETAILS = {
-	id: 3,
-	key: 'article-details',
-	title: 'Article details',
-	location: [[{ source: 'content_type', operator: '==', value: 'post' }]],
-	position: 1,
-	active: true,
-	fields: [SUBTITLE, READING_TIME],
-	created_at: '2026-08-01T10:00:00Z',
-	updated_at: '2026-08-01T10:00:00Z',
-}
 
 const FEATURES = {
 	...SUBTITLE,
@@ -70,15 +26,6 @@ const HERO = {
 	key: 'hero',
 	label: 'Hero',
 	kind: 'layout',
-	fields: [],
-}
-
-const EXTRAS = {
-	...DETAILS,
-	id: 4,
-	key: 'extras',
-	title: 'Extras',
-	position: 2,
 	fields: [],
 }
 
@@ -97,14 +44,6 @@ const QUOTE = { ...SUBTITLE, key: 'quote', label: 'Quote', kind: 'layout', field
 const BLOCKS = { ...SUBTITLE, key: 'blocks', label: 'Blocks', kind: 'flexible', fields: [QUOTE] }
 
 const LINKED = { ...SUBTITLE, key: 'linked-from', label: 'Linked from', kind: 'backlinks' }
-
-/**
- * Serves the given groups from the listing endpoint.
- * @param groups - The groups the listing answers with.
- */
-function listing(groups: unknown[]) {
-	server.use(http.get('/api/groups', () => HttpResponse.json({ items: groups })))
-}
 
 /**
  * Opens the fields of the named group.
@@ -201,33 +140,6 @@ test('declares a sub field inside the container it was opened from', async () =>
 
 	await waitFor(() => expect(sent).toMatchObject({ key: 'full-name', label: 'Full name' }))
 	expect(where).toBe('/api/groups/3/fields/author')
-})
-
-test('says inside its own dialog why a field declared into a container was turned away', async () => {
-	listing([
-		{
-			...DETAILS,
-			fields: [{ ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', fields: [] }],
-		},
-		EXTRAS,
-	])
-	server.use(
-		http.post('/api/groups/3/fields/author', () =>
-			HttpResponse.json({ error: 'content: field key taken', code: 'field_taken' }, { status: 422 }),
-		),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Author' }))
-	const adding = await screen.findByRole('dialog', { name: 'Add field to Author' })
-	await userEvent.type(within(adding).getByLabelText('Name'), 'Full name')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
-
-	const said = 'A field with that name already exists on the items this group reaches. Pick another name.'
-	expect(await within(adding).findByText(said)).toBeInTheDocument()
-	expect(screen.getAllByText(said)).toHaveLength(1)
-	expect(within(adding).getByLabelText('Name')).toHaveValue('Full name')
 })
 
 test('declares a field inside a container standing inside another', async () => {
@@ -659,33 +571,6 @@ test('carries a field to the first place still on offer once the container it wo
 	expect(
 		within(moving).getByText('The field keeps its values on the content both groups reach.'),
 	).toBeInTheDocument()
-	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
-
-	await waitFor(() => expect(sent).toEqual({ to_group: 4 }))
-})
-
-test('carries a field to the first place still on offer once the group picked left while it asked', async () => {
-	let sent: unknown
-	const later = { ...EXTRAS, id: 5, key: 'later', title: 'Later', position: 3 }
-	server.use(
-		http.post('/api/groups/3/fields/subtitle/move', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(SUBTITLE)
-		}),
-	)
-	listing([DETAILS, EXTRAS, later])
-	const client = renderAt('/field-groups')
-	const dialog = await openFields()
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Move Subtitle elsewhere' }))
-	const moving = await screen.findByRole('dialog', { name: 'Move Subtitle elsewhere' })
-	await userEvent.click(within(moving).getByLabelText('Destination'))
-	await userEvent.click(await screen.findByRole('option', { name: 'Later' }))
-
-	listing([DETAILS, EXTRAS])
-	await act(async () => {
-		await client.invalidateQueries({ queryKey: groupsQueryKey })
-	})
-	await waitFor(() => expect(within(moving).getByLabelText('Destination')).toHaveTextContent('Extras'))
 	await userEvent.click(within(moving).getByRole('button', { name: 'Move the field' }))
 
 	await waitFor(() => expect(sent).toEqual({ to_group: 4 }))
@@ -1184,23 +1069,6 @@ test('reports a rename that lost to a concurrent edit', async () => {
 	expect(await within(dialog).findByRole('alert')).toHaveTextContent(/someone else saved/i)
 })
 
-test('keeps the rename open and says inside why it was turned away', async () => {
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', () =>
-			HttpResponse.json({ error: 'content: field not found', code: 'field_unknown' }, { status: 404 }),
-		),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Rename Subtitle' }))
-	const renaming = await screen.findByRole('dialog', { name: 'Rename Subtitle' })
-	await userEvent.click(within(renaming).getByRole('button', { name: 'Rename' }))
-
-	expect(await within(renaming).findByText('content: field not found')).toBeInTheDocument()
-	expect(screen.getAllByText('content: field not found')).toHaveLength(1)
-})
-
 test('closes the warning and reports why a delete was turned away', async () => {
 	server.use(
 		http.delete('/api/groups/3/fields/subtitle', () =>
@@ -1323,56 +1191,6 @@ test.each([
 	expectReadOnly(asked)
 	answer.release()
 	await waitFor(() => expect(screen.queryByRole('dialog', { name: form })).not.toBeInTheDocument())
-})
-
-test('keeps the controls of a field declared into a container read only while it is declared', async () => {
-	const answer = gate()
-	listing([
-		{
-			...DETAILS,
-			fields: [{ ...SUBTITLE, key: 'author', label: 'Author', kind: 'section', fields: [] }],
-		},
-		EXTRAS,
-	])
-	server.use(
-		http.post('/api/groups/3/fields/author', async () => {
-			await answer.held
-			return HttpResponse.json({ ...SUBTITLE, key: 'name', label: 'Name' }, { status: 201 })
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field to Author' }))
-	const adding = await screen.findByRole('dialog', { name: 'Add field to Author' })
-	await userEvent.type(within(adding).getByLabelText('Name'), 'Full name')
-	await userEvent.click(within(adding).getByRole('button', { name: 'Add field' }))
-	await waitBusy(adding, 'Add field')
-
-	expectReadOnly(adding)
-	answer.release()
-	await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add field to Author' })).not.toBeInTheDocument())
-})
-
-test('keeps the name and the kind of a new field read only while it is declared', async () => {
-	const answer = gate()
-	server.use(
-		http.post('/api/groups/3/fields', async () => {
-			await answer.held
-			return HttpResponse.json({ ...SUBTITLE, key: 'summary', label: 'Summary' }, { status: 201 })
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.type(within(dialog).getByLabelText('Name'), 'Summary')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Add field' }))
-	await waitBusy(dialog, 'Add field')
-
-	expect(within(dialog).getByLabelText('Name')).toHaveAttribute('readonly')
-	expect(within(dialog).getByRole('combobox', { name: 'Kind' })).toHaveAttribute('aria-readonly', 'true')
-	answer.release()
-	await waitFor(() => expect(within(dialog).getByLabelText('Name')).not.toHaveAttribute('readonly'))
 })
 
 test('stores the order a field is moved up into', async () => {
@@ -1509,28 +1327,6 @@ test('stores nothing for a setting left empty', async () => {
 	await waitFor(() =>
 		expect(sent).toEqual({ settings: {}, updated_at: '2026-08-01T10:00:00Z' }),
 	)
-})
-
-test('stores no settings when the dialog is abandoned', async () => {
-	let hit = false
-	server.use(
-		http.patch('/api/groups/3/fields/subtitle', () => {
-			hit = true
-			return HttpResponse.json(SUBTITLE)
-		}),
-	)
-	renderAt('/field-groups')
-	const dialog = await openFields()
-
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Settings of Subtitle' }))
-	const settings = await screen.findByRole('dialog', { name: 'Settings of Subtitle' })
-	await userEvent.type(within(settings).getByLabelText('Instructions'), 'Never stored.')
-	await userEvent.click(within(settings).getByRole('button', { name: 'Cancel' }))
-
-	await waitFor(() =>
-		expect(screen.queryByRole('dialog', { name: 'Settings of Subtitle' })).not.toBeInTheDocument(),
-	)
-	expect(hit).toBe(false)
 })
 
 test('keeps the settings open and says inside why they were turned away', async () => {
