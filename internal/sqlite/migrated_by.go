@@ -111,12 +111,27 @@ func RecordMigratedBy(ctx context.Context, db *sql.DB, build Build) error {
 	}))
 }
 
-// RecordBackupTaken stores build on db as the one whose backup before migrating landed, once the core tables exist.
-func RecordBackupTaken(ctx context.Context, db *sql.DB, build Build) error {
+// ClaimBackup records build's backup before migrating db while build still needs one, reporting whether it did.
+func ClaimBackup(ctx context.Context, db *sql.DB, build Build) (bool, error) {
 	var ready bool
 	if err := db.QueryRowContext(ctx, settingsLookup).Scan(&ready); err != nil || !ready {
-		return failed("look for the settings table", err)
+		return err == nil, failed("look for the settings table", err)
 	}
-	_, err := db.ExecContext(ctx, buildStore, backedUpForKey, build.Version, backedUpForCommitKey, build.Commit)
-	return failed("record the backup taken before migrating", err)
+	var claimed bool
+	err := inTx(ctx, db, func(tx *sql.Tx) error {
+		won, err := claimIn(ctx, tx, build)
+		claimed = won
+		return err
+	})
+	return claimed && err == nil, failed("record the backup taken before migrating", err)
+}
+
+// claimIn stores build in tx as the one whose backup landed while build still needs one, reporting whether it did.
+func claimIn(ctx context.Context, tx *sql.Tx, build Build) (bool, error) {
+	recorded, err := readBuilds(ctx, tx)
+	if err != nil || !recorded.needBackup(build) {
+		return false, err
+	}
+	_, err = tx.ExecContext(ctx, buildStore, backedUpForKey, build.Version, backedUpForCommitKey, build.Commit)
+	return err == nil, err
 }

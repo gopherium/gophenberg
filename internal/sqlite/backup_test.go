@@ -172,8 +172,8 @@ func TestABackupOnlyItsOwnerReads(t *testing.T) {
 	if got := mode(t, taken.Path); got != 0o600 {
 		t.Errorf("the backup has the mode %o, want 600", got)
 	}
-	if got := mode(t, folder); got != 0o755 {
-		t.Errorf("the backups folder has the mode %o, want the 755 it had", got)
+	if got := mode(t, folder); got != 0o700 {
+		t.Errorf("the backups folder has the mode %o, want the 755 it had closed to 700", got)
 	}
 }
 
@@ -303,7 +303,7 @@ func TestABackupItCannotKeepFromOtherUsersIsRemoved(t *testing.T) {
 	plantBackups(t, folder, "0.19.0-20200101T031500Z-update.sqlite")
 
 	taken, err := sqlite.TakeBackup(t.Context(), migrated(t),
-		sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Update, Kept: 1})
+		sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Scheduled, Kept: 1})
 
 	if !errors.Is(err, errPlanted) || taken.Path != "" {
 		t.Errorf("TakeBackup() with a mode it could not set = %+v, %v, want no path and the planted failure", taken, err)
@@ -322,7 +322,7 @@ func TestABackupKeepsACopyWhoseCheckpointFailed(t *testing.T) {
 	folder := backupFolder(t)
 	plantBackups(t, folder, "0.19.0-20200101T031500Z-update.sqlite")
 
-	taken := takeBackup(t, db, sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Update, Kept: 1})
+	taken := takeBackup(t, db, sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Scheduled, Kept: 1})
 
 	if !errors.Is(taken.AfterCopy, errPlanted) {
 		t.Errorf("TakeBackup().AfterCopy = %v, want the planted checkpoint failure", taken.AfterCopy)
@@ -355,24 +355,22 @@ func TestABackupIntoABusyFolderAnswersErrSnapshotRunning(t *testing.T) {
 	}
 }
 
-func TestAnUpdateOrScheduledBackupPrunesBothKindsToOneCount(t *testing.T) {
+func TestAScheduledBackupPrunesBothKindsToOneCount(t *testing.T) {
 	t.Parallel()
 
-	for _, kind := range []backupfiles.Kind{backupfiles.Update, backupfiles.Scheduled} {
-		folder := backupFolder(t)
-		plantBackups(t, folder,
-			"0.19.0-20200101T031500Z-update.sqlite", "0.19.0-20200102T031500Z-scheduled.sqlite",
-			"0.19.0-20200103T031500Z-scheduled.sqlite", "0.19.0-20200104T101500Z-manual.sqlite")
+	folder := backupFolder(t)
+	plantBackups(t, folder,
+		"0.19.0-20200101T031500Z-update.sqlite", "0.19.0-20200102T031500Z-scheduled.sqlite",
+		"0.19.0-20200103T031500Z-scheduled.sqlite", "0.19.0-20200104T101500Z-manual.sqlite")
 
-		taken := takeBackup(t, migrated(t), sqlite.BackupRequest{Folder: folder, Kind: kind, Kept: 2})
+	taken := takeBackup(t, migrated(t), sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Scheduled, Kept: 2})
 
-		want := []string{
-			snapshotLock, "0.19.0-20200103T031500Z-scheduled.sqlite", "0.19.0-20200104T101500Z-manual.sqlite",
-			filepath.Base(taken.Path),
-		}
-		if got := folderHolds(t, folder); taken.Prune != nil || !slices.Equal(got, want) {
-			t.Errorf("a %s backup left %q with the prune error %v, want %q", kind, got, taken.Prune, want)
-		}
+	want := []string{
+		snapshotLock, "0.19.0-20200103T031500Z-scheduled.sqlite", "0.19.0-20200104T101500Z-manual.sqlite",
+		filepath.Base(taken.Path),
+	}
+	if got := folderHolds(t, folder); taken.Prune != nil || !slices.Equal(got, want) {
+		t.Errorf("a scheduled backup left %q with the prune error %v, want %q", got, taken.Prune, want)
 	}
 }
 
@@ -400,7 +398,7 @@ func TestABackupPrunesOnlyAfterTheCopyLands(t *testing.T) {
 	planted := []string{"0.19.0-20200101T031500Z-update.sqlite", "0.19.0-20200102T031500Z-scheduled.sqlite"}
 	plantBackups(t, folder, planted...)
 
-	request := sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Update, Kept: 1}
+	request := sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Scheduled, Kept: 1}
 	taken, err := sqlite.TakeBackup(t.Context(), db, request)
 
 	if !errors.Is(err, errPlanted) || taken.Path != "" {

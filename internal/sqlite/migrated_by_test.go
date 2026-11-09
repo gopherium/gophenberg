@@ -180,20 +180,12 @@ func TestRecordingTheVersionLeavesTheMinimumVersionAlone(t *testing.T) {
 	}
 }
 
-// recordBackupTaken records on db that the backup build takes before migrating it landed, failing the test on an error.
-func recordBackupTaken(t *testing.T, db *sql.DB, build sqlite.Build) {
-	t.Helper()
-	if err := sqlite.RecordBackupTaken(t.Context(), db, build); err != nil {
-		t.Fatalf("RecordBackupTaken(%+v) error = %v, want nil", build, err)
-	}
-}
-
 func TestAFileWhoseBackupForThisBuildLandedNeedsNoMore(t *testing.T) {
 	t.Parallel()
 
 	db := migrated(t)
 	recordMigratedBy(t, db, sqlite.Build{Version: "0.20.0", Commit: "aa11bb22"})
-	recordBackupTaken(t, db, thisBuild)
+	claimBackup(t, db, thisBuild)
 
 	if needsBackup(t, db) {
 		t.Error("NeedsBackup() after this build's backup landed and its migration failed = true, want false")
@@ -209,7 +201,7 @@ func TestABackupForAnotherBuildLeavesThisBuildNeedingOne(t *testing.T) {
 	} {
 		db := migrated(t)
 		recordMigratedBy(t, db, sqlite.Build{Version: "0.20.0", Commit: "aa11bb22"})
-		recordBackupTaken(t, db, other)
+		claimBackup(t, db, other)
 
 		if !needsBackup(t, db) {
 			t.Errorf("NeedsBackup() after a backup for %+v landed = false, want true for %+v", other, thisBuild)
@@ -222,24 +214,11 @@ func TestRecordingAMigrationClearsTheBackupTaken(t *testing.T) {
 
 	db := migrated(t)
 	recordMigratedBy(t, db, sqlite.Build{Version: "0.20.0", Commit: "aa11bb22"})
-	recordBackupTaken(t, db, thisBuild)
+	claimBackup(t, db, thisBuild)
 	recordMigratedBy(t, db, sqlite.Build{Version: "0.20.5", Commit: "cc33dd44"})
 
 	if !needsBackup(t, db) {
 		t.Error("NeedsBackup() after another build migrated the file since this build's backup = false, want true")
-	}
-}
-
-func TestRecordingABackupTakenNeedsTheSettingsTable(t *testing.T) {
-	t.Parallel()
-
-	db := sqlitetest.Open(t, testSettings().Options())
-
-	if err := sqlite.RecordBackupTaken(t.Context(), db, thisBuild); err != nil {
-		t.Errorf("RecordBackupTaken() on a file without core tables error = %v, want nil and nothing stored", err)
-	}
-	if got, err := sqlite.LastMigratedBy(t.Context(), db); err != nil || got != (sqlite.Build{}) {
-		t.Errorf("LastMigratedBy() = %+v, %v after it, want no build and nil", got, err)
 	}
 }
 
@@ -258,7 +237,7 @@ func TestTheBuildRecordNamesAClosedHandle(t *testing.T) {
 	if err := sqlite.RecordMigratedBy(t.Context(), db, thisBuild); err == nil {
 		t.Error("RecordMigratedBy() on a closed handle error = nil, want one")
 	}
-	if err := sqlite.RecordBackupTaken(t.Context(), db, thisBuild); err == nil {
-		t.Error("RecordBackupTaken() on a closed handle error = nil, want one")
+	if _, err := sqlite.ClaimBackup(t.Context(), db, thisBuild); err == nil {
+		t.Error("ClaimBackup() on a closed handle error = nil, want one")
 	}
 }

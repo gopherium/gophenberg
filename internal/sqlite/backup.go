@@ -29,6 +29,10 @@ var (
 	chmod = os.Chmod
 )
 
+// errRootLeavesFolder stops a run as root at an existing backups folder its group or others may open.
+var errRootLeavesFolder = errors.New("its group or others may open it, and a run as root changes no folder it " +
+	"did not make, so run the command as the site's user or set the folder to 0700")
+
 // BackupRequest is one backup to take: the folder it goes to, what takes it, and how many update and scheduled to keep.
 type BackupRequest struct {
 	Folder string
@@ -43,7 +47,7 @@ type TakenBackup struct {
 	Prune     error
 }
 
-// TakeBackup copies db into the folder of request, keeps the copy from other users, then prunes unless it is manual.
+// TakeBackup copies db as request asks, keeps the copy from other users, then runs PruneBackups unless it is an update.
 func TakeBackup(ctx context.Context, db *sql.DB, request BackupRequest) (TakenBackup, error) {
 	backup, err := request.backup(ctx, db)
 	if err != nil {
@@ -59,10 +63,19 @@ func TakeBackup(ctx context.Context, db *sql.DB, request BackupRequest) (TakenBa
 			fmt.Errorf("sqlite: keep the backup %s from other users: %w", snapshot.Path, modeErr), os.Remove(snapshot.Path))
 	}
 	taken := TakenBackup{Path: snapshot.Path, AfterCopy: err}
-	if err == nil && request.Kind != backupfiles.Manual {
-		taken.Prune = backupfiles.Folder(request.Folder).Prune(request.Kept, backup)
+	if request.Kind != backupfiles.Update {
+		taken.Prune = PruneBackups(request, taken)
 	}
 	return taken, nil
+}
+
+// PruneBackups prunes the folder of request to its count, sparing taken, unless it is manual or its AfterCopy failed.
+func PruneBackups(request BackupRequest, taken TakenBackup) error {
+	if taken.AfterCopy != nil || request.Kind == backupfiles.Manual {
+		return nil
+	}
+	backup, _ := backupfiles.Read(filepath.Base(taken.Path))
+	return backupfiles.Folder(request.Folder).Prune(request.Kept, backup)
 }
 
 // failedCopy returns the error of a copy that did not land, ErrSnapshotRunning when another run took that very backup.
@@ -83,7 +96,7 @@ func (r BackupRequest) backup(ctx context.Context, db *sql.DB) (backupfiles.Back
 	return backupfiles.Backup{Version: version, At: time.Now(), Kind: r.Kind}, err
 }
 
-// makeBackupFolder makes a missing folder that only its owner opens, as root giving it the owner of db's file.
+// makeBackupFolder makes a missing folder only its owner opens, as root owned like db's file, or keeps it from others.
 func makeBackupFolder(ctx context.Context, db *sql.DB, folder string) error {
 	owner, asRoot, err := databaseOwner(ctx, db)
 	if err != nil {
@@ -91,7 +104,7 @@ func makeBackupFolder(ctx context.Context, db *sql.DB, folder string) error {
 	}
 	err = os.Mkdir(folder, 0o700)
 	if errors.Is(err, fs.ErrExist) {
-		return nil
+		return keepFromOthers(folder, asRoot)
 	}
 	if err != nil {
 		return fmt.Errorf("sqlite: make the backups folder %s: %w", folder, err)
@@ -100,6 +113,31 @@ func makeBackupFolder(ctx context.Context, db *sql.DB, folder string) error {
 		return nil
 	}
 	return giveFolder(folder, owner)
+}
+
+// keepFromOthers sets an existing folder its group or others may open to 0700, through any link, refusing as root.
+func keepFromOthers(folder string, asRoot bool) error {
+	info, err := os.Stat(folder)
+	if err == nil && othersMayOpen(info) {
+		err = closeFolder(folder, asRoot)
+	}
+	if err != nil {
+		return fmt.Errorf("sqlite: keep the backups folder %s from other users: %w", folder, err)
+	}
+	return nil
+}
+
+// closeFolder sets folder to 0700, or as root leaves it as it is and returns errRootLeavesFolder.
+func closeFolder(folder string, asRoot bool) error {
+	if asRoot {
+		return errRootLeavesFolder
+	}
+	return chmod(folder, 0o700)
+}
+
+// othersMayOpen reports whether info is of a folder its group or others may open.
+func othersMayOpen(info fs.FileInfo) bool {
+	return info.IsDir() && info.Mode().Perm()&0o077 != 0
 }
 
 // databaseOwner returns the owner and the group of the main database file of db, and whether the process runs as root.

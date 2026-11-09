@@ -13,6 +13,12 @@ var RaiseFrom = raiseFrom
 // GiveFolder is giveFolder, for the tests of a folder another user swapped for a link.
 var GiveFolder = giveFolder
 
+// SettingsLookup is settingsLookup, for the tests of a claim whose look for the settings table fails.
+const SettingsLookup = settingsLookup
+
+// BuildsLookup is buildsLookup, for the tests of a claim whose read of the builds fails.
+const BuildsLookup = buildsLookup
+
 // RunAsRoot makes the backups see the process as root until t ends.
 func RunAsRoot(t *testing.T) {
 	ran := geteuid
