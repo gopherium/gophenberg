@@ -23,7 +23,6 @@ import (
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 
 	"github.com/gopherium/gophenberg/internal/content"
-	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/mediahost"
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/internal/updater"
@@ -62,7 +61,7 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 	jobs := cronOf(settings.cron, built, logger, updateJobs(settings.updates, b.updates())...)
 
 	plugins, err := b.startPlugins(ctx, compiled.plugins)
-	b.host, b.served = plugins.host, plugins.served
+	b.host = plugins.host
 	if err != nil {
 		return errors.Join(b.stopped(ctx, err), b.stopPlugins(ctx))
 	}
@@ -73,7 +72,7 @@ func serveSite(ctx context.Context, getenv func(string) string, stderr io.Writer
 	}
 	defer stopTheme()
 
-	cfg := b.serverConfig(plugins.walked)
+	cfg := b.serverConfig(plugins)
 	cfg.Theme, cfg.Themes = themes.Holder(), themes
 	cfg.Cron, cfg.CronSecret, cfg.CronOnVisits = jobs.runs, settings.cron.secret, settings.cron.onVisits
 	b.lendMedia(ctx, &cfg)
@@ -106,7 +105,6 @@ type boot struct {
 	guard    *updater.Guard
 	built    site
 	host     *pluginkit.Host
-	served   *pluginkit.Host
 	logger   *slog.Logger
 	stamp    string
 	admin    *adminUpdates
@@ -167,16 +165,16 @@ func (b boot) lendMedia(ctx context.Context, cfg *server.Config) {
 	cfg.MediaFiles = os.DirFS(b.settings.mediaDir)
 }
 
-// serverConfig returns the server settings over the stores, the started plugins and the types walked, theme aside.
-func (b boot) serverConfig(walked definitions.Walked) server.Config {
-	settings, built, host := b.settings, b.built, b.served
+// serverConfig returns the server settings over the stores, the started plugins' routes and their types, theme aside.
+func (b boot) serverConfig(plugins pluginStart) server.Config {
+	settings, built := b.settings, b.built
 	cfg := server.Config{
 		Users:             built.users,
 		Content:           built.content,
 		Types:             built.types,
 		Registry:          built.registry,
-		Plugins:           host.Routes(),
-		PluginPublicPaths: host.PublicPaths(),
+		Plugins:           plugins.routes,
+		PluginPublicPaths: plugins.publicPaths,
 		Version:           version.Version(),
 		TrustedProxies:    settings.trustedProxies,
 		PublicURL:         settings.publicURL,
@@ -189,7 +187,7 @@ func (b boot) serverConfig(walked definitions.Walked) server.Config {
 
 		DefinitionsImportCap: settings.definitionsImportCap,
 		UploadTimeout:        settings.uploadTimeout,
-		Declarations:         walked,
+		Declarations:         plugins.walked,
 		Lists:                settings.lists,
 		Roles:                built.roles,
 		DefaultRole:          built.defaultRole,

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -94,6 +95,16 @@ func (t *turncoat) Roles() []sdk.RoleDeclaration {
 	panic("boom")
 }
 
+// handlerless is an idle plugin whose Routes answers no handler.
+type handlerless struct {
+	idle
+}
+
+// Routes answers no handler.
+func (handlerless) Routes() http.Handler {
+	return nil
+}
+
 // activeRecord returns the record of the plugin id active with no error.
 func activeRecord(id string) pluginkit.PluginRecord {
 	return pluginkit.PluginRecord{ID: id, State: pluginkit.PluginActive}
@@ -121,6 +132,10 @@ func TestStartPluginsStopsWhenThePluginStoreFails(t *testing.T) {
 			refusingStore{Memory: pluginstoretest.NewMemory(activeRecord("holding")), writes: true},
 			listOf(refusingDeclarer{holdingPlugin: newHoldingPlugin(), err: errors.New("declare exploded")}),
 			"pluginkit: pause holding: connection dropped",
+		},
+		"a routes pause": {
+			refusingStore{Memory: pluginstoretest.NewMemory(activeRecord("notes")), writes: true},
+			listOf(handlerless{idle: "notes"}), "pluginkit: pause notes: connection dropped",
 		},
 		"a plugin that starts again": {refusingStore{Memory: pluginstoretest.NewMemory(paused), writes: true},
 			listOf(idle("notes")), "pluginkit: activate notes: connection dropped"},
@@ -163,7 +178,7 @@ func TestDeclarePluginsRefusesACoreTableTheRegistryRefuses(t *testing.T) {
 
 	start := bootOver(refusingStore{Memory: pluginstoretest.NewMemory()})
 
-	_, _, err := start.declarePlugins(t.Context(), &pausing{}, []goncierge.Role{{Name: "Admin"}}, nil)
+	_, err := start.declarePlugins(t.Context(), &pausing{}, []goncierge.Role{{Name: "Admin"}}, nil)
 
 	if !errors.Is(err, goncierge.ErrInvalidName) {
 		t.Errorf("declarePlugins() = %v, want the registry's name error", err)

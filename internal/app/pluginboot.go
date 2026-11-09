@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"slices"
 	"strings"
 
@@ -27,11 +28,19 @@ const pausedLine = "plugin paused"
 // slowStartLine is the warning serve logs for each plugin whose Start ran past its budget.
 const slowStartLine = "plugin started slower than its budget"
 
-// pluginStart is what one start of the plugins left: a host over each plugin it tried, the started ones, their types.
+// pluginStart is what one start of the plugins left: a host over each plugin it tried, the started ones' routes, types.
 type pluginStart struct {
-	host   *pluginkit.Host
-	served *pluginkit.Host
+	host        *pluginkit.Host
+	routes      map[string]http.Handler
+	publicPaths map[string][]string
+	walked      definitions.Walked
+}
+
+// declaredPlugins is what the declaring steps of one start kept: the plugins that passed, the types walked, routes.
+type declaredPlugins struct {
+	kept   []sdk.Plugin
 	walked definitions.Walked
+	routes pluginkit.RoutesOutcome
 }
 
 // pausing pauses the plugins one start fails on through its records, logging each and keeping their ids.
@@ -48,13 +57,14 @@ func (b boot) startPlugins(ctx context.Context, plugins registrations) (pluginSt
 	if err != nil {
 		return started, err
 	}
-	kept, walked, err := b.declarePlugins(ctx, paused, role.Core(), registered)
+	held, err := b.declarePlugins(ctx, paused, role.Core(), registered)
 	if err != nil {
 		return started, err
 	}
-	started.host, started.walked = hostOf(kept), walked
-	started.served, err = b.startEach(ctx, paused, started.host, kept)
-	paused.mark(walked)
+	started.host, started.walked = hostOf(held.kept), held.walked
+	running, err := b.startEach(ctx, paused, started.host, held.kept)
+	started.routes, started.publicPaths = servedRoutes(held.routes, running)
+	paused.mark(held.walked)
 	return started, err
 }
 
@@ -73,37 +83,55 @@ func (b boot) registerPlugins(ctx context.Context, plugins registrations) (*paus
 	return paused, outcome.Registered, nil
 }
 
-// declarePlugins grants core, then each plugin's roles and types, pausing each that fails, and lends the rest a share.
+// declarePlugins grants core, then each plugin's roles, types and routes, pausing each that fails, and lends a share.
 func (b boot) declarePlugins(
 	ctx context.Context, paused *pausing, core []goncierge.Role, registered []sdk.Plugin,
-) ([]sdk.Plugin, definitions.Walked, error) {
+) (declaredPlugins, error) {
 	if err := declareRoles(b.built.roles, core, nil); err != nil {
-		return nil, nil, err
+		return declaredPlugins{}, err
 	}
 	withRoles, err := paused.keep(ctx, registered, "roles", func(plugin sdk.Plugin) error {
 		return declarePlugin(b.built.roles, plugin)
 	})
 	if err != nil {
-		return nil, nil, err
+		return declaredPlugins{}, err
 	}
-	walked := definitions.Walked{}
-	kept, err := paused.keep(ctx, withRoles, "types", func(plugin sdk.Plugin) error {
-		return b.declarePluginTypes(ctx, plugin, walked)
+	held := declaredPlugins{walked: definitions.Walked{}}
+	withTypes, err := paused.keep(ctx, withRoles, "types", func(plugin sdk.Plugin) error {
+		return b.declarePluginTypes(ctx, plugin, held.walked)
 	})
 	if err != nil {
-		return nil, nil, err
+		return declaredPlugins{}, err
 	}
-	if err := b.built.openLane(len(kept)); err != nil {
-		return nil, nil, err
+	if held.kept, held.routes, err = paused.routed(ctx, withTypes); err != nil {
+		return declaredPlugins{}, err
+	}
+	if err := b.built.openLane(len(held.kept)); err != nil {
+		return declaredPlugins{}, err
 	}
 	b.built.accounts.Open()
-	return kept, walked, nil
+	return held, nil
 }
 
-// startEach starts each kept plugin on its own, pauses each that fails and answers a host over the ones that started.
+// servedRoutes returns the routes and public paths read for the running plugins only.
+func servedRoutes(read pluginkit.RoutesOutcome, running []sdk.Plugin) (map[string]http.Handler, map[string][]string) {
+	routes, public := map[string]http.Handler{}, map[string][]string{}
+	for _, plugin := range running {
+		id := plugin.ID()
+		if handler, ok := read.Routes[id]; ok {
+			routes[id] = handler
+		}
+		if paths, ok := read.PublicPaths[id]; ok {
+			public[id] = paths
+		}
+	}
+	return routes, public
+}
+
+// startEach starts each kept plugin on its own, pauses each that fails and answers the ones that started.
 func (b boot) startEach(
 	ctx context.Context, paused *pausing, host *pluginkit.Host, kept []sdk.Plugin,
-) (*pluginkit.Host, error) {
+) ([]sdk.Plugin, error) {
 	outcome, err := host.StartEach(ctx)
 	if err := errors.Join(err, paused.records.Started(ctx, outcome)); err != nil {
 		return nil, err
@@ -116,7 +144,7 @@ func (b boot) startEach(
 	if err := checkDefaultRole(b.built.roles, b.built.defaultRole, paused.paused); err != nil {
 		return nil, err
 	}
-	return hostOf(startedOf(kept, outcome.Started)), nil
+	return startedOf(kept, outcome.Started), nil
 }
 
 // warnSlow logs each started plugin whose Start ran past the budget the settings name.
@@ -161,6 +189,21 @@ func (p *pausing) keep(
 		p.note(id, step, failed)
 	}
 	return kept, nil
+}
+
+// routed reads each plugin's routes, pausing each whose routes fail to load, and answers the rest and what it read.
+func (p *pausing) routed(ctx context.Context, plugins []sdk.Plugin) ([]sdk.Plugin, pluginkit.RoutesOutcome, error) {
+	read := pluginkit.RoutesEach(plugins)
+	for _, failure := range read.Failed {
+		if err := p.records.Pause(ctx, failure.ID, failure.Err); err != nil {
+			return nil, read, err
+		}
+		p.note(failure.ID, string(failure.Step), failure.Err)
+	}
+	kept := slices.DeleteFunc(slices.Clone(plugins), func(plugin sdk.Plugin) bool {
+		return slices.ContainsFunc(read.Failed, func(failure pluginkit.Failure) bool { return failure.ID == plugin.ID() })
+	})
+	return kept, read, nil
 }
 
 // stepOf runs the step of the plugin id, naming both in the error it answers or in the panic it recovered.

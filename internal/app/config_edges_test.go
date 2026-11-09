@@ -22,10 +22,9 @@ import (
 // configOver returns the server settings a start over settings and built hands the server, with no plugin routes.
 func configOver(settings runConfig, built site) server.Config {
 	start := boot{
-		settings: settings, built: built, host: pluginkit.NewHost(), served: pluginkit.NewHost(),
-		logger: testLogger(io.Discard),
+		settings: settings, built: built, host: pluginkit.NewHost(), logger: testLogger(io.Discard),
 	}
-	return start.serverConfig(definitions.Walked{})
+	return start.serverConfig(pluginStart{walked: definitions.Walked{}})
 }
 
 func TestServerConfigServesTheWebFolderTheEnvironmentNamed(t *testing.T) {
