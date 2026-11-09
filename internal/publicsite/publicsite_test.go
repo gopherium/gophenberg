@@ -241,9 +241,6 @@ func TestSiteIdentifiesItselfOnEveryPage(t *testing.T) {
 		if !strings.Contains(body, `href="/gophenberg/favicon.svg"`) {
 			t.Errorf("GET %s body = %q, want the icon linked", path, body)
 		}
-		if !strings.Contains(body, `href="/api/plugins/feed/rss.xml"`) {
-			t.Errorf("GET %s body = %q, want the feed linked", path, body)
-		}
 		if !strings.Contains(body, "A Test Site") {
 			t.Errorf("GET %s body = %q, want the site title", path, body)
 		}

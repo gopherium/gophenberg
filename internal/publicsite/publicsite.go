@@ -17,9 +17,11 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/headtag"
 	"github.com/gopherium/gophenberg/internal/i18n"
 	"github.com/gopherium/gophenberg/internal/publichtml"
 	"github.com/gopherium/gophenberg/internal/version"
+	"github.com/gopherium/gophenberg/sdk"
 )
 
 //go:embed templates
@@ -60,11 +62,19 @@ type Config struct {
 	Title string
 	// Version is the application version the pages report.
 	Version string
+	// Head answers the tags plugins add to the head of each page. Nil adds none.
+	Head HeadSource
 }
 
 // SiteLocale answers the language the site chose for itself.
 type SiteLocale interface {
 	Lookup(ctx context.Context, key string) (string, bool, error)
+}
+
+// HeadSource answers the checked tags plugins add to the head of a page.
+type HeadSource interface {
+	Heads() bool
+	HeadTags(ctx context.Context, page sdk.PageMeta) []sdk.HeadTag
 }
 
 // Shell is the chrome every page carries.
@@ -74,6 +84,7 @@ type Shell struct {
 	Generator string
 	Lang      string
 	T         *i18n.Translator
+	Head      template.HTML
 }
 
 // summary is a published post as a listing shows it.
@@ -123,6 +134,7 @@ type site struct {
 	title     string
 	generator string
 	locale    SiteLocale
+	head      HeadSource
 }
 
 // New returns the handler serving the built-in public site.
@@ -137,6 +149,7 @@ func New(cfg Config) http.Handler {
 		title:     title,
 		generator: version.Generator(cfg.Version),
 		locale:    cfg.Locale,
+		head:      cfg.Head,
 	}
 }
 
@@ -230,7 +243,8 @@ func (s *site) serveTerm(w http.ResponseWriter, r *http.Request, held content.Ad
 		serveError(w)
 		return
 	}
-	shell := s.shell(r.Context(), s.titleOf(held.Item.Title))
+	page := sdk.PageMeta{Kind: sdk.PageTerm, Type: held.Item.Type, Page: held.Page}
+	shell := s.shell(r, s.titleOf(held.Item.Title), page, &held.Item)
 	summaries := make([]summary, len(rows))
 	for i, p := range rows {
 		summaries[i] = newSummary(p, shell.T)
@@ -259,7 +273,7 @@ func (s *site) serveList(w http.ResponseWriter, r *http.Request, listed content.
 		serveError(w)
 		return
 	}
-	shell := s.shell(r.Context(), s.listingTitle(listed))
+	shell := s.shell(r, s.listingTitle(listed), sdk.PageMeta{Kind: sdk.PageArchive, Type: listed.Key, Page: page}, nil)
 	summaries := make([]summary, len(rows))
 	for i, p := range rows {
 		summaries[i] = newSummary(p.Content, shell.T)
@@ -290,13 +304,13 @@ func (s *site) titleOf(part string) string {
 
 // serveItem renders one published content item.
 func (s *site) serveItem(w http.ResponseWriter, r *http.Request, held content.Content) {
-	shell := s.shell(r.Context(), s.titleOf(held.Title))
+	shell := s.shell(r, s.titleOf(held.Title), sdk.PageMeta{Kind: sdk.PageItem, Type: held.Type}, &held)
 	s.render(w, postTemplate, http.StatusOK, detailData{Shell: shell, Post: newDetail(held, shell.T)})
 }
 
 // serveNotFound renders the page reporting that nothing lives at an address.
 func (s *site) serveNotFound(w http.ResponseWriter, r *http.Request) {
-	shell := s.shell(r.Context(), "")
+	shell := s.shell(r, "", sdk.PageMeta{Kind: sdk.PageNotFound}, nil)
 	shell.Title = s.titleOf(shell.T.Get(notFoundTitle))
 	s.render(w, notFoundTemplate, http.StatusNotFound, listData{Shell: shell})
 }
@@ -330,15 +344,40 @@ func (s *site) language(ctx context.Context) string {
 	return held
 }
 
-// shell returns the chrome a page carries under the given document title.
-func (s *site) shell(ctx context.Context, title string) Shell {
-	locale := s.language(ctx)
+// shell returns the chrome a page carries under the given document title, with the tags plugins add to its head.
+func (s *site) shell(r *http.Request, title string, page sdk.PageMeta, shown *content.Content) Shell {
+	locale := s.language(r.Context())
 	return Shell{
 		SiteTitle: s.title,
 		Title:     title,
 		Generator: s.generator,
 		Lang:      locale,
 		T:         i18n.For(locale),
+		Head:      s.headOf(r, page, shown),
+	}
+}
+
+// headOf returns the tags plugins add to the head of the page showing the content shown, written as HTML.
+func (s *site) headOf(r *http.Request, page sdk.PageMeta, shown *content.Content) template.HTML {
+	if s.head == nil || !s.head.Heads() {
+		return ""
+	}
+	page.Path, page.SiteTitle = r.URL.Path, s.title
+	if shown != nil {
+		page.Item = itemOf(*shown)
+	}
+	return headtag.Write(s.head.HeadTags(r.Context(), page))
+}
+
+// itemOf returns the item a plugin sees of the content a page shows, its body and fields left out.
+func itemOf(c content.Content) *sdk.Item {
+	published := c.UpdatedAt
+	if c.PublishedAt != nil {
+		published = *c.PublishedAt
+	}
+	return &sdk.Item{
+		ID: sdk.ID(c.ID), Type: c.Type, Path: c.Path, Slug: c.Slug, Title: c.Title, Excerpt: c.Excerpt,
+		PublishedAt: published, UpdatedAt: c.UpdatedAt,
 	}
 }
 
