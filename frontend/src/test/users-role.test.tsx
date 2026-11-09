@@ -115,17 +115,18 @@ function refuseRoleAsCrossOrigin() {
 	server.use(http.put('/api/users/:id/role', () => HttpResponse.json(REQUEST_CROSS_ORIGIN, { status: 403 })))
 }
 
-test('says in a toast in the admin s words that Change role came from a page on another site', async () => {
+test('says inside the dialog in the admin s words that Change role came from a page on another site', async () => {
 	refuseRoleAsCrossOrigin()
 	renderAt('/users')
 
 	await act(EDITOR.name, 'Change role…')
 	await changeRoleTo('Administrator')
 
-	expect(await toast(REQUEST_CROSS_ORIGIN_WORDS)).toBeInTheDocument()
+	expect(await (await roleDialog()).findByText(REQUEST_CROSS_ORIGIN_WORDS)).toBeInTheDocument()
+	expect(screen.queryByText(REQUEST_CROSS_ORIGIN_WORDS, { selector: '.godmin-toast' })).not.toBeInTheDocument()
 })
 
-test('says in the reader s language that Change role came from a page on another site', async () => {
+test('says inside the dialog in the reader s language that Change role came from a page on another site', async () => {
 	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 	refuseRoleAsCrossOrigin()
@@ -134,7 +135,7 @@ test('says in the reader s language that Change role came from a page on another
 	await act(EDITOR.name, 'Change role…')
 	await changeRoleTo('Administrador')
 
-	expect(await toast(REQUEST_CROSS_ORIGIN_SPANISH)).toBeInTheDocument()
+	expect(await (await roleDialog()).findByText(REQUEST_CROSS_ORIGIN_SPANISH)).toBeInTheDocument()
 })
 
 test('offers in Change role the roles the session may give, the narrowest first', async () => {
@@ -163,17 +164,18 @@ test('changes the role of an account and names it in a toast', async () => {
 	await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 })
 
-test('says in WordPress s words why the server refused a role', async () => {
+test('says inside the dialog in WordPress s words why the server refused a role', async () => {
 	server.use(roleRefused('role_not_grantable'))
 	renderAt('/users')
 
 	await act(EDITOR.name, 'Change role…')
 	await changeRoleTo('Administrator')
 
-	expect(await toast('Sorry, you are not allowed to give users that role.')).toBeInTheDocument()
+	const dialog = await roleDialog()
+	expect(await dialog.findByText('Sorry, you are not allowed to give users that role.')).toBeInTheDocument()
 })
 
-test('says why the server refused a role in the reader s language', async () => {
+test('says inside the dialog why the server refused a role in the reader s language', async () => {
 	await readInSpanish()
 	server.use(roleRefused('role_not_grantable'))
 	renderAt('/users')
@@ -183,5 +185,7 @@ test('says why the server refused a role in the reader s language', async () => 
 	await userEvent.click(await screen.findByRole('option', { name: 'Administrador' }))
 	await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cambiar el rol' }))
 
-	expect(await toast('Lo siento, no tienes permisos para dar ese rol a los usuarios.')).toBeInTheDocument()
+	expect(
+		await within(screen.getByRole('dialog')).findByText('Lo siento, no tienes permisos para dar ese rol a los usuarios.'),
+	).toBeInTheDocument()
 })

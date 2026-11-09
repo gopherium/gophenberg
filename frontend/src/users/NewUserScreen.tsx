@@ -7,7 +7,7 @@ import { createUser, fieldError, usersQueryKey } from '@gopherium/react-auth/adm
 import type { UserField } from '@gopherium/react-auth/admin'
 import { PasswordField, usePasswordField, usersMenuItem } from '@gopherium/react-auth/wpds'
 import type { PasswordFieldState } from '@gopherium/react-auth/wpds'
-import { RoleSelect, errorMessageOf } from '@gopherium/react-auth/wpds/users'
+import { RoleSelect, addUserErrorMessageOf } from '@gopherium/react-auth/wpds/users'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { __, _x } from '@wordpress/i18n'
@@ -115,7 +115,9 @@ export function NewUserScreen() {
 		onError: (error, sent) => {
 			const about = fieldError(error)
 			if (about === undefined) {
-				toaster.show(errorMessageOf(error, accountErrorMessages(), __('The user could not be created.', 'gophenberg')))
+				toaster.show(
+					addUserErrorMessageOf(error, accountErrorMessages(), __('The user could not be created.', 'gophenberg')),
+				)
 				return
 			}
 			setRefusal({ ...about, value: sent[about.field] })
