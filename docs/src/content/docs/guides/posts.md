@@ -136,7 +136,8 @@ The actions menu of a row offers:
 - **Rename…** changes the title in a dialog, sent with **Save**. It
   writes over the newest version of the post, so the last rename
   wins.
-- **Trash…** moves the post to the trash, after a question.
+- **Trash** moves the post to the trash at once, and the message
+  offers **Undo**.
 
 View is the main action. While the pointer rests on the row of a
 published post, View also shows as a button at the end of the row,
@@ -145,43 +146,45 @@ applies shows beside the menu of each row instead: View on a
 published post, Restore in the Trash tab.
 
 An action ending in `…` opens a dialog first, as in WordPress.
-Rename… and Trash… show only on the posts you may change.
+**Trash** has none, since it opens nothing. Rename… and Trash show
+only on the posts you may change.
 
-The rename dialog closes the moment you press **Save**, and **Save**
-is off only while the name is blank. Duplicate… keeps its dialog
-open with its button busy until the copy is made, then closes.
-Cancel works the whole time. When either fails, a message at the
-bottom of the screen says why, and the dialog opens on what you
-typed the next time you open it for that post.
+The rename and duplicate dialogs stay open with their button busy
+until the server answers. Cancel closes nothing while they save. The
+rename's **Save** stays on, and a blank name is refused before
+anything is sent. When the save fails, the dialog says why inside it
+and keeps what you typed.
 
 ## Trash
 
-**Trash…** sits last in the actions menu of every row not in the
-trash yet. It asks first, in a dialog with no header, and the
-question names the post. Its button reads **Move to trash**. Tick
-several rows and the **Trash…**
-button under the list moves them all at once, behind one question.
+**Trash** sits last in the actions menu of every row not in the
+trash yet. It moves the post to the trash at once, with no question.
+Tick several rows and the **Trash** button under the list moves them
+all at once.
 
 The editor's Document panel offers **Move to trash** under the
 excerpt, above the item's fields. It is a red button, as in the
-WordPress editor. It asks first, in a small dialog with no header:
-`Are you sure you want to move "Hello world" to the trash?`
-Cancel has the focus when the dialog opens. Confirm, and the dialog
-closes at once while **Move to trash** shows the post moving and
-takes no second press.
+WordPress editor. It moves the post at once too, shows the post
+moving and takes no second press, then goes back to the list, which
+shows the same message.
 
-Each finished action shows a short message at the bottom of the
-screen that names the post, such as `"Hello world" moved to the
-trash.` The message and the question show the whole title. When you
-act on several posts at once, the message counts them instead. There
-is no Undo. A trashed post comes back from the Trash tab.
+Each trash shows a short message at the bottom of the screen that
+names the post, such as `"Hello world" moved to the trash.` The
+message shows the whole title. When you trash several posts at once,
+the message counts them instead. The message offers **Undo**, which
+brings the posts back as **Restore** does. It stays for 10 seconds,
+unless whoever runs the site sets another length, see
+[the admin lists](/self-hosting/configuration/#the-admin-lists). A
+trashed post also comes back from the Trash tab.
 
 When the server refuses, the message at the bottom of the screen
 gives the reason instead, from the list and from the editor alike. A
 page that still holds pages nested inside it cannot go to the trash
 until those move or go first. When you act on several posts and some
-fail, the one message counts the ones that failed. Rows the server
-refused stay ticked, so you can try them again.
+fail, the one message counts the ones that failed and offers no Undo.
+Rows the server refused stay ticked, so you can try them again. The
+posts that moved lose their tick, so **Undo** brings them back
+unticked.
 
 In the Trash tab, each row offers two actions, and both also work
 on several ticked rows at once:
@@ -190,19 +193,23 @@ on several ticked rows at once:
   before. Publish it again to put it back on your site. It is the
   main action here, so it also shows on the row the pointer rests
   on.
-- **Permanently delete…** removes the post forever, after a
-  confirmation.
+- **Permanently delete…** removes the post forever, with its
+  revisions and autosaves, after a question. The dialog's title
+  names the post, such as `Delete "Hello world"?`, and under it
+  reads
+  `The item is deleted for good, with its revisions and autosaves. This action cannot be undone.`
+  For several posts the title and the sentence count them. Its
+  **Delete permanently** button is red.
 
 **Empty Trash** appears at the top of the Trash tab while it lists
-something, for an admin or an editor. It asks in a dialog with no
-header that counts every trashed post of the type, not only the ones
-a search shows, and warns that this cannot be undone. Its **Empty
-trash** button is in the accent colour, as WordPress draws every
-confirm. Confirm, and the dialog closes at once while **Empty Trash**
-shows the work running. Every trashed post of this type goes in one
-step. If some posts stay in the trash, such as ones trashed while it
-ran, the message counts them too. If the server refuses, the message
-says why and the trash stays as it was.
+something, for an admin or an editor. It asks in a dialog titled
+**Empty the trash?** that counts every trashed post of the type, not
+only the ones a search shows, and warns that this cannot be undone.
+Its **Empty trash** button is red. Confirm, and the dialog closes at
+once while **Empty Trash** shows the work running. Every trashed post
+of this type goes in one step. If some posts stay in the trash, such
+as ones trashed while it ran, the message counts them too. If the
+server refuses, the message says why and the trash stays as it was.
 
 Opening a trashed post from its title shows it read only. Its
 **Restore** control brings it back as a draft, names it in a

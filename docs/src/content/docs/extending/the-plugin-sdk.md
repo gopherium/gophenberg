@@ -578,25 +578,42 @@ for the account at `/api/auth/session`, so serve that address with
    as `@wordpress/components` from 42 to 43 and `@wordpress/ui` from
    0.24 to 0.25.
 7. If your plugin imports `@gopherium/godmin` itself, move it from
-   0.18 to 0.31, the version the SDK pins. `ConfirmBody` and
-   `RenameBody` no longer take `failure`, and `RenameBody` no longer
-   takes `busy`, so show a failure in a toast. `useToaster().name` is
-   gone, so put the whole name in the message. `ListEmpty` takes
-   `description` in place of `hint`, and `actions` for its buttons.
-   The SDK now passes all of these on, so you can import them from it
-   instead. `LoadingRows` is gone, so pass the list's loading state to
-   `isLoading` on DataViews, or show `LoadingScreen`. `NavScreen` and
-   `NavScreenProps` are now `NavigationScreen` and
-   `NavigationScreenProps`, which the SDK passes on. `Frame.Rail` and
-   `FrameRailProps` are `Frame.Sidebar` and `FrameSidebarProps`, and
-   `RAIL_BREAKPOINT` is `SIDEBAR_BREAKPOINT`. godmin now needs
-   `@tanstack/react-router` 1.170.44 or newer.
+   0.18 to 0.31 as this step says, then follow the list for v0.20.1
+   below. `useToaster().name` is gone, so put the whole name in the
+   message. `ListEmpty` takes `description` in place of `hint`, and
+   `actions` for its buttons. The SDK passes on both, so you can
+   import them from it instead. `LoadingRows` is gone, so pass the
+   list's loading state to `isLoading` on DataViews, or show
+   `LoadingScreen`. `NavScreen` and `NavScreenProps` are now
+   `NavigationScreen` and `NavigationScreenProps`, which the SDK
+   passes on. `Frame.Rail` and `FrameRailProps` are `Frame.Sidebar`
+   and `FrameSidebarProps`, and `RAIL_BREAKPOINT` is
+   `SIDEBAR_BREAKPOINT`. godmin now needs `@tanstack/react-router`
+   1.170.44 or newer.
 8. If your plugin's id is `about`, `update`, `server`, `plugin`,
    `theme`, `setup`, `build` or `health`, give it another one. These
    ids are now reserved, and `make generate` stops on them with
    `id "update" is reserved`. Rename its folder under `plugins/` to
    match, and start the names of its commands and of the capabilities
    it declares with the new id.
+
+**To move** a plugin written for Gophenberg v0.20.1 or earlier:
+
+1. Import `ConfirmDialog` and `FormDialog` from
+   `@gophenberg/frontend-sdk`. The `/dialogs` entry is gone.
+2. Give `ConfirmDialog` the question as `title` and what will happen
+   as `description`, in place of its children. `size` is gone.
+3. `RunConfirm`, `ConfirmBody`, `FormBody`, `RenameBody`,
+   `useCloseWhileOpen` and their props types are gone, with no alias.
+   A dialog over list rows is now an action `callback` that stores the
+   rows, and a dialog your screen renders from them, as shown below.
+4. `FormDialog` has no `kind` and no `size`. It closes itself when the
+   promise from `onSubmit` ends, so stop closing it from your handler.
+5. In a test, find a confirm by the role `alertdialog`, not `dialog`.
+   `onClose` runs once the card has left the screen, so wait for it,
+   such as with `waitFor`.
+6. If your plugin imports `@gopherium/godmin` itself, take 0.32.0, the
+   version the SDK pins.
 
 The frontend SDK, `@gophenberg/frontend-sdk`, passes on a few icons
 from `@wordpress/icons`, each named after the job it does in the
@@ -629,7 +646,8 @@ Import them from the SDK, so the admin keeps one copy of the icon set:
 import { trashIcon } from '@gophenberg/frontend-sdk'
 ```
 
-A write that fails never shows inside a dialog. Say why in a toast
+A write that fails says why. A dialog that stays open says it inside.
+A dialog that closes, and a write with no dialog, say it in a toast
 at the bottom of the screen, as WordPress does. `useToaster` from the
 SDK hands you the admin's own toasts:
 
@@ -639,20 +657,16 @@ const toaster = useToaster()
 toaster.show(failure.message)
 ```
 
-To confirm an action outside a list, such as a button in your
-screen's header, use `ConfirmDialog` from
-`@gophenberg/frontend-sdk/dialogs`. It draws the WordPress modal, a
-sheet along the bottom of the screen on a phone, with Cancel
-focused. Leave `title` out on a confirm that removes something, so
-the question is the only text. What `onConfirm` returns decides when
-the dialog goes. For a button, make it a plain function that returns
-nothing. The dialog then closes at once while your write runs, as the
-editor's Move to trash does, and the button that opened it shows the
-work:
+`ConfirmDialog` and `FormDialog` from `@gophenberg/frontend-sdk` are
+the admin's own dialogs. Each is a card in the middle of the screen,
+a phone too. A confirm asks one question before an action, with
+Cancel focused. Give it the question as `title` and what will happen
+as `description`. Add `intent="irreversible"` for an action that
+cannot be undone, which draws its button red. Render it only while
+you ask:
 
 ```tsx
-import { Button, useToaster } from '@gophenberg/frontend-sdk'
-import { ConfirmDialog } from '@gophenberg/frontend-sdk/dialogs'
+import { Button, ConfirmDialog, useToaster } from '@gophenberg/frontend-sdk'
 
 const remove = () => {
 	setRemoving(true)
@@ -664,27 +678,40 @@ const remove = () => {
 
 <Button variant="outline" loading={removing} onClick={() => setAsking(true)}>{label}</Button>
 {asking ? (
-	<ConfirmDialog confirmLabel={label} cancelLabel={cancel} onConfirm={remove} onClose={() => setAsking(false)}>
-		{question}
-	</ConfirmDialog>
+	<ConfirmDialog
+		intent="irreversible"
+		title={question}
+		description={warning}
+		confirmLabel={label}
+		cancelLabel={cancel}
+		onConfirm={remove}
+		onClose={() => setAsking(false)}
+	/>
 ) : null}
 ```
 
-An `async` function always returns a promise, which keeps the dialog
-open, so leave `onConfirm` plain. Return the write's promise only
-for a confirm on a row of a list you draw yourself, outside DataViews,
-as WordPress does for a row's own menu. The dialog then stays open
-with its button busy until the write ends. Put the `.catch` inside
-and return what it answers, such as
-`() => removeItem(item.id).catch((failure) => toaster.show(failure.message))`.
+What `onConfirm` returns decides when the dialog goes. A plain
+function that returns nothing, as `remove` is, closes it at once
+while your write runs, and the button that opened it shows the work.
+An `async` function always returns a promise, so keep it plain. Return
+the write's promise instead, and the dialog stays open with its button
+busy until the promise ends. Cancel and Escape close nothing until
+then. Answer `{ error }` with words, at once or through the promise,
+and the dialog stays open and shows them. `{ close: false }` keeps it
+open with nothing said. `DialogAnswer` types both answers. `onClose`
+runs once the card has left the screen, so take the dialog away there.
 
-`FormDialog` from the same entry asks for a form from a button, as
-WordPress opens Add Page: a title, the first field focused, and the
-dialog left open after a failure so the reader keeps what they typed.
+`FormDialog` asks for a short form, as WordPress opens Add Page: a
+title, an optional `description` before the fields, and the first
+field focused. `onSubmit` answers as `onConfirm` does, and the dialog
+closes itself when its promise ends, so call nothing to close it.
+Answer `{ error }` to stay open with the words and what the reader
+typed. Pass a function as its children to read `busy`, such as to
+make a field `readOnly` while the write runs.
 
 The SDK still passes on `AlertDialog` and `Dialog` from
-`@wordpress/ui`. They float as a card on a phone, where WordPress
-draws a sheet, so prefer the two dialogs above.
+`@wordpress/ui`. The two dialogs above hold the rules for a write, so
+prefer them.
 
 `Popover` from `@gophenberg/frontend-sdk` is the one from
 `@wordpress/ui`. It anchors a small panel to a button, and it paints
@@ -714,29 +741,46 @@ Set `customValidity` back to `undefined` once the reader changes the
 field, since the browser holds back a form while one of its fields
 is invalid. A failure about no one field still goes to a toast.
 
-A confirm on a list row is different: WordPress draws it inside the
-list's own modal. A confirm that removes something, such as Move to
-trash, hides the header, so give that row action
-`hideModalHeader: true`. A plain confirm, such as making an item the
-default, keeps its header, which shows the action's `modalHeader` or
-else its label. Either way, give the row action
-`modalFocusOnMount: 'firstContentElement'` and render `RunConfirm`
-with the question as its child, the words of **Cancel** and of a
-button named after the action, and `run`, a function that takes the
-picked rows and settles once your screen shows how it went. It keeps
-Cancel inert while the run goes and closes once it settles.
+A dialog over list rows lives in your screen, not in DataViews. Give
+the row action a `callback` that stores the rows, and render the
+dialog from them. DataViews calls the same `callback` from a row's
+actions menu and from the bulk bar.
 
-Import `RunConfirm` from `@gophenberg/frontend-sdk`, beside
-`useListRun` and `useBulkRun`, the hooks the admin's own lists run
-their actions with. `useListRun` holds the ticked rows and the focus
-after a run. It also hands out `refreshing`, which you pass to the
-`isLoading` of your DataViews beside your own loading state, so the
-old rows stay on screen, dimmed, while the list reloads.
+`useListRun`, `useBulkRun` and `useDialogRun` from
+`@gophenberg/frontend-sdk` are the hooks the admin's own lists run
+their actions with:
 
-`useBulkRun` makes one call per picked row. The list shows as
-reloading as the first call that works ends. One toast shows as the
-last call ends, in the words you pass as `BulkWords`: the failure
-words when a row failed, else the done words. Your list then reloads.
+```tsx
+const { run, refreshing } = useListRun('notes', setSelection)
+const bulk = useBulkRun<Note>(run, refresh)
+const write = useDialogRun<Note>(run, refresh)
+```
+
+`useListRun` takes the name of the list on show and the setter of its
+ticked rows. It holds the ticked rows and the focus after a run. Pass
+its `refreshing` to the `isLoading` of your DataViews beside your own
+loading state, so the old rows stay on screen, dimmed, while the list
+reloads. `bulk` and `write` take its `run` and the function that
+reloads your list.
+
+`bulk` makes one call per picked row. The list shows as reloading as
+the first call that works ends. One toast shows as the last call
+ends, in the words you pass as `BulkWords`: the failure words when a
+row failed, else the done words. Your list then reloads. A confirm
+over the rows returns that run from `onConfirm`, so it stays open
+until the run ends.
+
+An action that can be undone asks nothing, so a trash runs at once.
+Give its words an `undo`, and the done toast offers it once every row
+worked:
+
+```tsx
+callback: (notes) =>
+	bulk(notes, (note) => trashNote(note.id), {
+		...trashWords,
+		undo: (done) => ({ label: 'Undo', onAct: () => void bulk(done, (note) => restoreNote(note.id), restoreWords) }),
+	})
+```
 
 As the list starts to reload, its region takes the focus from the
 table or the footer, and after a run started from the keyboard it
@@ -746,99 +790,64 @@ its place. It stays on the region when that control is a primary
 action, so a one click action of your plugin never takes a second
 Enter meant for another row.
 
-A write to one row, such as a rename, runs the same way: pass that
-row alone to `useBulkRun`. For a write that is no run, show its toast
-as the call ends, then mark the list around your reload:
+For a write that is no run, show its toast as the call ends, then
+mark the list around your reload:
 
 ```tsx
 const ended = run.onRefresh()
 await refresh().then(ended, ended)
 ```
 
-For a row action that asks for more, the SDK passes on the bodies
-the admin draws in a row modal. `ConfirmBody` asks a question you
-run yourself. `RenameBody` asks for a new name. Give its button the
-label **Save**, as WordPress does, close the modal the moment the
-reader saves, then write. `FormBody` holds any fields, with `kind`
-set to `edit`, `copy` or `create` to space its buttons as WordPress
-does. A copy, or a change to several rows, keeps the modal open with
-`busy` until the write ends. Taking all of these from the SDK keeps
-your plugin on the admin's own copy.
-
-A modal that stays open during its write, such as a `ConfirmBody`
-you run yourself or a busy `FormBody`, closes through
-`useCloseWhileOpen(closeModal)`. Every dialog on a row gets the same
-`closeModal`, so a write that ends after the reader dismissed your
-modal and opened another one would shut the new one. The close
-`useCloseWhileOpen` returns does nothing once your modal left the
-screen. A dialog your screen holds open on one row loses the button
-that opened it when the list draws that row again, and the focus
-falls to the page. `useFocusBack` finds the row again and puts the
-focus back on the `Trigger` that `focusedTrigger()` noted when the
-dialog opened. Mark the title cell of each row with the id DataViews
-keys the row by, as `data-item-id`. `useListRun` reads the same mark
-to find an item a reload moved, before the focus falls to the row in
-its place. `focusInDialog()` tells whether a dialog holds the focus,
-for a write you finish yourself outside a run.
-
-A rename, or a form that closes before its write, is gone by the time
-a write fails. Keep what the reader typed, so the next open of the
-modal starts from it and the reader can try once more.
-`useUnsavedText` from the SDK holds that text, by item id, for as long
-as the screen stays. Keep the store in the hook that builds your
-actions, never in the modal, which goes the moment the reader saves.
-Pass the item's kept text as the first value of the field. Clear the
-item's text before each write, so a save that works leaves nothing
-behind. `markLatest` marks the write as the latest one sent to the
-item and returns a check. Keep the failed text only while that check
-holds, so an earlier save that fails late never overwrites what a
-later save sent:
+A form over rows writes through `write`, which takes what `bulk`
+takes and answers the dialog. When its one row failed, the dialog
+stays open with your failure words and what the reader typed. Over
+several rows the dialog closes, and one toast says how the run went.
+`RenameDialog` asks for a new name. Its button stays on, and the
+browser refuses a blank name. Label it **Save**, as WordPress does:
 
 ```tsx
-import { RenameBody, markLatest, useToaster, useUnsavedText } from '@gophenberg/frontend-sdk'
+import { RenameDialog } from '@gophenberg/frontend-sdk'
+import type { BulkWords } from '@gophenberg/frontend-sdk'
 import type { Action } from '@gophenberg/frontend-sdk/dataviews'
-import { useMemo } from 'react'
 
-function useRenameAction(): Action<Note> {
-	const toaster = useToaster()
-	const renames = useUnsavedText()
-	return useMemo<Action<Note>>(
-		() => ({
-			id: 'rename',
-			label: 'Rename…',
-			modalHeader: 'Rename',
-			modalFocusOnMount: 'firstContentElement',
-			RenderModal: ({ items: [note], closeModal }) => (
-				<RenameBody
-					name={renames.get(note.id) ?? note.title}
-					fieldLabel="Name"
-					submitLabel="Save"
-					cancelLabel="Cancel"
-					onSubmit={(title) => {
-						closeModal?.()
-						renames.delete(note.id)
-						const stillLatest = markLatest(renames, note.id)
-						renameNote(note.id, title)
-							.then(() => toaster.show('Name updated.'))
-							.catch((failure) => {
-								if (stillLatest()) {
-									renames.set(note.id, title)
-								}
-								toaster.show(failure.message)
-							})
-					}}
-					onCancel={closeModal}
-				/>
-			),
-		}),
-		[toaster, renames],
-	)
+const nameWords: BulkWords<Note> = {
+	done: () => 'Name updated.',
+	failed: ([{ error }]) => `Could not save the name. ${(error as Error).message}`,
 }
+
+const [renaming, setRenaming] = useState<Note>()
+const rename: Action<Note> = { id: 'rename', label: 'Rename…', callback: ([note]) => setRenaming(note) }
+
+{renaming ? (
+	<RenameDialog
+		title="Rename"
+		name={renaming.title}
+		fieldLabel="Name"
+		submitLabel="Save"
+		cancelLabel="Cancel"
+		onSubmit={(title) => write([renaming], (note) => renameNote(note.id, title), nameWords)}
+		onClose={() => setRenaming(undefined)}
+	/>
+) : null}
 ```
 
-The store holds any value, so a form with several fields keeps them
-all, as `useUnsavedText<NoteFields>()`. Type a store you pass on with
-`UnsavedText`, from the SDK too.
+A dialog that writes through `write` keeps what the reader typed
+after a failure, so it needs no store of its own. For a dialog that
+closes before its write, the SDK still
+passes on `useUnsavedText`, which keeps the typed text by item id,
+and `markLatest`, which stops an earlier write that fails late from
+overwriting a later one.
+
+When a dialog goes, the focus goes back to what opened it. A dialog
+your screen holds open on one row loses that button when the list
+draws the row again, and the focus falls to the page. `useFocusBack`
+finds the row again and puts the focus back on the `Trigger` that
+`focusedTrigger()` noted when the dialog opened. Mark the title cell
+of each row with the id DataViews keys the row by, as `data-item-id`.
+`useListRun` reads the same mark to find an item a reload moved,
+before the focus falls to the row in its place. `focusInDialog()`
+tells whether a dialog holds the focus, for a write you finish
+yourself outside a run.
 
 `ListEmpty` is what your list shows when it has no rows. It titles
 the empty list one level under your page's title, as the admin's own

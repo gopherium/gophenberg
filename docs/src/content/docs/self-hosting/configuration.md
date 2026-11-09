@@ -508,10 +508,10 @@ change them. They shape every list the same way:
 - **The confirmation messages.** `GOPHENBERG_TOAST_DURATION` sets how
   long a message with no button stays on screen.
   `GOPHENBERG_TOAST_ACTION_DURATION` sets how long a message with a
-  button stays, a message which only a plugin raises today. It is 10
-  seconds, as WordPress's next release keeps it, so there is time to
-  reach the button. A message always shows the whole name of the
-  item.
+  button stays, such as the message with **Undo** after a trash from
+  a list or from the editor. It is 10 seconds, as WordPress's next
+  release keeps it, so there is time to reach the button. A message
+  always shows the whole name of the item.
 - **The format.** `GOPHENBERG_FORMAT_LOCALE` sets the locale for
   dates, times and numbers, whatever language a person reads the
   admin in. The tag `es-ES` writes 04/10/2026, 14:05 and 1.234,56.
