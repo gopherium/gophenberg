@@ -341,6 +341,21 @@ function useUnpick(list: ListView<View>): (ids: string[]) => void {
 }
 
 /**
+ * Holds the dialog the screen keeps open on the picked posts, closed when the list moves to another type.
+ * @param type - The key of the type the list shows.
+ * @returns The open dialog, none while no dialog is open, beside the setter that opens or closes one.
+ */
+function useRowDialog(type: string) {
+	const [opened, setOpened] = useState<OpenedPosts>()
+	const [openedFor, setOpenedFor] = useState(type)
+	if (openedFor !== type) {
+		setOpenedFor(type)
+		setOpened(undefined)
+	}
+	return [opened, setOpened] as const
+}
+
+/**
  * Renders the list screen of a content type.
  * @returns The list screen element.
  */
@@ -353,7 +368,7 @@ export function PostsScreen() {
 	useShareListRun(run)
 	const focusBack = useFocusBack(posts.isFetching, region)
 	const tools = usePostTools(run, useUnpick(list))
-	const [opened, setOpened] = useState<OpenedPosts>()
+	const [opened, setOpened] = useRowDialog(listed.key)
 	const actions = usePostActions(status, listed, tools, setOpened)
 	const held = useTrashTotal(listed.key, status)
 	const session = useSession().data

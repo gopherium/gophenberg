@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 import { holdWrite } from '../content/postWrites'
 import { gate } from './gate'
 import { holdReads, waitMarked } from './reloads'
-import { renderAt } from './render'
+import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
+import { PAGE_TYPE, serveTypes } from './typeFixtures'
 import { warmPostsScreen } from './warm'
 
 warmPostsScreen()
@@ -365,6 +366,19 @@ test('closes the dialog on Cancel, making nothing', async () => {
 
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 	expect(created).toEqual([])
+})
+
+test('closes the dialog once the list moves to another content type', async () => {
+	serveTypes(POST_TYPE, PAGE_TYPE)
+	const { router } = renderRoutedAt('/content/post')
+	await openDuplicate()
+
+	await act(async () => {
+		await router.navigate({ to: '/content/$typeKey', params: { typeKey: 'page' } })
+	})
+
+	expect(router.state.location.pathname).toBe('/content/page')
+	expect(screen.queryByRole('dialog', { name: 'Duplicate' })).not.toBeInTheDocument()
 })
 
 test('offers no duplicate on an item in the trash', async () => {
