@@ -974,6 +974,8 @@ error or panics, and the rest of the site starts and serves:
   anything but the `id` in its manifest
 - `roles`, when it declares its roles
 - `types`, when it declares its content types
+- `routes`, when its `Routes` or `PublicPaths` runs, or when `Routes`
+  returns no handler
 - `migrate`, when its schema is applied
 - `start`, when its `Start` runs
 
@@ -1034,6 +1036,32 @@ under `Not loaded:` in `gophenberg list`, and `check`, `migrate`,
 `account:records` fail until it is fixed. Run `check` before a
 rollout to catch a bad plugin setting before `serve` pauses the
 plugin.
+
+### A plugin whose route panics
+
+When a plugin's route panics while it answers a request, the
+visitor gets the site's internal error, status 500 with this body,
+which no cache keeps:
+
+```json
+{"error":"internal error","code":"internal"}
+```
+
+The answer never names the plugin, the way WordPress shows its
+critical error page. If the route had already sent part of its
+answer, the connection is cut instead, so a half page never looks
+complete. Either way `serve` logs the panic as an error that names
+the plugin, the method, the path, whether the visitor got the
+internal error, the panic and its stack:
+
+```text
+time=2026-11-08T09:31:04.112Z level=ERROR msg="plugin route panicked" plugin=feed method=GET path=/api/plugins/feed/rss.xml answered=true error="pluginkit: feed route panicked: runtime error: index out of range [3] with length 3" stack="goroutine 87 [running]:\n..."
+```
+
+The plugin stays active, and its other requests and the other
+plugins carry on. Nothing is paused for a panic in a route. A panic
+in a goroutine the route starts, or a fatal error such as two
+goroutines writing one map at once, still stops the server.
 
 ## What the binary serves where
 

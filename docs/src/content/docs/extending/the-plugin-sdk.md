@@ -70,11 +70,15 @@ database it is always empty.
 
 `serve` takes the plugins one by one. When a plugin fails to
 register, a panic in `Register` included, or fails to declare its
-roles, to declare its types, to migrate or to start, `serve` pauses
-that plugin and the rest of the site starts. A paused plugin's
-routes are not mounted, its roles are left out, and every start
-tries it again, see
+roles, to declare its types, to hand over its routes, to migrate or
+to start, `serve` pauses that plugin and the rest of the site
+starts. A paused plugin's routes are not mounted, its roles are
+left out, and every start tries it again, see
 [a plugin that fails at start](/self-hosting/configuration/#a-plugin-that-fails-at-start).
+A panic in one of its routes while it answers a request pauses
+nothing. The visitor gets the site's internal error, and `serve`
+logs the plugin's name with the stack, see
+[a plugin whose route panics](/self-hosting/configuration/#a-plugin-whose-route-panics).
 `serve` also logs a warning when a plugin's `Start` takes longer
 than `GOPHENBERG_PLUGIN_START_BUDGET`, 10 milliseconds unless set,
 though the plugin still starts.
