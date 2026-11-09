@@ -7,7 +7,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"path/filepath"
+	"io/fs"
+	"os"
 	"strings"
 	"time"
 
@@ -20,17 +21,21 @@ import (
 	"github.com/gopherium/gophenberg/internal/version"
 )
 
-// besideFolder names the backups folder beside the database file of a site with no data folder or install root.
-const besideFolder = "backups"
+// besideSuffix ends the name of the backups folder beside the file of a site with no data folder or install root.
+const besideSuffix = ".backups"
 
-// beforeMigrating backs a SQLite file up before a new build migrates it, through the rule that asks and the copy.
+// beforeMigrating backs a SQLite file up before a new build migrates it: the rule, the copy, the claim and the prune.
 type beforeMigrating struct {
 	needs func(context.Context, *sql.DB, sqlite.Build) (bool, error)
 	take  func(context.Context, *sql.DB, sqlite.BackupRequest) (sqlite.TakenBackup, error)
+	claim func(context.Context, *sql.DB, sqlite.Build) (bool, error)
+	prune func(sqlite.BackupRequest, sqlite.TakenBackup) error
 }
 
 // fileBackups is the backup before migrating that reads and copies the file itself.
-var fileBackups = beforeMigrating{needs: sqlite.NeedsBackup, take: sqlite.TakeBackup}
+var fileBackups = beforeMigrating{
+	needs: sqlite.NeedsBackup, take: sqlite.TakeBackup, claim: sqlite.ClaimBackup, prune: sqlite.PruneBackups,
+}
 
 // backedUp returns apply, run once the file holds a backup whenever this build must back it up first.
 func backedUp(
@@ -78,10 +83,10 @@ func planBackup(env gonsole.Env, opts sqlite.MigrateOptions) (backupPlan, error)
 	return backupPlan{request: request, layout: layout, skipFor: settings.SkipFor, wait: opts, names: env}, nil
 }
 
-// backupsFolder returns the folder the file at address backs up into: the data folder's, the root's, else beside it.
+// backupsFolder returns the folder the file at address backs up into: the data folder's, the root's, else its own.
 func backupsFolder(layout updater.Layout, address string) string {
 	if layout.Kept() == "" {
-		return filepath.Join(filepath.Dir(strings.TrimPrefix(address, sqlitePrefix)), besideFolder)
+		return strings.TrimPrefix(address, sqlitePrefix) + besideSuffix
 	}
 	return layout.Backups()
 }
@@ -108,11 +113,12 @@ func (p backupPlan) skips() bool {
 	return !p.rising && p.skipFor == version.Version()
 }
 
-// copyFile takes the backup plan names, or waits for another run's, then records the copy once it lands.
+// copyFile takes the backup plan names, or waits for another run's, then keeps the copy once it lands.
 func (b beforeMigrating) copyFile(ctx context.Context, db *sql.DB, plan backupPlan) error {
 	err := plan.layout.MakeData()
+	var taken sqlite.TakenBackup
 	if err == nil {
-		_, err = b.take(ctx, db, plan.request)
+		taken, err = b.take(ctx, db, plan.request)
 	}
 	switch {
 	case errors.Is(err, dbsqlite.ErrSnapshotRunning):
@@ -120,7 +126,31 @@ func (b beforeMigrating) copyFile(ctx context.Context, db *sql.DB, plan backupPl
 	case err != nil:
 		return plan.failed(err)
 	}
-	return sqlite.RecordBackupTaken(ctx, db, thisBuild())
+	return b.keep(ctx, db, plan.request, taken)
+}
+
+// keep claims taken for this build, then prunes the folder of request on a win and deletes taken on a loss.
+func (b beforeMigrating) keep(
+	ctx context.Context, db *sql.DB, request sqlite.BackupRequest, taken sqlite.TakenBackup,
+) error {
+	won, err := b.claim(ctx, db, thisBuild())
+	if err != nil {
+		return err
+	}
+	if won {
+		_ = b.prune(request, taken)
+		return nil
+	}
+	return dropCopy(taken.Path)
+}
+
+// dropCopy deletes the copy at path, a copy already gone counting as deleted.
+func dropCopy(path string) error {
+	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("take the backup before migrating: another run backed the file up first and this run "+
+			"could not delete its own copy %s: %w, so delete that copy and run the command again", path, err)
+	}
+	return nil
 }
 
 // awaitOther reads the rule again every poll of plan until another backup lets db migrate, or the wait passes.

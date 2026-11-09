@@ -106,11 +106,36 @@ func TestTheBackupFolderIsTheDataFolderTheRootOrBesideTheFile(t *testing.T) {
 	}{
 		{updater.Layout{Root: "/srv/root", Data: "/srv/data"}, "/srv/data/backups"},
 		{updater.Layout{Root: "/srv/root"}, "/srv/root/backups"},
-		{updater.Layout{}, "/srv/site/backups"},
+		{updater.Layout{}, "/srv/site/site.db.backups"},
 	} {
 		if got := backupsFolder(tc.layout, address); got != tc.want {
 			t.Errorf("backupsFolder(%+v, %q) = %q, want %q", tc.layout, address, got, tc.want)
 		}
+	}
+}
+
+func TestTwoSQLiteFilesInOneFolderKeepTheirBackupsApart(t *testing.T) {
+	t.Parallel()
+
+	live := olderMigratedSQLiteFile(t)
+	trial := filepath.Join(filepath.Dir(live), "site-test.db")
+	body, err := os.ReadFile(live)
+	if err != nil {
+		t.Fatalf("reading the SQLite file: %v", err)
+	}
+	if err := os.WriteFile(trial, body, 0o600); err != nil {
+		t.Fatalf("copying the SQLite file beside it: %v", err)
+	}
+	keep := map[string]string{"GOPHENBERG_SQLITE_BACKUPS_KEEP": "1"}
+
+	for _, path := range []string{live, trial} {
+		if got := testkit.Run(t, Program(migratingWith(path, keep), noPlugins), "", "migrate"); got.Code != gonsole.ExitDone {
+			t.Fatalf("migrate of %s = %d with stderr %q, want 0", path, got.Code, got.Stderr)
+		}
+	}
+
+	for _, path := range []string{live, trial} {
+		oneUpdateBackupIn(t, backupsBeside(path))
 	}
 }
 
@@ -338,11 +363,13 @@ func TestABackupBeforeMigratingCountsACopyWhoseLastStepsFailed(t *testing.T) {
 
 	path := olderMigratedSQLiteFile(t)
 	db := openSQLiteFile(t, path)
-	take, _ := stubbedTake(sqlite.TakenBackup{
-		Path: filepath.Join(backupsBeside(path), "copy.sqlite"), AfterCopy: errAfterCopy, Prune: errRead,
+	b := fileBackups
+	b.take, _ = stubbedTake(sqlite.TakenBackup{
+		Path: filepath.Join(backupsBeside(path), "copy.sqlite"), AfterCopy: errAfterCopy,
 	}, nil)
+	b.prune = (&claimLog{}).prune
 	apply, applied := countedApply()
-	run := beforeMigrating{needs: sqlite.NeedsBackup, take: take}.around(settingsEnv(migratingSQLite(path)), apply)
+	run := b.around(settingsEnv(migratingSQLite(path)), apply)
 
 	if err := run(t.Context(), db, patientWait); err != nil || *applied != 1 {
 		t.Fatalf("a run whose copy landed with later failures = %v after %d migrations, want nil after 1", err, *applied)

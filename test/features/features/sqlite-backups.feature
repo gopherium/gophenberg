@@ -2,11 +2,13 @@ Feature: A SQLite site keeps backups of its file
   A site on SQLite keeps its whole database in one file. Before a new
   version of Gophenberg migrates that file, it copies the file into the
   backups folder, and database:backup copies it on demand. The folder
-  sits in GOPHENBERG_DATA_DIR or GOPHENBERG_INSTALL_ROOT, or beside the
-  file when neither is set. GOPHENBERG_SQLITE_BACKUPS_KEEP keeps the
-  newest update and scheduled backups together, and a backup taken on
-  demand stays until the owner deletes it. A copy on the server is a
-  convenience, not a backup, so the owner moves each copy off the server.
+  sits in GOPHENBERG_DATA_DIR or GOPHENBERG_INSTALL_ROOT. When neither
+  is set, it sits beside the file and is named for it, such as
+  site.db.backups beside site.db, so each file keeps its own backups.
+  GOPHENBERG_SQLITE_BACKUPS_KEEP keeps the newest update and scheduled
+  backups together, and a backup taken on demand stays until the owner
+  deletes it. A copy on the server is a convenience, not a backup, so
+  the owner moves each copy off the server.
 
   Scenario: A new version backs up the file before it migrates it
     Given the settings point at an empty SQLite file

@@ -79,13 +79,12 @@ func (b *backupScenario) nameInstallRoot() {
 	b.env["GOPHENBERG_INSTALL_ROOT"] = b.t.TempDir()
 }
 
-// folder returns the backups folder of the scenario, the install root's, else the one beside the file.
+// folder returns the backups folder of the scenario, the install root's, else the one beside the file named for it.
 func (b *backupScenario) folder() string {
 	if root := b.env["GOPHENBERG_INSTALL_ROOT"]; root != "" {
 		return filepath.Join(root, "backups")
 	}
-	file := strings.TrimPrefix(b.env["GOPHENBERG_DATABASE_URL"], sqlitePrefix)
-	return filepath.Join(filepath.Dir(file), "backups")
+	return strings.TrimPrefix(b.env["GOPHENBERG_DATABASE_URL"], sqlitePrefix) + ".backups"
 }
 
 // plant writes an empty file called name into the backups folder.

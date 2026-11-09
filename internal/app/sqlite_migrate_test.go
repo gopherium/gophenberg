@@ -114,9 +114,9 @@ func olderMigratedSQLiteFile(t *testing.T) string {
 	return path
 }
 
-// backupsBeside returns the backups folder beside the SQLite file at path.
+// backupsBeside returns the backups folder beside the SQLite file at path, named for it.
 func backupsBeside(path string) string {
-	return filepath.Join(filepath.Dir(path), "backups")
+	return path + ".backups"
 }
 
 // updateBackupsIn returns every update backup folder holds, the newest first.
