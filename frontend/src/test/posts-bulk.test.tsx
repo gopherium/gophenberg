@@ -113,6 +113,30 @@ test('counts the posts a bulk trash moved in a toast whose Undo restores both', 
 	expect(restored).toHaveLength(2)
 })
 
+test('leaves no post ticked once a bulk trash lands, so a bulk Undo brings the rows back unticked', async () => {
+	server.use(
+		http.post('/api/content/:id/restore', ({ params }) => {
+			const picked = [FIRST, SECOND].find((post) => post.id === String(params.id)) ?? FIRST
+			const back = { ...picked, status: 'draft' }
+			restored.push(back.id)
+			listed = [...listed, back]
+			return HttpResponse.json(back)
+		}),
+	)
+	renderAt('/content/post')
+	await selectBoth()
+	await trashTheTicked()
+	const toast = await findActionToast('2 items moved to the trash.')
+
+	await userEvent.click(within(toast).getByRole('button', { name: 'Undo' }))
+
+	await screen.findByText('2 posts have been restored.', { selector: '.godmin-toast' })
+	const first = await screen.findByRole('checkbox', { name: 'Welcome to Gophenberg' })
+	const second = await screen.findByRole('checkbox', { name: 'Second Thoughts' })
+	expect([first, second].map((box) => (box as HTMLInputElement).checked)).toEqual([false, false])
+	expect(screen.queryByRole('button', { name: 'Trash' })).not.toBeInTheDocument()
+})
+
 test('counts only what a partly refused bulk trash could not move, in one toast', async () => {
 	vi.spyOn(console, 'error').mockImplementation(() => {})
 	const THIRD = { ...FIRST, id: '019fb000-0000-7000-8000-000000000003', title: 'Third Draft' }

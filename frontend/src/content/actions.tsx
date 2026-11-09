@@ -38,6 +38,8 @@ interface PostTools {
 	run: BulkRun<Post>
 	/** Runs the write of a row dialog and answers the dialog, the list reloading once the write ended. */
 	write: DialogRun<Post>
+	/** Takes the posts with the given ids off the ticked rows, keeping every other tick. */
+	unpick: (ids: string[]) => void
 }
 
 /** A dialog the screen holds open on the picked posts. */
@@ -53,14 +55,15 @@ export interface OpenedPosts {
 /**
  * Returns what the actions and the dialogs of the posts list need, the same for as long as the screen stays.
  * @param list - What the list does around a run.
+ * @param unpick - Takes the posts with the given ids off the ticked rows.
  * @returns The tools, whose run and write reload the listing and forget each post they acted on.
  */
-export function usePostTools(list: ListRun): PostTools {
+export function usePostTools(list: ListRun, unpick: (ids: string[]) => void): PostTools {
 	const refresh = useRefresh()
 	const refreshPosts = useCallback((posts: Post[]) => refresh(posts.map((post) => post.id)), [refresh])
 	const run = useBulkRun(list, refreshPosts)
 	const write = useDialogRun(list, refreshPosts)
-	return useMemo(() => ({ run, write }), [run, write])
+	return useMemo(() => ({ run, write, unpick }), [run, write, unpick])
 }
 
 /** The row forms the screen holds open on one post, by the action they belong to. */
@@ -140,9 +143,30 @@ function trashViewActions(
 }
 
 /**
+ * Returns the trash over the picked posts, run at once, its toast offering Undo, every post it moved left unticked.
+ * @param tools - Runs one call over the picked posts and takes the posts it moved off the ticked rows.
+ * @param type - The content type the list shows.
+ * @returns The handler the trash action calls.
+ */
+function trashing(tools: PostTools, type: string): (posts: Post[]) => Promise<void> {
+	const { run, unpick } = tools
+	return async (posts) => {
+		const moved: string[] = []
+		await run(posts, (post) => trashPost(post.id).then(() => moved.push(post.id)), {
+			...trashWords(),
+			undo: (done) => ({
+				label: __('Undo', 'gophenberg'),
+				onAct: () => void run(done, (post) => restorePost(post.id), restoreWords(type)),
+			}),
+		})
+		unpick(moved)
+	}
+}
+
+/**
  * Returns the actions offered on the rows of a list outside the trash, the view first and the trash last.
  * @param mine - Whether the session may change a post.
- * @param run - Runs one call over the picked posts.
+ * @param tools - What the actions need from the screen.
  * @param type - The content type the list shows.
  * @param served - Whether the site serves the type the list shows.
  * @param open - Opens the duplicate or the rename on a post in a dialog the screen holds.
@@ -152,7 +176,7 @@ function trashViewActions(
  */
 function listActions(
 	mine: (post: Post) => boolean,
-	run: BulkRun<Post>,
+	tools: PostTools,
 	type: string,
 	served: boolean,
 	open: (opened: OpenedPosts) => void,
@@ -178,14 +202,7 @@ function listActions(
 			icon: trashIcon,
 			supportsBulk: true,
 			isEligible: changeable,
-			callback: (posts) =>
-				run(posts, (post) => trashPost(post.id), {
-					...trashWords(),
-					undo: (done) => ({
-						label: __('Undo', 'gophenberg'),
-						onAct: () => void run(done, (post) => restorePost(post.id), restoreWords(type)),
-					}),
-				}),
+			callback: trashing(tools, type),
 		},
 	]
 }
@@ -221,14 +238,13 @@ export function usePostActions(
 	tools: PostTools,
 	open: (opened: OpenedPosts) => void,
 ): Action<Post>[] {
-	const { run } = tools
 	const session = useSession().data
 	const { key, active } = listed
 	return useMemo(() => {
 		const mine = (post: Post) => sessionMayChange(session, post.authorId)
 		if (status === 'trash') {
-			return trashViewActions(mine, run, key, open)
+			return trashViewActions(mine, tools.run, key, open)
 		}
-		return listActions(mine, run, key, active, open)
-	}, [active, key, open, run, session, status])
+		return listActions(mine, tools, key, active, open)
+	}, [active, key, open, session, status, tools])
 }

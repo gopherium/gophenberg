@@ -26,7 +26,7 @@ import { useSession } from '@gopherium/react-auth'
 import { useQuery } from '@tanstack/react-query'
 import type { QueryKey, UseQueryResult } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type { ListSettings } from '../settings/api'
@@ -321,6 +321,23 @@ function HeaderAddNew({ listed, addNew, size = 'compact' }: {
 }
 
 /**
+ * Returns the handler taking posts off the ticked rows of a list, every other tick kept.
+ * @param list - The list view the screen holds.
+ * @returns The handler, given the ids of the posts, the same for as long as the screen stays.
+ */
+function useUnpick(list: ListView<View>): (ids: string[]) => void {
+	const ticked = useRef(list.selection)
+	useLayoutEffect(() => {
+		ticked.current = list.selection
+	})
+	const { onChangeSelection } = list
+	return useCallback(
+		(ids: string[]) => onChangeSelection(ticked.current.filter((id) => !ids.includes(id))),
+		[onChangeSelection],
+	)
+}
+
+/**
  * Renders the list screen of a content type.
  * @returns The list screen element.
  */
@@ -332,7 +349,7 @@ export function PostsScreen() {
 	const { run, region, refreshing } = useListRun(`${listed.key} ${status}`, list.onChangeSelection)
 	useShareListRun(run)
 	const focusBack = useFocusBack(posts.isFetching, region)
-	const tools = usePostTools(run)
+	const tools = usePostTools(run, useUnpick(list))
 	const [opened, setOpened] = useState<OpenedPosts>()
 	const actions = usePostActions(status, listed, tools, setOpened)
 	const held = useTrashTotal(listed.key, status)
