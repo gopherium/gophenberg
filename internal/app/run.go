@@ -367,28 +367,36 @@ func timingsFrom(env gonsole.Env) (runConfig, error) {
 		return runConfig{}, fmt.Errorf(
 			"GOPHENBERG_THEME_MAX_BACKOFF: must stand at or above GOPHENBERG_THEME_BACKOFF, got %v", held.themeMaxBackoff)
 	}
-	attempts, err := env.Count("THEME_START_ATTEMPTS", 5, gonsole.AtMost(maxStartAttempts))
-	if err != nil {
-		return runConfig{}, err
-	}
-	held.pluginHookTimedFirings, err = env.Count("PLUGIN_HOOK_TIMED_FIRINGS", 20, gonsole.AtMost(maxHookTimedFirings))
-	if err != nil {
+	if err := countsFrom(env, &held); err != nil {
 		return runConfig{}, err
 	}
 	if err := mediaLimitsFrom(env, &held); err != nil {
 		return runConfig{}, err
 	}
-	importCap, err := env.Count("DEFINITIONS_IMPORT_CAP_KB", int(server.DefaultDefinitionsImportCap>>10),
-		gonsole.AtMost(server.MaxDefinitionsImportCap>>10))
-	if err != nil {
-		return runConfig{}, err
-	}
-	held.themeStartAttempts = attempts
-	held.definitionsImportCap = int64(importCap) << 10
 	if err := cacheWindowsFrom(env, &held); err != nil {
 		return runConfig{}, err
 	}
 	return held, nil
+}
+
+// countsFrom reads the theme's start attempts, the plugin hooks' timed firings and the definitions import cap.
+func countsFrom(env gonsole.Env, held *runConfig) error {
+	attempts, err := env.Count("THEME_START_ATTEMPTS", 5, gonsole.AtMost(maxStartAttempts))
+	if err != nil {
+		return err
+	}
+	firings, err := env.Count("PLUGIN_HOOK_TIMED_FIRINGS", 20, gonsole.AtMost(maxHookTimedFirings))
+	if err != nil {
+		return err
+	}
+	importCap, err := env.Count("DEFINITIONS_IMPORT_CAP_KB", int(server.DefaultDefinitionsImportCap>>10),
+		gonsole.AtMost(server.MaxDefinitionsImportCap>>10))
+	if err != nil {
+		return err
+	}
+	held.themeStartAttempts, held.pluginHookTimedFirings = attempts, firings
+	held.definitionsImportCap = int64(importCap) << 10
+	return nil
 }
 
 // maxUploadCapMB is the most megabytes an upload cap may name and still be held in bytes.
