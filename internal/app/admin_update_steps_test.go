@@ -81,7 +81,7 @@ func (s *operatorScenario) serveSigned() error {
 		base: "http://" + address, cancel: cancel, done: make(chan int, 1), stderr: &keptWatch{cancel: cancel},
 	}
 	exits := &exitCodes{}
-	program := commandLine(testkit.Getenv(s.env), s.loaded(), exits, s.stamp)
+	program := commandLine(testkit.Getenv(s.env), s.built(), exits)
 	go func() {
 		site.done <- exits.of(program.Run(serving, []string{"serve"}, strings.NewReader(""), io.Discard, site.stderr))
 	}()

@@ -168,7 +168,7 @@ func (s *listeningScenario) start() {
 	ctx, cancel := context.WithCancel(s.t.Context())
 	s.stop, s.done = cancel, make(chan int, 1)
 	exits := &exitCodes{}
-	program := commandLine(testkit.Getenv(s.env), noPlugins, exits, version.Stamp())
+	program := commandLine(testkit.Getenv(s.env), binary{plugins: noPlugins, stamp: version.Stamp()}, exits)
 	go func() {
 		s.done <- exits.of(program.Run(ctx, []string{"serve"}, strings.NewReader(""), io.Discard, io.Discard))
 	}()

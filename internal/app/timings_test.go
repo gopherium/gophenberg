@@ -54,6 +54,10 @@ func TestRunConfigTrimsEverySetting(t *testing.T) {
 		{"GOPHENBERG_CACHE_ADMIN_ASSET_MAX_AGE", " 720h ",
 			func(c runConfig) string { return c.cacheAdminAssetMaxAge.String() }, "720h0m0s"},
 		{"GOPHENBERG_SHUTDOWN_GRACE", " 20s ", func(c runConfig) string { return c.serving.Grace.String() }, "20s"},
+		{"GOPHENBERG_PLUGIN_HOOK_BUDGET", " 5ms ",
+			func(c runConfig) string { return c.pluginHookBudget.String() }, "5ms"},
+		{"GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS", " 40 ",
+			func(c runConfig) string { return strconv.Itoa(c.pluginHookTimedFirings) }, "40"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
@@ -369,12 +373,44 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		"an upload timeout that is not a duration":     {"GOPHENBERG_UPLOAD_TIMEOUT", "slow"},
 		"an upload timeout standing at zero":           {"GOPHENBERG_UPLOAD_TIMEOUT", "0s"},
 		"an upload timeout below zero":                 {"GOPHENBERG_UPLOAD_TIMEOUT", "-5m"},
+
+		"a hook budget that is not a duration":    {"GOPHENBERG_PLUGIN_HOOK_BUDGET", "brief"},
+		"a hook budget standing at zero":          {"GOPHENBERG_PLUGIN_HOOK_BUDGET", "0s"},
+		"a hook budget below zero":                {"GOPHENBERG_PLUGIN_HOOK_BUDGET", "-1ms"},
+		"timed firings that are not a number":     {"GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS", "plenty"},
+		"timed firings standing at zero":          {"GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS", "0"},
+		"timed firings below zero":                {"GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS", "-3"},
+		"timed firings one past the most allowed": {"GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS", "1001"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			wantSettingRefused(t, asked.key, asked.value)
 		})
+	}
+}
+
+func TestLoadRunConfigGivesPluginHooksTheirDefaults(t *testing.T) {
+	t.Parallel()
+
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL}))
+
+	want := runConfig{pluginHookBudget: 2 * time.Millisecond, pluginHookTimedFirings: 20}.hookSettings()
+	if err != nil || settings.hookSettings() != want {
+		t.Errorf("loadRunConfig() = %+v (%v), want the hook settings %+v", settings.hookSettings(), err, want)
+	}
+}
+
+func TestLoadRunConfigTakesTheMostTimedFiringsAllowed(t *testing.T) {
+	t.Parallel()
+
+	settings, err := loadRunConfig(testkit.Getenv(map[string]string{
+		"GOPHENBERG_DATABASE_URL":              unreachableDatabaseURL,
+		"GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS": "1000",
+	}))
+
+	if err != nil || settings.pluginHookTimedFirings != 1000 {
+		t.Errorf("loadRunConfig() timed firings = %d (%v), want 1000", settings.pluginHookTimedFirings, err)
 	}
 }
 

@@ -252,7 +252,7 @@ func (p *pausingScenario) serve() error {
 		done: make(chan int, 1), stderr: &keptWatch{cancel: func() {}},
 	}
 	exits := &exitCodes{}
-	program := commandLine(testkit.Getenv(p.env), p.loaded(), exits, p.stamp)
+	program := commandLine(testkit.Getenv(p.env), p.built(), exits)
 	go func() {
 		site.done <- exits.of(program.Run(serving, []string{"serve"}, strings.NewReader(""), io.Discard, site.stderr))
 	}()

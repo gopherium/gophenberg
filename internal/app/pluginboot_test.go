@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -57,7 +58,10 @@ func (s refusingStore) Pause(ctx context.Context, id, failure string) error {
 // bootOver returns a start over store and no database, its plugins lent no share.
 func bootOver(store pluginkit.PluginStore) boot {
 	return boot{
-		settings: runConfig{pluginStartBudget: time.Second, serving: servingDefaults},
+		settings: runConfig{
+			pluginStartBudget: time.Second, pluginHookBudget: time.Second, pluginHookTimedFirings: 20,
+			serving: servingDefaults,
+		},
 		built: site{
 			pluginRecords: store, roles: goncierge.New(), defaultRole: role.Member, lane: &pluginLane{sqlite: true},
 			accounts: accountbridge.New(nil, accountbridge.Options{}),
@@ -105,6 +109,16 @@ func (handlerless) Routes() http.Handler {
 	return nil
 }
 
+// unlisted is an idle plugin that adds head tags without listing the hook.
+type unlisted struct {
+	idle
+}
+
+// HeadTags adds no tag.
+func (unlisted) HeadTags(context.Context, sdk.PageMeta) ([]sdk.HeadTag, error) {
+	return nil, nil
+}
+
 // activeRecord returns the record of the plugin id active with no error.
 func activeRecord(id string) pluginkit.PluginRecord {
 	return pluginkit.PluginRecord{ID: id, State: pluginkit.PluginActive}
@@ -136,6 +150,10 @@ func TestStartPluginsStopsWhenThePluginStoreFails(t *testing.T) {
 		"a routes pause": {
 			refusingStore{Memory: pluginstoretest.NewMemory(activeRecord("notes")), writes: true},
 			listOf(handlerless{idle: "notes"}), "pluginkit: pause notes: connection dropped",
+		},
+		"a hooks pause": {
+			refusingStore{Memory: pluginstoretest.NewMemory(activeRecord("notes")), writes: true},
+			listOf(unlisted{idle: "notes"}), "pluginkit: pause notes: connection dropped",
 		},
 		"a plugin that starts again": {refusingStore{Memory: pluginstoretest.NewMemory(paused), writes: true},
 			listOf(idle("notes")), "pluginkit: activate notes: connection dropped"},
@@ -171,6 +189,62 @@ func TestStartPluginsPausesAPluginUnderTheIDItHadBeforeItsStepPanicked(t *testin
 	if err != nil || records["turncoat"] != want {
 		t.Errorf("Records() = %+v (%v), want %+v", records, err, want)
 	}
+}
+
+func TestStartPluginsStopsWhenTheHookSettingsAreRefused(t *testing.T) {
+	t.Parallel()
+
+	start := bootOver(pluginstoretest.NewMemory())
+	start.settings.pluginHookBudget = 0
+
+	started, err := start.startPlugins(t.Context(), listOf(idle("notes")))
+
+	if err == nil || !strings.Contains(err.Error(), "the budget must stand above zero") {
+		t.Errorf("startPlugins() = %v, want the hook settings refused", err)
+	}
+	if started.host == nil {
+		t.Error("startPlugins() answered no host, want one a stop can reach")
+	}
+}
+
+func TestStartPluginsBuildsTheHooksOverTheStartedPluginsOnly(t *testing.T) {
+	t.Parallel()
+
+	start := bootOver(pluginstoretest.NewMemory())
+	start.listed = listedHooks{byPlugin: map[string][]string{
+		"heads": {sdk.HeadTagsHook}, "fails": {sdk.HeadTagsHook},
+	}}
+
+	started, err := start.startPlugins(t.Context(), listOf(heads{idle: "heads"}, failingHeads{heads{idle: "fails"}}))
+
+	if err != nil {
+		t.Fatalf("startPlugins() = %v, want the site to start", err)
+	}
+	got := started.hooks.HeadTags(t.Context(), sdk.PageMeta{})
+	want := []sdk.HeadTag{{Tag: "meta", Attrs: []sdk.Attr{{Key: "name", Value: "heads"}}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("HeadTags() = %+v, want the tags of the started plugin alone %+v", got, want)
+	}
+}
+
+// heads is an idle plugin that adds a meta tag named after its id.
+type heads struct {
+	idle
+}
+
+// HeadTags adds a meta tag named after the plugin's id.
+func (h heads) HeadTags(context.Context, sdk.PageMeta) ([]sdk.HeadTag, error) {
+	return []sdk.HeadTag{{Tag: "meta", Attrs: []sdk.Attr{{Key: "name", Value: h.ID()}}}}, nil
+}
+
+// failingHeads is a plugin that adds head tags and fails to start.
+type failingHeads struct {
+	heads
+}
+
+// Start fails.
+func (failingHeads) Start(context.Context) error {
+	return errors.New("no route table")
 }
 
 func TestDeclarePluginsRefusesACoreTableTheRegistryRefuses(t *testing.T) {
