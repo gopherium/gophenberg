@@ -55,11 +55,12 @@ Feature: Plugins add tags to the head of the site's pages through a hook
     And the site logged that the hook "public.head-tags" of "notes" failed with "<error>"
 
     Examples:
-      | tag                                    | left out    | error                                                                      |
-      | a script tag                           | script      | dropped the head tag script: only meta and link are kept                   |
-      | a link to "javascript:alert(1)"        | javascript: | dropped the head tag link: its href must be an http, https or site address |
-      | a meta tag whose attribute is "on top" | on top      | dropped the head tag meta: its attribute "on top" is not a lowercase name  |
-      | a meta tag whose attribute is "2col"   | 2col        | dropped the head tag meta: its attribute "2col" is not a lowercase name    |
+      | tag                                    | left out    | error                                                                            |
+      | a script tag                           | script      | dropped the head tag script: only meta and link are kept                         |
+      | a link to "javascript:alert(1)"        | javascript: | dropped the head tag link: its href must be an http, https or site address       |
+      | a meta tag whose attribute is "on top" | on top      | dropped the head tag meta: its attribute "on top" is not a lowercase name        |
+      | a meta tag whose attribute is "2col"   | 2col        | dropped the head tag meta: its attribute "2col" is not a lowercase name          |
+      | a meta tag whose attribute is "onload" | onload      | dropped the head tag meta: its attribute "onload" runs script or styles the page |
 
   Scenario: A plugin still adding head tags when the hook's time runs out leaves the page whole
     Given GOPHENBERG_PLUGIN_HOOK_BUDGET is "1ns"
