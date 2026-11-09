@@ -4,9 +4,10 @@ Feature: A site keeps running when one plugin fails at start
   The first start that sees a plugin records it as active. Each start
   registers the active and paused plugins one by one. A plugin that fails
   or panics as it registers, migrates, declares its roles or content
-  types, or starts is paused with its error, the way WordPress's
-  recovery mode pauses a plugin, and the rest of the site starts. A
-  paused plugin is left out of the site and tried again at every start.
+  types, hands over its routes, or starts is paused with its error, the
+  way WordPress's recovery mode pauses a plugin, and the rest of the site
+  starts. A paused plugin is left out of the site and tried again at
+  every start.
   An inactive plugin, one turned off on purpose, is never tried. A start
   cut short by a shutdown pauses nothing.
 
@@ -97,6 +98,22 @@ Feature: A site keeps running when one plugin fails at start
       | Roles        | roles    | plugin notes roles panicked: boom        |
       | DeclareTypes | types    | plugin notes types panicked: boom        |
       | Start        | start    | pluginkit: notes start panicked: boom    |
+
+  @wip
+  Scenario Outline: A plugin whose routes fail to load is paused and never starts
+    Given <trouble>
+    When the site serves
+    Then the route of "events" answers 200
+    And the route of "notes" answers 404
+    And the Start of "notes" never ran
+    And the plugin records hold "notes" as paused, its error saying "<error>"
+    And the site logged that "notes" is paused at the step "routes"
+
+    Examples:
+      | trouble                                       | error                                               |
+      | the Routes of "notes" panics with "boom"      | pluginkit: notes routes panicked: boom              |
+      | the PublicPaths of "notes" panics with "boom" | pluginkit: notes routes panicked: boom              |
+      | the Routes of "notes" answers no handler      | pluginkit: notes routes: Routes answered no handler |
 
   Scenario: A paused plugin that starts again is active with no error
     Given the plugin records already hold "notes" as paused with "a setting is missing"
