@@ -237,10 +237,10 @@ const LISTINGS = [
  * @param side - The edge or size of the box to read.
  * @returns The poll that reads it until it holds still.
  */
-function frameBox(page: Page, side: 'width' | 'bottom') {
+function frameBox(page: Page, side: 'width' | 'left') {
 	return expect.poll(async () => {
 		const box = await page.getByRole('dialog').or(page.getByRole('alertdialog')).boundingBox()
-		return Math.round(side === 'width' ? (box?.width ?? 0) : (box?.y ?? 0) + (box?.height ?? 0))
+		return Math.round(side === 'width' ? (box?.width ?? 0) : (box?.x ?? 0))
 	})
 }
 
@@ -518,48 +518,6 @@ for (const { speed, hold } of LISTINGS) {
 
 		await expect(page.locator('.godmin-toast', { hasText: 'Media file updated.' })).toBeVisible()
 		await expect(trigger).toBeFocused()
-	})
-}
-
-test('scrolls the fields of Edit media at 1280 by 900 from the keyboard, through a pane named Scrollable section', async ({
-	page,
-}) => {
-	const title = `${LIBRARY}-scrolled`
-	await stored(page, title)
-	await page.setViewportSize(LAPTOP)
-	await openCardMenu(page, title)
-	await page.getByRole('menuitem', { name: 'Edit…' }).click()
-	const dialog = page.getByRole('dialog', { name: 'Edit media' })
-	const pane = dialog.locator('.gophenberg-media__edit-fields')
-	const dimensions = pane.getByText('Dimensions', { exact: true })
-	const header = dialog.locator('.components-modal__header')
-	await dialog.getByRole('textbox', { name: 'Description' }).focus()
-	await expect(dimensions).not.toBeInViewport()
-	await expect(header).toHaveCSS('border-bottom-color', 'rgba(0, 0, 0, 0)')
-
-	for (const stop of ['Cancel', 'Save', 'Close']) {
-		await page.keyboard.press('Tab')
-		await expect(dialog.getByRole('button', { name: stop })).toBeFocused()
-	}
-	await page.keyboard.press('Tab')
-	await expect(dialog.getByRole('document', { name: 'Scrollable section' })).toBeFocused()
-	await expect(pane).toHaveCSS('box-shadow', /inset$/)
-	await page.keyboard.press('End')
-
-	await expect(dimensions).toBeInViewport()
-	await expect(header).not.toHaveCSS('border-bottom-color', 'rgba(0, 0, 0, 0)')
-	await expect.poll(() => gapUnder(dimensions)).toBeGreaterThanOrEqual(24)
-})
-
-/**
- * Measures the space between the bottom of a field and the bottom edge of the Edit pane it scrolls in.
- * @param field - A field inside the pane.
- * @returns The gap in CSS pixels.
- */
-function gapUnder(field: Locator): Promise<number> {
-	return field.evaluate((element) => {
-		const pane = element.closest('.gophenberg-media__edit-fields') as Element
-		return Math.round(pane.getBoundingClientRect().bottom - element.getBoundingClientRect().bottom)
 	})
 }
 
@@ -923,7 +881,9 @@ test('holds a sort from one Image block to the next in a post, and opens newest 
 test.describe('on a phone', () => {
 	test.use({ viewport: PHONE, isMobile: true, hasTouch: true })
 
-	test('lists the library one file per row and opens Edit media as a sheet from a tap on a row', async ({ page }) => {
+	test('lists the library one file per row and opens Edit media as a card in the middle from a tap on a row', async ({
+		page,
+	}) => {
 		const title = `${LIBRARY}-phone`
 		await stored(page, title)
 
@@ -933,18 +893,18 @@ test.describe('on a phone', () => {
 		await expect(page.locator('.dataviews-view-grid')).toHaveCount(0)
 		await page.getByRole('button', { name: new RegExp(`^${title}`) }).tap()
 		await expect(page.getByRole('dialog', { name: 'Edit media' })).toBeVisible()
-		await frameBox(page, 'width').toBe(PHONE.width)
-		await frameBox(page, 'bottom').toBe(PHONE.height)
+		await frameBox(page, 'width').toBe(PHONE.width - 48)
+		await frameBox(page, 'left').toBe(24)
 	})
 
-	test('keeps Cancel and Save of Edit media in view in the sheet, the fields scrolling above them', async ({ page }) => {
-		const title = `${LIBRARY}-sheet`
+	test('keeps Cancel and Save of Edit media in view in the card, the fields scrolling above them', async ({ page }) => {
+		const title = `${LIBRARY}-card`
 		await stored(page, title)
 		await page.goto(`/admin/media?search=${LIBRARY}`)
 
 		await page.getByRole('button', { name: new RegExp(`^${title}`) }).tap()
 		const dialog = page.getByRole('dialog', { name: 'Edit media' })
-		await frameBox(page, 'bottom').toBe(PHONE.height)
+		await frameBox(page, 'left').toBe(24)
 
 		await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeInViewport({ ratio: 1 })
 		await expect(dialog.getByRole('button', { name: 'Save' })).toBeInViewport({ ratio: 1 })
@@ -970,7 +930,7 @@ test.describe('on a phone', () => {
 		})
 	}
 
-	test('gives the focus back to the tapped row once Edit media fails to save and a slow server lists again', async ({
+	test('gives the focus back to the tapped row once a failed Edit media said why inside and was cancelled', async ({
 		page,
 	}) => {
 		const title = `${LIBRARY}-tap-failed`
@@ -984,8 +944,11 @@ test.describe('on a phone', () => {
 		await page.route('**/api/media/*', (route) => (route.request().method() === 'PATCH' ? route.abort() : route.continue()))
 		await slowListings(page)
 		await dialog.getByRole('button', { name: 'Save' }).tap()
+		await expect(dialog.getByText('Could not save image.')).toBeVisible()
+		await expect(page.locator('.godmin-toast')).toHaveCount(0)
+		await dialog.getByRole('button', { name: 'Cancel' }).tap()
 
-		await expect(page.locator('.godmin-toast', { hasText: 'Could not save image.' })).toBeVisible()
+		await expect(dialog).toHaveCount(0)
 		await expect(trigger).toBeFocused()
 	})
 })

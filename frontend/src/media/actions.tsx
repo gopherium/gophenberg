@@ -2,7 +2,7 @@
 
 import { sessionMayChange, trashIcon } from '@gophenberg/frontend-sdk'
 import type { Action } from '@gophenberg/frontend-sdk/dataviews'
-import { focusedTrigger, useBulkRun, useUnsavedText } from '@gopherium/godmin'
+import { focusedTrigger, useBulkRun, useDialogRun } from '@gopherium/godmin'
 import type { ListRun } from '@gopherium/godmin'
 import { useSession } from '@gopherium/react-auth'
 import { useQueryClient } from '@tanstack/react-query'
@@ -10,7 +10,7 @@ import { __, _x } from '@wordpress/i18n'
 import { useCallback, useMemo } from 'react'
 
 import { mediaQueryKey, mediaSrc } from './api'
-import type { MediaDescriptions, MediaItem } from './api'
+import type { MediaItem } from './api'
 import { displayFile } from './format'
 import type { MediaTools, OpenedDialog } from './MediaModals'
 
@@ -42,10 +42,10 @@ export function useMayChange(): (item: MediaItem) => boolean {
  */
 export function useMediaTools(list: ListRun): MediaTools {
 	const client = useQueryClient()
-	const run = useBulkRun<MediaItem>(list, useRefreshMedia())
-	const edits = useUnsavedText<MediaDescriptions>()
-	const renames = useUnsavedText()
-	return useMemo(() => ({ client, run, edits, renames }), [client, edits, renames, run])
+	const refresh = useRefreshMedia()
+	const run = useBulkRun<MediaItem>(list, refresh)
+	const write = useDialogRun<MediaItem>(list, refresh)
+	return useMemo(() => ({ client, run, write }), [client, run, write])
 }
 
 /**

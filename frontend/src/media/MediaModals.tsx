@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { InputControl } from '@gophenberg/frontend-sdk'
+import { ValidatedInputControl, ValidatedTextareaControl } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
-import type { Form } from '@gophenberg/frontend-sdk/dataviews'
-import { ConfirmDialog, FormDialog, markLatest } from '@gopherium/godmin'
-import type { BulkRun, BulkWords, Trigger, UnsavedText } from '@gopherium/godmin'
+import type { DataFormControlProps, Field, Form } from '@gophenberg/frontend-sdk/dataviews'
+import { ConfirmDialog, FormDialog, RenameDialog } from '@gopherium/godmin'
+import type { BulkRun, BulkWords, DialogRun, Trigger } from '@gopherium/godmin'
 import type { QueryClient } from '@tanstack/react-query'
 import { __ } from '@wordpress/i18n'
-import { useMemo, useState } from 'react'
+import { createContext, useContext, useMemo, useState } from 'react'
 
 import { holdWrite, writesSettled } from '../content/postWrites'
-import { useRenameSend } from '../lists/RenameModal'
-import { deleteTitle, deleteWords, irreversible } from '../lists/itemWords'
+import { deleteTitle, deleteWords, irreversible, nameWords } from '../lists/itemWords'
 import { deleteMedia, editMedia } from './api'
 import type { MediaDescriptions, MediaItem } from './api'
 import { mediaFields } from './fields'
-import { FieldsPane } from './FieldsPane'
 import { saveFailure, titleOf } from './format'
 
 /** What the actions of the media library need from the screen around them. */
@@ -24,10 +22,8 @@ export interface MediaTools {
 	client: QueryClient
 	/** Runs a call over files, the list reloading once the last call ended. */
 	run: BulkRun<MediaItem>
-	/** The fields failed edits left unsaved. */
-	edits: UnsavedText<MediaDescriptions>
-	/** The names failed renames left unsaved, the store the latest write of each file is marked on. */
-	renames: UnsavedText
+	/** Runs the write of a dialog on one file and answers the dialog, the list reloading once the write ended. */
+	write: DialogRun<MediaItem>
 }
 
 /** A dialog the screen holds open on one file, so a card moving to another row of the grid never takes it away. */
@@ -59,10 +55,8 @@ interface MediaDialogProps {
 	item: MediaItem
 	/** What the dialog needs from the screen. */
 	tools: MediaTools
-	/** Takes the dialog away. */
+	/** Takes the dialog away, once its card has left the page. */
 	onClose: () => void
-	/** Puts a focus the list lost while it read the library again back on the trigger the dialog opened from. */
-	onSettled: () => void
 }
 
 /** The layout of a field a reader writes in, its label on top, as WordPress lays out the attachment form. */
@@ -110,20 +104,6 @@ function editInTurn(client: QueryClient, item: MediaItem, edits: MediaDescriptio
 }
 
 /**
- * Drops the title a failed edit of a file kept, leaving the other fields it kept.
- * @param edits - The fields failed edits left unsaved.
- * @param id - The file a rename now goes to.
- */
-function dropKeptTitle(edits: UnsavedText<MediaDescriptions>, id: string) {
-	const kept = edits.get(id)
-	if (kept !== undefined) {
-		const others = { ...kept }
-		delete others.title
-		edits.set(id, others)
-	}
-}
-
-/**
  * Returns the words an edit of a file reads as.
  * @returns The words for the edit that landed and for the one that failed, naming what kind of file it was.
  */
@@ -134,96 +114,128 @@ function editWords(): BulkWords<MediaItem> {
 	}
 }
 
+/** Whether the edit of a file waits on its save, its boxes then read only. */
+const Saving = createContext(false)
+
 /**
- * Returns the form editing a file and its send, which closes the dialog at once, as WordPress closes a row edit.
- * @param item - The file.
- * @param tools - What the dialog needs from the screen.
- * @param close - Takes the dialog away.
- * @param settled - Puts a focus the list lost while it read the library again back on the trigger Edit opened from.
- * @returns The props of the form and the send.
+ * Returns the props DataForm hands the box of a field, its help drawn under it as the details that hold a link.
+ * @param props - The file, the field, the handler of a change and how the label shows.
+ * @returns The props of the box.
  */
-function useEditMedia(item: MediaItem, tools: MediaTools, close: () => void, settled: () => void) {
-	const id = String(item.id)
-	const fields = useMemo(() => mediaFields(), [])
-	const [typed, setTyped] = useState<MediaDescriptions>(() => tools.edits.get(id) ?? {})
-	const save = () => {
-		close()
-		tools.edits.delete(id)
-		if (typed.title !== undefined) {
-			tools.renames.delete(id)
-		}
-		const stillLatest = markLatest(tools.renames, id)
-		const unreached = __('The server could not be reached, so nothing was saved.', 'gophenberg')
-		const write = () =>
-			editInTurn(tools.client, item, typed, unreached).catch((failure: unknown) => {
-				if (stillLatest()) {
-					tools.edits.set(id, typed)
-				}
-				throw failure
-			})
-		void tools.run([item], write, editWords()).then(settled)
+function boxProps({ data, field, onChange, hideLabelFromVision, markWhenOptional }: DataFormControlProps<MediaItem>) {
+	const { label, placeholder, description, getValue, setValue, isValid } = field
+	return {
+		required: Boolean(isValid.required),
+		markWhenOptional,
+		label,
+		placeholder,
+		value: getValue({ item: data }),
+		details: description,
+		onValueChange: (value: string) => onChange(setValue({ item: data, value })),
+		hideLabelFromVision,
+		disabled: field.isDisabled({ item: data, field }),
 	}
-	const onChange = (changed: MediaDescriptions) => setTyped((now) => ({ ...now, ...changed }))
-	return { form: { data: { ...item, ...typed }, fields, form: EDIT_FORM, onChange }, save }
 }
 
 /**
- * Renders Edit on a file, closed the moment Save is pressed, its fields scrolling in a pane above Cancel and Save as
- * WordPress's media editor scrolls them.
- * @param props - The file, what the dialog needs from the screen, what takes the dialog away and what gives the focus
- *   back once the write read the library again.
+ * Renders the one line box of a field, as DataForm draws it, read only while the save runs.
+ * @param props - The file, the field, the handler of a change and how the label shows.
+ * @returns The box.
+ */
+function HeldInput(props: DataFormControlProps<MediaItem>) {
+	const saving = useContext(Saving)
+	return <ValidatedInputControl {...boxProps(props)} readOnly={saving} />
+}
+
+/**
+ * Returns the box of several lines of a field, as DataForm draws it, read only while the save runs.
+ * @param rows - How many lines the box shows, the default of the box when absent.
+ * @returns The box.
+ */
+function heldTextarea(rows: number | undefined) {
+	return function HeldTextarea(props: DataFormControlProps<MediaItem>) {
+		const saving = useContext(Saving)
+		return <ValidatedTextareaControl {...boxProps(props)} rows={rows} readOnly={saving} />
+	}
+}
+
+/**
+ * Returns a field of a file with its box swapped for one that turns read only while the save runs.
+ * @param field - The field.
+ * @returns The field, unchanged when a reader only reads it.
+ */
+function heldWhileSaving(field: Field<MediaItem>): Field<MediaItem> {
+	if (field.readOnly === true || field.type !== 'text') {
+		return field
+	}
+	const edit = field.Edit
+	if (typeof edit === 'object' && edit.control === 'textarea') {
+		return { ...field, Edit: heldTextarea(edit.rows) }
+	}
+	return { ...field, Edit: HeldInput }
+}
+
+/**
+ * Returns the form editing a file and its send, which holds the dialog open until the write answers.
+ * @param item - The file.
+ * @param tools - What the dialog needs from the screen.
+ * @returns The props of the form, whose boxes stay in place and turn read only while the write runs, and the send.
+ */
+function useEditMedia(item: MediaItem, tools: MediaTools) {
+	const fields = useMemo(() => mediaFields().map(heldWhileSaving), [])
+	const [typed, setTyped] = useState<MediaDescriptions>({})
+	const save = () => {
+		const unreached = __('The server could not be reached, so nothing was saved.', 'gophenberg')
+		return tools.write([item], (file) => editInTurn(tools.client, file, typed, unreached), editWords())
+	}
+	const onChange = (changed: MediaDescriptions) => setTyped((now) => ({ ...now, ...changed }))
+	const form = { data: { ...item, ...typed }, fields, form: EDIT_FORM, onChange }
+	return { form, save }
+}
+
+/**
+ * Renders Edit on a file, open until the write answers.
+ * @param props - The file, what the dialog needs from the screen and what takes the dialog away.
  * @returns The dialog.
  */
-function EditMediaDialog({ item, tools, onClose, onSettled }: MediaDialogProps) {
-	const edit = useEditMedia(item, tools, onClose, onSettled)
+function EditMediaDialog({ item, tools, onClose }: MediaDialogProps) {
+	const edit = useEditMedia(item, tools)
 	return (
 		<FormDialog
 			title={__('Edit media', 'gophenberg')}
-			size="medium"
-			kind="edit"
 			submitLabel={__('Save', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
 			onSubmit={edit.save}
 			onClose={onClose}
 		>
-			<FieldsPane>
-				<DataForm {...edit.form} />
-			</FieldsPane>
+			{(busy) => (
+				<Saving.Provider value={busy}>
+					<DataForm {...edit.form} />
+				</Saving.Provider>
+			)}
 		</FormDialog>
 	)
 }
 
 /**
- * Renders the rename of a file, closed the moment Save is pressed, its write marked as the latest one to the file
- * across Edit and Rename.
+ * Renders the rename of a file, open until the write answers.
  * @param props - The file, what the dialog needs from the screen and what takes the dialog away.
  * @returns The dialog.
  */
-function RenameMediaDialog({ item, tools, onClose, onSettled }: MediaDialogProps) {
-	const [name, setName] = useState(() => tools.renames.get(String(item.id)) ?? item.title)
+function RenameMediaDialog({ item, tools, onClose }: MediaDialogProps) {
 	const unreached = __('The name could not be updated.', 'gophenberg')
-	const send = useRenameSend(item, onClose, {
-		idOf: (file) => String(file.id),
-		rename: (file, typed) => {
-			dropKeptTitle(tools.edits, String(file.id))
-			return editInTurn(tools.client, file, { title: typed }, unreached)
-		},
-		run: tools.run,
-		unsaved: tools.renames,
-	})
 	return (
-		<FormDialog
+		<RenameDialog
 			title={__('Rename', 'gophenberg')}
-			size="medium"
-			kind="edit"
+			name={item.title}
+			fieldLabel={__('Name', 'gophenberg')}
 			submitLabel={__('Save', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			canSubmit={name.trim() !== ''}
-			onSubmit={() => void send(name).then(onSettled)}
+			onSubmit={(name) =>
+				tools.write([item], (file) => editInTurn(tools.client, file, { title: name }, unreached), nameWords())
+			}
 			onClose={onClose}
-		>
-			<InputControl label={__('Name', 'gophenberg')} value={name} onValueChange={setName} />
-		</FormDialog>
+		/>
 	)
 }
 
@@ -258,9 +270,8 @@ function DeleteMediaConfirm({ items, tools, onClose }: {
 /**
  * Renders the dialog the screen holds open on one file or on the picked files, none while no dialog is open.
  * @param props - The dialog, its files and the trigger it opened from, what it needs from the screen, what takes it
- *   away and what puts a lost focus back on the trigger a dialog on a file opened from.
- * @returns The dialog, giving the focus back to the trigger it opened from once it closed and once its write read the
- *   library again.
+ *   away and what puts a lost focus back on the trigger it opened from.
+ * @returns The dialog, giving the focus back to the trigger it opened from once it closed.
  */
 export function OpenMediaDialog({
 	opened,
@@ -270,19 +281,18 @@ export function OpenMediaDialog({
 }: {
 	opened?: OpenedDialog
 	onBack: (id: string, trigger: Trigger) => void
-} & Omit<MediaDialogProps, 'item' | 'onSettled'>) {
+} & Omit<MediaDialogProps, 'item'>) {
 	if (opened === undefined) {
 		return null
 	}
 	const [first] = opened.action === 'delete' ? opened.items : [opened.item]
-	const back = () => onBack(String(first.id), opened.trigger)
 	const close = () => {
 		onClose()
-		back()
+		onBack(String(first.id), opened.trigger)
 	}
 	if (opened.action === 'delete') {
 		return <DeleteMediaConfirm items={opened.items} tools={tools} onClose={close} />
 	}
 	const Dialog = OPENED_DIALOGS[opened.action]
-	return <Dialog key={`${opened.action} ${first.id}`} item={first} tools={tools} onClose={close} onSettled={back} />
+	return <Dialog key={`${opened.action} ${first.id}`} item={first} tools={tools} onClose={close} />
 }
