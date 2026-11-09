@@ -25,12 +25,13 @@ import { useSession } from '@gopherium/react-auth'
 import { useQuery } from '@tanstack/react-query'
 import type { QueryKey, UseQueryResult } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type { ListSettings } from '../settings/api'
 import { useListSettings } from '../settings/useListSettings'
-import { usePostActions } from './actions'
+import { OpenPostDialog, usePostActions, usePostTools } from './actions'
+import type { OpenedPosts } from './actions'
 import { listPosts } from './api'
 import type { Post, PostPage, PostQuery } from './api'
 import { EmptyTrash } from './EmptyTrash'
@@ -327,7 +328,9 @@ export function PostsScreen() {
 	const status = current ?? ''
 	const { list, columns, view, settings, posts, waiting, registered } = usePostList(listed, status)
 	const { run, region, refreshing } = useListRun(`${listed.key} ${status}`, list.onChangeSelection)
-	const actions = usePostActions(status, listed, run)
+	const tools = usePostTools(run)
+	const [opened, setOpened] = useState<OpenedPosts>()
+	const actions = usePostActions(status, listed, tools, setOpened)
 	const held = useTrashTotal(listed.key, status)
 	const session = useSession().data
 	const addNew = useAddNew(listed)
@@ -362,6 +365,7 @@ export function PostsScreen() {
 				actions={actions}
 				refreshing={refreshing}
 			/>
+			<OpenPostDialog opened={opened} tools={tools} onClose={() => setOpened(undefined)} />
 		</Page>
 	)
 }

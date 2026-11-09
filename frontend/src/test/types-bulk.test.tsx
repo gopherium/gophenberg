@@ -95,13 +95,13 @@ test('deletes every picked type behind one confirm, counting them as content typ
 	await pick(['Pages', 'Guides'])
 
 	await userEvent.click(bulkBar().getByRole('button', { name: 'Delete…' }))
-	const dialog = await screen.findByRole('dialog')
-	expect(within(dialog).getByText('Delete 2 content types for good? This cannot be undone.')).toBeInTheDocument()
+	const dialog = await screen.findByRole('alertdialog')
+	expect(within(dialog).getByRole('heading', { name: 'Delete 2 content types?' })).toBeInTheDocument()
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
 	expect(await findToast('2 content types permanently deleted.')).toBeInTheDocument()
 	expect([...asked].sort()).toEqual(['delete guide', 'delete page'])
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
 test('says only what a partly refused bulk delete could not remove, in one toast', async () => {
@@ -110,7 +110,7 @@ test('says only what a partly refused bulk delete could not remove, in one toast
 	await pick(['Pages', 'Guides'])
 
 	await userEvent.click(bulkBar().getByRole('button', { name: 'Delete…' }))
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }))
+	await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete' }))
 
 	expect(await findToast('1 content type could not be permanently deleted.')).toBeInTheDocument()
 	expect(screen.queryByText('1 content type permanently deleted.')).not.toBeInTheDocument()
@@ -123,10 +123,8 @@ test('counts the content types a bulk delete removed in Spanish, with no word ag
 	await pick(['Páginas', 'Guides'], SPANISH)
 
 	await userEvent.click(bulkBar().getByRole('button', { name: 'Borrar…' }))
-	const dialog = await screen.findByRole('dialog')
-	expect(
-		within(dialog).getByText('¿Borrar permanentemente 2 tipos de contenido? Esto no se puede deshacer.'),
-	).toBeInTheDocument()
+	const dialog = await screen.findByRole('alertdialog')
+	expect(within(dialog).getByRole('heading', { name: '¿Borrar 2 tipos de contenido?' })).toBeInTheDocument()
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Borrar' }))
 
 	expect(await findToast('Se han borrado permanentemente 2 tipos de contenido.')).toBeInTheDocument()

@@ -2,8 +2,8 @@
 
 import { InputControl } from '@gophenberg/frontend-sdk'
 import { DataForm } from '@gophenberg/frontend-sdk/dataviews'
-import type { Form, RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
-import { FormDialog, RunConfirm, markLatest } from '@gopherium/godmin'
+import type { Form } from '@gophenberg/frontend-sdk/dataviews'
+import { ConfirmDialog, FormDialog, markLatest } from '@gopherium/godmin'
 import type { BulkRun, BulkWords, Trigger, UnsavedText } from '@gopherium/godmin'
 import type { QueryClient } from '@tanstack/react-query'
 import { __ } from '@wordpress/i18n'
@@ -11,7 +11,7 @@ import { useMemo, useState } from 'react'
 
 import { holdWrite, writesSettled } from '../content/postWrites'
 import { useRenameSend } from '../lists/RenameModal'
-import { deleteQuestion, deleteWords } from '../lists/itemWords'
+import { deleteTitle, deleteWords, irreversible } from '../lists/itemWords'
 import { deleteMedia, editMedia } from './api'
 import type { MediaDescriptions, MediaItem } from './api'
 import { mediaFields } from './fields'
@@ -30,11 +30,8 @@ export interface MediaTools {
 	renames: UnsavedText
 }
 
-/** What a row dialog of the media library takes beside the props DataViews hands a modal. */
-type MediaModalProps = RenderModalProps<MediaItem> & { tools: MediaTools }
-
 /** A dialog the screen holds open on one file, so a card moving to another row of the grid never takes it away. */
-export interface OpenedDialog {
+interface OpenedOnFile {
 	/** The action the dialog belongs to. */
 	action: 'edit' | 'rename'
 	/** The file the dialog is open on. */
@@ -42,6 +39,19 @@ export interface OpenedDialog {
 	/** The trigger the dialog opened from, which takes the focus back once the dialog is done. */
 	trigger: Trigger
 }
+
+/** The confirm the screen holds open on the picked files. */
+interface OpenedDelete {
+	/** The action the confirm belongs to. */
+	action: 'delete'
+	/** The files the confirm is open on. */
+	items: MediaItem[]
+	/** The trigger the confirm opened from, which takes the focus back once the confirm is done. */
+	trigger: Trigger
+}
+
+/** A dialog the screen holds open on one file or on the picked files. */
+export type OpenedDialog = OpenedOnFile | OpenedDelete
 
 /** What a dialog the screen holds open on one file takes. */
 interface MediaDialogProps {
@@ -221,9 +231,34 @@ function RenameMediaDialog({ item, tools, onClose, onSettled }: MediaDialogProps
 const OPENED_DIALOGS = { edit: EditMediaDialog, rename: RenameMediaDialog }
 
 /**
- * Renders the dialog the screen holds open on one file, none while no dialog is open.
- * @param props - The dialog, its file and the trigger it opened from, what it needs from the screen, what takes it away
- *   and what puts a lost focus back on the trigger a dialog on a file opened from.
+ * Renders the confirm deleting the picked files for good, busy until the run ends.
+ * @param props - The files, what the confirm needs from the screen and what takes it away.
+ * @returns The confirm.
+ */
+function DeleteMediaConfirm({ items, tools, onClose }: {
+	items: MediaItem[]
+	tools: MediaTools
+	onClose: () => void
+}) {
+	return (
+		<ConfirmDialog
+			intent="irreversible"
+			title={deleteTitle(items, titleOf)}
+			description={irreversible()}
+			confirmLabel={__('Delete permanently', 'gophenberg')}
+			cancelLabel={__('Cancel', 'gophenberg')}
+			onConfirm={() =>
+				tools.run(items, (item) => inTurn(tools.client, item.id, () => deleteMedia(item.id)), deleteWords(titleOf))
+			}
+			onClose={onClose}
+		/>
+	)
+}
+
+/**
+ * Renders the dialog the screen holds open on one file or on the picked files, none while no dialog is open.
+ * @param props - The dialog, its files and the trigger it opened from, what it needs from the screen, what takes it
+ *   away and what puts a lost focus back on the trigger a dialog on a file opened from.
  * @returns The dialog, giving the focus back to the trigger it opened from once it closed and once its write read the
  *   library again.
  */
@@ -239,40 +274,15 @@ export function OpenMediaDialog({
 	if (opened === undefined) {
 		return null
 	}
-	const Dialog = OPENED_DIALOGS[opened.action]
-	const back = () => onBack(String(opened.item.id), opened.trigger)
+	const [first] = opened.action === 'delete' ? opened.items : [opened.item]
+	const back = () => onBack(String(first.id), opened.trigger)
 	const close = () => {
 		onClose()
 		back()
 	}
-	return (
-		<Dialog
-			key={`${opened.action} ${opened.item.id}`}
-			item={opened.item}
-			tools={tools}
-			onClose={close}
-			onSettled={back}
-		/>
-	)
-}
-
-/**
- * Renders the confirm deleting the picked files for good, closing only itself once the run ends.
- * @param props - The files, the handler closing the modal and what the action needs from the screen.
- * @returns The confirm.
- */
-export function DeleteMediaModal({ items, closeModal, tools }: MediaModalProps) {
-	return (
-		<RunConfirm
-			items={items}
-			closeModal={closeModal}
-			confirmLabel={__('Delete permanently', 'gophenberg')}
-			cancelLabel={__('Cancel', 'gophenberg')}
-			run={(picked) =>
-				tools.run(picked, (item) => inTurn(tools.client, item.id, () => deleteMedia(item.id)), deleteWords(titleOf))
-			}
-		>
-			{deleteQuestion(items, titleOf)}
-		</RunConfirm>
-	)
+	if (opened.action === 'delete') {
+		return <DeleteMediaConfirm items={opened.items} tools={tools} onClose={close} />
+	}
+	const Dialog = OPENED_DIALOGS[opened.action]
+	return <Dialog key={`${opened.action} ${first.id}`} item={first} tools={tools} onClose={close} onSettled={back} />
 }

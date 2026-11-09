@@ -17,16 +17,15 @@ import {
 	PAGE_TYPE,
 	POST_TYPE,
 	SPANISH,
-	clickDimmedPage,
 	findToast,
 	menuItems,
+	openRowConfirm,
 	openRowDialog,
 	openRowMenu,
 	recordEdits,
 	refuseEdits,
 	rowOf,
 	serveTypes,
-	waitBusy,
 	warmTypesScreen,
 } from './typeFixtures'
 
@@ -43,7 +42,7 @@ const READERS = [
 		region: 'Tipos de contenido',
 		pages: 'Páginas',
 		makeDefault: 'Establecer como predeterminado…',
-		heading: 'Establecer como predeterminado',
+		heading: '¿Establecer «Páginas» como predeterminado?',
 		question: [
 			'El tipo Páginas responderá en la raíz.',
 			'El tipo Entradas pasa a /posts. Cambian todas las direcciones de ambos tipos.',
@@ -56,7 +55,7 @@ const READERS = [
 		region: 'Types de contenu',
 		pages: 'Pages',
 		makeDefault: 'Rendre par défaut…',
-		heading: 'Rendre par défaut',
+		heading: 'Rendre « Pages » par défaut ?',
 		question:
 			'Le type Pages répondra à la racine. Le type Articles passe à /posts. Toutes les adresses des deux types changent.',
 		nesting: "Arrêter l'imbrication",
@@ -451,22 +450,19 @@ test('offers the route word a refused move left unsaved when Change address open
 	expect(within(again).getByLabelText('Route word')).toHaveValue('sections')
 })
 
-test('asks before handing the root over in a medium dialog headed Make default, naming both types', async () => {
+test('asks before handing the root over in a confirm titled by the question, naming both types', async () => {
 	stubLayout()
 	const sent = recordEdits(PAGE_TYPE)
 	renderAt('/content-types')
 
-	const dialog = await openRowDialog('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default…')
 
-	expect(dialog).toHaveClass('has-size-medium')
-	expect(within(dialog).getByRole('heading', { name: 'Make default' })).toBeInTheDocument()
-	expect(
-		within(dialog).getByText(
-			'Pages will answer at the root. Posts moves to /posts. Every address of both types changes.',
-		),
-	).toBeInTheDocument()
+	expect(within(dialog).getByRole('heading', { name: 'Make "Pages" the default?' })).toBeInTheDocument()
+	expect(dialog).toHaveAccessibleDescription(
+		'Pages will answer at the root. Posts moves to /posts. Every address of both types changes.',
+	)
 	await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus())
-	expect(within(dialog).getByRole('button', { name: 'Make default' })).toBeInTheDocument()
+	expect(within(dialog).getByRole('button', { name: 'Make default' }).className).not.toMatch(/irreversible/)
 	expect(sent).toEqual([])
 })
 
@@ -478,7 +474,7 @@ test.each([
 	serveTypes({ ...POST_TYPE, default: false }, PAGE_TYPE, holder)
 	renderAt('/content-types')
 
-	const dialog = await openRowDialog('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default…')
 
 	const question = `Pages will answer at the root. ${plural} moves to /${word}. Every address of both types changes.`
 	expect(within(dialog).getByText(question)).toBeInTheDocument()
@@ -488,7 +484,7 @@ test('asks only where the type will answer when no type holds the root', async (
 	serveTypes({ ...POST_TYPE, default: false }, PAGE_TYPE)
 	renderAt('/content-types')
 
-	const dialog = await openRowDialog('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default…')
 
 	expect(within(dialog).getByText('Pages will answer at the root.')).toBeInTheDocument()
 })
@@ -498,7 +494,7 @@ test.each(READERS)('names the built-in types of Make default by kind for a $loca
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 	renderAt('/content-types')
 
-	const dialog = await openRowDialog(reader.pages, reader.makeDefault, reader)
+	const dialog = await openRowConfirm(reader.pages, reader.makeDefault, reader)
 
 	expect(within(dialog).getByRole('heading', { name: reader.heading })).toBeInTheDocument()
 	expect(within(dialog).getByText(reader.question)).toBeInTheDocument()
@@ -515,7 +511,7 @@ test('hands the root over once confirmed, busy with Cancel greyed until the writ
 		}),
 	)
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default…')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Make default' }))
 
@@ -525,29 +521,29 @@ test('hands the root over once confirmed, busy with Cancel greyed until the writ
 	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true')
 	answer.release()
 	expect(await screen.findByText('Default content type updated.', { selector: '.godmin-toast' })).toBeInTheDocument()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
 test('shows the reason a refused hand over gave in a toast, the confirm closed', async () => {
 	refuseEdits(PAGE_TYPE, 'content: the route word is reserved')
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default…')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Make default' }))
 
 	expect(await findToast('content: the route word is reserved')).toBeInTheDocument()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
 test('hands nothing over when the confirm is cancelled', async () => {
 	const sent = recordEdits(PAGE_TYPE)
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default…')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(sent).toEqual([])
 })
 
@@ -565,7 +561,7 @@ test('opens Make default without reading the registry again, naming the holder f
 	const before = reads
 
 	await userEvent.click(screen.getByRole('menuitem', { name: 'Make default…' }))
-	const dialog = await screen.findByRole('dialog')
+	const dialog = await screen.findByRole('alertdialog')
 	await aMoment()
 
 	const question = 'Pages will answer at the root. Posts moves to /posts. Every address of both types changes.'
@@ -633,12 +629,12 @@ test.each([
 test('lands the focus on the list once Make default takes the type out of the filtered list', async () => {
 	servePagesUntilEdited(PAGE_TYPE, { ...PAGE_TYPE, default: true, route_word: '' })
 	renderAt(narrowedTo('isNone', 'default'))
-	const dialog = await openRowDialog('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default…')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Make default' }))
 
 	await findToast('Default content type updated.')
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	await waitListFocused()
 })
 
@@ -680,13 +676,13 @@ test('shows the toast of a nesting switch, then marks the list until the registr
 test('closes Make default as its toast shows and marks the list until the registry answers', async () => {
 	recordEdits(PAGE_TYPE)
 	renderAt('/content-types')
-	const dialog = await openRowDialog('Pages', 'Make default…')
+	const dialog = await openRowConfirm('Pages', 'Make default…')
 	holdReads('/api/types')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Make default' }))
 
 	await findToast('Default content type updated.')
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	await waitMarked()
 })
 
@@ -750,28 +746,6 @@ test('keeps the focus in a Describe opened while an Activate that empties the fi
 	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 
 	expect(field).toHaveFocus()
-})
-
-test('leaves a Describe opened after a hand over dismissed by the dimmed page open once it ends', async () => {
-	const answer = gate()
-	server.use(
-		http.patch('/api/types/page', async () => {
-			await answer.held
-			return HttpResponse.json({ error: 'content: down' }, { status: 500 })
-		}),
-	)
-	renderAt('/content-types')
-	const confirm = await openRowDialog('Pages', 'Make default…')
-	await userEvent.click(within(confirm).getByRole('button', { name: 'Make default' }))
-	await waitBusy(confirm, 'Make default')
-	await clickDimmedPage()
-	const describe = await openRowDialog('Pages', 'Describe…')
-
-	answer.release()
-	await screen.findByText('content: down', { selector: '.godmin-toast' })
-	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
-
-	expect(screen.getByRole('dialog', { name: 'Describe' })).toBe(describe)
 })
 
 test('stops a type nesting from its menu, saying the type was updated', async () => {

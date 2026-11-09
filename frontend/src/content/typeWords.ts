@@ -4,7 +4,7 @@ import type { BulkWords } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, _n, _x, sprintf } from '@wordpress/i18n'
 
-import { deleteQuestion, itemWords } from '../lists/itemWords'
+import { deleteTitle, itemWords } from '../lists/itemWords'
 import { pluralOf } from './typeText'
 import type { ContentType } from './types'
 
@@ -65,19 +65,14 @@ export function removalWords(): BulkWords<ContentType> {
 }
 
 /**
- * Returns the question asked before types are deleted for good.
+ * Returns the title of the confirm asked before types are deleted for good.
  * @param types - The types picked.
  * @returns The question naming the type when only one was picked, else counting content types.
  */
-export function removalQuestion(types: ContentType[]): string {
+export function removalTitle(types: ContentType[]): string {
 	if (types.length === 1) {
-		return deleteQuestion(types, pluralOf)
+		return deleteTitle(types, pluralOf)
 	}
-	const many = _n(
-		'Delete %s content type for good? This cannot be undone.',
-		'Delete %s content types for good? This cannot be undone.',
-		types.length,
-		'gophenberg',
-	)
+	const many = _n('Delete %s content type?', 'Delete %s content types?', types.length, 'gophenberg')
 	return sprintf(many, formatNumber(types.length))
 }

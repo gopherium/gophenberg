@@ -39,7 +39,7 @@ import { listMedia, mediaQueryKey, uploadMedia } from './api'
 import type { MediaItem, MediaPage, MediaQuery } from './api'
 import { MEDIA_SORT, MEDIA_VIEW_GUARD, libraryFields, mediaListing } from './fields'
 import { OpenMediaDialog } from './MediaModals'
-import type { MediaTools, OpenedDialog } from './MediaModals'
+import type { OpenedDialog } from './MediaModals'
 import { refusedLines, uploadWords } from './uploadWords'
 
 /** The width a card of the grid opens at, the one DataViews draws by default. */
@@ -238,9 +238,9 @@ function openTapped(
 
 /**
  * Renders the items of the library, or the failure of their read.
- * @param props - The page query, the list view, the view the fields draw, the fields, the settings, what the actions
- *   need from the screen, whether the session may change a file, the handler opening a dialog on one, whether an upload
- *   runs, what takes the files and whether a write reloads the list.
+ * @param props - The page query, the list view, the view the fields draw, the fields, the settings, whether the
+ *   session may change a file, the handler opening a dialog on files, whether an upload runs, what takes the files and
+ *   whether a write reloads the list.
  * @returns The list, or the failure notice.
  */
 function MediaList(props: {
@@ -249,14 +249,13 @@ function MediaList(props: {
 	view: OfferedView<View>
 	fields: Field<MediaItem>[]
 	settings: ListSettings | undefined
-	tools: MediaTools
 	mayChange: (item: MediaItem) => boolean
 	open: (opened: OpenedDialog) => void
 	busy: boolean
 	upload: (files: File[]) => void
 	refreshing: boolean
 }) {
-	const actions = useMediaActions(props.tools, props.mayChange, props.open)
+	const actions = useMediaActions(props.mayChange, props.open)
 	const { media, list, view } = props
 	const edit = (item: MediaItem, trigger: Trigger) => props.open({ action: 'edit', item, trigger })
 	if (media.isError) {
@@ -323,7 +322,6 @@ export function MediaScreen() {
 				view={view}
 				fields={fields}
 				settings={settings}
-				tools={tools}
 				mayChange={mayChange}
 				open={setOpened}
 				busy={busy}

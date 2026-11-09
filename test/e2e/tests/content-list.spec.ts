@@ -265,7 +265,7 @@ test('restores one item from the Trash tab and deletes another for good', async 
 	await expect(page.locator('#root').getByText(`"${kept}" has been restored.`)).toBeVisible()
 	await row(gone).getByRole('button', { name: 'Actions' }).click()
 	await page.getByRole('menuitem', { name: 'Permanently delete…', exact: true }).click()
-	await page.getByRole('dialog').getByRole('button', { name: 'Delete permanently', exact: true }).click()
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete permanently', exact: true }).click()
 
 	await expect(page.locator('#root').getByText(`"${gone}" permanently deleted.`)).toBeVisible()
 	await expect(page.getByRole('link', { name: kept, exact: true })).toBeHidden()
@@ -282,7 +282,7 @@ test('opens the permanent delete confirm of a row on Cancel, as WordPress does',
 
 	await page.getByRole('menuitem', { name: 'Permanently delete…', exact: true }).click()
 
-	await expect(page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+	await expect(page.getByRole('alertdialog').getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
 })
 
 test('refuses to trash a page that still holds pages, saying why in a toast', async ({ page }) => {

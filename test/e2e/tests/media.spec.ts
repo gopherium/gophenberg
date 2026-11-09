@@ -232,14 +232,14 @@ const LISTINGS = [
 ]
 
 /**
- * Returns the box of the open modal frame once its opening animation ends, rounded to the pixel.
- * @param page - The page holding the modal.
+ * Returns the box of the open dialog or confirm once its opening animation ends, rounded to the pixel.
+ * @param page - The page holding the dialog.
  * @param side - The edge or size of the box to read.
  * @returns The poll that reads it until it holds still.
  */
 function frameBox(page: Page, side: 'width' | 'bottom') {
 	return expect.poll(async () => {
-		const box = await page.locator('.components-modal__frame').boundingBox()
+		const box = await page.getByRole('dialog').or(page.getByRole('alertdialog')).boundingBox()
 		return Math.round(side === 'width' ? (box?.width ?? 0) : (box?.y ?? 0) + (box?.height ?? 0))
 	})
 }
@@ -581,16 +581,16 @@ for (const size of [LAPTOP, DESKTOP]) {
 	})
 }
 
-test('deletes a file behind a headerless 560 pixel confirm, Cancel focused', async ({ page }) => {
+test('deletes a file behind a 560 pixel confirm titled by the question, Cancel focused', async ({ page }) => {
 	const title = `${LIBRARY}-deleted`
 	await stored(page, title)
 	await openCardMenu(page, title)
 
 	await page.getByRole('menuitem', { name: 'Permanently delete…' }).click()
-	const dialog = page.getByRole('dialog')
-	await expect(dialog.getByText(`Delete "${title}" for good? This cannot be undone.`)).toBeVisible()
+	const dialog = page.getByRole('alertdialog')
+	await expect(dialog.getByRole('heading', { name: `Delete "${title}"?` })).toBeVisible()
 	await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused()
-	await expect(dialog.getByRole('heading')).toHaveCount(0)
+	await expect(dialog.getByRole('heading')).toHaveCount(1)
 	await frameBox(page, 'width').toBe(560)
 	await dialog.getByRole('button', { name: 'Delete permanently' }).click()
 

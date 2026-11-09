@@ -2,7 +2,7 @@
 
 import { sessionMayChange, trashIcon } from '@gophenberg/frontend-sdk'
 import type { Action } from '@gophenberg/frontend-sdk/dataviews'
-import { useBulkRun, useUnsavedText } from '@gopherium/godmin'
+import { focusedTrigger, useBulkRun, useUnsavedText } from '@gopherium/godmin'
 import type { ListRun } from '@gopherium/godmin'
 import { useSession } from '@gopherium/react-auth'
 import { useQueryClient } from '@tanstack/react-query'
@@ -12,7 +12,6 @@ import { useCallback, useMemo } from 'react'
 import { mediaQueryKey, mediaSrc } from './api'
 import type { MediaDescriptions, MediaItem } from './api'
 import { displayFile } from './format'
-import { DeleteMediaModal } from './MediaModals'
 import type { MediaTools, OpenedDialog } from './MediaModals'
 
 /**
@@ -72,14 +71,12 @@ function viewAction(): Action<MediaItem> {
 
 /**
  * Returns the actions offered on each file, View on every file and the others on a file the session may change.
- * @param tools - What the actions need from the screen.
  * @param mayChange - Whether the session may change a file.
- * @param open - Opens Edit or Rename on a file in a dialog the screen holds, which a card moving to another row of the
- *   grid never takes away.
- * @returns The row actions, the same for as long as the screen stays, so a confirm never starts over in a run.
+ * @param open - Opens Edit or Rename on a file, or the permanent delete on the picked files, in a dialog the screen
+ *   holds, which a card moving to another row of the grid never takes away.
+ * @returns The row actions, the same for as long as the screen stays.
  */
 export function useMediaActions(
-	tools: MediaTools,
 	mayChange: (item: MediaItem) => boolean,
 	open: (opened: OpenedDialog) => void,
 ): Action<MediaItem>[] {
@@ -104,11 +101,9 @@ export function useMediaActions(
 				icon: trashIcon,
 				supportsBulk: true,
 				isEligible: mayChange,
-				hideModalHeader: true,
-				modalFocusOnMount: 'firstContentElement',
-				RenderModal: (props) => <DeleteMediaModal {...props} tools={tools} />,
+				callback: (items) => open({ action: 'delete', items, trigger: focusedTrigger() }),
 			},
 		],
-		[mayChange, open, tools],
+		[mayChange, open],
 	)
 }

@@ -2,7 +2,7 @@
 
 import { InputControl, Text } from '@gophenberg/frontend-sdk'
 import type { RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
-import { FormBody, FormDialog, RunConfirm, markLatest, useCloseWhileOpen, useToaster } from '@gopherium/godmin'
+import { ConfirmDialog, FormBody, FormDialog, markLatest, useCloseWhileOpen, useToaster } from '@gopherium/godmin'
 import type { BulkRun, ListRun, UnsavedText } from '@gopherium/godmin'
 import { useQueryClient } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
@@ -135,28 +135,26 @@ function rootQuestion(type: ContentType, holder: ContentType | undefined): strin
 
 /**
  * Renders the confirm handing the root to a type, busy until the write ends, as WordPress sets a homepage.
- * @param props - The type, the handler closing the modal and the run.
+ * @param props - The type, the run and what takes the confirm away.
  * @returns The confirm, naming the type that held the root in the list on show when the confirm opened.
  */
-export function MakeDefaultModal({
-	items,
-	closeModal,
-	run,
-}: RenderModalProps<ContentType> & { run: BulkRun<ContentType> }) {
+export function MakeDefaultConfirm({ type, run, onClose }: {
+	type: ContentType
+	run: BulkRun<ContentType>
+	onClose: () => void
+}) {
 	const client = useQueryClient()
 	const [holder] = useState(() => client.getQueryData<ContentType[]>(typesQueryKey)?.find((held) => held.isDefault))
-	const [type] = items
 	const handOver = () => editInTurn(client, type.key, { isDefault: true })
 	return (
-		<RunConfirm
-			items={items}
-			closeModal={closeModal}
+		<ConfirmDialog
+			title={sprintf(__('Make "%(type)s" the default?', 'gophenberg'), { type: pluralOf(type) })}
+			description={rootQuestion(type, holder)}
 			confirmLabel={__('Make default', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			run={() => run(items, handOver, oneWriteWords(__('Default content type updated.', 'gophenberg')))}
-		>
-			{rootQuestion(type, holder)}
-		</RunConfirm>
+			onConfirm={() => run([type], handOver, oneWriteWords(__('Default content type updated.', 'gophenberg')))}
+			onClose={onClose}
+		/>
 	)
 }
 

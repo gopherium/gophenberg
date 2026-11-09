@@ -13,7 +13,7 @@ import { gate } from './gate'
 import { expectUnmarked, holdReads, waitMarked } from './reloads'
 import { adminUser, renderAt } from './render'
 import { siteSettings } from './siteSettings'
-import { clickDimmedPage, findToast, menuItems, waitBusy } from './typeFixtures'
+import { findToast, menuItems, waitBusy } from './typeFixtures'
 
 beforeAll(async () => {
 	await import('../media/MediaScreen')
@@ -225,12 +225,17 @@ async function openCardMenu(title: string) {
  * Picks an item of the actions menu of a card and returns the dialog it opens.
  * @param title - The title the card shows.
  * @param item - The words of the menu item.
+ * @param role - The role the dialog has, an alertdialog for a confirm.
  * @returns The dialog.
  */
-async function openCardDialog(title: string, item: string): Promise<HTMLElement> {
+async function openCardDialog(
+	title: string,
+	item: string,
+	role: 'dialog' | 'alertdialog' = 'dialog',
+): Promise<HTMLElement> {
 	await openCardMenu(title)
 	await userEvent.click(await screen.findByRole('menuitem', { name: item }))
-	return screen.findByRole('dialog')
+	return screen.findByRole(role)
 }
 
 /**
@@ -960,19 +965,18 @@ test('says the name could not be updated when the network drops a rename', async
 	expect(await findToast('The name could not be updated.')).toBeInTheDocument()
 })
 
-test('asks before deleting a file for good under no header, naming it in quotes, Cancel focused', async () => {
+test('asks before deleting a file for good in a red confirm titled by the question, Cancel focused', async () => {
 	stubLayout()
 	renderAt('/media')
 
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 
-	expect(within(dialog).getByText('Delete "Harbor at dawn" for good? This cannot be undone.')).toBeInTheDocument()
-	expect(within(dialog).queryByRole('heading')).not.toBeInTheDocument()
+	expect(within(dialog).getByRole('heading', { name: 'Delete "Harbor at dawn"?' })).toBeInTheDocument()
+	expect(dialog).toHaveAccessibleDescription('This action cannot be undone.')
 	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
-	expect(dialog).toHaveClass('has-size-medium')
 	const [cancel, confirm] = within(dialog).getAllByRole('button')
 	expect([cancel.textContent, confirm.textContent]).toEqual(['Cancel', 'Delete permanently'])
-	expect([...cancel.classList]).toEqual(buttonClasses('minimal'))
+	expect(confirm.className).toMatch(/irreversible/)
 	await waitFor(() => expect(cancel).toHaveFocus())
 	expect(deleted).toEqual([])
 })
@@ -981,9 +985,9 @@ test('names a file with no title as (no title) in the delete question', async ()
 	stored.set(HARBOR.id, { ...HARBOR, title: '' })
 	renderAt('/media')
 
-	const dialog = await openCardDialog('(no title)', 'Permanently delete…')
+	const dialog = await openCardDialog('(no title)', 'Permanently delete…', 'alertdialog')
 
-	expect(within(dialog).getByText('Delete "(no title)" for good? This cannot be undone.')).toBeInTheDocument()
+	expect(within(dialog).getByRole('heading', { name: 'Delete "(no title)"?' })).toBeInTheDocument()
 })
 
 test('keeps the confirm busy with Cancel greyed while the delete runs, then closes it and names the file', async () => {
@@ -997,14 +1001,14 @@ test('keeps the confirm busy with Cancel greyed while the delete runs, then clos
 		}),
 	)
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
 	await waitBusy(dialog, 'Delete permanently')
 	expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true')
 	answer.release()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(await findToast('"Harbor at dawn" permanently deleted.')).toBeInTheDocument()
 	expect(deleted).toEqual([HARBOR.id])
 })
@@ -1017,14 +1021,14 @@ async function deleteBothTicked(): Promise<HTMLElement> {
 	await userEvent.click(await screen.findByRole('checkbox', { name: 'Harbor at dawn' }))
 	await userEvent.click(screen.getByRole('checkbox', { name: 'Manual' }))
 	await userEvent.click(bulkBar().getByRole('button', { name: 'Permanently delete…' }))
-	return screen.findByRole('dialog')
+	return screen.findByRole('alertdialog')
 }
 
 test('deletes every ticked file behind one confirm and counts them', async () => {
 	renderAt('/media')
 
 	const dialog = await deleteBothTicked()
-	expect(dialog).toHaveTextContent('Delete 2 items for good? This cannot be undone.')
+	expect(dialog).toHaveAccessibleName('Delete 2 items?')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
 	expect(await findToast('2 items permanently deleted.')).toBeInTheDocument()
@@ -1034,12 +1038,12 @@ test('deletes every ticked file behind one confirm and counts them', async () =>
 test('shows the reason a refused delete gave in a toast, the confirm closed and the card kept', async () => {
 	server.use(http.delete('/api/media/:id', gone))
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
 	expect(await findToast(NOT_FOUND)).toBeInTheDocument()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(await cardOf('Harbor at dawn')).toBeTruthy()
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
@@ -1065,57 +1069,6 @@ test('counts only the files a partly refused bulk delete could not remove, in on
 })
 
 /**
- * Starts the held permanent delete of a file and closes its busy confirm on the dimmed page.
- * @param title - The title the card of the file shows.
- * @param answer - Builds the answer the delete gets once the gate opens.
- * @returns The gate the delete waits on.
- */
-async function deleteThenLeave(title: string, answer: () => Response) {
-	const held = gate()
-	server.use(
-		http.delete('/api/media/:id', async () => {
-			await held.held
-			return answer()
-		}),
-	)
-	renderAt('/media')
-	const confirm = await openCardDialog(title, 'Permanently delete…')
-	await userEvent.click(within(confirm).getByRole('button', { name: 'Delete permanently' }))
-	await waitBusy(confirm, 'Delete permanently')
-	await clickDimmedPage()
-	return held
-}
-
-test('leaves a dialog opened on the card after a delete dismissed while busy open once that delete ends', async () => {
-	const held = await deleteThenLeave('Harbor at dawn', gone)
-	const edit = await openCardDialog('Harbor at dawn', 'Edit…')
-
-	held.release()
-	await findToast(NOT_FOUND)
-	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
-
-	expect(screen.getByRole('dialog', { name: 'Edit media' })).toBe(edit)
-})
-
-test('keeps the focus in an Edit opened after a dismissed delete once that delete lands', async () => {
-	stubLayout()
-	const held = await deleteThenLeave('Manual', () => {
-		stored.delete(MANUAL.id)
-		return new HttpResponse(null, { status: 204 })
-	})
-	const edit = await openCardDialog('Harbor at dawn', 'Edit…')
-	const title = within(edit).getByRole('textbox', { name: 'Title' })
-	await waitFor(() => expect(title).toHaveFocus())
-
-	held.release()
-	await findToast('"Manual" permanently deleted.')
-	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
-
-	expect(screen.getByRole('dialog', { name: 'Edit media' })).toBe(edit)
-	expect(title).toHaveFocus()
-})
-
-/**
  * Waits until the picture of the card now in the first place holds the focus.
  */
 async function waitFocusOnManual() {
@@ -1125,7 +1078,7 @@ async function waitFocusOnManual() {
 
 test('lands the focus on the card in its place once a deleted file has left the list', async () => {
 	renderAt('/media')
-	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…')
+	const dialog = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
@@ -1349,7 +1302,7 @@ test('sends a delete of a file only once an edit of it still in flight has answe
 	await save(await openCardDialog('Harbor at dawn', 'Edit…'))
 	await waitFor(() => expect(heard).toEqual(['edit sent']))
 
-	const confirm = await openCardDialog('Harbor at dawn', 'Permanently delete…')
+	const confirm = await openCardDialog('Harbor at dawn', 'Permanently delete…', 'alertdialog')
 	await userEvent.click(within(confirm).getByRole('button', { name: 'Delete permanently' }))
 	await aMoment()
 	edit.release()

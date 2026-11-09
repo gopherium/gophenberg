@@ -9,14 +9,14 @@ import type { BulkFailure } from '@gopherium/godmin'
 
 import { postName, restoreWords, trashWords } from '../content/actionWords'
 import type { Post } from '../content/api'
-import { deleteQuestion, deleteWords } from '../lists/itemWords'
+import { deleteTitle, deleteWords } from '../lists/itemWords'
 import { catalogFor } from '../i18n/catalog'
 import type { Router } from './anotherPost'
 import { bulkBar } from './bulkBar'
 import { gate } from './gate'
 import { renderAt, renderRoutedAt } from './render'
 import { storedPost } from './postFixture'
-import { clickDimmedPage, findActionToast, waitBusy } from './typeFixtures'
+import { findActionToast } from './typeFixtures'
 import { warmPostsScreen } from './warm'
 
 warmPostsScreen()
@@ -255,6 +255,14 @@ async function openTrashedRowActions() {
 	await userEvent.click(await screen.findByRole('button', { name: 'Actions' }))
 }
 
+/**
+ * Presses Delete permanently in the open confirm.
+ */
+async function confirmDelete() {
+	const confirm = await screen.findByRole('alertdialog')
+	await userEvent.click(within(confirm).getByRole('button', { name: 'Delete permanently' }))
+}
+
 test('swaps the row actions in the trash view, the restore first', async () => {
 	renderAt('/content/post')
 
@@ -471,8 +479,8 @@ test('deletes every ticked post for good behind one confirm and counts them', as
 	await tickBothTrashed()
 
 	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete…' }))
-	const dialog = await screen.findByRole('dialog')
-	expect(dialog).toHaveTextContent('Delete 2 items for good? This cannot be undone.')
+	const dialog = await screen.findByRole('alertdialog')
+	expect(dialog).toHaveAccessibleName('Delete 2 items?')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
 	expect(await screen.findByText('2 items permanently deleted.', { selector: '.godmin-toast' })).toBeInTheDocument()
@@ -523,7 +531,7 @@ test('opens a post deleted for good as a missing post', async () => {
 	await goToList(router)
 	await openTrashedRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete permanently' }))
+	await confirmDelete()
 	await waitFor(() => expect(deleted).toHaveLength(1))
 
 	await goToEditor(router)
@@ -556,36 +564,27 @@ test('opens a post removed by emptying the trash as a missing post', async () =>
 	expect(await screen.findByText('Could not load that post.')).toBeInTheDocument()
 })
 
-test('asks to confirm before deleting permanently, under no header as WordPress does', async () => {
+test('asks to confirm before deleting permanently, titled by the question and saying it cannot be undone', async () => {
 	renderAt('/content/post')
 	await openTrashedRowActions()
 
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
-	const dialog = await screen.findByRole('dialog')
-	expect(dialog).toHaveTextContent('Delete "Old Notes" for good? This cannot be undone.')
-	expect(within(dialog).queryByRole('heading')).not.toBeInTheDocument()
+	const dialog = await screen.findByRole('alertdialog')
+	expect(within(dialog).getByRole('heading', { name: 'Delete "Old Notes"?' })).toBeInTheDocument()
+	expect(dialog).toHaveAccessibleName('Delete "Old Notes"?')
+	expect(dialog).toHaveAccessibleDescription('This action cannot be undone.')
 	expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
+	expect(within(dialog).getByRole('button', { name: 'Delete permanently' }).className).toMatch(/irreversible/)
 	expect(deleted).toEqual([])
 })
 
-test('opens the permanent delete confirm at the medium width WordPress gives it', async () => {
-	renderAt('/content/post')
-	await openTrashedRowActions()
-
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
-
-	expect(await screen.findByRole('dialog')).toHaveClass('has-size-medium')
-})
-
-test('asks the Spanish permanent delete in the words of its title, button and toast', async () => {
+test('asks the Spanish permanent delete in the words of its title', async () => {
 	setLocaleData(await catalogFor('es-ES'), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
 
-	expect(deleteQuestion([OLD_NOTES], postName))
-		.toBe('¿Borrar permanentemente «Old Notes»? Esto no se puede deshacer.')
-	expect(deleteQuestion([OLD_NOTES, { ...OLD_NOTES, id: SECOND_ID }], postName))
-		.toBe('¿Borrar permanentemente 2 elementos? Esto no se puede deshacer.')
+	expect(deleteTitle([OLD_NOTES], postName)).toBe('¿Borrar «Old Notes»?')
+	expect(deleteTitle([OLD_NOTES, { ...OLD_NOTES, id: SECOND_ID }], postName)).toBe('¿Borrar 2 elementos?')
 })
 
 test('counts exact millions with "de" in the Spanish trash, restore and delete words', async () => {
@@ -596,8 +595,7 @@ test('counts exact millions with "de" in the Spanish trash, restore and delete w
 	const picked = Array.from({ length: million }, () => OLD_NOTES)
 	const refused = Array.from({ length: million }, () => failure)
 
-	expect(deleteQuestion(picked, postName))
-		.toBe('¿Borrar permanentemente 1.000.000 de elementos? Esto no se puede deshacer.')
+	expect(deleteTitle(picked, postName)).toBe('¿Borrar 1.000.000 de elementos?')
 	expect(trashWords().done(million, undefined)).toBe('1.000.000 de elementos movidos a la papelera.')
 	expect(trashWords().failed(refused, million)).toBe('No se han podido mover 1.000.000 de elementos a la papelera.')
 	expect(restoreWords('page').done(million, undefined)).toBe('Se han restaurado 1.000.000 de páginas.')
@@ -614,7 +612,7 @@ test('deletes for good once confirmed', async () => {
 	await openTrashedRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete permanently' }))
+	await confirmDelete()
 
 	await waitFor(() => expect(deleted).toHaveLength(1))
 	expect(deleted[0].pathname).toBe(`/api/content/${TRASHED.id}`)
@@ -626,7 +624,7 @@ test('names the post it deleted for good in a toast', async () => {
 	await openTrashedRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete permanently' }))
+	await confirmDelete()
 
 	expect(await screen.findByText('"Old Notes" permanently deleted.', { selector: '.godmin-toast' })).toBeInTheDocument()
 })
@@ -637,36 +635,10 @@ test('moves the focus to the list once a permanent delete finishes', async () =>
 	await openTrashedRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete permanently' }))
+	await confirmDelete()
 
 	await screen.findByText('"Old Notes" permanently deleted.', { selector: '.godmin-toast' })
 	await waitFor(() => expect(screen.getByRole('region', { name: 'Posts' })).toHaveFocus())
-})
-
-test('leaves a confirm opened on the row after a permanent delete dismissed while busy open once it ends', async () => {
-	const answer = gate()
-	server.use(
-		http.delete('/api/content/:id', async () => {
-			await answer.held
-			return HttpResponse.json({}, { status: 500 })
-		}),
-	)
-	renderAt('/content/post')
-	await openTrashedRowActions()
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
-	const busy = await screen.findByRole('dialog')
-	await userEvent.click(within(busy).getByRole('button', { name: 'Delete permanently' }))
-	await waitBusy(busy, 'Delete permanently')
-	await clickDimmedPage()
-	await userEvent.click(screen.getByRole('button', { name: 'Actions' }))
-	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
-	const reopened = await screen.findByRole('dialog')
-
-	answer.release()
-	await screen.findByText('The item could not be permanently deleted.', { selector: '.godmin-toast' })
-	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
-
-	expect(screen.getByRole('dialog')).toBe(reopened)
 })
 
 test('keeps the post when the permanent delete is dismissed', async () => {
@@ -676,7 +648,7 @@ test('keeps the post when the permanent delete is dismissed', async () => {
 
 	await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
 
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(deleted).toEqual([])
 })
 
@@ -699,12 +671,12 @@ test('reports a permanent delete the server refused in a toast, never above the 
 	await openTrashedRowActions()
 	await userEvent.click(await screen.findByRole('menuitem', { name: 'Permanently delete…' }))
 
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete permanently' }))
+	await confirmDelete()
 
 	expect(await screen.findByText('The item could not be permanently deleted.', { selector: '.godmin-toast' }))
 		.toBeInTheDocument()
 	expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-	expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
 test('counts only the posts a partly refused bulk permanent delete could not remove, in one toast', async () => {
@@ -723,7 +695,7 @@ test('counts only the posts a partly refused bulk permanent delete could not rem
 	await tickBothTrashed()
 	await userEvent.click(screen.getByRole('button', { name: 'Permanently delete…' }))
 
-	await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete permanently' }))
+	await confirmDelete()
 
 	expect(await screen.findByText('1 item could not be permanently deleted.', { selector: '.godmin-toast' }))
 		.toBeInTheDocument()

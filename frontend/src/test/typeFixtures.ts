@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, expect } from 'vitest'
 
@@ -165,13 +165,16 @@ export async function openRowDialog(name: string, item: string, reader = ENGLISH
 }
 
 /**
- * Closes the open dialog by a press on the dimmed page around it, the way out that works while its buttons are busy.
+ * Picks an item of the actions menu of a row and returns the confirm it opens.
+ * @param name - The name the row shows.
+ * @param item - The words of the menu item.
+ * @param reader - How the reader finds the list, an English one unless a test names another.
+ * @returns The confirm.
  */
-export async function clickDimmedPage() {
-	const overlay = document.querySelector('.components-modal__screen-overlay') as HTMLElement
-	fireEvent.pointerDown(overlay, { button: 0 })
-	fireEvent.pointerUp(overlay, { button: 0 })
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+export async function openRowConfirm(name: string, item: string, reader = ENGLISH): Promise<HTMLElement> {
+	await openRowMenu(name, reader)
+	await userEvent.click(await screen.findByRole('menuitem', { name: item }))
+	return screen.findByRole('alertdialog')
 }
 
 /**
