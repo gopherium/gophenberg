@@ -84,6 +84,14 @@ func (p *plugin) Routes() http.Handler {
 	return mux
 }
 
+// HeadTags links the channel from the head of every page, titled with the site's name.
+func (p *plugin) HeadTags(_ context.Context, page sdk.PageMeta) ([]sdk.HeadTag, error) {
+	return []sdk.HeadTag{{Tag: "link", Attrs: []sdk.Attr{
+		{Key: "rel", Value: "alternate"}, {Key: "type", Value: "application/rss+xml"},
+		{Key: "title", Value: page.SiteTitle}, {Key: "href", Value: sdk.PluginRoutesPrefix + pluginID + feedPath},
+	}}}, nil
+}
+
 // originOf returns the scheme and host the request reached the site under.
 func originOf(r *http.Request) string {
 	scheme := r.Header.Get("X-Forwarded-Proto")
