@@ -18,7 +18,7 @@ import (
 func openFolder(t *testing.T) string {
 	t.Helper()
 	folder := backupFolder(t)
-	if err := os.Mkdir(folder, 0o755); err != nil {
+	if err := errors.Join(os.Mkdir(folder, 0o755), os.Chmod(folder, 0o755)); err != nil {
 		t.Fatalf("making an open backups folder: %v", err)
 	}
 	return folder
@@ -145,7 +145,7 @@ func TestABackupLeavesAFileWhereItsFolderGoesAsItIs(t *testing.T) {
 	t.Parallel()
 
 	file := backupFolder(t)
-	if err := os.WriteFile(file, nil, 0o644); err != nil {
+	if err := errors.Join(os.WriteFile(file, nil, 0o644), os.Chmod(file, 0o644)); err != nil {
 		t.Fatalf("writing a file where the folder goes: %v", err)
 	}
 

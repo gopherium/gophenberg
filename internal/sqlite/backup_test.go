@@ -161,10 +161,7 @@ func TestABackupOnlyItsOwnerReads(t *testing.T) {
 	if err := os.Chmod(liveFile(t, db), 0o644); err != nil {
 		t.Fatalf("opening the live file to every reader: %v", err)
 	}
-	folder := backupFolder(t)
-	if err := os.Mkdir(folder, 0o755); err != nil {
-		t.Fatalf("making an open backups folder: %v", err)
-	}
+	folder := openFolder(t)
 
 	taken := takeBackup(t, db, sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Manual})
 
