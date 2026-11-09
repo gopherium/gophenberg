@@ -332,7 +332,10 @@ function useUnpick(list: ListView<View>): (ids: string[]) => void {
 	})
 	const { onChangeSelection } = list
 	return useCallback(
-		(ids: string[]) => onChangeSelection(ticked.current.filter((id) => !ids.includes(id))),
+		(ids: string[]) => {
+			ticked.current = ticked.current.filter((id) => !ids.includes(id))
+			onChangeSelection(ticked.current)
+		},
 		[onChangeSelection],
 	)
 }
