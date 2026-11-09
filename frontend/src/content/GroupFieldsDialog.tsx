@@ -54,9 +54,9 @@ import {
 } from './types'
 import type { ChoicePair } from './types'
 import { typesQueryKey } from './nav'
-import type { FieldGroup } from './groups'
+import type { BacklinkSources, FieldGroup } from './groups'
 import type { Choice } from './select'
-import type { ContentField, ContentType } from './types'
+import type { ContentField, ContentType, NewField, PickedKind } from './types'
 
 /** What a field control reports back once its write settles. */
 interface Reporter {
@@ -341,6 +341,36 @@ function AddField(props: Reporter & FieldPlace) {
 	)
 }
 
+/** What the controls of a new field hold: its name, the kind picked, and the answers that kind asks for. */
+interface DraftAnswers {
+	label: string
+	kind: Choice
+	picked: PickedKind
+	target: Choice | undefined
+	holding: Choice
+	presence: Choice
+	sources: BacklinkSources
+}
+
+/** The choices each select of a new field offers. */
+interface DraftOffers {
+	kinds: Choice[]
+	targets: Choice[]
+	holdings: Choice[]
+	presences: Choice[]
+}
+
+/** What changes each answer the controls of a new field hold. */
+interface DraftChanges {
+	label: (label: string) => void
+	kind: (kind: Choice) => void
+	target: (key: string) => void
+	holding: (holding: Choice) => void
+	presence: (presence: Choice) => void
+	sourceGroup: (key: string) => void
+	sourceField: (key: string) => void
+}
+
 /**
  * Holds the controls declaring a new field and the write that stores what they hold.
  * @param props - Where the field is declared.
@@ -364,85 +394,142 @@ function useFieldDraft(props: FieldPlace): FieldDraft {
 	const [holding, setHolding] = useState(holdings[0])
 	const [sourceKey, setSourceKey] = useState('')
 	const [throughKey, setThroughKey] = useState('')
-	const target = targets.find((held) => held.value === targetKey) ?? targets[0]
-	const picked = pickedKind(kind.value)
-	const relating = picked.kind === 'relation'
-	const reading = picked.kind === 'backlinks'
-	const sources = backlinkSources(props.groups ?? [], sourceKey, throughKey)
-	const blocked = relating ? target === undefined : reading && sources.field.value === ''
+	const draft: DraftAnswers = {
+		label,
+		kind,
+		picked: pickedKind(kind.value),
+		target: targets.find((held) => held.value === targetKey) ?? targets[0],
+		holding,
+		presence,
+		sources: backlinkSources(props.groups ?? [], sourceKey, throughKey),
+	}
 	const add = useMutation({
 		mutationFn: () => {
-			const asked = {
-				key: slugifyKey(label),
-				label,
-				kind: picked.kind,
-				relatesTo: relating ? target?.value : undefined,
-				many: relating ? holding.value === 'many' : picked.many,
-				required: requirable(picked.kind) && presence.value === 'required',
-				settings: reading ? backlinkSettings(sources) : picked.settings,
-			}
+			const asked = askedField(draft)
 			return props.path === undefined
 				? createFieldInGroup(props.group, asked)
 				: createSubField(props.group, props.path, asked)
 		},
 	})
-	const sending = add.isPending
-	const controls = (
+	const change: DraftChanges = {
+		label: setLabel,
+		kind: setKind,
+		target: setTargetKey,
+		holding: setHolding,
+		presence: setPresence,
+		sourceGroup: setSourceKey,
+		sourceField: setThroughKey,
+	}
+	return {
+		controls: (
+			<DraftControls
+				draft={draft}
+				offers={{ kinds, targets, holdings, presences }}
+				change={change}
+				readOnly={add.isPending}
+			/>
+		),
+		blocked: draftBlocked(draft),
+		pending: add.isPending,
+		declare: () => add.mutateAsync(),
+		said: sprintf(__('%(field)s declared.', 'gophenberg'), { field: label }),
+		clear: () => setLabel(''),
+	}
+}
+
+/**
+ * Reports whether a new field still lacks the answer its kind needs before it may be sent.
+ * @param draft - What the controls hold.
+ * @returns Whether sending waits.
+ */
+function draftBlocked(draft: DraftAnswers): boolean {
+	if (draft.picked.kind === 'relation') {
+		return draft.target === undefined
+	}
+	return draft.picked.kind === 'backlinks' && draft.sources.field.value === ''
+}
+
+/**
+ * Returns the field the controls ask to declare.
+ * @param draft - What the controls hold.
+ * @returns The field to declare.
+ */
+function askedField(draft: DraftAnswers): NewField {
+	const { label, picked } = draft
+	const relating = picked.kind === 'relation'
+	return {
+		key: slugifyKey(label),
+		label,
+		kind: picked.kind,
+		relatesTo: relating ? draft.target?.value : undefined,
+		many: relating ? draft.holding.value === 'many' : picked.many,
+		required: requirable(picked.kind) && draft.presence.value === 'required',
+		settings: picked.kind === 'backlinks' ? backlinkSettings(draft.sources) : picked.settings,
+	}
+}
+
+/**
+ * Renders the controls of a new field: its name, its kind, and what that kind asks for.
+ * @param props - What the controls hold, the choices they offer, what changes each, and whether they are read only.
+ * @returns The controls.
+ */
+function DraftControls(props: { draft: DraftAnswers; offers: DraftOffers; change: DraftChanges; readOnly: boolean }) {
+	const { draft, offers, change, readOnly } = props
+	const { kind, target, holding, presence } = draft
+	const relating = draft.picked.kind === 'relation'
+	return (
 		<>
 			<InputControl
 				label={_x('Name', 'field', 'gophenberg')}
 				autoComplete="off"
-				value={label}
-				readOnly={sending}
-				onValueChange={setLabel}
+				value={draft.label}
+				readOnly={readOnly}
+				onValueChange={change.label}
 			/>
 			<SelectControl
 				label={_x('Kind', 'field type', 'gophenberg')}
-				items={kinds}
+				items={offers.kinds}
 				value={kind}
-				readOnly={sending}
-				onValueChange={(item) => setKind(chosenOf(item, kinds, kind))}
+				readOnly={readOnly}
+				onValueChange={(item) => change.kind(chosenOf(item, offers.kinds, kind))}
 			/>
 			{relating && target !== undefined && (
 				<SelectControl
 					label={__('Points at', 'gophenberg')}
-					items={targets}
+					items={offers.targets}
 					value={target}
-					readOnly={sending}
-					onValueChange={(item) => setTargetKey(chosenOf(item, targets, target).value)}
+					readOnly={readOnly}
+					onValueChange={(item) => change.target(chosenOf(item, offers.targets, target).value)}
 				/>
 			)}
 			{relating && (
 				<SelectControl
 					label={__('Holds', 'gophenberg')}
-					items={holdings}
+					items={offers.holdings}
 					value={holding}
-					readOnly={sending}
-					onValueChange={(item) => setHolding(chosenOf(item, holdings, holding))}
+					readOnly={readOnly}
+					onValueChange={(item) => change.holding(chosenOf(item, offers.holdings, holding))}
 				/>
 			)}
-			{reading && (
-				<SourceOfLinks sources={sources} readOnly={sending} onGroup={setSourceKey} onField={setThroughKey} />
+			{draft.picked.kind === 'backlinks' && (
+				<SourceOfLinks
+					sources={draft.sources}
+					readOnly={readOnly}
+					onGroup={change.sourceGroup}
+					onField={change.sourceField}
+				/>
 			)}
-			{requirable(picked.kind) && (
+			{requirable(draft.picked.kind) && (
 				<SelectControl
 					label={__('Required', 'gophenberg')}
-					items={presences}
+					items={offers.presences}
 					value={presence}
-					readOnly={sending}
-					onValueChange={(item) => setPresence(chosenOf(item, presences, presence))}
+					readOnly={readOnly}
+					onValueChange={(item) => change.presence(chosenOf(item, offers.presences, presence))}
 				/>
 			)}
 		</>
 	)
-	return {
-		controls,
-		blocked,
-		pending: sending,
-		declare: () => add.mutateAsync(),
-		said: sprintf(__('%(field)s declared.', 'gophenberg'), { field: label }),
-		clear: () => setLabel(''),
-	}
 }
 
 /** One setting a kind takes, as its control edits it. */
@@ -591,20 +678,35 @@ interface Asked {
 }
 
 /**
+ * Renders a compact outline button and, while it asks, the dialog it opens.
+ * @param props - The words on the button, the title it reads out, and what draws the dialog given that title and
+ * what takes it away.
+ * @returns The button and its dialog.
+ */
+function DialogButton(props: { words: string; title: string; dialog: (asked: Asked) => ReactNode }) {
+	const [asking, setAsking] = useState(false)
+	return (
+		<>
+			<Button variant="outline" size="compact" aria-label={props.title} onClick={() => setAsking(true)}>
+				{props.words}
+			</Button>
+			{asking ? props.dialog({ title: props.title, onClose: () => setAsking(false) }) : null}
+		</>
+	)
+}
+
+/**
  * Renders the control editing the settings a field carries and, while it asks, its form.
  * @param props - The group, the field, and what to report.
  * @returns The control and its form.
  */
 function FieldSettings(props: Inside) {
-	const [asking, setAsking] = useState(false)
-	const title = sprintf(__('Settings of %(field)s', 'gophenberg'), { field: props.field.label })
 	return (
-		<>
-			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
-				{__('Settings', 'gophenberg')}
-			</Button>
-			{asking ? <SettingsForm {...props} title={title} onClose={() => setAsking(false)} /> : null}
-		</>
+		<DialogButton
+			words={__('Settings', 'gophenberg')}
+			title={sprintf(__('Settings of %(field)s', 'gophenberg'), { field: props.field.label })}
+			dialog={(asked) => <SettingsForm {...props} {...asked} />}
+		/>
 	)
 }
 
@@ -819,15 +921,12 @@ function ListField(props: Inside) {
  * @returns The control and its form.
  */
 function RenameField(props: Inside) {
-	const [asking, setAsking] = useState(false)
-	const title = sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })
 	return (
-		<>
-			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
-				{__('Rename', 'gophenberg')}
-			</Button>
-			{asking ? <RenameForm {...props} title={title} onClose={() => setAsking(false)} /> : null}
-		</>
+		<DialogButton
+			words={__('Rename', 'gophenberg')}
+			title={sprintf(__('Rename %(field)s', 'gophenberg'), { field: props.field.label })}
+			dialog={(asked) => <RenameForm {...props} {...asked} />}
+		/>
 	)
 }
 
@@ -972,15 +1071,12 @@ interface Carried {
  * @returns The control and its form.
  */
 function CarryDialog(props: Inside & Carried) {
-	const [asking, setAsking] = useState(false)
-	const title = sprintf(__('Move %(field)s elsewhere', 'gophenberg'), { field: props.field.label })
 	return (
-		<>
-			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
-				{__('Move', 'gophenberg')}
-			</Button>
-			{asking ? <CarryForm {...props} title={title} onClose={() => setAsking(false)} /> : null}
-		</>
+		<DialogButton
+			words={__('Move', 'gophenberg')}
+			title={sprintf(__('Move %(field)s elsewhere', 'gophenberg'), { field: props.field.label })}
+			dialog={(asked) => <CarryForm {...props} {...asked} />}
+		/>
 	)
 }
 
@@ -1178,7 +1274,6 @@ function HeldFields(
  * @returns The control and its form, or nothing for a field holding none.
  */
 function SubFields(props: Inside & { types: ContentType[]; path: string }) {
-	const [asking, setAsking] = useState(false)
 	const layouts = props.field.kind === 'flexible'
 	const title = sprintf(
 		layouts
@@ -1191,24 +1286,22 @@ function SubFields(props: Inside & { types: ContentType[]; path: string }) {
 		return null
 	}
 	return (
-		<>
-			<Button variant="outline" size="compact" aria-label={title} onClick={() => setAsking(true)}>
-				{send}
-			</Button>
-			{asking ? (
+		<DialogButton
+			words={send}
+			title={title}
+			dialog={(asked) => (
 				<SubFieldForm
+					{...asked}
 					group={props.group}
 					types={props.types}
 					path={props.path}
 					parent={props.field.kind}
-					title={title}
 					send={send}
 					onDone={props.onDone}
 					onRefused={props.onRefused}
-					onClose={() => setAsking(false)}
 				/>
-			) : null}
-		</>
+			)}
+		/>
 	)
 }
 
@@ -1239,7 +1332,6 @@ function SubFieldForm(props: Reporter & FieldPlace & Asked & { send: string }) {
  * @returns The control and its confirm, busy until the delete ends.
  */
 function DeleteField(props: Inside) {
-	const [asking, setAsking] = useState(false)
 	const opener = sprintf(__('Delete %(field)s', 'gophenberg'), { field: props.field.label })
 	const warning = __(
 		'Every value stored under this field goes with it, in every item the group reaches and in the revisions behind them.',
@@ -1253,11 +1345,10 @@ function DeleteField(props: Inside) {
 	})
 	const said = sprintf(__('%(field)s deleted.', 'gophenberg'), { field: props.field.label })
 	return (
-		<>
-			<Button variant="outline" size="compact" aria-label={opener} onClick={() => setAsking(true)}>
-				{__('Delete', 'gophenberg')}
-			</Button>
-			{asking ? (
+		<DialogButton
+			words={__('Delete', 'gophenberg')}
+			title={opener}
+			dialog={(asked) => (
 				<ConfirmDialog
 					intent="irreversible"
 					title={sprintf(__('Delete "%(field)s"?', 'gophenberg'), { field: props.field.label })}
@@ -1269,9 +1360,9 @@ function DeleteField(props: Inside) {
 							void props.onDone(said)
 						}, props.onRefused)
 					}
-					onClose={() => setAsking(false)}
+					onClose={asked.onClose}
 				/>
-			) : null}
-		</>
+			)}
+		/>
 	)
 }
