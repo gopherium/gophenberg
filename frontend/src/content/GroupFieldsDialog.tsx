@@ -382,7 +382,12 @@ function AddField(
 				/>
 			)}
 			{reading && (
-				<SourceOfLinks sources={sources} onGroup={setSourceKey} onField={setThroughKey} />
+				<SourceOfLinks
+					sources={sources}
+					readOnly={add.isPending}
+					onGroup={setSourceKey}
+					onField={setThroughKey}
+				/>
 			)}
 			{requirable(picked.kind) && (
 				<SelectControl

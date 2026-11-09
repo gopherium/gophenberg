@@ -10,9 +10,10 @@ import { beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import { placementOf } from '../content/GroupsScreen'
 import { groupErrorMessage } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
+import { gate } from './gate'
 import { renderAt } from './render'
 import { siteSettings } from './siteSettings'
-import { findToast } from './typeFixtures'
+import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
 
 const POST_TYPE = {
 	key: 'post',
@@ -280,21 +281,26 @@ test('deletes a group once the warning is accepted', async () => {
 	const row = within(table).getByRole('row', { name: /Article details/ })
 
 	await userEvent.click(within(row).getByRole('button', { name: 'Delete' }))
-	const dialog = await screen.findByRole('dialog')
+	const dialog = await screen.findByRole('alertdialog')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete the group' }))
 
 	await waitFor(() => expect(hit).toBe(true))
 })
 
-test('warns that deleting a group takes the values its fields hold', async () => {
+test('warns in a red confirm titled by the question that deleting a group takes its field values', async () => {
 	renderAt('/field-groups')
 	const table = await screen.findByRole('region', { name: 'Field Groups' })
 	const row = within(table).getByRole('row', { name: /Article details/ })
 
 	await userEvent.click(within(row).getByRole('button', { name: 'Delete' }))
 
-	const dialog = await screen.findByRole('dialog')
-	expect(within(dialog).getByText(/values/i)).toBeInTheDocument()
+	const dialog = await screen.findByRole('alertdialog')
+	expect(dialog).toHaveAccessibleName('Delete "Article details"?')
+	expect(dialog).toHaveAccessibleDescription(
+		'The fields this group holds go with it, and so do the values every item stored in them. '
+			+ 'This action cannot be undone.',
+	)
+	expect(within(dialog).getByRole('button', { name: 'Delete the group' }).className).toMatch(/irreversible/)
 })
 
 test('keeps a group when the warning is dismissed', async () => {
@@ -310,9 +316,10 @@ test('keeps a group when the warning is dismissed', async () => {
 	const row = within(table).getByRole('row', { name: /Article details/ })
 
 	await userEvent.click(within(row).getByRole('button', { name: 'Delete' }))
-	const dialog = await screen.findByRole('dialog')
-	await userEvent.click(within(dialog).getByRole('button', { name: 'Keep it' }))
+	const dialog = await screen.findByRole('alertdialog')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 	expect(hit).toBe(false)
 })
 
@@ -408,14 +415,14 @@ test('closes the warning and reports why a group could not be deleted', async ()
 	const row = within(table).getByRole('row', { name: /Article details/ })
 
 	await userEvent.click(within(row).getByRole('button', { name: 'Delete' }))
-	const dialog = await screen.findByRole('dialog')
+	const dialog = await screen.findByRole('alertdialog')
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Delete the group' }))
 
 	expect(await findToast('Could not save the change. content: no such group')).toBeInTheDocument()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
-test('closes the form and reports why a group could not be created', async () => {
+test('keeps the form open with the typed title and says inside why a group could not be created', async () => {
 	server.use(
 		http.post('/api/groups', () =>
 			HttpResponse.json({ error: 'content: a group already carries that title', code: 'group_taken' }, {
@@ -427,13 +434,51 @@ test('closes the form and reports why a group could not be created', async () =>
 	await screen.findByRole('region', { name: 'Field Groups' })
 
 	await userEvent.click(screen.getByRole('button', { name: 'Add Field Group' }))
-	await userEvent.type(await screen.findByLabelText('Title'), 'Extras')
-	await userEvent.click(screen.getByRole('button', { name: 'Create' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Create a field group' })
+	await userEvent.type(within(dialog).getByLabelText('Title'), 'Extras')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
 
-	expect(
-		await findToast('Could not save the change. content: a group already carries that title'),
-	).toBeInTheDocument()
-	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	const said = 'Could not save the change. content: a group already carries that title'
+	expect(await within(dialog).findByText(said)).toBeInTheDocument()
+	expect(screen.getByRole('dialog', { name: 'Create a field group' })).toBe(dialog)
+	expect(within(dialog).getByLabelText('Title')).toHaveValue('Extras')
+	expect(screen.queryByText(said, { selector: '.godmin-toast' })).not.toBeInTheDocument()
+})
+
+test('keeps the title of a new group read only while it is created, then names the title sent', async () => {
+	const created = gate()
+	server.use(
+		http.post('/api/groups', async () => {
+			await created.held
+			return HttpResponse.json(EXTRAS_GROUP, { status: 201 })
+		}),
+	)
+	renderAt('/field-groups')
+	await screen.findByRole('region', { name: 'Field Groups' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add Field Group' }))
+	const dialog = await screen.findByRole('dialog', { name: 'Create a field group' })
+	await userEvent.type(within(dialog).getByLabelText('Title'), 'Extras')
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+	await waitBusy(dialog, 'Create')
+
+	expectReadOnly(dialog)
+	await userEvent.type(within(dialog).getByLabelText('Title'), ' and more')
+	expect(within(dialog).getByLabelText('Title')).toHaveValue('Extras')
+	created.release()
+
+	expect(await findToast('Extras created.')).toBeInTheDocument()
+})
+
+test('says a new group starts on a content type when the types could not be read', async () => {
+	server.use(http.get('/api/types', () => new HttpResponse(null, { status: 500 })))
+	renderAt('/field-groups')
+	await screen.findByRole('region', { name: 'Field Groups' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add Field Group' }))
+
+	const dialog = await screen.findByRole('dialog', { name: 'Create a field group' })
+	expect(dialog).toHaveAccessibleDescription('It starts on a content type, and the rules may be edited afterwards.')
 })
 
 test('stores nothing when the create form is abandoned', async () => {
@@ -453,6 +498,19 @@ test('stores nothing when the create form is abandoned', async () => {
 
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 	expect(hit).toBe(false)
+})
+
+test('starts the create form empty after an abandoned one', async () => {
+	renderAt('/field-groups')
+	await screen.findByRole('region', { name: 'Field Groups' })
+
+	await userEvent.click(screen.getByRole('button', { name: 'Add Field Group' }))
+	await userEvent.type(await screen.findByLabelText('Title'), 'Extras')
+	await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+	await userEvent.click(screen.getByRole('button', { name: 'Add Field Group' }))
+
+	expect(await screen.findByLabelText('Title')).toHaveValue('')
 })
 
 test('names the fallback when a group write fails without an error', () => {

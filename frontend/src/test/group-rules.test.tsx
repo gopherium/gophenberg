@@ -10,7 +10,7 @@ import { operatorLabel } from '../content/RulesDialog'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
 import { renderAt } from './render'
-import { findToast } from './typeFixtures'
+import { expectReadOnly, findToast, waitBusy } from './typeFixtures'
 
 const POST_TYPE = {
 	key: 'post',
@@ -329,10 +329,14 @@ test('reports why the rules were turned away and keeps them on screen', async ()
 	renderAt('/field-groups')
 	const dialog = await openRules()
 
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Add rule set' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
 
-	expect(await screen.findByRole('alert')).toHaveTextContent(/claims/i)
-	expect(screen.getByRole('dialog')).toBeInTheDocument()
+	const said = 'content: another group already claims those items'
+	expect(await within(dialog).findByText(said)).toBeInTheDocument()
+	expect(screen.getByRole('dialog', { name: 'Where Article details appears' })).toBe(dialog)
+	expect(within(dialog).getByRole('group', { name: 'Rule set 2' })).toBeInTheDocument()
+	expect(screen.queryByText(said, { selector: '.godmin-toast' })).not.toBeInTheDocument()
 })
 
 test('abandons the edits when the dialog is dismissed', async () => {
@@ -680,6 +684,30 @@ test('shows the relation each Linked from field reads', async () => {
 
 	expect(within(reading).getByRole('combobox', { name: 'Reads from' })).toHaveTextContent('Cars')
 	expect(within(reading).getByRole('combobox', { name: 'Through' })).toHaveTextContent('Maker')
+})
+
+test('keeps every rule and Linked from picker read only while the rules are saved', async () => {
+	const answer = gate()
+	listingAll([READING, CARS])
+	server.use(
+		http.patch('/api/groups/3', async () => {
+			await answer.held
+			return HttpResponse.json(READING)
+		}),
+	)
+	renderAt('/field-groups')
+	const dialog = await openRules()
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+	await waitBusy(dialog, 'Save rules')
+
+	expectReadOnly(dialog)
+	expect(within(dialog).getByRole('combobox', { name: 'Through' })).toHaveAttribute('aria-readonly', 'true')
+	for (const name of ['Add condition', 'Remove', 'Add rule set']) {
+		expect(within(dialog).getByRole('button', { name })).toHaveAttribute('aria-disabled', 'true')
+	}
+	answer.release()
+	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })
 
 test('points a Linked from field at the relation picked as the group moves', async () => {
