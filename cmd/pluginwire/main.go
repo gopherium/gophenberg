@@ -15,12 +15,13 @@ import (
 
 // config parameterizes the shared wiring generator for Gophenberg.
 var config = wire.Config{
-	SDKImport:        "github.com/gopherium/gophenberg/sdk",
-	FrontendSDK:      "@gophenberg/frontend-sdk",
-	GoWiringPath:     "cmd/gophenberg/plugins_gen.go",
-	TSWiringPath:     "frontend/src/plugins/index.ts",
-	License:          "Apache-2.0",
-	RegistrationList: true,
+	SDKImport:         "github.com/gopherium/gophenberg/sdk",
+	FrontendSDK:       "@gophenberg/frontend-sdk",
+	GoWiringPath:      "cmd/gophenberg/plugins_gen.go",
+	ManifestIndexPath: "cmd/gophenberg/plugins_index.json",
+	TSWiringPath:      "frontend/src/plugins/index.ts",
+	License:           "Apache-2.0",
+	RegistrationList:  true,
 	Reserved: []string{
 		"help", "list", "version", "check", "serve", "migrate", "seed", "account", "about", role.Source,
 		"update", "server", "plugin", "theme", "setup", "build", "health",

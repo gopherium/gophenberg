@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -15,6 +16,7 @@ import (
 	"github.com/gopherium/framework/gonsole"
 	"github.com/gopherium/framework/gonsole/testkit"
 	"github.com/gopherium/framework/pluginkit"
+	"github.com/gopherium/framework/pluginkit/wire"
 
 	"github.com/gopherium/gophenberg/internal/app"
 	"github.com/gopherium/gophenberg/sdk"
@@ -97,8 +99,29 @@ func TestTheMainPackageHoldsOnlyTheWiring(t *testing.T) {
 
 	names := declaredNames(t)
 
-	if want := []string{"main", "pluginRegistrations"}; !slices.Equal(names, want) {
+	if want := []string{"main", "pluginIndex", "pluginRegistrations"}; !slices.Equal(names, want) {
 		t.Errorf("package main declares %v, want only %v, the rest belongs in internal/app", names, want)
+	}
+}
+
+func TestPluginIndexHoldsTheManifestOfEveryCompiledPluginInWiringOrder(t *testing.T) {
+	t.Parallel()
+
+	var manifests []wire.Manifest
+	if err := json.Unmarshal(pluginIndex, &manifests); err != nil {
+		t.Fatalf("reading the plugin index: %v", err)
+	}
+
+	indexed := make([]string, 0, len(manifests))
+	for _, manifest := range manifests {
+		indexed = append(indexed, manifest.ID)
+	}
+	wired := make([]string, 0, len(pluginRegistrations))
+	for _, registration := range pluginRegistrations {
+		wired = append(wired, registration.ID)
+	}
+	if !slices.Equal(indexed, wired) {
+		t.Errorf("the plugin index holds %v, want the compiled plugins %v in wiring order", indexed, wired)
 	}
 }
 
