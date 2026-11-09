@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { InputControl } from '@gophenberg/frontend-sdk'
-import type { RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
-import { FormBody, markLatest, useCloseWhileOpen } from '@gopherium/godmin'
-import type { BulkRun, UnsavedText } from '@gopherium/godmin'
+import { FormDialog, RenameDialog } from '@gopherium/godmin'
+import type { DialogRun } from '@gopherium/godmin'
 import { useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useState } from 'react'
 
-import { oneWriteWords } from '../lists/itemWords'
-import { RenameModal } from '../lists/RenameModal'
+import { nameWords, oneWriteWords } from '../lists/itemWords'
 import { createPost, fetchPost, renamePost } from './api'
 import type { Post } from './api'
 import { shownValues } from './conditions'
@@ -42,58 +40,43 @@ async function duplicated(client: QueryClient, post: Post, title: string, declar
 	return createPost(post.type, draft, fallback)
 }
 
-/** What a row modal of the posts list takes beside the props DataViews hands a modal. */
-interface PostModalProps extends RenderModalProps<Post> {
-	/** The text failed writes left unsaved, offered again when the modal opens for the same item. */
-	unsaved: UnsavedText
-	/** Runs the write over the item, the list reloading once it ended. */
-	run: BulkRun<Post>
+/** What a row dialog the posts screen holds open on one item takes. */
+interface PostDialogProps {
+	/** The item the dialog is open on. */
+	post: Post
+	/** Runs the write over the item and answers the dialog, the list reloading once it ended. */
+	write: DialogRun<Post>
+	/** Takes the dialog away, once its card has left the page. */
+	onClose: () => void
 }
 
 /**
- * Renders the modal copying one item into a new draft under the title given.
- * @param props - The item, the handler closing the modal, the unsaved titles and the run.
- * @returns The duplicate form.
+ * Renders the dialog copying one item into a new draft under the title given, open until the copy is made.
+ * @param props - The item, the write and what takes the dialog away.
+ * @returns The duplicate dialog, its title starting from a copy of the item's own on each open.
  */
-export function DuplicateModal({ items, closeModal, unsaved, run }: PostModalProps) {
-	const [post] = items
+export function DuplicateDialog({ post, write, onClose }: PostDialogProps) {
 	const client = useQueryClient()
 	const { fields } = useContentType()
-	const [title, setTitle] = useState(
-		() => unsaved.get(post.id) ?? sprintf(_x('%s (Copy)', 'post', 'gophenberg'), post.title),
-	)
-	const [busy, setBusy] = useState(false)
-	const close = useCloseWhileOpen(closeModal)
-	const duplicate = () => {
-		setBusy(true)
-		const stillLatest = markLatest(unsaved, post.id)
-		const write = () =>
-			duplicated(client, post, title, fields).then(
-				() => {
-					if (stillLatest()) {
-						unsaved.delete(post.id)
-					}
-				},
-				(failure: unknown) => {
-					if (stillLatest()) {
-						unsaved.set(post.id, title)
-					}
-					throw failure
-				},
-			)
-		void run(items, write, oneWriteWords(sprintf(__('"%s" successfully created.', 'gophenberg'), title))).finally(close)
-	}
+	const [title, setTitle] = useState<string>(() => sprintf(_x('%s (Copy)', 'post', 'gophenberg'), post.title))
+	const made = oneWriteWords<Post>(sprintf(__('"%s" successfully created.', 'gophenberg'), title))
 	return (
-		<FormBody
-			kind="copy"
+		<FormDialog
+			title={_x('Duplicate', 'action label', 'gophenberg')}
 			submitLabel={_x('Duplicate', 'action label', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
-			busy={busy}
-			onSubmit={duplicate}
-			onCancel={closeModal}
+			onSubmit={() => write([post], () => duplicated(client, post, title, fields), made)}
+			onClose={onClose}
 		>
-			<InputControl label={__('Title', 'gophenberg')} value={title} onChange={(event) => setTitle(event.target.value)} />
-		</FormBody>
+			{(busy) => (
+				<InputControl
+					label={__('Title', 'gophenberg')}
+					value={title}
+					readOnly={busy}
+					onChange={(event) => setTitle(event.target.value)}
+				/>
+			)}
+		</FormDialog>
 	)
 }
 
@@ -110,18 +93,21 @@ async function renamed(client: QueryClient, post: Post, title: string): Promise<
 }
 
 /**
- * Renders the modal writing a new title for one item, closed the moment Save is pressed, its failure in a toast.
- * @param props - The item, the handler closing the modal, the unsaved titles and the run.
- * @returns The rename form.
+ * Renders the dialog writing a new title for one item, open until the write answers.
+ * @param props - The item, the write and what takes the dialog away.
+ * @returns The rename dialog.
  */
-export function RenamePostModal(props: PostModalProps) {
+export function RenamePostDialog({ post, write, onClose }: PostDialogProps) {
 	const client = useQueryClient()
 	return (
-		<RenameModal
-			{...props}
-			nameOf={(post) => post.title}
-			idOf={(post) => post.id}
-			rename={(post, title) => holdWrite(client, post.id, renamed(client, post, title))}
+		<RenameDialog
+			title={__('Rename', 'gophenberg')}
+			name={post.title}
+			fieldLabel={__('Name', 'gophenberg')}
+			submitLabel={__('Save', 'gophenberg')}
+			cancelLabel={__('Cancel', 'gophenberg')}
+			onSubmit={(title) => write([post], (item) => holdWrite(client, item.id, renamed(client, item, title)), nameWords())}
+			onClose={onClose}
 		/>
 	)
 }

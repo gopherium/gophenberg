@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { InputControl, Text } from '@gophenberg/frontend-sdk'
-import type { RenderModalProps } from '@gophenberg/frontend-sdk/dataviews'
-import { ConfirmDialog, FormBody, FormDialog, markLatest, useCloseWhileOpen, useToaster } from '@gopherium/godmin'
-import type { BulkRun, ListRun, UnsavedText } from '@gopherium/godmin'
+import { InputControl } from '@gophenberg/frontend-sdk'
+import { ConfirmDialog, FormDialog, useCloseWhileOpen, useToaster } from '@gopherium/godmin'
+import type { BulkRun, DialogRun, ListRun } from '@gopherium/godmin'
 import { useQueryClient } from '@tanstack/react-query'
 import { __, _x, sprintf } from '@wordpress/i18n'
 import { useState } from 'react'
@@ -15,103 +14,101 @@ import { createType, slugifyKey } from './types'
 import type { ContentType, NewType, TypeEdit } from './types'
 import { editInTurn, refreshTypes } from './typeWrites'
 
-/** What a row form of the types list takes beside the props DataViews hands a modal. */
-export interface TypeFormProps extends RenderModalProps<ContentType> {
-	/** The text failed writes left unsaved, offered again when the form opens for the same type. */
-	unsaved: UnsavedText
-	/** Runs the write over the type, the list reloading once it ended. */
-	run: BulkRun<ContentType>
+/** What a row form the types screen holds open on one type takes. */
+export interface TypeFormProps {
+	/** The type the form is open on. */
+	type: ContentType
+	/** Runs the write over the type and answers the form, the list reloading once it ended. */
+	write: DialogRun<ContentType>
+	/** Takes the form away, once its card has left the page. */
+	onClose: () => void
 }
 
 /**
- * Returns the value a row form edits and its send, which closes the form at once, as WordPress closes a row edit.
- * @param props - The type, the handler closing the modal, the unsaved text and the run.
+ * Returns the value a row form edits and its send, which holds the form open until the edit answers.
+ * @param props - The type and the write.
  * @param stored - The value the type holds now.
  * @param asEdit - Turns the value typed into the edit to send.
  * @param done - The toast once the edit landed.
  * @returns The value, its setter and the send.
  */
 function useRowEdit(props: TypeFormProps, stored: string, asEdit: (value: string) => TypeEdit, done: string) {
-	const { items, closeModal, unsaved, run } = props
-	const [type] = items
+	const { type, write } = props
 	const client = useQueryClient()
-	const [value, setValue] = useState(() => unsaved.get(type.key) ?? stored)
-	const write = (stillLatest: () => boolean) =>
-		editInTurn(client, type.key, asEdit(value)).catch((failure: unknown) => {
-			if (stillLatest()) {
-				unsaved.set(type.key, value)
-			}
-			throw failure
-		})
-	const save = () => {
-		closeModal?.()
-		unsaved.delete(type.key)
-		const stillLatest = markLatest(unsaved, type.key)
-		void run(items, () => write(stillLatest), oneWriteWords(done))
-	}
+	const [value, setValue] = useState(stored)
+	const save = () => write([type], () => editInTurn(client, type.key, asEdit(value)), oneWriteWords(done))
 	return { value, setValue, save }
 }
 
 /**
  * Renders the row form rewriting what a type's description says.
- * @param props - The type, the handler closing the modal and the unsaved descriptions.
- * @returns The form.
+ * @param props - The type, the write and what takes the form away.
+ * @returns The form dialog.
  */
-export function DescribeModal(props: TypeFormProps) {
+export function DescribeDialog(props: TypeFormProps) {
 	const edit = useRowEdit(
 		props,
-		props.items[0].description,
+		props.type.description,
 		(description) => ({ description }),
 		__('Description updated.', 'gophenberg'),
 	)
 	return (
-		<FormBody
+		<FormDialog
+			title={__('Describe', 'gophenberg')}
 			submitLabel={__('Save', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
 			onSubmit={edit.save}
-			onCancel={props.closeModal}
+			onClose={props.onClose}
 		>
-			<InputControl
-				label={__('Description', 'gophenberg')}
-				description={__('A descriptive summary of the content type.', 'gophenberg')}
-				autoComplete="off"
-				value={edit.value}
-				onValueChange={edit.setValue}
-			/>
-		</FormBody>
+			{(busy) => (
+				<InputControl
+					label={__('Description', 'gophenberg')}
+					description={__('A descriptive summary of the content type.', 'gophenberg')}
+					autoComplete="off"
+					readOnly={busy}
+					value={edit.value}
+					onValueChange={edit.setValue}
+				/>
+			)}
+		</FormDialog>
 	)
 }
 
 /**
  * Renders the row form moving a type to a new route word, the warning first, as WordPress puts help before a field.
- * @param props - The type, the handler closing the modal and the unsaved route words.
- * @returns The form.
+ * @param props - The type, the write and what takes the form away.
+ * @returns The form dialog.
  */
-export function AddressModal(props: TypeFormProps) {
+export function AddressDialog(props: TypeFormProps) {
 	const edit = useRowEdit(
 		props,
-		props.items[0].routeWord,
+		props.type.routeWord,
 		(routeWord) => ({ routeWord: routeWord.trim() }),
 		__('Address updated.', 'gophenberg'),
 	)
 	return (
-		<FormBody
+		<FormDialog
+			title={__('Change address', 'gophenberg')}
+			description={__(
+				'Every address of this type moves. Links kept elsewhere to the old addresses stop working.',
+				'gophenberg',
+			)}
 			submitLabel={__('Move every address', 'gophenberg')}
 			cancelLabel={__('Cancel', 'gophenberg')}
 			canSubmit={edit.value.trim() !== ''}
 			onSubmit={edit.save}
-			onCancel={props.closeModal}
+			onClose={props.onClose}
 		>
-			<Text>
-				{__('Every address of this type moves. Links kept elsewhere to the old addresses stop working.', 'gophenberg')}
-			</Text>
-			<InputControl
-				label={__('Route word', 'gophenberg')}
-				autoComplete="off"
-				value={edit.value}
-				onValueChange={edit.setValue}
-			/>
-		</FormBody>
+			{(busy) => (
+				<InputControl
+					label={__('Route word', 'gophenberg')}
+					autoComplete="off"
+					readOnly={busy}
+					value={edit.value}
+					onValueChange={edit.setValue}
+				/>
+			)}
+		</FormDialog>
 	)
 }
 

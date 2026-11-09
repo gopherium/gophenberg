@@ -2,8 +2,8 @@
 
 import { backupIcon, sessionMayChange, trashIcon } from '@gophenberg/frontend-sdk'
 import type { Action } from '@gophenberg/frontend-sdk/dataviews'
-import { ConfirmDialog, focusedTrigger, useBulkRun, useUnsavedText } from '@gopherium/godmin'
-import type { BulkRun, ListRun, Trigger, UnsavedText } from '@gopherium/godmin'
+import { ConfirmDialog, focusedTrigger, useBulkRun, useDialogRun } from '@gopherium/godmin'
+import type { BulkRun, DialogRun, ListRun, Trigger } from '@gopherium/godmin'
 import { useSession } from '@gopherium/react-auth'
 import { __, _x } from '@wordpress/i18n'
 import { useQueryClient } from '@tanstack/react-query'
@@ -13,7 +13,7 @@ import { deleteTitle, deleteWords, irreversible } from '../lists/itemWords'
 import { postName, restoreWords, trashWords } from './actionWords'
 import { deletePost, restorePost, trashPost } from './api'
 import type { Post } from './api'
-import { DuplicateModal, RenamePostModal } from './NameModals'
+import { DuplicateDialog, RenamePostDialog } from './NameModals'
 import type { ContentType } from './types'
 
 /**
@@ -36,35 +36,42 @@ export function useRefresh(): (moved?: string[]) => Promise<unknown> {
 interface PostTools {
 	/** Runs one call over posts, the list reloading once the last call ended. */
 	run: BulkRun<Post>
+	/** Runs the write of a row dialog and answers the dialog, the list reloading once the write ended. */
+	write: DialogRun<Post>
 }
 
-/** A confirm the screen holds open on the picked posts. */
+/** A dialog the screen holds open on the picked posts. */
 export interface OpenedPosts {
-	/** The action the confirm belongs to. */
-	action: 'delete'
-	/** The posts the confirm is open on. */
+	/** The action the dialog belongs to. */
+	action: 'delete' | 'duplicate' | 'rename'
+	/** The posts the dialog is open on. */
 	items: Post[]
-	/** The trigger the confirm opened from, which takes the focus back once the confirm is done. */
+	/** The trigger the dialog opened from, which takes the focus back once the dialog is done. */
 	trigger: Trigger
 }
 
 /**
  * Returns what the actions and the dialogs of the posts list need, the same for as long as the screen stays.
  * @param list - What the list does around a run.
- * @returns The tools, whose run reloads the listing and forgets each post it acted on.
+ * @returns The tools, whose run and write reload the listing and forget each post they acted on.
  */
 export function usePostTools(list: ListRun): PostTools {
 	const refresh = useRefresh()
 	const refreshPosts = useCallback((posts: Post[]) => refresh(posts.map((post) => post.id)), [refresh])
 	const run = useBulkRun(list, refreshPosts)
-	return useMemo(() => ({ run }), [run])
+	const write = useDialogRun(list, refreshPosts)
+	return useMemo(() => ({ run, write }), [run, write])
 }
 
+/** The row forms the screen holds open on one post, by the action they belong to. */
+const ROW_FORMS = { duplicate: DuplicateDialog, rename: RenamePostDialog }
+
 /**
- * Renders the confirm the screen holds open on the picked posts, none while no confirm is open.
- * @param props - The confirm, its posts and the trigger it opened from, what it needs from the screen and what takes
+ * Renders the dialog the screen holds open on the picked posts, none while no dialog is open.
+ * @param props - The dialog, its posts and the trigger it opened from, what it needs from the screen and what takes
  *   it away.
- * @returns The confirm deleting the posts for good, busy until the run ends.
+ * @returns The duplicate or the rename of one post, or the confirm deleting the posts for good, each busy until its
+ *   write ends.
  */
 export function OpenPostDialog({ opened, tools, onClose }: {
 	opened?: OpenedPosts
@@ -73,6 +80,11 @@ export function OpenPostDialog({ opened, tools, onClose }: {
 }) {
 	if (opened === undefined) {
 		return null
+	}
+	if (opened.action !== 'delete') {
+		const Form = ROW_FORMS[opened.action]
+		const [post] = opened.items
+		return <Form key={`${opened.action} ${post.id}`} post={post} write={tools.write} onClose={onClose} />
 	}
 	return (
 		<ConfirmDialog
@@ -122,21 +134,13 @@ function trashViewActions(
 	]
 }
 
-/** The text failed row forms left unsaved, one store per form. */
-interface UnsavedForms {
-	/** The titles failed copies left unsaved. */
-	copies: UnsavedText
-	/** The names failed renames left unsaved. */
-	renames: UnsavedText
-}
-
 /**
  * Returns the actions offered on the rows of a list outside the trash, the view first and the trash last.
  * @param mine - Whether the session may change a post.
  * @param run - Runs one call over the picked posts.
  * @param type - The content type the list shows.
  * @param served - Whether the site serves the type the list shows.
- * @param unsaved - The text failed row forms left unsaved.
+ * @param open - Opens the duplicate or the rename on a post in a dialog the screen holds.
  * @returns The view, a primary action DataViews also draws on the row, then the duplicate, offered on every post not
  *   in the trash since every role may create, then the rename and the trash, offered on a post the session may change
  *   that is not in the trash yet.
@@ -146,7 +150,7 @@ function listActions(
 	run: BulkRun<Post>,
 	type: string,
 	served: boolean,
-	unsaved: UnsavedForms,
+	open: (opened: OpenedPosts) => void,
 ): Action<Post>[] {
 	const changeable = (post: Post) => post.status !== 'trash' && mine(post)
 	return [
@@ -155,17 +159,13 @@ function listActions(
 			id: 'duplicate',
 			label: _x('Duplicate…', 'action label', 'gophenberg'),
 			isEligible: (post) => post.status !== 'trash',
-			modalHeader: _x('Duplicate', 'action label', 'gophenberg'),
-			modalFocusOnMount: 'firstContentElement',
-			RenderModal: (props) => <DuplicateModal {...props} unsaved={unsaved.copies} run={run} />,
+			callback: (items) => open({ action: 'duplicate', items, trigger: focusedTrigger() }),
 		},
 		{
 			id: 'rename',
 			label: __('Rename…', 'gophenberg'),
 			isEligible: changeable,
-			modalHeader: __('Rename', 'gophenberg'),
-			modalFocusOnMount: 'firstContentElement',
-			RenderModal: (props) => <RenamePostModal {...props} unsaved={unsaved.renames} run={run} />,
+			callback: (items) => open({ action: 'rename', items, trigger: focusedTrigger() }),
 		},
 		{
 			id: 'trash',
@@ -207,7 +207,7 @@ function viewAction(served: boolean): Action<Post> {
  * @param status - The status the list is filtered by, empty for every status.
  * @param listed - The content type the list shows.
  * @param tools - What the actions need from the screen.
- * @param open - Opens a confirm on the picked posts that the screen holds.
+ * @param open - Opens a dialog on the picked posts that the screen holds.
  * @returns The row actions.
  */
 export function usePostActions(
@@ -218,14 +218,12 @@ export function usePostActions(
 ): Action<Post>[] {
 	const { run } = tools
 	const session = useSession().data
-	const copies = useUnsavedText()
-	const renames = useUnsavedText()
 	const { key, active } = listed
 	return useMemo(() => {
 		const mine = (post: Post) => sessionMayChange(session, post.authorId)
 		if (status === 'trash') {
 			return trashViewActions(mine, run, key, open)
 		}
-		return listActions(mine, run, key, active, { copies, renames })
-	}, [active, copies, key, open, renames, run, session, status])
+		return listActions(mine, run, key, active, open)
+	}, [active, key, open, run, session, status])
 }

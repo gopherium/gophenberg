@@ -64,10 +64,10 @@ async function openRowMenu(page: Page, name: string) {
  * @param side - The edge or size of the box to read.
  * @returns The poll that reads it until it holds still.
  */
-function frameBox(page: Page, side: 'width' | 'bottom') {
+function frameBox(page: Page, side: 'width' | 'left') {
 	return expect.poll(async () => {
 		const box = await page.getByRole('dialog').or(page.getByRole('alertdialog')).boundingBox()
-		return Math.round(side === 'width' ? (box?.width ?? 0) : (box?.y ?? 0) + (box?.height ?? 0))
+		return Math.round(side === 'width' ? (box?.width ?? 0) : (box?.x ?? 0))
 	})
 }
 
@@ -211,7 +211,7 @@ test('deletes two picked types behind one confirm', async ({ page }) => {
 	await expect(rowOf(page, second)).toHaveCount(0)
 })
 
-test('opens a row dialog as a sheet along the bottom of a phone', async ({ page }) => {
+test('opens a row dialog as a card in the middle of a phone, 24 pixels from each edge', async ({ page }) => {
 	const name = await typeNamed(page, 'tip')
 	await page.setViewportSize(PHONE)
 	await page.goto(`/admin/content-types?search=${encodeURIComponent(name)}`)
@@ -219,6 +219,6 @@ test('opens a row dialog as a sheet along the bottom of a phone', async ({ page 
 	await page.getByRole('grid').getByRole('button', { name: 'Actions' }).first().click()
 	await page.getByRole('menuitem', { name: 'Describe…' }).click()
 
-	await frameBox(page, 'width').toBe(PHONE.width)
-	await frameBox(page, 'bottom').toBe(PHONE.height)
+	await frameBox(page, 'width').toBe(PHONE.width - 48)
+	await frameBox(page, 'left').toBe(24)
 })

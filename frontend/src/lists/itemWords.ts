@@ -33,6 +33,14 @@ export function oneWriteWords<Item>(done: string): BulkWords<Item> {
 }
 
 /**
+ * Returns the words a new name for one item reads as.
+ * @returns The words for the name that landed and the reason of the one that failed.
+ */
+export function nameWords<Item>(): BulkWords<Item> {
+	return oneWriteWords(__('Name updated.', 'gophenberg'))
+}
+
+/**
  * Returns the words a run over items reads as.
  * @param nameOf - Returns the name an item is listed under.
  * @param sentences - The toasts of the run, the one counting its failures included.
