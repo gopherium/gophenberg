@@ -3,6 +3,7 @@
 package headtag_test
 
 import (
+	"fmt"
 	"html/template"
 	"slices"
 	"strings"
@@ -42,98 +43,88 @@ func TestKeepKeepsMetaAndLinkTagsInsideTheRules(t *testing.T) {
 	}
 }
 
-func TestKeepDropsEachTagOutsideTheRulesAndNamesWhy(t *testing.T) {
+// wantDropped fails the test unless Keep drops tag beside a good one and names why as want.
+func wantDropped(t *testing.T, tag sdk.HeadTag, want string) {
+	t.Helper()
+	good := tagOf("meta", "name", "kept")
+
+	kept, err := headtag.Keep([]sdk.HeadTag{good, tag})
+
+	if err == nil || err.Error() != want {
+		t.Errorf("Keep() error = %v, want %q", err, want)
+	}
+	if !slices.EqualFunc(kept, []sdk.HeadTag{good}, sameTag) {
+		t.Errorf("Keep() = %+v, want only the good tag", kept)
+	}
+}
+
+func TestKeepDropsATagThatIsNotMetaOrLink(t *testing.T) {
 	t.Parallel()
 
-	for _, tc := range []struct {
-		name string
-		tag  sdk.HeadTag
-		want string
-	}{
-		{"a script", tagOf("script", "src", "/app.js"), "dropped the head tag script: only meta and link are kept"},
-		{"a capital tag name", tagOf("META", "name", "x"), "dropped the head tag META: only meta and link are kept"},
-		{
-			"a script address", tagOf("link", "rel", "x", "href", "javascript:alert(1)"),
-			"dropped the head tag link: its href must be an http, https or site address",
-		},
-		{
-			"a protocol relative address", tagOf("link", "href", "//example.com/x.css"),
-			"dropped the head tag link: its href must be an http, https or site address",
-		},
-		{
-			"a backslash after the slash", tagOf("link", "href", `/\example.com/x.css`),
-			"dropped the head tag link: its href must be an http, https or site address",
-		},
-		{
-			"a space before the scheme", tagOf("meta", "src", " https://example.com"),
-			"dropped the head tag meta: its src must be an http, https or site address",
-		},
-		{
-			"a capital scheme", tagOf("link", "href", "HTTPS://example.com"),
-			"dropped the head tag link: its href must be an http, https or site address",
-		},
-		{
-			"an empty address", tagOf("link", "href", ""),
-			"dropped the head tag link: its href must be an http, https or site address",
-		},
-		{
-			"a space in a key", tagOf("meta", "on top", "x"),
-			`dropped the head tag meta: its attribute "on top" is not a lowercase name`,
-		},
-		{
-			"a digit first", tagOf("meta", "2col", "x"),
-			`dropped the head tag meta: its attribute "2col" is not a lowercase name`,
-		},
-		{
-			"a capital in a key", tagOf("meta", "Name", "x"),
-			`dropped the head tag meta: its attribute "Name" is not a lowercase name`,
-		},
-		{"an empty key", tagOf("meta", "", "x"), `dropped the head tag meta: its attribute "" is not a lowercase name`},
-		{
-			"an event attribute", tagOf("link", "rel", "stylesheet", "href", "/style.css", "onload", "alert(1)"),
-			`dropped the head tag link: its attribute "onload" runs script or styles the page`,
-		},
-		{
-			"an error event attribute", tagOf("link", "rel", "preload", "href", "/x", "onerror", "alert(1)"),
-			`dropped the head tag link: its attribute "onerror" runs script or styles the page`,
-		},
-		{
-			"a style attribute", tagOf("meta", "name", "x", "style", "display:none"),
-			`dropped the head tag meta: its attribute "style" runs script or styles the page`,
-		},
-		{
-			"a tab after the first slash", tagOf("link", "href", "/\t/example.com/x.css"),
-			"dropped the head tag link: its href must be an http, https or site address",
-		},
-		{
-			"a line break after the first slash", tagOf("link", "href", "/\n/example.com/x.css"),
-			"dropped the head tag link: its href must be an http, https or site address",
-		},
-		{
-			"a carriage return after the scheme", tagOf("link", "href", "https:\r//example.com/x.css"),
-			"dropped the head tag link: its href must be an http, https or site address",
-		},
-		{
-			"a space inside the address", tagOf("link", "href", "/ /example.com/x.css"),
-			"dropped the head tag link: its href must be an http, https or site address",
-		},
-		{
-			"a delete character", tagOf("link", "href", "/x\x7f.css"),
-			"dropped the head tag link: its href must be an http, https or site address",
-		},
+	for name, tag := range map[string]sdk.HeadTag{
+		"a script":           tagOf("script", "src", "/app.js"),
+		"a capital tag name": tagOf("META", "name", "x"),
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			good := tagOf("meta", "name", "kept")
-			kept, err := headtag.Keep([]sdk.HeadTag{good, tc.tag})
+			wantDropped(t, tag, "dropped the head tag "+tag.Tag+": only meta and link are kept")
+		})
+	}
+}
 
-			if err == nil || err.Error() != tc.want {
-				t.Errorf("Keep() error = %v, want %q", err, tc.want)
-			}
-			if !slices.EqualFunc(kept, []sdk.HeadTag{good}, sameTag) {
-				t.Errorf("Keep() = %+v, want only the good tag", kept)
-			}
+func TestKeepDropsAnAttributeNameOutsideTheRules(t *testing.T) {
+	t.Parallel()
+
+	for name, key := range map[string]string{
+		"a space in a key": "on top", "a digit first": "2col", "a capital in a key": "Name", "an empty key": "",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			wantDropped(t, tagOf("meta", key, "x"),
+				fmt.Sprintf("dropped the head tag meta: its attribute %q is not a lowercase name", key))
+		})
+	}
+}
+
+func TestKeepDropsAnAttributeThatRunsScriptOrStylesThePage(t *testing.T) {
+	t.Parallel()
+
+	for name, tag := range map[string]sdk.HeadTag{
+		"onload":  tagOf("link", "rel", "stylesheet", "href", "/style.css", "onload", "alert(1)"),
+		"onerror": tagOf("link", "rel", "preload", "href", "/x", "onerror", "alert(1)"),
+		"style":   tagOf("link", "rel", "icon", "style", "display:none"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			wantDropped(t, tag, fmt.Sprintf("dropped the head tag link: its attribute %q runs script or styles the page", name))
+		})
+	}
+}
+
+func TestKeepDropsAnAddressOutsideTheRules(t *testing.T) {
+	t.Parallel()
+
+	for name, asked := range map[string]struct{ key, value string }{
+		"a script address":                   {"href", "javascript:alert(1)"},
+		"a protocol relative address":        {"href", "//example.com/x.css"},
+		"a backslash after the slash":        {"href", `/\example.com/x.css`},
+		"a space before the scheme":          {"src", " https://example.com"},
+		"a capital scheme":                   {"href", "HTTPS://example.com"},
+		"an empty address":                   {"href", ""},
+		"a tab after the first slash":        {"href", "/\t/example.com/x.css"},
+		"a line break after the first slash": {"href", "/\n/example.com/x.css"},
+		"a carriage return after the scheme": {"href", "https:\r//example.com/x.css"},
+		"a space inside the address":         {"href", "/ /example.com/x.css"},
+		"a delete character":                 {"src", "/x\x7f.css"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			wantDropped(t, tagOf("link", asked.key, asked.value),
+				"dropped the head tag link: its "+asked.key+" must be an http, https or site address")
 		})
 	}
 }
