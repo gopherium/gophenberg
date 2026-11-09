@@ -344,7 +344,7 @@ export function ImportDefinitions() {
 						</Stack>
 					</Dialog.Content>
 					<Dialog.Footer>
-						<Button variant="outline" onClick={() => change(false)}>
+						<Button variant="outline" tone="neutral" onClick={() => change(false)}>
 							{__('Close', 'gophenberg')}
 						</Button>
 						{plan !== null && (

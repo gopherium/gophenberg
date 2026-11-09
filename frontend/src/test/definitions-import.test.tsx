@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { buttonClasses } from '@gopherium/godmin/testing'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { expect, onTestFinished, test } from 'vitest'
@@ -254,6 +255,15 @@ test('keeps the file field locked when the dialog is opened again while an impor
 	applying.release()
 	expect(await screen.findByText('Done. The site now holds what the file describes.')).toBeInTheDocument()
 	await waitFor(() => expect(screen.getByLabelText('Definitions file')).toBeEnabled())
+})
+
+test('draws Close of the import as a neutral outline, as a form dialog draws its Cancel', async () => {
+	renderAt('/field-groups')
+	await userEvent.click(await screen.findByRole('button', { name: 'Import definitions' }))
+
+	const dialog = await screen.findByRole('dialog', { name: 'Import definitions' })
+	const [, footerClose] = within(dialog).getAllByRole('button', { name: 'Close' })
+	expect([...(footerClose as HTMLElement).classList]).toEqual(buttonClasses('outline', undefined, 'neutral'))
 })
 
 test('sends the file of the plan on screen when Apply is pressed the moment that plan is drawn', async () => {
