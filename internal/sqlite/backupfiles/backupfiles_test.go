@@ -369,6 +369,9 @@ func TestPruningLeavesEveryFileThatIsNoBackup(t *testing.T) {
 func TestPruningReturnsARemoveThatFailed(t *testing.T) {
 	t.Parallel()
 
+	if os.Geteuid() == 0 {
+		t.Skip("root removes files from a folder it cannot write to")
+	}
 	folder := t.TempDir()
 	plant(t, folder, "0.20.0-20261101T031500Z-update.sqlite")
 	plant(t, folder, "0.20.0-20261102T031500Z-update.sqlite")
