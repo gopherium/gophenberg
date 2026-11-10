@@ -4,10 +4,10 @@ Feature: A site keeps running when one plugin fails at start
   The first start that sees a plugin records it as active. Each start
   registers the active and paused plugins one by one. A plugin that fails
   or panics as it registers, migrates, declares its roles or content
-  types, hands over its routes, or starts is paused with its error, the
-  way WordPress's recovery mode pauses a plugin, and the rest of the site
-  starts. A paused plugin is left out of the site and tried again at
-  every start.
+  types, lists hooks its methods do not match, hands over its routes, or
+  starts is paused with its error, the way WordPress's recovery mode
+  pauses a plugin, and the rest of the site starts. A paused plugin is
+  left out of the site and tried again at every start.
   An inactive plugin, one turned off on purpose, is never tried. A start
   cut short by a shutdown pauses nothing.
 
@@ -113,6 +113,22 @@ Feature: A site keeps running when one plugin fails at start
       | the Routes of "notes" panics with "boom"      | pluginkit: notes routes panicked: boom              |
       | the PublicPaths of "notes" panics with "boom" | pluginkit: notes routes panicked: boom              |
       | the Routes of "notes" answers no handler      | pluginkit: notes routes: Routes answered no handler |
+
+  Scenario Outline: A plugin whose listed hooks differ from its methods is paused and never starts
+    Given <trouble>
+    When the site serves
+    Then the route of "events" answers 200
+    And the route of "notes" answers 404
+    And the Start of "notes" never ran
+    And the plugin records hold "notes" as paused, its error saying "<error>"
+    And the site logged that "notes" is paused at the step "hooks"
+
+    Examples:
+      | trouble                                                         | error                                                                                   |
+      | "notes" lists the hook "public.head-tags" with no method for it | plugin notes hooks: lists public.head-tags but has no HeadTags method                   |
+      | "notes" has a head tags method and lists no hook                | plugin notes hooks: has a HeadTags method but does not list public.head-tags            |
+      | "notes" lists the hook "public.head-tag" with no method for it  | plugin notes hooks: lists public.head-tag, a hook neither the site nor a plugin defines |
+      | "notes" adds a head tag marking itself and lists its hook twice | plugin notes hooks: lists public.head-tags twice                                        |
 
   Scenario: A paused plugin that starts again is active with no error
     Given the plugin records already hold "notes" as paused with "a setting is missing"

@@ -58,6 +58,8 @@ type pausingPlugin struct {
 	roles        []sdk.RoleDeclaration
 	types        []string
 	routeBooms   map[string]routeBoom
+	head         headTagsOf
+	listed       []string
 }
 
 // initializePluginPausing binds the steps of the scenarios where a start pauses a plugin that fails to s.
@@ -95,6 +97,7 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Then(`^the site logged no slow start for "([^"]*)"$`, p.warnedNoSlow)
 	sc.Then(`^the error names the paused plugin "([^"]*)"$`, p.namesPaused)
 	p.bindRoutePanics(sc)
+	p.bindHooks(sc)
 }
 
 // compile compiles the plugins first and second into the scenario's binary, in that order.
@@ -252,7 +255,7 @@ func (p *pausingScenario) serve() error {
 		done: make(chan int, 1), stderr: &keptWatch{cancel: func() {}},
 	}
 	exits := &exitCodes{}
-	program := commandLine(testkit.Getenv(p.env), p.loaded(), exits, p.stamp)
+	program := commandLine(testkit.Getenv(p.env), p.built(), exits)
 	go func() {
 		site.done <- exits.of(program.Run(serving, []string{"serve"}, strings.NewReader(""), io.Discard, site.stderr))
 	}()
@@ -398,12 +401,15 @@ func (p *pausingScenario) note(step, id string) {
 	p.calls = append(p.calls, step+" "+id)
 }
 
-// register notes the call and answers the plugin, or the failure or the panic the scenario set.
+// register notes the call and answers the plugin, adding head tags when set, or the failure or the panic set.
 func (pl *pausingPlugin) register(sdk.Deps) (sdk.Plugin, error) {
 	pl.scenario.note("Register", pl.id)
 	pl.boom("Register")
 	if pl.registerErr != nil {
 		return nil, pl.registerErr
+	}
+	if pl.head != nil {
+		return headedPlugin{pausingPlugin: pl}, nil
 	}
 	return pl, nil
 }

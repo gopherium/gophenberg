@@ -44,7 +44,8 @@ func triedThreeTimes(state *updater.State) {
 func runServe(t *testing.T, env map[string]string) testkit.Result {
 	t.Helper()
 	exits := &exitCodes{}
-	result := testkit.Run(t, commandLine(testkit.Getenv(env), noPlugins, exits, version.Stamp()), "", "serve")
+	result := testkit.Run(t, commandLine(testkit.Getenv(env), binary{plugins: noPlugins, stamp: version.Stamp()}, exits),
+		"", "serve")
 	result.Code = exits.of(result.Code)
 	return result
 }
@@ -264,7 +265,7 @@ func TestMainAnswersTheExitCodeTheBootGuardAsksFor(t *testing.T) {
 		"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL, installRootSetting: switchedRoot(t, triedThreeTimes),
 	}
 
-	if code := Main(testkit.Getenv(env), noPlugins); code != exitFailedCheck {
+	if code := Main(testkit.Getenv(env), noPlugins, nil); code != exitFailedCheck {
 		t.Errorf("Main() = %d, want %d once the boot guard went back", code, exitFailedCheck)
 	}
 }

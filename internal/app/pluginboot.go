@@ -15,6 +15,7 @@ import (
 	"github.com/gopherium/framework/pluginkit"
 
 	"github.com/gopherium/gophenberg/internal/definitions"
+	"github.com/gopherium/gophenberg/internal/pluginhooks"
 	"github.com/gopherium/gophenberg/internal/role"
 	"github.com/gopherium/gophenberg/sdk"
 )
@@ -28,11 +29,12 @@ const pausedLine = "plugin paused"
 // slowStartLine is the warning serve logs for each plugin whose Start ran past its budget.
 const slowStartLine = "plugin started slower than its budget"
 
-// pluginStart is what one start of the plugins left: a host over each plugin it tried, the started ones' routes, types.
+// pluginStart is what one start of the plugins left: a host over each tried plugin, the started ones' routes and hooks.
 type pluginStart struct {
 	host        *pluginkit.Host
 	routes      map[string]http.Handler
 	publicPaths map[string][]string
+	hooks       *pluginhooks.Set
 	walked      definitions.Walked
 }
 
@@ -65,7 +67,16 @@ func (b boot) startPlugins(ctx context.Context, plugins registrations) (pluginSt
 	running, err := b.startEach(ctx, paused, started.host, held.kept)
 	started.routes, started.publicPaths = servedRoutes(held.routes, running)
 	paused.mark(held.walked)
+	if err != nil {
+		return started, err
+	}
+	started.hooks, err = pluginhooks.New(running, b.settings.hookSettings(), b.logger)
 	return started, err
+}
+
+// hookSettings returns the values every plugin hook runs under.
+func (c runConfig) hookSettings() pluginhooks.Settings {
+	return pluginhooks.Settings{Budget: c.pluginHookBudget, TimedFirings: c.pluginHookTimedFirings}
 }
 
 // registerPlugins reads the plugin records, then registers each plugin they let in, pausing each that fails.
@@ -83,7 +94,7 @@ func (b boot) registerPlugins(ctx context.Context, plugins registrations) (*paus
 	return paused, outcome.Registered, nil
 }
 
-// declarePlugins grants core, then each plugin's roles, types and routes, pausing each that fails, and lends a share.
+// declarePlugins grants core, then each plugin's roles, types, hooks and routes, pausing failures, and lends a share.
 func (b boot) declarePlugins(
 	ctx context.Context, paused *pausing, core []goncierge.Role, registered []sdk.Plugin,
 ) (declaredPlugins, error) {
@@ -103,7 +114,13 @@ func (b boot) declarePlugins(
 	if err != nil {
 		return declaredPlugins{}, err
 	}
-	if held.kept, held.routes, err = paused.routed(ctx, withTypes); err != nil {
+	withHooks, err := paused.keep(ctx, withTypes, "hooks", func(plugin sdk.Plugin) error {
+		return pluginhooks.Check(plugin, b.listed.byPlugin[plugin.ID()], b.listed.defined)
+	})
+	if err != nil {
+		return declaredPlugins{}, err
+	}
+	if held.kept, held.routes, err = paused.routed(ctx, withHooks); err != nil {
 		return declaredPlugins{}, err
 	}
 	if err := b.built.openLane(len(held.kept)); err != nil {

@@ -92,6 +92,7 @@ type operatorScenario struct {
 	release func()
 
 	compiled registrations
+	index    []byte
 	stopping context.CancelFunc
 }
 
@@ -332,6 +333,11 @@ func (s *operatorScenario) loaded() registrations {
 	return listOf(s.plugins...)
 }
 
+// built returns the binary the scenario runs: the plugins it compiled in, their manifest index and its stamp.
+func (s *operatorScenario) built() binary {
+	return binary{plugins: s.loaded(), index: s.index, stamp: s.stamp}
+}
+
 // errorSays fails unless the error stream carries text.
 func (s *operatorScenario) errorSays(text string) error {
 	if !strings.Contains(s.result.Stderr, text) {
@@ -425,7 +431,7 @@ func (s *operatorScenario) run(stdin string, args ...string) {
 // answer returns what the command line answers in process over the scenario's settings, with the code main answers.
 func (s *operatorScenario) answer(stdin string, args ...string) testkit.Result {
 	exits := &exitCodes{}
-	answered := testkit.Run(s.t, commandLine(testkit.Getenv(s.env), s.loaded(), exits, s.stamp), stdin, args...)
+	answered := testkit.Run(s.t, commandLine(testkit.Getenv(s.env), s.built(), exits), stdin, args...)
 	answered.Code = exits.of(answered.Code)
 	return answered
 }

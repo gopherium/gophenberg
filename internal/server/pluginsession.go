@@ -12,9 +12,6 @@ import (
 	"github.com/gopherium/gophenberg/sdk"
 )
 
-// pluginPrefix is the path every plugin's routes are mounted under, before the plugin's id.
-const pluginPrefix = "/api/plugins/"
-
 // routePanicLine is the error the server logs for each panic of a plugin's route.
 const routePanicLine = "plugin route panicked"
 
@@ -25,7 +22,7 @@ func pluginRouteSettings(auth *authkit.Handlers, logger *slog.Logger) pluginkit.
 		Answer: http.HandlerFunc(respondInternal),
 		Report: func(failure pluginkit.RouteFailure) {
 			logger.Error(routePanicLine, "plugin", failure.ID, "method", failure.Method,
-				"path", pluginPrefix+failure.ID+failure.Path, "answered", failure.Answered,
+				"path", sdk.PluginRoutesPrefix+failure.ID+failure.Path, "answered", failure.Answered,
 				"error", failure.Err, "stack", failure.Stack)
 		},
 	}

@@ -1,0 +1,10 @@
+[
+	{
+		"id": "feed",
+		"name": "Feed",
+		"backend": "github.com/gopherium/gophenberg/plugins/feed",
+		"hooks": [
+			"public.head-tags"
+		]
+	}
+]

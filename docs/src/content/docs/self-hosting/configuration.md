@@ -53,6 +53,8 @@ so it takes the default.
 | `GOPHENBERG_PLUGIN_QUERY_TIMEOUT` | No | `5s` | How long one plugin statement may run, its wait for a slot included. It also ends a plugin's read of account names |
 | `GOPHENBERG_PLUGIN_TX_TIMEOUT` | No | `30s` | How long one plugin transaction may stay open |
 | `GOPHENBERG_PLUGIN_START_BUDGET` | No | `10ms` | How long one plugin's `Start` may take before `serve` logs a warning naming it. A slower plugin still starts, see [a plugin that fails at start](#a-plugin-that-fails-at-start) |
+| `GOPHENBERG_PLUGIN_HOOK_BUDGET` | No | `2ms` | How long one call of a plugin hook may take, all its plugins together. A plugin still working when it runs out is logged, see [a plugin whose hook fails](#a-plugin-whose-hook-fails) |
+| `GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS` | No | `20` | How many calls of a hook, after one ran past its budget, time each of its plugins, from 1 to 1000 |
 | `GOPHENBERG_AVATARS` | No | `initials` | How the site draws avatars: `initials`, `gravatar` or `off`, see [avatars](#avatars) |
 | `GOPHENBERG_AVATAR_DEFAULT` | No | `mystery` | The picture Gravatar shows for an email address it does not know: `mystery`, `blank`, `gravatar_default`, `identicon`, `wavatar`, `monsterid`, `retro`, `robohash` or `color`. WordPress's `initials` is refused, see [avatars](#avatars) |
 | `GOPHENBERG_AVATAR_RATING` | No | `G` | The most mature Gravatar picture an avatar may show: `G`, `PG`, `R` or `X` |
@@ -1043,6 +1045,8 @@ The server refuses to start, and says why, when:
 - `GOPHENBERG_DEFINITIONS_IMPORT_CAP_KB` is not a whole number from 1 to
   1024, which is as much of a request body as the server reads.
 - `GOPHENBERG_THEME_START_ATTEMPTS` is not a whole number from 1 to 1000.
+- `GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS` is not a whole number from 1 to
+  1000.
 - `GOPHENBERG_FIELD_DEPTH` is not a whole number from 1 to 1000.
 - `GOPHENBERG_MAX_PROCS` is not a whole number from 1 to the number of
   CPUs.
@@ -1054,7 +1058,7 @@ The server refuses to start, and says why, when:
   refused, because the header counts in whole seconds.
 - Any of the theme timings, HTTP timeouts, shutdown graces, cron job
   timings, update timings, the upload timeout,
-  `GOPHENBERG_PLUGIN_START_BUDGET` or
+  `GOPHENBERG_PLUGIN_START_BUDGET`, `GOPHENBERG_PLUGIN_HOOK_BUDGET` or
   `GOPHENBERG_DATABASE_WAIT_INTERVAL` is not a positive duration.
   Write them the way Go does, `30s`, `500ms`, `1m`.
 - `GOPHENBERG_DATABASE_WAIT` is not a duration of `0` or more.
@@ -1154,6 +1158,9 @@ error or panics, and the rest of the site starts and serves:
   anything but the `id` in its manifest
 - `roles`, when it declares its roles
 - `types`, when it declares its content types
+- `hooks`, when the hooks its manifest lists under `hooks` do not
+  match its methods, see
+  [a plugin whose hook fails](#a-plugin-whose-hook-fails)
 - `routes`, when its `Routes` or `PublicPaths` runs, or when `Routes`
   returns no handler
 - `migrate`, when its schema is applied
@@ -1242,6 +1249,59 @@ The plugin stays active, and its other requests and the other
 plugins carry on. Nothing is paused for a panic in a route. A panic
 in a goroutine the route starts, or a fatal error such as two
 goroutines writing one map at once, still stops the server.
+
+### A plugin whose hook fails
+
+A hook is a moment where the site lets plugins join in, such as
+`public.head-tags`, where plugins add tags to the head of every page
+the built-in site draws. Each plugin lists the hooks it joins under
+`hooks` in its `plugin.json`. At start, `serve` checks the list
+against the plugin's methods and pauses the plugin at the step
+`hooks` when a listed hook has no method, a method's hook is not
+listed, a name is listed twice, or no hook of the site or of another
+compiled plugin has the name. The record's error names the hook:
+
+```text
+plugin notes hooks: has a HeadTags method but does not list public.head-tags
+```
+
+A plugin that fails or panics inside a hook never breaks the page.
+`serve` drops what the plugin answered, logs it under the plugin and
+the hook, and the other plugins carry on. An error is a warning:
+
+```text
+time=2026-11-09T10:12:44.208Z level=WARN msg="plugin hook failed" plugin=notes hook=public.head-tags error="pluginkit: notes public.head-tags: the notes table is missing"
+```
+
+A panic is an error with its stack:
+
+```text
+time=2026-11-09T10:12:44.208Z level=ERROR msg="plugin hook panicked" plugin=notes hook=public.head-tags error="pluginkit: notes public.head-tags panicked: runtime error: invalid memory address or nil pointer dereference" stack="goroutine 87 [running]:\n..."
+```
+
+All the plugins of one call of a hook share
+`GOPHENBERG_PLUGIN_HOOK_BUDGET`, 2 milliseconds unless set. A plugin
+still working when that time runs out, which its context tells it, is
+logged as a note rather than a warning, since a slower plugin before
+it may have used the time:
+
+```text
+time=2026-11-09T10:12:44.211Z level=INFO msg="plugin hook ran out of time" plugin=notes hook=public.head-tags error="pluginkit: notes public.head-tags: context deadline exceeded"
+```
+
+The budget only tells a plugin to stop. A plugin that ignores its
+context holds the page until it returns.
+
+A head tag must be a `meta` or `link` tag. Its attribute names are
+lowercase letters, digits and hyphens with a letter first, and none
+is `style` or starts with `on`, as `onload` does, since those run
+script or style the page. Its `href` or `src` is an `http` or `https`
+address or a path on the site, with no space or control character.
+`serve` drops any other tag, logs the plugin's warning naming the tag
+and why, and keeps the plugin's other tags.
+
+The plugin stays active. Nothing is paused for a failure inside a
+hook.
 
 ## What the binary serves where
 

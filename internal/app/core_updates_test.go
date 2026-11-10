@@ -246,7 +246,7 @@ func (s *operatorScenario) startSite() {
 	exits := &exitCodes{}
 	stderr := &keptWatch{cancel: cancel}
 	var stdout strings.Builder
-	code := commandLine(testkit.Getenv(s.env), s.loaded(), exits, s.stamp).Run(
+	code := commandLine(testkit.Getenv(s.env), s.built(), exits).Run(
 		ctx, []string{"serve"}, strings.NewReader(""), &stdout, stderr)
 	s.result = testkit.Result{Code: exits.of(code), Stdout: stdout.String(), Stderr: stderr.String()}
 }

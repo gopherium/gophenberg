@@ -26,6 +26,7 @@ A plugin is a directory under `plugins/` with a `plugin.json`:
 | `name` | Required. The human readable name |
 | `backend` | The Go import path of the plugin package |
 | `frontend` | The package name of an admin screen, if any |
+| `hooks` | The [hooks](/extending/the-plugin-sdk/#hooks) the plugin joins, each one a method it has. `serve` pauses a plugin whose list does not match its methods |
 
 At least one of `backend` and `frontend` is required.
 

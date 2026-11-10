@@ -25,7 +25,9 @@ import (
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/definitions"
 	"github.com/gopherium/gophenberg/internal/media"
+	"github.com/gopherium/gophenberg/internal/publicsite"
 	"github.com/gopherium/gophenberg/internal/role"
+	"github.com/gopherium/gophenberg/sdk"
 )
 
 // sessionCookieName scopes the login cookie to this product.
@@ -51,6 +53,8 @@ type Config struct {
 	Plugins map[string]http.Handler
 	// PluginPublicPaths maps a plugin id to its session-exempt paths.
 	PluginPublicPaths map[string][]string
+	// PluginHead answers the tags plugins add to the head of the built-in site's pages. Nil adds none.
+	PluginHead publicsite.HeadSource
 	// Web serves the single-page app under the admin base path. Nil leaves the admin paths unhandled.
 	Web fs.FS
 	// SiteTitle names the public site in its chrome.
@@ -202,7 +206,7 @@ func NewServer(cfg Config) http.Handler {
 	})
 	pluginRoutes := pluginRouteSettings(auth, s.logger)
 	for id, handler := range cfg.Plugins {
-		prefix := pluginPrefix + id
+		prefix := sdk.PluginRoutesPrefix + id
 		guarded := pluginkit.Protect(id, handler, cfg.PluginPublicPaths[id], pluginRoutes)
 		router.Mount(prefix, http.StripPrefix(prefix, guarded))
 	}

@@ -93,6 +93,7 @@ func builtInSite(cfg Config, types *content.Registry) http.Handler {
 		Types:   types,
 		Title:   cfg.SiteTitle,
 		Version: cfg.Version,
+		Head:    cfg.PluginHead,
 	})
 }
 

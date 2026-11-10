@@ -49,15 +49,16 @@ so `Register` can return it as it is.
 
 ## The lifecycle interfaces
 
-`sdk.Plugin` is required: `ID`, `Start`, `Stop`. Six optional
+`sdk.Plugin` is required: `ID`, `Start`, `Stop`. Seven optional
 interfaces add capabilities the host discovers automatically:
 `Migrator` for database migrations, `RouteProvider` for HTTP under
 `/api/plugins/{id}`, `PublicPathProvider` for the exact paths that
 answer without a login, `TypeDeclarer` for content types, field
 groups and fields the plugin brings with it, `CommandProvider`
-for [commands](#commands) on the `gophenberg` command line, and
+for [commands](#commands) on the `gophenberg` command line,
 `RoleProvider` for the [roles and capabilities](#roles-and-capabilities)
-the plugin brings.
+the plugin brings, and `HeadContributor` for tags in the head of
+every page, through a [hook](#hooks).
 
 `Register` only checks the plugin's settings and builds it. It
 opens nothing, no connection, no file and no goroutine. `Start`
@@ -70,9 +71,9 @@ database it is always empty.
 
 `serve` takes the plugins one by one. When a plugin fails to
 register, a panic in `Register` included, or fails to declare its
-roles, to declare its types, to hand over its routes, to migrate or
-to start, `serve` pauses that plugin and the rest of the site
-starts. A paused plugin's routes are not mounted, its roles are
+roles, to declare its types, to match the hooks it lists, to hand
+over its routes, to migrate or to start, `serve` pauses that plugin
+and the rest of the site starts. A paused plugin's routes are not mounted, its roles are
 left out, and every start tries it again, see
 [a plugin that fails at start](/self-hosting/configuration/#a-plugin-that-fails-at-start).
 A panic in one of its routes while it answers a request pauses
@@ -450,6 +451,66 @@ if !ok || !session.Can("manage_settings") {
 account's `Email`, `Name` and `Role`. `Can` reports whether the
 account's role holds a capability, such as `manage_users` or one a
 plugin declares.
+
+## Hooks
+
+A hook is a moment where the site lets plugins join in, the way
+WordPress calls `wp_head` while it draws a page. A plugin joins a
+hook by having its method and listing the hook's name under `hooks`
+in its `plugin.json`:
+
+```json
+{
+  "id": "hello",
+  "name": "Hello",
+  "backend": "github.com/gopherium/gophenberg/plugins/hello",
+  "hooks": ["public.head-tags"]
+}
+```
+
+At start, `serve` checks the list against the plugin's methods. A
+listed hook with no method, a method whose hook is not listed, a
+name no hook has or a name listed twice pauses the plugin at the
+step `hooks`. The site then calls each hook only for the plugins
+that started and implement it, in the order the plugins are
+compiled.
+
+| Hook | Interface and method | When the site calls it |
+| --- | --- | --- |
+| `public.head-tags` | `HeadContributor`, `HeadTags(ctx, sdk.PageMeta) ([]sdk.HeadTag, error)` | Once for each page the built-in site draws |
+
+`PageMeta` says which page is drawn: its `Kind`, which is `archive`,
+`item`, `term` or `notfound`, the content type's key in `Type`, the
+address in `Path`, the listing page in `Page`, the item of an item or
+term page in `Item`, with its `Content` and `Fields` left empty, and
+`SiteTitle`. The feed links its channel this way:
+
+```go
+// HeadTags links the channel from the head of every page, titled with the site's name.
+func (p *plugin) HeadTags(_ context.Context, page sdk.PageMeta) ([]sdk.HeadTag, error) {
+	return []sdk.HeadTag{{Tag: "link", Attrs: []sdk.Attr{
+		{Key: "rel", Value: "alternate"}, {Key: "type", Value: "application/rss+xml"},
+		{Key: "title", Value: page.SiteTitle}, {Key: "href", Value: sdk.PluginRoutesPrefix + pluginID + feedPath},
+	}}}, nil
+}
+```
+
+The site writes the tags itself. A tag must be `meta` or `link`. Its
+attribute names are lowercase letters, digits and hyphens with a
+letter first, none `style` or starting with `on`. Its `href` or `src`
+is an `http` or `https` address or a path on the site, with no space
+or control character. The site drops any other tag and keeps the
+plugin's other tags. Tags reach the pages the built-in site draws. A
+theme draws its own head.
+
+All the plugins of one call share `GOPHENBERG_PLUGIN_HOOK_BUDGET`, 2
+milliseconds unless set, as the deadline of the context they get, so
+return when it ends. Go cannot stop a running function, and a plugin
+that ignores its context holds the page until it returns. An error
+or a panic inside a hook drops what the plugin answered in that call,
+the site logs it under the plugin's name and still draws the page,
+see
+[a plugin whose hook fails](/self-hosting/configuration/#a-plugin-whose-hook-fails).
 
 ## What the SDK withholds
 
@@ -887,6 +948,19 @@ To take a version, pass its number to `go get`, such as
 Your plugin compiles into Gophenberg, so it builds against the SDK
 inside the Gophenberg you build. Build with one that holds the
 version your plugin requires, or a later one.
+
+### Unreleased
+
+On `main`, not tagged yet. A plugin that builds against it requires
+a commit of the SDK, such as `github.com/gopherium/gophenberg/sdk@main`.
+
+- New: [hooks](#hooks). The `HeadContributor` interface adds tags to
+  the head of every page the built-in site draws, with the
+  `PageMeta`, `PageKind`, `HeadTag` and `Attr` types and the hook's
+  name in `HeadTagsHook`.
+- New: `PluginRoutesPrefix`, the address every plugin's routes answer
+  under, before the plugin's id.
+- Nothing breaks.
 
 ### v0.5.0
 

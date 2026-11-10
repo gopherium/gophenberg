@@ -17,23 +17,24 @@ import (
 	"github.com/gopherium/gophenberg/sdk"
 )
 
-// Main runs the gophenberg command line over the arguments and the standard streams of the process, answering its code.
-func Main(getenv func(string) string, plugins []pluginkit.Registration[sdk.Deps, sdk.Plugin]) int {
+// Main runs the gophenberg command line of the compiled plugins and their manifest index, answering its exit code.
+func Main(getenv func(string) string, plugins []pluginkit.Registration[sdk.Deps, sdk.Plugin], index []byte) int {
 	exits := &exitCodes{}
-	return exits.of(gonsole.Main(commandLine(getenv, plugins, exits, version.Stamp())))
+	compiled := binary{plugins: plugins, index: index, stamp: version.Stamp()}
+	return exits.of(gonsole.Main(commandLine(getenv, compiled, exits)))
 }
 
-// Program returns the gophenberg command line over getenv and the compiled plugins.
+// Program returns the gophenberg command line over getenv and the compiled plugins, with no manifest index.
 func Program(getenv func(string) string, plugins []pluginkit.Registration[sdk.Deps, sdk.Plugin]) gonsole.Program {
-	return commandLine(getenv, plugins, &exitCodes{}, version.Stamp())
+	return commandLine(getenv, binary{plugins: plugins, stamp: version.Stamp()}, &exitCodes{})
 }
 
-// commandLine returns the command line of a binary of the build stamp given, keeping in exits the code a run asks for.
-func commandLine(getenv func(string) string, plugins registrations, exits *exitCodes, stamp string) gonsole.Program {
+// commandLine returns the command line of the binary given, keeping in exits the code a run asks for.
+func commandLine(getenv func(string) string, compiled binary, exits *exitCodes) gonsole.Program {
 	roles := goncierge.New()
 	accountCommands := accountConfig(roles, getenv)
 	composed := &sitePool{}
-	installs := append(updateCommands(getenv, exits, stamp), serverCommands(installer.RealMachine())...)
+	installs := append(updateCommands(getenv, exits, compiled.stamp), serverCommands(installer.RealMachine())...)
 	installs = append(installs, databaseBackupCommand(), databaseOwnerCommand(getenv))
 	return gonsole.Program{
 		Name:       "gophenberg",
@@ -43,12 +44,12 @@ func commandLine(getenv func(string) string, plugins registrations, exits *exitC
 		Env:        settingsEnv(getenv),
 		Database:   "DATABASE_URL",
 		Open:       handleOpener(getenv),
-		Serve:      postgresOnly(getenv, "serve", exits.keep(serve(binary{plugins: plugins, stamp: stamp}))),
+		Serve:      postgresOnly(getenv, "serve", exits.keep(serve(compiled))),
 		Validate:   validate(accountCommands),
 		Migrations: migrations(getenv),
 		Seed:       postgresOnly(getenv, "seed", composed.seed),
 		Commands:   coreCommands(accountCommands, installs...),
-		Plugins:    loadPlugins(plugins, roles, composed),
+		Plugins:    loadPlugins(compiled.plugins, roles, composed),
 		Authorize:  accounts.Authorize(accountCommands),
 		Record:     accounts.Record(accountCommands),
 	}

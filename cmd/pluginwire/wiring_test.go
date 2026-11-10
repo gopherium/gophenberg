@@ -82,7 +82,7 @@ func TestRepositoryWiringIsUpToDate(t *testing.T) {
 		t.Fatalf("wire.Run() error = %v, want nil", err)
 	}
 
-	for _, generated := range []string{config.GoWiringPath, config.TSWiringPath} {
+	for _, generated := range []string{config.GoWiringPath, config.TSWiringPath, config.ManifestIndexPath} {
 		fresh, err := os.ReadFile(filepath.Join(tmp, generated))
 		if err != nil {
 			t.Fatalf("reading fresh %s: %v", generated, err)
