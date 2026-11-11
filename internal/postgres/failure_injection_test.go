@@ -505,6 +505,50 @@ func TestTrashDeletesNoRevision(t *testing.T) {
 	}
 }
 
+// statusOf returns the status the store holds for the item.
+func statusOf(t *testing.T, store *postgres.ContentStore, id uuid.UUID) content.Status {
+	t.Helper()
+	stored, err := store.ByID(t.Context(), id)
+	if err != nil {
+		t.Fatalf("ByID() error = %v, want nil", err)
+	}
+	return stored.Status
+}
+
+func TestTrashReportsAutosavesItCannotRestampAndLeavesTheItemOut(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	raiseOn(t, pool, "core.content_revisions", "UPDATE")
+
+	if _, err := store.Trash(t.Context(), held.ID, time.Now().UTC()); err == nil {
+		t.Error("Trash() error = nil, want the failing restamp reported")
+	}
+	if status := statusOf(t, store, held.ID); status != held.Status {
+		t.Errorf("Status = %q, want %q kept", status, held.Status)
+	}
+}
+
+func TestRestoreReportsAutosavesItCannotRestampAndLeavesTheItemInTheTrash(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	trashed, err := store.Trash(t.Context(), held.ID, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+	raiseOn(t, pool, "core.content_revisions", "UPDATE")
+
+	if _, err := store.Restore(t.Context(), trashed.ID, time.Now().UTC()); err == nil {
+		t.Error("Restore() error = nil, want the failing restamp reported")
+	}
+	if status := statusOf(t, store, held.ID); status != content.StatusTrash {
+		t.Errorf("Status = %q, want %q kept", status, content.StatusTrash)
+	}
+}
+
 func TestSaveAutosaveReportsAnItemItCannotLock(t *testing.T) {
 	t.Parallel()
 

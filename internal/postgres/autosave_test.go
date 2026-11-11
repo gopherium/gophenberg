@@ -107,6 +107,47 @@ func TestRestampNewerAutosavesStampsOnlyTheAutosavesSavedSinceTheItemLastChanged
 	}
 }
 
+func TestTrashQueuedBehindAnAutosaveStampsItWithTheTrash(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	created := mustCreate(t, store, "Contended", author)
+	rival := rivalTransaction(t, pool)
+	if _, err := rival.Exec(t.Context(),
+		`INSERT INTO core.content_revisions
+		(id, content_id, kind, author_id, title, content, excerpt, fields, created_at)
+		VALUES ($1, $2, 'autosave', $3, 'Parked', '', '', '{}', $4)`,
+		uuid.Must(uuid.NewV7()), created.ID, author, created.UpdatedAt.Add(time.Minute)); err != nil {
+		t.Fatalf("parking the rival words: %v", err)
+	}
+	trashed := make(chan content.Content, 1)
+	failed := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		item, err := store.Trash(ctx, created.ID, time.Now().UTC())
+		trashed <- item
+		failed <- err
+	}()
+	waitingOn(t, pool, "%FROM core.content p%FOR UPDATE%")
+
+	if err := rival.Commit(t.Context()); err != nil {
+		t.Fatalf("committing the rival words: %v", err)
+	}
+
+	if err := <-failed; err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+	item := <-trashed
+	parked, err := store.Autosave(t.Context(), created.ID, author)
+	if err != nil {
+		t.Fatalf("Autosave() error = %v, want the rival words kept", err)
+	}
+	if !parked.CreatedAt.Equal(item.UpdatedAt) {
+		t.Errorf("Autosave() saved at %s, want the trash's %s", parked.CreatedAt, item.UpdatedAt)
+	}
+}
+
 func TestAutosaveQueuedBehindATrashIsRefused(t *testing.T) {
 	t.Parallel()
 
