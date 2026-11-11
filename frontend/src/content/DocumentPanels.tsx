@@ -70,10 +70,12 @@ export function chosenStatus(item: { value: string | null } | null, current: str
 
 /**
  * Renders the summary panels of the post being edited.
- * @param props - The buffer the panels drive.
+ * @param props - The buffer the panels drive and what parks its unsaved words at once.
  * @returns The panels element.
  */
-export function DocumentPanels({ postId, buffer }: { postId: string, buffer: EditorBuffer }) {
+export function DocumentPanels(
+	{ postId, buffer, parkNow }: { postId: string, buffer: EditorBuffer, parkNow: () => Promise<() => void> },
+) {
 	const { items, selected } = useMemo(() => statusItems(buffer.status), [buffer.status])
 	const listed = useContentType()
 	return (
@@ -100,7 +102,7 @@ export function DocumentPanels({ postId, buffer }: { postId: string, buffer: Edi
 					onValueChange={buffer.setExcerpt}
 				/>
 			</Stack>
-			<TrashPost postId={postId} title={buffer.title} />
+			<TrashPost postId={postId} title={buffer.title} parkNow={parkNow} />
 			<FieldsPanel postId={postId} declared={listed.fields} buffer={buffer} />
 		</Stack>
 	)

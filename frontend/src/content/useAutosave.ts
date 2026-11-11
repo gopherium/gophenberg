@@ -2,11 +2,11 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { autosavePost } from './api'
 import type { Autosave, AutosaveBuffer, AutosaveOutcome, PostDetail } from './api'
-import { heldWrites, holdWrite } from './postWrites'
+import { heldWrites, holdWrite, writesSettled } from './postWrites'
 
 const AUTOSAVE_INTERVAL = 60000
 
@@ -25,14 +25,23 @@ type Parkable = AutosaveBuffer & {
  * Parks the editing buffer on the server while it holds unsaved words, and as the editor closes.
  * @param postId - The post being edited.
  * @param buffer - The words held, and whether they are unsaved.
+ * @returns What parks the unsaved words at once, failing when rejected, answering with what marks the post trashed.
  */
-export function useAutosave(postId: string, buffer: Parkable): void {
+export function useAutosave(postId: string, buffer: Parkable): () => Promise<() => void> {
 	const client = useQueryClient()
 	const latest = useRef(buffer)
+	const trashed = useRef(false)
+	const parking = useRef(false)
+	const closed = useRef(false)
+	const committed = useRef<(() => void)[]>([])
+	const [, rerender] = useState(0)
 	useEffect(() => {
 		latest.current = buffer
+		release(committed.current)
 	})
 	useEffect(() => {
+		closed.current = false
+		const waiting = committed.current
 		/**
 		 * Parks the buffer when it holds unsaved words and no write is in flight.
 		 * @param keepalive - Whether the request should outlive the page.
@@ -47,11 +56,45 @@ export function useAutosave(postId: string, buffer: Parkable): void {
 		const flush = () => park(true)
 		window.addEventListener('beforeunload', flush)
 		return () => {
+			closed.current = true
 			clearInterval(timer)
 			window.removeEventListener('beforeunload', flush)
-			leave(client, postId, latest.current)
+			release(waiting)
+			leave(client, postId, latest.current, trashed.current || parking.current)
 		}
 	}, [client, postId])
+	return useCallback(async () => {
+		parking.current = true
+		try {
+			await writesSettled(client, postId)
+			if (!closed.current) {
+				await new Promise<void>((resume) => {
+					committed.current.push(resume)
+					rerender((renders) => renders + 1)
+				})
+			}
+			const held = latest.current
+			if (held.dirty) {
+				const write = autosavePost(postId, wordsOf(held), held.version)
+				await holdWrite(client, postId, write.then((outcome) => land(client, postId, held, outcome)))
+			}
+		} finally {
+			parking.current = false
+		}
+		return () => {
+			trashed.current = true
+		}
+	}, [client, postId])
+}
+
+/**
+ * Lets go of everything waiting for the editor's next commit.
+ * @param waiting - The waiters, emptied as each is called.
+ */
+function release(waiting: (() => void)[]): void {
+	for (const resume of waiting.splice(0)) {
+		resume()
+	}
 }
 
 /**
@@ -79,9 +122,10 @@ function send(client: QueryClient, postId: string, held: Parkable, write: Promis
  * @param client - The query client caching the post.
  * @param postId - The post being left.
  * @param held - The buffer as the editor closes.
+ * @param trashed - Whether the post went to the trash or Move to trash parks the words, either taking no autosave.
  */
-function leave(client: QueryClient, postId: string, held: Parkable): void {
-	if (!held.dirty) {
+function leave(client: QueryClient, postId: string, held: Parkable, trashed: boolean): void {
+	if (!held.dirty || trashed) {
 		return
 	}
 	const words = wordsOf(held)
