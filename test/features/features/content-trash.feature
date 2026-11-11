@@ -46,7 +46,6 @@ Feature: The trash
     And the administrator files "Team" under "About"
     Then the request is refused with the code "content_trashed"
 
-  @wip
   Scenario: A post sent to the trash keeps its parked words
     Given the published post "Hello world"
     And the editor parked "Hello again" on "Hello world"
@@ -54,7 +53,6 @@ Feature: The trash
     And the editor opens the autosave of "Hello world"
     Then the autosave holds the title "Hello again"
 
-  @wip
   Scenario: A post back from the trash keeps its parked words
     Given the published post "Hello world"
     And the editor parked "Hello again" on "Hello world"
@@ -71,7 +69,6 @@ Feature: The trash
     And the administrator restores "Hello world"
     Then the autosave of "Hello world" is no older than the post
 
-  @wip
   Scenario: Words parked before the last save stay older than the post once it comes back
     Given the published post "Hello world"
     And the editor parked "Hello again" on "Hello world"

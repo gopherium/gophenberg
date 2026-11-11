@@ -926,7 +926,7 @@ func sameParent(one, other *uuid.UUID) bool {
 	return *one == *other
 }
 
-// Trash marks the item trashed, frees its address and drops its parked words, or refuses while it holds children.
+// Trash marks the item trashed and frees its address, or rejects an item with children.
 func (s *memoryContent) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	held, err := s.Children(ctx, id)
 	if err != nil {
@@ -948,11 +948,6 @@ func (s *memoryContent) Trash(ctx context.Context, id uuid.UUID, updatedAt time.
 	stored.Status, stored.UpdatedAt = content.StatusTrash, updatedAt
 	stored = stored.Place(content.AddressPrefix(stored.Path, stored.Slug), stored.Slug+trashSuffix())
 	s.items[id] = stored
-	for held := range s.autosaves {
-		if held.contentID == id {
-			delete(s.autosaves, held)
-		}
-	}
 	return stored, nil
 }
 
