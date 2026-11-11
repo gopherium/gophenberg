@@ -15,6 +15,7 @@ var trashCases = []Case{
 	{"EmptiesOnlyTheTrashTheAuthorWrote", emptiesOnlyTheTrashTheAuthorWrote},
 	{"EmptiesAnEmptyTrash", emptiesAnEmptyTrash},
 	{"EmptyTrashTakesTheRevisionsAlong", emptyTrashTakesTheRevisionsAlong},
+	{"EmptyTrashTakesTheAutosavesAlong", emptyTrashTakesTheAutosavesAlong},
 }
 
 // emptiesTheTrashOfOneTypeAlone deletes the trashed items of the named type and leaves every other item.
@@ -97,5 +98,21 @@ func emptyTrashTakesTheRevisionsAlong(t *testing.T, s Stores) {
 		t.Context(), created.ID, revision.ID,
 	); !errors.Is(err, content.ErrRevisionNotFound) {
 		t.Errorf("RevisionByID() error = %v, want the revision gone with its item", err)
+	}
+}
+
+// emptyTrashTakesTheAutosavesAlong deletes the autosaves of each item it deletes.
+func emptyTrashTakesTheAutosavesAlong(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	created := MustCreate(t, s.Content, "Parked", author)
+	parkTitle(t, s, created, author, "Parked Buffer")
+	Trash(t, s.Content, created)
+
+	if _, _, err := s.Content.EmptyTrash(t.Context(), content.TypePost, nil); err != nil {
+		t.Fatalf("EmptyTrash() error = %v, want nil", err)
+	}
+
+	if _, err := s.Content.Autosave(t.Context(), created.ID, author); !errors.Is(err, content.ErrRevisionNotFound) {
+		t.Errorf("Autosave() error = %v, want the autosave gone with its item", err)
 	}
 }

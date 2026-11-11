@@ -22,8 +22,30 @@ var autosaveCases = []Case{
 	{"SaveAutosaveReportsAVanishedPost", saveAutosaveReportsAVanishedPost},
 	{"DeleteAutosaveRemovesOnlyTheAuthorsBuffer", deleteAutosaveRemovesOnlyTheAuthorsBuffer},
 	{"DeleteAutosaveToleratesAMissingBuffer", deleteAutosaveToleratesAMissingBuffer},
-	{"TrashLeavesNoParkedWords", trashLeavesNoParkedWords},
+	{"TrashKeepsTheAutosaves", trashKeepsTheAutosaves},
+	{"RestoreKeepsTheAutosaves", restoreKeepsTheAutosaves},
+	{"DeleteTakesTheAutosavesAlong", deleteTakesTheAutosavesAlong},
 	{"SaveAutosaveRefusesAnItemInTheTrash", saveAutosaveRefusesAnItemInTheTrash},
+}
+
+// parkTitle parks a buffer holding the title as the author's autosave of the item.
+func parkTitle(t *testing.T, s Stores, item content.Content, author uuid.UUID, title string) {
+	t.Helper()
+	buffer := item
+	buffer.Title = title
+	if _, err := s.Content.SaveAutosave(t.Context(), MustAutosave(t, buffer, author)); err != nil {
+		t.Fatalf("SaveAutosave() error = %v, want nil", err)
+	}
+}
+
+// heldAutosave returns the author's autosave of the item, failing when the store holds none.
+func heldAutosave(t *testing.T, s Stores, item content.Content, author uuid.UUID) content.Revision {
+	t.Helper()
+	kept, err := s.Content.Autosave(t.Context(), item.ID, author)
+	if err != nil {
+		t.Fatalf("Autosave() error = %v, want the parked words kept", err)
+	}
+	return kept
 }
 
 // saveAutosaveStoresTheBuffer parks the buffered title and body as an autosave credited to the author.
@@ -186,16 +208,14 @@ func deleteAutosaveToleratesAMissingBuffer(t *testing.T, s Stores) {
 	}
 }
 
-// trashLeavesNoParkedWords sweeps every author's autosave into the trash and keeps the revisions.
-func trashLeavesNoParkedWords(t *testing.T, s Stores) {
+// trashKeepsTheAutosaves keeps every author's autosave and the revisions while the item waits in the trash.
+func trashKeepsTheAutosaves(t *testing.T, s Stores) {
 	author := s.AddAuthor(t, DefaultAuthor)
 	created := MustCreate(t, s.Content, "Parked", author)
 	other := s.AddAuthor(t, "Another Writer")
-	parkers := []uuid.UUID{author, other}
-	for _, parker := range parkers {
-		if _, err := s.Content.SaveAutosave(t.Context(), MustAutosave(t, created, parker)); err != nil {
-			t.Fatalf("SaveAutosave() error = %v, want nil", err)
-		}
+	parked := map[uuid.UUID]string{author: "Parked by the author", other: "Parked by another writer"}
+	for parker, title := range parked {
+		parkTitle(t, s, created, parker, title)
 	}
 	snapshot, err := content.NewRevision(created, content.RevisionKindRevision, author)
 	if err != nil {
@@ -212,17 +232,49 @@ func trashLeavesNoParkedWords(t *testing.T, s Stores) {
 		t.Fatalf("Trash() error = %v, want nil", err)
 	}
 
-	for _, parker := range parkers {
-		if _, err := s.Content.Autosave(t.Context(), created.ID, parker); !errors.Is(err, content.ErrRevisionNotFound) {
-			t.Errorf("Autosave() error = %v, want the parked words gone with the trash", err)
+	for parker, title := range parked {
+		if kept := heldAutosave(t, s, created, parker).Title; kept != title {
+			t.Errorf("Autosave() title = %q, want %q kept through the trash", kept, title)
 		}
 	}
 	revisions, err := s.Content.Revisions(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("Revisions() error = %v, want nil", err)
 	}
-	if len(revisions) != 1 || revisions[0].Kind != content.RevisionKindRevision {
-		t.Errorf("revisions = %+v, want only the snapshot kept", revisions)
+	if len(revisions) != 3 {
+		t.Errorf("revisions = %+v, want the snapshot and both autosaves kept", revisions)
+	}
+}
+
+// restoreKeepsTheAutosaves brings the item back from the trash with the autosave parked before it left.
+func restoreKeepsTheAutosaves(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	created := MustCreate(t, s.Content, "Parked", author)
+	parkTitle(t, s, created, author, "Parked Buffer")
+	Trash(t, s.Content, created)
+
+	if _, err := s.Content.Restore(t.Context(), created.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("Restore() error = %v, want nil", err)
+	}
+
+	if kept := heldAutosave(t, s, created, author).Title; kept != "Parked Buffer" {
+		t.Errorf("Autosave() title = %q, want the words parked before the trash", kept)
+	}
+}
+
+// deleteTakesTheAutosavesAlong removes the autosaves of an item deleted for good from the trash.
+func deleteTakesTheAutosavesAlong(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	created := MustCreate(t, s.Content, "Parked", author)
+	parkTitle(t, s, created, author, "Parked Buffer")
+	Trash(t, s.Content, created)
+
+	if err := s.Content.Delete(t.Context(), created.ID); err != nil {
+		t.Fatalf("Delete() error = %v, want nil", err)
+	}
+
+	if _, err := s.Content.Autosave(t.Context(), created.ID, author); !errors.Is(err, content.ErrRevisionNotFound) {
+		t.Errorf("Autosave() error = %v, want the autosave gone with its item", err)
 	}
 }
 
