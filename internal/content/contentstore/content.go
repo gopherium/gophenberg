@@ -537,11 +537,14 @@ func (s *Store) Depth(ctx context.Context, id uuid.UUID) (int, error) {
 	return int(levels), nil
 }
 
-// Trash marks the content item trashed and frees its address for reuse.
+// Trash marks the content item trashed, frees its address for reuse and carries a newer autosave along.
 func (s *Store) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	var trashed content.Content
 	err := s.backend.InTx(ctx, func(queries Tx) error {
 		if err := leavable(ctx, queries, id); err != nil {
+			return err
+		}
+		if err := queries.RestampNewerAutosaves(ctx, id, updatedAt); err != nil {
 			return err
 		}
 		row, err := queries.TrashContent(ctx, id, trashSuffix(), updatedAt)
@@ -588,11 +591,14 @@ func leavable(ctx context.Context, queries Queries, id uuid.UUID) error {
 	return nil
 }
 
-// Restore returns a trashed item to draft under its original slug when free, and refuses one out of the trash.
+// Restore returns a trashed item to draft under its original slug when free, carrying a newer autosave along.
 func (s *Store) Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	var restored content.Content
 	err := s.backend.InTx(ctx, func(queries Tx) error {
 		if err := restorable(ctx, queries, id); err != nil {
+			return err
+		}
+		if err := queries.RestampNewerAutosaves(ctx, id, updatedAt); err != nil {
 			return err
 		}
 		row, err := s.restoredRow(ctx, queries, id, updatedAt)

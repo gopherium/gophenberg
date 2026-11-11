@@ -598,6 +598,7 @@ var trashArms = map[string]arm{
 		},
 		log: []step{
 			begun, on("LockContent", helloID), on("CountChildren", helloID),
+			sent("RestampNewerAutosaves", stamped{ID: helloID, At: editedAt}),
 			sent("TrashContent", trashing{ID: helloID, Suffix: suffixShape, At: editedAt}), rolledBack,
 		},
 		ends: content.ErrNotFound,
@@ -624,6 +625,7 @@ var trashArms = map[string]arm{
 		},
 		log: []step{
 			begun, on("LockContent", helloID), on("CountChildren", helloID),
+			sent("RestampNewerAutosaves", stamped{ID: helloID, At: editedAt}),
 			sent("TrashContent", trashing{ID: helloID, Suffix: suffixShape, At: editedAt}),
 			on("RefreshRelationVisibility", helloID), committed,
 		},

@@ -534,6 +534,7 @@ var trashSequences = map[string]sequence{
 		},
 		golden: []step{
 			begun, on("LockContent", helloID), on("CountChildren", helloID),
+			sent("RestampNewerAutosaves", stamped{ID: helloID, At: editedAt}),
 			sent("TrashContent", trashing{ID: helloID, Suffix: suffixShape, At: editedAt}),
 			on("RefreshRelationVisibility", helloID), committed,
 		},
@@ -543,7 +544,8 @@ var trashSequences = map[string]sequence{
 			return valued(s.Restore(ctx, contactID, editedAt))
 		},
 		golden: []step{
-			begun, on("LockContent", contactID), savepointOpened,
+			begun, on("LockContent", contactID),
+			sent("RestampNewerAutosaves", stamped{ID: contactID, At: editedAt}), savepointOpened,
 			sent("RestoreContent", stamped{ID: contactID, At: editedAt}), released,
 			on("RefreshRelationVisibility", contactID), committed,
 		},
@@ -557,7 +559,8 @@ var trashSequences = map[string]sequence{
 			return valued(s.Restore(ctx, contactID, editedAt))
 		},
 		golden: []step{
-			begun, on("LockContent", contactID), savepointOpened,
+			begun, on("LockContent", contactID),
+			sent("RestampNewerAutosaves", stamped{ID: contactID, At: editedAt}), savepointOpened,
 			sent("RestoreContent", stamped{ID: contactID, At: editedAt}), rolledBackToSavepoint,
 			sent("RestoreContentKeepingSlug", stamped{ID: contactID, At: editedAt}),
 			on("RefreshRelationVisibility", contactID), committed,
@@ -572,7 +575,8 @@ var trashSequences = map[string]sequence{
 			return valued(s.Restore(ctx, pagedID, editedAt))
 		},
 		golden: []step{
-			begun, on("LockContent", pagedID), savepointOpened,
+			begun, on("LockContent", pagedID),
+			sent("RestampNewerAutosaves", stamped{ID: pagedID, At: editedAt}), savepointOpened,
 			sent("RestoreContent", stamped{ID: pagedID, At: editedAt}), rolledBackToSavepoint,
 			sent("RestoreContentKeepingSlug", stamped{ID: pagedID, At: editedAt}),
 			on("RefreshRelationVisibility", pagedID), committed,
