@@ -280,6 +280,11 @@ func (q contentQueries) DeleteAutosave(ctx context.Context, contentID, authorID 
 	return q.queries.DeleteAutosave(ctx, db.DeleteAutosaveParams{ContentID: contentID, AuthorID: authorID})
 }
 
+// RestampNewerAutosaves stamps each autosave of the item saved since the item last changed with the moment.
+func (q contentQueries) RestampNewerAutosaves(ctx context.Context, contentID uuid.UUID, at time.Time) error {
+	return q.queries.RestampNewerAutosaves(ctx, db.RestampNewerAutosavesParams{SavedAt: at, ContentID: contentID})
+}
+
 // TypesOfContent returns the type of each stored item the identities name.
 func (q contentQueries) TypesOfContent(ctx context.Context, ids []uuid.UUID) ([]contentstore.TypedItem, error) {
 	rows, err := q.queries.TypesOfContent(ctx, ids)

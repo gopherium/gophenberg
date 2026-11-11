@@ -1189,6 +1189,23 @@ func (q *Queries) RefreshRelationVisibility(ctx context.Context, id uuid.UUID) e
 	return err
 }
 
+const restampNewerAutosaves = `-- name: RestampNewerAutosaves :exec
+UPDATE core.content_revisions AS r
+SET created_at = $1
+WHERE r.content_id = $2 AND r.kind = 'autosave'
+    AND r.created_at >= (SELECT p.updated_at FROM core.content p WHERE p.id = r.content_id)
+`
+
+type RestampNewerAutosavesParams struct {
+	SavedAt   time.Time
+	ContentID uuid.UUID
+}
+
+func (q *Queries) RestampNewerAutosaves(ctx context.Context, arg RestampNewerAutosavesParams) error {
+	_, err := q.db.Exec(ctx, restampNewerAutosaves, arg.SavedAt, arg.ContentID)
+	return err
+}
+
 const restoreContent = `-- name: RestoreContent :one
 UPDATE core.content AS p
 SET status = 'draft',
