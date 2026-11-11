@@ -257,6 +257,33 @@ test('takes a post trashed from the editor back out of the trash from the list',
 	await expect(page.getByRole('link', { name: TRASH_TITLE })).toBeVisible()
 })
 
+test('offers the words left in a published post again once its trash from the list is undone', async ({ page }) => {
+	const title = `A post the golden path trashed from the list ${RUN}`
+	const edited = `${title} with words left unsaved`
+	await openNewDraft(page)
+	await page.getByRole('textbox', { name: 'Title' }).fill(title)
+	await page.getByRole('button', { name: 'Publish', exact: true }).click()
+	await expect(page.getByRole('button', { name: 'Update' })).toBeVisible()
+	await page.getByRole('textbox', { name: 'Title' }).fill(edited)
+	const [parked] = await Promise.all([
+		page.waitForResponse((answer) => answer.request().method() === 'POST' && answer.url().endsWith('/autosave')),
+		page.getByRole('link', { name: 'Back to posts' }).click(),
+	])
+	expect(parked.ok()).toBe(true)
+	const row = page.getByRole('row').filter({ has: page.getByRole('link', { name: title, exact: true }) })
+	await row.getByRole('button', { name: 'Actions' }).click()
+	await page.getByRole('menuitem', { name: 'Trash', exact: true }).click()
+	const toast = page.locator('.godmin-toast', { hasText: `"${title}" moved to the trash.` })
+	await toast.getByRole('button', { name: 'Undo', exact: true }).click()
+	await expect(shown(page, `"${title}" has been restored.`)).toBeVisible()
+
+	await page.getByRole('link', { name: title, exact: true }).click()
+
+	await expect(shown(page, 'The browser kept an unsaved version of this post.')).toBeVisible()
+	await page.getByRole('button', { name: 'Restore', exact: true }).click()
+	await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(edited)
+})
+
 test('lays out Move to trash as the WordPress editor does', async ({ page }) => {
 	await openNewDraft(page)
 	await page.getByRole('textbox', { name: 'Title' }).fill(LAYOUT_TITLE)
