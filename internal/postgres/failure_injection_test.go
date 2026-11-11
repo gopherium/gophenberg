@@ -493,15 +493,15 @@ func TestTrashReportsAnItemItCannotMark(t *testing.T) {
 	}
 }
 
-func TestTrashReportsParkedWordsItCannotSweep(t *testing.T) {
+func TestTrashDeletesNoRevision(t *testing.T) {
 	t.Parallel()
 
 	store, author, pool := newContentStoreWithPool(t)
 	held := mustCreate(t, store, "A Post", author)
 	raiseOn(t, pool, "core.content_revisions", "DELETE")
 
-	if _, err := store.Trash(t.Context(), held.ID, time.Now().UTC()); err == nil {
-		t.Error("Trash() error = nil, want the failing sweep reported")
+	if _, err := store.Trash(t.Context(), held.ID, time.Now().UTC()); err != nil {
+		t.Errorf("Trash() error = %v, want a trash that deletes nothing from the revisions", err)
 	}
 }
 

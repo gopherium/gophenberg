@@ -33,39 +33,6 @@ func addAuthor(t *testing.T, pool *pgxpool.Pool, name string) uuid.UUID {
 	return author
 }
 
-func TestTrashQueuedBehindAnAutosaveSweepsIt(t *testing.T) {
-	t.Parallel()
-
-	store, author, pool := newContentStoreWithPool(t)
-	created := mustCreate(t, store, "Contended", author)
-	rival := rivalTransaction(t, pool)
-	if _, err := rival.Exec(t.Context(),
-		`INSERT INTO core.content_revisions (id, content_id, kind, author_id, title, content, excerpt, fields, created_at)
-		VALUES ($1, $2, 'autosave', $3, 'Parked', '', '', '{}', now())`,
-		uuid.Must(uuid.NewV7()), created.ID, author); err != nil {
-		t.Fatalf("parking the rival words: %v", err)
-	}
-	trashed := make(chan error, 1)
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		_, err := store.Trash(ctx, created.ID, time.Now().UTC())
-		trashed <- err
-	}()
-	waitingOn(t, pool, "%FROM core.content p%FOR UPDATE%")
-
-	if err := rival.Commit(t.Context()); err != nil {
-		t.Fatalf("committing the rival words: %v", err)
-	}
-
-	if err := <-trashed; err != nil {
-		t.Fatalf("Trash() error = %v, want nil", err)
-	}
-	if _, err := store.Autosave(t.Context(), created.ID, author); !errors.Is(err, content.ErrRevisionNotFound) {
-		t.Errorf("Autosave() error = %v, want the words parked before the trash swept", err)
-	}
-}
-
 func TestAutosaveQueuedBehindATrashIsRefused(t *testing.T) {
 	t.Parallel()
 
