@@ -34,6 +34,9 @@ msgstr ""
 msgid "\"%s\" uploaded."
 msgstr ""
 
+msgid "\"%s\" was not moved to the trash, because its changes could not be saved."
+msgstr ""
+
 msgid "%(field)s address"
 msgstr ""
 

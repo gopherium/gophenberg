@@ -1948,6 +1948,10 @@ msgid "\"%s\" successfully created."
 msgstr "« %s » créé avec succès."
 
 #, fuzzy
+msgid "\"%s\" was not moved to the trash, because its changes could not be saved."
+msgstr "« %s » n'a pas été déplacé dans la corbeille, car ses modifications n'ont pas pu être enregistrées."
+
+#, fuzzy
 msgid "%s item could not be moved to the trash."
 msgid_plural "%s items could not be moved to the trash."
 msgstr[0] "%s élément n'a pas pu être déplacé dans la corbeille."

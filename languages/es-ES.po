@@ -1694,6 +1694,10 @@ msgid "\"%s\" successfully created."
 msgstr "«%s» creado correctamente."
 
 #, fuzzy
+msgid "\"%s\" was not moved to the trash, because its changes could not be saved."
+msgstr "«%s» no se ha trasladado a la papelera, porque sus cambios no se han podido guardar."
+
+#, fuzzy
 msgid "%s item could not be moved to the trash."
 msgid_plural "%s items could not be moved to the trash."
 msgstr[0] "No se ha podido mover %s elemento a la papelera."

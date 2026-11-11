@@ -5,9 +5,11 @@ import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, configure, renderHook, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { useAutosave } from '../content/useAutosave'
+import { catalogFor } from '../i18n/catalog'
 import { listenAt } from './announcements'
 import { comeBack } from './anotherPost'
 import { classesOf } from './classes'
@@ -780,6 +782,38 @@ test('keeps a post whose autosave failed out of the trash with its words, naming
 	expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Welcome to Gophenberg!')
 	await waitFor(() => expect(trigger).not.toHaveClass('is-busy'))
 	expect(trigger).not.toHaveAttribute('aria-disabled', 'true')
+})
+
+test.each([
+	{
+		locale: 'es-ES',
+		title: 'Título',
+		trash: 'Mover a la papelera',
+		words:
+			'«Welcome to Gophenberg!» no se ha trasladado a la papelera, porque sus cambios no se han podido guardar.',
+	},
+	{
+		locale: 'fr-FR',
+		title: 'Titre',
+		trash: 'Déplacer dans la corbeille',
+		words:
+			"« Welcome to Gophenberg! » n'a pas été déplacé dans la corbeille, car ses modifications " +
+			"n'ont pas pu être enregistrées.",
+	},
+])('names why a post whose autosave failed stays out of the trash in $locale', async (said) => {
+	setLocaleData(await catalogFor(said.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	server.use(
+		http.post(`/api/content/${storedPost.id}/autosave`, () =>
+			HttpResponse.json({ error: 'internal error' }, { status: 500 }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	await userEvent.type(await screen.findByRole('textbox', { name: said.title }), '!')
+
+	await userEvent.click(screen.getByRole('button', { name: said.trash }))
+
+	expect(await findToast(said.words)).toBeInTheDocument()
 })
 
 test('sends no second autosave as the editor closes after the trash', async () => {
