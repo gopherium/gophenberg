@@ -926,7 +926,7 @@ func sameParent(one, other *uuid.UUID) bool {
 	return *one == *other
 }
 
-// Trash marks the item trashed and frees its address, or rejects an item with children.
+// Trash marks the item trashed, frees its address and carries a newer autosave along, or rejects an item with children.
 func (s *memoryContent) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	held, err := s.Children(ctx, id)
 	if err != nil {
@@ -945,10 +945,21 @@ func (s *memoryContent) Trash(ctx context.Context, id uuid.UUID, updatedAt time.
 		return content.Content{}, content.Refuse(content.ErrInvalidTransition, "content_already_trashed",
 			"content: the item is already in the trash", nil)
 	}
+	s.restampNewerAutosaves(id, stored.UpdatedAt, updatedAt)
 	stored.Status, stored.UpdatedAt = content.StatusTrash, updatedAt
 	stored = stored.Place(content.AddressPrefix(stored.Path, stored.Slug), stored.Slug+trashSuffix())
 	s.items[id] = stored
 	return stored, nil
+}
+
+// restampNewerAutosaves stamps each autosave of the item saved since the moment with the new one.
+func (s *memoryContent) restampNewerAutosaves(id uuid.UUID, since, at time.Time) {
+	for held, parked := range s.autosaves {
+		if held.contentID == id && !parked.CreatedAt.Before(since) {
+			parked.CreatedAt = at
+			s.autosaves[held] = parked
+		}
+	}
 }
 
 // trashSuffixAlphabet holds the characters a trashed slug suffix draws from.
@@ -970,7 +981,7 @@ func trashSuffix() string {
 // trashMarker matches the suffix a trashed slug and address carry.
 var trashMarker = regexp.MustCompile(`-trashed-[a-z0-9]{8}$`)
 
-// Restore returns a trashed item to draft under its original slug when free, and refuses one out of the trash.
+// Restore returns a trashed item to draft under its original slug when free, carrying a newer autosave along.
 func (s *memoryContent) Restore(_ context.Context, id uuid.UUID, updatedAt time.Time) (content.Content, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -978,9 +989,11 @@ func (s *memoryContent) Restore(_ context.Context, id uuid.UUID, updatedAt time.
 	if !found {
 		return content.Content{}, content.ErrNotFound
 	}
+	since := stored.UpdatedAt
 	if err := stored.Restore(); err != nil {
 		return content.Content{}, err
 	}
+	s.restampNewerAutosaves(id, since, updatedAt)
 	stored.UpdatedAt = updatedAt
 	restored := stored
 	restored.Slug = trashMarker.ReplaceAllString(stored.Slug, "")

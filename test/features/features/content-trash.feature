@@ -61,7 +61,6 @@ Feature: The trash
     And the editor opens the autosave of "Hello world"
     Then the autosave holds the title "Hello again"
 
-  @wip
   Scenario: Words parked before a trash are no older than the post once it comes back
     Given the published post "Hello world"
     And the editor parked "Hello again" on "Hello world"
