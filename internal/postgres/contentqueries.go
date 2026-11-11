@@ -280,11 +280,6 @@ func (q contentQueries) DeleteAutosave(ctx context.Context, contentID, authorID 
 	return q.queries.DeleteAutosave(ctx, db.DeleteAutosaveParams{ContentID: contentID, AuthorID: authorID})
 }
 
-// DeleteAutosavesOfContent removes every autosave of the item.
-func (q contentQueries) DeleteAutosavesOfContent(ctx context.Context, contentID uuid.UUID) error {
-	return q.queries.DeleteAutosavesOfContent(ctx, contentID)
-}
-
 // TypesOfContent returns the type of each stored item the identities name.
 func (q contentQueries) TypesOfContent(ctx context.Context, ids []uuid.UUID) ([]contentstore.TypedItem, error) {
 	rows, err := q.queries.TypesOfContent(ctx, ids)
