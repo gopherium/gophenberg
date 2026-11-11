@@ -166,7 +166,12 @@ The editor's Document panel offers **Move to trash** under the
 excerpt, above the item's fields. It is a red button, as in the
 WordPress editor. It moves the post at once too, shows the post
 moving and takes no second press, then goes back to the list, which
-shows the same message.
+shows the same message. Before the post moves, the editor saves your
+unsaved changes as an autosave, see
+[Autosave](/guides/publishing/#autosave). If that save fails, the
+post stays out of the trash, your words stay in the editor, and the
+message names the post, such as
+`"Hello world" was not moved to the trash, because its changes could not be saved.`
 
 Each trash shows a short message at the bottom of the screen that
 names the post, such as `"Hello world" moved to the trash.` The
@@ -175,7 +180,10 @@ the message counts them instead. The message offers **Undo**, which
 brings the posts back as **Restore** does. It stays for 10 seconds,
 unless whoever runs the site sets another length, see
 [the admin lists](/self-hosting/configuration/#the-admin-lists). A
-trashed post also comes back from the Trash tab.
+trashed post also comes back from the Trash tab. A post keeps its
+autosaves while it waits in the trash, and once it is back, opening
+it offers the work parked since its last save, see
+[Autosave](/guides/publishing/#autosave).
 
 When the server refuses, the message at the bottom of the screen
 gives the reason instead, from the list and from the editor alike. A
@@ -210,6 +218,7 @@ once while **Empty Trash** shows the work running. Every trashed post
 of this type goes in one step. If some posts stay in the trash, such
 as ones trashed while it ran, the message counts them too. If the
 server refuses, the message says why and the trash stays as it was.
+Each post is deleted with its revisions and autosaves.
 
 Opening a trashed post from its title shows it read only. Its
 **Restore** control brings it back as a draft, names it in a
