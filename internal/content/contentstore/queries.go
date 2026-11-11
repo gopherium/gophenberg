@@ -71,7 +71,6 @@ type RevisionQueries interface {
 	UpsertAutosave(ctx context.Context, r RevisionRow) (RevisionRow, error)
 	GetAutosave(ctx context.Context, contentID, authorID uuid.UUID) (RevisionRow, error)
 	DeleteAutosave(ctx context.Context, contentID, authorID uuid.UUID) error
-	DeleteAutosavesOfContent(ctx context.Context, contentID uuid.UUID) error
 }
 
 // RelationQueries sends the statements that check, index and read what relation fields point at.

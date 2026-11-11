@@ -648,11 +648,6 @@ func (q fakeQueries) DeleteAutosave(_ context.Context, contentID, authorID uuid.
 	return q.send("DeleteAutosave", paired{ContentID: contentID, ID: authorID})
 }
 
-// DeleteAutosavesOfContent answers with every autosave of the item removed.
-func (q fakeQueries) DeleteAutosavesOfContent(_ context.Context, contentID uuid.UUID) error {
-	return q.send("DeleteAutosavesOfContent", identified{contentID})
-}
-
 // TypesOfContent answers with the type of each stored item the identities name.
 func (q fakeQueries) TypesOfContent(_ context.Context, ids []uuid.UUID) ([]TypedItem, error) {
 	var typed []TypedItem
