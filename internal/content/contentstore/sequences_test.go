@@ -535,7 +535,7 @@ var trashSequences = map[string]sequence{
 		golden: []step{
 			begun, on("LockContent", helloID), on("CountChildren", helloID),
 			sent("TrashContent", trashing{ID: helloID, Suffix: suffixShape, At: editedAt}),
-			on("DeleteAutosavesOfContent", helloID), on("RefreshRelationVisibility", helloID), committed,
+			on("RefreshRelationVisibility", helloID), committed,
 		},
 	},
 	"Restore under its original address": {
