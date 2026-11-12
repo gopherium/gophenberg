@@ -60,20 +60,32 @@ func TestTheRendererStandingInForADownThemeIsNotStored(t *testing.T) {
 	}
 }
 
-func TestTheRendererCatchingAFailedProxyIsNotStored(t *testing.T) {
+// hangingUpTheme returns the address of a theme that closes every connection before it answers.
+func hangingUpTheme(t *testing.T) string {
+	t.Helper()
+
+	upstream := themeUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
+		conn, _, err := http.NewResponseController(w).Hijack()
+		if err != nil {
+			t.Errorf("Hijack() = %v, want the theme connection", err)
+			return
+		}
+		_ = conn.Close()
+	})
+	return upstream.URL
+}
+
+func TestTheRendererCatchingAThemeThatHangsUpIsNotStored(t *testing.T) {
 	t.Parallel()
 
-	dead := httptest.NewServer(http.NotFoundHandler())
-	target := dead.URL
-	dead.Close()
-	handler := themedServer(t, stubTheme{target: target, healthy: true}, nil)
+	handler := themedServer(t, stubTheme{target: hangingUpTheme(t), healthy: true}, nil)
 
 	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world", ""), http.StatusOK, "no-store")
 	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world/page/2", ""), http.StatusMovedPermanently,
 		"no-store")
 }
 
-// unheldTheme is a healthy theme that reports no hold, as after a deactivation.
+// unheldTheme is a healthy theme that reports no hold.
 type unheldTheme struct{ target string }
 
 // Healthy reports that the unheld theme is serving.
@@ -85,13 +97,10 @@ func (unheldTheme) Held() bool { return false }
 // Target returns the address the unheld theme serves on.
 func (u unheldTheme) Target() string { return u.target }
 
-func TestTheRendererCatchingAFailedProxyWithNoThemeHeldStaysCacheable(t *testing.T) {
+func TestTheRendererCatchingAThemeThatHangsUpWithNoThemeHeldStaysCacheable(t *testing.T) {
 	t.Parallel()
 
-	dead := httptest.NewServer(http.NotFoundHandler())
-	target := dead.URL
-	dead.Close()
-	handler := themedServer(t, unheldTheme{target: target}, nil)
+	handler := themedServer(t, unheldTheme{target: hangingUpTheme(t)}, nil)
 
 	assertCacheControl(t, doRequest(t, handler, http.MethodGet, "/hello-world", ""), http.StatusOK, "")
 }
