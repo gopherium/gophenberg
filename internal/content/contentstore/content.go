@@ -73,7 +73,7 @@ func (s *Store) create(
 	}
 	row, err := s.backend.Pool.CreateContent(ctx, params)
 	if err != nil {
-		return content.Content{}, fmt.Errorf("%s: create content: %w", s.backend.Engine, err)
+		return content.Content{}, fmt.Errorf("%s: create content: %w", s.backend.Engine, s.classify(err))
 	}
 	return toContent(row), nil
 }
@@ -120,7 +120,7 @@ func (s *Store) PublishedByPath(ctx context.Context, path string) (content.Conte
 		return content.Content{}, content.ErrNotFound
 	}
 	if err != nil {
-		return content.Content{}, fmt.Errorf("%s: get published content by path: %w", s.backend.Engine, err)
+		return content.Content{}, fmt.Errorf("%s: get published content by path: %w", s.backend.Engine, s.classify(err))
 	}
 	return toContent(row), nil
 }
@@ -129,7 +129,7 @@ func (s *Store) PublishedByPath(ctx context.Context, path string) (content.Conte
 func (s *Store) Children(ctx context.Context, id uuid.UUID) (int, error) {
 	held, err := s.backend.Pool.CountChildren(ctx, id)
 	if err != nil {
-		return 0, fmt.Errorf("%s: count children: %w", s.backend.Engine, err)
+		return 0, fmt.Errorf("%s: count children: %w", s.backend.Engine, s.classify(err))
 	}
 	return int(held), nil
 }
@@ -146,7 +146,7 @@ func (s *Store) byID(ctx context.Context, queries Queries, id uuid.UUID) (conten
 		return content.Content{}, content.ErrNotFound
 	}
 	if err != nil {
-		return content.Content{}, fmt.Errorf("%s: get content: %w", s.backend.Engine, err)
+		return content.Content{}, fmt.Errorf("%s: get content: %w", s.backend.Engine, s.classify(err))
 	}
 	return toContent(row), nil
 }
@@ -184,11 +184,11 @@ func (s *Store) List(ctx context.Context, f content.Filter) ([]content.ListedIte
 	narrowed := narrowing(f)
 	total, err := s.backend.Pool.CountContent(ctx, narrowed)
 	if err != nil {
-		return nil, 0, fmt.Errorf("%s: count content: %w", s.backend.Engine, err)
+		return nil, 0, fmt.Errorf("%s: count content: %w", s.backend.Engine, s.classify(err))
 	}
 	rows, err := s.listRows(ctx, f, narrowed)
 	if err != nil {
-		return nil, 0, fmt.Errorf("%s: list content: %w", s.backend.Engine, err)
+		return nil, 0, fmt.Errorf("%s: list content: %w", s.backend.Engine, s.classify(err))
 	}
 	items := make([]content.ListedItem, len(rows))
 	for i, row := range rows {
@@ -271,7 +271,7 @@ func (s *Store) Update(
 ) (content.Content, error) {
 	slug, err := s.freeSiblingSlug(ctx, c)
 	if err != nil {
-		return content.Content{}, fmt.Errorf("%s: update content: %w", s.backend.Engine, err)
+		return content.Content{}, fmt.Errorf("%s: update content: %w", s.backend.Engine, s.classify(err))
 	}
 	updated, err := s.update(ctx, c, slug, expectedUpdatedAt, snapshot, revisionCap)
 	if s.broken(err) == typestore.ContentPathUnique {
@@ -525,14 +525,14 @@ func (s *Store) writeFailure(err error) error {
 	if meant := writeErrors[broken]; meant != nil {
 		return meant
 	}
-	return fmt.Errorf("%s: update content: %w", s.backend.Engine, err)
+	return fmt.Errorf("%s: update content: %w", s.backend.Engine, s.classify(err))
 }
 
 // Depth returns how many levels of content nest below the item.
 func (s *Store) Depth(ctx context.Context, id uuid.UUID) (int, error) {
 	levels, err := s.backend.Pool.ContentDepth(ctx, id)
 	if err != nil {
-		return 0, fmt.Errorf("%s: content depth: %w", s.backend.Engine, err)
+		return 0, fmt.Errorf("%s: content depth: %w", s.backend.Engine, s.classify(err))
 	}
 	return int(levels), nil
 }
@@ -563,7 +563,7 @@ func (s *Store) Trash(ctx context.Context, id uuid.UUID, updatedAt time.Time) (c
 			errors.Is(err, content.ErrInvalidTransition) {
 			return content.Content{}, err
 		}
-		return content.Content{}, fmt.Errorf("%s: trash content: %w", s.backend.Engine, err)
+		return content.Content{}, fmt.Errorf("%s: trash content: %w", s.backend.Engine, s.classify(err))
 	}
 	return trashed, nil
 }
@@ -615,7 +615,7 @@ func (s *Store) Restore(ctx context.Context, id uuid.UUID, updatedAt time.Time) 
 		return content.Content{}, err
 	}
 	if err != nil {
-		return content.Content{}, fmt.Errorf("%s: restore content: %w", s.backend.Engine, err)
+		return content.Content{}, fmt.Errorf("%s: restore content: %w", s.backend.Engine, s.classify(err))
 	}
 	return restored, nil
 }
@@ -655,7 +655,7 @@ func (s *Store) restoredRow(
 func (s *Store) CountsByAuthor(ctx context.Context, contentType string) (map[uuid.UUID]int, error) {
 	rows, err := s.backend.Pool.CountContentByAuthor(ctx, contentType)
 	if err != nil {
-		return nil, fmt.Errorf("%s: count content by author: %w", s.backend.Engine, err)
+		return nil, fmt.Errorf("%s: count content by author: %w", s.backend.Engine, s.classify(err))
 	}
 	counts := make(map[uuid.UUID]int, len(rows))
 	for _, row := range rows {
@@ -668,7 +668,7 @@ func (s *Store) CountsByAuthor(ctx context.Context, contentType string) (map[uui
 func (s *Store) Delete(ctx context.Context, id uuid.UUID) error {
 	rows, err := s.backend.Pool.DeleteContent(ctx, id)
 	if err != nil {
-		return fmt.Errorf("%s: delete content: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: delete content: %w", s.backend.Engine, s.classify(err))
 	}
 	if rows == 0 {
 		return content.ErrNotFound
@@ -689,7 +689,7 @@ func (s *Store) EmptyTrash(ctx context.Context, contentType string, author *uuid
 		return err
 	})
 	if err != nil {
-		return 0, 0, fmt.Errorf("%s: empty the trash: %w", s.backend.Engine, err)
+		return 0, 0, fmt.Errorf("%s: empty the trash: %w", s.backend.Engine, s.classify(err))
 	}
 	return int(deleted), int(kept), nil
 }

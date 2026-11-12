@@ -64,6 +64,10 @@ export function errorTemplates(): Record<string, string> {
 			DOMAIN,
 		),
 		content_trashed: __('This item is in the trash. Restore it first to work on it again.', DOMAIN),
+		database_busy: __(
+			'The database was busy, so nothing was saved. Save again.',
+			DOMAIN,
+		),
 		default_type_required: __(
 			'Your site always needs one default content type, so this one cannot be turned off or deleted. Make another type the default first.',
 			DOMAIN,

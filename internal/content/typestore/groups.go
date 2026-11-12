@@ -81,11 +81,11 @@ func grownField(f content.Field, inside map[int][]content.Field) content.Field {
 func (s *Store) groupsWithFields(ctx context.Context, queries Queries) ([]content.Group, error) {
 	rows, err := queries.ListFieldGroups(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%s: list field groups: %w", s.backend.Engine, err)
+		return nil, fmt.Errorf("%s: list field groups: %w", s.backend.Engine, s.classify(err))
 	}
 	declared, err := queries.ListContentFields(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%s: list content fields: %w", s.backend.Engine, err)
+		return nil, fmt.Errorf("%s: list content fields: %w", s.backend.Engine, s.classify(err))
 	}
 	held := FieldsByGroup(declared)
 	groups := make([]content.Group, len(rows))
@@ -134,7 +134,7 @@ func flattenedFields(groups []content.Group, typeKey string) []content.Field {
 func (s *Store) storedTypeKeys(ctx context.Context, queries Queries) ([]string, error) {
 	keys, err := queries.TypeKeys(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%s: list type keys: %w", s.backend.Engine, err)
+		return nil, fmt.Errorf("%s: list type keys: %w", s.backend.Engine, s.classify(err))
 	}
 	return keys, nil
 }
@@ -149,7 +149,7 @@ func (s *Store) CreateGroup(ctx context.Context, g content.Group) (content.Group
 	var created content.Group
 	err := s.backend.InTx(ctx, func(queries Queries) error {
 		if err := queries.LockFieldGroups(ctx); err != nil {
-			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, err)
+			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, s.classify(err))
 		}
 		key, err := s.groupKeyFor(ctx, queries, g)
 		if err != nil {
@@ -176,7 +176,7 @@ func (s *Store) groupKeyFor(ctx context.Context, queries Queries, g content.Grou
 	}
 	held, err := queries.FieldGroupKeys(ctx)
 	if err != nil {
-		return "", fmt.Errorf("%s: list field group keys: %w", s.backend.Engine, err)
+		return "", fmt.Errorf("%s: list field group keys: %w", s.backend.Engine, s.classify(err))
 	}
 	taken := make(map[string]bool, len(held))
 	for _, key := range held {
@@ -195,7 +195,7 @@ func (s *Store) groupWriteFailure(err error) error {
 	if taken := s.errorFor(groupWriteErrors, err); taken != nil {
 		return taken
 	}
-	return fmt.Errorf("%s: create field group: %w", s.backend.Engine, err)
+	return fmt.Errorf("%s: create field group: %w", s.backend.Engine, s.classify(err))
 }
 
 // UpdateGroup stores the group's title, location and active flag with the settings of the fields it points anew.
@@ -205,7 +205,7 @@ func (s *Store) UpdateGroup(
 	var updated content.Group
 	err := s.backend.InTx(ctx, func(queries Queries) error {
 		if err := queries.LockFieldGroups(ctx); err != nil {
-			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, err)
+			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, s.classify(err))
 		}
 		if err := s.rechecked(ctx, queries, recheck); err != nil {
 			return err
@@ -258,7 +258,7 @@ func (s *Store) updateGroupFailure(err error) error {
 	if errors.Is(err, content.ErrGroupNotFound) || errors.Is(err, content.ErrFieldTaken) || fromCheck(err) {
 		return err
 	}
-	return fmt.Errorf("%s: update field group: %w", s.backend.Engine, err)
+	return fmt.Errorf("%s: update field group: %w", s.backend.Engine, s.classify(err))
 }
 
 // groupStandsAlone reports whether the group's stored keys stay free of every rival it would share a type with.
@@ -292,7 +292,7 @@ func (s *Store) DeleteGroup(ctx context.Context, id int, recheck content.Recheck
 		return err
 	}
 	if err != nil {
-		return fmt.Errorf("%s: delete field group: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: delete field group: %w", s.backend.Engine, s.classify(err))
 	}
 	return nil
 }
@@ -379,7 +379,7 @@ func (s *Store) DeleteFieldsOfGroup(
 		return err
 	}
 	if err != nil {
-		return fmt.Errorf("%s: delete fields of group: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: delete fields of group: %w", s.backend.Engine, s.classify(err))
 	}
 	return nil
 }
@@ -528,7 +528,7 @@ func deleteFieldRow(
 // ReorderGroups stores the given order on the groups.
 func (s *Store) ReorderGroups(ctx context.Context, ids []int) error {
 	if err := s.backend.Pool.ReorderFieldGroups(ctx, ids); err != nil {
-		return fmt.Errorf("%s: reorder field groups: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: reorder field groups: %w", s.backend.Engine, s.classify(err))
 	}
 	return nil
 }
@@ -540,7 +540,7 @@ func (s *Store) UpdateFieldInGroup(
 	var updated content.Field
 	err := s.backend.InTx(ctx, func(queries Queries) error {
 		if err := queries.LockFieldGroups(ctx); err != nil {
-			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, err)
+			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, s.classify(err))
 		}
 		if err := s.rechecked(ctx, queries, recheck); err != nil {
 			return err
@@ -560,7 +560,7 @@ func (s *Store) UpdateFieldInGroup(
 			return content.ErrConflict
 		}
 		if err != nil {
-			return fmt.Errorf("%s: update content field: %w", s.backend.Engine, err)
+			return fmt.Errorf("%s: update content field: %w", s.backend.Engine, s.classify(err))
 		}
 		updated = toField(row)
 		return nil
@@ -583,7 +583,7 @@ func (s *Store) UpdateSubField(
 		return content.Field{}, s.subFieldMissed(ctx, id)
 	}
 	if err != nil {
-		return content.Field{}, fmt.Errorf("%s: update sub field: %w", s.backend.Engine, err)
+		return content.Field{}, fmt.Errorf("%s: update sub field: %w", s.backend.Engine, s.classify(err))
 	}
 	return toField(row), nil
 }
@@ -600,7 +600,7 @@ func (s *Store) subFieldMissed(ctx context.Context, id int) error {
 func (s *Store) ReorderSubFields(ctx context.Context, parentID int, keys []string) error {
 	moved, err := s.backend.Pool.ReorderSubContentFields(ctx, parentID, keys)
 	if err != nil {
-		return fmt.Errorf("%s: reorder sub fields: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: reorder sub fields: %w", s.backend.Engine, s.classify(err))
 	}
 	if moved > 0 {
 		return nil
@@ -635,7 +635,7 @@ func (s *Store) DeleteFieldInGroup(ctx context.Context, groupID int, key string,
 		return err
 	}
 	if err != nil {
-		return fmt.Errorf("%s: delete content field: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: delete content field: %w", s.backend.Engine, s.classify(err))
 	}
 	return nil
 }
@@ -649,7 +649,7 @@ func (s *Store) DeleteSubField(ctx context.Context, id int, recheck content.Rech
 		return err
 	}
 	if err != nil {
-		return fmt.Errorf("%s: delete sub field: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: delete sub field: %w", s.backend.Engine, s.classify(err))
 	}
 	return nil
 }
@@ -773,7 +773,7 @@ func sweepLayout(ctx context.Context, queries Queries, path []string, swept []st
 func (s *Store) ReorderFieldsInGroup(ctx context.Context, groupID int, keys []string) error {
 	moved, err := s.backend.Pool.ReorderContentFields(ctx, groupID, keys)
 	if err != nil {
-		return fmt.Errorf("%s: reorder content fields: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: reorder content fields: %w", s.backend.Engine, s.classify(err))
 	}
 	if moved > 0 {
 		return nil
@@ -812,7 +812,7 @@ func (s *Store) MoveField(
 	var moved content.Field
 	err := s.backend.InTx(ctx, func(queries Queries) error {
 		if err := queries.LockFieldGroups(ctx); err != nil {
-			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, err)
+			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, s.classify(err))
 		}
 		if err := s.rechecked(ctx, queries, recheck); err != nil {
 			return err
@@ -1010,7 +1010,7 @@ func (s *Store) settledFieldWrite(
 ) error {
 	err := s.backend.InTx(ctx, func(queries Queries) error {
 		if err := queries.LockFieldGroups(ctx); err != nil {
-			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, err)
+			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, s.classify(err))
 		}
 		if err := s.rechecked(ctx, queries, recheck); err != nil {
 			return err
@@ -1036,7 +1036,7 @@ func (s *Store) CreateSubField(
 	var created content.Field
 	err := s.backend.InTx(ctx, func(queries Queries) error {
 		if err := queries.LockFieldGroups(ctx); err != nil {
-			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, err)
+			return fmt.Errorf("%s: lock field groups: %w", s.backend.Engine, s.classify(err))
 		}
 		parent, settled, err := standingParent(ctx, queries, parentID, f, limit)
 		if err != nil {

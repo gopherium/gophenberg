@@ -8,6 +8,7 @@ import (
 
 	"github.com/gopherium/framework/pluginkit"
 	"github.com/jackc/pgx/v5/pgxpool"
+	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
@@ -29,7 +30,7 @@ func NewPluginStore(pool *pgxpool.Pool) *PluginStore {
 func (s *PluginStore) Records(ctx context.Context) (map[string]pluginkit.PluginRecord, error) {
 	rows, err := s.queries.ListPlugins(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: reading the plugin records: %w", err)
+		return nil, fmt.Errorf("postgres: reading the plugin records: %w", dbkitpg.Classify(err))
 	}
 	records := make(map[string]pluginkit.PluginRecord, len(rows))
 	for _, row := range rows {
@@ -43,7 +44,7 @@ func (s *PluginStore) Records(ctx context.Context) (map[string]pluginkit.PluginR
 // Activate marks the plugin id active and clears its error, adding its record when it has none.
 func (s *PluginStore) Activate(ctx context.Context, id string) error {
 	if err := s.queries.ActivatePlugin(ctx, id); err != nil {
-		return fmt.Errorf("postgres: activating the plugin %q: %w", id, err)
+		return fmt.Errorf("postgres: activating the plugin %q: %w", id, dbkitpg.Classify(err))
 	}
 	return nil
 }
@@ -51,7 +52,7 @@ func (s *PluginStore) Activate(ctx context.Context, id string) error {
 // Pause marks the plugin id paused with the text of its failure, adding its record when it has none.
 func (s *PluginStore) Pause(ctx context.Context, id, failure string) error {
 	if err := s.queries.PausePlugin(ctx, db.PausePluginParams{ID: id, LastError: failure}); err != nil {
-		return fmt.Errorf("postgres: pausing the plugin %q: %w", id, err)
+		return fmt.Errorf("postgres: pausing the plugin %q: %w", id, dbkitpg.Classify(err))
 	}
 	return nil
 }

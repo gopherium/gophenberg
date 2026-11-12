@@ -17,7 +17,7 @@ import (
 func (s *Store) List(ctx context.Context) ([]content.Type, error) {
 	rows, err := s.backend.Pool.ListContentTypes(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%s: list content types: %w", s.backend.Engine, err)
+		return nil, fmt.Errorf("%s: list content types: %w", s.backend.Engine, s.classify(err))
 	}
 	groups, err := s.groupsWithFields(ctx, s.backend.Pool)
 	if err != nil {
@@ -38,7 +38,7 @@ func (s *Store) ByKey(ctx context.Context, key string) (content.Type, error) {
 		return content.Type{}, content.ErrTypeNotFound
 	}
 	if err != nil {
-		return content.Type{}, fmt.Errorf("%s: get content type: %w", s.backend.Engine, err)
+		return content.Type{}, fmt.Errorf("%s: get content type: %w", s.backend.Engine, s.classify(err))
 	}
 	groups, err := s.groupsWithFields(ctx, s.backend.Pool)
 	if err != nil {
@@ -71,7 +71,7 @@ func (s *Store) Create(ctx context.Context, t content.Type) (content.Type, error
 		return content.Type{}, taken
 	}
 	if err != nil {
-		return content.Type{}, fmt.Errorf("%s: create content type: %w", s.backend.Engine, err)
+		return content.Type{}, fmt.Errorf("%s: create content type: %w", s.backend.Engine, s.classify(err))
 	}
 	return toType(row), nil
 }
@@ -94,7 +94,7 @@ func (s *Store) Update(ctx context.Context, t content.Type) (content.Type, error
 func (s *Store) Nested(ctx context.Context, key string) (int, error) {
 	held, err := s.backend.Pool.CountNestedContent(ctx, key)
 	if err != nil {
-		return 0, fmt.Errorf("%s: count nested content: %w", s.backend.Engine, err)
+		return 0, fmt.Errorf("%s: count nested content: %w", s.backend.Engine, s.classify(err))
 	}
 	return int(held), nil
 }
@@ -198,7 +198,7 @@ func (s *Store) updateTypeFailure(err error) error {
 	if taken := s.errorFor(typeUpdateErrors, err); taken != nil {
 		return taken
 	}
-	return fmt.Errorf("%s: update content type: %w", s.backend.Engine, err)
+	return fmt.Errorf("%s: update content type: %w", s.backend.Engine, s.classify(err))
 }
 
 // handRootOver moves the type holding the root under a word of its own.
@@ -237,7 +237,7 @@ func (s *Store) Delete(ctx context.Context, key string) error {
 		return held
 	}
 	if err != nil {
-		return fmt.Errorf("%s: delete content type: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: delete content type: %w", s.backend.Engine, s.classify(err))
 	}
 	if rows == 0 {
 		return content.ErrTypeNotFound
@@ -250,7 +250,7 @@ func (s *Store) fieldWriteFailure(err error) error {
 	if written := s.errorFor(fieldWriteErrors, err); written != nil {
 		return written
 	}
-	return fmt.Errorf("%s: create content field: %w", s.backend.Engine, err)
+	return fmt.Errorf("%s: create content field: %w", s.backend.Engine, s.classify(err))
 }
 
 // toField maps a stored row to a domain field definition with UTC timestamps.

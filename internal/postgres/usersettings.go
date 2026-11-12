@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres/db"
@@ -36,7 +37,7 @@ func (s *UserSettingStore) Lookup(
 		return "", false, nil
 	}
 	if err != nil {
-		return "", false, fmt.Errorf("postgres: reading the setting %q: %w", key, err)
+		return "", false, fmt.Errorf("postgres: reading the setting %q: %w", key, dbkitpg.Classify(err))
 	}
 	return value, true, nil
 }
@@ -45,7 +46,7 @@ func (s *UserSettingStore) Lookup(
 func (s *UserSettingStore) Save(ctx context.Context, userID uuid.UUID, key, value string) error {
 	err := s.queries.SetUserSetting(ctx, db.SetUserSettingParams{UserID: userID, Key: key, Value: value})
 	if err != nil {
-		return fmt.Errorf("postgres: writing the setting %q: %w", key, err)
+		return fmt.Errorf("postgres: writing the setting %q: %w", key, dbkitpg.Classify(err))
 	}
 	return nil
 }
