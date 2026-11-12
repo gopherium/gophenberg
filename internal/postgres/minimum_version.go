@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/gopherium/gophenberg/internal/version"
 )

@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"slices"
 
+	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/postgres/db"

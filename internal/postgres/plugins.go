@@ -6,9 +6,9 @@ import (
 	"context"
 	"fmt"
 
+	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/gopherium/framework/pluginkit"
 	"github.com/jackc/pgx/v5/pgxpool"
-	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 
 	"github.com/gopherium/gophenberg/internal/postgres/db"
 )

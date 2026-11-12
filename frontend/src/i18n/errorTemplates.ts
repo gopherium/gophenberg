@@ -10,7 +10,7 @@ const DOMAIN = 'gophenberg'
  * catalogue the reader loaded is the one that answers.
  * @returns The messages, keyed by code.
  */
-export function errorTemplates(): Record<string, string> {
+function errorTemplatesPart0(): Record<string, string> {
 	return {
 		address_reserved: __(
 			'Gophenberg keeps /%(path)s for itself or for another content type, so your content cannot answer there. Give the item a different slug.',
@@ -63,9 +63,14 @@ export function errorTemplates(): Record<string, string> {
 			'Someone else saved changes to this item while you were editing, so yours were not saved. Copy your text somewhere safe, then reload the item and put your changes back in.',
 			DOMAIN,
 		),
+	}
+}
+
+function errorTemplatesPart1(): Record<string, string> {
+	return {
 		content_trashed: __('This item is in the trash. Restore it first to work on it again.', DOMAIN),
 		database_busy: __(
-			'The database was busy, so nothing was saved. Save again.',
+			'The database was busy. Try again.',
 			DOMAIN,
 		),
 		default_type_required: __(
@@ -114,6 +119,11 @@ export function errorTemplates(): Record<string, string> {
 			'The field %(field)s has to hold a value before this item can be published. Fill it in, or leave the item as a draft.',
 			DOMAIN,
 		),
+	}
+}
+
+function errorTemplatesPart2(): Record<string, string> {
+	return {
 		field_shape_identity: __(
 			'One of the items picked for %(field)s was not named in a way Gophenberg understands. Reload the page and pick the items again.',
 			DOMAIN,
@@ -168,6 +178,11 @@ export function errorTemplates(): Record<string, string> {
 			'This field would stand inside too many containers. Put it nearer the top and try again.',
 			DOMAIN,
 		),
+	}
+}
+
+function errorTemplatesPart3(): Record<string, string> {
+	return {
 		field_rows_max: __(
 			'%(field)s takes at most %(limit)s rows. Remove one and save again.',
 			DOMAIN,
@@ -228,6 +243,11 @@ export function errorTemplates(): Record<string, string> {
 			'This content type has no field called %(field)s. Check the name, or declare the field on the type first.',
 			DOMAIN,
 		),
+	}
+}
+
+function errorTemplatesPart4(): Record<string, string> {
+	return {
 		file_content_mismatch: __(
 			'This file is named %(extension)s but it holds %(detected)s content. Upload it under a name that matches what is inside it.',
 			DOMAIN,
@@ -282,6 +302,11 @@ export function errorTemplates(): Record<string, string> {
 			'The theme %(name)s was built on theme kit %(declared)s, and this site serves %(served)s. Build the theme again against a kit this site serves, then install it.',
 			DOMAIN,
 		),
+	}
+}
+
+function errorTemplatesPart5(): Record<string, string> {
+	return {
 		list_parameters_invalid: __(
 			'One of the filters on this list is not one Gophenberg understands. Clear the filters and try again.',
 			DOMAIN,
@@ -336,6 +361,11 @@ export function errorTemplates(): Record<string, string> {
 			'Two rule sources are registered under the name %(param)s. A plugin is declaring a source your site already holds.',
 			DOMAIN,
 		),
+	}
+}
+
+function errorTemplatesPart6(): Record<string, string> {
+	return {
 		parent_not_found: __(
 			'The item you picked as parent no longer exists. Reload the page and pick another parent.',
 			DOMAIN,
@@ -393,6 +423,11 @@ export function errorTemplates(): Record<string, string> {
 			'The source %(source)s does not offer %(operator)s. Pick one of the comparisons it does offer.',
 			DOMAIN,
 		),
+	}
+}
+
+function errorTemplatesPart7(): Record<string, string> {
+	return {
 		rule_cycle: __(
 			'The rules on %(field)s lead back to %(field)s itself, so nothing can decide whether to show it. Point one of them at another field.',
 			DOMAIN,
@@ -447,6 +482,11 @@ export function errorTemplates(): Record<string, string> {
 			'Another item of this content type already uses that address. Pick a different slug and save again.',
 			DOMAIN,
 		),
+	}
+}
+
+function errorTemplatesPart8(): Record<string, string> {
+	return {
 		status_transition_not_allowed: __(
 			'This item cannot go straight to that status from the one it holds now. Save it as a draft first, then try again.',
 			DOMAIN,
@@ -495,6 +535,11 @@ export function errorTemplates(): Record<string, string> {
 			'This site cannot write to its themes folder, so no theme can be installed. Ask whoever looks after your site to make the folder that %(setting)s points at writable. A read-only mount is the usual cause.',
 			DOMAIN,
 		),
+	}
+}
+
+function errorTemplatesPart9(): Record<string, string> {
+	return {
 		themes_directory_unset: __(
 			'This site has nowhere to keep themes, so no theme can be installed. Ask whoever looks after your site to point %(setting)s at a folder the server can write to.',
 			DOMAIN,
@@ -539,6 +584,21 @@ export function errorTemplates(): Record<string, string> {
 		),
 		upload_file_required: __('No file arrived with this upload. Choose a file and try again.', DOMAIN),
 		upload_theme_required: __('No theme arrived with this upload. Choose a zip file and try again.', DOMAIN),
+	}
+}
+
+export function errorTemplates(): Record<string, string> {
+	return {
+		...errorTemplatesPart0(),
+		...errorTemplatesPart1(),
+		...errorTemplatesPart2(),
+		...errorTemplatesPart3(),
+		...errorTemplatesPart4(),
+		...errorTemplatesPart5(),
+		...errorTemplatesPart6(),
+		...errorTemplatesPart7(),
+		...errorTemplatesPart8(),
+		...errorTemplatesPart9(),
 	}
 }
 

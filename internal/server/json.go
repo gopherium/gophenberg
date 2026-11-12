@@ -79,8 +79,12 @@ func errorResponseFor(err error) (int, authkit.ErrorResponse) {
 		if !errors.Is(err, held.err) {
 			continue
 		}
+		message := err.Error()
+		if held.err == dbkit.ErrBusy {
+			message = "The database was busy. Try again."
+		}
 		return held.status, authkit.ErrorResponse{
-			Message: err.Error(),
+			Message: message,
 			Code:    codeFor(err, held.code),
 			Meta:    detailsFor(err),
 		}
