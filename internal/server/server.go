@@ -55,6 +55,8 @@ type Config struct {
 	PluginPublicPaths map[string][]string
 	// PluginHead answers the tags plugins add to the head of the built-in site's pages. Nil adds none.
 	PluginHead publicsite.HeadSource
+	// ContentChanges hears each saved write of an item. Nil tells no one.
+	ContentChanges ContentChanges
 	// Web serves the single-page app under the admin base path. Nil leaves the admin paths unhandled.
 	Web fs.FS
 	// SiteTitle names the public site in its chrome.
@@ -167,6 +169,7 @@ func NewServer(cfg Config) http.Handler {
 		avatars:        cfg.Avatars,
 		defaultRole:    defaultRoleOf(cfg),
 		updatesScreen:  cfg.UpdatesScreen,
+		changes:        cfg.ContentChanges,
 	}
 	s.addresses = content.NewResolver(cfg.Content, s.types)
 	headers := headersFor(cfg.Cache)
@@ -346,4 +349,5 @@ type server struct {
 	avatars        avatar.Options
 	defaultRole    string
 	updatesScreen  UpdatesScreen
+	changes        ContentChanges
 }

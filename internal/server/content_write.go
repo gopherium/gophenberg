@@ -265,7 +265,12 @@ func (s *server) patchContent(
 	if err != nil {
 		return content.Content{}, err
 	}
-	return s.content.Update(r.Context(), stored, previous.UpdatedAt, snapshot, revisionCap)
+	updated, err := s.content.Update(r.Context(), stored, previous.UpdatedAt, snapshot, revisionCap)
+	if err != nil {
+		return content.Content{}, err
+	}
+	s.saved(r, previous, &updated)
+	return updated, nil
 }
 
 // applyEdit applies the whole edit, reporting whether the item moved and whether a snapshot is due.
@@ -421,7 +426,8 @@ func (s *server) handleContentDelete() http.HandlerFunc {
 			})
 			return
 		}
-		if _, err := s.ownedContent(r, id); err != nil {
+		before, err := s.ownedContent(r, id)
+		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
@@ -430,6 +436,7 @@ func (s *server) handleContentDelete() http.HandlerFunc {
 				respondDomainError(w, err)
 				return
 			}
+			s.saved(r, before, nil)
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -438,6 +445,7 @@ func (s *server) handleContentDelete() http.HandlerFunc {
 			respondDomainError(w, err)
 			return
 		}
+		s.saved(r, before, &trashed)
 		s.respondWritten(w, r, http.StatusOK, trashed)
 	}
 }
