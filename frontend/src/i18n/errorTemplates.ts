@@ -66,6 +66,11 @@ function errorTemplatesPart0(): Record<string, string> {
 	}
 }
 
+/**
+ * Returns the message each error code stands for, read fresh so the
+ * catalogue the reader loaded is the one that answers.
+ * @returns The messages, keyed by code.
+ */
 function errorTemplatesPart1(): Record<string, string> {
 	return {
 		content_trashed: __('This item is in the trash. Restore it first to work on it again.', DOMAIN),
@@ -122,6 +127,11 @@ function errorTemplatesPart1(): Record<string, string> {
 	}
 }
 
+/**
+ * Returns the message each error code stands for, read fresh so the
+ * catalogue the reader loaded is the one that answers.
+ * @returns The messages, keyed by code.
+ */
 function errorTemplatesPart2(): Record<string, string> {
 	return {
 		field_shape_identity: __(
@@ -181,6 +191,11 @@ function errorTemplatesPart2(): Record<string, string> {
 	}
 }
 
+/**
+ * Returns the message each error code stands for, read fresh so the
+ * catalogue the reader loaded is the one that answers.
+ * @returns The messages, keyed by code.
+ */
 function errorTemplatesPart3(): Record<string, string> {
 	return {
 		field_rows_max: __(
@@ -246,6 +261,11 @@ function errorTemplatesPart3(): Record<string, string> {
 	}
 }
 
+/**
+ * Returns the message each error code stands for, read fresh so the
+ * catalogue the reader loaded is the one that answers.
+ * @returns The messages, keyed by code.
+ */
 function errorTemplatesPart4(): Record<string, string> {
 	return {
 		file_content_mismatch: __(
@@ -305,6 +325,11 @@ function errorTemplatesPart4(): Record<string, string> {
 	}
 }
 
+/**
+ * Returns the message each error code stands for, read fresh so the
+ * catalogue the reader loaded is the one that answers.
+ * @returns The messages, keyed by code.
+ */
 function errorTemplatesPart5(): Record<string, string> {
 	return {
 		list_parameters_invalid: __(
@@ -364,6 +389,11 @@ function errorTemplatesPart5(): Record<string, string> {
 	}
 }
 
+/**
+ * Returns the message each error code stands for, read fresh so the
+ * catalogue the reader loaded is the one that answers.
+ * @returns The messages, keyed by code.
+ */
 function errorTemplatesPart6(): Record<string, string> {
 	return {
 		parent_not_found: __(
@@ -426,6 +456,11 @@ function errorTemplatesPart6(): Record<string, string> {
 	}
 }
 
+/**
+ * Returns the message each error code stands for, read fresh so the
+ * catalogue the reader loaded is the one that answers.
+ * @returns The messages, keyed by code.
+ */
 function errorTemplatesPart7(): Record<string, string> {
 	return {
 		rule_cycle: __(
@@ -485,6 +520,11 @@ function errorTemplatesPart7(): Record<string, string> {
 	}
 }
 
+/**
+ * Returns the message each error code stands for, read fresh so the
+ * catalogue the reader loaded is the one that answers.
+ * @returns The messages, keyed by code.
+ */
 function errorTemplatesPart8(): Record<string, string> {
 	return {
 		status_transition_not_allowed: __(
@@ -538,6 +578,11 @@ function errorTemplatesPart8(): Record<string, string> {
 	}
 }
 
+/**
+ * Returns the message each error code stands for, read fresh so the
+ * catalogue the reader loaded is the one that answers.
+ * @returns The messages, keyed by code.
+ */
 function errorTemplatesPart9(): Record<string, string> {
 	return {
 		themes_directory_unset: __(
@@ -587,6 +632,11 @@ function errorTemplatesPart9(): Record<string, string> {
 	}
 }
 
+/**
+ * Returns every error message Gophenberg knows, assembled from the
+ * parts so each stays within the line limit.
+ * @returns The messages, keyed by code.
+ */
 export function errorTemplates(): Record<string, string> {
 	return {
 		...errorTemplatesPart0(),
