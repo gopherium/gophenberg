@@ -54,6 +54,7 @@ so it takes the default.
 | `GOPHENBERG_PLUGIN_TX_TIMEOUT` | No | `30s` | How long one plugin transaction may stay open |
 | `GOPHENBERG_PLUGIN_START_BUDGET` | No | `10ms` | How long one plugin's `Start` may take before `serve` logs a warning naming it. A slower plugin still starts, see [a plugin that fails at start](#a-plugin-that-fails-at-start) |
 | `GOPHENBERG_PLUGIN_HOOK_BUDGET` | No | `2ms` | How long one call of a plugin hook may take, all its plugins together. A plugin still working when it runs out is logged, see [a plugin whose hook fails](#a-plugin-whose-hook-fails) |
+| `GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET` | No | `50ms` | How long one call of a plugin hook after a saved write may take, all its plugins together, such as `content.changed` |
 | `GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS` | No | `20` | How many calls of a hook, after one ran past its budget, time each of its plugins, from 1 to 1000 |
 | `GOPHENBERG_AVATARS` | No | `initials` | How the site draws avatars: `initials`, `gravatar` or `off`, see [avatars](#avatars) |
 | `GOPHENBERG_AVATAR_DEFAULT` | No | `mystery` | The picture Gravatar shows for an email address it does not know: `mystery`, `blank`, `gravatar_default`, `identicon`, `wavatar`, `monsterid`, `retro`, `robohash` or `color`. WordPress's `initials` is refused, see [avatars](#avatars) |
@@ -1058,7 +1059,8 @@ The server refuses to start, and says why, when:
   refused, because the header counts in whole seconds.
 - Any of the theme timings, HTTP timeouts, shutdown graces, cron job
   timings, update timings, the upload timeout,
-  `GOPHENBERG_PLUGIN_START_BUDGET`, `GOPHENBERG_PLUGIN_HOOK_BUDGET` or
+  `GOPHENBERG_PLUGIN_START_BUDGET`, `GOPHENBERG_PLUGIN_HOOK_BUDGET`,
+  `GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET` or
   `GOPHENBERG_DATABASE_WAIT_INTERVAL` is not a positive duration.
   Write them the way Go does, `30s`, `500ms`, `1m`.
 - `GOPHENBERG_DATABASE_WAIT` is not a duration of `0` or more.
@@ -1254,20 +1256,23 @@ goroutines writing one map at once, still stops the server.
 
 A hook is a moment where the site lets plugins join in, such as
 `public.head-tags`, where plugins add tags to the head of every page
-the built-in site draws. Each plugin lists the hooks it joins under
-`hooks` in its `plugin.json`. At start, `serve` checks the list
-against the plugin's methods and pauses the plugin at the step
-`hooks` when a listed hook has no method, a method's hook is not
-listed, a name is listed twice, or no hook of the site or of another
-compiled plugin has the name. The record's error names the hook:
+the built-in site draws, and `content.changed`, where plugins hear
+each saved write that changes what visitors see. Each plugin lists
+the hooks it joins under `hooks` in its `plugin.json`. At start,
+`serve` checks the list against the plugin's methods and pauses the
+plugin at the step `hooks` when a listed hook has no method, a
+method's hook is not listed, a name is listed twice, or no hook of
+the site or of another compiled plugin has the name. The record's
+error names the hook:
 
 ```text
 plugin notes hooks: has a HeadTags method but does not list public.head-tags
 ```
 
-A plugin that fails or panics inside a hook never breaks the page.
-`serve` drops what the plugin answered, logs it under the plugin and
-the hook, and the other plugins carry on. An error is a warning:
+A plugin that fails or panics inside a hook never breaks the page or
+undoes a save. `serve` drops what the plugin answered, logs it under
+the plugin and the hook, and the other plugins carry on. An error is a
+warning:
 
 ```text
 time=2026-11-09T10:12:44.208Z level=WARN msg="plugin hook failed" plugin=notes hook=public.head-tags error="pluginkit: notes public.head-tags: the notes table is missing"
@@ -1279,18 +1284,28 @@ A panic is an error with its stack:
 time=2026-11-09T10:12:44.208Z level=ERROR msg="plugin hook panicked" plugin=notes hook=public.head-tags error="pluginkit: notes public.head-tags panicked: runtime error: invalid memory address or nil pointer dereference" stack="goroutine 87 [running]:\n..."
 ```
 
-All the plugins of one call of a hook share
-`GOPHENBERG_PLUGIN_HOOK_BUDGET`, 2 milliseconds unless set. A plugin
-still working when that time runs out, which its context tells it, is
-logged as a note rather than a warning, since a slower plugin before
-it may have used the time:
+All the plugins of one call of a hook share one budget:
+`GOPHENBERG_PLUGIN_HOOK_BUDGET`, 2 milliseconds unless set, for a hook
+a page calls, and `GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET`, 50 milliseconds
+unless set, for a hook called after a saved write. A plugin still
+working when that time runs out, which its context tells it, is logged
+as a note rather than a warning, since a slower plugin before it may
+have used the time:
 
 ```text
 time=2026-11-09T10:12:44.211Z level=INFO msg="plugin hook ran out of time" plugin=notes hook=public.head-tags error="pluginkit: notes public.head-tags: context deadline exceeded"
 ```
 
 The budget only tells a plugin to stop. A plugin that ignores its
-context holds the page until it returns.
+context holds the page or the save until it returns.
+
+When the site cannot read an item to hand to `content.changed`, such as
+when the database stops answering right after the save, it logs a
+warning naming the item and tells no plugin of that change:
+
+```text
+time=2026-11-11T10:12:44.302Z level=WARN msg="plugins not told of a content change" id=019a7c3e-5b1d-7c2a-9f40-2b6d8e1a4c57 change=published error="contentbridge: read the type post: context deadline exceeded"
+```
 
 A head tag must be a `meta` or `link` tag. Its attribute names are
 lowercase letters, digits and hyphens with a letter first, and none

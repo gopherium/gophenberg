@@ -478,6 +478,7 @@ compiled.
 | Hook | Interface and method | When the site calls it |
 | --- | --- | --- |
 | `public.head-tags` | `HeadContributor`, `HeadTags(ctx, sdk.PageMeta) ([]sdk.HeadTag, error)` | Once for each page the built-in site draws |
+| `content.changed` | `ContentListener`, `ContentChanged(ctx, sdk.ContentChange) error` | After each saved write that changes what visitors see |
 
 `PageMeta` says which page is drawn: its `Kind`, which is `archive`,
 `item`, `term` or `notfound`, the content type's key in `Type`, the
@@ -503,13 +504,41 @@ or control character. The site drops any other tag and keeps the
 plugin's other tags. Tags reach the pages the built-in site draws. A
 theme draws its own head.
 
-All the plugins of one call share `GOPHENBERG_PLUGIN_HOOK_BUDGET`, 2
-milliseconds unless set, as the deadline of the context they get, so
-return when it ends. Go cannot stop a running function, and a plugin
-that ignores its context holds the page until it returns. An error
-or a panic inside a hook drops what the plugin answered in that call,
-the site logs it under the plugin's name and still draws the page,
-see
+`content.changed` is how a plugin keeps its own data about content up
+to date, the way WordPress plugins use `save_post` and
+`transition_post_status`. `ContentChange.Kind` says what visitors now
+see: `Published` for an item published, or edited while visitors see
+it, `Unpublished` for one set back to draft, pending review, private
+or scheduled, `Trashed` for one moved to the trash and `Deleted` for
+one deleted for good. `ContentChange.Item` is the item as visitors see
+it after a `Published` write, or as they saw it before the others,
+with its content and fields as the content API serves them. Writes
+visitors never see call no plugin: creating an item, an autosave, an
+edit to a draft, a restore from the trash and emptying the trash. The
+site calls the hook after the write is saved, so a plugin that fails
+can neither undo nor block the save:
+
+```go
+// ContentChanged frees the seats of an event visitors can no longer book.
+func (p *plugin) ContentChanged(ctx context.Context, change sdk.ContentChange) error {
+	if change.Item.Type != "event" || change.Kind == sdk.Published {
+		return nil
+	}
+	_, err := p.db.Exec(ctx, "DELETE FROM plugin_events__seats WHERE event_id = $1", change.Item.ID.String())
+	return err
+}
+```
+
+All the plugins of one call share a time budget, as the deadline of
+the context they get, so return when it ends. A page gives
+`public.head-tags` `GOPHENBERG_PLUGIN_HOOK_BUDGET`, 2 milliseconds
+unless set. A save gives `content.changed`
+`GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET`, 50 milliseconds unless set, so a
+plugin that writes to the database has time to finish. Go cannot stop
+a running function, and a plugin that ignores its context holds the
+page or the save until it returns. An error or a panic inside a hook
+drops what the plugin answered in that call, the site logs it under
+the plugin's name and still draws the page or keeps the save, see
 [a plugin whose hook fails](/self-hosting/configuration/#a-plugin-whose-hook-fails).
 
 ## What the SDK withholds
@@ -960,6 +989,10 @@ a commit of the SDK, such as `github.com/gopherium/gophenberg/sdk@main`.
   name in `HeadTagsHook`.
 - New: `PluginRoutesPrefix`, the address every plugin's routes answer
   under, before the plugin's id.
+- New: the `ContentListener` interface hears each saved write that
+  changes what visitors see, with the `ContentChange` and `ChangeKind`
+  types, the kinds `Published`, `Unpublished`, `Trashed` and
+  `Deleted`, and the hook's name in `ContentChangedHook`.
 - Nothing breaks.
 
 ### v0.5.0
