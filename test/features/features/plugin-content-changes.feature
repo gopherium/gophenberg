@@ -15,7 +15,6 @@ Feature: Plugins hear when a saved write changes what visitors see
     And "notes" hears content changes
     And an administrator account exists
 
-  @wip
   Scenario: Each change visitors see of a post reaches the plugin in order
     When the site serves
     And the administrator signs in
@@ -33,7 +32,6 @@ Feature: Plugins hear when a saved write changes what visitors see
       | published   | Hello again |
       | trashed     | Hello again |
 
-  @wip
   Scenario: Deleting a published post for good tells the plugin it was deleted
     When the site serves
     And the administrator signs in
@@ -45,7 +43,6 @@ Feature: Plugins hear when a saved write changes what visitors see
       | published | Hello |
       | deleted   | Hello |
 
-  @wip
   Scenario: Writes to a draft tell the plugin nothing
     When the site serves
     And the administrator signs in
@@ -57,7 +54,6 @@ Feature: Plugins hear when a saved write changes what visitors see
     And the administrator empties the trash of posts
     Then "notes" heard no change
 
-  @wip
   Scenario: A plugin that fails when it hears a change leaves the save done
     Given the content changes "notes" hears fail with "the index is offline"
     When the site serves
@@ -67,7 +63,6 @@ Feature: Plugins hear when a saved write changes what visitors see
     Then the post "Hello" is published
     And the site logged that the hook "content.changed" of "notes" failed with "the index is offline"
 
-  @wip
   Scenario: A plugin that panics when it hears a change leaves the save done
     Given the content changes "notes" hears panic with "boom"
     When the site serves
