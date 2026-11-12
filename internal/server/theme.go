@@ -44,8 +44,7 @@ type Theme interface {
 	Target() string
 }
 
-// themedSite returns the handler serving the public site through a healthy theme, or the renderer, uncached while
-// it stands in for a held theme.
+// themedSite returns the handler serving the public site through a healthy theme, or the renderer.
 func themedSite(theme Theme, renderer http.Handler, wait time.Duration) http.Handler {
 	if theme == nil {
 		return renderer
