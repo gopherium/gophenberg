@@ -96,8 +96,8 @@ func (h *Holder) Serving() (string, bool) {
 	return h.current.Name(), h.current.Healthy()
 }
 
-// held returns the supervisor the holder holds, nil while it holds none.
-func (h *Holder) held() *Supervisor {
+// supervisor returns the supervisor the holder holds, nil while it holds none.
+func (h *Holder) supervisor() *Supervisor {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return h.current
