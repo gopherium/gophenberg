@@ -58,6 +58,8 @@ func TestRunConfigTrimsEverySetting(t *testing.T) {
 			func(c runConfig) string { return c.pluginHookBudget.String() }, "5ms"},
 		{"GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS", " 40 ",
 			func(c runConfig) string { return strconv.Itoa(c.pluginHookTimedFirings) }, "40"},
+		{"GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET", " 80ms ",
+			func(c runConfig) string { return c.pluginHookSaveBudget.String() }, "80ms"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
@@ -381,6 +383,9 @@ func TestLoadRunConfigRefusesATimingItCannotStand(t *testing.T) {
 		"timed firings standing at zero":          {"GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS", "0"},
 		"timed firings below zero":                {"GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS", "-3"},
 		"timed firings one past the most allowed": {"GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS", "1001"},
+		"a save budget that is not a duration":    {"GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET", "brief"},
+		"a save budget standing at zero":          {"GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET", "0s"},
+		"a save budget below zero":                {"GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET", "-1ms"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -395,7 +400,9 @@ func TestLoadRunConfigGivesPluginHooksTheirDefaults(t *testing.T) {
 
 	settings, err := loadRunConfig(testkit.Getenv(map[string]string{"GOPHENBERG_DATABASE_URL": unreachableDatabaseURL}))
 
-	want := runConfig{pluginHookBudget: 2 * time.Millisecond, pluginHookTimedFirings: 20}.hookSettings()
+	want := runConfig{
+		pluginHookBudget: 2 * time.Millisecond, pluginHookSaveBudget: 50 * time.Millisecond, pluginHookTimedFirings: 20,
+	}.hookSettings()
 	if err != nil || settings.hookSettings() != want {
 		t.Errorf("loadRunConfig() = %+v (%v), want the hook settings %+v", settings.hookSettings(), err, want)
 	}

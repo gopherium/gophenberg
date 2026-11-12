@@ -59,8 +59,8 @@ func (s refusingStore) Pause(ctx context.Context, id, failure string) error {
 func bootOver(store pluginkit.PluginStore) boot {
 	return boot{
 		settings: runConfig{
-			pluginStartBudget: time.Second, pluginHookBudget: time.Second, pluginHookTimedFirings: 20,
-			serving: servingDefaults,
+			pluginStartBudget: time.Second, pluginHookBudget: time.Second, pluginHookSaveBudget: time.Second,
+			pluginHookTimedFirings: 20, serving: servingDefaults,
 		},
 		built: site{
 			pluginRecords: store, roles: goncierge.New(), defaultRole: role.Member, lane: &pluginLane{sqlite: true},

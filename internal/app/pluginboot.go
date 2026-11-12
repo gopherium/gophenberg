@@ -76,7 +76,9 @@ func (b boot) startPlugins(ctx context.Context, plugins registrations) (pluginSt
 
 // hookSettings returns the values every plugin hook runs under.
 func (c runConfig) hookSettings() pluginhooks.Settings {
-	return pluginhooks.Settings{Budget: c.pluginHookBudget, TimedFirings: c.pluginHookTimedFirings}
+	return pluginhooks.Settings{
+		Budget: c.pluginHookBudget, SaveBudget: c.pluginHookSaveBudget, TimedFirings: c.pluginHookTimedFirings,
+	}
 }
 
 // registerPlugins reads the plugin records, then registers each plugin they let in, pausing each that fails.
