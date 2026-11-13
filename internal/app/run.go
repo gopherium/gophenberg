@@ -220,8 +220,14 @@ func (b boot) serverConfig(plugins pluginStart) server.Config {
 // contentChanges returns what tells the started plugins of hooks about each saved write that changes what visitors see.
 func (b boot) contentChanges(hooks *pluginhooks.Set) *contentchanges.Notifier {
 	built := b.built
-	shaper := contentbridge.NewShaper(built.content, built.registry, built.library, built.settings)
-	return contentchanges.New(hooks, shaper, b.logger)
+	return contentchanges.New(contentchanges.Settings{
+		Listeners: hooks,
+		Shaper:    contentbridge.NewShaper(built.content, built.registry, built.library, built.settings),
+		Types:     built.registry,
+		Items:     built.content,
+		Budget:    b.settings.pluginHookSaveBudget,
+		Logger:    b.logger,
+	})
 }
 
 // runConfig carries the environment-derived settings of the server.
