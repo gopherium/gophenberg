@@ -243,6 +243,8 @@ func (s *server) versionedContent(r *http.Request, id uuid.UUID, version time.Ti
 func (s *server) patchContent(
 	r *http.Request, id uuid.UUID, version time.Time, req contentPatchRequest,
 ) (content.Content, error) {
+	release := s.hold(id)
+	defer release()
 	stored, err := s.versionedContent(r, id, version)
 	if err != nil {
 		return content.Content{}, err
@@ -265,11 +267,12 @@ func (s *server) patchContent(
 	if err != nil {
 		return content.Content{}, err
 	}
+	tell := s.readied(r, previous)
 	updated, err := s.content.Update(r.Context(), stored, previous.UpdatedAt, snapshot, revisionCap)
 	if err != nil {
 		return content.Content{}, err
 	}
-	s.saved(r, previous, &updated)
+	tell(&updated)
 	return updated, nil
 }
 
@@ -426,28 +429,41 @@ func (s *server) handleContentDelete() http.HandlerFunc {
 			})
 			return
 		}
-		before, err := s.ownedContent(r, id)
+		trashed, err := s.removeContent(r, id, r.URL.Query().Get("force") == "true")
 		if err != nil {
 			respondDomainError(w, err)
 			return
 		}
-		if r.URL.Query().Get("force") == "true" {
-			if err := s.content.Delete(r.Context(), id); err != nil {
-				respondDomainError(w, err)
-				return
-			}
-			s.saved(r, before, nil)
+		if trashed == nil {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		trashed, err := s.content.Trash(r.Context(), id, time.Now().UTC())
-		if err != nil {
-			respondDomainError(w, err)
-			return
-		}
-		s.saved(r, before, &trashed)
-		s.respondWritten(w, r, http.StatusOK, trashed)
+		s.respondWritten(w, r, http.StatusOK, *trashed)
 	}
+}
+
+// removeContent trashes the item id, or deletes it for good when forced, returning the trashed item or nil.
+func (s *server) removeContent(r *http.Request, id uuid.UUID, force bool) (*content.Content, error) {
+	release := s.hold(id)
+	defer release()
+	before, err := s.ownedContent(r, id)
+	if err != nil {
+		return nil, err
+	}
+	tell := s.readied(r, before)
+	if force {
+		if err := s.content.Delete(r.Context(), id); err != nil {
+			return nil, err
+		}
+		tell(nil)
+		return nil, nil
+	}
+	trashed, err := s.content.Trash(r.Context(), id, time.Now().UTC())
+	if err != nil {
+		return nil, err
+	}
+	tell(&trashed)
+	return &trashed, nil
 }
 
 // handleContentRestore returns an http.HandlerFunc returning a trashed item to draft.
