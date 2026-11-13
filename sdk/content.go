@@ -10,7 +10,6 @@ const ContentChangedHook = "content.changed"
 // ChangeKind names how a saved write changed what visitors see of an item.
 type ChangeKind string
 
-// The changes a content listener hears.
 const (
 	// Published is an item visitors see after the write, new to them or edited.
 	Published ChangeKind = "published"
