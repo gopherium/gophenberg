@@ -54,7 +54,7 @@ so it takes the default.
 | `GOPHENBERG_PLUGIN_TX_TIMEOUT` | No | `30s` | How long one plugin transaction may stay open |
 | `GOPHENBERG_PLUGIN_START_BUDGET` | No | `10ms` | How long one plugin's `Start` may take before `serve` logs a warning naming it. A slower plugin still starts, see [a plugin that fails at start](#a-plugin-that-fails-at-start) |
 | `GOPHENBERG_PLUGIN_HOOK_BUDGET` | No | `2ms` | How long one call of a plugin hook may take, all its plugins together. A plugin still working when it runs out is logged, see [a plugin whose hook fails](#a-plugin-whose-hook-fails) |
-| `GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET` | No | `50ms` | How long one call of a plugin hook after a saved write may take, all its plugins together, such as `content.changed` |
+| `GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET` | No | `50ms` | How long one call of a plugin hook after a saved write may take, all its plugins together, such as `content.changed`, and each read of an item the site hands them |
 | `GOPHENBERG_PLUGIN_HOOK_TIMED_FIRINGS` | No | `20` | How many calls of a hook, after one ran past its budget, time each of its plugins, from 1 to 1000 |
 | `GOPHENBERG_AVATARS` | No | `initials` | How the site draws avatars: `initials`, `gravatar` or `off`, see [avatars](#avatars) |
 | `GOPHENBERG_AVATAR_DEFAULT` | No | `mystery` | The picture Gravatar shows for an email address it does not know: `mystery`, `blank`, `gravatar_default`, `identicon`, `wavatar`, `monsterid`, `retro`, `robohash` or `color`. WordPress's `initials` is refused, see [avatars](#avatars) |
@@ -1299,12 +1299,21 @@ time=2026-11-09T10:12:44.211Z level=INFO msg="plugin hook ran out of time" plugi
 The budget only tells a plugin to stop. A plugin that ignores its
 context holds the page or the save until it returns.
 
-When the site cannot read an item to hand to `content.changed`, such as
-when the database stops answering right after the save, it logs a
-warning naming the item and tells no plugin of that change:
+Each read the site makes to hand an item to `content.changed` also
+gets `GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET`. When one fails, such as
+when the database stops answering, the site logs a warning naming the
+change and tells no plugin of it:
 
 ```text
-time=2026-11-11T10:12:44.302Z level=WARN msg="plugins not told of a content change" id=019a7c3e-5b1d-7c2a-9f40-2b6d8e1a4c57 change=published error="contentbridge: read the type post: context deadline exceeded"
+time=2026-11-11T10:12:44.302Z level=WARN msg="plugins not told of a content change" change=published error="contentbridge: read the type post: context deadline exceeded"
+```
+
+When the site cannot list the published items that moved with a
+renamed or moved parent, it logs a warning naming the parent's new
+path and tells no plugin of those moves:
+
+```text
+time=2026-11-11T10:12:44.305Z level=WARN msg="plugins not told of moved children" parent=pages/company error="postgres: count content: context deadline exceeded"
 ```
 
 A head tag must be a `meta` or `link` tag. Its attribute names are

@@ -512,11 +512,23 @@ it, `Unpublished` for one set back to draft, pending review, private
 or scheduled, `Trashed` for one moved to the trash and `Deleted` for
 one deleted for good. `ContentChange.Item` is the item as visitors see
 it after a `Published` write, or as they saw it before the others,
-with its content and fields as the content API serves them. Writes
-visitors never see call no plugin: creating an item, an autosave, an
-edit to a draft, a restore from the trash and emptying the trash. The
-site calls the hook after the write is saved, so a plugin that fails
-can neither undo nor block the save:
+with its content and fields as the content API serves them. An item
+of a type the site does not serve is one visitors never see.
+
+When a write moves a published item to a new address, through its
+slug or its parent, `ContentChange.PreviousPath` is the path visitors
+reached it at before, so a plugin can send the old address on or drop
+what it cached there. It is empty when the item did not move. Each
+published item under a moved one, at any depth, reaches the plugin
+after it as its own `Published` change with its own `PreviousPath`,
+even when the moved one is a draft.
+
+Writes visitors never see call no plugin: creating an item, an
+autosave, an edit to a draft, a restore from the trash and emptying
+the trash. The site calls the hook after the write is saved, so a
+plugin that fails cannot undo the save. The changes of one item reach
+plugins in the order they were saved, since the next write of that
+item waits until the plugins heard the last one:
 
 ```go
 // ContentChanged frees the seats of an event visitors can no longer book.
@@ -534,7 +546,10 @@ the context they get, so return when it ends. A page gives
 `public.head-tags` `GOPHENBERG_PLUGIN_HOOK_BUDGET`, 2 milliseconds
 unless set. A save gives `content.changed`
 `GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET`, 50 milliseconds unless set, so a
-plugin that writes to the database has time to finish. Go cannot stop
+plugin that writes to the database has time to finish. The save
+answers the editor once the plugins heard its changes, and each read
+the site makes to hand an item to plugins gets the same budget, so a
+save that moves many published pages takes longer. Go cannot stop
 a running function, and a plugin that ignores its context holds the
 page or the save until it returns. An error or a panic inside a hook
 drops what the plugin answered in that call, the site logs it under
@@ -990,9 +1005,10 @@ a commit of the SDK, such as `github.com/gopherium/gophenberg/sdk@main`.
 - New: `PluginRoutesPrefix`, the address every plugin's routes answer
   under, before the plugin's id.
 - New: the `ContentListener` interface hears each saved write that
-  changes what visitors see, with the `ContentChange` and `ChangeKind`
-  types, the kinds `Published`, `Unpublished`, `Trashed` and
-  `Deleted`, and the hook's name in `ContentChangedHook`.
+  changes what visitors see, with the `ContentChange` type and the
+  path a moved item left in its `PreviousPath`, the `ChangeKind` type,
+  the kinds `Published`, `Unpublished`, `Trashed` and `Deleted`, and
+  the hook's name in `ContentChangedHook`.
 - Nothing breaks.
 
 ### v0.5.0
