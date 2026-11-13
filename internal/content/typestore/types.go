@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -67,6 +68,9 @@ func (s *Store) Create(ctx context.Context, t content.Type) (content.Type, error
 		CreatedAt:     t.CreatedAt,
 		UpdatedAt:     t.UpdatedAt,
 	})
+	if isDefaultTaken(err) {
+		return content.Type{}, content.ErrRootTaken
+	}
 	if taken := s.errorFor(typeWriteErrors, err); taken != nil {
 		return content.Type{}, taken
 	}
@@ -187,6 +191,9 @@ func flattenable(ctx context.Context, queries Queries, key string) error {
 
 // updateTypeFailure returns the error the type update carries, and wraps anything else.
 func (s *Store) updateTypeFailure(err error) error {
+	if isDefaultTaken(err) {
+		return content.ErrRootTaken
+	}
 	for _, carried := range []error{
 		content.ErrTypeNotFound, content.ErrRouteWordReserved, content.ErrReservedAddress,
 		content.ErrInvalidRouteWord, content.ErrNestingInUse,
@@ -308,4 +315,11 @@ func toType(row TypeRow) content.Type {
 		CreatedAt:     row.CreatedAt.UTC(),
 		UpdatedAt:     row.UpdatedAt.UTC(),
 	}
+}
+
+
+// isDefaultTaken reports whether err is the unique violation raised when two
+// Make default requests race for the single default content type.
+func isDefaultTaken(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "one_default_idx")
 }
