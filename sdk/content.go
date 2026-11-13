@@ -26,6 +26,8 @@ type ContentChange struct {
 	Kind ChangeKind
 	// Item is the item as visitors see it after a Published write, or as they saw it before the others.
 	Item Item
+	// PreviousPath is the Path visitors reached a Published item at before the write moved it, empty when it did not.
+	PreviousPath string
 }
 
 // ContentListener is implemented by plugins that hear each saved write that changes what visitors see.
