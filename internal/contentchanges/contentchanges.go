@@ -6,13 +6,21 @@ package contentchanges
 import (
 	"context"
 	"log/slog"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/sdk"
 )
 
-// unshapedLine is the warning the site logs for each change it could not shape for plugins.
+// unshapedLine is the warning the site logs for each change it could not read for plugins.
 const unshapedLine = "plugins not told of a content change"
+
+// unlistedLine is the warning the site logs when it could not read the children a write moved.
+const unlistedLine = "plugins not told of moved children"
 
 // Listeners hears the content changes of a running site.
 type Listeners interface {
@@ -25,46 +33,225 @@ type Shaper interface {
 	Item(ctx context.Context, c content.Content) (sdk.Item, error)
 }
 
-// Notifier tells the listeners what each saved write changed of what visitors see.
+// Types answers a content type the site serves, or an error for one it does not.
+type Types interface {
+	Active(ctx context.Context, key string) (content.Type, error)
+}
+
+// Items reads the stored items a write moved beside the one it wrote.
+type Items interface {
+	Children(ctx context.Context, id uuid.UUID) (int, error)
+	List(ctx context.Context, f content.Filter) ([]content.ListedItem, int, error)
+	ByID(ctx context.Context, id uuid.UUID) (content.Content, error)
+}
+
+// Settings are what a Notifier tells, reads through and logs to.
+type Settings struct {
+	Listeners Listeners
+	Shaper    Shaper
+	Types     Types
+	Items     Items
+	// Budget is the time each read for plugins may take.
+	Budget time.Duration
+	Logger *slog.Logger
+}
+
+// Notifier tells the listeners what each saved write changed of what visitors see, one write of an item at a time.
 type Notifier struct {
-	listeners Listeners
-	shaper    Shaper
-	logger    *slog.Logger
+	settings Settings
+	mu       sync.Mutex
+	held     map[uuid.UUID]*heldItem
 }
 
-// New returns a [Notifier] telling listeners, shaping items through shaper and logging to logger.
-func New(listeners Listeners, shaper Shaper, logger *slog.Logger) *Notifier {
-	return &Notifier{listeners: listeners, shaper: shaper, logger: logger}
+// heldItem is the lock of one item and how many writes hold it or wait for it.
+type heldItem struct {
+	mu    sync.Mutex
+	users int
 }
 
-// Saved tells the listeners what the write from before to after changed for visitors, after nil for a delete.
-func (n *Notifier) Saved(ctx context.Context, before content.Content, after *content.Content) {
-	if !n.listeners.Listens() {
-		return
-	}
-	kind, shown, changed := kindOf(before, after)
-	if !changed {
-		return
-	}
-	item, err := n.shaper.Item(ctx, shown)
-	if err != nil {
-		n.logger.Warn(unshapedLine, "id", shown.ID, "change", kind, "error", err)
-		return
-	}
-	n.listeners.ContentChanged(ctx, sdk.ContentChange{Kind: kind, Item: item})
+// New returns a [Notifier] over settings.
+func New(settings Settings) *Notifier {
+	return &Notifier{settings: settings, held: map[uuid.UUID]*heldItem{}}
 }
 
-// kindOf returns how the write from before to after changed what visitors see, the item to tell, and whether it did.
-func kindOf(before content.Content, after *content.Content) (sdk.ChangeKind, content.Content, bool) {
-	seen := before.Status == content.StatusPublished
+// Hold locks the item id against the other writes plugins hear until release, so their changes keep their order.
+func (n *Notifier) Hold(id uuid.UUID) (release func()) {
+	if !n.settings.Listeners.Listens() {
+		return func() {}
+	}
+	n.mu.Lock()
+	item, ok := n.held[id]
+	if !ok {
+		item = &heldItem{}
+		n.held[id] = item
+	}
+	item.users++
+	n.mu.Unlock()
+	item.mu.Lock()
+	return func() {
+		item.mu.Unlock()
+		n.mu.Lock()
+		defer n.mu.Unlock()
+		item.users--
+		if item.users == 0 {
+			delete(n.held, id)
+		}
+	}
+}
+
+// Before readies the write from before, shaping it now when visitors see it, and returns what tells its change.
+func (n *Notifier) Before(ctx context.Context, before content.Content) func(context.Context, *content.Content) {
+	if !n.settings.Listeners.Listens() {
+		return func(context.Context, *content.Content) {}
+	}
+	w := &write{n: n, before: before, seen: n.visible(ctx, before)}
+	if w.seen {
+		w.shaped, w.shapeErr = n.shape(ctx, before)
+	}
+	return w.after
+}
+
+// write is one saved write of an item: the item before it, whether visitors saw it and how they saw it.
+type write struct {
+	n        *Notifier
+	before   content.Content
+	seen     bool
+	shaped   sdk.Item
+	shapeErr error
+}
+
+// after tells the listeners what the write changed, after nil for a delete, then each published child it moved.
+func (w *write) after(ctx context.Context, after *content.Content) {
+	w.tellOwn(ctx, after)
+	if after != nil {
+		w.n.tellMoved(ctx, w.before, *after)
+	}
+}
+
+// tellOwn tells the listeners the change the write made to its own item, when visitors see one.
+func (w *write) tellOwn(ctx context.Context, after *content.Content) {
+	if after != nil && w.n.visible(ctx, *after) {
+		w.n.tellPublished(ctx, *after, w.previousPath(*after))
+		return
+	}
+	if !w.seen {
+		return
+	}
+	w.n.tell(ctx, gone(after), w.shaped, w.shapeErr, "")
+}
+
+// previousPath returns the path visitors reached the item at before the write moved it, empty when it did not.
+func (w *write) previousPath(after content.Content) string {
+	if !w.seen || w.before.Path == after.Path {
+		return ""
+	}
+	return w.before.Path
+}
+
+// gone returns the change of an item visitors saw and no longer see, after nil for a delete.
+func gone(after *content.Content) sdk.ChangeKind {
 	if after == nil {
-		return sdk.Deleted, before, seen
-	}
-	if after.Status == content.StatusPublished {
-		return sdk.Published, *after, true
+		return sdk.Deleted
 	}
 	if after.Status == content.StatusTrash {
-		return sdk.Trashed, before, seen
+		return sdk.Trashed
 	}
-	return sdk.Unpublished, before, seen
+	return sdk.Unpublished
+}
+
+// tellMoved tells the listeners of each published child the write moved with its parent, at the path it left.
+func (n *Notifier) tellMoved(ctx context.Context, before, after content.Content) {
+	if before.Path == after.Path {
+		return
+	}
+	children, err := n.movedChildren(ctx, after)
+	if err != nil {
+		n.settings.Logger.Warn(unlistedLine, "parent", after.Path, "error", err)
+		return
+	}
+	for _, child := range children {
+		n.tellChild(ctx, child, before.Path+strings.TrimPrefix(child.Path, after.Path))
+	}
+}
+
+// movedChildren returns the published items under parent, an empty list when it has no children.
+func (n *Notifier) movedChildren(ctx context.Context, parent content.Content) ([]content.Content, error) {
+	readCtx, cancel := context.WithTimeout(ctx, n.settings.Budget)
+	defer cancel()
+	count, err := n.settings.Items.Children(readCtx, parent.ID)
+	if err != nil || count == 0 {
+		return nil, err
+	}
+	published, err := n.published(readCtx, parent.Type)
+	var under []content.Content
+	for _, item := range published {
+		if strings.HasPrefix(item.Path, parent.Path+"/") {
+			under = append(under, item)
+		}
+	}
+	return under, err
+}
+
+// published returns every published item of the type key, a page at a time.
+func (n *Notifier) published(ctx context.Context, key string) ([]content.Content, error) {
+	var all []content.Content
+	for page := 1; ; page++ {
+		listed, total, err := n.settings.Items.List(ctx, content.Filter{
+			Type: key, Statuses: []content.Status{content.StatusPublished}, Page: page, PerPage: content.MaxPerPage,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range listed {
+			all = append(all, item.Content)
+		}
+		if len(listed) == 0 || len(all) >= total {
+			return all, nil
+		}
+	}
+}
+
+// tellChild tells the listeners a moved child is published at its new path, after the previous one.
+func (n *Notifier) tellChild(ctx context.Context, child content.Content, previous string) {
+	readCtx, cancel := context.WithTimeout(ctx, n.settings.Budget)
+	full, err := n.settings.Items.ByID(readCtx, child.ID)
+	cancel()
+	if err != nil {
+		n.tell(ctx, sdk.Published, sdk.Item{}, err, previous)
+		return
+	}
+	n.tellPublished(ctx, full, previous)
+}
+
+// tellPublished shapes c and tells the listeners it is published, after the path it left when it moved.
+func (n *Notifier) tellPublished(ctx context.Context, c content.Content, previous string) {
+	item, err := n.shape(ctx, c)
+	n.tell(ctx, sdk.Published, item, err, previous)
+}
+
+// tell hands the listeners the change of kind to item, or logs the error that kept the item from them.
+func (n *Notifier) tell(ctx context.Context, kind sdk.ChangeKind, item sdk.Item, err error, previous string) {
+	if err != nil {
+		n.settings.Logger.Warn(unshapedLine, "change", kind, "error", err)
+		return
+	}
+	n.settings.Listeners.ContentChanged(ctx, sdk.ContentChange{Kind: kind, Item: item, PreviousPath: previous})
+}
+
+// visible reports whether visitors see c: published, under a type the site serves.
+func (n *Notifier) visible(ctx context.Context, c content.Content) bool {
+	if c.Status != content.StatusPublished {
+		return false
+	}
+	readCtx, cancel := context.WithTimeout(ctx, n.settings.Budget)
+	defer cancel()
+	_, err := n.settings.Types.Active(readCtx, c.Type)
+	return err == nil
+}
+
+// shape returns the item plugins read of c, read within the budget.
+func (n *Notifier) shape(ctx context.Context, c content.Content) (sdk.Item, error) {
+	readCtx, cancel := context.WithTimeout(ctx, n.settings.Budget)
+	defer cancel()
+	return n.settings.Shaper.Item(readCtx, c)
 }
