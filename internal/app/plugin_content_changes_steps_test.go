@@ -42,7 +42,7 @@ type listeningPlugin struct {
 // ContentChanged keeps the change the plugin heard, then fails or panics as the scenario set.
 func (l listeningPlugin) ContentChanged(_ context.Context, change sdk.ContentChange) error {
 	l.scenario.mu.Lock()
-	l.heard = append(l.heard, string(change.Kind)+" "+change.Item.Title)
+	l.heard = append(l.heard, change)
 	failure, boom := l.hearErr, l.hearPanic
 	l.scenario.mu.Unlock()
 	if boom != "" {
@@ -58,7 +58,18 @@ func (l listeningPlugin) ContentChanged(_ context.Context, change sdk.ContentCha
 func (p *pausingScenario) bindContentChanges(sc *godog.ScenarioContext) {
 	sc.Given(`^"([^"]*)" hears content changes$`, p.hearsChanges)
 	sc.Given(`^the content changes "([^"]*)" hears (fail|panic) with "([^"]*)"$`, p.hearingGoesWrong)
-	sc.When(`^the administrator writes the draft "([^"]*)"$`, p.writesDraft)
+	sc.When(`^the administrator writes the draft "([^"]*)"$`, func(title string) error {
+		return p.writesDraft(title, map[string]any{"type": "post"})
+	})
+	sc.When(`^the administrator writes the draft page "([^"]*)"$`, func(title string) error {
+		return p.writesDraft(title, map[string]any{"type": "page"})
+	})
+	sc.When(`^the administrator writes the draft page "([^"]*)" under "([^"]*)"$`, p.writesChildPage)
+	sc.When(`^the administrator adds the type "([^"]*)" labeled "([^"]*)" and "([^"]*)" under "([^"]*)" that nests$`,
+		p.addsNestingType)
+	sc.When(`^the administrator changes the slug of "([^"]*)" to "([^"]*)"$`, func(title, slug string) error {
+		return p.patch(title, title, map[string]any{"slug": slug})
+	})
 	sc.When(`^the administrator publishes "([^"]*)"$`, func(title string) error {
 		return p.patch(title, title, map[string]any{"status": "published"})
 	})
@@ -103,9 +114,34 @@ func (p *pausingScenario) hearingGoesWrong(id, how, text string) {
 	p.plugins[id].hearErr = text
 }
 
-// writesDraft has the administrator write a draft post titled title.
-func (p *pausingScenario) writesDraft(title string) error {
-	body, err := json.Marshal(map[string]string{"type": "post", "title": title})
+// addsNestingType has the administrator add the type key with its labels under the route word, nesting its items.
+func (p *pausingScenario) addsNestingType(key, singular, plural, routeWord string) error {
+	body, err := json.Marshal(map[string]string{
+		"key": key, "singular_label": singular, "plural_label": plural, "route_word": routeWord,
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := p.send(http.MethodPost, "/api/types", string(body), http.StatusCreated); err != nil {
+		return err
+	}
+	_, err = p.send(http.MethodPatch, "/api/types/"+key, `{"hierarchical":true}`, http.StatusOK)
+	return err
+}
+
+// writesChildPage has the administrator write a draft page titled title under the page titled parent.
+func (p *pausingScenario) writesChildPage(title, parent string) error {
+	held, err := p.held(parent)
+	if err != nil {
+		return err
+	}
+	return p.writesDraft(title, map[string]any{"type": "page", "parent_id": held.id})
+}
+
+// writesDraft has the administrator write a draft titled title with the fields asked.
+func (p *pausingScenario) writesDraft(title string, asked map[string]any) error {
+	asked["title"] = title
+	body, err := json.Marshal(asked)
 	if err != nil {
 		return err
 	}
@@ -181,20 +217,49 @@ func (p *pausingScenario) send(method, path, body string, status int) ([]byte, e
 	return got.body, nil
 }
 
+// heardColumns reads each column a table of heard changes may hold from a change.
+var heardColumns = map[string]func(sdk.ContentChange) string{
+	"change":        func(c sdk.ContentChange) string { return string(c.Kind) },
+	"title":         func(c sdk.ContentChange) string { return c.Item.Title },
+	"path":          func(c sdk.ContentChange) string { return c.Item.Path },
+	"previous path": func(c sdk.ContentChange) string { return c.PreviousPath },
+}
+
 // heardBy returns the changes the plugin id heard, in order.
-func (p *pausingScenario) heardBy(id string) []string {
+func (p *pausingScenario) heardBy(id string) []sdk.ContentChange {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return slices.Clone(p.plugins[id].heard)
 }
 
-// heardInOrder fails unless the plugin id heard the changes the table lists, in its order.
+// heardInOrder fails unless the plugin id heard the changes the table lists, in its order, read by its columns.
 func (p *pausingScenario) heardInOrder(id string, table *godog.Table) error {
+	reads := make([]func(sdk.ContentChange) string, 0, len(table.Rows[0].Cells))
+	for _, cell := range table.Rows[0].Cells {
+		read, ok := heardColumns[cell.Value]
+		if !ok {
+			return fmt.Errorf("a heard change has no column %q", cell.Value)
+		}
+		reads = append(reads, read)
+	}
 	want := make([]string, 0, len(table.Rows))
 	for _, row := range table.Rows[1:] {
-		want = append(want, row.Cells[0].Value+" "+row.Cells[1].Value)
+		cells := make([]string, 0, len(row.Cells))
+		for _, cell := range row.Cells {
+			cells = append(cells, cell.Value)
+		}
+		want = append(want, strings.Join(cells, " | "))
 	}
-	if got := p.heardBy(id); !slices.Equal(got, want) {
+	heard := p.heardBy(id)
+	got := make([]string, 0, len(heard))
+	for _, change := range heard {
+		cells := make([]string, 0, len(reads))
+		for _, read := range reads {
+			cells = append(cells, read(change))
+		}
+		got = append(got, strings.Join(cells, " | "))
+	}
+	if !slices.Equal(got, want) {
 		return fmt.Errorf("%s heard %q, want %q", id, got, want)
 	}
 	return nil

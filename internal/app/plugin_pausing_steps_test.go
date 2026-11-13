@@ -64,7 +64,7 @@ type pausingPlugin struct {
 	listens      bool
 	hearErr      string
 	hearPanic    string
-	heard        []string
+	heard        []sdk.ContentChange
 }
 
 // initializePluginPausing binds the steps of the scenarios where a start pauses a plugin that fails to s.

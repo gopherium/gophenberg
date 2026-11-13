@@ -5,9 +5,11 @@ Feature: Plugins hear when a saved write changes what visitors see
   that lists the hook content.changed hears each saved write that changes
   what visitors see: an item published, or edited while visitors see it,
   one set back so visitors no longer see it, one moved to the trash and
-  one deleted for good. Writes visitors never see call no plugin. The hook
+  one deleted for good. An item that moves to a new address carries the
+  path visitors reached it at before, and so does each published child
+  that moved with it. Writes visitors never see call no plugin. The hook
   runs after the write is saved, under its own time budget, so a plugin
-  that fails or panics never undoes or blocks the save.
+  that fails or panics never undoes the save.
 
   Background:
     Given the settings point at an empty database
@@ -42,6 +44,22 @@ Feature: Plugins hear when a saved write changes what visitors see
       | change    | title |
       | published | Hello |
       | deleted   | Hello |
+
+  Scenario: Moving a published page tells the plugin of each page that moved with it
+    When the site serves
+    And the administrator signs in
+    And the administrator adds the type "page" labeled "Page" and "Pages" under "pages" that nests
+    And the administrator writes the draft page "About"
+    And the administrator publishes "About"
+    And the administrator writes the draft page "Team" under "About"
+    And the administrator publishes "Team"
+    And the administrator changes the slug of "About" to "company"
+    Then "notes" heard these changes in order:
+      | change    | title | path               | previous path    |
+      | published | About | pages/about        |                  |
+      | published | Team  | pages/about/team   |                  |
+      | published | About | pages/company      | pages/about      |
+      | published | Team  | pages/company/team | pages/about/team |
 
   Scenario: Writes to a draft tell the plugin nothing
     When the site serves
