@@ -14,6 +14,7 @@ import { listenAt } from './announcements'
 import { comeBack } from './anotherPost'
 import { classesOf } from './classes'
 import { gate } from './gate'
+import { watchKeepalive } from './parks'
 import { adminUser, renderAt, renderRoutedAt } from './render'
 import { storedPost, storedPostWithId } from './postFixture'
 import { findActionToast, findToast } from './typeFixtures'
@@ -1122,4 +1123,123 @@ test('autosaves the words typed before the editor closed during the autosave, th
 	expect(await findActionToast(EDITED_TRASHED_TOAST)).toBeInTheDocument()
 	expect(served.order).toEqual(['autosave', 'answered', 'autosave', 'trash'])
 	expect(served.parks[1]).toMatchObject({ title: 'Welcome to Gophenberg!?', updated_at: storedPost.updated_at })
+})
+
+test('sends the latest words once when the editor closed before the autosave for the trash failed', async () => {
+	const first = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held, fails: true }])
+	server.use(
+		http.get(`/api/content/${OTHER_ID}`, () =>
+			HttpResponse.json({ ...storedPostWithId(OTHER_ID), title: 'A second post' }),
+		),
+	)
+	const sent = countAutosavesSent()
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	const title = await startTrash(served)
+	await userEvent.type(title, '?')
+	await openEditor(router, OTHER_ID)
+	await waitFor(() => expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('A second post'))
+
+	first.release()
+
+	expect(await findToast(UNSAVED_TOAST)).toBeInTheDocument()
+	await waitFor(() => expect(served.parks).toHaveLength(2))
+	expect(served.parks[1]).toMatchObject({ title: 'Welcome to Gophenberg!?', updated_at: storedPost.updated_at })
+	expect(served.order).toEqual(['autosave', 'answered', 'autosave'])
+	expect(trashed).toEqual([])
+	expect(sent()).toBe(2)
+})
+
+test('keeps the editor open again on the post when the autosave for the trash fails after it closed', async () => {
+	const first = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held, fails: true }])
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	const title = await startTrash(served)
+	await userEvent.type(title, '?')
+	await userEvent.click(screen.getByRole('link', { name: 'Back to posts' }))
+	await screen.findByRole('heading', { name: 'Posts', level: 2 })
+	await comeBack(router)
+	const reopened = await screen.findByRole('textbox', { name: 'Title' })
+	await userEvent.type(reopened, 'x')
+
+	first.release()
+
+	expect(await findToast(UNSAVED_TOAST)).toBeInTheDocument()
+	await waitFor(() => expect(served.parks).toHaveLength(2))
+	await userEvent.type(reopened, 'y')
+	expect(screen.getByRole('textbox', { name: 'Title' })).toBe(reopened)
+	expect(reopened).toHaveValue('Welcome to Gophenbergxy')
+	expect(served.parks).toMatchObject([{ title: 'Welcome to Gophenberg!' }, { title: 'Welcome to Gophenberg!?' }])
+})
+
+/** Fires the event a page sends as it unloads. */
+async function unloadPage() {
+	await act(async () => {
+		window.dispatchEvent(new Event('beforeunload'))
+		await Promise.resolve()
+	})
+}
+
+test('sends the latest words as the page unloads once the editor closed during the autosave for a trash', async () => {
+	const first = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held }])
+	server.use(
+		http.get(`/api/content/${OTHER_ID}`, () =>
+			HttpResponse.json({ ...storedPostWithId(OTHER_ID), title: 'A second post' }),
+		),
+	)
+	const keepaliveAt = watchKeepalive(storedPost.id)
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	const title = await startTrash(served)
+	await userEvent.type(title, '?')
+	await openEditor(router, OTHER_ID)
+	await waitFor(() => expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('A second post'))
+
+	await unloadPage()
+
+	await waitFor(() => expect(served.parks).toHaveLength(2))
+	expect(served.parks[1]).toMatchObject({ title: 'Welcome to Gophenberg!?', updated_at: storedPost.updated_at })
+	expect(keepaliveAt(1)).toBe(true)
+	first.release()
+	expect(await findActionToast(EDITED_TRASHED_TOAST)).toBeInTheDocument()
+})
+
+test('sends nothing as the page unloads once the editor closed on the saved words during a trash', async () => {
+	const first = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held }])
+	server.use(
+		http.get(`/api/content/${OTHER_ID}`, () =>
+			HttpResponse.json({ ...storedPostWithId(OTHER_ID), title: 'A second post' }),
+		),
+	)
+	const sent = countAutosavesSent()
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	const title = await startTrash(served)
+	await userEvent.type(title, '{Backspace}')
+	await openEditor(router, OTHER_ID)
+	await waitFor(() => expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('A second post'))
+
+	await unloadPage()
+
+	expect(sent()).toBe(1)
+	first.release()
+	expect(await findActionToast(EDITED_TRASHED_TOAST)).toBeInTheDocument()
+	expect(served.order).toEqual(['autosave', 'answered', 'trash'])
+})
+
+test('sends the latest words once as the page unloads during the autosave for the trash', async () => {
+	const first = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held }])
+	const sent = countAutosavesSent()
+	renderAt(EDITOR_PATH)
+	const title = await startTrash(served)
+	await userEvent.type(title, '?')
+
+	await unloadPage()
+
+	expect(sent()).toBe(2)
+	await waitFor(() => expect(served.parks).toHaveLength(2))
+	expect(served.parks[1]).toMatchObject({ title: 'Welcome to Gophenberg!?' })
+	first.release()
+	expect(await findActionToast(EDITED_TRASHED_TOAST)).toBeInTheDocument()
 })
