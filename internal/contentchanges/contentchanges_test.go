@@ -78,11 +78,24 @@ func (t *types) Active(_ context.Context, key string) (content.Type, error) {
 	return content.Type{Key: key}, nil
 }
 
-// items holds stored items by id, listing the published ones of a type.
+// items holds stored items by id, listing the published ones of a type, and each item as a later write left it.
 type items struct {
+	mu      sync.Mutex
 	held    []content.Content
 	listErr error
 	byIDErr error
+	// since is each item as a write after the listing left it, nil for one deleted since.
+	since map[uuid.UUID]*content.Content
+}
+
+// rewrite keeps written as the item a later write left, or the item id deleted when written is nil.
+func (s *items) rewrite(id uuid.UUID, written *content.Content) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.since == nil {
+		s.since = map[uuid.UUID]*content.Content{}
+	}
+	s.since[id] = written
 }
 
 // Children counts the items whose parent is id.
@@ -111,10 +124,18 @@ func (s *items) List(_ context.Context, f content.Filter) ([]content.ListedItem,
 	return matched[start:min(start+f.PerPage, len(matched))], len(matched), nil
 }
 
-// ByID returns the held item with id.
+// ByID returns the item with id as the last write left it.
 func (s *items) ByID(_ context.Context, id uuid.UUID) (content.Content, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.byIDErr != nil {
 		return content.Content{}, s.byIDErr
+	}
+	if written, ok := s.since[id]; ok {
+		if written == nil {
+			return content.Content{}, content.ErrNotFound
+		}
+		return *written, nil
 	}
 	for _, held := range s.held {
 		if held.ID == id {
@@ -410,11 +431,11 @@ func TestHoldKeepsTheWritesOfOneItemInOrder(t *testing.T) {
 	}
 }
 
-// pageAt returns a stored page titled title at path in status, under parent when one is given.
+// pageAt returns a stored page titled title at path in status, under parent and stamped as it when one is given.
 func pageAt(title, path string, status content.Status, parent *content.Content) content.Content {
 	page := content.Content{ID: uuid.Must(uuid.NewV7()), Type: "page", Title: title, Path: path, Status: status}
 	if parent != nil {
-		page.ParentID = &parent.ID
+		page.ParentID, page.UpdatedAt = &parent.ID, parent.UpdatedAt
 	}
 	return page
 }
@@ -423,7 +444,7 @@ func pageAt(title, path string, status content.Status, parent *content.Content) 
 func movedTree(parentStatus content.Status) (content.Content, content.Content, []content.Content) {
 	before := pageAt("About", "about", parentStatus, nil)
 	moved := before
-	moved.Path = "company"
+	moved.Path, moved.UpdatedAt = "company", time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
 	team := pageAt("Team", "company/team", content.StatusPublished, &moved)
 	lead := pageAt("Lead", "company/team/lead", content.StatusPublished, &team)
 	draft := pageAt("Draft", "company/draft", content.StatusDraft, &moved)
@@ -467,6 +488,82 @@ func TestAMovedParentTellsTheListenersOfEachPublishedChildItMoved(t *testing.T) 
 				t.Errorf("the listeners heard %+v, want %+v", heard.heard, tc.want)
 			}
 		})
+	}
+}
+
+func TestAMovedParentLeavesAChildALaterWriteChangedToThatWrite(t *testing.T) {
+	t.Parallel()
+
+	for name, since := range map[string]func(team content.Content) *content.Content{
+		"a child edited since the move": func(team content.Content) *content.Content {
+			team.Title, team.UpdatedAt = "Team edited", team.UpdatedAt.Add(time.Second)
+			return &team
+		},
+		"a child set to draft since the move": func(team content.Content) *content.Content {
+			team.Status, team.UpdatedAt = content.StatusDraft, team.UpdatedAt.Add(time.Second)
+			return &team
+		},
+		"a child deleted since the move": func(content.Content) *content.Content { return nil },
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			heard := &listeners{}
+			logged := &bytes.Buffer{}
+			before, moved, held := movedTree(content.StatusPublished)
+			stored := &items{held: held}
+			stored.rewrite(held[1].ID, since(held[1]))
+			n := contentchanges.New(contentchanges.Settings{
+				Listeners: heard, Shaper: &shaper{}, Types: &types{}, Items: stored, Budget: roomy,
+				Logger: slog.New(slog.NewTextHandler(logged, nil)),
+			})
+
+			write(t, n, before, &moved)
+
+			want := []sdk.ContentChange{
+				movedChange("About", "company", "about"), movedChange("Lead", "company/team/lead", "about/team/lead"),
+			}
+			if !reflect.DeepEqual(heard.heard, want) || logged.Len() != 0 {
+				t.Errorf("the listeners heard %+v and the log reads %q, want %+v and nothing logged", heard.heard, logged,
+					want)
+			}
+		})
+	}
+}
+
+func TestAMovedParentReadsEachChildOnlyOnceItHoldsIt(t *testing.T) {
+	t.Parallel()
+
+	heard := &listeners{}
+	before, moved, held := movedTree(content.StatusPublished)
+	stored := &items{held: held}
+	n := contentchanges.New(contentchanges.Settings{
+		Listeners: heard, Shaper: &shaper{}, Types: &types{}, Items: stored, Budget: roomy,
+		Logger: slog.New(slog.DiscardHandler),
+	})
+	team := held[1]
+	release := n.Hold(team.ID)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		write(t, n, before, &moved)
+	}()
+	select {
+	case <-done:
+		t.Fatal("the move was told in full while another write held a child it carried")
+	case <-time.After(20 * time.Millisecond):
+	}
+	edited := team
+	edited.Title, edited.UpdatedAt = "Team edited", team.UpdatedAt.Add(time.Second)
+	stored.rewrite(team.ID, &edited)
+	release()
+	<-done
+
+	want := []sdk.ContentChange{
+		movedChange("About", "company", "about"), movedChange("Lead", "company/team/lead", "about/team/lead"),
+	}
+	if !reflect.DeepEqual(heard.heard, want) {
+		t.Errorf("the listeners heard %+v, want %+v with the held child left to its own write", heard.heard, want)
 	}
 }
 
@@ -532,6 +629,10 @@ func TestAMovedParentLogsChildrenItCannotRead(t *testing.T) {
 		},
 		"a child that cannot be read": {
 			&items{byIDErr: unreachable}, &types{},
+			`level=WARN msg="plugins not told of a content change" change=published error="the database is unreachable"`,
+		},
+		"a child whose type cannot be read": {
+			&items{}, &types{err: unreachable, failFrom: 3},
 			`level=WARN msg="plugins not told of a content change" change=published error="the database is unreachable"`,
 		},
 	} {

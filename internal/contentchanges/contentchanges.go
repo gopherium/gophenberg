@@ -188,7 +188,7 @@ func (n *Notifier) tellMoved(ctx context.Context, before, after content.Content)
 		return
 	}
 	for _, child := range children {
-		n.tellChild(ctx, child, before.Path+strings.TrimPrefix(child.Path, after.Path))
+		n.tellChild(ctx, child.ID, before, after)
 	}
 }
 
@@ -229,16 +229,33 @@ func (n *Notifier) published(ctx context.Context, key string) ([]content.Content
 	}
 }
 
-// tellChild tells the listeners a moved child is published at its new path, after the previous one.
-func (n *Notifier) tellChild(ctx context.Context, child content.Content, previous string) {
-	readCtx, cancel := context.WithTimeout(ctx, n.settings.Budget)
-	full, err := n.settings.Items.ByID(readCtx, child.ID)
-	cancel()
+// tellChild tells the listeners the child id is published where the move from before to after carried it.
+func (n *Notifier) tellChild(ctx context.Context, id uuid.UUID, before, after content.Content) {
+	release := n.Hold(id)
+	defer release()
+	child, shown, err := n.carried(ctx, id, after.UpdatedAt)
 	if err != nil {
 		n.warn(sdk.Published, err)
 		return
 	}
-	n.tellPublished(ctx, full, previous)
+	if shown {
+		n.tellPublished(ctx, child, before.Path+strings.TrimPrefix(child.Path, after.Path))
+	}
+}
+
+// carried returns the child id as stored, and whether visitors see it where the move stamped moved left it.
+func (n *Notifier) carried(ctx context.Context, id uuid.UUID, moved time.Time) (content.Content, bool, error) {
+	readCtx, cancel := context.WithTimeout(ctx, n.settings.Budget)
+	child, err := n.settings.Items.ByID(readCtx, id)
+	cancel()
+	if errors.Is(err, content.ErrNotFound) {
+		return content.Content{}, false, nil
+	}
+	if err != nil || !child.UpdatedAt.Equal(moved) {
+		return content.Content{}, false, err
+	}
+	shown, err := n.shown(ctx, child)
+	return child, shown, err
 }
 
 // tellPublished shapes c and tells the listeners it is published, after the path it left when it moved.
