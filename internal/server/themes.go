@@ -68,16 +68,12 @@ func (s *server) handleThemeList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		installed, err := s.themes.List(r.Context())
 		if err != nil {
-			authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
-				Message: "internal error", Code: "internal",
-			})
+			respondDomainError(w, err)
 			return
 		}
 		previous, offered, err := s.themes.Previous(r.Context())
 		if err != nil {
-			authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
-				Message: "internal error", Code: "internal",
-			})
+			respondDomainError(w, err)
 			return
 		}
 		views := make([]themeView, 0, len(installed))
@@ -219,7 +215,7 @@ func respondUploadError(w http.ResponseWriter, err error) {
 	})
 }
 
-// respondThemeError writes a refused theme as the reason the operator reads.
+// respondThemeError writes a rejected theme as the reason the operator reads, and any other failure as its answer.
 func respondThemeError(w http.ResponseWriter, err error) {
 	var refused *themehost.Error
 	if errors.As(err, &refused) {
@@ -228,7 +224,5 @@ func respondThemeError(w http.ResponseWriter, err error) {
 		})
 		return
 	}
-	authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
-		Message: "internal error", Code: "internal",
-	})
+	respondDomainError(w, err)
 }
