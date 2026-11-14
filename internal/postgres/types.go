@@ -22,10 +22,6 @@ const routeWordConstraint = "content_types_route_word_idx"
 // oneDefaultConstraint names the unique index allowing only one default content type.
 const oneDefaultConstraint = "content_types_one_default_idx"
 
-// Aliases for the one-default index, in case a later edit names it differently.
-const defaultConstraint = oneDefaultConstraint
-const defaultTypeConstraint = oneDefaultConstraint
-
 // typeKeyConstraint names the primary key over the type keys in use.
 const typeKeyConstraint = "content_types_pkey"
 
