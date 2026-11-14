@@ -557,6 +557,12 @@ folder or install root set:
 backed up the database to /srv/gophenberg/site.db.backups/1.4.1-20261022T101500Z-manual.sqlite
 ```
 
+Before it copies, it checks that the backups folder sits on a local
+disk and has free space for the copy and
+`GOPHENBERG_UPDATE_DISK_MARGIN_MB`. Otherwise it stops with code 1 and
+leaves no copy, see
+[backups of the file](/self-hosting/configuration/#backups-of-the-file).
+
 When a step after the copy fails, a second line names that error, and
 the copy stands all the same. The command never migrates the file and
 changes nothing in it, so it takes no `-yes`. Nothing deletes a backup

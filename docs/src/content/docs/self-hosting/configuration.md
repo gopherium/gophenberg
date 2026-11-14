@@ -105,7 +105,7 @@ so it takes the default.
 | `GOPHENBERG_INSTALL_ROOT` | No | | The install root of a server install, an absolute path that holds each build in `versions/` beside a `current` link naming the one that runs. `update:apply` updates only an install that sets it. Empty, as in the Docker image, means the site only tells you about updates, see [updating a server install](/self-hosting/updates-and-backups/#updating-a-server-install). `server:install` takes `/opt/gophenberg` when it is empty, see [the server settings](#the-server-settings) |
 | `GOPHENBERG_UPDATE_DOWNLOAD_CAP_MB` | No | `200` | The most megabytes an update downloads for the release archive |
 | `GOPHENBERG_UPDATE_DOWNLOAD_TIMEOUT` | No | `10m` | How long an update has to download the release archive |
-| `GOPHENBERG_UPDATE_DISK_MARGIN_MB` | No | `64` | How many megabytes of free disk an update asks for beyond `GOPHENBERG_UPDATE_DOWNLOAD_CAP_MB` and, when it takes a backup, the size of the database, so the site still has room once the update is done. `0` asks for none |
+| `GOPHENBERG_UPDATE_DISK_MARGIN_MB` | No | `64` | How many megabytes of free disk to keep after an update or a SQLite backup, from 0 to 1073741824. An update asks for them beyond `GOPHENBERG_UPDATE_DOWNLOAD_CAP_MB` and, when it takes a backup, the size of the database. A SQLite backup asks for them beyond the size of its copy, see [backups of the file](#backups-of-the-file). `0` asks for nothing beyond the archive, the backup or the copy itself |
 | `GOPHENBERG_UPDATE_BACKUPS_KEEP` | No | `3` | How many `pg_dump` backups the `backups` folder of the install root keeps, from 1 to 100 |
 | `GOPHENBERG_PG_DUMP_BIN` | No | `pg_dump` | The `pg_dump` an update backs up the database with, a name found on the path or a full path. Its major version must be at least the server's |
 | `GOPHENBERG_UPDATE_ATTEMPTS` | No | `3` | How many times the build an update switched to may try to start. The next start goes back to the build before it, or stays down when the update raised the minimum version and its new build reached the database |
@@ -412,7 +412,7 @@ Write `sqlite:` and the absolute path of the file:
 GOPHENBERG_DATABASE_URL=sqlite:/srv/gophenberg/site.db
 ```
 
-- The path must be absolute, so `sqlite:site.db` is refused.
+- The path must be absolute, so `sqlite:site.db` is rejected.
 - Write no `//` after `sqlite:`, and no `?`, `#` or `%` anywhere in
   the address. It takes no options. The settings below do that job.
 - An address that does not start with `sqlite:` is read as a
@@ -435,7 +435,7 @@ gophenberg: open the database: sqlite: the database file does not exist: /srv/go
 
 SQLite runs on Linux and macOS only, and the file must sit on a local
 disk. A file on a network file system, such as NFS, SMB or a Windows
-folder seen from WSL2 like `/mnt/c`, is refused, because SQLite's locks
+folder seen from WSL2 like `/mnt/c`, is rejected, because SQLite's locks
 are not reliable there.
 
 The folder holding the file must stay writable for the user that runs
@@ -512,17 +512,43 @@ a backup of the other. With a data folder or an install root, every
 file backs up into its one `backups` folder under one count, so give a
 test copy its own `GOPHENBERG_DATA_DIR`.
 
+The backups folder must sit on a local disk. A folder on a network,
+shared or cloud drive stops every backup before it copies anything,
+because a copy can break there without a sign. That covers an NFS or
+SMB share, a Windows folder seen from WSL2 such as `/mnt/c`, a folder a
+virtual machine shares from its host, a cloud drive mounted with a tool
+such as sshfs, rclone or s3fs, and any other FUSE mount, such as a USB
+disk mounted with ntfs-3g. The error names the folder and the kind of
+drive. With `GOPHENBERG_DATA_DIR=/mnt/c/gophenberg-data`:
+
+```text
+gophenberg: the backups folder /mnt/c/gophenberg-data/backups is on a network, shared or FUSE drive (9P), so set GOPHENBERG_DATA_DIR to a folder on a local disk, then copy the backups off the server
+```
+
+A few other drives cannot move a file into place without replacing
+one, as each backup does once its copy is checked. There a backup
+copies the file, then removes its copy and stops with an error that
+says the drive of the backups folder cannot move a file without
+replacing one. When it cannot remove that copy either, the error names
+it, so delete it yourself. Either way, set `GOPHENBERG_DATA_DIR` to a
+folder on a local disk, so the backups go into `backups/` inside it,
+then copy them off the server from there. On Linux, a database file on
+a FUSE mount still opens, but with neither `GOPHENBERG_DATA_DIR` nor
+`GOPHENBERG_INSTALL_ROOT` set, its backups go beside it, so set
+`GOPHENBERG_DATA_DIR` for such a site too.
+
 Gophenberg makes a missing data folder and a missing backups folder
-with the mode `0700`, and gives each backup the mode `0600`, since a
-backup holds every account. A backups folder that is already there and
-lets other users in, such as one made with the mode `0755`, is closed
-to them the same way before each copy. When it cannot be closed, for
-example because another user owns the folder, the backup stops before
-it copies anything, and its error names the folder:
-`keep the backups folder /srv/gophenberg/site.db.backups from other users`.
-The folder also holds `.dbkit-snapshot.lock`, which every backup takes
-so that two never write at once. Leave it in place. With an install
-root, `update:status` lists the backups beside the dumps.
+with the mode `0700`. Each backup is created readable and writable by
+its owner alone, with the mode `0600` from its first byte, since a
+backup holds every account. Gophenberg leaves the mode of a backups
+folder that is already there as it is. When that mode lets other users
+in, such as `0755`, they can see the names of the backups, but they
+cannot open one. Keep that folder writable by the site's user alone,
+such as with the mode `0700`, so no other user can delete a backup or
+put a fake one in its place. The folder also holds
+`.dbkit-snapshot.lock`, which every backup takes so that two never
+write at once. Leave it in place. With an install root,
+`update:status` lists the backups beside the dumps.
 
 **Their names.** Each name holds the version that last migrated the
 file, the time of the copy in UTC, and the kind:
@@ -547,14 +573,33 @@ taken before an update, so move that one off the server first.
 
 **Move each backup off the server.** A copy on the server is a
 convenience, not a backup. A disk that fails takes it along with the
-file, and a web host gives little room for copies. Download each
+file, and a web host gives little space for copies. Download each
 backup with your host's File Manager, or fetch it over SFTP, then
 delete it on the server.
 
-**When a backup fails.** The command stops before it migrates
-anything. Its error starts with `take the backup before migrating:`,
-names the cause, such as a full disk, and ends with the way out. Free
-room first, by moving backups off the server. When that is not enough,
+**When a backup fails.** Before it copies, every backup checks that
+the disk of the backups folder has free space for the data in the file
+plus `GOPHENBERG_UPDATE_DISK_MARGIN_MB`, 64 MB unless set. With less,
+it stops before it copies anything, and its error names that setting.
+For `database:backup` on `sqlite:/srv/gophenberg/site.db`, with no data
+folder or install root set:
+
+```text
+gophenberg: the backups folder /srv/gophenberg/site.db.backups has 120 MB free, and the backup needs 450 MB for the copy and GOPHENBERG_UPDATE_DISK_MARGIN_MB, so free some disk space first, for example by moving backups off the server
+```
+
+That check reads the disk, not a web host's quota. A full quota stops
+the copy itself with a disk I/O error, and a disk that fills during the
+copy stops it with `database or disk is full`. Either way the partial
+copy is removed.
+
+A backup that fails before a new version migrates the file stops the
+command before it migrates anything. Its error says
+`take the backup before migrating:`, names the cause and what to do,
+and names the skip setting. For a backups folder that is not on a local
+disk, or on a drive that cannot move a file without replacing one, set
+`GOPHENBERG_DATA_DIR` as above. For any other cause, free some disk
+space first, by moving backups off the server. When that is not enough,
 the skip setting lets one version migrate the file with no backup:
 
 ```sh
@@ -586,10 +631,10 @@ the first line shows. Stopping the command then loses nothing, since
 nothing has migrated yet.
 
 **Run as the site's user.** Run every command as the user that runs
-Gophenberg, not as root. As root, a backup stops when another user can
-change the backups folder or a folder above it. It also stops when the
-backups folder lets other users in, since a run as root never changes a
-folder it did not make.
+Gophenberg, not as root. As root, a backup stops when another user owns
+or can change the backups folder or a folder above it. So it stops at a
+backups folder the site's user owns. A folder other users can only
+open, such as one root owns with the mode `0755`, does not stop it.
 
 ### Restoring a backup
 
@@ -637,7 +682,7 @@ version migrates the file again, and backs it up first. Put back the
 media files from the same day too, if you keep them apart.
 
 The folder `before-restore-20261023` holds a whole copy of the old
-file and takes room until you delete it. Download it or move it off
+file and takes space until you delete it. Download it or move it off
 the server, then delete it once the restored file works.
 
 ### The SQLite settings
@@ -661,7 +706,7 @@ connections to the file, as it caps a PostgreSQL pool.
 | `GOPHENBERG_SQLITE_BACKUP_TIME_LIMIT` | `15m` | How long one scheduled backup may run before it is cut short, up to `24h`, in place of `GOPHENBERG_CRON_TIME_LIMIT` |
 | `GOPHENBERG_SQLITE_SKIP_BACKUP_FOR` | | The one version, such as `1.4.1`, that migrates the file with no backup first. It does nothing for any other version, nor for a version that raises the minimum version of the file |
 
-`check` refuses a bad value and names it, for example
+`check` rejects a bad value and names it, for example
 `GOPHENBERG_SQLITE_SYNCHRONOUS: must be full or normal, got "off"`, or
 `GOPHENBERG_SQLITE_BUSY_POLL: must stand at or below the 5s of GOPHENBERG_SQLITE_BUSY_TIMEOUT, got "6s"`
 for a poll longer than the busy timeout. A bad backup setting reads
@@ -669,7 +714,9 @@ the same way, such as
 `GOPHENBERG_SQLITE_BACKUP_INTERVAL: must be 0 or at least 1h, got "10m"`.
 Every command that migrates the file reads the backup settings too, so
 a bad one stops it before it migrates, and so does a bad
-`GOPHENBERG_DATA_DIR` or `GOPHENBERG_INSTALL_ROOT`.
+`GOPHENBERG_DATA_DIR`, `GOPHENBERG_INSTALL_ROOT` or
+`GOPHENBERG_UPDATE_DISK_MARGIN_MB`. `database:backup` reads those three
+as well, so a bad one stops it before it copies anything.
 
 ## The admin lists
 
