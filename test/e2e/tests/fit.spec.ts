@@ -28,6 +28,22 @@ const POST_TABS = [
 	{ tab: 'Draft', narrowing: 'status=draft&' },
 ]
 
+/** The moment the posts list writes at its widest in UTC, May with a two-digit day and a two-digit evening hour. */
+const WIDEST_MOMENT = { at: '2026-05-28T23:11:00Z', reads: 'Modified: May 28, 2026 11:11 pm' }
+
+/**
+ * Dates every post the page lists at the widest moment.
+ * @param page - The page whose post listings are dated.
+ */
+async function listedAtWidestMoment(page: Page) {
+	await page.route('**/api/content?*', async (route) => {
+		const answer = await route.fetch()
+		const body = (await answer.json()) as { items: Record<string, unknown>[] }
+		const items = body.items.map((item) => ({ ...item, updated_at: WIDEST_MOMENT.at }))
+		await route.fulfill({ response: answer, json: { ...body, items } })
+	})
+}
+
 /**
  * Creates an author under the name and a post that author writes, through the API the admin uses.
  * @param page - The page of the signed in administrator, which creates the account.
@@ -66,6 +82,32 @@ async function cutOf(name: Locator) {
 			clipped: element.scrollWidth > element.clientWidth,
 			insideCell: element.getBoundingClientRect().right <= cell.getBoundingClientRect().right,
 		}
+	})
+}
+
+/**
+ * Reports whether an element ends inside the content box of its table cell, short of the next column.
+ * @param element - The element in its cell.
+ * @returns Whether its right edge stays inside the content box of its cell.
+ */
+async function endsInsideCell(element: Locator) {
+	return element.evaluate((node) => {
+		const cell = node.closest('td') as HTMLElement
+		const edge = cell.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(cell).paddingRight)
+		return Math.round(node.getBoundingClientRect().right) <= Math.round(edge)
+	})
+}
+
+/**
+ * Reports whether an element sits inside the visible box of the table scroller that holds it.
+ * @param element - The element inside a DataViews table.
+ * @returns Whether its left and right edges fall within the scroller.
+ */
+async function insideScroller(element: Locator) {
+	return element.evaluate((node) => {
+		const scroller = (node.closest('.dataviews-layout__container') as HTMLElement).getBoundingClientRect()
+		const box = node.getBoundingClientRect()
+		return Math.round(box.left) >= Math.round(scroller.left) && Math.round(box.right) <= Math.round(scroller.right)
 	})
 }
 
@@ -146,24 +188,32 @@ test('seeds a hostile post and fits every screen to a phone', async ({ page }) =
 	}
 })
 
-test('fits the posts table to its card at 1280 beside a long title, its listed fields open', async ({ page }) => {
+test('keeps the posts table in its card at 1280 beside a long title and the widest date, its actions in view and its listed fields in reach', async ({
+	page,
+}) => {
 	const title = `${LONG_TITLE} ${RUN}`
 	const created = await page.request.post('/api/content', { data: { type: 'post', title } })
 	expect(created.status()).toBe(201)
 	const { id } = (await created.json()) as { id: string }
+	await listedAtWidestMoment(page)
 	await page.setViewportSize(LAPTOP)
 
 	await page.goto(`/admin/content/post?search=${encodeURIComponent(title)}`)
 	const table = page.locator('.dataviews-view-table')
-	await expect(table.getByRole('link', { name: title, exact: true })).toBeVisible()
+	const link = table.getByRole('link', { name: title, exact: true })
+	await expect(link).toBeVisible()
+	await expect(table.getByText(WIDEST_MOMENT.reads, { exact: true })).toBeVisible()
 
-	const scroll = await table.evaluate((element) => {
-		const scroller = element.closest('.dataviews-layout__container') as HTMLElement
-		return scroller.scrollWidth - scroller.clientWidth
-	})
-	expect(scroll).toBeLessThanOrEqual(0)
-	await expect(table.locator('.dataviews-view-table__actions-column--stuck')).toHaveCount(0)
-	await expect(page.getByRole('columnheader', { name: 'Featured' })).toBeVisible()
+	const overflow = await spills(page)
+	expect(overflow.document, 'the table spills the document').toBeLessThanOrEqual(0)
+	expect(overflow.canvas, 'the table spills the canvas').toBeLessThanOrEqual(0)
+	expect(await endsInsideCell(link), 'the title ends in its cell').toBe(true)
+	const row = table.getByRole('row').filter({ has: page.getByRole('link', { name: title, exact: true }) })
+	const actions = row.locator('.dataviews-view-table__actions-column')
+	expect(await insideScroller(actions), 'the actions stay in view').toBe(true)
+	const featured = page.getByRole('columnheader', { name: 'Featured' })
+	await featured.scrollIntoViewIfNeeded()
+	expect(await insideScroller(featured), 'the listed field scrolls into view').toBe(true)
 	await page.getByRole('button', { name: 'View options' }).click()
 	await expect(page.locator('.dataviews-field-control').getByRole('button', { name: 'Featured' })).toBeVisible()
 	await page.request.delete(`/api/content/${id}?force=true`)
@@ -248,7 +298,7 @@ test('lays Add User out in one column on a phone, each field as wide as the form
 })
 
 for (const { reads, condition, name } of LONG_NAMES) {
-	test(`cuts an author name ${reads} with an ellipsis and keeps the posts table in its card at 1280, as WordPress does`, async ({
+	test(`cuts an author name ${reads} with an ellipsis and keeps the posts table in its card at 1280 at the widest date, its actions in view, as WordPress does`, async ({
 		page,
 		playwright,
 	}) => {
@@ -257,6 +307,7 @@ for (const { reads, condition, name } of LONG_NAMES) {
 		expect(created.status()).toBe(201)
 		const beside = (await created.json()) as { id: string }
 		const post = await postWrittenBy(page, playwright.request, condition, name)
+		await listedAtWidestMoment(page)
 		await page.setViewportSize(LAPTOP)
 
 		for (const { tab, narrowing } of POST_TABS) {
@@ -265,15 +316,18 @@ for (const { reads, condition, name } of LONG_NAMES) {
 			const row = page.getByRole('row').filter({ has: page.getByRole('link', { name: post.title, exact: true }) })
 			const author = row.getByText(name, { exact: true })
 			await expect(author).toBeVisible()
+			await expect(row.getByText(WIDEST_MOMENT.reads, { exact: true })).toBeVisible()
 
 			expect(await cutOf(author), `${tab} cuts the name`).toEqual({
 				textOverflow: 'ellipsis',
 				clipped: true,
 				insideCell: true,
 			})
-			expect.soft(long.spill, `${tab} runs the table past its card`).toBeLessThanOrEqual(0)
-			const stuck = long.table.locator('.dataviews-view-table__actions-column--stuck')
-			await expect.soft(stuck, `${tab} sticks the actions over the columns`).toHaveCount(0)
+			const overflow = await spills(page)
+			expect.soft(overflow.document, `${tab} spills the document`).toBeLessThanOrEqual(0)
+			expect.soft(overflow.canvas, `${tab} spills the canvas`).toBeLessThanOrEqual(0)
+			const actions = row.locator('.dataviews-view-table__actions-column')
+			expect.soft(await insideScroller(actions), `${tab} keeps the actions in view`).toBe(true)
 			expect.soft(long.title, `${tab} narrows the title`).toBeGreaterThanOrEqual(short.title)
 		}
 		await page.request.delete(`/api/content/${post.id}?force=true`)
