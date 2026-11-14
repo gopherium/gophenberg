@@ -137,7 +137,7 @@ func (w *write) tellOwn(ctx context.Context, after *content.Content) {
 	if !w.seen {
 		return
 	}
-	w.n.tell(ctx, gone(after), w.shaped, w.shapeErr, "")
+	w.n.tell(ctx, sdk.ContentChange{Kind: gone(after), Item: w.shaped}, w.shapeErr)
 }
 
 // previousPath returns the path visitors reached the item at before the write moved it, empty when it did not.
@@ -217,7 +217,7 @@ func (n *Notifier) tellChild(ctx context.Context, child content.Content, previou
 	full, err := n.settings.Items.ByID(readCtx, child.ID)
 	cancel()
 	if err != nil {
-		n.tell(ctx, sdk.Published, sdk.Item{}, err, previous)
+		n.warn(sdk.Published, err)
 		return
 	}
 	n.tellPublished(ctx, full, previous)
@@ -226,16 +226,21 @@ func (n *Notifier) tellChild(ctx context.Context, child content.Content, previou
 // tellPublished shapes c and tells the listeners it is published, after the path it left when it moved.
 func (n *Notifier) tellPublished(ctx context.Context, c content.Content, previous string) {
 	item, err := n.shape(ctx, c)
-	n.tell(ctx, sdk.Published, item, err, previous)
+	n.tell(ctx, sdk.ContentChange{Kind: sdk.Published, Item: item, PreviousPath: previous}, err)
 }
 
-// tell hands the listeners the change of kind to item, or logs the error that kept the item from them.
-func (n *Notifier) tell(ctx context.Context, kind sdk.ChangeKind, item sdk.Item, err error, previous string) {
+// tell hands the listeners the change, or logs the error that kept its item from them.
+func (n *Notifier) tell(ctx context.Context, change sdk.ContentChange, err error) {
 	if err != nil {
-		n.settings.Logger.Warn(unshapedLine, "change", kind, "error", err)
+		n.warn(change.Kind, err)
 		return
 	}
-	n.settings.Listeners.ContentChanged(ctx, sdk.ContentChange{Kind: kind, Item: item, PreviousPath: previous})
+	n.settings.Listeners.ContentChanged(ctx, change)
+}
+
+// warn logs the change of kind the listeners were not told of, and the error that kept it from them.
+func (n *Notifier) warn(kind sdk.ChangeKind, err error) {
+	n.settings.Logger.Warn(unshapedLine, "change", kind, "error", err)
 }
 
 // visible reports whether visitors see c: published, under a type the site serves.
