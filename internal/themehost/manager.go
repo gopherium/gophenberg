@@ -259,6 +259,7 @@ func (m *Manager) Boot(ctx context.Context) error {
 		}
 		m.cfg.Supervision.Logger.Error("the stored theme will not load, serving with the built-in renderer",
 			"theme", name, "reason", err)
+		m.holder.holdUnloaded()
 		return nil
 	}
 	if loaded == nil {
@@ -280,7 +281,7 @@ func (m *Manager) CheckChoice(ctx context.Context) error {
 	if err != nil || chosen == "" {
 		return err
 	}
-	held := m.holder.held()
+	held := m.holder.supervisor()
 	if held == nil || held.Name() != chosen {
 		return fmt.Errorf("themehost: the site chose the theme %s, which does not serve the public site", chosen)
 	}

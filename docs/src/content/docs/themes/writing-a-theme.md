@@ -28,8 +28,10 @@ export default defineConfig({
 Leave Astro's `trailingSlash` option at its default. While your
 theme starts or after it crashes, the built-in renderer answers
 instead and sends an address that ends in a slash, like `/pages/` or
-`/hello-world/`, to the address without it for good. A theme that
-sends `/pages` back to `/pages/` would then trap visitors in a loop.
+`/hello-world/`, to the address without it. Browsers do not keep
+that redirect, but a cache set to ignore the site's own headers
+does, and a theme that sends `/pages` back to `/pages/` would then
+trap the visitors behind that cache in a loop.
 
 `src/theme.ts` declares what your theme provides:
 

@@ -198,6 +198,18 @@ func theServerStartsOnTheRenderer(ctx context.Context) error {
 	return theBuiltInRendererServes(ctx)
 }
 
+// theAnswerSaysNothingAboutCaching asserts the last answer carries no Cache-Control.
+func theAnswerSaysNothingAboutCaching(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if got := w.answer.header.Get("Cache-Control"); got != "" {
+		return fmt.Errorf("Cache-Control = %q, want none", got)
+	}
+	return nil
+}
+
 // theThemeListShowsBroken asserts the list reports the named theme as broken.
 func theThemeListShowsBroken(ctx context.Context, name string) error {
 	w, err := worldOf(ctx)
@@ -270,6 +282,8 @@ func initializeActivation(sc *godog.ScenarioContext) {
 	sc.Then(`^the activation fails explaining the theme did not start$`, theActivationFailsUnstarted)
 	sc.Then(`^the server starts and the public site is served by the built-in renderer$`, theServerStartsOnTheRenderer)
 	sc.Then(`^the theme list shows "([^"]*)" as broken$`, theThemeListShowsBroken)
+	sc.Then(`^the answer is never cached$`, theAnswerIsNeverCached)
+	sc.Then(`^the answer says nothing about caching$`, theAnswerSaysNothingAboutCaching)
 	sc.Then(`^the request is refused explaining the theme is pinned by the operator$`, theRequestIsRefusedAsPinned)
 	sc.Then(`^the error names "([^"]*)" under "([^"]*)"$`, theErrorNamesUnder)
 }

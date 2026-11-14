@@ -51,6 +51,7 @@ Feature: Activating a theme
     When the administrator deactivates the theme
     Then no theme is active
     And the public site is served by the built-in renderer
+    And the answer says nothing about caching
 
   Scenario: The active theme survives a restart
     Given "aurora" is installed and active
@@ -62,13 +63,23 @@ Feature: Activating a theme
     And the files of "aurora" become invalid while the server is stopped
     When the server restarts
     Then the server starts and the public site is served by the built-in renderer
+    And the answer is never cached
     And the theme list shows "aurora" as broken
+
+  Scenario: Deactivating a stored theme that broke on disk lets caches keep the renderer's answers
+    Given "aurora" is installed and active
+    And the files of "aurora" become invalid while the server is stopped
+    When the server restarts
+    And the administrator deactivates the theme
+    Then the public site is served by the built-in renderer
+    And the answer says nothing about caching
 
   Scenario: A theme that dies after starting is not reported as serving
     Given "aurora" is installed and active
     And the files of "aurora" are replaced by a theme that never starts
     When the server restarts
     Then the server starts and the public site is served by the built-in renderer
+    And the answer is never cached
     And the theme list shows "aurora" as active but not serving
 
   Scenario: An operator pinned theme disables admin activation
