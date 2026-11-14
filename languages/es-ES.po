@@ -1142,6 +1142,10 @@ msgid "The content types could not be refreshed, so where these groups appear an
 msgstr "No se han podido actualizar los tipos de contenido, así que dónde aparecen estos grupos y qué eclipsan puede estar desactualizado."
 
 #, fuzzy
+msgid "The database was busy with another change, so nothing was saved. Try again."
+msgstr "La base de datos estaba ocupada con otro cambio, así que no se ha guardado nada. Inténtalo de nuevo."
+
+#, fuzzy
 msgid "The field %(field)s in %(group)s still points at this content type. Delete that field first, then delete this type."
 msgstr "El campo %(field)s de %(group)s todavía apunta a este tipo de contenido. Borra antes ese campo y luego borra este tipo."
 
@@ -2868,6 +2872,3 @@ msgstr "YB"
 msgctxt "unit symbol"
 msgid "ZB"
 msgstr "ZB"
-
-msgid "The database was busy. Try again."
-msgstr "La base de datos estaba ocupada. Inténtalo de nuevo."
