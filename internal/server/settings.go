@@ -133,7 +133,7 @@ func (s *server) handleSettingsPatch() http.HandlerFunc {
 		}
 		held, err := s.chosenSettings(r.Context())
 		if err != nil {
-			respondDomainError(w, err)
+			respondReadAfterWrite(w, err)
 			return
 		}
 		authkit.Respond(w, http.StatusOK, held)
