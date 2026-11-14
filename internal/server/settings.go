@@ -125,15 +125,17 @@ func (s *server) handleSettingsPatch() http.HandlerFunc {
 			respondSettingsError(w, err)
 			return
 		}
+		fail := respondDomainError
 		if len(values) > 0 {
 			if err := s.settings.Save(r.Context(), values); err != nil {
 				respondDomainError(w, err)
 				return
 			}
+			fail = respondReadAfterWrite
 		}
 		held, err := s.chosenSettings(r.Context())
 		if err != nil {
-			respondReadAfterWrite(w, err)
+			fail(w, err)
 			return
 		}
 		authkit.Respond(w, http.StatusOK, held)
