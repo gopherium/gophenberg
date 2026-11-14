@@ -1259,9 +1259,10 @@ test('sends nothing as the page unloads once the editor closed on the saved word
 	expect(served.order).toEqual(['autosave', 'answered', 'trash'])
 })
 
-test('sends the latest words once as the page unloads during the autosave for the trash', async () => {
+test('sends the latest words once as the page unloads while trashing, then parks them before the trash', async () => {
 	const first = gate()
-	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held }])
+	const last = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held }, {}, { held: last.held }])
 	const sent = countAutosavesSent()
 	renderAt(EDITOR_PATH)
 	const title = await startTrash(served)
@@ -1273,5 +1274,10 @@ test('sends the latest words once as the page unloads during the autosave for th
 	await waitFor(() => expect(served.parks).toHaveLength(2))
 	expect(served.parks[1]).toMatchObject({ title: 'Welcome to Gophenberg!?' })
 	first.release()
+	await waitFor(() => expect(served.parks).toHaveLength(3))
+	expect(served.parks[2]).toMatchObject({ title: 'Welcome to Gophenberg!?' })
+	expect(served.order).not.toContain('trash')
+	last.release()
 	expect(await findActionToast(EDITED_TRASHED_TOAST)).toBeInTheDocument()
+	expect(served.order.slice(-3)).toEqual(['autosave', 'answered', 'trash'])
 })
