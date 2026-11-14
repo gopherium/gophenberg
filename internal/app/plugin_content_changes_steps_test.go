@@ -234,35 +234,59 @@ func (p *pausingScenario) heardBy(id string) []sdk.ContentChange {
 
 // heardInOrder fails unless the plugin id heard the changes the table lists, in its order, read by its columns.
 func (p *pausingScenario) heardInOrder(id string, table *godog.Table) error {
-	reads := make([]func(sdk.ContentChange) string, 0, len(table.Rows[0].Cells))
-	for _, cell := range table.Rows[0].Cells {
-		read, ok := heardColumns[cell.Value]
-		if !ok {
-			return fmt.Errorf("a heard change has no column %q", cell.Value)
-		}
-		reads = append(reads, read)
+	rows := tableCells(table)
+	reads, err := heardReads(rows[0])
+	if err != nil {
+		return err
 	}
-	want := make([]string, 0, len(table.Rows))
-	for _, row := range table.Rows[1:] {
-		cells := make([]string, 0, len(row.Cells))
-		for _, cell := range row.Cells {
-			cells = append(cells, cell.Value)
-		}
-		want = append(want, strings.Join(cells, " | "))
+	want := make([]string, 0, len(rows))
+	for _, row := range rows[1:] {
+		want = append(want, strings.Join(row, " | "))
 	}
 	heard := p.heardBy(id)
 	got := make([]string, 0, len(heard))
 	for _, change := range heard {
-		cells := make([]string, 0, len(reads))
-		for _, read := range reads {
-			cells = append(cells, read(change))
-		}
-		got = append(got, strings.Join(cells, " | "))
+		got = append(got, changeText(change, reads))
 	}
 	if !slices.Equal(got, want) {
 		return fmt.Errorf("%s heard %q, want %q", id, got, want)
 	}
 	return nil
+}
+
+// tableCells returns the values of each row of table, its header first.
+func tableCells(table *godog.Table) [][]string {
+	rows := make([][]string, 0, len(table.Rows))
+	for _, row := range table.Rows {
+		cells := make([]string, 0, len(row.Cells))
+		for _, cell := range row.Cells {
+			cells = append(cells, cell.Value)
+		}
+		rows = append(rows, cells)
+	}
+	return rows
+}
+
+// heardReads returns what each column the header names reads from a heard change.
+func heardReads(header []string) ([]func(sdk.ContentChange) string, error) {
+	reads := make([]func(sdk.ContentChange) string, 0, len(header))
+	for _, column := range header {
+		read, ok := heardColumns[column]
+		if !ok {
+			return nil, fmt.Errorf("a heard change has no column %q", column)
+		}
+		reads = append(reads, read)
+	}
+	return reads, nil
+}
+
+// changeText returns the change as the columns read it, joined as a table row.
+func changeText(change sdk.ContentChange, reads []func(sdk.ContentChange) string) string {
+	cells := make([]string, 0, len(reads))
+	for _, read := range reads {
+		cells = append(cells, read(change))
+	}
+	return strings.Join(cells, " | ")
 }
 
 // heardNothing fails unless the plugin id heard no change.
