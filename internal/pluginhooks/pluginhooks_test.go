@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -18,7 +19,7 @@ import (
 )
 
 // roomy are hook settings no test plugin runs out of.
-var roomy = pluginhooks.Settings{Budget: time.Minute, TimedFirings: 20}
+var roomy = pluginhooks.Settings{Budget: time.Minute, SaveBudget: time.Minute, TimedFirings: 20}
 
 // headTags is what a test plugin answers when asked for the head tags of a page.
 type headTags = func(ctx context.Context, page sdk.PageMeta) ([]sdk.HeadTag, error)
@@ -278,7 +279,8 @@ func TestHeadTagsLogsAPluginStillWorkingWhenTheTimeRunsOut(t *testing.T) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	})
-	set, logged := builtUnder(t, pluginhooks.Settings{Budget: time.Nanosecond, TimedFirings: 20}, waiting)
+	set, logged := builtUnder(t, pluginhooks.Settings{Budget: time.Nanosecond, SaveBudget: time.Minute, TimedFirings: 20},
+		waiting)
 
 	set.HeadTags(t.Context(), sdk.PageMeta{})
 
@@ -301,6 +303,182 @@ func TestHeadTagsDropsATagOutsideTheRulesAndKeepsThePluginsOtherTags(t *testing.
 	}
 	loggedLine(t, logged, fmt.Sprintf("level=WARN msg=%q plugin=notes hook=public.head-tags error=%q",
 		"plugin hook failed", "pluginkit: notes public.head-tags: dropped the head tag script: only meta and link are kept"))
+}
+
+// heardChange is what a test plugin answers when it hears a content change.
+type heardChange = func(ctx context.Context, change sdk.ContentChange) error
+
+// listening is a plugin that hears content changes through its function.
+type listening struct {
+	plain
+	hear heardChange
+}
+
+// ContentChanged answers what the plugin's function answers for the change.
+func (l listening) ContentChanged(ctx context.Context, change sdk.ContentChange) error {
+	return l.hear(ctx, change)
+}
+
+// listeningOf returns a plugin under id that hears content changes through hear.
+func listeningOf(id string, hear heardChange) listening {
+	return listening{plain: plain{id: id}, hear: hear}
+}
+
+// recording returns a plugin under id that keeps each change it hears in heard.
+func recording(id string, heard *[]string) listening {
+	return listeningOf(id, func(_ context.Context, change sdk.ContentChange) error {
+		*heard = append(*heard, id+" "+string(change.Kind)+" "+change.Item.Title)
+		return nil
+	})
+}
+
+func TestCheckPassesAPluginThatListsTheContentHookItHears(t *testing.T) {
+	t.Parallel()
+
+	if err := pluginhooks.Check(recording("notes", nil), []string{sdk.ContentChangedHook}, nil); err != nil {
+		t.Errorf("Check() = %v, want no error", err)
+	}
+}
+
+func TestCheckRejectsAContentListenerWhoseListDiffersFromItsMethod(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		plugin sdk.Plugin
+		listed []string
+		want   string
+	}{
+		"the hook listed with no method": {
+			plugin: plain{id: "notes"}, listed: []string{sdk.ContentChangedHook},
+			want: "lists content.changed but has no ContentChanged method",
+		},
+		"the method with the hook not listed": {
+			plugin: recording("notes", nil),
+			want:   "has a ContentChanged method but does not list content.changed",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if err := pluginhooks.Check(tc.plugin, tc.listed, nil); err == nil || err.Error() != tc.want {
+				t.Errorf("Check() = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestNewRejectsASaveBudgetAHookCannotRunUnder(t *testing.T) {
+	t.Parallel()
+
+	_, err := pluginhooks.New(nil, pluginhooks.Settings{Budget: time.Minute, TimedFirings: 20},
+		slog.New(slog.DiscardHandler))
+
+	if err == nil || !strings.Contains(err.Error(), "hook content.changed: the budget must stand above zero") {
+		t.Errorf("New() = %v, want the empty save budget rejected", err)
+	}
+}
+
+func TestANilSetHearsNoContentChange(t *testing.T) {
+	t.Parallel()
+
+	var set *pluginhooks.Set
+
+	set.ContentChanged(t.Context(), sdk.ContentChange{Kind: sdk.Published})
+
+	if set.Listens() {
+		t.Error("a nil set says plugins hear content changes, want none")
+	}
+}
+
+func TestASetOverPluginsThatHearNoChangeSaysSo(t *testing.T) {
+	t.Parallel()
+
+	set, _ := built(t, plain{id: "events"}, marking("notes"))
+
+	if set.Listens() {
+		t.Error("the set says plugins hear content changes, want none from plugins that hear none")
+	}
+}
+
+func TestContentChangedTellsEachListeningPluginInOrder(t *testing.T) {
+	t.Parallel()
+
+	var heard []string
+	set, logged := built(t, recording("events", &heard), plain{id: "quiet"}, recording("notes", &heard))
+
+	set.ContentChanged(t.Context(), sdk.ContentChange{Kind: sdk.Trashed, Item: sdk.Item{Title: "Spring workshop"}})
+
+	if want := []string{"events trashed Spring workshop", "notes trashed Spring workshop"}; !slices.Equal(heard, want) {
+		t.Errorf("the plugins heard %v, want %v", heard, want)
+	}
+	if !set.Listens() || logged.Len() != 0 {
+		t.Errorf("Listens() = %v with the log %q, want true and nothing logged", set.Listens(), logged)
+	}
+}
+
+func TestContentChangedGivesEachPluginFieldsOfItsOwn(t *testing.T) {
+	t.Parallel()
+
+	rewrite := listeningOf("events", func(_ context.Context, change sdk.ContentChange) error {
+		change.Item.Fields["seats"] = 0.0
+		change.Item.Fields["venue"].(map[string]any)["city"] = "Elsewhere"
+		change.Item.Fields["tags"].([]any)[0] = "changed"
+		return nil
+	})
+	var seen map[string]any
+	read := listeningOf("notes", func(_ context.Context, change sdk.ContentChange) error {
+		seen = change.Item.Fields
+		return nil
+	})
+	set, _ := built(t, rewrite, read)
+	held := func() map[string]any {
+		return map[string]any{
+			"seats": 40.0, "venue": map[string]any{"city": "Lisbon"}, "tags": []any{"workshop"}, "note": nil,
+		}
+	}
+	fields := held()
+
+	set.ContentChanged(t.Context(), sdk.ContentChange{Kind: sdk.Published, Item: sdk.Item{Fields: fields}})
+
+	want := held()
+	if !reflect.DeepEqual(seen, want) || !reflect.DeepEqual(fields, want) {
+		t.Errorf("the second plugin read %v and the change holds %v, want both %v", seen, fields, want)
+	}
+}
+
+func TestContentChangedLogsAListenerThatFailsOrPanics(t *testing.T) {
+	t.Parallel()
+
+	failing := listeningOf("events", func(context.Context, sdk.ContentChange) error {
+		return errors.New("the index is offline")
+	})
+	panicking := listeningOf("notes", func(context.Context, sdk.ContentChange) error {
+		panic("boom")
+	})
+	set, logged := built(t, failing, panicking)
+
+	set.ContentChanged(t.Context(), sdk.ContentChange{Kind: sdk.Deleted})
+
+	loggedLine(t, logged, `level=WARN msg="plugin hook failed" plugin=events hook=content.changed `+
+		`error="pluginkit: events content.changed: the index is offline"`)
+	loggedLine(t, logged, `level=ERROR msg="plugin hook panicked" plugin=notes hook=content.changed `+
+		`error="pluginkit: notes content.changed panicked: boom" stack="goroutine `)
+}
+
+func TestContentChangedRunsUnderTheSaveBudget(t *testing.T) {
+	t.Parallel()
+
+	waiting := listeningOf("notes", func(ctx context.Context, _ sdk.ContentChange) error {
+		<-ctx.Done()
+		return ctx.Err()
+	})
+	set, logged := builtUnder(t, pluginhooks.Settings{Budget: time.Minute, SaveBudget: time.Nanosecond, TimedFirings: 20},
+		waiting)
+
+	set.ContentChanged(t.Context(), sdk.ContentChange{Kind: sdk.Published})
+
+	loggedLine(t, logged, `level=INFO msg="plugin hook ran out of time" plugin=notes hook=content.changed `+
+		`error="pluginkit: notes content.changed: context deadline exceeded"`)
 }
 
 // sameTag reports whether both tags carry the same name and the same attributes in the same order.

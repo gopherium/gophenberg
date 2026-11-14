@@ -40,6 +40,7 @@ type pausingScenario struct {
 	plugins map[string]*pausingPlugin
 	mu      sync.Mutex
 	calls   []string
+	posts   map[string]heldPost
 }
 
 // pausingPlugin is a compiled plugin of a pausing scenario, failing where the scenario says.
@@ -60,11 +61,15 @@ type pausingPlugin struct {
 	routeBooms   map[string]routeBoom
 	head         headTagsOf
 	listed       []string
+	listens      bool
+	hearErr      string
+	hearPanic    string
+	heard        []sdk.ContentChange
 }
 
 // initializePluginPausing binds the steps of the scenarios where a start pauses a plugin that fails to s.
 func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
-	p := &pausingScenario{operatorScenario: s, plugins: map[string]*pausingPlugin{}}
+	p := &pausingScenario{operatorScenario: s, plugins: map[string]*pausingPlugin{}, posts: map[string]heldPost{}}
 	sc.Given(`^the compiled plugins "([^"]*)" and "([^"]*)"$`, p.compile)
 	sc.Given(`^the Register of "([^"]*)" fails with "([^"]*)"$`, p.failRegister)
 	sc.Given(`^the Register of "([^"]*)" answers a plugin that calls itself "([^"]*)"$`, p.callItself)
@@ -98,6 +103,7 @@ func initializePluginPausing(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Then(`^the error names the paused plugin "([^"]*)"$`, p.namesPaused)
 	p.bindRoutePanics(sc)
 	p.bindHooks(sc)
+	p.bindContentChanges(sc)
 }
 
 // compile compiles the plugins first and second into the scenario's binary, in that order.
@@ -407,6 +413,9 @@ func (pl *pausingPlugin) register(sdk.Deps) (sdk.Plugin, error) {
 	pl.boom("Register")
 	if pl.registerErr != nil {
 		return nil, pl.registerErr
+	}
+	if pl.listens {
+		return listeningPlugin{pausingPlugin: pl}, nil
 	}
 	if pl.head != nil {
 		return headedPlugin{pausingPlugin: pl}, nil

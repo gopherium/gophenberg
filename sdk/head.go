@@ -13,7 +13,6 @@ const HeadTagsHook = "public.head-tags"
 // PageKind names the kind of public page the built-in site draws.
 type PageKind string
 
-// The kinds of public page a head contributor sees.
 const (
 	// PageArchive is a listing of one content type, the home listing among them.
 	PageArchive PageKind = "archive"

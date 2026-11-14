@@ -18,6 +18,7 @@ var pathCases = []Case{
 	{"CarriesDescendantsWhenAParentIsRenamed", carriesDescendantsWhenAParentIsRenamed},
 	{"CarriesDescendantsWhenANestedParentIsRenamed", carriesDescendantsWhenANestedParentIsRenamed},
 	{"CarriesDescendantsWhenAParentMoves", carriesDescendantsWhenAParentMoves},
+	{"StampsCarriedDescendantsAsTheParent", stampsCarriedDescendantsAsTheParent},
 	{"LeavesDescendantsAloneWhenAParentKeepsItsAddress", leavesDescendantsAloneWhenAParentKeepsItsAddress},
 	{"LeavesDescendantsAloneWhenANestedParentKeepsItsAddress", leavesDescendantsAloneWhenANestedParentKeepsItsAddress},
 	{"SuffixesAnAddressARenameCollidesWith", suffixesAnAddressARenameCollidesWith},
@@ -111,6 +112,33 @@ func carriesDescendantsWhenAParentIsRenamed(t *testing.T, s Stores) {
 	}
 	if got := AddressOf(t, s.Content, deep.ID); got != "pages/company/team/maria-perez" {
 		t.Errorf("grandchild path = %q, want the whole subtree carried", got)
+	}
+}
+
+// stampsCarriedDescendantsAsTheParent stamps each item a renamed parent carries with the parent's new stamp.
+func stampsCarriedDescendantsAsTheParent(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	RegisterPageType(t, s.Types)
+	about := MustNest(t, s.Content, nil, "About", author)
+	team := MustNest(t, s.Content, &about, "Team", author)
+	deep := MustNest(t, s.Content, &team, "Maria Perez", author)
+	renamed, err := about.Rename("company")
+	if err != nil {
+		t.Fatalf("Rename error = %v, want nil", err)
+	}
+	renamed.UpdatedAt = about.UpdatedAt.Add(time.Second)
+
+	moved, err := s.Content.Update(t.Context(), renamed, about.UpdatedAt, nil, 0)
+
+	if err != nil {
+		t.Fatalf("Update() error = %v, want nil", err)
+	}
+	for _, carried := range []content.Content{team, deep} {
+		stored, err := s.Content.ByID(t.Context(), carried.ID)
+		if err != nil || !stored.UpdatedAt.Equal(moved.UpdatedAt) {
+			t.Errorf("%s stamped %v (%v), want the parent's stamp %v", carried.Title, stored.UpdatedAt, err,
+				moved.UpdatedAt)
+		}
 	}
 }
 

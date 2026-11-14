@@ -30,6 +30,8 @@ const outOfTimeLine = "plugin hook ran out of time"
 type Settings struct {
 	// Budget is the time one firing gives all its plugins together.
 	Budget time.Duration
+	// SaveBudget is the time one firing after a saved write gives all its plugins together.
+	SaveBudget time.Duration
 	// TimedFirings is how many firings after an overrun time each plugin.
 	TimedFirings int
 }
@@ -44,6 +46,7 @@ type hook struct {
 // known lists every hook the site fires.
 var known = []hook{
 	{name: sdk.HeadTagsHook, method: "HeadTags", implements: implements[sdk.HeadContributor]},
+	{name: sdk.ContentChangedHook, method: "ContentChanged", implements: implements[sdk.ContentListener]},
 }
 
 // implements reports whether plugin implements the interface C.
@@ -100,19 +103,76 @@ func checkListed(plugin sdk.Plugin, name string, defined []string) error {
 
 // Set holds the hooks the site fires, each over the started plugins that implement it.
 type Set struct {
-	head  *pluginkit.Hook[sdk.HeadContributor]
-	heads bool
+	head    *pluginkit.Hook[sdk.HeadContributor]
+	content *pluginkit.Hook[sdk.ContentListener]
+	heads   bool
+	listens bool
 }
 
 // New returns the hooks over the plugins under settings, logging each failure of a plugin to logger.
 func New(plugins []sdk.Plugin, settings Settings, logger *slog.Logger) (*Set, error) {
+	report := reporter(logger)
 	head, err := pluginkit.NewHook[sdk.HeadContributor](sdk.HeadTagsHook, plugins, pluginkit.HookSettings{
-		Budget: settings.Budget, TimedFirings: settings.TimedFirings, Report: reporter(logger),
+		Budget: settings.Budget, TimedFirings: settings.TimedFirings, Report: report,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &Set{head: head, heads: len(head.Stats().Plugins) > 0}, nil
+	content, err := pluginkit.NewHook[sdk.ContentListener](sdk.ContentChangedHook, plugins, pluginkit.HookSettings{
+		Budget: settings.SaveBudget, TimedFirings: settings.TimedFirings, Report: report,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &Set{
+		head: head, content: content,
+		heads: len(head.Stats().Plugins) > 0, listens: len(content.Stats().Plugins) > 0,
+	}, nil
+}
+
+// Listens reports whether any plugin of the set hears content changes.
+func (s *Set) Listens() bool {
+	return s != nil && s.listens
+}
+
+// ContentChanged tells each plugin that hears content changes about change, in order, each with fields of its own.
+func (s *Set) ContentChanged(ctx context.Context, change sdk.ContentChange) {
+	if !s.Listens() {
+		return
+	}
+	s.content.Fire(ctx, func(ctx context.Context, plugin sdk.ContentListener) error {
+		owned := change
+		owned.Item.Fields = cloneFields(change.Item.Fields)
+		return plugin.ContentChanged(ctx, owned)
+	})
+}
+
+// cloneFields returns a deep copy of fields decoded the way encoding/json decodes them.
+func cloneFields(fields map[string]any) map[string]any {
+	if fields == nil {
+		return nil
+	}
+	cloned := make(map[string]any, len(fields))
+	for key, value := range fields {
+		cloned[key] = cloneValue(value)
+	}
+	return cloned
+}
+
+// cloneValue returns a deep copy of a decoded value, its objects and lists copied and the rest kept.
+func cloneValue(value any) any {
+	if object, ok := value.(map[string]any); ok {
+		return cloneFields(object)
+	}
+	list, ok := value.([]any)
+	if !ok {
+		return value
+	}
+	cloned := make([]any, len(list))
+	for i, item := range list {
+		cloned[i] = cloneValue(item)
+	}
+	return cloned
 }
 
 // Heads reports whether any plugin of the set adds head tags.

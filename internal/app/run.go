@@ -24,7 +24,10 @@ import (
 	"github.com/gopherium/gouncer/authkit/ratelimit"
 
 	"github.com/gopherium/gophenberg/internal/content"
+	"github.com/gopherium/gophenberg/internal/contentbridge"
+	"github.com/gopherium/gophenberg/internal/contentchanges"
 	"github.com/gopherium/gophenberg/internal/mediahost"
+	"github.com/gopherium/gophenberg/internal/pluginhooks"
 	"github.com/gopherium/gophenberg/internal/server"
 	"github.com/gopherium/gophenberg/internal/updater"
 	"github.com/gopherium/gophenberg/internal/version"
@@ -185,6 +188,7 @@ func (b boot) serverConfig(plugins pluginStart) server.Config {
 		Plugins:           plugins.routes,
 		PluginPublicPaths: plugins.publicPaths,
 		PluginHead:        plugins.hooks,
+		ContentChanges:    b.contentChanges(plugins.hooks),
 		Version:           version.Version(),
 		TrustedProxies:    settings.trustedProxies,
 		PublicURL:         settings.publicURL,
@@ -213,6 +217,19 @@ func (b boot) serverConfig(plugins pluginStart) server.Config {
 	return cfg
 }
 
+// contentChanges returns what tells the started plugins of hooks about each saved write that changes what visitors see.
+func (b boot) contentChanges(hooks *pluginhooks.Set) *contentchanges.Notifier {
+	built := b.built
+	return contentchanges.New(contentchanges.Settings{
+		Listeners: hooks,
+		Shaper:    contentbridge.NewShaper(built.content, built.registry, built.library, built.settings),
+		Types:     built.registry,
+		Items:     built.content,
+		Budget:    b.settings.pluginHookSaveBudget,
+		Logger:    b.logger,
+	})
+}
+
 // runConfig carries the environment-derived settings of the server.
 type runConfig struct {
 	databaseURL    string
@@ -236,6 +253,8 @@ type runConfig struct {
 	uploadTimeout      time.Duration
 	pluginStartBudget  time.Duration
 	pluginHookBudget   time.Duration
+
+	pluginHookSaveBudget time.Duration
 
 	pluginHookTimedFirings int
 
@@ -356,6 +375,7 @@ func timingsFrom(env gonsole.Env) (runConfig, error) {
 		{"UPLOAD_TIMEOUT", server.DefaultUploadTimeout, &held.uploadTimeout},
 		{"PLUGIN_START_BUDGET", 10 * time.Millisecond, &held.pluginStartBudget},
 		{"PLUGIN_HOOK_BUDGET", 2 * time.Millisecond, &held.pluginHookBudget},
+		{"PLUGIN_HOOK_SAVE_BUDGET", 50 * time.Millisecond, &held.pluginHookSaveBudget},
 	} {
 		stood, err := env.Duration(asked.name, asked.fallback)
 		if err != nil {
