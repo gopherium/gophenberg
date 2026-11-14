@@ -20,7 +20,6 @@ type Backend struct {
 	InTx      Transactor
 	Rules     []Rule
 	ReadError func(err error) (Failure, bool)
-	Classify  func(err error) error
 }
 
 // Transactor runs write on statements bound to one transaction, committing when write returns nil.
@@ -34,12 +33,4 @@ type Store struct {
 // New returns a [Store] that runs its steps on the backend.
 func New(backend Backend) *Store {
 	return &Store{backend: backend}
-}
-
-// classify runs the backend's error classifier when it has one, leaving err unchanged otherwise.
-func (s *Store) classify(err error) error {
-	if s.backend.Classify != nil {
-		return s.backend.Classify(err)
-	}
-	return err
 }
