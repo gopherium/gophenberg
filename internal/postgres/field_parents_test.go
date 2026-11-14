@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -234,8 +235,8 @@ func TestCreatingASubFieldReportsALockItCannotTake(t *testing.T) {
 	_, err := timed.CreateSubField(
 		t.Context(), top.ID, fieldOn(t, "", "title", content.FieldKindText, ""), deepEnough)
 
-	if err == nil {
-		t.Error("CreateSubField() error = nil, want the lock it could not take reported")
+	if !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("CreateSubField() error = %v, want the lock it could not take reported as dbkit.ErrBusy", err)
 	}
 }
 

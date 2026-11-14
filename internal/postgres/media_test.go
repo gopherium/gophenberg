@@ -3,9 +3,14 @@
 package postgres_test
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/media"
@@ -85,5 +90,23 @@ func TestMediaStoreReportsDatabaseFailures(t *testing.T) {
 	}
 	if _, err := store.Saved(t.Context(), []string{created.File}); err == nil {
 		t.Error("Saved() on a closed pool error = nil, want a failure")
+	}
+}
+
+func TestMediaUpdateBehindAHeldItemAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newMediaStoreWithPool(t)
+	created := mustCreateMedia(t, store, mustImage(t, "2026/08/harbor.jpg", "harbor", author))
+	holdInRival(t, pool.Config().ConnString(), "SELECT id FROM core.media FOR UPDATE")
+	timed := postgres.NewMediaStore(lockTimedPool(t, pool.Config().ConnString()))
+	edited := created
+	edited.Title = "Edited"
+	edited.UpdatedAt = time.Now().UTC()
+
+	_, err := timed.Update(t.Context(), edited, created.UpdatedAt)
+
+	if !errors.Is(err, dbkit.ErrBusy) || !strings.HasPrefix(fmt.Sprint(err), "postgres: update media: ") {
+		t.Errorf("Update() behind a held item error = %v, want dbkit.ErrBusy under the update", err)
 	}
 }

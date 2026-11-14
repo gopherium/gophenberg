@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/cron"
@@ -88,5 +89,20 @@ func TestCronMigrationKeepsTheLeaseWhole(t *testing.T) {
 		"INSERT INTO core.cron_jobs (name, next_run_at, lease_token) VALUES ('tidy', now(), 'first')")
 	if err == nil || !strings.Contains(err.Error(), "cron_jobs_lease_whole") {
 		t.Errorf("a token with no lease end was stored with error %v, want the lease check to refuse it", err)
+	}
+}
+
+func TestCronTakeBehindALockedTableAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	_, pool := cronStoreWithPool(t)
+	holdInRival(t, pool.Config().ConnString(), "LOCK TABLE core.cron_jobs IN ACCESS EXCLUSIVE MODE")
+	timed := postgres.NewCronStore(lockTimedPool(t, pool.Config().ConnString()))
+
+	_, taken, err := timed.Take(t.Context(), tidyLease())
+
+	named := err != nil && strings.Contains(err.Error(), `taking the cron job "tidy"`)
+	if taken || !errors.Is(err, dbkit.ErrBusy) || !named {
+		t.Errorf("Take() behind a locked table = %v, %v, want dbkit.ErrBusy under the take", taken, err)
 	}
 }

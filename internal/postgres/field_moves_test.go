@@ -4,11 +4,13 @@ package postgres_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -284,8 +286,8 @@ func TestMovingAFieldReportsALockItCannotTake(t *testing.T) {
 
 	_, err := timed.MoveField(t.Context(), title.ID, specs.GroupID, specs.ID, deepEnough, nil)
 
-	if err == nil || !strings.Contains(err.Error(), "lock field groups") {
-		t.Errorf("MoveField() error = %v, want the held lock reported", err)
+	if !errors.Is(err, dbkit.ErrBusy) || !strings.Contains(err.Error(), "lock field groups") {
+		t.Errorf("MoveField() error = %v, want the held lock reported as dbkit.ErrBusy", err)
 	}
 }
 

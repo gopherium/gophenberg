@@ -3,7 +3,10 @@
 package postgres_test
 
 import (
+	"errors"
 	"testing"
+
+	"github.com/gopherium/framework/dbkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/content/contenttest"
@@ -32,6 +35,19 @@ func TestTypeStoreWrapsDatabaseFailures(t *testing.T) {
 		if err == nil {
 			t.Errorf("%s() on a closed pool error = nil, want a failure", name)
 		}
+	}
+}
+
+func TestTypeByKeyBehindALockedTableAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	_, _, pool := newContentStoreWithPool(t)
+	holdInRival(t, pool.Config().ConnString(), "LOCK TABLE core.content_types IN ACCESS EXCLUSIVE MODE")
+
+	_, err := lockTimedStore(t, pool).ByKey(t.Context(), content.TypePost)
+
+	if !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("ByKey() error = %v, want the locked table reported as dbkit.ErrBusy", err)
 	}
 }
 

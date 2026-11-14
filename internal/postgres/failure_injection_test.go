@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -38,6 +39,15 @@ func raiseOn(t *testing.T, pool *pgxpool.Pool, table, operation string) {
 	plantRaiseFunction(t, pool)
 	sabotage(t, pool, "CREATE TRIGGER sabotage BEFORE "+operation+" ON "+table+
 		" FOR EACH STATEMENT EXECUTE FUNCTION sabotage_raise()")
+}
+
+// loseSerializationAtCommit fails each commit that writes the table as a lost serialization.
+func loseSerializationAtCommit(t *testing.T, pool *pgxpool.Pool, table string) {
+	t.Helper()
+	sabotage(t, pool, "CREATE FUNCTION sabotage_serialization() RETURNS trigger AS $$ "+
+		"BEGIN RAISE EXCEPTION 'serialization lost' USING ERRCODE = '40001'; END $$ LANGUAGE plpgsql")
+	sabotage(t, pool, "CREATE CONSTRAINT TRIGGER sabotage_serialization AFTER INSERT OR UPDATE ON "+table+
+		" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION sabotage_serialization()")
 }
 
 func TestSettingSaveReportsAKeyItCannotWrite(t *testing.T) {
@@ -339,8 +349,8 @@ func TestTypeUpdateReportsADefaultItCannotLock(t *testing.T) {
 	stored.Default = true
 	stored.UpdatedAt = time.Now().UTC()
 
-	if _, err := types.Update(t.Context(), stored); err == nil {
-		t.Error("Update() error = nil, want the held default row reported")
+	if _, err := types.Update(t.Context(), stored); !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("Update() error = %v, want the held default row reported as dbkit.ErrBusy", err)
 	}
 }
 
@@ -421,20 +431,26 @@ func TestContentUpdateReportsDescendantsItCannotMove(t *testing.T) {
 	}
 }
 
+// lockTimedPool returns a pool on the database at url whose statements give up on a held lock.
+func lockTimedPool(t *testing.T, url string) *pgxpool.Pool {
+	t.Helper()
+	cfg, err := pgxpool.ParseConfig(url)
+	if err != nil {
+		t.Fatalf("parsing the pool address: %v", err)
+	}
+	cfg.ConnConfig.RuntimeParams["lock_timeout"] = "200ms"
+	timed, err := pgxpool.NewWithConfig(t.Context(), cfg)
+	if err != nil {
+		t.Fatalf("opening the timed pool: %v", err)
+	}
+	t.Cleanup(timed.Close)
+	return timed
+}
+
 // lockTimedContent returns a content store on the pool's database whose statements give up on a held lock.
 func lockTimedContent(t *testing.T, pool *pgxpool.Pool) *postgres.ContentStore {
 	t.Helper()
-	pcfg, err := pgxpool.ParseConfig(pool.Config().ConnString())
-	if err != nil {
-		t.Fatalf("parsing the pool config: %v", err)
-	}
-	pcfg.ConnConfig.RuntimeParams["lock_timeout"] = "200ms"
-	timed, err := pgxpool.NewWithConfig(t.Context(), pcfg)
-	if err != nil {
-		t.Fatalf("connecting the pool: %v", err)
-	}
-	t.Cleanup(timed.Close)
-	return postgres.NewContentStore(timed)
+	return postgres.NewContentStore(lockTimedPool(t, pool.Config().ConnString()))
 }
 
 func TestContentUpdateReportsDescendantsItCannotLock(t *testing.T) {
@@ -451,8 +467,8 @@ func TestContentUpdateReportsDescendantsItCannotLock(t *testing.T) {
 
 	_, err := lockTimedContent(t, pool).Update(t.Context(), parent, version, nil, 0)
 
-	if err == nil || !strings.Contains(err.Error(), "lock timeout") {
-		t.Errorf("Update() error = %v, want the held descendant reported", err)
+	if !errors.Is(err, dbkit.ErrBusy) || !strings.Contains(err.Error(), "lock timeout") {
+		t.Errorf("Update() error = %v, want the held descendant reported as dbkit.ErrBusy", err)
 	}
 }
 
@@ -638,17 +654,7 @@ func lockTimedTypes(t *testing.T) (*postgres.TypeStore, string) {
 		t.Skip("skipping database test in short mode")
 	}
 	databaseURL := testdb.New(t, testdb.Migrator())
-	pcfg, err := pgxpool.ParseConfig(databaseURL)
-	if err != nil {
-		t.Fatalf("parsing the pool config: %v", err)
-	}
-	pcfg.ConnConfig.RuntimeParams["lock_timeout"] = "200ms"
-	pool, err := pgxpool.NewWithConfig(t.Context(), pcfg)
-	if err != nil {
-		t.Fatalf("connecting the pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	return postgres.NewTypeStore(pool), databaseURL
+	return postgres.NewTypeStore(lockTimedPool(t, databaseURL)), databaseURL
 }
 
 // holdInRival runs the statement in a rival transaction left open until the test ends.
@@ -685,8 +691,8 @@ func TestDeleteGroupReportsAFieldGroupLockItCannotTake(t *testing.T) {
 	}
 	holdFieldGroupLock(t, url)
 
-	if err := types.DeleteGroup(t.Context(), group.ID, nil); err == nil {
-		t.Error("DeleteGroup() error = nil, want the held field group lock reported")
+	if err := types.DeleteGroup(t.Context(), group.ID, nil); !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("DeleteGroup() error = %v, want the held field group lock reported as dbkit.ErrBusy", err)
 	}
 }
 
@@ -704,8 +710,8 @@ func TestDeleteGroupReportsFieldRowsASaveHolds(t *testing.T) {
 	}
 	holdInRival(t, url, "SELECT key FROM core.content_fields FOR KEY SHARE")
 
-	if err := types.DeleteGroup(t.Context(), group.ID, nil); err == nil {
-		t.Error("DeleteGroup() error = nil, want the field rows a save holds reported")
+	if err := types.DeleteGroup(t.Context(), group.ID, nil); !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("DeleteGroup() error = %v, want the field rows a save holds reported as dbkit.ErrBusy", err)
 	}
 }
 
@@ -725,8 +731,8 @@ func TestDeleteSubFieldReportsAFieldGroupLockItCannotTake(t *testing.T) {
 	name := declaredInside(t, types, section, "name", content.FieldKindText)
 	holdFieldGroupLock(t, url)
 
-	if err := types.DeleteSubField(t.Context(), name.ID, nil); err == nil {
-		t.Error("DeleteSubField() error = nil, want the held field group lock reported")
+	if err := types.DeleteSubField(t.Context(), name.ID, nil); !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("DeleteSubField() error = %v, want the held field group lock reported as dbkit.ErrBusy", err)
 	}
 }
 

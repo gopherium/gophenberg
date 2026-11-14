@@ -3,8 +3,11 @@
 package postgres_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/gopherium/framework/dbkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
@@ -33,7 +36,7 @@ func TestCreateGroupReportsALockItCannotTake(t *testing.T) {
 
 	_, err := timed.CreateGroup(t.Context(), content.Group{Title: "Details", Location: locationOf("car")})
 
-	if err == nil || !strings.Contains(err.Error(), "lock field groups") {
-		t.Errorf("CreateGroup() error = %v, want the held lock reported", err)
+	if !errors.Is(err, dbkit.ErrBusy) || !strings.Contains(err.Error(), "lock field groups") {
+		t.Errorf("CreateGroup() error = %v, want the held lock reported as dbkit.ErrBusy", err)
 	}
 }

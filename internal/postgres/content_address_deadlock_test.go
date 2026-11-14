@@ -4,10 +4,12 @@ package postgres_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -115,8 +117,28 @@ func TestCreatingAPageReportsAnAddressItCannotCheck(t *testing.T) {
 
 	_, err := lockTimedContent(t, pool).Create(t.Context(), stalePage(t, nil, "Team", author))
 
-	if err == nil || !strings.Contains(err.Error(), "lock timeout") {
-		t.Errorf("Create() error = %v, want the lock timeout reported", err)
+	if !errors.Is(err, dbkit.ErrBusy) || !strings.Contains(err.Error(), "lock timeout") {
+		t.Errorf("Create() error = %v, want the lock timeout reported as dbkit.ErrBusy", err)
+	}
+}
+
+func TestContentUpdateOntoAnAddressARivalHoldsAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	items, _, author, pool := nestingStoresWithPool(t)
+	other := mustNest(t, items, nil, "Other", author)
+	rival := rivalTransaction(t, pool)
+	holdingTheAddress(t, rival, "pages/team", author)
+	edited, err := other.Rename("team")
+	if err != nil {
+		t.Fatalf("Rename() error = %v, want nil", err)
+	}
+	edited.UpdatedAt = other.UpdatedAt.Add(time.Second)
+
+	_, err = lockTimedContent(t, pool).Update(t.Context(), edited, other.UpdatedAt, nil, 0)
+
+	if !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("Update() error = %v, want the address the commit waited on reported as dbkit.ErrBusy", err)
 	}
 }
 
@@ -148,7 +170,7 @@ func TestCreatingAPageReportsADeadlockOverItsParent(t *testing.T) {
 		t.Fatalf("committing the rival: %v", err)
 	}
 
-	if err := finishes(t, created, 10*time.Second); !deadlocked(err) {
-		t.Errorf("Create() error = %v, want the deadlock reported", err)
+	if err := finishes(t, created, 10*time.Second); !deadlocked(err) || !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("Create() error = %v, want the deadlock reported as dbkit.ErrBusy", err)
 	}
 }

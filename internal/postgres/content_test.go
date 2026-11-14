@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -51,6 +52,20 @@ func TestContentStoreUpdateWrapsDatabaseFailures(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "postgres: update content") {
 		t.Errorf("Update() error = %q, want the update content prefix", err)
+	}
+}
+
+func TestContentDeleteOfAHeldItemAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	held := mustCreate(t, store, "A Post", author)
+	holdInRival(t, pool.Config().ConnString(), "SELECT id FROM core.content WHERE slug = 'a-post' FOR UPDATE")
+
+	err := lockTimedContent(t, pool).Delete(t.Context(), held.ID)
+
+	if !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("Delete() error = %v, want the held item reported as dbkit.ErrBusy", err)
 	}
 }
 
