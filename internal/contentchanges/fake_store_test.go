@@ -89,11 +89,21 @@ func (s *items) ByID(_ context.Context, id uuid.UUID) (content.Content, error) {
 		return content.Content{}, s.byIDErr
 	}
 	if written, ok := s.since[id]; ok {
-		if written == nil {
-			return content.Content{}, content.ErrNotFound
-		}
-		return *written, nil
+		return rewritten(written)
 	}
+	return s.find(id)
+}
+
+// rewritten returns the item a later write left, or ErrNotFound for one it deleted.
+func rewritten(written *content.Content) (content.Content, error) {
+	if written == nil {
+		return content.Content{}, content.ErrNotFound
+	}
+	return *written, nil
+}
+
+// find returns the held item with id, or ErrNotFound.
+func (s *items) find(id uuid.UUID) (content.Content, error) {
 	for _, held := range s.held {
 		if held.ID == id {
 			return held, nil
