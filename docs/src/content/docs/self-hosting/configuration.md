@@ -1317,6 +1317,14 @@ path and tells no plugin of those moves:
 time=2026-11-11T10:12:44.305Z level=WARN msg="plugins not told of moved children" parent=pages/company error="postgres: count content: context deadline exceeded"
 ```
 
+A moved item that another save holds for longer than
+`GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET` is left out too, so two saves
+never wait on each other for good:
+
+```text
+time=2026-11-11T10:12:44.360Z level=WARN msg="plugins not told of a content change" change=published error="contentchanges: another write held the moved item past the budget"
+```
+
 A head tag must be a `meta` or `link` tag. Its attribute names are
 lowercase letters, digits and hyphens with a letter first, and none
 is `style` or starts with `on`, as `onload` does, since those run
