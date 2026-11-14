@@ -4,6 +4,7 @@ import { http, HttpResponse, server } from '@gophenberg/frontend-sdk/testing'
 import { expect, test } from 'vitest'
 
 import {
+	createPost,
 	deletePost,
 	emptyTrash,
 	fetchPost,
@@ -29,6 +30,12 @@ const ROW = {
 
 /** The writes the server can refuse, each with the words its refusal falls back to. */
 const REFUSABLE = [
+	{
+		action: 'create',
+		run: () => createPost('post', { title: 'Welcome to Gophenberg' }, 'The draft could not be created.'),
+		refuse: (answer: () => Response) => server.use(http.post('/api/content', answer)),
+		fallback: 'The draft could not be created.',
+	},
 	{
 		action: 'trash',
 		run: () => trashPost(ROW.id),
@@ -65,6 +72,36 @@ test.each(REFUSABLE)('reads a refused $action as the words its code stands for',
 
 	await expect(run()).rejects.toEqual(
 		new Error('This item still holds items nested inside it. Move or delete those first.'),
+	)
+})
+
+test.each(REFUSABLE)('reads a rejected $action the role may not do as the words its code stands for', async (held) => {
+	held.refuse(() =>
+		HttpResponse.json(
+			{ error: 'capability missing', code: 'capability_missing', meta: { capability: 'access_admin' } },
+			{ status: 403 },
+		),
+	)
+
+	await expect(held.run()).rejects.toEqual(new Error('Your role does not allow access_admin.'))
+})
+
+test.each(REFUSABLE)('writes the number a rejected $action names in the site format', async ({ run, refuse }) => {
+	refuse(() =>
+		HttpResponse.json(
+			{ error: 'content: too many rows', code: 'field_rows_max', meta: { field: 'Rows', limit: 12000 } },
+			{ status: 422 },
+		),
+	)
+
+	await expect(run()).rejects.toEqual(new Error('Rows takes at most 12.000 rows. Remove one and save again.'))
+})
+
+test.each(REFUSABLE)('tells the reader a busy database saved none of a rejected $action', async ({ run, refuse }) => {
+	refuse(() => HttpResponse.json({ error: 'database busy', code: 'database_busy' }, { status: 503 }))
+
+	await expect(run()).rejects.toEqual(
+		new Error('The database was busy with another change, so nothing was saved. Try again.'),
 	)
 })
 
