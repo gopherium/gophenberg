@@ -61,24 +61,22 @@ export function useAutosave(postId: string, buffer: Parkable): () => Promise<() 
 			clearInterval(timer)
 			window.removeEventListener('beforeunload', flush)
 			release(waiting)
-			leave(client, postId, latest.current, trashed.current || parking.current, false)
+			if (!(trashed.current || parking.current)) {
+				leave(client, postId, latest.current, false)
+			}
 		}
 	}, [client, postId])
 	return useCallback(async () => {
 		parking.current = true
-		const commit = () => nextCommit(closed.current, committed.current, rerender)
-		const flush = () => {
-			if (closed.current) {
-				parkAtUnload(client, postId, latest.current)
-			}
-		}
+		const next = () => nextCommit(closed.current, committed.current, rerender).then(() => latest.current)
+		const flush = () => parkAtUnload(client, postId, latest.current, closed.current)
 		window.addEventListener('beforeunload', flush)
 		try {
 			await writesSettled(client, postId)
-			await parkUntilStill(client, postId, () => latest.current, commit)
+			await parkUntilStill(client, postId, next)
 		} catch (failure) {
 			if (closed.current) {
-				leave(client, postId, latest.current, false, shownAgain(client, postId))
+				leave(client, postId, latest.current, shownAgain(client, postId))
 			}
 			throw failure
 		} finally {
@@ -126,39 +124,37 @@ function nextCommit(
  * Parks the unsaved words of the buffer, again each time they changed while the last park ran.
  * @param client - The query client caching the post.
  * @param postId - The post the words belong to.
- * @param current - Returns the buffer as the editor last committed it.
- * @param commit - Waits for the editor's next commit.
+ * @param next - Waits for the editor's next commit and returns the buffer it holds.
  * @param parked - The words the last park sent, nothing before the first.
  */
 async function parkUntilStill(
 	client: QueryClient,
 	postId: string,
-	current: () => Parkable,
-	commit: () => Promise<void>,
+	next: () => Promise<Parkable>,
 	parked?: AutosaveBuffer,
 ): Promise<void> {
-	await commit()
-	const held = current()
+	const held = await next()
 	const words = wordsOf(held)
-	if (!held.dirty || (parked !== undefined && sameWords(parked, words))) {
+	if (!held.dirty || sentAlready(parked, words)) {
 		return
 	}
 	const write = autosavePost(postId, words, held.version)
 	await holdWrite(client, postId, write.then((outcome) => land(client, postId, held, outcome)))
-	await parkUntilStill(client, postId, current, commit, words)
+	await parkUntilStill(client, postId, next, words)
 }
 
 /**
- * Tells whether two sets of words match, the shown fields by reference.
- * @param one - The first words.
- * @param other - The second words.
- * @returns Whether they match.
+ * Tells whether the last park sent the words held, the shown fields compared by reference.
+ * @param parked - The words the last park sent, nothing before the first.
+ * @param words - The words held.
+ * @returns Whether the last park sent them.
  */
-function sameWords(one: AutosaveBuffer, other: AutosaveBuffer): boolean {
-	return one.title === other.title &&
-		one.content === other.content &&
-		one.excerpt === other.excerpt &&
-		one.fields === other.fields
+function sentAlready(parked: AutosaveBuffer | undefined, words: AutosaveBuffer): boolean {
+	return parked !== undefined &&
+		parked.title === words.title &&
+		parked.content === words.content &&
+		parked.excerpt === words.excerpt &&
+		parked.fields === words.fields
 }
 
 /**
@@ -171,13 +167,14 @@ function wordsOf(held: Parkable): AutosaveBuffer {
 }
 
 /**
- * Parks the unsaved words a closed editor left as the page unloads.
+ * Parks the unsaved words a closed editor left as the page unloads, and nothing while the editor is open.
  * @param client - The query client caching the post.
  * @param postId - The post the words belong to.
- * @param held - The buffer as the editor closed.
+ * @param held - The buffer as the editor last committed it.
+ * @param closed - Whether the editor has closed.
  */
-function parkAtUnload(client: QueryClient, postId: string, held: Parkable): void {
-	if (held.dirty) {
+function parkAtUnload(client: QueryClient, postId: string, held: Parkable, closed: boolean): void {
+	if (closed && held.dirty) {
 		send(client, postId, held, autosavePost(postId, wordsOf(held), held.version, true))
 	}
 }
@@ -208,11 +205,10 @@ function shownAgain(client: QueryClient, postId: string): boolean {
  * @param client - The query client caching the post.
  * @param postId - The post being left.
  * @param held - The buffer as the editor closes.
- * @param trashed - Whether the post went to the trash or Move to trash parks the words, either taking no autosave.
  * @param shown - Whether an editor shows the post again, which keeps the cached post it uses.
  */
-function leave(client: QueryClient, postId: string, held: Parkable, trashed: boolean, shown: boolean): void {
-	if (!held.dirty || trashed) {
+function leave(client: QueryClient, postId: string, held: Parkable, shown: boolean): void {
+	if (!held.dirty) {
 		return
 	}
 	const words = wordsOf(held)
