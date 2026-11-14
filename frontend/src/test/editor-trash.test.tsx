@@ -611,12 +611,19 @@ interface Served {
 	parks: Record<string, unknown>[]
 }
 
+/** How the fake answers one autosave in turn, once its gate opens, failing when asked. */
+interface Turn {
+	held?: Promise<void>
+	fails?: boolean
+}
+
 /**
  * Serves the post as the server does, writing an own draft's autosave into it, and records what it took in order.
  * @param start - The post as it starts.
+ * @param turns - How each autosave in turn is answered, recording the answer, at once and accepted when left out.
  * @returns The state the fake holds.
  */
-function serveTrash(start: Record<string, unknown>): Served {
+function serveTrash(start: Record<string, unknown>, turns: Turn[] = []): Served {
 	const served: Served = { post: start, order: [], parks: [] }
 	server.use(
 		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json(served.post)),
@@ -624,6 +631,14 @@ function serveTrash(start: Record<string, unknown>): Served {
 			const body = (await request.json()) as Record<string, unknown>
 			served.order.push('autosave')
 			served.parks.push(body)
+			const turn = turns[served.parks.length - 1]
+			if (turn !== undefined) {
+				await turn.held
+				served.order.push('answered')
+			}
+			if (turn?.fails) {
+				return HttpResponse.json({ error: 'internal error' }, { status: 500 })
+			}
 			const words = { title: body.title, content: body.content, excerpt: body.excerpt }
 			const post = served.post
 			const inPlace =
@@ -1008,4 +1023,103 @@ test('sends the words of an autosave that failed before the trash again as the e
 
 	await waitFor(() => expect(parks).toHaveLength(2))
 	expect(parks[1]).toMatchObject({ title: 'Welcome to Gophenberg!' })
+})
+
+/**
+ * Types into the title, presses Move to trash and waits until its autosave reaches the server.
+ * @param served - The fake serving the post.
+ * @returns The title box, still open for typing.
+ */
+async function startTrash(served: Served): Promise<HTMLElement> {
+	const title = await screen.findByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, '!')
+	await userEvent.click(screen.getByRole('button', { name: 'Move to trash' }))
+	await waitFor(() => expect(served.order).toEqual(['autosave']))
+	return title
+}
+
+test('autosaves the words typed while Move to trash autosaves before it trashes the post', async () => {
+	const first = gate()
+	const second = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held }, { held: second.held }])
+	renderAt(EDITOR_PATH)
+	const title = await startTrash(served)
+	await userEvent.type(title, '?')
+	first.release()
+	await waitFor(() => expect(served.order).toEqual(['autosave', 'answered', 'autosave']))
+
+	second.release()
+
+	expect(await findActionToast(EDITED_TRASHED_TOAST)).toBeInTheDocument()
+	expect(served.order).toEqual(['autosave', 'answered', 'autosave', 'answered', 'trash'])
+	expect(served.parks).toMatchObject([
+		{ title: 'Welcome to Gophenberg!', updated_at: storedPost.updated_at },
+		{ title: 'Welcome to Gophenberg!?', updated_at: storedPost.updated_at },
+	])
+})
+
+test('autosaves an own draft again against the version its first autosave answered with', async () => {
+	const first = gate()
+	const served = serveTrash({ ...storedPost, author_id: adminUser.id }, [{ held: first.held }])
+	renderAt(EDITOR_PATH)
+	const title = await startTrash(served)
+	await userEvent.type(title, '?')
+
+	first.release()
+
+	expect(await findActionToast(EDITED_TRASHED_TOAST)).toBeInTheDocument()
+	expect(served.order).toEqual(['autosave', 'answered', 'autosave', 'trash'])
+	expect(served.parks[1]).toMatchObject({ title: 'Welcome to Gophenberg!?', updated_at: SAVED_AT })
+	expect(served.post).toMatchObject({ title: 'Welcome to Gophenberg!?', status: 'trash' })
+})
+
+test('sends one autosave before the trash when the words typed during it end as the words it sent', async () => {
+	const first = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held }])
+	const sent = countAutosavesSent()
+	renderAt(EDITOR_PATH)
+	const title = await startTrash(served)
+	await userEvent.type(title, '?{Backspace}')
+
+	first.release()
+
+	expect(await findActionToast(EDITED_TRASHED_TOAST)).toBeInTheDocument()
+	expect(served.order).toEqual(['autosave', 'answered', 'trash'])
+	expect(sent()).toBe(1)
+})
+
+test('keeps the post out of the trash when the autosave of the words typed during the first fails', async () => {
+	const first = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held }, { fails: true }])
+	renderAt(EDITOR_PATH)
+	const title = await startTrash(served)
+	await userEvent.type(title, '?')
+
+	first.release()
+
+	expect(await findToast(UNSAVED_TOAST)).toBeInTheDocument()
+	expect(served.order).toEqual(['autosave', 'answered', 'autosave', 'answered'])
+	expect(trashed).toEqual([])
+	expect(title).toHaveValue('Welcome to Gophenberg!?')
+})
+
+test('autosaves the words typed before the editor closed during the autosave, then trashes the post', async () => {
+	const first = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{ held: first.held }])
+	server.use(
+		http.get(`/api/content/${OTHER_ID}`, () =>
+			HttpResponse.json({ ...storedPostWithId(OTHER_ID), title: 'A second post' }),
+		),
+	)
+	const { router } = renderRoutedAt(EDITOR_PATH)
+	const title = await startTrash(served)
+	await userEvent.type(title, '?')
+	await openEditor(router, OTHER_ID)
+	await waitFor(() => expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('A second post'))
+
+	first.release()
+
+	expect(await findActionToast(EDITED_TRASHED_TOAST)).toBeInTheDocument()
+	expect(served.order).toEqual(['autosave', 'answered', 'autosave', 'trash'])
+	expect(served.parks[1]).toMatchObject({ title: 'Welcome to Gophenberg!?', updated_at: storedPost.updated_at })
 })

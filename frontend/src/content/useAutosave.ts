@@ -3,6 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
 import { autosavePost } from './api'
 import type { Autosave, AutosaveBuffer, AutosaveOutcome, PostDetail } from './api'
@@ -65,19 +66,10 @@ export function useAutosave(postId: string, buffer: Parkable): () => Promise<() 
 	}, [client, postId])
 	return useCallback(async () => {
 		parking.current = true
+		const commit = () => nextCommit(closed.current, committed.current, rerender)
 		try {
 			await writesSettled(client, postId)
-			if (!closed.current) {
-				await new Promise<void>((resume) => {
-					committed.current.push(resume)
-					rerender((renders) => renders + 1)
-				})
-			}
-			const held = latest.current
-			if (held.dirty) {
-				const write = autosavePost(postId, wordsOf(held), held.version)
-				await holdWrite(client, postId, write.then((outcome) => land(client, postId, held, outcome)))
-			}
+			await parkUntilStill(client, postId, () => latest.current, commit)
 		} finally {
 			parking.current = false
 		}
@@ -95,6 +87,66 @@ function release(waiting: (() => void)[]): void {
 	for (const resume of waiting.splice(0)) {
 		resume()
 	}
+}
+
+/**
+ * Waits for the editor's next commit while it is open, and not at all once it has closed.
+ * @param closed - Whether the editor has closed.
+ * @param waiting - The waiters the next commit lets go of.
+ * @param rerender - Asks the editor for another render.
+ * @returns A promise settling once the commit lands.
+ */
+function nextCommit(
+	closed: boolean,
+	waiting: (() => void)[],
+	rerender: Dispatch<SetStateAction<number>>,
+): Promise<void> {
+	if (closed) {
+		return Promise.resolve()
+	}
+	return new Promise<void>((resume) => {
+		waiting.push(resume)
+		rerender((renders) => renders + 1)
+	})
+}
+
+/**
+ * Parks the unsaved words of the buffer, again each time they changed while the last park ran.
+ * @param client - The query client caching the post.
+ * @param postId - The post the words belong to.
+ * @param current - Returns the buffer as the editor last committed it.
+ * @param commit - Waits for the editor's next commit.
+ * @param parked - The words the last park sent, nothing before the first.
+ */
+async function parkUntilStill(
+	client: QueryClient,
+	postId: string,
+	current: () => Parkable,
+	commit: () => Promise<void>,
+	parked?: AutosaveBuffer,
+): Promise<void> {
+	await commit()
+	const held = current()
+	const words = wordsOf(held)
+	if (!held.dirty || (parked !== undefined && sameWords(parked, words))) {
+		return
+	}
+	const write = autosavePost(postId, words, held.version)
+	await holdWrite(client, postId, write.then((outcome) => land(client, postId, held, outcome)))
+	await parkUntilStill(client, postId, current, commit, words)
+}
+
+/**
+ * Tells whether two sets of words match, the shown fields by reference.
+ * @param one - The first words.
+ * @param other - The second words.
+ * @returns Whether they match.
+ */
+function sameWords(one: AutosaveBuffer, other: AutosaveBuffer): boolean {
+	return one.title === other.title &&
+		one.content === other.content &&
+		one.excerpt === other.excerpt &&
+		one.fields === other.fields
 }
 
 /**
