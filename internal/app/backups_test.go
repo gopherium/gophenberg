@@ -185,7 +185,7 @@ func TestABackupBeforeMigratingKeepsTheOneCount(t *testing.T) {
 	}
 }
 
-func TestABadUpdateSettingStopsNoBackupBeforeMigrating(t *testing.T) {
+func TestABadDownloadCapAndUpdateKeepCountStopNoBackupBeforeMigrating(t *testing.T) {
 	t.Parallel()
 
 	path := olderMigratedSQLiteFile(t)
@@ -206,6 +206,7 @@ func TestMigrateNamesABadBackupSetting(t *testing.T) {
 
 	for name, value := range map[string]string{
 		"GOPHENBERG_SQLITE_BACKUPS_KEEP": "0", "GOPHENBERG_INSTALL_ROOT": "relative/root",
+		"GOPHENBERG_UPDATE_DISK_MARGIN_MB": "1073741825",
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -247,7 +248,8 @@ func TestAFailedBackupStopsTheMigrationAndNamesTheSkipSetting(t *testing.T) {
 				t.Fatalf("migrate = %d, stdout %q, stderr %q, want 1 and nothing migrated", got.Code, got.Stdout, got.Stderr)
 			}
 			for _, want := range []string{
-				"migrate accounts: take the backup before migrating: ", "so free room by moving backups off the server",
+				"migrate accounts: take the backup before migrating: ",
+				"so free some disk space first, by moving backups off the server",
 				"or set GOPHENBERG_SQLITE_SKIP_BACKUP_FOR=" + version.Version() + " to migrate this version with no backup",
 			} {
 				if !strings.Contains(got.Stderr, want) {
@@ -277,7 +279,7 @@ func TestAFailedBackupOnARisingFloorSaysTheSkipCannotHelp(t *testing.T) {
 	}
 	for _, want := range []string{
 		"GOPHENBERG_SQLITE_SKIP_BACKUP_FOR does not apply since " + version.Version() +
-			" raises the minimum version of the file", "so free room by moving backups off the server",
+			" raises the minimum version of the file", "so free some disk space first, by moving backups off the server",
 	} {
 		if !strings.Contains(got.Stderr, want) {
 			t.Errorf("migrate stderr %q, want it to carry %q", got.Stderr, want)

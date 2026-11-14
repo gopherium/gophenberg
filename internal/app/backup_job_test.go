@@ -31,7 +31,7 @@ const scheduledFile = "/srv/site/site.db"
 // scheduleBeside returns the backup schedule of a site on the SQLite file at path, with the other settings given.
 func scheduleBeside(t *testing.T, path string, settings map[string]string) backupSchedule {
 	t.Helper()
-	schedule, err := backupScheduleFrom(settingsEnv(migratingWith(path, settings)), updater.Layout{})
+	schedule, err := backupScheduleFrom(settingsEnv(migratingWith(path, settings)), updater.BackupSettings{})
 	if err != nil {
 		t.Fatalf("backupScheduleFrom() error = %v, want nil", err)
 	}
@@ -102,8 +102,10 @@ func TestTheBackupJobRunsOnlyOnSQLite(t *testing.T) {
 	}{
 		unreachableDatabaseURL: {},
 		sqliteAddress: {
-			jobs:    []string{"core/sqlite-backup every 2h0m0s for at most 15m0s"},
-			request: sqlite.BackupRequest{Folder: filepath.Join(data, "backups"), Kind: backupfiles.Scheduled, Kept: 3},
+			jobs: []string{"core/sqlite-backup every 2h0m0s for at most 15m0s"},
+			request: sqlite.BackupRequest{
+				Folder: filepath.Join(data, "backups"), Kind: backupfiles.Scheduled, Kept: 3, Margin: 64 << 20,
+			},
 		},
 	} {
 		settings, err := loadRunConfig(testkit.Getenv(map[string]string{

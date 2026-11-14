@@ -217,6 +217,10 @@ func TestDatabaseBackupNamesWhatStopsIt(t *testing.T) {
 			return onFile(migratedSQLiteFile(t), map[string]string{"GOPHENBERG_INSTALL_ROOT": "relative/root"}),
 				"GOPHENBERG_INSTALL_ROOT"
 		},
+		"a margin past its bound": func(t *testing.T) (map[string]string, string) {
+			return onFile(migratedSQLiteFile(t), map[string]string{"GOPHENBERG_UPDATE_DISK_MARGIN_MB": "1073741825"}),
+				"GOPHENBERG_UPDATE_DISK_MARGIN_MB: must stand at or below 1073741824"
+		},
 		"a missing file": func(t *testing.T) (map[string]string, string) {
 			path := missingSQLiteFile(t)
 			return onFile(path, nil), namingTheMissingFile(path)
