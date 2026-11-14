@@ -3,6 +3,7 @@
 package updater_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -140,13 +141,43 @@ func TestSettingsFromTakesADataFolderOutsideTheInstallRoot(t *testing.T) {
 func TestBackupSettingsFromReadsTheInstallRootAndTheDataFolder(t *testing.T) {
 	t.Parallel()
 
-	layout, err := updater.BackupSettingsFrom(envOf(map[string]string{
+	settings, err := updater.BackupSettingsFrom(envOf(map[string]string{
 		"GOPHENBERG_INSTALL_ROOT": "/opt/gophenberg/", "GOPHENBERG_DATA_DIR": "/srv/gophenberg-data/",
 	}))
 
 	want := updater.Layout{Root: "/opt/gophenberg", Data: "/srv/gophenberg-data"}
-	if err != nil || layout != want {
-		t.Errorf("BackupSettingsFrom() = %+v, %v, want %+v", layout, err, want)
+	if err != nil || settings.Layout != want {
+		t.Errorf("BackupSettingsFrom() = %+v, %v, want the layout %+v", settings, err, want)
+	}
+}
+
+func TestBackupSettingsFromReadsTheDiskMargin(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		env  map[string]string
+		want int64
+	}{
+		{map[string]string{}, 64 << 20},
+		{map[string]string{"GOPHENBERG_UPDATE_DISK_MARGIN_MB": "0"}, 0},
+		{map[string]string{"GOPHENBERG_UPDATE_DISK_MARGIN_MB": "128"}, 128 << 20},
+	} {
+		settings, err := updater.BackupSettingsFrom(envOf(tc.env))
+
+		if err != nil || settings.DiskMargin != tc.want {
+			t.Errorf("BackupSettingsFrom(%v) = %+v, %v, want a disk margin of %d bytes", tc.env, settings, err, tc.want)
+		}
+	}
+}
+
+func TestBackupSettingsFromRejectsAMarginPastItsBound(t *testing.T) {
+	t.Parallel()
+
+	_, err := updater.BackupSettingsFrom(envOf(map[string]string{"GOPHENBERG_UPDATE_DISK_MARGIN_MB": "1073741825"}))
+
+	want := "GOPHENBERG_UPDATE_DISK_MARGIN_MB: must stand at or below 1073741824"
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("BackupSettingsFrom() with a margin past its bound = %v, want an error saying %q", err, want)
 	}
 }
 
@@ -156,7 +187,6 @@ func TestBackupSettingsFromLeavesEveryOtherUpdateSettingUnread(t *testing.T) {
 	for _, setting := range [][2]string{
 		{"GOPHENBERG_UPDATE_DOWNLOAD_CAP_MB", "0"},
 		{"GOPHENBERG_UPDATE_DOWNLOAD_TIMEOUT", "soon"},
-		{"GOPHENBERG_UPDATE_DISK_MARGIN_MB", "1073741825"},
 		{"GOPHENBERG_UPDATE_BACKUPS_KEEP", "0"},
 		{"GOPHENBERG_UPDATE_ATTEMPTS", "0"},
 		{"GOPHENBERG_UPDATE_VERIFY_TIMEOUT", "0s"},
@@ -164,12 +194,12 @@ func TestBackupSettingsFromLeavesEveryOtherUpdateSettingUnread(t *testing.T) {
 	} {
 		name, value := setting[0], setting[1]
 
-		layout, err := updater.BackupSettingsFrom(envOf(map[string]string{
+		settings, err := updater.BackupSettingsFrom(envOf(map[string]string{
 			"GOPHENBERG_INSTALL_ROOT": "/opt/gophenberg", name: value,
 		}))
 
-		if want := (updater.Layout{Root: "/opt/gophenberg"}); err != nil || layout != want {
-			t.Errorf("BackupSettingsFrom() with %s=%s = %+v, %v, want %+v", name, value, layout, err, want)
+		if want := (updater.Layout{Root: "/opt/gophenberg"}); err != nil || settings.Layout != want {
+			t.Errorf("BackupSettingsFrom() with %s=%s = %+v, %v, want the layout %+v", name, value, settings, err, want)
 		}
 	}
 }
