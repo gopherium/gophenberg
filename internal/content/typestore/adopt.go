@@ -14,7 +14,7 @@ import (
 func (s *Store) AdoptType(ctx context.Context, key string) error {
 	rows, err := s.backend.Pool.AdoptContentType(ctx, key, time.Now().UTC())
 	if err != nil {
-		return fmt.Errorf("%s: adopt content type: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: adopt content type: %w", s.backend.Engine, s.classify(err))
 	}
 	if rows == 0 {
 		return content.ErrTypeNotFound
@@ -28,13 +28,13 @@ func (s *Store) AdoptGroup(ctx context.Context, key string) error {
 		at := time.Now().UTC()
 		rows, err := queries.AdoptFieldGroup(ctx, key, at)
 		if err != nil {
-			return fmt.Errorf("%s: adopt field group: %w", s.backend.Engine, err)
+			return fmt.Errorf("%s: adopt field group: %w", s.backend.Engine, s.classify(err))
 		}
 		if rows == 0 {
 			return content.ErrGroupNotFound
 		}
 		if err := queries.AdoptFieldsInGroup(ctx, key, at); err != nil {
-			return fmt.Errorf("%s: adopt fields in group: %w", s.backend.Engine, err)
+			return fmt.Errorf("%s: adopt fields in group: %w", s.backend.Engine, s.classify(err))
 		}
 		return nil
 	})

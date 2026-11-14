@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 
+	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -45,7 +46,7 @@ func (s *SettingStore) Lookup(ctx context.Context, key string) (string, bool, er
 		return "", false, nil
 	}
 	if err != nil {
-		return "", false, fmt.Errorf("postgres: reading setting %q: %w", key, err)
+		return "", false, fmt.Errorf("postgres: reading setting %q: %w", key, dbkitpg.Classify(err))
 	}
 	return value, true, nil
 }
@@ -63,7 +64,7 @@ func (s *SettingStore) Update(
 ) error {
 	return s.inTx(ctx, func(queries *db.Queries) error {
 		if err := queries.LockSettings(ctx); err != nil {
-			return fmt.Errorf("postgres: locking the settings: %w", err)
+			return fmt.Errorf("postgres: locking the settings: %w", dbkitpg.Classify(err))
 		}
 		held, err := heldSettings(ctx, queries, keys)
 		if err != nil {
@@ -81,14 +82,14 @@ func (s *SettingStore) Update(
 func (s *SettingStore) inTx(ctx context.Context, body func(queries *db.Queries) error) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("postgres: writing settings: %w", err)
+		return fmt.Errorf("postgres: writing settings: %w", dbkitpg.Classify(err))
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	if err := body(s.queries.WithTx(tx)); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("postgres: writing settings: %w", err)
+		return fmt.Errorf("postgres: writing settings: %w", dbkitpg.Classify(err))
 	}
 	return nil
 }
@@ -97,7 +98,7 @@ func (s *SettingStore) inTx(ctx context.Context, body func(queries *db.Queries) 
 func writeSettings(ctx context.Context, queries *db.Queries, values map[string]string) error {
 	for _, key := range lockedKeys(values) {
 		if err := queries.SetSetting(ctx, db.SetSettingParams{Key: key, Value: values[key]}); err != nil {
-			return fmt.Errorf("postgres: writing setting %q: %w", key, err)
+			return fmt.Errorf("postgres: writing setting %q: %w", key, dbkitpg.Classify(err))
 		}
 	}
 	return nil
@@ -112,7 +113,7 @@ func heldSettings(ctx context.Context, queries *db.Queries, keys []string) (map[
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("postgres: reading setting %q: %w", key, err)
+			return nil, fmt.Errorf("postgres: reading setting %q: %w", key, dbkitpg.Classify(err))
 		}
 		held[key] = value
 	}

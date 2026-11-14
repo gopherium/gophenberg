@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gopherium/framework/dbkit"
+	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -33,6 +34,7 @@ func NewContentStore(pool *pgxpool.Pool) *ContentStore {
 		InTx:      contentInTx(pool, queries),
 		Rules:     contentRulesBroken,
 		ReadError: readError,
+		Classify:  dbkitpg.Classify,
 	})}
 }
 

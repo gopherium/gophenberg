@@ -29,7 +29,7 @@ func editableUnderLock(ctx context.Context, queries Queries, id uuid.UUID) error
 func (s *Store) Revisions(ctx context.Context, contentID uuid.UUID) ([]content.Revision, error) {
 	rows, err := s.backend.Pool.ListRevisions(ctx, contentID)
 	if err != nil {
-		return nil, fmt.Errorf("%s: list revisions: %w", s.backend.Engine, err)
+		return nil, fmt.Errorf("%s: list revisions: %w", s.backend.Engine, s.classify(err))
 	}
 	revisions := make([]content.Revision, len(rows))
 	for i, row := range rows {
@@ -53,7 +53,7 @@ func (s *Store) RevisionByID(ctx context.Context, contentID, revisionID uuid.UUI
 		return content.Revision{}, content.ErrRevisionNotFound
 	}
 	if err != nil {
-		return content.Revision{}, fmt.Errorf("%s: get revision: %w", s.backend.Engine, err)
+		return content.Revision{}, fmt.Errorf("%s: get revision: %w", s.backend.Engine, s.classify(err))
 	}
 	return content.Revision{
 		ID:        row.ID,
@@ -88,7 +88,7 @@ func (s *Store) DeleteRevision(ctx context.Context, contentID, revisionID uuid.U
 		return err
 	}
 	if err != nil {
-		return fmt.Errorf("%s: delete revision: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: delete revision: %w", s.backend.Engine, s.classify(err))
 	}
 	return nil
 }
@@ -117,7 +117,7 @@ func (s *Store) SaveAutosave(ctx context.Context, autosave content.Revision) (co
 		return content.Revision{}, err
 	}
 	if err != nil {
-		return content.Revision{}, fmt.Errorf("%s: save autosave: %w", s.backend.Engine, err)
+		return content.Revision{}, fmt.Errorf("%s: save autosave: %w", s.backend.Engine, s.classify(err))
 	}
 	return content.Revision{
 		ID:        row.ID,
@@ -139,7 +139,7 @@ func (s *Store) Autosave(ctx context.Context, contentID, authorID uuid.UUID) (co
 		return content.Revision{}, content.ErrRevisionNotFound
 	}
 	if err != nil {
-		return content.Revision{}, fmt.Errorf("%s: get autosave: %w", s.backend.Engine, err)
+		return content.Revision{}, fmt.Errorf("%s: get autosave: %w", s.backend.Engine, s.classify(err))
 	}
 	return content.Revision{
 		ID:        row.ID,
@@ -158,7 +158,7 @@ func (s *Store) Autosave(ctx context.Context, contentID, authorID uuid.UUID) (co
 func (s *Store) DeleteAutosave(ctx context.Context, contentID, authorID uuid.UUID) error {
 	err := s.backend.Pool.DeleteAutosave(ctx, contentID, authorID)
 	if err != nil {
-		return fmt.Errorf("%s: delete autosave: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: delete autosave: %w", s.backend.Engine, s.classify(err))
 	}
 	return nil
 }
@@ -179,14 +179,14 @@ func (s *Store) snapshotRevision(
 		CreatedAt: snapshot.CreatedAt,
 	})
 	if err != nil {
-		return fmt.Errorf("%s: create revision: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: create revision: %w", s.backend.Engine, s.classify(err))
 	}
 	if revisionCap <= 0 {
 		return nil
 	}
 	err = queries.PruneRevisions(ctx, snapshot.ContentID, revisionCap)
 	if err != nil {
-		return fmt.Errorf("%s: prune revisions: %w", s.backend.Engine, err)
+		return fmt.Errorf("%s: prune revisions: %w", s.backend.Engine, s.classify(err))
 	}
 	return nil
 }

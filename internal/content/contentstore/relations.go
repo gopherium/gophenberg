@@ -52,7 +52,7 @@ func writeRelations(
 func (s *Store) fieldsOfGroups(ctx context.Context, queries Queries, matching []int) ([]content.Field, error) {
 	rows, err := queries.ListContentFields(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%s: list content fields: %w", s.backend.Engine, err)
+		return nil, fmt.Errorf("%s: list content fields: %w", s.backend.Engine, s.classify(err))
 	}
 	held := typestore.FieldsByGroup(rows)
 	var declared []content.Field
@@ -66,7 +66,7 @@ func (s *Store) fieldsOfGroups(ctx context.Context, queries Queries, matching []
 func (s *Store) matchingGroupIDs(ctx context.Context, queries Queries, typeKey string) ([]int, error) {
 	rows, err := queries.ListFieldGroups(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%s: list field groups: %w", s.backend.Engine, err)
+		return nil, fmt.Errorf("%s: list field groups: %w", s.backend.Engine, s.classify(err))
 	}
 	var ids []int
 	for _, row := range rows {
@@ -142,11 +142,11 @@ func (s *Store) RelatedTo(
 ) ([]content.Content, int, error) {
 	total, err := s.backend.Pool.CountRelatedContent(ctx, target)
 	if err != nil {
-		return nil, 0, fmt.Errorf("%s: count related content: %w", s.backend.Engine, err)
+		return nil, 0, fmt.Errorf("%s: count related content: %w", s.backend.Engine, s.classify(err))
 	}
 	rows, err := s.backend.Pool.ListRelatedContent(ctx, target, perPage, content.PageOffset(page, perPage))
 	if err != nil {
-		return nil, 0, fmt.Errorf("%s: list related content: %w", s.backend.Engine, err)
+		return nil, 0, fmt.Errorf("%s: list related content: %w", s.backend.Engine, s.classify(err))
 	}
 	items := make([]content.Content, len(rows))
 	for i, row := range rows {
@@ -175,13 +175,13 @@ func (s *Store) PointingAt(
 ) ([]content.Pointer, int, error) {
 	total, err := s.backend.Pool.CountPointingAt(ctx, target, field)
 	if err != nil {
-		return nil, 0, fmt.Errorf("%s: count pointing at: %w", s.backend.Engine, err)
+		return nil, 0, fmt.Errorf("%s: count pointing at: %w", s.backend.Engine, s.classify(err))
 	}
 	rows, err := s.backend.Pool.PointingAt(ctx, Pointing{
 		Target: target, FieldID: field, Limit: perPage, Offset: content.PageOffset(page, perPage),
 	})
 	if err != nil {
-		return nil, 0, fmt.Errorf("%s: list pointing at: %w", s.backend.Engine, err)
+		return nil, 0, fmt.Errorf("%s: list pointing at: %w", s.backend.Engine, s.classify(err))
 	}
 	held := make([]content.Pointer, len(rows))
 	copy(held, rows)
@@ -192,7 +192,7 @@ func (s *Store) PointingAt(
 func (s *Store) TargetsByIDs(ctx context.Context, ids []uuid.UUID) ([]content.Target, error) {
 	rows, err := s.backend.Pool.SummariesOfTargets(ctx, ids)
 	if err != nil {
-		return nil, fmt.Errorf("%s: list target summaries: %w", s.backend.Engine, err)
+		return nil, fmt.Errorf("%s: list target summaries: %w", s.backend.Engine, s.classify(err))
 	}
 	held := make([]content.Target, len(rows))
 	copy(held, rows)

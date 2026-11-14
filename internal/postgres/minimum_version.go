@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/gopherium/gophenberg/internal/version"
@@ -33,7 +34,7 @@ func StoredMinimumVersion(ctx context.Context, db *sql.DB) (string, error) {
 	case errors.Is(err, sql.ErrNoRows), missingTable(err):
 		return "", nil
 	case err != nil:
-		return "", fmt.Errorf("postgres: read the stored minimum version: %w", err)
+		return "", fmt.Errorf("postgres: read the stored minimum version: %w", dbkitpg.Classify(err))
 	}
 	return minimum, nil
 }
@@ -56,7 +57,7 @@ func RaiseMinimumVersion(ctx context.Context, db *sql.DB, minimum string) error 
 func raiseFrom(ctx context.Context, db *sql.DB, stored, minimum string) (bool, error) {
 	result, err := db.ExecContext(ctx, minimumVersionRaise, minimumVersionKey, minimum, stored)
 	if err != nil {
-		return false, fmt.Errorf("postgres: raise the stored minimum version to %s: %w", minimum, err)
+		return false, fmt.Errorf("postgres: raise the stored minimum version to %s: %w", minimum, dbkitpg.Classify(err))
 	}
 	rows, err := result.RowsAffected()
 	return rows > 0, err

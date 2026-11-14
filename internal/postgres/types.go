@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/gopherium/framework/dbkit"
+	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -78,6 +79,7 @@ func NewTypeStore(pool *pgxpool.Pool) *TypeStore {
 		InTx:      inTx(pool, queries),
 		Rules:     rulesBroken,
 		ReadError: readError,
+		Classify:  dbkitpg.Classify,
 	})}
 }
 

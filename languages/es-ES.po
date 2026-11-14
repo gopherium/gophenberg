@@ -2868,3 +2868,6 @@ msgstr "YB"
 msgctxt "unit symbol"
 msgid "ZB"
 msgstr "ZB"
+
+msgid "The database was busy. Try again."
+msgstr "La base de datos estaba ocupada. Inténtalo de nuevo."
