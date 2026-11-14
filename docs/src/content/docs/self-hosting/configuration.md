@@ -1299,10 +1299,11 @@ time=2026-11-09T10:12:44.211Z level=INFO msg="plugin hook ran out of time" plugi
 The budget only tells a plugin to stop. A plugin that ignores its
 context holds the page or the save until it returns.
 
-Each read the site makes to hand an item to `content.changed` also
-gets `GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET`. When one fails, such as
-when the database stops answering, the site logs a warning naming the
-change and tells no plugin of it:
+Each read the site makes for `content.changed`, of an item or of the
+type it belongs to, also gets `GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET`.
+When one fails, such as when the database stops answering, the site
+cannot tell what visitors see, so it logs a warning naming the change
+and tells no plugin of it:
 
 ```text
 time=2026-11-11T10:12:44.302Z level=WARN msg="plugins not told of a content change" change=published error="contentbridge: read the type post: context deadline exceeded"

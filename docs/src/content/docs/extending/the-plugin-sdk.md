@@ -521,7 +521,8 @@ reached it at before, so a plugin can send the old address on or drop
 what it cached there. It is empty when the item did not move. Each
 published item under a moved one, at any depth, reaches the plugin
 after it as its own `Published` change with its own `PreviousPath`,
-even when the moved one is a draft.
+even when the moved one is a draft. An item that a later write
+changed first reaches the plugin through that write instead.
 
 Writes visitors never see call no plugin: creating an item, an
 autosave, an edit to a draft, a restore from the trash and emptying
