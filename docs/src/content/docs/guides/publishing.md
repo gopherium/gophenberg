@@ -34,10 +34,18 @@ page, the editor sends unsaved work to the server. On a published post it is par
 separately, so readers never see half-finished edits. On your own
 draft it is written into the draft itself, which is not public
 either way. A post in the trash takes no autosave and no edits.
+**Move to trash** in the editor sends the unsaved work first. If
+that fails, the post stays out of the trash with your words still
+in the editor. The trash keeps every author's parked work, and a
+permanent delete or **Empty Trash** removes it with the post.
 
 If the server holds newer parked work than the post, opening it
 shows a banner with **Restore**, which loads the kept words as
 unsaved changes for you to keep or discard.
+Work parked after the post's last save stays newer through the
+trash. Bring the post back with **Undo** or from the Trash tab, and
+opening it shows the banner again. Work parked before the last save
+stays hidden.
 
 ## Statuses
 

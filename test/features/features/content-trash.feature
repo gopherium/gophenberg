@@ -1,6 +1,7 @@
 Feature: The trash
   A trashed item waits to be restored or deleted for good. While it waits it
-  takes no edits and no new words, and holds no words parked before it left.
+  takes no edits and no new words, and keeps the words parked before it left.
+  Words parked after its last save still count as new once it comes back.
 
   Background:
     Given a running Gophenberg with the default content types
@@ -45,9 +46,32 @@ Feature: The trash
     And the administrator files "Team" under "About"
     Then the request is refused with the code "content_trashed"
 
-  Scenario: A post sent to the trash holds no parked words
+  Scenario: A post sent to the trash keeps its parked words
     Given the published post "Hello world"
     And the editor parked "Hello again" on "Hello world"
     When the administrator trashes "Hello world"
     And the editor opens the autosave of "Hello world"
-    Then the request is refused with the code "revision_not_found"
+    Then the autosave holds the title "Hello again"
+
+  Scenario: A post back from the trash keeps its parked words
+    Given the published post "Hello world"
+    And the editor parked "Hello again" on "Hello world"
+    When the administrator trashes "Hello world"
+    And the administrator restores "Hello world"
+    And the editor opens the autosave of "Hello world"
+    Then the autosave holds the title "Hello again"
+
+  Scenario: Words parked before a trash are no older than the post once it comes back
+    Given the published post "Hello world"
+    And the editor parked "Hello again" on "Hello world"
+    When the administrator trashes "Hello world"
+    And the administrator restores "Hello world"
+    Then the autosave of "Hello world" is no older than the post
+
+  Scenario: Words parked before the last save stay older than the post once it comes back
+    Given the published post "Hello world"
+    And the editor parked "Hello again" on "Hello world"
+    When the editor saves "Hello world" as "Hello there"
+    And the administrator trashes "Hello world"
+    And the administrator restores "Hello world"
+    Then the autosave of "Hello world" is older than the post

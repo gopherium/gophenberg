@@ -301,9 +301,11 @@ WHERE r.content_id = @content_id AND r.author_id = @author_id AND r.kind = 'auto
 DELETE FROM core.content_revisions AS r
 WHERE r.content_id = @content_id AND r.author_id = @author_id AND r.kind = 'autosave';
 
--- name: DeleteAutosavesOfContent :exec
-DELETE FROM core.content_revisions AS r
-WHERE r.content_id = @content_id AND r.kind = 'autosave';
+-- name: RestampNewerAutosaves :exec
+UPDATE core.content_revisions AS r
+SET created_at = @saved_at
+WHERE r.content_id = @content_id AND r.kind = 'autosave'
+    AND r.created_at >= (SELECT p.updated_at FROM core.content p WHERE p.id = r.content_id);
 
 -- name: ContentDepth :one
 WITH RECURSIVE below AS (

@@ -99,7 +99,7 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 	const settings = useMemo(() => editorSettings(width.narrow), [width.narrow])
 	const toaster = useToaster()
 	useBlockNotices(toaster.show)
-	useAutosave(postId, buffer)
+	const parkNow = useAutosave(postId, buffer)
 	const closeSettings = () => {
 		const toggle = settingsRef.current as HTMLButtonElement
 		views.closeSidebar()
@@ -151,7 +151,12 @@ function Editor({ postId, stored }: { postId: string, stored: PostDetail }) {
 									</div>
 								</div>
 								<div className={sidebarClass(views.sidebarMoved)} id={views.sidebarId} hidden={!views.sidebarOpen}>
-									<EditorSidebar postId={postId} buffer={buffer} onClose={closeSettings} />
+									<EditorSidebar
+										postId={postId}
+										buffer={buffer}
+										parkNow={parkNow}
+										onClose={closeSettings}
+									/>
 								</div>
 							</div>
 							{width.narrow ? null : (

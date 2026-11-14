@@ -327,16 +327,6 @@ func (q *Queries) DeleteAutosave(ctx context.Context, arg DeleteAutosaveParams) 
 	return err
 }
 
-const deleteAutosavesOfContent = `-- name: DeleteAutosavesOfContent :exec
-DELETE FROM core.content_revisions AS r
-WHERE r.content_id = $1 AND r.kind = 'autosave'
-`
-
-func (q *Queries) DeleteAutosavesOfContent(ctx context.Context, contentID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteAutosavesOfContent, contentID)
-	return err
-}
-
 const deleteContent = `-- name: DeleteContent :execrows
 DELETE FROM core.content AS p WHERE p.id = $1
 `
@@ -1196,6 +1186,23 @@ WHERE r.from_id = c.id AND c.id = $1
 
 func (q *Queries) RefreshRelationVisibility(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, refreshRelationVisibility, id)
+	return err
+}
+
+const restampNewerAutosaves = `-- name: RestampNewerAutosaves :exec
+UPDATE core.content_revisions AS r
+SET created_at = $1
+WHERE r.content_id = $2 AND r.kind = 'autosave'
+    AND r.created_at >= (SELECT p.updated_at FROM core.content p WHERE p.id = r.content_id)
+`
+
+type RestampNewerAutosavesParams struct {
+	SavedAt   time.Time
+	ContentID uuid.UUID
+}
+
+func (q *Queries) RestampNewerAutosaves(ctx context.Context, arg RestampNewerAutosavesParams) error {
+	_, err := q.db.Exec(ctx, restampNewerAutosaves, arg.SavedAt, arg.ContentID)
 	return err
 }
 

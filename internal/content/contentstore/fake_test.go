@@ -648,9 +648,9 @@ func (q fakeQueries) DeleteAutosave(_ context.Context, contentID, authorID uuid.
 	return q.send("DeleteAutosave", paired{ContentID: contentID, ID: authorID})
 }
 
-// DeleteAutosavesOfContent answers with every autosave of the item removed.
-func (q fakeQueries) DeleteAutosavesOfContent(_ context.Context, contentID uuid.UUID) error {
-	return q.send("DeleteAutosavesOfContent", identified{contentID})
+// RestampNewerAutosaves answers with the item's autosaves saved since it last changed stamped with the moment.
+func (q fakeQueries) RestampNewerAutosaves(_ context.Context, contentID uuid.UUID, at time.Time) error {
+	return q.send("RestampNewerAutosaves", stamped{ID: contentID, At: at})
 }
 
 // TypesOfContent answers with the type of each stored item the identities name.

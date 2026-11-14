@@ -323,11 +323,10 @@ nothing until you add `-yes`, and those four need `-as`. Every start
 deletes the files of an upload that a stop cut short, so run one
 Gophenberg per media folder. A still picture over the pixel limit is
 refused with `image_pixel_budget_exceeded`. A post in the trash is
-read only, and moving a post to the trash deletes the unsaved work
-parked on it, from every author. On a site that builds its own
-plugins, commands such as `list` and `check` register every plugin
-and stop it without starting it, so `Register` must open nothing, and
-`Stop` must work when `Start` never ran.
+read only. On a site that builds its own plugins, commands such as
+`list` and `check` register every plugin and stop it without starting
+it, so `Register` must open nothing, and `Stop` must work when
+`Start` never ran.
 
 Coming from four releases back or older, a browser that saves
 anything from a page on another site is refused with

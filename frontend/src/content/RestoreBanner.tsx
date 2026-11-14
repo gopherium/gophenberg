@@ -26,7 +26,7 @@ function holdsKeptWords(kept: Autosave, stored: PostDetail): boolean {
 }
 
 /**
- * Returns the autosave worth offering over a stored post.
+ * Returns the autosave worth offering over a stored post, one stamped with the post's own moment counting as current.
  * @param kept - The autosave the server holds, or nothing.
  * @param stored - The post as the server last reported it.
  * @returns The autosave to offer, or nothing.
@@ -35,7 +35,8 @@ function offerable(kept: Autosave | null | undefined, stored: PostDetail): Autos
 	if (kept === null || kept === undefined || holdsKeptWords(kept, stored)) {
 		return null
 	}
-	return Date.parse(kept.savedAt) > Date.parse(stored.updatedAt) ? kept : null
+	const current = kept.savedAt === stored.updatedAt || Date.parse(kept.savedAt) > Date.parse(stored.updatedAt)
+	return current ? kept : null
 }
 
 /**

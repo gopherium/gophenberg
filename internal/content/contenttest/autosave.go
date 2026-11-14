@@ -22,8 +22,34 @@ var autosaveCases = []Case{
 	{"SaveAutosaveReportsAVanishedPost", saveAutosaveReportsAVanishedPost},
 	{"DeleteAutosaveRemovesOnlyTheAuthorsBuffer", deleteAutosaveRemovesOnlyTheAuthorsBuffer},
 	{"DeleteAutosaveToleratesAMissingBuffer", deleteAutosaveToleratesAMissingBuffer},
-	{"TrashLeavesNoParkedWords", trashLeavesNoParkedWords},
+	{"TrashKeepsTheAutosaves", trashKeepsTheAutosaves},
+	{"RestoreKeepsTheAutosaves", restoreKeepsTheAutosaves},
+	{"DeleteTakesTheAutosavesAlong", deleteTakesTheAutosavesAlong},
+	{"TrashStampsANewerAutosaveWithTheTrash", trashStampsANewerAutosaveWithTheTrash},
+	{"RestoreStampsTheCarriedAutosaveWithTheRestore", restoreStampsTheCarriedAutosaveWithTheRestore},
+	{"TrashAndRestoreLeaveAnOlderAutosaveAsItWas", trashAndRestoreLeaveAnOlderAutosaveAsItWas},
+	{"ASecondTrashAndRestoreCarryTheAutosaveAgain", aSecondTrashAndRestoreCarryTheAutosaveAgain},
 	{"SaveAutosaveRefusesAnItemInTheTrash", saveAutosaveRefusesAnItemInTheTrash},
+}
+
+// parkTitle parks a buffer holding the title as the author's autosave of the item.
+func parkTitle(t *testing.T, s Stores, item content.Content, author uuid.UUID, title string) {
+	t.Helper()
+	buffer := item
+	buffer.Title = title
+	if _, err := s.Content.SaveAutosave(t.Context(), MustAutosave(t, buffer, author)); err != nil {
+		t.Fatalf("SaveAutosave() error = %v, want nil", err)
+	}
+}
+
+// heldAutosave returns the author's autosave of the item, failing when the store holds none.
+func heldAutosave(t *testing.T, s Stores, item content.Content, author uuid.UUID) content.Revision {
+	t.Helper()
+	kept, err := s.Content.Autosave(t.Context(), item.ID, author)
+	if err != nil {
+		t.Fatalf("Autosave() error = %v, want the parked words kept", err)
+	}
+	return kept
 }
 
 // saveAutosaveStoresTheBuffer parks the buffered title and body as an autosave credited to the author.
@@ -186,16 +212,14 @@ func deleteAutosaveToleratesAMissingBuffer(t *testing.T, s Stores) {
 	}
 }
 
-// trashLeavesNoParkedWords sweeps every author's autosave into the trash and keeps the revisions.
-func trashLeavesNoParkedWords(t *testing.T, s Stores) {
+// trashKeepsTheAutosaves keeps every author's autosave and the revisions while the item waits in the trash.
+func trashKeepsTheAutosaves(t *testing.T, s Stores) {
 	author := s.AddAuthor(t, DefaultAuthor)
 	created := MustCreate(t, s.Content, "Parked", author)
 	other := s.AddAuthor(t, "Another Writer")
-	parkers := []uuid.UUID{author, other}
-	for _, parker := range parkers {
-		if _, err := s.Content.SaveAutosave(t.Context(), MustAutosave(t, created, parker)); err != nil {
-			t.Fatalf("SaveAutosave() error = %v, want nil", err)
-		}
+	parked := map[uuid.UUID]string{author: "Parked by the author", other: "Parked by another writer"}
+	for parker, title := range parked {
+		parkTitle(t, s, created, parker, title)
 	}
 	snapshot, err := content.NewRevision(created, content.RevisionKindRevision, author)
 	if err != nil {
@@ -212,17 +236,142 @@ func trashLeavesNoParkedWords(t *testing.T, s Stores) {
 		t.Fatalf("Trash() error = %v, want nil", err)
 	}
 
-	for _, parker := range parkers {
-		if _, err := s.Content.Autosave(t.Context(), created.ID, parker); !errors.Is(err, content.ErrRevisionNotFound) {
-			t.Errorf("Autosave() error = %v, want the parked words gone with the trash", err)
+	for parker, title := range parked {
+		if kept := heldAutosave(t, s, created, parker).Title; kept != title {
+			t.Errorf("Autosave() title = %q, want %q kept through the trash", kept, title)
 		}
 	}
 	revisions, err := s.Content.Revisions(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("Revisions() error = %v, want nil", err)
 	}
-	if len(revisions) != 1 || revisions[0].Kind != content.RevisionKindRevision {
-		t.Errorf("revisions = %+v, want only the snapshot kept", revisions)
+	if len(revisions) != 3 {
+		t.Errorf("revisions = %+v, want the snapshot and both autosaves kept", revisions)
+	}
+}
+
+// restoreKeepsTheAutosaves brings the item back from the trash with the autosave parked before it left.
+func restoreKeepsTheAutosaves(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	created := MustCreate(t, s.Content, "Parked", author)
+	parkTitle(t, s, created, author, "Parked Buffer")
+	Trash(t, s.Content, created)
+
+	if _, err := s.Content.Restore(t.Context(), created.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("Restore() error = %v, want nil", err)
+	}
+
+	if kept := heldAutosave(t, s, created, author).Title; kept != "Parked Buffer" {
+		t.Errorf("Autosave() title = %q, want the words parked before the trash", kept)
+	}
+}
+
+// deleteTakesTheAutosavesAlong removes the autosaves of an item deleted for good from the trash.
+func deleteTakesTheAutosavesAlong(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	created := MustCreate(t, s.Content, "Parked", author)
+	parkTitle(t, s, created, author, "Parked Buffer")
+	Trash(t, s.Content, created)
+
+	if err := s.Content.Delete(t.Context(), created.ID); err != nil {
+		t.Fatalf("Delete() error = %v, want nil", err)
+	}
+
+	if _, err := s.Content.Autosave(t.Context(), created.ID, author); !errors.Is(err, content.ErrRevisionNotFound) {
+		t.Errorf("Autosave() error = %v, want the autosave gone with its item", err)
+	}
+}
+
+// parkAt parks the item's words as the author's autosave saved at the moment.
+func parkAt(t *testing.T, s Stores, item content.Content, author uuid.UUID, at time.Time) {
+	t.Helper()
+	autosave := MustAutosave(t, item, author)
+	autosave.CreatedAt = at
+	if _, err := s.Content.SaveAutosave(t.Context(), autosave); err != nil {
+		t.Fatalf("SaveAutosave() error = %v, want nil", err)
+	}
+}
+
+// trashedAt moves the item to the trash at the moment and returns it as the store answers.
+func trashedAt(t *testing.T, s Stores, item content.Content, at time.Time) content.Content {
+	t.Helper()
+	trashed, err := s.Content.Trash(t.Context(), item.ID, at)
+	if err != nil {
+		t.Fatalf("Trash() error = %v, want nil", err)
+	}
+	return trashed
+}
+
+// restoredAt brings the item back from the trash at the moment and returns it as the store answers.
+func restoredAt(t *testing.T, s Stores, item content.Content, at time.Time) content.Content {
+	t.Helper()
+	restored, err := s.Content.Restore(t.Context(), item.ID, at)
+	if err != nil {
+		t.Fatalf("Restore() error = %v, want nil", err)
+	}
+	return restored
+}
+
+// trashStampsANewerAutosaveWithTheTrash stamps an autosave saved since the item last changed with the trash.
+func trashStampsANewerAutosaveWithTheTrash(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	created := MustCreate(t, s.Content, "Parked", author)
+	parkAt(t, s, created, author, created.UpdatedAt.Add(time.Minute))
+
+	trashed := trashedAt(t, s, created, created.UpdatedAt.Add(2*time.Minute))
+
+	if saved := heldAutosave(t, s, created, author).CreatedAt; !saved.Equal(trashed.UpdatedAt) {
+		t.Errorf("Autosave() saved at %s, want the trash's %s", saved, trashed.UpdatedAt)
+	}
+}
+
+// restoreStampsTheCarriedAutosaveWithTheRestore stamps the autosave the trash carried with the restore.
+func restoreStampsTheCarriedAutosaveWithTheRestore(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	created := MustCreate(t, s.Content, "Parked", author)
+	parkAt(t, s, created, author, created.UpdatedAt.Add(time.Minute))
+	trashedAt(t, s, created, created.UpdatedAt.Add(2*time.Minute))
+
+	restored := restoredAt(t, s, created, created.UpdatedAt.Add(3*time.Minute))
+
+	if saved := heldAutosave(t, s, created, author).CreatedAt; !saved.Equal(restored.UpdatedAt) {
+		t.Errorf("Autosave() saved at %s, want the restore's %s", saved, restored.UpdatedAt)
+	}
+}
+
+// trashAndRestoreLeaveAnOlderAutosaveAsItWas carries the newer autosave and keeps the stamp of an older one.
+func trashAndRestoreLeaveAnOlderAutosaveAsItWas(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	other := s.AddAuthor(t, "Another Writer")
+	created := MustCreate(t, s.Content, "Parked", author)
+	parkAt(t, s, created, author, created.UpdatedAt.Add(time.Minute))
+	parkAt(t, s, created, other, created.UpdatedAt.Add(-time.Hour))
+	older := heldAutosave(t, s, created, other).CreatedAt
+
+	trashedAt(t, s, created, created.UpdatedAt.Add(2*time.Minute))
+	restored := restoredAt(t, s, created, created.UpdatedAt.Add(3*time.Minute))
+
+	if saved := heldAutosave(t, s, created, other).CreatedAt; !saved.Equal(older) {
+		t.Errorf("older Autosave() saved at %s, want %s kept", saved, older)
+	}
+	if saved := heldAutosave(t, s, created, author).CreatedAt; !saved.Equal(restored.UpdatedAt) {
+		t.Errorf("newer Autosave() saved at %s, want the restore's %s", saved, restored.UpdatedAt)
+	}
+}
+
+// aSecondTrashAndRestoreCarryTheAutosaveAgain carries an autosave stamped by the first restore through the next.
+func aSecondTrashAndRestoreCarryTheAutosaveAgain(t *testing.T, s Stores) {
+	author := s.AddAuthor(t, DefaultAuthor)
+	created := MustCreate(t, s.Content, "Parked", author)
+	parkAt(t, s, created, author, created.UpdatedAt.Add(time.Minute))
+	trashedAt(t, s, created, created.UpdatedAt.Add(2*time.Minute))
+	restoredAt(t, s, created, created.UpdatedAt.Add(3*time.Minute))
+
+	trashedAt(t, s, created, created.UpdatedAt.Add(4*time.Minute))
+	restored := restoredAt(t, s, created, created.UpdatedAt.Add(5*time.Minute))
+
+	if saved := heldAutosave(t, s, created, author).CreatedAt; !saved.Equal(restored.UpdatedAt) {
+		t.Errorf("Autosave() saved at %s, want the second restore's %s", saved, restored.UpdatedAt)
 	}
 }
 

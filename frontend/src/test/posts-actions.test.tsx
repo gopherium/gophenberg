@@ -205,6 +205,43 @@ test('restores the trashed post on a press on Undo and names it in a toast', asy
 	expect(restored).toEqual([PUBLISHED.id])
 })
 
+test('sends the trash of a post only once the autosave its editor sent as it closed has answered', async () => {
+	const order: string[] = []
+	const answer = gate()
+	server.use(
+		http.post('/api/content/:id/autosave', async ({ request, params }) => {
+			const body = (await request.json()) as Record<string, unknown>
+			order.push('autosave')
+			await answer.held
+			order.push('answered')
+			return HttpResponse.json({
+				...body,
+				target: 'autosave',
+				content_id: params.id,
+				saved_at: PUBLISHED.updated_at,
+			})
+		}),
+		http.delete('/api/content/:id', ({ params }) => {
+			order.push('trash')
+			trashed.push(String(params.id))
+			return HttpResponse.json({ ...PUBLISHED, status: 'trash' })
+		}),
+	)
+	renderAt(`/content/post/${PUBLISHED.id}/edit`)
+	await userEvent.type(await screen.findByRole('textbox', { name: 'Title' }), '!')
+	await userEvent.click(screen.getByRole('link', { name: 'Back to posts' }))
+	await waitFor(() => expect(order).toEqual(['autosave']))
+
+	await trashTheListedPost()
+	await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+
+	expect(order).toEqual(['autosave'])
+	answer.release()
+	await findActionToast('"Welcome to Gophenberg" moved to the trash.')
+	expect(order).toEqual(['autosave', 'answered', 'trash'])
+	expect(trashed).toEqual([PUBLISHED.id])
+})
+
 test('moves the focus to the list once the trash finishes, and to the next row once the rows land', async () => {
 	const next = { ...PUBLISHED, id: '019fb000-0000-7000-8000-000000000002', slug: 'next', title: 'Notes for Next Week' }
 	server.use(http.get('/api/content', () => HttpResponse.json({ items: [PUBLISHED, next], total: 2 })))

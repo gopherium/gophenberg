@@ -9,12 +9,20 @@ import type { EditorBuffer } from './useEditorBuffer'
 
 /**
  * Renders the editor sidebar holding the document and block panels.
- * @param props - The post being edited, the buffer its panels drive and what closing the sidebar does.
+ * @param props - The post being edited, the buffer its panels drive, what parks its words now and what closing does.
  * @returns The sidebar element.
  */
-export function EditorSidebar(
-	{ postId, buffer, onClose }: { postId: string, buffer: EditorBuffer, onClose: () => void },
-) {
+export function EditorSidebar({
+	postId,
+	buffer,
+	parkNow,
+	onClose,
+}: {
+	postId: string
+	buffer: EditorBuffer
+	parkNow: () => Promise<() => void>
+	onClose: () => void
+}) {
 	return (
 		<Tabs.Root defaultValue="document">
 			<div className="gophenberg-editor__sidebar-header">
@@ -32,7 +40,7 @@ export function EditorSidebar(
 				/>
 			</div>
 			<Tabs.Panel value="document" className="gophenberg-editor__sidebar-panel">
-				<DocumentPanels postId={postId} buffer={buffer} />
+				<DocumentPanels postId={postId} buffer={buffer} parkNow={parkNow} />
 			</Tabs.Panel>
 			<Tabs.Panel value="block">
 				<BlockInspector />

@@ -141,6 +141,17 @@ test('says nothing when the kept words trail the post inside one second', async 
 	expect(screen.queryByRole('button', { name: 'Restore' })).not.toBeInTheDocument()
 })
 
+test('offers the kept words stamped with the very moment the post came back from the trash', async () => {
+	const restoredAt = '2026-07-29T09:00:00.123456Z'
+	server.use(
+		http.get(`/api/content/${storedPost.id}`, () => HttpResponse.json({ ...storedPost, updated_at: restoredAt })),
+	)
+	serveAutosave({ ...NEWER, saved_at: restoredAt })
+	renderAt(EDITOR_PATH)
+
+	expect(await screen.findByRole('button', { name: 'Restore' })).toBeInTheDocument()
+})
+
 test('offers the kept words when they are newer than the post', async () => {
 	serveAutosave(NEWER)
 	renderAt(EDITOR_PATH)

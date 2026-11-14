@@ -13,6 +13,7 @@ import (
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/content/contenttest"
+	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
 // mustAutosave is the shared fixture under the name these tests use.
@@ -33,24 +34,100 @@ func addAuthor(t *testing.T, pool *pgxpool.Pool, name string) uuid.UUID {
 	return author
 }
 
-func TestTrashQueuedBehindAnAutosaveSweepsIt(t *testing.T) {
+// parkedAt stores a revision row of the kind over the item, credited to the author and saved at the moment.
+func parkedAt(t *testing.T, pool *pgxpool.Pool, item, author uuid.UUID, kind string, at time.Time) uuid.UUID {
+	t.Helper()
+	id := uuid.Must(uuid.NewV7())
+	if _, err := pool.Exec(t.Context(),
+		`INSERT INTO core.content_revisions
+		(id, content_id, kind, author_id, title, content, excerpt, fields, created_at)
+		VALUES ($1, $2, $3, $4, 'Parked', '', '', '{}', $5)`,
+		id, item, kind, author, at); err != nil {
+		t.Fatalf("storing the %s: %v", kind, err)
+	}
+	return id
+}
+
+// savedAtOf returns when the revision row was saved.
+func savedAtOf(t *testing.T, pool *pgxpool.Pool, id uuid.UUID) time.Time {
+	t.Helper()
+	var at time.Time
+	if err := pool.QueryRow(t.Context(),
+		`SELECT created_at FROM core.content_revisions WHERE id = $1`, id).Scan(&at); err != nil {
+		t.Fatalf("reading the revision row %s: %v", id, err)
+	}
+	return at.UTC()
+}
+
+func TestRestampNewerAutosavesStampsOnlyTheAutosavesSavedSinceTheItemLastChanged(t *testing.T) {
+	t.Parallel()
+
+	store, author, pool := newContentStoreWithPool(t)
+	created := mustCreate(t, store, "Restamped", author)
+	other := mustCreate(t, store, "Untouched", author)
+	since := created.UpdatedAt
+	stamp := since.Add(2 * time.Minute)
+	rows := []struct {
+		name string
+		id   uuid.UUID
+		want time.Time
+	}{
+		{"the newer autosave", parkedAt(t, pool, created.ID, author, "autosave", since.Add(time.Minute)), stamp},
+		{
+			"the autosave saved with the item",
+			parkedAt(t, pool, created.ID, addAuthor(t, pool, "Equal Writer"), "autosave", since), stamp,
+		},
+		{
+			"the older autosave",
+			parkedAt(t, pool, created.ID, addAuthor(t, pool, "Older Writer"), "autosave", since.Add(-time.Hour)),
+			since.Add(-time.Hour),
+		},
+		{
+			"the newer revision",
+			parkedAt(t, pool, created.ID, author, "revision", since.Add(time.Minute)), since.Add(time.Minute),
+		},
+		{
+			"the newer autosave of another item",
+			parkedAt(t, pool, other.ID, author, "autosave", other.UpdatedAt.Add(time.Minute)),
+			other.UpdatedAt.Add(time.Minute),
+		},
+	}
+
+	err := db.New(pool).RestampNewerAutosaves(t.Context(), db.RestampNewerAutosavesParams{
+		SavedAt: stamp, ContentID: created.ID,
+	})
+
+	if err != nil {
+		t.Fatalf("RestampNewerAutosaves() error = %v, want nil", err)
+	}
+	for _, row := range rows {
+		if got := savedAtOf(t, pool, row.id); !got.Equal(row.want) {
+			t.Errorf("%s is saved at %s, want %s", row.name, got, row.want)
+		}
+	}
+}
+
+func TestTrashQueuedBehindAnAutosaveStampsItWithTheTrash(t *testing.T) {
 	t.Parallel()
 
 	store, author, pool := newContentStoreWithPool(t)
 	created := mustCreate(t, store, "Contended", author)
 	rival := rivalTransaction(t, pool)
 	if _, err := rival.Exec(t.Context(),
-		`INSERT INTO core.content_revisions (id, content_id, kind, author_id, title, content, excerpt, fields, created_at)
-		VALUES ($1, $2, 'autosave', $3, 'Parked', '', '', '{}', now())`,
-		uuid.Must(uuid.NewV7()), created.ID, author); err != nil {
+		`INSERT INTO core.content_revisions
+		(id, content_id, kind, author_id, title, content, excerpt, fields, created_at)
+		VALUES ($1, $2, 'autosave', $3, 'Parked', '', '', '{}', $4)`,
+		uuid.Must(uuid.NewV7()), created.ID, author, created.UpdatedAt.Add(time.Minute)); err != nil {
 		t.Fatalf("parking the rival words: %v", err)
 	}
-	trashed := make(chan error, 1)
+	trashed := make(chan content.Content, 1)
+	failed := make(chan error, 1)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		_, err := store.Trash(ctx, created.ID, time.Now().UTC())
-		trashed <- err
+		item, err := store.Trash(ctx, created.ID, time.Now().UTC())
+		trashed <- item
+		failed <- err
 	}()
 	waitingOn(t, pool, "%FROM core.content p%FOR UPDATE%")
 
@@ -58,11 +135,16 @@ func TestTrashQueuedBehindAnAutosaveSweepsIt(t *testing.T) {
 		t.Fatalf("committing the rival words: %v", err)
 	}
 
-	if err := <-trashed; err != nil {
+	if err := <-failed; err != nil {
 		t.Fatalf("Trash() error = %v, want nil", err)
 	}
-	if _, err := store.Autosave(t.Context(), created.ID, author); !errors.Is(err, content.ErrRevisionNotFound) {
-		t.Errorf("Autosave() error = %v, want the words parked before the trash swept", err)
+	item := <-trashed
+	parked, err := store.Autosave(t.Context(), created.ID, author)
+	if err != nil {
+		t.Fatalf("Autosave() error = %v, want the rival words kept", err)
+	}
+	if !parked.CreatedAt.Equal(item.UpdatedAt) {
+		t.Errorf("Autosave() saved at %s, want the trash's %s", parked.CreatedAt, item.UpdatedAt)
 	}
 }
 

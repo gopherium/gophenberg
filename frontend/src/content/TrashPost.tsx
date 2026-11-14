@@ -11,11 +11,13 @@ import { restorePost, trashPost } from './api'
 import { useListOnShow } from './listOnShow'
 
 /**
- * Renders the control moving the post being edited to the trash at once, its toast offering Undo.
- * @param props - The post to trash and the name it is known by.
+ * Renders the control parking the unsaved words, then moving the post to the trash at once, its toast offering Undo.
+ * @param props - The post to trash, the name it is known by and what parks its unsaved words at once.
  * @returns The trash control, busy while the trash runs.
  */
-export function TrashPost({ postId, title }: { postId: string, title: string }) {
+export function TrashPost(
+	{ postId, title, parkNow }: { postId: string, title: string, parkNow: () => Promise<() => void> },
+) {
 	const navigate = useNavigate()
 	const router = useRouter()
 	const refresh = useRefresh()
@@ -39,10 +41,14 @@ export function TrashPost({ postId, title }: { postId: string, title: string }) 
 			},
 		)
 	}
+	const unsaved = () => {
+		const words = __('"%s" was not moved to the trash, because its changes could not be saved.', 'gophenberg')
+		throw new Error(sprintf(words, named))
+	}
 	const trash = () => {
 		setTrashing(true)
 		const editing = router.latestLocation.pathname
-		void trashPost(postId).then(
+		void parkNow().then((trashed) => trashPost(postId).then(trashed), unsaved).then(
 			async () => {
 				if (router.latestLocation.pathname === editing) {
 					await navigate({ to: '/content/$typeKey' })

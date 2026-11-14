@@ -7,6 +7,7 @@ import type { BulkRun, DialogRun, ListRun, Trigger } from '@gopherium/godmin'
 import { useSession } from '@gopherium/react-auth'
 import { __, _x } from '@wordpress/i18n'
 import { useQueryClient } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 
 import { deleteTitle, deleteWords } from '../lists/itemWords'
@@ -14,6 +15,7 @@ import { deleteDescription, postName, restoreWords, trashWords } from './actionW
 import { deletePost, restorePost, trashPost } from './api'
 import type { Post } from './api'
 import { DuplicateDialog, RenamePostDialog } from './NameModals'
+import { writesSettled } from './postWrites'
 import type { ContentType } from './types'
 
 /**
@@ -40,6 +42,8 @@ interface PostTools {
 	write: DialogRun<Post>
 	/** Takes the posts with the given ids off the ticked rows, keeping every other tick. */
 	unpick: (ids: string[]) => void
+	/** Holds the writes still in flight to each post. */
+	client: QueryClient
 }
 
 /** A dialog the screen holds open on the picked posts. */
@@ -59,11 +63,12 @@ export interface OpenedPosts {
  * @returns The tools, whose run and write reload the listing and forget each post they acted on.
  */
 export function usePostTools(list: ListRun, unpick: (ids: string[]) => void): PostTools {
+	const client = useQueryClient()
 	const refresh = useRefresh()
 	const refreshPosts = useCallback((posts: Post[]) => refresh(posts.map((post) => post.id)), [refresh])
 	const run = useBulkRun(list, refreshPosts)
 	const write = useDialogRun(list, refreshPosts)
-	return useMemo(() => ({ run, write, unpick }), [run, write, unpick])
+	return useMemo(() => ({ run, write, unpick, client }), [run, write, unpick, client])
 }
 
 /** The row forms the screen holds open on one post, by the action they belong to. */
@@ -143,16 +148,28 @@ function trashViewActions(
 }
 
 /**
+ * Moves a post to the trash once every write still in flight to it has answered.
+ * @param client - The query client holding the writes in flight.
+ * @param post - The post to trash.
+ * @returns The trashed post.
+ */
+async function trashed(client: QueryClient, post: Post): Promise<Post> {
+	await writesSettled(client, post.id)
+	return trashPost(post.id)
+}
+
+/**
  * Returns the trash over the picked posts, run at once, its toast offering Undo, every post it moved left unticked.
- * @param tools - Runs one call over the picked posts and takes the posts it moved off the ticked rows.
+ * @param tools - Runs one call over the picked posts, takes the posts it moved off the ticked rows and holds the writes
+ *   still in flight to each post.
  * @param type - The content type the list shows.
- * @returns The handler the trash action calls.
+ * @returns The handler the trash action calls, each post trashed once the writes still in flight to it have answered.
  */
 function trashing(tools: PostTools, type: string): (posts: Post[]) => Promise<void> {
-	const { run, unpick } = tools
+	const { run, unpick, client } = tools
 	return async (posts) => {
 		const moved: string[] = []
-		await run(posts, (post) => trashPost(post.id).then(() => moved.push(post.id)), {
+		await run(posts, (post) => trashed(client, post).then(() => moved.push(post.id)), {
 			...trashWords(),
 			undo: (done) => ({
 				label: __('Undo', 'gophenberg'),
