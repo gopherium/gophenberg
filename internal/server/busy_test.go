@@ -196,3 +196,12 @@ func TestSettingsPatchThatStoredTheValueNeverAnswersDatabaseBusy(t *testing.T) {
 		t.Errorf("code = %q after the value was stored, want no answer telling the reader nothing was saved", code)
 	}
 }
+
+func TestSettingsPatchThatStoredNothingAnswersABusyReadAsDatabaseBusy(t *testing.T) {
+	t.Parallel()
+
+	handler, settings := localeServer(t)
+	settings.lookupErr = errBusy
+
+	wantBusyAnswer(t, askLocale(handler, http.MethodPatch, "/api/settings", `{}`))
+}
