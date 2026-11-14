@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,12 +22,18 @@ type typeQueries struct {
 	queries *db.Queries
 }
 
-// inTx returns the transactor that runs each write inside one pgx transaction on the pool.
-func inTx(pool *pgxpool.Pool, queries *db.Queries) typestore.Transactor {
+// sentOn returns the type statements sent on conn, each failure marked with its dbkit class.
+func sentOn(conn db.DBTX) typeQueries {
+	marked := classified{conn: conn}
+	return typeQueries{conn: marked, queries: db.New(marked)}
+}
+
+// inTx returns the transactor running each write in one pgx transaction, marking its failure.
+func inTx(pool *pgxpool.Pool) typestore.Transactor {
 	return func(ctx context.Context, write func(typestore.Queries) error) error {
-		return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-			return write(typeQueries{conn: tx, queries: queries.WithTx(tx)})
-		})
+		return dbkitpg.Classify(pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+			return write(sentOn(tx))
+		}))
 	}
 }
 

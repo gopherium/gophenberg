@@ -6,13 +6,11 @@ import (
 	"errors"
 
 	"github.com/gopherium/framework/dbkit"
-	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
 	"github.com/gopherium/gophenberg/internal/content/typestore"
-	"github.com/gopherium/gophenberg/internal/postgres/db"
 )
 
 var _ content.TypeStore = (*TypeStore)(nil)
@@ -72,14 +70,12 @@ type TypeStore struct {
 
 // NewTypeStore returns a [TypeStore] backed by pool.
 func NewTypeStore(pool *pgxpool.Pool) *TypeStore {
-	queries := db.New(pool)
 	return &TypeStore{Store: typestore.New(typestore.Backend{
 		Engine:    dbkit.Postgres,
-		Pool:      typeQueries{conn: pool, queries: queries},
-		InTx:      inTx(pool, queries),
+		Pool:      sentOn(pool),
+		InTx:      inTx(pool),
 		Rules:     rulesBroken,
 		ReadError: readError,
-		Classify:  dbkitpg.Classify,
 	})}
 }
 

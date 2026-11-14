@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gopherium/framework/dbkit"
-	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -28,7 +27,7 @@ type MediaStore struct {
 
 // NewMediaStore returns a [MediaStore] backed by pool.
 func NewMediaStore(pool *pgxpool.Pool) *MediaStore {
-	return &MediaStore{queries: db.New(pool)}
+	return &MediaStore{queries: db.New(classified{conn: pool})}
 }
 
 // Create stores a new media item and returns it with its assigned identifier.
@@ -50,7 +49,7 @@ func (s *MediaStore) Create(ctx context.Context, m media.Media) (media.Media, er
 		UpdatedAt:   m.UpdatedAt,
 	})
 	if err != nil {
-		return media.Media{}, fmt.Errorf("postgres: create media: %w", dbkitpg.Classify(err))
+		return media.Media{}, fmt.Errorf("postgres: create media: %w", err)
 	}
 	return toMedia(row), nil
 }
@@ -62,7 +61,7 @@ func (s *MediaStore) ByID(ctx context.Context, id int64) (media.Media, error) {
 		return media.Media{}, media.ErrNotFound
 	}
 	if err != nil {
-		return media.Media{}, fmt.Errorf("postgres: get media: %w", dbkitpg.Classify(err))
+		return media.Media{}, fmt.Errorf("postgres: get media: %w", err)
 	}
 	return toMedia(row), nil
 }
@@ -74,7 +73,7 @@ func (s *MediaStore) ByIDs(ctx context.Context, ids []int64) ([]media.Media, err
 	}
 	rows, err := s.queries.ListMediaByIDs(ctx, ids)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: list media by ids: %w", dbkitpg.Classify(err))
+		return nil, fmt.Errorf("postgres: list media by ids: %w", err)
 	}
 	listed := make([]media.Media, len(rows))
 	for i, row := range rows {
@@ -87,7 +86,7 @@ func (s *MediaStore) ByIDs(ctx context.Context, ids []int64) ([]media.Media, err
 func (s *MediaStore) Saved(ctx context.Context, files []string) (map[string]bool, error) {
 	held, err := s.queries.ListSavedMediaFiles(ctx, files)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: list saved media files: %w", dbkitpg.Classify(err))
+		return nil, fmt.Errorf("postgres: list saved media files: %w", err)
 	}
 	saved := make(map[string]bool, len(held))
 	for _, file := range held {
@@ -101,7 +100,7 @@ func (s *MediaStore) List(ctx context.Context, f media.Filter) ([]media.Listed, 
 	narrowed := mediaNarrowing(f)
 	total, err := s.queries.CountMedia(ctx, narrowed)
 	if err != nil {
-		return nil, 0, fmt.Errorf("postgres: count media: %w", dbkitpg.Classify(err))
+		return nil, 0, fmt.Errorf("postgres: count media: %w", err)
 	}
 	rows, err := s.queries.ListMedia(ctx, db.ListMediaParams{
 		MediaType:       narrowed.MediaType,
@@ -119,7 +118,7 @@ func (s *MediaStore) List(ctx context.Context, f media.Filter) ([]media.Listed, 
 		RowOffset:       int32(content.PageOffset(f.Page, f.PerPage)),
 	})
 	if err != nil {
-		return nil, 0, fmt.Errorf("postgres: list media: %w", dbkitpg.Classify(err))
+		return nil, 0, fmt.Errorf("postgres: list media: %w", err)
 	}
 	items := make([]media.Listed, len(rows))
 	for i, row := range rows {
@@ -146,7 +145,7 @@ func (s *MediaStore) Update(ctx context.Context, m media.Media, expectedUpdatedA
 		return media.Media{}, media.ErrConflict
 	}
 	if err != nil {
-		return media.Media{}, fmt.Errorf("postgres: update media: %w", dbkitpg.Classify(err))
+		return media.Media{}, fmt.Errorf("postgres: update media: %w", err)
 	}
 	return toMedia(row), nil
 }
@@ -158,7 +157,7 @@ func (s *MediaStore) Delete(ctx context.Context, id int64) (media.Media, error) 
 		return media.Media{}, media.ErrNotFound
 	}
 	if err != nil {
-		return media.Media{}, fmt.Errorf("postgres: delete media: %w", dbkitpg.Classify(err))
+		return media.Media{}, fmt.Errorf("postgres: delete media: %w", err)
 	}
 	return toMedia(row), nil
 }

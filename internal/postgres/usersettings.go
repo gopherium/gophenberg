@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -25,7 +24,7 @@ type UserSettingStore struct {
 
 // NewUserSettingStore returns a [UserSettingStore] backed by pool.
 func NewUserSettingStore(pool *pgxpool.Pool) *UserSettingStore {
-	return &UserSettingStore{queries: db.New(pool)}
+	return &UserSettingStore{queries: db.New(classified{conn: pool})}
 }
 
 // Lookup returns the value the reader stored under key, and whether it is set at all.
@@ -37,7 +36,7 @@ func (s *UserSettingStore) Lookup(
 		return "", false, nil
 	}
 	if err != nil {
-		return "", false, fmt.Errorf("postgres: reading the setting %q: %w", key, dbkitpg.Classify(err))
+		return "", false, fmt.Errorf("postgres: reading the setting %q: %w", key, err)
 	}
 	return value, true, nil
 }
@@ -46,7 +45,7 @@ func (s *UserSettingStore) Lookup(
 func (s *UserSettingStore) Save(ctx context.Context, userID uuid.UUID, key, value string) error {
 	err := s.queries.SetUserSetting(ctx, db.SetUserSettingParams{UserID: userID, Key: key, Value: value})
 	if err != nil {
-		return fmt.Errorf("postgres: writing the setting %q: %w", key, dbkitpg.Classify(err))
+		return fmt.Errorf("postgres: writing the setting %q: %w", key, err)
 	}
 	return nil
 }

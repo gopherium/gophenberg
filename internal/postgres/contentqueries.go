@@ -27,14 +27,12 @@ type ContentStore struct {
 
 // NewContentStore returns a [ContentStore] backed by pool.
 func NewContentStore(pool *pgxpool.Pool) *ContentStore {
-	queries := db.New(pool)
 	return &ContentStore{Store: contentstore.New(contentstore.Backend{
 		Engine:    dbkit.Postgres,
-		Pool:      contentQueries{typeQueries{conn: pool, queries: queries}},
-		InTx:      contentInTx(pool, queries),
+		Pool:      contentQueries{sentOn(pool)},
+		InTx:      contentInTx(pool),
 		Rules:     contentRulesBroken,
 		ReadError: readError,
-		Classify:  dbkitpg.Classify,
 	})}
 }
 
@@ -58,24 +56,19 @@ type contentTx struct {
 	tx pgx.Tx
 }
 
-// contentInTx returns the transactor that runs each content write inside one pgx transaction on the pool.
-func contentInTx(pool *pgxpool.Pool, queries *db.Queries) contentstore.Transactor {
+// contentInTx returns the transactor running each content write in one pgx transaction, marking its failure.
+func contentInTx(pool *pgxpool.Pool) contentstore.Transactor {
 	return func(ctx context.Context, write func(contentstore.Tx) error) error {
-		return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-			return write(contentTx{contentQueries: boundTo(tx, queries), tx: tx})
-		})
+		return dbkitpg.Classify(pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+			return write(contentTx{contentQueries: contentQueries{sentOn(tx)}, tx: tx})
+		}))
 	}
-}
-
-// boundTo returns the content statements sent on one transaction or savepoint.
-func boundTo(tx pgx.Tx, queries *db.Queries) contentQueries {
-	return contentQueries{typeQueries{conn: tx, queries: queries.WithTx(tx)}}
 }
 
 // Savepoint runs attempt on a savepoint of the transaction, rolling back to it when attempt fails.
 func (q contentTx) Savepoint(ctx context.Context, attempt func(contentstore.Queries) error) error {
 	return pgx.BeginFunc(ctx, q.tx, func(savepoint pgx.Tx) error {
-		return attempt(boundTo(savepoint, q.queries))
+		return attempt(contentQueries{sentOn(savepoint)})
 	})
 }
 
