@@ -529,7 +529,7 @@ func movedOffPagination(moved map[uuid.UUID]content.Content) error {
 	return nil
 }
 
-// carriedUnder returns the item's descendants at their new addresses, or refuses one on root pagination.
+// carriedUnder returns the item's descendants at their new addresses under its stamp, or rejects a root page address.
 func (s *memoryContent) carriedUnder(moved content.Content, was string) (map[uuid.UUID]content.Content, error) {
 	carried := make(map[uuid.UUID]content.Content)
 	if was == moved.Path {
@@ -539,7 +539,7 @@ func (s *memoryContent) carriedUnder(moved content.Content, was string) (map[uui
 		if stored.ID == moved.ID || stored.Type != moved.Type || !strings.HasPrefix(stored.Path, was+"/") {
 			continue
 		}
-		stored.Path = moved.Path + strings.TrimPrefix(stored.Path, was)
+		stored.Path, stored.UpdatedAt = moved.Path+strings.TrimPrefix(stored.Path, was), moved.UpdatedAt
 		if err := offPagination(stored.Path); err != nil {
 			return nil, err
 		}
