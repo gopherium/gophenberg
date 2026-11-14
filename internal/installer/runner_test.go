@@ -157,14 +157,14 @@ func TestTheRunnerReturnsWhatAFailedProgramPrintedAndHowItExited(t *testing.T) {
 	t.Parallel()
 
 	printed, err := installer.RealMachine().Run(t.Context(), installer.Program{
-		Name: "ls", Args: []string{"/gophenberg-missing"},
+		Name: "sh", Args: []string{"-c", "echo 'cannot access /gophenberg-missing' >&2; exit 2"},
 	})
 
 	var exited *exec.ExitError
-	if !errors.As(err, &exited) || exited.ExitCode() != 2 || !strings.HasPrefix(err.Error(), "installer: run ls: ") {
-		t.Errorf("running ls on a missing path = %v, want its exit status 2 named", err)
+	if !errors.As(err, &exited) || exited.ExitCode() != 2 || err.Error() != "installer: run sh: exit status 2" {
+		t.Errorf("running sh that fails = %v, want its exit status 2 named", err)
 	}
-	if want := "/usr/bin/ls: cannot access '/gophenberg-missing': No such file or directory\n"; printed != want {
-		t.Errorf("running ls on a missing path printed %q, want its error in plain C words %q", printed, want)
+	if want := "cannot access /gophenberg-missing\n"; printed != want {
+		t.Errorf("running sh that fails printed %q, want its error %q", printed, want)
 	}
 }
