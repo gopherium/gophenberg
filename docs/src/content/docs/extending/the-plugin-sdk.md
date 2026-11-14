@@ -523,7 +523,9 @@ published item under a moved one, at any depth, reaches the plugin
 after it as its own `Published` change with its own `PreviousPath`,
 even when the moved one is a draft. A published item that another
 write changes at the same moment reaches the plugin through that
-write instead, without the path it had before the move.
+write instead, without the path it had before the move. One that
+another write holds for longer than the save budget is left out and
+logged, so the plugin may not hear its new path at all.
 
 Writes visitors never see call no plugin: creating an item, an
 autosave, an edit to a draft, a restore from the trash and emptying
