@@ -13,6 +13,7 @@ Feature: Plugins hear when a saved write changes what visitors see
 
   Background:
     Given the settings point at an empty database
+    And GOPHENBERG_PLUGIN_HOOK_SAVE_BUDGET is "10s"
     And the compiled plugins "events" and "notes"
     And "notes" hears content changes
     And an administrator account exists
