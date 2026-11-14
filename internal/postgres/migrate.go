@@ -19,7 +19,7 @@ var migrationSource = mustSub(Migrations, "migrations")
 // Migrate applies the core schema migrations on db under goose's advisory lock, opening nothing itself.
 func Migrate(ctx context.Context, db *sql.DB) error {
 	if err := dbkitpg.Migrate(ctx, db, dbkitpg.Migrations{Table: versionTable, FS: migrationSource}); err != nil {
-		return fmt.Errorf("postgres: apply migrations: %w", err)
+		return fmt.Errorf("postgres: apply migrations: %w", dbkitpg.Classify(err))
 	}
 	return nil
 }

@@ -4,8 +4,14 @@ package postgres_test
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/gopherium/framework/dbkit"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/peterldowns/pgtestdb"
 
 	"github.com/gopherium/gophenberg/internal/postgres"
@@ -19,6 +25,19 @@ func emptyDB(t *testing.T) *sql.DB {
 		t.Skip("skipping database test in short mode")
 	}
 	return testdb.Open(t, testdb.New(t, pgtestdb.NoopMigrator{}))
+}
+
+// lockTimedHandle returns a database/sql handle on the database at url whose statements give up on a held lock.
+func lockTimedHandle(t *testing.T, url string) *sql.DB {
+	t.Helper()
+	cfg, err := pgx.ParseConfig(url)
+	if err != nil {
+		t.Fatalf("parsing the handle address: %v", err)
+	}
+	cfg.RuntimeParams["lock_timeout"] = "200ms"
+	handle := stdlib.OpenDB(*cfg)
+	t.Cleanup(func() { _ = handle.Close() })
+	return handle
 }
 
 // raiseMinimumVersion raises the stored minimum version on db to minimum, failing the test on an error.
@@ -123,5 +142,33 @@ func TestMinimumVersionReportsDatabaseFailures(t *testing.T) {
 	}
 	if err := postgres.RaiseMinimumVersion(t.Context(), db, "0.19.0"); err == nil {
 		t.Error("RaiseMinimumVersion() on a closed handle error = nil, want a failure")
+	}
+}
+
+func TestStoredMinimumVersionBehindALockedTableAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	url := migratedAddress(t)
+	holdInRival(t, url, "LOCK TABLE core.settings IN ACCESS EXCLUSIVE MODE")
+
+	_, err := postgres.StoredMinimumVersion(t.Context(), lockTimedHandle(t, url))
+
+	if !errors.Is(err, dbkit.ErrBusy) ||
+		!strings.HasPrefix(fmt.Sprint(err), "postgres: read the stored minimum version: ") {
+		t.Errorf("StoredMinimumVersion() behind a locked table error = %v, want dbkit.ErrBusy under the read", err)
+	}
+}
+
+func TestRaiseMinimumVersionBehindAHeldRowAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	url := migratedAddress(t)
+	holdInRival(t, url, "INSERT INTO core.settings (key, value) VALUES ('minimum_version', '0.19.0')")
+
+	err := postgres.RaiseMinimumVersion(t.Context(), lockTimedHandle(t, url), "0.20.0")
+
+	if !errors.Is(err, dbkit.ErrBusy) ||
+		!strings.Contains(fmt.Sprint(err), "raise the stored minimum version to 0.20.0: ") {
+		t.Errorf("RaiseMinimumVersion() behind a held row error = %v, want dbkit.ErrBusy under the raise", err)
 	}
 }

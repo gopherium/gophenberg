@@ -6,10 +6,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/gopherium/framework/dbkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/peterldowns/pgtestdb"
 	"github.com/pressly/goose/v3/lock"
@@ -141,6 +144,19 @@ func TestMigrateLetsRunsAtOnceAllSucceed(t *testing.T) {
 		if err != nil {
 			t.Errorf("Migrate() error = %v, want every run to succeed", err)
 		}
+	}
+}
+
+func TestMigrateBehindALockedVersionTableAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	url := migratedAddress(t)
+	holdInRival(t, url, "LOCK TABLE goose_db_version IN ACCESS EXCLUSIVE MODE")
+
+	err := postgres.Migrate(t.Context(), lockTimedHandle(t, url))
+
+	if !errors.Is(err, dbkit.ErrBusy) || !strings.HasPrefix(fmt.Sprint(err), "postgres: apply migrations: ") {
+		t.Errorf("Migrate() behind a locked version table error = %v, want dbkit.ErrBusy under the migrations", err)
 	}
 }
 

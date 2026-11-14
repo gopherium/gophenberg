@@ -5,8 +5,7 @@ import { expect, test } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 
-import { errorText } from '../i18n/errors'
-import { errorTemplates, typeTemplates, updateTemplates } from '../i18n/errorTemplates'
+import { codeTemplates, errorText } from '../i18n/errors'
 import { repositoryRoot } from '../../scripts/config.ts'
 
 test('reads the message a code stands for', () => {
@@ -52,6 +51,18 @@ test('falls back to the server message for a code it does not know', () => {
 	const held = errorText({ error: 'content: something new', code: 'a_code_from_the_future' })
 
 	expect(held).toBe('content: something new')
+})
+
+test('falls back to the server message for a code named like a built in property', () => {
+	const held = errorText({ error: 'content: something new', code: 'constructor' })
+
+	expect(held).toBe('content: something new')
+})
+
+test('tells the reader a busy database saved nothing', () => {
+	const held = errorText({ error: 'database busy', code: 'database_busy' })
+
+	expect(held).toBe('The database was busy with another change, so nothing was saved. Try again.')
 })
 
 test('falls back to the server message when no code rides at all', () => {
@@ -104,7 +115,7 @@ test('carries a message for every code the server can answer with', () => {
 	const emitted = execFileSync('sh', [script], { cwd: repositoryRoot(), encoding: 'utf8' })
 		.split('\n')
 		.filter((held) => held !== '')
-	const held = { ...errorTemplates(), ...typeTemplates(), ...updateTemplates() }
+	const held = codeTemplates()
 
 	expect(emitted.filter((code) => held[code] === undefined)).toEqual([])
 })

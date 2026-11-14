@@ -61,6 +61,12 @@
         { "name": "Excess Number of Function Arguments", "weight": 0.0 },
         { "name": "Code Duplication", "weight": 0.0 }
       ]
+    },
+    {
+      "matching_content_path": "frontend/src/i18n/errorTemplates.ts",
+      "rules": [
+        { "name": "Large Method", "weight": 0.0 }
+      ]
     }
   ]
 }

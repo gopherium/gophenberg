@@ -262,10 +262,6 @@ export function errorTemplates(): Record<string, string> {
 			'This picture could not be read, so nothing was stored. The file may be damaged, so open it on your computer and upload it again.',
 			DOMAIN,
 		),
-		internal: __(
-			'Something went wrong inside Gophenberg. Try again in a moment, and tell whoever looks after your site if it keeps happening.',
-			DOMAIN,
-		),
 		jpeg_quality_invalid: __(
 			'Picture quality runs from 1 to %(max)s, so %(value)s is not a quality Gophenberg stores at. Pick a number inside that range.',
 			DOMAIN,
@@ -535,6 +531,20 @@ export function errorTemplates(): Record<string, string> {
 		),
 		upload_file_required: __('No file arrived with this upload. Choose a file and try again.', DOMAIN),
 		upload_theme_required: __('No theme arrived with this upload. Choose a zip file and try again.', DOMAIN),
+	}
+}
+
+/**
+ * Returns the message each code a request the server could not finish answers with stands for, read fresh like the others.
+ * @returns The messages, keyed by code.
+ */
+export function serverTemplates(): Record<string, string> {
+	return {
+		database_busy: __('The database was busy with another change, so nothing was saved. Try again.', DOMAIN),
+		internal: __(
+			'Something went wrong inside Gophenberg. Try again in a moment, and tell whoever looks after your site if it keeps happening.',
+			DOMAIN,
+		),
 	}
 }
 

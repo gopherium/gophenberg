@@ -27,7 +27,7 @@ type MediaStore struct {
 
 // NewMediaStore returns a [MediaStore] backed by pool.
 func NewMediaStore(pool *pgxpool.Pool) *MediaStore {
-	return &MediaStore{queries: db.New(pool)}
+	return &MediaStore{queries: db.New(classified{conn: pool})}
 }
 
 // Create stores a new media item and returns it with its assigned identifier.

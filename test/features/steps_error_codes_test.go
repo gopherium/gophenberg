@@ -70,6 +70,36 @@ func theAdministratorTrashesTwice(ctx context.Context, title string) error {
 	return w.deleteAt(contentPath + "/" + held.ID)
 }
 
+// theDatabaseIsTooBusyForTheNextSave makes the next save of an item fail as a busy database fails it.
+func theDatabaseIsTooBusyForTheNextSave(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	w.contentItems.mu.Lock()
+	defer w.contentItems.mu.Unlock()
+	w.contentItems.busy = true
+	return nil
+}
+
+// theSaveIsRejectedAsABusyDatabase asserts the answer names the busy database in its fixed words.
+func theSaveIsRejectedAsABusyDatabase(ctx context.Context) error {
+	w, err := worldOf(ctx)
+	if err != nil {
+		return err
+	}
+	if w.answer.status != http.StatusServiceUnavailable {
+		return fmt.Errorf("status = %d, want %d", w.answer.status, http.StatusServiceUnavailable)
+	}
+	if got := w.answer.errorCode(); got != "database_busy" {
+		return fmt.Errorf("the error names %q, want %q", got, "database_busy")
+	}
+	if got := w.answer.errorMessage(); got != "database busy" {
+		return fmt.Errorf("the error says %q, want the fixed words %q", got, "database busy")
+	}
+	return nil
+}
+
 // theRequestIsRefusedWithTheCode asserts the answer names the condition.
 func theRequestIsRefusedWithTheCode(ctx context.Context, code string) error {
 	w, err := worldOf(ctx)
@@ -149,6 +179,9 @@ func initializeErrorCodes(sc *godog.ScenarioContext) {
 	)
 	sc.When(`^the administrator asks for the content item "([^"]*)"$`, theAdministratorAsksForTheContentItem)
 	sc.When(`^the administrator trashes "([^"]*)" twice$`, theAdministratorTrashesTwice)
+	sc.Given(`^the database is too busy for the next save$`, theDatabaseIsTooBusyForTheNextSave)
+	sc.When(`^the editor saves "([^"]*)" as "([^"]*)"$`, theEditorSavesAs)
+	sc.Then(`^the save is rejected as a busy database$`, theSaveIsRejectedAsABusyDatabase)
 	sc.Then(`^the request is refused with the code "([^"]*)"$`, theRequestIsRefusedWithTheCode)
 	sc.Then(`^the error names "([^"]*)" under "([^"]*)"$`, theErrorNamesUnder)
 	sc.Then(`^the error still carries a readable message$`, theErrorStillCarriesAReadableMessage)

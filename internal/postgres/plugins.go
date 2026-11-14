@@ -22,7 +22,7 @@ type PluginStore struct {
 
 // NewPluginStore returns a [PluginStore] backed by pool.
 func NewPluginStore(pool *pgxpool.Pool) *PluginStore {
-	return &PluginStore{queries: db.New(pool)}
+	return &PluginStore{queries: db.New(classified{conn: pool})}
 }
 
 // Records returns every plugin record, keyed by plugin id, in one read.

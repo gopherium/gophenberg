@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -17,17 +18,7 @@ import (
 // lockTimedStore returns a store whose connections give up quickly on a held lock.
 func lockTimedStore(t *testing.T, pool *pgxpool.Pool) *postgres.TypeStore {
 	t.Helper()
-	cfg, err := pgxpool.ParseConfig(pool.Config().ConnString())
-	if err != nil {
-		t.Fatalf("parsing the pool address: %v", err)
-	}
-	cfg.ConnConfig.RuntimeParams["lock_timeout"] = "200ms"
-	timed, err := pgxpool.NewWithConfig(t.Context(), cfg)
-	if err != nil {
-		t.Fatalf("opening the timed pool: %v", err)
-	}
-	t.Cleanup(timed.Close)
-	return postgres.NewTypeStore(timed)
+	return postgres.NewTypeStore(lockTimedPool(t, pool.Config().ConnString()))
 }
 
 // holdFieldGroupsLock holds the field groups lock until the test ends.
@@ -452,8 +443,8 @@ func TestUpdateGroupReportsALockItCannotTake(t *testing.T) {
 	timed := lockTimedStore(t, pool)
 
 	stored.Title = "Renamed"
-	if _, err := timed.UpdateGroup(t.Context(), stored, nil, nil); err == nil {
-		t.Error("UpdateGroup() error = nil, want the held lock reported")
+	if _, err := timed.UpdateGroup(t.Context(), stored, nil, nil); !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("UpdateGroup() error = %v, want the held lock reported as dbkit.ErrBusy", err)
 	}
 }
 
@@ -471,8 +462,8 @@ func TestCreateFieldInGroupReportsALockItCannotTake(t *testing.T) {
 
 	_, err = timed.CreateFieldInGroup(t.Context(), stored.ID, fieldOn(t, "", "subtitle", content.FieldKindText, ""), nil)
 
-	if err == nil {
-		t.Error("CreateFieldInGroup() error = nil, want the held lock reported")
+	if !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("CreateFieldInGroup() error = %v, want the held lock reported as dbkit.ErrBusy", err)
 	}
 }
 
@@ -487,8 +478,62 @@ func TestDeleteFieldInGroupReportsALockItCannotTake(t *testing.T) {
 
 	err := timed.DeleteFieldInGroup(t.Context(), declared.GroupID, "subtitle", nil)
 
-	if err == nil {
-		t.Error("DeleteFieldInGroup() error = nil, want the held lock reported")
+	if !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("DeleteFieldInGroup() error = %v, want the held lock reported as dbkit.ErrBusy", err)
+	}
+}
+
+func TestCreateGroupWhoseCommitLosesItsSerializationAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	loseSerializationAtCommit(t, pool, "core.field_groups")
+
+	_, err := store.CreateGroup(t.Context(), content.Group{Title: "Details", Location: locationOf("car")})
+
+	if !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("CreateGroup() error = %v, want the lost commit reported as dbkit.ErrBusy", err)
+	}
+}
+
+func TestReorderGroupsBehindHeldGroupsAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	first, err := store.CreateGroup(t.Context(), content.Group{Title: "First", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(First) error = %v, want nil", err)
+	}
+	second, err := store.CreateGroup(t.Context(), content.Group{Title: "Second", Location: locationOf("car")})
+	if err != nil {
+		t.Fatalf("CreateGroup(Second) error = %v, want nil", err)
+	}
+	holdInRival(t, pool.Config().ConnString(), "SELECT id FROM core.field_groups FOR UPDATE")
+
+	err = lockTimedStore(t, pool).ReorderGroups(t.Context(), []int{second.ID, first.ID})
+
+	if !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("ReorderGroups() error = %v, want the held groups reported as dbkit.ErrBusy", err)
+	}
+}
+
+func TestListGroupsWithItsStatementCachedBehindALockedTableAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	store, _, pool := typedStore(t)
+	storeType(t, store, "car")
+	timed := lockTimedStore(t, pool)
+	if _, err := timed.ListGroups(t.Context()); err != nil {
+		t.Fatalf("ListGroups() before the lock error = %v, want nil", err)
+	}
+	holdInRival(t, pool.Config().ConnString(), "LOCK TABLE core.field_groups IN ACCESS EXCLUSIVE MODE")
+
+	_, err := timed.ListGroups(t.Context())
+
+	if !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("ListGroups() error = %v, want the locked table reported as dbkit.ErrBusy", err)
 	}
 }
 

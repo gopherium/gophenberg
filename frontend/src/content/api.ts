@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { errorText as refusalText } from '@gopherium/gottext'
 import { __ } from '@wordpress/i18n'
 import { z } from 'zod'
 
-import { errorTemplates } from '../i18n/errorTemplates'
-import { errorText } from '../i18n/errors'
+import { codeText, errorText } from '../i18n/errors'
 
 const postSchema = z.object({
 	id: z.string(),
@@ -211,8 +209,7 @@ async function messageFrom(response: Response): Promise<string> {
  */
 async function reasonOf(response: Response, fallback: string): Promise<string> {
 	const parsed = errorSchema.safeParse(await response.json().catch(() => null))
-	const named = parsed.success ? { code: parsed.data.code, meta: parsed.data.meta } : {}
-	return refusalText({ message: '', ...named }, errorTemplates(), fallback)
+	return parsed.success ? codeText(parsed.data, fallback) : fallback
 }
 
 /**

@@ -223,6 +223,26 @@ test('reports a save the server rejected', async () => {
 	expect(await screen.findByText(/invalid status/i)).toBeInTheDocument()
 })
 
+test('tells the reader a busy database saved nothing and keeps the edit to save again', async () => {
+	vi.spyOn(console, 'error').mockImplementation(() => {})
+	server.use(
+		http.patch(`/api/content/${POST_ID}`, () =>
+			HttpResponse.json({ error: 'database busy', code: 'database_busy' }, { status: 503 }),
+		),
+	)
+	renderAt(EDITOR_PATH)
+	const title = await screen.findByRole('textbox', { name: 'Title' })
+	await userEvent.type(title, '!')
+
+	await userEvent.click(screen.getByRole('button', { name: /save/i }))
+
+	expect(
+		await screen.findByText('The database was busy with another change, so nothing was saved. Try again.'),
+	).toBeInTheDocument()
+	expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Welcome to Gophenberg!')
+	expect(screen.getByRole('button', { name: 'Save draft' })).toHaveAttribute('aria-disabled', 'false')
+})
+
 test('shows the write button busy while the write is in flight', async () => {
 	const busy = busyClasses()
 	expect(busy.length).toBeGreaterThan(0)

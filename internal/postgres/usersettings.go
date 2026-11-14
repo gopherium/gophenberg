@@ -24,7 +24,7 @@ type UserSettingStore struct {
 
 // NewUserSettingStore returns a [UserSettingStore] backed by pool.
 func NewUserSettingStore(pool *pgxpool.Pool) *UserSettingStore {
-	return &UserSettingStore{queries: db.New(pool)}
+	return &UserSettingStore{queries: db.New(classified{conn: pool})}
 }
 
 // Lookup returns the value the reader stored under key, and whether it is set at all.

@@ -5,11 +5,14 @@ package postgres_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/postgres"
@@ -34,17 +37,7 @@ func counted(held map[string]string) (map[string]string, error) {
 // lockTimedSettings returns a setting store whose connections give up quickly on a held lock.
 func lockTimedSettings(t *testing.T, pool *pgxpool.Pool) *postgres.SettingStore {
 	t.Helper()
-	cfg, err := pgxpool.ParseConfig(pool.Config().ConnString())
-	if err != nil {
-		t.Fatalf("parsing the pool address: %v", err)
-	}
-	cfg.ConnConfig.RuntimeParams["lock_timeout"] = "200ms"
-	timed, err := pgxpool.NewWithConfig(t.Context(), cfg)
-	if err != nil {
-		t.Fatalf("opening the timed pool: %v", err)
-	}
-	t.Cleanup(timed.Close)
-	return postgres.NewSettingStore(timed)
+	return postgres.NewSettingStore(lockTimedPool(t, pool.Config().ConnString()))
 }
 
 // holdSettingsLock holds the settings update lock until the test ends.
@@ -148,8 +141,35 @@ func TestSettingUpdateReportsALockItCannotTake(t *testing.T) {
 	_, pool := newSettingStoreWithPool(t)
 	holdSettingsLock(t, pool)
 
-	if err := lockTimedSettings(t, pool).Update(t.Context(), []string{"count"}, counted); err == nil {
-		t.Error("Update() behind a held lock error = nil, want the lock failure")
+	if err := lockTimedSettings(t, pool).Update(t.Context(), []string{"count"}, counted); !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("Update() behind a held lock error = %v, want the lock failure as dbkit.ErrBusy", err)
+	}
+}
+
+func TestSettingLookupBehindALockedTableAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	_, pool := newSettingStoreWithPool(t)
+	holdInRival(t, pool.Config().ConnString(), "LOCK TABLE core.settings IN ACCESS EXCLUSIVE MODE")
+
+	_, _, err := lockTimedSettings(t, pool).Lookup(t.Context(), "theme.active")
+
+	if !errors.Is(err, dbkit.ErrBusy) ||
+		!strings.HasPrefix(fmt.Sprint(err), `postgres: reading setting "theme.active": `) {
+		t.Errorf("Lookup() behind a locked table error = %v, want dbkit.ErrBusy under the read", err)
+	}
+}
+
+func TestSettingSaveWhoseCommitLosesItsSerializationAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	store, pool := newSettingStoreWithPool(t)
+	loseSerializationAtCommit(t, pool, "core.settings")
+
+	err := store.Save(t.Context(), map[string]string{"theme.active": "aurora"})
+
+	if !errors.Is(err, dbkit.ErrBusy) || !strings.HasPrefix(fmt.Sprint(err), "postgres: writing settings: ") {
+		t.Errorf("Save() whose commit loses its serialization error = %v, want dbkit.ErrBusy under the write", err)
 	}
 }
 

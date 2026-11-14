@@ -3,10 +3,12 @@
 package postgres_test
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -64,8 +66,10 @@ func TestUpdateFieldInGroupReportsAFieldGroupLockItCannotTake(t *testing.T) {
 	edited := title
 	edited.Label = "Renamed"
 
-	if _, err := types.UpdateFieldInGroup(t.Context(), group.ID, edited, title.UpdatedAt, nil); err == nil {
-		t.Error("UpdateFieldInGroup() error = nil, want the held field group lock reported")
+	_, err = types.UpdateFieldInGroup(t.Context(), group.ID, edited, title.UpdatedAt, nil)
+
+	if !errors.Is(err, dbkit.ErrBusy) {
+		t.Errorf("UpdateFieldInGroup() error = %v, want the held field group lock reported as dbkit.ErrBusy", err)
 	}
 }
 

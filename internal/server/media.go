@@ -140,9 +140,7 @@ func (s *server) handleMediaUpload() http.HandlerFunc {
 		created, err := s.mediaStore.Create(r.Context(), item)
 		if err != nil {
 			_ = s.media.Remove(item)
-			authkit.RespondError(w, http.StatusInternalServerError, authkit.ErrorResponse{
-				Message: "internal error", Code: "internal",
-			})
+			respondDomainError(w, err)
 			return
 		}
 		s.media.Finish(created)

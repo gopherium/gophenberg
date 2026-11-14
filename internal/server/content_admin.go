@@ -397,15 +397,19 @@ func (s *server) respondWritten(w http.ResponseWriter, r *http.Request, status i
 func (s *server) answerContent(
 	w http.ResponseWriter, r *http.Request, status int, c content.Content, refusing bool,
 ) {
+	fail := respondReadAfterWrite
+	if refusing {
+		fail = respondDomainError
+	}
 	writer, err := s.authorOf(r.Context(), c.AuthorID)
 	if err != nil {
-		respondDomainError(w, err)
+		fail(w, err)
 		return
 	}
 	values := payloadValues(c)
 	t, err := s.types.ByKey(r.Context(), c.Type)
 	if err != nil {
-		respondDomainError(w, err)
+		fail(w, err)
 		return
 	}
 	totals, err := served.Pointing(r.Context(), s.publicStores(), t, c, values, nil)

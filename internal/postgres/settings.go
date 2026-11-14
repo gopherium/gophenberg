@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 
+	dbkitpg "github.com/gopherium/framework/dbkit/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -35,7 +36,7 @@ type SettingStore struct {
 
 // NewSettingStore returns a [SettingStore] backed by pool.
 func NewSettingStore(pool *pgxpool.Pool) *SettingStore {
-	return &SettingStore{pool: pool, queries: db.New(pool)}
+	return &SettingStore{pool: pool, queries: db.New(classified{conn: pool})}
 }
 
 // Lookup returns the value stored under key and whether the key is set at all.
@@ -81,14 +82,14 @@ func (s *SettingStore) Update(
 func (s *SettingStore) inTx(ctx context.Context, body func(queries *db.Queries) error) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("postgres: writing settings: %w", err)
+		return fmt.Errorf("postgres: writing settings: %w", dbkitpg.Classify(err))
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	if err := body(s.queries.WithTx(tx)); err != nil {
+	if err := body(db.New(classified{conn: tx})); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("postgres: writing settings: %w", err)
+		return fmt.Errorf("postgres: writing settings: %w", dbkitpg.Classify(err))
 	}
 	return nil
 }

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/framework/dbkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
 )
@@ -30,7 +31,11 @@ type memoryContent struct {
 	autosaves map[autosaveKey]content.Revision
 	types     *memoryTypes
 	accounts  *memoryStore
+	busy      bool
 }
+
+// errMemoryBusy is the failure an update answers with while the database is too busy for it.
+var errMemoryBusy = fmt.Errorf("memory: update content: %w", dbkit.ErrBusy)
 
 // autosaveKey names one author's parked buffer over one item.
 type autosaveKey struct {
@@ -836,6 +841,10 @@ func (s *memoryContent) Update(
 	_ context.Context, c content.Content, expectedUpdatedAt time.Time, snapshot *content.Revision, revisionCap int,
 ) (content.Content, error) {
 	defer s.lockedAfterTypes()()
+	if s.busy {
+		s.busy = false
+		return content.Content{}, errMemoryBusy
+	}
 	stored, found := s.items[c.ID]
 	if !found {
 		return content.Content{}, content.ErrNotFound

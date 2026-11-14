@@ -1393,6 +1393,10 @@ msgid "The content types could not be refreshed, so where these groups appear an
 msgstr "Les types de contenu n'ont pas pu être actualisés, donc où ces groupes apparaissent et ce qu'ils masquent peut être obsolète."
 
 #, fuzzy
+msgid "The database was busy with another change, so nothing was saved. Try again."
+msgstr "La base de données était occupée par une autre modification, rien n'a donc été enregistré. Réessayez."
+
+#, fuzzy
 msgid "The field %(field)s in %(group)s still points at this content type. Delete that field first, then delete this type."
 msgstr "Le champ %(field)s dans %(group)s vise encore ce type de contenu. Supprimez d'abord ce champ, puis supprimez ce type."
 

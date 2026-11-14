@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gopherium/framework/dbkit"
 	"github.com/gopherium/gouncer/authkit"
 
 	"github.com/gopherium/gophenberg/internal/content"
@@ -63,16 +64,26 @@ func unknownAttributeOf(err error) (string, bool) {
 	return attribute, true
 }
 
-// respondDomainError maps a domain error to an HTTP status and writes it as a JSON error response,
-// masking internal errors.
+// respondDomainError writes the answer errorResponseFor gives for err.
 func respondDomainError(w http.ResponseWriter, err error) {
 	status, response := errorResponseFor(err)
 	authkit.RespondError(w, status, response)
 }
 
-// errorResponseFor returns the status and error body for a domain error,
-// masking unrecognized errors as internal ones.
+// respondReadAfterWrite writes a read that failed once a write was stored, a busy one as the internal error.
+func respondReadAfterWrite(w http.ResponseWriter, err error) {
+	if errors.Is(err, dbkit.ErrBusy) {
+		respondInternal(w, nil)
+		return
+	}
+	respondDomainError(w, err)
+}
+
+// errorResponseFor returns the status and error body for an error, masking one it does not name as internal.
 func errorResponseFor(err error) (int, authkit.ErrorResponse) {
+	if errors.Is(err, dbkit.ErrBusy) {
+		return http.StatusServiceUnavailable, authkit.ErrorResponse{Message: "database busy", Code: "database_busy"}
+	}
 	for _, held := range domainErrors {
 		if !errors.Is(err, held.err) {
 			continue

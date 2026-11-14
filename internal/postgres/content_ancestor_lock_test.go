@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -290,7 +291,7 @@ func TestContentCreateReportsAPageAboveTheParentItCannotLock(t *testing.T) {
 
 	_, err := lockTimedContent(t, pool).Create(t.Context(), stalePage(t, &parent, "A Child", author))
 
-	if err == nil || !strings.Contains(err.Error(), "lock timeout") {
-		t.Errorf("Create() error = %v, want the held page above the parent reported", err)
+	if !errors.Is(err, dbkit.ErrBusy) || !strings.Contains(err.Error(), "lock timeout") {
+		t.Errorf("Create() error = %v, want the held page above the parent reported as dbkit.ErrBusy", err)
 	}
 }

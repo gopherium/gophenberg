@@ -25,7 +25,7 @@ type CronStore struct {
 
 // NewCronStore returns a [CronStore] backed by pool.
 func NewCronStore(pool *pgxpool.Pool) *CronStore {
-	return &CronStore{queries: db.New(pool)}
+	return &CronStore{queries: db.New(classified{conn: pool})}
 }
 
 // Slots returns where every stored job stands.

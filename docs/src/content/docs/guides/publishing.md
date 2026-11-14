@@ -27,6 +27,11 @@ If someone else changed the post while you were editing, saving
 shows *This post changed elsewhere. Reload before saving again.*
 Nothing is overwritten.
 
+If the database is busy with another change at the moment you
+save, the editor shows *The database was busy with another change,
+so nothing was saved. Try again.* Your words stay in the editor, so
+saving again stores them.
+
 ## Autosave
 
 Once a minute, when you leave the editor, and when you close the

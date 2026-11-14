@@ -3,9 +3,12 @@
 package postgres_test
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/gopherium/framework/dbkit"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gopherium/gophenberg/internal/postgres"
@@ -62,5 +65,19 @@ func TestPluginMigrationRefusesAnUnknownState(t *testing.T) {
 	_, err := pool.Exec(t.Context(), "INSERT INTO core.plugins (id, state) VALUES ('events', 'broken')")
 	if err == nil || !strings.Contains(err.Error(), "plugins_state_check") {
 		t.Errorf("a plugin in an unknown state was stored with error %v, want the state check to refuse it", err)
+	}
+}
+
+func TestPluginRecordsBehindALockedTableAnswersDbkitsBusyClass(t *testing.T) {
+	t.Parallel()
+
+	_, pool := pluginStoreWithPool(t)
+	holdInRival(t, pool.Config().ConnString(), "LOCK TABLE core.plugins IN ACCESS EXCLUSIVE MODE")
+	timed := postgres.NewPluginStore(lockTimedPool(t, pool.Config().ConnString()))
+
+	_, err := timed.Records(t.Context())
+
+	if !errors.Is(err, dbkit.ErrBusy) || !strings.Contains(fmt.Sprint(err), "reading the plugin records") {
+		t.Errorf("Records() behind a locked table error = %v, want dbkit.ErrBusy under the read", err)
 	}
 }
