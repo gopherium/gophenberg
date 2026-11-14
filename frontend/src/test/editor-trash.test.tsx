@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event'
 import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeAll, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 
+import { writesSettled } from '../content/postWrites'
 import { useAutosave } from '../content/useAutosave'
 import { catalogFor } from '../i18n/catalog'
 import { listenAt } from './announcements'
@@ -900,6 +901,37 @@ test('lets Move to trash go on when the editor closes before the render its park
 	unmount()
 
 	await waitFor(() => expect(settled).toBe(true))
+})
+
+test('sends no autosave as the editor closes on a trashed post after a later Move to trash ends', async () => {
+	const second = gate()
+	const served = serveTrash({ ...storedPost, status: 'published' }, [{}, { held: second.held }])
+	const client = new QueryClient()
+	const edited = {
+		title: 'Welcome to Gophenberg!',
+		content: storedPost.content,
+		excerpt: storedPost.excerpt,
+		fields: {},
+		shown: {},
+		dirty: true,
+		saving: false,
+		version: storedPost.updated_at,
+		adoptParked: () => {},
+	}
+	const { result, unmount } = renderHook(() => useAutosave(storedPost.id, edited), {
+		wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+	})
+	const trashed = await result.current()
+	const again = result.current()
+	await waitFor(() => expect(served.parks).toHaveLength(2))
+	trashed()
+	second.release()
+	await again
+
+	unmount()
+
+	await writesSettled(client, storedPost.id)
+	expect(served.parks).toHaveLength(2)
 })
 
 test('reads the kept words in a reopened editor only once the autosave sent before the trash answers', async () => {
