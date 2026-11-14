@@ -64,11 +64,14 @@ type Notifier struct {
 	held     map[uuid.UUID]*heldItem
 }
 
-// heldItem is the lock of one item and how many writes hold it or wait for it.
+// heldItem is the lock of one item, a slot one write fills at a time, and how many writes hold it or wait for it.
 type heldItem struct {
-	mu    sync.Mutex
+	lock  chan struct{}
 	users int
 }
+
+// errHeldPastBudget is the error the site logs for a moved item another write held past the budget.
+var errHeldPastBudget = errors.New("contentchanges: another write held the moved item past the budget")
 
 // New returns a [Notifier] over settings.
 func New(settings Settings) *Notifier {
@@ -80,23 +83,45 @@ func (n *Notifier) Hold(id uuid.UUID) (release func()) {
 	if !n.settings.Listeners.Listens() {
 		return func() {}
 	}
+	release, _ = n.holdWithin(context.Background(), id)
+	return release
+}
+
+// holdWithin locks the item id until release, or reports false when ctx ends before the item is free.
+func (n *Notifier) holdWithin(ctx context.Context, id uuid.UUID) (release func(), held bool) {
+	item := n.join(id)
+	select {
+	case item.lock <- struct{}{}:
+		return func() {
+			<-item.lock
+			n.leave(id, item)
+		}, true
+	case <-ctx.Done():
+		n.leave(id, item)
+		return nil, false
+	}
+}
+
+// join returns the lock of the item id, counting one more write that holds it or waits for it.
+func (n *Notifier) join(id uuid.UUID) *heldItem {
 	n.mu.Lock()
+	defer n.mu.Unlock()
 	item, ok := n.held[id]
 	if !ok {
-		item = &heldItem{}
+		item = &heldItem{lock: make(chan struct{}, 1)}
 		n.held[id] = item
 	}
 	item.users++
-	n.mu.Unlock()
-	item.mu.Lock()
-	return func() {
-		item.mu.Unlock()
-		n.mu.Lock()
-		defer n.mu.Unlock()
-		item.users--
-		if item.users == 0 {
-			delete(n.held, id)
-		}
+	return item
+}
+
+// leave counts one write less on the item id, dropping its lock once no write holds it or waits for it.
+func (n *Notifier) leave(id uuid.UUID, item *heldItem) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	item.users--
+	if item.users == 0 {
+		delete(n.held, id)
 	}
 }
 
@@ -192,7 +217,7 @@ func (n *Notifier) tellMoved(ctx context.Context, before, after content.Content)
 	}
 }
 
-// movedChildren returns the published items under parent, an empty list when it has no children.
+// movedChildren returns the published items the move of parent carried and no write changed since, maybe none.
 func (n *Notifier) movedChildren(ctx context.Context, parent content.Content) ([]content.Content, error) {
 	readCtx, cancel := context.WithTimeout(ctx, n.settings.Budget)
 	defer cancel()
@@ -203,7 +228,7 @@ func (n *Notifier) movedChildren(ctx context.Context, parent content.Content) ([
 	published, err := n.published(readCtx, parent.Type)
 	var under []content.Content
 	for _, item := range published {
-		if strings.HasPrefix(item.Path, parent.Path+"/") {
+		if strings.HasPrefix(item.Path, parent.Path+"/") && item.UpdatedAt.Equal(parent.UpdatedAt) {
 			under = append(under, item)
 		}
 	}
@@ -231,7 +256,13 @@ func (n *Notifier) published(ctx context.Context, key string) ([]content.Content
 
 // tellChild tells the listeners the child id is published where the move from before to after carried it.
 func (n *Notifier) tellChild(ctx context.Context, id uuid.UUID, before, after content.Content) {
-	release := n.Hold(id)
+	holdCtx, cancel := context.WithTimeout(ctx, n.settings.Budget)
+	release, held := n.holdWithin(holdCtx, id)
+	cancel()
+	if !held {
+		n.warn(sdk.Published, errHeldPastBudget)
+		return
+	}
 	defer release()
 	child, shown, err := n.carried(ctx, id, after.UpdatedAt)
 	if err != nil {

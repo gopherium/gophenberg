@@ -155,6 +155,73 @@ func TestAMovedParentReadsEachChildOnlyOnceItHoldsIt(t *testing.T) {
 	}
 }
 
+// heldMove runs the move from before to moved through n on its own while the test holds the child id, and returns
+// whether the move finished before the test let go of the child.
+func heldMove(t *testing.T, n *contentchanges.Notifier, before, moved content.Content, child uuid.UUID) bool {
+	t.Helper()
+	release := n.Hold(child)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		write(t, n, before, &moved)
+	}()
+	select {
+	case <-done:
+		release()
+		return true
+	case <-time.After(time.Second):
+		release()
+		<-done
+		return false
+	}
+}
+
+func TestAMovedParentNeverWaitsOnAChildALaterWriteChanged(t *testing.T) {
+	t.Parallel()
+
+	heard := &listeners{}
+	before, moved, held := movedTree(content.StatusPublished)
+	held[1].UpdatedAt = moved.UpdatedAt.Add(time.Second)
+	n := contentchanges.New(contentchanges.Settings{
+		Listeners: heard, Shaper: &shaper{}, Types: &types{}, Items: &items{held: held}, Budget: roomy,
+		Logger: slog.New(slog.DiscardHandler),
+	})
+
+	if !heldMove(t, n, before, moved, held[1].ID) {
+		t.Fatal("the move waited on a child that another write changed and still holds")
+	}
+	want := []sdk.ContentChange{
+		movedChange("About", "company", "about"), movedChange("Lead", "company/team/lead", "about/team/lead"),
+	}
+	if !reflect.DeepEqual(heard.heard, want) {
+		t.Errorf("the listeners heard %+v, want %+v", heard.heard, want)
+	}
+}
+
+func TestAMovedParentLogsAChildAnotherWriteHoldsPastTheBudget(t *testing.T) {
+	t.Parallel()
+
+	heard := &listeners{}
+	logged := &bytes.Buffer{}
+	before, moved, held := movedTree(content.StatusPublished)
+	n := contentchanges.New(contentchanges.Settings{
+		Listeners: heard, Shaper: &shaper{}, Types: &types{}, Items: &items{held: held},
+		Budget: 30 * time.Millisecond, Logger: slog.New(slog.NewTextHandler(logged, nil)),
+	})
+
+	if !heldMove(t, n, before, moved, held[1].ID) {
+		t.Fatal("the move waited past its budget on a child another write holds")
+	}
+	want := []sdk.ContentChange{
+		movedChange("About", "company", "about"), movedChange("Lead", "company/team/lead", "about/team/lead"),
+	}
+	line := `level=WARN msg="plugins not told of a content change" change=published` +
+		` error="contentchanges: another write held the moved item past the budget"`
+	if !reflect.DeepEqual(heard.heard, want) || !strings.Contains(logged.String(), line) {
+		t.Errorf("the listeners heard %+v and the log reads %q, want %+v and %q", heard.heard, logged, want, line)
+	}
+}
+
 func TestAMovedParentFindsItsChildrenAcrossListingPages(t *testing.T) {
 	t.Parallel()
 
