@@ -46,3 +46,10 @@ Feature: An error names a code
     When the administrator trashes "Hello world" twice
     Then the request is refused with the code "content_already_trashed"
     And the error carries no data
+
+  Scenario: A save the database is too busy for names the busy database
+    Given the post "Hello world"
+    And the database is too busy for the next save
+    When the editor saves "Hello world" as "Hello again"
+    Then the save is rejected as a busy database
+    And the error carries no data
