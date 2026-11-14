@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -42,12 +43,15 @@ func initializeSQLiteBackups(sc *godog.ScenarioContext, s *operatorScenario) {
 	sc.Given(`^GOPHENBERG_SQLITE_SKIP_BACKUP_FOR names the version of this binary$`, b.skipThisVersion)
 	sc.Given(`^the settings name an install root$`, b.nameInstallRoot)
 	sc.Given(`^a (?:backup|file) named "([^"]*)" waits in the backups folder$`, b.plant)
+	sc.Given(`^the (SQLite file|backups folder) is set to the mode "([0-7]{4})"$`, b.setMode)
 	sc.Then(`^the backups folder holds no backup$`, b.holdsNoBackup)
 	sc.Then(`^the backups folder holds (\d+) (update|scheduled|manual) backups?$`, b.holdsBackups)
 	sc.Then(`^the backups folder still holds "([^"]*)"$`, b.stillHolds)
 	sc.Then(`^the backups folder no longer holds "([^"]*)"$`, b.noLongerHolds)
 	sc.Then(`^the update backup records Gophenberg "([^"]*)" as the version that last migrated it$`, b.backupRecords)
 	sc.Then(`^the file records this binary as the version that last migrated it$`, b.recordsThisBinary)
+	sc.Then(`^the file still records Gophenberg "([^"]*)" as the version that last migrated it$`, b.recordsRelease)
+	sc.Then(`^the (backups folder|manual backup) has the mode "([0-7]{4})"$`, b.hasMode)
 	sc.Then(`^the answer names where it put the manual backup$`, b.namesManualBackup)
 	sc.Then(`^the backups kept are "([^"]*)", "([^"]*)", "([^"]*)" and "([^"]*)", the newest first$`, b.keptInOrder)
 }
@@ -79,12 +83,54 @@ func (b *backupScenario) nameInstallRoot() {
 	b.env["GOPHENBERG_INSTALL_ROOT"] = b.t.TempDir()
 }
 
+// file returns the path of the scenario's SQLite file.
+func (b *backupScenario) file() string {
+	return strings.TrimPrefix(b.env["GOPHENBERG_DATABASE_URL"], sqlitePrefix)
+}
+
 // folder returns the backups folder of the scenario, the install root's, else the one beside the file named for it.
 func (b *backupScenario) folder() string {
 	if root := b.env["GOPHENBERG_INSTALL_ROOT"]; root != "" {
 		return filepath.Join(root, "backups")
 	}
-	return strings.TrimPrefix(b.env["GOPHENBERG_DATABASE_URL"], sqlitePrefix) + ".backups"
+	return b.file() + ".backups"
+}
+
+// setMode sets the octal mode of the SQLite file or the backups folder whatever the umask, making a missing folder.
+func (b *backupScenario) setMode(what, mode string) error {
+	path := b.file()
+	if what == "backups folder" {
+		path = b.folder()
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			return err
+		}
+	}
+	perm, _ := strconv.ParseUint(mode, 8, 32)
+	return os.Chmod(path, fs.FileMode(perm))
+}
+
+// heldPath returns the path of the scenario's backups folder or of the one manual backup it holds.
+func (b *backupScenario) heldPath(what string) (string, error) {
+	if what == "manual backup" {
+		return b.oneBackupOf("manual")
+	}
+	return b.folder(), nil
+}
+
+// hasMode fails unless the scenario's backups folder or the one manual backup it holds has the octal mode.
+func (b *backupScenario) hasMode(what, mode string) error {
+	path, err := b.heldPath(what)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if held := fmt.Sprintf("%04o", info.Mode().Perm()); held != mode {
+		return fmt.Errorf("the %s has the mode %s, want %s", what, held, mode)
+	}
+	return nil
 }
 
 // plant writes an empty file called name into the backups folder.
@@ -177,7 +223,12 @@ func (b *backupScenario) backupRecords(ctx context.Context, release string) erro
 
 // recordsThisBinary fails unless the scenario's file records this binary's version as the one that last migrated it.
 func (b *backupScenario) recordsThisBinary(ctx context.Context) error {
-	return recordsVersion(ctx, b.env["GOPHENBERG_DATABASE_URL"], version.Version())
+	return b.recordsRelease(ctx, version.Version())
+}
+
+// recordsRelease fails unless the scenario's file records release as the version that last migrated it.
+func (b *backupScenario) recordsRelease(ctx context.Context, release string) error {
+	return recordsVersion(ctx, b.env["GOPHENBERG_DATABASE_URL"], release)
 }
 
 // recordsVersion fails unless the SQLite file at address records release as the version that last migrated it.
