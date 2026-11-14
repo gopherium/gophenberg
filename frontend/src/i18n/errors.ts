@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { __, sprintf } from '@wordpress/i18n'
+import { errorText as templateText } from '@gopherium/gottext'
+import { __ } from '@wordpress/i18n'
 
-import { authTemplates, errorTemplates, typeTemplates, updateTemplates } from './errorTemplates'
+import { authTemplates, errorTemplates, serverTemplates, typeTemplates, updateTemplates } from './errorTemplates'
 import { everyDecimal } from './numbers'
 
 /** What the server answers when it turns a request away. */
@@ -20,22 +21,12 @@ function unexplained(): string {
 	return __('Something went wrong. Try again.', 'gophenberg')
 }
 
-/** The named places a template asks the error to fill in. */
-const PLACEHOLDERS = /%\((\w+)\)[sd]/g
-
 /**
- * Reports whether the error carries every value the template names.
- * @param template - The message to fill in.
- * @param meta - The data the error carries.
- * @returns True when nothing the template asks for is missing.
+ * Returns the message each code the server answers with stands for, every table read fresh.
+ * @returns The messages, keyed by code.
  */
-function filled(template: string, meta: Record<string, unknown>): boolean {
-	for (const match of template.matchAll(PLACEHOLDERS)) {
-		if (meta[match[1]] === undefined) {
-			return false
-		}
-	}
-	return true
+export function codeTemplates(): Record<string, string> {
+	return { ...errorTemplates(), ...serverTemplates(), ...authTemplates(), ...typeTemplates(), ...updateTemplates() }
 }
 
 /**
@@ -50,16 +41,21 @@ function writtenMeta(meta: Record<string, unknown>): Record<string, unknown> {
 }
 
 /**
+ * Returns the message the code of a rejected request stands for in the reader's language, or the fallback.
+ * @param rejected - What the server answered.
+ * @param fallback - The words to show when no template the answer can fill stands for its code.
+ * @returns The message to show.
+ */
+export function codeText(rejected: Pick<Refused, 'code' | 'meta'>, fallback: string): string {
+	const named = { message: '', code: rejected.code, meta: writtenMeta(rejected.meta ?? {}) }
+	return templateText(named, codeTemplates(), fallback)
+}
+
+/**
  * Returns the message a reader is shown for a refused request, in their own language.
  * @param refused - What the server answered.
  * @returns The message to show.
  */
 export function errorText(refused: Refused): string {
-	const spoken = refused.error === '' ? unexplained() : refused.error
-	const templates = { ...errorTemplates(), ...authTemplates(), ...typeTemplates(), ...updateTemplates() }
-	const template = refused.code === undefined ? undefined : templates[refused.code]
-	if (template === undefined || !filled(template, refused.meta ?? {})) {
-		return spoken
-	}
-	return sprintf(template, writtenMeta(refused.meta ?? {}) as never)
+	return codeText(refused, refused.error === '' ? unexplained() : refused.error)
 }
