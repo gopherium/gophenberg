@@ -5,6 +5,7 @@ package contentchanges
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"sync"
@@ -104,7 +105,8 @@ func (n *Notifier) Before(ctx context.Context, before content.Content) func(cont
 	if !n.settings.Listeners.Listens() {
 		return func(context.Context, *content.Content) {}
 	}
-	w := &write{n: n, before: before, seen: n.visible(ctx, before)}
+	w := &write{n: n, before: before}
+	w.seen, w.seenErr = n.shown(ctx, before)
 	if w.seen {
 		w.shaped, w.shapeErr = n.shape(ctx, before)
 	}
@@ -116,6 +118,7 @@ type write struct {
 	n        *Notifier
 	before   content.Content
 	seen     bool
+	seenErr  error
 	shaped   sdk.Item
 	shapeErr error
 }
@@ -128,16 +131,23 @@ func (w *write) after(ctx context.Context, after *content.Content) {
 	}
 }
 
-// tellOwn tells the listeners the change the write made to its own item, when visitors see one.
+// tellOwn tells the listeners the change the write made to its own item, or logs the read that kept it from them.
 func (w *write) tellOwn(ctx context.Context, after *content.Content) {
-	if after != nil && w.n.visible(ctx, *after) {
+	shown, err := w.n.shownAfter(ctx, after)
+	if err == nil {
+		err = w.seenErr
+	}
+	if err != nil {
+		w.n.warn(statusChange(after), err)
+		return
+	}
+	if shown {
 		w.n.tellPublished(ctx, *after, w.previousPath(*after))
 		return
 	}
-	if !w.seen {
-		return
+	if w.seen {
+		w.n.tell(ctx, sdk.ContentChange{Kind: gone(after), Item: w.shaped}, w.shapeErr)
 	}
-	w.n.tell(ctx, sdk.ContentChange{Kind: gone(after), Item: w.shaped}, w.shapeErr)
 }
 
 // previousPath returns the path visitors reached the item at before the write moved it, empty when it did not.
@@ -146,6 +156,14 @@ func (w *write) previousPath(after content.Content) string {
 		return ""
 	}
 	return w.before.Path
+}
+
+// statusChange returns the change the status after the write points to, after nil for a delete.
+func statusChange(after *content.Content) sdk.ChangeKind {
+	if after != nil && after.Status == content.StatusPublished {
+		return sdk.Published
+	}
+	return gone(after)
 }
 
 // gone returns the change of an item visitors saw and no longer see, after nil for a delete.
@@ -243,15 +261,26 @@ func (n *Notifier) warn(kind sdk.ChangeKind, err error) {
 	n.settings.Logger.Warn(unshapedLine, "change", kind, "error", err)
 }
 
-// visible reports whether visitors see c: published, under a type the site serves.
-func (n *Notifier) visible(ctx context.Context, c content.Content) bool {
+// shownAfter reports whether visitors see the item after the write, after nil for a delete.
+func (n *Notifier) shownAfter(ctx context.Context, after *content.Content) (bool, error) {
+	if after == nil {
+		return false, nil
+	}
+	return n.shown(ctx, *after)
+}
+
+// shown reports whether visitors see c, published under a type the site serves, or the error that left it unknown.
+func (n *Notifier) shown(ctx context.Context, c content.Content) (bool, error) {
 	if c.Status != content.StatusPublished {
-		return false
+		return false, nil
 	}
 	readCtx, cancel := context.WithTimeout(ctx, n.settings.Budget)
 	defer cancel()
 	_, err := n.settings.Types.Active(readCtx, c.Type)
-	return err == nil
+	if errors.Is(err, content.ErrTypeInactive) || errors.Is(err, content.ErrTypeNotFound) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // shape returns the item plugins read of c, read within the budget.

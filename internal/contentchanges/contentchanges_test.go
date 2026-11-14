@@ -55,15 +55,21 @@ func (s *shaper) Item(ctx context.Context, c content.Content) (sdk.Item, error) 
 	return sdk.Item{Title: c.Title, Path: c.Path}, s.err
 }
 
-// types answers every type active but the inactive one, or its failure.
+// types answers every type active but the inactive one, or its failure from the read numbered failFrom on.
 type types struct {
+	mu       sync.Mutex
 	inactive string
 	err      error
+	failFrom int
+	reads    int
 }
 
-// Active answers the type, or ErrTypeInactive for the inactive one, or the fake's failure.
-func (t types) Active(_ context.Context, key string) (content.Type, error) {
-	if t.err != nil {
+// Active answers the type, ErrTypeInactive for the inactive one, or the failure once its reads reach failFrom.
+func (t *types) Active(_ context.Context, key string) (content.Type, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.reads++
+	if t.err != nil && t.reads >= t.failFrom {
 		return content.Type{}, t.err
 	}
 	if key == t.inactive {
@@ -156,7 +162,7 @@ func TestAPublishedPostMovedTellsThePathVisitorsLeft(t *testing.T) {
 // notifier returns a notifier over heard and shaped, every type active, no children and a roomy budget.
 func notifier(heard *listeners, shaped *shaper) *contentchanges.Notifier {
 	return contentchanges.New(contentchanges.Settings{
-		Listeners: heard, Shaper: shaped, Types: types{}, Items: &items{}, Budget: roomy,
+		Listeners: heard, Shaper: shaped, Types: &types{}, Items: &items{}, Budget: roomy,
 		Logger: slog.New(slog.DiscardHandler),
 	})
 }
@@ -230,30 +236,69 @@ func TestAWriteVisitorsNeverSeeTellsNothing(t *testing.T) {
 	}
 }
 
-func TestAnItemOfAnInactiveTypeCountsAsUnseen(t *testing.T) {
+func TestAnItemOfATypeTheSiteDoesNotServeCountsAsUnseen(t *testing.T) {
 	t.Parallel()
 
 	for name, tc := range map[string]struct {
-		types types
+		types *types
 		after *content.Content
 	}{
-		"an inactive type deleted":        {types{inactive: content.TypePost}, nil},
-		"an inactive type edited":         {types{inactive: content.TypePost}, after(content.StatusPublished)},
-		"a type the registry cannot read": {types{err: errors.New("the registry is unreachable")}, nil},
+		"an inactive type deleted":          {&types{inactive: content.TypePost}, nil},
+		"an inactive type edited":           {&types{inactive: content.TypePost}, after(content.StatusPublished)},
+		"a type the registry no longer has": {&types{err: content.ErrTypeNotFound}, nil},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			heard, shaped := &listeners{}, &shaper{}
+			logged := &bytes.Buffer{}
 			n := contentchanges.New(contentchanges.Settings{
 				Listeners: heard, Shaper: shaped, Types: tc.types, Items: &items{}, Budget: roomy,
-				Logger: slog.New(slog.DiscardHandler),
+				Logger: slog.New(slog.NewTextHandler(logged, nil)),
 			})
 
 			write(t, n, storedAs("Before", content.StatusPublished), tc.after)
 
-			if len(heard.heard) != 0 || len(shaped.shaped) != 0 {
-				t.Errorf("the listeners heard %+v after shaping %v, want nothing for an unseen type", heard.heard, shaped.shaped)
+			if len(heard.heard) != 0 || len(shaped.shaped) != 0 || logged.Len() != 0 {
+				t.Errorf("the listeners heard %+v after shaping %v and the log reads %q, want nothing for an unseen type",
+					heard.heard, shaped.shaped, logged)
+			}
+		})
+	}
+}
+
+func TestAWriteLogsATypeItCannotReadAndTellsNothing(t *testing.T) {
+	t.Parallel()
+
+	published, draft := content.StatusPublished, content.StatusDraft
+	for name, tc := range map[string]struct {
+		before   content.Status
+		after    *content.Content
+		failFrom int
+		kind     string
+	}{
+		"a published post deleted, read before":      {published, nil, 1, "deleted"},
+		"a published post set to draft, read before": {published, after(draft), 1, "unpublished"},
+		"a published post edited, read after":        {published, after(published), 2, "published"},
+		"a draft published, read after":              {draft, after(published), 1, "published"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			heard := &listeners{}
+			logged := &bytes.Buffer{}
+			n := contentchanges.New(contentchanges.Settings{
+				Listeners: heard, Shaper: &shaper{},
+				Types: &types{err: errors.New("the registry is unreachable"), failFrom: tc.failFrom},
+				Items: &items{}, Budget: roomy, Logger: slog.New(slog.NewTextHandler(logged, nil)),
+			})
+
+			write(t, n, storedAs("Before", tc.before), tc.after)
+
+			want := `level=WARN msg="plugins not told of a content change" change=` + tc.kind +
+				` error="the registry is unreachable"`
+			if len(heard.heard) != 0 || !strings.Contains(logged.String(), want) {
+				t.Errorf("the listeners heard %+v and the log reads %q, want nothing heard and %q", heard.heard, logged, want)
 			}
 		})
 	}
@@ -319,7 +364,7 @@ func TestAWriteLogsAnItemItCannotShapeAndTellsNothing(t *testing.T) {
 			logged := &bytes.Buffer{}
 			before := storedAs("Before", content.StatusPublished)
 			n := contentchanges.New(contentchanges.Settings{
-				Listeners: heard, Shaper: &shaper{err: errors.New("the media library is unreachable")}, Types: types{},
+				Listeners: heard, Shaper: &shaper{err: errors.New("the media library is unreachable")}, Types: &types{},
 				Items: &items{}, Budget: roomy, Logger: slog.New(slog.NewTextHandler(logged, nil)),
 			})
 
@@ -412,7 +457,7 @@ func TestAMovedParentTellsTheListenersOfEachPublishedChildItMoved(t *testing.T) 
 			heard := &listeners{}
 			before, moved, held := movedTree(tc.parent)
 			n := contentchanges.New(contentchanges.Settings{
-				Listeners: heard, Shaper: &shaper{}, Types: types{}, Items: &items{held: held}, Budget: roomy,
+				Listeners: heard, Shaper: &shaper{}, Types: &types{}, Items: &items{held: held}, Budget: roomy,
 				Logger: slog.New(slog.DiscardHandler),
 			})
 
@@ -438,7 +483,7 @@ func TestAMovedParentFindsItsChildrenAcrossListingPages(t *testing.T) {
 			content.StatusPublished, &moved))
 	}
 	n := contentchanges.New(contentchanges.Settings{
-		Listeners: heard, Shaper: &shaper{}, Types: types{}, Items: &items{held: held}, Budget: roomy,
+		Listeners: heard, Shaper: &shaper{}, Types: &types{}, Items: &items{held: held}, Budget: roomy,
 		Logger: slog.New(slog.DiscardHandler),
 	})
 
@@ -461,7 +506,7 @@ func TestAMovedParentWithNoChildrenTellsOnlyItsOwnChange(t *testing.T) {
 	moved := before
 	moved.Path = "company"
 	n := contentchanges.New(contentchanges.Settings{
-		Listeners: heard, Shaper: &shaper{}, Types: types{}, Items: &items{held: []content.Content{moved}},
+		Listeners: heard, Shaper: &shaper{}, Types: &types{}, Items: &items{held: []content.Content{moved}},
 		Budget: roomy, Logger: slog.New(slog.DiscardHandler),
 	})
 
@@ -475,16 +520,18 @@ func TestAMovedParentWithNoChildrenTellsOnlyItsOwnChange(t *testing.T) {
 func TestAMovedParentLogsChildrenItCannotRead(t *testing.T) {
 	t.Parallel()
 
+	unreachable := errors.New("the database is unreachable")
 	for name, tc := range map[string]struct {
 		items *items
+		types *types
 		want  string
 	}{
 		"a listing that fails": {
-			&items{listErr: errors.New("the database is unreachable")},
+			&items{listErr: unreachable}, &types{},
 			`level=WARN msg="plugins not told of moved children" parent=company error="the database is unreachable"`,
 		},
 		"a child that cannot be read": {
-			&items{byIDErr: errors.New("the database is unreachable")},
+			&items{byIDErr: unreachable}, &types{},
 			`level=WARN msg="plugins not told of a content change" change=published error="the database is unreachable"`,
 		},
 	} {
@@ -496,7 +543,7 @@ func TestAMovedParentLogsChildrenItCannotRead(t *testing.T) {
 			before, moved, held := movedTree(content.StatusPublished)
 			tc.items.held = held
 			n := contentchanges.New(contentchanges.Settings{
-				Listeners: heard, Shaper: &shaper{}, Types: types{}, Items: tc.items, Budget: roomy,
+				Listeners: heard, Shaper: &shaper{}, Types: tc.types, Items: tc.items, Budget: roomy,
 				Logger: slog.New(slog.NewTextHandler(logged, nil)),
 			})
 
