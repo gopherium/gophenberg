@@ -51,6 +51,7 @@ export {
 	AlertDialog,
 	Badge,
 	Button,
+	Checkbox,
 	Dialog,
 	Icon,
 	IconButton,
