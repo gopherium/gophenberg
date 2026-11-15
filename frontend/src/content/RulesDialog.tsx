@@ -4,18 +4,18 @@ import { Button, SelectControl, Stack, Text } from '@gophenberg/frontend-sdk'
 import { ErrorNotice, FormDialog } from '@gopherium/godmin'
 import { formatNumber } from '@gopherium/gottext'
 import { __, sprintf } from '@wordpress/i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import {
 	backlinkSettings,
 	backlinkSources,
 	groupErrorMessage,
-	groupsQueryKey,
 	listRuleSources,
 	pickOf,
 	ruleSourcesQueryKey,
 	StaleWriteError,
+	staleGroupMessage,
 	typeSource,
 	updateGroup,
 } from './groups'
@@ -193,17 +193,20 @@ export function RulesDialog(props: RulesProps) {
 }
 
 /**
- * Renders the form editing where a group appears, its draft started from the stored rules on each ask.
+ * Renders the form editing where a group appears, its draft and the stamp it sends both read when it opens.
  * @param props - The group, the groups, the types, the reporters, the sources offered and what takes the form away.
  * @returns The form dialog, kept open with the draft after a failure other than a stale write.
  */
 function RulesForm(props: RulesProps & { sources: RuleSource[]; failed: boolean; onClose: () => void }) {
 	const [draft, setDraft] = useState<Location>(props.held.location)
+	const [readAt] = useState(props.held.updatedAt)
 	const [picked, setPicked] = useState<Record<string, Touched>>({})
-	const client = useQueryClient()
 	const save = useMutation({
 		mutationFn: () =>
-			updateGroup(props.held.id, { location: draft, backlinks: pointedAnew(props.groups, picked) }),
+			updateGroup(
+				{ id: props.held.id, updatedAt: readAt },
+				{ location: draft, backlinks: pointedAnew(props.groups, picked) },
+			),
 	})
 	const said = sprintf(__('%(group)s now appears where you said.', 'gophenberg'), { group: props.held.title })
 	const send = () =>
@@ -215,8 +218,7 @@ function RulesForm(props: RulesProps & { sources: RuleSource[]; failed: boolean;
 				if (!(cause instanceof StaleWriteError)) {
 					return { error: groupErrorMessage(cause) }
 				}
-				props.onRefused(cause)
-				void client.invalidateQueries({ queryKey: groupsQueryKey })
+				props.onDone(staleGroupMessage(props.held.title))
 				return undefined
 			},
 		)

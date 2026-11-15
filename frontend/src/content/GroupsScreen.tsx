@@ -17,6 +17,8 @@ import {
 	groupsQueryKey,
 	listGroups,
 	reorderGroups,
+	StaleWriteError,
+	staleGroupMessage,
 	typeSource,
 	updateGroup,
 } from './groups'
@@ -370,9 +372,15 @@ function GroupRow(
 	const origin = held.origin ?? ''
 	const declared = origin !== ''
 	const edit = useMutation({
-		mutationFn: (asked: GroupEdit) => updateGroup(held.id, asked),
+		mutationFn: (asked: GroupEdit) => updateGroup(held, asked),
 		onSuccess: () => props.onDone(sprintf(__('%(group)s updated.', 'gophenberg'), { group: held.title })),
-		onError: props.onRefused,
+		onError: (cause: unknown) => {
+			if (cause instanceof StaleWriteError) {
+				props.onDone(sprintf(__('Could not save the field group. %s', 'gophenberg'), staleGroupMessage(held.title)))
+				return
+			}
+			props.onRefused(cause)
+		},
 	})
 	const move = useMutation({
 		mutationFn: (ids: number[]) => reorderGroups(ids),

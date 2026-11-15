@@ -7,6 +7,8 @@ import { resetLocaleData, setLocaleData } from '@wordpress/i18n'
 import { beforeEach, expect, onTestFinished, test } from 'vitest'
 
 import { operatorLabel } from '../content/RulesDialog'
+import { groupsQueryKey } from '../content/groups'
+import type { FieldGroup } from '../content/groups'
 import { catalogFor } from '../i18n/catalog'
 import { gate } from './gate'
 import { renderAt } from './render'
@@ -105,11 +107,13 @@ async function openSpanishValues() {
 	return rule
 }
 
-/** Answers the group edit and records what the dialog sent. */
-function recording(sent: { body?: unknown }) {
+/** Answers the group edit and records what the dialog sent, the stamp it held apart from the parts it edits. */
+function recording(sent: { body?: unknown; stamp?: unknown }) {
 	server.use(
 		http.patch('/api/groups/3', async ({ request }) => {
-			sent.body = await request.json()
+			const { updated_at: stamp, ...parts } = (await request.json()) as Record<string, unknown>
+			sent.body = parts
+			sent.stamp = stamp
 			return HttpResponse.json(ON_POSTS)
 		}),
 	)
@@ -271,6 +275,20 @@ test('drops the whole set when its last condition goes', async () => {
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
 
 	await waitFor(() => expect(sent.body).toEqual({ location: [] }))
+})
+
+test('sends the stamp the group held when the rules form opened, even after the list reads it again', async () => {
+	const sent: { body?: unknown; stamp?: unknown } = {}
+	recording(sent)
+	const client = renderAt('/field-groups')
+	const dialog = await openRules()
+	listing({ ...ON_POSTS, updated_at: '2026-08-02T09:30:00Z' })
+	await client.refetchQueries({ queryKey: groupsQueryKey })
+	expect(client.getQueryData<FieldGroup[]>(groupsQueryKey)?.[0].updatedAt).toBe('2026-08-02T09:30:00Z')
+
+	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
+
+	await waitFor(() => expect(sent.stamp).toBe(ON_POSTS.updated_at))
 })
 
 test('warns that a group with no rules appears nowhere', async () => {
@@ -823,7 +841,7 @@ test('closes on a save someone else beat and reopens on the rules and sources th
 	await userEvent.click(await screen.findByRole('option', { name: 'Rival' }))
 	await userEvent.click(within(dialog).getByRole('button', { name: 'Save rules' }))
 
-	expect(await findToast(/^Could not save the change\. Someone else saved/)).toBeInTheDocument()
+	expect(await findToast('Someone saved Article details after you opened it.')).toBeInTheDocument()
 	await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 	const table = screen.getByRole('region', { name: 'Field Groups' })
 	await waitFor(() =>

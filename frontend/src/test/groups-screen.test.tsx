@@ -339,7 +339,47 @@ test('deactivates a group so it stops appearing anywhere', async () => {
 
 	await userEvent.click(within(row).getByRole('button', { name: 'Deactivate' }))
 
-	await waitFor(() => expect(sent).toEqual([{ active: false }]))
+	await waitFor(() => expect(sent).toEqual([{ active: false, updated_at: DETAILS_GROUP.updated_at }]))
+})
+
+test('sends the stamp the list read when a group is turned off', async () => {
+	const sent: unknown[] = []
+	listing([{ ...DETAILS_GROUP, updated_at: '2026-08-02T09:30:00Z' }, EXTRAS_GROUP])
+	server.use(
+		http.patch('/api/groups/3', async ({ request }) => {
+			sent.push(await request.json())
+			return HttpResponse.json({ ...DETAILS_GROUP, active: false })
+		}),
+	)
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const row = within(table).getByRole('row', { name: /Article details/ })
+
+	await userEvent.click(within(row).getByRole('button', { name: 'Deactivate' }))
+
+	await waitFor(() => expect(sent).toEqual([{ active: false, updated_at: '2026-08-02T09:30:00Z' }]))
+})
+
+test('says the group was not saved when Activate comes back stale, and reads the groups again', async () => {
+	let listed = [DETAILS_GROUP, EXTRAS_GROUP]
+	server.use(http.get('/api/groups', () => HttpResponse.json({ items: listed })))
+	server.use(
+		http.patch('/api/groups/3', () => {
+			listed = [{ ...DETAILS_GROUP, active: false, updated_at: '2026-08-02T09:30:00Z' }, EXTRAS_GROUP]
+			return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+		}),
+	)
+	renderAt('/field-groups')
+	const table = await screen.findByRole('region', { name: 'Field Groups' })
+	const row = within(table).getByRole('row', { name: /Article details/ })
+
+	await userEvent.click(within(row).getByRole('button', { name: 'Deactivate' }))
+
+	const said = 'Could not save the field group. Someone saved Article details after you opened it.'
+	expect(await findToast(said)).toBeInTheDocument()
+	await waitFor(() =>
+		expect(within(table).getByRole('row', { name: /Article details/ })).toHaveTextContent('Inactive'),
+	)
 })
 
 test('deletes a group once the warning is accepted', async () => {

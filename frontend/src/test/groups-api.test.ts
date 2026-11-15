@@ -20,6 +20,8 @@ import {
 	reorderGroups,
 	setFieldRequiredInGroup,
 	setFieldSettingsInGroup,
+	StaleWriteError,
+	staleGroupMessage,
 	updateGroup,
 } from '../content/groups'
 import type { FieldGroup } from '../content/groups'
@@ -46,6 +48,14 @@ const GROUP_ROW = {
 	updated_at: '2026-08-01T10:00:00Z',
 }
 
+const stampRead = GROUP_ROW.updated_at
+
+const groupRead = { id: GROUP_ROW.id, updatedAt: stampRead }
+
+const STAMP_SAVED_LATER = '2026-08-02T09:30:00Z'
+
+const LINKED_FROM_SOURCES = { 'linked-from': { source_group: 'cars', source_field: ['owner'] } }
+
 test('reads every stored group with its rules and fields', async () => {
 	server.use(http.get('/api/groups', () => HttpResponse.json({ items: [GROUP_ROW] })))
 
@@ -58,6 +68,19 @@ test('reads every stored group with its rules and fields', async () => {
 	expect(groups[0].active).toBe(true)
 	expect(groups[0].location).toEqual([[{ source: 'content_type', operator: '==', value: 'post' }]])
 	expect(groups[0].fields[0]).toMatchObject({ key: 'subtitle', label: 'Subtitle', required: true })
+})
+
+test('reads when a group was made and last saved', async () => {
+	server.use(
+		http.get('/api/groups', () =>
+			HttpResponse.json({ items: [{ ...GROUP_ROW, updated_at: '2026-08-02T09:30:00Z' }] }),
+		),
+	)
+
+	const [group] = await listGroups()
+
+	expect(group.createdAt).toBe('2026-08-01T10:00:00Z')
+	expect(group.updatedAt).toBe('2026-08-02T09:30:00Z')
 })
 
 test('reports groups it could not read', async () => {
@@ -108,13 +131,32 @@ test('edits only what the caller names', async () => {
 		}),
 	)
 
-	const updated = await updateGroup(3, { active: false })
+	const updated = await updateGroup(groupRead, { active: false })
 
-	expect(sent).toEqual({ active: false })
+	expect(sent).toEqual({ active: false, updated_at: stampRead })
 	expect(updated.active).toBe(false)
 })
 
-test('carries an edited title and rules together', async () => {
+test.each([
+	{
+		what: 'an edited title and rules together',
+		edit: { title: 'Renamed', location: [] },
+		read: groupRead,
+		body: { title: 'Renamed', location: [], updated_at: stampRead },
+	},
+	{
+		what: 'the sources a group edit points its Linked from fields at',
+		edit: { location: [], backlinks: LINKED_FROM_SOURCES },
+		read: groupRead,
+		body: { location: [], backlinks: LINKED_FROM_SOURCES, updated_at: stampRead },
+	},
+	{
+		what: 'the stamp it is given as updated_at',
+		edit: { title: 'Renamed' },
+		read: { ...groupRead, updatedAt: STAMP_SAVED_LATER },
+		body: { title: 'Renamed', updated_at: STAMP_SAVED_LATER },
+	},
+])('carries $what', async ({ edit, read, body }) => {
 	let sent: unknown
 	server.use(
 		http.patch('/api/groups/3', async ({ request }) => {
@@ -123,24 +165,22 @@ test('carries an edited title and rules together', async () => {
 		}),
 	)
 
-	await updateGroup(3, { title: 'Renamed', location: [] })
+	await updateGroup(read, edit)
 
-	expect(sent).toEqual({ title: 'Renamed', location: [] })
+	expect(sent).toEqual(body)
 })
 
-test('carries the sources a group edit points its Linked from fields at', async () => {
-	let sent: unknown
+test('names the group someone saved after it was read', async () => {
 	server.use(
-		http.patch('/api/groups/3', async ({ request }) => {
-			sent = await request.json()
-			return HttpResponse.json(GROUP_ROW)
-		}),
+		http.patch('/api/groups/3', () =>
+			HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 }),
+		),
 	)
-	const backlinks = { 'linked-from': { source_group: 'cars', source_field: ['owner'] } }
 
-	await updateGroup(3, { location: [], backlinks })
+	const failure = await updateGroup(groupRead, { title: 'Renamed' }).catch((cause: unknown) => cause)
 
-	expect(sent).toEqual({ location: [], backlinks })
+	expect(failure).toBeInstanceOf(StaleWriteError)
+	expect(staleGroupMessage('Article details')).toBe('Someone saved Article details after you opened it.')
 })
 
 test('removes a group', async () => {
@@ -290,7 +330,7 @@ test('removes a field from its group', async () => {
 })
 
 test.each([
-	['updateGroup', () => updateGroup(3, { title: 'Renamed' }), 'patch', '/api/groups/3'],
+	['updateGroup', () => updateGroup(groupRead, { title: 'Renamed' }), 'patch', '/api/groups/3'],
 	['deleteGroup', () => deleteGroup(3), 'delete', '/api/groups/3'],
 	['reorderGroups', () => reorderGroups([3]), 'put', '/api/groups/order'],
 	[
@@ -386,6 +426,8 @@ function groupOf(key: string, fields: { key: string; label: string; kind: string
 		location: [],
 		position: 1,
 		active: true,
+		createdAt: '',
+		updatedAt: '',
 		fields: fields.map((held) => ({
 			...held,
 			relatesTo: '',

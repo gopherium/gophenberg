@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { z } from 'zod'
-import { __ } from '@wordpress/i18n'
+import { __, sprintf } from '@wordpress/i18n'
 import type { DialogAnswer } from '@gopherium/godmin'
 
 import { errorText } from '../i18n/errors'
@@ -24,6 +24,8 @@ const groupSchema = z.object({
 	active: z.boolean(),
 	origin: z.string().optional(),
 	fields: z.array(fieldSchema),
+	created_at: z.string(),
+	updated_at: z.string(),
 })
 
 const groupListSchema = z.object({ items: z.array(groupSchema) })
@@ -60,6 +62,8 @@ export interface FieldGroup {
 	active: boolean
 	origin?: string
 	fields: ContentField[]
+	createdAt: string
+	updatedAt: string
 }
 
 /** The source a backlinks field reads, with the groups and relations on offer. */
@@ -150,6 +154,9 @@ export interface GroupEdit {
 	backlinks?: Record<string, Record<string, unknown>>
 }
 
+/** The group an edit is for, with the timestamp the editor read it at. */
+type GroupRead = Pick<FieldGroup, 'id' | 'updatedAt'>
+
 /**
  * Returns the admin view of a stored group.
  * @param row - The group as the API answered it.
@@ -165,11 +172,22 @@ function toGroup(row: z.infer<typeof groupSchema>): FieldGroup {
 		active: row.active,
 		origin: row.origin,
 		fields: row.fields.map(toField),
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
 	}
 }
 
 /** The failure a write reports when the stored field moved on before it landed. */
 export class StaleWriteError extends Error {}
+
+/**
+ * Returns the sentence saying someone saved the group after it was read.
+ * @param title - The title of the group.
+ * @returns The sentence to show.
+ */
+export function staleGroupMessage(title: string): string {
+	return sprintf(__('Someone saved %(group)s after you opened it.', 'gophenberg'), { group: title })
+}
 
 /**
  * Returns what a form over a group's fields answers once its write settles.
@@ -260,13 +278,13 @@ export async function createGroup(title: string, location: Location): Promise<Fi
 }
 
 /**
- * Edits the parts of a group the caller names.
- * @param id - The group to edit.
+ * Edits the parts of a group the caller names, while the group still holds the stamp it was read at.
+ * @param read - The group to edit, with the timestamp the editor read.
  * @param edit - The parts to move.
  * @returns The stored group.
  */
-export async function updateGroup(id: number, edit: GroupEdit): Promise<FieldGroup> {
-	const body: Record<string, unknown> = {}
+export async function updateGroup(read: GroupRead, edit: GroupEdit): Promise<FieldGroup> {
+	const body: Record<string, unknown> = { updated_at: read.updatedAt }
 	if (edit.title !== undefined) {
 		body.title = edit.title
 	}
@@ -279,7 +297,7 @@ export async function updateGroup(id: number, edit: GroupEdit): Promise<FieldGro
 	if (edit.backlinks !== undefined) {
 		body.backlinks = edit.backlinks
 	}
-	const response = await fetch(`/api/groups/${id}`, {
+	const response = await fetch(`/api/groups/${read.id}`, {
 		method: 'PATCH',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify(body),
