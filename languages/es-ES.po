@@ -886,10 +886,6 @@ msgid "%(group)s created."
 msgstr "%(group)s creado."
 
 #, fuzzy
-msgid "%(group)s now appears where you said."
-msgstr "%(group)s ya aparece donde has dicho."
-
-#, fuzzy
 msgid "%(group)s removed."
 msgstr "%(group)s eliminado."
 
@@ -930,6 +926,10 @@ msgid "A type that still holds items, even in the trash, is not deleted."
 msgstr "Un tipo que aún tenga elementos, incluso en la papelera, no se borrará."
 
 #, fuzzy
+msgid "Add a field"
+msgstr "Añadir un campo"
+
+#, fuzzy
 msgid "Add choice"
 msgstr "Añadir opción"
 
@@ -966,6 +966,10 @@ msgid "Button group"
 msgstr "Grupo de botones"
 
 #, fuzzy
+msgid "Changed elsewhere too. Your edit was not kept."
+msgstr "También se cambió en otro sitio. Tu cambio no se ha conservado."
+
+#, fuzzy
 msgid "Checkbox group"
 msgstr "Grupo de casillas"
 
@@ -990,12 +994,24 @@ msgid "Create a field group"
 msgstr "Crear un grupo de campos"
 
 #, fuzzy
+msgid "Created %(date)s"
+msgstr "Creado el %(date)s"
+
+#, fuzzy
 msgid "Delete \"%(group)s\"?"
 msgstr "¿Eliminar «%(group)s»?"
 
 #, fuzzy
 msgid "Delete the group"
 msgstr "Eliminar el grupo"
+
+#, fuzzy
+msgid "Discard"
+msgstr "Descartar"
+
+#, fuzzy
+msgid "Discard changes?"
+msgstr "¿Descartar los cambios?"
 
 #, fuzzy
 msgid "Every content type"
@@ -1016,6 +1032,10 @@ msgstr "Grupo de campos"
 #, fuzzy
 msgid "Field Groups"
 msgstr "Grupos de campos"
+
+#, fuzzy
+msgid "Field group settings"
+msgstr "Ajustes del grupo de campos"
 
 #, fuzzy
 msgid "Fields of %(group)s"
@@ -1042,12 +1062,24 @@ msgid "It starts on %(type)s, and the rules may be edited afterwards."
 msgstr "Empieza en %(type)s, y las reglas se pueden editar después."
 
 #, fuzzy
+msgid "Keep editing"
+msgstr "Seguir editando"
+
+#, fuzzy
 msgid "Label"
 msgstr "Etiqueta"
 
 #, fuzzy
+msgid "Load saved version"
+msgstr "Cargar la versión guardada"
+
+#, fuzzy
 msgid "Loading field groups."
 msgstr "Cargando los grupos de campos."
+
+#, fuzzy
+msgid "Location rules"
+msgstr "Reglas de ubicación"
 
 #, fuzzy
 msgid "Longest"
@@ -1146,6 +1178,10 @@ msgid "That field group no longer exists. Reload the page to see the groups your
 msgstr "Ese grupo de campos ya no existe. Recarga la página para ver los grupos que tiene ahora tu sitio."
 
 #, fuzzy
+msgid "The changes to this field group are not saved."
+msgstr "Los cambios de este grupo de campos no se han guardado."
+
+#, fuzzy
 msgid "The content types could not be loaded, so where these groups appear and which fields they shadow are not shown."
 msgstr "No se han podido cargar los tipos de contenido, así que no se muestra dónde aparecen estos grupos ni qué campos eclipsan."
 
@@ -1224,10 +1260,6 @@ msgstr "Valor"
 #, fuzzy
 msgid "Web address"
 msgstr "Dirección web"
-
-#, fuzzy
-msgid "Where %(group)s appears"
-msgstr "Dónde aparece %(group)s"
 
 #, fuzzy
 msgid "Without a rule this group appears nowhere."
@@ -2773,6 +2805,11 @@ msgstr "Editor"
 msgctxt "role"
 msgid "Member"
 msgstr "Miembro"
+
+#, fuzzy
+msgctxt "field group"
+msgid "Active"
+msgstr "Activo"
 
 #, fuzzy
 msgctxt "field group"

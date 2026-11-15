@@ -130,9 +130,6 @@ msgstr ""
 msgid "%(group)s created."
 msgstr ""
 
-msgid "%(group)s now appears where you said."
-msgstr ""
-
 msgid "%(group)s removed."
 msgstr ""
 
@@ -425,6 +422,9 @@ msgstr ""
 msgid "Add User"
 msgstr ""
 
+msgid "Add a field"
+msgstr ""
+
 msgid "Add block"
 msgstr ""
 
@@ -568,6 +568,9 @@ msgstr ""
 msgid "Change address…"
 msgstr ""
 
+msgid "Changed elsewhere too. Your edit was not kept."
+msgstr ""
+
 msgid "Check again."
 msgstr ""
 
@@ -688,6 +691,9 @@ msgstr ""
 msgid "Created"
 msgstr ""
 
+msgid "Created %(date)s"
+msgstr ""
+
 msgid "Current version: %(version)s"
 msgstr ""
 
@@ -776,6 +782,12 @@ msgstr ""
 msgid "Dimensions"
 msgstr ""
 
+msgid "Discard"
+msgstr ""
+
+msgid "Discard changes?"
+msgstr ""
+
 msgid "Dismiss"
 msgstr ""
 
@@ -861,6 +873,9 @@ msgid "Field Groups"
 msgstr ""
 
 msgid "Field group"
+msgstr ""
+
+msgid "Field group settings"
 msgstr ""
 
 msgid "Fields"
@@ -1007,6 +1022,9 @@ msgstr ""
 msgid "Keep %(field)s out of the list"
 msgstr ""
 
+msgid "Keep editing"
+msgstr ""
+
 msgid "Key"
 msgstr ""
 
@@ -1034,6 +1052,9 @@ msgstr ""
 msgid "List view"
 msgstr ""
 
+msgid "Load saved version"
+msgstr ""
+
 msgid "Loading field groups."
 msgstr ""
 
@@ -1053,6 +1074,9 @@ msgid "Loading themes."
 msgstr ""
 
 msgid "Loading…"
+msgstr ""
+
+msgid "Location rules"
 msgstr ""
 
 msgid "Longest"
@@ -1618,6 +1642,9 @@ msgstr ""
 msgid "The built-in renderer is serving the public site."
 msgstr ""
 
+msgid "The changes to this field group are not saved."
+msgstr ""
+
 msgid "The check on %(date)s at %(time)s failed: %(error)s"
 msgstr ""
 
@@ -2096,9 +2123,6 @@ msgstr ""
 msgid "What it points at changed, so its stored values go with it."
 msgstr ""
 
-msgid "Where %(group)s appears"
-msgstr ""
-
 msgid "While your site is being updated, it keeps serving until Gophenberg restarts on the new version."
 msgstr ""
 
@@ -2221,6 +2245,10 @@ msgstr ""
 
 msgctxt "field"
 msgid "Name"
+msgstr ""
+
+msgctxt "field group"
+msgid "Active"
 msgstr ""
 
 msgctxt "field group"

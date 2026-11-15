@@ -915,6 +915,94 @@ test.each(READERS)('titles an address no group holds and says the group does not
 	expect(within(trail).getByRole('link', { name: said.list })).toBeInTheDocument()
 })
 
+const SETTINGS_READERS = [
+	{
+		locale: 'es-ES',
+		list: 'Grupos de campos',
+		settings: 'Ajustes del grupo de campos',
+		rules: 'Reglas de ubicación',
+		adding: 'Añadir un campo',
+		active: 'Activo',
+		created: 'Creado el',
+		ask: '¿Descartar los cambios?',
+		lose: 'Los cambios de este grupo de campos no se han guardado.',
+		keep: 'Seguir editando',
+		discard: 'Descartar',
+	},
+	{
+		locale: 'fr-FR',
+		list: 'Groupes de champs',
+		settings: 'Réglages du groupe de champs',
+		rules: "Règles d'emplacement",
+		adding: 'Ajouter un champ',
+		active: 'Actif',
+		created: 'Créé le',
+		ask: 'Abandonner les modifications ?',
+		lose: 'Les modifications de ce groupe de champs ne sont pas enregistrées.',
+		keep: 'Continuer à modifier',
+		discard: 'Abandonner',
+	},
+]
+
+test.each(SETTINGS_READERS)('names the details of a group and asks before a draft is left in $locale', async (said) => {
+	setLocaleData(await catalogFor(said.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+
+	const details = within(main).getByRole('region', { name: said.settings })
+	expect(within(details).getByRole('heading', { level: 3, name: said.rules })).toBeInTheDocument()
+	expect(within(main).getByRole('heading', { level: 3, name: said.adding })).toBeInTheDocument()
+	expect(within(details).getByText(`${said.created} ${formatDate(DETAILS.created_at)}`)).toBeInTheDocument()
+	await userEvent.click(within(details).getByRole('checkbox', { name: said.active }))
+	await userEvent.click(within(within(main).getByRole('navigation')).getByRole('link', { name: said.list }))
+
+	const asking = await screen.findByRole('alertdialog', { name: said.ask })
+	expect(within(asking).getByText(said.lose)).toBeInTheDocument()
+	expect(within(asking).getByRole('button', { name: said.keep })).toBeInTheDocument()
+	expect(within(asking).getByRole('button', { name: said.discard })).toBeInTheDocument()
+})
+
+const STALE_READERS = [
+	{
+		locale: 'es-ES',
+		settings: 'Ajustes del grupo de campos',
+		save: 'Guardar',
+		load: 'Cargar la versión guardada',
+		lost: 'También se cambió en otro sitio. Tu cambio no se ha conservado.',
+	},
+	{
+		locale: 'fr-FR',
+		settings: 'Réglages du groupe de champs',
+		save: 'Enregistrer',
+		load: 'Charger la version enregistrée',
+		lost: "Modifié ailleurs aussi. Votre modification n'a pas été conservée.",
+	},
+]
+
+test.each(STALE_READERS)('offers the version someone else saved and names the part it won in $locale', async (said) => {
+	setLocaleData(await catalogFor(said.locale), 'gophenberg')
+	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
+	let listed: unknown[] = [DETAILS, EXTRAS]
+	server.use(http.get('/api/groups', () => HttpResponse.json({ items: listed })))
+	server.use(
+		http.patch('/api/groups/3', () => {
+			listed = [{ ...DETAILS, title: 'Car details', updated_at: OTHER_SAVE_STAMP }, EXTRAS]
+			return HttpResponse.json({ error: 'content: conflicting update', code: 'content_stale_update' }, { status: 409 })
+		}),
+	)
+	renderAt('/field-groups/3')
+	const main = await pageTitled('Article details')
+	const details = within(main).getByRole('region', { name: said.settings })
+	await userEvent.type(within(details).getByRole('textbox'), ' here')
+	await userEvent.click(within(main).getByRole('button', { name: said.save }))
+
+	await userEvent.click(await within(main).findByRole('button', { name: said.load }))
+
+	expect(await within(details).findByText(said.lost)).toBeInTheDocument()
+	expect(within(details).getByRole('textbox')).toHaveValue('Car details')
+})
+
 test.each(READERS)('says a group a plugin declared is read only in $locale', async (said) => {
 	setLocaleData(await catalogFor(said.locale), 'gophenberg')
 	onTestFinished(() => resetLocaleData({}, 'gophenberg'))
