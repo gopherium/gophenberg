@@ -119,7 +119,7 @@ Some things work differently after this update:
   `GOPHENBERG_WEB_DIR` names an admin build. A `GOPHENBERG_WEB_DIR`
   that still names the admin built for the release before this one
   serves that old admin, so build the admin again or unset it.
-  Building from source needs Go 1.27.3.
+  Building from source needs Go 1.27.4.
 - Thirty-three settings are new, beside `PORT`, and none is required.
   Most of them tune the update checks and the updates of a server
   install. A value out of range or outside its list stops startup, so

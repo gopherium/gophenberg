@@ -46,7 +46,7 @@ func (b onDemandBackup) run(ctx context.Context, call gonsole.Call) error {
 	if !onSQLite(address) {
 		return errPgDumpBackup
 	}
-	layout, err := updater.BackupSettingsFrom(call.Env)
+	backups, err := updater.BackupSettingsFrom(call.Env)
 	if err != nil {
 		return err
 	}
@@ -54,21 +54,23 @@ func (b onDemandBackup) run(ctx context.Context, call gonsole.Call) error {
 	if err != nil {
 		return err
 	}
-	taken, err := b.backUp(ctx, db, layout, address)
+	taken, err := b.backUp(ctx, db, backups, address)
 	if err != nil {
-		return err
+		return needsLocalDisk(call.Env, shortOfSpace(call.Env, err))
 	}
 	return answerBackup(call, taken)
 }
 
-// backUp makes the data folder of layout, then takes a manual backup of db into the folder of the file at address.
+// backUp makes the data folder of backups, then takes a manual backup of db into the folder of the file at address.
 func (b onDemandBackup) backUp(
-	ctx context.Context, db *sql.DB, layout updater.Layout, address string,
+	ctx context.Context, db *sql.DB, backups updater.BackupSettings, address string,
 ) (sqlite.TakenBackup, error) {
-	if err := layout.MakeData(); err != nil {
+	if err := backups.Layout.MakeData(); err != nil {
 		return sqlite.TakenBackup{}, err
 	}
-	return b.take(ctx, db, sqlite.BackupRequest{Folder: backupsFolder(layout, address), Kind: backupfiles.Manual})
+	return b.take(ctx, db, sqlite.BackupRequest{
+		Folder: backupsFolder(backups.Layout, address), Kind: backupfiles.Manual, Margin: backups.DiskMargin,
+	})
 }
 
 // answerBackup prints where taken went, then on a line of its own the step after the copy that failed.

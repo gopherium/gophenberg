@@ -73,14 +73,15 @@ type backupPlan struct {
 // planBackup reads the backup before migrating from env, waiting for another run's backup as opts waits for the lock.
 func planBackup(env gonsole.Env, opts sqlite.MigrateOptions) (backupPlan, error) {
 	settings, settingsErr := sqlite.BackupSettingsFrom(env)
-	layout, layoutErr := updater.BackupSettingsFrom(env)
-	if err := errors.Join(settingsErr, layoutErr); err != nil {
+	backups, backupsErr := updater.BackupSettingsFrom(env)
+	if err := errors.Join(settingsErr, backupsErr); err != nil {
 		return backupPlan{}, err
 	}
 	request := sqlite.BackupRequest{
-		Folder: backupsFolder(layout, env.Value("DATABASE_URL")), Kind: backupfiles.Update, Kept: settings.Kept,
+		Folder: backupsFolder(backups.Layout, env.Value("DATABASE_URL")), Kind: backupfiles.Update, Kept: settings.Kept,
+		Margin: backups.DiskMargin,
 	}
-	return backupPlan{request: request, layout: layout, skipFor: settings.SkipFor, wait: opts, names: env}, nil
+	return backupPlan{request: request, layout: backups.Layout, skipFor: settings.SkipFor, wait: opts, names: env}, nil
 }
 
 // backupsFolder returns the folder the file at address backs up into: the data folder's, the root's, else its own.
@@ -177,13 +178,17 @@ func (b beforeMigrating) awaitOther(ctx context.Context, db *sql.DB, plan backup
 
 // failed returns the error of a backup before migrating that did not land, naming the skip setting where it applies.
 func (p backupPlan) failed(cause error) error {
-	skip := p.names.Key("SQLITE_SKIP_BACKUP_FOR")
+	advice := ", so free some disk space first, by moving backups off the server"
+	if errors.Is(cause, dbsqlite.ErrNoSpace) || errors.Is(cause, dbsqlite.ErrUnsupportedFileSystem) {
+		advice = ""
+	}
+	cause, skip := needsLocalDisk(p.names, shortOfSpace(p.names, cause)), p.names.Key("SQLITE_SKIP_BACKUP_FOR")
 	if p.rising {
 		return fmt.Errorf("take the backup before migrating: %w, and %s does not apply since %s raises the minimum "+
-			"version of the file, so free room by moving backups off the server", cause, skip, version.Version())
+			"version of the file%s", cause, skip, version.Version(), advice)
 	}
-	return fmt.Errorf("take the backup before migrating: %w, so free room by moving backups off the server, "+
-		"or set %s=%s to migrate this version with no backup", cause, skip, version.Version())
+	return fmt.Errorf("take the backup before migrating: %w%s, or set %s=%s to migrate this version with no backup",
+		cause, advice, skip, version.Version())
 }
 
 // overdue returns the error of a run whose wait for another backup passed while the file still needed its own.

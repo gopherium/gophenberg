@@ -554,14 +554,15 @@ func sectionsFrom(env gonsole.Env, held *runConfig) error {
 	return placesFrom(env, held)
 }
 
-// installFrom reads the install settings, then the SQLite backup schedule in the folders they name, into held.
+// installFrom reads the install settings, then the SQLite backup schedule in their folders and margin, into held.
 func installFrom(env gonsole.Env, held *runConfig) error {
 	install, err := updater.SettingsFrom(env)
 	if err != nil {
 		return err
 	}
 	held.install = install
-	held.backups, err = backupScheduleFrom(env, install.Layout())
+	backups := updater.BackupSettings{Layout: install.Layout(), DiskMargin: install.DiskMargin}
+	held.backups, err = backupScheduleFrom(env, backups)
 	return err
 }
 

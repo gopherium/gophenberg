@@ -94,7 +94,7 @@ func TestAClaimThatWinsPrunesAfterItAndKeepsTheCopy(t *testing.T) {
 		t.Fatalf("a run whose claim won and whose prune failed = %v after %d migrations, want nil after 1",
 			err, *applied)
 	}
-	request := sqlite.BackupRequest{Folder: backupsBeside(path), Kind: backupfiles.Update, Kept: 2}
+	request := sqlite.BackupRequest{Folder: backupsBeside(path), Kind: backupfiles.Update, Kept: 2, Margin: 64 << 20}
 	if want := []string{"claim", prunedStep(request, taken)}; !slices.Equal(log.steps, want) {
 		t.Errorf("a run whose claim won took the steps %q, want %q", log.steps, want)
 	}

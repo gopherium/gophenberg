@@ -1,6 +1,6 @@
 module github.com/gopherium/gophenberg
 
-go 1.27.3
+go 1.27.4
 
 tool (
 	github.com/go-gremlins/gremlins/cmd/gremlins
@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gopherium/framework/dbkit v0.3.0
 	github.com/gopherium/framework/dbkit/postgres v0.4.0
-	github.com/gopherium/framework/dbkit/sqlite v0.4.0
+	github.com/gopherium/framework/dbkit/sqlite v0.4.1-0.20261114214001-4933b8cc1a18
 	github.com/gopherium/framework/goncierge v0.1.0
 	github.com/gopherium/framework/gonsole v0.9.0
 	github.com/gopherium/framework/gonsole/auth v0.9.0

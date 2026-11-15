@@ -5,6 +5,11 @@ Feature: A SQLite site keeps backups of its file
   sits in GOPHENBERG_DATA_DIR or GOPHENBERG_INSTALL_ROOT. When neither
   is set, it sits beside the file and is named for it, such as
   site.db.backups beside site.db, so each file keeps its own backups.
+  Before it copies, each backup checks that the backups folder has free
+  space for the copy and GOPHENBERG_UPDATE_DISK_MARGIN_MB, and with less
+  it stops and copies nothing. A backups folder that is already there
+  keeps its mode, and each backup in it is readable and writable by its
+  owner alone.
   GOPHENBERG_SQLITE_BACKUPS_KEEP keeps the newest update and scheduled
   backups together, and a backup taken on demand stays until the owner
   deletes it. A copy on the server is a convenience, not a backup, so
@@ -105,6 +110,53 @@ Feature: A SQLite site keeps backups of its file
     And the backups folder holds 1 manual backup
     And the backups folder still holds "0.0.1-20200101T031500Z-update.sqlite"
     And the backups folder still holds "0.0.1-20200102T031500Z-scheduled.sqlite"
+
+  Scenario: database:backup stops when the backups folder lacks free space for the copy and the margin
+    Given the settings point at an empty SQLite file
+    And the operator ran "migrate"
+    And GOPHENBERG_UPDATE_DISK_MARGIN_MB is "1073741824"
+    When the operator runs "database:backup"
+    Then the command exits with code 1
+    And the error says "MB free"
+    And the error says "GOPHENBERG_UPDATE_DISK_MARGIN_MB"
+    And the error says "free some disk space"
+    And the backups folder holds no backup
+
+  Scenario: A new version stops before it migrates when the backups folder lacks free space
+    Given the settings point at an empty SQLite file
+    And the operator ran "migrate"
+    And the file records Gophenberg "0.0.1" as the version that last migrated it
+    And GOPHENBERG_UPDATE_DISK_MARGIN_MB is "1073741824"
+    When the operator runs "migrate"
+    Then the command exits with code 1
+    And the error says "take the backup before migrating"
+    And the error says "GOPHENBERG_UPDATE_DISK_MARGIN_MB"
+    And the backups folder holds no backup
+    And the file still records Gophenberg "0.0.1" as the version that last migrated it
+
+  Scenario Outline: A margin past its bound stops a command that backs up the file
+    Given the settings point at an empty SQLite file
+    And the operator ran "migrate"
+    And GOPHENBERG_UPDATE_DISK_MARGIN_MB is "1073741825"
+    When the operator runs "<command>"
+    Then the command exits with code 1
+    And the error says "GOPHENBERG_UPDATE_DISK_MARGIN_MB: must stand at or below 1073741824"
+    And the backups folder holds no backup
+
+    Examples:
+      | command         |
+      | migrate         |
+      | database:backup |
+
+  Scenario: database:backup leaves a backups folder that is already there as it is
+    Given the settings point at an empty SQLite file
+    And the operator ran "migrate"
+    And the SQLite file is set to the mode "0644"
+    And the backups folder is set to the mode "0755"
+    When the operator runs "database:backup"
+    Then the command succeeds
+    And the backups folder has the mode "0755"
+    And the manual backup has the mode "0600"
 
   Scenario: database:backup on PostgreSQL names pg_dump
     Given the settings point at an empty PostgreSQL database

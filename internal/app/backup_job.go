@@ -19,15 +19,16 @@ import (
 // sqliteBackupJob names the core job that backs up the file of a SQLite site each interval.
 const sqliteBackupJob = "core/sqlite-backup"
 
-// backupSchedule is how often a SQLite site backs its file up, how long one backup may run, and the backup it takes.
+// backupSchedule is how often a SQLite site backs its file up, how long one backup may run, its backup and settings.
 type backupSchedule struct {
 	every     time.Duration
 	timeLimit time.Duration
 	request   sqlite.BackupRequest
+	names     gonsole.Env
 }
 
-// backupScheduleFrom reads the backup schedule of the sqlite: address env names into layout's folder, none elsewhere.
-func backupScheduleFrom(env gonsole.Env, layout updater.Layout) (backupSchedule, error) {
+// backupScheduleFrom reads the backup schedule of the sqlite: address env names into the folder and margin of backups.
+func backupScheduleFrom(env gonsole.Env, backups updater.BackupSettings) (backupSchedule, error) {
 	address := env.Value("DATABASE_URL")
 	if !onSQLite(address) {
 		return backupSchedule{}, nil
@@ -36,9 +37,11 @@ func backupScheduleFrom(env gonsole.Env, layout updater.Layout) (backupSchedule,
 	if err != nil {
 		return backupSchedule{}, err
 	}
-	return backupSchedule{every: settings.Interval, timeLimit: settings.TimeLimit, request: sqlite.BackupRequest{
-		Folder: backupsFolder(layout, address), Kind: backupfiles.Scheduled, Kept: settings.Kept,
-	}}, nil
+	request := sqlite.BackupRequest{
+		Folder: backupsFolder(backups.Layout, address), Kind: backupfiles.Scheduled, Kept: settings.Kept,
+		Margin: backups.DiskMargin,
+	}
+	return backupSchedule{every: settings.Interval, timeLimit: settings.TimeLimit, request: request, names: env}, nil
 }
 
 // backupJobs returns the job that backs up the SQLite file behind db as schedule says, none while it names no interval.
@@ -60,7 +63,9 @@ func (s scheduledBackup) jobs(schedule backupSchedule) []cron.Job {
 	}
 	return []cron.Job{{
 		Name: sqliteBackupJob, Every: schedule.every, TimeLimit: schedule.timeLimit,
-		Run: func(ctx context.Context, _ time.Time) error { return s.backUp(ctx, schedule.request) },
+		Run: func(ctx context.Context, _ time.Time) error {
+			return needsLocalDisk(schedule.names, shortOfSpace(schedule.names, s.backUp(ctx, schedule.request)))
+		},
 	}}
 }
 

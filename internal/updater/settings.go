@@ -37,29 +37,35 @@ type Settings struct {
 
 // SettingsFrom reads the update settings env holds, refusing a relative folder and any value out of range.
 func SettingsFrom(env gonsole.Env) (Settings, error) {
-	layout, layoutErr := BackupSettingsFrom(env)
+	backups, backupsErr := BackupSettingsFrom(env)
 	timeout, timeoutErr := env.Duration("UPDATE_DOWNLOAD_TIMEOUT", 10*time.Minute)
 	capMB, capErr := env.Count("UPDATE_DOWNLOAD_CAP_MB", 200, gonsole.AtMost(maxMegabytes))
-	marginMB, marginErr := env.Count("UPDATE_DISK_MARGIN_MB", 64, gonsole.AllowZero(), gonsole.AtMost(maxMegabytes))
 	kept, keptErr := env.Count("UPDATE_BACKUPS_KEEP", 3, gonsole.AtMost(maxBackupsKept))
 	check, checkErr := checkSettingsFrom(env)
-	if err := errors.Join(layoutErr, timeoutErr, capErr, marginErr, keptErr, checkErr); err != nil {
+	if err := errors.Join(backupsErr, timeoutErr, capErr, keptErr, checkErr); err != nil {
 		return Settings{}, err
 	}
-	check.Root, check.Data, check.DownloadCap, check.DownloadTimeout = layout.Root, layout.Data, megabytes(capMB), timeout
-	check.DiskMargin, check.BackupsKept = megabytes(marginMB), kept
+	check.Root, check.Data, check.DiskMargin = backups.Layout.Root, backups.Layout.Data, backups.DiskMargin
+	check.DownloadCap, check.DownloadTimeout, check.BackupsKept = megabytes(capMB), timeout, kept
 	check.PgDump, check.names = cmp.Or(env.Value("PG_DUMP_BIN"), "pg_dump"), env
 	return check, nil
 }
 
-// BackupSettingsFrom reads the install root and the data folder env holds, the only update settings a backup reads.
-func BackupSettingsFrom(env gonsole.Env) (Layout, error) {
+// BackupSettings is what a backup reads from the update settings, its disk margin in bytes.
+type BackupSettings struct {
+	Layout     Layout
+	DiskMargin int64
+}
+
+// BackupSettingsFrom reads the install root, the data folder and the disk margin env holds for a backup.
+func BackupSettingsFrom(env gonsole.Env) (BackupSettings, error) {
 	root, rootErr := gonsole.Parse(env, "INSTALL_ROOT", "", absolute)
 	data, dataErr := gonsole.Parse(env, "DATA_DIR", "", absolute)
-	if err := errors.Join(rootErr, dataErr, outsideRoot(env, root, data)); err != nil {
-		return Layout{}, err
+	marginMB, marginErr := env.Count("UPDATE_DISK_MARGIN_MB", 64, gonsole.AllowZero(), gonsole.AtMost(maxMegabytes))
+	if err := errors.Join(rootErr, dataErr, outsideRoot(env, root, data), marginErr); err != nil {
+		return BackupSettings{}, err
 	}
-	return Layout{Root: root, Data: data}, nil
+	return BackupSettings{Layout: Layout{Root: root, Data: data}, DiskMargin: megabytes(marginMB)}, nil
 }
 
 // outsideRoot refuses a data folder that is the install root or stands inside it.

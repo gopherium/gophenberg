@@ -156,21 +156,16 @@ func TestABackupMakesAMissingFolderOnlyItsOwnerOpens(t *testing.T) {
 }
 
 func TestABackupOnlyItsOwnerReads(t *testing.T) {
-	sqlite.RunAsUser(t)
-	db := migrated(t)
-	if err := os.Chmod(liveFile(t, db), 0o644); err != nil {
-		t.Fatalf("opening the live file to every reader: %v", err)
-	}
+	t.Parallel()
+
 	folder := openFolder(t)
 
-	taken := takeBackup(t, db, sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Manual})
+	taken := takeBackup(t, readableMigrated(t), sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Manual})
 
 	if got := mode(t, taken.Path); got != 0o600 {
 		t.Errorf("the backup has the mode %o, want 600", got)
 	}
-	if got := mode(t, folder); got != 0o700 {
-		t.Errorf("the backups folder has the mode %o, want the 755 it had closed to 700", got)
-	}
+	wantLeftOpen(t, folder)
 }
 
 func TestABackupNamesAFolderItCannotMake(t *testing.T) {
@@ -290,23 +285,6 @@ func TestABackupWhoseNameAnotherRunTookAnswersErrSnapshotRunning(t *testing.T) {
 
 	if !errors.Is(err, dbsqlite.ErrSnapshotRunning) || !strings.Contains(err.Error(), "another run took the backup") {
 		t.Errorf("TakeBackup() of a name another run took error = %v, want ErrSnapshotRunning", err)
-	}
-}
-
-func TestABackupItCannotKeepFromOtherUsersIsRemoved(t *testing.T) {
-	sqlite.FailModes(t, errPlanted)
-	folder := backupFolder(t)
-	plantBackups(t, folder, "0.19.0-20200101T031500Z-update.sqlite")
-
-	taken, err := sqlite.TakeBackup(t.Context(), migrated(t),
-		sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Scheduled, Kept: 1})
-
-	if !errors.Is(err, errPlanted) || taken.Path != "" {
-		t.Errorf("TakeBackup() with a mode it could not set = %+v, %v, want no path and the planted failure", taken, err)
-	}
-	want := []string{snapshotLock, "0.19.0-20200101T031500Z-update.sqlite"}
-	if got := folderHolds(t, folder); !slices.Equal(got, want) {
-		t.Errorf("the folder holds %q, want %q, the copy removed and nothing pruned", got, want)
 	}
 }
 

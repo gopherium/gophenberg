@@ -3,10 +3,10 @@
 package sqlite_test
 
 import (
+	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -24,6 +24,16 @@ func openFolder(t *testing.T) string {
 	return folder
 }
 
+// readableMigrated returns a handle on a fresh migrated file every user may read.
+func readableMigrated(t *testing.T) *sql.DB {
+	t.Helper()
+	db := migrated(t)
+	if err := os.Chmod(liveFile(t, db), 0o644); err != nil {
+		t.Fatalf("opening the live file to every reader: %v", err)
+	}
+	return db
+}
+
 // linkTo returns a link named backups in a fresh folder of t that names folder.
 func linkTo(t *testing.T, folder string) string {
 	t.Helper()
@@ -34,14 +44,11 @@ func linkTo(t *testing.T, folder string) string {
 	return link
 }
 
-// wantLeftOpen fails t unless folder keeps the mode 755 and holds nothing, as a backup that changed nothing leaves it.
+// wantLeftOpen fails t unless folder keeps the mode 755 it had.
 func wantLeftOpen(t *testing.T, folder string) {
 	t.Helper()
 	if got := mode(t, folder); got != 0o755 {
 		t.Errorf("the open folder has the mode %o, want the 755 it had", got)
-	}
-	if got := folderHolds(t, folder); len(got) != 0 {
-		t.Errorf("the open folder holds %q, want no copy started", got)
 	}
 }
 
@@ -51,39 +58,14 @@ func manualBackup(t *testing.T, folder string) (sqlite.TakenBackup, error) {
 	return sqlite.TakeBackup(t.Context(), migrated(t), sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Manual})
 }
 
-// wantFolderNamed fails t unless err is the planted failure to keep folder from other users.
-func wantFolderNamed(t *testing.T, err error, folder string) {
-	t.Helper()
-	want := "sqlite: keep the backups folder " + folder + " from other users: "
-	if err == nil || !strings.HasPrefix(err.Error(), want) {
-		t.Errorf("TakeBackup() error = %v, want one under %q", err, want)
-	}
-}
-
-func TestABackupClosesTheFolderALinkNames(t *testing.T) {
-	sqlite.RunAsUser(t)
-	elsewhere := openFolder(t)
-	link := linkTo(t, elsewhere)
-
-	taken := takeBackup(t, migrated(t), sqlite.BackupRequest{Folder: link, Kind: backupfiles.Manual})
-
-	if got := mode(t, elsewhere); got != 0o700 {
-		t.Errorf("the folder the link names has the mode %o, want 700", got)
-	}
-	if _, err := os.Stat(filepath.Join(elsewhere, filepath.Base(taken.Path))); err != nil {
-		t.Errorf("the backup in the folder the link names: %v, want it there", err)
-	}
-}
-
-func TestABackupAsRootStopsAtAnOpenFolderAndLeavesItAsItIs(t *testing.T) {
+func TestABackupAsRootLandsInAnOpenFolderAndLeavesItAsItIs(t *testing.T) {
 	sqlite.RunAsRoot(t)
 	folder := openFolder(t)
 
-	_, err := manualBackup(t, folder)
+	taken := takeBackup(t, readableMigrated(t), sqlite.BackupRequest{Folder: folder, Kind: backupfiles.Manual})
 
-	wantFolderNamed(t, err, folder)
-	if err == nil || !strings.Contains(err.Error(), "a run as root") {
-		t.Errorf("TakeBackup() as root error = %v, want one that says a run as root left the folder", err)
+	if got := mode(t, taken.Path); got != 0o600 {
+		t.Errorf("the backup taken as root of a file every user reads has the mode %o, want 600", got)
 	}
 	wantLeftOpen(t, folder)
 }
@@ -93,39 +75,12 @@ func TestABackupAsRootLeavesTheFolderALinkNamesAsItIs(t *testing.T) {
 	elsewhere := openFolder(t)
 	link := linkTo(t, elsewhere)
 
-	_, err := manualBackup(t, link)
+	taken := takeBackup(t, migrated(t), sqlite.BackupRequest{Folder: link, Kind: backupfiles.Manual})
 
-	wantFolderNamed(t, err, link)
+	if _, err := os.Stat(filepath.Join(elsewhere, filepath.Base(taken.Path))); err != nil {
+		t.Errorf("the backup in the folder the link names: %v, want it there", err)
+	}
 	wantLeftOpen(t, elsewhere)
-}
-
-func TestABackupLeavesAFolderOnlyItsOwnerOpensAsItIs(t *testing.T) {
-	sqlite.FailModes(t, errPlanted)
-	folder := backupFolder(t)
-	plantBackups(t, folder)
-
-	_, err := manualBackup(t, folder)
-
-	if !errors.Is(err, errPlanted) || !strings.HasPrefix(err.Error(), "sqlite: keep the backup "+folder+"/") {
-		t.Errorf("TakeBackup() error = %v, want the mode of the copy failing and the folder left as it is", err)
-	}
-}
-
-func TestABackupStopsWhenItCannotCloseAnOpenFolder(t *testing.T) {
-	sqlite.RunAsUser(t)
-	sqlite.FailModes(t, errPlanted)
-	folder := openFolder(t)
-	plantBackups(t, folder, "0.19.0-20200101T031500Z-update.sqlite")
-
-	taken, err := manualBackup(t, folder)
-
-	wantFolderNamed(t, err, folder)
-	if !errors.Is(err, errPlanted) || taken.Path != "" {
-		t.Errorf("TakeBackup() = %+v, %v, want no path and the planted failure", taken, err)
-	}
-	if got := folderHolds(t, folder); !slices.Equal(got, []string{"0.19.0-20200101T031500Z-update.sqlite"}) {
-		t.Errorf("the folder holds %q, want no copy started", got)
-	}
 }
 
 func TestABackupNamesALinkToAFolderThatIsGone(t *testing.T) {
@@ -138,7 +93,9 @@ func TestABackupNamesALinkToAFolderThatIsGone(t *testing.T) {
 
 	_, err := manualBackup(t, folder)
 
-	wantFolderNamed(t, err, folder)
+	if want := "sqlite: take the backup " + folder + "/"; err == nil || !strings.HasPrefix(err.Error(), want) {
+		t.Errorf("TakeBackup() through a link to a folder that is gone error = %v, want one under %q", err, want)
+	}
 }
 
 func TestABackupLeavesAFileWhereItsFolderGoesAsItIs(t *testing.T) {
